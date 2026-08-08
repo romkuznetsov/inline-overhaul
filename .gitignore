@@ -1,0 +1,11 @@
+node_modules/
+data.json
+DEV_LOG.md
+WORK_TODO.md
+AGENTS.md
+BUILD_GUARDRAILS.md
+log/
+*.log
+*.ndjson
+*.tmp
+*.bak

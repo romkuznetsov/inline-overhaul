@@ -1,0 +1,10 @@
+{
+  "id": "inline-overhaul",
+  "name": "Inline Overhaul",
+  "version": "0.1.0-beta.1",
+  "minAppVersion": "1.5.0",
+  "description": "Unified inline workflow platform: navigation, PKM tags, visual focus, and transforms.",
+  "author": "Kuzne",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}
