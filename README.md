@@ -2,6 +2,8 @@
 
 Inline Overhaul adds desktop Obsidian commands for inline-note navigation, PKM field and tag cycling, TagWheel editing, and opt-in inline-to-note transforms.
 
+See [Setup and user guide](instructions.md) for installation, configuration, feature examples, Transform safety, and troubleshooting.
+
 > [!WARNING]
 > This is a public beta. Back up your vault before installing or updating. Test important workflows on non-critical notes first.
 
