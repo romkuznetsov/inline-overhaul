@@ -1,0 +1,96 @@
+# Опись настроек версии 1 (коммит a018bb0), извлечённая из PRD 1.0
+# Поля через табуляцию: раздел, v1, было, стало-name, стало-desc, path
+# Это входные данные для reconcile.js. Файл не правится: он фиксирует прошлое.
+9.1 General → Modules	R:1987	`<dynamic> module` / `Enable/disable … globally`	`Navigation`	`Commands that move lines, text and the cursor.`	`features.navigation.enabled`
+9.1 General → Modules	R:1987	—	`Tags & PKM`	`Inline tag fields, value cycling and TagWheel.`	`features.pkm.enabled`
+9.1 General → Modules	R:1987	—	`Visual`	`Tag styling and hierarchy bars in the editor.`	`features.visual.enabled`
+9.1 General → Modules	R:1987	—	`Transform`	`Turning inline items into separate notes.`	`features.transform.enabled`
+9.1 General → Modules	R:1997	`Undo last settings change`	—	—	`DELETE` (Р7; остаётся командой)
+9.2 General → Expanded select all	R:2020	`Enhanced Mod+A`	`Expanded select all`	`Ctrl+A selects the current line, then wider scopes on each further press.`	`editor.selectAll.enabled`
+9.2 General → Expanded select all	R:2029	`Select-all mode`	`Selection steps`	`How much each further press adds.`	`editor.selectAll.mode`
+9.2 General → Expanded select all	R:2043	`Use multi-press delay`	`Count presses by timer`	`Off: the next step is chosen from what is already selected.`	`editor.selectAll.useDelay`
+9.2 General → Expanded select all	R:2053	`Multi-press delay`	`Time between presses`	`How long a press still counts as part of the same sequence.`	`editor.selectAll.delayMs`
+9.2 General → Expanded select all	R:2066	`Last press clears selection`	`Clear selection at the end`	`One more press after the last step returns the cursor to where the sequence started.`	`editor.selectAll.clearOnLast`
+9.4 Navigation → Moving lines	R:1688	`Enable Move Line` / `Command IDs: …`	`Move lines`	`Move the current line or its indented subtree up and down.`	`navigation.moveLine.enabled`
+9.4 Navigation → Moving lines	R:1698	`No-selection mode`	`Without a selection`	`Whether indented child lines move along with the line.`	`navigation.moveLine.noSelectionMode`
+9.4 Navigation → Moving lines	R:1709	`Header mode`	`On a heading line`	`Whether the whole section moves with its heading.`	`navigation.moveLine.headerMode`
+9.4 Navigation → Moving lines	R:1720	`Cross-section allowed`	`Cross heading boundaries`	`Allow a line to move out of its section into the next one.`	`navigation.moveLine.crossSectionAllowed`
+9.4 Navigation → Moving lines	R:1730	`Highlight moved lines`	`Select after moving`	`Leave the moved lines selected so you can see what moved.`	`navigation.moveLine.highlightMovedLines`
+9.5 Navigation → Moving text inside a line	R:1746	`Enable inline text move` / `Command IDs: …`	`Move selected text`	`Shift the selected text left or right without cutting and pasting.`	`navigation.moveSelection.inlineEnabled`
+9.5 Navigation → Moving text inside a line	R:1754	`Inline move mode`	`Movement step`	`How far the selection jumps on each press.`	`navigation.moveSelection.inlineMoveMode`
+9.6 Navigation → Cycling line prefixes	R:1771	`Enable PrefixCycler`	`Cycle line prefixes`	`Works when the cursor is at the very start of a line with no indent.`	`navigation.moveSelection.prefixCyclerEnabled`
+9.6 Navigation → Cycling line prefixes	R:1779	`Prefix Cycle Order` (длинное описание)	`Prefix order`	`One prefix per line. Right moves down the list, Left moves back up.`	`navigation.moveSelection.cycleOrder`
+9.6 Navigation → Cycling line prefixes	R:1791	`On cycle end`	`After the last prefix`	`What Right does once the list is exhausted.`	`navigation.moveSelection.onCycleEnd`
+9.6 Navigation → Cycling line prefixes	R:1802	`Indent fallback`	`Fall back to indenting`	`When no prefix change applies, the same hotkeys change the indent level.`	`navigation.moveSelection.indentFallbackEnabled`
+9.7 Navigation → Jumping between headings	R:1817	`Enable Jump To Header` / `Command IDs: …`	`Jump between headings`	`Move the cursor to the previous or next Markdown heading.`	`navigation.jumpToHeader.enabled`
+9.7 Navigation → Jumping between headings	R:1825	`Center cursor`	`Center the target`	`Scroll so the target heading sits near the middle of the view.`	`navigation.jumpToHeader.centerCursor`
+9.7 Navigation → Jumping between headings	R:1833	`Jump mode`	`Jump target`	`Land on section boundaries, or step through every line.`	`navigation.jumpToHeader.jumpMode`
+9.7 Navigation → Jumping between headings	R:1845	`Edge behavior`	`Which edge`	`Which end of a section to land on.`	`navigation.jumpToHeader.edgeMode`
+9.7 Navigation → Jumping between headings	R:1858	`Jump cursor position`	`Cursor on arrival`	`Where the cursor lands on the target line.`	`navigation.jumpToHeader.jumpCursorPosition`
+9.8 Navigation → Moving between line segments	R:1871	`Enable Navigate Inline` / `Command IDs: …`	`Move between segments`	`Step the cursor through the current line's segments.`	`navigation.navigateInline.enabled`
+9.8 Navigation → Moving between line segments	R:1879	`Step mode`	`Step size`	`How far each press moves.`	`navigation.navigateInline.stepMode`
+9.8 Navigation → Moving between line segments	R:1891	`Allow crossing separators`	`Continue past a separator`	`Off: the cursor stays inside the current segment.`	`navigation.navigateInline.boundaryJump`
+9.8 Navigation → Moving between line segments	R:1899	`On boundary`	`At the last position`	`What happens when there is nothing further in that direction.`	`navigation.navigateInline.onBoundary`
+9.10 Tags & PKM → Line format	R:5922	`Separator 1` (описание за тумблером подсказок)	`First separator`	`Marks where the left segment ends and the text begins.`	`pkm.lineFormat.separator1`
+9.10 Tags & PKM → Line format	R:5941	`Separator 2`	`Second separator`	`Marks where the text ends and the right segment begins.`	`pkm.lineFormat.separator2`
+9.11 Tags & PKM → Behavior	R:6707	`Subtag format` / `… status_tags commands`	`Child tag format`	`How a child value is written next to its parent tag.`	`pkm.behavior.childTagFormat`
+9.11 Tags & PKM → Behavior	R:6720	`Line prefix after end of cycle`	`When a line empties out`	`What is left on the line when cycling removes the last value.`	`pkm.behavior.cycleEndBehavior`
+9.11 Tags & PKM → Behavior	R:6733	`Cursor behavior`	`Cursor after an action`	`Where the cursor lands once a field has been changed.`	`pkm.behavior.cursorPolicy`
+9.12 Tags & PKM → Field placement	R:6748	`Minimal mode separators`	`Keep the prefix in insert-only mode`	`Insert the value in its usual place without touching the line prefix.`	`pkm.placement.keepPrefixInsertOnly`
+9.12 Tags & PKM → Field placement	R:6761	`OFF mode prefix` (описание в 3 строки)	`Add a bullet in strict mode`	`Applies to fields with no prefix of their own. Headings are never changed.`	`pkm.placement.bulletInStrict`
+9.12 Tags & PKM → Field placement	R:6774	`Minimal mode prefix`	`Allow the field's prefix in insert-only mode`	`Off: the line keeps whatever prefix it already had.`	`pkm.placement.fieldPrefixInsertOnly`
+9.12 Tags & PKM → Field placement	R:6787	`Full mode: where to input element if cursor inside text?`	`Insert position in free mode`	`Where the value goes when the cursor is inside the text.`	`pkm.placement.freeInsertPosition`
+9.13 Tags & PKM → Prefix priority	R:6181	`Main checkbox priority`	`Decide by`	`Which ordering settles a conflict.`	см. 8.3
+9.13 Tags & PKM → Prefix priority	R:6195	`Fields order mode`	`Field order source`	`Used only when conflicts are settled by field order.`	см. 8.3
+9.13 Tags & PKM → Prefix priority	R:6209	`Tag/Subtag priority`	`Parent or child wins`	`When a parent tag and its child both set a prefix.`	см. 8.3
+9.14 Tags & PKM → Config note	R:5817	`Config Export Mode`	`Config note detail`	`How much explanation the generated note contains.`	`pkm.configNote.detail`
+9.14 Tags & PKM → Config note	R:5833	`TagWheel Note Editor`	`Config note`	`Open the note, edit it, then apply it back to these settings.`	кнопки `Open` + `Apply`
+9.14 Tags & PKM → Config note	R:1666	`Open Detailed Template` (был в Advanced)	`Template note`	`A reference note showing every supported config block.`	кнопка `Open`
+9.15 Visual → Tag appearance	R:753	`Opacity Left`	`Left segment opacity`	`Fades tags before the first separator.`	`visual.tags.opacityLeft`
+9.15 Visual → Tag appearance	R:814	`Opacity Right`	`Right segment opacity`	`Fades tags after the second separator.`	`visual.tags.opacityRight`
+9.15 Visual → Tag appearance	R:875	`Tag text size`	`Text size`	`Scales the text inside tag bubbles.`	`visual.tags.textSizePct`
+9.15 Visual → Tag appearance	R:941	`Tag bubble size - width`	`Bubble width`	—	`visual.tags.bubbleWidthPct`
+9.15 Visual → Tag appearance	R:1007	`Tag bubble size - height`	`Bubble height`	—	`visual.tags.bubbleHeightPct`
+9.15 Visual → Tag appearance	R:1073	`Empty bubble size`	`Empty bubble width`	`Width of a bubble for a field that has no value yet.`	`visual.tags.emptyBubblePct`
+9.15 Visual → Tag appearance	R:1136	`Tag shape` / `Round <-> Square`	`Bubble corners`	`From fully rounded to square.`	`visual.tags.cornersPct`
+9.16 Visual → Hierarchy bars	R:1206	`Activate strip`	`Hierarchy bars`	`Draw bars beside lines that carry the chosen field.`	`visual.hierarchyBars.active`
+9.16 Visual → Hierarchy bars	R:1216	`Strip field`	`Field to show`	`The tag field whose parent and child values colour the bars.`	`visual.hierarchyBars.fieldId`
+9.16 Visual → Hierarchy bars	R:1232	`Strip tag visibility`	`Show the field's tag`	`Off: the bars replace the tag in the line.`	`visual.hierarchyBars.tagVisibility`
+9.16 Visual → Hierarchy bars	R:1251	`Hide separator?`	`Hide the empty separator`	`Applies when hiding the tag leaves a separator with nothing beside it.`	`visual.hierarchyBars.hideSeparatorWhenOnlyStripToken`
+9.16 Visual → Hierarchy bars	R:1262	`Strip mode`	`Bar arrangement`	`Whether the parent bar stays in a fixed lane.`	`visual.hierarchyBars.mode`
+9.16 Visual → Hierarchy bars	R:1278	`Stripes to show`	`Number of bars`	`Parent, child and grandchild levels.`	`visual.hierarchyBars.stripesToShow`
+9.16 Visual → Hierarchy bars	R:1313	`Strip thickness`	`Bar thickness`	—	`visual.hierarchyBars.thickness`
+9.16 Visual → Hierarchy bars	R:1348	`Parent/child strip distance`	`Space between bars`	—	`visual.hierarchyBars.childOffset`
+9.16 Visual → Hierarchy bars	R:1383	`Strip spacing`	`Distance from the text`	—	`visual.hierarchyBars.spacing`
+9.17 Visual → TagWheel panel	R:686	`Show prefix`	`Show tag markers`	`Off: markers are hidden in the panel only, not in the note.`	`visual.tagWheel.showMarkers`
+9.17 Visual → TagWheel panel	R:498	`<dynamic>` цвет текста	`Panel text colour`	—	`visual.tagWheel.textColor`
+9.17 Visual → TagWheel panel	R:498	`<dynamic>` цвет фона	`Panel background`	—	`visual.tagWheel.fillColor`
+9.18 Visual → TagWheel scroller	R:561	`TagWheel Scroller`	`Scroller`	`Show the current field's values as an overlay.`	`visual.tagWheel.scroller.enabled`
+9.18 Visual → TagWheel scroller	R:573	`Scroller direction`	`Opens`	`Where the overlay appears relative to the line.`	`visual.tagWheel.scroller.direction`
+9.18 Visual → TagWheel scroller	R:592	`Scroller size` / `(1..20)`	`Values per side`	`How many neighbouring values are visible.`	`visual.tagWheel.scroller.size`
+9.19 Transform → Inline to note	T:1796	`Inline2Note enabled`	`Inline to note`	`Allow the transform command to create and change notes.`	`transform.inline2note.enabled`
+9.19 Transform → Inline to note	T:1806	`Templates folder`	`Templates folder`	`Folder searched for the Markdown templates below.`	`transform.inline2note.templatesFolder`
+9.19 Transform → Inline to note	T:1820	`Output folder for new notes`	`New notes folder`	`Empty uses the folder of the current note.`	`transform.inline2note.outputFolder`
+9.19 Transform → Inline to note	T:1835	`Default template`	`Default template`	`Used when no smart rule matches.`	`transform.inline2note.defaultTemplate`
+9.20 Transform → Naming	T:1850	`Note name mode`	`Note name`	`Take the title from the line, or ask each time.`	`transform.inline2note.noteName.mode`
+9.20 Transform → Naming	T:1863	`Explicit name delimiters`	`Title delimiters`	`Text between these characters becomes the title.`	`transform.inline2note.noteName.delimiters`
+9.20 Transform → Naming	T:1876	`Auto title word count`	`Words in a fallback title`	`Used when there are no delimiters and no heading.`	`transform.inline2note.noteName.wordCount`
+9.20 Transform → Naming	T:1890	`Name collision mode`	`If the note already exists`	`What to do when a note of that name is already there.`	`transform.inline2note.nameCollision.mode`
+9.21 Transform → Note content	T:1904	`Where to place inline text?`	`Place the text`	`Where the transferred text goes in the note.`	`transform.inline2note.placement.position`
+9.21 Transform → Note content	T:1917	`Inserted block header`	`Heading above the text`	`What to put above the transferred text.`	`transform.inline2note.placement.headerMode`
+9.21 Transform → Note content	T:1930	`Custom header text`	`Heading text`	—	`transform.inline2note.placement.customHeader`
+9.21 Transform → Note content	T:1941	`Datetime header format`	`Date format`	`Available tokens: YYYY MM DD HH mm ss.`	`transform.inline2note.placement.datetimeFormat`
+9.21 Transform → Note content	T:1953	`YAML note format`	`Property values`	`Raw keeps the tokens as written; Clean stores the plain value.`	`transform.inline2note.yamlFormat`
+9.21 Transform → Note content	T:1976	`Sublines behavior`	`Indented child lines`	`Keep them on the source line, or move them into the note.`	`transform.inline2note.sublines`
+9.21 Transform → Note content	T:1966	`Open transformed note`	`Open the note afterwards`	`Open the created or updated note when the transform finishes.`	`transform.inline2note.openTarget`
+9.22 Transform → Source line	T:1997	`Replace payload with note link`	`Replace with a link`	`Swap the transferred text for a link to the new note.`	`transform.inline2note.sourceProcessing.replaceWithLink`
+9.22 Transform → Source line	T:2007	`Processed token`	`Processed marker`	`Text added to the line after a successful transform. Empty adds nothing.`	`transform.inline2note.sourceProcessing.token`
+9.22 Transform → Source line	T:2018	`Processed token panel`	`Marker position`	`Which segment the marker goes into.`	`transform.inline2note.sourceProcessing.panel`
+9.22 Transform → Source line	T:1989	`Flying button` / `Beta limitation: …`	—	—	`DELETE` (Р7, З8)
+9.24 Advanced → Generated files	R:1636	`Active Rules Path`	`Generated rules file`	`Vault path where the generated rules are stored.`	`advanced.generatedRulesPath`
+9.24 Advanced → Generated files	R:1651	`Regenerate Rules Now` / `Force rewrite … from plugin JSON`	`Regenerate`	`Rewrite the rules file from the current field settings.`	кнопка
+9.24 Advanced → Generated files	R:1628	`Execution Backend`	—	—	`DELETE` (Р7, единственное значение)
+9.25 Advanced → Diagnostics	R:1577	`Enable Dev Mode`	`Developer logging`	`Write a session log into your vault for troubleshooting.`	`advanced.devMode.enabled`
+9.25 Advanced → Diagnostics	R:1587	`Generate log for AI?`	`Machine-readable log`	`Also write a detailed .ndjson log next to the readable one.`	`advanced.devMode.aiLog`
+9.25 Advanced → Diagnostics	R:1598	`Log Path` / `Plugin writes <path>.new.* …`	`Log file`	`Vault path for the log files.`	`advanced.devMode.logPath`
+9.25 Advanced → Diagnostics	R:1558	`Flush Settings Now`	—	—	`DELETE` (Р7)

@@ -5,7 +5,6 @@
 const fs = require("fs");
 const path = require("path");
 
-const prdPath = process.argv[2];
 const protoPath = process.argv[3];
 const out = process.argv[4];
 
@@ -27,18 +26,14 @@ for (const g of SCHEMA) {
   }
 }
 
-/* ---- the PRD side: every row of every inventory table in section 9 ---- */
-const prd = fs.readFileSync(prdPath, "utf8");
-const sec9 = prd.slice(prd.indexOf("## 9. Инвентаризация"), prd.indexOf("## 10. Самописные редакторы"));
+/* ---- the version 1 side: the frozen extract of the PRD 1.0 inventory ----
+   PRD 1.1 no longer carries those tables, so the rows live in a data file
+   next to this script. It records the past and is not edited. */
+const tsv = fs.readFileSync(path.join(__dirname, "v1_inventory.tsv"), "utf8");
 const rows = [];
-let heading = "";
-for (const line of sec9.split("\n")) {
-  const h = /^### (9\.\d+) (.+)$/.exec(line);
-  if (h) { heading = h[1] + " " + h[2]; continue; }
-  if (!line.startsWith("|") || /^\|\s*-+/.test(line) || /^\|\s*v1\s*\|/.test(line)) continue;
-  const cells = line.split("|").slice(1, -1).map(c => c.trim());
-  if (cells.length < 5) continue;
-  const [v1, was, becameName, becameDesc, pathCell] = cells;
+for (const line of tsv.split("\n")) {
+  if (!line || line.startsWith("#")) continue;
+  const [heading, v1, was, becameName, becameDesc, pathCell] = line.split("\t");
   rows.push({ heading, v1, was, becameName, becameDesc, pathCell });
 }
 

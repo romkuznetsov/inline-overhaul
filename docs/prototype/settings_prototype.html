@@ -570,10 +570,17 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-fields__list { background: var(--background-secondary); padding: 6px; flex: 1 1 auto; }
 .io-fields__item {
-  display: flex; align-items: center; gap: 7px; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  font-size: var(--font-ui-small); color: var(--text-muted);
+  padding: 4px 4px 4px 8px; border-radius: var(--radius-s);
+}
+/* Выбор Field — кнопка внутри ряда: рядом с ней стоят стрелки, а кнопку
+   внутрь кнопки вложить нельзя. */
+.io-fields__pick {
+  display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0;
   appearance: none; border: 0; background: transparent; cursor: pointer;
-  font-family: inherit; font-size: var(--font-ui-small); color: var(--text-muted);
-  padding: 6px 8px; border-radius: var(--radius-s);
+  font-family: inherit; font: inherit; color: inherit; text-align: left;
+  padding: 2px 0; border-radius: var(--radius-s);
 }
 .io-fields__item:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .io-fields__item[aria-current="true"] {
@@ -1126,7 +1133,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   opacity: 0.65;
 }
 .io-fields__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.io-fields__tools { display: inline-flex; gap: 0; margin-left: auto; flex: 0 0 auto; }
+.io-fields__tools {
+  display: inline-flex; gap: 0; flex: 0 0 auto;
+  width: 46px; justify-content: flex-end;
+  opacity: 0; transition: opacity 90ms ease-out;
+}
+.io-fields__item:hover .io-fields__tools,
+.io-fields__item:focus-within .io-fields__tools,
+.io-fields__item[aria-current="true"] .io-fields__tools { opacity: 1; }
+.io-fields__tools .io-icon { width: 21px; height: 21px; font-size: 11px; }
 .io-fields__item .io-chip { margin-left: 4px; }
 .io-fields__item[aria-current="true"] .io-chip { margin-left: 4px; }
 
@@ -2911,6 +2926,29 @@ function moveFieldToSideEnd(dragged, side) {
   renderContent();
 }
 
+/* Стрелка на краю стороны переносит Field через линию: иначе с клавиатуры
+   сторону не сменить, а тянуть мышью — единственный путь, чего быть не должно. */
+function stepField(f, dir) {
+  const owner = blockOwner(f);
+  const side = owner.position;
+  const peers = FIELDS.filter(x => !x.parent && x.position === side);
+  const i = peers.indexOf(owner);
+  const target = peers[i + dir];
+  if (target) {
+    if (dir < 0) moveFieldBefore(owner, target);
+    else if (peers[i + 2]) moveFieldBefore(owner, peers[i + 2]);
+    else moveFieldToSideEnd(owner, side);
+    return;
+  }
+  /* Край стороны: уходим через линию. Left Block нарисован выше Right, и
+     стрелка обязана этому подчиняться: вниз с низа Left попадаешь в начало
+     Right, вверх с верха Right — в конец Left. */
+  const other = side === "Left" ? "Right" : "Left";
+  const there = FIELDS.filter(x => !x.parent && x.position === other);
+  if (dir > 0 && there[0]) moveFieldBefore(owner, there[0]);
+  else moveFieldToSideEnd(owner, other);
+}
+
 function renderFieldList(list) {
   let dragged = null;
 
@@ -2932,8 +2970,7 @@ function renderFieldList(list) {
     if (!rows.length) el("div", "io-side__empty", sec, "nothing on this side");
 
     rows.forEach(f => {
-      const b = el("button", "io-fields__item" + (f.parent ? " io-fields__item--child" : ""), sec);
-      b.type = "button";
+      const b = el("div", "io-fields__item" + (f.parent ? " io-fields__item--child" : ""), sec);
       const current = f.id === selectedFieldId;
       b.setAttribute("aria-current", current ? "true" : "false");
 
@@ -2957,10 +2994,23 @@ function renderFieldList(list) {
         if (dragged) moveFieldBefore(dragged, f);
       });
 
-      el("span", "io-fields__name", b, f.name);
-      cssVar(el("span", "io-chip io-chip--typed", b, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
+      /* выбор — кнопка внутри ряда, а не сам ряд: рядом стоят ещё две кнопки */
+      const pick = el("button", "io-fields__pick", b);
+      pick.type = "button";
+      el("span", "io-fields__name", pick, f.name);
+      cssVar(el("span", "io-chip io-chip--typed", pick, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
+      pick.addEventListener("click", () => { selectedFieldId = f.id; renderContent(); });
 
-      b.addEventListener("click", () => { selectedFieldId = f.id; renderContent(); });
+      /* Дочерний Field ходит за родителем, своих стрелок у него нет */
+      const tools = el("span", "io-fields__tools", b);
+      if (!f.parent) {
+        const up = iconBtn(tools, "↑", "Move " + f.name + " up",
+          "Move up, and across the line at the top");
+        up.addEventListener("click", ev => { ev.stopPropagation(); stepField(f, -1); });
+        const down = iconBtn(tools, "↓", "Move " + f.name + " down",
+          "Move down, and across the line at the bottom");
+        down.addEventListener("click", ev => { ev.stopPropagation(); stepField(f, 1); });
+      }
     });
     return sec;
   };
@@ -2983,7 +3033,7 @@ function renderFieldEditor(host) {
   const listCol = el("div", "io-fields__col", wrap);
   const listHead = el("div", "io-fields__colhead", listCol);
   el("span", null, listHead, "Fields");
-  attachTip(listHead, "Drag a Field across the line to change which side it is written on",
+  attachTip(listHead, "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
     "the Fields list", listCol);
   const list = el("div", "io-fields__list", listCol);
   renderFieldList(list);
