@@ -86,11 +86,6 @@ export class Describer {
       paint(tip, it.tip);
     }
 
-    if (it.searchTerms && it.searchTerms.length) {
-      const say = o.previouslyCalled || DEFAULT_PREVIOUSLY;
-      frag.createEl("div", { text: say(it.searchTerms), cls: "io-formerly" });
-    }
-
     this.cache.set(it.id, { key, frag });
     return frag;
   }

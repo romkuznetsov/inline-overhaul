@@ -182,9 +182,9 @@ async function main(): Promise<void> {
     void store.set("editor.selectAll.useDelay", true);
     assert.equal(delay?.visible?.(), true, "таймер включён — задержка видна");
 
-    assert.equal(steps?.disabled?.(), true, "пока функция выключена, шаги неактивны");
+    assert.equal(steps?.control?.disabled?.(), true, "пока функция выключена, шаги неактивны");
     void store.set("editor.selectAll.enabled", true);
-    assert.equal(steps?.disabled?.(), false);
+    assert.equal(steps?.control?.disabled?.(), false);
   });
 
   /* ---- описания ------------------------------------------------------- */
@@ -197,13 +197,33 @@ async function main(): Promise<void> {
     ]);
   });
 
-  await test("старое имя попадает в описание, иначе поиск его не найдёт (П-4)", () => {
+  await test("старое имя уходит в aliases, а не в видимый текст (П-4)", () => {
     const { pane } = makePane();
     const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
       ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
     const it = items.find(i => i.name === "Expanded select all");
+    assert.deepEqual(it?.aliases, ["Enhanced Mod+A"], "старое имя должно попасть в aliases");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
-    assert.ok(text.includes("Previously called Enhanced Mod+A"), "нет строки о переименовании: " + text);
+    assert.ok(!text.includes("Enhanced Mod+A"), "и не должно попасть в видимое описание: " + text);
+  });
+
+  await test("единица слайдера уходит в displayFormat (Ст5)", () => {
+    const { pane } = makePane();
+    const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
+      ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
+    const delay = items.find(i => i.name === "Time between presses");
+    assert.equal(delay?.control?.displayFormat?.(700), "700 ms");
+  });
+
+  await test("неактивность живёт в контроле, а не в определении", () => {
+    const { pane, store } = makePane();
+    const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
+      ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
+    const steps = items.find(i => i.name === "Selection steps");
+    assert.equal(steps?.disabled, undefined, "у определения контрола disabled нет");
+    assert.equal(steps?.control?.disabled?.(), true);
+    void store.set("editor.selectAll.enabled", true);
+    assert.equal(steps?.control?.disabled?.(), false);
   });
 
   await test("подсказка уходит из описания, когда Show tips выключен", () => {

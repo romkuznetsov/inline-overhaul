@@ -16,6 +16,9 @@ class ConfigStore {
     this.listeners = new Set();
     this.saveTimer = null;
     this.lastSavedAt = null;
+    this.coalesceWindowMs = options.coalesceWindowMs || 400;
+    this.lastUndoKey = null;
+    this.lastUndoAt = null;
   }
 
   async init() {
@@ -49,7 +52,17 @@ class ConfigStore {
     }
   }
 
-  update(mutator, reason) {
+  /**
+   * opts (PRD 5.5):
+   *   undoable: false  - изменение не попадает в undo-стек (CS2);
+   *   coalesceKey      - несколько записей с одним ключом внутри
+   *                      coalesceWindowMs склеиваются в одну запись undo (CS3).
+   *
+   * Склейка нужна слайдерам: платформа зовёт запись на каждый шаг протяжки, и
+   * без неё одна протяжка забивает весь стек, а «отменить» откатывает один
+   * пиксель вместо жеста (дефект A6).
+   */
+  update(mutator, reason, opts) {
     const before = this.getSnapshot();
     const next = mutator(this.getSnapshot());
     if (!this.isObj(next)) return false;
@@ -63,8 +76,25 @@ class ConfigStore {
     }
     if (isSame) return false;
 
-    this.undoStack.push(before);
-    if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
+    const undoable = !opts || opts.undoable !== false;
+    const key = opts && opts.coalesceKey ? String(opts.coalesceKey) : null;
+    const now = Date.now();
+
+    if (undoable) {
+      const window = this.coalesceWindowMs || 400;
+      const sameKeyRecently = key
+        && this.lastUndoKey === key
+        && this.lastUndoAt !== null
+        && now - this.lastUndoAt < window
+        && this.undoStack.length > 0;
+
+      if (!sameKeyRecently) {
+        this.undoStack.push(before);
+        if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
+      }
+      this.lastUndoKey = key;
+      this.lastUndoAt = now;
+    }
 
     this.config = migratedNext;
     this.emit(reason || "update");
@@ -77,6 +107,8 @@ class ConfigStore {
   }
 
   undo(reason) {
+    this.lastUndoKey = null;
+    this.lastUndoAt = null;
     if (!this.undoStack.length) return false;
     this.config = this.migrateConfig(this.undoStack.pop());
     this.emit(reason || "undo");

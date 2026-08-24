@@ -1,8 +1,27 @@
 "use strict";
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // navigation_runtime.js
 var require_navigation_runtime = __commonJS({
@@ -11793,6 +11812,9 @@ var require_config_store = __commonJS({
         this.listeners = /* @__PURE__ */ new Set();
         this.saveTimer = null;
         this.lastSavedAt = null;
+        this.coalesceWindowMs = options.coalesceWindowMs || 400;
+        this.lastUndoKey = null;
+        this.lastUndoAt = null;
       }
       async init() {
         const raw = await this.plugin.loadData();
@@ -11820,7 +11842,17 @@ var require_config_store = __commonJS({
           }
         }
       }
-      update(mutator, reason) {
+      /**
+       * opts (PRD 5.5):
+       *   undoable: false  - изменение не попадает в undo-стек (CS2);
+       *   coalesceKey      - несколько записей с одним ключом внутри
+       *                      coalesceWindowMs склеиваются в одну запись undo (CS3).
+       *
+       * Склейка нужна слайдерам: платформа зовёт запись на каждый шаг протяжки, и
+       * без неё одна протяжка забивает весь стек, а «отменить» откатывает один
+       * пиксель вместо жеста (дефект A6).
+       */
+      update(mutator, reason, opts) {
         const before = this.getSnapshot();
         const next = mutator(this.getSnapshot());
         if (!this.isObj(next)) return false;
@@ -11832,8 +11864,19 @@ var require_config_store = __commonJS({
           isSame = false;
         }
         if (isSame) return false;
-        this.undoStack.push(before);
-        if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
+        const undoable = !opts || opts.undoable !== false;
+        const key = opts && opts.coalesceKey ? String(opts.coalesceKey) : null;
+        const now = Date.now();
+        if (undoable) {
+          const window2 = this.coalesceWindowMs || 400;
+          const sameKeyRecently = key && this.lastUndoKey === key && this.lastUndoAt !== null && now - this.lastUndoAt < window2 && this.undoStack.length > 0;
+          if (!sameKeyRecently) {
+            this.undoStack.push(before);
+            if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
+          }
+          this.lastUndoKey = key;
+          this.lastUndoAt = now;
+        }
         this.config = migratedNext;
         this.emit(reason || "update");
         this.scheduleSave();
@@ -11843,6 +11886,8 @@ var require_config_store = __commonJS({
         return this.update((prev) => this.deepMerge(prev, patchObj), reason || "patch");
       }
       undo(reason) {
+        this.lastUndoKey = null;
+        this.lastUndoAt = null;
         if (!this.undoStack.length) return false;
         this.config = this.migrateConfig(this.undoStack.pop());
         this.emit(reason || "undo");
@@ -24658,8 +24703,8 @@ var require_settings_sections_renderer = __commonJS({
       showPrefixPreviewWrap.style.lineHeight = "1.2";
       const showPrefixPreviewLine1 = showPrefixPreviewWrap.createEl("span");
       const showPrefixPreviewLine2 = showPrefixPreviewWrap.createEl("span");
-      const applyShowPrefixPreview = (on) => {
-        const isOn = on === true;
+      const applyShowPrefixPreview = (on2) => {
+        const isOn = on2 === true;
         showPrefixPreviewLine1.setText(isOn ? "#example" : "example");
         showPrefixPreviewLine2.setText(isOn ? "\u{1F4C5} 2026-01-01" : "2026-01-01");
       };
@@ -25397,7 +25442,7 @@ var require_settings_sections_renderer = __commonJS({
       chip.style.opacity = enabled ? "1" : "0.6";
     }
     function renderAdvancedSection(ctx) {
-      const { Setting, Notice: Notice2, containerEl, cfg, featureOrder, store, flushSettingsNow, plugin, pkmBackends, getActiveTagWheelRulesPath } = ctx;
+      const { Setting, Notice: Notice3, containerEl, cfg, featureOrder, store, flushSettingsNow, plugin, pkmBackends, getActiveTagWheelRulesPath } = ctx;
       containerEl.createEl("h3", { text: "Diagnostics" });
       const diag = containerEl.createDiv();
       diag.style.whiteSpace = "pre-wrap";
@@ -25421,7 +25466,7 @@ var require_settings_sections_renderer = __commonJS({
       new Setting(containerEl).setName("Flush Settings Now").setDesc("Force immediate save without waiting for debounce.").addButton(
         (b) => b.setButtonText("Flush").onClick(async () => {
           await store.flushNow();
-          new Notice2("InlineOverhaul: settings saved");
+          new Notice3("InlineOverhaul: settings saved");
           flushSettingsNow();
         })
       );
@@ -25485,7 +25530,7 @@ var require_settings_sections_renderer = __commonJS({
             await plugin.ensureGeneratedRulesNow("manual");
           } catch (e) {
             console.error("[inline-overhaul][rules-gen]", e);
-            new Notice2("InlineOverhaul: failed to generate rules");
+            new Notice3("InlineOverhaul: failed to generate rules");
           }
         });
         if (!pkmEnabled) b.setDisabled(true);
@@ -25494,10 +25539,10 @@ var require_settings_sections_renderer = __commonJS({
         b.setButtonText("Open detailed template").onClick(async () => {
           try {
             const p = await plugin.openTagWheelConfigTemplateNote();
-            new Notice2("Detailed template opened: " + p);
+            new Notice3("Detailed template opened: " + p);
           } catch (e) {
             console.error("[inline-overhaul][tagwheel-config-template-open]", e);
-            new Notice2("InlineOverhaul: " + e.message);
+            new Notice3("InlineOverhaul: " + e.message);
           }
         });
         if (!pkmEnabled) b.setDisabled(true);
@@ -25706,7 +25751,7 @@ var require_settings_sections_renderer = __commonJS({
       }
     }
     function renderGeneralSection(ctx) {
-      const { Setting, Notice: Notice2, containerEl, cfg, featureOrder, featureMeta, plugin } = ctx;
+      const { Setting, Notice: Notice3, containerEl, cfg, featureOrder, featureMeta, plugin } = ctx;
       containerEl.createEl("h3", { text: "Global Modules" });
       for (const feature of featureOrder) {
         new Setting(containerEl).setName(`${featureMeta[feature].label} module`).setDesc(`Enable/disable ${featureMeta[feature].label.toLowerCase()} functionality globally.`).addToggle(
@@ -25716,7 +25761,7 @@ var require_settings_sections_renderer = __commonJS({
       new Setting(containerEl).setName("Undo last settings change").setDesc("Rollback one step from settings undo stack.").addButton(
         (b) => b.setButtonText("Undo").onClick(() => {
           const ok = plugin.store.undo("settings:undo");
-          if (!ok) new Notice2("InlineOverhaul: nothing to undo");
+          if (!ok) new Notice3("InlineOverhaul: nothing to undo");
         })
       );
     }
@@ -26082,7 +26127,7 @@ var require_settings_sections_renderer = __commonJS({
       renderVisualTagsSection2({ Setting, containerEl, enabled, cfg, plugin });
     }
     function renderPkmOrderBoardSection(ctx) {
-      const { Setting, Notice: Notice2, Modal, containerEl, cfg, enabled, plugin, normalizePkmOrder, pkmOrderFields, setIcon } = ctx;
+      const { Setting, Notice: Notice3, Modal, containerEl, cfg, enabled, plugin, normalizePkmOrder, pkmOrderFields, setIcon } = ctx;
       const activePkmSubTab = String(cfg && cfg.ui && cfg.ui.pkmSubTab || "main").trim() === "behavior" ? "behavior" : "main";
       const pkmSubTabs = [
         { id: "main", label: "Main" },
@@ -26455,11 +26500,11 @@ var require_settings_sections_renderer = __commonJS({
         });
         const vr = typeof deepState.validateDraft === "function" ? deepState.validateDraft({ rows }) : { ok: true, errors: [] };
         if (!vr.ok) {
-          new Notice2(`[${CONFLICT_FLAG}] apply blocked: ` + String(vr.errors[0] || "validation error"));
+          new Notice3(`[${CONFLICT_FLAG}] apply blocked: ` + String(vr.errors[0] || "validation error"));
           return;
         }
         resetHistory();
-        new Notice2("Order draft applied");
+        new Notice3("Order draft applied");
         refreshDraftInfo();
       };
       try {
@@ -26520,21 +26565,21 @@ var require_settings_sections_renderer = __commonJS({
         if (!enabled) return;
         const key = String(addStrict.value || "").replace(/\s+/g, " ").trim();
         if (!/^[a-z0-9_\- ]+$/i.test(key)) {
-          new Notice2("InlineOverhaul: name_strict must match [a-z0-9_- ]+");
+          new Notice3("InlineOverhaul: name_strict must match [a-z0-9_- ]+");
           return;
         }
         const all = getOrderKeys();
         if (/_sub$/.test(key)) {
-          new Notice2("InlineOverhaul: name_strict ending with _sub is reserved for generated child keys");
+          new Notice3("InlineOverhaul: name_strict ending with _sub is reserved for generated child keys");
           return;
         }
         if (all.includes(key)) {
-          new Notice2("InlineOverhaul: field already exists");
+          new Notice3("InlineOverhaul: field already exists");
           return;
         }
         const strictValues = new Set(all.map((kk) => String(orderState.strictNames && orderState.strictNames[kk] || kk).trim()).filter(Boolean));
         if (strictValues.has(key)) {
-          new Notice2("InlineOverhaul: name_strict already exists");
+          new Notice3("InlineOverhaul: name_strict already exists");
           return;
         }
         const kindRaw = String(addType.value || "tag").trim().toLowerCase();
@@ -26542,7 +26587,7 @@ var require_settings_sections_renderer = __commonJS({
         const subKey = kind === "tag" ? inferSubKey(key) : "";
         const subStrict = kind === "tag" ? `${key}_sub` : "";
         if (subStrict && strictValues.has(subStrict)) {
-          new Notice2("InlineOverhaul: auto sub name_strict already exists");
+          new Notice3("InlineOverhaul: auto sub name_strict already exists");
           return;
         }
         orderState.right = (orderState.right || []).concat([key]);
@@ -27104,7 +27149,7 @@ var require_settings_sections_renderer = __commonJS({
               const next = String(strictInput.value || "").replace(/\s+/g, " ").trim();
               if (next === oldName) return;
               if (!/^[a-z0-9_\- ]+$/i.test(next)) {
-                new Notice2("InlineOverhaul: name_strict must match [a-z0-9_- ]+");
+                new Notice3("InlineOverhaul: name_strict must match [a-z0-9_- ]+");
                 strictInput.value = oldName;
                 return;
               }
@@ -27115,7 +27160,7 @@ var require_settings_sections_renderer = __commonJS({
                 if (vv) taken.add(vv);
               }
               if (taken.has(next)) {
-                new Notice2("InlineOverhaul: name_strict already exists");
+                new Notice3("InlineOverhaul: name_strict already exists");
                 strictInput.value = oldName;
                 return;
               }
@@ -28205,7 +28250,7 @@ var require_settings_sections_renderer = __commonJS({
                       let nextLeft2 = leftMode.slice();
                       let nextRight2 = rightMode.slice();
                       if (!fidParent2) {
-                        new Notice2("InlineOverhaul: cannot resolve target link field for Deep Editor save");
+                        new Notice3("InlineOverhaul: cannot resolve target link field for Deep Editor save");
                         return;
                       }
                       const sourceId = String(parentField && parentField.source || `wikilinks:${fidParent2}`).trim();
@@ -28373,7 +28418,7 @@ var require_settings_sections_renderer = __commonJS({
                     const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
                     const cb = normalizeCheckbox(checkboxInput.value || "");
                     if (!cb) {
-                      new Notice2("InlineOverhaul: checkbox token must be like [ ] or [I]");
+                      new Notice3("InlineOverhaul: checkbox token must be like [ ] or [I]");
                       checkboxInput.value = String(currentRow.checkboxToken || "- [ ]");
                       return;
                     }
@@ -28784,18 +28829,18 @@ var require_settings_sections_renderer = __commonJS({
                     const leftField = findWikilinkField(leftNow);
                     const target = rightField || leftField;
                     if (!target) {
-                      new Notice2("InlineOverhaul: cannot resolve target link field for Deep Editor add");
+                      new Notice3("InlineOverhaul: cannot resolve target link field for Deep Editor add");
                       return;
                     }
                     const targetId = String(target.id || strictNorm || keyNorm).trim();
                     if (!targetId) {
-                      new Notice2("InlineOverhaul: target link field id is empty");
+                      new Notice3("InlineOverhaul: target link field id is empty");
                       return;
                     }
                     const valuesNow = Array.isArray(target.values) ? target.values.slice() : [];
                     const tokenPlain = String(token).replace(/^\[\[|\]\]$/g, "").trim();
                     if (!tokenPlain) {
-                      new Notice2("InlineOverhaul: empty link token");
+                      new Notice3("InlineOverhaul: empty link token");
                       return;
                     }
                     const exists = valuesNow.some((row2) => {
@@ -29241,7 +29286,7 @@ var require_settings_sections_renderer = __commonJS({
     function renderPkmConfigSections(ctx) {
       const {
         Setting,
-        Notice: Notice2,
+        Notice: Notice3,
         Modal,
         containerEl,
         cfg,
@@ -29413,10 +29458,10 @@ var require_settings_sections_renderer = __commonJS({
             try {
               flushAllDeepCommits(plugin);
               const p = await plugin.openTagWheelConfigNote();
-              new Notice2("Config opened: " + p);
+              new Notice3("Config opened: " + p);
             } catch (e) {
               console.error("[inline-overhaul][tagwheel-config-open]", e);
-              new Notice2("InlineOverhaul: " + e.message);
+              new Notice3("InlineOverhaul: " + e.message);
             }
           });
           if (!enabled) b.setDisabled(true);
@@ -29480,11 +29525,11 @@ var require_settings_sections_renderer = __commonJS({
                 }
               }
               await plugin.applyTagWheelConfigNote();
-              new Notice2("InlineOverhaul: TagWheel config applied");
+              new Notice3("InlineOverhaul: TagWheel config applied");
               deferRefreshSettings(refreshSettings2);
             } catch (e) {
               console.error("[inline-overhaul][tagwheel-config-apply]", e);
-              new Notice2("InlineOverhaul: " + e.message);
+              new Notice3("InlineOverhaul: " + e.message);
             }
           });
           if (!enabled) b.setDisabled(true);
@@ -29866,7 +29911,7 @@ var require_settings_sections_renderer = __commonJS({
           }
           plugin.__prefixResolverReorderToastTimer = setTimeout(() => {
             try {
-              new Notice2("Prefix Resolver order updated", 900);
+              new Notice3("Prefix Resolver order updated", 900);
             } catch (_) {
             }
           }, 40);
@@ -30272,22 +30317,22 @@ var require_settings_sections_renderer = __commonJS({
       });
       containerEl.createEl("h6", { text: "Free roam" });
       new Setting(containerEl).setName("Minimal mode separators").setDesc("Minimal mode: insert the element according to Order without changing the line prefix.").addToggle((t) => {
-        const on = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.minimalSeparator !== false : true;
-        t.setValue(on).onChange((v) => {
+        const on2 = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.minimalSeparator !== false : true;
+        t.setValue(on2).onChange((v) => {
           plugin.setConfigPatch({ pkm: { behavior: { freeRoam: { minimalSeparator: !!v } } } }, "pkm:behavior:freeRoam:minimalSeparator");
         });
         if (!enabled) t.setDisabled(true);
       });
       new Setting(containerEl).setName("OFF mode prefix").setDesc("Applies only when field Free roam = off. On: if the selected field has no own checkbox in config, runtime rewrites prefix to bullet (except headings). Off: keep source prefix when the field has no own checkbox.").addToggle((t) => {
-        const on = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.offPrefix === true : false;
-        t.setValue(on).onChange((v) => {
+        const on2 = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.offPrefix === true : false;
+        t.setValue(on2).onChange((v) => {
           plugin.setConfigPatch({ pkm: { behavior: { freeRoam: { offPrefix: !!v } } } }, "pkm:behavior:freeRoam:offPrefix");
         });
         if (!enabled) t.setDisabled(true);
       });
       new Setting(containerEl).setName("Minimal mode prefix").setDesc("Applies only when field Free roam = minimal. On: tag-specific checkbox/prefix can replace the line prefix. Off: keep the original line prefix unchanged.").addToggle((t) => {
-        const on = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.minimalPrefix !== false : true;
-        t.setValue(on).onChange((v) => {
+        const on2 = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.minimalPrefix !== false : true;
+        t.setValue(on2).onChange((v) => {
           plugin.setConfigPatch({ pkm: { behavior: { freeRoam: { minimalPrefix: !!v } } } }, "pkm:behavior:freeRoam:minimalPrefix");
         });
         if (!enabled) t.setDisabled(true);
@@ -30623,11 +30668,1788 @@ var require_tagwheel_scroller_overlay = __commonJS({
   }
 });
 
+// src/ui/settings/schema/general.ts
+var GENERAL_GROUPS;
+var init_general = __esm({
+  "src/ui/settings/schema/general.ts"() {
+    "use strict";
+    GENERAL_GROUPS = [
+      {
+        id: "help",
+        tab: "general",
+        order: 100,
+        heading: "Help",
+        intro: "Where to start, and how much hand-holding you want along the way",
+        items: [
+          {
+            kind: "toggle",
+            id: "show-tips",
+            path: "general.help.showTips",
+            default: true,
+            name: "Show tips",
+            desc: "Put a ? beside anything that needs more explanation",
+            tip: "Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way"
+          }
+        ]
+      },
+      {
+        id: "modules",
+        tab: "general",
+        order: 200,
+        heading: "Modules",
+        intro: "Four separate things live in this plugin. Turn off the ones you do not want and they stop adding commands and stop touching your notes",
+        items: [
+          {
+            kind: "toggle",
+            id: "module-navigation",
+            path: "features.navigation.enabled",
+            default: true,
+            name: "Navigation",
+            desc: "Move lines, text and the cursor without reaching for the mouse",
+            tip: "Nothing here writes anything new. It only moves text you have already written \u2014 a line up, a word along, the cursor across. Safe to leave on"
+          },
+          {
+            kind: "toggle",
+            id: "module-pkm",
+            path: "features.pkm.enabled",
+            default: true,
+            name: "Tags & PKM",
+            desc: "Set up your PKM tags, wikilinks and emoji elements, and insert them inline with one key",
+            tip: "This is the part that puts tags and dates onto a line for you, and steps them forward with a keypress. Turning it off changes nothing you have already written \u2014 those keys simply stop working"
+          },
+          {
+            kind: "toggle",
+            id: "module-visual",
+            path: "features.visual.enabled",
+            default: true,
+            name: "Visual",
+            desc: "Customize and beautify your inline text with tag colors, Bars and much more",
+            tip: "Appearance only. Your notes contain exactly the same text either way \u2014 this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text"
+          },
+          {
+            kind: "toggle",
+            id: "module-transform",
+            path: "features.transform.enabled",
+            default: true,
+            name: "Transform",
+            desc: "Turn an inline entry into a note, with templates, YAML properties, rules and more",
+            tip: "Leaving this on does not let anything happen yet. Making notes needs one more switch, on the Transform tab, because it is the one thing here that writes new files"
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/types.ts
+function isBound(it) {
+  return typeof it.path === "string";
+}
+function getIn(obj, path) {
+  return path.split(".").reduce((acc, key) => {
+    if (acc === null || typeof acc !== "object") return void 0;
+    return acc[key];
+  }, obj);
+}
+function setIn(obj, path, value) {
+  const keys = path.split(".");
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    const next = cur[k];
+    if (next === null || typeof next !== "object") cur[k] = {};
+    cur = cur[k];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+function buildDefaultConfig(schema) {
+  const out = {};
+  for (const group of schema) {
+    for (const it of group.items) {
+      if (isBound(it)) setIn(out, it.path, it.default);
+    }
+  }
+  return out;
+}
+function on(path) {
+  return { deps: [path], test: (ctx) => Boolean(ctx.get(path)) };
+}
+function not(path) {
+  return { deps: [path], test: (ctx) => !ctx.get(path) };
+}
+function eq(path, value) {
+  return { deps: [path], test: (ctx) => ctx.get(path) === value };
+}
+var init_types = __esm({
+  "src/ui/settings/types.ts"() {
+    "use strict";
+  }
+});
+
+// src/ui/settings/schema/keyboard.ts
+var KEYBOARD_GROUPS;
+var init_keyboard = __esm({
+  "src/ui/settings/schema/keyboard.ts"() {
+    "use strict";
+    init_types();
+    KEYBOARD_GROUPS = [
+      {
+        id: "select-all",
+        tab: "keyboard",
+        order: 100,
+        heading: "Expanded select all",
+        intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
+        items: [
+          {
+            kind: "toggle",
+            id: "select-all-enabled",
+            path: "editor.selectAll.enabled",
+            default: false,
+            name: "Expanded select all",
+            desc: "Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
+            searchTerms: ["Enhanced Mod+A"],
+            tip: "On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started"
+          },
+          {
+            kind: "dropdown",
+            id: "select-all-steps",
+            path: "editor.selectAll.mode",
+            default: "line-note",
+            name: "Selection steps",
+            desc: "How much more gets picked up on each press",
+            searchTerms: ["Select-all mode"],
+            disabled: not("editor.selectAll.enabled"),
+            options: [
+              { value: "line-note", label: "Line, then note" },
+              { value: "line-tree-note", label: "Line, tree, then note" },
+              { value: "line-tree-header-note", label: "Line, tree, heading, then note" }
+            ],
+            tip: "<b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use \u2014 every extra step is one more press before you reach the whole note"
+          },
+          {
+            kind: "toggle",
+            id: "select-all-timer",
+            path: "editor.selectAll.useDelay",
+            default: false,
+            name: "Count presses by timer",
+            desc: "Decide the next step by how quickly you press, rather than by what is selected",
+            searchTerms: ["Use multi-press delay"],
+            disabled: not("editor.selectAll.enabled"),
+            tip: "Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line \u2014 handy if you often select something, walk away, and come back"
+          },
+          {
+            kind: "slider",
+            id: "select-all-delay",
+            path: "editor.selectAll.delayMs",
+            default: 700,
+            min: 250,
+            max: 2e3,
+            step: 50,
+            unit: "ms",
+            name: "Time between presses",
+            desc: "How long you can pause and still be in the middle of a sequence",
+            tip: "Only used when the timer above is on. Around three quarters of a second suits most people; raise it if you keep losing your place",
+            searchTerms: ["Multi-press delay"],
+            visible: on("editor.selectAll.useDelay"),
+            disabled: not("editor.selectAll.enabled")
+          },
+          {
+            kind: "toggle",
+            id: "select-all-clear",
+            path: "editor.selectAll.clearOnLast",
+            default: false,
+            name: "One more press clears it",
+            desc: "After the last step, pressing again drops the selection and returns the cursor",
+            tip: "Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
+            searchTerms: ["Last press clears selection"],
+            disabled: not("editor.selectAll.enabled")
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/schema/navigation.ts
+var NAVIGATION_GROUPS;
+var init_navigation = __esm({
+  "src/ui/settings/schema/navigation.ts"() {
+    "use strict";
+    init_types();
+    NAVIGATION_GROUPS = [
+      {
+        id: "move-lines",
+        tab: "navigation",
+        order: 100,
+        heading: "Moving lines",
+        intro: "Reorder a note without cutting and pasting: pick up a line and walk it up or down",
+        tip: "When a line has other lines indented beneath it, the whole bundle is called its <b>tree</b>. That word turns up in a few places here. The setting below is where you decide whether the bundle travels with the line or stays behind",
+        commands: ["Move line up", "Move line down"],
+        items: [
+          {
+            kind: "toggle",
+            id: "move-lines-enabled",
+            path: "navigation.moveLine.enabled",
+            default: true,
+            name: "Move lines",
+            desc: "Let the keys pick up a line and move it",
+            searchTerms: ["Enable Move Line"]
+          },
+          {
+            kind: "dropdown",
+            id: "move-lines-no-selection",
+            path: "navigation.moveLine.noSelectionMode",
+            default: "line-only",
+            name: "Moving behavior",
+            desc: "Whether the tree under the line travels with it",
+            searchTerms: ["No-selection mode"],
+            disabled: not("navigation.moveLine.enabled"),
+            options: [{ value: "line-only", label: "The line only" }, { value: "with-children", label: "The whole tree" }],
+            tip: "Say a line has three lines indented under it. <b>The line only</b> lifts that one line out and leaves the three where they are, so the order changes around them. <b>The whole tree</b> keeps the four together and moves them as one block"
+          },
+          {
+            kind: "dropdown",
+            id: "move-lines-heading",
+            path: "navigation.moveLine.headerMode",
+            default: "move-as-line",
+            name: "Moving headers",
+            desc: "If you are moving a header, this decides whether the whole section moves or just the header line",
+            searchTerms: ["Header mode"],
+            disabled: not("navigation.moveLine.enabled"),
+            options: [{ value: "move-as-line", label: "Heading only" }, { value: "move-with-section", label: "Heading with its section" }],
+            tip: "With <b>heading with its section</b>, one press swaps two whole sections of a note, content and all. With <b>heading only</b> the heading text moves on its own and the paragraphs under it stay put, which is what you want when you are only renaming the running order"
+          },
+          {
+            kind: "toggle",
+            id: "move-lines-cross",
+            path: "navigation.moveLine.crossSectionAllowed",
+            default: true,
+            name: "Cross heading boundaries",
+            desc: "Let a line travel past a heading into the part of the note below it",
+            searchTerms: ["Cross-section allowed"],
+            disabled: not("navigation.moveLine.enabled"),
+            tip: "Leave it on and a line keeps going wherever you push it. Turn it off and it stops at the heading, which is what you want in a note where each heading has to keep its own contents"
+          },
+          {
+            kind: "toggle",
+            id: "move-lines-select",
+            path: "navigation.moveLine.highlightMovedLines",
+            default: false,
+            name: "Select after moving",
+            desc: "Keep the lines highlighted once they land, so you can see what moved",
+            tip: "Useful when you move a tree of several lines and want to be sure the whole thing came along",
+            searchTerms: ["Highlight moved lines"],
+            disabled: not("navigation.moveLine.enabled")
+          }
+        ]
+      },
+      {
+        id: "left-right",
+        tab: "navigation",
+        order: 200,
+        heading: "Move left and move right",
+        intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
+        commands: ["Move left", "Move right"],
+        items: [
+          {
+            kind: "toggle",
+            id: "move-text-enabled",
+            path: "navigation.moveSelection.inlineEnabled",
+            default: true,
+            name: "Move selected text",
+            desc: "Slide a highlighted phrase along its line",
+            searchTerms: ["Enable inline text move"],
+            tip: "Highlight two words in the middle of a sentence and press <code>Move right</code>: they trade places with the word after them, and stay highlighted, so you can keep pressing until they are where you want"
+          },
+          {
+            kind: "dropdown",
+            id: "move-text-step",
+            path: "navigation.moveSelection.inlineMoveMode",
+            default: "auto",
+            name: "Movement step",
+            desc: "How far the highlighted text goes on each press",
+            searchTerms: ["Inline move mode"],
+            disabled: not("navigation.moveSelection.inlineEnabled"),
+            options: [
+              { value: "auto", label: "Automatic" },
+              { value: "char", label: "One character" },
+              { value: "word", label: "Whole word" },
+              { value: "disabled", label: "Off" }
+            ],
+            tip: "<b>Automatic</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way"
+          },
+          {
+            kind: "toggle",
+            id: "prefix-cycle-enabled",
+            path: "navigation.moveSelection.prefixCyclerEnabled",
+            default: true,
+            name: "Cycle line Prefixes",
+            desc: "Turn a line into a heading, a bullet, a numbered item or plain text, one press at a time",
+            searchTerms: ["Enable PrefixCycler"],
+            tip: "<code>Move right</code> walks down the list below, <code>Move left</code> walks back up, and an empty row in it means plain text with no Prefix at all. <code>Move left</code> cycles whenever the line has no indent; <code>Move right</code> only cycles when the line is not already a list item, because on a list item it indents instead"
+          },
+          {
+            kind: "toggle",
+            id: "right-cycles",
+            path: "navigation.moveSelection.rightCycles",
+            default: true,
+            name: "Cycle in both directions",
+            desc: "Off: <code>Move right</code> only ever indents, and cycling becomes a <code>Move left</code> job",
+            disabled: not("navigation.moveSelection.prefixCyclerEnabled"),
+            tip: "On a plain line <code>Move right</code> walks down the list and <code>Move left</code> walks back up. Switch this off and the two keys split the work: <code>Move left</code> changes the marker, <code>Move right</code> only ever indents. Some people find that easier to keep in their head"
+          },
+          {
+            kind: "dropdown",
+            id: "prefix-cycle-end",
+            path: "navigation.moveSelection.onCycleEnd",
+            default: "indent",
+            name: "After the last one",
+            desc: "What happens when you reach the bottom of the list below",
+            tip: "<b>Start over</b> loops back to the top, so you can keep pressing until you find what you want. <b>Increase indent</b> stops cycling and starts pushing the line to the right instead",
+            searchTerms: ["On cycle end"],
+            disabled: not("navigation.moveSelection.prefixCyclerEnabled"),
+            options: [{ value: "indent", label: "Increase indent" }, { value: "wrap", label: "Start over" }]
+          },
+          {
+            kind: "toggle",
+            id: "indent-fallback",
+            path: "navigation.moveSelection.indentFallbackEnabled",
+            default: true,
+            name: "Change the indent",
+            desc: "When neither of the two jobs above applies, move the line right or left instead",
+            searchTerms: ["Indent fallback"],
+            tip: "On, the keys always do something. Off, they sit quiet unless there is text to move or a marker to change \u2014 pick that if you indent with Tab and would rather these keys never touched it"
+          }
+        ]
+      },
+      {
+        id: "heading-jumps",
+        tab: "navigation",
+        order: 300,
+        heading: "Jumping between headings",
+        intro: "Skip through a long note by its headings instead of scrolling",
+        commands: ["Jump back", "Jump next"],
+        items: [
+          {
+            kind: "toggle",
+            id: "heading-jumps-enabled",
+            path: "navigation.jumpToHeader.enabled",
+            default: true,
+            name: "Jump between headings",
+            desc: "Turn on the <code>Jump back</code> and <code>Jump next</code> commands",
+            searchTerms: ["Enable Jump To Header"]
+          },
+          {
+            kind: "toggle",
+            id: "heading-jumps-center",
+            path: "navigation.jumpToHeader.centerCursor",
+            default: true,
+            name: "Center the target",
+            desc: "After a jump, scroll the note so the line you landed on sits mid-screen",
+            tip: "Without it you often arrive at the very bottom of the window, with the section you jumped to still off screen below \u2014 so you have to scroll anyway. With it on, you can read straight away",
+            disabled: not("navigation.jumpToHeader.enabled")
+          },
+          {
+            kind: "dropdown",
+            id: "heading-jumps-mode",
+            path: "navigation.jumpToHeader.jumpMode",
+            default: "edge",
+            name: "Jump target",
+            desc: "Hop between headings, or crawl line by line",
+            searchTerms: ["Jump mode"],
+            disabled: not("navigation.jumpToHeader.enabled"),
+            options: [{ value: "edge", label: "Heading to heading" }, { value: "line", label: "Line by line" }],
+            tip: "<b>Heading to heading</b> is for finding your way around a long note. <b>Line by line</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys"
+          },
+          {
+            kind: "dropdown",
+            id: "heading-jumps-edge",
+            path: "navigation.jumpToHeader.edgeMode",
+            default: "start-end",
+            name: "Where in the section",
+            desc: "Land at the start of the part you jump to, or at its end",
+            tip: "<b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
+            searchTerms: ["Edge behavior"],
+            visible: eq("navigation.jumpToHeader.jumpMode", "edge"),
+            disabled: not("navigation.jumpToHeader.enabled"),
+            options: [
+              { value: "start-end", label: "Alternate start and end" },
+              { value: "start", label: "Start only" },
+              { value: "end", label: "End only" }
+            ]
+          },
+          {
+            kind: "dropdown",
+            id: "heading-jumps-cursor",
+            path: "navigation.jumpToHeader.jumpCursorPosition",
+            default: "start",
+            name: "Cursor on arrival",
+            desc: "Where on that line the cursor ends up",
+            searchTerms: ["Jump cursor position"],
+            disabled: not("navigation.jumpToHeader.enabled"),
+            options: [
+              { value: "start", label: "Line start" },
+              { value: "end", label: "Line end" },
+              { value: "section-end", label: "End of your text" }
+            ],
+            tip: "<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them",
+            seeAlso: { id: "separator-2", label: "Where your text ends is set by the second Separator" }
+          }
+        ]
+      },
+      {
+        id: "in-line",
+        tab: "navigation",
+        order: 400,
+        heading: "Moving inside a line",
+        intro: "A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line",
+        commands: ["Move cursor left in line", "Move cursor right in line"],
+        items: [
+          {
+            kind: "toggle",
+            id: "in-line-enabled",
+            path: "navigation.navigateInline.enabled",
+            default: true,
+            name: "Move cursor inside a line",
+            desc: "Let the keys walk the cursor along the line",
+            searchTerms: ["Enable Navigate Inline"]
+          },
+          {
+            kind: "dropdown",
+            id: "in-line-step",
+            path: "navigation.navigateInline.stepMode",
+            default: "word",
+            name: "Step size",
+            desc: "How big a hop the cursor makes each time",
+            tip: "<b>Word</b> is the everyday choice. <b>Sentence</b> suits long paragraphs. <b>Straight to the start or end</b> skips the middle entirely and lands at one end of your text",
+            searchTerms: ["Step mode"],
+            disabled: not("navigation.navigateInline.enabled"),
+            options: [
+              { value: "word", label: "Word" },
+              { value: "sentence", label: "Sentence" },
+              { value: "begin-end", label: "Straight to the start or end" }
+            ]
+          },
+          {
+            kind: "toggle",
+            id: "in-line-cross",
+            path: "navigation.navigateInline.boundaryJump",
+            default: false,
+            name: "Continue past a Separator",
+            desc: "Let the cursor leave your text and walk into the tags at either end",
+            searchTerms: ["Allow crossing Separators"],
+            disabled: not("navigation.navigateInline.enabled"),
+            tip: "Off is the safer setting while you are writing: the cursor stays in your sentence and cannot wander into the tags. Turn it on when you want to reach a tag with the same keys instead of the mouse"
+          },
+          {
+            kind: "dropdown",
+            id: "in-line-boundary",
+            path: "navigation.navigateInline.onBoundary",
+            default: "wrap",
+            name: "At the far end",
+            desc: "What to do when there is nowhere further to go",
+            searchTerms: ["On boundary"],
+            disabled: not("navigation.navigateInline.enabled"),
+            tip: "Say the cursor is on the last word before the closing Separator and you press again. <b>Stay put</b> does nothing. <b>Wrap</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely",
+            options: [
+              { value: "stay", label: "Stay put" },
+              { value: "wrap", label: "Wrap to the other end" },
+              { value: "next-line", label: "Go to the next line" }
+            ]
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/schema/pkm.ts
+var PKM_GROUPS;
+var init_pkm = __esm({
+  "src/ui/settings/schema/pkm.ts"() {
+    "use strict";
+    init_types();
+    PKM_GROUPS = [
+      {
+        id: "line-format",
+        tab: "pkm",
+        order: 200,
+        heading: "Separators",
+        intro: "Two markers of your choosing carve out the middle of a line. Whatever you write goes between them; the Fields sit outside. Which Fields land on which side is set under <code>Fields</code>, by dragging one across the line",
+        tip: "Choose these carefully and then leave them alone. Lines you have already written keep their old Separator, so changing it later means the plugin no longer recognises them. Use two or more characters that Markdown does not already claim: <code>||</code> and <code>::</code> are good, <code>==</code> is not, because Obsidian reads it as a highlight",
+        items: [
+          {
+            kind: "text",
+            id: "separator-1",
+            path: "pkm.lineFormat.separator1",
+            default: "||",
+            mono: true,
+            name: "First Separator",
+            desc: "Goes between the tags at the front and the start of your sentence",
+            tip: "Pick something you would never type on purpose in a sentence. Two pipe characters are the default for exactly that reason \u2014 nobody writes them by accident"
+          },
+          {
+            kind: "text",
+            id: "separator-2",
+            path: "pkm.lineFormat.separator2",
+            default: "||",
+            mono: true,
+            name: "Second Separator",
+            desc: "Goes at the end of your sentence, before the dates and links",
+            tip: "It can be exactly the same as the first one. Which is which is decided by where it sits on the line, not by what it looks like"
+          }
+        ]
+      },
+      {
+        id: "writing-rules",
+        tab: "pkm",
+        order: 300,
+        heading: "Writing rules",
+        intro: "The small habits: how a tag is written when it has a Value underneath it, what is left when you clear a line, and where the cursor waits for you afterwards",
+        items: [
+          {
+            kind: "dropdown",
+            id: "child-tag-format",
+            path: "pkm.behavior.childTagFormat",
+            default: "separate",
+            name: "Child tag format",
+            desc: "When a Value sits under another one, whether they are written as two tags or one",
+            searchTerms: ["Subtag format"],
+            options: [
+              { value: "separate", label: "Separate tags (#doing #review)" },
+              { value: "combined", label: "One tag (#doing/review)" }
+            ],
+            tip: "Say <code>doing</code> has <code>review</code> under it. Two separate tags give you <code>#doing #review</code>, and searching for <code>#doing</code> finds the line. One combined tag gives <code>#doing/review</code>, which keeps the pair together in Obsidian\u2019s tag list but means a search for the parent needs a slash. Every preview on the Visual tab follows whichever you pick",
+            seeAlso: { id: "tag-preview", label: "See it in the tag appearance preview" }
+          },
+          {
+            kind: "dropdown",
+            id: "cycle-end-behavior",
+            path: "pkm.behavior.cycleEndBehavior",
+            default: "keep-bullet",
+            name: "When a line empties out",
+            desc: "What is left behind when cycling removes the last Value",
+            searchTerms: ["Line Prefix after end of cycle"],
+            options: [{ value: "keep-bullet", label: "Keep the list bullet" }, { value: "clear-prefix", label: "Clear the line" }],
+            tip: "Step a Field back past its first Value and the tag comes off the line. If that was the only thing on it, you are left with <code>- </code> and nothing else. Keep the bullet leaves it as a list item ready for typing; clear the line leaves a blank line"
+          },
+          {
+            kind: "dropdown",
+            id: "cursor-policy",
+            path: "pkm.behavior.cursorPolicy",
+            default: "text_end",
+            name: "Cursor after an action",
+            desc: "Where the cursor waits once a tag or date has been set",
+            searchTerms: ["Cursor behavior"],
+            options: [
+              { value: "text_end", label: "End of your text (recommended)" },
+              { value: "current_position", label: "Leave it where it was" },
+              { value: "line_end", label: "End of the line" }
+            ],
+            tip: "Almost always what you want is <b>end of your text</b>: the cursor lands right where you stopped writing, in front of the tags, so you can carry straight on. The other two put it somewhere you will usually have to move it from"
+          }
+        ]
+      },
+      {
+        id: "placement-modes",
+        tab: "pkm",
+        order: 400,
+        heading: "Placement modes",
+        intro: "Every Field has a <code>Behavior</code> mode: <code>Strict</code>, <code>Insert only</code> or <code>Free</code>. These options define how exactly those modes work",
+        tip: "You choose the mode for each Field over in <code>Fields</code>. What you set here is the fine print of each mode \u2014 mainly whether it is allowed to change the very start of the line, the part that makes it a bullet or a checkbox",
+        items: [
+          {
+            kind: "toggle",
+            id: "placement-bullet-strict",
+            path: "pkm.placement.bulletInStrict",
+            default: false,
+            name: "Strict: add a bullet",
+            desc: "Start the line with a bullet when the Field has nothing of its own to put there",
+            searchTerms: ["OFF mode Prefix"],
+            tip: "Headings are always left alone. This only decides what happens to a plain line: on, it becomes a list item; off, it stays as it is",
+            seeAlso: { id: "field-editor", label: "Each Field's Behavior is set under Fields" }
+          },
+          {
+            kind: "toggle",
+            id: "placement-keep-prefix",
+            path: "pkm.placement.keepPrefixInsertOnly",
+            default: true,
+            name: "Insert only: keep the Prefix",
+            desc: "Put the Value where it belongs and do not touch the start of the line",
+            searchTerms: ["Minimal mode Separators"]
+          },
+          {
+            kind: "toggle",
+            id: "placement-field-prefix",
+            path: "pkm.placement.fieldPrefixInsertOnly",
+            default: true,
+            name: "Insert only: use Field Prefix",
+            desc: "Allow a Value to change the start of the line after all, if it has its own",
+            searchTerms: ["Minimal mode Prefix"],
+            tip: "Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes"
+          },
+          {
+            kind: "dropdown",
+            id: "placement-free-position",
+            path: "pkm.placement.freeInsertPosition",
+            default: "smart",
+            name: "Free: insert position",
+            desc: "Which end of the line a Value goes to when the cursor is mid-sentence",
+            searchTerms: ["Full mode"],
+            options: [
+              { value: "smart", label: "Whichever side is closer" },
+              { value: "left", label: "Always left" },
+              { value: "right", label: "Always right" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "prefix-priority",
+        tab: "pkm",
+        order: 500,
+        heading: "Prefix priority",
+        intro: "Some Values want to change the start of the line \u2014 a checkbox from Status, an exclamation mark from Priority. When two of them ask at once, only one can win. These rules decide who",
+        items: [
+          {
+            kind: "dropdown",
+            id: "prefix-priority-decide",
+            path: "pkm.prefixPriority.decideBy",
+            default: "by-section",
+            name: "Decide by",
+            desc: "Settle it by the order of your Fields, or by a list of openings you rank yourself",
+            searchTerms: ["Main checkbox priority", "Prefix Resolver"],
+            options: [{ value: "by-section", label: "Field order" }, { value: "by-checkbox-list", label: "Prefix order" }],
+            tip: "<b>Field order</b> is the simple answer: whichever Field comes first in your list gets its way. <b>Prefix order</b> is for when you care about the openings themselves \u2014 say an urgent mark should always beat a tick, no matter which Field asked for it"
+          },
+          {
+            kind: "dropdown",
+            id: "prefix-priority-source",
+            path: "pkm.prefixPriority.fieldOrderSource",
+            default: "auto",
+            name: "Field order source",
+            desc: "Use the order your Fields are already in, or arrange a separate one",
+            searchTerms: ["Fields order mode"],
+            visible: eq("pkm.prefixPriority.decideBy", "by-section"),
+            options: [{ value: "auto", label: "By Fields order" }, { value: "manual", label: "Manual order" }]
+          },
+          {
+            kind: "dropdown",
+            id: "prefix-priority-parent",
+            path: "pkm.prefixPriority.parentOrChild",
+            default: "tag-over-subtag",
+            name: "Parent or child wins",
+            desc: "When a tag and its child Value both carry a Prefix",
+            searchTerms: ["Tag/Subtag priority"],
+            options: [{ value: "tag-over-subtag", label: "Parent tag" }, { value: "subtag-over-tag", label: "Child tag" }]
+          }
+        ]
+      },
+      {
+        id: "config-note",
+        tab: "pkm",
+        order: 600,
+        heading: "Config note",
+        intro: "Your whole setup, written out as an ordinary note you can read, edit and keep. Generate it to save a copy of where you are now; apply it to put a copy back",
+        tip: "It works both ways, and that makes it useful twice over. As a <b>backup</b>: generate it before you start rearranging, and you can always get back. As a <b>way to move</b>: copy the note into another vault, press apply there, and that vault has your setup. As an <b>editor</b>: for a long list of Values it is far quicker to type in the note than to click through the table above \u2014 press apply when you are done",
+        commands: ["Apply config note"],
+        items: [
+          {
+            kind: "text",
+            id: "config-note-path",
+            path: "pkm.configNote.path",
+            wide: true,
+            default: "InlineOverhaul_Config.md",
+            mono: true,
+            name: "Where to keep it",
+            desc: "The note that Generate writes and Apply reads",
+            tip: "Put it wherever you keep your own notes about your setup. If you sync your vault, this travels with it, which is the simplest way to carry your setup between machines"
+          },
+          {
+            kind: "dropdown",
+            id: "config-note-detail",
+            path: "pkm.configNote.detail",
+            default: "detailed",
+            name: "How much detail",
+            desc: "Whether the generated note explains itself or just lists the settings",
+            tip: "<b>Detailed</b> adds comments describing each block, which helps if you are going to edit it by hand. <b>Minimal</b> is easier to read as a backup and easier to compare between two versions",
+            searchTerms: ["Config Export Mode"],
+            options: [{ value: "detailed", label: "Detailed" }, { value: "minimal", label: "Minimal" }]
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/schema/visual.ts
+var VISUAL_GROUPS;
+var init_visual = __esm({
+  "src/ui/settings/schema/visual.ts"() {
+    "use strict";
+    init_types();
+    VISUAL_GROUPS = [
+      {
+        id: "tag-appearance",
+        tab: "visual",
+        order: 100,
+        heading: "Tag appearance",
+        intro: "How a tagged line looks while you write. Tags are drawn as small coloured bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
+        items: [
+          {
+            kind: "slider",
+            id: "tags-opacity-left",
+            path: "visual.tags.opacityLeft",
+            default: 100,
+            min: 0,
+            max: 100,
+            step: 1,
+            unit: "%",
+            name: "Opacity before the text",
+            desc: "Dims everything written before your text, tags and elements alike",
+            searchTerms: ["Opacity Left"],
+            seeAlso: { id: "field-editor", label: "Tag colors are set per Value under Fields" }
+          },
+          {
+            kind: "slider",
+            id: "tags-opacity-right",
+            path: "visual.tags.opacityRight",
+            default: 100,
+            min: 0,
+            max: 100,
+            step: 1,
+            unit: "%",
+            name: "Opacity after the text",
+            desc: "Dims everything written after your text, tags and elements alike",
+            searchTerms: ["Opacity Right"]
+          },
+          {
+            kind: "slider",
+            id: "tags-text-size",
+            path: "visual.tags.textSizePct",
+            default: 100,
+            min: 80,
+            max: 140,
+            step: 5,
+            unit: "%",
+            name: "Text size",
+            desc: "How big the writing inside a bubble is, next to the rest of your note",
+            tip: "Below 100 the tags step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100",
+            searchTerms: ["Tag text size"]
+          },
+          {
+            kind: "slider",
+            id: "tags-bubble-width",
+            path: "visual.tags.bubbleWidthPct",
+            default: 100,
+            min: 80,
+            max: 140,
+            step: 5,
+            unit: "%",
+            name: "Bubble width",
+            desc: "How much breathing room there is either side of the word",
+            searchTerms: ["Tag bubble size - width"]
+          },
+          {
+            kind: "slider",
+            id: "tags-bubble-height",
+            path: "visual.tags.bubbleHeightPct",
+            default: 100,
+            min: 80,
+            max: 140,
+            step: 5,
+            unit: "%",
+            name: "Bubble height",
+            desc: "How tall the bubble is around the word",
+            tip: "Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read",
+            searchTerms: ["Tag bubble size - height"]
+          },
+          {
+            kind: "slider",
+            id: "tags-empty-bubble",
+            path: "visual.tags.emptyBubblePct",
+            default: 100,
+            min: 50,
+            max: 180,
+            step: 5,
+            unit: "%",
+            name: "Empty bubble width",
+            desc: "Width of a bubble whose <code>Show</code> is set to <code>empty</code>",
+            searchTerms: ["Empty bubble size"],
+            tip: "Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text \u2014 a marker instead of a word. This is how wide that marker gets",
+            seeAlso: { id: "field-editor", label: "Set a Value to empty under Fields" }
+          },
+          {
+            kind: "slider",
+            id: "tags-corners",
+            path: "visual.tags.cornersPct",
+            default: 0,
+            min: 0,
+            max: 100,
+            step: 1,
+            name: "Bubble corners",
+            desc: "Slide from fully rounded to completely square",
+            searchTerms: ["Tag shape"]
+          }
+        ]
+      },
+      {
+        id: "tag-bars",
+        tab: "visual",
+        order: 200,
+        heading: "Tag Bars",
+        intro: "A coloured Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
+        items: [
+          {
+            kind: "toggle",
+            id: "bars-active",
+            path: "visual.tagBars.active",
+            default: true,
+            name: "Tag Bars",
+            desc: "Draw the Bars",
+            searchTerms: ["Activate strip", "Strip", "Hierarchy Bars", "Level Bars"]
+          },
+          {
+            kind: "dropdown",
+            id: "bars-field",
+            path: "visual.tagBars.fieldId",
+            default: "status",
+            name: "Which Field draws Bars",
+            desc: "Bars are drawn for one Field only. Lines without a Value for it get none",
+            searchTerms: ["Strip Field"],
+            visible: on("visual.tagBars.active"),
+            options: [{ value: "status", label: "Status" }, { value: "priority", label: "Priority" }],
+            tip: "Pick the one thing you scan a page for \u2014 usually how far along something is, or how urgent it is. Switch between the two in the preview above and you will see the Bars change shape, not just colour, because different lines carry different Fields",
+            seeAlso: { id: "field-editor", label: "Bar colors are the Value colors under Fields" }
+          },
+          {
+            kind: "slider",
+            id: "bars-count",
+            path: "visual.tagBars.stripesToShow",
+            default: 2,
+            min: 1,
+            max: 3,
+            step: 1,
+            name: "Number of Bars",
+            desc: "How far down the nesting to keep drawing them",
+            searchTerms: ["Stripes to show"],
+            visible: on("visual.tagBars.active"),
+            tip: "At 1 only the parent line gets a Bar, however deep the tree goes. At 2 a child with a Value of its own gets a second Bar beside the first. At 3 a grandchild gets a third. A line with no Value never gets one"
+          },
+          {
+            kind: "toggle",
+            id: "bars-show-tag",
+            path: "visual.tagBars.tagVisibility",
+            default: true,
+            name: "Show the Field's tag",
+            desc: "Keep the tag on the line, or let the Bar speak for it",
+            searchTerms: ["Strip tag visibility"],
+            visible: on("visual.tagBars.active"),
+            tip: "With the Bar already showing you the Value by color, the tag itself is often redundant. Hiding it buys back room on the line; the text stays in your note and stays searchable"
+          },
+          {
+            kind: "toggle",
+            id: "bars-hide-separator",
+            path: "visual.tagBars.hideSeparatorWhenOnlyStripToken",
+            default: false,
+            name: "Hide the leftover marker",
+            desc: "Tidy away a Separator that has nothing left beside it",
+            searchTerms: ["Hide Separator?"],
+            visible: {
+              deps: ["visual.tagBars.active", "visual.tagBars.tagVisibility"],
+              test: (c) => Boolean(c.get("visual.tagBars.active")) && !c.get("visual.tagBars.tagVisibility")
+            },
+            tip: "If the hidden tag was the only thing in front of your text, the line is left starting with a bare Separator and nothing before it. This clears that up"
+          },
+          {
+            kind: "dropdown",
+            id: "bars-mode",
+            path: "visual.tagBars.mode",
+            default: "default",
+            name: "Bar arrangement",
+            desc: "Which lane each level of the tree draws its Bar in",
+            searchTerms: ["Strip mode"],
+            visible: on("visual.tagBars.active"),
+            options: [{ value: "default", label: "Parent keeps the outer lane" }, { value: "crossing", label: "Lanes rotate" }],
+            tip: "Bars are drawn in lanes, one per level, left to right. With <b>parent keeps the outer lane</b> the top line of a tree always owns the leftmost lane, its child the next one in, and so on \u2014 so a lane always means the same depth, and you can read nesting by counting from the left. With <b>lanes rotate</b> each new level takes the next lane round in turn, which keeps deep trees narrower but means a lane no longer tells you the depth"
+          },
+          {
+            kind: "slider",
+            id: "bars-thickness",
+            path: "visual.tagBars.thickness",
+            default: 3,
+            min: 1,
+            max: 12,
+            step: 1,
+            unit: "px",
+            name: "Bar thickness",
+            desc: "How wide each Bar is",
+            searchTerms: ["Strip thickness"],
+            visible: on("visual.tagBars.active")
+          },
+          {
+            kind: "slider",
+            id: "bars-gap",
+            path: "visual.tagBars.childOffset",
+            default: 11,
+            min: 2,
+            max: 20,
+            step: 1,
+            unit: "px",
+            name: "Space between Bars",
+            desc: "The gap between one level and the next",
+            searchTerms: ["Parent/child strip distance"],
+            visible: on("visual.tagBars.active")
+          },
+          {
+            kind: "slider",
+            id: "bars-distance",
+            path: "visual.tagBars.spacing",
+            default: 14,
+            min: 8,
+            max: 48,
+            step: 1,
+            unit: "px",
+            name: "Distance from the text",
+            desc: "How far the Bars sit from where your line begins",
+            searchTerms: ["Strip spacing"],
+            visible: on("visual.tagBars.active")
+          }
+        ]
+      },
+      {
+        id: "tagwheel",
+        tab: "visual",
+        order: 300,
+        heading: "TagWheel",
+        intro: "TagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down",
+        tip: "Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything",
+        commands: ["Open TagWheel on the left", "Open TagWheel on the right"],
+        items: [
+          {
+            kind: "toggle",
+            id: "panel-markers",
+            path: "visual.tagWheel.showMarkers",
+            default: true,
+            name: "Show tag markers",
+            desc: "Show the hash and emoji in the picker, or just the words",
+            searchTerms: ["Show Prefix"],
+            tip: "A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way"
+          },
+          {
+            kind: "color",
+            id: "panel-text-color",
+            path: "visual.tagWheel.textColor",
+            default: "#5d5b6b",
+            name: "Text color",
+            desc: "The colour of the Values you are not on",
+            allowReset: true
+          },
+          {
+            kind: "color",
+            id: "panel-background",
+            path: "visual.tagWheel.fillColor",
+            default: "#f1e596",
+            name: "Background",
+            desc: "The colour behind the picker",
+            tip: "Pick something solid enough to read against your note, since the picker is drawn on top of your text",
+            allowReset: true
+          },
+          {
+            kind: "toggle",
+            id: "scroller-enabled",
+            path: "visual.tagWheel.scroller.enabled",
+            default: true,
+            name: "Scroller",
+            desc: "Show the next and previous Values around the current one, in a box you can style",
+            tip: "Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through",
+            searchTerms: ["TagWheel Scroller"]
+          },
+          {
+            kind: "dropdown",
+            id: "scroller-direction",
+            path: "visual.tagWheel.scroller.direction",
+            default: "full",
+            name: "Opens",
+            desc: "Which way the Values unroll from the Field you are on",
+            searchTerms: ["Scroller direction"],
+            visible: on("visual.tagWheel.scroller.enabled"),
+            options: [
+              { value: "up", label: "Upwards" },
+              { value: "down", label: "Downwards" },
+              { value: "full", label: "Both ways" }
+            ]
+          },
+          {
+            kind: "slider",
+            id: "scroller-size",
+            path: "visual.tagWheel.scroller.size",
+            default: 3,
+            min: 1,
+            max: 20,
+            step: 1,
+            name: "Values per side",
+            desc: "How many neighbouring Values stay visible around the current one",
+            searchTerms: ["Scroller size"],
+            visible: on("visual.tagWheel.scroller.enabled")
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/schema/transform.ts
+var TRANSFORM_GROUPS;
+var init_transform = __esm({
+  "src/ui/settings/schema/transform.ts"() {
+    "use strict";
+    init_types();
+    TRANSFORM_GROUPS = [
+      {
+        id: "inline-to-note",
+        tab: "transform",
+        order: 100,
+        heading: "Inline to note",
+        tip: "One keypress does three things in a row: it works out which note to use, it puts your text into that note, and it tidies up the line you pressed on. The groups below follow that order, so you can read down the page and see the whole journey. Nothing runs until <code>Inline to note</code> just below is switched on",
+        intro: "You write a thought on one line. Press the key, and that line becomes a note of its own \u2014 or gets added to a note you already have. The line stays where it was, with a link to the new note in its place if you want one",
+        commands: ["Transform inline to note"],
+        items: [
+          {
+            kind: "toggle",
+            id: "i2n-enabled",
+            path: "transform.inline2note.enabled",
+            default: true,
+            name: "Inline to note",
+            desc: "Allow this to create notes and add to notes you already have",
+            searchTerms: ["Inline2Note enabled"],
+            tip: "This is the switch that lets the plugin write to your vault. Everything else on this tab only decides how. Make a backup and try it on a note you do not mind breaking: one keypress can add a note, change a note, and edit the line you were on"
+          },
+          {
+            kind: "text",
+            id: "i2n-templates-folder",
+            path: "transform.inline2note.templatesFolder",
+            default: "Templates",
+            name: "Templates folder",
+            desc: "The folder your note templates live in",
+            tip: "A template is an ordinary note that a new note starts out as a copy of. Whatever you keep in this folder shows up in the lists below",
+            visible: on("transform.inline2note.enabled")
+          },
+          {
+            kind: "text",
+            id: "i2n-output-folder",
+            path: "transform.inline2note.outputFolder",
+            default: "",
+            name: "New notes folder",
+            desc: "Where to put the notes this creates. Leave it empty to keep them next to the note you are in",
+            searchTerms: ["Output folder for new notes"],
+            visible: on("transform.inline2note.enabled")
+          },
+          {
+            kind: "toggle",
+            id: "i2n-floating",
+            path: "transform.inline2note.floatingButton",
+            default: false,
+            name: "Floating button",
+            desc: "Put a small button at the end of the line you are on",
+            searchTerms: ["Flying button"],
+            visible: on("transform.inline2note.enabled"),
+            tip: "Click it and the line turns into a note, the same as pressing the key would. The button is only drawn on screen \u2014 it is never saved into your note, so nothing changes if you open the file elsewhere",
+            seeAlso: { id: "i2n-button-preview", label: "See where it appears" }
+          },
+          {
+            kind: "dropdown",
+            id: "i2n-default-template",
+            path: "transform.inline2note.defaultTemplate",
+            default: "task.md",
+            name: "Default template",
+            desc: "The template on creation of new note when no special rules apply (see <code>Smart Rules</code> below)",
+            tip: "You can set up rules further down that pick a different template for certain lines. This one is used for everything else",
+            visible: on("transform.inline2note.enabled"),
+            options: [{ value: "", label: "None" }, { value: "task.md", label: "task.md" }, { value: "meeting.md", label: "meeting.md" }]
+          }
+        ]
+      },
+      {
+        id: "naming",
+        tab: "transform",
+        order: 200,
+        heading: "Naming",
+        intro: "The new note needs a name. This block defines how to choose a name of a new note",
+        tip: "Three ways of finding one are tried in turn, and the first that works wins: the text between your chosen brackets, then a heading on the line, then simply the first few words",
+        visible: on("transform.inline2note.enabled"),
+        items: [
+          {
+            kind: "dropdown",
+            id: "naming-mode",
+            path: "transform.inline2note.noteName.mode",
+            default: "auto",
+            name: "Note name",
+            desc: "Take the name from the line, or stop and ask you for it",
+            tip: "<b>Ask me</b> opens a small box with the suggested name already filled in, so you can accept it or type your own",
+            searchTerms: ["Note name mode"],
+            options: [{ value: "auto", label: "From the line" }, { value: "manual", label: "Ask me" }]
+          },
+          {
+            kind: "text",
+            id: "naming-delimiters",
+            path: "transform.inline2note.noteName.delimiters",
+            default: "()",
+            mono: true,
+            name: "Name brackets",
+            desc: "Two characters. Whatever you put between them becomes the name",
+            searchTerms: ["Title delimiters", "Explicit name delimiters"],
+            tip: "Put <code>()</code> here, write the line <code>- call (Anna about the contract) || text</code>, and you get a note called <b>Anna about the contract</b>. Leave this box empty and the name comes from the heading or the first words instead"
+          },
+          {
+            kind: "number",
+            id: "naming-word-count",
+            path: "transform.inline2note.noteName.wordCount",
+            default: 5,
+            min: 1,
+            max: 20,
+            name: "Words to use instead",
+            desc: "How many of the first words to use when there are no brackets",
+            searchTerms: ["Auto title word count"],
+            tip: "Set this to 3 and the line <code>- draft the settings prototype today</code> becomes a note called <b>draft the settings</b>. Too few and the names all look alike; too many and they get unwieldy"
+          },
+          {
+            kind: "dropdown",
+            id: "naming-collision",
+            path: "transform.inline2note.nameCollision.mode",
+            default: "new_note",
+            name: "If the name is taken",
+            desc: "What to do when you already have a note with that name",
+            searchTerms: ["Name collision mode"],
+            options: [
+              { value: "new_note", label: "Create a second note" },
+              { value: "add_to_note", label: "Add to the existing one" },
+              { value: "overwrite", label: "Replace what is in it" }
+            ],
+            tip: "<b>Create a second note</b> adds a number to the name and never touches what you already wrote \u2014 the safe choice. <b>Add to the existing one</b> is what you want for a running log. <b>Replace what is in it</b> throws the old contents away, and this plugin cannot give them back"
+          }
+        ]
+      },
+      {
+        id: "note-content",
+        tab: "transform",
+        order: 300,
+        heading: "Note content",
+        intro: "What the note looks like inside: where your text goes, and what sits above it",
+        visible: on("transform.inline2note.enabled"),
+        items: [
+          {
+            kind: "dropdown",
+            id: "content-position",
+            path: "transform.inline2note.placement.position",
+            default: "beginning",
+            name: "Where to put the text",
+            desc: "At the top of the note, or after whatever is already there",
+            searchTerms: ["Where to place inline text?"],
+            options: [{ value: "beginning", label: "At the beginning" }, { value: "end", label: "At the end" }],
+            tip: "If you are adding to a note over and over \u2014 a diary, a log of calls \u2014 pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference"
+          },
+          {
+            kind: "dropdown",
+            id: "content-header-mode",
+            path: "transform.inline2note.placement.headerMode",
+            default: "custom",
+            name: "Line above the text",
+            desc: "Something to put above your text so entries stay apart",
+            tip: "Useful when a note collects many entries: a date, or a word like <code>## Captured</code>, keeps them from running together",
+            searchTerms: ["Inserted block header"],
+            options: [
+              { value: "custom", label: "Fixed text" },
+              { value: "datetime", label: "Date and time" },
+              { value: "none", label: "Nothing" }
+            ]
+          },
+          {
+            kind: "text",
+            id: "content-header-text",
+            path: "transform.inline2note.placement.customHeader",
+            default: "## Captured",
+            mono: true,
+            name: "What it says",
+            desc: "Typed into the note exactly as you write it here",
+            tip: "Start it with <code>##</code> and Obsidian treats it as a heading you can fold. Without the hashes it is just a line of text",
+            visible: eq("transform.inline2note.placement.headerMode", "custom")
+          },
+          {
+            kind: "text",
+            id: "content-datetime",
+            path: "transform.inline2note.placement.datetimeFormat",
+            default: "## YYYY-MM-DD HH:mm",
+            mono: true,
+            name: "Date format",
+            desc: "Today\u2019s date, written the way you set out here",
+            searchTerms: ["Datetime header format"],
+            visible: eq("transform.inline2note.placement.headerMode", "datetime"),
+            tip: "<code>YYYY</code> is the year, <code>MM</code> the month, <code>DD</code> the day, and <code>HH mm ss</code> the time. Anything else you type is kept as it is, so <code>## YYYY-MM-DD</code> gives you a heading like <b>## 2026-08-21</b>, and adding a third hash makes it a smaller heading"
+          },
+          {
+            kind: "dropdown",
+            id: "content-sublines",
+            path: "transform.inline2note.sublines",
+            default: "stay",
+            name: "Lines indented under it",
+            desc: "Leave them where they are, or take them into the note too",
+            tip: "Say the line has three sub-points under it. <b>Take them along</b> moves all four into the note and leaves the place they came from empty. <b>Leave them</b> moves only the line you pressed on",
+            searchTerms: ["Sublines behavior"],
+            options: [{ value: "stay", label: "Leave them" }, { value: "remove", label: "Take them along" }]
+          },
+          {
+            kind: "toggle",
+            id: "content-open",
+            path: "transform.inline2note.openTarget",
+            default: true,
+            name: "Open the note afterwards",
+            desc: "Jump straight to the note once it is written",
+            tip: "Handy while you are still setting this up, so you can see what came out. Turn it off once you trust it and you can keep writing without losing your place",
+            searchTerms: ["Open transformed note"]
+          }
+        ]
+      },
+      {
+        id: "source-line",
+        tab: "transform",
+        order: 400,
+        heading: "Source line",
+        intro: "What happens to the line you pressed on, once the note is safely written",
+        visible: on("transform.inline2note.enabled"),
+        items: [
+          {
+            kind: "toggle",
+            id: "source-link",
+            path: "transform.inline2note.sourceProcessing.replaceWithLink",
+            default: true,
+            name: "Leave a link behind",
+            desc: "Put a link to the new note where your text used to be",
+            searchTerms: ["Replace payload with note link"],
+            tip: "On, the line becomes a tidy pointer: click the link and you are in the note. Off, the text stays where it is \u2014 which means you can press again by mistake and get a second note. The marker below is the usual way to guard against that"
+          },
+          {
+            kind: "text",
+            id: "source-marker",
+            path: "transform.inline2note.sourceProcessing.token",
+            default: "",
+            mono: true,
+            name: "Mark the line as done",
+            desc: "A word or tag added to the line so you can see it has been handled",
+            searchTerms: ["Processed token"],
+            tip: "Type something like <code>#moved</code>. Afterwards you can search for it to find everything you have filed, or hide those lines from a list of things still to do. Leave the box empty and nothing is added"
+          },
+          {
+            kind: "dropdown",
+            id: "source-marker-position",
+            path: "transform.inline2note.sourceProcessing.panel",
+            default: "right",
+            name: "Where the mark goes",
+            desc: "Before your text, or after it",
+            searchTerms: ["Processed token panel"],
+            visible: {
+              deps: ["transform.inline2note.sourceProcessing.token"],
+              test: (c) => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== ""
+            },
+            options: [{ value: "left", label: "Left, before the text" }, { value: "right", label: "Right, after the text" }]
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/schema/advanced.ts
+var ADVANCED_GROUPS;
+var init_advanced = __esm({
+  "src/ui/settings/schema/advanced.ts"() {
+    "use strict";
+    init_types();
+    ADVANCED_GROUPS = [
+      {
+        id: "diagnostics",
+        tab: "advanced",
+        order: 200,
+        heading: "Diagnostics",
+        intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
+        items: [
+          {
+            kind: "toggle",
+            id: "dev-mode",
+            path: "advanced.devMode.enabled",
+            default: false,
+            name: "Developer logging",
+            desc: "Record what the plugin did, to help track down a problem",
+            searchTerms: ["Enable Dev Mode"],
+            tip: "Leave this off day to day. Turn it on, reproduce the problem once, then turn it off and attach the log to a bug report after checking what is in it"
+          },
+          {
+            kind: "toggle",
+            id: "dev-ai-log",
+            path: "advanced.devMode.aiLog",
+            default: true,
+            name: "Machine-readable log",
+            desc: "Also keep a second, denser log meant for tools rather than people",
+            tip: "Only worth turning on if someone has asked you for it. The plain log is the one you can read yourself",
+            searchTerms: ["Generate log for AI?"],
+            visible: on("advanced.devMode.enabled")
+          },
+          {
+            kind: "text",
+            id: "dev-log-path",
+            path: "advanced.devMode.logPath",
+            default: "InlineOverhaul_DevLog",
+            wide: true,
+            name: "Log file",
+            desc: "Where in your vault the logs are put",
+            tip: "They are ordinary notes, so they show up in search and in your graph. Keep them in a folder you exclude if that bothers you",
+            searchTerms: ["Log Path"],
+            visible: on("advanced.devMode.enabled")
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/schema/index.ts
+var TABS, SCHEMA;
+var init_schema = __esm({
+  "src/ui/settings/schema/index.ts"() {
+    "use strict";
+    init_general();
+    init_keyboard();
+    init_navigation();
+    init_pkm();
+    init_visual();
+    init_transform();
+    init_advanced();
+    TABS = [
+      { id: "general", label: "General" },
+      { id: "keyboard", label: "Keyboard" },
+      { id: "navigation", label: "Navigation", module: "features.navigation.enabled" },
+      { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled" },
+      { id: "visual", label: "Visual", module: "features.visual.enabled" },
+      { id: "transform", label: "Transform", module: "features.transform.enabled" },
+      { id: "advanced", label: "Advanced" }
+    ];
+    SCHEMA = [
+      ...GENERAL_GROUPS,
+      ...KEYBOARD_GROUPS,
+      ...NAVIGATION_GROUPS,
+      ...PKM_GROUPS,
+      ...VISUAL_GROUPS,
+      ...TRANSFORM_GROUPS,
+      ...ADVANCED_GROUPS
+    ];
+  }
+});
+
+// src/ui/settings/to_definitions.ts
+function controlFor(it) {
+  if (!isBound(it)) return void 0;
+  const type = CONTROL_TYPE[it.kind];
+  if (!type) return void 0;
+  const control = { type, key: it.path };
+  const any = it;
+  if ("default" in any) control.defaultValue = any["default"];
+  if (it.kind === "dropdown") {
+    const options = {};
+    for (const o of it.options) options[o.value] = o.label;
+    control.options = options;
+  }
+  if (it.kind === "slider") {
+    control.min = it.min;
+    control.max = it.max;
+    control.step = it.step;
+  }
+  if (it.kind === "number") {
+    if (it.min !== void 0) control.min = it.min;
+    if (it.max !== void 0) control.max = it.max;
+  }
+  if (it.kind === "text") {
+    if (it.placeholder !== void 0) control.placeholder = it.placeholder;
+    if (it.validate) control.validate = it.validate;
+  }
+  if (it.kind === "slider" && it.unit) {
+    const unit = it.unit;
+    control.displayFormat = (v) => v + " " + unit;
+  }
+  if (it.kind === "textarea") {
+    if (it.placeholder !== void 0) control.placeholder = it.placeholder;
+    if (it.rows !== void 0) control.rows = it.rows;
+  }
+  return control;
+}
+function itemToDefinition(it, w) {
+  const def = { name: it.name };
+  const desc = w.describe(it);
+  if (desc !== void 0 && desc !== null) def.desc = desc;
+  if (it.searchTerms && it.searchTerms.length) def.aliases = it.searchTerms.slice();
+  if (it.visible) {
+    const p = it.visible;
+    def.visible = () => p.test(w.ctx);
+  }
+  if (it.kind === "custom") {
+    if (w.renderCustom) def.render = w.renderCustom(it);
+    return def;
+  }
+  if (it.kind === "buttons") {
+    if (it.disabled) {
+      const p = it.disabled;
+      def.disabled = () => p.test(w.ctx);
+    }
+    const first = it.buttons[0];
+    if (first) def.action = () => w.run(first.action);
+    const rest = it.buttons.slice(1);
+    if (rest.length) {
+      def.extraButtons = rest.map((b) => ({ tooltip: b.label, onClick: () => w.run(b.action) }));
+    }
+    return def;
+  }
+  const control = controlFor(it);
+  if (control) {
+    if (it.disabled) {
+      const p = it.disabled;
+      control.disabled = () => p.test(w.ctx);
+    }
+    def.control = control;
+  }
+  return def;
+}
+function groupToDefinition(group, w) {
+  const def = {
+    type: "group",
+    heading: group.heading,
+    items: group.items.map((it) => itemToDefinition(it, w))
+  };
+  if (group.intro !== void 0) def.desc = group.intro;
+  if (group.visible) {
+    const p = group.visible;
+    def.visible = () => p.test(w.ctx);
+  }
+  const reset = w.resetGroup ? w.resetGroup(group) : null;
+  if (reset) def.extraButtons = [{ tooltip: reset.tooltip, onClick: reset.onClick }];
+  return def;
+}
+function toDefinitions(schema, tabs, w) {
+  const out = [];
+  for (const tab of tabs) {
+    const groups = schema.filter((g) => g.tab === tab.id).slice().sort((a, b) => a.order - b.order);
+    if (!groups.length) continue;
+    out.push({
+      type: "page",
+      name: tab.label,
+      items: groups.map((g) => groupToDefinition(g, w))
+    });
+  }
+  return out;
+}
+var CONTROL_TYPE;
+var init_to_definitions = __esm({
+  "src/ui/settings/to_definitions.ts"() {
+    "use strict";
+    init_types();
+    CONTROL_TYPE = {
+      toggle: "toggle",
+      dropdown: "dropdown",
+      slider: "slider",
+      number: "number",
+      text: "text",
+      textarea: "textarea",
+      color: "color"
+    };
+  }
+});
+
+// src/ui/settings/describe.ts
+function richParts(text) {
+  const out = [];
+  const re = /<(code|b)>([\s\S]*?)<\/\1>/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push({ tag: "text", text: text.slice(last, m.index) });
+    out.push({ tag: m[1], text: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ tag: "text", text: text.slice(last) });
+  return out;
+}
+function paint(host, text) {
+  for (const part of richParts(text)) {
+    if (part.tag === "text") host.createSpan({ text: part.text });
+    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
+  }
+}
+var Describer;
+var init_describe = __esm({
+  "src/ui/settings/describe.ts"() {
+    "use strict";
+    Describer = class {
+      constructor(host) {
+        this.cache = /* @__PURE__ */ new Map();
+        this.host = host;
+      }
+      /** Ключ кеша: если тексты и режим подсказок не менялись, фрагмент тот же. */
+      cacheKey(it, o) {
+        return [it.desc || "", it.tip || "", (it.searchTerms || []).join("|"), o.showTips ? "1" : "0"].join(" ");
+      }
+      describe(it, o) {
+        const hasSomething = it.desc || o.showTips && it.tip || it.searchTerms && it.searchTerms.length;
+        if (!hasSomething) return void 0;
+        const key = this.cacheKey(it, o);
+        const hit = this.cache.get(it.id);
+        if (hit && hit.key === key) return hit.frag;
+        const frag = this.host.createFragment();
+        if (it.desc) paint(frag, it.desc);
+        if (o.showTips && it.tip) {
+          const tip = frag.createEl("div", { cls: "io-tipline" });
+          tip.createEl("span", { text: "?", cls: "io-tipmark" });
+          paint(tip, it.tip);
+        }
+        this.cache.set(it.id, { key, frag });
+        return frag;
+      }
+      /** Сбросить кеш: язык или режим подсказок сменились целиком. */
+      clear() {
+        this.cache.clear();
+      }
+    };
+  }
+});
+
+// src/ui/settings/settings_tab.ts
+var SettingsPane;
+var init_settings_tab = __esm({
+  "src/ui/settings/settings_tab.ts"() {
+    "use strict";
+    init_types();
+    init_to_definitions();
+    init_describe();
+    SettingsPane = class {
+      constructor(deps) {
+        this.deps = deps;
+        this.describer = new Describer(deps.fragments);
+        this.defaults = buildDefaultConfig(deps.schema);
+      }
+      /* ---- шов с платформой (П-1) ---------------------------------------- */
+      getControlValue(key) {
+        const v = this.deps.store.get(key);
+        return v === void 0 ? getIn(this.defaults, key) : v;
+      }
+      async setControlValue(key, value) {
+        const opts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
+        await this.deps.store.set(key, value, opts);
+      }
+      /** Склейка записей идёт по id настройки, а не по пути (CS3). */
+      coalesceKeyFor(path) {
+        for (const group of this.deps.schema) {
+          for (const it of group.items) {
+            if (isBound(it) && it.path === path) return it.id;
+          }
+        }
+        return path;
+      }
+      /* ---- определения для платформы ------------------------------------- */
+      ctx() {
+        return {
+          get: (path) => this.getControlValue(path),
+          set: (path, value, opts) => this.deps.store.set(path, value, opts),
+          run: (action) => this.run(action)
+        };
+      }
+      async run(action) {
+        const fn = this.deps.actions[action];
+        if (!fn) {
+          throw new Error("\u043D\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435: " + action);
+        }
+        await fn();
+      }
+      wiring() {
+        const ctx = this.ctx();
+        const showTips = Boolean(this.getControlValue("general.help.showTips"));
+        return {
+          ctx,
+          run: (action) => {
+            void this.run(action);
+          },
+          describe: (it) => this.describer.describe(it, { showTips }),
+          resetGroup: (group) => this.resetButtonFor(group)
+        };
+      }
+      getSettingDefinitions() {
+        return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
+      }
+      /* ---- сброс группы к значениям по умолчанию (10.13.1) --------------- */
+      /** Что в группе отличается от значения по умолчанию. */
+      drift(group) {
+        const out = [];
+        for (const it of group.items) {
+          if (!isBound(it)) continue;
+          const was = it["default"];
+          const now = this.getControlValue(it.path);
+          if (JSON.stringify(now) !== JSON.stringify(was)) {
+            out.push({ id: it.id, name: it.name, now, was });
+          }
+        }
+        return out;
+      }
+      /**
+       * Сброс идёт одной записью undo: одно нажатие — один шаг назад (Н4).
+       * Свои блоки не трогаются: Fields, Values и правила — данные, а не
+       * настройки (Н5).
+       */
+      async resetGroup(group) {
+        const drift = this.drift(group);
+        let first = true;
+        for (const d of drift) {
+          const it = group.items.find((x) => x.id === d.id);
+          if (!it || !isBound(it)) continue;
+          await this.deps.store.set(it.path, d.was, { coalesceKey: "reset:" + group.id, undoable: first });
+          first = false;
+        }
+        if (drift.length && this.deps.notify) {
+          this.deps.notify(drift.length + " settings back to default. Use Undo settings change to revert");
+        }
+        if (drift.length && this.deps.refresh) this.deps.refresh();
+        return drift.length;
+      }
+      resetButtonFor(group) {
+        if (!group.items.some((it) => isBound(it))) return null;
+        const n = this.drift(group).length;
+        if (!n) return null;
+        return {
+          tooltip: "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default",
+          onClick: () => {
+            void this.resetGroup(group);
+          }
+        };
+      }
+    };
+  }
+});
+
+// src/ui/settings/store.ts
+var ConfigStoreAdapter;
+var init_store = __esm({
+  "src/ui/settings/store.ts"() {
+    "use strict";
+    init_types();
+    ConfigStoreAdapter = class {
+      constructor(store) {
+        this.store = store;
+      }
+      get(path) {
+        return getIn(this.store.getConfig(), path);
+      }
+      async set(path, value, opts) {
+        await this.store.update(
+          (cfg) => setIn(cfg, path, value),
+          "settings:" + path,
+          opts
+        );
+      }
+    };
+  }
+});
+
+// src/ui/settings/obsidian_tab.ts
+var obsidian_tab_exports = {};
+__export(obsidian_tab_exports, {
+  InlineOverhaulSettings: () => InlineOverhaulSettings
+});
+function storeFor(plugin) {
+  const store = plugin.store;
+  if (!store) throw new Error("inline-overhaul: settings pane needs plugin.store");
+  return {
+    getConfig() {
+      if (store.config) return store.config;
+      if (typeof store.getSnapshot === "function") return store.getSnapshot();
+      if (typeof plugin.getConfig === "function") return plugin.getConfig();
+      return {};
+    },
+    update(mutator, reason, opts) {
+      return store.update(
+        (cfg) => {
+          mutator(cfg);
+          return cfg;
+        },
+        reason,
+        opts
+      );
+    }
+  };
+}
+var import_obsidian, InlineOverhaulSettings;
+var init_obsidian_tab = __esm({
+  "src/ui/settings/obsidian_tab.ts"() {
+    "use strict";
+    import_obsidian = require("obsidian");
+    init_schema();
+    init_settings_tab();
+    init_store();
+    InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
+      constructor(app2, plugin) {
+        super(app2, plugin);
+        this.pane = new SettingsPane({
+          schema: SCHEMA,
+          tabs: TABS,
+          store: new ConfigStoreAdapter(storeFor(plugin)),
+          actions: {},
+          // реестр наполняется в фазе 5; кнопок без действий в схеме нет
+          fragments: {
+            createFragment: () => document.createDocumentFragment()
+          },
+          notify: (message) => {
+            new import_obsidian.Notice(message);
+          },
+          refresh: () => {
+            this.refreshDomState();
+          }
+        });
+      }
+      /* ---- декларативный путь Obsidian 1.13 ------------------------------- */
+      /*
+       * Приведение типа живёт здесь, и только здесь. Слой настроек описывает
+       * определения своей структурой, чтобы собираться и проверяться без модуля
+       * obsidian; этот файл — единственный, который знает про платформу, и
+       * единственное место, где две формы встречаются.
+       */
+      getSettingDefinitions() {
+        return this.pane.getSettingDefinitions();
+      }
+      getControlValue(key) {
+        return this.pane.getControlValue(key);
+      }
+      async setControlValue(key, value) {
+        await this.pane.setControlValue(key, value);
+      }
+      /**
+       * При декларативном пути `display` не вызывается. Если Obsidian всё же его
+       * позвал, значит версия старше 1.13 и определения игнорируются — тогда
+       * пустая панель хуже честного объяснения.
+       */
+      display() {
+        const el = this.containerEl;
+        el.empty();
+        const box = el.createDiv({ cls: "io-needs-update" });
+        box.createEl("p", {
+          text: "Inline Overhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API."
+        });
+        box.createEl("p", {
+          text: "Update Obsidian, or install an earlier release of the plugin."
+        });
+      }
+    };
+  }
+});
+
 // main.js
 var require_main = __commonJS({
   "main.js"(exports2, module2) {
     "use strict";
-    var { Plugin, PluginSettingTab, Setting, Notice: Notice2, Modal, setIcon } = require("obsidian");
+    var { Plugin, PluginSettingTab: PluginSettingTab2, Setting, Notice: Notice3, Modal, setIcon } = require("obsidian");
     var cmView = require("@codemirror/view");
     var cmState = require("@codemirror/state");
     var __priorityStripEngine = {
@@ -32440,8 +34262,8 @@ var require_main = __commonJS({
           }
           const subIdx = leftFieldsLive.findIndex((f) => String(f && f.id || "").trim() === subKey);
           if (subIdx !== -1) {
-            const on = String(order.active && order.active[subKey] || "no").trim().toLowerCase() !== "no";
-            leftFieldsLive[subIdx] = { ...leftFieldsLive[subIdx], enabled: on, dependsOn: key };
+            const on2 = String(order.active && order.active[subKey] || "no").trim().toLowerCase() !== "no";
+            leftFieldsLive[subIdx] = { ...leftFieldsLive[subIdx], enabled: on2, dependsOn: key };
           }
           if (subKey && !Object.prototype.hasOwnProperty.call(order.active, subKey)) {
             order.active[subKey] = "no";
@@ -34308,7 +36130,7 @@ var require_main = __commonJS({
             this.lastSavedAt = Date.now();
           } catch (e) {
             console.error("[inline-overhaul] Save failed", e);
-            new Notice2("InlineOverhaul: failed to save settings");
+            new Notice3("InlineOverhaul: failed to save settings");
           }
         }, this.saveDebounceMs);
       }
@@ -34370,7 +36192,7 @@ var require_main = __commonJS({
           isObj,
           deepMerge,
           migrateConfig,
-          Notice: Notice2
+          Notice: Notice3
         });
         await this.store.init();
         try {
@@ -34378,7 +36200,7 @@ var require_main = __commonJS({
         } catch (e) {
           console.error("[inline-overhaul][dev-mode-log:init]", e);
         }
-        this.addSettingTab(new InlineOverhaulSettingTab(this.app, this));
+        this.addSettingTab(this.createSettingTab());
         this.registerCommands();
         this.ensureTagwheelFillStyles();
         this.ensureStripLineStyles();
@@ -34491,7 +36313,7 @@ var require_main = __commonJS({
           defaultGeneratedRulesPath: DEFAULT_CONFIG.pkm.generatedRulesPath,
           buildRulesMarkdown: (cfg) => getRulesMarkdownBuilder().buildTagWheelRulesMarkdownFromConfig(cfg),
           writeText: (p, md) => this.app.vault.adapter.write(p, md),
-          notice: (msg) => new Notice2(msg)
+          notice: (msg) => new Notice3(msg)
         }, reason);
       }
       registerCommands() {
@@ -34640,7 +36462,7 @@ var require_main = __commonJS({
         return (_c = (_a = this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView)) == null ? void 0 : _a.editor) != null ? _c : (_b = this.app.workspace.activeEditor) == null ? void 0 : _b.editor;
       }
       notice(message) {
-        new Notice2(String(message || ""));
+        new Notice3(String(message || ""));
       }
       async ensureNavRuntime() {
         if (this.navRuntime && typeof this.navRuntime === "object") return this.navRuntime;
@@ -34650,35 +36472,35 @@ var require_main = __commonJS({
       async runNavGuard(moduleKey, action) {
         const cfg = this.getConfig();
         if (!cfg.features.navigation.enabled) {
-          new Notice2("InlineOverhaul: Navigation module disabled");
+          new Notice3("InlineOverhaul: Navigation module disabled");
           return;
         }
         const rt = await this.ensureNavRuntime();
         if (!rt) {
-          new Notice2("InlineOverhaul: navigation runtime unavailable");
+          new Notice3("InlineOverhaul: navigation runtime unavailable");
           return;
         }
         const ed = this.getActiveEditor();
         if (!ed) {
-          new Notice2("InlineOverhaul: no active editor");
+          new Notice3("InlineOverhaul: no active editor");
           return;
         }
         try {
           return await Promise.resolve(action(ed, cfg.navigation || {}, cfg, rt));
         } catch (e) {
           console.error("[inline-overhaul][navigation]", e);
-          new Notice2("InlineOverhaul navigation error: " + (e.message || e));
+          new Notice3("InlineOverhaul navigation error: " + (e.message || e));
         }
       }
       async runPkmGuard(action) {
         const cfg = this.getConfig();
         if (!cfg.features.pkm.enabled) {
-          new Notice2("InlineOverhaul: Tag & PKM module disabled");
+          new Notice3("InlineOverhaul: Tag & PKM module disabled");
           return;
         }
         const ed = this.getActiveEditor();
         if (!ed) {
-          new Notice2("InlineOverhaul: no active editor");
+          new Notice3("InlineOverhaul: no active editor");
           return;
         }
         try {
@@ -34689,7 +36511,7 @@ var require_main = __commonJS({
             stack: e && e.stack ? String(e.stack) : ""
           }, "error", cfg);
           console.error("[inline-overhaul][pkm]", e);
-          new Notice2("InlineOverhaul PKM error: " + (e.message || e));
+          new Notice3("InlineOverhaul PKM error: " + (e.message || e));
         }
       }
       async ensurePkmRuntimeV2() {
@@ -34717,7 +36539,7 @@ var require_main = __commonJS({
           app: this.app,
           command,
           settings,
-          Notice: Notice2,
+          Notice: Notice3,
           devLog: (event, payload) => this.devLogEvent(event, payload, "info", cfg)
         }));
       }
@@ -34814,6 +36636,21 @@ var require_main = __commonJS({
       }
       getConfig() {
         return this.store.getSnapshot();
+      }
+      /**
+       * Панель настроек. Новая — на схеме и декларативном API; старая остаётся
+       * запасным путём до фазы 3, когда её код удаляется целиком.
+       */
+      createSettingTab() {
+        const Declarative = getDeclarativeSettingTabCtor();
+        if (Declarative) {
+          try {
+            return new Declarative(this.app, this);
+          } catch (e) {
+            console.error("[inline-overhaul] declarative settings pane failed to build", e);
+          }
+        }
+        return new InlineOverhaulSettingTab(this.app, this);
       }
       getDevModeConfig(cfg) {
         const snapshot = isObj(cfg) ? cfg : this.getConfig();
@@ -35331,7 +37168,16 @@ var require_main = __commonJS({
         return !!(cfg.features && cfg.features[featureKey] && cfg.features[featureKey].enabled);
       }
     };
-    var InlineOverhaulSettingTab = class extends PluginSettingTab {
+    function getDeclarativeSettingTabCtor() {
+      try {
+        const mod = (init_obsidian_tab(), __toCommonJS(obsidian_tab_exports));
+        if (mod && typeof mod.InlineOverhaulSettings === "function") return mod.InlineOverhaulSettings;
+      } catch (e) {
+        console.warn("[inline-overhaul] declarative settings pane unavailable, using the old one", e && e.message);
+      }
+      return null;
+    }
+    var InlineOverhaulSettingTab = class extends PluginSettingTab2 {
       constructor(app2, plugin) {
         super(app2, plugin);
         this.plugin = plugin;
@@ -35413,7 +37259,7 @@ var require_main = __commonJS({
         const renderer = getSettingsSectionsRenderer();
         return renderer.renderGeneralSection({
           Setting,
-          Notice: Notice2,
+          Notice: Notice3,
           containerEl,
           cfg,
           featureOrder: FEATURE_ORDER,
@@ -35453,7 +37299,7 @@ var require_main = __commonJS({
           renderPkmSettings: (el, cfgValue, enabled) => {
             renderer.renderPkmOrderBoardSection({
               Setting,
-              Notice: Notice2,
+              Notice: Notice3,
               Modal,
               containerEl: el,
               cfg: cfgValue,
@@ -35465,7 +37311,7 @@ var require_main = __commonJS({
             });
             return renderer.renderPkmConfigSections({
               Setting,
-              Notice: Notice2,
+              Notice: Notice3,
               Modal,
               containerEl: el,
               cfg: cfgValue,
@@ -35558,7 +37404,7 @@ var require_main = __commonJS({
         const renderer = getSettingsSectionsRenderer();
         return renderer.renderAdvancedSection({
           Setting,
-          Notice: Notice2,
+          Notice: Notice3,
           containerEl,
           cfg,
           featureOrder: FEATURE_ORDER,

@@ -26,18 +26,23 @@ export interface ObsidianControl {
   min?: number;
   max?: number;
   step?: number;
+  /** Слайдер: как показать значение. Сюда уходит `unit` (Ст5). */
+  displayFormat?: (v: number) => string;
   placeholder?: string;
   rows?: number;
   validate?: (v: string) => string | undefined;
+  /** Неактивность контрола живёт в контроле, а не в определении. */
   disabled?: () => boolean;
 }
 
 export interface ObsidianDefinition {
-  type?: "page" | "group";
+  type?: "page" | "group" | "list";
   name?: string;
   heading?: string;
   desc?: unknown;
   cls?: string;
+  /** Дополнительные слова для поиска: сюда уходят старые имена (С4, П-4). */
+  aliases?: string[];
   searchable?: boolean;
   items?: ObsidianDefinition[];
   control?: ObsidianControl;
@@ -97,6 +102,10 @@ function controlFor(it: SettingDef): ObsidianControl | undefined {
     if (it.placeholder !== undefined) control.placeholder = it.placeholder;
     if (it.validate) control.validate = it.validate;
   }
+  if (it.kind === "slider" && it.unit) {
+    const unit = it.unit;
+    control.displayFormat = (v: number) => v + " " + unit;
+  }
   if (it.kind === "textarea") {
     if (it.placeholder !== undefined) control.placeholder = it.placeholder;
     if (it.rows !== undefined) control.rows = it.rows;
@@ -108,13 +117,12 @@ function itemToDefinition(it: SettingDef, w: Wiring): ObsidianDefinition {
   const def: ObsidianDefinition = { name: it.name };
   const desc = w.describe(it);
   if (desc !== undefined && desc !== null) def.desc = desc;
+  /* Старые имена — в aliases: поиск их учитывает, а видимый текст остаётся
+     чистым. Поля ключевых слов в документации нет, оно есть в типах. */
+  if (it.searchTerms && it.searchTerms.length) def.aliases = it.searchTerms.slice();
   if (it.visible) {
     const p = it.visible;
     def.visible = () => p.test(w.ctx);
-  }
-  if (it.disabled) {
-    const p = it.disabled;
-    def.disabled = () => p.test(w.ctx);
   }
 
   /* control, render и action взаимоисключающи (П-12). */
@@ -123,6 +131,10 @@ function itemToDefinition(it: SettingDef, w: Wiring): ObsidianDefinition {
     return def;
   }
   if (it.kind === "buttons") {
+    if (it.disabled) {
+      const p = it.disabled;
+      def.disabled = () => p.test(w.ctx);
+    }
     const first = it.buttons[0];
     if (first) def.action = () => w.run(first.action);
     const rest = it.buttons.slice(1);
@@ -133,7 +145,15 @@ function itemToDefinition(it: SettingDef, w: Wiring): ObsidianDefinition {
   }
 
   const control = controlFor(it);
-  if (control) def.control = control;
+  if (control) {
+    /* disabled принадлежит контролу: у определения его нет ни у одного вида,
+       кроме action. */
+    if (it.disabled) {
+      const p = it.disabled;
+      control.disabled = () => p.test(w.ctx);
+    }
+    def.control = control;
+  }
   return def;
 }
 

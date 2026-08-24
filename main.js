@@ -4151,7 +4151,7 @@ class InlineOverhaulPlugin extends Plugin {
       console.error("[inline-overhaul][dev-mode-log:init]", e);
     }
 
-    this.addSettingTab(new InlineOverhaulSettingTab(this.app, this));
+    this.addSettingTab(this.createSettingTab());
 
     this.registerCommands();
     this.ensureTagwheelFillStyles();
@@ -4613,6 +4613,22 @@ class InlineOverhaulPlugin extends Plugin {
 
   getConfig() {
     return this.store.getSnapshot();
+  }
+
+  /**
+   * Панель настроек. Новая — на схеме и декларативном API; старая остаётся
+   * запасным путём до фазы 3, когда её код удаляется целиком.
+   */
+  createSettingTab() {
+    const Declarative = getDeclarativeSettingTabCtor();
+    if (Declarative) {
+      try {
+        return new Declarative(this.app, this);
+      } catch (e) {
+        console.error("[inline-overhaul] declarative settings pane failed to build", e);
+      }
+    }
+    return new InlineOverhaulSettingTab(this.app, this);
   }
 
   getDevModeConfig(cfg) {
@@ -5139,6 +5155,25 @@ class InlineOverhaulPlugin extends Plugin {
     return !!(cfg.features && cfg.features[featureKey] && cfg.features[featureKey].enabled);
   }
 
+}
+
+/**
+ * Новая панель настроек на декларативном API (PRD 5.3). Загружается через
+ * try/catch, как и остальные модули в этом файле: если сборка идёт из
+ * исходников без esbuild, файл на TypeScript не разрешится, и плагин
+ * останется на старой панели вместо того, чтобы не запуститься.
+ *
+ * Оба пути уходят в фазе 6, когда весь этот механизм заменят статические
+ * импорты (дефект A2).
+ */
+function getDeclarativeSettingTabCtor() {
+  try {
+    const mod = require("./src/ui/settings/obsidian_tab.ts");
+    if (mod && typeof mod.InlineOverhaulSettings === "function") return mod.InlineOverhaulSettings;
+  } catch (e) {
+    console.warn("[inline-overhaul] declarative settings pane unavailable, using the old one", e && e.message);
+  }
+  return null;
 }
 
 class InlineOverhaulSettingTab extends PluginSettingTab {
