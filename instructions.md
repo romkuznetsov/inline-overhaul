@@ -7,7 +7,7 @@ Inline Overhaul is a desktop-only Obsidian beta plugin for structured inline not
 
 ## Requirements
 
-- Obsidian desktop 1.5.0 or newer
+- Obsidian desktop 1.13.0 or newer (the settings pane uses the declarative settings API added in 1.13)
 - Desktop vault; mobile is not supported
 - BRAT community plugin for beta installation and updates
 - A current vault backup

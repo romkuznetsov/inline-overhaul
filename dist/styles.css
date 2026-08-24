@@ -1,0 +1,8 @@
+/* Inline Overhaul - settings pane and editor decorations.
+ *
+ * Rules for this file (PRD 5.7):
+ *   - every class is prefixed io-
+ *   - every colour comes from an Obsidian theme variable, never a literal
+ *   - the settings layer sets no inline styles; the only exception is
+ *     setProperty on an --io-* custom property for a parametric preview
+ */

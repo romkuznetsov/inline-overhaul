@@ -1748,6 +1748,7 @@ var require_pkm_domain_registry = __commonJS({
 // pkm_v2/field_model.js
 var require_field_model = __commonJS({
   "pkm_v2/field_model.js"(exports2, module2) {
+    "use strict";
     var domainRegistry = (() => {
       try {
         if (typeof require === "function") {
@@ -1780,6 +1781,7 @@ var require_field_model = __commonJS({
 // pkm_v2/status_date.js
 var require_status_date = __commonJS({
   "pkm_v2/status_date.js"(exports2, module2) {
+    "use strict";
     var RULES_PATH = "Rules path";
     var ACTION_TYPE = "Action type";
     var CYCLE_END_BEHAVIOR = "Cycle end behavior";
@@ -3517,6 +3519,7 @@ var require_status_date = __commonJS({
 // pkm_v2/status_tags.js
 var require_status_tags = __commonJS({
   "pkm_v2/status_tags.js"(exports2, module2) {
+    "use strict";
     var RULES_PATH = "Rules path";
     var ACTION_TYPE = "Action type";
     var SUBTAG_FORMAT = "Subtag format";
@@ -5752,6 +5755,7 @@ var require_status_tags = __commonJS({
 // pkm_v2/TagWheel/tagwheel.js
 var require_tagwheel = __commonJS({
   "pkm_v2/TagWheel/tagwheel.js"(exports2, module2) {
+    "use strict";
     var START_SETTING_OPTION = "Start setting";
     var START_MODE_OPTION = "Start mode override";
     var SUBTAG_FORMAT_OPTION = "Subtag format";
@@ -7396,6 +7400,7 @@ var require_tagwheel = __commonJS({
 // pkm_v2/TagWheel/tagwheel_core.js
 var require_tagwheel_core = __commonJS({
   "pkm_v2/TagWheel/tagwheel_core.js"(exports2, module2) {
+    "use strict";
     function err(msg) {
       throw new Error("[tagwheel] " + msg);
     }

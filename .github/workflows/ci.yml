@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Settings layer gates
+        run: npm run gate
+
+      # Прототип нормативен (PRD Р8), поэтому расхождение с ним ловится
+      # здесь же: гейты схемы, дымовой рендер, проверки по выводу и
+      # перегенерация раздела 9 с Приложением B без diff (Г24).
+      - name: Prototype gates
+        run: npm run gate:prototype
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle sanity
+        run: node --check dist/main.js

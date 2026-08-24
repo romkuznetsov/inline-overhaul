@@ -9,7 +9,7 @@ See the [visual showcase](showcase.md) for animated examples and the [setup and 
 
 ## Requirements
 
-- Obsidian desktop 1.5.0 or newer
+- Obsidian desktop 1.13.0 or newer (the settings pane uses the declarative settings API added in 1.13)
 - Desktop only; mobile is not supported
 
 ## Install with BRAT

@@ -17,6 +17,7 @@ esbuild.buildSync({
   platform: "node",
   format: "cjs",
   target: "es2018",
+  resolveExtensions: [".ts", ".js", ".json"],   // фаза 0: новый код на TS
   external: ["obsidian", "@codemirror/view", "@codemirror/state"],
   legalComments: "none",
   logLevel: "info",
