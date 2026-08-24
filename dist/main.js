@@ -32046,90 +32046,90 @@ var init_schema = __esm({
 });
 
 // src/ui/settings/to_definitions.ts
-function controlFor(it) {
+function controlFor(it, w) {
   if (!isBound(it)) return void 0;
   const type = CONTROL_TYPE[it.kind];
   if (!type) return void 0;
   const control = { type, key: it.path };
-  const any = it;
-  if ("default" in any) control.defaultValue = any["default"];
+  const raw = it;
+  if ("default" in raw) control["defaultValue"] = raw["default"];
+  if (it.disabled) {
+    const p = it.disabled;
+    control["disabled"] = () => p.test(w.ctx);
+  }
   if (it.kind === "dropdown") {
     const options = {};
     for (const o of it.options) options[o.value] = o.label;
-    control.options = options;
+    control["options"] = options;
   }
   if (it.kind === "slider") {
-    control.min = it.min;
-    control.max = it.max;
-    control.step = it.step;
+    control["min"] = it.min;
+    control["max"] = it.max;
+    control["step"] = it.step;
+    if (it.unit) {
+      const unit = it.unit;
+      control["displayFormat"] = (v) => v + " " + unit;
+    }
   }
   if (it.kind === "number") {
-    if (it.min !== void 0) control.min = it.min;
-    if (it.max !== void 0) control.max = it.max;
+    if (it.min !== void 0) control["min"] = it.min;
+    if (it.max !== void 0) control["max"] = it.max;
   }
-  if (it.kind === "text") {
-    if (it.placeholder !== void 0) control.placeholder = it.placeholder;
-    if (it.validate) control.validate = it.validate;
-  }
-  if (it.kind === "slider" && it.unit) {
-    const unit = it.unit;
-    control.displayFormat = (v) => v + " " + unit;
-  }
-  if (it.kind === "textarea") {
-    if (it.placeholder !== void 0) control.placeholder = it.placeholder;
-    if (it.rows !== void 0) control.rows = it.rows;
+  if (it.kind === "text" || it.kind === "textarea") {
+    if (it.placeholder !== void 0) control["placeholder"] = it.placeholder;
+    if (it.kind === "text" && it.validate) control["validate"] = it.validate;
   }
   return control;
 }
 function itemToDefinition(it, w) {
-  const def = { name: it.name };
+  const common = { name: it.name };
   const desc = w.describe(it);
-  if (desc !== void 0 && desc !== null) def.desc = desc;
-  if (it.searchTerms && it.searchTerms.length) def.aliases = it.searchTerms.slice();
+  if (desc !== void 0) common["desc"] = desc;
+  if (it.searchTerms && it.searchTerms.length) common["aliases"] = it.searchTerms.slice();
   if (it.visible) {
     const p = it.visible;
-    def.visible = () => p.test(w.ctx);
+    common["visible"] = () => p.test(w.ctx);
   }
   if (it.kind === "custom") {
-    if (w.renderCustom) def.render = w.renderCustom(it);
-    return def;
+    return w.renderCustom ? w.renderCustom(it) : null;
   }
   if (it.kind === "buttons") {
+    const first = it.buttons[0];
+    if (!first) return null;
     if (it.disabled) {
       const p = it.disabled;
-      def.disabled = () => p.test(w.ctx);
+      common["disabled"] = () => p.test(w.ctx);
     }
-    const first = it.buttons[0];
-    if (first) def.action = () => w.run(first.action);
+    common["action"] = () => w.run(first.action);
     const rest = it.buttons.slice(1);
     if (rest.length) {
-      def.extraButtons = rest.map((b) => ({ tooltip: b.label, onClick: () => w.run(b.action) }));
+      common["extraButtons"] = rest.map((b) => (btn) => btn.setTooltip(b.label).onClick(() => w.run(b.action)));
     }
-    return def;
+    return common;
   }
-  const control = controlFor(it);
-  if (control) {
-    if (it.disabled) {
-      const p = it.disabled;
-      control.disabled = () => p.test(w.ctx);
-    }
-    def.control = control;
-  }
-  return def;
+  const control = controlFor(it, w);
+  if (control) common["control"] = control;
+  return common;
+}
+function introRow(text) {
+  return { name: "", desc: text, searchable: false };
 }
 function groupToDefinition(group, w) {
-  const def = {
-    type: "group",
-    heading: group.heading,
-    items: group.items.map((it) => itemToDefinition(it, w))
-  };
-  if (group.intro !== void 0) def.desc = group.intro;
+  const items = [];
+  if (group.intro) items.push(introRow(group.intro));
+  for (const it of group.items) {
+    const def2 = itemToDefinition(it, w);
+    if (def2) items.push(def2);
+  }
+  const def = { type: "group", heading: group.heading, items };
   if (group.visible) {
     const p = group.visible;
-    def.visible = () => p.test(w.ctx);
+    def["visible"] = () => p.test(w.ctx);
   }
   const reset = w.resetGroup ? w.resetGroup(group) : null;
-  if (reset) def.extraButtons = [{ tooltip: reset.tooltip, onClick: reset.onClick }];
+  if (reset) {
+    def["extraButtons"] = [(btn) => btn.setIcon("rotate-ccw").setTooltip(reset.tooltip).onClick(reset.onClick)];
+  }
   return def;
 }
 function toDefinitions(schema, tabs, w) {
@@ -32146,10 +32146,10 @@ function toDefinitions(schema, tabs, w) {
       name: tab.label,
       items: groups.map((g) => groupToDefinition(g, w))
     };
-    if (tab.desc) page.desc = tab.desc;
+    if (tab.desc) page["desc"] = tab.desc;
     if (tab.module) {
       const modulePath = tab.module;
-      page.displayValue = () => w.ctx.get(modulePath) ? "" : "off";
+      page["displayValue"] = () => w.ctx.get(modulePath) ? "" : "off";
     }
     out.push(page);
   }
@@ -32251,6 +32251,8 @@ var init_settings_tab = __esm({
       async setControlValue(key, value) {
         const opts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
         await this.deps.store.set(key, value, opts);
+        if (this.deps.rebuild) this.deps.rebuild();
+        else if (this.deps.refresh) this.deps.refresh();
       }
       /** Склейка записей идёт по id настройки, а не по пути (CS3). */
       coalesceKeyFor(path) {
@@ -32322,7 +32324,10 @@ var init_settings_tab = __esm({
         if (drift.length && this.deps.notify) {
           this.deps.notify(drift.length + " settings back to default. Use Undo settings change to revert");
         }
-        if (drift.length && this.deps.refresh) this.deps.refresh();
+        if (drift.length) {
+          if (this.deps.rebuild) this.deps.rebuild();
+          else if (this.deps.refresh) this.deps.refresh();
+        }
         return drift.length;
       }
       resetButtonFor(group) {
@@ -32416,6 +32421,9 @@ var init_obsidian_tab = __esm({
           },
           refresh: () => {
             this.refreshDomState();
+          },
+          rebuild: () => {
+            this.update();
           }
         });
       }

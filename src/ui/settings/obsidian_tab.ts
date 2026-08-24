@@ -65,6 +65,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       },
       notify: (message: string) => { new Notice(message); },
       refresh: () => { this.refreshDomState(); },
+      rebuild: () => { this.update(); },
     });
   }
 
@@ -77,7 +78,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
    * единственное место, где две формы встречаются.
    */
   override getSettingDefinitions(): SettingDefinitionItem[] {
-    return this.pane.getSettingDefinitions() as unknown as SettingDefinitionItem[];
+    return this.pane.getSettingDefinitions();
   }
 
   override getControlValue(key: string): unknown {

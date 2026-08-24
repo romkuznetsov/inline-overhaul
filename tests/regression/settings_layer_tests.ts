@@ -11,6 +11,10 @@ import { MemoryStore } from "../../src/ui/settings/store.ts";
 import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
 import { richParts } from "../../src/ui/settings/describe.ts";
 
+/** Определение как свободная запись: тесту нужна форма, а не сужение union. */
+type Def = Record<string, any>;
+const allDefs = (pane: SettingsPane): Def[] => pane.getSettingDefinitions() as unknown as Def[];
+
 let ran = 0;
 function test(name: string, fn: () => void | Promise<void>): Promise<void> {
   ran++;
@@ -132,42 +136,42 @@ async function main(): Promise<void> {
       if (k === "desc" && v && typeof v === "object") return String((v as StubNode).textContent);
       return v;
     });
-    assert.equal(shape(pane.getSettingDefinitions()), shape(pane.getSettingDefinitions()));
+    assert.equal(shape(allDefs(pane)), shape(allDefs(pane)));
   });
 
   await test("первый экран показывает группы, а не только оглавление", () => {
     const { pane } = makePane();
-    const defs = pane.getSettingDefinitions();
+    const list = allDefs(pane);
     /* две группы General сразу, за ними шесть строк перехода */
-    assert.equal(defs.length, 8, "две группы плюс шесть страниц");
-    assert.equal(defs[0]?.type, "group");
-    assert.equal(defs[0]?.heading, "Help");
-    assert.equal(defs[1]?.heading, "Modules");
-    const pages = defs.filter(d => d.type === "page");
+    assert.equal(list.length, 8, "две группы плюс шесть страниц");
+    assert.equal(list[0]?.type, "group");
+    assert.equal(list[0]?.heading, "Help");
+    assert.equal(list[1]?.heading, "Modules");
+    const pages = list.filter((d: Def) => d.type === "page");
     assert.equal(pages.length, 6);
-    assert.deepEqual(pages.map(p => p.name),
+    assert.deepEqual(pages.map((p: Def) => p.name),
       ["Keyboard", "Navigation", "Tags & PKM", "Visual", "Transform", "Advanced"]);
   });
 
   await test("у строки перехода есть описание, а у модуля — состояние", () => {
     const { pane, store } = makePane();
-    const page = () => pane.getSettingDefinitions().find(d => d.name === "Visual");
+    const page = () => allDefs(pane).find((d: Def) => d.name === "Visual");
     assert.equal(page()?.desc, "How a tagged line looks while you are writing");
     assert.equal(typeof page()?.displayValue, "function");
     assert.equal((page()?.displayValue as () => string)(), "", "модуль включён — состояние не пишем");
     void store.set("features.visual.enabled", false);
     assert.equal((page()?.displayValue as () => string)(), "off",
       "выключенный модуль виден, не заходя внутрь");
-    const keyboard = pane.getSettingDefinitions().find(d => d.name === "Keyboard");
+    const keyboard = allDefs(pane).find((d: Def) => d.name === "Keyboard");
     assert.equal(keyboard?.displayValue, undefined, "у вкладки без модуля состояния нет");
   });
 
   await test("контролы получают правильный тип и ключ", () => {
     const { pane } = makePane();
-    const defs = pane.getSettingDefinitions();
-    const kb = defs.find(d => d.name === "Keyboard");
-    const items = kb?.items?.find(g => g.heading === "Expanded select all")?.items || [];
-    const byName = (n: string) => items.find(i => i.name === n);
+    const list = allDefs(pane);
+    const kb = list.find((d: Def) => d.name === "Keyboard");
+    const items = kb?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const byName = (n: string) => items.find((i: Def) => i.name === n);
 
     assert.equal(byName("Expanded select all")?.control?.type, "toggle");
     assert.equal(byName("Expanded select all")?.control?.key, "editor.selectAll.enabled");
@@ -189,10 +193,10 @@ async function main(): Promise<void> {
 
   await test("предикаты доходят до платформы как функции", () => {
     const { pane, store } = makePane();
-    const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
-      ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
-    const delay = items.find(i => i.name === "Time between presses");
-    const steps = items.find(i => i.name === "Selection steps");
+    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
+      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const delay = items.find((i: Def) => i.name === "Time between presses");
+    const steps = items.find((i: Def) => i.name === "Selection steps");
 
     assert.equal(typeof delay?.visible, "function");
     assert.equal(delay?.visible?.(), false, "таймер выключен — задержки не видно");
@@ -216,9 +220,9 @@ async function main(): Promise<void> {
 
   await test("старое имя уходит в aliases, а не в видимый текст (П-4)", () => {
     const { pane } = makePane();
-    const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
-      ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
-    const it = items.find(i => i.name === "Expanded select all");
+    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
+      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const it = items.find((i: Def) => i.name === "Expanded select all");
     assert.deepEqual(it?.aliases, ["Enhanced Mod+A"], "старое имя должно попасть в aliases");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
     assert.ok(!text.includes("Enhanced Mod+A"), "и не должно попасть в видимое описание: " + text);
@@ -226,17 +230,17 @@ async function main(): Promise<void> {
 
   await test("единица слайдера уходит в displayFormat (Ст5)", () => {
     const { pane } = makePane();
-    const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
-      ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
-    const delay = items.find(i => i.name === "Time between presses");
+    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
+      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const delay = items.find((i: Def) => i.name === "Time between presses");
     assert.equal(delay?.control?.displayFormat?.(700), "700 ms");
   });
 
   await test("неактивность живёт в контроле, а не в определении", () => {
     const { pane, store } = makePane();
-    const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
-      ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
-    const steps = items.find(i => i.name === "Selection steps");
+    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
+      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const steps = items.find((i: Def) => i.name === "Selection steps");
     assert.equal(steps?.disabled, undefined, "у определения контрола disabled нет");
     assert.equal(steps?.control?.disabled?.(), true);
     void store.set("editor.selectAll.enabled", true);
@@ -245,9 +249,9 @@ async function main(): Promise<void> {
 
   await test("подсказка уходит из описания, когда Show tips выключен", () => {
     const { pane } = makePane({ general: { help: { showTips: false } } });
-    const items = pane.getSettingDefinitions().find(d => d.name === "Keyboard")
-      ?.items?.find(g => g.heading === "Expanded select all")?.items || [];
-    const it = items.find(i => i.name === "Expanded select all");
+    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
+      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const it = items.find((i: Def) => i.name === "Expanded select all");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
     assert.ok(!text.includes("On a task list"), "подсказка осталась при выключенном Show tips");
   });
@@ -273,7 +277,7 @@ async function main(): Promise<void> {
 
   await test("сброс группы возвращает значения и не трогает чужие", async () => {
     const { pane, store } = makePane();
-    const modules = SCHEMA.find(g => g.id === "modules");
+    const modules = SCHEMA.find((g: Def) => g.id === "modules");
     assert.ok(modules);
     assert.equal(pane.drift(modules).length, 0, "на старте отличий быть не должно");
 
@@ -290,7 +294,7 @@ async function main(): Promise<void> {
 
   await test("сброс пишется одной записью undo (Н4)", async () => {
     const { pane, store } = makePane();
-    const modules = SCHEMA.find(g => g.id === "modules");
+    const modules = SCHEMA.find((g: Def) => g.id === "modules");
     assert.ok(modules);
     await pane.setControlValue("features.visual.enabled", false);
     await pane.setControlValue("features.transform.enabled", false);
@@ -301,9 +305,44 @@ async function main(): Promise<void> {
     assert.equal(undoable.length, 1, "в undo должна попасть одна запись, а не по одной на настройку");
   });
 
+  await test("вводная фраза группы становится строкой без контрола", () => {
+    const { pane } = makePane();
+    const modules = allDefs(pane).find((d: Def) => d.heading === "Modules");
+    const first = modules?.items?.[0];
+    assert.equal(first?.name, "", "вводная строка без имени");
+    assert.ok(String(first?.desc).startsWith("Four separate things"),
+      "у группы нет поля desc, поэтому вводная фраза - первая строка");
+    assert.equal(first?.searchable, false, "вводный текст не должен попадать в поиск");
+    assert.equal(first?.control, undefined);
+  });
+
+  await test("кнопка сброса объявлена функцией, а не объектом", async () => {
+    /*
+     * Именно здесь была ошибка, из-за которой страницы не открывались:
+     * extraButtons это массив функций, платформа вызывает каждую с
+     * компонентом кнопки. Объект вместо функции ронял отрисовку заголовка,
+     * и переход на страницу молча ничего не делал.
+     */
+    const { pane } = makePane();
+    await pane.setControlValue("features.visual.enabled", false);
+    const modules = allDefs(pane).find((d: Def) => d.heading === "Modules");
+    const buttons = modules?.extraButtons;
+    assert.ok(Array.isArray(buttons) && buttons.length === 1, "одна кнопка в заголовке");
+    assert.equal(typeof buttons[0], "function", "элемент extraButtons обязан быть функцией");
+
+    const calls: string[] = [];
+    const component: Def = {
+      setIcon(v: string) { calls.push("icon:" + v); return component; },
+      setTooltip(v: string) { calls.push("tooltip:" + v.slice(0, 11)); return component; },
+      onClick(_fn: () => void) { calls.push("onClick"); return component; },
+    };
+    buttons[0](component);
+    assert.deepEqual(calls, ["icon:rotate-ccw", "tooltip:Reset group", "onClick"]);
+  });
+
   await test("кнопка сброса появляется только когда есть что сбрасывать (Н2)", async () => {
     const { pane } = makePane();
-    const groupDef = () => pane.getSettingDefinitions().find(d => d.heading === "Modules");
+    const groupDef = () => allDefs(pane).find((d: Def) => d.heading === "Modules");
     assert.equal(groupDef()?.extraButtons, undefined, "всё по умолчанию — кнопки нет");
     await pane.setControlValue("features.visual.enabled", false);
     assert.equal(groupDef()?.extraButtons?.length, 1, "появилось отличие — появилась кнопка");

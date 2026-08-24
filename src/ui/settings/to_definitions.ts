@@ -2,72 +2,45 @@
  * Отображение нашей схемы в декларативные определения Obsidian (PRD 5.2, С11).
  *
  * Чистая функция: ни состояния, ни обращений к DOM за пределами сборки
- * DocumentFragment для описания. Это позволяет проверять отображение
- * тестом без Obsidian и без браузера.
+ * описания. Это позволяет проверять отображение тестом без Obsidian.
  *
- * Важно (П-11): getSettingDefinitions вызывается часто, поэтому здесь не
- * должно быть ни чтения файлов, ни тяжёлых вычислений. Описания собираются
- * с кешем по id настройки.
+ * Типы берутся из пакета `obsidian`, но **только типы**: `import type`
+ * стирается при сборке, поэтому модуль по-прежнему собирается и проверяется
+ * без платформы. Первая версия описывала формы своим интерфейсом — и это
+ * пропустило настоящую ошибку: `extraButtons` это массив **функций**, а не
+ * объектов, и на нём падала отрисовка страницы. Типы платформы такое ловят,
+ * свои догадки — нет.
+ *
+ * Важно (П-11): getSettingDefinitions вызывается часто, поэтому здесь нет ни
+ * чтения файлов, ни тяжёлых вычислений; описания собираются с кешем.
  */
 
 import type {
-  ActionId, SettingDef, SettingsCtx, SettingsGroup, TabDef,
-} from "./types.ts";
+  ExtraButtonComponent,
+  SettingControl,
+  SettingDefinition,
+  SettingDefinitionGroup,
+  SettingDefinitionItem,
+  SettingDefinitionPage,
+  SettingGroupItem,
+} from "obsidian";
+
+import type { ActionId, SettingDef, SettingsCtx, SettingsGroup, TabDef } from "./types.ts";
 import { isBound } from "./types.ts";
-
-/* Минимальные формы, которые ждёт платформа. Свой тип, а не импорт из
-   obsidian: слой настроек должен собираться и проверяться без него. */
-
-export interface ObsidianControl {
-  type: "toggle" | "dropdown" | "slider" | "number" | "text" | "textarea" | "color";
-  key: string;
-  defaultValue?: unknown;
-  options?: Record<string, string>;
-  min?: number;
-  max?: number;
-  step?: number;
-  /** Слайдер: как показать значение. Сюда уходит `unit` (Ст5). */
-  displayFormat?: (v: number) => string;
-  placeholder?: string;
-  rows?: number;
-  validate?: (v: string) => string | undefined;
-  /** Неактивность контрола живёт в контроле, а не в определении. */
-  disabled?: () => boolean;
-}
-
-export interface ObsidianDefinition {
-  type?: "page" | "group" | "list";
-  name?: string;
-  /** Короткое состояние справа в строке перехода: например «off». */
-  displayValue?: string | (() => string);
-  heading?: string;
-  desc?: unknown;
-  cls?: string;
-  /** Дополнительные слова для поиска: сюда уходят старые имена (С4, П-4). */
-  aliases?: string[];
-  searchable?: boolean;
-  items?: ObsidianDefinition[];
-  control?: ObsidianControl;
-  action?: () => void;
-  render?: (setting: unknown) => void;
-  visible?: () => boolean;
-  disabled?: () => boolean;
-  extraButtons?: Array<{ icon?: string; tooltip: string; onClick: () => void }>;
-}
 
 /** То, что слой настроек умеет делать помимо чтения и записи значений. */
 export interface Wiring {
   ctx: SettingsCtx;
   run: (action: ActionId) => void;
-  /** Собирает описание: строка, «?» с подсказкой, старые имена. */
+  /** Собирает описание: текст со ссылками плюс сворачиваемая подсказка. */
   describe: (it: SettingDef) => unknown;
   /** Своя вёрстка для kind: 'custom'. */
-  renderCustom?: (it: SettingDef) => (setting: unknown) => void;
+  renderCustom?: (it: SettingDef) => SettingDefinition | null;
   /** Кнопка сброса группы к значениям по умолчанию (10.13.1). */
   resetGroup?: (group: SettingsGroup) => { tooltip: string; onClick: () => void } | null;
 }
 
-const CONTROL_TYPE: Record<string, ObsidianControl["type"]> = {
+const CONTROL_TYPE: Record<string, string> = {
   toggle: "toggle",
   dropdown: "dropdown",
   slider: "slider",
@@ -77,114 +50,127 @@ const CONTROL_TYPE: Record<string, ObsidianControl["type"]> = {
   color: "color",
 };
 
-function controlFor(it: SettingDef): ObsidianControl | undefined {
+function controlFor(it: SettingDef, w: Wiring): SettingControl | undefined {
   if (!isBound(it)) return undefined;
   const type = CONTROL_TYPE[it.kind];
   if (!type) return undefined;
 
-  const control: ObsidianControl = { type, key: it.path };
-  const any = it as unknown as Record<string, unknown>;
-  if ("default" in any) control.defaultValue = any["default"];
+  /* Общая часть: ключ, значение по умолчанию и неактивность живут в контроле. */
+  const control: Record<string, unknown> = { type, key: it.path };
+  const raw = it as unknown as Record<string, unknown>;
+  if ("default" in raw) control["defaultValue"] = raw["default"];
+  if (it.disabled) {
+    const p = it.disabled;
+    control["disabled"] = () => p.test(w.ctx);
+  }
 
   if (it.kind === "dropdown") {
     const options: Record<string, string> = {};
     for (const o of it.options) options[o.value] = o.label;
-    control.options = options;
+    control["options"] = options;
   }
   if (it.kind === "slider") {
-    control.min = it.min;
-    control.max = it.max;
-    control.step = it.step;
+    control["min"] = it.min;
+    control["max"] = it.max;
+    control["step"] = it.step;
+    /* Единица измерения — это displayFormat, чем и выполняется Ст5. */
+    if (it.unit) {
+      const unit = it.unit;
+      control["displayFormat"] = (v: number) => v + " " + unit;
+    }
   }
   if (it.kind === "number") {
-    if (it.min !== undefined) control.min = it.min;
-    if (it.max !== undefined) control.max = it.max;
+    if (it.min !== undefined) control["min"] = it.min;
+    if (it.max !== undefined) control["max"] = it.max;
   }
-  if (it.kind === "text") {
-    if (it.placeholder !== undefined) control.placeholder = it.placeholder;
-    if (it.validate) control.validate = it.validate;
+  if (it.kind === "text" || it.kind === "textarea") {
+    if (it.placeholder !== undefined) control["placeholder"] = it.placeholder;
+    if (it.kind === "text" && it.validate) control["validate"] = it.validate;
   }
-  if (it.kind === "slider" && it.unit) {
-    const unit = it.unit;
-    control.displayFormat = (v: number) => v + " " + unit;
-  }
-  if (it.kind === "textarea") {
-    if (it.placeholder !== undefined) control.placeholder = it.placeholder;
-    if (it.rows !== undefined) control.rows = it.rows;
-  }
-  return control;
+  return control as unknown as SettingControl;
 }
 
-function itemToDefinition(it: SettingDef, w: Wiring): ObsidianDefinition {
-  const def: ObsidianDefinition = { name: it.name };
+function itemToDefinition(it: SettingDef, w: Wiring): SettingDefinition | null {
+  const common: Record<string, unknown> = { name: it.name };
   const desc = w.describe(it);
-  if (desc !== undefined && desc !== null) def.desc = desc;
-  /* Старые имена — в aliases: поиск их учитывает, а видимый текст остаётся
-     чистым. Поля ключевых слов в документации нет, оно есть в типах. */
-  if (it.searchTerms && it.searchTerms.length) def.aliases = it.searchTerms.slice();
+  if (desc !== undefined) common["desc"] = desc;
+  /* Старые имена — в aliases: поиск их учитывает, видимый текст чист (П-4). */
+  if (it.searchTerms && it.searchTerms.length) common["aliases"] = it.searchTerms.slice();
   if (it.visible) {
     const p = it.visible;
-    def.visible = () => p.test(w.ctx);
+    common["visible"] = () => p.test(w.ctx);
   }
 
   /* control, render и action взаимоисключающи (П-12). */
   if (it.kind === "custom") {
-    if (w.renderCustom) def.render = w.renderCustom(it);
-    return def;
+    return w.renderCustom ? w.renderCustom(it) : null;
   }
   if (it.kind === "buttons") {
+    const first = it.buttons[0];
+    if (!first) return null;
     if (it.disabled) {
       const p = it.disabled;
-      def.disabled = () => p.test(w.ctx);
+      common["disabled"] = () => p.test(w.ctx);
     }
-    const first = it.buttons[0];
-    if (first) def.action = () => w.run(first.action);
+    common["action"] = () => w.run(first.action);
     const rest = it.buttons.slice(1);
     if (rest.length) {
-      def.extraButtons = rest.map(b => ({ tooltip: b.label, onClick: () => w.run(b.action) }));
+      common["extraButtons"] = rest.map(b => (btn: ExtraButtonComponent) =>
+        btn.setTooltip(b.label).onClick(() => w.run(b.action)));
     }
-    return def;
+    return common as unknown as SettingDefinition;
   }
 
-  const control = controlFor(it);
-  if (control) {
-    /* disabled принадлежит контролу: у определения его нет ни у одного вида,
-       кроме action. */
-    if (it.disabled) {
-      const p = it.disabled;
-      control.disabled = () => p.test(w.ctx);
-    }
-    def.control = control;
-  }
-  return def;
-}
-
-function groupToDefinition(group: SettingsGroup, w: Wiring): ObsidianDefinition {
-  const def: ObsidianDefinition = {
-    type: "group",
-    heading: group.heading,
-    items: group.items.map(it => itemToDefinition(it, w)),
-  };
-  if (group.intro !== undefined) def.desc = group.intro;
-  if (group.visible) {
-    const p = group.visible;
-    def.visible = () => p.test(w.ctx);
-  }
-  const reset = w.resetGroup ? w.resetGroup(group) : null;
-  if (reset) def.extraButtons = [{ tooltip: reset.tooltip, onClick: reset.onClick }];
-  return def;
+  const control = controlFor(it, w);
+  if (control) common["control"] = control;
+  return common as unknown as SettingDefinition;
 }
 
 /**
- * Схема плюс список вкладок на входе, массив определений на выходе.
- * Одна вкладка — одна страница; пустые страницы не создаются.
+ * Вводная фраза группы. У группы нет поля `desc` — только `heading`, — поэтому
+ * фраза становится первой строкой без контрола. Строка исключается из поиска:
+ * искать нужно настройки, а не вводные тексты.
+ */
+function introRow(text: string): SettingGroupItem {
+  return { name: "", desc: text, searchable: false } as unknown as SettingGroupItem;
+}
+
+function groupToDefinition(group: SettingsGroup, w: Wiring): SettingDefinitionGroup {
+  const items: SettingGroupItem[] = [];
+  if (group.intro) items.push(introRow(group.intro));
+  for (const it of group.items) {
+    const def = itemToDefinition(it, w);
+    if (def) items.push(def as unknown as SettingGroupItem);
+  }
+
+  const def: Record<string, unknown> = { type: "group", heading: group.heading, items };
+  if (group.visible) {
+    const p = group.visible;
+    def["visible"] = () => p.test(w.ctx);
+  }
+  /* Кнопка сброса живёт в заголовке группы и объявляется функцией, а не
+     объектом: платформа вызывает её с компонентом кнопки. */
+  const reset = w.resetGroup ? w.resetGroup(group) : null;
+  if (reset) {
+    def["extraButtons"] = [(btn: ExtraButtonComponent) =>
+      btn.setIcon("rotate-ccw").setTooltip(reset.tooltip).onClick(reset.onClick)];
+  }
+  return def as unknown as SettingDefinitionGroup;
+}
+
+/**
+ * Схема плюс список вкладок на входе, определения на выходе.
+ *
+ * Полосы вкладок в декларативном API нет: страница рисуется строкой перехода
+ * (П-16). Поэтому одна вкладка раскладывается сразу, иначе первый экран
+ * панели — оглавление, на котором нет ни одной настройки.
  */
 export function toDefinitions(
   schema: readonly SettingsGroup[],
   tabs: readonly TabDef[],
   w: Wiring,
-): ObsidianDefinition[] {
-  const out: ObsidianDefinition[] = [];
+): SettingDefinitionItem[] {
+  const out: SettingDefinitionItem[] = [];
   for (const tab of tabs) {
     const groups = schema
       .filter(g => g.tab === tab.id)
@@ -192,29 +178,23 @@ export function toDefinitions(
       .sort((a, b) => a.order - b.order);
     if (!groups.length) continue;
 
-    /*
-     * Полосы вкладок в декларативном API нет: страница рисуется строкой
-     * перехода. Поэтому одна вкладка раскладывается сразу — иначе первый
-     * экран панели это только оглавление из семи слов, и человек не видит
-     * ни что включено, ни с чего начать.
-     */
     if (tab.flat) {
-      for (const g of groups) out.push(groupToDefinition(g, w));
+      for (const g of groups) out.push(groupToDefinition(g, w) as SettingDefinitionItem);
       continue;
     }
 
-    const page: ObsidianDefinition = {
+    const page: Record<string, unknown> = {
       type: "page",
       name: tab.label,
       items: groups.map(g => groupToDefinition(g, w)),
     };
-    if (tab.desc) page.desc = tab.desc;
+    if (tab.desc) page["desc"] = tab.desc;
     /* Состояние модуля видно, не заходя внутрь. */
     if (tab.module) {
       const modulePath = tab.module;
-      page.displayValue = () => (w.ctx.get(modulePath) ? "" : "off");
+      page["displayValue"] = () => (w.ctx.get(modulePath) ? "" : "off");
     }
-    out.push(page);
+    out.push(page as unknown as SettingDefinitionPage);
   }
   return out;
 }

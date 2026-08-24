@@ -58,7 +58,7 @@ const DEFAULT_PREVIOUSLY = (names: readonly string[]) =>
 
 export class Describer {
   private host: FragmentHost;
-  private cache = new Map<string, { key: string; frag: unknown }>();
+  private cache = new Map<string, { key: string; frag: DocLike }>();
 
   constructor(host: FragmentHost) {
     this.host = host;
@@ -69,7 +69,7 @@ export class Describer {
     return [it.desc || "", it.tip || "", (it.searchTerms || []).join("|"), o.showTips ? "1" : "0"].join(" ");
   }
 
-  describe(it: SettingDef, o: DescribeOptions): unknown {
+  describe(it: SettingDef, o: DescribeOptions): string | DocLike | undefined {
     const hasSomething = it.desc || (o.showTips && it.tip) || (it.searchTerms && it.searchTerms.length);
     if (!hasSomething) return undefined;
 

@@ -7,9 +7,11 @@
  * через render и сборка описаний.
  */
 
+import type { SettingDefinitionItem } from "obsidian";
+
 import type { ActionId, SetOpts, SettingsCtx, SettingsGroup, SettingsStore, TabDef } from "./types.ts";
 import { buildDefaultConfig, getIn, isBound } from "./types.ts";
-import { toDefinitions, type ObsidianDefinition, type Wiring } from "./to_definitions.ts";
+import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { Describer, type FragmentHost } from "./describe.ts";
 
 export interface TabDeps {
@@ -22,8 +24,14 @@ export interface TabDeps {
   fragments: FragmentHost;
   /** Сообщить пользователю результат действия. */
   notify?: (message: string) => void;
-  /** Попросить платформу пересчитать предикаты. */
+  /** Пересчитать предикаты: дешёвая операция. */
   refresh?: () => void;
+  /**
+   * Пересобрать определения и индекс поиска. Дороже, чем refresh, и нужно
+   * там, где изменилось само определение, а не значение: «?» у подсказок,
+   * кнопка сброса в заголовке, состояние модуля в строке перехода.
+   */
+  rebuild?: () => void;
 }
 
 export class SettingsPane {
@@ -47,6 +55,14 @@ export class SettingsPane {
   async setControlValue(key: string, value: unknown): Promise<void> {
     const opts: SetOpts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
     await this.deps.store.set(key, value, opts);
+    /*
+     * Платформа сама пересчитывает предикаты, но не пересобирает определения.
+     * А от значений зависят и сами определения: «?» появляется по Show tips,
+     * кнопка сброса — по отличию от умолчания, состояние модуля — по тумблеру.
+     * Без этого выключенный Show tips оставлял «?» на месте.
+     */
+    if (this.deps.rebuild) this.deps.rebuild();
+    else if (this.deps.refresh) this.deps.refresh();
   }
 
   /** Склейка записей идёт по id настройки, а не по пути (CS3). */
@@ -90,7 +106,7 @@ export class SettingsPane {
     };
   }
 
-  getSettingDefinitions(): ObsidianDefinition[] {
+  getSettingDefinitions(): SettingDefinitionItem[] {
     return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
   }
 
@@ -127,7 +143,10 @@ export class SettingsPane {
     if (drift.length && this.deps.notify) {
       this.deps.notify(drift.length + " settings back to default. Use Undo settings change to revert");
     }
-    if (drift.length && this.deps.refresh) this.deps.refresh();
+    if (drift.length) {
+      if (this.deps.rebuild) this.deps.rebuild();
+      else if (this.deps.refresh) this.deps.refresh();
+    }
     return drift.length;
   }
 
