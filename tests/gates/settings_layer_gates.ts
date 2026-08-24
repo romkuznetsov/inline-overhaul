@@ -9,7 +9,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { setupGlobals, Setting, PluginSettingTab, makeApp, notices } from "../harness/obsidian_stub.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -81,7 +81,7 @@ if (!fs.existsSync(SCHEMA_DIR)) {
 /* Начиная с фазы 1 здесь подключается схема и запускаются гейты
    Г6, Г7, Г10, Г11, Г12, Г17-Г23 — теми же проверками, что уже
    работают на прототипе в tests/prototype/gates.js. */
-const { SCHEMA } = await import(path.join(SCHEMA_DIR, "index.ts"));
+const { SCHEMA } = await import(pathToFileURL(path.join(SCHEMA_DIR, "index.ts")).href);
 if (!Array.isArray(SCHEMA) || !SCHEMA.length) fail("схема пуста");
 else ok("схема загружена: групп " + SCHEMA.length);
 

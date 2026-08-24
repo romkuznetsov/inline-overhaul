@@ -2,7 +2,8 @@
 /**
  * Одна команда на все тесты (PRD фаза 0, пункт 3).
  *
- * Запускает каждый tests/**\/*_tests.js в своём процессе и печатает сводку.
+ * Запускает каждый файл с именем на _tests.js или _tests.ts внутри tests/
+ * в своём процессе и печатает сводку.
  * Пропуски объявлены здесь списком и печатаются громко: тихо пропущенный
  * тест — это тест, которого нет.
  */
@@ -29,7 +30,7 @@ function collect(dir, out) {
     if (st.isDirectory()) {
       if (name === "node_modules" || name === "fixtures" || name === "prototype") continue;
       collect(p, out);
-    } else if (/_tests\.js$/.test(name)) {
+    } else if (/_tests\.(js|ts)$/.test(name)) {
       out.push(p);
     }
   }
