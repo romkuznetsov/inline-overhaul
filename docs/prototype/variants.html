@@ -1,0 +1,722 @@
+<title>Fields and Rules Variants</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --background-primary:#ffffff; --background-primary-alt:#f8f8f9;
+  --background-secondary:#f2f3f5; --background-secondary-alt:#e7e8ea;
+  --background-modifier-border:#e2e2e5; --background-modifier-hover:rgba(28,24,44,.055);
+  --background-modifier-form-field:#ffffff; --background-modifier-error:#e5484d;
+  --text-normal:#23222b; --text-muted:#5d5b6b; --text-faint:#94939f;
+  --text-on-accent:#ffffff; --text-accent:#6c5cd0; --text-error:#c2373b;
+  --interactive-accent:#6c5cd0; --interactive-accent-hover:#7d6ddb;
+  --interactive-normal:#eeeef1; --interactive-hover:#e3e3e8;
+  --shadow-modal:0 18px 48px rgba(24,20,40,.18),0 2px 6px rgba(24,20,40,.08);
+  --proto-bg:#edecf2; --proto-surface:#ffffff; --proto-border:#dbd9e4;
+  --proto-text:#43414f; --proto-faint:#8b8899;
+  --font-ui:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --font-ui-small:13px; --font-ui-smaller:12px;
+  --radius-s:4px; --radius-m:6px; --radius-l:10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background-primary:#1d1c22; --background-primary-alt:#232228;
+    --background-secondary:#17161b; --background-secondary-alt:#26252c;
+    --background-modifier-border:#31303a; --background-modifier-hover:rgba(255,255,255,.065);
+    --background-modifier-form-field:#24232a;
+    --text-normal:#dddce4; --text-muted:#a3a1b0; --text-faint:#6d6b7a;
+    --text-accent:#9c8ef0; --text-error:#e5484d;
+    --interactive-accent:#7a69dd; --interactive-accent-hover:#8b7ae8;
+    --interactive-normal:#2a2930; --interactive-hover:#34333c;
+    --shadow-modal:0 20px 52px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.35);
+    --proto-bg:#121116; --proto-surface:#1b1a20; --proto-border:#2c2b34;
+    --proto-text:#c9c7d3; --proto-faint:#7b7989;
+  }
+}
+:root[data-theme="dark"] {
+  --background-primary:#1d1c22; --background-primary-alt:#232228;
+  --background-secondary:#17161b; --background-secondary-alt:#26252c;
+  --background-modifier-border:#31303a; --background-modifier-hover:rgba(255,255,255,.065);
+  --background-modifier-form-field:#24232a;
+  --text-normal:#dddce4; --text-muted:#a3a1b0; --text-faint:#6d6b7a;
+  --text-accent:#9c8ef0; --text-error:#e5484d;
+  --interactive-accent:#7a69dd; --interactive-accent-hover:#8b7ae8;
+  --interactive-normal:#2a2930; --interactive-hover:#34333c;
+  --shadow-modal:0 20px 52px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.35);
+  --proto-bg:#121116; --proto-surface:#1b1a20; --proto-border:#2c2b34;
+  --proto-text:#c9c7d3; --proto-faint:#7b7989;
+}
+
+* { box-sizing:border-box; }
+body { margin:0; background:var(--proto-bg); color:var(--proto-text);
+       font-family:var(--font-ui); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:2px; border-radius:3px; }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+
+.wrap { max-width:1040px; margin:0 auto; padding:22px 20px 60px; display:flex; flex-direction:column; gap:14px; }
+.bar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; padding:12px 16px;
+       background:var(--proto-surface); border:1px solid var(--proto-border); border-radius:var(--radius-l); }
+.bar__label { font-size:11px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--proto-faint); }
+.seg { display:inline-flex; border:1px solid var(--proto-border); border-radius:var(--radius-m); overflow:hidden; }
+.seg button { appearance:none; border:0; background:transparent; color:var(--proto-faint);
+              font-family:inherit; font-size:var(--font-ui-smaller); padding:5px 12px; cursor:pointer; }
+.seg button[aria-pressed="true"] { background:var(--interactive-accent); color:#fff; }
+
+.verdict { padding:12px 16px; background:var(--proto-surface); border:1px solid var(--proto-border);
+           border-radius:var(--radius-l); font-size:var(--font-ui-smaller); }
+.verdict b { color:var(--text-accent); }
+.verdict ul { margin:6px 0 0; padding-left:18px; }
+.verdict li { margin:2px 0; }
+.verdict code, .note code, .grp__intro code {
+  font-family:var(--font-mono); font-size:11px; padding:1px 4px; border-radius:3px;
+  background:var(--background-secondary); border:1px solid var(--background-modifier-border); }
+
+.pane { background:var(--background-primary); border:1px solid var(--background-modifier-border);
+        border-radius:var(--radius-l); box-shadow:var(--shadow-modal); padding:18px 24px 26px; }
+.grp__heading { font-size:16px; font-weight:600; color:var(--text-normal); }
+.grp__intro { margin:4px 0 12px; max-width:64ch; font-size:var(--font-ui-smaller); color:var(--text-muted); }
+.sub { margin:18px 0 8px; padding-top:14px; font-size:13px; font-weight:600; color:var(--text-normal);
+       border-top:1px solid var(--background-modifier-border); }
+.note { font-size:var(--font-ui-smaller); color:var(--text-muted); margin:8px 0 0; max-width:66ch; }
+
+.row { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:10px 0;
+       border-top:1px solid var(--background-modifier-border); }
+.row:first-of-type { border-top:0; }
+.row__name { color:var(--text-normal); font-size:var(--font-ui-small); }
+.row__desc { margin-top:2px; font-size:var(--font-ui-smaller); color:var(--text-muted); max-width:52ch; }
+
+.sel, .txt { font-family:inherit; font-size:var(--font-ui-small); color:var(--text-normal);
+             background:var(--background-modifier-form-field); border:1px solid var(--background-modifier-border);
+             border-radius:var(--radius-s); padding:4px 8px; }
+.sel { min-width:150px; }
+.txt { width:150px; }
+.mono { font-family:var(--font-mono); font-size:11.5px; }
+
+.btn { appearance:none; font-family:inherit; font-size:var(--font-ui-small); color:var(--text-normal);
+       background:var(--interactive-normal); border:1px solid var(--background-modifier-border);
+       border-radius:var(--radius-s); padding:4px 11px; cursor:pointer; }
+.btn:hover { background:var(--interactive-hover); }
+.btn--cta { background:var(--interactive-accent); border-color:transparent; color:var(--text-on-accent); }
+.btn--sm { padding:2px 8px; font-size:var(--font-ui-smaller); }
+.btn--ghost { background:transparent; border-style:dashed; color:var(--text-muted); }
+.icon { appearance:none; border:0; background:transparent; color:var(--text-faint);
+        font-family:inherit; font-size:12px; padding:2px 5px; border-radius:3px; cursor:pointer; line-height:1; }
+.icon:hover { color:var(--text-normal); background:var(--background-modifier-hover); }
+.icon[disabled] { opacity:.28; cursor:default; }
+.chip { display:inline-block; font-size:11px; padding:1px 8px; border-radius:20px;
+        background:var(--io-chip-bg,var(--background-secondary)); border:1px solid transparent;
+        color:var(--text-on-accent); font-weight:500; white-space:nowrap; }
+.grip { color:var(--text-faint); cursor:grab; font-size:12px; user-select:none; }
+.cmd { font-family:var(--font-mono); font-size:11px; padding:1px 5px; border-radius:3px;
+       background:var(--background-secondary); border:1px solid var(--background-modifier-border); color:var(--text-muted); }
+
+/* =============================== values table (3a, variant B) */
+.vals { border:1px solid var(--background-modifier-border); border-radius:var(--radius-m); overflow:hidden; }
+.vals__scroll { overflow-x:auto; }
+.vals__inner { min-width:640px; }
+.vals__head, .vals__row {
+  display:grid; gap:8px; align-items:center; padding:6px 10px;
+  grid-template-columns:14px 40px minmax(0,1fr) 76px 112px 30px 84px 22px;
+}
+.vals__head { font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase;
+              color:var(--text-faint); background:var(--background-primary-alt);
+              border-bottom:1px solid var(--background-modifier-border); }
+.vals__row + .vals__row { border-top:1px solid var(--background-modifier-border); }
+
+/* every control fills its cell and may shrink — this is what stopped the
+   dropdowns from overlapping the colour and preview cells */
+.vals__row .txt, .vals__row .sel { width:100%; min-width:0; }
+
+/* a child value is indented on the left only, so its input still ends
+   flush with the parent's and the row keeps exactly the same height */
+.valcell { min-width:0; }
+.vals__row--child .valcell { padding-left:22px; }
+.showncell { min-width:0; display:grid; gap:4px; }
+.vals__foot { padding:7px 10px; border-top:1px solid var(--background-modifier-border);
+              display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.vals__foot .note { margin:0; }
+
+/* a bubble with no text is still a bubble: same height, filled, just narrow */
+.bubble { display:inline-block; white-space:nowrap; font-size:11px; line-height:1.35;
+          padding:2px 8px; border-radius:11px; background:var(--io-bubble-bg,var(--interactive-accent)); color:#fff; }
+.bubble--empty { width:22px; padding-left:0; padding-right:0; color:transparent; }
+.colin { width:28px; height:22px; padding:0; border:1px solid var(--background-modifier-border);
+         border-radius:var(--radius-s); background:var(--background-modifier-form-field); cursor:pointer; }
+
+.place { border:1px solid var(--background-modifier-border); border-radius:var(--radius-m); padding:2px 12px 8px; margin-top:8px; }
+
+/* =============================== smart rules */
+.rules { display:flex; flex-direction:column; gap:12px; }
+
+/* A rule is a card with a state rail, not a grey slab: the card sits on the
+   pane background and only the outcome strip is tinted. */
+.rule {
+  display:grid; grid-template-columns:3px minmax(0,1fr);
+  border:1px solid var(--background-modifier-border); border-radius:var(--radius-m);
+  background:var(--background-primary); overflow:hidden;
+}
+.rule__rail { background:var(--interactive-accent); }
+.rule--off .rule__rail { background:var(--background-modifier-border); }
+.rule--clash .rule__rail { background:var(--text-error); }
+.rule--off .rule__main { opacity:.6; }
+.rule__main { min-width:0; }
+
+.rule__head { display:flex; align-items:center; gap:9px; padding:9px 12px 7px; }
+.rule__n {
+  width:20px; height:20px; border-radius:6px; flex:0 0 auto;
+  background:var(--interactive-accent); color:var(--text-on-accent);
+  font-size:11px; font-weight:600; display:grid; place-items:center; font-variant-numeric:tabular-nums;
+}
+.rule--off .rule__n { background:var(--background-modifier-border); color:var(--text-faint); }
+.rule--clash .rule__n { background:var(--text-error); }
+.rule__name {
+  flex:1 1 auto; min-width:0;
+  font-family:inherit; font-size:var(--font-ui-small); color:var(--text-normal);
+  background:transparent; border:1px solid transparent; border-radius:var(--radius-s); padding:3px 7px;
+}
+.rule__name:hover { border-color:var(--background-modifier-border); }
+.rule__name:focus { background:var(--background-modifier-form-field); border-color:var(--background-modifier-border); }
+.rule__name::placeholder { color:var(--text-faint); font-style:italic; }
+.rule__tools { display:flex; align-items:center; gap:4px; flex:0 0 auto; }
+
+.rule__conds { padding:0 12px 4px; }
+.rule__out {
+  display:flex; align-items:center; gap:8px; padding:8px 12px;
+  border-top:1px solid var(--background-modifier-border);
+  background:var(--background-primary-alt);
+  font-size:var(--font-ui-smaller); color:var(--text-muted);
+}
+.rule__arrow { color:var(--text-accent); font-size:13px; }
+.rule__warn {
+  display:flex; align-items:flex-start; gap:7px; padding:7px 12px;
+  border-top:1px solid var(--background-modifier-border);
+  font-size:var(--font-ui-smaller); color:var(--text-error);
+}
+
+/* one row per kind of condition */
+.kind { display:grid; grid-template-columns:76px minmax(0,1fr) 24px; gap:9px; align-items:center; padding:5px 0; }
+.kind + .kind { border-top:1px dashed var(--background-modifier-border); }
+.kind--empty .kind__label { color:var(--text-faint); }
+.kind__label { font-size:var(--font-ui-smaller); color:var(--text-muted); }
+.kind__chips { display:flex; flex-wrap:wrap; gap:5px; align-items:center; min-width:0; }
+.kind__none { font-size:var(--font-ui-smaller); color:var(--text-faint); }
+
+.vchip {
+  display:inline-flex; align-items:center; gap:4px;
+  font-family:var(--font-mono); font-size:11px;
+  padding:2px 3px 2px 8px; border-radius:20px;
+  background:var(--background-secondary); border:1px solid var(--background-modifier-border);
+  color:var(--text-normal);
+}
+.vchip__x { font-size:10px; padding:1px 4px; }
+.op {
+  font-family:var(--font-ui); font-size:10px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--text-faint); padding:0 1px;
+}
+.op--and { color:var(--text-accent); }
+
+/* =============================== add-value dialog */
+.scrim { position:fixed; inset:0; background:rgba(20,17,32,.42); display:grid; place-items:center; padding:20px; z-index:10; }
+.dlg {
+  width:min(430px,100%); background:var(--background-primary);
+  border:1px solid var(--background-modifier-border); border-radius:var(--radius-l);
+  box-shadow:var(--shadow-modal); overflow:hidden;
+}
+.dlg__head { display:flex; align-items:center; gap:9px; padding:12px 15px; border-bottom:1px solid var(--background-modifier-border); }
+.dlg__head h4 { margin:0; font-size:15px; font-weight:600; color:var(--text-normal); }
+.dlg__body { padding:4px 15px 10px; }
+.dlg__foot {
+  display:flex; justify-content:flex-end; gap:8px; padding:11px 15px;
+  border-top:1px solid var(--background-modifier-border); background:var(--background-primary-alt);
+}
+.dlg .row { padding:9px 0; }
+.dlg .sel, .dlg .txt { min-width:0; width:190px; }
+.picks {
+  display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;
+  max-height:132px; overflow-y:auto; padding:2px 0;
+}
+.pick {
+  appearance:none; cursor:pointer;
+  font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:20px;
+  background:var(--background-secondary); border:1px solid var(--background-modifier-border);
+  color:var(--text-normal);
+}
+.pick:hover { border-color:var(--interactive-accent); color:var(--text-accent); }
+.pick[aria-pressed="true"] { background:var(--interactive-accent); border-color:transparent; color:var(--text-on-accent); }
+.dlg__hint { font-size:var(--font-ui-smaller); color:var(--text-muted); margin:2px 0 0; }
+
+@media (max-width:700px) {
+  .kind { grid-template-columns:60px minmax(0,1fr) 24px; gap:7px; }
+  .dlg .sel, .dlg .txt { width:100%; }
+  .dlg .row { flex-wrap:wrap; }
+}
+</style>
+
+<div class="wrap">
+  <div class="bar">
+    <span class="bar__label">Question</span>
+    <span class="seg" role="group" aria-label="Question">
+      <button type="button" data-sec="fields" aria-pressed="true">3a · Values table</button>
+      <button type="button" data-sec="rules"  aria-pressed="false">7c · Smart rules</button>
+    </span>
+    <span class="bar__label" style="margin-left:auto">Theme</span>
+    <span class="seg" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-set="auto"  aria-pressed="true">Auto</button>
+      <button type="button" data-theme-set="dark"  aria-pressed="false">Dark</button>
+    </span>
+  </div>
+
+  <div class="bar" id="variantbar"></div>
+  <div class="pane" id="pane"></div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<script>
+"use strict";
+
+const FIELD = {
+  name:"Status", wheelName:"Stat", type:"Tag", colour:"#6c5cd0",
+  position:"Left", behavior:"Strict",
+  values:[
+    { token:"todo",        prefix:"- [ ]", shown:"value",   custom:"",  colour:"#8b8ea3", depth:0 },
+    { token:"in_progress", prefix:"- [/]", shown:"value",   custom:"",  colour:"#e0a23c", depth:0 },
+    { token:"early",       prefix:"",      shown:"value",   custom:"",  colour:"#f0c274", depth:1 },
+    { token:"almost_done", prefix:"",      shown:"nothing", custom:"",  colour:"#c98a20", depth:1 },
+    { token:"done",        prefix:"- [x]", shown:"custom",  custom:"✓", colour:"#3ba76a", depth:0 }
+  ]
+};
+const SHOWN = [
+  { value:"value",   label:"The value" },
+  { value:"nothing", label:"Nothing" },
+  { value:"custom",  label:"Custom text" }
+];
+
+/* Matching, as implemented in transform_feature.js:369-398 — within a kind
+   any value matches, between kinds all non-empty kinds must match. */
+const KINDS = [
+  { id:"tag",     label:"Tag",     hint:"has one of",  ph:"#task" },
+  { id:"element", label:"Element", hint:"has one of",  ph:"📅" },
+  { id:"link",    label:"Link",    hint:"links to",    ph:"[[ClientA]]" }
+];
+const RULES = [
+  { id:"r1", name:"Dated tasks", enabled:true, template:"task.md", conflict:"",
+    conditions:[ {kind:"tag", value:"#task", op:"or"}, {kind:"tag", value:"#todo", op:"or"},
+                 {kind:"element", value:"\u{1F4C5}", op:"or"} ] },
+  { id:"r2", name:"Client meetings", enabled:true, template:"meeting.md", conflict:"",
+    conditions:[ {kind:"tag", value:"#meeting", op:"or"}, {kind:"link", value:"[[ClientA]]", op:"or"} ] },
+  { id:"r3", name:"", enabled:false, template:"person.md",
+    conflict:"Every line this would match is already caught by rule 2, so it never runs.",
+    conditions:[ {kind:"tag", value:"#meeting", op:"or"} ] }
+];
+const TEMPLATES = ["None", "task.md", "meeting.md", "person.md"];
+
+let section = "fields";
+
+/* ---------------------------------------------------------------- utils */
+function el(t, c, p, x) {
+  const n = document.createElement(t);
+  if (c) n.className = c;
+  if (x != null) n.textContent = x;
+  if (p) p.appendChild(n);
+  return n;
+}
+function sel(parent, options, value, label, cls) {
+  const s = el("select", cls || "sel", parent);
+  s.setAttribute("aria-label", label);
+  options.forEach(o => {
+    const isObj = typeof o === "object";
+    const opt = el("option", null, s, isObj ? o.label : o);
+    opt.value = isObj ? o.value : o;
+  });
+  s.value = value;
+  return s;
+}
+function txt(parent, value, ph, label, cls) {
+  const i = el("input", cls || "txt", parent);
+  i.type = "text"; i.value = value; if (ph) i.placeholder = ph;
+  i.setAttribute("aria-label", label);
+  return i;
+}
+function cssVar(n, k, v) { n.style.setProperty(k, v); return n; }
+function kindOf(id) { return KINDS.find(k => k.id === id); }
+
+/* ---------------------------------------------------------------- 3a */
+function bubbleFor(parent, v) {
+  const isEmpty = v.shown === "nothing";
+  const text = isEmpty ? "" : (v.shown === "custom" ? (v.custom || " ") : "#" + v.token);
+  const b = el("span", "bubble" + (isEmpty ? " bubble--empty" : ""), parent, text);
+  cssVar(b, "--io-bubble-bg", v.colour);
+  return b;
+}
+
+function renderFields(pane) {
+  el("div", "grp__heading", pane, "Fields");
+  el("p", "grp__intro", pane,
+    "A field is one slot on a line: a tag, a link, or an element such as a date. The value written into a " +
+    "note is the tag alone — the field name is never part of it.");
+
+  const title = el("div", "row", pane);
+  const ti = el("div", null, title);
+  const h = el("div", "row__name", ti, FIELD.name);
+  h.style.setProperty("font-size", "15px");
+  h.style.setProperty("font-weight", "600");
+  el("div", "row__desc", ti, "Two commands are created for this field automatically.");
+  const meta = el("div", null, title);
+  meta.style.setProperty("display", "flex");
+  meta.style.setProperty("align-items", "center");
+  meta.style.setProperty("gap", "6px");
+  cssVar(el("span", "chip", meta, FIELD.type), "--io-chip-bg", FIELD.colour);
+  el("span", "cmd", meta, "Status next");
+  el("span", "cmd", meta, "Status previous");
+
+  const nameRow = el("div", "row", pane);
+  const ni = el("div", null, nameRow);
+  el("div", "row__name", ni, "Short name");
+  el("div", "row__desc", ni, "Used in the TagWheel panel, where there is less room. Empty uses the field name.");
+  const input = txt(el("div", null, nameRow), FIELD.wheelName, FIELD.name, "Short name for " + FIELD.name);
+  input.addEventListener("input", () => { FIELD.wheelName = input.value; });
+
+  el("div", "sub", pane, "Values");
+
+  const box = el("div", "vals", pane);
+  const scroll = el("div", "vals__scroll", box);
+  const inner = el("div", "vals__inner", scroll);
+
+  const head = el("div", "vals__head", inner);
+  ["", "Level", "Value", "Line prefix", "Shown as", "Colour", "Preview", ""]
+    .forEach(t => el("div", null, head, t));
+
+  FIELD.values.forEach((v, i) => {
+    const row = el("div", "vals__row" + (v.depth ? " vals__row--child" : ""), inner);
+    el("div", "grip", row, "⠿");
+
+    const depth = el("div", null, row);
+    depth.style.setProperty("display", "flex");
+    const out = el("button", "icon", depth, "◄");
+    out.type = "button"; out.title = "Make this a top-level value";
+    out.setAttribute("aria-label", "Unindent " + v.token);
+    out.disabled = v.depth === 0;
+    out.addEventListener("click", () => { v.depth = 0; render(); });
+    const inn = el("button", "icon", depth, "►");
+    inn.type = "button"; inn.title = "Make this a child of the value above";
+    inn.setAttribute("aria-label", "Indent " + v.token);
+    const prev = FIELD.values[i - 1];
+    inn.disabled = !prev || v.depth === 1 || prev.depth === 1;
+    inn.addEventListener("click", () => { v.depth = 1; render(); });
+
+    const cell = el("div", "valcell", row);
+    const tok = txt(cell, v.token, null, "Value " + (i + 1), "txt mono");
+    tok.addEventListener("input", () => { v.token = tok.value; render(); });
+
+    txt(row, v.prefix, "none", "Line prefix for " + v.token, "txt mono");
+
+    const shown = el("div", "showncell", row);
+    const ss = sel(shown, SHOWN, v.shown, "Shown as, for " + v.token);
+    ss.addEventListener("change", () => { v.shown = ss.value; render(); });
+    if (v.shown === "custom") {
+      const ci = txt(shown, v.custom, "text", "Custom text for " + v.token, "txt mono");
+      ci.addEventListener("input", () => { v.custom = ci.value; render(); });
+    }
+
+    const cw = el("div", null, row);
+    const cin = el("input", "colin", cw);
+    cin.type = "color"; cin.value = v.colour;
+    cin.setAttribute("aria-label", "Colour for " + v.token);
+    cin.addEventListener("input", () => { v.colour = cin.value; render(); });
+
+    bubbleFor(el("div", null, row), v);
+
+    const rm = el("button", "icon", row, "✕");
+    rm.type = "button";
+    rm.setAttribute("aria-label", "Remove " + v.token);
+  });
+
+  const foot = el("div", "vals__foot", box);
+  const add = el("button", "btn btn--sm", foot, "Add value");
+  add.type = "button";
+  el("span", "note", foot, "Use ► to make a value a child of the one above it.");
+
+  el("div", "sub", pane, "Placement");
+  const place = el("div", "place", pane);
+  const r1 = el("div", "row", place);
+  const i1 = el("div", null, r1);
+  el("div", "row__name", i1, "Position");
+  el("div", "row__desc", i1, "Whether this field is written before or after your text.");
+  sel(el("div", null, r1), ["Left", "Right"], FIELD.position, "Position for " + FIELD.name);
+  const r2 = el("div", "row", place);
+  const i2 = el("div", null, r2);
+  el("div", "row__name", i2, "Behavior");
+  el("div", "row__desc", i2, "How much this field may change the start of the line.");
+  sel(el("div", null, r2), ["Strict", "Insert only", "Free"], FIELD.behavior, "Behavior for " + FIELD.name);
+  el("p", "note", pane, "Child values follow the parent: same Position, same Behavior.");
+}
+
+/* ---------------------------------------------------------------- 7c */
+
+/* Fields the picker offers, so a condition can be chosen instead of typed. */
+const PICK_FIELDS = {
+  tag: [
+    { name:"Status",   values:["todo", "in_progress", "early", "almost_done", "done"] },
+    { name:"Priority", values:["high", "med", "low"] },
+    { name:"Type",     values:["task", "meeting", "call", "note"] }
+  ],
+  element: [
+    { name:"Due",      values:["\u{1F4C5}"] },
+    { name:"Estimate", values:["\u{23F1}"] }
+  ],
+  link: [
+    { name:"Project",  values:["[[ClientA]]", "[[ProjectX]]"] },
+    { name:"Person",   values:["[[Anna]]", "[[Boris]]"] }
+  ]
+};
+
+let dialog = null;   // { ruleId, kind, op, fieldName, value }
+
+function rulesHeader(pane) {
+  el("div", "grp__heading", pane, "Smart rules");
+  el("p", "grp__intro", pane,
+    "A rule picks a template for a line. Rules are tried from the top and the first match wins; if none " +
+    "match, the default template is used.");
+}
+
+function renderRules(pane) {
+  rulesHeader(pane);
+  const list = el("div", "rules", pane);
+
+  RULES.forEach((r, i) => {
+    const card = el("div", "rule" + (r.enabled ? "" : " rule--off") + (r.conflict ? " rule--clash" : ""), list);
+    el("div", "rule__rail", card);
+    const main = el("div", "rule__main", card);
+
+    /* --- head: number, optional name, tools --- */
+    const head = el("div", "rule__head", main);
+    el("span", "grip", head, "⠿");
+    el("span", "rule__n", head, String(i + 1));
+
+    const name = el("input", "rule__name", head);
+    name.type = "text";
+    name.value = r.name || "";
+    name.placeholder = "Name this rule (optional)";
+    name.setAttribute("aria-label", "Name of rule " + (i + 1));
+    name.addEventListener("input", () => { r.name = name.value; });
+
+    const tools = el("div", "rule__tools", head);
+    const on = el("input", null, tools);
+    on.type = "checkbox"; on.checked = r.enabled;
+    on.setAttribute("aria-label", "Rule " + (i + 1) + " enabled");
+    on.title = "Use this rule";
+    on.addEventListener("change", () => { r.enabled = on.checked; render(); });
+    const rm = el("button", "icon", tools, "✕");
+    rm.type = "button";
+    rm.title = "Remove this rule";
+    rm.setAttribute("aria-label", "Remove rule " + (i + 1));
+    rm.addEventListener("click", () => { RULES.splice(i, 1); render(); });
+
+    /* --- conditions, one row per kind --- */
+    const conds = el("div", "rule__conds", main);
+    KINDS.forEach(k => {
+      const mine = r.conditions.filter(c => c.kind === k.id);
+      const grp = el("div", "kind" + (mine.length ? "" : " kind--empty"), conds);
+      el("div", "kind__label", grp, k.label);
+
+      const chips = el("div", "kind__chips", grp);
+      if (!mine.length) el("span", "kind__none", chips, "any");
+      mine.forEach((c, ci) => {
+        if (ci) el("span", "op" + (c.op === "and" ? " op--and" : ""), chips, c.op || "or");
+        const chip = el("span", "vchip", chips, c.value || "(empty)");
+        const x = el("button", "icon vchip__x", chip, "✕");
+        x.type = "button";
+        x.setAttribute("aria-label", "Remove " + c.value + " from rule " + (i + 1));
+        x.disabled = r.conditions.length < 2;
+        x.addEventListener("click", () => {
+          r.conditions.splice(r.conditions.indexOf(c), 1);
+          const rest = r.conditions.filter(x2 => x2.kind === k.id);
+          if (rest.length) rest[0].op = "or";
+          render();
+        });
+      });
+
+      const add = el("button", "icon", grp, "+");
+      add.type = "button";
+      add.title = "Add a " + k.label.toLowerCase();
+      add.setAttribute("aria-label", "Add a " + k.label.toLowerCase() + " to rule " + (i + 1));
+      add.addEventListener("click", () => {
+        dialog = { ruleId:r.id, kind:k.id, op:"or", fieldName:PICK_FIELDS[k.id][0].name, value:"" };
+        render();
+      });
+    });
+
+    /* --- outcome --- */
+    const out = el("div", "rule__out", main);
+    el("span", "rule__arrow", out, "→");
+    el("span", null, out, "use");
+    sel(out, TEMPLATES, r.template, "Template for rule " + (i + 1));
+
+    if (r.conflict) {
+      const warn = el("div", "rule__warn", main);
+      el("span", null, warn, "⚠");
+      el("span", null, warn, r.conflict);
+    }
+  });
+
+  const foot = el("div", "vals__foot", pane);
+  foot.style.setProperty("border", "0");
+  foot.style.setProperty("padding-left", "0");
+  const add = el("button", "btn btn--sm btn--cta", foot, "Add rule");
+  add.type = "button";
+  add.addEventListener("click", () => {
+    RULES.push({ id:"r" + (RULES.length + 1), name:"", enabled:true, template:"None",
+                 conflict:"", conditions:[] });
+    render();
+  });
+  el("span", "note", foot, "Drag a rule to change which one is tried first.");
+
+  if (dialog) renderDialog();
+}
+
+function renderDialog() {
+  const kind = kindOf(dialog.kind);
+  const rule = RULES.find(r => r.id === dialog.ruleId);
+  const existing = rule.conditions.filter(c => c.kind === dialog.kind);
+
+  const scrim = el("div", "scrim", document.body);
+  scrim.addEventListener("click", e => { if (e.target === scrim) { dialog = null; render(); } });
+
+  const dlg = el("div", "dlg", scrim);
+  dlg.setAttribute("role", "dialog");
+  dlg.setAttribute("aria-modal", "true");
+  dlg.setAttribute("aria-label", "Add a " + kind.label.toLowerCase() + " condition");
+
+  const head = el("div", "dlg__head", dlg);
+  el("h4", null, head, "Add a " + kind.label.toLowerCase());
+  const close = el("button", "icon", head, "✕");
+  close.type = "button";
+  close.style.setProperty("margin-left", "auto");
+  close.setAttribute("aria-label", "Cancel");
+  close.addEventListener("click", () => { dialog = null; render(); });
+
+  const body = el("div", "dlg__body", dlg);
+
+  /* operator — only meaningful when this kind already has a condition */
+  if (existing.length) {
+    const row = el("div", "row", body);
+    const info = el("div", null, row);
+    el("div", "row__name", info, "Combine with");
+    el("div", "row__desc", info,
+      "or: the line needs any one of them. and: the line needs all of them.");
+    const s = sel(el("div", null, row), [{ value:"or", label:"or" }, { value:"and", label:"and" }],
+      dialog.op, "Operator");
+    s.addEventListener("change", () => { dialog.op = s.value; render(); });
+  }
+
+  /* pick a field, then one of its values — or just type */
+  const fieldRow = el("div", "row", body);
+  const fi = el("div", null, fieldRow);
+  el("div", "row__name", fi, "Field");
+  el("div", "row__desc", fi, "Pick a field to see its values.");
+  const fs = sel(el("div", null, fieldRow), PICK_FIELDS[dialog.kind].map(f => f.name),
+    dialog.fieldName, "Field to pick from");
+  fs.addEventListener("change", () => { dialog.fieldName = fs.value; render(); });
+
+  const valRow = el("div", "row", body);
+  const vi = el("div", null, valRow);
+  el("div", "row__name", vi, "Value");
+  el("div", "row__desc", vi, "Type it, or choose below.");
+  const input = txt(el("div", null, valRow), dialog.value, kind.ph, "Value", "txt mono");
+  input.addEventListener("input", () => { dialog.value = input.value; syncPicks(); });
+
+  const picked = PICK_FIELDS[dialog.kind].find(f => f.name === dialog.fieldName);
+  const picks = el("div", "picks", body);
+  const buttons = [];
+  picked.values.forEach(v => {
+    const shown = dialog.kind === "tag" ? "#" + v : v;
+    const b = el("button", "pick", picks, shown);
+    b.type = "button";
+    b.setAttribute("aria-pressed", dialog.value === shown ? "true" : "false");
+    b.addEventListener("click", () => { dialog.value = shown; input.value = shown; syncPicks(); });
+    buttons.push([b, shown]);
+  });
+  function syncPicks() {
+    buttons.forEach(([b, shown]) => b.setAttribute("aria-pressed", dialog.value === shown ? "true" : "false"));
+    save.disabled = !String(dialog.value || "").trim();
+  }
+  el("p", "dlg__hint", body,
+    dialog.kind === "tag"
+      ? "A value is stored without its field name, and with or without the hash — both work."
+      : "Anything the line actually contains can be used, not only configured fields.");
+
+  const foot = el("div", "dlg__foot", dlg);
+  const cancel = el("button", "btn", foot, "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => { dialog = null; render(); });
+  const save = el("button", "btn btn--cta", foot, "Add");
+  save.type = "button";
+  save.disabled = !String(dialog.value || "").trim();
+  save.addEventListener("click", () => {
+    rule.conditions.push({ kind:dialog.kind, value:dialog.value.trim(), op:existing.length ? dialog.op : "or" });
+    dialog = null;
+    render();
+  });
+
+  document.addEventListener("keydown", function esc(e) {
+    if (e.key !== "Escape") return;
+    document.removeEventListener("keydown", esc);
+    dialog = null; render();
+  });
+  input.focus();
+}
+
+/* ---------------------------------------------------------------- render */
+function render() {
+  document.querySelectorAll(".scrim").forEach(n => n.remove());
+  document.getElementById("variantbar").style.setProperty("display", "none");
+
+  const pane = document.getElementById("pane");
+  const verdict = document.getElementById("verdict");
+  pane.textContent = "";
+  verdict.textContent = "";
+
+  if (section === "fields") {
+    renderFields(pane);
+    el("b", null, verdict, "Three fixes to the values table");
+    const ul = el("ul", null, verdict);
+    [
+      "The value column no longer forces the row wide: every control in the table is now <code>width:100%; min-width:0</code>, so the Shown as dropdown, the colour swatch and the preview each keep their own cell.",
+      "A bubble with no text is still a bubble — filled with the value colour, full height, just narrow. Switch <code>almost_done</code> to <em>The value</em> and back to compare.",
+      "The ∟ marker is gone. A child row is exactly as tall as a parent row; only the value input starts further right, and it still ends flush with the others."
+    ].forEach(x => { el("li", null, ul).innerHTML = x; });
+  } else {
+    renderRules(pane);
+    el("b", null, verdict, "What changed in Smart rules");
+    const ul = el("ul", null, verdict);
+    [
+      "Each rule can be named. The name is optional — empty shows a placeholder, and the number still identifies the rule.",
+      "The grey slab is gone. A rule is a card on the pane background with a state rail: accent when in use, grey when switched off, red when it conflicts with an earlier rule.",
+      "Every kind of condition has a <code>+</code> that opens a dialog. In it you pick the operator, then either type a value or choose one from a field — pick <em>Status</em> and its values appear as buttons.",
+      "The outcome sits in its own strip at the bottom, so the condition and the consequence never blur together.",
+      "<b>Operators need a runtime change.</b> <code>and</code> between two values of the same kind does not exist in the engine today — see the question in the chat."
+    ].forEach(x => { el("li", null, ul).innerHTML = x; });
+  }
+
+  document.querySelectorAll("[data-sec]").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.sec === section)));
+}
+
+document.querySelectorAll("[data-sec]").forEach(b => {
+  b.addEventListener("click", () => { section = b.dataset.sec; dialog = null; render(); });
+});
+document.querySelectorAll("[data-theme-set]").forEach(b => {
+  b.addEventListener("click", () => {
+    const m = b.dataset.themeSet;
+    if (m === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", m);
+    document.querySelectorAll("[data-theme-set]").forEach(x =>
+      x.setAttribute("aria-pressed", String(x === b)));
+  });
+});
+
+render();
+</script>
