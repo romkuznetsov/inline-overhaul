@@ -4620,7 +4620,16 @@ class InlineOverhaulPlugin extends Plugin {
    * запасным путём до фазы 3, когда её код удаляется целиком.
    */
   createSettingTab() {
-    const Declarative = getDeclarativeSettingTabCtor();
+    /*
+     * Новая панель включается только флагом advanced.newSettingsPane, пока в
+     * ней нет редактора Fields, живых предпросмотров, Binder, Smart Rules и
+     * справочника команд (фаза 3). До паритета старая панель остаётся
+     * рабочей: переключать человека на панель без половины инструментов
+     * нельзя, даже если новая устроена лучше.
+     */
+    const cfg = this.getConfig();
+    const wantNew = !!(cfg && cfg.advanced && cfg.advanced.newSettingsPane === true);
+    const Declarative = wantNew ? getDeclarativeSettingTabCtor() : null;
     if (Declarative) {
       try {
         return new Declarative(this.app, this);

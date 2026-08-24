@@ -36660,7 +36660,9 @@ var require_main = __commonJS({
        * запасным путём до фазы 3, когда её код удаляется целиком.
        */
       createSettingTab() {
-        const Declarative = getDeclarativeSettingTabCtor();
+        const cfg = this.getConfig();
+        const wantNew = !!(cfg && cfg.advanced && cfg.advanced.newSettingsPane === true);
+        const Declarative = wantNew ? getDeclarativeSettingTabCtor() : null;
         if (Declarative) {
           try {
             return new Declarative(this.app, this);

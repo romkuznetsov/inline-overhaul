@@ -44,6 +44,26 @@ if (!enabled.includes("inline-overhaul")) {
   fs.writeFileSync(listFile, JSON.stringify(enabled, null, 2) + "\n", "utf8");
 }
 
+/*
+ * В тестовом vault новая панель включена: её тут и проверяют. В рабочем
+ * vault флага нет, поэтому там остаётся старая панель — до паритета
+ * (редактор Fields, предпросмотры, Binder, Smart Rules из фазы 3).
+ *
+ * Остальное в data.json не трогаем: там ваши настройки.
+ */
+{
+  const dataFile = path.join(pluginDir, "data.json");
+  let data = {};
+  try { data = JSON.parse(fs.readFileSync(dataFile, "utf8")); } catch { data = {}; }
+  if (!data || typeof data !== "object") data = {};
+  if (!data.advanced || typeof data.advanced !== "object") data.advanced = {};
+  if (data.advanced.newSettingsPane !== true) {
+    data.advanced.newSettingsPane = true;
+    fs.writeFileSync(dataFile, JSON.stringify(data, null, 2) + "\n", "utf8");
+    console.log("новая панель включена флагом advanced.newSettingsPane");
+  }
+}
+
 /* заметки создаём один раз: вы могли что-то в них написать */
 const NOTES = {
   "Проверка панели.md": [
