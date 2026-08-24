@@ -6,3 +6,61 @@
  *   - the settings layer sets no inline styles; the only exception is
  *     setProperty on an --io-* custom property for a parametric preview
  */
+
+/* ============================================================ Настройки */
+
+/* Ссылка на команду, хоткей, значение или разделитель (Ст11). */
+.io-code {
+  font-family: var(--font-monospace);
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--background-modifier-hover);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  white-space: nowrap;
+}
+
+/*
+ * Подсказка второго уровня. Свёрнута, пока её не открыли: details и summary
+ * дают это без скриптов и работают с клавиатуры.
+ */
+.io-tip {
+  margin-top: 4px;
+}
+.io-tip__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: help;
+  list-style: none;
+  user-select: none;
+}
+.io-tip__mark::-webkit-details-marker { display: none; }
+.io-tip__mark:hover,
+.io-tip[open] .io-tip__mark {
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+.io-tip__body {
+  margin-top: 5px;
+  padding-left: 9px;
+  border-left: 2px solid var(--background-modifier-border);
+  color: var(--text-muted);
+}
+
+/* Панель просит версию Obsidian новее: единственное, что она может показать. */
+.io-needs-update {
+  padding: 16px;
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+}

@@ -32025,13 +32025,13 @@ var init_schema = __esm({
     init_transform();
     init_advanced();
     TABS = [
-      { id: "general", label: "General" },
-      { id: "keyboard", label: "Keyboard" },
-      { id: "navigation", label: "Navigation", module: "features.navigation.enabled" },
-      { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled" },
-      { id: "visual", label: "Visual", module: "features.visual.enabled" },
-      { id: "transform", label: "Transform", module: "features.transform.enabled" },
-      { id: "advanced", label: "Advanced" }
+      { id: "general", label: "General", desc: "Inline Overhaul is about writing a note and tagging it in the same breath", flat: true },
+      { id: "keyboard", label: "Keyboard", desc: "Everything about keys lives here" },
+      { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "This menu helps to make inline navigation in Obsidian comfortable" },
+      { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },
+      { id: "visual", label: "Visual", module: "features.visual.enabled", desc: "How a tagged line looks while you are writing" },
+      { id: "transform", label: "Transform", module: "features.transform.enabled", desc: "Turn a line you have already written into a note of its own" },
+      { id: "advanced", label: "Advanced", desc: "Housekeeping you will rarely need" }
     ];
     SCHEMA = [
       ...GENERAL_GROUPS,
@@ -32137,11 +32137,21 @@ function toDefinitions(schema, tabs, w) {
   for (const tab of tabs) {
     const groups = schema.filter((g) => g.tab === tab.id).slice().sort((a, b) => a.order - b.order);
     if (!groups.length) continue;
-    out.push({
+    if (tab.flat) {
+      for (const g of groups) out.push(groupToDefinition(g, w));
+      continue;
+    }
+    const page = {
       type: "page",
       name: tab.label,
       items: groups.map((g) => groupToDefinition(g, w))
-    });
+    };
+    if (tab.desc) page.desc = tab.desc;
+    if (tab.module) {
+      const modulePath = tab.module;
+      page.displayValue = () => w.ctx.get(modulePath) ? "" : "off";
+    }
+    out.push(page);
   }
   return out;
 }
@@ -32204,9 +32214,9 @@ var init_describe = __esm({
         const frag = this.host.createFragment();
         if (it.desc) paint(frag, it.desc);
         if (o.showTips && it.tip) {
-          const tip = frag.createEl("div", { cls: "io-tipline" });
-          tip.createEl("span", { text: "?", cls: "io-tipmark" });
-          paint(tip, it.tip);
+          const box = frag.createEl("details", { cls: "io-tip" });
+          box.createEl("summary", { text: "?", cls: "io-tip__mark" });
+          paint(box.createEl("div", { cls: "io-tip__body" }), it.tip);
         }
         this.cache.set(it.id, { key, frag });
         return frag;

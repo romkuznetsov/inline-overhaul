@@ -13,13 +13,13 @@ import { TRANSFORM_GROUPS } from "./transform.ts";
 import { ADVANCED_GROUPS } from "./advanced.ts";
 
 export const TABS: readonly TabDef[] = [
-  { id: "general", label: "General" },
-  { id: "keyboard", label: "Keyboard" },
-  { id: "navigation", label: "Navigation", module: "features.navigation.enabled" },
-  { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled" },
-  { id: "visual", label: "Visual", module: "features.visual.enabled" },
-  { id: "transform", label: "Transform", module: "features.transform.enabled" },
-  { id: "advanced", label: "Advanced" },
+  { id: "general", label: "General", desc: "Inline Overhaul is about writing a note and tagging it in the same breath", flat: true },
+  { id: "keyboard", label: "Keyboard", desc: "Everything about keys lives here" },
+  { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "This menu helps to make inline navigation in Obsidian comfortable" },
+  { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },
+  { id: "visual", label: "Visual", module: "features.visual.enabled", desc: "How a tagged line looks while you are writing" },
+  { id: "transform", label: "Transform", module: "features.transform.enabled", desc: "Turn a line you have already written into a note of its own" },
+  { id: "advanced", label: "Advanced", desc: "Housekeeping you will rarely need" },
 ];
 
 export const SCHEMA: readonly SettingsGroup[] = [

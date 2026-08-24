@@ -38,6 +38,8 @@ export interface ObsidianControl {
 export interface ObsidianDefinition {
   type?: "page" | "group" | "list";
   name?: string;
+  /** Короткое состояние справа в строке перехода: например «off». */
+  displayValue?: string | (() => string);
   heading?: string;
   desc?: unknown;
   cls?: string;
@@ -189,11 +191,30 @@ export function toDefinitions(
       .slice()
       .sort((a, b) => a.order - b.order);
     if (!groups.length) continue;
-    out.push({
+
+    /*
+     * Полосы вкладок в декларативном API нет: страница рисуется строкой
+     * перехода. Поэтому одна вкладка раскладывается сразу — иначе первый
+     * экран панели это только оглавление из семи слов, и человек не видит
+     * ни что включено, ни с чего начать.
+     */
+    if (tab.flat) {
+      for (const g of groups) out.push(groupToDefinition(g, w));
+      continue;
+    }
+
+    const page: ObsidianDefinition = {
       type: "page",
       name: tab.label,
       items: groups.map(g => groupToDefinition(g, w)),
-    });
+    };
+    if (tab.desc) page.desc = tab.desc;
+    /* Состояние модуля видно, не заходя внутрь. */
+    if (tab.module) {
+      const modulePath = tab.module;
+      page.displayValue = () => (w.ctx.get(modulePath) ? "" : "off");
+    }
+    out.push(page);
   }
   return out;
 }

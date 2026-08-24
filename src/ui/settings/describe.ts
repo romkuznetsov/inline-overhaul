@@ -19,7 +19,7 @@ export interface FragmentHost {
 }
 export interface DocLike {
   appendChild(node: unknown): unknown;
-  createEl(tag: string, o?: { text?: string; cls?: string }): DocLike;
+  createEl(tag: string, o?: { text?: string; cls?: string; attr?: Record<string, string> }): DocLike;
   createSpan(o?: { text?: string; cls?: string }): DocLike;
   textContent: string;
 }
@@ -80,10 +80,15 @@ export class Describer {
     const frag = this.host.createFragment();
     if (it.desc) paint(frag, it.desc);
 
+    /*
+     * Подсказка свёрнута, пока её не открыли: details и summary дают это
+     * без скриптов, работают с клавиатуры и не превращают описание в стену
+     * текста. Первый вариант приклеивал tip к desc, и панель стала нечитаемой.
+     */
     if (o.showTips && it.tip) {
-      const tip = frag.createEl("div", { cls: "io-tipline" });
-      tip.createEl("span", { text: "?", cls: "io-tipmark" });
-      paint(tip, it.tip);
+      const box = frag.createEl("details", { cls: "io-tip" });
+      box.createEl("summary", { text: "?", cls: "io-tip__mark" });
+      paint(box.createEl("div", { cls: "io-tip__body" }), it.tip);
     }
 
     this.cache.set(it.id, { key, frag });

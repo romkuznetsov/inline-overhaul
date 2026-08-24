@@ -135,14 +135,31 @@ async function main(): Promise<void> {
     assert.equal(shape(pane.getSettingDefinitions()), shape(pane.getSettingDefinitions()));
   });
 
-  await test("вкладка становится страницей, группа — группой", () => {
+  await test("первый экран показывает группы, а не только оглавление", () => {
     const { pane } = makePane();
     const defs = pane.getSettingDefinitions();
-    assert.equal(defs.length, 7);
-    assert.equal(defs[0]?.type, "page");
-    assert.equal(defs[0]?.name, "General");
-    assert.equal(defs[0]?.items?.[0]?.type, "group");
-    assert.equal(defs[0]?.items?.[0]?.heading, "Help");
+    /* две группы General сразу, за ними шесть строк перехода */
+    assert.equal(defs.length, 8, "две группы плюс шесть страниц");
+    assert.equal(defs[0]?.type, "group");
+    assert.equal(defs[0]?.heading, "Help");
+    assert.equal(defs[1]?.heading, "Modules");
+    const pages = defs.filter(d => d.type === "page");
+    assert.equal(pages.length, 6);
+    assert.deepEqual(pages.map(p => p.name),
+      ["Keyboard", "Navigation", "Tags & PKM", "Visual", "Transform", "Advanced"]);
+  });
+
+  await test("у строки перехода есть описание, а у модуля — состояние", () => {
+    const { pane, store } = makePane();
+    const page = () => pane.getSettingDefinitions().find(d => d.name === "Visual");
+    assert.equal(page()?.desc, "How a tagged line looks while you are writing");
+    assert.equal(typeof page()?.displayValue, "function");
+    assert.equal((page()?.displayValue as () => string)(), "", "модуль включён — состояние не пишем");
+    void store.set("features.visual.enabled", false);
+    assert.equal((page()?.displayValue as () => string)(), "off",
+      "выключенный модуль виден, не заходя внутрь");
+    const keyboard = pane.getSettingDefinitions().find(d => d.name === "Keyboard");
+    assert.equal(keyboard?.displayValue, undefined, "у вкладки без модуля состояния нет");
   });
 
   await test("контролы получают правильный тип и ключ", () => {
@@ -286,8 +303,7 @@ async function main(): Promise<void> {
 
   await test("кнопка сброса появляется только когда есть что сбрасывать (Н2)", async () => {
     const { pane } = makePane();
-    const groupDef = () => pane.getSettingDefinitions()
-      .find(d => d.name === "General")?.items?.find(g => g.heading === "Modules");
+    const groupDef = () => pane.getSettingDefinitions().find(d => d.heading === "Modules");
     assert.equal(groupDef()?.extraButtons, undefined, "всё по умолчанию — кнопки нет");
     await pane.setControlValue("features.visual.enabled", false);
     assert.equal(groupDef()?.extraButtons?.length, 1, "появилось отличие — появилась кнопка");

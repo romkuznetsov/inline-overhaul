@@ -177,6 +177,40 @@ const TAB_LABEL = {
   transform: ["Transform", "features.transform.enabled"],
   advanced: ["Advanced", null],
 };
+
+/* Одна фраза о содержимом области берётся из вводного коллаута прототипа:
+   текст согласован, придумывать второй незачем. */
+const callouts = {};
+{
+  const at = src.indexOf("const TAB_CALLOUTS = {");
+  if (at >= 0) {
+    const from = src.indexOf("{", at + 20);
+    const body = src.slice(from, matchBrace(src, from) + 1);
+    /* Ищем каждое head: "..." и отступаем назад к ближайшему ключу вкладки.
+       Без регулярных выражений: строковые операции надёжнее в пересылке. */
+    let i = 0;
+    for (;;) {
+      const h = body.indexOf("head: \"", i);
+      if (h < 0) break;
+      const q1 = body.indexOf("\"", h + 6);
+      let q2 = q1 + 1;
+      while (q2 < body.length && !(body[q2] === "\"" && body[q2 - 1] !== "\\")) q2++;
+      const text = body.slice(q1 + 1, q2);
+
+      const before = body.slice(0, h);
+      const brace = before.lastIndexOf("{");
+      const colon = before.lastIndexOf(":", brace);
+      const lineStart = before.lastIndexOf("\n", colon) + 1;
+      const key = before.slice(lineStart, colon).trim();
+      if (key && TAB_FILE[key]) callouts[key] = text;
+      i = q2 + 1;
+    }
+  }
+}
+
+/* Вкладка, которая показывается сразу: иначе первый экран панели — пустое
+   оглавление. General для этого и предназначен: что включено и с чего начать. */
+const FLAT_TAB = "general";
 const index = [
   "/**",
   " * ВНИМАНИЕ: файл сгенерирован из docs/prototype/settings_prototype.html.",
@@ -189,7 +223,11 @@ const index = [
   "export const TABS: readonly TabDef[] = [",
   ...Object.keys(TAB_LABEL).map(t => {
     const [label, mod] = TAB_LABEL[t];
-    return '  { id: "' + t + '", label: "' + label + '"' + (mod ? ', module: "' + mod + '"' : "") + " },";
+    const bits = ['id: "' + t + '"', 'label: "' + label + '"'];
+    if (mod) bits.push('module: "' + mod + '"');
+    if (callouts[t]) bits.push('desc: "' + callouts[t].replace(/"/g, '\\"') + '"');
+    if (t === FLAT_TAB) bits.push("flat: true");
+    return "  { " + bits.join(", ") + " },";
   }),
   "];",
   "",
