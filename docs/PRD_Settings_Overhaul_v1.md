@@ -1740,7 +1740,7 @@ _Tip:_ Three ways of finding one are tried in turn, and the first that works win
 - **Name brackets** — `naming-delimiters`, `text`, path `transform.inline2note.noteName.delimiters`, default `()`
   - desc: Two characters. Whatever you put between them becomes the name
   - tip: Put <code>()</code> here, write the line <code>- call (Anna about the contract) || text</code>, and you get a note called <b>Anna about the contract</b>. Leave this box empty and the name comes from the heading or the first words instead
-  - старые названия для поиска: «Explicit name delimiters»
+  - старые названия для поиска: «Title delimiters», «Explicit name delimiters»
 - **Words to use instead** — `naming-word-count`, `number`, path `transform.inline2note.noteName.wordCount`, default `5`
   - desc: How many of the first words to use when there are no brackets
   - tip: Set this to 3 and the line <code>- draft the settings prototype today</code> becomes a note called <b>draft the settings</b>. Too few and the names all look alike; too many and they get unwieldy

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "gate": "node tests/gates/settings_layer_gates.ts",
-    "gate:prototype": "node tests/prototype/run_all.js"
+    "gate:prototype": "node tests/prototype/run_all.js",
+    "gen:schema": "node build/gen_schema.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",

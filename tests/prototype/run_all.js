@@ -55,5 +55,29 @@ if (r.status !== 0) {
   console.log("ok    update_prd.py    раздел 9 и Приложение B совпадают с прототипом");
 }
 
+/* Схема в src сгенерирована из прототипа: повторная генерация не должна
+   менять ни байта, иначе кто-то правил src руками (Г23). */
+{
+  const dir = path.join(root, "src", "ui", "settings", "schema");
+  if (fs.existsSync(dir)) {
+    const before = fs.readdirSync(dir).map(f => [f, fs.readFileSync(path.join(dir, f), "utf8")]);
+    const g = spawnSync(process.execPath, [path.join(root, "build", "gen_schema.js")],
+      { cwd: root, encoding: "utf8", timeout: 60000 });
+    if (g.status !== 0) {
+      failed++;
+      console.log("FAIL  gen_schema.js    генерация схемы не запустилась");
+    } else {
+      const changed = before.filter(pair => fs.readFileSync(path.join(dir, pair[0]), "utf8") !== pair[1]);
+      if (changed.length) {
+        failed++;
+        console.log("FAIL  gen_schema.js    схема разошлась с прототипом: " + changed.map(pair => pair[0]).join(", "));
+        console.log("      правьте прототип, затем npm run gen:schema, и коммитьте результат");
+      } else {
+        console.log("ok    gen_schema.js    схема в src совпадает с прототипом");
+      }
+    }
+  }
+}
+
 console.log(failed ? "\n" + failed + " problem(s)" : "\nпрототип и документ в согласии");
 process.exit(failed ? 1 : 0);

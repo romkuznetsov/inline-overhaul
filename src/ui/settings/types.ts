@@ -81,7 +81,7 @@ export type SettingDef =
   | (Bound & { kind: "dropdown"; options: ReadonlyArray<{ value: string; label: string }>; default: string })
   | (Bound & { kind: "slider"; min: number; max: number; step: number; unit?: string; default: number })
   | (Bound & { kind: "number"; min?: number; max?: number; default: number })
-  | (Bound & { kind: "text"; placeholder?: string; wide?: true; validate?: (v: string) => string | undefined; default: string })
+  | (Bound & { kind: "text"; placeholder?: string; wide?: true; mono?: true; validate?: (v: string) => string | undefined; default: string })
   | (Bound & { kind: "textarea"; placeholder?: string; rows?: number; default: string })
   | (Bound & { kind: "color"; allowReset?: true; default: string })
   | (Base & { kind: "buttons"; buttons: readonly SettingButton[] })
@@ -95,6 +95,12 @@ export interface SettingsGroup {
   heading: string;
   intro?: string;
   tip?: string;
+  /**
+   * Команды, которые эта группа настраивает: имена показываются под
+   * заголовком, чтобы человек видел, чему он назначает хоткей. Имена, а не
+   * ID: ID команды в интерфейсе не показывается никогда (7.2).
+   */
+  commands?: readonly string[];
   visible?: Predicate;
   items: readonly SettingDef[];
 }
