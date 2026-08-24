@@ -50,6 +50,25 @@ setupGlobals();
   else ok("style.setProperty запоминает значение");
 }
 
+/* ---- ни один исходник не содержит нулевых байтов ----------------------- */
+{
+  const exts = [".ts", ".js", ".mjs", ".json", ".md", ".css"];
+  const skip = ["node_modules", ".git", "dist"];
+  const dirty: string[] = [];
+  const walk = (dir: string): void => {
+    for (const name of fs.readdirSync(dir)) {
+      if (skip.includes(name)) continue;
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) { walk(full); continue; }
+      if (!exts.some(e => name.endsWith(e))) continue;
+      if (fs.readFileSync(full).includes(0)) dirty.push(path.relative(root, full));
+    }
+  };
+  walk(root);
+  if (dirty.length) fail("нулевые байты в исходниках: " + dirty.join(", "));
+  else ok("нулевых байтов в исходниках нет");
+}
+
 /* ---- мок Obsidian строит настройку без исключений ---------------------- */
 {
   const { makeNode } = await import("../harness/dom_stub.ts");
