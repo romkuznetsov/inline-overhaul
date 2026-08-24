@@ -1,0 +1,515 @@
+<title>Аудит PRD 1.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --ground: #f3f6f5;
+  --surface: #ffffff;
+  --surface-2: #eaefee;
+  --ink: #16201f;
+  --ink-soft: #3c4a48;
+  --muted: #5f6f6c;
+  --faint: #8b9b97;
+  --rule: #d3dcda;
+  --accent: #0e5c63;
+  --accent-soft: #dfeceb;
+  --crit: #9e2b3b;
+  --crit-bg: #f7e6e7;
+  --major: #8a5a12;
+  --major-bg: #f6ecdb;
+  --minor: #2f5f4c;
+  --minor-bg: #e3efe8;
+  --good: #2f5f4c;
+
+  --serif: "Literata", Georgia, "Times New Roman", serif;
+  --sans: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #101615;
+    --surface: #172020;
+    --surface-2: #1e2827;
+    --ink: #e7edea;
+    --ink-soft: #c3d0cd;
+    --muted: #97a7a3;
+    --faint: #6d7d79;
+    --rule: #2b3937;
+    --accent: #6fc4bd;
+    --accent-soft: #1b2e2e;
+    --crit: #e88b93;
+    --crit-bg: #2e1a1d;
+    --major: #dbaa62;
+    --major-bg: #2b2418;
+    --minor: #86c2a6;
+    --minor-bg: #182823;
+    --good: #86c2a6;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #101615;
+  --surface: #172020;
+  --surface-2: #1e2827;
+  --ink: #e7edea;
+  --ink-soft: #c3d0cd;
+  --muted: #97a7a3;
+  --faint: #6d7d79;
+  --rule: #2b3937;
+  --accent: #6fc4bd;
+  --accent-soft: #1b2e2e;
+  --crit: #e88b93;
+  --crit-bg: #2e1a1d;
+  --major: #dbaa62;
+  --major-bg: #2b2418;
+  --minor: #86c2a6;
+  --minor-bg: #182823;
+  --good: #86c2a6;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 56px 24px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+}
+
+/* ---------- шапка ---------- */
+.head { display: flex; flex-direction: column; gap: 14px; }
+.eyebrow {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--faint);
+}
+h1 {
+  font-family: var(--serif); font-weight: 600; font-size: clamp(30px, 5vw, 42px);
+  line-height: 1.14; margin: 0; text-wrap: balance; letter-spacing: -0.015em;
+}
+.lede { font-size: 17px; color: var(--ink-soft); margin: 0; max-width: 64ch; }
+.meta {
+  display: flex; flex-wrap: wrap; gap: 6px 20px;
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+  padding-top: 8px; border-top: 1px solid var(--rule);
+}
+
+/* ---------- сводка ---------- */
+.tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+  background: var(--rule); border: 1px solid var(--rule); }
+.tally div { background: var(--surface); padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
+.tally b { font-family: var(--serif); font-size: 27px; font-weight: 600; line-height: 1;
+  font-variant-numeric: tabular-nums; }
+.tally span { font-size: 12.5px; color: var(--muted); }
+.tally .c b { color: var(--crit); }
+.tally .m b { color: var(--major); }
+.tally .n b { color: var(--minor); }
+
+/* ---------- разделы ---------- */
+section { display: flex; flex-direction: column; gap: 22px; }
+h2 {
+  font-family: var(--serif); font-weight: 600; font-size: 23px; margin: 0;
+  padding-bottom: 8px; border-bottom: 2px solid var(--ink); letter-spacing: -0.01em;
+}
+h2 .n { font-family: var(--mono); font-size: 12px; color: var(--faint); font-weight: 400;
+  letter-spacing: 0.1em; display: block; margin-bottom: 6px; text-transform: uppercase; }
+.intro { margin: 0; color: var(--ink-soft); max-width: 68ch; }
+
+/* ---------- находка ---------- */
+.f { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 0 18px; }
+.f > .id {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding-top: 3px;
+}
+.sev {
+  display: inline-block; padding: 2px 7px; border-radius: 2px;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.sev-c { background: var(--crit-bg); color: var(--crit); }
+.sev-m { background: var(--major-bg); color: var(--major); }
+.sev-n { background: var(--minor-bg); color: var(--minor); }
+.f > .body { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.f h3 {
+  font-family: var(--serif); font-size: 19px; font-weight: 600; margin: 0;
+  line-height: 1.3; text-wrap: balance;
+}
+.f p { margin: 0; max-width: 70ch; }
+.f p.ask { color: var(--ink-soft); }
+.lbl {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--faint); margin-right: 7px;
+}
+.f + .f { border-top: 1px solid var(--rule); padding-top: 22px; }
+
+code {
+  font-family: var(--mono); font-size: 0.87em;
+  background: var(--surface-2); border: 1px solid var(--rule);
+  border-radius: 2px; padding: 0.5px 4px; white-space: nowrap;
+  color: var(--ink);
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- таблицы ---------- */
+.scroll { overflow-x: auto; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--faint); background: var(--surface-2); font-weight: 500; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td.k { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; color: var(--muted); }
+
+/* ---------- врезки ---------- */
+.note {
+  background: var(--surface); border: 1px solid var(--rule);
+  border-left: 3px solid var(--accent); padding: 15px 18px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.note p { margin: 0; }
+.note .lbl { color: var(--accent); }
+ul.plain { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+ul.plain li { max-width: 68ch; }
+
+footer {
+  font-family: var(--mono); font-size: 11.5px; color: var(--faint);
+  border-top: 1px solid var(--rule); padding-top: 16px;
+}
+
+@media (max-width: 620px) {
+  .f { grid-template-columns: 1fr; gap: 8px; }
+  .f > .id { flex-direction: row; align-items: center; gap: 10px; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="head">
+  <span class="eyebrow">Inline Overhaul · разбор спецификации</span>
+  <h1>Аудит PRD 1.1 перед передачей исполнителю</h1>
+  <p class="lede">Двадцать шесть находок, отсортированных по тому, во что они обойдутся: от пересмотра одного зафиксированного решения, который может снять половину первой фазы, до пустых состояний, о которых спецификация молчит.</p>
+  <div class="meta">
+    <span>24 августа 2026</span>
+    <span>PRD 1.1 · 1854 строки</span>
+    <span>ветка docs/settings-overhaul-prd</span>
+  </div>
+</header>
+
+<div class="tally">
+  <div class="c"><b>5</b><span>критично — сорвут работу или потеряют данные</span></div>
+  <div class="m"><b>9</b><span>существенно — приведут к переделкам</span></div>
+  <div class="n"><b>12</b><span>заметно — глазами пользователя и по остальным ракурсам</span></div>
+  <div><b>7</b><span>механических ошибок уже исправлено в тексте</span></div>
+</div>
+
+<div class="note">
+  <p><span class="lbl">Главное</span>Обсидиан с версии 1.13 умеет декларативные настройки сам: рендеринг, привязки, валидацию, персистентность, предикаты видимости и <b>индексацию в глобальном поиске</b>. Решение Р2 отказалось от этого API, чтобы удержать <code>minAppVersion 1.5.0</code>, — и вместе с ним фаза 1 берётся руками писать ровно то, что теперь есть в платформе. Это первое, что стоит перепроверить: остальные двадцать пять находок дешевле любого исхода этого разговора.</p>
+</div>
+
+<section>
+  <h2><span class="n">Ракурс 1 · достаточность</span>Критично</h2>
+  <p class="intro">Пять пунктов, каждый из которых либо остановит исполнителя, либо тихо испортит пользователю его данные.</p>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-c">крит</span>К1</div>
+    <div class="body">
+      <h3>Решение Р2 принято до того, как платформа научилась делать это сама</h3>
+      <p><span class="lbl">Что</span>Начиная с Obsidian 1.13 вкладка настроек описывается декларативно через <code>getSettingDefinitions()</code>: страницы, группы с заголовками, контролы <code>toggle</code>, <code>dropdown</code>, <code>slider</code>, <code>number</code>, <code>text</code> с валидацией, кнопки-действия, предикаты <code>visible</code> и <code>disabled</code>, <code>render</code>-колбэк для своей вёрстки, <code>refreshDomState()</code> для пересчёта и <code>update()</code> для обновления определений вместе с индексом поиска.</p>
+      <p><span class="lbl">Чем дорого</span>Это построчно совпадает с тем, что PRD поручает написать руками: 5.2 (схема), Р-3 и Р-4 (реестр привязок и точечное обновление), Р-5 (предикаты с <code>deps</code>), Р-8 и Р-9 (видимость и неактивность), С1 (дефолты), плюс поиск, которого сейчас вообще нет (К2). Файлы <code>render.ts</code>, <code>bindings.ts</code>, <code>tabs.ts</code> — это и есть фаза 1.</p>
+      <p><span class="lbl">Предлагаю</span>Спайк на полдня в фазе 0, до написания рендерера: одну группу на <code>getSettingDefinitions()</code> и четыре вопроса фактами — выживает ли наш undo с коалесингом (CS3) при том, что персистентностью управляет Obsidian; влезают ли 21 свой блок в <code>render</code>; находит ли глобальный поиск наши настройки; есть ли эквивалент <code>searchTerms</code>. После этого Р2 пересматривается или подтверждается — но с фактами. Решение принимать сейчас, потому что после фазы 1 переход станет переписыванием.</p>
+      <p class="ask"><span class="lbl">Вопрос</span>Готовы поднять <code>minAppVersion</code> с 1.5.0 до 1.13.0? Раздача через BRAT, аудитория — вы и первые пользователи, цена подъёма планки сейчас минимальна.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-c">крит</span>К2</div>
+    <div class="body">
+      <h3>Поиска по настройкам нет, а четыре требования на него опираются</h3>
+      <p><span class="lbl">Что</span>В прототипе нет поля поиска, в спецификации — тоже. При этом в схеме 78 полей <code>searchTerms</code>, требование С4 обещает, что «пользователь, знавший <i>Opacity Left</i>, найдёт её», Р-8 отдельно оговаривает исключение скрытых настроек из поиска, И1 требует находимости каждой перенесённой настройки, а критерий готовности №6 без этого недоказуем.</p>
+      <p><span class="lbl">Чем дорого</span>Глобальный поиск Obsidian индексирует только декларативные вкладки, то есть при текущем Р2 он нашу панель не видит вовсе. Значит <code>searchTerms</code> — мёртвые данные: 78 строк, которые никто никогда не прочитает, и один невыполнимый критерий приёмки.</p>
+      <p><span class="lbl">Предлагаю</span>Либо К1 решается подъёмом планки, и поиск приходит из платформы — тогда проверить, куда прописывать старые имена; либо поиск проектируется свой: поле над вкладками, фильтр по <code>name</code>, <code>desc</code>, <code>searchTerms</code>, поиск по всем вкладкам сразу с указанием, на какой вкладке нашлось. Второй путь — это работа, которой в плане нет, и её надо добавить в прототип до кода.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-c">крит</span>К3</div>
+    <div class="body">
+      <h3>Переименование ID команд сотрёт все хоткеи пользователя</h3>
+      <p><span class="lbl">Что</span>Р3 и T7 переводят ID команд в kebab-case в фазе 6. Obsidian хранит назначенные пользователем хоткеи в <code>.obsidian/hotkeys.json</code>, ключом служит полный ID команды. Плагин по запрету З7 не ставит хоткеев по умолчанию — следовательно все хоткеи пользовательские, следовательно после переименования перестанут работать все до единого, молча.</p>
+      <p><span class="lbl">Чем дорого</span>Это единственная потеря пользовательских данных, которую миграция конфига не покрывает: раздел 8 бережёт настройки, а хоткеи не в <code>data.json</code>. Для человека, у которого TagWheel и цикл значений висят на удобных клавишах, это худшее, что может случиться при обновлении.</p>
+      <p><span class="lbl">Предлагаю</span>Проверить фактом за десять минут: назначить хоткей, переименовать ID, посмотреть <code>hotkeys.json</code>. Дальше на выбор: не переименовывать (T7 — косметика, гайдлайн требует лишь не дублировать имя плагина в ID, а это отдельный пункт), либо переименовать и мигрировать <code>hotkeys.json</code> самим, либо переименовать и показать одноразовое уведомление с картой старых и новых ID. Молча переименовывать нельзя ни в каком случае.</p>
+      <p class="ask"><span class="lbl">Вопрос</span>Переименовываем ID с миграцией хоткеев, переименовываем с предупреждением или оставляем как есть?</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-c">крит</span>К4</div>
+    <div class="body">
+      <h3>Гейтам Г13–Г21 негде запускаться на реальном коде</h3>
+      <p><span class="lbl">Что</span>Раздел 12 говорит, что гейты «переносятся на реальный код как есть». Это не так: они написаны для одного HTML-файла — <code>smoke.js</code> вырезает <code>&lt;script&gt;</code> регуляркой, <code>gates.js</code> вычисляет схему, подставляя заглушки рендереров.</p>
+      <p><span class="lbl">Чем дорого</span>Исполнитель либо пропустит самые ценные гейты (дымовой рендер и проверки вывода), либо сочинит обвязку сам, и она не будет ловить то же, что ловит нынешняя.</p>
+      <p><span class="lbl">Предлагаю</span>Пункт в фазу 0: <code>tests/harness/obsidian_stub.ts</code> с моками <code>Setting</code>, <code>PluginSettingTab</code>, <code>Notice</code>, <code>Modal</code>, <code>App</code> и <code>tests/harness/dom_stub.ts</code> с двумя обязательными свойствами из раздела 12 — запись <code>textContent</code> чистит детей, <code>setProperty</code> запоминает значение. Все гейты запускаются на этой обвязке, схема импортируется как модуль.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-c">крит</span>К5</div>
+    <div class="body">
+      <h3><code>strings.ts</code> и тексты в схеме — два источника истины на 91 строку</h3>
+      <p><span class="lbl">Что</span>Фаза 4 пункт 4 требует вынести все строки в <code>strings.ts</code>. Приложение B, нормативное, держит <code>name</code>, <code>desc</code> и <code>tip</code> внутри схемы — потому что так в прототипе.</p>
+      <p><span class="lbl">Чем дорого</span>Фаза 4 закончится переносом 91 текста в отдельный файл, после чего Приложение B и код разойдутся на первой же правке, а гейты Г17–Г19, которые читают схему, начнут проверять пустышки.</p>
+      <p><span class="lbl">Предлагаю</span>Тексты живут в схеме — она и есть таблица строк, и именно её выгружает генератор Приложения B. Задел под локализацию оставить типом: <code>name</code> и <code>desc</code> принимают либо строку, либо ключ. Пункт про <code>strings.ts</code> из фазы 4 и из раскладки 5.1 убрать.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">Ракурс 2 · взгляд исполнителя</span>Существенно</h2>
+  <p class="intro">Места, где спецификация внутренне противоречива или недоговаривает ровно настолько, чтобы исполнитель сделал по-своему и переделал потом.</p>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С1</div>
+    <div class="body">
+      <h3><code>ui.showTips</code> противоречит удалению ветки <code>ui.*</code> и гейту Г9</h3>
+      <p>Прототип держит настройку <code>Show tips</code> по пути <code>ui.showTips</code>. Раздел 8.1 удаляет всю ветку <code>ui.*</code>, а гейт Г9 запрещает <code>cfg.ui.</code> в слое настроек. В фазе 2 исполнитель встанет на этом месте.</p>
+      <p><span class="lbl">Предлагаю</span>Путь <code>general.help.showTips</code> по правилу «путь повторяет меню», поправить прототип, перегенерировать опись. Г9 оставить как есть.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С2</div>
+    <div class="body">
+      <h3>Живые предпросмотры станут вторым рендерером и разойдутся с редактором</h3>
+      <p>Четыре предпросмотра рисуют теги, Bars и TagWheel своим кодом. В плагине то же самое рисуют CM6-виджеты. Два независимых рендерера одного и того же расходятся на первой правке виджета, и предпросмотр начинает врать — хуже, чем его отсутствие.</p>
+      <p><span class="lbl">Предлагаю</span>Требование в 10.3: предпросмотр вызывает тот же код разметки, что и редактор, либо явно объявлен приблизительным, и это написано в интерфейсе. Третьего варианта нет.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С3</div>
+    <div class="body">
+      <h3>Первый запуск и пустые состояния не описаны</h3>
+      <p>Что видит человек на чистом vault? Есть ли стартовые Fields или список пуст? Прототип показывает пять Fields, но это моковые данные. Пустое состояние прописано только у одной стороны Block («nothing on this side»); для Values, Smart Rules и Binder — нет.</p>
+      <p><span class="lbl">Предлагаю</span>Решить: стартовый набор (например Status и Priority с тремя-пятью значениями) или пустой список с приглашением. Первый вариант даёт новому пользователю рабочий пример на первой минуте; второй честнее, но требует, чтобы руководство открывалось само.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С4</div>
+    <div class="body">
+      <h3>Моковые данные прототипа нигде не помечены как ненормативные</h3>
+      <p>Р8 объявляет прототип нормативным целиком, а в нём лежат пять придуманных Fields, дерево строк, три правила и цвета значений. Исполнитель вправе перенести их в плагин как требование.</p>
+      <p><span class="lbl">Предлагаю</span>Одна фраза в Р8: моковые данные — иллюстрация; нормативны структура, тексты и поведение блоков.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С5</div>
+    <div class="body">
+      <h3>Раздел 6.3 расходится с прототипом по выключенному модулю</h3>
+      <p>Спецификация: «только одна строка — тумблер». Прототип: заголовок вкладки, клон мастер-тумблера с производным id <code>…-tab</code> и фраза о том, что модуль выключен. Производный id к тому же обходит гейт уникальности, который смотрит только в схему.</p>
+      <p><span class="lbl">Предлагаю</span>Описать 6.3 так, как в прототипе, и оговорить, что дубль тумблера получает id из мастера с суффиксом, а не собственный.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С6</div>
+    <div class="body">
+      <h3>Новые пути фазы 5 не внесены в контракт конфига</h3>
+      <p>Раздел 8.1 — контракт: чего в нём нет, того нет в типе <code>Config</code>. Отсутствуют <code>navigation.moveSelection.rightCycles</code>, <code>transform.inline2note.floatingButton</code>, признак И/ИЛИ в условиях Smart Rules и путь настройки подсказок из С1.</p>
+      <p><span class="lbl">Предлагаю</span>Дописать четыре пути в 8.1 с пометкой «появляется в фазе 5» и дефолтами, повторяющими текущее поведение.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С7</div>
+    <div class="body">
+      <h3>Резервная копия есть, восстановить её нечем</h3>
+      <p>МГ4 сохраняет <code>data.backup.v1.json</code> перед первой записью v2. Пути назад у пользователя нет: файл лежит в папке плагина, и добраться до него можно только руками через файловый менеджер.</p>
+      <p><span class="lbl">Предлагаю</span>Действие <code>restore-v1-backup</code> на вкладке Advanced, видимое только когда файл существует, с подтверждением и перезагрузкой плагина. Это дешёвая страховка на самый неприятный сценарий.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С8</div>
+    <div class="body">
+      <h3>Приёмка фазы 4 — «ревью заказчиком» на 91 текст</h3>
+      <p>Гейты Г10, Г17–Г19 проверяют правила, но не совпадение с Приложением B. Вычитывать 91 описание и 71 подсказку глазами — ровно та работа, которую вы уже сделали на прототипе.</p>
+      <p><span class="lbl">Предлагаю</span>Гейт: выгрузить тексты из собранной схемы тем же генератором и сравнить с Приложением B. Расхождение — падение сборки. Ваше ревью тогда нужно только на новые тексты.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-m">сущ</span>С9</div>
+    <div class="body">
+      <h3>Фаза 3 — самый большой и самый рискованный шаг, и он неделимый</h3>
+      <p>Она одновременно меняет структуру меню и переносит около 3400 строк редактора Fields. Если приёмка не пройдёт, непонятно, что откатывать.</p>
+      <p><span class="lbl">Предлагаю</span>Разбить: 3a — вкладки, группы, удаление подвкладок и тумблеров видимости; 3b — перенос редактора Fields с тестом состояния до и после; 3c — остальные блоки. Приёмка у каждой части своя.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">Ракурс 3 · будущий пользователь</span>Чего не хватает в целевой панели</h2>
+  <p class="intro">Здесь я смотрю не на спецификацию, а на человека, который откроет настройки после обновления. Часть пунктов выходит за границы 3.2 «новых функций не добавляем» — они помечены.</p>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">польз</span>П1</div>
+    <div class="body">
+      <h3>Поиск — первое, чего он хватится</h3>
+      <p>Девяносто одна настройка на семи вкладках. Человек помнит слово, а не вкладку. Это та же находка К2, но с другой стороны: там она про мёртвые данные, здесь — про то, что панель без поиска остаётся картотекой, по которой надо помнить, где что лежит.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">польз</span>П2</div>
+    <div class="body">
+      <h3>Вернуть значение по умолчанию нечем</h3>
+      <p>Сброс есть только у цвета (<code>allowReset</code>). Двадцать две настройки на вкладке Visual — это ровно тот случай, когда покрутил и хочешь вернуться, а вернуться некуда, кроме перебора руками. Кнопка сброса у группы стоит дешевле, чем поиск, и снимает страх экспериментировать.</p>
+      <p class="ask"><span class="lbl">Границы</span>Формально новая функция слоя настроек, а не новая функция плагина. Прошу решения.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">польз</span>П3</div>
+    <div class="body">
+      <h3>Конфиг-заметка обещает перенос настроек, а покрывает треть панели</h3>
+      <p>Требование Э1 прямо называет сценарий «скопировать заметку в другой vault и применить». Но заметка описывает Fields, а Visual, Navigation и Transform — примерно шестьдесят настроек — в неё не входят. Пользователь применит заметку и обнаружит, что перенеслась треть.</p>
+      <p><span class="lbl">Предлагаю</span>Либо расширить заметку до всех настроек, либо переписать Э1 честно: это перенос настройки Fields, не панели целиком.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">польз</span>П4</div>
+    <div class="body">
+      <h3>Отмена изменения настроек существует, но невидима</h3>
+      <p>Р7 убрал кнопку и оставил команду. Хоткеев по умолчанию нет (З7). Значит про отмену узнает только тот, кто пойдёт искать её в палитре команд, — то есть почти никто, а страховка перестаёт работать именно в тот момент, когда нужна.</p>
+      <p><span class="lbl">Предлагаю</span>Упомянуть её в группе Help одной строкой со ссылкой на команду и в руководстве.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">польз</span>П5</div>
+    <div class="body">
+      <h3>После обновления человек не поймёт, что произошло</h3>
+      <p>Вкладок стало семь, названия сменились, <code>Strip</code> стал <code>Tag Bars</code>, часть контролов исчезла. Ни уведомления, ни заметки «что изменилось» в плане нет. Если К3 решится переименованием ID, к этому добавятся отвалившиеся хоткеи.</p>
+      <p><span class="lbl">Предлагаю</span>Одноразовая заметка после миграции: карта переименований, что убрано и почему, где теперь искать. Генерируется из таблицы 7.3 и раздела 9 — то есть почти бесплатно.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">польз</span>П6</div>
+    <div class="body">
+      <h3>Цвет значения можно выбрать нечитаемый, и никто не предупредит</h3>
+      <p>Пользователь задаёт фон и цвет текста для каждого Value. В тёмной теме легко получить чип, который не читается. Колонка <code>Text</code> в таблице уже есть — не хватает проверки.</p>
+      <p><span class="lbl">Предлагаю</span>Считать контраст пары и показывать тихое предупреждение в строке при значении ниже 4.5:1. Это требование доступности, а не украшение.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">польз</span>П7</div>
+    <div class="body">
+      <h3>Готовые наборы Fields живут только текстом в руководстве</h3>
+      <p>Руководство предлагает «два-три готовых набора, которые можно скопировать». Копировать придётся руками через конфиг-заметку. Кнопка «применить набор» превратила бы первые пятнадцать минут в одну минуту.</p>
+      <p><span class="lbl">Границы</span>Это новая функция, 3.2 её запрещает. Отмечаю как кандидата на следующий релиз, а не как пропуск в этом PRD.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">Ракурс 4 · остальное</span>Ракурсы, которых в задании не было</h2>
+  <p class="intro">Четыре угла, под которыми я тоже посмотрел: эксплуатация, доступность, жизнь документа после сдачи и устойчивость к мусору на входе.</p>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">экспл</span>Д1</div>
+    <div class="body">
+      <h3>Бюджета производительности нет</h3>
+      <p>Ни одного числа: сколько миллисекунд открывается вкладка, сколько узлов строит ре-рендер одной настройки. Без бюджета «панель тормозит» станет вопросом вкуса. Предлагаю: открытие вкладки не дольше 150 мс, изменение одной настройки не перестраивает больше десяти узлов, режимы прототипа <code>Show everything</code> и показ id в плагин не переносятся.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">a11y</span>Д2</div>
+    <div class="body">
+      <h3>Доступность описана только для вкладок и списка Fields</h3>
+      <p>Есть <code>role="tablist"</code> со стрелками (5.4) и стрелки в строке Fields (Ф17). Не описано: куда уходит фокус после переключения вкладки, как группа связана со своим заголовком для скринридера, видим ли фокус у ручки перетаскивания и чипов, уважает ли панель <code>prefers-reduced-motion</code> — а плавные появления в ней уже есть.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">сопров</span>Д3</div>
+    <div class="body">
+      <h3>Нормативность прототипа нужно защитить механически</h3>
+      <p>Прототип объявлен источником истины. Через месяц работы код уйдёт вперёд, прототип останется прежним, и Р8 станет фикцией — это происходит с любым нормативным документом, который никто не проверяет.</p>
+      <p><span class="lbl">Предлагаю</span>Гейт в CI: перегенерация Приложения B не даёт diff, и все шесть проверок прототипа зелёные. Тогда расхождение видно в тот же день, а не через месяц.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">устойч</span>Д4</div>
+    <div class="body">
+      <h3>Применение конфиг-заметки не описано на случай мусора</h3>
+      <p>Э2 требует показать изменения перед применением. Не сказано, что делать с заметкой, которую человек сломал руками: применять что разобралось, или отказываться целиком. Половинчатое применение — худший из вариантов, потому что оставляет настройки в состоянии, которого пользователь не выбирал.</p>
+      <p><span class="lbl">Предлагаю</span>Валидация целиком до применения; при ошибке — ничего не применять и показать, в какой строке заметки проблема.</p>
+    </div>
+  </div>
+
+  <div class="f">
+    <div class="id"><span class="sev sev-n">устойч</span>Д5</div>
+    <div class="body">
+      <h3>Битый <code>data.json</code> не рассмотрен</h3>
+      <p>МГ2 берёт отсутствующие поля из дефолтов, но случай «файл есть и не разбирается» не описан. Сейчас плагин в этом месте, скорее всего, просто не загрузится.</p>
+      <p><span class="lbl">Предлагаю</span>При ошибке разбора: сохранить файл рядом как <code>data.broken.json</code>, стартовать на дефолтах, сказать об этом один раз через <code>Notice</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">Уже исправлено</span>Механические ошибки текста</h2>
+  <p class="intro">Это не решения, а ошибки — правки внесены в PRD без обсуждения.</p>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Где</th><th>Было</th><th>Стало</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Фаза 0</td><td>Лицензия названа дважды, во второй раз как открытый вопрос</td><td>Один пункт, MIT</td></tr>
+        <tr><td class="k">Фаза 3 п.1</td><td>«Шесть вкладок по 6.1»</td><td>Семь</td></tr>
+        <tr><td class="k">Фаза 3 п.3</td><td>Ссылка на 9.9 — подраздела больше нет</td><td>Ссылка на дефект M5</td></tr>
+        <tr><td class="k">Фаза 3 п.9</td><td>«Enhanced Ctrl+A и Binder — в General»</td><td>На вкладке Keyboard, по Р11</td></tr>
+        <tr><td class="k">Фаза 3 приёмка</td><td>«по всем шести вкладкам»</td><td>По семи, добавлен гейт Г16</td></tr>
+        <tr><td class="k">Фаза 5.1</td><td>Два пункта с номером 2</td><td>Нумерация выправлена</td></tr>
+        <tr><td class="k">Фаза 6 п.6</td><td>«Решить судьбу <code>app.setting.open()</code>»</td><td>Решено: удалить, с проверкой grep</td></tr>
+        <tr><td class="k">Раздел 1</td><td>101 настройка против 93 строк описи, разница не объяснена</td><td>101 контрол = 93 настройки + 8 внутри редакторов</td></tr>
+        <tr><td class="k">Раздел 5.6</td><td>Реестр действий расходился с прототипом на четыре имени</td><td>Приведён к прототипу, добавлен гейт Г22</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">Честно о сильных сторонах</span>Что в PRD работает</h2>
+  <ul class="plain">
+    <li><b>Прототип как источник истины.</b> Девяносто один текст согласован на живой панели, а не в таблице. Это снимает самый частый источник переделок — «я имел в виду другое», обнаруженное после реализации.</li>
+    <li><b>Приложение B генерируется.</b> Опись не может разойтись с прототипом, потому что она из него выведена. Приложение A закрыто целиком — исполнителю не нужно ничего додумывать.</li>
+    <li><b>Сверка с нулём потерь.</b> Восемьдесят четыре настройки прослежены от файла и строки версии 1 до id в новой панели; девять снятых сняты по записанному решению. Требование И2 запрещает появление строки «нет соответствия» — это редкая для PRD вещь: проверяемая полнота.</li>
+    <li><b>Гейты написаны по случившимся ошибкам.</b> Дубли функций, удалённый рендерер, четыре блока на один селектор, заглушка DOM, копившая одиннадцать копий дерева, — каждый гейт закрывает то, что уже один раз произошло. Такие гейты ловят, а придуманные заранее — обычно нет.</li>
+    <li><b>Предикаты с явными <code>deps</code>.</b> Точечное обновление без анализа кода. Это же решение независимо выбрала платформа в 1.13, что хороший знак.</li>
+    <li><b>Миграция с резервной копией и тестом идемпотентности.</b> Не теряет неизвестные ключи, проверяется на реальной фикстуре.</li>
+  </ul>
+</section>
+
+<footer>Аудит PRD 1.1 · Inline Overhaul · 24 августа 2026</footer>
+
+</div>

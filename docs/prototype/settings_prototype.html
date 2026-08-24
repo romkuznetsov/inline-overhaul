@@ -1157,6 +1157,35 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-fields__colhead .io-tip { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .io-fields__col:first-child .io-fields__colhead { background: var(--background-secondary); }
+.io-btn--warn { border-color: var(--background-modifier-error); color: var(--text-error, #c0392b); }
+.io-btn--warn:hover { background: var(--background-modifier-error); color: var(--text-on-accent); }
+.io-vals__prev { display: flex; align-items: center; gap: 5px; }
+.io-warn { font-size: 11px; line-height: 1; color: var(--text-error, #c0392b); cursor: help; }
+
+/* Сброс группы: место занято всегда, видно при работе с группой */
+.io-group__reset {
+  margin-left: auto; flex: 0 0 auto;
+  font-family: inherit; font-size: 11px; color: var(--text-muted);
+  background: transparent; border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s); padding: 2px 8px; cursor: pointer;
+  opacity: 0; transition: opacity 90ms ease-out;
+}
+.io-group__heading:hover .io-group__reset,
+.io-group__heading:focus-within .io-group__reset,
+.io-group--touched .io-group__heading .io-group__reset { opacity: 1; }
+.io-group__reset:hover:not(:disabled) { color: var(--text-normal); background: var(--background-modifier-hover); }
+.io-group__reset:disabled { cursor: default; }
+.io-resetbox {
+  margin: 0 0 10px; padding: 11px 13px; border-radius: var(--radius-s);
+  background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.io-resetbox__list { margin: 0; padding-left: 17px; font-size: var(--font-ui-smaller); color: var(--text-muted);
+  display: flex; flex-direction: column; gap: 2px; }
+.io-resetbox__row { display: flex; gap: 7px; align-items: center; }
+@media (prefers-reduced-motion: reduce) {
+  .io-group__reset, .io-fields__tools { transition: none; }
+}
 </style>
 
 
@@ -1263,7 +1292,7 @@ const SCHEMA = [
           "first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. " +
           "It is an ordinary note, so you can scribble your own notes in it",
       buttons:[ {label:"Open the guide", action:"open-howto", cta:true} ] },
-    { kind:"toggle", id:"show-tips", path:"ui.showTips", default:true,
+    { kind:"toggle", id:"show-tips", path:"general.help.showTips", default:true,
       name:"Show tips", desc:"Put a ? beside anything that needs more explanation",
       tip:"Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way" }
   ]
@@ -1860,6 +1889,10 @@ const SCHEMA = [
   id: "diagnostics", tab: "advanced", order: 200, heading: "Diagnostics",
   intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
   items: [
+    { kind:"buttons", id:"restore-backup",
+      name:"Settings backup", desc:"The settings you had before the update, kept in case you want them back",
+      tip:"This row only appears while the backup file is there. Restoring replaces <b>everything</b> you have set since the update, including your Fields and rules, and it cannot be undone from the settings history \u2014 so the plugin saves what you have now before it writes, and asks you to restart afterwards",
+      buttons:[ {label:"Restore the backup", action:"restore-backup", warning:true} ] },
     { kind:"toggle", id:"dev-mode", path:"advanced.devMode.enabled", default:false,
       name:"Developer logging", desc:"Record what the plugin did, to help track down a problem",
       searchTerms:["Enable Dev Mode"],
@@ -1895,24 +1928,24 @@ const SHOWN_AS = [
 const FIELDS = [
   { id:"status", name:"Status", short:"Stat", type:"tag", position:"Left", behavior:"Strict", color:"#6c5cd0", property:"status", cardinality:"auto", valueRule:"raw",
     values:[
-      { token:"todo",        prefix:"- [ ]", shown:"value",  custom:"",  color:"#8b8ea3", textColor:"#ffffff", depth:0 },
+      { token:"todo",        prefix:"- [ ]", shown:"value",  custom:"",  color:"#8b8ea3", textColor:"#23222b", depth:0 },
       { token:"in_progress", prefix:"- [/]", shown:"value",  custom:"",  color:"#e0a23c", textColor:"#23222b", depth:0 },
-      { token:"early",       prefix:"",      shown:"value",  custom:"",  color:"#f0c274", textColor:"#23222b", depth:1 },
-      { token:"almost_done", prefix:"",      shown:"value",  custom:"",  color:"#c98a20", textColor:"#ffffff", depth:1 },
-      { token:"done",        prefix:"- [x]", shown:"custom", custom:"✓", color:"#3ba76a", textColor:"#ffffff", depth:0 }
+      { token:"early",       prefix:"",      shown:"value",  custom:"",  color:"#f0c274", textColor:"#ffffff", depth:1 },
+      { token:"almost_done", prefix:"",      shown:"value",  custom:"",  color:"#c98a20", textColor:"#23222b", depth:1 },
+      { token:"done",        prefix:"- [x]", shown:"custom", custom:"✓", color:"#3ba76a", textColor:"#23222b", depth:0 }
     ] },
   { id:"priority", name:"Priority", short:"Prio", type:"tag", position:"Left", behavior:"Insert only", color:"#d9534f", property:"priority", cardinality:"auto", valueRule:"raw",
     values:[
       { token:"none",   prefix:"",      shown:"nothing", custom:"", color:"#b9b8c4", textColor:"#23222b", depth:0 },
-      { token:"low",    prefix:"",      shown:"value",   custom:"", color:"#8b8ea3", textColor:"#ffffff", depth:0 },
+      { token:"low",    prefix:"",      shown:"value",   custom:"", color:"#8b8ea3", textColor:"#23222b", depth:0 },
       { token:"med",    prefix:"",      shown:"value",   custom:"", color:"#e0a23c", textColor:"#23222b", depth:0 },
-      { token:"high",   prefix:"- [!]", shown:"value",   custom:"", color:"#d9534f", textColor:"#ffffff", depth:0 },
+      { token:"high",   prefix:"- [!]", shown:"value",   custom:"", color:"#f45d59", textColor:"#23222b", depth:0 },
       { token:"urgent", prefix:"- [!]", shown:"value",   custom:"", color:"#c2373b", textColor:"#ffffff", depth:0 }
     ] },
   { id:"project", name:"Project", short:"", type:"link", position:"Right", behavior:"Free", color:"#3b82c4", property:"project", cardinality:"list", valueRule:"clean",
     values:[
-      { token:"[[ClientA]]",  prefix:"", shown:"value", custom:"", color:"#3b82c4", textColor:"#ffffff", depth:0 },
-      { token:"[[ProjectX]]", prefix:"", shown:"value", custom:"", color:"#3b82c4", textColor:"#ffffff", depth:0 }
+      { token:"[[ClientA]]",  prefix:"", shown:"value", custom:"", color:"#3678b4", textColor:"#ffffff", depth:0 },
+      { token:"[[ProjectX]]", prefix:"", shown:"value", custom:"", color:"#3678b4", textColor:"#ffffff", depth:0 }
     ] },
   { id:"due", name:"Due", short:"", type:"element", position:"Right", behavior:"Insert only", color:"#7a9e3b", property:"due", cardinality:"auto", valueRule:"clean",
     marker:"\u{1F4C5}", format:"YYYY-MM-DD", step:"command", values:[] },
@@ -2235,7 +2268,7 @@ function renderContent(resetScroll) {
   document.querySelectorAll(".io-scrim").forEach(n => n.remove());
   queueMicrotask(() => { host.scrollTop = keepScroll; });
 
-  bind("ui.showTips", renderContent);
+  bind("general.help.showTips", renderContent);
 
   const gate = TAB_MODULE[activeTab];
   if (gate && !ctx.get(gate)) {
@@ -2257,6 +2290,7 @@ function renderContent(resetScroll) {
       const h = el("div", "io-group__heading io-item__namerow", g, group.heading);
       attachTip(h, group.tip, group.heading, g);
       commentAffordance(h, g, "group:" + group.id);
+      if (group.items.some(it => it.kind !== "custom" && it.path)) resetAffordance(h, group, g);
     }
     if (group.intro) rich(el("p", "io-group__intro", g), group.intro);
     if (group.commands) {
@@ -2273,7 +2307,7 @@ function renderContent(resetScroll) {
    row that carries the ? is the only way that stays true when the block
    below grows a table. */
 function attachTip(anchorRow, text, label, fallbackHost) {
-  if (!text || !ctx.get("ui.showTips")) return;
+  if (!text || !ctx.get("general.help.showTips")) return;
   let tipEl = null;
   const help = el("button", "io-help", anchorRow, "?");
   help.type = "button";
@@ -2298,7 +2332,7 @@ function attachTipItem(anchorRow, host, item) {
 }
 
 function helpButton(nameRow, info, item) {
-  if (!item.tip || !ctx.get("ui.showTips")) return;
+  if (!item.tip || !ctx.get("general.help.showTips")) return;
   /* on a settings row the description sits between, so the tip goes after it */
   let tipEl = null;
   const help = el("button", "io-help", nameRow, "?");
@@ -2364,6 +2398,77 @@ function renderItem(parent, item) {
     apply();
     for (const d of item.disabled.deps) bind(d, apply);
   }
+}
+
+/* ============================================================ Group reset */
+
+/* Что в группе отличается от значения по умолчанию. Свои блоки не входят:
+   Fields, Values и правила — это данные человека, а не настройки. */
+function groupDrift(group) {
+  const out = [];
+  group.items.forEach(it => {
+    if (it.kind === "custom" || !it.path) return;
+    const now = val(it.path);
+    if (JSON.stringify(now) === JSON.stringify(it.default)) return;
+    out.push({ item: it, now: now, was: it.default });
+  });
+  return out;
+}
+
+function shownValue(it, v) {
+  if (typeof v === "boolean") return v ? "on" : "off";
+  if (v === "") return "empty";
+  if (it.options) {
+    const o = it.options.find(x => x.value === v);
+    if (o) return o.label;
+  }
+  return String(v) + (it.unit ? " " + it.unit : "");
+}
+
+/* Сброс — один шаг назад, а не двадцать два. */
+function resetGroup(group) {
+  groupDrift(group).forEach(d => { setIn(state, d.item.path, d.item.default); delete LIVE[d.item.path]; });
+  refreshPreviews();
+  renderContent();
+}
+
+function resetAffordance(headingEl, group, host) {
+  const drift = groupDrift(group);
+  const btn = el("button", "io-group__reset", headingEl, "Reset group");
+  btn.type = "button";
+  if (!drift.length) {
+    btn.disabled = true;
+    btn.title = "Everything here is already at its default";
+    btn.setAttribute("aria-label", btn.title);
+    return;
+  }
+  btn.title = drift.length + " of these differ from the default";
+  btn.setAttribute("aria-label", "Reset " + group.heading + " to default values");
+
+  btn.addEventListener("click", () => {
+    if (headingEl.nextSibling && String(headingEl.nextSibling.className || "").indexOf("io-resetbox") >= 0) {
+      headingEl.nextSibling.remove();
+      return;
+    }
+    const box = el("div", "io-resetbox");
+    el("p", "io-note", box, "Back to default, " + drift.length +
+      (drift.length === 1 ? " setting" : " settings") + ":");
+    const list = el("ul", "io-resetbox__list", box);
+    drift.slice(0, 10).forEach(d => {
+      el("li", null, list, d.item.name + ": " + shownValue(d.item, d.now) +
+        " \u2192 " + shownValue(d.item, d.was));
+    });
+    if (drift.length > 10) el("li", null, list, "and " + (drift.length - 10) + " more");
+    el("p", "io-note", box, "Your Fields, Values and rules are not touched");
+    const row = el("div", "io-resetbox__row", box);
+    const go = el("button", "io-btn io-btn--sm io-btn--warn", row, "Reset them");
+    go.type = "button";
+    go.addEventListener("click", () => resetGroup(group));
+    const no = el("button", "io-btn io-btn--sm", row, "Keep as is");
+    no.type = "button";
+    no.addEventListener("click", () => box.remove());
+    headingEl.insertAdjacentElement("afterend", box);
+  });
 }
 
 /* ============================================================ Controls */
@@ -2454,7 +2559,7 @@ const CONTROLS = {
   },
   buttons(host, item) {
     for (const b of item.buttons) {
-      const btn = el("button", "io-btn" + (b.cta ? " io-btn--cta" : ""), host, b.label);
+      const btn = el("button", "io-btn" + (b.cta ? " io-btn--cta" : "") + (b.warning ? " io-btn--warn" : ""), host, b.label);
       btn.type = "button";
       btn.addEventListener("click", () => ctx.run(b.action));
     }
@@ -2884,6 +2989,33 @@ function renderLeftRightOrder(host) {
 
 /* ============================================================ Fields editor */
 
+/* Контраст пары «фон значения — цвет текста» по WCAG 2.1. Своя функция,
+   потому что зависимостей у слоя настроек нет. */
+function relLum(hex) {
+  const v = String(hex || "").replace("#", "");
+  const p = v.length === 3 ? v.split("").map(c => c + c) : [v.slice(0, 2), v.slice(2, 4), v.slice(4, 6)];
+  const lin = p.map(h => {
+    const c = parseInt(h, 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+function contrastRatio(bg, fg) {
+  const a = relLum(bg), b = relLum(fg);
+  const hi = Math.max(a, b), lo = Math.min(a, b);
+  return (hi + 0.05) / (lo + 0.05);
+}
+/* Предупреждение, не запрет: последнее слово за человеком. */
+function contrastNote(row, v) {
+  if (v.shown === "nothing") return;
+  const r = contrastRatio(v.color, v.textColor);
+  if (r >= 4.5) return;
+  const w = el("span", "io-warn", row, "\u26A0");
+  w.title = "This Value may be hard to read: contrast " + r.toFixed(1) +
+    ":1, aim for 4.5:1 or more";
+  w.setAttribute("aria-label", w.title);
+}
+
 /* A field and the child field that belongs to it move as one block: the
    child takes its side from the parent, so it can never end up on the
    opposite side of the line. */
@@ -3144,9 +3276,10 @@ function valuesTable(host, f) {
       };
       mkColor("color", "Fill color");
       mkColor("textColor", "Text color");
-      const pv = el("div", null, row);
+      const pv = el("div", "io-vals__prev", row);
       applyTagVars(pv);
       bubble(pv, v);
+      contrastNote(pv, v);
     }
 
     const tools = el("div", "io-valtools", row);
@@ -3967,7 +4100,7 @@ document.getElementById("opt-showall").addEventListener("change", e => {
 });
 
 seed();
-setIn(state, "ui.showTips", true);
+setIn(state, "general.help.showTips", true);
 saveNotes();
 renderTabs();
 renderContent();

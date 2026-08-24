@@ -98,7 +98,7 @@ const setIn = (o, p, v) => {
 };
 const getIn = (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
 for (const g of SCHEMA) for (const it of g.items) if (it.path) setIn(defaults, it.path, it.default);
-setIn(defaults, "ui.showTips", true);
+setIn(defaults, "general.help.showTips", true);
 const known = new Set();
 for (const g of SCHEMA) for (const it of g.items) if (it.path) known.add(it.path);
 for (const p of known) if (getIn(defaults, p) === undefined) bad("path has no default: " + p);
