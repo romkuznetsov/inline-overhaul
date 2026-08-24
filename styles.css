@@ -64,3 +64,47 @@
   background: var(--background-secondary);
   color: var(--text-muted);
 }
+
+/*
+ * Полоса вкладок. Декларативный API её не умеет, поэтому она наша, и
+ * оформление тоже наше — но цвета только из переменных темы (З6).
+ */
+.io-tabsrow {
+  display: block;
+  padding: 0 0 4px;
+  border: 0;
+}
+.io-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.io-tab {
+  appearance: none;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.io-tab:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+/* Активная вкладка отличается фоном и цветом, а не прозрачностью (M2). */
+.io-tab--active,
+.io-tab--active:hover {
+  background: var(--background-modifier-active-hover, var(--background-secondary-alt));
+  color: var(--text-normal);
+  font-weight: 500;
+}
+.io-tab:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}

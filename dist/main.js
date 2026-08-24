@@ -32134,25 +32134,12 @@ function groupToDefinition(group, w) {
 }
 function toDefinitions(schema, tabs, w) {
   const out = [];
-  for (const tab of tabs) {
-    const groups = schema.filter((g) => g.tab === tab.id).slice().sort((a, b) => a.order - b.order);
-    if (!groups.length) continue;
-    if (tab.flat) {
-      for (const g of groups) out.push(groupToDefinition(g, w));
-      continue;
-    }
-    const page = {
-      type: "page",
-      name: tab.label,
-      items: groups.map((g) => groupToDefinition(g, w))
-    };
-    if (tab.desc) page["desc"] = tab.desc;
-    if (tab.module) {
-      const modulePath = tab.module;
-      page["displayValue"] = () => w.ctx.get(modulePath) ? "" : "off";
-    }
-    out.push(page);
-  }
+  const strip = w.tabStrip ? w.tabStrip() : null;
+  if (strip) out.push(strip);
+  const active = tabs.find((t) => t.id === w.activeTab) || tabs[0];
+  if (!active) return out;
+  const groups = schema.filter((g) => g.tab === active.id).slice().sort((a, b) => a.order - b.order);
+  for (const g of groups) out.push(groupToDefinition(g, w));
   return out;
 }
 var CONTROL_TYPE;
@@ -32242,6 +32229,18 @@ var init_settings_tab = __esm({
         this.deps = deps;
         this.describer = new Describer(deps.fragments);
         this.defaults = buildDefaultConfig(deps.schema);
+        const first = deps.tabs.find((t) => deps.schema.some((g) => g.tab === t.id));
+        this.active = first ? first.id : "general";
+      }
+      /** Какая вкладка открыта. */
+      activeTab() {
+        return this.active;
+      }
+      /** Переключить вкладку и перерисовать содержимое. */
+      setActiveTab(id) {
+        if (id === this.active) return;
+        this.active = id;
+        if (this.deps.rebuild) this.deps.rebuild();
       }
       /* ---- шов с платформой (П-1) ---------------------------------------- */
       getControlValue(key) {
@@ -32281,14 +32280,28 @@ var init_settings_tab = __esm({
       wiring() {
         const ctx = this.ctx();
         const showTips = Boolean(this.getControlValue("general.help.showTips"));
-        return {
+        const wiring = {
           ctx,
           run: (action) => {
             void this.run(action);
           },
           describe: (it) => this.describer.describe(it, { showTips }),
-          resetGroup: (group) => this.resetButtonFor(group)
+          resetGroup: (group) => this.resetButtonFor(group),
+          activeTab: this.active
         };
+        if (this.deps.tabStrip) {
+          const draw = this.deps.tabStrip;
+          wiring.tabStrip = () => draw({
+            tabs: this.tabsWithGroups(),
+            active: this.active,
+            pick: (id) => this.setActiveTab(id)
+          });
+        }
+        return wiring;
+      }
+      /** Вкладки, у которых есть хотя бы одна группа: пустых не показываем. */
+      tabsWithGroups() {
+        return this.deps.tabs.filter((t) => this.deps.schema.some((g) => g.tab === t.id));
       }
       getSettingDefinitions() {
         return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
@@ -32396,6 +32409,46 @@ function storeFor(plugin) {
     }
   };
 }
+function tabStripRow(state) {
+  return {
+    name: "",
+    searchable: false,
+    render: (setting) => {
+      const row = setting.settingEl;
+      row.empty();
+      row.addClass("io-tabsrow");
+      const strip = row.createDiv({ cls: "io-tabs" });
+      strip.setAttribute("role", "tablist");
+      strip.setAttribute("aria-label", "Settings areas");
+      const buttons = [];
+      state.tabs.forEach((tab) => {
+        const isActive = tab.id === state.active;
+        const btn = strip.createEl("button", {
+          cls: "io-tab" + (isActive ? " io-tab--active" : ""),
+          text: tab.label
+        });
+        btn.setAttribute("role", "tab");
+        btn.setAttribute("aria-selected", isActive ? "true" : "false");
+        btn.tabIndex = isActive ? 0 : -1;
+        if (tab.desc) btn.setAttribute("aria-description", tab.desc);
+        btn.addEventListener("click", () => state.pick(tab.id));
+        buttons.push(btn);
+      });
+      strip.addEventListener("keydown", (ev) => {
+        const at = state.tabs.findIndex((t) => t.id === state.active);
+        let next = -1;
+        if (ev.key === "ArrowRight") next = (at + 1) % state.tabs.length;
+        else if (ev.key === "ArrowLeft") next = (at - 1 + state.tabs.length) % state.tabs.length;
+        else if (ev.key === "Home") next = 0;
+        else if (ev.key === "End") next = state.tabs.length - 1;
+        if (next < 0) return;
+        ev.preventDefault();
+        const tab = state.tabs[next];
+        if (tab) state.pick(tab.id);
+      });
+    }
+  };
+}
 var import_obsidian, InlineOverhaulSettings;
 var init_obsidian_tab = __esm({
   "src/ui/settings/obsidian_tab.ts"() {
@@ -32424,7 +32477,8 @@ var init_obsidian_tab = __esm({
           },
           rebuild: () => {
             this.update();
-          }
+          },
+          tabStrip: (state) => tabStripRow(state)
         });
       }
       /* ---- декларативный путь Obsidian 1.13 ------------------------------- */

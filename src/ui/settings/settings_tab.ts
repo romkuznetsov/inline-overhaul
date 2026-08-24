@@ -9,7 +9,7 @@
 
 import type { SettingDefinitionItem } from "obsidian";
 
-import type { ActionId, SetOpts, SettingsCtx, SettingsGroup, SettingsStore, TabDef } from "./types.ts";
+import type { ActionId, SetOpts, SettingsCtx, SettingsGroup, SettingsStore, TabDef, TabId } from "./types.ts";
 import { buildDefaultConfig, getIn, isBound } from "./types.ts";
 import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { Describer, type FragmentHost } from "./describe.ts";
@@ -32,17 +32,46 @@ export interface TabDeps {
    * кнопка сброса в заголовке, состояние модуля в строке перехода.
    */
   rebuild?: () => void;
+  /**
+   * Полоса вкладок. Её рисует слой, знающий про платформу; панель только
+   * сообщает, какая вкладка открыта, и получает обратный вызов на выбор.
+   */
+  tabStrip?: (state: {
+    tabs: readonly TabDef[];
+    active: TabId;
+    pick: (id: TabId) => void;
+  }) => unknown;
 }
 
 export class SettingsPane {
   private deps: TabDeps;
   private describer: Describer;
   private defaults: Record<string, unknown>;
+  /**
+   * Открытая вкладка живёт в памяти панели, а не в конфиге: это состояние
+   * взгляда, а не настройка. В undo не попадает и в data.json не пишется
+   * (5.4).
+   */
+  private active: TabId;
 
   constructor(deps: TabDeps) {
     this.deps = deps;
     this.describer = new Describer(deps.fragments);
     this.defaults = buildDefaultConfig(deps.schema);
+    const first = deps.tabs.find(t => deps.schema.some(g => g.tab === t.id));
+    this.active = (first ? first.id : "general") as TabId;
+  }
+
+  /** Какая вкладка открыта. */
+  activeTab(): TabId {
+    return this.active;
+  }
+
+  /** Переключить вкладку и перерисовать содержимое. */
+  setActiveTab(id: TabId): void {
+    if (id === this.active) return;
+    this.active = id;
+    if (this.deps.rebuild) this.deps.rebuild();
   }
 
   /* ---- шов с платформой (П-1) ---------------------------------------- */
@@ -98,12 +127,27 @@ export class SettingsPane {
   private wiring(): Wiring {
     const ctx = this.ctx();
     const showTips = Boolean(this.getControlValue("general.help.showTips"));
-    return {
+    const wiring: Wiring = {
       ctx,
       run: (action: ActionId) => { void this.run(action); },
       describe: it => this.describer.describe(it, { showTips }),
       resetGroup: group => this.resetButtonFor(group),
+      activeTab: this.active,
     };
+    if (this.deps.tabStrip) {
+      const draw = this.deps.tabStrip;
+      wiring.tabStrip = () => (draw({
+        tabs: this.tabsWithGroups(),
+        active: this.active,
+        pick: (id: TabId) => this.setActiveTab(id),
+      }) as ReturnType<NonNullable<Wiring["tabStrip"]>>);
+    }
+    return wiring;
+  }
+
+  /** Вкладки, у которых есть хотя бы одна группа: пустых не показываем. */
+  tabsWithGroups(): readonly TabDef[] {
+    return this.deps.tabs.filter(t => this.deps.schema.some(g => g.tab === t.id));
   }
 
   getSettingDefinitions(): SettingDefinitionItem[] {

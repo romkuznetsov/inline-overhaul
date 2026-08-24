@@ -7,9 +7,10 @@
  */
 
 import { Notice, PluginSettingTab } from "obsidian";
-import type { App, SettingDefinitionItem } from "obsidian";
+import type { App, Setting, SettingDefinitionItem } from "obsidian";
 
 import { SCHEMA, TABS } from "./schema/index.ts";
+import type { TabDef, TabId } from "./types.ts";
 import { SettingsPane } from "./settings_tab.ts";
 import { ConfigStoreAdapter, type ConfigStoreLike } from "./store.ts";
 import type { ActionId } from "./types.ts";
@@ -50,6 +51,63 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
   };
 }
 
+/**
+ * Полоса вкладок (решение заказчика 2026-08-24). Декларативный API её не
+ * умеет, поэтому она рисуется своей вёрсткой в строке `render`, а настройки
+ * открытой вкладки по-прежнему рисует платформа.
+ *
+ * Полоса наша — значит и клавиатура наша (5.4): это `tablist`, между
+ * вкладками ходят стрелками, в обход табуляции остаётся только активная.
+ */
+function tabStripRow(state: {
+  tabs: readonly TabDef[];
+  active: TabId;
+  pick: (id: TabId) => void;
+}): unknown {
+  return {
+    name: "",
+    searchable: false,
+    render: (setting: Setting) => {
+      const row = setting.settingEl;
+      row.empty();
+      row.addClass("io-tabsrow");
+
+      const strip = row.createDiv({ cls: "io-tabs" });
+      strip.setAttribute("role", "tablist");
+      strip.setAttribute("aria-label", "Settings areas");
+
+      const buttons: HTMLElement[] = [];
+      state.tabs.forEach(tab => {
+        const isActive = tab.id === state.active;
+        const btn = strip.createEl("button", {
+          cls: "io-tab" + (isActive ? " io-tab--active" : ""),
+          text: tab.label,
+        });
+        btn.setAttribute("role", "tab");
+        btn.setAttribute("aria-selected", isActive ? "true" : "false");
+        btn.tabIndex = isActive ? 0 : -1;
+        if (tab.desc) btn.setAttribute("aria-description", tab.desc);
+        btn.addEventListener("click", () => state.pick(tab.id));
+        buttons.push(btn);
+      });
+
+      /* Стрелки ходят по полосе, Home и End прыгают на края. */
+      strip.addEventListener("keydown", (ev: KeyboardEvent) => {
+        const at = state.tabs.findIndex(t => t.id === state.active);
+        let next = -1;
+        if (ev.key === "ArrowRight") next = (at + 1) % state.tabs.length;
+        else if (ev.key === "ArrowLeft") next = (at - 1 + state.tabs.length) % state.tabs.length;
+        else if (ev.key === "Home") next = 0;
+        else if (ev.key === "End") next = state.tabs.length - 1;
+        if (next < 0) return;
+        ev.preventDefault();
+        const tab = state.tabs[next];
+        if (tab) state.pick(tab.id);
+      });
+    },
+  };
+}
+
 export class InlineOverhaulSettings extends PluginSettingTab {
   private pane: SettingsPane;
 
@@ -66,6 +124,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       notify: (message: string) => { new Notice(message); },
       refresh: () => { this.refreshDomState(); },
       rebuild: () => { this.update(); },
+      tabStrip: state => tabStripRow(state),
     });
   }
 

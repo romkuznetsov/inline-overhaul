@@ -15,6 +15,12 @@ import { richParts } from "../../src/ui/settings/describe.ts";
 type Def = Record<string, any>;
 const allDefs = (pane: SettingsPane): Def[] => pane.getSettingDefinitions() as unknown as Def[];
 
+/** Открыть вкладку и вернуть её группу по заголовку. */
+const groupOf = (pane: SettingsPane, tab: string, heading: string): Def | undefined => {
+  pane.setActiveTab(tab as never);
+  return allDefs(pane).find((d: Def) => d.heading === heading);
+};
+
 let ran = 0;
 function test(name: string, fn: () => void | Promise<void>): Promise<void> {
   ran++;
@@ -139,38 +145,56 @@ async function main(): Promise<void> {
     assert.equal(shape(allDefs(pane)), shape(allDefs(pane)));
   });
 
-  await test("первый экран показывает группы, а не только оглавление", () => {
+  await test("показываются группы открытой вкладки", () => {
     const { pane } = makePane();
     const list = allDefs(pane);
-    /* две группы General сразу, за ними шесть строк перехода */
-    assert.equal(list.length, 8, "две группы плюс шесть страниц");
-    assert.equal(list[0]?.type, "group");
-    assert.equal(list[0]?.heading, "Help");
-    assert.equal(list[1]?.heading, "Modules");
-    const pages = list.filter((d: Def) => d.type === "page");
-    assert.equal(pages.length, 6);
-    assert.deepEqual(pages.map((p: Def) => p.name),
-      ["Keyboard", "Navigation", "Tags & PKM", "Visual", "Transform", "Advanced"]);
+    assert.equal(pane.activeTab(), "general", "на старте открыта первая вкладка с группами");
+    assert.deepEqual(list.map((d: Def) => d.heading), ["Help", "Modules"]);
+    for (const d of list) assert.equal(d.type, "group", "страниц-переходов больше нет");
   });
 
-  await test("у строки перехода есть описание, а у модуля — состояние", () => {
-    const { pane, store } = makePane();
-    const page = () => allDefs(pane).find((d: Def) => d.name === "Visual");
-    assert.equal(page()?.desc, "How a tagged line looks while you are writing");
-    assert.equal(typeof page()?.displayValue, "function");
-    assert.equal((page()?.displayValue as () => string)(), "", "модуль включён — состояние не пишем");
-    void store.set("features.visual.enabled", false);
-    assert.equal((page()?.displayValue as () => string)(), "off",
-      "выключенный модуль виден, не заходя внутрь");
-    const keyboard = allDefs(pane).find((d: Def) => d.name === "Keyboard");
-    assert.equal(keyboard?.displayValue, undefined, "у вкладки без модуля состояния нет");
+  await test("переключение вкладки меняет содержимое", () => {
+    const { pane } = makePane();
+    pane.setActiveTab("visual");
+    assert.equal(pane.activeTab(), "visual");
+    const headings = allDefs(pane).map((d: Def) => d.heading);
+    assert.ok(headings.includes("Tag Bars"), "видны группы Visual: " + headings.join(", "));
+    assert.ok(!headings.includes("Modules"), "групп другой вкладки быть не должно");
+  });
+
+  await test("вкладки без групп не предлагаются", () => {
+    const { pane } = makePane();
+    assert.deepEqual(pane.tabsWithGroups().map(t => t.id),
+      ["general", "keyboard", "navigation", "pkm", "visual", "transform", "advanced"]);
+  });
+
+  await test("полоса вкладок — первая строка и не участвует в поиске", () => {
+    const store = new MemoryStore({});
+    let picked: string | null = null;
+    const pane = new SettingsPane({
+      schema: SCHEMA,
+      tabs: TABS,
+      store,
+      actions: {},
+      fragments: fragments as never,
+      tabStrip: state => {
+        /* полосу рисует слой платформы; тесту важно, что её просят и что
+           обратный вызов переключает вкладку */
+        return { name: "", searchable: false, render: () => { picked = state.active; } };
+      },
+    });
+    const list = allDefs(pane);
+    assert.equal(list[0]?.name, "", "первой идёт полоса");
+    assert.equal(list[0]?.searchable, false, "полоса не должна попадать в поиск");
+    assert.equal(typeof list[0]?.render, "function");
+    assert.equal(list[1]?.heading, "Help", "за полосой — группы вкладки");
+    list[0].render();
+    assert.equal(picked, "general");
   });
 
   await test("контролы получают правильный тип и ключ", () => {
     const { pane } = makePane();
-    const list = allDefs(pane);
-    const kb = list.find((d: Def) => d.name === "Keyboard");
-    const items = kb?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
     const byName = (n: string) => items.find((i: Def) => i.name === n);
 
     assert.equal(byName("Expanded select all")?.control?.type, "toggle");
@@ -193,8 +217,7 @@ async function main(): Promise<void> {
 
   await test("предикаты доходят до платформы как функции", () => {
     const { pane, store } = makePane();
-    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
-      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
     const delay = items.find((i: Def) => i.name === "Time between presses");
     const steps = items.find((i: Def) => i.name === "Selection steps");
 
@@ -220,8 +243,7 @@ async function main(): Promise<void> {
 
   await test("старое имя уходит в aliases, а не в видимый текст (П-4)", () => {
     const { pane } = makePane();
-    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
-      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
     const it = items.find((i: Def) => i.name === "Expanded select all");
     assert.deepEqual(it?.aliases, ["Enhanced Mod+A"], "старое имя должно попасть в aliases");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
@@ -230,16 +252,14 @@ async function main(): Promise<void> {
 
   await test("единица слайдера уходит в displayFormat (Ст5)", () => {
     const { pane } = makePane();
-    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
-      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
     const delay = items.find((i: Def) => i.name === "Time between presses");
     assert.equal(delay?.control?.displayFormat?.(700), "700 ms");
   });
 
   await test("неактивность живёт в контроле, а не в определении", () => {
     const { pane, store } = makePane();
-    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
-      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
     const steps = items.find((i: Def) => i.name === "Selection steps");
     assert.equal(steps?.disabled, undefined, "у определения контрола disabled нет");
     assert.equal(steps?.control?.disabled?.(), true);
@@ -249,8 +269,7 @@ async function main(): Promise<void> {
 
   await test("подсказка уходит из описания, когда Show tips выключен", () => {
     const { pane } = makePane({ general: { help: { showTips: false } } });
-    const items = allDefs(pane).find((d: Def) => d.name === "Keyboard")
-      ?.items?.find((g: Def) => g.heading === "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
     const it = items.find((i: Def) => i.name === "Expanded select all");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
     assert.ok(!text.includes("On a task list"), "подсказка осталась при выключенном Show tips");
@@ -307,7 +326,7 @@ async function main(): Promise<void> {
 
   await test("вводная фраза группы становится строкой без контрола", () => {
     const { pane } = makePane();
-    const modules = allDefs(pane).find((d: Def) => d.heading === "Modules");
+    const modules = groupOf(pane, "general", "Modules");
     const first = modules?.items?.[0];
     assert.equal(first?.name, "", "вводная строка без имени");
     assert.ok(String(first?.desc).startsWith("Four separate things"),
@@ -325,7 +344,7 @@ async function main(): Promise<void> {
      */
     const { pane } = makePane();
     await pane.setControlValue("features.visual.enabled", false);
-    const modules = allDefs(pane).find((d: Def) => d.heading === "Modules");
+    const modules = groupOf(pane, "general", "Modules");
     const buttons = modules?.extraButtons;
     assert.ok(Array.isArray(buttons) && buttons.length === 1, "одна кнопка в заголовке");
     assert.equal(typeof buttons[0], "function", "элемент extraButtons обязан быть функцией");
@@ -342,7 +361,7 @@ async function main(): Promise<void> {
 
   await test("кнопка сброса появляется только когда есть что сбрасывать (Н2)", async () => {
     const { pane } = makePane();
-    const groupDef = () => allDefs(pane).find((d: Def) => d.heading === "Modules");
+    const groupDef = () => groupOf(pane, "general", "Modules");
     assert.equal(groupDef()?.extraButtons, undefined, "всё по умолчанию — кнопки нет");
     await pane.setControlValue("features.visual.enabled", false);
     assert.equal(groupDef()?.extraButtons?.length, 1, "появилось отличие — появилась кнопка");

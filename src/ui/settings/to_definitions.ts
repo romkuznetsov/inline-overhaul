@@ -21,11 +21,10 @@ import type {
   SettingDefinition,
   SettingDefinitionGroup,
   SettingDefinitionItem,
-  SettingDefinitionPage,
   SettingGroupItem,
 } from "obsidian";
 
-import type { ActionId, SettingDef, SettingsCtx, SettingsGroup, TabDef } from "./types.ts";
+import type { ActionId, SettingDef, SettingsCtx, SettingsGroup, TabDef, TabId } from "./types.ts";
 import { isBound } from "./types.ts";
 
 /** То, что слой настроек умеет делать помимо чтения и записи значений. */
@@ -38,6 +37,15 @@ export interface Wiring {
   renderCustom?: (it: SettingDef) => SettingDefinition | null;
   /** Кнопка сброса группы к значениям по умолчанию (10.13.1). */
   resetGroup?: (group: SettingsGroup) => { tooltip: string; onClick: () => void } | null;
+  /** Открытая вкладка: показываются только её группы. */
+  activeTab: TabId;
+  /**
+   * Полоса вкладок первой строкой. Её рисует тот слой, который знает про
+   * платформу, — здесь только место под неё, чтобы отображение осталось
+   * свободным от DOM. Без полосы (в тестах) показываются группы активной
+   * вкладки, и этого достаточно, чтобы проверять содержимое.
+   */
+  tabStrip?: () => SettingDefinition | null;
 }
 
 const CONTROL_TYPE: Record<string, string> = {
@@ -161,9 +169,10 @@ function groupToDefinition(group: SettingsGroup, w: Wiring): SettingDefinitionGr
 /**
  * Схема плюс список вкладок на входе, определения на выходе.
  *
- * Полосы вкладок в декларативном API нет: страница рисуется строкой перехода
- * (П-16). Поэтому одна вкладка раскладывается сразу, иначе первый экран
- * панели — оглавление, на котором нет ни одной настройки.
+ * Полосы вкладок в декларативном API нет (П-16), поэтому она рисуется своей
+ * вёрсткой первой строкой, а настройки открытой вкладки отдаются платформе —
+ * решение заказчика от 2026-08-24. Цена решения: глобальный поиск Obsidian
+ * видит только открытую вкладку; это записано в П-21.
  */
 export function toDefinitions(
   schema: readonly SettingsGroup[],
@@ -171,30 +180,18 @@ export function toDefinitions(
   w: Wiring,
 ): SettingDefinitionItem[] {
   const out: SettingDefinitionItem[] = [];
-  for (const tab of tabs) {
-    const groups = schema
-      .filter(g => g.tab === tab.id)
-      .slice()
-      .sort((a, b) => a.order - b.order);
-    if (!groups.length) continue;
 
-    if (tab.flat) {
-      for (const g of groups) out.push(groupToDefinition(g, w) as SettingDefinitionItem);
-      continue;
-    }
+  const strip = w.tabStrip ? w.tabStrip() : null;
+  if (strip) out.push(strip as SettingDefinitionItem);
 
-    const page: Record<string, unknown> = {
-      type: "page",
-      name: tab.label,
-      items: groups.map(g => groupToDefinition(g, w)),
-    };
-    if (tab.desc) page["desc"] = tab.desc;
-    /* Состояние модуля видно, не заходя внутрь. */
-    if (tab.module) {
-      const modulePath = tab.module;
-      page["displayValue"] = () => (w.ctx.get(modulePath) ? "" : "off");
-    }
-    out.push(page as unknown as SettingDefinitionPage);
-  }
+  const active = tabs.find(t => t.id === w.activeTab) || tabs[0];
+  if (!active) return out;
+
+  const groups = schema
+    .filter(g => g.tab === active.id)
+    .slice()
+    .sort((a, b) => a.order - b.order);
+
+  for (const g of groups) out.push(groupToDefinition(g, w) as SettingDefinitionItem);
   return out;
 }
