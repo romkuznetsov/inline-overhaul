@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["tools/hooks/guard_generated.js"],
+            "timeout": 15,
+            "statusMessage": "Проверяю, не сгенерированный ли файл"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["tools/hooks/prototype_changed.js"],
+            "timeout": 120,
+            "statusMessage": "Прототип изменился: перегенерирую схему и гоняю гейты"
+          }
+        ]
+      }
+    ]
+  }
+}
