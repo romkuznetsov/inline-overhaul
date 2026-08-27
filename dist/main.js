@@ -1,7 +1,9 @@
 "use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
@@ -21,6 +23,14 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // navigation_runtime.js
@@ -539,8 +549,8 @@ var require_navigation_runtime = __commonJS({
       }
       return "word";
     }
-    function everyChar(str, fn) {
-      for (let i = 0; i < str.length; i++) if (!fn(str[i])) return false;
+    function everyChar(str2, fn) {
+      for (let i = 0; i < str2.length; i++) if (!fn(str2[i])) return false;
       return true;
     }
     function bubbleSwapByCodePoint(doc, editor, a, b, direction) {
@@ -780,21 +790,21 @@ var require_navigation_runtime = __commonJS({
     function isLowSurrogate(code) {
       return code >= 56320 && code <= 57343;
     }
-    function prevCodePointStart(str, index) {
+    function prevCodePointStart(str2, index) {
       if (index <= 0) return null;
       let j = index - 1;
-      const c = str.charCodeAt(j);
+      const c = str2.charCodeAt(j);
       if (isLowSurrogate(c) && j - 1 >= 0) {
-        const p = str.charCodeAt(j - 1);
+        const p = str2.charCodeAt(j - 1);
         if (isHighSurrogate(p)) j -= 1;
       }
       return j;
     }
-    function nextCodePointEnd(str, index) {
-      if (index >= str.length) return null;
-      const c = str.charCodeAt(index);
-      if (isHighSurrogate(c) && index + 1 < str.length) {
-        const n = str.charCodeAt(index + 1);
+    function nextCodePointEnd(str2, index) {
+      if (index >= str2.length) return null;
+      const c = str2.charCodeAt(index);
+      if (isHighSurrogate(c) && index + 1 < str2.length) {
+        const n = str2.charCodeAt(index + 1);
         if (isLowSurrogate(n)) return index + 2;
       }
       return index + 1;
@@ -2274,12 +2284,12 @@ var require_status_date = __commonJS({
       if (!f) return "";
       const numPattern = parseNumericPatternSpec(f);
       if (numPattern) return renderNumericPatternValue(numPattern, progressRaw);
-      const num = parseNumericLiteralSpec(f);
-      if (num) {
+      const num2 = parseNumericLiteralSpec(f);
+      if (num2) {
         const p = Math.max(0, Math.trunc(Number(progressRaw || 0)));
-        const v = num.base + p;
+        const v = num2.base + p;
         const s = String(v);
-        return s.length >= num.width ? s : s.padStart(num.width, "0");
+        return s.length >= num2.width ? s : s.padStart(num2.width, "0");
       }
       const chars = Array.from(f);
       const last = chars[chars.length - 1] || "";
@@ -3940,11 +3950,11 @@ var require_status_tags = __commonJS({
       return false;
     }
     function resolveFieldSourceKind(field) {
-      const helpers = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers || typeof helpers.normalizeFieldSourceKind !== "function") {
+      const helpers2 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers2 || typeof helpers2.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers2.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildOutputTokenForField(field, value, rules) {
       var _a;
@@ -4760,7 +4770,7 @@ var require_status_tags = __commonJS({
       }
       const resolveByNeighborInOrder = (orderList, fieldList, startIdx) => {
         const arr = Array.isArray(orderList) ? orderList : [];
-        const modeFields = Array.isArray(fieldList) ? fieldList : [];
+        const modeFields2 = Array.isArray(fieldList) ? fieldList : [];
         if (!arr.length || startIdx < 0) return "";
         const maxDist = Math.max(startIdx, arr.length - 1 - startIdx);
         for (let dist = 1; dist <= maxDist; dist++) {
@@ -4768,7 +4778,7 @@ var require_status_tags = __commonJS({
           if (rightPos < arr.length) {
             const rk = String(arr[rightPos] || "").trim();
             if (rk) {
-              const rf = modeFields.find((f) => f && (String(f.orderKey || "").trim() === rk || String(f.id || "").trim() === rk));
+              const rf = modeFields2.find((f) => f && (String(f.orderKey || "").trim() === rk || String(f.id || "").trim() === rk));
               if (rf && rf.id && isCycleCapableField(rf)) return String(rf.id || "").trim();
             }
           }
@@ -4776,7 +4786,7 @@ var require_status_tags = __commonJS({
           if (leftPos >= 0) {
             const lk = String(arr[leftPos] || "").trim();
             if (lk) {
-              const lf = modeFields.find((f) => f && (String(f.orderKey || "").trim() === lk || String(f.id || "").trim() === lk));
+              const lf = modeFields2.find((f) => f && (String(f.orderKey || "").trim() === lk || String(f.id || "").trim() === lk));
               if (lf && lf.id && isCycleCapableField(lf)) return String(lf.id || "").trim();
             }
           }
@@ -5305,8 +5315,8 @@ var require_status_tags = __commonJS({
             selectedImportanceToken = m ? String(m[0]) : "#/1";
           }
           if (simplePlainRawNoSep) {
-            const plain = stripPriorityTokens(lineFinalize.removeConfiguredSeparators(rawLine, rules));
-            finalLine = importancePanel === "left" ? `${selectedImportanceToken}${plain ? " " + plain : ""}` : `${plain}${selectedImportanceToken ? " " + selectedImportanceToken : ""}`;
+            const plain2 = stripPriorityTokens(lineFinalize.removeConfiguredSeparators(rawLine, rules));
+            finalLine = importancePanel === "left" ? `${selectedImportanceToken}${plain2 ? " " + plain2 : ""}` : `${plain2}${selectedImportanceToken ? " " + selectedImportanceToken : ""}`;
             finalLine = String(finalLine || "").trim();
             skipPrefixRewrite = true;
             skipTrailingSeparatorNormalization = true;
@@ -5327,8 +5337,8 @@ var require_status_tags = __commonJS({
             if (!linePipeline2 || typeof linePipeline2.removeExactTokens !== "function") {
               throw new Error("line_pipeline unavailable: removeExactTokens");
             }
-            const plain = lineFinalize.removeConfiguredSeparators(linePipeline2.removeExactTokens(rawLine, tokenMap.map((x) => String(x && x.token ? x.token : "").trim()).filter(Boolean)), rules).replace(/\s{2,}/g, " ").trim();
-            const plainBody = targetPanel === "left" ? `${selected}${plain ? " " + plain : ""}` : `${plain}${selected ? " " + selected : ""}`;
+            const plain2 = lineFinalize.removeConfiguredSeparators(linePipeline2.removeExactTokens(rawLine, tokenMap.map((x) => String(x && x.token ? x.token : "").trim()).filter(Boolean)), rules).replace(/\s{2,}/g, " ").trim();
+            const plainBody = targetPanel === "left" ? `${selected}${plain2 ? " " + plain2 : ""}` : `${plain2}${selected ? " " + selected : ""}`;
             finalLine = rawIndent + String(plainBody || "").trim();
             const allowPrefixPass = freeRoamBehavior.minimalPrefix !== false;
             skipPrefixRewrite = !allowPrefixPass;
@@ -5342,8 +5352,8 @@ var require_status_tags = __commonJS({
             const cycleTokens = resolvePriorityCycleTokens(importanceMap, rules, rawLine);
             const currentToken = extractCurrentPriorityToken(rawLine, cycleTokens, cur.ch);
             const nextToken = nextCycleTokenByDirection(cycleTokens, currentToken, direction);
-            const plain = stripPriorityTokens(rawLine);
-            finalLine = nextToken ? `${plain} ${nextToken}`.trim() : plain;
+            const plain2 = stripPriorityTokens(rawLine);
+            finalLine = nextToken ? `${plain2} ${nextToken}`.trim() : plain2;
           }
         }
         mixedPolicy = resolveMixedPolicy();
@@ -5517,8 +5527,8 @@ var require_status_tags = __commonJS({
             const cycleTokens = resolvePriorityCycleTokens(importanceMap, rules, rawLine);
             const currentToken = extractCurrentPriorityToken(rawLine, cycleTokens, cur.ch);
             const nextToken = nextCycleTokenByDirection(cycleTokens, currentToken, direction);
-            const plain = stripPriorityTokens(rawLine);
-            finalLine = nextToken ? `${plain} ${nextToken}`.trim() : plain;
+            const plain2 = stripPriorityTokens(rawLine);
+            finalLine = nextToken ? `${plain2} ${nextToken}`.trim() : plain2;
             finalLine = reorderLineMixedByOrder(finalLine, rules, orderCfg);
             finalLine = lineFinalize.normalizeMinimalPriorityNoSeparatorLine(finalLine, rules);
           }
@@ -5899,11 +5909,11 @@ var require_tagwheel = __commonJS({
       return normalizeWikilinkTarget(raw).replace(/^#/, "").trim();
     }
     function resolveFieldSourceKind(field) {
-      var helpers = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers || typeof helpers.normalizeFieldSourceKind !== "function") {
+      var helpers2 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers2 || typeof helpers2.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers2.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildTagWheelRuntimeInput(input_, settings_) {
       var out = {};
@@ -7466,11 +7476,11 @@ var require_tagwheel_core = __commonJS({
       return loadCoreHelperFromGlobalOrRequire("__inlineStatusRuntimeCommon", "../../src/core/status_runtime_common.js");
     }
     function resolveSourceKind(field) {
-      var helpers = getRulesRuntimeHelpers();
-      if (!helpers || typeof helpers.normalizeFieldSourceKind !== "function") {
+      var helpers2 = getRulesRuntimeHelpers();
+      if (!helpers2 || typeof helpers2.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers2.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function isProjectsSourceField(field) {
       return resolveSourceKind(field) === "projects";
@@ -7547,10 +7557,10 @@ var require_tagwheel_core = __commonJS({
     function getDateLikeMarkers(rules) {
       var out = [];
       var seen = {};
-      var helpers = getRulesRuntimeHelpers();
+      var helpers2 = getRulesRuntimeHelpers();
       var i;
-      if (helpers && typeof helpers.getDateMarkersFromRules === "function") {
-        var markers = helpers.getDateMarkersFromRules(rules);
+      if (helpers2 && typeof helpers2.getDateMarkersFromRules === "function") {
+        var markers = helpers2.getDateMarkersFromRules(rules);
         var buckets = [
           markers && markers.due,
           markers && markers.start,
@@ -7593,9 +7603,9 @@ var require_tagwheel_core = __commonJS({
           if (markers.indexOf(mk0) === -1) markers.push(mk0);
         }
       }
-      var helpers = getRulesRuntimeHelpers();
-      if (helpers && typeof helpers.isDateLikeToken === "function") {
-        if (helpers.isDateLikeToken(src, { markers })) return true;
+      var helpers2 = getRulesRuntimeHelpers();
+      if (helpers2 && typeof helpers2.isDateLikeToken === "function") {
+        if (helpers2.isDateLikeToken(src, { markers })) return true;
       } else {
         var i;
         for (i = 0; i < markers.length; i++) {
@@ -8993,12 +9003,12 @@ var require_tagwheel_core = __commonJS({
       if (!f) return "";
       var numPattern = parseNumericPatternSpec(f);
       if (numPattern) return renderNumericPatternValue(numPattern, progressRaw);
-      var num = parseNumericLiteralSpec(f);
-      if (num) {
+      var num2 = parseNumericLiteralSpec(f);
+      if (num2) {
         var p = Math.max(0, Math.trunc(Number(progressRaw || 0)));
-        var v = num.base + p;
+        var v = num2.base + p;
         var s = String(v);
-        return s.length >= num.width ? s : s.padStart(num.width, "0");
+        return s.length >= num2.width ? s : s.padStart(num2.width, "0");
       }
       var chars = Array.from(f);
       var last = chars[chars.length - 1] || "";
@@ -14259,7 +14269,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         return `${p}${t}`;
       };
       const leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [];
-      const fieldById = (id) => leftFields.find((f) => f && f.id === id) || null;
+      const fieldById2 = (id) => leftFields.find((f) => f && f.id === id) || null;
       const out = {};
       const normalizeOrderKey = (field) => {
         if (!field) return "";
@@ -14319,7 +14329,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         if (!subField || !subField.id) continue;
         const parentId = String(subField.dependsOn || "").trim();
         if (!parentId) continue;
-        const parentField = fieldById(parentId);
+        const parentField = fieldById2(parentId);
         if (!parentField) continue;
         pushPair(parentField, subField);
       }
@@ -15220,12 +15230,12 @@ var require_shared_utils = __commonJS({
       if (!f) return "";
       const numPattern = parseNumericPatternSpec(f);
       if (numPattern) return renderNumericPatternValue(numPattern, progressRaw);
-      const num = parseNumericLiteralSpec(f);
-      if (num) {
+      const num2 = parseNumericLiteralSpec(f);
+      if (num2) {
         const p = Math.max(0, Math.trunc(Number(progressRaw || 0)));
-        const v = num.base + p;
+        const v = num2.base + p;
         const s = String(v);
-        return s.length >= num.width ? s : s.padStart(num.width, "0");
+        return s.length >= num2.width ? s : s.padStart(num2.width, "0");
       }
       const chars = Array.from(f);
       const last = chars[chars.length - 1] || "";
@@ -15237,8 +15247,8 @@ var require_shared_utils = __commonJS({
       if (!f) return "";
       const numPattern = parseNumericPatternSpec(f);
       if (numPattern) return buildNumericPatternRegexSource(numPattern);
-      const num = parseNumericLiteralSpec(f);
-      if (num) return "\\d+";
+      const num2 = parseNumericLiteralSpec(f);
+      if (num2) return "\\d+";
       const chars = Array.from(f);
       const last = chars[chars.length - 1];
       if (!last) return escapeRe(f);
@@ -15251,12 +15261,12 @@ var require_shared_utils = __commonJS({
       const fmt = String(format || "").trim();
       const numPattern = parseNumericPatternSpec(fmt);
       if (numPattern) return parseNumericPatternProgress(raw, numPattern);
-      const num = parseNumericLiteralSpec(fmt);
-      if (num) {
+      const num2 = parseNumericLiteralSpec(fmt);
+      if (num2) {
         if (!/^\d+$/.test(raw)) return null;
         const got = Number(raw);
-        if (!Number.isFinite(got) || got < num.base) return null;
-        return Math.max(0, Math.trunc(got - num.base));
+        if (!Number.isFinite(got) || got < num2.base) return null;
+        return Math.max(0, Math.trunc(got - num2.base));
       }
       const vChars = Array.from(raw);
       const fChars = Array.from(fmt);
@@ -19512,13 +19522,13 @@ var require_store_events_orchestrator = __commonJS({
     function registerStoreEvents(ctx) {
       let pendingRender = false;
       let pendingBlurHandler = null;
-      const isEditableSettingsElement = (el) => {
-        if (!el || typeof el !== "object") return false;
-        const tag = String(el.tagName || "").toUpperCase();
-        const editable = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable === true;
+      const isEditableSettingsElement = (el2) => {
+        if (!el2 || typeof el2 !== "object") return false;
+        const tag = String(el2.tagName || "").toUpperCase();
+        const editable = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el2.isContentEditable === true;
         if (!editable) return false;
         try {
-          return !!(el.closest && (el.closest(".vertical-tab-content") || el.closest(".mod-settings")));
+          return !!(el2.closest && (el2.closest(".vertical-tab-content") || el2.closest(".mod-settings")));
         } catch (_) {
           return false;
         }
@@ -20864,17 +20874,17 @@ var require_tagwheel_config_parser = __commonJS({
         for (let i = 0; i < allowedSections.length; i++) sectionMap[allowedSections[i]] = true;
         const allowedWikilinkFields = collectWikilinkFieldIds(cfg);
         const leftFields = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.leftMode && Array.isArray(cfg.pkm.behavior.leftMode.fields) ? cfg.pkm.behavior.leftMode.fields : [];
-        const fieldById = {};
+        const fieldById2 = {};
         for (let i = 0; i < leftFields.length; i++) {
           const f = leftFields[i];
           if (!f || !f.id) continue;
-          fieldById[String(f.id)] = f;
+          fieldById2[String(f.id)] = f;
         }
         const isWikilinkField = (fieldId) => {
           const fid = String(fieldId || "").trim();
           if (!fid) return false;
           if (allowedWikilinkFields.includes(fid)) return true;
-          const f = fieldById[fid];
+          const f = fieldById2[fid];
           if (!f) return false;
           const src = String(f.source || "").trim();
           return src === "projects" || src.startsWith("wikilinks:");
@@ -22284,10 +22294,10 @@ var require_transform_feature = __commonJS({
       const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
       const leftFieldIds = new Set((isObj(behavior.leftMode) && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : []).map((field) => String(field && field.id || "").trim()));
       const rightFieldIds = new Set((isObj(behavior.rightMode) && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : []).map((field) => String(field && field.id || "").trim()));
-      const fieldById = {};
+      const fieldById2 = {};
       for (let i = 0; i < fields.length; i++) {
         const fid = String(fields[i] && fields[i].id || "").trim();
-        if (fid) fieldById[fid] = fields[i];
+        if (fid) fieldById2[fid] = fields[i];
       }
       const wl = Array.isArray(p.wikilinks) ? p.wikilinks : [];
       const emojis = Array.isArray(p.emojis) ? p.emojis : [];
@@ -22372,7 +22382,7 @@ var require_transform_feature = __commonJS({
         }
       }
       const dependencySafeMatches = matches.filter((row) => {
-        const field = fieldById[String(row && row.fieldId || "").trim()];
+        const field = fieldById2[String(row && row.fieldId || "").trim()];
         const parentId = String(field && field.dependsOn || "").trim();
         return !parentId || !!byFieldId[parentId];
       });
@@ -23615,15 +23625,15 @@ var require_transform_feature = __commonJS({
       });
       const cleanupIds = resolveSourceCleanupFieldIds(i2n, cfg);
       const cleanupSet = new Set(cleanupIds);
-      const modeFields = getModeFields(cfg);
+      const modeFields2 = getModeFields(cfg);
       const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
       const order = isObj(behavior.order) ? behavior.order : {};
       const strictNames = isObj(order.strictNames) ? order.strictNames : {};
       const orderTypes = isObj(order.types) ? order.types : {};
       const byId = {};
-      for (let i = 0; i < modeFields.length; i++) {
-        const fid = String(modeFields[i] && modeFields[i].id || "").trim();
-        if (fid) byId[fid] = modeFields[i];
+      for (let i = 0; i < modeFields2.length; i++) {
+        const fid = String(modeFields2[i] && modeFields2[i].id || "").trim();
+        if (fid) byId[fid] = modeFields2[i];
       }
       const orderedActive = getActiveOrderedFieldIds(cfg);
       const subMap = {};
@@ -23957,10 +23967,10 @@ var require_settings_sections_fallback = __commonJS({
           row.style.gap = "8px";
           row.style.marginBottom = "10px";
           for (const t of settingsTabs) {
-            const btn = row.createEl("button", { text: t.label, cls: "mod-cta" });
-            btn.style.padding = "4px 10px";
-            btn.style.opacity = t.id === activeTab ? "1" : "0.8";
-            btn.onclick = () => setActiveSettingsTab(t.id);
+            const btn2 = row.createEl("button", { text: t.label, cls: "mod-cta" });
+            btn2.style.padding = "4px 10px";
+            btn2.style.opacity = t.id === activeTab ? "1" : "0.8";
+            btn2.onclick = () => setActiveSettingsTab(t.id);
           }
         },
         renderGeneralSection(ctx) {
@@ -24079,10 +24089,1231 @@ var require_settings_sections_fallback = __commonJS({
   }
 });
 
-// src/ui/settings_sections_renderer.js
-var require_settings_sections_renderer = __commonJS({
-  "src/ui/settings_sections_renderer.js"(exports2, module2) {
+// src/ui/settings/custom/fields_model.ts
+var fields_model_exports = {};
+__export(fields_model_exports, {
+  createFieldsModel: () => createFieldsModel
+});
+function asObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function asArray(value) {
+  return Array.isArray(value) ? value.slice() : [];
+}
+function behaviorOf(cfg) {
+  const pkm = asObject(asObject(cfg)["pkm"]);
+  return asObject(pkm["behavior"]);
+}
+function modeFields(behavior, side) {
+  return asArray(asObject(behavior[side])["fields"]);
+}
+function idOf(row) {
+  return String(asObject(row)["id"] || "").trim();
+}
+function createFieldsModel(deps) {
+  var _a;
+  const { plugin, normalizePkmOrder, pkmOrderFields, cfg } = deps;
+  const order = normalizePkmOrder((_a = behaviorOf(cfg)["order"]) != null ? _a : null);
+  const orderState = normalizePkmOrder(order);
+  const inferSubKey = (parentKey) => {
+    const p = String(parentKey || "").trim();
+    if (!p) return "";
+    return `${p}_sub`;
+  };
+  const getOrderKeys = () => {
+    const out = [];
+    const push = (k) => {
+      const key = String(k || "").trim();
+      if (!key || SUB_SUFFIX_RE.test(key)) return;
+      if (!out.includes(key)) out.push(key);
+    };
+    for (const k of pkmOrderFields) push(k);
+    for (const k of orderState.left || []) push(k);
+    for (const k of orderState.right || []) push(k);
+    for (const k of Object.keys(orderState.labels || {})) push(k);
+    for (const k of Object.keys(orderState.strictNames || {})) push(k);
+    for (const k of Object.keys(orderState.active || {})) push(k);
+    for (const k of Object.keys(orderState.freeRoam || {})) push(k);
+    for (const k of Object.keys(orderState.types || {})) push(k);
+    return out;
+  };
+  const getFieldKind = (k) => {
+    const raw = String(orderState.types && orderState.types[k] ? orderState.types[k] : "").trim().toLowerCase();
+    if (raw === "tag" || raw === "wikilink" || raw === "element") return raw;
+    return "tag";
+  };
+  const getSubKeyForParent = (k) => {
+    const kind = getFieldKind(k);
+    if (kind !== "tag" && kind !== "wikilink") return "";
+    return inferSubKey(k);
+  };
+  const getSubActive = (subKey) => {
+    const key = String(subKey || "").trim();
+    if (!key) return "yes";
+    const raw = String(
+      orderState.active && orderState.active[key] || (orderState.enabled && orderState.enabled[key] !== false ? "yes" : "no")
+    ).trim().toLowerCase();
+    return raw === "no" ? "no" : "yes";
+  };
+  const ensureAllKeys = () => {
+    for (const k of getOrderKeys()) {
+      if (orderState.left.includes(k) || orderState.right.includes(k)) continue;
+      orderState.right.push(k);
+    }
+  };
+  const setOrderPatch = (patchObj, reason, opts) => {
+    var _a2;
+    const live = plugin.getConfig();
+    const current = normalizePkmOrder((_a2 = behaviorOf(live)["order"]) != null ? _a2 : null);
+    const replace = !!(opts && opts.replace === true);
+    const p = patchObj;
+    const next = replace ? normalizePkmOrder(patchObj) : normalizePkmOrder({
+      ...current,
+      ...patchObj,
+      lead: { ...current.lead, ...p && p.lead ? p.lead : {} },
+      active: { ...current.active, ...p && p.active ? p.active : {} },
+      freeRoam: { ...current.freeRoam, ...p && p.freeRoam ? p.freeRoam : {} },
+      enabled: { ...current.enabled, ...p && p.enabled ? p.enabled : {} },
+      types: { ...current.types, ...p && p.types ? p.types : {} },
+      labels: { ...current.labels, ...p && p.labels ? p.labels : {} },
+      strictNames: { ...current.strictNames, ...p && p.strictNames ? p.strictNames : {} }
+    });
+    const withTombstones = (nextMap, curMap) => {
+      const out = { ...nextMap || {} };
+      const cur = curMap || {};
+      for (const k of Object.keys(cur)) {
+        if (!Object.prototype.hasOwnProperty.call(out, k)) out[k] = null;
+      }
+      return out;
+    };
+    if (!replace) {
+      const orderPatch2 = {
+        ...next,
+        lead: withTombstones(next.lead, current.lead)
+      };
+      plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch2 } } }, reason);
+      return;
+    }
+    const orderPatch = {
+      ...next,
+      lead: withTombstones(next.lead, current.lead),
+      labels: withTombstones(next.labels, current.labels),
+      strictNames: withTombstones(next.strictNames, current.strictNames),
+      types: withTombstones(next.types, current.types),
+      active: withTombstones(next.active, current.active),
+      freeRoam: withTombstones(next.freeRoam, current.freeRoam),
+      enabled: withTombstones(next.enabled, current.enabled)
+    };
+    plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch } } }, reason);
+  };
+  const captureSnapshot = () => {
+    var _a2;
+    const behavior = behaviorOf(plugin.getConfig());
+    return {
+      order: normalizePkmOrder((_a2 = behavior["order"]) != null ? _a2 : null),
+      leftMode: modeFields(behavior, "leftMode"),
+      rightMode: modeFields(behavior, "rightMode"),
+      elements: asObject(behavior["elements"]),
+      dates: {}
+    };
+  };
+  const applySnapshot = (snap, reason) => {
+    const s = snap && typeof snap === "object" ? snap : captureSnapshot();
+    plugin.setConfigPatch({
+      pkm: {
+        behavior: {
+          order: s.order,
+          leftMode: { fields: Array.isArray(s.leftMode) ? s.leftMode : [] },
+          rightMode: { fields: Array.isArray(s.rightMode) ? s.rightMode : [] },
+          elements: s.elements || {}
+        }
+      }
+    }, reason || "pkm:behavior:order:deep-draft-apply");
+  };
+  const moveKey = (toPanel, key, beforeKey) => {
+    if (!key) return;
+    const moveKeys = [key];
+    const subKey = getSubKeyForParent(key);
+    if (subKey && (orderState.left.includes(subKey) || orderState.right.includes(subKey))) {
+      moveKeys.push(subKey);
+    }
+    orderState.left = orderState.left.filter((x) => !moveKeys.includes(x));
+    orderState.right = orderState.right.filter((x) => !moveKeys.includes(x));
+    const target = toPanel === "right" ? orderState.right : orderState.left;
+    let idx = target.length;
+    if (beforeKey) {
+      const bi = target.indexOf(beforeKey);
+      if (bi !== -1) idx = bi;
+    }
+    target.splice(idx, 0, ...moveKeys);
+    setOrderPatch(orderState, "pkm:behavior:order:dnd");
+  };
+  const buildLeftFieldDefinition = (key, kind) => {
+    if (kind === "wikilink") {
+      return { id: key, prefix: "#", source: `wikilinks:${key}`, placeholder: key, values: [""] };
+    }
+    return { id: key, prefix: "#", placeholder: key, values: [""] };
+  };
+  const buildRightElementFieldDefinition = (key) => ({
+    id: key,
+    kind: "genericElement",
+    marker: "",
+    placeholder: key,
+    values: [""]
+  });
+  const addField = (rawKey, rawKind) => {
+    var _a2;
+    const key = String(rawKey || "").replace(/\s+/g, " ").trim();
+    if (!STRICT_NAME_RE.test(key)) {
+      return { ok: false, error: "InlineOverhaul: name_strict must match [a-z0-9_- ]+" };
+    }
+    const all = getOrderKeys();
+    if (SUB_SUFFIX_RE.test(key)) {
+      return { ok: false, error: "InlineOverhaul: name_strict ending with _sub is reserved for generated child keys" };
+    }
+    if (all.includes(key)) {
+      return { ok: false, error: "InlineOverhaul: field already exists" };
+    }
+    const strictValues = new Set(
+      all.map((kk) => String(orderState.strictNames && orderState.strictNames[kk] || kk).trim()).filter(Boolean)
+    );
+    if (strictValues.has(key)) {
+      return { ok: false, error: "InlineOverhaul: name_strict already exists" };
+    }
+    const kindRaw = String(rawKind || "tag").trim().toLowerCase();
+    const kind = kindRaw === "wikilink" || kindRaw === "element" ? kindRaw : "tag";
+    const subKey = kind === "tag" ? inferSubKey(key) : "";
+    const subStrict = kind === "tag" ? `${key}_sub` : "";
+    if (subStrict && strictValues.has(subStrict)) {
+      return { ok: false, error: "InlineOverhaul: auto sub name_strict already exists" };
+    }
+    orderState.right = (orderState.right || []).concat([key]);
+    orderState.labels = { ...orderState.labels || {}, [key]: key };
+    orderState.strictNames = { ...orderState.strictNames || {}, [key]: key };
+    orderState.types = { ...orderState.types || {}, [key]: kind };
+    orderState.active = { ...orderState.active || {}, [key]: "yes" };
+    orderState.freeRoam = { ...orderState.freeRoam || {}, [key]: "off" };
+    orderState.enabled = { ...orderState.enabled || {}, [key]: true };
+    if (subKey) {
+      orderState.active[subKey] = "no";
+      orderState.freeRoam[subKey] = "off";
+      orderState.enabled[subKey] = false;
+      orderState.types[subKey] = "tag";
+      orderState.labels[subKey] = `${key} sub`;
+      orderState.strictNames[subKey] = subStrict;
+    }
+    setOrderPatch({
+      right: orderState.right.slice(),
+      labels: { [key]: key },
+      strictNames: { [key]: key },
+      types: { [key]: kind },
+      active: { [key]: "yes" },
+      freeRoam: { [key]: "off" },
+      enabled: { [key]: true },
+      ...subKey ? {
+        labels: { [key]: key, [subKey]: `${key} sub` },
+        strictNames: { [key]: key, [subKey]: subStrict },
+        types: { [key]: kind, [subKey]: "tag" },
+        active: { [key]: "yes", [subKey]: "no" },
+        freeRoam: { [key]: "off", [subKey]: "off" },
+        enabled: { [key]: true, [subKey]: false }
+      } : {}
+    }, "pkm:behavior:order:add-field:" + key);
+    const behavior = behaviorOf(plugin.getConfig());
+    const leftMode = modeFields(behavior, "leftMode");
+    const rightMode = modeFields(behavior, "rightMode");
+    if (kind === "element") {
+      if (!rightMode.find((f) => idOf(f) === key)) {
+        rightMode.push(buildRightElementFieldDefinition(key));
+      }
+    } else {
+      if (!leftMode.find((f) => idOf(f) === key)) {
+        leftMode.push(buildLeftFieldDefinition(key, kind));
+      }
+      if (kind === "tag") {
+        if (!leftMode.find((f) => idOf(f) === subKey)) {
+          leftMode.push({
+            id: subKey,
+            prefix: "#",
+            enabled: false,
+            dependsOn: key,
+            disabledForParentValues: [],
+            placeholder: "sub",
+            values: [""]
+          });
+        }
+      }
+    }
+    plugin.setConfigPatch(
+      { pkm: { behavior: { leftMode: { fields: leftMode }, rightMode: { fields: rightMode } } } },
+      "pkm:behavior:modes:add-field:" + key
+    );
+    try {
+      if (typeof plugin.registerPkmCommands === "function") plugin.registerPkmCommands();
+    } catch (e) {
+    }
+    if (kind === "element") {
+      const behaviorAfterMode = behaviorOf(plugin.getConfig());
+      const elementsCfg = asObject(behaviorAfterMode["elements"]);
+      const fields = asArray(elementsCfg["fields"]);
+      if (!fields.includes(key)) fields.push(key);
+      const byField = { ...asObject(elementsCfg["byField"]) };
+      const cur = asObject(byField[key]);
+      const curHotkey = asObject(cur["hotkey"]);
+      const curIncrement = asObject(cur["increment"]);
+      byField[key] = {
+        ...cur,
+        emoji: Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur["emoji"] || "").trim() : "",
+        format: Object.prototype.hasOwnProperty.call(cur, "format") ? String((_a2 = cur["format"]) != null ? _a2 : "") : "",
+        hotkey: {
+          increase: String(curHotkey["increase"] || "").trim(),
+          decrease: String(curHotkey["decrease"] || "").trim()
+        },
+        increment: {
+          mode: "standard",
+          incrementBy: 1,
+          command: "now",
+          customRaw: Array.isArray(curIncrement["customRaw"]) ? curIncrement["customRaw"] : [],
+          custom: Array.isArray(curIncrement["custom"]) ? curIncrement["custom"] : [1]
+        }
+      };
+      plugin.setConfigPatch(
+        { pkm: { behavior: { elements: { fields, byField } } } },
+        "pkm:behavior:elements:add-field:" + key
+      );
+    }
+    return { ok: true, key };
+  };
+  const deleteField = (k) => {
+    var _a2;
+    const sub = getSubKeyForParent(k);
+    const targets = [k].concat(sub ? [sub] : []);
+    const liveOrder = normalizePkmOrder((_a2 = behaviorOf(plugin.getConfig())["order"]) != null ? _a2 : null);
+    const nextOrder = {
+      ...liveOrder,
+      left: (liveOrder.left || []).filter((x) => !targets.includes(String(x || "").trim())),
+      right: (liveOrder.right || []).filter((x) => !targets.includes(String(x || "").trim())),
+      lead: { ...liveOrder.lead || {} },
+      labels: { ...liveOrder.labels || {} },
+      strictNames: { ...liveOrder.strictNames || {} },
+      types: { ...liveOrder.types || {} },
+      active: { ...liveOrder.active || {} },
+      freeRoam: { ...liveOrder.freeRoam || {} },
+      enabled: { ...liveOrder.enabled || {} }
+    };
+    for (const t of targets) {
+      delete nextOrder.labels[t];
+      delete nextOrder.strictNames[t];
+      delete nextOrder.types[t];
+      delete nextOrder.active[t];
+      delete nextOrder.freeRoam[t];
+      delete nextOrder.enabled[t];
+    }
+    const leftLead = String(nextOrder.lead && nextOrder.lead.left ? nextOrder.lead.left : "").trim();
+    const rightLead = String(nextOrder.lead && nextOrder.lead.right ? nextOrder.lead.right : "").trim();
+    if (targets.includes(leftLead)) nextOrder.lead.left = "";
+    if (targets.includes(rightLead)) nextOrder.lead.right = "";
+    orderState.left = nextOrder.left.slice();
+    orderState.right = nextOrder.right.slice();
+    orderState.lead = { ...nextOrder.lead || {} };
+    orderState.labels = { ...nextOrder.labels };
+    orderState.strictNames = { ...nextOrder.strictNames };
+    orderState.types = { ...nextOrder.types };
+    orderState.active = { ...nextOrder.active };
+    orderState.freeRoam = { ...nextOrder.freeRoam };
+    orderState.enabled = { ...nextOrder.enabled };
+    setOrderPatch(nextOrder, "pkm:behavior:order:delete:" + k, { replace: true });
+    const behavior = behaviorOf(plugin.getConfig());
+    const leftFields = modeFields(behavior, "leftMode").filter((f) => {
+      const id = idOf(f);
+      return id !== k && (!sub || id !== sub);
+    });
+    const rightFields = modeFields(behavior, "rightMode").filter((f) => idOf(f) !== k);
+    const elementsCfg = asObject(behavior["elements"]);
+    const elementsFields = asArray(elementsCfg["fields"]).filter((x) => String(x || "").trim() !== k);
+    const elementsByField = { ...asObject(elementsCfg["byField"]) };
+    delete elementsByField[k];
+    plugin.setConfigPatch({
+      pkm: {
+        behavior: {
+          leftMode: { fields: leftFields },
+          rightMode: { fields: rightFields },
+          elements: { ...elementsCfg, fields: elementsFields, byField: elementsByField }
+        }
+      }
+    }, "pkm:behavior:delete-field:" + k);
+  };
+  const setStrictName = async (k, rawNext) => {
+    const oldName = String(orderState.strictNames && orderState.strictNames[k] || k);
+    const next = String(rawNext || "").replace(/\s+/g, " ").trim();
+    if (next === oldName) return { ok: true, changed: false };
+    if (!STRICT_NAME_RE.test(next)) {
+      return { ok: false, error: "InlineOverhaul: name_strict must match [a-z0-9_- ]+" };
+    }
+    const taken = /* @__PURE__ */ new Set();
+    for (const kk of getOrderKeys()) {
+      const vv = String(orderState.strictNames && orderState.strictNames[kk] || kk).trim();
+      if (kk === k) continue;
+      if (vv) taken.add(vv);
+    }
+    if (taken.has(next)) {
+      return { ok: false, error: "InlineOverhaul: name_strict already exists" };
+    }
+    orderState.strictNames = { ...orderState.strictNames || {}, [k]: next };
+    setOrderPatch({ strictNames: { [k]: next } }, "pkm:behavior:order:strict:" + k);
+    try {
+      if (typeof plugin.renameStrictNameInConfigNote === "function") {
+        await plugin.renameStrictNameInConfigNote(oldName, next);
+      }
+    } catch (e) {
+      console.error("[inline-overhaul][strict-rename:config-note]", e);
+    }
+    return { ok: true };
+  };
+  const setLabel = (k, rawValue) => {
+    const v = String(rawValue || "").trim();
+    if (!v) return { ok: false };
+    orderState.labels = { ...orderState.labels || {}, [k]: v };
+    setOrderPatch(orderState, "pkm:behavior:order:label:" + k);
+    return { ok: true };
+  };
+  const setProperty = (k, rawNext) => {
+    const prev = String(orderState.propertiesByField && orderState.propertiesByField[k] || "").trim();
+    const next = String(rawNext || "").trim();
+    orderState.propertiesByField = { ...orderState.propertiesByField || {} };
+    if (next) orderState.propertiesByField[k] = next;
+    else delete orderState.propertiesByField[k];
+    setOrderPatch(
+      { propertiesByField: { [k]: next || null } },
+      "pkm:behavior:order:yaml:" + k
+    );
+    const behaviorNow = behaviorOf(plugin.getConfig());
+    const leftFieldsNow = modeFields(behaviorNow, "leftMode");
+    const rightFieldsNow = modeFields(behaviorNow, "rightMode");
+    const strictNameNow = String(orderState.strictNames && orderState.strictNames[k] || k).trim() || k;
+    const subKeyNow = getSubKeyForParent(k) || "";
+    const findByOrderKey = (arr, key) => {
+      const kk = String(key || "").trim();
+      if (!kk || !Array.isArray(arr)) return null;
+      const strict = String(orderState.strictNames && orderState.strictNames[kk] || kk).trim() || kk;
+      for (let i = 0; i < arr.length; i++) {
+        const row = arr[i] && typeof arr[i] === "object" ? asObject(arr[i]) : null;
+        if (!row) continue;
+        const id = String(row["id"] || "").trim();
+        const ok = String(row["orderKey"] || "").trim();
+        if (ok === kk || ok === strict || id === kk || id === strict) return row;
+      }
+      return null;
+    };
+    const parentFieldNow = findByOrderKey(leftFieldsNow, k) || findByOrderKey(rightFieldsNow, k);
+    const subFieldNow = subKeyNow ? findByOrderKey(leftFieldsNow, subKeyNow) || findByOrderKey(rightFieldsNow, subKeyNow) : null;
+    const patchFieldValues = (field) => {
+      if (!field || !Array.isArray(field["values"])) return field;
+      const values = field["values"].map((v) => {
+        const row = v && typeof v === "object" ? { ...asObject(v) } : v;
+        if (!row || typeof row !== "object") return row;
+        const cur = String(row["yamlProperty"] || "").trim();
+        const inheritedBefore = !cur || cur === prev;
+        if (!inheritedBefore) return row;
+        if (next) row["yamlProperty"] = next;
+        else delete row["yamlProperty"];
+        return row;
+      });
+      return { ...field, values };
+    };
+    const parentPatched = patchFieldValues(parentFieldNow);
+    const subPatched = patchFieldValues(subFieldNow);
+    const upsertById = (arr, field) => {
+      if (!field || !field["id"] || !Array.isArray(arr)) return arr;
+      const id = String(field["id"] || "").trim();
+      const out = arr.slice();
+      const idx = out.findIndex((x) => idOf(x) === id);
+      if (idx === -1) out.push(field);
+      else out[idx] = field;
+      return out;
+    };
+    const nextLeft = upsertById(upsertById(leftFieldsNow, parentPatched), subPatched);
+    const nextRight = upsertById(upsertById(rightFieldsNow, parentPatched), subPatched);
+    plugin.setConfigPatch(
+      { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+      "pkm:behavior:order:yaml-propagate:" + strictNameNow
+    );
+    return { ok: true };
+  };
+  const toggleSub = (subKey) => {
+    const cur = String(orderState.active && orderState.active[subKey] || "yes").trim().toLowerCase();
+    const next = cur === "no" ? "yes" : "no";
+    orderState.active = { ...orderState.active || {}, [subKey]: next };
+    orderState.enabled = { ...orderState.enabled || {}, [subKey]: next !== "no" };
+    const leftMode = modeFields(behaviorOf(plugin.getConfig()), "leftMode");
+    const idx = leftMode.findIndex((f) => idOf(f) === subKey);
+    if (idx !== -1) leftMode[idx] = { ...asObject(leftMode[idx]), enabled: next !== "no" };
+    plugin.setConfigPatch(
+      { pkm: { behavior: { leftMode: { fields: leftMode } } } },
+      "pkm:behavior:leftmode:subtoggle:" + subKey
+    );
+    setOrderPatch(
+      { active: { [subKey]: next }, enabled: { [subKey]: next !== "no" } },
+      "pkm:behavior:order:sub:" + subKey
+    );
+    return { ok: true };
+  };
+  const setFreeRoam = (k, rawMode) => {
+    const nextMode = String(rawMode || "off").trim().toLowerCase();
+    const normalizedMode = nextMode === "minimal" || nextMode === "full" ? nextMode : "off";
+    orderState.freeRoam = { ...orderState.freeRoam || {}, [k]: normalizedMode };
+    setOrderPatch({ freeRoam: { [k]: normalizedMode } }, "pkm:behavior:order:freeroam:" + k);
+    return { ok: true };
+  };
+  const setActive = (k, rawActive) => {
+    const nextActive = String(rawActive || "yes").trim().toLowerCase();
+    const normalized = nextActive === "no" || nextActive === "hotkey_only" ? nextActive : "yes";
+    orderState.active = { ...orderState.active || {}, [k]: normalized };
+    orderState.enabled = { ...orderState.enabled || {}, [k]: normalized !== "no" };
+    setOrderPatch(
+      { active: { [k]: normalized }, enabled: { [k]: normalized !== "no" } },
+      "pkm:behavior:order:active:" + k
+    );
+    return { ok: true };
+  };
+  const setLead = (panelKey, rawKey) => {
+    const next = String(rawKey || "").trim();
+    const patchLead = { [panelKey]: next || "" };
+    orderState.lead = { ...orderState.lead || {}, [panelKey]: next || "" };
+    setOrderPatch({ lead: patchLead }, `pkm:behavior:order:lead:${panelKey}`);
+    return { ok: true };
+  };
+  const getPanelLeadCandidates = (panelKey) => {
+    const arr = panelKey === "right" ? orderState.right : orderState.left;
+    const seen = /* @__PURE__ */ new Set();
+    const out = [];
+    for (const k of arr) {
+      const key = String(k || "").trim();
+      if (!key || SUB_SUFFIX_RE.test(key)) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ key, label: String(orderState.labels && orderState.labels[key] || key) });
+    }
+    return out;
+  };
+  const listFields = () => {
+    const out = [];
+    const rowFor = (key, side, parent) => {
+      const activeRaw = String(
+        orderState.active && orderState.active[key] || (orderState.enabled && orderState.enabled[key] !== false ? "yes" : "no")
+      ).trim().toLowerCase();
+      const freeRaw = String(orderState.freeRoam && orderState.freeRoam[key] || "off").trim().toLowerCase();
+      const leadKey = String(orderState.lead && orderState.lead[side] || "").trim();
+      return {
+        key,
+        side,
+        kind: parent ? "tag" : getFieldKind(key),
+        label: String(orderState.labels && orderState.labels[key] || key),
+        strictName: String(orderState.strictNames && orderState.strictNames[key] || key),
+        parent,
+        subKey: parent ? "" : getSubKeyForParent(key),
+        property: String(orderState.propertiesByField && orderState.propertiesByField[key] || "").trim(),
+        active: activeRaw === "no" || activeRaw === "hotkey_only" ? activeRaw : "yes",
+        freeRoam: freeRaw === "minimal" || freeRaw === "full" ? freeRaw : "off",
+        enabled: !(orderState.enabled && orderState.enabled[key] === false),
+        lead: !parent && leadKey === key
+      };
+    };
+    for (const side of ["left", "right"]) {
+      for (const raw of side === "left" ? orderState.left : orderState.right) {
+        const key = String(raw || "").trim();
+        if (!key || SUB_SUFFIX_RE.test(key)) continue;
+        out.push(rowFor(key, side, ""));
+        const sub = getSubKeyForParent(key);
+        if (sub && (orderState.left.includes(sub) || orderState.right.includes(sub))) {
+          out.push(rowFor(sub, side, key));
+        }
+      }
+    }
+    return out;
+  };
+  const normalizeHex = (value) => {
+    const s = String(value || "").trim().toLowerCase();
+    if (!s) return "";
+    return /^#[0-9a-f]{6}$/.test(s) ? s : "";
+  };
+  const normalizeVisibility = (value) => {
+    const s = String(value || "default").trim().toLowerCase();
+    return s === "empty" || s === "custom" ? s : "default";
+  };
+  const getValueVisual = (fieldId, token) => {
+    const fid = String(fieldId || "").trim();
+    const tok = String(token || "").trim();
+    const visuals = asObject(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const byTag = asObject(visuals["byTag"]);
+    const fm = fid ? asObject(byTag[fid]) : {};
+    const row = tok ? asObject(fm[tok]) : {};
+    return {
+      fillColor: normalizeHex(row["fillColor"]),
+      textColor: normalizeHex(row["textColor"]),
+      visibility: normalizeVisibility(row["visibility"]),
+      customText: String(row["customText"] || "").trim()
+    };
+  };
+  const setValueVisual = (fieldId, token, patch, reason) => {
+    const fid = String(fieldId || "").trim();
+    const tok = String(token || "").trim();
+    if (!fid || !tok || tok.charAt(0) !== "#") return;
+    const visuals = asObject(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const byTag = asObject(visuals["byTag"]);
+    const current = asObject(asObject(byTag[fid])[tok]);
+    const has = (key) => Object.prototype.hasOwnProperty.call(patch, key);
+    const next = {
+      fillColor: has("fillColor") ? normalizeHex(patch.fillColor) : normalizeHex(current["fillColor"]),
+      textColor: has("textColor") ? normalizeHex(patch.textColor) : normalizeHex(current["textColor"]),
+      visibility: has("visibility") ? normalizeVisibility(patch.visibility) : normalizeVisibility(current["visibility"]),
+      customText: has("customText") ? String(patch.customText || "").trim() : String(current["customText"] || "").trim()
+    };
+    plugin.setConfigPatch(
+      { pkm: { behavior: { tagVisuals: { byTag: { [fid]: { [tok]: next } } } } } },
+      reason || "pkm:visuals:tag"
+    );
+  };
+  const deep = deps.deepState || {};
+  const normToken = (raw, kind) => typeof deep.normalizeToken === "function" ? deep.normalizeToken(raw, kind) : String(raw || "").trim();
+  const normCheckbox = (raw) => typeof deep.normalizeCheckboxToken === "function" ? deep.normalizeCheckboxToken(raw) : String(raw || "").trim();
+  const denorm = (raw) => typeof deep.denormToken === "function" ? deep.denormToken(raw) : String(raw || "").trim().replace(/^#/, "");
+  const findFieldByOrderKey = (arr, orderKey) => {
+    const key = String(orderKey || "").trim();
+    if (!key) return null;
+    const strict = String(orderState.strictNames && orderState.strictNames[key] || key).trim() || key;
+    for (const row of arr) {
+      if (!row || typeof row !== "object") continue;
+      const rid = String(row.id || "").trim();
+      const rkey = String(row.orderKey || "").trim();
+      if (rkey && (rkey === key || rkey === strict)) return row;
+      if (rid && (rid === key || rid === strict)) return row;
+    }
+    return null;
+  };
+  const upsertField = (arr, id, valueObj) => {
+    const listNext = Array.isArray(arr) ? arr.slice() : [];
+    const idx = listNext.findIndex((x) => x && String(x.id || "").trim() === String(id || "").trim());
+    if (idx === -1) listNext.push(valueObj);
+    else listNext[idx] = valueObj;
+    return listNext;
+  };
+  const hasFieldById = (arr, fieldId) => {
+    const fid = String(fieldId || "").trim();
+    if (!fid || !Array.isArray(arr)) return false;
+    for (let i = 0; i < arr.length; i++) {
+      const row = arr[i];
+      if (!row || typeof row !== "object") continue;
+      if (String(row.id || "").trim() === fid) return true;
+    }
+    return false;
+  };
+  const normalizeCustomRaw = (text) => String(text || "").split(/\r?\n/).map((x) => String(x || "").trim()).filter(Boolean);
+  const toNormalizedCustomIncrement = (rawList, fallbackList) => {
+    const src2 = Array.isArray(rawList) ? rawList : [];
+    const out = [];
+    for (let i = 0; i < src2.length; i++) {
+      const row = String(src2[i] || "").trim();
+      if (!row || /^END$/i.test(row)) continue;
+      const m = row.match(/^(-?\d+)(?:\s*\(\s*(\d+)\s*\))?$/);
+      if (!m) continue;
+      const step = Math.max(0, Math.trunc(Number(m[1] || 0)));
+      const repeat = Math.max(1, Math.trunc(Number(m[2] || 1)));
+      for (let r = 0; r < repeat; r++) out.push(step);
+    }
+    if (out.length) return out;
+    const fb = Array.isArray(fallbackList) ? fallbackList : [];
+    return fb.map((x) => Math.max(0, Math.trunc(Number(x || 0)))).filter((x) => Number.isFinite(x));
+  };
+  const elementEditor = (k) => {
+    const behavior = behaviorOf(plugin.getConfig());
+    const rightMode = modeFields(behavior, "rightMode");
+    const strictName = String(orderState.strictNames && orderState.strictNames[k] || k).trim() || k;
+    const elem = asObject(behavior["elements"]);
+    const byField = asObject(elem["byField"]);
+    const elementField = findFieldByOrderKey(rightMode, k) || findFieldByOrderKey(rightMode, strictName);
+    const elementFieldId = String(elementField && elementField.id || "").trim() || String(k || "").trim();
+    const curElem = byField[elementFieldId] || byField[k] || byField[strictName] || {};
+    const cur = {
+      ...curElem,
+      increment: { ...curElem && curElem.increment && typeof curElem.increment === "object" ? curElem.increment : {} }
+    };
+    const inc = cur.increment;
+    const write = (nextRow, reason) => {
+      plugin.setConfigPatch(
+        { pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } },
+        reason
+      );
+    };
+    const modeRaw = String(inc.mode || "increment").trim().toLowerCase();
+    return {
+      fieldId: elementFieldId,
+      emoji: String(cur.emoji || ""),
+      format: String(cur.format || ""),
+      mode: ["increment", "command", "custom"].includes(modeRaw) ? modeRaw : "increment",
+      incrementBy: Number.isFinite(Number(inc.incrementBy)) ? Number(inc.incrementBy) : 1,
+      command: ["now", "randomN", "randomE"].includes(String(inc.command || "")) ? String(inc.command) : "now",
+      customRaw: Array.isArray(inc.customRaw) ? inc.customRaw.map((x) => String(x || "")) : [],
+      setEmoji: (v) => write({ ...cur, emoji: v }, "pkm:behavior:order:deep:emoji:" + k),
+      setFormat: (v) => write({ ...cur, format: v }, "pkm:behavior:order:deep:format:" + k),
+      setMode: (v) => write(
+        { ...cur, increment: { ...inc, mode: String(v || "increment").trim().toLowerCase() } },
+        "pkm:behavior:order:deep:mode:" + k
+      ),
+      setIncrementBy: (v) => write(
+        { ...cur, increment: { ...inc, mode: "increment", incrementBy: Number(v || 1) } },
+        "pkm:behavior:order:deep:inc:" + k
+      ),
+      setCommand: (v) => write(
+        { ...cur, increment: { ...inc, mode: "command", command: String(v || "now") } },
+        "pkm:behavior:order:deep:command:" + k
+      ),
+      setCustomRaw: (text) => {
+        const raw = normalizeCustomRaw(text);
+        write(
+          { ...cur, increment: { ...inc, mode: "custom", customRaw: raw, custom: toNormalizedCustomIncrement(raw, inc.custom) } },
+          "pkm:behavior:order:deep:custom:" + k
+        );
+      }
+    };
+  };
+  const valuesEditor = (k) => {
+    const behavior = behaviorOf(plugin.getConfig());
+    const leftMode = modeFields(behavior, "leftMode");
+    const rightMode = modeFields(behavior, "rightMode");
+    const strictName = String(orderState.strictNames && orderState.strictNames[k] || k).trim() || k;
+    const kind = getFieldKind(k);
+    const parentField = findFieldByOrderKey(leftMode, k) || findFieldByOrderKey(rightMode, k);
+    const subKey = `${k}_sub`;
+    const subField = findFieldByOrderKey(leftMode, subKey) || findFieldByOrderKey(rightMode, subKey);
+    const parentFieldId = String(parentField && parentField.id || "").trim();
+    const subFieldId = String(subField && subField.id || "").trim();
+    const parentInRight = hasFieldById(rightMode, parentFieldId);
+    const subInRight = hasFieldById(rightMode, subFieldId);
+    const prefixRules = asObject(behavior["prefixRules"]);
+    const checkboxByFieldValue = asObject(prefixRules["checkboxByFieldValue"]);
+    const parentCheckboxRaw = parentFieldId ? asObject(checkboxByFieldValue[parentFieldId]) : {};
+    const subCheckboxRaw = subFieldId ? asObject(checkboxByFieldValue[subFieldId]) : {};
+    const fieldCheckboxByToken = {};
+    for (const rawToken of Object.keys(parentCheckboxRaw)) {
+      const t = normToken(rawToken, kind);
+      const cb = normCheckbox(parentCheckboxRaw[rawToken]);
+      if (t && cb) fieldCheckboxByToken[t] = cb;
+    }
+    for (const rawToken of Object.keys(subCheckboxRaw)) {
+      const t = normToken(rawToken, kind);
+      const cb = normCheckbox(subCheckboxRaw[rawToken]);
+      if (t && cb) fieldCheckboxByToken[t] = cb;
+    }
+    const tree = typeof deep.buildTagTree === "function" ? deep.buildTagTree(parentField, subField, kind, { checkboxByToken: fieldCheckboxByToken }) : [];
+    if (kind === "wikilink") {
+      const vals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
+      const byTok = {};
+      for (let vi = 0; vi < vals.length; vi++) {
+        const row = vals[vi] && typeof vals[vi] === "object" ? vals[vi] : {};
+        const tok = normToken(row.token, "wikilink");
+        if (!tok) continue;
+        byTok[tok] = row;
+      }
+      for (let ti = 0; ti < tree.length; ti++) {
+        const trow = tree[ti] || {};
+        const tok = normToken(trow.token, "wikilink");
+        const meta = byTok[tok] && typeof byTok[tok] === "object" ? byTok[tok] : {};
+        tree[ti] = {
+          ...trow,
+          __ioParentBinding: String(meta.__ioParentBinding || "").trim(),
+          __ioParentFieldId: String(meta.__ioParentFieldId || "").trim(),
+          prefixMode: String(meta.prefixMode || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet",
+          checkboxToken: String(meta.checkboxToken || "").trim()
+        };
+      }
+    }
+    const buildLinkParents = () => {
+      const choices = [];
+      const seenField = /* @__PURE__ */ new Set();
+      const orderKeys = getOrderKeys().filter((kk) => !SUB_SUFFIX_RE.test(kk));
+      const anyByOrderKey = (orderKey) => findFieldByOrderKey(leftMode, orderKey) || findFieldByOrderKey(rightMode, orderKey);
+      for (let oi = 0; oi < orderKeys.length; oi++) {
+        const kk = String(orderKeys[oi] || "").trim();
+        if (!kk || kk === k) continue;
+        const fk = anyByOrderKey(kk);
+        if (!fk || !fk.id) continue;
+        const source = String(fk.source || "").trim();
+        if (source === "projects" || /^wikilinks:/.test(source)) continue;
+        const fid = String(fk.id || "").trim();
+        if (!fid || seenField.has(fid)) continue;
+        seenField.add(fid);
+        const strict = String(orderState.strictNames && orderState.strictNames[kk] ? orderState.strictNames[kk] : kk).trim() || kk;
+        const vals = Array.isArray(fk.values) ? fk.values : [];
+        const tokens = [];
+        const subByOrder = anyByOrderKey(`${kk}_sub`);
+        const subFieldLocal = subByOrder && String(subByOrder.dependsOn || "").trim() === fid ? subByOrder : null;
+        const subVals = subFieldLocal && Array.isArray(subFieldLocal.values) ? subFieldLocal.values : [];
+        for (let vi = 0; vi < vals.length; vi++) {
+          const row = vals[vi] && typeof vals[vi] === "object" ? vals[vi] : {};
+          const ptok = normToken(row.token, "tag");
+          if (!ptok) continue;
+          tokens.push({ value: `p:${ptok}|f:${fid}`, label: ptok });
+          for (let si = 0; si < subVals.length; si++) {
+            const srow = subVals[si] && typeof subVals[si] === "object" ? subVals[si] : {};
+            const allowed = Array.isArray(srow.allowedParentValues) ? srow.allowedParentValues : [];
+            const hasParent = allowed.some((av) => normToken(av, "tag") === ptok);
+            if (!hasParent) continue;
+            const stok = normToken(srow.token, "tag");
+            if (!stok) continue;
+            tokens.push({ value: `s:${stok}|p:${ptok}|f:${fid}`, label: `\u2514 ${stok} (${ptok})` });
+          }
+        }
+        if (!tokens.length) continue;
+        choices.push({ fieldId: fid, strictName: strict, tokens });
+      }
+      return choices;
+    };
+    const inferLinkBinding = (token) => {
+      const vals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
+      const normTarget = normToken(token, "wikilink");
+      for (let i = 0; i < vals.length; i++) {
+        const row = vals[i] && typeof vals[i] === "object" ? vals[i] : {};
+        const rt = normToken(row.token, "wikilink");
+        if (!rt || rt !== normTarget) continue;
+        return String(row.__ioParentBinding || "").trim();
+      }
+      return "";
+    };
+    const buildCheckboxPatch = (nextTree, merged) => {
+      const mergedMap = merged && merged.checkboxByToken && typeof merged.checkboxByToken === "object" ? merged.checkboxByToken : {};
+      const parentOut = {};
+      const subOut = {};
+      const list = Array.isArray(nextTree) ? nextTree : [];
+      for (let i = 0; i < list.length; i++) {
+        const p = list[i] || {};
+        const pTok = normToken(p.token, kind);
+        const pCb = normCheckbox(mergedMap[pTok]);
+        if (pTok && pCb) parentOut[pTok] = pCb;
+        const children = Array.isArray(p.children) ? p.children : [];
+        for (let j = 0; j < children.length; j++) {
+          const c = children[j] || {};
+          const cTok = normToken(c.token, kind);
+          const cCb = normCheckbox(mergedMap[cTok]);
+          if (cTok && cCb) subOut[cTok] = cCb;
+        }
+      }
+      const patch = { pkm: { behavior: { prefixRules: { checkboxByFieldValue: {} } } } };
+      const map = patch.pkm.behavior.prefixRules.checkboxByFieldValue;
+      if (parentFieldId) map[parentFieldId] = parentOut;
+      if (subFieldId) map[subFieldId] = subOut;
+      if (parentFieldId) {
+        for (const prevTok of Object.keys(parentCheckboxRaw)) {
+          const t = normToken(prevTok, kind);
+          if (t && !Object.prototype.hasOwnProperty.call(parentOut, t)) map[parentFieldId][t] = null;
+        }
+      }
+      if (subFieldId) {
+        for (const prevTok of Object.keys(subCheckboxRaw)) {
+          const t = normToken(prevTok, kind);
+          if (t && !Object.prototype.hasOwnProperty.call(subOut, t)) map[subFieldId][t] = null;
+        }
+      }
+      return patch;
+    };
+    const cloneTree = () => tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
+    const reorder = (srcLevel, srcParentToken, srcToken, dstLevel, dstParentToken, dstToken) => {
+      const nextTree = cloneTree();
+      if (srcLevel === 0 && dstLevel === 0) {
+        const fromIdx = nextTree.findIndex((x) => x.token === srcToken);
+        const toIdx = nextTree.findIndex((x) => x.token === dstToken);
+        if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return null;
+        const picked = nextTree.splice(fromIdx, 1)[0];
+        const insertIdx = fromIdx < toIdx ? toIdx - 1 : toIdx;
+        nextTree.splice(insertIdx, 0, picked);
+        return nextTree;
+      }
+      if (srcLevel === 1 && dstLevel === 1 && srcParentToken && srcParentToken === dstParentToken) {
+        const parent = nextTree.find((x) => x.token === srcParentToken);
+        if (!parent) return null;
+        const arr = Array.isArray(parent.children) ? parent.children : [];
+        const fromIdx = arr.findIndex((x) => x.token === srcToken);
+        const toIdx = arr.findIndex((x) => x.token === dstToken);
+        if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return null;
+        const picked = arr.splice(fromIdx, 1)[0];
+        const insertIdx = fromIdx < toIdx ? toIdx - 1 : toIdx;
+        arr.splice(insertIdx, 0, picked);
+        parent.children = arr;
+        return nextTree;
+      }
+      return null;
+    };
+    const copyTree = (t) => (Array.isArray(t) ? t : []).map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
+    const rowAt = (t, at) => {
+      const list = Array.isArray(t) ? t : [];
+      if (at.level === 0) return list.find((x) => x.token === at.token) || null;
+      const prow = list.find((x) => x.token === at.parentToken);
+      if (!prow) return null;
+      return (prow.children || []).find((x) => x.token === at.token) || null;
+    };
+    const editRow = (t, at, patch) => {
+      const nextTree = copyTree(t);
+      if (at.level === 0) {
+        const row = nextTree.find((x) => x.token === at.token);
+        if (row) Object.assign(row, patch);
+        return nextTree;
+      }
+      const prow = nextTree.find((x) => x.token === at.parentToken);
+      if (prow) {
+        const crow = (prow.children || []).find((x) => x.token === at.token);
+        if (crow) Object.assign(crow, patch);
+      }
+      return nextTree;
+    };
+    const removeRow = (t, at) => {
+      const nextTree = copyTree(t);
+      if (at.level === 0) {
+        const idx = nextTree.findIndex((x) => x.token === at.token);
+        if (idx !== -1) nextTree.splice(idx, 1);
+        return nextTree;
+      }
+      const prow = nextTree.find((x) => x.token === at.parentToken);
+      if (prow) prow.children = (prow.children || []).filter((x) => x.token !== at.token);
+      return nextTree;
+    };
+    const toggleLevel = (t, at) => {
+      const nextTree = copyTree(t);
+      if (at.level === 0) {
+        const idx = nextTree.findIndex((x) => x.token === at.token);
+        if (idx > 0) {
+          const picked = nextTree.splice(idx, 1)[0];
+          nextTree[idx - 1].children = (nextTree[idx - 1].children || []).concat([{ token: picked.token }]);
+        }
+        return nextTree;
+      }
+      const prow = nextTree.find((x) => x.token === at.parentToken);
+      if (prow) {
+        const childIdx = (prow.children || []).findIndex((x) => x.token === at.token);
+        if (childIdx !== -1) {
+          prow.children.splice(childIdx, 1);
+          const pIdx = nextTree.findIndex((x) => x.token === at.parentToken);
+          nextTree.splice(pIdx + 1, 0, { token: at.token, prefix: prow.prefix || "#", children: [] });
+        }
+      }
+      return nextTree;
+    };
+    const saveTree = (nextTree, reason) => {
+      if (typeof deep.applyTagTreeToFields !== "function") return { ok: false, changed: false };
+      if (kind === "wikilink") {
+        const prevVals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
+        const prevSubVals = subField && Array.isArray(subField.values) ? subField.values : [];
+        const metaByToken = {};
+        for (const list of [prevVals, prevSubVals]) {
+          for (let i = 0; i < list.length; i++) {
+            const row = list[i] && typeof list[i] === "object" ? list[i] : {};
+            const tok = normToken(row.token, "wikilink");
+            if (!tok) continue;
+            if (!metaByToken[tok]) metaByToken[tok] = row;
+          }
+        }
+        const bare = (tok) => tok.replace(/^\[\[|\]\]$/g, "");
+        const valueOf = (row, tok, extra) => {
+          const prev = metaByToken[tok] && typeof metaByToken[tok] === "object" ? metaByToken[tok] : {};
+          const out = {
+            ...prev,
+            token: bare(tok),
+            prefixMode: String(row.prefixMode || prev.prefixMode || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet",
+            checkboxToken: String(row.checkboxToken || prev.checkboxToken || "").trim(),
+            active: typeof prev.active === "boolean" ? prev.active : true,
+            ...extra
+          };
+          return out;
+        };
+        const nextValues = [];
+        const subParents = /* @__PURE__ */ new Map();
+        const subRows = /* @__PURE__ */ new Map();
+        for (let i = 0; i < nextTree.length; i++) {
+          const row = nextTree[i] || {};
+          const tok = normToken(row.token, "wikilink");
+          if (!tok) continue;
+          const children = Array.isArray(row.children) ? row.children : [];
+          const subtags = [];
+          for (let ci = 0; ci < children.length; ci++) {
+            const crow = children[ci] || {};
+            const ctok = normToken(crow.token, "wikilink");
+            if (!ctok) continue;
+            subtags.push(bare(ctok));
+            if (!subParents.has(ctok)) subParents.set(ctok, /* @__PURE__ */ new Set());
+            subParents.get(ctok).add(bare(tok));
+            subRows.set(ctok, crow);
+          }
+          const value = valueOf(row, tok, { subtags });
+          delete value["allowedParentValues"];
+          nextValues.push(value);
+        }
+        const nextSubValues = [];
+        for (const [ctok, parents] of subParents.entries()) {
+          nextSubValues.push(valueOf(subRows.get(ctok) || {}, ctok, {
+            allowedParentValues: Array.from(parents),
+            subtags: []
+          }));
+        }
+        const fidParent = parentFieldId || String(strictName || k || "").trim();
+        let nextLeft2 = leftMode.slice();
+        let nextRight2 = rightMode.slice();
+        if (!fidParent) {
+          return { ok: false, error: "InlineOverhaul: cannot resolve target link field for Deep Editor save" };
+        }
+        const sourceId = String(parentField && parentField.source || `wikilinks:${fidParent}`).trim();
+        const nextParent = {
+          ...parentField || {},
+          id: fidParent,
+          prefix: String(parentField && parentField.prefix || "#").trim() || "#",
+          source: sourceId,
+          placeholder: String(parentField && parentField.placeholder || fidParent).trim() || fidParent,
+          values: nextValues
+        };
+        const inRight = parentInRight || hasFieldById(rightMode, fidParent);
+        if (inRight) nextRight2 = upsertField(nextRight2, fidParent, nextParent);
+        else nextLeft2 = upsertField(nextLeft2, fidParent, nextParent);
+        const subId = String(subFieldId || `${fidParent}_sub`).trim();
+        if (nextSubValues.length || subField) {
+          const nextSub = {
+            ...subField || {
+              id: subId,
+              prefix: "#",
+              dependsOn: fidParent,
+              disabledForParentValues: [],
+              placeholder: "sub",
+              source: `wikilinks:${subId}`
+            },
+            id: subId,
+            dependsOn: fidParent,
+            values: nextSubValues
+          };
+          if (subInRight || inRight) nextRight2 = upsertField(nextRight2, subId, nextSub);
+          else nextLeft2 = upsertField(nextLeft2, subId, nextSub);
+        }
+        plugin.setConfigPatch(
+          { pkm: { behavior: { leftMode: { fields: nextLeft2 }, rightMode: { fields: nextRight2 } } } },
+          reason
+        );
+        return { ok: true };
+      }
+      const merged = deep.applyTagTreeToFields(
+        nextTree,
+        parentField || { id: k, prefix: "#", values: [] },
+        subField || { id: subKey, values: [] },
+        kind
+      );
+      if (kind === "tag") {
+        const fieldYaml = String(orderState.propertiesByField && orderState.propertiesByField[k] || "").trim();
+        const parentYamlByToken = {};
+        const subYamlByToken = {};
+        for (let i = 0; i < nextTree.length; i++) {
+          const row = nextTree[i] || {};
+          const pTok = denorm(row.token);
+          if (!pTok) continue;
+          const py = String(row.yamlProperty || "").trim();
+          if (py && py !== fieldYaml) parentYamlByToken[pTok] = py;
+          const ch = Array.isArray(row.children) ? row.children : [];
+          for (let j = 0; j < ch.length; j++) {
+            const crow = ch[j] || {};
+            const sTok = denorm(crow.token);
+            if (!sTok) continue;
+            const sy = String(crow.yamlProperty || "").trim();
+            if (sy && sy !== fieldYaml) subYamlByToken[sTok] = sy;
+          }
+        }
+        const applyYamlMeta = (fieldObj, map) => {
+          if (!fieldObj || !Array.isArray(fieldObj.values)) return fieldObj;
+          const vals = fieldObj.values.map((v) => {
+            const row = v && typeof v === "object" ? { ...v } : v;
+            if (!row || typeof row !== "object") return row;
+            const tok = denorm(row.token);
+            if (!tok) {
+              delete row.yamlProperty;
+              return row;
+            }
+            const yy = String(map[tok] || "").trim();
+            if (yy) row.yamlProperty = yy;
+            else delete row.yamlProperty;
+            return row;
+          });
+          return { ...fieldObj, values: vals };
+        };
+        merged.parentField = applyYamlMeta(merged.parentField, parentYamlByToken);
+        if (merged.subField) merged.subField = applyYamlMeta(merged.subField, subYamlByToken);
+      }
+      let nextLeft = leftMode.slice();
+      let nextRight = rightMode.slice();
+      if (merged.parentField) {
+        if (parentFieldId) {
+          if (parentInRight) nextRight = upsertField(nextRight, parentFieldId, merged.parentField);
+          else nextLeft = upsertField(nextLeft, parentFieldId, merged.parentField);
+        } else {
+          nextRight = upsertField(nextRight, merged.parentField.id, merged.parentField);
+        }
+      }
+      if (merged.subField) {
+        if (subFieldId) {
+          if (subInRight) nextRight = upsertField(nextRight, subFieldId, merged.subField);
+          else nextLeft = upsertField(nextLeft, subFieldId, merged.subField);
+        } else {
+          const dependsOnParentId = String(merged.subField.dependsOn || "").trim();
+          if (dependsOnParentId && hasFieldById(nextRight, dependsOnParentId)) nextRight = upsertField(nextRight, merged.subField.id, merged.subField);
+          else nextLeft = upsertField(nextLeft, merged.subField.id, merged.subField);
+        }
+      }
+      plugin.setConfigPatch(
+        { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+        reason
+      );
+      plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), reason + ":prefix");
+      return { ok: true };
+    };
+    const addToken = (raw) => {
+      const token = normToken(raw, kind);
+      if (!token) return { ok: false, changed: false };
+      if (kind === "wikilink") {
+        const behaviorNow = behaviorOf(plugin.getConfig());
+        const leftNow = modeFields(behaviorNow, "leftMode");
+        const rightNow = modeFields(behaviorNow, "rightMode");
+        const keyNorm = String(k || "").trim();
+        const strictNorm = String(strictName || keyNorm).trim();
+        const findWikilinkField = (arr) => {
+          if (!Array.isArray(arr)) return null;
+          for (let i = 0; i < arr.length; i++) {
+            const f = arr[i] && typeof arr[i] === "object" ? arr[i] : null;
+            if (!f) continue;
+            const fid = String(f.id || "").trim();
+            const fkey = String(f.orderKey || "").trim();
+            const src2 = String(f.source || "").trim();
+            if (!fid && !fkey && !src2) continue;
+            if (fid === keyNorm || fid === strictNorm || fkey === keyNorm || fkey === strictNorm || src2 === `wikilinks:${keyNorm}` || src2 === `wikilinks:${strictNorm}`) return f;
+          }
+          return null;
+        };
+        const rightField = findWikilinkField(rightNow);
+        const leftField = findWikilinkField(leftNow);
+        const target = rightField || leftField;
+        if (!target) return { ok: false, error: "InlineOverhaul: cannot resolve target link field for Deep Editor add" };
+        const targetId = String(target.id || strictNorm || keyNorm).trim();
+        if (!targetId) return { ok: false, error: "InlineOverhaul: target link field id is empty" };
+        const valuesNow = Array.isArray(target.values) ? target.values.slice() : [];
+        const tokenPlain = String(token).replace(/^\[\[|\]\]$/g, "").trim();
+        if (!tokenPlain) return { ok: false, error: "InlineOverhaul: empty link token" };
+        const exists = valuesNow.some((row) => {
+          const tok = String(row && typeof row === "object" ? row.token : row || "").trim();
+          return tok === tokenPlain;
+        });
+        if (!exists) valuesNow.push({ token: tokenPlain, active: true, allowedParentValues: [], prefixMode: "bullet", checkboxToken: "" });
+        const nextTarget = {
+          ...target,
+          id: targetId,
+          source: String(target.source || `wikilinks:${targetId}`).trim(),
+          prefix: String(target.prefix || "#").trim() || "#",
+          placeholder: String(target.placeholder || targetId).trim() || targetId,
+          values: valuesNow
+        };
+        const toRight = !!rightField || String(nextTarget.source || "").indexOf("wikilinks:") === 0;
+        const nextLeft2 = toRight ? leftNow : upsertField(leftNow, targetId, nextTarget);
+        const nextRight = toRight ? upsertField(rightNow, targetId, nextTarget) : rightNow;
+        plugin.setConfigPatch(
+          { pkm: { behavior: { leftMode: { fields: nextLeft2 }, rightMode: { fields: nextRight } } } },
+          "pkm:behavior:order:deep:add-token:" + k
+        );
+        return { ok: true };
+      }
+      const nextTree = cloneTree();
+      nextTree.push({ token, prefix: "#", children: [] });
+      if (typeof deep.applyTagTreeToFields !== "function") return { ok: false, changed: false };
+      const merged = deep.applyTagTreeToFields(
+        nextTree,
+        parentField || { id: strictName, orderKey: k, prefix: "#", values: [] },
+        subField || { id: `${strictName}_sub`, orderKey: `${k}_sub`, values: [] },
+        kind
+      );
+      let nextLeft = leftMode.map((f) => {
+        const id = String(f && f.id || "").trim();
+        if (parentFieldId && id === parentFieldId) return merged.parentField;
+        if (subFieldId && id === subFieldId && merged.subField) return merged.subField;
+        return f;
+      });
+      if (!parentField && merged.parentField) nextLeft = upsertField(nextLeft, merged.parentField.id, merged.parentField);
+      if (!subField && merged.subField) nextLeft = upsertField(nextLeft, merged.subField.id, merged.subField);
+      plugin.setConfigPatch(
+        { pkm: { behavior: { leftMode: { fields: nextLeft } } } },
+        "pkm:behavior:order:deep:add-token:" + k
+      );
+      plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), "pkm:behavior:order:deep:add-token:" + k + ":prefix");
+      return { ok: true };
+    };
+    return {
+      available: deep.__unavailable !== true && typeof deep.applyTagTreeToFields === "function",
+      kind,
+      parentFieldId,
+      subFieldId,
+      parentField,
+      subField,
+      normalizeCheckbox: normCheckbox,
+      tree,
+      linkParents: kind === "wikilink" ? buildLinkParents() : [],
+      inferLinkBinding,
+      cloneTree,
+      reorder,
+      saveTree,
+      addToken,
+      rowAt,
+      editRow,
+      removeRow,
+      toggleLevel
+    };
+  };
+  ensureAllKeys();
+  return {
+    orderState,
+    /* чтение */
+    getOrderKeys,
+    getFieldKind,
+    getSubKeyForParent,
+    getSubActive,
+    inferSubKey,
+    ensureAllKeys,
+    getPanelLeadCandidates,
+    listFields,
+    /* снимки для черновиков и истории (Ф12, Ф13) */
+    captureSnapshot,
+    applySnapshot,
+    /* запись */
+    setOrderPatch,
+    moveKey,
+    addField,
+    deleteField,
+    setStrictName,
+    setLabel,
+    setProperty,
+    toggleSub,
+    setFreeRoam,
+    setActive,
+    setLead,
+    valuesEditor,
+    elementEditor,
+    getValueVisual,
+    setValueVisual,
+    /* Пригодится вёрстке значений: разбор списка шагов у Field типа element. */
+    normalizeCustomRaw
+  };
+}
+var STRICT_NAME_RE, SUB_SUFFIX_RE;
+var init_fields_model = __esm({
+  "src/ui/settings/custom/fields_model.ts"() {
     "use strict";
+    STRICT_NAME_RE = /^[a-z0-9_\- ]+$/i;
+    SUB_SUFFIX_RE = /_sub$/;
+  }
+});
+
+// src/ui/settings/custom/fields_editor_legacy.js
+var require_fields_editor_legacy = __commonJS({
+  "src/ui/settings/custom/fields_editor_legacy.js"(exports2, module2) {
+    "use strict";
+    var { createFieldsModel: createFieldsModel2 } = (init_fields_model(), __toCommonJS(fields_model_exports));
     var __orderDeepEditorState = null;
     var __orderDeepEditorStateDiag = "";
     function hasValidOrderDeepEditorState(mod) {
@@ -24149,33 +25380,6 @@ var require_settings_sections_renderer = __commonJS({
       __orderDeepEditorState = createOrderDeepEditorStateUnavailable(__orderDeepEditorStateDiag);
       return __orderDeepEditorState;
     }
-    function getOrderDeepEditorDebounceStore(plugin) {
-      if (!plugin || typeof plugin !== "object") return {};
-      if (!plugin._orderDeepEditorDebounce || typeof plugin._orderDeepEditorDebounce !== "object") {
-        plugin._orderDeepEditorDebounce = {};
-      }
-      return plugin._orderDeepEditorDebounce;
-    }
-    function flushOrderDeepCommit(plugin, key) {
-      const k = String(key || "").trim();
-      const store = getOrderDeepEditorDebounceStore(plugin);
-      const entry = k ? store[k] : null;
-      if (!entry) return;
-      try {
-        if (entry.timer) clearTimeout(entry.timer);
-      } catch (_) {
-      }
-      delete store[k];
-      try {
-        if (typeof entry.fn === "function") entry.fn();
-      } catch (_) {
-      }
-    }
-    function flushAllDeepCommits(plugin) {
-      const store = getOrderDeepEditorDebounceStore(plugin);
-      const keys = Object.keys(store);
-      for (let i = 0; i < keys.length; i++) flushOrderDeepCommit(plugin, keys[i]);
-    }
     function deferRefreshSettings(refreshSettings2) {
       if (typeof refreshSettings2 !== "function") return;
       const run = () => {
@@ -24232,6 +25436,2366 @@ var require_settings_sections_renderer = __commonJS({
         } catch (_) {
         }
       };
+    }
+    function normalizeHexColorInput(value) {
+      const src = String(value || "").trim().toLowerCase();
+      if (!src) return "";
+      return /^#[0-9a-f]{6}$/.test(src) ? src : "";
+    }
+    function getContrastTextHex(bgHex) {
+      const hex = normalizeHexColorInput(bgHex);
+      if (!hex) return "#111111";
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const yiq = (r * 299 + g * 587 + b * 114) / 1e3;
+      return yiq >= 128 ? "#111111" : "#ffffff";
+    }
+    function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, shapePct) {
+      const size = Number.isFinite(Math.trunc(Number(textSizePct))) ? Math.max(80, Math.min(140, Math.trunc(Number(textSizePct)))) : 100;
+      const bubbleW = Number.isFinite(Math.trunc(Number(bubbleWidthPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(bubbleWidthPct)))) : 100;
+      const bubbleH = Number.isFinite(Math.trunc(Number(bubbleHeightPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(bubbleHeightPct)))) : 100;
+      const shape = Number.isFinite(Math.trunc(Number(shapePct))) ? Math.max(0, Math.min(100, Math.trunc(Number(shapePct)))) : 0;
+      const scale = size / 100;
+      const bubbleScaleX = bubbleW / 100;
+      const bubbleScaleY = bubbleH / 100;
+      const t = shape / 100;
+      const eased = t <= 0.5 ? t / 0.5 * 0.45 : 0.45 + (t - 0.5) / 0.5 * 0.55;
+      const radiusPx = Math.max(0, Math.round(16 * (1 - eased)));
+      return {
+        borderRadiusPx: radiusPx,
+        horizontalPaddingPx: Math.max(2, Math.round(6 * bubbleScaleX)),
+        verticalPaddingPx: Math.max(1, Math.round(3 * bubbleScaleY)),
+        fontSizePx: Math.max(10, Math.round(14 * scale)),
+        lineHeight: 1.2
+      };
+    }
+    function readTagVisualsConfig(cfg) {
+      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
+      const visuals = behavior && behavior.tagVisuals ? behavior.tagVisuals : {};
+      const opacity = visuals && visuals.opacity ? visuals.opacity : {};
+      const strip = visuals && visuals.strip ? visuals.strip : {};
+      const toOpacity = (value, fallback) => {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(0, Math.min(1, n));
+      };
+      const toInt = (value, fallback, min, max) => {
+        const n = Math.trunc(Number(value));
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(min, Math.min(max, n));
+      };
+      const toShapePct = (value, fallback) => {
+        const n = Math.trunc(Number(value));
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(0, Math.min(100, n));
+      };
+      return {
+        showColorSettings: visuals.showColorSettings === true,
+        opacityLeft: toOpacity(opacity.left, 1),
+        opacityRight: toOpacity(opacity.right, 1),
+        stripActive: strip.active === true,
+        stripFieldId: String(strip.fieldId || "").trim(),
+        stripTagVisibility: strip.tagVisibility !== false,
+        stripHideSeparatorWhenOnlyStripToken: strip.hideSeparatorWhenOnlyStripToken === true,
+        stripMode: String(strip.mode || "default").trim().toLowerCase() === "crossing" ? "crossing" : "default",
+        stripStripesToShow: toInt(strip.stripesToShow, 2, 1, 3),
+        stripThickness: toInt(strip.thickness, 2, 1, 12),
+        stripChildOffset: toInt(strip.childOffset, 12, 2, 20),
+        stripSpacing: toInt(strip.spacing, 20, 8, 48),
+        tagTextSizePct: toInt(visuals.tagTextSizePct, toInt(visuals.tagSizePct, 100, 80, 140), 80, 140),
+        tagBubbleWidthPct: toInt(visuals.tagBubbleWidthPct, toInt(visuals.tagBubbleSizePct, 100, 80, 140), 80, 140),
+        tagBubbleHeightPct: toInt(visuals.tagBubbleHeightPct, toInt(visuals.tagBubbleSizePct, 100, 80, 140), 80, 140),
+        emptyBubbleSizePct: toInt(visuals.emptyBubbleSizePct, 100, 50, 180),
+        tagShapePct: toShapePct(visuals.tagShapePct, 0)
+      };
+    }
+    function renderPkmOrderBoardSection(ctx) {
+      const { Setting, Notice: Notice3, Modal: Modal2, containerEl, cfg, enabled, plugin, normalizePkmOrder, pkmOrderFields, setIcon: setIcon2, refreshSettings: refreshSettings2 } = ctx;
+      const activePkmSubTab = String(cfg && cfg.ui && cfg.ui.pkmSubTab || "main").trim() === "behavior" ? "behavior" : "main";
+      const pkmSubTabs = [
+        { id: "main", label: "Main" },
+        { id: "behavior", label: "Behavior" }
+      ];
+      const pkmSubRow = containerEl.createDiv({ cls: "inline-overhaul-subtab-row" });
+      pkmSubRow.style.display = "flex";
+      pkmSubRow.style.flexWrap = "wrap";
+      pkmSubRow.style.gap = "6px";
+      pkmSubRow.style.marginBottom = "10px";
+      for (const st of pkmSubTabs) {
+        const btn2 = pkmSubRow.createEl("button", { text: st.label, cls: "mod-cta" });
+        btn2.style.padding = "3px 8px";
+        btn2.style.opacity = st.id === activePkmSubTab ? "1" : "0.8";
+        btn2.disabled = !enabled || st.id === activePkmSubTab;
+        btn2.onclick = () => {
+          if (!enabled) return;
+          plugin.setConfigPatch({ ui: { pkmSubTab: st.id } }, "settings:pkm-subtab");
+        };
+      }
+      if (activePkmSubTab !== "main") return;
+      const deepState = getOrderDeepEditorState();
+      const CONFLICT_FLAG = String(deepState.IO_BETA_CONFLICT_DIALOG || "IO_BETA_CONFLICT_DIALOG");
+      const historyLimit = Number.isFinite(Number(deepState.IO_TEMP_HISTORY_LIMIT)) ? Number(deepState.IO_TEMP_HISTORY_LIMIT) : 100;
+      if (!plugin._orderDeepEditorSession) {
+        plugin._orderDeepEditorSession = {
+          enabled: true,
+          dirty: false,
+          expanded: {},
+          history: typeof deepState.createHistory === "function" ? deepState.createHistory(historyLimit) : { past: [], future: [] }
+        };
+      }
+      const deepSession = plugin._orderDeepEditorSession;
+      const setDirty = (v) => {
+        deepSession.dirty = v === true;
+      };
+      const markSnapshot = (snapshot) => {
+        if (typeof deepState.pushHistory !== "function") return;
+        deepSession.history = deepState.pushHistory(deepSession.history, snapshot);
+        setDirty(true);
+      };
+      const resetHistory = () => {
+        if (typeof deepState.resetHistory === "function") {
+          deepSession.history = deepState.resetHistory(deepSession.history);
+        } else {
+          deepSession.history = { past: [], future: [] };
+        }
+        setDirty(false);
+      };
+      const model = createFieldsModel2({ plugin, normalizePkmOrder, pkmOrderFields, cfg, deepState });
+      const confirmDeleteModal2 = (fieldKey) => new Promise((resolve) => {
+        if (typeof Modal2 !== "function" || !plugin || !plugin.app) {
+          resolve(window.confirm(`InlineOverhaul: delete field '${fieldKey}'?`));
+          return;
+        }
+        class DeleteFieldModal extends Modal2 {
+          onOpen() {
+            const { contentEl } = this;
+            contentEl.empty();
+            contentEl.createEl("h3", { text: "Delete field" });
+            contentEl.createEl("p", { text: `Delete field '${fieldKey}' from Order and config?` });
+            const row2 = contentEl.createDiv();
+            row2.style.display = "flex";
+            row2.style.justifyContent = "flex-end";
+            row2.style.gap = "8px";
+            row2.style.marginTop = "12px";
+            const cancelBtn = row2.createEl("button", { text: "Cancel" });
+            const delBtn = row2.createEl("button", { text: "Delete", cls: "mod-warning" });
+            cancelBtn.onclick = () => {
+              resolve(false);
+              this.close();
+            };
+            delBtn.onclick = () => {
+              resolve(true);
+              this.close();
+            };
+          }
+          onClose() {
+            this.contentEl.empty();
+          }
+        }
+        const modal = new DeleteFieldModal(plugin.app);
+        modal.open();
+      });
+      const uiCfg = cfg && cfg.ui && typeof cfg.ui === "object" ? cfg.ui : {};
+      const showInfoTips = uiCfg.orderShowInfoTips === true;
+      const showDeepEditor = uiCfg.orderShowDeepEditor !== false;
+      const showColorSettingsUi = uiCfg.orderShowColorSettings !== false;
+      const orderWrap = containerEl.createDiv();
+      orderWrap.classList.add("io-order-wrap");
+      orderWrap.style.border = "1px solid var(--background-modifier-border)";
+      orderWrap.style.borderRadius = "8px";
+      orderWrap.style.padding = "8px 9px";
+      orderWrap.style.marginBottom = "8px";
+      const orderHeader = orderWrap.createEl("div", { text: "Order" });
+      orderHeader.style.fontSize = "14px";
+      orderHeader.style.fontWeight = "600";
+      orderHeader.style.lineHeight = "1.25";
+      orderHeader.style.margin = "0 0 2px 0";
+      if (showInfoTips) {
+        const tipsBlock = orderWrap.createEl("details");
+        tipsBlock.style.margin = "2px 0 6px";
+        const sm = tipsBlock.createEl("summary", { text: "Info & Tips" });
+        sm.style.cursor = "pointer";
+        tipsBlock.createEl("div", { text: "Drag rows inside panels. Left/Right panels are stacked for compact view. Display affects panel label only; strict is system key for config/runtime. Active: yes/no/hotkey_only. Free roam controls non-prefix insertion policy per field." });
+      }
+      deepSession.enabled = true;
+      const tableSettings = orderWrap.createDiv();
+      tableSettings.classList.add("io-order-settings-card");
+      tableSettings.style.border = "1px solid var(--background-modifier-border)";
+      tableSettings.style.borderRadius = "8px";
+      tableSettings.style.padding = "6px 8px";
+      tableSettings.style.marginBottom = "6px";
+      const tableSettingsTitle = tableSettings.createEl("div", { text: "Order Settings" });
+      tableSettingsTitle.style.fontSize = "12px";
+      tableSettingsTitle.style.fontWeight = "600";
+      tableSettingsTitle.style.lineHeight = "1.25";
+      tableSettingsTitle.style.margin = "0 0 2px 0";
+      new Setting(tableSettings).setName("Show Info & Tips").addToggle((t) => {
+        t.setValue(showInfoTips).onChange((v) => {
+          plugin.setConfigPatch({ ui: { orderShowInfoTips: v === true } }, "settings:ui:orderShowInfoTips");
+          deferRefreshSettings(refreshSettings2);
+        });
+        if (!enabled) t.setDisabled(true);
+      });
+      new Setting(tableSettings).setName("Show DeepEditor").addToggle((t) => {
+        t.setValue(showDeepEditor).onChange((v) => {
+          plugin.setConfigPatch({ ui: { orderShowDeepEditor: v === true } }, "settings:ui:orderShowDeepEditor");
+          deferRefreshSettings(refreshSettings2);
+        });
+        if (!enabled) t.setDisabled(true);
+      });
+      const colorSettingRow = new Setting(tableSettings).setName("Show Color Settings").addToggle((t) => {
+        t.setValue(showColorSettingsUi).onChange((v) => {
+          plugin.setConfigPatch({ ui: { orderShowColorSettings: v === true } }, "settings:ui:orderShowColorSettings");
+          deferRefreshSettings(refreshSettings2);
+        });
+        if (!enabled || !showDeepEditor) t.setDisabled(true);
+      });
+      if (!showDeepEditor && colorSettingRow && colorSettingRow.settingEl) colorSettingRow.settingEl.style.opacity = "0.55";
+      const historyRow = orderWrap.createDiv();
+      historyRow.style.display = "flex";
+      historyRow.style.alignItems = "center";
+      historyRow.style.gap = "6px";
+      historyRow.style.margin = "4px 0 8px";
+      const mainTableSubHeader = historyRow.createEl("div", { text: "Order Main Table" });
+      mainTableSubHeader.style.fontSize = "12px";
+      mainTableSubHeader.style.fontWeight = "600";
+      mainTableSubHeader.style.lineHeight = "1.25";
+      const applyDraftBtn = historyRow.createEl("button", { text: "Apply Draft", cls: "mod-cta" });
+      const historyRight = historyRow.createDiv();
+      historyRight.style.marginLeft = "auto";
+      historyRight.style.display = "flex";
+      historyRight.style.alignItems = "center";
+      historyRight.style.justifyContent = "flex-end";
+      historyRight.style.gap = "6px";
+      const undoBtn = historyRight.createEl("button", { text: "\u21B6" });
+      const redoBtn = historyRight.createEl("button", { text: "\u21B7" });
+      const draftInfo = historyRight.createEl("small", { text: "" });
+      const refreshDraftInfo = () => {
+        const cnt = Array.isArray(deepSession.history && deepSession.history.past) ? deepSession.history.past.length : 0;
+        const dirty = deepSession.dirty === true;
+        draftInfo.setText(dirty ? `| ${cnt}` : "| -");
+        undoBtn.disabled = !enabled || cnt === 0;
+        redoBtn.disabled = !enabled || !(Array.isArray(deepSession.history && deepSession.history.future) && deepSession.history.future.length);
+        applyDraftBtn.disabled = !enabled || !dirty;
+      };
+      const orderState = model.orderState;
+      const getOrderKeys = model.getOrderKeys;
+      const typeLabelByKind = {
+        tag: "#tag",
+        wikilink: "[[link]]",
+        element: "element"
+      };
+      const getFieldKind = model.getFieldKind;
+      const getTagVisualRuntime = () => readTagVisualsConfig(plugin.getConfig());
+      const getTagVisualRow = model.getValueVisual;
+      const setTagVisualRow = model.setValueVisual;
+      const getSubKeyForParent = model.getSubKeyForParent;
+      const ensureAllKeys = model.ensureAllKeys;
+      ensureAllKeys();
+      const getPanelLeadCandidates = model.getPanelLeadCandidates;
+      const captureSnapshot = model.captureSnapshot;
+      const applySnapshot = model.applySnapshot;
+      undoBtn.onclick = () => {
+        if (!enabled || typeof deepState.undoHistory !== "function") return;
+        const cur = captureSnapshot();
+        const rs = deepState.undoHistory(deepSession.history, cur);
+        deepSession.history = rs.history;
+        if (!rs.changed) {
+          refreshDraftInfo();
+          return;
+        }
+        applySnapshot(rs.snapshot, "pkm:behavior:order:deep-undo");
+        setDirty(true);
+        renderOrderBoard();
+      };
+      redoBtn.onclick = () => {
+        if (!enabled || typeof deepState.redoHistory !== "function") return;
+        const cur = captureSnapshot();
+        const rs = deepState.redoHistory(deepSession.history, cur);
+        deepSession.history = rs.history;
+        if (!rs.changed) {
+          refreshDraftInfo();
+          return;
+        }
+        applySnapshot(rs.snapshot, "pkm:behavior:order:deep-redo");
+        setDirty(true);
+        renderOrderBoard();
+      };
+      applyDraftBtn.onclick = () => {
+        if (!enabled || !deepSession.dirty) return;
+        const rows = getOrderKeys().filter((k) => !/_sub$/.test(k)).map((k) => {
+          const kind = getFieldKind(k);
+          const out = { key: k, kind };
+          if (kind === "element") {
+            const live = plugin.getConfig();
+            const byField = live && live.pkm && live.pkm.behavior && live.pkm.behavior.elements && live.pkm.behavior.elements.byField ? live.pkm.behavior.elements.byField : {};
+            const ec = byField && byField[k] ? byField[k] : {};
+            const inc = ec && ec.increment ? ec.increment : {};
+            out.emoji = String(ec.emoji || "").trim();
+            out.format = String(ec.format || "").trim();
+            const modeRaw = String(inc.mode || "").trim().toLowerCase();
+            out.behaviorMode = modeRaw === "custom" ? "custom" : modeRaw === "command" ? "command" : "increment";
+            out.incrementBy = inc.incrementBy;
+            out.command = String(inc.command || "").trim();
+            out.customRaw = Array.isArray(inc.customRaw) ? inc.customRaw.slice() : [];
+          }
+          return out;
+        });
+        const vr = typeof deepState.validateDraft === "function" ? deepState.validateDraft({ rows }) : { ok: true, errors: [] };
+        if (!vr.ok) {
+          new Notice3(`[${CONFLICT_FLAG}] apply blocked: ` + String(vr.errors[0] || "validation error"));
+          return;
+        }
+        resetHistory();
+        new Notice3("Order draft applied");
+        refreshDraftInfo();
+      };
+      try {
+        applyDraftBtn.style.display = "none";
+      } catch (_) {
+      }
+      const addRow = orderWrap.createDiv();
+      addRow.style.display = "grid";
+      addRow.style.gridTemplateColumns = "1fr 120px 120px";
+      addRow.style.gap = "6px";
+      addRow.style.margin = "8px 0";
+      const addStrict = addRow.createEl("input");
+      addStrict.type = "text";
+      addStrict.placeholder = "name_strict";
+      if (!enabled) addStrict.disabled = true;
+      const addType = addRow.createEl("select");
+      addType.createEl("option", { text: "tag", value: "tag" });
+      addType.createEl("option", { text: "link", value: "wikilink" });
+      addType.createEl("option", { text: "element", value: "element" });
+      if (!enabled) addType.disabled = true;
+      const addBtn = addRow.createEl("button", { text: "+ Add field", cls: "mod-cta" });
+      if (!enabled) addBtn.disabled = true;
+      addBtn.onclick = () => {
+        if (!enabled) return;
+        const res = model.addField(addStrict.value, addType.value);
+        if (!res.ok) {
+          new Notice3(res.error);
+          return;
+        }
+        addStrict.value = "";
+        renderOrderBoard();
+      };
+      const row = orderWrap.createDiv();
+      row.style.display = "grid";
+      row.style.gridTemplateColumns = "1fr";
+      row.style.gap = "6px";
+      row.style.border = "1px solid var(--background-modifier-border-hover)";
+      row.style.borderRadius = "6px";
+      row.style.padding = "6px";
+      row.style.background = "var(--background-primary)";
+      const panelCols = {
+        left: row.createDiv(),
+        right: row.createDiv()
+      };
+      let dragKey = "";
+      const orderTipsRegistry = {
+        type: "Field kind: tag, link, or element.",
+        strict: "System key used in config/runtime.",
+        display: "UI label shown in panels.",
+        subtags: "Enable or disable subtag lane for this field.",
+        roam: "Controls non-prefix insertion behavior.",
+        active: "yes/no/hotkey_only runtime participation."
+      };
+      const addTipIcon = (host, tipKey) => {
+        if (!showInfoTips) return;
+        const tipText = String(orderTipsRegistry[tipKey] || "").trim();
+        if (!tipText) return;
+        const icon = host.createEl("span", { text: " \u24D8" });
+        icon.style.opacity = "0.7";
+        icon.style.cursor = "help";
+        let timer = null;
+        let popup = null;
+        const hide = () => {
+          if (timer) clearTimeout(timer);
+          timer = null;
+          if (popup && popup.remove) popup.remove();
+          popup = null;
+        };
+        icon.onmouseleave = hide;
+        icon.onmouseenter = () => {
+          hide();
+          timer = setTimeout(() => {
+            popup = document.createElement("div");
+            popup.textContent = tipText;
+            popup.style.position = "fixed";
+            popup.style.zIndex = "10000";
+            popup.style.maxWidth = "260px";
+            popup.style.padding = "6px 8px";
+            popup.style.borderRadius = "6px";
+            popup.style.border = "1px solid var(--background-modifier-border)";
+            popup.style.background = "var(--background-primary)";
+            popup.style.fontSize = "12px";
+            const r = icon.getBoundingClientRect();
+            popup.style.left = `${Math.round(r.left)}px`;
+            popup.style.top = `${Math.round(r.bottom + 6)}px`;
+            document.body.appendChild(popup);
+          }, 300);
+        };
+      };
+      const moveKey = (toPanel, key, beforeKey) => {
+        if (!key) return;
+        model.moveKey(toPanel, key, beforeKey);
+        renderOrderBoard();
+      };
+      const getOrderTypeBubblePalette = (kindRaw) => {
+        const kind = String(kindRaw || "").trim().toLowerCase();
+        if (kind === "tag") {
+          return {
+            bg: "rgba(70, 130, 180, 0.16)",
+            border: "rgba(70, 130, 180, 0.42)"
+          };
+        }
+        if (kind === "wikilink" || kind === "link") {
+          return {
+            bg: "rgba(46, 139, 87, 0.16)",
+            border: "rgba(46, 139, 87, 0.42)"
+          };
+        }
+        return {
+          bg: "rgba(205, 133, 63, 0.16)",
+          border: "rgba(205, 133, 63, 0.42)"
+        };
+      };
+      const collectYamlSuggestionKeys = () => {
+        try {
+          const app2 = plugin && plugin.app ? plugin.app : null;
+          if (!app2 || !app2.vault || !app2.metadataCache || typeof app2.vault.getMarkdownFiles !== "function") return [];
+          const files = app2.vault.getMarkdownFiles();
+          const out = [];
+          const seen = /* @__PURE__ */ new Set();
+          for (let i = 0; i < files.length; i++) {
+            const path = String(files[i] && files[i].path || "").trim();
+            if (!path) continue;
+            const cache = typeof app2.metadataCache.getCache === "function" ? app2.metadataCache.getCache(path) : null;
+            const fm = cache && cache.frontmatter && typeof cache.frontmatter === "object" ? cache.frontmatter : null;
+            if (!fm) continue;
+            for (const key of Object.keys(fm)) {
+              const k = String(key || "").trim();
+              if (!k || seen.has(k.toLowerCase())) continue;
+              seen.add(k.toLowerCase());
+              out.push(k);
+            }
+          }
+          out.sort((a, b) => a.localeCompare(b, void 0, { sensitivity: "base" }));
+          return out;
+        } catch (_) {
+          return [];
+        }
+      };
+      let yamlSuggestionKeysCache = collectYamlSuggestionKeys();
+      const getYamlSuggestionKeys = () => {
+        const fresh = collectYamlSuggestionKeys();
+        if (Array.isArray(fresh) && fresh.length) {
+          yamlSuggestionKeysCache = fresh;
+          return fresh;
+        }
+        return Array.isArray(yamlSuggestionKeysCache) ? yamlSuggestionKeysCache : [];
+      };
+      const attachYamlSuggestionDropdown = (inputEl, onPick) => {
+        if (!inputEl || typeof document === "undefined" || !document.body) return () => {
+        };
+        const popup = document.createElement("div");
+        document.body.appendChild(popup);
+        popup.style.position = "absolute";
+        popup.style.display = "none";
+        popup.style.maxHeight = "160px";
+        popup.style.overflowY = "auto";
+        popup.style.zIndex = "10000";
+        popup.style.background = "var(--background-primary)";
+        popup.style.border = "1px solid var(--background-modifier-border)";
+        popup.style.borderRadius = "6px";
+        popup.style.padding = "4px";
+        popup.style.boxShadow = "0 6px 18px rgba(0,0,0,0.12)";
+        popup.style.fontSize = "12px";
+        popup.style.lineHeight = "1.35";
+        let activeIndex = -1;
+        let visibleRows = [];
+        const hidePopup = () => {
+          activeIndex = -1;
+          popup.style.display = "none";
+        };
+        const applyActiveStyles = () => {
+          for (let i = 0; i < visibleRows.length; i++) {
+            const rowEl = visibleRows[i];
+            if (!rowEl) continue;
+            if (i === activeIndex) {
+              rowEl.style.background = "var(--background-modifier-hover)";
+              rowEl.style.outline = "1px solid var(--background-modifier-border)";
+            } else {
+              rowEl.style.background = "transparent";
+              rowEl.style.outline = "none";
+            }
+          }
+        };
+        const placePopup = () => {
+          const r = inputEl.getBoundingClientRect();
+          popup.style.left = `${Math.round(r.left)}px`;
+          popup.style.top = `${Math.round(r.bottom + 2)}px`;
+          popup.style.minWidth = `${Math.round(r.width)}px`;
+        };
+        const render = (showAll) => {
+          popup.replaceChildren();
+          visibleRows = [];
+          activeIndex = -1;
+          const q = String(inputEl.value || "").trim().toLowerCase();
+          const keys = getYamlSuggestionKeys();
+          const rows = showAll && !q ? keys.slice(0, 30) : keys.filter((x) => String(x || "").toLowerCase().includes(q)).slice(0, 30);
+          if (!rows.length) {
+            const empty = document.createElement("div");
+            empty.textContent = keys.length ? "No matches" : "No YAML properties found in vault";
+            empty.style.padding = "4px 8px";
+            empty.style.opacity = "0.7";
+            popup.appendChild(empty);
+            placePopup();
+            popup.style.display = "block";
+            return;
+          }
+          for (let i = 0; i < rows.length; i++) {
+            const opt = document.createElement("div");
+            opt.textContent = rows[i];
+            opt.style.padding = "4px 8px";
+            opt.style.borderRadius = "4px";
+            opt.style.cursor = "pointer";
+            opt.onmouseenter = () => {
+              activeIndex = i;
+              applyActiveStyles();
+            };
+            opt.onmousedown = (ev) => {
+              ev.preventDefault();
+              inputEl.value = rows[i];
+              hidePopup();
+              if (typeof onPick === "function") onPick(rows[i]);
+              inputEl.dispatchEvent(new Event("change"));
+            };
+            visibleRows.push(opt);
+            popup.appendChild(opt);
+          }
+          activeIndex = 0;
+          applyActiveStyles();
+          placePopup();
+          popup.style.display = "block";
+        };
+        const onFocus = () => render(true);
+        const onInput = () => render(false);
+        const onClick = () => render(true);
+        const onBlur = () => {
+          setTimeout(() => hidePopup(), 120);
+        };
+        const onKeydown = (ev) => {
+          if (popup.style.display === "none") {
+            if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+              ev.preventDefault();
+              render(true);
+            }
+            return;
+          }
+          if (ev.key === "Escape") {
+            hidePopup();
+            return;
+          }
+          if (ev.key === "ArrowDown") {
+            ev.preventDefault();
+            if (visibleRows.length) {
+              activeIndex = Math.min(visibleRows.length - 1, activeIndex + 1);
+              applyActiveStyles();
+            }
+            return;
+          }
+          if (ev.key === "ArrowUp") {
+            ev.preventDefault();
+            if (visibleRows.length) {
+              activeIndex = Math.max(0, activeIndex - 1);
+              applyActiveStyles();
+            }
+            return;
+          }
+          if (ev.key === "Enter") {
+            if (activeIndex >= 0 && activeIndex < visibleRows.length) {
+              ev.preventDefault();
+              const selected = String(visibleRows[activeIndex].textContent || "").trim();
+              if (selected && selected !== "No matches" && selected !== "No YAML properties found in vault") {
+                inputEl.value = selected;
+                hidePopup();
+                if (typeof onPick === "function") onPick(selected);
+                inputEl.dispatchEvent(new Event("change"));
+              }
+            }
+          }
+        };
+        const onDocMouseDown = (ev) => {
+          const t = ev && ev.target ? ev.target : null;
+          if (t === inputEl || popup.contains(t)) return;
+          hidePopup();
+        };
+        const onWindowResize = () => {
+          if (popup.style.display !== "none") placePopup();
+        };
+        inputEl.addEventListener("focus", onFocus);
+        inputEl.addEventListener("input", onInput);
+        inputEl.addEventListener("click", onClick);
+        inputEl.addEventListener("blur", onBlur);
+        inputEl.addEventListener("keydown", onKeydown);
+        window.addEventListener("resize", onWindowResize);
+        document.addEventListener("mousedown", onDocMouseDown);
+        return () => {
+          try {
+            inputEl.removeEventListener("focus", onFocus);
+          } catch (_) {
+          }
+          try {
+            inputEl.removeEventListener("input", onInput);
+          } catch (_) {
+          }
+          try {
+            inputEl.removeEventListener("click", onClick);
+          } catch (_) {
+          }
+          try {
+            inputEl.removeEventListener("blur", onBlur);
+          } catch (_) {
+          }
+          try {
+            inputEl.removeEventListener("keydown", onKeydown);
+          } catch (_) {
+          }
+          try {
+            window.removeEventListener("resize", onWindowResize);
+          } catch (_) {
+          }
+          try {
+            document.removeEventListener("mousedown", onDocMouseDown);
+          } catch (_) {
+          }
+          try {
+            popup.remove();
+          } catch (_) {
+          }
+        };
+      };
+      const renderPanel = (panelKey, title) => {
+        const host = panelCols[panelKey];
+        host.empty();
+        host.style.border = "none";
+        host.style.borderRadius = "0";
+        host.style.padding = "0";
+        host.style.marginBottom = panelKey === "left" ? "4px" : "0";
+        const panelWidth = Math.max(0, Math.round(host.getBoundingClientRect && host.getBoundingClientRect().width || host.clientWidth || 0));
+        const compactCols = panelWidth > 0 && panelWidth < 920;
+        const ORDER_COL_HANDLE = compactCols ? "32px" : "34px";
+        const ORDER_COL_TYPE = compactCols ? "58px" : "62px";
+        const ORDER_COL_EQ = compactCols ? "minmax(94px, 1.5fr)" : "minmax(128px, 1.75fr)";
+        const ORDER_COL_STRICT = ORDER_COL_EQ;
+        const ORDER_COL_DISPLAY = ORDER_COL_EQ;
+        const ORDER_COL_PREFIX = compactCols ? "minmax(80px, 1.1fr)" : "minmax(96px, 1.2fr)";
+        const ORDER_COL_YAML = ORDER_COL_EQ;
+        const ORDER_COL_SUB = compactCols ? "40px" : "44px";
+        const ORDER_COL_ROAM = compactCols ? "54px" : "58px";
+        const ORDER_COL_ACTIVE = compactCols ? "50px" : "54px";
+        const ORDER_COL_DELETE = "28px";
+        const cols = `${ORDER_COL_HANDLE} ${ORDER_COL_TYPE} ${ORDER_COL_STRICT} ${ORDER_COL_DISPLAY} ${ORDER_COL_PREFIX} ${ORDER_COL_YAML} ${ORDER_COL_SUB} ${ORDER_COL_ROAM} ${ORDER_COL_ACTIVE} ${ORDER_COL_DELETE}`;
+        if (panelKey === "left") {
+          const head = host.createDiv();
+          head.style.display = "grid";
+          head.style.gridTemplateColumns = cols;
+          head.style.gap = "8px";
+          head.style.padding = "0 6px 4px";
+          head.style.opacity = "0.85";
+          head.createEl("small", { text: "" });
+          const typeHead = head.createEl("small", { text: "type" });
+          typeHead.style.marginLeft = "4px";
+          addTipIcon(typeHead, "type");
+          head.createEl("small", { text: "name_strict" });
+          addTipIcon(head.lastChild, "strict");
+          head.createEl("small", { text: "name_display" });
+          addTipIcon(head.lastChild, "display");
+          head.createEl("small", { text: "" });
+          head.createEl("small", { text: "YAML" });
+          head.createEl("small", { text: "subtags on/off" });
+          addTipIcon(head.lastChild, "subtags");
+          head.createEl("small", { text: "Free roam" });
+          addTipIcon(head.lastChild, "roam");
+          head.createEl("small", { text: "Active" });
+          addTipIcon(head.lastChild, "active");
+          head.createEl("small", { text: "" });
+          const titleEl = host.createEl("div", { text: title });
+          titleEl.style.fontSize = "12px";
+          titleEl.style.fontWeight = "600";
+          titleEl.style.lineHeight = "1.25";
+          titleEl.style.margin = "1px 0 2px 0";
+        } else {
+          const titleEl = host.createEl("div", { text: title });
+          titleEl.style.fontSize = "12px";
+          titleEl.style.fontWeight = "600";
+          titleEl.style.lineHeight = "1.25";
+          titleEl.style.margin = "1px 0 2px 0";
+        }
+        const list = host.createDiv();
+        list.style.display = "flex";
+        list.style.flexDirection = "column";
+        list.style.gap = "4px";
+        list.style.marginTop = "0";
+        const addDropZone = (beforeKey) => {
+          const dz = list.createDiv();
+          dz.style.height = "6px";
+          dz.style.borderRadius = "4px";
+          dz.style.border = "1px dashed transparent";
+          dz.ondragover = (e) => {
+            e.preventDefault();
+            if (!enabled || !dragKey) return;
+            dz.style.border = "1px dashed var(--text-accent)";
+            dz.style.background = "var(--background-modifier-hover)";
+          };
+          dz.ondragleave = () => {
+            dz.style.border = "1px dashed transparent";
+            dz.style.background = "transparent";
+          };
+          dz.ondrop = (e) => {
+            e.preventDefault();
+            dz.style.border = "1px dashed transparent";
+            dz.style.background = "transparent";
+            if (!enabled || !dragKey) return;
+            moveKey(panelKey, dragKey, beforeKey || "");
+          };
+        };
+        const arr = panelKey === "right" ? orderState.right : orderState.left;
+        for (const k of arr) {
+          try {
+            addDropZone(k);
+            const item = list.createDiv();
+            item.style.display = "grid";
+            item.style.gridTemplateColumns = cols;
+            item.style.alignItems = "center";
+            item.style.gap = "8px";
+            item.style.padding = "4px 6px";
+            item.style.border = "1px solid var(--background-modifier-border)";
+            item.style.borderRadius = "6px";
+            item.style.background = "var(--background-secondary)";
+            const handleCell = item.createDiv();
+            handleCell.style.display = "flex";
+            handleCell.style.alignItems = "center";
+            handleCell.style.gap = "4px";
+            const handle = handleCell.createEl("span", { text: "\u22EE\u22EE" });
+            handle.style.cursor = enabled ? "grab" : "default";
+            handle.style.opacity = enabled ? "0.85" : "0.45";
+            handle.style.userSelect = "none";
+            handle.draggable = !!enabled;
+            handle.ondragstart = () => {
+              dragKey = k;
+              handle.style.cursor = "grabbing";
+            };
+            handle.ondragend = () => {
+              dragKey = "";
+              handle.style.cursor = enabled ? "grab" : "default";
+            };
+            const expandBtnInline = handleCell.createEl("button", { text: deepSession.expanded[k] ? "\u25BE" : "\u25B8" });
+            expandBtnInline.style.minWidth = "18px";
+            expandBtnInline.style.padding = "0 2px";
+            expandBtnInline.style.lineHeight = "1";
+            expandBtnInline.style.border = "none";
+            expandBtnInline.style.background = "transparent";
+            expandBtnInline.style.opacity = "0.9";
+            expandBtnInline.style.cursor = enabled ? "pointer" : "default";
+            expandBtnInline.disabled = !enabled || !showDeepEditor;
+            if (!showDeepEditor) expandBtnInline.style.display = "none";
+            expandBtnInline.onclick = () => {
+              deepSession.expanded[k] = !deepSession.expanded[k];
+              renderOrderBoard();
+            };
+            const kindPill = item.createEl("small", { text: typeLabelByKind[getFieldKind(k)] || "#tag" });
+            kindPill.style.padding = "1px 6px";
+            kindPill.style.border = "1px solid var(--background-modifier-border)";
+            kindPill.style.borderRadius = "999px";
+            kindPill.style.opacity = "0.85";
+            kindPill.style.textAlign = "center";
+            kindPill.style.marginLeft = "4px";
+            const kindNow = getFieldKind(k);
+            const kindPalette = getOrderTypeBubblePalette(kindNow);
+            kindPill.style.background = kindPalette.bg;
+            kindPill.style.borderColor = kindPalette.border;
+            const strictInput = item.createEl("input");
+            strictInput.type = "text";
+            const strictName = String(orderState.strictNames && orderState.strictNames[k] || k);
+            strictInput.value = strictName;
+            strictInput.style.minWidth = "0";
+            strictInput.style.width = "100%";
+            strictInput.style.boxSizing = "border-box";
+            strictInput.style.fontSize = "11px";
+            strictInput.disabled = !enabled;
+            strictInput.title = "System key used by config/runtime/config note.";
+            strictInput.onchange = async () => {
+              if (!enabled) return;
+              const oldName = String(orderState.strictNames && orderState.strictNames[k] || k);
+              const res = await model.setStrictName(k, strictInput.value);
+              if (!res.ok) {
+                new Notice3(res.error);
+                strictInput.value = oldName;
+                return;
+              }
+              if (res.changed === false) return;
+              renderOrderBoard();
+            };
+            const labelInput = item.createEl("input");
+            labelInput.type = "text";
+            labelInput.value = orderState.labels && orderState.labels[k] || k;
+            labelInput.style.minWidth = "0";
+            labelInput.style.width = "100%";
+            labelInput.style.boxSizing = "border-box";
+            labelInput.style.fontSize = "11px";
+            if (!enabled) labelInput.disabled = true;
+            labelInput.onchange = () => {
+              const v = String(labelInput.value || "").trim();
+              if (!v || !enabled) return;
+              model.setLabel(k, v);
+              renderOrderBoard();
+            };
+            const prefixSpacer = item.createDiv();
+            prefixSpacer.style.width = "100%";
+            prefixSpacer.style.minWidth = "0";
+            const yamlInput = item.createEl("input");
+            yamlInput.type = "text";
+            yamlInput.style.minWidth = "0";
+            yamlInput.style.width = "100%";
+            yamlInput.style.boxSizing = "border-box";
+            yamlInput.style.fontSize = "11px";
+            yamlInput.value = String(orderState.propertiesByField && orderState.propertiesByField[k] || "").trim();
+            yamlInput.placeholder = "yaml property";
+            if (!enabled) yamlInput.disabled = true;
+            if (showInfoTips) yamlInput.title = "YAML property used for this field.";
+            const detachYamlDropdown = attachYamlSuggestionDropdown(yamlInput);
+            yamlInput.onchange = () => {
+              if (!enabled) return;
+              model.setProperty(k, yamlInput.value);
+            };
+            const detachHandler = () => detachYamlDropdown();
+            onNodeDetachedOnce(item, detachHandler);
+            const subKey = getSubKeyForParent(k) || "";
+            if (subKey) {
+              const subBtn = item.createEl("button");
+              subBtn.ariaLabel = "toggle sub " + k;
+              subBtn.style.width = "100%";
+              subBtn.style.minWidth = "0";
+              subBtn.style.boxSizing = "border-box";
+              subBtn.style.padding = "2px 4px";
+              subBtn.style.cursor = enabled ? "pointer" : "default";
+              const subActive = String(orderState.active && orderState.active[subKey] || (orderState.enabled && orderState.enabled[subKey] !== false ? "yes" : "no")).trim().toLowerCase();
+              setIcon2(subBtn, subActive === "no" ? "unlink-2" : "link-2");
+              if (!enabled) subBtn.disabled = true;
+              subBtn.onclick = () => {
+                if (!enabled) return;
+                model.toggleSub(subKey);
+                renderOrderBoard();
+              };
+            } else {
+              const gapCell = item.createDiv();
+              gapCell.setText("-");
+              gapCell.style.opacity = "0.45";
+              gapCell.style.textAlign = "center";
+            }
+            const freeRoamSelect = item.createEl("select");
+            freeRoamSelect.style.width = "100%";
+            freeRoamSelect.style.minWidth = "0";
+            freeRoamSelect.style.boxSizing = "border-box";
+            freeRoamSelect.style.padding = "2px 4px";
+            freeRoamSelect.createEl("option", { text: "off", value: "off" });
+            freeRoamSelect.createEl("option", { text: "minimal", value: "minimal" });
+            freeRoamSelect.createEl("option", { text: "full", value: "full" });
+            const freeRoamMode = String(orderState.freeRoam && orderState.freeRoam[k] || "off").trim().toLowerCase();
+            freeRoamSelect.value = freeRoamMode === "minimal" || freeRoamMode === "full" ? freeRoamMode : "off";
+            if (!enabled) freeRoamSelect.disabled = true;
+            freeRoamSelect.onchange = () => {
+              if (!enabled) return;
+              model.setFreeRoam(k, freeRoamSelect.value);
+            };
+            const activeSelect = item.createEl("select");
+            activeSelect.style.width = "100%";
+            activeSelect.style.minWidth = "0";
+            activeSelect.style.boxSizing = "border-box";
+            activeSelect.style.padding = "2px 4px";
+            const activeMode = String(orderState.active && orderState.active[k] || (orderState.enabled && orderState.enabled[k] !== false ? "yes" : "no")).trim().toLowerCase();
+            activeSelect.createEl("option", { text: "yes", value: "yes" });
+            activeSelect.createEl("option", { text: "no", value: "no" });
+            activeSelect.createEl("option", { text: "hotkey_only", value: "hotkey_only" });
+            activeSelect.value = activeMode === "no" || activeMode === "hotkey_only" ? activeMode : "yes";
+            if (!enabled) activeSelect.disabled = true;
+            activeSelect.onchange = () => {
+              if (!enabled) return;
+              model.setActive(k, activeSelect.value);
+              renderOrderBoard();
+            };
+            const delBtn = item.createEl("button");
+            delBtn.ariaLabel = "delete " + k;
+            setIcon2(delBtn, "trash-2");
+            delBtn.style.minWidth = "28px";
+            delBtn.style.maxWidth = "28px";
+            delBtn.style.width = "28px";
+            delBtn.style.height = "24px";
+            delBtn.style.padding = "2px 4px";
+            delBtn.style.background = "#d32f2f";
+            delBtn.style.color = "#ffffff";
+            delBtn.style.border = "none";
+            delBtn.style.display = "inline-flex";
+            delBtn.style.alignItems = "center";
+            delBtn.style.justifyContent = "center";
+            if (!enabled) delBtn.disabled = true;
+            delBtn.onclick = async () => {
+              if (!enabled) return;
+              const ok = await confirmDeleteModal2(k);
+              if (!ok) return;
+              model.deleteField(k);
+              renderOrderBoard();
+            };
+            if (showDeepEditor && deepSession.expanded[k]) {
+              const details = list.createDiv();
+              details.style.margin = "-2px 0 4px 20px";
+              details.style.padding = "6px";
+              details.style.border = "1px dashed var(--background-modifier-border)";
+              details.style.borderRadius = "6px";
+              details.style.background = "var(--background-primary)";
+              const kind = getFieldKind(k);
+              if (kind === "tag") details.style.margin = "-2px 0 4px 0";
+              if (deepState && deepState.__unavailable === true) {
+                const warn = details.createDiv();
+                warn.style.marginTop = "6px";
+                warn.style.padding = "6px 8px";
+                warn.style.border = "1px solid var(--text-error)";
+                warn.style.borderRadius = "6px";
+                warn.style.background = "var(--background-primary-alt)";
+                warn.style.fontSize = "12px";
+                warn.style.whiteSpace = "pre-wrap";
+                warn.setText(`Order Deep Editor unavailable: ${String(deepState.__unavailableReason || __orderDeepEditorStateDiag || "unknown")}`);
+              }
+              if (kind === "element") {
+                const elemEditor = model.elementEditor(k);
+                const grid = details.createDiv();
+                grid.style.display = "grid";
+                grid.style.gridTemplateColumns = "80px 1fr";
+                grid.style.gap = "6px";
+                const addCell = (label, init, onSave) => {
+                  grid.createEl("small", { text: label });
+                  const i = grid.createEl("input");
+                  i.type = "text";
+                  i.value = init;
+                  i.placeholder = label === "Emoji" ? "place any emoji you want, only one per field" : "write any format you want, i.e. YYYY-MM-DD hh:mm, 000-000";
+                  i.disabled = !enabled;
+                  const commit = () => {
+                    if (!enabled) return;
+                    markSnapshot(captureSnapshot());
+                    onSave(String(i.value || ""));
+                    renderOrderBoard();
+                  };
+                  i.onchange = () => {
+                    commit();
+                  };
+                  return i;
+                };
+                addCell("Emoji", elemEditor.emoji, (v) => elemEditor.setEmoji(v));
+                addCell("Format", elemEditor.format, (v) => elemEditor.setFormat(v));
+                grid.createEl("small", { text: "Behavior" });
+                const modeSelect = grid.createEl("select");
+                modeSelect.style.appearance = "none";
+                modeSelect.style.paddingRight = "18px";
+                modeSelect.style.backgroundImage = "linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%)";
+                modeSelect.style.backgroundPosition = "calc(100% - 12px) calc(50% - 2px), calc(100% - 7px) calc(50% - 2px)";
+                modeSelect.style.backgroundSize = "5px 5px, 5px 5px";
+                modeSelect.style.backgroundRepeat = "no-repeat";
+                modeSelect.createEl("option", { text: "Increment by X", value: "increment" });
+                modeSelect.createEl("option", { text: "Command Y", value: "command" });
+                modeSelect.createEl("option", { text: "Custom increment", value: "custom" });
+                modeSelect.value = elemEditor.mode;
+                modeSelect.disabled = !enabled;
+                modeSelect.onchange = () => {
+                  if (!enabled) return;
+                  markSnapshot(captureSnapshot());
+                  elemEditor.setMode(modeSelect.value);
+                  renderOrderBoard();
+                };
+                const cmdWrap = details.createDiv();
+                cmdWrap.style.display = "flex";
+                cmdWrap.style.gap = "6px";
+                cmdWrap.style.marginTop = "6px";
+                const incInput = cmdWrap.createEl("input");
+                incInput.type = "number";
+                incInput.value = String(elemEditor.incrementBy);
+                incInput.style.width = "86px";
+                const behaviorHint = cmdWrap.createEl("small");
+                behaviorHint.style.opacity = "0.85";
+                behaviorHint.style.alignSelf = "center";
+                const cmdSelect = cmdWrap.createEl("select");
+                for (const opt of ["now", "randomN", "randomE"]) cmdSelect.createEl("option", { text: opt, value: opt });
+                cmdSelect.value = elemEditor.command;
+                const customIntro = details.createEl("small", { text: "hotkey will behave as you set it up below from top to bottom. Follow the format below and create powerful automatizations!" });
+                customIntro.style.display = "none";
+                customIntro.style.opacity = "0.9";
+                customIntro.style.marginTop = "6px";
+                const customWrap = details.createDiv();
+                customWrap.style.display = "none";
+                customWrap.style.gridTemplateColumns = "32px 1fr";
+                customWrap.style.gap = "6px";
+                customWrap.style.marginTop = "6px";
+                const customNums = customWrap.createEl("pre");
+                customNums.style.margin = "0";
+                customNums.style.padding = "7px 4px";
+                customNums.style.border = "1px solid var(--background-modifier-border)";
+                customNums.style.borderRadius = "6px";
+                customNums.style.background = "var(--background-secondary)";
+                customNums.style.userSelect = "none";
+                customNums.style.opacity = "0.75";
+                customNums.style.fontSize = "12px";
+                customNums.style.lineHeight = "1.45";
+                customNums.style.textAlign = "right";
+                const customArea = customWrap.createEl("textarea");
+                customArea.rows = 3;
+                customArea.style.width = "100%";
+                customArea.style.fontSize = "12px";
+                customArea.style.lineHeight = "1.45";
+                customArea.value = elemEditor.customRaw.join("\n");
+                customArea.placeholder = "1. X (Y)\n- X - increment number\n- Y - how many hotkey taps before moving to the next step\n- i.e. 1 (3) -> for next 3 taps the element will increase at 1\n\n2. X\n- if it's not clear - it's just only X without (Y)\n- it works only for 1 tap before moving next (but if it is the last item - it will work for every next press on hotkey till the end of times)\n\n3. END\n- end of cycle, it deletes the element and next press will start from (1)";
+                const formatCustomNumbered = (rows) => {
+                  const src = Array.isArray(rows) ? rows : [];
+                  const out = [];
+                  for (let i = 0; i < src.length; i++) out.push(`${i + 1}.`);
+                  return out.join("\n");
+                };
+                const syncCustomNums = () => {
+                  const rows = String(customArea.value || "").split(/\r?\n/);
+                  const count = Math.max(1, rows.length);
+                  const nums = [];
+                  for (let i = 0; i < count; i++) nums.push(`${i + 1}.`);
+                  customNums.setText(nums.join("\n"));
+                };
+                syncCustomNums();
+                const syncModeVis = () => {
+                  const m = String(modeSelect.value || "increment");
+                  incInput.style.display = m === "increment" ? "" : "none";
+                  cmdSelect.style.display = m === "command" ? "" : "none";
+                  customWrap.style.display = m === "custom" ? "grid" : "none";
+                  customIntro.style.display = m === "custom" ? "block" : "none";
+                  if (m === "command") {
+                    if (cmdWrap.firstChild !== cmdSelect) {
+                      cmdWrap.insertBefore(cmdSelect, behaviorHint);
+                    }
+                  }
+                  if (m === "increment") {
+                    behaviorHint.setText("write a number, each press will increment current value by it");
+                  } else if (m === "command") {
+                    const c = String(cmdSelect.value || "now");
+                    if (c === "randomN") behaviorHint.setText("will input random numbers (0-9) in Format you enter above");
+                    else if (c === "randomE") behaviorHint.setText("will input random elements (i.e. af3A#-1z-cv) in Format you enter above");
+                    else behaviorHint.setText("will input current date and time in Format you enter above");
+                  } else {
+                    behaviorHint.setText("custom increment sequence");
+                  }
+                };
+                syncModeVis();
+                modeSelect.addEventListener("change", syncModeVis);
+                incInput.onchange = () => {
+                  if (!enabled) return;
+                  markSnapshot(captureSnapshot());
+                  elemEditor.setIncrementBy(Number(incInput.value || 1));
+                };
+                cmdSelect.onchange = () => {
+                  if (!enabled) return;
+                  markSnapshot(captureSnapshot());
+                  elemEditor.setCommand(cmdSelect.value);
+                  syncModeVis();
+                };
+                const commitCustomRaw = () => {
+                  if (!enabled) return;
+                  markSnapshot(captureSnapshot());
+                  syncCustomNums();
+                  elemEditor.setCustomRaw(customArea.value || "");
+                };
+                customArea.onchange = () => {
+                  commitCustomRaw();
+                };
+                customArea.oninput = () => {
+                  syncCustomNums();
+                };
+              } else {
+                const values = model.valuesEditor(k);
+                const parentField = values.parentField;
+                const subField = values.subField;
+                const parentFieldId = values.parentFieldId;
+                const normalizeCheckbox = values.normalizeCheckbox;
+                const tree = values.tree;
+                const wikilinkParentChoices = values.linkParents;
+                const inferWikilinkBindingValue = values.inferLinkBinding;
+                const reorderTreeByDrag = values.reorder;
+                const listWrap = details.createDiv();
+                listWrap.style.marginTop = "6px";
+                let dragMeta = null;
+                const renderTokenRow = (token, level, parentToken) => {
+                  const rowWrap = listWrap.createDiv();
+                  rowWrap.style.display = "flex";
+                  rowWrap.style.flexDirection = "column";
+                  rowWrap.style.gap = "4px";
+                  rowWrap.style.marginBottom = "10px";
+                  rowWrap.style.width = "100%";
+                  rowWrap.style.maxWidth = "100%";
+                  rowWrap.style.boxSizing = "border-box";
+                  rowWrap.style.overflowX = "hidden";
+                  rowWrap.style.position = "relative";
+                  if (kind === "tag") {
+                    rowWrap.style.display = "flex";
+                    rowWrap.style.flexDirection = "column";
+                    rowWrap.style.gap = "4px";
+                    rowWrap.style.position = "relative";
+                    rowWrap.style.marginBottom = "8px";
+                  }
+                  const rr = rowWrap.createDiv();
+                  rr.style.display = "flex";
+                  rr.style.alignItems = "center";
+                  rr.style.gap = "4px";
+                  rr.style.marginLeft = level === 1 ? "29px" : "16px";
+                  rr.style.width = level === 1 ? "calc(100% - 29px)" : "calc(100% - 16px)";
+                  rr.style.minWidth = "0";
+                  rr.style.maxWidth = "100%";
+                  rr.style.overflow = "hidden";
+                  if (kind === "tag") {
+                    rr.style.display = "grid";
+                    rr.style.gridTemplateColumns = cols;
+                    rr.style.columnGap = "6px";
+                    rr.style.rowGap = "0";
+                    rr.style.alignItems = "center";
+                    rr.style.gridAutoRows = "28px";
+                    rr.style.marginLeft = level === 1 ? "20px" : "10px";
+                    rr.style.width = level === 1 ? "calc(100% - 20px)" : "calc(100% - 10px)";
+                  }
+                  if (level === 1 && kind === "tag") {
+                    rr.style.background = "var(--background-modifier-hover)";
+                    rr.style.border = "1px solid var(--background-modifier-border)";
+                    rr.style.borderRadius = "6px";
+                    rr.style.padding = "4px 0";
+                  }
+                  const setDeepTip = (el2, text) => {
+                    if (!showInfoTips || !el2) return;
+                    const tip = String(text || "").trim();
+                    if (!tip) return;
+                    try {
+                      el2.title = tip;
+                    } catch (_) {
+                    }
+                  };
+                  const dragHandleHost = rowWrap;
+                  const dragHandle = dragHandleHost.createEl("span", { text: "\u22EE\u22EE" });
+                  dragHandle.style.opacity = "0.75";
+                  dragHandle.style.cursor = enabled ? "grab" : "default";
+                  dragHandle.style.userSelect = "none";
+                  dragHandle.style.position = "absolute";
+                  dragHandle.style.left = level === 1 ? "8px" : "0px";
+                  dragHandle.style.top = "50%";
+                  dragHandle.style.transform = "translateY(-50%)";
+                  dragHandle.style.display = "inline-flex";
+                  dragHandle.style.alignItems = "center";
+                  dragHandle.style.justifyContent = "center";
+                  dragHandle.style.zIndex = "1";
+                  dragHandle.style.flex = "0 0 14px";
+                  dragHandle.style.minWidth = "14px";
+                  dragHandle.style.width = "14px";
+                  dragHandle.style.whiteSpace = "pre";
+                  dragHandle.style.lineHeight = "1";
+                  dragHandle.style.textAlign = "center";
+                  dragHandle.draggable = !!enabled;
+                  if (kind === "tag") {
+                    dragHandle.style.position = "absolute";
+                    dragHandle.style.left = "-4px";
+                    dragHandle.style.top = "50%";
+                    dragHandle.style.transform = "translateY(-50%)";
+                    dragHandle.style.gridColumn = "";
+                    dragHandle.style.gridRow = "";
+                    dragHandle.style.alignSelf = "";
+                    dragHandle.style.justifySelf = "";
+                    dragHandle.style.margin = "0";
+                  }
+                  let resolveDragAnchorY = null;
+                  const syncDragHandlePos = () => {
+                    if (kind === "tag") {
+                      const y = Math.max(0, Number(rr && rr.offsetTop || 0) + Number(rr && rr.offsetHeight || 0) + 3);
+                      dragHandle.style.top = `${y}px`;
+                      dragHandle.style.transform = "translateY(-50%)";
+                      return;
+                    }
+                    const hasColorBlock = kind === "tag" && showDeepEditor && showColorSettingsUi;
+                    if (hasColorBlock) {
+                      let y = NaN;
+                      try {
+                        y = typeof resolveDragAnchorY === "function" ? Number(resolveDragAnchorY()) : NaN;
+                      } catch (_) {
+                        y = NaN;
+                      }
+                      if (!Number.isFinite(y) || y <= 0) {
+                        y = Math.max(0, Number(rr && rr.offsetTop || 0) + Number(rr && rr.offsetHeight || 0) + 2);
+                      }
+                      dragHandle.style.top = `${Math.max(0, y)}px`;
+                      dragHandle.style.transform = "translateY(-50%)";
+                      return;
+                    }
+                    dragHandle.style.top = "50%";
+                    dragHandle.style.transform = "translateY(-50%)";
+                  };
+                  dragHandle.ondragstart = (e) => {
+                    if (!enabled) return;
+                    dragMeta = { level, parentToken: String(parentToken || ""), token: String(token || "") };
+                    dragHandle.style.cursor = "grabbing";
+                    try {
+                      if (e && e.dataTransfer) {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", JSON.stringify(dragMeta));
+                      }
+                    } catch (_) {
+                    }
+                  };
+                  dragHandle.ondragend = () => {
+                    dragMeta = null;
+                    dragHandle.style.cursor = enabled ? "grab" : "default";
+                  };
+                  rr.ondragover = (e) => {
+                    if (!enabled || !dragMeta) return;
+                    const sameLevel = dragMeta.level === level;
+                    const sameParent = level === 0 || String(dragMeta.parentToken || "") === String(parentToken || "");
+                    if (!sameLevel || !sameParent) return;
+                    e.preventDefault();
+                    rr.style.outline = "1px dashed var(--text-accent)";
+                    rr.style.background = "var(--background-modifier-hover)";
+                  };
+                  rr.ondragleave = () => {
+                    rr.style.outline = "";
+                    rr.style.background = "";
+                  };
+                  rr.ondrop = (e) => {
+                    rr.style.outline = "";
+                    rr.style.background = "";
+                    if (!enabled || !dragMeta) return;
+                    e.preventDefault();
+                    const nextTree = reorderTreeByDrag(
+                      Number(dragMeta.level || 0),
+                      String(dragMeta.parentToken || ""),
+                      String(dragMeta.token || ""),
+                      level,
+                      String(parentToken || ""),
+                      String(token || "")
+                    );
+                    if (!nextTree) return;
+                    saveTree(nextTree, "pkm:behavior:order:deep:drag-reorder:" + k);
+                  };
+                  const indentBtn = rr.createEl("button", { text: level === 0 ? "\u2192" : "\u2190" });
+                  indentBtn.style.height = "28px";
+                  if (kind === "tag") {
+                    indentBtn.style.gridColumn = "1";
+                    indentBtn.style.gridRow = "1";
+                    indentBtn.style.justifySelf = "start";
+                    indentBtn.style.marginLeft = "2px";
+                    indentBtn.style.marginRight = "0";
+                  }
+                  setDeepTip(indentBtn, "Move token between parent and child levels.");
+                  indentBtn.disabled = !enabled || kind === "wikilink";
+                  if (kind === "wikilink") {
+                    indentBtn.style.opacity = "0.45";
+                    indentBtn.title = "Hierarchy move is disabled for wikilink rows";
+                  }
+                  const inpt = rr.createEl("input");
+                  inpt.type = "text";
+                  const uiToken = kind === "wikilink" ? String(token || "").replace(/^\[\[/, "").replace(/\]\]$/, "") : token;
+                  inpt.value = uiToken;
+                  const tokenInputWidth = kind === "wikilink" ? level === 0 ? "144px" : "132px" : "126px";
+                  inpt.style.flex = `0 1 ${tokenInputWidth}`;
+                  inpt.style.minWidth = "0";
+                  inpt.style.maxWidth = tokenInputWidth;
+                  inpt.style.height = "28px";
+                  if (kind === "tag") {
+                    inpt.style.width = "100%";
+                    inpt.style.minWidth = "0";
+                    inpt.style.maxWidth = "100%";
+                    inpt.style.flex = "1 1 auto";
+                    inpt.style.boxSizing = "border-box";
+                    inpt.style.gridColumn = "2 / span 2";
+                    inpt.style.gridRow = "1";
+                  }
+                  inpt.disabled = !enabled;
+                  setDeepTip(inpt, kind === "wikilink" ? "Edit link token value." : "Edit tag token value.");
+                  let modeSelect = null;
+                  let checkboxInput = null;
+                  if (kind === "tag") {
+                    const prefixWrap = rr.createDiv();
+                    prefixWrap.style.display = "grid";
+                    prefixWrap.style.gridTemplateColumns = "104px 64px";
+                    prefixWrap.style.columnGap = "8px";
+                    prefixWrap.style.alignItems = "center";
+                    prefixWrap.style.width = "100%";
+                    prefixWrap.style.minWidth = "0";
+                    prefixWrap.style.boxSizing = "border-box";
+                    prefixWrap.style.gridColumn = "4 / span 2";
+                    prefixWrap.style.gridRow = "1";
+                    modeSelect = prefixWrap.createEl("select");
+                    modeSelect.createEl("option", { text: "bullet", value: "bullet" });
+                    modeSelect.createEl("option", { text: "checkbox", value: "checkbox" });
+                    modeSelect.style.width = "104px";
+                    modeSelect.style.minWidth = "104px";
+                    modeSelect.style.maxWidth = "104px";
+                    modeSelect.style.height = "28px";
+                    modeSelect.style.justifySelf = "start";
+                    setDeepTip(modeSelect, "Choose bullet or checkbox prefix mode.");
+                    checkboxInput = prefixWrap.createEl("input");
+                    checkboxInput.type = "text";
+                    checkboxInput.style.width = "64px";
+                    checkboxInput.style.minWidth = "64px";
+                    checkboxInput.style.maxWidth = "64px";
+                    checkboxInput.style.height = "28px";
+                    checkboxInput.style.justifySelf = "start";
+                    checkboxInput.placeholder = "- [ ]";
+                    setDeepTip(checkboxInput, "Checkbox token format: [ ] or [X].");
+                  } else {
+                    modeSelect = rr.createEl("select");
+                    modeSelect.createEl("option", { text: "bullet", value: "bullet" });
+                    modeSelect.createEl("option", { text: "checkbox", value: "checkbox" });
+                    const modeWidth = "76px";
+                    modeSelect.style.width = modeWidth;
+                    modeSelect.style.minWidth = modeWidth;
+                    modeSelect.style.maxWidth = modeWidth;
+                    modeSelect.style.flex = "0 0 auto";
+                    modeSelect.style.height = "28px";
+                    setDeepTip(modeSelect, "Choose bullet or checkbox prefix mode.");
+                    checkboxInput = rr.createEl("input");
+                    checkboxInput.type = "text";
+                    checkboxInput.style.width = "52px";
+                    checkboxInput.style.minWidth = "52px";
+                    checkboxInput.style.maxWidth = "52px";
+                    checkboxInput.style.flex = "0 0 auto";
+                    checkboxInput.style.height = "28px";
+                    checkboxInput.placeholder = "- [ ]";
+                    setDeepTip(checkboxInput, "Checkbox token format: [ ] or [X].");
+                  }
+                  const yamlTokenInput = rr.createEl("input");
+                  yamlTokenInput.type = "text";
+                  const deepYamlWidth = compactCols ? "94px" : "128px";
+                  yamlTokenInput.style.width = kind === "tag" ? deepYamlWidth : "100%";
+                  yamlTokenInput.style.minWidth = kind === "tag" ? deepYamlWidth : "0";
+                  yamlTokenInput.style.maxWidth = kind === "tag" ? deepYamlWidth : "100%";
+                  yamlTokenInput.style.flex = "1 1 auto";
+                  yamlTokenInput.style.boxSizing = "border-box";
+                  if (kind === "tag") yamlTokenInput.style.gridColumn = "6";
+                  if (kind === "tag") yamlTokenInput.style.gridRow = "1";
+                  if (kind === "tag") yamlTokenInput.style.marginLeft = "-4px";
+                  if (kind === "tag") yamlTokenInput.style.justifySelf = "start";
+                  yamlTokenInput.style.height = "28px";
+                  yamlTokenInput.style.fontSize = "11px";
+                  yamlTokenInput.placeholder = "yaml property";
+                  if (kind !== "tag") yamlTokenInput.style.display = "none";
+                  setDeepTip(yamlTokenInput, "Optional token-level YAML override.");
+                  let detachDeepYamlDropdown = () => {
+                  };
+                  if (kind === "tag") {
+                    detachDeepYamlDropdown = attachYamlSuggestionDropdown(yamlTokenInput);
+                  }
+                  let parentFieldSelect = null;
+                  let parentTokenSelect = null;
+                  if (kind === "wikilink") {
+                    parentFieldSelect = rr.createEl("select");
+                    parentFieldSelect.style.width = "104px";
+                    parentFieldSelect.style.minWidth = "104px";
+                    parentFieldSelect.style.maxWidth = "104px";
+                    parentFieldSelect.style.flex = "0 0 auto";
+                    parentFieldSelect.createEl("option", { text: "parent field", value: "" });
+                    setDeepTip(parentFieldSelect, "Choose parent field for link binding.");
+                    for (let pi = 0; pi < wikilinkParentChoices.length; pi++) {
+                      const row2 = wikilinkParentChoices[pi];
+                      parentFieldSelect.createEl("option", { text: row2.strictName, value: row2.fieldId });
+                    }
+                    parentTokenSelect = rr.createEl("select");
+                    parentTokenSelect.style.width = "186px";
+                    parentTokenSelect.style.minWidth = "186px";
+                    parentTokenSelect.style.maxWidth = "186px";
+                    parentTokenSelect.style.flex = "0 0 auto";
+                    parentTokenSelect.createEl("option", { text: "parent token", value: "" });
+                    setDeepTip(parentTokenSelect, "Choose parent token for link binding.");
+                    parentFieldSelect.disabled = !enabled;
+                    parentTokenSelect.disabled = !enabled;
+                  }
+                  const del = rr.createEl("button");
+                  del.ariaLabel = "delete " + token;
+                  setIcon2(del, "trash-2");
+                  del.style.background = "#d32f2f";
+                  del.style.color = "#ffffff";
+                  del.style.width = "28px";
+                  del.style.minWidth = "28px";
+                  del.style.maxWidth = "28px";
+                  del.style.height = "28px";
+                  del.style.padding = "2px 4px";
+                  del.style.border = "none";
+                  del.style.display = "inline-flex";
+                  del.style.alignItems = "center";
+                  del.style.justifyContent = "center";
+                  del.style.marginLeft = kind === "tag" ? "0" : "auto";
+                  if (kind === "tag") del.style.gridColumn = "10";
+                  if (kind === "tag") del.style.gridRow = "1";
+                  if (kind === "tag") del.style.justifySelf = "end";
+                  if (kind === "tag") del.style.marginRight = "0";
+                  del.disabled = !enabled;
+                  setDeepTip(del, "Delete token row.");
+                  const currentRow = level === 0 ? tree.find((x) => x.token === token) || {} : ((tree.find((x) => x.token === parentToken) || {}).children || []).find((x) => x.token === token) || {};
+                  const resolveTokenYamlFromFields = () => {
+                    if (kind !== "tag") return "";
+                    const wanted = typeof deepState.denormToken === "function" ? deepState.denormToken(token) : String(token || "").trim().replace(/^#/, "");
+                    const list2 = level === 0 ? parentField && Array.isArray(parentField.values) ? parentField.values : [] : subField && Array.isArray(subField.values) ? subField.values : [];
+                    for (let i = 0; i < list2.length; i++) {
+                      const row2 = list2[i] && typeof list2[i] === "object" ? list2[i] : null;
+                      if (!row2) continue;
+                      const rowTok = typeof deepState.denormToken === "function" ? deepState.denormToken(row2.token) : String(row2.token || "").trim().replace(/^#/, "");
+                      if (!rowTok || rowTok !== wanted) continue;
+                      return String(row2.yamlProperty || "").trim();
+                    }
+                    return "";
+                  };
+                  const modeNow = String(currentRow.prefixMode || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet";
+                  modeSelect.value = modeNow;
+                  yamlTokenInput.value = String(currentRow.yamlProperty || resolveTokenYamlFromFields() || "").trim();
+                  checkboxInput.value = modeNow === "checkbox" ? String(currentRow.checkboxToken || "").trim() ? `- ${String(currentRow.checkboxToken || "").trim()}` : "- [ ]" : "";
+                  checkboxInput.style.visibility = modeNow === "checkbox" ? "visible" : "hidden";
+                  checkboxInput.style.pointerEvents = modeNow === "checkbox" ? "auto" : "none";
+                  modeSelect.disabled = !enabled;
+                  checkboxInput.disabled = !enabled;
+                  let bindingValue = kind === "wikilink" ? inferWikilinkBindingValue(token) : "";
+                  const fillParentTokens = () => {
+                    if (kind !== "wikilink" || !parentFieldSelect || !parentTokenSelect) return;
+                    const fieldId = String(parentFieldSelect.value || "").trim();
+                    parentTokenSelect.empty();
+                    parentTokenSelect.createEl("option", { text: "parent token", value: "" });
+                    if (!fieldId) {
+                      parentTokenSelect.value = "";
+                      return;
+                    }
+                    const row2 = wikilinkParentChoices.find((x) => x.fieldId === fieldId);
+                    const toks = row2 && Array.isArray(row2.tokens) ? row2.tokens : [];
+                    for (let i = 0; i < toks.length; i++) {
+                      const t = toks[i];
+                      parentTokenSelect.createEl("option", { text: t.label, value: t.value });
+                    }
+                    if (bindingValue && toks.some((x) => x.value === bindingValue)) parentTokenSelect.value = bindingValue;
+                    const sel = toks.find((x) => x.value === String(parentTokenSelect.value || "").trim());
+                    parentTokenSelect.title = sel ? String(sel.label || "") : "";
+                  };
+                  if (kind === "wikilink" && parentFieldSelect && parentTokenSelect) {
+                    const fieldFromBinding = (() => {
+                      const m = String(bindingValue || "").match(/\|f:([^|]+)$/);
+                      return m ? String(m[1] || "").trim() : "";
+                    })();
+                    if (fieldFromBinding) parentFieldSelect.value = fieldFromBinding;
+                    fillParentTokens();
+                  }
+                  const saveTree = (nextTree, reason) => {
+                    if (typeof deepState.applyTagTreeToFields !== "function") return;
+                    markSnapshot(captureSnapshot());
+                    const res = values.saveTree(nextTree, reason);
+                    if (res.error) {
+                      new Notice3(res.error);
+                      return;
+                    }
+                    if (!res.ok) return;
+                    renderOrderBoard();
+                  };
+                  inpt.onchange = () => {
+                    const nextToken = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(inpt.value, kind) : String(inpt.value || "");
+                    const nextTree = values.editRow(tree, { level, token, parentToken }, { token: nextToken });
+                    saveTree(nextTree, "pkm:behavior:order:deep:rename:" + k);
+                  };
+                  del.onclick = () => {
+                    const nextTree = values.removeRow(tree, { level, token, parentToken });
+                    saveTree(nextTree, "pkm:behavior:order:deep:delete-token:" + k);
+                  };
+                  indentBtn.onclick = () => {
+                    if (kind === "wikilink") return;
+                    const nextTree = values.toggleLevel(tree, { level, token, parentToken });
+                    saveTree(nextTree, "pkm:behavior:order:deep:indent:" + k);
+                  };
+                  modeSelect.onchange = () => {
+                    if (!enabled) return;
+                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
+                    const mode = String(modeSelect.value || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet";
+                    if (level === 0) {
+                      const row2 = nextTree.find((x) => x.token === token);
+                      if (row2) {
+                        row2.prefixMode = mode;
+                        row2.checkboxToken = mode === "checkbox" ? normalizeCheckbox(row2.checkboxToken || checkboxInput.value || "- [ ]") : "";
+                        row2.yamlProperty = String(row2.yamlProperty || yamlTokenInput.value || "").trim();
+                      }
+                    } else {
+                      const prow = nextTree.find((x) => x.token === parentToken);
+                      if (prow) {
+                        const crow = (prow.children || []).find((x) => x.token === token);
+                        if (crow) {
+                          crow.prefixMode = mode;
+                          crow.checkboxToken = mode === "checkbox" ? normalizeCheckbox(crow.checkboxToken || checkboxInput.value || "- [ ]") : "";
+                          crow.yamlProperty = String(crow.yamlProperty || yamlTokenInput.value || "").trim();
+                        }
+                      }
+                    }
+                    checkboxInput.style.visibility = mode === "checkbox" ? "visible" : "hidden";
+                    checkboxInput.style.pointerEvents = mode === "checkbox" ? "auto" : "none";
+                    if (mode === "checkbox") {
+                      const preview = level === 0 ? nextTree.find((x) => x.token === token) || {} : ((nextTree.find((x) => x.token === parentToken) || {}).children || []).find((x) => x.token === token) || {};
+                      const cbNorm = normalizeCheckbox(preview.checkboxToken || "- [ ]") || "[ ]";
+                      checkboxInput.value = `- ${cbNorm}`;
+                    }
+                    saveTree(nextTree, "pkm:behavior:order:deep:prefix-mode:" + k);
+                  };
+                  checkboxInput.onchange = () => {
+                    if (!enabled) return;
+                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
+                    const cb = normalizeCheckbox(checkboxInput.value || "");
+                    if (!cb) {
+                      new Notice3("InlineOverhaul: checkbox token must be like [ ] or [I]");
+                      checkboxInput.value = String(currentRow.checkboxToken || "- [ ]");
+                      return;
+                    }
+                    if (level === 0) {
+                      const row2 = nextTree.find((x) => x.token === token);
+                      if (row2) {
+                        row2.prefixMode = "checkbox";
+                        row2.checkboxToken = cb;
+                        row2.yamlProperty = String(row2.yamlProperty || yamlTokenInput.value || "").trim();
+                      }
+                    } else {
+                      const prow = nextTree.find((x) => x.token === parentToken);
+                      if (prow) {
+                        const crow = (prow.children || []).find((x) => x.token === token);
+                        if (crow) {
+                          crow.prefixMode = "checkbox";
+                          crow.checkboxToken = cb;
+                          crow.yamlProperty = String(crow.yamlProperty || yamlTokenInput.value || "").trim();
+                        }
+                      }
+                    }
+                    modeSelect.value = "checkbox";
+                    checkboxInput.value = `- ${cb}`;
+                    saveTree(nextTree, "pkm:behavior:order:deep:checkbox:" + k);
+                  };
+                  yamlTokenInput.onchange = () => {
+                    if (!enabled || kind !== "tag") return;
+                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
+                    const nextYaml = String(yamlTokenInput.value || "").trim();
+                    if (level === 0) {
+                      const row2 = nextTree.find((x) => x.token === token);
+                      if (row2) row2.yamlProperty = nextYaml;
+                    } else {
+                      const prow = nextTree.find((x) => x.token === parentToken);
+                      if (prow) {
+                        const crow = (prow.children || []).find((x) => x.token === token);
+                        if (crow) crow.yamlProperty = nextYaml;
+                      }
+                    }
+                    saveTree(nextTree, "pkm:behavior:order:deep:yaml:" + k);
+                  };
+                  if (kind === "wikilink" && parentFieldSelect && parentTokenSelect) {
+                    parentFieldSelect.onchange = () => {
+                      const fid = String(parentFieldSelect.value || "").trim();
+                      bindingValue = "";
+                      fillParentTokens();
+                      if (!fid) {
+                        const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
+                        const row2 = nextTree.find((x) => x.token === token);
+                        if (row2) row2.__ioParentBinding = "";
+                        saveTree(nextTree, "pkm:behavior:order:deep:wikilink-parent-field:" + k);
+                      }
+                    };
+                    parentTokenSelect.onchange = () => {
+                      bindingValue = String(parentTokenSelect.value || "").trim();
+                      const opt = parentTokenSelect.options[parentTokenSelect.selectedIndex];
+                      parentTokenSelect.title = opt ? String(opt.text || "") : "";
+                      const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
+                      const row2 = nextTree.find((x) => x.token === token);
+                      if (row2) row2.__ioParentBinding = bindingValue;
+                      saveTree(nextTree, "pkm:behavior:order:deep:wikilink-parent-token:" + k);
+                    };
+                  }
+                  onNodeDetachedOnce(rowWrap, () => {
+                    try {
+                      detachDeepYamlDropdown();
+                    } catch (_) {
+                    }
+                  });
+                  if (kind === "tag" && showDeepEditor && showColorSettingsUi) {
+                    let livePreviewToken = String(token || "").trim();
+                    const visualFieldId = parentFieldId || String(parentField && parentField.id || "").trim();
+                    const visualRow = getTagVisualRow(visualFieldId, token);
+                    const visualWrap = rowWrap.createDiv();
+                    visualWrap.style.display = "flex";
+                    visualWrap.style.flexDirection = "column";
+                    visualWrap.style.gap = "0";
+                    visualWrap.style.width = "100%";
+                    visualWrap.style.maxWidth = "100%";
+                    visualWrap.style.boxSizing = "border-box";
+                    visualWrap.style.minWidth = "0";
+                    visualWrap.style.overflowX = "hidden";
+                    visualWrap.style.marginLeft = level === 1 ? "29px" : "16px";
+                    visualWrap.style.width = level === 1 ? "calc(100% - 29px)" : "calc(100% - 16px)";
+                    if (kind === "tag") {
+                      visualWrap.style.marginLeft = level === 1 ? "20px" : "10px";
+                      visualWrap.style.width = level === 1 ? "calc(100% - 20px)" : "calc(100% - 10px)";
+                    }
+                    const visualCard = visualWrap.createDiv();
+                    visualCard.style.display = "grid";
+                    visualCard.style.gap = "2px";
+                    visualCard.style.width = "100%";
+                    visualCard.style.maxWidth = "100%";
+                    visualCard.style.minWidth = "0";
+                    visualCard.style.boxSizing = "border-box";
+                    visualCard.style.border = "1px solid var(--background-modifier-border)";
+                    visualCard.style.borderRadius = "6px";
+                    visualCard.style.background = level === 1 ? "var(--background-modifier-hover)" : "var(--background-primary)";
+                    visualCard.style.padding = "4px 6px";
+                    if (level === 1) {
+                      visualCard.style.boxShadow = "inset 2px 0 0 var(--background-modifier-border)";
+                    }
+                    const vHead = visualCard.createDiv();
+                    vHead.style.display = "grid";
+                    vHead.style.gridTemplateColumns = "minmax(72px, 0.76fr) minmax(142px, 1.24fr) 8px minmax(156px, 1fr) 8px minmax(156px, 1fr)";
+                    vHead.style.gap = "6px";
+                    vHead.style.alignItems = "center";
+                    vHead.style.justifyContent = "start";
+                    vHead.style.width = "100%";
+                    vHead.style.minWidth = "0";
+                    vHead.style.boxSizing = "border-box";
+                    vHead.style.marginLeft = "0";
+                    vHead.style.marginBottom = "0";
+                    const hExample = vHead.createEl("small", { text: "Preview" });
+                    const hSize = vHead.createEl("small", { text: "Size (full/empty/custom)" });
+                    vHead.createEl("span", { text: "" });
+                    const hText = vHead.createEl("small", { text: "Text color" });
+                    vHead.createEl("span", { text: "" });
+                    const hFill = vHead.createEl("small", { text: "Filling color" });
+                    hExample.style.opacity = hSize.style.opacity = hText.style.opacity = hFill.style.opacity = "0.82";
+                    const vRow = visualCard.createDiv();
+                    vRow.style.display = "grid";
+                    vRow.style.gridTemplateColumns = "minmax(72px, 0.76fr) minmax(142px, 1.24fr) 8px minmax(156px, 1fr) 8px minmax(156px, 1fr)";
+                    vRow.style.gap = "4px";
+                    vRow.style.alignItems = "center";
+                    vRow.style.justifyContent = "start";
+                    vRow.style.width = "100%";
+                    vRow.style.minWidth = "0";
+                    vRow.style.boxSizing = "border-box";
+                    vRow.style.marginLeft = "0";
+                    const buildColorBlock = (currentColor, fallbackColor, titleForTips) => {
+                      const block = vRow.createDiv();
+                      block.style.display = "grid";
+                      block.style.gridTemplateColumns = "48px minmax(56px, 1fr) 28px";
+                      block.style.gap = "4px";
+                      block.style.alignItems = "center";
+                      block.style.padding = "2px 0";
+                      block.style.minWidth = "0";
+                      const pickWrap = block.createDiv();
+                      pickWrap.style.position = "relative";
+                      pickWrap.style.height = "28px";
+                      const pickBtn = pickWrap.createEl("button", { text: "Click" });
+                      if (showInfoTips) pickBtn.title = `Pick ${titleForTips.toLowerCase()} color`;
+                      pickBtn.type = "button";
+                      pickBtn.style.width = "48px";
+                      pickBtn.style.height = "28px";
+                      pickBtn.style.padding = "0";
+                      pickBtn.style.display = "inline-flex";
+                      pickBtn.style.alignItems = "center";
+                      pickBtn.style.justifyContent = "center";
+                      pickBtn.style.background = currentColor || "";
+                      pickBtn.style.color = getContrastTextHex(currentColor || "#999999");
+                      const picker = pickWrap.createEl("input");
+                      picker.type = "color";
+                      picker.value = currentColor || fallbackColor;
+                      picker.style.position = "absolute";
+                      picker.style.inset = "0";
+                      picker.style.opacity = "0";
+                      picker.style.cursor = "pointer";
+                      picker.style.width = "48px";
+                      picker.style.height = "28px";
+                      const hex = block.createEl("input");
+                      hex.type = "text";
+                      hex.value = currentColor || "";
+                      hex.placeholder = fallbackColor;
+                      hex.style.width = "100%";
+                      hex.style.height = "28px";
+                      hex.style.minWidth = "0";
+                      if (showInfoTips) hex.title = `Enter ${titleForTips.toLowerCase()} color hex (#rrggbb)`;
+                      const reset = block.createEl("button", { text: "X" });
+                      reset.ariaLabel = `reset ${titleForTips}`;
+                      reset.classList.add("mod-warning");
+                      reset.style.borderColor = "var(--text-error)";
+                      reset.style.color = "var(--text-error)";
+                      reset.style.padding = "0";
+                      reset.style.width = "28px";
+                      reset.style.height = "28px";
+                      if (showInfoTips) reset.title = `Reset ${titleForTips.toLowerCase()} color`;
+                      return { picker, hex, reset };
+                    };
+                    const preview = vRow.createEl("span", { text: visualRow.visibility === "empty" ? "\xA0" : livePreviewToken });
+                    preview.style.display = "inline-flex";
+                    preview.style.alignItems = "center";
+                    preview.style.justifyContent = "center";
+                    preview.style.alignSelf = "center";
+                    preview.style.justifySelf = "start";
+                    resolveDragAnchorY = () => {
+                      try {
+                        const rowRect = rowWrap.getBoundingClientRect();
+                        const previewRect = preview.getBoundingClientRect();
+                        if (!rowRect || !previewRect) return NaN;
+                        return previewRect.top - rowRect.top + previewRect.height / 2;
+                      } catch (_) {
+                        return NaN;
+                      }
+                    };
+                    const sizeCell = vRow.createDiv();
+                    sizeCell.style.display = "grid";
+                    sizeCell.style.gridTemplateColumns = "1fr";
+                    sizeCell.style.gap = "4px";
+                    sizeCell.style.minWidth = "0";
+                    const visSel = sizeCell.createEl("select");
+                    visSel.title = "Size (full/empty/custom)";
+                    visSel.createEl("option", { text: "full", value: "default" });
+                    visSel.createEl("option", { text: "empty", value: "empty" });
+                    visSel.createEl("option", { text: "custom", value: "custom" });
+                    visSel.value = visualRow.visibility;
+                    visSel.style.width = "100%";
+                    visSel.style.height = "28px";
+                    const customInput = sizeCell.createEl("input");
+                    customInput.type = "text";
+                    customInput.placeholder = "print";
+                    customInput.value = String(visualRow.customText || "");
+                    customInput.style.width = "100%";
+                    customInput.style.height = "28px";
+                    customInput.style.minWidth = "0";
+                    customInput.style.display = visSel.value === "custom" ? "block" : "none";
+                    sizeCell.style.gridTemplateColumns = visSel.value === "custom" ? "1fr 1fr" : "1fr";
+                    vRow.createEl("span", { text: "" });
+                    const textUi = buildColorBlock(visualRow.textColor, "#ffffff", "Text");
+                    vRow.createEl("span", { text: "" });
+                    const fillUi = buildColorBlock(visualRow.fillColor, "#111111", "Filling");
+                    const textPicker = textUi.picker;
+                    textPicker.type = "color";
+                    const textHex = textUi.hex;
+                    const fillPicker = fillUi.picker;
+                    fillPicker.type = "color";
+                    const fillHex = fillUi.hex;
+                    const resetBtnLegacy = fillUi.reset;
+                    resetBtnLegacy.onclick = () => {
+                      fillPicker.value = "#111111";
+                      fillHex.value = "";
+                      setTagVisualRow(visualFieldId, token, { fillColor: "" }, "pkm:visuals:tag:fill-reset:" + visualFieldId);
+                      applyPreview();
+                    };
+                    textUi.reset.onclick = () => {
+                      textPicker.value = "#ffffff";
+                      textHex.value = "";
+                      setTagVisualRow(visualFieldId, token, { textColor: "" }, "pkm:visuals:tag:text-reset:" + visualFieldId);
+                      applyPreview();
+                    };
+                    const vCfg = getTagVisualRuntime();
+                    const vst = computeTagVisualStyle(vCfg.tagTextSizePct, vCfg.tagBubbleWidthPct, vCfg.tagBubbleHeightPct, vCfg.tagShapePct);
+                    const previewPaddingY = Math.max(1, Math.round(vst.verticalPaddingPx * 0.55));
+                    const previewPaddingX = Math.max(3, Math.round(vst.horizontalPaddingPx * 0.55));
+                    preview.style.padding = `${previewPaddingY}px ${previewPaddingX}px`;
+                    preview.style.borderRadius = `${vst.borderRadiusPx}px`;
+                    preview.style.fontSize = `${vst.fontSizePx}px`;
+                    preview.style.lineHeight = String(vst.lineHeight);
+                    preview.style.border = "1px solid var(--background-modifier-border-hover)";
+                    preview.style.alignSelf = "center";
+                    if (visualRow.fillColor) preview.style.background = visualRow.fillColor;
+                    if (visualRow.textColor) preview.style.color = visualRow.textColor;
+                    const applyPreview = () => {
+                      const fill = normalizeHexColorInput(fillHex.value);
+                      const text = normalizeHexColorInput(textHex.value);
+                      const visRaw = String(visSel.value || "default").trim().toLowerCase();
+                      const vis = ["default", "empty", "custom"].includes(visRaw) ? visRaw : "default";
+                      const customText = String(customInput.value || "").trim();
+                      const effectiveVis = vis === "custom" && !customText ? "empty" : vis;
+                      const fullBubbleHeightPx = Math.max(10, Math.round(vst.fontSizePx * vst.lineHeight + vst.verticalPaddingPx * 2));
+                      preview.setText(effectiveVis === "empty" ? " " : effectiveVis === "custom" ? customText : livePreviewToken);
+                      if (effectiveVis === "empty") {
+                        preview.style.minWidth = "0";
+                        preview.style.width = `${Math.max(6, Math.round(vst.horizontalPaddingPx * 2 / 5))}px`;
+                        preview.style.lineHeight = String(vst.lineHeight);
+                        preview.style.height = `${fullBubbleHeightPx}px`;
+                        preview.style.boxSizing = "border-box";
+                        preview.style.color = "transparent";
+                      } else {
+                        preview.style.minWidth = "0";
+                        preview.style.width = "fit-content";
+                        preview.style.maxWidth = "100%";
+                        preview.style.height = "auto";
+                        preview.style.lineHeight = String(vst.lineHeight);
+                        preview.style.whiteSpace = "nowrap";
+                        preview.style.color = text || visualRow.textColor || "";
+                      }
+                      if (fill) preview.style.background = fill;
+                      else preview.style.background = visualRow.fillColor || "var(--background-primary)";
+                      if (effectiveVis !== "empty") {
+                        if (text) preview.style.color = text;
+                        else preview.style.color = visualRow.textColor || "";
+                      }
+                      const txtBtn = textUi.picker && textUi.picker.previousSibling;
+                      const fillBtn = fillUi.picker && fillUi.picker.previousSibling;
+                      if (txtBtn && txtBtn.style) {
+                        txtBtn.style.background = text || "";
+                        txtBtn.style.color = getContrastTextHex(text || "#999999");
+                      }
+                      if (fillBtn && fillBtn.style) {
+                        fillBtn.style.background = fill || "";
+                        fillBtn.style.color = getContrastTextHex(fill || "#999999");
+                      }
+                    };
+                    const commitText = () => {
+                      const norm = normalizeHexColorInput(textHex.value);
+                      if (!norm) return;
+                      textHex.value = norm;
+                      textPicker.value = norm;
+                      setTagVisualRow(visualFieldId, token, { textColor: norm }, "pkm:visuals:tag:text:" + visualFieldId);
+                      applyPreview();
+                    };
+                    const commitFill = () => {
+                      const norm = normalizeHexColorInput(fillHex.value);
+                      if (!norm) return;
+                      fillHex.value = norm;
+                      fillPicker.value = norm;
+                      setTagVisualRow(visualFieldId, token, { fillColor: norm }, "pkm:visuals:tag:fill:" + visualFieldId);
+                      applyPreview();
+                    };
+                    textPicker.onchange = () => {
+                      textHex.value = textPicker.value;
+                      commitText();
+                    };
+                    fillPicker.onchange = () => {
+                      fillHex.value = fillPicker.value;
+                      commitFill();
+                    };
+                    textHex.onkeydown = (e) => {
+                      if (e.key === "Enter") commitText();
+                    };
+                    fillHex.onkeydown = (e) => {
+                      if (e.key === "Enter") commitFill();
+                    };
+                    textHex.onblur = () => commitText();
+                    fillHex.onblur = () => commitFill();
+                    visSel.onchange = () => {
+                      const isCustom = String(visSel.value || "default") === "custom";
+                      sizeCell.style.gridTemplateColumns = isCustom ? "1fr 1fr" : "1fr";
+                      customInput.style.display = isCustom ? "block" : "none";
+                      setTagVisualRow(visualFieldId, token, { visibility: visSel.value }, "pkm:visuals:tag:visibility:" + visualFieldId);
+                      applyPreview();
+                    };
+                    const commitCustomText = () => {
+                      setTagVisualRow(visualFieldId, token, { customText: customInput.value }, "pkm:visuals:tag:custom-text:" + visualFieldId);
+                    };
+                    customInput.oninput = () => {
+                      applyPreview();
+                    };
+                    customInput.onblur = () => {
+                      commitCustomText();
+                    };
+                    customInput.onkeydown = (e) => {
+                      if (e && e.key === "Enter") {
+                        e.preventDefault();
+                        commitCustomText();
+                        try {
+                          customInput.blur();
+                        } catch (_) {
+                        }
+                      }
+                    };
+                    inpt.oninput = () => {
+                      livePreviewToken = String(inpt.value || "").trim() || String(token || "").trim();
+                      applyPreview();
+                    };
+                    applyPreview();
+                    const rowDivider = rowWrap.createDiv();
+                    rowDivider.style.borderBottom = "2px solid var(--background-modifier-border-hover)";
+                    rowDivider.style.marginTop = "4px";
+                    rowDivider.style.opacity = "1";
+                  }
+                  setTimeout(syncDragHandlePos, 0);
+                };
+                for (const p of tree) {
+                  renderTokenRow(p.token, 0, "");
+                  const ch = Array.isArray(p.children) ? p.children : [];
+                  for (const c of ch) renderTokenRow(c.token, 1, p.token);
+                }
+                const addRow2 = details.createDiv();
+                addRow2.style.display = "flex";
+                addRow2.style.gap = "6px";
+                addRow2.style.marginTop = "6px";
+                const addInput = addRow2.createEl("input");
+                addInput.type = "text";
+                addInput.placeholder = kind === "wikilink" ? "wikilink" : "#tag";
+                addInput.style.flex = "1";
+                const addBtn2 = addRow2.createEl("button", { text: "+ element" });
+                addBtn2.disabled = !enabled;
+                addBtn2.onclick = () => {
+                  if (!enabled) return;
+                  const token = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(addInput.value, kind) : String(addInput.value || "").trim();
+                  if (!token) return;
+                  if (kind !== "wikilink") {
+                    if (typeof deepState.applyTagTreeToFields !== "function") return;
+                    markSnapshot(captureSnapshot());
+                  }
+                  const res = values.addToken(addInput.value);
+                  if (res.error) {
+                    new Notice3(res.error);
+                    return;
+                  }
+                  if (!res.ok) return;
+                  if (kind === "wikilink") addInput.value = "";
+                  renderOrderBoard();
+                };
+              }
+            }
+          } catch (e) {
+            console.error("[inline-overhaul][order-row-render]", k, e);
+            const errorRow = list.createDiv();
+            errorRow.style.padding = "4px 6px";
+            errorRow.style.border = "1px solid var(--text-error)";
+            errorRow.style.borderRadius = "6px";
+            errorRow.style.background = "var(--background-primary-alt)";
+            errorRow.style.fontSize = "12px";
+            errorRow.style.color = "var(--text-error)";
+            errorRow.setText(`Render error for field '${String(k || "")}'`);
+          }
+        }
+        addDropZone("");
+      };
+      const leadRow = orderWrap.createDiv();
+      leadRow.style.display = "none";
+      try {
+        if (addRow && addRow.parentElement === orderWrap) orderWrap.insertBefore(addRow, leadRow);
+      } catch (_) {
+      }
+      const orderPreviewRow = orderWrap.createDiv();
+      orderPreviewRow.style.margin = "6px 0 8px";
+      try {
+        if (leadRow && leadRow.parentElement === orderWrap) orderWrap.insertBefore(orderPreviewRow, leadRow);
+      } catch (_) {
+      }
+      const colorHintRow = orderWrap.createDiv();
+      colorHintRow.style.margin = "6px 0 2px";
+      const userTagsRow = containerEl.createDiv();
+      userTagsRow.style.margin = "6px 0 10px";
+      const renderOrderPreview = () => {
+        orderPreviewRow.empty();
+        if (!showDeepEditor) return;
+        const card = orderPreviewRow.createDiv();
+        card.style.border = "1px solid var(--background-modifier-border)";
+        card.style.borderRadius = "8px";
+        card.style.padding = "8px 10px";
+        card.style.background = "var(--background-secondary)";
+        const subHeader = card.createEl("div", { text: "Preview of your Order" });
+        subHeader.style.fontSize = "12px";
+        subHeader.style.fontWeight = "600";
+        subHeader.style.lineHeight = "1.25";
+        subHeader.style.marginBottom = "4px";
+        const previewViewport = card.createDiv();
+        previewViewport.style.width = "100%";
+        previewViewport.style.maxWidth = "100%";
+        previewViewport.style.overflowX = "auto";
+        previewViewport.style.overflowY = "hidden";
+        const layoutGrid = previewViewport.createDiv();
+        layoutGrid.style.display = "grid";
+        layoutGrid.style.gridTemplateColumns = "max-content minmax(120px,1fr) max-content";
+        layoutGrid.style.alignItems = "center";
+        layoutGrid.style.columnGap = "8px";
+        layoutGrid.style.width = "max-content";
+        layoutGrid.style.minWidth = "100%";
+        const labelsRow = layoutGrid.createDiv();
+        labelsRow.style.display = "contents";
+        const leftBadge = layoutGrid.createEl("small", { text: "Left panel" });
+        leftBadge.style.gridColumn = "1";
+        const middleSpacer = layoutGrid.createEl("small", { text: "" });
+        middleSpacer.style.gridColumn = "2";
+        const rightBadge = layoutGrid.createEl("small", { text: "Right panel" });
+        rightBadge.style.gridColumn = "3";
+        for (const el2 of [leftBadge, rightBadge]) {
+          el2.style.border = "1px solid var(--background-modifier-border)";
+          el2.style.borderRadius = "6px";
+          el2.style.padding = "1px 6px";
+          el2.style.opacity = "0.82";
+          el2.style.display = "block";
+          el2.style.width = "100%";
+          el2.style.textAlign = "center";
+        }
+        leftBadge.style.marginBottom = "4px";
+        rightBadge.style.marginBottom = "4px";
+        const leftLine = layoutGrid.createDiv();
+        leftLine.style.gridColumn = "1";
+        leftLine.style.whiteSpace = "nowrap";
+        const middleLine = layoutGrid.createDiv();
+        middleLine.style.gridColumn = "2";
+        middleLine.style.whiteSpace = "nowrap";
+        middleLine.style.overflow = "hidden";
+        const rightLine = layoutGrid.createDiv();
+        rightLine.style.gridColumn = "3";
+        rightLine.style.whiteSpace = "nowrap";
+        for (const line of [leftLine, middleLine, rightLine]) {
+          line.style.fontFamily = "var(--font-text)";
+          line.style.fontSize = "var(--font-text-size)";
+          line.style.lineHeight = "var(--line-height-normal)";
+          line.style.padding = "2px 0";
+        }
+        const sep1 = String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator1 || "||").trim() || "||";
+        const sep2 = String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator2 || "||").trim() || "||";
+        const toType = (key) => {
+          const k = String(key || "").trim();
+          const strict = String(orderState && orderState.strictNames && orderState.strictNames[k] || "").trim();
+          const candidates = [k, strict].map((x) => String(x || "").trim()).filter(Boolean);
+          const readType = (id) => String(orderState && orderState.types && orderState.types[id] || "").trim().toLowerCase();
+          for (let i = 0; i < candidates.length; i++) {
+            const t = readType(candidates[i]);
+            if (t === "wikilink") return "wikilink";
+            if (t === "element") return "element";
+            if (t === "tag") return "tag";
+          }
+          const behaviorNow = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
+          const fields = [].concat(Array.isArray(behaviorNow.leftMode && behaviorNow.leftMode.fields) ? behaviorNow.leftMode.fields : []).concat(Array.isArray(behaviorNow.rightMode && behaviorNow.rightMode.fields) ? behaviorNow.rightMode.fields : []);
+          const field = fields.find((f) => {
+            const id = String(f && f.id || "").trim();
+            const orderKey = String(f && f.orderKey || "").trim();
+            const source2 = String(f && f.source || "").trim();
+            for (let i = 0; i < candidates.length; i++) {
+              const c = candidates[i];
+              if (id === c || orderKey === c || source2 === `wikilinks:${c}`) return true;
+            }
+            return false;
+          }) || null;
+          const source = String(field && field.source || "").trim();
+          if (source === "projects" || /^wikilinks:/.test(source)) return "wikilink";
+          const kind = String(field && field.kind || "").trim().toLowerCase();
+          if (kind === "dateoffset" || kind === "nowtime" || kind === "estimatedcycle" || kind === "genericelement") return "element";
+          return "tag";
+        };
+        const getDisplay = (key) => {
+          const k = String(key || "").trim();
+          const label = String(orderState && orderState.labels && orderState.labels[k] || "").trim();
+          const strict = String(orderState && orderState.strictNames && orderState.strictNames[k] || k).trim();
+          return label || strict || k;
+        };
+        const activeState = (key) => {
+          const k = String(key || "").trim();
+          const raw = String(orderState && orderState.active && orderState.active[k] || "yes").trim().toLowerCase();
+          if (raw === "no") return "no";
+          if (raw === "hotkey_only") return "hotkey_only";
+          return "yes";
+        };
+        const panelTokens = (keys) => {
+          const out = [];
+          const list = Array.isArray(keys) ? keys : [];
+          for (let i = 0; i < list.length; i++) {
+            const key = String(list[i] || "").trim();
+            if (!key || /_sub$/.test(key)) continue;
+            const st = activeState(key);
+            if (st === "no") continue;
+            out.push({
+              text: getDisplay(key),
+              type: toType(key),
+              state: st
+            });
+          }
+          return out;
+        };
+        const leftTokens = panelTokens(orderState && orderState.left ? orderState.left : []);
+        const rightTokens = panelTokens(orderState && orderState.right ? orderState.right : []);
+        const renderTokenList = (host, tokens) => {
+          const open = host.createEl("span", { text: "[" });
+          open.style.opacity = "0.9";
+          for (let i = 0; i < tokens.length; i++) {
+            const tok = tokens[i];
+            const el2 = host.createEl("span", { text: tok.text });
+            const st = getOrderTypeBubblePalette(tok.type);
+            el2.style.display = "inline-flex";
+            el2.style.alignItems = "center";
+            el2.style.padding = "1px 6px";
+            el2.style.fontSize = "11px";
+            el2.style.lineHeight = "1.2";
+            el2.style.borderRadius = "999px";
+            el2.style.border = "1px solid var(--background-modifier-border)";
+            el2.style.background = st.bg;
+            el2.style.color = "var(--text-normal)";
+            el2.style.borderColor = st.border;
+            if (tok.state === "hotkey_only") el2.style.opacity = "0.45";
+            if (i < tokens.length - 1) host.appendText(" ");
+          }
+          const close = host.createEl("span", { text: "]" });
+          close.style.opacity = "0.9";
+        };
+        renderTokenList(leftLine, leftTokens);
+        middleLine.setText(`${sep1}  user's text  ${sep2}`);
+        renderTokenList(rightLine, rightTokens);
+      };
+      const renderLeadFieldSelectors = () => {
+        leadRow.empty();
+        const card = leadRow.createDiv();
+        card.style.border = "1px solid var(--background-modifier-border)";
+        card.style.borderRadius = "8px";
+        card.style.padding = "8px";
+        card.style.background = "var(--background-secondary)";
+        const title = card.createEl("div", { text: "TagWheel Lead Field" });
+        title.style.fontWeight = "600";
+        title.style.marginBottom = "6px";
+        title.style.fontSize = "12px";
+        const grid = card.createDiv();
+        grid.style.display = "grid";
+        grid.style.gridTemplateColumns = "1fr 1fr";
+        grid.style.gap = "8px";
+        const createLeadSelect = (panelKey, labelText) => {
+          const box = grid.createDiv();
+          const label = box.createEl("small", { text: labelText });
+          label.style.display = "block";
+          label.style.marginBottom = "4px";
+          label.style.opacity = "0.9";
+          const select = box.createEl("select");
+          select.style.width = "100%";
+          if (!enabled) select.disabled = true;
+          const candidates = getPanelLeadCandidates(panelKey);
+          select.createEl("option", { text: "default", value: "" });
+          for (const row2 of candidates) {
+            select.createEl("option", { text: `${row2.label} (${row2.key})`, value: row2.key });
+          }
+          const currentLead = String(orderState && orderState.lead && orderState.lead[panelKey] ? orderState.lead[panelKey] : "").trim();
+          select.value = candidates.some((row2) => row2.key === currentLead) ? currentLead : "";
+          select.onchange = () => {
+            if (!enabled) return;
+            model.setLead(panelKey, select.value);
+          };
+        };
+        createLeadSelect("left", "Left field");
+        createLeadSelect("right", "Right field");
+      };
+      const renderUserTagsEditor = () => {
+        userTagsRow.empty();
+        if (!showDeepEditor || !showColorSettingsUi) return;
+        const titleRow = userTagsRow.createDiv();
+        titleRow.style.margin = "0 0 4px";
+        const colorTagsTitle = titleRow.createEl("div", { text: "Color your Tags" });
+        colorTagsTitle.style.fontSize = "14px";
+        colorTagsTitle.style.fontWeight = "600";
+        colorTagsTitle.style.lineHeight = "1.25";
+        colorTagsTitle.style.margin = "0 0 2px 0";
+        const card = userTagsRow.createDiv();
+        card.style.border = "1px solid var(--background-modifier-border)";
+        card.style.borderRadius = "8px";
+        card.style.padding = "8px";
+        card.style.background = "var(--background-secondary)";
+        if (showInfoTips) {
+          const tips = card.createEl("details");
+          const sm = tips.createEl("summary", { text: "Info & Tips" });
+          sm.style.cursor = "pointer";
+          tips.createEl("div", { text: "Use this section to color tags that are not currently present in Order rows." });
+        }
+        const cfgNow = plugin.getConfig();
+        const visualsNow = cfgNow && cfgNow.pkm && cfgNow.pkm.behavior && cfgNow.pkm.behavior.tagVisuals ? cfgNow.pkm.behavior.tagVisuals : {};
+        const userTagsMap = visualsNow && visualsNow.userTags && typeof visualsNow.userTags === "object" ? visualsNow.userTags : {};
+        const tokens = Object.keys(userTagsMap).filter((x) => /^#\S+/.test(String(x || "").trim()));
+        if (tokens.length > 300) {
+          const warn = card.createDiv();
+          warn.style.margin = "6px 0";
+          warn.style.padding = "6px 8px";
+          warn.style.border = "1px solid var(--text-warning)";
+          warn.style.borderRadius = "6px";
+          warn.setText("Soft warning: User tags count exceeded 300.");
+        }
+        const list = card.createDiv();
+        list.style.display = "flex";
+        list.style.flexDirection = "column";
+        list.style.gap = "6px";
+        const setUserTagRow = (token, patch, reason) => {
+          const tok = String(token || "").trim();
+          if (!tok || tok.charAt(0) !== "#") return;
+          const cur = userTagsMap[tok] && typeof userTagsMap[tok] === "object" ? userTagsMap[tok] : {};
+          const next = {
+            fillColor: Object.prototype.hasOwnProperty.call(patch, "fillColor") ? normalizeHexColorInput(patch.fillColor) : normalizeHexColorInput(cur.fillColor),
+            textColor: Object.prototype.hasOwnProperty.call(patch, "textColor") ? normalizeHexColorInput(patch.textColor) : normalizeHexColorInput(cur.textColor),
+            visibility: Object.prototype.hasOwnProperty.call(patch, "visibility") ? String(patch.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default" : String(cur.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default"
+          };
+          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [tok]: next } } } } }, reason || "pkm:visuals:user-tags");
+        };
+        for (const token of tokens) {
+          const row2 = list.createDiv();
+          row2.style.display = "grid";
+          row2.style.gridTemplateColumns = "minmax(120px,1fr) 36px 92px 36px 92px 88px minmax(120px,1fr) 28px";
+          row2.style.gap = "6px";
+          row2.style.alignItems = "center";
+          const tokenInput = row2.createEl("input");
+          tokenInput.type = "text";
+          tokenInput.value = token;
+          tokenInput.disabled = true;
+          const state = userTagsMap[token] && typeof userTagsMap[token] === "object" ? userTagsMap[token] : {};
+          const textPicker = row2.createEl("input");
+          textPicker.type = "color";
+          textPicker.value = normalizeHexColorInput(state.textColor) || "#ffffff";
+          const textHex = row2.createEl("input");
+          textHex.type = "text";
+          textHex.value = normalizeHexColorInput(state.textColor) || "#ffffff";
+          const fillPicker = row2.createEl("input");
+          fillPicker.type = "color";
+          fillPicker.value = normalizeHexColorInput(state.fillColor) || "#111111";
+          const fillHex = row2.createEl("input");
+          fillHex.type = "text";
+          fillHex.value = normalizeHexColorInput(state.fillColor) || "#111111";
+          const visSel = row2.createEl("select");
+          visSel.createEl("option", { text: "full", value: "default" });
+          visSel.createEl("option", { text: "empty", value: "empty" });
+          visSel.value = String(state.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default";
+          const preview = row2.createEl("span", { text: visSel.value === "empty" ? "   " : token });
+          preview.style.display = "inline-block";
+          preview.style.padding = "2px 8px";
+          preview.style.borderRadius = "999px";
+          preview.style.border = "1px solid var(--background-modifier-border)";
+          if (normalizeHexColorInput(state.fillColor)) preview.style.background = normalizeHexColorInput(state.fillColor);
+          if (normalizeHexColorInput(state.textColor)) preview.style.color = normalizeHexColorInput(state.textColor);
+          const del = row2.createEl("button", { text: "x" });
+          del.onclick = () => {
+            plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: null } } } } }, "pkm:visuals:user-tags:delete");
+            renderOrderBoard();
+          };
+          const applyPreview = () => {
+            const fill = normalizeHexColorInput(fillHex.value || fillPicker.value);
+            const text = normalizeHexColorInput(textHex.value || textPicker.value);
+            const vis = String(visSel.value || "default").trim().toLowerCase() === "empty" ? "empty" : "default";
+            preview.setText(vis === "empty" ? "   " : token);
+            preview.style.background = fill || "";
+            preview.style.color = text || "";
+            fillHex.style.background = fill || "";
+            fillHex.style.color = getContrastTextHex(fill || "#111111");
+          };
+          const commitText = () => {
+            const norm = normalizeHexColorInput(textHex.value);
+            if (!norm) return;
+            textHex.value = norm;
+            textPicker.value = norm;
+            setUserTagRow(token, { textColor: norm }, "pkm:visuals:user-tags:text");
+            applyPreview();
+          };
+          const commitFill = () => {
+            const norm = normalizeHexColorInput(fillHex.value);
+            if (!norm) return;
+            fillHex.value = norm;
+            fillPicker.value = norm;
+            setUserTagRow(token, { fillColor: norm }, "pkm:visuals:user-tags:fill");
+            applyPreview();
+          };
+          textPicker.onchange = () => {
+            textHex.value = textPicker.value;
+            commitText();
+          };
+          fillPicker.onchange = () => {
+            fillHex.value = fillPicker.value;
+            commitFill();
+          };
+          textHex.onkeydown = (e) => {
+            if (e.key === "Enter") commitText();
+          };
+          fillHex.onkeydown = (e) => {
+            if (e.key === "Enter") commitFill();
+          };
+          textHex.onblur = () => commitText();
+          fillHex.onblur = () => commitFill();
+          visSel.onchange = () => {
+            setUserTagRow(token, { visibility: visSel.value }, "pkm:visuals:user-tags:visibility");
+            applyPreview();
+          };
+          applyPreview();
+        }
+        const add = card.createDiv();
+        add.style.display = "flex";
+        add.style.gap = "6px";
+        add.style.marginTop = "8px";
+        const addInput = add.createEl("input");
+        addInput.type = "text";
+        addInput.placeholder = "#tag";
+        addInput.style.flex = "1";
+        const addBtn2 = add.createEl("button", { text: "+ user tag" });
+        addBtn2.onclick = () => {
+          const raw = String(addInput.value || "").trim();
+          const token = raw ? raw.charAt(0) === "#" ? raw : `#${raw}` : "";
+          if (!/^#\S+/.test(token)) return;
+          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: { fillColor: "", textColor: "", visibility: "default" } } } } } }, "pkm:visuals:user-tags:add");
+          addInput.value = "";
+          renderOrderBoard();
+        };
+      };
+      const renderColorSettingsHint = () => {
+        colorHintRow.empty();
+        if (showDeepEditor && showColorSettingsUi) return;
+        const hint = colorHintRow.createDiv();
+        hint.style.padding = "6px 8px";
+        hint.style.border = "1px dashed var(--background-modifier-border)";
+        hint.style.borderRadius = "6px";
+        hint.style.opacity = "0.9";
+        hint.setText("Color settings are hidden. Enable: Tag & PKM > Order > Show color settings.");
+      };
+      const renderOrderBoard = () => {
+        if (!showDeepEditor) deepSession.expanded = {};
+        ensureAllKeys();
+        renderPanel("left", "Left panel");
+        renderPanel("right", "Right panel");
+        renderOrderPreview();
+        renderColorSettingsHint();
+        renderUserTagsEditor();
+        refreshDraftInfo();
+      };
+      renderOrderBoard();
+    }
+    module2.exports = {
+      computeTagVisualStyle,
+      /* Новой панели нужен тот же объект помощников, что и доске: искать его
+         дважды нельзя — у поиска есть откат на заглушку, и две заглушки разошлись
+         бы молча. */
+      getOrderDeepEditorState,
+      deferRefreshSettings,
+      getContrastTextHex,
+      normalizeHexColorInput,
+      readTagVisualsConfig,
+      renderPkmOrderBoardSection
+    };
+  }
+});
+
+// src/ui/settings_sections_renderer.js
+var require_settings_sections_renderer = __commonJS({
+  "src/ui/settings_sections_renderer.js"(exports2, module2) {
+    "use strict";
+    var __fieldsEditor = require_fields_editor_legacy();
+    var {
+      computeTagVisualStyle,
+      deferRefreshSettings,
+      getContrastTextHex,
+      normalizeHexColorInput,
+      readTagVisualsConfig,
+      renderPkmOrderBoardSection
+    } = __fieldsEditor;
+    function getOrderDeepEditorDebounceStore(plugin) {
+      if (!plugin || typeof plugin !== "object") return {};
+      if (!plugin._orderDeepEditorDebounce || typeof plugin._orderDeepEditorDebounce !== "object") {
+        plugin._orderDeepEditorDebounce = {};
+      }
+      return plugin._orderDeepEditorDebounce;
+    }
+    function flushOrderDeepCommit(plugin, key) {
+      const k = String(key || "").trim();
+      const store = getOrderDeepEditorDebounceStore(plugin);
+      const entry = k ? store[k] : null;
+      if (!entry) return;
+      try {
+        if (entry.timer) clearTimeout(entry.timer);
+      } catch (_) {
+      }
+      delete store[k];
+      try {
+        if (typeof entry.fn === "function") entry.fn();
+      } catch (_) {
+      }
+    }
+    function flushAllDeepCommits(plugin) {
+      const store = getOrderDeepEditorDebounceStore(plugin);
+      const keys = Object.keys(store);
+      for (let i = 0; i < keys.length; i++) flushOrderDeepCommit(plugin, keys[i]);
     }
     function normalizeSettingsTypography(rootEl) {
       if (!rootEl || typeof rootEl.querySelectorAll !== "function") return;
@@ -24336,17 +27900,17 @@ var require_settings_sections_renderer = __commonJS({
         row.style.gap = "6px";
         row.style.marginBottom = "8px";
         const buttons = row.querySelectorAll("button");
-        for (const btn of buttons) {
-          btn.style.padding = "3px 8px";
-          btn.style.minHeight = "24px";
-          btn.style.lineHeight = "1.2";
-          btn.style.borderRadius = "6px";
+        for (const btn2 of buttons) {
+          btn2.style.padding = "3px 8px";
+          btn2.style.minHeight = "24px";
+          btn2.style.lineHeight = "1.2";
+          btn2.style.borderRadius = "6px";
         }
       }
       const warningButtons = rootEl.querySelectorAll("button.mod-warning");
-      for (const btn of warningButtons) {
-        btn.style.minHeight = "24px";
-        btn.style.borderRadius = "6px";
+      for (const btn2 of warningButtons) {
+        btn2.style.minHeight = "24px";
+        btn2.style.borderRadius = "6px";
       }
       const disabledBanners = rootEl.querySelectorAll(".inline-overhaul-disabled-banner");
       for (const banner of disabledBanners) {
@@ -24360,20 +27924,20 @@ var require_settings_sections_renderer = __commonJS({
         banner.style.maxWidth = "100%";
       }
       const cardLikeDivs = rootEl.querySelectorAll("div");
-      for (const el of cardLikeDivs) {
-        const b = String(el.style.border || "");
+      for (const el2 of cardLikeDivs) {
+        const b = String(el2.style.border || "");
         if (!b || b.indexOf("background-modifier-border") === -1) continue;
-        const cls = String(el.className || "");
+        const cls = String(el2.className || "");
         const isOrderArea = cls.includes("inline-overhaul-order-board") || cls.includes("inline-overhaul-order-panel") || cls.includes("inline-overhaul-order-row") || cls.includes("inline-overhaul-deep");
-        const text = String(el.textContent || "").trim();
+        const text = String(el2.textContent || "").trim();
         const isOrderSpecific = text === "Order" || text === "Order Main Table" || text === "Order Settings" || text === "Left panel" || text === "Right panel" || text === "Preview of your Order";
-        if (!el.style.borderRadius) el.style.borderRadius = "8px";
-        if (!el.style.boxSizing) el.style.boxSizing = "border-box";
-        if (!el.style.padding && (b.includes("solid") || b.includes("dashed"))) {
-          el.style.padding = "8px";
+        if (!el2.style.borderRadius) el2.style.borderRadius = "8px";
+        if (!el2.style.boxSizing) el2.style.boxSizing = "border-box";
+        if (!el2.style.padding && (b.includes("solid") || b.includes("dashed"))) {
+          el2.style.padding = "8px";
         }
-        if (!isOrderArea && !isOrderSpecific && !el.style.marginBottom) {
-          el.style.marginBottom = "8px";
+        if (!isOrderArea && !isOrderSpecific && !el2.style.marginBottom) {
+          el2.style.marginBottom = "8px";
         }
       }
       const detailsNodes = rootEl.querySelectorAll("details");
@@ -24384,14 +27948,14 @@ var require_settings_sections_renderer = __commonJS({
         d.style.overflowX = "hidden";
       }
       const previewLike = rootEl.querySelectorAll("div,span");
-      for (const el of previewLike) {
-        if (!el || !el.style) continue;
-        const ws = String(el.style.whiteSpace || "").toLowerCase();
+      for (const el2 of previewLike) {
+        if (!el2 || !el2.style) continue;
+        const ws = String(el2.style.whiteSpace || "").toLowerCase();
         if (ws !== "nowrap" && ws !== "pre" && ws !== "pre-wrap") continue;
-        const hasScrollableIntent = String(el.style.overflowX || "").toLowerCase() === "auto";
+        const hasScrollableIntent = String(el2.style.overflowX || "").toLowerCase() === "auto";
         if (hasScrollableIntent) {
-          el.style.maxWidth = "100%";
-          el.style.boxSizing = "border-box";
+          el2.style.maxWidth = "100%";
+          el2.style.boxSizing = "border-box";
         }
       }
       const summaryNodes = rootEl.querySelectorAll("summary");
@@ -24411,39 +27975,6 @@ var require_settings_sections_renderer = __commonJS({
         sm.style.boxSizing = "border-box";
       }
     }
-    function normalizeHexColorInput(value) {
-      const src = String(value || "").trim().toLowerCase();
-      if (!src) return "";
-      return /^#[0-9a-f]{6}$/.test(src) ? src : "";
-    }
-    function getContrastTextHex(bgHex) {
-      const hex = normalizeHexColorInput(bgHex);
-      if (!hex) return "#111111";
-      const r = parseInt(hex.slice(1, 3), 16);
-      const g = parseInt(hex.slice(3, 5), 16);
-      const b = parseInt(hex.slice(5, 7), 16);
-      const yiq = (r * 299 + g * 587 + b * 114) / 1e3;
-      return yiq >= 128 ? "#111111" : "#ffffff";
-    }
-    function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, shapePct) {
-      const size = Number.isFinite(Math.trunc(Number(textSizePct))) ? Math.max(80, Math.min(140, Math.trunc(Number(textSizePct)))) : 100;
-      const bubbleW = Number.isFinite(Math.trunc(Number(bubbleWidthPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(bubbleWidthPct)))) : 100;
-      const bubbleH = Number.isFinite(Math.trunc(Number(bubbleHeightPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(bubbleHeightPct)))) : 100;
-      const shape = Number.isFinite(Math.trunc(Number(shapePct))) ? Math.max(0, Math.min(100, Math.trunc(Number(shapePct)))) : 0;
-      const scale = size / 100;
-      const bubbleScaleX = bubbleW / 100;
-      const bubbleScaleY = bubbleH / 100;
-      const t = shape / 100;
-      const eased = t <= 0.5 ? t / 0.5 * 0.45 : 0.45 + (t - 0.5) / 0.5 * 0.55;
-      const radiusPx = Math.max(0, Math.round(16 * (1 - eased)));
-      return {
-        borderRadiusPx: radiusPx,
-        horizontalPaddingPx: Math.max(2, Math.round(6 * bubbleScaleX)),
-        verticalPaddingPx: Math.max(1, Math.round(3 * bubbleScaleY)),
-        fontSizePx: Math.max(10, Math.round(14 * scale)),
-        lineHeight: 1.2
-      };
-    }
     function readTagwheelHeaderColorConfig(cfg) {
       const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
       const colors = behavior && behavior.colors ? behavior.colors : {};
@@ -24452,46 +27983,6 @@ var require_settings_sections_renderer = __commonJS({
         defaultTextColor: normalizeHexColorInput(header.defaultTextColor),
         fillColor: normalizeHexColorInput(header.fillColor),
         showPrefix: header.showPrefix !== false
-      };
-    }
-    function readTagVisualsConfig(cfg) {
-      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const visuals = behavior && behavior.tagVisuals ? behavior.tagVisuals : {};
-      const opacity = visuals && visuals.opacity ? visuals.opacity : {};
-      const strip = visuals && visuals.strip ? visuals.strip : {};
-      const toOpacity = (value, fallback) => {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return fallback;
-        return Math.max(0, Math.min(1, n));
-      };
-      const toInt = (value, fallback, min, max) => {
-        const n = Math.trunc(Number(value));
-        if (!Number.isFinite(n)) return fallback;
-        return Math.max(min, Math.min(max, n));
-      };
-      const toShapePct = (value, fallback) => {
-        const n = Math.trunc(Number(value));
-        if (!Number.isFinite(n)) return fallback;
-        return Math.max(0, Math.min(100, n));
-      };
-      return {
-        showColorSettings: visuals.showColorSettings === true,
-        opacityLeft: toOpacity(opacity.left, 1),
-        opacityRight: toOpacity(opacity.right, 1),
-        stripActive: strip.active === true,
-        stripFieldId: String(strip.fieldId || "").trim(),
-        stripTagVisibility: strip.tagVisibility !== false,
-        stripHideSeparatorWhenOnlyStripToken: strip.hideSeparatorWhenOnlyStripToken === true,
-        stripMode: String(strip.mode || "default").trim().toLowerCase() === "crossing" ? "crossing" : "default",
-        stripStripesToShow: toInt(strip.stripesToShow, 2, 1, 3),
-        stripThickness: toInt(strip.thickness, 2, 1, 12),
-        stripChildOffset: toInt(strip.childOffset, 12, 2, 20),
-        stripSpacing: toInt(strip.spacing, 20, 8, 48),
-        tagTextSizePct: toInt(visuals.tagTextSizePct, toInt(visuals.tagSizePct, 100, 80, 140), 80, 140),
-        tagBubbleWidthPct: toInt(visuals.tagBubbleWidthPct, toInt(visuals.tagBubbleSizePct, 100, 80, 140), 80, 140),
-        tagBubbleHeightPct: toInt(visuals.tagBubbleHeightPct, toInt(visuals.tagBubbleSizePct, 100, 80, 140), 80, 140),
-        emptyBubbleSizePct: toInt(visuals.emptyBubbleSizePct, 100, 50, 180),
-        tagShapePct: toShapePct(visuals.tagShapePct, 0)
       };
     }
     function collectTagOrderFieldOptions(cfg, normalizePkmOrder) {
@@ -24545,13 +28036,13 @@ var require_settings_sections_renderer = __commonJS({
           plugin.setConfigPatch({ pkm: { behavior: { colors: { tagwheelHeader: { [key]: next } } } } }, reason);
         });
         if (!enabled) txt.setDisabled(true);
-      }).addExtraButton((btn) => {
-        btn.setIcon("reset");
-        btn.setTooltip("Reset");
-        btn.onClick(() => {
+      }).addExtraButton((btn2) => {
+        btn2.setIcon("reset");
+        btn2.setTooltip("Reset");
+        btn2.onClick(() => {
           plugin.setConfigPatch({ pkm: { behavior: { colors: { tagwheelHeader: { [key]: "" } } } } }, resetReason);
         });
-        if (!enabled) btn.setDisabled(true);
+        if (!enabled) btn2.setDisabled(true);
       });
     }
     function renderVisualGeneralSection(ctx) {
@@ -24765,9 +28256,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of opacityLeftSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") opacityLeftSliderEl = el;
-        if (el.type === "text") opacityLeftTextEl = el;
+      for (const el2 of opacityLeftSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") opacityLeftSliderEl = el2;
+        if (el2.type === "text") opacityLeftTextEl = el2;
       }
       const opacityLeftPreviewWrap = opacityLeftSetting.controlEl.createEl("span");
       opacityLeftPreviewWrap.style.display = "inline-flex";
@@ -24821,9 +28312,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of opacityRightSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") opacityRightSliderEl = el;
-        if (el.type === "text") opacityRightTextEl = el;
+      for (const el2 of opacityRightSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") opacityRightSliderEl = el2;
+        if (el2.type === "text") opacityRightTextEl = el2;
       }
       const opacityRightPreviewWrap = opacityRightSetting.controlEl.createEl("span");
       opacityRightPreviewWrap.style.display = "inline-flex";
@@ -24877,9 +28368,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of tagTextSizeSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") tagTextSizeSliderEl = el;
-        if (el.type === "text") tagTextSizeTextEl = el;
+      for (const el2 of tagTextSizeSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") tagTextSizeSliderEl = el2;
+        if (el2.type === "text") tagTextSizeTextEl = el2;
       }
       const tagTextSizePreviewWrap = tagTextSizeSetting.controlEl.createEl("span");
       tagTextSizePreviewWrap.style.display = "inline-flex";
@@ -24938,9 +28429,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of tagBubbleWidthSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") tagBubbleWidthSliderEl = el;
-        if (el.type === "text") tagBubbleWidthTextEl = el;
+      for (const el2 of tagBubbleWidthSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") tagBubbleWidthSliderEl = el2;
+        if (el2.type === "text") tagBubbleWidthTextEl = el2;
       }
       const tagBubbleWidthPreviewWrap = tagBubbleWidthSetting.controlEl.createEl("span");
       tagBubbleWidthPreviewWrap.style.display = "inline-flex";
@@ -24999,9 +28490,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of tagBubbleHeightSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") tagBubbleHeightSliderEl = el;
-        if (el.type === "text") tagBubbleHeightTextEl = el;
+      for (const el2 of tagBubbleHeightSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") tagBubbleHeightSliderEl = el2;
+        if (el2.type === "text") tagBubbleHeightTextEl = el2;
       }
       const tagBubbleHeightPreviewWrap = tagBubbleHeightSetting.controlEl.createEl("span");
       tagBubbleHeightPreviewWrap.style.display = "inline-flex";
@@ -25060,9 +28551,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of emptyBubbleSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") emptyBubbleSliderEl = el;
-        if (el.type === "text") emptyBubbleTextEl = el;
+      for (const el2 of emptyBubbleSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") emptyBubbleSliderEl = el2;
+        if (el2.type === "text") emptyBubbleTextEl = el2;
       }
       const emptyBubblePreviewWrap = emptyBubbleSetting.controlEl.createEl("span");
       emptyBubblePreviewWrap.style.display = "inline-flex";
@@ -25118,9 +28609,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of tagShapeSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") tagShapeSliderEl = el;
-        if (el.type === "text") tagShapeTextEl = el;
+      for (const el2 of tagShapeSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") tagShapeSliderEl = el2;
+        if (el2.type === "text") tagShapeTextEl = el2;
       }
       const tagShapePreviewWrap = tagShapeSetting.controlEl.createEl("span");
       tagShapePreviewWrap.style.display = "inline-flex";
@@ -25238,9 +28729,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of stripStripesSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") stripStripesSliderEl = el;
-        if (el.type === "text") stripStripesTextEl = el;
+      for (const el2 of stripStripesSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") stripStripesSliderEl = el2;
+        if (el2.type === "text") stripStripesTextEl = el2;
       }
       let stripThicknessSliderEl = null;
       let stripThicknessTextEl = null;
@@ -25268,9 +28759,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of stripThicknessSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") stripThicknessSliderEl = el;
-        if (el.type === "text") stripThicknessTextEl = el;
+      for (const el2 of stripThicknessSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") stripThicknessSliderEl = el2;
+        if (el2.type === "text") stripThicknessTextEl = el2;
       }
       let stripChildSliderEl = null;
       let stripChildTextEl = null;
@@ -25298,9 +28789,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of stripChildSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") stripChildSliderEl = el;
-        if (el.type === "text") stripChildTextEl = el;
+      for (const el2 of stripChildSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") stripChildSliderEl = el2;
+        if (el2.type === "text") stripChildTextEl = el2;
       }
       let stripSpacingSliderEl = null;
       let stripSpacingTextEl = null;
@@ -25328,9 +28819,9 @@ var require_settings_sections_renderer = __commonJS({
         });
         if (!enabled) txt.setDisabled(true);
       });
-      for (const el of stripSpacingSetting.controlEl.querySelectorAll("input")) {
-        if (el.type === "range") stripSpacingSliderEl = el;
-        if (el.type === "text") stripSpacingTextEl = el;
+      for (const el2 of stripSpacingSetting.controlEl.querySelectorAll("input")) {
+        if (el2.type === "range") stripSpacingSliderEl = el2;
+        if (el2.type === "text") stripSpacingTextEl = el2;
       }
       const stripPreview = containerEl.createDiv();
       stripPreview.style.marginTop = "8px";
@@ -25821,10 +29312,10 @@ var require_settings_sections_renderer = __commonJS({
       row.style.gap = "6px";
       row.style.marginBottom = "10px";
       for (const st of hotkeysSubTabs) {
-        const btn = row.createEl("button", { text: st.label, cls: "mod-cta" });
-        btn.style.padding = "3px 8px";
-        btn.style.opacity = st.id === activeSubTab ? "1" : "0.8";
-        btn.onclick = () => setHotkeysSubTab(st.id);
+        const btn2 = row.createEl("button", { text: st.label, cls: "mod-cta" });
+        btn2.style.padding = "3px 8px";
+        btn2.style.opacity = st.id === activeSubTab ? "1" : "0.8";
+        btn2.onclick = () => setHotkeysSubTab(st.id);
       }
       if (activeSubTab === "binder") {
         const binderRows = Array.isArray(cfg && cfg.ui && cfg.ui.binderRows) ? cfg.ui.binderRows : [];
@@ -25866,14 +29357,14 @@ var require_settings_sections_renderer = __commonJS({
           const suffix = full.startsWith(prefix) ? full.slice(prefix.length) : full;
           return `*_${suffix || "item"}`;
         };
-        const styleReadonly = (el) => {
-          if (!el) return;
-          el.style.background = "var(--background-modifier-border-hover)";
-          el.style.opacity = "0.82";
-          el.style.cursor = "not-allowed";
-          el.style.filter = "saturate(0.7)";
-          el.style.color = "var(--text-muted)";
-          el.style.borderColor = "var(--background-modifier-border)";
+        const styleReadonly = (el2) => {
+          if (!el2) return;
+          el2.style.background = "var(--background-modifier-border-hover)";
+          el2.style.opacity = "0.82";
+          el2.style.cursor = "not-allowed";
+          el2.style.filter = "saturate(0.7)";
+          el2.style.color = "var(--text-muted)";
+          el2.style.borderColor = "var(--background-modifier-border)";
         };
         const persistRows = (nextRows, reason, opts) => {
           const options = opts && typeof opts === "object" ? opts : {};
@@ -25948,13 +29439,13 @@ var require_settings_sections_renderer = __commonJS({
           handle.style.display = "flex";
           handle.style.alignItems = "center";
           handle.style.justifyContent = "center";
-          const textInput = line.createEl("input");
-          textInput.type = "text";
-          textInput.value = insertText;
-          textInput.disabled = true;
-          textInput.style.width = "100%";
-          textInput.style.minWidth = "0";
-          styleReadonly(textInput);
+          const textInput2 = line.createEl("input");
+          textInput2.type = "text";
+          textInput2.value = insertText;
+          textInput2.disabled = true;
+          textInput2.style.width = "100%";
+          textInput2.style.minWidth = "0";
+          styleReadonly(textInput2);
           const nameInput2 = line.createEl("input");
           nameInput2.type = "text";
           nameInput2.value = commandName;
@@ -26060,10 +29551,10 @@ var require_settings_sections_renderer = __commonJS({
       row.style.gap = "8px";
       row.style.marginBottom = "10px";
       for (const t of settingsTabs) {
-        const btn = row.createEl("button", { text: t.label, cls: "mod-cta" });
-        btn.style.padding = "4px 10px";
-        btn.style.opacity = t.id === activeTab ? "1" : "0.8";
-        btn.onclick = () => setActiveSettingsTab(t.id);
+        const btn2 = row.createEl("button", { text: t.label, cls: "mod-cta" });
+        btn2.style.padding = "4px 10px";
+        btn2.style.opacity = t.id === activeTab ? "1" : "0.8";
+        btn2.onclick = () => setActiveSettingsTab(t.id);
       }
     }
     function renderSettingsDisplaySection(ctx) {
@@ -26111,10 +29602,10 @@ var require_settings_sections_renderer = __commonJS({
       row.style.gap = "6px";
       row.style.marginBottom = "10px";
       for (const st of visualSubTabs) {
-        const btn = row.createEl("button", { text: st.label, cls: "mod-cta" });
-        btn.style.padding = "3px 8px";
-        btn.style.opacity = st.id === activeSubTab ? "1" : "0.8";
-        btn.onclick = () => setVisualSubTab(st.id);
+        const btn2 = row.createEl("button", { text: st.label, cls: "mod-cta" });
+        btn2.style.padding = "3px 8px";
+        btn2.style.opacity = st.id === activeSubTab ? "1" : "0.8";
+        btn2.onclick = () => setVisualSubTab(st.id);
       }
       if (activeSubTab === "tagwheel") {
         renderVisualGeneralSection2({ Setting, containerEl, enabled, cfg, plugin });
@@ -26126,3168 +29617,11 @@ var require_settings_sections_renderer = __commonJS({
       }
       renderVisualTagsSection2({ Setting, containerEl, enabled, cfg, plugin });
     }
-    function renderPkmOrderBoardSection(ctx) {
-      const { Setting, Notice: Notice3, Modal, containerEl, cfg, enabled, plugin, normalizePkmOrder, pkmOrderFields, setIcon } = ctx;
-      const activePkmSubTab = String(cfg && cfg.ui && cfg.ui.pkmSubTab || "main").trim() === "behavior" ? "behavior" : "main";
-      const pkmSubTabs = [
-        { id: "main", label: "Main" },
-        { id: "behavior", label: "Behavior" }
-      ];
-      const pkmSubRow = containerEl.createDiv({ cls: "inline-overhaul-subtab-row" });
-      pkmSubRow.style.display = "flex";
-      pkmSubRow.style.flexWrap = "wrap";
-      pkmSubRow.style.gap = "6px";
-      pkmSubRow.style.marginBottom = "10px";
-      for (const st of pkmSubTabs) {
-        const btn = pkmSubRow.createEl("button", { text: st.label, cls: "mod-cta" });
-        btn.style.padding = "3px 8px";
-        btn.style.opacity = st.id === activePkmSubTab ? "1" : "0.8";
-        btn.disabled = !enabled || st.id === activePkmSubTab;
-        btn.onclick = () => {
-          if (!enabled) return;
-          plugin.setConfigPatch({ ui: { pkmSubTab: st.id } }, "settings:pkm-subtab");
-        };
-      }
-      if (activePkmSubTab !== "main") return;
-      const deepState = getOrderDeepEditorState();
-      const CONFLICT_FLAG = String(deepState.IO_BETA_CONFLICT_DIALOG || "IO_BETA_CONFLICT_DIALOG");
-      const historyLimit = Number.isFinite(Number(deepState.IO_TEMP_HISTORY_LIMIT)) ? Number(deepState.IO_TEMP_HISTORY_LIMIT) : 100;
-      if (!plugin._orderDeepEditorSession) {
-        plugin._orderDeepEditorSession = {
-          enabled: true,
-          dirty: false,
-          expanded: {},
-          history: typeof deepState.createHistory === "function" ? deepState.createHistory(historyLimit) : { past: [], future: [] }
-        };
-      }
-      const deepSession = plugin._orderDeepEditorSession;
-      const setDirty = (v) => {
-        deepSession.dirty = v === true;
-      };
-      const markSnapshot = (snapshot) => {
-        if (typeof deepState.pushHistory !== "function") return;
-        deepSession.history = deepState.pushHistory(deepSession.history, snapshot);
-        setDirty(true);
-      };
-      const resetHistory = () => {
-        if (typeof deepState.resetHistory === "function") {
-          deepSession.history = deepState.resetHistory(deepSession.history);
-        } else {
-          deepSession.history = { past: [], future: [] };
-        }
-        setDirty(false);
-      };
-      const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
-      const setOrderPatch = (patchObj, reason, opts) => {
-        const live = plugin.getConfig();
-        const current = normalizePkmOrder(live && live.pkm && live.pkm.behavior ? live.pkm.behavior.order : null);
-        const replace = !!(opts && opts.replace === true);
-        const next = replace ? normalizePkmOrder(patchObj) : normalizePkmOrder({
-          ...current,
-          ...patchObj,
-          lead: { ...current.lead, ...patchObj && patchObj.lead ? patchObj.lead : {} },
-          active: { ...current.active, ...patchObj && patchObj.active ? patchObj.active : {} },
-          freeRoam: { ...current.freeRoam, ...patchObj && patchObj.freeRoam ? patchObj.freeRoam : {} },
-          enabled: { ...current.enabled, ...patchObj && patchObj.enabled ? patchObj.enabled : {} },
-          types: { ...current.types, ...patchObj && patchObj.types ? patchObj.types : {} },
-          labels: { ...current.labels, ...patchObj && patchObj.labels ? patchObj.labels : {} },
-          strictNames: { ...current.strictNames, ...patchObj && patchObj.strictNames ? patchObj.strictNames : {} }
-        });
-        const withTombstones = (nextMap, curMap) => {
-          const out = { ...nextMap || {} };
-          const cur = curMap || {};
-          for (const k of Object.keys(cur)) {
-            if (!Object.prototype.hasOwnProperty.call(out, k)) out[k] = null;
-          }
-          return out;
-        };
-        if (!replace) {
-          const orderPatch2 = {
-            ...next,
-            lead: withTombstones(next.lead, current.lead)
-          };
-          plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch2 } } }, reason);
-          return;
-        }
-        const orderPatch = {
-          ...next,
-          lead: withTombstones(next.lead, current.lead),
-          labels: withTombstones(next.labels, current.labels),
-          strictNames: withTombstones(next.strictNames, current.strictNames),
-          types: withTombstones(next.types, current.types),
-          active: withTombstones(next.active, current.active),
-          freeRoam: withTombstones(next.freeRoam, current.freeRoam),
-          enabled: withTombstones(next.enabled, current.enabled)
-        };
-        plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch } } }, reason);
-      };
-      const inferSubKey = (parentKey) => {
-        const p = String(parentKey || "").trim();
-        if (!p) return "";
-        return `${p}_sub`;
-      };
-      const confirmDeleteModal = (fieldKey) => new Promise((resolve) => {
-        if (typeof Modal !== "function" || !plugin || !plugin.app) {
-          resolve(window.confirm(`InlineOverhaul: delete field '${fieldKey}'?`));
-          return;
-        }
-        class DeleteFieldModal extends Modal {
-          onOpen() {
-            const { contentEl } = this;
-            contentEl.empty();
-            contentEl.createEl("h3", { text: "Delete field" });
-            contentEl.createEl("p", { text: `Delete field '${fieldKey}' from Order and config?` });
-            const row2 = contentEl.createDiv();
-            row2.style.display = "flex";
-            row2.style.justifyContent = "flex-end";
-            row2.style.gap = "8px";
-            row2.style.marginTop = "12px";
-            const cancelBtn = row2.createEl("button", { text: "Cancel" });
-            const delBtn = row2.createEl("button", { text: "Delete", cls: "mod-warning" });
-            cancelBtn.onclick = () => {
-              resolve(false);
-              this.close();
-            };
-            delBtn.onclick = () => {
-              resolve(true);
-              this.close();
-            };
-          }
-          onClose() {
-            this.contentEl.empty();
-          }
-        }
-        const modal = new DeleteFieldModal(plugin.app);
-        modal.open();
-      });
-      const uiCfg = cfg && cfg.ui && typeof cfg.ui === "object" ? cfg.ui : {};
-      const showInfoTips = uiCfg.orderShowInfoTips === true;
-      const showDeepEditor = uiCfg.orderShowDeepEditor !== false;
-      const showColorSettingsUi = uiCfg.orderShowColorSettings !== false;
-      const orderWrap = containerEl.createDiv();
-      orderWrap.classList.add("io-order-wrap");
-      orderWrap.style.border = "1px solid var(--background-modifier-border)";
-      orderWrap.style.borderRadius = "8px";
-      orderWrap.style.padding = "8px 9px";
-      orderWrap.style.marginBottom = "8px";
-      const orderHeader = orderWrap.createEl("div", { text: "Order" });
-      orderHeader.style.fontSize = "14px";
-      orderHeader.style.fontWeight = "600";
-      orderHeader.style.lineHeight = "1.25";
-      orderHeader.style.margin = "0 0 2px 0";
-      if (showInfoTips) {
-        const tipsBlock = orderWrap.createEl("details");
-        tipsBlock.style.margin = "2px 0 6px";
-        const sm = tipsBlock.createEl("summary", { text: "Info & Tips" });
-        sm.style.cursor = "pointer";
-        tipsBlock.createEl("div", { text: "Drag rows inside panels. Left/Right panels are stacked for compact view. Display affects panel label only; strict is system key for config/runtime. Active: yes/no/hotkey_only. Free roam controls non-prefix insertion policy per field." });
-      }
-      deepSession.enabled = true;
-      const tableSettings = orderWrap.createDiv();
-      tableSettings.classList.add("io-order-settings-card");
-      tableSettings.style.border = "1px solid var(--background-modifier-border)";
-      tableSettings.style.borderRadius = "8px";
-      tableSettings.style.padding = "6px 8px";
-      tableSettings.style.marginBottom = "6px";
-      const tableSettingsTitle = tableSettings.createEl("div", { text: "Order Settings" });
-      tableSettingsTitle.style.fontSize = "12px";
-      tableSettingsTitle.style.fontWeight = "600";
-      tableSettingsTitle.style.lineHeight = "1.25";
-      tableSettingsTitle.style.margin = "0 0 2px 0";
-      new Setting(tableSettings).setName("Show Info & Tips").addToggle((t) => {
-        t.setValue(showInfoTips).onChange((v) => {
-          plugin.setConfigPatch({ ui: { orderShowInfoTips: v === true } }, "settings:ui:orderShowInfoTips");
-          deferRefreshSettings(refreshSettings);
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(tableSettings).setName("Show DeepEditor").addToggle((t) => {
-        t.setValue(showDeepEditor).onChange((v) => {
-          plugin.setConfigPatch({ ui: { orderShowDeepEditor: v === true } }, "settings:ui:orderShowDeepEditor");
-          deferRefreshSettings(refreshSettings);
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      const colorSettingRow = new Setting(tableSettings).setName("Show Color Settings").addToggle((t) => {
-        t.setValue(showColorSettingsUi).onChange((v) => {
-          plugin.setConfigPatch({ ui: { orderShowColorSettings: v === true } }, "settings:ui:orderShowColorSettings");
-          deferRefreshSettings(refreshSettings);
-        });
-        if (!enabled || !showDeepEditor) t.setDisabled(true);
-      });
-      if (!showDeepEditor && colorSettingRow && colorSettingRow.settingEl) colorSettingRow.settingEl.style.opacity = "0.55";
-      const historyRow = orderWrap.createDiv();
-      historyRow.style.display = "flex";
-      historyRow.style.alignItems = "center";
-      historyRow.style.gap = "6px";
-      historyRow.style.margin = "4px 0 8px";
-      const mainTableSubHeader = historyRow.createEl("div", { text: "Order Main Table" });
-      mainTableSubHeader.style.fontSize = "12px";
-      mainTableSubHeader.style.fontWeight = "600";
-      mainTableSubHeader.style.lineHeight = "1.25";
-      const applyDraftBtn = historyRow.createEl("button", { text: "Apply Draft", cls: "mod-cta" });
-      const historyRight = historyRow.createDiv();
-      historyRight.style.marginLeft = "auto";
-      historyRight.style.display = "flex";
-      historyRight.style.alignItems = "center";
-      historyRight.style.justifyContent = "flex-end";
-      historyRight.style.gap = "6px";
-      const undoBtn = historyRight.createEl("button", { text: "\u21B6" });
-      const redoBtn = historyRight.createEl("button", { text: "\u21B7" });
-      const draftInfo = historyRight.createEl("small", { text: "" });
-      const refreshDraftInfo = () => {
-        const cnt = Array.isArray(deepSession.history && deepSession.history.past) ? deepSession.history.past.length : 0;
-        const dirty = deepSession.dirty === true;
-        draftInfo.setText(dirty ? `| ${cnt}` : "| -");
-        undoBtn.disabled = !enabled || cnt === 0;
-        redoBtn.disabled = !enabled || !(Array.isArray(deepSession.history && deepSession.history.future) && deepSession.history.future.length);
-        applyDraftBtn.disabled = !enabled || !dirty;
-      };
-      const orderState = normalizePkmOrder(order);
-      const getOrderKeys = () => {
-        const out = [];
-        const push = (k) => {
-          const key = String(k || "").trim();
-          if (!key || /_sub$/.test(key)) return;
-          if (!out.includes(key)) out.push(key);
-        };
-        for (const k of pkmOrderFields) push(k);
-        for (const k of orderState.left || []) push(k);
-        for (const k of orderState.right || []) push(k);
-        for (const k of Object.keys(orderState.labels || {})) push(k);
-        for (const k of Object.keys(orderState.strictNames || {})) push(k);
-        for (const k of Object.keys(orderState.active || {})) push(k);
-        for (const k of Object.keys(orderState.freeRoam || {})) push(k);
-        for (const k of Object.keys(orderState.types || {})) push(k);
-        return out;
-      };
-      const typeLabelByKind = {
-        tag: "#tag",
-        wikilink: "[[link]]",
-        element: "element"
-      };
-      const getFieldKind = (k) => {
-        const raw = String(orderState.types && orderState.types[k] ? orderState.types[k] : "").trim().toLowerCase();
-        if (raw === "tag" || raw === "wikilink" || raw === "element") return raw;
-        return "tag";
-      };
-      const getTagVisualRuntime = () => readTagVisualsConfig(plugin.getConfig());
-      const getTagVisualRow = (fieldId, token) => {
-        const fid = String(fieldId || "").trim();
-        const tok = String(token || "").trim();
-        const visuals = plugin.getConfig() && plugin.getConfig().pkm && plugin.getConfig().pkm.behavior ? plugin.getConfig().pkm.behavior.tagVisuals : {};
-        const byTag = visuals && visuals.byTag && typeof visuals.byTag === "object" ? visuals.byTag : {};
-        const fm = fid && byTag[fid] && typeof byTag[fid] === "object" ? byTag[fid] : {};
-        const row2 = tok && fm[tok] && typeof fm[tok] === "object" ? fm[tok] : {};
-        return {
-          fillColor: normalizeHexColorInput(row2.fillColor),
-          textColor: normalizeHexColorInput(row2.textColor),
-          visibility: ["default", "empty", "custom"].includes(String(row2.visibility || "default").trim().toLowerCase()) ? String(row2.visibility || "default").trim().toLowerCase() : "default",
-          customText: String(row2.customText || "").trim()
-        };
-      };
-      const setTagVisualRow = (fieldId, token, patch, reason) => {
-        const fid = String(fieldId || "").trim();
-        const tok = String(token || "").trim();
-        if (!fid || !tok || tok.charAt(0) !== "#") return;
-        const cfgNow = plugin.getConfig();
-        const visuals = cfgNow && cfgNow.pkm && cfgNow.pkm.behavior && cfgNow.pkm.behavior.tagVisuals ? cfgNow.pkm.behavior.tagVisuals : {};
-        const byTag = visuals && visuals.byTag && typeof visuals.byTag === "object" ? visuals.byTag : {};
-        const fieldMap = byTag[fid] && typeof byTag[fid] === "object" ? byTag[fid] : {};
-        const current = fieldMap[tok] && typeof fieldMap[tok] === "object" ? fieldMap[tok] : {};
-        const next = {
-          fillColor: Object.prototype.hasOwnProperty.call(patch, "fillColor") ? normalizeHexColorInput(patch.fillColor) : normalizeHexColorInput(current.fillColor),
-          textColor: Object.prototype.hasOwnProperty.call(patch, "textColor") ? normalizeHexColorInput(patch.textColor) : normalizeHexColorInput(current.textColor),
-          visibility: Object.prototype.hasOwnProperty.call(patch, "visibility") ? ["default", "empty", "custom"].includes(String(patch.visibility || "default").trim().toLowerCase()) ? String(patch.visibility || "default").trim().toLowerCase() : "default" : ["default", "empty", "custom"].includes(String(current.visibility || "default").trim().toLowerCase()) ? String(current.visibility || "default").trim().toLowerCase() : "default",
-          customText: Object.prototype.hasOwnProperty.call(patch, "customText") ? String(patch.customText || "").trim() : String(current.customText || "").trim()
-        };
-        plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { byTag: { [fid]: { [tok]: next } } } } } }, reason || "pkm:visuals:tag");
-      };
-      const getSubKeyForParent = (k) => {
-        const kind = getFieldKind(k);
-        if (kind !== "tag") return "";
-        return inferSubKey(k);
-      };
-      const ensureAllKeys = () => {
-        for (const k of getOrderKeys()) {
-          if (orderState.left.includes(k) || orderState.right.includes(k)) continue;
-          orderState.right.push(k);
-        }
-      };
-      ensureAllKeys();
-      const getPanelLeadCandidates = (panelKey) => {
-        const arr = panelKey === "right" ? orderState.right : orderState.left;
-        const seen = /* @__PURE__ */ new Set();
-        const out = [];
-        for (const k of arr) {
-          const key = String(k || "").trim();
-          if (!key || /_sub$/.test(key)) continue;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          out.push({ key, label: String(orderState.labels && orderState.labels[key] || key) });
-        }
-        return out;
-      };
-      const captureSnapshot = () => {
-        const live = plugin.getConfig();
-        const behavior = live && live.pkm && live.pkm.behavior ? live.pkm.behavior : {};
-        return {
-          order: normalizePkmOrder(behavior ? behavior.order : null),
-          leftMode: behavior && behavior.leftMode && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : [],
-          rightMode: behavior && behavior.rightMode && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : [],
-          elements: behavior && behavior.elements ? behavior.elements : {},
-          dates: {}
-        };
-      };
-      const applySnapshot = (snap, reason) => {
-        const s = snap && typeof snap === "object" ? snap : captureSnapshot();
-        plugin.setConfigPatch({
-          pkm: {
-            behavior: {
-              order: s.order,
-              leftMode: { fields: Array.isArray(s.leftMode) ? s.leftMode : [] },
-              rightMode: { fields: Array.isArray(s.rightMode) ? s.rightMode : [] },
-              elements: s.elements || {}
-            }
-          }
-        }, reason || "pkm:behavior:order:deep-draft-apply");
-      };
-      undoBtn.onclick = () => {
-        if (!enabled || typeof deepState.undoHistory !== "function") return;
-        const cur = captureSnapshot();
-        const rs = deepState.undoHistory(deepSession.history, cur);
-        deepSession.history = rs.history;
-        if (!rs.changed) {
-          refreshDraftInfo();
-          return;
-        }
-        applySnapshot(rs.snapshot, "pkm:behavior:order:deep-undo");
-        setDirty(true);
-        renderOrderBoard();
-      };
-      redoBtn.onclick = () => {
-        if (!enabled || typeof deepState.redoHistory !== "function") return;
-        const cur = captureSnapshot();
-        const rs = deepState.redoHistory(deepSession.history, cur);
-        deepSession.history = rs.history;
-        if (!rs.changed) {
-          refreshDraftInfo();
-          return;
-        }
-        applySnapshot(rs.snapshot, "pkm:behavior:order:deep-redo");
-        setDirty(true);
-        renderOrderBoard();
-      };
-      applyDraftBtn.onclick = () => {
-        if (!enabled || !deepSession.dirty) return;
-        const rows = getOrderKeys().filter((k) => !/_sub$/.test(k)).map((k) => {
-          const kind = getFieldKind(k);
-          const out = { key: k, kind };
-          if (kind === "element") {
-            const live = plugin.getConfig();
-            const byField = live && live.pkm && live.pkm.behavior && live.pkm.behavior.elements && live.pkm.behavior.elements.byField ? live.pkm.behavior.elements.byField : {};
-            const ec = byField && byField[k] ? byField[k] : {};
-            const inc = ec && ec.increment ? ec.increment : {};
-            out.emoji = String(ec.emoji || "").trim();
-            out.format = String(ec.format || "").trim();
-            const modeRaw = String(inc.mode || "").trim().toLowerCase();
-            out.behaviorMode = modeRaw === "custom" ? "custom" : modeRaw === "command" ? "command" : "increment";
-            out.incrementBy = inc.incrementBy;
-            out.command = String(inc.command || "").trim();
-            out.customRaw = Array.isArray(inc.customRaw) ? inc.customRaw.slice() : [];
-          }
-          return out;
-        });
-        const vr = typeof deepState.validateDraft === "function" ? deepState.validateDraft({ rows }) : { ok: true, errors: [] };
-        if (!vr.ok) {
-          new Notice3(`[${CONFLICT_FLAG}] apply blocked: ` + String(vr.errors[0] || "validation error"));
-          return;
-        }
-        resetHistory();
-        new Notice3("Order draft applied");
-        refreshDraftInfo();
-      };
-      try {
-        applyDraftBtn.style.display = "none";
-      } catch (_) {
-      }
-      const addRow = orderWrap.createDiv();
-      addRow.style.display = "grid";
-      addRow.style.gridTemplateColumns = "1fr 120px 120px";
-      addRow.style.gap = "6px";
-      addRow.style.margin = "8px 0";
-      const addStrict = addRow.createEl("input");
-      addStrict.type = "text";
-      addStrict.placeholder = "name_strict";
-      if (!enabled) addStrict.disabled = true;
-      const addType = addRow.createEl("select");
-      addType.createEl("option", { text: "tag", value: "tag" });
-      addType.createEl("option", { text: "link", value: "wikilink" });
-      addType.createEl("option", { text: "element", value: "element" });
-      if (!enabled) addType.disabled = true;
-      const addBtn = addRow.createEl("button", { text: "+ Add field", cls: "mod-cta" });
-      if (!enabled) addBtn.disabled = true;
-      const buildLeftFieldDefinition = (key, kind) => {
-        if (kind === "wikilink") {
-          return {
-            id: key,
-            prefix: "#",
-            source: `wikilinks:${key}`,
-            placeholder: key,
-            values: [""]
-          };
-        }
-        return {
-          id: key,
-          prefix: "#",
-          placeholder: key,
-          values: [""]
-        };
-      };
-      const inferElementDefaults = (key) => {
-        void key;
-        const marker = "";
-        const format = "";
-        return { marker, format };
-      };
-      const buildRightElementFieldDefinition = (key) => {
-        const dflt = inferElementDefaults(key);
-        return {
-          id: key,
-          kind: "genericElement",
-          marker: dflt.marker,
-          placeholder: key,
-          values: [""]
-        };
-      };
-      addBtn.onclick = () => {
-        var _a, _b, _c, _d, _e;
-        if (!enabled) return;
-        const key = String(addStrict.value || "").replace(/\s+/g, " ").trim();
-        if (!/^[a-z0-9_\- ]+$/i.test(key)) {
-          new Notice3("InlineOverhaul: name_strict must match [a-z0-9_- ]+");
-          return;
-        }
-        const all = getOrderKeys();
-        if (/_sub$/.test(key)) {
-          new Notice3("InlineOverhaul: name_strict ending with _sub is reserved for generated child keys");
-          return;
-        }
-        if (all.includes(key)) {
-          new Notice3("InlineOverhaul: field already exists");
-          return;
-        }
-        const strictValues = new Set(all.map((kk) => String(orderState.strictNames && orderState.strictNames[kk] || kk).trim()).filter(Boolean));
-        if (strictValues.has(key)) {
-          new Notice3("InlineOverhaul: name_strict already exists");
-          return;
-        }
-        const kindRaw = String(addType.value || "tag").trim().toLowerCase();
-        const kind = kindRaw === "wikilink" || kindRaw === "element" ? kindRaw : "tag";
-        const subKey = kind === "tag" ? inferSubKey(key) : "";
-        const subStrict = kind === "tag" ? `${key}_sub` : "";
-        if (subStrict && strictValues.has(subStrict)) {
-          new Notice3("InlineOverhaul: auto sub name_strict already exists");
-          return;
-        }
-        orderState.right = (orderState.right || []).concat([key]);
-        orderState.labels = { ...orderState.labels || {}, [key]: key };
-        orderState.strictNames = { ...orderState.strictNames || {}, [key]: key };
-        orderState.types = { ...orderState.types || {}, [key]: kind };
-        orderState.active = { ...orderState.active || {}, [key]: "yes" };
-        orderState.freeRoam = { ...orderState.freeRoam || {}, [key]: "off" };
-        orderState.enabled = { ...orderState.enabled || {}, [key]: true };
-        if (subKey) {
-          orderState.active[subKey] = "no";
-          orderState.freeRoam[subKey] = "off";
-          orderState.enabled[subKey] = false;
-          orderState.types[subKey] = "tag";
-          orderState.labels[subKey] = `${key} sub`;
-          orderState.strictNames[subKey] = subStrict;
-        }
-        setOrderPatch({
-          right: orderState.right.slice(),
-          labels: { [key]: key },
-          strictNames: { [key]: key },
-          types: { [key]: kind },
-          active: { [key]: "yes" },
-          freeRoam: { [key]: "off" },
-          enabled: { [key]: true },
-          ...subKey ? {
-            labels: { [key]: key, [subKey]: `${key} sub` },
-            strictNames: { [key]: key, [subKey]: subStrict },
-            types: { [key]: kind, [subKey]: "tag" },
-            active: { [key]: "yes", [subKey]: "no" },
-            freeRoam: { [key]: "off", [subKey]: "off" },
-            enabled: { [key]: true, [subKey]: false }
-          } : {}
-        }, "pkm:behavior:order:add-field:" + key);
-        const live = plugin.getConfig();
-        const behavior = live && live.pkm && live.pkm.behavior ? live.pkm.behavior : {};
-        const leftMode = behavior && behavior.leftMode && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields.slice() : [];
-        const rightMode = behavior && behavior.rightMode && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields.slice() : [];
-        if (kind === "element") {
-          if (!rightMode.find((f) => f && String(f.id || "").trim() === key)) {
-            rightMode.push(buildRightElementFieldDefinition(key));
-          }
-        } else {
-          if (!leftMode.find((f) => f && String(f.id || "").trim() === key)) {
-            leftMode.push(buildLeftFieldDefinition(key, kind));
-          }
-          if (kind === "tag") {
-            if (!leftMode.find((f) => f && String(f.id || "").trim() === subKey)) {
-              leftMode.push({
-                id: subKey,
-                prefix: "#",
-                enabled: false,
-                dependsOn: key,
-                disabledForParentValues: [],
-                placeholder: "sub",
-                values: [""]
-              });
-            }
-          }
-        }
-        plugin.setConfigPatch({ pkm: { behavior: { leftMode: { fields: leftMode }, rightMode: { fields: rightMode } } } }, "pkm:behavior:modes:add-field:" + key);
-        try {
-          if (plugin && typeof plugin.registerPkmCommands === "function") plugin.registerPkmCommands();
-        } catch (_) {
-        }
-        if (kind === "element") {
-          const liveAfterMode = plugin.getConfig();
-          const behaviorAfterMode = liveAfterMode && liveAfterMode.pkm && liveAfterMode.pkm.behavior ? liveAfterMode.pkm.behavior : {};
-          const elementsCfg = behaviorAfterMode && behaviorAfterMode.elements ? behaviorAfterMode.elements : {};
-          const fields = Array.isArray(elementsCfg.fields) ? elementsCfg.fields.slice() : [];
-          if (!fields.includes(key)) fields.push(key);
-          const byField = elementsCfg && elementsCfg.byField && typeof elementsCfg.byField === "object" ? { ...elementsCfg.byField } : {};
-          const cur = byField[key] && typeof byField[key] === "object" ? byField[key] : {};
-          byField[key] = {
-            ...cur,
-            emoji: Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur.emoji || "").trim() : "",
-            format: Object.prototype.hasOwnProperty.call(cur, "format") ? String((_a = cur.format) != null ? _a : "") : "",
-            hotkey: {
-              increase: String(((_b = cur == null ? void 0 : cur.hotkey) == null ? void 0 : _b.increase) || "").trim(),
-              decrease: String(((_c = cur == null ? void 0 : cur.hotkey) == null ? void 0 : _c.decrease) || "").trim()
-            },
-            increment: {
-              mode: "standard",
-              incrementBy: 1,
-              command: "now",
-              customRaw: Array.isArray((_d = cur == null ? void 0 : cur.increment) == null ? void 0 : _d.customRaw) ? cur.increment.customRaw : [],
-              custom: Array.isArray((_e = cur == null ? void 0 : cur.increment) == null ? void 0 : _e.custom) ? cur.increment.custom : [1]
-            }
-          };
-          plugin.setConfigPatch({ pkm: { behavior: { elements: { fields, byField } } } }, "pkm:behavior:elements:add-field:" + key);
-        }
-        addStrict.value = "";
-        renderOrderBoard();
-      };
-      const row = orderWrap.createDiv();
-      row.style.display = "grid";
-      row.style.gridTemplateColumns = "1fr";
-      row.style.gap = "6px";
-      row.style.border = "1px solid var(--background-modifier-border-hover)";
-      row.style.borderRadius = "6px";
-      row.style.padding = "6px";
-      row.style.background = "var(--background-primary)";
-      const panelCols = {
-        left: row.createDiv(),
-        right: row.createDiv()
-      };
-      let dragKey = "";
-      const orderTipsRegistry = {
-        type: "Field kind: tag, link, or element.",
-        strict: "System key used in config/runtime.",
-        display: "UI label shown in panels.",
-        subtags: "Enable or disable subtag lane for this field.",
-        roam: "Controls non-prefix insertion behavior.",
-        active: "yes/no/hotkey_only runtime participation."
-      };
-      const addTipIcon = (host, tipKey) => {
-        if (!showInfoTips) return;
-        const tipText = String(orderTipsRegistry[tipKey] || "").trim();
-        if (!tipText) return;
-        const icon = host.createEl("span", { text: " \u24D8" });
-        icon.style.opacity = "0.7";
-        icon.style.cursor = "help";
-        let timer = null;
-        let popup = null;
-        const hide = () => {
-          if (timer) clearTimeout(timer);
-          timer = null;
-          if (popup && popup.remove) popup.remove();
-          popup = null;
-        };
-        icon.onmouseleave = hide;
-        icon.onmouseenter = () => {
-          hide();
-          timer = setTimeout(() => {
-            popup = document.createElement("div");
-            popup.textContent = tipText;
-            popup.style.position = "fixed";
-            popup.style.zIndex = "10000";
-            popup.style.maxWidth = "260px";
-            popup.style.padding = "6px 8px";
-            popup.style.borderRadius = "6px";
-            popup.style.border = "1px solid var(--background-modifier-border)";
-            popup.style.background = "var(--background-primary)";
-            popup.style.fontSize = "12px";
-            const r = icon.getBoundingClientRect();
-            popup.style.left = `${Math.round(r.left)}px`;
-            popup.style.top = `${Math.round(r.bottom + 6)}px`;
-            document.body.appendChild(popup);
-          }, 300);
-        };
-      };
-      const moveKey = (toPanel, key, beforeKey) => {
-        if (!key) return;
-        const moveKeys = [key];
-        const subKey = getSubKeyForParent(key);
-        if (subKey && (orderState.left.includes(subKey) || orderState.right.includes(subKey))) {
-          moveKeys.push(subKey);
-        }
-        orderState.left = orderState.left.filter((x) => !moveKeys.includes(x));
-        orderState.right = orderState.right.filter((x) => !moveKeys.includes(x));
-        const target = toPanel === "right" ? orderState.right : orderState.left;
-        let idx = target.length;
-        if (beforeKey) {
-          const bi = target.indexOf(beforeKey);
-          if (bi !== -1) idx = bi;
-        }
-        target.splice(idx, 0, ...moveKeys);
-        setOrderPatch(orderState, "pkm:behavior:order:dnd");
-        renderOrderBoard();
-      };
-      const getOrderTypeBubblePalette = (kindRaw) => {
-        const kind = String(kindRaw || "").trim().toLowerCase();
-        if (kind === "tag") {
-          return {
-            bg: "rgba(70, 130, 180, 0.16)",
-            border: "rgba(70, 130, 180, 0.42)"
-          };
-        }
-        if (kind === "wikilink" || kind === "link") {
-          return {
-            bg: "rgba(46, 139, 87, 0.16)",
-            border: "rgba(46, 139, 87, 0.42)"
-          };
-        }
-        return {
-          bg: "rgba(205, 133, 63, 0.16)",
-          border: "rgba(205, 133, 63, 0.42)"
-        };
-      };
-      const collectYamlSuggestionKeys = () => {
-        try {
-          const app2 = plugin && plugin.app ? plugin.app : null;
-          if (!app2 || !app2.vault || !app2.metadataCache || typeof app2.vault.getMarkdownFiles !== "function") return [];
-          const files = app2.vault.getMarkdownFiles();
-          const out = [];
-          const seen = /* @__PURE__ */ new Set();
-          for (let i = 0; i < files.length; i++) {
-            const path = String(files[i] && files[i].path || "").trim();
-            if (!path) continue;
-            const cache = typeof app2.metadataCache.getCache === "function" ? app2.metadataCache.getCache(path) : null;
-            const fm = cache && cache.frontmatter && typeof cache.frontmatter === "object" ? cache.frontmatter : null;
-            if (!fm) continue;
-            for (const key of Object.keys(fm)) {
-              const k = String(key || "").trim();
-              if (!k || seen.has(k.toLowerCase())) continue;
-              seen.add(k.toLowerCase());
-              out.push(k);
-            }
-          }
-          out.sort((a, b) => a.localeCompare(b, void 0, { sensitivity: "base" }));
-          return out;
-        } catch (_) {
-          return [];
-        }
-      };
-      let yamlSuggestionKeysCache = collectYamlSuggestionKeys();
-      const getYamlSuggestionKeys = () => {
-        const fresh = collectYamlSuggestionKeys();
-        if (Array.isArray(fresh) && fresh.length) {
-          yamlSuggestionKeysCache = fresh;
-          return fresh;
-        }
-        return Array.isArray(yamlSuggestionKeysCache) ? yamlSuggestionKeysCache : [];
-      };
-      const attachYamlSuggestionDropdown = (inputEl, onPick) => {
-        if (!inputEl || typeof document === "undefined" || !document.body) return () => {
-        };
-        const popup = document.createElement("div");
-        document.body.appendChild(popup);
-        popup.style.position = "absolute";
-        popup.style.display = "none";
-        popup.style.maxHeight = "160px";
-        popup.style.overflowY = "auto";
-        popup.style.zIndex = "10000";
-        popup.style.background = "var(--background-primary)";
-        popup.style.border = "1px solid var(--background-modifier-border)";
-        popup.style.borderRadius = "6px";
-        popup.style.padding = "4px";
-        popup.style.boxShadow = "0 6px 18px rgba(0,0,0,0.12)";
-        popup.style.fontSize = "12px";
-        popup.style.lineHeight = "1.35";
-        let activeIndex = -1;
-        let visibleRows = [];
-        const hidePopup = () => {
-          activeIndex = -1;
-          popup.style.display = "none";
-        };
-        const applyActiveStyles = () => {
-          for (let i = 0; i < visibleRows.length; i++) {
-            const rowEl = visibleRows[i];
-            if (!rowEl) continue;
-            if (i === activeIndex) {
-              rowEl.style.background = "var(--background-modifier-hover)";
-              rowEl.style.outline = "1px solid var(--background-modifier-border)";
-            } else {
-              rowEl.style.background = "transparent";
-              rowEl.style.outline = "none";
-            }
-          }
-        };
-        const placePopup = () => {
-          const r = inputEl.getBoundingClientRect();
-          popup.style.left = `${Math.round(r.left)}px`;
-          popup.style.top = `${Math.round(r.bottom + 2)}px`;
-          popup.style.minWidth = `${Math.round(r.width)}px`;
-        };
-        const render = (showAll) => {
-          popup.replaceChildren();
-          visibleRows = [];
-          activeIndex = -1;
-          const q = String(inputEl.value || "").trim().toLowerCase();
-          const keys = getYamlSuggestionKeys();
-          const rows = showAll && !q ? keys.slice(0, 30) : keys.filter((x) => String(x || "").toLowerCase().includes(q)).slice(0, 30);
-          if (!rows.length) {
-            const empty = document.createElement("div");
-            empty.textContent = keys.length ? "No matches" : "No YAML properties found in vault";
-            empty.style.padding = "4px 8px";
-            empty.style.opacity = "0.7";
-            popup.appendChild(empty);
-            placePopup();
-            popup.style.display = "block";
-            return;
-          }
-          for (let i = 0; i < rows.length; i++) {
-            const opt = document.createElement("div");
-            opt.textContent = rows[i];
-            opt.style.padding = "4px 8px";
-            opt.style.borderRadius = "4px";
-            opt.style.cursor = "pointer";
-            opt.onmouseenter = () => {
-              activeIndex = i;
-              applyActiveStyles();
-            };
-            opt.onmousedown = (ev) => {
-              ev.preventDefault();
-              inputEl.value = rows[i];
-              hidePopup();
-              if (typeof onPick === "function") onPick(rows[i]);
-              inputEl.dispatchEvent(new Event("change"));
-            };
-            visibleRows.push(opt);
-            popup.appendChild(opt);
-          }
-          activeIndex = 0;
-          applyActiveStyles();
-          placePopup();
-          popup.style.display = "block";
-        };
-        const onFocus = () => render(true);
-        const onInput = () => render(false);
-        const onClick = () => render(true);
-        const onBlur = () => {
-          setTimeout(() => hidePopup(), 120);
-        };
-        const onKeydown = (ev) => {
-          if (popup.style.display === "none") {
-            if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
-              ev.preventDefault();
-              render(true);
-            }
-            return;
-          }
-          if (ev.key === "Escape") {
-            hidePopup();
-            return;
-          }
-          if (ev.key === "ArrowDown") {
-            ev.preventDefault();
-            if (visibleRows.length) {
-              activeIndex = Math.min(visibleRows.length - 1, activeIndex + 1);
-              applyActiveStyles();
-            }
-            return;
-          }
-          if (ev.key === "ArrowUp") {
-            ev.preventDefault();
-            if (visibleRows.length) {
-              activeIndex = Math.max(0, activeIndex - 1);
-              applyActiveStyles();
-            }
-            return;
-          }
-          if (ev.key === "Enter") {
-            if (activeIndex >= 0 && activeIndex < visibleRows.length) {
-              ev.preventDefault();
-              const selected = String(visibleRows[activeIndex].textContent || "").trim();
-              if (selected && selected !== "No matches" && selected !== "No YAML properties found in vault") {
-                inputEl.value = selected;
-                hidePopup();
-                if (typeof onPick === "function") onPick(selected);
-                inputEl.dispatchEvent(new Event("change"));
-              }
-            }
-          }
-        };
-        const onDocMouseDown = (ev) => {
-          const t = ev && ev.target ? ev.target : null;
-          if (t === inputEl || popup.contains(t)) return;
-          hidePopup();
-        };
-        const onWindowResize = () => {
-          if (popup.style.display !== "none") placePopup();
-        };
-        inputEl.addEventListener("focus", onFocus);
-        inputEl.addEventListener("input", onInput);
-        inputEl.addEventListener("click", onClick);
-        inputEl.addEventListener("blur", onBlur);
-        inputEl.addEventListener("keydown", onKeydown);
-        window.addEventListener("resize", onWindowResize);
-        document.addEventListener("mousedown", onDocMouseDown);
-        return () => {
-          try {
-            inputEl.removeEventListener("focus", onFocus);
-          } catch (_) {
-          }
-          try {
-            inputEl.removeEventListener("input", onInput);
-          } catch (_) {
-          }
-          try {
-            inputEl.removeEventListener("click", onClick);
-          } catch (_) {
-          }
-          try {
-            inputEl.removeEventListener("blur", onBlur);
-          } catch (_) {
-          }
-          try {
-            inputEl.removeEventListener("keydown", onKeydown);
-          } catch (_) {
-          }
-          try {
-            window.removeEventListener("resize", onWindowResize);
-          } catch (_) {
-          }
-          try {
-            document.removeEventListener("mousedown", onDocMouseDown);
-          } catch (_) {
-          }
-          try {
-            popup.remove();
-          } catch (_) {
-          }
-        };
-      };
-      const renderPanel = (panelKey, title) => {
-        const host = panelCols[panelKey];
-        host.empty();
-        host.style.border = "none";
-        host.style.borderRadius = "0";
-        host.style.padding = "0";
-        host.style.marginBottom = panelKey === "left" ? "4px" : "0";
-        const panelWidth = Math.max(0, Math.round(host.getBoundingClientRect && host.getBoundingClientRect().width || host.clientWidth || 0));
-        const compactCols = panelWidth > 0 && panelWidth < 920;
-        const ORDER_COL_HANDLE = compactCols ? "32px" : "34px";
-        const ORDER_COL_TYPE = compactCols ? "58px" : "62px";
-        const ORDER_COL_EQ = compactCols ? "minmax(94px, 1.5fr)" : "minmax(128px, 1.75fr)";
-        const ORDER_COL_STRICT = ORDER_COL_EQ;
-        const ORDER_COL_DISPLAY = ORDER_COL_EQ;
-        const ORDER_COL_PREFIX = compactCols ? "minmax(80px, 1.1fr)" : "minmax(96px, 1.2fr)";
-        const ORDER_COL_YAML = ORDER_COL_EQ;
-        const ORDER_COL_SUB = compactCols ? "40px" : "44px";
-        const ORDER_COL_ROAM = compactCols ? "54px" : "58px";
-        const ORDER_COL_ACTIVE = compactCols ? "50px" : "54px";
-        const ORDER_COL_DELETE = "28px";
-        const cols = `${ORDER_COL_HANDLE} ${ORDER_COL_TYPE} ${ORDER_COL_STRICT} ${ORDER_COL_DISPLAY} ${ORDER_COL_PREFIX} ${ORDER_COL_YAML} ${ORDER_COL_SUB} ${ORDER_COL_ROAM} ${ORDER_COL_ACTIVE} ${ORDER_COL_DELETE}`;
-        if (panelKey === "left") {
-          const head = host.createDiv();
-          head.style.display = "grid";
-          head.style.gridTemplateColumns = cols;
-          head.style.gap = "8px";
-          head.style.padding = "0 6px 4px";
-          head.style.opacity = "0.85";
-          head.createEl("small", { text: "" });
-          const typeHead = head.createEl("small", { text: "type" });
-          typeHead.style.marginLeft = "4px";
-          addTipIcon(typeHead, "type");
-          head.createEl("small", { text: "name_strict" });
-          addTipIcon(head.lastChild, "strict");
-          head.createEl("small", { text: "name_display" });
-          addTipIcon(head.lastChild, "display");
-          head.createEl("small", { text: "" });
-          head.createEl("small", { text: "YAML" });
-          head.createEl("small", { text: "subtags on/off" });
-          addTipIcon(head.lastChild, "subtags");
-          head.createEl("small", { text: "Free roam" });
-          addTipIcon(head.lastChild, "roam");
-          head.createEl("small", { text: "Active" });
-          addTipIcon(head.lastChild, "active");
-          head.createEl("small", { text: "" });
-          const titleEl = host.createEl("div", { text: title });
-          titleEl.style.fontSize = "12px";
-          titleEl.style.fontWeight = "600";
-          titleEl.style.lineHeight = "1.25";
-          titleEl.style.margin = "1px 0 2px 0";
-        } else {
-          const titleEl = host.createEl("div", { text: title });
-          titleEl.style.fontSize = "12px";
-          titleEl.style.fontWeight = "600";
-          titleEl.style.lineHeight = "1.25";
-          titleEl.style.margin = "1px 0 2px 0";
-        }
-        const list = host.createDiv();
-        list.style.display = "flex";
-        list.style.flexDirection = "column";
-        list.style.gap = "4px";
-        list.style.marginTop = "0";
-        const addDropZone = (beforeKey) => {
-          const dz = list.createDiv();
-          dz.style.height = "6px";
-          dz.style.borderRadius = "4px";
-          dz.style.border = "1px dashed transparent";
-          dz.ondragover = (e) => {
-            e.preventDefault();
-            if (!enabled || !dragKey) return;
-            dz.style.border = "1px dashed var(--text-accent)";
-            dz.style.background = "var(--background-modifier-hover)";
-          };
-          dz.ondragleave = () => {
-            dz.style.border = "1px dashed transparent";
-            dz.style.background = "transparent";
-          };
-          dz.ondrop = (e) => {
-            e.preventDefault();
-            dz.style.border = "1px dashed transparent";
-            dz.style.background = "transparent";
-            if (!enabled || !dragKey) return;
-            moveKey(panelKey, dragKey, beforeKey || "");
-          };
-        };
-        const arr = panelKey === "right" ? orderState.right : orderState.left;
-        for (const k of arr) {
-          try {
-            addDropZone(k);
-            const item = list.createDiv();
-            item.style.display = "grid";
-            item.style.gridTemplateColumns = cols;
-            item.style.alignItems = "center";
-            item.style.gap = "8px";
-            item.style.padding = "4px 6px";
-            item.style.border = "1px solid var(--background-modifier-border)";
-            item.style.borderRadius = "6px";
-            item.style.background = "var(--background-secondary)";
-            const handleCell = item.createDiv();
-            handleCell.style.display = "flex";
-            handleCell.style.alignItems = "center";
-            handleCell.style.gap = "4px";
-            const handle = handleCell.createEl("span", { text: "\u22EE\u22EE" });
-            handle.style.cursor = enabled ? "grab" : "default";
-            handle.style.opacity = enabled ? "0.85" : "0.45";
-            handle.style.userSelect = "none";
-            handle.draggable = !!enabled;
-            handle.ondragstart = () => {
-              dragKey = k;
-              handle.style.cursor = "grabbing";
-            };
-            handle.ondragend = () => {
-              dragKey = "";
-              handle.style.cursor = enabled ? "grab" : "default";
-            };
-            const expandBtnInline = handleCell.createEl("button", { text: deepSession.expanded[k] ? "\u25BE" : "\u25B8" });
-            expandBtnInline.style.minWidth = "18px";
-            expandBtnInline.style.padding = "0 2px";
-            expandBtnInline.style.lineHeight = "1";
-            expandBtnInline.style.border = "none";
-            expandBtnInline.style.background = "transparent";
-            expandBtnInline.style.opacity = "0.9";
-            expandBtnInline.style.cursor = enabled ? "pointer" : "default";
-            expandBtnInline.disabled = !enabled || !showDeepEditor;
-            if (!showDeepEditor) expandBtnInline.style.display = "none";
-            expandBtnInline.onclick = () => {
-              deepSession.expanded[k] = !deepSession.expanded[k];
-              renderOrderBoard();
-            };
-            const kindPill = item.createEl("small", { text: typeLabelByKind[getFieldKind(k)] || "#tag" });
-            kindPill.style.padding = "1px 6px";
-            kindPill.style.border = "1px solid var(--background-modifier-border)";
-            kindPill.style.borderRadius = "999px";
-            kindPill.style.opacity = "0.85";
-            kindPill.style.textAlign = "center";
-            kindPill.style.marginLeft = "4px";
-            const kindNow = getFieldKind(k);
-            const kindPalette = getOrderTypeBubblePalette(kindNow);
-            kindPill.style.background = kindPalette.bg;
-            kindPill.style.borderColor = kindPalette.border;
-            const strictInput = item.createEl("input");
-            strictInput.type = "text";
-            const strictName = String(orderState.strictNames && orderState.strictNames[k] || k);
-            strictInput.value = strictName;
-            strictInput.style.minWidth = "0";
-            strictInput.style.width = "100%";
-            strictInput.style.boxSizing = "border-box";
-            strictInput.style.fontSize = "11px";
-            strictInput.disabled = !enabled;
-            strictInput.title = "System key used by config/runtime/config note.";
-            strictInput.onchange = async () => {
-              if (!enabled) return;
-              const oldName = String(orderState.strictNames && orderState.strictNames[k] || k);
-              const next = String(strictInput.value || "").replace(/\s+/g, " ").trim();
-              if (next === oldName) return;
-              if (!/^[a-z0-9_\- ]+$/i.test(next)) {
-                new Notice3("InlineOverhaul: name_strict must match [a-z0-9_- ]+");
-                strictInput.value = oldName;
-                return;
-              }
-              const taken = /* @__PURE__ */ new Set();
-              for (const kk of getOrderKeys()) {
-                const vv = String(orderState.strictNames && orderState.strictNames[kk] || kk).trim();
-                if (kk === k) continue;
-                if (vv) taken.add(vv);
-              }
-              if (taken.has(next)) {
-                new Notice3("InlineOverhaul: name_strict already exists");
-                strictInput.value = oldName;
-                return;
-              }
-              orderState.strictNames = { ...orderState.strictNames || {}, [k]: next };
-              setOrderPatch({ strictNames: { [k]: next } }, "pkm:behavior:order:strict:" + k);
-              try {
-                await plugin.renameStrictNameInConfigNote(oldName, next);
-              } catch (e) {
-                console.error("[inline-overhaul][strict-rename:config-note]", e);
-              }
-              renderOrderBoard();
-            };
-            const labelInput = item.createEl("input");
-            labelInput.type = "text";
-            labelInput.value = orderState.labels && orderState.labels[k] || k;
-            labelInput.style.minWidth = "0";
-            labelInput.style.width = "100%";
-            labelInput.style.boxSizing = "border-box";
-            labelInput.style.fontSize = "11px";
-            if (!enabled) labelInput.disabled = true;
-            labelInput.onchange = () => {
-              const v = String(labelInput.value || "").trim();
-              if (!v || !enabled) return;
-              orderState.labels = { ...orderState.labels || {}, [k]: v };
-              setOrderPatch(orderState, "pkm:behavior:order:label:" + k);
-              renderOrderBoard();
-            };
-            const prefixSpacer = item.createDiv();
-            prefixSpacer.style.width = "100%";
-            prefixSpacer.style.minWidth = "0";
-            const yamlInput = item.createEl("input");
-            yamlInput.type = "text";
-            yamlInput.style.minWidth = "0";
-            yamlInput.style.width = "100%";
-            yamlInput.style.boxSizing = "border-box";
-            yamlInput.style.fontSize = "11px";
-            yamlInput.value = String(orderState.propertiesByField && orderState.propertiesByField[k] || "").trim();
-            yamlInput.placeholder = "yaml property";
-            if (!enabled) yamlInput.disabled = true;
-            if (showInfoTips) yamlInput.title = "YAML property used for this field.";
-            const detachYamlDropdown = attachYamlSuggestionDropdown(yamlInput);
-            yamlInput.onchange = () => {
-              if (!enabled) return;
-              const prev = String(orderState.propertiesByField && orderState.propertiesByField[k] || "").trim();
-              const next = String(yamlInput.value || "").trim();
-              orderState.propertiesByField = { ...orderState.propertiesByField || {} };
-              if (next) orderState.propertiesByField[k] = next;
-              else delete orderState.propertiesByField[k];
-              setOrderPatch({ propertiesByField: { [k]: next || null } }, "pkm:behavior:order:yaml:" + k);
-              const liveNow = plugin.getConfig();
-              const behaviorNow = liveNow && liveNow.pkm && liveNow.pkm.behavior ? liveNow.pkm.behavior : {};
-              const leftFieldsNow = behaviorNow && behaviorNow.leftMode && Array.isArray(behaviorNow.leftMode.fields) ? behaviorNow.leftMode.fields.slice() : [];
-              const rightFieldsNow = behaviorNow && behaviorNow.rightMode && Array.isArray(behaviorNow.rightMode.fields) ? behaviorNow.rightMode.fields.slice() : [];
-              const strictNameNow = String(orderState.strictNames && orderState.strictNames[k] || k).trim() || k;
-              const subKeyNow = getSubKeyForParent(k) || "";
-              const findByOrderKey = (arr2, key) => {
-                const kk = String(key || "").trim();
-                if (!kk || !Array.isArray(arr2)) return null;
-                const strict = String(orderState.strictNames && orderState.strictNames[kk] || kk).trim() || kk;
-                for (let i = 0; i < arr2.length; i++) {
-                  const row2 = arr2[i] && typeof arr2[i] === "object" ? arr2[i] : null;
-                  if (!row2) continue;
-                  const id = String(row2.id || "").trim();
-                  const ok = String(row2.orderKey || "").trim();
-                  if (ok === kk || ok === strict || id === kk || id === strict) return row2;
-                }
-                return null;
-              };
-              const parentFieldNow = findByOrderKey(leftFieldsNow, k) || findByOrderKey(rightFieldsNow, k);
-              const subFieldNow = subKeyNow ? findByOrderKey(leftFieldsNow, subKeyNow) || findByOrderKey(rightFieldsNow, subKeyNow) : null;
-              const patchFieldValues = (field) => {
-                if (!field || !Array.isArray(field.values)) return field;
-                const values = field.values.map((v) => {
-                  const row2 = v && typeof v === "object" ? { ...v } : v;
-                  if (!row2 || typeof row2 !== "object") return row2;
-                  const cur = String(row2.yamlProperty || "").trim();
-                  const inheritedBefore = !cur || cur === prev;
-                  if (!inheritedBefore) return row2;
-                  if (next) row2.yamlProperty = next;
-                  else delete row2.yamlProperty;
-                  return row2;
-                });
-                return { ...field, values };
-              };
-              const parentPatched = patchFieldValues(parentFieldNow);
-              const subPatched = patchFieldValues(subFieldNow);
-              const upsertById = (arr2, field) => {
-                if (!field || !field.id || !Array.isArray(arr2)) return arr2;
-                const id = String(field.id || "").trim();
-                const out = arr2.slice();
-                const idx = out.findIndex((x) => String(x && x.id || "").trim() === id);
-                if (idx === -1) out.push(field);
-                else out[idx] = field;
-                return out;
-              };
-              const nextLeft = upsertById(upsertById(leftFieldsNow, parentPatched), subPatched);
-              const nextRight = upsertById(upsertById(rightFieldsNow, parentPatched), subPatched);
-              plugin.setConfigPatch({ pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } }, "pkm:behavior:order:yaml-propagate:" + strictNameNow);
-            };
-            const detachHandler = () => detachYamlDropdown();
-            onNodeDetachedOnce(item, detachHandler);
-            const subKey = getSubKeyForParent(k) || "";
-            if (subKey) {
-              const subBtn = item.createEl("button");
-              subBtn.ariaLabel = "toggle sub " + k;
-              subBtn.style.width = "100%";
-              subBtn.style.minWidth = "0";
-              subBtn.style.boxSizing = "border-box";
-              subBtn.style.padding = "2px 4px";
-              subBtn.style.cursor = enabled ? "pointer" : "default";
-              const subActive = String(orderState.active && orderState.active[subKey] || (orderState.enabled && orderState.enabled[subKey] !== false ? "yes" : "no")).trim().toLowerCase();
-              setIcon(subBtn, subActive === "no" ? "unlink-2" : "link-2");
-              if (!enabled) subBtn.disabled = true;
-              subBtn.onclick = () => {
-                if (!enabled) return;
-                const cur = String(orderState.active && orderState.active[subKey] || "yes").trim().toLowerCase();
-                const next = cur === "no" ? "yes" : "no";
-                orderState.active = { ...orderState.active || {}, [subKey]: next };
-                orderState.enabled = { ...orderState.enabled || {}, [subKey]: next !== "no" };
-                const live = plugin.getConfig();
-                const behavior = live && live.pkm && live.pkm.behavior ? live.pkm.behavior : {};
-                const leftMode = behavior && behavior.leftMode && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields.slice() : [];
-                const idx = leftMode.findIndex((f) => f && String(f.id || "").trim() === subKey);
-                if (idx !== -1) leftMode[idx] = { ...leftMode[idx], enabled: next !== "no" };
-                plugin.setConfigPatch({ pkm: { behavior: { leftMode: { fields: leftMode } } } }, "pkm:behavior:leftmode:subtoggle:" + subKey);
-                setOrderPatch({ active: { [subKey]: next }, enabled: { [subKey]: next !== "no" } }, "pkm:behavior:order:sub:" + subKey);
-                renderOrderBoard();
-              };
-            } else {
-              const gapCell = item.createDiv();
-              gapCell.setText("-");
-              gapCell.style.opacity = "0.45";
-              gapCell.style.textAlign = "center";
-            }
-            const freeRoamSelect = item.createEl("select");
-            freeRoamSelect.style.width = "100%";
-            freeRoamSelect.style.minWidth = "0";
-            freeRoamSelect.style.boxSizing = "border-box";
-            freeRoamSelect.style.padding = "2px 4px";
-            freeRoamSelect.createEl("option", { text: "off", value: "off" });
-            freeRoamSelect.createEl("option", { text: "minimal", value: "minimal" });
-            freeRoamSelect.createEl("option", { text: "full", value: "full" });
-            const freeRoamMode = String(orderState.freeRoam && orderState.freeRoam[k] || "off").trim().toLowerCase();
-            freeRoamSelect.value = freeRoamMode === "minimal" || freeRoamMode === "full" ? freeRoamMode : "off";
-            if (!enabled) freeRoamSelect.disabled = true;
-            freeRoamSelect.onchange = () => {
-              if (!enabled) return;
-              const nextMode = String(freeRoamSelect.value || "off").trim().toLowerCase();
-              const normalizedMode = nextMode === "minimal" || nextMode === "full" ? nextMode : "off";
-              orderState.freeRoam = { ...orderState.freeRoam || {}, [k]: normalizedMode };
-              setOrderPatch({ freeRoam: { [k]: normalizedMode } }, "pkm:behavior:order:freeroam:" + k);
-            };
-            const activeSelect = item.createEl("select");
-            activeSelect.style.width = "100%";
-            activeSelect.style.minWidth = "0";
-            activeSelect.style.boxSizing = "border-box";
-            activeSelect.style.padding = "2px 4px";
-            const activeMode = String(orderState.active && orderState.active[k] || (orderState.enabled && orderState.enabled[k] !== false ? "yes" : "no")).trim().toLowerCase();
-            activeSelect.createEl("option", { text: "yes", value: "yes" });
-            activeSelect.createEl("option", { text: "no", value: "no" });
-            activeSelect.createEl("option", { text: "hotkey_only", value: "hotkey_only" });
-            activeSelect.value = activeMode === "no" || activeMode === "hotkey_only" ? activeMode : "yes";
-            if (!enabled) activeSelect.disabled = true;
-            activeSelect.onchange = () => {
-              if (!enabled) return;
-              const nextActive = String(activeSelect.value || "yes").trim().toLowerCase();
-              const normalized = nextActive === "no" || nextActive === "hotkey_only" ? nextActive : "yes";
-              orderState.active = { ...orderState.active || {}, [k]: normalized };
-              orderState.enabled = { ...orderState.enabled || {}, [k]: normalized !== "no" };
-              setOrderPatch({ active: { [k]: normalized }, enabled: { [k]: normalized !== "no" } }, "pkm:behavior:order:active:" + k);
-              renderOrderBoard();
-            };
-            const delBtn = item.createEl("button");
-            delBtn.ariaLabel = "delete " + k;
-            setIcon(delBtn, "trash-2");
-            delBtn.style.minWidth = "28px";
-            delBtn.style.maxWidth = "28px";
-            delBtn.style.width = "28px";
-            delBtn.style.height = "24px";
-            delBtn.style.padding = "2px 4px";
-            delBtn.style.background = "#d32f2f";
-            delBtn.style.color = "#ffffff";
-            delBtn.style.border = "none";
-            delBtn.style.display = "inline-flex";
-            delBtn.style.alignItems = "center";
-            delBtn.style.justifyContent = "center";
-            if (!enabled) delBtn.disabled = true;
-            delBtn.onclick = async () => {
-              if (!enabled) return;
-              const ok = await confirmDeleteModal(k);
-              if (!ok) return;
-              const sub = getSubKeyForParent(k);
-              const targets = [k].concat(sub ? [sub] : []);
-              const liveOrder = normalizePkmOrder(plugin.getConfig() && plugin.getConfig().pkm && plugin.getConfig().pkm.behavior ? plugin.getConfig().pkm.behavior.order : null);
-              const nextOrder = {
-                ...liveOrder,
-                left: (liveOrder.left || []).filter((x) => !targets.includes(String(x || "").trim())),
-                right: (liveOrder.right || []).filter((x) => !targets.includes(String(x || "").trim())),
-                lead: { ...liveOrder.lead || {} },
-                labels: { ...liveOrder.labels || {} },
-                strictNames: { ...liveOrder.strictNames || {} },
-                types: { ...liveOrder.types || {} },
-                active: { ...liveOrder.active || {} },
-                freeRoam: { ...liveOrder.freeRoam || {} },
-                enabled: { ...liveOrder.enabled || {} }
-              };
-              for (const t of targets) {
-                delete nextOrder.labels[t];
-                delete nextOrder.strictNames[t];
-                delete nextOrder.types[t];
-                delete nextOrder.active[t];
-                delete nextOrder.freeRoam[t];
-                delete nextOrder.enabled[t];
-              }
-              const leftLead = String(nextOrder.lead && nextOrder.lead.left ? nextOrder.lead.left : "").trim();
-              const rightLead = String(nextOrder.lead && nextOrder.lead.right ? nextOrder.lead.right : "").trim();
-              if (targets.includes(leftLead)) nextOrder.lead.left = "";
-              if (targets.includes(rightLead)) nextOrder.lead.right = "";
-              orderState.left = nextOrder.left.slice();
-              orderState.right = nextOrder.right.slice();
-              orderState.lead = { ...nextOrder.lead || {} };
-              orderState.labels = { ...nextOrder.labels };
-              orderState.strictNames = { ...nextOrder.strictNames };
-              orderState.types = { ...nextOrder.types };
-              orderState.active = { ...nextOrder.active };
-              orderState.freeRoam = { ...nextOrder.freeRoam };
-              orderState.enabled = { ...nextOrder.enabled };
-              setOrderPatch(nextOrder, "pkm:behavior:order:delete:" + k, { replace: true });
-              const live = plugin.getConfig();
-              const behavior = live && live.pkm && live.pkm.behavior ? live.pkm.behavior : {};
-              const leftFields = behavior && behavior.leftMode && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields.filter((f) => {
-                const id = String(f && f.id || "").trim();
-                return id !== k && (!sub || id !== sub);
-              }) : [];
-              const rightFields = behavior && behavior.rightMode && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields.filter((f) => String(f && f.id || "").trim() !== k) : [];
-              const elementsCfg = behavior && behavior.elements ? behavior.elements : {};
-              const elementsFields = Array.isArray(elementsCfg.fields) ? elementsCfg.fields.filter((x) => String(x || "").trim() !== k) : [];
-              const elementsByField = elementsCfg && elementsCfg.byField && typeof elementsCfg.byField === "object" ? { ...elementsCfg.byField } : {};
-              delete elementsByField[k];
-              plugin.setConfigPatch({
-                pkm: {
-                  behavior: {
-                    leftMode: { fields: leftFields },
-                    rightMode: { fields: rightFields },
-                    elements: { ...elementsCfg, fields: elementsFields, byField: elementsByField }
-                  }
-                }
-              }, "pkm:behavior:delete-field:" + k);
-              renderOrderBoard();
-            };
-            if (showDeepEditor && deepSession.expanded[k]) {
-              const details = list.createDiv();
-              details.style.margin = "-2px 0 4px 20px";
-              details.style.padding = "6px";
-              details.style.border = "1px dashed var(--background-modifier-border)";
-              details.style.borderRadius = "6px";
-              details.style.background = "var(--background-primary)";
-              const kind = getFieldKind(k);
-              if (kind === "tag") details.style.margin = "-2px 0 4px 0";
-              if (deepState && deepState.__unavailable === true) {
-                const warn = details.createDiv();
-                warn.style.marginTop = "6px";
-                warn.style.padding = "6px 8px";
-                warn.style.border = "1px solid var(--text-error)";
-                warn.style.borderRadius = "6px";
-                warn.style.background = "var(--background-primary-alt)";
-                warn.style.fontSize = "12px";
-                warn.style.whiteSpace = "pre-wrap";
-                warn.setText(`Order Deep Editor unavailable: ${String(deepState.__unavailableReason || __orderDeepEditorStateDiag || "unknown")}`);
-              }
-              const liveCfg = plugin.getConfig();
-              const behavior = liveCfg && liveCfg.pkm && liveCfg.pkm.behavior ? liveCfg.pkm.behavior : {};
-              const leftMode = behavior && behavior.leftMode && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : [];
-              const rightMode = behavior && behavior.rightMode && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : [];
-              const strictName2 = String(orderState.strictNames && orderState.strictNames[k] || k).trim() || k;
-              const findFieldByOrderKey = (arr2, orderKey) => {
-                const key = String(orderKey || "").trim();
-                if (!key) return null;
-                const strict = String(orderState.strictNames && orderState.strictNames[key] || key).trim() || key;
-                for (const row2 of arr2) {
-                  if (!row2 || typeof row2 !== "object") continue;
-                  const rid = String(row2.id || "").trim();
-                  const rkey = String(row2.orderKey || "").trim();
-                  if (rkey && (rkey === key || rkey === strict)) return row2;
-                  if (rid && (rid === key || rid === strict)) return row2;
-                }
-                return null;
-              };
-              const upsertField = (arr2, id, valueObj) => {
-                const listNext = Array.isArray(arr2) ? arr2.slice() : [];
-                const idx = listNext.findIndex((x) => x && String(x.id || "").trim() === String(id || "").trim());
-                if (idx === -1) listNext.push(valueObj);
-                else listNext[idx] = valueObj;
-                return listNext;
-              };
-              if (kind === "element") {
-                const elem = behavior && behavior.elements ? behavior.elements : {};
-                const byField = elem && elem.byField ? elem.byField : {};
-                const elementField = findFieldByOrderKey(rightMode, k) || findFieldByOrderKey(rightMode, strictName2);
-                const elementFieldId = String(elementField && elementField.id || "").trim() || String(k || "").trim();
-                const curElem = byField && (byField[elementFieldId] || byField[k] || byField[strictName2]) ? byField[elementFieldId] || byField[k] || byField[strictName2] : {};
-                const cur = {
-                  ...curElem,
-                  increment: {
-                    ...curElem && curElem.increment && typeof curElem.increment === "object" ? curElem.increment : {}
-                  }
-                };
-                const inc = cur && cur.increment ? cur.increment : {};
-                const grid = details.createDiv();
-                grid.style.display = "grid";
-                grid.style.gridTemplateColumns = "80px 1fr";
-                grid.style.gap = "6px";
-                const addCell = (label, init, onSave) => {
-                  grid.createEl("small", { text: label });
-                  const i = grid.createEl("input");
-                  i.type = "text";
-                  i.value = init;
-                  i.placeholder = label === "Emoji" ? "place any emoji you want, only one per field" : "write any format you want, i.e. YYYY-MM-DD hh:mm, 000-000";
-                  i.disabled = !enabled;
-                  const commit = () => {
-                    if (!enabled) return;
-                    markSnapshot(captureSnapshot());
-                    onSave(String(i.value || ""));
-                    renderOrderBoard();
-                  };
-                  i.onchange = () => {
-                    commit();
-                  };
-                  return i;
-                };
-                addCell("Emoji", String(cur.emoji || ""), (v) => {
-                  const nextRow = { ...cur, emoji: v };
-                  plugin.setConfigPatch({ pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } }, "pkm:behavior:order:deep:emoji:" + k);
-                });
-                addCell("Format", String(cur.format || ""), (v) => {
-                  const nextRow = { ...cur, format: v };
-                  plugin.setConfigPatch({ pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } }, "pkm:behavior:order:deep:format:" + k);
-                });
-                grid.createEl("small", { text: "Behavior" });
-                const modeSelect = grid.createEl("select");
-                modeSelect.style.appearance = "none";
-                modeSelect.style.paddingRight = "18px";
-                modeSelect.style.backgroundImage = "linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%)";
-                modeSelect.style.backgroundPosition = "calc(100% - 12px) calc(50% - 2px), calc(100% - 7px) calc(50% - 2px)";
-                modeSelect.style.backgroundSize = "5px 5px, 5px 5px";
-                modeSelect.style.backgroundRepeat = "no-repeat";
-                modeSelect.createEl("option", { text: "Increment by X", value: "increment" });
-                modeSelect.createEl("option", { text: "Command Y", value: "command" });
-                modeSelect.createEl("option", { text: "Custom increment", value: "custom" });
-                const modeRaw = String(inc.mode || "increment").trim().toLowerCase();
-                modeSelect.value = ["increment", "command", "custom"].includes(modeRaw) ? modeRaw : "increment";
-                modeSelect.disabled = !enabled;
-                modeSelect.onchange = () => {
-                  if (!enabled) return;
-                  markSnapshot(captureSnapshot());
-                  const mode = String(modeSelect.value || "increment").trim().toLowerCase();
-                  const nextInc = { ...inc, mode };
-                  const nextRow = { ...cur, increment: nextInc };
-                  plugin.setConfigPatch({ pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } }, "pkm:behavior:order:deep:mode:" + k);
-                  renderOrderBoard();
-                };
-                const cmdWrap = details.createDiv();
-                cmdWrap.style.display = "flex";
-                cmdWrap.style.gap = "6px";
-                cmdWrap.style.marginTop = "6px";
-                const incInput = cmdWrap.createEl("input");
-                incInput.type = "number";
-                incInput.value = String(Number.isFinite(Number(inc.incrementBy)) ? Number(inc.incrementBy) : 1);
-                incInput.style.width = "86px";
-                const behaviorHint = cmdWrap.createEl("small");
-                behaviorHint.style.opacity = "0.85";
-                behaviorHint.style.alignSelf = "center";
-                const cmdSelect = cmdWrap.createEl("select");
-                for (const opt of ["now", "randomN", "randomE"]) cmdSelect.createEl("option", { text: opt, value: opt });
-                cmdSelect.value = ["now", "randomN", "randomE"].includes(String(inc.command || "")) ? String(inc.command) : "now";
-                const customIntro = details.createEl("small", { text: "hotkey will behave as you set it up below from top to bottom. Follow the format below and create powerful automatizations!" });
-                customIntro.style.display = "none";
-                customIntro.style.opacity = "0.9";
-                customIntro.style.marginTop = "6px";
-                const customWrap = details.createDiv();
-                customWrap.style.display = "none";
-                customWrap.style.gridTemplateColumns = "32px 1fr";
-                customWrap.style.gap = "6px";
-                customWrap.style.marginTop = "6px";
-                const customNums = customWrap.createEl("pre");
-                customNums.style.margin = "0";
-                customNums.style.padding = "7px 4px";
-                customNums.style.border = "1px solid var(--background-modifier-border)";
-                customNums.style.borderRadius = "6px";
-                customNums.style.background = "var(--background-secondary)";
-                customNums.style.userSelect = "none";
-                customNums.style.opacity = "0.75";
-                customNums.style.fontSize = "12px";
-                customNums.style.lineHeight = "1.45";
-                customNums.style.textAlign = "right";
-                const customArea = customWrap.createEl("textarea");
-                customArea.rows = 3;
-                customArea.style.width = "100%";
-                customArea.style.fontSize = "12px";
-                customArea.style.lineHeight = "1.45";
-                customArea.value = Array.isArray(inc.customRaw) ? inc.customRaw.join("\n") : "";
-                customArea.placeholder = "1. X (Y)\n- X - increment number\n- Y - how many hotkey taps before moving to the next step\n- i.e. 1 (3) -> for next 3 taps the element will increase at 1\n\n2. X\n- if it's not clear - it's just only X without (Y)\n- it works only for 1 tap before moving next (but if it is the last item - it will work for every next press on hotkey till the end of times)\n\n3. END\n- end of cycle, it deletes the element and next press will start from (1)";
-                const normalizeCustomRaw = (text) => {
-                  const rows = String(text || "").split(/\r?\n/).map((x) => String(x || "").trim()).filter(Boolean);
-                  const out = [];
-                  for (let i = 0; i < rows.length; i++) {
-                    const src = rows[i].trim();
-                    if (!src) continue;
-                    out.push(src);
-                  }
-                  return out;
-                };
-                const formatCustomNumbered = (rows) => {
-                  const src = Array.isArray(rows) ? rows : [];
-                  const out = [];
-                  for (let i = 0; i < src.length; i++) out.push(`${i + 1}.`);
-                  return out.join("\n");
-                };
-                const syncCustomNums = () => {
-                  const rows = String(customArea.value || "").split(/\r?\n/);
-                  const count = Math.max(1, rows.length);
-                  const nums = [];
-                  for (let i = 0; i < count; i++) nums.push(`${i + 1}.`);
-                  customNums.setText(nums.join("\n"));
-                };
-                syncCustomNums();
-                const syncModeVis = () => {
-                  const m = String(modeSelect.value || "increment");
-                  incInput.style.display = m === "increment" ? "" : "none";
-                  cmdSelect.style.display = m === "command" ? "" : "none";
-                  customWrap.style.display = m === "custom" ? "grid" : "none";
-                  customIntro.style.display = m === "custom" ? "block" : "none";
-                  if (m === "command") {
-                    if (cmdWrap.firstChild !== cmdSelect) {
-                      cmdWrap.insertBefore(cmdSelect, behaviorHint);
-                    }
-                  }
-                  if (m === "increment") {
-                    behaviorHint.setText("write a number, each press will increment current value by it");
-                  } else if (m === "command") {
-                    const c = String(cmdSelect.value || "now");
-                    if (c === "randomN") behaviorHint.setText("will input random numbers (0-9) in Format you enter above");
-                    else if (c === "randomE") behaviorHint.setText("will input random elements (i.e. af3A#-1z-cv) in Format you enter above");
-                    else behaviorHint.setText("will input current date and time in Format you enter above");
-                  } else {
-                    behaviorHint.setText("custom increment sequence");
-                  }
-                };
-                syncModeVis();
-                modeSelect.addEventListener("change", syncModeVis);
-                const toNormalizedCustomIncrement = (rawList, fallbackList) => {
-                  const src = Array.isArray(rawList) ? rawList : [];
-                  const out = [];
-                  for (let i = 0; i < src.length; i++) {
-                    const row2 = String(src[i] || "").trim();
-                    if (!row2 || /^END$/i.test(row2)) continue;
-                    const m = row2.match(/^(-?\d+)(?:\s*\(\s*(\d+)\s*\))?$/);
-                    if (!m) continue;
-                    const step = Math.max(0, Math.trunc(Number(m[1] || 0)));
-                    const repeat = Math.max(1, Math.trunc(Number(m[2] || 1)));
-                    for (let r = 0; r < repeat; r++) out.push(step);
-                  }
-                  if (out.length) return out;
-                  const fb = Array.isArray(fallbackList) ? fallbackList : [];
-                  return fb.map((x) => Math.max(0, Math.trunc(Number(x || 0)))).filter((x) => Number.isFinite(x));
-                };
-                incInput.onchange = () => {
-                  if (!enabled) return;
-                  markSnapshot(captureSnapshot());
-                  const nextInc = { ...inc, mode: "increment", incrementBy: Number(incInput.value || 1) };
-                  const nextRow = { ...cur, increment: nextInc };
-                  plugin.setConfigPatch({ pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } }, "pkm:behavior:order:deep:inc:" + k);
-                };
-                cmdSelect.onchange = () => {
-                  if (!enabled) return;
-                  markSnapshot(captureSnapshot());
-                  const nextInc = { ...inc, mode: "command", command: String(cmdSelect.value || "now") };
-                  const nextRow = { ...cur, increment: nextInc };
-                  plugin.setConfigPatch({ pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } }, "pkm:behavior:order:deep:command:" + k);
-                  syncModeVis();
-                };
-                const commitCustomRaw = () => {
-                  if (!enabled) return;
-                  markSnapshot(captureSnapshot());
-                  const raw = normalizeCustomRaw(customArea.value || "");
-                  const nextInc = {
-                    ...inc,
-                    mode: "custom",
-                    customRaw: raw,
-                    custom: toNormalizedCustomIncrement(raw, inc.custom)
-                  };
-                  syncCustomNums();
-                  const nextRow = { ...cur, increment: nextInc };
-                  plugin.setConfigPatch({ pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } }, "pkm:behavior:order:deep:custom:" + k);
-                };
-                customArea.onchange = () => {
-                  commitCustomRaw();
-                };
-                customArea.oninput = () => {
-                  syncCustomNums();
-                };
-              } else {
-                const parentField = findFieldByOrderKey(leftMode, k) || findFieldByOrderKey(rightMode, k);
-                const subKey2 = `${k}_sub`;
-                const subField = findFieldByOrderKey(leftMode, subKey2) || findFieldByOrderKey(rightMode, subKey2);
-                const hasFieldById = (arr2, fieldId) => {
-                  const fid = String(fieldId || "").trim();
-                  if (!fid || !Array.isArray(arr2)) return false;
-                  for (let i = 0; i < arr2.length; i++) {
-                    const row2 = arr2[i];
-                    if (!row2 || typeof row2 !== "object") continue;
-                    if (String(row2.id || "").trim() === fid) return true;
-                  }
-                  return false;
-                };
-                const parentFieldIdResolved = String(parentField && parentField.id || "").trim();
-                const subFieldIdResolved = String(subField && subField.id || "").trim();
-                const parentInRight = hasFieldById(rightMode, parentFieldIdResolved);
-                const subInRight = hasFieldById(rightMode, subFieldIdResolved);
-                const prefixRules = behavior && behavior.prefixRules && typeof behavior.prefixRules === "object" ? behavior.prefixRules : {};
-                const checkboxByFieldValue = prefixRules && prefixRules.checkboxByFieldValue && typeof prefixRules.checkboxByFieldValue === "object" ? prefixRules.checkboxByFieldValue : {};
-                const parentFieldId = String(parentField && parentField.id || "").trim();
-                const subFieldId = String(subField && subField.id || "").trim();
-                const parentCheckboxRaw = parentFieldId && checkboxByFieldValue[parentFieldId] && typeof checkboxByFieldValue[parentFieldId] === "object" ? checkboxByFieldValue[parentFieldId] : {};
-                const subCheckboxRaw = subFieldId && checkboxByFieldValue[subFieldId] && typeof checkboxByFieldValue[subFieldId] === "object" ? checkboxByFieldValue[subFieldId] : {};
-                const normalizeCheckbox = (raw) => typeof deepState.normalizeCheckboxToken === "function" ? deepState.normalizeCheckboxToken(raw) : String(raw || "").trim();
-                const fieldCheckboxByToken = {};
-                for (const rawToken of Object.keys(parentCheckboxRaw || {})) {
-                  const normToken = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(rawToken, kind) : String(rawToken || "").trim();
-                  const cb = normalizeCheckbox(parentCheckboxRaw[rawToken]);
-                  if (normToken && cb) fieldCheckboxByToken[normToken] = cb;
-                }
-                for (const rawToken of Object.keys(subCheckboxRaw || {})) {
-                  const normToken = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(rawToken, kind) : String(rawToken || "").trim();
-                  const cb = normalizeCheckbox(subCheckboxRaw[rawToken]);
-                  if (normToken && cb) fieldCheckboxByToken[normToken] = cb;
-                }
-                const tree = typeof deepState.buildTagTree === "function" ? deepState.buildTagTree(parentField, subField, kind, { checkboxByToken: fieldCheckboxByToken }) : [];
-                if (kind === "wikilink") {
-                  const vals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
-                  const byTok = {};
-                  for (let vi = 0; vi < vals.length; vi++) {
-                    const row2 = vals[vi] && typeof vals[vi] === "object" ? vals[vi] : {};
-                    const tok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(row2.token, "wikilink") : String(row2.token || "").trim();
-                    if (!tok) continue;
-                    byTok[tok] = row2;
-                  }
-                  for (let ti = 0; ti < tree.length; ti++) {
-                    const trow = tree[ti] || {};
-                    const tok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(trow.token, "wikilink") : String(trow.token || "").trim();
-                    const meta = byTok[tok] && typeof byTok[tok] === "object" ? byTok[tok] : {};
-                    tree[ti] = {
-                      ...trow,
-                      __ioParentBinding: String(meta.__ioParentBinding || "").trim(),
-                      __ioParentFieldId: String(meta.__ioParentFieldId || "").trim(),
-                      prefixMode: String(meta.prefixMode || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet",
-                      checkboxToken: String(meta.checkboxToken || "").trim()
-                    };
-                  }
-                }
-                const buildWikilinkParentChoices = () => {
-                  const choices = [];
-                  const seenField = /* @__PURE__ */ new Set();
-                  const orderKeys = getOrderKeys().filter((kk) => !/_sub$/.test(kk));
-                  const getFieldByOrderKeyAny = (orderKey) => findFieldByOrderKey(leftMode, orderKey) || findFieldByOrderKey(rightMode, orderKey);
-                  for (let oi = 0; oi < orderKeys.length; oi++) {
-                    const kk = String(orderKeys[oi] || "").trim();
-                    if (!kk || kk === k) continue;
-                    const fk = getFieldByOrderKeyAny(kk);
-                    if (!fk || !fk.id) continue;
-                    const source = String(fk.source || "").trim();
-                    if (source === "projects" || /^wikilinks:/.test(source)) continue;
-                    const fid = String(fk.id || "").trim();
-                    if (!fid || seenField.has(fid)) continue;
-                    seenField.add(fid);
-                    const strict = String(orderState && orderState.strictNames && orderState.strictNames[kk] ? orderState.strictNames[kk] : kk).trim() || kk;
-                    const vals = Array.isArray(fk.values) ? fk.values : [];
-                    const tokens = [];
-                    const subByOrder = getFieldByOrderKeyAny(`${kk}_sub`);
-                    const subFieldLocal = subByOrder && String(subByOrder.dependsOn || "").trim() === fid ? subByOrder : null;
-                    const subVals = subFieldLocal && Array.isArray(subFieldLocal.values) ? subFieldLocal.values : [];
-                    for (let vi = 0; vi < vals.length; vi++) {
-                      const row2 = vals[vi] && typeof vals[vi] === "object" ? vals[vi] : {};
-                      const ptok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(row2.token, "tag") : String(row2.token || "").trim();
-                      if (!ptok) continue;
-                      tokens.push({ value: `p:${ptok}|f:${fid}`, label: ptok });
-                      for (let si = 0; si < subVals.length; si++) {
-                        const srow = subVals[si] && typeof subVals[si] === "object" ? subVals[si] : {};
-                        const allowed = Array.isArray(srow.allowedParentValues) ? srow.allowedParentValues : [];
-                        const hasParent = allowed.some((av) => {
-                          const at = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(av, "tag") : String(av || "").trim();
-                          return at === ptok;
-                        });
-                        if (!hasParent) continue;
-                        const stok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(srow.token, "tag") : String(srow.token || "").trim();
-                        if (!stok) continue;
-                        tokens.push({ value: `s:${stok}|p:${ptok}|f:${fid}`, label: `\u2514 ${stok} (${ptok})` });
-                      }
-                    }
-                    if (!tokens.length) continue;
-                    choices.push({ fieldId: fid, strictName: strict, tokens });
-                  }
-                  return choices;
-                };
-                const wikilinkParentChoices = kind === "wikilink" ? buildWikilinkParentChoices() : [];
-                const inferWikilinkBindingValue = (token) => {
-                  const vals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
-                  const normTarget = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(token, "wikilink") : String(token || "").trim();
-                  for (let i = 0; i < vals.length; i++) {
-                    const row2 = vals[i] && typeof vals[i] === "object" ? vals[i] : {};
-                    const rt = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(row2.token, "wikilink") : String(row2.token || "").trim();
-                    if (!rt || rt !== normTarget) continue;
-                    const explicit = String(row2.__ioParentBinding || "").trim();
-                    if (explicit) return explicit;
-                    return "";
-                  }
-                  return "";
-                };
-                const listWrap = details.createDiv();
-                listWrap.style.marginTop = "6px";
-                let dragMeta = null;
-                const buildCheckboxPatch = (nextTree, merged) => {
-                  const mergedMap = merged && merged.checkboxByToken && typeof merged.checkboxByToken === "object" ? merged.checkboxByToken : {};
-                  const parentOut = {};
-                  const subOut = {};
-                  const list2 = Array.isArray(nextTree) ? nextTree : [];
-                  for (let i = 0; i < list2.length; i++) {
-                    const p = list2[i] || {};
-                    const pTok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(p.token, kind) : String(p.token || "").trim();
-                    const pCb = normalizeCheckbox(mergedMap[pTok]);
-                    if (pTok && pCb) parentOut[pTok] = pCb;
-                    const children = Array.isArray(p.children) ? p.children : [];
-                    for (let j = 0; j < children.length; j++) {
-                      const c = children[j] || {};
-                      const cTok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(c.token, kind) : String(c.token || "").trim();
-                      const cCb = normalizeCheckbox(mergedMap[cTok]);
-                      if (cTok && cCb) subOut[cTok] = cCb;
-                    }
-                  }
-                  const patch = { pkm: { behavior: { prefixRules: { checkboxByFieldValue: {} } } } };
-                  if (parentFieldId) patch.pkm.behavior.prefixRules.checkboxByFieldValue[parentFieldId] = parentOut;
-                  if (subFieldId) patch.pkm.behavior.prefixRules.checkboxByFieldValue[subFieldId] = subOut;
-                  if (parentFieldId && parentCheckboxRaw && typeof parentCheckboxRaw === "object") {
-                    for (const prevTok of Object.keys(parentCheckboxRaw)) {
-                      const normTok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(prevTok, kind) : String(prevTok || "").trim();
-                      if (normTok && !Object.prototype.hasOwnProperty.call(parentOut, normTok)) {
-                        patch.pkm.behavior.prefixRules.checkboxByFieldValue[parentFieldId][normTok] = null;
-                      }
-                    }
-                  }
-                  if (subFieldId && subCheckboxRaw && typeof subCheckboxRaw === "object") {
-                    for (const prevTok of Object.keys(subCheckboxRaw)) {
-                      const normTok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(prevTok, kind) : String(prevTok || "").trim();
-                      if (normTok && !Object.prototype.hasOwnProperty.call(subOut, normTok)) {
-                        patch.pkm.behavior.prefixRules.checkboxByFieldValue[subFieldId][normTok] = null;
-                      }
-                    }
-                  }
-                  return patch;
-                };
-                const cloneTree = () => tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                const reorderTreeByDrag = (srcLevel, srcParentToken, srcToken, dstLevel, dstParentToken, dstToken) => {
-                  const nextTree = cloneTree();
-                  if (srcLevel === 0 && dstLevel === 0) {
-                    const fromIdx = nextTree.findIndex((x) => x.token === srcToken);
-                    const toIdx = nextTree.findIndex((x) => x.token === dstToken);
-                    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return null;
-                    const picked = nextTree.splice(fromIdx, 1)[0];
-                    const insertIdx = fromIdx < toIdx ? toIdx - 1 : toIdx;
-                    nextTree.splice(insertIdx, 0, picked);
-                    return nextTree;
-                  }
-                  if (srcLevel === 1 && dstLevel === 1 && srcParentToken && srcParentToken === dstParentToken) {
-                    const parent = nextTree.find((x) => x.token === srcParentToken);
-                    if (!parent) return null;
-                    const arr2 = Array.isArray(parent.children) ? parent.children : [];
-                    const fromIdx = arr2.findIndex((x) => x.token === srcToken);
-                    const toIdx = arr2.findIndex((x) => x.token === dstToken);
-                    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return null;
-                    const picked = arr2.splice(fromIdx, 1)[0];
-                    const insertIdx = fromIdx < toIdx ? toIdx - 1 : toIdx;
-                    arr2.splice(insertIdx, 0, picked);
-                    parent.children = arr2;
-                    return nextTree;
-                  }
-                  return null;
-                };
-                const renderTokenRow = (token, level, parentToken) => {
-                  const rowWrap = listWrap.createDiv();
-                  rowWrap.style.display = "flex";
-                  rowWrap.style.flexDirection = "column";
-                  rowWrap.style.gap = "4px";
-                  rowWrap.style.marginBottom = "10px";
-                  rowWrap.style.width = "100%";
-                  rowWrap.style.maxWidth = "100%";
-                  rowWrap.style.boxSizing = "border-box";
-                  rowWrap.style.overflowX = "hidden";
-                  rowWrap.style.position = "relative";
-                  if (kind === "tag") {
-                    rowWrap.style.display = "flex";
-                    rowWrap.style.flexDirection = "column";
-                    rowWrap.style.gap = "4px";
-                    rowWrap.style.position = "relative";
-                    rowWrap.style.marginBottom = "8px";
-                  }
-                  const rr = rowWrap.createDiv();
-                  rr.style.display = "flex";
-                  rr.style.alignItems = "center";
-                  rr.style.gap = "4px";
-                  rr.style.marginLeft = level === 1 ? "29px" : "16px";
-                  rr.style.width = level === 1 ? "calc(100% - 29px)" : "calc(100% - 16px)";
-                  rr.style.minWidth = "0";
-                  rr.style.maxWidth = "100%";
-                  rr.style.overflow = "hidden";
-                  if (kind === "tag") {
-                    rr.style.display = "grid";
-                    rr.style.gridTemplateColumns = cols;
-                    rr.style.columnGap = "6px";
-                    rr.style.rowGap = "0";
-                    rr.style.alignItems = "center";
-                    rr.style.gridAutoRows = "28px";
-                    rr.style.marginLeft = level === 1 ? "20px" : "10px";
-                    rr.style.width = level === 1 ? "calc(100% - 20px)" : "calc(100% - 10px)";
-                  }
-                  if (level === 1 && kind === "tag") {
-                    rr.style.background = "var(--background-modifier-hover)";
-                    rr.style.border = "1px solid var(--background-modifier-border)";
-                    rr.style.borderRadius = "6px";
-                    rr.style.padding = "4px 0";
-                  }
-                  const setDeepTip = (el, text) => {
-                    if (!showInfoTips || !el) return;
-                    const tip = String(text || "").trim();
-                    if (!tip) return;
-                    try {
-                      el.title = tip;
-                    } catch (_) {
-                    }
-                  };
-                  const dragHandleHost = rowWrap;
-                  const dragHandle = dragHandleHost.createEl("span", { text: "\u22EE\u22EE" });
-                  dragHandle.style.opacity = "0.75";
-                  dragHandle.style.cursor = enabled ? "grab" : "default";
-                  dragHandle.style.userSelect = "none";
-                  dragHandle.style.position = "absolute";
-                  dragHandle.style.left = level === 1 ? "8px" : "0px";
-                  dragHandle.style.top = "50%";
-                  dragHandle.style.transform = "translateY(-50%)";
-                  dragHandle.style.display = "inline-flex";
-                  dragHandle.style.alignItems = "center";
-                  dragHandle.style.justifyContent = "center";
-                  dragHandle.style.zIndex = "1";
-                  dragHandle.style.flex = "0 0 14px";
-                  dragHandle.style.minWidth = "14px";
-                  dragHandle.style.width = "14px";
-                  dragHandle.style.whiteSpace = "pre";
-                  dragHandle.style.lineHeight = "1";
-                  dragHandle.style.textAlign = "center";
-                  dragHandle.draggable = !!enabled;
-                  if (kind === "tag") {
-                    dragHandle.style.position = "absolute";
-                    dragHandle.style.left = "-4px";
-                    dragHandle.style.top = "50%";
-                    dragHandle.style.transform = "translateY(-50%)";
-                    dragHandle.style.gridColumn = "";
-                    dragHandle.style.gridRow = "";
-                    dragHandle.style.alignSelf = "";
-                    dragHandle.style.justifySelf = "";
-                    dragHandle.style.margin = "0";
-                  }
-                  let resolveDragAnchorY = null;
-                  const syncDragHandlePos = () => {
-                    if (kind === "tag") {
-                      const y = Math.max(0, Number(rr && rr.offsetTop || 0) + Number(rr && rr.offsetHeight || 0) + 3);
-                      dragHandle.style.top = `${y}px`;
-                      dragHandle.style.transform = "translateY(-50%)";
-                      return;
-                    }
-                    const hasColorBlock = kind === "tag" && showDeepEditor && showColorSettingsUi;
-                    if (hasColorBlock) {
-                      let y = NaN;
-                      try {
-                        y = typeof resolveDragAnchorY === "function" ? Number(resolveDragAnchorY()) : NaN;
-                      } catch (_) {
-                        y = NaN;
-                      }
-                      if (!Number.isFinite(y) || y <= 0) {
-                        y = Math.max(0, Number(rr && rr.offsetTop || 0) + Number(rr && rr.offsetHeight || 0) + 2);
-                      }
-                      dragHandle.style.top = `${Math.max(0, y)}px`;
-                      dragHandle.style.transform = "translateY(-50%)";
-                      return;
-                    }
-                    dragHandle.style.top = "50%";
-                    dragHandle.style.transform = "translateY(-50%)";
-                  };
-                  dragHandle.ondragstart = (e) => {
-                    if (!enabled) return;
-                    dragMeta = { level, parentToken: String(parentToken || ""), token: String(token || "") };
-                    dragHandle.style.cursor = "grabbing";
-                    try {
-                      if (e && e.dataTransfer) {
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", JSON.stringify(dragMeta));
-                      }
-                    } catch (_) {
-                    }
-                  };
-                  dragHandle.ondragend = () => {
-                    dragMeta = null;
-                    dragHandle.style.cursor = enabled ? "grab" : "default";
-                  };
-                  rr.ondragover = (e) => {
-                    if (!enabled || !dragMeta) return;
-                    const sameLevel = dragMeta.level === level;
-                    const sameParent = level === 0 || String(dragMeta.parentToken || "") === String(parentToken || "");
-                    if (!sameLevel || !sameParent) return;
-                    e.preventDefault();
-                    rr.style.outline = "1px dashed var(--text-accent)";
-                    rr.style.background = "var(--background-modifier-hover)";
-                  };
-                  rr.ondragleave = () => {
-                    rr.style.outline = "";
-                    rr.style.background = "";
-                  };
-                  rr.ondrop = (e) => {
-                    rr.style.outline = "";
-                    rr.style.background = "";
-                    if (!enabled || !dragMeta) return;
-                    e.preventDefault();
-                    const nextTree = reorderTreeByDrag(
-                      Number(dragMeta.level || 0),
-                      String(dragMeta.parentToken || ""),
-                      String(dragMeta.token || ""),
-                      level,
-                      String(parentToken || ""),
-                      String(token || "")
-                    );
-                    if (!nextTree) return;
-                    saveTree(nextTree, "pkm:behavior:order:deep:drag-reorder:" + k);
-                  };
-                  const indentBtn = rr.createEl("button", { text: level === 0 ? "\u2192" : "\u2190" });
-                  indentBtn.style.height = "28px";
-                  if (kind === "tag") {
-                    indentBtn.style.gridColumn = "1";
-                    indentBtn.style.gridRow = "1";
-                    indentBtn.style.justifySelf = "start";
-                    indentBtn.style.marginLeft = "2px";
-                    indentBtn.style.marginRight = "0";
-                  }
-                  setDeepTip(indentBtn, "Move token between parent and child levels.");
-                  indentBtn.disabled = !enabled || kind === "wikilink";
-                  if (kind === "wikilink") {
-                    indentBtn.style.opacity = "0.45";
-                    indentBtn.title = "Hierarchy move is disabled for wikilink rows";
-                  }
-                  const inpt = rr.createEl("input");
-                  inpt.type = "text";
-                  const uiToken = kind === "wikilink" ? String(token || "").replace(/^\[\[/, "").replace(/\]\]$/, "") : token;
-                  inpt.value = uiToken;
-                  const tokenInputWidth = kind === "wikilink" ? level === 0 ? "144px" : "132px" : "126px";
-                  inpt.style.flex = `0 1 ${tokenInputWidth}`;
-                  inpt.style.minWidth = "0";
-                  inpt.style.maxWidth = tokenInputWidth;
-                  inpt.style.height = "28px";
-                  if (kind === "tag") {
-                    inpt.style.width = "100%";
-                    inpt.style.minWidth = "0";
-                    inpt.style.maxWidth = "100%";
-                    inpt.style.flex = "1 1 auto";
-                    inpt.style.boxSizing = "border-box";
-                    inpt.style.gridColumn = "2 / span 2";
-                    inpt.style.gridRow = "1";
-                  }
-                  inpt.disabled = !enabled;
-                  setDeepTip(inpt, kind === "wikilink" ? "Edit link token value." : "Edit tag token value.");
-                  let modeSelect = null;
-                  let checkboxInput = null;
-                  if (kind === "tag") {
-                    const prefixWrap = rr.createDiv();
-                    prefixWrap.style.display = "grid";
-                    prefixWrap.style.gridTemplateColumns = "104px 64px";
-                    prefixWrap.style.columnGap = "8px";
-                    prefixWrap.style.alignItems = "center";
-                    prefixWrap.style.width = "100%";
-                    prefixWrap.style.minWidth = "0";
-                    prefixWrap.style.boxSizing = "border-box";
-                    prefixWrap.style.gridColumn = "4 / span 2";
-                    prefixWrap.style.gridRow = "1";
-                    modeSelect = prefixWrap.createEl("select");
-                    modeSelect.createEl("option", { text: "bullet", value: "bullet" });
-                    modeSelect.createEl("option", { text: "checkbox", value: "checkbox" });
-                    modeSelect.style.width = "104px";
-                    modeSelect.style.minWidth = "104px";
-                    modeSelect.style.maxWidth = "104px";
-                    modeSelect.style.height = "28px";
-                    modeSelect.style.justifySelf = "start";
-                    setDeepTip(modeSelect, "Choose bullet or checkbox prefix mode.");
-                    checkboxInput = prefixWrap.createEl("input");
-                    checkboxInput.type = "text";
-                    checkboxInput.style.width = "64px";
-                    checkboxInput.style.minWidth = "64px";
-                    checkboxInput.style.maxWidth = "64px";
-                    checkboxInput.style.height = "28px";
-                    checkboxInput.style.justifySelf = "start";
-                    checkboxInput.placeholder = "- [ ]";
-                    setDeepTip(checkboxInput, "Checkbox token format: [ ] or [X].");
-                  } else {
-                    modeSelect = rr.createEl("select");
-                    modeSelect.createEl("option", { text: "bullet", value: "bullet" });
-                    modeSelect.createEl("option", { text: "checkbox", value: "checkbox" });
-                    const modeWidth = "76px";
-                    modeSelect.style.width = modeWidth;
-                    modeSelect.style.minWidth = modeWidth;
-                    modeSelect.style.maxWidth = modeWidth;
-                    modeSelect.style.flex = "0 0 auto";
-                    modeSelect.style.height = "28px";
-                    setDeepTip(modeSelect, "Choose bullet or checkbox prefix mode.");
-                    checkboxInput = rr.createEl("input");
-                    checkboxInput.type = "text";
-                    checkboxInput.style.width = "52px";
-                    checkboxInput.style.minWidth = "52px";
-                    checkboxInput.style.maxWidth = "52px";
-                    checkboxInput.style.flex = "0 0 auto";
-                    checkboxInput.style.height = "28px";
-                    checkboxInput.placeholder = "- [ ]";
-                    setDeepTip(checkboxInput, "Checkbox token format: [ ] or [X].");
-                  }
-                  const yamlTokenInput = rr.createEl("input");
-                  yamlTokenInput.type = "text";
-                  const deepYamlWidth = compactCols ? "94px" : "128px";
-                  yamlTokenInput.style.width = kind === "tag" ? deepYamlWidth : "100%";
-                  yamlTokenInput.style.minWidth = kind === "tag" ? deepYamlWidth : "0";
-                  yamlTokenInput.style.maxWidth = kind === "tag" ? deepYamlWidth : "100%";
-                  yamlTokenInput.style.flex = "1 1 auto";
-                  yamlTokenInput.style.boxSizing = "border-box";
-                  if (kind === "tag") yamlTokenInput.style.gridColumn = "6";
-                  if (kind === "tag") yamlTokenInput.style.gridRow = "1";
-                  if (kind === "tag") yamlTokenInput.style.marginLeft = "-4px";
-                  if (kind === "tag") yamlTokenInput.style.justifySelf = "start";
-                  yamlTokenInput.style.height = "28px";
-                  yamlTokenInput.style.fontSize = "11px";
-                  yamlTokenInput.placeholder = "yaml property";
-                  if (kind !== "tag") yamlTokenInput.style.display = "none";
-                  setDeepTip(yamlTokenInput, "Optional token-level YAML override.");
-                  let detachDeepYamlDropdown = () => {
-                  };
-                  if (kind === "tag") {
-                    detachDeepYamlDropdown = attachYamlSuggestionDropdown(yamlTokenInput);
-                  }
-                  let parentFieldSelect = null;
-                  let parentTokenSelect = null;
-                  if (kind === "wikilink") {
-                    parentFieldSelect = rr.createEl("select");
-                    parentFieldSelect.style.width = "104px";
-                    parentFieldSelect.style.minWidth = "104px";
-                    parentFieldSelect.style.maxWidth = "104px";
-                    parentFieldSelect.style.flex = "0 0 auto";
-                    parentFieldSelect.createEl("option", { text: "parent field", value: "" });
-                    setDeepTip(parentFieldSelect, "Choose parent field for link binding.");
-                    for (let pi = 0; pi < wikilinkParentChoices.length; pi++) {
-                      const row2 = wikilinkParentChoices[pi];
-                      parentFieldSelect.createEl("option", { text: row2.strictName, value: row2.fieldId });
-                    }
-                    parentTokenSelect = rr.createEl("select");
-                    parentTokenSelect.style.width = "186px";
-                    parentTokenSelect.style.minWidth = "186px";
-                    parentTokenSelect.style.maxWidth = "186px";
-                    parentTokenSelect.style.flex = "0 0 auto";
-                    parentTokenSelect.createEl("option", { text: "parent token", value: "" });
-                    setDeepTip(parentTokenSelect, "Choose parent token for link binding.");
-                    parentFieldSelect.disabled = !enabled;
-                    parentTokenSelect.disabled = !enabled;
-                  }
-                  const del = rr.createEl("button");
-                  del.ariaLabel = "delete " + token;
-                  setIcon(del, "trash-2");
-                  del.style.background = "#d32f2f";
-                  del.style.color = "#ffffff";
-                  del.style.width = "28px";
-                  del.style.minWidth = "28px";
-                  del.style.maxWidth = "28px";
-                  del.style.height = "28px";
-                  del.style.padding = "2px 4px";
-                  del.style.border = "none";
-                  del.style.display = "inline-flex";
-                  del.style.alignItems = "center";
-                  del.style.justifyContent = "center";
-                  del.style.marginLeft = kind === "tag" ? "0" : "auto";
-                  if (kind === "tag") del.style.gridColumn = "10";
-                  if (kind === "tag") del.style.gridRow = "1";
-                  if (kind === "tag") del.style.justifySelf = "end";
-                  if (kind === "tag") del.style.marginRight = "0";
-                  del.disabled = !enabled;
-                  setDeepTip(del, "Delete token row.");
-                  const currentRow = level === 0 ? tree.find((x) => x.token === token) || {} : ((tree.find((x) => x.token === parentToken) || {}).children || []).find((x) => x.token === token) || {};
-                  const resolveTokenYamlFromFields = () => {
-                    if (kind !== "tag") return "";
-                    const wanted = typeof deepState.denormToken === "function" ? deepState.denormToken(token) : String(token || "").trim().replace(/^#/, "");
-                    const list2 = level === 0 ? parentField && Array.isArray(parentField.values) ? parentField.values : [] : subField && Array.isArray(subField.values) ? subField.values : [];
-                    for (let i = 0; i < list2.length; i++) {
-                      const row2 = list2[i] && typeof list2[i] === "object" ? list2[i] : null;
-                      if (!row2) continue;
-                      const rowTok = typeof deepState.denormToken === "function" ? deepState.denormToken(row2.token) : String(row2.token || "").trim().replace(/^#/, "");
-                      if (!rowTok || rowTok !== wanted) continue;
-                      return String(row2.yamlProperty || "").trim();
-                    }
-                    return "";
-                  };
-                  const modeNow = String(currentRow.prefixMode || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet";
-                  modeSelect.value = modeNow;
-                  yamlTokenInput.value = String(currentRow.yamlProperty || resolveTokenYamlFromFields() || "").trim();
-                  checkboxInput.value = modeNow === "checkbox" ? String(currentRow.checkboxToken || "").trim() ? `- ${String(currentRow.checkboxToken || "").trim()}` : "- [ ]" : "";
-                  checkboxInput.style.visibility = modeNow === "checkbox" ? "visible" : "hidden";
-                  checkboxInput.style.pointerEvents = modeNow === "checkbox" ? "auto" : "none";
-                  modeSelect.disabled = !enabled;
-                  checkboxInput.disabled = !enabled;
-                  let bindingValue = kind === "wikilink" ? inferWikilinkBindingValue(token) : "";
-                  const fillParentTokens = () => {
-                    if (kind !== "wikilink" || !parentFieldSelect || !parentTokenSelect) return;
-                    const fieldId = String(parentFieldSelect.value || "").trim();
-                    parentTokenSelect.empty();
-                    parentTokenSelect.createEl("option", { text: "parent token", value: "" });
-                    if (!fieldId) {
-                      parentTokenSelect.value = "";
-                      return;
-                    }
-                    const row2 = wikilinkParentChoices.find((x) => x.fieldId === fieldId);
-                    const toks = row2 && Array.isArray(row2.tokens) ? row2.tokens : [];
-                    for (let i = 0; i < toks.length; i++) {
-                      const t = toks[i];
-                      parentTokenSelect.createEl("option", { text: t.label, value: t.value });
-                    }
-                    if (bindingValue && toks.some((x) => x.value === bindingValue)) parentTokenSelect.value = bindingValue;
-                    const sel = toks.find((x) => x.value === String(parentTokenSelect.value || "").trim());
-                    parentTokenSelect.title = sel ? String(sel.label || "") : "";
-                  };
-                  if (kind === "wikilink" && parentFieldSelect && parentTokenSelect) {
-                    const fieldFromBinding = (() => {
-                      const m = String(bindingValue || "").match(/\|f:([^|]+)$/);
-                      return m ? String(m[1] || "").trim() : "";
-                    })();
-                    if (fieldFromBinding) parentFieldSelect.value = fieldFromBinding;
-                    fillParentTokens();
-                  }
-                  const saveTree = (nextTree, reason) => {
-                    if (typeof deepState.applyTagTreeToFields !== "function") return;
-                    markSnapshot(captureSnapshot());
-                    if (kind === "wikilink") {
-                      const prevVals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
-                      const metaByToken = {};
-                      for (let i = 0; i < prevVals.length; i++) {
-                        const row2 = prevVals[i] && typeof prevVals[i] === "object" ? prevVals[i] : {};
-                        const tok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(row2.token, "wikilink") : String(row2.token || "").trim();
-                        if (!tok) continue;
-                        metaByToken[tok] = row2;
-                      }
-                      const nextValues = [];
-                      for (let i = 0; i < nextTree.length; i++) {
-                        const row2 = nextTree[i] || {};
-                        const tok = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(row2.token, "wikilink") : String(row2.token || "").trim();
-                        if (!tok) continue;
-                        const prev = metaByToken[tok] && typeof metaByToken[tok] === "object" ? metaByToken[tok] : {};
-                        const b = String(row2.__ioParentBinding || prev.__ioParentBinding || "").trim();
-                        let allowedParentValues = [];
-                        let parentFieldId2 = "";
-                        if (b) {
-                          const mField = b.match(/\|f:([^|]+)$/);
-                          parentFieldId2 = mField ? String(mField[1] || "").trim() : "";
-                          const mSub = b.match(/^s:([^|]+)\|p:([^|]+)/);
-                          const mParent = b.match(/^p:([^|]+)/);
-                          if (mSub) allowedParentValues = [String(mSub[2] || "").trim().replace(/^#/, ""), String(mSub[1] || "").trim().replace(/^#/, "")];
-                          else if (mParent) allowedParentValues = [String(mParent[1] || "").trim().replace(/^#/, "")];
-                        }
-                        nextValues.push({
-                          ...prev,
-                          token: tok.replace(/^\[\[|\]\]$/g, ""),
-                          prefixMode: String(row2.prefixMode || prev.prefixMode || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet",
-                          checkboxToken: String(row2.checkboxToken || prev.checkboxToken || "").trim(),
-                          allowedParentValues,
-                          __ioParentBinding: b,
-                          __ioParentFieldId: parentFieldId2,
-                          active: typeof prev.active === "boolean" ? prev.active : true
-                        });
-                      }
-                      const fidParent2 = String(parentField && parentField.id || "").trim() || String(strictName2 || k || "").trim();
-                      let nextLeft2 = leftMode.slice();
-                      let nextRight2 = rightMode.slice();
-                      if (!fidParent2) {
-                        new Notice3("InlineOverhaul: cannot resolve target link field for Deep Editor save");
-                        return;
-                      }
-                      const sourceId = String(parentField && parentField.source || `wikilinks:${fidParent2}`).trim();
-                      const nextParent = {
-                        ...parentField || {},
-                        id: fidParent2,
-                        prefix: String(parentField && parentField.prefix || "#").trim() || "#",
-                        source: sourceId,
-                        placeholder: String(parentField && parentField.placeholder || fidParent2).trim() || fidParent2,
-                        values: nextValues
-                      };
-                      if (parentInRight || hasFieldById(rightMode, fidParent2)) nextRight2 = upsertField(nextRight2, fidParent2, nextParent);
-                      else nextLeft2 = upsertField(nextLeft2, fidParent2, nextParent);
-                      plugin.setConfigPatch({ pkm: { behavior: { leftMode: { fields: nextLeft2 }, rightMode: { fields: nextRight2 } } } }, reason);
-                      renderOrderBoard();
-                      return;
-                    }
-                    const merged = deepState.applyTagTreeToFields(nextTree, parentField || { id: k, prefix: "#", values: [] }, subField || { id: subKey2, values: [] }, kind);
-                    if (kind === "tag") {
-                      const fieldYaml = String(orderState.propertiesByField && orderState.propertiesByField[k] || "").trim();
-                      const parentYamlByToken = {};
-                      const subYamlByToken = {};
-                      for (let i = 0; i < nextTree.length; i++) {
-                        const row2 = nextTree[i] || {};
-                        const pTok = typeof deepState.denormToken === "function" ? deepState.denormToken(row2.token) : String(row2.token || "").trim().replace(/^#/, "");
-                        if (!pTok) continue;
-                        const py = String(row2.yamlProperty || "").trim();
-                        if (py && py !== fieldYaml) parentYamlByToken[pTok] = py;
-                        const ch = Array.isArray(row2.children) ? row2.children : [];
-                        for (let j = 0; j < ch.length; j++) {
-                          const crow = ch[j] || {};
-                          const sTok = typeof deepState.denormToken === "function" ? deepState.denormToken(crow.token) : String(crow.token || "").trim().replace(/^#/, "");
-                          if (!sTok) continue;
-                          const sy = String(crow.yamlProperty || "").trim();
-                          if (sy && sy !== fieldYaml) subYamlByToken[sTok] = sy;
-                        }
-                      }
-                      const applyYamlMeta = (fieldObj, map) => {
-                        if (!fieldObj || !Array.isArray(fieldObj.values)) return fieldObj;
-                        const vals = fieldObj.values.map((v) => {
-                          const row2 = v && typeof v === "object" ? { ...v } : v;
-                          if (!row2 || typeof row2 !== "object") return row2;
-                          const tok = typeof deepState.denormToken === "function" ? deepState.denormToken(row2.token) : String(row2.token || "").trim().replace(/^#/, "");
-                          if (!tok) {
-                            delete row2.yamlProperty;
-                            return row2;
-                          }
-                          const yy = String(map[tok] || "").trim();
-                          if (yy) row2.yamlProperty = yy;
-                          else delete row2.yamlProperty;
-                          return row2;
-                        });
-                        return { ...fieldObj, values: vals };
-                      };
-                      merged.parentField = applyYamlMeta(merged.parentField, parentYamlByToken);
-                      if (merged.subField) merged.subField = applyYamlMeta(merged.subField, subYamlByToken);
-                    }
-                    const fidParent = String(parentField && parentField.id || "").trim();
-                    const fidSub = String(subField && subField.id || "").trim();
-                    let nextLeft = leftMode.slice();
-                    let nextRight = rightMode.slice();
-                    if (merged.parentField) {
-                      if (fidParent) {
-                        if (parentInRight) nextRight = upsertField(nextRight, fidParent, merged.parentField);
-                        else nextLeft = upsertField(nextLeft, fidParent, merged.parentField);
-                      } else {
-                        nextRight = upsertField(nextRight, merged.parentField.id, merged.parentField);
-                      }
-                    }
-                    if (merged.subField) {
-                      if (fidSub) {
-                        if (subInRight) nextRight = upsertField(nextRight, fidSub, merged.subField);
-                        else nextLeft = upsertField(nextLeft, fidSub, merged.subField);
-                      } else {
-                        const dependsOnParentId = String(merged.subField.dependsOn || "").trim();
-                        if (dependsOnParentId && hasFieldById(nextRight, dependsOnParentId)) nextRight = upsertField(nextRight, merged.subField.id, merged.subField);
-                        else nextLeft = upsertField(nextLeft, merged.subField.id, merged.subField);
-                      }
-                    }
-                    plugin.setConfigPatch({ pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } }, reason);
-                    plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), reason + ":prefix");
-                    renderOrderBoard();
-                  };
-                  inpt.onchange = () => {
-                    const nextToken = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(inpt.value, kind) : String(inpt.value || "");
-                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                    if (level === 0) {
-                      const row2 = nextTree.find((x) => x.token === token);
-                      if (row2) row2.token = nextToken;
-                    } else {
-                      const prow = nextTree.find((x) => x.token === parentToken);
-                      if (prow) {
-                        const crow = (prow.children || []).find((x) => x.token === token);
-                        if (crow) crow.token = nextToken;
-                      }
-                    }
-                    saveTree(nextTree, "pkm:behavior:order:deep:rename:" + k);
-                  };
-                  del.onclick = () => {
-                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                    if (level === 0) {
-                      const idx = nextTree.findIndex((x) => x.token === token);
-                      if (idx !== -1) nextTree.splice(idx, 1);
-                    } else {
-                      const prow = nextTree.find((x) => x.token === parentToken);
-                      if (prow) prow.children = (prow.children || []).filter((x) => x.token !== token);
-                    }
-                    saveTree(nextTree, "pkm:behavior:order:deep:delete-token:" + k);
-                  };
-                  indentBtn.onclick = () => {
-                    if (kind === "wikilink") return;
-                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                    if (level === 0) {
-                      const idx = nextTree.findIndex((x) => x.token === token);
-                      if (idx > 0) {
-                        const picked = nextTree.splice(idx, 1)[0];
-                        nextTree[idx - 1].children = (nextTree[idx - 1].children || []).concat([{ token: picked.token }]);
-                      }
-                    } else {
-                      const prow = nextTree.find((x) => x.token === parentToken);
-                      if (prow) {
-                        const childIdx = (prow.children || []).findIndex((x) => x.token === token);
-                        if (childIdx !== -1) {
-                          prow.children.splice(childIdx, 1);
-                          const pIdx = nextTree.findIndex((x) => x.token === parentToken);
-                          nextTree.splice(pIdx + 1, 0, { token, prefix: prow.prefix || "#", children: [] });
-                        }
-                      }
-                    }
-                    saveTree(nextTree, "pkm:behavior:order:deep:indent:" + k);
-                  };
-                  modeSelect.onchange = () => {
-                    if (!enabled) return;
-                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                    const mode = String(modeSelect.value || "bullet").trim().toLowerCase() === "checkbox" ? "checkbox" : "bullet";
-                    if (level === 0) {
-                      const row2 = nextTree.find((x) => x.token === token);
-                      if (row2) {
-                        row2.prefixMode = mode;
-                        row2.checkboxToken = mode === "checkbox" ? normalizeCheckbox(row2.checkboxToken || checkboxInput.value || "- [ ]") : "";
-                        row2.yamlProperty = String(row2.yamlProperty || yamlTokenInput.value || "").trim();
-                      }
-                    } else {
-                      const prow = nextTree.find((x) => x.token === parentToken);
-                      if (prow) {
-                        const crow = (prow.children || []).find((x) => x.token === token);
-                        if (crow) {
-                          crow.prefixMode = mode;
-                          crow.checkboxToken = mode === "checkbox" ? normalizeCheckbox(crow.checkboxToken || checkboxInput.value || "- [ ]") : "";
-                          crow.yamlProperty = String(crow.yamlProperty || yamlTokenInput.value || "").trim();
-                        }
-                      }
-                    }
-                    checkboxInput.style.visibility = mode === "checkbox" ? "visible" : "hidden";
-                    checkboxInput.style.pointerEvents = mode === "checkbox" ? "auto" : "none";
-                    if (mode === "checkbox") {
-                      const preview = level === 0 ? nextTree.find((x) => x.token === token) || {} : ((nextTree.find((x) => x.token === parentToken) || {}).children || []).find((x) => x.token === token) || {};
-                      const cbNorm = normalizeCheckbox(preview.checkboxToken || "- [ ]") || "[ ]";
-                      checkboxInput.value = `- ${cbNorm}`;
-                    }
-                    saveTree(nextTree, "pkm:behavior:order:deep:prefix-mode:" + k);
-                  };
-                  checkboxInput.onchange = () => {
-                    if (!enabled) return;
-                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                    const cb = normalizeCheckbox(checkboxInput.value || "");
-                    if (!cb) {
-                      new Notice3("InlineOverhaul: checkbox token must be like [ ] or [I]");
-                      checkboxInput.value = String(currentRow.checkboxToken || "- [ ]");
-                      return;
-                    }
-                    if (level === 0) {
-                      const row2 = nextTree.find((x) => x.token === token);
-                      if (row2) {
-                        row2.prefixMode = "checkbox";
-                        row2.checkboxToken = cb;
-                        row2.yamlProperty = String(row2.yamlProperty || yamlTokenInput.value || "").trim();
-                      }
-                    } else {
-                      const prow = nextTree.find((x) => x.token === parentToken);
-                      if (prow) {
-                        const crow = (prow.children || []).find((x) => x.token === token);
-                        if (crow) {
-                          crow.prefixMode = "checkbox";
-                          crow.checkboxToken = cb;
-                          crow.yamlProperty = String(crow.yamlProperty || yamlTokenInput.value || "").trim();
-                        }
-                      }
-                    }
-                    modeSelect.value = "checkbox";
-                    checkboxInput.value = `- ${cb}`;
-                    saveTree(nextTree, "pkm:behavior:order:deep:checkbox:" + k);
-                  };
-                  yamlTokenInput.onchange = () => {
-                    if (!enabled || kind !== "tag") return;
-                    const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                    const nextYaml = String(yamlTokenInput.value || "").trim();
-                    if (level === 0) {
-                      const row2 = nextTree.find((x) => x.token === token);
-                      if (row2) row2.yamlProperty = nextYaml;
-                    } else {
-                      const prow = nextTree.find((x) => x.token === parentToken);
-                      if (prow) {
-                        const crow = (prow.children || []).find((x) => x.token === token);
-                        if (crow) crow.yamlProperty = nextYaml;
-                      }
-                    }
-                    saveTree(nextTree, "pkm:behavior:order:deep:yaml:" + k);
-                  };
-                  if (kind === "wikilink" && parentFieldSelect && parentTokenSelect) {
-                    parentFieldSelect.onchange = () => {
-                      const fid = String(parentFieldSelect.value || "").trim();
-                      bindingValue = "";
-                      fillParentTokens();
-                      if (!fid) {
-                        const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                        const row2 = nextTree.find((x) => x.token === token);
-                        if (row2) row2.__ioParentBinding = "";
-                        saveTree(nextTree, "pkm:behavior:order:deep:wikilink-parent-field:" + k);
-                      }
-                    };
-                    parentTokenSelect.onchange = () => {
-                      bindingValue = String(parentTokenSelect.value || "").trim();
-                      const opt = parentTokenSelect.options[parentTokenSelect.selectedIndex];
-                      parentTokenSelect.title = opt ? String(opt.text || "") : "";
-                      const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                      const row2 = nextTree.find((x) => x.token === token);
-                      if (row2) row2.__ioParentBinding = bindingValue;
-                      saveTree(nextTree, "pkm:behavior:order:deep:wikilink-parent-token:" + k);
-                    };
-                  }
-                  onNodeDetachedOnce(rowWrap, () => {
-                    try {
-                      detachDeepYamlDropdown();
-                    } catch (_) {
-                    }
-                  });
-                  if (kind === "tag" && showDeepEditor && showColorSettingsUi) {
-                    let livePreviewToken = String(token || "").trim();
-                    const visualFieldId = parentFieldId || String(parentField && parentField.id || "").trim();
-                    const visualRow = getTagVisualRow(visualFieldId, token);
-                    const visualWrap = rowWrap.createDiv();
-                    visualWrap.style.display = "flex";
-                    visualWrap.style.flexDirection = "column";
-                    visualWrap.style.gap = "0";
-                    visualWrap.style.width = "100%";
-                    visualWrap.style.maxWidth = "100%";
-                    visualWrap.style.boxSizing = "border-box";
-                    visualWrap.style.minWidth = "0";
-                    visualWrap.style.overflowX = "hidden";
-                    visualWrap.style.marginLeft = level === 1 ? "29px" : "16px";
-                    visualWrap.style.width = level === 1 ? "calc(100% - 29px)" : "calc(100% - 16px)";
-                    if (kind === "tag") {
-                      visualWrap.style.marginLeft = level === 1 ? "20px" : "10px";
-                      visualWrap.style.width = level === 1 ? "calc(100% - 20px)" : "calc(100% - 10px)";
-                    }
-                    const visualCard = visualWrap.createDiv();
-                    visualCard.style.display = "grid";
-                    visualCard.style.gap = "2px";
-                    visualCard.style.width = "100%";
-                    visualCard.style.maxWidth = "100%";
-                    visualCard.style.minWidth = "0";
-                    visualCard.style.boxSizing = "border-box";
-                    visualCard.style.border = "1px solid var(--background-modifier-border)";
-                    visualCard.style.borderRadius = "6px";
-                    visualCard.style.background = level === 1 ? "var(--background-modifier-hover)" : "var(--background-primary)";
-                    visualCard.style.padding = "4px 6px";
-                    if (level === 1) {
-                      visualCard.style.boxShadow = "inset 2px 0 0 var(--background-modifier-border)";
-                    }
-                    const vHead = visualCard.createDiv();
-                    vHead.style.display = "grid";
-                    vHead.style.gridTemplateColumns = "minmax(72px, 0.76fr) minmax(142px, 1.24fr) 8px minmax(156px, 1fr) 8px minmax(156px, 1fr)";
-                    vHead.style.gap = "6px";
-                    vHead.style.alignItems = "center";
-                    vHead.style.justifyContent = "start";
-                    vHead.style.width = "100%";
-                    vHead.style.minWidth = "0";
-                    vHead.style.boxSizing = "border-box";
-                    vHead.style.marginLeft = "0";
-                    vHead.style.marginBottom = "0";
-                    const hExample = vHead.createEl("small", { text: "Preview" });
-                    const hSize = vHead.createEl("small", { text: "Size (full/empty/custom)" });
-                    vHead.createEl("span", { text: "" });
-                    const hText = vHead.createEl("small", { text: "Text color" });
-                    vHead.createEl("span", { text: "" });
-                    const hFill = vHead.createEl("small", { text: "Filling color" });
-                    hExample.style.opacity = hSize.style.opacity = hText.style.opacity = hFill.style.opacity = "0.82";
-                    const vRow = visualCard.createDiv();
-                    vRow.style.display = "grid";
-                    vRow.style.gridTemplateColumns = "minmax(72px, 0.76fr) minmax(142px, 1.24fr) 8px minmax(156px, 1fr) 8px minmax(156px, 1fr)";
-                    vRow.style.gap = "4px";
-                    vRow.style.alignItems = "center";
-                    vRow.style.justifyContent = "start";
-                    vRow.style.width = "100%";
-                    vRow.style.minWidth = "0";
-                    vRow.style.boxSizing = "border-box";
-                    vRow.style.marginLeft = "0";
-                    const buildColorBlock = (currentColor, fallbackColor, titleForTips) => {
-                      const block = vRow.createDiv();
-                      block.style.display = "grid";
-                      block.style.gridTemplateColumns = "48px minmax(56px, 1fr) 28px";
-                      block.style.gap = "4px";
-                      block.style.alignItems = "center";
-                      block.style.padding = "2px 0";
-                      block.style.minWidth = "0";
-                      const pickWrap = block.createDiv();
-                      pickWrap.style.position = "relative";
-                      pickWrap.style.height = "28px";
-                      const pickBtn = pickWrap.createEl("button", { text: "Click" });
-                      if (showInfoTips) pickBtn.title = `Pick ${titleForTips.toLowerCase()} color`;
-                      pickBtn.type = "button";
-                      pickBtn.style.width = "48px";
-                      pickBtn.style.height = "28px";
-                      pickBtn.style.padding = "0";
-                      pickBtn.style.display = "inline-flex";
-                      pickBtn.style.alignItems = "center";
-                      pickBtn.style.justifyContent = "center";
-                      pickBtn.style.background = currentColor || "";
-                      pickBtn.style.color = getContrastTextHex(currentColor || "#999999");
-                      const picker = pickWrap.createEl("input");
-                      picker.type = "color";
-                      picker.value = currentColor || fallbackColor;
-                      picker.style.position = "absolute";
-                      picker.style.inset = "0";
-                      picker.style.opacity = "0";
-                      picker.style.cursor = "pointer";
-                      picker.style.width = "48px";
-                      picker.style.height = "28px";
-                      const hex = block.createEl("input");
-                      hex.type = "text";
-                      hex.value = currentColor || "";
-                      hex.placeholder = fallbackColor;
-                      hex.style.width = "100%";
-                      hex.style.height = "28px";
-                      hex.style.minWidth = "0";
-                      if (showInfoTips) hex.title = `Enter ${titleForTips.toLowerCase()} color hex (#rrggbb)`;
-                      const reset = block.createEl("button", { text: "X" });
-                      reset.ariaLabel = `reset ${titleForTips}`;
-                      reset.classList.add("mod-warning");
-                      reset.style.borderColor = "var(--text-error)";
-                      reset.style.color = "var(--text-error)";
-                      reset.style.padding = "0";
-                      reset.style.width = "28px";
-                      reset.style.height = "28px";
-                      if (showInfoTips) reset.title = `Reset ${titleForTips.toLowerCase()} color`;
-                      return { picker, hex, reset };
-                    };
-                    const preview = vRow.createEl("span", { text: visualRow.visibility === "empty" ? "\xA0" : livePreviewToken });
-                    preview.style.display = "inline-flex";
-                    preview.style.alignItems = "center";
-                    preview.style.justifyContent = "center";
-                    preview.style.alignSelf = "center";
-                    preview.style.justifySelf = "start";
-                    resolveDragAnchorY = () => {
-                      try {
-                        const rowRect = rowWrap.getBoundingClientRect();
-                        const previewRect = preview.getBoundingClientRect();
-                        if (!rowRect || !previewRect) return NaN;
-                        return previewRect.top - rowRect.top + previewRect.height / 2;
-                      } catch (_) {
-                        return NaN;
-                      }
-                    };
-                    const sizeCell = vRow.createDiv();
-                    sizeCell.style.display = "grid";
-                    sizeCell.style.gridTemplateColumns = "1fr";
-                    sizeCell.style.gap = "4px";
-                    sizeCell.style.minWidth = "0";
-                    const visSel = sizeCell.createEl("select");
-                    visSel.title = "Size (full/empty/custom)";
-                    visSel.createEl("option", { text: "full", value: "default" });
-                    visSel.createEl("option", { text: "empty", value: "empty" });
-                    visSel.createEl("option", { text: "custom", value: "custom" });
-                    visSel.value = visualRow.visibility;
-                    visSel.style.width = "100%";
-                    visSel.style.height = "28px";
-                    const customInput = sizeCell.createEl("input");
-                    customInput.type = "text";
-                    customInput.placeholder = "print";
-                    customInput.value = String(visualRow.customText || "");
-                    customInput.style.width = "100%";
-                    customInput.style.height = "28px";
-                    customInput.style.minWidth = "0";
-                    customInput.style.display = visSel.value === "custom" ? "block" : "none";
-                    sizeCell.style.gridTemplateColumns = visSel.value === "custom" ? "1fr 1fr" : "1fr";
-                    vRow.createEl("span", { text: "" });
-                    const textUi = buildColorBlock(visualRow.textColor, "#ffffff", "Text");
-                    vRow.createEl("span", { text: "" });
-                    const fillUi = buildColorBlock(visualRow.fillColor, "#111111", "Filling");
-                    const textPicker = textUi.picker;
-                    textPicker.type = "color";
-                    const textHex = textUi.hex;
-                    const fillPicker = fillUi.picker;
-                    fillPicker.type = "color";
-                    const fillHex = fillUi.hex;
-                    const resetBtnLegacy = fillUi.reset;
-                    resetBtnLegacy.onclick = () => {
-                      fillPicker.value = "#111111";
-                      fillHex.value = "";
-                      setTagVisualRow(visualFieldId, token, { fillColor: "" }, "pkm:visuals:tag:fill-reset:" + visualFieldId);
-                      applyPreview();
-                    };
-                    textUi.reset.onclick = () => {
-                      textPicker.value = "#ffffff";
-                      textHex.value = "";
-                      setTagVisualRow(visualFieldId, token, { textColor: "" }, "pkm:visuals:tag:text-reset:" + visualFieldId);
-                      applyPreview();
-                    };
-                    const vCfg = getTagVisualRuntime();
-                    const vst = computeTagVisualStyle(vCfg.tagTextSizePct, vCfg.tagBubbleWidthPct, vCfg.tagBubbleHeightPct, vCfg.tagShapePct);
-                    const previewPaddingY = Math.max(1, Math.round(vst.verticalPaddingPx * 0.55));
-                    const previewPaddingX = Math.max(3, Math.round(vst.horizontalPaddingPx * 0.55));
-                    preview.style.padding = `${previewPaddingY}px ${previewPaddingX}px`;
-                    preview.style.borderRadius = `${vst.borderRadiusPx}px`;
-                    preview.style.fontSize = `${vst.fontSizePx}px`;
-                    preview.style.lineHeight = String(vst.lineHeight);
-                    preview.style.border = "1px solid var(--background-modifier-border-hover)";
-                    preview.style.alignSelf = "center";
-                    if (visualRow.fillColor) preview.style.background = visualRow.fillColor;
-                    if (visualRow.textColor) preview.style.color = visualRow.textColor;
-                    const applyPreview = () => {
-                      const fill = normalizeHexColorInput(fillHex.value);
-                      const text = normalizeHexColorInput(textHex.value);
-                      const visRaw = String(visSel.value || "default").trim().toLowerCase();
-                      const vis = ["default", "empty", "custom"].includes(visRaw) ? visRaw : "default";
-                      const customText = String(customInput.value || "").trim();
-                      const effectiveVis = vis === "custom" && !customText ? "empty" : vis;
-                      const fullBubbleHeightPx = Math.max(10, Math.round(vst.fontSizePx * vst.lineHeight + vst.verticalPaddingPx * 2));
-                      preview.setText(effectiveVis === "empty" ? " " : effectiveVis === "custom" ? customText : livePreviewToken);
-                      if (effectiveVis === "empty") {
-                        preview.style.minWidth = "0";
-                        preview.style.width = `${Math.max(6, Math.round(vst.horizontalPaddingPx * 2 / 5))}px`;
-                        preview.style.lineHeight = String(vst.lineHeight);
-                        preview.style.height = `${fullBubbleHeightPx}px`;
-                        preview.style.boxSizing = "border-box";
-                        preview.style.color = "transparent";
-                      } else {
-                        preview.style.minWidth = "0";
-                        preview.style.width = "fit-content";
-                        preview.style.maxWidth = "100%";
-                        preview.style.height = "auto";
-                        preview.style.lineHeight = String(vst.lineHeight);
-                        preview.style.whiteSpace = "nowrap";
-                        preview.style.color = text || visualRow.textColor || "";
-                      }
-                      if (fill) preview.style.background = fill;
-                      else preview.style.background = visualRow.fillColor || "var(--background-primary)";
-                      if (effectiveVis !== "empty") {
-                        if (text) preview.style.color = text;
-                        else preview.style.color = visualRow.textColor || "";
-                      }
-                      const txtBtn = textUi.picker && textUi.picker.previousSibling;
-                      const fillBtn = fillUi.picker && fillUi.picker.previousSibling;
-                      if (txtBtn && txtBtn.style) {
-                        txtBtn.style.background = text || "";
-                        txtBtn.style.color = getContrastTextHex(text || "#999999");
-                      }
-                      if (fillBtn && fillBtn.style) {
-                        fillBtn.style.background = fill || "";
-                        fillBtn.style.color = getContrastTextHex(fill || "#999999");
-                      }
-                    };
-                    const commitText = () => {
-                      const norm = normalizeHexColorInput(textHex.value);
-                      if (!norm) return;
-                      textHex.value = norm;
-                      textPicker.value = norm;
-                      setTagVisualRow(visualFieldId, token, { textColor: norm }, "pkm:visuals:tag:text:" + visualFieldId);
-                      applyPreview();
-                    };
-                    const commitFill = () => {
-                      const norm = normalizeHexColorInput(fillHex.value);
-                      if (!norm) return;
-                      fillHex.value = norm;
-                      fillPicker.value = norm;
-                      setTagVisualRow(visualFieldId, token, { fillColor: norm }, "pkm:visuals:tag:fill:" + visualFieldId);
-                      applyPreview();
-                    };
-                    textPicker.onchange = () => {
-                      textHex.value = textPicker.value;
-                      commitText();
-                    };
-                    fillPicker.onchange = () => {
-                      fillHex.value = fillPicker.value;
-                      commitFill();
-                    };
-                    textHex.onkeydown = (e) => {
-                      if (e.key === "Enter") commitText();
-                    };
-                    fillHex.onkeydown = (e) => {
-                      if (e.key === "Enter") commitFill();
-                    };
-                    textHex.onblur = () => commitText();
-                    fillHex.onblur = () => commitFill();
-                    visSel.onchange = () => {
-                      const isCustom = String(visSel.value || "default") === "custom";
-                      sizeCell.style.gridTemplateColumns = isCustom ? "1fr 1fr" : "1fr";
-                      customInput.style.display = isCustom ? "block" : "none";
-                      setTagVisualRow(visualFieldId, token, { visibility: visSel.value }, "pkm:visuals:tag:visibility:" + visualFieldId);
-                      applyPreview();
-                    };
-                    const commitCustomText = () => {
-                      setTagVisualRow(visualFieldId, token, { customText: customInput.value }, "pkm:visuals:tag:custom-text:" + visualFieldId);
-                    };
-                    customInput.oninput = () => {
-                      applyPreview();
-                    };
-                    customInput.onblur = () => {
-                      commitCustomText();
-                    };
-                    customInput.onkeydown = (e) => {
-                      if (e && e.key === "Enter") {
-                        e.preventDefault();
-                        commitCustomText();
-                        try {
-                          customInput.blur();
-                        } catch (_) {
-                        }
-                      }
-                    };
-                    inpt.oninput = () => {
-                      livePreviewToken = String(inpt.value || "").trim() || String(token || "").trim();
-                      applyPreview();
-                    };
-                    applyPreview();
-                    const rowDivider = rowWrap.createDiv();
-                    rowDivider.style.borderBottom = "2px solid var(--background-modifier-border-hover)";
-                    rowDivider.style.marginTop = "4px";
-                    rowDivider.style.opacity = "1";
-                  }
-                  setTimeout(syncDragHandlePos, 0);
-                };
-                for (const p of tree) {
-                  renderTokenRow(p.token, 0, "");
-                  const ch = Array.isArray(p.children) ? p.children : [];
-                  for (const c of ch) renderTokenRow(c.token, 1, p.token);
-                }
-                const addRow2 = details.createDiv();
-                addRow2.style.display = "flex";
-                addRow2.style.gap = "6px";
-                addRow2.style.marginTop = "6px";
-                const addInput = addRow2.createEl("input");
-                addInput.type = "text";
-                addInput.placeholder = kind === "wikilink" ? "wikilink" : "#tag";
-                addInput.style.flex = "1";
-                const addBtn2 = addRow2.createEl("button", { text: "+ element" });
-                addBtn2.disabled = !enabled;
-                addBtn2.onclick = () => {
-                  if (!enabled) return;
-                  const token = typeof deepState.normalizeToken === "function" ? deepState.normalizeToken(addInput.value, kind) : String(addInput.value || "").trim();
-                  if (!token) return;
-                  if (kind === "wikilink") {
-                    const liveNow = plugin.getConfig();
-                    const behaviorNow = liveNow && liveNow.pkm && liveNow.pkm.behavior ? liveNow.pkm.behavior : {};
-                    const leftNow = behaviorNow && behaviorNow.leftMode && Array.isArray(behaviorNow.leftMode.fields) ? behaviorNow.leftMode.fields : [];
-                    const rightNow = behaviorNow && behaviorNow.rightMode && Array.isArray(behaviorNow.rightMode.fields) ? behaviorNow.rightMode.fields : [];
-                    const keyNorm = String(k || "").trim();
-                    const strictNorm = String(strictName2 || keyNorm).trim();
-                    const findWikilinkField = (arr2) => {
-                      if (!Array.isArray(arr2)) return null;
-                      for (let i = 0; i < arr2.length; i++) {
-                        const f = arr2[i] && typeof arr2[i] === "object" ? arr2[i] : null;
-                        if (!f) continue;
-                        const fid = String(f.id || "").trim();
-                        const fkey = String(f.orderKey || "").trim();
-                        const src = String(f.source || "").trim();
-                        if (!fid && !fkey && !src) continue;
-                        if (fid === keyNorm || fid === strictNorm || fkey === keyNorm || fkey === strictNorm || src === `wikilinks:${keyNorm}` || src === `wikilinks:${strictNorm}`) {
-                          return f;
-                        }
-                      }
-                      return null;
-                    };
-                    const rightField = findWikilinkField(rightNow);
-                    const leftField = findWikilinkField(leftNow);
-                    const target = rightField || leftField;
-                    if (!target) {
-                      new Notice3("InlineOverhaul: cannot resolve target link field for Deep Editor add");
-                      return;
-                    }
-                    const targetId = String(target.id || strictNorm || keyNorm).trim();
-                    if (!targetId) {
-                      new Notice3("InlineOverhaul: target link field id is empty");
-                      return;
-                    }
-                    const valuesNow = Array.isArray(target.values) ? target.values.slice() : [];
-                    const tokenPlain = String(token).replace(/^\[\[|\]\]$/g, "").trim();
-                    if (!tokenPlain) {
-                      new Notice3("InlineOverhaul: empty link token");
-                      return;
-                    }
-                    const exists = valuesNow.some((row2) => {
-                      const tok = String(row2 && typeof row2 === "object" ? row2.token : row2 || "").trim();
-                      return tok === tokenPlain;
-                    });
-                    if (!exists) {
-                      valuesNow.push({ token: tokenPlain, active: true, allowedParentValues: [], prefixMode: "bullet", checkboxToken: "" });
-                    }
-                    const nextTarget = {
-                      ...target,
-                      id: targetId,
-                      source: String(target.source || `wikilinks:${targetId}`).trim(),
-                      prefix: String(target.prefix || "#").trim() || "#",
-                      placeholder: String(target.placeholder || targetId).trim() || targetId,
-                      values: valuesNow
-                    };
-                    const toRight = !!rightField || String(nextTarget.source || "").indexOf("wikilinks:") === 0;
-                    const nextLeft2 = toRight ? leftNow : upsertField(leftNow, targetId, nextTarget);
-                    const nextRight = toRight ? upsertField(rightNow, targetId, nextTarget) : rightNow;
-                    plugin.setConfigPatch({ pkm: { behavior: { leftMode: { fields: nextLeft2 }, rightMode: { fields: nextRight } } } }, "pkm:behavior:order:deep:add-token:" + k);
-                    addInput.value = "";
-                    renderOrderBoard();
-                    return;
-                  }
-                  const nextTree = tree.map((p) => ({ ...p, children: (p.children || []).map((c) => ({ ...c })) }));
-                  nextTree.push({ token, prefix: "#", children: [] });
-                  if (typeof deepState.applyTagTreeToFields !== "function") return;
-                  markSnapshot(captureSnapshot());
-                  const merged = deepState.applyTagTreeToFields(nextTree, parentField || { id: strictName2, orderKey: k, prefix: "#", values: [] }, subField || { id: `${strictName2}_sub`, orderKey: `${k}_sub`, values: [] }, kind);
-                  let nextLeft = leftMode.map((f) => {
-                    const id = String(f && f.id || "").trim();
-                    const fidParent = String(parentField && parentField.id || "").trim();
-                    const fidSub = String(subField && subField.id || "").trim();
-                    if (fidParent && id === fidParent) return merged.parentField;
-                    if (fidSub && id === fidSub && merged.subField) return merged.subField;
-                    return f;
-                  });
-                  if (!parentField && merged.parentField) nextLeft = upsertField(nextLeft, merged.parentField.id, merged.parentField);
-                  if (!subField && merged.subField) nextLeft = upsertField(nextLeft, merged.subField.id, merged.subField);
-                  plugin.setConfigPatch({ pkm: { behavior: { leftMode: { fields: nextLeft } } } }, "pkm:behavior:order:deep:add-token:" + k);
-                  plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), "pkm:behavior:order:deep:add-token:" + k + ":prefix");
-                  renderOrderBoard();
-                };
-              }
-            }
-          } catch (e) {
-            console.error("[inline-overhaul][order-row-render]", k, e);
-            const errorRow = list.createDiv();
-            errorRow.style.padding = "4px 6px";
-            errorRow.style.border = "1px solid var(--text-error)";
-            errorRow.style.borderRadius = "6px";
-            errorRow.style.background = "var(--background-primary-alt)";
-            errorRow.style.fontSize = "12px";
-            errorRow.style.color = "var(--text-error)";
-            errorRow.setText(`Render error for field '${String(k || "")}'`);
-          }
-        }
-        addDropZone("");
-      };
-      const leadRow = orderWrap.createDiv();
-      leadRow.style.display = "none";
-      try {
-        if (addRow && addRow.parentElement === orderWrap) orderWrap.insertBefore(addRow, leadRow);
-      } catch (_) {
-      }
-      const orderPreviewRow = orderWrap.createDiv();
-      orderPreviewRow.style.margin = "6px 0 8px";
-      try {
-        if (leadRow && leadRow.parentElement === orderWrap) orderWrap.insertBefore(orderPreviewRow, leadRow);
-      } catch (_) {
-      }
-      const colorHintRow = orderWrap.createDiv();
-      colorHintRow.style.margin = "6px 0 2px";
-      const userTagsRow = containerEl.createDiv();
-      userTagsRow.style.margin = "6px 0 10px";
-      const renderOrderPreview = () => {
-        orderPreviewRow.empty();
-        if (!showDeepEditor) return;
-        const card = orderPreviewRow.createDiv();
-        card.style.border = "1px solid var(--background-modifier-border)";
-        card.style.borderRadius = "8px";
-        card.style.padding = "8px 10px";
-        card.style.background = "var(--background-secondary)";
-        const subHeader = card.createEl("div", { text: "Preview of your Order" });
-        subHeader.style.fontSize = "12px";
-        subHeader.style.fontWeight = "600";
-        subHeader.style.lineHeight = "1.25";
-        subHeader.style.marginBottom = "4px";
-        const previewViewport = card.createDiv();
-        previewViewport.style.width = "100%";
-        previewViewport.style.maxWidth = "100%";
-        previewViewport.style.overflowX = "auto";
-        previewViewport.style.overflowY = "hidden";
-        const layoutGrid = previewViewport.createDiv();
-        layoutGrid.style.display = "grid";
-        layoutGrid.style.gridTemplateColumns = "max-content minmax(120px,1fr) max-content";
-        layoutGrid.style.alignItems = "center";
-        layoutGrid.style.columnGap = "8px";
-        layoutGrid.style.width = "max-content";
-        layoutGrid.style.minWidth = "100%";
-        const labelsRow = layoutGrid.createDiv();
-        labelsRow.style.display = "contents";
-        const leftBadge = layoutGrid.createEl("small", { text: "Left panel" });
-        leftBadge.style.gridColumn = "1";
-        const middleSpacer = layoutGrid.createEl("small", { text: "" });
-        middleSpacer.style.gridColumn = "2";
-        const rightBadge = layoutGrid.createEl("small", { text: "Right panel" });
-        rightBadge.style.gridColumn = "3";
-        for (const el of [leftBadge, rightBadge]) {
-          el.style.border = "1px solid var(--background-modifier-border)";
-          el.style.borderRadius = "6px";
-          el.style.padding = "1px 6px";
-          el.style.opacity = "0.82";
-          el.style.display = "block";
-          el.style.width = "100%";
-          el.style.textAlign = "center";
-        }
-        leftBadge.style.marginBottom = "4px";
-        rightBadge.style.marginBottom = "4px";
-        const leftLine = layoutGrid.createDiv();
-        leftLine.style.gridColumn = "1";
-        leftLine.style.whiteSpace = "nowrap";
-        const middleLine = layoutGrid.createDiv();
-        middleLine.style.gridColumn = "2";
-        middleLine.style.whiteSpace = "nowrap";
-        middleLine.style.overflow = "hidden";
-        const rightLine = layoutGrid.createDiv();
-        rightLine.style.gridColumn = "3";
-        rightLine.style.whiteSpace = "nowrap";
-        for (const line of [leftLine, middleLine, rightLine]) {
-          line.style.fontFamily = "var(--font-text)";
-          line.style.fontSize = "var(--font-text-size)";
-          line.style.lineHeight = "var(--line-height-normal)";
-          line.style.padding = "2px 0";
-        }
-        const sep1 = String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator1 || "||").trim() || "||";
-        const sep2 = String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator2 || "||").trim() || "||";
-        const toType = (key) => {
-          const k = String(key || "").trim();
-          const strict = String(orderState && orderState.strictNames && orderState.strictNames[k] || "").trim();
-          const candidates = [k, strict].map((x) => String(x || "").trim()).filter(Boolean);
-          const readType = (id) => String(orderState && orderState.types && orderState.types[id] || "").trim().toLowerCase();
-          for (let i = 0; i < candidates.length; i++) {
-            const t = readType(candidates[i]);
-            if (t === "wikilink") return "wikilink";
-            if (t === "element") return "element";
-            if (t === "tag") return "tag";
-          }
-          const behaviorNow = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-          const fields = [].concat(Array.isArray(behaviorNow.leftMode && behaviorNow.leftMode.fields) ? behaviorNow.leftMode.fields : []).concat(Array.isArray(behaviorNow.rightMode && behaviorNow.rightMode.fields) ? behaviorNow.rightMode.fields : []);
-          const field = fields.find((f) => {
-            const id = String(f && f.id || "").trim();
-            const orderKey = String(f && f.orderKey || "").trim();
-            const source2 = String(f && f.source || "").trim();
-            for (let i = 0; i < candidates.length; i++) {
-              const c = candidates[i];
-              if (id === c || orderKey === c || source2 === `wikilinks:${c}`) return true;
-            }
-            return false;
-          }) || null;
-          const source = String(field && field.source || "").trim();
-          if (source === "projects" || /^wikilinks:/.test(source)) return "wikilink";
-          const kind = String(field && field.kind || "").trim().toLowerCase();
-          if (kind === "dateoffset" || kind === "nowtime" || kind === "estimatedcycle" || kind === "genericelement") return "element";
-          return "tag";
-        };
-        const getDisplay = (key) => {
-          const k = String(key || "").trim();
-          const label = String(orderState && orderState.labels && orderState.labels[k] || "").trim();
-          const strict = String(orderState && orderState.strictNames && orderState.strictNames[k] || k).trim();
-          return label || strict || k;
-        };
-        const activeState = (key) => {
-          const k = String(key || "").trim();
-          const raw = String(orderState && orderState.active && orderState.active[k] || "yes").trim().toLowerCase();
-          if (raw === "no") return "no";
-          if (raw === "hotkey_only") return "hotkey_only";
-          return "yes";
-        };
-        const panelTokens = (keys) => {
-          const out = [];
-          const list = Array.isArray(keys) ? keys : [];
-          for (let i = 0; i < list.length; i++) {
-            const key = String(list[i] || "").trim();
-            if (!key || /_sub$/.test(key)) continue;
-            const st = activeState(key);
-            if (st === "no") continue;
-            out.push({
-              text: getDisplay(key),
-              type: toType(key),
-              state: st
-            });
-          }
-          return out;
-        };
-        const leftTokens = panelTokens(orderState && orderState.left ? orderState.left : []);
-        const rightTokens = panelTokens(orderState && orderState.right ? orderState.right : []);
-        const renderTokenList = (host, tokens) => {
-          const open = host.createEl("span", { text: "[" });
-          open.style.opacity = "0.9";
-          for (let i = 0; i < tokens.length; i++) {
-            const tok = tokens[i];
-            const el = host.createEl("span", { text: tok.text });
-            const st = getOrderTypeBubblePalette(tok.type);
-            el.style.display = "inline-flex";
-            el.style.alignItems = "center";
-            el.style.padding = "1px 6px";
-            el.style.fontSize = "11px";
-            el.style.lineHeight = "1.2";
-            el.style.borderRadius = "999px";
-            el.style.border = "1px solid var(--background-modifier-border)";
-            el.style.background = st.bg;
-            el.style.color = "var(--text-normal)";
-            el.style.borderColor = st.border;
-            if (tok.state === "hotkey_only") el.style.opacity = "0.45";
-            if (i < tokens.length - 1) host.appendText(" ");
-          }
-          const close = host.createEl("span", { text: "]" });
-          close.style.opacity = "0.9";
-        };
-        renderTokenList(leftLine, leftTokens);
-        middleLine.setText(`${sep1}  user's text  ${sep2}`);
-        renderTokenList(rightLine, rightTokens);
-      };
-      const renderLeadFieldSelectors = () => {
-        leadRow.empty();
-        const card = leadRow.createDiv();
-        card.style.border = "1px solid var(--background-modifier-border)";
-        card.style.borderRadius = "8px";
-        card.style.padding = "8px";
-        card.style.background = "var(--background-secondary)";
-        const title = card.createEl("div", { text: "TagWheel Lead Field" });
-        title.style.fontWeight = "600";
-        title.style.marginBottom = "6px";
-        title.style.fontSize = "12px";
-        const grid = card.createDiv();
-        grid.style.display = "grid";
-        grid.style.gridTemplateColumns = "1fr 1fr";
-        grid.style.gap = "8px";
-        const createLeadSelect = (panelKey, labelText) => {
-          const box = grid.createDiv();
-          const label = box.createEl("small", { text: labelText });
-          label.style.display = "block";
-          label.style.marginBottom = "4px";
-          label.style.opacity = "0.9";
-          const select = box.createEl("select");
-          select.style.width = "100%";
-          if (!enabled) select.disabled = true;
-          const candidates = getPanelLeadCandidates(panelKey);
-          select.createEl("option", { text: "default", value: "" });
-          for (const row2 of candidates) {
-            select.createEl("option", { text: `${row2.label} (${row2.key})`, value: row2.key });
-          }
-          const currentLead = String(orderState && orderState.lead && orderState.lead[panelKey] ? orderState.lead[panelKey] : "").trim();
-          select.value = candidates.some((row2) => row2.key === currentLead) ? currentLead : "";
-          select.onchange = () => {
-            if (!enabled) return;
-            const next = String(select.value || "").trim();
-            const patchLead = { [panelKey]: next || "" };
-            orderState.lead = { ...orderState.lead || {}, [panelKey]: next || "" };
-            setOrderPatch({ lead: patchLead }, `pkm:behavior:order:lead:${panelKey}`);
-          };
-        };
-        createLeadSelect("left", "Left field");
-        createLeadSelect("right", "Right field");
-      };
-      const renderUserTagsEditor = () => {
-        userTagsRow.empty();
-        if (!showDeepEditor || !showColorSettingsUi) return;
-        const titleRow = userTagsRow.createDiv();
-        titleRow.style.margin = "0 0 4px";
-        const colorTagsTitle = titleRow.createEl("div", { text: "Color your Tags" });
-        colorTagsTitle.style.fontSize = "14px";
-        colorTagsTitle.style.fontWeight = "600";
-        colorTagsTitle.style.lineHeight = "1.25";
-        colorTagsTitle.style.margin = "0 0 2px 0";
-        const card = userTagsRow.createDiv();
-        card.style.border = "1px solid var(--background-modifier-border)";
-        card.style.borderRadius = "8px";
-        card.style.padding = "8px";
-        card.style.background = "var(--background-secondary)";
-        if (showInfoTips) {
-          const tips = card.createEl("details");
-          const sm = tips.createEl("summary", { text: "Info & Tips" });
-          sm.style.cursor = "pointer";
-          tips.createEl("div", { text: "Use this section to color tags that are not currently present in Order rows." });
-        }
-        const cfgNow = plugin.getConfig();
-        const visualsNow = cfgNow && cfgNow.pkm && cfgNow.pkm.behavior && cfgNow.pkm.behavior.tagVisuals ? cfgNow.pkm.behavior.tagVisuals : {};
-        const userTagsMap = visualsNow && visualsNow.userTags && typeof visualsNow.userTags === "object" ? visualsNow.userTags : {};
-        const tokens = Object.keys(userTagsMap).filter((x) => /^#\S+/.test(String(x || "").trim()));
-        if (tokens.length > 300) {
-          const warn = card.createDiv();
-          warn.style.margin = "6px 0";
-          warn.style.padding = "6px 8px";
-          warn.style.border = "1px solid var(--text-warning)";
-          warn.style.borderRadius = "6px";
-          warn.setText("Soft warning: User tags count exceeded 300.");
-        }
-        const list = card.createDiv();
-        list.style.display = "flex";
-        list.style.flexDirection = "column";
-        list.style.gap = "6px";
-        const setUserTagRow = (token, patch, reason) => {
-          const tok = String(token || "").trim();
-          if (!tok || tok.charAt(0) !== "#") return;
-          const cur = userTagsMap[tok] && typeof userTagsMap[tok] === "object" ? userTagsMap[tok] : {};
-          const next = {
-            fillColor: Object.prototype.hasOwnProperty.call(patch, "fillColor") ? normalizeHexColorInput(patch.fillColor) : normalizeHexColorInput(cur.fillColor),
-            textColor: Object.prototype.hasOwnProperty.call(patch, "textColor") ? normalizeHexColorInput(patch.textColor) : normalizeHexColorInput(cur.textColor),
-            visibility: Object.prototype.hasOwnProperty.call(patch, "visibility") ? String(patch.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default" : String(cur.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default"
-          };
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [tok]: next } } } } }, reason || "pkm:visuals:user-tags");
-        };
-        for (const token of tokens) {
-          const row2 = list.createDiv();
-          row2.style.display = "grid";
-          row2.style.gridTemplateColumns = "minmax(120px,1fr) 36px 92px 36px 92px 88px minmax(120px,1fr) 28px";
-          row2.style.gap = "6px";
-          row2.style.alignItems = "center";
-          const tokenInput = row2.createEl("input");
-          tokenInput.type = "text";
-          tokenInput.value = token;
-          tokenInput.disabled = true;
-          const state = userTagsMap[token] && typeof userTagsMap[token] === "object" ? userTagsMap[token] : {};
-          const textPicker = row2.createEl("input");
-          textPicker.type = "color";
-          textPicker.value = normalizeHexColorInput(state.textColor) || "#ffffff";
-          const textHex = row2.createEl("input");
-          textHex.type = "text";
-          textHex.value = normalizeHexColorInput(state.textColor) || "#ffffff";
-          const fillPicker = row2.createEl("input");
-          fillPicker.type = "color";
-          fillPicker.value = normalizeHexColorInput(state.fillColor) || "#111111";
-          const fillHex = row2.createEl("input");
-          fillHex.type = "text";
-          fillHex.value = normalizeHexColorInput(state.fillColor) || "#111111";
-          const visSel = row2.createEl("select");
-          visSel.createEl("option", { text: "full", value: "default" });
-          visSel.createEl("option", { text: "empty", value: "empty" });
-          visSel.value = String(state.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default";
-          const preview = row2.createEl("span", { text: visSel.value === "empty" ? "   " : token });
-          preview.style.display = "inline-block";
-          preview.style.padding = "2px 8px";
-          preview.style.borderRadius = "999px";
-          preview.style.border = "1px solid var(--background-modifier-border)";
-          if (normalizeHexColorInput(state.fillColor)) preview.style.background = normalizeHexColorInput(state.fillColor);
-          if (normalizeHexColorInput(state.textColor)) preview.style.color = normalizeHexColorInput(state.textColor);
-          const del = row2.createEl("button", { text: "x" });
-          del.onclick = () => {
-            plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: null } } } } }, "pkm:visuals:user-tags:delete");
-            renderOrderBoard();
-          };
-          const applyPreview = () => {
-            const fill = normalizeHexColorInput(fillHex.value || fillPicker.value);
-            const text = normalizeHexColorInput(textHex.value || textPicker.value);
-            const vis = String(visSel.value || "default").trim().toLowerCase() === "empty" ? "empty" : "default";
-            preview.setText(vis === "empty" ? "   " : token);
-            preview.style.background = fill || "";
-            preview.style.color = text || "";
-            fillHex.style.background = fill || "";
-            fillHex.style.color = getContrastTextHex(fill || "#111111");
-          };
-          const commitText = () => {
-            const norm = normalizeHexColorInput(textHex.value);
-            if (!norm) return;
-            textHex.value = norm;
-            textPicker.value = norm;
-            setUserTagRow(token, { textColor: norm }, "pkm:visuals:user-tags:text");
-            applyPreview();
-          };
-          const commitFill = () => {
-            const norm = normalizeHexColorInput(fillHex.value);
-            if (!norm) return;
-            fillHex.value = norm;
-            fillPicker.value = norm;
-            setUserTagRow(token, { fillColor: norm }, "pkm:visuals:user-tags:fill");
-            applyPreview();
-          };
-          textPicker.onchange = () => {
-            textHex.value = textPicker.value;
-            commitText();
-          };
-          fillPicker.onchange = () => {
-            fillHex.value = fillPicker.value;
-            commitFill();
-          };
-          textHex.onkeydown = (e) => {
-            if (e.key === "Enter") commitText();
-          };
-          fillHex.onkeydown = (e) => {
-            if (e.key === "Enter") commitFill();
-          };
-          textHex.onblur = () => commitText();
-          fillHex.onblur = () => commitFill();
-          visSel.onchange = () => {
-            setUserTagRow(token, { visibility: visSel.value }, "pkm:visuals:user-tags:visibility");
-            applyPreview();
-          };
-          applyPreview();
-        }
-        const add = card.createDiv();
-        add.style.display = "flex";
-        add.style.gap = "6px";
-        add.style.marginTop = "8px";
-        const addInput = add.createEl("input");
-        addInput.type = "text";
-        addInput.placeholder = "#tag";
-        addInput.style.flex = "1";
-        const addBtn2 = add.createEl("button", { text: "+ user tag" });
-        addBtn2.onclick = () => {
-          const raw = String(addInput.value || "").trim();
-          const token = raw ? raw.charAt(0) === "#" ? raw : `#${raw}` : "";
-          if (!/^#\S+/.test(token)) return;
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: { fillColor: "", textColor: "", visibility: "default" } } } } } }, "pkm:visuals:user-tags:add");
-          addInput.value = "";
-          renderOrderBoard();
-        };
-      };
-      const renderColorSettingsHint = () => {
-        colorHintRow.empty();
-        if (showDeepEditor && showColorSettingsUi) return;
-        const hint = colorHintRow.createDiv();
-        hint.style.padding = "6px 8px";
-        hint.style.border = "1px dashed var(--background-modifier-border)";
-        hint.style.borderRadius = "6px";
-        hint.style.opacity = "0.9";
-        hint.setText("Color settings are hidden. Enable: Tag & PKM > Order > Show color settings.");
-      };
-      const renderOrderBoard = () => {
-        if (!showDeepEditor) deepSession.expanded = {};
-        ensureAllKeys();
-        renderPanel("left", "Left panel");
-        renderPanel("right", "Right panel");
-        renderOrderPreview();
-        renderColorSettingsHint();
-        renderUserTagsEditor();
-        refreshDraftInfo();
-      };
-      renderOrderBoard();
-    }
     function renderPkmConfigSections(ctx) {
       const {
         Setting,
         Notice: Notice3,
-        Modal,
+        Modal: Modal2,
         containerEl,
         cfg,
         enabled,
@@ -29472,9 +29806,9 @@ var require_settings_sections_renderer = __commonJS({
               const deep = plugin && plugin._orderDeepEditorSession ? plugin._orderDeepEditorSession : null;
               if (deep && deep.enabled === true && deep.dirty === true) {
                 let choice = "cancel";
-                if (typeof Modal === "function" && plugin && plugin.app) {
+                if (typeof Modal2 === "function" && plugin && plugin.app) {
                   choice = await new Promise((resolve) => {
-                    class ConflictModal extends Modal {
+                    class ConflictModal extends Modal2 {
                       onOpen() {
                         const { contentEl } = this;
                         contentEl.empty();
@@ -29670,11 +30004,11 @@ var require_settings_sections_renderer = __commonJS({
         const leftLabel = labelsRow.createEl("small", { text: "Left panel" });
         const rightLabel = labelsRow.createEl("small", { text: "Right panel" });
         rightLabel.style.position = "absolute";
-        for (const el of [leftLabel, rightLabel]) {
-          el.style.border = "1px solid var(--background-modifier-border)";
-          el.style.borderRadius = "6px";
-          el.style.padding = "1px 6px";
-          el.style.opacity = "0.82";
+        for (const el2 of [leftLabel, rightLabel]) {
+          el2.style.border = "1px solid var(--background-modifier-border)";
+          el2.style.borderRadius = "6px";
+          el2.style.padding = "1px 6px";
+          el2.style.opacity = "0.82";
         }
         const previewLine = sepPreviewFrame.createEl("div");
         previewLine.style.fontFamily = "var(--font-text)";
@@ -30460,10 +30794,10 @@ var require_tagwheel_scroller_overlay = __commonJS({
             var bestScore = Number.POSITIVE_INFINITY;
             var i;
             for (i = 0; i < nodes.length; i++) {
-              var el = nodes[i];
-              if (!el || typeof el.getBoundingClientRect !== "function") continue;
-              if (activeToken && String(el.textContent || "").trim() !== activeToken) continue;
-              var rect = el.getBoundingClientRect();
+              var el2 = nodes[i];
+              if (!el2 || typeof el2.getBoundingClientRect !== "function") continue;
+              if (activeToken && String(el2.textContent || "").trim() !== activeToken) continue;
+              var rect = el2.getBoundingClientRect();
               if (!rect || !isFinite(rect.left) || !isFinite(rect.top)) continue;
               var cy = (Number(rect.top) + Number(rect.bottom || rect.top)) / 2;
               var score = targetY == null ? i : Math.abs(cy - targetY);
@@ -30668,12 +31002,278 @@ var require_tagwheel_scroller_overlay = __commonJS({
   }
 });
 
+// src/ui/settings/schema/custom_texts.ts
+var TAB_CALLOUTS, PREVIEW_TEXTS, PREVIEW_NOTE, PREVIEW_EXAMPLE, PREVIEW_LINE_TEXT, PREVIEW_EMPTY_RIGHT;
+var init_custom_texts = __esm({
+  "src/ui/settings/schema/custom_texts.ts"() {
+    "use strict";
+    TAB_CALLOUTS = {
+      general: {
+        head: "Inline Overhaul is about writing a note and tagging it in the same breath",
+        tip: "Everything the plugin does is built on one idea: a line can carry more than words. Put a status, a due date or a link on the same line as the thought, and you never break off to fill in a form. The tabs across the top go from moving text around, through setting up those slots, to turning a line into a note of its own",
+        body: "Nothing here changes your notes on its own. Each area below can be switched off, and the one part that creates files asks again before it will run. If you are new to it, start with the guide"
+      },
+      navigation: {
+        head: "This menu helps to make inline navigation in Obsidian comfortable",
+        tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
+        body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, jumping between headings to navigate easier and much more. Experiment, and set up the workspace of your dreams!"
+      },
+      keyboard: {
+        head: "Everything about keys lives here",
+        tip: "Obsidian owns the hotkeys themselves, so this tab tells you what to bind and takes you there; the binding is done in <code>Settings \u2192 Hotkeys</code> and survives updates of this plugin",
+        body: "Take over Ctrl/Cmd + A so it selects a line before the whole note, keep a row of snippets you drop in with one press, and read the full list of commands with the key each one currently has"
+      },
+      pkm: {
+        head: "This is the plugin\u2019s main feature",
+        tip: "The idea is that you never stop writing to fill in metadata. You define your slots once here \u2014 a status, a priority, a due date \u2014 and afterwards one keypress puts the right Value on the line and steps it forward",
+        body: "Lay out your PKM here once, and tagging a line becomes a keypress instead of typing. Decide which slots a line can hold, what Values each one offers, where they sit, and how they are written"
+      },
+      visual: {
+        head: "How a tagged line looks while you are writing",
+        tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this plugin and you will see plain text with ordinary tags",
+        body: "Draw tags as coloured bubbles instead of raw text, put a Bar in the margin so you can see what a block of lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
+      },
+      transform: {
+        head: "Turn a line you have already written into a note of its own",
+        tip: "This is the one part of the plugin that creates and edits files. Everything here is off until you switch it on, and it is worth a backup and a practice run on a note you do not mind breaking",
+        body: "A thought you jotted on one line becomes a proper note, from a template, with its properties already filled in from the tags on that line \u2014 and the line itself left holding a link to it"
+      },
+      advanced: {
+        head: "Housekeeping you will rarely need",
+        tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want to look at what the plugin has written into your vault",
+        body: "Where the plugin keeps the file it generates from your setup, how to rebuild it if it drifts, and how to record a log when something needs reporting"
+      }
+    };
+    PREVIEW_TEXTS = {
+      "line-preview": {
+        cap: "Live preview",
+        tip: "One chip per Field, in the order they are written. Everything you change below shows up here: rename a Field, give it a short name, move it to the other side, or change a Separator"
+      },
+      "tag-preview": {
+        cap: "Live preview",
+        tip: "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no bubble \u2014 but the two opacity settings dim a whole side of the line, including them. Priority is set to <code>empty</code>, which is why it shows as a bare color",
+        line: "Rewrite the settings copy",
+        element: "\u{1F4C5} 2026-08-24",
+        link: "[[ClientA]]"
+      },
+      "bars-preview": {
+        cap: "Live preview",
+        tip: "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar sits in the margin, so the text column never moves",
+        tree: [
+          { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
+            { text: "Rewrite every description", fields: ["status"], children: [
+              { text: "Tag Bars", fields: ["status", "priority"], children: [] },
+              { text: "TagWheel panel", fields: ["status"], children: [] },
+              { text: "proof-read the tips", fields: ["priority"], children: [] }
+            ] }
+          ] },
+          { text: "Merge the prototype into the PRD", fields: [], children: [] },
+          { text: "Publish the next beta", fields: ["status", "priority"], children: [
+            { text: "Check the migration on a copy", fields: ["status"], children: [
+              { text: "and on an empty vault", fields: ["status", "priority"], children: [] }
+            ] },
+            { text: "Write the release notes", fields: [], children: [] }
+          ] }
+        ]
+      },
+      "wheel-preview": {
+        cap: "Live preview",
+        tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the settings ask for: <code>Values per side</code> rows on each side that <code>Opens</code> allows. The list is a loop, so it keeps going past the last Value and starts again"
+      },
+      "i2n-button-preview": {
+        cap: "Live preview",
+        tip: "The button is part of the editor, not the note: nothing is written into your file until you press it",
+        note: "Shown on the line the cursor is on"
+      }
+    };
+    PREVIEW_NOTE = "Close to what the editor draws, not the editor itself";
+    PREVIEW_EXAMPLE = "Example Fields, until you set up your own under Fields on the Tags & PKM tab";
+    PREVIEW_LINE_TEXT = "your text";
+    PREVIEW_EMPTY_RIGHT = "nothing on the right yet";
+  }
+});
+
+// src/ui/settings/describe.ts
+function richParts(text) {
+  const out = [];
+  const re = /<(code|b)>([\s\S]*?)<\/\1>/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push({ tag: "text", text: text.slice(last, m.index) });
+    out.push({ tag: m[1], text: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ tag: "text", text: text.slice(last) });
+  return out;
+}
+function paint(host, text) {
+  for (const part of richParts(text)) {
+    if (part.tag === "text") host.createSpan({ text: part.text });
+    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
+  }
+}
+var Describer;
+var init_describe = __esm({
+  "src/ui/settings/describe.ts"() {
+    "use strict";
+    Describer = class {
+      constructor(host) {
+        this.cache = /* @__PURE__ */ new Map();
+        this.host = host;
+      }
+      /** Ключ кеша: если тексты и режим подсказок не менялись, фрагмент тот же. */
+      cacheKey(it, o) {
+        return [it.desc || "", it.tip || "", (it.searchTerms || []).join("|"), o.showTips ? "1" : "0"].join(" ");
+      }
+      describe(it, o) {
+        const hasSomething = it.desc || o.showTips && it.tip || it.searchTerms && it.searchTerms.length;
+        if (!hasSomething) return void 0;
+        const key = this.cacheKey(it, o);
+        const hit = this.cache.get(it.id);
+        if (hit && hit.key === key) return hit.frag;
+        const frag = this.host.createFragment();
+        if (it.desc) paint(frag, it.desc);
+        if (o.showTips && it.tip) {
+          const box = frag.createEl("details", { cls: "io-tip" });
+          box.createEl("summary", { text: "?", cls: "io-tip__mark" });
+          paint(box.createEl("div", { cls: "io-tip__body" }), it.tip);
+        }
+        this.cache.set(it.id, { key, frag });
+        return frag;
+      }
+      /** Сбросить кеш: язык или режим подсказок сменились целиком. */
+      clear() {
+        this.cache.clear();
+      }
+    };
+  }
+});
+
+// src/ui/settings/custom/dom.ts
+function el(parent, tag, cls, text) {
+  if (!parent) throw new Error("\u0441\u0432\u043E\u0435\u043C\u0443 \u0431\u043B\u043E\u043A\u0443 \u043D\u0443\u0436\u0435\u043D \u0440\u043E\u0434\u0438\u0442\u0435\u043B\u044C: " + tag);
+  const o = {};
+  if (cls) o.cls = cls;
+  if (text !== void 0) o.text = text;
+  return parent.createEl(tag, o);
+}
+function btn(parent, cls, o) {
+  var _a, _b;
+  const label = (_a = o.label) != null ? _a : "";
+  const full = o.title && o.title !== label ? label ? label + " \u2014 " + o.title : o.title : label;
+  const attr = { type: "button" };
+  if (full) attr["aria-label"] = full;
+  const node = parent.createEl("button", { cls, text: (_b = o.text) != null ? _b : "", attr });
+  if (full) node.title = full;
+  return node;
+}
+function textInput(parent, cls, o) {
+  const opts = { cls, type: "text", value: o.value, attr: { "aria-label": o.label } };
+  if (o.placeholder !== void 0) opts.placeholder = o.placeholder;
+  return parent.createEl("input", opts);
+}
+function selectInput(parent, cls, o) {
+  const node = parent.createEl("select", { cls, attr: { "aria-label": o.label } });
+  for (const opt of o.options) node.createEl("option", { text: opt.label, value: opt.value });
+  node.value = o.value;
+  return node;
+}
+function rich(host, text) {
+  for (const part of richParts(text)) {
+    if (part.tag === "text") host.createSpan({ text: part.text });
+    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
+  }
+  return host;
+}
+function cssVar(node, name, value) {
+  if (!name.startsWith("--io-")) throw new Error("\u0441\u0432\u043E\u0439 \u0431\u043B\u043E\u043A \u0437\u0430\u0434\u0430\u0451\u0442 \u0442\u043E\u043B\u044C\u043A\u043E --io-*: " + name);
+  node.style.setProperty(name, value);
+}
+function tipBelow(o) {
+  if (!o.text || !o.showTips) return () => {
+  };
+  let open = null;
+  const mark = o.head.createEl("button", {
+    cls: "io-help",
+    text: "?",
+    attr: {
+      type: "button",
+      "aria-expanded": "false",
+      "aria-controls": o.id,
+      "aria-label": "More about " + o.label
+    }
+  });
+  mark.addEventListener("click", () => {
+    if (open) {
+      open.remove();
+      open = null;
+      mark.setAttribute("aria-expanded", "false");
+      return;
+    }
+    open = o.host.createEl("div", { cls: "io-tip io-tip--below", attr: { id: o.id } });
+    rich(open, o.text);
+    mark.setAttribute("aria-expanded", "true");
+  });
+  return () => {
+    if (open) {
+      open.remove();
+      open = null;
+    }
+  };
+}
+var init_dom = __esm({
+  "src/ui/settings/custom/dom.ts"() {
+    "use strict";
+    init_describe();
+  }
+});
+
+// src/ui/settings/custom/callouts.ts
+function callout(tab) {
+  return (host, ctx) => {
+    const text = TAB_CALLOUTS[tab];
+    if (!text) return () => {
+    };
+    const box = el(host, "div", "io-callout");
+    const head = el(box, "div", "io-callout__head");
+    rich(head, text.head);
+    const closeTip = tipBelow({
+      head,
+      host,
+      text: text.tip,
+      label: "this tab",
+      id: "io-tip-callout-" + tab,
+      showTips: Boolean(ctx.get("general.help.showTips"))
+    });
+    rich(el(box, "p", "io-callout__body"), text.body);
+    return closeTip;
+  };
+}
+var init_callouts = __esm({
+  "src/ui/settings/custom/callouts.ts"() {
+    "use strict";
+    init_custom_texts();
+    init_dom();
+  }
+});
+
 // src/ui/settings/schema/general.ts
 var GENERAL_GROUPS;
 var init_general = __esm({
   "src/ui/settings/schema/general.ts"() {
     "use strict";
+    init_callouts();
     GENERAL_GROUPS = [
+      {
+        id: "general-intro",
+        tab: "general",
+        order: 10,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "general-callout", render: callout("general") }
+        ]
+      },
       {
         id: "help",
         tab: "general",
@@ -30792,12 +31392,22 @@ var init_keyboard = __esm({
   "src/ui/settings/schema/keyboard.ts"() {
     "use strict";
     init_types();
+    init_callouts();
     KEYBOARD_GROUPS = [
+      {
+        id: "keyboard-intro",
+        tab: "keyboard",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "keyboard-callout", render: callout("keyboard") }
+        ]
+      },
       {
         id: "select-all",
         tab: "keyboard",
         order: 100,
-        heading: "Expanded select all",
+        heading: "Expanded 'Ctrl+A'",
         intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
         items: [
           {
@@ -30805,9 +31415,9 @@ var init_keyboard = __esm({
             id: "select-all-enabled",
             path: "editor.selectAll.enabled",
             default: false,
-            name: "Expanded select all",
+            name: "Expanded 'Ctrl+A'",
             desc: "Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
-            searchTerms: ["Enhanced Mod+A"],
+            searchTerms: ["Enhanced Mod+A", "Expanded select all"],
             tip: "On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started"
           },
           {
@@ -30876,7 +31486,17 @@ var init_navigation = __esm({
   "src/ui/settings/schema/navigation.ts"() {
     "use strict";
     init_types();
+    init_callouts();
     NAVIGATION_GROUPS = [
+      {
+        id: "nav-intro",
+        tab: "navigation",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "nav-callout", render: callout("navigation") }
+        ]
+      },
       {
         id: "move-lines",
         tab: "navigation",
@@ -31163,13 +31783,1521 @@ var init_navigation = __esm({
   }
 });
 
+// src/ui/settings/custom/keepview.ts
+function scrollerOf(node) {
+  let at = node;
+  let guard = 0;
+  while (at && guard++ < 64) {
+    const height = Number(at.scrollHeight);
+    const view = Number(at.clientHeight);
+    if (Number.isFinite(height) && Number.isFinite(view) && height - view > 1) return at;
+    at = at.parentElement;
+  }
+  return null;
+}
+function labelOf(node) {
+  const label = String(node.getAttribute("aria-label") || "").trim();
+  return label ? "label:" + label : "";
+}
+function pathOf(root, node) {
+  const path = [];
+  let at = node;
+  let guard = 0;
+  while (at && at !== root && guard++ < 64) {
+    const parent = at.parentElement;
+    if (!parent) break;
+    const kids = parent.children;
+    let index = -1;
+    for (let i = 0; i < kids.length; i++) if (kids[i] === at) {
+      index = i;
+      break;
+    }
+    path.unshift(index);
+    at = parent;
+  }
+  if (at !== root) return "";
+  return "path:" + String(node.className || "") + ":" + path.join(".");
+}
+function findByKey(root, keyFn, key) {
+  let found = null;
+  const walk = (node) => {
+    if (found) return;
+    if (keyFn(node) === key) {
+      found = node;
+      return;
+    }
+    const kids2 = node.children;
+    for (let i = 0; i < kids2.length && !found; i++) walk(kids2[i]);
+  };
+  const kids = root.children;
+  for (let i = 0; i < kids.length && !found; i++) walk(kids[i]);
+  return found;
+}
+function focusedIn(root) {
+  const doc = globalThis.document;
+  const active = doc && doc.activeElement ? doc.activeElement : null;
+  if (!active || active === root) return null;
+  let at = active.parentElement;
+  let guard = 0;
+  while (at && guard++ < 64) {
+    if (at === root) return active;
+    at = at.parentElement;
+  }
+  return null;
+}
+function keepView(root) {
+  const box = root;
+  if (!box || typeof box.getAttribute !== "function") return NOTHING;
+  const scroller = scrollerOf(box);
+  const top = scroller ? Number(scroller.scrollTop) : NaN;
+  const active = focusedIn(box);
+  const label = active ? labelOf(active) : "";
+  const path = active ? pathOf(box, active) : "";
+  const selStart = active && typeof active.selectionStart === "number" ? active.selectionStart : null;
+  const selEnd = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
+  return {
+    restore() {
+      if (scroller && Number.isFinite(top)) {
+        scroller.scrollTop = top;
+      }
+      if (!label && !path) return;
+      const node = (label ? findByKey(box, labelOf, label) : null) || (path ? findByKey(box, (n) => pathOf(box, n), path) : null);
+      if (!node || typeof node.focus !== "function") return;
+      node.focus({ preventScroll: true });
+      if (selStart !== null && typeof node.selectionStart === "number") {
+        try {
+          node.selectionStart = selStart;
+          node.selectionEnd = selEnd === null ? selStart : selEnd;
+        } catch (e) {
+        }
+      }
+      if (scroller && Number.isFinite(top)) scroller.scrollTop = top;
+    }
+  };
+}
+var NOTHING;
+var init_keepview = __esm({
+  "src/ui/settings/custom/keepview.ts"() {
+    "use strict";
+    NOTHING = { restore: () => {
+    } };
+  }
+});
+
+// src/ui/settings/custom/contrast.ts
+function channels(hex) {
+  const v = String(hex || "").trim().replace(/^#/, "").toLowerCase();
+  if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/.test(v)) return null;
+  const parts = v.length === 3 ? [v[0], v[1], v[2]].map((c) => c + c) : [v.slice(0, 2), v.slice(2, 4), v.slice(4, 6)];
+  return [
+    parseInt(parts[0], 16) / 255,
+    parseInt(parts[1], 16) / 255,
+    parseInt(parts[2], 16) / 255
+  ];
+}
+function relativeLuminance(hex) {
+  const rgb = channels(hex);
+  if (!rgb) return null;
+  const lin = rgb.map((c) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+function contrastRatio(bg, fg) {
+  const a = relativeLuminance(bg);
+  const b = relativeLuminance(fg);
+  if (a === null || b === null) return 21;
+  const hi = Math.max(a, b);
+  const lo = Math.min(a, b);
+  return (hi + 0.05) / (lo + 0.05);
+}
+function contrastWarning(ratio) {
+  return "This Value may be hard to read: contrast " + ratio.toFixed(1) + ":1, aim for " + CONTRAST_FLOOR + ":1";
+}
+var CONTRAST_FLOOR;
+var init_contrast = __esm({
+  "src/ui/settings/custom/contrast.ts"() {
+    "use strict";
+    CONTRAST_FLOOR = 4.5;
+  }
+});
+
+// src/ui/settings/custom/preview_data.ts
+function previewFields(_ctx) {
+  return { fields: EXAMPLE_FIELDS, example: true };
+}
+function fieldsOn(fields, side) {
+  return fields.filter((f) => f.side === side);
+}
+function fieldColor(f) {
+  if (f.kind === "tag") {
+    const first = f.values.find((v) => v.depth === 0);
+    if (first) return first.fill;
+    return "var(--color-orange)";
+  }
+  return f.kind === "link" ? "var(--color-blue)" : "var(--color-green)";
+}
+function fieldById(fields, id) {
+  return fields.find((f) => f.id === id) || null;
+}
+function valueAtDepth(f, depth) {
+  if (!f) return null;
+  const tops = f.values.filter((v) => v.depth === 0);
+  if (!tops.length) return null;
+  return tops[depth % tops.length];
+}
+function valuePair(f) {
+  for (let i = 0; i < f.values.length; i++) {
+    const here = f.values[i];
+    const next = f.values[i + 1];
+    if (here.depth === 0 && next && next.depth === 1) return { parent: here, child: next };
+  }
+  return { parent: f.values.find((v) => v.depth === 0) || null, child: null };
+}
+var EXAMPLE_FIELDS;
+var init_preview_data = __esm({
+  "src/ui/settings/custom/preview_data.ts"() {
+    "use strict";
+    EXAMPLE_FIELDS = [
+      {
+        id: "status",
+        name: "Status",
+        kind: "tag",
+        side: "left",
+        values: [
+          { token: "todo", fill: "var(--color-blue)", shown: "value", depth: 0 },
+          { token: "doing", fill: "var(--color-orange)", shown: "value", depth: 0 },
+          { token: "review", fill: "var(--color-yellow)", shown: "value", depth: 1 },
+          { token: "done", fill: "var(--color-green)", shown: "value", depth: 0 }
+        ]
+      },
+      {
+        id: "priority",
+        name: "Priority",
+        kind: "tag",
+        side: "left",
+        values: [
+          { token: "none", fill: "var(--color-base-50)", shown: "empty", depth: 0 },
+          { token: "low", fill: "var(--color-base-60)", shown: "value", depth: 0 },
+          { token: "med", fill: "var(--color-yellow)", shown: "value", depth: 0 },
+          { token: "high", fill: "var(--color-red)", shown: "value", depth: 0 }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/custom/previews.ts
+function num(ctx, path) {
+  const v = Number(ctx.get(path));
+  return Number.isFinite(v) ? v : 0;
+}
+function str(ctx, path, fallback) {
+  const v = ctx.get(path);
+  const s = v === void 0 || v === null ? "" : String(v);
+  return s || fallback;
+}
+function previewShell(host, ctx, id) {
+  const text = PREVIEW_TEXTS[id];
+  const box = el(host, "div", "io-preview");
+  const cap = el(box, "div", "io-preview__cap");
+  el(cap, "span", void 0, text ? text.cap : "");
+  const close = tipBelow({
+    head: cap,
+    host: box,
+    text: text ? text.tip : "",
+    label: text ? text.cap : id,
+    id: "io-tip-" + id,
+    showTips: Boolean(ctx.get("general.help.showTips"))
+  });
+  el(cap, "span", "io-preview__rule");
+  el(box, "p", "io-preview__note io-preview__note--top", PREVIEW_NOTE);
+  return { box, close };
+}
+function applyTagVars(node, ctx) {
+  cssVar(node, "--io-opacity-left", String(num(ctx, "visual.tags.opacityLeft") / 100));
+  cssVar(node, "--io-opacity-right", String(num(ctx, "visual.tags.opacityRight") / 100));
+  cssVar(node, "--io-text-scale", String(num(ctx, "visual.tags.textSizePct") / 100));
+  cssVar(node, "--io-bubble-x", String(num(ctx, "visual.tags.bubbleWidthPct") / 100));
+  cssVar(node, "--io-bubble-y", String(num(ctx, "visual.tags.bubbleHeightPct") / 100));
+  cssVar(node, "--io-empty-x", String(num(ctx, "visual.tags.emptyBubblePct") / 100));
+  cssVar(node, "--io-corners", String((100 - num(ctx, "visual.tags.cornersPct")) / 100));
+}
+function bubble(parent, v, override) {
+  const empty = v.shown === "empty";
+  const label = empty ? "\xA0" : override !== void 0 ? override : v.shown === "custom" ? v.custom || "\xA0" : "#" + v.token;
+  const b = el(parent, "span", "io-bubble" + (empty ? " io-bubble--empty" : ""), label);
+  cssVar(b, "--io-bubble-bg", v.fill);
+  if (v.text) cssVar(b, "--io-bubble-fg", v.text);
+  return b;
+}
+function tagField(parent, f, ctx) {
+  const { parent: p, child } = valuePair(f);
+  if (!p) return;
+  if (!child) {
+    bubble(parent, p);
+    return;
+  }
+  if (ctx.get("pkm.behavior.childTagFormat") === "combined") {
+    bubble(parent, child, "#" + p.token + "/" + child.token);
+  } else {
+    bubble(parent, p);
+    bubble(parent, child);
+  }
+}
+function fieldChip(parent, f) {
+  const chip = el(parent, "span", "io-bubble", f.short || f.name);
+  cssVar(chip, "--io-bubble-bg", fieldColor(f));
+  return chip;
+}
+function structuralLine(parent, ctx, fields, chipFor) {
+  const line = el(parent, "div", "io-line");
+  applyTagVars(line, ctx);
+  el(line, "span", "io-line__prefix", "- ");
+  const put = (side, list) => {
+    for (const f of list) {
+      if (chipFor) chipFor(side, f);
+      else fieldChip(side, f);
+    }
+  };
+  const left = fieldsOn(fields, "left");
+  if (left.length) put(el(line, "span", "io-line__side io-line__side--left"), left);
+  el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+  el(line, "span", "io-line__text", PREVIEW_LINE_TEXT);
+  el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+  const right = fieldsOn(fields, "right");
+  if (right.length) put(el(line, "span", "io-line__side io-line__side--right"), right);
+  else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
+  return line;
+}
+var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, tagPreview;
+var init_previews = __esm({
+  "src/ui/settings/custom/previews.ts"() {
+    "use strict";
+    init_custom_texts();
+    init_dom();
+    init_preview_data();
+    TAG_PATHS = [
+      "visual.tags.opacityLeft",
+      "visual.tags.opacityRight",
+      "visual.tags.textSizePct",
+      "visual.tags.bubbleWidthPct",
+      "visual.tags.bubbleHeightPct",
+      "visual.tags.emptyBubblePct",
+      "visual.tags.cornersPct",
+      "pkm.behavior.childTagFormat",
+      "pkm.lineFormat.separator1",
+      "pkm.lineFormat.separator2"
+    ];
+    WHEEL_PATHS = [
+      "visual.tagWheel.scroller.enabled",
+      "visual.tagWheel.scroller.direction",
+      "visual.tagWheel.scroller.size",
+      "visual.tagWheel.showMarkers",
+      "visual.tagWheel.fillColor",
+      "visual.tagWheel.textColor",
+      "visual.tags.opacityLeft",
+      "visual.tags.opacityRight",
+      "pkm.lineFormat.separator1",
+      "pkm.lineFormat.separator2"
+    ];
+    WHEEL_ROW = 21;
+    WHEEL_CHROME = 18;
+    wheelPreview = (host, ctx) => {
+      const shell = previewShell(host, ctx, "wheel-preview");
+      const stage = el(shell.box, "div", "io-wheelstage");
+      const foot = el(shell.box, "div", "io-preview__foot");
+      const draw = () => {
+        stage.empty();
+        foot.empty();
+        const { fields, example } = previewFields(ctx);
+        const scroller = Boolean(ctx.get("visual.tagWheel.scroller.enabled"));
+        const perSide = scroller ? num(ctx, "visual.tagWheel.scroller.size") : 0;
+        const direction = str(ctx, "visual.tagWheel.scroller.direction", "full");
+        const markers = Boolean(ctx.get("visual.tagWheel.showMarkers"));
+        const left = fieldsOn(fields, "left");
+        const shown = left[1] || left[0] || fields[0] || null;
+        const values = !shown ? [] : shown.kind === "element" ? [shown.name] : shown.values.filter((v) => v.depth === 0).map((v) => (markers ? "#" : "") + v.token);
+        const n = values.length;
+        const at = n > 2 ? Math.floor(n / 2) : 0;
+        const rows = perSide && n ? perSide : 0;
+        const upIdx = [];
+        const downIdx = [];
+        for (let k = rows; k >= 1; k--) upIdx.push((at + k) % n);
+        for (let k = 1; k <= rows; k++) downIdx.push(((at - k) % n + n) % n);
+        const up = direction === "down" ? [] : upIdx;
+        const down = direction === "up" ? [] : downIdx;
+        const room = (rows2) => (rows2 ? rows2 * WHEEL_ROW + WHEEL_CHROME : 0) + "px";
+        cssVar(shell.box, "--io-wheel-up", room(up.length));
+        cssVar(shell.box, "--io-wheel-down", room(down.length));
+        const panel = (col, idx, where) => {
+          if (!idx.length) return;
+          const p = el(col, "span", "io-wheelpanel io-wheelpanel--" + where);
+          const fill = str(ctx, "visual.tagWheel.fillColor", "");
+          const text = str(ctx, "visual.tagWheel.textColor", "");
+          if (fill) cssVar(p, "--io-wheel-bg", fill);
+          if (text) cssVar(p, "--io-wheel-fg", text);
+          for (const i of idx) el(p, "span", "io-wheelval", values[i]);
+        };
+        structuralLine(stage, ctx, fields, (side, f) => {
+          const isShown = f === shown;
+          const col = el(side, "span", "io-wheelcol");
+          const chip = el(
+            col,
+            "span",
+            "io-bubble" + (isShown ? " io-bubble--current" : ""),
+            isShown ? values[at] : f.short || f.name
+          );
+          cssVar(chip, "--io-bubble-bg", fieldColor(f));
+          if (!isShown) return;
+          panel(col, up, "up");
+          panel(col, down, "down");
+        });
+        if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+      };
+      draw();
+      const unwatch = ctx.watch(WHEEL_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
+    BARS_PATHS = [
+      "visual.tagBars.active",
+      "visual.tagBars.tagVisibility",
+      "visual.tagBars.fieldId",
+      "visual.tagBars.hideSeparatorWhenOnlyStripToken",
+      "visual.tagBars.stripesToShow",
+      "visual.tagBars.thickness",
+      "visual.tagBars.childOffset",
+      "visual.tagBars.spacing",
+      "visual.tags.opacityLeft",
+      "visual.tags.opacityRight",
+      "pkm.lineFormat.separator1"
+    ];
+    barsPreview = (host, ctx) => {
+      const text = PREVIEW_TEXTS["bars-preview"];
+      const shell = previewShell(host, ctx, "bars-preview");
+      const tree = el(shell.box, "div", "io-tree");
+      const chosenField = () => str(ctx, "visual.tagBars.fieldId", "status");
+      const drawLine = (parent, node, depth, fields) => {
+        const line = el(parent, "div", "io-line");
+        applyTagVars(line, ctx);
+        cssVar(line, "--io-depth", String(depth));
+        el(line, "span", "io-line__prefix", "- ");
+        const active = Boolean(ctx.get("visual.tagBars.active"));
+        const chosen = chosenField();
+        const hideChosen = active && !ctx.get("visual.tagBars.tagVisibility");
+        const shown = [];
+        for (const id of node.fields) {
+          if (id === chosen && hideChosen) continue;
+          const v = valueAtDepth(fieldById(fields, id), depth);
+          if (v) shown.push(v);
+        }
+        if (shown.length) {
+          const side = el(line, "span", "io-line__side io-line__side--left");
+          for (const v of shown) bubble(side, v);
+        }
+        const replaced = hideChosen && node.fields.includes(chosen);
+        const sepHidden = !shown.length && (!replaced || Boolean(ctx.get("visual.tagBars.hideSeparatorWhenOnlyStripToken")));
+        if (!sepHidden) el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+        el(line, "span", "io-line__text", node.text);
+      };
+      const drawNode = (parent, node, depth, lane, fields) => {
+        const active = Boolean(ctx.get("visual.tagBars.active"));
+        const cap = num(ctx, "visual.tagBars.stripesToShow");
+        const chosen = chosenField();
+        const v = node.fields.includes(chosen) ? valueAtDepth(fieldById(fields, chosen), depth) : null;
+        const bar = active && v !== null && lane < cap;
+        const box = el(parent, "div", "io-node" + (bar ? " io-node--bar" : ""));
+        if (bar && v) {
+          cssVar(box, "--io-bar-color", v.fill);
+          cssVar(box, "--io-lane", String(lane));
+        }
+        drawLine(box, node, depth, fields);
+        for (const child of node.children) {
+          drawNode(box, child, depth + 1, bar ? lane + 1 : lane, fields);
+        }
+      };
+      const draw = () => {
+        tree.empty();
+        const { fields, example } = previewFields(ctx);
+        cssVar(tree, "--io-bar-thickness", num(ctx, "visual.tagBars.thickness") + "px");
+        cssVar(tree, "--io-bar-gap", num(ctx, "visual.tagBars.childOffset") + "px");
+        cssVar(tree, "--io-bar-distance", num(ctx, "visual.tagBars.spacing") + "px");
+        for (const node of text && text.tree || []) drawNode(tree, node, 0, 0, fields);
+        if (example) rich(el(tree, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+      };
+      draw();
+      const unwatch = ctx.watch(BARS_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
+    tagPreview = (host, ctx) => {
+      const text = PREVIEW_TEXTS["tag-preview"];
+      const shell = previewShell(host, ctx, "tag-preview");
+      const holder = el(shell.box, "div", "io-preview__body");
+      const draw = () => {
+        holder.empty();
+        const { fields, example } = previewFields(ctx);
+        const line = el(holder, "div", "io-line");
+        applyTagVars(line, ctx);
+        el(line, "span", "io-line__prefix", "- ");
+        const left = el(line, "span", "io-line__side io-line__side--left");
+        for (const id of ["status", "priority"]) {
+          const f = fieldById(fields, id);
+          if (f) tagField(left, f, ctx);
+        }
+        el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+        el(line, "span", "io-line__text", text ? text.line || "" : "");
+        el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+        const right = el(line, "span", "io-line__side io-line__side--right");
+        if (text && text.element) el(right, "span", "io-elem", text.element);
+        if (text && text.link) el(right, "span", "io-link", text.link);
+        if (example) rich(el(holder, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+      };
+      draw();
+      const unwatch = ctx.watch(TAG_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
+  }
+});
+
+// src/ui/settings/custom/fields_editor_view.ts
+function columnTips(isLink) {
+  return {
+    /* Строка заказчика: она заменила подпись в подвале таблицы. */
+    Level: "change Value to be parent or child by pressing arrows. Child Values are only active when Parent Value is present",
+    /* У ссылки своя запись значения, и подсказка говорит про неё, а не про тег
+       (замечание заказчика 2026-08-27). */
+    Value: isLink ? "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> \u2014 both are read the same way" : "The text of the Value. A tag may be written with <code>#</code> or without it \u2014 both are read the same way",
+    Prefix: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
+    Show: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give"
+  };
+}
+function renderFieldList(list, o) {
+  const rows = o.model.listFields();
+  let dragged = "";
+  const ownerOf = (row) => row.parent || row.key;
+  const side = (value) => {
+    const sec = el(list, "div", "io-side");
+    const cap = el(sec, "div", "io-side__cap");
+    el(cap, "span", "io-side__label", SIDE_LABEL[value]);
+    sec.addEventListener("dragover", ((ev) => {
+      ev.preventDefault();
+      sec.classList.add("io-side--over");
+    }));
+    sec.addEventListener("dragleave", (() => sec.classList.remove("io-side--over")));
+    sec.addEventListener("drop", ((ev) => {
+      ev.preventDefault();
+      sec.classList.remove("io-side--over");
+      if (!dragged || !o.enabled) return;
+      o.model.moveKey(value, dragged);
+      o.redraw();
+    }));
+    const mine = rows.filter((r) => r.side === value);
+    if (!mine.length) {
+      el(sec, "div", "io-side__empty", EMPTY_SIDE);
+      return;
+    }
+    for (const row of mine) {
+      const item = el(sec, "div", "io-fields__item" + (row.parent ? " io-fields__item--child" : ""));
+      const current = row.key === selectedKey(rows, o.state);
+      item.setAttribute("aria-current", current ? "true" : "false");
+      const grip = el(item, "span", "io-grip", "\u283F");
+      grip.setAttribute("role", "button");
+      const gripLabel = row.parent ? "Drag " + row.label + " \u2014 it moves with " + parentLabel(rows, row.parent) : "Drag " + row.label + " to reorder it, or across the line to change side";
+      grip.setAttribute("aria-label", gripLabel);
+      grip.title = gripLabel;
+      grip.draggable = o.enabled;
+      grip.addEventListener("dragstart", ((ev) => {
+        var _a;
+        dragged = ownerOf(row);
+        item.classList.add("io-dragging");
+        try {
+          (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", dragged);
+        } catch (e) {
+        }
+      }));
+      grip.addEventListener("dragend", (() => {
+        item.classList.remove("io-dragging");
+        dragged = "";
+      }));
+      item.addEventListener("dragover", ((ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        item.classList.add("io-dragover");
+      }));
+      item.addEventListener("dragleave", (() => item.classList.remove("io-dragover")));
+      item.addEventListener("drop", ((ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        item.classList.remove("io-dragover");
+        if (!dragged || !o.enabled) return;
+        const before = ownerOf(row);
+        if (before === dragged) return;
+        o.model.moveKey(row.side, dragged, before);
+        o.redraw();
+      }));
+      const pick = btn(item, "io-fields__pick", { label: "Show the Field " + row.label });
+      el(pick, "span", "io-fields__name", row.label);
+      cssVar(
+        el(pick, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
+        "--io-chip-bg",
+        TYPE_COLOR[row.kind]
+      );
+      pick.addEventListener("click", (() => {
+        o.state.selected = row.key;
+        o.redraw();
+      }));
+      const tools = el(item, "span", "io-fields__tools");
+      if (row.parent) continue;
+      const arrow = (glyph, dir, label) => {
+        const b = btn(tools, "io-icon", { text: glyph, label });
+        b.disabled = !o.enabled;
+        b.addEventListener("click", (() => {
+          if (!o.enabled) return;
+          stepField(o.model, rows, row, dir);
+          o.redraw();
+        }));
+      };
+      arrow("\u2191", -1, "Move " + row.label + " up, and across the line at the top");
+      arrow("\u2193", 1, "Move " + row.label + " down, and across the line at the bottom");
+    }
+  };
+  side("left");
+  el(list, "div", "io-side__rule");
+  side("right");
+  const addWrap = el(list, "div", "io-fields__add");
+  const add = btn(addWrap, "io-btn io-btn--sm io-btn--cta", { text: "Add Field", label: "Add a Field" });
+  add.disabled = !o.enabled;
+  addFieldAction(add, o);
+}
+function stepField(model, rows, row, dir) {
+  const side = row.side;
+  const peers = rows.filter((r) => !r.parent && r.side === side).map((r) => r.key);
+  const i = peers.indexOf(row.key);
+  const target = peers[i + dir];
+  if (target) {
+    if (dir < 0) model.moveKey(side, row.key, target);
+    else if (peers[i + 2]) model.moveKey(side, row.key, peers[i + 2]);
+    else model.moveKey(side, row.key);
+    return;
+  }
+  const other = side === "left" ? "right" : "left";
+  const there = rows.filter((r) => !r.parent && r.side === other).map((r) => r.key);
+  if (dir > 0 && there[0]) model.moveKey(other, row.key, there[0]);
+  else model.moveKey(other, row.key);
+}
+function selectedKey(rows, state) {
+  const top = rows.filter((r) => !r.parent);
+  if (state.selected && rows.some((r) => r.key === state.selected)) return state.selected;
+  return top.length ? top[0].key : "";
+}
+function parentLabel(rows, key) {
+  const found = rows.find((r) => r.key === key);
+  return found ? found.label : key;
+}
+function addFieldAction(button, o) {
+  button.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.askNewField((answer) => {
+      if (!answer) return;
+      const res = o.model.addField(answer.name, answer.kind);
+      if (!res.ok) {
+        o.notice(res.error || "InlineOverhaul: field was not added");
+        return;
+      }
+      if (res.key) o.state.selected = res.key;
+      o.redraw();
+    });
+  }));
+}
+function itemRow(host, o) {
+  const row = el(host, "div", "io-item");
+  const info = el(row, "div", "io-item__info");
+  const nameRow = el(info, "div", "io-item__namerow");
+  el(nameRow, "div", "io-item__name", o.name);
+  const closeTip = o.tip && o.tipId ? tipBelow({ head: nameRow, host: info, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips }) : () => {
+  };
+  rich(el(info, "div", "io-item__desc"), o.desc);
+  return { control: el(row, "div", "io-item__control"), closeTip };
+}
+function renderFieldDetail(detail, row, o) {
+  const closers = [];
+  const title = el(detail, "div", "io-fields__title");
+  el(title, "h4", void 0, row.strictName);
+  cssVar(
+    el(title, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
+    "--io-chip-bg",
+    TYPE_COLOR[row.kind]
+  );
+  el(title, "span", "io-fields__shortlabel", "short name");
+  closers.push(tipBelow({
+    head: title,
+    host: el(detail, "div", "io-tipslot"),
+    text: SHORT_NAME_TIP,
+    label: "Short name",
+    id: "io-field-short-tip",
+    showTips: o.showTips
+  }));
+  const short = textInput(title, "io-text io-text--short", {
+    /* Пусто — значит короткого имени нет и в TagWheel стоит полное. */
+    value: row.label === row.strictName ? "" : row.label,
+    placeholder: row.strictName,
+    label: "Short name for " + row.strictName
+  });
+  short.disabled = !o.enabled;
+  short.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    if (!String(short.value || "").trim()) return;
+    o.model.setLabel(row.key, short.value);
+    o.redraw();
+  }));
+  const del = btn(title, "io-danger", {
+    label: "Delete the Field " + row.strictName
+  });
+  el(del, "span", "io-danger__icon", "\u{1F5D1}");
+  del.disabled = !o.enabled;
+  del.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.confirmDeleteField(row.strictName, (yes) => {
+      if (!yes) return;
+      o.model.deleteField(row.key);
+      o.state.selected = "";
+      o.redraw();
+    });
+  }));
+  el(detail, "div", "io-sub", "Behavior");
+  if (!row.parent) {
+    const active = itemRow(detail, {
+      name: ACTIVE_NAME,
+      desc: ACTIVE_DESC,
+      tip: ACTIVE_TIP,
+      tipId: "io-field-active-tip",
+      showTips: o.showTips
+    });
+    closers.push(active.closeTip);
+    const mode2 = selectInput(active.control, "io-select", {
+      options: ACTIVE_OPTIONS,
+      value: row.active,
+      label: "Active, for " + row.strictName
+    });
+    mode2.disabled = !o.enabled;
+    mode2.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      o.model.setActive(row.key, mode2.value);
+      o.redraw();
+    }));
+  }
+  const behavior = itemRow(detail, {
+    name: BEHAVIOR_NAME,
+    desc: BEHAVIOR_DESC,
+    tip: BEHAVIOR_TIP,
+    tipId: "io-field-behavior-tip",
+    showTips: o.showTips
+  });
+  closers.push(behavior.closeTip);
+  const mode = selectInput(behavior.control, "io-select", {
+    options: BEHAVIOR_OPTIONS,
+    value: row.freeRoam,
+    label: "Behavior for " + row.strictName
+  });
+  mode.disabled = !o.enabled;
+  mode.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.model.setFreeRoam(row.key, mode.value);
+    o.redraw();
+  }));
+  if (row.subKey) {
+    const on2 = o.model.getSubActive(row.subKey) !== "no";
+    const child = itemRow(detail, {
+      name: CHILD_NAME,
+      desc: CHILD_DESC,
+      tip: CHILD_TIP,
+      tipId: "io-field-child-tip",
+      showTips: o.showTips
+    });
+    closers.push(child.closeTip);
+    const pick = selectInput(child.control, "io-select", {
+      options: CHILD_OPTIONS,
+      value: on2 ? "yes" : "no",
+      label: "Child Field of " + row.strictName
+    });
+    pick.disabled = !o.enabled;
+    pick.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      if (pick.value !== "no" === on2) return;
+      o.model.toggleSub(row.subKey);
+      o.redraw();
+    }));
+  }
+  const propertyHead = el(detail, "div", "io-sub io-item__namerow");
+  el(propertyHead, "span", void 0, PROPERTY_HEAD);
+  closers.push(tipBelow({
+    head: propertyHead,
+    host: el(detail, "div", "io-tipslot"),
+    text: PROPERTY_HEAD_TIP,
+    label: PROPERTY_HEAD,
+    id: "io-field-property-tip",
+    showTips: o.showTips
+  }));
+  const property = itemRow(detail, {
+    name: PROPERTY_NAME,
+    desc: PROPERTY_DESC,
+    showTips: o.showTips
+  });
+  const propertyInput = textInput(property.control, "io-text io-text--mono io-text--prop", {
+    value: row.property,
+    placeholder: "select Property",
+    label: "YAML property for " + row.strictName
+  });
+  propertyInput.disabled = !o.enabled;
+  propertyInput.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.model.setProperty(row.key, propertyInput.value);
+  }));
+  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
+  else closers.push(renderValuesTable(detail, row, o));
+  return () => {
+    closers.forEach((fn) => fn());
+  };
+}
+function flatten(tree) {
+  const out = [];
+  for (const parent of tree) {
+    out.push({ row: parent, at: { level: 0, token: parent.token, parentToken: "" } });
+    for (const child of parent.children || []) {
+      out.push({ row: child, at: { level: 1, token: child.token, parentToken: parent.token } });
+    }
+  }
+  return out;
+}
+function plain(token) {
+  return String(token || "").trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "");
+}
+function previewCell(host, o, v) {
+  const cell = el(host, "div", "io-vals__prev");
+  applyTagVars(cell, o.ctx);
+  bubble(cell, {
+    token: plain(v.token),
+    fill: v.fill,
+    text: v.text,
+    shown: v.shown === "default" ? "value" : v.shown,
+    custom: v.custom,
+    depth: 0
+  });
+  if (v.shown === "empty") return;
+  const ratio = contrastRatio(v.fill, v.text);
+  if (ratio >= CONTRAST_FLOOR) return;
+  const warn = el(cell, "span", "io-warn", "\u26A0");
+  const note = contrastWarning(ratio);
+  warn.setAttribute("aria-label", note);
+  warn.title = note;
+}
+function renderValuesTable(host, row, o) {
+  const ve = o.model.valuesEditor(row.key);
+  const isLink = ve.kind === "wikilink";
+  const closers = [];
+  const head = el(host, "div", "io-sub io-item__namerow");
+  el(head, "span", void 0, "Values");
+  closers.push(tipBelow({
+    head,
+    host: el(host, "div", "io-tipslot"),
+    text: VALUES_TIP,
+    label: "Values",
+    id: "io-values-tip",
+    showTips: o.showTips
+  }));
+  const box = el(host, "div", "io-vals" + (isLink ? " io-vals--link" : ""));
+  const scroll = el(box, "div", "io-scroll");
+  const inner = el(scroll, "div", "io-vals__inner" + (isLink ? " io-vals__inner--link" : ""));
+  const headRow = el(inner, "div", "io-vals__head");
+  const colTips = el(inner, "div", "io-vals__tipslot");
+  const columns = isLink ? ["", "Level", "Value", "Prefix", ""] : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview", ""];
+  const tips = columnTips(isLink);
+  for (const title of columns) {
+    const cell = el(headRow, "div", "io-vals__col");
+    el(cell, "span", "io-vals__coltext", title);
+    const tip = tips[title];
+    if (!tip) continue;
+    closers.push(tipBelow({
+      head: cell,
+      host: colTips,
+      text: tip,
+      label: title,
+      id: "io-values-col-" + title.toLowerCase() + "-tip",
+      showTips: o.showTips
+    }));
+  }
+  const rows = flatten(ve.tree);
+  if (!rows.length) {
+    el(box, "div", "io-side__empty", "no Values yet \u2014 add the first one below");
+  }
+  let dragged = null;
+  rows.forEach(({ row: v, at }) => {
+    var _a;
+    const line = el(inner, "div", "io-vals__row" + (at.level ? " io-vals__row--child" : ""));
+    const grip = el(line, "div", "io-grip", "\u283F");
+    grip.setAttribute("role", "button");
+    grip.setAttribute("aria-label", "Drag " + v.token + " to reorder it");
+    grip.title = "Drag " + v.token + " to reorder it";
+    grip.draggable = o.enabled;
+    grip.addEventListener("dragstart", ((ev) => {
+      var _a2;
+      dragged = at;
+      line.classList.add("io-dragging");
+      try {
+        (_a2 = ev.dataTransfer) == null ? void 0 : _a2.setData("text/plain", at.token);
+      } catch (e) {
+      }
+    }));
+    grip.addEventListener("dragend", (() => {
+      line.classList.remove("io-dragging");
+      dragged = null;
+    }));
+    line.addEventListener("dragover", ((ev) => {
+      ev.preventDefault();
+      line.classList.add("io-dragover");
+    }));
+    line.addEventListener("dragleave", (() => line.classList.remove("io-dragover")));
+    line.addEventListener("drop", ((ev) => {
+      ev.preventDefault();
+      line.classList.remove("io-dragover");
+      if (!dragged || !o.enabled) return;
+      const next = ve.reorder(
+        dragged.level,
+        dragged.parentToken,
+        dragged.token,
+        at.level,
+        at.parentToken,
+        at.token
+      );
+      if (!next) return;
+      ve.saveTree(next, "pkm:behavior:order:deep:drag-reorder:" + row.key);
+      o.redraw();
+    }));
+    {
+      const depth = el(line, "div", "io-depthcell");
+      const child = at.level === 1;
+      const arrow = btn(depth, "io-icon", {
+        text: child ? "\u2190" : "\u2192",
+        label: child ? "Make " + v.token + " a top-level Value" : "Make " + v.token + " a child Value"
+      });
+      const firstOfAll = !child && ve.tree.length > 0 && ((_a = ve.tree[0]) == null ? void 0 : _a.token) === v.token;
+      arrow.disabled = !o.enabled || !child && firstOfAll;
+      arrow.addEventListener("click", (() => {
+        if (arrow.disabled) return;
+        ve.saveTree(ve.toggleLevel(ve.tree, at), "pkm:behavior:order:deep:indent:" + row.key);
+        o.redraw();
+      }));
+    }
+    const valueCell = el(line, "div", "io-valcell");
+    const token = textInput(valueCell, "io-text io-text--mono", {
+      value: v.token,
+      label: "Value " + v.token + " of " + row.strictName
+    });
+    token.disabled = !o.enabled;
+    token.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      ve.saveTree(
+        ve.editRow(ve.tree, at, { token: token.value }),
+        "pkm:behavior:order:deep:rename:" + row.key
+      );
+      o.redraw();
+    }));
+    const prefix = textInput(line, "io-text io-text--mono", {
+      value: String(v.prefixMode === "checkbox" ? v.checkboxToken || "" : ""),
+      placeholder: "no",
+      label: "Prefix for " + v.token
+    });
+    prefix.disabled = !o.enabled;
+    prefix.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      const raw = String(prefix.value || "").trim();
+      if (!raw) {
+        ve.saveTree(
+          ve.editRow(ve.tree, at, { prefixMode: "bullet", checkboxToken: "" }),
+          "pkm:behavior:order:deep:prefix-mode:" + row.key
+        );
+        o.redraw();
+        return;
+      }
+      const cb = ve.normalizeCheckbox(raw);
+      if (!cb) {
+        o.notice("InlineOverhaul: checkbox token must be like [ ] or [I]");
+        prefix.value = String(v.checkboxToken || "");
+        return;
+      }
+      ve.saveTree(
+        ve.editRow(ve.tree, at, { prefixMode: "checkbox", checkboxToken: cb }),
+        "pkm:behavior:order:deep:checkbox:" + row.key
+      );
+      o.redraw();
+    }));
+    if (!isLink) {
+      const fieldId = ve.parentFieldId || row.strictName;
+      const visual = o.model.getValueVisual(fieldId, v.token);
+      const shownCell = el(line, "div", "io-showncell");
+      const shown = selectInput(shownCell, "io-select", {
+        options: SHOWN_OPTIONS,
+        value: visual.visibility,
+        label: "Show, for " + v.token
+      });
+      shown.disabled = !o.enabled;
+      shown.addEventListener("change", (() => {
+        if (!o.enabled) return;
+        o.model.setValueVisual(
+          fieldId,
+          v.token,
+          { visibility: shown.value },
+          "pkm:visuals:tag:visibility:" + fieldId
+        );
+        o.redraw();
+      }));
+      if (visual.visibility === "custom") {
+        const custom = textInput(shownCell, "io-text io-text--mono", {
+          value: visual.customText,
+          placeholder: "printed instead",
+          label: "Custom text for " + v.token
+        });
+        custom.disabled = !o.enabled;
+        custom.addEventListener("change", (() => {
+          if (!o.enabled) return;
+          o.model.setValueVisual(
+            fieldId,
+            v.token,
+            { customText: custom.value },
+            "pkm:visuals:tag:custom-text:" + fieldId
+          );
+        }));
+      }
+      const color = (key, label, reason) => {
+        const wrap = el(line, "div");
+        const input = wrap.createEl("input", {
+          cls: "io-colin",
+          type: "color",
+          value: (key === "fillColor" ? visual.fillColor : visual.textColor) || "#ffffff",
+          attr: { "aria-label": label + " for " + v.token }
+        });
+        input.disabled = !o.enabled;
+        input.addEventListener("change", (() => {
+          if (!o.enabled) return;
+          o.model.setValueVisual(fieldId, v.token, { [key]: input.value }, reason + ":" + fieldId);
+          o.redraw();
+        }));
+      };
+      color("fillColor", "Fill color", "pkm:visuals:tag:fill");
+      color("textColor", "Text color", "pkm:visuals:tag:text");
+      previewCell(line, o, {
+        token: v.token,
+        fill: visual.fillColor,
+        text: visual.textColor,
+        shown: visual.visibility,
+        custom: visual.customText
+      });
+    }
+    const tools = el(line, "div", "io-valtools");
+    if (!isLink) {
+      const fieldId = ve.parentFieldId || row.strictName;
+      const visual = o.model.getValueVisual(fieldId, v.token);
+      if (visual.fillColor || visual.textColor) {
+        const back = btn(tools, "io-icon", {
+          text: "\u21BA",
+          label: "Reset the colors of " + v.token + " back to the colors of the theme"
+        });
+        back.disabled = !o.enabled;
+        back.addEventListener("click", (() => {
+          if (!o.enabled) return;
+          o.model.setValueVisual(
+            fieldId,
+            v.token,
+            { fillColor: "", textColor: "" },
+            "pkm:visuals:tag:color-reset:" + fieldId
+          );
+          o.redraw();
+        }));
+      }
+    }
+    const del = btn(tools, "io-icon io-icon--danger", { text: "\u2715", label: "Remove " + v.token });
+    del.disabled = !o.enabled;
+    del.addEventListener("click", (() => {
+      if (!o.enabled) return;
+      ve.saveTree(ve.removeRow(ve.tree, at), "pkm:behavior:order:deep:delete-token:" + row.key);
+      o.redraw();
+    }));
+  });
+  const foot = el(box, "div", "io-vals__foot");
+  const add = textInput(foot, "io-text io-text--mono", {
+    value: "",
+    placeholder: isLink ? "[[wikilink]] / wikilink" : "#tag / tag",
+    label: "New Value for " + row.strictName
+  });
+  add.disabled = !o.enabled;
+  const addBtn = btn(
+    foot,
+    "io-btn io-btn--sm io-btn--cta",
+    { text: "Add Value", label: "Add a Value to " + row.strictName }
+  );
+  addBtn.disabled = !o.enabled;
+  addBtn.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    const res = ve.addToken(add.value);
+    if (res.error) {
+      o.notice(res.error);
+      return;
+    }
+    if (!res.ok) return;
+    o.redraw();
+  }));
+  return () => {
+    closers.forEach((fn) => fn());
+  };
+}
+function renderElementRows(host, row, o) {
+  const ed = o.model.elementEditor(row.key);
+  const closers = [];
+  el(host, "div", "io-sub", "Value");
+  const line = (name, desc, tip, tipId, value, placeholder, save) => {
+    const item = itemRow(host, { name, desc, tip, tipId, showTips: o.showTips });
+    closers.push(item.closeTip);
+    const input = textInput(item.control, "io-text io-text--mono", {
+      value,
+      placeholder,
+      label: name + " for " + row.strictName
+    });
+    input.disabled = !o.enabled;
+    input.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      save(input.value);
+      o.redraw();
+    }));
+  };
+  line(
+    MARKER_NAME,
+    MARKER_DESC,
+    MARKER_TIP,
+    "io-element-marker-tip",
+    ed.emoji,
+    "one character or emoji",
+    (v) => ed.setEmoji(v)
+  );
+  line(
+    FORMAT_NAME,
+    FORMAT_DESC,
+    FORMAT_TIP,
+    "io-element-format-tip",
+    ed.format,
+    FORMAT_PLACEHOLDER,
+    (v) => ed.setFormat(v)
+  );
+  const steps = itemRow(host, {
+    name: "Steps by",
+    desc: STEP_DESC,
+    tip: STEP_TIP,
+    tipId: "io-element-step-tip",
+    showTips: o.showTips
+  });
+  closers.push(steps.closeTip);
+  const mode = selectInput(steps.control, "io-select", {
+    options: STEP_OPTIONS,
+    value: ed.mode,
+    label: "Steps by, for " + row.strictName
+  });
+  mode.disabled = !o.enabled;
+  mode.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    ed.setMode(mode.value);
+    o.redraw();
+  }));
+  if (ed.mode === "increment") {
+    const by = itemRow(host, {
+      name: "Amount",
+      desc: AMOUNT_DESC,
+      tip: AMOUNT_TIP,
+      tipId: "io-element-amount-tip",
+      showTips: o.showTips
+    });
+    closers.push(by.closeTip);
+    const input = textInput(by.control, "io-text io-text--mono", {
+      value: String(ed.incrementBy),
+      label: "Amount for " + row.strictName
+    });
+    input.disabled = !o.enabled;
+    input.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      ed.setIncrementBy(Number(input.value || 1));
+    }));
+  } else if (ed.mode === "command") {
+    const cmd = itemRow(host, {
+      name: "Command",
+      desc: COMMAND_DESC,
+      tip: COMMAND_TIP,
+      tipId: "io-element-command-tip",
+      showTips: o.showTips
+    });
+    closers.push(cmd.closeTip);
+    const pick = selectInput(cmd.control, "io-select", {
+      options: [
+        { value: "now", label: "The current date and time" },
+        { value: "randomN", label: "Random numbers" },
+        { value: "randomE", label: "Random characters" }
+      ],
+      value: ed.command,
+      label: "Command for " + row.strictName
+    });
+    pick.disabled = !o.enabled;
+    pick.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      ed.setCommand(pick.value);
+    }));
+  } else {
+    const own = itemRow(host, {
+      name: "Steps",
+      desc: STEPS_DESC,
+      tip: STEPS_TIP,
+      tipId: "io-element-steps-tip",
+      showTips: o.showTips
+    });
+    closers.push(own.closeTip);
+    const area = own.control.createEl("textarea", {
+      cls: "io-textarea",
+      attr: { "aria-label": "Steps for " + row.strictName, rows: "3" }
+    });
+    area.value = ed.customRaw.join("\n");
+    area.disabled = !o.enabled;
+    area.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      ed.setCustomRaw(area.value);
+    }));
+  }
+  return () => {
+    closers.forEach((fn) => fn());
+  };
+}
+function renderFieldsEditor(host, o) {
+  const wrap = el(host, "div", "io-fields");
+  const closers = [];
+  const listCol = el(wrap, "div", "io-fields__col");
+  const listHead = el(listCol, "div", "io-fields__colhead");
+  el(listHead, "span", void 0, "Fields");
+  closers.push(tipBelow({
+    head: listHead,
+    host: el(listCol, "div", "io-tipslot"),
+    text: LIST_TIP,
+    label: "the Fields list",
+    id: "io-fields-list-tip",
+    showTips: o.showTips
+  }));
+  const list = el(listCol, "div", "io-fields__list");
+  renderFieldList(list, o);
+  const rows = o.model.listFields();
+  const key = selectedKey(rows, o.state);
+  const row = rows.find((r) => r.key === key) || null;
+  const detailCol = el(wrap, "div", "io-fields__col");
+  const detailHead = el(detailCol, "div", "io-fields__colhead");
+  el(detailHead, "span", void 0, row && row.kind === "element" ? TYPE_LABEL.element : "Values");
+  const detail = el(detailCol, "div", "io-fields__detail");
+  if (row) closers.push(renderFieldDetail(detail, row, o));
+  else el(detail, "div", "io-fields__hint", "add a Field on the left to set it up here");
+  return () => {
+    closers.forEach((fn) => fn());
+    wrap.remove();
+  };
+}
+var TYPE_LABEL, TYPE_COLOR, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
+var init_fields_editor_view = __esm({
+  "src/ui/settings/custom/fields_editor_view.ts"() {
+    "use strict";
+    init_dom();
+    init_contrast();
+    init_previews();
+    TYPE_LABEL = {
+      tag: "Tag",
+      wikilink: "Link",
+      element: "Emoji"
+    };
+    TYPE_COLOR = {
+      tag: "var(--io-type-tag)",
+      wikilink: "var(--io-type-link)",
+      element: "var(--io-type-element)"
+    };
+    SIDE_LABEL = { left: "Left Block", right: "Right Block" };
+    LIST_TIP = "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right \u2014 at the edge of a Block they cross the line too";
+    EMPTY_SIDE = "nothing on this side";
+    SHORT_NAME_TIP = "TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name";
+    BEHAVIOR_OPTIONS = [
+      { value: "off", label: "Strict" },
+      { value: "minimal", label: "Insert only" },
+      { value: "full", label: "Free" }
+    ];
+    VALUES_TIP = "The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent\u2019s <code>Behavior</code>";
+    SHOWN_OPTIONS = [
+      { value: "default", label: "default" },
+      { value: "empty", label: "empty" },
+      { value: "custom", label: "custom" }
+    ];
+    BEHAVIOR_NAME = "Prefix behavior";
+    BEHAVIOR_DESC = "How this Field affects the line Prefix";
+    ACTIVE_NAME = "Active";
+    ACTIVE_DESC = "Whether this Field is offered, and where";
+    ACTIVE_TIP = "<b>No</b> switches the Field off everywhere: TagWheel does not show it and its commands do nothing. <b>Commands only</b> keeps the commands working and takes the Field out of TagWheel";
+    ACTIVE_OPTIONS = [
+      { value: "yes", label: "Yes" },
+      { value: "no", label: "No" },
+      { value: "hotkey_only", label: "Commands only" }
+    ];
+    CHILD_NAME = "Child Field";
+    CHILD_DESC = "Show the child Field in TagWheel once a parent Value is picked";
+    CHILD_TIP = "A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. Switched off, TagWheel does not offer it even when its Values are set up";
+    CHILD_OPTIONS = [
+      { value: "yes", label: "Yes" },
+      { value: "no", label: "No" }
+    ];
+    PROPERTY_HEAD = "YAML property";
+    PROPERTY_HEAD_TIP = "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note \u2014 the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Leave it empty and the Field is simply not copied";
+    PROPERTY_NAME = "Property";
+    PROPERTY_DESC = "If you use inline2note, to which YAML property this Field should go";
+    BEHAVIOR_TIP = "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. <b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. <b>Free</b> inserts the Value where the cursor is now";
+    STEP_OPTIONS = [
+      { value: "increment", label: "Fixed step" },
+      { value: "command", label: "Command" },
+      { value: "custom", label: "Custom step" }
+    ];
+    MARKER_NAME = "Emoji-prefix";
+    MARKER_DESC = "The character that stands in front of the Value in the line";
+    MARKER_TIP = "This is how the Field is recognised: the plugin reads <code>\u{1F4C5} 2026-08-27</code> as this Field only because <code>\u{1F4C5}</code> stands in front. Give it a character no other Field uses, or the two will be taken for one";
+    FORMAT_NAME = "Value format";
+    FORMAT_DESC = "The shape of the Value: a date, a time or a number";
+    FORMAT_PLACEHOLDER = "YYYY-MM-DD / HHmm / 1";
+    FORMAT_TIP = "Spell out the shape you want to see in the line. A date or a time is built from <code>YYYY</code> (year), <code>MM</code> (month), <code>DD</code> (day), <code>HH</code> (hour), <code>mm</code> (minute), <code>ss</code> (second), with any separators between them: <code>YYYY-MM-DD</code> writes <code>2026-08-27</code>, <code>DD.MM</code> writes <code>27.08</code>, <code>HHmm</code> writes <code>1435</code>. Digits alone make a counter, and the number of digits is the width it keeps: <code>1</code> counts <code>1</code>, <code>2</code>, <code>3</code>, while <code>001</code> counts <code>001</code>, <code>002</code>. Anything else is taken as plain text and never steps";
+    STEP_DESC = "What should happen with the Value when you use <code>next</code> or <code>previous</code> command";
+    STEP_TIP = "<b>Fixed step</b> adds the same amount on every press: a day to a date, one to a counter. <b>Command</b> throws the old Value away and writes a fresh one \u2014 the time of the press, or a random string for an id. <b>Custom step</b> walks a list of steps you write yourself, and can end the cycle by removing the Value from the line";
+    AMOUNT_DESC = "How much one press adds to the Value";
+    AMOUNT_TIP = "<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with <code>HHmm</code> a minute, with a counter just one";
+    COMMAND_DESC = "What the press writes into the Value instead of stepping it";
+    COMMAND_TIP = "<code>The current date and time</code> writes the moment of the press in the shape set by <code>Value format</code>. The random ones fill the Value with numbers or letters, which is what an id needs";
+    STEPS_DESC = "One step per line, in the order the presses walk them";
+    STEPS_TIP = "A line is a number, and a number in brackets after it says how many presses stay on that step: <code>1 (3)</code> moves by one for three presses. <code>END</code> ends the cycle and removes the Value";
+  }
+});
+
+// src/ui/settings/custom/fields_editor.ts
+function askNewFieldModal(Modal2, app2, done) {
+  let answered = false;
+  const finish = (answer) => {
+    if (answered) return;
+    answered = true;
+    done(answer);
+  };
+  class AddFieldModal extends Modal2 {
+    onOpen() {
+      const box = this.contentEl;
+      box.empty();
+      box.addClass("io-dlg");
+      el(box, "h4", void 0, "Add a Field");
+      const nameRow = el(box, "div", "io-item");
+      const nameInfo = el(nameRow, "div", "io-item__info");
+      el(nameInfo, "div", "io-item__name", "Name");
+      el(nameInfo, "div", "io-item__desc", "What this Field is called here and in the config note");
+      const name = el(nameRow, "div", "io-item__control").createEl("input", {
+        cls: "io-text",
+        type: "text",
+        placeholder: "Priority",
+        attr: { "aria-label": "Name of the new Field" }
+      });
+      const typeRow = el(box, "div", "io-item");
+      const typeInfo = el(typeRow, "div", "io-item__info");
+      el(typeInfo, "div", "io-item__name", "Type");
+      el(typeInfo, "div", "io-item__desc", "What the Field writes into the line");
+      const type = el(typeRow, "div", "io-item__control").createEl("select", {
+        cls: "io-select",
+        attr: { "aria-label": "Type of the new Field" }
+      });
+      for (const opt of [
+        { value: "tag", label: "Tag" },
+        { value: "wikilink", label: "Link" },
+        { value: "element", label: "Element" }
+      ]) type.createEl("option", { text: opt.label, value: opt.value });
+      type.value = "tag";
+      const foot = el(box, "div", "io-dlg__foot");
+      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      cancel.addEventListener("click", (() => {
+        finish(null);
+        this.close();
+      }));
+      const add = foot.createEl("button", {
+        cls: "io-btn io-btn--cta",
+        text: "Add",
+        attr: { type: "button" }
+      });
+      add.disabled = true;
+      name.addEventListener("input", (() => {
+        add.disabled = !String(name.value || "").trim();
+      }));
+      add.addEventListener("click", (() => {
+        const value = String(name.value || "").trim();
+        if (!value) return;
+        finish({ name: value, kind: type.value });
+        this.close();
+      }));
+    }
+    onClose() {
+      finish(null);
+      this.contentEl.empty();
+    }
+  }
+  new AddFieldModal(app2).open();
+}
+function confirmDeleteModal(Modal2, app2, fieldName, done) {
+  let answered = false;
+  const finish = (yes) => {
+    if (answered) return;
+    answered = true;
+    done(yes);
+  };
+  class DeleteFieldModal extends Modal2 {
+    onOpen() {
+      const box = this.contentEl;
+      box.empty();
+      box.addClass("io-dlg");
+      el(box, "h4", void 0, "Delete Field");
+      el(
+        box,
+        "p",
+        "io-item__desc",
+        "Deleting " + fieldName + " removes its Values, their colors and its note property"
+      );
+      const foot = el(box, "div", "io-dlg__foot");
+      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      cancel.addEventListener("click", (() => {
+        finish(false);
+        this.close();
+      }));
+      const del = foot.createEl("button", { cls: "io-danger", text: "Delete", attr: { type: "button" } });
+      del.addEventListener("click", (() => {
+        finish(true);
+        this.close();
+      }));
+    }
+    onClose() {
+      finish(false);
+      this.contentEl.empty();
+    }
+  }
+  new DeleteFieldModal(app2).open();
+}
+var import_fields_editor_legacy, helpers, EDITOR_PATHS, fieldsEditor;
+var init_fields_editor = __esm({
+  "src/ui/settings/custom/fields_editor.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_fields_model();
+    init_fields_editor_view();
+    import_fields_editor_legacy = __toESM(require_fields_editor_legacy());
+    helpers = import_fields_editor_legacy.default;
+    EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips"];
+    fieldsEditor = (host, ctx) => {
+      const p = ctx.platform;
+      const box = el(host, "div", "io-fieldsblock");
+      if (!p) return () => {
+        box.empty();
+      };
+      const Modal2 = p.Modal;
+      const app2 = p.plugin.app;
+      const notice = (text) => {
+        const N = p.Notice;
+        try {
+          new N(text);
+        } catch (e) {
+          console.error("inline-overhaul: " + text);
+        }
+      };
+      const state = { selected: "" };
+      let mounted = null;
+      let closeMounted = null;
+      const draw = () => {
+        const keep = keepView(box);
+        const next = el(box, "div", "io-fieldsblock__mount");
+        let close;
+        try {
+          const model = createFieldsModel({
+            plugin: p.plugin,
+            normalizePkmOrder: p.normalizePkmOrder,
+            pkmOrderFields: p.pkmOrderFields,
+            cfg: p.getConfig(),
+            deepState: helpers.getOrderDeepEditorState()
+          });
+          close = renderFieldsEditor(next, {
+            model,
+            ctx,
+            state,
+            enabled: Boolean(ctx.get("features.pkm.enabled")),
+            showTips: Boolean(ctx.get("general.help.showTips")),
+            redraw: () => {
+              draw();
+            },
+            notice,
+            askNewField: (done) => askNewFieldModal(Modal2, app2, done),
+            confirmDeleteField: (name, done) => confirmDeleteModal(Modal2, app2, name, done)
+          });
+        } catch (e) {
+          next.remove();
+          console.error("inline-overhaul: \u0440\u0435\u0434\u0430\u043A\u0442\u043E\u0440 Fields \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
+          return;
+        }
+        if (closeMounted) closeMounted();
+        if (mounted) mounted.remove();
+        mounted = next;
+        closeMounted = close;
+        keep.restore();
+      };
+      draw();
+      const unwatch = ctx.watch(EDITOR_PATHS, draw);
+      return () => {
+        unwatch();
+        if (closeMounted) closeMounted();
+        closeMounted = null;
+        mounted = null;
+        box.empty();
+      };
+    };
+  }
+});
+
 // src/ui/settings/schema/pkm.ts
 var PKM_GROUPS;
 var init_pkm = __esm({
   "src/ui/settings/schema/pkm.ts"() {
     "use strict";
     init_types();
+    init_callouts();
+    init_fields_editor();
     PKM_GROUPS = [
+      {
+        id: "pkm-intro",
+        tab: "pkm",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "pkm-callout", render: callout("pkm") }
+        ]
+      },
+      {
+        id: "fields",
+        tab: "pkm",
+        order: 100,
+        heading: "Fields",
+        intro: "A Field is one slot a line can hold: a tag, a link to another note, or an element such as a date. Set out the slots you want, the Values each one offers, and where on the line they go",
+        tip: "A <b>Field</b> is one slot on a line. There are three kinds of Field: <b>tag</b>, <b>link</b> (wikilink), and <b>emoji-element</b> \u2014 such as a date or a time. Each Field automatically gets two <b>cycle commands</b>, <code>next</code> and <code>previous</code>, which insert the Value and cycle it back or forth \u2014 it is worth a hotkey for the ones you use often, so a <code>#todo</code> tag is one keypress away. <b>TagWheel</b> opens all of your Fields over the line at once, so you can pick with the arrow keys instead of remembering which key does what",
+        items: [
+          { kind: "custom", id: "field-editor", render: fieldsEditor }
+        ]
+      },
       {
         id: "line-format",
         tab: "pkm",
@@ -31388,7 +33516,18 @@ var init_visual = __esm({
   "src/ui/settings/schema/visual.ts"() {
     "use strict";
     init_types();
+    init_callouts();
+    init_previews();
     VISUAL_GROUPS = [
+      {
+        id: "visual-intro",
+        tab: "visual",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "visual-callout", render: callout("visual") }
+        ]
+      },
       {
         id: "tag-appearance",
         tab: "visual",
@@ -31396,6 +33535,7 @@ var init_visual = __esm({
         heading: "Tag appearance",
         intro: "How a tagged line looks while you write. Tags are drawn as small coloured bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
         items: [
+          { kind: "custom", id: "tag-preview", render: tagPreview },
           {
             kind: "slider",
             id: "tags-opacity-left",
@@ -31500,6 +33640,7 @@ var init_visual = __esm({
         heading: "Tag Bars",
         intro: "A coloured Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
         items: [
+          { kind: "custom", id: "bars-preview", render: barsPreview },
           {
             kind: "toggle",
             id: "bars-active",
@@ -31626,6 +33767,7 @@ var init_visual = __esm({
         tip: "Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything",
         commands: ["Open TagWheel on the left", "Open TagWheel on the right"],
         items: [
+          { kind: "custom", id: "wheel-preview", render: wheelPreview },
           {
             kind: "toggle",
             id: "panel-markers",
@@ -31705,7 +33847,17 @@ var init_transform = __esm({
   "src/ui/settings/schema/transform.ts"() {
     "use strict";
     init_types();
+    init_callouts();
     TRANSFORM_GROUPS = [
+      {
+        id: "transform-intro",
+        tab: "transform",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "transform-callout", render: callout("transform") }
+        ]
+      },
       {
         id: "inline-to-note",
         tab: "transform",
@@ -31965,7 +34117,17 @@ var init_advanced = __esm({
   "src/ui/settings/schema/advanced.ts"() {
     "use strict";
     init_types();
+    init_callouts();
     ADVANCED_GROUPS = [
+      {
+        id: "advanced-intro",
+        tab: "advanced",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "advanced-callout", render: callout("advanced") }
+        ]
+      },
       {
         id: "diagnostics",
         tab: "advanced",
@@ -32082,6 +34244,15 @@ function controlFor(it, w) {
   return control;
 }
 function itemToDefinition(it, w) {
+  if (it.kind === "custom") {
+    const def = w.renderCustom ? w.renderCustom(it) : null;
+    if (!def) return null;
+    if (it.visible) {
+      const p = it.visible;
+      def["visible"] = () => p.test(w.ctx);
+    }
+    return def;
+  }
   const common = { name: it.name };
   const desc = w.describe(it);
   if (desc !== void 0) common["desc"] = desc;
@@ -32089,9 +34260,6 @@ function itemToDefinition(it, w) {
   if (it.visible) {
     const p = it.visible;
     common["visible"] = () => p.test(w.ctx);
-  }
-  if (it.kind === "custom") {
-    return w.renderCustom ? w.renderCustom(it) : null;
   }
   if (it.kind === "buttons") {
     const first = it.buttons[0];
@@ -32103,7 +34271,7 @@ function itemToDefinition(it, w) {
     common["action"] = () => w.run(first.action);
     const rest = it.buttons.slice(1);
     if (rest.length) {
-      common["extraButtons"] = rest.map((b) => (btn) => btn.setTooltip(b.label).onClick(() => w.run(b.action)));
+      common["extraButtons"] = rest.map((b) => (btn2) => btn2.setTooltip(b.label).onClick(() => w.run(b.action)));
     }
     return common;
   }
@@ -32121,15 +34289,15 @@ function groupToDefinition(group, w) {
     const def2 = itemToDefinition(it, w);
     if (def2) items.push(def2);
   }
-  const def = { type: "group", heading: group.heading, items };
+  const intro = /-intro$/.test(group.id);
+  const def = { type: "group", items, cls: "io-group-" + group.id };
+  if (!intro) def["heading"] = group.heading;
   if (group.visible) {
     const p = group.visible;
     def["visible"] = () => p.test(w.ctx);
   }
   const reset = w.resetGroup ? w.resetGroup(group) : null;
-  if (reset) {
-    def["extraButtons"] = [(btn) => btn.setIcon("rotate-ccw").setTooltip(reset.tooltip).onClick(reset.onClick)];
-  }
+  if (reset) def["extraButtons"] = [reset];
   return def;
 }
 function toDefinitions(schema, tabs, w) {
@@ -32159,63 +34327,6 @@ var init_to_definitions = __esm({
   }
 });
 
-// src/ui/settings/describe.ts
-function richParts(text) {
-  const out = [];
-  const re = /<(code|b)>([\s\S]*?)<\/\1>/g;
-  let last = 0;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) out.push({ tag: "text", text: text.slice(last, m.index) });
-    out.push({ tag: m[1], text: m[2] });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) out.push({ tag: "text", text: text.slice(last) });
-  return out;
-}
-function paint(host, text) {
-  for (const part of richParts(text)) {
-    if (part.tag === "text") host.createSpan({ text: part.text });
-    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
-  }
-}
-var Describer;
-var init_describe = __esm({
-  "src/ui/settings/describe.ts"() {
-    "use strict";
-    Describer = class {
-      constructor(host) {
-        this.cache = /* @__PURE__ */ new Map();
-        this.host = host;
-      }
-      /** Ключ кеша: если тексты и режим подсказок не менялись, фрагмент тот же. */
-      cacheKey(it, o) {
-        return [it.desc || "", it.tip || "", (it.searchTerms || []).join("|"), o.showTips ? "1" : "0"].join(" ");
-      }
-      describe(it, o) {
-        const hasSomething = it.desc || o.showTips && it.tip || it.searchTerms && it.searchTerms.length;
-        if (!hasSomething) return void 0;
-        const key = this.cacheKey(it, o);
-        const hit = this.cache.get(it.id);
-        if (hit && hit.key === key) return hit.frag;
-        const frag = this.host.createFragment();
-        if (it.desc) paint(frag, it.desc);
-        if (o.showTips && it.tip) {
-          const box = frag.createEl("details", { cls: "io-tip" });
-          box.createEl("summary", { text: "?", cls: "io-tip__mark" });
-          paint(box.createEl("div", { cls: "io-tip__body" }), it.tip);
-        }
-        this.cache.set(it.id, { key, frag });
-        return frag;
-      }
-      /** Сбросить кеш: язык или режим подсказок сменились целиком. */
-      clear() {
-        this.cache.clear();
-      }
-    };
-  }
-});
-
 // src/ui/settings/settings_tab.ts
 var SettingsPane;
 var init_settings_tab = __esm({
@@ -32226,6 +34337,14 @@ var init_settings_tab = __esm({
     init_describe();
     SettingsPane = class {
       constructor(deps) {
+        /** Свои блоки, подписанные на пути (П2). */
+        this.watchers = /* @__PURE__ */ new Set();
+        /**
+         * Кнопки сброса, которые платформа уже создала: по одной на группу. Панель
+         * держит их, чтобы менять неактивность и подсказку на месте, а не
+         * пересобирать определения из-за одного изменённого значения.
+         */
+        this.resetButtons = /* @__PURE__ */ new Map();
         this.deps = deps;
         this.describer = new Describer(deps.fragments);
         this.defaults = buildDefaultConfig(deps.schema);
@@ -32250,8 +34369,53 @@ var init_settings_tab = __esm({
       async setControlValue(key, value) {
         const opts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
         await this.deps.store.set(key, value, opts);
-        if (this.deps.rebuild) this.deps.rebuild();
-        else if (this.deps.refresh) this.deps.refresh();
+        this.wake(key);
+        this.syncResetButtons(key);
+        if (this.definitionsChanged(key)) {
+          if (this.deps.rebuild) this.deps.rebuild();
+          else if (this.deps.refresh) this.deps.refresh();
+        } else if (this.deps.refresh) {
+          this.deps.refresh();
+        }
+      }
+      /* ---- точечная перерисовка своих блоков (П2) ------------------------ */
+      watch(paths, redraw) {
+        const w = { paths, redraw };
+        this.watchers.add(w);
+        return () => {
+          this.watchers.delete(w);
+        };
+      }
+      /** Сколько блоков сейчас слушают пути: подписки не должны накапливаться. */
+      watcherCount() {
+        return this.watchers.size;
+      }
+      /**
+       * Разбудить подписчиков изменённого пути. Совпадением считается и путь
+       * внутри пути: у группы значений ветка меняется целиком.
+       */
+      wake(changed) {
+        for (const w of Array.from(this.watchers)) {
+          const hit = w.paths.some((p) => p === changed || changed.startsWith(p + ".") || p.startsWith(changed + "."));
+          if (!hit) continue;
+          try {
+            w.redraw();
+          } catch (e) {
+            console.error("inline-overhaul: \u0441\u0432\u043E\u0439 \u0431\u043B\u043E\u043A \u0443\u043F\u0430\u043B \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u0440\u0438\u0441\u043E\u0432\u043A\u0435", e);
+          }
+        }
+      }
+      /** Меняет ли эта запись сами определения, а не только значения. */
+      definitionsChanged(key) {
+        return key === "general.help.showTips";
+      }
+      /** Обновить кнопку сброса той группы, чьё значение изменилось. */
+      syncResetButtons(key) {
+        for (const group of this.deps.schema) {
+          if (!group.items.some((it) => isBound(it) && it.path === key)) continue;
+          const btn2 = this.resetButtons.get(group.id);
+          if (btn2) this.paintResetButton(group, btn2);
+        }
       }
       /** Склейка записей идёт по id настройки, а не по пути (CS3). */
       coalesceKeyFor(path) {
@@ -32264,10 +34428,39 @@ var init_settings_tab = __esm({
       }
       /* ---- определения для платформы ------------------------------------- */
       ctx() {
-        return {
+        const ctx = {
           get: (path) => this.getControlValue(path),
           set: (path, value, opts) => this.deps.store.set(path, value, opts),
-          run: (action) => this.run(action)
+          run: (action) => this.run(action),
+          watch: (paths, redraw) => this.watch(paths, redraw)
+        };
+        if (this.deps.platform) ctx.platform = this.deps.platform;
+        return ctx;
+      }
+      /* ---- свои блоки (раздел 10) ---------------------------------------- */
+      /**
+       * Строка со своей вёрсткой. Платформа отдаёт блоку строку целиком, блок
+       * её очищает и рисует своё; возвращённая функция снимает то, что блок
+       * завёл сам (С5).
+       *
+       * `searchable: false` — в поиск попадают настройки, а не предпросмотры и
+       * не вводные тексты. `data-io-item` нужен переходу по `id`: у строки,
+       * которую рисует платформа, других приметных признаков нет.
+       */
+      renderCustom(it) {
+        if (it.kind !== "custom") return null;
+        const draw = it.render;
+        const ctx = this.ctx();
+        return {
+          name: "",
+          searchable: false,
+          render: (setting) => {
+            const row = setting.settingEl;
+            row.empty();
+            row.addClass("io-block");
+            row.setAttribute("data-io-item", it.id);
+            return draw(row, ctx);
+          }
         };
       }
       async run(action) {
@@ -32286,6 +34479,7 @@ var init_settings_tab = __esm({
             void this.run(action);
           },
           describe: (it) => this.describer.describe(it, { showTips }),
+          renderCustom: (it) => this.renderCustom(it),
           resetGroup: (group) => this.resetButtonFor(group),
           activeTab: this.active
         };
@@ -32304,6 +34498,7 @@ var init_settings_tab = __esm({
         return this.deps.tabs.filter((t) => this.deps.schema.some((g) => g.tab === t.id));
       }
       getSettingDefinitions() {
+        this.resetButtons.clear();
         return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
       }
       /* ---- сброс группы к значениям по умолчанию (10.13.1) --------------- */
@@ -32343,16 +34538,27 @@ var init_settings_tab = __esm({
         }
         return drift.length;
       }
+      /**
+       * Н1: место кнопки в заголовке занято всегда, а Н2 гасит её, когда сбрасывать
+       * нечего. Первая версия кнопку показывала и убирала — и этим меняла само
+       * определение группы на первом же шаге слайдера: платформа пересобирала
+       * страницу, заменяла узел слайдера, и перетаскивание обрывалось.
+       */
       resetButtonFor(group) {
         if (!group.items.some((it) => isBound(it))) return null;
-        const n = this.drift(group).length;
-        if (!n) return null;
-        return {
-          tooltip: "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default",
-          onClick: () => {
+        return (btn2) => {
+          this.resetButtons.set(group.id, btn2);
+          btn2.setIcon("rotate-ccw").onClick(() => {
             void this.resetGroup(group);
-          }
+          });
+          return this.paintResetButton(group, btn2);
         };
+      }
+      /** Состояние кнопки: сколько настроек группы отличается от умолчания. */
+      paintResetButton(group, btn2) {
+        const n = this.drift(group).length;
+        const tooltip = n ? "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default" : "Everything here is already at its default";
+        return btn2.setDisabled(n === 0).setTooltip(tooltip);
       }
     };
   }
@@ -32423,16 +34629,16 @@ function tabStripRow(state) {
       const buttons = [];
       state.tabs.forEach((tab) => {
         const isActive = tab.id === state.active;
-        const btn = strip.createEl("button", {
+        const btn2 = strip.createEl("button", {
           cls: "io-tab" + (isActive ? " io-tab--active" : ""),
           text: tab.label
         });
-        btn.setAttribute("role", "tab");
-        btn.setAttribute("aria-selected", isActive ? "true" : "false");
-        btn.tabIndex = isActive ? 0 : -1;
-        if (tab.desc) btn.setAttribute("aria-description", tab.desc);
-        btn.addEventListener("click", () => state.pick(tab.id));
-        buttons.push(btn);
+        btn2.setAttribute("role", "tab");
+        btn2.setAttribute("aria-selected", isActive ? "true" : "false");
+        btn2.tabIndex = isActive ? 0 : -1;
+        if (tab.desc) btn2.setAttribute("aria-description", tab.desc);
+        btn2.addEventListener("click", () => state.pick(tab.id));
+        buttons.push(btn2);
       });
       strip.addEventListener("keydown", (ev) => {
         const at = state.tabs.findIndex((t) => t.id === state.active);
@@ -32458,8 +34664,9 @@ var init_obsidian_tab = __esm({
     init_settings_tab();
     init_store();
     InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
-      constructor(app2, plugin) {
+      constructor(app2, plugin, bridge) {
         super(app2, plugin);
+        const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function" ? bridge.normalizePkmOrder : null;
         this.pane = new SettingsPane({
           schema: SCHEMA,
           tabs: TABS,
@@ -32478,7 +34685,24 @@ var init_obsidian_tab = __esm({
           rebuild: () => {
             this.update();
           },
-          tabStrip: (state) => tabStripRow(state)
+          tabStrip: (state) => tabStripRow(state),
+          /*
+           * Шов для перенесённого редактора Fields. Без нормализации Order из
+           * `main.js` его показывать нельзя: она нужна ему на каждом чтении, и
+           * подделать её здесь значило бы завести вторую (З8, П9 по смыслу).
+           */
+          platform: normalizePkmOrder ? {
+            Setting: import_obsidian.Setting,
+            Notice: import_obsidian.Notice,
+            Modal: import_obsidian.Modal,
+            setIcon: (node, icon) => {
+              (0, import_obsidian.setIcon)(node, icon);
+            },
+            plugin,
+            getConfig: () => typeof plugin.getConfig === "function" ? plugin.getConfig() : {},
+            normalizePkmOrder,
+            pkmOrderFields: bridge && bridge.pkmOrderFields || []
+          } : void 0
         });
       }
       /* ---- декларативный путь Obsidian 1.13 ------------------------------- */
@@ -32503,9 +34727,9 @@ var init_obsidian_tab = __esm({
        * пустая панель хуже честного объяснения.
        */
       display() {
-        const el = this.containerEl;
-        el.empty();
-        const box = el.createDiv({ cls: "io-needs-update" });
+        const el2 = this.containerEl;
+        el2.empty();
+        const box = el2.createDiv({ cls: "io-needs-update" });
         box.createEl("p", {
           text: "Inline Overhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API."
         });
@@ -32521,7 +34745,7 @@ var init_obsidian_tab = __esm({
 var require_main = __commonJS({
   "main.js"(exports2, module2) {
     "use strict";
-    var { Plugin, PluginSettingTab: PluginSettingTab2, Setting, Notice: Notice3, Modal, setIcon } = require("obsidian");
+    var { Plugin, PluginSettingTab: PluginSettingTab2, Setting, Notice: Notice3, Modal: Modal2, setIcon: setIcon2 } = require("obsidian");
     var cmView = require("@codemirror/view");
     var cmState = require("@codemirror/state");
     var __priorityStripEngine = {
@@ -33199,10 +35423,10 @@ var require_main = __commonJS({
           row.style.gap = "8px";
           row.style.marginBottom = "10px";
           for (const t of settingsTabs) {
-            const btn = row.createEl("button", { text: t.label, cls: "mod-cta" });
-            btn.style.padding = "4px 10px";
-            btn.style.opacity = t.id === activeTab ? "1" : "0.8";
-            btn.onclick = () => setActiveSettingsTab(t.id);
+            const btn2 = row.createEl("button", { text: t.label, cls: "mod-cta" });
+            btn2.style.padding = "4px 10px";
+            btn2.style.opacity = t.id === activeTab ? "1" : "0.8";
+            btn2.onclick = () => setActiveSettingsTab(t.id);
           }
         },
         renderGeneralSection(ctx) {
@@ -33361,20 +35585,20 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createTagWheelConfigCodec === "function")
       });
       if (loaded.mod && typeof loaded.mod.createTagWheelConfigCodec === "function") {
-        const helpers = getConfigNoteHelpers();
+        const helpers2 = getConfigNoteHelpers();
         const codec = loaded.mod.createTagWheelConfigCodec({
           isObj,
           getOrderStrictName,
           ORDER_KEY_TO_LEFT_FIELD_ID,
-          getFieldById: helpers.getFieldById,
-          getLeftFields: helpers.getLeftFields,
-          getRightFields: helpers.getRightFields,
-          collectTagSections: helpers.collectTagSections,
-          collectWikilinkFieldIds: helpers.collectWikilinkFieldIds,
-          collectOrderedElementFields: helpers.collectOrderedElementFields,
-          getPrefixRulesFromCfg: helpers.getPrefixRulesFromCfg,
+          getFieldById: helpers2.getFieldById,
+          getLeftFields: helpers2.getLeftFields,
+          getRightFields: helpers2.getRightFields,
+          collectTagSections: helpers2.collectTagSections,
+          collectWikilinkFieldIds: helpers2.collectWikilinkFieldIds,
+          collectOrderedElementFields: helpers2.collectOrderedElementFields,
+          getPrefixRulesFromCfg: helpers2.getPrefixRulesFromCfg,
           denormTagToken,
-          parseCustomPrefixResolverBlock: helpers.parseCustomPrefixResolverBlock,
+          parseCustomPrefixResolverBlock: helpers2.parseCustomPrefixResolverBlock,
           isWikilinkToken,
           parseWikilinkLineStrict,
           extractFirstTagToken,
@@ -33523,14 +35747,14 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createConfigNoteHelpers === "function")
       });
       if (loaded.mod && typeof loaded.mod.createConfigNoteHelpers === "function") {
-        const helpers = loaded.mod.createConfigNoteHelpers({
+        const helpers2 = loaded.mod.createConfigNoteHelpers({
           isObj,
           normalizePkmOrder,
           getOrderStrictName,
           TAGWHEEL_PREFIX_RESOLVER_H3
         });
-        if (hasValidConfigNoteHelpers(helpers)) {
-          __configNoteHelpers = helpers;
+        if (hasValidConfigNoteHelpers(helpers2)) {
+          __configNoteHelpers = helpers2;
           return __configNoteHelpers;
         }
       }
@@ -34243,6 +36467,7 @@ var require_main = __commonJS({
       const allowedCustomTagIds = /* @__PURE__ */ new Set();
       const allowedCustomWikilinkIds = /* @__PURE__ */ new Set();
       const allowedCustomSubIds = /* @__PURE__ */ new Set();
+      const allowedCustomLinkSubIds = /* @__PURE__ */ new Set();
       const allowedCustomElementIds = /* @__PURE__ */ new Set();
       for (const key of keys) {
         const kind0 = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
@@ -34250,6 +36475,7 @@ var require_main = __commonJS({
         if (kind0 === "element") allowedCustomElementIds.add(key);
         else if (kind0 === "wikilink") {
           allowedCustomWikilinkIds.add(key);
+          allowedCustomLinkSubIds.add(inferSubFieldKey(key));
         } else {
           allowedCustomTagIds.add(key);
           if (kind0 === "tag") allowedCustomSubIds.add(inferSubFieldKey(key));
@@ -34268,6 +36494,7 @@ var require_main = __commonJS({
         if (!id) return false;
         if (builtInRightIds.has(id)) return true;
         if (allowedCustomWikilinkIds.has(id)) return true;
+        if (allowedCustomLinkSubIds.has(id)) return true;
         if (allowedCustomElementIds.has(id)) return true;
         return false;
       });
@@ -35467,27 +37694,27 @@ var require_main = __commonJS({
         return !!other && other.tokenText === this.tokenText && other.fillColor === this.fillColor && other.textColor === this.textColor && other.opacity === this.opacity && other.emptyMode === this.emptyMode && other.sizePct === this.sizePct && other.bubbleWidthPct === this.bubbleWidthPct && other.bubbleHeightPct === this.bubbleHeightPct && other.emptyBubbleSizePct === this.emptyBubbleSizePct && other.shapePct === this.shapePct && other.displayTextOverride === this.displayTextOverride;
       }
       toDOM() {
-        const el = document.createElement("span");
+        const el2 = document.createElement("span");
         const st = computeTagVisualStyle(this.sizePct, this.bubbleWidthPct, this.bubbleHeightPct, this.shapePct);
         const emptyScale = Number.isFinite(this.emptyBubbleSizePct) ? Math.max(50, Math.min(180, Math.trunc(this.emptyBubbleSizePct))) / 100 : 1;
         const renderedText = this.emptyMode ? " " : this.displayTextOverride || this.tokenText;
-        el.textContent = renderedText;
-        el.setAttribute("data-io-tag-token", this.tokenText);
-        el.setAttribute("data-io-tag-render", renderedText);
-        el.style.display = "inline-block";
-        el.style.borderRadius = `${st.borderRadiusPx}px`;
-        el.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
-        el.style.fontSize = `${st.fontSizePx}px`;
-        el.style.lineHeight = String(st.lineHeight);
+        el2.textContent = renderedText;
+        el2.setAttribute("data-io-tag-token", this.tokenText);
+        el2.setAttribute("data-io-tag-render", renderedText);
+        el2.style.display = "inline-block";
+        el2.style.borderRadius = `${st.borderRadiusPx}px`;
+        el2.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
+        el2.style.fontSize = `${st.fontSizePx}px`;
+        el2.style.lineHeight = String(st.lineHeight);
         if (this.emptyMode) {
-          el.style.width = `${Math.max(6, Math.round(st.horizontalPaddingPx * 2 * emptyScale))}px`;
-          el.style.minWidth = el.style.width;
-          el.style.lineHeight = "1";
+          el2.style.width = `${Math.max(6, Math.round(st.horizontalPaddingPx * 2 * emptyScale))}px`;
+          el2.style.minWidth = el2.style.width;
+          el2.style.lineHeight = "1";
         }
-        if (this.fillColor) el.style.backgroundColor = this.fillColor;
-        if (this.textColor) el.style.color = this.textColor;
-        if (Number.isFinite(this.opacity)) el.style.opacity = String(this.opacity);
-        return el;
+        if (this.fillColor) el2.style.backgroundColor = this.fillColor;
+        if (this.textColor) el2.style.color = this.textColor;
+        if (Number.isFinite(this.opacity)) el2.style.opacity = String(this.opacity);
+        return el2;
       }
     };
     var ZeroWidthInlineWidget = class extends cmView.WidgetType {
@@ -35495,16 +37722,16 @@ var require_main = __commonJS({
         return true;
       }
       toDOM() {
-        const el = document.createElement("span");
-        el.className = "io-zero-width-inline";
-        el.style.display = "inline-block";
-        el.style.width = "0";
-        el.style.margin = "0";
-        el.style.padding = "0";
-        el.style.border = "0";
-        el.style.overflow = "hidden";
-        el.style.verticalAlign = "baseline";
-        return el;
+        const el2 = document.createElement("span");
+        el2.className = "io-zero-width-inline";
+        el2.style.display = "inline-block";
+        el2.style.width = "0";
+        el2.style.margin = "0";
+        el2.style.padding = "0";
+        el2.style.border = "0";
+        el2.style.overflow = "hidden";
+        el2.style.verticalAlign = "baseline";
+        return el2;
       }
     };
     var LineLaneWidget = class extends cmView.WidgetType {
@@ -35533,16 +37760,16 @@ var require_main = __commonJS({
           const lane = this.lanes[i] || {};
           const color = String(lane.color || "").trim();
           if (!color) continue;
-          const el = document.createElement("span");
-          el.style.position = "absolute";
-          el.style.pointerEvents = "none";
-          el.style.left = `${Math.trunc(Number(lane.left) || 0)}px`;
-          el.style.top = "-1.05em";
-          el.style.height = "2.3em";
-          el.style.width = `${Math.max(1, Math.trunc(Number(lane.thickness) || 1))}px`;
-          el.style.background = color;
-          el.style.borderRadius = "1px";
-          wrap.appendChild(el);
+          const el2 = document.createElement("span");
+          el2.style.position = "absolute";
+          el2.style.pointerEvents = "none";
+          el2.style.left = `${Math.trunc(Number(lane.left) || 0)}px`;
+          el2.style.top = "-1.05em";
+          el2.style.height = "2.3em";
+          el2.style.width = `${Math.max(1, Math.trunc(Number(lane.thickness) || 1))}px`;
+          el2.style.background = color;
+          el2.style.borderRadius = "1px";
+          wrap.appendChild(el2);
         }
         return wrap;
       }
@@ -36698,7 +38925,7 @@ var require_main = __commonJS({
               return;
             }
             try {
-              await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal, lineFinalize: __transformLineFinalize }));
+              await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal: Modal2, lineFinalize: __transformLineFinalize }));
             } catch (e) {
               console.error("[inline-overhaul][transform]", e);
               this.notice("InlineOverhaul transform error: " + (e && e.message ? e.message : e));
@@ -36719,7 +38946,10 @@ var require_main = __commonJS({
         const Declarative = wantNew ? getDeclarativeSettingTabCtor() : null;
         if (Declarative) {
           try {
-            return new Declarative(this.app, this);
+            return new Declarative(this.app, this, {
+              normalizePkmOrder,
+              pkmOrderFields: PKM_ORDER_FIELDS
+            });
           } catch (e) {
             console.error("[inline-overhaul] declarative settings pane failed to build", e);
           }
@@ -37198,7 +39428,7 @@ var require_main = __commonJS({
         await loadTagWheelConfigCodecSafe(this.app);
         const cfg = this.getConfig();
         const orch = getConfigNoteOrchestrator();
-        const helpers = getConfigNoteHelpers();
+        const helpers2 = getConfigNoteHelpers();
         if (!orch) throw new Error("Config note orchestrator unavailable");
         return await orch.applyTagWheelConfigNote({
           app: this.app,
@@ -37209,16 +39439,16 @@ var require_main = __commonJS({
           getOrderStrictName,
           isObj,
           cloneJson,
-          collectTagSections: helpers.collectTagSections,
-          getFieldById: helpers.getFieldById,
+          collectTagSections: helpers2.collectTagSections,
+          getFieldById: helpers2.getFieldById,
           extractFieldMetaMap,
           rebuildTagValues,
           rebuildSubtagValues,
           denormTagToken,
-          getPrefixRulesFromCfg: helpers.getPrefixRulesFromCfg,
-          collectCheckboxTokensFromMap: helpers.collectCheckboxTokensFromMap,
+          getPrefixRulesFromCfg: helpers2.getPrefixRulesFromCfg,
+          collectCheckboxTokensFromMap: helpers2.collectCheckboxTokensFromMap,
           deepMerge,
-          syncCustomPrefixResolverBlock: helpers.syncCustomPrefixResolverBlock,
+          syncCustomPrefixResolverBlock: helpers2.syncCustomPrefixResolverBlock,
           normalizePkmOrder,
           CFG_H2_DATES
         });
@@ -37313,10 +39543,10 @@ var require_main = __commonJS({
           containerEl,
           cfg,
           getActiveSettingsTab: (cfgValue) => cfgValue.ui.activeSettingsTab || "general",
-          renderTabBar: (el, activeTab) => this.renderTabBar(el, activeTab),
-          renderSettingsTabContent: (activeTab, el, cfgValue) => {
+          renderTabBar: (el2, activeTab) => this.renderTabBar(el2, activeTab),
+          renderSettingsTabContent: (activeTab, el2, cfgValue) => {
             const router = getSettingsTabRouter();
-            router.renderSettingsTabContent(this, activeTab, el, cfgValue);
+            router.renderSettingsTabContent(this, activeTab, el2, cfgValue);
           }
         });
       }
@@ -37360,34 +39590,36 @@ var require_main = __commonJS({
           featureKey,
           cfg,
           featureMeta: FEATURE_META,
-          renderNavigationSettings: (el, cfgValue, enabled) => this.renderNavigationSettings(el, cfgValue, enabled),
-          renderTransformSettings: (el, cfgValue, enabled) => {
+          renderNavigationSettings: (el2, cfgValue, enabled) => this.renderNavigationSettings(el2, cfgValue, enabled),
+          renderTransformSettings: (el2, cfgValue, enabled) => {
             return getTransformFeature().renderTransformSettings({
               Setting,
-              containerEl: el,
+              containerEl: el2,
               cfg: cfgValue,
               plugin: this.plugin,
               enabled
             });
           },
-          renderPkmSettings: (el, cfgValue, enabled) => {
+          renderPkmSettings: (el2, cfgValue, enabled) => {
             renderer.renderPkmOrderBoardSection({
               Setting,
               Notice: Notice3,
-              Modal,
-              containerEl: el,
+              Modal: Modal2,
+              containerEl: el2,
               cfg: cfgValue,
               enabled,
               plugin: this.plugin,
               normalizePkmOrder,
               pkmOrderFields: PKM_ORDER_FIELDS,
-              setIcon
+              setIcon: setIcon2,
+              /* Тумблеры вида доски перерисовывают вкладку (дефект A14). */
+              refreshSettings: () => this.scheduleDisplayRefresh("settings:order-view-toggle")
             });
             return renderer.renderPkmConfigSections({
               Setting,
               Notice: Notice3,
-              Modal,
-              containerEl: el,
+              Modal: Modal2,
+              containerEl: el2,
               cfg: cfgValue,
               enabled,
               plugin: this.plugin,

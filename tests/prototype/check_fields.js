@@ -61,7 +61,9 @@ const press = (name, dir) => {
     '  let done = false;',
     '  const go = n => {',
     '    if (done) return;',
-    '    if (String(n.getAttribute && n.getAttribute("aria-label")) === ' + JSON.stringify(label) + ') {',
+    /* Подпись стрелки договаривает, что она делает на краю Block, поэтому
+       сверяем начало, а не всю строку: одна подсказка на узел, и она длинная. */
+    '    if (String(n.getAttribute && n.getAttribute("aria-label")).indexOf(' + JSON.stringify(label) + ') === 0) {',
     '      n.dispatch("click", { preventDefault() {}, stopPropagation() {}, target: n });',
     '      done = true; return;',
     '    }',
@@ -89,5 +91,60 @@ step("Status", 1, "down");         // обратно
 step("Status", -1, "up");          // на самом верху Left: уходит на Right
 step("Status", 1, "down");         // с конца Right: возвращается на Left
 
-console.log(failures ? "\n" + failures + " problem(s)" : "\nстрелки работают, включая переход через линию");
+/* ---- окно Add Field ------------------------------------------------- */
+/* Тип Field выбирается один раз и потом не меняется, поэтому кнопка
+   спрашивает имя и тип окном, а не заводит Field молча (2026-08-27). */
+
+const check = (what, got, want) => {
+  if (String(got) === String(want)) { console.log('  ok   ' + what); return; }
+  console.log('  FAIL ' + what + ': ждали ' + want + ', получили ' + got);
+  failures++;
+};
+
+/* Нажать узел, чей собственный текст равен заданному. */
+const clickText = text => run(
+  '(() => {'
+  + '  let hit = null;'
+  + '  const go = n => { if (hit) return;'
+  + '    if (String(n._text || "").trim() === ' + JSON.stringify(text) + ') { hit = n; return; }'
+  + '    n.children.forEach(go); };'
+  + '  go(document.body);'
+  + '  if (!hit) return false;'
+  + '  hit.dispatch("click", { preventDefault() {}, stopPropagation() {}, target: hit });'
+  + '  return true;'
+  + '})()');
+
+const scrim = 'document.body.children.filter(n => String(n.className) === "io-scrim")';
+
+console.log('\nокно Add Field:');
+check('кнопка Add Field открывает окно', clickText('Add Field'), 'true');
+check('окно объявлено диалогом',
+  run('(() => { const s = ' + scrim + '[0]; return s ? String(s.children[0].getAttribute("aria-label")) : "окна нет"; })()'),
+  'Add a Field');
+check('окно спрашивает имя и тип',
+  run('(() => { const out = []; const go = n => { if (String(n.className) === "io-item__name") out.push(n._text);'
+    + ' n.children.forEach(go); }; go(' + scrim + '[0]); return out.join(","); })()'),
+  'Name,Type');
+check('пока имя пустое, Add выключена',
+  run('(() => { let b = null; const go = n => { if (String(n._text) === "Add") b = n; n.children.forEach(go); };'
+    + ' go(' + scrim + '[0]); return b ? b.disabled : "кнопки Add нет"; })()'),
+  'true');
+
+/* Имя вводится, тип берётся link — тот, которого без окна не создать. */
+run('(() => { let input = null, sel = null;'
+  + ' const go = n => { if (n.tagName === "INPUT" && !input) input = n;'
+  + '   if (n.tagName === "SELECT" && !sel) sel = n; n.children.forEach(go); };'
+  + ' go(' + scrim + '[0]);'
+  + ' input.value = "Client"; input.dispatch("input", { target: input });'
+  + ' sel.value = "link"; sel.dispatch("change", { target: sel });'
+  + ' return true; })()');
+
+check('Add создаёт Field выбранного типа и сразу его выбирает',
+  String(clickText('Add')) === 'true'
+    ? run('(() => { const f = field(selectedFieldId); return f ? f.name + ":" + f.type : "ничего не выбрано"; })()')
+    : 'кнопка Add не нашлась',
+  'Client:link');
+check('окно закрылось', run(scrim + '.length'), '0');
+
+console.log(failures ? "\n" + failures + " problem(s)" : "\nстрелки работают, включая переход через линию; окно Add Field спрашивает имя и тип");
 process.exit(failures ? 1 : 0);

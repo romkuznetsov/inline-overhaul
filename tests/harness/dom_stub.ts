@@ -11,6 +11,19 @@
  * Оба случая уже один раз прятали ошибку на прототипе.
  */
 
+/** То же, что принимает createEl в Obsidian. */
+export interface ElOpts {
+  text?: string;
+  cls?: string;
+  attr?: Record<string, string>;
+  /* Obsidian принимает и value: без него `createEl("option", { value })`
+     создаёт вариант без значения, и любой выбор в select читается пустым. */
+  value?: string;
+  type?: string;
+  placeholder?: string;
+  title?: string;
+}
+
 export interface StubNode {
   tagName: string;
   children: StubNode[];
@@ -52,19 +65,43 @@ export interface StubNode {
   removeEventListener(): void;
   dispatch(t: string, ev?: any): void;
   click(): void;
-  focus(): void;
+  focus(opts?: { preventScroll?: boolean }): void;
   blur(): void;
-  createEl(tag: string, o?: { text?: string; cls?: string }): StubNode;
-  createDiv(o?: { text?: string; cls?: string }): StubNode;
-  createSpan(o?: { text?: string; cls?: string }): StubNode;
+  /* Прокрутка и каретка. Без них проверить возврат скролла и фокуса после
+     перерисовки нечем: помощник читает ровно эти свойства (дефект A8). */
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+  addClass(...cls: string[]): void;
+  removeClass(...cls: string[]): void;
+  toggleClass(cls: string, on?: boolean): void;
+  hasClass(cls: string): boolean;
+  createEl(tag: string, o?: ElOpts): StubNode;
+  createDiv(o?: ElOpts): StubNode;
+  createSpan(o?: ElOpts): StubNode;
   empty(): void;
   setText(t: string): void;
+  appendText(t: string): void;
   querySelector(sel: string): StubNode | null;
   querySelectorAll(sel: string): StubNode[];
+  readonly lastChild: StubNode | null;
+  readonly firstChild: StubNode | null;
+  readonly parentElement: StubNode | null;
+  readonly isConnected: boolean;
+  /* Выпадающий список: доска читает выбранный вариант через них. */
+  readonly options: StubNode[];
+  readonly selectedIndex: number;
 }
 
 let created = 0;
 export const nodeCount = () => created;
+
+/** Узел под фокусом. В браузере он один на документ, здесь — один на процесс. */
+let focused: StubNode | null = null;
+export const focusedNode = (): StubNode | null => focused;
+export const clearFocus = (): void => { focused = null; };
 
 export function makeNode(tag?: string): StubNode {
   created++;
@@ -87,6 +124,13 @@ export function makeNode(tag?: string): StubNode {
     title: "",
     placeholder: "",
     tabIndex: 0,
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
+    /* Как в настоящем DOM: у поля ввода каретка есть всегда и выражена
+       числом, у прочих узлов её нет вовсе. */
+    selectionStart: /^(INPUT|TEXTAREA)$/.test(String(tag || "div").toUpperCase()) ? 0 : null,
+    selectionEnd: /^(INPUT|TEXTAREA)$/.test(String(tag || "div").toUpperCase()) ? 0 : null,
 
     style: {
       setProperty(k: string, v: string) { bag[k] = String(v); },
@@ -121,6 +165,14 @@ export function makeNode(tag?: string): StubNode {
     removeChild(c: StubNode) {
       const i = node.children.indexOf(c);
       if (i >= 0) node.children.splice(i, 1);
+      /*
+       * Как в браузере: узел под фокусом ушёл из дерева — фокуса больше нет,
+       * он возвращается на `body`. Это и есть половина дефекта A8: блок
+       * перерисовывается подменой узла, и поле, в котором печатал человек,
+       * фокус теряет. Без этой строки проверка возврата фокуса была бы
+       * зелёной ни о чём.
+       */
+      if (focused && contains(c, focused)) focused = null;
       return c;
     },
     remove() { if (node.parent) node.parent.removeChild(node); },
@@ -140,25 +192,75 @@ export function makeNode(tag?: string): StubNode {
         fn(ev || { preventDefault() {}, stopPropagation() {}, target: node, key: "" }));
     },
     click() { node.dispatch("click"); },
-    focus() { /* заглушка */ },
-    blur() { /* заглушка */ },
+    /*
+     * Фокус запоминается: настоящий DOM держит его в `document.activeElement`,
+     * и помощник, который возвращает фокус после перерисовки, читает именно
+     * его. Заглушка без этого молчала бы, а проверка была бы зелёной ни о чём.
+     */
+    focus() { focused = node; },
+    blur() { if (focused === node) focused = null; },
 
     /* API Obsidian на элементах */
-    createEl(t: string, o?: { text?: string; cls?: string }) {
+    addClass(...c: string[]) { c.forEach(x => classes.add(x)); },
+    removeClass(...c: string[]) { c.forEach(x => classes.delete(x)); },
+    toggleClass(c: string, on?: boolean) { node.classList.toggle(c, on); },
+    hasClass(c: string) { return classes.has(c); },
+    createEl(t: string, o?: ElOpts) {
       const c = makeNode(t);
       if (o && o.text) (c as any).textContent = o.text;
       if (o && o.cls) c.className = o.cls;
+      if (o && o.attr) for (const k of Object.keys(o.attr)) c.setAttribute(k, o.attr[k] as string);
+      if (o && o.value !== undefined) (c as any).value = o.value;
+      if (o && o.type !== undefined) (c as any).type = o.type;
+      if (o && o.placeholder !== undefined) (c as any).placeholder = o.placeholder;
+      if (o && o.title !== undefined) (c as any).title = o.title;
       node.appendChild(c);
       return c;
     },
-    createDiv(o?: { text?: string; cls?: string }) { return node.createEl("div", o); },
-    createSpan(o?: { text?: string; cls?: string }) { return node.createEl("span", o); },
+    createDiv(o?: ElOpts) { return node.createEl("div", o); },
+    createSpan(o?: ElOpts) { return node.createEl("span", o); },
     empty() { node.children.length = 0; node.ownText = ""; },
     setText(t: string) { (node as any).textContent = t; },
+    /* Как в Obsidian: дописывает текстовый узел, не затирая детей. */
+    appendText(t: string) {
+      const child = makeNode("#text");
+      (child as any).textContent = String(t == null ? "" : t);
+      node.appendChild(child);
+    },
 
     querySelector(sel: string) { return query(node, sel)[0] || null; },
     querySelectorAll(sel: string) { return query(node, sel); },
   };
+
+  /* Настоящий DOM отдаёт детей и по краям: старый рендерер этим пользуется
+     (`head.lastChild`), и без них он падает на заглушке, а не в Obsidian. */
+  Object.defineProperty(node, "lastChild", {
+    get(): StubNode | null { return node.children[node.children.length - 1] || null; },
+  });
+  Object.defineProperty(node, "firstChild", {
+    get(): StubNode | null { return node.children[0] || null; },
+  });
+  Object.defineProperty(node, "parentElement", {
+    get(): StubNode | null { return node.parent; },
+  });
+  Object.defineProperty(node, "isConnected", { get(): boolean { return true; } });
+
+  /*
+   * Выпадающий список отдаёт свои варианты и номер выбранного. Без них доска
+   * падает на строке `parentTokenSelect.options[parentTokenSelect.selectedIndex]`
+   * — и падает молча, внутри обработчика: сценарий карты записей выглядел как
+   * «контрол не нашёлся», а не как ошибка.
+   */
+  Object.defineProperty(node, "options", {
+    get(): StubNode[] { return node.children.filter((c: StubNode) => String(c.tagName) === "OPTION"); },
+  });
+  Object.defineProperty(node, "selectedIndex", {
+    get(): number {
+      const opts = node.children.filter((c: StubNode) => String(c.tagName) === "OPTION");
+      const idx = opts.findIndex((c: StubNode) => String(c.value || "") === String(node.value || ""));
+      return idx;
+    },
+  });
 
   Object.defineProperty(node, "className", {
     get() { return Array.from(classes).join(" "); },
@@ -182,9 +284,26 @@ export function makeNode(tag?: string): StubNode {
   return node as StubNode;
 }
 
+/** Лежит ли узел в поддереве. */
+function contains(root: StubNode, node: StubNode): boolean {
+  if (root === node) return true;
+  for (const child of root.children) if (contains(child, node)) return true;
+  return false;
+}
+
 function matches(n: StubNode, sel: string): boolean {
   if (sel.startsWith(".")) return n.classList.contains(sel.slice(1).split(/[.[]/)[0] as string);
   if (sel.startsWith("#")) return n.getAttribute("id") === sel.slice(1);
+  /* [attr="value"] и [attr]: по атрибуту ищется своя строка блока (К3),
+     и без этого проверка перехода шла бы не тем путём, что рабочий код. */
+  if (sel.startsWith("[") && sel.endsWith("]")) {
+    const body = sel.slice(1, -1);
+    const eq = body.indexOf("=");
+    if (eq < 0) return n.getAttribute(body) !== null;
+    const name = body.slice(0, eq);
+    const want = body.slice(eq + 1).replace(/^["']|["']$/g, "");
+    return n.getAttribute(name) === want;
+  }
   return n.tagName === sel.toUpperCase();
 }
 
@@ -200,6 +319,8 @@ function query(root: StubNode, sel: string): StubNode[] {
 export function makeDocument() {
   const doc: any = {
     body: makeNode("body"),
+    /* Как в браузере: документ отдаёт узел под фокусом, а не хранит его сам. */
+    get activeElement() { return focused; },
     createElement: (t: string) => makeNode(t),
     createTextNode: (t: string) => { const n = makeNode("#text") as any; n.textContent = String(t); return n; },
     getElementById: (id: string) => null as StubNode | null,

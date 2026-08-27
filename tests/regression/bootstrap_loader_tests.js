@@ -207,6 +207,17 @@ async function run() {
   const configNoteHelpersSrc = fs.readFileSync(configNoteHelpersPath, "utf8");
   const commandRegistrySrc = fs.readFileSync(commandRegistryPath, "utf8");
   const settingsSectionsRendererSrc = fs.readFileSync(settingsSectionsRendererPath, "utf8");
+  /*
+   * Редактор Fields и его помощники переехали в слой настроек (фаза 3b, пункт
+   * 2), а записи в конфиг оттуда — в модель (пункт 4). Старая панель зовёт их
+   * оттуда же, поэтому проверки по тексту читают три файла как один:
+   * разделение файлов — не изменение поведения.
+   */
+  const fieldsEditorLegacySrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_editor_legacy.js"), "utf8");
+  const fieldsModelSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_model.ts"), "utf8");
+  const rendererPairSrc = settingsSectionsRendererSrc + "\n" + fieldsEditorLegacySrc + "\n" + fieldsModelSrc;
   const priorityStripEngineSrc = fs.readFileSync(priorityStripEnginePath, "utf8");
   const priorityStripAdapterSrc = fs.readFileSync(priorityStripAdapterPath, "utf8");
   for (const guardPath of runtimeLiteralGuardPaths) {
@@ -600,25 +611,27 @@ async function run() {
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/ui\/settings_sections_renderer\.js"/.test(src), "settings sections renderer uses shared vault fallback helper");
   assertTrue(/cacheKey: "ui:settings-sections-renderer"/.test(src), "settings sections renderer cache key wired");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/ui\/settings_sections_renderer\.js"[\s\S]*?uiVaultEvalFallback: true/.test(src), "settings sections renderer enables bounded UI vault eval fallback");
-  assertTrue(/function readTagVisualsConfig\(/.test(settingsSectionsRendererSrc), "settings renderer exposes tagVisuals config reader");
-  assertTrue(/setName\("Show Color Settings"\)/.test(settingsSectionsRendererSrc), "settings renderer includes Show Color Settings toggle");
-  assertTrue(/setName\("Opacity Left"\)/.test(settingsSectionsRendererSrc), "settings renderer includes Opacity Left control");
-  assertTrue(/setName\("Tag text size"\)/.test(settingsSectionsRendererSrc), "settings renderer includes Tag text size slider");
-  assertTrue(/setName\("Tag bubble size - width"\)/.test(settingsSectionsRendererSrc), "settings renderer includes Tag bubble width slider");
-  assertTrue(/setName\("Tag bubble size - height"\)/.test(settingsSectionsRendererSrc), "settings renderer includes Tag bubble height slider");
-  assertTrue(/setName\("Empty bubble size"\)/.test(settingsSectionsRendererSrc), "settings renderer includes Empty bubble size slider");
-  assertTrue(/setName\("Tag shape"\)/.test(settingsSectionsRendererSrc) && /Round <-> Square/.test(settingsSectionsRendererSrc), "settings renderer includes round-to-square Tag shape slider");
-  assertTrue(/setName\("Opacity Right"\)/.test(settingsSectionsRendererSrc), "settings renderer includes Opacity Right control");
-  assertTrue(/addType\.createEl\("option", \{ text: "link", value: "wikilink" \}\);/.test(settingsSectionsRendererSrc), "settings renderer add-field type selector shows link label for wikilink kind");
-  assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(settingsSectionsRendererSrc), "settings renderer allows spaces in name_strict validation");
-  assertTrue(/InlineOverhaul: cannot resolve target link field for Deep Editor add/.test(settingsSectionsRendererSrc), "settings renderer fails fast when deep editor cannot resolve wikilink target field");
-  assertFalse(/const allowed = Array\.isArray\(row\.allowedParentValues\) \? row\.allowedParentValues : \[\]/.test(settingsSectionsRendererSrc), "wikilink binding inference does not restore parent from allowedParentValues fallback");
-  assertTrue(/tokens\.push\(\{ value: `s:\$\{stok\}\|p:\$\{ptok\}\|f:\$\{fid\}`, label: `└ \$\{stok\} \(\$\{ptok\}\)` \}\);/.test(settingsSectionsRendererSrc), "wikilink parent token selector disambiguates duplicate subtags by parent context");
-  assertTrue(/collectTagOrderFieldOptions\(/.test(settingsSectionsRendererSrc), "settings renderer resolves line field dropdown options from tag order fields");
-  assertTrue(/const renderUserTagsEditor = \(\) => \{/.test(settingsSectionsRendererSrc), "settings renderer includes user tags editor renderer");
-  assertTrue(/text: "Color your Tags"/.test(settingsSectionsRendererSrc), "settings renderer renders Color your Tags block header");
-  assertTrue(/Soft warning: User tags count exceeded 300\./.test(settingsSectionsRendererSrc), "settings renderer includes User tags soft warning copy");
-  assertTrue(/Color settings are hidden\. Enable: Tag & PKM > Order > Show color settings\./.test(settingsSectionsRendererSrc), "settings renderer shows explicit hint when tag color controls are hidden");
+  assertTrue(/function readTagVisualsConfig\(/.test(rendererPairSrc), "settings renderer exposes tagVisuals config reader");
+  assertTrue(/require\("\.\/settings\/custom\/fields_editor_legacy\.js"\)/.test(settingsSectionsRendererSrc),
+    "settings renderer pulls the moved Fields editor from the settings layer");
+  assertTrue(/setName\("Show Color Settings"\)/.test(rendererPairSrc), "settings renderer includes Show Color Settings toggle");
+  assertTrue(/setName\("Opacity Left"\)/.test(rendererPairSrc), "settings renderer includes Opacity Left control");
+  assertTrue(/setName\("Tag text size"\)/.test(rendererPairSrc), "settings renderer includes Tag text size slider");
+  assertTrue(/setName\("Tag bubble size - width"\)/.test(rendererPairSrc), "settings renderer includes Tag bubble width slider");
+  assertTrue(/setName\("Tag bubble size - height"\)/.test(rendererPairSrc), "settings renderer includes Tag bubble height slider");
+  assertTrue(/setName\("Empty bubble size"\)/.test(rendererPairSrc), "settings renderer includes Empty bubble size slider");
+  assertTrue(/setName\("Tag shape"\)/.test(rendererPairSrc) && /Round <-> Square/.test(rendererPairSrc), "settings renderer includes round-to-square Tag shape slider");
+  assertTrue(/setName\("Opacity Right"\)/.test(rendererPairSrc), "settings renderer includes Opacity Right control");
+  assertTrue(/addType\.createEl\("option", \{ text: "link", value: "wikilink" \}\);/.test(rendererPairSrc), "settings renderer add-field type selector shows link label for wikilink kind");
+  assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(rendererPairSrc), "settings renderer allows spaces in name_strict validation");
+  assertTrue(/InlineOverhaul: cannot resolve target link field for Deep Editor add/.test(rendererPairSrc), "settings renderer fails fast when deep editor cannot resolve wikilink target field");
+  assertFalse(/const allowed = Array\.isArray\(row\.allowedParentValues\) \? row\.allowedParentValues : \[\]/.test(rendererPairSrc), "wikilink binding inference does not restore parent from allowedParentValues fallback");
+  assertTrue(/tokens\.push\(\{ value: `s:\$\{stok\}\|p:\$\{ptok\}\|f:\$\{fid\}`, label: `└ \$\{stok\} \(\$\{ptok\}\)` \}\);/.test(rendererPairSrc), "wikilink parent token selector disambiguates duplicate subtags by parent context");
+  assertTrue(/collectTagOrderFieldOptions\(/.test(rendererPairSrc), "settings renderer resolves line field dropdown options from tag order fields");
+  assertTrue(/const renderUserTagsEditor = \(\) => \{/.test(rendererPairSrc), "settings renderer includes user tags editor renderer");
+  assertTrue(/text: "Color your Tags"/.test(rendererPairSrc), "settings renderer renders Color your Tags block header");
+  assertTrue(/Soft warning: User tags count exceeded 300\./.test(rendererPairSrc), "settings renderer includes User tags soft warning copy");
+  assertTrue(/Color settings are hidden\. Enable: Tag & PKM > Order > Show color settings\./.test(rendererPairSrc), "settings renderer shows explicit hint when tag color controls are hidden");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/config_note_orchestrator\.js"/.test(src), "config note orchestrator uses shared vault fallback helper");
   assertTrue(/cacheKey: "feature:config-note-orchestrator"/.test(src), "config note orchestrator cache key wired");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/rules_sync_orchestrator\.js"/.test(src), "rules sync orchestrator uses shared vault fallback helper");
@@ -665,12 +678,12 @@ async function run() {
   assertTrue(/command registry unavailable: navigation commands skipped/.test(src), "navigation skip guard exists");
   assertTrue(/command registry unavailable: PKM commands skipped/.test(src), "pkm skip guard exists");
   assertTrue(/command registry unavailable: config commands skipped/.test(src), "config skip guard exists");
-  assertTrue(/const moveKeys = \[key\];/.test(settingsSectionsRendererSrc), "order board dnd initializes moved key bundle");
-  assertTrue(/const subKey = getSubKeyForParent\(key\);/.test(settingsSectionsRendererSrc), "order board dnd resolves sub key for parent");
-  assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(settingsSectionsRendererSrc), "order board dnd inserts parent and sub together");
-  assertTrue(/const freeRoamSelect = item\.createEl\("select"\);[\s\S]*const activeSelect = item\.createEl\("select"\);/.test(settingsSectionsRendererSrc), "order board renders Free roam select before Active select");
-  assertTrue(/freeRoamSelect\.createEl\("option", \{ text: "off", value: "off" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "minimal", value: "minimal" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "full", value: "full" \}\);/.test(settingsSectionsRendererSrc), "free roam select uses off\/minimal\/full options");
-  assertTrue(/activeSelect\.createEl\("option", \{ text: "yes", value: "yes" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "no", value: "no" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "hotkey_only", value: "hotkey_only" \}\);/.test(settingsSectionsRendererSrc), "active select uses yes\/no\/hotkey_only options");
+  assertTrue(/const moveKeys = \[key\];/.test(rendererPairSrc), "order board dnd initializes moved key bundle");
+  assertTrue(/const subKey = getSubKeyForParent\(key\);/.test(rendererPairSrc), "order board dnd resolves sub key for parent");
+  assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "order board dnd inserts parent and sub together");
+  assertTrue(/const freeRoamSelect = item\.createEl\("select"\);[\s\S]*const activeSelect = item\.createEl\("select"\);/.test(rendererPairSrc), "order board renders Free roam select before Active select");
+  assertTrue(/freeRoamSelect\.createEl\("option", \{ text: "off", value: "off" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "minimal", value: "minimal" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "full", value: "full" \}\);/.test(rendererPairSrc), "free roam select uses off\/minimal\/full options");
+  assertTrue(/activeSelect\.createEl\("option", \{ text: "yes", value: "yes" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "no", value: "no" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "hotkey_only", value: "hotkey_only" \}\);/.test(rendererPairSrc), "active select uses yes\/no\/hotkey_only options");
 
   assertTrue(/function getConfigNoteOrchestrator\(\)/.test(src), "config note orchestrator getter exists");
   assertTrue(/async function loadConfigNoteOrchestratorSafe\(app\)/.test(src), "config note orchestrator safe loader exists");
@@ -731,7 +744,7 @@ async function run() {
   assertTrue(/__compatProfile\.isCompatEnabled\("ENABLE_CONFIG_MIGRATION_SHIMS"\)/.test(src) && /cfg\.pkm\.generatedRulesPath = String\(cfg\.rules\.tagWheelPath\)\.trim\(\);/.test(src), "migrateConfig keeps migration-only shim for rules.tagWheelPath when compat flag enabled");
   assertFalse(/cfg\.pkm\.sourceOfTruth\s*=/.test(src), "migrateConfig no longer writes dead pkm.sourceOfTruth field");
   assertFalse(/cfg\.pkm\.autoGenerateRules\s*=/.test(src), "migrateConfig no longer writes dead pkm.autoGenerateRules field");
-  assertFalse(/\.setName\("TagWheel rules path"\)/.test(settingsSectionsRendererSrc), "settings no longer expose contradictory legacy TagWheel rules path field");
+  assertFalse(/\.setName\("TagWheel rules path"\)/.test(rendererPairSrc), "settings no longer expose contradictory legacy TagWheel rules path field");
   assertTrue(/bridge\.loadVaultModule\(app, modulePath, false, "__inlineOverhaulMainModuleCache"\)/.test(src), "main shared loader uses canonical vault bridge path before adapter fallback");
   assertFalse(/console\.log\("\[inline-overhaul\] loaded"\)/.test(src), "main has no unconditional production console.log on plugin load");
   assertTrue(/cfg\.pkm\.behavior\.io\.separator1 = s1 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator1;/.test(src), "migrateConfig normalizes separator1");
@@ -757,12 +770,12 @@ async function run() {
   assertTrue(/try \{\s*await this\.initializeDevLogSession\(this\.getConfig\(\)\);\s*\} catch \(e\)/.test(src), "onload guards dev-log session init with fail-open try/catch");
   assertTrue(/await this\.initializeDevLogSession\(this\.getConfig\(\)\);/.test(src), "onload initializes dev log session rotation");
   assertTrue(/session\.start/.test(src) && /session\.end/.test(src), "main writes session lifecycle events");
-  assertTrue(/\.setName\("Enable Dev Mode"\)/.test(settingsSectionsRendererSrc), "settings UI exposes dev mode toggle");
-  assertTrue(/\.setName\("Generate log for AI\?"\)/.test(settingsSectionsRendererSrc), "advanced settings exposes Generate log for AI toggle");
-  assertTrue(/txt\.inputEl\.addEventListener\("blur", commitPath\);/.test(settingsSectionsRendererSrc), "log_path commits on blur to avoid per-key rerender focus loss");
-  assertTrue(/if \(!evt \|\| evt\.key !== "Enter"\) return;/.test(settingsSectionsRendererSrc), "log_path commits on Enter key");
-  assertTrue(/Yes: in addition to human `.md` log, generate detailed AI `.ndjson` log\./.test(settingsSectionsRendererSrc), "advanced settings documents dual-log behavior");
-  assertFalse(/Dev log max file size \(KB\)/.test(settingsSectionsRendererSrc), "legacy dev max size control removed from settings");
+  assertTrue(/\.setName\("Enable Dev Mode"\)/.test(rendererPairSrc), "settings UI exposes dev mode toggle");
+  assertTrue(/\.setName\("Generate log for AI\?"\)/.test(rendererPairSrc), "advanced settings exposes Generate log for AI toggle");
+  assertTrue(/txt\.inputEl\.addEventListener\("blur", commitPath\);/.test(rendererPairSrc), "log_path commits on blur to avoid per-key rerender focus loss");
+  assertTrue(/if \(!evt \|\| evt\.key !== "Enter"\) return;/.test(rendererPairSrc), "log_path commits on Enter key");
+  assertTrue(/Yes: in addition to human `.md` log, generate detailed AI `.ndjson` log\./.test(rendererPairSrc), "advanced settings documents dual-log behavior");
+  assertFalse(/Dev log max file size \(KB\)/.test(rendererPairSrc), "legacy dev max size control removed from settings");
   assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(src), "setConfigPatch starts new dev log session on dev_mode ON transition");
   assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(src), "setConfigPatch closes dev log session on dev_mode OFF transition");
   assertTrue(/if \(wasEnabled && isEnabled && \(beforePath !== afterPath \|\| beforeAi !== afterAi\)\) \{[\s\S]*dev-mode-log:reinit/.test(src), "setConfigPatch reinitializes log session when path or AI toggle changes while enabled");
@@ -949,7 +962,7 @@ async function run() {
   assertTrue(/date_runtime_shared\.js/.test(statusDateSrc), "status_date references shared date runtime module");
   assertTrue(/date_runtime_shared\.js/.test(tagwheelSrc), "tagwheel references shared date runtime module");
   assertTrue(/tagwheel_rules_normalizer\.js/.test(tagwheelCoreSrc), "tagwheel_core references shared rules normalizer module");
-  assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(settingsSectionsRendererSrc), "settings renderer infer-element defaults have no hardcoded emoji markers");
+  assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(rendererPairSrc), "settings renderer infer-element defaults have no hardcoded emoji markers");
   assertFalse(/"📅"|"🛫"|"🕒"|"⌛"|"⏳"|"➕"|"🔁"/.test(codecSrc), "tagwheel config codec has no hardcoded emoji defaults");
   assertTrue(/LINE_FINALIZE_UNIFIED_PATH/.test(statusDateSrc), "status_date references unified line finalizer module path");
   assertTrue(/function createStatusRuntimeCommon\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared status runtime factory");
@@ -1314,8 +1327,8 @@ async function run() {
   assertTrue(/class TagVisualTokenWidget extends cmView\.WidgetType/.test(src), "main defines unified tag visual widget for full and empty rendering");
   assertTrue(/this\.displayTextOverride = String\(displayTextOverride \|\| ""\)/.test(src), "tag visual widget supports custom display text override");
   assertTrue(/displayTextOverride \|\| this\.tokenText/.test(src), "tag visual widget renders custom text when provided");
-  assertTrue(/visSel\.createEl\("option", \{ text: "custom", value: "custom" \}\)/.test(settingsSectionsRendererSrc), "settings renderer exposes custom visibility option in deep color settings");
-  assertTrue(/customInput\.placeholder = "print"/.test(settingsSectionsRendererSrc), "settings renderer uses print placeholder for custom visibility text");
+  assertTrue(/visSel\.createEl\("option", \{ text: "custom", value: "custom" \}\)/.test(rendererPairSrc), "settings renderer exposes custom visibility option in deep color settings");
+  assertTrue(/customInput\.placeholder = "print"/.test(rendererPairSrc), "settings renderer uses print placeholder for custom visibility text");
   assertTrue(/function createTagVisualDecorationExtension\(plugin\)/.test(src), "main defines tag visual CM6 extension");
   assertTrue(/createTagVisualDecorationExtension\(this\)/.test(src), "main registers tag visual CM6 extension");
   assertFalse(/rt\.loadPkmOptionKeys\(\)/.test(tagwheelSrc), "tagwheel option key preload avoids direct runtime object method calls");

@@ -11,7 +11,7 @@
  * Фрагменты кешируются по id: getSettingDefinitions вызывается часто (П-11).
  */
 
-import type { SettingDef } from "./types.ts";
+import type { NamedDef } from "./types.ts";
 
 /** Минимум от DOM, чтобы модуль собирался и тестировался без браузера. */
 export interface FragmentHost {
@@ -65,11 +65,11 @@ export class Describer {
   }
 
   /** Ключ кеша: если тексты и режим подсказок не менялись, фрагмент тот же. */
-  private cacheKey(it: SettingDef, o: DescribeOptions): string {
+  private cacheKey(it: NamedDef, o: DescribeOptions): string {
     return [it.desc || "", it.tip || "", (it.searchTerms || []).join("|"), o.showTips ? "1" : "0"].join(" ");
   }
 
-  describe(it: SettingDef, o: DescribeOptions): string | DocLike | undefined {
+  describe(it: NamedDef, o: DescribeOptions): string | DocLike | undefined {
     const hasSomething = it.desc || (o.showTips && it.tip) || (it.searchTerms && it.searchTerms.length);
     if (!hasSomething) return undefined;
 

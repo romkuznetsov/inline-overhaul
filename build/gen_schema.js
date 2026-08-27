@@ -15,10 +15,16 @@
  * результат их вызова.
  *
  * Что в схему не попадает и почему:
- *   - `kind: "custom"` — своим блокам нужны рендереры, они появляются в фазе 3;
+ *   - `kind: "custom"` без реализованного рендерера — блок ждёт своей фазы;
  *   - `kind: "buttons"` — кнопке нужно действие из реестра 5.6, а показывать
  *     кнопку, которая ничего не делает, запрещено (З8).
  * Пропущенное перечисляется в шапке каждого файла, чтобы о нём не забыли.
+ *
+ * Свой блок попадает в схему, как только его рендерер появился в `custom/`:
+ * реестр CUSTOM_IMPL — единственное место, где это объявляется. Видимые
+ * тексты блоков в схеме жить не могут (у `custom` нет ни `name`, ни `desc`),
+ * поэтому они выгружаются из прототипа отдельным файлом `custom_texts.ts` —
+ * тоже генерацией, чтобы согласованный текст не переписывался руками.
  */
 
 const fs = require("fs");
@@ -45,6 +51,43 @@ const TAB_CONST = {
   visual: "VISUAL_GROUPS",
   transform: "TRANSFORM_GROUPS",
   advanced: "ADVANCED_GROUPS",
+};
+
+/**
+ * Свои блоки, у которых рендерер уже есть. Ключ — имя функции в прототипе,
+ * `named` — что импортируется из `custom/`, `expr` — выражение, которое
+ * встаёт в схему вместо имени прототипа.
+ *
+ * Коллаут получает вкладку аргументом: текст у каждой вкладки свой, а
+ * рендерер один, и в прототипе он берёт текст из глобального activeTab —
+ * в схеме такого глобального состояния нет и быть не должно.
+ */
+const CUSTOM_IMPL = {
+  renderTabCallout: {
+    module: "callouts.ts",
+    named: "callout",
+    expr: group => 'callout("' + group.tab + '")',
+  },
+  renderTagPreview: {
+    module: "previews.ts",
+    named: "tagPreview",
+    expr: () => "tagPreview",
+  },
+  renderBarsPreview: {
+    module: "previews.ts",
+    named: "barsPreview",
+    expr: () => "barsPreview",
+  },
+  renderWheelPreview: {
+    module: "previews.ts",
+    named: "wheelPreview",
+    expr: () => "wheelPreview",
+  },
+  renderFieldEditor: {
+    module: "fields_editor.ts",
+    named: "fieldsEditor",
+    expr: () => "fieldsEditor",
+  },
 };
 
 /** Найти конец литерала, начинающегося с открывающей скобки в позиции i. */
@@ -95,7 +138,15 @@ const body = src.slice(arrStart + 1, arrEnd);
 const groups = splitLiterals(body);
 const perTab = {};
 const skipped = {};
-let kept = 0, dropped = 0;
+/** tab -> Map(именованный импорт -> файл в custom/) */
+const perTabImports = {};
+let kept = 0, dropped = 0, customs = 0;
+
+/** Имя функции-рендерера в записи прототипа: `render: renderTabCallout`. */
+function renderName(literal) {
+  const m = /render:\s*([A-Za-z_$][A-Za-z0-9_$]*)/.exec(literal);
+  return m ? m[1] : null;
+}
 
 for (const g of groups) {
   const tab = field(g, "tab");
@@ -113,7 +164,23 @@ for (const g of groups) {
   const drop = [];
   for (const it of items) {
     const kind = field(it, "kind");
-    if (kind === "custom" || kind === "buttons") {
+    if (kind === "custom") {
+      const fn = renderName(it);
+      const impl = fn ? CUSTOM_IMPL[fn] : null;
+      if (!impl) {
+        drop.push((field(it, "id") || "?") + " (" + kind + ")");
+        dropped++;
+        continue;
+      }
+      /* Имя функции прототипа меняется на выражение из реестра; всё
+         остальное в записи остаётся как согласовано. */
+      keep.push(it.replace(new RegExp("render:\\s*" + fn), "render: " + impl.expr({ tab })));
+      const imports = perTabImports[tab] = perTabImports[tab] || new Map();
+      imports.set(impl.named, impl.module);
+      customs++;
+      continue;
+    }
+    if (kind === "buttons") {
       drop.push((field(it, "id") || "?") + " (" + kind + ")");
       dropped++;
       continue;
@@ -144,6 +211,16 @@ for (const tab of Object.keys(TAB_FILE)) {
     .map(s => " *   " + s.id + ": " + s.drop.join(", "))
     .join("\n");
 
+  /* Импорты своих блоков: по одной строке на файл в custom/. */
+  const byModule = new Map();
+  for (const [named, module] of (perTabImports[tab] || new Map())) {
+    if (!byModule.has(module)) byModule.set(module, []);
+    byModule.get(module).push(named);
+  }
+  const customImports = Array.from(byModule.entries())
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([module, names]) => "import { " + names.sort().join(", ") + ' } from "../custom/' + module + '";');
+
   const head = [
     "/**",
     " * ВНИМАНИЕ: файл сгенерирован из docs/prototype/settings_prototype.html.",
@@ -155,6 +232,7 @@ for (const tab of Object.keys(TAB_FILE)) {
     "",
     'import type { SettingsGroup } from "../types.ts";',
     helpers.length ? "import { " + helpers.join(", ") + ' } from "../types.ts";' : null,
+    ...customImports,
     "",
     "export const " + TAB_CONST[tab] + ": readonly SettingsGroup[] = [",
     text,
@@ -248,5 +326,88 @@ const index = [
 ].join("\n");
 fs.writeFileSync(path.join(OUT_DIR, "index.ts"), index, "utf8");
 
-console.log("групп из прототипа: " + groups.length + ", файлов записано: " + (files + 1));
-console.log("настроек перенесено: " + kept + ", пропущено своих блоков и кнопок: " + dropped);
+/*
+ * Тексты своих блоков. Литерал копируется из прототипа как есть, вместе со
+ * склейкой строк и escape-последовательностями: любая попытка его вычислить
+ * и перепечатать — это шанс разойтись с согласованным текстом.
+ */
+function stringAfter(marker) {
+  const at = src.indexOf(marker);
+  if (at < 0) throw new Error("не нашёл в прототипе: " + marker);
+  const from = src.indexOf('"', at + marker.length - 1);
+  let to = from + 1;
+  while (to < src.length && !(src[to] === '"' && src[to - 1] !== "\\")) to++;
+  return src.slice(from, to + 1);
+}
+
+function literalAfter(marker) {
+  const at = src.indexOf(marker);
+  if (at < 0) throw new Error("не нашёл в прототипе: " + marker);
+  const from = src.indexOf("{", at + marker.length - 1);
+  return src.slice(from, matchBrace(src, from) + 1);
+}
+
+const customTexts = [
+  "/**",
+  " * ВНИМАНИЕ: файл сгенерирован из docs/prototype/settings_prototype.html.",
+  " * Руками не правится. Правится прототип, затем `npm run gen:schema`.",
+  " *",
+  " * Видимые тексты своих блоков. У записи `kind: \"custom\"` нет ни `name`,",
+  " * ни `desc`, поэтому её текстам нужен свой дом — и он тоже генерируется,",
+  " * чтобы согласованная формулировка не переписывалась руками (Р8).",
+  " */",
+  "",
+  "/** Вводный коллаут вкладки (10.1): фраза, подсказка и абзац. */",
+  "export interface CalloutText {",
+  "  head: string;",
+  "  tip: string;",
+  "  body: string;",
+  "}",
+  "",
+  "export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = " +
+    literalAfter("const TAB_CALLOUTS = {") + ";",
+  "",
+  "/**",
+  " * Видимые тексты живого предпросмотра (10.3). `line`, `element` и `link` —",
+  " * содержимое выдуманной строки: предпросмотр показывает результат настроек",
+  " * на ней, а не на заметке пользователя (П1). Fields и Values при этом",
+  " * настоящие, из конфига.",
+  " */",
+  "/** Строка выдуманного дерева: какие Fields несёт и что под ней вложено. */",
+  "export interface PreviewNode {",
+  "  text: string;",
+  "  fields: readonly string[];",
+  "  children: readonly PreviewNode[];",
+  "}",
+  "",
+  "export interface PreviewText {",
+  "  cap: string;",
+  "  tip: string;",
+  "  line?: string;",
+  "  element?: string;",
+  "  link?: string;",
+  "  note?: string;",
+  "  tree?: readonly PreviewNode[];",
+  "}",
+  "",
+  "export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = " +
+    literalAfter("const PREVIEW_TEXTS = {") + ";",
+  "",
+  "/** П9: предпросмотр рисует панель, а не редактор, и говорит об этом. */",
+  "export const PREVIEW_NOTE = " + stringAfter("const PREVIEW_NOTE = ") + ";",
+  "",
+  "/** ПЗ2: Fields в предпросмотре примерные, пока не настроены свои. */",
+  "export const PREVIEW_EXAMPLE = " + stringAfter("const PREVIEW_EXAMPLE = ") + ";",
+  "",
+  "/** Текст выдуманной строки в предпросмотрах формы линии. */",
+  "export const PREVIEW_LINE_TEXT = " + stringAfter("const PREVIEW_LINE_TEXT = ") + ";",
+  "",
+  "/** Пустое состояние правого Block: что здесь бывает (ПЗ2). */",
+  "export const PREVIEW_EMPTY_RIGHT = " + stringAfter("const PREVIEW_EMPTY_RIGHT = ") + ";",
+  "",
+].join("\n");
+fs.writeFileSync(path.join(OUT_DIR, "custom_texts.ts"), customTexts, "utf8");
+
+console.log("групп из прототипа: " + groups.length + ", файлов записано: " + (files + 2));
+console.log("настроек перенесено: " + kept + ", своих блоков: " + customs +
+            ", пропущено блоков и кнопок: " + dropped);

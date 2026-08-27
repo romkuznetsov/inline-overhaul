@@ -4,7 +4,6 @@
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
- *   transform-intro: transform-callout (custom)
  *   inline-to-note: i2n-button-preview (custom)
  *   note-properties: yaml-mapping (custom)
  *   smart-rules: smart-rules-list (custom)
@@ -12,8 +11,13 @@
 
 import type { SettingsGroup } from "../types.ts";
 import { on, eq } from "../types.ts";
+import { callout } from "../custom/callouts.ts";
 
 export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
+{ id: "transform-intro", tab: "transform",  order: 50, heading: "Before you start",
+  items: [
+    { kind:"custom", id:"transform-callout", render: callout("transform") }
+  ] },
 {
   id: "inline-to-note", tab: "transform", order: 100, heading: "Inline to note",
   tip: "One keypress does three things in a row: it works out which note to use, it puts your text into that note, and it tidies up the line you pressed on. The groups below follow that order, so you can read down the page and see the whole journey. Nothing runs until <code>Inline to note</code> just below is switched on",

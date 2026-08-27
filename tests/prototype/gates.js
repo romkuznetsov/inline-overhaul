@@ -36,6 +36,9 @@ const PROPER = new Set(["Obsidian","Markdown","YAML","Ctrl","Cmd","Inline","Data
   "Status","Priority","Strict","Free","Behavior","Position","PKM","I","Smart","Rules","Level"]);
 const CASE_OK = new Set([...ENTITIES, ...PROPER]);
 
+/* A key combination, quoted or bare: 'Ctrl+A', Cmd + A, Shift+Tab. */
+const HOTKEY = /^['"]?(?:Ctrl|Cmd|Alt|Shift|Meta)(?:\s*\+\s*[A-Za-z0-9]+)+['"]?$/;
+
 /* The same rule read backwards: an entity written in lower case is the bug
    this convention exists to prevent, so catch it too. */
 const LOWER = /(?<![A-Za-z#\/-])(fields?|values?|bars?|prefix(?:es)?|separators?|tagwheel)(?![A-Za-z-])/g;
@@ -144,6 +147,11 @@ for (const g of SCHEMA) for (const it of g.items) {
   const words = it.name.split(" ");
   if (words.length > 5) bad(it.id + " name over 5 words: " + it.name);
   words.slice(1).forEach(w => {
+    /* A key name is not an English word: 'Ctrl+A' has to keep its capitals,
+       and a name cannot carry <code>, so the owner writes it in quotes.
+       Stripping the punctuation first turned it into CtrlA and the sentence
+       case rule flagged it. */
+    if (HOTKEY.test(w)) return;
     const c = w.replace(/[^A-Za-z]/g, "");
     if (c && c[0] === c[0].toUpperCase() && c[0] !== c[0].toLowerCase() && !CASE_OK.has(c)) {
       bad(it.id + " name not sentence case: " + it.name);

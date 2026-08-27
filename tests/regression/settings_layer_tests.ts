@@ -52,6 +52,71 @@ function makePane(initial: Record<string, unknown> = {}) {
   return { store, pane };
 }
 
+/**
+ * Панель, которая считает пересборки: слайдер не должен их вызывать, иначе
+ * платформа заменяет узел контрола и перетаскивание обрывается.
+ */
+function makeCountingPane(initial: Record<string, unknown> = {}) {
+  const store = new MemoryStore(initial);
+  const counts = { rebuild: 0, refresh: 0 };
+  const pane = new SettingsPane({
+    schema: SCHEMA,
+    tabs: TABS,
+    store,
+    actions: {},
+    fragments: fragments as never,
+    rebuild: () => { counts.rebuild++; },
+    refresh: () => { counts.refresh++; },
+  });
+  return { store, pane, counts };
+}
+
+/** Свой блок группы по её заголовку: предпросмотр всегда первый в группе. */
+const blockOf = (pane: SettingsPane, tab: string, heading: string): Def => {
+  const group = groupOf(pane, tab, heading);
+  /* Первой строкой группы идёт её вводная фраза, свой блок — следующим. */
+  const block = (group?.items || []).find((it: Def) => typeof it.render === "function");
+  assert.ok(block, heading + ": в группе нет своего блока");
+  return block as Def;
+};
+
+/** Отрисовать свой блок на заглушке и вернуть корень строки. */
+function drawBlock(def: Def): StubNode {
+  const host = makeNode("div");
+  const setting = { settingEl: host };
+  const cleanup = def.render(setting, {});
+  assert.equal(typeof cleanup, "function", "свой блок обязан вернуть функцию очистки (С5)");
+  return host;
+}
+
+/** Компонент кнопки в терминах теста: запоминает, что на нём вызвали. */
+function fakeButton() {
+  const calls: string[] = [];
+  const btn: Def = {
+    calls,
+    setIcon(v: string) { calls.push("icon:" + v); return btn; },
+    setTooltip(v: string) { calls.push("tooltip:" + v); return btn; },
+    setDisabled(v: boolean) { calls.push("disabled:" + String(v)); return btn; },
+    onClick(fn: () => void) { calls.push("onClick"); btn.click = fn; return btn; },
+    click: () => {},
+  };
+  return btn;
+}
+
+/** Последнее состояние неактивности, которое кнопке выставили. */
+const lastDisabled = (btn: Def): string | undefined =>
+  (btn.calls as string[]).filter((c: string) => c.startsWith("disabled:")).pop();
+
+const lastTooltip = (btn: Def): string | undefined =>
+  (btn.calls as string[]).filter((c: string) => c.startsWith("tooltip:")).pop();
+
+/** Первая группа вкладки: у каждой вкладки это вводный коллаут. */
+const firstGroup = (pane: SettingsPane, tab: string): Def => {
+  pane.setActiveTab(tab as never);
+  const groups = allDefs(pane).filter((d: Def) => d.type === "group");
+  return groups[0] as Def;
+};
+
 async function main(): Promise<void> {
   /* ---- схема ---------------------------------------------------------- */
 
@@ -92,7 +157,7 @@ async function main(): Promise<void> {
 
   await test("группы отдаются в порядке order", () => {
     const ids = groupsFor("general").map(g => g.id);
-    assert.deepEqual(ids, ["help", "modules"]);
+    assert.deepEqual(ids, ["general-intro", "help", "modules"]);
   });
 
   await test("все семь вкладок на месте и в порядке 6.1", () => {
@@ -101,7 +166,8 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 20, "групп с настройками");
+    assert.equal(SCHEMA.length, 28,
+      "групп в схеме: 20 с настройками, 7 вводных коллаутов и группа Fields");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
     assert.equal(bound.length, 87, "настроек, привязанных к путям конфига");
   });
@@ -114,17 +180,17 @@ async function main(): Promise<void> {
      * Список закрытый: если группа исчезнет по другой причине, тест упадёт.
      */
     const AWAITED = [
-      "general-intro", "keyboard-intro", "nav-intro", "pkm-intro",
-      "visual-intro", "transform-intro", "advanced-intro",   // вводные коллауты
-      "binder", "command-reference",                          // свои блоки, фаза 3c
-      "fields", "note-properties", "smart-rules",             // свои блоки, фаза 3b и 3c
-      "generated-files",                                      // кнопки без действий, фаза 5
+      "binder",                      // ждёт миграции конфига, фаза 2
+      "command-reference",           // ждёт реестра действий и ID команд
+      "note-properties",             // пишет данные Field: ждёт слоя данных
+      "smart-rules",                 // то же: условия выбирают Values Fields
+      "generated-files",             // кнопки без действий, фаза 5
     ];
     const have = new Set(SCHEMA.map(g => g.id));
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(20 + AWAITED.length, 33, "33 группы прототипа разложены без остатка");
+    assert.equal(SCHEMA.length + AWAITED.length, 33, "33 группы прототипа разложены без остатка");
   });
 
   await test("тумблер модуля есть у четырёх вкладок и только у них", () => {
@@ -149,7 +215,7 @@ async function main(): Promise<void> {
     const { pane } = makePane();
     const list = allDefs(pane);
     assert.equal(pane.activeTab(), "general", "на старте открыта первая вкладка с группами");
-    assert.deepEqual(list.map((d: Def) => d.heading), ["Help", "Modules"]);
+    assert.deepEqual(list.map((d: Def) => d.heading), [undefined, "Help", "Modules"]);
     for (const d of list) assert.equal(d.type, "group", "страниц-переходов больше нет");
   });
 
@@ -187,18 +253,18 @@ async function main(): Promise<void> {
     assert.equal(list[0]?.name, "", "первой идёт полоса");
     assert.equal(list[0]?.searchable, false, "полоса не должна попадать в поиск");
     assert.equal(typeof list[0]?.render, "function");
-    assert.equal(list[1]?.heading, "Help", "за полосой — группы вкладки");
+    assert.equal(list[1]?.cls, "io-group-general-intro", "за полосой — группы вкладки");
     list[0].render();
     assert.equal(picked, "general");
   });
 
   await test("контролы получают правильный тип и ключ", () => {
     const { pane } = makePane();
-    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded 'Ctrl+A'")?.items || [];
     const byName = (n: string) => items.find((i: Def) => i.name === n);
 
-    assert.equal(byName("Expanded select all")?.control?.type, "toggle");
-    assert.equal(byName("Expanded select all")?.control?.key, "editor.selectAll.enabled");
+    assert.equal(byName("Expanded 'Ctrl+A'")?.control?.type, "toggle");
+    assert.equal(byName("Expanded 'Ctrl+A'")?.control?.key, "editor.selectAll.enabled");
 
     const steps = byName("Selection steps");
     assert.equal(steps?.control?.type, "dropdown");
@@ -217,7 +283,7 @@ async function main(): Promise<void> {
 
   await test("предикаты доходят до платформы как функции", () => {
     const { pane, store } = makePane();
-    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded 'Ctrl+A'")?.items || [];
     const delay = items.find((i: Def) => i.name === "Time between presses");
     const steps = items.find((i: Def) => i.name === "Selection steps");
 
@@ -229,6 +295,423 @@ async function main(): Promise<void> {
     assert.equal(steps?.control?.disabled?.(), true, "пока функция выключена, шаги неактивны");
     void store.set("editor.selectAll.enabled", true);
     assert.equal(steps?.control?.disabled?.(), false);
+  });
+
+  /* ---- вводные коллауты (10.1) ---------------------------------------- */
+
+  await test("вводный коллаут — первый блок каждой вкладки (К1)", () => {
+    const { pane } = makePane();
+    for (const tab of TABS) {
+      const group = firstGroup(pane, tab.id);
+      /*
+       * Заголовка у вводной группы нет: коллаут показывается сразу. Так же
+       * устроен прототип, а «Before you start» над коллаутом было
+       * расхождением с ним.
+       */
+      assert.ok(/^io-group-[a-z]+-intro$/.test(String(group.cls)),
+        tab.id + ": первой идёт не вводная группа, а " + group.cls);
+      assert.equal(group.heading, undefined, tab.id + ": над коллаутом не должно быть заголовка");
+      const row = group.items?.[0];
+      assert.equal(typeof row?.render, "function", tab.id + ": коллаут рисуется не своим блоком");
+      assert.equal(row?.searchable, false, tab.id + ": коллаут не должен попадать в поиск");
+      assert.equal(row?.name, "", tab.id + ": у своего блока имени нет");
+      assert.equal(row?.control, undefined, tab.id + ": у коллаута нет контрола");
+    }
+  });
+
+  await test("коллаут несёт фразу вкладки и абзац (К1)", () => {
+    const { pane } = makePane();
+    const host = drawBlock(firstGroup(pane, "navigation").items[0]);
+    const text = host.textContent;
+    assert.ok(text.includes("This menu helps to make inline navigation"),
+      "нет фразы о том, что делает вкладка: " + text.slice(0, 80));
+    assert.ok(text.includes("Moving lines and whole trees"), "нет абзаца о содержимом вкладки");
+  });
+
+  await test("подсказка коллаута открывается под коллаутом, а не внутри (К2)", () => {
+    const { pane } = makePane();
+    const host = drawBlock(firstGroup(pane, "navigation").items[0]);
+    const box = host.querySelector(".io-callout");
+    assert.ok(box, "коллаут не нарисован");
+
+    const mark = host.querySelector(".io-help");
+    assert.ok(mark, "нет «?» в шапке коллаута");
+    assert.equal(box?.querySelectorAll(".io-tip").length, 0, "до нажатия подсказки нет");
+
+    mark?.click();
+    /*
+     * Ровно то, о чём говорил заказчик: раскрытие внутри рамки раздвигало
+     * текст коллаута. Подсказка обязана быть ребёнком строки, а не бокса.
+     */
+    assert.equal(box?.querySelectorAll(".io-tip").length, 0,
+      "подсказка не должна открываться внутри коллаута");
+    const tips = host.children.filter((n: StubNode) => n.classList.contains("io-tip"));
+    assert.equal(tips.length, 1, "подсказка должна быть под коллаутом, одна");
+    assert.ok(String(tips[0]?.textContent).includes("None of these commands has a key by default"),
+      "в подсказке не тот текст: " + tips[0]?.textContent);
+    assert.equal(mark?.getAttribute("aria-expanded"), "true");
+
+    mark?.click();
+    assert.equal(host.children.filter((n: StubNode) => n.classList.contains("io-tip")).length, 0,
+      "повторное нажатие должно закрывать подсказку");
+    assert.equal(mark?.getAttribute("aria-expanded"), "false");
+  });
+
+  await test("в коллауте нет кнопки перехода (решение заказчика 2026-08-26)", () => {
+    /*
+     * Кнопка вела на настройку двумя строками ниже и ценности не давала;
+     * заодно ушёл и весь шов перехода. Проверка держит это: единственная
+     * кнопка коллаута — «?», и та появляется только при включённых подсказках.
+     */
+    const { pane } = makePane();
+    for (const tab of TABS) {
+      const host = drawBlock(firstGroup(pane, tab.id).items[0]);
+      const buttons = host.querySelectorAll("BUTTON");
+      assert.equal(buttons.length, 1, tab.id + ": в коллауте лишние кнопки");
+      assert.equal(buttons[0]?.classList.contains("io-help"), true,
+        tab.id + ": единственная кнопка коллаута — «?»");
+    }
+  });
+
+  await test("подсказка коллаута исчезает при выключенном Show tips", () => {
+    const { pane } = makePane({ general: { help: { showTips: false } } });
+    const host = drawBlock(firstGroup(pane, "navigation").items[0]);
+    assert.equal(host.querySelectorAll(".io-help").length, 0, "«?» осталось");
+    assert.ok(host.textContent.includes("This menu helps"), "сам коллаут должен остаться");
+  });
+
+  await test("очистка блока убирает открытую подсказку (С5)", () => {
+    const { pane } = makePane();
+    const host = makeNode("div");
+    const cleanup = firstGroup(pane, "navigation").items[0].render({ settingEl: host }, {});
+    host.querySelector(".io-help")?.click();
+    assert.equal(host.children.filter((n: StubNode) => n.classList.contains("io-tip")).length, 1);
+    cleanup();
+    assert.equal(host.children.filter((n: StubNode) => n.classList.contains("io-tip")).length, 0,
+      "подсказка должна уйти вместе с блоком");
+  });
+
+  /* ---- предпросмотр тегов (10.3, проверка по выводу Г20) -------------- */
+
+  const bubbles = (host: StubNode): StubNode[] => host.querySelectorAll(".io-bubble");
+
+  await test("предпросмотр тегов рисует строку целиком", () => {
+    const { pane } = makePane();
+    const host = drawBlock(blockOf(pane, "visual", "Tag appearance"));
+    const text = host.textContent;
+
+    assert.equal(host.querySelectorAll(".io-preview").length, 1, "нет рамки предпросмотра");
+    assert.ok(text.includes("Rewrite the settings copy"), "нет текста выдуманной строки");
+    assert.ok(text.includes("2026-08-24"), "нет элемента справа");
+    assert.ok(text.includes("[[ClientA]]"), "нет ссылки справа");
+    /* П9: предпросмотр обязан сказать, что он не редактор */
+    assert.ok(text.includes("Close to what the editor draws"), "нет пометки о приблизительности");
+    /* ПЗ2: и что Fields пока примерные */
+    assert.ok(text.includes("Example Fields"), "нет пометки о примере");
+  });
+
+  await test("Value с подзначением слитно и раздельно (Г20)", () => {
+    const separate = makePane({ pkm: { behavior: { childTagFormat: "separate" } } });
+    const two = bubbles(drawBlock(blockOf(separate.pane, "visual", "Tag appearance")));
+    /* два пузыря Status плюс пустой пузырь Priority */
+    assert.equal(two.length, 3, "раздельно должно быть три пузыря: " +
+      two.map(b => b.textContent).join(" | "));
+    assert.equal(two[0]?.textContent, "#doing");
+    assert.equal(two[1]?.textContent, "#review");
+
+    const combined = makePane({ pkm: { behavior: { childTagFormat: "combined" } } });
+    const one = bubbles(drawBlock(blockOf(combined.pane, "visual", "Tag appearance")));
+    assert.equal(one.length, 2, "слитно должно быть два пузыря");
+    assert.equal(one[0]?.textContent, "#doing/review",
+      "слитная запись — один пузырь с обоими значениями");
+  });
+
+  await test("Value с показом empty остаётся пузырём без текста", () => {
+    const { pane } = makePane();
+    const list = bubbles(drawBlock(blockOf(pane, "visual", "Tag appearance")));
+    const empty = list.filter(b => b.classList.contains("io-bubble--empty"));
+    assert.equal(empty.length, 1, "у Priority должен быть один пустой пузырь");
+    assert.equal(empty[0]?.textContent.trim(), "", "в пустом пузыре не должно быть надписи");
+    assert.ok(String(empty[0]?.style.getPropertyValue("--io-bubble-bg")).length > 0,
+      "цвет у пустого пузыря остаётся: он и есть всё, что видно");
+  });
+
+  await test("оформление тегов уезжает в переменные, а не в стили (Г1)", () => {
+    const { pane } = makePane({
+      visual: { tags: { opacityLeft: 40, textSizePct: 120, cornersPct: 100 } },
+    });
+    const host = drawBlock(blockOf(pane, "visual", "Tag appearance"));
+    const line = host.querySelector(".io-line");
+    assert.equal(line?.style.getPropertyValue("--io-opacity-left"), "0.4");
+    assert.equal(line?.style.getPropertyValue("--io-text-scale"), "1.2");
+    /* 100% «квадратности» — это ноль скругления */
+    assert.equal(line?.style.getPropertyValue("--io-corners"), "0");
+  });
+
+  await test("Separator в предпросмотре берётся из настройки", () => {
+    const { pane } = makePane({ pkm: { lineFormat: { separator1: "//" } } });
+    const text = drawBlock(blockOf(pane, "visual", "Tag appearance")).textContent;
+    assert.ok(text.includes("//"), "первый Separator должен прийти из настройки: " + text);
+  });
+
+  await test("предпросмотр перерисовывается точечно, без пересборки панели (П2)", async () => {
+    const { pane, counts } = makeCountingPane();
+    const host = makeNode("div");
+    const cleanup = blockOf(pane, "visual", "Tag appearance").render({ settingEl: host }, {});
+    counts.rebuild = 0;
+
+    assert.equal(pane.watcherCount(), 1, "блок должен подписаться на свои пути");
+    await pane.setControlValue("visual.tags.opacityLeft", 55);
+
+    assert.equal(counts.rebuild, 0, "шаг слайдера не должен пересобирать панель");
+    assert.equal(host.querySelector(".io-line")?.style.getPropertyValue("--io-opacity-left"), "0.55",
+      "предпросмотр обязан перерисоваться сам");
+
+    cleanup();
+    assert.equal(pane.watcherCount(), 0, "очистка блока обязана снять подписку (С5)");
+  });
+
+  await test("панель пересобирается только из-за подсказок (П2)", async () => {
+    const { pane, counts } = makeCountingPane();
+    const btn = fakeButton();
+    groupOf(pane, "visual", "Tag appearance")?.extraButtons?.[0](btn);
+    counts.rebuild = 0;   // переключение вкладки — законная пересборка
+
+    /* ни первый шаг слайдера, ни последующие панель не пересобирают */
+    await pane.setControlValue("visual.tags.opacityLeft", 55);
+    await pane.setControlValue("visual.tags.opacityLeft", 60);
+    assert.equal(counts.rebuild, 0, "перетаскивание слайдера не пересобирает панель");
+    assert.equal(lastDisabled(btn), "disabled:false",
+      "кнопка сброса при этом обязана ожить на месте");
+
+    await pane.setControlValue("general.help.showTips", false);
+    assert.equal(counts.rebuild, 1, "«?» появляется и исчезает только пересборкой");
+  });
+
+  /* ---- предпросмотр TagWheel (10.3 П7, П8, проверка по выводу Г20) ---- */
+
+  /**
+   * Снимок скроллера: что стоит на чипе и что в панелях, сверху вниз.
+   * Направление проверяется только так: перевёрнутый порядок читается в коде
+   * как правильный, и увидеть ошибку можно лишь в выводе.
+   */
+  function wheelShot(pane: SettingsPane): { chip: string; up: string[]; down: string[] } {
+    const host = makeNode("div");
+    blockOf(pane, "visual", "TagWheel").render({ settingEl: host }, {});
+    const panel = (where: string): string[] => {
+      const p = host.querySelectorAll(".io-wheelpanel--" + where)[0];
+      return p ? p.children.map((c: StubNode) => c.textContent) : [];
+    };
+    return {
+      chip: host.querySelectorAll(".io-bubble--current")[0]?.textContent || "",
+      up: panel("up"),
+      down: panel("down"),
+    };
+  }
+
+  await test("вверх — следующие значения, вниз — предыдущие, круг замкнут (П7)", () => {
+    const { pane } = makePane({
+      visual: { tagWheel: { showMarkers: false, scroller: { enabled: true, size: 3, direction: "full" } } },
+    });
+    const shot = wheelShot(pane);
+
+    /*
+     * Скроллер сидит на втором Field слева — Priority, значения верхнего
+     * уровня: none, low, med, high. Середина — med.
+     */
+    assert.equal(shot.chip, "med", "в середине стоит текущее значение");
+    /* вверх идут следующие, и снизу вверх они удаляются от текущего:
+       ближайшее к чипу — high, дальше круг заходит на none и low */
+    assert.deepEqual(shot.up, ["low", "none", "high"],
+      "панель сверху читается сверху вниз, ближайшее значение — у чипа");
+    /* вниз идут предыдущие, тоже по кругу */
+    assert.deepEqual(shot.down, ["low", "none", "high"],
+      "вниз — предыдущие значения, список замкнут");
+  });
+
+  await test("направление скроллера решает, какая панель есть (П7)", () => {
+    const only = (direction: string) => wheelShot(makePane({
+      visual: { tagWheel: { scroller: { enabled: true, size: 2, direction } } },
+    }).pane);
+
+    const both = only("full");
+    assert.equal(both.up.length, 2);
+    assert.equal(both.down.length, 2);
+
+    const upOnly = only("up");
+    assert.equal(upOnly.up.length, 2, "вверх — панель есть");
+    assert.equal(upOnly.down.length, 0, "и только она");
+
+    const downOnly = only("down");
+    assert.equal(downOnly.up.length, 0);
+    assert.equal(downOnly.down.length, 2);
+  });
+
+  await test("выключенный скроллер не рисует ни одной панели", () => {
+    const { pane } = makePane({ visual: { tagWheel: { scroller: { enabled: false } } } });
+    const shot = wheelShot(pane);
+    assert.equal(shot.up.length + shot.down.length, 0, "панелей быть не должно");
+    assert.ok(shot.chip.length > 0, "но значение на чипе остаётся");
+  });
+
+  await test("Values per side задаёт число строк в панели", () => {
+    const rows = (size: number) => wheelShot(makePane({
+      visual: { tagWheel: { scroller: { enabled: true, size, direction: "full" } } },
+    }).pane).up.length;
+    assert.equal(rows(1), 1);
+    assert.equal(rows(3), 3);
+  });
+
+  await test("маркеры добавляют решётку к значениям, и только их", () => {
+    const withMarks = wheelShot(makePane({
+      visual: { tagWheel: { showMarkers: true, scroller: { enabled: true, size: 1, direction: "up" } } },
+    }).pane);
+    assert.ok(withMarks.chip.startsWith("#"), "с маркерами значение с решёткой: " + withMarks.chip);
+    assert.ok(withMarks.up.every(v => v.startsWith("#")), "и в панели тоже");
+
+    const without = wheelShot(makePane({
+      visual: { tagWheel: { showMarkers: false, scroller: { enabled: true, size: 1, direction: "up" } } },
+    }).pane);
+    assert.ok(!without.chip.startsWith("#"), "без маркеров — одни слова");
+  });
+
+  await test("место под панели резервируется на подложке, а не на рамке (П8)", () => {
+    const { pane } = makePane({
+      visual: { tagWheel: { scroller: { enabled: true, size: 3, direction: "full" } } },
+    });
+    const host = makeNode("div");
+    blockOf(pane, "visual", "TagWheel").render({ settingEl: host }, {});
+    const box = host.querySelector(".io-preview");
+    assert.equal(box?.style.getPropertyValue("--io-wheel-up"), "81px",
+      "три строки по 21 плюс рамка панели: 3*21+18");
+    assert.equal(box?.style.getPropertyValue("--io-wheel-down"), "81px");
+
+    /* Пометка о примере обязана лежать под подложкой, иначе нижняя панель
+       её закрывает — заказчик увидел это первым. */
+    const stage = host.querySelector(".io-wheelstage");
+    assert.equal(stage?.querySelectorAll(".io-preview__note").length, 0,
+      "внутри подложки пометок быть не должно");
+    const foot = host.querySelector(".io-preview__foot");
+    assert.equal(foot?.querySelectorAll(".io-preview__note").length, 1,
+      "пометка о примере — под подложкой");
+  });
+
+  await test("форма линии: чип на каждый Field и пустое состояние правого Block", () => {
+    const { pane } = makePane();
+    const host = makeNode("div");
+    blockOf(pane, "visual", "TagWheel").render({ settingEl: host }, {});
+    const text = host.textContent;
+    assert.ok(text.includes("your text"), "нет текста выдуманной строки");
+    assert.ok(text.includes("nothing on the right yet"),
+      "у пустой стороны должно быть пустое состояние, а не пустота (ПЗ2)");
+    assert.equal(host.querySelectorAll(".io-line__side--right").length, 0,
+      "правой стороны нет: оба примерных Field в левом Block");
+    /* один чип на Field: Status обычным, Priority — со скроллером */
+    assert.equal(host.querySelectorAll(".io-wheelcol").length, 2);
+  });
+
+  /* ---- предпросмотр Bars (10.3 П4—П6, проверка по выводу Г20) --------- */
+
+  /**
+   * Снимок дерева: для каждой строки её текст и дорожки полос, которые над
+   * ней стоят. Читается результат рендера, а не исходник — иначе проверка
+   * ничего не проверяет.
+   */
+  function barsShot(store: MemoryStore, pane: SettingsPane): { lines: string[]; bars: string[] } {
+    const host = makeNode("div");
+    blockOf(pane, "visual", "Tag Bars").render({ settingEl: host }, {});
+    const lines: string[] = [];
+    const bars: string[] = [];
+
+    const walk = (node: StubNode, lanes: string[]): void => {
+      const own = node.classList.contains("io-node--bar")
+        ? lanes.concat([node.style.getPropertyValue("--io-lane") + ":" +
+                        node.style.getPropertyValue("--io-bar-color")])
+        : lanes;
+      if (node.classList.contains("io-line")) {
+        lines.push(node.textContent.replace(/\s+/g, " ").trim());
+        bars.push(lanes.join(" ") || "no bar");
+        return;
+      }
+      node.children.forEach(c => walk(c, own));
+    };
+    const tree = host.querySelector(".io-tree");
+    assert.ok(tree, "нет дерева предпросмотра");
+    (tree as StubNode).children.forEach(c => walk(c, []));
+    void store;
+    return { lines, bars };
+  }
+
+  await test("текст строк не зависит от того, какой Field рисует полосы (П4)", () => {
+    const byStatus = makePane({ visual: { tagBars: { fieldId: "status", stripesToShow: 3 } } });
+    const byPriority = makePane({ visual: { tagBars: { fieldId: "priority", stripesToShow: 3 } } });
+
+    const a = barsShot(byStatus.store, byStatus.pane);
+    const b = barsShot(byPriority.store, byPriority.pane);
+
+    assert.ok(a.lines.length >= 9, "дерево должно быть непустым: " + a.lines.length);
+    assert.deepEqual(a.lines, b.lines,
+      "требование заказчика: переключение Field не меняет ни одной строки текста");
+    assert.notDeepEqual(a.bars, b.bars, "а полосы обязаны стать другими");
+  });
+
+  await test("полоса идёт во всю высоту поддерева, дорожки считаются слева (П6)", () => {
+    const { store, pane } = makePane({ visual: { tagBars: { fieldId: "status", stripesToShow: 3 } } });
+    const shot = barsShot(store, pane);
+
+    /* первая строка несёт Status, значит у неё своя полоса в дорожке 0 */
+    assert.ok(shot.bars[0]?.startsWith("0:"), "у родителя дорожка 0: " + shot.bars[0]);
+    /* её ребёнок тоже несёт Status, значит получает следующую дорожку, а
+       полоса родителя над ним остаётся */
+    assert.equal(shot.bars[1]?.split(" ").length, 2,
+      "над ребёнком две полосы: своя и родительская — " + shot.bars[1]);
+    assert.ok(shot.bars[1]?.startsWith("0:"), "родительская дорожка остаётся левой");
+    assert.ok(shot.bars[1]?.includes("1:"), "ребёнок берёт следующую дорожку");
+  });
+
+  await test("Number of Bars ограничивает число дорожек, не сдвигая текст", () => {
+    const deep = makePane({ visual: { tagBars: { fieldId: "status", stripesToShow: 3 } } });
+    const flat = makePane({ visual: { tagBars: { fieldId: "status", stripesToShow: 1 } } });
+
+    const a = barsShot(deep.store, deep.pane);
+    const b = barsShot(flat.store, flat.pane);
+    assert.deepEqual(a.lines, b.lines, "текст не зависит от числа полос (П5)");
+
+    const most = (shot: { bars: string[] }) =>
+      Math.max(...shot.bars.map(x => (x === "no bar" ? 0 : x.split(" ").length)));
+    assert.equal(most(a), 3, "при трёх разрешённых глубже трёх полос не бывает");
+    assert.equal(most(b), 1, "при одной разрешённой полоса только у верхней строки");
+  });
+
+  await test("выключенные Bars не рисуют ни одной полосы", () => {
+    const { store, pane } = makePane({ visual: { tagBars: { active: false } } });
+    const shot = barsShot(store, pane);
+    assert.ok(shot.bars.every(b => b === "no bar"), "полосы выключены, а нарисованы: " + shot.bars.join(", "));
+    assert.ok(shot.lines.some(l => l.includes("#todo")), "теги при этом остаются на строках");
+  });
+
+  await test("скрывается ровно тег того Field, что рисует полосу (П4)", () => {
+    const shown = makePane({ visual: { tagBars: { fieldId: "status", tagVisibility: true } } });
+    const hidden = makePane({ visual: { tagBars: { fieldId: "status", tagVisibility: false } } });
+
+    const a = barsShot(shown.store, shown.pane).lines.join(" | ");
+    const b = barsShot(hidden.store, hidden.pane).lines.join(" | ");
+
+    assert.ok(a.includes("#todo"), "с включённым показом тег Status на месте");
+    assert.ok(!b.includes("#todo"), "с выключенным он уходит: " + b.slice(0, 120));
+    /* а чужой Field при этом не трогается */
+    assert.ok(b.includes("#none") || b.includes("#low") || b.includes("#med") || b.includes("#high")
+      || b.includes("||"), "тег другого Field и Separator остаются: " + b.slice(0, 120));
+  });
+
+  await test("толщина и отступы полос уезжают в переменные", () => {
+    const { pane } = makePane({ visual: { tagBars: { thickness: 7, childOffset: 15, spacing: 22 } } });
+    const host = makeNode("div");
+    blockOf(pane, "visual", "Tag Bars").render({ settingEl: host }, {});
+    const tree = host.querySelector(".io-tree");
+    assert.equal(tree?.style.getPropertyValue("--io-bar-thickness"), "7px");
+    assert.equal(tree?.style.getPropertyValue("--io-bar-gap"), "15px");
+    assert.equal(tree?.style.getPropertyValue("--io-bar-distance"), "22px");
   });
 
   /* ---- описания ------------------------------------------------------- */
@@ -243,23 +726,25 @@ async function main(): Promise<void> {
 
   await test("старое имя уходит в aliases, а не в видимый текст (П-4)", () => {
     const { pane } = makePane();
-    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
-    const it = items.find((i: Def) => i.name === "Expanded select all");
-    assert.deepEqual(it?.aliases, ["Enhanced Mod+A"], "старое имя должно попасть в aliases");
+    const items = groupOf(pane, "keyboard", "Expanded 'Ctrl+A'")?.items || [];
+    const it = items.find((i: Def) => i.name === "Expanded 'Ctrl+A'");
+    /* Оба прежних имени: и до PRD, и то, что панель носила до 2026-08-26. */
+    assert.deepEqual(it?.aliases, ["Enhanced Mod+A", "Expanded select all"],
+      "старые имена должны попасть в aliases");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
     assert.ok(!text.includes("Enhanced Mod+A"), "и не должно попасть в видимое описание: " + text);
   });
 
   await test("единица слайдера уходит в displayFormat (Ст5)", () => {
     const { pane } = makePane();
-    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded 'Ctrl+A'")?.items || [];
     const delay = items.find((i: Def) => i.name === "Time between presses");
     assert.equal(delay?.control?.displayFormat?.(700), "700 ms");
   });
 
   await test("неактивность живёт в контроле, а не в определении", () => {
     const { pane, store } = makePane();
-    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
+    const items = groupOf(pane, "keyboard", "Expanded 'Ctrl+A'")?.items || [];
     const steps = items.find((i: Def) => i.name === "Selection steps");
     assert.equal(steps?.disabled, undefined, "у определения контрола disabled нет");
     assert.equal(steps?.control?.disabled?.(), true);
@@ -269,8 +754,8 @@ async function main(): Promise<void> {
 
   await test("подсказка уходит из описания, когда Show tips выключен", () => {
     const { pane } = makePane({ general: { help: { showTips: false } } });
-    const items = groupOf(pane, "keyboard", "Expanded select all")?.items || [];
-    const it = items.find((i: Def) => i.name === "Expanded select all");
+    const items = groupOf(pane, "keyboard", "Expanded 'Ctrl+A'")?.items || [];
+    const it = items.find((i: Def) => i.name === "Expanded 'Ctrl+A'");
     const text = String((it?.desc as StubNode | undefined)?.textContent || "");
     assert.ok(!text.includes("On a task list"), "подсказка осталась при выключенном Show tips");
   });
@@ -344,27 +829,42 @@ async function main(): Promise<void> {
      */
     const { pane } = makePane();
     await pane.setControlValue("features.visual.enabled", false);
-    const modules = groupOf(pane, "general", "Modules");
-    const buttons = modules?.extraButtons;
+    const buttons = groupOf(pane, "general", "Modules")?.extraButtons;
     assert.ok(Array.isArray(buttons) && buttons.length === 1, "одна кнопка в заголовке");
     assert.equal(typeof buttons[0], "function", "элемент extraButtons обязан быть функцией");
 
-    const calls: string[] = [];
-    const component: Def = {
-      setIcon(v: string) { calls.push("icon:" + v); return component; },
-      setTooltip(v: string) { calls.push("tooltip:" + v.slice(0, 11)); return component; },
-      onClick(_fn: () => void) { calls.push("onClick"); return component; },
-    };
-    buttons[0](component);
-    assert.deepEqual(calls, ["icon:rotate-ccw", "tooltip:Reset group", "onClick"]);
+    const btn = fakeButton();
+    buttons[0](btn);
+    assert.ok((btn.calls as string[]).includes("icon:rotate-ccw"));
+    assert.ok((btn.calls as string[]).includes("onClick"));
   });
 
-  await test("кнопка сброса появляется только когда есть что сбрасывать (Н2)", async () => {
+  await test("место кнопки сброса занято всегда, гаснет она сама (Н1, Н2)", async () => {
+    /*
+     * Раньше кнопка появлялась и исчезала — и этим меняла определение группы
+     * на первом же шаге слайдера: платформа пересобирала страницу, заменяла
+     * узел слайдера, и перетаскивание обрывалось.
+     */
     const { pane } = makePane();
-    const groupDef = () => groupOf(pane, "general", "Modules");
-    assert.equal(groupDef()?.extraButtons, undefined, "всё по умолчанию — кнопки нет");
+    const mount = () => {
+      const btn = fakeButton();
+      const fn = groupOf(pane, "general", "Modules")?.extraButtons?.[0];
+      assert.equal(typeof fn, "function", "кнопка должна быть в заголовке всегда");
+      fn(btn);
+      return btn;
+    };
+
+    const idle = mount();
+    assert.equal(lastDisabled(idle), "disabled:true", "сбрасывать нечего — кнопка неактивна");
+    assert.equal(lastTooltip(idle), "tooltip:Everything here is already at its default",
+      "неактивная кнопка объясняет причину (Н2)");
+
+    /* Изменение значения меняет состояние на самой кнопке, без пересборки. */
+    const live = mount();
     await pane.setControlValue("features.visual.enabled", false);
-    assert.equal(groupDef()?.extraButtons?.length, 1, "появилось отличие — появилась кнопка");
+    assert.equal(lastDisabled(live), "disabled:false", "появилось отличие — кнопка ожила");
+    assert.ok(String(lastTooltip(live)).includes("1 setting differs"),
+      "подсказка называет число отличий: " + lastTooltip(live));
   });
 
   console.log("\n" + ran + " проверок пройдено");

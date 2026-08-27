@@ -6,7 +6,7 @@
  * него, поэтому гейты работают на заглушке.
  */
 
-import { Notice, PluginSettingTab } from "obsidian";
+import { Modal, Notice, PluginSettingTab, Setting as SettingCtor, setIcon } from "obsidian";
 import type { App, Setting, SettingDefinitionItem } from "obsidian";
 
 import { SCHEMA, TABS } from "./schema/index.ts";
@@ -19,6 +19,17 @@ import type { ActionId } from "./types.ts";
 interface HostPlugin {
   store?: ConfigStoreLike & { config?: Record<string, unknown>; getSnapshot?: () => Record<string, unknown> };
   getConfig?: () => Record<string, unknown>;
+}
+
+/**
+ * То, что плагин передаёт третьим аргументом для перенесённых блоков (3b):
+ * нормализация Order и список заранее известных ключей живут в `main.js` и
+ * из слоя настроек недостижимы. Аргумент необязательный: без него редактор
+ * Fields просто не показывается, а остальная панель работает.
+ */
+interface HostBridge {
+  normalizePkmOrder?: (raw: unknown) => unknown;
+  pkmOrderFields?: readonly string[];
 }
 
 /**
@@ -111,8 +122,11 @@ function tabStripRow(state: {
 export class InlineOverhaulSettings extends PluginSettingTab {
   private pane: SettingsPane;
 
-  constructor(app: App, plugin: HostPlugin) {
+  constructor(app: App, plugin: HostPlugin, bridge?: HostBridge) {
     super(app, plugin as never);
+    const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function"
+      ? bridge.normalizePkmOrder
+      : null;
     this.pane = new SettingsPane({
       schema: SCHEMA,
       tabs: TABS,
@@ -125,6 +139,23 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       refresh: () => { this.refreshDomState(); },
       rebuild: () => { this.update(); },
       tabStrip: state => tabStripRow(state),
+      /*
+       * Шов для перенесённого редактора Fields. Без нормализации Order из
+       * `main.js` его показывать нельзя: она нужна ему на каждом чтении, и
+       * подделать её здесь значило бы завести вторую (З8, П9 по смыслу).
+       */
+      platform: normalizePkmOrder
+        ? {
+          Setting: SettingCtor,
+          Notice,
+          Modal,
+          setIcon: (node: unknown, icon: string) => { setIcon(node as HTMLElement, icon); },
+          plugin,
+          getConfig: () => (typeof plugin.getConfig === "function" ? plugin.getConfig() : {}),
+          normalizePkmOrder,
+          pkmOrderFields: (bridge && bridge.pkmOrderFields) || [],
+        }
+        : undefined,
     });
   }
 

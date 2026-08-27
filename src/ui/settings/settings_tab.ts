@@ -7,10 +7,11 @@
  * через render и сборка описаний.
  */
 
-import type { SettingDefinitionItem } from "obsidian";
+import type { ExtraButtonComponent, SettingDefinitionItem } from "obsidian";
 
-import type { ActionId, SetOpts, SettingsCtx, SettingsGroup, SettingsStore, TabDef, TabId } from "./types.ts";
+import type { ActionId, PlatformBits, SetOpts, SettingDef, SettingsCtx, SettingsGroup, SettingsStore, TabDef, TabId } from "./types.ts";
 import { buildDefaultConfig, getIn, isBound } from "./types.ts";
+import type { El } from "./custom/dom.ts";
 import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { Describer, type FragmentHost } from "./describe.ts";
 
@@ -41,6 +42,11 @@ export interface TabDeps {
     active: TabId;
     pick: (id: TabId) => void;
   }) => unknown;
+  /**
+   * Платформа для перенесённых блоков (3b). Панель её не использует — только
+   * передаёт блокам, которые без неё не работают.
+   */
+  platform?: PlatformBits;
 }
 
 export class SettingsPane {
@@ -53,6 +59,14 @@ export class SettingsPane {
    * (5.4).
    */
   private active: TabId;
+  /** Свои блоки, подписанные на пути (П2). */
+  private watchers = new Set<{ paths: readonly string[]; redraw: () => void }>();
+  /**
+   * Кнопки сброса, которые платформа уже создала: по одной на группу. Панель
+   * держит их, чтобы менять неактивность и подсказку на месте, а не
+   * пересобирать определения из-за одного изменённого значения.
+   */
+  private resetButtons = new Map<string, ExtraButtonComponent>();
 
   constructor(deps: TabDeps) {
     this.deps = deps;
@@ -84,14 +98,70 @@ export class SettingsPane {
   async setControlValue(key: string, value: unknown): Promise<void> {
     const opts: SetOpts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
     await this.deps.store.set(key, value, opts);
+
+    /* Свои блоки перерисовывают себя сами, по своим путям (П2). */
+    this.wake(key);
+
+    /* Кнопка сброса меняется на себе самой, без пересборки. */
+    this.syncResetButtons(key);
+
     /*
-     * Платформа сама пересчитывает предикаты, но не пересобирает определения.
-     * А от значений зависят и сами определения: «?» появляется по Show tips,
-     * кнопка сброса — по отличию от умолчания, состояние модуля — по тумблеру.
-     * Без этого выключенный Show tips оставлял «?» на месте.
+     * Пересборка — только когда изменилось само определение, а не значение.
+     * Остался один такой случай: «?» у подсказок. Всё остальное платформа
+     * подхватывает пересчётом предикатов, и это важно — пересборка на каждом
+     * шаге слайдера заменяет его новым узлом, и перетаскивание обрывается.
      */
-    if (this.deps.rebuild) this.deps.rebuild();
-    else if (this.deps.refresh) this.deps.refresh();
+    if (this.definitionsChanged(key)) {
+      if (this.deps.rebuild) this.deps.rebuild();
+      else if (this.deps.refresh) this.deps.refresh();
+    } else if (this.deps.refresh) {
+      this.deps.refresh();
+    }
+  }
+
+  /* ---- точечная перерисовка своих блоков (П2) ------------------------ */
+
+  watch(paths: readonly string[], redraw: () => void): () => void {
+    const w = { paths, redraw };
+    this.watchers.add(w);
+    return () => { this.watchers.delete(w); };
+  }
+
+  /** Сколько блоков сейчас слушают пути: подписки не должны накапливаться. */
+  watcherCount(): number {
+    return this.watchers.size;
+  }
+
+  /**
+   * Разбудить подписчиков изменённого пути. Совпадением считается и путь
+   * внутри пути: у группы значений ветка меняется целиком.
+   */
+  private wake(changed: string): void {
+    for (const w of Array.from(this.watchers)) {
+      const hit = w.paths.some(p =>
+        p === changed || changed.startsWith(p + ".") || p.startsWith(changed + "."));
+      if (!hit) continue;
+      /*
+       * Значение уже записано, и падение предпросмотра не должно его
+       * отменять. Молчать тоже нельзя: без сообщения такой сбой ищут глазами.
+       */
+      try { w.redraw(); }
+      catch (e) { console.error("inline-overhaul: свой блок упал при перерисовке", e); }
+    }
+  }
+
+  /** Меняет ли эта запись сами определения, а не только значения. */
+  private definitionsChanged(key: string): boolean {
+    return key === "general.help.showTips";
+  }
+
+  /** Обновить кнопку сброса той группы, чьё значение изменилось. */
+  private syncResetButtons(key: string): void {
+    for (const group of this.deps.schema) {
+      if (!group.items.some(it => isBound(it) && it.path === key)) continue;
+      const btn = this.resetButtons.get(group.id);
+      if (btn) this.paintResetButton(group, btn);
+    }
   }
 
   /** Склейка записей идёт по id настройки, а не по пути (CS3). */
@@ -107,10 +177,41 @@ export class SettingsPane {
   /* ---- определения для платформы ------------------------------------- */
 
   private ctx(): SettingsCtx {
-    return {
+    const ctx: SettingsCtx = {
       get: (path: string) => this.getControlValue(path),
       set: (path: string, value: unknown, opts?: SetOpts) => this.deps.store.set(path, value, opts),
       run: (action: ActionId) => this.run(action),
+      watch: (paths: readonly string[], redraw: () => void) => this.watch(paths, redraw),
+    };
+    if (this.deps.platform) ctx.platform = this.deps.platform;
+    return ctx;
+  }
+
+  /* ---- свои блоки (раздел 10) ---------------------------------------- */
+
+  /**
+   * Строка со своей вёрсткой. Платформа отдаёт блоку строку целиком, блок
+   * её очищает и рисует своё; возвращённая функция снимает то, что блок
+   * завёл сам (С5).
+   *
+   * `searchable: false` — в поиск попадают настройки, а не предпросмотры и
+   * не вводные тексты. `data-io-item` нужен переходу по `id`: у строки,
+   * которую рисует платформа, других приметных признаков нет.
+   */
+  private renderCustom(it: SettingDef): unknown {
+    if (it.kind !== "custom") return null;
+    const draw = it.render;
+    const ctx = this.ctx();
+    return {
+      name: "",
+      searchable: false,
+      render: (setting: { settingEl: El }) => {
+        const row = setting.settingEl;
+        row.empty();
+        row.addClass("io-block");
+        row.setAttribute("data-io-item", it.id);
+        return draw(row, ctx);
+      },
     };
   }
 
@@ -131,6 +232,7 @@ export class SettingsPane {
       ctx,
       run: (action: ActionId) => { void this.run(action); },
       describe: it => this.describer.describe(it, { showTips }),
+      renderCustom: it => this.renderCustom(it) as ReturnType<NonNullable<Wiring["renderCustom"]>>,
       resetGroup: group => this.resetButtonFor(group),
       activeTab: this.active,
     };
@@ -151,6 +253,9 @@ export class SettingsPane {
   }
 
   getSettingDefinitions(): SettingDefinitionItem[] {
+    /* Кнопки создаст платформа, когда вызовет функции из extraButtons: до тех
+       пор прежние ссылки указывают на снятые узлы и держать их незачем. */
+    this.resetButtons.clear();
     return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
   }
 
@@ -194,13 +299,27 @@ export class SettingsPane {
     return drift.length;
   }
 
-  private resetButtonFor(group: SettingsGroup): { tooltip: string; onClick: () => void } | null {
+  /**
+   * Н1: место кнопки в заголовке занято всегда, а Н2 гасит её, когда сбрасывать
+   * нечего. Первая версия кнопку показывала и убирала — и этим меняла само
+   * определение группы на первом же шаге слайдера: платформа пересобирала
+   * страницу, заменяла узел слайдера, и перетаскивание обрывалось.
+   */
+  private resetButtonFor(group: SettingsGroup): ((btn: ExtraButtonComponent) => unknown) | null {
     if (!group.items.some(it => isBound(it))) return null;
-    const n = this.drift(group).length;
-    if (!n) return null;
-    return {
-      tooltip: "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default",
-      onClick: () => { void this.resetGroup(group); },
+    return (btn: ExtraButtonComponent) => {
+      this.resetButtons.set(group.id, btn);
+      btn.setIcon("rotate-ccw").onClick(() => { void this.resetGroup(group); });
+      return this.paintResetButton(group, btn);
     };
+  }
+
+  /** Состояние кнопки: сколько настроек группы отличается от умолчания. */
+  private paintResetButton(group: SettingsGroup, btn: ExtraButtonComponent): unknown {
+    const n = this.drift(group).length;
+    const tooltip = n
+      ? "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default"
+      : "Everything here is already at its default";
+    return btn.setDisabled(n === 0).setTooltip(tooltip);
   }
 }

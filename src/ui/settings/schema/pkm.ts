@@ -4,16 +4,29 @@
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
- *   pkm-intro: pkm-callout (custom)
- *   fields: line-preview (custom), field-editor (custom)
+ *   fields: line-preview (custom)
  *   prefix-priority: field-order-list (custom), prefix-order-list (custom)
  *   config-note: config-note-actions (buttons)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { eq } from "../types.ts";
+import { callout } from "../custom/callouts.ts";
+import { fieldsEditor } from "../custom/fields_editor.ts";
 
 export const PKM_GROUPS: readonly SettingsGroup[] = [
+{ id: "pkm-intro",       tab: "pkm",        order: 50, heading: "Before you start",
+  items: [
+    { kind:"custom", id:"pkm-callout", render: callout("pkm") }
+  ] },
+{
+  id: "fields", tab: "pkm", order: 100, heading: "Fields",
+  intro: "A Field is one slot a line can hold: a tag, a link to another note, or an element such as a date. Set out the slots you want, the Values each one offers, and where on the line they go",
+  tip: "A <b>Field</b> is one slot on a line. There are three kinds of Field: <b>tag</b>, <b>link</b> (wikilink), and <b>emoji-element</b> — such as a date or a time. Each Field automatically gets two <b>cycle commands</b>, <code>next</code> and <code>previous</code>, which insert the Value and cycle it back or forth — it is worth a hotkey for the ones you use often, so a <code>#todo</code> tag is one keypress away. <b>TagWheel</b> opens all of your Fields over the line at once, so you can pick with the arrow keys instead of remembering which key does what",
+  items: [
+    { kind:"custom", id:"field-editor", render: fieldsEditor }
+  ]
+},
 {
   id: "line-format", tab: "pkm", order: 200, heading: "Separators",
   intro: "Two markers of your choosing carve out the middle of a line. Whatever you write goes between them; the Fields sit outside. Which Fields land on which side is set under <code>Fields</code>, by dragging one across the line",

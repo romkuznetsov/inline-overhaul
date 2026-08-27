@@ -3,21 +3,23 @@
  * Руками не правится. Правится прототип, затем `npm run gen:schema`.
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
- * Не перенесено (свои блоки и кнопки без действий, З8):
- *   visual-intro: visual-callout (custom)
- *   tag-appearance: tag-preview (custom)
- *   tag-bars: bars-preview (custom)
- *   tagwheel: wheel-preview (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { on } from "../types.ts";
+import { callout } from "../custom/callouts.ts";
+import { barsPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
 
 export const VISUAL_GROUPS: readonly SettingsGroup[] = [
+{ id: "visual-intro",    tab: "visual",     order: 50, heading: "Before you start",
+  items: [
+    { kind:"custom", id:"visual-callout", render: callout("visual") }
+  ] },
 {
   id: "tag-appearance", tab: "visual", order: 100, heading: "Tag appearance",
   intro: "How a tagged line looks while you write. Tags are drawn as small coloured bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
   items: [
+    { kind:"custom", id:"tag-preview", render: tagPreview },
     { kind:"slider", id:"tags-opacity-left", path:"visual.tags.opacityLeft", default:100,
       min:0, max:100, step:1, unit:"%",
       name:"Opacity before the text", desc:"Dims everything written before your text, tags and elements alike",
@@ -57,6 +59,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
   id: "tag-bars", tab: "visual", order: 200, heading: "Tag Bars",
   intro: "A coloured Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
   items: [
+    { kind:"custom", id:"bars-preview", render: barsPreview },
     { kind:"toggle", id:"bars-active", path:"visual.tagBars.active", default:true,
       name:"Tag Bars", desc:"Draw the Bars",
       searchTerms:["Activate strip","Strip","Hierarchy Bars","Level Bars"] },
@@ -106,6 +109,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
   tip: "Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything",
   commands: ["Open TagWheel on the left", "Open TagWheel on the right"],
   items: [
+    { kind:"custom", id:"wheel-preview", render: wheelPreview },
     { kind:"toggle", id:"panel-markers", path:"visual.tagWheel.showMarkers", default:true,
       name:"Show tag markers", desc:"Show the hash and emoji in the picker, or just the words",
       searchTerms:["Show Prefix"],

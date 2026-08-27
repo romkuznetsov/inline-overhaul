@@ -1925,6 +1925,18 @@ function ensureBehaviorModesFromOrder(cfg) {
    const allowedCustomTagIds = new Set();
    const allowedCustomWikilinkIds = new Set();
   const allowedCustomSubIds = new Set();
+  /*
+   * Дочерний Field ссылки. Отдельный набор, а не общий с тегом: тег и его
+   * дочерний Field живут в leftMode, ссылка и её дочерний — в rightMode, и
+   * один набор пустил бы каждого не на свою сторону.
+   *
+   * Без него дочерний Field ссылки не переживал ни одной записи: ключа
+   * `<name>_sub` нет в `order.left` / `order.right` (`normalizePkmOrder`
+   * складывает такие ключи отдельно), в наборы он не попадал, и фильтр ниже
+   * выбрасывал его. `migrateConfig` идёт на каждом патче, поэтому дочернее
+   * значение ссылки исчезало тут же после нажатия стрелки `Level`.
+   */
+  const allowedCustomLinkSubIds = new Set();
   const allowedCustomElementIds = new Set();
   for (const key of keys) {
     const kind0 = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
@@ -1932,6 +1944,7 @@ function ensureBehaviorModesFromOrder(cfg) {
     if (kind0 === "element") allowedCustomElementIds.add(key);
     else if (kind0 === "wikilink") {
       allowedCustomWikilinkIds.add(key);
+      allowedCustomLinkSubIds.add(inferSubFieldKey(key));
     } else {
       allowedCustomTagIds.add(key);
       if (kind0 === "tag") allowedCustomSubIds.add(inferSubFieldKey(key));
@@ -1950,6 +1963,7 @@ function ensureBehaviorModesFromOrder(cfg) {
     if (!id) return false;
     if (builtInRightIds.has(id)) return true;
     if (allowedCustomWikilinkIds.has(id)) return true;
+    if (allowedCustomLinkSubIds.has(id)) return true;
     if (allowedCustomElementIds.has(id)) return true;
     return false;
   });
@@ -4632,7 +4646,15 @@ class InlineOverhaulPlugin extends Plugin {
     const Declarative = wantNew ? getDeclarativeSettingTabCtor() : null;
     if (Declarative) {
       try {
-        return new Declarative(this.app, this);
+        /*
+         * Третий аргумент — мост для перенесённого редактора Fields: он ждёт
+         * нормализацию Order и список заранее известных ключей, а они живут
+         * здесь и из слоя настроек недостижимы (фаза 3b).
+         */
+        return new Declarative(this.app, this, {
+          normalizePkmOrder,
+          pkmOrderFields: PKM_ORDER_FIELDS,
+        });
       } catch (e) {
         console.error("[inline-overhaul] declarative settings pane failed to build", e);
       }
@@ -5323,6 +5345,8 @@ class InlineOverhaulSettingTab extends PluginSettingTab {
           normalizePkmOrder,
           pkmOrderFields: PKM_ORDER_FIELDS,
           setIcon,
+          /* Тумблеры вида доски перерисовывают вкладку (дефект A14). */
+          refreshSettings: () => this.scheduleDisplayRefresh("settings:order-view-toggle"),
         });
         return renderer.renderPkmConfigSections({
           Setting,

@@ -402,6 +402,12 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-btn--cta { background: var(--interactive-accent); border-color: transparent; color: var(--text-on-accent); }
 .io-btn--cta:hover { background: var(--interactive-accent-hover); }
 .io-btn--sm { padding: 2px 9px; font-size: var(--font-ui-smaller); }
+/* Добавление — акцентная кнопка: заказчик просил, чтобы её было видно. */
+.io-btn--cta {
+  background: var(--interactive-accent); border-color: transparent;
+  color: var(--text-on-accent); font-weight: 500;
+}
+.io-btn--cta:hover { background: var(--interactive-accent-hover); }
 
 .io-icon {
   appearance: none; border: 0; background: transparent; color: var(--text-faint);
@@ -438,6 +444,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-preview__cap::after { content: ""; flex: 1; height: 1px; background: var(--background-modifier-border); }
 .io-preview__note { margin: 9px 0 0; font-size: var(--font-ui-smaller); color: var(--text-faint); max-width: 66ch; }
+.io-preview__note--top { margin: -4px 0 9px; }
 
 .io-line {
   display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
@@ -563,8 +570,14 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-mono { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted); }
 
 /* fields: list and detail */
+/* Two columns, side by side, always. Asking how wide the pane is turned out
+   to be the bug: a window query never fires inside Obsidian's settings pane,
+   a container query measures an ancestor rather than this block, and wrapping
+   compares column bases against a line width nobody agreed on. So nothing is
+   asked: the detail column takes what is left and may shrink, and the values
+   table scrolls inside itself if that gets tight. */
 .io-fields {
-  display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: stretch;
+  display: flex; flex-wrap: nowrap; align-items: stretch;
   border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m);
   overflow: hidden; background: var(--background-primary);
 }
@@ -602,10 +615,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
-/* every control fills its own cell and may shrink, so nothing overlaps */
-.io-vals__row .io-text, .io-vals__row .io-select { width: 100%; min-width: 0; }
+/* every control fills its own cell and may shrink, so nothing overlaps.
+   Размер текста — как в колонке Preview: в таблице он был заметно крупнее
+   остальных настроек панели (замечание заказчика 2026-08-27). */
+.io-vals__row .io-text, .io-vals__row .io-select {
+  width: 100%; min-width: 0; font-size: var(--font-ui-smaller);
+}
+.io-vals { font-size: var(--font-ui-smaller); }
 .io-valcell { min-width: 0; }
-.io-vals__row--child .io-valcell { padding-left: 22px; }
+.io-vals__row--child .io-valcell { padding-left: 10px; }
 .io-showncell { min-width: 0; display: grid; gap: 4px; }
 .io-vals__foot {
   padding: 7px 10px; border-top: 1px solid var(--background-modifier-border);
@@ -613,7 +631,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-vals__foot .io-note { margin: 0; }
 .io-colin {
-  width: 28px; height: 22px; padding: 0; border: 1px solid var(--background-modifier-border);
+  width: 22px; height: 22px; padding: 0; border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-s); background: var(--background-modifier-form-field); cursor: pointer;
 }
 .io-sub { margin: 16px 0 7px; font-size: 13px; font-weight: 600; color: var(--text-normal); }
@@ -750,15 +768,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-rowactions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
 
 @media (max-width: 860px) {
-  .io-fields { grid-template-columns: minmax(0, 1fr); }
-  .io-fields__list {
-    border-right: 0; border-bottom: 1px solid var(--background-modifier-border);
-    display: flex; flex-wrap: wrap; gap: 4px;
-  }
-  .io-fields__item { width: auto; }
-  .io-fields__item .io-chip { margin-left: 4px; }
   .io-kind { grid-template-columns: 60px minmax(0, 1fr) 24px; gap: 7px; }
 }
+/* Две колонки складываются в одну, когда тесно самому блоку: до этого
+   порога правая колонка ещё вмещает таблицу Values целиком. */
 @media (max-width: 780px) {
   .obsidian { grid-template-columns: minmax(0, 1fr); }
   .rail { display: none; }
@@ -793,7 +806,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-cmdstrip .io-see { padding: 0; margin-left: auto; }
 
 /* values table: two color columns, and a tinted child row */
-.io-vals__row--child { background: var(--background-primary-alt); }
+/* Дочерняя строка заметно серее родительской: `--background-primary-alt`
+   почти сливался с фоном таблицы (замечание заказчика 2026-08-27). */
+.io-vals__row--child { background: var(--background-secondary); }
 .io-depthcell { display: flex; }
 
 /* command reference as a real table */
@@ -818,20 +833,32 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   font-size: var(--font-ui-small); color: var(--text-normal);
 }
 
-/* a destructive action should look destructive */
+/* A destructive action should look destructive, and this one is asked to
+   catch the eye: a white bin on a red fill, no wording. The glyph is an
+   emoji and comes with its own colours, so it is bleached to white with a
+   filter — brightness(0) makes it black, invert(1) makes it white. */
 .io-danger {
-  appearance: none; font-family: inherit; font-size: var(--font-ui-smaller);
-  color: var(--background-modifier-error); background: transparent;
-  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
-  padding: 3px 9px; cursor: pointer;
+  appearance: none; display: inline-flex; align-items: center; justify-content: center;
+  font-family: inherit; font-size: var(--font-ui-smaller);
+  color: var(--text-on-accent); background: var(--background-modifier-error);
+  border: 1px solid transparent; border-radius: var(--radius-s);
+  padding: 3px 8px; cursor: pointer; margin-left: auto;
 }
-.io-danger:hover { background: var(--background-modifier-error); border-color: transparent; color: #fff; }
+.io-danger:hover { filter: brightness(1.15); }
+.io-danger__icon { font-size: 13px; line-height: 1; filter: brightness(0) invert(1); }
 
-.io-valtools { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+/* Кнопки в ячейке узкие: двум обычным не хватало колонки, и удаление
+   наезжало на рамку таблицы (замечание заказчика 2026-08-27). */
+.io-valtools { display: flex; align-items: center; gap: 0; justify-content: flex-end; padding-right: 4px; }
+.io-valtools .io-icon { width: 18px; height: 20px; padding: 0; font-size: 11px; }
+/* Удаление красное: единственная кнопка строки, которая уносит данные. */
+.io-icon--danger { color: var(--text-error); }
+.io-icon--danger:hover { color: var(--text-error); background: var(--background-modifier-error-hover); }
 .io-depthcell { display: flex; justify-content: center; }
 
 /* the values table, and its narrower shape for a link field */
-.io-vals__inner { min-width: 600px; }
+/* 450px = every column at its floor, plus gaps and padding. */
+.io-vals__inner { min-width: 450px; }
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
   grid-template-columns: 14px minmax(0, 1fr) 62px minmax(0, 1fr) 44px;
 }
@@ -881,6 +908,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   color: var(--text-faint); margin-left: 4px;
 }
 .io-text--short { width: 96px; }
+/* The note property is as wide as the dropdown above it. */
+.io-text--prop { width: 172px; }
 
 /* command reference as one grid */
 .io-cmd__inner { min-width: 560px; }
@@ -890,11 +919,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-cmd__area { grid-column: 1 / -1; }
 
-/* link fields keep only what a link can have */
+/* Link fields keep everything a tag has except colour — `Level` included:
+   the runtime reads child Values of a link the same way it reads a tag’s
+   (2026-08-27, разбор в PRD фазе 3b). */
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(0, 1fr) 62px 44px;
+  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 44px;
 }
-.io-vals__inner--link { min-width: 320px; }
+.io-vals__inner--link { min-width: 280px; }
 
 /* round six: one rule so an inline reference always reads as a reference,
    wherever it appears in the pane. Without this the markup was there and
@@ -969,17 +1000,33 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* TagWheel: neutralise the stale absolute rules, then place the panel
    over a zero-width slot so it is centred and cannot widen the line */
 
-/* the only .io-wheelval rule */
+/* the only .io-wheelval rule. The row height is pinned on purpose: the room
+   for the panel is reserved in advance from this number, and a height that
+   comes from the theme makes the panel outgrow it and cover the notes. */
 .io-wheelval {
-  font-size: 11px; text-align: center; padding: 2px 8px; border-radius: 20px;
+  font-size: 11px; line-height: 15px; text-align: center; padding: 2px 8px;
+  border-radius: 20px;
   color: var(--io-wheel-fg, var(--text-muted)); white-space: nowrap;
 }
 
-/* the one grid definition for the values table */
+/* The one grid definition for the values table. Every column that can give
+   space gives it in proportion, and every one of them has a floor: a track
+   squeezed to zero is a control you cannot use, and a narrow pane did exactly
+   that to the Value cell. Fixed pixels are left only where the content is a
+   fixed size: the grip, the two colour swatches and the remove button. */
 .io-vals__head, .io-vals__row {
-  display: grid; gap: 8px; align-items: center; padding: 6px 10px;
-  grid-template-columns: 14px 26px minmax(0, 1fr) 62px 104px 30px 30px 78px 44px;
+  display: grid; gap: 5px; align-items: center; padding: 6px 10px;
+  grid-template-columns:
+    14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
+    minmax(64px, 1fr) 30px 30px minmax(64px, 1fr) 44px;
 }
+/* The «?» sits under the caption, not beside it: beside it the mark
+   overlapped the next cell, because these columns are narrow. */
+.io-vals__head > div { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+/* A head cell clips instead of spilling over its neighbour. */
+.io-vals__coltext { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The tip opens under the head, across the whole table. */
+.io-vals__tipslot:not(:empty) { padding: 0 8px 6px; }
 
 /* round nine */
 
@@ -1045,7 +1092,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 
 /* Bars live in a gutter to the left of every line. Three lanes are always
    reserved, so Number of bars changes what is drawn and never the layout.
-   Lane 0 is nearest the text, lane 2 furthest left. */
+   Lane 0 is the leftmost one and belongs to the parent: a child always draws
+   to the right of the line it hangs from (P6). */
 .io-tree { --io-lane-count: 3; padding-left: 3px; }
 .io-node { position: relative; display: flex; flex-direction: column; border-left: 0; }
 .io-node--bar::before {
@@ -1135,19 +1183,26 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-fields__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .io-fields__tools {
   display: inline-flex; gap: 0; flex: 0 0 auto;
-  width: 46px; justify-content: flex-end;
+  width: 34px; justify-content: flex-end;
   opacity: 0; transition: opacity 90ms ease-out;
 }
 .io-fields__item:hover .io-fields__tools,
 .io-fields__item:focus-within .io-fields__tools,
 .io-fields__item[aria-current="true"] .io-fields__tools { opacity: 1; }
-.io-fields__tools .io-icon { width: 21px; height: 21px; font-size: 11px; }
+/* Стрелки узкие: вместе с чипом типа они съедали имя Field. */
+.io-fields__tools .io-icon { width: 16px; height: 20px; padding: 0; font-size: 10px; }
 .io-fields__item .io-chip { margin-left: 4px; }
 .io-fields__item[aria-current="true"] .io-chip { margin-left: 4px; }
 
 /* two columns, each with its own head, so the panes read as a pair */
 .io-fields__col { min-width: 0; display: flex; flex-direction: column; }
-.io-fields__col + .io-fields__col { border-left: 1px solid var(--background-modifier-border); }
+.io-fields__col:first-child { flex: 0 0 188px; }
+/* The detail column takes what is left and may shrink to nothing: without
+   min-width its content would push the list column off instead. */
+.io-fields__col + .io-fields__col {
+  flex: 1 1 0; min-width: 0;
+  border-left: 1px solid var(--background-modifier-border);
+}
 .io-fields__colhead {
   display: flex; align-items: center; gap: 6px;
   padding: 7px 12px;
@@ -1159,7 +1214,14 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-fields__col:first-child .io-fields__colhead { background: var(--background-secondary); }
 .io-btn--warn { border-color: var(--background-modifier-error); color: var(--text-error, #c0392b); }
 .io-btn--warn:hover { background: var(--background-modifier-error); color: var(--text-on-accent); }
-.io-vals__prev { display: flex; align-items: center; gap: 5px; }
+.io-vals__prev { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+/* A long value shortens the caption inside the bubble instead of letting the
+   cell slice the bubble in half: a bubble cut by the cell edge reads as a
+   broken value, and the customer saw exactly that on a long one. */
+.io-vals__prev .io-bubble {
+  min-width: 0; flex: 0 1 auto;
+  overflow: hidden; text-overflow: ellipsis;
+}
 .io-warn { font-size: 11px; line-height: 1; color: var(--text-error, #c0392b); cursor: help; }
 
 /* Сброс группы: место занято всегда, видно при работе с группой */
@@ -1300,12 +1362,12 @@ const SCHEMA = [
 
 /* ============================================================ KEYBOARD */
 {
-  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded select all",
+  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A'",
   intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
   items: [
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
-      name:"Expanded select all", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
-      searchTerms:["Enhanced Mod+A"],
+      name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
+      searchTerms:["Enhanced Mod+A","Expanded select all"],
       tip:"On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started" },
     { kind:"dropdown", id:"select-all-steps", path:"editor.selectAll.mode", default:"line-note",
       name:"Selection steps", desc:"How much more gets picked up on each press",
@@ -1915,7 +1977,10 @@ const SCHEMA = [
    of the token, as the generated-rules fixture confirms.
    ============================================================ */
 
-const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Element" };
+/* Подпись типа. `Emoji` вместо `Element`: чип шириной в слово `Element`
+   съедал имя Field в узкой левой колонке — «444» превращалось в «4...»
+   (замечание заказчика 2026-08-27). В конфиге тип остаётся `element` (З1). */
+const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji" };
 const BEHAVIORS = ["Strict", "Insert only", "Free"];
 const POSITIONS = [{ value:"Left", label:"Left Block" }, { value:"Right", label:"Right Block" }];
 const SHOWN_AS = [
@@ -1925,7 +1990,7 @@ const SHOWN_AS = [
 ];
 
 const FIELDS = [
-  { id:"status", name:"Status", short:"Stat", type:"tag", position:"Left", behavior:"Strict", color:"#6c5cd0", property:"status", cardinality:"auto", valueRule:"raw",
+  { id:"status", strict:"status", name:"Status", short:"Stat", type:"tag", position:"Left", behavior:"Strict", color:"#6c5cd0", property:"status", cardinality:"auto", valueRule:"raw",
     values:[
       { token:"todo",        prefix:"- [ ]", shown:"value",  custom:"",  color:"#8b8ea3", textColor:"#23222b", depth:0 },
       { token:"in_progress", prefix:"- [/]", shown:"value",  custom:"",  color:"#e0a23c", textColor:"#23222b", depth:0 },
@@ -1933,7 +1998,7 @@ const FIELDS = [
       { token:"almost_done", prefix:"",      shown:"value",  custom:"",  color:"#c98a20", textColor:"#23222b", depth:1 },
       { token:"done",        prefix:"- [x]", shown:"custom", custom:"✓", color:"#3ba76a", textColor:"#23222b", depth:0 }
     ] },
-  { id:"priority", name:"Priority", short:"Prio", type:"tag", position:"Left", behavior:"Insert only", color:"#d9534f", property:"priority", cardinality:"auto", valueRule:"raw",
+  { id:"priority", strict:"priority", name:"Priority", short:"Prio", type:"tag", position:"Left", behavior:"Insert only", color:"#d9534f", property:"priority", cardinality:"auto", valueRule:"raw",
     values:[
       { token:"none",   prefix:"",      shown:"nothing", custom:"", color:"#b9b8c4", textColor:"#23222b", depth:0 },
       { token:"low",    prefix:"",      shown:"value",   custom:"", color:"#8b8ea3", textColor:"#23222b", depth:0 },
@@ -1941,14 +2006,14 @@ const FIELDS = [
       { token:"high",   prefix:"- [!]", shown:"value",   custom:"", color:"#f45d59", textColor:"#23222b", depth:0 },
       { token:"urgent", prefix:"- [!]", shown:"value",   custom:"", color:"#c2373b", textColor:"#ffffff", depth:0 }
     ] },
-  { id:"project", name:"Project", short:"", type:"link", position:"Right", behavior:"Free", color:"#3b82c4", property:"project", cardinality:"list", valueRule:"clean",
+  { id:"project", strict:"project", name:"Project", short:"", type:"link", position:"Right", behavior:"Free", color:"#3b82c4", property:"project", cardinality:"list", valueRule:"clean",
     values:[
       { token:"[[ClientA]]",  prefix:"", shown:"value", custom:"", color:"#3678b4", textColor:"#ffffff", depth:0 },
       { token:"[[ProjectX]]", prefix:"", shown:"value", custom:"", color:"#3678b4", textColor:"#ffffff", depth:0 }
     ] },
-  { id:"due", name:"Due", short:"", type:"element", position:"Right", behavior:"Insert only", color:"#7a9e3b", property:"due", cardinality:"auto", valueRule:"clean",
+  { id:"due", strict:"due", name:"Due", short:"", type:"element", position:"Right", behavior:"Insert only", color:"#7a9e3b", property:"due", cardinality:"auto", valueRule:"clean",
     marker:"\u{1F4C5}", format:"YYYY-MM-DD", step:"command", values:[] },
-  { id:"estimate", name:"Estimate", short:"Est", type:"element", position:"Right", behavior:"Free", color:"#7a9e3b", property:"effort", cardinality:"auto", valueRule:"raw",
+  { id:"estimate", strict:"estimate", name:"Estimate", short:"Est", type:"element", position:"Right", behavior:"Free", color:"#7a9e3b", property:"effort", cardinality:"auto", valueRule:"raw",
     marker:"\u{23F1}", format:"HH:mm", step:"increment", values:[] }
 ];
 
@@ -2027,27 +2092,6 @@ const COMMANDS = [
   { area:"General", list:[
     { name:"Toggle <module> module",     does:"One command per module, for turning a whole area off quickly" },
     { name:"Undo last settings change",  does:"Roll back the most recent change made in these settings" }
-  ]}
-];
-
-/* A note tree for the level bars preview. Bars are drawn from nesting, so
-   the preview needs a real tree rather than a flat list of lines. */
-/* Two fields on the same lines, so switching Which field draws them shows a
-   different shape rather than the same one in another colour. */
-const TREE = [
-  { v:{ status:"in_progress", priority:"high" }, text:"Ship the settings overhaul", children:[
-    { v:{ status:"early" }, text:"Rewrite every description", children:[
-      { v:{ status:"almost_done", priority:"urgent" }, text:"Tag Bars", children:[] },
-      { v:{ status:"almost_done" }, text:"TagWheel panel", children:[] },
-      { v:{ priority:"low" }, text:"proof-read the tips", children:[] }
-    ]}
-  ]},
-  { v:{}, text:"Merge the prototype into the PRD", children:[] },
-  { v:{ status:"todo", priority:"med" }, text:"Publish the next beta", children:[
-    { v:{ status:"todo" }, text:"Check the migration on a copy", children:[
-      { v:{ status:"todo", priority:"low" }, text:"and on an empty vault", children:[] }
-    ]},
-    { v:{}, text:"Write the release notes", children:[] }
   ]}
 ];
 
@@ -2152,8 +2196,16 @@ function textEl(parent, value, ph, label, cls) {
 function iconBtn(parent, glyph, label, title) {
   const b = el("button", "io-icon", parent, glyph);
   b.type = "button";
-  b.setAttribute("aria-label", label);
-  if (title) b.title = title;
+  /*
+   * Одна подсказка на узел. Obsidian показывает `aria-label` своей всплывающей
+   * подсказкой на тёмном фоне, а браузер поверх неё — `title` на светлом:
+   * получались две подсказки, разного вида и с разным текстом, перекрывающие
+   * друг друга (замечание заказчика 2026-08-27). Если вызов дал и то и другое,
+   * они сливаются в одну строку, и она же уходит в оба атрибута.
+   */
+  const full = title && title !== label ? label + " — " + title : label;
+  b.setAttribute("aria-label", full);
+  b.title = full;
   return b;
 }
 
@@ -2195,13 +2247,16 @@ function countSettings(t) {
 }
 function field(id) { return FIELDS.find(f => f.id === id); }
 function fieldsOn(side) { return FIELDS.filter(f => f.position === side); }
-/* the value this line carries for whichever field the bars are set to */
-function fieldValue(node) {
-  const id = val("visual.tagBars.fieldId") || "status";
-  const f = field(id);
-  const token = node && node.v ? node.v[id] : null;
-  if (!token || !f) return null;
-  return f.values.find(v => v.token === token) || null;
+/* Which Value a line shows for a Field: the one at its own depth, counting
+   only top-level Values. The rule is deliberately not a token: the same tree
+   has to read against the prototype's invented Fields and against whatever
+   the plugin has, and a token would tie it to one of them. */
+function valueAtDepth(fieldId, depth) {
+  const f = field(fieldId);
+  if (!f) return null;
+  const tops = f.values.filter(v => v.depth === 0);
+  if (!tops.length) return null;
+  return tops[depth % tops.length];
 }
 
 /* ============================================================ Tabs */
@@ -2304,8 +2359,13 @@ function renderContent(resetScroll) {
 
 /* A tip belongs directly under the thing it explains. Anchoring it to the
    row that carries the ? is the only way that stays true when the block
-   below grows a table. */
-function attachTip(anchorRow, text, label, fallbackHost) {
+   below grows a table.
+
+   insertAfter is for a block that lives in a box: the ? belongs in the
+   box's header, but the tip has to open below the whole box. Opening it
+   inside pushes the box own text down, and the panel reads as jumping
+   about. */
+function attachTip(anchorRow, text, label, fallbackHost, insertAfter) {
   if (!text || !ctx.get("general.help.showTips")) return;
   let tipEl = null;
   const help = el("button", "io-help", anchorRow, "?");
@@ -2317,8 +2377,9 @@ function attachTip(anchorRow, text, label, fallbackHost) {
     help.setAttribute("aria-expanded", shown ? "false" : "true");
     if (shown) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
     tipEl = rich(el("div", "io-tip"), text);
-    if (typeof anchorRow.insertAdjacentElement === "function") {
-      anchorRow.insertAdjacentElement("afterend", tipEl);
+    const anchor = insertAfter || anchorRow;
+    if (typeof anchor.insertAdjacentElement === "function") {
+      anchor.insertAdjacentElement("afterend", tipEl);
     } else if (fallbackHost) {
       fallbackHost.appendChild(tipEl);
     }
@@ -2586,6 +2647,7 @@ function previewShell(host, caption, tip) {
   el("span", null, cap, caption);
   attachTip(cap, tip, caption, box);
   el("span", "io-preview__rule", cap);
+  el("p", "io-preview__note io-preview__note--top", box, PREVIEW_NOTE);
   return box;
 }
 function applyTagVars(node) {
@@ -2647,20 +2709,84 @@ function structuralLine(parent, chipFor) {
   const left = fieldsOn("Left");
   if (left.length) put(el("span", "io-line__side io-line__side--left", line), left);
   el("span", "io-line__sep", line, String(val("pkm.lineFormat.separator1") || "||"));
-  el("span", "io-line__text", line, "your text");
+  el("span", "io-line__text", line, PREVIEW_LINE_TEXT);
   el("span", "io-line__sep", line, String(val("pkm.lineFormat.separator2") || "||"));
   const right = fieldsOn("Right");
   if (right.length) put(el("span", "io-line__side io-line__side--right", line), right);
-  else el("span", "io-line__hint", line, "nothing on the right yet");
+  else el("span", "io-line__hint", line, PREVIEW_EMPTY_RIGHT);
   return line;
 }
 
+/* Every live preview says the same two things: what it is, and how far it
+   can be trusted. The copy lives in one table so the panel, the document
+   and the plugin all read the same words. */
+const PREVIEW_TEXTS = {
+  "line-preview": {
+    cap: "Live preview",
+    tip: "One chip per Field, in the order they are written. Everything you change below shows up here: rename a Field, " +
+    "give it a short name, move it to the other side, or change a Separator"
+  },
+  "tag-preview": {
+    cap: "Live preview",
+    tip: "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no " +
+    "bubble — but the two opacity settings dim a whole side of the line, including them. Priority is set to " +
+    "<code>empty</code>, which is why it shows as a bare color",
+    line: "Rewrite the settings copy",
+    element: "\u{1F4C5} 2026-08-24",
+    link: "[[ClientA]]"
+  },
+  "bars-preview": {
+    cap: "Live preview",
+    tip: "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested " +
+    "under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar " +
+    "sits in the margin, so the text column never moves",
+    tree: [
+      { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
+        { text: "Rewrite every description", fields: ["status"], children: [
+          { text: "Tag Bars", fields: ["status", "priority"], children: [] },
+          { text: "TagWheel panel", fields: ["status"], children: [] },
+          { text: "proof-read the tips", fields: ["priority"], children: [] }
+        ] }
+      ] },
+      { text: "Merge the prototype into the PRD", fields: [], children: [] },
+      { text: "Publish the next beta", fields: ["status", "priority"], children: [
+        { text: "Check the migration on a copy", fields: ["status"], children: [
+          { text: "and on an empty vault", fields: ["status", "priority"], children: [] }
+        ] },
+        { text: "Write the release notes", fields: [], children: [] }
+      ] }
+    ]
+  },
+  "wheel-preview": {
+    cap: "Live preview",
+    tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the " +
+    "settings ask for: <code>Values per side</code> rows on each side that <code>Opens</code> allows. The list is a " +
+    "loop, so it keeps going past the last Value and starts again"
+  },
+  "i2n-button-preview": {
+    cap: "Live preview",
+    tip: "The button is part of the editor, not the note: nothing is written into your file until you press it",
+    note: "Shown on the line the cursor is on"
+  },
+};
 
+/* PRD 10.3 P9: the preview is not the editor. It is drawn by the settings
+   pane with its own markup, so it says so once, in every preview, instead
+   of quietly drifting from what the editor really shows. */
+const PREVIEW_NOTE = "Close to what the editor draws, not the editor itself";
+
+/* PZ2: a preview without a Field of your own still has to show something.
+   It says so, so nobody mistakes the example for their own setup. */
+const PREVIEW_EXAMPLE = "Example Fields, until you set up your own under Fields on the Tags & PKM tab";
+
+/* The two visible words of the line's shape. They are copy, so they live with
+   the rest of the copy rather than inside a renderer. */
+const PREVIEW_LINE_TEXT = "your text";
+const PREVIEW_EMPTY_RIGHT = "nothing on the right yet";
 
 function renderLinePreview(host) {
-  const box = previewShell(host, "Live preview",
-    "One chip per Field, in the order they are written. Everything you change below shows up here: rename a Field, " +
-    "give it a short name, move it to the other side, or change a Separator");
+  const pt = PREVIEW_TEXTS["line-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
   const holder = el("div", "io-struct", box);
 
   /* Three rows on one grid: the line, then the block brackets, then the
@@ -2714,10 +2840,8 @@ function renderLinePreview(host) {
 }
 
 function renderTagPreview(host) {
-  const box = previewShell(host, "Live preview",
-    "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no " +
-    "bubble — but the two opacity settings dim a whole side of the line, including them. Priority is set to " +
-    "<code>empty</code>, which is why it shows as a bare color");
+  const pt = PREVIEW_TEXTS["tag-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
   const holder = el("div", null, box);
   const draw = () => {
     holder.textContent = "";
@@ -2728,11 +2852,13 @@ function renderTagPreview(host) {
     renderTagField(left, field("status"));
     renderTagField(left, field("priority"));
     el("span", "io-line__sep", line, String(val("pkm.lineFormat.separator1") || "||"));
-    el("span", "io-line__text", line, "Rewrite the settings copy");
+    el("span", "io-line__text", line, pt.line);
     el("span", "io-line__sep", line, String(val("pkm.lineFormat.separator2") || "||"));
     const right = el("span", "io-line__side io-line__side--right", line);
-    el("span", "io-elem", right, "\u{1F4C5} 2026-08-24");
-    el("span", "io-link", right, "[[ClientA]]");
+    el("span", "io-elem", right, pt.element);
+    el("span", "io-link", right, pt.link);
+    /* the prototype has no config, so its Fields are always the example */
+    rich(el("p", "io-preview__note", holder), PREVIEW_EXAMPLE);
   };
   draw();
   previewRefreshers.push(draw);
@@ -2743,13 +2869,9 @@ function renderTagPreview(host) {
 
 
 
-
-
 function renderBarsPreview(host) {
-  const box = previewShell(host, "Live preview",
-    "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested " +
-    "under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar " +
-    "sits in the margin, so the text column never moves");
+  const pt = PREVIEW_TEXTS["bars-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
   const tree = el("div", "io-tree", box);
 
   const drawLine = (parent, node, depth) => {
@@ -2762,13 +2884,11 @@ function renderBarsPreview(host) {
     const active = ctx.get("visual.tagBars.active");
     const chosen = val("visual.tagBars.fieldId") || "status";
     const hideChosen = active && !ctx.get("visual.tagBars.tagVisibility");
+    const carried = Array.isArray(node.fields) ? node.fields : [];
     const shown = [];
-    ["status", "priority"].forEach(id => {
-      const token = node.v ? node.v[id] : null;
-      if (!token) return;
+    carried.forEach(id => {
       if (id === chosen && hideChosen) return;
-      const f = field(id);
-      const value = f && f.values.find(x => x.token === token);
+      const value = valueAtDepth(id, depth);
       if (value) shown.push(value);
     });
     if (shown.length) {
@@ -2778,7 +2898,7 @@ function renderBarsPreview(host) {
     /* the Separator only goes when nothing is left in front of the text.
        If the one tag there was is the one the Bar replaced, whether the
        Separator goes with it is what the setting below decides. */
-    const replaced = hideChosen && !!fieldValue(node);
+    const replaced = hideChosen && carried.indexOf(chosen) >= 0;
     const sepHidden = !shown.length &&
       (!replaced || ctx.get("visual.tagBars.hideSeparatorWhenOnlyStripToken"));
     if (!sepHidden) el("span", "io-line__sep", line, String(val("pkm.lineFormat.separator1") || "||"));
@@ -2788,7 +2908,9 @@ function renderBarsPreview(host) {
   const drawNode = (parent, node, depth, lane) => {
     const active = ctx.get("visual.tagBars.active");
     const cap = val("visual.tagBars.stripesToShow");
-    const v = fieldValue(node);
+    const chosen = val("visual.tagBars.fieldId") || "status";
+    const carried = Array.isArray(node.fields) ? node.fields : [];
+    const v = carried.indexOf(chosen) >= 0 ? valueAtDepth(chosen, depth) : null;
     const bar = active && v && lane < cap;
 
     const nodeBox = el("div", "io-node" + (bar ? " io-node--bar" : ""), parent);
@@ -2797,7 +2919,7 @@ function renderBarsPreview(host) {
       cssVar(nodeBox, "--io-lane", String(lane));
     }
     drawLine(nodeBox, node, depth);
-    node.children.forEach(c => drawNode(nodeBox, c, depth + 1, bar ? lane + 1 : lane));
+    (node.children || []).forEach(c => drawNode(nodeBox, c, depth + 1, bar ? lane + 1 : lane));
   };
 
   const draw = () => {
@@ -2805,7 +2927,7 @@ function renderBarsPreview(host) {
     cssVar(tree, "--io-bar-thickness", val("visual.tagBars.thickness") + "px");
     cssVar(tree, "--io-bar-gap",       val("visual.tagBars.childOffset") + "px");
     cssVar(tree, "--io-bar-distance",  val("visual.tagBars.spacing") + "px");
-    TREE.forEach(n => drawNode(tree, n, 0, 0));
+    (pt.tree || []).forEach(n => drawNode(tree, n, 0, 0));
   };
   draw();
   previewRefreshers.push(draw);
@@ -2816,10 +2938,8 @@ function renderBarsPreview(host) {
 }
 
 function renderWheelPreview(host) {
-  const box = previewShell(host, "Live preview",
-    "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the " +
-    "settings ask for: <code>Values per side</code> rows on each side that <code>Opens</code> allows. The list is a " +
-    "loop, so it keeps going past the last Value and starts again");
+  const pt = PREVIEW_TEXTS["wheel-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
   const stage = el("div", "io-wheelstage", box);
 
   const draw = () => {
@@ -2846,8 +2966,9 @@ function renderWheelPreview(host) {
     const down = direction === "up"   ? [] : downIdx;
 
     const ROW = 21;
-    cssVar(box, "--io-wheel-up",   (up.length   ? up.length   * ROW + 14 : 0) + "px");
-    cssVar(box, "--io-wheel-down", (down.length ? down.length * ROW + 14 : 0) + "px");
+    /* row height plus the panel's own padding, border and the gap to the line */
+    cssVar(box, "--io-wheel-up",   (up.length   ? up.length   * ROW + 18 : 0) + "px");
+    cssVar(box, "--io-wheel-down", (down.length ? down.length * ROW + 18 : 0) + "px");
 
     const panel = (idx, where) => {
       if (!idx.length) return null;
@@ -2881,8 +3002,6 @@ function renderWheelPreview(host) {
 
 /* ============================================================ Navigation extras */
 
-
-
 /* Every tab opens with the same shape of introduction: one sentence saying
    what the tab is for, a ? with the practical caveat, and a paragraph of
    what you will find here. */
@@ -2893,56 +3012,49 @@ const TAB_CALLOUTS = {
          "or a link on the same line as the thought, and you never break off to fill in a form. The tabs across the " +
          "top go from moving text around, through setting up those slots, to turning a line into a note of its own",
     body: "Nothing here changes your notes on its own. Each area below can be switched off, and the one part that " +
-          "creates files asks again before it will run. If you are new to it, start with the guide",
-    link: "howto", linkText: "Open the guide"
+          "creates files asks again before it will run. If you are new to it, start with the guide"
   },
   navigation: {
     head: "This menu helps to make inline navigation in Obsidian comfortable",
     tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> " +
          "so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
     body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, " +
-          "jumping between headings to navigate easier and much more. Experiment, and set up the workspace of your dreams!",
-    link: "command-list", linkText: "See every command this plugin adds"
+          "jumping between headings to navigate easier and much more. Experiment, and set up the workspace of your dreams!"
   },
   keyboard: {
     head: "Everything about keys lives here",
     tip: "Obsidian owns the hotkeys themselves, so this tab tells you what to bind and takes you there; the binding " +
          "is done in <code>Settings \u2192 Hotkeys</code> and survives updates of this plugin",
     body: "Take over Ctrl/Cmd + A so it selects a line before the whole note, keep a row of snippets you drop in with " +
-          "one press, and read the full list of commands with the key each one currently has",
-    link: "command-list", linkText: "Jump to the command list"
+          "one press, and read the full list of commands with the key each one currently has"
   },
   pkm: {
     head: "This is the plugin\u2019s main feature",
     tip: "The idea is that you never stop writing to fill in metadata. You define your slots once here \u2014 a status, " +
          "a priority, a due date \u2014 and afterwards one keypress puts the right Value on the line and steps it forward",
     body: "Lay out your PKM here once, and tagging a line becomes a keypress instead of typing. Decide which slots a " +
-          "line can hold, what Values each one offers, where they sit, and how they are written",
-    link: "field-editor", linkText: "Start with your Fields"
+          "line can hold, what Values each one offers, where they sit, and how they are written"
   },
   visual: {
     head: "How a tagged line looks while you are writing",
     tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this " +
          "plugin and you will see plain text with ordinary tags",
     body: "Draw tags as coloured bubbles instead of raw text, put a Bar in the margin so you can see what a block of " +
-          "lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys",
-    link: "tag-preview", linkText: "See it on a line"
+          "lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
   },
   transform: {
     head: "Turn a line you have already written into a note of its own",
     tip: "This is the one part of the plugin that creates and edits files. Everything here is off until you switch it " +
          "on, and it is worth a backup and a practice run on a note you do not mind breaking",
     body: "A thought you jotted on one line becomes a proper note, from a template, with its properties already " +
-          "filled in from the tags on that line \u2014 and the line itself left holding a link to it",
-    link: "i2n-enabled", linkText: "The switch that turns it on"
+          "filled in from the tags on that line \u2014 and the line itself left holding a link to it"
   },
   advanced: {
     head: "Housekeeping you will rarely need",
     tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want " +
          "to look at what the plugin has written into your vault",
     body: "Where the plugin keeps the file it generates from your setup, how to rebuild it if it drifts, and how to " +
-          "record a log when something needs reporting",
-    link: "regenerate-rules", linkText: "Rebuild the generated file"
+          "record a log when something needs reporting"
   }
 };
 
@@ -2952,12 +3064,9 @@ function renderTabCallout(host) {
   const box = el("div", "io-callout", host);
   const head = el("div", "io-callout__head", box);
   rich(head, c.head);
-  attachTip(head, c.tip, "this tab", box);
+  /* the ? sits in the callout header, the tip opens under the callout */
+  attachTip(head, c.tip, "this tab", host, box);
   rich(el("p", "io-callout__body", box), c.body);
-  if (!c.link) return;
-  const link = el("button", "io-see", box, "\u2192 " + c.linkText);
-  link.type = "button";
-  link.addEventListener("click", () => ctx.goTo(c.link));
 }
 
 function renderLeftRightOrder(host) {
@@ -3007,12 +3116,17 @@ function contrastRatio(bg, fg) {
 /* Предупреждение, не запрет: последнее слово за человеком. */
 function contrastNote(row, v) {
   if (v.shown === "nothing") return;
+  /* Цвет из темы посчитать нечем, и пугать человека значком из-за этого
+     нельзя: у Value без своего цвета претензий нет. */
+  if (!v.color || !v.textColor) return;
   const r = contrastRatio(v.color, v.textColor);
   if (r >= 4.5) return;
-  const w = el("span", "io-warn", row, "\u26A0");
-  w.title = "This Value may be hard to read: contrast " + r.toFixed(1) +
+  const w = el("span", "io-warn", row, "⚠");
+  /* Одна подсказка на узел, один и тот же текст в обоих атрибутах. */
+  const note = "This Value may be hard to read: contrast " + r.toFixed(1) +
     ":1, aim for 4.5:1 or more";
-  w.setAttribute("aria-label", w.title);
+  w.setAttribute("aria-label", note);
+  w.title = note;
 }
 
 /* A field and the child field that belongs to it move as one block: the
@@ -3108,8 +3222,13 @@ function renderFieldList(list) {
       const grip = el("span", "io-grip", b, "⠿");
       grip.draggable = true;
       grip.setAttribute("role", "button");
-      grip.setAttribute("aria-label", "Drag " + f.name + " to reorder it or move it to the other side");
-      grip.title = f.parent ? "Moves with " + field(f.parent).name : "Drag to reorder, or across the line to change side";
+      /* Одна подсказка на узел, и текст у неё один: Obsidian рисует
+         `aria-label` своей подсказкой, а браузер поверх — `title`. */
+      const gripLabel = f.parent
+        ? "Drag " + f.name + " — it moves with " + field(f.parent).name
+        : "Drag " + f.name + " to reorder it, or across the line to change side";
+      grip.setAttribute("aria-label", gripLabel);
+      grip.title = gripLabel;
       grip.addEventListener("dragstart", e => {
         dragged = f;
         b.classList.add("io-dragging");
@@ -3135,11 +3254,9 @@ function renderFieldList(list) {
       /* Дочерний Field ходит за родителем, своих стрелок у него нет */
       const tools = el("span", "io-fields__tools", b);
       if (!f.parent) {
-        const up = iconBtn(tools, "↑", "Move " + f.name + " up",
-          "Move up, and across the line at the top");
+        const up = iconBtn(tools, "↑", "Move " + f.name + " up, and across the line at the top");
         up.addEventListener("click", ev => { ev.stopPropagation(); stepField(f, -1); });
-        const down = iconBtn(tools, "↓", "Move " + f.name + " down",
-          "Move down, and across the line at the bottom");
+        const down = iconBtn(tools, "↓", "Move " + f.name + " down, and across the line at the bottom");
         down.addEventListener("click", ev => { ev.stopPropagation(); stepField(f, 1); });
       }
     });
@@ -3151,12 +3268,17 @@ function renderFieldList(list) {
   side("Right", "Right Block", "");
 
   const addWrap = el("div", "io-fields__add", list);
-  const add = el("button", "io-btn io-btn--sm", addWrap, "Add Field");
+  /* Акцентная кнопка: заказчик просил, чтобы добавление было видно
+     (замечание 2026-08-27, отменяет прежнее «нейтральная» из Ф5). */
+  const add = el("button", "io-btn io-btn--sm io-btn--cta", addWrap, "Add Field");
   add.type = "button";
-
+  /* Имя и тип спрашиваются окном: тип после создания не меняется, а угадать
+     его за человека нельзя (решение заказчика 2026-08-27). */
+  add.addEventListener("click", () => {
+    dialog = { addField: true, name: "", type: "tag" };
+    renderContent();
+  });
 }
-
-
 
 function renderFieldEditor(host) {
   const wrap = el("div", "io-fields", host);
@@ -3172,38 +3294,59 @@ function renderFieldEditor(host) {
   const f = field(selectedFieldId) || FIELDS[0];
   const detailCol = el("div", "io-fields__col", wrap);
   const detailHead = el("div", "io-fields__colhead", detailCol);
-  el("span", null, detailHead, f.type === "element" ? "Element" : "Values");
+  el("span", null, detailHead, f.type === "element" ? TYPE_LABEL.element : "Values");
   const detail = el("div", "io-fields__detail", detailCol);
 
   /* title, with the short name folded into the same row to keep it compact */
   const title = el("div", "io-fields__title", detail);
-  el("h4", null, title, f.name);
+  /* The system name is set once, in the Add Field dialog, and shown here as
+     a heading. It sits in the config note and in the names of the commands,
+     so changing it later would leave both pointing at a name that is gone. */
+  el("h4", null, title, f.strict || f.name);
   cssVar(el("span", "io-chip io-chip--typed", title, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
   el("span", "io-fields__shortlabel", title, "short name");
-  const nin = textEl(title, f.short, f.name, "Short name for " + f.name, "io-text io-text--short");
-  nin.addEventListener("input", () => { f.short = nin.value; refreshPreviews(); });
+  /* «?» стоит до поля ввода, а не после: подпись, знак вопроса, потом правка
+     — так это читается слева направо (замечание заказчика 2026-08-27). */
   attachTipItem(title, detail, { name:"Short name",
     tip:"TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name" });
+  const nin = textEl(title, f.short, f.name, "Short name for " + f.name, "io-text io-text--short");
+  nin.addEventListener("input", () => { f.short = nin.value; refreshPreviews(); });
   subComment(title, detail, "field-editor/short-name");
-  const del = el("button", "io-danger", title, "\u{1F5D1} Delete Field");
+  /*
+   * Удаление — белая корзина на красном (замечание заказчика 2026-08-27): оно
+   * должно бросаться в глаза, а не притворяться обычной кнопкой. Значок лежит
+   * своим узлом и обесцвечивается в белый фильтром: цветной эмодзи на красной
+   * заливке читается грязным пятном, а слова `Delete` рядом с ним не нужно —
+   * корзина говорит сама.
+   */
+  const del = el("button", "io-danger", title);
+  el("span", "io-danger__icon", del, "🗑");
   del.type = "button";
+  /* Одна подсказка на узел: `aria-label` Obsidian показывает сам. */
   del.setAttribute("aria-label", "Delete the Field " + f.name);
-  del.style.setProperty("margin-left", "auto");
+  del.title = "Delete the Field " + f.name;
 
-  el("div", "io-sub", detail, "Placement");
+  /* Заголовок раздела — `Behavior`: под ним `Active`, `Prefix behavior` и
+     `Child Field` (замечание заказчика 2026-08-27). */
+  el("div", "io-sub", detail, "Behavior");
   placementRows(detail, f);
+  propertyRow(detail, f);
 
   if (f.type === "element") {
     elementRows(detail, f);
   } else {
     const vh = el("div", "io-sub io-item__namerow", detail);
-    el("span", null, vh, "Values in order");
+    el("span", null, vh, "Values");
     attachTipItem(vh, detail, { name:"Values",
-      tip:"The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent\u2019s <code>Behavior</code>, and what those are allowed to change is set under <code>Placement modes</code> on this tab" });
+      tip:"The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent’s <code>Behavior</code>, and what those are allowed to change is set under <code>Placement modes</code> on this tab" });
     subComment(vh, detail, "values/header");
     valuesTable(detail, f);
   }
 
+  /* Таблица команд Field (Ф11) остаётся целью, но в панель она приезжает
+     только в фазе 5: её смысл в колонке `Hotkey`, а та держится на реестре
+     действий (5.6) и на именах команд после переименования фазы 2. Решение
+     заказчика 2026-08-27, подтверждено им же 2026-08-27 после показа. */
   el("div", "io-sub", detail, "Commands");
   const cmdCard = el("div", "io-cmd", detail);
   const cmdCols = "minmax(120px,0.8fr) minmax(140px,1.2fr) 112px";
@@ -3231,22 +3374,50 @@ function valuesTable(host, f) {
   const inner = el("div", "io-vals__inner" + (isLink ? " io-vals__inner--link" : ""), scroll);
 
   const head = el("div", "io-vals__head", inner);
-  (isLink ? ["", "Value", "Prefix", ""]
+  /*
+   * Подсказка есть у каждой колонки, о которой человеку есть что сказать.
+   * `Fill`, `Text` и `Preview` в списке нет: у них подпись и есть объяснение.
+   * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
+   * соседнюю ячейку — колонки узкие (замечание заказчика 2026-08-27).
+   */
+  const COLTIP = {
+    Level: "change Value to be parent or child by pressing arrows. Child Values are only active when Parent Value is present",
+    Value: isLink
+      ? "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> — both are read the same way"
+      : "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way",
+    Prefix: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
+    Show: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give"
+  };
+  /* Подсказка раскрывается под шапкой во всю ширину таблицы, а не внутри
+     своей ячейки: в ячейку шириной в тридцать точек текст не встанет. */
+  const tipSlot = el("div", "io-vals__tipslot", inner);
+  /*
+   * У ссылки те же колонки, что у тега, за вычетом цвета — `Level` среди них
+   * есть. Уровень открывали 2026-08-27, в тот же день убирали (стрелка уносила
+   * значение) и в тот же день вернули: починена была запись, а не стрелка.
+   * Колонка `Parent` жила здесь один день — движок привязку значения ссылки к
+   * значению другого Field не читает вовсе.
+   */
+  (isLink ? ["", "Level", "Value", "Prefix", ""]
           : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview", ""])
-    .forEach(t => el("div", null, head, t));
+    .forEach(t => {
+      const cell = el("div", "io-vals__col", head);
+      el("span", "io-vals__coltext", cell, t);
+      if (COLTIP[t]) attachTip(cell, COLTIP[t], t, tipSlot, tipSlot);
+    });
 
   f.values.forEach((v, i) => {
     const row = el("div", "io-vals__row" + (v.depth ? " io-vals__row--child" : ""), inner);
-    dragHandle(el("div", "io-grip", row, "\u283F"), row, (from, to) => moveIn(f.values, from, to), i);
+    dragHandle(el("div", "io-grip", row, "⠿"), row, (from, to) => moveIn(f.values, from, to), i);
 
-    if (!isLink) {
+    {
       const depth = el("div", "io-depthcell", row);
       const prev = f.values[i - 1];
       if (v.depth) {
-        const out = iconBtn(depth, "\u2190", "Make " + v.token + " a top-level Value", "Move out one level");
+        const out = iconBtn(depth, "←", "Make " + v.token + " a top-level Value");
         out.addEventListener("click", () => { v.depth = 0; renderContent(); });
       } else {
-        const inn = iconBtn(depth, "\u2192", "Make " + v.token + " a child Value", "Move in one level");
+        const inn = iconBtn(depth, "→", "Make " + v.token + " a child Value");
         inn.disabled = !prev || prev.depth === 1;
         inn.addEventListener("click", () => { v.depth = 1; renderContent(); });
       }
@@ -3256,7 +3427,7 @@ function valuesTable(host, f) {
     const tok = textEl(cell, v.token, null, "Value " + (i + 1) + " of " + f.name, "io-text io-text--mono");
     tok.addEventListener("input", () => { v.token = tok.value; renderContent(); });
 
-    textEl(row, v.prefix, "none", "Prefix for " + v.token, "io-text io-text--mono");
+    textEl(row, v.prefix, "no", "Prefix for " + v.token, "io-text io-text--mono");
 
     if (!isLink) {
       const shown = el("div", "io-showncell", row);
@@ -3282,69 +3453,203 @@ function valuesTable(host, f) {
     }
 
     const tools = el("div", "io-valtools", row);
-    iconBtn(tools, "\u2715", "Remove " + v.token);
+    /*
+     * Обратно к цвету темы. Пикер такого сказать не умеет — у него всегда
+     * какой-то цвет, — и без этой кнопки выбранный однажды цвет оставался у
+     * Value навсегда (решение заказчика 2026-08-27). Одна кнопка на оба
+     * цвета, и стоит она перед удалением.
+     */
+    if (!isLink && (v.color || v.textColor)) {
+      const reset = iconBtn(tools, "↺", "Reset the colors of " + v.token + " back to the colors of the theme");
+      reset.addEventListener("click", () => { v.color = ""; v.textColor = ""; renderContent(); });
+    }
+    /* Удаление красное: это единственная кнопка в строке, которая уносит
+       данные (замечание заказчика 2026-08-27). */
+    const del = iconBtn(tools, "✕", "Remove " + v.token);
+    del.classList.add("io-icon--danger");
     subComment(tools, row, "value/" + (v.token || i));
   });
 
   const foot = el("div", "io-vals__foot", box);
-  const add = el("button", "io-btn io-btn--sm", foot, "Add Value");
+  /* Решётка и двойные скобки не обязательны: значение читается одинаково с
+     ними и без них (замечание заказчика 2026-08-27). */
+  textEl(foot, "", isLink ? "[[wikilink]] / wikilink" : "#tag / tag",
+    "New Value for " + f.name, "io-text io-text--mono");
+  /* Добавление — акцентная кнопка: заказчик просил, чтобы её было видно
+     (замечание 2026-08-27, отменяет прежнее «нейтральная» из Ф5). */
+  const add = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add Value");
   add.type = "button";
-  if (!isLink) el("span", "io-note", foot, "Use \u2192 to make a Value a child of the one above it");
+  /* Строка «Use → to make a Value a child…» из подвала убрана: она уехала в
+     подсказку колонки `Level`, где её ищут (замечание заказчика 2026-08-27). */
 }
 
 function elementRows(host, f) {
-  [
-    ["Marker", "The character written before the Value", "marker", "one character or emoji"],
-    ["Format", "How the Value is written and recognised", "format", "YYYY-MM-DD"]
-  ].forEach(([name, desc, key, ph]) => {
-    const row = el("div", "io-item", host);
-    const info = el("div", "io-item__info", row);
+  /*
+   * У Field типа Emoji своих Values нет: у него одно значение, которое двигают
+   * команды. Настройки этого значения стоят под своим заголовком, а не в общей
+   * куче под `Behavior`: заказчик читал их как настройки размещения
+   * (замечание 2026-08-27).
+   */
+  el("div", "io-sub", host, "Value");
+
+  const row = (r, value, apply) => {
+    const item = el("div", "io-item", host);
+    const info = el("div", "io-item__info", item);
     const nrow = el("div", "io-item__namerow", info);
-    el("div", "io-item__name", nrow, name);
-    subComment(nrow, info, "element/" + key);
-    el("div", "io-item__desc", info, desc);
-    const ctl = el("div", "io-item__control", row);
-    const input = textEl(ctl, f[key], ph, name + " for " + f.name, "io-text io-text--mono");
-    input.addEventListener("input", () => { f[key] = input.value; refreshPreviews(); });
-  });
+    el("div", "io-item__name", nrow, r.name);
+    if (r.tip) attachTipItem(nrow, info, r);
+    subComment(nrow, info, "element/" + r.key);
+    rich(el("div", "io-item__desc", info), r.desc);
+    const ctl = el("div", "io-item__control", item);
+    if (r.options) {
+      const s = selectEl(ctl, r.options, value, r.name + " for " + f.name);
+      s.addEventListener("change", () => { apply(s.value); renderContent(); });
+      return;
+    }
+    const input = textEl(ctl, value, r.ph, r.name + " for " + f.name, "io-text io-text--mono");
+    input.addEventListener("input", () => { apply(input.value); refreshPreviews(); });
+  };
+
+  row({ name:"Emoji-prefix", key:"marker", ph:"one character or emoji",
+    desc:"The character that stands in front of the Value in the line",
+    tip:"This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as this Field only because <code>📅</code> stands in front. Give it a character no other Field uses, or the two will be taken for one" },
+    f.marker, v => { f.marker = v; });
+
+  row({ name:"Value format", key:"format", ph:"YYYY-MM-DD / HHmm / 1",
+    desc:"The shape of the Value: a date, a time or a number",
+    tip:"Spell out the shape you want to see in the line. A date or a time is built from " +
+        "<code>YYYY</code> (year), <code>MM</code> (month), <code>DD</code> (day), " +
+        "<code>HH</code> (hour), <code>mm</code> (minute), <code>ss</code> (second), with any " +
+        "separators between them: <code>YYYY-MM-DD</code> writes <code>2026-08-27</code>, " +
+        "<code>DD.MM</code> writes <code>27.08</code>, <code>HHmm</code> writes <code>1435</code>. " +
+        "Digits alone make a counter, and the number of digits is the width it keeps: " +
+        "<code>1</code> counts <code>1</code>, <code>2</code>, <code>3</code>, while " +
+        "<code>001</code> counts <code>001</code>, <code>002</code>. Anything else is taken as " +
+        "plain text and never steps" },
+    f.format, v => { f.format = v; });
+
+  row({ name:"Steps by", key:"step",
+    desc:"What should happen with the Value when you use <code>next</code> or <code>previous</code> command",
+    tip:"<b>Fixed step</b> adds the same amount on every press: a day to a date, one to a counter. " +
+        "<b>Command</b> throws the old Value away and writes a fresh one — the time of the press, " +
+        "or a random string for an id. <b>Custom step</b> walks a list of steps you write yourself, " +
+        "and can end the cycle by removing the Value from the line",
+    options:[
+      { value:"increment", label:"Fixed step" },
+      { value:"command",   label:"Command" },
+      { value:"custom",    label:"Custom step" }
+    ] },
+    f.step, v => { f.step = v; });
+
+  /* Показывается только то, чем шагает выбранный режим: три поля разом сбивают
+     с толку. */
+  if (f.step === "increment") {
+    row({ name:"Amount", key:"amount", ph:"1",
+      desc:"How much one press adds to the Value",
+      tip:"<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with <code>HHmm</code> a minute, with a counter just one" },
+      f.amount || "1", v => { f.amount = v; });
+  } else if (f.step === "command") {
+    row({ name:"Command", key:"command",
+      desc:"What the press writes into the Value instead of stepping it",
+      tip:"<code>The current date and time</code> writes the moment of the press in the shape set by <code>Value format</code>. The random ones fill the Value with numbers or letters, which is what an id needs",
+      options:[
+        { value:"now",     label:"The current date and time" },
+        { value:"randomN", label:"Random numbers" },
+        { value:"randomE", label:"Random characters" }
+      ] },
+      f.command || "now", v => { f.command = v; });
+  } else {
+    row({ name:"Steps", key:"steps", ph:"1 (3)",
+      desc:"One step per line, in the order the presses walk them",
+      tip:"A line is a number, and a number in brackets after it says how many presses stay on that step: <code>1 (3)</code> moves by one for three presses. <code>END</code> ends the cycle and removes the Value" },
+      f.steps || "", v => { f.steps = v; });
+  }
+}
+
+
+/* The note property belongs to the Field, not to a table somewhere else:
+   it is set here, next to everything else the Field decides. */
+function propertyRow(host, f) {
+  /*
+   * Свойства заметки — свой раздел, а не строка внутри `Behavior` (замечание
+   * заказчика 2026-08-27): сюда приедут остальные настройки свойства, когда
+   * дойдёт черёд блока `Note properties` на вкладке Transform. Подсказка у
+   * заголовка объясняет, зачем этот раздел вообще нужен.
+   */
+  const head = el("div", "io-sub io-item__namerow", host);
+  el("span", null, head, "YAML property");
+  attachTipItem(head, host, { name:"YAML property",
+    tip:"<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Leave it empty and the Field is simply not copied" });
+  subComment(head, host, "field-editor/yaml-header");
 
   const row = el("div", "io-item", host);
   const info = el("div", "io-item__info", row);
   const nrow = el("div", "io-item__namerow", info);
-  el("div", "io-item__name", nrow, "Steps by");
-  attachTipItem(nrow, info, { name:"Steps by",
-    tip:"This is what <code>next</code> and <code>previous</code> do here. A date can move on by a day, or jump to today; a number can go up by a set amount; or you can list the Values yourself and step through them" });
-  subComment(nrow, info, "element/step");
-  el("div", "io-item__desc", info, "What next and previous do to the Value");
+  el("div", "io-item__name", nrow, "Property");
+  subComment(nrow, info, "field-editor/property");
+  el("div", "io-item__desc", info, "If you use inline2note, to which YAML property this Field should go");
   const ctl = el("div", "io-item__control", row);
-  const s = selectEl(ctl, [
-    { value:"increment", label:"A fixed amount" },
-    { value:"command",   label:"A command such as now" },
-    { value:"custom",    label:"A list you define" }
-  ], f.step, "Steps by, for " + f.name);
-  s.addEventListener("change", () => { f.step = s.value; });
+  /* Поле шириной с выпадающий список `Prefix behavior` над ним: два контрола
+     в одном столбце, и разная ширина читалась как разный вид настройки
+     (замечание заказчика 2026-08-27). */
+  const input = textEl(ctl, f.property || "", "select Property", "YAML property for " + f.name, "io-text io-text--mono io-text--prop");
+  input.addEventListener("change", () => { f.property = input.value.trim(); });
 }
 
-
 function placementRows(host, f) {
-  [
-    { name:"Behavior", key:"behavior", options:BEHAVIORS,
-      desc:"How much this Field may change the start of the line",
-      tip:"<b>Strict</b> writes the Value in its own Block and changes the line Prefix. " +
-          "<b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. " +
-          "<b>Free</b> inserts the Value where the cursor is now" }
-  ].forEach(r => {
-    const row = el("div", "io-item", host);
-    const info = el("div", "io-item__info", row);
+  /* Один ряд настройки внутри правой колонки: имя, «?», описание, контрол. */
+  const row = (r, value, apply) => {
+    const item = el("div", "io-item", host);
+    const info = el("div", "io-item__info", item);
     const nrow = el("div", "io-item__namerow", info);
     el("div", "io-item__name", nrow, r.name);
     helpButton(nrow, info, r);
     subComment(nrow, info, "placement/" + r.key);
     rich(el("div", "io-item__desc", info), r.desc);
-    const ctl = el("div", "io-item__control", row);
-    const s = selectEl(ctl, r.options, f[r.key], r.name + " for " + f.name);
-    s.addEventListener("change", () => { f[r.key] = s.value; renderContent(); });
-  });
+    const ctl = el("div", "io-item__control", item);
+    const s = selectEl(ctl, r.options, value, r.name + " for " + f.name);
+    s.addEventListener("change", () => { apply(s.value); renderContent(); });
+  };
+
+  /*
+   * Работает ли Field вообще. Настройка живая и читается рантаймом: при `no`
+   * Field выключен везде, при `hotkey_only` его команды работают, а из
+   * TagWheel он убран. Значения в конфиге прежние (З1) — меняются подписи.
+   * Возвращена решением заказчика 2026-08-27: в первой версии этой колонки
+   * контрола не было, и настройка становилась недостижимой.
+   */
+  row({ name:"Active", key:"active",
+    desc:"Whether this Field is offered, and where",
+    tip:"<b>No</b> switches the Field off everywhere: TagWheel does not show it and its commands do nothing. " +
+        "<b>Commands only</b> keeps the commands working and takes the Field out of TagWheel",
+    options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" },
+             { value:"hotkey_only", label:"Commands only" }] },
+    f.active || "yes", v => { f.active = v; });
+
+  row({ name:"Prefix behavior", key:"behavior", options:BEHAVIORS,
+    desc:"How this Field affects the line Prefix",
+    tip:"<b>Strict</b> writes the Value in its own Block and changes the line Prefix. " +
+        "<b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. " +
+        "<b>Free</b> inserts the Value where the cursor is now" },
+    f.behavior, v => { f.behavior = v; });
+
+  /*
+   * Дочерний Field есть только у Field типа Tag. У ссылки дочернего Field
+   * нет: родитель её значения — это значение ДРУГОГО Field
+   * (`__ioParentBinding`), а не соседняя ссылка, и заводится он своим
+   * контролом, а не этим. У Field типа Emoji значений нет вовсе (З8).
+   *
+   * Выключенный дочерний Field не появляется в TagWheel после выбора
+   * родительского значения, даже если значения у него заведены.
+   */
+  if (f.type === "tag") {
+    row({ name:"Child Field", key:"child",
+      desc:"Show the child Field in TagWheel once a parent Value is picked",
+      tip:"A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. " +
+          "Switched off, TagWheel does not offer it even when its Values are set up",
+      options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" }] },
+      f.childOn === false ? "no" : "yes", v => { f.childOn = v !== "no"; });
+  }
 }
 
 /* ============================================================ Cycle order */
@@ -3386,8 +3691,8 @@ function renderCycleOrder(host) {
 }
 
 function renderFloatingButton(host) {
-  const box = previewShell(host, "Live preview",
-    "The button is part of the editor, not the note: nothing is written into your file until you press it");
+  const pt = PREVIEW_TEXTS["i2n-button-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
   const holder = el("div", null, box);
   const draw = () => {
     holder.textContent = "";
@@ -3398,7 +3703,7 @@ function renderFloatingButton(host) {
     btn.type = "button";
     btn.title = "Turn this line into a note";
     btn.setAttribute("aria-label", "Turn this line into a note");
-    el("p", "io-preview__note", holder, "Shown on the line the cursor is on");
+    el("p", "io-preview__note", holder, pt.note);
   };
   draw();
   previewRefreshers.push(draw);
@@ -3491,8 +3796,6 @@ function isList(f, sharing) {
   if (c === "one") return false;
   return sharing > 1;
 }
-
-
 
 function yamlValueFor(f) {
   /* the plain form never carries a marker: no hash on a tag, no emoji on an
@@ -3743,7 +4046,76 @@ function renderSmartRules(host) {
 
 }
 
+/* A Field is created with a name and a type, and the type is not editable
+   afterwards: it decides what the Field writes into the line. */
+function renderAddFieldDialog() {
+  const scrim = el("div", "io-scrim", document.body);
+  scrim.addEventListener("click", e => { if (e.target === scrim) { dialog = null; renderContent(); } });
+
+  const dlg = el("div", "io-dlg", scrim);
+  dlg.setAttribute("role", "dialog");
+  dlg.setAttribute("aria-modal", "true");
+  dlg.setAttribute("aria-label", "Add a Field");
+
+  const head = el("div", "io-dlg__head", dlg);
+  el("h4", null, head, "Add a Field");
+  const close = iconBtn(head, "✕", "Cancel");
+  close.style.setProperty("margin-left", "auto");
+  close.addEventListener("click", () => { dialog = null; renderContent(); });
+
+  const body = el("div", "io-dlg__body", dlg);
+
+  const nRow = el("div", "io-item", body);
+  const ni = el("div", "io-item__info", nRow);
+  el("div", "io-item__name", ni, "Name");
+  el("div", "io-item__desc", ni, "What this Field is called here and in the config note");
+  const input = textEl(el("div", "io-item__control", nRow), dialog.name, "Priority", "Name of the new Field");
+
+  const tRow = el("div", "io-item", body);
+  const ti = el("div", "io-item__info", tRow);
+  el("div", "io-item__name", ti, "Type");
+  el("div", "io-item__desc", ti, "What the Field writes into the line");
+  attachTipItem(ti, body, { name:"Type",
+    tip:"<b>Tag</b> writes a tag and can hold a list of Values. <b>Link</b> writes a wikilink to a note. " +
+        "<b>Element</b> writes a marker and one value it knows how to step, such as a date. " +
+        "The type is chosen once: it decides what the Field writes, and changing it later would rewrite every line that already has it" });
+  const type = selectEl(el("div", "io-item__control", tRow),
+    Object.keys(TYPE_LABEL).map(k => ({ value:k, label:TYPE_LABEL[k] })), dialog.type, "Type of the new Field");
+  type.addEventListener("change", () => { dialog.type = type.value; });
+
+  const foot = el("div", "io-dlg__foot", dlg);
+  const cancel = el("button", "io-btn", foot, "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => { dialog = null; renderContent(); });
+  const save = el("button", "io-btn io-btn--cta", foot, "Add");
+  save.type = "button";
+  save.addEventListener("click", () => {
+    const name = String(dialog.name || "").trim();
+    if (!name) return;
+    const id = name.toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+    FIELDS.push({ id, name, short:"", type:dialog.type, position:"Right", behavior:"Strict",
+      color:TYPE_COLOR[dialog.type], property:"", cardinality:"auto", valueRule:"raw",
+      marker:"", format:"", step:"increment", values:[] });
+    selectedFieldId = id;
+    dialog = null;
+    renderContent();
+  });
+
+  const sync = () => { save.disabled = !String(dialog.name || "").trim(); };
+  input.addEventListener("input", () => { dialog.name = input.value; sync(); });
+  sync();
+
+  const esc = e => {
+    if (e.key !== "Escape") return;
+    document.removeEventListener("keydown", esc);
+    dialog = null; renderContent();
+  };
+  document.addEventListener("keydown", esc);
+  input.focus();
+}
+
 function renderDialog() {
+  if (dialog.addField) { renderAddFieldDialog(); return; }
   const kind = kindOf(dialog.kind);
   const rule = RULES.find(r => r.id === dialog.ruleId);
   if (!rule) { dialog = null; return; }

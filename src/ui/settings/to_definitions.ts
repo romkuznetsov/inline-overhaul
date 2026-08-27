@@ -24,7 +24,7 @@ import type {
   SettingGroupItem,
 } from "obsidian";
 
-import type { ActionId, SettingDef, SettingsCtx, SettingsGroup, TabDef, TabId } from "./types.ts";
+import type { ActionId, NamedDef, SettingDef, SettingsCtx, SettingsGroup, TabDef, TabId } from "./types.ts";
 import { isBound } from "./types.ts";
 
 /** То, что слой настроек умеет делать помимо чтения и записи значений. */
@@ -32,11 +32,16 @@ export interface Wiring {
   ctx: SettingsCtx;
   run: (action: ActionId) => void;
   /** Собирает описание: текст со ссылками плюс сворачиваемая подсказка. */
-  describe: (it: SettingDef) => unknown;
+  describe: (it: NamedDef) => unknown;
   /** Своя вёрстка для kind: 'custom'. */
   renderCustom?: (it: SettingDef) => SettingDefinition | null;
-  /** Кнопка сброса группы к значениям по умолчанию (10.13.1). */
-  resetGroup?: (group: SettingsGroup) => { tooltip: string; onClick: () => void } | null;
+  /**
+   * Кнопка сброса группы к значениям по умолчанию (10.13.1). Отдаётся сразу
+   * функцией: платформа ждёт в `extraButtons` именно функции, а состояние
+   * кнопки — неактивность и подсказку — панель меняет на самой кнопке, не
+   * пересобирая определения.
+   */
+  resetGroup?: (group: SettingsGroup) => ((btn: ExtraButtonComponent) => unknown) | null;
   /** Открытая вкладка: показываются только её группы. */
   activeTab: TabId;
   /**
@@ -99,6 +104,21 @@ function controlFor(it: SettingDef, w: Wiring): SettingControl | undefined {
 }
 
 function itemToDefinition(it: SettingDef, w: Wiring): SettingDefinition | null {
+  /*
+   * Свой блок идёт первым и в общую сборку не попадает: у него нет ни имени,
+   * ни описания, ни контрола — только строка `render` (П-12). Из общего к
+   * нему относится один предикат видимости.
+   */
+  if (it.kind === "custom") {
+    const def = w.renderCustom ? w.renderCustom(it) : null;
+    if (!def) return null;
+    if (it.visible) {
+      const p = it.visible;
+      (def as unknown as Record<string, unknown>)["visible"] = () => p.test(w.ctx);
+    }
+    return def;
+  }
+
   const common: Record<string, unknown> = { name: it.name };
   const desc = w.describe(it);
   if (desc !== undefined) common["desc"] = desc;
@@ -110,9 +130,6 @@ function itemToDefinition(it: SettingDef, w: Wiring): SettingDefinition | null {
   }
 
   /* control, render и action взаимоисключающи (П-12). */
-  if (it.kind === "custom") {
-    return w.renderCustom ? w.renderCustom(it) : null;
-  }
   if (it.kind === "buttons") {
     const first = it.buttons[0];
     if (!first) return null;
@@ -151,7 +168,16 @@ function groupToDefinition(group: SettingsGroup, w: Wiring): SettingDefinitionGr
     if (def) items.push(def as unknown as SettingGroupItem);
   }
 
-  const def: Record<string, unknown> = { type: "group", heading: group.heading, items };
+  /*
+   * У вводной группы заголовка нет: коллаут показывается сразу. Так же
+   * устроен прототип — он пропускает заголовок у групп с id на `-intro`, —
+   * и «Before you start» над коллаутом было расхождением с ним, а не
+   * решением. `cls` даёт группе приметный класс: по нему переход находит
+   * нужную группу, потому что строкам класса платформа не даёт (К3).
+   */
+  const intro = /-intro$/.test(group.id);
+  const def: Record<string, unknown> = { type: "group", items, cls: "io-group-" + group.id };
+  if (!intro) def["heading"] = group.heading;
   if (group.visible) {
     const p = group.visible;
     def["visible"] = () => p.test(w.ctx);
@@ -159,10 +185,7 @@ function groupToDefinition(group: SettingsGroup, w: Wiring): SettingDefinitionGr
   /* Кнопка сброса живёт в заголовке группы и объявляется функцией, а не
      объектом: платформа вызывает её с компонентом кнопки. */
   const reset = w.resetGroup ? w.resetGroup(group) : null;
-  if (reset) {
-    def["extraButtons"] = [(btn: ExtraButtonComponent) =>
-      btn.setIcon("rotate-ccw").setTooltip(reset.tooltip).onClick(reset.onClick)];
-  }
+  if (reset) def["extraButtons"] = [reset];
   return def as unknown as SettingDefinitionGroup;
 }
 

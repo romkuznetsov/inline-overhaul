@@ -5,12 +5,16 @@
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
  *   help: howto (buttons)
- *   general-intro: general-callout (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
+import { callout } from "../custom/callouts.ts";
 
 export const GENERAL_GROUPS: readonly SettingsGroup[] = [
+{ id: "general-intro",   tab: "general",    order: 10, heading: "Before you start",
+  items: [
+    { kind:"custom", id:"general-callout", render: callout("general") }
+  ] },
 {
   id: "help", tab: "general", order: 100, heading: "Help",
   intro: "Where to start, and how much hand-holding you want along the way",

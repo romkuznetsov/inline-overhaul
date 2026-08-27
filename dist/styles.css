@@ -108,3 +108,950 @@
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
 }
+
+/*
+ * Свой блок (раздел 10). Строка настройки отдаётся блоку целиком: ни имени,
+ * ни контрола у него нет, поэтому сетка строки снимается.
+ *
+ * Селектор с двумя классами не для красоты: у строки настройки в теме есть
+ * правило с контекстом (`.vertical-tab-content .setting-item`), и одного
+ * класса ему не хватало — строка оставалась флексом, содержимое сжималось в
+ * узкую колонку, а текст кнопки перехода переносился по слову.
+ */
+.setting-item.io-block {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border-top: 0;
+}
+
+/* Вводный коллаут вкладки (10.1). Геометрия — из прототипа. */
+.io-callout {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 14px 0 2px;
+  padding: 11px 13px;
+  max-width: 66ch;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 2px solid var(--interactive-accent);
+  border-radius: 0 var(--radius-m) var(--radius-m) 0;
+  background: var(--background-secondary);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.io-callout b {
+  color: var(--text-normal);
+  font-weight: 500;
+}
+.io-callout__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-normal);
+  font-weight: 500;
+}
+.io-callout__body {
+  margin: 6px 0 0;
+}
+
+/*
+ * «?» в шапке своего блока. Подсказка к нему открывается не внутри рамки, а
+ * под ней: раскрытие внутри раздвигало текст коллаута, и панель читалась
+ * как прыгающая.
+ */
+.io-help {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+.io-help:hover {
+  color: var(--text-normal);
+  border-color: var(--text-muted);
+}
+.io-help[aria-expanded="true"] {
+  background: var(--interactive-accent);
+  border-color: transparent;
+  color: var(--text-on-accent);
+}
+.io-help:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.io-tip--below {
+  margin: 6px 0 2px;
+  padding: 8px 11px;
+  max-width: 66ch;
+  border-left: 2px solid var(--interactive-accent);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  background: var(--background-secondary);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.io-tip--below b {
+  color: var(--text-normal);
+  font-weight: 500;
+}
+
+/*
+ * Живой предпросмотр (10.3). Геометрия — из прототипа, цвета — из темы.
+ * Значения по умолчанию для --io-* стоят на самом блоке: если настройка ещё
+ * не прочитана, предпросмотр рисуется как «всё по единице», а не пропадает.
+ */
+.io-preview {
+  --io-opacity-left: 1;
+  --io-opacity-right: 1;
+  --io-text-scale: 1;
+  --io-bubble-x: 1;
+  --io-bubble-y: 1;
+  --io-empty-x: 1;
+  --io-corners: 1;
+
+  margin: 8px 0 2px;
+  padding: 14px 16px 11px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+.io-preview__cap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 9px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+/* Линия добивает подпись до края блока. */
+.io-preview__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--background-modifier-border);
+}
+.io-preview__note {
+  margin: 9px 0 0;
+  max-width: 66ch;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+}
+.io-preview__note--top {
+  margin: 0 0 9px;
+}
+
+/* Выдуманная строка: та же раскладка, что у строки в редакторе. */
+.io-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 3px 0;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+.io-line__prefix {
+  font-family: var(--font-monospace);
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+.io-line__text {
+  color: var(--text-muted);
+}
+.io-line__sep {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.io-line__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+/* Прозрачность гасит сторону целиком, вместе с элементом и ссылкой. */
+.io-line__side--left {
+  opacity: var(--io-opacity-left);
+}
+.io-line__side--right {
+  opacity: var(--io-opacity-right);
+}
+
+/* Пузырь получает только тег. Ссылка и элемент остаются обычным текстом. */
+.io-bubble {
+  display: inline-block;
+  white-space: nowrap;
+  padding: calc(2.5px * var(--io-bubble-y)) calc(9px * var(--io-bubble-x));
+  border-radius: calc(11px * var(--io-corners) + 2px);
+  font-size: calc(11.5px * var(--io-text-scale));
+  line-height: 1.35;
+  background: var(--io-bubble-bg, var(--interactive-accent));
+  color: var(--io-bubble-fg, var(--text-on-accent));
+}
+/* Value без текста — всё ещё Value: та же высота, только уже и без надписи. */
+.io-bubble--empty {
+  width: calc(30px * var(--io-empty-x));
+  padding-left: 0;
+  padding-right: 0;
+  color: transparent;
+}
+.io-elem {
+  font-family: var(--font-monospace);
+  font-size: calc(11.5px * var(--io-text-scale));
+  color: var(--text-muted);
+}
+.io-link {
+  color: var(--text-accent);
+}
+
+/*
+ * Полосы (10.3 П4—П6). Полоса живёт в жёлобе слева от строки. Три дорожки
+ * зарезервированы всегда, поэтому `Number of Bars` меняет то, что нарисовано,
+ * и никогда — раскладку: текст не сдвигается ни на пиксель.
+ *
+ * Дорожка 0 — самая левая и принадлежит родителю (П6): ребёнок всегда правее
+ * той строки, от которой он висит. Инвертировать нельзя.
+ */
+.io-tree {
+  --io-lane-count: 3;
+  --io-bar-thickness: 3px;
+  --io-bar-gap: 11px;
+  --io-bar-distance: 14px;
+  display: flex;
+  flex-direction: column;
+  padding-left: 3px;
+}
+.io-node {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+/* Полоса не занимает места в потоке: она абсолютная и тянется во всю высоту
+   поддерева, потому что поддерево и есть её узел (П5). */
+.io-node--bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--io-lane, 0) * var(--io-bar-gap));
+  width: var(--io-bar-thickness);
+  border-radius: 2px;
+  background: var(--io-bar-color, var(--text-faint));
+}
+/* Текст отодвинут сразу на все дорожки, а не на нарисованные. */
+.io-tree .io-line {
+  padding-left: calc(
+    (var(--io-lane-count) - 1) * var(--io-bar-gap)
+    + var(--io-bar-thickness)
+    + var(--io-bar-distance)
+    + var(--io-depth, 0) * 20px);
+}
+
+/*
+ * TagWheel (10.3 П7, П8). Панель значений висит от чипа, а место под неё
+ * резервируется на подложке: если отдать место рамке блока, подсказка,
+ * открытая под подписью, столкнётся с панелью.
+ */
+.io-wheelstage {
+  padding-top: var(--io-wheel-up, 0px);
+  padding-bottom: var(--io-wheel-down, 0px);
+}
+.io-wheelcol {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+/* Панель считается от центра чипа и линию расширять не имеет права. */
+.io-wheelpanel {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: max-content;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--io-wheel-bg, var(--background-primary));
+  box-shadow: var(--shadow-s);
+}
+.io-wheelpanel--up {
+  bottom: calc(100% + 5px);
+}
+.io-wheelpanel--down {
+  top: calc(100% + 5px);
+}
+/*
+ * Высота строки задана явно и совпадает с WHEEL_ROW в previews.ts: место под
+ * панель резервируется заранее, и если высоту отдать теме, панель вырастет за
+ * пределы зарезервированного и накроет пометки блока.
+ */
+.io-wheelval {
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  line-height: 15px;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--io-wheel-fg, var(--text-muted));
+}
+/* Значение, на котором стоит скроллер. */
+.io-bubble--current {
+  box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+/* Пустая сторона строки — не ошибка, а приглашение (ПЗ3). */
+.io-line__hint {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+/* ======================================================================
+ * Редактор Fields: две колонки, список Fields с Left Block и Right Block
+ * (PRD 10.2, Ф1-Ф5, Ф17-Ф20). Перенесено из прототипа, он нормативен (Р8).
+ * ====================================================================== */
+
+/*
+ * Цвет типа Field (Ф4). Единственные три цветовых литерала слоя настроек, и
+ * они здесь по требованию: цвет типа обязан НЕ совпадать с акцентом темы,
+ * потому что акцент занят основными действиями. Переменной Obsidian с таким
+ * смыслом нет, поэтому значение задаётся один раз тут, а код знает только
+ * имя переменной (З6).
+ */
+.io-type-colors,
+:root {
+  --io-type-tag: #c2683f;
+  --io-type-link: #3b82c4;
+  --io-type-element: #7a9e3b;
+}
+
+.io-btn {
+  appearance: none;
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  background: var(--interactive-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.io-btn:hover { background: var(--interactive-hover); }
+.io-btn--sm { padding: 2px 9px; font-size: var(--font-ui-smaller); }
+/*
+ * Добавление — акцентная кнопка: заказчик просил, чтобы её было видно
+ * (2026-08-27). Цвет берётся из акцента темы, а не литералом (З6): в теме
+ * Obsidian по умолчанию он и есть фиолетовый.
+ */
+.io-btn--cta {
+  background: var(--interactive-accent);
+  border-color: transparent;
+  color: var(--text-on-accent);
+  font-weight: 500;
+}
+.io-btn--cta:hover { background: var(--interactive-accent-hover); }
+
+.io-icon {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.io-icon:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+
+.io-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.io-chip--typed {
+  background: var(--io-chip-bg, var(--background-secondary));
+  border-color: transparent;
+  color: var(--text-on-accent);
+  font-weight: 500;
+}
+
+/* Ручка перетаскивания и вид строки, пока её тянут. */
+.io-grip {
+  color: var(--text-faint);
+  font-size: 12px;
+  user-select: none;
+  cursor: grab;
+}
+.io-grip:active { cursor: grabbing; }
+.io-dragging { opacity: 0.45; }
+.io-dragover { box-shadow: inset 0 2px 0 var(--interactive-accent); }
+
+.io-fields {
+  /*
+   * Две колонки стоят рядом всегда. Три попытки спросить ширину кончились
+   * одинаково — вопрос и был ошибкой:
+   *   1. оконный медиазапрос не срабатывает: панель настроек Obsidian уже окна;
+   *   2. контейнерный меряет ближайшего предка-контейнера, а не сам блок, и в
+   *      Obsidian такой предок нашёлся — левый список сложился в строку;
+   *   3. `flex-wrap` сравнивает основы колонок с шириной строки, и правая
+   *      колонка всё равно уехала вниз на панели заказчика.
+   * Теперь не спрашиваем ничего: правая колонка берёт остаток и умеет сжаться,
+   * а таблица Values прокручивается внутри себя, если станет совсем тесно.
+   */
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  /*
+   * Текст редактора того же размера, что и у остальных настроек панели
+   * (заказчик, 2026-08-27: `Active` был заметно крупнее `First Separator`).
+   * Свои блоки Obsidian не оформляет, и без этой строки они наследовали
+   * размер документа, а не размер строки настройки.
+   */
+  font-size: var(--font-ui-small);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+  background: var(--background-primary);
+}
+.io-fields__col { min-width: 0; display: flex; flex-direction: column; }
+.io-fields__col:first-child { flex: 0 0 188px; }
+/* Правая колонка берёт остаток и умеет сжаться до нуля: без min-width её
+   содержимое вытолкнуло бы список Fields, а не сжалось само. */
+.io-fields__col + .io-fields__col {
+  flex: 1 1 0;
+  min-width: 0;
+  border-left: 1px solid var(--background-modifier-border);
+}
+.io-fields__colhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--background-primary-alt);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.io-fields__col:first-child .io-fields__colhead { background: var(--background-secondary); }
+.io-fields__list { background: var(--background-secondary); padding: 6px; flex: 1 1 auto; }
+.io-fields__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  padding: 4px 4px 4px 8px;
+  border-radius: var(--radius-s);
+}
+.io-fields__item:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.io-fields__item[aria-current="true"] {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+/*
+ * Выбор Field - кнопка внутри строки, а не сама строка (Ф19): рядом с ней
+ * стоят ещё три интерактивных элемента, а кнопку в кнопку вложить нельзя.
+ */
+.io-fields__pick {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 2px 0;
+  border-radius: var(--radius-s);
+}
+.io-fields__name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.io-fields__item .io-chip { margin-left: 4px; }
+/*
+ * Место под стрелки занято всегда, видны они только у строки, с которой
+ * работают (Ф18). Появление кнопки не двигает вёрстку - иначе строка прыгает
+ * под курсором.
+ */
+.io-fields__tools {
+  display: inline-flex;
+  gap: 0;
+  flex: 0 0 auto;
+  /* Узкие: вместе с чипом типа стрелки съедали имя Field (2026-08-27). */
+  width: 34px;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 90ms ease-out;
+}
+.io-fields__item:hover .io-fields__tools,
+.io-fields__item:focus-within .io-fields__tools,
+.io-fields__item[aria-current="true"] .io-fields__tools { opacity: 1; }
+.io-fields__tools .io-icon { width: 16px; height: 20px; padding: 0; font-size: 10px; }
+.io-fields__add {
+  margin-top: 4px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 6px;
+}
+
+/* Список Fields, разделённый линией строки, на которой стоит текст (Ф1). */
+.io-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 2px;
+  border-radius: var(--radius-s);
+}
+.io-side--over {
+  background: var(--background-modifier-hover);
+  box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+.io-side__cap { display: flex; flex-direction: column; padding: 2px 8px 4px; }
+.io-side__label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+/* Пустая сторона - приглашение, а не ошибка: без значка и без цвета (ПЗ3). */
+.io-side__empty {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+  padding: 3px 8px 5px;
+}
+.io-side__rule {
+  height: 0;
+  margin: 5px 6px;
+  border-top: 2px dashed var(--interactive-accent);
+  opacity: 0.65;
+}
+
+/* Правая колонка редактора Fields: выбранный Field (PRD 10.2, Ф6). */
+.io-fields__detail { padding: 14px 16px 16px; min-width: 0; }
+.io-fields__title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+.io-fields__title h4 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-normal); }
+.io-fields__hint { margin: 0 0 10px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+/* Короткое имя сложено в ту же строку, чтобы шапка не росла на три этажа. */
+.io-fields__shortlabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-left: 4px;
+}
+.io-text--short { width: 96px; }
+/* Свойство заметки — шириной с выпадающий список над ним. */
+.io-text--prop { width: 172px; }
+/*
+ * Удаление Field — белая корзина на красном, без слова (заказчик,
+ * 2026-08-27): оно должно бросаться в глаза, а не притворяться обычной
+ * кнопкой. Значок — эмодзи, и он приходит со своими цветами, поэтому
+ * обесцвечивается фильтром: brightness(0) делает его чёрным, invert(1) —
+ * белым. Литерала цвета тут нет, и тема на него не влияет (З6).
+ */
+.io-danger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-on-accent);
+  background: var(--background-modifier-error);
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  padding: 3px 8px;
+  cursor: pointer;
+  margin-left: auto;
+}
+.io-danger:hover {
+  filter: brightness(1.15);
+}
+.io-danger__icon {
+  font-size: 13px;
+  line-height: 1;
+  filter: brightness(0) invert(1);
+}
+
+.io-sub { margin: 16px 0 7px; font-size: 13px; font-weight: 600; color: var(--text-normal); }
+.io-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 13px 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.io-item__info { min-width: 0; flex: 1 1 auto; }
+.io-item__namerow { display: flex; align-items: center; gap: 6px; }
+.io-item__name { color: var(--text-normal); }
+.io-item__desc { margin-top: 2px; max-width: 60ch; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.io-item__control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding-top: 1px; }
+
+.io-select,
+.io-text {
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 5px 8px;
+}
+.io-select { min-width: 172px; }
+.io-text { width: 200px; }
+
+/* ======================================================================
+ * Таблица Values: девять колонок по Ф7, у ссылки — четыре (PRD 10.2).
+ * ====================================================================== */
+
+.io-vals {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+/* Таблица шире колонки, и она прокручивается сама, а не тянет страницу. */
+.io-scroll { overflow-x: auto; }
+/* 450px — каждая колонка на своей нижней границе, плюс зазоры и поля. */
+.io-vals__inner { min-width: 450px; }
+.io-vals__inner--link { min-width: 280px; }
+/*
+ * Одно место, где задана сетка таблицы: колонок девять и порядок из Ф7.
+ *
+ * У колонки `Value` есть нижняя граница, и это не про красоту. Сжатая в ноль,
+ * она единственная, без которой со строкой нельзя работать вовсе, — и ровно
+ * это с ней сделала узкая панель: поле значения съело соседнее поле `Prefix`,
+ * а у дочерних значений его не осталось совсем.
+ */
+.io-vals__head,
+.io-vals__row {
+  display: grid;
+  gap: 5px;
+  align-items: center;
+  padding: 6px 10px;
+  grid-template-columns:
+    14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
+    minmax(64px, 1fr) 30px 30px minmax(64px, 1fr) 44px;
+}
+/*
+ * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
+ * соседнюю ячейку — колонки узкие (замечание заказчика 2026-08-27).
+ */
+.io-vals__head > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+/*
+ * Ячейка шапки обрезается, а не наезжает на соседнюю. Слово `LEVEL` шире
+ * своей колонки, и без этого оно легло поверх `VALUE`.
+ */
+.io-vals__coltext {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Подсказка колонки раскрывается под шапкой во всю ширину таблицы. */
+.io-vals__tipslot:not(:empty) { padding: 0 8px 6px; }
+/*
+ * У ссылки нет своего цвета, а всё остальное есть — включая `Level`:
+ * дочерние значения ссылки рантайм понимает так же, как у тега (разбор в
+ * PRD, фаза 3b). Колонка `Parent` жила здесь один день и убрана: движок
+ * привязку к значению другого Field не читает вовсе.
+ *
+ * 280px — те же слагаемые, что у большой таблицы: сумма нижних границ
+ * (14 + 34 + 72 + 38 + 44 = 202), четыре зазора по 5 и поля по 8.
+ */
+.io-vals--link .io-vals__head,
+.io-vals--link .io-vals__row {
+  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 44px;
+}
+.io-vals__head {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--background-primary-alt);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
+/*
+ * Ф8: дочернее значение подкрашено фоном, а не отступом. Фон именно
+ * `--background-secondary`: `--background-primary-alt` почти сливался с
+ * фоном таблицы, и дочернюю строку было не отличить от родительской
+ * (замечание заказчика 2026-08-27).
+ */
+.io-vals__row--child { background: var(--background-secondary); }
+.io-vals__row--child .io-valcell { padding-left: 10px; }
+/*
+ * Каждый контрол занимает свою ячейку и умеет сжаться: иначе они наезжают.
+ * Размер текста — как в колонке Preview: в таблице он был заметно крупнее
+ * остальных настроек панели (замечание заказчика 2026-08-27).
+ */
+.io-vals { font-size: var(--font-ui-smaller); }
+.io-vals__row .io-text,
+.io-vals__row .io-select {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--font-ui-smaller);
+}
+.io-valcell { min-width: 0; }
+.io-showncell { min-width: 0; display: grid; gap: 4px; }
+.io-depthcell { display: flex; justify-content: center; }
+/*
+ * Кнопки в ячейке узкие и без зазора: двум обычным не хватало колонки, и
+ * удаление наезжало на рамку таблицы (замечание заказчика 2026-08-27).
+ */
+.io-valtools { display: flex; align-items: center; gap: 0; justify-content: flex-end; padding-right: 4px; }
+.io-valtools .io-icon { width: 18px; height: 20px; padding: 0; font-size: 11px; }
+/* Удаление красное: единственная кнопка строки, которая уносит данные. */
+.io-icon--danger { color: var(--text-error); }
+.io-icon--danger:hover {
+  color: var(--text-error);
+  background: var(--background-modifier-error-hover);
+}
+/* Длинное значение обрезается, а не наезжает на кнопку удаления. */
+.io-vals__prev {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+/*
+ * Длинное значение укорачивает надпись ВНУТРИ пузыря, а не даёт ячейке
+ * разрезать сам пузырь: срезанный краем ячейки пузырь читается как испорченное
+ * значение, и заказчик увидел ровно это на длинном значении.
+ *
+ * Правило живёт только в таблице Values: в живых предпросмотрах пузырь обязан
+ * показываться целиком, там он и есть предмет разговора.
+ */
+.io-vals__prev .io-bubble {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.io-vals__foot {
+  padding: 7px 10px;
+  border-top: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.io-vals__foot .io-note { margin: 0; }
+.io-colin {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-form-field);
+  cursor: pointer;
+}
+.io-note {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  margin: 8px 0 0;
+  max-width: 66ch;
+}
+/* Тихий значок нечитаемой пары цветов: предупреждение, а не запрет (Н17). */
+.io-warn {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-error);
+  cursor: help;
+}
+.io-textarea {
+  font-family: var(--font-mono);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+  color: var(--text-normal);
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 7px 9px;
+  width: 236px;
+  resize: vertical;
+}
+
+/* ======================================================================
+ * Поправки под Obsidian. В прототипе их нет и быть не может: там нет ни
+ * своих стилей кнопок, ни порядка правил, который сложился у нас.
+ * ====================================================================== */
+
+/*
+ * Obsidian оформляет каждую `button` внутри панели настроек своей рамкой и
+ * фоном, и селектор у него из двух частей — одноклассовые правила ему
+ * проигрывают. Из-за этого кнопка выбора Field и стрелки выглядели полями
+ * ввода в рамке, хотя должны быть невидимыми (скриншот заказчика 2026-08-27).
+ * Отсюда удвоенные селекторы: они поднимают вес, не меняя ничего другого.
+ */
+.io-fields .io-fields__pick,
+.io-fields .io-fields__pick:hover {
+  appearance: none;
+  box-shadow: none;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  height: auto;
+  font: inherit;
+  color: inherit;
+  /*
+   * Имя Field прижато к левому краю. Obsidian центрирует содержимое своих
+   * кнопок, и имена выстроились по правому краю — читать список стало нечем,
+   * взгляду не за что зацепиться (скриншот заказчика 2026-08-27).
+   */
+  text-align: left;
+  justify-content: flex-start;
+}
+.io-fields .io-fields__name { text-align: left; }
+.io-fields .io-icon,
+.io-vals .io-icon {
+  appearance: none;
+  box-shadow: none;
+  border: 0;
+  background: transparent;
+  height: auto;
+  color: var(--text-faint);
+}
+.io-fields .io-icon:hover,
+.io-vals .io-icon:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+/* Красное удаление значения: правило идёт после общего, иначе он его гасит. */
+.io-fields .io-icon--danger,
+.io-fields .io-icon--danger:hover {
+  color: var(--text-error);
+}
+/* И ширина кнопок в ячейке: Obsidian задаёт своим кнопкам высоту поля. */
+.io-fields .io-valtools .io-icon {
+  width: 18px;
+  min-width: 18px;
+  height: 20px;
+  padding: 0;
+  font-size: 11px;
+}
+
+/*
+ * Подсказка «?» — кружок шестнадцать на шестнадцать, и её размер Obsidian
+ * тоже перебивает: его кнопки в панели настроек высотой в поле ввода. Класс
+ * удвоен сам на себя — это поднимает вес ровно настолько, насколько нужно, и
+ * не тащит за собой лишнего контекста.
+ */
+.io-help.io-help {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  font-size: 10px;
+  line-height: 1;
+}
+/*
+ * Нажатая подсказка. Правило про её цвет объявлено выше и с тем же весом, а
+ * значит проиграло перебивке размера: фон стал прозрачным, а буква осталась
+ * цвета текста-на-акценте — то есть белой на белом, и подсказка исчезала при
+ * нажатии до перерисовки (замечание заказчика 2026-08-27).
+ */
+.io-help.io-help[aria-expanded="true"] {
+  background: var(--interactive-accent);
+  border-color: transparent;
+  color: var(--text-on-accent);
+}
+
+/*
+ * Ширины полей. Та же беда, что и с кнопками: Obsidian растягивает поля ввода
+ * и списки на всю строку своим двухчастным селектором, и наши ширины ему
+ * проигрывали — короткое имя занимало четверть панели, а `Behavior` был шире
+ * своего текста вдвое. Селекторы удвоены, значения — прототипные.
+ *
+ * Внутри таблицы Values всё наоборот: там поле обязано занимать свою ячейку
+ * целиком, поэтому правило строки идёт последним и весит больше.
+ */
+.io-fields .io-text {
+  width: 200px;
+  max-width: 100%;
+}
+.io-fields .io-select {
+  width: auto;
+  min-width: 172px;
+  max-width: 100%;
+}
+/*
+ * Акцентную и красную кнопки Obsidian перебивает так же, как и остальные:
+ * его двухчастный селектор красит любую `button` в панели настроек. Класс
+ * удвоен сам на себя — вес поднимается ровно настолько, насколько нужно.
+ *
+ * У красной кнопки это стоило отдельного замечания заказчика: фон остался
+ * обычным, а корзина, обесцвеченная в белый, стала белой на белом — кнопка
+ * читалась как пустой белый квадрат. Цвет фона и цвет значка объявлены
+ * здесь одним правилом, и разойтись им больше не на чем.
+ */
+.io-danger.io-danger {
+  background: var(--background-modifier-error);
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--text-on-accent);
+  padding: 3px 8px;
+  height: auto;
+  font-size: var(--font-ui-smaller);
+}
+.io-danger.io-danger:hover {
+  background: var(--background-modifier-error);
+  filter: brightness(1.15);
+}
+.io-btn.io-btn--cta {
+  background: var(--interactive-accent);
+  border-color: transparent;
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+.io-btn.io-btn--cta:hover { background: var(--interactive-accent-hover); }
+/* Короткое имя сложено в строку заголовка и обязано быть коротким. */
+.io-fields .io-text--short { width: 96px; }
+.io-fields .io-text--prop { width: 172px; }
+.io-fields .io-textarea { width: 236px; max-width: 100%; }
+.io-fields .io-vals__row .io-text,
+.io-fields .io-vals__row .io-select {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--font-ui-smaller);
+}

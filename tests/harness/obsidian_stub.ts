@@ -105,7 +105,12 @@ class BaseComponent {
 export class ToggleComponent extends BaseComponent {
   value = false;
   private handler: ((v: boolean) => any) | null = null;
-  constructor(parent: StubNode) { super(parent, "input"); this.el.type = "checkbox"; }
+  constructor(parent: StubNode) {
+    super(parent, "input");
+    this.el.type = "checkbox";
+    /* Как в Obsidian: щелчок по узлу переключает и доводит до обработчика. */
+    this.el.addEventListener("click", () => { this.toggle(); });
+  }
   setValue(v: boolean): this { this.value = v; this.el.checked = v; return this; }
   getValue(): boolean { return this.value; }
   onChange(cb: (v: boolean) => any): this { this.handler = cb; return this; }
@@ -155,7 +160,12 @@ export class ButtonComponent extends BaseComponent {
   cta = false;
   warning = false;
   private handler: (() => any) | null = null;
-  constructor(parent: StubNode) { super(parent, "button"); }
+  constructor(parent: StubNode) {
+    super(parent, "button");
+    /* Как в Obsidian: нажатие по узлу доходит до обработчика. Иначе тест
+       вынужден звать компонент, а не кнопку, и проверяет не то, что человек. */
+    this.el.addEventListener("click", () => { if (this.handler) this.handler(); });
+  }
   setButtonText(t: string): this { this.label = t; this.el.textContent = t; return this; }
   setIcon(_i: string): this { return this; }
   setCta(): this { this.cta = true; return this; }
@@ -211,9 +221,40 @@ export function makeApp() {
 
 export function setupGlobals() {
   const doc = makeDocument();
+  /* Слушатели на окне и документе: старый рендерер вешает их, чтобы закрывать
+     подсказки по щелчку вне них. Без них он ловит исключение и молча теряет
+     строку — проверка при этом остаётся зелёной, что хуже падения. */
+  const listeners: Record<string, Array<(ev: unknown) => void>> = {};
+  const addEventListener = (type: string, fn: (ev: unknown) => void) => {
+    (listeners[type] = listeners[type] || []).push(fn);
+  };
+  const removeEventListener = (type: string, fn: (ev: unknown) => void) => {
+    listeners[type] = (listeners[type] || []).filter(x => x !== fn);
+  };
+  (doc as any).addEventListener = addEventListener;
+  (doc as any).removeEventListener = removeEventListener;
   (globalThis as any).document = doc;
-  (globalThis as any).window = { document: doc, getComputedStyle: () => ({ getPropertyValue: () => "" }) };
+  (globalThis as any).window = {
+    document: doc,
+    getComputedStyle: () => ({ getPropertyValue: () => "" }),
+    addEventListener,
+    removeEventListener,
+    /* Диалог удаления падает на этот путь, если Modal не передали. */
+    confirm: () => true,
+    listeners,
+  };
   (globalThis as any).requestAnimationFrame = (fn: () => void) => { fn(); return 0; };
+  /*
+   * Наблюдатель за деревом: старый редактор через него узнаёт, что строка
+   * снята с экрана, и доводит незаписанный черновик. Заглушка ничего не
+   * наблюдает — в тестах дерево не живёт само, — но её отсутствие ронял
+   * отрисовку строки, и падение молча съедалось внутренним try/catch.
+   */
+  (globalThis as any).MutationObserver = class {
+    observe(): void { /* заглушке нечего наблюдать */ }
+    disconnect(): void {}
+    takeRecords(): unknown[] { return []; }
+  };
   (globalThis as any).cancelAnimationFrame = () => {};
   return doc;
 }

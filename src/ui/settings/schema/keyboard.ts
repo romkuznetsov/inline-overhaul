@@ -6,20 +6,24 @@
  * Не перенесено (свои блоки и кнопки без действий, З8):
  *   binder: binder-table (custom)
  *   command-reference: command-list (custom)
- *   keyboard-intro: keyboard-callout (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { on, not } from "../types.ts";
+import { callout } from "../custom/callouts.ts";
 
 export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
+{ id: "keyboard-intro",  tab: "keyboard",   order: 50, heading: "Before you start",
+  items: [
+    { kind:"custom", id:"keyboard-callout", render: callout("keyboard") }
+  ] },
 {
-  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded select all",
+  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A'",
   intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
   items: [
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
-      name:"Expanded select all", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
-      searchTerms:["Enhanced Mod+A"],
+      name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
+      searchTerms:["Enhanced Mod+A","Expanded select all"],
       tip:"On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started" },
     { kind:"dropdown", id:"select-all-steps", path:"editor.selectAll.mode", default:"line-note",
       name:"Selection steps", desc:"How much more gets picked up on each press",

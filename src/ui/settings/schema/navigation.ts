@@ -4,14 +4,18 @@
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
- *   nav-intro: nav-callout (custom)
  *   left-right: left-right-order (custom), cycle-order (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { not, eq } from "../types.ts";
+import { callout } from "../custom/callouts.ts";
 
 export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
+{ id: "nav-intro",       tab: "navigation", order: 50, heading: "Before you start",
+  items: [
+    { kind:"custom", id:"nav-callout", render: callout("navigation") }
+  ] },
 {
   id: "move-lines", tab: "navigation", order: 100, heading: "Moving lines",
   intro: "Reorder a note without cutting and pasting: pick up a line and walk it up or down",
