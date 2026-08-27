@@ -21,14 +21,21 @@ let failures = 0;
 const fail = (m: string) => { console.log("  FAIL " + m); failures++; };
 const ok = (m: string) => console.log("  ok   " + m);
 
-/** Текущая фаза работ: файл с одним числом. Гейты включаются по фазе (12). */
-function currentPhase(): number {
-  try { return parseInt(fs.readFileSync(PHASE_FILE, "utf8").trim(), 10) || 0; }
-  catch { return 0; }
+/**
+ * Текущая фаза работ. Гейты включаются по фазе (12).
+ *
+ * В файле стоит подпись фазы целиком — у неё бывает буква (`3a`, `3b`), —
+ * а сравниваются гейты по числу перед ней. Иначе `3b` печаталось бы как
+ * `3`, и по выводу гейта нельзя было бы сказать, где мы на самом деле.
+ */
+function currentPhaseLabel(): string {
+  try { return fs.readFileSync(PHASE_FILE, "utf8").trim() || "0"; }
+  catch { return "0"; }
 }
 
-const phase = currentPhase();
-console.log("Гейты слоя настроек, фаза " + phase);
+const phaseLabel = currentPhaseLabel();
+const phase = parseInt(phaseLabel, 10) || 0;
+console.log("Гейты слоя настроек, фаза " + phaseLabel);
 
 setupGlobals();
 
@@ -89,11 +96,11 @@ setupGlobals();
 /* ---- схема: пока её нет, дальше проверять нечего ----------------------- */
 if (!fs.existsSync(SCHEMA_DIR)) {
   if (phase >= 1) {
-    fail("схемы нет: " + path.relative(root, SCHEMA_DIR) + ", а фаза " + phase + " её требует");
+    fail("схемы нет: " + path.relative(root, SCHEMA_DIR) + ", а фаза " + phaseLabel + " её требует");
   } else {
     console.log("  —    схемы ещё нет, проверки структуры и текстов пропущены (фаза 0)");
   }
-  console.log(failures ? "\n" + failures + " problem(s)" : "\nвсе гейты фазы " + phase + " прошли");
+  console.log(failures ? "\n" + failures + " problem(s)" : "\nвсе гейты фазы " + phaseLabel + " прошли");
   process.exit(failures ? 1 : 0);
 }
 
@@ -333,5 +340,5 @@ else ok("схема загружена: групп " + SCHEMA.length);
 }
 
 if (notices.length) console.log("  показанные Notice: " + notices.length);
-console.log(failures ? "\n" + failures + " problem(s)" : "\nвсе гейты фазы " + phase + " прошли");
+console.log(failures ? "\n" + failures + " problem(s)" : "\nвсе гейты фазы " + phaseLabel + " прошли");
 process.exit(failures ? 1 : 0);
