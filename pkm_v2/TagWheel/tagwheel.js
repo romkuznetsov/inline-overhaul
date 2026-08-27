@@ -671,10 +671,25 @@ async function runTagWheel(input, quickAddSettings) {
       var isSourceDriven = sourceKind === 'projects' || sourceKind === 'wikilinks' || sourceKind === 'tag'
       var token = isSourceDriven ? selectedTagTokenForField(field, session, rules, byId) : ''
       var tokens = isSourceDriven ? fieldTagTokenMap(field, rules, session, state && state.core ? state.core : null) : []
+      /*
+       * Block берётся из Order, а не ставится литералом (находка Н-3,
+       * 2026-08-28; третье исключение из З3).
+       *
+       * `rightMode.fields` — это список определений по типу Field: ссылки и
+       * элементы. Это НЕ Right Block, в который Field пишется. Литерал
+       * `'right'` смешивал одно с другим, и ссылка, перетащенная в Left
+       * Block, всё равно печаталась справа от текста — при том что и панель,
+       * и конфиг держали её слева честно.
+       *
+       * У тегов рядом (`collectSelectedTagEntries`) панель считается ровно
+       * так же. Элементы этим не задеты: их кладёт `relocateDateLikeByOrder`,
+       * и она Block читала всегда.
+       */
+      var entryOrderKey = String(field.orderKey || field.id || '').trim()
       out.push({
         id: field.id,
-        orderKey: String(field.orderKey || field.id || '').trim(),
-        panel: 'right',
+        orderKey: entryOrderKey,
+        panel: rulesHelpers.resolvePanelForField(state.orderCfg, entryOrderKey, { defaultPanel: 'right' }),
         kind: String(field.kind || '').trim(),
         sourceKind: sourceKind,
         token: token,
@@ -1079,7 +1094,9 @@ async function runTagWheel(input, quickAddSettings) {
       var rsi
       for (rsi = 0; rsi < rightSourceEntries.length; rsi++) {
         var rs = rightSourceEntries[rsi]
-        finalLine = relocateTagFieldByPanel(finalLine, state.rules, rs.tokens, rs.token, 'right', { rightToText: false })
+        /* Панель посчитана в `collectSelectedRightEntries` по Order — здесь
+           она и берётся. Литерал `'right'` был второй половиной Н-3. */
+        finalLine = relocateTagFieldByPanel(finalLine, state.rules, rs.tokens, rs.token, rs.panel, { rightToText: false })
       }
     }
     finalLine = relocateDateLikeByOrder(finalLine, state.rules, state.orderCfg)

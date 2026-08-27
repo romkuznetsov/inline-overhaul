@@ -6383,10 +6383,11 @@ var require_tagwheel = __commonJS({
           var isSourceDriven = sourceKind === "projects" || sourceKind === "wikilinks" || sourceKind === "tag";
           var token = isSourceDriven ? selectedTagTokenForField(field, session2, rules2, byId) : "";
           var tokens = isSourceDriven ? fieldTagTokenMap(field, rules2, session2, state2 && state2.core ? state2.core : null) : [];
+          var entryOrderKey = String(field.orderKey || field.id || "").trim();
           out.push({
             id: field.id,
-            orderKey: String(field.orderKey || field.id || "").trim(),
-            panel: "right",
+            orderKey: entryOrderKey,
+            panel: rulesHelpers.resolvePanelForField(state2.orderCfg, entryOrderKey, { defaultPanel: "right" }),
             kind: String(field.kind || "").trim(),
             sourceKind,
             token,
@@ -6774,7 +6775,7 @@ var require_tagwheel = __commonJS({
           var rsi;
           for (rsi = 0; rsi < rightSourceEntries.length; rsi++) {
             var rs = rightSourceEntries[rsi];
-            finalLine = relocateTagFieldByPanel(finalLine, state2.rules, rs.tokens, rs.token, "right", { rightToText: false });
+            finalLine = relocateTagFieldByPanel(finalLine, state2.rules, rs.tokens, rs.token, rs.panel, { rightToText: false });
           }
         }
         finalLine = relocateDateLikeByOrder(finalLine, state2.rules, state2.orderCfg);

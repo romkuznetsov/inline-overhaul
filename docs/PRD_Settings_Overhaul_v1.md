@@ -128,7 +128,9 @@ Inline Overhaul — desktop-плагин Obsidian: навигация по ст�
   2. `allowInPanel` (внутри `buildPanelGroupsFromTechOrder`) брал у зависимого Field Block **родителя**, а его собственный ключ не смотрел вовсе — и ссылка в Right Block, ждущая тег из Left Block, пропадала из **обеих** панелей, молча. Признак, разводящий два смысла `dependsOn`: у дочернего Field (`<name>_sub`) своего ключа в Block нет — `normalizePkmOrder` выбрасывает `_sub` из `left` и `right`, — а у Field с предусловием есть, и поставил его туда человек. Помощник — `ownOrderKeyPlaced`.
   3. Там же, соседней строкой в `pushFieldsByOrderKeyStrict`, подпись `sub` ставилась всякому Field с `dependsOn`. Без этой строки починка давала Field, показанный в панели под именем `sub` вместо своего, — то есть Н-1 закрывалась бы наполовину. Тот же признак, одна строка.
 
-  Проверено сюитой целиком и закреплено двумя способами: поведение — `tests/regression/prerequisite_runtime_limits_tests.ts` на настоящих `validateRules`, `getNavigableFieldSequence` и `renderControlLine`; исходник — `tests/regression/bootstrap_loader_tests.js`. Раздел 3.2 остаётся в силе. **Третье исключение снова спрашивается у заказчика.**
+  Проверено сюитой целиком и закреплено двумя способами: поведение — `tests/regression/prerequisite_runtime_limits_tests.ts` на настоящих `validateRules`, `getNavigableFieldSequence` и `renderControlLine`; исходник — `tests/regression/bootstrap_loader_tests.js`. Раздел 3.2 остаётся в силе.
+
+  **Исключение третье, разрешённое заказчиком 2026-08-28**: `pkm_v2/TagWheel/tagwheel.js`, две строки в `collectSelectedRightEntries` и в вызове `relocateTagFieldByPanel`. Ссылка перестала печататься справа независимо от того, в какой Block её поставили (находка Н-3, разбор в фазе 3b). Блок `panel: 'right'` заменён на `resolvePanelForField` — ту же функцию, которой рядом считают панель теги. Разрешение спрашивалось на два файла, но `tagwheel_core.js` трогать не пришлось: половина про элементы проверкой на настоящей функции оказалась исправной. Раздел 3.2 остаётся в силе. **Четвёртое исключение снова спрашивается у заказчика.**
 - **З4.** Не добавлять зависимости, кроме `typescript`, `eslint` с плагинами и **`obsidian`** — официального пакета типов. Он только для разработки, в бандл не попадает (`external`), и без него слой настроек невозможно проверить типами: именно в нём лежат формы декларативного API. Никаких UI-фреймворков, никаких рантайм-библиотек.
 - **З5.** Не использовать `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `new Function`, `eval` в новом коде.
 - **З6.** Не задавать цвета литералами. Только CSS-переменные Obsidian.
@@ -1337,7 +1339,15 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 - **Ссылки** (`wikilinks`, `projects`, тег в правом списке) — **две строки** в `tagwheel.js`: `panel: 'right'` заменяется на `resolvePanelForField`, а литерал в вызове `relocateTagFieldByPanel` — на посчитанную панель. Перекладывание уже написано и используется тегами.
 - **Элементы** (даты, Emoji) — **больше**. Их токен не перекладывается, а **строится** сразу в сегмент дат (`buildRightDates` в `tagwheel_core.js`), а обратное чтение строки ищет их там же — три вызова `selectMarkerValueByPanelOrder` с `panel: 'right'` (`:2910`, `:2924`, `:2948`). Чтобы элемент мог стоять в левом Block, нужно учить и сборку, и разбор.
 
-**Файлы:** `pkm_v2/TagWheel/tagwheel.js` (ссылки) и `pkm_v2/TagWheel/tagwheel_core.js` (элементы). Это **третье исключение из З3** — спрашивается у заказчика.
+**Элементы оказались не сломаны.** Заказчик разрешил чинить обе половины, но перед правкой половина про элементы была проверена на настоящей функции — и починки не потребовала: `relocateDateLikeByOrder` зовёт `relocateMarkerSetByFieldOrder` из `line_pipeline.js` и панель берёт через `resolvePanelForField`, то есть Block читала всегда. Элемент в Left Block встаёт слева, в Right Block — справа; закреплено в `block_placement_tests.ts`. Жалоба заказчика касалась `date_due`, который в его конфиге и правда стоит в Right Block, — то есть вёл себя верно.
+
+Панель и конфиг тоже честны: ключ ссылки и ключ элемента остаются в том Block, куда их перетащили, и переживают `migrateConfig`. Расходился конфиг с движком, и расходился **только у ссылок**.
+
+**Н-3 закрыта 2026-08-28.** Правка — две строки в `pkm_v2/TagWheel/tagwheel.js`: `panel: 'right'` заменено на `resolvePanelForField(state.orderCfg, entryOrderKey, …)`, литерал в вызове `relocateTagFieldByPanel` — на `rs.panel`. Это **третье исключение из З3**, разрешённое заказчиком; `tagwheel_core.js` трогать не пришлось.
+
+Проверки: поведение инструмента перекладывания — `tests/regression/block_placement_tests.ts` на настоящих `relocateTokenSetByPanel`, `relocateMarkerSetByFieldOrder` и `resolvePanelForField`; вызов — по исходнику в `bootstrap_loader_tests.js`, потому что `tagwheel.js` вне Obsidian не запускается (просит редактор). Ограничение названо, а не умолчано. Прежний пин, закреплявший в этом вызове литерал `'right'`, снят: он закреплял сам дефект.
+
+**Глазами в vault:** перетащить `Project` в Left Block и посмотреть, встаёт ли `[[…]]` слева от текста.
 
 **Н-4. У TagWheel пропали обрамляющие `==` и вместе с ними заливка фона.** **Разобрано 2026-08-28: ни одна из двух предполагавшихся причин.** Причин две, и они последовательные.
 

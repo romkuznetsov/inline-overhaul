@@ -1355,7 +1355,8 @@ async function run() {
   assertTrue(/throw new Error\('line_pipeline unavailable: relocateTokenSetByPanel'\)/.test(tagwheelSrc), "tagwheel tag-field relocation requires shared line-pipeline helper");
   assertTrue(/status(?:LineRuntime|Rt)\.relocateCoreTagsByOrder\(\{/.test(tagwheelSrc), "tagwheel tag relocation order pass delegates to shared status-line runtime helper");
   assertTrue(/var rightSourceEntries = rightEntries\.filter\(function \(e\)/.test(tagwheelSrc), "tagwheel collects right-panel source-driven entries for apply path");
-  assertTrue(/finalLine = relocateTagFieldByPanel\(finalLine, state\.rules, rs\.tokens, rs\.token, 'right'/.test(tagwheelSrc), "tagwheel apply materializes selected right-panel source-driven tokens into right segment");
+  /* Здесь стоял пин на литерал `'right'` в этом вызове — то есть на сам
+     дефект Н-3. Заменён ниже на проверку посчитанной панели. */
   assertTrue(/typeof mod\.relocateCoreTagsByOrder !== 'function'/.test(tagwheelSrc), "tagwheel status-line runtime loader requires shared relocation helper");
   assertTrue(/removeMarkerTokens:\s*function\(segLine, mk, valueRx\)\s*\{[\s\S]*removeMarkerTokensFromSegment\(segLine, mk, valueRx\)/.test(tagwheelSrc), "tagwheel relocate-date cleanup uses shared marker-token remover helper through adapter callback");
   assertTrue(/shared\.getTagWheelMixedReorderOptions\(markers\)/.test(tagwheelSrc), "tagwheel mixed reorder options come from shared helper");
@@ -1408,6 +1409,16 @@ async function run() {
   assertTrue(/function ownOrderKeyPlaced\(field\) \{/.test(tagwheelCoreSrc), "tagwheel_core tells a child field from a field with a prerequisite by its own placed order key");
   assertTrue(/if \(field\.dependsOn && !ownOrderKeyPlaced\(field\)\) \{/.test(tagwheelCoreSrc), "tagwheel_core panel membership prefers the field's own Block over its parent's");
   assertTrue(/var depIsChild = !!dep\.dependsOn && !ownOrderKeyPlaced\(dep\)/.test(tagwheelCoreSrc), "tagwheel_core keeps the `sub` placeholder for child fields only");
+  /*
+   * Н-3: Block ссылки берётся из Order, а не ставится литералом. Закреплено по
+   * исходнику, потому что `tagwheel.js` вне Obsidian не запускается — он
+   * просит редактор. Поведение самого инструмента перекладывания проверено
+   * по-настоящему в `block_placement_tests.ts`; здесь проверяется, что его
+   * зовут с посчитанной панелью.
+   */
+  assertTrue(/panel: rulesHelpers\.resolvePanelForField\(state\.orderCfg, entryOrderKey, \{ defaultPanel: 'right' \}\)/.test(tagwheelSrc), "tagwheel resolves the Block of a link from Order instead of hardcoding right");
+  assertTrue(/relocateTagFieldByPanel\(finalLine, state\.rules, rs\.tokens, rs\.token, rs\.panel,/.test(tagwheelSrc), "tagwheel relocates a link to the Block it was resolved for");
+  assertFalse(/relocateTagFieldByPanel\([^)]*'right'/.test(tagwheelSrc), "tagwheel has no hardcoded right panel left in the relocation call");
   assertFalse(/category_sub|clients/.test(pkmRulesHelpersSrc.slice(pkmRulesHelpersSrc.indexOf("const runtimeExcludedIds = new Set();"), pkmRulesHelpersSrc.indexOf("for (const f of allFields)"))), "rules helpers dependency reconcile has no hardcoded domain field names");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");
