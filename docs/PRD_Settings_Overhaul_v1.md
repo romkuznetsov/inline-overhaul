@@ -633,6 +633,34 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 
 **Удаляются:** `visual.displayModes`, `visual.colors` (пустые, A5), `transform.inline2fleet` (A5), `pkm.executionBackend` (A5, Р7), `ui.activeSettingsTab`, `ui.visualSubTab`, `ui.hotkeysSubTab`, `ui.pkmSubTab`, `ui.orderShowInfoTips`, `ui.orderShowDeepEditor`, `ui.orderShowColorSettings`, `ui.orderActiveCommandsCollapsed`, `rules` и `meta` — **только если** поиск по репозиторию подтвердит, что они нигде не читаются; иначе оставить и сообщить.
 
+**Поиск сделан 2026-08-28. Сообщаю: четыре ветки удалить нельзя, ещё одна — с оговоркой.**
+
+| Ветка | Что нашлось |
+|---|---|
+| `visual.displayModes`, `visual.colors` | только объявление в `DEFAULT_CONFIG`, ни одного чтения — **удаляются** |
+| `transform.inline2fleet` | объявление плюс `if (!isObj(...)) ... = {}` в `transform_feature.js`, значений никто не читает — **удаляется** |
+| `pkm.executionBackend` | объявление плюс принудительная простановка в миграции, чтений нет — **удаляется** (Р7) |
+| `meta` | только `if (!isObj(cfg.meta)) cfg.meta = ...`, чтений нет — **удаляется** |
+| `rules` | пусто у заказчика, но `main.js:2554` держит переходник со старых версий: `rules.tagWheelPath` → `pkm.generatedRulesPath`. Ветка удаляется, **переходник остаётся** — иначе обновление со старой версии потеряет путь |
+| `ui.orderShowInfoTips`, `ui.orderShowDeepEditor`, `ui.orderShowColorSettings`, `ui.orderActiveCommandsCollapsed` | **читает и пишет старая панель** (`settings_sections_renderer.js`, `fields_editor_legacy.js`) — остаются до фазы 3c |
+| `ui.activeSettingsTab` | **читает старая панель** (`main.js:5273`) — остаётся до фазы 3c |
+
+Причина одна и та же: старая панель живёт до фазы 3c и до тех пор остаётся единственной с полным набором инструментов. Удалить её состояние в фазе 2 значит сломать ту панель, которой пока и пользуются. Ветка `viewState.*` заводится в фазе 2 рядом, а `ui.*` вычищается в 3c вместе с самой панелью.
+
+#### 8.1а Чего в таблице нет — открыто 2026-08-28
+
+Сверка таблицы с настоящим конфигом заказчика (`test-vault/.obsidian/plugins/inline-overhaul/data.json`, 104 ветки) показала, что **четыре ветки v1 в таблице не названы вовсе**, и миграцию без них написать нельзя:
+
+| Ветка v1 | Что в ней | Почему это важно |
+|---|---|---|
+| `pkm.behavior.leftMode` | определения Fields типа тег со всеми значениями | **самая большая ветка конфига и главные данные пользователя** |
+| `pkm.behavior.rightMode` | определения ссылок и элементов | то же |
+| `pkm.behavior.prefixRules` | всё, кроме трёх ключей из 8.3: `resolver`, `priorityTargets`, `priorityCheckboxes`, `checkboxByFieldValue` | правила Prefix |
+| `pkm.behavior.typeCheckboxByValue` | соответствие значения и чекбокса | заполняется миграцией из `prefixRules.checkboxByFieldValue` |
+| `pkm.behavior.defaultMode` | с какой панели открывается TagWheel | одно значение |
+
+Таблица 8.1 ведёт `pkm.behavior.order` в `pkm.fields.order`, а сами определения Fields не ведёт никуда. Догадаться нельзя: `pkm.fields.definitions`, `pkm.fields.tags` / `pkm.fields.links`, или ветка вообще остаётся на месте — это три разных решения с разными последствиями для движка. Вопрос **В9** в Приложении A.
+
 ### 8.2 Требования к миграции
 
 - **МГ1.** Файл `src/core/config_migration.ts`, функция `migrate(raw): Config`. Идемпотентна: `migrate(migrate(x)) === migrate(x)`.
@@ -642,11 +670,23 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 - **МГ6.** Если `data.json` существует и **не разбирается**, плагин не падает и не перезаписывает его молча: файл сохраняется рядом как `data.broken.json`, плагин стартует на значениях по умолчанию и один раз сообщает об этом через `Notice` с указанием, где лежит копия.
 - **МГ5.** Тест `tests/regression/config_migration_v1_v2_tests.js` с фикстурой — реальным `data.json` v1, содержащим все ветки из `DEFAULT_CONFIG` (`main.js:2381-2521`) и непустые `pkm.behavior.order`, `tagVisuals.byTag`, `binderRows`. Проверяется: каждый путь из 8.1 перенесён; ни одно значение не изменилось; удалённые ветки отсутствуют; идемпотентность.
 
-### 8.3 Открытый пункт по Prefix priority
+### 8.3 Prefix priority — закрыто 2026-08-28
 
-Три настройки на `:6181`, `:6195`, `:6209` в текущем коде **не пишут в конфиг через `setConfigPatch`** — путь хранения нужно установить чтением окружающего кода. Исполнителю: найти фактический путь и зафиксировать его в этом разделе перед началом фазы 2.
+**Пункт закрыт: настройки персистятся, дефекта нет.** Премисса, записанная 2026-08-24, оказалась неверной — она опиралась на строки `:6181`, `:6195`, `:6209` файла в 6646 строк, а `settings_sections_renderer.js` с тех пор ужат до 3416, и номера указывали не туда.
 
-**Решение заказчика (2026-08-24):** если подтвердится, что настройки не персистятся вообще — это дефект, и он **починяется в рамках этого PRD, в фазе 2**, вместе с миграцией конфига. Пути `pkm.prefixPriority.decideBy`, `pkm.prefixPriority.fieldOrderSource`, `pkm.prefixPriority.parentOrChild` заводятся в схеме v2 со значениями по умолчанию, повторяющими текущее фактическое поведение, чтобы обновление не изменило вид уже написанных строк. Тест: значение выставляется, панель закрывается и открывается, значение на месте.
+Фактический путь хранения — `pkm.behavior.prefixRules`:
+
+| Настройка в панели | Ключ v1 | Путь v2 |
+|---|---|---|
+| `Priority mode` | `pkm.behavior.prefixRules.priorityMode` | `pkm.prefixPriority.decideBy` |
+| `Fields order mode` | `pkm.behavior.prefixRules.fieldsOrderMode` | `pkm.prefixPriority.fieldOrderSource` |
+| `Tag/Subtag priority` | `pkm.behavior.prefixRules.tagSubtagPriority` | `pkm.prefixPriority.parentOrChild` |
+
+Все три пишутся через `patchPrefixRules` → `setConfigPatch` (`settings_sections_renderer.js:2787`, `:2801`, `:2815`), читаются через `getPrefixRulesFromCfg` (`config_note_helpers.js`) и разбираются движком в `pkm_line_finalize_unified.js`. Проверено на настоящем пути записи: три значения записаны через настоящий `ConfigStore` с настоящим `migrateConfig`, затем прочитаны новым хранилищем на том же `data.json` — все три на месте.
+
+**Что из этого следует для миграции.** Ветки `prefixRules` **нет в `DEFAULT_CONFIG`**, и `migrateConfig` её не касается вовсе: до первой записи её в конфиге просто нет, а значения по умолчанию подставляет `getPrefixRulesFromCfg`. Поэтому ветка `1 → 2` берёт умолчания оттуда (`by-section`, `manual`, `subtag-over-tag`), а не изобретает свои, — иначе обновление изменило бы вид уже написанных строк у тех, кто эти настройки не трогал.
+
+Остальные ключи `prefixRules` (`resolver`, `priorityTargets`, `priorityCheckboxes`, `checkboxByFieldValue`) к трём настройкам панели отношения не имеют и переезжают вместе с правилами Prefix, а не с этими тремя.
 
 ---
 
@@ -1488,6 +1528,14 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 **В8. Возвращать ли обрамление `==` у TagWheel и чем оно включается?** Открыт 2026-08-28, ответа нет.
 
 Разбор — в Н-4 (фаза 3b). `==` ставятся при `rules.ui.activePanel.useHighlight`, но контрола для этого ключа нет нигде, ветки нет в `DEFAULT_CONFIG`, и в vault она пуста. Это не починка, а решение по Р13 (новая функция описывается до того, как делается) и З8 (контрол, который не работает, не показывается): либо `useHighlight` и `showMarkers` описываются как настройки и попадают в схему фазы 2, либо `==` признаются ушедшими и `activePanel` вычищается из движка вместе с мёртвой веткой.
+
+**В9. Куда в схеме v2 переезжают определения Fields?** Открыт 2026-08-28, ответа нет. **Блокирует фазу 2.**
+
+Разбор — в 8.1а. Ветки `pkm.behavior.leftMode` и `pkm.behavior.rightMode` — это сами Fields пользователя со всеми значениями, и в таблице 8.1 их нет. Вместе с ними не названы `prefixRules` (кроме трёх ключей из 8.3), `typeCheckboxByValue` и `defaultMode`. Миграция без этого решения не пишется, а угадывать нельзя: это ветка с данными.
+
+**В10. Каким порядком идут два больших куска фазы 2?** Открыт 2026-08-28, ответа нет.
+
+Фаза 2 — это миграция конфига (пункты 1–7) и переименование ID команд в kebab-case (пункты 8–9). Второе рвёт пользовательские хоткеи (Р3), первое трогает **355 мест чтения конфига** в движках, считая по переезжающим веткам. Приёмка обоих требует ручной проверки на настоящем `data.json`. Вопрос в том, идут ли они одним релизом, как записано в Р3, или разносятся на проверяемые куски с отдельной проверкой в vault после каждого.
 
 ### Закрытые вопросы
 
