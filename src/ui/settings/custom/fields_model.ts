@@ -921,6 +921,20 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         const key = String(raw || "").trim();
         if (!key || SUB_SUFFIX_RE.test(key)) continue;
         out.push(rowFor(key, side, ""));
+        /*
+         * Строка дочернего Field. Условие не выполняется никогда, и это
+         * решение заказчика от 2026-08-28 (вопрос В7), а не недосмотр:
+         * `normalizePkmOrder` выбрасывает ключи `<name>_sub` из `left` и
+         * `right`, и дочерности в списке Fields не место — она живёт уровнем
+         * значения в таблице Values, как и в прототипе.
+         *
+         * Ветка оставлена, потому что она же описывает форму строки, если
+         * решение когда-нибудь пересмотрят. Обработка дочерней строки в
+         * `fields_editor_view.ts` (перетаскивание за родителем, отсутствие
+         * стрелок) по той же причине сегодня недостижима.
+         *
+         * Закреплено проверкой в `fields_editor_view_tests.ts`.
+         */
         const sub = getSubKeyForParent(key);
         if (sub && (orderState.left.includes(sub) || orderState.right.includes(sub))) {
           out.push(rowFor(sub, side, key));

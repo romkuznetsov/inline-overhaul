@@ -43,12 +43,27 @@ const ok = (what: string): void => { passed++; console.log("  ok   " + what); };
 
 /* ---- окружение --------------------------------------------------------- */
 
+/*
+ * Нормализация Order для этих проверок. Урезанная — настоящая живёт в
+ * `main.js` и тянет за собой полбандла, — но в главном она обязана вести
+ * себя как настоящая: **выбрасывать ключи `<name>_sub` из `left` и
+ * `right`**.
+ *
+ * До 2026-08-28 здесь они сохранялись, и это была подделка плагина: панель
+ * получала состояние, которого плагин выдать не может. Один дефект на этом
+ * уже зазеленел (переключатель дочернего Field, круг 7б), а два требования —
+ * Ф3 и Ф20 — описывали строку дочернего Field, которой в живой панели не
+ * бывает. Заказчик закрыл вопрос В7: строки нет, дочерность живёт уровнем
+ * значения в таблице Values.
+ */
 function normalizePkmOrder(raw: Any): Any {
   const o = raw && typeof raw === "object" ? raw : {};
   const map = (x: Any) => (x && typeof x === "object" ? { ...x } : {});
+  const drop = (arr: Any): string[] =>
+    (Array.isArray(arr) ? arr : []).map(String).filter(k => !/_sub$/.test(k));
   return {
-    left: Array.isArray(o.left) ? o.left.slice() : [],
-    right: Array.isArray(o.right) ? o.right.slice() : [],
+    left: drop(o.left),
+    right: drop(o.right),
     lead: map(o.lead), labels: map(o.labels), strictNames: map(o.strictNames),
     types: map(o.types), active: map(o.active), freeRoam: map(o.freeRoam),
     enabled: map(o.enabled), propertiesByField: map(o.propertiesByField),
@@ -279,7 +294,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.equal(all(v.host, "io-side__rule").length, 1, "стороны разделены одной линией");
   ok("Ф1: список Fields разделён на Left Block и Right Block пунктирной линией");
 
-  assert.deepEqual(layout(v.host), { left: ["Status", "Status sub"], right: ["Due"] },
+  assert.deepEqual(layout(v.host), { left: ["Status"], right: ["Due"] },
     "стороной строки задан Block, в который Field пишется");
   ok("Ф1: сторона строки и есть Block, отдельной настройки стороны нет");
 }
@@ -290,7 +305,9 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const row = rowsOf(v.host)[0] as StubNode;
   assert.equal(row.tagName, "DIV", "строка списка не кнопка");
   assert.equal(row.getAttribute("aria-current"), "true", "выбранная строка помечена aria-current");
-  assert.equal(rowsOf(v.host)[2]?.getAttribute("aria-current"), "false",
+  /* Строк в фикстуре две: `Status` и `Due`. Дочерний Field строки не даёт
+     (В7), поэтому невыбранная — вторая, а не третья. */
+  assert.equal(rowsOf(v.host)[1]?.getAttribute("aria-current"), "false",
     "невыбранная строка помечена явно, а не отсутствием пометки");
   const pick = one(row, "io-fields__pick");
   assert.equal(pick.tagName, "BUTTON", "выбор Field — кнопка внутри строки");
@@ -317,10 +334,10 @@ function dragToSide(from: StubNode, side: StubNode): void {
   }));
   /* Подписи короткие: `Emoji` вместо `Element` — иначе чип съедал имя Field
      в узкой колонке (замечание заказчика 2026-08-27). В конфиге тип прежний. */
-  assert.deepEqual(chips.map(c => c.text), ["Tag", "Tag", "Emoji"],
+  assert.deepEqual(chips.map(c => c.text), ["Tag", "Emoji"],
     "тип показан подписью, а ссылка называется Link, хотя в конфиге wikilink");
   assert.equal(chips[0]?.bg, "var(--io-type-tag)", "цвет типа приходит переменной, а не литералом");
-  assert.equal(chips[2]?.bg, "var(--io-type-element)", "у element свой цвет типа");
+  assert.equal(chips[1]?.bg, "var(--io-type-element)", "у element свой цвет типа");
   ok("Ф4: тип показан чипом с цветом типа, цвет задан переменной");
 }
 
@@ -334,13 +351,31 @@ function dragToSide(from: StubNode, side: StubNode): void {
   ok("Ф18: место под стрелки занято в каждой строке");
 }
 
-/* ---- Ф20: у дочернего Field своих стрелок нет -------------------------- */
+/* ---- Ф3: строки дочернего Field в списке нет --------------------------- */
 {
+  /*
+   * Решение заказчика 2026-08-28 (вопрос В7). У дочернего Field своей строки
+   * в списке Fields нет: дочерность — это уровень значения в таблице Values
+   * родителя, и так же устроен прототип.
+   *
+   * Проверка стоит на фикстуре, где `order.left` СОДЕРЖИТ ключ `status_sub`:
+   * так его записал бы невнимательный патч. Нормализация Order обязана
+   * выбросить его сама — как настоящая из `main.js`, — и тогда строки не
+   * будет, откуда бы ключ ни взялся.
+   *
+   * Прежде здесь стояли три проверки на поведение этой строки (Ф20 — нет
+   * стрелок, Ф3 — тянется за родителем, бросок на неё). Все три проходили
+   * только потому, что нормализация в этом файле ключ сохраняла: панель
+   * получала состояние, которого плагин выдать не может.
+   */
   const v = makeView();
-  const child = rowsOf(v.host).find(r => nameIn(r) === "Status sub") as StubNode;
-  assert.ok(child.classList.contains("io-fields__item--child"), "дочерняя строка помечена классом");
-  assert.equal(arrowsOf(child).length, 0, "у дочернего Field своих стрелок нет: он ходит за родителем");
-  ok("Ф20: у дочернего Field стрелок нет");
+  const names = rowsOf(v.host).map(nameIn);
+  assert.ok(names.includes("Status"), "родитель в списке есть");
+  assert.ok(!names.includes("Status sub"),
+    "а дочернего Field в списке нет, хотя его ключ лежит в order.left фикстуры");
+  assert.equal(all(v.host, "io-fields__item--child").length, 0,
+    "и ни одной строки, помеченной дочерней");
+  ok("Ф3: у дочернего Field своей строки в списке Fields нет (В7)");
 }
 
 /* ---- Ф3: Block переносится целиком ------------------------------------- */
@@ -349,20 +384,9 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const sides = all(v.host, "io-side");
   const parent = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
   dragToSide(parent, sides[1] as StubNode);
-  assert.deepEqual(layout(v.host), { left: [], right: ["Due", "Status", "Status sub"] },
-    "дочерний Field уехал вместе с родителем");
-  ok("Ф3: перетаскивание берёт Block целиком, дочерний Field идёт за родителем");
-}
-
-/* ---- Ф3: за ручку дочернего тянется родительский Block ----------------- */
-{
-  const v = makeView();
-  const sides = all(v.host, "io-side");
-  const child = rowsOf(v.host).find(r => nameIn(r) === "Status sub") as StubNode;
-  dragToSide(child, sides[1] as StubNode);
-  assert.deepEqual(layout(v.host), { left: [], right: ["Due", "Status", "Status sub"] },
-    "ручка дочернего Field тянет Block, а не одну строку");
-  ok("Ф3: ручка дочернего Field тянет весь Block");
+  assert.deepEqual(layout(v.host), { left: [], right: ["Due", "Status"] },
+    "Field переехал в другой Block");
+  ok("Ф3: перетаскивание переносит Field между Block");
 }
 
 /* ---- Ф1: бросок на строку ставит Field перед ней ----------------------- */
@@ -371,20 +395,9 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   const status = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
   dragOnto(due, status);
-  assert.deepEqual(layout(v.host), { left: ["Due", "Status", "Status sub"], right: [] },
+  assert.deepEqual(layout(v.host), { left: ["Due", "Status"], right: [] },
     "бросок на строку ставит Field перед ней и меняет сторону");
   ok("Ф1: бросок на строку меняет и порядок, и сторону");
-}
-
-/* ---- Ф3: бросок на дочернюю строку — это бросок перед её родителем ----- */
-{
-  const v = makeView();
-  const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
-  const child = rowsOf(v.host).find(r => nameIn(r) === "Status sub") as StubNode;
-  dragOnto(due, child);
-  assert.deepEqual(layout(v.host), { left: ["Due", "Status", "Status sub"], right: [] },
-    "Field не встаёт между родителем и его дочерним Field");
-  ok("Ф3: бросок на дочернюю строку не разрывает Block");
 }
 
 /* ---- Ф17: стрелка на краю уводит Field через линию --------------------- */
@@ -393,7 +406,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const status = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
   /* Status — единственный верхнеуровневый Field слева, то есть он и низ. */
   (arrowsOf(status)[1] as StubNode).click();
-  assert.deepEqual(layout(v.host), { left: [], right: ["Status", "Status sub", "Due"] },
+  assert.deepEqual(layout(v.host), { left: [], right: ["Status", "Due"] },
     "вниз с низа Left Block — в начало Right Block");
   ok("Ф17: стрелка вниз с низа Left Block уводит Field в начало Right Block");
 }
@@ -402,7 +415,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   /* Due — единственный Field справа, то есть он и верх. */
   (arrowsOf(due)[0] as StubNode).click();
-  assert.deepEqual(layout(v.host), { left: ["Status", "Status sub", "Due"], right: [] },
+  assert.deepEqual(layout(v.host), { left: ["Status", "Due"], right: [] },
     "вверх с верха Right Block — в конец Left Block");
   ok("Ф17: стрелка вверх с верха Right Block уводит Field в конец Left Block");
 }
@@ -414,7 +427,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   (arrowsOf(due)[0] as StubNode).click();
   const status = rowsOf(v.host).find(r => nameIn(r) === "Status") as StubNode;
   (arrowsOf(status)[1] as StubNode).click();
-  assert.deepEqual(layout(v.host), { left: ["Due", "Status", "Status sub"], right: [] },
+  assert.deepEqual(layout(v.host), { left: ["Due", "Status"], right: [] },
     "шаг вниз внутри стороны меняет порядок, а не сторону");
   ok("Ф17: внутри стороны стрелка меняет порядок");
 }
@@ -480,7 +493,11 @@ function dragToSide(from: StubNode, side: StubNode): void {
     "перенос Field — одна запись с той же причиной, что и в старой доске");
   const order = v.writes[0]?.patch?.pkm?.behavior?.order;
   assert.deepEqual(order.left, [], "левый Block опустел");
-  assert.deepEqual(order.right, ["due", "status", "status_sub"], "правый Block получил Block целиком");
+  /* Ключа `status_sub` в списках Order нет и быть не может: настоящий
+     `normalizePkmOrder` выбрасывает его из `left` и `right` (В7). Раньше
+     здесь ждали его третьим — но только потому, что нормализация в этом
+     файле его сохраняла. */
+  assert.deepEqual(order.right, ["due", "status"], "правый Block получил перенесённый Field");
   assert.ok(Object.prototype.hasOwnProperty.call(order, "lead"),
     "надгробия lead на месте: без них исчезнувший ведущий Field воскреснет слиянием патчей");
   ok("записи: перенос пишет то же, что старая доска — модель одна на обе вёрстки");
@@ -1099,15 +1116,18 @@ function dragToSide(from: StubNode, side: StubNode): void {
   ok("замечание 6: у Field без дочернего ряда Child Field нет");
 }
 {
-  const v = makeView();
-  /* У самого дочернего Field ряда Active нет: его включает родитель, и делает
-     это `toggleSub` — двумя записями, а не одной. */
-  const child = rowsOf(v.host).find(r => nameIn(r) === "Status sub") as StubNode;
-  one(child, "io-fields__pick").click();
-  const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
-  assert.ok(!names.includes("Active"),
-    "у дочернего Field своего Active нет: две точки для одного и того же — это две правды");
-  ok("замечание 6: дочерний Field включается только родителем");
+  /*
+   * Раньше здесь проверялось, что у дочернего Field нет своего ряда `Active`:
+   * его включает родитель, и делает это `toggleSub` — двумя записями, а не
+   * одной. Выбрать дочерний Field было можно только через его строку в
+   * списке, а строки нет (В7, 2026-08-28), — значит и выбрать нечего.
+   *
+   * Утверждение осталось верным, но проверять его больше не на чем: путь,
+   * которым сюда приходили, закрыт решением. Проверка снята, а не переписана
+   * на подпорку: подпорка вернула бы состояние, которого плагин не выдаёт, —
+   * ровно то, с чего началась эта уборка.
+   */
+  ok("замечание 6: дочерний Field включается только родителем (снято, см. В7)");
 }
 
 /* ---- Active вернулся в правую колонку (решение заказчика 2026-08-27) --- */
