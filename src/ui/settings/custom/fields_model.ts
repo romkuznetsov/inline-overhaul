@@ -927,10 +927,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    * того, в каком Block Field пишется (`ensureBehaviorModesFromOrder` в
    * `main.js` раскладывает их именно так).
    *
-   * Для предусловия это главное ограничение: `reconcileModeDependencies` в
-   * `pkm_rules_runtime_helpers.js` ищет `dependsOn` **внутри своего списка** и,
-   * не найдя, выключает Field целиком. Значит предложить в предусловие можно
-   * только соседа по списку.
+   * Для предусловия отсюда следует, кого можно ждать. `reconcileModeDependencies`
+   * в `pkm_rules_runtime_helpers.js` ищет `dependsOn` у левого списка только в
+   * нём самом, а у правого — в обоих (решение заказчика 2026-08-27, разбор там
+   * же). Значит ссылка и элемент ждут кого угодно, а тег — только тега.
    */
   const poolOf = (fieldId: string): "leftMode" | "rightMode" | "" => {
     const behavior = behaviorOf(plugin.getConfig());
@@ -1000,7 +1000,11 @@ export function createFieldsModel(deps: FieldsModelDeps) {
        * родителем, и он сам показывается только под ним.
        */
       if (row.parent || row.key === key) continue;
-      if (pool && poolOf(row.key) !== pool) continue;
+      /*
+       * Тег ждёт только тега; ссылка и элемент — кого угодно. Граница списков
+       * открыта в одну сторону, и открыта она в движке: см. `poolOf`.
+       */
+      if (pool === "leftMode" && poolOf(row.key) !== "leftMode") continue;
       if (dependsChainReaches(row.key, key)) continue;
       candidates.push({ key: row.key, label: row.strictName || row.key });
     }
@@ -1025,6 +1029,14 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const value = String(rawValue || "").trim();
     if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
       return { ok: false, error: "InlineOverhaul: a Field cannot wait for itself" };
+    }
+    /*
+     * Тег может ждать только тега: движок открывает границу списков в одну
+     * сторону. Записать можно было бы что угодно, но рантайм такую связь сотрёт
+     * и выключит Field — а панель показала бы его включённым.
+     */
+    if (fieldId && side === "leftMode" && poolOf(fieldId) !== "leftMode") {
+      return { ok: false, error: "InlineOverhaul: a Tag Field can only wait for another Tag Field" };
     }
     const list = modeFields(behaviorOf(plugin.getConfig()), side);
     const idx = list.findIndex(f => idOf(f) === key);

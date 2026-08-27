@@ -1382,10 +1382,14 @@ async function run() {
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: applyOrderToRules'\)/.test(tagwheelSrc), "tagwheel order apply helper is shared-only");
   assertTrue(/if \(\/_sub\$\/\.test\(raw\) && collapsed === raw\) return raw\.slice\(0, -4\);/.test(pkmRulesHelpersSrc), "rules helpers collapseSubOrderKey force-collapses _sub when registry fallback returns unchanged key");
   assertTrue(/const seen = visited instanceof Set \? visited : new Set\(\);/.test(pkmRulesHelpersSrc) && /if \(seen\.has\(k\)\) return "";/.test(pkmRulesHelpersSrc), "rules helpers resolveIdByOrderKey guards against recursive key resolution loops");
-  assertTrue(/const runtimeExcludedIds = new Set\(\);/.test(pkmRulesHelpersSrc) && /const reconcileModeDependencies = \(mode\) => \{/.test(pkmRulesHelpersSrc), "rules helpers define mode dependency reconcile pass with runtime exclusion tracking");
+  assertTrue(/const runtimeExcludedIds = new Set\(\);/.test(pkmRulesHelpersSrc) && /const reconcileModeDependencies = \(mode, scopeFields\) => \{/.test(pkmRulesHelpersSrc), "rules helpers define mode dependency reconcile pass with runtime exclusion tracking");
   assertTrue(/if \(!parentExists \|\| !runtimeEligible\.has\(fid\)\) \{[\s\S]*?f\.enabled = false;[\s\S]*?runtimeExcludedIds\.add\(fid\);/.test(pkmRulesHelpersSrc), "rules helpers disable and runtime-exclude children with invalid dependency placement");
   assertTrue(/if \(!parentExists\) \{[\s\S]*?f\.dependsOn = "";/.test(pkmRulesHelpersSrc), "rules helpers preserve model safely by clearing broken dependsOn links");
-  assertTrue(/reconcileModeDependencies\(rules\.leftMode\);[\s\S]*?reconcileModeDependencies\(rules\.rightMode\);/.test(pkmRulesHelpersSrc), "rules helpers reconcile dependencies for both panels before runtime enable pass");
+  /*
+   * Левый список ищет родителя только у себя, правый — в обоих: ссылка и
+   * элемент могут ждать тег, тег ждёт только тега (PRD 10.13.4, Н24).
+   */
+  assertTrue(/reconcileModeDependencies\(rules\.leftMode, leftFields\);[\s\S]*?reconcileModeDependencies\(rules\.rightMode, leftFields\.concat\(rightFields\)\);/.test(pkmRulesHelpersSrc), "rules helpers reconcile dependencies for both panels, right one across both lists");
   assertFalse(/category_sub|clients/.test(pkmRulesHelpersSrc.slice(pkmRulesHelpersSrc.indexOf("const runtimeExcludedIds = new Set();"), pkmRulesHelpersSrc.indexOf("for (const f of allFields)"))), "rules helpers dependency reconcile has no hardcoded domain field names");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");

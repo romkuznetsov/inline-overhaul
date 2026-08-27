@@ -69,6 +69,7 @@ npm test              npm run install:test    сборка в тестовый v
 ## Что не трогать
 
 - `pkm_v2/**`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `src/core/pkm_*`, `src/core/status_*`, `token_graph_unified.js`, `line_pipeline.js` — кроме смены пути чтения настройки в фазе 2 (З3).
+  **Единственное исключение, разрешённое заказчиком 2026-08-27:** `reconcileModeDependencies` в `src/core/pkm_rules_runtime_helpers.js` — ради предусловия Field (PRD 10.13.4). Оно записано в PRD 3.3 и закреплено проверкой `tests/regression/prerequisite_runtime_limits_tests.ts`. Второе такое исключение снова спрашивается у заказчика.
 - Значения, которые пишутся в конфиг: переименовываются только подписи (З1).
 - Хоткеи по умолчанию не ставятся ни одной команде (З7).
 - Контрол, который не работает в текущем релизе, в панели не показывается (З8).

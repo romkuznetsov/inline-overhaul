@@ -998,7 +998,28 @@ function applyOrderToRules(rules, orderCfg, options) {
   const rightOrderSet = new Set(Array.isArray(orderCfg && orderCfg.right) ? orderCfg.right : []);
 
   const runtimeExcludedIds = new Set();
-  const reconcileModeDependencies = (mode) => {
+  /*
+   * `scopeFields` — где искать Field, которого ждёт зависимый (предусловие
+   * Field, PRD 10.13.4).
+   *
+   * Определения тегов лежат в `leftMode.fields`, ссылок и элементов — в
+   * `rightMode.fields`: их раскладывает по типу `ensureBehaviorModesFromOrder`
+   * в `main.js`, и это НЕ Block, в который Field пишется. До 2026-08-27 каждый
+   * список разбирался сам по себе, и связь через границу списков движок считал
+   * сломанной: стирал `dependsOn` и ставил `enabled = false`.
+   *
+   * Решением заказчика от 2026-08-27 граница открыта **в одну сторону**: Field
+   * правого списка — ссылка или элемент — может ждать Field любого списка,
+   * Field левого списка по-прежнему только своего. Одно направление, а не оба,
+   * потому что `dependsOn` у левого Field значит для движка ещё и «дочерний
+   * тег»: его читают сборка `techOrder` ниже и слияние в `#parent/child`
+   * (`buildCombinedSelectionSet`), и левый Field, ждущий ссылку, попал бы туда
+   * не тем, чем он есть.
+   *
+   * Порядок полей внутри списка при этом остаётся своим: зависимый от чужого
+   * списка Field считается корнем и стоит там же, где стоял.
+   */
+  const reconcileModeDependencies = (mode, scopeFields) => {
     const fields = Array.isArray(mode && mode.fields) ? mode.fields.slice() : [];
     const byId = new Map();
     for (const f of fields) {
@@ -1006,8 +1027,15 @@ function applyOrderToRules(rules, orderCfg, options) {
       if (!fid) continue;
       byId.set(fid, f);
     }
+    const depById = new Map();
+    for (const f of (Array.isArray(scopeFields) ? scopeFields : fields)) {
+      const fid = String(f && f.id || "").trim();
+      if (!fid) continue;
+      depById.set(fid, f);
+    }
+    const scope = Array.from(depById.values());
     const runtimeEligible = new Set();
-    for (const f of fields) {
+    for (const f of scope) {
       const fid = String(f && f.id || "").trim();
       if (!fid) continue;
       const dep = String(f && f.dependsOn || "").trim();
@@ -1016,11 +1044,11 @@ function applyOrderToRules(rules, orderCfg, options) {
     let changed = true;
     while (changed) {
       changed = false;
-      for (const f of fields) {
+      for (const f of scope) {
         const fid = String(f && f.id || "").trim();
         if (!fid || runtimeEligible.has(fid)) continue;
         const dep = String(f && f.dependsOn || "").trim();
-        if (!dep || !byId.has(dep)) continue;
+        if (!dep || !depById.has(dep)) continue;
         if (!runtimeEligible.has(dep)) continue;
         runtimeEligible.add(fid);
         changed = true;
@@ -1033,7 +1061,9 @@ function applyOrderToRules(rules, orderCfg, options) {
       const fid = String(f && f.id || "").trim();
       if (!fid) continue;
       const dep = String(f && f.dependsOn || "").trim();
-      if (!dep) continue;
+      /* Родитель из другого списка порядок не задаёт: зависимый Field
+         остаётся корнем и стоит там же, где стоял. */
+      if (!dep || !byId.has(dep)) continue;
       childIds.add(fid);
       if (!childrenByParent.has(dep)) childrenByParent.set(dep, []);
       childrenByParent.get(dep).push(f);
@@ -1072,7 +1102,7 @@ function applyOrderToRules(rules, orderCfg, options) {
       if (!fid) continue;
       const dep = String(f && f.dependsOn || "").trim();
       if (!dep) continue;
-      const parentExists = byId.has(dep);
+      const parentExists = depById.has(dep);
       if (!parentExists || !runtimeEligible.has(fid)) {
         f.enabled = false;
         runtimeExcludedIds.add(fid);
@@ -1084,8 +1114,10 @@ function applyOrderToRules(rules, orderCfg, options) {
     mode.fields = ordered;
   };
 
-  reconcileModeDependencies(rules.leftMode);
-  reconcileModeDependencies(rules.rightMode);
+  /* Левый список ищет родителя только у себя, правый — в обоих: см. разбор
+     у `reconcileModeDependencies`. */
+  reconcileModeDependencies(rules.leftMode, leftFields);
+  reconcileModeDependencies(rules.rightMode, leftFields.concat(rightFields));
 
   for (const f of allFields) {
     const k = keyById[f.id];

@@ -14430,7 +14430,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       const leftOrderSet = new Set(Array.isArray(orderCfg && orderCfg.left) ? orderCfg.left : []);
       const rightOrderSet = new Set(Array.isArray(orderCfg && orderCfg.right) ? orderCfg.right : []);
       const runtimeExcludedIds = /* @__PURE__ */ new Set();
-      const reconcileModeDependencies = (mode) => {
+      const reconcileModeDependencies = (mode, scopeFields) => {
         const fields = Array.isArray(mode && mode.fields) ? mode.fields.slice() : [];
         const byId2 = /* @__PURE__ */ new Map();
         for (const f of fields) {
@@ -14438,8 +14438,15 @@ var require_pkm_rules_runtime_helpers = __commonJS({
           if (!fid) continue;
           byId2.set(fid, f);
         }
+        const depById = /* @__PURE__ */ new Map();
+        for (const f of Array.isArray(scopeFields) ? scopeFields : fields) {
+          const fid = String(f && f.id || "").trim();
+          if (!fid) continue;
+          depById.set(fid, f);
+        }
+        const scope = Array.from(depById.values());
         const runtimeEligible = /* @__PURE__ */ new Set();
-        for (const f of fields) {
+        for (const f of scope) {
           const fid = String(f && f.id || "").trim();
           if (!fid) continue;
           const dep = String(f && f.dependsOn || "").trim();
@@ -14448,11 +14455,11 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         let changed = true;
         while (changed) {
           changed = false;
-          for (const f of fields) {
+          for (const f of scope) {
             const fid = String(f && f.id || "").trim();
             if (!fid || runtimeEligible.has(fid)) continue;
             const dep = String(f && f.dependsOn || "").trim();
-            if (!dep || !byId2.has(dep)) continue;
+            if (!dep || !depById.has(dep)) continue;
             if (!runtimeEligible.has(dep)) continue;
             runtimeEligible.add(fid);
             changed = true;
@@ -14464,7 +14471,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
           const fid = String(f && f.id || "").trim();
           if (!fid) continue;
           const dep = String(f && f.dependsOn || "").trim();
-          if (!dep) continue;
+          if (!dep || !byId2.has(dep)) continue;
           childIds.add(fid);
           if (!childrenByParent.has(dep)) childrenByParent.set(dep, []);
           childrenByParent.get(dep).push(f);
@@ -14500,7 +14507,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
           if (!fid) continue;
           const dep = String(f && f.dependsOn || "").trim();
           if (!dep) continue;
-          const parentExists = byId2.has(dep);
+          const parentExists = depById.has(dep);
           if (!parentExists || !runtimeEligible.has(fid)) {
             f.enabled = false;
             runtimeExcludedIds.add(fid);
@@ -14511,8 +14518,8 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         }
         mode.fields = ordered;
       };
-      reconcileModeDependencies(rules.leftMode);
-      reconcileModeDependencies(rules.rightMode);
+      reconcileModeDependencies(rules.leftMode, leftFields);
+      reconcileModeDependencies(rules.rightMode, leftFields.concat(rightFields));
       for (const f of allFields) {
         const k = keyById[f.id];
         const fid = String(f && f.id || "").trim();
@@ -24695,7 +24702,7 @@ function createFieldsModel(deps) {
     const candidates = [];
     for (const row of listFields()) {
       if (row.parent || row.key === key) continue;
-      if (pool && poolOf(row.key) !== pool) continue;
+      if (pool === "leftMode" && poolOf(row.key) !== "leftMode") continue;
       if (dependsChainReaches(row.key, key)) continue;
       candidates.push({ key: row.key, label: row.strictName || row.key });
     }
@@ -24714,6 +24721,9 @@ function createFieldsModel(deps) {
     const value = String(rawValue || "").trim();
     if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
       return { ok: false, error: "InlineOverhaul: a Field cannot wait for itself" };
+    }
+    if (fieldId && side === "leftMode" && poolOf(fieldId) !== "leftMode") {
+      return { ok: false, error: "InlineOverhaul: a Tag Field can only wait for another Tag Field" };
     }
     const list = modeFields(behaviorOf(plugin.getConfig()), side);
     const idx = list.findIndex((f) => idOf(f) === key);
@@ -33242,7 +33252,7 @@ var init_fields_editor_view = __esm({
     ];
     PREREQ_FIELD_NAME = "Choose prerequisite Field";
     PREREQ_FIELD_DESC = "Which Field this one waits for";
-    PREREQ_FIELD_TIP = "Only Fields written the same way are offered: a Tag Field waits for a Tag Field, a Link or Emoji Field for a Link or an Emoji Field. The two are kept next to each other in the line";
+    PREREQ_FIELD_TIP = "A Link or an Emoji Field can wait for any other Field, a Tag Field only for another Tag Field. Two Tag Fields tied this way are also kept next to each other in the line";
     PREREQ_FIELD_NONE = "Not chosen";
     PREREQ_VALUE_NAME = "Prerequisite Value";
     PREREQ_VALUE_DESC = "Which Value of that Field this one waits for";

@@ -799,7 +799,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.equal(all(v.host, "io-vals").length, 0, "у element таблицы Values нет");
   const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
   assert.deepEqual(names,
-    [SHORT_NAME, "Active", "Prefix behavior", "Property", "Emoji-prefix", "Value format", "Steps by", "Command"],
+    [SHORT_NAME, "Active", "Prefix behavior", "Prerequisite Field", "Property",
+      "Emoji-prefix", "Value format", "Steps by", "Command"],
     "у element показаны маркер, формат и способ шага, и только то, чем шагает текущий режим");
   ok("Ф6: у Field типа element строки маркера, формата и шага вместо таблицы Values");
 }
@@ -1249,7 +1250,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const withTip = all(v.host, "io-item").filter(r => all(r, "io-help").length)
     .map(r => String(all(r, "io-item__name")[0]?.textContent || "").trim());
   assert.deepEqual(withTip,
-    [SHORT_NAME, "Active", "Prefix behavior", "Emoji-prefix", "Value format", "Steps by", "Command"],
+    [SHORT_NAME, "Active", "Prefix behavior", "Prerequisite Field",
+      "Emoji-prefix", "Value format", "Steps by", "Command"],
     "подсказка есть у каждой строки Field типа Emoji, кроме свойства заметки: у того подсказка стоит у заголовка раздела");
   ok("второй круг 6: у каждой строки Field типа Emoji есть подсказка");
 }
@@ -1907,8 +1909,8 @@ const PREREQ_VALUE = "Prerequisite Value";
   const which = selectLabelled(v.host(), PREREQ_WHICH + " for project") as StubNode;
   assert.ok(which, "после Yes появилась строка выбора Field");
   assert.deepEqual(which.children.map(c => String(c.textContent || "").trim()),
-    ["Not chosen", "due"],
-    "в списке только соседи по списку определений: тег status в него не попал");
+    ["Not chosen", "status", "due"],
+    "ссылка ждёт кого угодно, в том числе тег: ровно случай заказчика");
   assert.equal(rowNamed(v.host(), PREREQ_VALUE), null,
     "значение спрашивать не у кого, пока Field не выбран");
   ok("Н20: Yes открывает выбор Field и сам ничего не пишет");
@@ -1979,13 +1981,35 @@ const PREREQ_VALUE = "Prerequisite Value";
   pickIn(v.host(), PREREQ + " for due", "yes");
   pickIn(v.host(), PREREQ_WHICH + " for due", "project");
   v.select("Project");
-  assert.equal(rowNamed(v.host(), PREREQ), null,
-    "ждать больше некого: единственный сосед сам ждёт этого Field, и строки нет вовсе");
+  pickIn(v.host(), PREREQ + " for project", "yes");
+  const which = selectLabelled(v.host(), PREREQ_WHICH + " for project") as StubNode;
+  assert.ok(which, "строка выбора Field на месте");
+  const offered = which.children.map(c => String(c.textContent || "").trim());
+  assert.ok(!offered.includes("due"),
+    "Field, который уже ждёт этого, в список не попал: кольцо замкнуть нечем");
+  assert.ok(offered.includes("status"), "а остальные кандидаты на месте");
   const res = v.model.setPrerequisite("project", "due", "");
   assert.equal(res.ok, false, "и модель откажет, даже если её позвать мимо вёрстки");
   assert.ok(String(res.error || "").includes("cannot wait for itself"),
     "отказ объясняет, почему: " + String(res.error || ""));
   ok("Н20: кольцо предусловий не замкнуть ни из панели, ни из модели");
+}
+
+{
+  /*
+   * Обратная сторона: тег ждёт только тега. Граница списков определений
+   * открыта в одну сторону — так решено, потому что `dependsOn` у левого Field
+   * движок читает ещё и как «дочерний тег» (Н24).
+   */
+  const v = makePrereqView();
+  v.select("Status");
+  assert.equal(rowNamed(v.host(), PREREQ), null,
+    "у тега в фикстуре других тегов нет, и ждать ему некого");
+  const res = v.model.setPrerequisite("status", "projects", "");
+  assert.equal(res.ok, false, "модель не даст тегу ждать ссылку");
+  assert.ok(String(res.error || "").includes("Tag Field"),
+    "и объясняет почему: " + String(res.error || ""));
+  ok("Н24: тег ждёт только тега — граница открыта в одну сторону");
 }
 
 {

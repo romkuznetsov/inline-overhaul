@@ -157,8 +157,8 @@ const PREREQ_OPTIONS = [
 const PREREQ_FIELD_NAME = "Choose prerequisite Field";
 const PREREQ_FIELD_DESC = "Which Field this one waits for";
 const PREREQ_FIELD_TIP =
-  "Only Fields written the same way are offered: a Tag Field waits for a Tag Field, "
-  + "a Link or Emoji Field for a Link or an Emoji Field. The two are kept next to each other in the line";
+  "A Link or an Emoji Field can wait for any other Field, a Tag Field only for another Tag Field. "
+  + "Two Tag Fields tied this way are also kept next to each other in the line";
 /** Пока Field не выбран, писать нечего: пустое значение ничего не пишет. */
 const PREREQ_FIELD_NONE = "Not chosen";
 

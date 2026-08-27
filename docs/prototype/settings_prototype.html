@@ -3684,14 +3684,16 @@ function placementRows(host, f) {
  * в самой строке. Выбрано значение — можно сузить и до него одного.
  *
  * В конфиг это ложится двумя ключами, которые рантайм понимает давно:
- * `dependsOn` и `enabledForParentValues`. Предлагать в предусловие можно
- * только Field из того же списка определений — теги лежат в `leftMode`,
- * ссылки и элементы в `rightMode`, — иначе рантайм не найдёт его и выключит
- * Field целиком.
+ * `dependsOn` и `enabledForParentValues`. Кого можно ждать, решает рантайм:
+ * ссылка и элемент (список определений `rightMode`) ждут кого угодно, тег
+ * (`leftMode`) — только тега. Граница списков открыта в одну сторону, потому
+ * что `dependsOn` у левого Field значит для движка ещё и «дочерний тег».
  */
 function prerequisiteRows(host, f, row) {
-  const samePool = (a, b) => (a === "tag") === (b === "tag");
-  const others = FIELDS.filter(x => x.id !== f.id && samePool(x.type, f.type));
+  /* Тег ждёт только тега; ссылка и элемент — кого угодно: граница списков
+     определений открыта в одну сторону (решение заказчика 2026-08-27). */
+  const canWaitFor = x => (f.type === "tag" ? x.type === "tag" : true);
+  const others = FIELDS.filter(x => x.id !== f.id && canWaitFor(x));
   /* Некого ждать — и строки нет: контрол, который никуда не ведёт, не
      показывается (З8). */
   if (!others.length && !f.prereq) return;
@@ -3708,8 +3710,8 @@ function prerequisiteRows(host, f, row) {
 
   row({ name:"Choose prerequisite Field", key:"prereq-field",
     desc:"Which Field this one waits for",
-    tip:"Only Fields written the same way are offered: a Tag Field waits for a Tag Field, a Link or Emoji Field for a Link or an Emoji Field. " +
-        "The two are kept next to each other in the line" },
+    tip:"A Link or an Emoji Field can wait for any other Field, a Tag Field only for another Tag Field. " +
+        "Two Tag Fields tied this way are also kept next to each other in the line" },
     f.prereq, v => { f.prereq = v; f.prereqValue = ""; },
     others.map(x => ({ value:x.id, label:x.strict || x.name })));
 
