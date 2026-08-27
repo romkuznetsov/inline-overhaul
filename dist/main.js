@@ -18047,12 +18047,6 @@ var require_config_note_orchestrator = __commonJS({
           const existingField = getFieldAcrossModes(strictName);
           if (existingField && kind === "link") {
             existingField.source = String(existingField.source || "").trim() === "projects" ? "projects" : `wikilinks:${strictName}`;
-            if (Object.prototype.hasOwnProperty.call(existingField, "dependsOn")) delete existingField.dependsOn;
-            const legacySubId = `${strictName}_sub`;
-            leftMode.fields = leftMode.fields.filter((f) => String(f && f.id || "").trim() !== legacySubId);
-            rightMode.fields = rightMode.fields.filter((f) => String(f && f.id || "").trim() !== legacySubId);
-            if (Array.isArray(behaviorCfg.order.left)) behaviorCfg.order.left = behaviorCfg.order.left.filter((k) => String(k || "").trim() !== legacySubId);
-            if (Array.isArray(behaviorCfg.order.right)) behaviorCfg.order.right = behaviorCfg.order.right.filter((k) => String(k || "").trim() !== legacySubId);
           }
           if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
           behaviorCfg.order.types[strictName] = kind === "link" ? "wikilink" : "tag";
@@ -18077,7 +18071,6 @@ var require_config_note_orchestrator = __commonJS({
         if (existingField) {
           if (!isWikilinkSourceFieldSafe(existingField)) continue;
           existingField.source = `wikilinks:${fieldId}`;
-          if (Object.prototype.hasOwnProperty.call(existingField, "dependsOn")) delete existingField.dependsOn;
           if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
           behaviorCfg.order.types[fieldId] = "wikilink";
           continue;
@@ -18585,6 +18578,22 @@ var require_config_note_orchestrator = __commonJS({
             }
             if (out.length) field.values = out;
           }
+        }
+      }
+      refreshAllModeFields();
+      {
+        const liveIds = /* @__PURE__ */ new Set();
+        for (let i = 0; i < allModeFields.length; i++) {
+          const id = String(allModeFields[i] && allModeFields[i].id || "").trim();
+          if (id) liveIds.add(id);
+        }
+        for (let i = 0; i < allModeFields.length; i++) {
+          const f = allModeFields[i];
+          if (!isObj(f)) continue;
+          const dep = String(f.dependsOn || "").trim();
+          if (!dep || liveIds.has(dep)) continue;
+          delete f.dependsOn;
+          delete f.enabledForParentValues;
         }
       }
       const wikilinkTaxonomy = {};

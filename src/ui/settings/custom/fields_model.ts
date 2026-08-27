@@ -670,8 +670,19 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       delete next["enabledForParentValues"];
       return next;
     };
-    /* Дочерний Field уходит вместе с родителем с обеих сторон: у ссылки он
-       лежит в `rightMode`, и без этого остался бы сиротой. */
+    /*
+     * Дочерний Field отсеивается с обеих сторон: у тега он лежит в
+     * `leftMode`, у ссылки — в `rightMode`.
+     *
+     * Оговорка, выясненная мутацией 2026-08-28: до этого места дочерний
+     * обычно уже не доживает. Патч Order выше идёт первым, а
+     * `ensureBehaviorModesFromOrder` держит `<name>_sub` только пока ключ
+     * родителя стоит в Order — и выбрасывает его на том же патче. Отсев
+     * оставлен страховкой на случай, если порядок двух патчей когда-нибудь
+     * поменяется, но считать его тем, что уносит дочерний Field, нельзя:
+     * гарантию даёт удаление ключа из Order
+     * (`fields_editor_config_roundtrip_tests.ts`).
+     */
     const leftFields = modeFields(behavior, "leftMode")
       .filter(f => {
         const id = idOf(f);

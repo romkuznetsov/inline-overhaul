@@ -335,15 +335,26 @@ async function applyTagWheelConfigNote(ctx) {
     if (strictToOrderKey[strictName]) {
       const existingField = getFieldAcrossModes(strictName);
       if (existingField && kind === "link") {
+        /*
+         * Заметка описывает Field как ссылку — значит правится источник, и
+         * только он.
+         *
+         * Раньше здесь же стирался `dependsOn` и удалялся дочерний Field
+         * `<name>_sub` — обоих у ссылки быть не могло, и оба считались
+         * мусором, оставшимся от того времени, когда Field был тегом.
+         * С 2026-08-27 могут: у ссылки есть дочерний Field (пятый круг
+         * замечаний) и предусловие (PRD 10.13.4). Заметка о них не знает
+         * ничего, а применение заметки молча стирало обоих — единственный
+         * случай во всей фазе 3b, когда обход терял данные.
+         *
+         * `dependsOn` у ссылки заметка всё же вправе переписать, но только
+         * когда сама его описывает: это делает ниже
+         * `resolveDependsOnForWikilinkField` по привязкам значений. Молчание
+         * заметки — не повод удалять настройку.
+         */
         existingField.source = String(existingField.source || "").trim() === "projects"
           ? "projects"
           : `wikilinks:${strictName}`;
-        if (Object.prototype.hasOwnProperty.call(existingField, "dependsOn")) delete existingField.dependsOn;
-        const legacySubId = `${strictName}_sub`;
-        leftMode.fields = leftMode.fields.filter((f) => String(f && f.id || "").trim() !== legacySubId);
-        rightMode.fields = rightMode.fields.filter((f) => String(f && f.id || "").trim() !== legacySubId);
-        if (Array.isArray(behaviorCfg.order.left)) behaviorCfg.order.left = behaviorCfg.order.left.filter((k) => String(k || "").trim() !== legacySubId);
-        if (Array.isArray(behaviorCfg.order.right)) behaviorCfg.order.right = behaviorCfg.order.right.filter((k) => String(k || "").trim() !== legacySubId);
       }
       if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
       behaviorCfg.order.types[strictName] = kind === "link" ? "wikilink" : "tag";
@@ -371,8 +382,9 @@ async function applyTagWheelConfigNote(ctx) {
     const existingField = getFieldAcrossModes(fieldId);
     if (existingField) {
       if (!isWikilinkSourceFieldSafe(existingField)) continue;
+      /* `dependsOn` здесь тоже не стирается: см. разбор выше. Его перепишет
+         `resolveDependsOnForWikilinkField`, если заметка о нём говорит. */
       existingField.source = `wikilinks:${fieldId}`;
-      if (Object.prototype.hasOwnProperty.call(existingField, "dependsOn")) delete existingField.dependsOn;
       if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
       behaviorCfg.order.types[fieldId] = "wikilink";
       continue;
@@ -907,6 +919,31 @@ async function applyTagWheelConfigNote(ctx) {
         }
         if (out.length) field.values = out;
       }
+    }
+  }
+
+  /*
+   * Единственный случай, когда связь снимается: Field, которого ждут, после
+   * применения заметки исчез. Оставить `dependsOn` на пропавшее имя нельзя —
+   * `reconcileModeDependencies` выключит ждущего, и человек, применивший
+   * заметку, потеряет Field, показанный в панели включённым (PRD 10.13.4,
+   * Н28). Вместе с `dependsOn` снимается и `enabledForParentValues`: рантайм
+   * читает его только в паре, и повисший список однажды стал бы сюрпризом.
+   */
+  refreshAllModeFields();
+  {
+    const liveIds = new Set();
+    for (let i = 0; i < allModeFields.length; i++) {
+      const id = String(allModeFields[i] && allModeFields[i].id || "").trim();
+      if (id) liveIds.add(id);
+    }
+    for (let i = 0; i < allModeFields.length; i++) {
+      const f = allModeFields[i];
+      if (!isObj(f)) continue;
+      const dep = String(f.dependsOn || "").trim();
+      if (!dep || liveIds.has(dep)) continue;
+      delete f.dependsOn;
+      delete f.enabledForParentValues;
     }
   }
 

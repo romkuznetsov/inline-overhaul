@@ -31,6 +31,24 @@ export interface PluginInternals {
   normalizePkmOrder: (raw: Any) => Any;
   ensureBehaviorModesFromOrder: (cfg: Any) => void;
   DEFAULT_CONFIG: Any;
+  /**
+   * Контекст, который плагин передаёт конфиг-заметке. Собирается тем же
+   * кодом и из тех же имён, что и в `main.js` (метод
+   * `applyTagWheelConfigNote`), — иначе проверка гоняла бы свою проводку
+   * вместо плагиновой.
+   *
+   * Снаружи приходят три вещи, и все три — граница с миром, а не логика:
+   * `app` (чтение заметки из vault), `cfg` (снимок конфига) и `store`.
+   */
+  buildConfigNoteCtx: (o: { app: Any; cfg: Any; store: Any }) => Any;
+  /**
+   * Подгрузить разборщик и кодек заметки теми же загрузчиками, что и плагин.
+   * Вне Obsidian они находят модули через `require` — первым делом загрузчик
+   * пробует именно его, — так что подменять тут нечего.
+   */
+  loadConfigNoteModules: (app: Any) => Promise<void>;
+  /** Кодек заметки: `buildTagWheelConfigMarkdown` и разбор обратно. */
+  getTagWheelConfigCodec: () => Any;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -41,8 +59,45 @@ const mainPath = path.resolve(here, "..", "..", "main.js");
  * видимости модуля, их надо только вынести наружу. Сам `main.js` от этого не
  * меняется, и проверка читает ровно тот код, который грузит Obsidian.
  */
-const EXPORT_TAIL = "\n;module.exports.__internals = "
-  + "{ migrateConfig, normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG };\n";
+/*
+ * Сборка контекста повторяет метод `applyTagWheelConfigNote` в `main.js`
+ * поле в поле. Скопировано намеренно: если проводка там изменится, а здесь
+ * нет, проверка начнёт врать — поэтому её сходство закреплено гейтом
+ * `bootstrap_loader_tests.js`.
+ */
+const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
+  + "  migrateConfig, normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
+  + "  getTagWheelConfigCodec,\n"
+  + "  loadConfigNoteModules: async function (app) {\n"
+  + "    await loadTagWheelConfigParserSafe(app);\n"
+  + "    await loadTagWheelConfigCodecSafe(app);\n"
+  + "  },\n"
+  + "  buildConfigNoteCtx: function (o) {\n"
+  + "    var helpers = getConfigNoteHelpers();\n"
+  + "    return {\n"
+  + "      app: o.app,\n"
+  + "      cfg: o.cfg,\n"
+  + "      tagWheelConfigCodec: getTagWheelConfigCodec(),\n"
+  + "      store: o.store,\n"
+  + "      readVaultText: readVaultText,\n"
+  + "      getOrderStrictName: getOrderStrictName,\n"
+  + "      isObj: isObj,\n"
+  + "      cloneJson: cloneJson,\n"
+  + "      collectTagSections: helpers.collectTagSections,\n"
+  + "      getFieldById: helpers.getFieldById,\n"
+  + "      extractFieldMetaMap: extractFieldMetaMap,\n"
+  + "      rebuildTagValues: rebuildTagValues,\n"
+  + "      rebuildSubtagValues: rebuildSubtagValues,\n"
+  + "      denormTagToken: denormTagToken,\n"
+  + "      getPrefixRulesFromCfg: helpers.getPrefixRulesFromCfg,\n"
+  + "      collectCheckboxTokensFromMap: helpers.collectCheckboxTokensFromMap,\n"
+  + "      deepMerge: deepMerge,\n"
+  + "      syncCustomPrefixResolverBlock: helpers.syncCustomPrefixResolverBlock,\n"
+  + "      normalizePkmOrder: normalizePkmOrder,\n"
+  + "      CFG_H2_DATES: CFG_H2_DATES,\n"
+  + "    };\n"
+  + "  },\n"
+  + "};\n";
 
 /**
  * Заглушка CodeMirror: любое имя отдаёт функцию, от которой можно наследовать
