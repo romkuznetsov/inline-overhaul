@@ -1390,6 +1390,24 @@ async function run() {
    * элемент могут ждать тег, тег ждёт только тега (PRD 10.13.4, Н24).
    */
   assertTrue(/reconcileModeDependencies\(rules\.leftMode, leftFields\);[\s\S]*?reconcileModeDependencies\(rules\.rightMode, leftFields\.concat\(rightFields\)\);/.test(pkmRulesHelpersSrc), "rules helpers reconcile dependencies for both panels, right one across both lists");
+  /*
+   * Второй проход, отвергавший ту же связь, — `validateMode` в
+   * `tagwheel_core.js`: он не выключал Field, а бросал исключение, и TagWheel
+   * не открывался вовсе (находка Н-1 из vault, 2026-08-28). Границу ему
+   * открыли ровно ту же и в ту же сторону, что и первому: два прохода обязаны
+   * сходиться, иначе один стирает связь, а второй на неё ругается.
+   */
+  assertTrue(/function validateMode\(mode, modeName, scopeFields\) \{/.test(tagwheelCoreSrc), "tagwheel_core validateMode takes an explicit dependency scope");
+  assertTrue(/validateMode\(rules\.leftMode, 'leftMode', leftScope\)[\s\S]*?validateMode\(rules\.rightMode, 'rightMode', leftScope\.concat\(rightScope\)\)/.test(tagwheelCoreSrc), "tagwheel_core validates dependencies for both lists, right one across both");
+  assertTrue(/if \(field\.dependsOn && !depIds\[field\.dependsOn\]\) \{/.test(tagwheelCoreSrc), "tagwheel_core still rejects a dependsOn that names no field at all");
+  /*
+   * Третий проход — `allowInPanel`: он брал Block родителя и молча прятал
+   * Field с предусловием из обеих панелей. Признак, разводящий дочерний Field
+   * и Field с предусловием, — свой ключ, лежащий в одном из Block.
+   */
+  assertTrue(/function ownOrderKeyPlaced\(field\) \{/.test(tagwheelCoreSrc), "tagwheel_core tells a child field from a field with a prerequisite by its own placed order key");
+  assertTrue(/if \(field\.dependsOn && !ownOrderKeyPlaced\(field\)\) \{/.test(tagwheelCoreSrc), "tagwheel_core panel membership prefers the field's own Block over its parent's");
+  assertTrue(/var depIsChild = !!dep\.dependsOn && !ownOrderKeyPlaced\(dep\)/.test(tagwheelCoreSrc), "tagwheel_core keeps the `sub` placeholder for child fields only");
   assertFalse(/category_sub|clients/.test(pkmRulesHelpersSrc.slice(pkmRulesHelpersSrc.indexOf("const runtimeExcludedIds = new Set();"), pkmRulesHelpersSrc.indexOf("for (const f of allFields)"))), "rules helpers dependency reconcile has no hardcoded domain field names");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");

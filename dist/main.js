@@ -7770,8 +7770,10 @@ var require_tagwheel_core = __commonJS({
       if (rules.behavior.defaultMode !== "left" && rules.behavior.defaultMode !== "right") {
         err("behavior.defaultMode must be left or right");
       }
-      validateMode(rules.leftMode, "leftMode");
-      validateMode(rules.rightMode, "rightMode");
+      var leftScope = Array.isArray(rules.leftMode && rules.leftMode.fields) ? rules.leftMode.fields : [];
+      var rightScope = Array.isArray(rules.rightMode && rules.rightMode.fields) ? rules.rightMode.fields : [];
+      validateMode(rules.leftMode, "leftMode", leftScope);
+      validateMode(rules.rightMode, "rightMode", leftScope.concat(rightScope));
       if (!isObj(rules.projects)) err("projects section is required");
       if (rules.projects.items !== void 0 && !Array.isArray(rules.projects.items)) err("projects.items must be array when provided");
       if (rules.projects.defaults !== void 0 && !Array.isArray(rules.projects.defaults)) err("projects.defaults must be array when provided");
@@ -7885,13 +7887,18 @@ var require_tagwheel_core = __commonJS({
         }
         return null;
       }
+      function ownOrderKeyPlaced(field) {
+        var ownKey = String(field && field.orderKey || "").trim();
+        if (!ownKey) return false;
+        return !!(thisOrderSet[ownKey] || otherOrderSet[ownKey]);
+      }
       function allowInPanel(field) {
         if (!field) return false;
         var explicitPanel = String(field.panel || "").trim().toLowerCase();
         if (explicitPanel && explicitPanel !== panel) return false;
         if (field.orderKey && otherOrderSet[String(field.orderKey || "")]) return false;
         if (!hasOrderPanels) return true;
-        if (field.dependsOn) {
+        if (field.dependsOn && !ownOrderKeyPlaced(field)) {
           var parent = parentFieldFor(field);
           if (!parent) return false;
           var pKey = String(parent.orderKey || "").trim();
@@ -7962,7 +7969,8 @@ var require_tagwheel_core = __commonJS({
           var dep = allFields[i2];
           if (!dep || used[dep.id]) continue;
           if (String(dep.orderKey || "").trim() !== k) continue;
-          pushFieldGroup(dep, !!dep.dependsOn, dep.dependsOn ? dep.placeholder || "sub" : dep.placeholder);
+          var depIsChild = !!dep.dependsOn && !ownOrderKeyPlaced(dep);
+          pushFieldGroup(dep, !!dep.dependsOn, depIsChild ? dep.placeholder || "sub" : dep.placeholder);
         }
       }
       var i;
@@ -8019,7 +8027,7 @@ var require_tagwheel_core = __commonJS({
       }
       return strictGroups;
     }
-    function validateMode(mode, modeName) {
+    function validateMode(mode, modeName, scopeFields) {
       var fieldIds = {};
       var i;
       for (i = 0; i < mode.fields.length; i++) {
@@ -8027,9 +8035,15 @@ var require_tagwheel_core = __commonJS({
         if (fieldIds[f.id]) err(modeName + ".fields duplicate id: " + f.id);
         fieldIds[f.id] = true;
       }
+      var depIds = {};
+      var scope = Array.isArray(scopeFields) ? scopeFields : mode.fields;
+      for (i = 0; i < scope.length; i++) {
+        var sf = scope[i];
+        if (sf && sf.id) depIds[sf.id] = true;
+      }
       for (i = 0; i < mode.fields.length; i++) {
         var field = mode.fields[i];
-        if (field.dependsOn && !fieldIds[field.dependsOn]) {
+        if (field.dependsOn && !depIds[field.dependsOn]) {
           err(modeName + ".fields[" + field.id + "].dependsOn references missing field: " + field.dependsOn);
         }
       }

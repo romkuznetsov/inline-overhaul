@@ -367,8 +367,12 @@ function validateRules(rules) {
     err('behavior.defaultMode must be left or right')
   }
 
-  validateMode(rules.leftMode, 'leftMode')
-  validateMode(rules.rightMode, 'rightMode')
+  /* Левый список ищет родителя только у себя, правый — в обоих: разбор
+     у `validateMode`. */
+  var leftScope = Array.isArray(rules.leftMode && rules.leftMode.fields) ? rules.leftMode.fields : []
+  var rightScope = Array.isArray(rules.rightMode && rules.rightMode.fields) ? rules.rightMode.fields : []
+  validateMode(rules.leftMode, 'leftMode', leftScope)
+  validateMode(rules.rightMode, 'rightMode', leftScope.concat(rightScope))
 
   if (!isObj(rules.projects)) err('projects section is required')
   if (rules.projects.items !== undefined && !Array.isArray(rules.projects.items)) err('projects.items must be array when provided')
@@ -496,13 +500,33 @@ function buildPanelGroupsFromTechOrder(rules, mode, panelName) {
     return null
   }
 
+  /*
+   * Стоит ли Field в Block своим собственным ключом (PRD 10.13.4, Н-1).
+   *
+   * `dependsOn` значит для движка две разные вещи, и различать их надо здесь.
+   * У дочернего Field (`<name>_sub`) своего ключа в Block нет вовсе:
+   * `normalizePkmOrder` выбрасывает `_sub` из `left` и `right`, — и он обязан
+   * идти за родителем. У Field с предусловием свой ключ в Block есть, и
+   * поставил его туда человек.
+   *
+   * До 2026-08-28 различия не было, Block всегда брался у родителя — и
+   * ссылка в Right Block, ждущая тег из Left Block, пропадала из ОБЕИХ
+   * панелей: слева из-за своего ключа в чужом Block, справа из-за отсутствия
+   * там ключа родителя. Молча, без единого сообщения.
+   */
+  function ownOrderKeyPlaced(field) {
+    var ownKey = String(field && field.orderKey || '').trim()
+    if (!ownKey) return false
+    return !!(thisOrderSet[ownKey] || otherOrderSet[ownKey])
+  }
+
   function allowInPanel(field) {
     if (!field) return false
     var explicitPanel = String(field.panel || '').trim().toLowerCase()
     if (explicitPanel && explicitPanel !== panel) return false
     if (field.orderKey && otherOrderSet[String(field.orderKey || '')]) return false
     if (!hasOrderPanels) return true
-    if (field.dependsOn) {
+    if (field.dependsOn && !ownOrderKeyPlaced(field)) {
       var parent = parentFieldFor(field)
       if (!parent) return false
       var pKey = String(parent.orderKey || '').trim()
@@ -577,7 +601,11 @@ function buildPanelGroupsFromTechOrder(rules, mode, panelName) {
       var dep = allFields[i]
       if (!dep || used[dep.id]) continue
       if (String(dep.orderKey || '').trim() !== k) continue
-      pushFieldGroup(dep, !!dep.dependsOn, dep.dependsOn ? (dep.placeholder || 'sub') : dep.placeholder)
+      /* Подпись `sub` принадлежит дочернему Field, а не всякому, у кого есть
+         `dependsOn`: Field с предусловием стоит в Block своим ключом и
+         показывается своим именем. Тот же разбор, что у `ownOrderKeyPlaced`. */
+      var depIsChild = !!dep.dependsOn && !ownOrderKeyPlaced(dep)
+      pushFieldGroup(dep, !!dep.dependsOn, depIsChild ? (dep.placeholder || 'sub') : dep.placeholder)
     }
   }
 
@@ -643,7 +671,25 @@ function buildPanelGroupsFromTechOrder(rules, mode, panelName) {
   return strictGroups
 }
 
-function validateMode(mode, modeName) {
+/*
+ * `scopeFields` — где `dependsOn` разрешено искать Field-предусловие
+ * (PRD 10.13.4, Н24).
+ *
+ * Определения тегов лежат в `leftMode.fields`, ссылок и элементов — в
+ * `rightMode.fields`: их раскладывает по типу `ensureBehaviorModesFromOrder`
+ * в `main.js`, и это НЕ Block, в который Field пишется. До 2026-08-28 каждый
+ * список проверялся сам по себе, и связь через границу списков считалась
+ * сломанной — с той разницей, что здесь это не молчаливое выключение Field,
+ * а исключение: TagWheel не открывался вовсе.
+ *
+ * Граница открыта в ту же одну сторону, что и в `reconcileModeDependencies`
+ * (`src/core/pkm_rules_runtime_helpers.js`): правый список ищет родителя в
+ * обоих, левый — только у себя. Два прохода обязаны сходиться, иначе один
+ * стирает связь, а второй на неё ругается.
+ *
+ * Сама проверка остаётся: `dependsOn` на Field, которого нет нигде, — отказ.
+ */
+function validateMode(mode, modeName, scopeFields) {
   var fieldIds = {}
   var i
   for (i = 0; i < mode.fields.length; i++) {
@@ -651,9 +697,15 @@ function validateMode(mode, modeName) {
     if (fieldIds[f.id]) err(modeName + '.fields duplicate id: ' + f.id)
     fieldIds[f.id] = true
   }
+  var depIds = {}
+  var scope = Array.isArray(scopeFields) ? scopeFields : mode.fields
+  for (i = 0; i < scope.length; i++) {
+    var sf = scope[i]
+    if (sf && sf.id) depIds[sf.id] = true
+  }
   for (i = 0; i < mode.fields.length; i++) {
     var field = mode.fields[i]
-    if (field.dependsOn && !fieldIds[field.dependsOn]) {
+    if (field.dependsOn && !depIds[field.dependsOn]) {
       err(modeName + '.fields[' + field.id + '].dependsOn references missing field: ' + field.dependsOn)
     }
   }
