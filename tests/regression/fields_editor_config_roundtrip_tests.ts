@@ -262,4 +262,39 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
   ok("ссылка: дочерний Field переживает вторую запись подряд");
 }
 
+/* ======================================================================
+ * Предусловие Field (10.13.4) на настоящем пути записи.
+ * ====================================================================== */
+
+{
+  /*
+   * Предусловие ложится в конфиг двумя ключами самого Field — `dependsOn` и
+   * `enabledForParentValues`. Оба обязаны пережить `migrateConfig`: он идёт на
+   * каждом патче, и ровно на этом месте уже терялся дочерний Field ссылки.
+   */
+  const p = makePanel(baseConfig(), "project");
+  const set = p.store.getSnapshot();
+  const before = (set.pkm.behavior.rightMode.fields as Any[]).find((f: Any) => f.id === "project");
+  assert.ok(before, "ссылка на месте");
+
+  p.store.patch({
+    pkm: {
+      behavior: {
+        rightMode: {
+          fields: (set.pkm.behavior.rightMode.fields as Any[]).map((f: Any) =>
+            (f.id === "project" ? { ...f, dependsOn: "status", enabledForParentValues: ["#todo"] } : f)),
+        },
+      },
+    },
+  }, "pkm:behavior:order:prerequisite:project");
+
+  const after = p.cfg();
+  const field = (after.pkm.behavior.rightMode.fields as Any[]).find((f: Any) => f.id === "project");
+  assert.ok(field, "ссылка не потерялась");
+  assert.equal(field.dependsOn, "status", "`dependsOn` пережил migrateConfig");
+  assert.deepEqual(field.enabledForParentValues, ["#todo"],
+    "и список значений вместе с ним");
+  ok("предусловие: оба ключа переживают настоящий путь записи");
+}
+
 console.log("\n" + passed + " проверок пройдено");

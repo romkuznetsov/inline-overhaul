@@ -857,8 +857,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-depthcell { display: flex; justify-content: center; }
 
 /* the values table, and its narrower shape for a link field */
-/* 450px = every column at its floor, plus gaps and padding. */
-.io-vals__inner { min-width: 450px; }
+/* 400px = every column at its floor, plus gaps and padding. The table has to
+   fit a narrow settings pane without a horizontal scrollbar: at 450px the
+   remove button sat outside the visible area and had to be scrolled to. */
+.io-vals__inner { min-width: 400px; }
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
   grid-template-columns: 14px minmax(0, 1fr) 62px minmax(0, 1fr) 44px;
 }
@@ -902,12 +904,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-cmdchip:hover .io-cmdchip__key { color: var(--text-accent); }
 
 
-/* the short name, folded into the title row */
-.io-fields__shortlabel {
-  font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-faint); margin-left: 4px;
-}
-.io-text--short { width: 96px; }
 /* The note property is as wide as the dropdown above it. */
 .io-text--prop { width: 172px; }
 
@@ -923,9 +919,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    the runtime reads child Values of a link the same way it reads a tag’s
    (2026-08-27, разбор в PRD фазе 3b). */
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 44px;
+  grid-template-columns: 14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
 }
-.io-vals__inner--link { min-width: 280px; }
+/* 206px of floors, four gaps of 4 and padding of 10 on each side. */
+.io-vals__inner--link { min-width: 242px; }
 
 /* round six: one rule so an inline reference always reads as a reference,
    wherever it appears in the pane. Without this the markup was there and
@@ -1015,10 +1012,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    that to the Value cell. Fixed pixels are left only where the content is a
    fixed size: the grip, the two colour swatches and the remove button. */
 .io-vals__head, .io-vals__row {
-  display: grid; gap: 5px; align-items: center; padding: 6px 10px;
+  display: grid; gap: 4px; align-items: center; padding: 6px 10px;
   grid-template-columns:
-    14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
-    minmax(64px, 1fr) 30px 30px minmax(64px, 1fr) 44px;
+    14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
+    minmax(58px, 1fr) 24px 24px minmax(52px, 1fr) 40px;
 }
 /* The «?» sits under the caption, not beside it: beside it the mark
    overlapped the next cell, because these columns are narrow. */
@@ -3297,21 +3294,18 @@ function renderFieldEditor(host) {
   el("span", null, detailHead, f.type === "element" ? TYPE_LABEL.element : "Values");
   const detail = el("div", "io-fields__detail", detailCol);
 
-  /* title, with the short name folded into the same row to keep it compact */
+  /*
+   * The title row carries the identity of the Field and nothing else: name,
+   * type and remove. The short name used to sit here too, and the row read as
+   * a jumble of unrelated things (customer, round six) — it is a row of its
+   * own now, right below.
+   */
   const title = el("div", "io-fields__title", detail);
   /* The system name is set once, in the Add Field dialog, and shown here as
      a heading. It sits in the config note and in the names of the commands,
      so changing it later would leave both pointing at a name that is gone. */
   el("h4", null, title, f.strict || f.name);
   cssVar(el("span", "io-chip io-chip--typed", title, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
-  el("span", "io-fields__shortlabel", title, "short name");
-  /* «?» стоит до поля ввода, а не после: подпись, знак вопроса, потом правка
-     — так это читается слева направо (замечание заказчика 2026-08-27). */
-  attachTipItem(title, detail, { name:"Short name",
-    tip:"TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name" });
-  const nin = textEl(title, f.short, f.name, "Short name for " + f.name, "io-text io-text--short");
-  nin.addEventListener("input", () => { f.short = nin.value; refreshPreviews(); });
-  subComment(title, detail, "field-editor/short-name");
   /*
    * Удаление — белая корзина на красном (замечание заказчика 2026-08-27): оно
    * должно бросаться в глаза, а не притворяться обычной кнопкой. Значок лежит
@@ -3325,6 +3319,13 @@ function renderFieldEditor(host) {
   /* Одна подсказка на узел: `aria-label` Obsidian показывает сам. */
   del.setAttribute("aria-label", "Delete the Field " + f.name);
   del.title = "Delete the Field " + f.name;
+
+  /*
+   * Имя в TagWheel — своя строка сразу под шапкой (замечание заказчика,
+   * шестой круг). Она про то, как Field назван, а не про то, как он себя
+   * ведёт, поэтому стоит до заголовка `Behavior`, а не внутри него.
+   */
+  nameInWheelRow(detail, f);
 
   /* Заголовок раздела — `Behavior`: под ним `Active`, `Prefix behavior` и
      `Child Field` (замечание заказчика 2026-08-27). */
@@ -3569,6 +3570,29 @@ function elementRows(host, f) {
 
 /* The note property belongs to the Field, not to a table somewhere else:
    it is set here, next to everything else the Field decides. */
+/*
+ * Короткое имя, которым Field подписан в TagWheel. Своя строка, а не кусок
+ * шапки: в шапке она стояла между чипом типа и красной корзиной и читалась
+ * как случайный набор (замечание заказчика, шестой круг). Название строки —
+ * `Name in TagWheel`, словами заказчика: «short name» не говорило, где это
+ * имя видно.
+ */
+function nameInWheelRow(host, f) {
+  const row = el("div", "io-item", host);
+  const info = el("div", "io-item__info", row);
+  const nrow = el("div", "io-item__namerow", info);
+  el("div", "io-item__name", nrow, "Name in TagWheel");
+  /* «?» стоит до поля ввода, а не после: подпись, знак вопроса, потом правка
+     — так это читается слева направо (замечание заказчика 2026-08-27). */
+  attachTipItem(nrow, info, { name:"Name in TagWheel",
+    tip:"TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name" });
+  subComment(nrow, info, "field-editor/short-name");
+  el("div", "io-item__desc", info, "A shorter name for the TagWheel row, where there is little room");
+  const ctl = el("div", "io-item__control", row);
+  const nin = textEl(ctl, f.short, f.name, "Name in TagWheel for " + f.name, "io-text io-text--prop");
+  nin.addEventListener("input", () => { f.short = nin.value; refreshPreviews(); });
+}
+
 function propertyRow(host, f) {
   /*
    * Свойства заметки — свой раздел, а не строка внутри `Behavior` (замечание
@@ -3598,7 +3622,7 @@ function propertyRow(host, f) {
 
 function placementRows(host, f) {
   /* Один ряд настройки внутри правой колонки: имя, «?», описание, контрол. */
-  const row = (r, value, apply) => {
+  const row = (r, value, apply, options) => {
     const item = el("div", "io-item", host);
     const info = el("div", "io-item__info", item);
     const nrow = el("div", "io-item__namerow", info);
@@ -3607,7 +3631,7 @@ function placementRows(host, f) {
     subComment(nrow, info, "placement/" + r.key);
     rich(el("div", "io-item__desc", info), r.desc);
     const ctl = el("div", "io-item__control", item);
-    const s = selectEl(ctl, r.options, value, r.name + " for " + f.name);
+    const s = selectEl(ctl, options || r.options, value, r.name + " for " + f.name);
     s.addEventListener("change", () => { apply(s.value); renderContent(); });
   };
 
@@ -3650,6 +3674,54 @@ function placementRows(host, f) {
       options:[{ value:"yes", label:"Yes" }, { value:"no", label:"No" }] },
       f.childOn === false ? "no" : "yes", v => { f.childOn = v !== "no"; });
   }
+
+  prerequisiteRows(host, f, row);
+}
+
+/*
+ * Предусловие Field (10.13.4). Field ждёт другой Field: пока у того в
+ * строке нет значения, этот не показывается ни в TagWheel, ни в командах, ни
+ * в самой строке. Выбрано значение — можно сузить и до него одного.
+ *
+ * В конфиг это ложится двумя ключами, которые рантайм понимает давно:
+ * `dependsOn` и `enabledForParentValues`. Предлагать в предусловие можно
+ * только Field из того же списка определений — теги лежат в `leftMode`,
+ * ссылки и элементы в `rightMode`, — иначе рантайм не найдёт его и выключит
+ * Field целиком.
+ */
+function prerequisiteRows(host, f, row) {
+  const samePool = (a, b) => (a === "tag") === (b === "tag");
+  const others = FIELDS.filter(x => x.id !== f.id && samePool(x.type, f.type));
+  /* Некого ждать — и строки нет: контрол, который никуда не ведёт, не
+     показывается (З8). */
+  if (!others.length && !f.prereq) return;
+
+  row({ name:"Prerequisite Field", key:"prereq",
+    desc:"Show this Field only after another Field has a Value",
+    tip:"A Field with a prerequisite stays out of TagWheel, out of its commands and out of the line until the Field it waits for has a Value. " +
+        "Picking a different Value in that Field clears this one" },
+    f.prereq ? "yes" : "no",
+    v => { f.prereq = v === "yes" ? (f.prereq || (others[0] && others[0].id) || "") : ""; f.prereqValue = ""; },
+    [{ value:"no", label:"No" }, { value:"yes", label:"Yes" }]);
+
+  if (!f.prereq) return;
+
+  row({ name:"Choose prerequisite Field", key:"prereq-field",
+    desc:"Which Field this one waits for",
+    tip:"Only Fields written the same way are offered: a Tag Field waits for a Tag Field, a Link or Emoji Field for a Link or an Emoji Field. " +
+        "The two are kept next to each other in the line" },
+    f.prereq, v => { f.prereq = v; f.prereqValue = ""; },
+    others.map(x => ({ value:x.id, label:x.strict || x.name })));
+
+  const chosen = FIELDS.find(x => x.id === f.prereq);
+  const values = chosen && Array.isArray(chosen.values) ? chosen.values : [];
+  row({ name:"Prerequisite Value", key:"prereq-value",
+    desc:"Which Value of that Field this one waits for",
+    tip:"Left at <b>Any Value</b> this Field appears as soon as the prerequisite Field has a Value of any kind. " +
+        "Name one, and it waits for that Value alone" },
+    f.prereqValue || "",
+    v => { f.prereqValue = v; },
+    [{ value:"", label:"Any Value" }].concat(values.map(x => ({ value:x.token, label:x.token }))));
 }
 
 /* ============================================================ Cycle order */

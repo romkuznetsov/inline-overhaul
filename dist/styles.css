@@ -658,16 +658,6 @@
 .io-fields__title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
 .io-fields__title h4 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-normal); }
 .io-fields__hint { margin: 0 0 10px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
-/* Короткое имя сложено в ту же строку, чтобы шапка не росла на три этажа. */
-.io-fields__shortlabel {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-left: 4px;
-}
-.io-text--short { width: 96px; }
 /* Свойство заметки — шириной с выпадающий список над ним. */
 .io-text--prop { width: 172px; }
 /*
@@ -740,9 +730,18 @@
 }
 /* Таблица шире колонки, и она прокручивается сама, а не тянет страницу. */
 .io-scroll { overflow-x: auto; }
-/* 450px — каждая колонка на своей нижней границе, плюс зазоры и поля. */
-.io-vals__inner { min-width: 450px; }
-.io-vals__inner--link { min-width: 280px; }
+/*
+ * 400px — каждая колонка на своей нижней границе, плюс зазоры и поля.
+ *
+ * Число обязано быть маленьким: таблица прокручивается внутри себя, и всё,
+ * что не влезло, человек видит только прокруткой вправо. На 450px за краем
+ * оказалась кнопка удаления значения (замечание заказчика, пятый круг), и
+ * колонки пришлось поджать — особенно `Fill`, `Text` и `Preview`, между
+ * которыми и стоял лишний воздух.
+ */
+.io-vals__inner { min-width: 400px; }
+/* 206px нижних границ, четыре зазора по 4 и поля по 10 с каждой стороны. */
+.io-vals__inner--link { min-width: 242px; }
 /*
  * Одно место, где задана сетка таблицы: колонок девять и порядок из Ф7.
  *
@@ -754,12 +753,12 @@
 .io-vals__head,
 .io-vals__row {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   align-items: center;
   padding: 6px 10px;
   grid-template-columns:
-    14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
-    minmax(64px, 1fr) 30px 30px minmax(64px, 1fr) 44px;
+    14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
+    minmax(58px, 1fr) 24px 24px minmax(52px, 1fr) 40px;
 }
 /*
  * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
@@ -795,7 +794,7 @@
  */
 .io-vals--link .io-vals__head,
 .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 44px;
+  grid-template-columns: 14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
 }
 .io-vals__head {
   font-size: 10px;
@@ -1046,7 +1045,6 @@
 }
 .io-btn.io-btn--cta:hover { background: var(--interactive-accent-hover); }
 /* Короткое имя сложено в строку заголовка и обязано быть коротким. */
-.io-fields .io-text--short { width: 96px; }
 .io-fields .io-text--prop { width: 172px; }
 .io-fields .io-textarea { width: 236px; max-width: 100%; }
 .io-fields .io-vals__row .io-text,

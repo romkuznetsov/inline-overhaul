@@ -96,14 +96,17 @@ export function btn(parent: El, cls: string, o: {
   title?: string;
 }): ElButton {
   /*
-   * Одна подсказка на узел. Obsidian сам показывает `aria-label` своей
-   * всплывающей подсказкой на тёмном фоне, а браузер поверх неё рисует
-   * `title` на светлом: выходили две подсказки, разного вида и с разным
-   * текстом, перекрывающие друг друга (замечание заказчика 2026-08-27).
+   * Одна подсказка на узел — и один атрибут, а не два одинаковых.
    *
-   * Поэтому подпись здесь одна: если вызов дал и `label`, и `title`, они
-   * сливаются в одну строку, и она уходит в оба атрибута. Разойтись им больше
-   * не на чем, а забыть про правило нельзя — оно живёт в этой функции.
+   * Первая попытка (2026-08-27, четвёртый круг) сливала `label` и `title` в
+   * одну строку и писала её в оба атрибута. Подсказок от этого осталось всё
+   * равно две: `aria-label` показывает своей тёмной подсказкой Obsidian, а
+   * `title` — браузер, светлой и поверх неё. Одинаковый текст ничего не
+   * исправил, две коробки так и всплывали одна за другой (замечание
+   * заказчика, пятый круг).
+   *
+   * Поэтому `title` не ставится вовсе. Подпись живёт в `aria-label`: её
+   * читает и программа чтения с экрана, и подсказка Obsidian.
    */
   const label = o.label ?? "";
   const full = o.title && o.title !== label
@@ -111,9 +114,7 @@ export function btn(parent: El, cls: string, o: {
     : label;
   const attr: Record<string, string> = { type: "button" };
   if (full) attr["aria-label"] = full;
-  const node = parent.createEl("button", { cls, text: o.text ?? "", attr }) as ElButton;
-  if (full) node.title = full;
-  return node;
+  return parent.createEl("button", { cls, text: o.text ?? "", attr }) as ElButton;
 }
 
 /**

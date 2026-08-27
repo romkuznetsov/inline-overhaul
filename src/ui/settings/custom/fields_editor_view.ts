@@ -56,6 +56,13 @@ const LIST_TIP =
 /** Пустая сторона — приглашение, а не ошибка (ПЗ2, ПЗ3). */
 const EMPTY_SIDE = "nothing on this side";
 
+/*
+ * Короткое имя Field. Своя строка, а не кусок шапки, и называется тем, что
+ * значит: `short name` не говорило, где это имя видно (замечание заказчика,
+ * шестой круг). В конфиге настройка по-прежнему `order.labels` (З1).
+ */
+const SHORT_NAME_NAME = "Name in TagWheel";
+const SHORT_NAME_DESC = "A shorter name for the TagWheel row, where there is little room";
 const SHORT_NAME_TIP =
   "TagWheel puts every Field side by side, so a long name crowds its neighbours. "
   + "Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name";
@@ -129,6 +136,40 @@ const CHILD_OPTIONS = [
 ] as const;
 
 /**
+ * Предусловие Field (10.13.4). Три строки: есть ли предусловие, какой Field
+ * ждём и какое его значение. Две последние появляются только при `Yes` —
+ * решение заказчика 2026-08-27.
+ *
+ * Пишется двумя ключами, которые рантайм понимает давно: `dependsOn` и
+ * `enabledForParentValues`. Что из этого следует для человека и почему список
+ * Fields в нём короче, чем весь список, — в подсказках ниже и в 10.13.
+ */
+const PREREQ_NAME = "Prerequisite Field";
+const PREREQ_DESC = "Show this Field only after another Field has a Value";
+const PREREQ_TIP =
+  "A Field with a prerequisite stays out of TagWheel, out of its commands and out of the line "
+  + "until the Field it waits for has a Value. Picking a different Value in that Field clears this one";
+const PREREQ_OPTIONS = [
+  { value: "no", label: "No" },
+  { value: "yes", label: "Yes" },
+] as const;
+
+const PREREQ_FIELD_NAME = "Choose prerequisite Field";
+const PREREQ_FIELD_DESC = "Which Field this one waits for";
+const PREREQ_FIELD_TIP =
+  "Only Fields written the same way are offered: a Tag Field waits for a Tag Field, "
+  + "a Link or Emoji Field for a Link or an Emoji Field. The two are kept next to each other in the line";
+/** Пока Field не выбран, писать нечего: пустое значение ничего не пишет. */
+const PREREQ_FIELD_NONE = "Not chosen";
+
+const PREREQ_VALUE_NAME = "Prerequisite Value";
+const PREREQ_VALUE_DESC = "Which Value of that Field this one waits for";
+const PREREQ_VALUE_TIP =
+  "Left at <code>Any Value</code> this Field appears as soon as the prerequisite Field has a Value "
+  + "of any kind. Name one, and it waits for that Value alone";
+const PREREQ_VALUE_ANY = "Any Value";
+
+/**
  * Свойства заметки — свой раздел, а не строка внутри `Behavior` (замечание
  * заказчика 2026-08-27): сюда приедут остальные настройки свойства, когда
  * дойдёт черёд блока `Note properties` на вкладке Transform. Подсказка стоит у
@@ -188,6 +229,13 @@ function columnTips(isLink: boolean): Record<string, string> {
 export interface FieldsViewState {
   /** Ключ выбранного Field. Пустая строка — выбран первый по порядку. */
   selected: string;
+  /**
+   * У каких Fields строка `Prerequisite Field` стоит на `Yes`, пока сам Field
+   * ещё не выбран. Это состояние вида, а не настройка: в конфиг предусловие
+   * попадает только вместе с Field, которого ждём, — иначе там остался бы
+   * `Yes`, не значащий ничего. Ключ Field → человек ответил `Yes`.
+   */
+  prereqOpen?: Record<string, boolean>;
 }
 
 /** Ответ окна `Add Field`. */
@@ -282,13 +330,12 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
 
       const grip = el(item, "span", "io-grip", "⠿");
       grip.setAttribute("role", "button");
-      /* Одна подсказка на узел, и текст у неё один: Obsidian рисует
-         `aria-label` своей подсказкой, а браузер поверх — `title`. */
+      /* Одна подсказка на узел — и один атрибут: `title` рядом с `aria-label`
+         даёт вторую всплывающую коробку поверх первой (пятый круг). */
       const gripLabel = row.parent
         ? "Drag " + row.label + " \u2014 it moves with " + parentLabel(rows, row.parent)
         : "Drag " + row.label + " to reorder it, or across the line to change side";
       grip.setAttribute("aria-label", gripLabel);
-      grip.title = gripLabel;
       grip.draggable = o.enabled;
       grip.addEventListener("dragstart", ((ev: DragEv) => {
         dragged = ownerOf(row);
@@ -455,6 +502,105 @@ function itemRow(host: El, o: {
 }
 
 /**
+ * Предусловие Field: три строки в разделе `Behavior` (10.13.4).
+ *
+ * Первая спрашивает, есть ли предусловие вообще; при `Yes` появляются ещё
+ * две — какой Field ждём и какое его значение. Значение необязательно: без
+ * него годится любое.
+ *
+ * Строки нет вовсе, если ждать некого: в списке кандидатов только Fields из
+ * того же списка определений (`leftMode` для тегов, `rightMode` для ссылок и
+ * элементов) и без петель — их считает модель. Контрол, который никуда не
+ * ведёт, не показывается (З8).
+ */
+function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<() => void> {
+  const closers: Array<() => void> = [];
+  const state = o.model.getPrerequisite(row.key);
+  if (!state.candidates.length && !state.fieldId) return closers;
+
+  if (!o.state.prereqOpen) o.state.prereqOpen = {};
+  const opened = Boolean(state.fieldId || o.state.prereqOpen[row.key]);
+
+  const on = itemRow(detail, {
+    name: PREREQ_NAME,
+    desc: PREREQ_DESC,
+    tip: PREREQ_TIP,
+    tipId: "io-field-prereq-tip",
+    showTips: o.showTips,
+  });
+  closers.push(on.closeTip);
+  const onPick = selectInput(on.control, "io-select", {
+    options: PREREQ_OPTIONS,
+    value: opened ? "yes" : "no",
+    label: PREREQ_NAME + " for " + row.strictName,
+  });
+  onPick.disabled = !o.enabled;
+  onPick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    const yes = onPick.value === "yes";
+    (o.state.prereqOpen as Record<string, boolean>)[row.key] = yes;
+    /* `No` снимает предусловие из конфига; `Yes` пока ничего не пишет —
+       писать нечего, Field ещё не выбран. */
+    if (!yes && state.fieldId) o.model.setPrerequisite(row.key, "", "");
+    o.redraw();
+  }) as never);
+
+  if (!opened) return closers;
+
+  const which = itemRow(detail, {
+    name: PREREQ_FIELD_NAME,
+    desc: PREREQ_FIELD_DESC,
+    tip: PREREQ_FIELD_TIP,
+    tipId: "io-field-prereq-which-tip",
+    showTips: o.showTips,
+  });
+  closers.push(which.closeTip);
+  const whichPick = selectInput(which.control, "io-select", {
+    options: [{ value: "", label: PREREQ_FIELD_NONE }].concat(
+      state.candidates.map(c => ({ value: c.key, label: c.label })),
+    ),
+    value: state.fieldId,
+    label: PREREQ_FIELD_NAME + " for " + row.strictName,
+  });
+  whichPick.disabled = !o.enabled;
+  whichPick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    /* Смена Field уносит значение: значения принадлежат прежнему Field. */
+    const res = o.model.setPrerequisite(row.key, whichPick.value, "");
+    if (!res.ok && res.error) o.notice(res.error);
+    o.redraw();
+  }) as never);
+
+  /* Значение спрашивать не у кого, пока не выбран Field. */
+  if (!state.fieldId) return closers;
+
+  const value = itemRow(detail, {
+    name: PREREQ_VALUE_NAME,
+    desc: PREREQ_VALUE_DESC,
+    tip: PREREQ_VALUE_TIP,
+    tipId: "io-field-prereq-value-tip",
+    showTips: o.showTips,
+  });
+  closers.push(value.closeTip);
+  const valuePick = selectInput(value.control, "io-select", {
+    options: [{ value: "", label: PREREQ_VALUE_ANY }].concat(
+      state.values.map(v => ({ value: v.value, label: v.label })),
+    ),
+    value: state.value,
+    label: PREREQ_VALUE_NAME + " for " + row.strictName,
+  });
+  valuePick.disabled = !o.enabled;
+  valuePick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    const res = o.model.setPrerequisite(row.key, state.fieldId, valuePick.value);
+    if (!res.ok && res.error) o.notice(res.error);
+    o.redraw();
+  }) as never);
+
+  return closers;
+}
+
+/**
  * Выбранный Field: как он называется, что он такое, как встаёт в строку и как
  * его убрать (Ф6). Таблица Values и строки `element` приезжают следующим
  * куском — они живут ниже по этой же колонке.
@@ -463,12 +609,14 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   const closers: Array<() => void> = [];
 
   /*
-   * Шапка. Системное имя — заголовок, а не поле: оно задаётся один раз в окне
+   * Шапка несёт только то, чем Field является: системное имя, тип и удаление.
+   * Системное имя — заголовок, а не поле: оно задаётся один раз в окне
    * `Add Field` и дальше не меняется (решение заказчика 2026-08-27, пересмотр
-   * того же дня). Причина: имя стоит в заметке конфига и в именах команд, а
-   * поле ввода рядом с коротким именем оказалось широким и без описания —
-   * `Delete Field` от него съезжал на строку ниже. Правится рядом короткое
-   * имя, то, которое видно в TagWheel.
+   * того же дня). Причина: имя стоит в заметке конфига и в именах команд.
+   *
+   * Короткое имя стояло здесь же и уехало своей строкой ниже: в шапке оно
+   * оказалось зажато между чипом типа и красной корзиной (замечание
+   * заказчика, шестой круг).
    */
   const title = el(detail, "div", "io-fields__title");
   el(title, "h4", undefined, row.strictName);
@@ -477,40 +625,6 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     "--io-chip-bg",
     TYPE_COLOR[row.kind],
   );
-  el(title, "span", "io-fields__shortlabel", "short name");
-  /*
-   * «?» стоит до поля ввода, а не после: подпись, знак вопроса, потом правка
-   * — так это читается слева направо (замечание заказчика 2026-08-27).
-   * Подсказка при этом открывается там же, где и раньше — сразу под строкой
-   * заголовка, а не в конце колонки.
-   */
-  closers.push(tipBelow({
-    head: title,
-    host: el(detail, "div", "io-tipslot"),
-    text: SHORT_NAME_TIP,
-    label: "Short name",
-    id: "io-field-short-tip",
-    showTips: o.showTips,
-  }));
-  const short = textInput(title, "io-text io-text--short", {
-    /* Пусто — значит короткого имени нет и в TagWheel стоит полное. */
-    value: row.label === row.strictName ? "" : row.label,
-    placeholder: row.strictName,
-    label: "Short name for " + row.strictName,
-  });
-  short.disabled = !o.enabled;
-  short.addEventListener("change", (() => {
-    if (!o.enabled) return;
-    /*
-     * Пустое короткое имя не пишется. Так вела себя и старая доска, а Ф12
-     * велит сохранить поведение: сбросить короткое имя обратно к полному
-     * сейчас нечем, и это отдельный разговор, а не побочная правка вёрстки.
-     */
-    if (!String(short.value || "").trim()) return;
-    o.model.setLabel(row.key, short.value);
-    o.redraw();
-  }) as never);
-
   /*
    * Удаление — белая корзина на красном, без слова (замечание заказчика
    * 2026-08-27): оно должно бросаться в глаза, а не притворяться обычной
@@ -532,6 +646,39 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
       o.state.selected = "";
       o.redraw();
     });
+  }) as never);
+
+  /*
+   * Имя в TagWheel — своя строка сразу под шапкой (замечание заказчика,
+   * шестой круг). В шапке оно стояло между чипом типа и красной корзиной и
+   * читалось как случайный набор. Строка про то, как Field назван, а не про
+   * то, как он себя ведёт, поэтому стоит до заголовка `Behavior`.
+   */
+  const shortRow = itemRow(detail, {
+    name: SHORT_NAME_NAME,
+    desc: SHORT_NAME_DESC,
+    tip: SHORT_NAME_TIP,
+    tipId: "io-field-short-tip",
+    showTips: o.showTips,
+  });
+  closers.push(shortRow.closeTip);
+  const short = textInput(shortRow.control, "io-text io-text--prop", {
+    /* Пусто — значит короткого имени нет и в TagWheel стоит полное. */
+    value: row.label === row.strictName ? "" : row.label,
+    placeholder: row.strictName,
+    label: SHORT_NAME_NAME + " for " + row.strictName,
+  });
+  short.disabled = !o.enabled;
+  short.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    /*
+     * Пустое короткое имя не пишется. Так вела себя и старая доска, а Ф12
+     * велит сохранить поведение: сбросить короткое имя обратно к полному
+     * сейчас нечем, и это отдельный разговор, а не побочная правка вёрстки.
+     */
+    if (!String(short.value || "").trim()) return;
+    o.model.setLabel(row.key, short.value);
+    o.redraw();
   }) as never);
 
   /* Заголовок раздела — Behavior: под ним Active, Prefix behavior и
@@ -628,6 +775,16 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   }
 
   /*
+   * Предусловие Field (10.13.4). Стоит последним в разделе `Behavior`: это
+   * самое сильное из того, что тут решается, — Field с предусловием молчит,
+   * пока не выполнено условие, — и читать его надо после всего остального.
+   *
+   * Дочернему Field предусловия не бывает: его `dependsOn` уже занят
+   * родителем, и вторым тем же ключом распорядиться нечем (З8).
+   */
+  if (!row.parent) closers.push(...prerequisiteRows(detail, row, o));
+
+  /*
    * Свойство заметки принадлежит Field, а не отдельной таблице где-то ещё:
    * оно задаётся здесь, рядом со всем остальным, что Field решает (решение
    * заказчика 2026-08-27).
@@ -719,10 +876,9 @@ function previewCell(host: El, o: FieldsViewOpts, v: {
   const ratio = contrastRatio(v.fill, v.text);
   if (ratio >= CONTRAST_FLOOR) return;
   const warn = el(cell, "span", "io-warn", "\u26A0");
-  /* Одна подсказка на узел, один и тот же текст в обоих атрибутах. */
+  /* Одна подсказка на узел — и только `aria-label`: `title` рисует вторую. */
   const note = contrastWarning(ratio);
   warn.setAttribute("aria-label", note);
-  warn.title = note;
 }
 
 /**
@@ -797,7 +953,6 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     const grip = el(line, "div", "io-grip", "\u283F");
     grip.setAttribute("role", "button");
     grip.setAttribute("aria-label", "Drag " + v.token + " to reorder it");
-    grip.title = "Drag " + v.token + " to reorder it";
     grip.draggable = o.enabled;
     grip.addEventListener("dragstart", ((ev: DragEv) => {
       dragged = at;

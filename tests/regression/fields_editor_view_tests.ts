@@ -214,6 +214,24 @@ function one(root: StubNode, cls: string): StubNode {
   return found[0] as StubNode;
 }
 
+/** Имя строки `Name in TagWheel`: она же и подпись у поля ввода. */
+const SHORT_NAME = "Name in TagWheel";
+
+/** Строка имени в TagWheel: своя строка ниже шапки (шестой круг). */
+function shortRowOf(host: StubNode): StubNode {
+  const row = all(host, "io-item").find(r =>
+    all(r, "io-item__name").some(n => String(n.textContent || "").trim() === SHORT_NAME));
+  assert.ok(row, "строка «" + SHORT_NAME + "» не нашлась");
+  return row as StubNode;
+}
+
+/** Поле ввода в этой строке. */
+function shortInput(host: StubNode): StubNode {
+  const input = all(shortRowOf(host), "io-text")[0];
+  assert.ok(input, "в строке «" + SHORT_NAME + "» нет поля ввода");
+  return input as StubNode;
+}
+
 /** Строки списка в том порядке, в каком они нарисованы. */
 function rowsOf(host: StubNode): StubNode[] {
   return all(host, "io-fields__item");
@@ -517,9 +535,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
 }
 {
   const v = makeView();
-  const short = one(v.host, "io-text--short");
-  assert.equal(short.getAttribute("aria-label"), "Short name for status",
-    "у поля короткого имени есть подпись для программы чтения с экрана");
+  const short = shortInput(v.host);
   assert.equal(short.placeholder, "status",
     "пока короткого имени нет, подсказкой в поле стоит полное");
   assert.equal(short.value, "Status", "короткое имя показано текущим значением");
@@ -527,12 +543,12 @@ function dragToSide(from: StubNode, side: StubNode): void {
   short.dispatch("change");
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:label:status"],
     "короткое имя пишется той же записью, что и в старой доске");
-  assert.equal(one(v.host, "io-text--short").value, "Stat", "новое короткое имя видно сразу");
+  assert.equal(shortInput(v.host).value, "Stat", "новое короткое имя видно сразу");
   ok("Ф6: короткое имя правится и пишется в labels");
 }
 {
   const v = makeView();
-  const short = one(v.host, "io-text--short");
+  const short = shortInput(v.host);
   short.value = "   ";
   short.dispatch("change");
   assert.deepEqual(v.writes, [], "пустое короткое имя не пишется: так вела себя и старая доска (Ф12)");
@@ -687,7 +703,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
     "белое на почти чёрном читается, и значка нет");
   const warn = all(rows[2] as StubNode, "io-warn");
   assert.equal(warn.length, 1, "белое на жёлтом не читается, и значок есть");
-  assert.ok(String((warn[0] as StubNode).title || "").includes("aim for 4.5:1"),
+  assert.ok(String((warn[0] as StubNode).getAttribute("aria-label") || "").includes("aim for 4.5:1"),
     "подсказка называет и текущее отношение, и нужное");
   ok("Н15: нечитаемая пара цветов помечена тихим значком с числом");
 }
@@ -783,7 +799,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.equal(all(v.host, "io-vals").length, 0, "у element таблицы Values нет");
   const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
   assert.deepEqual(names,
-    ["Active", "Prefix behavior", "Property", "Emoji-prefix", "Value format", "Steps by", "Command"],
+    [SHORT_NAME, "Active", "Prefix behavior", "Property", "Emoji-prefix", "Value format", "Steps by", "Command"],
     "у element показаны маркер, формат и способ шага, и только то, чем шагает текущий режим");
   ok("Ф6: у Field типа element строки маркера, формата и шага вместо таблицы Values");
 }
@@ -826,9 +842,9 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const v = makeView();
   const inputs = all(v.host, "io-fields__title")[0]?.children
     .filter(c => String(c.tagName) === "INPUT") ?? [];
-  assert.equal(inputs.length, 1, "в шапке ровно одно поле — короткое имя");
-  assert.equal((inputs[0] as StubNode).getAttribute("aria-label"), "Short name for status",
-    "и это именно короткое имя, а не системное");
+  assert.equal(inputs.length, 0,
+    "в шапке полей ввода нет вовсе: имя и тип — текст, рядом только удаление");
+  assert.ok(shortInput(v.host), "короткое имя уехало своей строкой ниже (шестой круг)");
   ok("системное имя показано заголовком и с панели не правится");
 }
 
@@ -891,16 +907,19 @@ function dragToSide(from: StubNode, side: StubNode): void {
    */
   const v = makeView();
   const mark = all(v.host, "io-help").find(b =>
-    String(b.getAttribute("aria-label") || "") === "More about Short name") as StubNode;
+    String(b.getAttribute("aria-label") || "") === "More about " + SHORT_NAME) as StubNode;
+  assert.ok(mark, "у строки имени в TagWheel есть «?»");
   mark.click();
-  const slots = all(v.host, "io-tipslot");
-  const opened = slots.filter(s => all(s, "io-tip").length);
+  const opened = all(v.host, "io-tip");
   assert.equal(opened.length, 1, "подсказка открылась ровно в одном месте");
-  assert.equal(String(opened[0]?.parentElement?.className || "").includes("io-fields__detail"), true,
-    "и это место — правая колонка, сразу под шапкой");
-  const детали = one(v.host, "io-fields__detail");
-  const index = детали.children.indexOf(opened[0] as StubNode);
-  assert.equal(index, 1, "подсказка стоит вторым ребёнком: сразу за строкой заголовка");
+  /* Строка своя, поэтому и подсказка открывается внутри неё, а не в конце
+     колонки: раньше текст появлялся под таблицей Values. */
+  assert.ok(String(opened[0]?.parentElement?.className || "").includes("io-item__info"),
+    "подсказка открылась внутри своей строки");
+  const ownRow = opened[0]?.parentElement?.parentElement as StubNode;
+  assert.ok(all(ownRow, "io-item__name").some(n =>
+    String(n.textContent || "").trim() === SHORT_NAME),
+    "и это строка имени в TagWheel");
   ok("подсказка открывается под своей строкой, а не в конце колонки");
 }
 
@@ -911,14 +930,18 @@ function dragToSide(from: StubNode, side: StubNode): void {
 /* ---- 1: «?» у короткого имени стоит до поля ввода ---------------------- */
 {
   const v = makeView();
-  const title = one(v.host, "io-fields__title");
-  const marks = title.children.map((c, i) => ({ i, cls: String(c.className || ""), tag: String(c.tagName) }));
-  const help = marks.find(m => m.cls.includes("io-help"));
-  const input = marks.find(m => m.cls.includes("io-text--short"));
-  assert.ok(help && input, "в шапке есть и знак вопроса, и поле короткого имени");
-  assert.ok((help as { i: number }).i < (input as { i: number }).i,
-    "«?» стоит до поля ввода: подпись, знак вопроса, потом правка");
-  ok("замечание 1: «?» у короткого имени стоит перед полем ввода");
+  const row = shortRowOf(v.host);
+  /* Строка читается слева направо: подпись, знак вопроса, потом правка.
+     Знак стоит в блоке описания, поле ввода — в блоке контрола справа. */
+  const info = one(row, "io-item__info");
+  const nameRow = one(info, "io-item__namerow");
+  const inNameRow = nameRow.children.map(c => String(c.className || ""));
+  assert.ok(inNameRow.some(c => c.includes("io-item__name")), "в строке есть подпись");
+  assert.ok(inNameRow.some(c => c.includes("io-help")), "и «?» стоит рядом с подписью");
+  assert.equal(all(nameRow, "io-text").length, 0, "поля ввода в строке подписи нет");
+  assert.ok(all(one(row, "io-item__control"), "io-text").length,
+    "поле ввода стоит в контроле, то есть после подписи и «?»");
+  ok("замечание 1: «?» у имени в TagWheel стоит перед полем ввода");
 }
 
 /* ---- 2: кнопка удаления называется Delete и залита красным ------------- */
@@ -933,7 +956,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
    */
   assert.deepEqual(del.children.map(c => String(c.className || "")), ["io-danger__icon"],
     "на кнопке один узел — значок корзины, без подписи");
-  assert.equal(del.title, "Delete the Field status", "наведение объясняет, что делает кнопка");
+  assert.equal(del.getAttribute("aria-label"), "Delete the Field status",
+    "наведение объясняет, что делает кнопка");
   const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
   const rule = /\.io-danger \{([^}]*)\}/.exec(css);
   assert.ok(rule, "правило .io-danger нашлось в styles.css");
@@ -1224,7 +1248,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
   one(due, "io-fields__pick").click();
   const withTip = all(v.host, "io-item").filter(r => all(r, "io-help").length)
     .map(r => String(all(r, "io-item__name")[0]?.textContent || "").trim());
-  assert.deepEqual(withTip, ["Active", "Prefix behavior", "Emoji-prefix", "Value format", "Steps by", "Command"],
+  assert.deepEqual(withTip,
+    [SHORT_NAME, "Active", "Prefix behavior", "Emoji-prefix", "Value format", "Steps by", "Command"],
     "подсказка есть у каждой строки Field типа Emoji, кроме свойства заметки: у того подсказка стоит у заголовка раздела");
   ok("второй круг 6: у каждой строки Field типа Emoji есть подсказка");
 }
@@ -1347,8 +1372,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
     "разделы: поведение, свойство заметки, значения");
   const behaviorRows = all(v.host, "io-item")
     .map(r => String(all(r, "io-item__name")[0]?.textContent || "").trim());
-  assert.deepEqual(behaviorRows.slice(0, 3), ["Active", "Prefix behavior", "Child Field"],
-    "под Behavior стоят Active, Prefix behavior и Child Field");
+  assert.deepEqual(behaviorRows.slice(0, 4), [SHORT_NAME, "Active", "Prefix behavior", "Child Field"],
+    "имя в TagWheel стоит до раздела, а под Behavior — Active, Prefix behavior и Child Field");
   ok("третий круг 2: раздел называется Behavior и держит три настройки");
 }
 {
@@ -1479,8 +1504,13 @@ function dragToSide(from: StubNode, side: StubNode): void {
   /*
    * Obsidian показывает `aria-label` своей всплывающей подсказкой на тёмном
    * фоне, а браузер поверх неё рисует `title` на светлом. Узел с обоими
-   * атрибутами даёт две подсказки, разного вида и с разным текстом, и они
-   * перекрывают друг друга (замечание заказчика 2026-08-27).
+   * атрибутами даёт ДВЕ подсказки — и одинаковый текст в них ничего не
+   * исправляет: коробки всё равно две, тёмная и светлая поверх неё.
+   *
+   * Первая версия этой проверки падала только на разном тексте, поэтому
+   * четвёртый круг замечаний закрылся зелёными проверками и незакрытым
+   * дефектом (заказчик увидел его снова, пятый круг). Теперь запрещён сам
+   * второй атрибут.
    *
    * Проверка обходит всё дерево редактора: правило общее, а не про конкретную
    * кнопку, и нарушить его легко любой новой строкой вёрстки.
@@ -1490,15 +1520,15 @@ function dragToSide(from: StubNode, side: StubNode): void {
     const walk = (n: StubNode): void => {
       const label = String(n.getAttribute("aria-label") || "").trim();
       const title = String(n.title || "").trim();
-      if (label && title && label !== title) {
+      if (label && title) {
         bad.push(where + " " + String(n.tagName).toLowerCase()
-          + ": aria-label «" + label + "» против title «" + title + "»");
+          + ": aria-label «" + label + "» и title «" + title + "» на одном узле");
       }
       n.children.forEach(walk);
     };
     walk(host);
     assert.deepEqual(bad, [],
-      "у этих узлов две разные подсказки, и они перекроют друг друга:\n  " + bad.join("\n  "));
+      "у этих узлов по две всплывающие подсказки:\n  " + bad.join("\n  "));
   };
 
   const v = makeView();
@@ -1506,7 +1536,9 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   one(due, "io-fields__pick").click();
   check(v.host, "emoji");
-  ok("четвёртый круг 4: ни у одного узла нет двух разных подсказок");
+  const link = makeLinkView();
+  check(link.host, "link");
+  ok("шестой круг 3: ни у одного узла редактора нет двух подсказок сразу");
 }
 {
   /* И тот же запрет внутри помощника: он единственное место, где подпись
@@ -1519,9 +1551,9 @@ function dragToSide(from: StubNode, side: StubNode): void {
   }) as unknown as StubNode;
   assert.equal(node.getAttribute("aria-label"), "Do the thing — and here is why",
     "label и title слились в одну подпись");
-  assert.equal(node.title, "Do the thing — and here is why",
-    "и она же ушла в title: подсказка одна, текст один");
-  ok("четвёртый круг 4: btn сливает label и title в одну подпись");
+  assert.equal(String(node.title || ""), "",
+    "и `title` не поставлен вовсе: вторую подсказку рисует именно он");
+  ok("шестой круг 3: btn пишет подпись только в aria-label");
 }
 
 /* ======================================================================
@@ -1731,19 +1763,264 @@ const linkSubField = (cfg: Any): Any =>
 }
 
 {
-  /* Колонка `Preview` получила нижнюю границу пошире: на ней пузырь короткого
-     значения помещается целиком, без всякого укорачивания. */
+  /*
+   * Таблица обязана помещаться в узкую панель целиком. Она прокручивается
+   * внутри себя, поэтому всё, что не влезло, человек видит только прокруткой
+   * вправо — и за краем оказалась кнопка удаления значения (замечание
+   * заказчика, шестой круг).
+   *
+   * Порог взят из ширины, которая у таблицы есть на деле: панель минус
+   * колонка списка Fields (188px), поля правой колонки (16 + 16) и рамки.
+   * На панели шириной 620 точек это ровно 400.
+   */
   const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
-  const grid = /\.io-vals__head,\s*\.io-vals__row \{[\s\S]*?grid-template-columns:([^;]+);/.exec(css);
-  const parts = String(grid?.[1]).trim().split(/\s+(?![^(]*\))/);
-  const floorOf = (track: string): number => {
-    const m = /minmax\(\s*([\d.]+)px/.exec(track);
-    return m ? parseFloat(String(m[1])) : parseFloat(track);
+  const declared = Number((/\.io-vals__inner \{ min-width: (\d+)px/.exec(css) || [])[1]);
+  const listCol = Number((/\.io-fields__col:first-child \{ flex: 0 0 (\d+)px/.exec(css) || [])[1]);
+  const detailPad = Number((/\.io-fields__detail \{ padding: \d+px (\d+)px/.exec(css) || [])[1]);
+  assert.ok(Number.isFinite(declared) && Number.isFinite(listCol) && Number.isFinite(detailPad),
+    "ширина таблицы, колонки списка и поля правой колонки объявлены числами");
+  const needsPane = declared + listCol + detailPad * 2 + 3;
+  assert.ok(needsPane <= 625,
+    "таблица Values требует панель шириной " + needsPane + "px — это уже прокрутка вправо");
+  ok("шестой круг 2: таблица Values помещается в узкую панель, " + needsPane + "px");
+}
+
+/* ======================================================================
+ * Предусловие Field (10.13.4) — новая настройка, шестой круг.
+ * ====================================================================== */
+
+/** Строка правой колонки по её подписи. */
+function rowNamed(host: StubNode, name: string): StubNode | null {
+  return all(host, "io-item").find(r =>
+    all(r, "io-item__name").some(n => String(n.textContent || "").trim() === name)) || null;
+}
+
+/** Выпадающий список по подписи для программы чтения с экрана. */
+function selectLabelled(host: StubNode, label: string): StubNode | null {
+  return all(host, "io-select").find(s =>
+    String(s.getAttribute("aria-label") || "") === label) || null;
+}
+
+function pickIn(host: StubNode, label: string, value: string): void {
+  const node = selectLabelled(host, label);
+  assert.ok(node, "не нашёлся список «" + label + "»");
+  (node as StubNode).value = value;
+  (node as StubNode).dispatch("change");
+}
+
+/**
+ * Панель с тремя Fields в двух пулах определений: тег `status` в `leftMode`,
+ * ссылка `project` и элемент `due` в `rightMode`. Предусловие живёт внутри
+ * пула, и без соседа его не на ком показать.
+ */
+function makePrereqView(): {
+  host: () => StubNode;
+  writes: Write[];
+  notices: string[];
+  cfg: Any;
+  model: ReturnType<typeof createFieldsModel>;
+  select: (label: string) => void;
+} {
+  const cfg = makeConfig();
+  cfg.pkm.behavior.order.right.unshift("project");
+  cfg.pkm.behavior.order.labels.project = "Project";
+  cfg.pkm.behavior.order.strictNames.project = "project";
+  cfg.pkm.behavior.order.types.project = "wikilink";
+  cfg.pkm.behavior.order.active.project = "yes";
+  cfg.pkm.behavior.order.freeRoam.project = "off";
+  cfg.pkm.behavior.order.enabled.project = true;
+  cfg.pkm.behavior.rightMode.fields.unshift({
+    id: "project", orderKey: "project", source: "wikilinks:project",
+    values: [{ token: "ClientA", active: true }],
+  });
+  const writes: Write[] = [];
+  const notices: string[] = [];
+  const merge = (dst: Any, src: Any): void => {
+    for (const key of Object.keys(src || {})) {
+      const v = src[key];
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        if (!dst[key] || typeof dst[key] !== "object") dst[key] = {};
+        merge(dst[key], v);
+      } else dst[key] = v;
+    }
   };
-  assert.equal(parts.length, 9, "колонок по-прежнему девять");
-  assert.ok(floorOf(String(parts[7])) >= 64,
-    "нижняя граница колонки Preview: " + floorOf(String(parts[7])) + "px");
-  ok("пятый круг: колонка Preview стала шире своей прежней границы");
+  const plugin = {
+    getConfig: () => cfg,
+    setConfigPatch(patch: Any, reason: string) {
+      writes.push({ reason: String(reason || ""), patch });
+      merge(cfg, patch);
+    },
+  };
+  const model = createFieldsModel({
+    plugin: plugin as never, normalizePkmOrder, pkmOrderFields: [], cfg,
+    deepState: deepState as never,
+  });
+  const state: FieldsViewState = { selected: "project" };
+  let host = makeNode("div");
+  let cleanup: (() => void) | null = null;
+  const draw = (): void => {
+    if (cleanup) cleanup();
+    host = makeNode("div");
+    cleanup = renderFieldsEditor(host as unknown as El, {
+      model,
+      ctx: { get: () => 100, set: async () => {}, run: async () => {}, watch: () => () => {} } as never,
+      state, enabled: true, showTips: false, redraw: draw,
+      notice: (t: string) => { notices.push(t); },
+      askNewField: done => done(null),
+      confirmDeleteField: (_name, done) => done(true),
+    });
+  };
+  draw();
+  return {
+    host: () => host,
+    writes, notices, cfg, model,
+    select: (label: string) => {
+      const row = rowsOf(host).find(r => nameIn(r) === label) as StubNode;
+      assert.ok(row, "в списке нет Field " + label);
+      one(row, "io-fields__pick").click();
+    },
+  };
+}
+
+const PREREQ = "Prerequisite Field";
+const PREREQ_WHICH = "Choose prerequisite Field";
+const PREREQ_VALUE = "Prerequisite Value";
+
+{
+  const v = makePrereqView();
+  v.select("Status");
+  /* У тега `status` соседей по своему списку определений нет: единственный
+     другой тег — его же дочерний Field. Строки нет вовсе (З8). */
+  assert.equal(rowNamed(v.host(), PREREQ), null, "ждать некого — строки предусловия нет");
+  v.select("Project");
+  assert.ok(rowNamed(v.host(), PREREQ), "у ссылки сосед по списку есть, и строка появилась");
+  assert.equal(rowNamed(v.host(), PREREQ_WHICH), null,
+    "пока предусловия нет, второй строки тоже нет");
+  assert.equal(rowNamed(v.host(), PREREQ_VALUE), null, "и третьей");
+  ok("Н20: строка предусловия есть там, где есть кого ждать, и только она одна");
+}
+
+{
+  const v = makePrereqView();
+  pickIn(v.host(), PREREQ + " for project", "yes");
+  assert.deepEqual(v.writes, [], "один только Yes ничего не пишет: Field ещё не выбран");
+  const which = selectLabelled(v.host(), PREREQ_WHICH + " for project") as StubNode;
+  assert.ok(which, "после Yes появилась строка выбора Field");
+  assert.deepEqual(which.children.map(c => String(c.textContent || "").trim()),
+    ["Not chosen", "due"],
+    "в списке только соседи по списку определений: тег status в него не попал");
+  assert.equal(rowNamed(v.host(), PREREQ_VALUE), null,
+    "значение спрашивать не у кого, пока Field не выбран");
+  ok("Н20: Yes открывает выбор Field и сам ничего не пишет");
+}
+
+{
+  const v = makePrereqView();
+  pickIn(v.host(), PREREQ + " for project", "yes");
+  pickIn(v.host(), PREREQ_WHICH + " for project", "due");
+  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:prerequisite:project"],
+    "выбор Field пишется одной записью со своей причиной");
+  const field = (v.writes[0]?.patch.pkm.behavior.rightMode.fields as Any[])
+    .find(f => f.id === "project");
+  assert.equal(field.dependsOn, "due",
+    "в конфиг ушёл `dependsOn` — тот самый ключ, по которому рантайм выключает Field");
+  assert.equal(field.enabledForParentValues, undefined,
+    "значение не выбрано, и списка значений в конфиге нет: годится любое");
+  const value = selectLabelled(v.host(), PREREQ_VALUE + " for project") as StubNode;
+  assert.ok(value, "после выбора Field появилась строка значения");
+  assert.deepEqual(value.children.map(c => String(c.textContent || "").trim()), ["Any Value"],
+    "у Field типа Emoji своих значений нет, и предлагается только Any Value");
+  ok("Н20: предусловие пишется ключом dependsOn, значение необязательно");
+}
+
+{
+  const v = makePrereqView();
+  v.select("Due");
+  pickIn(v.host(), PREREQ + " for due", "yes");
+  pickIn(v.host(), PREREQ_WHICH + " for due", "project");
+  const value = selectLabelled(v.host(), PREREQ_VALUE + " for due") as StubNode;
+  assert.deepEqual(value.children.map(c => String(c.textContent || "").trim()),
+    ["Any Value", "ClientA"], "предлагаются значения выбранного Field");
+  pickIn(v.host(), PREREQ_VALUE + " for due", "ClientA");
+  const last = v.writes[v.writes.length - 1] as Write;
+  const field = (last.patch.pkm.behavior.rightMode.fields as Any[]).find(f => f.id === "due");
+  assert.deepEqual(field.enabledForParentValues, ["ClientA"],
+    "выбранное значение ушло в `enabledForParentValues` — его читает isFieldEnabled");
+  assert.equal(field.dependsOn, "project", "и `dependsOn` остался на месте");
+  ok("Н20: выбранное значение сужает предусловие до одного Value");
+}
+
+{
+  const v = makePrereqView();
+  v.select("Due");
+  pickIn(v.host(), PREREQ + " for due", "yes");
+  pickIn(v.host(), PREREQ_WHICH + " for due", "project");
+  pickIn(v.host(), PREREQ_VALUE + " for due", "ClientA");
+  v.writes.length = 0;
+  pickIn(v.host(), PREREQ + " for due", "no");
+  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:prerequisite:due"],
+    "No снимает предусловие одной записью");
+  const field = (v.writes[0]?.patch.pkm.behavior.rightMode.fields as Any[])
+    .find(f => f.id === "due");
+  assert.equal(field.dependsOn, undefined, "`dependsOn` снят");
+  assert.equal(field.enabledForParentValues, undefined,
+    "и список значений снят вместе с ним: без `dependsOn` рантайм его не читает вовсе");
+  ok("Н20: No снимает оба ключа разом");
+}
+
+{
+  /*
+   * Петля. `clearDependentSelections` в `status_line_runtime_unified.js`
+   * обходит зависимые Fields рекурсивно и без списка пройденных, поэтому
+   * кольцо из двух Fields повесило бы Obsidian. Замкнуть его нельзя.
+   */
+  const v = makePrereqView();
+  v.select("Due");
+  pickIn(v.host(), PREREQ + " for due", "yes");
+  pickIn(v.host(), PREREQ_WHICH + " for due", "project");
+  v.select("Project");
+  assert.equal(rowNamed(v.host(), PREREQ), null,
+    "ждать больше некого: единственный сосед сам ждёт этого Field, и строки нет вовсе");
+  const res = v.model.setPrerequisite("project", "due", "");
+  assert.equal(res.ok, false, "и модель откажет, даже если её позвать мимо вёрстки");
+  assert.ok(String(res.error || "").includes("cannot wait for itself"),
+    "отказ объясняет, почему: " + String(res.error || ""));
+  ok("Н20: кольцо предусловий не замкнуть ни из панели, ни из модели");
+}
+
+{
+  /* Дочернему Field предусловия не бывает: `dependsOn` у него уже занят
+     родителем, и вторым тем же ключом распорядиться нечем. */
+  const v = makePrereqView();
+  const sub = rowsOf(v.host()).find(r => nameIn(r) === "Status sub");
+  if (sub) {
+    one(sub, "io-fields__pick").click();
+    assert.equal(rowNamed(v.host(), PREREQ), null, "у дочернего Field строки предусловия нет");
+  }
+  ok("Н20: у дочернего Field предусловия нет");
+}
+
+{
+  /*
+   * Удаление Field уносит с собой чужие предусловия на него. Иначе
+   * `reconcileModeDependencies` в `pkm_rules_runtime_helpers.js`, не найдя
+   * `dependsOn`, выключит зависимый Field целиком — человек удалил один
+   * Field, а замолчал другой, и в панели он показан включённым.
+   */
+  const v = makePrereqView();
+  v.select("Due");
+  pickIn(v.host(), PREREQ + " for due", "yes");
+  pickIn(v.host(), PREREQ_WHICH + " for due", "project");
+  v.select("Project");
+  v.writes.length = 0;
+  one(v.host(), "io-danger").click();
+  const patch = v.writes.find(w => w.reason.startsWith("pkm:behavior:delete-field:")) as Write;
+  assert.ok(patch, "удаление Field дошло до конфига");
+  const due = (patch.patch.pkm.behavior.rightMode.fields as Any[]).find(f => f.id === "due");
+  assert.ok(due, "Field due на месте");
+  assert.equal(due.dependsOn, undefined,
+    "а предусловие на удалённый Field снято: иначе рантайм выключил бы due молча");
+  ok("Н20: удаление Field снимает чужие предусловия на него");
 }
 
 console.log("\n" + passed + " проверок пройдено");

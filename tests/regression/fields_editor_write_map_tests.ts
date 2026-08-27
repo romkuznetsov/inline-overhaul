@@ -277,6 +277,94 @@ function scenarios(rows: string[]): void {
       ? writes.map(w => w.reason + " -> " + w.paths.join(", ")).join(" | ") || "без записи"
       : "не нашёл кнопку удаления"));
   }
+  {
+    /*
+     * Предусловие Field (10.13.4). Одним нажатием его не снять: строка
+     * `Choose prerequisite Field` появляется только после `Yes`, а строка
+     * `Prerequisite Value` — только после выбора Field. Обход рисует каждый
+     * контрол на свежей отрисовке и до второй строки не доходит никогда,
+     * поэтому сценарий держит одно состояние и перерисовывается сам.
+     */
+    const live = liveRender("project");
+    rows.push("сценарий [поставить Field предусловием и выбрать его значение]");
+    const steps: string[] = [];
+    const pick = (label: string, value: string): boolean => {
+      const hit = controls(live.host()).find(n =>
+        String(n.getAttribute("aria-label") || "") === label);
+      if (!hit) return false;
+      hit.value = value;
+      hit.dispatch("change");
+      return true;
+    };
+    steps.push(pick("Prerequisite Field for project", "yes") ? "yes" : "не нашёл строку предусловия");
+    steps.push(pick("Choose prerequisite Field for project", "due") ? "due" : "не нашёл список Fields");
+    steps.push(pick("Prerequisite Value for project", "") ? "any" : "не нашёл список значений");
+    rows.push("    " + (live.writes.map(w => w.reason + " -> " + w.paths.join(", ")).join(" | ")
+      || "без записи [" + steps.join(", ") + "]"));
+  }
+  {
+    /* И обратный ход: `No` снимает предусловие из конфига. */
+    const live = liveRender("project");
+    const pick = (label: string, value: string): boolean => {
+      const hit = controls(live.host()).find(n =>
+        String(n.getAttribute("aria-label") || "") === label);
+      if (!hit) return false;
+      hit.value = value;
+      hit.dispatch("change");
+      return true;
+    };
+    pick("Prerequisite Field for project", "yes");
+    pick("Choose prerequisite Field for project", "due");
+    live.writes.length = 0;
+    rows.push("сценарий [снять предусловие Field]");
+    rows.push("    " + (pick("Prerequisite Field for project", "no")
+      ? live.writes.map(w => w.reason + " -> " + w.paths.join(", ")).join(" | ") || "без записи"
+      : "не нашёл строку предусловия"));
+  }
+}
+
+/**
+ * Отрисовка, которая переживает перерисовку: один конфиг, одно состояние вида
+ * и свежее дерево на каждый `redraw`. Нужна сценариям из двух шагов — обычный
+ * `render` перерисовку глушит, и второй шаг некуда сделать.
+ */
+function liveRender(selected: string): { host: () => StubNode; writes: Write[] } {
+  const cfg = makeConfig();
+  const writes: Write[] = [];
+  const merge = (dst: Any, src: Any): void => {
+    for (const key of Object.keys(src || {})) {
+      const v = src[key];
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        if (!dst[key] || typeof dst[key] !== "object") dst[key] = {};
+        merge(dst[key], v);
+      } else dst[key] = v;
+    }
+  };
+  const plugin = {
+    getConfig: () => cfg,
+    setConfigPatch(patch: Any, reason: string) {
+      writes.push({ reason: String(reason || "<без причины>"), paths: pathsOf(patch) });
+      merge(cfg, patch);
+    },
+  };
+  const state = { selected };
+  let host = makeNode("div");
+  const draw = (): void => {
+    host = makeNode("div");
+    renderFieldsEditor(host as unknown as El, {
+      model: createFieldsModel({
+        plugin: plugin as never, normalizePkmOrder, pkmOrderFields: [], cfg,
+        deepState: deepState as never,
+      }),
+      ctx: { get: () => 100, set: async () => {}, run: async () => {}, watch: () => () => {} } as never,
+      state, enabled: true, showTips: false, redraw: draw,
+      notice: () => {},
+      askNewField: done => done(null),
+      confirmDeleteField: (_name, done) => done(false),
+    });
+  };
+  draw();
+  return { host: () => host, writes };
 }
 
 /**
@@ -333,6 +421,11 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
   { shape: "pkm:visuals:tag:color-reset:*", why: "сброс цвета одной кнопкой вместо двух — fill-reset и text-reset (решение заказчика 2026-08-27)" },
   { shape: "pkm:behavior:order:delete:*", why: "удаление Field: старая карта диалог не подтверждала" },
   { shape: "pkm:behavior:delete-field:*", why: "вторая запись удаления Field, там же" },
+  {
+    shape: "pkm:behavior:order:prerequisite:*",
+    why: "предусловие Field (10.13.4): новая настройка, принятая заказчиком 2026-08-27. "
+      + "Снимается сценарием из двух шагов: строка выбора Field появляется только после `Yes`",
+  },
 ];
 
 /**

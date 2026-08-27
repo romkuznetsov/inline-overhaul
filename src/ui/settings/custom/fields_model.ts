@@ -144,6 +144,27 @@ export interface ValueAt {
   parentToken: string;
 }
 
+/**
+ * Предусловие Field: Field, без которого он не показывается, и, если нужно,
+ * конкретное значение того Field (10.13.4).
+ *
+ * В конфиг это ложится двумя ключами самого Field, и оба у рантайма давно
+ * есть: `dependsOn` — Field, которого он ждёт (`isFieldEnabled` в
+ * `tagwheel_core.js` выключает Field, пока у того значения нет), и
+ * `enabledForParentValues` — список значений, при которых он включается. Мы
+ * пишем в список ровно одно значение: человек выбирает одно.
+ */
+export interface PrerequisiteState {
+  /** Пусто — предусловия нет. */
+  fieldId: string;
+  /** Пусто — годится любое значение того Field. */
+  value: string;
+  /** Кого можно выбрать: тот же пул Fields, без себя и без петель. */
+  candidates: Array<{ key: string; label: string }>;
+  /** Значения выбранного Field; у `element` их нет. */
+  values: Array<{ value: string; label: string }>;
+}
+
 /** Что можно выбрать родителем значения-ссылки: Field и его значения. */
 export interface LinkParentChoice {
   fieldId: string;
@@ -633,11 +654,36 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setOrderPatch(nextOrder, "pkm:behavior:order:delete:" + k, { replace: true });
 
     const behavior = behaviorOf(plugin.getConfig());
-    const leftFields = modeFields(behavior, "leftMode").filter(f => {
-      const id = idOf(f);
-      return id !== k && (!sub || id !== sub);
-    });
-    const rightFields = modeFields(behavior, "rightMode").filter(f => idOf(f) !== k);
+    /*
+     * Предусловие, показывавшее на удалённый Field, снимается здесь же.
+     * Оставить его нельзя: `reconcileModeDependencies` в
+     * `pkm_rules_runtime_helpers.js`, не найдя `dependsOn` в своём списке,
+     * выключает Field целиком — человек удалил один Field, а замолчал другой,
+     * и в панели он при этом показан включённым.
+     */
+    const dropDangling = (row: unknown): unknown => {
+      const obj = asObject(row);
+      const dep = String(obj["dependsOn"] || "").trim();
+      if (!dep || !targets.includes(dep)) return row;
+      const next = { ...obj };
+      delete next["dependsOn"];
+      delete next["enabledForParentValues"];
+      return next;
+    };
+    /* Дочерний Field уходит вместе с родителем с обеих сторон: у ссылки он
+       лежит в `rightMode`, и без этого остался бы сиротой. */
+    const leftFields = modeFields(behavior, "leftMode")
+      .filter(f => {
+        const id = idOf(f);
+        return id !== k && (!sub || id !== sub);
+      })
+      .map(dropDangling);
+    const rightFields = modeFields(behavior, "rightMode")
+      .filter(f => {
+        const id = idOf(f);
+        return id !== k && (!sub || id !== sub);
+      })
+      .map(dropDangling);
     const elementsCfg = asObject(behavior["elements"]);
     const elementsFields = asArray(elementsCfg["fields"]).filter(x => String(x || "").trim() !== k);
     const elementsByField = { ...asObject(elementsCfg["byField"]) };
@@ -871,6 +917,133 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       }
     }
     return out;
+  };
+
+  /* ---- предусловие Field (10.13.4) ----------------------------------- */
+
+  /**
+   * В каком списке лежит определение Field. Это не сторона строки: `leftMode`
+   * держит определения тегов, `rightMode` — ссылок и элементов, независимо от
+   * того, в каком Block Field пишется (`ensureBehaviorModesFromOrder` в
+   * `main.js` раскладывает их именно так).
+   *
+   * Для предусловия это главное ограничение: `reconcileModeDependencies` в
+   * `pkm_rules_runtime_helpers.js` ищет `dependsOn` **внутри своего списка** и,
+   * не найдя, выключает Field целиком. Значит предложить в предусловие можно
+   * только соседа по списку.
+   */
+  const poolOf = (fieldId: string): "leftMode" | "rightMode" | "" => {
+    const behavior = behaviorOf(plugin.getConfig());
+    const fid = String(fieldId || "").trim();
+    if (!fid) return "";
+    if (modeFields(behavior, "leftMode").some(f => idOf(f) === fid)) return "leftMode";
+    if (modeFields(behavior, "rightMode").some(f => idOf(f) === fid)) return "rightMode";
+    return "";
+  };
+
+  const fieldObject = (fieldId: string): Record<string, unknown> => {
+    const behavior = behaviorOf(plugin.getConfig());
+    const fid = String(fieldId || "").trim();
+    for (const side of ["leftMode", "rightMode"] as const) {
+      const found = modeFields(behavior, side).find(f => idOf(f) === fid);
+      if (found) return asObject(found);
+    }
+    return {};
+  };
+
+  /**
+   * Ведёт ли цепочка `dependsOn` от `from` обратно к `to`. Петля здесь не
+   * косметика: `clearDependentSelections` в `status_line_runtime_unified.js`
+   * обходит детей рекурсивно и без списка пройденных, поэтому кольцо из двух
+   * Fields повесило бы Obsidian. Замкнуть его не даёт эта проверка.
+   */
+  const dependsChainReaches = (from: string, to: string): boolean => {
+    let at = String(from || "").trim();
+    const seen = new Set<string>();
+    let guard = 0;
+    while (at && guard++ < 64) {
+      if (at === to) return true;
+      if (seen.has(at)) return false;
+      seen.add(at);
+      at = String(fieldObject(at)["dependsOn"] || "").trim();
+    }
+    return false;
+  };
+
+  /** Значения Field так, как их видит рантайм: `id`, а при его отсутствии — токен. */
+  const valueIdsOf = (fieldId: string): Array<{ value: string; label: string }> => {
+    const out: Array<{ value: string; label: string }> = [];
+    const seen = new Set<string>();
+    for (const raw of asArray(fieldObject(fieldId)["values"])) {
+      const row = asObject(raw);
+      const token = String(row["token"] || "").trim();
+      const id = String(row["id"] || token).trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ value: id, label: token || id });
+    }
+    return out;
+  };
+
+  const getPrerequisite = (k: string): PrerequisiteState => {
+    const key = String(k || "").trim();
+    const self = fieldObject(key);
+    const fieldId = String(self["dependsOn"] || "").trim();
+    const allowed = asArray(self["enabledForParentValues"])
+      .map(x => String(x || "").trim())
+      .filter(Boolean);
+    const pool = poolOf(key);
+    const candidates: Array<{ key: string; label: string }> = [];
+    for (const row of listFields()) {
+      /*
+       * Дочерний Field в предусловие не годится: его `dependsOn` уже занят
+       * родителем, и он сам показывается только под ним.
+       */
+      if (row.parent || row.key === key) continue;
+      if (pool && poolOf(row.key) !== pool) continue;
+      if (dependsChainReaches(row.key, key)) continue;
+      candidates.push({ key: row.key, label: row.strictName || row.key });
+    }
+    return {
+      fieldId,
+      value: fieldId ? String(allowed[0] || "") : "",
+      candidates,
+      values: fieldId ? valueIdsOf(fieldId) : [],
+    };
+  };
+
+  /**
+   * Записать предусловие. Пустой `rawFieldId` снимает его целиком: остаться
+   * `enabledForParentValues` без `dependsOn` не может — рантайм читает его
+   * только вместе с ним, и повисший список однажды стал бы сюрпризом.
+   */
+  const setPrerequisite = (k: string, rawFieldId: string, rawValue: string): WriteResult => {
+    const key = String(k || "").trim();
+    const side = poolOf(key);
+    if (!side) return { ok: false, error: "InlineOverhaul: field is not in the config yet" };
+    const fieldId = String(rawFieldId || "").trim();
+    const value = String(rawValue || "").trim();
+    if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
+      return { ok: false, error: "InlineOverhaul: a Field cannot wait for itself" };
+    }
+    const list = modeFields(behaviorOf(plugin.getConfig()), side);
+    const idx = list.findIndex(f => idOf(f) === key);
+    if (idx === -1) return { ok: false, error: "InlineOverhaul: field is not in the config yet" };
+    const next = { ...asObject(list[idx]) };
+    if (fieldId) {
+      next["dependsOn"] = fieldId;
+      if (value) next["enabledForParentValues"] = [value];
+      else delete next["enabledForParentValues"];
+    } else {
+      delete next["dependsOn"];
+      delete next["enabledForParentValues"];
+    }
+    list[idx] = next;
+    plugin.setConfigPatch(
+      { pkm: { behavior: { [side]: { fields: list } } } },
+      "pkm:behavior:order:prerequisite:" + key,
+    );
+    return { ok: true };
   };
 
   /* ---- цвет и видимость Value (Ф9) ------------------------------------- */
@@ -1681,6 +1854,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setStrictName,
     setLabel,
     setProperty,
+    getPrerequisite,
+    setPrerequisite,
     toggleSub,
     setFreeRoam,
     setActive,

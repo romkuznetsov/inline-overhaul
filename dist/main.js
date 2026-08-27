@@ -24424,11 +24424,23 @@ function createFieldsModel(deps) {
     orderState.enabled = { ...nextOrder.enabled };
     setOrderPatch(nextOrder, "pkm:behavior:order:delete:" + k, { replace: true });
     const behavior = behaviorOf(plugin.getConfig());
+    const dropDangling = (row) => {
+      const obj = asObject(row);
+      const dep = String(obj["dependsOn"] || "").trim();
+      if (!dep || !targets.includes(dep)) return row;
+      const next = { ...obj };
+      delete next["dependsOn"];
+      delete next["enabledForParentValues"];
+      return next;
+    };
     const leftFields = modeFields(behavior, "leftMode").filter((f) => {
       const id = idOf(f);
       return id !== k && (!sub || id !== sub);
-    });
-    const rightFields = modeFields(behavior, "rightMode").filter((f) => idOf(f) !== k);
+    }).map(dropDangling);
+    const rightFields = modeFields(behavior, "rightMode").filter((f) => {
+      const id = idOf(f);
+      return id !== k && (!sub || id !== sub);
+    }).map(dropDangling);
     const elementsCfg = asObject(behavior["elements"]);
     const elementsFields = asArray(elementsCfg["fields"]).filter((x) => String(x || "").trim() !== k);
     const elementsByField = { ...asObject(elementsCfg["byField"]) };
@@ -24631,6 +24643,96 @@ function createFieldsModel(deps) {
       }
     }
     return out;
+  };
+  const poolOf = (fieldId) => {
+    const behavior = behaviorOf(plugin.getConfig());
+    const fid = String(fieldId || "").trim();
+    if (!fid) return "";
+    if (modeFields(behavior, "leftMode").some((f) => idOf(f) === fid)) return "leftMode";
+    if (modeFields(behavior, "rightMode").some((f) => idOf(f) === fid)) return "rightMode";
+    return "";
+  };
+  const fieldObject = (fieldId) => {
+    const behavior = behaviorOf(plugin.getConfig());
+    const fid = String(fieldId || "").trim();
+    for (const side of ["leftMode", "rightMode"]) {
+      const found = modeFields(behavior, side).find((f) => idOf(f) === fid);
+      if (found) return asObject(found);
+    }
+    return {};
+  };
+  const dependsChainReaches = (from, to) => {
+    let at = String(from || "").trim();
+    const seen = /* @__PURE__ */ new Set();
+    let guard = 0;
+    while (at && guard++ < 64) {
+      if (at === to) return true;
+      if (seen.has(at)) return false;
+      seen.add(at);
+      at = String(fieldObject(at)["dependsOn"] || "").trim();
+    }
+    return false;
+  };
+  const valueIdsOf = (fieldId) => {
+    const out = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const raw of asArray(fieldObject(fieldId)["values"])) {
+      const row = asObject(raw);
+      const token = String(row["token"] || "").trim();
+      const id = String(row["id"] || token).trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push({ value: id, label: token || id });
+    }
+    return out;
+  };
+  const getPrerequisite = (k) => {
+    const key = String(k || "").trim();
+    const self = fieldObject(key);
+    const fieldId = String(self["dependsOn"] || "").trim();
+    const allowed = asArray(self["enabledForParentValues"]).map((x) => String(x || "").trim()).filter(Boolean);
+    const pool = poolOf(key);
+    const candidates = [];
+    for (const row of listFields()) {
+      if (row.parent || row.key === key) continue;
+      if (pool && poolOf(row.key) !== pool) continue;
+      if (dependsChainReaches(row.key, key)) continue;
+      candidates.push({ key: row.key, label: row.strictName || row.key });
+    }
+    return {
+      fieldId,
+      value: fieldId ? String(allowed[0] || "") : "",
+      candidates,
+      values: fieldId ? valueIdsOf(fieldId) : []
+    };
+  };
+  const setPrerequisite = (k, rawFieldId, rawValue) => {
+    const key = String(k || "").trim();
+    const side = poolOf(key);
+    if (!side) return { ok: false, error: "InlineOverhaul: field is not in the config yet" };
+    const fieldId = String(rawFieldId || "").trim();
+    const value = String(rawValue || "").trim();
+    if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
+      return { ok: false, error: "InlineOverhaul: a Field cannot wait for itself" };
+    }
+    const list = modeFields(behaviorOf(plugin.getConfig()), side);
+    const idx = list.findIndex((f) => idOf(f) === key);
+    if (idx === -1) return { ok: false, error: "InlineOverhaul: field is not in the config yet" };
+    const next = { ...asObject(list[idx]) };
+    if (fieldId) {
+      next["dependsOn"] = fieldId;
+      if (value) next["enabledForParentValues"] = [value];
+      else delete next["enabledForParentValues"];
+    } else {
+      delete next["dependsOn"];
+      delete next["enabledForParentValues"];
+    }
+    list[idx] = next;
+    plugin.setConfigPatch(
+      { pkm: { behavior: { [side]: { fields: list } } } },
+      "pkm:behavior:order:prerequisite:" + key
+    );
+    return { ok: true };
   };
   const normalizeHex = (value) => {
     const s = String(value || "").trim().toLowerCase();
@@ -25288,6 +25390,8 @@ function createFieldsModel(deps) {
     setStrictName,
     setLabel,
     setProperty,
+    getPrerequisite,
+    setPrerequisite,
     toggleSub,
     setFreeRoam,
     setActive,
@@ -31164,9 +31268,7 @@ function btn(parent, cls, o) {
   const full = o.title && o.title !== label ? label ? label + " \u2014 " + o.title : o.title : label;
   const attr = { type: "button" };
   if (full) attr["aria-label"] = full;
-  const node = parent.createEl("button", { cls, text: (_b = o.text) != null ? _b : "", attr });
-  if (full) node.title = full;
-  return node;
+  return parent.createEl("button", { cls, text: (_b = o.text) != null ? _b : "", attr });
 }
 function textInput(parent, cls, o) {
   const opts = { cls, type: "text", value: o.value, attr: { "aria-label": o.label } };
@@ -32311,7 +32413,6 @@ function renderFieldList(list, o) {
       grip.setAttribute("role", "button");
       const gripLabel = row.parent ? "Drag " + row.label + " \u2014 it moves with " + parentLabel(rows, row.parent) : "Drag " + row.label + " to reorder it, or across the line to change side";
       grip.setAttribute("aria-label", gripLabel);
-      grip.title = gripLabel;
       grip.draggable = o.enabled;
       grip.addEventListener("dragstart", ((ev) => {
         var _a;
@@ -32426,6 +32527,81 @@ function itemRow(host, o) {
   rich(el(info, "div", "io-item__desc"), o.desc);
   return { control: el(row, "div", "io-item__control"), closeTip };
 }
+function prerequisiteRows(detail, row, o) {
+  const closers = [];
+  const state = o.model.getPrerequisite(row.key);
+  if (!state.candidates.length && !state.fieldId) return closers;
+  if (!o.state.prereqOpen) o.state.prereqOpen = {};
+  const opened = Boolean(state.fieldId || o.state.prereqOpen[row.key]);
+  const on2 = itemRow(detail, {
+    name: PREREQ_NAME,
+    desc: PREREQ_DESC,
+    tip: PREREQ_TIP,
+    tipId: "io-field-prereq-tip",
+    showTips: o.showTips
+  });
+  closers.push(on2.closeTip);
+  const onPick = selectInput(on2.control, "io-select", {
+    options: PREREQ_OPTIONS,
+    value: opened ? "yes" : "no",
+    label: PREREQ_NAME + " for " + row.strictName
+  });
+  onPick.disabled = !o.enabled;
+  onPick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    const yes = onPick.value === "yes";
+    o.state.prereqOpen[row.key] = yes;
+    if (!yes && state.fieldId) o.model.setPrerequisite(row.key, "", "");
+    o.redraw();
+  }));
+  if (!opened) return closers;
+  const which = itemRow(detail, {
+    name: PREREQ_FIELD_NAME,
+    desc: PREREQ_FIELD_DESC,
+    tip: PREREQ_FIELD_TIP,
+    tipId: "io-field-prereq-which-tip",
+    showTips: o.showTips
+  });
+  closers.push(which.closeTip);
+  const whichPick = selectInput(which.control, "io-select", {
+    options: [{ value: "", label: PREREQ_FIELD_NONE }].concat(
+      state.candidates.map((c) => ({ value: c.key, label: c.label }))
+    ),
+    value: state.fieldId,
+    label: PREREQ_FIELD_NAME + " for " + row.strictName
+  });
+  whichPick.disabled = !o.enabled;
+  whichPick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    const res = o.model.setPrerequisite(row.key, whichPick.value, "");
+    if (!res.ok && res.error) o.notice(res.error);
+    o.redraw();
+  }));
+  if (!state.fieldId) return closers;
+  const value = itemRow(detail, {
+    name: PREREQ_VALUE_NAME,
+    desc: PREREQ_VALUE_DESC,
+    tip: PREREQ_VALUE_TIP,
+    tipId: "io-field-prereq-value-tip",
+    showTips: o.showTips
+  });
+  closers.push(value.closeTip);
+  const valuePick = selectInput(value.control, "io-select", {
+    options: [{ value: "", label: PREREQ_VALUE_ANY }].concat(
+      state.values.map((v) => ({ value: v.value, label: v.label }))
+    ),
+    value: state.value,
+    label: PREREQ_VALUE_NAME + " for " + row.strictName
+  });
+  valuePick.disabled = !o.enabled;
+  valuePick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    const res = o.model.setPrerequisite(row.key, state.fieldId, valuePick.value);
+    if (!res.ok && res.error) o.notice(res.error);
+    o.redraw();
+  }));
+  return closers;
+}
 function renderFieldDetail(detail, row, o) {
   const closers = [];
   const title = el(detail, "div", "io-fields__title");
@@ -32435,28 +32611,6 @@ function renderFieldDetail(detail, row, o) {
     "--io-chip-bg",
     TYPE_COLOR[row.kind]
   );
-  el(title, "span", "io-fields__shortlabel", "short name");
-  closers.push(tipBelow({
-    head: title,
-    host: el(detail, "div", "io-tipslot"),
-    text: SHORT_NAME_TIP,
-    label: "Short name",
-    id: "io-field-short-tip",
-    showTips: o.showTips
-  }));
-  const short = textInput(title, "io-text io-text--short", {
-    /* Пусто — значит короткого имени нет и в TagWheel стоит полное. */
-    value: row.label === row.strictName ? "" : row.label,
-    placeholder: row.strictName,
-    label: "Short name for " + row.strictName
-  });
-  short.disabled = !o.enabled;
-  short.addEventListener("change", (() => {
-    if (!o.enabled) return;
-    if (!String(short.value || "").trim()) return;
-    o.model.setLabel(row.key, short.value);
-    o.redraw();
-  }));
   const del = btn(title, "io-danger", {
     label: "Delete the Field " + row.strictName
   });
@@ -32470,6 +32624,27 @@ function renderFieldDetail(detail, row, o) {
       o.state.selected = "";
       o.redraw();
     });
+  }));
+  const shortRow = itemRow(detail, {
+    name: SHORT_NAME_NAME,
+    desc: SHORT_NAME_DESC,
+    tip: SHORT_NAME_TIP,
+    tipId: "io-field-short-tip",
+    showTips: o.showTips
+  });
+  closers.push(shortRow.closeTip);
+  const short = textInput(shortRow.control, "io-text io-text--prop", {
+    /* Пусто — значит короткого имени нет и в TagWheel стоит полное. */
+    value: row.label === row.strictName ? "" : row.label,
+    placeholder: row.strictName,
+    label: SHORT_NAME_NAME + " for " + row.strictName
+  });
+  short.disabled = !o.enabled;
+  short.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    if (!String(short.value || "").trim()) return;
+    o.model.setLabel(row.key, short.value);
+    o.redraw();
   }));
   el(detail, "div", "io-sub", "Behavior");
   if (!row.parent) {
@@ -32535,6 +32710,7 @@ function renderFieldDetail(detail, row, o) {
       o.redraw();
     }));
   }
+  if (!row.parent) closers.push(...prerequisiteRows(detail, row, o));
   const propertyHead = el(detail, "div", "io-sub io-item__namerow");
   el(propertyHead, "span", void 0, PROPERTY_HEAD);
   closers.push(tipBelow({
@@ -32596,7 +32772,6 @@ function previewCell(host, o, v) {
   const warn = el(cell, "span", "io-warn", "\u26A0");
   const note = contrastWarning(ratio);
   warn.setAttribute("aria-label", note);
-  warn.title = note;
 }
 function renderValuesTable(host, row, o) {
   const ve = o.model.valuesEditor(row.key);
@@ -32644,7 +32819,6 @@ function renderValuesTable(host, row, o) {
     const grip = el(line, "div", "io-grip", "\u283F");
     grip.setAttribute("role", "button");
     grip.setAttribute("aria-label", "Drag " + v.token + " to reorder it");
-    grip.title = "Drag " + v.token + " to reorder it";
     grip.draggable = o.enabled;
     grip.addEventListener("dragstart", ((ev) => {
       var _a2;
@@ -33008,7 +33182,7 @@ function renderFieldsEditor(host, o) {
     wrap.remove();
   };
 }
-var TYPE_LABEL, TYPE_COLOR, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
+var TYPE_LABEL, TYPE_COLOR, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_NAME, SHORT_NAME_DESC, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PREREQ_NAME, PREREQ_DESC, PREREQ_TIP, PREREQ_OPTIONS, PREREQ_FIELD_NAME, PREREQ_FIELD_DESC, PREREQ_FIELD_TIP, PREREQ_FIELD_NONE, PREREQ_VALUE_NAME, PREREQ_VALUE_DESC, PREREQ_VALUE_TIP, PREREQ_VALUE_ANY, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
 var init_fields_editor_view = __esm({
   "src/ui/settings/custom/fields_editor_view.ts"() {
     "use strict";
@@ -33028,6 +33202,8 @@ var init_fields_editor_view = __esm({
     SIDE_LABEL = { left: "Left Block", right: "Right Block" };
     LIST_TIP = "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right \u2014 at the edge of a Block they cross the line too";
     EMPTY_SIDE = "nothing on this side";
+    SHORT_NAME_NAME = "Name in TagWheel";
+    SHORT_NAME_DESC = "A shorter name for the TagWheel row, where there is little room";
     SHORT_NAME_TIP = "TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name";
     BEHAVIOR_OPTIONS = [
       { value: "off", label: "Strict" },
@@ -33057,6 +33233,21 @@ var init_fields_editor_view = __esm({
       { value: "yes", label: "Yes" },
       { value: "no", label: "No" }
     ];
+    PREREQ_NAME = "Prerequisite Field";
+    PREREQ_DESC = "Show this Field only after another Field has a Value";
+    PREREQ_TIP = "A Field with a prerequisite stays out of TagWheel, out of its commands and out of the line until the Field it waits for has a Value. Picking a different Value in that Field clears this one";
+    PREREQ_OPTIONS = [
+      { value: "no", label: "No" },
+      { value: "yes", label: "Yes" }
+    ];
+    PREREQ_FIELD_NAME = "Choose prerequisite Field";
+    PREREQ_FIELD_DESC = "Which Field this one waits for";
+    PREREQ_FIELD_TIP = "Only Fields written the same way are offered: a Tag Field waits for a Tag Field, a Link or Emoji Field for a Link or an Emoji Field. The two are kept next to each other in the line";
+    PREREQ_FIELD_NONE = "Not chosen";
+    PREREQ_VALUE_NAME = "Prerequisite Value";
+    PREREQ_VALUE_DESC = "Which Value of that Field this one waits for";
+    PREREQ_VALUE_TIP = "Left at <code>Any Value</code> this Field appears as soon as the prerequisite Field has a Value of any kind. Name one, and it waits for that Value alone";
+    PREREQ_VALUE_ANY = "Any Value";
     PROPERTY_HEAD = "YAML property";
     PROPERTY_HEAD_TIP = "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note \u2014 the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Leave it empty and the Field is simply not copied";
     PROPERTY_NAME = "Property";
