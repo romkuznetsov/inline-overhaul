@@ -149,4 +149,89 @@ function relocateLink(line: string, targetPanel: "left" | "right"): string {
   ok("ссылка: Block читается из Order той же функцией, что и у тегов");
 }
 
+/* ======================================================================
+ * Выход из цикла: пустое значение обязано убрать старый токен (Н-5).
+ * ====================================================================== */
+
+{
+  /*
+   * Инструмент это умеет: пустой `selectedToken` значит «вычистить набор и
+   * ничего не ставить». Дефект Н-5 был в том, что `tagwheel.js` вовсе не
+   * заводил запись для Field с пустым значением — вычищать было некому.
+   */
+  const out = pipeline.relocateTokenSetByPanel({
+    line: "#/1 || купить молоко || [[test1]]",
+    rules,
+    targetPanel: "right",
+    selectedToken: "",
+    allTokens: ["[[test1]]", "[[test2]]"],
+    rightToText: false,
+    stripTokens: (seg: string, list: string[]) => macroShared.removeTokensFromSegment(seg, list),
+  });
+  assert.doesNotMatch(out, /\[\[test1\]\]/, "старая ссылка убрана из строки");
+  assert.match(out, /купить молоко/, "а текст на месте");
+  ok("выход из цикла: пустое значение вычищает старый токен");
+}
+
+{
+  /* И то же самое, когда ссылка стояла слева. */
+  const out = pipeline.relocateTokenSetByPanel({
+    line: "#/1 [[test1]] || купить молоко",
+    rules,
+    targetPanel: "left",
+    selectedToken: "",
+    allTokens: ["[[test1]]", "[[test2]]"],
+    rightToText: false,
+    stripTokens: (seg: string, list: string[]) => macroShared.removeTokensFromSegment(seg, list),
+  });
+  assert.doesNotMatch(out, /\[\[test1\]\]/, "ссылка убрана и из левого сегмента");
+  assert.match(out, /#\/1/, "а тег на месте");
+  ok("выход из цикла: то же самое для Left Block");
+}
+
+/* ======================================================================
+ * Разбор строки: текст не считается левым сегментом (Н-6, Н-8).
+ * ====================================================================== */
+
+{
+  /*
+   * Корень обеих находок. Левый сегмент — зона токенов; когда токенов нет,
+   * разбор считал левым сегментом сам текст, и дописывание в эту зону
+   * склеивало токен с текстом: `- [ ] 111 [[test1]] ||  || #todo`.
+   */
+  const seg = segments("- [ ] 111 || #todo");
+  assert.equal(seg.left, "- [ ]", "слева остался только маркер списка");
+  assert.equal(seg.text, "111", "а `111` опознан текстом, а не токеном");
+  ok("разбор: текст без токенов не считается левым сегментом");
+}
+
+{
+  /* Когда токен слева есть, разбор прежний и трогать его нечего. */
+  const seg = segments("- [ ] #/1 || 111 || #todo");
+  assert.equal(seg.left, "- [ ] #/1", "левый сегмент с токеном разбирается как был");
+  assert.equal(seg.text, "111", "текст на своём месте");
+  ok("разбор: строка с токеном слева разбирается как прежде");
+}
+
+{
+  /* Итог обеих находок на настоящем инструменте перекладывания. */
+  const link = pipeline.relocateTokenSetByPanel({
+    line: "- [ ] 111 || #todo",
+    rules,
+    targetPanel: "left",
+    selectedToken: "[[test1]]",
+    allTokens: ["[[test1]]"],
+    rightToText: false,
+    stripTokens: (seg: string, list: string[]) => macroShared.removeTokensFromSegment(seg, list),
+  });
+  assert.equal(link, "- [ ] [[test1]] || 111 || #todo",
+    "ссылка встала слева, а текст остался текстом");
+  ok("Н-6: ссылка в Left Block больше не склеивается с текстом");
+
+  const elem = segments(relocateElements("- [ ] 111 || @30.08", order(["Importance", "date_due"], [])));
+  assert.match(elem.left, /@30\.08/, "элемент встал в левый сегмент");
+  assert.equal(elem.text, "111", "и текст не уехал вместе с ним");
+  ok("Н-8: элемент в Left Block больше не склеивается с текстом");
+}
+
 console.log("\n" + passed + " проверок пройдено");

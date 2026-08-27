@@ -666,10 +666,22 @@ async function runTagWheel(input, quickAddSettings) {
       var field = rightFields[i]
       if (!field || !field.id) continue
       var selected = String(session && session.selected ? session.selected[field.id] || '' : '').trim()
-      if (!selected) continue
       var sourceKind = resolveFieldSourceKind(field)
       var isSourceDriven = sourceKind === 'projects' || sourceKind === 'wikilinks' || sourceKind === 'tag'
-      var token = isSourceDriven ? selectedTagTokenForField(field, session, rules, byId) : ''
+      /*
+       * Пустое значение — это выход из цикла, и запись всё равно нужна
+       * (находка Н-5, 2026-08-28).
+       *
+       * Раньше Field с пустым значением сюда не попадал вовсе, и старый
+       * `[[wikilink]]` оставался в строке навсегда: вычищать его было некому.
+       * Теперь запись заводится с пустым токеном и полным набором токенов —
+       * перекладывание уберёт старый и не поставит нового.
+       *
+       * У Field, который не ведётся источником (элементы), старое значение
+       * убирает разбор по маркеру, и заводить пустую запись ему незачем.
+       */
+      if (!selected && !isSourceDriven) continue
+      var token = isSourceDriven && selected ? selectedTagTokenForField(field, session, rules, byId) : ''
       var tokens = isSourceDriven ? fieldTagTokenMap(field, rules, session, state && state.core ? state.core : null) : []
       /*
        * Block берётся из Order, а не ставится литералом (находка Н-3,
@@ -1027,8 +1039,10 @@ async function runTagWheel(input, quickAddSettings) {
 
     var selectedEntries = collectSelectedTagEntries(state)
     var rightEntries = collectSelectedRightEntries(state)
+    /* Пустой `token` здесь допустим и означает «убрать набор из строки»:
+       это выход из цикла (Н-5). Набор токенов при этом обязателен. */
     var rightSourceEntries = rightEntries.filter(function (e) {
-      return !!(e && e.token && Array.isArray(e.tokens) && e.tokens.length && (e.sourceKind === 'projects' || e.sourceKind === 'wikilinks' || e.sourceKind === 'tag'))
+      return !!(e && Array.isArray(e.tokens) && e.tokens.length && (e.sourceKind === 'projects' || e.sourceKind === 'wikilinks' || e.sourceKind === 'tag'))
     })
     var hasRightSelected = rightEntries.length > 0
     var freeRoamBehavior = rulesHelpers.resolveFreeRoamBehavior(state.orderCfg)

@@ -160,6 +160,48 @@ function isMarkerAnchoredDatePayloadTokens(tokens, markers) {
   return true;
 }
 
+/*
+ * Похоже ли содержимое левого сегмента на токены, а не на текст (находки Н-6 и
+ * Н-8, 2026-08-28; четвёртое исключение из З3).
+ *
+ * Зачем это здесь. Левый сегмент — зона токенов до первого разделителя. Когда
+ * токенов в строке нет, разбор всё равно считал левым сегментом всё до
+ * разделителя, то есть сам текст: `- [ ] 111 || #todo` разбиралось как
+ * left=`- [ ] 111`, text=``. Пока в левый сегмент никто не дописывал, это не
+ * мешало. Как только ссылка или элемент поехали в Left Block, дописывание
+ * склеивало их с текстом: `- [ ] 111 [[test1]] ||  || #todo`.
+ *
+ * Проверка та же, что в `buildFromSegments` (`hasLeftTech`): сборка строки уже
+ * различала эти два случая, а разбор — нет, и два разборщика одной строки
+ * расходились. `parseLine` в `tagwheel_core.js` про текст отвечал верно, а
+ * `splitSegments` — нет.
+ */
+function looksLikeLeftTokens(body, markers) {
+  const src = String(body || "").trim();
+  if (!src) return false;
+  if (/(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(src)) return true;
+  return src.split(/\s+/).filter(Boolean).some(function(t) {
+    return startsWithAnyMarker(t, markers);
+  });
+}
+
+/**
+ * Развести левый сегмент и текст, когда токенов в левом сегменте нет.
+ * Маркер списка (`- [ ] `) остаётся слева: он принадлежит строке, а не зоне.
+ *
+ * Развязка делается **только у строк с маркером списка**, и это не
+ * осторожность ради осторожности. Без маркера левый сегмент стал бы пустым, а
+ * `buildFromSegments` на пустом левом сегменте подставляет `-` — то есть
+ * строка без списка получила бы список, которого в ней не было. Строки
+ * плагина — пункты списка, и разбирается ровно тот случай, который сломан.
+ */
+function demoteLeftBodyToText(leftRaw, markers) {
+  const parts = splitLeftPrefix(leftRaw);
+  if (!parts.prefix || !parts.body) return null;
+  if (looksLikeLeftTokens(parts.body, markers)) return null;
+  return { left: parts.prefix, text: parts.body };
+}
+
 function splitSegments(rawLine, rules) {
   const sep = resolveSeparatorsOrThrow(rules);
   const sep1 = sep.sep1;
@@ -171,7 +213,11 @@ function splitSegments(rawLine, rules) {
 
   if (sep1 === sep2) {
     const parts = s.split(sep1).map(function(x) { return String(x || "").trim(); });
-    if (parts.length <= 1) return { indent: indent, left: s, text: "", dates: "" };
+    if (parts.length <= 1) {
+      const demoted = demoteLeftBodyToText(s, markers);
+      if (demoted) return { indent: indent, left: demoted.left, text: demoted.text, dates: "" };
+      return { indent: indent, left: s, text: "", dates: "" };
+    }
     if (parts.length === 2) {
       let textOnly = parts[1] || "";
       let rightOnly = "";
@@ -187,6 +233,11 @@ function splitSegments(rawLine, rules) {
           textOnly = "";
         }
       }
+      /* Текста нет, а слева — не токены: значит слева и есть текст. */
+      if (!textOnly) {
+        const demoted = demoteLeftBodyToText(parts[0] || "", markers);
+        if (demoted) return { indent: indent, left: demoted.left, text: demoted.text, dates: rightOnly };
+      }
       return { indent: indent, left: parts[0] || "", text: textOnly, dates: rightOnly };
     }
     return {
@@ -198,7 +249,7 @@ function splitSegments(rawLine, rules) {
   }
 
   const i1 = s.indexOf(sep1);
-  const left = i1 === -1 ? s : s.slice(0, i1).trim();
+  let left = i1 === -1 ? s : s.slice(0, i1).trim();
   const after1 = i1 === -1 ? "" : s.slice(i1 + sep1.length).trim();
   const i2 = after1.indexOf(sep2);
   let text = i2 === -1 ? after1.trim() : after1.slice(0, i2).trim();
@@ -214,6 +265,16 @@ function splitSegments(rawLine, rules) {
     if (isRightPayload) {
       dates = text;
       text = "";
+    }
+  }
+
+  /* Та же развязка, что и у совпадающих разделителей: текста нет, слева не
+     токены — значит слева текст. */
+  if (!text) {
+    const demoted = demoteLeftBodyToText(left, markers);
+    if (demoted) {
+      left = demoted.left;
+      text = demoted.text;
     }
   }
 

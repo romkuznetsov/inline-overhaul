@@ -6378,10 +6378,10 @@ var require_tagwheel = __commonJS({
           var field = rightFields[i];
           if (!field || !field.id) continue;
           var selected = String(session2 && session2.selected ? session2.selected[field.id] || "" : "").trim();
-          if (!selected) continue;
           var sourceKind = resolveFieldSourceKind(field);
           var isSourceDriven = sourceKind === "projects" || sourceKind === "wikilinks" || sourceKind === "tag";
-          var token = isSourceDriven ? selectedTagTokenForField(field, session2, rules2, byId) : "";
+          if (!selected && !isSourceDriven) continue;
+          var token = isSourceDriven && selected ? selectedTagTokenForField(field, session2, rules2, byId) : "";
           var tokens = isSourceDriven ? fieldTagTokenMap(field, rules2, session2, state2 && state2.core ? state2.core : null) : [];
           var entryOrderKey = String(field.orderKey || field.id || "").trim();
           out.push({
@@ -6711,7 +6711,7 @@ var require_tagwheel = __commonJS({
         var selectedEntries = collectSelectedTagEntries(state2);
         var rightEntries = collectSelectedRightEntries(state2);
         var rightSourceEntries = rightEntries.filter(function(e) {
-          return !!(e && e.token && Array.isArray(e.tokens) && e.tokens.length && (e.sourceKind === "projects" || e.sourceKind === "wikilinks" || e.sourceKind === "tag"));
+          return !!(e && Array.isArray(e.tokens) && e.tokens.length && (e.sourceKind === "projects" || e.sourceKind === "wikilinks" || e.sourceKind === "tag"));
         });
         var hasRightSelected = rightEntries.length > 0;
         var freeRoamBehavior = rulesHelpers.resolveFreeRoamBehavior(state2.orderCfg);
@@ -12163,6 +12163,20 @@ var require_line_pipeline = __commonJS({
       }
       return true;
     }
+    function looksLikeLeftTokens(body, markers) {
+      const src = String(body || "").trim();
+      if (!src) return false;
+      if (/(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(src)) return true;
+      return src.split(/\s+/).filter(Boolean).some(function(t) {
+        return startsWithAnyMarker(t, markers);
+      });
+    }
+    function demoteLeftBodyToText(leftRaw, markers) {
+      const parts = splitLeftPrefix(leftRaw);
+      if (!parts.prefix || !parts.body) return null;
+      if (looksLikeLeftTokens(parts.body, markers)) return null;
+      return { left: parts.prefix, text: parts.body };
+    }
     function splitSegments(rawLine, rules) {
       const sep = resolveSeparatorsOrThrow(rules);
       const sep1 = sep.sep1;
@@ -12175,7 +12189,11 @@ var require_line_pipeline = __commonJS({
         const parts = s.split(sep1).map(function(x) {
           return String(x || "").trim();
         });
-        if (parts.length <= 1) return { indent, left: s, text: "", dates: "" };
+        if (parts.length <= 1) {
+          const demoted = demoteLeftBodyToText(s, markers);
+          if (demoted) return { indent, left: demoted.left, text: demoted.text, dates: "" };
+          return { indent, left: s, text: "", dates: "" };
+        }
         if (parts.length === 2) {
           let textOnly = parts[1] || "";
           let rightOnly = "";
@@ -12189,6 +12207,10 @@ var require_line_pipeline = __commonJS({
               textOnly = "";
             }
           }
+          if (!textOnly) {
+            const demoted = demoteLeftBodyToText(parts[0] || "", markers);
+            if (demoted) return { indent, left: demoted.left, text: demoted.text, dates: rightOnly };
+          }
           return { indent, left: parts[0] || "", text: textOnly, dates: rightOnly };
         }
         return {
@@ -12199,7 +12221,7 @@ var require_line_pipeline = __commonJS({
         };
       }
       const i1 = s.indexOf(sep1);
-      const left = i1 === -1 ? s : s.slice(0, i1).trim();
+      let left = i1 === -1 ? s : s.slice(0, i1).trim();
       const after1 = i1 === -1 ? "" : s.slice(i1 + sep1.length).trim();
       const i2 = after1.indexOf(sep2);
       let text = i2 === -1 ? after1.trim() : after1.slice(0, i2).trim();
@@ -12212,6 +12234,13 @@ var require_line_pipeline = __commonJS({
         if (isRightPayload) {
           dates = text;
           text = "";
+        }
+      }
+      if (!text) {
+        const demoted = demoteLeftBodyToText(left, markers);
+        if (demoted) {
+          left = demoted.left;
+          text = demoted.text;
         }
       }
       return { indent, left, text, dates };

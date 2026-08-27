@@ -1419,6 +1419,20 @@ async function run() {
   assertTrue(/panel: rulesHelpers\.resolvePanelForField\(state\.orderCfg, entryOrderKey, \{ defaultPanel: 'right' \}\)/.test(tagwheelSrc), "tagwheel resolves the Block of a link from Order instead of hardcoding right");
   assertTrue(/relocateTagFieldByPanel\(finalLine, state\.rules, rs\.tokens, rs\.token, rs\.panel,/.test(tagwheelSrc), "tagwheel relocates a link to the Block it was resolved for");
   assertFalse(/relocateTagFieldByPanel\([^)]*'right'/.test(tagwheelSrc), "tagwheel has no hardcoded right panel left in the relocation call");
+  /*
+   * Н-5: Field с пустым значением всё равно даёт запись — иначе старый
+   * wikilink некому убрать из строки при выходе из цикла.
+   */
+  assertTrue(/if \(!selected && !isSourceDriven\) continue/.test(tagwheelSrc), "tagwheel keeps an entry for a source-driven field with an empty value");
+  assertTrue(/var token = isSourceDriven && selected \? selectedTagTokenForField/.test(tagwheelSrc), "tagwheel leaves the token empty when the cycle is exited");
+  assertFalse(/return !!\(e && e\.token && Array\.isArray\(e\.tokens\)/.test(tagwheelSrc), "tagwheel no longer drops empty-token entries before relocation");
+  /*
+   * Н-6 и Н-8: разбор строки не считает текст левым сегментом. Проверка на
+   * поведении — `block_placement_tests.ts`; здесь закреплено, что развязка
+   * делается только у строк с маркером списка, иначе сборка подставит `-`.
+   */
+  assertTrue(/function demoteLeftBodyToText\(leftRaw, markers\) \{/.test(linePipelineSrc), "line pipeline tells a text-only left segment from a token one");
+  assertTrue(/if \(!parts\.prefix \|\| !parts\.body\) return null;/.test(linePipelineSrc), "line pipeline demotes the left body only for list lines");
   assertFalse(/category_sub|clients/.test(pkmRulesHelpersSrc.slice(pkmRulesHelpersSrc.indexOf("const runtimeExcludedIds = new Set();"), pkmRulesHelpersSrc.indexOf("for (const f of allFields)"))), "rules helpers dependency reconcile has no hardcoded domain field names");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");

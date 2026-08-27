@@ -69,12 +69,13 @@ npm test              npm run install:test    сборка в тестовый v
 ## Что не трогать
 
 - `pkm_v2/**`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `src/core/pkm_*`, `src/core/status_*`, `token_graph_unified.js`, `line_pipeline.js` — кроме смены пути чтения настройки в фазе 2 (З3).
-  **Два исключения, разрешённые заказчиком, оба ради предусловия Field (PRD 10.13.4):**
+  **Четыре исключения, разрешённые заказчиком (PRD 3.3):**
   1. **2026-08-27** — `reconcileModeDependencies` в `src/core/pkm_rules_runtime_helpers.js`.
   2. **2026-08-28** — `pkm_v2/TagWheel/tagwheel_core.js`: `validateMode` и `allowInPanel` (плюс подпись `sub` строкой рядом).
-  3. **2026-08-28** — `pkm_v2/TagWheel/tagwheel.js`: Block ссылки берётся из Order, а не ставится литералом `'right'` (находка Н-3). Две строки.
+  3. **2026-08-28** — `pkm_v2/TagWheel/tagwheel.js`: Block ссылки берётся из Order, а не ставится литералом `'right'` (Н-3); Field с пустым значением даёт запись, иначе старый wikilink некому убрать (Н-5).
+  4. **2026-08-28** — `src/core/line_pipeline.js`: `splitSegments` перестала считать текст левым сегментом (находки Н-6 и Н-8).
 
-  Все записаны в PRD 3.3 и закреплены дважды: поведение — `prerequisite_runtime_limits_tests.ts` и `block_placement_tests.ts`, исходник — `bootstrap_loader_tests.js`. **Четвёртое исключение снова спрашивается у заказчика.**
+  Все записаны в PRD 3.3 и закреплены дважды: поведение — `prerequisite_runtime_limits_tests.ts` и `block_placement_tests.ts`, исходник — `bootstrap_loader_tests.js`. **Пятое исключение снова спрашивается у заказчика.**
 
   Урок, купленный вторым: проходов, отвергавших одну и ту же форму, оказалось **три**, и первая правка нашла только один. Прежде чем править — искать **все** места, где движок проверяет или переписывает ключ, а не первое попавшееся.
 - Значения, которые пишутся в конфиг: переименовываются только подписи (З1).
