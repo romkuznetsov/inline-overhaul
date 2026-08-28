@@ -110,6 +110,45 @@ export interface FieldRow {
   lead: boolean;
 }
 
+/** Правило значения свойства заметки: как в строке или только значение (Я3). */
+export type YamlValueRule = "raw" | "clean";
+
+/** Сколько значений держит свойство: решает само, одно или список (Я1). */
+export type YamlCardinality = "auto" | "one" | "list";
+
+/**
+ * Строка блока `Note properties` (10.9 Я1): Field, его свойство заметки и
+ * то, из чего считается пример записи.
+ *
+ * Пример блок не считает сам: он собирает выдуманную строку из `lineToken`
+ * и отдаёт её движку — `parseInlineLine`, `buildTransformContext`,
+ * `buildYamlMapFromContext`. Поэтому здесь лежит не готовое значение
+ * свойства, а токен так, как он встаёт в строку заметки.
+ */
+export interface YamlFieldRow {
+  /** Ключ Order: им Field назван в панели и в картах Order. */
+  key: string;
+  /** Id определения: им рантайм подписывает совпадение в строке. */
+  fieldId: string;
+  label: string;
+  kind: FieldKind;
+  /** Свойство заметки у Field; пусто — Field не копируется. */
+  property: string;
+  cardinality: YamlCardinality;
+  /**
+   * Правило, по которому движок запишет значения этого Field. Если своего
+   * правила у Field нет, здесь стоит то, что движок возьмёт вместо него.
+   */
+  valueRule: YamlValueRule;
+  /** Задано ли правило у самого Field, или это ещё общее значение. */
+  valueRuleOwn: boolean;
+  /**
+   * Токен так, как он встаёт в строку: `#todo`, `[[ClientA]]`,
+   * `\u{1F4C5}YYYY-MM-DD`. Пусто — писать нечего, и примера не будет.
+   */
+  lineToken: string;
+}
+
 /** Цвет и видимость одного Value так, как их читает вёрстка (Ф7, Ф9). */
 export interface ValueVisual {
   /** Пусто — цвет не задан и берётся из темы. */
@@ -380,6 +419,16 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         types: { ...current.types, ...(p && p.types ? p.types : {}) },
         labels: { ...current.labels, ...(p && p.labels ? p.labels : {}) },
         strictNames: { ...current.strictNames, ...(p && p.strictNames ? p.strictNames : {}) },
+        /*
+         * Свойство заметки сливается так же, как соседние карты, а не заменяет
+         * карту целиком. Без этой строки патч из одного ключа выбрасывал
+         * свойства ВСЕХ остальных Fields — их не было в `next`, и до конфига
+         * они не доезжали (дефект найден 2026-08-28 по замечанию заказчика).
+         */
+        propertiesByField: {
+          ...current.propertiesByField,
+          ...(p && p.propertiesByField ? p.propertiesByField : {}),
+        },
       });
     const withTombstones = <T>(
       nextMap: Record<string, T> | undefined,
@@ -396,6 +445,14 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       const orderPatch = {
         ...next,
         lead: withTombstones(next.lead, current.lead),
+        /*
+         * Надгробие нужно и свойству заметки: стёртое имя исчезает из карты, а
+         * пустое место при `deepMerge` ничего не меняет — прежнее значение
+         * оставалось в конфиге, и панель честно показывала его дальше.
+         * Замечание заказчика 2026-08-28: «удалил значение, а в Preview
+         * прежнее». Проверено на настоящем пути записи.
+         */
+        propertiesByField: withTombstones(next.propertiesByField, current.propertiesByField),
       };
       plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch } } }, reason);
       return;
@@ -942,6 +999,180 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       }
     }
     return out;
+  };
+
+  /* ---- свойства заметки: блок Note properties (10.9) ------------------- */
+
+  /**
+   * Определение Field по ключу Order. Ищется в обоих списках, потому что
+   * список определений — это не Block: `leftMode` держит теги, `rightMode` —
+   * ссылки и элементы, независимо от того, где Field пишется.
+   */
+  const defByOrderKey = (k: string): Loose => {
+    const behavior = behaviorOf(plugin.getConfig());
+    return findFieldByOrderKey(modeFields(behavior, "leftMode"), k)
+      || findFieldByOrderKey(modeFields(behavior, "rightMode"), k);
+  };
+
+  /** В каком списке определений лежит Field: там его и надо править. */
+  const poolByOrderKey = (k: string): "leftMode" | "rightMode" | "" => {
+    const behavior = behaviorOf(plugin.getConfig());
+    if (findFieldByOrderKey(modeFields(behavior, "leftMode"), k)) return "leftMode";
+    if (findFieldByOrderKey(modeFields(behavior, "rightMode"), k)) return "rightMode";
+    return "";
+  };
+
+  /**
+   * Тип свойства так, как его понимает движок. Значения `many` и `array`
+   * читаются наравне с `list`: `buildYamlMapFromContext` принимает все три,
+   * и конфиг, написанный не панелью, не должен читаться как `auto`.
+   */
+  const normalizeCardinality = (raw: unknown): YamlCardinality => {
+    const v = String(raw || "").trim().toLowerCase();
+    if (v === "list" || v === "many" || v === "array") return "list";
+    if (v === "one" || v === "single") return "one";
+    return "auto";
+  };
+
+  const normalizeValueRule = (raw: unknown): YamlValueRule | "" => {
+    const v = String(raw || "").trim().toLowerCase();
+    return v === "raw" || v === "clean" ? v : "";
+  };
+
+  /**
+   * Правило, которое движок возьмёт, когда своего у Field нет. Это тот же
+   * общий ключ, что читает `buildYamlMapFromContext`, и то же значение по
+   * умолчанию: контрола у него в новой панели нет (Я3), но конфиг заказчика
+   * его уже мог получить от старой панели.
+   */
+  const fallbackValueRule = (): YamlValueRule => {
+    const cfgNow = asObject(plugin.getConfig());
+    const i2n = asObject(asObject(cfgNow["transform"])["inline2note"]);
+    return normalizeValueRule(i2n["yamlNoteFormat"]) || "raw";
+  };
+
+  /**
+   * Токен Field так, как он встаёт в строку. Сложение повторяет движок
+   * поштучно: `fieldTokenCandidates` ставит Prefix перед значением тега,
+   * `fieldWikilinkCandidates` берёт имя без решётки, а элемент приходит в
+   * строку маркером и значением без пробела между ними
+   * (`${marker}${value}` в `status_date.js`).
+   *
+   * Проверка этого сложения — не чтение кода: блок отдаёт строку разборщику
+   * движка, и токен, сложенный не так, просто не совпадёт ни с одним Field.
+   */
+  const lineTokenFor = (k: string, kind: FieldKind, def: Loose): string => {
+    if (kind === "element") {
+      const el = elementEditor(k);
+      const marker = String(el.emoji || (def && def.marker) || "").trim();
+      const shape = String(el.format || "").trim().split(/\s+/)[0] || "";
+      return marker && shape ? marker + shape : "";
+    }
+    const values = asArray(def && def.values);
+    for (const raw of values) {
+      const row = asObject(raw);
+      const token = String(row["token"] || "").trim();
+      if (!token) continue;
+      /* Дочернее значение в строку не идёт: его показывает родитель (Ф8). */
+      if (asArray(row["allowedParentValues"]).length) continue;
+      if (kind === "wikilink") {
+        const bare = token.startsWith("#") ? token.slice(1).trim() : token;
+        return bare ? "[[" + bare + "]]" : "";
+      }
+      const prefix = String((def && def.prefix) || "#");
+      return token.startsWith("#") ? token : prefix + token;
+    }
+    return "";
+  };
+
+  /**
+   * Строки блока `Note properties`: по одной на Field верхнего уровня, в том
+   * же порядке, что и список Fields. Дочерних строк нет — дочерность живёт
+   * уровнем значения (решение заказчика 2026-08-28, вопрос В7).
+   */
+  const listYamlFields = (): YamlFieldRow[] => {
+    const fallback = fallbackValueRule();
+    /* Тип свойства движок читает и из Order, хотя записать его туда нечем:
+       читается то же, что читает он. */
+    const cardinalityByField = asObject(
+      asObject(behaviorOf(plugin.getConfig())["order"])["yamlCardinalityByField"],
+    );
+    const out: YamlFieldRow[] = [];
+    for (const row of listFields()) {
+      if (row.parent) continue;
+      const def = defByOrderKey(row.key);
+      const own = normalizeValueRule(def && def.yamlValueRule);
+      out.push({
+        key: row.key,
+        fieldId: String((def && def.id) || row.key || "").trim(),
+        label: row.label,
+        kind: row.kind,
+        property: row.property,
+        cardinality: normalizeCardinality(
+          (def && def.yamlCardinality) || cardinalityByField[row.key],
+        ),
+        valueRule: own || fallback,
+        valueRuleOwn: Boolean(own),
+        lineToken: lineTokenFor(row.key, row.kind, def),
+      });
+    }
+    return out;
+  };
+
+  /**
+   * Запись ключа в определение Field. Правится тот список, в котором Field
+   * лежит, и только он: `setProperty` кладёт определение в оба и полагается
+   * на то, что лишнюю копию уберёт `ensureBehaviorModesFromOrder`, — здесь
+   * этого делать незачем, ключ у Field один.
+   */
+  const writeDefKey = (k: string, patch: Record<string, unknown>, reason: string): WriteResult => {
+    const pool = poolByOrderKey(k);
+    if (!pool) return { ok: false, error: "InlineOverhaul: field definition not found: " + k };
+    const behavior = behaviorOf(plugin.getConfig());
+    const list = modeFields(behavior, pool);
+    const def = findFieldByOrderKey(list, k);
+    const id = String((def && def.id) || "").trim();
+    if (!def || !id) return { ok: false, error: "InlineOverhaul: field definition not found: " + k };
+    const nextDef: Record<string, unknown> = { ...asObject(def) };
+    for (const key of Object.keys(patch)) {
+      const value = patch[key];
+      if (value === null) delete nextDef[key];
+      else nextDef[key] = value;
+    }
+    plugin.setConfigPatch(
+      { pkm: { behavior: { [pool]: { fields: upsertField(list, id, nextDef) } } } },
+      reason,
+    );
+    return { ok: true };
+  };
+
+  /**
+   * Тип свойства: одно значение, список или `auto`. Ключ именно у Field, а
+   * не в Order: `normalizePkmOrder` строит Order из своих десяти ключей и
+   * чужие выбрасывает, поэтому запись в `order.yamlCardinalityByField` не
+   * пережила бы собственный патч — `migrateConfig` идёт на каждом.
+   */
+  const setYamlCardinality = (k: string, raw: string): WriteResult => {
+    const next = normalizeCardinality(raw);
+    const def = defByOrderKey(k);
+    const cur = normalizeCardinality(def && def.yamlCardinality);
+    if (cur === next) return { ok: true, changed: false };
+    return writeDefKey(k, { yamlCardinality: next === "auto" ? null : next },
+      "pkm:behavior:yaml:cardinality:" + k);
+  };
+
+  /**
+   * Правило значения у Field (Я3, решение заказчика 2026-08-28). Правило
+   * одно на весь Field и применяется ко всем его значениям, включая
+   * дочерние: их определение `<name>_sub` берёт правило родителя по
+   * `dependsOn` — этим занят `ruleForFieldId` в `transform_feature.js`.
+   */
+  const setYamlValueRule = (k: string, raw: string): WriteResult => {
+    const next = normalizeValueRule(raw);
+    if (!next) return { ok: false, error: "InlineOverhaul: value rule must be raw or clean" };
+    const def = defByOrderKey(k);
+    if (normalizeValueRule(def && def.yamlValueRule) === next) return { ok: true, changed: false };
+    return writeDefKey(k, { yamlValueRule: next }, "pkm:behavior:yaml:value-rule:" + k);
   };
 
   /* ---- предусловие Field (10.13.4) ----------------------------------- */
@@ -1891,6 +2122,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setStrictName,
     setLabel,
     setProperty,
+    listYamlFields,
+    setYamlCardinality,
+    setYamlValueRule,
     getPrerequisite,
     setPrerequisite,
     toggleSub,

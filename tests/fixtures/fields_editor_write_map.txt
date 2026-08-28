@@ -3,7 +3,7 @@
 # нажат на свежей отрисовке, записано то, что ушло в конфиг. Обход идёт
 # трижды — по одному разу на каждый тип Field, потому что правая колонка
 # показывает только выбранный Field.
-# контролов: tag: 41, link: 24, element/increment: 21, element/command: 21, element/custom: 21
+# контролов: tag: 43, link: 26, element/increment: 23, element/command: 23, element/custom: 23
 
 tag button [Show the Field Status] #0
     без записи
@@ -39,53 +39,57 @@ tag select [Child Field of status] #15
     pkm:behavior:leftmode:subtoggle:status_sub -> pkm.behavior.leftMode.fields | pkm:behavior:order:sub:status_sub -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.status, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub
 tag input:text [YAML property for status] #16
     pkm:behavior:order:yaml:status -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.status, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-tag button [Make #todo a child Value] #17
+tag select [Property type for status] #17
+    pkm:behavior:yaml:cardinality:status -> pkm.behavior.leftMode.fields
+tag select [How to show Value in YAML for status] #18
+    pkm:behavior:yaml:value-rule:status -> pkm.behavior.leftMode.fields
+tag button [Make #todo a child Value] #19
     без записи
-tag input:text [Value #todo of status] #18
+tag input:text [Value #todo of status] #20
     pkm:behavior:order:deep:rename:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:rename:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag input:text [Prefix for #todo] #19
+tag input:text [Prefix for #todo] #21
     pkm:behavior:order:deep:checkbox:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:checkbox:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status.#todo, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag select [Show, for #todo] #20
+tag select [Show, for #todo] #22
     pkm:visuals:tag:visibility:status -> pkm.behavior.tagVisuals.byTag.status.#todo.customText, pkm.behavior.tagVisuals.byTag.status.#todo.fillColor, pkm.behavior.tagVisuals.byTag.status.#todo.textColor, pkm.behavior.tagVisuals.byTag.status.#todo.visibility
-tag input:color [Fill color for #todo] #21
+tag input:color [Fill color for #todo] #23
     pkm:visuals:tag:fill:status -> pkm.behavior.tagVisuals.byTag.status.#todo.customText, pkm.behavior.tagVisuals.byTag.status.#todo.fillColor, pkm.behavior.tagVisuals.byTag.status.#todo.textColor, pkm.behavior.tagVisuals.byTag.status.#todo.visibility
-tag input:color [Text color for #todo] #22
+tag input:color [Text color for #todo] #24
     pkm:visuals:tag:text:status -> pkm.behavior.tagVisuals.byTag.status.#todo.customText, pkm.behavior.tagVisuals.byTag.status.#todo.fillColor, pkm.behavior.tagVisuals.byTag.status.#todo.textColor, pkm.behavior.tagVisuals.byTag.status.#todo.visibility
-tag button [Reset the colors of #todo back to the colors of the theme] #23
+tag button [Reset the colors of #todo back to the colors of the theme] #25
     pkm:visuals:tag:color-reset:status -> pkm.behavior.tagVisuals.byTag.status.#todo.customText, pkm.behavior.tagVisuals.byTag.status.#todo.fillColor, pkm.behavior.tagVisuals.byTag.status.#todo.textColor, pkm.behavior.tagVisuals.byTag.status.#todo.visibility
-tag button [Remove #todo] #24
+tag button [Remove #todo] #26
     pkm:behavior:order:deep:delete-token:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:delete-token:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag button [Make #early a top-level Value] #25
+tag button [Make #early a top-level Value] #27
     pkm:behavior:order:deep:indent:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:indent:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag input:text [Value #early of status] #26
+tag input:text [Value #early of status] #28
     pkm:behavior:order:deep:rename:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:rename:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag input:text [Prefix for #early] #27
+tag input:text [Prefix for #early] #29
     pkm:behavior:order:deep:checkbox:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:checkbox:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub.#early
-tag select [Show, for #early] #28
+tag select [Show, for #early] #30
     pkm:visuals:tag:visibility:status -> pkm.behavior.tagVisuals.byTag.status.#early.customText, pkm.behavior.tagVisuals.byTag.status.#early.fillColor, pkm.behavior.tagVisuals.byTag.status.#early.textColor, pkm.behavior.tagVisuals.byTag.status.#early.visibility
-tag input:color [Fill color for #early] #29
+tag input:color [Fill color for #early] #31
     pkm:visuals:tag:fill:status -> pkm.behavior.tagVisuals.byTag.status.#early.customText, pkm.behavior.tagVisuals.byTag.status.#early.fillColor, pkm.behavior.tagVisuals.byTag.status.#early.textColor, pkm.behavior.tagVisuals.byTag.status.#early.visibility
-tag input:color [Text color for #early] #30
+tag input:color [Text color for #early] #32
     pkm:visuals:tag:text:status -> pkm.behavior.tagVisuals.byTag.status.#early.customText, pkm.behavior.tagVisuals.byTag.status.#early.fillColor, pkm.behavior.tagVisuals.byTag.status.#early.textColor, pkm.behavior.tagVisuals.byTag.status.#early.visibility
-tag button [Remove #early] #31
+tag button [Remove #early] #33
     pkm:behavior:order:deep:delete-token:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:delete-token:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag button [Make #doing a child Value] #32
+tag button [Make #doing a child Value] #34
     pkm:behavior:order:deep:indent:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:indent:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag input:text [Value #doing of status] #33
+tag input:text [Value #doing of status] #35
     pkm:behavior:order:deep:rename:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:rename:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag input:text [Prefix for #doing] #34
+tag input:text [Prefix for #doing] #36
     pkm:behavior:order:deep:checkbox:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:checkbox:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status.#doing, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag select [Show, for #doing] #35
+tag select [Show, for #doing] #37
     pkm:visuals:tag:visibility:status -> pkm.behavior.tagVisuals.byTag.status.#doing.customText, pkm.behavior.tagVisuals.byTag.status.#doing.fillColor, pkm.behavior.tagVisuals.byTag.status.#doing.textColor, pkm.behavior.tagVisuals.byTag.status.#doing.visibility
-tag input:color [Fill color for #doing] #36
+tag input:color [Fill color for #doing] #38
     pkm:visuals:tag:fill:status -> pkm.behavior.tagVisuals.byTag.status.#doing.customText, pkm.behavior.tagVisuals.byTag.status.#doing.fillColor, pkm.behavior.tagVisuals.byTag.status.#doing.textColor, pkm.behavior.tagVisuals.byTag.status.#doing.visibility
-tag input:color [Text color for #doing] #37
+tag input:color [Text color for #doing] #39
     pkm:visuals:tag:text:status -> pkm.behavior.tagVisuals.byTag.status.#doing.customText, pkm.behavior.tagVisuals.byTag.status.#doing.fillColor, pkm.behavior.tagVisuals.byTag.status.#doing.textColor, pkm.behavior.tagVisuals.byTag.status.#doing.visibility
-tag button [Remove #doing] #38
+tag button [Remove #doing] #40
     pkm:behavior:order:deep:delete-token:status -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields | pkm:behavior:order:deep:delete-token:status:prefix -> pkm.behavior.prefixRules.checkboxByFieldValue.status = {}, pkm.behavior.prefixRules.checkboxByFieldValue.status_sub = {}
-tag input:text [New Value for status] #39
+tag input:text [New Value for status] #41
     без записи
-tag button [Add a Value to status] #40
+tag button [Add a Value to status] #42
     без записи
 link button [Show the Field Status] #0
     без записи
@@ -122,18 +126,22 @@ link select [Child Field of project] #15
 link select [Prerequisite Field for project] #16
     без записи
 link input:text [YAML property for project] #17
-    pkm:behavior:order:yaml:project -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.project, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:project -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-link button [Make [[ClientA]] a child Value] #18
+    pkm:behavior:order:yaml:project -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.project, pkm.behavior.order.propertiesByField.status, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:project -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
+link select [Property type for project] #18
+    pkm:behavior:yaml:cardinality:project -> pkm.behavior.rightMode.fields
+link select [How to show Value in YAML for project] #19
+    pkm:behavior:yaml:value-rule:project -> pkm.behavior.rightMode.fields
+link button [Make [[ClientA]] a child Value] #20
     без записи
-link input:text [Value [[ClientA]] of project] #19
+link input:text [Value [[ClientA]] of project] #21
     pkm:behavior:order:deep:rename:project -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-link input:text [Prefix for [[ClientA]]] #20
+link input:text [Prefix for [[ClientA]]] #22
     pkm:behavior:order:deep:checkbox:project -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-link button [Remove [[ClientA]]] #21
+link button [Remove [[ClientA]]] #23
     pkm:behavior:order:deep:delete-token:project -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-link input:text [New Value for project] #22
+link input:text [New Value for project] #24
     без записи
-link button [Add a Value to project] #23
+link button [Add a Value to project] #25
     без записи
 element/increment button [Show the Field Status] #0
     без записи
@@ -168,14 +176,18 @@ element/increment select [Behavior for due] #14
 element/increment select [Prerequisite Field for due] #15
     без записи
 element/increment input:text [YAML property for due] #16
-    pkm:behavior:order:yaml:due -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.due, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:due -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-element/increment input:text [Emoji-prefix for due] #17
+    pkm:behavior:order:yaml:due -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.due, pkm.behavior.order.propertiesByField.status, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:due -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
+element/increment select [Property type for due] #17
+    pkm:behavior:yaml:cardinality:due -> pkm.behavior.rightMode.fields
+element/increment select [How to show Value in YAML for due] #18
+    pkm:behavior:yaml:value-rule:due -> pkm.behavior.rightMode.fields
+element/increment input:text [Emoji-prefix for due] #19
     pkm:behavior:order:deep:emoji:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/increment input:text [Value format for due] #18
+element/increment input:text [Value format for due] #20
     pkm:behavior:order:deep:format:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/increment select [Steps by, for due] #19
+element/increment select [Steps by, for due] #21
     pkm:behavior:order:deep:mode:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/increment input:text [Amount for due] #20
+element/increment input:text [Amount for due] #22
     pkm:behavior:order:deep:inc:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.incrementBy, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
 element/command button [Show the Field Status] #0
     без записи
@@ -210,14 +222,18 @@ element/command select [Behavior for due] #14
 element/command select [Prerequisite Field for due] #15
     без записи
 element/command input:text [YAML property for due] #16
-    pkm:behavior:order:yaml:due -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.due, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:due -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-element/command input:text [Emoji-prefix for due] #17
+    pkm:behavior:order:yaml:due -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.due, pkm.behavior.order.propertiesByField.status, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:due -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
+element/command select [Property type for due] #17
+    pkm:behavior:yaml:cardinality:due -> pkm.behavior.rightMode.fields
+element/command select [How to show Value in YAML for due] #18
+    pkm:behavior:yaml:value-rule:due -> pkm.behavior.rightMode.fields
+element/command input:text [Emoji-prefix for due] #19
     pkm:behavior:order:deep:emoji:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/command input:text [Value format for due] #18
+element/command input:text [Value format for due] #20
     pkm:behavior:order:deep:format:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/command select [Steps by, for due] #19
+element/command select [Steps by, for due] #21
     pkm:behavior:order:deep:mode:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/command select [Command for due] #20
+element/command select [Command for due] #22
     pkm:behavior:order:deep:command:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.command, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
 element/custom button [Show the Field Status] #0
     без записи
@@ -252,14 +268,18 @@ element/custom select [Behavior for due] #14
 element/custom select [Prerequisite Field for due] #15
     без записи
 element/custom input:text [YAML property for due] #16
-    pkm:behavior:order:yaml:due -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.due, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:due -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
-element/custom input:text [Emoji-prefix for due] #17
+    pkm:behavior:order:yaml:due -> pkm.behavior.order.active.due, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.due, pkm.behavior.order.propertiesByField.status, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:order:yaml-propagate:due -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields
+element/custom select [Property type for due] #17
+    pkm:behavior:yaml:cardinality:due -> pkm.behavior.rightMode.fields
+element/custom select [How to show Value in YAML for due] #18
+    pkm:behavior:yaml:value-rule:due -> pkm.behavior.rightMode.fields
+element/custom input:text [Emoji-prefix for due] #19
     pkm:behavior:order:deep:emoji:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/custom input:text [Value format for due] #18
+element/custom input:text [Value format for due] #20
     pkm:behavior:order:deep:format:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/custom select [Steps by, for due] #19
+element/custom select [Steps by, for due] #21
     pkm:behavior:order:deep:mode:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
-element/custom textarea [Steps for due] #20
+element/custom textarea [Steps for due] #22
     pkm:behavior:order:deep:custom:due -> pkm.behavior.elements.byField.due.command, pkm.behavior.elements.byField.due.emoji, pkm.behavior.elements.byField.due.format, pkm.behavior.elements.byField.due.increment.custom, pkm.behavior.elements.byField.due.increment.customRaw, pkm.behavior.elements.byField.due.increment.mode, pkm.behavior.elements.byField.due.mode
 сценарий [добавить Field с именем io_new]
     pkm:behavior:order:add-field:io_new -> pkm.behavior.order.active.due, pkm.behavior.order.active.io_new, pkm.behavior.order.active.io_new_sub, pkm.behavior.order.active.project, pkm.behavior.order.active.status, pkm.behavior.order.active.status_sub, pkm.behavior.order.enabled.due, pkm.behavior.order.enabled.io_new, pkm.behavior.order.enabled.io_new_sub, pkm.behavior.order.enabled.project, pkm.behavior.order.enabled.status, pkm.behavior.order.enabled.status_sub, pkm.behavior.order.freeRoam.due, pkm.behavior.order.freeRoam.io_new, pkm.behavior.order.freeRoam.io_new_sub, pkm.behavior.order.freeRoam.project, pkm.behavior.order.freeRoam.status, pkm.behavior.order.freeRoam.status_sub, pkm.behavior.order.labels.due, pkm.behavior.order.labels.io_new, pkm.behavior.order.labels.io_new_sub, pkm.behavior.order.labels.project, pkm.behavior.order.labels.status, pkm.behavior.order.labels.status_sub, pkm.behavior.order.lead.left, pkm.behavior.order.lead.right, pkm.behavior.order.left, pkm.behavior.order.propertiesByField.status, pkm.behavior.order.right, pkm.behavior.order.strictNames.due, pkm.behavior.order.strictNames.io_new, pkm.behavior.order.strictNames.io_new_sub, pkm.behavior.order.strictNames.project, pkm.behavior.order.strictNames.status, pkm.behavior.order.types.due, pkm.behavior.order.types.io_new, pkm.behavior.order.types.io_new_sub, pkm.behavior.order.types.project, pkm.behavior.order.types.status, pkm.behavior.order.types.status_sub | pkm:behavior:modes:add-field:io_new -> pkm.behavior.leftMode.fields, pkm.behavior.rightMode.fields

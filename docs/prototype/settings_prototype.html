@@ -1065,34 +1065,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-wheelctl { margin-top: 14px; }
 
-/* the field-to-property table */
-.io-map__inner { min-width: 520px; }
-.io-map__head {
-  font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-faint); background: var(--background-primary-alt);
-  border-bottom: 1px solid var(--background-modifier-border);
-}
-.io-map__row + .io-map__row { border-top: 1px solid var(--background-modifier-border); }
-.io-map__field { display: flex; align-items: center; gap: 7px; font-size: var(--font-ui-small); color: var(--text-normal); }
-.io-map__example { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.io-map__row .io-select { min-width: 0; width: 100%; }
-.io-map__foot { padding: 8px 12px; border-top: 1px solid var(--background-modifier-border); }
-.io-map__foot .io-note { margin: 0; }
-
-/* what the transform would write */
-.io-yaml {
-  margin-top: 10px; border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m); overflow: hidden; background: var(--background-secondary);
-}
-.io-yaml__cap {
-  padding: 6px 12px; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-faint); border-bottom: 1px solid var(--background-modifier-border);
-}
-.io-yaml__body { padding: 8px 12px; }
-.io-yaml__line { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.65; color: var(--text-normal); }
-.io-yaml__fence { color: var(--text-faint); }
-.io-yaml__empty { color: var(--text-faint); font-style: italic; font-family: var(--font-ui); }
-
 /* the only .io-wheelctl rule */
 .io-wheelctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
 
@@ -1118,7 +1090,24 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
     + var(--io-depth, 0) * 20px);
 }
 
-/* the property picker */
+/* what the transform would write for one field: a framed line in the control
+   column, the same width as the property box above it */
+.io-yamlex {
+  width: 172px; box-sizing: border-box; padding: 5px 8px;
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
+.io-yamlex__line {
+  font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5;
+  color: var(--text-normal); overflow-wrap: anywhere;
+}
+.io-yamlex--empty { background: transparent; }
+.io-yamlex--empty .io-yamlex__line {
+  color: var(--text-faint); font-style: italic; font-family: var(--font-ui);
+}
+/* the property picker. In the plugin the popover is Obsidian's own
+   (`AbstractInputSuggest`); here it stays hand-drawn — the prototype has no
+   Obsidian to borrow it from. */
 .io-pick2 { position: relative; min-width: 0; }
 .io-pick2__list {
   display: none; position: absolute; left: 0; top: calc(100% + 3px); z-index: 6;
@@ -1142,12 +1131,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   color: var(--text-faint);
 }
 
-/* the mapping table grew a column */
-.io-map__head, .io-map__row {
-  display: grid; gap: 10px; align-items: center; padding: 7px 12px;
-  grid-template-columns: minmax(110px, 0.9fr) minmax(104px, 0.9fr) 96px 132px minmax(120px, 1fr);
-}
-
 /* the floating button */
 .io-floatrow {
   display: flex; align-items: center; gap: 10px;
@@ -1162,11 +1145,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   box-shadow: 0 2px 8px rgba(20, 17, 32, 0.2);
 }
 .io-float:hover { background: var(--interactive-accent-hover); }
-
-/* a column header that can explain itself */
-.io-map__th { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.io-map__th .io-help { flex: 0 0 auto; }
-.io-map__head .io-tip { grid-column: 1 / -1; text-transform: none; letter-spacing: 0; font-weight: 400; }
 
 /* the drag handle, and what a row looks like while it moves */
 .io-grip { cursor: grab; }
@@ -1860,15 +1838,6 @@ const SCHEMA = [
       options:[ {value:"new_note",label:"Create a second note"}, {value:"add_to_note",label:"Add to the existing one"},
                 {value:"overwrite",label:"Replace what is in it"} ],
       tip:"<b>Create a second note</b> adds a number to the name and never touches what you already wrote \u2014 the safe choice. <b>Add to the existing one</b> is what you want for a running log. <b>Replace what is in it</b> throws the old contents away, and this plugin cannot give them back" }
-  ]
-},
-{
-  id: "note-properties", tab: "transform", order: 250, heading: "Note properties",
-  intro: "Copy what you tagged on the line into the properties of the new note",
-  tip: "Obsidian shows properties at the top of every note. Fill this in once and a line you tagged while writing arrives in its new note with those boxes already filled \u2014 no retyping. Two Fields can share one property name, and then both Values go into the same list",
-  visible: on("transform.inline2note.enabled"),
-  items: [
-    { kind:"custom", id:"yaml-mapping", render: renderYamlMapping },
   ]
 },
 {
@@ -3128,11 +3097,11 @@ function contrastNote(row, v) {
      нельзя: у Value без своего цвета претензий нет. */
   if (!v.color || !v.textColor) return;
   const r = contrastRatio(v.color, v.textColor);
-  if (r >= 4.5) return;
+  if (r >= 3) return;
   const w = el("span", "io-warn", row, "⚠");
   /* Одна подсказка на узел, один и тот же текст в обоих атрибутах. */
   const note = "This Value may be hard to read: contrast " + r.toFixed(1) +
-    ":1, aim for 4.5:1 or more";
+    ":1, aim for 3:1 or more";
   w.setAttribute("aria-label", note);
   w.title = note;
 }
@@ -3604,31 +3573,76 @@ function nameInWheelRow(host, f) {
   nin.addEventListener("input", () => { f.short = nin.value; refreshPreviews(); });
 }
 
+
 function propertyRow(host, f) {
   /*
-   * Свойства заметки — свой раздел, а не строка внутри `Behavior` (замечание
-   * заказчика 2026-08-27): сюда приедут остальные настройки свойства, когда
-   * дойдёт черёд блока `Note properties` на вкладке Transform. Подсказка у
-   * заголовка объясняет, зачем этот раздел вообще нужен.
+   * Свойства заметки — свой раздел, а не строка внутри `Behavior`
+   * (замечание заказчика 2026-08-27). Полный набор приехал сюда решением
+   * заказчика 2026-08-28: имя свойства, тип, правило значения и то, что
+   * будет записано. Блока `Note properties` на вкладке Transform больше
+   * нет — настройка живёт там, где живёт Field.
    */
   const head = el("div", "io-sub io-item__namerow", host);
   el("span", null, head, "YAML property");
   attachTipItem(head, host, { name:"YAML property",
-    tip:"<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Leave it empty and the Field is simply not copied" });
+    tip:"<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note — the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied" });
   subComment(head, host, "field-editor/yaml-header");
 
-  const row = el("div", "io-item", host);
-  const info = el("div", "io-item__info", row);
-  const nrow = el("div", "io-item__namerow", info);
-  el("div", "io-item__name", nrow, "Property");
-  subComment(nrow, info, "field-editor/property");
-  el("div", "io-item__desc", info, "If you use inline2note, to which YAML property this Field should go");
-  const ctl = el("div", "io-item__control", row);
-  /* Поле шириной с выпадающий список `Prefix behavior` над ним: два контрола
-     в одном столбце, и разная ширина читалась как разный вид настройки
-     (замечание заказчика 2026-08-27). */
-  const input = textEl(ctl, f.property || "", "select Property", "YAML property for " + f.name, "io-text io-text--mono io-text--prop");
-  input.addEventListener("change", () => { f.property = input.value.trim(); });
+  /* Один ряд раздела: имя, «?», описание, контрол. */
+  const row = (r, fill) => {
+    const item = el("div", "io-item", host);
+    const info = el("div", "io-item__info", item);
+    const nrow = el("div", "io-item__namerow", info);
+    el("div", "io-item__name", nrow, r.name);
+    helpButton(nrow, info, r);
+    subComment(nrow, info, "field-editor/" + r.key);
+    rich(el("div", "io-item__desc", info), r.desc);
+    fill(el("div", "io-item__control", item));
+  };
+
+  /* У строки `Property` своей «?» нет: подсказка раздела стоит прямо над
+     ней (замечание заказчика 2026-08-27, третий круг). */
+  row({
+    name:"Property", key:"property",
+    desc:"If you use inline2note, to which YAML property this Field should go",
+  }, ctl => propertyPicker(ctl, f, renderContent));
+
+  row({
+    name:"Property type", key:"yaml-type",
+    desc:"Whether the property holds one Value or a list",
+    tip:"<b>Auto</b> works it out for you: a list when more than one Field writes to the same property, a single Value otherwise. Set it by hand only when Auto guesses wrong",
+  }, ctl => {
+    const s = selectEl(ctl, [
+      { value:"auto", label:"Auto" },
+      { value:"one",  label:"One Value" },
+      { value:"list", label:"A list" }
+    ], f.cardinality || "auto", "Property type for " + f.name);
+    s.addEventListener("change", () => { f.cardinality = s.value; renderContent(); refreshPreviews(); });
+  });
+
+  row({
+    name:"How to show Value in YAML", key:"yaml-rule",
+    desc:"How the Value is written into the property",
+    tip:"<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> strips the decoration — no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link — which is what you want if you plan to search or sort by the property. The rule belongs to the Field and applies to every one of its Values",
+  }, ctl => {
+    const s = selectEl(ctl, [
+      { value:"raw",   label:"Raw" },
+      { value:"clean", label:"Clean" }
+    ], f.valueRule || "raw", "How to show Value in YAML for " + f.name);
+    s.addEventListener("change", () => { f.valueRule = s.value; renderContent(); refreshPreviews(); });
+  });
+
+  row({
+    name:"Preview", key:"yaml-written",
+    desc:"How this Value will look like in YAML",
+    tip:"It follows the three choices above and updates as you change them. Two Fields can share one property name, and then both Values go into the same list",
+  /* Превью — не контрол, а вывод, но стоит справа и ровно той ширины, что
+     поле свойства над ним (замечание заказчика 2026-08-28). */
+  }, ctl => {
+    const written = f.property ? yamlLineFor(f) : "";
+    const box = el("div", "io-yamlex" + (written ? "" : " io-yamlex--empty"), ctl);
+    el("div", "io-yamlex__line", box, written || "not written");
+  });
 }
 
 function placementRows(host, f) {
@@ -3795,85 +3809,6 @@ function renderFloatingButton(host) {
   ["pkm.lineFormat.separator1", "pkm.lineFormat.separator2"].forEach(p => bind(p, draw));
 }
 
-/* ============================================================ Note properties
-   A property name belongs to a field, and a value may override it; a field
-   also says whether the property holds one value or a list. Same shape as
-   yamlProperty and yamlCardinality in transform_feature.js. */
-
-
-function renderYamlMapping(host) {
-  const wrap = el("div", null, host);
-
-  const draw = () => {
-    wrap.textContent = "";
-    const scroll = el("div", "io-scroll", wrap);
-    const card = el("div", "io-cmd", scroll);
-    const inner = el("div", "io-map__inner", card);
-
-    const head = el("div", "io-map__head", inner);
-    [
-      ["Field", "One of your inline Fields, from the Tags & PKM tab. Each one can be copied into the new note as a property"],
-      ["Property (YAML)", "The name of the property in the new note \u2014 the same names you see at the top of a note in Obsidian. Start typing and it offers the ones your vault already uses. Leave it empty and this Field is simply not copied"],
-      ["Type", "Whether the property holds one Value or a list of them. <b>Auto</b> works it out for you: a list when more than one Field writes to the same property, a single Value otherwise. Set it by hand only when Auto guesses wrong"],
-      ["Value", "<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> strips the decoration \u2014 no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link \u2014 which is what you want if you plan to search or sort by the property"],
-      ["Written as", "What this Field will actually put in the note, using the choices to the left. It updates as you change them"]
-    ].forEach(([label, tip]) => {
-      const cell = el("div", "io-map__th", head);
-      el("span", null, cell, label);
-      attachTip(cell, tip, label, head);
-    });
-    subComment(head, wrap, "yaml/header");
-
-    FIELDS.forEach(f => {
-      const row = el("div", "io-map__row", inner);
-      const name = el("div", "io-map__field", row);
-      el("span", null, name, f.name);
-      cssVar(el("span", "io-chip io-chip--typed", name, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
-
-      propertyPicker(el("div", null, row), f, draw);
-
-      const holds = selectEl(el("div", null, row), [
-        { value:"auto", label:"Auto" },
-        { value:"one",  label:"One Value" },
-        { value:"list", label:"A list" }
-      ], f.cardinality || "auto", "Holds, for " + f.name);
-      holds.addEventListener("change", () => { f.cardinality = holds.value; draw(); refreshPreviews(); });
-
-      const rule = selectEl(el("div", null, row), [
-        { value:"raw",   label:"Raw" },
-        { value:"clean", label:"Clean" }
-      ], f.valueRule || "raw", "Value rule for " + f.name);
-      rule.addEventListener("change", () => { f.valueRule = rule.value; draw(); refreshPreviews(); });
-
-      el("div", "io-map__example", row, f.property ? yamlLineFor(f) : "not written");
-    });
-
-    const foot = el("div", "io-map__foot", card);
-    rich(el("span", "io-note", foot),
-      "A Field with no property is left out of the note. <b>Auto</b> makes a list when more than one Field " +
-      "shares the same property, and a single Value otherwise");
-
-    const box = el("div", "io-yaml", wrap);
-    el("div", "io-yaml__cap", box, "Properties of the new note");
-    const body = el("div", "io-yaml__body", box);
-    el("div", "io-yaml__line io-yaml__fence", body, "---");
-    const byProp = {};
-    FIELDS.forEach(f => { if (f.property) (byProp[f.property] = byProp[f.property] || []).push(f); });
-    const keys = Object.keys(byProp);
-    if (!keys.length) el("div", "io-yaml__line io-yaml__empty", body, "nothing mapped yet");
-    keys.forEach(k => {
-      const fields = byProp[k];
-      const vals = fields.map(f => yamlValueFor(f));
-      const list = isList(fields[0], fields.length);
-      el("div", "io-yaml__line", body, list ? k + ": [" + vals.join(", ") + "]" : k + ": " + vals[0]);
-    });
-    el("div", "io-yaml__line io-yaml__fence", body, "---");
-  };
-
-  draw();
-  previewRefreshers.push(draw);
-}
-
 /* how many fields share this property decides Auto */
 function isList(f, sharing) {
   const c = f.cardinality || "auto";
@@ -3888,7 +3823,7 @@ function yamlValueFor(f) {
   const plain = f.type === "element" ? f.format
     : f.type === "link" ? String(f.values[0] ? f.values[0].token : "value").replace(/^\[\[|\]\]$/g, "")
     : (f.values[0] ? f.values[0].token : "value");
-  const asWritten = f.type === "element" ? f.marker + " " + plain
+  const asWritten = f.type === "element" ? f.marker + plain
     : f.type === "tag" ? "#" + plain
     : "[[" + plain + "]]";
   return (f.valueRule || "raw") === "clean" ? plain : asWritten;
@@ -3903,8 +3838,7 @@ function yamlLineFor(f) {
 /* a property name is picked from what the vault already has, or typed */
 function propertyPicker(host, f, redraw) {
   const wrap = el("div", "io-pick2", host);
-  const input = textEl(wrap, f.property || "", "not written", "Property for " + f.name, "io-text io-text--mono");
-  input.style.setProperty("width", "100%");
+  const input = textEl(wrap, f.property || "", "select Property", "YAML property for " + f.name, "io-text io-text--mono io-text--prop");
 
   const list = el("div", "io-pick2__list", wrap);
   let open = false;

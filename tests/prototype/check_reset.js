@@ -28,14 +28,14 @@ check("белое на чёрном", run('contrastRatio("#000000", "#ffffff").t
 check("белое на белом", run('contrastRatio("#ffffff", "#ffffff").toFixed(1)'), "1.0");
 check("#767676 на белом", run('contrastRatio("#767676", "#ffffff").toFixed(2)'), "4.54");
 
-console.log("\nзначения мокового vault ниже порога 4.5:1:");
+console.log("\nзначения мокового vault ниже порога 3:1:");
 console.log(run([
   '(() => {',
   '  const out = [];',
   '  FIELDS.forEach(f => (f.values || []).forEach(v => {',
   '    if (v.shown === "nothing") return;',
   '    const r = contrastRatio(v.color, v.textColor);',
-  '    if (r < 4.5) out.push("    " + f.name + " / " + v.token + " \\u2014 " + r.toFixed(1) + ":1");',
+  '    if (r < 3) out.push("    " + f.name + " / " + v.token + " \\u2014 " + r.toFixed(1) + ":1");',
   '  }));',
   '  return out.length ? out.join(String.fromCharCode(10)) : "    ни одного";',
   '})()'

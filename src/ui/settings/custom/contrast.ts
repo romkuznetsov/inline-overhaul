@@ -5,13 +5,29 @@
  * формула из WCAG 2.1 умещается в двадцать строк.
  *
  * Считается приблизительно и намеренно: чип Value стоит поверх фона панели,
- * который зависит от темы, и точного числа тут быть не может. Порог 4.5:1 —
- * повод показать значок, а не запретить цвет (Н17).
+ * который зависит от темы, и точного числа тут быть не может. Порог — повод
+ * показать значок, а не запретить цвет (Н17).
  */
 
-/** Разбор `#rgb` и `#rrggbb` в три доли от нуля до единицы. */
+/**
+ * Разбор цвета в три доли от нуля до единицы: `#rgb`, `#rrggbb` и `rgb(...)`.
+ *
+ * Форма `rgb(...)` нужна потому, что второй цвет пары часто приходит не от
+ * человека, а из темы — через `getComputedStyle`, а тот отдаёт именно её.
+ */
 function channels(hex: string): [number, number, number] | null {
-  const v = String(hex || "").trim().replace(/^#/, "").toLowerCase();
+  const src = String(hex || "").trim().toLowerCase();
+  const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(src);
+  if (rgb) {
+    const nums = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+    if (nums.some(n => !Number.isFinite(n))) return null;
+    return [
+      Math.min(1, Math.max(0, nums[0] as number / 255)),
+      Math.min(1, Math.max(0, nums[1] as number / 255)),
+      Math.min(1, Math.max(0, nums[2] as number / 255)),
+    ];
+  }
+  const v = src.replace(/^#/, "");
   if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/.test(v)) return null;
   const parts = v.length === 3
     ? [v[0] as string, v[1] as string, v[2] as string].map(c => c + c)
@@ -46,8 +62,16 @@ export function contrastRatio(bg: string, fg: string): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Порог читаемости для обычного текста по WCAG 2.1 (Н15). */
-export const CONTRAST_FLOOR = 4.5;
+/**
+ * Порог читаемости (Н15). 3:1 — порог WCAG 2.1 для крупного текста и элементов
+ * интерфейса; решение заказчика 2026-08-28.
+ *
+ * Почему не 4.5:1, как для обычного текста: пузырь Value ближе к элементу
+ * интерфейса, чем к абзацу, и на настоящих цветах заказчика 4.5 давал значок
+ * всем трём значениям — включая то, которое читается (белое на красном,
+ * 4.0:1). На 3:1 предупреждение остаётся там, где текст правда сливается.
+ */
+export const CONTRAST_FLOOR = 3;
 
 /** Текст подсказки у значка. Число показывается: оно говорит, далеко ли до нормы (Н16). */
 export function contrastWarning(ratio: number): string {

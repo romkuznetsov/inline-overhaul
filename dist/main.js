@@ -3950,11 +3950,11 @@ var require_status_tags = __commonJS({
       return false;
     }
     function resolveFieldSourceKind(field) {
-      const helpers2 = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers2 || typeof helpers2.normalizeFieldSourceKind !== "function") {
+      const helpers3 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers3 || typeof helpers3.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers2.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers3.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildOutputTokenForField(field, value, rules) {
       var _a;
@@ -5909,11 +5909,11 @@ var require_tagwheel = __commonJS({
       return normalizeWikilinkTarget(raw).replace(/^#/, "").trim();
     }
     function resolveFieldSourceKind(field) {
-      var helpers2 = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers2 || typeof helpers2.normalizeFieldSourceKind !== "function") {
+      var helpers3 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers3 || typeof helpers3.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers2.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers3.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildTagWheelRuntimeInput(input_, settings_) {
       var out = {};
@@ -7477,11 +7477,11 @@ var require_tagwheel_core = __commonJS({
       return loadCoreHelperFromGlobalOrRequire("__inlineStatusRuntimeCommon", "../../src/core/status_runtime_common.js");
     }
     function resolveSourceKind(field) {
-      var helpers2 = getRulesRuntimeHelpers();
-      if (!helpers2 || typeof helpers2.normalizeFieldSourceKind !== "function") {
+      var helpers3 = getRulesRuntimeHelpers();
+      if (!helpers3 || typeof helpers3.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers2.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers3.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function isProjectsSourceField(field) {
       return resolveSourceKind(field) === "projects";
@@ -7558,10 +7558,10 @@ var require_tagwheel_core = __commonJS({
     function getDateLikeMarkers(rules) {
       var out = [];
       var seen = {};
-      var helpers2 = getRulesRuntimeHelpers();
+      var helpers3 = getRulesRuntimeHelpers();
       var i;
-      if (helpers2 && typeof helpers2.getDateMarkersFromRules === "function") {
-        var markers = helpers2.getDateMarkersFromRules(rules);
+      if (helpers3 && typeof helpers3.getDateMarkersFromRules === "function") {
+        var markers = helpers3.getDateMarkersFromRules(rules);
         var buckets = [
           markers && markers.due,
           markers && markers.start,
@@ -7604,9 +7604,9 @@ var require_tagwheel_core = __commonJS({
           if (markers.indexOf(mk0) === -1) markers.push(mk0);
         }
       }
-      var helpers2 = getRulesRuntimeHelpers();
-      if (helpers2 && typeof helpers2.isDateLikeToken === "function") {
-        if (helpers2.isDateLikeToken(src, { markers })) return true;
+      var helpers3 = getRulesRuntimeHelpers();
+      if (helpers3 && typeof helpers3.isDateLikeToken === "function") {
+        if (helpers3.isDateLikeToken(src, { markers })) return true;
       } else {
         var i;
         for (i = 0; i < markers.length; i++) {
@@ -14313,7 +14313,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         return `${p}${t}`;
       };
       const leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [];
-      const fieldById2 = (id) => leftFields.find((f) => f && f.id === id) || null;
+      const fieldById = (id) => leftFields.find((f) => f && f.id === id) || null;
       const out = {};
       const normalizeOrderKey = (field) => {
         if (!field) return "";
@@ -14373,7 +14373,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         if (!subField || !subField.id) continue;
         const parentId = String(subField.dependsOn || "").trim();
         if (!parentId) continue;
-        const parentField = fieldById2(parentId);
+        const parentField = fieldById(parentId);
         if (!parentField) continue;
         pushPair(parentField, subField);
       }
@@ -20934,17 +20934,17 @@ var require_tagwheel_config_parser = __commonJS({
         for (let i = 0; i < allowedSections.length; i++) sectionMap[allowedSections[i]] = true;
         const allowedWikilinkFields = collectWikilinkFieldIds(cfg);
         const leftFields = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.leftMode && Array.isArray(cfg.pkm.behavior.leftMode.fields) ? cfg.pkm.behavior.leftMode.fields : [];
-        const fieldById2 = {};
+        const fieldById = {};
         for (let i = 0; i < leftFields.length; i++) {
           const f = leftFields[i];
           if (!f || !f.id) continue;
-          fieldById2[String(f.id)] = f;
+          fieldById[String(f.id)] = f;
         }
         const isWikilinkField = (fieldId) => {
           const fid = String(fieldId || "").trim();
           if (!fid) return false;
           if (allowedWikilinkFields.includes(fid)) return true;
-          const f = fieldById2[fid];
+          const f = fieldById[fid];
           if (!f) return false;
           const src = String(f.source || "").trim();
           return src === "projects" || src.startsWith("wikilinks:");
@@ -22354,10 +22354,10 @@ var require_transform_feature = __commonJS({
       const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
       const leftFieldIds = new Set((isObj(behavior.leftMode) && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : []).map((field) => String(field && field.id || "").trim()));
       const rightFieldIds = new Set((isObj(behavior.rightMode) && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : []).map((field) => String(field && field.id || "").trim()));
-      const fieldById2 = {};
+      const fieldById = {};
       for (let i = 0; i < fields.length; i++) {
         const fid = String(fields[i] && fields[i].id || "").trim();
-        if (fid) fieldById2[fid] = fields[i];
+        if (fid) fieldById[fid] = fields[i];
       }
       const wl = Array.isArray(p.wikilinks) ? p.wikilinks : [];
       const emojis = Array.isArray(p.emojis) ? p.emojis : [];
@@ -22442,7 +22442,7 @@ var require_transform_feature = __commonJS({
         }
       }
       const dependencySafeMatches = matches.filter((row) => {
-        const field = fieldById2[String(row && row.fieldId || "").trim()];
+        const field = fieldById[String(row && row.fieldId || "").trim()];
         const parentId = String(field && field.dependsOn || "").trim();
         return !parentId || !!byFieldId[parentId];
       });
@@ -22467,12 +22467,12 @@ var require_transform_feature = __commonJS({
       const fieldType = String(row && row.fieldType || "").trim().toLowerCase();
       const fieldPrefix = String(row && row.fieldPrefix || "").trim();
       if (!token) return "";
+      if (mode === "raw") return token;
       if (fieldType === "element") {
         if (fieldPrefix && token.startsWith(fieldPrefix)) return String(token.slice(fieldPrefix.length)).trim();
         const mElement = token.match(/^[\u{1F300}-\u{1FAFF}]\s*(.*)$/u);
         return mElement ? String(mElement[1] || "").trim() : token;
       }
-      if (mode === "raw") return token;
       if (/^#\/\d+$/.test(token)) return Number(String(token.replace(/^#\//, "")).trim());
       if (/^#[^\s#]+$/.test(token)) return String(token.slice(1)).trim();
       if (/^[\u{1F300}-\u{1FAFF}]\d{2}:\d{2}$/u.test(token)) return String(token.slice(2)).trim();
@@ -22481,6 +22481,10 @@ var require_transform_feature = __commonJS({
       const wl = token.match(/^\[\[([^\]]+)\]\]$/);
       if (wl) return String(wl[1] || "").trim();
       return token;
+    }
+    function normalizeYamlValueRule(raw) {
+      const v = String(raw || "").trim().toLowerCase();
+      return v === "raw" || v === "clean" ? v : "";
     }
     function buildYamlMapFromContext(transformContext, cfg) {
       const out = {};
@@ -22493,6 +22497,20 @@ var require_transform_feature = __commonJS({
       const propertyFieldCounts = {};
       const listYamlKeys = /* @__PURE__ */ new Set();
       const configuredFields = getModeFields(cfg);
+      const fieldDefById = {};
+      for (let i = 0; i < configuredFields.length; i++) {
+        const fid = String(configuredFields[i] && configuredFields[i].id || "").trim();
+        if (fid) fieldDefById[fid] = configuredFields[i];
+      }
+      const ruleForFieldId = (fieldId) => {
+        const def = fieldDefById[String(fieldId || "").trim()];
+        const own = normalizeYamlValueRule(def && def.yamlValueRule);
+        if (own) return own;
+        const parentId = String(def && def.dependsOn || "").trim();
+        const parent = parentId ? fieldDefById[parentId] : null;
+        const inherited = normalizeYamlValueRule(parent && parent.yamlValueRule);
+        return inherited || yamlFormat;
+      };
       for (let i = 0; i < configuredFields.length; i++) {
         const field = configuredFields[i];
         const fid = String(field && field.id || "").trim();
@@ -22518,7 +22536,7 @@ var require_transform_feature = __commonJS({
         const yamlKey = String(row.yamlProperty || "").trim();
         const rawToken = String(row.rawToken || "").trim();
         if (!yamlKey || !rawToken) continue;
-        const value = normalizeYamlValueForFormat(rawToken, yamlFormat, row);
+        const value = normalizeYamlValueForFormat(rawToken, ruleForFieldId(row.fieldId), row);
         const isAlwaysListKey = listYamlKeys.has(yamlKey);
         if (!Object.prototype.hasOwnProperty.call(out, yamlKey)) out[yamlKey] = isAlwaysListKey ? [] : value;
         if (isAlwaysListKey) {
@@ -24236,7 +24254,17 @@ function createFieldsModel(deps) {
       enabled: { ...current.enabled, ...p && p.enabled ? p.enabled : {} },
       types: { ...current.types, ...p && p.types ? p.types : {} },
       labels: { ...current.labels, ...p && p.labels ? p.labels : {} },
-      strictNames: { ...current.strictNames, ...p && p.strictNames ? p.strictNames : {} }
+      strictNames: { ...current.strictNames, ...p && p.strictNames ? p.strictNames : {} },
+      /*
+       * Свойство заметки сливается так же, как соседние карты, а не заменяет
+       * карту целиком. Без этой строки патч из одного ключа выбрасывал
+       * свойства ВСЕХ остальных Fields — их не было в `next`, и до конфига
+       * они не доезжали (дефект найден 2026-08-28 по замечанию заказчика).
+       */
+      propertiesByField: {
+        ...current.propertiesByField,
+        ...p && p.propertiesByField ? p.propertiesByField : {}
+      }
     });
     const withTombstones = (nextMap, curMap) => {
       const out = { ...nextMap || {} };
@@ -24249,7 +24277,15 @@ function createFieldsModel(deps) {
     if (!replace) {
       const orderPatch2 = {
         ...next,
-        lead: withTombstones(next.lead, current.lead)
+        lead: withTombstones(next.lead, current.lead),
+        /*
+         * Надгробие нужно и свойству заметки: стёртое имя исчезает из карты, а
+         * пустое место при `deepMerge` ничего не меняет — прежнее значение
+         * оставалось в конфиге, и панель честно показывала его дальше.
+         * Замечание заказчика 2026-08-28: «удалил значение, а в Preview
+         * прежнее». Проверено на настоящем пути записи.
+         */
+        propertiesByField: withTombstones(next.propertiesByField, current.propertiesByField)
       };
       plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch2 } } }, reason);
       return;
@@ -24703,6 +24739,117 @@ function createFieldsModel(deps) {
       }
     }
     return out;
+  };
+  const defByOrderKey = (k) => {
+    const behavior = behaviorOf(plugin.getConfig());
+    return findFieldByOrderKey(modeFields(behavior, "leftMode"), k) || findFieldByOrderKey(modeFields(behavior, "rightMode"), k);
+  };
+  const poolByOrderKey = (k) => {
+    const behavior = behaviorOf(plugin.getConfig());
+    if (findFieldByOrderKey(modeFields(behavior, "leftMode"), k)) return "leftMode";
+    if (findFieldByOrderKey(modeFields(behavior, "rightMode"), k)) return "rightMode";
+    return "";
+  };
+  const normalizeCardinality = (raw) => {
+    const v = String(raw || "").trim().toLowerCase();
+    if (v === "list" || v === "many" || v === "array") return "list";
+    if (v === "one" || v === "single") return "one";
+    return "auto";
+  };
+  const normalizeValueRule = (raw) => {
+    const v = String(raw || "").trim().toLowerCase();
+    return v === "raw" || v === "clean" ? v : "";
+  };
+  const fallbackValueRule = () => {
+    const cfgNow = asObject(plugin.getConfig());
+    const i2n = asObject(asObject(cfgNow["transform"])["inline2note"]);
+    return normalizeValueRule(i2n["yamlNoteFormat"]) || "raw";
+  };
+  const lineTokenFor = (k, kind, def) => {
+    if (kind === "element") {
+      const el2 = elementEditor(k);
+      const marker = String(el2.emoji || def && def.marker || "").trim();
+      const shape = String(el2.format || "").trim().split(/\s+/)[0] || "";
+      return marker && shape ? marker + shape : "";
+    }
+    const values = asArray(def && def.values);
+    for (const raw of values) {
+      const row = asObject(raw);
+      const token = String(row["token"] || "").trim();
+      if (!token) continue;
+      if (asArray(row["allowedParentValues"]).length) continue;
+      if (kind === "wikilink") {
+        const bare = token.startsWith("#") ? token.slice(1).trim() : token;
+        return bare ? "[[" + bare + "]]" : "";
+      }
+      const prefix = String(def && def.prefix || "#");
+      return token.startsWith("#") ? token : prefix + token;
+    }
+    return "";
+  };
+  const listYamlFields = () => {
+    const fallback = fallbackValueRule();
+    const cardinalityByField = asObject(
+      asObject(behaviorOf(plugin.getConfig())["order"])["yamlCardinalityByField"]
+    );
+    const out = [];
+    for (const row of listFields()) {
+      if (row.parent) continue;
+      const def = defByOrderKey(row.key);
+      const own = normalizeValueRule(def && def.yamlValueRule);
+      out.push({
+        key: row.key,
+        fieldId: String(def && def.id || row.key || "").trim(),
+        label: row.label,
+        kind: row.kind,
+        property: row.property,
+        cardinality: normalizeCardinality(
+          def && def.yamlCardinality || cardinalityByField[row.key]
+        ),
+        valueRule: own || fallback,
+        valueRuleOwn: Boolean(own),
+        lineToken: lineTokenFor(row.key, row.kind, def)
+      });
+    }
+    return out;
+  };
+  const writeDefKey = (k, patch, reason) => {
+    const pool = poolByOrderKey(k);
+    if (!pool) return { ok: false, error: "InlineOverhaul: field definition not found: " + k };
+    const behavior = behaviorOf(plugin.getConfig());
+    const list = modeFields(behavior, pool);
+    const def = findFieldByOrderKey(list, k);
+    const id = String(def && def.id || "").trim();
+    if (!def || !id) return { ok: false, error: "InlineOverhaul: field definition not found: " + k };
+    const nextDef = { ...asObject(def) };
+    for (const key of Object.keys(patch)) {
+      const value = patch[key];
+      if (value === null) delete nextDef[key];
+      else nextDef[key] = value;
+    }
+    plugin.setConfigPatch(
+      { pkm: { behavior: { [pool]: { fields: upsertField(list, id, nextDef) } } } },
+      reason
+    );
+    return { ok: true };
+  };
+  const setYamlCardinality = (k, raw) => {
+    const next = normalizeCardinality(raw);
+    const def = defByOrderKey(k);
+    const cur = normalizeCardinality(def && def.yamlCardinality);
+    if (cur === next) return { ok: true, changed: false };
+    return writeDefKey(
+      k,
+      { yamlCardinality: next === "auto" ? null : next },
+      "pkm:behavior:yaml:cardinality:" + k
+    );
+  };
+  const setYamlValueRule = (k, raw) => {
+    const next = normalizeValueRule(raw);
+    if (!next) return { ok: false, error: "InlineOverhaul: value rule must be raw or clean" };
+    const def = defByOrderKey(k);
+    if (normalizeValueRule(def && def.yamlValueRule) === next) return { ok: true, changed: false };
+    return writeDefKey(k, { yamlValueRule: next }, "pkm:behavior:yaml:value-rule:" + k);
   };
   const poolOf = (fieldId) => {
     const behavior = behaviorOf(plugin.getConfig());
@@ -25453,6 +25600,9 @@ function createFieldsModel(deps) {
     setStrictName,
     setLabel,
     setProperty,
+    listYamlFields,
+    setYamlCardinality,
+    setYamlValueRule,
     getPrerequisite,
     setPrerequisite,
     toggleSub,
@@ -31351,6 +31501,17 @@ function rich(host, text) {
   }
   return host;
 }
+function cssVarValue(node, name) {
+  try {
+    const view = globalThis.window;
+    if (!view || typeof view.getComputedStyle !== "function") return "";
+    const style = view.getComputedStyle(node);
+    if (!style || typeof style.getPropertyValue !== "function") return "";
+    return String(style.getPropertyValue(name) || "").trim();
+  } catch (e) {
+    return "";
+  }
+}
 function cssVar(node, name, value) {
   if (!name.startsWith("--io-")) throw new Error("\u0441\u0432\u043E\u0439 \u0431\u043B\u043E\u043A \u0437\u0430\u0434\u0430\u0451\u0442 \u0442\u043E\u043B\u044C\u043A\u043E --io-*: " + name);
   node.style.setProperty(name, value);
@@ -32051,7 +32212,18 @@ var init_keepview = __esm({
 
 // src/ui/settings/custom/contrast.ts
 function channels(hex) {
-  const v = String(hex || "").trim().replace(/^#/, "").toLowerCase();
+  const src = String(hex || "").trim().toLowerCase();
+  const rgb = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(src);
+  if (rgb) {
+    const nums = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+    if (nums.some((n) => !Number.isFinite(n))) return null;
+    return [
+      Math.min(1, Math.max(0, nums[0] / 255)),
+      Math.min(1, Math.max(0, nums[1] / 255)),
+      Math.min(1, Math.max(0, nums[2] / 255))
+    ];
+  }
+  const v = src.replace(/^#/, "");
   if (!/^[0-9a-f]{3}$|^[0-9a-f]{6}$/.test(v)) return null;
   const parts = v.length === 3 ? [v[0], v[1], v[2]].map((c) => c + c) : [v.slice(0, 2), v.slice(2, 4), v.slice(4, 6)];
   return [
@@ -32081,13 +32253,90 @@ var CONTRAST_FLOOR;
 var init_contrast = __esm({
   "src/ui/settings/custom/contrast.ts"() {
     "use strict";
-    CONTRAST_FLOOR = 4.5;
+    CONTRAST_FLOOR = 3;
   }
 });
 
 // src/ui/settings/custom/preview_data.ts
-function previewFields(_ctx) {
+function fieldsFromConfig(ctx) {
+  const p = ctx.platform;
+  if (!p) return [];
+  try {
+    const model = createFieldsModel({
+      plugin: p.plugin,
+      normalizePkmOrder: p.normalizePkmOrder,
+      pkmOrderFields: p.pkmOrderFields,
+      cfg: p.getConfig(),
+      deepState: helpers.getOrderDeepEditorState()
+    });
+    const out = [];
+    for (const row of model.listFields()) {
+      if (row.parent) continue;
+      const values = [];
+      if (row.kind !== "element") {
+        const ve = model.valuesEditor(row.key);
+        const fieldId = ve.parentFieldId || row.strictName;
+        const push = (token, depth) => {
+          const tok = String(token || "").trim();
+          if (!tok) return;
+          const visual = model.getValueVisual(fieldId, tok);
+          values.push({
+            token: tok.replace(/^#/, "").replace(/^\[\[|\]\]$/g, ""),
+            fill: visual.fillColor,
+            text: visual.textColor,
+            shown: visual.visibility === "default" ? "value" : visual.visibility,
+            custom: visual.customText,
+            depth
+          });
+        };
+        for (const top of ve.tree) {
+          push(top.token, 0);
+          for (const child of top.children || []) push(child.token, 1);
+        }
+      }
+      out.push({
+        id: row.key,
+        name: row.label,
+        kind: row.kind === "wikilink" ? "link" : row.kind,
+        side: row.side,
+        values
+      });
+    }
+    return out;
+  } catch (e) {
+    console.error("inline-overhaul: Fields \u0434\u043B\u044F \u043F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440\u0430 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+    return [];
+  }
+}
+function previewFields(ctx) {
+  const real = fieldsFromConfig(ctx);
+  if (real.length) return { fields: real, example: false };
   return { fields: EXAMPLE_FIELDS, example: true };
+}
+function resolveSlots(fields, slots) {
+  const out = /* @__PURE__ */ new Map();
+  const taken = /* @__PURE__ */ new Set();
+  const want = [];
+  for (const slot of slots) {
+    const name = String(slot || "").trim();
+    if (name && !want.includes(name)) want.push(name);
+  }
+  for (const slot of want) {
+    const hit = fields.find((f) => f.id === slot);
+    if (!hit) continue;
+    out.set(slot, hit);
+    taken.add(hit.id);
+  }
+  const rest = fields.filter((f) => !taken.has(f.id));
+  let at = 0;
+  for (const slot of want) {
+    if (out.has(slot)) continue;
+    const next = rest[at];
+    if (!next) break;
+    at++;
+    out.set(slot, next);
+  }
+  return out;
 }
 function fieldsOn(fields, side) {
   return fields.filter((f) => f.side === side);
@@ -32099,9 +32348,6 @@ function fieldColor(f) {
     return "var(--color-orange)";
   }
   return f.kind === "link" ? "var(--color-blue)" : "var(--color-green)";
-}
-function fieldById(fields, id) {
-  return fields.find((f) => f.id === id) || null;
 }
 function valueAtDepth(f, depth) {
   if (!f) return null;
@@ -32117,10 +32363,13 @@ function valuePair(f) {
   }
   return { parent: f.values.find((v) => v.depth === 0) || null, child: null };
 }
-var EXAMPLE_FIELDS;
+var import_fields_editor_legacy, helpers, EXAMPLE_FIELDS;
 var init_preview_data = __esm({
   "src/ui/settings/custom/preview_data.ts"() {
     "use strict";
+    init_fields_model();
+    import_fields_editor_legacy = __toESM(require_fields_editor_legacy());
+    helpers = import_fields_editor_legacy.default;
     EXAMPLE_FIELDS = [
       {
         id: "status",
@@ -32233,7 +32482,7 @@ function structuralLine(parent, ctx, fields, chipFor) {
   else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
   return line;
 }
-var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, tagPreview;
+var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, TAG_SLOTS, tagPreview;
 var init_previews = __esm({
   "src/ui/settings/custom/previews.ts"() {
     "use strict";
@@ -32343,7 +32592,26 @@ var init_previews = __esm({
       const shell = previewShell(host, ctx, "bars-preview");
       const tree = el(shell.box, "div", "io-tree");
       const chosenField = () => str(ctx, "visual.tagBars.fieldId", "status");
-      const drawLine = (parent, node, depth, fields) => {
+      const treeSlots = (nodes) => {
+        const out = [];
+        const walk = (list) => {
+          for (const node of list) {
+            for (const name of node.fields) if (!out.includes(name)) out.push(name);
+            walk(node.children);
+          }
+        };
+        walk(nodes);
+        return out;
+      };
+      const carried = (node, slots) => {
+        const out = [];
+        for (const name of node.fields) {
+          const f = slots.get(name);
+          if (f && !out.includes(f.id)) out.push(f.id);
+        }
+        return out;
+      };
+      const drawLine = (parent, node, depth, fields, slots) => {
         const line = el(parent, "div", "io-line");
         applyTagVars(line, ctx);
         cssVar(line, "--io-depth", String(depth));
@@ -32352,34 +32620,35 @@ var init_previews = __esm({
         const chosen = chosenField();
         const hideChosen = active && !ctx.get("visual.tagBars.tagVisibility");
         const shown = [];
-        for (const id of node.fields) {
+        const ids = carried(node, slots);
+        for (const id of ids) {
           if (id === chosen && hideChosen) continue;
-          const v = valueAtDepth(fieldById(fields, id), depth);
+          const v = valueAtDepth(fields.find((f) => f.id === id) || null, depth);
           if (v) shown.push(v);
         }
         if (shown.length) {
           const side = el(line, "span", "io-line__side io-line__side--left");
           for (const v of shown) bubble(side, v);
         }
-        const replaced = hideChosen && node.fields.includes(chosen);
+        const replaced = hideChosen && ids.includes(chosen);
         const sepHidden = !shown.length && (!replaced || Boolean(ctx.get("visual.tagBars.hideSeparatorWhenOnlyStripToken")));
         if (!sepHidden) el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
         el(line, "span", "io-line__text", node.text);
       };
-      const drawNode = (parent, node, depth, lane, fields) => {
+      const drawNode = (parent, node, depth, lane, fields, slots) => {
         const active = Boolean(ctx.get("visual.tagBars.active"));
         const cap = num(ctx, "visual.tagBars.stripesToShow");
         const chosen = chosenField();
-        const v = node.fields.includes(chosen) ? valueAtDepth(fieldById(fields, chosen), depth) : null;
+        const v = carried(node, slots).includes(chosen) ? valueAtDepth(fields.find((f) => f.id === chosen) || null, depth) : null;
         const bar = active && v !== null && lane < cap;
         const box = el(parent, "div", "io-node" + (bar ? " io-node--bar" : ""));
         if (bar && v) {
           cssVar(box, "--io-bar-color", v.fill);
           cssVar(box, "--io-lane", String(lane));
         }
-        drawLine(box, node, depth, fields);
+        drawLine(box, node, depth, fields, slots);
         for (const child of node.children) {
-          drawNode(box, child, depth + 1, bar ? lane + 1 : lane, fields);
+          drawNode(box, child, depth + 1, bar ? lane + 1 : lane, fields, slots);
         }
       };
       const draw = () => {
@@ -32388,7 +32657,9 @@ var init_previews = __esm({
         cssVar(tree, "--io-bar-thickness", num(ctx, "visual.tagBars.thickness") + "px");
         cssVar(tree, "--io-bar-gap", num(ctx, "visual.tagBars.childOffset") + "px");
         cssVar(tree, "--io-bar-distance", num(ctx, "visual.tagBars.spacing") + "px");
-        for (const node of text && text.tree || []) drawNode(tree, node, 0, 0, fields);
+        const nodes = text && text.tree || [];
+        const slots = resolveSlots(fields, treeSlots(nodes));
+        for (const node of nodes) drawNode(tree, node, 0, 0, fields, slots);
         if (example) rich(el(tree, "p", "io-preview__note"), PREVIEW_EXAMPLE);
       };
       draw();
@@ -32398,6 +32669,7 @@ var init_previews = __esm({
         shell.close();
       };
     };
+    TAG_SLOTS = ["status", "priority"];
     tagPreview = (host, ctx) => {
       const text = PREVIEW_TEXTS["tag-preview"];
       const shell = previewShell(host, ctx, "tag-preview");
@@ -32409,8 +32681,9 @@ var init_previews = __esm({
         applyTagVars(line, ctx);
         el(line, "span", "io-line__prefix", "- ");
         const left = el(line, "span", "io-line__side io-line__side--left");
-        for (const id of ["status", "priority"]) {
-          const f = fieldById(fields, id);
+        const slots = resolveSlots(fields, TAG_SLOTS);
+        for (const slot of TAG_SLOTS) {
+          const f = slots.get(slot);
           if (f) tagField(left, f, ctx);
         }
         el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
@@ -32428,6 +32701,130 @@ var init_previews = __esm({
         shell.close();
       };
     };
+  }
+});
+
+// src/ui/settings/custom/yaml_property.ts
+function vaultProperties(app2) {
+  var _a, _b, _c;
+  const out = [];
+  try {
+    const mgr = app2 == null ? void 0 : app2.metadataTypeManager;
+    if (!mgr || typeof mgr !== "object") return out;
+    const holder = mgr;
+    const raw = typeof holder.getAllProperties === "function" ? holder.getAllProperties() : (_a = holder.properties) != null ? _a : holder.types;
+    if (!raw || typeof raw !== "object") return out;
+    const rows = Array.isArray(raw) ? raw : Object.values(raw);
+    const seen = /* @__PURE__ */ new Set();
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const r = row;
+      const name = String((_b = r.name) != null ? _b : "").trim();
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      out.push({ name, type: String((_c = r.type) != null ? _c : "").trim() });
+    }
+    out.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  } catch (e) {
+    console.error("inline-overhaul: \u0441\u0432\u043E\u0439\u0441\u0442\u0432\u0430 vault \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+    return [];
+  }
+  return out;
+}
+function fakeLine(rows) {
+  const tokens = rows.map((r) => r.lineToken).filter(Boolean);
+  return tokens.length ? "- " + tokens.join(" ") : "";
+}
+function yamlExamples(rows, cfg) {
+  var _a;
+  const line = fakeLine(rows);
+  if (!line || !cfg) return {};
+  try {
+    const ctx = engine.buildTransformContext(engine.parseInlineLine(line, cfg), cfg);
+    const matches = Array.isArray(ctx.matches) ? ctx.matches : [];
+    const full = engine.buildYamlMapFromContext(ctx, cfg);
+    const out = {};
+    for (const row of rows) {
+      const own = matches.filter((m) => {
+        var _a2;
+        return String((_a2 = m.fieldId) != null ? _a2 : "").trim() === row.fieldId;
+      });
+      if (!own.length) continue;
+      const keys = [];
+      for (const m of own) {
+        const key = String((_a = m.yamlProperty) != null ? _a : "").trim();
+        if (key && !keys.includes(key)) keys.push(key);
+      }
+      const patch = {};
+      for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(full, key)) patch[key] = full[key];
+      }
+      if (!Object.keys(patch).length) continue;
+      const text = engine.renderYamlBlockWithOrder([], patch, cfg).filter(Boolean).join(" ");
+      if (text) out[row.key] = text;
+    }
+    return out;
+  } catch (e) {
+    console.error("inline-overhaul: \u043F\u0440\u0438\u043C\u0435\u0440 \u0441\u0432\u043E\u0439\u0441\u0442\u0432\u0430 \u043D\u0435 \u043F\u043E\u0441\u0447\u0438\u0442\u0430\u043B\u0441\u044F", e);
+    return {};
+  }
+}
+function propertyPicker(host, o) {
+  const input = textInput(host, "io-text io-text--mono io-text--prop", {
+    value: o.value,
+    placeholder: o.placeholder,
+    label: "YAML property for " + o.label
+  });
+  input.disabled = !o.enabled;
+  input.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.write(input.value);
+  }));
+  if (!o.enabled || !o.suggest || typeof o.suggest.ctor !== "function") return;
+  try {
+    const Base = o.suggest.ctor;
+    const props = o.props;
+    class PropertySuggest extends Base {
+      /** Что показать по набранному. Пусто в поле — весь список. */
+      getSuggestions(query) {
+        const q = String(query || "").trim().toLowerCase();
+        return props.filter((p) => !q || p.name.toLowerCase().includes(q)).slice();
+      }
+      /** Строка подсказки: имя свойства и его тип в vault (Я4). */
+      renderSuggestion(p, node) {
+        el(node, "span", "io-suggest__name", p.name);
+        if (p.type) el(node, "span", "io-suggest__type", p.type);
+      }
+      /** Выбор — это уже нажатие, поэтому пишется сразу. */
+      selectSuggestion(p) {
+        this.setValue(p.name);
+        this.close();
+        o.write(p.name);
+      }
+    }
+    const live = new PropertySuggest(o.suggest.app, input);
+    live.limit = 100;
+  } catch (e) {
+    console.error("inline-overhaul: \u043F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0430 \u0438\u043C\u0451\u043D \u0441\u0432\u043E\u0439\u0441\u0442\u0432 \u043D\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u043B\u0430\u0441\u044C", e);
+  }
+}
+var import_transform_feature, engine, NOT_WRITTEN, CARDINALITY_OPTIONS, VALUE_RULE_OPTIONS;
+var init_yaml_property = __esm({
+  "src/ui/settings/custom/yaml_property.ts"() {
+    "use strict";
+    init_dom();
+    import_transform_feature = __toESM(require_transform_feature());
+    engine = import_transform_feature.default;
+    NOT_WRITTEN = "not written";
+    CARDINALITY_OPTIONS = [
+      { value: "auto", label: "Auto" },
+      { value: "one", label: "One Value" },
+      { value: "list", label: "A list" }
+    ];
+    VALUE_RULE_OPTIONS = [
+      { value: "raw", label: "Raw" },
+      { value: "clean", label: "Clean" }
+    ];
   }
 });
 
@@ -32784,23 +33181,98 @@ function renderFieldDetail(detail, row, o) {
     id: "io-field-property-tip",
     showTips: o.showTips
   }));
+  closers.push(yamlPropertyRows(detail, row, o));
+  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
+  else closers.push(renderValuesTable(detail, row, o));
+  return () => {
+    closers.forEach((fn) => fn());
+  };
+}
+function yamlPropertyRows(detail, row, o) {
+  const closers = [];
+  const commit = (write) => {
+    try {
+      write();
+    } catch (e) {
+      console.error("inline-overhaul: \u0437\u0430\u043F\u0438\u0441\u044C \u0441\u0432\u043E\u0439\u0441\u0442\u0432\u0430 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u043D\u0435 \u0443\u0434\u0430\u043B\u0430\u0441\u044C", e);
+    } finally {
+      o.redraw();
+    }
+  };
+  const cfg = o.ctx.platform ? o.ctx.platform.getConfig() : null;
+  const rows = o.model.listYamlFields();
+  const mine = rows.find((r) => r.key === row.key);
   const property = itemRow(detail, {
     name: PROPERTY_NAME,
     desc: PROPERTY_DESC,
     showTips: o.showTips
   });
-  const propertyInput = textInput(property.control, "io-text io-text--mono io-text--prop", {
+  const app2 = o.ctx.platform ? o.ctx.platform.plugin.app : null;
+  propertyPicker(property.control, {
     value: row.property,
-    placeholder: "select Property",
-    label: "YAML property for " + row.strictName
+    label: row.strictName,
+    placeholder: PROPERTY_PLACEHOLDER,
+    props: vaultProperties(app2),
+    /* Подсказку рисует платформа; без класса поле остаётся обычным полем. */
+    suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest ? { ctor: o.ctx.platform.AbstractInputSuggest, app: app2 } : void 0,
+    enabled: o.enabled,
+    write: (value) => commit(() => {
+      o.model.setProperty(row.key, value);
+    })
   });
-  propertyInput.disabled = !o.enabled;
-  propertyInput.addEventListener("change", (() => {
+  const cardinality = itemRow(detail, {
+    name: CARDINALITY_NAME,
+    desc: CARDINALITY_DESC,
+    tip: CARDINALITY_TIP,
+    tipId: "io-field-yaml-type-tip",
+    showTips: o.showTips
+  });
+  closers.push(cardinality.closeTip);
+  const holds = selectInput(cardinality.control, "io-select", {
+    options: CARDINALITY_OPTIONS,
+    value: mine ? mine.cardinality : "auto",
+    label: CARDINALITY_NAME + " for " + row.strictName
+  });
+  holds.disabled = !o.enabled;
+  holds.addEventListener("change", (() => {
     if (!o.enabled) return;
-    o.model.setProperty(row.key, propertyInput.value);
+    commit(() => {
+      o.model.setYamlCardinality(row.key, holds.value);
+    });
   }));
-  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
-  else closers.push(renderValuesTable(detail, row, o));
+  const rule = itemRow(detail, {
+    name: VALUE_RULE_NAME,
+    desc: VALUE_RULE_DESC,
+    tip: VALUE_RULE_TIP,
+    tipId: "io-field-yaml-rule-tip",
+    showTips: o.showTips
+  });
+  closers.push(rule.closeTip);
+  const ruleSelect = selectInput(rule.control, "io-select", {
+    options: VALUE_RULE_OPTIONS,
+    value: mine ? mine.valueRule : "raw",
+    label: VALUE_RULE_NAME + " for " + row.strictName
+  });
+  ruleSelect.disabled = !o.enabled;
+  ruleSelect.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    commit(() => {
+      o.model.setYamlValueRule(row.key, ruleSelect.value);
+    });
+  }));
+  if (cfg) {
+    const written = itemRow(detail, {
+      name: WRITTEN_NAME,
+      desc: WRITTEN_DESC,
+      tip: WRITTEN_TIP,
+      tipId: "io-field-yaml-written-tip",
+      showTips: o.showTips
+    });
+    closers.push(written.closeTip);
+    const example = yamlExamples(rows, cfg)[row.key] || "";
+    const box = el(written.control, "div", "io-yamlex" + (example ? "" : " io-yamlex--empty"));
+    el(box, "div", "io-yamlex__line", example || NOT_WRITTEN);
+  }
   return () => {
     closers.forEach((fn) => fn());
   };
@@ -32815,10 +33287,16 @@ function flatten(tree) {
   }
   return out;
 }
+function themePair(node) {
+  return {
+    fill: cssVarValue(node, "--interactive-accent"),
+    text: cssVarValue(node, "--text-on-accent")
+  };
+}
 function plain(token) {
   return String(token || "").trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "");
 }
-function previewCell(host, o, v) {
+function previewCell(host, o, theme, v) {
   const cell = el(host, "div", "io-vals__prev");
   applyTagVars(cell, o.ctx);
   bubble(cell, {
@@ -32830,7 +33308,7 @@ function previewCell(host, o, v) {
     depth: 0
   });
   if (v.shown === "empty") return;
-  const ratio = contrastRatio(v.fill, v.text);
+  const ratio = contrastRatio(v.fill || theme.fill, v.text || theme.text);
   if (ratio >= CONTRAST_FLOOR) return;
   const warn = el(cell, "span", "io-warn", "\u26A0");
   const note = contrastWarning(ratio);
@@ -32838,6 +33316,7 @@ function previewCell(host, o, v) {
 }
 function renderValuesTable(host, row, o) {
   const ve = o.model.valuesEditor(row.key);
+  const theme = themePair(host);
   const isLink = ve.kind === "wikilink";
   const closers = [];
   const head = el(host, "div", "io-sub io-item__namerow");
@@ -33029,7 +33508,7 @@ function renderValuesTable(host, row, o) {
       };
       color("fillColor", "Fill color", "pkm:visuals:tag:fill");
       color("textColor", "Text color", "pkm:visuals:tag:text");
-      previewCell(line, o, {
+      previewCell(line, o, theme, {
         token: v.token,
         fill: visual.fillColor,
         text: visual.textColor,
@@ -33245,13 +33724,14 @@ function renderFieldsEditor(host, o) {
     wrap.remove();
   };
 }
-var TYPE_LABEL, TYPE_COLOR, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_NAME, SHORT_NAME_DESC, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PREREQ_NAME, PREREQ_DESC, PREREQ_TIP, PREREQ_OPTIONS, PREREQ_FIELD_NAME, PREREQ_FIELD_DESC, PREREQ_FIELD_TIP, PREREQ_FIELD_NONE, PREREQ_VALUE_NAME, PREREQ_VALUE_DESC, PREREQ_VALUE_TIP, PREREQ_VALUE_ANY, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
+var TYPE_LABEL, TYPE_COLOR, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_NAME, SHORT_NAME_DESC, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PREREQ_NAME, PREREQ_DESC, PREREQ_TIP, PREREQ_OPTIONS, PREREQ_FIELD_NAME, PREREQ_FIELD_DESC, PREREQ_FIELD_TIP, PREREQ_FIELD_NONE, PREREQ_VALUE_NAME, PREREQ_VALUE_DESC, PREREQ_VALUE_TIP, PREREQ_VALUE_ANY, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, PROPERTY_PLACEHOLDER, CARDINALITY_NAME, CARDINALITY_DESC, CARDINALITY_TIP, VALUE_RULE_NAME, VALUE_RULE_DESC, VALUE_RULE_TIP, WRITTEN_NAME, WRITTEN_DESC, WRITTEN_TIP, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
 var init_fields_editor_view = __esm({
   "src/ui/settings/custom/fields_editor_view.ts"() {
     "use strict";
     init_dom();
     init_contrast();
     init_previews();
+    init_yaml_property();
     TYPE_LABEL = {
       tag: "Tag",
       wikilink: "Link",
@@ -33312,9 +33792,19 @@ var init_fields_editor_view = __esm({
     PREREQ_VALUE_TIP = "Left at <code>Any Value</code> this Field appears as soon as the prerequisite Field has a Value of any kind. Name one, and it waits for that Value alone";
     PREREQ_VALUE_ANY = "Any Value";
     PROPERTY_HEAD = "YAML property";
-    PROPERTY_HEAD_TIP = "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note \u2014 the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Leave it empty and the Field is simply not copied";
+    PROPERTY_HEAD_TIP = "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note \u2014 the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied";
     PROPERTY_NAME = "Property";
     PROPERTY_DESC = "If you use inline2note, to which YAML property this Field should go";
+    PROPERTY_PLACEHOLDER = "select Property";
+    CARDINALITY_NAME = "Property type";
+    CARDINALITY_DESC = "Whether the property holds one Value or a list";
+    CARDINALITY_TIP = "<b>Auto</b> works it out for you: a list when more than one Field writes to the same property, a single Value otherwise. Set it by hand only when Auto guesses wrong";
+    VALUE_RULE_NAME = "How to show Value in YAML";
+    VALUE_RULE_DESC = "How the Value is written into the property";
+    VALUE_RULE_TIP = "<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> strips the decoration \u2014 no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link \u2014 which is what you want if you plan to search or sort by the property. The rule belongs to the Field and applies to every one of its Values";
+    WRITTEN_NAME = "Preview";
+    WRITTEN_DESC = "How this Value will look like in YAML";
+    WRITTEN_TIP = "It follows the three choices above and updates as you change them. Two Fields can share one property name, and then both Values go into the same list";
     BEHAVIOR_TIP = "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. <b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. <b>Free</b> inserts the Value where the cursor is now";
     STEP_OPTIONS = [
       { value: "increment", label: "Fixed step" },
@@ -33444,7 +33934,7 @@ function confirmDeleteModal(Modal2, app2, fieldName, done) {
   }
   new DeleteFieldModal(app2).open();
 }
-var import_fields_editor_legacy, helpers, EDITOR_PATHS, fieldsEditor;
+var import_fields_editor_legacy2, helpers2, EDITOR_PATHS, fieldsEditor;
 var init_fields_editor = __esm({
   "src/ui/settings/custom/fields_editor.ts"() {
     "use strict";
@@ -33452,8 +33942,8 @@ var init_fields_editor = __esm({
     init_keepview();
     init_fields_model();
     init_fields_editor_view();
-    import_fields_editor_legacy = __toESM(require_fields_editor_legacy());
-    helpers = import_fields_editor_legacy.default;
+    import_fields_editor_legacy2 = __toESM(require_fields_editor_legacy());
+    helpers2 = import_fields_editor_legacy2.default;
     EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips"];
     fieldsEditor = (host, ctx) => {
       const p = ctx.platform;
@@ -33484,7 +33974,7 @@ var init_fields_editor = __esm({
             normalizePkmOrder: p.normalizePkmOrder,
             pkmOrderFields: p.pkmOrderFields,
             cfg: p.getConfig(),
-            deepState: helpers.getOrderDeepEditorState()
+            deepState: helpers2.getOrderDeepEditorState()
           });
           close = renderFieldsEditor(next, {
             model,
@@ -34949,6 +35439,7 @@ var init_obsidian_tab = __esm({
             Setting: import_obsidian.Setting,
             Notice: import_obsidian.Notice,
             Modal: import_obsidian.Modal,
+            AbstractInputSuggest: import_obsidian.AbstractInputSuggest,
             setIcon: (node, icon) => {
               (0, import_obsidian.setIcon)(node, icon);
             },
@@ -35839,20 +36330,20 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createTagWheelConfigCodec === "function")
       });
       if (loaded.mod && typeof loaded.mod.createTagWheelConfigCodec === "function") {
-        const helpers2 = getConfigNoteHelpers();
+        const helpers3 = getConfigNoteHelpers();
         const codec = loaded.mod.createTagWheelConfigCodec({
           isObj,
           getOrderStrictName,
           ORDER_KEY_TO_LEFT_FIELD_ID,
-          getFieldById: helpers2.getFieldById,
-          getLeftFields: helpers2.getLeftFields,
-          getRightFields: helpers2.getRightFields,
-          collectTagSections: helpers2.collectTagSections,
-          collectWikilinkFieldIds: helpers2.collectWikilinkFieldIds,
-          collectOrderedElementFields: helpers2.collectOrderedElementFields,
-          getPrefixRulesFromCfg: helpers2.getPrefixRulesFromCfg,
+          getFieldById: helpers3.getFieldById,
+          getLeftFields: helpers3.getLeftFields,
+          getRightFields: helpers3.getRightFields,
+          collectTagSections: helpers3.collectTagSections,
+          collectWikilinkFieldIds: helpers3.collectWikilinkFieldIds,
+          collectOrderedElementFields: helpers3.collectOrderedElementFields,
+          getPrefixRulesFromCfg: helpers3.getPrefixRulesFromCfg,
           denormTagToken,
-          parseCustomPrefixResolverBlock: helpers2.parseCustomPrefixResolverBlock,
+          parseCustomPrefixResolverBlock: helpers3.parseCustomPrefixResolverBlock,
           isWikilinkToken,
           parseWikilinkLineStrict,
           extractFirstTagToken,
@@ -36001,14 +36492,14 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createConfigNoteHelpers === "function")
       });
       if (loaded.mod && typeof loaded.mod.createConfigNoteHelpers === "function") {
-        const helpers2 = loaded.mod.createConfigNoteHelpers({
+        const helpers3 = loaded.mod.createConfigNoteHelpers({
           isObj,
           normalizePkmOrder,
           getOrderStrictName,
           TAGWHEEL_PREFIX_RESOLVER_H3
         });
-        if (hasValidConfigNoteHelpers(helpers2)) {
-          __configNoteHelpers = helpers2;
+        if (hasValidConfigNoteHelpers(helpers3)) {
+          __configNoteHelpers = helpers3;
           return __configNoteHelpers;
         }
       }
@@ -39683,7 +40174,7 @@ var require_main = __commonJS({
         await loadTagWheelConfigCodecSafe(this.app);
         const cfg = this.getConfig();
         const orch = getConfigNoteOrchestrator();
-        const helpers2 = getConfigNoteHelpers();
+        const helpers3 = getConfigNoteHelpers();
         if (!orch) throw new Error("Config note orchestrator unavailable");
         return await orch.applyTagWheelConfigNote({
           app: this.app,
@@ -39694,16 +40185,16 @@ var require_main = __commonJS({
           getOrderStrictName,
           isObj,
           cloneJson,
-          collectTagSections: helpers2.collectTagSections,
-          getFieldById: helpers2.getFieldById,
+          collectTagSections: helpers3.collectTagSections,
+          getFieldById: helpers3.getFieldById,
           extractFieldMetaMap,
           rebuildTagValues,
           rebuildSubtagValues,
           denormTagToken,
-          getPrefixRulesFromCfg: helpers2.getPrefixRulesFromCfg,
-          collectCheckboxTokensFromMap: helpers2.collectCheckboxTokensFromMap,
+          getPrefixRulesFromCfg: helpers3.getPrefixRulesFromCfg,
+          collectCheckboxTokensFromMap: helpers3.collectCheckboxTokensFromMap,
           deepMerge,
-          syncCustomPrefixResolverBlock: helpers2.syncCustomPrefixResolverBlock,
+          syncCustomPrefixResolverBlock: helpers3.syncCustomPrefixResolverBlock,
           normalizePkmOrder,
           CFG_H2_DATES
         });

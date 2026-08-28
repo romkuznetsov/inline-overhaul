@@ -157,6 +157,30 @@ export function rich(host: El, text: string): El {
   return host;
 }
 
+/**
+ * Значение CSS-переменной темы, как её видит браузер. Пусто — прочитать не
+ * удалось: в заглушке DOM `getComputedStyle` нет, и это не ошибка.
+ *
+ * Нужна ровно для одного: посчитать контраст пары цветов, когда один из них
+ * не задан человеком и приходит из темы (`--text-on-accent` у пузыря Value).
+ * Без этого проверка контраста молчала именно там, где цвет опаснее всего —
+ * белый текст на жёлтой заливке (замечание заказчика 2026-08-28).
+ *
+ * Цвет здесь только читается. Литералов не появляется, З6 в силе.
+ */
+export function cssVarValue(node: El, name: string): string {
+  try {
+    const view = (globalThis as { window?: { getComputedStyle?: (n: unknown) => { getPropertyValue(p: string): string } } }).window;
+    if (!view || typeof view.getComputedStyle !== "function") return "";
+    const style = view.getComputedStyle(node);
+    if (!style || typeof style.getPropertyValue !== "function") return "";
+    return String(style.getPropertyValue(name) || "").trim();
+  } catch {
+    /* Заглушка или узел вне дерева — считать нечего, и пугать значком нельзя. */
+    return "";
+  }
+}
+
 /** Значение CSS-переменной. Другие свойства свой блок не задаёт (Г1). */
 export function cssVar(node: El, name: string, value: string): void {
   if (!name.startsWith("--io-")) throw new Error("свой блок задаёт только --io-*: " + name);

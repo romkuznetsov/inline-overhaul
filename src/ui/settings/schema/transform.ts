@@ -5,7 +5,6 @@
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
  *   inline-to-note: i2n-button-preview (custom)
- *   note-properties: yaml-mapping (custom)
  *   smart-rules: smart-rules-list (custom)
  */
 

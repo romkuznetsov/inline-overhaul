@@ -260,6 +260,12 @@ else ok("схема загружена: групп " + SCHEMA.length);
     ui: {},
     pkm: {
       behavior: {
+        /*
+         * Separator обязателен: `parseInlineLine` без него бросает исключение,
+         * а блок свойств заметки (10.9) отдаёт ему выдуманную строку. Без этих
+         * двух ключей Г16 рисовал бы блок без примера и проверял пустое место.
+         */
+        io: { separator1: "||", separator2: "||" },
         order: { left: ["status"], right: [], lead: {}, labels: { status: "Status" }, types: { status: "tag" } },
         leftMode: { fields: [{ id: "status", orderKey: "status", values: [{ token: "#todo" }] }] },
         rightMode: { fields: [] },

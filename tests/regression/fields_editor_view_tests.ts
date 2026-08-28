@@ -110,6 +110,13 @@ function makeConfig(): Any {
             status: {
               "#todo": { fillColor: "#222222", textColor: "#ffffff", visibility: "default", customText: "" },
               "#doing": { fillColor: "#ffff00", textColor: "#ffffff", visibility: "default", customText: "" },
+              /*
+               * Заливка задана, цвет текста — нет. Ровно тот случай, из-за
+               * которого значок контраста появлялся не там (замечание
+               * заказчика 2026-08-28): пузырь всё равно нарисован — цветом
+               * темы, — и белое на жёлтом читается хуже белого на красном.
+               */
+              "#early": { fillColor: "#ffff00", textColor: "", visibility: "default", customText: "" },
             },
           },
         },
@@ -720,9 +727,51 @@ function dragToSide(from: StubNode, side: StubNode): void {
     "белое на почти чёрном читается, и значка нет");
   const warn = all(rows[2] as StubNode, "io-warn");
   assert.equal(warn.length, 1, "белое на жёлтом не читается, и значок есть");
-  assert.ok(String((warn[0] as StubNode).getAttribute("aria-label") || "").includes("aim for 4.5:1"),
+  assert.ok(String((warn[0] as StubNode).getAttribute("aria-label") || "").includes("aim for 3:1"),
     "подсказка называет и текущее отношение, и нужное");
   ok("Н15: нечитаемая пара цветов помечена тихим значком с числом");
+}
+
+/* ---- Н15 и незаданный цвет текста (замечание заказчика 2026-08-28) ----- */
+
+/*
+ * Значок появлялся только у Value, где человек выставил ОБА цвета. Незаданный
+ * цвет означал «претензий нет», хотя пузырь всё равно нарисован — цветом темы,
+ * `--text-on-accent`. От этого белое на красном (4.0:1) значок получало, а
+ * белое на жёлтом (1.7:1) — нет, хотя читается хуже.
+ *
+ * Теперь считается пара цветов, которыми Value НАРИСОВАН. Тему читает
+ * `getComputedStyle`; заглушка DOM отдаёт пустое — и тогда значка нет, как и
+ * раньше: гадать о цвете темы панель не должна.
+ */
+{
+  const rowWithFillOnly = (onAccent: string): number => {
+    const view = (globalThis as unknown as { window: Any }).window;
+    const real = view.getComputedStyle;
+    view.getComputedStyle = () => ({
+      getPropertyValue: (name: string) => (name === "--text-on-accent" ? onAccent : ""),
+    });
+    try {
+      const v = makeView();
+      /*
+       * Вторая строка таблицы — дочернее значение `#early`: заливка есть, цвет
+       * текста не задан. Дочернее идёт сразу за своим родителем, поэтому его
+       * место второе, а `#doing` — третье.
+       */
+      const rows = all(v.host, "io-vals__row");
+      return all(rows[1] as StubNode, "io-warn").length;
+    } finally {
+      view.getComputedStyle = real;
+    }
+  };
+
+  assert.equal(rowWithFillOnly(""), 0,
+    "тему прочитать нечем — значка нет: гадать панель не должна");
+  assert.equal(rowWithFillOnly("rgb(255, 255, 255)"), 1,
+    "белый текст темы на жёлтой заливке — значок есть, хотя цвет текста не задан");
+  assert.equal(rowWithFillOnly("#1a1a1a"), 0,
+    "а тёмный текст темы на той же заливке читается, и значка нет");
+  ok("Н15: контраст считается по нарисованным цветам, а не только по заданным");
 }
 
 /* ---- Value: правка, удаление, добавление ------------------------------- */
@@ -816,7 +865,14 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.equal(all(v.host, "io-vals").length, 0, "у element таблицы Values нет");
   const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
   assert.deepEqual(names,
-    [SHORT_NAME, "Active", "Prefix behavior", "Prerequisite Field", "Property",
+    [SHORT_NAME, "Active", "Prefix behavior", "Prerequisite Field",
+      /*
+       * Раздел `YAML property` целиком: решение заказчика 2026-08-28 перенесло
+       * сюда настройки из блока `Note properties` (10.9). Строки `Written as`
+       * здесь нет — она считается движком по конфигу, а платформы у этой
+       * проверки вёрстки нет; это её условие, а не пропуск.
+       */
+      "Property", "Property type", "How to show Value in YAML",
       "Emoji-prefix", "Value format", "Steps by", "Command"],
     "у element показаны маркер, формат и способ шага, и только то, чем шагает текущий режим");
   ok("Ф6: у Field типа element строки маркера, формата и шага вместо таблицы Values");
@@ -1271,6 +1327,12 @@ function dragToSide(from: StubNode, side: StubNode): void {
     .map(r => String(all(r, "io-item__name")[0]?.textContent || "").trim());
   assert.deepEqual(withTip,
     [SHORT_NAME, "Active", "Prefix behavior", "Prerequisite Field",
+      /*
+       * У `Property` своей «?» нет — она стоит у заголовка раздела, и два
+       * знака оказались бы рядом. У двух настроек, приехавших из блока
+       * `Note properties` решением заказчика 2026-08-28, свои есть.
+       */
+      "Property type", "How to show Value in YAML",
       "Emoji-prefix", "Value format", "Steps by", "Command"],
     "подсказка есть у каждой строки Field типа Emoji, кроме свойства заметки: у того подсказка стоит у заголовка раздела");
   ok("второй круг 6: у каждой строки Field типа Emoji есть подсказка");

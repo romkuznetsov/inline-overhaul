@@ -6,7 +6,14 @@
  * него, поэтому гейты работают на заглушке.
  */
 
-import { Modal, Notice, PluginSettingTab, Setting as SettingCtor, setIcon } from "obsidian";
+import {
+  AbstractInputSuggest,
+  Modal,
+  Notice,
+  PluginSettingTab,
+  Setting as SettingCtor,
+  setIcon,
+} from "obsidian";
 import type { App, Setting, SettingDefinitionItem } from "obsidian";
 
 import { SCHEMA, TABS } from "./schema/index.ts";
@@ -149,6 +156,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
           Setting: SettingCtor,
           Notice,
           Modal,
+          AbstractInputSuggest,
           setIcon: (node: unknown, icon: string) => { setIcon(node as HTMLElement, icon); },
           plugin,
           getConfig: () => (typeof plugin.getConfig === "function" ? plugin.getConfig() : {}),

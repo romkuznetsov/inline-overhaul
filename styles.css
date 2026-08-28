@@ -1072,3 +1072,57 @@
   min-width: 0;
   font-size: var(--font-ui-smaller);
 }
+
+/* ======================================================================
+ * Свойства заметки: таблица Field → свойство и блок YAML (PRD 10.9).
+ *
+ * Геометрия снята с прототипа. Два отличия названы на месте: тень берётся
+ * переменной темы (З6 запрещает литералы цвета, а в прототипе там rgba), и
+ * ширину поля свойства задаёт правило, а не инлайновый стиль (Г1).
+ * ====================================================================== */
+
+/*
+ * Раздел `YAML property` правой колонки: `Preview` показывает строку,
+ * которую запишет команда `Inline to note` (10.9 Я1).
+ *
+ * Стоит справа, в колонке контролов, и ровно той ширины, что поле свойства
+ * над ним (замечание заказчика 2026-08-28): строка читается как остальные.
+ * Это не контрол, а вывод — потому рамка и моноширинный шрифт; длинная
+ * строка переносится внутри рамки, а не уезжает за край.
+ */
+.io-yamlex {
+  width: 172px;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-secondary);
+}
+.io-yamlex__line {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-normal);
+  overflow-wrap: anywhere;
+}
+/* Писать нечего — рамка тише, и текст в ней курсивом, как пустое состояние. */
+.io-yamlex--empty { background: transparent; }
+.io-yamlex--empty .io-yamlex__line {
+  color: var(--text-faint);
+  font-style: italic;
+  font-family: var(--font-ui);
+}
+
+/*
+ * Строка родной подсказки имён свойств: имя слева, тип в vault справа.
+ * Поповер рисует Obsidian (`AbstractInputSuggest`), наше здесь — только
+ * две подписи внутри его строки.
+ */
+.io-suggest__type {
+  margin-left: 10px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.io-fields .io-text--mono.io-text--prop { font-family: var(--font-mono); }

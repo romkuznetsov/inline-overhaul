@@ -422,6 +422,19 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
   { shape: "pkm:behavior:order:delete:*", why: "удаление Field: старая карта диалог не подтверждала" },
   { shape: "pkm:behavior:delete-field:*", why: "вторая запись удаления Field, там же" },
   {
+    shape: "pkm:behavior:yaml:cardinality:*",
+    why: "тип свойства заметки: одно значение или список. Настройка приехала к Field решением "
+      + "заказчика 2026-08-28 вместе с остальным содержимым блока `Note properties` (10.9); "
+      + "у старой доски её не было, а движок ключ `yamlCardinality` у определения Field читал "
+      + "и до этого",
+  },
+  {
+    shape: "pkm:behavior:yaml:value-rule:*",
+    why: "правило значения `Raw` / `Clean` у Field. Оттуда же и того же дня; движок научен "
+      + "читать его в этот же заход (PRD 10.9 Я7), до того правило было одно на весь vault "
+      + "и жило контролом только в старой панели",
+  },
+  {
     shape: "pkm:behavior:order:prerequisite:*",
     why: "предусловие Field (10.13.4): новая настройка, принятая заказчиком 2026-08-27. "
       + "Снимается сценарием из двух шагов: строка выбора Field появляется только после `Yes`",
@@ -435,7 +448,13 @@ const NEW_REASONS: Array<{ shape: string; why: string }> = [
 const DROPPED_REASONS: Array<{ shape: string; why: string }> = [
   { shape: "pkm:behavior:order:strict:*", why: "переименование системного имени Field снято решением заказчика 2026-08-27: имя задаётся один раз в окне Add Field" },
   { shape: "pkm:visuals:user-tags:add", why: "блок «Color your Tags» уезжает своим блоком на вкладку Visual в фазе 3c" },
-  { shape: "pkm:behavior:order:deep:yaml:*", why: "свойство заметки у отдельного Value: приезжает с блоком Note properties (10.9) на этапе Transform, решение заказчика 2026-08-27" },
+  {
+    shape: "pkm:behavior:order:deep:yaml:*",
+    why: "свойство заметки у отдельного Value. 3b записала это как «приедет с блоком Note "
+      + "properties (10.9)»; блок 2026-08-28 удалён, а его настройки переехали к Field — то есть "
+      + "имя свойства, тип и правило задаются Field целиком, и правки по отдельному Value среди "
+      + "них нет. Разбор — PRD 10.9 Я9",
+  },
   { shape: "pkm:behavior:order:deep:yaml:*:prefix", why: "вторая запись того же контрола" },
   {
     shape: "pkm:behavior:order:deep:wikilink-parent-field:*",

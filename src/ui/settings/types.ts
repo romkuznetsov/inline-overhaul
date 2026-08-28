@@ -64,6 +64,13 @@ export interface PlatformBits {
   Setting: unknown;
   Notice: unknown;
   Modal: unknown;
+  /**
+   * Родная подсказка ввода Obsidian (`AbstractInputSuggest`, публичный API с
+   * 1.4.10). Своего списка мы не рисуем: платформа даёт клавиатуру, попадание
+   * в тему и правильное положение поповера. Может отсутствовать — тогда поле
+   * работает как обычное поле ввода, без подсказок.
+   */
+  AbstractInputSuggest?: unknown;
   setIcon: (node: unknown, icon: string) => void;
   /** Объект плагина: перенесённый код зовёт его методы как есть. */
   plugin: unknown;

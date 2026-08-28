@@ -668,12 +668,17 @@ function normalizeYamlValueForFormat(rawToken, yamlFormat, row) {
   const fieldType = String(row && row.fieldType || "").trim().toLowerCase();
   const fieldPrefix = String(row && row.fieldPrefix || "").trim();
   if (!token) return "";
+  /*
+   * Raw пишет то, что стоит в строке, — вместе с маркером элемента.
+   * PRD 10.9 Я3, решение заказчика 2026-08-28: до этого элемент терял
+   * маркер в обоих режимах, и выбор Raw/Clean на него не влиял вовсе.
+   */
+  if (mode === "raw") return token;
   if (fieldType === "element") {
     if (fieldPrefix && token.startsWith(fieldPrefix)) return String(token.slice(fieldPrefix.length)).trim();
     const mElement = token.match(/^[\u{1F300}-\u{1FAFF}]\s*(.*)$/u);
     return mElement ? String(mElement[1] || "").trim() : token;
   }
-  if (mode === "raw") return token;
   if (/^#\/\d+$/.test(token)) return Number(String(token.replace(/^#\//, "")).trim());
   if (/^#[^\s#]+$/.test(token)) return String(token.slice(1)).trim();
   if (/^[\u{1F300}-\u{1FAFF}]\d{2}:\d{2}$/u.test(token)) return String(token.slice(2)).trim();
@@ -682,6 +687,19 @@ function normalizeYamlValueForFormat(rawToken, yamlFormat, row) {
   const wl = token.match(/^\[\[([^\]]+)\]\]$/);
   if (wl) return String(wl[1] || "").trim();
   return token;
+}
+
+/**
+ * Правило значения у Field: `raw` или `clean`. Пусто — своего правила нет.
+ *
+ * PRD 10.9 Я3 и решение заказчика 2026-08-28: правило задаётся у Field и
+ * применяется ко всем его значениям; глобальной настройки формата в новой
+ * панели больше нет. Пишет правило блок `Note properties`
+ * (`src/ui/settings/custom/yaml_mapping.ts`) ключом `yamlValueRule`.
+ */
+function normalizeYamlValueRule(raw) {
+  const v = String(raw || "").trim().toLowerCase();
+  return v === "raw" || v === "clean" ? v : "";
 }
 
 function buildYamlMapFromContext(transformContext, cfg) {
@@ -697,6 +715,29 @@ function buildYamlMapFromContext(transformContext, cfg) {
   const propertyFieldCounts = {};
   const listYamlKeys = new Set();
   const configuredFields = getModeFields(cfg);
+  /* Определения по id: правило ищется у того Field, чьё совпадение пришло
+     строкой, а у дочернего — ещё и у родителя. */
+  const fieldDefById = {};
+  for (let i = 0; i < configuredFields.length; i++) {
+    const fid = String(configuredFields[i] && configuredFields[i].id || "").trim();
+    if (fid) fieldDefById[fid] = configuredFields[i];
+  }
+  /**
+   * Правило значения для одного совпадения. Порядок тот же, что у свойства
+   * заметки в `buildTransformContext`: своё, потом родительское, потом общее.
+   * Дочерний Field — отдельная запись `<name>_sub` с `dependsOn`, своего
+   * контрола у неё нет, и без наследования правило Field не дошло бы до его
+   * дочерних значений.
+   */
+  const ruleForFieldId = (fieldId) => {
+    const def = fieldDefById[String(fieldId || "").trim()];
+    const own = normalizeYamlValueRule(def && def.yamlValueRule);
+    if (own) return own;
+    const parentId = String(def && def.dependsOn || "").trim();
+    const parent = parentId ? fieldDefById[parentId] : null;
+    const inherited = normalizeYamlValueRule(parent && parent.yamlValueRule);
+    return inherited || yamlFormat;
+  };
   for (let i = 0; i < configuredFields.length; i++) {
     const field = configuredFields[i];
     const fid = String(field && field.id || "").trim();
@@ -722,7 +763,7 @@ function buildYamlMapFromContext(transformContext, cfg) {
     const yamlKey = String(row.yamlProperty || "").trim();
     const rawToken = String(row.rawToken || "").trim();
     if (!yamlKey || !rawToken) continue;
-    const value = normalizeYamlValueForFormat(rawToken, yamlFormat, row);
+    const value = normalizeYamlValueForFormat(rawToken, ruleForFieldId(row.fieldId), row);
     const isAlwaysListKey = listYamlKeys.has(yamlKey);
     if (!Object.prototype.hasOwnProperty.call(out, yamlKey)) out[yamlKey] = isAlwaysListKey ? [] : value;
     if (isAlwaysListKey) {

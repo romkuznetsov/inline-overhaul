@@ -15,11 +15,19 @@
  */
 
 import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
-import { el, btn, cssVar, rich, selectInput, textInput, tipBelow } from "./dom.ts";
+import { el, btn, cssVar, cssVarValue, rich, selectInput, textInput, tipBelow } from "./dom.ts";
 import type { FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning } from "./contrast.ts";
 import { applyTagVars, bubble } from "./previews.ts";
+import {
+  CARDINALITY_OPTIONS,
+  NOT_WRITTEN,
+  VALUE_RULE_OPTIONS,
+  propertyPicker,
+  vaultProperties,
+  yamlExamples,
+} from "./yaml_property.ts";
 
 /* ---- тексты и цвета типов --------------------------------------------- */
 
@@ -31,7 +39,7 @@ import { applyTagVars, bubble } from "./previews.ts";
  * слово `Element` вместе со стрелками съедал имя Field в узкой левой колонке,
  * и «444» показывалось как «4...».
  */
-const TYPE_LABEL: Record<FieldKind, string> = {
+export const TYPE_LABEL: Record<FieldKind, string> = {
   tag: "Tag",
   wikilink: "Link",
   element: "Emoji",
@@ -42,7 +50,7 @@ const TYPE_LABEL: Record<FieldKind, string> = {
  * намеренно не совпадает с акцентом темы — акцент занят основными действиями,
  * — и потому не может быть взят из переменных Obsidian.
  */
-const TYPE_COLOR: Record<FieldKind, string> = {
+export const TYPE_COLOR: Record<FieldKind, string> = {
   tag: "var(--io-type-tag)",
   wikilink: "var(--io-type-link)",
   element: "var(--io-type-element)",
@@ -180,16 +188,41 @@ const PROPERTY_HEAD = "YAML property";
 const PROPERTY_HEAD_TIP =
   "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can "
   + "be written into a property of that note — the same properties you see at the top of a note in "
-  + "Obsidian. This is where you say which property a Field goes to. Leave it empty and the Field "
-  + "is simply not copied";
+  + "Obsidian. This is where you say which property a Field goes to. Start typing and it offers the "
+  + "ones your vault already uses. Leave it empty and the Field is simply not copied";
 const PROPERTY_NAME = "Property";
 const PROPERTY_DESC = "If you use inline2note, to which YAML property this Field should go";
+/* Подсказка в пустом поле: замечание заказчика 2026-08-27, третий круг. */
+const PROPERTY_PLACEHOLDER = "select Property";
 /*
- * Пока в разделе одна настройка — имя свойства. Тип (одно значение или список)
- * и правило значения (сырое или очищенное) приедут сюда же вместе с блоком
- * `Note properties` на вкладке Transform (10.9): решение заказчика 2026-08-27.
- * Ради них раздел и сделан отдельным заголовком, а не строкой.
+ * Полный набор настроек свойства (10.9). Приехал сюда решением заказчика
+ * 2026-08-28: прототип держал их таблицей в блоке `Note properties` на вкладке
+ * Transform, а место им — там, где настраивается сам Field. Блок удалён,
+ * тексты сняты с него.
  */
+const CARDINALITY_NAME = "Property type";
+const CARDINALITY_DESC = "Whether the property holds one Value or a list";
+const CARDINALITY_TIP =
+  "<b>Auto</b> works it out for you: a list when more than one Field writes to the same property, "
+  + "a single Value otherwise. Set it by hand only when Auto guesses wrong";
+
+/* Имя задано заказчиком 2026-08-28. Шесть слов — больше пяти, которые
+   разрешает линтер текстов Г10; исключение записано в PRD 10.9, чтобы
+   фаза 4 не переименовала обратно. */
+const VALUE_RULE_NAME = "How to show Value in YAML";
+const VALUE_RULE_DESC = "How the Value is written into the property";
+const VALUE_RULE_TIP =
+  "<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> "
+  + "strips the decoration — no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> "
+  + "around a link — which is what you want if you plan to search or sort by the property. The rule "
+  + "belongs to the Field and applies to every one of its Values";
+
+const WRITTEN_NAME = "Preview";
+/* Текст задан заказчиком 2026-08-28. */
+const WRITTEN_DESC = "How this Value will look like in YAML";
+const WRITTEN_TIP =
+  "It follows the three choices above and updates as you change them. Two Fields can share one "
+  + "property name, and then both Values go into the same list";
 const BEHAVIOR_TIP =
   "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. "
   + "<b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. "
@@ -804,28 +837,136 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     id: "io-field-property-tip",
     showTips: o.showTips,
   }));
+  closers.push(yamlPropertyRows(detail, row, o));
+
+  /* У `element` значений нет: у него маркер, формат и способ шага (Ф6). */
+  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
+  else closers.push(renderValuesTable(detail, row, o));
+
+  return () => { closers.forEach(fn => fn()); };
+}
+
+/**
+ * Раздел `YAML property`: имя свойства, тип, правило значения и то, что будет
+ * записано (10.9 Я1–Я4).
+ *
+ * Пример в последней строке считает движок, а не панель: `yamlExamples`
+ * отдаёт ему выдуманную строку и возвращает то, что он запишет. Панель тут
+ * ничего не вычисляет — иначе разошлась бы с движком на ближайшей правке (П9).
+ *
+ * Конфиг для этого берётся у платформы. Её нет в проверках вёрстки, и тогда
+ * строки примера просто нет: показать вместо него догадку было бы хуже.
+ */
+function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => void {
+  const closers: Array<() => void> = [];
+  /*
+   * Запись и перерисовка развязаны, и это не осторожность впрок.
+   * `plugin.setConfigPatch` после самой записи делает многое: лог dev-режима,
+   * пересборку правил, перерисовку TagWheel. Исключение оттуда прилетало
+   * наружу — запись при этом уже прошла, а до `redraw` дело не доходило, и
+   * экран оставался прежним до перехода по вкладкам (замечание заказчика
+   * 2026-08-28: «в Preview ничего не меняется»). Теперь перерисовка идёт в
+   * `finally`, а сбой записи виден в консоли, а не в интерфейсе (З8).
+   */
+  const commit = (write: () => void): void => {
+    try {
+      write();
+    } catch (e) {
+      console.error("inline-overhaul: запись свойства заметки не удалась", e);
+    } finally {
+      o.redraw();
+    }
+  };
+  const cfg = o.ctx.platform ? o.ctx.platform.getConfig() : null;
+  const rows = o.model.listYamlFields();
+  const mine = rows.find(r => r.key === row.key);
+
+  /*
+   * У строки `Property` своей «?» нет: подсказка раздела стоит прямо над ней,
+   * и два знака оказались бы рядом (замечание заказчика 2026-08-27). Всё, что
+   * нужно сказать про имя свойства, сказано в подсказке заголовка.
+   */
   const property = itemRow(detail, {
     name: PROPERTY_NAME,
     desc: PROPERTY_DESC,
     showTips: o.showTips,
   });
-  /* Поле шириной с выпадающий список `Prefix behavior` над ним: два контрола
-     в одном столбце, и разная ширина читалась как разный вид настройки
-     (замечание заказчика 2026-08-27). */
-  const propertyInput = textInput(property.control, "io-text io-text--mono io-text--prop", {
+  /*
+   * Имена свойств подсказываются из vault (Я4). Приватное API может не
+   * ответить — тогда список пуст, и поле работает как обычное поле ввода.
+   */
+  const app = o.ctx.platform ? (o.ctx.platform.plugin as { app?: unknown }).app : null;
+  propertyPicker(property.control, {
     value: row.property,
-    placeholder: "select Property",
-    label: "YAML property for " + row.strictName,
+    label: row.strictName,
+    placeholder: PROPERTY_PLACEHOLDER,
+    props: vaultProperties(app),
+    /* Подсказку рисует платформа; без класса поле остаётся обычным полем. */
+    suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest
+      ? { ctor: o.ctx.platform.AbstractInputSuggest, app }
+      : undefined,
+    enabled: o.enabled,
+    write: value => commit(() => { o.model.setProperty(row.key, value); }),
   });
-  propertyInput.disabled = !o.enabled;
-  propertyInput.addEventListener("change", (() => {
+
+  const cardinality = itemRow(detail, {
+    name: CARDINALITY_NAME,
+    desc: CARDINALITY_DESC,
+    tip: CARDINALITY_TIP,
+    tipId: "io-field-yaml-type-tip",
+    showTips: o.showTips,
+  });
+  closers.push(cardinality.closeTip);
+  const holds = selectInput(cardinality.control, "io-select", {
+    options: CARDINALITY_OPTIONS,
+    value: mine ? mine.cardinality : "auto",
+    label: CARDINALITY_NAME + " for " + row.strictName,
+  });
+  holds.disabled = !o.enabled;
+  holds.addEventListener("change", (() => {
     if (!o.enabled) return;
-    o.model.setProperty(row.key, propertyInput.value);
+    commit(() => { o.model.setYamlCardinality(row.key, holds.value); });
   }) as never);
 
-  /* У `element` значений нет: у него маркер, формат и способ шага (Ф6). */
-  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
-  else closers.push(renderValuesTable(detail, row, o));
+  const rule = itemRow(detail, {
+    name: VALUE_RULE_NAME,
+    desc: VALUE_RULE_DESC,
+    tip: VALUE_RULE_TIP,
+    tipId: "io-field-yaml-rule-tip",
+    showTips: o.showTips,
+  });
+  closers.push(rule.closeTip);
+  const ruleSelect = selectInput(rule.control, "io-select", {
+    options: VALUE_RULE_OPTIONS,
+    value: mine ? mine.valueRule : "raw",
+    label: VALUE_RULE_NAME + " for " + row.strictName,
+  });
+  ruleSelect.disabled = !o.enabled;
+  ruleSelect.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    commit(() => { o.model.setYamlValueRule(row.key, ruleSelect.value); });
+  }) as never);
+
+  if (cfg) {
+    /*
+     * Превью стоит справа, в колонке контролов, и той же ширины, что поле
+     * свойства над ним (замечание заказчика 2026-08-28): строка настройки
+     * читается как остальные, а не как выпадающий из ряда абзац. Это не
+     * контрол, а вывод, поэтому рамка и моноширинный шрифт, а длинная строка
+     * переносится внутри рамки, а не уезжает за край.
+     */
+    const written = itemRow(detail, {
+      name: WRITTEN_NAME,
+      desc: WRITTEN_DESC,
+      tip: WRITTEN_TIP,
+      tipId: "io-field-yaml-written-tip",
+      showTips: o.showTips,
+    });
+    closers.push(written.closeTip);
+    const example = yamlExamples(rows, cfg)[row.key] || "";
+    const box = el(written.control, "div", "io-yamlex" + (example ? "" : " io-yamlex--empty"));
+    el(box, "div", "io-yamlex__line", example || NOT_WRITTEN);
+  }
 
   return () => { closers.forEach(fn => fn()); };
 }
@@ -844,6 +985,25 @@ function flatten(tree: readonly ValueTreeRow[]): Array<{ row: ValueTreeRow; at: 
   return out;
 }
 
+/**
+ * Цвета, которыми пузырь Value нарисован, когда своих у него нет. Те же, что
+ * в `.io-bubble` (`styles.css`): заливка — акцент темы, текст — «текст на
+ * цветной подложке». Заметка с 2026-08-28 рисует тем же (`TagVisualTokenWidget`).
+ *
+ * Пусто — прочитать тему нечем (заглушка DOM), и тогда контраст не считается.
+ */
+interface ThemePair {
+  fill: string;
+  text: string;
+}
+
+function themePair(node: El): ThemePair {
+  return {
+    fill: cssVarValue(node, "--interactive-accent"),
+    text: cssVarValue(node, "--text-on-accent"),
+  };
+}
+
 /** Значение без решётки: её ставит отрисовка пузыря. */
 function plain(token: string): string {
   return String(token || "").trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "");
@@ -854,7 +1014,7 @@ function plain(token: string): string {
  * если его не прочесть (Н15–Н18). Пузырь рисуется тем же кодом, что и живые
  * предпросмотры, — иначе редактор и предпросмотр однажды разойдутся (П9).
  */
-function previewCell(host: El, o: FieldsViewOpts, v: {
+function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
   token: string;
   fill: string;
   text: string;
@@ -873,7 +1033,14 @@ function previewCell(host: El, o: FieldsViewOpts, v: {
   });
   /* У пустого Value текста нет, читать нечего (Н18). */
   if (v.shown === "empty") return;
-  const ratio = contrastRatio(v.fill, v.text);
+  /*
+   * Сравниваются цвета, которыми Value НАРИСОВАН, а не только заданные руками.
+   * До 2026-08-28 незаданный цвет текста означал «претензий нет», и значок
+   * появлялся лишь у Value, где человек выставил оба цвета: белое на красном
+   * (4.0:1) значок получало, а белое на жёлтом (1.7:1) — нет, хотя читается
+   * хуже. Незаданный цвет — не отсутствие цвета, а цвет темы.
+   */
+  const ratio = contrastRatio(v.fill || theme.fill, v.text || theme.text);
   if (ratio >= CONTRAST_FLOOR) return;
   const warn = el(cell, "span", "io-warn", "\u26A0");
   /* Одна подсказка на узел — и только `aria-label`: `title` рисует вторую. */
@@ -888,6 +1055,9 @@ function previewCell(host: El, o: FieldsViewOpts, v: {
  */
 export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): () => void {
   const ve: ValuesEditor = o.model.valuesEditor(row.key);
+  /* Один раз на таблицу: чтение темы — обращение к раскладке, и в цикле по
+     значениям ему делать нечего. */
+  const theme = themePair(host);
   const isLink = ve.kind === "wikilink";
   const closers: Array<() => void> = [];
 
@@ -1113,7 +1283,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       color("fillColor", "Fill color", "pkm:visuals:tag:fill");
       color("textColor", "Text color", "pkm:visuals:tag:text");
 
-      previewCell(line, o, {
+      previewCell(line, o, theme, {
         token: v.token,
         fill: visual.fillColor,
         text: visual.textColor,

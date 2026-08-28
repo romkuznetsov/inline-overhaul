@@ -28,6 +28,24 @@ assert.ok(contrastRatio("#ffffff", "#767676") >= CONTRAST_FLOOR,
   "именно эта пара проходит порог: на ней держится граница");
 ok("#767676 на белом даёт 4.54:1 и проходит порог");
 
+/*
+ * Порог 3:1 (решение заказчика 2026-08-28): белое на красном читается и значка
+ * не получает, белое на жёлтом и зелёном — получает. Это ровно те три цвета, на
+ * которых заказчик и заметил, что проверка работает странно.
+ */
+assert.ok(contrastRatio("#ff0000", "#ffffff") >= CONTRAST_FLOOR,
+  "белое на красном (4.0:1) проходит порог 3:1");
+assert.ok(contrastRatio("#e6c700", "#ffffff") < CONTRAST_FLOOR,
+  "белое на жёлтом (1.7:1) не проходит");
+assert.ok(contrastRatio("#00d118", "#ffffff") < CONTRAST_FLOOR,
+  "белое на зелёном (2.1:1) не проходит");
+ok("порог 3:1 разводит настоящие цвета заказчика так же, как глаз");
+
+/* Цвет из темы приходит от `getComputedStyle` именно в этой записи. */
+near(contrastRatio("rgb(255, 255, 255)", "#000000"), 21, "rgb() из темы");
+near(contrastRatio("rgba(255, 255, 255, 0.9)", "#000000"), 21, "rgba() из темы");
+ok("цвет темы в записи rgb() разбирается наравне с hex");
+
 near(contrastRatio("#fff", "#000"), 21, "короткая запись цвета");
 ok("короткая запись #rgb читается как полная");
 
@@ -40,7 +58,7 @@ assert.equal(contrastRatio("var(--text-normal)", "#000000"), 21, "неразоб
 assert.equal(contrastRatio("", ""), 21, "пустой цвет не жалуется");
 ok("неизвестный цвет не поднимает предупреждение");
 
-assert.equal(contrastWarning(2.84), "This Value may be hard to read: contrast 2.8:1, aim for 4.5:1");
+assert.equal(contrastWarning(2.84), "This Value may be hard to read: contrast 2.8:1, aim for 3:1");
 ok("подсказка называет и текущее отношение, и нужное");
 
 console.log("\n" + passed + " проверок пройдено");
