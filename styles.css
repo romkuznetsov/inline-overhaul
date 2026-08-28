@@ -126,12 +126,17 @@
 }
 
 /* Вводный коллаут вкладки (10.1). Геометрия — из прототипа. */
+/*
+ * Коллаут занимает ширину панели. Ограничение в 66ch оставляло справа пустую
+ * полосу шириной чуть ли не в половину панели (замечание заказчика
+ * 2026-08-28).
+ */
 .io-callout {
   box-sizing: border-box;
   width: 100%;
   margin: 14px 0 2px;
   padding: 11px 13px;
-  max-width: 66ch;
+  max-width: 100%;
   border: 1px solid var(--background-modifier-border);
   border-left: 2px solid var(--interactive-accent);
   border-radius: 0 var(--radius-m) var(--radius-m) 0;
@@ -189,10 +194,11 @@
   outline-offset: 1px;
 }
 
+/* Подсказка под шапкой — по ширине панели, как и коллаут (2026-08-28). */
 .io-tip--below {
   margin: 6px 0 2px;
   padding: 8px 11px;
-  max-width: 66ch;
+  max-width: 100%;
   border-left: 2px solid var(--interactive-accent);
   border-radius: 0 var(--radius-s) var(--radius-s) 0;
   background: var(--background-secondary);
@@ -756,9 +762,19 @@
   gap: 4px;
   align-items: center;
   padding: 6px 10px;
+  /*
+   * Нижние границы держат ПОДПИСЬ колонки, а не только её содержимое.
+   * После сжатия шестого круга шапка читалась как «LE...» и «TE...»
+   * (замечание заказчика 2026-08-28). У `Fill` и `Text` в ячейке лежит
+   * кружок цвета шириной 24px, но колонку задаёт подпись, а не он.
+   *
+   * Цена названа честно: самая узкая раскладка таблицы выросла с 400 до
+   * 438px, и столько же прибавилось к ширине, при которой панель перестаёт
+   * прокручивать таблицу вбок.
+   */
   grid-template-columns:
-    14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
-    minmax(58px, 1fr) 24px 24px minmax(52px, 1fr) 40px;
+    14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
+    minmax(54px, 1fr) 24px 28px minmax(44px, 1fr) 40px;
 }
 /*
  * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
@@ -789,12 +805,14 @@
  * PRD, фаза 3b). Колонка `Parent` жила здесь один день и убрана: движок
  * привязку к значению другого Field не читает вовсе.
  *
- * 280px — те же слагаемые, что у большой таблицы: сумма нижних границ
- * (14 + 34 + 72 + 38 + 44 = 202), четыре зазора по 5 и поля по 8.
+ * 260px — те же слагаемые, что у большой таблицы: сумма нижних границ
+ * (14 + 44 + 72 + 38 + 40 = 208), четыре зазора по 4 и поля по 10.
+ * Нижняя граница `Level` поднята с 26 до 44px вместе с большой таблицей:
+ * подпись колонки обрезалась (замечание заказчика 2026-08-28).
  */
 .io-vals--link .io-vals__head,
 .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
+  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
 }
 .io-vals__head {
   font-size: 10px;

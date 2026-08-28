@@ -315,8 +315,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-see:hover { text-decoration: underline; }
 
 /* callout at the top of a tab */
+/* Коллаут занимает ширину панели. Ограничение в 66ch оставляло справа
+   пустую полосу в половину панели (замечание заказчика 2026-08-28). */
 .io-callout {
-  margin: 14px 0 2px; padding: 11px 13px; max-width: 66ch;
+  margin: 14px 0 2px; padding: 11px 13px; max-width: 100%;
   border: 1px solid var(--background-modifier-border); border-left: 2px solid var(--interactive-accent);
   border-radius: 0 var(--radius-m) var(--radius-m) 0;
   background: var(--background-secondary);
@@ -857,9 +859,12 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-depthcell { display: flex; justify-content: center; }
 
 /* the values table, and its narrower shape for a link field */
-/* 400px = every column at its floor, plus gaps and padding. The table has to
+/* 438px = every column at its floor, plus gaps and padding. The table has to
    fit a narrow settings pane without a horizontal scrollbar: at 450px the
-   remove button sat outside the visible area and had to be scrolled to. */
+   remove button sat outside the visible area and had to be scrolled to.
+   On 2026-08-28 the floors were rebalanced, not raised: Level and Text took
+   the points Show and Preview gave up, so the head reads in full and the
+   table still fits a narrow pane. */
 .io-vals__inner { min-width: 400px; }
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
   grid-template-columns: 14px minmax(0, 1fr) 62px minmax(0, 1fr) 44px;
@@ -919,9 +924,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    the runtime reads child Values of a link the same way it reads a tag’s
    (2026-08-27, разбор в PRD фазе 3b). */
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
+  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
 }
-/* 206px of floors, four gaps of 4 and padding of 10 on each side. */
+/* 208px of floors, four gaps of 4 and padding of 10 on each side. Level
+   raised from 26 to 44px on 2026-08-28 together with the big table: the
+   column caption was clipped. */
 .io-vals__inner--link { min-width: 242px; }
 
 /* round six: one rule so an inline reference always reads as a reference,
@@ -1013,9 +1020,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    fixed size: the grip, the two colour swatches and the remove button. */
 .io-vals__head, .io-vals__row {
   display: grid; gap: 4px; align-items: center; padding: 6px 10px;
+  /* Нижние границы держат ПОДПИСЬ колонки, а не только её содержимое:
+     после сжатия шапка читалась как «LE...» и «TE...» (замечание заказчика
+     2026-08-28). У Fill и Text в ячейке лежит кружок цвета в 24px, но
+     подпись шире, и колонку задаёт она. */
   grid-template-columns:
-    14px minmax(26px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
-    minmax(58px, 1fr) 24px 24px minmax(52px, 1fr) 40px;
+    14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
+    minmax(54px, 1fr) 24px 28px minmax(44px, 1fr) 40px;
 }
 /* The «?» sits under the caption, not beside it: beside it the mark
    overlapped the next cell, because these columns are narrow. */

@@ -49,6 +49,14 @@ export interface PluginInternals {
   loadConfigNoteModules: (app: Any) => Promise<void>;
   /** Кодек заметки: `buildTagWheelConfigMarkdown` и разбор обратно. */
   getTagWheelConfigCodec: () => Any;
+  /* Разрешение цвета тега: те самые функции, которыми плагин решает, каким
+     цветом рисовать токен в строке. */
+  buildFieldTagVisualMap: (cfg: Any) => Any;
+  buildGlobalTagVisualMap: (cfg: Any) => Any;
+  readTagVisualRowByTokenMaps: (token: string, fieldMap: Any, userTags: Any, globalMap: Any) => Any;
+  getTagVisualsFromConfig: (cfg: Any) => Any;
+  resolveEffectiveTagVisualMode: (row: Any) => string;
+  normalizeHexColorInput: (v: unknown) => string;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -68,6 +76,8 @@ const mainPath = path.resolve(here, "..", "..", "main.js");
 const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
   + "  migrateConfig, normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
   + "  getTagWheelConfigCodec,\n"
+  + "  buildFieldTagVisualMap, buildGlobalTagVisualMap, readTagVisualRowByTokenMaps,\n"
+  + "  getTagVisualsFromConfig, resolveEffectiveTagVisualMode, normalizeHexColorInput,\n"
   + "  loadConfigNoteModules: async function (app) {\n"
   + "    await loadTagWheelConfigParserSafe(app);\n"
   + "    await loadTagWheelConfigCodecSafe(app);\n"
