@@ -56,6 +56,8 @@ export interface PluginInternals {
   readTagVisualRowByTokenMaps: (token: string, fieldMap: Any, userTags: Any, globalMap: Any) => Any;
   getTagVisualsFromConfig: (cfg: Any) => Any;
   resolveEffectiveTagVisualMode: (row: Any) => string;
+  /** Виджет, которым плагин рисует токен Value в строке заметки. */
+  TagVisualTokenWidget: Any;
   normalizeHexColorInput: (v: unknown) => string;
 }
 
@@ -75,7 +77,7 @@ const mainPath = path.resolve(here, "..", "..", "main.js");
  */
 const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
   + "  migrateConfig, normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
-  + "  getTagWheelConfigCodec,\n"
+  + "  getTagWheelConfigCodec, TagVisualTokenWidget,\n"
   + "  buildFieldTagVisualMap, buildGlobalTagVisualMap, readTagVisualRowByTokenMaps,\n"
   + "  getTagVisualsFromConfig, resolveEffectiveTagVisualMode, normalizeHexColorInput,\n"
   + "  loadConfigNoteModules: async function (app) {\n"
@@ -119,7 +121,15 @@ function cmStub(): Any {
   return new Proxy(fn, {
     get: (target: Any, prop: string | symbol) => (prop === "prototype" ? target.prototype : cmStub()),
     apply: () => cmStub(),
-    construct: () => ({}),
+    /*
+     * Заглушка обязана вернуть объект С ПРАВИЛЬНЫМ прототипом наследника.
+     * Плоский `{}` рвал цепочку: `class TagVisualTokenWidget extends
+     * cmView.WidgetType` получал `this` без своих методов, и `toDOM` у
+     * готового виджета не находился вовсе. Проверка при этом падала не на
+     * поведении, а на том, что звать нечего.
+     */
+    construct: (_target: Any, _args: Any, newTarget: Any) =>
+      Object.create((newTarget && newTarget.prototype) || Object.prototype),
   });
 }
 

@@ -37967,6 +37967,7 @@ var require_main = __commonJS({
         }
         if (this.fillColor) el2.style.backgroundColor = this.fillColor;
         if (this.textColor) el2.style.color = this.textColor;
+        else if (this.fillColor) el2.style.color = "var(--text-on-accent)";
         if (Number.isFinite(this.opacity)) el2.style.opacity = String(this.opacity);
         return el2;
       }

@@ -3325,7 +3325,20 @@ class TagVisualTokenWidget extends cmView.WidgetType {
       el.style.lineHeight = "1";
     }
     if (this.fillColor) el.style.backgroundColor = this.fillColor;
+    /*
+     * Цвет текста не задан — берётся тот же, каким рисует пузырь Value в
+     * панели: `--text-on-accent`, «текст на цветной подложке»
+     * (`styles.css`, `.io-bubble`). Панель показывала его всегда, а заметка
+     * брала цвет темы, и одно и то же значение выглядело в двух местах
+     * по-разному (замечание заказчика 2026-08-28).
+     *
+     * Только при заданной заливке, и это не осторожность ради осторожности:
+     * без подложки светлый текст лёг бы на светлый фон заметки и пропал.
+     * Переменная, а не литерал: в тёмной теме белое пятно было бы не лучше
+     * чёрного (З6).
+     */
     if (this.textColor) el.style.color = this.textColor;
+    else if (this.fillColor) el.style.color = "var(--text-on-accent)";
     if (Number.isFinite(this.opacity)) el.style.opacity = String(this.opacity);
     return el;
   }
