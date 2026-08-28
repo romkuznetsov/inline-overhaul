@@ -5,17 +5,32 @@
  * а не на заметке пользователя. Настройки в нём настоящие — они читаются из
  * конфига; Fields и Values пока примерные, и панель об этом говорит.
  *
- * Почему не читаем Fields из конфига уже сейчас. Настоящие Fields лежат в
- * `pkm.behavior.leftMode.fields` вместе с деревом значений, подзначениями и
- * тремя картами цветов, и разбирает их редактор Fields — те самые 3400 строк,
- * которые переезжают в фазе 3b. Второй разбор того же формата разойдётся с
- * первым на ближайшей правке, ровно как второй рендерер тегов разойдётся с
- * виджетом редактора (П9). Поэтому здесь оставлен шов `previewFields`: в 3b
- * он начнёт отдавать настоящие Fields из того же чтения, что и редактор, а до
- * тех пор отдаёт пример и честно помечает его.
+ * Откуда берутся Fields (П11, закрыто 2026-08-28). Настоящие — из конфига,
+ * тем же чтением, что у редактора Fields и у блока свойств заметки: модель
+ * `fields_model.ts`. Второй разбор того же формата разошёлся бы с первым на
+ * ближайшей правке, ровно как второй рендерер тегов разошёлся бы с виджетом
+ * редактора (П9), — поэтому своего разбора здесь нет ни строки.
+ *
+ * Пример остаётся ровно на два случая: панель без платформы (её передаёт
+ * плагин, а в проверках — обвязка) и vault, в котором Fields ещё не завели.
+ * Тогда `example` равен true, и панель говорит об этом вслух (ПЗ2).
  */
 
 import type { SettingsCtx } from "../types.ts";
+import { createFieldsModel, type DeepState } from "./fields_model.ts";
+
+/*
+ * Помощники состояния дерева значений — оттуда же, откуда их берут редактор
+ * Fields и блок свойств заметки: у поиска есть откат на заглушку, и двух
+ * таких откатов быть не должно.
+ */
+import legacy from "./fields_editor_legacy.js";
+
+interface LegacyModule {
+  getOrderDeepEditorState: () => DeepState;
+}
+
+const helpers = legacy as unknown as LegacyModule;
 
 /** Как Value показывается на строке: значением, ничем или своим текстом. */
 export type ValueShown = "value" | "empty" | "custom";
@@ -89,12 +104,121 @@ export interface PreviewFields {
 }
 
 /**
- * Fields для предпросмотра. Шов: в фазе 3b здесь появится чтение конфига
- * рядом с редактором Fields, и `example` станет false у того, кто свои Fields
- * настроил.
+ * Настоящие Fields из конфига. Пусто — читать было нечем: либо платформы нет,
+ * либо Fields ещё не завели.
+ *
+ * Форма значения повторяет редактор поле в поле, включая две тонкости,
+ * купленные его дефектами: цвет дочернего значения лежит у РОДИТЕЛЬСКОГО
+ * Field (`parentFieldId`), а не у дочернего, и токен в конфиге хранится с
+ * решёткой — её ставит отрисовка пузыря, поэтому здесь она снимается.
  */
-export function previewFields(_ctx: SettingsCtx): PreviewFields {
+function fieldsFromConfig(ctx: SettingsCtx): readonly PreviewField[] {
+  const p = ctx.platform;
+  if (!p) return [];
+  try {
+    const model = createFieldsModel({
+      plugin: p.plugin as never,
+      normalizePkmOrder: p.normalizePkmOrder as never,
+      pkmOrderFields: p.pkmOrderFields,
+      cfg: p.getConfig() as never,
+      deepState: helpers.getOrderDeepEditorState(),
+    });
+    const out: PreviewField[] = [];
+    for (const row of model.listFields()) {
+      /* Дочерний Field своей строки не имеет: дочерность — уровень значения
+         в таблице Values (решение заказчика 2026-08-28, вопрос В7). */
+      if (row.parent) continue;
+      const values: PreviewValue[] = [];
+      if (row.kind !== "element") {
+        const ve = model.valuesEditor(row.key);
+        const fieldId = ve.parentFieldId || row.strictName;
+        const push = (token: string, depth: 0 | 1): void => {
+          const tok = String(token || "").trim();
+          if (!tok) return;
+          const visual = model.getValueVisual(fieldId, tok);
+          values.push({
+            token: tok.replace(/^#/, "").replace(/^\[\[|\]\]$/g, ""),
+            fill: visual.fillColor,
+            text: visual.textColor,
+            shown: visual.visibility === "default" ? "value" : visual.visibility,
+            custom: visual.customText,
+            depth,
+          });
+        };
+        for (const top of ve.tree) {
+          push(top.token, 0);
+          for (const child of top.children || []) push(child.token, 1);
+        }
+      }
+      out.push({
+        id: row.key,
+        name: row.label,
+        kind: row.kind === "wikilink" ? "link" : row.kind,
+        side: row.side,
+        values,
+      });
+    }
+    return out;
+  } catch (e) {
+    /* Предпросмотр не имеет права уронить панель: он показывает пример и
+       говорит, что это пример. Сообщение — разработчику, а не человеку (З8). */
+    console.error("inline-overhaul: Fields для предпросмотра не прочитались", e);
+    return [];
+  }
+}
+
+/**
+ * Fields для предпросмотра (П11). Настоящие — из конфига; пример — только
+ * когда читать нечего, и тогда панель об этом говорит (ПЗ2).
+ */
+export function previewFields(ctx: SettingsCtx): PreviewFields {
+  const real = fieldsFromConfig(ctx);
+  if (real.length) return { fields: real, example: false };
   return { fields: EXAMPLE_FIELDS, example: true };
+}
+
+/**
+ * Место в выдуманной строке (П13).
+ *
+ * Тексты предпросмотров называют Fields именами примерного набора — `status`,
+ * `priority`, — а у человека Fields свои. Поэтому имя из текста читается не
+ * как id, а как **место**: сначала ищется Field с таким id, потом берётся
+ * следующий свободный. Так одно и то же дерево читается и против примерных
+ * Fields, и против настоящих — этого и требует П13.
+ *
+ * Возвращается карта места на Field. Места, которым Field не хватило, в карту
+ * не попадают: строка тогда несёт меньше чипов, а не пустое место.
+ */
+export function resolveSlots(
+  fields: readonly PreviewField[],
+  slots: readonly string[],
+): Map<string, PreviewField> {
+  const out = new Map<string, PreviewField>();
+  const taken = new Set<string>();
+  const want: string[] = [];
+  for (const slot of slots) {
+    const name = String(slot || "").trim();
+    if (name && !want.includes(name)) want.push(name);
+  }
+  /* Сначала совпадения по имени: у кого Field и правда назван `status`,
+     дерево обязано лечь на него, а не на первый по порядку. */
+  for (const slot of want) {
+    const hit = fields.find(f => f.id === slot);
+    if (!hit) continue;
+    out.set(slot, hit);
+    taken.add(hit.id);
+  }
+  /* Остальным местам — Fields по порядку строки: левый Block, потом правый. */
+  const rest = fields.filter(f => !taken.has(f.id));
+  let at = 0;
+  for (const slot of want) {
+    if (out.has(slot)) continue;
+    const next = rest[at];
+    if (!next) break;
+    at++;
+    out.set(slot, next);
+  }
+  return out;
 }
 
 /** Fields одной стороны строки, в порядке записи. */

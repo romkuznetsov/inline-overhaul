@@ -21,10 +21,10 @@ import {
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, rich, cssVar, tipBelow, type El } from "./dom.ts";
 import {
-  fieldById,
   fieldColor,
   fieldsOn,
   previewFields,
+  resolveSlots,
   valueAtDepth,
   valuePair,
   type PreviewField,
@@ -320,7 +320,40 @@ export const barsPreview: CustomRender = (host, ctx) => {
 
   const chosenField = (): string => str(ctx, "visual.tagBars.fieldId", "status");
 
-  const drawLine = (parent: El, node: PreviewNode, depth: number, fields: readonly PreviewField[]): void => {
+  /**
+   * Места, которые называет выдуманное дерево, — в порядке первого появления.
+   * Имена в дереве это места, а не id (П13): у человека Fields свои, а дерево
+   * одно и то же.
+   */
+  const treeSlots = (nodes: readonly PreviewNode[]): string[] => {
+    const out: string[] = [];
+    const walk = (list: readonly PreviewNode[]): void => {
+      for (const node of list) {
+        for (const name of node.fields) if (!out.includes(name)) out.push(name);
+        walk(node.children);
+      }
+    };
+    walk(nodes);
+    return out;
+  };
+
+  /** Field, который несёт строка на этом месте. */
+  type SlotMap = Map<string, PreviewField>;
+
+  /** Id Fields, которые несёт строка: места разрешены заранее. */
+  const carried = (node: PreviewNode, slots: SlotMap): string[] => {
+    const out: string[] = [];
+    for (const name of node.fields) {
+      const f = slots.get(name);
+      if (f && !out.includes(f.id)) out.push(f.id);
+    }
+    return out;
+  };
+
+  const drawLine = (
+    parent: El, node: PreviewNode, depth: number,
+    fields: readonly PreviewField[], slots: SlotMap,
+  ): void => {
     const line = el(parent, "div", "io-line");
     applyTagVars(line, ctx);
     cssVar(line, "--io-depth", String(depth));
@@ -331,9 +364,10 @@ export const barsPreview: CustomRender = (host, ctx) => {
     const hideChosen = active && !ctx.get("visual.tagBars.tagVisibility");
 
     const shown: PreviewValue[] = [];
-    for (const id of node.fields) {
+    const ids = carried(node, slots);
+    for (const id of ids) {
       if (id === chosen && hideChosen) continue;
-      const v = valueAtDepth(fieldById(fields, id), depth);
+      const v = valueAtDepth(fields.find(f => f.id === id) || null, depth);
       if (v) shown.push(v);
     }
     if (shown.length) {
@@ -344,18 +378,23 @@ export const barsPreview: CustomRender = (host, ctx) => {
     /* Separator уходит только тогда, когда перед текстом не осталось ничего.
        Если единственный тег там был тем, кого заменила полоса, судьбу
        Separator решает настройка ниже. */
-    const replaced = hideChosen && node.fields.includes(chosen);
+    const replaced = hideChosen && ids.includes(chosen);
     const sepHidden = !shown.length &&
       (!replaced || Boolean(ctx.get("visual.tagBars.hideSeparatorWhenOnlyStripToken")));
     if (!sepHidden) el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
     el(line, "span", "io-line__text", node.text);
   };
 
-  const drawNode = (parent: El, node: PreviewNode, depth: number, lane: number, fields: readonly PreviewField[]): void => {
+  const drawNode = (
+    parent: El, node: PreviewNode, depth: number, lane: number,
+    fields: readonly PreviewField[], slots: SlotMap,
+  ): void => {
     const active = Boolean(ctx.get("visual.tagBars.active"));
     const cap = num(ctx, "visual.tagBars.stripesToShow");
     const chosen = chosenField();
-    const v = node.fields.includes(chosen) ? valueAtDepth(fieldById(fields, chosen), depth) : null;
+    const v = carried(node, slots).includes(chosen)
+      ? valueAtDepth(fields.find(f => f.id === chosen) || null, depth)
+      : null;
     const bar = active && v !== null && lane < cap;
 
     const box = el(parent, "div", "io-node" + (bar ? " io-node--bar" : ""));
@@ -363,9 +402,9 @@ export const barsPreview: CustomRender = (host, ctx) => {
       cssVar(box, "--io-bar-color", v.fill);
       cssVar(box, "--io-lane", String(lane));
     }
-    drawLine(box, node, depth, fields);
+    drawLine(box, node, depth, fields, slots);
     for (const child of node.children) {
-      drawNode(box, child, depth + 1, bar ? lane + 1 : lane, fields);
+      drawNode(box, child, depth + 1, bar ? lane + 1 : lane, fields, slots);
     }
   };
 
@@ -375,7 +414,9 @@ export const barsPreview: CustomRender = (host, ctx) => {
     cssVar(tree, "--io-bar-thickness", num(ctx, "visual.tagBars.thickness") + "px");
     cssVar(tree, "--io-bar-gap", num(ctx, "visual.tagBars.childOffset") + "px");
     cssVar(tree, "--io-bar-distance", num(ctx, "visual.tagBars.spacing") + "px");
-    for (const node of (text && text.tree) || []) drawNode(tree, node, 0, 0, fields);
+    const nodes = (text && text.tree) || [];
+    const slots = resolveSlots(fields, treeSlots(nodes));
+    for (const node of nodes) drawNode(tree, node, 0, 0, fields, slots);
     if (example) rich(el(tree, "p", "io-preview__note"), PREVIEW_EXAMPLE);
   };
 
@@ -383,6 +424,12 @@ export const barsPreview: CustomRender = (host, ctx) => {
   const unwatch = ctx.watch(BARS_PATHS, draw);
   return () => { unwatch(); shell.close(); };
 };
+
+/**
+ * Места, которые показывает предпросмотр оформления: два Field слева. Имена
+ * взяты из примерного набора и работают как места, а не как id (П13).
+ */
+const TAG_SLOTS = ["status", "priority"] as const;
 
 /**
  * Предпросмотр оформления тегов. Показывает то, что настраивает группа: два
@@ -403,8 +450,14 @@ export const tagPreview: CustomRender = (host, ctx) => {
     el(line, "span", "io-line__prefix", "- ");
 
     const left = el(line, "span", "io-line__side io-line__side--left");
-    for (const id of ["status", "priority"]) {
-      const f = fieldById(fields, id);
+    /*
+     * Два места слева, а не два id: у человека Fields свои, и `status` с
+     * `priority` — это имена мест из примерного набора (П13). Разрешает их
+     * `resolveSlots`, а не поиск по id.
+     */
+    const slots = resolveSlots(fields, TAG_SLOTS);
+    for (const slot of TAG_SLOTS) {
+      const f = slots.get(slot);
       if (f) tagField(left, f, ctx);
     }
 
