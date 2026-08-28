@@ -295,15 +295,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-help[aria-expanded="true"] { background: var(--interactive-accent); border-color: transparent; color: var(--text-on-accent); }
 
 .io-tip {
-  margin: 7px 0 1px; padding: 8px 11px; max-width: 64ch;
+  margin: 7px 0 1px; padding: 8px 11px; max-width: 100%;
   border-left: 2px solid var(--interactive-accent);
   border-radius: 0 var(--radius-s) var(--radius-s) 0;
-  background: var(--background-secondary);
-  font-size: var(--font-ui-smaller); color: var(--text-muted);
+  background: var(--background-primary);
+  font-size: var(--font-ui-small); color: var(--text-muted);
 }
 .io-tip code {
   font-family: var(--font-mono); font-size: 11px; padding: 1px 4px; border-radius: 3px;
-  background: var(--background-primary); border: 1px solid var(--background-modifier-border); color: var(--text-normal);
+  background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal);
 }
 .io-tip b { color: var(--text-normal); font-weight: 500; }
 
@@ -321,8 +321,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   margin: 14px 0 2px; padding: 11px 13px; max-width: 100%;
   border: 1px solid var(--background-modifier-border); border-left: 2px solid var(--interactive-accent);
   border-radius: 0 var(--radius-m) var(--radius-m) 0;
-  background: var(--background-secondary);
-  font-size: var(--font-ui-smaller); color: var(--text-muted);
+  background: var(--background-primary);
+  font-size: var(--font-ui-small); color: var(--text-muted);
 }
 .io-callout b { color: var(--text-normal); font-weight: 500; }
 
@@ -435,7 +435,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   --io-bar-thickness: 3px; --io-bar-gap: 6px; --io-bar-distance: 14px;
 
   margin: 8px 0 2px; padding: 14px 16px 11px;
-  background: var(--background-secondary);
+  background: var(--background-primary);
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--radius-m);
 }
@@ -945,8 +945,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   white-space: nowrap;
 }
 .io-content b { font-weight: 600; color: var(--text-normal); }
-.io-tip code { background: var(--background-primary); }
-.io-callout code, .io-lead code { background: var(--background-primary); }
+.io-tip code { background: var(--background-secondary); }
+.io-callout code, .io-lead code { background: var(--background-secondary); }
 
 /* round seven */
 
