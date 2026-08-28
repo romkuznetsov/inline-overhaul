@@ -746,7 +746,7 @@
  * колонки пришлось поджать — особенно `Fill`, `Text` и `Preview`, между
  * которыми и стоял лишний воздух.
  */
-.io-vals__inner { min-width: 400px; }
+.io-vals__inner { min-width: 408px; }
 /* 206px нижних границ, четыре зазора по 4 и поля по 10 с каждой стороны. */
 .io-vals__inner--link { min-width: 242px; }
 /*
@@ -775,7 +775,7 @@
    */
   grid-template-columns:
     14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr)
-    minmax(54px, 1fr) 24px 28px minmax(44px, 1fr) 40px;
+    minmax(54px, 1fr) 24px 28px minmax(52px, 1fr) 40px;
 }
 /*
  * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
