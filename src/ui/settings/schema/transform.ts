@@ -5,12 +5,12 @@
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
  *   inline-to-note: i2n-button-preview (custom)
- *   smart-rules: smart-rules-list (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { on, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
+import { smartRules } from "../custom/smart_rules.ts";
 
 export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
 { id: "transform-intro", tab: "transform",  order: 50, heading: "Before you start",
@@ -129,6 +129,15 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       visible:{ deps:["transform.inline2note.sourceProcessing.token"],
                 test: c => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== "" },
       options:[ {value:"left",label:"Left, before the text"}, {value:"right",label:"Right, after the text"} ] }
+  ]
+},
+{
+  id: "smart-rules", tab: "transform", order: 500, heading: "Smart Rules",
+  intro: "Different kinds of line deserve different notes. A rule spots a kind of line and picks the template for it",
+  tip: "Rules are read from the top, the first one that fits is used, and anything that fits none of them gets the default template. So put your narrow rules above your broad ones, or the broad one will answer first. Drag a rule by its handle to change which one is tried first",
+  visible: on("transform.inline2note.enabled"),
+  items: [
+    { kind:"custom", id:"smart-rules-list", render: smartRules }
   ]
 }
 ];

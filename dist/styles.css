@@ -1210,3 +1210,161 @@
   color: var(--text-faint);
   white-space: nowrap;
 }
+
+/* ======================================================================
+ * Smart Rules: карточка правила и выбор значения (PRD 10.8).
+ *
+ * Правило — карточка, а не серый прямоугольник (С-4): слева цветная рейка,
+ * она же говорит о состоянии — выключено или спорит с соседом.
+ * ====================================================================== */
+
+.io-rules { display: flex; flex-direction: column; gap: 12px; }
+.io-rule {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  overflow: hidden;
+}
+.io-rule__rail { background: var(--interactive-accent); }
+.io-rule--off .io-rule__rail { background: var(--background-modifier-border); }
+.io-rule--clash .io-rule__rail { background: var(--background-modifier-error); }
+.io-rule--off .io-rule__main { opacity: 0.6; }
+.io-rule__main { min-width: 0; }
+.io-rule__head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px 7px;
+}
+/* Номер правила: порядок значим, и его видно без пересчёта глазами (С-6). */
+.io-rule__n {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.io-rule--off .io-rule__n {
+  background: var(--background-modifier-border);
+  color: var(--text-faint);
+}
+.io-rule--clash .io-rule__n { background: var(--background-modifier-error); }
+/* Имя правила правится на месте: поле похоже на текст, пока его не тронули. */
+.io-rule__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: inherit;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+  padding: 3px 7px;
+}
+.io-rule__name:hover { border-color: var(--background-modifier-border); }
+.io-rule__name:focus {
+  background: var(--background-modifier-form-field);
+  border-color: var(--background-modifier-border);
+}
+.io-rule__tools { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.io-rule__conds { padding: 0 12px 4px; }
+/* Строка над условиями: как читать то, что под ней. */
+.io-rule__lead {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  padding: 2px 0 4px;
+}
+.io-rule__out {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary-alt);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.io-rule__arrow { color: var(--text-accent); font-size: 13px; }
+.io-rule__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-error);
+}
+
+/* Строка условий одного типа: подпись, значения, кнопка добавления. */
+.io-kind {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 24px;
+  gap: 9px;
+  align-items: center;
+  padding: 5px 0;
+}
+.io-kind__label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.io-kind--empty .io-kind__label { color: var(--text-faint); }
+.io-kind__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+}
+.io-kind__none { font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.io-vchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 3px 2px 8px;
+  border-radius: 20px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+}
+/*
+ * `or` и `and` — подписи, а не контролы (С-7): внутри типа движок берёт
+ * любое значение, между типами требует все названные типы. Выбор соединения
+ * внутри типа придёт фазой 5, и тогда это станет контролом.
+ */
+.io-op {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 0 1px;
+}
+.io-op--and { color: var(--text-accent); }
+/* Между строками типов слово стоит своей строкой, а не в ряду значений. */
+.io-op--row { display: block; padding: 2px 0 2px 4px; }
+
+/* Выбор значения в окне: Field, под ним его значения (С-5). */
+.io-pickvals { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.io-pickvals__name {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.io-pickvals__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.io-vchip--pick {
+  appearance: none;
+  cursor: pointer;
+  padding: 3px 10px;
+}
+.io-vchip--pick:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--interactive-accent);
+}

@@ -93,6 +93,11 @@ const CUSTOM_IMPL = {
     named: "fieldsEditor",
     expr: () => "fieldsEditor",
   },
+  renderSmartRules: {
+    module: "smart_rules.ts",
+    named: "smartRules",
+    expr: () => "smartRules",
+  },
 };
 
 /** Найти конец литерала, начинающегося с открывающей скобки в позиции i. */

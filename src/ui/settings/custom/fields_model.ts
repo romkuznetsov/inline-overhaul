@@ -149,6 +149,19 @@ export interface YamlFieldRow {
   lineToken: string;
 }
 
+/**
+ * Field со всеми его значениями так, как они встают в строку (10.8 С-5).
+ *
+ * Нужно условиям Smart Rules: там выбирают Field, а потом одно из его
+ * значений. У `element` значений нет — у него маркер, и он один.
+ */
+export interface FieldTokens {
+  key: string;
+  label: string;
+  kind: FieldKind;
+  /** `#todo`, `ClientA`, `\u{1F4C5}` — то, чем Value видно в строке. */
+  tokens: string[];
+}
 /** Цвет и видимость одного Value так, как их читает вёрстка (Ф7, Ф9). */
 export interface ValueVisual {
   /** Пусто — цвет не задан и берётся из темы. */
@@ -1175,6 +1188,49 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return writeDefKey(k, { yamlValueRule: next }, "pkm:behavior:yaml:value-rule:" + k);
   };
 
+  /**
+   * Все значения каждого Field верхнего уровня (10.8 С-5).
+   *
+   * Формы значений — те же, что читает движок в условиях правил
+   * (`selectSmartTemplate`): у тега полный токен с Prefix, у ссылки имя без
+   * скобок (`normalizeRuleWikilink` снимает их и у правила, и у строки), у
+   * элемента — маркер. Второй разбор определений не заводится: значения
+   * читает тот же `valuesEditor`, что и таблица Values.
+   */
+  const listFieldTokens = (): FieldTokens[] => {
+    const out: FieldTokens[] = [];
+    for (const row of listFields()) {
+      if (row.parent) continue;
+      const tokens: string[] = [];
+      if (row.kind === "element") {
+        const marker = String(elementEditor(row.key).emoji || "").trim();
+        if (marker) tokens.push(marker);
+      } else {
+        const ve = valuesEditor(row.key);
+        const push = (raw: unknown): void => {
+          const token = String(raw || "").trim();
+          if (!token) return;
+          /*
+           * Тег уже приходит с решёткой: `buildTagTree` нормализует токены,
+           * и второй раз её ставить нечему — ветка «дописать Prefix» была бы
+           * недостижимой, а мутационный прогон такую и не отличает от рабочей.
+           * У ссылки скобки снимаются: `normalizeRuleWikilink` в движке
+           * сравнивает имена без них — и у правила, и у строки.
+           */
+          const shown = row.kind === "wikilink"
+            ? token.replace(/^\[\[|\]\]$/g, "").replace(/^#/, "").trim()
+            : token;
+          if (shown && !tokens.includes(shown)) tokens.push(shown);
+        };
+        for (const top of ve.tree) {
+          push(top.token);
+          for (const child of top.children || []) push(child.token);
+        }
+      }
+      out.push({ key: row.key, label: row.label, kind: row.kind, tokens });
+    }
+    return out;
+  };
   /* ---- предусловие Field (10.13.4) ----------------------------------- */
 
   /**
@@ -2123,6 +2179,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setLabel,
     setProperty,
     listYamlFields,
+    listFieldTokens,
     setYamlCardinality,
     setYamlValueRule,
     getPrerequisite,

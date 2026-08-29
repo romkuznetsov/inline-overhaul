@@ -187,6 +187,15 @@ function normalizeSmartRules(rawRules) {
     const wikilinks = Array.isArray(conditions.wikilinks) ? conditions.wikilinks.map((x) => String(x || "").trim()).filter(Boolean) : [];
     out.push({
       id,
+      /*
+       * Имя правила. Его задаёт человек (PRD 10.8 С-3), рантайм его не читает
+       * — и до 2026-08-29 эта нормализация его выбрасывала: она пересобирает
+       * правило из своих ключей, а `normalizeTransformConfig` идёт внутри
+       * `migrateConfig`, то есть на каждом патче. Имя исчезало тем же
+       * нажатием, которым его вписали, и настройка была бы мёртвой (З8).
+       * Поведение не меняется: ни один проход правил имя не смотрит.
+       */
+      name: String(r.name || "").trim(),
       enabled: r.enabled !== false,
       targetTemplate,
       conditions: { tags: uniq(tags), emojiFields: uniq(emojiFields), wikilinks: uniq(wikilinks) },
@@ -2360,6 +2369,10 @@ async function runInline2Note(plugin, runtimeOptions) {
 
 module.exports = {
   DEFAULT_INLINE2NOTE,
+  /* Список шаблонов из vault. Вынесен наружу 2026-08-29: блок Smart Rules
+     показывает те же шаблоны, что выбирает сам движок, и второй такой же
+     фильтр по папке разошёлся бы с ним на первой правке (П9 по смыслу). */
+  collectTemplateOptions,
   normalizeInline2Note,
   normalizeTransformConfig,
   validateSmartRules,

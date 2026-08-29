@@ -3950,11 +3950,11 @@ var require_status_tags = __commonJS({
       return false;
     }
     function resolveFieldSourceKind(field) {
-      const helpers3 = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers3 || typeof helpers3.normalizeFieldSourceKind !== "function") {
+      const helpers4 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers4 || typeof helpers4.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers3.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers4.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildOutputTokenForField(field, value, rules) {
       var _a;
@@ -5909,11 +5909,11 @@ var require_tagwheel = __commonJS({
       return normalizeWikilinkTarget(raw).replace(/^#/, "").trim();
     }
     function resolveFieldSourceKind(field) {
-      var helpers3 = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers3 || typeof helpers3.normalizeFieldSourceKind !== "function") {
+      var helpers4 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers4 || typeof helpers4.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers3.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers4.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildTagWheelRuntimeInput(input_, settings_) {
       var out = {};
@@ -7477,11 +7477,11 @@ var require_tagwheel_core = __commonJS({
       return loadCoreHelperFromGlobalOrRequire("__inlineStatusRuntimeCommon", "../../src/core/status_runtime_common.js");
     }
     function resolveSourceKind(field) {
-      var helpers3 = getRulesRuntimeHelpers();
-      if (!helpers3 || typeof helpers3.normalizeFieldSourceKind !== "function") {
+      var helpers4 = getRulesRuntimeHelpers();
+      if (!helpers4 || typeof helpers4.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers3.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers4.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function isProjectsSourceField(field) {
       return resolveSourceKind(field) === "projects";
@@ -7558,10 +7558,10 @@ var require_tagwheel_core = __commonJS({
     function getDateLikeMarkers(rules) {
       var out = [];
       var seen = {};
-      var helpers3 = getRulesRuntimeHelpers();
+      var helpers4 = getRulesRuntimeHelpers();
       var i;
-      if (helpers3 && typeof helpers3.getDateMarkersFromRules === "function") {
-        var markers = helpers3.getDateMarkersFromRules(rules);
+      if (helpers4 && typeof helpers4.getDateMarkersFromRules === "function") {
+        var markers = helpers4.getDateMarkersFromRules(rules);
         var buckets = [
           markers && markers.due,
           markers && markers.start,
@@ -7604,9 +7604,9 @@ var require_tagwheel_core = __commonJS({
           if (markers.indexOf(mk0) === -1) markers.push(mk0);
         }
       }
-      var helpers3 = getRulesRuntimeHelpers();
-      if (helpers3 && typeof helpers3.isDateLikeToken === "function") {
-        if (helpers3.isDateLikeToken(src, { markers })) return true;
+      var helpers4 = getRulesRuntimeHelpers();
+      if (helpers4 && typeof helpers4.isDateLikeToken === "function") {
+        if (helpers4.isDateLikeToken(src, { markers })) return true;
       } else {
         var i;
         for (i = 0; i < markers.length; i++) {
@@ -22049,6 +22049,15 @@ var require_transform_feature = __commonJS({
         const wikilinks = Array.isArray(conditions.wikilinks) ? conditions.wikilinks.map((x) => String(x || "").trim()).filter(Boolean) : [];
         out.push({
           id,
+          /*
+           * Имя правила. Его задаёт человек (PRD 10.8 С-3), рантайм его не читает
+           * — и до 2026-08-29 эта нормализация его выбрасывала: она пересобирает
+           * правило из своих ключей, а `normalizeTransformConfig` идёт внутри
+           * `migrateConfig`, то есть на каждом патче. Имя исчезало тем же
+           * нажатием, которым его вписали, и настройка была бы мёртвой (З8).
+           * Поведение не меняется: ни один проход правил имя не смотрит.
+           */
+          name: String(r.name || "").trim(),
           enabled: r.enabled !== false,
           targetTemplate,
           conditions: { tags: uniq(tags), emojiFields: uniq(emojiFields), wikilinks: uniq(wikilinks) },
@@ -22202,12 +22211,12 @@ var require_transform_feature = __commonJS({
       const match = src.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/);
       return match ? String(match[1] || "").trim() : src;
     }
-    function selectSmartTemplate(parsed, smartRules, defaultTemplate) {
+    function selectSmartTemplate(parsed, smartRules2, defaultTemplate) {
       const p = isObj(parsed) ? parsed : {};
       const tags = new Set(Array.isArray(p.tags) ? p.tags.map((x) => String(x || "").trim()).filter(Boolean) : []);
       const wikilinks = new Set(Array.isArray(p.wikilinks) ? p.wikilinks.map(normalizeRuleWikilink).filter(Boolean) : []);
       const emojiMarkers = new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean));
-      const rules = Array.isArray(smartRules) ? smartRules : [];
+      const rules = Array.isArray(smartRules2) ? smartRules2 : [];
       for (let i = 0; i < rules.length; i++) {
         const rule = rules[i];
         if (!rule || rule.enabled === false || rule.validation && rule.validation.isConflict) continue;
@@ -23983,6 +23992,10 @@ var require_transform_feature = __commonJS({
     }
     module2.exports = {
       DEFAULT_INLINE2NOTE,
+      /* Список шаблонов из vault. Вынесен наружу 2026-08-29: блок Smart Rules
+         показывает те же шаблоны, что выбирает сам движок, и второй такой же
+         фильтр по папке разошёлся бы с ним на первой правке (П9 по смыслу). */
+      collectTemplateOptions,
       normalizeInline2Note,
       normalizeTransformConfig,
       validateSmartRules,
@@ -24851,6 +24864,31 @@ function createFieldsModel(deps) {
     if (normalizeValueRule(def && def.yamlValueRule) === next) return { ok: true, changed: false };
     return writeDefKey(k, { yamlValueRule: next }, "pkm:behavior:yaml:value-rule:" + k);
   };
+  const listFieldTokens = () => {
+    const out = [];
+    for (const row of listFields()) {
+      if (row.parent) continue;
+      const tokens = [];
+      if (row.kind === "element") {
+        const marker = String(elementEditor(row.key).emoji || "").trim();
+        if (marker) tokens.push(marker);
+      } else {
+        const ve = valuesEditor(row.key);
+        const push = (raw) => {
+          const token = String(raw || "").trim();
+          if (!token) return;
+          const shown = row.kind === "wikilink" ? token.replace(/^\[\[|\]\]$/g, "").replace(/^#/, "").trim() : token;
+          if (shown && !tokens.includes(shown)) tokens.push(shown);
+        };
+        for (const top of ve.tree) {
+          push(top.token);
+          for (const child of top.children || []) push(child.token);
+        }
+      }
+      out.push({ key: row.key, label: row.label, kind: row.kind, tokens });
+    }
+    return out;
+  };
   const poolOf = (fieldId) => {
     const behavior = behaviorOf(plugin.getConfig());
     const fid = String(fieldId || "").trim();
@@ -25601,6 +25639,7 @@ function createFieldsModel(deps) {
     setLabel,
     setProperty,
     listYamlFields,
+    listFieldTokens,
     setYamlCardinality,
     setYamlValueRule,
     getPrerequisite,
@@ -34674,6 +34713,506 @@ var init_visual = __esm({
   }
 });
 
+// src/ui/settings/custom/smart_rules_model.ts
+function asObject2(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function asArray2(value) {
+  return Array.isArray(value) ? value.slice() : [];
+}
+function strings(value) {
+  const out = [];
+  for (const raw of asArray2(value)) {
+    const v = String(raw || "").trim();
+    if (v && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+function inline2note(cfg) {
+  return asObject2(asObject2(asObject2(cfg)["transform"])["inline2note"]);
+}
+function createRulesModel(deps) {
+  const { plugin, validate, fieldTokens } = deps;
+  const rawRules = () => asArray2(inline2note(plugin.getConfig())["smartRules"]);
+  const listRules = () => {
+    const raw = rawRules();
+    const checked = validate(raw);
+    return raw.map((rawRule, i) => {
+      const r = asObject2(rawRule);
+      const conditions = asObject2(r["conditions"]);
+      const validation = asObject2(asObject2(checked[i])["validation"]);
+      return {
+        id: String(r["id"] || "rule-" + (i + 1)).trim() || "rule-" + (i + 1),
+        name: String(r["name"] || "").trim(),
+        /*
+         * Состояние берётся у ХРАНИМОГО правила, а разбор — у проверенного.
+         * Разделение не формальность: `validateSmartRules` выключает правило,
+         * которое спорит с соседом или осталось без условий, и это его вывод,
+         * а не выбор человека. Пока эти два состояния были одним, любая правка
+         * записывала вывод движка обратно в конфиг — и простое перетаскивание
+         * молча выключало спорные правила навсегда. Найдено проверкой
+         * 2026-08-29.
+         */
+        enabled: r["enabled"] !== false,
+        targetTemplate: String(r["targetTemplate"] || "").trim(),
+        conditions: {
+          tags: strings(conditions["tags"]),
+          emojiFields: strings(conditions["emojiFields"]),
+          wikilinks: strings(conditions["wikilinks"])
+        },
+        conflict: validation["isConflict"] ? String(validation["message"] || "").trim() : ""
+      };
+    });
+  };
+  const choicesFor = (kind) => {
+    const want = KIND_OF_FIELD[kind];
+    return fieldTokens().filter((f) => f.kind === want).map((f) => ({ label: f.label, values: f.tokens.slice() }));
+  };
+  const save = (rules, reason) => {
+    const out = rules.map((r) => ({
+      id: r.id,
+      name: r.name,
+      enabled: r.enabled,
+      targetTemplate: r.targetTemplate,
+      conditions: {
+        tags: r.conditions.tags.slice(),
+        emojiFields: r.conditions.emojiFields.slice(),
+        wikilinks: r.conditions.wikilinks.slice()
+      }
+    }));
+    plugin.setConfigPatch({ transform: { inline2note: { smartRules: out } } }, reason);
+  };
+  const nextId = (rules) => {
+    let n = rules.length + 1;
+    const taken = new Set(rules.map((r) => r.id));
+    while (taken.has("rule-" + n)) n++;
+    return "rule-" + n;
+  };
+  const addRule = () => {
+    const rules = listRules();
+    rules.push({
+      id: nextId(rules),
+      name: "",
+      enabled: true,
+      targetTemplate: "",
+      conditions: { tags: [], emojiFields: [], wikilinks: [] },
+      conflict: ""
+    });
+    save(rules, "transform:smart-rules:add");
+  };
+  const removeRule = (id) => {
+    save(listRules().filter((r) => r.id !== id), "transform:smart-rules:remove:" + id);
+  };
+  const patchRule = (id, patch, reason) => {
+    const rules = listRules().map((r) => r.id === id ? { ...r, ...patch } : r);
+    save(rules, reason);
+  };
+  const setName = (id, name) => {
+    patchRule(id, { name: String(name || "").trim() }, "transform:smart-rules:name:" + id);
+  };
+  const setEnabled = (id, enabled) => {
+    patchRule(id, { enabled }, "transform:smart-rules:enabled:" + id);
+  };
+  const setTemplate = (id, template) => {
+    patchRule(
+      id,
+      { targetTemplate: String(template || "").trim() },
+      "transform:smart-rules:template:" + id
+    );
+  };
+  const addCondition = (id, kind, value) => {
+    const v = String(value || "").trim();
+    if (!v) return;
+    const rules = listRules().map((r) => {
+      if (r.id !== id || r.conditions[kind].includes(v)) return r;
+      const conditions = { ...r.conditions, [kind]: r.conditions[kind].concat(v) };
+      return { ...r, conditions };
+    });
+    save(rules, "transform:smart-rules:condition-add:" + id);
+  };
+  const removeCondition = (id, kind, value) => {
+    const rules = listRules().map((r) => {
+      if (r.id !== id) return r;
+      const conditions = { ...r.conditions, [kind]: r.conditions[kind].filter((v) => v !== value) };
+      return { ...r, conditions };
+    });
+    save(rules, "transform:smart-rules:condition-remove:" + id);
+  };
+  const moveRule = (from, to) => {
+    const rules = listRules();
+    if (from < 0 || from >= rules.length || to < 0 || to >= rules.length || from === to) return;
+    const moved = rules.splice(from, 1)[0];
+    if (!moved) return;
+    rules.splice(to, 0, moved);
+    save(rules, "transform:smart-rules:move");
+  };
+  return {
+    listRules,
+    choicesFor,
+    addRule,
+    removeRule,
+    setName,
+    setEnabled,
+    setTemplate,
+    addCondition,
+    removeCondition,
+    moveRule
+  };
+}
+var RULE_KINDS, KIND_OF_FIELD;
+var init_smart_rules_model = __esm({
+  "src/ui/settings/custom/smart_rules_model.ts"() {
+    "use strict";
+    RULE_KINDS = ["tags", "emojiFields", "wikilinks"];
+    KIND_OF_FIELD = {
+      tags: "tag",
+      emojiFields: "element",
+      wikilinks: "wikilink"
+    };
+  }
+});
+
+// src/ui/settings/custom/smart_rules_view.ts
+function ruleTitle(row, index) {
+  return row.name || RULE_FALLBACK + (index + 1);
+}
+function kindRow(host, row, kind, o) {
+  const values = row.conditions[kind];
+  const box = el(host, "div", "io-kind" + (values.length ? "" : " io-kind--empty"));
+  el(box, "div", "io-kind__label", KIND_LABEL[kind]);
+  const chips = el(box, "div", "io-kind__chips");
+  if (!values.length) el(chips, "span", "io-kind__none", KIND_ANY);
+  values.forEach((value, i) => {
+    if (i) el(chips, "span", "io-op", OP_OR);
+    const chip = el(chips, "span", "io-vchip", value);
+    const drop = btn(chip, "io-icon", {
+      text: "\u2715",
+      label: "Remove " + value + " from " + ruleTitle(row, 0)
+    });
+    drop.disabled = !o.enabled;
+    drop.addEventListener("click", (() => {
+      if (!o.enabled) return;
+      o.model.removeCondition(row.id, kind, value);
+      o.redraw();
+    }));
+  });
+  const add = btn(box, "io-icon", {
+    text: "+",
+    label: "Add a " + KIND_LABEL[kind].toLowerCase() + " to " + ruleTitle(row, 0)
+  });
+  add.disabled = !o.enabled;
+  add.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.askCondition(kind, (value) => {
+      if (!value) return;
+      o.model.addCondition(row.id, kind, value);
+      o.redraw();
+    });
+  }));
+}
+function ruleCard(host, row, index, o, drag) {
+  const card = el(host, "div", "io-rule" + (row.enabled ? "" : " io-rule--off") + (row.conflict ? " io-rule--clash" : ""));
+  el(card, "div", "io-rule__rail");
+  const main = el(card, "div", "io-rule__main");
+  const head = el(main, "div", "io-rule__head");
+  const grip = el(head, "div", "io-grip", "\u283F");
+  grip.setAttribute("role", "button");
+  grip.setAttribute("aria-label", "Drag " + ruleTitle(row, index) + " to reorder it");
+  grip.draggable = o.enabled;
+  grip.addEventListener("dragstart", ((ev) => {
+    var _a;
+    drag.taken.index = index;
+    card.classList.add("io-dragging");
+    try {
+      (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", row.id);
+    } catch (e) {
+    }
+  }));
+  grip.addEventListener("dragend", (() => {
+    drag.taken.index = null;
+    card.classList.remove("io-dragging");
+  }));
+  card.addEventListener("dragover", ((ev) => {
+    if (drag.taken.index === null) return;
+    ev.preventDefault();
+    card.classList.add("io-dragover");
+  }));
+  card.addEventListener("dragleave", (() => {
+    card.classList.remove("io-dragover");
+  }));
+  card.addEventListener("drop", ((ev) => {
+    ev.preventDefault();
+    card.classList.remove("io-dragover");
+    const from = drag.taken.index;
+    drag.taken.index = null;
+    if (from === null || from === index) return;
+    drag.onMove(from, index);
+  }));
+  el(head, "span", "io-rule__n", String(index + 1));
+  const name = textInput(head, "io-rule__name", {
+    value: row.name,
+    placeholder: RULE_NAME_PLACEHOLDER,
+    label: "Name of " + ruleTitle(row, index)
+  });
+  name.disabled = !o.enabled;
+  name.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.model.setName(row.id, name.value);
+    o.redraw();
+  }));
+  const tools = el(head, "div", "io-rule__tools");
+  const use = btn(tools, "io-icon" + (row.enabled ? " io-icon--on" : ""), {
+    text: row.enabled ? "\u25C9" : "\u25CB",
+    label: (row.enabled ? "Stop using " : "Use ") + ruleTitle(row, index)
+  });
+  use.disabled = !o.enabled;
+  use.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.model.setEnabled(row.id, !row.enabled);
+    o.redraw();
+  }));
+  const remove = btn(tools, "io-icon", {
+    text: "\u2715",
+    label: "Remove " + ruleTitle(row, index)
+  });
+  remove.disabled = !o.enabled;
+  remove.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.model.removeRule(row.id);
+    o.redraw();
+  }));
+  const conds = el(main, "div", "io-rule__conds");
+  el(conds, "div", "io-rule__lead", CONDS_LEAD);
+  RULE_KINDS.forEach((kind, i) => {
+    if (i) el(conds, "div", "io-op io-op--and io-op--row", OP_AND);
+    kindRow(conds, row, kind, o);
+  });
+  const out = el(main, "div", "io-rule__out");
+  el(out, "span", "io-rule__arrow", "\u2192");
+  el(out, "span", void 0, TEMPLATE_LEAD);
+  const template = selectInput(out, "io-select", {
+    options: [{ value: "", label: TEMPLATE_NONE }].concat(o.templates.map((t) => ({ value: t, label: t }))),
+    value: row.targetTemplate,
+    label: "Template for " + ruleTitle(row, index)
+  });
+  template.disabled = !o.enabled;
+  template.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.model.setTemplate(row.id, template.value);
+    o.redraw();
+  }));
+  if (row.conflict) {
+    const warn = el(main, "div", "io-rule__warn");
+    el(warn, "span", void 0, "\u26A0");
+    el(warn, "span", void 0, row.conflict);
+  }
+}
+function renderSmartRules(host, o) {
+  const rows = o.model.listRules();
+  const list = el(host, "div", "io-rules");
+  const taken = { index: null };
+  if (!rows.length) el(list, "div", "io-side__empty", EMPTY_RULES);
+  rows.forEach((row, i) => ruleCard(list, row, i, o, {
+    taken,
+    onMove: (from, to) => {
+      o.model.moveRule(from, to);
+      o.redraw();
+    }
+  }));
+  const actions = el(host, "div", "io-rowactions");
+  const add = btn(actions, "io-btn io-btn--sm io-btn--cta", {
+    text: ADD_RULE,
+    label: ADD_RULE
+  });
+  add.disabled = !o.enabled;
+  add.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.model.addRule();
+    o.redraw();
+  }));
+}
+function renderConditionPicker(host, o) {
+  const box = el(host, "div", "io-pickvals");
+  if (!o.choices.length) {
+    el(
+      box,
+      "div",
+      "io-side__empty",
+      "no " + KIND_LABEL[o.kind].toLowerCase() + " Fields yet \u2014 set one up on the Tags & PKM tab"
+    );
+    return;
+  }
+  for (const group of o.choices) {
+    const wrap = el(box, "div", "io-pickvals__group");
+    el(wrap, "div", "io-pickvals__name", group.label);
+    const chips = el(wrap, "div", "io-pickvals__chips");
+    if (!group.values.length) {
+      el(chips, "span", "io-kind__none", "no Values yet");
+      continue;
+    }
+    for (const value of group.values) {
+      const pick = btn(chips, "io-vchip io-vchip--pick", {
+        text: value,
+        label: "Use " + value + " from " + group.label
+      });
+      pick.addEventListener("click", (() => {
+        o.pick(value);
+      }));
+    }
+  }
+}
+function conditionDialogTitle(kind) {
+  return "Add a " + KIND_LABEL[kind].toLowerCase();
+}
+var KIND_LABEL, RULE_NAME_PLACEHOLDER, RULE_FALLBACK, KIND_ANY, ADD_RULE, TEMPLATE_LEAD, TEMPLATE_NONE, EMPTY_RULES, OP_OR, OP_AND, CONDS_LEAD, CONDITION_DIALOG_NOTE;
+var init_smart_rules_view = __esm({
+  "src/ui/settings/custom/smart_rules_view.ts"() {
+    "use strict";
+    init_dom();
+    init_smart_rules_model();
+    KIND_LABEL = {
+      tags: "Tag",
+      emojiFields: "Element",
+      wikilinks: "Link"
+    };
+    RULE_NAME_PLACEHOLDER = "Name this rule (optional)";
+    RULE_FALLBACK = "Rule ";
+    KIND_ANY = "any";
+    ADD_RULE = "Add rule";
+    TEMPLATE_LEAD = "use";
+    TEMPLATE_NONE = "None";
+    EMPTY_RULES = "no rules yet \u2014 the default template is used for every line";
+    OP_OR = "or";
+    OP_AND = "and";
+    CONDS_LEAD = "when the line has";
+    CONDITION_DIALOG_NOTE = "Pick one of the Values your Fields already offer. A rule looks for any of the Values listed under one Field type, and for all of the types you have filled in";
+  }
+});
+
+// src/ui/settings/custom/smart_rules.ts
+function askConditionModal(Modal2, app2, o) {
+  let answered = false;
+  const finish = (value) => {
+    if (answered) return;
+    answered = true;
+    o.done(value);
+  };
+  class ConditionModal extends Modal2 {
+    onOpen() {
+      const box = this.contentEl;
+      box.empty();
+      box.addClass("io-dlg");
+      el(box, "h4", void 0, conditionDialogTitle(o.kind));
+      el(box, "p", "io-item__desc", CONDITION_DIALOG_NOTE);
+      renderConditionPicker(box, {
+        kind: o.kind,
+        choices: o.choices,
+        pick: (value) => {
+          finish(value);
+          this.close();
+        }
+      });
+      const foot = el(box, "div", "io-dlg__foot");
+      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      cancel.addEventListener("click", (() => {
+        finish(null);
+        this.close();
+      }));
+    }
+    onClose() {
+      finish(null);
+      this.contentEl.empty();
+    }
+  }
+  new ConditionModal(app2).open();
+}
+var import_fields_editor_legacy3, import_transform_feature2, helpers3, engine2, RULES_PATHS, smartRules;
+var init_smart_rules = __esm({
+  "src/ui/settings/custom/smart_rules.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_fields_model();
+    init_smart_rules_model();
+    init_smart_rules_view();
+    import_fields_editor_legacy3 = __toESM(require_fields_editor_legacy());
+    import_transform_feature2 = __toESM(require_transform_feature());
+    helpers3 = import_fields_editor_legacy3.default;
+    engine2 = import_transform_feature2.default;
+    RULES_PATHS = [
+      "features.transform.enabled",
+      "transform.inline2note.enabled",
+      "transform.inline2note.templatesFolder",
+      "general.help.showTips"
+    ];
+    smartRules = (host, ctx) => {
+      const p = ctx.platform;
+      const box = el(host, "div", "io-rulesblock");
+      if (!p) return () => {
+        box.empty();
+      };
+      const Modal2 = p.Modal;
+      const app2 = p.plugin.app;
+      const templates = () => {
+        try {
+          const folder = String(ctx.get("transform.inline2note.templatesFolder") || "");
+          const raw = engine2.collectTemplateOptions(app2, folder);
+          if (!Array.isArray(raw)) return [];
+          return raw.map((x) => String(x || "").trim()).filter(Boolean);
+        } catch (e) {
+          console.error("inline-overhaul: \u0441\u043F\u0438\u0441\u043E\u043A \u0448\u0430\u0431\u043B\u043E\u043D\u043E\u0432 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0441\u044F", e);
+          return [];
+        }
+      };
+      let mounted = null;
+      const draw = () => {
+        const keep = keepView(box);
+        const next = el(box, "div", "io-rulesblock__mount");
+        try {
+          const model = createRulesModel({
+            plugin: p.plugin,
+            validate: (rules) => engine2.validateSmartRules(rules),
+            fieldTokens: () => createFieldsModel({
+              plugin: p.plugin,
+              normalizePkmOrder: p.normalizePkmOrder,
+              pkmOrderFields: p.pkmOrderFields,
+              cfg: p.getConfig(),
+              deepState: helpers3.getOrderDeepEditorState()
+            }).listFieldTokens()
+          });
+          renderSmartRules(next, {
+            model,
+            enabled: Boolean(ctx.get("transform.inline2note.enabled")),
+            templates: templates(),
+            redraw: () => {
+              draw();
+            },
+            askCondition: (kind, done) => askConditionModal(Modal2, app2, {
+              kind,
+              choices: model.choicesFor(kind),
+              done
+            })
+          });
+        } catch (e) {
+          next.remove();
+          console.error("inline-overhaul: Smart Rules \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0438\u0441\u044C", e);
+          return;
+        }
+        if (mounted) mounted.remove();
+        mounted = next;
+        keep.restore();
+      };
+      draw();
+      const unwatch = ctx.watch(RULES_PATHS, draw);
+      return () => {
+        unwatch();
+        mounted = null;
+        box.empty();
+      };
+    };
+  }
+});
+
 // src/ui/settings/schema/transform.ts
 var TRANSFORM_GROUPS;
 var init_transform = __esm({
@@ -34681,6 +35220,7 @@ var init_transform = __esm({
     "use strict";
     init_types();
     init_callouts();
+    init_smart_rules();
     TRANSFORM_GROUPS = [
       {
         id: "transform-intro",
@@ -34938,6 +35478,18 @@ var init_transform = __esm({
             },
             options: [{ value: "left", label: "Left, before the text" }, { value: "right", label: "Right, after the text" }]
           }
+        ]
+      },
+      {
+        id: "smart-rules",
+        tab: "transform",
+        order: 500,
+        heading: "Smart Rules",
+        intro: "Different kinds of line deserve different notes. A rule spots a kind of line and picks the template for it",
+        tip: "Rules are read from the top, the first one that fits is used, and anything that fits none of them gets the default template. So put your narrow rules above your broad ones, or the broad one will answer first. Drag a rule by its handle to change which one is tried first",
+        visible: on("transform.inline2note.enabled"),
+        items: [
+          { kind: "custom", id: "smart-rules-list", render: smartRules }
         ]
       }
     ];
@@ -36452,20 +37004,20 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createTagWheelConfigCodec === "function")
       });
       if (loaded.mod && typeof loaded.mod.createTagWheelConfigCodec === "function") {
-        const helpers3 = getConfigNoteHelpers();
+        const helpers4 = getConfigNoteHelpers();
         const codec = loaded.mod.createTagWheelConfigCodec({
           isObj,
           getOrderStrictName,
           ORDER_KEY_TO_LEFT_FIELD_ID,
-          getFieldById: helpers3.getFieldById,
-          getLeftFields: helpers3.getLeftFields,
-          getRightFields: helpers3.getRightFields,
-          collectTagSections: helpers3.collectTagSections,
-          collectWikilinkFieldIds: helpers3.collectWikilinkFieldIds,
-          collectOrderedElementFields: helpers3.collectOrderedElementFields,
-          getPrefixRulesFromCfg: helpers3.getPrefixRulesFromCfg,
+          getFieldById: helpers4.getFieldById,
+          getLeftFields: helpers4.getLeftFields,
+          getRightFields: helpers4.getRightFields,
+          collectTagSections: helpers4.collectTagSections,
+          collectWikilinkFieldIds: helpers4.collectWikilinkFieldIds,
+          collectOrderedElementFields: helpers4.collectOrderedElementFields,
+          getPrefixRulesFromCfg: helpers4.getPrefixRulesFromCfg,
           denormTagToken,
-          parseCustomPrefixResolverBlock: helpers3.parseCustomPrefixResolverBlock,
+          parseCustomPrefixResolverBlock: helpers4.parseCustomPrefixResolverBlock,
           isWikilinkToken,
           parseWikilinkLineStrict,
           extractFirstTagToken,
@@ -36614,14 +37166,14 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createConfigNoteHelpers === "function")
       });
       if (loaded.mod && typeof loaded.mod.createConfigNoteHelpers === "function") {
-        const helpers3 = loaded.mod.createConfigNoteHelpers({
+        const helpers4 = loaded.mod.createConfigNoteHelpers({
           isObj,
           normalizePkmOrder,
           getOrderStrictName,
           TAGWHEEL_PREFIX_RESOLVER_H3
         });
-        if (hasValidConfigNoteHelpers(helpers3)) {
-          __configNoteHelpers = helpers3;
+        if (hasValidConfigNoteHelpers(helpers4)) {
+          __configNoteHelpers = helpers4;
           return __configNoteHelpers;
         }
       }
@@ -40296,7 +40848,7 @@ var require_main = __commonJS({
         await loadTagWheelConfigCodecSafe(this.app);
         const cfg = this.getConfig();
         const orch = getConfigNoteOrchestrator();
-        const helpers3 = getConfigNoteHelpers();
+        const helpers4 = getConfigNoteHelpers();
         if (!orch) throw new Error("Config note orchestrator unavailable");
         return await orch.applyTagWheelConfigNote({
           app: this.app,
@@ -40307,16 +40859,16 @@ var require_main = __commonJS({
           getOrderStrictName,
           isObj,
           cloneJson,
-          collectTagSections: helpers3.collectTagSections,
-          getFieldById: helpers3.getFieldById,
+          collectTagSections: helpers4.collectTagSections,
+          getFieldById: helpers4.getFieldById,
           extractFieldMetaMap,
           rebuildTagValues,
           rebuildSubtagValues,
           denormTagToken,
-          getPrefixRulesFromCfg: helpers3.getPrefixRulesFromCfg,
-          collectCheckboxTokensFromMap: helpers3.collectCheckboxTokensFromMap,
+          getPrefixRulesFromCfg: helpers4.getPrefixRulesFromCfg,
+          collectCheckboxTokensFromMap: helpers4.collectCheckboxTokensFromMap,
           deepMerge,
-          syncCustomPrefixResolverBlock: helpers3.syncCustomPrefixResolverBlock,
+          syncCustomPrefixResolverBlock: helpers4.syncCustomPrefixResolverBlock,
           normalizePkmOrder,
           CFG_H2_DATES
         });
