@@ -123,6 +123,11 @@ const CUSTOM_IMPL = {
     named: "binderTable",
     expr: () => "binderTable",
   },
+  renderFloatingButton: {
+    module: "previews.ts",
+    named: "floatingButton",
+    expr: () => "floatingButton",
+  },
 };
 
 /** Найти конец литерала, начинающегося с открывающей скобки в позиции i. */

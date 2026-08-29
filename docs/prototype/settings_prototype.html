@@ -1805,7 +1805,7 @@ const SCHEMA = [
       seeAlso:{ id:"i2n-button-preview", label:"See where it appears" } },
     { kind:"custom", id:"i2n-button-preview", render: renderFloatingButton,
       visible:{ deps:["transform.inline2note.enabled","transform.inline2note.floatingButton"],
-                test: c => c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton") } },
+                test: c => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton")) } },
     { kind:"dropdown", id:"i2n-default-template", path:"transform.inline2note.defaultTemplate", default:"task.md",
       name:"Default template", desc:"The template on creation of new note when no special rules apply (see <code>Smart Rules</code> below)",
       tip:"You can set up rules further down that pick a different template for certain lines. This one is used for everything else",

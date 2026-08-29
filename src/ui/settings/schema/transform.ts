@@ -3,13 +3,12 @@
  * Руками не правится. Правится прототип, затем `npm run gen:schema`.
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
- * Не перенесено (свои блоки и кнопки без действий, З8):
- *   inline-to-note: i2n-button-preview (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { on, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
+import { floatingButton } from "../custom/previews.ts";
 import { smartRules } from "../custom/smart_rules.ts";
 
 export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
@@ -40,6 +39,9 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       visible: on("transform.inline2note.enabled"),
       tip:"Click it and the line turns into a note, the same as pressing the key would. The button is only drawn on screen \u2014 it is never saved into your note, so nothing changes if you open the file elsewhere",
       seeAlso:{ id:"i2n-button-preview", label:"See where it appears" } },
+    { kind:"custom", id:"i2n-button-preview", render: floatingButton,
+      visible:{ deps:["transform.inline2note.enabled","transform.inline2note.floatingButton"],
+                test: c => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton")) } },
     { kind:"dropdown", id:"i2n-default-template", path:"transform.inline2note.defaultTemplate", default:"task.md",
       name:"Default template", desc:"The template on creation of new note when no special rules apply (see <code>Smart Rules</code> below)",
       tip:"You can set up rules further down that pick a different template for certain lines. This one is used for everything else",

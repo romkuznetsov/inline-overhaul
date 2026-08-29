@@ -19,7 +19,13 @@ import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals, Setting, Notice, Modal } from "../harness/obsidian_stub.ts";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import { previewFields, resolveSlots, EXAMPLE_FIELDS } from "../../src/ui/settings/custom/preview_data.ts";
-import { barsPreview, linePreview, tagPreview, wheelPreview } from "../../src/ui/settings/custom/previews.ts";
+import {
+  barsPreview,
+  floatingButton,
+  linePreview,
+  tagPreview,
+  wheelPreview,
+} from "../../src/ui/settings/custom/previews.ts";
 import { PREVIEW_EXAMPLE, PREVIEW_TEXTS } from "../../src/ui/settings/schema/custom_texts.ts";
 import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
 import { buildDefaultConfig, getIn } from "../../src/ui/settings/types.ts";
@@ -464,6 +470,36 @@ function realConfig(): Any {
     "и сам разбор при этом на месте");
   close();
   ok("разбор строки: пример помечен, как и в остальных предпросмотрах");
+}
+
+/* ---- плавающая кнопка (10.3) ------------------------------------------- */
+
+{
+  /*
+   * Кнопка в предпросмотре — картинка, а не контрол. В прототипе на этом
+   * месте `<button>`, который ничего не делает; в панели нажимаемый контрол,
+   * который ничем не отвечает, запрещён (З8). Проверка держит именно это.
+   */
+  const host = makeNode("div");
+  const close = floatingButton(host as unknown as El, makeCtx(realConfig()));
+
+  const float = all(host, "io-float");
+  assert.equal(float.length, 1, "кнопка нарисована один раз");
+  assert.equal(float[0]?.tagName, "SPAN", "и это не кнопка, а её вид");
+  assert.equal(float[0]?.textContent, "\u2192 note",
+    "с той же надписью, что в прототипе");
+  assert.equal(all(host, "io-line").length, 1,
+    "рядом стоит строка, на которой она появляется");
+  assert.ok(texts(host, "io-preview__note").some(t => t.includes("cursor")),
+    "и сказано, на какой именно строке: "
+    + texts(host, "io-preview__note").join(" | "));
+
+  /* П9: предпросмотр говорит о себе, что он не редактор — как и остальные. */
+  assert.ok(texts(host, "io-preview__note--top").length === 1,
+    "фраза «это не редактор» стоит на месте");
+
+  close();
+  ok("плавающая кнопка: вид кнопки без кнопки, и строка рядом");
 }
 
 console.log("\n" + passed + " проверок пройдено");

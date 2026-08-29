@@ -33285,7 +33285,7 @@ function structuralLine(parent, ctx, fields, chipFor) {
   else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
   return line;
 }
-var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview;
+var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview, FLOAT_PATHS, FLOAT_LABEL, floatingButton;
 var init_previews = __esm({
   "src/ui/settings/custom/previews.ts"() {
     "use strict";
@@ -33577,6 +33577,30 @@ var init_previews = __esm({
       };
       draw();
       const unwatch = ctx.watch(TAG_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
+    FLOAT_PATHS = [
+      "pkm.lineFormat.separator1",
+      "pkm.lineFormat.separator2"
+    ];
+    FLOAT_LABEL = "\u2192 note";
+    floatingButton = (host, ctx) => {
+      const shell = previewShell(host, ctx, "i2n-button-preview");
+      const text = PREVIEW_TEXTS["i2n-button-preview"];
+      const holder = el(shell.box, "div");
+      const draw = () => {
+        holder.empty();
+        const row = el(holder, "div", "io-floatrow");
+        const { fields } = previewFields(ctx);
+        structuralLine(row, ctx, fields);
+        el(row, "span", "io-float", FLOAT_LABEL);
+        el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+      };
+      draw();
+      const unwatch = ctx.watch(FLOAT_PATHS, draw);
       return () => {
         unwatch();
         shell.close();
@@ -35991,6 +36015,7 @@ var init_transform = __esm({
     "use strict";
     init_types();
     init_callouts();
+    init_previews();
     init_smart_rules();
     TRANSFORM_GROUPS = [
       {
@@ -36052,6 +36077,15 @@ var init_transform = __esm({
             visible: on("transform.inline2note.enabled"),
             tip: "Click it and the line turns into a note, the same as pressing the key would. The button is only drawn on screen \u2014 it is never saved into your note, so nothing changes if you open the file elsewhere",
             seeAlso: { id: "i2n-button-preview", label: "See where it appears" }
+          },
+          {
+            kind: "custom",
+            id: "i2n-button-preview",
+            render: floatingButton,
+            visible: {
+              deps: ["transform.inline2note.enabled", "transform.inline2note.floatingButton"],
+              test: (c) => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton"))
+            }
           },
           {
             kind: "dropdown",

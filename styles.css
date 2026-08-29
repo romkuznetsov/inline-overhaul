@@ -1554,3 +1554,28 @@
   gap: 8px;
   margin-top: 14px;
 }
+/* ---- предпросмотр плавающей кнопки (PRD 10.3) ----------------------------
+   Строка занимает ряд, кнопка стоит в его конце. Ширина строки задана здесь,
+   а не атрибутом узла: это тот же перенос сетки в CSS, что и у Binder. */
+.io-floatrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 7px;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+}
+.io-floatrow .io-line { flex: 1 1 auto; min-width: 0; }
+/* Не кнопка, а её вид: нажимать здесь нечего (З8), поэтому и курсор обычный. */
+.io-float {
+  flex: 0 0 auto;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--interactive-accent);
+  border: 1px solid transparent;
+  color: var(--text-on-accent);
+  box-shadow: 0 2px 8px rgba(20, 17, 32, 0.2);
+  white-space: nowrap;
+}

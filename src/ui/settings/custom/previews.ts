@@ -582,3 +582,40 @@ export const tagPreview: CustomRender = (host, ctx) => {
   const unwatch = ctx.watch(TAG_PATHS, draw);
   return () => { unwatch(); shell.close(); };
 };
+/** Пути, от которых зависит строка под плавающей кнопкой. */
+const FLOAT_PATHS = [
+  "pkm.lineFormat.separator1",
+  "pkm.lineFormat.separator2",
+] as const;
+
+/** Что написано на самой кнопке. Снято с прототипа. */
+const FLOAT_LABEL = "\u2192 note";
+
+/**
+ * Где появляется плавающая кнопка Transform (10.3). Показывает не настройку,
+ * а место: строка, на которой стоит курсор, и кнопка в её конце.
+ *
+ * **Кнопка здесь — картинка, а не кнопка.** В прототипе на этом месте стоит
+ * `<button>`, который ничего не делает: прототип и не должен ничего делать.
+ * В панели нажимаемый контрол, который ничем не отвечает, запрещён (З8),
+ * поэтому рисуется `span` с тем же видом. Вид блока прототипу соответствует,
+ * поведение — правилам панели.
+ */
+export const floatingButton: CustomRender = (host, ctx) => {
+  const shell = previewShell(host, ctx, "i2n-button-preview");
+  const text = PREVIEW_TEXTS["i2n-button-preview"];
+  const holder = el(shell.box, "div");
+
+  const draw = (): void => {
+    holder.empty();
+    const row = el(holder, "div", "io-floatrow");
+    const { fields } = previewFields(ctx);
+    structuralLine(row, ctx, fields);
+    el(row, "span", "io-float", FLOAT_LABEL);
+    el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+  };
+
+  draw();
+  const unwatch = ctx.watch(FLOAT_PATHS, draw);
+  return () => { unwatch(); shell.close(); };
+};
