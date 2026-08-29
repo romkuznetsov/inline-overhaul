@@ -645,6 +645,14 @@ async function run() {
   assertTrue(/const Declarative = getDeclarativeSettingTabCtor\(\);/.test(src), "createSettingTab asks the loader every time");
   assertFalse(/newSettingsPane/.test(src), "the settings pane flag is gone: there is nothing to choose between");
   assertFalse(/InlineOverhaulSettingTab/.test(src), "the old settings tab class is gone");
+  /*
+   * addSettingTab стоит внутри onload: исключение оттуда роняет загрузку
+   * плагина целиком — ни команд, ни рантайма. Панель важна, но не настолько.
+   */
+  assertTrue(/const tab = this\.createSettingTab\(\);[\s\S]{0,80}if \(tab\) this\.addSettingTab\(tab\);/.test(src),
+    "a settings pane that failed to build does not break onload");
+  assertFalse(/throw new Error\("Inline Overhaul: settings pane/.test(src),
+    "createSettingTab reports the failure instead of throwing out of onload");
 
   assertTrue(/function getCommandRegistry\(\)/.test(src), "command registry getter exists");
   assertTrue(/buildCoreCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty core defs");

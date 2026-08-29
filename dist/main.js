@@ -37737,7 +37737,10 @@ var require_main = __commonJS({
         } catch (e) {
           console.error("[inline-overhaul][dev-mode-log:init]", e);
         }
-        this.addSettingTab(this.createSettingTab());
+        {
+          const tab = this.createSettingTab();
+          if (tab) this.addSettingTab(tab);
+        }
         this.registerCommands();
         this.ensureTagwheelFillStyles();
         this.ensureStripLineStyles();
@@ -38181,8 +38184,13 @@ var require_main = __commonJS({
        * Панель настроек: одна, на схеме и декларативном API Obsidian 1.13.
        *
        * Старая панель удалена 2026-08-29 решением заказчика: паритет достигнут
-       * во всём, кроме справочника команд, который ждёт имён из фазы 2. Флаг
-       * Флага выбора панели больше нет: выбирать не из чего.
+       * во всём, кроме справочника команд, который ждёт имён из фазы 2. Флага
+       * выбора панели больше нет: выбирать не из чего.
+       *
+       * Не собралась -- отдаётся `null`, и вкладки настроек просто не будет.
+       * Ронять загрузку нельзя: `addSettingTab` стоит внутри `onload`, и
+       * исключение оттуда унесло бы с собой команды, рантайм и подсветку строк.
+       * Панель важна, но не настолько.
        */
       createSettingTab() {
         const Declarative = getDeclarativeSettingTabCtor();
@@ -38196,7 +38204,9 @@ var require_main = __commonJS({
             console.error("[inline-overhaul] declarative settings pane failed to build", e);
           }
         }
-        throw new Error("Inline Overhaul: settings pane needs Obsidian 1.13 or newer");
+        console.error("[inline-overhaul] settings pane unavailable: needs Obsidian 1.13 or newer");
+        this.notice("Inline Overhaul settings need Obsidian 1.13 or newer");
+        return null;
       }
       getDevModeConfig(cfg) {
         const snapshot = isObj(cfg) ? cfg : this.getConfig();
