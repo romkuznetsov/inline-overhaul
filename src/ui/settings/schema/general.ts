@@ -3,8 +3,6 @@
  * Руками не правится. Правится прототип, затем `npm run gen:schema`.
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
- * Не перенесено (свои блоки и кнопки без действий, З8):
- *   help: howto (buttons, нет действия: open-howto)
  */
 
 import type { SettingsGroup } from "../types.ts";
@@ -19,6 +17,12 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
   id: "help", tab: "general", order: 100, heading: "Help",
   intro: "Where to start, and how much hand-holding you want along the way",
   items: [
+    { kind:"buttons", id:"howto",
+      name:"Guide", desc:"Worked examples of the things people set up first",
+      tip:"Opens a note in your vault with the practical side: which commands are worth a key, how to lay out your " +
+          "first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. " +
+          "It is an ordinary note, so you can scribble your own notes in it",
+      buttons:[ {label:"Open the guide", action:"open-howto", cta:true} ] },
     { kind:"toggle", id:"show-tips", path:"general.help.showTips", default:true,
       name:"Show tips", desc:"Put a ? beside anything that needs more explanation",
       tip:"Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way" }

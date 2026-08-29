@@ -20,7 +20,7 @@ import { SCHEMA, TABS } from "./schema/index.ts";
 import type { TabDef, TabId } from "./types.ts";
 import { SettingsPane } from "./settings_tab.ts";
 import { ConfigStoreAdapter, type ConfigStoreLike } from "./store.ts";
-import { buildActions, type ConfirmRequest } from "./actions.ts";
+import { buildActions, type ConfirmRequest, type VaultSeam } from "./actions.ts";
 import { el } from "./custom/dom.ts";
 import type { ActionId } from "./types.ts";
 
@@ -175,6 +175,23 @@ function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
   });
 }
 
+/**
+ * Vault для руководства. Единственное место, где слой настроек пишет файл в
+ * хранилище, и оно здесь по той же причине, что и окно подтверждения: это
+ * платформа, а реестр действий обязан собираться без неё.
+ */
+function vaultSeam(app: App): VaultSeam {
+  return {
+    exists: (path: string) => !!app.vault.getAbstractFileByPath(path),
+    create: async (path: string, text: string) => { await app.vault.create(path, text); },
+    open: async (path: string) => {
+      const file = app.vault.getAbstractFileByPath(path);
+      if (!file) throw new Error("Cannot open " + path);
+      await app.workspace.getLeaf(true).openFile(file as never);
+    },
+  };
+}
+
 export class InlineOverhaulSettings extends PluginSettingTab {
   private pane: SettingsPane;
 
@@ -195,6 +212,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         plugin: plugin as never,
         notify: (message: string) => { new Notice(message); },
         confirm: (o: ConfirmRequest) => askConfirm(app, o),
+        vault: vaultSeam(app),
       }) as Record<string, () => Promise<void> | void>,
       /* То же окно и для сброса группы (Н3). */
       confirm: (o: ConfirmRequest) => askConfirm(app, o),

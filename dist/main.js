@@ -24576,6 +24576,14 @@ var init_general = __esm({
         intro: "Where to start, and how much hand-holding you want along the way",
         items: [
           {
+            kind: "buttons",
+            id: "howto",
+            name: "Guide",
+            desc: "Worked examples of the things people set up first",
+            tip: "Opens a note in your vault with the practical side: which commands are worth a key, how to lay out your first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. It is an ordinary note, so you can scribble your own notes in it",
+            buttons: [{ label: "Open the guide", action: "open-howto", cta: true }]
+          },
+          {
             kind: "toggle",
             id: "show-tips",
             path: "general.help.showTips",
@@ -33608,14 +33616,14 @@ function introRow(text) {
   return { name: "", desc: text, searchable: false };
 }
 function introTextFor(group, w) {
-  const intro = group.intro || "";
-  if (!w.showIds || !intro) return intro;
-  return intro + " \u2014 " + group.id;
+  const intro2 = group.intro || "";
+  if (!w.showIds || !intro2) return intro2;
+  return intro2 + " \u2014 " + group.id;
 }
 function groupToDefinition(group, w) {
   const items = [];
-  const intro = introTextFor(group, w);
-  if (intro) items.push(introRow(intro));
+  const intro2 = introTextFor(group, w);
+  if (intro2) items.push(introRow(intro2));
   for (const it of group.items) {
     const def2 = itemToDefinition(it, w);
     if (def2) items.push(def2);
@@ -34290,6 +34298,215 @@ var init_store = __esm({
   }
 });
 
+// src/ui/settings/howto.ts
+function howtoMarkdown() {
+  return [
+    intro(),
+    firstSteps(),
+    fieldsAndValues(),
+    theLine(),
+    tagWheel(),
+    bars(),
+    binder(),
+    transform(),
+    recipes(),
+    footer()
+  ].join("\n\n");
+}
+function intro() {
+  return [
+    "# Inline Overhaul: a practical guide",
+    "",
+    "This note is yours. The plugin creates it once and never overwrites it, so you can",
+    "scribble in the margins, delete the parts you do not need, and keep your own recipes",
+    "at the bottom.",
+    "",
+    "The idea behind the plugin is one line long: **a line of a note can carry more than",
+    "words**. A status, a due date, a link to a project \u2014 put them on the same line as the",
+    "thought, and you never break off to fill in a form."
+  ].join("\n");
+}
+function firstSteps() {
+  return [
+    "## What to set up first",
+    "",
+    "In this order. Each step takes a minute and makes the next one obvious.",
+    "",
+    "1. **Give two commands a key.** `Move left` and `Move right` are the two you will press",
+    "   most: they move text inside a line, change the indent, and cycle the Prefix. Nothing",
+    "   in this plugin has a key by default \u2014 that is deliberate, so it cannot fight with",
+    "   what you already use. Open `Settings \u2192 Hotkeys`, type `Inline Overhaul`, and bind",
+    "   those two.",
+    "2. **Look at your Fields.** A fresh install comes with `Status` and `Priority`. Open",
+    "   `Settings \u2192 Inline Overhaul \u2192 Tags & PKM` and see what they hold.",
+    "3. **Type a line and watch it.** Write `- buy milk #todo` in any note. The tag turns",
+    "   into a coloured bubble; the text stays text.",
+    "4. **Open TagWheel on that line.** Bind the command that opens it, press it, and pick a",
+    "   Value with the arrow keys.",
+    "",
+    "Everything else \u2014 Bars, Binder, Transform \u2014 is worth reading only after those four."
+  ].join("\n");
+}
+function fieldsAndValues() {
+  return [
+    "## Fields and Values",
+    "",
+    "A **Field** is a slot on the line: `Status`, `Priority`, `Project`, `Due`. A **Value**",
+    "is what you put in that slot: `todo`, `doing`, `done`.",
+    "",
+    "A Field is one of three types, and the type decides what lands in the line:",
+    "",
+    "| Type | Writes | Good for |",
+    "|---|---|---|",
+    "| `Tag` | `#todo` | states, contexts, anything you want to search by |",
+    "| `Link` | `[[Project A]]` | pointing at another note |",
+    "| `Element` | `\u{1F4C5} 2026-08-29` | dates and anything with a marker in front |",
+    "",
+    "Two things about Values that are worth knowing early.",
+    "",
+    "**A Value can have a child.** Under `Status` you can keep `open` and, under `open`, a",
+    "`wip`. In the line they appear either as two bubbles or as one `#open/wip` \u2014 that is the",
+    "`Child tag format` setting.",
+    "",
+    "**A Value can be shown as empty.** It still occupies its place in the line, but prints",
+    'nothing. Useful for the state that means "nothing special": you see the slot is there',
+    "and it is not shouting at you."
+  ].join("\n");
+}
+function theLine() {
+  return [
+    "## How a line is put together",
+    "",
+    "```",
+    "- #todo #high || buy milk || [[Project A]] \u{1F4C5} 2026-08-29",
+    "^  ^^^^^^^^^^    ^^^^^^^^    ^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "|  Left Block    your text   Right Block",
+    "Prefix",
+    "```",
+    "",
+    "* the **Prefix** is what the line starts with: a bullet, a checkbox, a heading mark;",
+    "* the **Left Block** and the **Right Block** hold Fields, and each Field sits in one of",
+    "  them \u2014 drag it across the line in the editor to move it;",
+    "* the two `||` are **Separators**. They are what tells the plugin where your text ends",
+    "  and the Fields begin, so pick something you would never type by accident.",
+    "",
+    "Nothing here is written into the file twice: what you see in the line is what is in the",
+    "file."
+  ].join("\n");
+}
+function tagWheel() {
+  return [
+    "## TagWheel",
+    "",
+    "TagWheel is the reason the Fields are worth setting up. Put the cursor on a line, press",
+    "the key you bound to it, and a small panel opens over the line with your Fields in it.",
+    "Arrow keys move between Fields and between Values; the line updates as you move.",
+    "",
+    "Two settings change how it feels:",
+    "",
+    "* **`Values per side`** \u2014 how many Values show above and below the current one. Three is",
+    "  comfortable; more turns it into a list you have to read.",
+    "* **`Opens`** \u2014 whether the scroller opens on every Field or only where it helps.",
+    "",
+    "If a Field does not appear in TagWheel, check its `Active` setting and whether it waits",
+    "for another Field (`Prerequisite Field`)."
+  ].join("\n");
+}
+function bars() {
+  return [
+    "## Tag Bars",
+    "",
+    "A Bar is a coloured stripe in the margin. It runs down the side of a line **and",
+    "everything nested under it**, so a whole block of lines tells you what it is about",
+    "without you reading a single tag.",
+    "",
+    "One Field draws the Bars \u2014 you pick which one. Colours come from that Field's Values, so",
+    "the Bars and the bubbles agree by construction."
+  ].join("\n");
+}
+function binder() {
+  return [
+    "## Binder",
+    "",
+    "For text you type over and over. Put it in a row, give that row a key, and one press",
+    "drops it in wherever the cursor is.",
+    "",
+    "The command is made from the row, so the text a row inserts cannot be changed",
+    "afterwards: delete the row and add it again. The description is yours to edit at any",
+    "time \u2014 it is there to remind you what the row is for."
+  ].join("\n");
+}
+function transform() {
+  return [
+    "## Transform: a line becomes a note",
+    "",
+    "One command turns the line the cursor is on into a note of its own. The Fields on the",
+    "line become properties of the new note, and the line itself can keep a link back.",
+    "",
+    "Two things decide what the new note looks like:",
+    "",
+    "* the **template** it starts from \u2014 an ordinary note in your templates folder;",
+    "* the **Smart Rules**, which pick a different template when the line carries certain",
+    "  Values. A line with `#meeting` can start from a meeting template while everything else",
+    "  starts from the plain one.",
+    "",
+    "Inside one kind of condition the rule fires when **any** of them matches; between kinds,",
+    "**all** of them have to. The panel says this in words above the rules."
+  ].join("\n");
+}
+function recipes() {
+  return [
+    "## Three setups you can copy",
+    "",
+    "### A task list that sorts itself",
+    "",
+    "* `Status` (Tag): `todo`, `doing`, `done`. Left Block.",
+    "* `Priority` (Tag): `low`, `med`, `high`. Left Block, and `high` in red.",
+    "* Bars drawn by `Status`.",
+    "* `Move left` and `Move right` on `Alt + \u2190` and `Alt + \u2192`.",
+    "",
+    "You type a line, press the TagWheel key, pick a status, and the Bar tells you the state",
+    "of the whole block from across the room.",
+    "",
+    "### A reading log",
+    "",
+    "* `Source` (Link): the notes of the books you read. Right Block.",
+    "* `Read` (Element) with the calendar marker: the date you got to it.",
+    "* `Status` (Tag): `queued`, `reading`, `finished`, and `queued` shown as empty \u2014 a book",
+    "  you have not started needs no shouting.",
+    "",
+    "### Meeting notes that become their own notes",
+    "",
+    "* `Kind` (Tag): `standup`, `review`, `one-on-one`.",
+    "* Transform on, a template per kind, and a Smart Rule per Value of `Kind`.",
+    "* The source line keeps a link back, so the outline of the day stays readable."
+  ].join("\n");
+}
+function footer() {
+  return [
+    "## Where things live",
+    "",
+    "* **Settings** \u2014 `Settings \u2192 Inline Overhaul`. Seven tabs, and each one starts with a",
+    "  short paragraph about what it is for.",
+    "* **Hotkeys** \u2014 `Settings \u2192 Hotkeys`, search for `Inline Overhaul`. Everything the",
+    "  plugin can do is there, and none of it has a key until you give it one.",
+    "* **Your setup as a note** \u2014 the `Config note` group on the `Tags & PKM` tab writes your",
+    "  Fields out to a note you can read, edit and carry to another vault.",
+    "",
+    "---",
+    "",
+    "*Written by the plugin the first time you asked for the guide. It will not be",
+    "overwritten, so anything you add below is safe.*"
+  ].join("\n");
+}
+var HOWTO_PATH;
+var init_howto = __esm({
+  "src/ui/settings/howto.ts"() {
+    "use strict";
+    HOWTO_PATH = "Inline Overhaul Guide.md";
+  }
+});
+
 // src/ui/settings/actions.ts
 function pathOf2(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -34330,6 +34547,29 @@ function buildActions(deps) {
       () => RULES_DONE
     ),
     /**
+     * Руководство создаётся **один раз** и дальше только открывается: заметка
+     * принадлежит человеку, он в ней пишет, и перезаписать её значило бы
+     * стереть его пометки. Это же сказано в последней строке самой заметки.
+     */
+    "open-howto": async () => {
+      const vault = deps.vault;
+      if (!vault) {
+        notify(NO_METHOD);
+        console.error("inline-overhaul: \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0441\u0442\u0432\u043E \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault");
+        return;
+      }
+      try {
+        const had = await Promise.resolve(vault.exists(HOWTO_PATH));
+        if (!had) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
+        await Promise.resolve(vault.open(HOWTO_PATH));
+        notify(said(had ? GUIDE_OPENED : GUIDE_MADE, HOWTO_PATH));
+      } catch (e) {
+        const message = e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
+        notify(message);
+        console.error("inline-overhaul: \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0441\u0442\u0432\u043E \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u043B\u043E\u0441\u044C", e);
+      }
+    },
+    /**
      * Применение заметки переписывает настройки целиком, поэтому спрашивает
      * (Э2). Отказ — это отказ: ничего не зовётся.
      */
@@ -34354,10 +34594,11 @@ function buildActions(deps) {
     }
   };
 }
-var APPLY_TITLE, APPLY_BODY, APPLY_CONFIRM, APPLY_DONE, GENERATED, TEMPLATE_OPENED, RULES_DONE, NO_METHOD;
+var APPLY_TITLE, APPLY_BODY, APPLY_CONFIRM, APPLY_DONE, GENERATED, TEMPLATE_OPENED, RULES_DONE, GUIDE_MADE, GUIDE_OPENED, NO_METHOD;
 var init_actions = __esm({
   "src/ui/settings/actions.ts"() {
     "use strict";
+    init_howto();
     APPLY_TITLE = "Apply the config note";
     APPLY_BODY = "This replaces your current setup with what the note says. The previous setup is kept aside first";
     APPLY_CONFIRM = "Replace my setup";
@@ -34365,6 +34606,8 @@ var init_actions = __esm({
     GENERATED = "Config note written and opened";
     TEMPLATE_OPENED = "Template note opened";
     RULES_DONE = "Generated file rebuilt from your Fields";
+    GUIDE_MADE = "Guide written and opened";
+    GUIDE_OPENED = "Guide opened";
     NO_METHOD = "This build cannot do that yet";
   }
 });
@@ -34480,6 +34723,19 @@ function askConfirm(app3, o) {
     new ConfirmModal(app3).open();
   });
 }
+function vaultSeam(app3) {
+  return {
+    exists: (path) => !!app3.vault.getAbstractFileByPath(path),
+    create: async (path, text) => {
+      await app3.vault.create(path, text);
+    },
+    open: async (path) => {
+      const file = app3.vault.getAbstractFileByPath(path);
+      if (!file) throw new Error("Cannot open " + path);
+      await app3.workspace.getLeaf(true).openFile(file);
+    }
+  };
+}
 var import_obsidian, InlineOverhaulSettings;
 var init_obsidian_tab = __esm({
   "src/ui/settings/obsidian_tab.ts"() {
@@ -34507,7 +34763,8 @@ var init_obsidian_tab = __esm({
             notify: (message) => {
               new import_obsidian.Notice(message);
             },
-            confirm: (o) => askConfirm(app3, o)
+            confirm: (o) => askConfirm(app3, o),
+            vault: vaultSeam(app3)
           }),
           /* То же окно и для сброса группы (Н3). */
           confirm: (o) => askConfirm(app3, o),

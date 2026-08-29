@@ -74,6 +74,7 @@ const READY_ACTIONS = new Set([
   "apply-config-note",
   "open-config-template",
   "regenerate-rules",
+  "open-howto",
 ]);
 
 /**

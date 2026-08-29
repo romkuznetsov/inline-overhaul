@@ -11,10 +11,8 @@
  * швом, как и всё остальное платформенное. Поэтому реестр проверяется без
  * Obsidian, а окно подтверждения — настоящее.
  *
- * Четыре действия из семи. Остальные три:
+ * Пять действий из семи. Остальные два:
  *
- *   * `open-howto` — заметки-руководства в плагине нет вовсе. Это не перенос,
- *     а новая работа: сперва надо написать саму заметку;
  *   * `restore-backup` — восстановления настроек из резервной копии в плагине
  *     тоже нет. `backups.tagWheelConfigApplies` копит копии применений
  *     конфиг-заметки, а не настроек до обновления;
@@ -23,6 +21,7 @@
  */
 
 import type { ActionId } from "./types.ts";
+import { HOWTO_PATH, howtoMarkdown } from "./howto.ts";
 
 /**
  * Действия, за которыми есть работающий метод плагина. Список читает и
@@ -35,6 +34,7 @@ export const READY_ACTIONS: readonly ActionId[] = [
   "apply-config-note",
   "open-config-template",
   "regenerate-rules",
+  "open-howto",
 ];
 
 /** Методы плагина, которые зовут действия. Каждый может отсутствовать. */
@@ -62,9 +62,22 @@ export interface ConfirmRequest {
   note?: string;
 }
 
+/**
+ * Vault в том виде, в каком его нужно руководству: проверить, создать,
+ * открыть. Приходит швом — реестр обязан собираться и проверяться без
+ * Obsidian, а `app.vault` это Obsidian.
+ */
+export interface VaultSeam {
+  exists: (path: string) => Promise<boolean> | boolean;
+  create: (path: string, text: string) => Promise<void> | void;
+  open: (path: string) => Promise<void> | void;
+}
+
 export interface ActionDeps {
   plugin: ActionHost;
   notify: (message: string) => void;
+  /** Нужен только руководству; без него кнопка `Open the guide` не работает. */
+  vault?: VaultSeam;
   /**
    * Спросить подтверждение. Без него разрушительное действие не идёт: если
    * окна нет (проверка, заглушка), ответом считается отказ, а не согласие.
@@ -82,6 +95,8 @@ const APPLY_DONE = "Settings replaced with the config note";
 const GENERATED = "Config note written and opened";
 const TEMPLATE_OPENED = "Template note opened";
 const RULES_DONE = "Generated file rebuilt from your Fields";
+const GUIDE_MADE = "Guide written and opened";
+const GUIDE_OPENED = "Guide opened";
 /** Метода нет — говорим об этом, а не молчим. */
 const NO_METHOD = "This build cannot do that yet";
 
@@ -143,6 +158,32 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
     ),
 
     /**
+     * Руководство создаётся **один раз** и дальше только открывается: заметка
+     * принадлежит человеку, он в ней пишет, и перезаписать её значило бы
+     * стереть его пометки. Это же сказано в последней строке самой заметки.
+     */
+    "open-howto": async () => {
+      const vault = deps.vault;
+      if (!vault) {
+        notify(NO_METHOD);
+        console.error("inline-overhaul: руководство открывать нечем — нет доступа к vault");
+        return;
+      }
+      try {
+        const had = await Promise.resolve(vault.exists(HOWTO_PATH));
+        if (!had) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
+        await Promise.resolve(vault.open(HOWTO_PATH));
+        notify(said(had ? GUIDE_OPENED : GUIDE_MADE, HOWTO_PATH));
+      } catch (e) {
+        const message = e && typeof e === "object" && "message" in e
+          ? String((e as { message: unknown }).message)
+          : String(e);
+        notify(message);
+        console.error("inline-overhaul: руководство не открылось", e);
+      }
+    },
+
+    /**
      * Применение заметки переписывает настройки целиком, поэтому спрашивает
      * (Э2). Отказ — это отказ: ничего не зовётся.
      */
@@ -177,5 +218,7 @@ export const ACTION_TEXTS = {
   GENERATED,
   TEMPLATE_OPENED,
   RULES_DONE,
+  GUIDE_MADE,
+  GUIDE_OPENED,
   NO_METHOD,
 } as const;

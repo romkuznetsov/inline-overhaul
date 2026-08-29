@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTION_TEXTS, READY_ACTIONS, buildActions, type ConfirmRequest } from "../../src/ui/settings/actions.ts";
+import { HOWTO_PATH, howtoMarkdown } from "../../src/ui/settings/howto.ts";
 import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -90,12 +91,12 @@ function ok(label: string): void {
    * И обратное: недоделанные действия в схему не проползли. Список закрытый —
    * появится у них метод, проверка заставит его сюда вписать.
    */
-  const notReady = ["open-howto", "restore-backup", "open-hotkey"];
+  const notReady = ["restore-backup", "open-hotkey"];
   for (const action of notReady) {
     assert.ok(!READY_ACTIONS.includes(action as never),
       action + " числится готовым: обновите список недоделанных");
   }
-  ok("три недоделанных действия названы поимённо");
+  ok("два недоделанных действия названы поимённо");
 }
 
 /* ---- 2. действие зовёт метод плагина ------------------------------------ */
@@ -202,6 +203,104 @@ function makeHost(over?: Record<string, unknown>): {
   await actions["apply-config-note"]!();
   assert.deepEqual(calls, [], "без окна подтверждения применение не идёт");
   ok("без окна подтверждения применение не идёт вовсе");
+}
+
+/* ---- руководство (5.1, пункт 1) ----------------------------------------- */
+
+/** Vault, которого в Node нет: подделка названа, как и все остальные. */
+function makeVault(has: boolean): {
+  seam: { exists: (p: string) => boolean; create: (p: string, t: string) => void; open: (p: string) => void };
+  made: Array<{ path: string; text: string }>;
+  opened: string[];
+} {
+  const made: Array<{ path: string; text: string }> = [];
+  const opened: string[] = [];
+  let there = has;
+  return {
+    seam: {
+      exists: () => there,
+      create: (p: string, t: string) => { made.push({ path: p, text: t }); there = true; },
+      open: (p: string) => { opened.push(p); },
+    },
+    made,
+    opened,
+  };
+}
+
+{
+  const v = makeVault(false);
+  const notes: string[] = [];
+  const actions = buildActions({ plugin: {}, notify: m => { notes.push(m); }, vault: v.seam });
+  await actions["open-howto"]!();
+
+  assert.equal(v.made.length, 1, "заметки не было — она создана");
+  assert.equal(v.made[0]?.path, HOWTO_PATH, "по своему пути");
+  assert.equal(v.made[0]?.text, howtoMarkdown(), "с текстом руководства");
+  assert.deepEqual(v.opened, [HOWTO_PATH], "и открыта");
+  assert.equal(notes[0], ACTION_TEXTS.GUIDE_MADE + ": " + HOWTO_PATH,
+    "человеку сказано, что заметка создана: " + notes.join(" | "));
+  ok("руководство создаётся при первом вызове");
+}
+
+{
+  /*
+   * И только открывается при втором. Заметка принадлежит человеку — он в ней
+   * пишет, — и перезапись стёрла бы его пометки.
+   */
+  const v = makeVault(true);
+  const notes: string[] = [];
+  const actions = buildActions({ plugin: {}, notify: m => { notes.push(m); }, vault: v.seam });
+  await actions["open-howto"]!();
+
+  assert.deepEqual(v.made, [], "существующая заметка не переписывается");
+  assert.deepEqual(v.opened, [HOWTO_PATH], "а просто открывается");
+  assert.equal(notes[0], ACTION_TEXTS.GUIDE_OPENED + ": " + HOWTO_PATH,
+    "и сказано именно это: " + notes.join(" | "));
+  ok("руководство не переписывается: там пометки человека");
+}
+
+{
+  /* Без доступа к vault кнопка отвечает словами, а не молчит. */
+  const notes: string[] = [];
+  const actions = buildActions({ plugin: {}, notify: m => { notes.push(m); } });
+  await actions["open-howto"]!();
+  assert.ok(notes[0]?.includes(ACTION_TEXTS.NO_METHOD),
+    "сказано, что открывать нечем: " + notes.join(" | "));
+  ok("без доступа к vault руководство отвечает словами");
+}
+
+{
+  /*
+   * Текст руководства не обещает того, чего нет. Плавающей кнопки Transform в
+   * плагине нет (Ж3), справочника команд в панели нет — значит, и в заметке о
+   * них ни слова. То же правило, что и в панели (З8), только на другом
+   * материале.
+   */
+  const text = howtoMarkdown();
+  for (const promise of ["floating button", "Floating button", "command reference"]) {
+    assert.ok(!text.includes(promise),
+      "руководство обещает то, чего в плагине нет: " + promise);
+  }
+  /*
+   * И рассказывает про то, что есть, — по плану из 5.1: с чего начать, из чего
+   * собрана строка, что даёт TagWheel, и готовые наборы в конце. Разделы
+   * сверяются целиком: проверка на одно слово в тексте пропускала
+   * переименование раздела (найдено мутацией).
+   */
+  const headings = text.split("\n").filter(l => l.startsWith("## ")).map(l => l.slice(3));
+  assert.deepEqual(headings, [
+    "What to set up first",
+    "Fields and Values",
+    "How a line is put together",
+    "TagWheel",
+    "Tag Bars",
+    "Binder",
+    "Transform: a line becomes a note",
+    "Three setups you can copy",
+    "Where things live",
+  ], "разделы руководства: " + headings.join(" | "));
+  assert.ok(text.startsWith("# "), "заметка начинается заголовком");
+  ok("руководство обещает только то, что работает");
 }
 
 console.log("\n" + passed + " проверок пройдено");
