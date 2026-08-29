@@ -67,6 +67,26 @@ function ok(label: string): void {
 
 {
   /*
+   * Г22, вторая половина: каждое действие реестра где-то используется. Иначе
+   * реестр однажды обрастёт действиями, которые никто не зовёт, и «готово»
+   * перестанет значить «видно в панели».
+   */
+  const used = new Set<string>();
+  for (const group of SCHEMA) {
+    for (const item of group.items) {
+      if (item.kind !== "buttons") continue;
+      for (const b of item.buttons) used.add(b.action);
+    }
+  }
+  for (const action of READY_ACTIONS) {
+    assert.ok(used.has(action),
+      "действие реестра не используется ни одной кнопкой схемы: " + action);
+  }
+  ok("Г22: каждое действие реестра стоит на кнопке");
+}
+
+{
+  /*
    * И обратное: недоделанные действия в схему не проползли. Список закрытый —
    * появится у них метод, проверка заставит его сюда вписать.
    */
