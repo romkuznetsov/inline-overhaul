@@ -155,8 +155,6 @@ const __compatProfile = (() => {
 })();
 
 let __commandRegistry = null;
-let __settingsTabRouter = null;
-let __settingsSectionsRenderer = null;
 let __orderDeepEditorState = null;
 let __configNoteOrchestrator = null;
 let __tagWheelConfigCodec = null;
@@ -175,7 +173,6 @@ try {
   if (mod && typeof mod.buildPrefixUnified === "function") __transformLineFinalize = mod;
 } catch (_) {}
 let __safeModuleCache = new Map();
-let __settingsSectionsRendererDiag = "";
 
 function reportLoaderFallback(stage, err) {
   try {
@@ -516,27 +513,6 @@ function normalizeBinderRows(rawRows) {
   return out;
 }
 
-function hasValidSettingsTabRouter(mod) {
-  return !!(mod && typeof mod === "object" && typeof mod.renderSettingsTabContent === "function");
-}
-
-function hasValidSettingsSectionsRenderer(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.renderSettingsDisplaySection === "function"
-    && typeof mod.renderTabBarSection === "function"
-    && typeof mod.renderGeneralSection === "function"
-    && typeof mod.renderHotkeysTabSection === "function"
-    && typeof mod.renderModuleTabSection === "function"
-    && typeof mod.renderVisualTabSection === "function"
-    && typeof mod.renderPkmOrderBoardSection === "function"
-    && typeof mod.renderPkmConfigSections === "function"
-    && typeof mod.renderNavigationSettings === "function"
-    && typeof mod.renderVisualGeneralSection === "function"
-    && typeof mod.renderColorsSection === "function"
-    && typeof mod.renderAdvancedSection === "function");
-}
-
 function hasValidOrderDeepEditorState(mod) {
   return !!(mod
     && typeof mod === "object"
@@ -575,258 +551,6 @@ async function ensureOrderDeepEditorStateSafe(app) {
     reportLoaderFallback("main.ensureOrderDeepEditorStateSafe.require", loaded.requireErr);
   }
   return null;
-}
-
-function getMissingSettingsSectionsRendererMethods(mod) {
-  const required = [
-    "renderSettingsDisplaySection",
-    "renderTabBarSection",
-    "renderGeneralSection",
-    "renderHotkeysTabSection",
-    "renderModuleTabSection",
-    "renderVisualTabSection",
-    "renderPkmOrderBoardSection",
-    "renderPkmConfigSections",
-    "renderNavigationSettings",
-    "renderVisualGeneralSection",
-    "renderColorsSection",
-    "renderAdvancedSection",
-  ];
-  const target = mod && typeof mod === "object" ? mod : {};
-  return required.filter((k) => typeof target[k] !== "function");
-}
-
-async function loadSettingsTabRouterSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js",
-    "./.obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js",
-    "plugins/inline-overhaul/src/ui/settings_tab_router.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/ui/settings_tab_router.js",
-    candidates,
-    cacheKey: "ui:settings-tab-router",
-    validate: hasValidSettingsTabRouter,
-    uiVaultEvalFallback: true,
-  });
-  if (loaded.mod) {
-    __settingsTabRouter = loaded.mod;
-    return __settingsTabRouter;
-  }
-
-  const fallbackCandidates = [
-    ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js",
-    "./.obsidian/plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js",
-    "plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js",
-  ];
-  const fallbackLoaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/ui/settings_tab_router_fallback.js",
-    candidates: fallbackCandidates,
-    cacheKey: "ui:settings-tab-router-fallback",
-    validate: (mod) => !!(mod && typeof mod.createSettingsTabRouterFallback === "function"),
-    uiVaultEvalFallback: true,
-  });
-  if (fallbackLoaded.mod) {
-    try {
-      const fallback = fallbackLoaded.mod.createSettingsTabRouterFallback();
-      if (hasValidSettingsTabRouter(fallback)) {
-        __settingsTabRouter = fallback;
-        return __settingsTabRouter;
-      }
-      reportLoaderFallback("main.loadSettingsTabRouterSafe.fallback.invalid", "invalid tab router contract");
-    } catch (e) {
-      reportLoaderFallback("main.loadSettingsTabRouterSafe.fallback.factory", e);
-    }
-  }
-
-  __settingsTabRouter = createSettingsTabRouterFallback();
-  return __settingsTabRouter;
-}
-
-function getSettingsTabRouter() {
-  if (hasValidSettingsTabRouter(__settingsTabRouter)) return __settingsTabRouter;
-  __settingsTabRouter = createSettingsTabRouterFallback();
-  return __settingsTabRouter;
-}
-
-function createSettingsTabRouterFallback() {
-  return {
-    renderSettingsTabContent(tab, activeTab, containerEl, cfg) {
-      if (activeTab === "general") tab.renderGeneral(containerEl, cfg);
-      else if (activeTab === "hotkeys") tab.renderHotkeysTab(containerEl, cfg);
-      else if (activeTab === "navigation") tab.renderModuleTab(containerEl, "navigation", cfg);
-      else if (activeTab === "pkm") tab.renderModuleTab(containerEl, "pkm", cfg);
-      else if (activeTab === "visual") tab.renderVisualTab(containerEl, cfg);
-      else if (activeTab === "transform") tab.renderModuleTab(containerEl, "transform", cfg);
-      else if (activeTab === "advanced") tab.renderAdvanced(containerEl, cfg);
-    },
-  };
-}
-
-async function loadSettingsSectionsRendererSafe(app) {
-  __settingsSectionsRendererDiag = "";
-  await ensureOrderDeepEditorStateSafe(app);
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js",
-    "./.obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js",
-    "plugins/inline-overhaul/src/ui/settings_sections_renderer.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/ui/settings_sections_renderer.js",
-    candidates,
-    cacheKey: "ui:settings-sections-renderer",
-    validate: hasValidSettingsSectionsRenderer,
-    uiVaultEvalFallback: true,
-  });
-  if (loaded.mod) {
-    __settingsSectionsRenderer = loaded.mod;
-    return __settingsSectionsRenderer;
-  }
-  if (loaded.requireErr) {
-    __settingsSectionsRendererDiag = `primary require failed: ${String(loaded.requireErr && loaded.requireErr.message ? loaded.requireErr.message : loaded.requireErr)}`;
-  } else {
-    __settingsSectionsRendererDiag = "primary renderer unavailable: load returned no valid module";
-  }
-
-  const fallbackCandidates = [
-    ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_fallback.js",
-    "./.obsidian/plugins/inline-overhaul/src/ui/settings_sections_fallback.js",
-    "plugins/inline-overhaul/src/ui/settings_sections_fallback.js",
-  ];
-  const fallbackLoaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/ui/settings_sections_fallback.js",
-    candidates: fallbackCandidates,
-    cacheKey: "ui:settings-sections-fallback",
-    validate: (mod) => !!(mod && typeof mod.createSettingsSectionsRendererFallback === "function"),
-    uiVaultEvalFallback: true,
-  });
-  if (fallbackLoaded.mod) {
-    try {
-      const fallback = fallbackLoaded.mod.createSettingsSectionsRendererFallback();
-      if (hasValidSettingsSectionsRenderer(fallback)) {
-        __settingsSectionsRenderer = fallback;
-        return __settingsSectionsRenderer;
-      }
-      const missing = getMissingSettingsSectionsRendererMethods(fallback);
-      __settingsSectionsRendererDiag = `fallback factory invalid contract: missing [${missing.join(", ")}]`;
-      reportLoaderFallback("main.loadSettingsSectionsRendererSafe.fallback.invalid", "invalid renderer contract");
-    } catch (e) {
-      __settingsSectionsRendererDiag = `fallback factory failed: ${String(e && e.message ? e.message : e)}`;
-      reportLoaderFallback("main.loadSettingsSectionsRendererSafe.fallback.factory", e);
-    }
-  } else if (fallbackLoaded.requireErr) {
-    __settingsSectionsRendererDiag = `fallback require failed: ${String(fallbackLoaded.requireErr && fallbackLoaded.requireErr.message ? fallbackLoaded.requireErr.message : fallbackLoaded.requireErr)}`;
-  }
-
-  __settingsSectionsRenderer = null;
-  return getSettingsSectionsRenderer();
-}
-
-function getSettingsSectionsRenderer() {
-  if (hasValidSettingsSectionsRenderer(__settingsSectionsRenderer)) return __settingsSectionsRenderer;
-  __settingsSectionsRenderer = createSettingsSectionsRendererFallback();
-  return __settingsSectionsRenderer;
-}
-
-
-function createSettingsSectionsRendererFallback() {
-  return {
-    renderSettingsDisplaySection(ctx) {
-      const { containerEl, cfg, getActiveSettingsTab, renderTabBar, renderSettingsTabContent } = ctx;
-      const activeTab = getActiveSettingsTab(cfg);
-      containerEl.createEl("h2", { text: "InlineOverhaul" });
-      containerEl.createEl("p", { text: "Fallback settings renderer is active." });
-      if (__settingsSectionsRendererDiag) {
-        const diag = containerEl.createDiv();
-        diag.setText(`Renderer diagnostic: ${__settingsSectionsRendererDiag}`);
-        diag.style.marginBottom = "8px";
-        diag.style.opacity = "0.8";
-        diag.style.fontSize = "12px";
-      }
-      renderTabBar(containerEl, activeTab);
-      renderSettingsTabContent(activeTab, containerEl, cfg);
-    },
-    renderTabBarSection(ctx) {
-      const { containerEl, activeTab, settingsTabs, setActiveSettingsTab } = ctx;
-      const row = containerEl.createDiv({ cls: "inline-overhaul-tab-row" });
-      row.style.display = "flex";
-      row.style.flexWrap = "wrap";
-      row.style.gap = "8px";
-      row.style.marginBottom = "10px";
-      for (const t of settingsTabs) {
-        const btn = row.createEl("button", { text: t.label, cls: "mod-cta" });
-        btn.style.padding = "4px 10px";
-        btn.style.opacity = t.id === activeTab ? "1" : "0.8";
-        btn.onclick = () => setActiveSettingsTab(t.id);
-      }
-    },
-    renderGeneralSection(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "General settings are unavailable in fallback mode." });
-    },
-    renderHotkeysTabSection(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "Hotkeys settings are unavailable in fallback mode." });
-    },
-    renderModuleTabSection(ctx) {
-      const { Setting, containerEl, featureKey, cfg, renderNavigationSettings, renderPkmSettings } = ctx;
-      const enabled = !!(cfg && cfg.features && cfg.features[featureKey] && cfg.features[featureKey].enabled);
-      if (featureKey === "navigation") {
-        renderNavigationSettings(containerEl, cfg, enabled);
-      } else if (featureKey === "pkm") {
-        renderPkmSettings(containerEl, cfg, enabled);
-      } else {
-        new Setting(containerEl)
-          .setName("Module placeholder")
-          .setDesc("Fallback mode")
-          .addText((txt) => {
-            txt.setValue("Fallback renderer");
-            txt.setDisabled(true);
-          });
-      }
-    },
-    renderVisualTabSection(ctx) {
-      const { containerEl, cfg, renderVisualGeneralSection, renderVisualTagsSection, renderVisualStripSection } = ctx;
-      const enabled = !!(cfg && cfg.features && cfg.features.visual && cfg.features.visual.enabled);
-      const activeSubTab = (cfg && cfg.ui && cfg.ui.visualSubTab) || "tags";
-      if (activeSubTab === "tagwheel") {
-        renderVisualGeneralSection(containerEl, enabled);
-      } else if (activeSubTab === "strip") {
-        renderVisualStripSection(containerEl, enabled);
-      } else {
-        renderVisualTagsSection(containerEl, enabled);
-      }
-    },
-    renderPkmOrderBoardSection() {},
-    renderPkmConfigSections(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "PKM settings are unavailable in fallback mode." });
-    },
-    renderNavigationSettings(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "Navigation settings are unavailable in fallback mode." });
-    },
-    renderVisualGeneralSection(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "Visual settings fallback mode." });
-    },
-    renderVisualTagsSection(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "Tags settings fallback mode." });
-    },
-    renderVisualStripSection(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "Strip settings fallback mode." });
-    },
-    renderColorsSection(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "Colors settings fallback mode." });
-    },
-    renderAdvancedSection(ctx) {
-      const { containerEl } = ctx;
-      containerEl.createEl("p", { text: "Advanced settings fallback mode." });
-    },
-  };
 }
 
 function hasValidTagWheelConfigCodec(mod) {
@@ -4148,8 +3872,6 @@ class InlineOverhaulPlugin extends Plugin {
     await loadConfigMigrationModuleSafe(this.app);
     await loadConfigStoreModuleSafe(this.app);
     await loadCommandRegistrySafe(this.app);
-    await loadSettingsTabRouterSafe(this.app);
-    await loadSettingsSectionsRendererSafe(this.app);
     await loadConfigNoteHelpersSafe(this.app);
     await loadTagWheelConfigCodecSafe(this.app);
     await loadRulesMarkdownBuilderSafe(this.app);
@@ -4278,7 +4000,14 @@ class InlineOverhaulPlugin extends Plugin {
       },
       getUnsubscribe: () => this._unsubscribeStore,
       renderSettingsTab: () => {
-        if (this._settingsTab) this._settingsTab.display();
+        const tab = this._settingsTab;
+        if (!tab) return;
+        /*
+         * Декларативная панель пересобирает определения методом `update`;
+         * `display` у неё -- объяснение для Obsidian старше 1.13.
+         */
+        if (typeof tab.update === "function") tab.update();
+        else if (typeof tab.display === "function") tab.display();
       },
       scheduleGeneratedRulesSync: () => this.scheduleGeneratedRulesSync(),
       getRulesTimer: () => this._rulesGenTimer,
@@ -4660,20 +4389,14 @@ class InlineOverhaulPlugin extends Plugin {
   }
 
   /**
-   * Панель настроек. Новая — на схеме и декларативном API; старая остаётся
-   * запасным путём до фазы 3, когда её код удаляется целиком.
+   * Панель настроек: одна, на схеме и декларативном API Obsidian 1.13.
+   *
+   * Старая панель удалена 2026-08-29 решением заказчика: паритет достигнут
+   * во всём, кроме справочника команд, который ждёт имён из фазы 2. Флаг
+   * Флага выбора панели больше нет: выбирать не из чего.
    */
   createSettingTab() {
-    /*
-     * Новая панель включается только флагом advanced.newSettingsPane, пока в
-     * ней нет редактора Fields, живых предпросмотров, Binder, Smart Rules и
-     * справочника команд (фаза 3). До паритета старая панель остаётся
-     * рабочей: переключать человека на панель без половины инструментов
-     * нельзя, даже если новая устроена лучше.
-     */
-    const cfg = this.getConfig();
-    const wantNew = !!(cfg && cfg.advanced && cfg.advanced.newSettingsPane === true);
-    const Declarative = wantNew ? getDeclarativeSettingTabCtor() : null;
+    const Declarative = getDeclarativeSettingTabCtor();
     if (Declarative) {
       try {
         /*
@@ -4689,7 +4412,12 @@ class InlineOverhaulPlugin extends Plugin {
         console.error("[inline-overhaul] declarative settings pane failed to build", e);
       }
     }
-    return new InlineOverhaulSettingTab(this.app, this);
+    /*
+     * Собрать панель не удалось: модуль не загрузился или Obsidian старше
+     * 1.13. Показывать нечего, и молчать нельзя -- в панели настроек плагина
+     * будет пусто, и человек должен понимать почему.
+     */
+    throw new Error("Inline Overhaul: settings pane needs Obsidian 1.13 or newer");
   }
 
   getDevModeConfig(cfg) {
@@ -5233,265 +4961,9 @@ function getDeclarativeSettingTabCtor() {
     const mod = require("./src/ui/settings/obsidian_tab.ts");
     if (mod && typeof mod.InlineOverhaulSettings === "function") return mod.InlineOverhaulSettings;
   } catch (e) {
-    console.warn("[inline-overhaul] declarative settings pane unavailable, using the old one", e && e.message);
+    console.error("[inline-overhaul] settings pane module failed to load", e && e.message);
   }
   return null;
-}
-
-class InlineOverhaulSettingTab extends PluginSettingTab {
-  constructor(app, plugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-    plugin._settingsTab = this;
-    this._displayRefreshScheduled = false;
-    this._displayRefreshRendering = false;
-    this._storeUnsub = null;
-    try {
-      if (plugin && plugin.store && typeof plugin.store.subscribe === "function") {
-        this._storeUnsub = plugin.store.subscribe(() => {
-          this.scheduleDisplayRefresh("store:update");
-        });
-        if (typeof plugin.register === "function") {
-          plugin.register(() => {
-            try {
-              if (typeof this._storeUnsub === "function") this._storeUnsub();
-            } catch (_) {}
-            this._storeUnsub = null;
-          });
-        }
-      }
-    } catch (_) {}
-  }
-
-  isSettingsTabVisible() {
-    return !!(this.containerEl && this.containerEl.isConnected);
-  }
-
-  scheduleDisplayRefresh(reason) {
-    void reason;
-    if (!this.isSettingsTabVisible()) return;
-    if (this._displayRefreshScheduled || this._displayRefreshRendering) return;
-    this._displayRefreshScheduled = true;
-    const run = () => {
-      this._displayRefreshScheduled = false;
-      if (!this.isSettingsTabVisible()) return;
-      if (this._displayRefreshRendering) return;
-      this._displayRefreshRendering = true;
-      try {
-        this.display();
-      } finally {
-        this._displayRefreshRendering = false;
-      }
-    };
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(() => {
-        setTimeout(run, 0);
-      });
-      return;
-    }
-    setTimeout(run, 0);
-  }
-
-  display() {
-    const { containerEl } = this;
-    containerEl.empty();
-
-    const cfg = this.plugin.getConfig();
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderSettingsDisplaySection({
-      containerEl,
-      cfg,
-      getActiveSettingsTab: (cfgValue) => cfgValue.ui.activeSettingsTab || "general",
-      renderTabBar: (el, activeTab) => this.renderTabBar(el, activeTab),
-      renderSettingsTabContent: (activeTab, el, cfgValue) => {
-        const router = getSettingsTabRouter();
-        router.renderSettingsTabContent(this, activeTab, el, cfgValue);
-      },
-    });
-  }
-
-  renderTabBar(containerEl, activeTab) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderTabBarSection({
-      containerEl,
-      activeTab,
-      settingsTabs: SETTINGS_TABS,
-      setActiveSettingsTab: (tabId) => this.plugin.setActiveSettingsTab(tabId),
-    });
-  }
-
-  renderGeneral(containerEl, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderGeneralSection({
-      Setting,
-      Notice,
-      containerEl,
-      cfg,
-      featureOrder: FEATURE_ORDER,
-      featureMeta: FEATURE_META,
-      plugin: this.plugin,
-    });
-
-  }
-
-  renderHotkeysTab(containerEl, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderHotkeysTabSection({
-      containerEl,
-      cfg,
-      Setting,
-      plugin: this.plugin,
-      hotkeysSubTabs: HOTKEYS_SUB_TABS,
-      setHotkeysSubTab: (tabId) => this.plugin.setHotkeysSubTab(tabId),
-    });
-  }
-
-  renderModuleTab(containerEl, featureKey, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderModuleTabSection({
-      Setting,
-      containerEl,
-      featureKey,
-      cfg,
-      featureMeta: FEATURE_META,
-      renderNavigationSettings: (el, cfgValue, enabled) => this.renderNavigationSettings(el, cfgValue, enabled),
-      renderTransformSettings: (el, cfgValue, enabled) => {
-        return getTransformFeature().renderTransformSettings({
-          Setting,
-          containerEl: el,
-          cfg: cfgValue,
-          plugin: this.plugin,
-          enabled,
-        });
-      },
-      renderPkmSettings: (el, cfgValue, enabled) => {
-        renderer.renderPkmOrderBoardSection({
-          Setting,
-          Notice,
-          Modal,
-          containerEl: el,
-          cfg: cfgValue,
-          enabled,
-          plugin: this.plugin,
-          normalizePkmOrder,
-          pkmOrderFields: PKM_ORDER_FIELDS,
-          setIcon,
-          /* Тумблеры вида доски перерисовывают вкладку (дефект A14). */
-          refreshSettings: () => this.scheduleDisplayRefresh("settings:order-view-toggle"),
-        });
-        return renderer.renderPkmConfigSections({
-          Setting,
-          Notice,
-          Modal,
-          containerEl: el,
-          cfg: cfgValue,
-          enabled,
-          plugin: this.plugin,
-          normalizePkmOrder,
-          tagwheelConfigModeDetailed: TAGWHEEL_CONFIG_MODE_DETAILED,
-          tagwheelConfigModeMinimal: TAGWHEEL_CONFIG_MODE_MINIMAL,
-          pkmBackends: PKM_BACKENDS,
-          getActiveTagWheelRulesPath,
-          refreshSettings: () => this.scheduleDisplayRefresh("renderer:refresh"),
-        });
-      },
-    });
-  }
-
-  renderVisualTab(containerEl, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderVisualTabSection({
-      containerEl,
-      cfg,
-      Setting,
-      plugin: this.plugin,
-      visualSubTabs: VISUAL_SUB_TABS,
-      setVisualSubTab: (tabId) => this.plugin.setVisualSubTab(tabId),
-      renderVisualGeneralSection: (arg1, arg2) => {
-        if (arg1 && typeof arg1 === "object" && arg1.containerEl) return this.renderVisualGeneralSection(arg1.containerEl, arg1.enabled, arg1.cfg);
-        return this.renderVisualGeneralSection(arg1, arg2, cfg);
-      },
-      renderVisualTagsSection: (arg1, arg2) => {
-        if (arg1 && typeof arg1 === "object" && arg1.containerEl) return this.renderVisualTagsSection(arg1.containerEl, arg1.enabled, arg1.cfg);
-        return this.renderVisualTagsSection(arg1, arg2, cfg);
-      },
-      renderVisualStripSection: (arg1, arg2) => {
-        if (arg1 && typeof arg1 === "object" && arg1.containerEl) return this.renderVisualStripSection(arg1.containerEl, arg1.enabled, arg1.cfg);
-        return this.renderVisualStripSection(arg1, arg2, cfg);
-      },
-      normalizePkmOrder,
-    });
-  }
-
-  renderNavigationSettings(containerEl, cfg, enabled) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderNavigationSettings({
-      Setting,
-      containerEl,
-      cfg,
-      enabled,
-      plugin: this.plugin,
-    });
-  }
-
-  renderVisualGeneralSection(containerEl, enabled, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderVisualGeneralSection({
-      Setting,
-      containerEl,
-      enabled,
-      cfg,
-      plugin: this.plugin,
-    });
-  }
-
-  renderVisualTagsSection(containerEl, enabled, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderVisualTagsSection({
-      Setting,
-      containerEl,
-      enabled,
-      cfg,
-      plugin: this.plugin,
-    });
-  }
-
-  renderVisualStripSection(containerEl, enabled, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderVisualStripSection({
-      Setting,
-      containerEl,
-      enabled,
-      cfg,
-      plugin: this.plugin,
-      normalizePkmOrder,
-    });
-  }
-
-  renderColorsSection(containerEl, cfg, enabled) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderColorsSection({
-      containerEl,
-      cfg,
-      enabled,
-    });
-  }
-
-  renderAdvanced(containerEl, cfg) {
-    const renderer = getSettingsSectionsRenderer();
-    return renderer.renderAdvancedSection({
-      Setting,
-      Notice,
-      containerEl,
-      cfg,
-      featureOrder: FEATURE_ORDER,
-      plugin: this.plugin,
-      store: this.plugin.store,
-      pkmBackends: PKM_BACKENDS,
-      getActiveTagWheelRulesPath,
-      flushSettingsNow: () => this.scheduleDisplayRefresh("advanced:flush"),
-    });
-  }
 }
 
 module.exports = InlineOverhaulPlugin;

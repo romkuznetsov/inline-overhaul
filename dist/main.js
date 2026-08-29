@@ -24021,161 +24021,1341 @@ var require_transform_feature = __commonJS({
   }
 });
 
-// src/ui/settings_sections_fallback.js
-var require_settings_sections_fallback = __commonJS({
-  "src/ui/settings_sections_fallback.js"(exports2, module2) {
+// src/ui/tagwheel_scroller_overlay.js
+var require_tagwheel_scroller_overlay = __commonJS({
+  "src/ui/tagwheel_scroller_overlay.js"(exports2, module2) {
     "use strict";
-    function normalizeHexColorInput(value) {
-      const src = String(value || "").trim().toLowerCase();
-      if (!src) return "";
-      return /^#[0-9a-f]{6}$/.test(src) ? src : "";
+    function clamp(n, min, max) {
+      return Math.max(min, Math.min(max, n));
     }
-    function readTagwheelHeaderColorConfig(cfg) {
-      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const colors = behavior && behavior.colors ? behavior.colors : {};
-      const header = colors && colors.tagwheelHeader ? colors.tagwheelHeader : {};
+    function normalizeDirection(raw) {
+      var d = String(raw || "").trim().toLowerCase();
+      if (d === "up" || d === "down" || d === "full") return d;
+      return "full";
+    }
+    function normalizeSize(raw) {
+      var n = Math.trunc(Number(raw));
+      if (!isFinite(n)) return 3;
+      return clamp(n, 1, 20);
+    }
+    function findActiveTokenRange(controlLine) {
+      var line = String(controlLine || "");
+      var re = /\*\*\[[\s\S]*?\]\*\*/g;
+      var m = re.exec(line);
+      if (!m) return null;
       return {
-        defaultTextColor: normalizeHexColorInput(header.defaultTextColor),
-        fillColor: normalizeHexColorInput(header.fillColor),
-        showPrefix: header.showPrefix !== false
+        fromCh: Number(m.index || 0),
+        toCh: Number((m.index || 0) + String(m[0] || "").length)
       };
     }
-    function createSettingsSectionsRendererFallback() {
-      return {
-        renderSettingsDisplaySection(ctx) {
-          const { containerEl, cfg, getActiveSettingsTab, renderTabBar, renderSettingsTabContent } = ctx;
-          const activeTab = getActiveSettingsTab(cfg);
-          containerEl.createEl("h2", { text: "InlineOverhaul" });
-          containerEl.createEl("p", { text: "Fallback settings renderer is active." });
-          renderTabBar(containerEl, activeTab);
-          renderSettingsTabContent(activeTab, containerEl, cfg);
-        },
-        renderTabBarSection(ctx) {
-          const { containerEl, activeTab, settingsTabs, setActiveSettingsTab } = ctx;
-          const row = containerEl.createDiv({ cls: "inline-overhaul-tab-row" });
-          row.style.display = "flex";
-          row.style.flexWrap = "wrap";
-          row.style.gap = "8px";
-          row.style.marginBottom = "10px";
-          for (const t of settingsTabs) {
-            const btn2 = row.createEl("button", { text: t.label, cls: "mod-cta" });
-            btn2.style.padding = "4px 10px";
-            btn2.style.opacity = t.id === activeTab ? "1" : "0.8";
-            btn2.onclick = () => setActiveSettingsTab(t.id);
+    function getAnchorRect(editor, lineNumber, controlLine) {
+      try {
+        if (!editor || typeof editor.posToOffset !== "function") return null;
+        var cm = editor.cm;
+        if (!cm || typeof cm.coordsAtPos !== "function") return null;
+        var activeTokenMatch = String(controlLine || "").match(/\*\*\[([^\]]+)\]\*\*/);
+        var activeToken = activeTokenMatch ? String(activeTokenMatch[1] || "").trim() : "";
+        var cmDom = cm && cm.dom ? cm.dom : null;
+        if (cmDom && typeof cmDom.querySelectorAll === "function") {
+          var nodes = cmDom.querySelectorAll(".inline-overhaul-tw-active-anchor");
+          if (nodes && nodes.length) {
+            var targetY = null;
+            try {
+              var lineFrom = editor.posToOffset({ line: lineNumber, ch: 0 });
+              var lineCoords = cm.coordsAtPos(lineFrom);
+              if (lineCoords && isFinite(lineCoords.top)) targetY = Number(lineCoords.top);
+            } catch (_) {
+            }
+            var best = null;
+            var bestScore = Number.POSITIVE_INFINITY;
+            var i;
+            for (i = 0; i < nodes.length; i++) {
+              var el2 = nodes[i];
+              if (!el2 || typeof el2.getBoundingClientRect !== "function") continue;
+              if (activeToken && String(el2.textContent || "").trim() !== activeToken) continue;
+              var rect = el2.getBoundingClientRect();
+              if (!rect || !isFinite(rect.left) || !isFinite(rect.top)) continue;
+              var cy = (Number(rect.top) + Number(rect.bottom || rect.top)) / 2;
+              var score = targetY == null ? i : Math.abs(cy - targetY);
+              if (score < bestScore) {
+                best = rect;
+                bestScore = score;
+              }
+            }
+            if (best) {
+              return {
+                left: Number(best.left),
+                right: Number(best.right || best.left),
+                top: Number(best.top),
+                bottom: Number(best.bottom || best.top),
+                width: Math.max(8, Number(best.width || best.right - best.left || 8))
+              };
+            }
           }
-        },
-        renderGeneralSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "General settings are unavailable in fallback mode." });
-        },
-        renderHotkeysTabSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Hotkeys settings are unavailable in fallback mode." });
-        },
-        renderModuleTabSection(ctx) {
-          const { Setting, containerEl, featureKey, cfg, renderNavigationSettings, renderPkmSettings } = ctx;
-          const enabled = !!(cfg && cfg.features && cfg.features[featureKey] && cfg.features[featureKey].enabled);
-          if (featureKey === "navigation") {
-            renderNavigationSettings(containerEl, cfg, enabled);
-          } else if (featureKey === "pkm") {
-            renderPkmSettings(containerEl, cfg, enabled);
-          } else {
-            new Setting(containerEl).setName("Module placeholder").setDesc("Fallback mode").addText((txt) => {
-              txt.setValue("Fallback renderer");
-              txt.setDisabled(true);
-            });
-          }
-        },
-        renderVisualTabSection(ctx) {
-          const { containerEl, cfg, renderVisualGeneralSection, renderVisualTagsSection, renderVisualStripSection, Setting, plugin } = ctx;
-          const enabled = !!(cfg && cfg.features && cfg.features.visual && cfg.features.visual.enabled);
-          const activeSubTab = cfg && cfg.ui && cfg.ui.visualSubTab || "tags";
-          if (activeSubTab === "tagwheel") {
-            renderVisualGeneralSection({ Setting, containerEl, enabled, cfg, plugin });
-          } else if (activeSubTab === "strip") {
-            renderVisualStripSection({ Setting, containerEl, enabled, cfg, plugin });
-          } else {
-            renderVisualTagsSection({ Setting, containerEl, enabled, cfg, plugin });
-          }
-        },
-        renderPkmOrderBoardSection() {
-        },
-        renderPkmConfigSections(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "PKM settings are unavailable in fallback mode." });
-        },
-        renderNavigationSettings(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Navigation settings are unavailable in fallback mode." });
-        },
-        renderVisualGeneralSection(ctx) {
-          const { containerEl, Setting, cfg, plugin, enabled } = ctx;
-          containerEl.createEl("h4", { text: "TagWheel" });
-          containerEl.createEl("h5", { text: "Scroller" });
-          if (typeof Setting !== "function" || !plugin) {
-            containerEl.createEl("p", { text: "Visual settings fallback mode." });
-            return;
-          }
-          const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-          const scroller = behavior && behavior.tagWheelScroller ? behavior.tagWheelScroller : {};
-          const currentEnabled = scroller.enabled === true;
-          const currentDirection = ["up", "down", "full"].includes(String(scroller.direction || "").trim().toLowerCase()) ? String(scroller.direction).trim().toLowerCase() : "full";
-          const rawSize = Math.trunc(Number(scroller.size));
-          const currentSize = Number.isFinite(rawSize) ? Math.max(1, Math.min(20, rawSize)) : 3;
-          new Setting(containerEl).setName("TagWheel scroller").setDesc("Render active field values as overlay scroller above editor text.").addToggle((t) => {
-            t.setValue(currentEnabled).onChange((v) => {
-              plugin.setConfigPatch({ pkm: { behavior: { tagWheelScroller: { enabled: v } } } }, "visual:tagwheel:scroller:enabled");
-            });
-            if (!enabled) t.setDisabled(true);
-          });
-          new Setting(containerEl).setName("Scroller direction").setDesc("Where scroller opens relative to active field.").addDropdown((d) => {
-            d.addOption("up", "up");
-            d.addOption("down", "down");
-            d.addOption("full", "full");
-            d.setValue(currentDirection);
-            d.onChange((v) => {
-              const next = ["up", "down", "full"].includes(String(v || "").trim().toLowerCase()) ? String(v).trim().toLowerCase() : "full";
-              plugin.setConfigPatch({ pkm: { behavior: { tagWheelScroller: { direction: next } } } }, "visual:tagwheel:scroller:direction");
-            });
-            if (!enabled || !currentEnabled) d.setDisabled(true);
-          });
-          new Setting(containerEl).setName("Scroller size").setDesc("Visible item count per side (1..20).").addText((txt) => {
-            txt.setValue(String(currentSize));
-            txt.setPlaceholder("3");
-            txt.onChange((v) => {
-              const n = Math.trunc(Number(v));
-              if (!Number.isFinite(n)) return;
-              const next = Math.max(1, Math.min(20, n));
-              plugin.setConfigPatch({ pkm: { behavior: { tagWheelScroller: { size: next } } } }, "visual:tagwheel:scroller:size");
-            });
-            if (!enabled || !currentEnabled) txt.setDisabled(true);
-          });
-          containerEl.createEl("h5", { text: "Panel" });
-          const colors = readTagwheelHeaderColorConfig(cfg);
-          containerEl.createEl("p", {
-            text: `Default text color: ${colors.defaultTextColor || "theme default"}; Filling color: ${colors.fillColor || "theme default"}; Show prefix: ${colors.showPrefix ? "ON" : "OFF"}`
-          });
-        },
-        renderVisualTagsSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Tags settings fallback mode." });
-        },
-        renderVisualStripSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Strip settings fallback mode." });
-        },
-        renderColorsSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Colors settings fallback mode." });
-        },
-        renderAdvancedSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Advanced settings fallback mode." });
         }
+        var range = findActiveTokenRange(controlLine);
+        if (!range) return null;
+        var from = editor.posToOffset({ line: lineNumber, ch: range.fromCh });
+        var to = editor.posToOffset({ line: lineNumber, ch: Math.max(range.toCh, range.fromCh + 1) });
+        var a = cm.coordsAtPos(from);
+        var b = cm.coordsAtPos(to);
+        if (!a || !b) return null;
+        var left = Math.min(a.left, b.left);
+        var right = Math.max(a.right || a.left, b.right || b.left);
+        var top = Math.min(a.top, b.top);
+        var bottom = Math.max(a.bottom || a.top, b.bottom || b.top);
+        return {
+          left,
+          right,
+          top,
+          bottom,
+          width: Math.max(8, right - left)
+        };
+      } catch (_) {
+        return null;
+      }
+    }
+    function createRoot() {
+      var root = document.createElement("div");
+      root.style.position = "fixed";
+      root.style.zIndex = "60";
+      root.style.pointerEvents = "none";
+      root.style.display = "none";
+      root.style.border = "1px solid var(--background-modifier-border)";
+      root.style.borderRadius = "8px";
+      root.style.background = "var(--background-primary)";
+      root.style.boxShadow = "var(--shadow-s)";
+      root.style.padding = "4px 0";
+      root.style.fontSize = "12px";
+      root.style.lineHeight = "1.3";
+      root.style.whiteSpace = "nowrap";
+      root.style.overflow = "hidden";
+      root.style.fontFamily = "var(--font-text)";
+      var list = document.createElement("div");
+      list.style.display = "flex";
+      list.style.flexDirection = "column";
+      list.style.gap = "0";
+      root.appendChild(list);
+      document.body.appendChild(root);
+      return { root, list };
+    }
+    function createTagWheelScrollerOverlay(options) {
+      var cfg = options && typeof options === "object" ? options : {};
+      var direction = normalizeDirection(cfg.direction);
+      var size = normalizeSize(cfg.size);
+      var boxPrimary = createRoot();
+      var boxSecondary = createRoot();
+      function hide() {
+        boxPrimary.root.style.display = "none";
+        boxSecondary.root.style.display = "none";
+      }
+      function measureLongest(rows) {
+        var probe = document.createElement("span");
+        probe.style.position = "fixed";
+        probe.style.left = "-99999px";
+        probe.style.top = "0";
+        probe.style.visibility = "hidden";
+        probe.style.fontSize = boxPrimary.root.style.fontSize;
+        probe.style.fontFamily = boxPrimary.root.style.fontFamily;
+        probe.style.fontWeight = "500";
+        document.body.appendChild(probe);
+        var maxW = 0;
+        var i;
+        for (i = 0; i < rows.length; i++) {
+          probe.textContent = String(rows[i] || "");
+          maxW = Math.max(maxW, Math.ceil(probe.getBoundingClientRect().width));
+        }
+        document.body.removeChild(probe);
+        return maxW;
+      }
+      function renderRows(target, rows) {
+        target.list.innerHTML = "";
+        var i;
+        for (i = 0; i < rows.length; i++) {
+          var item = document.createElement("div");
+          item.textContent = String(rows[i] || "-");
+          item.style.padding = "2px 8px";
+          item.style.overflow = "hidden";
+          item.style.textOverflow = "ellipsis";
+          item.style.opacity = "0.95";
+          target.list.appendChild(item);
+        }
+      }
+      function applyWidth(target, anchorWidth, rows) {
+        var longestW = measureLongest(rows);
+        var minW = Math.max(anchorWidth, longestW + 18);
+        var vw = window.innerWidth || 1;
+        var finalW = clamp(minW, 40, Math.max(40, vw - 8));
+        target.root.style.minWidth = String(Math.round(finalW)) + "px";
+        target.root.style.width = String(Math.round(finalW)) + "px";
+      }
+      function placeBox(target, anchor, mode) {
+        var gap = 4;
+        var vw = window.innerWidth || 1;
+        var vh = window.innerHeight || 1;
+        var rect = target.root.getBoundingClientRect();
+        var w = Math.ceil(rect.width);
+        var h = Math.ceil(rect.height);
+        var left = clamp(anchor.left, 4, Math.max(4, vw - w - 4));
+        var top = mode === "up" ? anchor.top - h - gap : anchor.bottom + gap;
+        top = clamp(top, 4, Math.max(4, vh - h - 4));
+        target.root.style.left = String(Math.round(left)) + "px";
+        target.root.style.top = String(Math.round(top)) + "px";
+        target.root.style.display = "block";
+      }
+      function update(payload) {
+        var p = payload && typeof payload === "object" ? payload : {};
+        var editor = p.editor;
+        var lineNumber = Number(p.lineNumber);
+        var controlLine = String(p.controlLine || "");
+        if (!editor || !isFinite(lineNumber)) {
+          hide();
+          return;
+        }
+        var anchor = getAnchorRect(editor, lineNumber, controlLine);
+        if (!anchor) {
+          hide();
+          return;
+        }
+        var upRows = Array.isArray(p.upItems) ? p.upItems.slice(0, size).map(function(x) {
+          return String(x && x.label || "-");
+        }) : [];
+        var downRows = Array.isArray(p.downItems) ? p.downItems.slice(0, size).map(function(x) {
+          return String(x && x.label || "-");
+        }) : [];
+        hide();
+        if (direction === "up") {
+          if (!upRows.length) return;
+          var upDisplayRows = upRows.slice().reverse();
+          renderRows(boxPrimary, upDisplayRows);
+          applyWidth(boxPrimary, anchor.width, upDisplayRows);
+          boxPrimary.root.style.display = "block";
+          placeBox(boxPrimary, anchor, "up");
+          return;
+        }
+        if (direction === "down") {
+          if (!downRows.length) return;
+          renderRows(boxPrimary, downRows);
+          applyWidth(boxPrimary, anchor.width, downRows);
+          boxPrimary.root.style.display = "block";
+          placeBox(boxPrimary, anchor, "down");
+          return;
+        }
+        if (!upRows.length && !downRows.length) return;
+        if (upRows.length) {
+          var upDisplayRowsFull = upRows.slice().reverse();
+          renderRows(boxPrimary, upDisplayRowsFull);
+          applyWidth(boxPrimary, anchor.width, upDisplayRowsFull);
+          boxPrimary.root.style.display = "block";
+          placeBox(boxPrimary, anchor, "up");
+        }
+        if (downRows.length) {
+          renderRows(boxSecondary, downRows);
+          applyWidth(boxSecondary, anchor.width, downRows);
+          boxSecondary.root.style.display = "block";
+          placeBox(boxSecondary, anchor, "down");
+        }
+      }
+      function destroy() {
+        try {
+          if (boxPrimary.root && boxPrimary.root.parentNode) boxPrimary.root.parentNode.removeChild(boxPrimary.root);
+        } catch (_) {
+        }
+        try {
+          if (boxSecondary.root && boxSecondary.root.parentNode) boxSecondary.root.parentNode.removeChild(boxSecondary.root);
+        } catch (_) {
+        }
+      }
+      return {
+        update,
+        hide,
+        destroy
       };
     }
     module2.exports = {
-      createSettingsSectionsRendererFallback
+      createTagWheelScrollerOverlay
+    };
+  }
+});
+
+// src/ui/settings/schema/custom_texts.ts
+var TAB_CALLOUTS, PREVIEW_TEXTS, PREVIEW_NOTE, PREVIEW_EXAMPLE, PREVIEW_LINE_TEXT, PREVIEW_EMPTY_RIGHT;
+var init_custom_texts = __esm({
+  "src/ui/settings/schema/custom_texts.ts"() {
+    "use strict";
+    TAB_CALLOUTS = {
+      general: {
+        head: "Inline Overhaul is about writing a note and tagging it in the same breath",
+        tip: "Everything the plugin does is built on one idea: a line can carry more than words. Put a status, a due date or a link on the same line as the thought, and you never break off to fill in a form. The tabs across the top go from moving text around, through setting up those slots, to turning a line into a note of its own",
+        body: "Nothing here changes your notes on its own. Each area below can be switched off, and the one part that creates files asks again before it will run. If you are new to it, start with the guide"
+      },
+      navigation: {
+        head: "This menu helps to make inline navigation in Obsidian comfortable",
+        tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
+        body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, jumping between headings to navigate easier and much more. Experiment, and set up the workspace of your dreams!"
+      },
+      keyboard: {
+        head: "Everything about keys lives here",
+        tip: "Obsidian owns the hotkeys themselves, so this tab tells you what to bind and takes you there; the binding is done in <code>Settings \u2192 Hotkeys</code> and survives updates of this plugin",
+        body: "Take over Ctrl/Cmd + A so it selects a line before the whole note, keep a row of snippets you drop in with one press, and read the full list of commands with the key each one currently has"
+      },
+      pkm: {
+        head: "This is the plugin\u2019s main feature",
+        tip: "The idea is that you never stop writing to fill in metadata. You define your slots once here \u2014 a status, a priority, a due date \u2014 and afterwards one keypress puts the right Value on the line and steps it forward",
+        body: "Lay out your PKM here once, and tagging a line becomes a keypress instead of typing. Decide which slots a line can hold, what Values each one offers, where they sit, and how they are written"
+      },
+      visual: {
+        head: "How a tagged line looks while you are writing",
+        tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this plugin and you will see plain text with ordinary tags",
+        body: "Draw tags as coloured bubbles instead of raw text, put a Bar in the margin so you can see what a block of lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
+      },
+      transform: {
+        head: "Turn a line you have already written into a note of its own",
+        tip: "This is the one part of the plugin that creates and edits files. Everything here is off until you switch it on, and it is worth a backup and a practice run on a note you do not mind breaking",
+        body: "A thought you jotted on one line becomes a proper note, from a template, with its properties already filled in from the tags on that line \u2014 and the line itself left holding a link to it"
+      },
+      advanced: {
+        head: "Housekeeping you will rarely need",
+        tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want to look at what the plugin has written into your vault",
+        body: "Where the plugin keeps the file it generates from your setup, how to rebuild it if it drifts, and how to record a log when something needs reporting"
+      }
+    };
+    PREVIEW_TEXTS = {
+      "line-preview": {
+        cap: "Live preview",
+        tip: "One chip per Field, in the order they are written. Everything you change below shows up here: rename a Field, give it a short name, move it to the other side, or change a Separator"
+      },
+      "tag-preview": {
+        cap: "Live preview",
+        tip: "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no bubble \u2014 but the two opacity settings dim a whole side of the line, including them. Priority is set to <code>empty</code>, which is why it shows as a bare color",
+        line: "Rewrite the settings copy",
+        element: "\u{1F4C5} 2026-08-24",
+        link: "[[ClientA]]"
+      },
+      "bars-preview": {
+        cap: "Live preview",
+        tip: "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar sits in the margin, so the text column never moves",
+        tree: [
+          { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
+            { text: "Rewrite every description", fields: ["status"], children: [
+              { text: "Tag Bars", fields: ["status", "priority"], children: [] },
+              { text: "TagWheel panel", fields: ["status"], children: [] },
+              { text: "proof-read the tips", fields: ["priority"], children: [] }
+            ] }
+          ] },
+          { text: "Merge the prototype into the PRD", fields: [], children: [] },
+          { text: "Publish the next beta", fields: ["status", "priority"], children: [
+            { text: "Check the migration on a copy", fields: ["status"], children: [
+              { text: "and on an empty vault", fields: ["status", "priority"], children: [] }
+            ] },
+            { text: "Write the release notes", fields: [], children: [] }
+          ] }
+        ]
+      },
+      "wheel-preview": {
+        cap: "Live preview",
+        tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the settings ask for: <code>Values per side</code> rows on each side that <code>Opens</code> allows. The list is a loop, so it keeps going past the last Value and starts again"
+      },
+      "i2n-button-preview": {
+        cap: "Live preview",
+        tip: "The button is part of the editor, not the note: nothing is written into your file until you press it",
+        note: "Shown on the line the cursor is on"
+      }
+    };
+    PREVIEW_NOTE = "Close to what the editor draws, not the editor itself";
+    PREVIEW_EXAMPLE = "Example Fields, until you set up your own under Fields on the Tags & PKM tab";
+    PREVIEW_LINE_TEXT = "your text";
+    PREVIEW_EMPTY_RIGHT = "nothing on the right yet";
+  }
+});
+
+// src/ui/settings/describe.ts
+function richParts(text) {
+  const out = [];
+  const re = /<(code|b)>([\s\S]*?)<\/\1>/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push({ tag: "text", text: text.slice(last, m.index) });
+    out.push({ tag: m[1], text: m[2] });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ tag: "text", text: text.slice(last) });
+  return out;
+}
+function paint(host, text) {
+  for (const part of richParts(text)) {
+    if (part.tag === "text") host.createSpan({ text: part.text });
+    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
+  }
+}
+var Describer;
+var init_describe = __esm({
+  "src/ui/settings/describe.ts"() {
+    "use strict";
+    Describer = class {
+      constructor(host) {
+        this.cache = /* @__PURE__ */ new Map();
+        this.host = host;
+      }
+      /** Ключ кеша: если тексты и режимы не менялись, фрагмент тот же. */
+      cacheKey(it, o) {
+        return [
+          it.desc || "",
+          it.tip || "",
+          (it.searchTerms || []).join("|"),
+          o.showTips ? "1" : "0",
+          o.showIds ? "1" : "0"
+        ].join(" ");
+      }
+      describe(it, o) {
+        const showId = Boolean(o.showTips && o.showIds && it.id);
+        const hasSomething = it.desc || o.showTips && it.tip || showId || it.searchTerms && it.searchTerms.length;
+        if (!hasSomething) return void 0;
+        const key = this.cacheKey(it, o);
+        const hit = this.cache.get(it.id);
+        if (hit && hit.key === key) return hit.frag;
+        const frag = this.host.createFragment();
+        if (it.desc) paint(frag, it.desc);
+        if (o.showTips && it.tip || showId) {
+          const box = frag.createEl("details", { cls: "io-tip" });
+          box.createEl("summary", { text: "?", cls: "io-tip__mark" });
+          const body = box.createEl("div", { cls: "io-tip__body" });
+          if (o.showTips && it.tip) paint(body, it.tip);
+          if (showId) body.createEl("div", { text: it.id, cls: "io-tip__id" });
+        }
+        this.cache.set(it.id, { key, frag });
+        return frag;
+      }
+      /** Сбросить кеш: язык или режим подсказок сменились целиком. */
+      clear() {
+        this.cache.clear();
+      }
+    };
+  }
+});
+
+// src/ui/settings/custom/dom.ts
+function el(parent, tag, cls, text) {
+  if (!parent) throw new Error("\u0441\u0432\u043E\u0435\u043C\u0443 \u0431\u043B\u043E\u043A\u0443 \u043D\u0443\u0436\u0435\u043D \u0440\u043E\u0434\u0438\u0442\u0435\u043B\u044C: " + tag);
+  const o = {};
+  if (cls) o.cls = cls;
+  if (text !== void 0) o.text = text;
+  return parent.createEl(tag, o);
+}
+function btn(parent, cls, o) {
+  var _a, _b;
+  const label = (_a = o.label) != null ? _a : "";
+  const full = o.title && o.title !== label ? label ? label + " \u2014 " + o.title : o.title : label;
+  const attr = { type: "button" };
+  if (full) attr["aria-label"] = full;
+  return parent.createEl("button", { cls, text: (_b = o.text) != null ? _b : "", attr });
+}
+function textInput(parent, cls, o) {
+  const opts = { cls, type: "text", value: o.value, attr: { "aria-label": o.label } };
+  if (o.placeholder !== void 0) opts.placeholder = o.placeholder;
+  return parent.createEl("input", opts);
+}
+function selectInput(parent, cls, o) {
+  const node = parent.createEl("select", { cls, attr: { "aria-label": o.label } });
+  for (const opt of o.options) node.createEl("option", { text: opt.label, value: opt.value });
+  node.value = o.value;
+  return node;
+}
+function rich(host, text) {
+  for (const part of richParts(text)) {
+    if (part.tag === "text") host.createSpan({ text: part.text });
+    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
+  }
+  return host;
+}
+function cssVarValue(node, name) {
+  try {
+    const view = globalThis.window;
+    if (!view || typeof view.getComputedStyle !== "function") return "";
+    const style = view.getComputedStyle(node);
+    if (!style || typeof style.getPropertyValue !== "function") return "";
+    return String(style.getPropertyValue(name) || "").trim();
+  } catch (e) {
+    return "";
+  }
+}
+function cssVar(node, name, value) {
+  if (!name.startsWith("--io-")) throw new Error("\u0441\u0432\u043E\u0439 \u0431\u043B\u043E\u043A \u0437\u0430\u0434\u0430\u0451\u0442 \u0442\u043E\u043B\u044C\u043A\u043E --io-*: " + name);
+  node.style.setProperty(name, value);
+}
+function tipBelow(o) {
+  if (!o.text || !o.showTips) return () => {
+  };
+  let open = null;
+  const mark = o.head.createEl("button", {
+    cls: "io-help",
+    text: "?",
+    attr: {
+      type: "button",
+      "aria-expanded": "false",
+      "aria-controls": o.id,
+      "aria-label": "More about " + o.label
+    }
+  });
+  mark.addEventListener("click", () => {
+    if (open) {
+      open.remove();
+      open = null;
+      mark.setAttribute("aria-expanded", "false");
+      return;
+    }
+    open = o.host.createEl("div", { cls: "io-tip io-tip--below", attr: { id: o.id } });
+    rich(open, o.text);
+    mark.setAttribute("aria-expanded", "true");
+  });
+  return () => {
+    if (open) {
+      open.remove();
+      open = null;
+    }
+  };
+}
+var init_dom = __esm({
+  "src/ui/settings/custom/dom.ts"() {
+    "use strict";
+    init_describe();
+  }
+});
+
+// src/ui/settings/custom/callouts.ts
+function callout(tab) {
+  return (host, ctx) => {
+    const text = TAB_CALLOUTS[tab];
+    if (!text) return () => {
+    };
+    const box = el(host, "div", "io-callout");
+    const head = el(box, "div", "io-callout__head");
+    rich(head, text.head);
+    const closeTip = tipBelow({
+      head,
+      host,
+      text: text.tip,
+      label: "this tab",
+      id: "io-tip-callout-" + tab,
+      showTips: Boolean(ctx.get("general.help.showTips"))
+    });
+    rich(el(box, "p", "io-callout__body"), text.body);
+    return closeTip;
+  };
+}
+var init_callouts = __esm({
+  "src/ui/settings/custom/callouts.ts"() {
+    "use strict";
+    init_custom_texts();
+    init_dom();
+  }
+});
+
+// src/ui/settings/schema/general.ts
+var GENERAL_GROUPS;
+var init_general = __esm({
+  "src/ui/settings/schema/general.ts"() {
+    "use strict";
+    init_callouts();
+    GENERAL_GROUPS = [
+      {
+        id: "general-intro",
+        tab: "general",
+        order: 10,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "general-callout", render: callout("general") }
+        ]
+      },
+      {
+        id: "help",
+        tab: "general",
+        order: 100,
+        heading: "Help",
+        intro: "Where to start, and how much hand-holding you want along the way",
+        items: [
+          {
+            kind: "toggle",
+            id: "show-tips",
+            path: "general.help.showTips",
+            default: true,
+            name: "Show tips",
+            desc: "Put a ? beside anything that needs more explanation",
+            tip: "Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way"
+          }
+        ]
+      },
+      {
+        id: "modules",
+        tab: "general",
+        order: 200,
+        heading: "Modules",
+        intro: "Four separate things live in this plugin. Turn off the ones you do not want and they stop adding commands and stop touching your notes",
+        items: [
+          {
+            kind: "toggle",
+            id: "module-navigation",
+            path: "features.navigation.enabled",
+            default: true,
+            name: "Navigation",
+            desc: "Move lines, text and the cursor without reaching for the mouse",
+            tip: "Nothing here writes anything new. It only moves text you have already written \u2014 a line up, a word along, the cursor across. Safe to leave on"
+          },
+          {
+            kind: "toggle",
+            id: "module-pkm",
+            path: "features.pkm.enabled",
+            default: true,
+            name: "Tags & PKM",
+            desc: "Set up your PKM tags, wikilinks and emoji elements, and insert them inline with one key",
+            tip: "This is the part that puts tags and dates onto a line for you, and steps them forward with a keypress. Turning it off changes nothing you have already written \u2014 those keys simply stop working"
+          },
+          {
+            kind: "toggle",
+            id: "module-visual",
+            path: "features.visual.enabled",
+            default: true,
+            name: "Visual",
+            desc: "Customize and beautify your inline text with tag colors, Bars and much more",
+            tip: "Appearance only. Your notes contain exactly the same text either way \u2014 this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text"
+          },
+          {
+            kind: "toggle",
+            id: "module-transform",
+            path: "features.transform.enabled",
+            default: true,
+            name: "Transform",
+            desc: "Turn an inline entry into a note, with templates, YAML properties, rules and more",
+            tip: "Leaving this on does not let anything happen yet. Making notes needs one more switch, on the Transform tab, because it is the one thing here that writes new files"
+          }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/types.ts
+function isBound(it) {
+  return typeof it.path === "string";
+}
+function getIn(obj, path) {
+  return path.split(".").reduce((acc, key) => {
+    if (acc === null || typeof acc !== "object") return void 0;
+    return acc[key];
+  }, obj);
+}
+function setIn(obj, path, value) {
+  const keys = path.split(".");
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    const next = cur[k];
+    if (next === null || typeof next !== "object") cur[k] = {};
+    cur = cur[k];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+function buildDefaultConfig(schema) {
+  const out = {};
+  for (const group of schema) {
+    for (const it of group.items) {
+      if (isBound(it)) setIn(out, it.path, it.default);
+    }
+  }
+  return out;
+}
+function on(path) {
+  return { deps: [path], test: (ctx) => Boolean(ctx.get(path)) };
+}
+function not(path) {
+  return { deps: [path], test: (ctx) => !ctx.get(path) };
+}
+function eq(path, value) {
+  return { deps: [path], test: (ctx) => ctx.get(path) === value };
+}
+var init_types = __esm({
+  "src/ui/settings/types.ts"() {
+    "use strict";
+  }
+});
+
+// src/ui/settings/custom/keepview.ts
+function scrollerOf(node) {
+  let at = node;
+  let guard = 0;
+  while (at && guard++ < 64) {
+    const height = Number(at.scrollHeight);
+    const view = Number(at.clientHeight);
+    if (Number.isFinite(height) && Number.isFinite(view) && height - view > 1) return at;
+    at = at.parentElement;
+  }
+  return null;
+}
+function labelOf(node) {
+  const label = String(node.getAttribute("aria-label") || "").trim();
+  return label ? "label:" + label : "";
+}
+function pathOf(root, node) {
+  const path = [];
+  let at = node;
+  let guard = 0;
+  while (at && at !== root && guard++ < 64) {
+    const parent = at.parentElement;
+    if (!parent) break;
+    const kids = parent.children;
+    let index = -1;
+    for (let i = 0; i < kids.length; i++) if (kids[i] === at) {
+      index = i;
+      break;
+    }
+    path.unshift(index);
+    at = parent;
+  }
+  if (at !== root) return "";
+  return "path:" + String(node.className || "") + ":" + path.join(".");
+}
+function findByKey(root, keyFn, key) {
+  let found = null;
+  const walk = (node) => {
+    if (found) return;
+    if (keyFn(node) === key) {
+      found = node;
+      return;
+    }
+    const kids2 = node.children;
+    for (let i = 0; i < kids2.length && !found; i++) walk(kids2[i]);
+  };
+  const kids = root.children;
+  for (let i = 0; i < kids.length && !found; i++) walk(kids[i]);
+  return found;
+}
+function focusedIn(root) {
+  const doc = globalThis.document;
+  const active = doc && doc.activeElement ? doc.activeElement : null;
+  if (!active || active === root) return null;
+  let at = active.parentElement;
+  let guard = 0;
+  while (at && guard++ < 64) {
+    if (at === root) return active;
+    at = at.parentElement;
+  }
+  return null;
+}
+function keepView(root) {
+  const box = root;
+  if (!box || typeof box.getAttribute !== "function") return NOTHING;
+  const scroller = scrollerOf(box);
+  const top = scroller ? Number(scroller.scrollTop) : NaN;
+  const active = focusedIn(box);
+  const label = active ? labelOf(active) : "";
+  const path = active ? pathOf(box, active) : "";
+  const selStart = active && typeof active.selectionStart === "number" ? active.selectionStart : null;
+  const selEnd = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
+  return {
+    restore() {
+      if (scroller && Number.isFinite(top)) {
+        scroller.scrollTop = top;
+      }
+      if (!label && !path) return;
+      const node = (label ? findByKey(box, labelOf, label) : null) || (path ? findByKey(box, (n) => pathOf(box, n), path) : null);
+      if (!node || typeof node.focus !== "function") return;
+      node.focus({ preventScroll: true });
+      if (selStart !== null && typeof node.selectionStart === "number") {
+        try {
+          node.selectionStart = selStart;
+          node.selectionEnd = selEnd === null ? selStart : selEnd;
+        } catch (e) {
+        }
+      }
+      if (scroller && Number.isFinite(top)) scroller.scrollTop = top;
+    }
+  };
+}
+var NOTHING;
+var init_keepview = __esm({
+  "src/ui/settings/custom/keepview.ts"() {
+    "use strict";
+    NOTHING = { restore: () => {
+    } };
+  }
+});
+
+// src/ui/settings/custom/binder_model.ts
+function asObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function str(value) {
+  return typeof value === "string" ? value : value === void 0 || value === null ? "" : String(value);
+}
+function storedRows(cfg) {
+  const raw = asObject(asObject(cfg)["ui"])["binderRows"];
+  return Array.isArray(raw) ? raw.map(asObject) : [];
+}
+function newRowId() {
+  return "binder-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+}
+function createBinderModel(deps) {
+  const { plugin } = deps;
+  const read = () => storedRows(plugin.getConfig());
+  const save = (rows, reason, registerCommands) => {
+    plugin.setConfigPatch({ ui: { binderRows: rows } }, reason);
+    if (!registerCommands || typeof plugin.registerBinderCommands !== "function") return;
+    try {
+      plugin.registerBinderCommands();
+    } catch (e) {
+      console.error("inline-overhaul: \u043A\u043E\u043C\u0430\u043D\u0434\u044B Binder \u043D\u0435 \u043F\u0435\u0440\u0435\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043B\u0438\u0441\u044C", e);
+    }
+  };
+  return {
+    listRows() {
+      const cfg = plugin.getConfig();
+      const names = /* @__PURE__ */ new Map();
+      try {
+        for (const def of deps.commandDefs(cfg)) names.set(str(def && def.id), str(def && def.name));
+      } catch (e) {
+        console.error("inline-overhaul: \u0438\u043C\u0435\u043D\u0430 \u043A\u043E\u043C\u0430\u043D\u0434 Binder \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+      }
+      return storedRows(cfg).map((row) => {
+        const commandId = str(row["commandId"]).trim();
+        return {
+          rowId: str(row["rowId"]).trim(),
+          insertText: str(row["insertText"]),
+          commandName: str(row["commandName"]),
+          description: str(row["description"]),
+          commandId,
+          commandLabel: names.get(commandId) || "",
+          system: str(row["rowId"]).trim() === SYSTEM_ROW_ID
+        };
+      });
+    },
+    setDescription(rowId, text) {
+      const id = String(rowId || "").trim();
+      if (!id || id === SYSTEM_ROW_ID) return;
+      const rows = read();
+      if (!rows.some((row) => str(row["rowId"]).trim() === id)) return;
+      const next = rows.map((row) => str(row["rowId"]).trim() === id ? { ...row, description: String(text != null ? text : "") } : row);
+      save(next, "settings:binder:description", false);
+    },
+    remove(rowId) {
+      const id = String(rowId || "").trim();
+      if (!id || id === SYSTEM_ROW_ID) return;
+      const rows = read();
+      const next = rows.filter((row) => str(row["rowId"]).trim() !== id);
+      if (next.length === rows.length) return;
+      save(next, "settings:binder:delete", true);
+    },
+    move(from, to) {
+      const rows = read();
+      if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return;
+      const next = rows.slice();
+      const taken = next.splice(from, 1)[0];
+      if (!taken) return;
+      next.splice(to, 0, taken);
+      save(next, "settings:binder:reorder", true);
+    },
+    add(draft) {
+      const insertText = String(draft && draft.insertText || "");
+      if (!insertText.trim()) return;
+      const next = read().concat([{
+        rowId: newRowId(),
+        insertText,
+        commandName: String(draft && draft.commandName || "").trim(),
+        description: String(draft && draft.description || "").trim(),
+        /* Пусто: идентификатор поставит `normalizeBinderRows` на этом же патче. */
+        commandId: ""
+      }]);
+      save(next, "settings:binder:add", true);
+    }
+  };
+}
+var SYSTEM_ROW_ID;
+var init_binder_model = __esm({
+  "src/ui/settings/custom/binder_model.ts"() {
+    "use strict";
+    SYSTEM_ROW_ID = "binder-system-smart-bracket";
+  }
+});
+
+// src/ui/settings/custom/binder_view.ts
+function rowTitle(row) {
+  const short = row.commandLabel.startsWith(LABEL_PREFIX) ? row.commandLabel.slice(LABEL_PREFIX.length) : row.commandLabel;
+  return short.trim() || row.commandName.trim() || row.insertText.trim() || "this row";
+}
+function renderBinder(host, o) {
+  const scroll = el(host, "div", "io-scroll");
+  const card = el(scroll, "div", "io-card io-binder");
+  const head = el(card, "div", "io-tablehead");
+  for (const cap of HEAD) el(head, "div", void 0, cap);
+  let taken = null;
+  o.rows.forEach((row, i) => {
+    const line = el(card, "div", "io-tablerow");
+    const name = rowTitle(row);
+    const grip = el(line, "span", "io-grip", "\u283F");
+    grip.setAttribute("role", "button");
+    grip.setAttribute("aria-label", "Drag " + name + " to reorder it");
+    grip.draggable = true;
+    grip.addEventListener("dragstart", ((ev) => {
+      var _a;
+      taken = i;
+      line.classList.add("io-dragging");
+      try {
+        (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", String(i));
+      } catch (e) {
+      }
+    }));
+    grip.addEventListener("dragend", (() => {
+      taken = null;
+      line.classList.remove("io-dragging");
+    }));
+    line.addEventListener("dragover", ((ev) => {
+      if (taken === null) return;
+      ev.preventDefault();
+      line.classList.add("io-dragover");
+    }));
+    line.addEventListener("dragleave", (() => {
+      line.classList.remove("io-dragover");
+    }));
+    line.addEventListener("drop", ((ev) => {
+      ev.preventDefault();
+      line.classList.remove("io-dragover");
+      const from = taken;
+      taken = null;
+      if (from === null || from === i) return;
+      o.onMove(from, i);
+    }));
+    el(line, "code", "io-mono", row.insertText);
+    el(line, "div", "io-cellname", name);
+    const cell = el(line, "div", "io-binder__desc");
+    const desc = textInput(cell, "io-text", {
+      value: row.description,
+      label: "Description for " + name
+    });
+    desc.disabled = row.system;
+    if (row.system) desc.title = SYSTEM_TITLE;
+    desc.addEventListener("change", (() => {
+      if (!row.system) o.onDescription(row, desc.value);
+    }));
+    const hotkey = o.hotkeyOf(row);
+    const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
+      text: hotkey || HOTKEY_NONE,
+      label: (hotkey ? "Change" : "Assign") + " the hotkey for " + name,
+      title: HOTKEY_TITLE
+    });
+    hk.disabled = !o.openHotkey;
+    hk.addEventListener("click", (() => {
+      if (o.openHotkey) o.openHotkey(row);
+    }));
+    const drop = btn(line, "io-icon", {
+      text: row.system ? "" : "\u2715",
+      label: row.system ? SYSTEM_TITLE : "Remove " + name
+    });
+    drop.disabled = row.system;
+    drop.addEventListener("click", (() => {
+      if (!row.system) o.onRemove(row);
+    }));
+  });
+  const foot = el(card, "div", "io-tablefoot");
+  const add = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_COMMAND, label: ADD_COMMAND });
+  add.addEventListener("click", (() => {
+    o.onAdd();
+  }));
+}
+function renderAddForm(box, o) {
+  el(box, "h4", void 0, ADD_TITLE);
+  el(box, "p", "io-item__desc", ADD_NOTE);
+  const field = (name, desc, placeholder) => {
+    const row = el(box, "div", "io-item");
+    const info = el(row, "div", "io-item__info");
+    el(info, "div", "io-item__name", name);
+    el(info, "div", "io-item__desc", desc);
+    return textInput(el(row, "div", "io-item__control"), "io-text", {
+      value: "",
+      label: name + " of the new command",
+      placeholder
+    });
+  };
+  const insert = field(INSERT_NAME, INSERT_DESC, "\u2192");
+  const command = field(CMD_NAME, CMD_DESC, "Arrow");
+  const note = field(DESC_NAME, DESC_DESC, "");
+  const foot = el(box, "div", "io-dlg__foot");
+  const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
+  cancel.addEventListener("click", (() => {
+    o.cancel();
+  }));
+  const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
+  add.disabled = true;
+  insert.addEventListener("input", (() => {
+    add.disabled = !String(insert.value || "").trim();
+  }));
+  add.addEventListener("click", (() => {
+    if (!String(insert.value || "").trim()) return;
+    o.add({
+      insertText: insert.value,
+      commandName: command.value,
+      description: note.value
+    });
+  }));
+}
+var HEAD, ADD_COMMAND, HOTKEY_NONE, HOTKEY_TITLE, SYSTEM_TITLE, LABEL_PREFIX, ADD_TITLE, ADD_NOTE, INSERT_NAME, INSERT_DESC, CMD_NAME, CMD_DESC, DESC_NAME, DESC_DESC;
+var init_binder_view = __esm({
+  "src/ui/settings/custom/binder_view.ts"() {
+    "use strict";
+    init_dom();
+    HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""];
+    ADD_COMMAND = "Add command";
+    HOTKEY_NONE = "not set";
+    HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
+    SYSTEM_TITLE = "Built in";
+    LABEL_PREFIX = "Binder: ";
+    ADD_TITLE = "Add a Binder command";
+    ADD_NOTE = "The command is made from the row, so the text it inserts cannot be changed afterwards";
+    INSERT_NAME = "Inserts";
+    INSERT_DESC = "The text this command drops in at the cursor";
+    CMD_NAME = "Command name";
+    CMD_DESC = "What to call it in Obsidian's list of hotkeys";
+    DESC_NAME = "Description";
+    DESC_DESC = "A note to yourself about what the row is for";
+  }
+});
+
+// src/ui/settings/custom/hotkeys.ts
+function app2(plugin) {
+  const holder = plugin;
+  const value = holder && typeof holder === "object" ? holder.app : null;
+  return value && typeof value === "object" ? value : null;
+}
+function fullCommandId(plugin, commandId) {
+  const id = String(commandId || "").trim();
+  if (!id) return "";
+  const manifest = plugin == null ? void 0 : plugin.manifest;
+  const owner = String(manifest && manifest.id ? manifest.id : "").trim();
+  return owner ? owner + ":" + id : id;
+}
+function modLabel() {
+  try {
+    const nav = globalThis.navigator;
+    const platform = String(nav && nav.platform ? nav.platform : "");
+    return /Mac|iPhone|iPad/.test(platform) ? "Cmd" : "Ctrl";
+  } catch (e) {
+    return "Ctrl";
+  }
+}
+function binding(value) {
+  if (!value || typeof value !== "object") return "";
+  const b = value;
+  const key = String(b.key || "").trim();
+  if (!key) return "";
+  const mods = Array.isArray(b.modifiers) ? b.modifiers.map((x) => String(x || "").trim()).filter(Boolean).map((m) => m === "Mod" ? modLabel() : m) : [];
+  return mods.length ? mods.join(" + ") + " + " + key : key;
+}
+function firstBinding(value) {
+  if (!Array.isArray(value) || !value.length) return "";
+  return binding(value[0]);
+}
+function hotkeyOf(plugin, commandId) {
+  const a = app2(plugin);
+  const hm = a && a.hotkeyManager;
+  const id = fullCommandId(plugin, commandId);
+  if (!hm || !id) return "";
+  try {
+    const custom = hm.customKeys;
+    if (custom && typeof custom === "object" && Object.prototype.hasOwnProperty.call(custom, id)) {
+      return firstBinding(custom[id]);
+    }
+    if (typeof hm.getHotkeys === "function") return firstBinding(hm.getHotkeys(id));
+  } catch (e) {
+    console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0439 \u043A\u043E\u043C\u0430\u043D\u0434\u044B \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0441\u044F", e);
+  }
+  return "";
+}
+function canOpenHotkeys(plugin) {
+  const a = app2(plugin);
+  const s = a && a.setting;
+  return !!(s && typeof s.open === "function" && typeof s.openTabById === "function");
+}
+function openHotkeys(plugin, commandName) {
+  const a = app2(plugin);
+  const s = a && a.setting;
+  if (!s || typeof s.open !== "function" || typeof s.openTabById !== "function") return false;
+  try {
+    s.open();
+    const tab = s.openTabById("hotkeys");
+    const query = String(commandName || "").trim();
+    if (tab && typeof tab.setQuery === "function" && query) tab.setQuery(query);
+    return true;
+  } catch (e) {
+    console.error("inline-overhaul: \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0445\u043E\u0442\u043A\u0435\u0435\u0432 \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u043B\u0438\u0441\u044C", e);
+    return false;
+  }
+}
+var init_hotkeys = __esm({
+  "src/ui/settings/custom/hotkeys.ts"() {
+    "use strict";
+  }
+});
+
+// src/ui/settings/custom/binder.ts
+function askAddModal(Modal2, app3, done) {
+  let answered = false;
+  const finish = (draft) => {
+    if (answered) return;
+    answered = true;
+    done(draft);
+  };
+  class AddBinderRowModal extends Modal2 {
+    onOpen() {
+      const box = this.contentEl;
+      box.empty();
+      box.addClass("io-dlg");
+      renderAddForm(box, {
+        add: (draft) => {
+          finish(draft);
+          this.close();
+        },
+        cancel: () => {
+          finish(null);
+          this.close();
+        }
+      });
+    }
+    onClose() {
+      finish(null);
+      this.contentEl.empty();
+    }
+  }
+  new AddBinderRowModal(app3).open();
+}
+var import_command_registry, registry, BINDER_PATHS, binderTable;
+var init_binder = __esm({
+  "src/ui/settings/custom/binder.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_binder_model();
+    init_binder_view();
+    init_hotkeys();
+    import_command_registry = __toESM(require_command_registry());
+    registry = import_command_registry.default;
+    BINDER_PATHS = ["ui.binderRows"];
+    binderTable = (host, ctx) => {
+      const p = ctx.platform;
+      const box = el(host, "div", "io-binderblock");
+      if (!p) return () => {
+        box.empty();
+      };
+      const Modal2 = p.Modal;
+      const plugin = p.plugin;
+      const app3 = plugin.app;
+      const canOpen = canOpenHotkeys(plugin);
+      let mounted = null;
+      const draw = () => {
+        const keep = keepView(box);
+        const next = el(box, "div", "io-binderblock__mount");
+        try {
+          const model = createBinderModel({
+            plugin,
+            commandDefs: (cfg) => registry.buildBinderCommandDefs(cfg)
+          });
+          const commit = (write) => {
+            try {
+              write();
+            } catch (e) {
+              console.error("inline-overhaul: \u0437\u0430\u043F\u0438\u0441\u044C \u0441\u0442\u0440\u043E\u043A Binder \u043D\u0435 \u0443\u0434\u0430\u043B\u0430\u0441\u044C", e);
+            } finally {
+              draw();
+            }
+          };
+          renderBinder(next, {
+            rows: model.listRows(),
+            hotkeyOf: (row) => hotkeyOf(plugin, row.commandId),
+            openHotkey: canOpen ? (row) => {
+              openHotkeys(plugin, row.commandLabel);
+            } : null,
+            onDescription: (row, text) => commit(() => {
+              model.setDescription(row.rowId, text);
+            }),
+            onRemove: (row) => commit(() => {
+              model.remove(row.rowId);
+            }),
+            onMove: (from, to) => commit(() => {
+              model.move(from, to);
+            }),
+            onAdd: () => askAddModal(Modal2, app3, (draft) => {
+              if (!draft) return;
+              commit(() => {
+                model.add(draft);
+              });
+            })
+          });
+        } catch (e) {
+          next.remove();
+          console.error("inline-overhaul: Binder \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
+          return;
+        }
+        if (mounted) mounted.remove();
+        mounted = next;
+        keep.restore();
+      };
+      draw();
+      const unwatch = ctx.watch(BINDER_PATHS, draw);
+      return () => {
+        unwatch();
+        mounted = null;
+        box.empty();
+      };
+    };
+  }
+});
+
+// src/ui/settings/schema/keyboard.ts
+var KEYBOARD_GROUPS;
+var init_keyboard = __esm({
+  "src/ui/settings/schema/keyboard.ts"() {
+    "use strict";
+    init_types();
+    init_binder();
+    init_callouts();
+    KEYBOARD_GROUPS = [
+      {
+        id: "keyboard-intro",
+        tab: "keyboard",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "keyboard-callout", render: callout("keyboard") }
+        ]
+      },
+      {
+        id: "select-all",
+        tab: "keyboard",
+        order: 100,
+        heading: "Expanded 'Ctrl+A'",
+        intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
+        items: [
+          {
+            kind: "toggle",
+            id: "select-all-enabled",
+            path: "editor.selectAll.enabled",
+            default: false,
+            name: "Expanded 'Ctrl+A'",
+            desc: "Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
+            searchTerms: ["Enhanced Mod+A", "Expanded select all"],
+            tip: "On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started"
+          },
+          {
+            kind: "dropdown",
+            id: "select-all-steps",
+            path: "editor.selectAll.mode",
+            default: "line-note",
+            name: "Selection steps",
+            desc: "How much more gets picked up on each press",
+            searchTerms: ["Select-all mode"],
+            disabled: not("editor.selectAll.enabled"),
+            options: [
+              { value: "line-note", label: "Line, then note" },
+              { value: "line-tree-note", label: "Line, tree, then note" },
+              { value: "line-tree-header-note", label: "Line, tree, heading, then note" }
+            ],
+            tip: "<b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use \u2014 every extra step is one more press before you reach the whole note"
+          },
+          {
+            kind: "toggle",
+            id: "select-all-timer",
+            path: "editor.selectAll.useDelay",
+            default: false,
+            name: "Count presses by timer",
+            desc: "Decide the next step by how quickly you press, rather than by what is selected",
+            searchTerms: ["Use multi-press delay"],
+            disabled: not("editor.selectAll.enabled"),
+            tip: "Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line \u2014 handy if you often select something, walk away, and come back"
+          },
+          {
+            kind: "slider",
+            id: "select-all-delay",
+            path: "editor.selectAll.delayMs",
+            default: 700,
+            min: 250,
+            max: 2e3,
+            step: 50,
+            unit: "ms",
+            name: "Time between presses",
+            desc: "How long you can pause and still be in the middle of a sequence",
+            tip: "Only used when the timer above is on. Around three quarters of a second suits most people; raise it if you keep losing your place",
+            searchTerms: ["Multi-press delay"],
+            visible: on("editor.selectAll.useDelay"),
+            disabled: not("editor.selectAll.enabled")
+          },
+          {
+            kind: "toggle",
+            id: "select-all-clear",
+            path: "editor.selectAll.clearOnLast",
+            default: false,
+            name: "One more press clears it",
+            desc: "After the last step, pressing again drops the selection and returns the cursor",
+            tip: "Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
+            searchTerms: ["Last press clears selection"],
+            disabled: not("editor.selectAll.enabled")
+          }
+        ]
+      },
+      {
+        id: "binder",
+        tab: "keyboard",
+        order: 200,
+        heading: "Binder (custom insert commands)",
+        intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
+        tip: "The <code>Hotkey</code> column shows the key a row has now; click it to go and set one. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
+        items: [
+          { kind: "custom", id: "binder-table", render: binderTable }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/custom/dispatch_tables.ts
+var TABLES, ARROW, dispatchTables;
+var init_dispatch_tables = __esm({
+  "src/ui/settings/custom/dispatch_tables.ts"() {
+    "use strict";
+    init_dom();
+    TABLES = [
+      {
+        command: "Move left",
+        steps: [
+          { when: "part of a line is selected", then: "move that text" },
+          { when: "the line is indented", then: "remove one indent level" },
+          { when: "no indent", then: "cycle the prefix backwards" }
+        ]
+      },
+      {
+        command: "Move right",
+        steps: [
+          { when: "part of a line is selected", then: "move that text" },
+          { when: "a list item, or already indented", then: "add one indent level" },
+          { when: "anything else", then: "cycle the prefix forwards" }
+        ]
+      }
+    ];
+    ARROW = " \u2192 ";
+    dispatchTables = (host) => {
+      const box = el(host, "div", "io-dispatch");
+      const pair = el(box, "div", "io-orderpair");
+      for (const table of TABLES) {
+        const col = el(pair, "div");
+        el(col, "code", "io-ordercol__cap", table.command);
+        const list = el(col, "ol", "io-order");
+        for (const step of table.steps) {
+          const li = el(list, "li");
+          el(li, "b", void 0, step.when);
+          el(li, "span", void 0, ARROW);
+          el(li, "span", "io-order__then", step.then);
+        }
+      }
+      return () => {
+        box.empty();
+      };
     };
   }
 });
@@ -24185,21 +25365,21 @@ var fields_model_exports = {};
 __export(fields_model_exports, {
   createFieldsModel: () => createFieldsModel
 });
-function asObject(value) {
+function asObject2(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 function asArray(value) {
   return Array.isArray(value) ? value.slice() : [];
 }
 function behaviorOf(cfg) {
-  const pkm = asObject(asObject(cfg)["pkm"]);
-  return asObject(pkm["behavior"]);
+  const pkm = asObject2(asObject2(cfg)["pkm"]);
+  return asObject2(pkm["behavior"]);
 }
 function modeFields(behavior, side) {
-  return asArray(asObject(behavior[side])["fields"]);
+  return asArray(asObject2(behavior[side])["fields"]);
 }
 function idOf(row) {
-  return String(asObject(row)["id"] || "").trim();
+  return String(asObject2(row)["id"] || "").trim();
 }
 function createFieldsModel(deps) {
   var _a;
@@ -24322,7 +25502,7 @@ function createFieldsModel(deps) {
       order: normalizePkmOrder((_a2 = behavior["order"]) != null ? _a2 : null),
       leftMode: modeFields(behavior, "leftMode"),
       rightMode: modeFields(behavior, "rightMode"),
-      elements: asObject(behavior["elements"]),
+      elements: asObject2(behavior["elements"]),
       dates: {}
     };
   };
@@ -24463,13 +25643,13 @@ function createFieldsModel(deps) {
     }
     if (kind === "element") {
       const behaviorAfterMode = behaviorOf(plugin.getConfig());
-      const elementsCfg = asObject(behaviorAfterMode["elements"]);
+      const elementsCfg = asObject2(behaviorAfterMode["elements"]);
       const fields = asArray(elementsCfg["fields"]);
       if (!fields.includes(key)) fields.push(key);
-      const byField = { ...asObject(elementsCfg["byField"]) };
-      const cur = asObject(byField[key]);
-      const curHotkey = asObject(cur["hotkey"]);
-      const curIncrement = asObject(cur["increment"]);
+      const byField = { ...asObject2(elementsCfg["byField"]) };
+      const cur = asObject2(byField[key]);
+      const curHotkey = asObject2(cur["hotkey"]);
+      const curIncrement = asObject2(cur["increment"]);
       byField[key] = {
         ...cur,
         emoji: Object.prototype.hasOwnProperty.call(cur, "emoji") ? String(cur["emoji"] || "").trim() : "",
@@ -24534,7 +25714,7 @@ function createFieldsModel(deps) {
     setOrderPatch(nextOrder, "pkm:behavior:order:delete:" + k, { replace: true });
     const behavior = behaviorOf(plugin.getConfig());
     const dropDangling = (row) => {
-      const obj = asObject(row);
+      const obj = asObject2(row);
       const dep = String(obj["dependsOn"] || "").trim();
       if (!dep || !targets.includes(dep)) return row;
       const next = { ...obj };
@@ -24550,9 +25730,9 @@ function createFieldsModel(deps) {
       const id = idOf(f);
       return id !== k && (!sub || id !== sub);
     }).map(dropDangling);
-    const elementsCfg = asObject(behavior["elements"]);
+    const elementsCfg = asObject2(behavior["elements"]);
     const elementsFields = asArray(elementsCfg["fields"]).filter((x) => String(x || "").trim() !== k);
-    const elementsByField = { ...asObject(elementsCfg["byField"]) };
+    const elementsByField = { ...asObject2(elementsCfg["byField"]) };
     delete elementsByField[k];
     plugin.setConfigPatch({
       pkm: {
@@ -24618,7 +25798,7 @@ function createFieldsModel(deps) {
       if (!kk || !Array.isArray(arr)) return null;
       const strict = String(orderState.strictNames && orderState.strictNames[kk] || kk).trim() || kk;
       for (let i = 0; i < arr.length; i++) {
-        const row = arr[i] && typeof arr[i] === "object" ? asObject(arr[i]) : null;
+        const row = arr[i] && typeof arr[i] === "object" ? asObject2(arr[i]) : null;
         if (!row) continue;
         const id = String(row["id"] || "").trim();
         const ok = String(row["orderKey"] || "").trim();
@@ -24631,7 +25811,7 @@ function createFieldsModel(deps) {
     const patchFieldValues = (field) => {
       if (!field || !Array.isArray(field["values"])) return field;
       const values = field["values"].map((v) => {
-        const row = v && typeof v === "object" ? { ...asObject(v) } : v;
+        const row = v && typeof v === "object" ? { ...asObject2(v) } : v;
         if (!row || typeof row !== "object") return row;
         const cur = String(row["yamlProperty"] || "").trim();
         const inheritedBefore = !cur || cur === prev;
@@ -24668,7 +25848,7 @@ function createFieldsModel(deps) {
     orderState.enabled = { ...orderState.enabled || {}, [subKey]: next !== "no" };
     const leftMode = modeFields(behaviorOf(plugin.getConfig()), "leftMode");
     const idx = leftMode.findIndex((f) => idOf(f) === subKey);
-    if (idx !== -1) leftMode[idx] = { ...asObject(leftMode[idx]), enabled: next !== "no" };
+    if (idx !== -1) leftMode[idx] = { ...asObject2(leftMode[idx]), enabled: next !== "no" };
     plugin.setConfigPatch(
       { pkm: { behavior: { leftMode: { fields: leftMode } } } },
       "pkm:behavior:leftmode:subtoggle:" + subKey
@@ -24774,8 +25954,8 @@ function createFieldsModel(deps) {
     return v === "raw" || v === "clean" ? v : "";
   };
   const fallbackValueRule = () => {
-    const cfgNow = asObject(plugin.getConfig());
-    const i2n = asObject(asObject(cfgNow["transform"])["inline2note"]);
+    const cfgNow = asObject2(plugin.getConfig());
+    const i2n = asObject2(asObject2(cfgNow["transform"])["inline2note"]);
     return normalizeValueRule(i2n["yamlNoteFormat"]) || "raw";
   };
   const lineTokenFor = (k, kind, def) => {
@@ -24787,7 +25967,7 @@ function createFieldsModel(deps) {
     }
     const values = asArray(def && def.values);
     for (const raw of values) {
-      const row = asObject(raw);
+      const row = asObject2(raw);
       const token = String(row["token"] || "").trim();
       if (!token) continue;
       if (asArray(row["allowedParentValues"]).length) continue;
@@ -24802,8 +25982,8 @@ function createFieldsModel(deps) {
   };
   const listYamlFields = () => {
     const fallback = fallbackValueRule();
-    const cardinalityByField = asObject(
-      asObject(behaviorOf(plugin.getConfig())["order"])["yamlCardinalityByField"]
+    const cardinalityByField = asObject2(
+      asObject2(behaviorOf(plugin.getConfig())["order"])["yamlCardinalityByField"]
     );
     const out = [];
     for (const row of listFields()) {
@@ -24834,7 +26014,7 @@ function createFieldsModel(deps) {
     const def = findFieldByOrderKey(list, k);
     const id = String(def && def.id || "").trim();
     if (!def || !id) return { ok: false, error: "InlineOverhaul: field definition not found: " + k };
-    const nextDef = { ...asObject(def) };
+    const nextDef = { ...asObject2(def) };
     for (const key of Object.keys(patch)) {
       const value = patch[key];
       if (value === null) delete nextDef[key];
@@ -24902,7 +26082,7 @@ function createFieldsModel(deps) {
     const fid = String(fieldId || "").trim();
     for (const side of ["leftMode", "rightMode"]) {
       const found = modeFields(behavior, side).find((f) => idOf(f) === fid);
-      if (found) return asObject(found);
+      if (found) return asObject2(found);
     }
     return {};
   };
@@ -24922,7 +26102,7 @@ function createFieldsModel(deps) {
     const out = [];
     const seen = /* @__PURE__ */ new Set();
     for (const raw of asArray(fieldObject(fieldId)["values"])) {
-      const row = asObject(raw);
+      const row = asObject2(raw);
       const token = String(row["token"] || "").trim();
       const id = String(row["id"] || token).trim();
       if (!id || seen.has(id)) continue;
@@ -24966,7 +26146,7 @@ function createFieldsModel(deps) {
     const list = modeFields(behaviorOf(plugin.getConfig()), side);
     const idx = list.findIndex((f) => idOf(f) === key);
     if (idx === -1) return { ok: false, error: "InlineOverhaul: field is not in the config yet" };
-    const next = { ...asObject(list[idx]) };
+    const next = { ...asObject2(list[idx]) };
     if (fieldId) {
       next["dependsOn"] = fieldId;
       if (value) next["enabledForParentValues"] = [value];
@@ -24994,10 +26174,10 @@ function createFieldsModel(deps) {
   const getValueVisual = (fieldId, token) => {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
-    const visuals = asObject(behaviorOf(plugin.getConfig())["tagVisuals"]);
-    const byTag = asObject(visuals["byTag"]);
-    const fm = fid ? asObject(byTag[fid]) : {};
-    const row = tok ? asObject(fm[tok]) : {};
+    const visuals = asObject2(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const byTag = asObject2(visuals["byTag"]);
+    const fm = fid ? asObject2(byTag[fid]) : {};
+    const row = tok ? asObject2(fm[tok]) : {};
     return {
       fillColor: normalizeHex2(row["fillColor"]),
       textColor: normalizeHex2(row["textColor"]),
@@ -25009,9 +26189,9 @@ function createFieldsModel(deps) {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
     if (!fid || !tok || tok.charAt(0) !== "#") return;
-    const visuals = asObject(behaviorOf(plugin.getConfig())["tagVisuals"]);
-    const byTag = asObject(visuals["byTag"]);
-    const current = asObject(asObject(byTag[fid])[tok]);
+    const visuals = asObject2(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const byTag = asObject2(visuals["byTag"]);
+    const current = asObject2(asObject2(byTag[fid])[tok]);
     const has = (key) => Object.prototype.hasOwnProperty.call(patch, key);
     const next = {
       fillColor: has("fillColor") ? normalizeHex2(patch.fillColor) : normalizeHex2(current["fillColor"]),
@@ -25079,8 +26259,8 @@ function createFieldsModel(deps) {
     const behavior = behaviorOf(plugin.getConfig());
     const rightMode = modeFields(behavior, "rightMode");
     const strictName = String(orderState.strictNames && orderState.strictNames[k] || k).trim() || k;
-    const elem = asObject(behavior["elements"]);
-    const byField = asObject(elem["byField"]);
+    const elem = asObject2(behavior["elements"]);
+    const byField = asObject2(elem["byField"]);
     const elementField = findFieldByOrderKey(rightMode, k) || findFieldByOrderKey(rightMode, strictName);
     const elementFieldId = String(elementField && elementField.id || "").trim() || String(k || "").trim();
     const curElem = byField[elementFieldId] || byField[k] || byField[strictName] || {};
@@ -25140,10 +26320,10 @@ function createFieldsModel(deps) {
     const subFieldId = String(subField && subField.id || "").trim();
     const parentInRight = hasFieldById(rightMode, parentFieldId);
     const subInRight = hasFieldById(rightMode, subFieldId);
-    const prefixRules2 = asObject(behavior["prefixRules"]);
-    const checkboxByFieldValue = asObject(prefixRules2["checkboxByFieldValue"]);
-    const parentCheckboxRaw = parentFieldId ? asObject(checkboxByFieldValue[parentFieldId]) : {};
-    const subCheckboxRaw = subFieldId ? asObject(checkboxByFieldValue[subFieldId]) : {};
+    const prefixRules2 = asObject2(behavior["prefixRules"]);
+    const checkboxByFieldValue = asObject2(prefixRules2["checkboxByFieldValue"]);
+    const parentCheckboxRaw = parentFieldId ? asObject2(checkboxByFieldValue[parentFieldId]) : {};
+    const subCheckboxRaw = subFieldId ? asObject2(checkboxByFieldValue[subFieldId]) : {};
     const fieldCheckboxByToken = {};
     for (const rawToken of Object.keys(parentCheckboxRaw)) {
       const t = normToken(rawToken, kind);
@@ -25736,11 +26916,11 @@ var require_fields_editor_legacy = __commonJS({
       __orderDeepEditorState = createOrderDeepEditorStateUnavailable(__orderDeepEditorStateDiag);
       return __orderDeepEditorState;
     }
-    function deferRefreshSettings(refreshSettings2) {
-      if (typeof refreshSettings2 !== "function") return;
+    function deferRefreshSettings(refreshSettings) {
+      if (typeof refreshSettings !== "function") return;
       const run = () => {
         try {
-          refreshSettings2();
+          refreshSettings();
         } catch (_) {
         }
       };
@@ -25867,7 +27047,7 @@ var require_fields_editor_legacy = __commonJS({
       };
     }
     function renderPkmOrderBoardSection(ctx) {
-      const { Setting, Notice: Notice3, Modal: Modal2, containerEl, cfg, enabled, plugin, normalizePkmOrder, pkmOrderFields, setIcon: setIcon2, refreshSettings: refreshSettings2 } = ctx;
+      const { Setting, Notice: Notice3, Modal: Modal2, containerEl, cfg, enabled, plugin, normalizePkmOrder, pkmOrderFields, setIcon: setIcon2, refreshSettings } = ctx;
       const activePkmSubTab = String(cfg && cfg.ui && cfg.ui.pkmSubTab || "main").trim() === "behavior" ? "behavior" : "main";
       const pkmSubTabs = [
         { id: "main", label: "Main" },
@@ -25989,21 +27169,21 @@ var require_fields_editor_legacy = __commonJS({
       new Setting(tableSettings).setName("Show Info & Tips").addToggle((t) => {
         t.setValue(showInfoTips).onChange((v) => {
           plugin.setConfigPatch({ ui: { orderShowInfoTips: v === true } }, "settings:ui:orderShowInfoTips");
-          deferRefreshSettings(refreshSettings2);
+          deferRefreshSettings(refreshSettings);
         });
         if (!enabled) t.setDisabled(true);
       });
       new Setting(tableSettings).setName("Show DeepEditor").addToggle((t) => {
         t.setValue(showDeepEditor).onChange((v) => {
           plugin.setConfigPatch({ ui: { orderShowDeepEditor: v === true } }, "settings:ui:orderShowDeepEditor");
-          deferRefreshSettings(refreshSettings2);
+          deferRefreshSettings(refreshSettings);
         });
         if (!enabled) t.setDisabled(true);
       });
       const colorSettingRow = new Setting(tableSettings).setName("Show Color Settings").addToggle((t) => {
         t.setValue(showColorSettingsUi).onChange((v) => {
           plugin.setConfigPatch({ ui: { orderShowColorSettings: v === true } }, "settings:ui:orderShowColorSettings");
-          deferRefreshSettings(refreshSettings2);
+          deferRefreshSettings(refreshSettings);
         });
         if (!enabled || !showDeepEditor) t.setDisabled(true);
       });
@@ -28109,4333 +29289,6 @@ var require_fields_editor_legacy = __commonJS({
       normalizeHexColorInput,
       readTagVisualsConfig,
       renderPkmOrderBoardSection
-    };
-  }
-});
-
-// src/ui/settings_sections_renderer.js
-var require_settings_sections_renderer = __commonJS({
-  "src/ui/settings_sections_renderer.js"(exports2, module2) {
-    "use strict";
-    var __fieldsEditor = require_fields_editor_legacy();
-    var {
-      computeTagVisualStyle,
-      deferRefreshSettings,
-      getContrastTextHex,
-      normalizeHexColorInput,
-      readTagVisualsConfig,
-      renderPkmOrderBoardSection
-    } = __fieldsEditor;
-    function getOrderDeepEditorDebounceStore(plugin) {
-      if (!plugin || typeof plugin !== "object") return {};
-      if (!plugin._orderDeepEditorDebounce || typeof plugin._orderDeepEditorDebounce !== "object") {
-        plugin._orderDeepEditorDebounce = {};
-      }
-      return plugin._orderDeepEditorDebounce;
-    }
-    function flushOrderDeepCommit(plugin, key) {
-      const k = String(key || "").trim();
-      const store = getOrderDeepEditorDebounceStore(plugin);
-      const entry = k ? store[k] : null;
-      if (!entry) return;
-      try {
-        if (entry.timer) clearTimeout(entry.timer);
-      } catch (_) {
-      }
-      delete store[k];
-      try {
-        if (typeof entry.fn === "function") entry.fn();
-      } catch (_) {
-      }
-    }
-    function flushAllDeepCommits(plugin) {
-      const store = getOrderDeepEditorDebounceStore(plugin);
-      const keys = Object.keys(store);
-      for (let i = 0; i < keys.length; i++) flushOrderDeepCommit(plugin, keys[i]);
-    }
-    function normalizeSettingsTypography(rootEl) {
-      if (!rootEl || typeof rootEl.querySelectorAll !== "function") return;
-      const MAIN_HEADERS = /* @__PURE__ */ new Set([
-        "Order",
-        "Color your Tags",
-        "Config in markdown",
-        "Separators",
-        "Active commands",
-        "Visual",
-        "Hotkeys",
-        "Global Modules",
-        "PKM Other settings",
-        "Developer Mode",
-        "Diagnostics",
-        "Colors"
-      ]);
-      const SUB_HEADERS = /* @__PURE__ */ new Set([
-        "Left panel",
-        "Right panel",
-        "Preview of your Order",
-        "Order Main Table",
-        "Order Settings",
-        "Move Line",
-        "Move Selection",
-        "Move Selection (Inline Text)",
-        "Prefix Cycler",
-        "Jump To Header",
-        "Navigate Inline",
-        "Behavior",
-        "Free roam",
-        "TagWheel",
-        "Tags",
-        "Strip",
-        "Panel",
-        "Scroller"
-      ]);
-      const nodes = rootEl.querySelectorAll("h3,h4,h5,h6,div,small");
-      for (const node of nodes) {
-        const text = String(node.textContent || "").trim();
-        if (!text) continue;
-        if (MAIN_HEADERS.has(text)) {
-          node.style.fontSize = "14px";
-          node.style.fontWeight = "600";
-          node.style.lineHeight = "1.25";
-          node.style.marginTop = "0";
-          node.style.marginBottom = "2px";
-          continue;
-        }
-        if (SUB_HEADERS.has(text)) {
-          node.style.fontSize = "12px";
-          node.style.fontWeight = "600";
-          node.style.lineHeight = "1.25";
-          node.style.marginTop = "0";
-          node.style.marginBottom = "2px";
-        }
-      }
-    }
-    function normalizeSettingsVisualSystem(rootEl) {
-      if (!rootEl || typeof rootEl.querySelectorAll !== "function") return;
-      rootEl.style.maxWidth = "100%";
-      rootEl.style.overflowX = "hidden";
-      const settingRows = rootEl.querySelectorAll(".setting-item");
-      for (const row of settingRows) {
-        const inOrderArea = !!(row && typeof row.closest === "function" && row.closest(".io-order-wrap"));
-        const inOrderSettingsCard = !!(row && typeof row.closest === "function" && row.closest(".io-order-settings-card"));
-        row.style.marginTop = "0";
-        row.style.marginBottom = inOrderArea && !inOrderSettingsCard ? "0" : "8px";
-        row.style.paddingTop = "6px";
-        row.style.paddingBottom = "6px";
-        row.style.boxSizing = "border-box";
-        row.style.maxWidth = "100%";
-      }
-      const settingControls = rootEl.querySelectorAll(".setting-item-control");
-      for (const ctl of settingControls) {
-        ctl.style.maxWidth = "100%";
-        ctl.style.overflowX = "auto";
-      }
-      const controls = rootEl.querySelectorAll("button,select,input[type='text'],input[type='number']");
-      for (const c of controls) {
-        c.style.boxSizing = "border-box";
-        if (c.tagName === "BUTTON") {
-          if (!c.style.minHeight) c.style.minHeight = "24px";
-          if (!c.style.borderRadius) c.style.borderRadius = "6px";
-          if (!c.style.padding) c.style.padding = "2px 8px";
-          c.style.lineHeight = "1.2";
-        }
-        if (c.tagName === "SELECT") {
-          if (!c.style.minHeight) c.style.minHeight = "24px";
-          if (!c.style.borderRadius) c.style.borderRadius = "6px";
-        }
-        if (c.tagName === "INPUT") {
-          const t = String(c.getAttribute("type") || "text").toLowerCase();
-          if (t === "text" || t === "number") {
-            if (!c.style.minHeight) c.style.minHeight = "24px";
-            if (!c.style.borderRadius) c.style.borderRadius = "6px";
-          }
-        }
-      }
-      const subtabRows = rootEl.querySelectorAll(".inline-overhaul-subtab-row");
-      for (const row of subtabRows) {
-        row.style.gap = "6px";
-        row.style.marginBottom = "8px";
-        const buttons = row.querySelectorAll("button");
-        for (const btn2 of buttons) {
-          btn2.style.padding = "3px 8px";
-          btn2.style.minHeight = "24px";
-          btn2.style.lineHeight = "1.2";
-          btn2.style.borderRadius = "6px";
-        }
-      }
-      const warningButtons = rootEl.querySelectorAll("button.mod-warning");
-      for (const btn2 of warningButtons) {
-        btn2.style.minHeight = "24px";
-        btn2.style.borderRadius = "6px";
-      }
-      const disabledBanners = rootEl.querySelectorAll(".inline-overhaul-disabled-banner");
-      for (const banner of disabledBanners) {
-        banner.style.padding = "8px 10px";
-        banner.style.border = "1px solid var(--background-modifier-border)";
-        banner.style.borderRadius = "8px";
-        banner.style.background = "var(--background-secondary)";
-        banner.style.opacity = "0.9";
-        banner.style.marginBottom = "8px";
-        banner.style.boxSizing = "border-box";
-        banner.style.maxWidth = "100%";
-      }
-      const cardLikeDivs = rootEl.querySelectorAll("div");
-      for (const el2 of cardLikeDivs) {
-        const b = String(el2.style.border || "");
-        if (!b || b.indexOf("background-modifier-border") === -1) continue;
-        const cls = String(el2.className || "");
-        const isOrderArea = cls.includes("inline-overhaul-order-board") || cls.includes("inline-overhaul-order-panel") || cls.includes("inline-overhaul-order-row") || cls.includes("inline-overhaul-deep");
-        const text = String(el2.textContent || "").trim();
-        const isOrderSpecific = text === "Order" || text === "Order Main Table" || text === "Order Settings" || text === "Left panel" || text === "Right panel" || text === "Preview of your Order";
-        if (!el2.style.borderRadius) el2.style.borderRadius = "8px";
-        if (!el2.style.boxSizing) el2.style.boxSizing = "border-box";
-        if (!el2.style.padding && (b.includes("solid") || b.includes("dashed"))) {
-          el2.style.padding = "8px";
-        }
-        if (!isOrderArea && !isOrderSpecific && !el2.style.marginBottom) {
-          el2.style.marginBottom = "8px";
-        }
-      }
-      const detailsNodes = rootEl.querySelectorAll("details");
-      for (const d of detailsNodes) {
-        if (!d.style.marginTop) d.style.marginTop = "2px";
-        if (!d.style.marginBottom) d.style.marginBottom = "4px";
-        d.style.maxWidth = "100%";
-        d.style.overflowX = "hidden";
-      }
-      const previewLike = rootEl.querySelectorAll("div,span");
-      for (const el2 of previewLike) {
-        if (!el2 || !el2.style) continue;
-        const ws = String(el2.style.whiteSpace || "").toLowerCase();
-        if (ws !== "nowrap" && ws !== "pre" && ws !== "pre-wrap") continue;
-        const hasScrollableIntent = String(el2.style.overflowX || "").toLowerCase() === "auto";
-        if (hasScrollableIntent) {
-          el2.style.maxWidth = "100%";
-          el2.style.boxSizing = "border-box";
-        }
-      }
-      const summaryNodes = rootEl.querySelectorAll("summary");
-      for (const s of summaryNodes) {
-        s.style.fontSize = "12px";
-        s.style.lineHeight = "1.25";
-      }
-      const smallBadges = rootEl.querySelectorAll("small");
-      for (const sm of smallBadges) {
-        const hasBorder = String(sm.style.border || "").includes("background-modifier-border");
-        if (!hasBorder) continue;
-        sm.style.fontSize = "11px";
-        sm.style.lineHeight = "1.2";
-        sm.style.padding = "1px 6px";
-        sm.style.borderRadius = "6px";
-        sm.style.display = sm.style.display || "inline-block";
-        sm.style.boxSizing = "border-box";
-      }
-    }
-    function readTagwheelHeaderColorConfig(cfg) {
-      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const colors = behavior && behavior.colors ? behavior.colors : {};
-      const header = colors && colors.tagwheelHeader ? colors.tagwheelHeader : {};
-      return {
-        defaultTextColor: normalizeHexColorInput(header.defaultTextColor),
-        fillColor: normalizeHexColorInput(header.fillColor),
-        showPrefix: header.showPrefix !== false
-      };
-    }
-    function collectTagOrderFieldOptions(cfg, normalizePkmOrder) {
-      const out = [];
-      const seen = /* @__PURE__ */ new Set();
-      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const order = typeof normalizePkmOrder === "function" ? normalizePkmOrder(behavior.order) : behavior.order || { left: [], right: [], types: {}, labels: {} };
-      const types = order && order.types && typeof order.types === "object" ? order.types : {};
-      const labels = order && order.labels && typeof order.labels === "object" ? order.labels : {};
-      const strictNames = order && order.strictNames && typeof order.strictNames === "object" ? order.strictNames : {};
-      const orderedKeys = [].concat(Array.isArray(order.left) ? order.left : []).concat(Array.isArray(order.right) ? order.right : []);
-      for (const rawKey of orderedKeys) {
-        const key = String(rawKey || "").trim();
-        if (!key || /_sub$/.test(key) || seen.has(key)) continue;
-        const type = String(types[key] || "").trim().toLowerCase();
-        if (type !== "tag") continue;
-        seen.add(key);
-        const display = String(labels[key] || "").trim() || key;
-        const strict = String(strictNames[key] || key).trim() || key;
-        out.push({ key, label: `${display} (${strict})` });
-      }
-      return out;
-    }
-    function buildTagwheelColorPreview(containerEl, colors, enabled) {
-      const demo = containerEl.createDiv();
-      demo.style.marginTop = "8px";
-      demo.style.padding = "8px 10px";
-      demo.style.border = "1px solid var(--background-modifier-border)";
-      demo.style.borderRadius = "8px";
-      demo.style.opacity = enabled ? "1" : "0.7";
-      const sample = demo.createEl("span", { text: "importance [type] category project client topic" });
-      sample.style.padding = "2px 4px";
-      sample.style.borderRadius = "4px";
-      if (colors.defaultTextColor) sample.style.color = colors.defaultTextColor;
-      if (colors.fillColor) sample.style.backgroundColor = colors.fillColor;
-    }
-    function addTagwheelHeaderColorSetting(containerEl, Setting, plugin, enabled, key, name, desc, currentValue, reason, resetReason) {
-      new Setting(containerEl).setName(name).setDesc(desc).addColorPicker((picker) => {
-        picker.setValue(currentValue || "#f1e596").onChange((v) => {
-          const next = normalizeHexColorInput(v);
-          if (!next) return;
-          plugin.setConfigPatch({ pkm: { behavior: { colors: { tagwheelHeader: { [key]: next } } } } }, reason);
-        });
-        if (!enabled) picker.setDisabled(true);
-      }).addText((txt) => {
-        txt.setPlaceholder("#ffffff");
-        txt.setValue(currentValue || "");
-        txt.onChange((v) => {
-          const next = normalizeHexColorInput(v);
-          if (next === "" && String(v || "").trim()) return;
-          plugin.setConfigPatch({ pkm: { behavior: { colors: { tagwheelHeader: { [key]: next } } } } }, reason);
-        });
-        if (!enabled) txt.setDisabled(true);
-      }).addExtraButton((btn2) => {
-        btn2.setIcon("reset");
-        btn2.setTooltip("Reset");
-        btn2.onClick(() => {
-          plugin.setConfigPatch({ pkm: { behavior: { colors: { tagwheelHeader: { [key]: "" } } } } }, resetReason);
-        });
-        if (!enabled) btn2.setDisabled(true);
-      });
-    }
-    function renderVisualGeneralSection(ctx) {
-      const { Setting, containerEl, enabled, cfg, plugin } = ctx;
-      containerEl.createEl("h4", { text: "TagWheel" });
-      containerEl.createEl("h5", { text: "Scroller" });
-      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const scroller = behavior && behavior.tagWheelScroller ? behavior.tagWheelScroller : {};
-      const currentEnabled = scroller.enabled === true;
-      const currentDirection = ["up", "down", "full"].includes(String(scroller.direction || "").trim().toLowerCase()) ? String(scroller.direction).trim().toLowerCase() : "full";
-      const rawSize = Math.trunc(Number(scroller.size));
-      const currentSize = Number.isFinite(rawSize) ? Math.max(1, Math.min(20, rawSize)) : 3;
-      let scrollerEnabledEl = null;
-      let scrollerDirectionEl = null;
-      let scrollerSizeEl = null;
-      const readScrollerState = () => {
-        const liveCfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : cfg;
-        const liveBehavior = liveCfg && liveCfg.pkm && liveCfg.pkm.behavior ? liveCfg.pkm.behavior : {};
-        const liveScroller = liveBehavior && liveBehavior.tagWheelScroller ? liveBehavior.tagWheelScroller : {};
-        const enabledState = liveScroller.enabled === true;
-        const directionRaw = String(liveScroller.direction || "").trim().toLowerCase();
-        const directionState = ["up", "down", "full"].includes(directionRaw) ? directionRaw : "full";
-        const sizeRaw = Math.trunc(Number(liveScroller.size));
-        const sizeState = Number.isFinite(sizeRaw) ? Math.max(1, Math.min(20, sizeRaw)) : 3;
-        return { enabledState, directionState, sizeState };
-      };
-      const scrollerEnabledSetting = new Setting(containerEl).setName("TagWheel Scroller").setDesc("Render active field values as overlay scroller above editor text.").addToggle((t) => {
-        t.setValue(currentEnabled).onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { tagWheelScroller: { enabled: v } } } }, "visual:tagwheel:scroller:enabled");
-          applyScrollerPreview();
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      scrollerEnabledEl = scrollerEnabledSetting.controlEl.querySelector('input[type="checkbox"]');
-      const scrollerDirectionSetting = new Setting(containerEl).setName("Scroller direction").setDesc("Where scroller opens relative to active field.").addDropdown((d) => {
-        d.addOption("up", "up");
-        d.addOption("down", "down");
-        d.addOption("full", "full");
-        d.setValue(currentDirection);
-        d.onChange((v) => {
-          const next = ["up", "down", "full"].includes(String(v || "").trim().toLowerCase()) ? String(v).trim().toLowerCase() : "full";
-          plugin.setConfigPatch({ pkm: { behavior: { tagWheelScroller: { direction: next } } } }, "visual:tagwheel:scroller:direction");
-          applyScrollerPreview();
-        });
-        if (!enabled || !currentEnabled) d.setDisabled(true);
-      });
-      scrollerDirectionEl = scrollerDirectionSetting.controlEl.querySelector("select");
-      const scrollerSizeSetting = new Setting(containerEl).setName("Scroller size").setDesc("Visible item count per side (1..20).").addText((txt) => {
-        txt.setValue(String(currentSize));
-        txt.setPlaceholder("3");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(1, Math.min(20, n));
-          plugin.setConfigPatch({ pkm: { behavior: { tagWheelScroller: { size: next } } } }, "visual:tagwheel:scroller:size");
-          applyScrollerPreview();
-        });
-        if (!enabled || !currentEnabled) txt.setDisabled(true);
-      });
-      scrollerSizeEl = scrollerSizeSetting.controlEl.querySelector('input[type="text"]');
-      const scrollerPreview = containerEl.createDiv();
-      scrollerPreview.style.marginTop = "8px";
-      scrollerPreview.style.padding = "10px";
-      scrollerPreview.style.border = "1px solid var(--background-modifier-border)";
-      scrollerPreview.style.borderRadius = "8px";
-      scrollerPreview.style.background = "var(--background-secondary)";
-      scrollerPreview.createEl("small", { text: "Scroller preview" });
-      const scrollerFrame = scrollerPreview.createDiv();
-      scrollerFrame.style.marginTop = "6px";
-      scrollerFrame.style.padding = "8px";
-      scrollerFrame.style.border = "1px dashed var(--background-modifier-border)";
-      scrollerFrame.style.borderRadius = "6px";
-      const scrollerHint = scrollerFrame.createDiv();
-      scrollerHint.style.fontSize = "12px";
-      scrollerHint.style.opacity = "0.75";
-      scrollerHint.style.marginBottom = "6px";
-      const scrollerLine = scrollerFrame.createDiv();
-      scrollerLine.style.display = "flex";
-      scrollerLine.style.flexDirection = "column";
-      scrollerLine.style.alignItems = "flex-start";
-      scrollerLine.style.gap = "2px";
-      scrollerLine.style.minHeight = "112px";
-      scrollerLine.style.paddingLeft = "8px";
-      const applyScrollerPreview = () => {
-        const live = readScrollerState();
-        const enabledNow = live.enabledState;
-        const directionNowRaw = scrollerDirectionEl ? String(scrollerDirectionEl.value || "") : live.directionState;
-        const directionNow = ["up", "down", "full"].includes(directionNowRaw) ? directionNowRaw : "full";
-        const sizeNowRaw = scrollerSizeEl ? Math.trunc(Number(scrollerSizeEl.value)) : live.sizeState;
-        const sizeNow = Number.isFinite(sizeNowRaw) ? Math.max(1, Math.min(20, sizeNowRaw)) : live.sizeState;
-        const beforeCount = directionNow === "down" ? 0 : sizeNow;
-        const afterCount = directionNow === "up" ? 0 : sizeNow;
-        scrollerLine.empty();
-        if (!enabledNow) {
-          scrollerHint.setText("Scroller is disabled.");
-          const off = scrollerLine.createEl("span", { text: "(disabled)" });
-          off.style.opacity = "0.6";
-          off.style.marginTop = "40px";
-          return;
-        }
-        scrollerHint.setText(`direction=${directionNow}; size=${sizeNow}`);
-        const mkChip = (text, isActive) => {
-          const chip = scrollerLine.createEl("span", { text });
-          chip.style.display = "inline-block";
-          chip.style.minWidth = "74px";
-          chip.style.textAlign = "center";
-          chip.style.padding = "1px 6px";
-          chip.style.fontSize = "10px";
-          chip.style.borderRadius = "999px";
-          chip.style.border = isActive ? "1px solid var(--text-accent)" : "1px solid var(--background-modifier-border)";
-          chip.style.color = isActive ? "var(--text-accent)" : "var(--text-normal)";
-          chip.style.fontWeight = isActive ? "700" : "500";
-          chip.style.opacity = isActive ? "1" : "0.8";
-          return chip;
-        };
-        for (let i = beforeCount; i >= 1; i--) {
-          mkChip(`next-${i}`, false);
-        }
-        mkChip("ACTIVE", true);
-        for (let i = 1; i <= afterCount; i++) {
-          mkChip(`prev-${i}`, false);
-        }
-      };
-      applyScrollerPreview();
-      if (scrollerEnabledEl) scrollerEnabledEl.addEventListener("change", applyScrollerPreview);
-      if (scrollerDirectionEl) scrollerDirectionEl.addEventListener("change", applyScrollerPreview);
-      if (scrollerSizeEl) scrollerSizeEl.addEventListener("input", applyScrollerPreview);
-      if (scrollerSizeEl) scrollerSizeEl.addEventListener("change", applyScrollerPreview);
-      containerEl.createEl("h5", { text: "Panel" });
-      const colorCfg = readTagwheelHeaderColorConfig(cfg);
-      const showPrefixSetting = new Setting(containerEl).setName("Show prefix").setDesc("On: show # and marker prefixes in the TagWheel panel/scroller. Off: hide prefixes visually only.").addToggle((t) => {
-        t.setValue(colorCfg.showPrefix).onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { colors: { tagwheelHeader: { showPrefix: v } } } } }, "visual:tagwheel:colors:show-prefix");
-          applyShowPrefixPreview(v === true);
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      const showPrefixPreviewWrap = showPrefixSetting.controlEl.createEl("span");
-      showPrefixPreviewWrap.style.display = "inline-flex";
-      showPrefixPreviewWrap.style.flexDirection = "column";
-      showPrefixPreviewWrap.style.gap = "2px";
-      showPrefixPreviewWrap.style.marginLeft = "10px";
-      showPrefixPreviewWrap.style.padding = "2px 6px";
-      showPrefixPreviewWrap.style.width = "110px";
-      showPrefixPreviewWrap.style.boxSizing = "border-box";
-      showPrefixPreviewWrap.style.border = "1px solid var(--background-modifier-border)";
-      showPrefixPreviewWrap.style.borderRadius = "6px";
-      showPrefixPreviewWrap.style.fontSize = "11px";
-      showPrefixPreviewWrap.style.lineHeight = "1.2";
-      const showPrefixPreviewLine1 = showPrefixPreviewWrap.createEl("span");
-      const showPrefixPreviewLine2 = showPrefixPreviewWrap.createEl("span");
-      const applyShowPrefixPreview = (on2) => {
-        const isOn = on2 === true;
-        showPrefixPreviewLine1.setText(isOn ? "#example" : "example");
-        showPrefixPreviewLine2.setText(isOn ? "\u{1F4C5} 2026-01-01" : "2026-01-01");
-      };
-      applyShowPrefixPreview(colorCfg.showPrefix);
-      addTagwheelHeaderColorSetting(
-        containerEl,
-        Setting,
-        plugin,
-        enabled,
-        "defaultTextColor",
-        "Default text color",
-        "HEX color for all default placeholders in TagWheel header.",
-        colorCfg.defaultTextColor,
-        "visual:tagwheel:colors:default-text",
-        "visual:tagwheel:colors:default-text:reset"
-      );
-      addTagwheelHeaderColorSetting(
-        containerEl,
-        Setting,
-        plugin,
-        enabled,
-        "fillColor",
-        "Filling color",
-        "HEX color for TagWheel header filling area.",
-        colorCfg.fillColor,
-        "visual:tagwheel:colors:fill",
-        "visual:tagwheel:colors:fill:reset"
-      );
-      buildTagwheelColorPreview(containerEl, colorCfg, enabled);
-    }
-    function renderVisualTagsSection(ctx) {
-      const { Setting, containerEl, enabled, cfg, plugin } = ctx;
-      const tagVisuals = readTagVisualsConfig(cfg);
-      containerEl.createEl("h4", { text: "Tags" });
-      let opacityLeftSliderEl = null;
-      let opacityLeftTextEl = null;
-      const opacityLeftSetting = new Setting(containerEl).setName("Opacity Left").setDesc("Global tag visual opacity for tokens left of separator1 (0..100%).").addSlider((s) => {
-        s.setLimits(0, 100, 1);
-        s.setDynamicTooltip();
-        s.setValue(Math.round(tagVisuals.opacityLeft * 100));
-        s.onChange((v) => {
-          const nextPct = Math.max(0, Math.min(100, Math.trunc(Number(v))));
-          if (opacityLeftTextEl) opacityLeftTextEl.value = String(nextPct);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { opacity: { left: nextPct / 100 } } } } }, "visual:tags:opacity:left");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        opacityLeftTextEl = txt.inputEl;
-        txt.setValue(String(Math.round(tagVisuals.opacityLeft * 100)));
-        txt.inputEl.style.width = "52px";
-        txt.setPlaceholder("100");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const nextPct = Math.max(0, Math.min(100, n));
-          if (opacityLeftSliderEl) opacityLeftSliderEl.value = String(nextPct);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { opacity: { left: nextPct / 100 } } } } }, "visual:tags:opacity:left:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of opacityLeftSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") opacityLeftSliderEl = el2;
-        if (el2.type === "text") opacityLeftTextEl = el2;
-      }
-      const opacityLeftPreviewWrap = opacityLeftSetting.controlEl.createEl("span");
-      opacityLeftPreviewWrap.style.display = "inline-flex";
-      opacityLeftPreviewWrap.style.width = "110px";
-      opacityLeftPreviewWrap.style.justifyContent = "center";
-      const opacityLeftPreview = opacityLeftPreviewWrap.createEl("span", { text: "#example" });
-      opacityLeftPreview.style.display = "inline-block";
-      opacityLeftPreview.style.opacity = String(tagVisuals.opacityLeft);
-      opacityLeftPreview.style.background = "#ffffff";
-      opacityLeftPreview.style.color = "#111111";
-      opacityLeftPreview.style.border = "1px solid var(--background-modifier-border)";
-      if (opacityLeftSliderEl) {
-        opacityLeftSliderEl.addEventListener("input", () => {
-          const v = Math.max(0, Math.min(100, Math.trunc(Number(opacityLeftSliderEl.value))));
-          if (opacityLeftTextEl) opacityLeftTextEl.value = String(v);
-          opacityLeftPreview.style.opacity = String(v / 100);
-        });
-      }
-      if (opacityLeftTextEl) {
-        opacityLeftTextEl.addEventListener("input", () => {
-          const n = Math.trunc(Number(opacityLeftTextEl.value));
-          if (!Number.isFinite(n)) return;
-          const v = Math.max(0, Math.min(100, n));
-          if (opacityLeftSliderEl) opacityLeftSliderEl.value = String(v);
-          opacityLeftPreview.style.opacity = String(v / 100);
-        });
-      }
-      let opacityRightSliderEl = null;
-      let opacityRightTextEl = null;
-      const opacityRightSetting = new Setting(containerEl).setName("Opacity Right").setDesc("Global tag visual opacity for tokens right of separator2 (0..100%).").addSlider((s) => {
-        s.setLimits(0, 100, 1);
-        s.setDynamicTooltip();
-        s.setValue(Math.round(tagVisuals.opacityRight * 100));
-        s.onChange((v) => {
-          const nextPct = Math.max(0, Math.min(100, Math.trunc(Number(v))));
-          if (opacityRightTextEl) opacityRightTextEl.value = String(nextPct);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { opacity: { right: nextPct / 100 } } } } }, "visual:tags:opacity:right");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        opacityRightTextEl = txt.inputEl;
-        txt.setValue(String(Math.round(tagVisuals.opacityRight * 100)));
-        txt.inputEl.style.width = "52px";
-        txt.setPlaceholder("100");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const nextPct = Math.max(0, Math.min(100, n));
-          if (opacityRightSliderEl) opacityRightSliderEl.value = String(nextPct);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { opacity: { right: nextPct / 100 } } } } }, "visual:tags:opacity:right:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of opacityRightSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") opacityRightSliderEl = el2;
-        if (el2.type === "text") opacityRightTextEl = el2;
-      }
-      const opacityRightPreviewWrap = opacityRightSetting.controlEl.createEl("span");
-      opacityRightPreviewWrap.style.display = "inline-flex";
-      opacityRightPreviewWrap.style.width = "110px";
-      opacityRightPreviewWrap.style.justifyContent = "center";
-      const opacityRightPreview = opacityRightPreviewWrap.createEl("span", { text: "#example" });
-      opacityRightPreview.style.display = "inline-block";
-      opacityRightPreview.style.opacity = String(tagVisuals.opacityRight);
-      opacityRightPreview.style.background = "#ffffff";
-      opacityRightPreview.style.color = "#111111";
-      opacityRightPreview.style.border = "1px solid var(--background-modifier-border)";
-      if (opacityRightSliderEl) {
-        opacityRightSliderEl.addEventListener("input", () => {
-          const v = Math.max(0, Math.min(100, Math.trunc(Number(opacityRightSliderEl.value))));
-          if (opacityRightTextEl) opacityRightTextEl.value = String(v);
-          opacityRightPreview.style.opacity = String(v / 100);
-        });
-      }
-      if (opacityRightTextEl) {
-        opacityRightTextEl.addEventListener("input", () => {
-          const n = Math.trunc(Number(opacityRightTextEl.value));
-          if (!Number.isFinite(n)) return;
-          const v = Math.max(0, Math.min(100, n));
-          if (opacityRightSliderEl) opacityRightSliderEl.value = String(v);
-          opacityRightPreview.style.opacity = String(v / 100);
-        });
-      }
-      let tagTextSizeSliderEl = null;
-      let tagTextSizeTextEl = null;
-      const tagTextSizeSetting = new Setting(containerEl).setName("Tag text size").setDesc("Scale tag text size (80%..140%).").addSlider((s) => {
-        s.setLimits(80, 140, 5);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.tagTextSizePct);
-        s.onChange((v) => {
-          const next = Math.max(80, Math.min(140, Math.trunc(Number(v))));
-          if (tagTextSizeTextEl) tagTextSizeTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagTextSizePct: next } } } }, "visual:tags:text-size");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        tagTextSizeTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.tagTextSizePct));
-        txt.setPlaceholder("100");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(80, Math.min(140, n));
-          if (tagTextSizeSliderEl) tagTextSizeSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagTextSizePct: next } } } }, "visual:tags:text-size:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of tagTextSizeSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") tagTextSizeSliderEl = el2;
-        if (el2.type === "text") tagTextSizeTextEl = el2;
-      }
-      const tagTextSizePreviewWrap = tagTextSizeSetting.controlEl.createEl("span");
-      tagTextSizePreviewWrap.style.display = "inline-flex";
-      tagTextSizePreviewWrap.style.width = "110px";
-      tagTextSizePreviewWrap.style.justifyContent = "center";
-      const tagTextSizePreview = tagTextSizePreviewWrap.createEl("span", { text: "#example" });
-      {
-        const applyTextSizePreview = (textSizePct) => {
-          const st = computeTagVisualStyle(textSizePct, tagVisuals.tagBubbleWidthPct, tagVisuals.tagBubbleHeightPct, tagVisuals.tagShapePct);
-          tagTextSizePreview.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
-          tagTextSizePreview.style.borderRadius = `${st.borderRadiusPx}px`;
-          tagTextSizePreview.style.fontSize = `${st.fontSizePx}px`;
-          tagTextSizePreview.style.lineHeight = String(st.lineHeight);
-        };
-        applyTextSizePreview(tagVisuals.tagTextSizePct);
-        tagTextSizePreview.style.display = "inline-block";
-        tagTextSizePreview.style.border = "1px solid var(--background-modifier-border)";
-        tagTextSizePreview.style.background = "#ffffff";
-        tagTextSizePreview.style.color = "#111111";
-        if (tagTextSizeSliderEl) tagTextSizeSliderEl.addEventListener("input", () => {
-          const size = Math.max(80, Math.min(140, Math.trunc(Number(tagTextSizeSliderEl.value))));
-          if (tagTextSizeTextEl) tagTextSizeTextEl.value = String(size);
-          applyTextSizePreview(size);
-        });
-        if (tagTextSizeTextEl) tagTextSizeTextEl.addEventListener("input", () => {
-          const n = Math.trunc(Number(tagTextSizeTextEl.value));
-          if (!Number.isFinite(n)) return;
-          const size = Math.max(80, Math.min(140, n));
-          if (tagTextSizeSliderEl) tagTextSizeSliderEl.value = String(size);
-          applyTextSizePreview(size);
-        });
-      }
-      let tagBubbleWidthSliderEl = null;
-      let tagBubbleWidthTextEl = null;
-      const tagBubbleWidthSetting = new Setting(containerEl).setName("Tag bubble size - width").setDesc("Scale tag bubble width (80%..140%).").addSlider((s) => {
-        s.setLimits(80, 140, 5);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.tagBubbleWidthPct);
-        s.onChange((v) => {
-          const next = Math.max(80, Math.min(140, Math.trunc(Number(v))));
-          if (tagBubbleWidthTextEl) tagBubbleWidthTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagBubbleWidthPct: next } } } }, "visual:tags:bubble-width");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        tagBubbleWidthTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.tagBubbleWidthPct));
-        txt.setPlaceholder("100");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(80, Math.min(140, n));
-          if (tagBubbleWidthSliderEl) tagBubbleWidthSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagBubbleWidthPct: next } } } }, "visual:tags:bubble-width:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of tagBubbleWidthSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") tagBubbleWidthSliderEl = el2;
-        if (el2.type === "text") tagBubbleWidthTextEl = el2;
-      }
-      const tagBubbleWidthPreviewWrap = tagBubbleWidthSetting.controlEl.createEl("span");
-      tagBubbleWidthPreviewWrap.style.display = "inline-flex";
-      tagBubbleWidthPreviewWrap.style.width = "110px";
-      tagBubbleWidthPreviewWrap.style.justifyContent = "center";
-      const tagBubbleWidthPreview = tagBubbleWidthPreviewWrap.createEl("span", { text: "#example" });
-      {
-        const applyBubbleWidthPreview = (bubbleWidthPct) => {
-          const st = computeTagVisualStyle(tagVisuals.tagTextSizePct, bubbleWidthPct, tagVisuals.tagBubbleHeightPct, tagVisuals.tagShapePct);
-          tagBubbleWidthPreview.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
-          tagBubbleWidthPreview.style.borderRadius = `${st.borderRadiusPx}px`;
-          tagBubbleWidthPreview.style.fontSize = `${st.fontSizePx}px`;
-          tagBubbleWidthPreview.style.lineHeight = String(st.lineHeight);
-        };
-        applyBubbleWidthPreview(tagVisuals.tagBubbleWidthPct);
-        tagBubbleWidthPreview.style.display = "inline-block";
-        tagBubbleWidthPreview.style.border = "1px solid var(--background-modifier-border)";
-        tagBubbleWidthPreview.style.background = "#ffffff";
-        tagBubbleWidthPreview.style.color = "#111111";
-        if (tagBubbleWidthSliderEl) tagBubbleWidthSliderEl.addEventListener("input", () => {
-          const size = Math.max(80, Math.min(140, Math.trunc(Number(tagBubbleWidthSliderEl.value))));
-          if (tagBubbleWidthTextEl) tagBubbleWidthTextEl.value = String(size);
-          applyBubbleWidthPreview(size);
-        });
-        if (tagBubbleWidthTextEl) tagBubbleWidthTextEl.addEventListener("input", () => {
-          const n = Math.trunc(Number(tagBubbleWidthTextEl.value));
-          if (!Number.isFinite(n)) return;
-          const size = Math.max(80, Math.min(140, n));
-          if (tagBubbleWidthSliderEl) tagBubbleWidthSliderEl.value = String(size);
-          applyBubbleWidthPreview(size);
-        });
-      }
-      let tagBubbleHeightSliderEl = null;
-      let tagBubbleHeightTextEl = null;
-      const tagBubbleHeightSetting = new Setting(containerEl).setName("Tag bubble size - height").setDesc("Scale tag bubble height (80%..140%).").addSlider((s) => {
-        s.setLimits(80, 140, 5);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.tagBubbleHeightPct);
-        s.onChange((v) => {
-          const next = Math.max(80, Math.min(140, Math.trunc(Number(v))));
-          if (tagBubbleHeightTextEl) tagBubbleHeightTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagBubbleHeightPct: next } } } }, "visual:tags:bubble-height");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        tagBubbleHeightTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.tagBubbleHeightPct));
-        txt.setPlaceholder("100");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(80, Math.min(140, n));
-          if (tagBubbleHeightSliderEl) tagBubbleHeightSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagBubbleHeightPct: next } } } }, "visual:tags:bubble-height:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of tagBubbleHeightSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") tagBubbleHeightSliderEl = el2;
-        if (el2.type === "text") tagBubbleHeightTextEl = el2;
-      }
-      const tagBubbleHeightPreviewWrap = tagBubbleHeightSetting.controlEl.createEl("span");
-      tagBubbleHeightPreviewWrap.style.display = "inline-flex";
-      tagBubbleHeightPreviewWrap.style.width = "110px";
-      tagBubbleHeightPreviewWrap.style.justifyContent = "center";
-      const tagBubbleHeightPreview = tagBubbleHeightPreviewWrap.createEl("span", { text: "#example" });
-      {
-        const applyBubbleHeightPreview = (bubbleHeightPct) => {
-          const st = computeTagVisualStyle(tagVisuals.tagTextSizePct, tagVisuals.tagBubbleWidthPct, bubbleHeightPct, tagVisuals.tagShapePct);
-          tagBubbleHeightPreview.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
-          tagBubbleHeightPreview.style.borderRadius = `${st.borderRadiusPx}px`;
-          tagBubbleHeightPreview.style.fontSize = `${st.fontSizePx}px`;
-          tagBubbleHeightPreview.style.lineHeight = String(st.lineHeight);
-        };
-        applyBubbleHeightPreview(tagVisuals.tagBubbleHeightPct);
-        tagBubbleHeightPreview.style.display = "inline-block";
-        tagBubbleHeightPreview.style.border = "1px solid var(--background-modifier-border)";
-        tagBubbleHeightPreview.style.background = "#ffffff";
-        tagBubbleHeightPreview.style.color = "#111111";
-        if (tagBubbleHeightSliderEl) tagBubbleHeightSliderEl.addEventListener("input", () => {
-          const size = Math.max(80, Math.min(140, Math.trunc(Number(tagBubbleHeightSliderEl.value))));
-          if (tagBubbleHeightTextEl) tagBubbleHeightTextEl.value = String(size);
-          applyBubbleHeightPreview(size);
-        });
-        if (tagBubbleHeightTextEl) tagBubbleHeightTextEl.addEventListener("input", () => {
-          const n = Math.trunc(Number(tagBubbleHeightTextEl.value));
-          if (!Number.isFinite(n)) return;
-          const size = Math.max(80, Math.min(140, n));
-          if (tagBubbleHeightSliderEl) tagBubbleHeightSliderEl.value = String(size);
-          applyBubbleHeightPreview(size);
-        });
-      }
-      let emptyBubbleSliderEl = null;
-      let emptyBubbleTextEl = null;
-      const emptyBubbleSetting = new Setting(containerEl).setName("Empty bubble size").setDesc("Scale empty bubble width (50%..180%).").addSlider((s) => {
-        s.setLimits(50, 180, 5);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.emptyBubbleSizePct);
-        s.onChange((v) => {
-          const next = Math.max(50, Math.min(180, Math.trunc(Number(v))));
-          if (emptyBubbleTextEl) emptyBubbleTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { emptyBubbleSizePct: next } } } }, "visual:tags:empty-bubble-size");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        emptyBubbleTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.emptyBubbleSizePct));
-        txt.setPlaceholder("100");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(50, Math.min(180, n));
-          if (emptyBubbleSliderEl) emptyBubbleSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { emptyBubbleSizePct: next } } } }, "visual:tags:empty-bubble-size:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of emptyBubbleSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") emptyBubbleSliderEl = el2;
-        if (el2.type === "text") emptyBubbleTextEl = el2;
-      }
-      const emptyBubblePreviewWrap = emptyBubbleSetting.controlEl.createEl("span");
-      emptyBubblePreviewWrap.style.display = "inline-flex";
-      emptyBubblePreviewWrap.style.width = "110px";
-      emptyBubblePreviewWrap.style.justifyContent = "center";
-      const emptyBubblePreview = emptyBubblePreviewWrap.createEl("span", { text: "\xA0" });
-      emptyBubblePreview.style.display = "inline-block";
-      emptyBubblePreview.style.border = "1px solid var(--background-modifier-border)";
-      emptyBubblePreview.style.background = "#ffffff";
-      emptyBubblePreview.style.color = "#111111";
-      const applyEmptyPreview = (emptyPct) => {
-        const st = computeTagVisualStyle(tagVisuals.tagTextSizePct, tagVisuals.tagBubbleWidthPct, tagVisuals.tagBubbleHeightPct, tagVisuals.tagShapePct);
-        emptyBubblePreview.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
-        emptyBubblePreview.style.width = `${Math.max(8, Math.round(st.horizontalPaddingPx * 2 * (emptyPct / 100)))}px`;
-        emptyBubblePreview.style.borderRadius = `${st.borderRadiusPx}px`;
-      };
-      applyEmptyPreview(tagVisuals.emptyBubbleSizePct);
-      if (emptyBubbleSliderEl) emptyBubbleSliderEl.addEventListener("input", () => {
-        const n = Math.max(50, Math.min(180, Math.trunc(Number(emptyBubbleSliderEl.value))));
-        if (emptyBubbleTextEl) emptyBubbleTextEl.value = String(n);
-        applyEmptyPreview(n);
-      });
-      if (emptyBubbleTextEl) emptyBubbleTextEl.addEventListener("input", () => {
-        const n = Math.trunc(Number(emptyBubbleTextEl.value));
-        if (!Number.isFinite(n)) return;
-        const v = Math.max(50, Math.min(180, n));
-        if (emptyBubbleSliderEl) emptyBubbleSliderEl.value = String(v);
-        applyEmptyPreview(v);
-      });
-      let tagShapeSliderEl = null;
-      let tagShapeTextEl = null;
-      const tagShapeSetting = new Setting(containerEl).setName("Tag shape").setDesc("Round <-> Square").addSlider((s) => {
-        s.setLimits(0, 100, 1);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.tagShapePct);
-        s.onChange((v) => {
-          const next = Math.max(0, Math.min(100, Math.trunc(Number(v))));
-          if (tagShapeTextEl) tagShapeTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagShapePct: next } } } }, "visual:tags:shape");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        tagShapeTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.tagShapePct));
-        txt.setPlaceholder("0");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(0, Math.min(100, n));
-          if (tagShapeSliderEl) tagShapeSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { tagShapePct: next } } } }, "visual:tags:shape:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of tagShapeSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") tagShapeSliderEl = el2;
-        if (el2.type === "text") tagShapeTextEl = el2;
-      }
-      const tagShapePreviewWrap = tagShapeSetting.controlEl.createEl("span");
-      tagShapePreviewWrap.style.display = "inline-flex";
-      tagShapePreviewWrap.style.width = "110px";
-      tagShapePreviewWrap.style.justifyContent = "center";
-      const tagShapePreview = tagShapePreviewWrap.createEl("span", { text: "#example" });
-      {
-        const applyShapePreview = (shapePct) => {
-          const st = computeTagVisualStyle(tagVisuals.tagTextSizePct, tagVisuals.tagBubbleWidthPct, tagVisuals.tagBubbleHeightPct, shapePct);
-          tagShapePreview.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
-          tagShapePreview.style.borderRadius = `${st.borderRadiusPx}px`;
-          tagShapePreview.style.fontSize = `${st.fontSizePx}px`;
-          tagShapePreview.style.lineHeight = String(st.lineHeight);
-        };
-        applyShapePreview(tagVisuals.tagShapePct);
-        tagShapePreview.style.display = "inline-block";
-        tagShapePreview.style.border = "1px solid var(--background-modifier-border)";
-        tagShapePreview.style.background = "#ffffff";
-        tagShapePreview.style.color = "#111111";
-        if (tagShapeSliderEl) tagShapeSliderEl.addEventListener("input", () => {
-          const shape = Math.max(0, Math.min(100, Math.trunc(Number(tagShapeSliderEl.value))));
-          if (tagShapeTextEl) tagShapeTextEl.value = String(shape);
-          applyShapePreview(shape);
-        });
-        if (tagShapeTextEl) tagShapeTextEl.addEventListener("input", () => {
-          const n = Math.trunc(Number(tagShapeTextEl.value));
-          if (!Number.isFinite(n)) return;
-          const shape = Math.max(0, Math.min(100, n));
-          if (tagShapeSliderEl) tagShapeSliderEl.value = String(shape);
-          applyShapePreview(shape);
-        });
-      }
-    }
-    function renderVisualStripSection(ctx) {
-      const { Setting, containerEl, enabled, cfg, plugin, normalizePkmOrder } = ctx;
-      const tagVisuals = readTagVisualsConfig(cfg);
-      containerEl.createEl("h4", { text: "Strip" });
-      new Setting(containerEl).setName("Activate strip").setDesc("Enable independent strip visualization for selected field.").addToggle((t) => {
-        t.setValue(tagVisuals.stripActive).onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { active: v === true } } } } }, "visual:tags:strip:active");
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Strip field").setDesc("Single tag field from Order used to resolve parent/child strip colors.").addDropdown((d) => {
-        const options = collectTagOrderFieldOptions(cfg, normalizePkmOrder);
-        d.addOption("", "(not selected)");
-        for (const opt of options) d.addOption(opt.key, opt.label);
-        const selected = options.some((x) => x.key === tagVisuals.stripFieldId) ? tagVisuals.stripFieldId : "";
-        d.setValue(selected);
-        d.onChange((v) => {
-          const next = String(v || "").trim();
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { fieldId: next } } } } }, "visual:tags:strip:field");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Strip tag visibility").setDesc("On: show the strip-field tag token. Off: hide the strip-field token visually.").addToggle((t) => {
-        t.setValue(tagVisuals.stripTagVisibility).onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { tagVisibility: v === true } } } } }, "visual:tags:strip:tag-visibility");
-          try {
-            const tab = plugin && plugin._settingsTab;
-            if (tab && typeof tab.display === "function") {
-              requestAnimationFrame(() => {
-                try {
-                  tab.display();
-                } catch (_) {
-                }
-              });
-            }
-          } catch (_) {
-          }
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      if (tagVisuals.stripTagVisibility === false) {
-        new Setting(containerEl).setName("Hide separator?").setDesc("When Off mode hides the only strip-field token in a technical zone, hide the separator in that zone too.").addToggle((t) => {
-          t.setValue(tagVisuals.stripHideSeparatorWhenOnlyStripToken).onChange((v) => {
-            plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { hideSeparatorWhenOnlyStripToken: v === true } } } } }, "visual:tags:strip:hide-separator");
-          });
-          if (!enabled) t.setDisabled(true);
-        });
-      }
-      new Setting(containerEl).setName("Strip mode").setDesc("Default: fixed parent rail. Crossing: rotate lower rails.").addDropdown((d) => {
-        d.addOption("default", "default");
-        d.addOption("crossing", "crossing");
-        d.setValue(tagVisuals.stripMode);
-        d.onChange((v) => {
-          const next = String(v || "default").trim().toLowerCase() === "crossing" ? "crossing" : "default";
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { mode: next } } } } }, "visual:tags:strip:mode");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-      let stripStripesSliderEl = null;
-      let stripStripesTextEl = null;
-      const stripStripesSetting = new Setting(containerEl).setName("Stripes to show").setDesc("1..3 rails: parent / child / grandchild.").addSlider((s) => {
-        s.setLimits(1, 3, 1);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.stripStripesToShow);
-        s.onChange((v) => {
-          const next = Math.max(1, Math.min(3, Math.trunc(Number(v))));
-          if (stripStripesTextEl) stripStripesTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { stripesToShow: next } } } } }, "visual:tags:strip:stripes");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        stripStripesTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.stripStripesToShow));
-        txt.setPlaceholder("2");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(1, Math.min(3, n));
-          if (stripStripesSliderEl) stripStripesSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { stripesToShow: next } } } } }, "visual:tags:strip:stripes:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of stripStripesSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") stripStripesSliderEl = el2;
-        if (el2.type === "text") stripStripesTextEl = el2;
-      }
-      let stripThicknessSliderEl = null;
-      let stripThicknessTextEl = null;
-      const stripThicknessSetting = new Setting(containerEl).setName("Strip thickness").setDesc("Strip stroke width in px (1..12).").addSlider((s) => {
-        s.setLimits(1, 12, 1);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.stripThickness);
-        s.onChange((v) => {
-          const next = Math.max(1, Math.min(12, Math.trunc(Number(v))));
-          if (stripThicknessTextEl) stripThicknessTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { thickness: next } } } } }, "visual:tags:strip:thickness");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        stripThicknessTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.stripThickness));
-        txt.setPlaceholder("2");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(1, Math.min(12, n));
-          if (stripThicknessSliderEl) stripThicknessSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { thickness: next } } } } }, "visual:tags:strip:thickness:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of stripThicknessSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") stripThicknessSliderEl = el2;
-        if (el2.type === "text") stripThicknessTextEl = el2;
-      }
-      let stripChildSliderEl = null;
-      let stripChildTextEl = null;
-      const stripChildSetting = new Setting(containerEl).setName("Parent/child strip distance").setDesc("Horizontal offset between adjacent strip rails (2..20 px).").addSlider((s) => {
-        s.setLimits(2, 20, 1);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.stripChildOffset);
-        s.onChange((v) => {
-          const next = Math.max(2, Math.min(20, Math.trunc(Number(v))));
-          if (stripChildTextEl) stripChildTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { childOffset: next } } } } }, "visual:tags:strip:child-offset");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        stripChildTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.stripChildOffset));
-        txt.setPlaceholder("12");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(2, Math.min(20, n));
-          if (stripChildSliderEl) stripChildSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { childOffset: next } } } } }, "visual:tags:strip:child-offset:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of stripChildSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") stripChildSliderEl = el2;
-        if (el2.type === "text") stripChildTextEl = el2;
-      }
-      let stripSpacingSliderEl = null;
-      let stripSpacingTextEl = null;
-      const stripSpacingSetting = new Setting(containerEl).setName("Strip spacing").setDesc("Distance from text to parent strip lane (8..48 px).").addSlider((s) => {
-        s.setLimits(8, 48, 1);
-        s.setDynamicTooltip();
-        s.setValue(tagVisuals.stripSpacing);
-        s.onChange((v) => {
-          const next = Math.max(8, Math.min(48, Math.trunc(Number(v))));
-          if (stripSpacingTextEl) stripSpacingTextEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { spacing: next } } } } }, "visual:tags:strip:spacing");
-        });
-        if (!enabled) s.setDisabled(true);
-      }).addText((txt) => {
-        stripSpacingTextEl = txt.inputEl;
-        txt.inputEl.style.width = "52px";
-        txt.setValue(String(tagVisuals.stripSpacing));
-        txt.setPlaceholder("20");
-        txt.onChange((v) => {
-          const n = Math.trunc(Number(v));
-          if (!Number.isFinite(n)) return;
-          const next = Math.max(8, Math.min(48, n));
-          if (stripSpacingSliderEl) stripSpacingSliderEl.value = String(next);
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { strip: { spacing: next } } } } }, "visual:tags:strip:spacing:text");
-        });
-        if (!enabled) txt.setDisabled(true);
-      });
-      for (const el2 of stripSpacingSetting.controlEl.querySelectorAll("input")) {
-        if (el2.type === "range") stripSpacingSliderEl = el2;
-        if (el2.type === "text") stripSpacingTextEl = el2;
-      }
-      const stripPreview = containerEl.createDiv();
-      stripPreview.style.marginTop = "8px";
-      stripPreview.style.padding = "10px";
-      stripPreview.style.border = "1px solid var(--background-modifier-border)";
-      stripPreview.style.borderRadius = "8px";
-      stripPreview.style.background = "var(--background-secondary)";
-      stripPreview.createEl("small", { text: "Strip preview" });
-      const stripCanvas = stripPreview.createDiv();
-      stripCanvas.style.position = "relative";
-      stripCanvas.style.height = "94px";
-      stripCanvas.style.marginTop = "6px";
-      stripCanvas.style.border = "1px dashed var(--background-modifier-border)";
-      stripCanvas.style.borderRadius = "6px";
-      const colors = ["#ef4444", "#f59e0b", "#22c55e"];
-      const rows = [
-        { label: "parent", depth: 1, y: 10, textIndent: 0 },
-        { label: "child", depth: 2, y: 36, textIndent: 14 },
-        { label: "grandchild", depth: 3, y: 62, textIndent: 28 }
-      ];
-      const rowLaneEls = [];
-      const rowTextEls = [];
-      for (let r = 0; r < rows.length; r++) {
-        const row = rows[r];
-        const textEl = stripCanvas.createDiv();
-        textEl.style.position = "absolute";
-        textEl.style.left = `${188 + Number(row.textIndent || 0)}px`;
-        textEl.style.top = `${row.y}px`;
-        textEl.style.fontSize = "12px";
-        textEl.style.opacity = "0.85";
-        textEl.setText(row.label);
-        rowTextEls.push(textEl);
-        const lanes = [];
-        for (let i = 0; i < 3; i++) {
-          const lane = stripCanvas.createDiv();
-          lane.style.position = "absolute";
-          lane.style.top = `${row.y - 2}px`;
-          lane.style.height = "18px";
-          lane.style.background = colors[i] || "#3b82f6";
-          lane.style.borderRadius = "1px";
-          lanes.push(lane);
-        }
-        rowLaneEls.push(lanes);
-      }
-      const applyStripPreview = () => {
-        const spacing = stripSpacingSliderEl ? Math.max(8, Math.min(48, Math.trunc(Number(stripSpacingSliderEl.value)))) : tagVisuals.stripSpacing;
-        const dist = stripChildSliderEl ? Math.max(2, Math.min(20, Math.trunc(Number(stripChildSliderEl.value)))) : tagVisuals.stripChildOffset;
-        const thick = stripThicknessSliderEl ? Math.max(1, Math.min(12, Math.trunc(Number(stripThicknessSliderEl.value)))) : tagVisuals.stripThickness;
-        const stripes = stripStripesSliderEl ? Math.max(1, Math.min(3, Math.trunc(Number(stripStripesSliderEl.value)))) : tagVisuals.stripStripesToShow;
-        const railBase = Math.max(2, thick);
-        const baseTextX = 172;
-        const sharedRowBaseX = Math.max(8, baseTextX - (spacing + thick));
-        for (let r = 0; r < rows.length; r++) {
-          const row = rows[r] || {};
-          const rowDepthMax = rows[r].depth;
-          const rowRails = Math.max(1, Math.min(stripes, rowDepthMax));
-          const lanes = rowLaneEls[r] || [];
-          for (let i = 0; i < lanes.length; i++) {
-            const lane = lanes[i];
-            if (!lane) continue;
-            if (i < rowRails) {
-              lane.style.display = "block";
-              lane.style.left = `${sharedRowBaseX + dist * i}px`;
-              lane.style.width = `${thick}px`;
-            } else {
-              lane.style.display = "none";
-            }
-          }
-        }
-        for (let r = 0; r < rowTextEls.length; r++) {
-          const t = rowTextEls[r];
-          const row = rows[r] || {};
-          if (!t) continue;
-          t.style.left = `${baseTextX + Number(row.textIndent || 0)}px`;
-        }
-      };
-      applyStripPreview();
-      if (stripSpacingSliderEl) stripSpacingSliderEl.addEventListener("input", applyStripPreview);
-      if (stripSpacingTextEl) stripSpacingTextEl.addEventListener("input", applyStripPreview);
-      if (stripChildSliderEl) stripChildSliderEl.addEventListener("input", applyStripPreview);
-      if (stripChildTextEl) stripChildTextEl.addEventListener("input", applyStripPreview);
-      if (stripThicknessSliderEl) stripThicknessSliderEl.addEventListener("input", applyStripPreview);
-      if (stripThicknessTextEl) stripThicknessTextEl.addEventListener("input", applyStripPreview);
-      if (stripStripesSliderEl) stripStripesSliderEl.addEventListener("input", applyStripPreview);
-      if (stripStripesTextEl) stripStripesTextEl.addEventListener("input", applyStripPreview);
-    }
-    function renderColorsSection(ctx) {
-      const { containerEl, enabled } = ctx;
-      containerEl.createEl("h3", { text: "Colors" });
-      if (!enabled) {
-        const banner = containerEl.createDiv();
-        banner.setText("Visual module disabled. Colors settings are read-only.");
-        banner.style.padding = "8px 10px";
-        banner.style.border = "1px solid var(--background-modifier-border)";
-        banner.style.borderRadius = "8px";
-        banner.style.marginBottom = "10px";
-      }
-      const line = containerEl.createDiv();
-      line.setText("Colors editor placeholder (HEX + preview) will be added in Sprint 4.");
-      line.style.opacity = "0.85";
-      const demo = containerEl.createDiv();
-      demo.style.marginTop = "8px";
-      const chip = demo.createEl("span", { text: "#demo" });
-      chip.style.display = "inline-block";
-      chip.style.padding = "2px 8px";
-      chip.style.borderRadius = "999px";
-      chip.style.background = "#1D4ED8";
-      chip.style.color = "#ffffff";
-      chip.style.opacity = enabled ? "1" : "0.6";
-    }
-    function renderAdvancedSection(ctx) {
-      const { Setting, Notice: Notice3, containerEl, cfg, featureOrder, store, flushSettingsNow, plugin, pkmBackends, getActiveTagWheelRulesPath } = ctx;
-      containerEl.createEl("h3", { text: "Diagnostics" });
-      const diag = containerEl.createDiv();
-      diag.style.whiteSpace = "pre-wrap";
-      diag.style.fontFamily = "var(--font-monospace)";
-      diag.style.fontSize = "12px";
-      diag.style.padding = "10px";
-      diag.style.border = "1px solid var(--background-modifier-border)";
-      diag.style.borderRadius = "8px";
-      const enabled = featureOrder.filter((f) => !!cfg.features[f].enabled);
-      const disabled = featureOrder.filter((f) => !cfg.features[f].enabled);
-      const lastSavedAt = store.getLastSavedAt();
-      const lastSavedText = lastSavedAt ? new Date(lastSavedAt).toLocaleString() : "not saved yet";
-      diag.setText(
-        [
-          `schemaVersion: ${cfg.schemaVersion}`,
-          `enabledModules: ${enabled.join(", ") || "none"}`,
-          `disabledModules: ${disabled.join(", ") || "none"}`,
-          `lastSavedAt: ${lastSavedText}`
-        ].join("\n")
-      );
-      new Setting(containerEl).setName("Flush Settings Now").setDesc("Force immediate save without waiting for debounce.").addButton(
-        (b) => b.setButtonText("Flush").onClick(async () => {
-          await store.flushNow();
-          new Notice3("InlineOverhaul: settings saved");
-          flushSettingsNow();
-        })
-      );
-      const importNote = containerEl.createDiv();
-      importNote.style.marginTop = "10px";
-      importNote.style.fontSize = "12px";
-      importNote.style.opacity = "0.85";
-      importNote.setText("Old import workflow is removed. Plugin runs internal runtime v2 only.");
-      containerEl.createEl("h3", { text: "Developer Mode" });
-      new Setting(containerEl).setName("Enable Dev Mode").setDesc("Enable session logs for troubleshooting.").addToggle((t) => {
-        const cur = cfg && cfg.devMode ? cfg.devMode : {};
-        t.setValue(cur.enabled === true).onChange((v) => {
-          plugin.setConfigPatch({ devMode: { enabled: v } }, "advanced:devMode:enabled");
-        });
-      });
-      new Setting(containerEl).setName("Generate log for AI?").setDesc("Yes: in addition to human `.md` log, generate detailed AI `.ndjson` log.").addToggle((t) => {
-        const cur = cfg && cfg.devMode ? cfg.devMode : {};
-        t.setValue(cur.generateAiLog === true).onChange((v) => {
-          plugin.setConfigPatch({ devMode: { generateAiLog: v } }, "advanced:devMode:generateAiLog");
-        });
-        if (!(cur.enabled === true)) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Log Path").setDesc("Base vault-relative path. Plugin writes `<path>.new.*` and `<path>.old.*`.").addText((txt) => {
-        const cur = cfg && cfg.devMode ? cfg.devMode : {};
-        let pendingPath = String(cur.logPath || "InlineOverhaul_DevLog");
-        const commitPath = () => {
-          const p = String(pendingPath || "").trim();
-          if (!p) return;
-          if (p === String(cur.logPath || "InlineOverhaul_DevLog")) return;
-          plugin.setConfigPatch({ devMode: { logPath: p } }, "advanced:devMode:logPath");
-        };
-        txt.setPlaceholder("InlineOverhaul_DevLog").setValue(pendingPath).onChange((v) => {
-          pendingPath = String(v || "");
-        });
-        if (txt && txt.inputEl) {
-          txt.inputEl.addEventListener("blur", commitPath);
-          txt.inputEl.addEventListener("keydown", (evt) => {
-            if (!evt || evt.key !== "Enter") return;
-            commitPath();
-          });
-        }
-        if (!(cur.enabled === true)) txt.setDisabled(true);
-      });
-      const pkmEnabled = !!(cfg && cfg.features && cfg.features.pkm && cfg.features.pkm.enabled);
-      containerEl.createEl("h3", { text: "PKM Other Settings" });
-      new Setting(containerEl).setName("Execution Backend").setDesc("Internal runtime v2 only. Previous backend is removed.").addText((t) => {
-        t.setValue(pkmBackends.internalV2);
-        t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Active Rules Path").setDesc("Effective generated rules file used by PKM commands and navigation inline.").addText((t) => {
-        t.setPlaceholder("InlineOverhaul_Generated_RULES_TagWheel.md").setValue(getActiveTagWheelRulesPath(cfg)).onChange((v) => {
-          const next = String(v || "").trim();
-          if (!next) return;
-          plugin.setConfigPatch({ pkm: { generatedRulesPath: next } }, "pkm:generatedRulesPath");
-        });
-        if (!pkmEnabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Regenerate Rules Now").setDesc("Force rewrite generated rules markdown from plugin JSON.").addButton((b) => {
-        b.setButtonText("Regenerate").onClick(async () => {
-          try {
-            await plugin.ensureGeneratedRulesNow("manual");
-          } catch (e) {
-            console.error("[inline-overhaul][rules-gen]", e);
-            new Notice3("InlineOverhaul: failed to generate rules");
-          }
-        });
-        if (!pkmEnabled) b.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Open Detailed Template").setDesc("Open detailed markdown template for TagWheel config authoring.").addButton((b) => {
-        b.setButtonText("Open detailed template").onClick(async () => {
-          try {
-            const p = await plugin.openTagWheelConfigTemplateNote();
-            new Notice3("Detailed template opened: " + p);
-          } catch (e) {
-            console.error("[inline-overhaul][tagwheel-config-template-open]", e);
-            new Notice3("InlineOverhaul: " + e.message);
-          }
-        });
-        if (!pkmEnabled) b.setDisabled(true);
-      });
-    }
-    function renderNavigationSettings(ctx) {
-      const { Setting, containerEl, cfg, enabled, plugin } = ctx;
-      const nav = cfg.navigation || {};
-      containerEl.createEl("h5", { text: "Move Line" });
-      new Setting(containerEl).setName("Enable Move Line").setDesc("Command IDs: inlineOverhaul_Navigation_MoveUp / inlineOverhaul_Navigation_MoveDown.").addToggle((t) => {
-        t.setValue(!!nav.moveLine.enabled).onChange((v) => {
-          plugin.setConfigPatch({ navigation: { moveLine: { enabled: v } } }, "nav:moveLine:enabled");
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("No-selection mode").setDesc("When nothing is selected: move only current line, or move line with children by indent.").addDropdown((d) => {
-        d.addOption("line-only", "line-only");
-        d.addOption("with-children", "with-children");
-        d.setValue(nav.moveLine.noSelectionMode || "line-only");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { moveLine: { noSelectionMode: v } } }, "nav:moveLine:noSelectionMode"));
-        if (!enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Header mode").setDesc("When cursor is on header: move just header line or whole section.").addDropdown((d) => {
-        d.addOption("move-as-line", "move-as-line");
-        d.addOption("move-with-section", "move-with-section");
-        d.setValue(nav.moveLine.headerMode || "move-as-line");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { moveLine: { headerMode: v } } }, "nav:moveLine:headerMode"));
-        if (!enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Cross-section allowed").setDesc("Allow crossing between header sections while moving lines.").addToggle((t) => {
-        t.setValue(!!nav.moveLine.crossSectionAllowed).onChange((v) => {
-          plugin.setConfigPatch({ navigation: { moveLine: { crossSectionAllowed: v } } }, "nav:moveLine:crossSectionAllowed");
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Highlight moved lines").setDesc("When enabled, selection is normalized to full moved lines after Move Up/Down.").addToggle((t) => {
-        t.setValue(!!nav.moveLine.highlightMovedLines).onChange((v) => {
-          plugin.setConfigPatch({ navigation: { moveLine: { highlightMovedLines: v } } }, "nav:moveLine:highlightMovedLines");
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      containerEl.createEl("h5", { text: "Move Selection" });
-      const inlineSection = containerEl.createDiv();
-      inlineSection.style.marginLeft = "12px";
-      inlineSection.createEl("h4", { text: "Move Selection (Inline Text)" });
-      new Setting(inlineSection).setName("Enable inline text move").setDesc("Move selected text inside a single line. Command IDs: inlineOverhaul_Navigation_MoveLeft / inlineOverhaul_Navigation_MoveRight.").addToggle((t) => {
-        t.setValue(!!nav.moveSelection.inlineEnabled).onChange((v) => plugin.setConfigPatch({ navigation: { moveSelection: { inlineEnabled: v, enabled: v } } }, "nav:moveSelection:inlineEnabled"));
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(inlineSection).setName("Inline move mode").setDesc("For partial single-line selection: auto, force char-swap, force token-jump, or disable inline move.").addDropdown((d) => {
-        d.addOption("auto", "auto");
-        d.addOption("char", "char");
-        d.addOption("word", "word");
-        d.addOption("disabled", "disabled");
-        d.setValue(nav.moveSelection.inlineMoveMode || "auto");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { moveSelection: { inlineMoveMode: v } } }, "nav:moveSelection:inlineMoveMode"));
-        if (!enabled || !nav.moveSelection.inlineEnabled) d.setDisabled(true);
-      });
-      const prefixSection = containerEl.createDiv();
-      prefixSection.style.marginLeft = "12px";
-      prefixSection.createEl("h4", { text: "Prefix Cycler" });
-      new Setting(prefixSection).setName("Enable PrefixCycler").setDesc("Enable prefix cycling for line-level actions at indent = 0.").addToggle((t) => {
-        t.setValue(!!nav.moveSelection.prefixCyclerEnabled).onChange((v) => plugin.setConfigPatch({ navigation: { moveSelection: { prefixCyclerEnabled: v } } }, "nav:moveSelection:prefixCyclerEnabled"));
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(prefixSection).setName("Prefix Cycle Order").setDesc("One prefix per line. Works only from the extreme left position (without indent). Right follows this list; Left is mirrored automatically. After the last item, next Right increases indent when 'On cycle end' is set to 'increase indent'.").addTextArea((ta) => {
-        ta.setValue((nav.moveSelection.cycleOrder || []).join("\n")).onChange((v) => {
-          const arr = String(v || "").split(/\r?\n/);
-          plugin.setConfigPatch({ navigation: { moveSelection: { cycleOrder: arr } } }, "nav:moveSelection:cycleOrder");
-        });
-        ta.inputEl.rows = 6;
-        if (!enabled || !nav.moveSelection.prefixCyclerEnabled) ta.setDisabled(true);
-      });
-      new Setting(prefixSection).setName("On cycle end").setDesc("Action when Right reaches the last prefix in cycle order at indent = 0.").addDropdown((d) => {
-        d.addOption("indent", "increase indent");
-        d.addOption("wrap", "wrap to first prefix");
-        d.setValue(nav.moveSelection.onCycleEnd || "indent");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { moveSelection: { onCycleEnd: v } } }, "nav:moveSelection:onCycleEnd"));
-        if (!enabled || !nav.moveSelection.prefixCyclerEnabled) d.setDisabled(true);
-      });
-      new Setting(prefixSection).setName("Indent fallback").setDesc("If PrefixCycler is off (or no cycle action is applied), hotkeys still change indent level.").addToggle((t) => {
-        t.setValue(!!nav.moveSelection.indentFallbackEnabled).onChange((v) => plugin.setConfigPatch({ navigation: { moveSelection: { indentFallbackEnabled: v } } }, "nav:moveSelection:indentFallbackEnabled"));
-        if (!enabled) t.setDisabled(true);
-      });
-      const indentHint = containerEl.createDiv();
-      indentHint.setText("Indent width is synced with Obsidian global setting 'Tab width'.");
-      indentHint.style.fontSize = "12px";
-      indentHint.style.opacity = "0.8";
-      indentHint.style.marginBottom = "8px";
-      containerEl.createEl("h5", { text: "Jump To Header" });
-      new Setting(containerEl).setName("Enable Jump To Header").setDesc("Command IDs: inlineOverhaul_Navigation_JumpHeaderUp / inlineOverhaul_Navigation_JumpHeaderDown.").addToggle((t) => {
-        t.setValue(!!nav.jumpToHeader.enabled).onChange((v) => plugin.setConfigPatch({ navigation: { jumpToHeader: { enabled: v } } }, "nav:jump:enabled"));
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Center cursor").setDesc("Keep target section around viewport center after jump.").addToggle((t) => {
-        t.setValue(!!nav.jumpToHeader.centerCursor).onChange((v) => plugin.setConfigPatch({ navigation: { jumpToHeader: { centerCursor: v } } }, "nav:jump:center"));
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Jump mode").setDesc("`edge`: jump between section edges; `line`: jump line-by-line across content.").addDropdown((d) => {
-        d.addOption("edge", "jump to edge");
-        d.addOption("line", "jump to line");
-        d.setValue(nav.jumpToHeader.jumpMode || "edge");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { jumpToHeader: { jumpMode: v } } }, "nav:jump:mode"));
-        if (!enabled) d.setDisabled(true);
-      });
-      if ((nav.jumpToHeader.jumpMode || "edge") === "edge") {
-        new Setting(containerEl).setName("Edge behavior").setDesc("Used in `jump to edge` mode only: start/end toggle, start-only, or end-only.").addDropdown((d) => {
-          d.addOption("start-end", "start/end");
-          d.addOption("start", "start only");
-          d.addOption("end", "end only");
-          d.setValue(nav.jumpToHeader.edgeMode || "start-end");
-          d.onChange((v) => plugin.setConfigPatch({ navigation: { jumpToHeader: { edgeMode: v } } }, "nav:jump:edgeMode"));
-          if (!enabled) d.setDisabled(true);
-        });
-      }
-      new Setting(containerEl).setName("Jump cursor position").setDesc("Where cursor lands on target line: start, end, or active text end (before separator zone).").addDropdown((d) => {
-        d.addOption("start", "start");
-        d.addOption("end", "end");
-        d.addOption("section-end", "section end (before separator)");
-        d.setValue(nav.jumpToHeader.jumpCursorPosition || "start");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { jumpToHeader: { jumpCursorPosition: v } } }, "nav:jump:cursorPos"));
-        if (!enabled) d.setDisabled(true);
-      });
-      containerEl.createEl("h5", { text: "Navigate Inline" });
-      new Setting(containerEl).setName("Enable Navigate Inline").setDesc("Command IDs: inlineOverhaul_Navigation_InlineLeft / inlineOverhaul_Navigation_InlineRight.").addToggle((t) => {
-        t.setValue(!!nav.navigateInline.enabled).onChange((v) => plugin.setConfigPatch({ navigation: { navigateInline: { enabled: v } } }, "nav:inline:enabled"));
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Step mode").setDesc("word: next token; sentence: next sentence boundary; begin-end: jump directly to zone start/end.").addDropdown((d) => {
-        d.addOption("word", "word");
-        d.addOption("sentence", "sentence");
-        d.addOption("begin-end", "begin/end");
-        d.setValue(nav.navigateInline.stepMode || "word");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { navigateInline: { stepMode: v } } }, "nav:inline:stepMode"));
-        if (!enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Allow crossing separators").setDesc("Off: strict zone between separators only. On: after boundary, continue navigating through the rest of the line.").addToggle((t) => {
-        t.setValue(!!nav.navigateInline.boundaryJump).onChange((v) => plugin.setConfigPatch({ navigation: { navigateInline: { boundaryJump: v } } }, "nav:inline:boundaryJump"));
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("On boundary").setDesc("What to do when no next target exists in current direction.").addDropdown((d) => {
-        d.addOption("stay", "stay at boundary");
-        d.addOption("wrap", "wrap to opposite boundary");
-        d.addOption("next-line", "move to next/prev line");
-        d.setValue(nav.navigateInline.onBoundary || "wrap");
-        d.onChange((v) => plugin.setConfigPatch({ navigation: { navigateInline: { onBoundary: v } } }, "nav:inline:onBoundary"));
-        if (!enabled) d.setDisabled(true);
-      });
-      const hotkeyMap = containerEl.createEl("pre");
-      hotkeyMap.style.whiteSpace = "pre-wrap";
-      hotkeyMap.style.fontSize = "12px";
-      hotkeyMap.style.padding = "8px";
-      hotkeyMap.style.border = "1px solid var(--background-modifier-border)";
-      hotkeyMap.style.borderRadius = "8px";
-      hotkeyMap.setText([
-        "Hotkey command ids:",
-        "- inlineOverhaul_Navigation_MoveUp",
-        "- inlineOverhaul_Navigation_MoveDown",
-        "- inlineOverhaul_Navigation_MoveLeft",
-        "- inlineOverhaul_Navigation_MoveRight",
-        "- inlineOverhaul_Navigation_JumpHeaderUp",
-        "- inlineOverhaul_Navigation_JumpHeaderDown",
-        "- inlineOverhaul_Navigation_InlineLeft",
-        "- inlineOverhaul_Navigation_InlineRight"
-      ].join("\n"));
-    }
-    function renderModuleTabSection(ctx) {
-      const {
-        Setting,
-        containerEl,
-        featureKey,
-        cfg,
-        featureMeta,
-        renderNavigationSettings: renderNavigationSettings2,
-        renderTransformSettings,
-        renderPkmSettings
-      } = ctx;
-      const enabled = !!cfg.features[featureKey].enabled;
-      if (!enabled) {
-        const banner = containerEl.createDiv({ cls: "inline-overhaul-disabled-banner" });
-        banner.setText("Module disabled. Settings are read-only.");
-        banner.style.padding = "8px 10px";
-        banner.style.border = "1px solid var(--background-modifier-border)";
-        banner.style.borderRadius = "8px";
-        banner.style.marginBottom = "10px";
-        banner.style.opacity = "0.9";
-      }
-      if (featureKey === "navigation") {
-        renderNavigationSettings2(containerEl, cfg, enabled);
-      } else if (featureKey === "pkm") {
-        renderPkmSettings(containerEl, cfg, enabled);
-      } else if (featureKey === "transform") {
-        if (typeof renderTransformSettings === "function") {
-          renderTransformSettings(containerEl, cfg, enabled);
-        } else {
-          new Setting(containerEl).setName("Transform module unavailable").setDesc("Transform settings renderer is not loaded.").addText((txt) => {
-            txt.setValue("Fallback active");
-            txt.setDisabled(true);
-          });
-        }
-      } else {
-        new Setting(containerEl).setName("Module placeholder").setDesc("Implementation arrives in next sprint.").addText((txt) => {
-          txt.setValue("Sprint scaffold");
-          txt.setDisabled(true);
-        });
-      }
-    }
-    function renderGeneralSection(ctx) {
-      const { Setting, Notice: Notice3, containerEl, cfg, featureOrder, featureMeta, plugin } = ctx;
-      containerEl.createEl("h3", { text: "Global Modules" });
-      for (const feature of featureOrder) {
-        new Setting(containerEl).setName(`${featureMeta[feature].label} module`).setDesc(`Enable/disable ${featureMeta[feature].label.toLowerCase()} functionality globally.`).addToggle(
-          (t) => t.setValue(!!cfg.features[feature].enabled).onChange((v) => plugin.setConfigPatch({ features: { [feature]: { enabled: v } } }, `toggle:${feature}`))
-        );
-      }
-      new Setting(containerEl).setName("Undo last settings change").setDesc("Rollback one step from settings undo stack.").addButton(
-        (b) => b.setButtonText("Undo").onClick(() => {
-          const ok = plugin.store.undo("settings:undo");
-          if (!ok) new Notice3("InlineOverhaul: nothing to undo");
-        })
-      );
-    }
-    function renderEnhancedSelectAllSection(ctx) {
-      const { Setting, containerEl, cfg, plugin, includeSubheader } = ctx;
-      if (includeSubheader) {
-        const enhanceSubheader = containerEl.createDiv({ text: "Enhance Ctrl/Cmd + A" });
-        enhanceSubheader.style.fontSize = "var(--font-ui-small)";
-        enhanceSubheader.style.fontWeight = "600";
-        enhanceSubheader.style.opacity = "0.85";
-        enhanceSubheader.style.marginTop = "4px";
-        enhanceSubheader.style.marginBottom = "4px";
-      }
-      new Setting(containerEl).setName("Enhanced Mod+A").setDesc("Enhance Ctrl+A / Cmd+A with multi-press selection scopes.").addToggle((t) => {
-        t.setValue(!!cfg.globalFunctions.enhancedSelectAll.enabled).onChange((v) => {
-          plugin.setConfigPatch({ globalFunctions: { enhancedSelectAll: { enabled: v } } }, "general:enhancedSelectAll:enabled");
-        });
-      });
-      new Setting(containerEl).setName("Select-all mode").setDesc("Choose selection sequence by repeated Ctrl+A / Cmd+A presses.").addDropdown((d) => {
-        d.addOption("line-note", "1x line -> 2x whole note");
-        d.addOption("line-tree-note", "1x line -> 2x tree -> 3x whole note");
-        d.addOption("line-tree-header-note", "1x line -> 2x tree -> 3x current header -> 4x whole note");
-        d.setValue(cfg.globalFunctions.enhancedSelectAll.mode || "line-note");
-        d.onChange((v) => {
-          plugin.setConfigPatch({ globalFunctions: { enhancedSelectAll: { mode: v } } }, "general:enhancedSelectAll:mode");
-        });
-        if (!cfg.globalFunctions.enhancedSelectAll.enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Use multi-press delay").setDesc("When on, repeated presses are tracked by delay timer. When off, next scope is inferred from current selection context.").addToggle((t) => {
-        t.setValue(!!cfg.globalFunctions.enhancedSelectAll.useMultiPressDelay).onChange((v) => {
-          plugin.setConfigPatch({ globalFunctions: { enhancedSelectAll: { useMultiPressDelay: v } } }, "general:enhancedSelectAll:useDelay");
-        });
-        if (!cfg.globalFunctions.enhancedSelectAll.enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Multi-press delay").setDesc("Delay threshold for timer-based cycle mode.").addSlider((s) => {
-        s.setLimits(250, 2e3, 50);
-        s.setValue(Number(cfg.globalFunctions.enhancedSelectAll.delayMs) || 700);
-        s.setDynamicTooltip();
-        s.onChange((v) => {
-          plugin.setConfigPatch({ globalFunctions: { enhancedSelectAll: { delayMs: Math.max(250, Math.min(2e3, Math.floor(v))) } } }, "general:enhancedSelectAll:delayMs");
-        });
-        if (!cfg.globalFunctions.enhancedSelectAll.enabled || !cfg.globalFunctions.enhancedSelectAll.useMultiPressDelay) s.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Last press clears selection").setDesc("After reaching the last scope, next press collapses selection and restores cursor to cycle origin.").addToggle((t) => {
-        t.setValue(!!cfg.globalFunctions.enhancedSelectAll.clearSelectionOnLastPress).onChange((v) => {
-          plugin.setConfigPatch({ globalFunctions: { enhancedSelectAll: { clearSelectionOnLastPress: v } } }, "general:enhancedSelectAll:clearOnLast");
-        });
-        if (!cfg.globalFunctions.enhancedSelectAll.enabled) t.setDisabled(true);
-      });
-    }
-    function renderHotkeysTabSection(ctx) {
-      const { containerEl, cfg, hotkeysSubTabs, setHotkeysSubTab, Setting, plugin } = ctx;
-      const activeSubTab = cfg.ui.hotkeysSubTab || "global";
-      const row = containerEl.createDiv({ cls: "inline-overhaul-subtab-row" });
-      row.style.display = "flex";
-      row.style.flexWrap = "wrap";
-      row.style.gap = "6px";
-      row.style.marginBottom = "10px";
-      for (const st of hotkeysSubTabs) {
-        const btn2 = row.createEl("button", { text: st.label, cls: "mod-cta" });
-        btn2.style.padding = "3px 8px";
-        btn2.style.opacity = st.id === activeSubTab ? "1" : "0.8";
-        btn2.onclick = () => setHotkeysSubTab(st.id);
-      }
-      if (activeSubTab === "binder") {
-        const binderRows = Array.isArray(cfg && cfg.ui && cfg.ui.binderRows) ? cfg.ui.binderRows : [];
-        const holder = containerEl.createDiv({ cls: "inline-overhaul-binder" });
-        holder.style.display = "grid";
-        holder.style.gap = "10px";
-        const card = holder.createDiv();
-        card.style.border = "1px solid var(--background-modifier-border)";
-        card.style.borderRadius = "10px";
-        card.style.background = "var(--background-secondary)";
-        card.style.overflow = "hidden";
-        const tip = holder.createEl("small", { text: "Bind commands via Obsidian Settings -> Hotkeys." });
-        tip.style.opacity = "0.9";
-        const roTip = holder.createEl("small", { text: "Only Description is editable. To change Insert text or Command name: delete row and add a new one." });
-        roTip.style.opacity = "0.75";
-        const head = card.createDiv();
-        head.style.display = "grid";
-        head.style.gridTemplateColumns = "26px minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(170px, 0.95fr) minmax(170px, 1.25fr) 30px";
-        head.style.gap = "8px";
-        head.style.padding = "8px 10px";
-        head.style.borderBottom = "1px solid var(--background-modifier-border)";
-        head.style.fontSize = "12px";
-        head.style.opacity = "0.85";
-        head.createEl("div");
-        head.createEl("div", { text: "Token" });
-        head.createEl("div", { text: "Command name" });
-        head.createEl("div", { text: "Description" });
-        const cmdHead = head.createDiv();
-        cmdHead.createEl("div", { text: "Command ID" });
-        const cmdHeadPrefix = cmdHead.createEl("small", { text: "inlineOverhaul_Binder_*" });
-        cmdHeadPrefix.style.display = "block";
-        cmdHeadPrefix.style.opacity = "0.75";
-        head.createEl("div");
-        const list = card.createDiv();
-        const rows = Array.isArray(binderRows) ? binderRows : [];
-        const formatCommandIdDisplay = (commandId) => {
-          const full = String(commandId || "").trim();
-          const prefix = "inlineOverhaul_Binder_";
-          const suffix = full.startsWith(prefix) ? full.slice(prefix.length) : full;
-          return `*_${suffix || "item"}`;
-        };
-        const styleReadonly = (el2) => {
-          if (!el2) return;
-          el2.style.background = "var(--background-modifier-border-hover)";
-          el2.style.opacity = "0.82";
-          el2.style.cursor = "not-allowed";
-          el2.style.filter = "saturate(0.7)";
-          el2.style.color = "var(--text-muted)";
-          el2.style.borderColor = "var(--background-modifier-border)";
-        };
-        const persistRows = (nextRows, reason, opts) => {
-          const options = opts && typeof opts === "object" ? opts : {};
-          const shouldRegisterCommands = options.registerCommands !== false;
-          plugin.setConfigPatch({ ui: { binderRows: nextRows } }, reason || "settings:binder:rows");
-          if (shouldRegisterCommands && plugin && typeof plugin.registerBinderCommands === "function") {
-            try {
-              plugin.registerBinderCommands();
-            } catch (_) {
-            }
-          }
-          deferRefreshSettings(refreshSettings);
-        };
-        const renderRow = (row2, idx) => {
-          const current = row2 && typeof row2 === "object" ? row2 : {};
-          const rowId = String(current.rowId || "").trim();
-          const insertText = String(current.insertText || "");
-          const commandName = String(current.commandName || "");
-          const description = String(current.description || "");
-          const commandId = String(current.commandId || "").trim();
-          const line = list.createDiv();
-          line.style.display = "grid";
-          line.style.gridTemplateColumns = "26px minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(170px, 0.95fr) minmax(170px, 1.25fr) 30px";
-          line.style.gap = "8px";
-          line.style.padding = "8px 10px";
-          if (idx < rows.length - 1) line.style.borderBottom = "1px solid var(--background-modifier-border)";
-          line.setAttr("draggable", "true");
-          line.dataset.ioBinderRowId = rowId;
-          line.addEventListener("dragstart", (ev) => {
-            try {
-              if (ev && ev.dataTransfer) {
-                ev.dataTransfer.effectAllowed = "move";
-                ev.dataTransfer.setData("text/plain", rowId);
-              }
-            } catch (_) {
-            }
-            line.style.opacity = "0.5";
-          });
-          line.addEventListener("dragend", () => {
-            line.style.opacity = "1";
-          });
-          line.addEventListener("dragover", (ev) => {
-            if (ev) ev.preventDefault();
-            line.style.background = "var(--background-modifier-hover)";
-          });
-          line.addEventListener("dragleave", () => {
-            line.style.background = "";
-          });
-          line.addEventListener("drop", (ev) => {
-            if (ev) ev.preventDefault();
-            line.style.background = "";
-            let dragged = "";
-            try {
-              dragged = ev && ev.dataTransfer ? String(ev.dataTransfer.getData("text/plain") || "").trim() : "";
-            } catch (_) {
-              dragged = "";
-            }
-            const target = rowId;
-            if (!dragged || !target || dragged === target) return;
-            const next = rows.slice();
-            const fromIdx = next.findIndex((r) => String(r && r.rowId || "").trim() === dragged);
-            const toIdx = next.findIndex((r) => String(r && r.rowId || "").trim() === target);
-            if (fromIdx === -1 || toIdx === -1) return;
-            const moved2 = next.splice(fromIdx, 1)[0];
-            next.splice(toIdx, 0, moved2);
-            persistRows(next, "settings:binder:reorder");
-          });
-          const handle = line.createEl("div", { text: "\u22EE\u22EE" });
-          handle.style.cursor = "grab";
-          handle.style.userSelect = "none";
-          handle.style.opacity = "0.75";
-          handle.style.display = "flex";
-          handle.style.alignItems = "center";
-          handle.style.justifyContent = "center";
-          const textInput2 = line.createEl("input");
-          textInput2.type = "text";
-          textInput2.value = insertText;
-          textInput2.disabled = true;
-          textInput2.style.width = "100%";
-          textInput2.style.minWidth = "0";
-          styleReadonly(textInput2);
-          const nameInput2 = line.createEl("input");
-          nameInput2.type = "text";
-          nameInput2.value = commandName;
-          nameInput2.disabled = true;
-          nameInput2.style.width = "100%";
-          nameInput2.style.minWidth = "0";
-          styleReadonly(nameInput2);
-          const descInput2 = line.createEl("input");
-          descInput2.type = "text";
-          descInput2.value = description;
-          descInput2.placeholder = "Optional description";
-          descInput2.style.width = "100%";
-          descInput2.style.minWidth = "0";
-          descInput2.onchange = () => {
-            const nextDesc = String(descInput2.value || "");
-            const next = rows.map((r) => {
-              const rid = String(r && r.rowId || "").trim();
-              if (rid !== rowId) return r;
-              return { ...r, description: nextDesc };
-            });
-            persistRows(next, "settings:binder:description", { registerCommands: false });
-          };
-          const idCode = line.createEl("code", { text: formatCommandIdDisplay(commandId) });
-          idCode.setAttr("title", commandId);
-          idCode.style.alignSelf = "center";
-          idCode.style.userSelect = "text";
-          idCode.style.whiteSpace = "nowrap";
-          idCode.style.display = "block";
-          idCode.style.padding = "6px 8px";
-          idCode.style.borderRadius = "6px";
-          idCode.style.minWidth = "0";
-          idCode.style.maxWidth = "100%";
-          idCode.style.textOverflow = "ellipsis";
-          idCode.style.overflow = "hidden";
-          styleReadonly(idCode);
-          const delBtn = line.createEl("button", { text: "\u{1F5D1}" });
-          delBtn.setAttr("aria-label", "Delete binder row");
-          delBtn.style.width = "26px";
-          delBtn.style.height = "28px";
-          delBtn.style.padding = "0";
-          delBtn.style.lineHeight = "1";
-          delBtn.style.justifySelf = "center";
-          delBtn.onclick = () => {
-            const next = rows.filter((r) => String(r && r.rowId || "").trim() !== rowId);
-            persistRows(next, "settings:binder:delete");
-          };
-        };
-        rows.forEach(renderRow);
-        const addRow = holder.createDiv();
-        addRow.style.display = "grid";
-        addRow.style.gridTemplateColumns = "minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(170px, 0.95fr) auto";
-        addRow.style.gap = "8px";
-        const input = addRow.createEl("input");
-        input.type = "text";
-        input.placeholder = "Insert token (symbol/emoji/letter)";
-        const nameInput = addRow.createEl("input");
-        nameInput.type = "text";
-        nameInput.placeholder = "Command name (optional)";
-        const descInput = addRow.createEl("input");
-        descInput.type = "text";
-        descInput.placeholder = "Description (optional)";
-        const addBtn = addRow.createEl("button", { text: "Add row", cls: "mod-cta" });
-        const buildId = (text, usedSet) => {
-          const source = String(text || "").trim();
-          const collapsed = source.replace(/\s+/g, "_");
-          const clean = collapsed.replace(/[^A-Za-z0-9_\-]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
-          const base = `inlineOverhaul_Binder_${clean || "item"}`;
-          let id = base;
-          let n = 2;
-          while (usedSet.has(id)) {
-            id = `${base}_${n}`;
-            n += 1;
-          }
-          return id;
-        };
-        addBtn.onclick = () => {
-          const text = String(input.value || "");
-          if (!text.trim()) return;
-          const cmdName = String(nameInput.value || "");
-          const desc = String(descInput.value || "");
-          const used = new Set(rows.map((r) => String(r && r.commandId || "").trim()).filter(Boolean));
-          const seed = cmdName.trim() || text;
-          const commandId = buildId(seed, used);
-          const rowId = `binder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          const next = rows.concat([{ rowId, insertText: text, commandName: cmdName, description: desc, commandId }]);
-          persistRows(next, "settings:binder:add");
-        };
-        return;
-      }
-      renderEnhancedSelectAllSection({
-        Setting,
-        containerEl,
-        cfg,
-        plugin,
-        includeSubheader: false
-      });
-    }
-    function renderTabBarSection(ctx) {
-      const { containerEl, activeTab, settingsTabs, setActiveSettingsTab } = ctx;
-      const row = containerEl.createDiv({ cls: "inline-overhaul-tab-row" });
-      row.style.display = "flex";
-      row.style.flexWrap = "wrap";
-      row.style.gap = "8px";
-      row.style.marginBottom = "10px";
-      for (const t of settingsTabs) {
-        const btn2 = row.createEl("button", { text: t.label, cls: "mod-cta" });
-        btn2.style.padding = "4px 10px";
-        btn2.style.opacity = t.id === activeTab ? "1" : "0.8";
-        btn2.onclick = () => setActiveSettingsTab(t.id);
-      }
-    }
-    function renderSettingsDisplaySection(ctx) {
-      const {
-        containerEl,
-        cfg,
-        getActiveSettingsTab,
-        renderTabBar,
-        renderSettingsTabContent
-      } = ctx;
-      const activeTab = getActiveSettingsTab(cfg);
-      containerEl.createEl("h2", { text: "InlineOverhaul" });
-      renderTabBar(containerEl, activeTab);
-      renderSettingsTabContent(activeTab, containerEl, cfg);
-      normalizeSettingsTypography(containerEl);
-      normalizeSettingsVisualSystem(containerEl);
-    }
-    function renderVisualTabSection(ctx) {
-      const {
-        containerEl,
-        cfg,
-        visualSubTabs,
-        setVisualSubTab,
-        renderVisualGeneralSection: renderVisualGeneralSection2,
-        renderVisualTagsSection: renderVisualTagsSection2,
-        renderVisualStripSection: renderVisualStripSection2,
-        Setting,
-        plugin,
-        normalizePkmOrder
-      } = ctx;
-      const enabled = !!cfg.features.visual.enabled;
-      const activeSubTab = cfg.ui.visualSubTab || "tags";
-      if (!enabled) {
-        const banner = containerEl.createDiv({ cls: "inline-overhaul-disabled-banner" });
-        banner.setText("Module disabled. Settings are read-only.");
-        banner.style.padding = "8px 10px";
-        banner.style.border = "1px solid var(--background-modifier-border)";
-        banner.style.borderRadius = "8px";
-        banner.style.marginBottom = "10px";
-        banner.style.opacity = "0.9";
-      }
-      const row = containerEl.createDiv({ cls: "inline-overhaul-subtab-row" });
-      row.style.display = "flex";
-      row.style.flexWrap = "wrap";
-      row.style.gap = "6px";
-      row.style.marginBottom = "10px";
-      for (const st of visualSubTabs) {
-        const btn2 = row.createEl("button", { text: st.label, cls: "mod-cta" });
-        btn2.style.padding = "3px 8px";
-        btn2.style.opacity = st.id === activeSubTab ? "1" : "0.8";
-        btn2.onclick = () => setVisualSubTab(st.id);
-      }
-      if (activeSubTab === "tagwheel") {
-        renderVisualGeneralSection2({ Setting, containerEl, enabled, cfg, plugin });
-        return;
-      }
-      if (activeSubTab === "strip") {
-        renderVisualStripSection2({ Setting, containerEl, enabled, cfg, plugin, normalizePkmOrder });
-        return;
-      }
-      renderVisualTagsSection2({ Setting, containerEl, enabled, cfg, plugin });
-    }
-    function renderPkmConfigSections(ctx) {
-      const {
-        Setting,
-        Notice: Notice3,
-        Modal: Modal2,
-        containerEl,
-        cfg,
-        enabled,
-        plugin,
-        normalizePkmOrder,
-        tagwheelConfigModeDetailed,
-        tagwheelConfigModeMinimal,
-        pkmBackends,
-        getActiveTagWheelRulesPath,
-        refreshSettings: refreshSettings2
-      } = ctx;
-      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const prefixRules2 = behavior && behavior.prefixRules && typeof behavior.prefixRules === "object" ? behavior.prefixRules : {};
-      const leftFields = behavior && behavior.leftMode && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : [];
-      const rightFields = behavior && behavior.rightMode && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : [];
-      const allFields = leftFields.concat(rightFields);
-      const getFieldByOrderKey = (orderKey) => {
-        const key = String(orderKey || "").trim();
-        if (!key) return null;
-        for (let i = 0; i < allFields.length; i++) {
-          const row = allFields[i];
-          if (!row || typeof row !== "object") continue;
-          const id = String(row.id || "").trim();
-          const rowKey = String(row.orderKey || "").trim();
-          if (id === key || rowKey === key) return row;
-        }
-        return null;
-      };
-      const isWikilinkField = (field) => {
-        const source = String(field && field.source || "").trim();
-        return source === "projects" || /^wikilinks:/.test(source);
-      };
-      const isElementOrderKey = (order, orderKey, field) => {
-        const types = order && order.types && typeof order.types === "object" ? order.types : {};
-        const kind = String(types[orderKey] || "").trim().toLowerCase();
-        if (kind === "element") return true;
-        const fieldKind = String(field && field.kind || "").trim();
-        return fieldKind === "dateOffset" || fieldKind === "nowTime" || fieldKind === "estimatedCycle" || fieldKind === "genericElement";
-      };
-      const normalizePrefixRules = (raw, sectionRows2) => {
-        const src = raw && typeof raw === "object" ? raw : {};
-        const out = {
-          resolver: "priority-first",
-          priorityMode: "by-section",
-          fieldsOrderMode: "manual",
-          tagSubtagPriority: "subtag-over-tag",
-          priorityTargets: [],
-          priorityCheckboxes: [],
-          checkboxByFieldValue: {}
-        };
-        if (typeof src.resolver === "string" && src.resolver.trim()) out.resolver = src.resolver.trim();
-        const mode = String(src.priorityMode || "").trim();
-        out.priorityMode = mode === "by-checkbox-list" ? "by-checkbox-list" : "by-section";
-        const fieldsMode = String(src.fieldsOrderMode || "").trim();
-        out.fieldsOrderMode = fieldsMode === "auto" ? "auto" : "manual";
-        const tagMode = String(src.tagSubtagPriority || "").trim();
-        out.tagSubtagPriority = tagMode === "tag-over-subtag" ? "tag-over-subtag" : "subtag-over-tag";
-        const rows = Array.isArray(sectionRows2) ? sectionRows2 : [];
-        const allowedFieldIds = new Set(rows.map((x) => String(x.fieldId || "").trim()).filter(Boolean));
-        const sectionToFieldId = {};
-        for (let i = 0; i < rows.length; i++) {
-          const sid = String(rows[i] && rows[i].sectionId || "").trim();
-          const fid = String(rows[i] && rows[i].fieldId || "").trim();
-          if (sid && fid) sectionToFieldId[sid] = fid;
-        }
-        const targetsRaw = Array.isArray(src.priorityTargets) ? src.priorityTargets : [];
-        const targetsNorm = [];
-        for (let i = 0; i < targetsRaw.length; i++) {
-          const raw2 = String(targetsRaw[i] || "").trim();
-          if (!raw2) continue;
-          const fid = allowedFieldIds.has(raw2) ? raw2 : String(sectionToFieldId[raw2] || "").trim();
-          if (!fid || !allowedFieldIds.has(fid) || targetsNorm.includes(fid)) continue;
-          targetsNorm.push(fid);
-        }
-        for (let i = 0; i < rows.length; i++) {
-          const fid = String(rows[i] && rows[i].fieldId || "").trim();
-          if (fid && !targetsNorm.includes(fid)) targetsNorm.push(fid);
-        }
-        out.priorityTargets = targetsNorm;
-        const checksRaw = Array.isArray(src.priorityCheckboxes) ? src.priorityCheckboxes : [];
-        out.priorityCheckboxes = Array.from(new Set(checksRaw.map((x) => String(x || "").trim()).filter(Boolean)));
-        const cbMap = src.checkboxByFieldValue && typeof src.checkboxByFieldValue === "object" ? src.checkboxByFieldValue : {};
-        for (const fid of Object.keys(cbMap)) {
-          const id = String(fid || "").trim();
-          const row = cbMap[fid];
-          if (!id || !row || typeof row !== "object") continue;
-          out.checkboxByFieldValue[id] = {};
-          for (const tok of Object.keys(row)) {
-            const token = String(tok || "").trim();
-            const cb = String(row[tok] || "").trim();
-            if (token && cb) out.checkboxByFieldValue[id][token] = cb;
-          }
-        }
-        return out;
-      };
-      const collectSectionRows = () => {
-        const order = typeof normalizePkmOrder === "function" ? normalizePkmOrder(behavior && behavior.order ? behavior.order : null) : { left: [], right: [], strictNames: {}, types: {} };
-        const keys = (Array.isArray(order.left) ? order.left : []).concat(Array.isArray(order.right) ? order.right : []);
-        const out = [];
-        const seen = /* @__PURE__ */ new Set();
-        for (let i = 0; i < keys.length; i++) {
-          const key = String(keys[i] || "").trim();
-          if (!key || /_sub$/.test(key)) continue;
-          const field = getFieldByOrderKey(key);
-          if (!field || !field.id) continue;
-          if (isElementOrderKey(order, key, field)) continue;
-          const isTagLike = String(field && field.prefix || "") === "#";
-          if (!isTagLike && !isWikilinkField(field)) continue;
-          const sectionId = String(order && order.strictNames && order.strictNames[key] ? order.strictNames[key] : key).trim() || key;
-          if (!sectionId || seen.has(sectionId)) continue;
-          seen.add(sectionId);
-          out.push({ sectionId, fieldId: String(field.id || "").trim() });
-        }
-        return out;
-      };
-      const collectCheckboxTokens = (checkboxByFieldValue) => {
-        const src = checkboxByFieldValue && typeof checkboxByFieldValue === "object" ? checkboxByFieldValue : {};
-        const out = [];
-        for (const fid of Object.keys(src)) {
-          const row = src[fid];
-          if (!row || typeof row !== "object") continue;
-          for (const tok of Object.keys(row)) {
-            const cb = String(row[tok] || "").trim();
-            if (!cb || out.includes(cb)) continue;
-            out.push(cb);
-          }
-        }
-        return out;
-      };
-      const sectionRows = collectSectionRows();
-      const normalizedPrefix = normalizePrefixRules(prefixRules2, sectionRows);
-      const activePkmSubTab = String(cfg && cfg.ui && cfg.ui.pkmSubTab || "main").trim() === "behavior" ? "behavior" : "main";
-      const showInfoTips = !!(cfg && cfg.ui && cfg.ui.orderShowInfoTips === true);
-      const patchPrefixRules = (nextPartial, reason) => {
-        const next = {
-          ...normalizedPrefix,
-          ...nextPartial && typeof nextPartial === "object" ? nextPartial : {}
-        };
-        plugin.setConfigPatch({ pkm: { behavior: { prefixRules: next } } }, reason);
-        deferRefreshSettings(refreshSettings2);
-      };
-      if (activePkmSubTab === "main") {
-        const configHeader = containerEl.createEl("div", { text: "Config in markdown" });
-        configHeader.style.fontSize = "14px";
-        configHeader.style.fontWeight = "600";
-        configHeader.style.lineHeight = "1.25";
-        configHeader.style.margin = "0 0 2px 0";
-        if (showInfoTips) {
-          const cfgTips = containerEl.createEl("details");
-          const cfgSm = cfgTips.createEl("summary", { text: "Info & Tips" });
-          cfgSm.style.cursor = "pointer";
-          cfgTips.createEl("div", { text: "You can edit your Order config in friendly markdown format." });
-          cfgTips.createEl("div", { text: "DON'T FORGET TO APPLY CHANGES AFTER EDITING CONFIG MD" });
-        }
-        new Setting(containerEl).setName("Config Export Mode").setDesc(showInfoTips ? "detailed: full instructions; minimal: only settings and key alerts." : "").addDropdown((d) => {
-          d.addOption(tagwheelConfigModeDetailed, "detailed");
-          d.addOption(tagwheelConfigModeMinimal, "minimal");
-          d.setValue(String(cfg.pkm && cfg.pkm.configExportMode || tagwheelConfigModeDetailed));
-          d.onChange((v) => {
-            const next = String(v || tagwheelConfigModeDetailed).trim() === tagwheelConfigModeMinimal ? tagwheelConfigModeMinimal : tagwheelConfigModeDetailed;
-            plugin.setConfigPatch({ pkm: { configExportMode: next } }, "pkm:configExportMode");
-            deferRefreshSettings(refreshSettings2);
-          });
-          if (!enabled) d.setDisabled(true);
-        });
-        new Setting(containerEl).setName("TagWheel Note Editor").setDesc(showInfoTips ? "Open/create config note and apply parsed changes to plugin settings." : "").addButton((b) => {
-          b.setButtonText("Open config").onClick(async () => {
-            try {
-              flushAllDeepCommits(plugin);
-              const p = await plugin.openTagWheelConfigNote();
-              new Notice3("Config opened: " + p);
-            } catch (e) {
-              console.error("[inline-overhaul][tagwheel-config-open]", e);
-              new Notice3("InlineOverhaul: " + e.message);
-            }
-          });
-          if (!enabled) b.setDisabled(true);
-        }).addButton((b) => {
-          b.setButtonText("Apply").setCta().onClick(async () => {
-            try {
-              flushAllDeepCommits(plugin);
-              const deep = plugin && plugin._orderDeepEditorSession ? plugin._orderDeepEditorSession : null;
-              if (deep && deep.enabled === true && deep.dirty === true) {
-                let choice = "cancel";
-                if (typeof Modal2 === "function" && plugin && plugin.app) {
-                  choice = await new Promise((resolve) => {
-                    class ConflictModal extends Modal2 {
-                      onOpen() {
-                        const { contentEl } = this;
-                        contentEl.empty();
-                        contentEl.createEl("h3", { text: "Unsaved Order draft" });
-                        contentEl.createEl("p", { text: "[IO_BETA_CONFLICT_DIALOG] You have unsaved Order Deep Editor changes." });
-                        const row = contentEl.createDiv();
-                        row.style.display = "flex";
-                        row.style.gap = "8px";
-                        row.style.justifyContent = "flex-end";
-                        row.style.marginTop = "12px";
-                        const applyBtn = row.createEl("button", { text: "Apply draft" });
-                        const discardBtn = row.createEl("button", { text: "Discard draft" });
-                        const cancelBtn = row.createEl("button", { text: "Cancel", cls: "mod-warning" });
-                        applyBtn.onclick = () => {
-                          resolve("apply");
-                          this.close();
-                        };
-                        discardBtn.onclick = () => {
-                          resolve("discard");
-                          this.close();
-                        };
-                        cancelBtn.onclick = () => {
-                          resolve("cancel");
-                          this.close();
-                        };
-                      }
-                      onClose() {
-                        this.contentEl.empty();
-                      }
-                    }
-                    new ConflictModal(plugin.app).open();
-                  });
-                }
-                if (choice === "cancel") return;
-                if (choice === "discard") {
-                  deep.dirty = false;
-                  if (deep.history && typeof deep.history === "object") {
-                    deep.history.past = [];
-                    deep.history.future = [];
-                  }
-                }
-                if (choice === "apply") {
-                  deep.dirty = false;
-                  if (deep.history && typeof deep.history === "object") {
-                    deep.history.past = [];
-                    deep.history.future = [];
-                  }
-                }
-              }
-              await plugin.applyTagWheelConfigNote();
-              new Notice3("InlineOverhaul: TagWheel config applied");
-              deferRefreshSettings(refreshSettings2);
-            } catch (e) {
-              console.error("[inline-overhaul][tagwheel-config-apply]", e);
-              new Notice3("InlineOverhaul: " + e.message);
-            }
-          });
-          if (!enabled) b.setDisabled(true);
-        });
-        const separatorsHeader = containerEl.createEl("div", { text: "Separators" });
-        separatorsHeader.style.fontSize = "14px";
-        separatorsHeader.style.fontWeight = "600";
-        separatorsHeader.style.lineHeight = "1.25";
-        separatorsHeader.style.margin = "0 0 2px 0";
-        if (showInfoTips) {
-          const sepTips = containerEl.createEl("details");
-          const sepSm = sepTips.createEl("summary", { text: "Info & Tips" });
-          sepSm.style.cursor = "pointer";
-          sepTips.createEl("div", { text: "Separators define boundaries between left tags, middle text, and right elements in generated PKM lines." });
-          sepTips.createEl("div", { text: "Use short, visually distinctive values so your note remains readable in both editing and reading flows." });
-          sepTips.createEl("div", { text: "Separator 1 splits left tags from text; Separator 2 splits text from right panel elements." });
-          sepTips.createEl("div", { text: "Preview below updates live and helps validate that your chosen separators remain unambiguous." });
-        }
-        const sep1Setting = new Setting(containerEl).setName("Separator 1").setDesc(showInfoTips ? "Primary separator between left and text segments." : "").addText((t) => {
-          const cur = String(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator1 || "").trim();
-          t.setPlaceholder("separator1").setValue(cur).onChange((v) => {
-            const next = String(v || "").trim();
-            if (!next) return;
-            plugin.setConfigPatch({ pkm: { behavior: { io: { separator1: next } } } }, "pkm:behavior:io:separator1");
-            deferRefreshSettings(refreshSettings2);
-          });
-          if (!enabled) t.setDisabled(true);
-        });
-        const sep1ColorHost = containerEl.createDiv();
-        sep1ColorHost.style.display = "flex";
-        sep1ColorHost.style.justifyContent = "flex-end";
-        sep1ColorHost.style.margin = "-2px 0 6px";
-        sep1ColorHost.style.paddingLeft = "220px";
-        const sep2Setting = new Setting(containerEl).setName("Separator 2").setDesc(showInfoTips ? "Secondary separator between text and right segments." : "").addText((t) => {
-          const cur = String(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator2 || "").trim();
-          t.setPlaceholder("separator2").setValue(cur).onChange((v) => {
-            const next = String(v || "").trim();
-            if (!next) return;
-            plugin.setConfigPatch({ pkm: { behavior: { io: { separator2: next } } } }, "pkm:behavior:io:separator2");
-            deferRefreshSettings(refreshSettings2);
-          });
-          if (!enabled) t.setDisabled(true);
-        });
-        const sep2ColorHost = containerEl.createDiv();
-        sep2ColorHost.style.display = "flex";
-        sep2ColorHost.style.justifyContent = "flex-end";
-        sep2ColorHost.style.margin = "-2px 0 6px";
-        sep2ColorHost.style.paddingLeft = "220px";
-        const liveCfgForSep = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : cfg;
-        const s1Live = String(liveCfgForSep.pkm && liveCfgForSep.pkm.behavior && liveCfgForSep.pkm.behavior.io && liveCfgForSep.pkm.behavior.io.separator1 || "||").trim() || "||";
-        const s2Live = String(liveCfgForSep.pkm && liveCfgForSep.pkm.behavior && liveCfgForSep.pkm.behavior.io && liveCfgForSep.pkm.behavior.io.separator2 || "||").trim() || "||";
-        const liveTagVisuals = liveCfgForSep && liveCfgForSep.pkm && liveCfgForSep.pkm.behavior && liveCfgForSep.pkm.behavior.tagVisuals ? liveCfgForSep.pkm.behavior.tagVisuals : {};
-        const s1Color = normalizeHexColorInput(
-          liveTagVisuals && liveTagVisuals.separator1TextColor || (liveCfgForSep && liveCfgForSep.ui ? liveCfgForSep.ui.separator1TextColor : "")
-        );
-        const s2Color = normalizeHexColorInput(
-          liveTagVisuals && liveTagVisuals.separator2TextColor || (liveCfgForSep && liveCfgForSep.ui ? liveCfgForSep.ui.separator2TextColor : "")
-        );
-        const createSeparatorColorSetting = (host, key, currentColor) => {
-          const row = host.createDiv();
-          row.style.width = "100%";
-          row.style.display = "grid";
-          row.style.gridTemplateColumns = "1fr 62px 10px 48px 10px 72px 10px 48px";
-          row.style.gap = "6px";
-          row.style.alignItems = "center";
-          row.style.margin = "4px 0";
-          row.createEl("span", { text: "" });
-          const lbl = row.createEl("small", { text: "Text color" });
-          lbl.style.opacity = "0.85";
-          row.createEl("small", { text: "|" });
-          const clickWrap = row.createDiv();
-          clickWrap.style.position = "relative";
-          const clickBtn = clickWrap.createEl("button", { text: "Click" });
-          clickBtn.style.width = "48px";
-          clickBtn.style.height = "22px";
-          clickBtn.style.padding = "0";
-          if (currentColor) {
-            clickBtn.style.background = currentColor;
-            clickBtn.style.color = getContrastTextHex(currentColor);
-          }
-          const picker = clickWrap.createEl("input");
-          picker.type = "color";
-          picker.value = currentColor || "#8a8a8a";
-          picker.style.position = "absolute";
-          picker.style.inset = "0";
-          picker.style.opacity = "0";
-          picker.style.width = "48px";
-          picker.style.cursor = "pointer";
-          row.createEl("small", { text: "|" });
-          const hex = row.createEl("input");
-          hex.type = "text";
-          hex.placeholder = "#rrggbb";
-          hex.value = currentColor || "";
-          hex.style.width = "72px";
-          row.createEl("small", { text: "|" });
-          const reset = row.createEl("button", { text: "Reset" });
-          reset.classList.add("mod-warning");
-          reset.style.borderColor = "var(--text-error)";
-          reset.style.color = "var(--text-error)";
-          const apply = (next) => {
-            const payload = { pkm: { behavior: { tagVisuals: { [key]: next || null } } } };
-            if (key === "separator1TextColor" || key === "separator2TextColor") {
-              payload.ui = { [key]: next || null };
-            }
-            plugin.setConfigPatch(payload, `settings:tagVisuals:${key}`);
-            deferRefreshSettings(refreshSettings2);
-          };
-          picker.onchange = () => {
-            const norm = normalizeHexColorInput(picker.value || "");
-            if (!norm) return;
-            apply(norm);
-          };
-          const commitHex = () => {
-            const norm = normalizeHexColorInput(hex.value || "");
-            if (!norm) return;
-            apply(norm);
-          };
-          hex.onblur = commitHex;
-          hex.onkeydown = (e) => {
-            if (e.key === "Enter") commitHex();
-          };
-          reset.onclick = () => apply("");
-        };
-        createSeparatorColorSetting(sep1ColorHost, "separator1TextColor", s1Color);
-        createSeparatorColorSetting(sep2ColorHost, "separator2TextColor", s2Color);
-        const sepPreviewFrame = containerEl.createDiv();
-        sepPreviewFrame.style.marginBottom = "8px";
-        sepPreviewFrame.style.padding = "8px 10px";
-        sepPreviewFrame.style.border = "1px solid var(--background-modifier-border)";
-        sepPreviewFrame.style.borderRadius = "8px";
-        sepPreviewFrame.style.background = "var(--background-secondary)";
-        const labelsRow = sepPreviewFrame.createDiv();
-        labelsRow.style.position = "relative";
-        labelsRow.style.display = "flex";
-        labelsRow.style.justifyContent = "flex-start";
-        labelsRow.style.alignItems = "center";
-        labelsRow.style.marginBottom = "4px";
-        const leftLabel = labelsRow.createEl("small", { text: "Left panel" });
-        const rightLabel = labelsRow.createEl("small", { text: "Right panel" });
-        rightLabel.style.position = "absolute";
-        for (const el2 of [leftLabel, rightLabel]) {
-          el2.style.border = "1px solid var(--background-modifier-border)";
-          el2.style.borderRadius = "6px";
-          el2.style.padding = "1px 6px";
-          el2.style.opacity = "0.82";
-        }
-        const previewLine = sepPreviewFrame.createEl("div");
-        previewLine.style.fontFamily = "var(--font-text)";
-        previewLine.style.fontSize = "var(--font-text-size)";
-        previewLine.style.lineHeight = "var(--line-height-normal)";
-        previewLine.style.whiteSpace = "pre-wrap";
-        previewLine.style.padding = "2px 0";
-        const bullet = previewLine.createEl("span", { text: "- " });
-        bullet.style.opacity = "0.9";
-        previewLine.createEl("span", { text: "#tag1 #tag2" });
-        previewLine.appendText("  ");
-        const sep1El = previewLine.createEl("span", { text: s1Live });
-        if (s1Color) sep1El.style.color = s1Color;
-        previewLine.appendText("  your text here  ");
-        const sep2El = previewLine.createEl("span", { text: s2Live });
-        if (s2Color) sep2El.style.color = s2Color;
-        previewLine.appendText("  ");
-        const dateTokenEl = previewLine.createEl("span", { text: "\u{1F4C5} 2026-01-01" });
-        const alignProbe = sepPreviewFrame.createDiv();
-        alignProbe.style.position = "relative";
-        alignProbe.style.height = "0";
-        alignProbe.style.overflow = "visible";
-        alignProbe.style.pointerEvents = "none";
-        const rightAnchor = alignProbe.createEl("span", { text: "\u{1F4C5} 2026-01-01" });
-        rightAnchor.style.visibility = "hidden";
-        rightAnchor.style.whiteSpace = "pre";
-        rightAnchor.style.fontFamily = "var(--font-text)";
-        rightAnchor.style.fontSize = "var(--font-text-size)";
-        rightAnchor.style.lineHeight = "var(--line-height-normal)";
-        rightAnchor.style.position = "absolute";
-        rightAnchor.style.right = "0";
-        rightAnchor.style.top = "0";
-        const syncRightLabel = () => {
-          try {
-            const frameRect = sepPreviewFrame.getBoundingClientRect();
-            const labelRect = labelsRow.getBoundingClientRect();
-            const dateRect = dateTokenEl.getBoundingClientRect();
-            const targetLeft = Math.max(0, Math.round(dateRect.right - frameRect.left - rightLabel.offsetWidth));
-            rightLabel.style.left = `${Math.max(0, targetLeft - Math.round(labelRect.left - frameRect.left))}px`;
-            rightLabel.style.transform = "";
-          } catch (_) {
-            rightLabel.style.transform = "";
-            rightLabel.style.left = "";
-          }
-        };
-        setTimeout(syncRightLabel, 0);
-        const cmd = containerEl.createDiv();
-        cmd.style.marginBottom = "10px";
-        const activeCommandsHeader = cmd.createEl("div", { text: "Active commands" });
-        activeCommandsHeader.style.fontSize = "14px";
-        activeCommandsHeader.style.fontWeight = "600";
-        activeCommandsHeader.style.lineHeight = "1.25";
-        activeCommandsHeader.style.margin = "0 0 2px 0";
-        cmd.createEl("small", { text: "You could bind them to hotkeys via default Obsidian-Hotkeys menu" });
-        const cmdDetails = cmd.createEl("details");
-        const collapsed = !!(cfg && cfg.ui && cfg.ui.orderActiveCommandsCollapsed === true);
-        let suppressTogglePatch = true;
-        cmdDetails.open = !collapsed;
-        cmdDetails.style.marginTop = "4px";
-        cmdDetails.addEventListener("toggle", () => {
-          if (suppressTogglePatch) return;
-          const nextCollapsed = !cmdDetails.open;
-          const currentCollapsed = !!(plugin.getConfig && plugin.getConfig() && plugin.getConfig().ui && plugin.getConfig().ui.orderActiveCommandsCollapsed === true);
-          if (nextCollapsed === currentCollapsed) return;
-          plugin.setConfigPatch({ ui: { orderActiveCommandsCollapsed: nextCollapsed } }, "settings:ui:orderActiveCommandsCollapsed");
-        });
-        setTimeout(() => {
-          suppressTogglePatch = false;
-        }, 0);
-        const cmdSummary = cmdDetails.createEl("summary", { text: "Command list" });
-        cmdSummary.style.cursor = "pointer";
-        const cmdList = cmdDetails.createDiv();
-        const order = typeof normalizePkmOrder === "function" ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null) : { left: [], right: [], strictNames: {} };
-        const keys = [];
-        const push = (k) => {
-          const v = String(k || "").trim();
-          if (!v || keys.includes(v)) return;
-          keys.push(v);
-        };
-        for (const k of order.left || []) push(k);
-        for (const k of order.right || []) push(k);
-        if (order.active && typeof order.active === "object") {
-          for (const k of Object.keys(order.active)) {
-            if (/_sub$/.test(String(k || ""))) push(k);
-          }
-        }
-        const ids = [];
-        for (const k of keys) {
-          const strict = String(order.strictNames && order.strictNames[k] ? order.strictNames[k] : k).trim() || k;
-          ids.push(`inlineOverhaul_Hotkey_${strict}_increase`);
-          ids.push(`inlineOverhaul_Hotkey_${strict}_decrease`);
-        }
-        ids.push("inlineOverhaul_Hotkey_tagwheel_left");
-        ids.push("inlineOverhaul_Hotkey_tagwheel_right");
-        const binderRows = Array.isArray(cfg && cfg.ui && cfg.ui.binderRows) ? cfg.ui.binderRows : [];
-        for (const row of binderRows) {
-          const commandId = String(row && row.commandId ? row.commandId : "").trim();
-          if (!commandId || ids.includes(commandId)) continue;
-          ids.push(commandId);
-        }
-        ids.push("inlineOverhaul_Rules_apply");
-        ids.push("inlineOverhaul_Rules_open_detailed_template");
-        for (let i = 0; i < ids.length; i++) {
-          const rowId = cmdList.createEl("code", { text: ids[i] });
-          rowId.style.display = "block";
-          rowId.style.marginTop = "4px";
-          rowId.style.userSelect = "text";
-        }
-        return;
-      }
-      containerEl.createEl("h5", { text: "Prefix Resolver" });
-      new Setting(containerEl).setName("Main checkbox priority").setDesc("Choose precedence source: section order or checkbox order.").addDropdown((d) => {
-        d.addOption("by-section", "by Fields Order");
-        d.addOption("by-checkbox-list", "by Checkbox Order");
-        d.setValue(normalizedPrefix.priorityMode);
-        d.onChange((v) => {
-          const nextMode = String(v || "by-section").trim() === "by-checkbox-list" ? "by-checkbox-list" : "by-section";
-          patchPrefixRules({ priorityMode: nextMode }, "pkm:prefixRules:priorityMode");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Fields order mode").setDesc("Used only for 'by Fields Order' mode.").addDropdown((d) => {
-        d.addOption("auto", "Automatically");
-        d.addOption("manual", "Manually");
-        d.setValue(normalizedPrefix.fieldsOrderMode);
-        d.onChange((v) => {
-          const nextMode = String(v || "manual").trim() === "auto" ? "auto" : "manual";
-          patchPrefixRules({ fieldsOrderMode: nextMode }, "pkm:prefixRules:fieldsOrderMode");
-        });
-        if (!enabled || normalizedPrefix.priorityMode !== "by-section") d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Tag/Subtag priority").setDesc("When both tag and subtag have checkboxes, choose which one wins.").addDropdown((d) => {
-        d.addOption("tag-over-subtag", "Tag > Subtag");
-        d.addOption("subtag-over-tag", "Subtag > Tag");
-        d.setValue(normalizedPrefix.tagSubtagPriority);
-        d.onChange((v) => {
-          const nextMode = String(v || "subtag-over-tag").trim() === "tag-over-subtag" ? "tag-over-subtag" : "subtag-over-tag";
-          patchPrefixRules({ tagSubtagPriority: nextMode }, "pkm:prefixRules:tagSubtagPriority");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-      const prefixOrderWrap = containerEl.createDiv();
-      prefixOrderWrap.style.border = "1px solid var(--background-modifier-border)";
-      prefixOrderWrap.style.borderRadius = "10px";
-      prefixOrderWrap.style.padding = "8px 9px";
-      prefixOrderWrap.style.margin = "6px 0 8px";
-      prefixOrderWrap.style.background = "var(--background-secondary)";
-      const prefixHead = prefixOrderWrap.createEl("h6", { text: "Prefix Resolver / Order" });
-      prefixHead.style.margin = "0 0 4px 0";
-      const prefixHint = prefixOrderWrap.createEl("small", { text: "Drag rows to define priority used by prefix resolver modes." });
-      prefixHint.style.display = "block";
-      prefixHint.style.opacity = "0.8";
-      prefixHint.style.marginBottom = "4px";
-      const densityMode = String(cfg && cfg.ui && cfg.ui.prefixResolverDensity || "comfortable").trim() === "compact" ? "compact" : "comfortable";
-      const rowPadding = densityMode === "compact" ? "2px 5px" : "4px 6px";
-      const rowGap = densityMode === "compact" ? "4px" : "6px";
-      const rowFontSize = densityMode === "compact" ? "12px" : "13px";
-      const rowMarginBottom = densityMode === "compact" ? "2px" : "4px";
-      const handleMinWidth = densityMode === "compact" ? "12px" : "14px";
-      const controlsRow = prefixOrderWrap.createDiv();
-      controlsRow.style.display = "flex";
-      controlsRow.style.gap = "6px";
-      controlsRow.style.marginBottom = "4px";
-      controlsRow.style.alignItems = "center";
-      controlsRow.createEl("small", { text: "Density:" });
-      const compactBtn = controlsRow.createEl("button", { text: "Compact" });
-      compactBtn.style.padding = "2px 8px";
-      compactBtn.style.opacity = densityMode === "compact" ? "1" : "0.8";
-      compactBtn.disabled = !enabled || densityMode === "compact";
-      compactBtn.onclick = () => {
-        if (!enabled) return;
-        plugin.setConfigPatch({ ui: { prefixResolverDensity: "compact" } }, "settings:prefix-resolver-density");
-      };
-      const comfyBtn = controlsRow.createEl("button", { text: "Comfortable" });
-      comfyBtn.style.padding = "2px 8px";
-      comfyBtn.style.opacity = densityMode === "comfortable" ? "1" : "0.8";
-      comfyBtn.disabled = !enabled || densityMode === "comfortable";
-      comfyBtn.onclick = () => {
-        if (!enabled) return;
-        plugin.setConfigPatch({ ui: { prefixResolverDensity: "comfortable" } }, "settings:prefix-resolver-density");
-      };
-      const fieldsWrap = prefixOrderWrap.createDiv();
-      fieldsWrap.style.marginBottom = "6px";
-      fieldsWrap.style.padding = "6px 8px";
-      fieldsWrap.style.border = "1px solid var(--background-modifier-border)";
-      fieldsWrap.style.borderRadius = "6px";
-      fieldsWrap.style.background = "var(--background-primary)";
-      const fieldsTitle = fieldsWrap.createEl("div", { text: "Fields Order" });
-      fieldsTitle.style.fontWeight = "600";
-      fieldsTitle.style.marginBottom = "4px";
-      const fieldsDesc = fieldsWrap.createEl("small", { text: "Used when Main checkbox priority = by Fields Order." });
-      fieldsDesc.style.display = "block";
-      fieldsDesc.style.opacity = "0.78";
-      fieldsDesc.style.marginBottom = "6px";
-      const sectionLabelByFieldId = {};
-      for (let i = 0; i < sectionRows.length; i++) {
-        const row = sectionRows[i];
-        sectionLabelByFieldId[row.fieldId] = row.sectionId;
-      }
-      const currentTargets = Array.isArray(normalizedPrefix.priorityTargets) ? normalizedPrefix.priorityTargets.slice() : [];
-      const listTargets = fieldsWrap.createEl("ol");
-      listTargets.style.margin = densityMode === "compact" ? "4px 0" : "6px 0";
-      listTargets.style.paddingLeft = "18px";
-      listTargets.style.maxHeight = "280px";
-      listTargets.style.overflowY = "auto";
-      let dragTargetIdx = -1;
-      let dragTargetDropSide = "before";
-      const moveInList = (arr, from, to) => {
-        const out = arr.slice();
-        if (from < 0 || to < 0 || from >= out.length || to >= out.length || from === to) return out;
-        const row = out.splice(from, 1)[0];
-        out.splice(to, 0, row);
-        return out;
-      };
-      const DROP_LINE_COLOR = "var(--interactive-accent, var(--color-accent))";
-      const isDarkTheme = !!(document && document.body && document.body.classList && document.body.classList.contains("theme-dark"));
-      const ROW_BG = isDarkTheme ? "var(--background-primary-alt)" : "var(--background-primary)";
-      const ROW_BORDER = isDarkTheme ? "var(--background-modifier-border-hover)" : "var(--background-modifier-border)";
-      const DROP_LINE_WIDTH = isDarkTheme ? "3px" : "2px";
-      const flashDropSettle = (rowEl) => {
-        if (!rowEl) return;
-        rowEl.style.transition = "background 120ms ease, outline-color 120ms ease, transform 140ms ease, box-shadow 140ms ease";
-        rowEl.style.transform = "scale(1.01)";
-        rowEl.style.boxShadow = "0 2px 10px rgba(0,0,0,0.12)";
-        setTimeout(() => {
-          rowEl.style.transform = "";
-          rowEl.style.boxShadow = "";
-        }, 150);
-      };
-      const toastReordered = () => {
-        try {
-          if (plugin && typeof plugin.__prefixResolverReorderToastTimer === "number") {
-            clearTimeout(plugin.__prefixResolverReorderToastTimer);
-          }
-          plugin.__prefixResolverReorderToastTimer = setTimeout(() => {
-            try {
-              new Notice3("Prefix Resolver order updated", 900);
-            } catch (_) {
-            }
-          }, 40);
-        } catch (_) {
-        }
-      };
-      const autoScrollList = (listEl, ev) => {
-        if (!listEl || !ev || typeof ev.clientY !== "number") return;
-        const rect = listEl.getBoundingClientRect();
-        const threshold = 28;
-        const step = 8;
-        if (ev.clientY < rect.top + threshold) listEl.scrollTop -= step;
-        else if (ev.clientY > rect.bottom - threshold) listEl.scrollTop += step;
-      };
-      const renderTargetRows = () => {
-        listTargets.empty();
-        for (let i = 0; i < currentTargets.length; i++) {
-          const fid = String(currentTargets[i] || "").trim();
-          if (!fid) continue;
-          const li = listTargets.createEl("li");
-          li.style.display = "flex";
-          li.style.alignItems = "center";
-          li.style.gap = rowGap;
-          li.style.marginBottom = rowMarginBottom;
-          li.style.padding = rowPadding;
-          li.style.fontSize = rowFontSize;
-          li.style.borderRadius = "6px";
-          li.style.border = `1px solid ${ROW_BORDER}`;
-          li.style.background = ROW_BG;
-          li.style.transition = "background 120ms ease, outline-color 120ms ease, transform 120ms ease, box-shadow 120ms ease";
-          const rank = li.createEl("small", { text: `#${i + 1}` });
-          rank.style.opacity = "0.75";
-          rank.style.minWidth = "24px";
-          const handle = li.createEl("span", { text: "\u22EE\u22EE" });
-          handle.title = "Drag to reorder";
-          handle.style.opacity = "0.75";
-          handle.style.cursor = enabled ? "grab" : "default";
-          handle.style.userSelect = "none";
-          handle.style.letterSpacing = "-1px";
-          handle.style.minWidth = handleMinWidth;
-          handle.style.textAlign = "center";
-          handle.draggable = !!enabled;
-          li.draggable = !!enabled;
-          const title = li.createEl("span", { text: String(sectionLabelByFieldId[fid] || fid) });
-          title.title = fid;
-          title.style.flex = "1 1 auto";
-          title.style.minWidth = "0";
-          title.style.whiteSpace = "nowrap";
-          title.style.overflow = "hidden";
-          title.style.textOverflow = "ellipsis";
-          const startDrag = (e) => {
-            if (!enabled) return;
-            dragTargetIdx = i;
-            dragTargetDropSide = "before";
-            handle.style.cursor = "grabbing";
-            li.style.opacity = "0.78";
-            li.style.transform = "scale(0.995)";
-            li.style.boxShadow = "0 4px 14px rgba(0,0,0,0.16)";
-            try {
-              if (e && e.dataTransfer) {
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", String(i));
-              }
-            } catch (_) {
-            }
-          };
-          const endDrag = () => {
-            dragTargetIdx = -1;
-            dragTargetDropSide = "before";
-            handle.style.cursor = enabled ? "grab" : "default";
-            li.style.opacity = "";
-            li.style.transform = "";
-            li.style.boxShadow = "";
-            li.style.outline = "";
-            li.style.borderTop = `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = `1px solid ${ROW_BORDER}`;
-          };
-          handle.ondragstart = startDrag;
-          li.ondragstart = startDrag;
-          handle.ondragend = endDrag;
-          li.ondragend = endDrag;
-          li.ondragover = (e) => {
-            if (!enabled || dragTargetIdx < 0 || dragTargetIdx === i) return;
-            e.preventDefault();
-            const rect = li.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            dragTargetDropSide = e && typeof e.clientY === "number" && e.clientY >= midpoint ? "after" : "before";
-            autoScrollList(listTargets, e);
-            li.style.outline = "";
-            li.style.background = "var(--background-modifier-hover)";
-            li.style.borderTop = dragTargetDropSide === "before" ? `${DROP_LINE_WIDTH} solid ${DROP_LINE_COLOR}` : `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = dragTargetDropSide === "after" ? `${DROP_LINE_WIDTH} solid ${DROP_LINE_COLOR}` : `1px solid ${ROW_BORDER}`;
-          };
-          li.ondragleave = () => {
-            li.style.outline = "";
-            li.style.background = "";
-            li.style.borderTop = `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = `1px solid ${ROW_BORDER}`;
-          };
-          li.ondrop = (e) => {
-            li.style.outline = "";
-            li.style.background = "";
-            li.style.borderTop = `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = `1px solid ${ROW_BORDER}`;
-            if (!enabled || dragTargetIdx < 0 || dragTargetIdx === i) return;
-            e.preventDefault();
-            const dropIndex = dragTargetDropSide === "after" ? i + 1 : i;
-            let targetIndex = dropIndex;
-            if (dragTargetIdx < dropIndex) targetIndex = dropIndex - 1;
-            if (targetIndex < 0) targetIndex = 0;
-            if (targetIndex > currentTargets.length - 1) targetIndex = currentTargets.length - 1;
-            if (targetIndex === dragTargetIdx) return;
-            flashDropSettle(li);
-            toastReordered();
-            patchPrefixRules({ priorityTargets: moveInList(currentTargets, dragTargetIdx, targetIndex) }, "pkm:prefixRules:priorityTargets:drag");
-          };
-        }
-        if (!currentTargets.length) {
-          const empty = listTargets.createEl("li", { text: "(empty)" });
-          empty.style.opacity = "0.7";
-        }
-      };
-      renderTargetRows();
-      const targetsMeta = fieldsWrap.createEl("small", { text: `${currentTargets.length} priority item(s)` });
-      targetsMeta.style.display = "block";
-      targetsMeta.style.opacity = "0.72";
-      targetsMeta.style.marginTop = "4px";
-      const checksWrap = prefixOrderWrap.createDiv();
-      checksWrap.style.padding = "6px 8px";
-      checksWrap.style.border = "1px solid var(--background-modifier-border)";
-      checksWrap.style.borderRadius = "6px";
-      checksWrap.style.background = "var(--background-primary)";
-      const checksTitle = checksWrap.createEl("div", { text: "Checkbox Order" });
-      checksTitle.style.fontWeight = "600";
-      checksTitle.style.marginBottom = "4px";
-      const checksDesc = checksWrap.createEl("small", { text: "Used when Main checkbox priority = by Checkbox Order." });
-      checksDesc.style.display = "block";
-      checksDesc.style.opacity = "0.78";
-      checksDesc.style.marginBottom = "6px";
-      const discoveredChecks = collectCheckboxTokens(normalizedPrefix.checkboxByFieldValue);
-      const currentChecks = Array.isArray(normalizedPrefix.priorityCheckboxes) ? normalizedPrefix.priorityCheckboxes.slice() : [];
-      const listChecks = checksWrap.createEl("ol");
-      listChecks.style.margin = densityMode === "compact" ? "4px 0" : "6px 0";
-      listChecks.style.paddingLeft = "18px";
-      listChecks.style.maxHeight = "280px";
-      listChecks.style.overflowY = "auto";
-      let dragCheckIdx = -1;
-      let dragCheckDropSide = "before";
-      const renderCheckRows = () => {
-        listChecks.empty();
-        for (let i = 0; i < currentChecks.length; i++) {
-          const cb = String(currentChecks[i] || "").trim();
-          if (!cb) continue;
-          const li = listChecks.createEl("li");
-          li.style.display = "flex";
-          li.style.alignItems = "center";
-          li.style.gap = rowGap;
-          li.style.marginBottom = rowMarginBottom;
-          li.style.padding = rowPadding;
-          li.style.fontSize = rowFontSize;
-          li.style.borderRadius = "6px";
-          li.style.border = `1px solid ${ROW_BORDER}`;
-          li.style.background = ROW_BG;
-          li.style.transition = "background 120ms ease, outline-color 120ms ease, transform 120ms ease, box-shadow 120ms ease";
-          const rank = li.createEl("small", { text: `#${i + 1}` });
-          rank.style.opacity = "0.75";
-          rank.style.minWidth = "24px";
-          const handle = li.createEl("span", { text: "\u22EE\u22EE" });
-          handle.title = "Drag to reorder";
-          handle.style.opacity = "0.75";
-          handle.style.cursor = enabled ? "grab" : "default";
-          handle.style.userSelect = "none";
-          handle.style.letterSpacing = "-1px";
-          handle.style.minWidth = handleMinWidth;
-          handle.style.textAlign = "center";
-          handle.draggable = !!enabled;
-          li.draggable = !!enabled;
-          const code = li.createEl("code", { text: cb });
-          code.style.flex = "1 1 auto";
-          code.style.minWidth = "0";
-          const del = li.createEl("button", { text: "Remove" });
-          del.style.padding = "3px 8px";
-          del.disabled = !enabled;
-          del.style.fontSize = "12px";
-          del.onclick = () => patchPrefixRules({ priorityCheckboxes: currentChecks.filter((_, idx) => idx !== i) }, "pkm:prefixRules:priorityCheckboxes:remove");
-          const startDrag = (e) => {
-            if (!enabled) return;
-            dragCheckIdx = i;
-            dragCheckDropSide = "before";
-            handle.style.cursor = "grabbing";
-            li.style.opacity = "0.78";
-            li.style.transform = "scale(0.995)";
-            li.style.boxShadow = "0 4px 14px rgba(0,0,0,0.16)";
-            try {
-              if (e && e.dataTransfer) {
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", String(i));
-              }
-            } catch (_) {
-            }
-          };
-          const endDrag = () => {
-            dragCheckIdx = -1;
-            dragCheckDropSide = "before";
-            handle.style.cursor = enabled ? "grab" : "default";
-            li.style.opacity = "";
-            li.style.transform = "";
-            li.style.boxShadow = "";
-            li.style.outline = "";
-            li.style.borderTop = `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = `1px solid ${ROW_BORDER}`;
-          };
-          handle.ondragstart = startDrag;
-          li.ondragstart = startDrag;
-          handle.ondragend = endDrag;
-          li.ondragend = endDrag;
-          li.ondragover = (e) => {
-            if (!enabled || dragCheckIdx < 0 || dragCheckIdx === i) return;
-            e.preventDefault();
-            const rect = li.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            dragCheckDropSide = e && typeof e.clientY === "number" && e.clientY >= midpoint ? "after" : "before";
-            autoScrollList(listChecks, e);
-            li.style.outline = "";
-            li.style.background = "var(--background-modifier-hover)";
-            li.style.borderTop = dragCheckDropSide === "before" ? `${DROP_LINE_WIDTH} solid ${DROP_LINE_COLOR}` : `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = dragCheckDropSide === "after" ? `${DROP_LINE_WIDTH} solid ${DROP_LINE_COLOR}` : `1px solid ${ROW_BORDER}`;
-          };
-          li.ondragleave = () => {
-            li.style.outline = "";
-            li.style.background = "";
-            li.style.borderTop = `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = `1px solid ${ROW_BORDER}`;
-          };
-          li.ondrop = (e) => {
-            li.style.outline = "";
-            li.style.background = "";
-            li.style.borderTop = `1px solid ${ROW_BORDER}`;
-            li.style.borderBottom = `1px solid ${ROW_BORDER}`;
-            if (!enabled || dragCheckIdx < 0 || dragCheckIdx === i) return;
-            e.preventDefault();
-            const dropIndex = dragCheckDropSide === "after" ? i + 1 : i;
-            let targetIndex = dropIndex;
-            if (dragCheckIdx < dropIndex) targetIndex = dropIndex - 1;
-            if (targetIndex < 0) targetIndex = 0;
-            if (targetIndex > currentChecks.length - 1) targetIndex = currentChecks.length - 1;
-            if (targetIndex === dragCheckIdx) return;
-            flashDropSettle(li);
-            toastReordered();
-            patchPrefixRules({ priorityCheckboxes: moveInList(currentChecks, dragCheckIdx, targetIndex) }, "pkm:prefixRules:priorityCheckboxes:drag");
-          };
-        }
-        if (!currentChecks.length) {
-          const empty = listChecks.createEl("li", { text: "(empty)" });
-          empty.style.opacity = "0.7";
-        }
-      };
-      renderCheckRows();
-      const checksToolbar = checksWrap.createDiv();
-      checksToolbar.style.display = "flex";
-      checksToolbar.style.gap = "6px";
-      checksToolbar.style.margin = "6px 0";
-      const resetChecksBtn = checksToolbar.createEl("button", { text: "Reset to detected" });
-      resetChecksBtn.disabled = !enabled;
-      resetChecksBtn.onclick = () => {
-        if (!enabled) return;
-        patchPrefixRules({ priorityCheckboxes: discoveredChecks.slice() }, "pkm:prefixRules:priorityCheckboxes:reset-detected");
-      };
-      const clearChecksBtn = checksToolbar.createEl("button", { text: "Clear" });
-      clearChecksBtn.disabled = !enabled;
-      clearChecksBtn.onclick = () => {
-        if (!enabled) return;
-        patchPrefixRules({ priorityCheckboxes: [] }, "pkm:prefixRules:priorityCheckboxes:clear");
-      };
-      const addCheckRow = checksWrap.createDiv();
-      addCheckRow.style.display = "flex";
-      addCheckRow.style.flexWrap = "wrap";
-      addCheckRow.style.alignItems = "center";
-      addCheckRow.style.gap = "6px";
-      const addCheckSelect = addCheckRow.createEl("select");
-      addCheckSelect.createEl("option", { text: "Add checkbox", value: "" });
-      const checkPool = Array.from(new Set(discoveredChecks.concat(currentChecks))).filter((x) => x && !currentChecks.includes(x));
-      for (let i = 0; i < checkPool.length; i++) {
-        addCheckSelect.createEl("option", { text: checkPool[i], value: checkPool[i] });
-      }
-      const addCheckInput = addCheckRow.createEl("input");
-      addCheckInput.type = "text";
-      addCheckInput.placeholder = "[ ]";
-      addCheckInput.style.width = "120px";
-      addCheckInput.style.fontSize = "12px";
-      const addCheckHint = checksWrap.createEl("small", { text: "Type checkbox token or pick from list. Press Enter to add." });
-      addCheckHint.style.display = "block";
-      addCheckHint.style.opacity = "0.72";
-      addCheckHint.style.marginTop = "4px";
-      const addCheckBtn = addCheckRow.createEl("button", { text: "Add" });
-      addCheckSelect.disabled = !enabled;
-      addCheckInput.disabled = !enabled;
-      addCheckBtn.disabled = !enabled;
-      addCheckBtn.onclick = () => {
-        const fromSelect = String(addCheckSelect.value || "").trim();
-        const fromInput = String(addCheckInput.value || "").trim();
-        const cb = fromInput || fromSelect;
-        if (!cb || currentChecks.includes(cb)) return;
-        patchPrefixRules({ priorityCheckboxes: currentChecks.concat([cb]) }, "pkm:prefixRules:priorityCheckboxes:add");
-      };
-      addCheckInput.addEventListener("keydown", (e) => {
-        if (!enabled) return;
-        if (e && e.key === "Enter") {
-          e.preventDefault();
-          addCheckBtn.click();
-        }
-      });
-      containerEl.createEl("h5", { text: "Behavior" });
-      {
-        const leadWrap = containerEl.createDiv();
-        leadWrap.style.border = "1px solid var(--background-modifier-border)";
-        leadWrap.style.borderRadius = "8px";
-        leadWrap.style.padding = "8px";
-        leadWrap.style.background = "var(--background-secondary)";
-        leadWrap.style.marginBottom = "8px";
-        const leadTitle = leadWrap.createEl("div", { text: "TagWheel lead field" });
-        leadTitle.style.fontWeight = "600";
-        leadTitle.style.marginBottom = "6px";
-        const leadOrder = typeof normalizePkmOrder === "function" ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null) : { left: [], right: [], labels: {}, lead: {} };
-        const byId = {};
-        for (let i = 0; i < allFields.length; i++) {
-          const f = allFields[i];
-          const id = String(f && f.id || "").trim();
-          if (id) byId[id] = f;
-        }
-        const makeCandidates = (panelKey) => {
-          const arr = panelKey === "right" ? leadOrder.right || [] : leadOrder.left || [];
-          const out = [];
-          const seen = /* @__PURE__ */ new Set();
-          for (let i = 0; i < arr.length; i++) {
-            const key = String(arr[i] || "").trim();
-            if (!key || /_sub$/.test(key) || seen.has(key)) continue;
-            seen.add(key);
-            const id = String(leadOrder.strictNames && leadOrder.strictNames[key] ? leadOrder.strictNames[key] : key).trim() || key;
-            const field = byId[id] || byId[key] || null;
-            const source = String(field && field.source || "").trim();
-            if (source === "projects" || /^wikilinks:/.test(source)) continue;
-            out.push({ key, label: String(leadOrder.labels && leadOrder.labels[key] ? leadOrder.labels[key] : key) });
-          }
-          return out;
-        };
-        const grid = leadWrap.createDiv();
-        grid.style.display = "grid";
-        grid.style.gridTemplateColumns = "1fr 1fr";
-        grid.style.gap = "8px";
-        const createLeadSelect = (panelKey, labelText) => {
-          const box = grid.createDiv();
-          const label = box.createEl("small", { text: labelText });
-          label.style.display = "block";
-          label.style.marginBottom = "4px";
-          const select = box.createEl("select");
-          select.style.width = "100%";
-          if (!enabled) select.disabled = true;
-          const candidates = makeCandidates(panelKey);
-          select.createEl("option", { text: "default", value: "" });
-          for (let i = 0; i < candidates.length; i++) {
-            const row = candidates[i];
-            select.createEl("option", { text: `${row.label} (${row.key})`, value: row.key });
-          }
-          const currentLead = String(leadOrder && leadOrder.lead && leadOrder.lead[panelKey] ? leadOrder.lead[panelKey] : "").trim();
-          select.value = candidates.some((row) => row.key === currentLead) ? currentLead : "";
-          select.onchange = () => {
-            if (!enabled) return;
-            plugin.setConfigPatch({ pkm: { behavior: { order: { lead: { [panelKey]: String(select.value || "").trim() } } } } }, `pkm:behavior:order:lead:${panelKey}`);
-            deferRefreshSettings(refreshSettings2);
-          };
-        };
-        createLeadSelect("left", "Left field");
-        createLeadSelect("right", "Right field");
-      }
-      new Setting(containerEl).setName("Subtag format").setDesc("Single format for both TagWheel and status_tags commands.").addDropdown((d) => {
-        d.addOption("separate", "separate: #parent #subtag");
-        d.addOption("combined", "combined: #parent/subtag");
-        d.setValue(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.subtagFormat || "separate");
-        d.onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { subtagFormat: v } } }, "pkm:behavior:subtagFormat");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Line prefix after end of cycle").setDesc("When cycle exits to empty on an empty-like line: keep bullet '- ' or clear the line.").addDropdown((d) => {
-        d.addOption("keep-bullet", "Keep bullet (- )");
-        d.addOption("clear-prefix", "Clear line");
-        d.setValue(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.cycleEndBehavior || "keep-bullet");
-        d.onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { cycleEndBehavior: v } } }, "pkm:behavior:cycleEndBehavior");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Cursor behavior").setDesc("Where cursor lands after PKM actions. text_end keeps focus in the text slot before the separator zone.").addDropdown((d) => {
-        d.addOption("text_end", "text_end (recommended)");
-        d.addOption("current_position", "current_position");
-        d.addOption("line_end", "line_end");
-        d.setValue(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.cursorPolicy || "text_end");
-        d.onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { cursorPolicy: v } } }, "pkm:behavior:cursorPolicy");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-      containerEl.createEl("h6", { text: "Free roam" });
-      new Setting(containerEl).setName("Minimal mode separators").setDesc("Minimal mode: insert the element according to Order without changing the line prefix.").addToggle((t) => {
-        const on2 = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.minimalSeparator !== false : true;
-        t.setValue(on2).onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { freeRoam: { minimalSeparator: !!v } } } }, "pkm:behavior:freeRoam:minimalSeparator");
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("OFF mode prefix").setDesc("Applies only when field Free roam = off. On: if the selected field has no own checkbox in config, runtime rewrites prefix to bullet (except headings). Off: keep source prefix when the field has no own checkbox.").addToggle((t) => {
-        const on2 = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.offPrefix === true : false;
-        t.setValue(on2).onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { freeRoam: { offPrefix: !!v } } } }, "pkm:behavior:freeRoam:offPrefix");
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Minimal mode prefix").setDesc("Applies only when field Free roam = minimal. On: tag-specific checkbox/prefix can replace the line prefix. Off: keep the original line prefix unchanged.").addToggle((t) => {
-        const on2 = cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam ? cfg.pkm.behavior.freeRoam.minimalPrefix !== false : true;
-        t.setValue(on2).onChange((v) => {
-          plugin.setConfigPatch({ pkm: { behavior: { freeRoam: { minimalPrefix: !!v } } } }, "pkm:behavior:freeRoam:minimalPrefix");
-        });
-        if (!enabled) t.setDisabled(true);
-      });
-      new Setting(containerEl).setName("Full mode: where to input element if cursor inside text?").setDesc("Choose full mode placement: Smart / Left / Right.").addDropdown((d) => {
-        d.addOption("smart", "Smart");
-        d.addOption("left", "Left");
-        d.addOption("right", "Right");
-        const curPlacement = String(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.freeRoam && cfg.pkm.behavior.freeRoam.fullPlacement || "smart").trim().toLowerCase();
-        d.setValue(["smart", "left", "right"].includes(curPlacement) ? curPlacement : "smart");
-        d.onChange((v) => {
-          const next = String(v || "smart").trim().toLowerCase();
-          plugin.setConfigPatch({ pkm: { behavior: { freeRoam: { fullPlacement: ["smart", "left", "right"].includes(next) ? next : "smart" } } } }, "pkm:behavior:freeRoam:fullPlacement");
-        });
-        if (!enabled) d.setDisabled(true);
-      });
-    }
-    module2.exports = {
-      renderSettingsDisplaySection,
-      renderTabBarSection,
-      renderGeneralSection,
-      renderHotkeysTabSection,
-      renderModuleTabSection,
-      renderVisualTabSection,
-      renderPkmOrderBoardSection,
-      renderPkmConfigSections,
-      renderNavigationSettings,
-      renderVisualGeneralSection,
-      renderVisualTagsSection,
-      renderVisualStripSection,
-      renderColorsSection,
-      renderAdvancedSection
-    };
-  }
-});
-
-// src/ui/settings_tab_router.js
-var require_settings_tab_router = __commonJS({
-  "src/ui/settings_tab_router.js"(exports2, module2) {
-    "use strict";
-    function renderSettingsTabContent(tab, activeTab, containerEl, cfg) {
-      if (activeTab === "general") tab.renderGeneral(containerEl, cfg);
-      else if (activeTab === "hotkeys") tab.renderHotkeysTab(containerEl, cfg);
-      else if (activeTab === "navigation") tab.renderModuleTab(containerEl, "navigation", cfg);
-      else if (activeTab === "pkm") tab.renderModuleTab(containerEl, "pkm", cfg);
-      else if (activeTab === "visual") tab.renderVisualTab(containerEl, cfg);
-      else if (activeTab === "transform") tab.renderModuleTab(containerEl, "transform", cfg);
-      else if (activeTab === "advanced") tab.renderAdvanced(containerEl, cfg);
-    }
-    module2.exports = {
-      renderSettingsTabContent
-    };
-  }
-});
-
-// src/ui/settings_tab_router_fallback.js
-var require_settings_tab_router_fallback = __commonJS({
-  "src/ui/settings_tab_router_fallback.js"(exports2, module2) {
-    "use strict";
-    function createSettingsTabRouterFallback() {
-      return {
-        renderSettingsTabContent(tab, activeTab, containerEl, cfg) {
-          if (activeTab === "general") tab.renderGeneral(containerEl, cfg);
-          else if (activeTab === "hotkeys") tab.renderHotkeysTab(containerEl, cfg);
-          else if (activeTab === "navigation") tab.renderModuleTab(containerEl, "navigation", cfg);
-          else if (activeTab === "pkm") tab.renderModuleTab(containerEl, "pkm", cfg);
-          else if (activeTab === "visual") tab.renderVisualTab(containerEl, cfg);
-          else if (activeTab === "transform") tab.renderModuleTab(containerEl, "transform", cfg);
-          else if (activeTab === "advanced") tab.renderAdvanced(containerEl, cfg);
-        }
-      };
-    }
-    module2.exports = {
-      createSettingsTabRouterFallback
-    };
-  }
-});
-
-// src/ui/tagwheel_scroller_overlay.js
-var require_tagwheel_scroller_overlay = __commonJS({
-  "src/ui/tagwheel_scroller_overlay.js"(exports2, module2) {
-    "use strict";
-    function clamp(n, min, max) {
-      return Math.max(min, Math.min(max, n));
-    }
-    function normalizeDirection(raw) {
-      var d = String(raw || "").trim().toLowerCase();
-      if (d === "up" || d === "down" || d === "full") return d;
-      return "full";
-    }
-    function normalizeSize(raw) {
-      var n = Math.trunc(Number(raw));
-      if (!isFinite(n)) return 3;
-      return clamp(n, 1, 20);
-    }
-    function findActiveTokenRange(controlLine) {
-      var line = String(controlLine || "");
-      var re = /\*\*\[[\s\S]*?\]\*\*/g;
-      var m = re.exec(line);
-      if (!m) return null;
-      return {
-        fromCh: Number(m.index || 0),
-        toCh: Number((m.index || 0) + String(m[0] || "").length)
-      };
-    }
-    function getAnchorRect(editor, lineNumber, controlLine) {
-      try {
-        if (!editor || typeof editor.posToOffset !== "function") return null;
-        var cm = editor.cm;
-        if (!cm || typeof cm.coordsAtPos !== "function") return null;
-        var activeTokenMatch = String(controlLine || "").match(/\*\*\[([^\]]+)\]\*\*/);
-        var activeToken = activeTokenMatch ? String(activeTokenMatch[1] || "").trim() : "";
-        var cmDom = cm && cm.dom ? cm.dom : null;
-        if (cmDom && typeof cmDom.querySelectorAll === "function") {
-          var nodes = cmDom.querySelectorAll(".inline-overhaul-tw-active-anchor");
-          if (nodes && nodes.length) {
-            var targetY = null;
-            try {
-              var lineFrom = editor.posToOffset({ line: lineNumber, ch: 0 });
-              var lineCoords = cm.coordsAtPos(lineFrom);
-              if (lineCoords && isFinite(lineCoords.top)) targetY = Number(lineCoords.top);
-            } catch (_) {
-            }
-            var best = null;
-            var bestScore = Number.POSITIVE_INFINITY;
-            var i;
-            for (i = 0; i < nodes.length; i++) {
-              var el2 = nodes[i];
-              if (!el2 || typeof el2.getBoundingClientRect !== "function") continue;
-              if (activeToken && String(el2.textContent || "").trim() !== activeToken) continue;
-              var rect = el2.getBoundingClientRect();
-              if (!rect || !isFinite(rect.left) || !isFinite(rect.top)) continue;
-              var cy = (Number(rect.top) + Number(rect.bottom || rect.top)) / 2;
-              var score = targetY == null ? i : Math.abs(cy - targetY);
-              if (score < bestScore) {
-                best = rect;
-                bestScore = score;
-              }
-            }
-            if (best) {
-              return {
-                left: Number(best.left),
-                right: Number(best.right || best.left),
-                top: Number(best.top),
-                bottom: Number(best.bottom || best.top),
-                width: Math.max(8, Number(best.width || best.right - best.left || 8))
-              };
-            }
-          }
-        }
-        var range = findActiveTokenRange(controlLine);
-        if (!range) return null;
-        var from = editor.posToOffset({ line: lineNumber, ch: range.fromCh });
-        var to = editor.posToOffset({ line: lineNumber, ch: Math.max(range.toCh, range.fromCh + 1) });
-        var a = cm.coordsAtPos(from);
-        var b = cm.coordsAtPos(to);
-        if (!a || !b) return null;
-        var left = Math.min(a.left, b.left);
-        var right = Math.max(a.right || a.left, b.right || b.left);
-        var top = Math.min(a.top, b.top);
-        var bottom = Math.max(a.bottom || a.top, b.bottom || b.top);
-        return {
-          left,
-          right,
-          top,
-          bottom,
-          width: Math.max(8, right - left)
-        };
-      } catch (_) {
-        return null;
-      }
-    }
-    function createRoot() {
-      var root = document.createElement("div");
-      root.style.position = "fixed";
-      root.style.zIndex = "60";
-      root.style.pointerEvents = "none";
-      root.style.display = "none";
-      root.style.border = "1px solid var(--background-modifier-border)";
-      root.style.borderRadius = "8px";
-      root.style.background = "var(--background-primary)";
-      root.style.boxShadow = "var(--shadow-s)";
-      root.style.padding = "4px 0";
-      root.style.fontSize = "12px";
-      root.style.lineHeight = "1.3";
-      root.style.whiteSpace = "nowrap";
-      root.style.overflow = "hidden";
-      root.style.fontFamily = "var(--font-text)";
-      var list = document.createElement("div");
-      list.style.display = "flex";
-      list.style.flexDirection = "column";
-      list.style.gap = "0";
-      root.appendChild(list);
-      document.body.appendChild(root);
-      return { root, list };
-    }
-    function createTagWheelScrollerOverlay(options) {
-      var cfg = options && typeof options === "object" ? options : {};
-      var direction = normalizeDirection(cfg.direction);
-      var size = normalizeSize(cfg.size);
-      var boxPrimary = createRoot();
-      var boxSecondary = createRoot();
-      function hide() {
-        boxPrimary.root.style.display = "none";
-        boxSecondary.root.style.display = "none";
-      }
-      function measureLongest(rows) {
-        var probe = document.createElement("span");
-        probe.style.position = "fixed";
-        probe.style.left = "-99999px";
-        probe.style.top = "0";
-        probe.style.visibility = "hidden";
-        probe.style.fontSize = boxPrimary.root.style.fontSize;
-        probe.style.fontFamily = boxPrimary.root.style.fontFamily;
-        probe.style.fontWeight = "500";
-        document.body.appendChild(probe);
-        var maxW = 0;
-        var i;
-        for (i = 0; i < rows.length; i++) {
-          probe.textContent = String(rows[i] || "");
-          maxW = Math.max(maxW, Math.ceil(probe.getBoundingClientRect().width));
-        }
-        document.body.removeChild(probe);
-        return maxW;
-      }
-      function renderRows(target, rows) {
-        target.list.innerHTML = "";
-        var i;
-        for (i = 0; i < rows.length; i++) {
-          var item = document.createElement("div");
-          item.textContent = String(rows[i] || "-");
-          item.style.padding = "2px 8px";
-          item.style.overflow = "hidden";
-          item.style.textOverflow = "ellipsis";
-          item.style.opacity = "0.95";
-          target.list.appendChild(item);
-        }
-      }
-      function applyWidth(target, anchorWidth, rows) {
-        var longestW = measureLongest(rows);
-        var minW = Math.max(anchorWidth, longestW + 18);
-        var vw = window.innerWidth || 1;
-        var finalW = clamp(minW, 40, Math.max(40, vw - 8));
-        target.root.style.minWidth = String(Math.round(finalW)) + "px";
-        target.root.style.width = String(Math.round(finalW)) + "px";
-      }
-      function placeBox(target, anchor, mode) {
-        var gap = 4;
-        var vw = window.innerWidth || 1;
-        var vh = window.innerHeight || 1;
-        var rect = target.root.getBoundingClientRect();
-        var w = Math.ceil(rect.width);
-        var h = Math.ceil(rect.height);
-        var left = clamp(anchor.left, 4, Math.max(4, vw - w - 4));
-        var top = mode === "up" ? anchor.top - h - gap : anchor.bottom + gap;
-        top = clamp(top, 4, Math.max(4, vh - h - 4));
-        target.root.style.left = String(Math.round(left)) + "px";
-        target.root.style.top = String(Math.round(top)) + "px";
-        target.root.style.display = "block";
-      }
-      function update(payload) {
-        var p = payload && typeof payload === "object" ? payload : {};
-        var editor = p.editor;
-        var lineNumber = Number(p.lineNumber);
-        var controlLine = String(p.controlLine || "");
-        if (!editor || !isFinite(lineNumber)) {
-          hide();
-          return;
-        }
-        var anchor = getAnchorRect(editor, lineNumber, controlLine);
-        if (!anchor) {
-          hide();
-          return;
-        }
-        var upRows = Array.isArray(p.upItems) ? p.upItems.slice(0, size).map(function(x) {
-          return String(x && x.label || "-");
-        }) : [];
-        var downRows = Array.isArray(p.downItems) ? p.downItems.slice(0, size).map(function(x) {
-          return String(x && x.label || "-");
-        }) : [];
-        hide();
-        if (direction === "up") {
-          if (!upRows.length) return;
-          var upDisplayRows = upRows.slice().reverse();
-          renderRows(boxPrimary, upDisplayRows);
-          applyWidth(boxPrimary, anchor.width, upDisplayRows);
-          boxPrimary.root.style.display = "block";
-          placeBox(boxPrimary, anchor, "up");
-          return;
-        }
-        if (direction === "down") {
-          if (!downRows.length) return;
-          renderRows(boxPrimary, downRows);
-          applyWidth(boxPrimary, anchor.width, downRows);
-          boxPrimary.root.style.display = "block";
-          placeBox(boxPrimary, anchor, "down");
-          return;
-        }
-        if (!upRows.length && !downRows.length) return;
-        if (upRows.length) {
-          var upDisplayRowsFull = upRows.slice().reverse();
-          renderRows(boxPrimary, upDisplayRowsFull);
-          applyWidth(boxPrimary, anchor.width, upDisplayRowsFull);
-          boxPrimary.root.style.display = "block";
-          placeBox(boxPrimary, anchor, "up");
-        }
-        if (downRows.length) {
-          renderRows(boxSecondary, downRows);
-          applyWidth(boxSecondary, anchor.width, downRows);
-          boxSecondary.root.style.display = "block";
-          placeBox(boxSecondary, anchor, "down");
-        }
-      }
-      function destroy() {
-        try {
-          if (boxPrimary.root && boxPrimary.root.parentNode) boxPrimary.root.parentNode.removeChild(boxPrimary.root);
-        } catch (_) {
-        }
-        try {
-          if (boxSecondary.root && boxSecondary.root.parentNode) boxSecondary.root.parentNode.removeChild(boxSecondary.root);
-        } catch (_) {
-        }
-      }
-      return {
-        update,
-        hide,
-        destroy
-      };
-    }
-    module2.exports = {
-      createTagWheelScrollerOverlay
-    };
-  }
-});
-
-// src/ui/settings/schema/custom_texts.ts
-var TAB_CALLOUTS, PREVIEW_TEXTS, PREVIEW_NOTE, PREVIEW_EXAMPLE, PREVIEW_LINE_TEXT, PREVIEW_EMPTY_RIGHT;
-var init_custom_texts = __esm({
-  "src/ui/settings/schema/custom_texts.ts"() {
-    "use strict";
-    TAB_CALLOUTS = {
-      general: {
-        head: "Inline Overhaul is about writing a note and tagging it in the same breath",
-        tip: "Everything the plugin does is built on one idea: a line can carry more than words. Put a status, a due date or a link on the same line as the thought, and you never break off to fill in a form. The tabs across the top go from moving text around, through setting up those slots, to turning a line into a note of its own",
-        body: "Nothing here changes your notes on its own. Each area below can be switched off, and the one part that creates files asks again before it will run. If you are new to it, start with the guide"
-      },
-      navigation: {
-        head: "This menu helps to make inline navigation in Obsidian comfortable",
-        tip: "<b>None of these commands has a key by default</b> \u2014 bind them under <code>Settings \u2192 Hotkeys</code> so they work. Each group below names the commands it uses, and every command chip shows the key it has now",
-        body: "Moving lines and whole trees up and down, changing line indent levels, shifting text inside the line, jumping between headings to navigate easier and much more. Experiment, and set up the workspace of your dreams!"
-      },
-      keyboard: {
-        head: "Everything about keys lives here",
-        tip: "Obsidian owns the hotkeys themselves, so this tab tells you what to bind and takes you there; the binding is done in <code>Settings \u2192 Hotkeys</code> and survives updates of this plugin",
-        body: "Take over Ctrl/Cmd + A so it selects a line before the whole note, keep a row of snippets you drop in with one press, and read the full list of commands with the key each one currently has"
-      },
-      pkm: {
-        head: "This is the plugin\u2019s main feature",
-        tip: "The idea is that you never stop writing to fill in metadata. You define your slots once here \u2014 a status, a priority, a due date \u2014 and afterwards one keypress puts the right Value on the line and steps it forward",
-        body: "Lay out your PKM here once, and tagging a line becomes a keypress instead of typing. Decide which slots a line can hold, what Values each one offers, where they sit, and how they are written"
-      },
-      visual: {
-        head: "How a tagged line looks while you are writing",
-        tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this plugin and you will see plain text with ordinary tags",
-        body: "Draw tags as coloured bubbles instead of raw text, put a Bar in the margin so you can see what a block of lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
-      },
-      transform: {
-        head: "Turn a line you have already written into a note of its own",
-        tip: "This is the one part of the plugin that creates and edits files. Everything here is off until you switch it on, and it is worth a backup and a practice run on a note you do not mind breaking",
-        body: "A thought you jotted on one line becomes a proper note, from a template, with its properties already filled in from the tags on that line \u2014 and the line itself left holding a link to it"
-      },
-      advanced: {
-        head: "Housekeeping you will rarely need",
-        tip: "Nothing here is required for day-to-day use. Come back when something is behaving oddly, or when you want to look at what the plugin has written into your vault",
-        body: "Where the plugin keeps the file it generates from your setup, how to rebuild it if it drifts, and how to record a log when something needs reporting"
-      }
-    };
-    PREVIEW_TEXTS = {
-      "line-preview": {
-        cap: "Live preview",
-        tip: "One chip per Field, in the order they are written. Everything you change below shows up here: rename a Field, give it a short name, move it to the other side, or change a Separator"
-      },
-      "tag-preview": {
-        cap: "Live preview",
-        tip: "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no bubble \u2014 but the two opacity settings dim a whole side of the line, including them. Priority is set to <code>empty</code>, which is why it shows as a bare color",
-        line: "Rewrite the settings copy",
-        element: "\u{1F4C5} 2026-08-24",
-        link: "[[ClientA]]"
-      },
-      "bars-preview": {
-        cap: "Live preview",
-        tip: "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar sits in the margin, so the text column never moves",
-        tree: [
-          { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
-            { text: "Rewrite every description", fields: ["status"], children: [
-              { text: "Tag Bars", fields: ["status", "priority"], children: [] },
-              { text: "TagWheel panel", fields: ["status"], children: [] },
-              { text: "proof-read the tips", fields: ["priority"], children: [] }
-            ] }
-          ] },
-          { text: "Merge the prototype into the PRD", fields: [], children: [] },
-          { text: "Publish the next beta", fields: ["status", "priority"], children: [
-            { text: "Check the migration on a copy", fields: ["status"], children: [
-              { text: "and on an empty vault", fields: ["status", "priority"], children: [] }
-            ] },
-            { text: "Write the release notes", fields: [], children: [] }
-          ] }
-        ]
-      },
-      "wheel-preview": {
-        cap: "Live preview",
-        tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the settings ask for: <code>Values per side</code> rows on each side that <code>Opens</code> allows. The list is a loop, so it keeps going past the last Value and starts again"
-      },
-      "i2n-button-preview": {
-        cap: "Live preview",
-        tip: "The button is part of the editor, not the note: nothing is written into your file until you press it",
-        note: "Shown on the line the cursor is on"
-      }
-    };
-    PREVIEW_NOTE = "Close to what the editor draws, not the editor itself";
-    PREVIEW_EXAMPLE = "Example Fields, until you set up your own under Fields on the Tags & PKM tab";
-    PREVIEW_LINE_TEXT = "your text";
-    PREVIEW_EMPTY_RIGHT = "nothing on the right yet";
-  }
-});
-
-// src/ui/settings/describe.ts
-function richParts(text) {
-  const out = [];
-  const re = /<(code|b)>([\s\S]*?)<\/\1>/g;
-  let last = 0;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) out.push({ tag: "text", text: text.slice(last, m.index) });
-    out.push({ tag: m[1], text: m[2] });
-    last = m.index + m[0].length;
-  }
-  if (last < text.length) out.push({ tag: "text", text: text.slice(last) });
-  return out;
-}
-function paint(host, text) {
-  for (const part of richParts(text)) {
-    if (part.tag === "text") host.createSpan({ text: part.text });
-    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
-  }
-}
-var Describer;
-var init_describe = __esm({
-  "src/ui/settings/describe.ts"() {
-    "use strict";
-    Describer = class {
-      constructor(host) {
-        this.cache = /* @__PURE__ */ new Map();
-        this.host = host;
-      }
-      /** Ключ кеша: если тексты и режимы не менялись, фрагмент тот же. */
-      cacheKey(it, o) {
-        return [
-          it.desc || "",
-          it.tip || "",
-          (it.searchTerms || []).join("|"),
-          o.showTips ? "1" : "0",
-          o.showIds ? "1" : "0"
-        ].join(" ");
-      }
-      describe(it, o) {
-        const showId = Boolean(o.showTips && o.showIds && it.id);
-        const hasSomething = it.desc || o.showTips && it.tip || showId || it.searchTerms && it.searchTerms.length;
-        if (!hasSomething) return void 0;
-        const key = this.cacheKey(it, o);
-        const hit = this.cache.get(it.id);
-        if (hit && hit.key === key) return hit.frag;
-        const frag = this.host.createFragment();
-        if (it.desc) paint(frag, it.desc);
-        if (o.showTips && it.tip || showId) {
-          const box = frag.createEl("details", { cls: "io-tip" });
-          box.createEl("summary", { text: "?", cls: "io-tip__mark" });
-          const body = box.createEl("div", { cls: "io-tip__body" });
-          if (o.showTips && it.tip) paint(body, it.tip);
-          if (showId) body.createEl("div", { text: it.id, cls: "io-tip__id" });
-        }
-        this.cache.set(it.id, { key, frag });
-        return frag;
-      }
-      /** Сбросить кеш: язык или режим подсказок сменились целиком. */
-      clear() {
-        this.cache.clear();
-      }
-    };
-  }
-});
-
-// src/ui/settings/custom/dom.ts
-function el(parent, tag, cls, text) {
-  if (!parent) throw new Error("\u0441\u0432\u043E\u0435\u043C\u0443 \u0431\u043B\u043E\u043A\u0443 \u043D\u0443\u0436\u0435\u043D \u0440\u043E\u0434\u0438\u0442\u0435\u043B\u044C: " + tag);
-  const o = {};
-  if (cls) o.cls = cls;
-  if (text !== void 0) o.text = text;
-  return parent.createEl(tag, o);
-}
-function btn(parent, cls, o) {
-  var _a, _b;
-  const label = (_a = o.label) != null ? _a : "";
-  const full = o.title && o.title !== label ? label ? label + " \u2014 " + o.title : o.title : label;
-  const attr = { type: "button" };
-  if (full) attr["aria-label"] = full;
-  return parent.createEl("button", { cls, text: (_b = o.text) != null ? _b : "", attr });
-}
-function textInput(parent, cls, o) {
-  const opts = { cls, type: "text", value: o.value, attr: { "aria-label": o.label } };
-  if (o.placeholder !== void 0) opts.placeholder = o.placeholder;
-  return parent.createEl("input", opts);
-}
-function selectInput(parent, cls, o) {
-  const node = parent.createEl("select", { cls, attr: { "aria-label": o.label } });
-  for (const opt of o.options) node.createEl("option", { text: opt.label, value: opt.value });
-  node.value = o.value;
-  return node;
-}
-function rich(host, text) {
-  for (const part of richParts(text)) {
-    if (part.tag === "text") host.createSpan({ text: part.text });
-    else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
-  }
-  return host;
-}
-function cssVarValue(node, name) {
-  try {
-    const view = globalThis.window;
-    if (!view || typeof view.getComputedStyle !== "function") return "";
-    const style = view.getComputedStyle(node);
-    if (!style || typeof style.getPropertyValue !== "function") return "";
-    return String(style.getPropertyValue(name) || "").trim();
-  } catch (e) {
-    return "";
-  }
-}
-function cssVar(node, name, value) {
-  if (!name.startsWith("--io-")) throw new Error("\u0441\u0432\u043E\u0439 \u0431\u043B\u043E\u043A \u0437\u0430\u0434\u0430\u0451\u0442 \u0442\u043E\u043B\u044C\u043A\u043E --io-*: " + name);
-  node.style.setProperty(name, value);
-}
-function tipBelow(o) {
-  if (!o.text || !o.showTips) return () => {
-  };
-  let open = null;
-  const mark = o.head.createEl("button", {
-    cls: "io-help",
-    text: "?",
-    attr: {
-      type: "button",
-      "aria-expanded": "false",
-      "aria-controls": o.id,
-      "aria-label": "More about " + o.label
-    }
-  });
-  mark.addEventListener("click", () => {
-    if (open) {
-      open.remove();
-      open = null;
-      mark.setAttribute("aria-expanded", "false");
-      return;
-    }
-    open = o.host.createEl("div", { cls: "io-tip io-tip--below", attr: { id: o.id } });
-    rich(open, o.text);
-    mark.setAttribute("aria-expanded", "true");
-  });
-  return () => {
-    if (open) {
-      open.remove();
-      open = null;
-    }
-  };
-}
-var init_dom = __esm({
-  "src/ui/settings/custom/dom.ts"() {
-    "use strict";
-    init_describe();
-  }
-});
-
-// src/ui/settings/custom/callouts.ts
-function callout(tab) {
-  return (host, ctx) => {
-    const text = TAB_CALLOUTS[tab];
-    if (!text) return () => {
-    };
-    const box = el(host, "div", "io-callout");
-    const head = el(box, "div", "io-callout__head");
-    rich(head, text.head);
-    const closeTip = tipBelow({
-      head,
-      host,
-      text: text.tip,
-      label: "this tab",
-      id: "io-tip-callout-" + tab,
-      showTips: Boolean(ctx.get("general.help.showTips"))
-    });
-    rich(el(box, "p", "io-callout__body"), text.body);
-    return closeTip;
-  };
-}
-var init_callouts = __esm({
-  "src/ui/settings/custom/callouts.ts"() {
-    "use strict";
-    init_custom_texts();
-    init_dom();
-  }
-});
-
-// src/ui/settings/schema/general.ts
-var GENERAL_GROUPS;
-var init_general = __esm({
-  "src/ui/settings/schema/general.ts"() {
-    "use strict";
-    init_callouts();
-    GENERAL_GROUPS = [
-      {
-        id: "general-intro",
-        tab: "general",
-        order: 10,
-        heading: "Before you start",
-        items: [
-          { kind: "custom", id: "general-callout", render: callout("general") }
-        ]
-      },
-      {
-        id: "help",
-        tab: "general",
-        order: 100,
-        heading: "Help",
-        intro: "Where to start, and how much hand-holding you want along the way",
-        items: [
-          {
-            kind: "toggle",
-            id: "show-tips",
-            path: "general.help.showTips",
-            default: true,
-            name: "Show tips",
-            desc: "Put a ? beside anything that needs more explanation",
-            tip: "Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way"
-          }
-        ]
-      },
-      {
-        id: "modules",
-        tab: "general",
-        order: 200,
-        heading: "Modules",
-        intro: "Four separate things live in this plugin. Turn off the ones you do not want and they stop adding commands and stop touching your notes",
-        items: [
-          {
-            kind: "toggle",
-            id: "module-navigation",
-            path: "features.navigation.enabled",
-            default: true,
-            name: "Navigation",
-            desc: "Move lines, text and the cursor without reaching for the mouse",
-            tip: "Nothing here writes anything new. It only moves text you have already written \u2014 a line up, a word along, the cursor across. Safe to leave on"
-          },
-          {
-            kind: "toggle",
-            id: "module-pkm",
-            path: "features.pkm.enabled",
-            default: true,
-            name: "Tags & PKM",
-            desc: "Set up your PKM tags, wikilinks and emoji elements, and insert them inline with one key",
-            tip: "This is the part that puts tags and dates onto a line for you, and steps them forward with a keypress. Turning it off changes nothing you have already written \u2014 those keys simply stop working"
-          },
-          {
-            kind: "toggle",
-            id: "module-visual",
-            path: "features.visual.enabled",
-            default: true,
-            name: "Visual",
-            desc: "Customize and beautify your inline text with tag colors, Bars and much more",
-            tip: "Appearance only. Your notes contain exactly the same text either way \u2014 this decides how it looks on screen. Anyone opening the file elsewhere sees the plain text"
-          },
-          {
-            kind: "toggle",
-            id: "module-transform",
-            path: "features.transform.enabled",
-            default: true,
-            name: "Transform",
-            desc: "Turn an inline entry into a note, with templates, YAML properties, rules and more",
-            tip: "Leaving this on does not let anything happen yet. Making notes needs one more switch, on the Transform tab, because it is the one thing here that writes new files"
-          }
-        ]
-      }
-    ];
-  }
-});
-
-// src/ui/settings/types.ts
-function isBound(it) {
-  return typeof it.path === "string";
-}
-function getIn(obj, path) {
-  return path.split(".").reduce((acc, key) => {
-    if (acc === null || typeof acc !== "object") return void 0;
-    return acc[key];
-  }, obj);
-}
-function setIn(obj, path, value) {
-  const keys = path.split(".");
-  let cur = obj;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const k = keys[i];
-    const next = cur[k];
-    if (next === null || typeof next !== "object") cur[k] = {};
-    cur = cur[k];
-  }
-  cur[keys[keys.length - 1]] = value;
-}
-function buildDefaultConfig(schema) {
-  const out = {};
-  for (const group of schema) {
-    for (const it of group.items) {
-      if (isBound(it)) setIn(out, it.path, it.default);
-    }
-  }
-  return out;
-}
-function on(path) {
-  return { deps: [path], test: (ctx) => Boolean(ctx.get(path)) };
-}
-function not(path) {
-  return { deps: [path], test: (ctx) => !ctx.get(path) };
-}
-function eq(path, value) {
-  return { deps: [path], test: (ctx) => ctx.get(path) === value };
-}
-var init_types = __esm({
-  "src/ui/settings/types.ts"() {
-    "use strict";
-  }
-});
-
-// src/ui/settings/custom/keepview.ts
-function scrollerOf(node) {
-  let at = node;
-  let guard = 0;
-  while (at && guard++ < 64) {
-    const height = Number(at.scrollHeight);
-    const view = Number(at.clientHeight);
-    if (Number.isFinite(height) && Number.isFinite(view) && height - view > 1) return at;
-    at = at.parentElement;
-  }
-  return null;
-}
-function labelOf(node) {
-  const label = String(node.getAttribute("aria-label") || "").trim();
-  return label ? "label:" + label : "";
-}
-function pathOf(root, node) {
-  const path = [];
-  let at = node;
-  let guard = 0;
-  while (at && at !== root && guard++ < 64) {
-    const parent = at.parentElement;
-    if (!parent) break;
-    const kids = parent.children;
-    let index = -1;
-    for (let i = 0; i < kids.length; i++) if (kids[i] === at) {
-      index = i;
-      break;
-    }
-    path.unshift(index);
-    at = parent;
-  }
-  if (at !== root) return "";
-  return "path:" + String(node.className || "") + ":" + path.join(".");
-}
-function findByKey(root, keyFn, key) {
-  let found = null;
-  const walk = (node) => {
-    if (found) return;
-    if (keyFn(node) === key) {
-      found = node;
-      return;
-    }
-    const kids2 = node.children;
-    for (let i = 0; i < kids2.length && !found; i++) walk(kids2[i]);
-  };
-  const kids = root.children;
-  for (let i = 0; i < kids.length && !found; i++) walk(kids[i]);
-  return found;
-}
-function focusedIn(root) {
-  const doc = globalThis.document;
-  const active = doc && doc.activeElement ? doc.activeElement : null;
-  if (!active || active === root) return null;
-  let at = active.parentElement;
-  let guard = 0;
-  while (at && guard++ < 64) {
-    if (at === root) return active;
-    at = at.parentElement;
-  }
-  return null;
-}
-function keepView(root) {
-  const box = root;
-  if (!box || typeof box.getAttribute !== "function") return NOTHING;
-  const scroller = scrollerOf(box);
-  const top = scroller ? Number(scroller.scrollTop) : NaN;
-  const active = focusedIn(box);
-  const label = active ? labelOf(active) : "";
-  const path = active ? pathOf(box, active) : "";
-  const selStart = active && typeof active.selectionStart === "number" ? active.selectionStart : null;
-  const selEnd = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
-  return {
-    restore() {
-      if (scroller && Number.isFinite(top)) {
-        scroller.scrollTop = top;
-      }
-      if (!label && !path) return;
-      const node = (label ? findByKey(box, labelOf, label) : null) || (path ? findByKey(box, (n) => pathOf(box, n), path) : null);
-      if (!node || typeof node.focus !== "function") return;
-      node.focus({ preventScroll: true });
-      if (selStart !== null && typeof node.selectionStart === "number") {
-        try {
-          node.selectionStart = selStart;
-          node.selectionEnd = selEnd === null ? selStart : selEnd;
-        } catch (e) {
-        }
-      }
-      if (scroller && Number.isFinite(top)) scroller.scrollTop = top;
-    }
-  };
-}
-var NOTHING;
-var init_keepview = __esm({
-  "src/ui/settings/custom/keepview.ts"() {
-    "use strict";
-    NOTHING = { restore: () => {
-    } };
-  }
-});
-
-// src/ui/settings/custom/binder_model.ts
-function asObject2(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
-}
-function str(value) {
-  return typeof value === "string" ? value : value === void 0 || value === null ? "" : String(value);
-}
-function storedRows(cfg) {
-  const raw = asObject2(asObject2(cfg)["ui"])["binderRows"];
-  return Array.isArray(raw) ? raw.map(asObject2) : [];
-}
-function newRowId() {
-  return "binder-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
-}
-function createBinderModel(deps) {
-  const { plugin } = deps;
-  const read = () => storedRows(plugin.getConfig());
-  const save = (rows, reason, registerCommands) => {
-    plugin.setConfigPatch({ ui: { binderRows: rows } }, reason);
-    if (!registerCommands || typeof plugin.registerBinderCommands !== "function") return;
-    try {
-      plugin.registerBinderCommands();
-    } catch (e) {
-      console.error("inline-overhaul: \u043A\u043E\u043C\u0430\u043D\u0434\u044B Binder \u043D\u0435 \u043F\u0435\u0440\u0435\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043B\u0438\u0441\u044C", e);
-    }
-  };
-  return {
-    listRows() {
-      const cfg = plugin.getConfig();
-      const names = /* @__PURE__ */ new Map();
-      try {
-        for (const def of deps.commandDefs(cfg)) names.set(str(def && def.id), str(def && def.name));
-      } catch (e) {
-        console.error("inline-overhaul: \u0438\u043C\u0435\u043D\u0430 \u043A\u043E\u043C\u0430\u043D\u0434 Binder \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
-      }
-      return storedRows(cfg).map((row) => {
-        const commandId = str(row["commandId"]).trim();
-        return {
-          rowId: str(row["rowId"]).trim(),
-          insertText: str(row["insertText"]),
-          commandName: str(row["commandName"]),
-          description: str(row["description"]),
-          commandId,
-          commandLabel: names.get(commandId) || "",
-          system: str(row["rowId"]).trim() === SYSTEM_ROW_ID
-        };
-      });
-    },
-    setDescription(rowId, text) {
-      const id = String(rowId || "").trim();
-      if (!id || id === SYSTEM_ROW_ID) return;
-      const rows = read();
-      if (!rows.some((row) => str(row["rowId"]).trim() === id)) return;
-      const next = rows.map((row) => str(row["rowId"]).trim() === id ? { ...row, description: String(text != null ? text : "") } : row);
-      save(next, "settings:binder:description", false);
-    },
-    remove(rowId) {
-      const id = String(rowId || "").trim();
-      if (!id || id === SYSTEM_ROW_ID) return;
-      const rows = read();
-      const next = rows.filter((row) => str(row["rowId"]).trim() !== id);
-      if (next.length === rows.length) return;
-      save(next, "settings:binder:delete", true);
-    },
-    move(from, to) {
-      const rows = read();
-      if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return;
-      const next = rows.slice();
-      const taken = next.splice(from, 1)[0];
-      if (!taken) return;
-      next.splice(to, 0, taken);
-      save(next, "settings:binder:reorder", true);
-    },
-    add(draft) {
-      const insertText = String(draft && draft.insertText || "");
-      if (!insertText.trim()) return;
-      const next = read().concat([{
-        rowId: newRowId(),
-        insertText,
-        commandName: String(draft && draft.commandName || "").trim(),
-        description: String(draft && draft.description || "").trim(),
-        /* Пусто: идентификатор поставит `normalizeBinderRows` на этом же патче. */
-        commandId: ""
-      }]);
-      save(next, "settings:binder:add", true);
-    }
-  };
-}
-var SYSTEM_ROW_ID;
-var init_binder_model = __esm({
-  "src/ui/settings/custom/binder_model.ts"() {
-    "use strict";
-    SYSTEM_ROW_ID = "binder-system-smart-bracket";
-  }
-});
-
-// src/ui/settings/custom/binder_view.ts
-function rowTitle(row) {
-  const short = row.commandLabel.startsWith(LABEL_PREFIX) ? row.commandLabel.slice(LABEL_PREFIX.length) : row.commandLabel;
-  return short.trim() || row.commandName.trim() || row.insertText.trim() || "this row";
-}
-function renderBinder(host, o) {
-  const scroll = el(host, "div", "io-scroll");
-  const card = el(scroll, "div", "io-card io-binder");
-  const head = el(card, "div", "io-tablehead");
-  for (const cap of HEAD) el(head, "div", void 0, cap);
-  let taken = null;
-  o.rows.forEach((row, i) => {
-    const line = el(card, "div", "io-tablerow");
-    const name = rowTitle(row);
-    const grip = el(line, "span", "io-grip", "\u283F");
-    grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + name + " to reorder it");
-    grip.draggable = true;
-    grip.addEventListener("dragstart", ((ev) => {
-      var _a;
-      taken = i;
-      line.classList.add("io-dragging");
-      try {
-        (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", String(i));
-      } catch (e) {
-      }
-    }));
-    grip.addEventListener("dragend", (() => {
-      taken = null;
-      line.classList.remove("io-dragging");
-    }));
-    line.addEventListener("dragover", ((ev) => {
-      if (taken === null) return;
-      ev.preventDefault();
-      line.classList.add("io-dragover");
-    }));
-    line.addEventListener("dragleave", (() => {
-      line.classList.remove("io-dragover");
-    }));
-    line.addEventListener("drop", ((ev) => {
-      ev.preventDefault();
-      line.classList.remove("io-dragover");
-      const from = taken;
-      taken = null;
-      if (from === null || from === i) return;
-      o.onMove(from, i);
-    }));
-    el(line, "code", "io-mono", row.insertText);
-    el(line, "div", "io-cellname", name);
-    const cell = el(line, "div", "io-binder__desc");
-    const desc = textInput(cell, "io-text", {
-      value: row.description,
-      label: "Description for " + name
-    });
-    desc.disabled = row.system;
-    if (row.system) desc.title = SYSTEM_TITLE;
-    desc.addEventListener("change", (() => {
-      if (!row.system) o.onDescription(row, desc.value);
-    }));
-    const hotkey = o.hotkeyOf(row);
-    const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
-      text: hotkey || HOTKEY_NONE,
-      label: (hotkey ? "Change" : "Assign") + " the hotkey for " + name,
-      title: HOTKEY_TITLE
-    });
-    hk.disabled = !o.openHotkey;
-    hk.addEventListener("click", (() => {
-      if (o.openHotkey) o.openHotkey(row);
-    }));
-    const drop = btn(line, "io-icon", {
-      text: row.system ? "" : "\u2715",
-      label: row.system ? SYSTEM_TITLE : "Remove " + name
-    });
-    drop.disabled = row.system;
-    drop.addEventListener("click", (() => {
-      if (!row.system) o.onRemove(row);
-    }));
-  });
-  const foot = el(card, "div", "io-tablefoot");
-  const add = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_COMMAND, label: ADD_COMMAND });
-  add.addEventListener("click", (() => {
-    o.onAdd();
-  }));
-}
-function renderAddForm(box, o) {
-  el(box, "h4", void 0, ADD_TITLE);
-  el(box, "p", "io-item__desc", ADD_NOTE);
-  const field = (name, desc, placeholder) => {
-    const row = el(box, "div", "io-item");
-    const info = el(row, "div", "io-item__info");
-    el(info, "div", "io-item__name", name);
-    el(info, "div", "io-item__desc", desc);
-    return textInput(el(row, "div", "io-item__control"), "io-text", {
-      value: "",
-      label: name + " of the new command",
-      placeholder
-    });
-  };
-  const insert = field(INSERT_NAME, INSERT_DESC, "\u2192");
-  const command = field(CMD_NAME, CMD_DESC, "Arrow");
-  const note = field(DESC_NAME, DESC_DESC, "");
-  const foot = el(box, "div", "io-dlg__foot");
-  const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
-  cancel.addEventListener("click", (() => {
-    o.cancel();
-  }));
-  const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
-  add.disabled = true;
-  insert.addEventListener("input", (() => {
-    add.disabled = !String(insert.value || "").trim();
-  }));
-  add.addEventListener("click", (() => {
-    if (!String(insert.value || "").trim()) return;
-    o.add({
-      insertText: insert.value,
-      commandName: command.value,
-      description: note.value
-    });
-  }));
-}
-var HEAD, ADD_COMMAND, HOTKEY_NONE, HOTKEY_TITLE, SYSTEM_TITLE, LABEL_PREFIX, ADD_TITLE, ADD_NOTE, INSERT_NAME, INSERT_DESC, CMD_NAME, CMD_DESC, DESC_NAME, DESC_DESC;
-var init_binder_view = __esm({
-  "src/ui/settings/custom/binder_view.ts"() {
-    "use strict";
-    init_dom();
-    HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""];
-    ADD_COMMAND = "Add command";
-    HOTKEY_NONE = "not set";
-    HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
-    SYSTEM_TITLE = "Built in";
-    LABEL_PREFIX = "Binder: ";
-    ADD_TITLE = "Add a Binder command";
-    ADD_NOTE = "The command is made from the row, so the text it inserts cannot be changed afterwards";
-    INSERT_NAME = "Inserts";
-    INSERT_DESC = "The text this command drops in at the cursor";
-    CMD_NAME = "Command name";
-    CMD_DESC = "What to call it in Obsidian's list of hotkeys";
-    DESC_NAME = "Description";
-    DESC_DESC = "A note to yourself about what the row is for";
-  }
-});
-
-// src/ui/settings/custom/hotkeys.ts
-function app2(plugin) {
-  const holder = plugin;
-  const value = holder && typeof holder === "object" ? holder.app : null;
-  return value && typeof value === "object" ? value : null;
-}
-function fullCommandId(plugin, commandId) {
-  const id = String(commandId || "").trim();
-  if (!id) return "";
-  const manifest = plugin == null ? void 0 : plugin.manifest;
-  const owner = String(manifest && manifest.id ? manifest.id : "").trim();
-  return owner ? owner + ":" + id : id;
-}
-function modLabel() {
-  try {
-    const nav = globalThis.navigator;
-    const platform = String(nav && nav.platform ? nav.platform : "");
-    return /Mac|iPhone|iPad/.test(platform) ? "Cmd" : "Ctrl";
-  } catch (e) {
-    return "Ctrl";
-  }
-}
-function binding(value) {
-  if (!value || typeof value !== "object") return "";
-  const b = value;
-  const key = String(b.key || "").trim();
-  if (!key) return "";
-  const mods = Array.isArray(b.modifiers) ? b.modifiers.map((x) => String(x || "").trim()).filter(Boolean).map((m) => m === "Mod" ? modLabel() : m) : [];
-  return mods.length ? mods.join(" + ") + " + " + key : key;
-}
-function firstBinding(value) {
-  if (!Array.isArray(value) || !value.length) return "";
-  return binding(value[0]);
-}
-function hotkeyOf(plugin, commandId) {
-  const a = app2(plugin);
-  const hm = a && a.hotkeyManager;
-  const id = fullCommandId(plugin, commandId);
-  if (!hm || !id) return "";
-  try {
-    const custom = hm.customKeys;
-    if (custom && typeof custom === "object" && Object.prototype.hasOwnProperty.call(custom, id)) {
-      return firstBinding(custom[id]);
-    }
-    if (typeof hm.getHotkeys === "function") return firstBinding(hm.getHotkeys(id));
-  } catch (e) {
-    console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0439 \u043A\u043E\u043C\u0430\u043D\u0434\u044B \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0441\u044F", e);
-  }
-  return "";
-}
-function canOpenHotkeys(plugin) {
-  const a = app2(plugin);
-  const s = a && a.setting;
-  return !!(s && typeof s.open === "function" && typeof s.openTabById === "function");
-}
-function openHotkeys(plugin, commandName) {
-  const a = app2(plugin);
-  const s = a && a.setting;
-  if (!s || typeof s.open !== "function" || typeof s.openTabById !== "function") return false;
-  try {
-    s.open();
-    const tab = s.openTabById("hotkeys");
-    const query = String(commandName || "").trim();
-    if (tab && typeof tab.setQuery === "function" && query) tab.setQuery(query);
-    return true;
-  } catch (e) {
-    console.error("inline-overhaul: \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0445\u043E\u0442\u043A\u0435\u0435\u0432 \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u043B\u0438\u0441\u044C", e);
-    return false;
-  }
-}
-var init_hotkeys = __esm({
-  "src/ui/settings/custom/hotkeys.ts"() {
-    "use strict";
-  }
-});
-
-// src/ui/settings/custom/binder.ts
-function askAddModal(Modal2, app3, done) {
-  let answered = false;
-  const finish = (draft) => {
-    if (answered) return;
-    answered = true;
-    done(draft);
-  };
-  class AddBinderRowModal extends Modal2 {
-    onOpen() {
-      const box = this.contentEl;
-      box.empty();
-      box.addClass("io-dlg");
-      renderAddForm(box, {
-        add: (draft) => {
-          finish(draft);
-          this.close();
-        },
-        cancel: () => {
-          finish(null);
-          this.close();
-        }
-      });
-    }
-    onClose() {
-      finish(null);
-      this.contentEl.empty();
-    }
-  }
-  new AddBinderRowModal(app3).open();
-}
-var import_command_registry, registry, BINDER_PATHS, binderTable;
-var init_binder = __esm({
-  "src/ui/settings/custom/binder.ts"() {
-    "use strict";
-    init_dom();
-    init_keepview();
-    init_binder_model();
-    init_binder_view();
-    init_hotkeys();
-    import_command_registry = __toESM(require_command_registry());
-    registry = import_command_registry.default;
-    BINDER_PATHS = ["ui.binderRows"];
-    binderTable = (host, ctx) => {
-      const p = ctx.platform;
-      const box = el(host, "div", "io-binderblock");
-      if (!p) return () => {
-        box.empty();
-      };
-      const Modal2 = p.Modal;
-      const plugin = p.plugin;
-      const app3 = plugin.app;
-      const canOpen = canOpenHotkeys(plugin);
-      let mounted = null;
-      const draw = () => {
-        const keep = keepView(box);
-        const next = el(box, "div", "io-binderblock__mount");
-        try {
-          const model = createBinderModel({
-            plugin,
-            commandDefs: (cfg) => registry.buildBinderCommandDefs(cfg)
-          });
-          const commit = (write) => {
-            try {
-              write();
-            } catch (e) {
-              console.error("inline-overhaul: \u0437\u0430\u043F\u0438\u0441\u044C \u0441\u0442\u0440\u043E\u043A Binder \u043D\u0435 \u0443\u0434\u0430\u043B\u0430\u0441\u044C", e);
-            } finally {
-              draw();
-            }
-          };
-          renderBinder(next, {
-            rows: model.listRows(),
-            hotkeyOf: (row) => hotkeyOf(plugin, row.commandId),
-            openHotkey: canOpen ? (row) => {
-              openHotkeys(plugin, row.commandLabel);
-            } : null,
-            onDescription: (row, text) => commit(() => {
-              model.setDescription(row.rowId, text);
-            }),
-            onRemove: (row) => commit(() => {
-              model.remove(row.rowId);
-            }),
-            onMove: (from, to) => commit(() => {
-              model.move(from, to);
-            }),
-            onAdd: () => askAddModal(Modal2, app3, (draft) => {
-              if (!draft) return;
-              commit(() => {
-                model.add(draft);
-              });
-            })
-          });
-        } catch (e) {
-          next.remove();
-          console.error("inline-overhaul: Binder \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
-          return;
-        }
-        if (mounted) mounted.remove();
-        mounted = next;
-        keep.restore();
-      };
-      draw();
-      const unwatch = ctx.watch(BINDER_PATHS, draw);
-      return () => {
-        unwatch();
-        mounted = null;
-        box.empty();
-      };
-    };
-  }
-});
-
-// src/ui/settings/schema/keyboard.ts
-var KEYBOARD_GROUPS;
-var init_keyboard = __esm({
-  "src/ui/settings/schema/keyboard.ts"() {
-    "use strict";
-    init_types();
-    init_binder();
-    init_callouts();
-    KEYBOARD_GROUPS = [
-      {
-        id: "keyboard-intro",
-        tab: "keyboard",
-        order: 50,
-        heading: "Before you start",
-        items: [
-          { kind: "custom", id: "keyboard-callout", render: callout("keyboard") }
-        ]
-      },
-      {
-        id: "select-all",
-        tab: "keyboard",
-        order: 100,
-        heading: "Expanded 'Ctrl+A'",
-        intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
-        items: [
-          {
-            kind: "toggle",
-            id: "select-all-enabled",
-            path: "editor.selectAll.enabled",
-            default: false,
-            name: "Expanded 'Ctrl+A'",
-            desc: "Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
-            searchTerms: ["Enhanced Mod+A", "Expanded select all"],
-            tip: "On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started"
-          },
-          {
-            kind: "dropdown",
-            id: "select-all-steps",
-            path: "editor.selectAll.mode",
-            default: "line-note",
-            name: "Selection steps",
-            desc: "How much more gets picked up on each press",
-            searchTerms: ["Select-all mode"],
-            disabled: not("editor.selectAll.enabled"),
-            options: [
-              { value: "line-note", label: "Line, then note" },
-              { value: "line-tree-note", label: "Line, tree, then note" },
-              { value: "line-tree-header-note", label: "Line, tree, heading, then note" }
-            ],
-            tip: "<b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use \u2014 every extra step is one more press before you reach the whole note"
-          },
-          {
-            kind: "toggle",
-            id: "select-all-timer",
-            path: "editor.selectAll.useDelay",
-            default: false,
-            name: "Count presses by timer",
-            desc: "Decide the next step by how quickly you press, rather than by what is selected",
-            searchTerms: ["Use multi-press delay"],
-            disabled: not("editor.selectAll.enabled"),
-            tip: "Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line \u2014 handy if you often select something, walk away, and come back"
-          },
-          {
-            kind: "slider",
-            id: "select-all-delay",
-            path: "editor.selectAll.delayMs",
-            default: 700,
-            min: 250,
-            max: 2e3,
-            step: 50,
-            unit: "ms",
-            name: "Time between presses",
-            desc: "How long you can pause and still be in the middle of a sequence",
-            tip: "Only used when the timer above is on. Around three quarters of a second suits most people; raise it if you keep losing your place",
-            searchTerms: ["Multi-press delay"],
-            visible: on("editor.selectAll.useDelay"),
-            disabled: not("editor.selectAll.enabled")
-          },
-          {
-            kind: "toggle",
-            id: "select-all-clear",
-            path: "editor.selectAll.clearOnLast",
-            default: false,
-            name: "One more press clears it",
-            desc: "After the last step, pressing again drops the selection and returns the cursor",
-            tip: "Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
-            searchTerms: ["Last press clears selection"],
-            disabled: not("editor.selectAll.enabled")
-          }
-        ]
-      },
-      {
-        id: "binder",
-        tab: "keyboard",
-        order: 200,
-        heading: "Binder (custom insert commands)",
-        intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
-        tip: "The <code>Hotkey</code> column shows the key a row has now; click it to go and set one. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
-        items: [
-          { kind: "custom", id: "binder-table", render: binderTable }
-        ]
-      }
-    ];
-  }
-});
-
-// src/ui/settings/custom/dispatch_tables.ts
-var TABLES, ARROW, dispatchTables;
-var init_dispatch_tables = __esm({
-  "src/ui/settings/custom/dispatch_tables.ts"() {
-    "use strict";
-    init_dom();
-    TABLES = [
-      {
-        command: "Move left",
-        steps: [
-          { when: "part of a line is selected", then: "move that text" },
-          { when: "the line is indented", then: "remove one indent level" },
-          { when: "no indent", then: "cycle the prefix backwards" }
-        ]
-      },
-      {
-        command: "Move right",
-        steps: [
-          { when: "part of a line is selected", then: "move that text" },
-          { when: "a list item, or already indented", then: "add one indent level" },
-          { when: "anything else", then: "cycle the prefix forwards" }
-        ]
-      }
-    ];
-    ARROW = " \u2192 ";
-    dispatchTables = (host) => {
-      const box = el(host, "div", "io-dispatch");
-      const pair = el(box, "div", "io-orderpair");
-      for (const table of TABLES) {
-        const col = el(pair, "div");
-        el(col, "code", "io-ordercol__cap", table.command);
-        const list = el(col, "ol", "io-order");
-        for (const step of table.steps) {
-          const li = el(list, "li");
-          el(li, "b", void 0, step.when);
-          el(li, "span", void 0, ARROW);
-          el(li, "span", "io-order__then", step.then);
-        }
-      }
-      return () => {
-        box.empty();
-      };
     };
   }
 });
@@ -37528,9 +34381,6 @@ var require_main = __commonJS({
       };
     })();
     var __commandRegistry = null;
-    var __settingsTabRouter = null;
-    var __settingsSectionsRenderer = null;
-    var __orderDeepEditorState = null;
     var __configNoteOrchestrator = null;
     var __tagWheelConfigCodec = null;
     var __tagWheelConfigParser = null;
@@ -37549,7 +34399,6 @@ var require_main = __commonJS({
     } catch (_) {
     }
     var __safeModuleCache = /* @__PURE__ */ new Map();
-    var __settingsSectionsRendererDiag = "";
     function reportLoaderFallback(stage, err) {
       try {
         if (globalThis.__inlineDebugLoaders !== true) return;
@@ -37845,286 +34694,6 @@ var require_main = __commonJS({
         });
       }
       return out;
-    }
-    function hasValidSettingsTabRouter(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.renderSettingsTabContent === "function");
-    }
-    function hasValidSettingsSectionsRenderer(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.renderSettingsDisplaySection === "function" && typeof mod.renderTabBarSection === "function" && typeof mod.renderGeneralSection === "function" && typeof mod.renderHotkeysTabSection === "function" && typeof mod.renderModuleTabSection === "function" && typeof mod.renderVisualTabSection === "function" && typeof mod.renderPkmOrderBoardSection === "function" && typeof mod.renderPkmConfigSections === "function" && typeof mod.renderNavigationSettings === "function" && typeof mod.renderVisualGeneralSection === "function" && typeof mod.renderColorsSection === "function" && typeof mod.renderAdvancedSection === "function");
-    }
-    function hasValidOrderDeepEditorState(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.buildTagTree === "function" && typeof mod.applyTagTreeToFields === "function" && typeof mod.createHistory === "function" && typeof mod.pushHistory === "function" && typeof mod.undoHistory === "function" && typeof mod.redoHistory === "function" && typeof mod.resetHistory === "function");
-    }
-    async function ensureOrderDeepEditorStateSafe(app3) {
-      if (hasValidOrderDeepEditorState(__orderDeepEditorState)) {
-        try {
-          globalThis.__inlineOrderDeepEditorState = __orderDeepEditorState;
-        } catch (_) {
-        }
-        return __orderDeepEditorState;
-      }
-      const candidates = [
-        ".obsidian/plugins/inline-overhaul/src/core/order_deep_editor_state.js",
-        "./.obsidian/plugins/inline-overhaul/src/core/order_deep_editor_state.js",
-        "plugins/inline-overhaul/src/core/order_deep_editor_state.js"
-      ];
-      const loaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/core/order_deep_editor_state.js",
-        candidates,
-        cacheKey: "core:order-deep-editor-state",
-        validate: hasValidOrderDeepEditorState,
-        loadErrorPrefix: "[inline-overhaul] Failed to load order_deep_editor_state from"
-      });
-      if (loaded.mod) {
-        __orderDeepEditorState = loaded.mod;
-        try {
-          globalThis.__inlineOrderDeepEditorState = __orderDeepEditorState;
-        } catch (_) {
-        }
-        return __orderDeepEditorState;
-      }
-      if (loaded.requireErr) {
-        reportLoaderFallback("main.ensureOrderDeepEditorStateSafe.require", loaded.requireErr);
-      }
-      return null;
-    }
-    function getMissingSettingsSectionsRendererMethods(mod) {
-      const required = [
-        "renderSettingsDisplaySection",
-        "renderTabBarSection",
-        "renderGeneralSection",
-        "renderHotkeysTabSection",
-        "renderModuleTabSection",
-        "renderVisualTabSection",
-        "renderPkmOrderBoardSection",
-        "renderPkmConfigSections",
-        "renderNavigationSettings",
-        "renderVisualGeneralSection",
-        "renderColorsSection",
-        "renderAdvancedSection"
-      ];
-      const target = mod && typeof mod === "object" ? mod : {};
-      return required.filter((k) => typeof target[k] !== "function");
-    }
-    async function loadSettingsTabRouterSafe(app3) {
-      const candidates = [
-        ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js",
-        "./.obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js",
-        "plugins/inline-overhaul/src/ui/settings_tab_router.js"
-      ];
-      const loaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/ui/settings_tab_router.js",
-        candidates,
-        cacheKey: "ui:settings-tab-router",
-        validate: hasValidSettingsTabRouter,
-        uiVaultEvalFallback: true
-      });
-      if (loaded.mod) {
-        __settingsTabRouter = loaded.mod;
-        return __settingsTabRouter;
-      }
-      const fallbackCandidates = [
-        ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js",
-        "./.obsidian/plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js",
-        "plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js"
-      ];
-      const fallbackLoaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/ui/settings_tab_router_fallback.js",
-        candidates: fallbackCandidates,
-        cacheKey: "ui:settings-tab-router-fallback",
-        validate: (mod) => !!(mod && typeof mod.createSettingsTabRouterFallback === "function"),
-        uiVaultEvalFallback: true
-      });
-      if (fallbackLoaded.mod) {
-        try {
-          const fallback = fallbackLoaded.mod.createSettingsTabRouterFallback();
-          if (hasValidSettingsTabRouter(fallback)) {
-            __settingsTabRouter = fallback;
-            return __settingsTabRouter;
-          }
-          reportLoaderFallback("main.loadSettingsTabRouterSafe.fallback.invalid", "invalid tab router contract");
-        } catch (e) {
-          reportLoaderFallback("main.loadSettingsTabRouterSafe.fallback.factory", e);
-        }
-      }
-      __settingsTabRouter = createSettingsTabRouterFallback();
-      return __settingsTabRouter;
-    }
-    function getSettingsTabRouter() {
-      if (hasValidSettingsTabRouter(__settingsTabRouter)) return __settingsTabRouter;
-      __settingsTabRouter = createSettingsTabRouterFallback();
-      return __settingsTabRouter;
-    }
-    function createSettingsTabRouterFallback() {
-      return {
-        renderSettingsTabContent(tab, activeTab, containerEl, cfg) {
-          if (activeTab === "general") tab.renderGeneral(containerEl, cfg);
-          else if (activeTab === "hotkeys") tab.renderHotkeysTab(containerEl, cfg);
-          else if (activeTab === "navigation") tab.renderModuleTab(containerEl, "navigation", cfg);
-          else if (activeTab === "pkm") tab.renderModuleTab(containerEl, "pkm", cfg);
-          else if (activeTab === "visual") tab.renderVisualTab(containerEl, cfg);
-          else if (activeTab === "transform") tab.renderModuleTab(containerEl, "transform", cfg);
-          else if (activeTab === "advanced") tab.renderAdvanced(containerEl, cfg);
-        }
-      };
-    }
-    async function loadSettingsSectionsRendererSafe(app3) {
-      __settingsSectionsRendererDiag = "";
-      await ensureOrderDeepEditorStateSafe(app3);
-      const candidates = [
-        ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js",
-        "./.obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js",
-        "plugins/inline-overhaul/src/ui/settings_sections_renderer.js"
-      ];
-      const loaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/ui/settings_sections_renderer.js",
-        candidates,
-        cacheKey: "ui:settings-sections-renderer",
-        validate: hasValidSettingsSectionsRenderer,
-        uiVaultEvalFallback: true
-      });
-      if (loaded.mod) {
-        __settingsSectionsRenderer = loaded.mod;
-        return __settingsSectionsRenderer;
-      }
-      if (loaded.requireErr) {
-        __settingsSectionsRendererDiag = `primary require failed: ${String(loaded.requireErr && loaded.requireErr.message ? loaded.requireErr.message : loaded.requireErr)}`;
-      } else {
-        __settingsSectionsRendererDiag = "primary renderer unavailable: load returned no valid module";
-      }
-      const fallbackCandidates = [
-        ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_fallback.js",
-        "./.obsidian/plugins/inline-overhaul/src/ui/settings_sections_fallback.js",
-        "plugins/inline-overhaul/src/ui/settings_sections_fallback.js"
-      ];
-      const fallbackLoaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/ui/settings_sections_fallback.js",
-        candidates: fallbackCandidates,
-        cacheKey: "ui:settings-sections-fallback",
-        validate: (mod) => !!(mod && typeof mod.createSettingsSectionsRendererFallback === "function"),
-        uiVaultEvalFallback: true
-      });
-      if (fallbackLoaded.mod) {
-        try {
-          const fallback = fallbackLoaded.mod.createSettingsSectionsRendererFallback();
-          if (hasValidSettingsSectionsRenderer(fallback)) {
-            __settingsSectionsRenderer = fallback;
-            return __settingsSectionsRenderer;
-          }
-          const missing = getMissingSettingsSectionsRendererMethods(fallback);
-          __settingsSectionsRendererDiag = `fallback factory invalid contract: missing [${missing.join(", ")}]`;
-          reportLoaderFallback("main.loadSettingsSectionsRendererSafe.fallback.invalid", "invalid renderer contract");
-        } catch (e) {
-          __settingsSectionsRendererDiag = `fallback factory failed: ${String(e && e.message ? e.message : e)}`;
-          reportLoaderFallback("main.loadSettingsSectionsRendererSafe.fallback.factory", e);
-        }
-      } else if (fallbackLoaded.requireErr) {
-        __settingsSectionsRendererDiag = `fallback require failed: ${String(fallbackLoaded.requireErr && fallbackLoaded.requireErr.message ? fallbackLoaded.requireErr.message : fallbackLoaded.requireErr)}`;
-      }
-      __settingsSectionsRenderer = null;
-      return getSettingsSectionsRenderer();
-    }
-    function getSettingsSectionsRenderer() {
-      if (hasValidSettingsSectionsRenderer(__settingsSectionsRenderer)) return __settingsSectionsRenderer;
-      __settingsSectionsRenderer = createSettingsSectionsRendererFallback();
-      return __settingsSectionsRenderer;
-    }
-    function createSettingsSectionsRendererFallback() {
-      return {
-        renderSettingsDisplaySection(ctx) {
-          const { containerEl, cfg, getActiveSettingsTab, renderTabBar, renderSettingsTabContent } = ctx;
-          const activeTab = getActiveSettingsTab(cfg);
-          containerEl.createEl("h2", { text: "InlineOverhaul" });
-          containerEl.createEl("p", { text: "Fallback settings renderer is active." });
-          if (__settingsSectionsRendererDiag) {
-            const diag = containerEl.createDiv();
-            diag.setText(`Renderer diagnostic: ${__settingsSectionsRendererDiag}`);
-            diag.style.marginBottom = "8px";
-            diag.style.opacity = "0.8";
-            diag.style.fontSize = "12px";
-          }
-          renderTabBar(containerEl, activeTab);
-          renderSettingsTabContent(activeTab, containerEl, cfg);
-        },
-        renderTabBarSection(ctx) {
-          const { containerEl, activeTab, settingsTabs, setActiveSettingsTab } = ctx;
-          const row = containerEl.createDiv({ cls: "inline-overhaul-tab-row" });
-          row.style.display = "flex";
-          row.style.flexWrap = "wrap";
-          row.style.gap = "8px";
-          row.style.marginBottom = "10px";
-          for (const t of settingsTabs) {
-            const btn2 = row.createEl("button", { text: t.label, cls: "mod-cta" });
-            btn2.style.padding = "4px 10px";
-            btn2.style.opacity = t.id === activeTab ? "1" : "0.8";
-            btn2.onclick = () => setActiveSettingsTab(t.id);
-          }
-        },
-        renderGeneralSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "General settings are unavailable in fallback mode." });
-        },
-        renderHotkeysTabSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Hotkeys settings are unavailable in fallback mode." });
-        },
-        renderModuleTabSection(ctx) {
-          const { Setting: Setting2, containerEl, featureKey, cfg, renderNavigationSettings, renderPkmSettings } = ctx;
-          const enabled = !!(cfg && cfg.features && cfg.features[featureKey] && cfg.features[featureKey].enabled);
-          if (featureKey === "navigation") {
-            renderNavigationSettings(containerEl, cfg, enabled);
-          } else if (featureKey === "pkm") {
-            renderPkmSettings(containerEl, cfg, enabled);
-          } else {
-            new Setting2(containerEl).setName("Module placeholder").setDesc("Fallback mode").addText((txt) => {
-              txt.setValue("Fallback renderer");
-              txt.setDisabled(true);
-            });
-          }
-        },
-        renderVisualTabSection(ctx) {
-          const { containerEl, cfg, renderVisualGeneralSection, renderVisualTagsSection, renderVisualStripSection } = ctx;
-          const enabled = !!(cfg && cfg.features && cfg.features.visual && cfg.features.visual.enabled);
-          const activeSubTab = cfg && cfg.ui && cfg.ui.visualSubTab || "tags";
-          if (activeSubTab === "tagwheel") {
-            renderVisualGeneralSection(containerEl, enabled);
-          } else if (activeSubTab === "strip") {
-            renderVisualStripSection(containerEl, enabled);
-          } else {
-            renderVisualTagsSection(containerEl, enabled);
-          }
-        },
-        renderPkmOrderBoardSection() {
-        },
-        renderPkmConfigSections(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "PKM settings are unavailable in fallback mode." });
-        },
-        renderNavigationSettings(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Navigation settings are unavailable in fallback mode." });
-        },
-        renderVisualGeneralSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Visual settings fallback mode." });
-        },
-        renderVisualTagsSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Tags settings fallback mode." });
-        },
-        renderVisualStripSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Strip settings fallback mode." });
-        },
-        renderColorsSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Colors settings fallback mode." });
-        },
-        renderAdvancedSection(ctx) {
-          const { containerEl } = ctx;
-          containerEl.createEl("p", { text: "Advanced settings fallback mode." });
-        }
-      };
     }
     function hasValidTagWheelConfigCodec(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.normalizeTagWheelConfigPath === "function" && typeof mod.normalizeTagWheelConfigTemplatePath === "function" && typeof mod.buildDefaultTagWheelDetailedTemplateMarkdown === "function" && typeof mod.renderTagWheelConfigFromTemplate === "function" && typeof mod.buildMinimalFromRenderedTemplate === "function" && typeof mod.buildTagWheelConfigParts === "function" && typeof mod.buildTagWheelConfigMarkdown === "function" && typeof mod.parseTagWheelConfigMarkdown === "function");
@@ -41090,8 +37659,6 @@ var require_main = __commonJS({
         await loadConfigMigrationModuleSafe(this.app);
         await loadConfigStoreModuleSafe(this.app);
         await loadCommandRegistrySafe(this.app);
-        await loadSettingsTabRouterSafe(this.app);
-        await loadSettingsSectionsRendererSafe(this.app);
         await loadConfigNoteHelpersSafe(this.app);
         await loadTagWheelConfigCodecSafe(this.app);
         await loadRulesMarkdownBuilderSafe(this.app);
@@ -41215,7 +37782,10 @@ var require_main = __commonJS({
           },
           getUnsubscribe: () => this._unsubscribeStore,
           renderSettingsTab: () => {
-            if (this._settingsTab) this._settingsTab.display();
+            const tab = this._settingsTab;
+            if (!tab) return;
+            if (typeof tab.update === "function") tab.update();
+            else if (typeof tab.display === "function") tab.display();
           },
           scheduleGeneratedRulesSync: () => this.scheduleGeneratedRulesSync(),
           getRulesTimer: () => this._rulesGenTimer,
@@ -41572,13 +38142,14 @@ var require_main = __commonJS({
         return this.store.getSnapshot();
       }
       /**
-       * Панель настроек. Новая — на схеме и декларативном API; старая остаётся
-       * запасным путём до фазы 3, когда её код удаляется целиком.
+       * Панель настроек: одна, на схеме и декларативном API Obsidian 1.13.
+       *
+       * Старая панель удалена 2026-08-29 решением заказчика: паритет достигнут
+       * во всём, кроме справочника команд, который ждёт имён из фазы 2. Флаг
+       * Флага выбора панели больше нет: выбирать не из чего.
        */
       createSettingTab() {
-        const cfg = this.getConfig();
-        const wantNew = !!(cfg && cfg.advanced && cfg.advanced.newSettingsPane === true);
-        const Declarative = wantNew ? getDeclarativeSettingTabCtor() : null;
+        const Declarative = getDeclarativeSettingTabCtor();
         if (Declarative) {
           try {
             return new Declarative(this.app, this, {
@@ -41589,7 +38160,7 @@ var require_main = __commonJS({
             console.error("[inline-overhaul] declarative settings pane failed to build", e);
           }
         }
-        return new InlineOverhaulSettingTab(this.app, this);
+        throw new Error("Inline Overhaul: settings pane needs Obsidian 1.13 or newer");
       }
       getDevModeConfig(cfg) {
         const snapshot = isObj(cfg) ? cfg : this.getConfig();
@@ -42112,251 +38683,10 @@ var require_main = __commonJS({
         const mod = (init_obsidian_tab(), __toCommonJS(obsidian_tab_exports));
         if (mod && typeof mod.InlineOverhaulSettings === "function") return mod.InlineOverhaulSettings;
       } catch (e) {
-        console.warn("[inline-overhaul] declarative settings pane unavailable, using the old one", e && e.message);
+        console.error("[inline-overhaul] settings pane module failed to load", e && e.message);
       }
       return null;
     }
-    var InlineOverhaulSettingTab = class extends PluginSettingTab2 {
-      constructor(app3, plugin) {
-        super(app3, plugin);
-        this.plugin = plugin;
-        plugin._settingsTab = this;
-        this._displayRefreshScheduled = false;
-        this._displayRefreshRendering = false;
-        this._storeUnsub = null;
-        try {
-          if (plugin && plugin.store && typeof plugin.store.subscribe === "function") {
-            this._storeUnsub = plugin.store.subscribe(() => {
-              this.scheduleDisplayRefresh("store:update");
-            });
-            if (typeof plugin.register === "function") {
-              plugin.register(() => {
-                try {
-                  if (typeof this._storeUnsub === "function") this._storeUnsub();
-                } catch (_) {
-                }
-                this._storeUnsub = null;
-              });
-            }
-          }
-        } catch (_) {
-        }
-      }
-      isSettingsTabVisible() {
-        return !!(this.containerEl && this.containerEl.isConnected);
-      }
-      scheduleDisplayRefresh(reason) {
-        void reason;
-        if (!this.isSettingsTabVisible()) return;
-        if (this._displayRefreshScheduled || this._displayRefreshRendering) return;
-        this._displayRefreshScheduled = true;
-        const run = () => {
-          this._displayRefreshScheduled = false;
-          if (!this.isSettingsTabVisible()) return;
-          if (this._displayRefreshRendering) return;
-          this._displayRefreshRendering = true;
-          try {
-            this.display();
-          } finally {
-            this._displayRefreshRendering = false;
-          }
-        };
-        if (typeof requestAnimationFrame === "function") {
-          requestAnimationFrame(() => {
-            setTimeout(run, 0);
-          });
-          return;
-        }
-        setTimeout(run, 0);
-      }
-      display() {
-        const { containerEl } = this;
-        containerEl.empty();
-        const cfg = this.plugin.getConfig();
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderSettingsDisplaySection({
-          containerEl,
-          cfg,
-          getActiveSettingsTab: (cfgValue) => cfgValue.ui.activeSettingsTab || "general",
-          renderTabBar: (el2, activeTab) => this.renderTabBar(el2, activeTab),
-          renderSettingsTabContent: (activeTab, el2, cfgValue) => {
-            const router = getSettingsTabRouter();
-            router.renderSettingsTabContent(this, activeTab, el2, cfgValue);
-          }
-        });
-      }
-      renderTabBar(containerEl, activeTab) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderTabBarSection({
-          containerEl,
-          activeTab,
-          settingsTabs: SETTINGS_TABS,
-          setActiveSettingsTab: (tabId) => this.plugin.setActiveSettingsTab(tabId)
-        });
-      }
-      renderGeneral(containerEl, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderGeneralSection({
-          Setting,
-          Notice: Notice3,
-          containerEl,
-          cfg,
-          featureOrder: FEATURE_ORDER,
-          featureMeta: FEATURE_META,
-          plugin: this.plugin
-        });
-      }
-      renderHotkeysTab(containerEl, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderHotkeysTabSection({
-          containerEl,
-          cfg,
-          Setting,
-          plugin: this.plugin,
-          hotkeysSubTabs: HOTKEYS_SUB_TABS,
-          setHotkeysSubTab: (tabId) => this.plugin.setHotkeysSubTab(tabId)
-        });
-      }
-      renderModuleTab(containerEl, featureKey, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderModuleTabSection({
-          Setting,
-          containerEl,
-          featureKey,
-          cfg,
-          featureMeta: FEATURE_META,
-          renderNavigationSettings: (el2, cfgValue, enabled) => this.renderNavigationSettings(el2, cfgValue, enabled),
-          renderTransformSettings: (el2, cfgValue, enabled) => {
-            return getTransformFeature().renderTransformSettings({
-              Setting,
-              containerEl: el2,
-              cfg: cfgValue,
-              plugin: this.plugin,
-              enabled
-            });
-          },
-          renderPkmSettings: (el2, cfgValue, enabled) => {
-            renderer.renderPkmOrderBoardSection({
-              Setting,
-              Notice: Notice3,
-              Modal: Modal2,
-              containerEl: el2,
-              cfg: cfgValue,
-              enabled,
-              plugin: this.plugin,
-              normalizePkmOrder,
-              pkmOrderFields: PKM_ORDER_FIELDS,
-              setIcon: setIcon2,
-              /* Тумблеры вида доски перерисовывают вкладку (дефект A14). */
-              refreshSettings: () => this.scheduleDisplayRefresh("settings:order-view-toggle")
-            });
-            return renderer.renderPkmConfigSections({
-              Setting,
-              Notice: Notice3,
-              Modal: Modal2,
-              containerEl: el2,
-              cfg: cfgValue,
-              enabled,
-              plugin: this.plugin,
-              normalizePkmOrder,
-              tagwheelConfigModeDetailed: TAGWHEEL_CONFIG_MODE_DETAILED,
-              tagwheelConfigModeMinimal: TAGWHEEL_CONFIG_MODE_MINIMAL,
-              pkmBackends: PKM_BACKENDS,
-              getActiveTagWheelRulesPath,
-              refreshSettings: () => this.scheduleDisplayRefresh("renderer:refresh")
-            });
-          }
-        });
-      }
-      renderVisualTab(containerEl, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderVisualTabSection({
-          containerEl,
-          cfg,
-          Setting,
-          plugin: this.plugin,
-          visualSubTabs: VISUAL_SUB_TABS,
-          setVisualSubTab: (tabId) => this.plugin.setVisualSubTab(tabId),
-          renderVisualGeneralSection: (arg1, arg2) => {
-            if (arg1 && typeof arg1 === "object" && arg1.containerEl) return this.renderVisualGeneralSection(arg1.containerEl, arg1.enabled, arg1.cfg);
-            return this.renderVisualGeneralSection(arg1, arg2, cfg);
-          },
-          renderVisualTagsSection: (arg1, arg2) => {
-            if (arg1 && typeof arg1 === "object" && arg1.containerEl) return this.renderVisualTagsSection(arg1.containerEl, arg1.enabled, arg1.cfg);
-            return this.renderVisualTagsSection(arg1, arg2, cfg);
-          },
-          renderVisualStripSection: (arg1, arg2) => {
-            if (arg1 && typeof arg1 === "object" && arg1.containerEl) return this.renderVisualStripSection(arg1.containerEl, arg1.enabled, arg1.cfg);
-            return this.renderVisualStripSection(arg1, arg2, cfg);
-          },
-          normalizePkmOrder
-        });
-      }
-      renderNavigationSettings(containerEl, cfg, enabled) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderNavigationSettings({
-          Setting,
-          containerEl,
-          cfg,
-          enabled,
-          plugin: this.plugin
-        });
-      }
-      renderVisualGeneralSection(containerEl, enabled, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderVisualGeneralSection({
-          Setting,
-          containerEl,
-          enabled,
-          cfg,
-          plugin: this.plugin
-        });
-      }
-      renderVisualTagsSection(containerEl, enabled, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderVisualTagsSection({
-          Setting,
-          containerEl,
-          enabled,
-          cfg,
-          plugin: this.plugin
-        });
-      }
-      renderVisualStripSection(containerEl, enabled, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderVisualStripSection({
-          Setting,
-          containerEl,
-          enabled,
-          cfg,
-          plugin: this.plugin,
-          normalizePkmOrder
-        });
-      }
-      renderColorsSection(containerEl, cfg, enabled) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderColorsSection({
-          containerEl,
-          cfg,
-          enabled
-        });
-      }
-      renderAdvanced(containerEl, cfg) {
-        const renderer = getSettingsSectionsRenderer();
-        return renderer.renderAdvancedSection({
-          Setting,
-          Notice: Notice3,
-          containerEl,
-          cfg,
-          featureOrder: FEATURE_ORDER,
-          plugin: this.plugin,
-          store: this.plugin.store,
-          pkmBackends: PKM_BACKENDS,
-          getActiveTagWheelRulesPath,
-          flushSettingsNow: () => this.scheduleDisplayRefresh("advanced:flush")
-        });
-      }
-    };
     module2.exports = InlineOverhaulPlugin;
     function normalizeCycleEndBehaviorLegacy(value) {
       const s = String(value || "").trim().toLowerCase();
@@ -42412,10 +38742,6 @@ var bundledVaultModules = new Map(Object.entries({
   ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec_fallback.js": require_tagwheel_config_codec_fallback(),
   ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js": require_tagwheel_config_parser(),
   ".obsidian/plugins/inline-overhaul/src/features/transform_feature.js": require_transform_feature(),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_fallback.js": require_settings_sections_fallback(),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js": require_settings_sections_renderer(),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js": require_settings_tab_router(),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js": require_settings_tab_router_fallback(),
   ".obsidian/plugins/inline-overhaul/src/ui/tagwheel_scroller_overlay.js": require_tagwheel_scroller_overlay()
 }));
 globalThis.__inlineOverhaulBundledVaultModules = bundledVaultModules;

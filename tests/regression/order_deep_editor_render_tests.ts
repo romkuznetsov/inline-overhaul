@@ -26,7 +26,7 @@ setupGlobals();
    чем any в двадцати местах. */
 type Any = ReturnType<typeof JSON.parse>;
 
-const renderer = require_("../../src/ui/settings_sections_renderer.js");
+const renderer = require_("../../src/ui/settings/custom/fields_editor_legacy.js");
 
 let ran = 0;
 async function test(name: string, fn: () => void | Promise<void>): Promise<void> {
@@ -394,109 +394,14 @@ async function main(): Promise<void> {
     assert.equal(text(), before, "и содержимое вернулось к прежнему");
   });
 
-  /* ---- диалог конфликта несохранённого черновика ----------------------- */
-
-  /** Найти кнопку Apply в секциях конфиг-заметки. */
-  function applyButton(host: StubNode): Any {
-    const btn = byText(host, "Apply");
-    assert.ok(btn, "не нашёл кнопку Apply");
-    return btn;
-  }
-
-  await test("без черновика Apply не спрашивает ничего", async () => {
-    const cfg = makeConfig();
-    const plugin = makePlugin(cfg);
-    const host = makeNode("div");
-    renderer.renderPkmConfigSections(configCtx(host, cfg, plugin));
-    openedModals.length = 0;
-
-    applyButton(host).click();
-    await settle();
-    assert.equal(openedModals.length, 0, "диалога быть не должно");
-    assert.equal(plugin.applied, 1, "конфиг-заметка применена сразу");
-  });
-
-  await test("с черновиком Apply спрашивает, и отказ отменяет применение", async () => {
-    const cfg = makeConfig();
-    const plugin = makePlugin(cfg);
-    plugin._orderDeepEditorSession = {
-      enabled: true, dirty: true,
-      history: { max: 100, past: [{ a: 1 }], future: [{ b: 2 }] },
-      expanded: {},
-    };
-    const host = makeNode("div");
-    renderer.renderPkmConfigSections(configCtx(host, cfg, plugin));
-    openedModals.length = 0;
-
-    applyButton(host).click();
-    await settle();
-    const dialog = lastModalContent();
-    assert.ok(dialog, "диалог конфликта не открылся");
-    assert.ok(dialog.textContent.includes("Unsaved Order draft"), "заголовок не про черновик");
-    assert.ok(byText(dialog, "Apply draft") && byText(dialog, "Discard draft") && byText(dialog, "Cancel"),
-      "в диалоге три выхода: применить, отбросить, отменить");
-
-    byText(dialog, "Cancel").onclick();
-    await settle();
-    assert.equal(plugin.applied, 0, "после отказа конфиг-заметка не применяется");
-    assert.equal(plugin._orderDeepEditorSession.dirty, true, "черновик остаётся несохранённым");
-    assert.equal(plugin._orderDeepEditorSession.history.past.length, 1, "история цела");
-  });
-
-  await test("отброшенный черновик снимает пометку и историю, применение идёт", async () => {
-    const cfg = makeConfig();
-    const plugin = makePlugin(cfg);
-    plugin._orderDeepEditorSession = {
-      enabled: true, dirty: true,
-      history: { max: 100, past: [{ a: 1 }], future: [{ b: 2 }] },
-      expanded: {},
-    };
-    const host = makeNode("div");
-    renderer.renderPkmConfigSections(configCtx(host, cfg, plugin));
-    openedModals.length = 0;
-
-    applyButton(host).click();
-    await settle();
-    byText(lastModalContent() as StubNode, "Discard draft").onclick();
-    await settle();
-
-    assert.equal(plugin._orderDeepEditorSession.dirty, false, "пометка снята");
-    assert.deepEqual(plugin._orderDeepEditorSession.history.past, [], "прошлое очищено");
-    assert.deepEqual(plugin._orderDeepEditorSession.history.future, [], "будущее очищено");
-    assert.equal(plugin.applied, 1, "конфиг-заметка применена");
-  });
-
-  await test("«Apply draft» сегодня делает то же, что «Discard draft»", async () => {
-    /*
-     * Это не одобрение, а пин факта: обе ветви только снимают пометку и чистят
-     * историю, потому что черновик уже слит вызовом flushAllDeepCommits выше.
-     * Кнопки различимы на вид и неразличимы по действию. Переносить в 3b надо
-     * как есть, а расхождение вынести отдельным вопросом — иначе перенос
-     * «без изменения логики» проверить нечем.
-     */
-    const cfg = makeConfig();
-    const plugin = makePlugin(cfg);
-    plugin._orderDeepEditorSession = {
-      enabled: true, dirty: true,
-      history: { max: 100, past: [{ a: 1 }], future: [] },
-      expanded: {},
-    };
-    const host = makeNode("div");
-    renderer.renderPkmConfigSections(configCtx(host, cfg, plugin));
-    openedModals.length = 0;
-
-    applyButton(host).click();
-    await settle();
-    byText(lastModalContent() as StubNode, "Apply draft").onclick();
-    await settle();
-
-    assert.equal(plugin._orderDeepEditorSession.dirty, false);
-    assert.deepEqual(plugin._orderDeepEditorSession.history.past, []);
-    assert.equal(plugin.applied, 1);
-  });
+  /*
+   * Четыре проверки про секции конфиг-заметки сняты 2026-08-29 вместе со
+   * старой панелью. Их предмет — диалог конфликта несохранённого черновика
+   * доски: новый редактор черновиков не ведёт, он пишет сразу, а применение
+   * конфиг-заметки спрашивает своим окном (`actions_tests.ts`, Э2).
+   */
 
   console.log("\n" + ran + " проверок пройдено");
-  if (!modalsOpened.length) throw new Error("ни одного диалога не открылось: проверка ничего не проверяет");
   if (!notices.length) console.log("  (уведомлений не показано)");
 }
 

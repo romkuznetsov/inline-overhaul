@@ -176,7 +176,6 @@ async function run() {
   const configNoteOrchestratorPath = path.join(__dirname, "..", "..", "src", "features", "config_note_orchestrator.js");
   const configNoteHelpersPath = path.join(__dirname, "..", "..", "src", "features", "config_note_helpers.js");
   const commandRegistryPath = path.join(__dirname, "..", "..", "src", "features", "command_registry.js");
-  const settingsSectionsRendererPath = path.join(__dirname, "..", "..", "src", "ui", "settings_sections_renderer.js");
   const priorityStripEnginePath = path.join(__dirname, "..", "..", "src", "core", "priority_strip_engine.js");
   const priorityStripAdapterPath = path.join(__dirname, "..", "..", "src", "core", "priority_strip_cm6_adapter.js");
   const statusTagsPath = path.join(__dirname, "..", "..", "pkm_v2", "status_tags.js");
@@ -206,18 +205,17 @@ async function run() {
   const configNoteOrchestratorSrc = fs.readFileSync(configNoteOrchestratorPath, "utf8");
   const configNoteHelpersSrc = fs.readFileSync(configNoteHelpersPath, "utf8");
   const commandRegistrySrc = fs.readFileSync(commandRegistryPath, "utf8");
-  const settingsSectionsRendererSrc = fs.readFileSync(settingsSectionsRendererPath, "utf8");
   /*
    * Редактор Fields и его помощники переехали в слой настроек (фаза 3b, пункт
-   * 2), а записи в конфиг оттуда — в модель (пункт 4). Старая панель зовёт их
-   * оттуда же, поэтому проверки по тексту читают три файла как один:
-   * разделение файлов — не изменение поведения.
+   * 2), а записи в конфиг оттуда — в модель (пункт 4). Проверки по тексту
+   * читают оба файла как один: разделение файлов — не изменение поведения.
+   * Старой панели среди них больше нет, она удалена 2026-08-29.
    */
   const fieldsEditorLegacySrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_editor_legacy.js"), "utf8");
   const fieldsModelSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_model.ts"), "utf8");
-  const rendererPairSrc = settingsSectionsRendererSrc + "\n" + fieldsEditorLegacySrc + "\n" + fieldsModelSrc;
+  const rendererPairSrc = fieldsEditorLegacySrc + "\n" + fieldsModelSrc;
   const priorityStripEngineSrc = fs.readFileSync(priorityStripEnginePath, "utf8");
   const priorityStripAdapterSrc = fs.readFileSync(priorityStripAdapterPath, "utf8");
   for (const guardPath of runtimeLiteralGuardPaths) {
@@ -605,29 +603,20 @@ async function run() {
   assertTrue(/strip\.loader\.fail/.test(src), "strip loader fail telemetry exists");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/command_registry\.js"/.test(src), "command registry uses shared vault fallback helper");
   assertTrue(/cacheKey: "feature:command-registry"/.test(src), "command registry cache key wired");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/ui\/settings_tab_router\.js"/.test(src), "settings tab router uses shared vault fallback helper");
-  assertTrue(/cacheKey: "ui:settings-tab-router"/.test(src), "settings tab router cache key wired");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/ui\/settings_tab_router\.js"[\s\S]*?uiVaultEvalFallback: true/.test(src), "settings tab router enables bounded UI vault eval fallback");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/ui\/settings_sections_renderer\.js"/.test(src), "settings sections renderer uses shared vault fallback helper");
-  assertTrue(/cacheKey: "ui:settings-sections-renderer"/.test(src), "settings sections renderer cache key wired");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/ui\/settings_sections_renderer\.js"[\s\S]*?uiVaultEvalFallback: true/.test(src), "settings sections renderer enables bounded UI vault eval fallback");
   assertTrue(/function readTagVisualsConfig\(/.test(rendererPairSrc), "settings renderer exposes tagVisuals config reader");
-  assertTrue(/require\("\.\/settings\/custom\/fields_editor_legacy\.js"\)/.test(settingsSectionsRendererSrc),
-    "settings renderer pulls the moved Fields editor from the settings layer");
   assertTrue(/setName\("Show Color Settings"\)/.test(rendererPairSrc), "settings renderer includes Show Color Settings toggle");
-  assertTrue(/setName\("Opacity Left"\)/.test(rendererPairSrc), "settings renderer includes Opacity Left control");
-  assertTrue(/setName\("Tag text size"\)/.test(rendererPairSrc), "settings renderer includes Tag text size slider");
-  assertTrue(/setName\("Tag bubble size - width"\)/.test(rendererPairSrc), "settings renderer includes Tag bubble width slider");
-  assertTrue(/setName\("Tag bubble size - height"\)/.test(rendererPairSrc), "settings renderer includes Tag bubble height slider");
-  assertTrue(/setName\("Empty bubble size"\)/.test(rendererPairSrc), "settings renderer includes Empty bubble size slider");
-  assertTrue(/setName\("Tag shape"\)/.test(rendererPairSrc) && /Round <-> Square/.test(rendererPairSrc), "settings renderer includes round-to-square Tag shape slider");
-  assertTrue(/setName\("Opacity Right"\)/.test(rendererPairSrc), "settings renderer includes Opacity Right control");
+  /*
+   * Тринадцать проверок сняты 2026-08-29 вместе со старой панелью: их
+   * предмет -- ползунки вида тегов, тумблеры журнала и поле пути к нему --
+   * уехал в схему, которая выводится из прототипа и закреплена своими
+   * гейтами. Здесь их держать больше не на чем: исходника, в котором они
+   * искались, нет.
+   */
   assertTrue(/addType\.createEl\("option", \{ text: "link", value: "wikilink" \}\);/.test(rendererPairSrc), "settings renderer add-field type selector shows link label for wikilink kind");
   assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(rendererPairSrc), "settings renderer allows spaces in name_strict validation");
   assertTrue(/InlineOverhaul: cannot resolve target link field for Deep Editor add/.test(rendererPairSrc), "settings renderer fails fast when deep editor cannot resolve wikilink target field");
   assertFalse(/const allowed = Array\.isArray\(row\.allowedParentValues\) \? row\.allowedParentValues : \[\]/.test(rendererPairSrc), "wikilink binding inference does not restore parent from allowedParentValues fallback");
   assertTrue(/tokens\.push\(\{ value: `s:\$\{stok\}\|p:\$\{ptok\}\|f:\$\{fid\}`, label: `└ \$\{stok\} \(\$\{ptok\}\)` \}\);/.test(rendererPairSrc), "wikilink parent token selector disambiguates duplicate subtags by parent context");
-  assertTrue(/collectTagOrderFieldOptions\(/.test(rendererPairSrc), "settings renderer resolves line field dropdown options from tag order fields");
   assertTrue(/const renderUserTagsEditor = \(\) => \{/.test(rendererPairSrc), "settings renderer includes user tags editor renderer");
   assertTrue(/text: "Color your Tags"/.test(rendererPairSrc), "settings renderer renders Color your Tags block header");
   assertTrue(/Soft warning: User tags count exceeded 300\./.test(rendererPairSrc), "settings renderer includes User tags soft warning copy");
@@ -646,19 +635,16 @@ async function run() {
   assertTrue(/async function loadCommandRegistrySafe\(app\)/.test(src), "command registry safe loader exists");
   assertTrue(/await loadCommandRegistrySafe\(this\.app\);/.test(src), "command registry safe loader called in onload");
 
-  assertTrue(/async function loadSettingsTabRouterSafe\(app\)/.test(src), "settings tab router safe loader exists");
-  assertTrue(/await loadSettingsTabRouterSafe\(this\.app\);/.test(src), "settings tab router safe loader called in onload");
-  assertTrue(/async function loadSettingsSectionsRendererSafe\(app\)/.test(src), "settings sections renderer safe loader exists");
-  assertTrue(/await loadSettingsSectionsRendererSafe\(this\.app\);/.test(src), "settings sections renderer safe loader called in onload");
-  assertTrue(/function getSettingsSectionsRenderer\(\)/.test(src), "settings sections renderer getter exists");
-  assertTrue(/typeof mod\.renderSettingsDisplaySection === "function"/.test(src), "settings sections renderer display-shell contract required");
-  assertTrue(/typeof mod\.renderTabBarSection === "function"/.test(src), "settings sections renderer tab-bar contract required");
-  assertTrue(/typeof mod\.renderGeneralSection === "function"/.test(src), "settings sections renderer general contract required");
-  assertTrue(/typeof mod\.renderModuleTabSection === "function"/.test(src), "settings sections renderer module-tab contract required");
-  assertTrue(/typeof mod\.renderVisualTabSection === "function"/.test(src), "settings sections renderer visual-tab contract required");
-  assertTrue(/typeof mod\.renderPkmOrderBoardSection === "function"/.test(src), "settings sections renderer pkm-order contract required");
-  assertTrue(/typeof mod\.renderPkmConfigSections === "function"/.test(src), "settings sections renderer pkm-config contract required");
-  assertTrue(/typeof mod\.renderNavigationSettings === "function"/.test(src), "settings sections renderer navigation contract required");
+  /*
+   * Загрузчики роутера вкладок и рендерера секций сняты 2026-08-29 вместе со
+   * старой панелью: этих модулей больше нет. Панель настроек теперь одна, и
+   * проверяется то, что запасного пути к старой у неё не осталось.
+   */
+  assertTrue(/function getDeclarativeSettingTabCtor\(\)/.test(src), "declarative settings pane loader exists");
+  assertTrue(/require\("\.\/src\/ui\/settings\/obsidian_tab\.ts"\)/.test(src), "settings pane is loaded from the settings layer");
+  assertTrue(/const Declarative = getDeclarativeSettingTabCtor\(\);/.test(src), "createSettingTab asks the loader every time");
+  assertFalse(/newSettingsPane/.test(src), "the settings pane flag is gone: there is nothing to choose between");
+  assertFalse(/InlineOverhaulSettingTab/.test(src), "the old settings tab class is gone");
 
   assertTrue(/function getCommandRegistry\(\)/.test(src), "command registry getter exists");
   assertTrue(/buildCoreCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty core defs");
@@ -770,11 +756,6 @@ async function run() {
   assertTrue(/try \{\s*await this\.initializeDevLogSession\(this\.getConfig\(\)\);\s*\} catch \(e\)/.test(src), "onload guards dev-log session init with fail-open try/catch");
   assertTrue(/await this\.initializeDevLogSession\(this\.getConfig\(\)\);/.test(src), "onload initializes dev log session rotation");
   assertTrue(/session\.start/.test(src) && /session\.end/.test(src), "main writes session lifecycle events");
-  assertTrue(/\.setName\("Enable Dev Mode"\)/.test(rendererPairSrc), "settings UI exposes dev mode toggle");
-  assertTrue(/\.setName\("Generate log for AI\?"\)/.test(rendererPairSrc), "advanced settings exposes Generate log for AI toggle");
-  assertTrue(/txt\.inputEl\.addEventListener\("blur", commitPath\);/.test(rendererPairSrc), "log_path commits on blur to avoid per-key rerender focus loss");
-  assertTrue(/if \(!evt \|\| evt\.key !== "Enter"\) return;/.test(rendererPairSrc), "log_path commits on Enter key");
-  assertTrue(/Yes: in addition to human `.md` log, generate detailed AI `.ndjson` log\./.test(rendererPairSrc), "advanced settings documents dual-log behavior");
   assertFalse(/Dev log max file size \(KB\)/.test(rendererPairSrc), "legacy dev max size control removed from settings");
   assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(src), "setConfigPatch starts new dev log session on dev_mode ON transition");
   assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(src), "setConfigPatch closes dev log session on dev_mode OFF transition");

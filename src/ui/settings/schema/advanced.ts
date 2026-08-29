@@ -3,6 +3,8 @@
  * Руками не правится. Правится прототип, затем `npm run gen:schema`.
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
+ * Не перенесено (свои блоки и кнопки без действий, З8):
+ *   diagnostics: restore-backup (buttons, нет действия: restore-backup)
  */
 
 import type { SettingsGroup } from "../types.ts";
@@ -45,10 +47,6 @@ export const ADVANCED_GROUPS: readonly SettingsGroup[] = [
   id: "diagnostics", tab: "advanced", order: 200, heading: "Diagnostics",
   intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
   items: [
-    { kind:"buttons", id:"restore-backup",
-      name:"Settings backup", desc:"The settings you had before the update, kept in case you want them back",
-      tip:"This row only appears while the backup file is there. Restoring replaces <b>everything</b> you have set since the update, including your Fields and rules, and it cannot be undone from the settings history \u2014 so the plugin saves what you have now before it writes, and asks you to restart afterwards",
-      buttons:[ {label:"Restore the backup", action:"restore-backup", warning:true} ] },
     { kind:"toggle", id:"dev-mode", path:"advanced.devMode.enabled", default:false,
       name:"Developer logging", desc:"Record what the plugin did, to help track down a problem",
       searchTerms:["Enable Dev Mode"],

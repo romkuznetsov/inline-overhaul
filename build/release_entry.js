@@ -43,10 +43,6 @@ const bundledVaultModules = new Map(Object.entries({
   ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec_fallback.js": require("../src/features/tagwheel_config_codec_fallback.js"),
   ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js": require("../src/features/tagwheel_config_parser.js"),
   ".obsidian/plugins/inline-overhaul/src/features/transform_feature.js": require("../src/features/transform_feature.js"),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_fallback.js": require("../src/ui/settings_sections_fallback.js"),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js": require("../src/ui/settings_sections_renderer.js"),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js": require("../src/ui/settings_tab_router.js"),
-  ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js": require("../src/ui/settings_tab_router_fallback.js"),
   ".obsidian/plugins/inline-overhaul/src/ui/tagwheel_scroller_overlay.js": require("../src/ui/tagwheel_scroller_overlay.js"),
 }));
 
