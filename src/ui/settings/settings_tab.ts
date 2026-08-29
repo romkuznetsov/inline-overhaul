@@ -150,9 +150,15 @@ export class SettingsPane {
     }
   }
 
-  /** Меняет ли эта запись сами определения, а не только значения. */
+  /**
+   * Меняет ли эта запись сами определения, а не только значения.
+   *
+   * Таких случаев два, и оба про тексты: тумблер подсказок и подпись id в них
+   * (10.13.5). Значения платформа подхватывает пересчётом предикатов, а
+   * описания собираются один раз и кешируются (П-11) — их надо пересобрать.
+   */
   private definitionsChanged(key: string): boolean {
-    return key === "general.help.showTips";
+    return key === "general.help.showTips" || key === "advanced.showSettingIds";
   }
 
   /** Обновить кнопку сброса той группы, чьё значение изменилось. */
@@ -228,10 +234,12 @@ export class SettingsPane {
   private wiring(): Wiring {
     const ctx = this.ctx();
     const showTips = Boolean(this.getControlValue("general.help.showTips"));
+    const showIds = Boolean(this.getControlValue("advanced.showSettingIds"));
     const wiring: Wiring = {
       ctx,
       run: (action: ActionId) => { void this.run(action); },
-      describe: it => this.describer.describe(it, { showTips }),
+      describe: it => this.describer.describe(it, { showTips, showIds }),
+      showIds,
       renderCustom: it => this.renderCustom(it) as ReturnType<NonNullable<Wiring["renderCustom"]>>,
       resetGroup: group => this.resetButtonFor(group),
       activeTab: this.active,

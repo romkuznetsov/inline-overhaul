@@ -1126,3 +1126,16 @@
   color: var(--text-faint);
 }
 .io-fields .io-text--mono.io-text--prop { font-family: var(--font-mono); }
+
+/*
+ * Подпись id последней строкой подсказки (10.13.5). Моноширинным и тише
+ * текста: это адрес настройки, а не часть объяснения. Выделяется, чтобы его
+ * было легко скопировать глазами и не спутать с текстом.
+ */
+.io-tip__id {
+  margin-top: 6px;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  user-select: all;
+}

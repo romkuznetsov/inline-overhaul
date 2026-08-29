@@ -318,6 +318,10 @@ const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),
   keepV2("advanced.newSettingsPane"),
+  /* Тумблер подписи id в подсказках (10.13.5): настройка новая, ветки v1 у неё
+     нет, и мигрировать нечего — но маршрут нужен, чтобы форма v2 в конфиге
+     заказчика не считалась неизвестным ключом и не уезжала в `_unmigrated`. */
+  keepV2("advanced.showSettingIds"),
   keepV2("advanced.generatedRulesPath"),
   keepV2("advanced.devMode.enabled"),
   keepV2("advanced.devMode.aiLog"),

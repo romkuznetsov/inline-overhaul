@@ -31439,22 +31439,31 @@ var init_describe = __esm({
         this.cache = /* @__PURE__ */ new Map();
         this.host = host;
       }
-      /** Ключ кеша: если тексты и режим подсказок не менялись, фрагмент тот же. */
+      /** Ключ кеша: если тексты и режимы не менялись, фрагмент тот же. */
       cacheKey(it, o) {
-        return [it.desc || "", it.tip || "", (it.searchTerms || []).join("|"), o.showTips ? "1" : "0"].join(" ");
+        return [
+          it.desc || "",
+          it.tip || "",
+          (it.searchTerms || []).join("|"),
+          o.showTips ? "1" : "0",
+          o.showIds ? "1" : "0"
+        ].join(" ");
       }
       describe(it, o) {
-        const hasSomething = it.desc || o.showTips && it.tip || it.searchTerms && it.searchTerms.length;
+        const showId = Boolean(o.showTips && o.showIds && it.id);
+        const hasSomething = it.desc || o.showTips && it.tip || showId || it.searchTerms && it.searchTerms.length;
         if (!hasSomething) return void 0;
         const key = this.cacheKey(it, o);
         const hit = this.cache.get(it.id);
         if (hit && hit.key === key) return hit.frag;
         const frag = this.host.createFragment();
         if (it.desc) paint(frag, it.desc);
-        if (o.showTips && it.tip) {
+        if (o.showTips && it.tip || showId) {
           const box = frag.createEl("details", { cls: "io-tip" });
           box.createEl("summary", { text: "?", cls: "io-tip__mark" });
-          paint(box.createEl("div", { cls: "io-tip__body" }), it.tip);
+          const body = box.createEl("div", { cls: "io-tip__body" });
+          if (o.showTips && it.tip) paint(body, it.tip);
+          if (showId) body.createEl("div", { text: it.id, cls: "io-tip__id" });
         }
         this.cache.set(it.id, { key, frag });
         return frag;
@@ -34873,6 +34882,25 @@ var init_advanced = __esm({
         ]
       },
       {
+        id: "setting-ids",
+        tab: "advanced",
+        order: 150,
+        heading: "Setting ids",
+        intro: "Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen",
+        tip: "Ids are what the plugin\u2019s own notes, reports and issues call settings by. They never change when a name or a description is reworded, so they are the safe way to point at a setting \u2014 in a bug report, in a question, or when someone walks you through a fix",
+        items: [
+          {
+            kind: "toggle",
+            id: "show-setting-ids",
+            path: "advanced.showSettingIds",
+            default: false,
+            name: "Show setting ids in tips",
+            desc: "Put the id of each setting and group at the end of its tip",
+            tip: "The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it"
+          }
+        ]
+      },
+      {
         id: "diagnostics",
         tab: "advanced",
         order: 200,
@@ -35026,16 +35054,22 @@ function itemToDefinition(it, w) {
 function introRow(text) {
   return { name: "", desc: text, searchable: false };
 }
+function introTextFor(group, w) {
+  const intro = group.intro || "";
+  if (!w.showIds || !intro) return intro;
+  return intro + " \u2014 " + group.id;
+}
 function groupToDefinition(group, w) {
   const items = [];
-  if (group.intro) items.push(introRow(group.intro));
+  const intro = introTextFor(group, w);
+  if (intro) items.push(introRow(intro));
   for (const it of group.items) {
     const def2 = itemToDefinition(it, w);
     if (def2) items.push(def2);
   }
-  const intro = /-intro$/.test(group.id);
+  const introOnly = /-intro$/.test(group.id);
   const def = { type: "group", items, cls: "io-group-" + group.id };
-  if (!intro) def["heading"] = group.heading;
+  if (!introOnly) def["heading"] = group.heading;
   if (group.visible) {
     const p = group.visible;
     def["visible"] = () => p.test(w.ctx);
@@ -35149,9 +35183,15 @@ var init_settings_tab = __esm({
           }
         }
       }
-      /** Меняет ли эта запись сами определения, а не только значения. */
+      /**
+       * Меняет ли эта запись сами определения, а не только значения.
+       *
+       * Таких случаев два, и оба про тексты: тумблер подсказок и подпись id в них
+       * (10.13.5). Значения платформа подхватывает пересчётом предикатов, а
+       * описания собираются один раз и кешируются (П-11) — их надо пересобрать.
+       */
       definitionsChanged(key) {
-        return key === "general.help.showTips";
+        return key === "general.help.showTips" || key === "advanced.showSettingIds";
       }
       /** Обновить кнопку сброса той группы, чьё значение изменилось. */
       syncResetButtons(key) {
@@ -35217,12 +35257,14 @@ var init_settings_tab = __esm({
       wiring() {
         const ctx = this.ctx();
         const showTips = Boolean(this.getControlValue("general.help.showTips"));
+        const showIds = Boolean(this.getControlValue("advanced.showSettingIds"));
         const wiring = {
           ctx,
           run: (action) => {
             void this.run(action);
           },
-          describe: (it) => this.describer.describe(it, { showTips }),
+          describe: (it) => this.describer.describe(it, { showTips, showIds }),
+          showIds,
           renderCustom: (it) => this.renderCustom(it),
           resetGroup: (group) => this.resetButtonFor(group),
           activeTab: this.active

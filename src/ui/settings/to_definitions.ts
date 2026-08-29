@@ -45,6 +45,11 @@ export interface Wiring {
   /** Открытая вкладка: показываются только её группы. */
   activeTab: TabId;
   /**
+   * Тумблер `Show setting ids in tips` с вкладки Advanced (10.13.5): у группы
+   * id дописывается к вводной строке.
+   */
+  showIds?: boolean;
+  /**
    * Полоса вкладок первой строкой. Её рисует тот слой, который знает про
    * платформу, — здесь только место под неё, чтобы отображение осталось
    * свободным от DOM. Без полосы (в тестах) показываются группы активной
@@ -160,9 +165,26 @@ function introRow(text: string): SettingGroupItem {
   return { name: "", desc: text, searchable: false } as unknown as SettingGroupItem;
 }
 
+/**
+ * Id группы во вводной строке (10.13.5). Группу человек называет так же, как
+ * настройку, и её id нужен ему по той же причине. Строка вводная, поэтому id
+ * дописывается к ней, а не заводит свою.
+ */
+function introTextFor(group: SettingsGroup, w: Wiring): string {
+  const intro = group.intro || "";
+  /*
+   * \u0421\u0432\u043e\u0435\u0439 \u0441\u0442\u0440\u043e\u043a\u0438 \u0440\u0430\u0434\u0438 \u043e\u0434\u043d\u043e\u0433\u043e id \u0433\u0440\u0443\u043f\u043f\u0430 \u043d\u0435 \u043f\u043e\u043b\u0443\u0447\u0430\u0435\u0442: \u0443 \u0432\u0432\u043e\u0434\u043d\u044b\u0445 \u0433\u0440\u0443\u043f\u043f-\u043a\u043e\u043b\u043b\u0430\u0443\u0442\u043e\u0432
+   * \u0432\u0432\u043e\u0434\u043d\u043e\u0439 \u0444\u0440\u0430\u0437\u044b \u043d\u0435\u0442, \u0438 \u0442\u0430\u043a\u0430\u044f \u0441\u0442\u0440\u043e\u043a\u0430 \u0432\u0441\u0442\u0430\u043b\u0430 \u0431\u044b \u043f\u0443\u0441\u0442\u044b\u043c `transform-intro` \u043d\u0430\u0434
+   * \u043a\u043e\u043b\u043b\u0430\u0443\u0442\u043e\u043c. \u0423 \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0445 \u0433\u0440\u0443\u043f\u043f \u0444\u0440\u0430\u0437\u0430 \u0435\u0441\u0442\u044c \u0432\u0441\u0435\u0433\u0434\u0430 (\u041312).
+   */
+  if (!w.showIds || !intro) return intro;
+  return intro + " \u2014 " + group.id;
+}
+
 function groupToDefinition(group: SettingsGroup, w: Wiring): SettingDefinitionGroup {
   const items: SettingGroupItem[] = [];
-  if (group.intro) items.push(introRow(group.intro));
+  const intro = introTextFor(group, w);
+  if (intro) items.push(introRow(intro));
   for (const it of group.items) {
     const def = itemToDefinition(it, w);
     if (def) items.push(def as unknown as SettingGroupItem);
@@ -175,9 +197,9 @@ function groupToDefinition(group: SettingsGroup, w: Wiring): SettingDefinitionGr
    * решением. `cls` даёт группе приметный класс: по нему переход находит
    * нужную группу, потому что строкам класса платформа не даёт (К3).
    */
-  const intro = /-intro$/.test(group.id);
+  const introOnly = /-intro$/.test(group.id);
   const def: Record<string, unknown> = { type: "group", items, cls: "io-group-" + group.id };
-  if (!intro) def["heading"] = group.heading;
+  if (!introOnly) def["heading"] = group.heading;
   if (group.visible) {
     const p = group.visible;
     def["visible"] = () => p.test(w.ctx);

@@ -860,13 +860,14 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (3)
+### Пути, которых не было в описи v1.0 (4)
 
 | путь | настройка | группа |
 |------|-----------|--------|
 | `general.help.showTips` | Show tips (`show-tips`) | Help |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `transform.inline2note.floatingButton` | Floating button (`i2n-floating`) | Inline to note |
+| `advanced.showSettingIds` | Show setting ids in tips (`show-setting-ids`) | Setting ids |
 
 ---
 
@@ -1118,6 +1119,18 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 
   Цвет темы читается через `getComputedStyle` — единственное чтение раскладки в слое настроек, и оно одно на таблицу, а не на строку. Прочитать нечем (заглушка DOM, узел вне дерева) — значка нет, как и раньше: гадать о цвете темы панель не должна. Поэтому же `contrastRatio` научен разбирать `rgb(...)`: именно её отдаёт `getComputedStyle`.
 - **Приёмка:** тест функции на трёх парах выше; в прототипе одно значение намеренно оставлено низкоконтрастным, чтобы предупреждение было видно.
+
+#### 10.13.5 Подпись id в подсказке — `Show setting ids in tips`
+
+Заказ заказчика 2026-08-28. Принято по Р13: функция описана здесь до того, как сделана. Группа `Setting ids` на вкладке Advanced, путь `advanced.showSettingIds`, по умолчанию **выключено**.
+
+- **И1.** Зачем. Заказчик называет настройки их id, а не описанием места на экране: «поправь `i2n-output-folder`» вместо «поправь вторую настройку в группе про создание заметок». Без подписи id негде увидеть — в панели его не показывает ничто.
+- **И2.** Что показывается. У настройки — её `id` последней строкой подсказки; у группы — её `id` в конце вводной фразы. Настройка без своей подсказки получает подсказку ради одного id: иначе именно у самых простых настроек имени бы и не было.
+- **И3.** Не показывается ID **команды**. Заказчик назвал тумблер `Show command id in tip`; слово изменено сознательно, и это единственное отступление от его формулировки. ID команды в интерфейсе не показывается никогда (7.2, M6, К-1), а требовалось имя настройки. Тумблер называется `Show setting ids in tips`.
+- **И4.** Подпись живёт в подсказке, поэтому появляется только вместе с ней: при выключенном `Show tips` id не показывается. Это сказано в подсказке самого тумблера.
+- **И5.** Строки внутри своих блоков (например, `Property type` в редакторе Fields) id не получают: у них нет записи в схеме, а есть только id самого блока. Если понадобится называть и их — это отдельная работа, и она про то, чтобы дать таким строкам имена, а не про подпись.
+- **И6.** Группа своей строки ради id не заводит: у вводных групп-коллаутов вводной фразы нет, и такая строка встала бы пустым `transform-intro` над коллаутом.
+- **Приёмка:** проверка по выводу в `settings_layer_tests.ts` — шесть случаев: умолчание, подпись последней строкой, подсказка ради одного id, id группы, молчание при выключенных подсказках и пересборка определений (описания кешируются, П-11, и без пересборки подпись не появилась бы). Пин проверен мутацией: восемь дефектов, восемь красных.
 
 #### 10.13.4 Предусловие Field — `Prerequisite Field`
 
@@ -1619,7 +1632,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 
 - открытие вкладки — не дольше 150 мс на машине заказчика, замер в тесте по `performance.now()` вокруг построения определений и своих блоков;
 - изменение одной настройки не перестраивает больше 10 узлов DOM вне своего блока;
-- отладочные режимы прототипа (`Show everything`, показ id и путей) в плагин не переносятся.
+- отладочные режимы прототипа (`Show everything`, показ id и путей) в плагин не переносятся. **Оговорка 2026-08-28:** id настройки в панель всё же приехал — тумблером `Show setting ids in tips` (10.13.5), по умолчанию выключенным и без путей конфига. Это заказ заказчика, а не отладочный режим: id нужен ему, чтобы называть настройки в разговоре. Показ путей и `Show everything` остаются только в прототипе.
 
 **Доступность.** К требованиям 5.4 и Ф17–Ф20 добавляется:
 
@@ -1735,7 +1748,7 @@ python tests/prototype/update_prd.py
 | 4 | Tags & PKM | `features.pkm.enabled` | 7 | 15 | 5 |
 | 5 | Visual | `features.visual.enabled` | 4 | 22 | 4 |
 | 6 | Transform | `features.transform.enabled` | 6 | 18 | 3 |
-| 7 | Advanced | — | 3 | 6 | 1 |
+| 7 | Advanced | — | 4 | 7 | 1 |
 
 ### Группы по порядку
 
@@ -1805,6 +1818,7 @@ python tests/prototype/update_prd.py
 |-------|----|-----------|-------|-----|----------------------|
 | 50 | `advanced-intro` | Before you start | — | — | — |
 | 100 | `generated-files` | Generated files | The plugin keeps its own compiled copy of your setup inside the vault. You never need to touch it, but it can be rebuilt from here if it ever falls out of step | да | — |
+| 150 | `setting-ids` | Setting ids | Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen | да | — |
 | 200 | `diagnostics` | Diagnostics | If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on | — | — |
 
 ### Полная опись настроек
@@ -1830,6 +1844,16 @@ _Tip:_ It is not the same thing as the config note on the Tags & PKM tab. That o
   - tip: Use this if a command stops recognising a Field you know you configured. It usually means the file and the settings have drifted apart
   - кнопки: `regenerate-rules` Regenerate
   - старые названия для поиска: «Regenerate Rules Now»
+
+#### Setting ids — `setting-ids` (вкладка `advanced`)
+
+_Intro:_ Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen
+
+_Tip:_ Ids are what the plugin’s own notes, reports and issues call settings by. They never change when a name or a description is reworded, so they are the safe way to point at a setting — in a bug report, in a question, or when someone walks you through a fix
+
+- **Show setting ids in tips** — `show-setting-ids`, `toggle`, path `advanced.showSettingIds`, default `false`
+  - desc: Put the id of each setting and group at the end of its tip
+  - tip: The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it
 
 #### Diagnostics — `diagnostics` (вкладка `advanced`)
 
@@ -2432,6 +2456,7 @@ _Tip:_ Steer it with the arrow keys: left and right move between Fields, up and 
 | `advanced.devMode.aiLog` | toggle | `true` |
 | `advanced.devMode.enabled` | toggle | `false` |
 | `advanced.devMode.logPath` | text | `InlineOverhaul_DevLog` |
+| `advanced.showSettingIds` | toggle | `false` |
 | `editor.selectAll.clearOnLast` | toggle | `false` |
 | `editor.selectAll.delayMs` | slider | `700` |
 | `editor.selectAll.enabled` | toggle | `false` |

@@ -166,15 +166,16 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 28,
-      "групп в схеме: 20 с настройками, 7 вводных коллаутов и группа Fields");
+    assert.equal(SCHEMA.length, 29,
+      "групп в схеме: 21 с настройками, 7 вводных коллаутов и группа Fields. "
+      + "Группа `Setting ids` добавлена 2026-08-28 по заказу: тумблер подписи id");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
-    assert.equal(bound.length, 87, "настроек, привязанных к путям конфига");
+    assert.equal(bound.length, 88, "настроек, привязанных к путям конфига");
   });
 
   await test("ни одна группа не потерялась молча", () => {
     /*
-     * В прототипе 32 группы. Четырёх здесь быть не может, и у каждой своя
+     * В прототипе 33 группы. Четырёх здесь быть не может, и у каждой своя
      * причина: либо она целиком свой блок и ждёт рендерера (фаза 3), либо
      * состоит из кнопок, которым нужно действие из реестра (фаза 5, З8).
      * Список закрытый: если группа исчезнет по другой причине, тест упадёт.
@@ -189,8 +190,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 32,
-      "32 группы прототипа разложены без остатка: группа Note properties удалена 2026-08-28, её настройки уехали к Field (10.9)");
+    assert.equal(SCHEMA.length + AWAITED.length, 33,
+      "33 группы прототипа разложены без остатка: группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Setting ids добавлена в тот же день");
   });
 
   await test("тумблер модуля есть у четырёх вкладок и только у них", () => {
@@ -865,6 +866,77 @@ async function main(): Promise<void> {
     assert.equal(lastDisabled(live), "disabled:false", "появилось отличие — кнопка ожила");
     assert.ok(String(lastTooltip(live)).includes("1 setting differs"),
       "подсказка называет число отличий: " + lastTooltip(live));
+  });
+
+  /* ---- подпись id в подсказках (10.13.5, заказ 2026-08-28) ------------ */
+
+  /**
+   * Текст подсказки настройки: что реально попало в описание. Читается вывод,
+   * а не схема — подпись id живёт в собранном фрагменте, и увидеть её можно
+   * только там.
+   */
+  const tipTextOf = (pane: SettingsPane, tab: string, heading: string, name: string): string => {
+    const group = groupOf(pane, tab, heading);
+    const row = (group?.items || []).find((it: Def) => it.name === name);
+    assert.ok(row, "не нашлась строка " + name + " в группе " + heading);
+    const desc = row.desc as StubNode | string | undefined;
+    return typeof desc === "string" ? desc : String(desc?.textContent || "");
+  };
+
+  await test("тумблер подписи id выключен по умолчанию", () => {
+    const defaults = buildDefaultConfig(SCHEMA);
+    assert.equal(getIn(defaults, "advanced.showSettingIds"), false,
+      "по умолчанию id не показываются: это подпись для разговора, а не для работы");
+    const { pane } = makePane();
+    const tip = tipTextOf(pane, "advanced", "Diagnostics", "Developer logging");
+    assert.ok(!tip.includes("dev-mode"), "id в подсказке быть не должно: " + tip);
+  });
+
+  await test("с тумблером id стоит последней строкой подсказки", async () => {
+    const { pane } = makePane();
+    await pane.setControlValue("advanced.showSettingIds", true);
+    const tip = tipTextOf(pane, "advanced", "Diagnostics", "Developer logging");
+    assert.ok(tip.includes("Leave this off day to day"), "своя подсказка осталась: " + tip);
+    assert.ok(tip.trimEnd().endsWith("dev-mode"), "id идёт последним: " + tip);
+  });
+
+  await test("настройка без своей подсказки получает подсказку ради id", async () => {
+    const { pane } = makePane();
+    /* `New notes folder` — настройка с описанием, но без подсказки. */
+    const before = tipTextOf(pane, "transform", "Inline to note", "New notes folder");
+    assert.ok(!before.includes("i2n-output-folder"), "до тумблера id нет: " + before);
+    await pane.setControlValue("advanced.showSettingIds", true);
+    const after = tipTextOf(pane, "transform", "Inline to note", "New notes folder");
+    assert.ok(after.includes("i2n-output-folder"),
+      "у настройки без подсказки подсказка появляется ради id: " + after);
+  });
+
+  await test("id группы дописан к её вводной строке", async () => {
+    const { pane } = makePane();
+    const introOf = (): string => {
+      const group = groupOf(pane, "advanced", "Diagnostics");
+      const row = (group?.items || [])[0] as Def;
+      const desc = row?.desc as StubNode | string | undefined;
+      return typeof desc === "string" ? desc : String(desc?.textContent || "");
+    };
+    assert.ok(!introOf().includes("diagnostics"), "до тумблера id группы нет");
+    await pane.setControlValue("advanced.showSettingIds", true);
+    assert.ok(introOf().endsWith("diagnostics"), "id группы в конце вводной строки: " + introOf());
+  });
+
+  await test("id появляется только вместе с подсказками", async () => {
+    const { pane } = makePane({ general: { help: { showTips: false } } });
+    await pane.setControlValue("advanced.showSettingIds", true);
+    const tip = tipTextOf(pane, "advanced", "Diagnostics", "Developer logging");
+    assert.ok(!tip.includes("dev-mode"),
+      "подсказок нет — значит и подписи id негде быть: " + tip);
+  });
+
+  await test("тумблер id пересобирает определения, а не только значения", async () => {
+    const { pane, counts } = makeCountingPane();
+    await pane.setControlValue("advanced.showSettingIds", true);
+    assert.equal(counts.rebuild, 1,
+      "описания кешируются (П-11), и без пересборки подпись id не появилась бы");
   });
 
   console.log("\n" + ran + " проверок пройдено");

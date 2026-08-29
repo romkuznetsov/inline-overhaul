@@ -49,6 +49,14 @@ function paint(host: DocLike, text: string): void {
 export interface DescribeOptions {
   /** Тумблер `Show tips` из группы Help. */
   showTips: boolean;
+  /**
+   * Тумблер `Show setting ids in tips` с вкладки Advanced (10.13.5).
+   *
+   * Заказчик называет настройки их id, а не описанием места на экране, и без
+   * этой подписи id негде увидеть: отладочный показ id и путей у каждой строки
+   * остался в прототипе и в панель не переносится (раздел 12).
+   */
+  showIds?: boolean;
   /** Тексты для строки о переименовании. */
   previouslyCalled?: (names: readonly string[]) => string;
 }
@@ -64,13 +72,24 @@ export class Describer {
     this.host = host;
   }
 
-  /** Ключ кеша: если тексты и режим подсказок не менялись, фрагмент тот же. */
+  /** Ключ кеша: если тексты и режимы не менялись, фрагмент тот же. */
   private cacheKey(it: NamedDef, o: DescribeOptions): string {
-    return [it.desc || "", it.tip || "", (it.searchTerms || []).join("|"), o.showTips ? "1" : "0"].join(" ");
+    return [
+      it.desc || "",
+      it.tip || "",
+      (it.searchTerms || []).join("|"),
+      o.showTips ? "1" : "0",
+      o.showIds ? "1" : "0",
+    ].join(" ");
   }
 
   describe(it: NamedDef, o: DescribeOptions): string | DocLike | undefined {
-    const hasSomething = it.desc || (o.showTips && it.tip) || (it.searchTerms && it.searchTerms.length);
+    /* Подпись id живёт в подсказке, поэтому и появляется вместе с подсказками. */
+    const showId = Boolean(o.showTips && o.showIds && it.id);
+    const hasSomething = it.desc
+      || (o.showTips && it.tip)
+      || showId
+      || (it.searchTerms && it.searchTerms.length);
     if (!hasSomething) return undefined;
 
     const key = this.cacheKey(it, o);
@@ -85,10 +104,17 @@ export class Describer {
      * без скриптов, работают с клавиатуры и не превращают описание в стену
      * текста. Первый вариант приклеивал tip к desc, и панель стала нечитаемой.
      */
-    if (o.showTips && it.tip) {
+    if ((o.showTips && it.tip) || showId) {
       const box = frag.createEl("details", { cls: "io-tip" });
       box.createEl("summary", { text: "?", cls: "io-tip__mark" });
-      paint(box.createEl("div", { cls: "io-tip__body" }), it.tip);
+      const body = box.createEl("div", { cls: "io-tip__body" });
+      if (o.showTips && it.tip) paint(body, it.tip);
+      /*
+       * Id идёт последней строкой подсказки — у настройки без своей подсказки
+       * подсказка появляется ради него одного. Так его видно и там, где
+       * объяснять нечего.
+       */
+      if (showId) body.createEl("div", { text: it.id, cls: "io-tip__id" });
     }
 
     this.cache.set(it.id, { key, frag });

@@ -1924,6 +1924,16 @@ const SCHEMA = [
   ]
 },
 {
+  id: "setting-ids", tab: "advanced", order: 150, heading: "Setting ids",
+  intro: "Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen",
+  tip: "Ids are what the plugin\u2019s own notes, reports and issues call settings by. They never change when a name or a description is reworded, so they are the safe way to point at a setting \u2014 in a bug report, in a question, or when someone walks you through a fix",
+  items: [
+    { kind:"toggle", id:"show-setting-ids", path:"advanced.showSettingIds", default:false,
+      name:"Show setting ids in tips", desc:"Put the id of each setting and group at the end of its tip",
+      tip:"The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it" }
+  ]
+},
+{
   id: "diagnostics", tab: "advanced", order: 200, heading: "Diagnostics",
   intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
   items: [
@@ -2368,8 +2378,22 @@ function attachTipItem(anchorRow, host, item) {
   attachTip(anchorRow, item.tip, item.name, host);
 }
 
+/*
+ * Подпись id в конце подсказки. Тумблер `Show setting ids in tips` на вкладке
+ * Advanced: заказчик называет настройки id, а не описанием места на экране,
+ * и без этой подписи id негде увидеть. Отладочный показ id и путей рядом с
+ * каждой строкой — это другое: он остаётся только в прототипе.
+ */
+function withId(text, id) {
+  const on = ctx.get("advanced.showSettingIds") === true;
+  const key = String(id || "").trim();
+  if (!on || !key) return text;
+  return String(text || "") + (text ? "<br><br>" : "") + "<code>" + key + "</code>";
+}
+
 function helpButton(nameRow, info, item) {
-  if (!item.tip || !ctx.get("general.help.showTips")) return;
+  const tipText = withId(item.tip, item.id);
+  if (!tipText || !ctx.get("general.help.showTips")) return;
   /* on a settings row the description sits between, so the tip goes after it */
   let tipEl = null;
   const help = el("button", "io-help", nameRow, "?");
@@ -2380,7 +2404,7 @@ function helpButton(nameRow, info, item) {
     const shown = help.getAttribute("aria-expanded") === "true";
     help.setAttribute("aria-expanded", shown ? "false" : "true");
     if (shown) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
-    tipEl = rich(el("div", "io-tip"), item.tip);
+    tipEl = rich(el("div", "io-tip"), tipText);
     const anchor = info.querySelector(".io-meta");
     if (anchor) info.insertBefore(tipEl, anchor); else info.appendChild(tipEl);
   });

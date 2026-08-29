@@ -18,6 +18,16 @@ export const ADVANCED_GROUPS: readonly SettingsGroup[] = [
     { kind:"custom", id:"advanced-callout", render: callout("advanced") }
   ] },
 {
+  id: "setting-ids", tab: "advanced", order: 150, heading: "Setting ids",
+  intro: "Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen",
+  tip: "Ids are what the plugin\u2019s own notes, reports and issues call settings by. They never change when a name or a description is reworded, so they are the safe way to point at a setting \u2014 in a bug report, in a question, or when someone walks you through a fix",
+  items: [
+    { kind:"toggle", id:"show-setting-ids", path:"advanced.showSettingIds", default:false,
+      name:"Show setting ids in tips", desc:"Put the id of each setting and group at the end of its tip",
+      tip:"The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it" }
+  ]
+},
+{
   id: "diagnostics", tab: "advanced", order: 200, heading: "Diagnostics",
   intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
   items: [
