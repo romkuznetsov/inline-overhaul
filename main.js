@@ -2361,11 +2361,20 @@ function formatHotkeyBinding(binding) {
   return mods.length ? `${mods.join(" + ")} + ${key}` : key;
 }
 
-function getBoundHotkeyForCommand(app, commandId) {
+/**
+ * Идентификатор команды в менеджере хоткеев -- полный: `<id плагина>:<id
+ * команды>`. Раньше спрашивали голым, и менеджер не находил ничего никогда:
+ * хоткеи полей-дат в заметке конфигурации всегда были пустыми. Имя плагина
+ * приходит снаружи, а при его отсутствии спрашиваем как раньше -- пусть уж
+ * лучше не найдёт, чем упадёт.
+ */
+function getBoundHotkeyForCommand(app, commandId, pluginId) {
   if (!app || !commandId) return "";
   const hm = app.hotkeyManager;
   if (!hm) return "";
-  const id = String(commandId || "").trim();
+  const bare = String(commandId || "").trim();
+  const owner = String(pluginId || "").trim();
+  const id = owner && bare.indexOf(":") === -1 ? owner + ":" + bare : bare;
   try {
     if (isObj(hm.customKeys) && Array.isArray(hm.customKeys[id]) && hm.customKeys[id].length) {
       return formatHotkeyBinding(hm.customKeys[id][0]);
@@ -2378,7 +2387,7 @@ function getBoundHotkeyForCommand(app, commandId) {
   return "";
 }
 
-function detectDateFieldHotkeys(app, cfg, fieldId) {
+function detectDateFieldHotkeys(app, cfg, fieldId, pluginId) {
   const fid = String(fieldId || "").trim();
   if (!fid) return { increase: "", decrease: "" };
   const incCandidates = [];
@@ -2387,8 +2396,8 @@ function detectDateFieldHotkeys(app, cfg, fieldId) {
   decCandidates.push(`inlineOverhaul_Hotkey_${fid}_decrease`);
   let increase = "";
   let decrease = "";
-  for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app, incCandidates[i]);
-  for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app, decCandidates[i]);
+  for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app, incCandidates[i], pluginId);
+  for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app, decCandidates[i], pluginId);
   return { increase, decrease };
 }
 
@@ -5127,7 +5136,8 @@ class InlineOverhaulPlugin extends Plugin {
       cloneJson,
       isObj,
       readVaultText,
-      detectDateFieldHotkeys: (fid, cfgForDetect) => detectDateFieldHotkeys(this.app, cfgForDetect, fid),
+      detectDateFieldHotkeys: (fid, cfgForDetect) =>
+        detectDateFieldHotkeys(this.app, cfgForDetect, fid, this.manifest && this.manifest.id),
       normalizePkmOrder,
       TAGWHEEL_CONFIG_MODE_DETAILED,
       TAGWHEEL_CONFIG_MODE_MINIMAL,

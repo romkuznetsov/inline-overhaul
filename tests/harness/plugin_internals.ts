@@ -59,6 +59,15 @@ export interface PluginInternals {
   /** Виджет, которым плагин рисует токен Value в строке заметки. */
   TagVisualTokenWidget: Any;
   normalizeHexColorInput: (v: unknown) => string;
+  /**
+   * Хоткеи поля-даты для заметки конфигурации. Вынесены наружу, потому
+   * что до 2026-08-29 они не находились никогда: менеджер хоткеев
+   * спрашивали голым идентификатором команды вместо полного (PRD 10.4,
+   * Б-11).
+   */
+  detectDateFieldHotkeys: (
+    app: Any, cfg: Any, fieldId: string, pluginId?: string,
+  ) => { increase: string; decrease: string };
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -77,7 +86,7 @@ const mainPath = path.resolve(here, "..", "..", "main.js");
  */
 const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
   + "  migrateConfig, normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
-  + "  getTagWheelConfigCodec, TagVisualTokenWidget,\n"
+  + "  getTagWheelConfigCodec, TagVisualTokenWidget, detectDateFieldHotkeys,\n"
   + "  buildFieldTagVisualMap, buildGlobalTagVisualMap, readTagVisualRowByTokenMaps,\n"
   + "  getTagVisualsFromConfig, resolveEffectiveTagVisualMode, normalizeHexColorInput,\n"
   + "  loadConfigNoteModules: async function (app) {\n"

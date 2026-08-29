@@ -39315,11 +39315,13 @@ var require_main = __commonJS({
       if (!key) return "";
       return mods.length ? `${mods.join(" + ")} + ${key}` : key;
     }
-    function getBoundHotkeyForCommand(app3, commandId) {
+    function getBoundHotkeyForCommand(app3, commandId, pluginId) {
       if (!app3 || !commandId) return "";
       const hm = app3.hotkeyManager;
       if (!hm) return "";
-      const id = String(commandId || "").trim();
+      const bare = String(commandId || "").trim();
+      const owner = String(pluginId || "").trim();
+      const id = owner && bare.indexOf(":") === -1 ? owner + ":" + bare : bare;
       try {
         if (isObj(hm.customKeys) && Array.isArray(hm.customKeys[id]) && hm.customKeys[id].length) {
           return formatHotkeyBinding(hm.customKeys[id][0]);
@@ -39332,7 +39334,7 @@ var require_main = __commonJS({
       }
       return "";
     }
-    function detectDateFieldHotkeys(app3, cfg, fieldId) {
+    function detectDateFieldHotkeys(app3, cfg, fieldId, pluginId) {
       const fid = String(fieldId || "").trim();
       if (!fid) return { increase: "", decrease: "" };
       const incCandidates = [];
@@ -39341,8 +39343,8 @@ var require_main = __commonJS({
       decCandidates.push(`inlineOverhaul_Hotkey_${fid}_decrease`);
       let increase = "";
       let decrease = "";
-      for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app3, incCandidates[i]);
-      for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app3, decCandidates[i]);
+      for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app3, incCandidates[i], pluginId);
+      for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app3, decCandidates[i], pluginId);
       return { increase, decrease };
     }
     var DEFAULT_CONFIG = {
@@ -41841,7 +41843,7 @@ var require_main = __commonJS({
           cloneJson,
           isObj,
           readVaultText,
-          detectDateFieldHotkeys: (fid, cfgForDetect) => detectDateFieldHotkeys(this.app, cfgForDetect, fid),
+          detectDateFieldHotkeys: (fid, cfgForDetect) => detectDateFieldHotkeys(this.app, cfgForDetect, fid, this.manifest && this.manifest.id),
           normalizePkmOrder,
           TAGWHEEL_CONFIG_MODE_DETAILED,
           TAGWHEEL_CONFIG_MODE_MINIMAL
