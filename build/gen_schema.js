@@ -63,6 +63,20 @@ const TAB_CONST = {
  * в схеме такого глобального состояния нет и быть не должно.
  */
 /**
+ * Действия, за которыми есть работающий метод плагина. Тот же список лежит в
+ * `src/ui/settings/actions.ts` (`READY_ACTIONS`), и их совпадение проверяется
+ * тестом: разойдись они — и в панели появится кнопка, которая ничего не
+ * делает (З8). Кнопка, у которой хотя бы одно действие не отсюда, в схему не
+ * попадает целиком.
+ */
+const READY_ACTIONS = new Set([
+  "generate-config-note",
+  "apply-config-note",
+  "open-config-template",
+  "regenerate-rules",
+]);
+
+/**
  * Настройки, за которыми ещё нет движка. Показывать их нельзя (З8), и
  * прототип тут ни при чём: он показывает панель, какой она будет. Каждая
  * запись названа причиной и снимается вместе с работой, которая её сделает.
@@ -240,8 +254,18 @@ for (const g of groups) {
       continue;
     }
     if (kind === "buttons") {
-      drop.push((field(it, "id") || "?") + " (" + kind + ")");
-      dropped++;
+      /* Все действия записи должны быть в реестре: половину кнопок строки
+         показывать нельзя, а строка с одной живой и одной мёртвой кнопкой
+         врёт ровно так же, как строка целиком мёртвая. */
+      const actions = [...it.matchAll(/action:\s*"([^"]+)"/g)].map(m => m[1]);
+      const missing = actions.filter(a => !READY_ACTIONS.has(a));
+      if (!actions.length || missing.length) {
+        drop.push(itemId + " (" + kind + ", нет действия: " + missing.join(", ") + ")");
+        dropped++;
+        continue;
+      }
+      keep.push(it);
+      kept++;
       continue;
     }
     keep.push(it);

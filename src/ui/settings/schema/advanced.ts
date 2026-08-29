@@ -3,9 +3,6 @@
  * Руками не правится. Правится прототип, затем `npm run gen:schema`.
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
- * Не перенесено (свои блоки и кнопки без действий, З8):
- *   generated-files: config-template (buttons), regenerate-rules (buttons)
- *   diagnostics: restore-backup (buttons)
  */
 
 import type { SettingsGroup } from "../types.ts";
@@ -17,6 +14,23 @@ export const ADVANCED_GROUPS: readonly SettingsGroup[] = [
   items: [
     { kind:"custom", id:"advanced-callout", render: callout("advanced") }
   ] },
+{
+  id: "generated-files", tab: "advanced", order: 100, heading: "Generated files",
+  intro: "The plugin keeps its own compiled copy of your setup inside the vault. You never need to touch it, but it can be rebuilt from here if it ever falls out of step",
+  tip: "It is not the same thing as the config note on the Tags & PKM tab. That one is for you to read and edit; this one is written for the plugin and is overwritten on every change, so editing it by hand has no lasting effect",
+  items: [
+    { kind:"buttons", id:"config-template",
+      name:"Template note", desc:"A reference note showing every block the config note understands",
+      searchTerms:["Open Detailed Template"],
+      tip:"Open this when you want to write a config note by hand and need to know what the blocks are called",
+      buttons:[ {label:"Open", action:"open-config-template"} ] },
+    { kind:"buttons", id:"regenerate-rules",
+      name:"Regenerate", desc:"Rewrite the file from your current Field setup",
+      searchTerms:["Regenerate Rules Now"],
+      tip:"Use this if a command stops recognising a Field you know you configured. It usually means the file and the settings have drifted apart",
+      buttons:[ {label:"Regenerate", action:"regenerate-rules"} ] }
+  ]
+},
 {
   id: "setting-ids", tab: "advanced", order: 150, heading: "Setting ids",
   intro: "Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen",
@@ -31,6 +45,10 @@ export const ADVANCED_GROUPS: readonly SettingsGroup[] = [
   id: "diagnostics", tab: "advanced", order: 200, heading: "Diagnostics",
   intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
   items: [
+    { kind:"buttons", id:"restore-backup",
+      name:"Settings backup", desc:"The settings you had before the update, kept in case you want them back",
+      tip:"This row only appears while the backup file is there. Restoring replaces <b>everything</b> you have set since the update, including your Fields and rules, and it cannot be undone from the settings history \u2014 so the plugin saves what you have now before it writes, and asks you to restart afterwards",
+      buttons:[ {label:"Restore the backup", action:"restore-backup", warning:true} ] },
     { kind:"toggle", id:"dev-mode", path:"advanced.devMode.enabled", default:false,
       name:"Developer logging", desc:"Record what the plugin did, to help track down a problem",
       searchTerms:["Enable Dev Mode"],

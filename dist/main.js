@@ -35146,6 +35146,18 @@ var init_pkm = __esm({
             tip: "<b>Detailed</b> adds comments describing each block, which helps if you are going to edit it by hand. <b>Minimal</b> is easier to read as a backup and easier to compare between two versions",
             searchTerms: ["Config Export Mode"],
             options: [{ value: "detailed", label: "Detailed" }, { value: "minimal", label: "Minimal" }]
+          },
+          {
+            kind: "buttons",
+            id: "config-note-actions",
+            name: "Generate and apply",
+            desc: "Write your setup out to the note, or read it back in",
+            searchTerms: ["TagWheel Note Editor"],
+            tip: "<b>Generate</b> overwrites the note with your settings as they are right now, so it is always a fresh copy rather than something that can go stale. <b>Apply</b> goes the other way and replaces your settings with what the note says \u2014 the previous setup is kept aside first, so a mistake is recoverable",
+            buttons: [
+              { label: "Generate", action: "generate-config-note" },
+              { label: "Apply", action: "apply-config-note", cta: true }
+            ]
           }
         ]
       }
@@ -36539,6 +36551,34 @@ var init_advanced = __esm({
         ]
       },
       {
+        id: "generated-files",
+        tab: "advanced",
+        order: 100,
+        heading: "Generated files",
+        intro: "The plugin keeps its own compiled copy of your setup inside the vault. You never need to touch it, but it can be rebuilt from here if it ever falls out of step",
+        tip: "It is not the same thing as the config note on the Tags & PKM tab. That one is for you to read and edit; this one is written for the plugin and is overwritten on every change, so editing it by hand has no lasting effect",
+        items: [
+          {
+            kind: "buttons",
+            id: "config-template",
+            name: "Template note",
+            desc: "A reference note showing every block the config note understands",
+            searchTerms: ["Open Detailed Template"],
+            tip: "Open this when you want to write a config note by hand and need to know what the blocks are called",
+            buttons: [{ label: "Open", action: "open-config-template" }]
+          },
+          {
+            kind: "buttons",
+            id: "regenerate-rules",
+            name: "Regenerate",
+            desc: "Rewrite the file from your current Field setup",
+            searchTerms: ["Regenerate Rules Now"],
+            tip: "Use this if a command stops recognising a Field you know you configured. It usually means the file and the settings have drifted apart",
+            buttons: [{ label: "Regenerate", action: "regenerate-rules" }]
+          }
+        ]
+      },
+      {
         id: "setting-ids",
         tab: "advanced",
         order: 150,
@@ -36693,9 +36733,12 @@ function itemToDefinition(it, w) {
   if (it.kind === "buttons") {
     const first = it.buttons[0];
     if (!first) return null;
-    if (it.disabled) {
-      const p = it.disabled;
-      common["disabled"] = () => p.test(w.ctx);
+    const off = it.disabled;
+    const busy = w.busy;
+    if (off || busy) {
+      common["disabled"] = () => Boolean(
+        off && off.test(w.ctx) || busy && it.buttons.some((b) => busy(b.action))
+      );
     }
     common["action"] = () => w.run(first.action);
     const rest = it.buttons.slice(1);
@@ -36780,6 +36823,12 @@ var init_settings_tab = __esm({
          * пересобирать определения из-за одного изменённого значения.
          */
         this.resetButtons = /* @__PURE__ */ new Map();
+        /**
+         * Действия, которые сейчас выполняются. Пока действие идёт, его кнопка
+         * неактивна (5.6): второе нажатие по «Применить» запускало бы применение
+         * заметки поверх незаконченного первого.
+         */
+        this.busy = /* @__PURE__ */ new Set();
         this.deps = deps;
         this.describer = new Describer(deps.fragments);
         this.defaults = buildDefaultConfig(deps.schema);
@@ -36909,7 +36958,15 @@ var init_settings_tab = __esm({
         if (!fn) {
           throw new Error("\u043D\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435: " + action);
         }
-        await fn();
+        if (this.busy.has(action)) return;
+        this.busy.add(action);
+        if (this.deps.rebuild) this.deps.rebuild();
+        try {
+          await fn();
+        } finally {
+          this.busy.delete(action);
+          if (this.deps.rebuild) this.deps.rebuild();
+        }
       }
       wiring() {
         const ctx = this.ctx();
@@ -36920,6 +36977,7 @@ var init_settings_tab = __esm({
           run: (action) => {
             void this.run(action);
           },
+          busy: (action) => this.busy.has(action),
           describe: (it) => this.describer.describe(it, { showTips, showIds }),
           showIds,
           renderCustom: (it) => this.renderCustom(it),
@@ -37031,6 +37089,85 @@ var init_store = __esm({
   }
 });
 
+// src/ui/settings/actions.ts
+function pathOf2(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function said(message, path) {
+  return path ? message + ": " + path : message;
+}
+function buildActions(deps) {
+  const { plugin, notify } = deps;
+  const guard = async (what, call, done) => {
+    if (typeof call !== "function") {
+      notify(NO_METHOD);
+      console.error("inline-overhaul: \u0443 \u043F\u043B\u0430\u0433\u0438\u043D\u0430 \u043D\u0435\u0442 \u043C\u0435\u0442\u043E\u0434\u0430 \u0434\u043B\u044F \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F " + what);
+      return;
+    }
+    try {
+      notify(done(await Promise.resolve(call())));
+    } catch (e) {
+      const message = e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
+      notify(message);
+      console.error("inline-overhaul: \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 " + what + " \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u043B\u043E\u0441\u044C", e);
+    }
+  };
+  return {
+    "generate-config-note": () => guard(
+      "generate-config-note",
+      plugin.openTagWheelConfigNote && (() => plugin.openTagWheelConfigNote()),
+      (result) => said(GENERATED, pathOf2(result))
+    ),
+    "open-config-template": () => guard(
+      "open-config-template",
+      plugin.openTagWheelConfigTemplateNote && (() => plugin.openTagWheelConfigTemplateNote()),
+      (result) => said(TEMPLATE_OPENED, pathOf2(result))
+    ),
+    "regenerate-rules": () => guard(
+      "regenerate-rules",
+      plugin.ensureGeneratedRulesNow && (() => plugin.ensureGeneratedRulesNow("manual")),
+      () => RULES_DONE
+    ),
+    /**
+     * Применение заметки переписывает настройки целиком, поэтому спрашивает
+     * (Э2). Отказ — это отказ: ничего не зовётся.
+     */
+    "apply-config-note": async () => {
+      const ask = deps.confirm;
+      if (typeof ask !== "function") {
+        console.error("inline-overhaul: \u043F\u0440\u0438\u043C\u0435\u043D\u0435\u043D\u0438\u0435 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
+        return;
+      }
+      const yes = await ask({
+        title: APPLY_TITLE,
+        body: APPLY_BODY,
+        confirmLabel: APPLY_CONFIRM,
+        danger: true
+      });
+      if (!yes) return;
+      await guard(
+        "apply-config-note",
+        plugin.applyTagWheelConfigNote && (() => plugin.applyTagWheelConfigNote()),
+        () => APPLY_DONE
+      );
+    }
+  };
+}
+var APPLY_TITLE, APPLY_BODY, APPLY_CONFIRM, APPLY_DONE, GENERATED, TEMPLATE_OPENED, RULES_DONE, NO_METHOD;
+var init_actions = __esm({
+  "src/ui/settings/actions.ts"() {
+    "use strict";
+    APPLY_TITLE = "Apply the config note";
+    APPLY_BODY = "This replaces your current setup with what the note says. The previous setup is kept aside first";
+    APPLY_CONFIRM = "Replace my setup";
+    APPLY_DONE = "Settings replaced with the config note";
+    GENERATED = "Config note written and opened";
+    TEMPLATE_OPENED = "Template note opened";
+    RULES_DONE = "Generated file rebuilt from your Fields";
+    NO_METHOD = "This build cannot do that yet";
+  }
+});
+
 // src/ui/settings/obsidian_tab.ts
 var obsidian_tab_exports = {};
 __export(obsidian_tab_exports, {
@@ -37098,6 +37235,45 @@ function tabStripRow(state) {
     }
   };
 }
+function askConfirm(app3, o) {
+  return new Promise((resolve) => {
+    let answered = false;
+    const finish = (yes) => {
+      if (answered) return;
+      answered = true;
+      resolve(yes);
+    };
+    class ConfirmModal extends import_obsidian.Modal {
+      onOpen() {
+        const box = this.contentEl;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", void 0, o.title);
+        el(box, "p", "io-item__desc", o.body);
+        const foot = el(box, "div", "io-dlg__foot");
+        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        cancel.addEventListener("click", (() => {
+          finish(false);
+          this.close();
+        }));
+        const go = foot.createEl("button", {
+          cls: o.danger ? "io-danger" : "io-btn io-btn--cta",
+          text: o.confirmLabel,
+          attr: { type: "button" }
+        });
+        go.addEventListener("click", (() => {
+          finish(true);
+          this.close();
+        }));
+      }
+      onClose() {
+        finish(false);
+        this.contentEl.empty();
+      }
+    }
+    new ConfirmModal(app3).open();
+  });
+}
 var import_obsidian, InlineOverhaulSettings;
 var init_obsidian_tab = __esm({
   "src/ui/settings/obsidian_tab.ts"() {
@@ -37106,6 +37282,8 @@ var init_obsidian_tab = __esm({
     init_schema();
     init_settings_tab();
     init_store();
+    init_actions();
+    init_dom();
     InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
       constructor(app3, plugin, bridge) {
         super(app3, plugin);
@@ -37114,8 +37292,17 @@ var init_obsidian_tab = __esm({
           schema: SCHEMA,
           tabs: TABS,
           store: new ConfigStoreAdapter(storeFor(plugin)),
-          actions: {},
-          // реестр наполняется в фазе 5; кнопок без действий в схеме нет
+          /*
+           * Реестр действий (5.6). Кнопка, действия которой здесь нет, в схему
+           * не попадает вовсе — этим занят `READY_ACTIONS` в `actions.ts`.
+           */
+          actions: buildActions({
+            plugin,
+            notify: (message) => {
+              new import_obsidian.Notice(message);
+            },
+            confirm: (o) => askConfirm(app3, o)
+          }),
           fragments: {
             createFragment: () => document.createDocumentFragment()
           },

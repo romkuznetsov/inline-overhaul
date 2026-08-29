@@ -31,6 +31,8 @@ import { isBound } from "./types.ts";
 export interface Wiring {
   ctx: SettingsCtx;
   run: (action: ActionId) => void;
+  /** Действие сейчас выполняется: его кнопка гаснет до конца (5.6). */
+  busy?: (action: ActionId) => boolean;
   /** Собирает описание: текст со ссылками плюс сворачиваемая подсказка. */
   describe: (it: NamedDef) => unknown;
   /** Своя вёрстка для kind: 'custom'. */
@@ -138,9 +140,16 @@ function itemToDefinition(it: SettingDef, w: Wiring): SettingDefinition | null {
   if (it.kind === "buttons") {
     const first = it.buttons[0];
     if (!first) return null;
-    if (it.disabled) {
-      const p = it.disabled;
-      common["disabled"] = () => p.test(w.ctx);
+    /*
+     * Кнопка гаснет на время работы (5.6). Предикат схемы при этом не
+     * теряется: если он есть, оба условия складываются.
+     */
+    const off = it.disabled;
+    const busy = w.busy;
+    if (off || busy) {
+      common["disabled"] = () => Boolean(
+        (off && off.test(w.ctx)) || (busy && it.buttons.some(b => busy(b.action))),
+      );
     }
     common["action"] = () => w.run(first.action);
     const rest = it.buttons.slice(1);

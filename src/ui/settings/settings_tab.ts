@@ -221,6 +221,13 @@ export class SettingsPane {
     };
   }
 
+  /**
+   * Действия, которые сейчас выполняются. Пока действие идёт, его кнопка
+   * неактивна (5.6): второе нажатие по «Применить» запускало бы применение
+   * заметки поверх незаконченного первого.
+   */
+  private busy = new Set<string>();
+
   async run(action: ActionId): Promise<void> {
     const fn = this.deps.actions[action];
     if (!fn) {
@@ -228,7 +235,15 @@ export class SettingsPane {
          а не пользовательская ситуация. */
       throw new Error("нет действия в реестре: " + action);
     }
-    await fn();
+    if (this.busy.has(action)) return;
+    this.busy.add(action);
+    if (this.deps.rebuild) this.deps.rebuild();
+    try {
+      await fn();
+    } finally {
+      this.busy.delete(action);
+      if (this.deps.rebuild) this.deps.rebuild();
+    }
   }
 
   private wiring(): Wiring {
@@ -238,6 +253,7 @@ export class SettingsPane {
     const wiring: Wiring = {
       ctx,
       run: (action: ActionId) => { void this.run(action); },
+      busy: (action: ActionId) => this.busy.has(action),
       describe: it => this.describer.describe(it, { showTips, showIds }),
       showIds,
       renderCustom: it => this.renderCustom(it) as ReturnType<NonNullable<Wiring["renderCustom"]>>,

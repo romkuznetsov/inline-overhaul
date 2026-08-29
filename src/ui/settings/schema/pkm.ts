@@ -3,8 +3,6 @@
  * Руками не правится. Правится прототип, затем `npm run gen:schema`.
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
- * Не перенесено (свои блоки и кнопки без действий, З8):
- *   config-note: config-note-actions (buttons)
  */
 
 import type { SettingsGroup } from "../types.ts";
@@ -130,7 +128,13 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       name:"How much detail", desc:"Whether the generated note explains itself or just lists the settings",
       tip:"<b>Detailed</b> adds comments describing each block, which helps if you are going to edit it by hand. <b>Minimal</b> is easier to read as a backup and easier to compare between two versions",
       searchTerms:["Config Export Mode"],
-      options:[ {value:"detailed",label:"Detailed"}, {value:"minimal",label:"Minimal"} ] }
+      options:[ {value:"detailed",label:"Detailed"}, {value:"minimal",label:"Minimal"} ] },
+    { kind:"buttons", id:"config-note-actions",
+      name:"Generate and apply", desc:"Write your setup out to the note, or read it back in",
+      searchTerms:["TagWheel Note Editor"],
+      tip:"<b>Generate</b> overwrites the note with your settings as they are right now, so it is always a fresh copy rather than something that can go stale. <b>Apply</b> goes the other way and replaces your settings with what the note says \u2014 the previous setup is kept aside first, so a mistake is recoverable",
+      buttons:[ {label:"Generate", action:"generate-config-note"},
+                {label:"Apply", action:"apply-config-note", cta:true} ] }
   ]
 }
 ];

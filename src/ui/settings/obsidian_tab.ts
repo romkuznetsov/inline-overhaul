@@ -20,6 +20,8 @@ import { SCHEMA, TABS } from "./schema/index.ts";
 import type { TabDef, TabId } from "./types.ts";
 import { SettingsPane } from "./settings_tab.ts";
 import { ConfigStoreAdapter, type ConfigStoreLike } from "./store.ts";
+import { buildActions, type ConfirmRequest } from "./actions.ts";
+import { el } from "./custom/dom.ts";
 import type { ActionId } from "./types.ts";
 
 /** То, что слою настроек нужно от плагина. */
@@ -126,6 +128,48 @@ function tabStripRow(state: {
   };
 }
 
+/**
+ * Окно «точно?». Живёт здесь, а не в реестре действий: `Modal` — платформа, а
+ * реестр обязан собираться и проверяться без неё. Закрытие мимо кнопок — это
+ * отказ, а не согласие: так же устроены все окна панели.
+ */
+function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
+  return new Promise<boolean>(resolve => {
+    let answered = false;
+    const finish = (yes: boolean): void => {
+      if (answered) return;
+      answered = true;
+      resolve(yes);
+    };
+
+    class ConfirmModal extends Modal {
+      override onOpen(): void {
+        const box = this.contentEl as unknown as import("./custom/dom.ts").El;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", undefined, o.title);
+        el(box, "p", "io-item__desc", o.body);
+        const foot = el(box, "div", "io-dlg__foot");
+        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        cancel.addEventListener("click", (() => { finish(false); this.close(); }) as never);
+        const go = foot.createEl("button", {
+          cls: o.danger ? "io-danger" : "io-btn io-btn--cta",
+          text: o.confirmLabel,
+          attr: { type: "button" },
+        });
+        go.addEventListener("click", (() => { finish(true); this.close(); }) as never);
+      }
+
+      override onClose(): void {
+        finish(false);
+        this.contentEl.empty();
+      }
+    }
+
+    new ConfirmModal(app).open();
+  });
+}
+
 export class InlineOverhaulSettings extends PluginSettingTab {
   private pane: SettingsPane;
 
@@ -138,7 +182,15 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       schema: SCHEMA,
       tabs: TABS,
       store: new ConfigStoreAdapter(storeFor(plugin)),
-      actions: {},          // реестр наполняется в фазе 5; кнопок без действий в схеме нет
+      /*
+       * Реестр действий (5.6). Кнопка, действия которой здесь нет, в схему
+       * не попадает вовсе — этим занят `READY_ACTIONS` в `actions.ts`.
+       */
+      actions: buildActions({
+        plugin: plugin as never,
+        notify: (message: string) => { new Notice(message); },
+        confirm: (o: ConfirmRequest) => askConfirm(app, o),
+      }) as Record<string, () => Promise<void> | void>,
       fragments: {
         createFragment: () => document.createDocumentFragment() as never,
       },

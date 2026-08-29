@@ -166,11 +166,12 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 32,
-      "групп в схеме: 21 с настройками, 7 вводных коллаутов, группа Fields, "
+    assert.equal(SCHEMA.length, 33,
+      "групп в схеме: 22 с настройками, 7 вводных коллаутов, группа Fields, "
       + "группа Smart Rules, группа Binder и группа `Color your Tags`. Группа "
       + "`Setting ids` добавлена 2026-08-28 по заказу, Binder перенесён "
-      + "2026-08-29, `Color your Tags` заведена в тот же день");
+      + "2026-08-29, `Color your Tags` заведена в тот же день, `Generated "
+      + "files` вернулась 2026-08-29 вместе с реестром действий");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
     assert.equal(bound.length, 87,
       "настроек, привязанных к путям конфига. Тумблер `Floating button` снят "
@@ -180,21 +181,60 @@ async function main(): Promise<void> {
 
   await test("ни одна группа не потерялась молча", () => {
     /*
-     * В прототипе 34 группы. Двух здесь быть не может, и у каждой своя
+     * В прототипе 34 группы. Одной здесь быть не может, и у неё своя
      * причина: либо она целиком свой блок и ждёт рендерера (фаза 3), либо
      * состоит из кнопок, которым нужно действие из реестра (фаза 5, З8).
      * Список закрытый: если группа исчезнет по другой причине, тест упадёт.
      */
     const AWAITED = [
-      "command-reference",           // ждёт реестра действий и ID команд
-      "generated-files",             // кнопки без действий, фаза 5
+      "command-reference",           // ждёт ID команд из фазы 2
     ];
     const have = new Set(SCHEMA.map(g => g.id));
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
     assert.equal(SCHEMA.length + AWAITED.length, 34,
-      "34 группы прототипа разложены без остатка: группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Setting ids добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags");
+      "34 группы прототипа разложены без остатка: группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Setting ids добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags и вернулась Generated files");
+  });
+
+  await test("кнопка действия гаснет на время работы (5.6)", async () => {
+    /*
+     * Второе нажатие по `Apply` запускало бы применение конфиг-заметки поверх
+     * незаконченного первого. Пока действие идёт, его кнопка неактивна, а по
+     * окончании оживает — в том числе если действие бросило.
+     */
+    let release: (() => void) | null = null;
+    const store = new MemoryStore({});
+    const pane = new SettingsPane({
+      schema: SCHEMA,
+      tabs: TABS,
+      store,
+      actions: {
+        "apply-config-note": () => new Promise<void>(res => { release = res; }),
+      },
+      fragments: fragments as never,
+    });
+    pane.setActiveTab("pkm");
+
+    const rowOf = (): Def => {
+      const group = groupOf(pane, "pkm", "Config note");
+      const row = (group?.items || []).find((it: Def) => typeof it.action === "function");
+      assert.ok(row, "строка кнопок конфиг-заметки нашлась");
+      return row as Def;
+    };
+
+    const before = rowOf();
+    assert.equal(typeof before.disabled, "function", "у строки кнопок есть предикат неактивности");
+    assert.equal((before.disabled as () => boolean)(), false, "до нажатия кнопка активна");
+
+    const running = pane.run("apply-config-note");
+    assert.equal((rowOf().disabled as () => boolean)(), true,
+      "пока действие идёт, кнопка неактивна");
+
+    (release as unknown as () => void)();
+    await running;
+    assert.equal((rowOf().disabled as () => boolean)(), false,
+      "и оживает, когда действие закончилось");
   });
 
   await test("тумблер модуля есть у четырёх вкладок и только у них", () => {
