@@ -110,6 +110,38 @@ async function run() {
   const unexpectedRequires = Array.from(new Set(bundledRequires.filter((item) => !allowedExternals.has(item)))).sort();
   assert.deepStrictEqual(unexpectedRequires, [], `bundle has unexpected external requires: ${unexpectedRequires.join(", ")}`);
 
+  /*
+   * Панель настроек теперь одна: старая удалена 2026-08-29. Значит собранный
+   * файл обязан её содержать — иначе у человека не будет настроек вовсе, а
+   * гейты этого не увидят: они гоняют исходники на заглушке, а не сборку.
+   *
+   * Признаки выбраны такие, которых больше нигде нет: заголовок группы из
+   * схемы, фраза панели про версию Obsidian и класс своей вёрстки.
+   */
+  const paneMarks = [
+    "Binder (custom insert commands)",
+    "settings need Obsidian 1.13 or newer",
+    "io-fieldsblock",
+  ];
+  for (const mark of paneMarks) {
+    assert.ok(bundledSource.includes(mark), `bundle contains the settings pane: ${mark}`);
+  }
+
+  /*
+   * И наоборот: старой панели в сборке остаться не должно. Признаки — только
+   * имена из кода: её видимые тексты живут дальше в `searchTerms` новой схемы
+   * (С4), и искать по ним значило бы искать не то.
+   */
+  const goneMarks = [
+    "renderPkmConfigSections",
+    "renderSettingsDisplaySection",
+    "createSettingsSectionsRendererFallback",
+    "hasValidSettingsSectionsRenderer",
+  ];
+  for (const mark of goneMarks) {
+    assert.ok(!bundledSource.includes(mark), `bundle no longer contains the old pane: ${mark}`);
+  }
+
   const originalLoad = Module._load;
   const baseClass = class {};
   Module._load = function (request, parent, isMain) {
