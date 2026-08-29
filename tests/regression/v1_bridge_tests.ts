@@ -26,12 +26,22 @@ import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
 import { bridge, bridgedPaths } from "../../src/ui/settings/v1_bridge.ts";
 import { ROUTES } from "../../src/core/config_migration_v2.ts";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { ConfigStoreAdapter } from "../../src/ui/settings/store.ts";
 import { getIn, isBound } from "../../src/ui/settings/types.ts";
 
 type Any = ReturnType<typeof JSON.parse>;
 
 const internals = loadPluginInternals();
+
+/* Движок Transform нормализует свою ветку сам, и умолчания там его. */
+const here = path.dirname(fileURLToPath(import.meta.url));
+const requireCjs = createRequire(import.meta.url);
+const transform = requireCjs(path.resolve(here, "..", "..", "src", "features", "transform_feature.js")) as {
+  normalizeTransformConfig: (cfg: unknown) => unknown;
+};
 
 let passed = 0;
 function ok(label: string): void {
@@ -191,6 +201,75 @@ function makeStore(initial?: Any): { adapter: ConfigStoreAdapter; cfg: () => Any
     "движок прочитал прозрачность, которую выставили в панели: "
     + JSON.stringify(visuals.opacityLeft));
   ok("движок видит то, что записала панель");
+}
+
+/* ---- умолчание панели и умолчание движка -------------------------------- */
+
+/**
+ * Расхождения, известные на 2026-08-29. Каждое — продуктовый вопрос, а не
+ * ошибка кода: `Transform включён из коробки` или `Bars рисуются сразу` решает
+ * заказчик, а не исполнитель. Вопрос записан как В-7 в `docs/OPEN_QUESTIONS.md`.
+ *
+ * Список закрытый и **не должен расти**: новая настройка обязана прийти с тем
+ * же умолчанием, что кладёт движок, иначе кнопка сброса группы вернёт человеку
+ * не то, с чего он начинал.
+ */
+const KNOWN_DEFAULT_GAPS: Record<string, unknown> = {
+  "visual.tagBars.active": false,
+  "visual.tagBars.fieldId": "",
+  "visual.tagBars.thickness": 2,
+  "visual.tagBars.childOffset": 12,
+  "visual.tagBars.spacing": 20,
+  "visual.tagWheel.textColor": "",
+  "visual.tagWheel.fillColor": "",
+  "visual.tagWheel.scroller.enabled": false,
+  "transform.inline2note.enabled": false,
+  "transform.inline2note.templatesFolder": "",
+  "transform.inline2note.defaultTemplate": "",
+  "transform.inline2note.noteName.delimiters": "[]",
+  "transform.inline2note.noteName.wordCount": 6,
+  "transform.inline2note.placement.position": "end",
+  "transform.inline2note.placement.headerMode": "datetime",
+  "transform.inline2note.placement.customHeader": "### Inline transformed",
+  "transform.inline2note.placement.datetimeFormat": "YYYY-MM-DD HH:mm",
+  "transform.inline2note.openTarget": false,
+  "transform.inline2note.sourceProcessing.token": "#processed",
+};
+
+{
+  /*
+   * Умолчание схемы работает ровно в одном месте — кнопке сброса группы: она
+   * считает «по умолчанию» то, что написано в схеме. Разойдись оно с движком —
+   * и на свежей установке кнопка покажет отличия там, где человек ничего не
+   * менял, а нажатие переведёт настройки в значения из прототипа.
+   */
+  const engine = transform.normalizeTransformConfig(internals.migrateConfig({})) as Any;
+  const fresh: string[] = [];
+  const stale: string[] = [];
+
+  for (const it of boundItems()) {
+    const b = bridge(it.path);
+    const raw = getIn(engine, b.path);
+    if (raw === undefined) continue;
+    const shown = b.read(raw);
+    const known = Object.prototype.hasOwnProperty.call(KNOWN_DEFAULT_GAPS, it.path);
+    const def = (SCHEMA.flatMap(g => g.items).find(x => isBound(x) && x.path === it.path) as Any).default;
+    const same = JSON.stringify(shown) === JSON.stringify(def);
+
+    if (same && known) stale.push(it.path);
+    if (same || known) continue;
+    fresh.push(it.id + " (" + it.path + "): движок " + JSON.stringify(shown)
+      + ", схема " + JSON.stringify(def));
+  }
+
+  assert.deepEqual(fresh, [],
+    "у этих настроек панель считает умолчанием не то, что кладёт движок, и"
+    + " кнопка сброса вернёт человеку не то, с чего он начинал:\n  "
+    + fresh.join("\n  "));
+  assert.deepEqual(stale, [],
+    "эти расхождения уже устранены — уберите их из списка известных: "
+    + stale.join(", "));
+  ok("умолчание панели совпадает с умолчанием движка, кроме девятнадцати названных");
 }
 
 console.log("\n" + passed + " проверок пройдено");
