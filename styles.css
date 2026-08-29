@@ -1368,3 +1368,60 @@
   background: var(--background-modifier-hover);
   border-color: var(--interactive-accent);
 }
+
+/* ======================================================================
+ * Разбор `Move left` и `Move right` (PRD 10.6): две таблицы рядом.
+ *
+ * Это документация поведения, а не настройка — потому нумерованный список
+ * шагов, а не строки с контролами.
+ * ====================================================================== */
+
+.io-orderpair {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+}
+.io-ordercol__cap {
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  color: var(--text-normal);
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+}
+.io-order {
+  margin: 8px 0 2px;
+  padding: 0;
+  list-style: none;
+  counter-reset: io-step;
+  max-width: 64ch;
+}
+.io-order li {
+  counter-increment: io-step;
+  position: relative;
+  padding: 5px 0 5px 30px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.io-order li + li { border-top: 1px dashed var(--background-modifier-border); }
+/* Номер шага кружком: порядок ветвей и есть содержание таблицы. */
+.io-order li::before {
+  content: counter(io-step);
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--background-secondary-alt);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: grid;
+  place-items: center;
+}
+.io-order b { color: var(--text-normal); font-weight: 500; }
+.io-order .io-order__then { color: var(--text-accent); }

@@ -31854,6 +31854,52 @@ var init_keyboard = __esm({
   }
 });
 
+// src/ui/settings/custom/dispatch_tables.ts
+var TABLES, ARROW, dispatchTables;
+var init_dispatch_tables = __esm({
+  "src/ui/settings/custom/dispatch_tables.ts"() {
+    "use strict";
+    init_dom();
+    TABLES = [
+      {
+        command: "Move left",
+        steps: [
+          { when: "part of a line is selected", then: "move that text" },
+          { when: "the line is indented", then: "remove one indent level" },
+          { when: "no indent", then: "cycle the prefix backwards" }
+        ]
+      },
+      {
+        command: "Move right",
+        steps: [
+          { when: "part of a line is selected", then: "move that text" },
+          { when: "a list item, or already indented", then: "add one indent level" },
+          { when: "anything else", then: "cycle the prefix forwards" }
+        ]
+      }
+    ];
+    ARROW = " \u2192 ";
+    dispatchTables = (host) => {
+      const box = el(host, "div", "io-dispatch");
+      const pair = el(box, "div", "io-orderpair");
+      for (const table of TABLES) {
+        const col = el(pair, "div");
+        el(col, "code", "io-ordercol__cap", table.command);
+        const list = el(col, "ol", "io-order");
+        for (const step of table.steps) {
+          const li = el(list, "li");
+          el(li, "b", void 0, step.when);
+          el(li, "span", void 0, ARROW);
+          el(li, "span", "io-order__then", step.then);
+        }
+      }
+      return () => {
+        box.empty();
+      };
+    };
+  }
+});
+
 // src/ui/settings/schema/navigation.ts
 var NAVIGATION_GROUPS;
 var init_navigation = __esm({
@@ -31861,6 +31907,7 @@ var init_navigation = __esm({
     "use strict";
     init_types();
     init_callouts();
+    init_dispatch_tables();
     NAVIGATION_GROUPS = [
       {
         id: "nav-intro",
@@ -31945,6 +31992,7 @@ var init_navigation = __esm({
         intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
         commands: ["Move left", "Move right"],
         items: [
+          { kind: "custom", id: "left-right-order", render: dispatchTables },
           {
             kind: "toggle",
             id: "move-text-enabled",

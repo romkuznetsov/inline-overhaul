@@ -4,12 +4,13 @@
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
- *   left-right: left-right-order (custom), cycle-order (custom)
+ *   left-right: cycle-order (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { not, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
+import { dispatchTables } from "../custom/dispatch_tables.ts";
 
 export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
 { id: "nav-intro",       tab: "navigation", order: 50, heading: "Before you start",
@@ -50,6 +51,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
   commands: ["Move left", "Move right"],
   items: [
+    { kind:"custom", id:"left-right-order", render: dispatchTables },
     { kind:"toggle", id:"move-text-enabled", path:"navigation.moveSelection.inlineEnabled", default:true,
       name:"Move selected text", desc:"Slide a highlighted phrase along its line",
       searchTerms:["Enable inline text move"],

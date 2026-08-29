@@ -93,6 +93,11 @@ const CUSTOM_IMPL = {
     named: "fieldsEditor",
     expr: () => "fieldsEditor",
   },
+  renderLeftRightOrder: {
+    module: "dispatch_tables.ts",
+    named: "dispatchTables",
+    expr: () => "dispatchTables",
+  },
   renderSmartRules: {
     module: "smart_rules.ts",
     named: "smartRules",
