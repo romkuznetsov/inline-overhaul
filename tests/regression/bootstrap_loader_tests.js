@@ -614,7 +614,7 @@ async function run() {
    */
   assertTrue(/addType\.createEl\("option", \{ text: "link", value: "wikilink" \}\);/.test(rendererPairSrc), "settings renderer add-field type selector shows link label for wikilink kind");
   assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(rendererPairSrc), "settings renderer allows spaces in name_strict validation");
-  assertTrue(/InlineOverhaul: cannot resolve target link field for Deep Editor add/.test(rendererPairSrc), "settings renderer fails fast when deep editor cannot resolve wikilink target field");
+  assertTrue(/Cannot tell which Field this link Value would go to/.test(rendererPairSrc), "settings renderer fails fast when it cannot resolve the wikilink target field");
   assertFalse(/const allowed = Array\.isArray\(row\.allowedParentValues\) \? row\.allowedParentValues : \[\]/.test(rendererPairSrc), "wikilink binding inference does not restore parent from allowedParentValues fallback");
   assertTrue(/tokens\.push\(\{ value: `s:\$\{stok\}\|p:\$\{ptok\}\|f:\$\{fid\}`, label: `└ \$\{stok\} \(\$\{ptok\}\)` \}\);/.test(rendererPairSrc), "wikilink parent token selector disambiguates duplicate subtags by parent context");
   assertTrue(/const renderUserTagsEditor = \(\) => \{/.test(rendererPairSrc), "settings renderer includes user tags editor renderer");

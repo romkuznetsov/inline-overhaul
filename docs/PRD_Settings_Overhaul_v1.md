@@ -1644,7 +1644,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 2. `intro` и `tip` у каждой группы, где Приложение B их задаёт.
 3. `searchTerms` со старыми именами (С4); при отсутствии поля ключевых слов — запасной путь П-4.
 4. Служебные контролы удалены (Р7).
-5. Тексты `Notice` приведены к 5.6.
+5. ~~Тексты `Notice` приведены к 5.6~~ — **сделано 2026-08-29**: двадцать сообщений редактора Fields лишились префикса `InlineOverhaul:` (Obsidian и так показывает источник) и слов изнутри. `name_strict must match [a-z0-9_- ]+` стало `A Field name can only use lowercase letters, digits, spaces, hyphens and underscores`, `cannot resolve target link field for Deep Editor add` — `Cannot tell which Field this link Value would go to`. Формулировка говорит, что произошло, а не какой ключ конфига не сошёлся.
 6. Слайдеры показывают значение с единицей.
 
 **Приёмка:** гейты Г10, Г17–Г19, Г23 (машинное сравнение текстов схемы с Приложением B); ревью заказчиком только новых текстов, которых в Приложении B нет.

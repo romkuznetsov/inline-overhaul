@@ -499,7 +499,7 @@ function addFieldAction(button: ElButton, o: FieldsViewOpts): void {
       if (!answer) return;
       const res = o.model.addField(answer.name, answer.kind);
       if (!res.ok) {
-        o.notice(res.error || "InlineOverhaul: field was not added");
+        o.notice(res.error || "The Field was not added");
         return;
       }
       /* Новый Field выбирается сразу: за добавлением идёт настройка. */
@@ -1218,7 +1218,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       }
       const cb = ve.normalizeCheckbox(raw);
       if (!cb) {
-        o.notice("InlineOverhaul: checkbox token must be like [ ] or [I]");
+        o.notice("A Prefix checkbox looks like [ ] or [I]");
         prefix.value = String(v.checkboxToken || "");
         return;
       }

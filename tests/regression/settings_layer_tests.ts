@@ -47,14 +47,14 @@ function makePane(initial: Record<string, unknown> = {}) {
    * соглашается; проверки, которым нужен отказ или сам вопрос, заводят свою
    * панель.
    */
-  const asked: Any[] = [];
+  const asked: Def[] = [];
   const pane = new SettingsPane({
     schema: SCHEMA,
     tabs: TABS,
     store,
     actions: {},
     fragments: fragments as never,
-    confirm: async (o: Any) => { asked.push(o); return true; },
+    confirm: async (o: Def) => { asked.push(o); return true; },
   });
   return { store, pane, asked };
 }
@@ -869,7 +869,7 @@ async function main(): Promise<void> {
 
     await pane.resetGroup(modules);
     assert.equal(asked.length, 1, "спросили один раз");
-    const q = asked[0];
+    const q = asked[0] as Def;
     assert.ok(String(q.title).includes(modules.heading), "в заголовке названа группа");
     assert.equal(q.rows.length, 2, "по строке на каждую изменённую настройку");
     assert.ok(q.rows.every((r: string) => r.includes("off") && r.includes("on")),
@@ -930,8 +930,8 @@ async function main(): Promise<void> {
      * — и это единственная подделка в проверке: панель и хранилище настоящие.
      */
     const store = new MemoryStore({});
-    const asked: Any[] = [];
-    const twelve: Any = {
+    const asked: Def[] = [];
+    const twelve = {
       id: "made-up", tab: "general", order: 999, heading: "Made up",
       items: Array.from({ length: 12 }, (_, i) => ({
         kind: "toggle",
@@ -942,17 +942,17 @@ async function main(): Promise<void> {
       })),
     };
     const pane = new SettingsPane({
-      schema: SCHEMA.concat([twelve]),
+      schema: SCHEMA.concat([twelve as never]),
       tabs: TABS,
       store,
       actions: {},
       fragments: fragments as never,
-      confirm: async (o: Any) => { asked.push(o); return true; },
+      confirm: async (o: Def) => { asked.push(o); return true; },
     });
     for (const it of twelve.items) await pane.setControlValue(it.path, true);
 
-    assert.equal(await pane.resetGroup(twelve), 12, "сбросились все двенадцать");
-    const rows = asked[0].rows as string[];
+    assert.equal(await pane.resetGroup(twelve as never), 12, "сбросились все двенадцать");
+    const rows = (asked[0]?.rows || []) as string[];
     assert.equal(rows.length, 11, "десять строк и одна про остаток");
     assert.equal(rows[10], "and 2 more", "остаток назван числом: " + rows[10]);
   });

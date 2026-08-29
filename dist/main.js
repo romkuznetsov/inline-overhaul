@@ -25554,27 +25554,27 @@ function createFieldsModel(deps) {
     var _a2;
     const key = String(rawKey || "").replace(/\s+/g, " ").trim();
     if (!STRICT_NAME_RE.test(key)) {
-      return { ok: false, error: "InlineOverhaul: name_strict must match [a-z0-9_- ]+" };
+      return { ok: false, error: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores" };
     }
     const all = getOrderKeys();
     if (SUB_SUFFIX_RE.test(key)) {
-      return { ok: false, error: "InlineOverhaul: name_strict ending with _sub is reserved for generated child keys" };
+      return { ok: false, error: "Names ending in _sub are kept for child Fields" };
     }
     if (all.includes(key)) {
-      return { ok: false, error: "InlineOverhaul: field already exists" };
+      return { ok: false, error: "A Field with this name already exists" };
     }
     const strictValues = new Set(
       all.map((kk) => String(orderState.strictNames && orderState.strictNames[kk] || kk).trim()).filter(Boolean)
     );
     if (strictValues.has(key)) {
-      return { ok: false, error: "InlineOverhaul: name_strict already exists" };
+      return { ok: false, error: "A Field with this name already exists" };
     }
     const kindRaw = String(rawKind || "tag").trim().toLowerCase();
     const kind = kindRaw === "wikilink" || kindRaw === "element" ? kindRaw : "tag";
     const subKey = kind === "tag" ? inferSubKey(key) : "";
     const subStrict = kind === "tag" ? `${key}_sub` : "";
     if (subStrict && strictValues.has(subStrict)) {
-      return { ok: false, error: "InlineOverhaul: auto sub name_strict already exists" };
+      return { ok: false, error: "The child Field for this name already exists" };
     }
     orderState.right = (orderState.right || []).concat([key]);
     orderState.labels = { ...orderState.labels || {}, [key]: key };
@@ -25749,7 +25749,7 @@ function createFieldsModel(deps) {
     const next = String(rawNext || "").replace(/\s+/g, " ").trim();
     if (next === oldName) return { ok: true, changed: false };
     if (!STRICT_NAME_RE.test(next)) {
-      return { ok: false, error: "InlineOverhaul: name_strict must match [a-z0-9_- ]+" };
+      return { ok: false, error: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores" };
     }
     const taken = /* @__PURE__ */ new Set();
     for (const kk of getOrderKeys()) {
@@ -25758,7 +25758,7 @@ function createFieldsModel(deps) {
       if (vv) taken.add(vv);
     }
     if (taken.has(next)) {
-      return { ok: false, error: "InlineOverhaul: name_strict already exists" };
+      return { ok: false, error: "A Field with this name already exists" };
     }
     orderState.strictNames = { ...orderState.strictNames || {}, [k]: next };
     setOrderPatch({ strictNames: { [k]: next } }, "pkm:behavior:order:strict:" + k);
@@ -26008,12 +26008,12 @@ function createFieldsModel(deps) {
   };
   const writeDefKey = (k, patch, reason) => {
     const pool = poolByOrderKey(k);
-    if (!pool) return { ok: false, error: "InlineOverhaul: field definition not found: " + k };
+    if (!pool) return { ok: false, error: "No Field named " + k };
     const behavior = behaviorOf(plugin.getConfig());
     const list = modeFields(behavior, pool);
     const def = findFieldByOrderKey(list, k);
     const id = String(def && def.id || "").trim();
-    if (!def || !id) return { ok: false, error: "InlineOverhaul: field definition not found: " + k };
+    if (!def || !id) return { ok: false, error: "No Field named " + k };
     const nextDef = { ...asObject2(def) };
     for (const key of Object.keys(patch)) {
       const value = patch[key];
@@ -26039,7 +26039,7 @@ function createFieldsModel(deps) {
   };
   const setYamlValueRule = (k, raw) => {
     const next = normalizeValueRule(raw);
-    if (!next) return { ok: false, error: "InlineOverhaul: value rule must be raw or clean" };
+    if (!next) return { ok: false, error: "A Value is written either raw or clean, nothing else" };
     const def = defByOrderKey(k);
     if (normalizeValueRule(def && def.yamlValueRule) === next) return { ok: true, changed: false };
     return writeDefKey(k, { yamlValueRule: next }, "pkm:behavior:yaml:value-rule:" + k);
@@ -26134,18 +26134,18 @@ function createFieldsModel(deps) {
   const setPrerequisite = (k, rawFieldId, rawValue) => {
     const key = String(k || "").trim();
     const side = poolOf(key);
-    if (!side) return { ok: false, error: "InlineOverhaul: field is not in the config yet" };
+    if (!side) return { ok: false, error: "This Field is not saved yet" };
     const fieldId = String(rawFieldId || "").trim();
     const value = String(rawValue || "").trim();
     if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
-      return { ok: false, error: "InlineOverhaul: a Field cannot wait for itself" };
+      return { ok: false, error: "A Field cannot wait for itself" };
     }
     if (fieldId && side === "leftMode" && poolOf(fieldId) !== "leftMode") {
-      return { ok: false, error: "InlineOverhaul: a Tag Field can only wait for another Tag Field" };
+      return { ok: false, error: "A Tag Field can only wait for another Tag Field" };
     }
     const list = modeFields(behaviorOf(plugin.getConfig()), side);
     const idx = list.findIndex((f) => idOf(f) === key);
-    if (idx === -1) return { ok: false, error: "InlineOverhaul: field is not in the config yet" };
+    if (idx === -1) return { ok: false, error: "This Field is not saved yet" };
     const next = { ...asObject2(list[idx]) };
     if (fieldId) {
       next["dependsOn"] = fieldId;
@@ -26587,7 +26587,7 @@ function createFieldsModel(deps) {
         let nextLeft2 = leftMode.slice();
         let nextRight2 = rightMode.slice();
         if (!fidParent) {
-          return { ok: false, error: "InlineOverhaul: cannot resolve target link field for Deep Editor save" };
+          return { ok: false, error: "Cannot tell which Field this link Value belongs to" };
         }
         const sourceId = String(parentField && parentField.source || `wikilinks:${fidParent}`).trim();
         const nextParent = {
@@ -26722,12 +26722,12 @@ function createFieldsModel(deps) {
         const rightField = findWikilinkField(rightNow);
         const leftField = findWikilinkField(leftNow);
         const target = rightField || leftField;
-        if (!target) return { ok: false, error: "InlineOverhaul: cannot resolve target link field for Deep Editor add" };
+        if (!target) return { ok: false, error: "Cannot tell which Field this link Value would go to" };
         const targetId = String(target.id || strictNorm || keyNorm).trim();
-        if (!targetId) return { ok: false, error: "InlineOverhaul: target link field id is empty" };
+        if (!targetId) return { ok: false, error: "The Field for this link has no name" };
         const valuesNow = Array.isArray(target.values) ? target.values.slice() : [];
         const tokenPlain = String(token).replace(/^\[\[|\]\]$/g, "").trim();
-        if (!tokenPlain) return { ok: false, error: "InlineOverhaul: empty link token" };
+        if (!tokenPlain) return { ok: false, error: "A link needs a name" };
         const exists = valuesNow.some((row) => {
           const tok = String(row && typeof row === "object" ? row.token : row || "").trim();
           return tok === tokenPlain;
@@ -30703,7 +30703,7 @@ function addFieldAction(button, o) {
       if (!answer) return;
       const res = o.model.addField(answer.name, answer.kind);
       if (!res.ok) {
-        o.notice(res.error || "InlineOverhaul: field was not added");
+        o.notice(res.error || "The Field was not added");
         return;
       }
       if (res.key) o.state.selected = res.key;
@@ -31178,7 +31178,7 @@ function renderValuesTable(host, row, o) {
       }
       const cb = ve.normalizeCheckbox(raw);
       if (!cb) {
-        o.notice("InlineOverhaul: checkbox token must be like [ ] or [I]");
+        o.notice("A Prefix checkbox looks like [ ] or [I]");
         prefix.value = String(v.checkboxToken || "");
         return;
       }
