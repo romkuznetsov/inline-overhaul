@@ -118,6 +118,11 @@ const CUSTOM_IMPL = {
     named: "smartRules",
     expr: () => "smartRules",
   },
+  renderBinder: {
+    module: "binder.ts",
+    named: "binderTable",
+    expr: () => "binderTable",
+  },
 };
 
 /** Найти конец литерала, начинающегося с открывающей скобки в позиции i. */

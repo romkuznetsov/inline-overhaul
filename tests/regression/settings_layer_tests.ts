@@ -166,9 +166,10 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 30,
-      "групп в схеме: 21 с настройками, 7 вводных коллаутов, группа Fields и "
-      + "группа Smart Rules. Группа `Setting ids` добавлена 2026-08-28 по заказу");
+    assert.equal(SCHEMA.length, 31,
+      "групп в схеме: 21 с настройками, 7 вводных коллаутов, группа Fields, "
+      + "группа Smart Rules и группа Binder. Группа `Setting ids` добавлена "
+      + "2026-08-28 по заказу, Binder перенесён 2026-08-29");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
     assert.equal(bound.length, 88, "настроек, привязанных к путям конфига");
   });
@@ -181,7 +182,6 @@ async function main(): Promise<void> {
      * Список закрытый: если группа исчезнет по другой причине, тест упадёт.
      */
     const AWAITED = [
-      "binder",                      // ждёт миграции конфига, фаза 2
       "command-reference",           // ждёт реестра действий и ID команд
       "generated-files",             // кнопки без действий, фаза 5
     ];
@@ -190,7 +190,7 @@ async function main(): Promise<void> {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
     assert.equal(SCHEMA.length + AWAITED.length, 33,
-      "33 группы прототипа разложены без остатка: группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Setting ids добавлена в тот же день");
+      "33 группы прототипа разложены без остатка: группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Setting ids добавлена в тот же день, Binder перенесён 2026-08-29");
   });
 
   await test("тумблер модуля есть у четырёх вкладок и только у них", () => {

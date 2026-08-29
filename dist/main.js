@@ -549,8 +549,8 @@ var require_navigation_runtime = __commonJS({
       }
       return "word";
     }
-    function everyChar(str2, fn) {
-      for (let i = 0; i < str2.length; i++) if (!fn(str2[i])) return false;
+    function everyChar(str3, fn) {
+      for (let i = 0; i < str3.length; i++) if (!fn(str3[i])) return false;
       return true;
     }
     function bubbleSwapByCodePoint(doc, editor, a, b, direction) {
@@ -790,21 +790,21 @@ var require_navigation_runtime = __commonJS({
     function isLowSurrogate(code) {
       return code >= 56320 && code <= 57343;
     }
-    function prevCodePointStart(str2, index) {
+    function prevCodePointStart(str3, index) {
       if (index <= 0) return null;
       let j = index - 1;
-      const c = str2.charCodeAt(j);
+      const c = str3.charCodeAt(j);
       if (isLowSurrogate(c) && j - 1 >= 0) {
-        const p = str2.charCodeAt(j - 1);
+        const p = str3.charCodeAt(j - 1);
         if (isHighSurrogate(p)) j -= 1;
       }
       return j;
     }
-    function nextCodePointEnd(str2, index) {
-      if (index >= str2.length) return null;
-      const c = str2.charCodeAt(index);
-      if (isHighSurrogate(c) && index + 1 < str2.length) {
-        const n = str2.charCodeAt(index + 1);
+    function nextCodePointEnd(str3, index) {
+      if (index >= str3.length) return null;
+      const c = str3.charCodeAt(index);
+      if (isHighSurrogate(c) && index + 1 < str3.length) {
+        const n = str3.charCodeAt(index + 1);
         if (isLowSurrogate(n)) return index + 2;
       }
       return index + 1;
@@ -1116,7 +1116,7 @@ var require_navigation_runtime = __commonJS({
       if (v && typeof v === "object" && typeof v.token === "string") return v.token;
       return "";
     }
-    async function loadNavigateRules(app2, rulesPath) {
+    async function loadNavigateRules(app3, rulesPath) {
       const src = String(rulesPath || "").trim();
       const candidates = [];
       const pushCandidate = (p) => {
@@ -1134,7 +1134,7 @@ var require_navigation_runtime = __commonJS({
       let usedPath = "";
       for (let i = 0; i < candidates.length; i++) {
         const cand = candidates[i];
-        const af = app2.vault.getAbstractFileByPath(cand);
+        const af = app3.vault.getAbstractFileByPath(cand);
         if (af) {
           f = af;
           usedPath = cand;
@@ -1144,7 +1144,7 @@ var require_navigation_runtime = __commonJS({
       if (!f) {
         throw new Error("Rules file not found: " + src + " (checked: " + candidates.join(", ") + ")");
       }
-      const md = await app2.vault.read(f);
+      const md = await app3.vault.read(f);
       const io = parseJsonFence(md, "tagwheel-io") || {};
       const leftMode = parseJsonFence(md, "tagwheel-left-mode") || {};
       const dateRules = parseJsonFence(md, "tagwheel-date-rules") || {};
@@ -1487,13 +1487,13 @@ var require_vault_module_bridge = __commonJS({
       return marker >= 0 ? path.slice(marker) : path;
     }
     function getBundledVaultModule(vaultPath) {
-      const registry = globalThis[BUNDLED_REGISTRY_KEY];
+      const registry2 = globalThis[BUNDLED_REGISTRY_KEY];
       const path = normalizeVaultModulePath(vaultPath);
-      if (registry instanceof Map && registry.has(path)) {
-        return { found: true, value: registry.get(path) };
+      if (registry2 instanceof Map && registry2.has(path)) {
+        return { found: true, value: registry2.get(path) };
       }
-      if (registry && typeof registry === "object" && Object.prototype.hasOwnProperty.call(registry, path)) {
-        return { found: true, value: registry[path] };
+      if (registry2 && typeof registry2 === "object" && Object.prototype.hasOwnProperty.call(registry2, path)) {
+        return { found: true, value: registry2[path] };
       }
       return { found: false, value: void 0 };
     }
@@ -1598,15 +1598,15 @@ var require_pkm_runtime_v2 = __commonJS({
       }
       return (h >>> 0).toString(16);
     }
-    function getActiveEditor(app2) {
-      const ws = app2 && app2.workspace ? app2.workspace : null;
+    function getActiveEditor(app3) {
+      const ws = app3 && app3.workspace ? app3.workspace : null;
       const leaf = ws && ws.activeLeaf && ws.activeLeaf.view ? ws.activeLeaf.view : null;
       const fromLeaf = leaf && leaf.editor ? leaf.editor : null;
       if (fromLeaf) return fromLeaf;
       const active = ws && ws.activeEditor ? ws.activeEditor : null;
       return active && active.editor ? active.editor : null;
     }
-    async function loadVaultModuleBridge(app2, vaultPath, forceReload) {
+    async function loadVaultModuleBridge(app3, vaultPath, forceReload) {
       let bridge = globalThis && globalThis.__inlineVaultModuleBridge;
       if (!(bridge && typeof bridge.loadVaultModule === "function")) {
         try {
@@ -1623,7 +1623,7 @@ var require_pkm_runtime_v2 = __commonJS({
         throw new Error("pkm_runtime_v2: vault_module_bridge unavailable");
       }
       try {
-        return await bridge.loadVaultModule(app2, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache");
+        return await bridge.loadVaultModule(app3, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache");
       } catch (e) {
         reportLoaderFallback(`pkm_runtime_v2.bridge.load:${vaultPath}`, e);
         throw e;
@@ -1635,7 +1635,7 @@ var require_pkm_runtime_v2 = __commonJS({
       if (command === "tagWheel") return ".obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel.js";
       return "";
     }
-    async function ensureMacroRuntimeBootstrap(app2) {
+    async function ensureMacroRuntimeBootstrap(app3) {
       if (typeof globalThis.__inlineGetPkmMacroRuntime === "function") return;
       const cached = globalThis.__inlinePkmMacroRuntimeEntryMod;
       if (cached && typeof cached.bootstrapMacroRuntime === "function") {
@@ -1643,7 +1643,7 @@ var require_pkm_runtime_v2 = __commonJS({
         return;
       }
       const entryPath = ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js";
-      const mod = await loadVaultModuleBridge(app2, entryPath, false);
+      const mod = await loadVaultModuleBridge(app3, entryPath, false);
       if (!mod || typeof mod.bootstrapMacroRuntime !== "function") {
         throw new Error("pkm_macro_runtime_entry unavailable: bootstrapMacroRuntime");
       }
@@ -1654,8 +1654,8 @@ var require_pkm_runtime_v2 = __commonJS({
       return isObj(settings) ? settings : {};
     }
     async function runCommand(ctx) {
-      const app2 = ctx && ctx.app ? ctx.app : null;
-      if (!app2) throw new Error("runCommand: app is required");
+      const app3 = ctx && ctx.app ? ctx.app : null;
+      if (!app3) throw new Error("runCommand: app is required");
       const inputSettings = isObj(ctx && ctx.settings) ? ctx.settings : {};
       const command = String(nz(ctx && ctx.command, "")).trim();
       const settings = normalizeSettingsForCommand(command, inputSettings);
@@ -1668,17 +1668,17 @@ var require_pkm_runtime_v2 = __commonJS({
           return null;
         }
       };
-      const editor = getActiveEditor(app2);
+      const editor = getActiveEditor(app3);
       if (!editor) throw new Error("runCommand: no active editor");
       var macroPath = modulePathForCommand(command);
       if (!macroPath) throw new Error("runCommand: unknown command " + command);
-      await ensureMacroRuntimeBootstrap(app2);
+      await ensureMacroRuntimeBootstrap(app3);
       var forceReload = true;
       if (ctx && ctx.forceReload === false) forceReload = false;
-      var mod = await loadVaultModuleBridge(app2, macroPath, forceReload);
+      var mod = await loadVaultModuleBridge(app3, macroPath, forceReload);
       var entry = mod && typeof mod.entry === "function" ? mod.entry : typeof mod === "function" ? mod : null;
       if (!entry) throw new Error("runCommand: module has no callable entry: " + macroPath);
-      var quickAddCtx = { app: app2 };
+      var quickAddCtx = { app: app3 };
       var cursor = editor.getCursor();
       var lineNo = cursor ? cursor.line : -1;
       var beforeLine = lineNo >= 0 ? String(nz(editor.getLine(lineNo), "")) : "";
@@ -17866,7 +17866,7 @@ var require_config_note_orchestrator = __commonJS({
     async function openTagWheelConfigNote(ctx) {
       var _a, _b;
       const {
-        app: app2,
+        app: app3,
         cfg,
         tagWheelConfigCodec,
         cloneJson,
@@ -17888,11 +17888,11 @@ var require_config_note_orchestrator = __commonJS({
       const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
       const modeRaw = cfg && cfg.pkm ? cfg.pkm.configExportMode : TAGWHEEL_CONFIG_MODE_DETAILED;
       const mode = String(modeRaw || TAGWHEEL_CONFIG_MODE_DETAILED).trim() === TAGWHEEL_CONFIG_MODE_MINIMAL ? TAGWHEEL_CONFIG_MODE_MINIMAL : TAGWHEEL_CONFIG_MODE_DETAILED;
-      const existing = app2.vault.getAbstractFileByPath(notePath);
+      const existing = app3.vault.getAbstractFileByPath(notePath);
       let renderCfg = cfg;
       let currentMd = "";
       if (existing) {
-        currentMd = await app2.vault.read(existing);
+        currentMd = await app3.vault.read(existing);
         try {
           const parsedExisting = parseTagWheelConfigMarkdown(currentMd, cfg);
           if (parsedExisting && (parsedExisting.datesConfig || parsedExisting.elementsConfig)) {
@@ -17958,46 +17958,46 @@ var require_config_note_orchestrator = __commonJS({
       }
       const parts = buildTagWheelConfigParts(renderCfg);
       const templatePath = normalizeTagWheelConfigTemplatePath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigTemplatePath : "");
-      const templateFile = app2.vault.getAbstractFileByPath(templatePath);
+      const templateFile = app3.vault.getAbstractFileByPath(templatePath);
       if (!templateFile) {
         const seed = buildDefaultTagWheelDetailedTemplateMarkdown();
-        await app2.vault.create(templatePath, seed);
+        await app3.vault.create(templatePath, seed);
       }
-      const templateMd = await readVaultText(app2, templatePath);
+      const templateMd = await readVaultText(app3, templatePath);
       const renderedMd = renderTagWheelConfigFromTemplate(templateMd, parts);
       const freshMd = mode === TAGWHEEL_CONFIG_MODE_MINIMAL ? buildMinimalFromRenderedTemplate(renderedMd) : renderedMd;
       if (!existing) {
-        await app2.vault.create(notePath, freshMd);
+        await app3.vault.create(notePath, freshMd);
       } else {
         if (currentMd !== freshMd) {
-          await app2.vault.modify(existing, freshMd);
+          await app3.vault.modify(existing, freshMd);
         }
       }
-      const file = app2.vault.getAbstractFileByPath(notePath);
+      const file = app3.vault.getAbstractFileByPath(notePath);
       if (!file) throw new Error("Failed to create/open config note: " + notePath);
-      const leaf = app2.workspace.getLeaf(true);
+      const leaf = app3.workspace.getLeaf(true);
       await leaf.openFile(file);
       return notePath;
     }
     async function openTagWheelConfigTemplateNote(ctx) {
-      const { app: app2, cfg, tagWheelConfigCodec } = ctx;
+      const { app: app3, cfg, tagWheelConfigCodec } = ctx;
       const codec = tagWheelConfigCodec || {};
       const normalizeTagWheelConfigTemplatePath = typeof codec.normalizeTagWheelConfigTemplatePath === "function" ? codec.normalizeTagWheelConfigTemplatePath : ctx.normalizeTagWheelConfigTemplatePath;
       const buildDefaultTagWheelDetailedTemplateMarkdown = typeof codec.buildDefaultTagWheelDetailedTemplateMarkdown === "function" ? codec.buildDefaultTagWheelDetailedTemplateMarkdown : ctx.buildDefaultTagWheelDetailedTemplateMarkdown;
       const templatePath = normalizeTagWheelConfigTemplatePath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigTemplatePath : "");
-      let file = app2.vault.getAbstractFileByPath(templatePath);
+      let file = app3.vault.getAbstractFileByPath(templatePath);
       if (!file) {
-        await app2.vault.create(templatePath, buildDefaultTagWheelDetailedTemplateMarkdown());
-        file = app2.vault.getAbstractFileByPath(templatePath);
+        await app3.vault.create(templatePath, buildDefaultTagWheelDetailedTemplateMarkdown());
+        file = app3.vault.getAbstractFileByPath(templatePath);
       }
       if (!file) throw new Error("Failed to create/open detailed template note: " + templatePath);
-      const leaf = app2.workspace.getLeaf(true);
+      const leaf = app3.workspace.getLeaf(true);
       await leaf.openFile(file);
       return templatePath;
     }
     async function applyTagWheelConfigNote(ctx) {
       const {
-        app: app2,
+        app: app3,
         cfg,
         tagWheelConfigCodec,
         store,
@@ -18022,7 +18022,7 @@ var require_config_note_orchestrator = __commonJS({
       const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function" ? codec.normalizeTagWheelConfigPath : ctx.normalizeTagWheelConfigPath;
       const parseTagWheelConfigMarkdown = typeof codec.parseTagWheelConfigMarkdown === "function" ? codec.parseTagWheelConfigMarkdown : ctx.parseTagWheelConfigMarkdown;
       const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-      const md = await readVaultText(app2, notePath);
+      const md = await readVaultText(app3, notePath);
       const parsed = parseTagWheelConfigMarkdown(md, cfg);
       void getOrderStrictName;
       void CFG_H2_DATES;
@@ -18399,8 +18399,8 @@ var require_config_note_orchestrator = __commonJS({
         const allowedByToken = {};
         const tokenOrder = [];
         const bindingByToken = {};
-        const assertCanonicalBinding = (binding, token, reason) => {
-          const src = String(binding || "").trim();
+        const assertCanonicalBinding = (binding2, token, reason) => {
+          const src = String(binding2 || "").trim();
           const mLeaf = src.match(/^s:#[^|]+\|p:#[^|]+\|f:[^|]+$/);
           const mBranch = src.match(/^p:#[^|]+\|f:[^|]+$/);
           if (!mLeaf && !mBranch) {
@@ -18421,15 +18421,15 @@ var require_config_note_orchestrator = __commonJS({
           if (!parentFieldId) {
             throw new Error(`Config apply failed: unresolved parent field id for wikilink token=[[${token}]], section=${sourceSectionName || "<unknown>"}, field=${sourceId}`);
           }
-          const binding = `p:#${parent}|f:${parentFieldId}`;
-          assertCanonicalBinding(binding, token, "branch");
+          const binding2 = `p:#${parent}|f:${parentFieldId}`;
+          assertCanonicalBinding(binding2, token, "branch");
           if (!allowedByToken[token]) tokenOrder.push(token);
           if (!allowedByToken[token]) allowedByToken[token] = /* @__PURE__ */ new Set();
           allowedByToken[token].add(parent);
-          if (bindingByToken[token] && bindingByToken[token] !== binding) {
-            throw new Error(`Config apply failed: conflicting parent binding for wikilink token=[[${token}]], field=${sourceId}, bindings=${bindingByToken[token]} vs ${binding}`);
+          if (bindingByToken[token] && bindingByToken[token] !== binding2) {
+            throw new Error(`Config apply failed: conflicting parent binding for wikilink token=[[${token}]], field=${sourceId}, bindings=${bindingByToken[token]} vs ${binding2}`);
           }
-          if (!bindingByToken[token]) bindingByToken[token] = binding;
+          if (!bindingByToken[token]) bindingByToken[token] = binding2;
         };
         const pushLeaf = (rawTok, rawParent, rawSub, sourceParentFieldId, sourceSectionName) => {
           const token = normalizeWikilinkTokenRaw(rawTok);
@@ -18440,16 +18440,16 @@ var require_config_note_orchestrator = __commonJS({
           if (!parentFieldId) {
             throw new Error(`Config apply failed: unresolved parent field id for wikilink token=[[${token}]], section=${sourceSectionName || "<unknown>"}, field=${sourceId}`);
           }
-          const binding = `s:#${sub}|p:#${parent}|f:${parentFieldId}`;
-          assertCanonicalBinding(binding, token, "leaf");
+          const binding2 = `s:#${sub}|p:#${parent}|f:${parentFieldId}`;
+          assertCanonicalBinding(binding2, token, "leaf");
           if (!allowedByToken[token]) tokenOrder.push(token);
           if (!allowedByToken[token]) allowedByToken[token] = /* @__PURE__ */ new Set();
           allowedByToken[token].add(parent);
           allowedByToken[token].add(sub);
-          if (bindingByToken[token] && bindingByToken[token] !== binding) {
-            throw new Error(`Config apply failed: conflicting parent binding for wikilink token=[[${token}]], field=${sourceId}, bindings=${bindingByToken[token]} vs ${binding}`);
+          if (bindingByToken[token] && bindingByToken[token] !== binding2) {
+            throw new Error(`Config apply failed: conflicting parent binding for wikilink token=[[${token}]], field=${sourceId}, bindings=${bindingByToken[token]} vs ${binding2}`);
           }
-          bindingByToken[token] = binding;
+          bindingByToken[token] = binding2;
         };
         for (let ni = 0; ni < mergeEntries.length; ni++) {
           const entry = mergeEntries[ni] && isObj(mergeEntries[ni]) ? mergeEntries[ni] : {};
@@ -18502,21 +18502,21 @@ var require_config_note_orchestrator = __commonJS({
         for (const token of tokenOrder) {
           const meta = isObj(existingMeta[token]) ? cloneJson(existingMeta[token]) : {};
           const allowedParentValues = Array.from(allowedByToken[token]);
-          const binding = String(bindingByToken[token] || "").trim();
-          if (allowedParentValues.length && !binding) {
+          const binding2 = String(bindingByToken[token] || "").trim();
+          if (allowedParentValues.length && !binding2) {
             throw new Error(`Config apply failed: missing binding for linked wikilink token=[[${token}]], field=${sourceId}`);
           }
-          if (binding) assertCanonicalBinding(binding, token, "finalize");
-          const bindingFieldMatch = binding.match(/\|f:([^|]+)$/);
+          if (binding2) assertCanonicalBinding(binding2, token, "finalize");
+          const bindingFieldMatch = binding2.match(/\|f:([^|]+)$/);
           const parentFieldId = String(bindingFieldMatch ? bindingFieldMatch[1] : "").trim();
           if (allowedParentValues.length && !parentFieldId) {
-            throw new Error(`Config apply failed: missing binding field id for wikilink token=[[${token}]], field=${sourceId}, binding=${binding || "<empty>"}`);
+            throw new Error(`Config apply failed: missing binding field id for wikilink token=[[${token}]], field=${sourceId}, binding=${binding2 || "<empty>"}`);
           }
           out.push({
             ...meta,
             token,
             allowedParentValues,
-            __ioParentBinding: binding,
+            __ioParentBinding: binding2,
             __ioParentFieldId: parentFieldId,
             active: typeof meta.active === "boolean" ? meta.active : true
           });
@@ -19177,30 +19177,30 @@ var require_config_note_orchestrator = __commonJS({
           parsed.prefixResolver && parsed.prefixResolver.tagSubtagPriority ? parsed.prefixResolver.tagSubtagPriority : "subtag-over-tag"
         );
         if (syncedMd !== md) {
-          const af = app2.vault.getAbstractFileByPath(notePath);
-          if (af) await app2.vault.modify(af, syncedMd);
+          const af = app3.vault.getAbstractFileByPath(notePath);
+          if (af) await app3.vault.modify(af, syncedMd);
         }
       } catch (e) {
         console.warn("[inline-overhaul][tagwheel-prefix-sync]", e);
       }
     }
     async function renameStrictNameInConfigNote(ctx, oldName, newName) {
-      const { app: app2, cfg, tagWheelConfigCodec } = ctx;
+      const { app: app3, cfg, tagWheelConfigCodec } = ctx;
       const codec = tagWheelConfigCodec || {};
       const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function" ? codec.normalizeTagWheelConfigPath : ctx.normalizeTagWheelConfigPath;
       const from = String(oldName || "").trim();
       const to = String(newName || "").trim();
       if (!from || !to || from === to) return;
       const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-      const file = app2.vault.getAbstractFileByPath(notePath);
+      const file = app3.vault.getAbstractFileByPath(notePath);
       if (!file) return;
-      const src = await app2.vault.read(file);
+      const src = await app3.vault.read(file);
       let out = String(src || "");
       const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const fromEsc = esc(from);
       out = out.replace(new RegExp(`(^|\\n)(\\s*#{4,5}\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
       out = out.replace(new RegExp(`(^|\\n)(\\s*[-*]\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-      if (out !== src) await app2.vault.modify(file, out);
+      if (out !== src) await app3.vault.modify(file, out);
     }
     module2.exports = {
       openTagWheelConfigNote,
@@ -19962,10 +19962,10 @@ var require_tagwheel_config_codec = __commonJS({
             if (!row || row.active === false) continue;
             const tok = canonicalWikilinkToken(row.token);
             if (!tok) continue;
-            const binding = String(row.__ioParentBinding || "").trim();
-            const mSub = binding.match(/^s:([^|]+)\|p:([^|]+)/);
-            const mParent = binding.match(/^p:([^|]+)/);
-            const mField = binding.match(/\|f:([^|]+)$/);
+            const binding2 = String(row.__ioParentBinding || "").trim();
+            const mSub = binding2.match(/^s:([^|]+)\|p:([^|]+)/);
+            const mParent = binding2.match(/^p:([^|]+)/);
+            const mField = binding2.match(/\|f:([^|]+)$/);
             const parentFieldId = mField ? String(mField[1] || "").trim() : "";
             const sectionFromBinding = parentFieldId && opts2.sectionIdByFieldId ? String(opts2.sectionIdByFieldId[parentFieldId] || "").trim() : "";
             if (mSub) {
@@ -20162,8 +20162,8 @@ var require_tagwheel_config_codec = __commonJS({
             const tok = String(row.token || "").trim();
             if (!tok) continue;
             const token = /^\[\[[^\]]+\]\]$/.test(tok) ? tok : `[[${tok.replace(/^\[\[/, "").replace(/\]\]$/, "")}]]`;
-            const binding = String(row.__ioParentBinding || "").trim();
-            out.push({ token, binding });
+            const binding2 = String(row.__ioParentBinding || "").trim();
+            out.push({ token, binding: binding2 });
           }
           return out;
         };
@@ -20186,8 +20186,8 @@ var require_tagwheel_config_codec = __commonJS({
           }
           return out;
         };
-        const parseBindingPath = (binding) => {
-          const src = String(binding || "").trim();
+        const parseBindingPath = (binding2) => {
+          const src = String(binding2 || "").trim();
           if (!src) return null;
           const mLeaf = src.match(/^s:([^|]+)\|p:([^|]+)(?:\|f:([^|]+))?$/);
           if (mLeaf) {
@@ -22124,9 +22124,9 @@ var require_transform_feature = __commonJS({
       if (!isObj(root.transform.inline2fleet)) root.transform.inline2fleet = {};
       return root;
     }
-    function collectTemplateOptions(app2, folder) {
-      if (!app2 || !app2.vault || typeof app2.vault.getMarkdownFiles !== "function") return [];
-      const all = app2.vault.getMarkdownFiles();
+    function collectTemplateOptions(app3, folder) {
+      if (!app3 || !app3.vault || typeof app3.vault.getMarkdownFiles !== "function") return [];
+      const all = app3.vault.getMarkdownFiles();
       const normalizedFolder = String(folder || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
       return all.filter((f) => {
         if (!normalizedFolder) return true;
@@ -22767,11 +22767,11 @@ var require_transform_feature = __commonJS({
       return String(raw || "").trim().replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim();
     }
     async function pickTargetPath(plugin, title, i2n) {
-      const app2 = plugin.app;
+      const app3 = plugin.app;
       let folder = String(i2n && i2n.outputFolder || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
       if (!folder) {
         try {
-          const activeFile = app2 && app2.workspace && typeof app2.workspace.getActiveFile === "function" ? app2.workspace.getActiveFile() : null;
+          const activeFile = app3 && app3.workspace && typeof app3.workspace.getActiveFile === "function" ? app3.workspace.getActiveFile() : null;
           const parent = activeFile && activeFile.parent ? String(activeFile.parent.path || "").trim() : "";
           folder = parent;
         } catch (_) {
@@ -22780,14 +22780,14 @@ var require_transform_feature = __commonJS({
       const baseTitle = slugSafeTitle(title) || "inline2note";
       const mode = String(i2n && i2n.nameCollision && i2n.nameCollision.mode || "new_note").trim().toLowerCase();
       const basePath = folder ? `${folder}/${baseTitle}.md` : `${baseTitle}.md`;
-      const exists = app2.vault.getAbstractFileByPath(basePath);
+      const exists = app3.vault.getAbstractFileByPath(basePath);
       if (!exists) return { mode, path: basePath, basePath, exists: false };
       if (mode === "overwrite" || mode === "add_to_note") return { mode, path: basePath, basePath, exists: true };
       let idx = 1;
       while (idx < 1e3) {
         const suffix = String(idx).padStart(2, "0");
         const p = folder ? `${folder}/${baseTitle}-${suffix}.md` : `${baseTitle}-${suffix}.md`;
-        if (!app2.vault.getAbstractFileByPath(p)) return { mode: "new_note", path: p, basePath, exists: false };
+        if (!app3.vault.getAbstractFileByPath(p)) return { mode: "new_note", path: p, basePath, exists: false };
         idx += 1;
       }
       throw new Error(`InlineOverhaul: cannot allocate unique note path for ${basePath}`);
@@ -26220,15 +26220,15 @@ var require_fields_editor_legacy = __commonJS({
       };
       const collectYamlSuggestionKeys = () => {
         try {
-          const app2 = plugin && plugin.app ? plugin.app : null;
-          if (!app2 || !app2.vault || !app2.metadataCache || typeof app2.vault.getMarkdownFiles !== "function") return [];
-          const files = app2.vault.getMarkdownFiles();
+          const app3 = plugin && plugin.app ? plugin.app : null;
+          if (!app3 || !app3.vault || !app3.metadataCache || typeof app3.vault.getMarkdownFiles !== "function") return [];
+          const files = app3.vault.getMarkdownFiles();
           const out = [];
           const seen = /* @__PURE__ */ new Set();
           for (let i = 0; i < files.length; i++) {
             const path = String(files[i] && files[i].path || "").trim();
             if (!path) continue;
-            const cache = typeof app2.metadataCache.getCache === "function" ? app2.metadataCache.getCache(path) : null;
+            const cache = typeof app3.metadataCache.getCache === "function" ? app3.metadataCache.getCache(path) : null;
             const fm = cache && cache.frontmatter && typeof cache.frontmatter === "object" ? cache.frontmatter : null;
             if (!fm) continue;
             for (const key of Object.keys(fm)) {
@@ -31760,146 +31760,6 @@ var init_types = __esm({
   }
 });
 
-// src/ui/settings/schema/keyboard.ts
-var KEYBOARD_GROUPS;
-var init_keyboard = __esm({
-  "src/ui/settings/schema/keyboard.ts"() {
-    "use strict";
-    init_types();
-    init_callouts();
-    KEYBOARD_GROUPS = [
-      {
-        id: "keyboard-intro",
-        tab: "keyboard",
-        order: 50,
-        heading: "Before you start",
-        items: [
-          { kind: "custom", id: "keyboard-callout", render: callout("keyboard") }
-        ]
-      },
-      {
-        id: "select-all",
-        tab: "keyboard",
-        order: 100,
-        heading: "Expanded 'Ctrl+A'",
-        intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
-        items: [
-          {
-            kind: "toggle",
-            id: "select-all-enabled",
-            path: "editor.selectAll.enabled",
-            default: false,
-            name: "Expanded 'Ctrl+A'",
-            desc: "Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
-            searchTerms: ["Enhanced Mod+A", "Expanded select all"],
-            tip: "On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started"
-          },
-          {
-            kind: "dropdown",
-            id: "select-all-steps",
-            path: "editor.selectAll.mode",
-            default: "line-note",
-            name: "Selection steps",
-            desc: "How much more gets picked up on each press",
-            searchTerms: ["Select-all mode"],
-            disabled: not("editor.selectAll.enabled"),
-            options: [
-              { value: "line-note", label: "Line, then note" },
-              { value: "line-tree-note", label: "Line, tree, then note" },
-              { value: "line-tree-header-note", label: "Line, tree, heading, then note" }
-            ],
-            tip: "<b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use \u2014 every extra step is one more press before you reach the whole note"
-          },
-          {
-            kind: "toggle",
-            id: "select-all-timer",
-            path: "editor.selectAll.useDelay",
-            default: false,
-            name: "Count presses by timer",
-            desc: "Decide the next step by how quickly you press, rather than by what is selected",
-            searchTerms: ["Use multi-press delay"],
-            disabled: not("editor.selectAll.enabled"),
-            tip: "Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line \u2014 handy if you often select something, walk away, and come back"
-          },
-          {
-            kind: "slider",
-            id: "select-all-delay",
-            path: "editor.selectAll.delayMs",
-            default: 700,
-            min: 250,
-            max: 2e3,
-            step: 50,
-            unit: "ms",
-            name: "Time between presses",
-            desc: "How long you can pause and still be in the middle of a sequence",
-            tip: "Only used when the timer above is on. Around three quarters of a second suits most people; raise it if you keep losing your place",
-            searchTerms: ["Multi-press delay"],
-            visible: on("editor.selectAll.useDelay"),
-            disabled: not("editor.selectAll.enabled")
-          },
-          {
-            kind: "toggle",
-            id: "select-all-clear",
-            path: "editor.selectAll.clearOnLast",
-            default: false,
-            name: "One more press clears it",
-            desc: "After the last step, pressing again drops the selection and returns the cursor",
-            tip: "Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
-            searchTerms: ["Last press clears selection"],
-            disabled: not("editor.selectAll.enabled")
-          }
-        ]
-      }
-    ];
-  }
-});
-
-// src/ui/settings/custom/dispatch_tables.ts
-var TABLES, ARROW, dispatchTables;
-var init_dispatch_tables = __esm({
-  "src/ui/settings/custom/dispatch_tables.ts"() {
-    "use strict";
-    init_dom();
-    TABLES = [
-      {
-        command: "Move left",
-        steps: [
-          { when: "part of a line is selected", then: "move that text" },
-          { when: "the line is indented", then: "remove one indent level" },
-          { when: "no indent", then: "cycle the prefix backwards" }
-        ]
-      },
-      {
-        command: "Move right",
-        steps: [
-          { when: "part of a line is selected", then: "move that text" },
-          { when: "a list item, or already indented", then: "add one indent level" },
-          { when: "anything else", then: "cycle the prefix forwards" }
-        ]
-      }
-    ];
-    ARROW = " \u2192 ";
-    dispatchTables = (host) => {
-      const box = el(host, "div", "io-dispatch");
-      const pair = el(box, "div", "io-orderpair");
-      for (const table of TABLES) {
-        const col = el(pair, "div");
-        el(col, "code", "io-ordercol__cap", table.command);
-        const list = el(col, "ol", "io-order");
-        for (const step of table.steps) {
-          const li = el(list, "li");
-          el(li, "b", void 0, step.when);
-          el(li, "span", void 0, ARROW);
-          el(li, "span", "io-order__then", step.then);
-        }
-      }
-      return () => {
-        box.empty();
-      };
-    };
-  }
-});
-
 // src/ui/settings/custom/keepview.ts
 function scrollerOf(node) {
   let at = node;
@@ -32001,16 +31861,595 @@ var init_keepview = __esm({
   }
 });
 
-// src/ui/settings/custom/order_lists.ts
+// src/ui/settings/custom/binder_model.ts
 function asObject2(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function str(value) {
+  return typeof value === "string" ? value : value === void 0 || value === null ? "" : String(value);
+}
+function storedRows(cfg) {
+  const raw = asObject2(asObject2(cfg)["ui"])["binderRows"];
+  return Array.isArray(raw) ? raw.map(asObject2) : [];
+}
+function newRowId() {
+  return "binder-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+}
+function createBinderModel(deps) {
+  const { plugin } = deps;
+  const read = () => storedRows(plugin.getConfig());
+  const save = (rows, reason, registerCommands) => {
+    plugin.setConfigPatch({ ui: { binderRows: rows } }, reason);
+    if (!registerCommands || typeof plugin.registerBinderCommands !== "function") return;
+    try {
+      plugin.registerBinderCommands();
+    } catch (e) {
+      console.error("inline-overhaul: \u043A\u043E\u043C\u0430\u043D\u0434\u044B Binder \u043D\u0435 \u043F\u0435\u0440\u0435\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043B\u0438\u0441\u044C", e);
+    }
+  };
+  return {
+    listRows() {
+      const cfg = plugin.getConfig();
+      const names = /* @__PURE__ */ new Map();
+      try {
+        for (const def of deps.commandDefs(cfg)) names.set(str(def && def.id), str(def && def.name));
+      } catch (e) {
+        console.error("inline-overhaul: \u0438\u043C\u0435\u043D\u0430 \u043A\u043E\u043C\u0430\u043D\u0434 Binder \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+      }
+      return storedRows(cfg).map((row) => {
+        const commandId = str(row["commandId"]).trim();
+        return {
+          rowId: str(row["rowId"]).trim(),
+          insertText: str(row["insertText"]),
+          commandName: str(row["commandName"]),
+          description: str(row["description"]),
+          commandId,
+          commandLabel: names.get(commandId) || "",
+          system: str(row["rowId"]).trim() === SYSTEM_ROW_ID
+        };
+      });
+    },
+    setDescription(rowId, text) {
+      const id = String(rowId || "").trim();
+      if (!id || id === SYSTEM_ROW_ID) return;
+      const rows = read();
+      if (!rows.some((row) => str(row["rowId"]).trim() === id)) return;
+      const next = rows.map((row) => str(row["rowId"]).trim() === id ? { ...row, description: String(text != null ? text : "") } : row);
+      save(next, "settings:binder:description", false);
+    },
+    remove(rowId) {
+      const id = String(rowId || "").trim();
+      if (!id || id === SYSTEM_ROW_ID) return;
+      const rows = read();
+      const next = rows.filter((row) => str(row["rowId"]).trim() !== id);
+      if (next.length === rows.length) return;
+      save(next, "settings:binder:delete", true);
+    },
+    move(from, to) {
+      const rows = read();
+      if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return;
+      const next = rows.slice();
+      const taken = next.splice(from, 1)[0];
+      if (!taken) return;
+      next.splice(to, 0, taken);
+      save(next, "settings:binder:reorder", true);
+    },
+    add(draft) {
+      const insertText = String(draft && draft.insertText || "");
+      if (!insertText.trim()) return;
+      const next = read().concat([{
+        rowId: newRowId(),
+        insertText,
+        commandName: String(draft && draft.commandName || "").trim(),
+        description: String(draft && draft.description || "").trim(),
+        /* Пусто: идентификатор поставит `normalizeBinderRows` на этом же патче. */
+        commandId: ""
+      }]);
+      save(next, "settings:binder:add", true);
+    }
+  };
+}
+var SYSTEM_ROW_ID;
+var init_binder_model = __esm({
+  "src/ui/settings/custom/binder_model.ts"() {
+    "use strict";
+    SYSTEM_ROW_ID = "binder-system-smart-bracket";
+  }
+});
+
+// src/ui/settings/custom/binder_view.ts
+function rowTitle(row) {
+  const short = row.commandLabel.startsWith(LABEL_PREFIX) ? row.commandLabel.slice(LABEL_PREFIX.length) : row.commandLabel;
+  return short.trim() || row.commandName.trim() || row.insertText.trim() || "this row";
+}
+function renderBinder(host, o) {
+  const scroll = el(host, "div", "io-scroll");
+  const card = el(scroll, "div", "io-card io-binder");
+  const head = el(card, "div", "io-tablehead");
+  for (const cap of HEAD) el(head, "div", void 0, cap);
+  let taken = null;
+  o.rows.forEach((row, i) => {
+    const line = el(card, "div", "io-tablerow");
+    const name = rowTitle(row);
+    const grip = el(line, "span", "io-grip", "\u283F");
+    grip.setAttribute("role", "button");
+    grip.setAttribute("aria-label", "Drag " + name + " to reorder it");
+    grip.draggable = true;
+    grip.addEventListener("dragstart", ((ev) => {
+      var _a;
+      taken = i;
+      line.classList.add("io-dragging");
+      try {
+        (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", String(i));
+      } catch (e) {
+      }
+    }));
+    grip.addEventListener("dragend", (() => {
+      taken = null;
+      line.classList.remove("io-dragging");
+    }));
+    line.addEventListener("dragover", ((ev) => {
+      if (taken === null) return;
+      ev.preventDefault();
+      line.classList.add("io-dragover");
+    }));
+    line.addEventListener("dragleave", (() => {
+      line.classList.remove("io-dragover");
+    }));
+    line.addEventListener("drop", ((ev) => {
+      ev.preventDefault();
+      line.classList.remove("io-dragover");
+      const from = taken;
+      taken = null;
+      if (from === null || from === i) return;
+      o.onMove(from, i);
+    }));
+    el(line, "code", "io-mono", row.insertText);
+    el(line, "div", "io-cellname", name);
+    const cell = el(line, "div", "io-binder__desc");
+    const desc = textInput(cell, "io-text", {
+      value: row.description,
+      label: "Description for " + name
+    });
+    desc.disabled = row.system;
+    if (row.system) desc.title = SYSTEM_TITLE;
+    desc.addEventListener("change", (() => {
+      if (!row.system) o.onDescription(row, desc.value);
+    }));
+    const hotkey = o.hotkeyOf(row);
+    const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
+      text: hotkey || HOTKEY_NONE,
+      label: (hotkey ? "Change" : "Assign") + " the hotkey for " + name,
+      title: HOTKEY_TITLE
+    });
+    hk.disabled = !o.openHotkey;
+    hk.addEventListener("click", (() => {
+      if (o.openHotkey) o.openHotkey(row);
+    }));
+    const drop = btn(line, "io-icon", {
+      text: row.system ? "" : "\u2715",
+      label: row.system ? SYSTEM_TITLE : "Remove " + name
+    });
+    drop.disabled = row.system;
+    drop.addEventListener("click", (() => {
+      if (!row.system) o.onRemove(row);
+    }));
+  });
+  const foot = el(card, "div", "io-tablefoot");
+  const add = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_COMMAND, label: ADD_COMMAND });
+  add.addEventListener("click", (() => {
+    o.onAdd();
+  }));
+}
+function renderAddForm(box, o) {
+  el(box, "h4", void 0, ADD_TITLE);
+  el(box, "p", "io-item__desc", ADD_NOTE);
+  const field = (name, desc, placeholder) => {
+    const row = el(box, "div", "io-item");
+    const info = el(row, "div", "io-item__info");
+    el(info, "div", "io-item__name", name);
+    el(info, "div", "io-item__desc", desc);
+    return textInput(el(row, "div", "io-item__control"), "io-text", {
+      value: "",
+      label: name + " of the new command",
+      placeholder
+    });
+  };
+  const insert = field(INSERT_NAME, INSERT_DESC, "\u2192");
+  const command = field(CMD_NAME, CMD_DESC, "Arrow");
+  const note = field(DESC_NAME, DESC_DESC, "");
+  const foot = el(box, "div", "io-dlg__foot");
+  const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
+  cancel.addEventListener("click", (() => {
+    o.cancel();
+  }));
+  const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
+  add.disabled = true;
+  insert.addEventListener("input", (() => {
+    add.disabled = !String(insert.value || "").trim();
+  }));
+  add.addEventListener("click", (() => {
+    if (!String(insert.value || "").trim()) return;
+    o.add({
+      insertText: insert.value,
+      commandName: command.value,
+      description: note.value
+    });
+  }));
+}
+var HEAD, ADD_COMMAND, HOTKEY_NONE, HOTKEY_TITLE, SYSTEM_TITLE, LABEL_PREFIX, ADD_TITLE, ADD_NOTE, INSERT_NAME, INSERT_DESC, CMD_NAME, CMD_DESC, DESC_NAME, DESC_DESC;
+var init_binder_view = __esm({
+  "src/ui/settings/custom/binder_view.ts"() {
+    "use strict";
+    init_dom();
+    HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""];
+    ADD_COMMAND = "Add command";
+    HOTKEY_NONE = "not set";
+    HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
+    SYSTEM_TITLE = "Built in";
+    LABEL_PREFIX = "Binder: ";
+    ADD_TITLE = "Add a Binder command";
+    ADD_NOTE = "The command is made from the row, so the text it inserts cannot be changed afterwards";
+    INSERT_NAME = "Inserts";
+    INSERT_DESC = "The text this command drops in at the cursor";
+    CMD_NAME = "Command name";
+    CMD_DESC = "What to call it in Obsidian's list of hotkeys";
+    DESC_NAME = "Description";
+    DESC_DESC = "A note to yourself about what the row is for";
+  }
+});
+
+// src/ui/settings/custom/hotkeys.ts
+function app2(plugin) {
+  const holder = plugin;
+  const value = holder && typeof holder === "object" ? holder.app : null;
+  return value && typeof value === "object" ? value : null;
+}
+function fullCommandId(plugin, commandId) {
+  const id = String(commandId || "").trim();
+  if (!id) return "";
+  const manifest = plugin == null ? void 0 : plugin.manifest;
+  const owner = String(manifest && manifest.id ? manifest.id : "").trim();
+  return owner ? owner + ":" + id : id;
+}
+function modLabel() {
+  try {
+    const nav = globalThis.navigator;
+    const platform = String(nav && nav.platform ? nav.platform : "");
+    return /Mac|iPhone|iPad/.test(platform) ? "Cmd" : "Ctrl";
+  } catch (e) {
+    return "Ctrl";
+  }
+}
+function binding(value) {
+  if (!value || typeof value !== "object") return "";
+  const b = value;
+  const key = String(b.key || "").trim();
+  if (!key) return "";
+  const mods = Array.isArray(b.modifiers) ? b.modifiers.map((x) => String(x || "").trim()).filter(Boolean).map((m) => m === "Mod" ? modLabel() : m) : [];
+  return mods.length ? mods.join(" + ") + " + " + key : key;
+}
+function firstBinding(value) {
+  if (!Array.isArray(value) || !value.length) return "";
+  return binding(value[0]);
+}
+function hotkeyOf(plugin, commandId) {
+  const a = app2(plugin);
+  const hm = a && a.hotkeyManager;
+  const id = fullCommandId(plugin, commandId);
+  if (!hm || !id) return "";
+  try {
+    const custom = hm.customKeys;
+    if (custom && typeof custom === "object" && Object.prototype.hasOwnProperty.call(custom, id)) {
+      return firstBinding(custom[id]);
+    }
+    if (typeof hm.getHotkeys === "function") return firstBinding(hm.getHotkeys(id));
+  } catch (e) {
+    console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0439 \u043A\u043E\u043C\u0430\u043D\u0434\u044B \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0441\u044F", e);
+  }
+  return "";
+}
+function canOpenHotkeys(plugin) {
+  const a = app2(plugin);
+  const s = a && a.setting;
+  return !!(s && typeof s.open === "function" && typeof s.openTabById === "function");
+}
+function openHotkeys(plugin, commandName) {
+  const a = app2(plugin);
+  const s = a && a.setting;
+  if (!s || typeof s.open !== "function" || typeof s.openTabById !== "function") return false;
+  try {
+    s.open();
+    const tab = s.openTabById("hotkeys");
+    const query = String(commandName || "").trim();
+    if (tab && typeof tab.setQuery === "function" && query) tab.setQuery(query);
+    return true;
+  } catch (e) {
+    console.error("inline-overhaul: \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 \u0445\u043E\u0442\u043A\u0435\u0435\u0432 \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u043B\u0438\u0441\u044C", e);
+    return false;
+  }
+}
+var init_hotkeys = __esm({
+  "src/ui/settings/custom/hotkeys.ts"() {
+    "use strict";
+  }
+});
+
+// src/ui/settings/custom/binder.ts
+function askAddModal(Modal2, app3, done) {
+  let answered = false;
+  const finish = (draft) => {
+    if (answered) return;
+    answered = true;
+    done(draft);
+  };
+  class AddBinderRowModal extends Modal2 {
+    onOpen() {
+      const box = this.contentEl;
+      box.empty();
+      box.addClass("io-dlg");
+      renderAddForm(box, {
+        add: (draft) => {
+          finish(draft);
+          this.close();
+        },
+        cancel: () => {
+          finish(null);
+          this.close();
+        }
+      });
+    }
+    onClose() {
+      finish(null);
+      this.contentEl.empty();
+    }
+  }
+  new AddBinderRowModal(app3).open();
+}
+var import_command_registry, registry, BINDER_PATHS, binderTable;
+var init_binder = __esm({
+  "src/ui/settings/custom/binder.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_binder_model();
+    init_binder_view();
+    init_hotkeys();
+    import_command_registry = __toESM(require_command_registry());
+    registry = import_command_registry.default;
+    BINDER_PATHS = ["ui.binderRows"];
+    binderTable = (host, ctx) => {
+      const p = ctx.platform;
+      const box = el(host, "div", "io-binderblock");
+      if (!p) return () => {
+        box.empty();
+      };
+      const Modal2 = p.Modal;
+      const plugin = p.plugin;
+      const app3 = plugin.app;
+      const canOpen = canOpenHotkeys(plugin);
+      let mounted = null;
+      const draw = () => {
+        const keep = keepView(box);
+        const next = el(box, "div", "io-binderblock__mount");
+        try {
+          const model = createBinderModel({
+            plugin,
+            commandDefs: (cfg) => registry.buildBinderCommandDefs(cfg)
+          });
+          const commit = (write) => {
+            try {
+              write();
+            } catch (e) {
+              console.error("inline-overhaul: \u0437\u0430\u043F\u0438\u0441\u044C \u0441\u0442\u0440\u043E\u043A Binder \u043D\u0435 \u0443\u0434\u0430\u043B\u0430\u0441\u044C", e);
+            } finally {
+              draw();
+            }
+          };
+          renderBinder(next, {
+            rows: model.listRows(),
+            hotkeyOf: (row) => hotkeyOf(plugin, row.commandId),
+            openHotkey: canOpen ? (row) => {
+              openHotkeys(plugin, row.commandLabel);
+            } : null,
+            onDescription: (row, text) => commit(() => {
+              model.setDescription(row.rowId, text);
+            }),
+            onRemove: (row) => commit(() => {
+              model.remove(row.rowId);
+            }),
+            onMove: (from, to) => commit(() => {
+              model.move(from, to);
+            }),
+            onAdd: () => askAddModal(Modal2, app3, (draft) => {
+              if (!draft) return;
+              commit(() => {
+                model.add(draft);
+              });
+            })
+          });
+        } catch (e) {
+          next.remove();
+          console.error("inline-overhaul: Binder \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
+          return;
+        }
+        if (mounted) mounted.remove();
+        mounted = next;
+        keep.restore();
+      };
+      draw();
+      const unwatch = ctx.watch(BINDER_PATHS, draw);
+      return () => {
+        unwatch();
+        mounted = null;
+        box.empty();
+      };
+    };
+  }
+});
+
+// src/ui/settings/schema/keyboard.ts
+var KEYBOARD_GROUPS;
+var init_keyboard = __esm({
+  "src/ui/settings/schema/keyboard.ts"() {
+    "use strict";
+    init_types();
+    init_binder();
+    init_callouts();
+    KEYBOARD_GROUPS = [
+      {
+        id: "keyboard-intro",
+        tab: "keyboard",
+        order: 50,
+        heading: "Before you start",
+        items: [
+          { kind: "custom", id: "keyboard-callout", render: callout("keyboard") }
+        ]
+      },
+      {
+        id: "select-all",
+        tab: "keyboard",
+        order: 100,
+        heading: "Expanded 'Ctrl+A'",
+        intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
+        items: [
+          {
+            kind: "toggle",
+            id: "select-all-enabled",
+            path: "editor.selectAll.enabled",
+            default: false,
+            name: "Expanded 'Ctrl+A'",
+            desc: "Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
+            searchTerms: ["Enhanced Mod+A", "Expanded select all"],
+            tip: "On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started"
+          },
+          {
+            kind: "dropdown",
+            id: "select-all-steps",
+            path: "editor.selectAll.mode",
+            default: "line-note",
+            name: "Selection steps",
+            desc: "How much more gets picked up on each press",
+            searchTerms: ["Select-all mode"],
+            disabled: not("editor.selectAll.enabled"),
+            options: [
+              { value: "line-note", label: "Line, then note" },
+              { value: "line-tree-note", label: "Line, tree, then note" },
+              { value: "line-tree-header-note", label: "Line, tree, heading, then note" }
+            ],
+            tip: "<b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use \u2014 every extra step is one more press before you reach the whole note"
+          },
+          {
+            kind: "toggle",
+            id: "select-all-timer",
+            path: "editor.selectAll.useDelay",
+            default: false,
+            name: "Count presses by timer",
+            desc: "Decide the next step by how quickly you press, rather than by what is selected",
+            searchTerms: ["Use multi-press delay"],
+            disabled: not("editor.selectAll.enabled"),
+            tip: "Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line \u2014 handy if you often select something, walk away, and come back"
+          },
+          {
+            kind: "slider",
+            id: "select-all-delay",
+            path: "editor.selectAll.delayMs",
+            default: 700,
+            min: 250,
+            max: 2e3,
+            step: 50,
+            unit: "ms",
+            name: "Time between presses",
+            desc: "How long you can pause and still be in the middle of a sequence",
+            tip: "Only used when the timer above is on. Around three quarters of a second suits most people; raise it if you keep losing your place",
+            searchTerms: ["Multi-press delay"],
+            visible: on("editor.selectAll.useDelay"),
+            disabled: not("editor.selectAll.enabled")
+          },
+          {
+            kind: "toggle",
+            id: "select-all-clear",
+            path: "editor.selectAll.clearOnLast",
+            default: false,
+            name: "One more press clears it",
+            desc: "After the last step, pressing again drops the selection and returns the cursor",
+            tip: "Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
+            searchTerms: ["Last press clears selection"],
+            disabled: not("editor.selectAll.enabled")
+          }
+        ]
+      },
+      {
+        id: "binder",
+        tab: "keyboard",
+        order: 200,
+        heading: "Binder (custom insert commands)",
+        intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
+        tip: "The <code>Hotkey</code> column shows the key a row has now; click it to go and set one. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
+        items: [
+          { kind: "custom", id: "binder-table", render: binderTable }
+        ]
+      }
+    ];
+  }
+});
+
+// src/ui/settings/custom/dispatch_tables.ts
+var TABLES, ARROW, dispatchTables;
+var init_dispatch_tables = __esm({
+  "src/ui/settings/custom/dispatch_tables.ts"() {
+    "use strict";
+    init_dom();
+    TABLES = [
+      {
+        command: "Move left",
+        steps: [
+          { when: "part of a line is selected", then: "move that text" },
+          { when: "the line is indented", then: "remove one indent level" },
+          { when: "no indent", then: "cycle the prefix backwards" }
+        ]
+      },
+      {
+        command: "Move right",
+        steps: [
+          { when: "part of a line is selected", then: "move that text" },
+          { when: "a list item, or already indented", then: "add one indent level" },
+          { when: "anything else", then: "cycle the prefix forwards" }
+        ]
+      }
+    ];
+    ARROW = " \u2192 ";
+    dispatchTables = (host) => {
+      const box = el(host, "div", "io-dispatch");
+      const pair = el(box, "div", "io-orderpair");
+      for (const table of TABLES) {
+        const col = el(pair, "div");
+        el(col, "code", "io-ordercol__cap", table.command);
+        const list = el(col, "ol", "io-order");
+        for (const step of table.steps) {
+          const li = el(list, "li");
+          el(li, "b", void 0, step.when);
+          el(li, "span", void 0, ARROW);
+          el(li, "span", "io-order__then", step.then);
+        }
+      }
+      return () => {
+        box.empty();
+      };
+    };
+  }
+});
+
+// src/ui/settings/custom/order_lists.ts
+function asObject3(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 function strings(value) {
   return Array.isArray(value) ? value.map((x) => String(x != null ? x : "")) : [];
 }
 function prefixRules(cfg) {
-  const behavior = asObject2(asObject2(asObject2(cfg)["pkm"])["behavior"]);
-  return asObject2(behavior["prefixRules"]);
+  const behavior = asObject3(asObject3(asObject3(cfg)["pkm"])["behavior"]);
+  return asObject3(behavior["prefixRules"]);
 }
 function moved(list, from, to) {
   const out = list.slice();
@@ -32185,7 +32624,7 @@ var init_order_lists = __esm({
       }
       return block(host, ctx, "io-cycleorder", CYCLE_PATHS, (mount, commit) => {
         const cfg = p.getConfig();
-        const move = asObject2(asObject2(asObject2(cfg)["navigation"])["moveSelection"]);
+        const move = asObject3(asObject3(asObject3(cfg)["navigation"])["moveSelection"]);
         const rows = strings(move["cycleOrder"]);
         const enabled = Boolean(ctx.get("navigation.moveSelection.prefixCyclerEnabled"));
         const save = (next, reason) => {
@@ -32768,7 +33207,7 @@ function num(ctx, path) {
   const v = Number(ctx.get(path));
   return Number.isFinite(v) ? v : 0;
 }
-function str(ctx, path, fallback) {
+function str2(ctx, path, fallback) {
   const v = ctx.get(path);
   const s = v === void 0 || v === null ? "" : String(v);
   return s || fallback;
@@ -32838,9 +33277,9 @@ function structuralLine(parent, ctx, fields, chipFor) {
   };
   const left = fieldsOn(fields, "left");
   if (left.length) put(el(line, "span", "io-line__side io-line__side--left"), left);
-  el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+  el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
   el(line, "span", "io-line__text", PREVIEW_LINE_TEXT);
-  el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+  el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator2", "||"));
   const right = fieldsOn(fields, "right");
   if (right.length) put(el(line, "span", "io-line__side io-line__side--right"), right);
   else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
@@ -32889,7 +33328,7 @@ var init_previews = __esm({
         const { fields, example } = previewFields(ctx);
         const scroller = Boolean(ctx.get("visual.tagWheel.scroller.enabled"));
         const perSide = scroller ? num(ctx, "visual.tagWheel.scroller.size") : 0;
-        const direction = str(ctx, "visual.tagWheel.scroller.direction", "full");
+        const direction = str2(ctx, "visual.tagWheel.scroller.direction", "full");
         const markers = Boolean(ctx.get("visual.tagWheel.showMarkers"));
         const left = fieldsOn(fields, "left");
         const shown = left[1] || left[0] || fields[0] || null;
@@ -32909,8 +33348,8 @@ var init_previews = __esm({
         const panel = (col, idx, where) => {
           if (!idx.length) return;
           const p = el(col, "span", "io-wheelpanel io-wheelpanel--" + where);
-          const fill = str(ctx, "visual.tagWheel.fillColor", "");
-          const text = str(ctx, "visual.tagWheel.textColor", "");
+          const fill = str2(ctx, "visual.tagWheel.fillColor", "");
+          const text = str2(ctx, "visual.tagWheel.textColor", "");
           if (fill) cssVar(p, "--io-wheel-bg", fill);
           if (text) cssVar(p, "--io-wheel-fg", text);
           for (const i of idx) el(p, "span", "io-wheelval", values[i]);
@@ -32955,7 +33394,7 @@ var init_previews = __esm({
       const text = PREVIEW_TEXTS["bars-preview"];
       const shell = previewShell(host, ctx, "bars-preview");
       const tree = el(shell.box, "div", "io-tree");
-      const chosenField = () => str(ctx, "visual.tagBars.fieldId", "status");
+      const chosenField = () => str2(ctx, "visual.tagBars.fieldId", "status");
       const treeSlots = (nodes) => {
         const out = [];
         const walk = (list) => {
@@ -32996,7 +33435,7 @@ var init_previews = __esm({
         }
         const replaced = hideChosen && ids.includes(chosen);
         const sepHidden = !shown.length && (!replaced || Boolean(ctx.get("visual.tagBars.hideSeparatorWhenOnlyStripToken")));
-        if (!sepHidden) el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+        if (!sepHidden) el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
         el(line, "span", "io-line__text", node.text);
       };
       const drawNode = (parent, node, depth, lane, fields, slots) => {
@@ -33069,13 +33508,13 @@ var init_previews = __esm({
           for (const f of fieldsOn(fields, "left")) fieldChip(c, f);
         });
         cell("io-struct__sep", (c) => {
-          el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+          el(c, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
         });
         cell("io-struct__text", (c) => {
           el(c, "span", "io-line__text", PREVIEW_LINE_TEXT);
         });
         cell("io-struct__sep", (c) => {
-          el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+          el(c, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator2", "||"));
         });
         cell("io-struct__side io-line__side--right", (c) => {
           const right = fieldsOn(fields, "right");
@@ -33128,9 +33567,9 @@ var init_previews = __esm({
           const f = slots.get(slot);
           if (f) tagField(left, f, ctx);
         }
-        el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+        el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
         el(line, "span", "io-line__text", text ? text.line || "" : "");
-        el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+        el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator2", "||"));
         const right = el(line, "span", "io-line__side io-line__side--right");
         if (text && text.element) el(right, "span", "io-elem", text.element);
         if (text && text.link) el(right, "span", "io-link", text.link);
@@ -33147,11 +33586,11 @@ var init_previews = __esm({
 });
 
 // src/ui/settings/custom/yaml_property.ts
-function vaultProperties(app2) {
+function vaultProperties(app3) {
   var _a, _b, _c;
   const out = [];
   try {
-    const mgr = app2 == null ? void 0 : app2.metadataTypeManager;
+    const mgr = app3 == null ? void 0 : app3.metadataTypeManager;
     if (!mgr || typeof mgr !== "object") return out;
     const holder = mgr;
     const raw = typeof holder.getAllProperties === "function" ? holder.getAllProperties() : (_a = holder.properties) != null ? _a : holder.types;
@@ -33649,14 +34088,14 @@ function yamlPropertyRows(detail, row, o) {
     desc: PROPERTY_DESC,
     showTips: o.showTips
   });
-  const app2 = o.ctx.platform ? o.ctx.platform.plugin.app : null;
+  const app3 = o.ctx.platform ? o.ctx.platform.plugin.app : null;
   propertyPicker(property.control, {
     value: row.property,
     label: row.strictName,
     placeholder: PROPERTY_PLACEHOLDER,
-    props: vaultProperties(app2),
+    props: vaultProperties(app3),
     /* Подсказку рисует платформа; без класса поле остаётся обычным полем. */
-    suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest ? { ctor: o.ctx.platform.AbstractInputSuggest, app: app2 } : void 0,
+    suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest ? { ctor: o.ctx.platform.AbstractInputSuggest, app: app3 } : void 0,
     enabled: o.enabled,
     write: (value) => commit(() => {
       o.model.setProperty(row.key, value);
@@ -34272,7 +34711,7 @@ var init_fields_editor_view = __esm({
 });
 
 // src/ui/settings/custom/fields_editor.ts
-function askNewFieldModal(Modal2, app2, done) {
+function askNewFieldModal(Modal2, app3, done) {
   let answered = false;
   const finish = (answer) => {
     if (answered) return;
@@ -34336,9 +34775,9 @@ function askNewFieldModal(Modal2, app2, done) {
       this.contentEl.empty();
     }
   }
-  new AddFieldModal(app2).open();
+  new AddFieldModal(app3).open();
 }
-function confirmDeleteModal(Modal2, app2, fieldName, done) {
+function confirmDeleteModal(Modal2, app3, fieldName, done) {
   let answered = false;
   const finish = (yes) => {
     if (answered) return;
@@ -34374,7 +34813,7 @@ function confirmDeleteModal(Modal2, app2, fieldName, done) {
       this.contentEl.empty();
     }
   }
-  new DeleteFieldModal(app2).open();
+  new DeleteFieldModal(app3).open();
 }
 var import_fields_editor_legacy3, helpers3, EDITOR_PATHS, fieldsEditor;
 var init_fields_editor = __esm({
@@ -34394,7 +34833,7 @@ var init_fields_editor = __esm({
         box.empty();
       };
       const Modal2 = p.Modal;
-      const app2 = p.plugin.app;
+      const app3 = p.plugin.app;
       const notice = (text) => {
         const N = p.Notice;
         try {
@@ -34428,8 +34867,8 @@ var init_fields_editor = __esm({
               draw();
             },
             notice,
-            askNewField: (done) => askNewFieldModal(Modal2, app2, done),
-            confirmDeleteField: (name, done) => confirmDeleteModal(Modal2, app2, name, done)
+            askNewField: (done) => askNewFieldModal(Modal2, app3, done),
+            confirmDeleteField: (name, done) => confirmDeleteModal(Modal2, app3, name, done)
           });
         } catch (e) {
           next.remove();
@@ -35046,7 +35485,7 @@ var init_visual = __esm({
 });
 
 // src/ui/settings/custom/smart_rules_model.ts
-function asObject3(value) {
+function asObject4(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 function asArray2(value) {
@@ -35061,7 +35500,7 @@ function strings2(value) {
   return out;
 }
 function inline2note(cfg) {
-  return asObject3(asObject3(asObject3(cfg)["transform"])["inline2note"]);
+  return asObject4(asObject4(asObject4(cfg)["transform"])["inline2note"]);
 }
 function createRulesModel(deps) {
   const { plugin, validate, fieldTokens } = deps;
@@ -35070,9 +35509,9 @@ function createRulesModel(deps) {
     const raw = rawRules();
     const checked = validate(raw);
     return raw.map((rawRule, i) => {
-      const r = asObject3(rawRule);
-      const conditions = asObject3(r["conditions"]);
-      const validation = asObject3(asObject3(checked[i])["validation"]);
+      const r = asObject4(rawRule);
+      const conditions = asObject4(r["conditions"]);
+      const validation = asObject4(asObject4(checked[i])["validation"]);
       return {
         id: String(r["id"] || "rule-" + (i + 1)).trim() || "rule-" + (i + 1),
         name: String(r["name"] || "").trim(),
@@ -35422,7 +35861,7 @@ var init_smart_rules_view = __esm({
 });
 
 // src/ui/settings/custom/smart_rules.ts
-function askConditionModal(Modal2, app2, o) {
+function askConditionModal(Modal2, app3, o) {
   let answered = false;
   const finish = (value) => {
     if (answered) return;
@@ -35456,7 +35895,7 @@ function askConditionModal(Modal2, app2, o) {
       this.contentEl.empty();
     }
   }
-  new ConditionModal(app2).open();
+  new ConditionModal(app3).open();
 }
 var import_fields_editor_legacy4, import_transform_feature2, helpers4, engine2, RULES_PATHS, smartRules;
 var init_smart_rules = __esm({
@@ -35484,11 +35923,11 @@ var init_smart_rules = __esm({
         box.empty();
       };
       const Modal2 = p.Modal;
-      const app2 = p.plugin.app;
+      const app3 = p.plugin.app;
       const templates = () => {
         try {
           const folder = String(ctx.get("transform.inline2note.templatesFolder") || "");
-          const raw = engine2.collectTemplateOptions(app2, folder);
+          const raw = engine2.collectTemplateOptions(app3, folder);
           if (!Array.isArray(raw)) return [];
           return raw.map((x) => String(x || "").trim()).filter(Boolean);
         } catch (e) {
@@ -35519,7 +35958,7 @@ var init_smart_rules = __esm({
             redraw: () => {
               draw();
             },
-            askCondition: (kind, done) => askConditionModal(Modal2, app2, {
+            askCondition: (kind, done) => askConditionModal(Modal2, app3, {
               kind,
               choices: model.choicesFor(kind),
               done
@@ -36414,8 +36853,8 @@ var init_obsidian_tab = __esm({
     init_settings_tab();
     init_store();
     InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
-      constructor(app2, plugin, bridge) {
-        super(app2, plugin);
+      constructor(app3, plugin, bridge) {
+        super(app3, plugin);
         const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function" ? bridge.normalizePkmOrder : null;
         this.pane = new SettingsPane({
           schema: SCHEMA,
@@ -36742,10 +37181,10 @@ var require_main = __commonJS({
         tag: extractFirstTagToken(raw)
       };
     }
-    async function readVaultText(app2, path) {
+    async function readVaultText(app3, path) {
       const safePath = String(path || "").trim();
       if (!safePath) throw new Error("Vault read failed: empty path");
-      const vault = app2 && app2.vault;
+      const vault = app3 && app3.vault;
       if (!vault || typeof vault.getAbstractFileByPath !== "function" || typeof vault.read !== "function") {
         throw new Error("Vault read failed: vault API unavailable");
       }
@@ -36826,13 +37265,13 @@ var require_main = __commonJS({
     function hasValidTransformFeature(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.normalizeInline2Note === "function" && typeof mod.normalizeTransformConfig === "function" && typeof mod.renderTransformSettings === "function" && typeof mod.runInline2Note === "function");
     }
-    async function loadCommandRegistrySafe(app2) {
+    async function loadCommandRegistrySafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/command_registry.js",
         "./.obsidian/plugins/inline-overhaul/src/features/command_registry.js",
         "plugins/inline-overhaul/src/features/command_registry.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/command_registry.js",
         candidates,
         cacheKey: "feature:command-registry",
@@ -36861,13 +37300,13 @@ var require_main = __commonJS({
         buildBinderCommandDefs: () => []
       };
     }
-    async function loadTransformFeatureSafe(app2) {
+    async function loadTransformFeatureSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/transform_feature.js",
         "./.obsidian/plugins/inline-overhaul/src/features/transform_feature.js",
         "plugins/inline-overhaul/src/features/transform_feature.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/transform_feature.js",
         candidates,
         cacheKey: "feature:transform",
@@ -36975,7 +37414,7 @@ var require_main = __commonJS({
     function hasValidOrderDeepEditorState(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.buildTagTree === "function" && typeof mod.applyTagTreeToFields === "function" && typeof mod.createHistory === "function" && typeof mod.pushHistory === "function" && typeof mod.undoHistory === "function" && typeof mod.redoHistory === "function" && typeof mod.resetHistory === "function");
     }
-    async function ensureOrderDeepEditorStateSafe(app2) {
+    async function ensureOrderDeepEditorStateSafe(app3) {
       if (hasValidOrderDeepEditorState(__orderDeepEditorState)) {
         try {
           globalThis.__inlineOrderDeepEditorState = __orderDeepEditorState;
@@ -36988,7 +37427,7 @@ var require_main = __commonJS({
         "./.obsidian/plugins/inline-overhaul/src/core/order_deep_editor_state.js",
         "plugins/inline-overhaul/src/core/order_deep_editor_state.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/core/order_deep_editor_state.js",
         candidates,
         cacheKey: "core:order-deep-editor-state",
@@ -37026,13 +37465,13 @@ var require_main = __commonJS({
       const target = mod && typeof mod === "object" ? mod : {};
       return required.filter((k) => typeof target[k] !== "function");
     }
-    async function loadSettingsTabRouterSafe(app2) {
+    async function loadSettingsTabRouterSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js",
         "./.obsidian/plugins/inline-overhaul/src/ui/settings_tab_router.js",
         "plugins/inline-overhaul/src/ui/settings_tab_router.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/ui/settings_tab_router.js",
         candidates,
         cacheKey: "ui:settings-tab-router",
@@ -37048,7 +37487,7 @@ var require_main = __commonJS({
         "./.obsidian/plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js",
         "plugins/inline-overhaul/src/ui/settings_tab_router_fallback.js"
       ];
-      const fallbackLoaded = await loadModuleWithVaultFallback(app2, {
+      const fallbackLoaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/ui/settings_tab_router_fallback.js",
         candidates: fallbackCandidates,
         cacheKey: "ui:settings-tab-router-fallback",
@@ -37088,15 +37527,15 @@ var require_main = __commonJS({
         }
       };
     }
-    async function loadSettingsSectionsRendererSafe(app2) {
+    async function loadSettingsSectionsRendererSafe(app3) {
       __settingsSectionsRendererDiag = "";
-      await ensureOrderDeepEditorStateSafe(app2);
+      await ensureOrderDeepEditorStateSafe(app3);
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js",
         "./.obsidian/plugins/inline-overhaul/src/ui/settings_sections_renderer.js",
         "plugins/inline-overhaul/src/ui/settings_sections_renderer.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/ui/settings_sections_renderer.js",
         candidates,
         cacheKey: "ui:settings-sections-renderer",
@@ -37117,7 +37556,7 @@ var require_main = __commonJS({
         "./.obsidian/plugins/inline-overhaul/src/ui/settings_sections_fallback.js",
         "plugins/inline-overhaul/src/ui/settings_sections_fallback.js"
       ];
-      const fallbackLoaded = await loadModuleWithVaultFallback(app2, {
+      const fallbackLoaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/ui/settings_sections_fallback.js",
         candidates: fallbackCandidates,
         cacheKey: "ui:settings-sections-fallback",
@@ -37297,13 +37736,13 @@ var require_main = __commonJS({
     function hasValidTagWheelConfigParser(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.createTagWheelConfigParser === "function");
     }
-    async function loadTagWheelConfigParserSafe(app2) {
+    async function loadTagWheelConfigParserSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js",
         "./.obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js",
         "plugins/inline-overhaul/src/features/tagwheel_config_parser.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/tagwheel_config_parser.js",
         candidates,
         cacheKey: "feature:tagwheel-config-parser",
@@ -37322,14 +37761,14 @@ var require_main = __commonJS({
       }
       return null;
     }
-    async function loadTagWheelConfigCodecSafe(app2) {
-      await loadConfigNoteHelpersSafe(app2);
+    async function loadTagWheelConfigCodecSafe(app3) {
+      await loadConfigNoteHelpersSafe(app3);
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec.js",
         "./.obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec.js",
         "plugins/inline-overhaul/src/features/tagwheel_config_codec.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/tagwheel_config_codec.js",
         candidates,
         cacheKey: "feature:tagwheel-config-codec",
@@ -37437,13 +37876,13 @@ var require_main = __commonJS({
         }
       };
     }
-    async function loadRulesMarkdownBuilderSafe(app2) {
+    async function loadRulesMarkdownBuilderSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/rules_markdown_builder.js",
         "./.obsidian/plugins/inline-overhaul/src/features/rules_markdown_builder.js",
         "plugins/inline-overhaul/src/features/rules_markdown_builder.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/rules_markdown_builder.js",
         candidates,
         cacheKey: "feature:rules-markdown-builder",
@@ -37485,13 +37924,13 @@ var require_main = __commonJS({
         syncCustomPrefixResolverBlock: (md, sectionOrder, checkboxOrder, mode, fieldsOrderMode, tagSubtagPriority) => fail("syncCustomPrefixResolverBlock") && md && sectionOrder && checkboxOrder && mode && fieldsOrderMode && tagSubtagPriority
       };
     }
-    async function loadConfigNoteHelpersSafe(app2) {
+    async function loadConfigNoteHelpersSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/config_note_helpers.js",
         "./.obsidian/plugins/inline-overhaul/src/features/config_note_helpers.js",
         "plugins/inline-overhaul/src/features/config_note_helpers.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/config_note_helpers.js",
         candidates,
         cacheKey: "feature:config-note-helpers",
@@ -37535,13 +37974,13 @@ var require_main = __commonJS({
     function hasValidEnhancedSelectAllEngine(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.handleEnhancedSelectAllKeymap === "function");
     }
-    async function loadEnhancedSelectAllEngineSafe(app2) {
+    async function loadEnhancedSelectAllEngineSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/enhanced_select_all_engine.js",
         "./.obsidian/plugins/inline-overhaul/src/features/enhanced_select_all_engine.js",
         "plugins/inline-overhaul/src/features/enhanced_select_all_engine.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/enhanced_select_all_engine.js",
         candidates,
         cacheKey: "feature:enhanced-select-all-engine",
@@ -37573,13 +38012,13 @@ var require_main = __commonJS({
     function hasValidPriorityStripAdapter(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.buildStripDecorationRanges === "function");
     }
-    async function loadPriorityStripEngineSafe(app2) {
+    async function loadPriorityStripEngineSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/core/priority_strip_engine.js",
         "./.obsidian/plugins/inline-overhaul/src/core/priority_strip_engine.js",
         "plugins/inline-overhaul/src/core/priority_strip_engine.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/core/priority_strip_engine.js",
         candidates,
         cacheKey: "core:priority-strip-engine",
@@ -37594,13 +38033,13 @@ var require_main = __commonJS({
       if (loaded.requireErr) reportLoaderFallback("main.loadPriorityStripEngineSafe", loaded.requireErr);
       return __priorityStripEngine;
     }
-    async function loadPriorityStripAdapterSafe(app2) {
+    async function loadPriorityStripAdapterSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/core/priority_strip_cm6_adapter.js",
         "./.obsidian/plugins/inline-overhaul/src/core/priority_strip_cm6_adapter.js",
         "plugins/inline-overhaul/src/core/priority_strip_cm6_adapter.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/core/priority_strip_cm6_adapter.js",
         candidates,
         cacheKey: "core:priority-strip-adapter",
@@ -37621,19 +38060,19 @@ var require_main = __commonJS({
           throw new Error("Config note orchestrator unavailable");
         },
         async openTagWheelConfigTemplateNote(ctx) {
-          const app2 = ctx && ctx.app;
+          const app3 = ctx && ctx.app;
           const cfg = ctx && ctx.cfg;
           const codec = ctx && ctx.tagWheelConfigCodec || {};
           const normalizeTagWheelConfigTemplatePath = typeof codec.normalizeTagWheelConfigTemplatePath === "function" ? codec.normalizeTagWheelConfigTemplatePath : ctx && ctx.normalizeTagWheelConfigTemplatePath;
           const buildDefaultTagWheelDetailedTemplateMarkdown = typeof codec.buildDefaultTagWheelDetailedTemplateMarkdown === "function" ? codec.buildDefaultTagWheelDetailedTemplateMarkdown : ctx && ctx.buildDefaultTagWheelDetailedTemplateMarkdown;
           const templatePath = normalizeTagWheelConfigTemplatePath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigTemplatePath : "");
-          let file = app2.vault.getAbstractFileByPath(templatePath);
+          let file = app3.vault.getAbstractFileByPath(templatePath);
           if (!file) {
-            await app2.vault.create(templatePath, buildDefaultTagWheelDetailedTemplateMarkdown());
-            file = app2.vault.getAbstractFileByPath(templatePath);
+            await app3.vault.create(templatePath, buildDefaultTagWheelDetailedTemplateMarkdown());
+            file = app3.vault.getAbstractFileByPath(templatePath);
           }
           if (!file) throw new Error("Failed to create/open detailed template note: " + templatePath);
-          const leaf = app2.workspace.getLeaf(true);
+          const leaf = app3.workspace.getLeaf(true);
           await leaf.openFile(file);
           return templatePath;
         },
@@ -37641,7 +38080,7 @@ var require_main = __commonJS({
           throw new Error("Config note orchestrator unavailable");
         },
         async renameStrictNameInConfigNote(ctx, oldName, newName) {
-          const app2 = ctx && ctx.app;
+          const app3 = ctx && ctx.app;
           const cfg = ctx && ctx.cfg;
           const codec = ctx && ctx.tagWheelConfigCodec || {};
           const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function" ? codec.normalizeTagWheelConfigPath : ctx && ctx.normalizeTagWheelConfigPath;
@@ -37649,25 +38088,25 @@ var require_main = __commonJS({
           const to = String(newName || "").trim();
           if (!from || !to || from === to) return;
           const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-          const file = app2.vault.getAbstractFileByPath(notePath);
+          const file = app3.vault.getAbstractFileByPath(notePath);
           if (!file) return;
-          const src = await app2.vault.read(file);
+          const src = await app3.vault.read(file);
           let out = String(src || "");
           const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           const fromEsc = esc(from);
           out = out.replace(new RegExp(`(^|\\n)(\\s*#{4,5}\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
           out = out.replace(new RegExp(`(^|\\n)(\\s*[-*]\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-          if (out !== src) await app2.vault.modify(file, out);
+          if (out !== src) await app3.vault.modify(file, out);
         }
       };
     }
-    async function loadConfigNoteOrchestratorSafe(app2) {
+    async function loadConfigNoteOrchestratorSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/config_note_orchestrator.js",
         "./.obsidian/plugins/inline-overhaul/src/features/config_note_orchestrator.js",
         "plugins/inline-overhaul/src/features/config_note_orchestrator.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/config_note_orchestrator.js",
         candidates,
         cacheKey: "feature:config-note-orchestrator",
@@ -37685,13 +38124,13 @@ var require_main = __commonJS({
       __configNoteOrchestrator = fallbackConfigNoteOrchestrator();
       return __configNoteOrchestrator;
     }
-    async function loadConfigStoreModuleSafe(app2) {
+    async function loadConfigStoreModuleSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/core/config_store.js",
         "./.obsidian/plugins/inline-overhaul/src/core/config_store.js",
         "plugins/inline-overhaul/src/core/config_store.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/core/config_store.js",
         candidates,
         cacheKey: "core:config-store",
@@ -37708,13 +38147,13 @@ var require_main = __commonJS({
       if (hasValidConfigStoreModule(__configStoreModule)) return __configStoreModule.ConfigStore;
       return FallbackConfigStore;
     }
-    async function loadConfigMigrationModuleSafe(app2) {
+    async function loadConfigMigrationModuleSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/core/config_migration.js",
         "./.obsidian/plugins/inline-overhaul/src/core/config_migration.js",
         "plugins/inline-overhaul/src/core/config_migration.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/core/config_migration.js",
         candidates,
         cacheKey: "core:config-migration",
@@ -37761,13 +38200,13 @@ var require_main = __commonJS({
         }
       };
     }
-    async function loadRulesSyncOrchestratorSafe(app2) {
+    async function loadRulesSyncOrchestratorSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/rules_sync_orchestrator.js",
         "./.obsidian/plugins/inline-overhaul/src/features/rules_sync_orchestrator.js",
         "plugins/inline-overhaul/src/features/rules_sync_orchestrator.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/rules_sync_orchestrator.js",
         candidates,
         cacheKey: "feature:rules-sync-orchestrator",
@@ -37806,13 +38245,13 @@ var require_main = __commonJS({
         }
       };
     }
-    async function loadStoreEventsOrchestratorSafe(app2) {
+    async function loadStoreEventsOrchestratorSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/features/store_events_orchestrator.js",
         "./.obsidian/plugins/inline-overhaul/src/features/store_events_orchestrator.js",
         "plugins/inline-overhaul/src/features/store_events_orchestrator.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/features/store_events_orchestrator.js",
         candidates,
         cacheKey: "feature:store-events-orchestrator",
@@ -37830,7 +38269,7 @@ var require_main = __commonJS({
       __storeEventsOrchestrator = fallbackStoreEventsOrchestrator();
       return __storeEventsOrchestrator;
     }
-    async function loadSharedUtilsSafe(app2) {
+    async function loadSharedUtilsSafe(app3) {
       const required = [
         "cloneJson",
         "isObj",
@@ -37872,7 +38311,7 @@ var require_main = __commonJS({
         "./.obsidian/plugins/inline-overhaul/src/core/shared_utils.js",
         "plugins/inline-overhaul/src/core/shared_utils.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/core/shared_utils.js",
         candidates,
         cacheKey: "core:shared-utils",
@@ -37904,7 +38343,7 @@ var require_main = __commonJS({
     function toPrettyJson(x) {
       return __sharedUtils.toPrettyJson(x);
     }
-    async function loadModuleWithVaultFallback(app2, opts) {
+    async function loadModuleWithVaultFallback(app3, opts) {
       const options = opts && typeof opts === "object" ? opts : {};
       const requirePath = String(options.requirePath || "");
       const candidates = Array.isArray(options.candidates) ? options.candidates : [];
@@ -37941,7 +38380,7 @@ var require_main = __commonJS({
         } catch (e) {
           reportLoaderFallback("main.loadVaultBridgeSafe.require", e);
         }
-        const adapter = app2 && app2.vault ? app2.vault.adapter : null;
+        const adapter = app3 && app3.vault ? app3.vault.adapter : null;
         if (!adapter || typeof adapter.read !== "function") return null;
         const bridgeCandidates = [
           ".obsidian/plugins/inline-overhaul/src/core/vault_module_bridge.js",
@@ -37975,7 +38414,7 @@ var require_main = __commonJS({
         }
         if (!(bridge && typeof bridge.loadVaultModule === "function")) return null;
         try {
-          return await bridge.loadVaultModule(app2, modulePath, false, "__inlineOverhaulMainModuleCache");
+          return await bridge.loadVaultModule(app3, modulePath, false, "__inlineOverhaulMainModuleCache");
         } catch (e) {
           reportLoaderFallback(`main.tryLoadWithVaultBridge.load:${modulePath}`, e);
           return null;
@@ -37993,7 +38432,7 @@ var require_main = __commonJS({
         }
       }
       if (allowUiVaultEvalFallback) {
-        const adapter = app2 && app2.vault ? app2.vault.adapter : null;
+        const adapter = app3 && app3.vault ? app3.vault.adapter : null;
         if (adapter && typeof adapter.read === "function") {
           for (const modulePath of candidates) {
             try {
@@ -38015,13 +38454,13 @@ var require_main = __commonJS({
       }
       return { mod: null, requireErr };
     }
-    async function loadNavigationRuntimeSafe(app2) {
+    async function loadNavigationRuntimeSafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/navigation_runtime.js",
         "./.obsidian/plugins/inline-overhaul/navigation_runtime.js",
         "plugins/inline-overhaul/navigation_runtime.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./navigation_runtime.js",
         candidates,
         cacheKey: "runtime:navigation",
@@ -38034,13 +38473,13 @@ var require_main = __commonJS({
       }
       return null;
     }
-    async function loadPkmRuntimeV2Safe(app2) {
+    async function loadPkmRuntimeV2Safe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/pkm_runtime_v2.js",
         "./.obsidian/plugins/inline-overhaul/pkm_runtime_v2.js",
         "plugins/inline-overhaul/pkm_runtime_v2.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./pkm_runtime_v2.js",
         candidates,
         cacheKey: "runtime:pkm-v2",
@@ -38053,13 +38492,13 @@ var require_main = __commonJS({
       }
       return null;
     }
-    async function loadPkmMacroRuntimeEntrySafe(app2) {
+    async function loadPkmMacroRuntimeEntrySafe(app3) {
       const candidates = [
         ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js",
         "./.obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js",
         "plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js"
       ];
-      const loaded = await loadModuleWithVaultFallback(app2, {
+      const loaded = await loadModuleWithVaultFallback(app3, {
         requirePath: "./src/core/pkm_macro_runtime_entry.js",
         candidates,
         cacheKey: "runtime:pkm-macro-entry",
@@ -38615,16 +39054,16 @@ var require_main = __commonJS({
         }
       });
     }
-    function formatHotkeyBinding(binding) {
-      if (!binding || !isObj(binding)) return "";
-      const mods = Array.isArray(binding.modifiers) ? binding.modifiers.map((x) => String(x || "").trim()).filter(Boolean) : [];
-      const key = String(binding.key || "").trim();
+    function formatHotkeyBinding(binding2) {
+      if (!binding2 || !isObj(binding2)) return "";
+      const mods = Array.isArray(binding2.modifiers) ? binding2.modifiers.map((x) => String(x || "").trim()).filter(Boolean) : [];
+      const key = String(binding2.key || "").trim();
       if (!key) return "";
       return mods.length ? `${mods.join(" + ")} + ${key}` : key;
     }
-    function getBoundHotkeyForCommand(app2, commandId) {
-      if (!app2 || !commandId) return "";
-      const hm = app2.hotkeyManager;
+    function getBoundHotkeyForCommand(app3, commandId) {
+      if (!app3 || !commandId) return "";
+      const hm = app3.hotkeyManager;
       if (!hm) return "";
       const id = String(commandId || "").trim();
       try {
@@ -38639,7 +39078,7 @@ var require_main = __commonJS({
       }
       return "";
     }
-    function detectDateFieldHotkeys(app2, cfg, fieldId) {
+    function detectDateFieldHotkeys(app3, cfg, fieldId) {
       const fid = String(fieldId || "").trim();
       if (!fid) return { increase: "", decrease: "" };
       const incCandidates = [];
@@ -38648,8 +39087,8 @@ var require_main = __commonJS({
       decCandidates.push(`inlineOverhaul_Hotkey_${fid}_decrease`);
       let increase = "";
       let decrease = "";
-      for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app2, incCandidates[i]);
-      for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app2, decCandidates[i]);
+      for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app3, incCandidates[i]);
+      for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app3, decCandidates[i]);
       return { increase, decrease };
     }
     var DEFAULT_CONFIG = {
@@ -40368,8 +40807,8 @@ var require_main = __commonJS({
         }, reason);
       }
       registerCommands() {
-        const registry = getCommandRegistry();
-        const coreDefs = registry.buildCoreCommandDefs(this, FEATURE_ORDER, FEATURE_META);
+        const registry2 = getCommandRegistry();
+        const coreDefs = registry2.buildCoreCommandDefs(this, FEATURE_ORDER, FEATURE_META);
         if (!Array.isArray(coreDefs) || !coreDefs.length) {
           console.warn("[inline-overhaul] command registry unavailable: core commands skipped");
         } else {
@@ -40387,7 +40826,7 @@ var require_main = __commonJS({
         this.registerPkmCommands();
         this.registerBinderCommands();
         this.registerTransformCommands();
-        const defs = registry.buildConfigCommandDefs();
+        const defs = registry2.buildConfigCommandDefs();
         if (!Array.isArray(defs) || !defs.length) {
           console.warn("[inline-overhaul] command registry unavailable: config commands skipped");
           return;
@@ -40595,8 +41034,8 @@ var require_main = __commonJS({
         }));
       }
       registerNavigationCommands() {
-        const registry = getCommandRegistry();
-        const defs = registry.buildNavigationCommandDefs(this, getActiveTagWheelRulesPath);
+        const registry2 = getCommandRegistry();
+        const defs = registry2.buildNavigationCommandDefs(this, getActiveTagWheelRulesPath);
         if (!Array.isArray(defs) || !defs.length) {
           console.warn("[inline-overhaul] command registry unavailable: navigation commands skipped");
           return;
@@ -40612,9 +41051,9 @@ var require_main = __commonJS({
         }
       }
       registerPkmCommands() {
-        const registry = getCommandRegistry();
+        const registry2 = getCommandRegistry();
         const cfgNow = this.getConfig();
-        const defs = registry.buildPkmCommandDefs(
+        const defs = registry2.buildPkmCommandDefs(
           getActiveTagWheelRulesPath,
           serializePkmOrderForMacro,
           serializeDateRuntimeConfigForMacro,
@@ -40644,9 +41083,9 @@ var require_main = __commonJS({
         }
       }
       registerBinderCommands() {
-        const registry = getCommandRegistry();
+        const registry2 = getCommandRegistry();
         const cfgNow = this.getConfig();
-        const defs = registry.buildBinderCommandDefs(cfgNow);
+        const defs = registry2.buildBinderCommandDefs(cfgNow);
         if (!Array.isArray(defs) || !defs.length) {
           console.warn("[inline-overhaul] command registry unavailable: binder commands skipped");
           return;
@@ -41234,8 +41673,8 @@ var require_main = __commonJS({
       return null;
     }
     var InlineOverhaulSettingTab = class extends PluginSettingTab2 {
-      constructor(app2, plugin) {
-        super(app2, plugin);
+      constructor(app3, plugin) {
+        super(app3, plugin);
         this.plugin = plugin;
         plugin._settingsTab = this;
         this._displayRefreshScheduled = false;

@@ -1483,3 +1483,74 @@
   font-size: 11.5px;
   color: var(--text-muted);
 }
+
+/* ---- Binder: таблица строк (PRD 10.4, Б4) --------------------------------
+   Сетка живёт здесь, а не в атрибутах узлов: этого и требует Б4. Колонки те
+   же, что в прототипе — ручка, вставляемый текст, имя команды, описание,
+   хоткей и удаление. Колонки `Command ID` в таблице нет (Б2). */
+.io-card {
+  background: var(--background-primary-alt);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+.io-tablehead,
+.io-tablerow {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+}
+.io-tablehead {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--background-primary-alt);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.io-tablerow + .io-tablerow { border-top: 1px solid var(--background-modifier-border); }
+.io-tablefoot { padding: 8px 12px; border-top: 1px solid var(--background-modifier-border); }
+/* Таблица не сжимается ниже читаемого: узкую панель проматывает `io-scroll`. */
+.io-binder { min-width: 560px; }
+.io-binder .io-tablehead,
+.io-binder .io-tablerow {
+  grid-template-columns: 18px 62px minmax(88px, 0.8fr) minmax(120px, 1.3fr) 112px 26px;
+}
+.io-binder .io-tablerow { background: var(--background-primary); }
+.io-cellname {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.io-binder__desc { min-width: 0; }
+.io-binder__desc .io-text { width: 100%; min-width: 0; }
+/* Хоткей: моноширинный, в одну строку, и заметно бледнее, когда его нет. */
+.io-hk {
+  appearance: none;
+  font-family: var(--font-monospace);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.io-hk:hover:not(:disabled) { border-color: var(--interactive-accent); color: var(--text-accent); }
+.io-hk--none { color: var(--text-faint); font-family: var(--font-ui); }
+.io-hk:disabled { cursor: default; opacity: 0.55; }
+
+/* Окно «завести строку»: подвал с кнопками у всех окон панели общий. */
+.io-dlg__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}

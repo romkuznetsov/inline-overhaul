@@ -4,12 +4,12 @@
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
- *   binder: binder-table (custom)
  *   command-reference: command-list (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { on, not } from "../types.ts";
+import { binderTable } from "../custom/binder.ts";
 import { callout } from "../custom/callouts.ts";
 
 export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
@@ -48,6 +48,14 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
       name:"One more press clears it", desc:"After the last step, pressing again drops the selection and returns the cursor",
       tip:"Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
       searchTerms:["Last press clears selection"], disabled: not("editor.selectAll.enabled") }
+  ]
+},
+{
+  id: "binder", tab: "keyboard", order: 200, heading: "Binder (custom insert commands)",
+  intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
+  tip: "The <code>Hotkey</code> column shows the key a row has now; click it to go and set one. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
+  items: [
+    { kind:"custom", id:"binder-table", render: binderTable }
   ]
 }
 ];
