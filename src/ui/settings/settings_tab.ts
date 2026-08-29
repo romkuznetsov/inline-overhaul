@@ -14,6 +14,7 @@ import { buildDefaultConfig, getIn, isBound } from "./types.ts";
 import type { El } from "./custom/dom.ts";
 import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { Describer, type FragmentHost } from "./describe.ts";
+import type { ConfirmRequest } from "./actions.ts";
 
 export interface TabDeps {
   schema: readonly SettingsGroup[];
@@ -25,6 +26,12 @@ export interface TabDeps {
   fragments: FragmentHost;
   /** Сообщить пользователю результат действия. */
   notify?: (message: string) => void;
+  /**
+   * Спросить подтверждение. Без него сброс группы не идёт: он меняет разом
+   * всё, что человек в ней настроил (Н3). Окно живёт на платформе, поэтому
+   * приходит швом — как и всё остальное платформенное.
+   */
+  confirm?: (o: ConfirmRequest) => Promise<boolean>;
   /** Пересчитать предикаты: дешёвая операция. */
   refresh?: () => void;
   /**
@@ -47,6 +54,20 @@ export interface TabDeps {
    * передаёт блокам, которые без неё не работают.
    */
   platform?: PlatformBits;
+}
+
+/** Сколько строк списка показывать, прежде чем свернуть остаток (Н3). */
+const RESET_ROWS = 10;
+
+/** Н5: сброс не трогает данные человека, и об этом сказано одной строкой. */
+const RESET_NOTE = "Your Fields, Values and rules are not touched";
+
+/** Значение словами: в списке изменений его надо прочесть, а не разобрать. */
+function valueWords(value: unknown): string {
+  if (value === true) return "on";
+  if (value === false) return "off";
+  if (value === "" || value === null || value === undefined) return "empty";
+  return String(value);
 }
 
 export class SettingsPane {
@@ -285,7 +306,7 @@ export class SettingsPane {
 
   /* ---- сброс группы к значениям по умолчанию (10.13.1) --------------- */
 
-  /** Что в группе отличается от значения по умолчанию. */
+/** Что в группе отличается от значения по умолчанию. */
   drift(group: SettingsGroup): Array<{ id: string; name: string; now: unknown; was: unknown }> {
     const out: Array<{ id: string; name: string; now: unknown; was: unknown }> = [];
     for (const it of group.items) {
@@ -303,9 +324,34 @@ export class SettingsPane {
    * Сброс идёт одной записью undo: одно нажатие — один шаг назад (Н4).
    * Свои блоки не трогаются: Fields, Values и правила — данные, а не
    * настройки (Н5).
+   *
+   * И спрашивает перед тем, как что-то менять (Н3). Окна нет — сброса нет:
+   * молчаливое согласие в действии, которое меняет разом всю группу, хуже
+   * неработающей кнопки. Так же устроено применение конфиг-заметки (5.6).
    */
   async resetGroup(group: SettingsGroup): Promise<number> {
     const drift = this.drift(group);
+    if (!drift.length) return 0;
+
+    const ask = this.deps.confirm;
+    if (typeof ask !== "function") {
+      console.error("inline-overhaul: сброс группы без окна подтверждения не идёт");
+      return 0;
+    }
+    const shown = drift.slice(0, RESET_ROWS).map(d =>
+      d.name + ": " + valueWords(d.now) + " \u2192 " + valueWords(d.was));
+    const hidden = drift.length - shown.length;
+    if (hidden > 0) shown.push("and " + hidden + " more");
+    const yes = await ask({
+      title: "Reset " + group.heading,
+      body: drift.length === 1
+        ? "One setting in this group goes back to its default"
+        : drift.length + " settings in this group go back to their defaults",
+      confirmLabel: "Reset the group",
+      rows: shown,
+      note: RESET_NOTE,
+    });
+    if (!yes) return 0;
     let first = true;
     for (const d of drift) {
       const it = group.items.find(x => x.id === d.id);

@@ -42,14 +42,21 @@ const fragments = {
 
 function makePane(initial: Record<string, unknown> = {}) {
   const store = new MemoryStore(initial);
+  /*
+   * Сброс группы спрашивает (Н3), и без окна не идёт. Здесь оно всегда
+   * соглашается; проверки, которым нужен отказ или сам вопрос, заводят свою
+   * панель.
+   */
+  const asked: Any[] = [];
   const pane = new SettingsPane({
     schema: SCHEMA,
     tabs: TABS,
     store,
     actions: {},
     fragments: fragments as never,
+    confirm: async (o: Any) => { asked.push(o); return true; },
   });
-  return { store, pane };
+  return { store, pane, asked };
 }
 
 /**
@@ -851,6 +858,103 @@ async function main(): Promise<void> {
     await pane.resetGroup(modules);
     const undoable = store.writes.filter(w => w.opts?.undoable === true);
     assert.equal(undoable.length, 1, "в undo должна попасть одна запись, а не по одной на настройку");
+  });
+
+  await test("Н3: сброс спрашивает и показывает, что изменится", async () => {
+    const { pane, asked } = makePane();
+    const modules = SCHEMA.find((g: Def) => g.id === "modules");
+    assert.ok(modules);
+    await pane.setControlValue("features.visual.enabled", false);
+    await pane.setControlValue("features.transform.enabled", false);
+
+    await pane.resetGroup(modules);
+    assert.equal(asked.length, 1, "спросили один раз");
+    const q = asked[0];
+    assert.ok(String(q.title).includes(modules.heading), "в заголовке названа группа");
+    assert.equal(q.rows.length, 2, "по строке на каждую изменённую настройку");
+    assert.ok(q.rows.every((r: string) => r.includes("off") && r.includes("on")),
+      "и в строке видно, из чего во что: " + q.rows.join(" | "));
+    assert.ok(String(q.note).includes("Fields"),
+      "Н5: сказано, что данные человека не трогаются");
+  });
+
+  await test("Н3: отказ ничего не меняет", async () => {
+    const store = new MemoryStore({});
+    const pane = new SettingsPane({
+      schema: SCHEMA,
+      tabs: TABS,
+      store,
+      actions: {},
+      fragments: fragments as never,
+      confirm: async () => false,
+    });
+    const modules = SCHEMA.find((g: Def) => g.id === "modules");
+    assert.ok(modules);
+    await pane.setControlValue("features.visual.enabled", false);
+    store.writes.length = 0;
+
+    const n = await pane.resetGroup(modules);
+    assert.equal(n, 0, "сброс не состоялся");
+    assert.deepEqual(store.writes, [], "и ни одной записи не было");
+    assert.equal(pane.getControlValue("features.visual.enabled"), false,
+      "значение осталось тем, которое человек выставил");
+  });
+
+  await test("Н3: без окна подтверждения сброс не идёт вовсе", async () => {
+    /*
+     * Молчаливое согласие в действии, которое меняет разом всю группу, хуже
+     * неработающей кнопки. Так же устроено применение конфиг-заметки (5.6).
+     */
+    const store = new MemoryStore({});
+    const pane = new SettingsPane({
+      schema: SCHEMA,
+      tabs: TABS,
+      store,
+      actions: {},
+      fragments: fragments as never,
+    });
+    const modules = SCHEMA.find((g: Def) => g.id === "modules");
+    assert.ok(modules);
+    await pane.setControlValue("features.visual.enabled", false);
+    store.writes.length = 0;
+
+    assert.equal(await pane.resetGroup(modules), 0, "сброса нет");
+    assert.deepEqual(store.writes, [], "и записей нет");
+  });
+
+  await test("Н3: длинный список сворачивается", async () => {
+    /*
+     * Самая длинная группа схемы — `tag-bars`, в ней девять настроек, и до
+     * порога в десять строк она не достаёт. Порог всё равно обязан работать:
+     * группы растут. Поэтому группа здесь выдуманная — двенадцать тумблеров,
+     * — и это единственная подделка в проверке: панель и хранилище настоящие.
+     */
+    const store = new MemoryStore({});
+    const asked: Any[] = [];
+    const twelve: Any = {
+      id: "made-up", tab: "general", order: 999, heading: "Made up",
+      items: Array.from({ length: 12 }, (_, i) => ({
+        kind: "toggle",
+        id: "made-up-" + i,
+        path: "advanced.madeUp" + i,
+        default: false,
+        name: "Made up " + i,
+      })),
+    };
+    const pane = new SettingsPane({
+      schema: SCHEMA.concat([twelve]),
+      tabs: TABS,
+      store,
+      actions: {},
+      fragments: fragments as never,
+      confirm: async (o: Any) => { asked.push(o); return true; },
+    });
+    for (const it of twelve.items) await pane.setControlValue(it.path, true);
+
+    assert.equal(await pane.resetGroup(twelve), 12, "сбросились все двенадцать");
+    const rows = asked[0].rows as string[];
+    assert.equal(rows.length, 11, "десять строк и одна про остаток");
+    assert.equal(rows[10], "and 2 more", "остаток назван числом: " + rows[10]);
   });
 
   await test("вводная фраза группы становится строкой без контрола", () => {

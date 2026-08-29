@@ -149,6 +149,11 @@ function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
         box.addClass("io-dlg");
         el(box, "h4", undefined, o.title);
         el(box, "p", "io-item__desc", o.body);
+        if (o.rows && o.rows.length) {
+          const list = el(box, "ul", "io-dlg__list");
+          for (const row of o.rows) el(list, "li", undefined, row);
+        }
+        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
         const foot = el(box, "div", "io-dlg__foot");
         const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
         cancel.addEventListener("click", (() => { finish(false); this.close(); }) as never);
@@ -191,6 +196,8 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         notify: (message: string) => { new Notice(message); },
         confirm: (o: ConfirmRequest) => askConfirm(app, o),
       }) as Record<string, () => Promise<void> | void>,
+      /* То же окно и для сброса группы (Н3). */
+      confirm: (o: ConfirmRequest) => askConfirm(app, o),
       fragments: {
         createFragment: () => document.createDocumentFragment() as never,
       },

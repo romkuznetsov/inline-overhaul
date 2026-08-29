@@ -33659,13 +33659,21 @@ var init_to_definitions = __esm({
 });
 
 // src/ui/settings/settings_tab.ts
-var SettingsPane;
+function valueWords(value) {
+  if (value === true) return "on";
+  if (value === false) return "off";
+  if (value === "" || value === null || value === void 0) return "empty";
+  return String(value);
+}
+var RESET_ROWS, RESET_NOTE, SettingsPane;
 var init_settings_tab = __esm({
   "src/ui/settings/settings_tab.ts"() {
     "use strict";
     init_types();
     init_to_definitions();
     init_describe();
+    RESET_ROWS = 10;
+    RESET_NOTE = "Your Fields, Values and rules are not touched";
     SettingsPane = class {
       constructor(deps) {
         /** Свои блоки, подписанные на пути (П2). */
@@ -33873,9 +33881,30 @@ var init_settings_tab = __esm({
        * Сброс идёт одной записью undo: одно нажатие — один шаг назад (Н4).
        * Свои блоки не трогаются: Fields, Values и правила — данные, а не
        * настройки (Н5).
+       *
+       * И спрашивает перед тем, как что-то менять (Н3). Окна нет — сброса нет:
+       * молчаливое согласие в действии, которое меняет разом всю группу, хуже
+       * неработающей кнопки. Так же устроено применение конфиг-заметки (5.6).
        */
       async resetGroup(group) {
         const drift = this.drift(group);
+        if (!drift.length) return 0;
+        const ask = this.deps.confirm;
+        if (typeof ask !== "function") {
+          console.error("inline-overhaul: \u0441\u0431\u0440\u043E\u0441 \u0433\u0440\u0443\u043F\u043F\u044B \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
+          return 0;
+        }
+        const shown = drift.slice(0, RESET_ROWS).map((d) => d.name + ": " + valueWords(d.now) + " \u2192 " + valueWords(d.was));
+        const hidden = drift.length - shown.length;
+        if (hidden > 0) shown.push("and " + hidden + " more");
+        const yes = await ask({
+          title: "Reset " + group.heading,
+          body: drift.length === 1 ? "One setting in this group goes back to its default" : drift.length + " settings in this group go back to their defaults",
+          confirmLabel: "Reset the group",
+          rows: shown,
+          note: RESET_NOTE
+        });
+        if (!yes) return 0;
         let first = true;
         for (const d of drift) {
           const it = group.items.find((x) => x.id === d.id);
@@ -34103,6 +34132,11 @@ function askConfirm(app3, o) {
         box.addClass("io-dlg");
         el(box, "h4", void 0, o.title);
         el(box, "p", "io-item__desc", o.body);
+        if (o.rows && o.rows.length) {
+          const list = el(box, "ul", "io-dlg__list");
+          for (const row of o.rows) el(list, "li", void 0, row);
+        }
+        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
         const foot = el(box, "div", "io-dlg__foot");
         const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
         cancel.addEventListener("click", (() => {
@@ -34156,6 +34190,8 @@ var init_obsidian_tab = __esm({
             },
             confirm: (o) => askConfirm(app3, o)
           }),
+          /* То же окно и для сброса группы (Н3). */
+          confirm: (o) => askConfirm(app3, o),
           fragments: {
             createFragment: () => document.createDocumentFragment()
           },

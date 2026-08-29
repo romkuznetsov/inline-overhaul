@@ -1594,3 +1594,14 @@
 }
 .io-usertags .io-tablefoot .io-text { flex: 1 1 auto; min-width: 0; }
 .io-usertags .io-side__empty { padding: 10px 12px; }
+/* Окно подтверждения: список того, что изменится (Н3). */
+.io-dlg__list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  max-height: 220px;
+  overflow-y: auto;
+}
+.io-dlg__list li { margin: 2px 0; }
+.io-dlg__note { margin-top: 10px; }
