@@ -3950,11 +3950,11 @@ var require_status_tags = __commonJS({
       return false;
     }
     function resolveFieldSourceKind(field) {
-      const helpers4 = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers4 || typeof helpers4.normalizeFieldSourceKind !== "function") {
+      const helpers5 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers5 || typeof helpers5.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers4.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers5.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildOutputTokenForField(field, value, rules) {
       var _a;
@@ -5909,11 +5909,11 @@ var require_tagwheel = __commonJS({
       return normalizeWikilinkTarget(raw).replace(/^#/, "").trim();
     }
     function resolveFieldSourceKind(field) {
-      var helpers4 = globalThis.__inlinePkmRulesHelpers;
-      if (!helpers4 || typeof helpers4.normalizeFieldSourceKind !== "function") {
+      var helpers5 = globalThis.__inlinePkmRulesHelpers;
+      if (!helpers5 || typeof helpers5.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers4.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers5.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function buildTagWheelRuntimeInput(input_, settings_) {
       var out = {};
@@ -7477,11 +7477,11 @@ var require_tagwheel_core = __commonJS({
       return loadCoreHelperFromGlobalOrRequire("__inlineStatusRuntimeCommon", "../../src/core/status_runtime_common.js");
     }
     function resolveSourceKind(field) {
-      var helpers4 = getRulesRuntimeHelpers();
-      if (!helpers4 || typeof helpers4.normalizeFieldSourceKind !== "function") {
+      var helpers5 = getRulesRuntimeHelpers();
+      if (!helpers5 || typeof helpers5.normalizeFieldSourceKind !== "function") {
         throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
       }
-      return String(helpers4.normalizeFieldSourceKind(field) || "").trim() || "none";
+      return String(helpers5.normalizeFieldSourceKind(field) || "").trim() || "none";
     }
     function isProjectsSourceField(field) {
       return resolveSourceKind(field) === "projects";
@@ -7558,10 +7558,10 @@ var require_tagwheel_core = __commonJS({
     function getDateLikeMarkers(rules) {
       var out = [];
       var seen = {};
-      var helpers4 = getRulesRuntimeHelpers();
+      var helpers5 = getRulesRuntimeHelpers();
       var i;
-      if (helpers4 && typeof helpers4.getDateMarkersFromRules === "function") {
-        var markers = helpers4.getDateMarkersFromRules(rules);
+      if (helpers5 && typeof helpers5.getDateMarkersFromRules === "function") {
+        var markers = helpers5.getDateMarkersFromRules(rules);
         var buckets = [
           markers && markers.due,
           markers && markers.start,
@@ -7604,9 +7604,9 @@ var require_tagwheel_core = __commonJS({
           if (markers.indexOf(mk0) === -1) markers.push(mk0);
         }
       }
-      var helpers4 = getRulesRuntimeHelpers();
-      if (helpers4 && typeof helpers4.isDateLikeToken === "function") {
-        if (helpers4.isDateLikeToken(src, { markers })) return true;
+      var helpers5 = getRulesRuntimeHelpers();
+      if (helpers5 && typeof helpers5.isDateLikeToken === "function") {
+        if (helpers5.isDateLikeToken(src, { markers })) return true;
       } else {
         var i;
         for (i = 0; i < markers.length; i++) {
@@ -10773,10 +10773,10 @@ var require_pkm_line_finalize_unified = __commonJS({
       const resolvedPrefix = String(opts.resolvedPrefix || "").trim();
       const targetFieldId = String(opts.targetFieldId || "").trim();
       const selectedToken = String(opts.selectedToken || "").trim();
-      const prefixRules = opts.prefixRules && typeof opts.prefixRules === "object" ? opts.prefixRules : {};
+      const prefixRules2 = opts.prefixRules && typeof opts.prefixRules === "object" ? opts.prefixRules : {};
       let desiredCheckbox = ((resolvedPrefix.match(/\[[^\]]+\]/) || [""])[0] || "").trim();
       if (!desiredCheckbox && targetFieldId && selectedToken) {
-        const byField = prefixRules.checkboxByFieldValue && typeof prefixRules.checkboxByFieldValue === "object" ? prefixRules.checkboxByFieldValue : {};
+        const byField = prefixRules2.checkboxByFieldValue && typeof prefixRules2.checkboxByFieldValue === "object" ? prefixRules2.checkboxByFieldValue : {};
         const row = byField[targetFieldId] && typeof byField[targetFieldId] === "object" ? byField[targetFieldId] : null;
         if (row) {
           desiredCheckbox = String(row[selectedToken] || row[selectedToken.replace(/^#/, "")] || "").trim();
@@ -15937,7 +15937,7 @@ var require_status_line_runtime_unified = __commonJS({
         arr.splice(pIdx + 1, 0, childToken);
         return true;
       }
-      let moved = false;
+      let moved2 = false;
       for (const child of leftFields) {
         if (!child || !child.dependsOn) continue;
         const parent = byId(child.dependsOn);
@@ -15953,9 +15953,9 @@ var require_status_line_runtime_unified = __commonJS({
         }
         removeTokenEverywhere(childHit.token);
         if (!insertAfter(parentHit.bucket, parentHit.token, childHit.token)) continue;
-        moved = true;
+        moved2 = true;
       }
-      if (!moved) return src;
+      if (!moved2) return src;
       seg.left = joinLeftPrefix(leftParts.prefix, leftTokens.join(" ").trim());
       seg.text = textTokens.join(" ").trim();
       seg.dates = dateTokens.join(" ").trim();
@@ -17612,11 +17612,11 @@ var require_config_note_helpers = __commonJS({
             break;
           }
         }
-        const block = lines.slice(start, end);
+        const block2 = lines.slice(start, end);
         const pickChecked = (re) => {
           const out = [];
-          for (let i = 0; i < block.length; i++) {
-            const t = String(block[i] || "");
+          for (let i = 0; i < block2.length; i++) {
+            const t = String(block2[i] || "");
             if (!/^\s*-\s*\[x\]\s+/i.test(t)) continue;
             if (re.test(t)) out.push({ idx: i, lineNo: start + i + 1, text: t.trim() });
           }
@@ -17648,8 +17648,8 @@ var require_config_note_helpers = __commonJS({
         const checkboxOrder = [];
         let inFields = false;
         let inCheckbox = false;
-        for (let i = 0; i < block.length; i++) {
-          const raw = String(block[i] || "");
+        for (let i = 0; i < block2.length; i++) {
+          const raw = String(block2[i] || "");
           const t = raw.trim();
           if (/^1[\).]\s*\*\*Fields\s+Order:\*\*/i.test(t)) {
             inFields = true;
@@ -17753,8 +17753,8 @@ var require_config_note_helpers = __commonJS({
           return out;
         };
         if (!parsed) {
-          const block = buildBlock([]);
-          return lines.concat(["", ...block]).join("\n");
+          const block2 = buildBlock([]);
+          return lines.concat(["", ...block2]).join("\n");
         }
         const before = lines.slice(0, parsed.range.start);
         const oldBlock = lines.slice(parsed.range.start, parsed.range.end);
@@ -19758,7 +19758,7 @@ var require_tagwheel_config_codec = __commonJS({
         const sections = collectTagSections(cfg);
         const fields = [].concat(getLeftFields(cfg), getRightFields(cfg));
         const wikilinkFields = collectWikilinkFieldIds(cfg);
-        const prefixRules = getPrefixRulesFromCfg(cfg);
+        const prefixRules2 = getPrefixRulesFromCfg(cfg);
         const projects = cfg && cfg.pkm && cfg.pkm.behavior && isObj(cfg.pkm.behavior.projects) ? cfg.pkm.behavior.projects : {};
         const taxonomyWikilinks = cfg && cfg.pkm && cfg.pkm.taxonomy && cfg.pkm.taxonomy.tagWheelConfig && isObj(cfg.pkm.taxonomy.tagWheelConfig.wikilinks) ? cfg.pkm.taxonomy.tagWheelConfig.wikilinks : {};
         const orphanWikilinks = cfg && cfg.pkm && cfg.pkm.taxonomy && cfg.pkm.taxonomy.tagWheelConfig && isObj(cfg.pkm.taxonomy.tagWheelConfig.orphanWikilinks) ? cfg.pkm.taxonomy.tagWheelConfig.orphanWikilinks : {};
@@ -20429,7 +20429,7 @@ var require_tagwheel_config_codec = __commonJS({
           for (let pi = 0; pi < parents.length; pi++) {
             const pTok = parents[pi];
             const pKey = denormTagToken(pTok);
-            const pCb = isObj(prefixRules.checkboxByFieldValue[s.fieldId]) ? String(prefixRules.checkboxByFieldValue[s.fieldId][pKey] || "").trim() : "";
+            const pCb = isObj(prefixRules2.checkboxByFieldValue[s.fieldId]) ? String(prefixRules2.checkboxByFieldValue[s.fieldId][pKey] || "").trim() : "";
             const pTail = visualTailForTag(s.fieldId, pTok, s.sectionId);
             tagsBody.push(pCb ? `- ${pCb} ${pTok}${pTail}` : `- ${pTok}${pTail}`);
             const subs = subMap[pTok] || [];
@@ -20456,7 +20456,7 @@ var require_tagwheel_config_codec = __commonJS({
               const subTok = subs[si];
               const subKey = denormTagToken(subTok);
               const subFieldId = s.subFieldId || s.fieldId;
-              const subCb = isObj(prefixRules.checkboxByFieldValue[subFieldId]) ? String(prefixRules.checkboxByFieldValue[subFieldId][subKey] || "").trim() : "";
+              const subCb = isObj(prefixRules2.checkboxByFieldValue[subFieldId]) ? String(prefixRules2.checkboxByFieldValue[subFieldId][subKey] || "").trim() : "";
               const subVisualFieldId = s.subFieldId || s.fieldId;
               const subTail = visualTailForTag(subVisualFieldId, subTok, s.sectionId);
               tagsBody.push(subCb ? `    - ${subCb} ${subTok}${subTail}` : `    - ${subTok}${subTail}`);
@@ -20513,17 +20513,17 @@ var require_tagwheel_config_codec = __commonJS({
         const sectionOrderDefault = sections.map((x) => x.sectionId);
         const fieldIdToSectionId = { ...sectionIdByFieldId };
         const sectionOrderFromRules = [];
-        for (let i = 0; i < prefixRules.priorityTargets.length; i++) {
-          const sid = fieldIdToSectionId[prefixRules.priorityTargets[i]];
+        for (let i = 0; i < prefixRules2.priorityTargets.length; i++) {
+          const sid = fieldIdToSectionId[prefixRules2.priorityTargets[i]];
           if (!sid) continue;
           if (!sectionOrderFromRules.includes(sid)) sectionOrderFromRules.push(sid);
         }
         const sectionOrder = sectionOrderFromRules.length ? sectionOrderFromRules : sectionOrderDefault;
         const prefixSettings = [];
         prefixSettings.push("1. **Main checkbox priority**");
-        const modeName = String(prefixRules.priorityMode || "by-section").trim() === "by-checkbox-list" ? "by-checkbox-list" : "by-section";
-        const fieldsModeName = String(prefixRules.fieldsOrderMode || "manual").trim() === "auto" ? "auto" : "manual";
-        const tagModeName = String(prefixRules.tagSubtagPriority || "subtag-over-tag").trim() === "tag-over-subtag" ? "tag-over-subtag" : "subtag-over-tag";
+        const modeName = String(prefixRules2.priorityMode || "by-section").trim() === "by-checkbox-list" ? "by-checkbox-list" : "by-section";
+        const fieldsModeName = String(prefixRules2.fieldsOrderMode || "manual").trim() === "auto" ? "auto" : "manual";
+        const tagModeName = String(prefixRules2.tagSubtagPriority || "subtag-over-tag").trim() === "tag-over-subtag" ? "tag-over-subtag" : "subtag-over-tag";
         prefixSettings.push(`- [${modeName === "by-section" ? "x" : " "}] **by Fields Order** `);
         prefixSettings.push(`	- [${modeName === "by-section" && fieldsModeName === "auto" ? "x" : " "}] **Automatically** - by plugin settings "Order" (PKM -> Order). Left panel tags > right panel tags, priority decreases from up to down`);
         prefixSettings.push(`	- [${modeName === "by-section" && fieldsModeName === "manual" ? "x" : " "}] **Manually** - by your settings \`Fields order\` (go below to subheader \`Order\`)`);
@@ -20538,7 +20538,7 @@ var require_tagwheel_config_codec = __commonJS({
         const effectiveFieldsOrder = rawFieldsOrder.length ? rawFieldsOrder : sectionOrder;
         for (let i = 0; i < effectiveFieldsOrder.length; i++) fieldsOrderItems.push(`- ${effectiveFieldsOrder[i]}`);
         const checkboxOrderItems = [];
-        const cbOrder = Array.isArray(prefixRules.priorityCheckboxes) ? prefixRules.priorityCheckboxes : [];
+        const cbOrder = Array.isArray(prefixRules2.priorityCheckboxes) ? prefixRules2.priorityCheckboxes : [];
         for (let i = 0; i < cbOrder.length; i++) checkboxOrderItems.push(`- ${cbOrder[i]} - \`- ${cbOrder[i]}\``);
         const elementsCfgSource = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.elements) ? cfg.pkm.behavior.elements : {};
         const legacyDatesCfgSource = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.dates) ? cfg.pkm.behavior.dates : {};
@@ -21093,11 +21093,11 @@ var require_tagwheel_config_parser = __commonJS({
               break;
             }
           }
-          const block = all.slice(start + 1, end);
+          const block2 = all.slice(start + 1, end);
           const kv = {};
           const list = [];
-          for (let i = 0; i < block.length; i++) {
-            const m = String(block[i] || "").match(/^\s*-\s+(.+)$/);
+          for (let i = 0; i < block2.length; i++) {
+            const m = String(block2[i] || "").match(/^\s*-\s+(.+)$/);
             if (!m) continue;
             const text = String(m[1] || "").trim();
             const kvm = text.match(/^([A-Za-z0-9_\-]+)\s*:\s*(.+)$/);
@@ -21145,15 +21145,15 @@ var require_tagwheel_config_parser = __commonJS({
           return { body, hasCombined: true };
         };
         const parseDateTimeFromBlock = (blockLines) => {
-          const block = Array.isArray(blockLines) ? blockLines : [];
+          const block2 = Array.isArray(blockLines) ? blockLines : [];
           const fields = [];
           const byField = {};
           const kv = {};
           let cur = "";
           let inIncrement = false;
           let inHotkey = false;
-          for (let i = 0; i < block.length; i++) {
-            const raw = String(block[i] || "");
+          for (let i = 0; i < block2.length; i++) {
+            const raw = String(block2[i] || "");
             const t = raw.trim();
             const hh = t.match(/^#####\s+(.+)$/);
             if (hh) {
@@ -21279,15 +21279,15 @@ var require_tagwheel_config_parser = __commonJS({
               break;
             }
           }
-          const block = all.slice(start + 1, end);
+          const block2 = all.slice(start + 1, end);
           const fields = [];
           const byField = {};
           const kv = {};
           let cur = "";
           let inIncrement = false;
           let inHotkey = false;
-          for (let i = 0; i < block.length; i++) {
-            const raw = String(block[i] || "");
+          for (let i = 0; i < block2.length; i++) {
+            const raw = String(block2[i] || "");
             const t = raw.trim();
             const hh = t.match(/^#####\s+(.+)$/);
             if (hh) {
@@ -21397,14 +21397,14 @@ var require_tagwheel_config_parser = __commonJS({
               break;
             }
           }
-          const block = all.slice(start + 1, end);
+          const block2 = all.slice(start + 1, end);
           const fields = [];
           const byField = {};
           let cur = "";
           let inIncrement = false;
           let inHotkey = false;
-          for (let i = 0; i < block.length; i++) {
-            const raw = String(block[i] || "");
+          for (let i = 0; i < block2.length; i++) {
+            const raw = String(block2[i] || "");
             const t = raw.trim();
             const hh = t.match(/^#####\s+(.+)$/);
             if (hh) {
@@ -23249,11 +23249,11 @@ var require_transform_feature = __commonJS({
       const nl = newline === "\r\n" ? "\r\n" : "\n";
       const source = normalizeInlineBlockForBody(inlineLine, nl);
       const header = formatHeaderByMode(i2n);
-      const block = [header, source].filter(Boolean).join(nl);
+      const block2 = [header, source].filter(Boolean).join(nl);
       const pos = String(i2n && i2n.placement && i2n.placement.position || "end").trim().toLowerCase();
-      if (!base.trim()) return block + nl;
-      if (pos === "beginning") return `${block}${nl}${nl}${base}`;
-      return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${block}`;
+      if (!base.trim()) return block2 + nl;
+      if (pos === "beginning") return `${block2}${nl}${nl}${base}`;
+      return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${block2}`;
     }
     function pathWithNumericSuffix(basePath, index) {
       const src = String(basePath || "");
@@ -23311,8 +23311,8 @@ var require_transform_feature = __commonJS({
       }
       if (target.mode === "add_to_note") {
         const nl = String(previous || "").includes("\r\n") ? "\r\n" : "\n";
-        const block = String(appendBlock || "").trim().replace(/\r?\n/g, nl);
-        const next = `${String(previous || "").trimEnd()}${nl}${nl}${block}${nl}`;
+        const block2 = String(appendBlock || "").trim().replace(/\r?\n/g, nl);
+        const next = `${String(previous || "").trimEnd()}${nl}${nl}${block2}${nl}`;
         await vault.modify(af, next);
         return { target, rollback: async () => vault.modify(af, previous) };
       }
@@ -25140,8 +25140,8 @@ function createFieldsModel(deps) {
     const subFieldId = String(subField && subField.id || "").trim();
     const parentInRight = hasFieldById(rightMode, parentFieldId);
     const subInRight = hasFieldById(rightMode, subFieldId);
-    const prefixRules = asObject(behavior["prefixRules"]);
-    const checkboxByFieldValue = asObject(prefixRules["checkboxByFieldValue"]);
+    const prefixRules2 = asObject(behavior["prefixRules"]);
+    const checkboxByFieldValue = asObject(prefixRules2["checkboxByFieldValue"]);
     const parentCheckboxRaw = parentFieldId ? asObject(checkboxByFieldValue[parentFieldId]) : {};
     const subCheckboxRaw = subFieldId ? asObject(checkboxByFieldValue[subFieldId]) : {};
     const fieldCheckboxByToken = {};
@@ -27437,14 +27437,14 @@ var require_fields_editor_legacy = __commonJS({
                     vRow.style.boxSizing = "border-box";
                     vRow.style.marginLeft = "0";
                     const buildColorBlock = (currentColor, fallbackColor, titleForTips) => {
-                      const block = vRow.createDiv();
-                      block.style.display = "grid";
-                      block.style.gridTemplateColumns = "48px minmax(56px, 1fr) 28px";
-                      block.style.gap = "4px";
-                      block.style.alignItems = "center";
-                      block.style.padding = "2px 0";
-                      block.style.minWidth = "0";
-                      const pickWrap = block.createDiv();
+                      const block2 = vRow.createDiv();
+                      block2.style.display = "grid";
+                      block2.style.gridTemplateColumns = "48px minmax(56px, 1fr) 28px";
+                      block2.style.gap = "4px";
+                      block2.style.alignItems = "center";
+                      block2.style.padding = "2px 0";
+                      block2.style.minWidth = "0";
+                      const pickWrap = block2.createDiv();
                       pickWrap.style.position = "relative";
                       pickWrap.style.height = "28px";
                       const pickBtn = pickWrap.createEl("button", { text: "Click" });
@@ -27467,7 +27467,7 @@ var require_fields_editor_legacy = __commonJS({
                       picker.style.cursor = "pointer";
                       picker.style.width = "48px";
                       picker.style.height = "28px";
-                      const hex = block.createEl("input");
+                      const hex = block2.createEl("input");
                       hex.type = "text";
                       hex.value = currentColor || "";
                       hex.placeholder = fallbackColor;
@@ -27475,7 +27475,7 @@ var require_fields_editor_legacy = __commonJS({
                       hex.style.height = "28px";
                       hex.style.minWidth = "0";
                       if (showInfoTips) hex.title = `Enter ${titleForTips.toLowerCase()} color hex (#rrggbb)`;
-                      const reset = block.createEl("button", { text: "X" });
+                      const reset = block2.createEl("button", { text: "X" });
                       reset.ariaLabel = `reset ${titleForTips}`;
                       reset.classList.add("mod-warning");
                       reset.style.borderColor = "var(--text-error)";
@@ -29784,8 +29784,8 @@ var require_settings_sections_renderer = __commonJS({
             const fromIdx = next.findIndex((r) => String(r && r.rowId || "").trim() === dragged);
             const toIdx = next.findIndex((r) => String(r && r.rowId || "").trim() === target);
             if (fromIdx === -1 || toIdx === -1) return;
-            const moved = next.splice(fromIdx, 1)[0];
-            next.splice(toIdx, 0, moved);
+            const moved2 = next.splice(fromIdx, 1)[0];
+            next.splice(toIdx, 0, moved2);
             persistRows(next, "settings:binder:reorder");
           });
           const handle = line.createEl("div", { text: "\u22EE\u22EE" });
@@ -29990,7 +29990,7 @@ var require_settings_sections_renderer = __commonJS({
         refreshSettings: refreshSettings2
       } = ctx;
       const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const prefixRules = behavior && behavior.prefixRules && typeof behavior.prefixRules === "object" ? behavior.prefixRules : {};
+      const prefixRules2 = behavior && behavior.prefixRules && typeof behavior.prefixRules === "object" ? behavior.prefixRules : {};
       const leftFields = behavior && behavior.leftMode && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : [];
       const rightFields = behavior && behavior.rightMode && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : [];
       const allFields = leftFields.concat(rightFields);
@@ -30108,7 +30108,7 @@ var require_settings_sections_renderer = __commonJS({
         return out;
       };
       const sectionRows = collectSectionRows();
-      const normalizedPrefix = normalizePrefixRules(prefixRules, sectionRows);
+      const normalizedPrefix = normalizePrefixRules(prefixRules2, sectionRows);
       const activePkmSubTab = String(cfg && cfg.ui && cfg.ui.pkmSubTab || "main").trim() === "behavior" ? "behavior" : "main";
       const showInfoTips = !!(cfg && cfg.ui && cfg.ui.orderShowInfoTips === true);
       const patchPrefixRules = (nextPartial, reason) => {
@@ -31900,6 +31900,373 @@ var init_dispatch_tables = __esm({
   }
 });
 
+// src/ui/settings/custom/keepview.ts
+function scrollerOf(node) {
+  let at = node;
+  let guard = 0;
+  while (at && guard++ < 64) {
+    const height = Number(at.scrollHeight);
+    const view = Number(at.clientHeight);
+    if (Number.isFinite(height) && Number.isFinite(view) && height - view > 1) return at;
+    at = at.parentElement;
+  }
+  return null;
+}
+function labelOf(node) {
+  const label = String(node.getAttribute("aria-label") || "").trim();
+  return label ? "label:" + label : "";
+}
+function pathOf(root, node) {
+  const path = [];
+  let at = node;
+  let guard = 0;
+  while (at && at !== root && guard++ < 64) {
+    const parent = at.parentElement;
+    if (!parent) break;
+    const kids = parent.children;
+    let index = -1;
+    for (let i = 0; i < kids.length; i++) if (kids[i] === at) {
+      index = i;
+      break;
+    }
+    path.unshift(index);
+    at = parent;
+  }
+  if (at !== root) return "";
+  return "path:" + String(node.className || "") + ":" + path.join(".");
+}
+function findByKey(root, keyFn, key) {
+  let found = null;
+  const walk = (node) => {
+    if (found) return;
+    if (keyFn(node) === key) {
+      found = node;
+      return;
+    }
+    const kids2 = node.children;
+    for (let i = 0; i < kids2.length && !found; i++) walk(kids2[i]);
+  };
+  const kids = root.children;
+  for (let i = 0; i < kids.length && !found; i++) walk(kids[i]);
+  return found;
+}
+function focusedIn(root) {
+  const doc = globalThis.document;
+  const active = doc && doc.activeElement ? doc.activeElement : null;
+  if (!active || active === root) return null;
+  let at = active.parentElement;
+  let guard = 0;
+  while (at && guard++ < 64) {
+    if (at === root) return active;
+    at = at.parentElement;
+  }
+  return null;
+}
+function keepView(root) {
+  const box = root;
+  if (!box || typeof box.getAttribute !== "function") return NOTHING;
+  const scroller = scrollerOf(box);
+  const top = scroller ? Number(scroller.scrollTop) : NaN;
+  const active = focusedIn(box);
+  const label = active ? labelOf(active) : "";
+  const path = active ? pathOf(box, active) : "";
+  const selStart = active && typeof active.selectionStart === "number" ? active.selectionStart : null;
+  const selEnd = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
+  return {
+    restore() {
+      if (scroller && Number.isFinite(top)) {
+        scroller.scrollTop = top;
+      }
+      if (!label && !path) return;
+      const node = (label ? findByKey(box, labelOf, label) : null) || (path ? findByKey(box, (n) => pathOf(box, n), path) : null);
+      if (!node || typeof node.focus !== "function") return;
+      node.focus({ preventScroll: true });
+      if (selStart !== null && typeof node.selectionStart === "number") {
+        try {
+          node.selectionStart = selStart;
+          node.selectionEnd = selEnd === null ? selStart : selEnd;
+        } catch (e) {
+        }
+      }
+      if (scroller && Number.isFinite(top)) scroller.scrollTop = top;
+    }
+  };
+}
+var NOTHING;
+var init_keepview = __esm({
+  "src/ui/settings/custom/keepview.ts"() {
+    "use strict";
+    NOTHING = { restore: () => {
+    } };
+  }
+});
+
+// src/ui/settings/custom/order_lists.ts
+function asObject2(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function strings(value) {
+  return Array.isArray(value) ? value.map((x) => String(x != null ? x : "")) : [];
+}
+function prefixRules(cfg) {
+  const behavior = asObject2(asObject2(asObject2(cfg)["pkm"])["behavior"]);
+  return asObject2(behavior["prefixRules"]);
+}
+function moved(list, from, to) {
+  const out = list.slice();
+  if (from < 0 || from >= out.length || to < 0 || to >= out.length || from === to) return out;
+  const taken = out.splice(from, 1)[0];
+  if (taken === void 0) return list.slice();
+  out.splice(to, 0, taken);
+  return out;
+}
+function sortableList(host, o) {
+  const box = el(host, "div", "io-sortable" + (o.enabled ? "" : " io-sortable--off"));
+  if (!o.rows.length) {
+    el(box, "div", "io-side__empty", o.empty);
+    return;
+  }
+  let taken = null;
+  o.rows.forEach((value, i) => {
+    const row = el(box, "div", "io-sortrow");
+    const grip = el(row, "span", "io-grip", "\u283F");
+    grip.setAttribute("role", "button");
+    grip.setAttribute("aria-label", "Drag " + o.label(value, i) + " to reorder it");
+    grip.draggable = o.enabled;
+    grip.addEventListener("dragstart", ((ev) => {
+      var _a;
+      taken = i;
+      row.classList.add("io-dragging");
+      try {
+        (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", String(i));
+      } catch (e) {
+      }
+    }));
+    grip.addEventListener("dragend", (() => {
+      taken = null;
+      row.classList.remove("io-dragging");
+    }));
+    row.addEventListener("dragover", ((ev) => {
+      if (taken === null) return;
+      ev.preventDefault();
+      row.classList.add("io-dragover");
+    }));
+    row.addEventListener("dragleave", (() => {
+      row.classList.remove("io-dragover");
+    }));
+    row.addEventListener("drop", ((ev) => {
+      ev.preventDefault();
+      row.classList.remove("io-dragover");
+      const from = taken;
+      taken = null;
+      if (from === null || from === i) return;
+      o.onMove(from, i);
+    }));
+    el(row, "span", "io-sortrow__n", String(i + 1));
+    o.cell(row, value, i);
+    const move = el(row, "div", "io-sortrow__move");
+    const up = btn(move, "io-icon", { text: "\u25B2", label: "Move " + o.label(value, i) + " up" });
+    up.disabled = i === 0 || !o.enabled;
+    up.addEventListener("click", (() => {
+      if (o.enabled) o.onMove(i, i - 1);
+    }));
+    const down = btn(move, "io-icon", { text: "\u25BC", label: "Move " + o.label(value, i) + " down" });
+    down.disabled = i === o.rows.length - 1 || !o.enabled;
+    down.addEventListener("click", (() => {
+      if (o.enabled) o.onMove(i, i + 1);
+    }));
+    if (o.onRemove) {
+      const drop = btn(move, "io-icon", { text: "\u2715", label: "Remove " + o.label(value, i) });
+      drop.disabled = o.rows.length < 2 || !o.enabled;
+      drop.addEventListener("click", (() => {
+        if (o.enabled && o.onRemove) o.onRemove(i);
+      }));
+    }
+  });
+}
+function block(host, ctx, cls, paths, fill) {
+  const box = el(host, "div", cls);
+  let mounted = null;
+  const commit = (write) => {
+    try {
+      write();
+    } catch (e) {
+      console.error("inline-overhaul: \u0437\u0430\u043F\u0438\u0441\u044C \u043F\u043E\u0440\u044F\u0434\u043A\u0430 \u043D\u0435 \u0443\u0434\u0430\u043B\u0430\u0441\u044C", e);
+    } finally {
+      draw();
+    }
+  };
+  const draw = () => {
+    const keep = keepView(box);
+    const next = el(box, "div", cls + "__mount");
+    try {
+      fill(next, commit);
+    } catch (e) {
+      next.remove();
+      console.error("inline-overhaul: \u0441\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0440\u044F\u0434\u043A\u0430 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
+      return;
+    }
+    if (mounted) mounted.remove();
+    mounted = next;
+    keep.restore();
+  };
+  draw();
+  const unwatch = ctx.watch(paths, draw);
+  return () => {
+    unwatch();
+    mounted = null;
+    box.empty();
+  };
+}
+function priorityBlock(host, ctx, o) {
+  const p = ctx.platform;
+  if (!p) {
+    const empty = el(host, "div", o.cls);
+    return () => {
+      empty.empty();
+    };
+  }
+  return block(host, ctx, o.cls, ["features.pkm.enabled"], (mount, commit) => {
+    const cfg = p.getConfig();
+    const items = o.rowsOf(cfg);
+    const enabled = Boolean(ctx.get("features.pkm.enabled"));
+    const save = (next, reason) => {
+      commit(() => {
+        p.plugin.setConfigPatch(
+          { pkm: { behavior: { prefixRules: { [o.key]: next.slice() } } } },
+          reason
+        );
+      });
+    };
+    el(mount, "p", "io-note io-note--lead", o.note);
+    sortableList(mount, {
+      rows: items.map((x) => x.value),
+      enabled,
+      empty: o.empty,
+      label: (_value, i) => {
+        var _a;
+        return ((_a = items[i]) == null ? void 0 : _a.label) || "row " + (i + 1);
+      },
+      cell: (row, _value, i) => {
+        const item = items[i];
+        if (item) o.cell(row, item);
+      },
+      onMove: (from, to) => save(
+        moved(items.map((x) => x.value), from, to),
+        "pkm:prefixRules:" + o.key + ":move"
+      )
+    });
+  });
+}
+var import_fields_editor_legacy, helpers, NO_PREFIX, ADD_PREFIX, DRAG_NOTE, FIELD_NOTE, PREFIX_NOTE, EMPTY_FIELDS, EMPTY_PREFIXES, CYCLE_PATHS, cycleOrder, fieldOrderList, prefixOrderList;
+var init_order_lists = __esm({
+  "src/ui/settings/custom/order_lists.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_fields_model();
+    import_fields_editor_legacy = __toESM(require_fields_editor_legacy());
+    helpers = import_fields_editor_legacy.default;
+    NO_PREFIX = "no Prefix (plain text)";
+    ADD_PREFIX = "Add Prefix";
+    DRAG_NOTE = "Drag a row, or use the arrows, to change the order";
+    FIELD_NOTE = "The Field nearest the top wins a conflict. Drag a row, or use the arrows";
+    PREFIX_NOTE = "The Prefix nearest the top wins, whichever Field produced it. Drag a row, or use the arrows";
+    EMPTY_FIELDS = "no Fields yet \u2014 set them up under Fields above";
+    EMPTY_PREFIXES = "no Prefixes listed yet";
+    CYCLE_PATHS = ["navigation.moveSelection.prefixCyclerEnabled"];
+    cycleOrder = (host, ctx) => {
+      const p = ctx.platform;
+      if (!p) {
+        const empty = el(host, "div", "io-cycleorder");
+        return () => {
+          empty.empty();
+        };
+      }
+      return block(host, ctx, "io-cycleorder", CYCLE_PATHS, (mount, commit) => {
+        const cfg = p.getConfig();
+        const move = asObject2(asObject2(asObject2(cfg)["navigation"])["moveSelection"]);
+        const rows = strings(move["cycleOrder"]);
+        const enabled = Boolean(ctx.get("navigation.moveSelection.prefixCyclerEnabled"));
+        const save = (next, reason) => {
+          commit(() => {
+            p.plugin.setConfigPatch(
+              { navigation: { moveSelection: { cycleOrder: next.slice() } } },
+              reason
+            );
+          });
+        };
+        sortableList(mount, {
+          rows,
+          enabled,
+          empty: EMPTY_PREFIXES,
+          label: (value, i) => "Prefix " + (i + 1),
+          cell: (row, value, i) => {
+            const input = textInput(row, "io-text io-text--mono io-sortrow__text", {
+              value,
+              /* Ц1: пустая строка — это обычная строка, и подпись это говорит. */
+              placeholder: NO_PREFIX,
+              label: "Prefix " + (i + 1)
+            });
+            input.disabled = !enabled;
+            input.addEventListener("change", (() => {
+              if (!enabled) return;
+              const next = rows.slice();
+              next[i] = input.value;
+              save(next, "navigation:cycleOrder:edit");
+            }));
+          },
+          onMove: (from, to) => save(moved(rows, from, to), "navigation:cycleOrder:move"),
+          onRemove: (i) => save(rows.filter((_, k) => k !== i), "navigation:cycleOrder:remove")
+        });
+        const actions = el(mount, "div", "io-rowactions");
+        const add = btn(actions, "io-btn io-btn--sm", { text: ADD_PREFIX, label: ADD_PREFIX });
+        add.disabled = !enabled;
+        add.addEventListener("click", (() => {
+          if (!enabled) return;
+          save(rows.concat(""), "navigation:cycleOrder:add");
+        }));
+        el(actions, "span", "io-note", DRAG_NOTE);
+      });
+    };
+    fieldOrderList = (host, ctx) => priorityBlock(host, ctx, {
+      cls: "io-fieldorder",
+      key: "priorityTargets",
+      note: FIELD_NOTE,
+      empty: EMPTY_FIELDS,
+      rowsOf: (cfg) => {
+        const p = ctx.platform;
+        if (!p) return [];
+        const model = createFieldsModel({
+          plugin: p.plugin,
+          normalizePkmOrder: p.normalizePkmOrder,
+          pkmOrderFields: p.pkmOrderFields,
+          cfg,
+          deepState: helpers.getOrderDeepEditorState()
+        });
+        const fields = model.listFields().filter((row) => !row.parent);
+        const byKey = new Map(fields.map((row) => [row.key, row.label]));
+        const stored = strings(prefixRules(cfg)["priorityTargets"]).filter((id) => byKey.has(id));
+        const rest = fields.map((row) => row.key).filter((id) => !stored.includes(id));
+        return stored.concat(rest).map((id) => ({ value: id, label: byKey.get(id) || id }));
+      },
+      cell: (row, item) => {
+        el(row, "span", "io-sortrow__label", item.label);
+      }
+    });
+    prefixOrderList = (host, ctx) => priorityBlock(host, ctx, {
+      cls: "io-prefixorder",
+      key: "priorityCheckboxes",
+      note: PREFIX_NOTE,
+      empty: EMPTY_PREFIXES,
+      rowsOf: (cfg) => strings(prefixRules(cfg)["priorityCheckboxes"]).map((value) => ({ value, label: value })),
+      cell: (row, item) => {
+        el(row, "code", "io-mono", item.value);
+      }
+    });
+  }
+});
+
 // src/ui/settings/schema/navigation.ts
 var NAVIGATION_GROUPS;
 var init_navigation = __esm({
@@ -31908,6 +32275,7 @@ var init_navigation = __esm({
     init_types();
     init_callouts();
     init_dispatch_tables();
+    init_order_lists();
     NAVIGATION_GROUPS = [
       {
         id: "nav-intro",
@@ -32030,6 +32398,7 @@ var init_navigation = __esm({
             searchTerms: ["Enable PrefixCycler"],
             tip: "<code>Move right</code> walks down the list below, <code>Move left</code> walks back up, and an empty row in it means plain text with no Prefix at all. <code>Move left</code> cycles whenever the line has no indent; <code>Move right</code> only cycles when the line is not already a list item, because on a list item it indents instead"
           },
+          { kind: "custom", id: "cycle-order", render: cycleOrder },
           {
             kind: "toggle",
             id: "right-cycles",
@@ -32205,107 +32574,6 @@ var init_navigation = __esm({
   }
 });
 
-// src/ui/settings/custom/keepview.ts
-function scrollerOf(node) {
-  let at = node;
-  let guard = 0;
-  while (at && guard++ < 64) {
-    const height = Number(at.scrollHeight);
-    const view = Number(at.clientHeight);
-    if (Number.isFinite(height) && Number.isFinite(view) && height - view > 1) return at;
-    at = at.parentElement;
-  }
-  return null;
-}
-function labelOf(node) {
-  const label = String(node.getAttribute("aria-label") || "").trim();
-  return label ? "label:" + label : "";
-}
-function pathOf(root, node) {
-  const path = [];
-  let at = node;
-  let guard = 0;
-  while (at && at !== root && guard++ < 64) {
-    const parent = at.parentElement;
-    if (!parent) break;
-    const kids = parent.children;
-    let index = -1;
-    for (let i = 0; i < kids.length; i++) if (kids[i] === at) {
-      index = i;
-      break;
-    }
-    path.unshift(index);
-    at = parent;
-  }
-  if (at !== root) return "";
-  return "path:" + String(node.className || "") + ":" + path.join(".");
-}
-function findByKey(root, keyFn, key) {
-  let found = null;
-  const walk = (node) => {
-    if (found) return;
-    if (keyFn(node) === key) {
-      found = node;
-      return;
-    }
-    const kids2 = node.children;
-    for (let i = 0; i < kids2.length && !found; i++) walk(kids2[i]);
-  };
-  const kids = root.children;
-  for (let i = 0; i < kids.length && !found; i++) walk(kids[i]);
-  return found;
-}
-function focusedIn(root) {
-  const doc = globalThis.document;
-  const active = doc && doc.activeElement ? doc.activeElement : null;
-  if (!active || active === root) return null;
-  let at = active.parentElement;
-  let guard = 0;
-  while (at && guard++ < 64) {
-    if (at === root) return active;
-    at = at.parentElement;
-  }
-  return null;
-}
-function keepView(root) {
-  const box = root;
-  if (!box || typeof box.getAttribute !== "function") return NOTHING;
-  const scroller = scrollerOf(box);
-  const top = scroller ? Number(scroller.scrollTop) : NaN;
-  const active = focusedIn(box);
-  const label = active ? labelOf(active) : "";
-  const path = active ? pathOf(box, active) : "";
-  const selStart = active && typeof active.selectionStart === "number" ? active.selectionStart : null;
-  const selEnd = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
-  return {
-    restore() {
-      if (scroller && Number.isFinite(top)) {
-        scroller.scrollTop = top;
-      }
-      if (!label && !path) return;
-      const node = (label ? findByKey(box, labelOf, label) : null) || (path ? findByKey(box, (n) => pathOf(box, n), path) : null);
-      if (!node || typeof node.focus !== "function") return;
-      node.focus({ preventScroll: true });
-      if (selStart !== null && typeof node.selectionStart === "number") {
-        try {
-          node.selectionStart = selStart;
-          node.selectionEnd = selEnd === null ? selStart : selEnd;
-        } catch (e) {
-        }
-      }
-      if (scroller && Number.isFinite(top)) scroller.scrollTop = top;
-    }
-  };
-}
-var NOTHING;
-var init_keepview = __esm({
-  "src/ui/settings/custom/keepview.ts"() {
-    "use strict";
-    NOTHING = { restore: () => {
-    } };
-  }
-});
-
 // src/ui/settings/custom/contrast.ts
 function channels(hex) {
   const src = String(hex || "").trim().toLowerCase();
@@ -32363,7 +32631,7 @@ function fieldsFromConfig(ctx) {
       normalizePkmOrder: p.normalizePkmOrder,
       pkmOrderFields: p.pkmOrderFields,
       cfg: p.getConfig(),
-      deepState: helpers.getOrderDeepEditorState()
+      deepState: helpers2.getOrderDeepEditorState()
     });
     const out = [];
     for (const row of model.listFields()) {
@@ -32459,13 +32727,13 @@ function valuePair(f) {
   }
   return { parent: f.values.find((v) => v.depth === 0) || null, child: null };
 }
-var import_fields_editor_legacy, helpers, EXAMPLE_FIELDS;
+var import_fields_editor_legacy2, helpers2, EXAMPLE_FIELDS;
 var init_preview_data = __esm({
   "src/ui/settings/custom/preview_data.ts"() {
     "use strict";
     init_fields_model();
-    import_fields_editor_legacy = __toESM(require_fields_editor_legacy());
-    helpers = import_fields_editor_legacy.default;
+    import_fields_editor_legacy2 = __toESM(require_fields_editor_legacy());
+    helpers2 = import_fields_editor_legacy2.default;
     EXAMPLE_FIELDS = [
       {
         id: "status",
@@ -32814,17 +33082,17 @@ var init_previews = __esm({
           if (right.length) for (const f of right) fieldChip(c, f);
           else el(c, "span", "io-line__hint", STRUCT_EMPTY_RIGHT);
         });
-        const block = (text) => {
+        const block2 = (text) => {
           const w = el(holder, "div", "io-struct__block");
           el(w, "div", "io-struct__bracket");
           el(w, "div", "io-struct__name", text);
         };
         el(holder, "div");
-        block(STRUCT_LEFT);
+        block2(STRUCT_LEFT);
         el(holder, "div", "io-struct__tick");
         el(holder, "div");
         el(holder, "div", "io-struct__tick");
-        block(STRUCT_RIGHT);
+        block2(STRUCT_RIGHT);
         const sepName = (text) => {
           el(el(holder, "div", "io-struct__sepname"), "span", void 0, text);
         };
@@ -34108,7 +34376,7 @@ function confirmDeleteModal(Modal2, app2, fieldName, done) {
   }
   new DeleteFieldModal(app2).open();
 }
-var import_fields_editor_legacy2, helpers2, EDITOR_PATHS, fieldsEditor;
+var import_fields_editor_legacy3, helpers3, EDITOR_PATHS, fieldsEditor;
 var init_fields_editor = __esm({
   "src/ui/settings/custom/fields_editor.ts"() {
     "use strict";
@@ -34116,8 +34384,8 @@ var init_fields_editor = __esm({
     init_keepview();
     init_fields_model();
     init_fields_editor_view();
-    import_fields_editor_legacy2 = __toESM(require_fields_editor_legacy());
-    helpers2 = import_fields_editor_legacy2.default;
+    import_fields_editor_legacy3 = __toESM(require_fields_editor_legacy());
+    helpers3 = import_fields_editor_legacy3.default;
     EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips"];
     fieldsEditor = (host, ctx) => {
       const p = ctx.platform;
@@ -34148,7 +34416,7 @@ var init_fields_editor = __esm({
             normalizePkmOrder: p.normalizePkmOrder,
             pkmOrderFields: p.pkmOrderFields,
             cfg: p.getConfig(),
-            deepState: helpers2.getOrderDeepEditorState()
+            deepState: helpers3.getOrderDeepEditorState()
           });
           close = renderFieldsEditor(next, {
             model,
@@ -34195,6 +34463,7 @@ var init_pkm = __esm({
     init_types();
     init_callouts();
     init_fields_editor();
+    init_order_lists();
     init_previews();
     PKM_GROUPS = [
       {
@@ -34380,6 +34649,21 @@ var init_pkm = __esm({
             searchTerms: ["Fields order mode"],
             visible: eq("pkm.prefixPriority.decideBy", "by-section"),
             options: [{ value: "auto", label: "By Fields order" }, { value: "manual", label: "Manual order" }]
+          },
+          {
+            kind: "custom",
+            id: "field-order-list",
+            render: fieldOrderList,
+            visible: {
+              deps: ["pkm.prefixPriority.decideBy", "pkm.prefixPriority.fieldOrderSource"],
+              test: (c) => c.get("pkm.prefixPriority.decideBy") === "by-section" && c.get("pkm.prefixPriority.fieldOrderSource") === "manual"
+            }
+          },
+          {
+            kind: "custom",
+            id: "prefix-order-list",
+            render: prefixOrderList,
+            visible: eq("pkm.prefixPriority.decideBy", "by-checkbox-list")
           },
           {
             kind: "dropdown",
@@ -34762,13 +35046,13 @@ var init_visual = __esm({
 });
 
 // src/ui/settings/custom/smart_rules_model.ts
-function asObject2(value) {
+function asObject3(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 function asArray2(value) {
   return Array.isArray(value) ? value.slice() : [];
 }
-function strings(value) {
+function strings2(value) {
   const out = [];
   for (const raw of asArray2(value)) {
     const v = String(raw || "").trim();
@@ -34777,7 +35061,7 @@ function strings(value) {
   return out;
 }
 function inline2note(cfg) {
-  return asObject2(asObject2(asObject2(cfg)["transform"])["inline2note"]);
+  return asObject3(asObject3(asObject3(cfg)["transform"])["inline2note"]);
 }
 function createRulesModel(deps) {
   const { plugin, validate, fieldTokens } = deps;
@@ -34786,9 +35070,9 @@ function createRulesModel(deps) {
     const raw = rawRules();
     const checked = validate(raw);
     return raw.map((rawRule, i) => {
-      const r = asObject2(rawRule);
-      const conditions = asObject2(r["conditions"]);
-      const validation = asObject2(asObject2(checked[i])["validation"]);
+      const r = asObject3(rawRule);
+      const conditions = asObject3(r["conditions"]);
+      const validation = asObject3(asObject3(checked[i])["validation"]);
       return {
         id: String(r["id"] || "rule-" + (i + 1)).trim() || "rule-" + (i + 1),
         name: String(r["name"] || "").trim(),
@@ -34804,9 +35088,9 @@ function createRulesModel(deps) {
         enabled: r["enabled"] !== false,
         targetTemplate: String(r["targetTemplate"] || "").trim(),
         conditions: {
-          tags: strings(conditions["tags"]),
-          emojiFields: strings(conditions["emojiFields"]),
-          wikilinks: strings(conditions["wikilinks"])
+          tags: strings2(conditions["tags"]),
+          emojiFields: strings2(conditions["emojiFields"]),
+          wikilinks: strings2(conditions["wikilinks"])
         },
         conflict: validation["isConflict"] ? String(validation["message"] || "").trim() : ""
       };
@@ -34889,9 +35173,9 @@ function createRulesModel(deps) {
   const moveRule = (from, to) => {
     const rules = listRules();
     if (from < 0 || from >= rules.length || to < 0 || to >= rules.length || from === to) return;
-    const moved = rules.splice(from, 1)[0];
-    if (!moved) return;
-    rules.splice(to, 0, moved);
+    const moved2 = rules.splice(from, 1)[0];
+    if (!moved2) return;
+    rules.splice(to, 0, moved2);
     save(rules, "transform:smart-rules:move");
   };
   return {
@@ -35174,7 +35458,7 @@ function askConditionModal(Modal2, app2, o) {
   }
   new ConditionModal(app2).open();
 }
-var import_fields_editor_legacy3, import_transform_feature2, helpers3, engine2, RULES_PATHS, smartRules;
+var import_fields_editor_legacy4, import_transform_feature2, helpers4, engine2, RULES_PATHS, smartRules;
 var init_smart_rules = __esm({
   "src/ui/settings/custom/smart_rules.ts"() {
     "use strict";
@@ -35183,9 +35467,9 @@ var init_smart_rules = __esm({
     init_fields_model();
     init_smart_rules_model();
     init_smart_rules_view();
-    import_fields_editor_legacy3 = __toESM(require_fields_editor_legacy());
+    import_fields_editor_legacy4 = __toESM(require_fields_editor_legacy());
     import_transform_feature2 = __toESM(require_transform_feature());
-    helpers3 = import_fields_editor_legacy3.default;
+    helpers4 = import_fields_editor_legacy4.default;
     engine2 = import_transform_feature2.default;
     RULES_PATHS = [
       "features.transform.enabled",
@@ -35225,7 +35509,7 @@ var init_smart_rules = __esm({
               normalizePkmOrder: p.normalizePkmOrder,
               pkmOrderFields: p.pkmOrderFields,
               cfg: p.getConfig(),
-              deepState: helpers3.getOrderDeepEditorState()
+              deepState: helpers4.getOrderDeepEditorState()
             }).listFieldTokens()
           });
           renderSmartRules(next, {
@@ -37052,20 +37336,20 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createTagWheelConfigCodec === "function")
       });
       if (loaded.mod && typeof loaded.mod.createTagWheelConfigCodec === "function") {
-        const helpers4 = getConfigNoteHelpers();
+        const helpers5 = getConfigNoteHelpers();
         const codec = loaded.mod.createTagWheelConfigCodec({
           isObj,
           getOrderStrictName,
           ORDER_KEY_TO_LEFT_FIELD_ID,
-          getFieldById: helpers4.getFieldById,
-          getLeftFields: helpers4.getLeftFields,
-          getRightFields: helpers4.getRightFields,
-          collectTagSections: helpers4.collectTagSections,
-          collectWikilinkFieldIds: helpers4.collectWikilinkFieldIds,
-          collectOrderedElementFields: helpers4.collectOrderedElementFields,
-          getPrefixRulesFromCfg: helpers4.getPrefixRulesFromCfg,
+          getFieldById: helpers5.getFieldById,
+          getLeftFields: helpers5.getLeftFields,
+          getRightFields: helpers5.getRightFields,
+          collectTagSections: helpers5.collectTagSections,
+          collectWikilinkFieldIds: helpers5.collectWikilinkFieldIds,
+          collectOrderedElementFields: helpers5.collectOrderedElementFields,
+          getPrefixRulesFromCfg: helpers5.getPrefixRulesFromCfg,
           denormTagToken,
-          parseCustomPrefixResolverBlock: helpers4.parseCustomPrefixResolverBlock,
+          parseCustomPrefixResolverBlock: helpers5.parseCustomPrefixResolverBlock,
           isWikilinkToken,
           parseWikilinkLineStrict,
           extractFirstTagToken,
@@ -37214,14 +37498,14 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createConfigNoteHelpers === "function")
       });
       if (loaded.mod && typeof loaded.mod.createConfigNoteHelpers === "function") {
-        const helpers4 = loaded.mod.createConfigNoteHelpers({
+        const helpers5 = loaded.mod.createConfigNoteHelpers({
           isObj,
           normalizePkmOrder,
           getOrderStrictName,
           TAGWHEEL_PREFIX_RESOLVER_H3
         });
-        if (hasValidConfigNoteHelpers(helpers4)) {
-          __configNoteHelpers = helpers4;
+        if (hasValidConfigNoteHelpers(helpers5)) {
+          __configNoteHelpers = helpers5;
           return __configNoteHelpers;
         }
       }
@@ -40896,7 +41180,7 @@ var require_main = __commonJS({
         await loadTagWheelConfigCodecSafe(this.app);
         const cfg = this.getConfig();
         const orch = getConfigNoteOrchestrator();
-        const helpers4 = getConfigNoteHelpers();
+        const helpers5 = getConfigNoteHelpers();
         if (!orch) throw new Error("Config note orchestrator unavailable");
         return await orch.applyTagWheelConfigNote({
           app: this.app,
@@ -40907,16 +41191,16 @@ var require_main = __commonJS({
           getOrderStrictName,
           isObj,
           cloneJson,
-          collectTagSections: helpers4.collectTagSections,
-          getFieldById: helpers4.getFieldById,
+          collectTagSections: helpers5.collectTagSections,
+          getFieldById: helpers5.getFieldById,
           extractFieldMetaMap,
           rebuildTagValues,
           rebuildSubtagValues,
           denormTagToken,
-          getPrefixRulesFromCfg: helpers4.getPrefixRulesFromCfg,
-          collectCheckboxTokensFromMap: helpers4.collectCheckboxTokensFromMap,
+          getPrefixRulesFromCfg: helpers5.getPrefixRulesFromCfg,
+          collectCheckboxTokensFromMap: helpers5.collectCheckboxTokensFromMap,
           deepMerge,
-          syncCustomPrefixResolverBlock: helpers4.syncCustomPrefixResolverBlock,
+          syncCustomPrefixResolverBlock: helpers5.syncCustomPrefixResolverBlock,
           normalizePkmOrder,
           CFG_H2_DATES
         });

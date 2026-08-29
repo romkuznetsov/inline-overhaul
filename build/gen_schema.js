@@ -93,6 +93,21 @@ const CUSTOM_IMPL = {
     named: "fieldsEditor",
     expr: () => "fieldsEditor",
   },
+  renderCycleOrder: {
+    module: "order_lists.ts",
+    named: "cycleOrder",
+    expr: () => "cycleOrder",
+  },
+  renderFieldOrderList: {
+    module: "order_lists.ts",
+    named: "fieldOrderList",
+    expr: () => "fieldOrderList",
+  },
+  renderPrefixOrderList: {
+    module: "order_lists.ts",
+    named: "prefixOrderList",
+    expr: () => "prefixOrderList",
+  },
   renderLeftRightOrder: {
     module: "dispatch_tables.ts",
     named: "dispatchTables",

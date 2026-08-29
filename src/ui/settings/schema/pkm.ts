@@ -4,7 +4,6 @@
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
  * Не перенесено (свои блоки и кнопки без действий, З8):
- *   prefix-priority: field-order-list (custom), prefix-order-list (custom)
  *   config-note: config-note-actions (buttons)
  */
 
@@ -12,6 +11,7 @@ import type { SettingsGroup } from "../types.ts";
 import { eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { fieldsEditor } from "../custom/fields_editor.ts";
+import { fieldOrderList, prefixOrderList } from "../custom/order_lists.ts";
 import { linePreview } from "../custom/previews.ts";
 
 export const PKM_GROUPS: readonly SettingsGroup[] = [
@@ -104,6 +104,12 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       searchTerms:["Fields order mode"],
       visible: eq("pkm.prefixPriority.decideBy","by-section"),
       options:[ {value:"auto",label:"By Fields order"}, {value:"manual",label:"Manual order"} ] },
+    { kind:"custom", id:"field-order-list", render: fieldOrderList,
+      visible:{ deps:["pkm.prefixPriority.decideBy","pkm.prefixPriority.fieldOrderSource"],
+                test: c => c.get("pkm.prefixPriority.decideBy") === "by-section"
+                        && c.get("pkm.prefixPriority.fieldOrderSource") === "manual" } },
+    { kind:"custom", id:"prefix-order-list", render: prefixOrderList,
+      visible: eq("pkm.prefixPriority.decideBy","by-checkbox-list") },
     { kind:"dropdown", id:"prefix-priority-parent", path:"pkm.prefixPriority.parentOrChild", default:"tag-over-subtag",
       name:"Parent or child wins", desc:"When a tag and its child Value both carry a Prefix",
       searchTerms:["Tag/Subtag priority"],

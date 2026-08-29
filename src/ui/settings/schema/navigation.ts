@@ -3,14 +3,13 @@
  * Руками не правится. Правится прототип, затем `npm run gen:schema`.
  *
  * Тексты согласованы заказчиком и совпадают с Приложением B PRD.
- * Не перенесено (свои блоки и кнопки без действий, З8):
- *   left-right: cycle-order (custom)
  */
 
 import type { SettingsGroup } from "../types.ts";
 import { not, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { dispatchTables } from "../custom/dispatch_tables.ts";
+import { cycleOrder } from "../custom/order_lists.ts";
 
 export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
 { id: "nav-intro",       tab: "navigation", order: 50, heading: "Before you start",
@@ -66,6 +65,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       name:"Cycle line Prefixes", desc:"Turn a line into a heading, a bullet, a numbered item or plain text, one press at a time",
       searchTerms:["Enable PrefixCycler"],
       tip:"<code>Move right</code> walks down the list below, <code>Move left</code> walks back up, and an empty row in it means plain text with no Prefix at all. <code>Move left</code> cycles whenever the line has no indent; <code>Move right</code> only cycles when the line is not already a list item, because on a list item it indents instead" },
+    { kind:"custom", id:"cycle-order", render: cycleOrder },
     { kind:"toggle", id:"right-cycles", path:"navigation.moveSelection.rightCycles", default:true,
       name:"Cycle in both directions", desc:"Off: <code>Move right</code> only ever indents, and cycling becomes a <code>Move left</code> job",
       disabled: not("navigation.moveSelection.prefixCyclerEnabled"),
