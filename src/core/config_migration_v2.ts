@@ -70,7 +70,7 @@ function shareToPercent(v: unknown): unknown {
  * Путь без маршрута — не ошибка, а развилка: объект разбирается дальше по
  * ключам, лист уезжает в `_unmigrated` (МГ3).
  */
-interface Route {
+export interface Route {
   to?: string;
   drop?: true;
   whole?: true;
@@ -100,7 +100,13 @@ function drop(path: string): [string, Route] {
   return [path, { drop: true, whole: true }];
 }
 
-const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
+/**
+ * Карта маршрутов наружу. Её читает мост `ui/settings/v1_bridge.ts`: пока
+ * миграция не подключена, панель обязана писать пути версии 1, а схема
+ * выведена из прототипа и пользуется путями версии 2. Второй такой карты быть
+ * не должно — разойдутся.
+ */
+export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   /* --- модули: без изменений ------------------------------------------- */
   keep("features.navigation.enabled"),
   keep("features.pkm.enabled"),

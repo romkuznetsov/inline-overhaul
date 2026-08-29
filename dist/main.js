@@ -1607,23 +1607,23 @@ var require_pkm_runtime_v2 = __commonJS({
       return active && active.editor ? active.editor : null;
     }
     async function loadVaultModuleBridge(app3, vaultPath, forceReload) {
-      let bridge = globalThis && globalThis.__inlineVaultModuleBridge;
-      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
+      let bridge2 = globalThis && globalThis.__inlineVaultModuleBridge;
+      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
         try {
           const mod = require_vault_module_bridge();
           if (mod && typeof mod.loadVaultModule === "function") {
-            bridge = mod;
+            bridge2 = mod;
             globalThis.__inlineVaultModuleBridge = mod;
           }
         } catch (e) {
           reportLoaderFallback("pkm_runtime_v2.bridge.require", e);
         }
       }
-      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
+      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
         throw new Error("pkm_runtime_v2: vault_module_bridge unavailable");
       }
       try {
-        return await bridge.loadVaultModule(app3, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache");
+        return await bridge2.loadVaultModule(app3, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache");
       } catch (e) {
         reportLoaderFallback(`pkm_runtime_v2.bridge.load:${vaultPath}`, e);
         throw e;
@@ -13060,12 +13060,12 @@ var require_pkm_macro_runtime_entry = __commonJS({
       }
     }
     function ensureVaultBridge() {
-      let bridge = globalThis.__inlineVaultModuleBridge;
-      if (bridge && typeof bridge.loadVaultModule === "function") return bridge;
+      let bridge2 = globalThis.__inlineVaultModuleBridge;
+      if (bridge2 && typeof bridge2.loadVaultModule === "function") return bridge2;
       try {
         const mod = require_vault_module_bridge();
         if (mod && typeof mod.loadVaultModule === "function") {
-          bridge = mod;
+          bridge2 = mod;
           globalThis.__inlineVaultModuleBridge = mod;
           return mod;
         }
@@ -13077,10 +13077,10 @@ var require_pkm_macro_runtime_entry = __commonJS({
     async function loadMacroRuntimeShared(app_) {
       const cached = globalThis.__inlinePkmMacroRuntimeSharedMod;
       if (cached && typeof cached.loadVaultModule === "function") return cached;
-      const bridge = ensureVaultBridge();
-      if (bridge && typeof bridge.loadVaultModule === "function") {
+      const bridge2 = ensureVaultBridge();
+      if (bridge2 && typeof bridge2.loadVaultModule === "function") {
         try {
-          const mod = await bridge.loadVaultModule(app_, MACRO_RUNTIME_SHARED_PATH, false, RUNTIME_CACHE_KEY);
+          const mod = await bridge2.loadVaultModule(app_, MACRO_RUNTIME_SHARED_PATH, false, RUNTIME_CACHE_KEY);
           if (mod && typeof mod.loadVaultModule === "function") {
             globalThis.__inlinePkmMacroRuntimeSharedMod = mod;
             return mod;
@@ -13134,23 +13134,23 @@ var require_pkm_macro_runtime_shared = __commonJS({
       }
     }
     async function loadVaultModule(app_, vaultPath, forceReload) {
-      let bridge = globalThis.__inlineVaultModuleBridge;
-      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
+      let bridge2 = globalThis.__inlineVaultModuleBridge;
+      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
         try {
           const mod = require_vault_module_bridge();
           if (mod && typeof mod.loadVaultModule === "function") {
-            bridge = mod;
+            bridge2 = mod;
             globalThis.__inlineVaultModuleBridge = mod;
           }
         } catch (e) {
           reportLoaderFallback("pkm_macro_runtime_shared.bridge.require", e);
         }
       }
-      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
+      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
         throw new Error("pkm_macro_runtime_shared: vault_module_bridge unavailable");
       }
       try {
-        return await bridge.loadVaultModule(app_, vaultPath, forceReload, RUNTIME_CACHE_KEY);
+        return await bridge2.loadVaultModule(app_, vaultPath, forceReload, RUNTIME_CACHE_KEY);
       } catch (e) {
         reportLoaderFallback(`pkm_macro_runtime_shared.bridge.load:${vaultPath}`, e);
         throw e;
@@ -24946,12 +24946,12 @@ function renderBinder(host, o) {
     hk.addEventListener("click", (() => {
       if (o.openHotkey) o.openHotkey(row);
     }));
-    const drop = btn(line, "io-icon", {
+    const drop2 = btn(line, "io-icon", {
       text: row.system ? "" : "\u2715",
       label: row.system ? SYSTEM_TITLE : "Remove " + name
     });
-    drop.disabled = row.system;
-    drop.addEventListener("click", (() => {
+    drop2.disabled = row.system;
+    drop2.addEventListener("click", (() => {
       if (!row.system) o.onRemove(row);
     }));
   });
@@ -25150,7 +25150,7 @@ var init_binder = __esm({
       const canOpen = canOpenHotkeys(plugin);
       let mounted = null;
       const draw = () => {
-        const keep = keepView(box);
+        const keep2 = keepView(box);
         const next = el(box, "div", "io-binderblock__mount");
         try {
           const model = createBinderModel({
@@ -25195,7 +25195,7 @@ var init_binder = __esm({
         }
         if (mounted) mounted.remove();
         mounted = next;
-        keep.restore();
+        keep2.restore();
       };
       draw();
       const unwatch = ctx.watch(BINDER_PATHS, draw);
@@ -29356,21 +29356,21 @@ function sortableList(host, o) {
     }));
     el(row, "span", "io-sortrow__n", String(i + 1));
     o.cell(row, value, i);
-    const move = el(row, "div", "io-sortrow__move");
-    const up = btn(move, "io-icon", { text: "\u25B2", label: "Move " + o.label(value, i) + " up" });
+    const move2 = el(row, "div", "io-sortrow__move");
+    const up = btn(move2, "io-icon", { text: "\u25B2", label: "Move " + o.label(value, i) + " up" });
     up.disabled = i === 0 || !o.enabled;
     up.addEventListener("click", (() => {
       if (o.enabled) o.onMove(i, i - 1);
     }));
-    const down = btn(move, "io-icon", { text: "\u25BC", label: "Move " + o.label(value, i) + " down" });
+    const down = btn(move2, "io-icon", { text: "\u25BC", label: "Move " + o.label(value, i) + " down" });
     down.disabled = i === o.rows.length - 1 || !o.enabled;
     down.addEventListener("click", (() => {
       if (o.enabled) o.onMove(i, i + 1);
     }));
     if (o.onRemove) {
-      const drop = btn(move, "io-icon", { text: "\u2715", label: "Remove " + o.label(value, i) });
-      drop.disabled = o.rows.length < 2 || !o.enabled;
-      drop.addEventListener("click", (() => {
+      const drop2 = btn(move2, "io-icon", { text: "\u2715", label: "Remove " + o.label(value, i) });
+      drop2.disabled = o.rows.length < 2 || !o.enabled;
+      drop2.addEventListener("click", (() => {
         if (o.enabled && o.onRemove) o.onRemove(i);
       }));
     }
@@ -29389,7 +29389,7 @@ function block(host, ctx, cls, paths, fill) {
     }
   };
   const draw = () => {
-    const keep = keepView(box);
+    const keep2 = keepView(box);
     const next = el(box, "div", cls + "__mount");
     try {
       fill(next, commit);
@@ -29400,7 +29400,7 @@ function block(host, ctx, cls, paths, fill) {
     }
     if (mounted) mounted.remove();
     mounted = next;
-    keep.restore();
+    keep2.restore();
   };
   draw();
   const unwatch = ctx.watch(paths, draw);
@@ -29477,8 +29477,8 @@ var init_order_lists = __esm({
       }
       return block(host, ctx, "io-cycleorder", CYCLE_PATHS, (mount, commit) => {
         const cfg = p.getConfig();
-        const move = asObject3(asObject3(asObject3(cfg)["navigation"])["moveSelection"]);
-        const rows = strings(move["cycleOrder"]);
+        const move2 = asObject3(asObject3(asObject3(cfg)["navigation"])["moveSelection"]);
+        const rows = strings(move2["cycleOrder"]);
         const enabled = Boolean(ctx.get("navigation.moveSelection.prefixCyclerEnabled"));
         const save = (next, reason) => {
           commit(() => {
@@ -31699,7 +31699,7 @@ var init_fields_editor = __esm({
       let mounted = null;
       let closeMounted = null;
       const draw = () => {
-        const keep = keepView(box);
+        const keep2 = keepView(box);
         const next = el(box, "div", "io-fieldsblock__mount");
         let close;
         try {
@@ -31732,7 +31732,7 @@ var init_fields_editor = __esm({
         if (mounted) mounted.remove();
         mounted = next;
         closeMounted = close;
-        keep.restore();
+        keep2.restore();
       };
       draw();
       const unwatch = ctx.watch(EDITOR_PATHS, draw);
@@ -32225,7 +32225,7 @@ var init_user_tags = __esm({
       };
       let mounted = null;
       const draw = () => {
-        const keep = keepView(box);
+        const keep2 = keepView(box);
         const next = el(box, "div", "io-usertagsblock__mount");
         try {
           const model = createUserTagsModel(p.plugin);
@@ -32259,7 +32259,7 @@ var init_user_tags = __esm({
         }
         if (mounted) mounted.remove();
         mounted = next;
-        keep.restore();
+        keep2.restore();
       };
       draw();
       const unwatch = ctx.watch(TAG_PATHS2, draw);
@@ -32787,12 +32787,12 @@ function kindRow(host, row, kind, o) {
   values.forEach((value, i) => {
     if (i) el(chips, "span", "io-op", OP_OR);
     const chip = el(chips, "span", "io-vchip", value);
-    const drop = btn(chip, "io-icon", {
+    const drop2 = btn(chip, "io-icon", {
       text: "\u2715",
       label: "Remove " + value + " from " + ruleTitle(row, 0)
     });
-    drop.disabled = !o.enabled;
-    drop.addEventListener("click", (() => {
+    drop2.disabled = !o.enabled;
+    drop2.addEventListener("click", (() => {
       if (!o.enabled) return;
       o.model.removeCondition(row.id, kind, value);
       o.redraw();
@@ -33068,7 +33068,7 @@ var init_smart_rules = __esm({
       };
       let mounted = null;
       const draw = () => {
-        const keep = keepView(box);
+        const keep2 = keepView(box);
         const next = el(box, "div", "io-rulesblock__mount");
         try {
           const model = createRulesModel({
@@ -33102,7 +33102,7 @@ var init_smart_rules = __esm({
         }
         if (mounted) mounted.remove();
         mounted = next;
-        keep.restore();
+        keep2.restore();
       };
       draw();
       const unwatch = ctx.watch(RULES_PATHS, draw);
@@ -33947,22 +33947,341 @@ var init_settings_tab = __esm({
   }
 });
 
+// src/core/config_migration_v2.ts
+function shareToPercent(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  const pct = Math.round(n * 100);
+  return pct < 0 ? 0 : pct > 100 ? 100 : pct;
+}
+function keep(path, whole) {
+  return whole ? [path, { to: path, whole }] : [path, { to: path }];
+}
+function keepV2(path, whole) {
+  return whole ? [path, { to: path, whole, alreadyV2: true }] : [path, { to: path, alreadyV2: true }];
+}
+function move(from, to, opts) {
+  const route = { to };
+  if (opts && opts.whole) route.whole = opts.whole;
+  if (opts && opts.cast) route.cast = opts.cast;
+  return [from, route];
+}
+function drop(path) {
+  return [path, { drop: true, whole: true }];
+}
+var ROUTES;
+var init_config_migration_v2 = __esm({
+  "src/core/config_migration_v2.ts"() {
+    "use strict";
+    init_schema();
+    init_types();
+    ROUTES = new Map([
+      /* --- модули: без изменений ------------------------------------------- */
+      keep("features.navigation.enabled"),
+      keep("features.pkm.enabled"),
+      keep("features.visual.enabled"),
+      keep("features.transform.enabled"),
+      /* --- навигация: без изменений (8.1) ---------------------------------- */
+      keep("navigation.moveLine.enabled"),
+      keep("navigation.moveLine.noSelectionMode"),
+      keep("navigation.moveLine.headerMode"),
+      keep("navigation.moveLine.crossSectionAllowed"),
+      keep("navigation.moveLine.highlightMovedLines"),
+      keep("navigation.moveSelection.enabled"),
+      keep("navigation.moveSelection.inlineEnabled"),
+      keep("navigation.moveSelection.prefixCyclerEnabled"),
+      keep("navigation.moveSelection.indentFallbackEnabled"),
+      keep("navigation.moveSelection.onCycleEnd"),
+      keep("navigation.moveSelection.inlineMoveMode"),
+      keep("navigation.moveSelection.cycleOrder", true),
+      keepV2("navigation.moveSelection.rightCycles"),
+      keep("navigation.jumpToHeader.enabled"),
+      keep("navigation.jumpToHeader.centerCursor"),
+      keep("navigation.jumpToHeader.centerDelayMs"),
+      keep("navigation.jumpToHeader.centerThrottleMs"),
+      keep("navigation.jumpToHeader.jumpMode"),
+      keep("navigation.jumpToHeader.edgeMode"),
+      keep("navigation.jumpToHeader.jumpCursorPosition"),
+      keep("navigation.navigateInline.enabled"),
+      keep("navigation.navigateInline.stepMode"),
+      keep("navigation.navigateInline.boundaryJump"),
+      keep("navigation.navigateInline.onBoundary"),
+      /* --- расширенное «выделить всё» → вкладка Keyboard -------------------- */
+      move("globalFunctions.enhancedSelectAll.enabled", "editor.selectAll.enabled"),
+      move("globalFunctions.enhancedSelectAll.mode", "editor.selectAll.mode"),
+      move("globalFunctions.enhancedSelectAll.useMultiPressDelay", "editor.selectAll.useDelay"),
+      move("globalFunctions.enhancedSelectAll.delayMs", "editor.selectAll.delayMs"),
+      move("globalFunctions.enhancedSelectAll.clearSelectionOnLastPress", "editor.selectAll.clearOnLast"),
+      /* --- Binder ---------------------------------------------------------- */
+      move("ui.binderRows", "editor.binder.rows", { whole: true }),
+      /* --- состояние старой панели: живёт до фазы 3c (8.1) ------------------ */
+      keep("ui.activeSettingsTab"),
+      keep("ui.visualSubTab"),
+      keep("ui.hotkeysSubTab"),
+      keep("ui.pkmSubTab"),
+      keep("ui.orderShowInfoTips"),
+      keep("ui.orderShowDeepEditor"),
+      keep("ui.orderShowColorSettings"),
+      keep("ui.orderActiveCommandsCollapsed"),
+      /* --- PKM: определения Fields (В9) ------------------------------------ */
+      move("pkm.behavior.order", "pkm.fields.order", { whole: true }),
+      move("pkm.behavior.leftMode", "pkm.fields.tags", { whole: true }),
+      move("pkm.behavior.rightMode", "pkm.fields.links", { whole: true }),
+      move("pkm.behavior.elements", "pkm.fields.elements", { whole: true }),
+      move("pkm.taxonomy", "pkm.fields.taxonomy", { whole: true }),
+      move("pkm.behavior.projects", "pkm.fields.projects", { whole: true }),
+      move("pkm.behavior.typeCheckboxByValue", "pkm.fields.checkboxByValue", { whole: true }),
+      move("pkm.behavior.defaultMode", "pkm.fields.defaultBlock"),
+      /* --- PKM: разделители и правила письма -------------------------------- */
+      move("pkm.behavior.io.separator1", "pkm.lineFormat.separator1"),
+      move("pkm.behavior.io.separator2", "pkm.lineFormat.separator2"),
+      move("pkm.behavior.subtagFormat", "pkm.behavior.childTagFormat"),
+      keepV2("pkm.behavior.childTagFormat"),
+      keep("pkm.behavior.cycleEndBehavior"),
+      keep("pkm.behavior.cursorPolicy"),
+      /* --- PKM: как Field встаёт в строку ----------------------------------- */
+      move("pkm.behavior.freeRoam.minimalSeparator", "pkm.placement.keepPrefixInsertOnly"),
+      move("pkm.behavior.freeRoam.minimalPrefix", "pkm.placement.fieldPrefixInsertOnly"),
+      move("pkm.behavior.freeRoam.offPrefix", "pkm.placement.bulletInStrict"),
+      move("pkm.behavior.freeRoam.fullPlacement", "pkm.placement.freeInsertPosition"),
+      /* --- PKM: приоритет Prefix (8.3) -------------------------------------- */
+      move("pkm.behavior.prefixRules.priorityMode", "pkm.prefixPriority.decideBy"),
+      move("pkm.behavior.prefixRules.fieldsOrderMode", "pkm.prefixPriority.fieldOrderSource"),
+      move("pkm.behavior.prefixRules.tagSubtagPriority", "pkm.prefixPriority.parentOrChild"),
+      move("pkm.behavior.prefixRules.resolver", "pkm.prefixRules.resolver"),
+      move("pkm.behavior.prefixRules.priorityTargets", "pkm.prefixRules.priorityTargets", { whole: true }),
+      move("pkm.behavior.prefixRules.priorityCheckboxes", "pkm.prefixRules.priorityCheckboxes", { whole: true }),
+      move("pkm.behavior.prefixRules.checkboxByFieldValue", "pkm.prefixRules.checkboxByFieldValue", { whole: true }),
+      /* --- PKM: заметка конфига --------------------------------------------- */
+      move("pkm.tagWheelConfigPath", "pkm.configNote.path"),
+      move("pkm.tagWheelConfigTemplatePath", "pkm.configNote.templatePath"),
+      move("pkm.configExportMode", "pkm.configNote.detail"),
+      move("pkm.generatedRulesPath", "advanced.generatedRulesPath"),
+      /* --- PKM: удаляемое ---------------------------------------------------- */
+      drop("pkm.executionBackend"),
+      /* --- вид тегов -------------------------------------------------------- */
+      move("pkm.behavior.tagVisuals.opacity.left", "visual.tags.opacityLeft", { cast: shareToPercent }),
+      move("pkm.behavior.tagVisuals.opacity.right", "visual.tags.opacityRight", { cast: shareToPercent }),
+      move("pkm.behavior.tagVisuals.tagTextSizePct", "visual.tags.textSizePct"),
+      move("pkm.behavior.tagVisuals.tagBubbleWidthPct", "visual.tags.bubbleWidthPct"),
+      move("pkm.behavior.tagVisuals.tagBubbleHeightPct", "visual.tags.bubbleHeightPct"),
+      move("pkm.behavior.tagVisuals.emptyBubbleSizePct", "visual.tags.emptyBubblePct"),
+      move("pkm.behavior.tagVisuals.tagShapePct", "visual.tags.cornersPct"),
+      move("pkm.behavior.tagVisuals.byField", "visual.tags.byField", { whole: true }),
+      move("pkm.behavior.tagVisuals.byTag", "visual.tags.byTag", { whole: true }),
+      move("pkm.behavior.tagVisuals.userTags", "visual.tags.userTags", { whole: true }),
+      move("pkm.behavior.tagVisuals.showColorSettings", "viewState.fieldOrder.showColors"),
+      /* --- Tag Bars --------------------------------------------------------- */
+      move("pkm.behavior.tagVisuals.strip.active", "visual.tagBars.active"),
+      move("pkm.behavior.tagVisuals.strip.fieldId", "visual.tagBars.fieldId"),
+      move("pkm.behavior.tagVisuals.strip.tagVisibility", "visual.tagBars.tagVisibility"),
+      move("pkm.behavior.tagVisuals.strip.hideSeparatorWhenOnlyStripToken", "visual.tagBars.hideSeparatorWhenOnlyStripToken"),
+      move("pkm.behavior.tagVisuals.strip.mode", "visual.tagBars.mode"),
+      move("pkm.behavior.tagVisuals.strip.stripesToShow", "visual.tagBars.stripesToShow"),
+      move("pkm.behavior.tagVisuals.strip.spacing", "visual.tagBars.spacing"),
+      move("pkm.behavior.tagVisuals.strip.thickness", "visual.tagBars.thickness"),
+      move("pkm.behavior.tagVisuals.strip.childOffset", "visual.tagBars.childOffset"),
+      /* --- TagWheel --------------------------------------------------------- */
+      move("pkm.behavior.colors.tagwheelHeader.showPrefix", "visual.tagWheel.showMarkers"),
+      move("pkm.behavior.colors.tagwheelHeader.defaultTextColor", "visual.tagWheel.textColor"),
+      move("pkm.behavior.colors.tagwheelHeader.fillColor", "visual.tagWheel.fillColor"),
+      move("pkm.behavior.tagWheelScroller.enabled", "visual.tagWheel.scroller.enabled"),
+      move("pkm.behavior.tagWheelScroller.direction", "visual.tagWheel.scroller.direction"),
+      move("pkm.behavior.tagWheelScroller.size", "visual.tagWheel.scroller.size"),
+      /* --- вид: удаляемое ---------------------------------------------------- */
+      drop("visual.displayModes"),
+      drop("visual.colors"),
+      /* --- вид: уже написанное новой панелью в форме v2 ---------------------- */
+      keepV2("visual.tags.opacityLeft"),
+      keepV2("visual.tags.opacityRight"),
+      keepV2("visual.tags.textSizePct"),
+      keepV2("visual.tags.bubbleWidthPct"),
+      keepV2("visual.tags.bubbleHeightPct"),
+      keepV2("visual.tags.emptyBubblePct"),
+      keepV2("visual.tags.cornersPct"),
+      keepV2("visual.tags.byField", true),
+      keepV2("visual.tags.byTag", true),
+      keepV2("visual.tags.userTags", true),
+      keepV2("visual.tagBars.active"),
+      keepV2("visual.tagBars.fieldId"),
+      keepV2("visual.tagBars.tagVisibility"),
+      keepV2("visual.tagBars.hideSeparatorWhenOnlyStripToken"),
+      keepV2("visual.tagBars.mode"),
+      keepV2("visual.tagBars.stripesToShow"),
+      keepV2("visual.tagBars.spacing"),
+      keepV2("visual.tagBars.thickness"),
+      keepV2("visual.tagBars.childOffset"),
+      keepV2("visual.tagWheel.showMarkers"),
+      keepV2("visual.tagWheel.textColor"),
+      keepV2("visual.tagWheel.fillColor"),
+      keepV2("visual.tagWheel.scroller.enabled"),
+      keepV2("visual.tagWheel.scroller.direction"),
+      keepV2("visual.tagWheel.scroller.size"),
+      /* --- Transform -------------------------------------------------------- */
+      drop("transform.inline2fleet"),
+      keep("transform.inline2note.enabled"),
+      keep("transform.inline2note.outputFolder"),
+      keep("transform.inline2note.defaultTemplate"),
+      keep("transform.inline2note.yamlNoteFormat"),
+      keep("transform.inline2note.smartRules", true),
+      keep("transform.inline2note.noteName.mode"),
+      keep("transform.inline2note.noteName.preferHeaderTitle"),
+      keep("transform.inline2note.nameCollision.mode"),
+      keep("transform.inline2note.placement.position"),
+      keep("transform.inline2note.placement.headerMode"),
+      keep("transform.inline2note.preview.sampleLine"),
+      keep("transform.inline2note.sourceProcessing.cleanupFieldIds", true),
+      keep("transform.inline2note.sourceProcessing.visual", true),
+      move("transform.inline2note.templateFolder", "transform.inline2note.templatesFolder"),
+      move("transform.inline2note.noteName.explicitNameDelimiters", "transform.inline2note.noteName.delimiters"),
+      move("transform.inline2note.noteName.autoWordsCount", "transform.inline2note.noteName.wordCount"),
+      move("transform.inline2note.placement.customHeaderText", "transform.inline2note.placement.customHeader"),
+      move("transform.inline2note.placement.datetimeHeaderFormat", "transform.inline2note.placement.datetimeFormat"),
+      move("transform.inline2note.sourceProcessing.processedToken", "transform.inline2note.sourceProcessing.token"),
+      move("transform.inline2note.sourceProcessing.processedTokenPanel", "transform.inline2note.sourceProcessing.panel"),
+      move("transform.inline2note.sourceProcessing.replacePayloadWithLink", "transform.inline2note.sourceProcessing.replaceWithLink"),
+      move("transform.inline2note.openTransformedNote", "transform.inline2note.openTarget"),
+      move("transform.inline2note.sublinesBehavior", "transform.inline2note.sublines"),
+      move("transform.inline2note.flyingButton.enabled", "transform.inline2note.floatingButton"),
+      keepV2("transform.inline2note.templatesFolder"),
+      keepV2("transform.inline2note.noteName.delimiters"),
+      keepV2("transform.inline2note.noteName.wordCount"),
+      keepV2("transform.inline2note.placement.customHeader"),
+      keepV2("transform.inline2note.placement.datetimeFormat"),
+      keepV2("transform.inline2note.sourceProcessing.token"),
+      keepV2("transform.inline2note.sourceProcessing.panel"),
+      keepV2("transform.inline2note.sourceProcessing.replaceWithLink"),
+      keepV2("transform.inline2note.openTarget"),
+      keepV2("transform.inline2note.sublines"),
+      keepV2("transform.inline2note.floatingButton"),
+      /* --- резервные копии заметки конфига ---------------------------------- */
+      keep("backups.tagWheelConfigApplies", true),
+      /* --- режим разработчика → Advanced ------------------------------------ */
+      move("devMode.enabled", "advanced.devMode.enabled"),
+      move("devMode.generateAiLog", "advanced.devMode.aiLog"),
+      move("devMode.logPath", "advanced.devMode.logPath"),
+      move("devMode.traceTagVisualLine", "advanced.devMode.traceTagVisualLine"),
+      /* --- мёртвые ветки ----------------------------------------------------- */
+      drop("meta"),
+      drop("rules"),
+      /* --- уже написанное новой панелью ------------------------------------- */
+      keepV2("editor.selectAll.enabled"),
+      keepV2("editor.selectAll.mode"),
+      keepV2("editor.selectAll.useDelay"),
+      keepV2("editor.selectAll.delayMs"),
+      keepV2("editor.selectAll.clearOnLast"),
+      keepV2("editor.binder.rows", true),
+      keepV2("general.help.showTips"),
+      keepV2("advanced.newSettingsPane"),
+      /* Тумблер подписи id в подсказках (10.13.5): настройка новая, ветки v1 у неё
+         нет, и мигрировать нечего — но маршрут нужен, чтобы форма v2 в конфиге
+         заказчика не считалась неизвестным ключом и не уезжала в `_unmigrated`. */
+      keepV2("advanced.showSettingIds"),
+      keepV2("advanced.generatedRulesPath"),
+      keepV2("advanced.devMode.enabled"),
+      keepV2("advanced.devMode.aiLog"),
+      keepV2("advanced.devMode.logPath"),
+      keepV2("advanced.devMode.traceTagVisualLine"),
+      keepV2("pkm.fields.order", true),
+      keepV2("pkm.fields.tags", true),
+      keepV2("pkm.fields.links", true),
+      keepV2("pkm.fields.elements", true),
+      keepV2("pkm.fields.taxonomy", true),
+      keepV2("pkm.fields.projects", true),
+      keepV2("pkm.fields.checkboxByValue", true),
+      keepV2("pkm.fields.defaultBlock"),
+      keepV2("pkm.lineFormat.separator1"),
+      keepV2("pkm.lineFormat.separator2"),
+      keepV2("pkm.placement.keepPrefixInsertOnly"),
+      keepV2("pkm.placement.fieldPrefixInsertOnly"),
+      keepV2("pkm.placement.bulletInStrict"),
+      keepV2("pkm.placement.freeInsertPosition"),
+      keepV2("pkm.prefixPriority.decideBy"),
+      keepV2("pkm.prefixPriority.fieldOrderSource"),
+      keepV2("pkm.prefixPriority.parentOrChild"),
+      keepV2("pkm.prefixRules.resolver"),
+      keepV2("pkm.prefixRules.priorityTargets", true),
+      keepV2("pkm.prefixRules.priorityCheckboxes", true),
+      keepV2("pkm.prefixRules.checkboxByFieldValue", true),
+      keepV2("pkm.configNote.path"),
+      keepV2("pkm.configNote.templatePath"),
+      keepV2("pkm.configNote.detail"),
+      keepV2("viewState.activeTab"),
+      keepV2("viewState.fieldOrder.expanded", true),
+      keepV2("viewState.fieldOrder.showColors"),
+      keepV2("_unmigrated", true)
+    ]);
+  }
+});
+
+// src/ui/settings/v1_bridge.ts
+function shareToPercent2(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  const pct = Math.round(n * 100);
+  return pct < 0 ? 0 : pct > 100 ? 100 : pct;
+}
+function percentToShare(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  const share = n / 100;
+  return share < 0 ? 0 : share > 1 ? 1 : share;
+}
+function bridge(schemaPath) {
+  const found = BACK.get(schemaPath);
+  return found || { path: schemaPath, read: same, write: same };
+}
+var same, BACK;
+var init_v1_bridge = __esm({
+  "src/ui/settings/v1_bridge.ts"() {
+    "use strict";
+    init_config_migration_v2();
+    same = (v) => v;
+    BACK = (() => {
+      const out = /* @__PURE__ */ new Map();
+      for (const [from, route] of ROUTES) {
+        if (route.drop || route.whole || route.alreadyV2) continue;
+        const to = route.to;
+        if (!to || to === from) continue;
+        out.set(to, {
+          path: from,
+          /* Единицы меняет ровно один маршрут — прозрачность. */
+          read: route.cast === void 0 ? same : shareToPercent2,
+          write: route.cast === void 0 ? same : percentToShare
+        });
+      }
+      return out;
+    })();
+  }
+});
+
 // src/ui/settings/store.ts
 var ConfigStoreAdapter;
 var init_store = __esm({
   "src/ui/settings/store.ts"() {
     "use strict";
     init_types();
+    init_v1_bridge();
     ConfigStoreAdapter = class {
       constructor(store) {
         this.store = store;
       }
+      /*
+       * Путь переводится в тот, который читает рантайм (`v1_bridge.ts`). Схема
+       * пользуется путями версии 2, движки — версии 1, и до фазы 2 настройка,
+       * записанная по пути v2, никем не читается. Причина записи остаётся
+       * названной по пути схемы: по ней узнают контрол, а не ветку конфига.
+       */
       get(path) {
-        return getIn(this.store.getConfig(), path);
+        const b = bridge(path);
+        const raw = getIn(this.store.getConfig(), b.path);
+        return raw === void 0 ? void 0 : b.read(raw);
       }
       async set(path, value, opts) {
+        const b = bridge(path);
+        const stored = b.write(value);
         await this.store.update(
-          (cfg) => setIn(cfg, path, value),
+          (cfg) => setIn(cfg, b.path, stored),
           "settings:" + path,
           opts
         );
@@ -34172,9 +34491,9 @@ var init_obsidian_tab = __esm({
     init_actions();
     init_dom();
     InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
-      constructor(app3, plugin, bridge) {
+      constructor(app3, plugin, bridge2) {
         super(app3, plugin);
-        const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function" ? bridge.normalizePkmOrder : null;
+        const normalizePkmOrder = bridge2 && typeof bridge2.normalizePkmOrder === "function" ? bridge2.normalizePkmOrder : null;
         this.pane = new SettingsPane({
           schema: SCHEMA,
           tabs: TABS,
@@ -34221,7 +34540,7 @@ var init_obsidian_tab = __esm({
             plugin,
             getConfig: () => typeof plugin.getConfig === "function" ? plugin.getConfig() : {},
             normalizePkmOrder,
-            pkmOrderFields: bridge && bridge.pkmOrderFields || []
+            pkmOrderFields: bridge2 && bridge2.pkmOrderFields || []
           } : void 0
         });
       }
@@ -35415,8 +35734,8 @@ var require_main = __commonJS({
         }
       }
       const loadVaultBridgeSafe = async () => {
-        let bridge = globalThis.__inlineVaultModuleBridge;
-        if (bridge && typeof bridge.loadVaultModule === "function") return bridge;
+        let bridge2 = globalThis.__inlineVaultModuleBridge;
+        if (bridge2 && typeof bridge2.loadVaultModule === "function") return bridge2;
         try {
           const mod = require_vault_module_bridge();
           if (mod && typeof mod.loadVaultModule === "function") {
@@ -35454,13 +35773,13 @@ var require_main = __commonJS({
         return null;
       };
       const tryLoadWithVaultBridge = async (modulePath) => {
-        let bridge = globalThis.__inlineVaultModuleBridge;
-        if (!(bridge && typeof bridge.loadVaultModule === "function")) {
-          bridge = await loadVaultBridgeSafe();
+        let bridge2 = globalThis.__inlineVaultModuleBridge;
+        if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
+          bridge2 = await loadVaultBridgeSafe();
         }
-        if (!(bridge && typeof bridge.loadVaultModule === "function")) return null;
+        if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) return null;
         try {
-          return await bridge.loadVaultModule(app3, modulePath, false, "__inlineOverhaulMainModuleCache");
+          return await bridge2.loadVaultModule(app3, modulePath, false, "__inlineOverhaulMainModuleCache");
         } catch (e) {
           reportLoaderFallback(`main.tryLoadWithVaultBridge.load:${modulePath}`, e);
           return null;
