@@ -19,7 +19,7 @@ import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals, Setting, Notice, Modal } from "../harness/obsidian_stub.ts";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import { previewFields, resolveSlots, EXAMPLE_FIELDS } from "../../src/ui/settings/custom/preview_data.ts";
-import { barsPreview, tagPreview, wheelPreview } from "../../src/ui/settings/custom/previews.ts";
+import { barsPreview, linePreview, tagPreview, wheelPreview } from "../../src/ui/settings/custom/previews.ts";
 import { PREVIEW_EXAMPLE, PREVIEW_TEXTS } from "../../src/ui/settings/schema/custom_texts.ts";
 import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
 import { buildDefaultConfig, getIn } from "../../src/ui/settings/types.ts";
@@ -380,6 +380,90 @@ function realConfig(): Any {
   assert.equal(PREVIEW_EXAMPLE.length > 0, true, "и текст пометки на месте");
   assert.ok((PREVIEW_TEXTS["bars-preview"]?.tree || []).length, "дерево Bars живёт в текстах");
   ok("пустой vault: пример вместо пустой строки");
+}
+
+/* ======================================================================
+ * 8. Разбор строки (10.3 П3): Fields, а не значения одного Field.
+ *
+ * Проверка по выводу: читается, что встало в каждую ячейку сетки. Разбор
+ * строки объясняет её устройство — Prefix, два Block, два Separator и текст
+ * между ними, — и подписи обязаны стоять под тем, что подписывают.
+ * ====================================================================== */
+
+{
+  const cfg = realConfig();
+  const host = makeNode("div");
+  const close = linePreview(host as unknown as El, makeCtx(cfg, {
+    "pkm.lineFormat.separator1": "//",
+    "pkm.lineFormat.separator2": "\\\\",
+  }));
+
+  /* Ряд первый: сама строка. */
+  const sides = all(host, "io-struct__side");
+  assert.equal(sides.length, 2, "два Block: левый и правый");
+  assert.deepEqual(
+    (sides[0] as StubNode).children.map(n => n.textContent),
+    ["State", "Urgency"],
+    "в левом Block чипы настоящих Fields, по имени");
+  assert.deepEqual(
+    (sides[1] as StubNode).children.map(n => n.textContent),
+    ["Client"],
+    "в правом — тот, который стоит справа");
+  assert.deepEqual(texts(host, "io-line__sep"), ["//", "\\\\"],
+    "Separator показаны те, что стоят в настройках");
+  assert.equal(texts(host, "io-line__text")[0], "your text", "текст строки — выдуманный (П1)");
+  assert.equal(texts(host, "io-line__prefix")[0], "- ", "Prefix на своём месте");
+
+  /* Ряд второй и третий: подписи под Blocks и Separator. */
+  assert.deepEqual(texts(host, "io-struct__name"), ["Left Block", "Right Block"],
+    "скобки подписаны Blocks");
+  assert.deepEqual(texts(host, "io-struct__sepname"), ["separator 1", "separator 2"],
+    "и Separator подписаны по порядку");
+  assert.equal(all(host, "io-struct__tick").length, 2, "по засечке под каждым Separator");
+
+  /*
+   * Сетка одна на все три ряда: ячейки лежат в одном узле подряд, и ряды не
+   * могут разъехаться. Шесть колонок на три ряда — восемнадцать ячеек.
+   */
+  const grid = all(host, "io-struct")[0] as StubNode;
+  assert.equal(grid.children.length, 18,
+    "три ряда по шесть ячеек в одной сетке: " + grid.children.length);
+  assert.ok(!texts(host, "io-preview__note").some(t => t.includes("Example Fields")),
+    "Fields настоящие — пометки о примере нет");
+  close();
+  ok("разбор строки: настоящие Fields, Separator из настроек, подписи под своими местами");
+}
+
+{
+  /* Правый Block пуст — одно слово вместо чипов, а не пустая ячейка. */
+  const base = realConfig();
+  base.pkm.behavior.order.right = [];
+  base.pkm.behavior.order.left = ["state", "urgency", "client"];
+  const cfg = internals.migrateConfig(base);
+  const host = makeNode("div");
+  const close = linePreview(host as unknown as El, makeCtx(cfg));
+  const sides = all(host, "io-struct__side");
+  assert.equal(all(sides[1] as StubNode, "io-line__hint").length, 1,
+    "у пустого правого Block — подпись, а не пустота");
+  assert.equal(texts(host, "io-line__hint")[0], "empty");
+  close();
+  ok("разбор строки: пустой правый Block подписан");
+}
+
+{
+  /*
+   * Пример помечается и здесь. Проверка добавлена мутационным прогоном:
+   * дефект «пометка не ставится» выжил, потому что все случаи разбора строки
+   * шли на настоящих Fields, где пометки и не должно быть.
+   */
+  const host = makeNode("div");
+  const close = linePreview(host as unknown as El, makeCtx(null));
+  assert.ok(texts(host, "io-preview__note").some(t => t.includes("Example Fields")),
+    "без платформы разбор строки помечает пример: " + texts(host, "io-preview__note").join(" | "));
+  assert.deepEqual(texts(host, "io-struct__name"), ["Left Block", "Right Block"],
+    "и сам разбор при этом на месте");
+  close();
+  ok("разбор строки: пример помечен, как и в остальных предпросмотрах");
 }
 
 console.log("\n" + passed + " проверок пройдено");

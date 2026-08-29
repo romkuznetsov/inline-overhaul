@@ -32491,7 +32491,7 @@ function structuralLine(parent, ctx, fields, chipFor) {
   else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
   return line;
 }
-var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, TAG_SLOTS, tagPreview;
+var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview;
 var init_previews = __esm({
   "src/ui/settings/custom/previews.ts"() {
     "use strict";
@@ -32673,6 +32673,84 @@ var init_previews = __esm({
       };
       draw();
       const unwatch = ctx.watch(BARS_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
+    STRUCT_LEFT = "Left Block";
+    STRUCT_RIGHT = "Right Block";
+    STRUCT_SEP1 = "separator 1";
+    STRUCT_SEP2 = "separator 2";
+    STRUCT_EMPTY_RIGHT = "empty";
+    LINE_PATHS = [
+      "pkm.lineFormat.separator1",
+      "pkm.lineFormat.separator2",
+      "visual.tags.opacityLeft",
+      "visual.tags.opacityRight",
+      "visual.tags.textSizePct",
+      "visual.tags.bubbleWidthPct",
+      "visual.tags.bubbleHeightPct",
+      "visual.tags.cornersPct"
+    ];
+    linePreview = (host, ctx) => {
+      const shell = previewShell(host, ctx, "line-preview");
+      const holder = el(shell.box, "div", "io-struct");
+      const foot = el(shell.box, "div", "io-preview__foot");
+      const draw = () => {
+        holder.empty();
+        foot.empty();
+        applyTagVars(holder, ctx);
+        const { fields, example } = previewFields(ctx);
+        const cell = (cls, fill) => {
+          const c = el(holder, "div", "io-struct__cell " + cls);
+          if (fill) fill(c);
+          return c;
+        };
+        cell("io-struct__prefix", (c) => {
+          el(c, "span", "io-line__prefix", "- ");
+        });
+        cell("io-struct__side io-line__side--left", (c) => {
+          for (const f of fieldsOn(fields, "left")) fieldChip(c, f);
+        });
+        cell("io-struct__sep", (c) => {
+          el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+        });
+        cell("io-struct__text", (c) => {
+          el(c, "span", "io-line__text", PREVIEW_LINE_TEXT);
+        });
+        cell("io-struct__sep", (c) => {
+          el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+        });
+        cell("io-struct__side io-line__side--right", (c) => {
+          const right = fieldsOn(fields, "right");
+          if (right.length) for (const f of right) fieldChip(c, f);
+          else el(c, "span", "io-line__hint", STRUCT_EMPTY_RIGHT);
+        });
+        const block = (text) => {
+          const w = el(holder, "div", "io-struct__block");
+          el(w, "div", "io-struct__bracket");
+          el(w, "div", "io-struct__name", text);
+        };
+        el(holder, "div");
+        block(STRUCT_LEFT);
+        el(holder, "div", "io-struct__tick");
+        el(holder, "div");
+        el(holder, "div", "io-struct__tick");
+        block(STRUCT_RIGHT);
+        const sepName = (text) => {
+          el(el(holder, "div", "io-struct__sepname"), "span", void 0, text);
+        };
+        el(holder, "div");
+        el(holder, "div");
+        sepName(STRUCT_SEP1);
+        el(holder, "div");
+        sepName(STRUCT_SEP2);
+        el(holder, "div");
+        if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+      };
+      draw();
+      const unwatch = ctx.watch(LINE_PATHS, draw);
       return () => {
         unwatch();
         shell.close();
@@ -34030,6 +34108,7 @@ var init_pkm = __esm({
     init_types();
     init_callouts();
     init_fields_editor();
+    init_previews();
     PKM_GROUPS = [
       {
         id: "pkm-intro",
@@ -34048,6 +34127,7 @@ var init_pkm = __esm({
         intro: "A Field is one slot a line can hold: a tag, a link to another note, or an element such as a date. Set out the slots you want, the Values each one offers, and where on the line they go",
         tip: "A <b>Field</b> is one slot on a line. There are three kinds of Field: <b>tag</b>, <b>link</b> (wikilink), and <b>emoji-element</b> \u2014 such as a date or a time. Each Field automatically gets two <b>cycle commands</b>, <code>next</code> and <code>previous</code>, which insert the Value and cycle it back or forth \u2014 it is worth a hotkey for the ones you use often, so a <code>#todo</code> tag is one keypress away. <b>TagWheel</b> opens all of your Fields over the line at once, so you can pick with the arrow keys instead of remembering which key does what",
         items: [
+          { kind: "custom", id: "line-preview", render: linePreview },
           { kind: "custom", id: "field-editor", render: fieldsEditor }
         ]
       },

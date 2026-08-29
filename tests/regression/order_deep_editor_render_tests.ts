@@ -360,9 +360,20 @@ async function main(): Promise<void> {
     pane.setActiveTab("pkm" as never);
     const defs = pane.getSettingDefinitions() as Any[];
     const group = defs.find((d: Any) => d.heading === "Fields");
-    const row = group.items.find((i: Any) => typeof i.render === "function");
-    const host = node("div");
-    row.render({ settingEl: host }, {});
+    /*
+     * Своих блоков в группе `Fields` теперь два: разбор строки (10.3 П3) и сам
+     * редактор. Берётся не первый попавшийся, а тот, который нарисовал
+     * редактор, — иначе проверка молча переехала бы на предпросмотр.
+     */
+    const customs = group.items.filter((i: Any) => typeof i.render === "function");
+    let host = node("div");
+    for (const candidate of customs) {
+      const probe = node("div");
+      candidate.render({ settingEl: probe }, {});
+      if (probe.querySelectorAll(".io-fieldsblock__mount").length) { host = probe; break; }
+    }
+    assert.ok(host.querySelectorAll(".io-fieldsblock__mount").length,
+      "редактор Fields не нашёлся среди своих блоков группы");
 
     /*
      * Класс сменился вместе с блоком: новая панель показывает новую вёрстку

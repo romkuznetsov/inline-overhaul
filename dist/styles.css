@@ -1139,3 +1139,74 @@
   color: var(--text-faint);
   user-select: all;
 }
+
+/* ======================================================================
+ * Разбор строки: предпросмотр `line-preview` (PRD 10.3 П3).
+ *
+ * Строка, скобки под Blocks и подписи Separator стоят на ОДНОЙ сетке в три
+ * ряда. Это не украшение: разложи их тремя отдельными строками — и подпись
+ * разъедется с тем, что подписывает, на первом же длинном имени Field.
+ * ====================================================================== */
+
+.io-struct {
+  display: inline-grid;
+  grid-template-columns: repeat(6, auto);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  column-gap: 5px;
+  row-gap: 2px;
+}
+.io-struct__cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.io-struct__block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+/* Скобка под Block: три стороны рамки, четвёртой нет — она обнимает снизу. */
+.io-struct__bracket {
+  height: 5px;
+  border: 1px solid var(--background-modifier-border);
+  border-top: 0;
+  border-radius: 0 0 3px 3px;
+}
+.io-struct__name {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  text-align: center;
+  white-space: nowrap;
+}
+/* Засечка под Separator: он узкий, и скобка была бы шире него самого. */
+.io-struct__tick {
+  width: 1px;
+  height: 9px;
+  margin: 0 auto;
+  background: var(--background-modifier-border);
+}
+/*
+ * Подпись Separator вынута из потока и центрирована на своей колонке: в
+ * потоке её ширина растянула бы узкую колонку Separator, и строка выше
+ * разъехалась бы.
+ */
+.io-struct__sepname {
+  position: relative;
+  height: 11px;
+}
+.io-struct__sepname > span {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}

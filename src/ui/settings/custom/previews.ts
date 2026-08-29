@@ -425,6 +425,110 @@ export const barsPreview: CustomRender = (host, ctx) => {
   return () => { unwatch(); shell.close(); };
 };
 
+/* ---- предпросмотр строки (П3) ------------------------------------------ */
+
+/**
+ * Подписи под разбором строки. Сняты с прототипа: он показывает не значения, а
+ * устройство строки, и подписи — часть этого объяснения.
+ */
+const STRUCT_LEFT = "Left Block";
+const STRUCT_RIGHT = "Right Block";
+const STRUCT_SEP1 = "separator 1";
+const STRUCT_SEP2 = "separator 2";
+/** Правый Block пуст: в разборе строки это одно слово, а не приглашение. */
+const STRUCT_EMPTY_RIGHT = "empty";
+
+/** Пути, от которых зависит разбор строки. */
+const LINE_PATHS = [
+  "pkm.lineFormat.separator1",
+  "pkm.lineFormat.separator2",
+  "visual.tags.opacityLeft",
+  "visual.tags.opacityRight",
+  "visual.tags.textSizePct",
+  "visual.tags.bubbleWidthPct",
+  "visual.tags.bubbleHeightPct",
+  "visual.tags.cornersPct",
+] as const;
+
+/**
+ * Предпросмотр строки целиком (П3): `Prefix`, Left Block, `First Separator`,
+ * текст, `Second Separator`, Right Block. Показываются **Fields**, а не
+ * значения одного Field — этим он и отличается от предпросмотра оформления.
+ *
+ * Три ряда на одной сетке, и это не украшение: строка, скобки под Blocks и
+ * подписи Separator обязаны стоять друг под другом. Разложи их тремя
+ * отдельными строками — и подпись разъедется с тем, что подписывает, на
+ * первом же длинном имени Field. Подписи Separator вынуты из потока
+ * (`position: absolute` в `styles.css`), чтобы длинное слово не расширило
+ * узкую колонку.
+ */
+export const linePreview: CustomRender = (host, ctx) => {
+  const shell = previewShell(host, ctx, "line-preview");
+  const holder = el(shell.box, "div", "io-struct");
+  const foot = el(shell.box, "div", "io-preview__foot");
+
+  const draw = (): void => {
+    holder.empty();
+    foot.empty();
+    applyTagVars(holder, ctx);
+    const { fields, example } = previewFields(ctx);
+
+    const cell = (cls: string, fill?: (c: El) => void): El => {
+      const c = el(holder, "div", "io-struct__cell " + cls);
+      if (fill) fill(c);
+      return c;
+    };
+    /* Ряд первый — сама строка. */
+    cell("io-struct__prefix", c => { el(c, "span", "io-line__prefix", "- "); });
+    cell("io-struct__side io-line__side--left", c => {
+      for (const f of fieldsOn(fields, "left")) fieldChip(c, f);
+    });
+    cell("io-struct__sep", c => {
+      el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+    });
+    cell("io-struct__text", c => { el(c, "span", "io-line__text", PREVIEW_LINE_TEXT); });
+    cell("io-struct__sep", c => {
+      el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+    });
+    cell("io-struct__side io-line__side--right", c => {
+      const right = fieldsOn(fields, "right");
+      if (right.length) for (const f of right) fieldChip(c, f);
+      else el(c, "span", "io-line__hint", STRUCT_EMPTY_RIGHT);
+    });
+
+    /* Ряд второй — скобки под Blocks и засечки под Separator. */
+    const block = (text: string): void => {
+      const w = el(holder, "div", "io-struct__block");
+      el(w, "div", "io-struct__bracket");
+      el(w, "div", "io-struct__name", text);
+    };
+    el(holder, "div");
+    block(STRUCT_LEFT);
+    el(holder, "div", "io-struct__tick");
+    el(holder, "div");
+    el(holder, "div", "io-struct__tick");
+    block(STRUCT_RIGHT);
+
+    /* Ряд третий — подписи Separator, каждая по центру своей колонки. */
+    const sepName = (text: string): void => {
+      el(el(holder, "div", "io-struct__sepname"), "span", undefined, text);
+    };
+    el(holder, "div");
+    el(holder, "div");
+    sepName(STRUCT_SEP1);
+    el(holder, "div");
+    sepName(STRUCT_SEP2);
+    el(holder, "div");
+
+    /* Пример помечается: иначе человек решит, что видит свои Fields (ПЗ2). */
+    if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+  };
+
+  draw();
+  const unwatch = ctx.watch(LINE_PATHS, draw);
+  return () => { unwatch(); shell.close(); };
+};
+
 /**
  * Места, которые показывает предпросмотр оформления: два Field слева. Имена
  * взяты из примерного набора и работают как места, а не как id (П13).

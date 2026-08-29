@@ -68,6 +68,11 @@ const CUSTOM_IMPL = {
     named: "callout",
     expr: group => 'callout("' + group.tab + '")',
   },
+  renderLinePreview: {
+    module: "previews.ts",
+    named: "linePreview",
+    expr: () => "linePreview",
+  },
   renderTagPreview: {
     module: "previews.ts",
     named: "tagPreview",
