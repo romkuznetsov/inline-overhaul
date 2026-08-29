@@ -62,6 +62,17 @@ const TAB_CONST = {
  * рендерер один, и в прототипе он берёт текст из глобального activeTab —
  * в схеме такого глобального состояния нет и быть не должно.
  */
+/**
+ * Настройки, за которыми ещё нет движка. Показывать их нельзя (З8), и
+ * прототип тут ни при чём: он показывает панель, какой она будет. Каждая
+ * запись названа причиной и снимается вместе с работой, которая её сделает.
+ */
+const AWAITING_ENGINE = {
+  /* `flyingButton.enabled` нормализуется в transform_feature.js и больше
+     никем не читается: декорации CM6 нет. PRD 10.10, Ж2 — фаза 5. */
+  "i2n-floating": "нет декорации CM6",
+};
+
 const CUSTOM_IMPL = {
   renderTabCallout: {
     module: "callouts.ts",
@@ -123,10 +134,10 @@ const CUSTOM_IMPL = {
     named: "binderTable",
     expr: () => "binderTable",
   },
-  renderFloatingButton: {
-    module: "previews.ts",
-    named: "floatingButton",
-    expr: () => "floatingButton",
+  renderUserTagColors: {
+    module: "user_tags.ts",
+    named: "userTagColors",
+    expr: () => "userTagColors",
   },
 };
 
@@ -204,6 +215,14 @@ for (const g of groups) {
   const drop = [];
   for (const it of items) {
     const kind = field(it, "kind");
+    const itemId = field(it, "id") || "?";
+    /* За настройкой нет движка — в панели её нет (З8), какого бы вида она
+       ни была. */
+    if (AWAITING_ENGINE[itemId]) {
+      drop.push(itemId + " (" + kind + ", " + AWAITING_ENGINE[itemId] + ")");
+      dropped++;
+      continue;
+    }
     if (kind === "custom") {
       const fn = renderName(it);
       const impl = fn ? CUSTOM_IMPL[fn] : null;

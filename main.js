@@ -2850,6 +2850,14 @@ function migrateConfig(raw) {
     for (const rawToken of Object.keys(userTagsIn)) {
       const token = normalizeTagToken(rawToken);
       if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
+      /*
+       * Надгробие. Единственный шов записи у панели -- setConfigPatch, а он
+       * идёт через deepMerge, который ключ карты убрать не умеет: на месте
+       * удалённого остаётся null. Раньше null превращался здесь в строку с
+       * цветами темы, и удалённый тег возвращался в список на первой же
+       * перерисовке -- то есть удаление своего тега не работало вовсе.
+       */
+      if (userTagsIn[rawToken] === null) continue;
       userTagsOut[token] = normalizeTagVisualRow(userTagsIn[rawToken], "default");
     }
     visuals.userTags = userTagsOut;

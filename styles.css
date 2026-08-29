@@ -1579,3 +1579,18 @@
   box-shadow: 0 2px 8px rgba(20, 17, 32, 0.2);
   white-space: nowrap;
 }
+/* ---- Color your Tags: цвета тегов вне Fields -----------------------------
+   Сетка та же по смыслу, что у таблицы Values, но колонок пять: имя тега (оно
+   же предпросмотр), два цвета, показ и кнопки. Сетка живёт здесь, а не в
+   атрибутах узлов. */
+.io-usertags .io-tablehead,
+.io-usertags .io-tablerow {
+  grid-template-columns: minmax(96px, 1fr) 34px 34px 96px 62px;
+}
+.io-usertags .io-tablefoot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.io-usertags .io-tablefoot .io-text { flex: 1 1 auto; min-width: 0; }
+.io-usertags .io-side__empty { padding: 10px 12px; }

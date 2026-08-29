@@ -1111,7 +1111,7 @@ var require_navigation_runtime = __commonJS({
       if (!m) return null;
       return JSON.parse(String(m[1] || "").trim());
     }
-    function tokenOf(v) {
+    function tokenOf2(v) {
       if (typeof v === "string") return v;
       if (v && typeof v === "object" && typeof v.token === "string") return v.token;
       return "";
@@ -1158,7 +1158,7 @@ var require_navigation_runtime = __commonJS({
       if (typeField && Array.isArray(typeField.values)) {
         const prefix = typeof typeField.prefix === "string" ? typeField.prefix : "#";
         for (const v of typeField.values) {
-          const t = tokenOf(v);
+          const t = tokenOf2(v);
           if (!t) continue;
           typeRoots.push(prefix + t);
         }
@@ -1166,7 +1166,7 @@ var require_navigation_runtime = __commonJS({
       if (ctxField && Array.isArray(ctxField.values)) {
         const prefix = typeof ctxField.prefix === "string" ? ctxField.prefix : "#";
         for (const v of ctxField.values) {
-          const t = tokenOf(v);
+          const t = tokenOf2(v);
           if (!t) continue;
           ctxRoots.add(prefix + t);
         }
@@ -24982,7 +24982,7 @@ function createFieldsModel(deps) {
     );
     return { ok: true };
   };
-  const normalizeHex = (value) => {
+  const normalizeHex2 = (value) => {
     const s = String(value || "").trim().toLowerCase();
     if (!s) return "";
     return /^#[0-9a-f]{6}$/.test(s) ? s : "";
@@ -24999,8 +24999,8 @@ function createFieldsModel(deps) {
     const fm = fid ? asObject(byTag[fid]) : {};
     const row = tok ? asObject(fm[tok]) : {};
     return {
-      fillColor: normalizeHex(row["fillColor"]),
-      textColor: normalizeHex(row["textColor"]),
+      fillColor: normalizeHex2(row["fillColor"]),
+      textColor: normalizeHex2(row["textColor"]),
       visibility: normalizeVisibility(row["visibility"]),
       customText: String(row["customText"] || "").trim()
     };
@@ -25014,8 +25014,8 @@ function createFieldsModel(deps) {
     const current = asObject(asObject(byTag[fid])[tok]);
     const has = (key) => Object.prototype.hasOwnProperty.call(patch, key);
     const next = {
-      fillColor: has("fillColor") ? normalizeHex(patch.fillColor) : normalizeHex(current["fillColor"]),
-      textColor: has("textColor") ? normalizeHex(patch.textColor) : normalizeHex(current["textColor"]),
+      fillColor: has("fillColor") ? normalizeHex2(patch.fillColor) : normalizeHex2(current["fillColor"]),
+      textColor: has("textColor") ? normalizeHex2(patch.textColor) : normalizeHex2(current["textColor"]),
       visibility: has("visibility") ? normalizeVisibility(patch.visibility) : normalizeVisibility(current["visibility"]),
       customText: has("customText") ? String(patch.customText || "").trim() : String(current["customText"] || "").trim()
     };
@@ -33285,7 +33285,7 @@ function structuralLine(parent, ctx, fields, chipFor) {
   else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
   return line;
 }
-var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview, FLOAT_PATHS, FLOAT_LABEL, floatingButton;
+var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview;
 var init_previews = __esm({
   "src/ui/settings/custom/previews.ts"() {
     "use strict";
@@ -33577,30 +33577,6 @@ var init_previews = __esm({
       };
       draw();
       const unwatch = ctx.watch(TAG_PATHS, draw);
-      return () => {
-        unwatch();
-        shell.close();
-      };
-    };
-    FLOAT_PATHS = [
-      "pkm.lineFormat.separator1",
-      "pkm.lineFormat.separator2"
-    ];
-    FLOAT_LABEL = "\u2192 note";
-    floatingButton = (host, ctx) => {
-      const shell = previewShell(host, ctx, "i2n-button-preview");
-      const text = PREVIEW_TEXTS["i2n-button-preview"];
-      const holder = el(shell.box, "div");
-      const draw = () => {
-        holder.empty();
-        const row = el(holder, "div", "io-floatrow");
-        const { fields } = previewFields(ctx);
-        structuralLine(row, ctx, fields);
-        el(row, "span", "io-float", FLOAT_LABEL);
-        el(holder, "p", "io-preview__note", text ? text.note || "" : "");
-      };
-      draw();
-      const unwatch = ctx.watch(FLOAT_PATHS, draw);
       return () => {
         unwatch();
         shell.close();
@@ -35177,6 +35153,260 @@ var init_pkm = __esm({
   }
 });
 
+// src/ui/settings/custom/user_tags.ts
+function asObject4(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function normalizeHex(value) {
+  const s = String(value || "").trim().toLowerCase();
+  if (!s) return "";
+  return /^#[0-9a-f]{6}$/.test(s) ? s : "";
+}
+function normalizeShown(value) {
+  return String(value || "default").trim().toLowerCase() === "empty" ? "empty" : "default";
+}
+function userTagsOf(cfg) {
+  const behavior = asObject4(asObject4(asObject4(cfg)["pkm"])["behavior"]);
+  return asObject4(asObject4(behavior["tagVisuals"])["userTags"]);
+}
+function tokenOf(raw) {
+  const s = String(raw || "").trim();
+  const withHash = s.charAt(0) === "#" ? s : "#" + s.replace(/^#+/, "");
+  return /^#\S+$/.test(withHash) ? withHash : "";
+}
+function createUserTagsModel(plugin) {
+  const write = (token, next, reason) => {
+    plugin.setConfigPatch(
+      { pkm: { behavior: { tagVisuals: { userTags: { [token]: next } } } } },
+      reason
+    );
+  };
+  return {
+    listTags() {
+      const map = userTagsOf(plugin.getConfig());
+      const out = [];
+      for (const key of Object.keys(map)) {
+        const token = tokenOf(key);
+        if (!token || token !== key.trim()) continue;
+        const row = asObject4(map[key]);
+        out.push({
+          token,
+          fillColor: normalizeHex(row["fillColor"]),
+          textColor: normalizeHex(row["textColor"]),
+          visibility: normalizeShown(row["visibility"])
+        });
+      }
+      return out;
+    },
+    setVisual(token, patch, reason) {
+      const tok = tokenOf(token);
+      if (!tok) return;
+      const current = asObject4(userTagsOf(plugin.getConfig())[tok]);
+      const has = (key) => Object.prototype.hasOwnProperty.call(patch, key);
+      write(tok, {
+        fillColor: has("fillColor") ? normalizeHex(patch.fillColor) : normalizeHex(current["fillColor"]),
+        textColor: has("textColor") ? normalizeHex(patch.textColor) : normalizeHex(current["textColor"]),
+        visibility: has("visibility") ? normalizeShown(patch.visibility) : normalizeShown(current["visibility"])
+      }, reason);
+    },
+    remove(token) {
+      const tok = tokenOf(token);
+      if (!tok) return;
+      plugin.setConfigPatch(
+        { pkm: { behavior: { tagVisuals: { userTags: { [tok]: null } } } } },
+        "pkm:visuals:user-tags:delete"
+      );
+    },
+    add(raw) {
+      const tok = tokenOf(raw);
+      if (!tok) return;
+      if (Object.prototype.hasOwnProperty.call(userTagsOf(plugin.getConfig()), tok)) return;
+      write(
+        tok,
+        { fillColor: "", textColor: "", visibility: "default" },
+        "pkm:visuals:user-tags:add"
+      );
+    }
+  };
+}
+function themePair2(node) {
+  return {
+    fill: cssVarValue(node, "--interactive-accent"),
+    text: cssVarValue(node, "--text-on-accent")
+  };
+}
+function renderUserTags(host, o) {
+  const card = el(host, "div", "io-card io-usertags");
+  const head = el(card, "div", "io-tablehead");
+  for (const cap of HEAD2) el(head, "div", void 0, cap);
+  const theme = themePair2(card);
+  if (!o.rows.length) el(card, "div", "io-side__empty", EMPTY_LIST);
+  for (const row of o.rows) {
+    const line = el(card, "div", "io-tablerow");
+    const cell = el(line, "div", "io-vals__prev");
+    applyTagVars(cell, o.ctx);
+    bubble(cell, {
+      token: row.token.replace(/^#/, ""),
+      fill: row.fillColor,
+      text: row.textColor,
+      shown: row.visibility === "empty" ? "empty" : "value",
+      custom: "",
+      depth: 0
+    });
+    if (row.visibility !== "empty") {
+      const ratio = contrastRatio(row.fillColor || theme.fill, row.textColor || theme.text);
+      if (ratio < CONTRAST_FLOOR) {
+        const warn = el(cell, "span", "io-warn", "\u26A0");
+        warn.setAttribute("aria-label", contrastWarning(ratio));
+      }
+    }
+    const color = (key, label, reason) => {
+      const wrap = el(line, "div");
+      const input = wrap.createEl("input", {
+        cls: "io-colin",
+        type: "color",
+        value: (key === "fillColor" ? row.fillColor : row.textColor) || "#ffffff",
+        attr: { "aria-label": label + " for " + row.token }
+      });
+      input.disabled = !o.enabled;
+      input.addEventListener("change", (() => {
+        if (!o.enabled) return;
+        o.onVisual(row, { [key]: input.value }, reason);
+      }));
+    };
+    color("fillColor", "Fill color", "pkm:visuals:user-tags:fill");
+    color("textColor", "Text color", "pkm:visuals:user-tags:text");
+    const shown = selectInput(el(line, "div", "io-showncell"), "io-select", {
+      options: SHOWN_OPTIONS2,
+      value: row.visibility,
+      label: "Show, for " + row.token
+    });
+    shown.disabled = !o.enabled;
+    shown.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      o.onVisual(
+        row,
+        { visibility: shown.value },
+        "pkm:visuals:user-tags:visibility"
+      );
+    }));
+    const tools = el(line, "div", "io-valtools");
+    if (row.fillColor || row.textColor) {
+      const back = btn(tools, "io-icon", {
+        text: "\u21BA",
+        label: "Reset the colors of " + row.token + " back to the colors of the theme"
+      });
+      back.disabled = !o.enabled;
+      back.addEventListener("click", (() => {
+        if (!o.enabled) return;
+        o.onVisual(row, { fillColor: "", textColor: "" }, "pkm:visuals:user-tags:color-reset");
+      }));
+    }
+    const del = btn(tools, "io-icon io-icon--danger", {
+      text: "\u2715",
+      label: "Remove " + row.token
+    });
+    del.disabled = !o.enabled;
+    del.addEventListener("click", (() => {
+      if (!o.enabled) return;
+      o.onRemove(row);
+    }));
+  }
+  const foot = el(card, "div", "io-tablefoot");
+  const add = textInput(foot, "io-text io-text--mono", {
+    value: "",
+    placeholder: ADD_PLACEHOLDER,
+    label: ADD_LABEL
+  });
+  add.disabled = !o.enabled;
+  const go = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_TAG, label: ADD_TAG });
+  go.disabled = !o.enabled;
+  go.addEventListener("click", (() => {
+    if (!o.enabled) return;
+    o.onAdd(add.value);
+  }));
+}
+var HEAD2, ADD_TAG, ADD_PLACEHOLDER, ADD_LABEL, EMPTY_LIST, SHOWN_OPTIONS2, TAG_PATHS2, userTagColors;
+var init_user_tags = __esm({
+  "src/ui/settings/custom/user_tags.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_previews();
+    init_contrast();
+    HEAD2 = ["Tag", "Fill", "Text", "Show", ""];
+    ADD_TAG = "Add tag";
+    ADD_PLACEHOLDER = "#tag";
+    ADD_LABEL = "New tag to color";
+    EMPTY_LIST = "no tags of your own yet \u2014 add one below";
+    SHOWN_OPTIONS2 = [
+      { value: "default", label: "default" },
+      { value: "empty", label: "empty" }
+    ];
+    TAG_PATHS2 = [
+      "features.visual.enabled",
+      "visual.tags.opacityLeft",
+      "visual.tags.opacityRight",
+      "visual.tags.textSizePct",
+      "visual.tags.bubbleWidthPct",
+      "visual.tags.bubbleHeightPct",
+      "visual.tags.cornersPct"
+    ];
+    userTagColors = (host, ctx) => {
+      const p = ctx.platform;
+      const box = el(host, "div", "io-usertagsblock");
+      if (!p) return () => {
+        box.empty();
+      };
+      let mounted = null;
+      const draw = () => {
+        const keep = keepView(box);
+        const next = el(box, "div", "io-usertagsblock__mount");
+        try {
+          const model = createUserTagsModel(p.plugin);
+          const commit = (write) => {
+            try {
+              write();
+            } catch (e) {
+              console.error("inline-overhaul: \u0437\u0430\u043F\u0438\u0441\u044C \u0446\u0432\u0435\u0442\u0430 \u0441\u0432\u043E\u0435\u0433\u043E \u0442\u0435\u0433\u0430 \u043D\u0435 \u0443\u0434\u0430\u043B\u0430\u0441\u044C", e);
+            } finally {
+              draw();
+            }
+          };
+          renderUserTags(next, {
+            rows: model.listTags(),
+            ctx,
+            enabled: Boolean(ctx.get("features.visual.enabled")),
+            onVisual: (row, patch, reason) => commit(() => {
+              model.setVisual(row.token, patch, reason);
+            }),
+            onRemove: (row) => commit(() => {
+              model.remove(row.token);
+            }),
+            onAdd: (raw) => commit(() => {
+              model.add(raw);
+            })
+          });
+        } catch (e) {
+          next.remove();
+          console.error("inline-overhaul: \u0446\u0432\u0435\u0442\u0430 \u0441\u0432\u043E\u0438\u0445 \u0442\u0435\u0433\u043E\u0432 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0438\u0441\u044C", e);
+          return;
+        }
+        if (mounted) mounted.remove();
+        mounted = next;
+        keep.restore();
+      };
+      draw();
+      const unwatch = ctx.watch(TAG_PATHS2, draw);
+      return () => {
+        unwatch();
+        mounted = null;
+        box.empty();
+      };
+    };
+  }
+});
+
 // src/ui/settings/schema/visual.ts
 var VISUAL_GROUPS;
 var init_visual = __esm({
@@ -35185,6 +35415,7 @@ var init_visual = __esm({
     init_types();
     init_callouts();
     init_previews();
+    init_user_tags();
     VISUAL_GROUPS = [
       {
         id: "visual-intro",
@@ -35298,6 +35529,17 @@ var init_visual = __esm({
             desc: "Slide from fully rounded to completely square",
             searchTerms: ["Tag shape"]
           }
+        ]
+      },
+      {
+        id: "user-tag-colors",
+        tab: "visual",
+        order: 150,
+        heading: "Color your Tags",
+        intro: "Colours for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
+        tip: "A Field gives its own Values their colours under <code>Tags &amp; PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, so it lives here. Leave a colour unset and the tag takes the colour of your theme, and keeps following it when the theme changes",
+        items: [
+          { kind: "custom", id: "user-tag-list", render: userTagColors }
         ]
       },
       {
@@ -35509,7 +35751,7 @@ var init_visual = __esm({
 });
 
 // src/ui/settings/custom/smart_rules_model.ts
-function asObject4(value) {
+function asObject5(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 function asArray2(value) {
@@ -35524,7 +35766,7 @@ function strings2(value) {
   return out;
 }
 function inline2note(cfg) {
-  return asObject4(asObject4(asObject4(cfg)["transform"])["inline2note"]);
+  return asObject5(asObject5(asObject5(cfg)["transform"])["inline2note"]);
 }
 function createRulesModel(deps) {
   const { plugin, validate, fieldTokens } = deps;
@@ -35533,9 +35775,9 @@ function createRulesModel(deps) {
     const raw = rawRules();
     const checked = validate(raw);
     return raw.map((rawRule, i) => {
-      const r = asObject4(rawRule);
-      const conditions = asObject4(r["conditions"]);
-      const validation = asObject4(asObject4(checked[i])["validation"]);
+      const r = asObject5(rawRule);
+      const conditions = asObject5(r["conditions"]);
+      const validation = asObject5(asObject5(checked[i])["validation"]);
       return {
         id: String(r["id"] || "rule-" + (i + 1)).trim() || "rule-" + (i + 1),
         name: String(r["name"] || "").trim(),
@@ -36015,7 +36257,6 @@ var init_transform = __esm({
     "use strict";
     init_types();
     init_callouts();
-    init_previews();
     init_smart_rules();
     TRANSFORM_GROUPS = [
       {
@@ -36065,27 +36306,6 @@ var init_transform = __esm({
             desc: "Where to put the notes this creates. Leave it empty to keep them next to the note you are in",
             searchTerms: ["Output folder for new notes"],
             visible: on("transform.inline2note.enabled")
-          },
-          {
-            kind: "toggle",
-            id: "i2n-floating",
-            path: "transform.inline2note.floatingButton",
-            default: false,
-            name: "Floating button",
-            desc: "Put a small button at the end of the line you are on",
-            searchTerms: ["Flying button"],
-            visible: on("transform.inline2note.enabled"),
-            tip: "Click it and the line turns into a note, the same as pressing the key would. The button is only drawn on screen \u2014 it is never saved into your note, so nothing changes if you open the file elsewhere",
-            seeAlso: { id: "i2n-button-preview", label: "See where it appears" }
-          },
-          {
-            kind: "custom",
-            id: "i2n-button-preview",
-            render: floatingButton,
-            visible: {
-              deps: ["transform.inline2note.enabled", "transform.inline2note.floatingButton"],
-              test: (c) => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton"))
-            }
           },
           {
             kind: "dropdown",
@@ -39451,13 +39671,13 @@ var require_main = __commonJS({
       }
       {
         const headerColors = cfg.pkm.behavior.colors.tagwheelHeader;
-        const normalizeHex = (value) => {
+        const normalizeHex2 = (value) => {
           const src = String(value || "").trim().toLowerCase();
           if (!src) return "";
           return /^#[0-9a-f]{6}$/.test(src) ? src : "";
         };
-        headerColors.defaultTextColor = normalizeHex(headerColors.defaultTextColor);
-        headerColors.fillColor = normalizeHex(headerColors.fillColor);
+        headerColors.defaultTextColor = normalizeHex2(headerColors.defaultTextColor);
+        headerColors.fillColor = normalizeHex2(headerColors.fillColor);
         if (typeof headerColors.showPrefix !== "boolean") headerColors.showPrefix = true;
       }
       if (!isObj(cfg.pkm.behavior.tagVisuals)) cfg.pkm.behavior.tagVisuals = cloneJson(DEFAULT_CONFIG.pkm.behavior.tagVisuals);
@@ -39543,6 +39763,7 @@ var require_main = __commonJS({
         for (const rawToken of Object.keys(userTagsIn)) {
           const token = normalizeTagToken(rawToken);
           if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
+          if (userTagsIn[rawToken] === null) continue;
           userTagsOut[token] = normalizeTagVisualRow(userTagsIn[rawToken], "default");
         }
         visuals.userTags = userTagsOut;

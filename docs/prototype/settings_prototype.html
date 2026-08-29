@@ -1131,6 +1131,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   color: var(--text-faint);
 }
 
+/* Color your Tags: тег, два цвета, показ и кнопки. Сетка здесь, а не в
+   атрибутах узлов. */
+.io-usertags .io-tablehead,
+.io-usertags .io-tablerow {
+  grid-template-columns: minmax(96px, 1fr) 34px 34px 96px 62px;
+}
+.io-usertags .io-tablefoot { display: flex; gap: 8px; align-items: center; }
+.io-usertags .io-tablefoot .io-text { flex: 1 1 auto; min-width: 0; }
+
 /* the floating button */
 .io-floatrow {
   display: flex; align-items: center; gap: 10px;
@@ -1700,6 +1709,12 @@ const SCHEMA = [
   ]
 },
 {
+  id: "user-tag-colors", tab: "visual", order: 150, heading: "Color your Tags",
+  intro: "Colours for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
+  tip: "A Field gives its own Values their colours under <code>Tags &amp; PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, so it lives here. Leave a colour unset and the tag takes the colour of your theme, and keeps following it when the theme changes",
+  items: [ { kind:"custom", id:"user-tag-list", render: renderUserTagColors } ]
+},
+{
   id: "tag-bars", tab: "visual", order: 200, heading: "Tag Bars",
   intro: "A coloured Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
   items: [
@@ -1970,6 +1985,11 @@ const SCHEMA = [
 const TYPE_LABEL = { tag: "Tag", link: "Link", element: "Emoji" };
 const BEHAVIORS = ["Strict", "Insert only", "Free"];
 const POSITIONS = [{ value:"Left", label:"Left Block" }, { value:"Right", label:"Right Block" }];
+const USER_TAG_SHOWN = [
+  { value:"value",   label:"default" },
+  { value:"nothing", label:"empty" }
+];
+
 const SHOWN_AS = [
   { value:"value",   label:"default" },
   { value:"nothing", label:"empty" },
@@ -2022,6 +2042,12 @@ const VAULT_PROPERTIES = [
 const BINDER_ROWS = [
   { insert:"[]", name:"Smart bracket", desc:"Insert or cycle bracket forms", system:true },
   { insert:"→",  name:"Arrow",         desc:"Insert an arrow",               system:false }
+];
+
+const USER_TAGS = [
+  { token:"urgent", color:"#b3261e", textColor:"#ffffff", shown:"value" },
+  { token:"idea",   color:"",        textColor:"",        shown:"value" },
+  { token:"draft",  color:"#4a4458", textColor:"#ffffff", shown:"nothing" }
 ];
 
 const KINDS = [
@@ -3940,6 +3966,63 @@ function renderPrefixOrderList(host) {
 }
 
 /* ============================================================ Binder */
+
+function renderUserTagColors(host) {
+  const card = el("div", "io-card io-usertags", host);
+  const head = el("div", "io-tablehead", card);
+  ["Tag", "Fill", "Text", "Show", ""].forEach(t => el("div", null, head, t));
+
+  const draw = () => {
+    card.querySelectorAll(".io-tablerow, .io-tablefoot").forEach(n => n.remove());
+
+    USER_TAGS.forEach((v, i) => {
+      const row = el("div", "io-tablerow", card);
+
+      /* Имя тега и есть предпросмотр: оно нарисовано выбранными цветами.
+         Отдельного чипа рядом нет (решение заказчика 2026-08-29). */
+      const cell = el("div", "io-vals__prev", row);
+      applyTagVars(cell);
+      bubble(cell, v);
+      contrastNote(cell, v);
+
+      const mkColor = (key, label) => {
+        const w = el("div", null, row);
+        const c = el("input", "io-colin", w);
+        c.type = "color"; c.value = v[key] || "#ffffff";
+        c.setAttribute("aria-label", label + " for #" + v.token);
+        c.addEventListener("input", () => { v[key] = c.value; draw(); });
+      };
+      mkColor("color", "Fill color");
+      mkColor("textColor", "Text color");
+
+      const ss = selectEl(el("div", "io-showncell", row), USER_TAG_SHOWN, v.shown,
+        "Show, for #" + v.token);
+      ss.addEventListener("change", () => { v.shown = ss.value; draw(); });
+
+      const tools = el("div", "io-valtools", row);
+      if (v.color || v.textColor) {
+        const reset = iconBtn(tools, "↺",
+          "Reset the colors of #" + v.token + " back to the colors of the theme");
+        reset.addEventListener("click", () => { v.color = ""; v.textColor = ""; draw(); });
+      }
+      const del = iconBtn(tools, "✕", "Remove #" + v.token);
+      del.classList.add("io-icon--danger");
+      del.addEventListener("click", () => { USER_TAGS.splice(i, 1); draw(); });
+    });
+
+    const foot = el("div", "io-tablefoot", card);
+    const add = textEl(foot, "", "#tag", "New tag to color", "io-text io-text--mono");
+    const btn = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add tag");
+    btn.type = "button";
+    btn.addEventListener("click", () => {
+      const raw = String(add.value || "").trim().replace(/^#/, "");
+      if (!raw) return;
+      USER_TAGS.push({ token: raw, color: "", textColor: "", shown: "value" });
+      draw();
+    });
+  };
+  draw();
+}
 
 function renderBinder(host) {
   const scroll = el("div", "io-scroll", host);

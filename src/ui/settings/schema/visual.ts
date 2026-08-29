@@ -9,6 +9,7 @@ import type { SettingsGroup } from "../types.ts";
 import { on } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { barsPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
+import { userTagColors } from "../custom/user_tags.ts";
 
 export const VISUAL_GROUPS: readonly SettingsGroup[] = [
 { id: "visual-intro",    tab: "visual",     order: 50, heading: "Before you start",
@@ -53,6 +54,14 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       min:0, max:100, step:1,
       name:"Bubble corners", desc:"Slide from fully rounded to completely square",
       searchTerms:["Tag shape"] }
+  ]
+},
+{
+  id: "user-tag-colors", tab: "visual", order: 150, heading: "Color your Tags",
+  intro: "Colours for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
+  tip: "A Field gives its own Values their colours under <code>Tags &amp; PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, so it lives here. Leave a colour unset and the tag takes the colour of your theme, and keeps following it when the theme changes",
+  items: [
+    { kind:"custom", id:"user-tag-list", render: userTagColors }
   ]
 },
 {

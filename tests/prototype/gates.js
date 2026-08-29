@@ -13,7 +13,8 @@ const stubs = [
   "renderLinePreview", "renderFieldEditor", "renderTagPreview", "renderBarsPreview",
   "renderWheelPreview", "renderBinder", "renderSmartRules", "renderCommandReference",
   "renderNavCallout", "renderLeftRightOrder", "renderFieldOrderList", "renderPrefixOrderList",
-  "renderCycleOrder", "renderYamlMapping", "renderFloatingButton", "renderTabCallout"
+  "renderCycleOrder", "renderYamlMapping", "renderFloatingButton", "renderTabCallout",
+  "renderUserTagColors"
 ].map(n => "function " + n + "(){}").join("\n");
 
 const tmp = path.resolve(path.dirname(path.resolve(target)), "_gate_mod.js");
