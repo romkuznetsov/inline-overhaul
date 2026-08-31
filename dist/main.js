@@ -36890,7 +36890,7 @@ var require_main = __commonJS({
       const deprecatedPkm = Array.isArray((_a = __compatProfile.DEPRECATED_CONFIG_KEYS) == null ? void 0 : _a.pkm) ? __compatProfile.DEPRECATED_CONFIG_KEYS.pkm : ["sourceOfTruth", "autoGenerateRules"];
       for (const key of deprecatedPkm) delete cfg.pkm[key];
     }
-    function migrateConfig(raw) {
+    function normalizeConfigV1(raw) {
       var _a, _b, _c;
       const source = isObj(raw) ? raw : {};
       let cfg = deepMerge(DEFAULT_CONFIG, source);
@@ -37188,6 +37188,9 @@ var require_main = __commonJS({
       }
       cfg.schemaVersion = SCHEMA_VERSION;
       return cfg;
+    }
+    function migrateConfig(raw) {
+      return normalizeConfigV1(raw);
     }
     function getActiveTagWheelRulesPath(cfg) {
       const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};

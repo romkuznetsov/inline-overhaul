@@ -1,0 +1,415 @@
+{
+  "schemaVersion": 1,
+  "features": {
+    "navigation": {
+      "enabled": true
+    },
+    "pkm": {
+      "enabled": true
+    },
+    "visual": {
+      "enabled": false
+    },
+    "transform": {
+      "enabled": true
+    }
+  },
+  "navigation": {
+    "moveLine": {
+      "enabled": true,
+      "noSelectionMode": "line-and-children",
+      "headerMode": "move-with-section",
+      "crossSectionAllowed": false,
+      "highlightMovedLines": true
+    },
+    "moveSelection": {
+      "enabled": false,
+      "inlineEnabled": false,
+      "prefixCyclerEnabled": true,
+      "indentFallbackEnabled": false,
+      "onCycleEnd": "indent",
+      "cycleOrder": [
+        "#",
+        "##",
+        "- ",
+        ""
+      ],
+      "inlineMoveMode": "word"
+    },
+    "jumpToHeader": {
+      "enabled": false,
+      "centerCursor": false,
+      "centerDelayMs": 90,
+      "centerThrottleMs": 250,
+      "jumpMode": "edge",
+      "edgeMode": "start-end",
+      "jumpCursorPosition": "end"
+    },
+    "navigateInline": {
+      "enabled": true,
+      "stepMode": "word",
+      "boundaryJump": true,
+      "onBoundary": "wrap"
+    }
+  },
+  "rules": {},
+  "globalFunctions": {
+    "enhancedSelectAll": {
+      "enabled": true,
+      "mode": "line-note",
+      "useMultiPressDelay": true,
+      "delayMs": 420,
+      "clearSelectionOnLastPress": true
+    }
+  },
+  "pkm": {
+    "taxonomy": {
+      "tagWheelConfig": {
+        "sourcePath": "Setup/InlineOverhaul_Config.md",
+        "wikilinkFields": [
+          "project"
+        ],
+        "orphanWikilinks": []
+      }
+    },
+    "tagWheelConfigPath": "Setup/InlineOverhaul_Config.md",
+    "tagWheelConfigTemplatePath": "Setup/InlineOverhaul_Config_template.md",
+    "configExportMode": "minimal",
+    "executionBackend": "internal-runtime-v2",
+    "generatedRulesPath": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "behavior": {
+      "subtagFormat": "separate",
+      "cycleEndBehavior": "keep-bullet",
+      "cursorPolicy": "line_end",
+      "tagWheelScroller": {
+        "enabled": true,
+        "direction": "full",
+        "size": 5
+      },
+      "colors": {
+        "tagwheelHeader": {
+          "defaultTextColor": "#5c5a6d",
+          "fillColor": "#f1e596",
+          "showPrefix": false
+        }
+      },
+      "tagVisuals": {
+        "showColorSettings": true,
+        "tagTextSizePct": 95,
+        "tagBubbleWidthPct": 110,
+        "tagBubbleHeightPct": 90,
+        "emptyBubbleSizePct": 70,
+        "tagShapePct": 40,
+        "opacity": {
+          "left": 0.8,
+          "right": 0.45
+        },
+        "byField": {
+          "status": {
+            "visibilityDefault": "default"
+          }
+        },
+        "byTag": {
+          "status": {
+            "#todo": {
+              "fillColor": "#513434",
+              "textColor": "#ede8e8",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#done": {
+              "fillColor": "",
+              "textColor": "#b04f4f",
+              "visibility": "empty",
+              "customText": ""
+            }
+          }
+        },
+        "userTags": {
+          "#idea": {
+            "fillColor": "#4af28a",
+            "textColor": "",
+            "visibility": "custom",
+            "customText": "i"
+          }
+        },
+        "strip": {
+          "active": true,
+          "fieldId": "status",
+          "tagVisibility": false,
+          "hideSeparatorWhenOnlyStripToken": true,
+          "mode": "compact",
+          "stripesToShow": 4,
+          "spacing": 18,
+          "thickness": 5,
+          "childOffset": 9
+        }
+      },
+      "freeRoam": {
+        "minimalSeparator": false,
+        "minimalPrefix": false,
+        "offPrefix": true,
+        "fullPlacement": "smart"
+      },
+      "io": {
+        "separator1": "//",
+        "separator2": "::"
+      },
+      "order": {
+        "left": [
+          "status"
+        ],
+        "right": [
+          "project"
+        ],
+        "lead": {
+          "left": "status",
+          "right": "project"
+        },
+        "active": {
+          "status": "yes",
+          "project": "hotkey_only",
+          "status_sub": "no"
+        },
+        "freeRoam": {
+          "status": "minimal",
+          "project": "off"
+        },
+        "enabled": {
+          "status": true,
+          "project": true,
+          "status_sub": false
+        },
+        "types": {
+          "status": "tag",
+          "project": "wikilink"
+        },
+        "labels": {
+          "status": "Status",
+          "project": "Project"
+        },
+        "strictNames": {
+          "status": "status",
+          "project": "project"
+        },
+        "propertiesByField": {
+          "status": "status"
+        }
+      },
+      "defaultMode": "right",
+      "leftMode": {
+        "fields": [
+          {
+            "id": "status",
+            "orderKey": "left",
+            "prefix": "",
+            "enabled": true,
+            "kind": "tag",
+            "values": [
+              {
+                "token": "#todo",
+                "active": true,
+                "prefixMode": "checkbox",
+                "checkboxToken": "[ ]"
+              },
+              {
+                "token": "#done",
+                "active": true,
+                "prefixMode": "checkbox",
+                "checkboxToken": "[x]"
+              }
+            ]
+          },
+          {
+            "id": "status_sub",
+            "prefix": "#",
+            "enabled": false,
+            "dependsOn": "status",
+            "disabledForParentValues": [],
+            "placeholder": "sub",
+            "values": [
+              ""
+            ]
+          }
+        ]
+      },
+      "rightMode": {
+        "fields": [
+          {
+            "id": "project",
+            "orderKey": "right",
+            "enabled": true,
+            "kind": "wikilink",
+            "placeholder": "project",
+            "values": [
+              {
+                "token": "[[Inbox]]"
+              }
+            ]
+          }
+        ]
+      },
+      "elements": {
+        "fields": [],
+        "byField": {}
+      },
+      "prefixRules": {
+        "resolver": "priority-first",
+        "priorityMode": "by-checkbox-list",
+        "fieldsOrderMode": "auto",
+        "tagSubtagPriority": "tag-over-subtag",
+        "priorityTargets": [
+          "status"
+        ],
+        "priorityCheckboxes": [
+          "[ ]",
+          "[x]"
+        ],
+        "checkboxByFieldValue": {
+          "status": {
+            "#todo": "[ ]",
+            "#done": "[x]"
+          }
+        }
+      },
+      "typeCheckboxByValue": {
+        "#todo": "[ ]",
+        "#done": "[x]"
+      },
+      "projects": {
+        "byField": {
+          "project": {
+            "root": "Projects"
+          }
+        }
+      },
+      "somethingFromTheFuture": {
+        "keptSomewhere": 1
+      }
+    }
+  },
+  "visual": {
+    "displayModes": {
+      "leftovers": true
+    },
+    "colors": {
+      "leftovers": true
+    },
+    "tags": {
+      "opacityLeft": 33
+    }
+  },
+  "transform": {
+    "inline2fleet": {
+      "leftovers": true
+    },
+    "inline2note": {
+      "enabled": true,
+      "templateFolder": "Templates/Inline",
+      "outputFolder": "Notes",
+      "defaultTemplate": "task.md",
+      "smartRules": [
+        {
+          "id": "r1",
+          "tags": [
+            "#todo"
+          ],
+          "targetTemplate": "task.md"
+        }
+      ],
+      "noteName": {
+        "mode": "explicit",
+        "explicitNameDelimiters": "()",
+        "autoWordsCount": 6,
+        "preferHeaderTitle": true
+      },
+      "nameCollision": {
+        "mode": "append_number"
+      },
+      "placement": {
+        "position": "end",
+        "headerMode": "datetime",
+        "customHeaderText": "### Inline transformed",
+        "datetimeHeaderFormat": "YYYY-MM-DD HH:mm"
+      },
+      "sourceProcessing": {
+        "cleanupFieldIds": [
+          "status"
+        ],
+        "processedToken": "#processed",
+        "processedTokenPanel": "left",
+        "replacePayloadWithLink": false,
+        "visual": {
+          "enabled": true,
+          "color": "#888888",
+          "opacity": 0.65
+        }
+      },
+      "flyingButton": {
+        "enabled": true
+      },
+      "preview": {
+        "sampleLine": "- [ ] #todo #context"
+      },
+      "yamlNoteFormat": "clean",
+      "openTransformedNote": true,
+      "sublinesBehavior": "move"
+    }
+  },
+  "backups": {
+    "tagWheelConfigApplies": [
+      {
+        "at": "2026-08-01T00:00:00.000Z",
+        "path": "Setup/InlineOverhaul_Config.md"
+      }
+    ]
+  },
+  "meta": {
+    "leftovers": true
+  },
+  "ui": {
+    "activeSettingsTab": "visual",
+    "visualSubTab": "tags",
+    "hotkeysSubTab": "global",
+    "pkmSubTab": "behavior",
+    "orderShowInfoTips": true,
+    "orderShowDeepEditor": false,
+    "orderShowColorSettings": false,
+    "orderActiveCommandsCollapsed": false,
+    "binderRows": [
+      {
+        "rowId": "binder-system-smart-bracket",
+        "insertText": "[]",
+        "commandName": "Smart bracket",
+        "description": "Smart bracket",
+        "commandId": "inlineOverhaul_Binder_Smart_bracket"
+      },
+      {
+        "rowId": "binder-system-smart-bracket",
+        "insertText": "[]",
+        "commandName": "Smart bracket",
+        "description": "Smart bracket",
+        "commandId": "inlineOverhaul_Binder_SmartBracket"
+      },
+      {
+        "rowId": "binder-user-arrow",
+        "insertText": "→",
+        "commandName": "Arrow",
+        "description": "Arrow",
+        "commandId": "inlineOverhaul_Binder_Arrow"
+      }
+    ]
+  },
+  "devMode": {
+    "enabled": true,
+    "generateAiLog": false,
+    "traceTagVisualLine": true,
+    "logPath": "Dev/InlineOverhaul_DevLog"
+  },
+  "editor": {
+    "selectAll": {
+      "enabled": false,
+      "delayMs": 999
+    }
+  }
+}
