@@ -46,7 +46,7 @@
 |---|---|---|
 | `src/ui/settings/schema/*.ts` | `npm run gen:schema` | прототип |
 | Раздел 9 и Приложение B PRD | `python tests/prototype/update_prd.py` | прототип |
-| `dist/**` | `npm run build` | исходники |
+| `dist/**` | `npm run build` | исходники; **под контролем версий не лежит** с 2026-09-06 (A13) |
 | `tests/prototype/v1_inventory.tsv` | — заморожен, фиксирует прошлое | не правится |
 
 Правка сгенерированного файла руками не переживёт следующую генерацию. Хук `PreToolUse` это блокирует; гейты `gen_schema` и `update_prd` ловят расхождение, если хук обойти.

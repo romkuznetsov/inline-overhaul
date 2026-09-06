@@ -226,7 +226,14 @@ npm run test:release
 node --check dist/main.js
 ```
 
-Release assets are written to `dist/`.
+Release assets are written to `dist/`, and `dist/` is **not** in the repository: it is
+build output, rebuilt by `npm run build`. Every command that needs it builds it first —
+`npm test`, `npm run install:test`, and the release workflow — so there is no step you can
+forget. What ships is attached to the GitHub release: `main.js`, `manifest.json`,
+`styles.css`.
+
+The `main.js` in the repository root is not that file. It is hand-written source, and the
+build bundles it into `dist/main.js`.
 
 ## Current beta limitations
 
