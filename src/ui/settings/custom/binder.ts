@@ -24,6 +24,7 @@ import { el, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { createBinderModel, type BinderClash, type BinderDraft, type BinderRow } from "./binder_model.ts";
 import { renderAddForm, renderBinder as drawBinder } from "./binder_view.ts";
+import { sayIn } from "../texts_blocks.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 
 /* Реестр команд: тот же модуль, по которому плагин их регистрирует. */
@@ -57,6 +58,7 @@ function askAddModal(
   app: unknown,
   done: (draft: BinderDraft | null) => void,
   duplicateOf?: (draft: BinderDraft) => BinderClash | null,
+  say?: (name: string, ...args: readonly (string | number)[]) => string,
 ): void {
   let answered = false;
   const finish = (draft: BinderDraft | null): void => {
@@ -74,6 +76,7 @@ function askAddModal(
         add: draft => { finish(draft); this.close(); },
         cancel: () => { finish(null); this.close(); },
         duplicateOf,
+        ...(say ? { say } : {}),
       });
     }
 
@@ -128,6 +131,7 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
       };
 
       drawBinder(next, {
+        say: sayIn("binder-table", ctx),
         rows: model.listRows(),
         hotkeyOf: (row: BinderRow) => hotkeyOf(plugin, row.commandId),
         openHotkey: canOpen ? (row: BinderRow) => { openHotkeys(plugin, row.commandLabel); } : null,
@@ -146,7 +150,7 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
             const res = model.add(draft);
             if (!res.ok && res.error) notice(res.error);
           });
-        }, draft => model.duplicateOf(draft)),
+        }, draft => model.duplicateOf(draft), sayIn("binder-table", ctx)),
       });
     } catch (e) {
       /* Неудачная попытка выбрасывается целиком, а на экране остаётся то, что

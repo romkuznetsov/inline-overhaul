@@ -611,7 +611,8 @@ const FOLDER = ".obsidian/plugins/inline-overhaul";
     if (key.indexOf("frame.") === 0 || key.indexOf("text.") === 0 || key.indexOf("dialog.shared.") === 0) {
       return null;
     }
-    if (key.indexOf("dialog.") === 0 || key.indexOf("preview.") === 0 || key.indexOf("commands.") === 0) {
+    if (key.indexOf("dialog.") === 0 || key.indexOf("preview.") === 0
+      || key.indexOf("commands.") === 0 || key.indexOf("block.") === 0) {
       return NEUTRAL;
     }
     const group = key.split(".")[0] || "";
@@ -648,6 +649,41 @@ const FOLDER = ".obsidian/plugins/inline-overhaul";
   assert.ok(save > 0 && button > 0 && save - button < 10,
     "заголовки окна `Save a backup` встали не рядом со своей кнопкой");
   ok("каталог сгруппирован так же, как панель: вкладка, группа, строка и её окно");
+}
+
+/* ---- 10. свой блок и правда спрашивает каталог (10.13.47) -------------- */
+
+{
+  /*
+   * Строка каталога, которую никто не спрашивает, мертва: человек её
+   * переводит, а на экране ничего не меняется, и понять это по экрану нельзя
+   * (У-82). Пин на литералы отвечает за половину вопроса — что ключ собран
+   * функцией; вторая половина здесь: перевод доезжает до нарисованного.
+   */
+  const { dispatchTables } = await import("../../src/ui/settings/custom/dispatch_tables.ts");
+  const { blockKey } = await import("../../src/ui/settings/texts_blocks.ts");
+
+  const draw = (t?: (key: string, fallback: string) => string): string => {
+    const host = makeNode("div");
+    const ctx = { get: () => undefined, ...(t ? { t } : {}) } as Any;
+    const off = dispatchTables(host as Any, ctx);
+    const text = String(host.textContent || "");
+    if (typeof off === "function") off();
+    return text;
+  };
+
+  const english = draw();
+  assert.ok(english.indexOf("Move left") >= 0, "блок не отрисовался по-английски: " + english);
+
+  const key = blockKey("left-right-order", "MOVE_LEFT");
+  const russian = draw((asked: string, fallback: string) =>
+    (asked === key ? "Влево" : fallback));
+  assert.ok(russian.indexOf("Влево") >= 0,
+    "перевод строки блока не доехал до экрана: " + russian);
+  assert.ok(russian.indexOf("Move left") < 0, "английское осталось рядом с переводом");
+  /* Соседние строки при этом не тронуты: спрашивается ключ, а не весь блок. */
+  assert.ok(russian.indexOf("Move right") >= 0, "перевод одной строки задел соседнюю");
+  ok("свой блок спрашивает каталог по ключу, и перевод доезжает до экрана");
 }
 
 console.log("\n" + passed + " проверок пройдено");

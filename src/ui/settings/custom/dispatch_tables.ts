@@ -19,8 +19,9 @@
  * исключение названо в подсказке самого тумблера.
  */
 
-import type { CustomRender } from "../types.ts";
+import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, type El } from "./dom.ts";
+import { sayIn } from "../texts_blocks.ts";
 
 /** Одна строка таблицы: когда — и что тогда происходит. */
 interface Step {
@@ -33,22 +34,27 @@ interface Table {
   steps: readonly Step[];
 }
 
-/* Тексты сняты с прототипа: он согласован, и таблицы в нём — часть согласия. */
+/*
+ * Тексты сняты с прототипа: он согласован, и таблицы в нём — часть согласия.
+ * Здесь стоят **имена** строк каталога, а сами слова живут в `texts_blocks.ts`
+ * (10.13.47): у видимого текста один дом, и второе его объявление разошлось бы
+ * молча (У-32).
+ */
 const TABLES: readonly Table[] = [
   {
-    command: "Move left",
+    command: "MOVE_LEFT",
     steps: [
-      { when: "part of a line is selected", then: "move that text" },
-      { when: "the line is indented", then: "remove one indent level" },
-      { when: "no indent", then: "cycle the prefix backwards" },
+      { when: "WHEN_SELECTED", then: "THEN_MOVE_TEXT" },
+      { when: "WHEN_INDENTED", then: "THEN_UNINDENT" },
+      { when: "WHEN_NO_INDENT", then: "THEN_CYCLE_BACK" },
     ],
   },
   {
-    command: "Move right",
+    command: "MOVE_RIGHT",
     steps: [
-      { when: "part of a line is selected", then: "move that text" },
-      { when: "the line is indented", then: "add one indent level" },
-      { when: "no indent", then: "cycle the prefix forwards" },
+      { when: "WHEN_SELECTED", then: "THEN_MOVE_TEXT" },
+      { when: "WHEN_INDENTED", then: "THEN_INDENT" },
+      { when: "WHEN_NO_INDENT", then: "THEN_CYCLE_ON" },
     ],
   },
 ];
@@ -57,7 +63,8 @@ const TABLES: readonly Table[] = [
 const ARROW = " → ";
 
 /** Разбор `Move left` / `Move right` — две таблицы рядом (10.6). */
-export const dispatchTables: CustomRender = (host: El) => {
+export const dispatchTables: CustomRender = (host: El, ctx: SettingsCtx) => {
+  const say = sayIn("left-right-order", ctx);
   /*
    * Своё поддерево, а не строка настройки целиком: очистка блока снимает
    * только то, что он завёл сам (С5). Опустошать строку нельзя — она
@@ -67,13 +74,13 @@ export const dispatchTables: CustomRender = (host: El) => {
   const pair = el(box, "div", "io-orderpair");
   for (const table of TABLES) {
     const col = el(pair, "div");
-    el(col, "code", "io-ordercol__cap", table.command);
+    el(col, "code", "io-ordercol__cap", say(table.command));
     const list = el(col, "ol", "io-order");
     for (const step of table.steps) {
       const li = el(list, "li");
-      el(li, "b", undefined, step.when);
+      el(li, "b", undefined, say(step.when));
       el(li, "span", undefined, ARROW);
-      el(li, "span", "io-order__then", step.then);
+      el(li, "span", "io-order__then", say(step.then));
     }
   }
   /* Записей нет и подписок нет: снимается только своё поддерево. */

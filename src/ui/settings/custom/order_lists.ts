@@ -28,6 +28,7 @@ import { createFieldsModel, type DeepState } from "./fields_model.ts";
 
 /* Помощники состояния — оттуда же, откуда их берут остальные блоки. */
 import legacy from "./fields_editor_legacy.js";
+import { sayIn } from "../texts_blocks.ts";
 
 interface LegacyModule {
   getOrderDeepEditorState: () => DeepState;
@@ -35,18 +36,17 @@ interface LegacyModule {
 
 const helpers = legacy as unknown as LegacyModule;
 
-/* ---- тексты: сняты с прототипа (Приложение B, 10.7) -------------------- */
+/* ---- тексты ------------------------------------------------------------ */
 
-/** Ц1: пустая строка в цикле — обычная строка, и это сказано словами. */
-const NO_PREFIX = "no Prefix (plain text)";
-const ADD_PREFIX = "Add Prefix";
-const DRAG_NOTE = "Drag a row, or use the arrows, to change the order";
-const FIELD_NOTE = "The Field nearest the top wins a conflict. Drag a row, or use the arrows";
-const PREFIX_NOTE =
-  "The Prefix nearest the top wins, whichever Field produced it. Drag a row, or use the arrows";
-/** Списку нечего показать: приглашение, а не пустое место (ПЗ2). */
-const EMPTY_FIELDS = "no Fields yet — set them up under Fields above";
-const EMPTY_PREFIXES = "no Prefixes listed yet";
+/*
+ * Сняты с прототипа (Приложение B, 10.7), а живут в каталоге (10.13.47): у
+ * видимого текста один дом. `no Prefix (plain text)` — это Ц1, пустая строка
+ * в цикле остаётся обычной строкой, и это сказано словами; пустой список
+ * объясняет себя, а не молчит (ПЗ2).
+ */
+type Say = (name: string, ...args: readonly (string | number)[]) => string;
+
+const words = (ctx: SettingsCtx): Say => sayIn("field-order-list", ctx);
 
 /* ---- общее: чтение и запись -------------------------------------------- */
 
@@ -96,7 +96,7 @@ interface ListOpts {
  * Стрелки не украшение: клавиатурой перетащить нельзя, а Ф17 требует, чтобы
  * порядок менялся и с клавиатуры. Место под них занято всегда.
  */
-function sortableList(host: El, o: ListOpts): void {
+function sortableList(host: El, o: ListOpts, say: Say): void {
   const box = el(host, "div", "io-sortable" + (o.enabled ? "" : " io-sortable--off"));
   if (!o.rows.length) {
     el(box, "div", "io-side__empty", o.empty);
@@ -108,7 +108,7 @@ function sortableList(host: El, o: ListOpts): void {
     const row = el(box, "div", "io-sortrow");
     const grip = el(row, "span", "io-grip", "⠿");
     grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + o.label(value, i) + " to reorder it");
+    grip.setAttribute("aria-label", say("ROW_DRAG", o.label(value, i)));
     grip.draggable = o.enabled;
     grip.addEventListener("dragstart", ((ev: DragEv) => {
       taken = i;
@@ -138,14 +138,14 @@ function sortableList(host: El, o: ListOpts): void {
     o.cell(row, value, i);
 
     const move = el(row, "div", "io-sortrow__move");
-    const up = btn(move, "io-icon", { text: "▲", label: "Move " + o.label(value, i) + " up" });
+    const up = btn(move, "io-icon", { text: "▲", label: say("MOVE_UP", o.label(value, i)) });
     up.disabled = i === 0 || !o.enabled;
     up.addEventListener("click", (() => { if (o.enabled) o.onMove(i, i - 1); }) as never);
-    const down = btn(move, "io-icon", { text: "▼", label: "Move " + o.label(value, i) + " down" });
+    const down = btn(move, "io-icon", { text: "▼", label: say("MOVE_DOWN", o.label(value, i)) });
     down.disabled = i === o.rows.length - 1 || !o.enabled;
     down.addEventListener("click", (() => { if (o.enabled) o.onMove(i, i + 1); }) as never);
     if (o.onRemove) {
-      const drop = btn(move, "io-icon", { text: "✕", label: "Remove " + o.label(value, i) });
+      const drop = btn(move, "io-icon", { text: "✕", label: say("REMOVE", o.label(value, i)) });
       drop.disabled = o.rows.length < 2 || !o.enabled;
       drop.addEventListener("click", (() => {
         if (o.enabled && o.onRemove) o.onRemove(i);
@@ -237,17 +237,18 @@ export const cycleOrder: CustomRender = (host: El, ctx: SettingsCtx) => {
       });
     };
 
+    const say = words(ctx);
     sortableList(mount, {
       rows,
       enabled,
-      empty: EMPTY_PREFIXES,
-      label: (value, i) => "Prefix " + (i + 1),
+      empty: say("PREFIX_EMPTY"),
+      label: (value, i) => say("PREFIX_ROW", i + 1),
       cell: (row, value, i) => {
         const input = textInput(row, "io-text io-text--mono io-sortrow__text", {
           value,
           /* Ц1: пустая строка — это обычная строка, и подпись это говорит. */
-          placeholder: NO_PREFIX,
-          label: "Prefix " + (i + 1),
+          placeholder: say("NO_PREFIX"),
+          label: say("PREFIX_ROW", i + 1),
         });
         input.disabled = !enabled;
         input.addEventListener("change", (() => {
@@ -259,16 +260,17 @@ export const cycleOrder: CustomRender = (host: El, ctx: SettingsCtx) => {
       },
       onMove: (from, to) => save(moved(rows, from, to), "navigation:cycleOrder:move"),
       onRemove: i => save(rows.filter((_, k) => k !== i), "navigation:cycleOrder:remove"),
-    });
+    }, say);
 
     const actions = el(mount, "div", "io-rowactions");
-    const add = btn(actions, "io-btn io-btn--sm", { text: ADD_PREFIX, label: ADD_PREFIX });
+    const add = btn(actions, "io-btn io-btn--sm",
+      { text: say("ADD_PREFIX"), label: say("ADD_PREFIX") });
     add.disabled = !enabled;
     add.addEventListener("click", (() => {
       if (!enabled) return;
       save(rows.concat(""), "navigation:cycleOrder:add");
     }) as never);
-    el(actions, "span", "io-note", DRAG_NOTE);
+    el(actions, "span", "io-note", say("DRAG_HINT"));
   });
 };
 
@@ -278,6 +280,7 @@ export const cycleOrder: CustomRender = (host: El, ctx: SettingsCtx) => {
 function priorityBlock(host: El, ctx: SettingsCtx, o: {
   cls: string;
   key: "priorityTargets" | "priorityCheckboxes";
+  /** Имена строк каталога, а не слова: у видимого текста один дом (10.13.47). */
   note: string;
   empty: string;
   /** Строки списка и как их подписать; Fields читаются моделью редактора. */
@@ -304,19 +307,20 @@ function priorityBlock(host: El, ctx: SettingsCtx, o: {
       });
     };
 
-    el(mount, "p", "io-note io-note--lead", o.note);
+    const say = words(ctx);
+    el(mount, "p", "io-note io-note--lead", say(o.note));
     sortableList(mount, {
       rows: items.map(x => x.value),
       enabled,
-      empty: o.empty,
-      label: (_value, i) => (items[i]?.label || "row " + (i + 1)),
+      empty: say(o.empty),
+      label: (_value, i) => (items[i]?.label || say("PREFIX_ROW", i + 1)),
       cell: (row, _value, i) => {
         const item = items[i];
         if (item) o.cell(row, item);
       },
       onMove: (from, to) => save(moved(items.map(x => x.value), from, to),
         "pkm:prefixRules:" + o.key + ":move"),
-    });
+    }, say);
   });
 }
 
@@ -329,8 +333,8 @@ export const fieldOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
   priorityBlock(host, ctx, {
     cls: "io-fieldorder",
     key: "priorityTargets",
-    note: FIELD_NOTE,
-    empty: EMPTY_FIELDS,
+    note: "FIELDS_TIP",
+    empty: "FIELDS_EMPTY",
     rowsOf: cfg => {
       const p = ctx.platform;
       if (!p) return [];
@@ -359,8 +363,8 @@ export const prefixOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
   priorityBlock(host, ctx, {
     cls: "io-prefixorder",
     key: "priorityCheckboxes",
-    note: PREFIX_NOTE,
-    empty: EMPTY_PREFIXES,
+    note: "PREFIX_TIP",
+    empty: "PREFIX_EMPTY",
     rowsOf: cfg => strings(prefixRules(cfg)["priorityCheckboxes"])
       .map(value => ({ value, label: value })),
     cell: (row, item) => { el(row, "code", "io-mono", item.value); },

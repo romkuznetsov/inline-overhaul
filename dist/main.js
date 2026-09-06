@@ -19422,8 +19422,8 @@ var require_transform_feature = __commonJS({
       }
       const base = payload && payload !== "-" ? payload : "";
       const wordsN = Math.max(1, Math.min(32, Math.trunc(Number(i2n && i2n.noteName && i2n.noteName.wordCount) || 6)));
-      const words = base.split(/\s+/).filter(Boolean).slice(0, wordsN);
-      if (words.length) return words.join(" ");
+      const words3 = base.split(/\s+/).filter(Boolean).slice(0, wordsN);
+      if (words3.length) return words3.join(" ");
       return "";
     }
     function promptNoteTitleWithModal(plugin, ModalClass) {
@@ -19581,9 +19581,9 @@ var require_transform_feature = __commonJS({
       return `${parts.src} ${p}`;
     }
     function firstWordsOf(text, count) {
-      const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+      const words3 = String(text || "").trim().split(/\s+/).filter(Boolean);
       const take = Number.isFinite(Number(count)) ? Math.max(1, Math.trunc(Number(count))) : 1;
-      return words.slice(0, take).join(" ");
+      return words3.slice(0, take).join(" ");
     }
     function applySourcePayloadReplace(line, noteTitle, separators) {
       const src = String(line || "");
@@ -21301,6 +21301,367 @@ var init_custom_texts = __esm({
   }
 });
 
+// src/ui/settings/texts_blocks.ts
+function blockKey(owner, name) {
+  return "block." + owner + "." + name.toLowerCase().replace(/_/g, "-");
+}
+function blockTextEntries(owner) {
+  const table = BLOCK_TEXTS[owner];
+  if (!table) return [];
+  return Object.entries(table).map(([name, text]) => ({ key: blockKey(owner, name), text }));
+}
+function sayIn(owner, ctx) {
+  const table = BLOCK_BY_NAME[owner] || {};
+  return (name, ...args) => {
+    const english = table[name] || "";
+    const said2 = ctx && typeof ctx.t === "function" ? ctx.t(blockKey(owner, name), english) : english;
+    return args.length ? said2.replace(/\{(\d+)\}/g, (whole, n) => {
+      const value = args[Number(n)];
+      return value === void 0 ? whole : String(value);
+    }) : said2;
+  };
+}
+var BLOCK_TEXTS, BLOCK_BY_NAME;
+var init_texts_blocks = __esm({
+  "src/ui/settings/texts_blocks.ts"() {
+    "use strict";
+    BLOCK_TEXTS = {
+      /* ---- редактор Fields: сам блок, его окна, проверки имён -------------- */
+      "field-editor": {
+        /* Левая колонка: список Fields. */
+        LIST_TIP: "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right \u2014 at the edge of a Block they cross the line too",
+        EMPTY_SIDE: "nothing on this side",
+        SIDE_LEFT: "Left Block",
+        SIDE_RIGHT: "Right Block",
+        TYPE_TAG: "Tag",
+        TYPE_LINK: "Link",
+        TYPE_ELEMENT: "Emoji",
+        ADD_FIELD: "Add Field",
+        ADD_FIELD_LABEL: "Add a Field",
+        NO_FIELD_PICKED: "add a Field on the left to set it up here",
+        LIST_ARIA: "the Fields list",
+        COLUMN_ARIA: "this column",
+        /* Подписи строк, собранные вокруг имени Field. */
+        SHOW_FIELD: "Show the Field {0}",
+        RENAME_FIELD: "Rename the Field {0}",
+        DELETE_FIELD: "Delete the Field {0}",
+        DRAG_FIELD: "Drag {0} to reorder it, or across the line to change side",
+        DRAG_CHILD_FIELD: "Drag {0} \u2014 it moves with {1}",
+        MOVE_FIELD_UP: "Move {0} up, and across the line at the top",
+        MOVE_FIELD_DOWN: "Move {0} down, and across the line at the bottom",
+        /* Правая колонка: шапка и разделы. */
+        DETAIL_TIP: "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes",
+        SHORT_NAME_NAME: "Name in TagWheel",
+        SHORT_NAME_DESC: "A shorter name for the TagWheel row, where there is little room",
+        SHORT_NAME_TIP: "TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name",
+        /* Раздел Behavior. */
+        BEHAVIOR_HEAD: "Behavior",
+        BEHAVIOR_HEAD_TIP: "Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line",
+        ACTIVE_NAME: "Active",
+        ACTIVE_DESC: "Whether this Field is offered, and where",
+        ACTIVE_TIP: "<b>No</b> switches the Field off everywhere: TagWheel does not show it and its commands do nothing. <b>Commands only</b> keeps the commands working and takes the Field out of TagWheel",
+        ACTIVE_YES: "Yes",
+        ACTIVE_NO: "No",
+        ACTIVE_COMMANDS_ONLY: "Commands only",
+        ACTIVE_FOR: "Active, for {0}",
+        BEHAVIOR_NAME: "Prefix behavior",
+        BEHAVIOR_DESC: "How this Field affects the line Prefix",
+        BEHAVIOR_STRICT: "Strict",
+        BEHAVIOR_INSERT_ONLY: "Insert only",
+        BEHAVIOR_FREE: "Free",
+        BEHAVIOR_TIP: "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. <b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. <b>Free</b> inserts the Value where the cursor is now",
+        BEHAVIOR_FOR: "Behavior for {0}",
+        CHILD_NAME: "Child Field",
+        CHILD_DESC: "Show the child Field in TagWheel once a parent Value is picked",
+        CHILD_TIP: "A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. Switched off, TagWheel does not offer it even when its Values are set up",
+        CHILD_YES: "Yes",
+        CHILD_NO: "No",
+        CHILD_OF: "Child Field of {0}",
+        PREREQ_NAME: "Prerequisite Field",
+        PREREQ_DESC: "Show this Field only after another Field has a Value",
+        PREREQ_TIP: "A Field with a prerequisite stays out of TagWheel, out of its commands and out of the line until the Field it waits for has a Value. Picking a different Value in that Field clears this one",
+        PREREQ_YES: "Yes",
+        PREREQ_NO: "No",
+        PREREQ_PICK_NAME: "Choose prerequisite Field",
+        PREREQ_PICK_DESC: "Which Field this one waits for",
+        PREREQ_PICK_TIP: "A Link or an Emoji Field can wait for any other Field, a Tag Field only for another Tag Field. Two Tag Fields tied this way are also kept next to each other in the line",
+        PREREQ_NOT_CHOSEN: "Not chosen",
+        PREREQ_VALUE_NAME: "Prerequisite Value",
+        PREREQ_VALUE_DESC: "Which Value of that Field this one waits for",
+        PREREQ_VALUE_TIP: "Left at <code>Any Value</code> this Field appears as soon as the prerequisite Field has a Value of any kind. Name one, and it waits for that Value alone",
+        PREREQ_ANY_VALUE: "Any Value",
+        /* Раздел Values. */
+        VALUES_TIP: "The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent\u2019s <code>Behavior</code>",
+        ELEMENT_VALUE_TIP: "An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along",
+        VALUES_EMPTY: "no Values yet \u2014 add the first one below",
+        LEVEL_TIP: "change Value to be parent or child by pressing arrows. Child Values are only active when Parent Value is present",
+        VALUE_LINK_TIP: "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> \u2014 both are read the same way",
+        VALUE_TAG_TIP: "The text of the Value. A tag may be written with <code>#</code> or without it \u2014 both are read the same way",
+        VALUE_PREFIX_TIP: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
+        VALUE_SHOWN_TIP: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give",
+        SHOWN_DEFAULT: "default",
+        SHOWN_EMPTY: "empty",
+        SHOWN_CUSTOM: "custom",
+        VALUE_DRAG: "Drag {0} to reorder it",
+        VALUE_MAKE_PARENT: "Make {0} a top-level Value",
+        VALUE_MAKE_CHILD: "Make {0} a child Value",
+        VALUE_PREFIX_NO: "no",
+        VALUE_PREFIX_FOR: "Prefix for {0}",
+        VALUE_PREFIX_HINT: "A Prefix checkbox looks like [ ] or [I]",
+        VALUE_SHOWN_FOR: "Show, for {0}",
+        VALUE_CUSTOM_PLACEHOLDER: "printed instead",
+        VALUE_CUSTOM_FOR: "Custom text for {0}",
+        VALUE_FILL_COLOR: "Fill color",
+        VALUE_RESET_COLORS: "Reset the colors of {0} back to the colors of the theme",
+        VALUE_REMOVE: "Remove {0}",
+        NEW_VALUE_LINK_HINT: "[[wikilink]] / wikilink",
+        NEW_VALUE_TAG_HINT: "#tag / tag",
+        NEW_VALUE_FOR: "New Value for {0}",
+        ADD_VALUE: "Add Value",
+        ADD_VALUE_TO: "Add a Value to {0}",
+        /* Раздел эмодзи-элемента. */
+        ELEMENT_EMOJI_NAME: "Emoji-prefix",
+        ELEMENT_EMOJI_DESC: "The character that stands in front of the Value in the line",
+        ELEMENT_EMOJI_TIP: "This is how the Field is recognised: the plugin reads <code>\u{1F4C5} 2026-08-27</code> as this Field only because <code>\u{1F4C5}</code> stands in front. Give it a character no other Field uses, or the two will be taken for one",
+        ELEMENT_EMOJI_HINT: "one character or emoji",
+        ELEMENT_FORMAT_NAME: "Value format",
+        ELEMENT_FORMAT_DESC: "The shape of the Value: a date, a time or a number",
+        ELEMENT_FORMAT_HINT: "YYYY-MM-DD / HHmm / 1",
+        ELEMENT_FORMAT_TIP: "Spell out the shape you want to see in the line. A date or a time is built from <code>YYYY</code> (year), <code>MM</code> (month), <code>DD</code> (day), <code>HH</code> (hour), <code>mm</code> (minute), <code>ss</code> (second), with any separators between them: <code>YYYY-MM-DD</code> writes <code>2026-08-27</code>, <code>DD.MM</code> writes <code>27.08</code>, <code>HHmm</code> writes <code>1435</code>. Digits alone make a counter, and the number of digits is the width it keeps: <code>1</code> counts <code>1</code>, <code>2</code>, <code>3</code>, while <code>001</code> counts <code>001</code>, <code>002</code>. Anything else is taken as plain text and never steps",
+        ELEMENT_STEP_NAME: "Steps by",
+        ELEMENT_STEP_DESC: "What should happen with the Value when you use <code>next</code> or <code>previous</code> command",
+        ELEMENT_STEP_TIP: "<b>Fixed step</b> adds the same amount on every press: a day to a date, one to a counter. <b>Command</b> throws the old Value away and writes a fresh one \u2014 the time of the press, or a random string for an id. <b>Custom step</b> walks a list of steps you write yourself, and can end the cycle by removing the Value from the line",
+        STEP_FIXED: "Fixed step",
+        STEP_COMMAND: "Command",
+        STEP_CUSTOM: "Custom step",
+        ELEMENT_STEP_FOR: "Steps by, for {0}",
+        ELEMENT_AMOUNT_NAME: "Amount",
+        ELEMENT_AMOUNT_DESC: "How much one press adds to the Value",
+        ELEMENT_AMOUNT_TIP: "<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with <code>HHmm</code> a minute, with a counter just one",
+        ELEMENT_AMOUNT_FOR: "Amount for {0}",
+        ELEMENT_COMMAND_NAME: "Command",
+        ELEMENT_COMMAND_DESC: "What the press writes into the Value instead of stepping it",
+        ELEMENT_COMMAND_TIP: "<code>The current date and time</code> writes the moment of the press in the shape set by <code>Value format</code>. The random ones fill the Value with numbers or letters, which is what an id needs",
+        COMMAND_NOW: "The current date and time",
+        COMMAND_RANDOM_NUMBERS: "Random numbers",
+        COMMAND_RANDOM_CHARS: "Random characters",
+        ELEMENT_COMMAND_FOR: "Command for {0}",
+        ELEMENT_STEPS_NAME: "Steps",
+        ELEMENT_STEPS_DESC: "One step per line, in the order the presses walk them",
+        ELEMENT_STEPS_TIP: "A line is a number, and a number in brackets after it says how many presses stay on that step: <code>1 (3)</code> moves by one for three presses. <code>END</code> ends the cycle and removes the Value",
+        ELEMENT_STEPS_FOR: "Steps for {0}",
+        /* Раздел YAML. */
+        YAML_HEAD: "YAML property",
+        YAML_HEAD_TIP: "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note \u2014 the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied",
+        YAML_NAME: "Property",
+        YAML_DESC: "If you use inline2note, to which YAML property this Field should go",
+        YAML_TIP: "The properties are the ones Obsidian shows at the top of a note. Start typing and the box offers the names your vault already uses; you can also type a name that does not exist yet, and it appears the first time a note is written with it. Leave the box empty and this Field is simply not copied into the note. Two Fields may point at the same property \u2014 then <code>Property type</code> below decides whether it holds a list or a single Value",
+        YAML_HINT: "select Property",
+        YAML_FOR: "YAML property for {0}",
+        YAML_CLEAR: "Clear the property of {0}",
+        YAML_KIND_NAME: "Property type",
+        YAML_KIND_DESC: "Whether the property holds one Value or a list",
+        YAML_KIND_TIP: "<b>Auto</b> works it out for you: a list when more than one Field writes to the same property, a single Value otherwise. Set it by hand only when Auto guesses wrong",
+        YAML_NOT_WRITTEN: "not written",
+        YAML_KIND_AUTO: "Auto",
+        YAML_KIND_ONE: "One Value",
+        YAML_KIND_LIST: "A list",
+        YAML_FORM_NAME: "How to show Value in YAML",
+        YAML_FORM_DESC: "How the Value is written into the property",
+        YAML_FORM_TIP: "<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> strips the decoration \u2014 no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link \u2014 which is what you want if you plan to search or sort by the property. The rule belongs to the Field and applies to every one of its Values",
+        YAML_FORM_RAW: "Raw",
+        YAML_FORM_CLEAN: "Clean",
+        YAML_TAGS_WARNING: "A tags property does not take links: Obsidian will flag the value in the note",
+        YAML_PREVIEW_NAME: "Preview",
+        YAML_PREVIEW_DESC: "How this Value will look like in YAML",
+        YAML_PREVIEW_TIP: "It follows the three choices above and updates as you change them, and it shows what <b>this</b> Field writes. Two Fields can share one property name \u2014 then the note gets both of them in the same list, while each Field shows only its own part here",
+        /* Окна редактора. */
+        NEW_FIELD_TITLE: "Add a Field",
+        NEW_FIELD_NAME_LABEL: "What this Field is called here and in the config note",
+        NEW_FIELD_NAME_HINT: "Priority",
+        NEW_FIELD_NAME_ARIA: "Name of the new Field",
+        NEW_FIELD_TYPE_LABEL: "What the Field writes into the line",
+        NEW_FIELD_TYPE_ARIA: "Type of the new Field",
+        NEW_FIELD_TYPE_TAG: "Tag",
+        NEW_FIELD_TYPE_LINK: "Link",
+        NEW_FIELD_TYPE_ELEMENT: "Element",
+        NEW_FIELD_ADD: "Add",
+        NEW_FIELD_FAILED: "The Field was not added",
+        DELETE_TITLE: "Delete Field",
+        DELETE_BODY: "Deleting {0} removes its Values, their colors and its note property",
+        DELETE_CONFIRM: "Delete",
+        RENAME_TITLE: "Rename Field",
+        RENAME_LABEL: "New name",
+        RENAME_HINT: "Lowercase letters, digits, spaces, hyphens and underscores",
+        RENAME_ARIA: "New name for the Field {0}",
+        RENAME_WARNING: "Two things will not follow the new name:",
+        RENAME_WARNING_NOTES: "lines you have already written keep the old tag \u2014 the plugin does not edit your notes",
+        RENAME_WARNING_HOTKEY: "a hotkey given to this Field\u2019s commands comes loose: Obsidian keeps hotkeys by command id, and the id is built from the name",
+        RENAME_CONFIRM: "Rename",
+        /* Проверки имён и значений: их человек читает на месте ошибки. */
+        ERR_NAME_CHARS: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores",
+        ERR_NAME_SUB: "Names ending in _sub are kept for child Fields",
+        ERR_NAME_TAKEN: "A Field with this name already exists",
+        ERR_CHILD_TAKEN: "The child Field for this name already exists",
+        ERR_NO_FIELD: "No Field named {0}",
+        ERR_YAML_FORM: "A Value is written either raw or clean, nothing else",
+        ERR_NOT_SAVED: "This Field is not saved yet",
+        ERR_SELF_PREREQ: "A Field cannot wait for itself",
+        ERR_TAG_PREREQ: "A Tag Field can only wait for another Tag Field",
+        ERR_LINK_NO_FIELD: "Cannot tell which Field this link Value belongs to",
+        ERR_LINK_NO_TARGET: "Cannot tell which Field this link Value would go to",
+        ERR_LINK_UNNAMED_FIELD: "The Field for this link has no name",
+        ERR_LINK_NEEDS_NAME: "A link needs a name",
+        ERR_PREFIX_TOKEN: "A Prefix checkbox looks like [ ] or [I]"
+      },
+      /* ---- Smart Rules ----------------------------------------------------- */
+      "smart-rules-list": {
+        KIND_TAG: "Tag",
+        KIND_ELEMENT: "Element",
+        KIND_LINK: "Link",
+        KIND_FIELD: "Field",
+        RULE_NAME_HINT: "Name this rule (optional)",
+        RULE_FALLBACK_NAME: "Rule {0}",
+        RULES_EMPTY: "no rules yet \u2014 the default template is used for every line",
+        ADD_RULE: "Add rule",
+        MATCH_ANY: "any",
+        MATCH_OR: "or",
+        MATCH_AND: "and",
+        WHEN_THE_LINE_HAS: "when the line has",
+        USE_TEMPLATE: "Use template",
+        MOVE_TO_FOLDER: "Move to folder",
+        TEMPLATE_NONE: "None",
+        FOLDER_DEFAULT: "Default",
+        FOLDER_NEAR_NOTE: "Near current note",
+        FOLDER_OTHER: "Another folder\u2026",
+        FOLDER_HINT: "type or pick a folder",
+        ANY_VALUE_SUFFIX: "{0} \u2014 any Value",
+        ANY_VALUE_TAKEN: "{0} \u2014 any Value is already in this rule",
+        USE_ANY_VALUE_OF: "Use any Value of {0}",
+        NO_FIELDS_YET: "no Fields yet \u2014 set one up on the Tags & PKM tab",
+        NO_KIND_FIELDS_YET: "no {0} Fields yet \u2014 set one up on the Tags & PKM tab",
+        VALUES_EMPTY: "no Values yet",
+        USE_VALUE: "Use {0}",
+        CONDITION_TIP: "Pick one of the Values your Fields already offer. A rule looks for any of the Values listed under one Field type, and for all of the types you have filled in",
+        ADD_CONDITION: "Add a {0}",
+        RULE_NAME_ARIA: "Name of {0}",
+        RULE_TEMPLATE_ARIA: "Template for {0}",
+        RULE_FOLDER_ARIA: "{0} path for {1}",
+        RULE_DRAG: "{0} to reorder it",
+        RULE_STOP: "Stop using {0}",
+        RULE_REMOVE: "Remove {0}",
+        CONDITION_REMOVE: "Remove {0}"
+      },
+      /* ---- Binder ---------------------------------------------------------- */
+      "binder-table": {
+        COL_INSERTS: "Inserts",
+        COL_COMMAND_NAME: "Command name",
+        COL_DESCRIPTION: "Description",
+        COL_HOTKEY: "Hotkey",
+        HOTKEY_CHANGE: "Change the hotkey for {0}",
+        HOTKEY_ASSIGN: "Assign the hotkey for {0}",
+        NEW_INSERTS_HINT: "\u2192",
+        NEW_NAME_HINT: "Arrow",
+        NEW_CANCEL: "Cancel",
+        ADD_COMMAND: "Add command",
+        HOTKEY_NOT_SET: "not set",
+        BUILT_IN: "Built in",
+        COMMAND_PREFIX: "Binder: {0}",
+        NEW_TITLE: "Add a Binder command",
+        NEW_NOTE: "The command is made from the row, so the text it inserts cannot be changed afterwards",
+        NEW_INSERTS_LABEL: "Inserts",
+        NEW_INSERTS_DESC: "The text this command drops in at the cursor",
+        NEW_NAME_LABEL: "Command name",
+        NEW_NAME_DESC: "What to call it in Obsidian's list of hotkeys",
+        NEW_DESC_LABEL: "Description",
+        NEW_DESC_DESC: "A note to yourself about what the row is for",
+        NEW_FIELD_ARIA: "{0} of the new command",
+        NEW_ADD: "Add",
+        ROW_ARIA: "this row",
+        ROW_DRAG: "{0} to reorder it",
+        ROW_DESC_ARIA: "Description for {0}",
+        ROW_HOTKEY_ARIA: "{0} the hotkey for {1}",
+        ROW_REMOVE: "Remove {0}",
+        ERR_TEXT_TAKEN: "A row with this text to insert already exists",
+        ERR_NAME_TAKEN: "A row with this command name already exists"
+      },
+      /* ---- свои теги ------------------------------------------------------- */
+      "user-tag-list": {
+        HEAD_TAG: "Tag",
+        HEAD_SHOW: "Show",
+        HEAD_FILL: "Fill",
+        HEAD_TEXT: "Text",
+        HEAD_PREVIEW: "Preview",
+        TEXT_COLOR: "Text color",
+        TAG_TIP: "The tag as it is written in a line. With <code>#</code> or without it \u2014 both are read the same way",
+        SHOWN_TIP: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
+        FILL_TIP: "The color of the bubble behind the tag",
+        TEXT_TIP: "The color of the writing on the bubble",
+        ADD_TAG: "Add tag",
+        NEW_TAG_HINT: "#tag",
+        NEW_TAG_ARIA: "New tag to color",
+        EMPTY: "no tags of your own yet \u2014 add one below",
+        SHOWN_DEFAULT: "default",
+        SHOWN_EMPTY: "empty",
+        ROW_ARIA: "Tag {0}",
+        SHOWN_FOR: "Show, for {0}",
+        FILL_COLOR: "Fill color",
+        RESET_COLORS: "Reset the colors of {0} back to the colors of the theme",
+        REMOVE: "Remove {0}"
+      },
+      /* ---- списки порядка: Fields и Prefix ---------------------------------- */
+      "field-order-list": {
+        NO_PREFIX: "no Prefix (plain text)",
+        ADD_PREFIX: "Add Prefix",
+        DRAG_HINT: "Drag a row, or use the arrows, to change the order",
+        FIELDS_TIP: "The Field nearest the top wins a conflict. Drag a row, or use the arrows",
+        PREFIX_TIP: "The Prefix nearest the top wins, whichever Field produced it. Drag a row, or use the arrows",
+        FIELDS_EMPTY: "no Fields yet \u2014 set them up under Fields above",
+        PREFIX_EMPTY: "no Prefixes listed yet",
+        ROW_DRAG: "{0} to reorder it",
+        MOVE_UP: "Move {0} up",
+        MOVE_DOWN: "Move {0} down",
+        REMOVE: "Remove {0}",
+        PREFIX_ROW: "Prefix {0}"
+      },
+      /* ---- таблицы того, что делают клавиши --------------------------------- */
+      "left-right-order": {
+        MOVE_LEFT: "Move left",
+        MOVE_RIGHT: "Move right",
+        WHEN_SELECTED: "part of a line is selected",
+        THEN_MOVE_TEXT: "move that text",
+        WHEN_INDENTED: "the line is indented",
+        THEN_UNINDENT: "remove one indent level",
+        THEN_INDENT: "add one indent level",
+        WHEN_NO_INDENT: "no indent",
+        THEN_CYCLE_BACK: "cycle the prefix backwards",
+        THEN_CYCLE_ON: "cycle the prefix forwards"
+      },
+      /* ---- что остаётся на строке ------------------------------------------- */
+      "source-fields": {
+        NO_FIELDS: "no Fields yet \u2014 set them up under Tags & PKM",
+        NONE_KEPT: "nothing is kept: every Value leaves the line",
+        KEEP_ONE: "Keep the Values of {0} on the line",
+        KEEP_ALL: "Keep all",
+        KEEP_ALL_DESC: "Keep the Values of every Field on the line",
+        KEEP_NONE: "Keep none",
+        KEEP_NONE_DESC: "Let every Value leave the line"
+      },
+      /* ---- справочник команд ------------------------------------------------ */
+      "command-list": {
+        COL_COMMAND: "Command",
+        COL_DOES: "Description",
+        COL_HOTKEY: "Hotkey",
+        HOTKEY_CHANGE: "Change the hotkey for {0}",
+        HOTKEY_ASSIGN: "Assign the hotkey for {0}",
+        HOTKEY_NOT_SET: "not set",
+        HOTKEY_OPEN: "Open Obsidian's Hotkeys settings at this command"
+      }
+    };
+    BLOCK_BY_NAME = BLOCK_TEXTS;
+  }
+});
+
 // src/ui/settings/texts_custom.ts
 function calloutKey(tab, slot) {
   return "callout." + tab + "." + slot;
@@ -21359,6 +21720,8 @@ function blockEntries(tab, _group, it) {
   if (/-callout$/.test(id)) calloutEntries(out, tab);
   else if (PREVIEW_TEXTS[id]) previewEntries(out, id);
   else if (id === "command-list") commandEntries(out);
+  const own = blockTextEntries(id);
+  own.forEach((entry, i) => out.push(i === 0 ? { ...entry, gap: true } : { ...entry }));
   return out;
 }
 function sharedEntries() {
@@ -21380,6 +21743,7 @@ var init_texts_custom = __esm({
   "src/ui/settings/texts_custom.ts"() {
     "use strict";
     init_custom_texts();
+    init_texts_blocks();
     SINGLE_KEYS = {
       previewExample: "text.preview-example",
       previewLine: "text.preview-line",
@@ -21408,8 +21772,17 @@ var init_texts_custom = __esm({
       RESET_TIP_ONE: "Reset group: {0} setting differs from the default",
       RESET_TIP_MANY: "Reset group: {0} settings differ from the default",
       RESET_TIP_CLEAN: "Everything here is already at its default",
-      /* «?» у заголовка группы. */
+      /* «?» у заголовка группы и у строки настройки. */
       MORE_ABOUT: "More about {0}",
+      /* Полоса вкладок: её читает вслух программа чтения с экрана. */
+      TAB_STRIP: "Settings areas",
+      /* Прежние имена настройки: человек ищет ими в глобальном поиске (С4). */
+      PREVIOUSLY_CALLED: "Previously called {0}",
+      /* Тихий значок контраста (Н16): число говорит, далеко ли до нормы. */
+      CONTRAST_WARNING: "This Value may be hard to read: contrast {0}:1, aim for {1}:1",
+      /* Примерные Fields предпросмотра, пока своих нет (ПЗ2). */
+      EXAMPLE_STATUS: "Status",
+      EXAMPLE_PRIORITY: "Priority",
       /* Значение словами в списке того, что сбрасывается. */
       WORD_ON: "on",
       WORD_OFF: "off",
@@ -21565,7 +21938,7 @@ function tipBelow(o) {
       type: "button",
       "aria-expanded": "false",
       "aria-controls": o.id,
-      "aria-label": "More about " + o.label
+      "aria-label": (o.moreAbout || "More about {0}").replace("{0}", o.label)
     }
   });
   mark.addEventListener("click", () => {
@@ -21992,9 +22365,10 @@ var SYSTEM_ROW_ID, DUPLICATE_INSERT, DUPLICATE_NAME;
 var init_binder_model = __esm({
   "src/ui/settings/custom/binder_model.ts"() {
     "use strict";
+    init_texts_blocks();
     SYSTEM_ROW_ID = "binder-system-smart-bracket";
-    DUPLICATE_INSERT = "A row with this text to insert already exists";
-    DUPLICATE_NAME = "A row with this command name already exists";
+    DUPLICATE_INSERT = BLOCK_TEXTS["binder-table"].ERR_TEXT_TAKEN;
+    DUPLICATE_NAME = BLOCK_TEXTS["binder-table"].ERR_NAME_TAKEN;
   }
 });
 
@@ -22072,28 +22446,38 @@ var HOTKEY_NONE, HOTKEY_TITLE;
 var init_hotkeys = __esm({
   "src/ui/settings/custom/hotkeys.ts"() {
     "use strict";
-    HOTKEY_NONE = "not set";
-    HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
+    init_texts_blocks();
+    HOTKEY_NONE = BLOCK_TEXTS["command-list"].HOTKEY_NOT_SET;
+    HOTKEY_TITLE = BLOCK_TEXTS["command-list"].HOTKEY_OPEN;
   }
 });
 
 // src/ui/settings/custom/binder_view.ts
 function rowTitle(row) {
   const short = row.commandLabel.startsWith(LABEL_PREFIX) ? row.commandLabel.slice(LABEL_PREFIX.length) : row.commandLabel;
-  return short.trim() || row.commandName.trim() || row.insertText.trim() || "this row";
+  return short.trim() || row.commandName.trim() || row.insertText.trim() || T.ROW_ARIA;
 }
 function renderBinder(host, o) {
+  const say3 = o.say || PLAIN;
   const scroll = el(host, "div", "io-scroll");
   const card = el(scroll, "div", "io-card io-binder");
   const head = el(card, "div", "io-tablehead");
-  for (const cap of HEAD) el(head, "div", void 0, cap);
+  const caps = [
+    "",
+    say3("COL_INSERTS"),
+    say3("COL_COMMAND_NAME"),
+    say3("COL_DESCRIPTION"),
+    say3("COL_HOTKEY"),
+    ""
+  ];
+  for (const cap of caps) el(head, "div", void 0, cap);
   let taken = null;
   o.rows.forEach((row, i) => {
     const line = el(card, "div", "io-tablerow");
     const name = rowTitle(row);
     const grip = el(line, "span", "io-grip", "\u283F");
     grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + name + " to reorder it");
+    grip.setAttribute("aria-label", say3("ROW_DRAG", name));
     grip.draggable = true;
     grip.addEventListener("dragstart", ((ev) => {
       var _a;
@@ -22129,12 +22513,12 @@ function renderBinder(host, o) {
     const cell = el(line, "div", "io-binder__desc");
     if (row.system) {
       const note = el(cell, "div", "io-binder__note", row.description);
-      note.setAttribute("aria-label", "Description for " + name);
-      note.title = SYSTEM_TITLE;
+      note.setAttribute("aria-label", say3("ROW_DESC_ARIA", name));
+      note.title = say3("BUILT_IN");
     } else {
       const desc = textInput(cell, "io-text", {
         value: row.description,
-        label: "Description for " + name
+        label: say3("ROW_DESC_ARIA", name)
       });
       desc.addEventListener("change", (() => {
         o.onDescription(row, desc.value);
@@ -22142,9 +22526,9 @@ function renderBinder(host, o) {
     }
     const hotkey = o.hotkeyOf(row);
     const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
-      text: hotkey || HOTKEY_NONE2,
-      label: (hotkey ? "Change" : "Assign") + " the hotkey for " + name,
-      title: HOTKEY_TITLE
+      text: hotkey || say3("HOTKEY_NOT_SET"),
+      label: say3(hotkey ? "HOTKEY_CHANGE" : "HOTKEY_ASSIGN", name),
+      title: say3("HOTKEY_OPEN")
     });
     hk.disabled = !o.openHotkey;
     hk.addEventListener("click", (() => {
@@ -22152,7 +22536,7 @@ function renderBinder(host, o) {
     }));
     const drop2 = btn(line, "io-icon", {
       text: row.system ? "" : "\u2715",
-      label: row.system ? SYSTEM_TITLE : "Remove " + name
+      label: row.system ? say3("BUILT_IN") : say3("ROW_REMOVE", name)
     });
     drop2.disabled = row.system;
     drop2.addEventListener("click", (() => {
@@ -22166,8 +22550,9 @@ function renderBinder(host, o) {
   }));
 }
 function renderAddForm(box, o) {
-  el(box, "h4", void 0, ADD_TITLE);
-  el(box, "p", "io-item__desc", ADD_NOTE);
+  const say3 = o.say || PLAIN;
+  el(box, "h4", void 0, say3("NEW_TITLE"));
+  el(box, "p", "io-item__desc", say3("NEW_NOTE"));
   const field = (name, desc, placeholder) => {
     const row = el(box, "div", "io-item");
     const info = el(row, "div", "io-item__info");
@@ -22175,21 +22560,21 @@ function renderAddForm(box, o) {
     el(info, "div", "io-item__desc", desc);
     const input = textInput(el(row, "div", "io-item__control"), "io-text", {
       value: "",
-      label: name + " of the new command",
+      label: say3("NEW_FIELD_ARIA", name),
       placeholder
     });
     const warn = el(info, "div", "io-item__warn");
     return { input, warn };
   };
-  const insert = field(INSERT_NAME, INSERT_DESC, "\u2192");
-  const command = field(CMD_NAME, CMD_DESC, "Arrow");
-  const note = field(DESC_NAME, DESC_DESC, "");
+  const insert = field(say3("NEW_INSERTS_LABEL"), say3("NEW_INSERTS_DESC"), say3("NEW_INSERTS_HINT"));
+  const command = field(say3("NEW_NAME_LABEL"), say3("NEW_NAME_DESC"), say3("NEW_NAME_HINT"));
+  const note = field(say3("NEW_DESC_LABEL"), say3("NEW_DESC_DESC"), "");
   const foot = el(box, "div", "io-dlg__foot");
-  const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
+  const cancel = btn(foot, "io-btn", { text: say3("NEW_CANCEL"), label: say3("NEW_CANCEL") });
   cancel.addEventListener("click", (() => {
     o.cancel();
   }));
-  const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
+  const add = btn(foot, "io-btn io-btn--cta", { text: say3("NEW_ADD"), label: say3("ADD_COMMAND") });
   const draftNow = () => ({
     insertText: insert.input.value,
     commandName: command.input.value,
@@ -22215,31 +22600,33 @@ function renderAddForm(box, o) {
     o.add(draft);
   }));
 }
-var HEAD, ADD_COMMAND, HOTKEY_NONE2, SYSTEM_TITLE, LABEL_PREFIX, ADD_TITLE, ADD_NOTE, INSERT_NAME, INSERT_DESC, CMD_NAME, CMD_DESC, DESC_NAME, DESC_DESC;
+var T, HEAD, ADD_COMMAND, HOTKEY_NONE2, SYSTEM_TITLE, LABEL_PREFIX, ADD_TITLE, ADD_NOTE, INSERT_NAME, INSERT_DESC, CMD_NAME, CMD_DESC, DESC_NAME, DESC_DESC, PLAIN;
 var init_binder_view = __esm({
   "src/ui/settings/custom/binder_view.ts"() {
     "use strict";
     init_dom();
+    init_texts_blocks();
     init_hotkeys();
-    init_hotkeys();
-    HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""];
-    ADD_COMMAND = "Add command";
-    HOTKEY_NONE2 = "not set";
-    SYSTEM_TITLE = "Built in";
-    LABEL_PREFIX = "Binder: ";
-    ADD_TITLE = "Add a Binder command";
-    ADD_NOTE = "The command is made from the row, so the text it inserts cannot be changed afterwards";
-    INSERT_NAME = "Inserts";
-    INSERT_DESC = "The text this command drops in at the cursor";
-    CMD_NAME = "Command name";
-    CMD_DESC = "What to call it in Obsidian's list of hotkeys";
-    DESC_NAME = "Description";
-    DESC_DESC = "A note to yourself about what the row is for";
+    T = BLOCK_TEXTS["binder-table"];
+    HEAD = ["", T.COL_INSERTS, T.COL_COMMAND_NAME, T.COL_DESCRIPTION, T.COL_HOTKEY, ""];
+    ADD_COMMAND = T.ADD_COMMAND;
+    HOTKEY_NONE2 = T.HOTKEY_NOT_SET;
+    SYSTEM_TITLE = T.BUILT_IN;
+    LABEL_PREFIX = T.COMMAND_PREFIX.replace("{0}", "");
+    ADD_TITLE = T.NEW_TITLE;
+    ADD_NOTE = T.NEW_NOTE;
+    INSERT_NAME = T.NEW_INSERTS_LABEL;
+    INSERT_DESC = T.NEW_INSERTS_DESC;
+    CMD_NAME = T.NEW_NAME_LABEL;
+    CMD_DESC = T.NEW_NAME_DESC;
+    DESC_NAME = T.NEW_DESC_LABEL;
+    DESC_DESC = T.NEW_DESC_DESC;
+    PLAIN = sayIn("binder-table", {});
   }
 });
 
 // src/ui/settings/custom/binder.ts
-function askAddModal(Modal2, app3, done, duplicateOf) {
+function askAddModal(Modal2, app3, done, duplicateOf, say3) {
   let answered = false;
   const finish = (draft) => {
     if (answered) return;
@@ -22260,7 +22647,8 @@ function askAddModal(Modal2, app3, done, duplicateOf) {
           finish(null);
           this.close();
         },
-        duplicateOf
+        duplicateOf,
+        ...say3 ? { say: say3 } : {}
       });
     }
     onClose() {
@@ -22278,6 +22666,7 @@ var init_binder = __esm({
     init_keepview();
     init_binder_model();
     init_binder_view();
+    init_texts_blocks();
     init_hotkeys();
     import_command_registry = __toESM(require_command_registry());
     registry = import_command_registry.default;
@@ -22319,6 +22708,7 @@ var init_binder = __esm({
             }
           };
           renderBinder(next, {
+            say: sayIn("binder-table", ctx),
             rows: model.listRows(),
             hotkeyOf: (row) => hotkeyOf(plugin, row.commandId),
             openHotkey: canOpen ? (row) => {
@@ -22345,7 +22735,7 @@ var init_binder = __esm({
                 const res = model.add(draft);
                 if (!res.ok && res.error) notice(res.error);
               });
-            }, (draft) => model.duplicateOf(draft))
+            }, (draft) => model.duplicateOf(draft), sayIn("binder-table", ctx))
           });
         } catch (e) {
           next.remove();
@@ -22399,6 +22789,7 @@ var init_command_reference = __esm({
     init_keepview();
     init_custom_texts();
     init_texts_custom();
+    init_texts_blocks();
     init_hotkeys();
     FAMILY_BY_ROW = {
       "Status next": "field-next",
@@ -22406,7 +22797,7 @@ var init_command_reference = __esm({
       "<your rows>": "binder-row",
       "Toggle <module> module": "module-toggle"
     };
-    HEAD2 = ["Command", "Description", "Hotkey"];
+    HEAD2 = ["COL_COMMAND", "COL_DOES", "COL_HOTKEY"];
     KIND_WORD = {
       tag: "tag",
       wikilink: "link",
@@ -22414,6 +22805,7 @@ var init_command_reference = __esm({
       element: "element"
     };
     commandReference = (host, ctx) => {
+      const words3 = sayIn("command-list", ctx);
       const box = el(host, "div", "io-cmdblock");
       const platform = ctx.platform;
       if (!platform) return () => {
@@ -22442,7 +22834,7 @@ var init_command_reference = __esm({
         const card = el(scroll, "div", "io-cmd");
         const inner = el(card, "div", "io-cmd__inner");
         const head = el(inner, "div", "io-cmd__head");
-        for (const title of HEAD2) el(head, "div", void 0, title);
+        for (const title of HEAD2) el(head, "div", void 0, words3(title));
         COMMAND_TEXTS.forEach((area, areaAt) => {
           const rows = [];
           const say3 = (slot, fallback) => ctx.t ? ctx.t(commandKey(areaAt, slot), fallback) : fallback;
@@ -22484,9 +22876,9 @@ var init_command_reference = __esm({
             const cell = el(line, "div");
             const current = hotkeyOf(plugin, cmd.id);
             const hk = btn(cell, "io-hk" + (current ? "" : " io-hk--none"), {
-              text: current || HOTKEY_NONE,
-              label: (current ? "Change" : "Assign") + " the hotkey for " + row.name,
-              title: HOTKEY_TITLE
+              text: current || words3("HOTKEY_NOT_SET"),
+              label: words3(current ? "HOTKEY_CHANGE" : "HOTKEY_ASSIGN", row.name),
+              title: words3("HOTKEY_OPEN")
             });
             hk.disabled = !canOpen;
             hk.addEventListener("click", (() => {
@@ -22690,37 +23082,39 @@ var init_dispatch_tables = __esm({
   "src/ui/settings/custom/dispatch_tables.ts"() {
     "use strict";
     init_dom();
+    init_texts_blocks();
     TABLES = [
       {
-        command: "Move left",
+        command: "MOVE_LEFT",
         steps: [
-          { when: "part of a line is selected", then: "move that text" },
-          { when: "the line is indented", then: "remove one indent level" },
-          { when: "no indent", then: "cycle the prefix backwards" }
+          { when: "WHEN_SELECTED", then: "THEN_MOVE_TEXT" },
+          { when: "WHEN_INDENTED", then: "THEN_UNINDENT" },
+          { when: "WHEN_NO_INDENT", then: "THEN_CYCLE_BACK" }
         ]
       },
       {
-        command: "Move right",
+        command: "MOVE_RIGHT",
         steps: [
-          { when: "part of a line is selected", then: "move that text" },
-          { when: "the line is indented", then: "add one indent level" },
-          { when: "no indent", then: "cycle the prefix forwards" }
+          { when: "WHEN_SELECTED", then: "THEN_MOVE_TEXT" },
+          { when: "WHEN_INDENTED", then: "THEN_INDENT" },
+          { when: "WHEN_NO_INDENT", then: "THEN_CYCLE_ON" }
         ]
       }
     ];
     ARROW = " \u2192 ";
-    dispatchTables = (host) => {
+    dispatchTables = (host, ctx) => {
+      const say3 = sayIn("left-right-order", ctx);
       const box = el(host, "div", "io-dispatch");
       const pair = el(box, "div", "io-orderpair");
       for (const table of TABLES) {
         const col = el(pair, "div");
-        el(col, "code", "io-ordercol__cap", table.command);
+        el(col, "code", "io-ordercol__cap", say3(table.command));
         const list = el(col, "ol", "io-order");
         for (const step of table.steps) {
           const li = el(list, "li");
-          el(li, "b", void 0, step.when);
+          el(li, "b", void 0, say3(step.when));
           el(li, "span", void 0, ARROW);
-          el(li, "span", "io-order__then", step.then);
+          el(li, "span", "io-order__then", say3(step.then));
         }
       }
       return () => {
@@ -22924,27 +23318,27 @@ function createFieldsModel(deps) {
     var _a2;
     const key = String(rawKey || "").replace(/\s+/g, " ").trim();
     if (!STRICT_NAME_RE.test(key)) {
-      return { ok: false, error: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores" };
+      return { ok: false, error: SAY.ERR_NAME_CHARS };
     }
     const all = getOrderKeys();
     if (SUB_SUFFIX_RE.test(key)) {
-      return { ok: false, error: "Names ending in _sub are kept for child Fields" };
+      return { ok: false, error: SAY.ERR_NAME_SUB };
     }
     if (all.includes(key)) {
-      return { ok: false, error: "A Field with this name already exists" };
+      return { ok: false, error: SAY.ERR_NAME_TAKEN };
     }
     const strictValues = new Set(
       all.map((kk) => String(orderState.strictNames && orderState.strictNames[kk] || kk).trim()).filter(Boolean)
     );
     if (strictValues.has(key)) {
-      return { ok: false, error: "A Field with this name already exists" };
+      return { ok: false, error: SAY.ERR_NAME_TAKEN };
     }
     const kindRaw = String(rawKind || "tag").trim().toLowerCase();
     const kind = kindRaw === "wikilink" || kindRaw === "element" ? kindRaw : "tag";
     const subKey = kind === "tag" ? inferSubKey(key) : "";
     const subStrict = kind === "tag" ? `${key}_sub` : "";
     if (subStrict && strictValues.has(subStrict)) {
-      return { ok: false, error: "The child Field for this name already exists" };
+      return { ok: false, error: SAY.ERR_CHILD_TAKEN };
     }
     orderState.right = (orderState.right || []).concat([key]);
     orderState.labels = { ...orderState.labels || {}, [key]: key };
@@ -23117,7 +23511,7 @@ function createFieldsModel(deps) {
     const next = String(rawNext || "").replace(/\s+/g, " ").trim();
     if (next === oldName) return { ok: true, changed: false };
     if (!STRICT_NAME_RE.test(next)) {
-      return { ok: false, error: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores" };
+      return { ok: false, error: SAY.ERR_NAME_CHARS };
     }
     const taken = /* @__PURE__ */ new Set();
     for (const kk of getOrderKeys()) {
@@ -23126,7 +23520,7 @@ function createFieldsModel(deps) {
       if (vv) taken.add(vv);
     }
     if (taken.has(next)) {
-      return { ok: false, error: "A Field with this name already exists" };
+      return { ok: false, error: SAY.ERR_NAME_TAKEN };
     }
     orderState.strictNames = { ...orderState.strictNames || {}, [k]: next };
     const labels = { ...orderState.labels || {} };
@@ -23379,12 +23773,12 @@ function createFieldsModel(deps) {
   };
   const writeDefKey = (k, patch, reason) => {
     const pool = poolByOrderKey(k);
-    if (!pool) return { ok: false, error: "No Field named " + k };
+    if (!pool) return { ok: false, error: SAY.ERR_NO_FIELD.replace("{0}", k) };
     const behavior = behaviorOf(plugin.getConfig());
     const list = modeFields(behavior, pool);
     const def = findFieldByOrderKey(list, k);
     const id = String(def && def.id || "").trim();
-    if (!def || !id) return { ok: false, error: "No Field named " + k };
+    if (!def || !id) return { ok: false, error: SAY.ERR_NO_FIELD.replace("{0}", k) };
     const nextDef = { ...asObject2(def) };
     for (const key of Object.keys(patch)) {
       const value = patch[key];
@@ -23410,7 +23804,7 @@ function createFieldsModel(deps) {
   };
   const setYamlValueRule = (k, raw) => {
     const next = normalizeValueRule(raw);
-    if (!next) return { ok: false, error: "A Value is written either raw or clean, nothing else" };
+    if (!next) return { ok: false, error: SAY.ERR_YAML_FORM };
     const def = defByOrderKey(k);
     if (normalizeValueRule(def && def.yamlValueRule) === next) return { ok: true, changed: false };
     return writeDefKey(k, { yamlValueRule: next }, "pkm:behavior:yaml:value-rule:" + k);
@@ -23505,18 +23899,18 @@ function createFieldsModel(deps) {
   const setPrerequisite = (k, rawFieldId, rawValue) => {
     const key = String(k || "").trim();
     const side = poolOf(key);
-    if (!side) return { ok: false, error: "This Field is not saved yet" };
+    if (!side) return { ok: false, error: SAY.ERR_NOT_SAVED };
     const fieldId = String(rawFieldId || "").trim();
     const value = String(rawValue || "").trim();
     if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
-      return { ok: false, error: "A Field cannot wait for itself" };
+      return { ok: false, error: SAY.ERR_SELF_PREREQ };
     }
     if (fieldId && side === "leftMode" && poolOf(fieldId) !== "leftMode") {
-      return { ok: false, error: "A Tag Field can only wait for another Tag Field" };
+      return { ok: false, error: SAY.ERR_TAG_PREREQ };
     }
     const list = modeFields(behaviorOf(plugin.getConfig()), side);
     const idx = list.findIndex((f) => idOf(f) === key);
-    if (idx === -1) return { ok: false, error: "This Field is not saved yet" };
+    if (idx === -1) return { ok: false, error: SAY.ERR_NOT_SAVED };
     const next = { ...asObject2(list[idx]) };
     if (fieldId) {
       next["dependsOn"] = fieldId;
@@ -23958,7 +24352,7 @@ function createFieldsModel(deps) {
         let nextLeft2 = leftMode.slice();
         let nextRight2 = rightMode.slice();
         if (!fidParent) {
-          return { ok: false, error: "Cannot tell which Field this link Value belongs to" };
+          return { ok: false, error: SAY.ERR_LINK_NO_FIELD };
         }
         const sourceId = String(parentField && parentField.source || `wikilinks:${fidParent}`).trim();
         const nextParent = {
@@ -24093,12 +24487,12 @@ function createFieldsModel(deps) {
         const rightField = findWikilinkField(rightNow);
         const leftField = findWikilinkField(leftNow);
         const target = rightField || leftField;
-        if (!target) return { ok: false, error: "Cannot tell which Field this link Value would go to" };
+        if (!target) return { ok: false, error: SAY.ERR_LINK_NO_TARGET };
         const targetId = String(target.id || strictNorm || keyNorm).trim();
-        if (!targetId) return { ok: false, error: "The Field for this link has no name" };
+        if (!targetId) return { ok: false, error: SAY.ERR_LINK_UNNAMED_FIELD };
         const valuesNow = Array.isArray(target.values) ? target.values.slice() : [];
         const tokenPlain = String(token).replace(/^\[\[|\]\]$/g, "").trim();
-        if (!tokenPlain) return { ok: false, error: "A link needs a name" };
+        if (!tokenPlain) return { ok: false, error: SAY.ERR_LINK_NEEDS_NAME };
         const exists = valuesNow.some((row) => {
           const tok = String(row && typeof row === "object" ? row.token : row || "").trim();
           return tok === tokenPlain;
@@ -24207,10 +24601,12 @@ function createFieldsModel(deps) {
     normalizeCustomRaw
   };
 }
-var STRICT_NAME_RE, SUB_SUFFIX_RE, MODE_BRANCH;
+var SAY, STRICT_NAME_RE, SUB_SUFFIX_RE, MODE_BRANCH;
 var init_fields_model = __esm({
   "src/ui/settings/custom/fields_model.ts"() {
     "use strict";
+    init_texts_blocks();
+    SAY = BLOCK_TEXTS["field-editor"];
     STRICT_NAME_RE = /^[a-z0-9_\- ]+$/i;
     SUB_SUFFIX_RE = /_sub$/;
     MODE_BRANCH = {
@@ -26686,7 +27082,7 @@ function moved(list, from, to) {
   out.splice(to, 0, taken);
   return out;
 }
-function sortableList(host, o) {
+function sortableList(host, o, say3) {
   const box = el(host, "div", "io-sortable" + (o.enabled ? "" : " io-sortable--off"));
   if (!o.rows.length) {
     el(box, "div", "io-side__empty", o.empty);
@@ -26697,7 +27093,7 @@ function sortableList(host, o) {
     const row = el(box, "div", "io-sortrow");
     const grip = el(row, "span", "io-grip", "\u283F");
     grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + o.label(value, i) + " to reorder it");
+    grip.setAttribute("aria-label", say3("ROW_DRAG", o.label(value, i)));
     grip.draggable = o.enabled;
     grip.addEventListener("dragstart", ((ev) => {
       var _a;
@@ -26731,18 +27127,18 @@ function sortableList(host, o) {
     el(row, "span", "io-sortrow__n", String(i + 1));
     o.cell(row, value, i);
     const move2 = el(row, "div", "io-sortrow__move");
-    const up = btn(move2, "io-icon", { text: "\u25B2", label: "Move " + o.label(value, i) + " up" });
+    const up = btn(move2, "io-icon", { text: "\u25B2", label: say3("MOVE_UP", o.label(value, i)) });
     up.disabled = i === 0 || !o.enabled;
     up.addEventListener("click", (() => {
       if (o.enabled) o.onMove(i, i - 1);
     }));
-    const down = btn(move2, "io-icon", { text: "\u25BC", label: "Move " + o.label(value, i) + " down" });
+    const down = btn(move2, "io-icon", { text: "\u25BC", label: say3("MOVE_DOWN", o.label(value, i)) });
     down.disabled = i === o.rows.length - 1 || !o.enabled;
     down.addEventListener("click", (() => {
       if (o.enabled) o.onMove(i, i + 1);
     }));
     if (o.onRemove) {
-      const drop2 = btn(move2, "io-icon", { text: "\u2715", label: "Remove " + o.label(value, i) });
+      const drop2 = btn(move2, "io-icon", { text: "\u2715", label: say3("REMOVE", o.label(value, i)) });
       drop2.disabled = o.rows.length < 2 || !o.enabled;
       drop2.addEventListener("click", (() => {
         if (o.enabled && o.onRemove) o.onRemove(i);
@@ -26804,14 +27200,15 @@ function priorityBlock(host, ctx, o) {
         );
       });
     };
-    el(mount, "p", "io-note io-note--lead", o.note);
+    const say3 = words(ctx);
+    el(mount, "p", "io-note io-note--lead", say3(o.note));
     sortableList(mount, {
       rows: items.map((x) => x.value),
       enabled,
-      empty: o.empty,
+      empty: say3(o.empty),
       label: (_value, i) => {
         var _a;
-        return ((_a = items[i]) == null ? void 0 : _a.label) || "row " + (i + 1);
+        return ((_a = items[i]) == null ? void 0 : _a.label) || say3("PREFIX_ROW", i + 1);
       },
       cell: (row, _value, i) => {
         const item = items[i];
@@ -26821,10 +27218,10 @@ function priorityBlock(host, ctx, o) {
         moved(items.map((x) => x.value), from, to),
         "pkm:prefixRules:" + o.key + ":move"
       )
-    });
+    }, say3);
   });
 }
-var import_fields_editor_legacy, helpers, NO_PREFIX, ADD_PREFIX, DRAG_NOTE, FIELD_NOTE, PREFIX_NOTE, EMPTY_FIELDS, EMPTY_PREFIXES, CYCLE_PATHS, cycleOrder, fieldOrderList, prefixOrderList;
+var import_fields_editor_legacy, helpers, words, CYCLE_PATHS, cycleOrder, fieldOrderList, prefixOrderList;
 var init_order_lists = __esm({
   "src/ui/settings/custom/order_lists.ts"() {
     "use strict";
@@ -26832,14 +27229,9 @@ var init_order_lists = __esm({
     init_keepview();
     init_fields_model();
     import_fields_editor_legacy = __toESM(require_fields_editor_legacy());
+    init_texts_blocks();
     helpers = import_fields_editor_legacy.default;
-    NO_PREFIX = "no Prefix (plain text)";
-    ADD_PREFIX = "Add Prefix";
-    DRAG_NOTE = "Drag a row, or use the arrows, to change the order";
-    FIELD_NOTE = "The Field nearest the top wins a conflict. Drag a row, or use the arrows";
-    PREFIX_NOTE = "The Prefix nearest the top wins, whichever Field produced it. Drag a row, or use the arrows";
-    EMPTY_FIELDS = "no Fields yet \u2014 set them up under Fields above";
-    EMPTY_PREFIXES = "no Prefixes listed yet";
+    words = (ctx) => sayIn("field-order-list", ctx);
     CYCLE_PATHS = ["navigation.moveSelection.prefixCyclerEnabled"];
     cycleOrder = (host, ctx) => {
       const p = ctx.platform;
@@ -26862,17 +27254,18 @@ var init_order_lists = __esm({
             );
           });
         };
+        const say3 = words(ctx);
         sortableList(mount, {
           rows,
           enabled,
-          empty: EMPTY_PREFIXES,
-          label: (value, i) => "Prefix " + (i + 1),
+          empty: say3("PREFIX_EMPTY"),
+          label: (value, i) => say3("PREFIX_ROW", i + 1),
           cell: (row, value, i) => {
             const input = textInput(row, "io-text io-text--mono io-sortrow__text", {
               value,
               /* Ц1: пустая строка — это обычная строка, и подпись это говорит. */
-              placeholder: NO_PREFIX,
-              label: "Prefix " + (i + 1)
+              placeholder: say3("NO_PREFIX"),
+              label: say3("PREFIX_ROW", i + 1)
             });
             input.disabled = !enabled;
             input.addEventListener("change", (() => {
@@ -26884,22 +27277,26 @@ var init_order_lists = __esm({
           },
           onMove: (from, to) => save(moved(rows, from, to), "navigation:cycleOrder:move"),
           onRemove: (i) => save(rows.filter((_, k) => k !== i), "navigation:cycleOrder:remove")
-        });
+        }, say3);
         const actions = el(mount, "div", "io-rowactions");
-        const add = btn(actions, "io-btn io-btn--sm", { text: ADD_PREFIX, label: ADD_PREFIX });
+        const add = btn(
+          actions,
+          "io-btn io-btn--sm",
+          { text: say3("ADD_PREFIX"), label: say3("ADD_PREFIX") }
+        );
         add.disabled = !enabled;
         add.addEventListener("click", (() => {
           if (!enabled) return;
           save(rows.concat(""), "navigation:cycleOrder:add");
         }));
-        el(actions, "span", "io-note", DRAG_NOTE);
+        el(actions, "span", "io-note", say3("DRAG_HINT"));
       });
     };
     fieldOrderList = (host, ctx) => priorityBlock(host, ctx, {
       cls: "io-fieldorder",
       key: "priorityTargets",
-      note: FIELD_NOTE,
-      empty: EMPTY_FIELDS,
+      note: "FIELDS_TIP",
+      empty: "FIELDS_EMPTY",
       rowsOf: (cfg) => {
         const p = ctx.platform;
         if (!p) return [];
@@ -26923,8 +27320,8 @@ var init_order_lists = __esm({
     prefixOrderList = (host, ctx) => priorityBlock(host, ctx, {
       cls: "io-prefixorder",
       key: "priorityCheckboxes",
-      note: PREFIX_NOTE,
-      empty: EMPTY_PREFIXES,
+      note: "PREFIX_TIP",
+      empty: "PREFIX_EMPTY",
       rowsOf: (cfg) => strings(prefixRules(cfg)["priorityCheckboxes"]).map((value) => ({ value, label: value })),
       cell: (row, item) => {
         el(row, "code", "io-mono", item.value);
@@ -27377,8 +27774,9 @@ function contrastRatio(bg, fg) {
   const lo = Math.min(a, b);
   return (hi + 0.05) / (lo + 0.05);
 }
-function contrastWarning(ratio) {
-  return "This Value may be hard to read: contrast " + ratio.toFixed(1) + ":1, aim for " + CONTRAST_FLOOR + ":1";
+function contrastWarning(ratio, pattern) {
+  const said2 = pattern || "This Value may be hard to read: contrast {0}:1, aim for {1}:1";
+  return said2.replace("{0}", ratio.toFixed(1)).replace("{1}", String(CONTRAST_FLOOR));
 }
 var CONTRAST_FLOOR;
 var init_contrast = __esm({
@@ -28239,7 +28637,7 @@ function propertyPicker(host, o) {
   const input = textInput(box, "io-text io-text--mono io-text--prop", {
     value: o.value,
     placeholder: o.placeholder,
-    label: "YAML property for " + o.label
+    label: o.say("YAML_FOR", o.label)
   });
   input.disabled = !o.enabled;
   input.addEventListener("change", (() => {
@@ -28249,7 +28647,7 @@ function propertyPicker(host, o) {
   if (o.enabled && String(o.value || "").trim()) {
     const clear = btn(box, "io-clear", {
       text: "\u2715",
-      label: "Clear the property of " + o.label
+      label: o.say("YAML_CLEAR", o.label)
     });
     clear.addEventListener("click", (() => {
       input.value = "";
@@ -28284,22 +28682,24 @@ function propertyPicker(host, o) {
     console.error("inline-overhaul: \u043F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0430 \u0438\u043C\u0451\u043D \u0441\u0432\u043E\u0439\u0441\u0442\u0432 \u043D\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u043B\u0430\u0441\u044C", e);
   }
 }
-var import_transform_feature2, engine, NOT_WRITTEN, CARDINALITY_OPTIONS, VALUE_RULE_OPTIONS;
+var import_transform_feature2, engine, T2, NOT_WRITTEN, CARDINALITY_OPTIONS, VALUE_RULE_OPTIONS;
 var init_yaml_property = __esm({
   "src/ui/settings/custom/yaml_property.ts"() {
     "use strict";
     init_dom();
+    init_texts_blocks();
     import_transform_feature2 = __toESM(require_transform_feature());
     engine = import_transform_feature2.default;
-    NOT_WRITTEN = "not written";
+    T2 = BLOCK_TEXTS["field-editor"];
+    NOT_WRITTEN = T2.YAML_NOT_WRITTEN;
     CARDINALITY_OPTIONS = [
-      { value: "auto", label: "Auto" },
-      { value: "one", label: "One Value" },
-      { value: "list", label: "A list" }
+      { value: "auto", name: "YAML_KIND_AUTO", label: T2.YAML_KIND_AUTO },
+      { value: "one", name: "YAML_KIND_ONE", label: T2.YAML_KIND_ONE },
+      { value: "list", name: "YAML_KIND_LIST", label: T2.YAML_KIND_LIST }
     ];
     VALUE_RULE_OPTIONS = [
-      { value: "raw", label: "Raw" },
-      { value: "clean", label: "Clean" }
+      { value: "raw", name: "YAML_FORM_RAW", label: T2.YAML_FORM_RAW },
+      { value: "clean", name: "YAML_FORM_CLEAN", label: T2.YAML_FORM_CLEAN }
     ];
   }
 });
@@ -28317,6 +28717,7 @@ function columnTips(isLink) {
   };
 }
 function renderFieldList(list, o) {
+  const say3 = words2(o);
   const rows = o.model.listFields();
   let dragged = "";
   const ownerOf = (row) => row.parent || row.key;
@@ -28338,7 +28739,7 @@ function renderFieldList(list, o) {
     }));
     const mine = rows.filter((r) => r.side === value);
     if (!mine.length) {
-      el(sec, "div", "io-side__empty", EMPTY_SIDE);
+      el(sec, "div", "io-side__empty", say3("EMPTY_SIDE"));
       return;
     }
     for (const row of mine) {
@@ -28347,7 +28748,7 @@ function renderFieldList(list, o) {
       item.setAttribute("aria-current", current ? "true" : "false");
       const grip = el(item, "span", "io-grip", "\u283F");
       grip.setAttribute("role", "button");
-      const gripLabel = row.parent ? "Drag " + row.label + " \u2014 it moves with " + parentLabel(rows, row.parent) : "Drag " + row.label + " to reorder it, or across the line to change side";
+      const gripLabel = row.parent ? say3("DRAG_CHILD_FIELD", row.label, parentLabel(rows, row.parent)) : say3("DRAG_FIELD", row.label);
       grip.setAttribute("aria-label", gripLabel);
       grip.draggable = o.enabled;
       grip.addEventListener("dragstart", ((ev) => {
@@ -28379,7 +28780,7 @@ function renderFieldList(list, o) {
         o.model.moveKey(row.side, dragged, before);
         o.redraw();
       }));
-      const pick = btn(item, "io-fields__pick", { label: "Show the Field " + row.label });
+      const pick = btn(item, "io-fields__pick", { label: say3("SHOW_FIELD", row.label) });
       el(pick, "span", "io-fields__name", row.label);
       cssVar(
         el(pick, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
@@ -28401,8 +28802,8 @@ function renderFieldList(list, o) {
           o.redraw();
         }));
       };
-      arrow("\u2191", -1, "Move " + row.label + " up, and across the line at the top");
-      arrow("\u2193", 1, "Move " + row.label + " down, and across the line at the bottom");
+      arrow("\u2191", -1, say3("MOVE_FIELD_UP", row.label));
+      arrow("\u2193", 1, say3("MOVE_FIELD_DOWN", row.label));
     }
   };
   side("left");
@@ -28464,15 +28865,16 @@ function itemRow(host, o) {
   return { control: el(row, "div", "io-item__control"), info, closeTip };
 }
 function prerequisiteRows(detail, row, o) {
+  const say3 = words2(o);
   const closers = [];
   const state = o.model.getPrerequisite(row.key);
   if (!state.candidates.length && !state.fieldId) return closers;
   if (!o.state.prereqOpen) o.state.prereqOpen = {};
   const opened = Boolean(state.fieldId || o.state.prereqOpen[row.key]);
   const on2 = itemRow(detail, {
-    name: PREREQ_NAME,
-    desc: PREREQ_DESC,
-    tip: PREREQ_TIP,
+    name: say3("PREREQ_NAME"),
+    desc: say3("PREREQ_DESC"),
+    tip: say3("PREREQ_TIP"),
     tipId: "io-field-prereq-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -28481,7 +28883,7 @@ function prerequisiteRows(detail, row, o) {
   const onPick = selectInput(on2.control, "io-select", {
     options: PREREQ_OPTIONS,
     value: opened ? "yes" : "no",
-    label: PREREQ_NAME + " for " + row.strictName
+    label: say3("PREREQ_NAME") + " for " + row.strictName
   });
   onPick.disabled = !o.enabled;
   onPick.addEventListener("change", (() => {
@@ -28493,20 +28895,20 @@ function prerequisiteRows(detail, row, o) {
   }));
   if (!opened) return closers;
   const which = itemRow(detail, {
-    name: PREREQ_FIELD_NAME,
-    desc: PREREQ_FIELD_DESC,
-    tip: PREREQ_FIELD_TIP,
+    name: say3("PREREQ_PICK_NAME"),
+    desc: say3("PREREQ_PICK_DESC"),
+    tip: say3("PREREQ_PICK_TIP"),
     tipId: "io-field-prereq-which-tip",
     showTips: o.showTips,
     showIds: o.showIds
   });
   closers.push(which.closeTip);
   const whichPick = selectInput(which.control, "io-select", {
-    options: [{ value: "", label: PREREQ_FIELD_NONE }].concat(
+    options: [{ value: "", label: say3("PREREQ_NOT_CHOSEN") }].concat(
       state.candidates.map((c) => ({ value: c.key, label: c.label }))
     ),
     value: state.fieldId,
-    label: PREREQ_FIELD_NAME + " for " + row.strictName
+    label: say3("PREREQ_PICK_NAME") + " for " + row.strictName
   });
   whichPick.disabled = !o.enabled;
   whichPick.addEventListener("change", (() => {
@@ -28517,20 +28919,20 @@ function prerequisiteRows(detail, row, o) {
   }));
   if (!state.fieldId) return closers;
   const value = itemRow(detail, {
-    name: PREREQ_VALUE_NAME,
-    desc: PREREQ_VALUE_DESC,
-    tip: PREREQ_VALUE_TIP,
+    name: say3("PREREQ_VALUE_NAME"),
+    desc: say3("PREREQ_VALUE_DESC"),
+    tip: say3("PREREQ_VALUE_TIP"),
     tipId: "io-field-prereq-value-tip",
     showTips: o.showTips,
     showIds: o.showIds
   });
   closers.push(value.closeTip);
   const valuePick = selectInput(value.control, "io-select", {
-    options: [{ value: "", label: PREREQ_VALUE_ANY }].concat(
+    options: [{ value: "", label: say3("PREREQ_ANY_VALUE") }].concat(
       state.values.map((v) => ({ value: v.value, label: v.label }))
     ),
     value: state.value,
-    label: PREREQ_VALUE_NAME + " for " + row.strictName
+    label: say3("PREREQ_VALUE_NAME") + " for " + row.strictName
   });
   valuePick.disabled = !o.enabled;
   valuePick.addEventListener("change", (() => {
@@ -28542,6 +28944,7 @@ function prerequisiteRows(detail, row, o) {
   return closers;
 }
 function renderFieldDetail(detail, row, o) {
+  const say3 = words2(o);
   const closers = [];
   const title = el(detail, "div", "io-fields__title");
   el(title, "h4", void 0, row.strictName);
@@ -28554,7 +28957,7 @@ function renderFieldDetail(detail, row, o) {
     const ask = o.askRename;
     const pencil = btn(title, "io-icon", {
       text: "\u270E",
-      label: "Rename the Field " + row.strictName
+      label: say3("RENAME_FIELD", row.strictName)
     });
     pencil.disabled = !o.enabled;
     pencil.addEventListener("click", (() => {
@@ -28569,7 +28972,7 @@ function renderFieldDetail(detail, row, o) {
     }));
   }
   const del = btn(title, "io-danger", {
-    label: "Delete the Field " + row.strictName
+    label: say3("DELETE_FIELD", row.strictName)
   });
   el(del, "span", "io-danger__icon");
   del.disabled = !o.enabled;
@@ -28583,9 +28986,9 @@ function renderFieldDetail(detail, row, o) {
     });
   }));
   const shortRow = itemRow(detail, {
-    name: SHORT_NAME_NAME,
-    desc: SHORT_NAME_DESC,
-    tip: SHORT_NAME_TIP,
+    name: say3("SHORT_NAME_NAME"),
+    desc: say3("SHORT_NAME_DESC"),
+    tip: say3("SHORT_NAME_TIP"),
     tipId: "io-field-short-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -28595,7 +28998,7 @@ function renderFieldDetail(detail, row, o) {
     /* Пусто — значит короткого имени нет и в TagWheel стоит полное. */
     value: row.label === row.strictName ? "" : row.label,
     placeholder: row.strictName,
-    label: SHORT_NAME_NAME + " for " + row.strictName
+    label: say3("SHORT_NAME_NAME") + " for " + row.strictName
   });
   short.disabled = !o.enabled;
   short.addEventListener("change", (() => {
@@ -28611,7 +29014,7 @@ function renderFieldDetail(detail, row, o) {
   closers.push(tipBelow({
     head: behaviorHead,
     host: el(detail, "div", "io-tipslot"),
-    text: BEHAVIOR_HEAD_TIP,
+    text: say3("BEHAVIOR_HEAD_TIP"),
     label: "Behavior",
     id: "io-field-behavior-tip",
     showTips: o.showTips,
@@ -28619,9 +29022,9 @@ function renderFieldDetail(detail, row, o) {
   }));
   if (!row.parent) {
     const active = itemRow(detail, {
-      name: ACTIVE_NAME,
-      desc: ACTIVE_DESC,
-      tip: ACTIVE_TIP,
+      name: say3("ACTIVE_NAME"),
+      desc: say3("ACTIVE_DESC"),
+      tip: say3("ACTIVE_TIP"),
       tipId: "io-field-active-tip",
       showTips: o.showTips,
       showIds: o.showIds
@@ -28630,7 +29033,7 @@ function renderFieldDetail(detail, row, o) {
     const mode2 = selectInput(active.control, "io-select", {
       options: ACTIVE_OPTIONS,
       value: row.active,
-      label: "Active, for " + row.strictName
+      label: say3("ACTIVE_FOR", row.strictName)
     });
     mode2.disabled = !o.enabled;
     mode2.addEventListener("change", (() => {
@@ -28640,9 +29043,9 @@ function renderFieldDetail(detail, row, o) {
     }));
   }
   const behavior = itemRow(detail, {
-    name: BEHAVIOR_NAME,
-    desc: BEHAVIOR_DESC,
-    tip: BEHAVIOR_TIP,
+    name: say3("BEHAVIOR_NAME"),
+    desc: say3("BEHAVIOR_DESC"),
+    tip: say3("BEHAVIOR_TIP"),
     tipId: "io-field-behavior-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -28651,7 +29054,7 @@ function renderFieldDetail(detail, row, o) {
   const mode = selectInput(behavior.control, "io-select", {
     options: BEHAVIOR_OPTIONS,
     value: row.freeRoam,
-    label: "Behavior for " + row.strictName
+    label: say3("BEHAVIOR_FOR", row.strictName)
   });
   mode.disabled = !o.enabled;
   mode.addEventListener("change", (() => {
@@ -28662,9 +29065,9 @@ function renderFieldDetail(detail, row, o) {
   if (row.subKey) {
     const on2 = o.model.getSubActive(row.subKey) !== "no";
     const child = itemRow(detail, {
-      name: CHILD_NAME,
-      desc: CHILD_DESC,
-      tip: CHILD_TIP,
+      name: say3("CHILD_NAME"),
+      desc: say3("CHILD_DESC"),
+      tip: say3("CHILD_TIP"),
       tipId: "io-field-child-tip",
       showTips: o.showTips,
       showIds: o.showIds
@@ -28673,7 +29076,7 @@ function renderFieldDetail(detail, row, o) {
     const pick = selectInput(child.control, "io-select", {
       options: CHILD_OPTIONS,
       value: on2 ? "yes" : "no",
-      label: "Child Field of " + row.strictName
+      label: say3("CHILD_OF", row.strictName)
     });
     pick.disabled = !o.enabled;
     pick.addEventListener("change", (() => {
@@ -28685,12 +29088,12 @@ function renderFieldDetail(detail, row, o) {
   }
   if (!row.parent) closers.push(...prerequisiteRows(detail, row, o));
   const propertyHead = el(detail, "div", "io-sub io-item__namerow");
-  el(propertyHead, "span", void 0, PROPERTY_HEAD);
+  el(propertyHead, "span", void 0, say3("YAML_HEAD"));
   closers.push(tipBelow({
     head: propertyHead,
     host: el(detail, "div", "io-tipslot"),
-    text: PROPERTY_HEAD_TIP,
-    label: PROPERTY_HEAD,
+    text: say3("YAML_HEAD_TIP"),
+    label: say3("YAML_HEAD"),
     id: "io-field-property-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -28701,6 +29104,7 @@ function renderFieldDetail(detail, row, o) {
   };
 }
 function yamlPropertyRows(detail, row, o) {
+  const say3 = words2(o);
   const closers = [];
   const commit = (write) => {
     try {
@@ -28715,9 +29119,9 @@ function yamlPropertyRows(detail, row, o) {
   const rows = o.model.listYamlFields();
   const mine = rows.find((r) => r.key === row.key);
   const property = itemRow(detail, {
-    name: PROPERTY_NAME,
-    desc: PROPERTY_DESC,
-    tip: PROPERTY_TIP,
+    name: say3("YAML_NAME"),
+    desc: say3("YAML_DESC"),
+    tip: say3("YAML_TIP"),
     tipId: "io-field-yaml-property-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -28730,12 +29134,13 @@ function yamlPropertyRows(detail, row, o) {
     return at ? String(at.type || "").trim().toLowerCase() : "";
   };
   if (row.kind === "wikilink" && declaredType(row.property) === "tags") {
-    el(property.info, "div", "io-item__warn", LINK_IN_TAGS);
+    el(property.info, "div", "io-item__warn", say3("YAML_TAGS_WARNING"));
   }
   propertyPicker(property.control, {
     value: row.property,
     label: row.strictName,
-    placeholder: PROPERTY_PLACEHOLDER,
+    placeholder: say3("YAML_HINT"),
+    say: say3,
     props,
     /* Подсказку рисует платформа; без класса поле остаётся обычным полем. */
     suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest ? { ctor: o.ctx.platform.AbstractInputSuggest, app: app3 } : void 0,
@@ -28745,9 +29150,9 @@ function yamlPropertyRows(detail, row, o) {
     })
   });
   const cardinality = itemRow(detail, {
-    name: CARDINALITY_NAME,
-    desc: CARDINALITY_DESC,
-    tip: CARDINALITY_TIP,
+    name: say3("YAML_KIND_NAME"),
+    desc: say3("YAML_KIND_DESC"),
+    tip: say3("YAML_KIND_TIP"),
     tipId: "io-field-yaml-type-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -28756,7 +29161,7 @@ function yamlPropertyRows(detail, row, o) {
   const holds = selectInput(cardinality.control, "io-select", {
     options: CARDINALITY_OPTIONS,
     value: mine ? mine.cardinality : "auto",
-    label: CARDINALITY_NAME + " for " + row.strictName
+    label: say3("YAML_KIND_NAME") + " for " + row.strictName
   });
   holds.disabled = !o.enabled;
   holds.addEventListener("change", (() => {
@@ -28766,9 +29171,9 @@ function yamlPropertyRows(detail, row, o) {
     });
   }));
   const rule = itemRow(detail, {
-    name: VALUE_RULE_NAME,
-    desc: VALUE_RULE_DESC,
-    tip: VALUE_RULE_TIP,
+    name: say3("YAML_FORM_NAME"),
+    desc: say3("YAML_FORM_DESC"),
+    tip: say3("YAML_FORM_TIP"),
     tipId: "io-field-yaml-rule-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -28777,7 +29182,7 @@ function yamlPropertyRows(detail, row, o) {
   const ruleSelect = selectInput(rule.control, "io-select", {
     options: VALUE_RULE_OPTIONS,
     value: mine ? mine.valueRule : "raw",
-    label: VALUE_RULE_NAME + " for " + row.strictName
+    label: say3("YAML_FORM_NAME") + " for " + row.strictName
   });
   ruleSelect.disabled = !o.enabled;
   ruleSelect.addEventListener("change", (() => {
@@ -28788,9 +29193,9 @@ function yamlPropertyRows(detail, row, o) {
   }));
   if (cfg) {
     const written = itemRow(detail, {
-      name: WRITTEN_NAME,
-      desc: WRITTEN_DESC,
-      tip: WRITTEN_TIP,
+      name: say3("YAML_PREVIEW_NAME"),
+      desc: say3("YAML_PREVIEW_DESC"),
+      tip: say3("YAML_PREVIEW_TIP"),
       tipId: "io-field-yaml-written-tip",
       showTips: o.showTips,
       showIds: o.showIds
@@ -28842,6 +29247,7 @@ function previewCell(host, o, theme, v) {
   warn.setAttribute("aria-label", note);
 }
 function renderValuesTable(host, row, o) {
+  const say3 = words2(o);
   const ve = o.model.valuesEditor(row.key);
   const theme = themePair(host);
   const isLink = ve.kind === "wikilink";
@@ -28851,7 +29257,7 @@ function renderValuesTable(host, row, o) {
   closers.push(tipBelow({
     head,
     host: el(host, "div", "io-tipslot"),
-    text: VALUES_TIP,
+    text: say3("VALUES_TIP"),
     label: "Values",
     id: "io-values-tip",
     showTips: o.showTips,
@@ -28889,7 +29295,7 @@ function renderValuesTable(host, row, o) {
     const line = el(inner, "div", "io-vals__row" + (at.level ? " io-vals__row--child" : ""));
     const grip = el(line, "div", "io-grip", "\u283F");
     grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + v.token + " to reorder it");
+    grip.setAttribute("aria-label", say3("VALUE_DRAG", v.token));
     grip.draggable = o.enabled;
     grip.addEventListener("dragstart", ((ev) => {
       var _a2;
@@ -28930,7 +29336,7 @@ function renderValuesTable(host, row, o) {
       const child = at.level === 1;
       const arrow = btn(depth, "io-icon", {
         text: child ? "\u2190" : "\u2192",
-        label: child ? "Make " + v.token + " a top-level Value" : "Make " + v.token + " a child Value"
+        label: say3(child ? "VALUE_MAKE_PARENT" : "VALUE_MAKE_CHILD", v.token)
       });
       const firstOfAll = !child && ve.tree.length > 0 && ((_a = ve.tree[0]) == null ? void 0 : _a.token) === v.token;
       arrow.disabled = !o.enabled || !child && firstOfAll;
@@ -28957,7 +29363,7 @@ function renderValuesTable(host, row, o) {
     const prefix = textInput(line, "io-text io-text--mono", {
       value: String(v.prefixMode === "checkbox" ? v.checkboxToken || "" : ""),
       placeholder: "no",
-      label: "Prefix for " + v.token
+      label: say3("VALUE_PREFIX_FOR", v.token)
     });
     prefix.disabled = !o.enabled;
     prefix.addEventListener("change", (() => {
@@ -28990,7 +29396,7 @@ function renderValuesTable(host, row, o) {
       const shown = selectInput(shownCell, "io-select", {
         options: SHOWN_OPTIONS,
         value: visual.visibility,
-        label: "Show, for " + v.token
+        label: say3("VALUE_SHOWN_FOR", v.token)
       });
       shown.disabled = !o.enabled;
       shown.addEventListener("change", (() => {
@@ -29007,7 +29413,7 @@ function renderValuesTable(host, row, o) {
         const custom = textInput(shownCell, "io-text io-text--mono", {
           value: visual.customText,
           placeholder: "printed instead",
-          label: "Custom text for " + v.token
+          label: say3("VALUE_CUSTOM_FOR", v.token)
         });
         custom.disabled = !o.enabled;
         custom.addEventListener("change", (() => {
@@ -29054,7 +29460,7 @@ function renderValuesTable(host, row, o) {
       if (visual.fillColor || visual.textColor) {
         const back = btn(tools, "io-icon", {
           text: "\u21BA",
-          label: "Reset the colors of " + v.token + " back to the colors of the theme"
+          label: say3("VALUE_RESET_COLORS", v.token)
         });
         back.disabled = !o.enabled;
         back.addEventListener("click", (() => {
@@ -29069,7 +29475,11 @@ function renderValuesTable(host, row, o) {
         }));
       }
     }
-    const del = btn(tools, "io-icon io-icon--danger", { text: "\u2715", label: "Remove " + v.token });
+    const del = btn(
+      tools,
+      "io-icon io-icon--danger",
+      { text: "\u2715", label: say3("VALUE_REMOVE", v.token) }
+    );
     del.disabled = !o.enabled;
     del.addEventListener("click", (() => {
       if (!o.enabled) return;
@@ -29081,13 +29491,13 @@ function renderValuesTable(host, row, o) {
   const add = textInput(foot, "io-text io-text--mono", {
     value: "",
     placeholder: isLink ? "[[wikilink]] / wikilink" : "#tag / tag",
-    label: "New Value for " + row.strictName
+    label: say3("NEW_VALUE_FOR", row.strictName)
   });
   add.disabled = !o.enabled;
   const addBtn = btn(
     foot,
     "io-btn io-btn--sm io-btn--cta",
-    { text: "Add Value", label: "Add a Value to " + row.strictName }
+    { text: say3("ADD_VALUE"), label: say3("ADD_VALUE_TO", row.strictName) }
   );
   addBtn.disabled = !o.enabled;
   addBtn.addEventListener("click", (() => {
@@ -29105,6 +29515,7 @@ function renderValuesTable(host, row, o) {
   };
 }
 function renderElementRows(host, row, o) {
+  const say3 = words2(o);
   const ed = o.model.elementEditor(row.key);
   const closers = [];
   const valueHead = el(host, "div", "io-sub io-item__namerow");
@@ -29112,7 +29523,7 @@ function renderElementRows(host, row, o) {
   closers.push(tipBelow({
     head: valueHead,
     host: el(host, "div", "io-tipslot"),
-    text: ELEMENT_VALUE_TIP,
+    text: say3("ELEMENT_VALUE_TIP"),
     label: "Value",
     id: "io-element-value-tip",
     showTips: o.showTips,
@@ -29134,27 +29545,27 @@ function renderElementRows(host, row, o) {
     }));
   };
   line(
-    MARKER_NAME,
-    MARKER_DESC,
-    MARKER_TIP,
+    say3("ELEMENT_EMOJI_NAME"),
+    say3("ELEMENT_EMOJI_DESC"),
+    say3("ELEMENT_EMOJI_TIP"),
     "io-element-marker-tip",
     ed.emoji,
     "one character or emoji",
     (v) => ed.setEmoji(v)
   );
   line(
-    FORMAT_NAME,
-    FORMAT_DESC,
-    FORMAT_TIP,
+    say3("ELEMENT_FORMAT_NAME"),
+    say3("ELEMENT_FORMAT_DESC"),
+    say3("ELEMENT_FORMAT_TIP"),
     "io-element-format-tip",
     ed.format,
-    FORMAT_PLACEHOLDER,
+    say3("ELEMENT_FORMAT_HINT"),
     (v) => ed.setFormat(v)
   );
   const steps = itemRow(host, {
     name: "Steps by",
-    desc: STEP_DESC,
-    tip: STEP_TIP,
+    desc: say3("ELEMENT_STEP_DESC"),
+    tip: say3("ELEMENT_STEP_TIP"),
     tipId: "io-element-step-tip",
     showTips: o.showTips,
     showIds: o.showIds
@@ -29163,7 +29574,7 @@ function renderElementRows(host, row, o) {
   const mode = selectInput(steps.control, "io-select", {
     options: STEP_OPTIONS,
     value: ed.mode,
-    label: "Steps by, for " + row.strictName
+    label: say3("ELEMENT_STEP_FOR", row.strictName)
   });
   mode.disabled = !o.enabled;
   mode.addEventListener("change", (() => {
@@ -29174,8 +29585,8 @@ function renderElementRows(host, row, o) {
   if (ed.mode === "increment") {
     const by = itemRow(host, {
       name: "Amount",
-      desc: AMOUNT_DESC,
-      tip: AMOUNT_TIP,
+      desc: say3("ELEMENT_AMOUNT_DESC"),
+      tip: say3("ELEMENT_AMOUNT_TIP"),
       tipId: "io-element-amount-tip",
       showTips: o.showTips,
       showIds: o.showIds
@@ -29183,7 +29594,7 @@ function renderElementRows(host, row, o) {
     closers.push(by.closeTip);
     const input = textInput(by.control, "io-text io-text--mono", {
       value: String(ed.incrementBy),
-      label: "Amount for " + row.strictName
+      label: say3("ELEMENT_AMOUNT_FOR", row.strictName)
     });
     input.disabled = !o.enabled;
     input.addEventListener("change", (() => {
@@ -29193,8 +29604,8 @@ function renderElementRows(host, row, o) {
   } else if (ed.mode === "command") {
     const cmd = itemRow(host, {
       name: "Command",
-      desc: COMMAND_DESC,
-      tip: COMMAND_TIP,
+      desc: say3("ELEMENT_COMMAND_DESC"),
+      tip: say3("ELEMENT_COMMAND_TIP"),
       tipId: "io-element-command-tip",
       showTips: o.showTips,
       showIds: o.showIds
@@ -29207,7 +29618,7 @@ function renderElementRows(host, row, o) {
         { value: "randomE", label: "Random characters" }
       ],
       value: ed.command,
-      label: "Command for " + row.strictName
+      label: say3("ELEMENT_COMMAND_FOR", row.strictName)
     });
     pick.disabled = !o.enabled;
     pick.addEventListener("change", (() => {
@@ -29217,8 +29628,8 @@ function renderElementRows(host, row, o) {
   } else {
     const own = itemRow(host, {
       name: "Steps",
-      desc: STEPS_DESC,
-      tip: STEPS_TIP,
+      desc: say3("ELEMENT_STEPS_DESC"),
+      tip: say3("ELEMENT_STEPS_TIP"),
       tipId: "io-element-steps-tip",
       showTips: o.showTips,
       showIds: o.showIds
@@ -29226,7 +29637,7 @@ function renderElementRows(host, row, o) {
     closers.push(own.closeTip);
     const area = own.control.createEl("textarea", {
       cls: "io-textarea",
-      attr: { "aria-label": "Steps for " + row.strictName, rows: "3" }
+      attr: { "aria-label": say3("ELEMENT_STEPS_FOR", row.strictName), rows: "3" }
     });
     area.value = ed.customRaw.join("\n");
     area.disabled = !o.enabled;
@@ -29240,6 +29651,7 @@ function renderElementRows(host, row, o) {
   };
 }
 function renderFieldsEditor(host, o) {
+  const say3 = words2(o);
   const wrap = el(host, "div", "io-fields");
   const closers = [];
   const listCol = el(wrap, "div", "io-fields__col");
@@ -29248,7 +29660,7 @@ function renderFieldsEditor(host, o) {
   closers.push(tipBelow({
     head: listHead,
     host: el(listCol, "div", "io-tipslot"),
-    text: LIST_TIP,
+    text: say3("LIST_TIP"),
     label: "the Fields list",
     id: "io-fields-list-tip",
     showTips: o.showTips,
@@ -29266,7 +29678,7 @@ function renderFieldsEditor(host, o) {
   closers.push(tipBelow({
     head: detailHead,
     host: el(detailCol, "div", "io-tipslot"),
-    text: DETAIL_TIP,
+    text: say3("DETAIL_TIP"),
     label: "this column",
     id: "io-fields-detail-tip",
     showTips: o.showTips,
@@ -29280,13 +29692,14 @@ function renderFieldsEditor(host, o) {
     wrap.remove();
   };
 }
-var TYPE_LABEL, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_NAME, SHORT_NAME_DESC, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, BEHAVIOR_HEAD_TIP, ELEMENT_VALUE_TIP, DETAIL_TIP, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PREREQ_NAME, PREREQ_DESC, PREREQ_TIP, PREREQ_OPTIONS, PREREQ_FIELD_NAME, PREREQ_FIELD_DESC, PREREQ_FIELD_TIP, PREREQ_FIELD_NONE, PREREQ_VALUE_NAME, PREREQ_VALUE_DESC, PREREQ_VALUE_TIP, PREREQ_VALUE_ANY, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, PROPERTY_TIP, PROPERTY_PLACEHOLDER, CARDINALITY_NAME, CARDINALITY_DESC, CARDINALITY_TIP, VALUE_RULE_NAME, VALUE_RULE_DESC, VALUE_RULE_TIP, LINK_IN_TAGS, WRITTEN_NAME, WRITTEN_DESC, WRITTEN_TIP, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
+var TYPE_LABEL, SIDE_LABEL, BEHAVIOR_OPTIONS, SHOWN_OPTIONS, ACTIVE_OPTIONS, CHILD_OPTIONS, PREREQ_OPTIONS, words2, STEP_OPTIONS;
 var init_fields_editor_view = __esm({
   "src/ui/settings/custom/fields_editor_view.ts"() {
     "use strict";
     init_dom();
     init_contrast();
     init_previews();
+    init_texts_blocks();
     init_preview_data();
     init_yaml_property();
     TYPE_LABEL = {
@@ -29295,94 +29708,35 @@ var init_fields_editor_view = __esm({
       element: "Emoji"
     };
     SIDE_LABEL = { left: "Left Block", right: "Right Block" };
-    LIST_TIP = "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right \u2014 at the edge of a Block they cross the line too";
-    EMPTY_SIDE = "nothing on this side";
-    SHORT_NAME_NAME = "Name in TagWheel";
-    SHORT_NAME_DESC = "A shorter name for the TagWheel row, where there is little room";
-    SHORT_NAME_TIP = "TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name";
     BEHAVIOR_OPTIONS = [
       { value: "off", label: "Strict" },
       { value: "minimal", label: "Insert only" },
       { value: "full", label: "Free" }
     ];
-    BEHAVIOR_HEAD_TIP = "Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line";
-    ELEMENT_VALUE_TIP = "An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along";
-    DETAIL_TIP = "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes";
-    VALUES_TIP = "The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent\u2019s <code>Behavior</code>";
     SHOWN_OPTIONS = [
       { value: "default", label: "default" },
       { value: "empty", label: "empty" },
       { value: "custom", label: "custom" }
     ];
-    BEHAVIOR_NAME = "Prefix behavior";
-    BEHAVIOR_DESC = "How this Field affects the line Prefix";
-    ACTIVE_NAME = "Active";
-    ACTIVE_DESC = "Whether this Field is offered, and where";
-    ACTIVE_TIP = "<b>No</b> switches the Field off everywhere: TagWheel does not show it and its commands do nothing. <b>Commands only</b> keeps the commands working and takes the Field out of TagWheel";
     ACTIVE_OPTIONS = [
       { value: "yes", label: "Yes" },
       { value: "no", label: "No" },
       { value: "hotkey_only", label: "Commands only" }
     ];
-    CHILD_NAME = "Child Field";
-    CHILD_DESC = "Show the child Field in TagWheel once a parent Value is picked";
-    CHILD_TIP = "A child Field is a second Field that only makes sense under this one: its Values are the ones marked child in the table below. Switched off, TagWheel does not offer it even when its Values are set up";
     CHILD_OPTIONS = [
       { value: "yes", label: "Yes" },
       { value: "no", label: "No" }
     ];
-    PREREQ_NAME = "Prerequisite Field";
-    PREREQ_DESC = "Show this Field only after another Field has a Value";
-    PREREQ_TIP = "A Field with a prerequisite stays out of TagWheel, out of its commands and out of the line until the Field it waits for has a Value. Picking a different Value in that Field clears this one";
     PREREQ_OPTIONS = [
       { value: "no", label: "No" },
       { value: "yes", label: "Yes" }
     ];
-    PREREQ_FIELD_NAME = "Choose prerequisite Field";
-    PREREQ_FIELD_DESC = "Which Field this one waits for";
-    PREREQ_FIELD_TIP = "A Link or an Emoji Field can wait for any other Field, a Tag Field only for another Tag Field. Two Tag Fields tied this way are also kept next to each other in the line";
-    PREREQ_FIELD_NONE = "Not chosen";
-    PREREQ_VALUE_NAME = "Prerequisite Value";
-    PREREQ_VALUE_DESC = "Which Value of that Field this one waits for";
-    PREREQ_VALUE_TIP = "Left at <code>Any Value</code> this Field appears as soon as the prerequisite Field has a Value of any kind. Name one, and it waits for that Value alone";
-    PREREQ_VALUE_ANY = "Any Value";
-    PROPERTY_HEAD = "YAML property";
-    PROPERTY_HEAD_TIP = "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note \u2014 the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied";
-    PROPERTY_NAME = "Property";
-    PROPERTY_DESC = "If you use inline2note, to which YAML property this Field should go";
-    PROPERTY_TIP = "The properties are the ones Obsidian shows at the top of a note. Start typing and the box offers the names your vault already uses; you can also type a name that does not exist yet, and it appears the first time a note is written with it. Leave the box empty and this Field is simply not copied into the note. Two Fields may point at the same property \u2014 then <code>Property type</code> below decides whether it holds a list or a single Value";
-    PROPERTY_PLACEHOLDER = "select Property";
-    CARDINALITY_NAME = "Property type";
-    CARDINALITY_DESC = "Whether the property holds one Value or a list";
-    CARDINALITY_TIP = "<b>Auto</b> works it out for you: a list when more than one Field writes to the same property, a single Value otherwise. Set it by hand only when Auto guesses wrong";
-    VALUE_RULE_NAME = "How to show Value in YAML";
-    VALUE_RULE_DESC = "How the Value is written into the property";
-    VALUE_RULE_TIP = "<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> strips the decoration \u2014 no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link \u2014 which is what you want if you plan to search or sort by the property. The rule belongs to the Field and applies to every one of its Values";
-    LINK_IN_TAGS = "A tags property does not take links: Obsidian will flag the value in the note";
-    WRITTEN_NAME = "Preview";
-    WRITTEN_DESC = "How this Value will look like in YAML";
-    WRITTEN_TIP = "It follows the three choices above and updates as you change them, and it shows what <b>this</b> Field writes. Two Fields can share one property name \u2014 then the note gets both of them in the same list, while each Field shows only its own part here";
-    BEHAVIOR_TIP = "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. <b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. <b>Free</b> inserts the Value where the cursor is now";
+    words2 = (o) => sayIn("field-editor", o.ctx);
     STEP_OPTIONS = [
       { value: "increment", label: "Fixed step" },
       { value: "command", label: "Command" },
       { value: "custom", label: "Custom step" }
     ];
-    MARKER_NAME = "Emoji-prefix";
-    MARKER_DESC = "The character that stands in front of the Value in the line";
-    MARKER_TIP = "This is how the Field is recognised: the plugin reads <code>\u{1F4C5} 2026-08-27</code> as this Field only because <code>\u{1F4C5}</code> stands in front. Give it a character no other Field uses, or the two will be taken for one";
-    FORMAT_NAME = "Value format";
-    FORMAT_DESC = "The shape of the Value: a date, a time or a number";
-    FORMAT_PLACEHOLDER = "YYYY-MM-DD / HHmm / 1";
-    FORMAT_TIP = "Spell out the shape you want to see in the line. A date or a time is built from <code>YYYY</code> (year), <code>MM</code> (month), <code>DD</code> (day), <code>HH</code> (hour), <code>mm</code> (minute), <code>ss</code> (second), with any separators between them: <code>YYYY-MM-DD</code> writes <code>2026-08-27</code>, <code>DD.MM</code> writes <code>27.08</code>, <code>HHmm</code> writes <code>1435</code>. Digits alone make a counter, and the number of digits is the width it keeps: <code>1</code> counts <code>1</code>, <code>2</code>, <code>3</code>, while <code>001</code> counts <code>001</code>, <code>002</code>. Anything else is taken as plain text and never steps";
-    STEP_DESC = "What should happen with the Value when you use <code>next</code> or <code>previous</code> command";
-    STEP_TIP = "<b>Fixed step</b> adds the same amount on every press: a day to a date, one to a counter. <b>Command</b> throws the old Value away and writes a fresh one \u2014 the time of the press, or a random string for an id. <b>Custom step</b> walks a list of steps you write yourself, and can end the cycle by removing the Value from the line";
-    AMOUNT_DESC = "How much one press adds to the Value";
-    AMOUNT_TIP = "<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with <code>HHmm</code> a minute, with a counter just one";
-    COMMAND_DESC = "What the press writes into the Value instead of stepping it";
-    COMMAND_TIP = "<code>The current date and time</code> writes the moment of the press in the shape set by <code>Value format</code>. The random ones fill the Value with numbers or letters, which is what an id needs";
-    STEPS_DESC = "One step per line, in the order the presses walk them";
-    STEPS_TIP = "A line is a number, and a number in brackets after it says how many presses stay on that step: <code>1 (3)</code> moves by one for three presses. <code>END</code> ends the cycle and removes the Value";
   }
 });
 
@@ -29453,7 +29807,7 @@ function askNewFieldModal(Modal2, app3, done) {
   }
   new AddFieldModal(app3).open();
 }
-function confirmDeleteModal(Modal2, app3, fieldName, done) {
+function confirmDeleteModal(Modal2, app3, fieldName, done, say3) {
   let answered = false;
   const finish = (yes) => {
     if (answered) return;
@@ -29465,13 +29819,8 @@ function confirmDeleteModal(Modal2, app3, fieldName, done) {
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", void 0, "Delete Field");
-      el(
-        box,
-        "p",
-        "io-item__desc",
-        "Deleting " + fieldName + " removes its Values, their colors and its note property"
-      );
+      el(box, "h4", void 0, say3("DELETE_TITLE"));
+      el(box, "p", "io-item__desc", say3("DELETE_BODY", fieldName));
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
       cancel.addEventListener("click", (() => {
@@ -29491,7 +29840,7 @@ function confirmDeleteModal(Modal2, app3, fieldName, done) {
   }
   new DeleteFieldModal(app3).open();
 }
-function askRenameModal(Modal2, app3, current, done) {
+function askRenameModal(Modal2, app3, current, done, say3) {
   let answered = false;
   const finish = (next) => {
     if (answered) return;
@@ -29517,7 +29866,7 @@ function askRenameModal(Modal2, app3, current, done) {
         cls: "io-text io-text--mono",
         type: "text",
         value: current,
-        attr: { "aria-label": "New name for the Field " + current }
+        attr: { "aria-label": say3("RENAME_ARIA", current) }
       });
       const warn = el(box, "div", "io-dlg__warn");
       el(
@@ -29577,6 +29926,7 @@ var init_fields_editor = __esm({
     init_fields_model();
     init_fields_editor_view();
     import_fields_editor_legacy3 = __toESM(require_fields_editor_legacy());
+    init_texts_blocks();
     helpers3 = import_fields_editor_legacy3.default;
     EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips", "advanced.showSettingIds"];
     fieldsEditor = (host, ctx) => {
@@ -29610,6 +29960,7 @@ var init_fields_editor = __esm({
             cfg: p.getConfig(),
             deepState: helpers3.getOrderDeepEditorState()
           });
+          const say3 = sayIn("field-editor", ctx);
           close = renderFieldsEditor(next, {
             model,
             ctx,
@@ -29622,8 +29973,8 @@ var init_fields_editor = __esm({
             },
             notice,
             askNewField: (done) => askNewFieldModal(Modal2, app3, done),
-            confirmDeleteField: (name, done) => confirmDeleteModal(Modal2, app3, name, done),
-            askRename: (name, done) => askRenameModal(Modal2, app3, name, done)
+            confirmDeleteField: (name, done) => confirmDeleteModal(Modal2, app3, name, done, say3),
+            askRename: (name, done) => askRenameModal(Modal2, app3, name, done, say3)
           });
         } catch (e) {
           next.remove();
@@ -29982,13 +30333,15 @@ function renderUserTags(host, o) {
   const box = el(host, "div", "io-vals io-vals--tags");
   const scroll = el(box, "div", "io-scroll");
   const inner = el(scroll, "div", "io-vals__inner io-vals__inner--tags");
+  const say3 = sayIn("user-tag-list", o.ctx);
   const head = el(inner, "div", "io-vals__head");
   const tipSlot = el(inner, "div", "io-vals__tipslot");
   for (const title of HEAD3) {
     const cell = el(head, "div", "io-vals__col");
-    el(cell, "span", "io-vals__coltext", title);
-    const tip = COLUMN_TIPS[title];
-    if (!tip) continue;
+    el(cell, "span", "io-vals__coltext", title ? say3("HEAD_" + title.toUpperCase()) : title);
+    const name = COLUMN_TIPS[title];
+    if (!name) continue;
+    const tip = say3(name);
     o.closers.push(tipBelow({
       head: cell,
       host: tipSlot,
@@ -30000,13 +30353,13 @@ function renderUserTags(host, o) {
     }));
   }
   const theme = themePair2(box);
-  if (!o.rows.length) el(box, "div", "io-side__empty", EMPTY_LIST);
+  if (!o.rows.length) el(box, "div", "io-side__empty", say3("EMPTY"));
   for (const row of o.rows) {
     const line = el(inner, "div", "io-vals__row");
     const name = textInput(el(line, "div"), "io-text io-text--mono", {
       value: row.token,
-      placeholder: ADD_PLACEHOLDER,
-      label: "Tag " + row.token
+      placeholder: say3("NEW_TAG_HINT"),
+      label: say3("ROW_ARIA", row.token)
     });
     name.disabled = !o.enabled;
     name.addEventListener("change", (() => {
@@ -30014,9 +30367,9 @@ function renderUserTags(host, o) {
       o.onRename(row, name.value);
     }));
     const shown = selectInput(el(line, "div", "io-showncell"), "io-select", {
-      options: SHOWN_OPTIONS2,
+      options: SHOWN_OPTIONS2.map((x) => ({ value: x.value, label: say3(x.name) })),
       value: row.visibility,
-      label: "Show, for " + row.token
+      label: say3("SHOWN_FOR", row.token)
     });
     shown.disabled = !o.enabled;
     shown.addEventListener("change", (() => {
@@ -30043,8 +30396,8 @@ function renderUserTags(host, o) {
         o.onVisual(row, { [key]: input.value }, reason);
       }));
     };
-    color("fillColor", "Fill color", "pkm:visuals:user-tags:fill");
-    color("textColor", "Text color", "pkm:visuals:user-tags:text");
+    color("fillColor", say3("FILL_COLOR"), "pkm:visuals:user-tags:fill");
+    color("textColor", say3("TEXT_COLOR"), "pkm:visuals:user-tags:text");
     const cell = el(line, "div", "io-vals__prev");
     applyTagVars(cell, o.ctx);
     bubble(cell, {
@@ -30066,7 +30419,7 @@ function renderUserTags(host, o) {
     if (row.fillColor || row.textColor) {
       const back = btn(tools, "io-icon", {
         text: "\u21BA",
-        label: "Reset the colors of " + row.token + " back to the colors of the theme"
+        label: say3("RESET_COLORS", row.token)
       });
       back.disabled = !o.enabled;
       back.addEventListener("click", (() => {
@@ -30076,7 +30429,7 @@ function renderUserTags(host, o) {
     }
     const del = btn(tools, "io-icon io-icon--danger", {
       text: "\u2715",
-      label: "Remove " + row.token
+      label: say3("REMOVE", row.token)
     });
     del.disabled = !o.enabled;
     del.addEventListener("click", (() => {
@@ -30087,11 +30440,15 @@ function renderUserTags(host, o) {
   const foot = el(box, "div", "io-rowactions");
   const add = textInput(foot, "io-text io-text--mono", {
     value: "",
-    placeholder: ADD_PLACEHOLDER,
-    label: ADD_LABEL
+    placeholder: say3("NEW_TAG_HINT"),
+    label: say3("NEW_TAG_ARIA")
   });
   add.disabled = !o.enabled;
-  const go = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_TAG, label: ADD_TAG });
+  const go = btn(
+    foot,
+    "io-btn io-btn--sm io-btn--cta",
+    { text: say3("ADD_TAG"), label: say3("ADD_TAG") }
+  );
   go.disabled = !o.enabled;
   go.addEventListener("click", (() => {
     if (!o.enabled) return;
@@ -30106,20 +30463,21 @@ var init_user_tags = __esm({
     init_keepview();
     init_previews();
     init_contrast();
+    init_texts_blocks();
     HEAD3 = ["Tag", "Show", "Fill", "Text", "Preview", ""];
     COLUMN_TIPS = {
-      Tag: "The tag as it is written in a line. With <code>#</code> or without it \u2014 both are read the same way",
-      Show: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
-      Fill: "The color of the bubble behind the tag",
-      Text: "The color of the writing on the bubble"
+      Tag: "TAG_TIP",
+      Show: "SHOWN_TIP",
+      Fill: "FILL_TIP",
+      Text: "TEXT_TIP"
     };
-    ADD_TAG = "Add tag";
-    ADD_PLACEHOLDER = "#tag";
-    ADD_LABEL = "New tag to color";
-    EMPTY_LIST = "no tags of your own yet \u2014 add one below";
+    ADD_TAG = BLOCK_TEXTS["user-tag-list"].ADD_TAG;
+    ADD_PLACEHOLDER = BLOCK_TEXTS["user-tag-list"].NEW_TAG_HINT;
+    ADD_LABEL = BLOCK_TEXTS["user-tag-list"].NEW_TAG_ARIA;
+    EMPTY_LIST = BLOCK_TEXTS["user-tag-list"].EMPTY;
     SHOWN_OPTIONS2 = [
-      { value: "default", label: "default" },
-      { value: "empty", label: "empty" }
+      { value: "default", name: "SHOWN_DEFAULT" },
+      { value: "empty", name: "SHOWN_EMPTY" }
     ];
     TAG_PATHS2 = [
       "features.visual.enabled",
@@ -30910,7 +31268,7 @@ var init_smart_rules_model = __esm({
 // src/ui/settings/templates.ts
 function templatesEmptyChoice(folder, say3) {
   const root = String(folder || "").trim().replace(/\/+$/, "");
-  const t = say3 || PLAIN;
+  const t = say3 || PLAIN2;
   return root ? { value: "", label: t("NO_TEMPLATES", "No templates in") + " " + root } : { value: "", label: t("NO_TEMPLATE_FOLDER", "Set a Templates folder first") };
 }
 function templateOptions(folder, notes, say3) {
@@ -30919,15 +31277,15 @@ function templateOptions(folder, notes, say3) {
   const prefix = root + "/";
   const inside = notes.map((p) => String(p || "")).filter((p) => p.startsWith(prefix)).sort((a, b) => a.localeCompare(b));
   if (!inside.length) return [templatesEmptyChoice(root, say3)];
-  return [{ value: "", label: (say3 || PLAIN)("WORD_NONE", "None") }].concat(
+  return [{ value: "", label: (say3 || PLAIN2)("WORD_NONE", "None") }].concat(
     inside.map((p) => ({ value: p, label: p.slice(prefix.length) }))
   );
 }
-var PLAIN;
+var PLAIN2;
 var init_templates = __esm({
   "src/ui/settings/templates.ts"() {
     "use strict";
-    PLAIN = (_name, english) => english;
+    PLAIN2 = (_name, english) => english;
   }
 });
 
@@ -30936,6 +31294,7 @@ function ruleTitle(row, index) {
   return row.name || RULE_FALLBACK + (index + 1);
 }
 function kindRow(host, row, kind, o) {
+  const say3 = o.say || PLAIN3;
   const values = row.conditions[kind];
   const fields = row.conditions.fields.filter((id) => o.model.fieldRowKind(id) === kind);
   const items = values.map((value) => ({ shown: value, kind, value })).concat(fields.map((id) => ({
@@ -30946,13 +31305,13 @@ function kindRow(host, row, kind, o) {
   const box = el(host, "div", "io-kind" + (items.length ? "" : " io-kind--empty"));
   el(box, "div", "io-kind__label", KIND_LABEL[kind]);
   const chips = el(box, "div", "io-kind__chips");
-  if (!items.length) el(chips, "span", "io-kind__none", KIND_ANY);
+  if (!items.length) el(chips, "span", "io-kind__none", say3("MATCH_ANY"));
   items.forEach((item, i) => {
     if (i) el(chips, "span", "io-op", OP_OR);
     const chip = el(chips, "span", "io-vchip", item.shown);
     const drop2 = btn(chip, "io-icon", {
       text: "\u2715",
-      label: "Remove " + item.shown + " from " + ruleTitle(row, 0)
+      label: say3("CONDITION_REMOVE", item.shown + " from " + ruleTitle(row, 0))
     });
     drop2.disabled = !o.enabled;
     drop2.addEventListener("click", (() => {
@@ -30963,7 +31322,7 @@ function kindRow(host, row, kind, o) {
   });
   const add = btn(box, "io-icon", {
     text: "+",
-    label: "Add a " + KIND_LABEL[kind].toLowerCase() + " to " + ruleTitle(row, 0)
+    label: say3("ADD_CONDITION", KIND_LABEL[kind].toLowerCase() + " to " + ruleTitle(row, 0))
   });
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
@@ -30977,13 +31336,14 @@ function kindRow(host, row, kind, o) {
   }));
 }
 function ruleCard(host, row, index, o, drag) {
+  const say3 = o.say || PLAIN3;
   const card = el(host, "div", "io-rule" + (row.enabled ? "" : " io-rule--off") + (row.conflict ? " io-rule--clash" : ""));
   el(card, "div", "io-rule__rail");
   const main = el(card, "div", "io-rule__main");
   const head = el(main, "div", "io-rule__head");
   const grip = el(head, "div", "io-grip", "\u283F");
   grip.setAttribute("role", "button");
-  grip.setAttribute("aria-label", "Drag " + ruleTitle(row, index) + " to reorder it");
+  grip.setAttribute("aria-label", say3("RULE_DRAG", "Drag " + ruleTitle(row, index)));
   grip.draggable = o.enabled;
   grip.addEventListener("dragstart", ((ev) => {
     var _a;
@@ -31017,8 +31377,8 @@ function ruleCard(host, row, index, o, drag) {
   el(head, "span", "io-rule__n", String(index + 1));
   const name = textInput(head, "io-rule__name", {
     value: row.name,
-    placeholder: RULE_NAME_PLACEHOLDER,
-    label: "Name of " + ruleTitle(row, index)
+    placeholder: say3("RULE_NAME_HINT"),
+    label: say3("RULE_NAME_ARIA", ruleTitle(row, index))
   });
   name.disabled = !o.enabled;
   name.addEventListener("change", (() => {
@@ -31029,7 +31389,7 @@ function ruleCard(host, row, index, o, drag) {
   const tools = el(head, "div", "io-rule__tools");
   const use = btn(tools, "io-icon" + (row.enabled ? " io-icon--on" : ""), {
     text: row.enabled ? "\u25C9" : "\u25CB",
-    label: (row.enabled ? "Stop using " : "Use ") + ruleTitle(row, index)
+    label: say3(row.enabled ? "RULE_STOP" : "USE_VALUE", ruleTitle(row, index))
   });
   use.disabled = !o.enabled;
   use.addEventListener("click", (() => {
@@ -31039,7 +31399,7 @@ function ruleCard(host, row, index, o, drag) {
   }));
   const remove = btn(tools, "io-icon", {
     text: "\u2715",
-    label: "Remove " + ruleTitle(row, index)
+    label: say3("RULE_REMOVE", ruleTitle(row, index))
   });
   remove.disabled = !o.enabled;
   remove.addEventListener("click", (() => {
@@ -31048,19 +31408,19 @@ function ruleCard(host, row, index, o, drag) {
     o.redraw();
   }));
   const conds = el(main, "div", "io-rule__conds");
-  el(conds, "div", "io-rule__lead", CONDS_LEAD);
+  el(conds, "div", "io-rule__lead", say3("WHEN_THE_LINE_HAS"));
   ROW_KINDS.forEach((kind, i) => {
     if (i) el(conds, "div", "io-op io-op--and io-op--row", OP_AND);
     kindRow(conds, row, kind, o);
   });
   const out = el(main, "div", "io-rule__out");
   el(out, "span", "io-rule__arrow", "\u2192");
-  el(out, "span", void 0, TEMPLATE_LEAD);
-  const choices = o.templates.length ? [{ value: "", label: TEMPLATE_NONE }].concat(o.templates.map((t) => ({ value: t, label: t }))) : [templatesEmptyChoice(String(o.templatesFolder || ""))];
+  el(out, "span", void 0, say3("USE_TEMPLATE"));
+  const choices = o.templates.length ? [{ value: "", label: say3("TEMPLATE_NONE") }].concat(o.templates.map((t) => ({ value: t, label: t }))) : [templatesEmptyChoice(String(o.templatesFolder || ""))];
   const template = selectInput(out, "io-select", {
     options: choices,
     value: row.targetTemplate,
-    label: "Template for " + ruleTitle(row, index)
+    label: say3("RULE_TEMPLATE_ARIA", ruleTitle(row, index))
   });
   template.disabled = !o.enabled;
   template.addEventListener("change", (() => {
@@ -31070,15 +31430,15 @@ function ruleCard(host, row, index, o, drag) {
   }));
   const where = el(main, "div", "io-rule__out io-rule__where");
   el(where, "span", "io-rule__arrow", "\u2192");
-  el(where, "span", void 0, FOLDER_LEAD);
+  el(where, "span", void 0, say3("MOVE_TO_FOLDER"));
   const folderPick = selectInput(where, "io-select", {
     options: [
-      { value: "default", label: FOLDER_DEFAULT },
-      { value: "near", label: FOLDER_NEAR },
-      { value: "folder", label: FOLDER_OTHER }
+      { value: "default", label: say3("FOLDER_DEFAULT") },
+      { value: "near", label: say3("FOLDER_NEAR_NOTE") },
+      { value: "folder", label: say3("FOLDER_OTHER") }
     ],
     value: row.folderMode,
-    label: FOLDER_LEAD + " for " + ruleTitle(row, index)
+    label: say3("MOVE_TO_FOLDER") + " for " + ruleTitle(row, index)
   });
   folderPick.disabled = !o.enabled;
   folderPick.addEventListener("change", (() => {
@@ -31089,8 +31449,8 @@ function ruleCard(host, row, index, o, drag) {
   if (row.folderMode === "folder") {
     const path = textInput(where, "io-text io-text--mono", {
       value: row.folder,
-      placeholder: FOLDER_PLACEHOLDER,
-      label: FOLDER_LEAD + " path for " + ruleTitle(row, index)
+      placeholder: say3("FOLDER_HINT"),
+      label: say3("RULE_FOLDER_ARIA", say3("MOVE_TO_FOLDER"), ruleTitle(row, index))
     });
     path.disabled = !o.enabled;
     const writeFolder = (value) => {
@@ -31110,10 +31470,11 @@ function ruleCard(host, row, index, o, drag) {
   }
 }
 function renderSmartRules(host, o) {
+  const say3 = o.say || PLAIN3;
   const rows = o.model.listRules();
   const list = el(host, "div", "io-rules");
   const taken = { index: null };
-  if (!rows.length) el(list, "div", "io-side__empty", EMPTY_RULES);
+  if (!rows.length) el(list, "div", "io-side__empty", say3("RULES_EMPTY"));
   rows.forEach((row, i) => ruleCard(list, row, i, o, {
     taken,
     onMove: (from, to) => {
@@ -31123,8 +31484,8 @@ function renderSmartRules(host, o) {
   }));
   const actions = el(host, "div", "io-rowactions");
   const add = btn(actions, "io-btn io-btn--sm io-btn--cta", {
-    text: ADD_RULE,
-    label: ADD_RULE
+    text: say3("ADD_RULE"),
+    label: say3("ADD_RULE")
   });
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
@@ -31134,9 +31495,10 @@ function renderSmartRules(host, o) {
   }));
 }
 function renderConditionPicker(host, o) {
+  const say3 = o.say || PLAIN3;
   const box = el(host, "div", "io-pickvals");
   if (!o.choices.length) {
-    el(box, "div", "io-side__empty", o.kind === "fields" ? "no Fields yet \u2014 set one up on the Tags & PKM tab" : "no " + KIND_LABEL[o.kind].toLowerCase() + " Fields yet \u2014 set one up on the Tags & PKM tab");
+    el(box, "div", "io-side__empty", o.kind === "fields" ? "no Fields yet \u2014 set one up on the Tags & PKM tab" : say3("NO_KIND_FIELDS_YET", KIND_LABEL[o.kind].toLowerCase()));
     return;
   }
   const taken = new Set((o.fieldsTaken || []).map((x) => String(x || "").trim()));
@@ -31147,7 +31509,7 @@ function renderConditionPicker(host, o) {
       const already = taken.has(fieldId);
       const name = btn(wrap, "io-pickvals__name io-pickvals__name--pick", {
         text: group.label,
-        label: already ? group.label + " \u2014 any Value is already in this rule" : "Use any Value of " + group.label
+        label: already ? say3("ANY_VALUE_TAKEN", group.label) : say3("USE_ANY_VALUE_OF", group.label)
       });
       name.disabled = already;
       if (!already) {
@@ -31167,7 +31529,7 @@ function renderConditionPicker(host, o) {
     for (const value of group.values) {
       const pick = btn(chips, "io-vchip io-vchip--pick", {
         text: value,
-        label: "Use " + value + " from " + group.label
+        label: say3("USE_VALUE", value + " from " + group.label)
       });
       pick.addEventListener("click", (() => {
         o.pick(value);
@@ -31178,36 +31540,27 @@ function renderConditionPicker(host, o) {
 function conditionDialogTitle(kind) {
   return "Add a " + KIND_LABEL[kind].toLowerCase();
 }
-var KIND_LABEL, ANY_VALUE, RULE_NAME_PLACEHOLDER, RULE_FALLBACK, KIND_ANY, ADD_RULE, TEMPLATE_LEAD, TEMPLATE_NONE, FOLDER_LEAD, FOLDER_DEFAULT, FOLDER_NEAR, FOLDER_OTHER, FOLDER_PLACEHOLDER, EMPTY_RULES, OP_OR, OP_AND, CONDS_LEAD, CONDITION_DIALOG_NOTE;
+var T3, PLAIN3, KIND_LABEL, ANY_VALUE, RULE_FALLBACK, OP_OR, OP_AND, CONDITION_DIALOG_NOTE;
 var init_smart_rules_view = __esm({
   "src/ui/settings/custom/smart_rules_view.ts"() {
     "use strict";
     init_dom();
     init_smart_rules_model();
     init_templates();
+    init_texts_blocks();
+    T3 = BLOCK_TEXTS["smart-rules-list"];
+    PLAIN3 = sayIn("smart-rules-list", {});
     KIND_LABEL = {
-      tags: "Tag",
-      emojiFields: "Element",
-      wikilinks: "Link",
+      tags: T3.KIND_TAG,
+      emojiFields: T3.KIND_ELEMENT,
+      wikilinks: T3.KIND_LINK,
       /* Своей строки у Field больше нет; подпись осталась для подписей кнопок. */
-      fields: "Field"
+      fields: T3.KIND_FIELD
     };
-    ANY_VALUE = " \u2014 any Value";
-    RULE_NAME_PLACEHOLDER = "Name this rule (optional)";
-    RULE_FALLBACK = "Rule ";
-    KIND_ANY = "any";
-    ADD_RULE = "Add rule";
-    TEMPLATE_LEAD = "Use template";
-    TEMPLATE_NONE = "None";
-    FOLDER_LEAD = "Move to folder";
-    FOLDER_DEFAULT = "Default";
-    FOLDER_NEAR = "Near current note";
-    FOLDER_OTHER = "Another folder\u2026";
-    FOLDER_PLACEHOLDER = "type or pick a folder";
-    EMPTY_RULES = "no rules yet \u2014 the default template is used for every line";
-    OP_OR = "or";
-    OP_AND = "and";
-    CONDS_LEAD = "when the line has";
+    ANY_VALUE = T3.ANY_VALUE_SUFFIX.replace("{0}", "");
+    RULE_FALLBACK = T3.RULE_FALLBACK_NAME.replace("{0}", "");
+    OP_OR = T3.MATCH_OR;
+    OP_AND = T3.MATCH_AND;
     CONDITION_DIALOG_NOTE = "Pick one of the Values your Fields already offer. A rule looks for any of the Values listed under one Field type, and for all of the types you have filled in";
   }
 });
@@ -31400,17 +31753,20 @@ function keptIds(ctx) {
   if (!Array.isArray(raw)) return [];
   return raw.map((x) => String(x || "").trim()).filter(Boolean);
 }
-var KEEP_PATH, NO_FIELDS, NONE_KEPT, sourceFields;
+var KEEP_PATH, T4, NO_FIELDS, NONE_KEPT, sourceFields;
 var init_source_fields = __esm({
   "src/ui/settings/custom/source_fields.ts"() {
     "use strict";
     init_dom();
     init_keepview();
     init_preview_data();
+    init_texts_blocks();
     KEEP_PATH = "transform.inline2note.sourceProcessing.cleanupFieldIds";
-    NO_FIELDS = "no Fields yet \u2014 set them up under Tags & PKM";
-    NONE_KEPT = "nothing is kept: every Value leaves the line";
+    T4 = BLOCK_TEXTS["source-fields"];
+    NO_FIELDS = T4.NO_FIELDS;
+    NONE_KEPT = T4.NONE_KEPT;
     sourceFields = (host, ctx) => {
+      const say3 = sayIn("source-fields", ctx);
       const box = el(host, "div", "io-keepfields");
       let mounted = null;
       const draw = () => {
@@ -31441,7 +31797,7 @@ var init_source_fields = __esm({
           const input = row.createEl("input", {
             cls: "io-toggle io-toggle--check",
             type: "checkbox",
-            attr: { "aria-label": "Keep the Values of " + (f.name || f.id) + " on the line" }
+            attr: { "aria-label": say3("KEEP_ONE", f.name || f.id) }
           });
           input.checked = kept.has(f.id);
           input.disabled = !enabled;
@@ -31460,8 +31816,8 @@ var init_source_fields = __esm({
         if (!kept.size) el(mount, "p", "io-preview__note", NONE_KEPT);
         const actions = el(mount, "div", "io-rowactions");
         const all = btn(actions, "io-btn io-btn--sm", {
-          text: "Keep all",
-          label: "Keep the Values of every Field on the line"
+          text: say3("KEEP_ALL"),
+          label: say3("KEEP_ALL_DESC")
         });
         all.disabled = !enabled || kept.size === fields.length;
         all.addEventListener("click", (() => {
@@ -31470,8 +31826,8 @@ var init_source_fields = __esm({
           draw();
         }));
         const none = btn(actions, "io-btn io-btn--sm", {
-          text: "Keep none",
-          label: "Let every Value leave the line"
+          text: say3("KEEP_NONE"),
+          label: say3("KEEP_NONE_DESC")
         });
         none.disabled = !enabled || kept.size === 0;
         none.addEventListener("click", (() => {
@@ -33468,7 +33824,7 @@ function localizeTabs(tabs, t) {
     return out;
   });
 }
-var LANGUAGE_NAME_KEY, BASE_LANG, BASE_LANG_SEED, TEXTS_DIR, DEFAULT_FILE, EMPTY_VALUE, PLAIN2;
+var LANGUAGE_NAME_KEY, BASE_LANG, BASE_LANG_SEED, TEXTS_DIR, DEFAULT_FILE, EMPTY_VALUE, PLAIN4;
 var init_texts = __esm({
   "src/ui/settings/texts.ts"() {
     "use strict";
@@ -33478,7 +33834,7 @@ var init_texts = __esm({
     TEXTS_DIR = "texts";
     DEFAULT_FILE = "default";
     EMPTY_VALUE = "-";
-    PLAIN2 = (_key, fallback) => fallback;
+    PLAIN4 = (_key, fallback) => fallback;
   }
 });
 
@@ -33615,8 +33971,8 @@ var init_settings_tab = __esm({
         this.localized = {
           stamp,
           t,
-          schema: t === PLAIN2 ? this.deps.schema : localizeSchema(this.deps.schema, t),
-          tabs: t === PLAIN2 ? this.deps.tabs : localizeTabs(this.deps.tabs, t)
+          schema: t === PLAIN4 ? this.deps.schema : localizeSchema(this.deps.schema, t),
+          tabs: t === PLAIN4 ? this.deps.tabs : localizeTabs(this.deps.tabs, t)
         };
         return this.localized;
       }
@@ -35056,8 +35412,8 @@ var require_settings_backup = __commonJS({
         lines.push(scope === "all" ? "This backup was taken with every hotkey in the vault, so restoring puts other commands' keys back too." : "Restoring this backup puts them back on the plugin commands and touches nothing else.");
         lines.push("");
         for (const id of hotkeyIds) {
-          const words = hotkeyListWords2(hotkeys[id]);
-          lines.push("- `" + id + "` \u2014 " + (words || "no hotkey"));
+          const words3 = hotkeyListWords2(hotkeys[id]);
+          lines.push("- `" + id + "` \u2014 " + (words3 || "no hotkey"));
         }
         lines.push("");
         lines.push(HOTKEYS_MARK);
@@ -35650,7 +36006,7 @@ function tabStripRow(state) {
       }
       const strip = box.createDiv({ cls: "io-tabs" });
       strip.setAttribute("role", "tablist");
-      strip.setAttribute("aria-label", "Settings areas");
+      strip.setAttribute("aria-label", state.label || "Settings areas");
       state.tabs.forEach((tab) => {
         const isActive = tab.id === state.active;
         const btn2 = strip.createEl("button", {

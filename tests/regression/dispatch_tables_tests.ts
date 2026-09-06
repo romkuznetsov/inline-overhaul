@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals } from "../harness/obsidian_stub.ts";
 import { dispatchTables, DISPATCH_TABLES } from "../../src/ui/settings/custom/dispatch_tables.ts";
+import { BLOCK_TEXTS } from "../../src/ui/settings/texts_blocks.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
 
 setupGlobals();
@@ -132,21 +133,35 @@ function indentLineSource(): string {
 }
 
 {
-  /* Строки таблицы называют то же, что и рантайм: отступ, Prefix, текст. */
+  /*
+   * Строки таблицы называют то же, что и рантайм: отступ, Prefix, текст.
+   *
+   * Таблица держит **имена** строк каталога, а сами слова живут в
+   * `texts_blocks.ts` (10.13.47), поэтому пин идёт за текстом туда. Читать
+   * имена вместо слов значило бы потерять предмет утверждения: имя `THEN_INDENT`
+   * останется верным и тогда, когда за ним будет написано что угодно (У-56).
+   */
+  const words = BLOCK_TEXTS["left-right-order"] as Readonly<Record<string, string>>;
+  const said = (name: string): string => {
+    const text = words[name];
+    assert.ok(text, "строки каталога нет: " + name);
+    return String(text);
+  };
   const left = DISPATCH_TABLES[0];
   const right = DISPATCH_TABLES[1];
-  assert.ok(left?.steps[1]?.then.includes("indent"), "второй шаг слева про отступ");
-  assert.ok(left?.steps[2]?.then.includes("prefix"), "третий — про Prefix");
+  assert.ok(said(String(left?.steps[1]?.then)).includes("indent"), "второй шаг слева про отступ");
+  assert.ok(said(String(left?.steps[2]?.then)).includes("prefix"), "третий — про Prefix");
   /* Таблицы стали зеркальными (В-12): второй шаг справа спрашивает про отступ,
      как и слева, а не про элемент списка. */
-  assert.ok(right?.steps[1]?.when.includes("indent"),
+  assert.ok(said(String(right?.steps[1]?.when)).includes("indent"),
     "второй шаг справа спрашивает про отступ");
   assert.equal(right?.steps[1]?.when, left?.steps[1]?.when,
     "и спрашивает ровно то же, что слева: направления зеркальны");
-  assert.ok(right?.steps[1]?.then.includes("add") && left?.steps[1]?.then.includes("remove"),
+  assert.ok(said(String(right?.steps[1]?.then)).includes("add")
+    && said(String(left?.steps[1]?.then)).includes("remove"),
     "а делают противоположное");
-  assert.ok(right?.steps[2]?.then.includes("forwards")
-    && left?.steps[2]?.then.includes("backwards"),
+  assert.ok(said(String(right?.steps[2]?.then)).includes("forwards")
+    && said(String(left?.steps[2]?.then)).includes("backwards"),
     "и направления цикла названы разными словами");
   ok("строки таблиц называют те же три вещи, что и рантайм");
 }

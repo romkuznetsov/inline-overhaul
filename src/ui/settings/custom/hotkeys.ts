@@ -36,20 +36,26 @@ interface SettingApi {
   openTabById?: (id: string) => unknown;
 }
 
+import { BLOCK_TEXTS } from "../texts_blocks.ts";
+
 interface AppLike {
   hotkeyManager?: HotkeyManager;
   setting?: SettingApi;
 }
 
-/** Подпись «хоткея нет». Снята с прототипа. */
-export const HOTKEY_NONE = "not set";
+/**
+ * Подпись «хоткея нет». Снята с прототипа, английское живёт в каталоге
+ * (10.13.47): её показывают два блока, и второе определение разошлось бы
+ * с первым (У-32).
+ */
+export const HOTKEY_NONE = BLOCK_TEXTS["command-list"].HOTKEY_NOT_SET;
 
 /**
  * Подпись кнопки хоткея. Снята с прототипа и живёт рядом с `HOTKEY_NONE`:
  * её показывают два блока — Binder (10.4) и справочник команд (10.5), — и
  * второе определение разошлось бы с первым.
  */
-export const HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
+export const HOTKEY_TITLE = BLOCK_TEXTS["command-list"].HOTKEY_OPEN;
 
 function app(plugin: unknown): AppLike | null {
   const holder = plugin as { app?: unknown } | null;

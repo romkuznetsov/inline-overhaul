@@ -244,6 +244,11 @@ export function tipBelow(o: {
    * приходилось объяснять словами, о чём речь (A3 и C52, 2026-09-02).
    */
   showIds?: boolean;
+  /**
+   * Подпись «?» с местом под имя строки: `More about {0}` (10.13.47).
+   * Нет её — берётся английское, как было.
+   */
+  moreAbout?: string;
 }): () => void {
   if (!o.text || !o.showTips) return () => {};
 
@@ -255,7 +260,7 @@ export function tipBelow(o: {
       type: "button",
       "aria-expanded": "false",
       "aria-controls": o.id,
-      "aria-label": "More about " + o.label,
+      "aria-label": (o.moreAbout || "More about {0}").replace("{0}", o.label),
     },
   });
 

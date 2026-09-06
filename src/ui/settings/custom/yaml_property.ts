@@ -33,6 +33,7 @@
  */
 
 import { btn, el, textInput, type El } from "./dom.ts";
+import { BLOCK_TEXTS } from "../texts_blocks.ts";
 import type { YamlFieldRow } from "./fields_model.ts";
 
 /*
@@ -61,18 +62,25 @@ interface TransformYamlApi {
 
 const engine = transformFeature as unknown as TransformYamlApi;
 
+/*
+ * Видимые строки живут в каталоге (10.13.47). Здесь — имена и английское,
+ * взятое оттуда же: второго объявления текста в продукте нет (У-32). Списки
+ * несут **имя** строки, а слово подставляет тот, кто рисует.
+ */
+const T = BLOCK_TEXTS["field-editor"];
+
 /** Свойства нет — Field в заметку не попадает. Одно слово на оба случая. */
-export const NOT_WRITTEN = "not written";
+export const NOT_WRITTEN = T.YAML_NOT_WRITTEN;
 
 export const CARDINALITY_OPTIONS = [
-  { value: "auto", label: "Auto" },
-  { value: "one", label: "One Value" },
-  { value: "list", label: "A list" },
+  { value: "auto", name: "YAML_KIND_AUTO", label: T.YAML_KIND_AUTO },
+  { value: "one", name: "YAML_KIND_ONE", label: T.YAML_KIND_ONE },
+  { value: "list", name: "YAML_KIND_LIST", label: T.YAML_KIND_LIST },
 ] as const;
 
 export const VALUE_RULE_OPTIONS = [
-  { value: "raw", label: "Raw" },
-  { value: "clean", label: "Clean" },
+  { value: "raw", name: "YAML_FORM_RAW", label: T.YAML_FORM_RAW },
+  { value: "clean", name: "YAML_FORM_CLEAN", label: T.YAML_FORM_CLEAN },
 ] as const;
 
 /* ---- свойства vault: Я4 ------------------------------------------------ */
@@ -240,6 +248,8 @@ export function propertyPicker(host: El, o: {
   /** Класс подсказки и `app` от платформы; без них подсказки просто нет. */
   suggest?: { ctor: unknown; app: unknown } | undefined;
   write: (value: string) => void;
+  /** Видимый текст по имени из каталога (10.13.47). */
+  say: (name: string, ...args: readonly (string | number)[]) => string;
 }): void {
   /*
    * Поле и крестик стоят в одной коробке постоянной ширины: появившийся
@@ -252,7 +262,7 @@ export function propertyPicker(host: El, o: {
   const input = textInput(box, "io-text io-text--mono io-text--prop", {
     value: o.value,
     placeholder: o.placeholder,
-    label: "YAML property for " + o.label,
+    label: o.say("YAML_FOR", o.label),
   });
   input.disabled = !o.enabled;
   input.addEventListener("change", (() => {
@@ -272,7 +282,7 @@ export function propertyPicker(host: El, o: {
   if (o.enabled && String(o.value || "").trim()) {
     const clear = btn(box, "io-clear", {
       text: "\u2715",
-      label: "Clear the property of " + o.label,
+      label: o.say("YAML_CLEAR", o.label),
     });
     clear.addEventListener("click", (() => {
       input.value = "";

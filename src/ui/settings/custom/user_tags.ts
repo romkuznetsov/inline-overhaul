@@ -28,32 +28,42 @@ import { el, btn, textInput, selectInput, tipBelow, cssVarValue, type El, type E
 import { keepView } from "./keepview.ts";
 import { applyTagVars, bubble } from "./previews.ts";
 import { contrastRatio, contrastWarning, CONTRAST_FLOOR, toHexColor } from "./contrast.ts";
+import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
 /* ---- тексты: сняты с прототипа (Приложение B) --------------------------- */
 
 /* Порядок колонок — как в таблице Values, без `Level` и `Prefix` (1.5.2.2). */
 export const HEAD = ["Tag", "Show", "Fill", "Text", "Preview", ""] as const;
 
-/** Подсказки колонок: те же по смыслу, что у одноимённых колонок Values. */
+/**
+ * Имена строк каталога для подсказок колонок: слова живут в `texts_blocks.ts`
+ * (10.13.47), здесь только адрес. Смысл тот же, что у одноимённых колонок
+ * таблицы Values.
+ */
 const COLUMN_TIPS: Readonly<Record<string, string>> = {
-  Tag: "The tag as it is written in a line. With <code>#</code> or without it — both are read the same way",
-  Show: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
-  Fill: "The color of the bubble behind the tag",
-  Text: "The color of the writing on the bubble",
+  Tag: "TAG_TIP",
+  Show: "SHOWN_TIP",
+  Fill: "FILL_TIP",
+  Text: "TEXT_TIP",
 };
-export const ADD_TAG = "Add tag";
-export const ADD_PLACEHOLDER = "#tag";
-export const ADD_LABEL = "New tag to color";
+
+/*
+ * Английское этих строк живёт в каталоге (10.13.47) — отсюда их читают
+ * проверки, а панель спрашивает по ключу. Второго объявления нет (У-32).
+ */
+export const ADD_TAG = BLOCK_TEXTS["user-tag-list"].ADD_TAG;
+export const ADD_PLACEHOLDER = BLOCK_TEXTS["user-tag-list"].NEW_TAG_HINT;
+export const ADD_LABEL = BLOCK_TEXTS["user-tag-list"].NEW_TAG_ARIA;
 /** Список пуст: приглашение, а не пустое место (ПЗ2). */
-export const EMPTY_LIST = "no tags of your own yet — add one below";
+export const EMPTY_LIST = BLOCK_TEXTS["user-tag-list"].EMPTY;
 
 /**
  * Показ своего тега. Третьего значения (`custom`) в этой ветке конфига нет:
  * `visibility` здесь принимает только эти два.
  */
 const SHOWN_OPTIONS = [
-  { value: "default", label: "default" },
-  { value: "empty", label: "empty" },
+  { value: "default", name: "SHOWN_DEFAULT" },
+  { value: "empty", name: "SHOWN_EMPTY" },
 ] as const;
 
 /* ---- чтение и запись ---------------------------------------------------- */
@@ -257,13 +267,15 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
   const scroll = el(box, "div", "io-scroll");
   const inner = el(scroll, "div", "io-vals__inner io-vals__inner--tags");
 
+  const say = sayIn("user-tag-list", o.ctx);
   const head = el(inner, "div", "io-vals__head");
   const tipSlot = el(inner, "div", "io-vals__tipslot");
   for (const title of HEAD) {
     const cell = el(head, "div", "io-vals__col");
-    el(cell, "span", "io-vals__coltext", title);
-    const tip = COLUMN_TIPS[title];
-    if (!tip) continue;
+    el(cell, "span", "io-vals__coltext", title ? say("HEAD_" + title.toUpperCase()) : title);
+    const name = COLUMN_TIPS[title];
+    if (!name) continue;
+    const tip = say(name);
     o.closers.push(tipBelow({
       head: cell,
       host: tipSlot,
@@ -277,7 +289,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
 
   const theme = themePair(box);
 
-  if (!o.rows.length) el(box, "div", "io-side__empty", EMPTY_LIST);
+  if (!o.rows.length) el(box, "div", "io-side__empty", say("EMPTY"));
 
   for (const row of o.rows) {
     const line = el(inner, "div", "io-vals__row");
@@ -285,8 +297,8 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
     /* Имя тега: правится на месте, решётка не обязательна. */
     const name = textInput(el(line, "div"), "io-text io-text--mono", {
       value: row.token,
-      placeholder: ADD_PLACEHOLDER,
-      label: "Tag " + row.token,
+      placeholder: say("NEW_TAG_HINT"),
+      label: say("ROW_ARIA", row.token),
     });
     name.disabled = !o.enabled;
     name.addEventListener("change", (() => {
@@ -295,9 +307,9 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
     }) as never);
 
     const shown = selectInput(el(line, "div", "io-showncell"), "io-select", {
-      options: SHOWN_OPTIONS,
+      options: SHOWN_OPTIONS.map(x => ({ value: x.value, label: say(x.name) })),
       value: row.visibility,
-      label: "Show, for " + row.token,
+      label: say("SHOWN_FOR", row.token),
     });
     shown.disabled = !o.enabled;
     shown.addEventListener("change", (() => {
@@ -324,8 +336,8 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
         o.onVisual(row, { [key]: input.value }, reason);
       }) as never);
     };
-    color("fillColor", "Fill color", "pkm:visuals:user-tags:fill");
-    color("textColor", "Text color", "pkm:visuals:user-tags:text");
+    color("fillColor", say("FILL_COLOR"), "pkm:visuals:user-tags:fill");
+    color("textColor", say("TEXT_COLOR"), "pkm:visuals:user-tags:text");
 
     /* Своя колонка предпросмотра — как в таблице Values. */
     const cell = el(line, "div", "io-vals__prev");
@@ -357,7 +369,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
     if (row.fillColor || row.textColor) {
       const back = btn(tools, "io-icon", {
         text: "\u21BA",
-        label: "Reset the colors of " + row.token + " back to the colors of the theme",
+        label: say("RESET_COLORS", row.token),
       });
       back.disabled = !o.enabled;
       back.addEventListener("click", (() => {
@@ -368,7 +380,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
     /* Удаление красное: единственная кнопка строки, которая уносит данные. */
     const del = btn(tools, "io-icon io-icon--danger", {
       text: "\u2715",
-      label: "Remove " + row.token,
+      label: say("REMOVE", row.token),
     });
     del.disabled = !o.enabled;
     del.addEventListener("click", (() => {
@@ -381,11 +393,12 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
   /* Решётка не обязательна: тег читается одинаково с ней и без неё. */
   const add = textInput(foot, "io-text io-text--mono", {
     value: "",
-    placeholder: ADD_PLACEHOLDER,
-    label: ADD_LABEL,
+    placeholder: say("NEW_TAG_HINT"),
+    label: say("NEW_TAG_ARIA"),
   });
   add.disabled = !o.enabled;
-  const go = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_TAG, label: ADD_TAG });
+  const go = btn(foot, "io-btn io-btn--sm io-btn--cta",
+    { text: say("ADD_TAG"), label: say("ADD_TAG") });
   go.disabled = !o.enabled;
   go.addEventListener("click", (() => {
     if (!o.enabled) return;

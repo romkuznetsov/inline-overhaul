@@ -95,8 +95,15 @@ export function contrastRatio(bg: string, fg: string): number {
  */
 export const CONTRAST_FLOOR = 3;
 
-/** Текст подсказки у значка. Число показывается: оно говорит, далеко ли до нормы (Н16). */
-export function contrastWarning(ratio: number): string {
-  return "This Value may be hard to read: contrast "
-    + ratio.toFixed(1) + ":1, aim for " + CONTRAST_FLOOR + ":1";
+/**
+ * Текст подсказки у значка. Число показывается: оно говорит, далеко ли до
+ * нормы (Н16).
+ *
+ * Слова приходят снаружи (10.13.47): английское живёт в каталоге, а здесь
+ * только подстановка двух чисел. Без них ответ — то же английское, что было.
+ */
+export function contrastWarning(ratio: number, pattern?: string): string {
+  const said = pattern
+    || "This Value may be hard to read: contrast {0}:1, aim for {1}:1";
+  return said.replace("{0}", ratio.toFixed(1)).replace("{1}", String(CONTRAST_FLOOR));
 }

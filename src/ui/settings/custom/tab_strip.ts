@@ -40,6 +40,8 @@ export interface TabStripState<Id extends string = string> {
   tabs: ReadonlyArray<{ id: Id; label: string; desc?: string }>;
   active: Id;
   pick: (id: Id) => void;
+  /** Подпись самой полосы для программы чтения с экрана (10.13.47). */
+  label?: string;
 }
 
 /** Узел-хозяин полосы: родитель прокрутки. Всё необязательное проверяется. */
@@ -99,7 +101,7 @@ export function tabStripRow<Id extends string>(state: TabStripState<Id>): {
 
       const strip = box.createDiv({ cls: "io-tabs" });
       strip.setAttribute("role", "tablist");
-      strip.setAttribute("aria-label", "Settings areas");
+      strip.setAttribute("aria-label", state.label || "Settings areas");
 
       state.tabs.forEach(tab => {
         const isActive = tab.id === state.active;

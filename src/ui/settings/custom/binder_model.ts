@@ -60,9 +60,14 @@ export interface BinderWriteResult {
   error?: string;
 }
 
-/* Тексты отказов. Видимые строки, поэтому без точки в конце (Р10). */
-export const DUPLICATE_INSERT = "A row with this text to insert already exists";
-export const DUPLICATE_NAME = "A row with this command name already exists";
+/*
+ * Тексты отказов. Видимые строки, поэтому без точки в конце (Р10) и поэтому
+ * же живут в каталоге (10.13.47) — здесь только имя.
+ */
+import { BLOCK_TEXTS } from "../texts_blocks.ts";
+
+export const DUPLICATE_INSERT = BLOCK_TEXTS["binder-table"].ERR_TEXT_TAKEN;
+export const DUPLICATE_NAME = BLOCK_TEXTS["binder-table"].ERR_NAME_TAKEN;
 
 /**
  * Совпадение с уже заведённой строкой: какое поле повторяется и что об этом

@@ -20,6 +20,10 @@
  */
 
 import type { OrderState, PkmFieldsConfig, FieldKind, ValueVisibility } from "../types.ts";
+import { BLOCK_TEXTS } from "../texts_blocks.ts";
+
+/** Английское проверок имён: слова живут в каталоге (10.13.47). */
+const SAY = BLOCK_TEXTS["field-editor"];
 
 /*
  * Динамическая форма. Перенесённый код ходит по конфигу и по дереву значений
@@ -566,28 +570,28 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const addField = (rawKey: string, rawKind: string): WriteResult => {
     const key = String(rawKey || "").replace(/\s+/g, " ").trim();
     if (!STRICT_NAME_RE.test(key)) {
-      return { ok: false, error: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores" };
+      return { ok: false, error: SAY.ERR_NAME_CHARS };
     }
     const all = getOrderKeys();
     if (SUB_SUFFIX_RE.test(key)) {
-      return { ok: false, error: "Names ending in _sub are kept for child Fields" };
+      return { ok: false, error: SAY.ERR_NAME_SUB };
     }
     if (all.includes(key)) {
-      return { ok: false, error: "A Field with this name already exists" };
+      return { ok: false, error: SAY.ERR_NAME_TAKEN };
     }
     const strictValues = new Set(
       all.map(kk => String((orderState.strictNames && orderState.strictNames[kk]) || kk).trim())
         .filter(Boolean),
     );
     if (strictValues.has(key)) {
-      return { ok: false, error: "A Field with this name already exists" };
+      return { ok: false, error: SAY.ERR_NAME_TAKEN };
     }
     const kindRaw = String(rawKind || "tag").trim().toLowerCase();
     const kind: FieldKind = kindRaw === "wikilink" || kindRaw === "element" ? kindRaw : "tag";
     const subKey = kind === "tag" ? inferSubKey(key) : "";
     const subStrict = kind === "tag" ? `${key}_sub` : "";
     if (subStrict && strictValues.has(subStrict)) {
-      return { ok: false, error: "The child Field for this name already exists" };
+      return { ok: false, error: SAY.ERR_CHILD_TAKEN };
     }
 
     orderState.right = (orderState.right || []).concat([key]);
@@ -814,7 +818,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const next = String(rawNext || "").replace(/\s+/g, " ").trim();
     if (next === oldName) return { ok: true, changed: false };
     if (!STRICT_NAME_RE.test(next)) {
-      return { ok: false, error: "A Field name can only use lowercase letters, digits, spaces, hyphens and underscores" };
+      return { ok: false, error: SAY.ERR_NAME_CHARS };
     }
     const taken = new Set<string>();
     for (const kk of getOrderKeys()) {
@@ -823,7 +827,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       if (vv) taken.add(vv);
     }
     if (taken.has(next)) {
-      return { ok: false, error: "A Field with this name already exists" };
+      return { ok: false, error: SAY.ERR_NAME_TAKEN };
     }
     orderState.strictNames = { ...(orderState.strictNames || {}), [k]: next };
 
@@ -1186,12 +1190,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    */
   const writeDefKey = (k: string, patch: Record<string, unknown>, reason: string): WriteResult => {
     const pool = poolByOrderKey(k);
-    if (!pool) return { ok: false, error: "No Field named " + k };
+    if (!pool) return { ok: false, error: SAY.ERR_NO_FIELD.replace("{0}", k) };
     const behavior = behaviorOf(plugin.getConfig());
     const list = modeFields(behavior, pool);
     const def = findFieldByOrderKey(list, k);
     const id = String((def && def.id) || "").trim();
-    if (!def || !id) return { ok: false, error: "No Field named " + k };
+    if (!def || !id) return { ok: false, error: SAY.ERR_NO_FIELD.replace("{0}", k) };
     const nextDef: Record<string, unknown> = { ...asObject(def) };
     for (const key of Object.keys(patch)) {
       const value = patch[key];
@@ -1228,7 +1232,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    */
   const setYamlValueRule = (k: string, raw: string): WriteResult => {
     const next = normalizeValueRule(raw);
-    if (!next) return { ok: false, error: "A Value is written either raw or clean, nothing else" };
+    if (!next) return { ok: false, error: SAY.ERR_YAML_FORM };
     const def = defByOrderKey(k);
     if (normalizeValueRule(def && def.yamlValueRule) === next) return { ok: true, changed: false };
     return writeDefKey(k, { yamlValueRule: next }, "pkm:behavior:yaml:value-rule:" + k);
@@ -1382,11 +1386,11 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const setPrerequisite = (k: string, rawFieldId: string, rawValue: string): WriteResult => {
     const key = String(k || "").trim();
     const side = poolOf(key);
-    if (!side) return { ok: false, error: "This Field is not saved yet" };
+    if (!side) return { ok: false, error: SAY.ERR_NOT_SAVED };
     const fieldId = String(rawFieldId || "").trim();
     const value = String(rawValue || "").trim();
     if (fieldId && (fieldId === key || dependsChainReaches(fieldId, key))) {
-      return { ok: false, error: "A Field cannot wait for itself" };
+      return { ok: false, error: SAY.ERR_SELF_PREREQ };
     }
     /*
      * Тег может ждать только тега: движок открывает границу списков в одну
@@ -1394,11 +1398,11 @@ export function createFieldsModel(deps: FieldsModelDeps) {
      * и выключит Field — а панель показала бы его включённым.
      */
     if (fieldId && side === "leftMode" && poolOf(fieldId) !== "leftMode") {
-      return { ok: false, error: "A Tag Field can only wait for another Tag Field" };
+      return { ok: false, error: SAY.ERR_TAG_PREREQ };
     }
     const list = modeFields(behaviorOf(plugin.getConfig()), side);
     const idx = list.findIndex(f => idOf(f) === key);
-    if (idx === -1) return { ok: false, error: "This Field is not saved yet" };
+    if (idx === -1) return { ok: false, error: SAY.ERR_NOT_SAVED };
     const next = { ...asObject(list[idx]) };
     if (fieldId) {
       next["dependsOn"] = fieldId;
@@ -1970,7 +1974,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         let nextLeft = leftMode.slice();
         let nextRight = rightMode.slice();
         if (!fidParent) {
-          return { ok: false, error: "Cannot tell which Field this link Value belongs to" };
+          return { ok: false, error: SAY.ERR_LINK_NO_FIELD };
         }
         const sourceId = String((parentField && parentField.source) || `wikilinks:${fidParent}`).trim();
         const nextParent = {
@@ -2123,12 +2127,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         const rightField = findWikilinkField(rightNow);
         const leftField = findWikilinkField(leftNow);
         const target = rightField || leftField;
-        if (!target) return { ok: false, error: "Cannot tell which Field this link Value would go to" };
+        if (!target) return { ok: false, error: SAY.ERR_LINK_NO_TARGET };
         const targetId = String(target.id || strictNorm || keyNorm).trim();
-        if (!targetId) return { ok: false, error: "The Field for this link has no name" };
+        if (!targetId) return { ok: false, error: SAY.ERR_LINK_UNNAMED_FIELD };
         const valuesNow: Loose[] = Array.isArray(target.values) ? target.values.slice() : [];
         const tokenPlain = String(token).replace(/^\[\[|\]\]$/g, "").trim();
-        if (!tokenPlain) return { ok: false, error: "A link needs a name" };
+        if (!tokenPlain) return { ok: false, error: SAY.ERR_LINK_NEEDS_NAME };
         const exists = valuesNow.some((row: Loose) => {
           const tok = String(row && typeof row === "object" ? row.token : row || "").trim();
           return tok === tokenPlain;

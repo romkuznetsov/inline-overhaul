@@ -854,7 +854,7 @@ Transform stops before target mutation when a selected template cannot be read o
   renamed commands.
 - Transform performs real note mutations; behavior is automated-tested but still requires user verification with each vault's templates, YAML, and field taxonomy.
 - General Visual features are implemented: tag bubbles, Tag Bars, Separator colors, and the TagWheel panel and scroller appearance. They are not the disabled Processed-marker styling feature.
-- The language files cover the settings panel, its tips, the tab callouts, the live previews, the command reference and the windows the panel opens — 886 lines in all. The Fields editor and its neighbours, this guide note and the messages shown while you type stay English whatever you pick: 296 more lines, listed file by file in `tests/gates/texts_coverage.ts`. Russian ships as a placeholder: the language name, the tab labels and the `Language` group are translated, and the rest of the file is English and waiting for a hand.
+- The language files cover the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens and the Fields editor with its neighbours: 1189 lines in all. This guide note and the messages shown while you type stay English whatever you pick, and so do command names: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing. Russian ships as a placeholder: the language name, the tab labels and the `Language` group are translated, and the rest of the file is English and waiting for a hand.
 
 ## Safe copyable test
 

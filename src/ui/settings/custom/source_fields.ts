@@ -22,14 +22,19 @@ import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, btn, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { realFields } from "./preview_data.ts";
+import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
 /** Путь ключа. Он же причина записи: по ней сверяются карты записей (М-4). */
 export const KEEP_PATH = "transform.inline2note.sourceProcessing.cleanupFieldIds";
 
-/** Список пуст: приглашение, а не пустое место (ПЗ2). */
-export const NO_FIELDS = "no Fields yet — set them up under Tags & PKM";
-/** Ни один не отмечен: это умолчание, и оно означает вполне определённое. */
-export const NONE_KEPT = "nothing is kept: every Value leaves the line";
+/*
+ * Пустые состояния: приглашение, а не пустое место (ПЗ2), и умолчание,
+ * которое означает вполне определённое. Слова живут в каталоге (10.13.47).
+ */
+const T = BLOCK_TEXTS["source-fields"];
+
+export const NO_FIELDS = T.NO_FIELDS;
+export const NONE_KEPT = T.NONE_KEPT;
 
 /** Отмеченные Fields из конфига, без выдумок про их порядок. */
 export function keptIds(ctx: SettingsCtx): readonly string[] {
@@ -39,6 +44,7 @@ export function keptIds(ctx: SettingsCtx): readonly string[] {
 }
 
 export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
+  const say = sayIn("source-fields", ctx);
   const box = el(host, "div", "io-keepfields");
   let mounted: El | null = null;
 
@@ -78,7 +84,7 @@ export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
       const input = row.createEl("input", {
         cls: "io-toggle io-toggle--check",
         type: "checkbox",
-        attr: { "aria-label": "Keep the Values of " + (f.name || f.id) + " on the line" },
+        attr: { "aria-label": say("KEEP_ONE", f.name || f.id) },
       }) as El & { checked: boolean; disabled: boolean };
       input.checked = kept.has(f.id);
       input.disabled = !enabled;
@@ -105,8 +111,8 @@ export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
 
     const actions = el(mount, "div", "io-rowactions");
     const all = btn(actions, "io-btn io-btn--sm", {
-      text: "Keep all",
-      label: "Keep the Values of every Field on the line",
+      text: say("KEEP_ALL"),
+      label: say("KEEP_ALL_DESC"),
     });
     all.disabled = !enabled || kept.size === fields.length;
     all.addEventListener("click", (() => {
@@ -115,8 +121,8 @@ export const sourceFields: CustomRender = (host: El, ctx: SettingsCtx) => {
       draw();
     }) as never);
     const none = btn(actions, "io-btn io-btn--sm", {
-      text: "Keep none",
-      label: "Let every Value leave the line",
+      text: say("KEEP_NONE"),
+      label: say("KEEP_NONE_DESC"),
     });
     none.disabled = !enabled || kept.size === 0;
     none.addEventListener("click", (() => {

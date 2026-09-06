@@ -28,7 +28,8 @@ import { el, btn, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { COMMAND_TEXTS } from "../schema/custom_texts.ts";
 import { commandKey } from "../texts_custom.ts";
-import { HOTKEY_NONE, HOTKEY_TITLE, canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
+import { sayIn } from "../texts_blocks.ts";
+import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 
 /** Одна команда в том виде, в каком её отдаёт плагин. */
 export interface OwnCommand {
@@ -77,8 +78,8 @@ const FAMILY_BY_ROW: Readonly<Record<string, string>> = {
   "Toggle <module> module": "module-toggle",
 };
 
-/** Заголовки колонок. Сняты с прототипа. */
-const HEAD = ["Command", "Description", "Hotkey"] as const;
+/** Заголовки колонок. Сняты с прототипа, живут в каталоге (10.13.47). */
+const HEAD = ["COL_COMMAND", "COL_DOES", "COL_HOTKEY"] as const;
 
 /** Строка справочника: текст прототипа, команда плагина и часть области. */
 interface Row {
@@ -146,6 +147,7 @@ function splitAndGroup(rows: readonly Row[]): readonly Row[] {
 }
 
 export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
+  const words = sayIn("command-list", ctx);
   const box = el(host, "div", "io-cmdblock");
   const platform = ctx.platform;
 
@@ -182,7 +184,7 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
     const inner = el(card, "div", "io-cmd__inner");
 
     const head = el(inner, "div", "io-cmd__head");
-    for (const title of HEAD) el(head, "div", undefined, title);
+    for (const title of HEAD) el(head, "div", undefined, words(title));
 
     COMMAND_TEXTS.forEach((area, areaAt) => {
       const rows: Row[] = [];
@@ -269,9 +271,9 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
 
         const current = hotkeyOf(plugin, cmd.id);
         const hk = btn(cell, "io-hk" + (current ? "" : " io-hk--none"), {
-          text: current || HOTKEY_NONE,
-          label: (current ? "Change" : "Assign") + " the hotkey for " + row.name,
-          title: HOTKEY_TITLE,
+          text: current || words("HOTKEY_NOT_SET"),
+          label: words(current ? "HOTKEY_CHANGE" : "HOTKEY_ASSIGN", row.name),
+          title: words("HOTKEY_OPEN"),
         });
         /* Приватного API нет — кнопке некуда вести, и она неактивна (К-2). */
         hk.disabled = !canOpen;

@@ -233,13 +233,12 @@ Release assets are written to `dist/`.
   commands.
 - Transform writes real notes. It is covered by automated checks, but every vault has its
   own templates, properties and Fields, and those need your eyes.
-- The language files cover the settings panel, its tips, the tab callouts, the live
-  previews, the command reference and the windows the panel opens — 886 lines. The Fields
-  editor and its neighbours, the guide note and the messages shown while you type are still
-  English whatever you pick: 296 more lines, listed file by file in
-  `tests/gates/texts_coverage.ts`. Russian ships as a placeholder: the language name, the
-  tab labels and the `Language` group are translated, the rest of the file is English and
-  waiting.
+- The language files cover the whole settings panel — its tips, the tab callouts, the
+  live previews, the command reference, the windows it opens and the Fields editor with its
+  neighbours: 1189 lines. The guide note and the messages shown while you type are still
+  English whatever you pick, and so are command names, which Obsidian takes from its own
+  registry. Russian ships as a placeholder: the language name, the tab labels and the
+  `Language` group are translated, the rest of the file is English and waiting.
 
 ## Terms
 

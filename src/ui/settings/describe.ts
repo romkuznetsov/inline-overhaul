@@ -70,6 +70,7 @@ export interface DescribeOptions {
   previouslyCalled?: (names: readonly string[]) => string;
 }
 
+/* Английское живёт в каталоге (10.13.47); сюда оно приходит швом. */
 const DEFAULT_PREVIOUSLY = (names: readonly string[]) =>
   "Previously called " + names.join(", ");
 

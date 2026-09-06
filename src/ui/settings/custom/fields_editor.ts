@@ -28,12 +28,16 @@ import {
  * разошлись бы молча.
  */
 import legacy from "./fields_editor_legacy.js";
+import { sayIn } from "../texts_blocks.ts";
 
 interface LegacyModule {
   getOrderDeepEditorState: () => DeepState;
 }
 
 const helpers = legacy as unknown as LegacyModule;
+
+/** Как окно спрашивает свой текст (10.13.47). */
+type Say = (name: string, ...args: readonly (string | number)[]) => string;
 
 /** Пути, на которых редактор перерисовывается целиком. */
 const EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips", "advanced.showSettingIds"] as const;
@@ -140,6 +144,7 @@ function confirmDeleteModal(
   app: unknown,
   fieldName: string,
   done: (yes: boolean) => void,
+  say: Say,
 ): void {
   let answered = false;
   const finish = (yes: boolean): void => {
@@ -153,9 +158,8 @@ function confirmDeleteModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", undefined, "Delete Field");
-      el(box, "p", "io-item__desc",
-        "Deleting " + fieldName + " removes its Values, their colors and its note property");
+      el(box, "h4", undefined, say("DELETE_TITLE"));
+      el(box, "p", "io-item__desc", say("DELETE_BODY", fieldName));
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
       cancel.addEventListener("click", (() => { finish(false); this.close(); }) as never);
@@ -188,6 +192,7 @@ function askRenameModal(
   app: unknown,
   current: string,
   done: (next: string | null) => void,
+  say: Say,
 ): void {
   let answered = false;
   const finish = (next: string | null): void => {
@@ -212,7 +217,7 @@ function askRenameModal(
         cls: "io-text io-text--mono",
         type: "text",
         value: current,
-        attr: { "aria-label": "New name for the Field " + current },
+        attr: { "aria-label": say("RENAME_ARIA", current) },
       }) as El & { value: string };
 
       /* Цена названа до нажатия, а не после (З8 наоборот: это человеку). */
@@ -306,6 +311,7 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         cfg: p.getConfig() as never,
         deepState: helpers.getOrderDeepEditorState(),
       });
+      const say = sayIn("field-editor", ctx);
       close = renderFieldsEditor(next, {
         model,
         ctx,
@@ -316,8 +322,8 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         redraw: () => { draw(); },
         notice,
         askNewField: done => askNewFieldModal(Modal, app, done),
-        confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done),
-        askRename: (name, done) => askRenameModal(Modal, app, name, done),
+        confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done, say),
+        askRename: (name, done) => askRenameModal(Modal, app, name, done, say),
       });
     } catch (e) {
       next.remove();

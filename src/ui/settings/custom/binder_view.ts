@@ -16,36 +16,46 @@
 
 import { el, btn, textInput, type DragEv, type El, type ElInput } from "./dom.ts";
 import type { BinderClash, BinderDraft, BinderRow } from "./binder_model.ts";
+import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
-/* ---- тексты: сняты с прототипа (Приложение B, 10.4) -------------------- */
+/* ---- тексты ------------------------------------------------------------ */
 
-export const HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""] as const;
-export const ADD_COMMAND = "Add command";
-export const HOTKEY_NONE = "not set";
+/*
+ * Сняты с прототипа (Приложение B, 10.4), а живут в каталоге (10.13.47): у
+ * видимого текста один дом. Имена здесь оставлены ради тех, кто их зовёт, —
+ * и берут они то же самое слово, а не второе его объявление (У-32).
+ */
+const T = BLOCK_TEXTS["binder-table"];
+
+export const HEAD = ["", T.COL_INSERTS, T.COL_COMMAND_NAME, T.COL_DESCRIPTION, T.COL_HOTKEY, ""] as const;
+export const ADD_COMMAND = T.ADD_COMMAND;
+export const HOTKEY_NONE = T.HOTKEY_NOT_SET;
 export { HOTKEY_TITLE } from "./hotkeys.ts";
-import { HOTKEY_TITLE } from "./hotkeys.ts";
-export const SYSTEM_TITLE = "Built in";
+export const SYSTEM_TITLE = T.BUILT_IN;
 /** Имя команды в списке хоткеев начинается с этого — в таблице оно лишнее. */
-export const LABEL_PREFIX = "Binder: ";
+export const LABEL_PREFIX = T.COMMAND_PREFIX.replace("{0}", "");
 
 /* Окно «завести строку». Прототип держит на этом месте кнопку-заглушку, и
-   текстов у окна не даёт: они написаны здесь по правилам раздела 7. */
-export const ADD_TITLE = "Add a Binder command";
-export const ADD_NOTE =
-  "The command is made from the row, so the text it inserts cannot be changed afterwards";
-export const INSERT_NAME = "Inserts";
-export const INSERT_DESC = "The text this command drops in at the cursor";
-export const CMD_NAME = "Command name";
-export const CMD_DESC = "What to call it in Obsidian's list of hotkeys";
-export const DESC_NAME = "Description";
-export const DESC_DESC = "A note to yourself about what the row is for";
+   текстов у окна не даёт: они написаны по правилам раздела 7. */
+export const ADD_TITLE = T.NEW_TITLE;
+export const ADD_NOTE = T.NEW_NOTE;
+export const INSERT_NAME = T.NEW_INSERTS_LABEL;
+export const INSERT_DESC = T.NEW_INSERTS_DESC;
+export const CMD_NAME = T.NEW_NAME_LABEL;
+export const CMD_DESC = T.NEW_NAME_DESC;
+export const DESC_NAME = T.NEW_DESC_LABEL;
+export const DESC_DESC = T.NEW_DESC_DESC;
+
+/** Как блок спрашивает свой текст. Нет ctx — ответом идёт английское. */
+export type Say = (name: string, ...args: readonly (string | number)[]) => string;
+const PLAIN: Say = sayIn("binder-table", {});
 
 /** Как назвать строку в подписях: тем же, чем её называет список хоткеев. */
 export function rowTitle(row: BinderRow): string {
   const short = row.commandLabel.startsWith(LABEL_PREFIX)
     ? row.commandLabel.slice(LABEL_PREFIX.length)
     : row.commandLabel;
-  return short.trim() || row.commandName.trim() || row.insertText.trim() || "this row";
+  return short.trim() || row.commandName.trim() || row.insertText.trim() || T.ROW_ARIA;
 }
 
 /* ---- таблица ------------------------------------------------------------ */
@@ -60,14 +70,19 @@ export interface BinderViewOpts {
   onRemove: (row: BinderRow) => void;
   onMove: (from: number, to: number) => void;
   onAdd: () => void;
+  /** Видимый текст по имени из каталога (10.13.47). */
+  say?: Say;
 }
 
 export function renderBinder(host: El, o: BinderViewOpts): void {
+  const say = o.say || PLAIN;
   const scroll = el(host, "div", "io-scroll");
   const card = el(scroll, "div", "io-card io-binder");
 
   const head = el(card, "div", "io-tablehead");
-  for (const cap of HEAD) el(head, "div", undefined, cap);
+  const caps = ["", say("COL_INSERTS"), say("COL_COMMAND_NAME"), say("COL_DESCRIPTION"),
+    say("COL_HOTKEY"), ""];
+  for (const cap of caps) el(head, "div", undefined, cap);
 
   let taken: number | null = null;
 
@@ -77,7 +92,7 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
 
     const grip = el(line, "span", "io-grip", "⠿");
     grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + name + " to reorder it");
+    grip.setAttribute("aria-label", say("ROW_DRAG", name));
     grip.draggable = true;
     grip.addEventListener("dragstart", ((ev: DragEv) => {
       taken = i;
@@ -119,12 +134,12 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
        * целиком и переносится по словам.
        */
       const note = el(cell, "div", "io-binder__note", row.description);
-      note.setAttribute("aria-label", "Description for " + name);
-      note.title = SYSTEM_TITLE;
+      note.setAttribute("aria-label", say("ROW_DESC_ARIA", name));
+      note.title = say("BUILT_IN");
     } else {
       const desc = textInput(cell, "io-text", {
         value: row.description,
-        label: "Description for " + name,
+        label: say("ROW_DESC_ARIA", name),
       });
       desc.addEventListener("change", (() => {
         o.onDescription(row, desc.value);
@@ -133,9 +148,9 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
 
     const hotkey = o.hotkeyOf(row);
     const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
-      text: hotkey || HOTKEY_NONE,
-      label: (hotkey ? "Change" : "Assign") + " the hotkey for " + name,
-      title: HOTKEY_TITLE,
+      text: hotkey || say("HOTKEY_NOT_SET"),
+      label: say(hotkey ? "HOTKEY_CHANGE" : "HOTKEY_ASSIGN", name),
+      title: say("HOTKEY_OPEN"),
     });
     hk.disabled = !o.openHotkey;
     hk.addEventListener("click", (() => {
@@ -144,7 +159,7 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
 
     const drop = btn(line, "io-icon", {
       text: row.system ? "" : "✕",
-      label: row.system ? SYSTEM_TITLE : "Remove " + name,
+      label: row.system ? say("BUILT_IN") : say("ROW_REMOVE", name),
     });
     drop.disabled = row.system;
     drop.addEventListener("click", (() => {
@@ -173,9 +188,11 @@ export function renderAddForm(box: El, o: {
    * спрашивает и показывает ответ.
    */
   duplicateOf?: (draft: BinderDraft) => BinderClash | null;
+  say?: Say;
 }): void {
-  el(box, "h4", undefined, ADD_TITLE);
-  el(box, "p", "io-item__desc", ADD_NOTE);
+  const say = o.say || PLAIN;
+  el(box, "h4", undefined, say("NEW_TITLE"));
+  el(box, "p", "io-item__desc", say("NEW_NOTE"));
 
   const field = (name: string, desc: string, placeholder: string): { input: ElInput; warn: El } => {
     const row = el(box, "div", "io-item");
@@ -184,7 +201,7 @@ export function renderAddForm(box: El, o: {
     el(info, "div", "io-item__desc", desc);
     const input = textInput(el(row, "div", "io-item__control"), "io-text", {
       value: "",
-      label: name + " of the new command",
+      label: say("NEW_FIELD_ARIA", name),
       placeholder,
     });
     /* Причина отказа стоит под своим полем, а не над панелью: человек читает
@@ -193,14 +210,14 @@ export function renderAddForm(box: El, o: {
     return { input, warn };
   };
 
-  const insert = field(INSERT_NAME, INSERT_DESC, "→");
-  const command = field(CMD_NAME, CMD_DESC, "Arrow");
-  const note = field(DESC_NAME, DESC_DESC, "");
+  const insert = field(say("NEW_INSERTS_LABEL"), say("NEW_INSERTS_DESC"), say("NEW_INSERTS_HINT"));
+  const command = field(say("NEW_NAME_LABEL"), say("NEW_NAME_DESC"), say("NEW_NAME_HINT"));
+  const note = field(say("NEW_DESC_LABEL"), say("NEW_DESC_DESC"), "");
 
   const foot = el(box, "div", "io-dlg__foot");
-  const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
+  const cancel = btn(foot, "io-btn", { text: say("NEW_CANCEL"), label: say("NEW_CANCEL") });
   cancel.addEventListener("click", (() => { o.cancel(); }) as never);
-  const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
+  const add = btn(foot, "io-btn io-btn--cta", { text: say("NEW_ADD"), label: say("ADD_COMMAND") });
 
   const draftNow = (): BinderDraft => ({
     insertText: insert.input.value,

@@ -24,49 +24,44 @@ import { el, btn, selectInput, textInput } from "./dom.ts";
 import type { RowKind, RuleKind, RuleRow, RulesModel } from "./smart_rules_model.ts";
 import { ROW_KINDS } from "./smart_rules_model.ts";
 import { templatesEmptyChoice } from "../templates.ts";
+import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
 /* ---- тексты: сняты с прототипа (Приложение B, 10.8) -------------------- */
 
 /** Подпись строки условий. Тип Field, а не имя ключа конфига. */
+const T = BLOCK_TEXTS["smart-rules-list"];
+
+/** Как блок спрашивает свой текст. Нет ctx — ответом идёт английское. */
+export type Say = (name: string, ...args: readonly (string | number)[]) => string;
+const PLAIN: Say = sayIn("smart-rules-list", {});
+
 const KIND_LABEL: Record<RuleKind, string> = {
-  tags: "Tag",
-  emojiFields: "Element",
-  wikilinks: "Link",
+  tags: T.KIND_TAG,
+  emojiFields: T.KIND_ELEMENT,
+  wikilinks: T.KIND_LINK,
   /* Своей строки у Field больше нет; подпись осталась для подписей кнопок. */
-  fields: "Field",
+  fields: T.KIND_FIELD,
 };
 
 /**
  * Хвост чипа условия «любое значение Field» (10.13.7). Условие хранит id
  * Field, а читается оно словами: `Importance — any Value`.
  */
-const ANY_VALUE = " \u2014 any Value";
+const ANY_VALUE = T.ANY_VALUE_SUFFIX.replace("{0}", "");
 
-const RULE_NAME_PLACEHOLDER = "Name this rule (optional)";
 /** Имя пустое — правило зовётся по своему месту в очереди (С-3). */
-const RULE_FALLBACK = "Rule ";
+const RULE_FALLBACK = T.RULE_FALLBACK_NAME.replace("{0}", "");
 /** У типа нет условий — правило не смотрит на него вовсе. */
-const KIND_ANY = "any";
-const ADD_RULE = "Add rule";
-const TEMPLATE_LEAD = "Use template";
-const TEMPLATE_NONE = "None";
 /* Папка новой заметки у правила (10.13.8). */
-const FOLDER_LEAD = "Move to folder";
-const FOLDER_DEFAULT = "Default";
-const FOLDER_NEAR = "Near current note";
-const FOLDER_OTHER = "Another folder\u2026";
-const FOLDER_PLACEHOLDER = "type or pick a folder";
 /** Пустой список: правил нет, и это приглашение, а не ошибка (ПЗ2, ПЗ3). */
-const EMPTY_RULES = "no rules yet — the default template is used for every line";
 
 /**
  * Слово между значениями. Внутри типа — `or`, потому что движок берёт любое
  * из них; между типами — `and`, потому что нужны все названные типы (С-7).
  */
-const OP_OR = "or";
-const OP_AND = "and";
+const OP_OR = T.MATCH_OR;
+const OP_AND = T.MATCH_AND;
 /** Строка над условиями: как читать, что в них написано. */
-const CONDS_LEAD = "when the line has";
 
 export interface RulesViewOpts {
   model: RulesModel;
@@ -92,6 +87,8 @@ export interface RulesViewOpts {
    * полем ввода, и папку можно вписать руками.
    */
   folderSuggest?: (input: ElInput, write: (value: string) => void) => void;
+  /** Видимый текст по имени из каталога (10.13.47). */
+  say?: Say;
 }
 
 /** Номер правила и его имя: по имени человек его и зовёт. */
@@ -104,6 +101,7 @@ function ruleTitle(row: RuleRow, index: number): string {
  * перечислены через `or`, и это подпись, а не контрол.
  */
 function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void {
+  const say = o.say || PLAIN;
   /*
    * В строке стоят и значения этого типа, и Fields этого типа целиком —
    * через `or`, одним списком. Отдельной строки `Field` больше нет: заказчик
@@ -128,13 +126,13 @@ function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void 
   el(box, "div", "io-kind__label", KIND_LABEL[kind]);
 
   const chips = el(box, "div", "io-kind__chips");
-  if (!items.length) el(chips, "span", "io-kind__none", KIND_ANY);
+  if (!items.length) el(chips, "span", "io-kind__none", say("MATCH_ANY"));
   items.forEach((item, i) => {
     if (i) el(chips, "span", "io-op", OP_OR);
     const chip = el(chips, "span", "io-vchip", item.shown);
     const drop = btn(chip, "io-icon", {
       text: "✕",
-      label: "Remove " + item.shown + " from " + ruleTitle(row, 0),
+      label: say("CONDITION_REMOVE", item.shown + " from " + ruleTitle(row, 0)),
     });
     drop.disabled = !o.enabled;
     drop.addEventListener("click", (() => {
@@ -146,7 +144,7 @@ function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void 
 
   const add = btn(box, "io-icon", {
     text: "+",
-    label: "Add a " + KIND_LABEL[kind].toLowerCase() + " to " + ruleTitle(row, 0),
+    label: say("ADD_CONDITION", KIND_LABEL[kind].toLowerCase() + " to " + ruleTitle(row, 0)),
   });
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
@@ -171,6 +169,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   onMove: (from: number, to: number) => void;
   taken: { index: number | null };
 }): void {
+  const say = o.say || PLAIN;
   const card = el(host, "div", "io-rule"
     + (row.enabled ? "" : " io-rule--off")
     + (row.conflict ? " io-rule--clash" : ""));
@@ -180,7 +179,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   const head = el(main, "div", "io-rule__head");
   const grip = el(head, "div", "io-grip", "⠿");
   grip.setAttribute("role", "button");
-  grip.setAttribute("aria-label", "Drag " + ruleTitle(row, index) + " to reorder it");
+  grip.setAttribute("aria-label", say("RULE_DRAG", "Drag " + ruleTitle(row, index)));
   grip.draggable = o.enabled;
   grip.addEventListener("dragstart", ((ev: DragEv) => {
     drag.taken.index = index;
@@ -210,8 +209,8 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
 
   const name: ElInput = textInput(head, "io-rule__name", {
     value: row.name,
-    placeholder: RULE_NAME_PLACEHOLDER,
-    label: "Name of " + ruleTitle(row, index),
+    placeholder: say("RULE_NAME_HINT"),
+    label: say("RULE_NAME_ARIA", ruleTitle(row, index)),
   });
   name.disabled = !o.enabled;
   name.addEventListener("change", (() => {
@@ -227,7 +226,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
    */
   const use = btn(tools, "io-icon" + (row.enabled ? " io-icon--on" : ""), {
     text: row.enabled ? "◉" : "○",
-    label: (row.enabled ? "Stop using " : "Use ") + ruleTitle(row, index),
+    label: say(row.enabled ? "RULE_STOP" : "USE_VALUE", ruleTitle(row, index)),
   });
   use.disabled = !o.enabled;
   use.addEventListener("click", (() => {
@@ -238,7 +237,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
 
   const remove = btn(tools, "io-icon", {
     text: "✕",
-    label: "Remove " + ruleTitle(row, index),
+    label: say("RULE_REMOVE", ruleTitle(row, index)),
   });
   remove.disabled = !o.enabled;
   remove.addEventListener("click", (() => {
@@ -248,7 +247,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   }) as never);
 
   const conds = el(main, "div", "io-rule__conds");
-  el(conds, "div", "io-rule__lead", CONDS_LEAD);
+  el(conds, "div", "io-rule__lead", say("WHEN_THE_LINE_HAS"));
   ROW_KINDS.forEach((kind, i) => {
     /* Между типами — И, и это сказано словом, а не значком (С-7). */
     if (i) el(conds, "div", "io-op io-op--and io-op--row", OP_AND);
@@ -257,20 +256,20 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
 
   const out = el(main, "div", "io-rule__out");
   el(out, "span", "io-rule__arrow", "→");
-  el(out, "span", undefined, TEMPLATE_LEAD);
+  el(out, "span", undefined, say("USE_TEMPLATE"));
   /*
    * Пустой список объясняется, а не показывает одно `None`: человек не
    * должен гадать, кончились ли шаблоны или он не назначил папку
    * (замечание заказчика 1.6.6.2). Слова — те же, что у `Default template`.
    */
   const choices = o.templates.length
-    ? [{ value: "", label: TEMPLATE_NONE }]
+    ? [{ value: "", label: say("TEMPLATE_NONE") }]
       .concat(o.templates.map(t => ({ value: t, label: t })))
     : [templatesEmptyChoice(String(o.templatesFolder || ""))];
   const template = selectInput(out, "io-select", {
     options: choices,
     value: row.targetTemplate,
-    label: "Template for " + ruleTitle(row, index),
+    label: say("RULE_TEMPLATE_ARIA", ruleTitle(row, index)),
   });
   template.disabled = !o.enabled;
   template.addEventListener("change", (() => {
@@ -287,15 +286,15 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
    */
   const where = el(main, "div", "io-rule__out io-rule__where");
   el(where, "span", "io-rule__arrow", "\u2192");
-  el(where, "span", undefined, FOLDER_LEAD);
+  el(where, "span", undefined, say("MOVE_TO_FOLDER"));
   const folderPick = selectInput(where, "io-select", {
     options: [
-      { value: "default", label: FOLDER_DEFAULT },
-      { value: "near", label: FOLDER_NEAR },
-      { value: "folder", label: FOLDER_OTHER },
+      { value: "default", label: say("FOLDER_DEFAULT") },
+      { value: "near", label: say("FOLDER_NEAR_NOTE") },
+      { value: "folder", label: say("FOLDER_OTHER") },
     ],
     value: row.folderMode,
-    label: FOLDER_LEAD + " for " + ruleTitle(row, index),
+    label: say("MOVE_TO_FOLDER") + " for " + ruleTitle(row, index),
   });
   folderPick.disabled = !o.enabled;
   folderPick.addEventListener("change", (() => {
@@ -307,8 +306,8 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   if (row.folderMode === "folder") {
     const path: ElInput = textInput(where, "io-text io-text--mono", {
       value: row.folder,
-      placeholder: FOLDER_PLACEHOLDER,
-      label: FOLDER_LEAD + " path for " + ruleTitle(row, index),
+      placeholder: say("FOLDER_HINT"),
+      label: say("RULE_FOLDER_ARIA", say("MOVE_TO_FOLDER"), ruleTitle(row, index)),
     });
     path.disabled = !o.enabled;
     const writeFolder = (value: string): void => {
@@ -330,11 +329,12 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
 
 /** Список правил целиком (10.8). */
 export function renderSmartRules(host: El, o: RulesViewOpts): void {
+  const say = o.say || PLAIN;
   const rows = o.model.listRules();
   const list = el(host, "div", "io-rules");
   const taken: { index: number | null } = { index: null };
 
-  if (!rows.length) el(list, "div", "io-side__empty", EMPTY_RULES);
+  if (!rows.length) el(list, "div", "io-side__empty", say("RULES_EMPTY"));
   rows.forEach((row, i) => ruleCard(list, row, i, o, {
     taken,
     onMove: (from, to) => { o.model.moveRule(from, to); o.redraw(); },
@@ -342,8 +342,8 @@ export function renderSmartRules(host: El, o: RulesViewOpts): void {
 
   const actions = el(host, "div", "io-rowactions");
   const add = btn(actions, "io-btn io-btn--sm io-btn--cta", {
-    text: ADD_RULE,
-    label: ADD_RULE,
+    text: say("ADD_RULE"),
+    label: say("ADD_RULE"),
   });
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
@@ -370,12 +370,15 @@ export function renderConditionPicker(host: El, o: {
   pickField?: (fieldId: string) => void;
   /** Fields, у которых такое условие в правиле уже есть: их имя неактивно. */
   fieldsTaken?: readonly string[];
+  /** Видимый текст по имени из каталога (10.13.47). */
+  say?: Say;
 }): void {
+  const say = o.say || PLAIN;
   const box = el(host, "div", "io-pickvals");
   if (!o.choices.length) {
     el(box, "div", "io-side__empty", o.kind === "fields"
       ? "no Fields yet — set one up on the Tags & PKM tab"
-      : "no " + KIND_LABEL[o.kind].toLowerCase() + " Fields yet — set one up on the Tags & PKM tab");
+      : say("NO_KIND_FIELDS_YET", KIND_LABEL[o.kind].toLowerCase()));
     return;
   }
   const taken = new Set((o.fieldsTaken || []).map(x => String(x || "").trim()));
@@ -398,8 +401,8 @@ export function renderConditionPicker(host: El, o: {
       const name = btn(wrap, "io-pickvals__name io-pickvals__name--pick", {
         text: group.label,
         label: already
-          ? group.label + " — any Value is already in this rule"
-          : "Use any Value of " + group.label,
+          ? say("ANY_VALUE_TAKEN", group.label)
+          : say("USE_ANY_VALUE_OF", group.label),
       });
       name.disabled = already;
       if (!already) {
@@ -417,7 +420,7 @@ export function renderConditionPicker(host: El, o: {
     for (const value of group.values) {
       const pick = btn(chips, "io-vchip io-vchip--pick", {
         text: value,
-        label: "Use " + value + " from " + group.label,
+        label: say("USE_VALUE", value + " from " + group.label),
       });
       pick.addEventListener("click", (() => { o.pick(value); }) as never);
     }

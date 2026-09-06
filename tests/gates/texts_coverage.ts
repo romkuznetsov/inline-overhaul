@@ -61,39 +61,44 @@ const NOT_READ: ReadonlyArray<{ match: RegExp; why: string }> = [
 ];
 
 /**
- * Файлы, где видимые строки есть, а в каталоге их пока нет: **второй кусок**
- * (В-67, «тексты внутри редактора Fields и соседних блоков»). Число — сколько
- * их сейчас; вырастет — гейт скажет.
+ * Файлы, где видимые строки есть, а в каталоге их нет.
+ *
+ * Второй кусок (В-67, «тексты внутри редактора Fields и соседних блоков»)
+ * закрыт 2026-09-06: двенадцать файлов ушли из этого списка целиком. То, что
+ * осталось, — не «руки не дошли», а решения: имена команд не переводятся (Я2),
+ * формат заметки копии читается плагином обратно, суффикс `sub` часть формата.
+ * Число — сколько строк сейчас; вырастет — гейт скажет.
  */
 const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> = [
-  { file: "src/ui/settings/custom/fields_editor_view.ts", left: 128, why: "редактор Fields" },
-  { file: "src/ui/settings/custom/smart_rules_view.ts", left: 30, why: "Smart Rules" },
-  { file: "src/ui/settings/custom/fields_editor.ts", left: 21, why: "окна редактора Fields" },
-  { file: "src/ui/settings/custom/binder_view.ts", left: 21, why: "таблица Binder" },
-  { file: "src/ui/settings/custom/fields_model.ts", left: 21, why: "проверки имён Field и Value" },
-  { file: "src/ui/settings/custom/user_tags.ts", left: 15, why: "свои теги" },
-  { file: "src/ui/settings/custom/dispatch_tables.ts", left: 14, why: "таблицы того, что делают клавиши" },
-  { file: "src/ui/settings/custom/order_lists.ts", left: 12, why: "списки порядка Fields и Prefix" },
-  { file: "src/ui/settings/custom/source_fields.ts", left: 8, why: "что остаётся на строке" },
-  { file: "src/ui/settings/custom/yaml_property.ts", left: 8, why: "свойства YAML" },
-  { file: "src/ui/settings/custom/command_reference.ts", left: 5, why: "справочник команд" },
-  { file: "src/ui/settings/custom/binder_model.ts", left: 2, why: "проверки строк Binder" },
-  { file: "src/ui/settings/custom/preview_data.ts", left: 2, why: "примерные Fields предпросмотра" },
-  { file: "src/ui/settings/custom/contrast.ts", left: 2, why: "предупреждение о контрасте" },
-  { file: "src/ui/settings/custom/hotkeys.ts", left: 2, why: "колонка хоткея" },
-  { file: "src/ui/settings/custom/dom.ts", left: 1, why: "подпись «?» у строки" },
-  { file: "src/ui/settings/custom/tab_strip.ts", left: 1, why: "подпись полосы вкладок" },
-  { file: "src/ui/settings/describe.ts", left: 1, why: "строка про прежнее имя настройки" },
-  { file: "src/ui/settings/obsidian_tab.ts", left: 2, why: "две строки о том, чего сборка не умеет" },
   {
     file: "src/ui/settings/schema/custom_texts.ts",
-    left: 17,
+    left: 15,
     why: "имена команд: их показывает палитра Obsidian, и переводить их нельзя (Я2)",
   },
   {
     file: "src/features/settings_backup.js",
     left: 24,
-    why: "формат заметки копии: он читается плагином обратно и остаётся английским",
+    why: "формат заметки копии: плагин читает её обратно, и она остаётся английской",
+  },
+  {
+    file: "src/ui/settings/custom/command_reference.ts",
+    left: 4,
+    why: "имена строк прототипа, по которым узнаются семьи команд: адрес, а не текст (Я2)",
+  },
+  {
+    file: "src/ui/settings/custom/fields_model.ts",
+    left: 3,
+    why: "суффикс `sub` дочернего Field и шаблон строки выбора: часть формата, а не текст",
+  },
+  {
+    file: "src/ui/settings/obsidian_tab.ts",
+    left: 2,
+    why: "две ошибки, которые бросаются исключением: текст показывает `messageOf`, а не панель",
+  },
+  {
+    file: "src/ui/settings/describe.ts",
+    left: 1,
+    why: "прежние имена настройки: шов `previouslyCalled` есть, панель его пока не кормит",
   },
 ];
 

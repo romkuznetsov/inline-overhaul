@@ -35,6 +35,7 @@ import {
 } from "./schema/custom_texts.ts";
 import type { TextEntry } from "./texts.ts";
 import type { SettingDef, SettingsGroup } from "./types.ts";
+import { blockTextEntries } from "./texts_blocks.ts";
 
 export function calloutKey(tab: string, slot: "head" | "tip" | "body"): string {
   return "callout." + tab + "." + slot;
@@ -95,8 +96,17 @@ export const FRAME_TEXTS = {
   RESET_TIP_ONE: "Reset group: {0} setting differs from the default",
   RESET_TIP_MANY: "Reset group: {0} settings differ from the default",
   RESET_TIP_CLEAN: "Everything here is already at its default",
-  /* «?» у заголовка группы. */
+  /* «?» у заголовка группы и у строки настройки. */
   MORE_ABOUT: "More about {0}",
+  /* Полоса вкладок: её читает вслух программа чтения с экрана. */
+  TAB_STRIP: "Settings areas",
+  /* Прежние имена настройки: человек ищет ими в глобальном поиске (С4). */
+  PREVIOUSLY_CALLED: "Previously called {0}",
+  /* Тихий значок контраста (Н16): число говорит, далеко ли до нормы. */
+  CONTRAST_WARNING: "This Value may be hard to read: contrast {0}:1, aim for {1}:1",
+  /* Примерные Fields предпросмотра, пока своих нет (ПЗ2). */
+  EXAMPLE_STATUS: "Status",
+  EXAMPLE_PRIORITY: "Priority",
   /* Значение словами в списке того, что сбрасывается. */
   WORD_ON: "on",
   WORD_OFF: "off",
@@ -186,6 +196,12 @@ export function blockEntries(tab: string, _group: SettingsGroup, it: SettingDef)
   if (/-callout$/.test(id)) calloutEntries(out, tab);
   else if (PREVIEW_TEXTS[id]) previewEntries(out, id);
   else if (id === "command-list") commandEntries(out);
+  /*
+   * Своя вёрстка блока — свои тексты (10.13.47). Стоят они здесь же, а не
+   * разделом в конце: человек читает их на этом месте панели.
+   */
+  const own = blockTextEntries(id);
+  own.forEach((entry, i) => out.push(i === 0 ? { ...entry, gap: true } : { ...entry }));
   return out;
 }
 

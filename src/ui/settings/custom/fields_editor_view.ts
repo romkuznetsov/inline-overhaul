@@ -20,6 +20,7 @@ import type { FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from 
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble } from "./previews.ts";
+import { sayIn } from "../texts_blocks.ts";
 import { TYPE_COLOR, typeColor } from "./preview_data.ts";
 import {
   CARDINALITY_OPTIONS,
@@ -54,22 +55,14 @@ export { TYPE_COLOR };
 
 const SIDE_LABEL = { left: "Left Block", right: "Right Block" } as const;
 
-const LIST_TIP =
-  "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too";
 
 /** Пустая сторона — приглашение, а не ошибка (ПЗ2, ПЗ3). */
-const EMPTY_SIDE = "nothing on this side";
 
 /*
  * Короткое имя Field. Своя строка, а не кусок шапки, и называется тем, что
  * значит: `short name` не говорило, где это имя видно (замечание заказчика,
  * шестой круг). В конфиге настройка по-прежнему `order.labels` (З1).
  */
-const SHORT_NAME_NAME = "Name in TagWheel";
-const SHORT_NAME_DESC = "A shorter name for the TagWheel row, where there is little room";
-const SHORT_NAME_TIP =
-  "TagWheel puts every Field side by side, so a long name crowds its neighbours. "
-  + "Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name";
 
 /**
  * Режим размещения. Значения в конфиге остаются прежними — `off`, `minimal`,
@@ -84,23 +77,14 @@ const BEHAVIOR_OPTIONS = [
 
 /** Ф10: порядок Values и есть порядок цикла. Сказано один раз, в шапке таблицы. */
 /** 1.4.1.2.5: заголовок `Behavior` был единственным разделом без «?». */
-const BEHAVIOR_HEAD_TIP =
-  "Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line";
 
 /** У Field типа element значение одно, и раздел называется в единственном. */
-const ELEMENT_VALUE_TIP =
-  "An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along";
 
 /**
  * 1.4.1.2.1: шапка правой колонки. Левая («Fields») объясняла себя, правая —
  * нет, и заметил это заказчик, а не проверка.
  */
-const DETAIL_TIP =
-  "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes";
 
-const VALUES_TIP =
-  "The <code>next</code> and <code>previous</code> commands walk this list in order. "
-  + "A child Value follows its parent: it sits in the same Block and takes the parent\u2019s <code>Behavior</code>";
 
 /** Ф9: как Value показывается в строке. Значения конфига прежние (З1). */
 const SHOWN_OPTIONS = [
@@ -109,8 +93,6 @@ const SHOWN_OPTIONS = [
   { value: "custom", label: "custom" },
 ] as const;
 
-const BEHAVIOR_NAME = "Prefix behavior";
-const BEHAVIOR_DESC = "How this Field affects the line Prefix";
 
 /**
  * Работает ли Field вообще. Настройка живая и читается рантаймом: при `no`
@@ -122,11 +104,6 @@ const BEHAVIOR_DESC = "How this Field affects the line Prefix";
  * `pkm.behavior.order.active` переезжает миграцией 8.1 целиком, то есть
  * переживёт переезд и останется без единого способа её задать.
  */
-const ACTIVE_NAME = "Active";
-const ACTIVE_DESC = "Whether this Field is offered, and where";
-const ACTIVE_TIP =
-  "<b>No</b> switches the Field off everywhere: TagWheel does not show it and its commands do nothing. "
-  + "<b>Commands only</b> keeps the commands working and takes the Field out of TagWheel";
 const ACTIVE_OPTIONS = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
@@ -143,12 +120,6 @@ const ACTIVE_OPTIONS = [
  * Переключается тем же `toggleSub`, что и кнопка старой доски: у него две
  * записи и важен их порядок, и собирать их заново вёрстке нельзя.
  */
-const CHILD_NAME = "Child Field";
-const CHILD_DESC = "Show the child Field in TagWheel once a parent Value is picked";
-const CHILD_TIP =
-  "A child Field is a second Field that only makes sense under this one: its Values are "
-  + "the ones marked child in the table below. "
-  + "Switched off, TagWheel does not offer it even when its Values are set up";
 const CHILD_OPTIONS = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
@@ -163,30 +134,13 @@ const CHILD_OPTIONS = [
  * `enabledForParentValues`. Что из этого следует для человека и почему список
  * Fields в нём короче, чем весь список, — в подсказках ниже и в 10.13.
  */
-const PREREQ_NAME = "Prerequisite Field";
-const PREREQ_DESC = "Show this Field only after another Field has a Value";
-const PREREQ_TIP =
-  "A Field with a prerequisite stays out of TagWheel, out of its commands and out of the line "
-  + "until the Field it waits for has a Value. Picking a different Value in that Field clears this one";
 const PREREQ_OPTIONS = [
   { value: "no", label: "No" },
   { value: "yes", label: "Yes" },
 ] as const;
 
-const PREREQ_FIELD_NAME = "Choose prerequisite Field";
-const PREREQ_FIELD_DESC = "Which Field this one waits for";
-const PREREQ_FIELD_TIP =
-  "A Link or an Emoji Field can wait for any other Field, a Tag Field only for another Tag Field. "
-  + "Two Tag Fields tied this way are also kept next to each other in the line";
 /** Пока Field не выбран, писать нечего: пустое значение ничего не пишет. */
-const PREREQ_FIELD_NONE = "Not chosen";
 
-const PREREQ_VALUE_NAME = "Prerequisite Value";
-const PREREQ_VALUE_DESC = "Which Value of that Field this one waits for";
-const PREREQ_VALUE_TIP =
-  "Left at <code>Any Value</code> this Field appears as soon as the prerequisite Field has a Value "
-  + "of any kind. Name one, and it waits for that Value alone";
-const PREREQ_VALUE_ANY = "Any Value";
 
 /**
  * Свойства заметки — свой раздел, а не строка внутри `Behavior` (замечание
@@ -195,66 +149,27 @@ const PREREQ_VALUE_ANY = "Any Value";
  * заголовка раздела и объясняет, зачем он нужен вообще; у строки внутри
  * остаётся только описание, чтобы два «?» не стояли рядом.
  */
-const PROPERTY_HEAD = "YAML property";
-const PROPERTY_HEAD_TIP =
-  "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can "
-  + "be written into a property of that note — the same properties you see at the top of a note in "
-  + "Obsidian. This is where you say which property a Field goes to. Start typing and it offers the "
-  + "ones your vault already uses. Leave it empty and the Field is simply not copied";
-const PROPERTY_NAME = "Property";
-const PROPERTY_DESC = "If you use inline2note, to which YAML property this Field should go";
 /*
  * Подсказка у строки, 2026-09-01 (замечание 1.3.2.1). Заказчик 2026-08-27
  * решил обратное — «?» здесь не ставить, потому что подсказка раздела стоит
  * прямо над ней, — и теперь попросил её вернуть. Последнее слово за ним;
  * прежнее решение записано, чтобы третий круг не начался с нуля.
  */
-const PROPERTY_TIP =
-  "The properties are the ones Obsidian shows at the top of a note. Start typing and the box offers "
-  + "the names your vault already uses; you can also type a name that does not exist yet, and it "
-  + "appears the first time a note is written with it. Leave the box empty and this Field is simply "
-  + "not copied into the note. Two Fields may point at the same property \u2014 then <code>Property "
-  + "type</code> below decides whether it holds a list or a single Value";
 /* Подсказка в пустом поле: замечание заказчика 2026-08-27, третий круг. */
-const PROPERTY_PLACEHOLDER = "select Property";
 /*
  * Полный набор настроек свойства (10.9). Приехал сюда решением заказчика
  * 2026-08-28: прототип держал их таблицей в блоке `Note properties` на вкладке
  * Transform, а место им — там, где настраивается сам Field. Блок удалён,
  * тексты сняты с него.
  */
-const CARDINALITY_NAME = "Property type";
-const CARDINALITY_DESC = "Whether the property holds one Value or a list";
-const CARDINALITY_TIP =
-  "<b>Auto</b> works it out for you: a list when more than one Field writes to the same property, "
-  + "a single Value otherwise. Set it by hand only when Auto guesses wrong";
 
 /* Имя задано заказчиком 2026-08-28. Шесть слов — больше пяти, которые
    разрешает линтер текстов Г10; исключение записано в PRD 10.9, чтобы
    фаза 4 не переименовала обратно. */
-const VALUE_RULE_NAME = "How to show Value in YAML";
-const VALUE_RULE_DESC = "How the Value is written into the property";
-const VALUE_RULE_TIP =
-  "<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> "
-  + "strips the decoration — no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> "
-  + "around a link — which is what you want if you plan to search or sort by the property. The rule "
-  + "belongs to the Field and applies to every one of its Values";
 
 /* Видимая строка, поэтому без точки в конце (Р10). */
-const LINK_IN_TAGS =
-  "A tags property does not take links: Obsidian will flag the value in the note";
 
-const WRITTEN_NAME = "Preview";
 /* Текст задан заказчиком 2026-08-28. */
-const WRITTEN_DESC = "How this Value will look like in YAML";
-const WRITTEN_TIP =
-  "It follows the three choices above and updates as you change them, and it shows what "
-  + "<b>this</b> Field writes. Two Fields can share one property name — then the note gets both "
-  + "of them in the same list, while each Field shows only its own part here";
-const BEHAVIOR_TIP =
-  "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. "
-  + "<b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. "
-  + "<b>Free</b> inserts the Value where the cursor is now";
 
 /**
  * Подсказки колонок таблицы Values. Есть у каждой колонки, о которой человеку
@@ -283,6 +198,18 @@ function columnTips(isLink: boolean): Record<string, string> {
       + "its color and nothing else, <b>custom</b> prints the text you give",
   };
 }
+
+/**
+ * Как вёрстка спрашивает свой текст (10.13.47): `const say = words(o)`.
+ *
+ * Английское живёт в `texts_blocks.ts`, а не здесь: у видимого текста один
+ * дом, и второе его объявление разошлось бы молча (У-32). Имена строк
+ * оставлены теми же, какими назывались константы, — так видно, что переезд
+ * не переписал ни слова.
+ */
+type Say = (name: string, ...args: readonly (string | number)[]) => string;
+
+const words = (o: { ctx: SettingsCtx }): Say => sayIn("field-editor", o.ctx);
 
 /* ---- то, с чем работает вёрстка --------------------------------------- */
 
@@ -351,6 +278,7 @@ export interface FieldsViewOpts {
  * Field пишется: отдельной настройки «сторона» нет и быть не должно.
  */
 export function renderFieldList(list: El, o: FieldsViewOpts): void {
+  const say = words(o);
   const rows = o.model.listFields();
   /*
    * Что тянут прямо сейчас. Ключ, а не строка: строку перерисует любая
@@ -382,7 +310,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
 
     const mine = rows.filter(r => r.side === value);
     if (!mine.length) {
-      el(sec, "div", "io-side__empty", EMPTY_SIDE);
+      el(sec, "div", "io-side__empty", say("EMPTY_SIDE"));
       return;
     }
 
@@ -401,8 +329,8 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
       /* Одна подсказка на узел — и один атрибут: `title` рядом с `aria-label`
          даёт вторую всплывающую коробку поверх первой (пятый круг). */
       const gripLabel = row.parent
-        ? "Drag " + row.label + " \u2014 it moves with " + parentLabel(rows, row.parent)
-        : "Drag " + row.label + " to reorder it, or across the line to change side";
+        ? say("DRAG_CHILD_FIELD", row.label, parentLabel(rows, row.parent))
+        : say("DRAG_FIELD", row.label);
       grip.setAttribute("aria-label", gripLabel);
       grip.draggable = o.enabled;
       grip.addEventListener("dragstart", ((ev: DragEv) => {
@@ -433,7 +361,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
         o.redraw();
       }) as never);
 
-      const pick = btn(item, "io-fields__pick", { label: "Show the Field " + row.label });
+      const pick = btn(item, "io-fields__pick", { label: say("SHOW_FIELD", row.label) });
       el(pick, "span", "io-fields__name", row.label);
       cssVar(
         el(pick, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
@@ -462,8 +390,8 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
           o.redraw();
         }) as never);
       };
-      arrow("↑", -1, "Move " + row.label + " up, and across the line at the top");
-      arrow("↓", 1, "Move " + row.label + " down, and across the line at the bottom");
+      arrow("↑", -1, say("MOVE_FIELD_UP", row.label));
+      arrow("↓", 1, say("MOVE_FIELD_DOWN", row.label));
     }
   };
 
@@ -585,6 +513,7 @@ function itemRow(host: El, o: {
  * ведёт, не показывается (З8).
  */
 function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<() => void> {
+  const say = words(o);
   const closers: Array<() => void> = [];
   const state = o.model.getPrerequisite(row.key);
   if (!state.candidates.length && !state.fieldId) return closers;
@@ -593,9 +522,9 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
   const opened = Boolean(state.fieldId || o.state.prereqOpen[row.key]);
 
   const on = itemRow(detail, {
-    name: PREREQ_NAME,
-    desc: PREREQ_DESC,
-    tip: PREREQ_TIP,
+    name: say("PREREQ_NAME"),
+    desc: say("PREREQ_DESC"),
+    tip: say("PREREQ_TIP"),
     tipId: "io-field-prereq-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
@@ -603,7 +532,7 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
   const onPick = selectInput(on.control, "io-select", {
     options: PREREQ_OPTIONS,
     value: opened ? "yes" : "no",
-    label: PREREQ_NAME + " for " + row.strictName,
+    label: say("PREREQ_NAME") + " for " + row.strictName,
   });
   onPick.disabled = !o.enabled;
   onPick.addEventListener("change", (() => {
@@ -619,19 +548,19 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
   if (!opened) return closers;
 
   const which = itemRow(detail, {
-    name: PREREQ_FIELD_NAME,
-    desc: PREREQ_FIELD_DESC,
-    tip: PREREQ_FIELD_TIP,
+    name: say("PREREQ_PICK_NAME"),
+    desc: say("PREREQ_PICK_DESC"),
+    tip: say("PREREQ_PICK_TIP"),
     tipId: "io-field-prereq-which-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(which.closeTip);
   const whichPick = selectInput(which.control, "io-select", {
-    options: [{ value: "", label: PREREQ_FIELD_NONE }].concat(
+    options: [{ value: "", label: say("PREREQ_NOT_CHOSEN") }].concat(
       state.candidates.map(c => ({ value: c.key, label: c.label })),
     ),
     value: state.fieldId,
-    label: PREREQ_FIELD_NAME + " for " + row.strictName,
+    label: say("PREREQ_PICK_NAME") + " for " + row.strictName,
   });
   whichPick.disabled = !o.enabled;
   whichPick.addEventListener("change", (() => {
@@ -646,19 +575,19 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
   if (!state.fieldId) return closers;
 
   const value = itemRow(detail, {
-    name: PREREQ_VALUE_NAME,
-    desc: PREREQ_VALUE_DESC,
-    tip: PREREQ_VALUE_TIP,
+    name: say("PREREQ_VALUE_NAME"),
+    desc: say("PREREQ_VALUE_DESC"),
+    tip: say("PREREQ_VALUE_TIP"),
     tipId: "io-field-prereq-value-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(value.closeTip);
   const valuePick = selectInput(value.control, "io-select", {
-    options: [{ value: "", label: PREREQ_VALUE_ANY }].concat(
+    options: [{ value: "", label: say("PREREQ_ANY_VALUE") }].concat(
       state.values.map(v => ({ value: v.value, label: v.label })),
     ),
     value: state.value,
-    label: PREREQ_VALUE_NAME + " for " + row.strictName,
+    label: say("PREREQ_VALUE_NAME") + " for " + row.strictName,
   });
   valuePick.disabled = !o.enabled;
   valuePick.addEventListener("change", (() => {
@@ -677,6 +606,7 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
  * куском — они живут ниже по этой же колонке.
  */
 export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts): () => void {
+  const say = words(o);
   const closers: Array<() => void> = [];
 
   /*
@@ -710,7 +640,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     const ask = o.askRename;
     const pencil = btn(title, "io-icon", {
       text: "\u270E",
-      label: "Rename the Field " + row.strictName,
+      label: say("RENAME_FIELD", row.strictName),
     });
     pencil.disabled = !o.enabled;
     pencil.addEventListener("click", (() => {
@@ -733,7 +663,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    * читается грязным пятном. Смысл кнопки несут `aria-label` и `title`.
    */
   const del = btn(title, "io-danger", {
-    label: "Delete the Field " + row.strictName,
+    label: say("DELETE_FIELD", row.strictName),
   });
   /* Текста у значка нет: корзину рисует маска в styles.css (1.4.1.2.3). */
   el(del, "span", "io-danger__icon");
@@ -756,9 +686,9 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    * то, как он себя ведёт, поэтому стоит до заголовка `Behavior`.
    */
   const shortRow = itemRow(detail, {
-    name: SHORT_NAME_NAME,
-    desc: SHORT_NAME_DESC,
-    tip: SHORT_NAME_TIP,
+    name: say("SHORT_NAME_NAME"),
+    desc: say("SHORT_NAME_DESC"),
+    tip: say("SHORT_NAME_TIP"),
     tipId: "io-field-short-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
@@ -767,7 +697,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     /* Пусто — значит короткого имени нет и в TagWheel стоит полное. */
     value: row.label === row.strictName ? "" : row.label,
     placeholder: row.strictName,
-    label: SHORT_NAME_NAME + " for " + row.strictName,
+    label: say("SHORT_NAME_NAME") + " for " + row.strictName,
   });
   short.disabled = !o.enabled;
   short.addEventListener("change", (() => {
@@ -800,7 +730,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   closers.push(tipBelow({
     head: behaviorHead,
     host: el(detail, "div", "io-tipslot"),
-    text: BEHAVIOR_HEAD_TIP,
+    text: say("BEHAVIOR_HEAD_TIP"),
     label: "Behavior",
     id: "io-field-behavior-tip",
     showTips: o.showTips, showIds: o.showIds,
@@ -814,9 +744,9 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    */
   if (!row.parent) {
     const active = itemRow(detail, {
-      name: ACTIVE_NAME,
-      desc: ACTIVE_DESC,
-      tip: ACTIVE_TIP,
+      name: say("ACTIVE_NAME"),
+      desc: say("ACTIVE_DESC"),
+      tip: say("ACTIVE_TIP"),
       tipId: "io-field-active-tip",
       showTips: o.showTips, showIds: o.showIds,
     });
@@ -824,7 +754,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     const mode = selectInput(active.control, "io-select", {
       options: ACTIVE_OPTIONS,
       value: row.active,
-      label: "Active, for " + row.strictName,
+      label: say("ACTIVE_FOR", row.strictName),
     });
     mode.disabled = !o.enabled;
     mode.addEventListener("change", (() => {
@@ -835,9 +765,9 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   }
 
   const behavior = itemRow(detail, {
-    name: BEHAVIOR_NAME,
-    desc: BEHAVIOR_DESC,
-    tip: BEHAVIOR_TIP,
+    name: say("BEHAVIOR_NAME"),
+    desc: say("BEHAVIOR_DESC"),
+    tip: say("BEHAVIOR_TIP"),
     tipId: "io-field-behavior-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
@@ -845,7 +775,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   const mode = selectInput(behavior.control, "io-select", {
     options: BEHAVIOR_OPTIONS,
     value: row.freeRoam,
-    label: "Behavior for " + row.strictName,
+    label: say("BEHAVIOR_FOR", row.strictName),
   });
   mode.disabled = !o.enabled;
   mode.addEventListener("change", (() => {
@@ -872,9 +802,9 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
      */
     const on = o.model.getSubActive(row.subKey) !== "no";
     const child = itemRow(detail, {
-      name: CHILD_NAME,
-      desc: CHILD_DESC,
-      tip: CHILD_TIP,
+      name: say("CHILD_NAME"),
+      desc: say("CHILD_DESC"),
+      tip: say("CHILD_TIP"),
       tipId: "io-field-child-tip",
       showTips: o.showTips, showIds: o.showIds,
     });
@@ -882,7 +812,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     const pick = selectInput(child.control, "io-select", {
       options: CHILD_OPTIONS,
       value: on ? "yes" : "no",
-      label: "Child Field of " + row.strictName,
+      label: say("CHILD_OF", row.strictName),
     });
     pick.disabled = !o.enabled;
     pick.addEventListener("change", (() => {
@@ -916,12 +846,12 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    * настройка остаётся у Field, доработка идёт вместе с Transform.
    */
   const propertyHead = el(detail, "div", "io-sub io-item__namerow");
-  el(propertyHead, "span", undefined, PROPERTY_HEAD);
+  el(propertyHead, "span", undefined, say("YAML_HEAD"));
   closers.push(tipBelow({
     head: propertyHead,
     host: el(detail, "div", "io-tipslot"),
-    text: PROPERTY_HEAD_TIP,
-    label: PROPERTY_HEAD,
+    text: say("YAML_HEAD_TIP"),
+    label: say("YAML_HEAD"),
     id: "io-field-property-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
@@ -942,6 +872,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
  * строки примера просто нет: показать вместо него догадку было бы хуже.
  */
 function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => void {
+  const say = words(o);
   const closers: Array<() => void> = [];
   /*
    * Запись и перерисовка развязаны, и это не осторожность впрок.
@@ -966,9 +897,9 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
   const mine = rows.find(r => r.key === row.key);
 
   const property = itemRow(detail, {
-    name: PROPERTY_NAME,
-    desc: PROPERTY_DESC,
-    tip: PROPERTY_TIP,
+    name: say("YAML_NAME"),
+    desc: say("YAML_DESC"),
+    tip: say("YAML_TIP"),
     tipId: "io-field-yaml-property-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
@@ -993,12 +924,13 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
     return at ? String(at.type || "").trim().toLowerCase() : "";
   };
   if (row.kind === "wikilink" && declaredType(row.property) === "tags") {
-    el(property.info, "div", "io-item__warn", LINK_IN_TAGS);
+    el(property.info, "div", "io-item__warn", say("YAML_TAGS_WARNING"));
   }
   propertyPicker(property.control, {
     value: row.property,
     label: row.strictName,
-    placeholder: PROPERTY_PLACEHOLDER,
+    placeholder: say("YAML_HINT"),
+    say,
     props,
     /* Подсказку рисует платформа; без класса поле остаётся обычным полем. */
     suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest
@@ -1009,9 +941,9 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
   });
 
   const cardinality = itemRow(detail, {
-    name: CARDINALITY_NAME,
-    desc: CARDINALITY_DESC,
-    tip: CARDINALITY_TIP,
+    name: say("YAML_KIND_NAME"),
+    desc: say("YAML_KIND_DESC"),
+    tip: say("YAML_KIND_TIP"),
     tipId: "io-field-yaml-type-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
@@ -1019,7 +951,7 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
   const holds = selectInput(cardinality.control, "io-select", {
     options: CARDINALITY_OPTIONS,
     value: mine ? mine.cardinality : "auto",
-    label: CARDINALITY_NAME + " for " + row.strictName,
+    label: say("YAML_KIND_NAME") + " for " + row.strictName,
   });
   holds.disabled = !o.enabled;
   holds.addEventListener("change", (() => {
@@ -1028,9 +960,9 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
   }) as never);
 
   const rule = itemRow(detail, {
-    name: VALUE_RULE_NAME,
-    desc: VALUE_RULE_DESC,
-    tip: VALUE_RULE_TIP,
+    name: say("YAML_FORM_NAME"),
+    desc: say("YAML_FORM_DESC"),
+    tip: say("YAML_FORM_TIP"),
     tipId: "io-field-yaml-rule-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
@@ -1038,7 +970,7 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
   const ruleSelect = selectInput(rule.control, "io-select", {
     options: VALUE_RULE_OPTIONS,
     value: mine ? mine.valueRule : "raw",
-    label: VALUE_RULE_NAME + " for " + row.strictName,
+    label: say("YAML_FORM_NAME") + " for " + row.strictName,
   });
   ruleSelect.disabled = !o.enabled;
   ruleSelect.addEventListener("change", (() => {
@@ -1055,9 +987,9 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
      * переносится внутри рамки, а не уезжает за край.
      */
     const written = itemRow(detail, {
-      name: WRITTEN_NAME,
-      desc: WRITTEN_DESC,
-      tip: WRITTEN_TIP,
+      name: say("YAML_PREVIEW_NAME"),
+      desc: say("YAML_PREVIEW_DESC"),
+      tip: say("YAML_PREVIEW_TIP"),
       tipId: "io-field-yaml-written-tip",
       showTips: o.showTips, showIds: o.showIds,
     });
@@ -1153,6 +1085,7 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
  * колонок цвета нет: у ссылки нет своего цвета, остаются `Value` и `Prefix`.
  */
 export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): () => void {
+  const say = words(o);
   const ve: ValuesEditor = o.model.valuesEditor(row.key);
   /* Один раз на таблицу: чтение темы — обращение к раскладке, и в цикле по
      значениям ему делать нечего. */
@@ -1165,7 +1098,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
   closers.push(tipBelow({
     head,
     host: el(host, "div", "io-tipslot"),
-    text: VALUES_TIP,
+    text: say("VALUES_TIP"),
     label: "Values",
     id: "io-values-tip",
     showTips: o.showTips, showIds: o.showIds,
@@ -1221,7 +1154,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
 
     const grip = el(line, "div", "io-grip", "\u283F");
     grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + v.token + " to reorder it");
+    grip.setAttribute("aria-label", say("VALUE_DRAG", v.token));
     grip.draggable = o.enabled;
     grip.addEventListener("dragstart", ((ev: DragEv) => {
       dragged = at;
@@ -1261,9 +1194,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       const child = at.level === 1;
       const arrow = btn(depth, "io-icon", {
         text: child ? "\u2190" : "\u2192",
-        label: child
-          ? "Make " + v.token + " a top-level Value"
-          : "Make " + v.token + " a child Value",
+        label: say(child ? "VALUE_MAKE_PARENT" : "VALUE_MAKE_CHILD", v.token),
       });
       const firstOfAll = !child && ve.tree.length > 0 && ve.tree[0]?.token === v.token;
       arrow.disabled = !o.enabled || (!child && firstOfAll);
@@ -1303,7 +1234,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     const prefix = textInput(line, "io-text io-text--mono", {
       value: String(v.prefixMode === "checkbox" ? v.checkboxToken || "" : ""),
       placeholder: "no",
-      label: "Prefix for " + v.token,
+      label: say("VALUE_PREFIX_FOR", v.token),
     });
     prefix.disabled = !o.enabled;
     prefix.addEventListener("change", (() => {
@@ -1341,7 +1272,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       const shown = selectInput(shownCell, "io-select", {
         options: SHOWN_OPTIONS,
         value: visual.visibility,
-        label: "Show, for " + v.token,
+        label: say("VALUE_SHOWN_FOR", v.token),
       });
       shown.disabled = !o.enabled;
       shown.addEventListener("change", (() => {
@@ -1354,7 +1285,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
         const custom = textInput(shownCell, "io-text io-text--mono", {
           value: visual.customText,
           placeholder: "printed instead",
-          label: "Custom text for " + v.token,
+          label: say("VALUE_CUSTOM_FOR", v.token),
         });
         custom.disabled = !o.enabled;
         custom.addEventListener("change", (() => {
@@ -1421,7 +1352,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       if (visual.fillColor || visual.textColor) {
         const back = btn(tools, "io-icon", {
           text: "\u21ba",
-          label: "Reset the colors of " + v.token + " back to the colors of the theme",
+          label: say("VALUE_RESET_COLORS", v.token),
         });
         back.disabled = !o.enabled;
         back.addEventListener("click", (() => {
@@ -1434,7 +1365,8 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     }
     /* Удаление красное: единственная кнопка строки, которая уносит данные
        (замечание заказчика 2026-08-27). */
-    const del = btn(tools, "io-icon io-icon--danger", { text: "\u2715", label: "Remove " + v.token });
+    const del = btn(tools, "io-icon io-icon--danger",
+      { text: "\u2715", label: say("VALUE_REMOVE", v.token) });
     del.disabled = !o.enabled;
     del.addEventListener("click", (() => {
       if (!o.enabled) return;
@@ -1449,12 +1381,12 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
   const add = textInput(foot, "io-text io-text--mono", {
     value: "",
     placeholder: isLink ? "[[wikilink]] / wikilink" : "#tag / tag",
-    label: "New Value for " + row.strictName,
+    label: say("NEW_VALUE_FOR", row.strictName),
   });
   add.disabled = !o.enabled;
   /* Акцентная, как и `Add Field`: заказчик просил, чтобы её было видно. */
   const addBtn = btn(foot, "io-btn io-btn--sm io-btn--cta",
-    { text: "Add Value", label: "Add a Value to " + row.strictName });
+    { text: say("ADD_VALUE"), label: say("ADD_VALUE_TO", row.strictName) });
   addBtn.disabled = !o.enabled;
   addBtn.addEventListener("click", (() => {
     if (!o.enabled) return;
@@ -1497,46 +1429,6 @@ const STEP_OPTIONS = [
  * написано (`parseNumericLiteralSpec`), цифры с разделителями — счётчик с
  * разделителями (`parseNumericPatternSpec`). Всё остальное шагать не умеет.
  */
-const MARKER_NAME = "Emoji-prefix";
-const MARKER_DESC = "The character that stands in front of the Value in the line";
-const MARKER_TIP =
-  "This is how the Field is recognised: the plugin reads <code>📅 2026-08-27</code> as "
-  + "this Field only because <code>📅</code> stands in front. Give it a character no "
-  + "other Field uses, or the two will be taken for one";
-const FORMAT_NAME = "Value format";
-const FORMAT_DESC = "The shape of the Value: a date, a time or a number";
-const FORMAT_PLACEHOLDER = "YYYY-MM-DD / HHmm / 1";
-const FORMAT_TIP =
-  "Spell out the shape you want to see in the line. A date or a time is built from "
-  + "<code>YYYY</code> (year), <code>MM</code> (month), <code>DD</code> (day), <code>HH</code> "
-  + "(hour), <code>mm</code> (minute), <code>ss</code> (second), with any separators between them: "
-  + "<code>YYYY-MM-DD</code> writes <code>2026-08-27</code>, <code>DD.MM</code> writes "
-  + "<code>27.08</code>, <code>HHmm</code> writes <code>1435</code>. Digits alone make a counter, "
-  + "and the number of digits is the width it keeps: <code>1</code> counts <code>1</code>, "
-  + "<code>2</code>, <code>3</code>, while <code>001</code> counts <code>001</code>, "
-  + "<code>002</code>. Anything else is taken as plain text and never steps";
-const STEP_DESC =
-  "What should happen with the Value when you use <code>next</code> or <code>previous</code> command";
-const STEP_TIP =
-  "<b>Fixed step</b> adds the same amount on every press: a day to a date, one to a counter. "
-  + "<b>Command</b> throws the old Value away and writes a fresh one — the time of the press, "
-  + "or a random string for an id. <b>Custom step</b> walks a list of steps you write yourself, "
-  + "and can end the cycle by removing the Value from the line";
-const AMOUNT_DESC = "How much one press adds to the Value";
-const AMOUNT_TIP =
-  "<code>next</code> adds this much, <code>previous</code> takes the same back. What one unit "
-  + "means comes from <code>Value format</code>: with <code>YYYY-MM-DD</code> it is a day, with "
-  + "<code>HHmm</code> a minute, with a counter just one";
-const COMMAND_DESC = "What the press writes into the Value instead of stepping it";
-const COMMAND_TIP =
-  "<code>The current date and time</code> writes the moment of the press in the shape set by "
-  + "<code>Value format</code>. The random ones fill the Value with numbers or letters, which is "
-  + "what an id needs";
-const STEPS_DESC = "One step per line, in the order the presses walk them";
-const STEPS_TIP =
-  "A line is a number, and a number in brackets after it says how many presses stay on that step: "
-  + "<code>1 (3)</code> moves by one for three presses. <code>END</code> ends the cycle and "
-  + "removes the Value";
 
 /**
  * Строки Field типа `element`: маркер, формат и то, чем он шагает. Значений у
@@ -1546,6 +1438,7 @@ const STEPS_TIP =
  * заказчик читал их как настройки размещения (замечание 2026-08-27).
  */
 export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): () => void {
+  const say = words(o);
   const ed = o.model.elementEditor(row.key);
   const closers: Array<() => void> = [];
 
@@ -1554,7 +1447,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   closers.push(tipBelow({
     head: valueHead,
     host: el(host, "div", "io-tipslot"),
-    text: ELEMENT_VALUE_TIP,
+    text: say("ELEMENT_VALUE_TIP"),
     label: "Value",
     id: "io-element-value-tip",
     showTips: o.showTips, showIds: o.showIds,
@@ -1578,15 +1471,15 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     }) as never);
   };
 
-  line(MARKER_NAME, MARKER_DESC, MARKER_TIP, "io-element-marker-tip", ed.emoji,
+  line(say("ELEMENT_EMOJI_NAME"), say("ELEMENT_EMOJI_DESC"), say("ELEMENT_EMOJI_TIP"), "io-element-marker-tip", ed.emoji,
     "one character or emoji", v => ed.setEmoji(v));
-  line(FORMAT_NAME, FORMAT_DESC, FORMAT_TIP, "io-element-format-tip", ed.format,
-    FORMAT_PLACEHOLDER, v => ed.setFormat(v));
+  line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
+    say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));
 
   const steps = itemRow(host, {
     name: "Steps by",
-    desc: STEP_DESC,
-    tip: STEP_TIP,
+    desc: say("ELEMENT_STEP_DESC"),
+    tip: say("ELEMENT_STEP_TIP"),
     tipId: "io-element-step-tip",
     showTips: o.showTips, showIds: o.showIds,
   });
@@ -1594,7 +1487,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   const mode = selectInput(steps.control, "io-select", {
     options: STEP_OPTIONS,
     value: ed.mode,
-    label: "Steps by, for " + row.strictName,
+    label: say("ELEMENT_STEP_FOR", row.strictName),
   });
   mode.disabled = !o.enabled;
   mode.addEventListener("change", (() => {
@@ -1607,15 +1500,15 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   if (ed.mode === "increment") {
     const by = itemRow(host, {
       name: "Amount",
-      desc: AMOUNT_DESC,
-      tip: AMOUNT_TIP,
+      desc: say("ELEMENT_AMOUNT_DESC"),
+      tip: say("ELEMENT_AMOUNT_TIP"),
       tipId: "io-element-amount-tip",
       showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(by.closeTip);
     const input = textInput(by.control, "io-text io-text--mono", {
       value: String(ed.incrementBy),
-      label: "Amount for " + row.strictName,
+      label: say("ELEMENT_AMOUNT_FOR", row.strictName),
     });
     input.disabled = !o.enabled;
     input.addEventListener("change", (() => {
@@ -1625,8 +1518,8 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   } else if (ed.mode === "command") {
     const cmd = itemRow(host, {
       name: "Command",
-      desc: COMMAND_DESC,
-      tip: COMMAND_TIP,
+      desc: say("ELEMENT_COMMAND_DESC"),
+      tip: say("ELEMENT_COMMAND_TIP"),
       tipId: "io-element-command-tip",
       showTips: o.showTips, showIds: o.showIds,
     });
@@ -1638,7 +1531,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
         { value: "randomE", label: "Random characters" },
       ],
       value: ed.command,
-      label: "Command for " + row.strictName,
+      label: say("ELEMENT_COMMAND_FOR", row.strictName),
     });
     pick.disabled = !o.enabled;
     pick.addEventListener("change", (() => {
@@ -1648,15 +1541,15 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   } else {
     const own = itemRow(host, {
       name: "Steps",
-      desc: STEPS_DESC,
-      tip: STEPS_TIP,
+      desc: say("ELEMENT_STEPS_DESC"),
+      tip: say("ELEMENT_STEPS_TIP"),
       tipId: "io-element-steps-tip",
       showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(own.closeTip);
     const area = own.control.createEl("textarea", {
       cls: "io-textarea",
-      attr: { "aria-label": "Steps for " + row.strictName, rows: "3" },
+      attr: { "aria-label": say("ELEMENT_STEPS_FOR", row.strictName), rows: "3" },
     }) as ElInput;
     area.value = ed.customRaw.join("\n");
     area.disabled = !o.enabled;
@@ -1678,6 +1571,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
  * настройкам, а не промежуточное состояние.
  */
 export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
+  const say = words(o);
   const wrap = el(host, "div", "io-fields");
   const closers: Array<() => void> = [];
 
@@ -1687,7 +1581,7 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   closers.push(tipBelow({
     head: listHead,
     host: el(listCol, "div", "io-tipslot"),
-    text: LIST_TIP,
+    text: say("LIST_TIP"),
     label: "the Fields list",
     id: "io-fields-list-tip",
     showTips: o.showTips, showIds: o.showIds,
@@ -1713,7 +1607,7 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   closers.push(tipBelow({
     head: detailHead,
     host: el(detailCol, "div", "io-tipslot"),
-    text: DETAIL_TIP,
+    text: say("DETAIL_TIP"),
     label: "this column",
     id: "io-fields-detail-tip",
     showTips: o.showTips, showIds: o.showIds,
