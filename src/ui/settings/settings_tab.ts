@@ -278,6 +278,16 @@ export class SettingsPane {
     return raw || BASE_LANG;
   }
 
+  /**
+   * Какой язык выбран — для тех, кто рисует не в панели (10.13.51).
+   *
+   * Спрашивает руководство: перевод у него свой файл, а язык один на плагин, и
+   * второе объявление разошлось бы с первым молча (У-32).
+   */
+  currentLanguage(): string {
+    return this.language();
+  }
+
   /** Схема и вкладки, тексты которых уже переведены. */
   private view(): { schema: readonly SettingsGroup[]; tabs: readonly TabDef[]; t: Resolve } {
     const catalogs: Catalogs = this.deps.texts ? (this.deps.texts() || {}) : {};

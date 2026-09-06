@@ -40,6 +40,8 @@ import { bindingKey, hotkeyListWords } from "../../features/settings_backup.js";
 import { tabStripRow } from "./custom/tab_strip.ts";
 import { BASE_LANG_SEED, type Catalogs } from "./texts.ts";
 import { ensureCatalogFiles, readCatalogs, type TextFiles } from "./texts_files.ts";
+import { ensureGuideFiles, guideTextFor } from "./guide_files.ts";
+import { howtoMarkdown } from "./howto.ts";
 import { panelCatalog } from "./texts_panel.ts";
 import { TEXT_BY_NAME, dialogKey, fill } from "./texts_dialogs.ts";
 import { RU_SEED } from "./texts_seed_ru.ts";
@@ -782,6 +784,18 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         pick: (o: PickRequest) => askPick(app, o, this.say),
         vault: vaultSeam(app),
         /*
+         * Руководство на выбранном языке (10.13.51, ответ на В-73). Перевод
+         * лежит в папке плагина, а `.obsidian/**` Obsidian не индексирует —
+         * `vault` до него не достаёт (10.13.26 Ф5), поэтому чтение идёт
+         * адаптером, тем же, что у каталогов.
+         */
+        guide: async () => {
+          const files = textFilesOf(app);
+          if (!files) return { text: howtoMarkdown(), lang: "en", name: "English" };
+          return guideTextFor(
+            files, pluginFolderOf(app, plugin), this.pane.currentLanguage(), howtoMarkdown());
+        },
+        /*
          * Копии настроек пишутся и читаются через то же хранилище, что и всё
          * остальное: замена идёт `update`-мутатором и потому проходит миграцию
          * (CS10). Второй точки записи в конфиг нет.
@@ -892,6 +906,13 @@ export class InlineOverhaulSettings extends PluginSettingTab {
       const folder = pluginFolderOf(app, plugin);
       await ensureCatalogFiles(files, folder, panelCatalog(SCHEMA, TABS),
         { en: BASE_LANG_SEED, ru: RU_SEED });
+      /*
+       * Образец руководства кладётся тем же заходом (10.13.51). Он не язык и
+       * в списке языков его нет: его копируют, чтобы перевод завести. Переводы
+       * при этом не читаются и не трогаются — любой из них человеческий с
+       * момента появления (Г-5).
+       */
+      await ensureGuideFiles(files, folder, howtoMarkdown());
       const read = await readCatalogs(files, folder);
       this.catalogs = read.catalogs;
       /*

@@ -26,6 +26,7 @@
 
 import type { ActionId } from "./types.ts";
 import { HOWTO_LEGACY_PATH, HOWTO_PATH, howtoMarkdown } from "./howto.ts";
+import { guideNotePath } from "./guide_files.ts";
 import { TEXT_BY_NAME, dialogKey, fill } from "./texts_dialogs.ts";
 import { tabKey, type Resolve } from "./texts.ts";
 import {
@@ -252,6 +253,14 @@ export interface ActionDeps {
   notify: (message: string) => void;
   /** Нужен только руководству; без него кнопка `Open the guide` не работает. */
   vault?: VaultSeam;
+  /**
+   * Руководство на выбранном языке (10.13.51, ответ на В-73).
+   *
+   * Шов, а не чтение по месту: перевод лежит в папке плагина, а `.obsidian/**`
+   * Obsidian не индексирует, и `vault` до него не достаёт (10.13.26 Ф5). Нет
+   * шва — руководство английское из кода, и это работа механизма, а не отказ.
+   */
+  guide?: () => Promise<{ text: string; lang: string; name: string }>;
   /**
    * Спросить подтверждение. Без него разрушительное действие не идёт: если
    * окна нет (проверка, заглушка), ответом считается отказ, а не согласие.
@@ -590,10 +599,25 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
          * создаётся вторая рядом: две заметки с одним содержанием и разными
          * пометками — худшее из состояний.
          */
-        const had = await Promise.resolve(vault.exists(HOWTO_PATH));
-        const legacy = had ? false : await Promise.resolve(vault.exists(HOWTO_LEGACY_PATH));
-        const path = legacy ? HOWTO_LEGACY_PATH : HOWTO_PATH;
-        if (!had && !legacy) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
+        /*
+         * Язык руководства (10.13.51). У каждого — своя заметка: заметка
+         * принадлежит человеку и не перезаписывается (Р-1), поэтому при одном
+         * имени на все языки тот, у кого уже лежит английская, после перевода
+         * получил бы её же — молча. Создать вторую не значит тронуть первую.
+         */
+        const guide = deps.guide
+          ? await deps.guide()
+          : { text: howtoMarkdown(), lang: "en", name: "English" };
+        const target = guideNotePath(HOWTO_PATH, guide.lang, guide.name);
+
+        const had = await Promise.resolve(vault.exists(target));
+        /* Прежнее имя ищется только у английской заметки: переводов под старым
+           именем быть не могло — механизма тогда не было. */
+        const legacy = had || guide.lang !== "en"
+          ? false
+          : await Promise.resolve(vault.exists(HOWTO_LEGACY_PATH));
+        const path = legacy ? HOWTO_LEGACY_PATH : target;
+        if (!had && !legacy) await Promise.resolve(vault.create(target, guide.text));
         await Promise.resolve(vault.open(path));
         notify(said(say(had || legacy ? "GUIDE_OPENED" : "GUIDE_MADE"), path));
       } catch (e) {
