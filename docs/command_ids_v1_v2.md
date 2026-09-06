@@ -42,10 +42,18 @@
 |---|---|---|
 | `undo-last-settings-change` | `General: Undo last settings change` | `Undo last settings change` |
 | `toggle-feature-<module>` | `General: Toggle <Module> module` | `Toggle <Module> module` |
-| `open-inline-overhaul-settings` | `General: Open settings` | `Open settings` |
 
-Команда `Open settings` удаляется вместе с вызовом `app.setting.open()` в
-фазе 6, пункт 5 (T8). До тех пор она живёт, и имя ей тоже приведено к T6.
+## Одна команда удалена
+
+`open-inline-overhaul-settings`, она же `General: Open settings`, **снята
+2026-09-06** вместе с вызовом `app.setting.open()` (T8, фаза 6 пункт 5). В
+палитре команд её больше нет, и назначенный на неё хоткей ни на что не
+действует — его можно снять.
+
+Причина не в удобстве: `app.setting` не объявлен в типах Obsidian, это
+приватное API и типовая причина замечания на community review. Настройки
+плагина открываются штатным путём — **Settings → Community plugins →
+inlineOverhaul**.
 
 ## Команды, которых нет в таблице: они собираются из ваших данных
 

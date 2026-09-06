@@ -165,8 +165,9 @@ function allDefs(cfg: Any): Any[] {
   const missing: string[] = [];
   for (const id of Object.keys(ids.NAMES)) {
     const name = ids.NAMES[id];
-    /* `Open settings` в прототипе нет: команда удаляется в фазе 6 (T8). */
-    if (id === "open-inline-overhaul-settings") continue;
+    /* Исключений тут нет и заводить их не надо: единственное — `Open settings`,
+       которой в прототипе не было, — снято 2026-09-06 вместе с самой командой
+       (T8, фаза 6 пункт 5). Исключение живёт ровно столько, сколько предмет. */
     if (!proto.includes('"' + name + '"')) missing.push(id + ": " + name);
   }
   assert.deepEqual(missing, [],
@@ -388,6 +389,63 @@ function allDefs(cfg: Any): Any[] {
   assert.ok(/command_ids_v1_v2\.md/.test(noticeBody),
     "уведомление не ссылается на карту");
   ok("уведомление показывается один раз и только после переезда с версии 1");
+}
+
+/* ---- T8: приватное API открытия настроек ------------------------------- */
+
+{
+  /*
+   * **Приёмка пункта 5 фазы 6, сделанная машиной, а не глазами.** В PRD она
+   * записана как «`grep` на `app.setting` по `src/` и `main.ts` — пусто, кроме
+   * колонки хоткея в справочнике команд». Grep, который надо не забыть
+   * запустить, — это проверка, которой нет; поэтому он стоит здесь.
+   *
+   * Разрешённое место ровно одно — `custom/hotkeys.ts` (К-2, 7.2): там
+   * `app.setting` за feature-detect и `try/catch`, и без него кнопка просто
+   * неактивна. Всё остальное — возврат команды `Open settings`, а её решением
+   * 7.2 обратно не возвращают: это типовая причина замечания на community
+   * review.
+   *
+   * Ищется по **живому коду**: строка комментария про `app.setting` — это
+   * объяснение, а не вызов, и запрещать объяснения значило бы вычистить из
+   * файлов ровно ту память, ради которой всё это писалось.
+   */
+  const ALLOWED = new Set(["src/ui/settings/custom/hotkeys.ts"]);
+
+  const walk = (dir: string, out: string[]): string[] => {
+    for (const name of fs.readdirSync(dir)) {
+      const p = path.join(dir, name);
+      if (fs.statSync(p).isDirectory()) walk(p, out);
+      else if (/\.(js|ts)$/.test(name)) out.push(p);
+    }
+    return out;
+  };
+
+  const files = walk(path.join(root, "src"), []).concat([path.join(root, "main.js")]);
+  const strays: string[] = [];
+  for (const file of files) {
+    const rel = path.relative(root, file).replace(/\\/g, "/");
+    if (ALLOWED.has(rel)) continue;
+    const lines = fs.readFileSync(file, "utf8").split(/\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = String(lines[i] || "");
+      const code = line.replace(/^\s*(\*|\/\/|\/\*).*$/, "");
+      if (/\bapp\s*\.\s*setting\b|\bsetting\s*\.\s*(open|openTabById)\s*\(/.test(code)) {
+        strays.push(rel + ":" + (i + 1) + "  " + line.trim());
+      }
+    }
+  }
+  assert.deepEqual(strays, [],
+    "приватное API открытия настроек вне единственного разрешённого места (T8, 7.2):\n  "
+    + strays.join("\n  "));
+
+  /* И сама команда не вернулась: ни идентификатором, ни именем в карте. */
+  assert.ok(!Object.prototype.hasOwnProperty.call(ids.NAMES, "open-inline-overhaul-settings"),
+    "команда `Open settings` вернулась в карту имён — решением 7.2 её не возвращают");
+  const registry = fs.readFileSync(path.join(root, "src", "features", "command_registry.js"), "utf8");
+  assert.ok(!/id:\s*"open-inline-overhaul-settings"/.test(registry),
+    "команда `Open settings` снова регистрируется");
+  ok("T8: приватного API открытия настроек нет нигде, кроме колонки хоткея");
 }
 
 console.log("\n" + passed + " проверок пройдено");

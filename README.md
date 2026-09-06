@@ -91,7 +91,9 @@ simply keeps the English the plugin ships with. Command names stay in English: O
 takes those from its own command registry, and translating them here would leave the
 command palette and the reference table disagreeing.
 
-- [Open settings and module toggles](showcase.md#open-settings-and-module-toggles)
+- [Module toggles](showcase.md#open-settings-and-module-toggles): enable or disable each
+  feature module from **General**. Open the pane the normal Obsidian way — there is no
+  command for it, and there is no longer one to remove.
 - [Settings undo](showcase.md#settings-undoflush): **Undo last settings change** rolls back
   the most recent change. It is a command, not a button. Saving is automatic and there is
   no manual flush.

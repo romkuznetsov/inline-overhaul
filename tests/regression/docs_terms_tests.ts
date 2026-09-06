@@ -98,6 +98,11 @@ const DOCS = ["README.md", "instructions.md"];
        `Smart Delete`», а клавиши теперь включаются врозь. Запрет снимается,
        только если заказчик вернёт прежнюю подпись. */
     ["Do the same on Backspace", "10.13.32 Д11: тумблер переименован в Smart backspace"],
+    /* Команда, а не контрол, но посылает человека ровно так же — в пустоту:
+       её больше нет в палитре Obsidian. Снята 2026-09-06 вместе с вызовом
+       `app.setting.open()` (T8, фаза 6 пункт 5). Обратно не возвращается
+       решением 7.2, поэтому запись здесь постоянная, а не до следующей фазы. */
+    ["Open settings", "фаза 6 пункт 5: команда снята вместе с app.setting.open() (T8)"],
   ];
 
   /*
@@ -184,11 +189,10 @@ const DOCS = ["README.md", "instructions.md"];
    * Проверяются имена фиксированных команд — те, что не собираются из данных.
    */
   const names = Object.keys(ids.NAMES).map(id => String(ids.commandName(id)));
-  const missing = names.filter(name => {
-    /* `Open settings` удаляется в фазе 6, и документы её уже не называют. */
-    if (name === "Open settings") return false;
-    return !DOCS.some(doc => readDoc(doc).includes(name));
-  });
+  /* Исключений здесь нет: `Open settings` снята 2026-09-06 (T8, фаза 6 пункт
+     5), и вместе с ней снято исключение. Каждая живая команда обязана быть
+     названа в руководстве своим нынешним именем. */
+  const missing = names.filter(name => !DOCS.some(doc => readDoc(doc).includes(name)));
   assert.deepEqual(missing, [],
     "эти команды существуют, а руководство о них молчит:\n  " + missing.join("\n  "));
   ok("каждая команда названа в руководстве своим нынешним именем");

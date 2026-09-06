@@ -73,18 +73,18 @@ function normalizeLabelPart(value, dflt) {
 }
 
 function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
+  /*
+   * Команды `Open settings` здесь больше нет: снята 2026-09-06 вместе с
+   * вызовом `plugin.app.setting.open()` (T8, фаза 6 пункт 5). Настройки
+   * плагина человек открывает штатным путём Obsidian, а `app.setting` — не
+   * объявленное в `obsidian.d.ts` приватное API и типовая причина замечания на
+   * community review. **Обратно её не возвращать** (7.2, решение 2026-08-24).
+   *
+   * Единственное разрешённое место `app.setting` в плагине — колонка хоткея в
+   * справочнике команд (`custom/hotkeys.ts`, К-2): там оно за feature-detect и
+   * `try/catch`, и без него кнопка просто неактивна.
+   */
   const defs = [
-    {
-      /* Идентификатор уже отвечает T7 и не переименовывается: ломать
-         работающий хоткей ради красоты — второй разрыв, которого Р3 не даёт.
-         Сама команда удаляется в фазе 6, пункт 5 (T8). */
-      id: "open-inline-overhaul-settings",
-      name: __commandIds.commandName("open-inline-overhaul-settings"),
-      run: () => {
-        plugin.app.setting.open();
-        plugin.app.setting.openTabById(plugin.manifest.id);
-      },
-    },
     {
       id: "undo-last-settings-change",
       name: __commandIds.commandName("undo-last-settings-change"),

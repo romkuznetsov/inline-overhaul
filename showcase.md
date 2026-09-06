@@ -32,7 +32,7 @@ Proven by reading the text, not the picture.
 
 | Entry | What the caption still says |
 |---|---|
-| Open settings and module toggles | `General: Open settings` — command is being removed |
+| Open settings and module toggles | `General: Open settings` — the command is **gone**, removed 2026-09-06; open the pane the normal Obsidian way |
 | Settings undo/flush | `Flush Settings Now` — control removed; the undo button is gone, the command remains |
 | Enhanced Ctrl+A | setting is now `Expanded 'Ctrl+A'` and lives under Keyboard |
 | Move selected inline text | old Navigation command names |
@@ -125,7 +125,9 @@ and README links move together, in one commit.
 
 ### Open settings and module toggles
 
-Run **General: Open settings**, then enable or disable each feature module without changing unrelated settings.
+Open the plugin settings the normal Obsidian way — **Settings → Community plugins → inlineOverhaul** — then enable or disable each feature module without changing unrelated settings.
+
+> The `General: Open settings` command shown in the recording no longer exists. It was removed on 2026-09-06: it relied on Obsidian's private `app.setting` API, which is a standard community-review objection. The heading above is kept because `README.md` links to it.
 
 ![Toggle inlineOverhaul modules](media/showcase/general-modules.gif)
 

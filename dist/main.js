@@ -17342,12 +17342,10 @@ var require_command_ids = __commonJS({
       "open-tagwheel-right": "Open TagWheel on the right",
       "transform-inline-to-note": "Transform inline to note",
       "smart-bracket": "Smart bracket",
-      "undo-last-settings-change": "Undo last settings change",
-      "open-inline-overhaul-settings": "Open settings"
+      "undo-last-settings-change": "Undo last settings change"
     };
     var KEPT = /* @__PURE__ */ new Set([
-      "undo-last-settings-change",
-      "open-inline-overhaul-settings"
+      "undo-last-settings-change"
     ]);
     function featureToggleCommandId(feature) {
       return "toggle-feature-" + kebab(feature);
@@ -17486,17 +17484,6 @@ var require_command_registry = __commonJS({
     }
     function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
       const defs = [
-        {
-          /* Идентификатор уже отвечает T7 и не переименовывается: ломать
-             работающий хоткей ради красоты — второй разрыв, которого Р3 не даёт.
-             Сама команда удаляется в фазе 6, пункт 5 (T8). */
-          id: "open-inline-overhaul-settings",
-          name: __commandIds.commandName("open-inline-overhaul-settings"),
-          run: () => {
-            plugin.app.setting.open();
-            plugin.app.setting.openTabById(plugin.manifest.id);
-          }
-        },
         {
           id: "undo-last-settings-change",
           name: __commandIds.commandName("undo-last-settings-change"),
