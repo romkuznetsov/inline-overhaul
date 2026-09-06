@@ -2294,13 +2294,59 @@
 .io-dlg__list {
   margin: 10px 0 0;
   padding-left: 18px;
-  font-size: var(--font-ui-smaller);
+  font-size: var(--font-ui-small);
   color: var(--text-muted);
   max-height: 220px;
   overflow-y: auto;
 }
 .io-dlg__list li { margin: 2px 0; }
-.io-dlg__note { margin-top: 10px; }
+/*
+ * Текст окна (замечание заказчика 2026-09-06: «текст слишком мелкий»).
+ *
+ * До этого все окна брали `io-item__desc` — то есть размер и цвет описания
+ * строки настройки. Там это верно: описание стоит под именем и читается
+ * вторым. В окне читать нечего, кроме него, и решение о нажатии принимается
+ * по нему же.
+ */
+.io-dlg__body {
+  margin-top: 6px;
+  max-width: 60ch;
+  font-size: var(--font-ui-small);
+  line-height: var(--line-height-normal);
+  color: var(--text-normal);
+}
+/*
+ * Что делать дальше — полужирным: «рекомендация по перезапуску должна быть
+ * полужирной, чтобы сразу бросаться в глаза» (замечание заказчика).
+ */
+.io-dlg__note {
+  margin-top: 10px;
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+/* Пояснение под галочкой окна: тише её самой, но не мельче списка. */
+.io-dlg__sub {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-weight: normal;
+}
+/*
+ * Заголовок внутри окна и «?» рядом с ним (заказ заказчика 2026-09-06).
+ * Подсказка открывается тем же `io-tip--below`, что и в панели, и правил для
+ * неё здесь нет — она берёт свои.
+ */
+.io-dlg__head { margin-top: 16px; }
+.io-dlg > .io-dlg__head:first-child { margin-top: 0; }
+.io-dlg__head-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.io-dlg__head-name {
+  margin: 0;
+  font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
 /* Окно выбора копии настроек (10.13.2, Б9): строка — кнопка в две строки
    текста. Список проматывается: копий у человека может быть много, а окно
    Obsidian выше экрана расти не должно. */

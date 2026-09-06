@@ -314,6 +314,13 @@ function proTips(): string {
     "  straight back to a real note to see whether you like the result, then the next one.",
     "* **Use the hotkeys.** You cannot get much out of this plugin without them. It is",
     "  awkward for the first day and pays for itself every day after that.",
+    "* **The words in the panel are yours to change.** `General → Language` picks the",
+    "  language, and the words themselves sit in plain text files in the plugin folder,",
+    "  under `texts`: one file per language, key on the left, what you see on the",
+    "  right. Edit a line, reload the plugin, and the panel says what you wrote. Your file",
+    "  is never overwritten, and a line you leave out keeps the wording that ships with",
+    "  the plugin. To add a language, copy a file under a new name and change its first",
+    "  line. This note stays English for now.",
   ].join("\n");
 }
 

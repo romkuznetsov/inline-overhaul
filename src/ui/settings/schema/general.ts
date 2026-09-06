@@ -16,6 +16,17 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
   ],
   visible: on("general.help.showCallouts") },
 {
+  id: "language", tab: "general", order: 50, heading: "Language",
+  intro: "The panel, its tips and the messages this plugin shows can speak another language, and the words behind them live in a file you can edit yourself",
+  tip: "Every visible line of this panel has a name of its own, and the words behind those names sit in a small text file inside the plugin folder \u2014 one file per language. Change a line there, reload the plugin, and the panel says what you wrote: rewording a setting is no longer something you have to ask for. To add a language, copy the English file under a new name and translate the right-hand side. Anything you leave alone keeps its English wording, so a half-finished translation is still worth using",
+  items: [
+    { kind:"dropdown", id:"ui-language", path:"general.language", default:"en",
+      options:[], optionsFrom:"languages",
+      name:"Language", desc:"What language this panel and the plugin messages speak",
+      tip:"The list holds English plus every language file found in the plugin folder, and it is built from the files themselves \u2014 nothing has to be registered anywhere. Switching takes effect at once, without a reload. A line that has no translation yet keeps its English wording rather than showing you a blank" }
+  ]
+},
+{
   id: "help", tab: "general", order: 100, heading: "Help",
   intro: "Where to start, and how much hand-holding you want along the way",
   tip: "<code>Read</code> writes a guide into your vault the first time you press it and opens it every time after, and the note is yours from then on — the plugin never overwrites it. <code>Show tips</code> controls these very boxes: off, the panel keeps only the one-line descriptions, which is what you want once you know your way around",

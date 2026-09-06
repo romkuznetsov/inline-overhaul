@@ -20,6 +20,15 @@ export interface TemplateOption {
 }
 
 /**
+ * Как список спрашивает свой текст (10.13.46). Имя — из таблицы окон: строки
+ * «шаблонов нет» человек читает, значит они переводятся вместе с панелью.
+ * Нет резолвера — ответом идёт английское, как и было.
+ */
+export type SayTemplate = (name: string, english: string) => string;
+
+const PLAIN: SayTemplate = (_name: string, english: string) => english;
+
+/**
  * Шаблоны из назначенной папки.
  *
  * `folder` — то, что стоит в `Templates folder`; `notes` — пути заметок vault.
@@ -32,19 +41,21 @@ export interface TemplateOption {
  * один на всю панель: `Default template` и `Use template` внутри Smart Rules
  * обязаны говорить одно и то же (замечания 1.6.2.4 и 1.6.6.2).
  */
-export function templatesEmptyChoice(folder: string): TemplateOption {
+export function templatesEmptyChoice(folder: string, say?: SayTemplate): TemplateOption {
   const root = String(folder || "").trim().replace(/\/+$/, "");
+  const t = say || PLAIN;
   return root
-    ? { value: "", label: "No templates in " + root }
-    : { value: "", label: "Set a Templates folder first" };
+    ? { value: "", label: t("NO_TEMPLATES", "No templates in") + " " + root }
+    : { value: "", label: t("NO_TEMPLATE_FOLDER", "Set a Templates folder first") };
 }
 
 export function templateOptions(
   folder: string,
   notes: readonly string[],
+  say?: SayTemplate,
 ): readonly TemplateOption[] {
   const root = String(folder || "").trim().replace(/\/+$/, "");
-  if (!root) return [templatesEmptyChoice(root)];
+  if (!root) return [templatesEmptyChoice(root, say)];
   const prefix = root + "/";
   /*
    * Вложенные папки внутри шаблонной тоже считаются: человек, разложивший
@@ -55,8 +66,8 @@ export function templateOptions(
     .map(p => String(p || ""))
     .filter(p => p.startsWith(prefix))
     .sort((a, b) => a.localeCompare(b));
-  if (!inside.length) return [templatesEmptyChoice(root)];
-  return [{ value: "", label: "None" } as TemplateOption].concat(
+  if (!inside.length) return [templatesEmptyChoice(root, say)];
+  return [{ value: "", label: (say || PLAIN)("WORD_NONE", "None") } as TemplateOption].concat(
     inside.map(p => ({ value: p, label: p.slice(prefix.length) })),
   );
 }

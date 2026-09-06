@@ -49,6 +49,22 @@ const HOTKEYS_MARK = "<!-- " + MARKER + ": hotkeys below, do not edit by hand --
 const DEVICE_LOCAL = ["viewState", "backups", "meta", "_unmigrated"];
 
 /**
+ * Листья, которые остаются своими, даже когда их ветка едет в копии целиком
+ * (замечание заказчика 2026-09-06).
+ *
+ * Сегодня он один — путь папки копий. Это **адрес в этом vault**, а не
+ * настройка: заметку, которую сейчас восстанавливают, только что прочли из
+ * той папки, на которую плагин смотрит **сейчас**. Копия, снятая в другом
+ * vault или до переименования плагина, приносила туда чужой путь — и
+ * следующее нажатие `Restore a backup` говорило, что папки нет, стоя рядом с
+ * собственными копиями человека.
+ *
+ * То же правило и для сброса: он пишет копию перед тем, как всё унести, и
+ * потерять после этого дорогу к ней было бы худшим из состояний.
+ */
+const DEVICE_LOCAL_LEAVES = ["advanced.backups.folder"];
+
+/**
  * Части копии: вкладка панели — ветка конфига (заказ заказчика 2026-09-06).
  *
  * Список назван тем, что человек видит на экране — вкладками, а не ветками
@@ -178,7 +194,7 @@ function mergeParts(current, restored, partIds) {
   for (const branch of Object.keys(wanted)) {
     if (!isObj(restored) || restored[branch] === undefined) delete out[branch];
   }
-  return out;
+  return keepLocalLeaves(current, out);
 }
 
 /** Комментарий человека одной строкой: переводы строк в шапке недопустимы. */
@@ -248,7 +264,59 @@ function keepDeviceLocal(current, restored) {
   for (const key of DEVICE_LOCAL) {
     if (current[key] !== undefined) out[key] = cloneJson(current[key]);
   }
-  return out;
+  return keepLocalLeaves(current, out);
+}
+
+/** Значение по пути `a.b.c`; `undefined`, если по дороге нет объекта. */
+function readLeaf(obj, path) {
+  let node = obj;
+  for (const step of String(path).split(".")) {
+    if (!isObj(node)) return undefined;
+    node = node[step];
+  }
+  return node;
+}
+
+/** Записать значение по пути `a.b.c`, заводя объекты по дороге. */
+function writeLeaf(obj, path, value) {
+  if (!isObj(obj)) return;
+  const steps = String(path).split(".");
+  const last = steps.pop();
+  let node = obj;
+  for (const step of steps) {
+    if (!isObj(node[step])) node[step] = {};
+    node = node[step];
+  }
+  node[last] = value;
+}
+
+/** Убрать значение по пути `a.b.c`. Пустые объекты по дороге не трогаются. */
+function deleteLeaf(obj, path) {
+  const steps = String(path).split(".");
+  const last = steps.pop();
+  let node = obj;
+  for (const step of steps) {
+    if (!isObj(node)) return;
+    node = node[step];
+  }
+  if (isObj(node)) delete node[last];
+}
+
+/**
+ * Листья `DEVICE_LOCAL_LEAVES` берутся из нынешнего конфига, а не из копии.
+ *
+ * Пишется поверх уже собранного результата — одним местом на оба пути
+ * восстановления (целиком и по галочкам) и на сброс, чтобы правило не
+ * разошлось само с собой (У-32).
+ */
+function keepLocalLeaves(current, next) {
+  if (!isObj(next)) return next;
+  for (const path of DEVICE_LOCAL_LEAVES) {
+    const value = readLeaf(current, path);
+    if (value === undefined) deleteLeaf(next, path);
+    else writeLeaf(next, path, cloneJson(value));
+  }
+  return next;
 }
 
 /* ---- состав копии, коротко и для человека ------------------------------ */
@@ -360,20 +428,80 @@ function readable(date) {
  * заметке, что там лежит, — плагин при восстановлении читает блок, а не этот
  * текст. Форма записи повторяет `hotkeys.json`: массив модификаторов и клавиша.
  */
-function hotkeyWords(binding) {
+function hotkeyWords(binding, opts) {
   if (!isObj(binding)) return "";
+  const mac = !!(isObj(opts) && opts.mac);
+  const named = isObj(opts) && opts.mac !== undefined;
   const mods = Array.isArray(binding.modifiers)
-    ? binding.modifiers.map((m) => String(m || "").trim()).filter(Boolean)
+    ? binding.modifiers
+      .map((m) => (named ? physicalModifier(m, mac) : String(m || "").trim()))
+      .filter(Boolean)
     : [];
-  const key = String(binding.key === undefined ? "" : binding.key).trim();
+  const key = bindingCode(binding);
   const parts = mods.concat(key ? [key] : []);
   return parts.join(" + ");
 }
 
-/** Все привязки одной команды одной строкой: `Ctrl + 1, Ctrl + 2`. */
-function hotkeyListWords(bindings) {
+/**
+ * Все привязки одной команды одной строкой: `Ctrl + 1, Ctrl + 2`.
+ *
+ * `opts.mac` задан — модификаторы называются так, как их пишет сам Obsidian
+ * на экране `Hotkeys`: `Mod` там не показывается никогда, вместо него стоит
+ * `Ctrl` или `Cmd`. Без `opts` строка повторяет то, что лежит в файле, и
+ * такой она и уезжает в заметку копии.
+ */
+function hotkeyListWords(bindings, opts) {
   if (!Array.isArray(bindings)) return "";
-  return bindings.map(hotkeyWords).filter(Boolean).join(", ");
+  return bindings.map((b) => hotkeyWords(b, opts)).filter(Boolean).join(", ");
+}
+
+/**
+ * Клавиша привязки так, как её читает сам Obsidian.
+ *
+ * Форм записи **две**, и вторая молча теряется, если о ней не знать:
+ * `{ modifiers, key }` пишет экран `Hotkeys`, а `{ modifiers, code }` умеют
+ * писать плагины и старые версии. `bake` в `app.js` 1.13.7 разбирает обе —
+ * `key: a.code ? Xw(a.code) : a.key`, — и `Xw` снимает приставку `Key`:
+ * `KeyF` это `F`. До 2026-09-06 копия такую привязку выбрасывала на входе
+ * (`.filter(b => b.key)`), а сверка конфликтов её не видела.
+ */
+function bindingCode(binding) {
+  if (!isObj(binding)) return "";
+  const code = String(binding.code === undefined || binding.code === null ? "" : binding.code).trim();
+  if (code) return code.length === 4 && code.indexOf("Key") === 0 ? code.charAt(3) : code;
+  return String(binding.key === undefined || binding.key === null ? "" : binding.key).trim();
+}
+
+/**
+ * `Mod` — это не модификатор, а имя платформенного: Cmd на macOS и Ctrl
+ * везде ещё (`compileModifiers` в `app.js`). Экран `Hotkeys` пишет туда `Mod`
+ * почти всегда, а умолчание команды ядра бывает записано и словом `Ctrl` —
+ * `workspace:next-tab` держит `Ctrl + Tab` именно так. Сравнивать их
+ * буквами значит не увидеть конфликта там, где он есть.
+ */
+function physicalModifier(name, mac) {
+  const raw = String(name || "").trim();
+  if (raw === "Mod") return mac ? "Meta" : "Ctrl";
+  return raw;
+}
+
+/**
+ * Привязка одной строкой — для сравнения, а не для человека.
+ *
+ * Модификаторы приводятся к платформенным и сортируются: `Mod+Shift` и
+ * `Shift+Mod` — одна комбинация, и человек видит их одинаково. Клавиша
+ * берётся обеими формами и в нижнем регистре. Пустая клавиша даёт пустую
+ * строку: сравнивать в ней нечего.
+ */
+function bindingKey(binding, opts) {
+  if (!isObj(binding)) return "";
+  const mac = !!(isObj(opts) && opts.mac);
+  const mods = Array.isArray(binding.modifiers)
+    ? binding.modifiers.map((m) => physicalModifier(m, mac).toLowerCase()).filter(Boolean).sort()
+    : [];
+  const key = bindingCode(binding).toLowerCase();
+  if (!key) return "";
+  return mods.join("+") + "|" + key;
 }
 
 /**
@@ -388,10 +516,17 @@ function normalizeHotkeys(map) {
     if (!key) continue;
     const bindings = Array.isArray(map[id]) ? map[id] : null;
     if (!bindings) continue;
-    const kept = bindings.filter(isObj).map((b) => ({
-      modifiers: Array.isArray(b.modifiers) ? b.modifiers.map((m) => String(m || "")) : [],
-      key: String(b.key === undefined ? "" : b.key),
-    })).filter((b) => b.key);
+    const kept = bindings.filter(isObj).map((b) => {
+      const row = {
+        modifiers: Array.isArray(b.modifiers) ? b.modifiers.map((m) => String(m || "")) : [],
+        key: String(b.key === undefined || b.key === null ? "" : b.key),
+      };
+      /* Вторая форма записи сохраняется как есть: `code` сильнее `key` и у
+         самого Obsidian, и выбросить его значило бы вернуть не тот хоткей. */
+      const code = String(b.code === undefined || b.code === null ? "" : b.code).trim();
+      if (code) row.code = code;
+      return row;
+    }).filter((b) => b.key || b.code);
     /*
      * Пустой массив — это не «нет настройки», а «человек снял хоткей, который
      * плагин ставит по умолчанию». Такой ответ Obsidian тоже хранит, и терять
@@ -479,7 +614,15 @@ function buildBackupNote(o) {
     lines.push("# Hotkeys");
     lines.push("");
     lines.push("Hotkeys live in Obsidian, not in the plugin settings, so they are kept here separately.");
-    lines.push("Restoring this backup puts them back on the plugin commands and touches nothing else.");
+    /*
+     * Вторая строка зависит от объёма, и до 2026-09-06 не зависела: копия
+     * объёма `all` несёт чужие хоткеи — вот они, четыре команды Obsidian в
+     * копии заказчика, — а заметка обещала, что не тронет ничего чужого.
+     * Обещание было неверным ровно в том случае, ради которого объём и заведён.
+     */
+    lines.push(scope === "all"
+      ? "This backup was taken with every hotkey in the vault, so restoring puts other commands' keys back too."
+      : "Restoring this backup puts them back on the plugin commands and touches nothing else.");
     lines.push("");
     for (const id of hotkeyIds) {
       const words = hotkeyListWords(hotkeys[id]);
@@ -668,10 +811,15 @@ module.exports = {
   frontmatter,
   hotkeyWords,
   hotkeyListWords,
+  bindingCode,
+  bindingKey,
+  physicalModifier,
   normalizeHotkeys,
   parseBackupHotkeys,
   DEFAULT_FOLDER,
   DEVICE_LOCAL,
+  DEVICE_LOCAL_LEAVES,
+  keepLocalLeaves,
   NO_SETTINGS,
   BROKEN,
   backupFolder,

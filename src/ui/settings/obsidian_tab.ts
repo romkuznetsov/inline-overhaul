@@ -10,6 +10,7 @@ import {
   AbstractInputSuggest,
   Modal,
   Notice,
+  Platform,
   PluginSettingTab,
   Setting as SettingCtor,
   setIcon,
@@ -34,9 +35,14 @@ import {
   type PickRequest,
   type VaultSeam,
 } from "./actions.ts";
-import { checkInput, el, selectInput, textInput, type ElCheck } from "./custom/dom.ts";
-import { hotkeyListWords } from "../../features/settings_backup.js";
+import { checkInput, el, selectInput, textInput, tipBelow, type El, type ElCheck } from "./custom/dom.ts";
+import { bindingKey, hotkeyListWords } from "../../features/settings_backup.js";
 import { tabStripRow } from "./custom/tab_strip.ts";
+import { BASE_LANG_SEED, type Catalogs } from "./texts.ts";
+import { ensureCatalogFiles, readCatalogs, type TextFiles } from "./texts_files.ts";
+import { panelCatalog } from "./texts_panel.ts";
+import { TEXT_BY_NAME, dialogKey, fill } from "./texts_dialogs.ts";
+import { RU_SEED } from "./texts_seed_ru.ts";
 import type { ActionId } from "./types.ts";
 
 /** То, что слою настроек нужно от плагина. */
@@ -97,11 +103,52 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
 }
 
 /**
+ * Как окно спрашивает свой текст: именем из таблицы `texts_dialogs.ts`.
+ *
+ * Именем, а не готовой строкой: ключ каталога строит одна функция, и собрать
+ * его на месте вызова значило бы объявить ключ второй раз (У-82).
+ */
+type Say = (name: string) => string;
+
+/**
+ * Заголовок внутри окна и подсказка к нему (замечание заказчика 2026-09-06:
+ * «к каждому хедеру добавь tip, который должен также подчиняться show-tips»).
+ *
+ * Подсказка живёт тем же помощником, что и в панели, — `tipBelow`: значок «?»
+ * встаёт в строку заголовка, а текст открывается **под** ней. Второго правила
+ * про подсказки в продукте нет и быть не должно (У-32), поэтому и тумблер
+ * `Show tips` тут не спрашивается заново: он приходит готовым ответом.
+ *
+ * Собственный `host` у каждого заголовка — чтобы открытая подсказка вставала
+ * под своим заголовком, а не в конце всего, что под ним нарисовано.
+ */
+function dlgHead(box: El, o: {
+  text: string;
+  tip?: string;
+  showTips?: boolean;
+  id: string;
+  /** `h4` у заголовка окна, `div` у заголовка раздела внутри него. */
+  tag?: string;
+}): void {
+  const host = el(box, "div", "io-dlg__head");
+  const row = el(host, "div", "io-dlg__head-row");
+  el(row, o.tag || "div", "io-dlg__head-name", o.text);
+  tipBelow({
+    head: row,
+    host,
+    text: o.tip || "",
+    label: o.text,
+    id: o.id,
+    showTips: o.showTips === true,
+  });
+}
+
+/**
  * Окно «точно?». Живёт здесь, а не в реестре действий: `Modal` — платформа, а
  * реестр обязан собираться и проверяться без неё. Закрытие мимо кнопок — это
  * отказ, а не согласие: так же устроены все окна панели.
  */
-function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
+function askConfirm(app: App, o: ConfirmRequest, say: Say): Promise<boolean> {
   return new Promise<boolean>(resolve => {
     let answered = false;
     const finish = (yes: boolean): void => {
@@ -116,12 +163,12 @@ function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
         box.empty();
         box.addClass("io-dlg");
         el(box, "h4", undefined, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        el(box, "p", "io-dlg__body", o.body);
         if (o.rows && o.rows.length) {
           const list = el(box, "ul", "io-dlg__list");
           for (const row of o.rows) el(list, "li", undefined, row);
         }
-        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        if (o.note) el(box, "p", "io-dlg__body io-dlg__note", o.note);
         /*
          * Галочка стоит между списком и кнопками: её читают после того, как
          * узнали, что именно произойдёт, и до того, как нажали.
@@ -132,14 +179,15 @@ function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
             labelCls: "io-dlg__check-label",
             checked: o.check.checked === true,
           });
-          if (o.check.sub) el(box, "p", "io-item__desc io-dlg__note", o.check.sub);
+          if (o.check.sub) el(box, "p", "io-dlg__body io-dlg__sub", o.check.sub);
           input.addEventListener("change", (() => {
             if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
           }) as never);
           if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
         }
         const foot = el(box, "div", "io-dlg__foot");
-        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        const cancel = foot.createEl("button",
+          { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
         cancel.addEventListener("click", (() => { finish(false); this.close(); }) as never);
         const go = foot.createEl("button", {
           cls: o.danger ? "io-danger" : "io-btn io-btn--cta",
@@ -180,12 +228,12 @@ function announce(app: App, o: AnnounceRequest): Promise<void> {
         box.empty();
         box.addClass("io-dlg");
         el(box, "h4", undefined, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        el(box, "p", "io-dlg__body", o.body);
         if (o.rows && o.rows.length) {
           const list = el(box, "ul", "io-dlg__list");
           for (const row of o.rows) el(list, "li", undefined, row);
         }
-        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        if (o.note) el(box, "p", "io-dlg__body io-dlg__note", o.note);
         const foot = el(box, "div", "io-dlg__foot");
         const go = foot.createEl("button", {
           cls: "io-btn io-btn--cta",
@@ -211,7 +259,7 @@ function announce(app: App, o: AnnounceRequest): Promise<void> {
  * Всё в нём уже выбрано по-максимуму, и `Enter` сразу даёт то же, что давала
  * кнопка до окна. Закрытие мимо кнопки — отказ, как и во всех окнах панели.
  */
-function askBackupOptions(app: App, o: BackupOptionsRequest): Promise<BackupOptions | null> {
+function askBackupOptions(app: App, o: BackupOptionsRequest, say: Say): Promise<BackupOptions | null> {
   return new Promise<BackupOptions | null>(resolve => {
     let answered = false;
     const finish = (value: BackupOptions | null): void => {
@@ -225,8 +273,12 @@ function askBackupOptions(app: App, o: BackupOptionsRequest): Promise<BackupOpti
         const box = this.contentEl as unknown as import("./custom/dom.ts").El;
         box.empty();
         box.addClass("io-dlg");
-        el(box, "h4", undefined, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        /*
+         * Три заголовка, и у каждого своя подсказка (замечание заказчика
+         * 2026-09-06). Абзаца под заголовком окна больше нет: то, что стояло
+         * там, ушло в подсказку первого из них.
+         */
+        dlgHead(box, { text: o.title, tip: o.tip, showTips: o.showTips, id: "backup-save-tip", tag: "h4" });
 
         el(box, "div", "io-dlg__field-label", o.commentLabel);
         const comment = textInput(box, "io-dlg__input", {
@@ -235,6 +287,12 @@ function askBackupOptions(app: App, o: BackupOptionsRequest): Promise<BackupOpti
           placeholder: o.commentHint,
         });
 
+        dlgHead(box, {
+          text: o.partsLabel,
+          tip: o.partsTip,
+          showTips: o.showTips,
+          id: "backup-parts-tip",
+        });
         const boxes: { id: string; input: ElCheck }[] = [];
         const list = el(box, "div", "io-dlg__checks");
         for (const part of o.parts) {
@@ -248,7 +306,12 @@ function askBackupOptions(app: App, o: BackupOptionsRequest): Promise<BackupOpti
           });
         }
 
-        el(box, "div", "io-dlg__field-label", o.hotkeyLabel);
+        dlgHead(box, {
+          text: o.hotkeyLabel,
+          tip: o.hotkeyTip,
+          showTips: o.showTips,
+          id: "backup-hotkeys-tip",
+        });
         const scope = selectInput(box, "io-dlg__select", {
           options: o.hotkeyOptions,
           value: o.hotkeyDefault,
@@ -256,7 +319,8 @@ function askBackupOptions(app: App, o: BackupOptionsRequest): Promise<BackupOpti
         });
 
         const foot = el(box, "div", "io-dlg__foot");
-        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        const cancel = foot.createEl("button",
+          { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
         cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
         const go = foot.createEl("button", {
           cls: "io-btn io-btn--cta",
@@ -287,7 +351,7 @@ function askBackupOptions(app: App, o: BackupOptionsRequest): Promise<BackupOpti
  * Окно выбора копии настроек (Б9). Отдельное от окна подтверждения: там ответ
  * «да или нет», здесь — «какая из». Закрытие мимо строк — отказ.
  */
-function askPick(app: App, o: PickRequest): Promise<string | null> {
+function askPick(app: App, o: PickRequest, say: Say): Promise<string | null> {
   return new Promise<string | null>(resolve => {
     let answered = false;
     const finish = (value: string | null): void => {
@@ -302,7 +366,7 @@ function askPick(app: App, o: PickRequest): Promise<string | null> {
         box.empty();
         box.addClass("io-dlg");
         el(box, "h4", undefined, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        el(box, "p", "io-dlg__body", o.body);
         const list = el(box, "div", "io-dlg__picks");
         for (const option of o.options) {
           const row = list.createEl("button", { cls: "io-dlg__pick", attr: { type: "button" } });
@@ -316,7 +380,8 @@ function askPick(app: App, o: PickRequest): Promise<string | null> {
           row.addEventListener("click", (() => { finish(option.value); this.close(); }) as never);
         }
         const foot = el(box, "div", "io-dlg__foot");
-        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        const cancel = foot.createEl("button",
+          { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
         cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
       }
 
@@ -459,19 +524,16 @@ function commandNameOf(app: App, id: string): string {
 }
 
 /**
- * Привязка одной строкой для сравнения. Модификаторы сортируются: `Mod+Shift`
- * и `Shift+Mod` — одна и та же клавиатурная комбинация, и человек видит их
- * одинаково. Сравнивать по порядку значило бы пропустить половину конфликтов.
+ * Привязка одной строкой для сравнения.
+ *
+ * Само правило живёт в `settings_backup.js` — там же, где разбор копии, и
+ * там же, где его можно прогнать без Obsidian. Здесь остаётся одно: сказать
+ * ему, на какой платформе он работает, потому что `Mod` — это Cmd на macOS и
+ * Ctrl везде ещё, и без этого `Mod + Tab` и `Ctrl + Tab` считались разными
+ * комбинациями (замечание заказчика 2026-09-06).
  */
-function bindingKey(binding: unknown): string {
-  const row = binding && typeof binding === "object" ? binding as { modifiers?: unknown; key?: unknown } : null;
-  if (!row) return "";
-  const mods = Array.isArray(row.modifiers)
-    ? row.modifiers.map(m => String(m || "").trim().toLowerCase()).filter(Boolean).sort()
-    : [];
-  const key = String(row.key === undefined || row.key === null ? "" : row.key).trim().toLowerCase();
-  if (!key) return "";
-  return mods.join("+") + "|" + key;
+function keyOf(binding: unknown): string {
+  return bindingKey(binding, { mac: Platform.isMacOS });
 }
 
 function hotkeyManagerOf(app: App): HotkeyManagerApi | null {
@@ -529,7 +591,7 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
       for (const id of Object.keys(map || {})) {
         const list = Array.isArray(map[id]) ? map[id] : [];
         for (const binding of list) {
-          const key = bindingKey(binding);
+          const key = keyOf(binding);
           if (key) wanted.set(key, true);
         }
       }
@@ -541,9 +603,15 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
       const out: HotkeyConflict[] = [];
       for (const id of ids) {
         if (mine(id) || map[id] !== undefined) continue;
-        const clashing = effective(hm, id).filter(binding => wanted.has(bindingKey(binding)));
+        const clashing = effective(hm, id).filter(binding => wanted.has(keyOf(binding)));
         if (!clashing.length) continue;
-        out.push({ id, name: commandNameOf(app, id), hotkey: hotkeyListWords(clashing) });
+        out.push({
+          id,
+          name: commandNameOf(app, id),
+          /* Клавиши называются так, как их пишет экран `Hotkeys`: там `Mod` не
+             показывается никогда — стоит `Ctrl` или `Cmd`. */
+          hotkey: hotkeyListWords(clashing, { mac: Platform.isMacOS }),
+        });
       }
       return out;
     },
@@ -586,7 +654,7 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
         for (const id of Object.keys(map || {})) {
           const list = Array.isArray(map[id]) ? map[id] : [];
           for (const binding of list) {
-            const key = bindingKey(binding);
+            const key = keyOf(binding);
             if (key) wantedKeys.add(key);
           }
         }
@@ -597,7 +665,7 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
         for (const id of ids) {
           if (mine(id) || map[id] !== undefined) continue;
           const now = effective(hm, id);
-          const kept = now.filter(binding => !wantedKeys.has(bindingKey(binding)));
+          const kept = now.filter(binding => !wantedKeys.has(keyOf(binding)));
           if (kept.length === now.length) continue;
           hm.setHotkeys(id, kept);
           touched++;
@@ -632,8 +700,62 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
   };
 }
 
+
+/* ---- каталоги видимых текстов (10.13.38) -------------------------------- */
+
+/** Папка плагина в vault: `.obsidian/plugins/<id>`. */
+function pluginFolderOf(app: App, plugin: HostPlugin): string {
+  const configDir = String((app && app.vault && (app.vault as { configDir?: unknown }).configDir) || ".obsidian");
+  const manifest = (plugin as { manifest?: { id?: unknown } }).manifest;
+  const id = manifest && manifest.id ? String(manifest.id) : "inline-overhaul";
+  return configDir + "/plugins/" + id;
+}
+
+/**
+ * Шов к хранилищу для каталогов. Адаптер, а не дерево заметок: `.obsidian/**`
+ * Obsidian не индексирует, и файл в папке плагина `getAbstractFileByPath` не
+ * найдёт **никогда** (10.13.26 Ф5).
+ */
+function textFilesOf(app: App): TextFiles | null {
+  const holder = app && app.vault ? (app.vault as { adapter?: unknown }).adapter : null;
+  if (!holder || typeof holder !== "object") return null;
+  const adapter = holder as {
+    exists: (p: string) => Promise<boolean>;
+    read: (p: string) => Promise<string>;
+    write: (p: string, data: string) => Promise<void>;
+    mkdir?: (p: string) => Promise<void>;
+    list?: (p: string) => Promise<{ files?: string[] }>;
+  };
+  return {
+    exists: (p: string) => adapter.exists(p),
+    read: (p: string) => adapter.read(p),
+    write: (p: string, data: string) => adapter.write(p, data),
+    ...(typeof adapter.mkdir === "function" ? { mkdir: (p: string) => adapter.mkdir!(p) } : {}),
+    ...(typeof adapter.list === "function" ? { list: (p: string) => adapter.list!(p) } : {}),
+  };
+}
+
 export class InlineOverhaulSettings extends PluginSettingTab {
   private pane: SettingsPane;
+
+  /**
+   * Каталоги текстов, прочитанные с диска (10.13.38). Пусто до того, как
+   * чтение закончится, и это не проблема: пустой каталог — это английский из
+   * схемы, то есть ровно то, чем панель была до 2026-09-06.
+   */
+  private catalogs: Catalogs = {};
+
+  /**
+   * Текст окна по имени из таблицы. Поле со стрелкой, а не метод: его
+   * передают дальше как значение, и `this` у него должен остаться свой.
+   */
+  private say: Say = (name: string): string =>
+    this.textFor(dialogKey(name), TEXT_BY_NAME[name] || "");
+
+  /** Видимый текст по ключу каталога. Спрашивается у панели — она одна. */
+  private textFor(key: string, fallback: string): string {
+    return this.pane ? this.pane.textFor(key, fallback) : fallback;
+  }
 
   constructor(app: App, plugin: HostPlugin, bridge?: HostBridge) {
     super(app, plugin as never);
@@ -643,6 +765,12 @@ export class InlineOverhaulSettings extends PluginSettingTab {
     this.pane = new SettingsPane({
       schema: SCHEMA,
       tabs: TABS,
+      /*
+       * Видимые тексты по ключу (10.13.38). Чтение идёт с диска и потому
+       * асинхронно, а панель строится сразу: до конца чтения она говорит
+       * английским из схемы, а закончив, перерисовывается сама.
+       */
+      texts: () => this.catalogs,
       store: new ConfigStoreAdapter(storeFor(plugin)),
       /*
        * Реестр действий (5.6). Кнопка, действия которой здесь нет, в схему
@@ -650,8 +778,8 @@ export class InlineOverhaulSettings extends PluginSettingTab {
        */
       actions: buildActions({
         notify: (message: string) => { new Notice(message); },
-        confirm: (o: ConfirmRequest) => askConfirm(app, o),
-        pick: (o: PickRequest) => askPick(app, o),
+        confirm: (o: ConfirmRequest) => askConfirm(app, o, this.say),
+        pick: (o: PickRequest) => askPick(app, o, this.say),
         vault: vaultSeam(app),
         /*
          * Копии настроек пишутся и читаются через то же хранилище, что и всё
@@ -671,11 +799,17 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         rebuildFromConfig: typeof plugin.rebuildFromConfig === "function"
           ? () => plugin.rebuildFromConfig!()
           : undefined,
+        /*
+         * Тексты окон — из каталога (10.13.46). Замыкание, а не значение:
+         * панель в этот момент ещё собирается, а язык человек меняет на
+         * лету.
+         */
+        t: (key: string, fallback: string) => this.textFor(key, fallback),
         announce: (o: AnnounceRequest) => announce(app, o),
-        askBackupOptions: (o: BackupOptionsRequest) => askBackupOptions(app, o),
+        askBackupOptions: (o: BackupOptionsRequest) => askBackupOptions(app, o, this.say),
       }) as Record<string, () => Promise<void> | void>,
       /* То же окно и для сброса группы (Н3). */
-      confirm: (o: ConfirmRequest) => askConfirm(app, o),
+      confirm: (o: ConfirmRequest) => askConfirm(app, o, this.say),
       fragments: {
         createFragment: () => document.createDocumentFragment() as never,
       },
@@ -708,6 +842,45 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         }
         : undefined,
     });
+
+    /*
+     * Каталоги — после того, как панель собрана: она обязана существовать
+     * даже если файлов нет вовсе, а чтение с диска не должно задерживать
+     * загрузку плагина. Неудача не роняет ничего: без каталогов панель
+     * говорит английским.
+     */
+    void this.loadTexts(app, plugin);
+  }
+
+  /**
+   * Положить недостающие каталоги и прочитать то, что в папке лежит.
+   *
+   * Порядок обязателен: сначала запись, потом чтение — иначе первый запуск
+   * не увидел бы собственных файлов и список языков был бы пуст до
+   * перезапуска.
+   */
+  private async loadTexts(app: App, plugin: HostPlugin): Promise<void> {
+    const files = textFilesOf(app);
+    if (!files) return;
+    try {
+      const folder = pluginFolderOf(app, plugin);
+      await ensureCatalogFiles(files, folder, panelCatalog(SCHEMA, TABS),
+        { en: BASE_LANG_SEED, ru: RU_SEED });
+      const read = await readCatalogs(files, folder);
+      this.catalogs = read.catalogs;
+      /*
+       * Сломанный файл не роняет ничего, но и промолчать о нём нельзя: его
+       * правит человек руками, и молчание в ответ на его правку — худшее,
+       * что можно сделать.
+       */
+      for (const name of read.broken) {
+        new Notice(fill(this.say("TEXTS_BROKEN"), name));
+      }
+      /* Панель уже могла собраться на пустом каталоге — пересобрать её. */
+      this.update();
+    } catch (e) {
+      console.error("inline-overhaul: каталоги текстов не загрузились", e);
+    }
   }
 
   /* ---- декларативный путь Obsidian 1.13 ------------------------------- */
@@ -739,12 +912,8 @@ export class InlineOverhaulSettings extends PluginSettingTab {
     const el = this.containerEl;
     el.empty();
     const box = el.createDiv({ cls: "io-needs-update" });
-    box.createEl("p", {
-      text: "inlineOverhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API.",
-    });
-    box.createEl("p", {
-      text: "Update Obsidian, or install an earlier release of the plugin.",
-    });
+    box.createEl("p", { text: this.say("NEEDS_UPDATE") });
+    box.createEl("p", { text: this.say("NEEDS_UPDATE_HOW") });
   }
 }
 

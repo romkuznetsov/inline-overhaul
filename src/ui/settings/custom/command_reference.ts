@@ -27,6 +27,7 @@ import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, btn, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { COMMAND_TEXTS } from "../schema/custom_texts.ts";
+import { commandKey } from "../texts_custom.ts";
 import { HOTKEY_NONE, HOTKEY_TITLE, canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 
 /** Одна команда в том виде, в каком её отдаёт плагин. */
@@ -183,10 +184,19 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
     const head = el(inner, "div", "io-cmd__head");
     for (const title of HEAD) el(head, "div", undefined, title);
 
-    for (const area of COMMAND_TEXTS) {
+    COMMAND_TEXTS.forEach((area, areaAt) => {
       const rows: Row[] = [];
+      /*
+       * Объяснение команды спрашивается по ключу, а написанное в выгрузке
+       * идёт ответом, когда перевода нет (10.13.38, Я4). **Имя команды не
+       * переводится** (Я2): его показывает и палитра Obsidian, беря из
+       * реестра команд, и два списка одной команды разошлись бы на экране.
+       */
+      const say = (slot: string, fallback: string): string =>
+        (ctx.t ? ctx.t(commandKey(areaAt, slot), fallback) : fallback);
 
-      for (const protoRow of area.list) {
+      area.list.forEach((protoRow, rowAt) => {
+        const does = say("list." + rowAt + ".does", protoRow.does);
         const family = FAMILY_BY_ROW[protoRow.name];
         if (!family) {
           const cmd = commands.find(c => c.area === area.area && c.name === protoRow.name)
@@ -197,8 +207,8 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
            * этой сборке не зарегистрировано (З8): например `Open settings`
            * исчезнет отсюда сама, когда её удалят в фазе 6.
            */
-          if (cmd) rows.push({ row: protoRow, cmd, band: "standard" });
-          continue;
+          if (cmd) rows.push({ row: { name: protoRow.name, does }, cmd, band: "standard" });
+          return;
         }
         /*
          * Семья без единого члена не даёт строки вовсе.
@@ -212,14 +222,14 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
          * и ничего сверх того.
          */
         const members = commands.filter(c => c.family === family);
-        if (!members.length) continue;
+        if (!members.length) return;
         for (const cmd of members) {
-          rows.push({ row: { name: cmd.name, does: protoRow.does }, cmd, band: "user" });
+          rows.push({ row: { name: cmd.name, does }, cmd, band: "user" });
         }
-      }
+      });
 
-      if (!rows.length) continue;
-      el(inner, "div", "io-cmd__area", area.area);
+      if (!rows.length) return;
+      el(inner, "div", "io-cmd__area", say("area", area.area));
 
       /*
        * Область делится на две части там, где прототип дал им подписи:
@@ -236,8 +246,9 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
         if (area.parts && band && band !== part) {
           part = band;
           field = "";
-          el(inner, "div", "io-cmd__sub",
-            band === "user" ? area.parts.user : area.parts.standard);
+          el(inner, "div", "io-cmd__sub", band === "user"
+            ? say("parts.user", area.parts.user)
+            : say("parts.standard", area.parts.standard));
         }
         /*
          * Свой подзаголовок на каждый Field (замечание заказчика 2026-08-31):
@@ -268,7 +279,7 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
           if (canOpen) openHotkeys(plugin, row.name);
         }) as never);
       }
-    }
+    });
   };
 
   draw();

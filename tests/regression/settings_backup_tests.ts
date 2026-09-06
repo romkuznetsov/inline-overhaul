@@ -1173,4 +1173,294 @@ function sampleConfig(): Record<string, unknown> {
   ok("конфликты называются поимённо, а снимаются только по просьбе");
 }
 
+{
+  /*
+   * Сравнение привязок (замечание заказчика 2026-09-06: «я не увидел этой
+   * опции при восстановлении из бэкапа в новом vault, хотя там были
+   * конфликтующие хоткеи»).
+   *
+   * Две дыры, обе куплены чтением `app.js` 1.13.7:
+   *
+   *   - `Mod` — это не модификатор, а имя платформенного: `compileModifiers`
+   *     превращает его в `Meta` на macOS и в `Ctrl` везде ещё. Экран
+   *     `Hotkeys` пишет в файл `Mod`, а умолчание команды ядра бывает
+   *     записано словом `Ctrl` — `workspace:next-tab` держит `Ctrl + Tab`
+   *     именно так. Буквенное сравнение конфликта тут не видит;
+   *   - формы записи клавиши две: `key` и `code`, и `bake` разбирает обе.
+   */
+  const win = { mac: false };
+  const mac = { mac: true };
+
+  assert.equal(
+    backup.bindingKey({ modifiers: ["Mod"], key: "Tab" }, win),
+    backup.bindingKey({ modifiers: ["Ctrl"], key: "Tab" }, win),
+    "на Windows `Mod + Tab` и `Ctrl + Tab` считаются разными комбинациями",
+  );
+  assert.equal(
+    backup.bindingKey({ modifiers: ["Mod"], key: "Tab" }, mac),
+    backup.bindingKey({ modifiers: ["Meta"], key: "Tab" }, mac),
+    "на macOS `Mod` не приравнялся к Cmd",
+  );
+  assert.notEqual(
+    backup.bindingKey({ modifiers: ["Mod"], key: "Tab" }, mac),
+    backup.bindingKey({ modifiers: ["Ctrl"], key: "Tab" }, mac),
+    "на macOS `Mod` приравнялся к Ctrl, а это разные клавиши",
+  );
+  assert.equal(
+    backup.bindingKey({ modifiers: ["Alt"], code: "KeyF" }, win),
+    backup.bindingKey({ modifiers: ["Alt"], key: "F" }, win),
+    "привязка, записанная через `code`, не узнаётся",
+  );
+  assert.equal(
+    backup.bindingKey({ modifiers: ["Mod", "Shift"], key: "A" }, win),
+    backup.bindingKey({ modifiers: ["Shift", "Mod"], key: "A" }, win),
+    "порядок модификаторов меняет комбинацию",
+  );
+  assert.equal(backup.bindingKey({ modifiers: ["Mod"] }, win), "",
+    "привязка без клавиши дала непустой ключ");
+  assert.equal(backup.bindingKey(null, win), "", "не-объект дал непустой ключ");
+
+  /*
+   * Пример с живых данных, а не выдуманный: `Alt + Mod + ArrowLeft` заказчика
+   * против умолчания `app:go-back` из `app.js`, записанного теми же словами.
+   * В свежем vault эта клавиша занята, и окно обязано это увидеть.
+   */
+  assert.equal(
+    backup.bindingKey({ modifiers: ["Alt", "Mod"], key: "ArrowLeft" }, win),
+    backup.bindingKey({ modifiers: ["Mod", "Alt"], key: "arrowleft" }, win),
+    "клавиша заказчика и умолчание `app:go-back` разошлись",
+  );
+  ok("сравнение привязок знает про `Mod` и про вторую форму записи клавиши");
+}
+
+{
+  /* Привязка через `code` доезжает до копии и обратно, а не выбрасывается. */
+  const map = { "inline-overhaul:x": [{ modifiers: ["Alt"], code: "KeyF" }] };
+  const kept = backup.normalizeHotkeys(map) as Record<string, Any[]>;
+  assert.equal((kept["inline-overhaul:x"] || []).length, 1,
+    "привязка через `code` потерялась при разборе");
+  assert.equal(at(kept["inline-overhaul:x"] || [], 0, "привязка").code, "KeyF",
+    "форма `code` не сохранилась");
+
+  const note = backup.buildBackupNote({ config: {}, hotkeys: map });
+  assert.deepEqual(backup.parseBackupHotkeys(note), kept,
+    "круг заметки потерял привязку, записанную через `code`");
+  assert.ok(note.indexOf("Alt + F") >= 0,
+    "в заметке привязка через `code` осталась без клавиши: " + note);
+  ok("копия не теряет хоткей, записанный второй формой");
+}
+
+{
+  /*
+   * Папка копий не приезжает из копии (замечание заказчика 2026-09-06:
+   * «после восстановления копии backup-folder меняется… папки нет — это
+   * тупо»). Заметку только что прочли из той папки, на которую плагин
+   * смотрит сейчас, и увести его оттуда значит спрятать все остальные копии.
+   */
+  const w = wire();
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+  assert.ok(note.indexOf(FOLDER) >= 0, "копия не записала свой путь вовсе, проверять нечего");
+
+  const here = wire({ config: { ...sampleConfig(), advanced: { backups: { folder: "Other place/Backups" } } } });
+  here.fake.files.set(saved.replace(FOLDER, "Other place/Backups"), note);
+  await here.run("restore-backup");
+  assert.equal(backup.backupFolder(here.cfg), "Other place/Backups",
+    "восстановление увело папку копий туда, где стоял путь копии");
+
+  /* И об этом сказано в окне: решение видимое, а не молчаливое. */
+  const shown = at(here.fake.confirmed, 0, "окно восстановления");
+  assert.ok((shown.rows || []).some(r => r.indexOf(ACTION_TEXTS.FOLDER_KEPT) === 0),
+    "окно не сказало, что папка копий остаётся своей: " + JSON.stringify(shown.rows));
+
+  /* Тот же путь в копии — строки нет: она была бы шумом. */
+  const same = wire();
+  same.fake.files.set(saved, note);
+  await same.run("restore-backup");
+  const quiet = at(same.fake.confirmed, 0, "окно восстановления");
+  assert.ok(!(quiet.rows || []).some(r => r.indexOf(ACTION_TEXTS.FOLDER_KEPT) === 0),
+    "про папку сказано и тогда, когда она не меняется");
+  ok("папка копий остаётся своей, и про это сказано только при расхождении");
+}
+
+{
+  /* Выборочное восстановление — тот же ответ: правило одно, а не два (У-32). */
+  const w = wire({ saveOptions: () => ({ parts: backup.allPartIds(), comment: "", hotkeyScope: "none" }) });
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+  assert.ok(backup.describeBackup(note).parts, "копия не назвала частей, проверять нечего");
+
+  const here = wire({ config: { ...sampleConfig(), advanced: { backups: { folder: "Other place/Backups" } } } });
+  here.fake.files.set(saved.replace(FOLDER, "Other place/Backups"), note);
+  await here.run("restore-backup");
+  assert.equal(backup.backupFolder(here.cfg), "Other place/Backups",
+    "восстановление по галочкам увело папку копий");
+
+  /* И сброс: он пишет копию перед тем, как всё унести. */
+  const reset = wire();
+  await reset.run("reset-settings");
+  assert.equal(backup.backupFolder(reset.cfg), FOLDER,
+    "после сброса дорога к только что снятой копии потерялась");
+  ok("папка копий переживает и восстановление по галочкам, и сброс");
+}
+
+{
+  /*
+   * Конфликтов нет — окно говорит и это (замечание заказчика 2026-09-06).
+   * Пустое место человек читает как «функции нет», и разбирать потом
+   * приходится по памяти, а не по тому, что было на экране.
+   */
+  const assigned = { "inline-overhaul:x": [{ modifiers: ["Mod"], key: "1" }] };
+  const w = wire({
+    hotkeys: {
+      read: () => JSON.parse(JSON.stringify(assigned)) as Record<string, unknown[]>,
+      write: () => 1,
+    },
+  });
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+
+  const clean = wire({
+    hotkeys: { read: () => ({}), conflicts: () => [], write: () => 1 },
+  });
+  clean.fake.files.set(saved, note);
+  ((clean.cfg as Any).visual.tags as Any).textSizePct = 140;
+  await clean.run("restore-backup");
+  const shown = at(clean.fake.confirmed, 0, "окно восстановления");
+  assert.ok((shown.rows || []).indexOf(ACTION_TEXTS.CONFLICT_NONE) >= 0,
+    "окно промолчало о том, что чужих клавиш не занято: " + JSON.stringify(shown.rows));
+  assert.ok(!shown.check, "галочка предложена там, где снимать нечего");
+  ok("окно говорит и тогда, когда конфликтов нет");
+}
+
+{
+  /*
+   * Копия объёма `all` перезаписывает чужие клавиши сама, и галочки тут не
+   * бывает. Сказать об этом — не то же самое, что промолчать.
+   */
+  const every = {
+    "inline-overhaul:x": [{ modifiers: ["Mod"], key: "1" }],
+    "other-plugin:y": [{ modifiers: ["Mod"], key: "2" }],
+  };
+  const w = wire({
+    hotkeys: {
+      read: () => ({ "inline-overhaul:x": [{ modifiers: ["Mod"], key: "1" }] }),
+      readAll: () => JSON.parse(JSON.stringify(every)) as Record<string, unknown[]>,
+      write: () => 2,
+    },
+    saveOptions: () => ({ parts: backup.allPartIds(), comment: "", hotkeyScope: "all" }),
+  });
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+
+  const back = wire({ hotkeys: { read: () => ({}), conflicts: () => [], write: () => 2 } });
+  back.fake.files.set(saved, note);
+  ((back.cfg as Any).visual.tags as Any).textSizePct = 140;
+  await back.run("restore-backup");
+  const shown = at(back.fake.confirmed, 0, "окно восстановления");
+  assert.ok((shown.rows || []).indexOf(ACTION_TEXTS.CONFLICT_SCOPE_ALL) >= 0,
+    "про объём all окно ничего не сказало: " + JSON.stringify(shown.rows));
+  ok("про копию объёма all окно говорит, почему галочки нет");
+}
+
+{
+  /*
+   * Окно состава: заголовки и подсказки к ним (замечание заказчика
+   * 2026-09-06). Абзаца под заголовком окна больше нет — текст ушёл в
+   * подсказку, и она подчиняется тому же тумблеру `Show tips`, что и панель.
+   */
+  let seen: BackupOptionsRequest | null = null;
+  const w = wire({
+    saveOptions: (req) => {
+      seen = req;
+      return { parts: req.parts.map(p => p.id), comment: "", hotkeyScope: req.hotkeyDefault };
+    },
+  });
+  await w.run("save-backup");
+  const req = seen as unknown as BackupOptionsRequest;
+  assert.ok(req, "окно состава не спросили вовсе");
+  assert.equal(req.tip, ACTION_TEXTS.SAVE_TIP, "подсказка заголовка окна не та");
+  assert.equal(req.partsLabel, ACTION_TEXTS.SAVE_PARTS_LABEL, "заголовка над галочками нет");
+  assert.ok(req.partsTip && req.hotkeyTip, "у заголовков раздела нет подсказок");
+  assert.equal(req.showTips, true, "при умолчании подсказки окна выключены");
+  assert.ok(!(req as unknown as Record<string, unknown>).body,
+    "текст остался абзацем под заголовком, хотя должен был уехать в подсказку");
+
+  /* Тумблер выключен — подсказок в окне нет, как и в панели. */
+  let off: BackupOptionsRequest | null = null;
+  const quiet = wire({
+    config: { ...sampleConfig(), general: { help: { showTips: false } } },
+    saveOptions: (r) => {
+      off = r;
+      return { parts: r.parts.map(p => p.id), comment: "", hotkeyScope: r.hotkeyDefault };
+    },
+  });
+  await quiet.run("save-backup");
+  assert.equal((off as unknown as BackupOptionsRequest).showTips, false,
+    "подсказки окна не подчинились тумблеру `Show tips`");
+  ok("у окна состава три заголовка, и их подсказки слушают `Show tips`");
+}
+
+{
+  /*
+   * Разбор замечания заказчика 2026-09-06 доведён до его собственного файла:
+   * копия, которую он восстанавливал в новом vault, снята объёмом `all` и
+   * несёт в себе четыре команды Obsidian — среди них `app:go-back` с пустым
+   * списком клавиш. Восстановление такую клавишу снимает само, поэтому
+   * конфликта и нет, а галочки не бывает. Молчать об этом нельзя: молчание
+   * читается как «функции нет».
+   *
+   * Здесь же вторая находка того же разбора: заметка обещала, что
+   * восстановление «touches nothing else», и для копии объёма `all` это было
+   * неправдой ровно там, где объём и заведён.
+   */
+  const every = {
+    "inline-overhaul:x": [{ modifiers: ["Alt", "Mod"], key: "ArrowLeft" }],
+    "app:go-back": [],
+  };
+  const note = backup.buildBackupNote({
+    config: {},
+    hotkeys: every,
+    hotkeyScope: "all",
+    savedAt: new Date(),
+  });
+  assert.ok(note.indexOf("app:go-back") >= 0, "чужая команда не доехала до копии объёма all");
+  assert.ok(note.indexOf("touches nothing else") < 0,
+    "копия объёма all по-прежнему обещает, что не тронет чужого");
+  assert.ok(/other commands' keys back too/.test(note),
+    "копия объёма all не сказала, что вернёт и чужие клавиши: " + note.slice(-600));
+
+  const own = backup.buildBackupNote({
+    config: {},
+    hotkeys: { "inline-overhaul:x": [{ modifiers: ["Alt"], key: "F" }] },
+    hotkeyScope: "own",
+  });
+  assert.ok(own.indexOf("touches nothing else") >= 0,
+    "копия объёма own перестала обещать, что чужого не тронет");
+  ok("копия объёма all говорит про чужие клавиши, а копия своего объёма — нет");
+}
+
+{
+  /* Хоткеев в копии нет вовсе — окно говорит и это. */
+  const w = wire();
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+  assert.ok(backup.parseBackupHotkeys(note) && Object.keys(backup.parseBackupHotkeys(note)).length === 0,
+    "в копии оказались хоткеи, проверять нечего");
+
+  const back = wire({ hotkeys: { read: () => ({}), conflicts: () => [], write: () => 0 } });
+  back.fake.files.set(saved, note);
+  ((back.cfg as Any).visual.tags as Any).textSizePct = 140;
+  await back.run("restore-backup");
+  const shown = at(back.fake.confirmed, 0, "окно восстановления");
+  assert.ok((shown.rows || []).indexOf(ACTION_TEXTS.HOTKEYS_NONE_HERE) >= 0,
+    "окно промолчало о том, что хоткеев в копии нет: " + JSON.stringify(shown.rows));
+  ok("окно говорит и тогда, когда хоткеев в копии нет вовсе");
+}
+
 console.log("\n" + passed + " проверок пройдено");

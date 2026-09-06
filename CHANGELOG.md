@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-beta.4
+
+- **The settings panel can speak another language.** `General → Language` picks it, and the words behind every visible line live in a plain text file inside the plugin folder. Switching takes effect at once, and a line with no translation keeps its English wording rather than showing a blank.
+- **`texts/default.js` is written by the plugin and always current.** A new setting, a new window and a reworded line all show up in it on their own. Copy it under a new name to start a language; that copy is yours and is never overwritten.
+- **The windows the panel opens speak the chosen language too** — `Save a backup`, `Restore a backup` and `Delete all your settings`, including the lines they build as they go.
+- **The file reads in the order the panel does**: tab, its callout, group, setting, and the window that setting opens.
+- `General → Language` sits above `General → Help`.
+- **Restoring a backup no longer moves your backup folder.** The folder is an address in this vault, not a setting, so a backup taken elsewhere leaves it alone — and so does `Start over`.
+- **The restore window always says what it found about hotkeys**: the clashing commands by name, or that there are none, or that a vault-wide backup sets other commands' keys itself.
+- **Hotkey comparison now reads `Mod` and the second way a key can be written.** `Mod` is Ctrl on Windows and Cmd on macOS, not letters; a binding recorded through `code` used to be dropped on the way in.
+- **`Save a backup` explains itself**: the long paragraph moved into a tip, and the checkboxes got a heading of their own. Every heading in that window has a `?`, and they follow `Show tips`.
+- Text in the plugin's own windows is sized for reading, and the line about restarting Obsidian is bold.
+
+Known limitations: the Fields editor and its neighbours, the guide note and the messages shown while you type stay English whatever language you pick.
+
 ## 0.1.0-beta.3
 
 - **The plugin is now called `inlineOverhaul`.** Its id is unchanged, so every hotkey you have set keeps working. The backup folder default moved to `inlineOverhaul/Backups` for fresh installs only; the guide note was renamed, and the old one still opens instead of a duplicate being made.

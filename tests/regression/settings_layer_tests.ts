@@ -241,7 +241,12 @@ async function main(): Promise<void> {
 
   await test("группы отдаются в порядке order", () => {
     const ids = groupsFor("general").map(g => g.id);
-    assert.deepEqual(ids, ["general-intro", "help", "modules"]);
+    /*
+     * `language` встал **над** `help` 2026-09-06 по замечанию заказчика к K2
+     * («перенеси этот блок над help»): язык решается до того, как читать
+     * подсказки, — читать их человек будет уже на своём языке.
+     */
+    assert.deepEqual(ids, ["general-intro", "language", "help", "modules"]);
   });
 
   await test("все семь вкладок на месте и в порядке 6.1", () => {
@@ -250,8 +255,8 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 35,
-      "групп в схеме: 21 с настройками, 7 вводных коллаутов, группа Fields, "
+    assert.equal(SCHEMA.length, 36,
+      "групп в схеме: 22 с настройками, 7 вводных коллаутов, группа Fields, "
       + "группа Smart Rules, группа Binder, группа `Color your Tags` и группа "
       + "`Commands & Hotkeys`. Группа `Setting ids` добавлена 2026-08-28 по "
       + "заказу, Binder перенесён 2026-08-29, `Color your Tags` заведена в тот "
@@ -262,9 +267,10 @@ async function main(): Promise<void> {
       + "осталось ни одной группы прототипа, которая ждала бы своей фазы. "
       + "`Config note` и `Generated files` сняты 2026-09-03 вместе с "
       + "конфиг-заметкой (10.12, решения В-28 и В-29): их не ждут, их больше "
-      + "нет");
+      + "нет. Группа `Language` заведена 2026-09-06 вместе с каталогом "
+      + "текстов (10.13.38)");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
-    assert.equal(bound.length, 117,
+    assert.equal(bound.length, 118,
       "настроек, привязанных к путям конфига. Тумблер `Floating button` снят "
       + "2026-08-29: за ним нет движка, а контрол без движка в панели не "
       + "показывается (Ж2, З8). Путь папки копий добавлен 2026-08-31 (10.13.2). "
@@ -317,12 +323,14 @@ async function main(): Promise<void> {
       + "Строка `Where the target lands` добавлена 2026-09-06 по заказу "
       + "(10.13.37): у перехода по заголовкам прокрутка была, но только "
       + "«по центру», а заказчик попросил те же три положения, что у "
-      + "перемещения строки");
+      + "перемещения строки. "
+      + "Строка `Language` добавлена 2026-09-06 вместе с каталогом текстов "
+      + "(10.13.38): панель заговорила не только по-английски");
   });
 
   await test("ни одна группа не потерялась молча", () => {
     /*
-     * В прототипе 35 групп, и все 35 в схеме. Справочник команд был последним,
+     * В прототипе 36 групп, и все 36 в схеме. Справочник команд был последним,
      * кто ждал своей фазы, и приехал 2026-08-31 вместе с именами команд;
      * `Settings backup` появилась в прототипе в тот же день уже готовой.
      *
@@ -335,8 +343,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 35,
-      "35 групп прототипа разложены без остатка: группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Setting ids добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Settings backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33)");
+    assert.equal(SCHEMA.length + AWAITED.length, 36,
+      "36 групп прототипа разложены без остатка: группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Setting ids добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Settings backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38)");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {
@@ -453,7 +461,7 @@ async function main(): Promise<void> {
     const { pane } = makePane();
     const list = allDefs(pane);
     assert.equal(pane.activeTab(), "general", "на старте открыта первая вкладка с группами");
-    assert.deepEqual(list.map((d: Def) => d.heading), [undefined, "Help", "Modules"]);
+    assert.deepEqual(list.map((d: Def) => d.heading), [undefined, "Language", "Help", "Modules"]);
     for (const d of list) assert.equal(d.type, "group", "страниц-переходов больше нет");
   });
 
@@ -2750,6 +2758,53 @@ async function main(): Promise<void> {
       "группы с новым именем на вкладке нет");
     assert.equal(groupOf(pane, "navigation", "Jumping between headings"), undefined,
       "прежнее имя группы остаться не должно");
+  });
+
+  /*
+   * Окна панели: заголовки с подсказками и текст, который читается
+   * (замечания заказчика 2026-09-06 к окну после восстановления и к окну
+   * состава копии).
+   *
+   * Пин по исходнику, и это здесь единственный доступный способ: разметку
+   * окон рисует `obsidian_tab.ts`, а он единственный файл слоя, который
+   * знает про модуль `obsidian`, — на заглушке его не поднять. Поэтому
+   * проверяется не поведение, а **шов**: чем нарисован заголовок, откуда он
+   * берёт тумблер подсказок и что про размер сказано в стилях.
+   */
+  await test("у окон панели есть заголовки с подсказками, и текст в них не мельче читаемого", () => {
+    const tab = fs.readFileSync(path.join(repoRoot, "src/ui/settings/obsidian_tab.ts"), "utf8");
+    const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+
+    /*
+     * `io-item__desc` — размер и цвет описания строки настройки. В строке он
+     * верен: описание читается вторым, после имени. В окне читать нечего,
+     * кроме него, и решение о нажатии принимается по нему же — «текст
+     * слишком мелкий».
+     */
+    assert.ok(!/io-item__desc/.test(tab),
+      "окно снова берёт размер описания строки настройки — это и был «слишком мелкий» текст");
+
+    /* Три заголовка окна состава, у каждого своя подсказка со своим id. */
+    for (const id of ["backup-save-tip", "backup-parts-tip", "backup-hotkeys-tip"]) {
+      assert.ok(tab.indexOf('id: "' + id + '"') >= 0,
+        "у окна состава копии нет заголовка с подсказкой " + id);
+    }
+    /* Заголовков ровно три, и каждый слушает тумблер, а не решает сам. */
+    assert.equal((tab.match(/dlgHead\(box, \{/g) || []).length, 3,
+      "заголовков с подсказкой в окне состава не три");
+    assert.equal((tab.match(/showTips: o\.showTips,/g) || []).length, 3,
+      "подсказка окна решает про тумблер `Show tips` сама");
+    /* Помощник тот же, что у подсказок панели: второго правила быть не должно. */
+    assert.ok(/tipBelow\(\{/.test(tab),
+      "подсказка окна рисуется не тем помощником, что подсказка панели");
+
+    const body = /\.io-dlg__body\s*\{([^}]*)\}/.exec(css);
+    assert.ok(body && /font-size:\s*var\(--font-ui-small\)/.test(String(body[1])),
+      "у текста окна нет своего размера: " + (body ? String(body[1]) : "правила нет вовсе"));
+    const note = /\.io-dlg__note\s*\{([^}]*)\}/.exec(css);
+    assert.ok(note && /font-weight:\s*var\(--font-semibold\)/.test(String(note[1])),
+      "строка «что делать дальше» не полужирная: " + (note ? String(note[1]) : "правила нет вовсе"));
   });
 
   console.log("\n" + ran + " проверок пройдено");

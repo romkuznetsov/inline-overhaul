@@ -72,6 +72,25 @@ turned off without uninstalling anything. **General → Help → Read** writes t
 into your vault and opens it; **Show callouts** and **Show tips** decide how much the
 panel explains itself.
 
+**General → Language** decides what language the panel speaks. Every visible line has a
+key of its own, and the words behind those keys live in plain text files inside the plugin
+folder:
+
+```
+<your vault>/.obsidian/plugins/inline-overhaul/texts/default.js   written by the plugin
+<your vault>/.obsidian/plugins/inline-overhaul/texts/ru.js        yours, one per language
+```
+
+`default.js` is the plugin's own file and always current: a new setting, a new window and a
+reworded line all show up in it on their own. Copy it under a new name, change its first
+line, and the language appears in the list on its own. Name the copy `en.js` and you are
+rewording the English instead of translating it.
+
+Your copy is never overwritten, so your edits survive an update, and a line you leave out
+simply keeps the English the plugin ships with. Command names stay in English: Obsidian
+takes those from its own command registry, and translating them here would leave the
+command palette and the reference table disagreeing.
+
 - [Open settings and module toggles](showcase.md#open-settings-and-module-toggles)
 - [Settings undo](showcase.md#settings-undoflush): **Undo last settings change** rolls back
   the most recent change. It is a command, not a button. Saving is automatic and there is
@@ -214,6 +233,13 @@ Release assets are written to `dist/`.
   commands.
 - Transform writes real notes. It is covered by automated checks, but every vault has its
   own templates, properties and Fields, and those need your eyes.
+- The language files cover the settings panel, its tips, the tab callouts, the live
+  previews, the command reference and the windows the panel opens — 886 lines. The Fields
+  editor and its neighbours, the guide note and the messages shown while you type are still
+  English whatever you pick: 296 more lines, listed file by file in
+  `tests/gates/texts_coverage.ts`. Russian ships as a placeholder: the language name, the
+  tab labels and the `Language` group are translated, the rest of the file is English and
+  waiting.
 
 ## Terms
 

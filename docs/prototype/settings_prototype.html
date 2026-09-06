@@ -1516,6 +1516,17 @@ const SCHEMA = [
 
 /* ============================================================ GENERAL */
 {
+  id: "language", tab: "general", order: 50, heading: "Language",
+  intro: "The panel, its tips and the messages this plugin shows can speak another language, and the words behind them live in a file you can edit yourself",
+  tip: "Every visible line of this panel has a name of its own, and the words behind those names sit in a small text file inside the plugin folder \u2014 one file per language. Change a line there, reload the plugin, and the panel says what you wrote: rewording a setting is no longer something you have to ask for. To add a language, copy the English file under a new name and translate the right-hand side. Anything you leave alone keeps its English wording, so a half-finished translation is still worth using",
+  items: [
+    { kind:"dropdown", id:"ui-language", path:"general.language", default:"en",
+      options:[], optionsFrom:"languages",
+      name:"Language", desc:"What language this panel and the plugin messages speak",
+      tip:"The list holds English plus every language file found in the plugin folder, and it is built from the files themselves \u2014 nothing has to be registered anywhere. Switching takes effect at once, without a reload. A line that has no translation yet keeps its English wording rather than showing you a blank" }
+  ]
+},
+{
   id: "modules", tab: "general", order: 200, heading: "Modules",
   intro: "Four separate things live in this plugin. Turn off the ones you do not want and they stop adding commands and stop touching your notes",
   tip: "Turning an area off is not the same as leaving it alone. Its commands disappear from the palette, so a hotkey you gave them stops doing anything, and its settings are hidden here until you turn it back on. Nothing you configured is lost — the settings come back exactly as they were. Use this to keep the palette short: if you only ever wanted the tags, three of the four can go",
@@ -3101,7 +3112,10 @@ const OPTION_SOURCES = {
   /* Шаблоны — только из назначенной папки (1.6.2.4). Папки нет — списка
      тоже нет, и вместо него сказано, чего не хватает. */
   "templates": () => templateOptions(String(val("transform.inline2note.templatesFolder") || "").trim(),
-    VAULT_NOTES)
+    VAULT_NOTES),
+  /* Языки (10.13.38). В панели список собирается из файлов папки плагина, а
+     здесь это мокданные: в панель они не попадают (Р8, У-23). */
+  "languages": () => [{ value:"en", label:"English" }, { value:"ru", label:"\u0420\u0443\u0441\u0441\u043a\u0438\u0439" }]
 };
 
 /* Один список шаблонов на прототип и на панель: правило «только из папки»

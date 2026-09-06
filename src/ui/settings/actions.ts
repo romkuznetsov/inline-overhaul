@@ -26,6 +26,8 @@
 
 import type { ActionId } from "./types.ts";
 import { HOWTO_LEGACY_PATH, HOWTO_PATH, howtoMarkdown } from "./howto.ts";
+import { TEXT_BY_NAME, dialogKey, fill } from "./texts_dialogs.ts";
+import { tabKey, type Resolve } from "./texts.ts";
 import {
   PARTS,
   allPartIds,
@@ -36,12 +38,9 @@ import {
   describeBackup,
   keepDeviceLocal,
   mergeParts,
-  missingLabels,
   parseBackupHotkeys,
   parseBackupNote,
-  partLabels,
-  plural,
-  summaryLine,
+  summarize,
 } from "../../features/settings_backup.js";
 
 /**
@@ -213,17 +212,34 @@ export interface HotkeySeam {
  */
 export interface BackupOptionsRequest {
   title: string;
-  body: string;
+  /**
+   * Длинное объяснение — подсказкой у заголовка, а не абзацем под ним (Ст12,
+   * замечание заказчика 2026-09-06). До этого оно стояло текстом и читалось
+   * как условие, которое надо выполнить, прежде чем нажимать.
+   */
+  tip: string;
   /** Части копии галочками. */
   parts: readonly { id: string; label: string; checked: boolean }[];
+  /**
+   * Заголовок над галочками. Без него было непонятно, к чему они относятся:
+   * «сейчас непонятно к чему относятся чекбоксы» (замечание заказчика).
+   */
+  partsLabel: string;
+  partsTip: string;
   /** Необязательное поле комментария. */
   commentLabel: string;
   commentHint: string;
   /** Список объёма хоткеев. */
   hotkeyLabel: string;
+  hotkeyTip: string;
   hotkeyOptions: readonly { value: string; label: string }[];
   hotkeyDefault: string;
   confirmLabel: string;
+  /**
+   * Тумблер `Show tips` (`general.help.showTips`). Подсказки окна подчиняются
+   * ему наравне с подсказками панели: заказчик просил об этом прямо.
+   */
+  showTips: boolean;
 }
 
 export interface BackupOptions {
@@ -278,75 +294,20 @@ export interface ActionDeps {
    * целиком, хоткеи только свои, без комментария.
    */
   askBackupOptions?: (o: BackupOptionsRequest) => Promise<BackupOptions | null>;
+  /**
+   * Видимый текст по ключу каталога (10.13.46). Без него окна говорят
+   * английским из таблицы — ровно так, как говорили до перевода.
+   */
+  t?: Resolve;
 }
 
 /* ---- тексты: видимые строки английские, точек в конце нет (Р10) -------- */
 
-const GUIDE_MADE = "Guide written and opened";
-const GUIDE_OPENED = "Guide opened";
-const BACKUP_SAVED = "Settings saved";
-const BACKUP_NONE = "No backups found in";
-const RESTORE_TITLE = "Restore these settings";
-const RESTORE_BODY =
-  "This replaces everything you have set up, on every tab. What you have now is saved as a backup first";
-/**
- * Тот же вопрос, когда копия перед записью выключена (C56). Обещать копию,
- * которой не будет, нельзя: вопрос о разрушительном действии — единственное
- * место, где человек ещё может остановиться.
+/*
+ * Сами тексты уехали в `texts_dialogs.ts` (10.13.46): они видимы, значит у
+ * них есть ключ каталога и они переводятся вместе с панелью. Здесь остались
+ * только помощники, которые их собирают.
  */
-const RESTORE_BODY_NO_BACKUP =
-  "This replaces everything you have set up, on every tab, and what you have now is not saved anywhere first";
-const RESTORE_CONFIRM = "Replace my settings";
-const RESTORE_DONE =
-  "Settings restored. Restart Obsidian so every part of the plugin picks them up";
-/** Хоткеи вернулись — сказать отдельно: их человек ищет не там, где настройки. */
-const HOTKEYS_DONE = "hotkeys back on the plugin commands";
-/* Окно после восстановления (просьба заказчика 2026-09-06). */
-const RESTORED_TITLE = "Settings restored";
-const RESTORED_BODY =
-  "Everything from that backup is in place. A few parts of the plugin read your settings once, when Obsidian starts, so they still show what you had a minute ago";
-const RESTORED_NOTE = "Restart Obsidian to be sure every part matches the backup";
-const RESTORED_CLOSE = "Got it";
-
-/* Окно состава копии (заказ заказчика 2026-09-06). */
-const SAVE_TITLE = "Save a backup";
-const SAVE_BODY =
-  "Everything is picked already, so pressing the button straight away saves the lot. Uncheck a tab and it stays out: restoring this backup will then leave that tab exactly as you have it";
-const SAVE_CONFIRM = "Save";
-const SAVE_COMMENT_LABEL = "What is this backup for";
-const SAVE_COMMENT_HINT = "Optional. You will see this line in `Restore a backup`";
-const SAVE_HOTKEYS_LABEL = "Hotkeys to keep";
-const SAVE_HOTKEYS_OWN = "Only this plugin’s commands";
-const SAVE_HOTKEYS_ALL = "Every hotkey in this vault";
-const SAVE_HOTKEYS_NONE = "None";
-const SAVE_NOTHING = "Nothing was picked, so there is nothing to save";
-
-/* Конфликты хоткеев при восстановлении (ответ заказчика 2026-09-06). */
-const CONFLICT_LABEL = "Free up keys other commands are holding";
-const CONFLICT_SUB =
-  "Off by default: this is the one thing here that changes settings outside this plugin";
-const CONFLICT_NONE = "No other command is holding those keys";
-const CONFLICT_CLEARED = "keys taken off other commands";
-/* Объём хоткеев в копии — сказать в окне восстановления прямо. */
-const HOTKEYS_ALL_WARNING =
-  "This backup holds hotkeys of other plugins too, and restoring puts them back";
-/** В копии хоткеи есть, а вернуть их этой сборкой нечем. */
-const HOTKEYS_NO_METHOD = "The hotkeys in that backup could not be put back";
-
-/* ---- сброс до умолчаний ------------------------------------------------ */
-
-const RESET_TITLE = "Delete all your settings";
-const RESET_BODY =
-  "Everything you have set up in this plugin goes, on every tab, and the plugin starts as if it had just been installed. What you have now is saved as a backup first";
-const RESET_CONFIRM = "Delete my settings";
-const RESET_DONE =
-  "Settings deleted and back to defaults. Restart Obsidian so every part of the plugin picks them up";
-const RESET_NOTHING = "Your settings are already at their defaults";
-const RESTORE_SAME = "That backup matches what you already have";
-const PICK_TITLE = "Restore a backup";
-const PICK_BODY = "Newest first";
-/** Метода нет — говорим об этом, а не молчим. */
-const NO_METHOD = "This build cannot do that yet";
 
 function said(message: string, path: string): string {
   return path ? message + ": " + path : message;
@@ -361,6 +322,64 @@ function messageOf(e: unknown): string {
 
 export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => Promise<void>>> {
   const { notify } = deps;
+
+  /**
+   * Текст окна по имени. Ключ строит `dialogKey`, английское — таблица; оба
+   * конца зовут одну функцию, и разойтись им не на чем (У-82).
+   */
+  const say = (name: string): string => {
+    const english = TEXT_BY_NAME[name] || "";
+    return typeof deps.t === "function" ? deps.t(dialogKey(name), english) : english;
+  };
+
+  /**
+   * Счёт словами. Множественное число не собирается из единственного ни в
+   * одном языке, кроме английского, поэтому обе формы лежат в каталоге
+   * порознь, а выбирает между ними это место.
+   */
+  const count = (n: number, one: string, many: string): string =>
+    String(n) + " " + say(n === 1 ? one : many);
+
+  /**
+   * Состав копии одной строкой: «3 Fields, 12 Values and 2 Binder rows».
+   *
+   * Своя, а не общая с заметкой копии: в заметке эта строка — часть формата
+   * файла и обязана остаться английской, а здесь её читает человек. Считает
+   * при этом одна функция — `summarize`, — и разойтись двум строкам не на чем.
+   */
+  const summaryFor = (cfg: Record<string, unknown>): string => {
+    const s = summarize(cfg) as { fields: number; values: number; binderRows: number };
+    return fill(
+      say("SUMMARY_LINE"),
+      count(s.fields, "WORD_FIELD_ONE", "WORD_FIELD_MANY"),
+      count(s.values, "WORD_VALUE_ONE", "WORD_VALUE_MANY"),
+      count(s.binderRows, "WORD_BINDER_ROW_ONE", "WORD_BINDER_ROW_MANY"),
+    );
+  };
+
+  /**
+   * Подписи вкладок для галочек состава копии и для списка «что вернётся».
+   *
+   * Берутся из каталога **по ключу вкладки**, а не из своего списка: та же
+   * `General`, что стоит в полосе вкладок, и второго её объявления в продукте
+   * быть не должно (У-32). Идентификаторы частей копии и вкладок совпадают —
+   * это закреплено пином `PARTS` (10.13.41).
+   */
+  const partLabel = (id: string, english: string): string =>
+    typeof deps.t === "function" ? deps.t(tabKey(id, "label"), english) : english;
+
+  /**
+   * Подписи частей, которые в копии есть, и тех, которых в ней нет.
+   *
+   * Одним местом, а не двумя: список `PARTS` один, и «взять из него по
+   * признаку» — тоже одно правило. Два обхода одного списка расходятся молча
+   * (У-32).
+   */
+  const partLabelsFor = (ids: readonly string[], inside: boolean): string[] =>
+    PARTS.filter((p: { id: string }) => (ids.indexOf(p.id) >= 0) === inside)
+      .map((p: { id: string; label: string }) => partLabel(p.id, p.label));
+
+  const partLabelsSaid = (ids: readonly string[]): string[] => partLabelsFor(ids, true);
 
   /**
    * Записать копию нынешних настроек и вернуть путь. Зовётся и кнопкой
@@ -431,24 +450,47 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
    * Отказ (`null`) — это отказ: ничего не пишется и ничего не говорится.
    * Пустой набор частей — не отказ, а ошибка человека, и о ней надо сказать.
    */
+  /**
+   * Показывать ли подсказки. Тот же тумблер, что и у панели
+   * (`general.help.showTips`), и читается он там же, где живёт: в конфиге.
+   * Своего умолчания здесь нет — умолчание одно, и оно в схеме.
+   */
+  const tipsShown = (): boolean => {
+    if (!deps.config) return true;
+    try {
+      const cfg = deps.config.get() as Record<string, unknown>;
+      const general = cfg && typeof cfg.general === "object" ? cfg.general as Record<string, unknown> : null;
+      const help = general && typeof general.help === "object" ? general.help as Record<string, unknown> : null;
+      return help ? help.showTips !== false : true;
+    } catch (e) {
+      console.error("inline-overhaul: тумблер подсказок не прочитался", e);
+      return true;
+    }
+  };
+
   const askParts = async (): Promise<BackupOptions | null | undefined> => {
     if (typeof deps.askBackupOptions !== "function") return undefined;
     const hotkeyOptions = [
-      { value: "own", label: SAVE_HOTKEYS_OWN },
-      { value: "all", label: SAVE_HOTKEYS_ALL },
-      { value: "none", label: SAVE_HOTKEYS_NONE },
+      { value: "own", label: say("SAVE_HOTKEYS_OWN") },
+      { value: "all", label: say("SAVE_HOTKEYS_ALL") },
+      { value: "none", label: say("SAVE_HOTKEYS_NONE") },
     ];
     return await deps.askBackupOptions({
-      title: SAVE_TITLE,
-      body: SAVE_BODY,
+      title: say("SAVE_TITLE"),
+      tip: say("SAVE_TIP"),
       /* По умолчанию отмечено всё: человек только снимает лишнее. */
-      parts: PARTS.map(part => ({ id: part.id, label: part.label, checked: true })),
-      commentLabel: SAVE_COMMENT_LABEL,
-      commentHint: SAVE_COMMENT_HINT,
-      hotkeyLabel: SAVE_HOTKEYS_LABEL,
+      parts: PARTS.map((part: { id: string; label: string }) =>
+        ({ id: part.id, label: partLabel(part.id, part.label), checked: true })),
+      partsLabel: say("SAVE_PARTS_LABEL"),
+      partsTip: say("SAVE_PARTS_TIP"),
+      commentLabel: say("SAVE_COMMENT_LABEL"),
+      commentHint: say("SAVE_COMMENT_HINT"),
+      hotkeyLabel: say("SAVE_HOTKEYS_LABEL"),
+      hotkeyTip: say("SAVE_HOTKEYS_TIP"),
       hotkeyOptions,
       hotkeyDefault: "own",
-      confirmLabel: SAVE_CONFIRM,
+      confirmLabel: say("SAVE_CONFIRM"),
+      showTips: tipsShown(),
     });
   };
 
@@ -485,10 +527,10 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         about.comment,
         about.summary,
         about.parts && about.parts.length < PARTS.length
-          ? partLabels(about.parts).join(", ")
+          ? partLabelsSaid(about.parts).join(", ")
           : "",
-        about.hotkeys ? plural(about.hotkeys, "hotkey", "hotkeys") : "",
-        about.pluginVersion ? "plugin " + about.pluginVersion : "",
+        about.hotkeys ? count(about.hotkeys, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY") : "",
+        about.pluginVersion ? fill(say("PLUGIN_VERSION"), about.pluginVersion) : "",
       ].filter(Boolean).join(" · ");
       /* Имя файла показывается, только если первой строкой стоит дата: иначе
          оно там уже и стоит, и повторять его незачем. */
@@ -513,16 +555,16 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
    * забирает работу, и человек должен видеть её объём до нажатия (Н3).
    */
   const goingAway = (cfg: Record<string, unknown>): readonly string[] => {
-    const rows = ["Deleting " + summaryLine(cfg)];
+    const rows = [fill(say("ROW_DELETING"), summaryFor(cfg))];
     if (deps.hotkeys && typeof deps.hotkeys.read === "function") {
-      let count = 0;
+      let n = 0;
       try {
-        count = Object.keys(deps.hotkeys.read() || {}).length;
+        n = Object.keys(deps.hotkeys.read() || {}).length;
       } catch (e) {
         console.error("inline-overhaul: хоткеи для сброса не прочитались", e);
       }
-      if (count) {
-        rows.push("And " + plural(count, "hotkey", "hotkeys") + " you assigned to plugin commands");
+      if (n) {
+        rows.push(fill(say("ROW_DELETING_HOTKEYS"), count(n, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY")));
       }
     }
     return rows;
@@ -537,7 +579,7 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
     "open-howto": async () => {
       const vault = deps.vault;
       if (!vault) {
-        notify(NO_METHOD);
+        notify(say("NO_METHOD"));
         console.error("inline-overhaul: руководство открывать нечем — нет доступа к vault");
         return;
       }
@@ -553,7 +595,7 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         const path = legacy ? HOWTO_LEGACY_PATH : HOWTO_PATH;
         if (!had && !legacy) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
         await Promise.resolve(vault.open(path));
-        notify(said(had || legacy ? GUIDE_OPENED : GUIDE_MADE, path));
+        notify(said(say(had || legacy ? "GUIDE_OPENED" : "GUIDE_MADE"), path));
       } catch (e) {
         const message = e && typeof e === "object" && "message" in e
           ? String((e as { message: unknown }).message)
@@ -571,7 +613,7 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       const vault = deps.vault;
       const config = deps.config;
       if (!vault || !config) {
-        notify(NO_METHOD);
+        notify(say("NO_METHOD"));
         console.error("inline-overhaul: копию настроек снимать нечем — нет доступа к vault или конфигу");
         return;
       }
@@ -579,10 +621,10 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         const picked = await askParts();
         if (picked === null) return;
         if (picked && (!Array.isArray(picked.parts) || !picked.parts.length)) {
-          notify(SAVE_NOTHING);
+          notify(say("SAVE_NOTHING"));
           return;
         }
-        notify(said(BACKUP_SAVED, await writeBackup(vault, config, undefined, picked || undefined)));
+        notify(said(say("BACKUP_SAVED"), await writeBackup(vault, config, undefined, picked || undefined)));
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: копия настроек не записалась", e);
@@ -608,7 +650,7 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       const config = deps.config;
       const ask = deps.confirm;
       if (!vault || !config) {
-        notify(NO_METHOD);
+        notify(say("NO_METHOD"));
         console.error("inline-overhaul: сбрасывать нечем — нет доступа к vault или конфигу");
         return;
       }
@@ -619,12 +661,12 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       try {
         const before = config.get();
         const yes = await ask({
-          title: RESET_TITLE,
-          body: RESET_BODY,
-          confirmLabel: RESET_CONFIRM,
+          title: say("RESET_TITLE"),
+          body: say("RESET_BODY"),
+          confirmLabel: say("RESET_CONFIRM"),
           danger: true,
           rows: goingAway(before),
-          note: "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin",
+          note: say("RESET_NOTE"),
         });
         if (!yes) return;
 
@@ -642,12 +684,16 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
           try {
             const n = await Promise.resolve(deps.hotkeys.write({}));
-            if (n) saidHotkeys = ". " + plural(Number(n) || 0, "hotkey", "hotkeys") + " cleared";
+            if (n) {
+              saidHotkeys = ". " + count(Number(n) || 0, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY")
+                + " " + say("HOTKEYS_CLEARED");
+            }
           } catch (e) {
             console.error("inline-overhaul: хоткеи при сбросе не снялись", e);
           }
         }
-        notify((changed ? RESET_DONE : RESET_NOTHING) + saidHotkeys + ". Backup: " + saved);
+        notify((changed ? say("RESET_DONE") : say("RESET_NOTHING"))
+          + saidHotkeys + ". " + say("SAVED_AS") + ": " + saved);
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: сброс не выполнился", e);
@@ -666,7 +712,7 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       const ask = deps.confirm;
       const choose = deps.pick;
       if (!vault || !config) {
-        notify(NO_METHOD);
+        notify(say("NO_METHOD"));
         console.error("inline-overhaul: восстанавливать нечем — нет доступа к vault или конфигу");
         return;
       }
@@ -678,14 +724,14 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       try {
         const options = await listBackups(vault, folder);
         if (!options.length) {
-          notify(said(BACKUP_NONE, folder));
+          notify(said(say("BACKUP_NONE"), folder));
           return;
         }
-        const picked = await choose({ title: PICK_TITLE, body: PICK_BODY, options });
+        const picked = await choose({ title: say("PICK_TITLE"), body: say("PICK_BODY"), options });
         if (!picked) return;
 
         if (typeof vault.read !== "function") {
-          notify(NO_METHOD);
+          notify(say("NO_METHOD"));
           console.error("inline-overhaul: копию читать нечем");
           return;
         }
@@ -704,17 +750,19 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
          * Второе важнее первого: выборочная копия меняет смысл действия,
          * и человек должен увидеть это до нажатия, а не после (Н3).
          */
-        const rows = ["Restoring " + summaryLine(restored)];
+        const rows = [fill(say("ROW_RESTORING"), summaryFor(restored))];
         if (about.parts) {
-          rows.push("Tabs coming back: " + partLabels(about.parts).join(", "));
-          const kept = missingLabels(about.parts);
-          if (kept.length) rows.push("Staying as you have them now: " + kept.join(", "));
+          rows.push(fill(say("ROW_PARTS_BACK"), partLabelsSaid(about.parts).join(", ")));
+          const kept = partLabelsFor(about.parts, false);
+          if (kept.length) rows.push(fill(say("ROW_PARTS_KEPT"), kept.join(", ")));
         }
         if (hotkeyCount) {
-          rows.push("And " + plural(hotkeyCount, "hotkey", "hotkeys")
-            + (scope === "all" ? " from this vault" : " on the plugin commands"));
+          rows.push(fill(
+            say(scope === "all" ? "ROW_HOTKEYS_VAULT" : "ROW_HOTKEYS_OWN"),
+            count(hotkeyCount, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY"),
+          ));
         }
-        if (scope === "all") rows.push(HOTKEYS_ALL_WARNING);
+        if (scope === "all") rows.push(say("HOTKEYS_ALL_WARNING"));
 
         /*
          * Конфликты — галочкой, и по умолчанию выключенной (ответ заказчика
@@ -731,24 +779,41 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
           }
         }
         for (const clash of conflicts) {
-          rows.push("Held by " + clash.name + ": " + clash.hotkey);
+          rows.push(fill(say("CONFLICT_HELD"), clash.name, clash.hotkey));
         }
+        /*
+         * И когда конфликтов нет — тоже строкой. Пустое место в окне человек
+         * читает как «функции нет», а не как «посмотрели и чисто».
+         */
+        if (hotkeyCount && !conflicts.length) {
+          rows.push(say(scope === "all" ? "CONFLICT_SCOPE_ALL" : "CONFLICT_NONE"));
+        }
+        /*
+         * Хоткеев в копии нет — сказать и это. Копии до 2026-09-04 их не
+         * несут вовсе, и человек, пришедший проверять именно хоткеи, читал
+         * пустое место как «функция не работает».
+         */
+        if (!hotkeyCount) rows.push(say("HOTKEYS_NONE_HERE"));
+        /*
+         * Папка копий не восстанавливается (`DEVICE_LOCAL_LEAVES`): это адрес
+         * в этом vault, а не настройка. Говорится это только тогда, когда в
+         * копии лежит другой путь, — иначе строка была бы шумом.
+         */
+        if (backupFolder(restored) !== folder) rows.push(said(say("FOLDER_KEPT"), folder));
         let clearConflicts = false;
 
         const willBackUp = backupBeforeRestore(config.get());
         const yes = await ask({
-          title: RESTORE_TITLE,
-          body: willBackUp ? RESTORE_BODY : RESTORE_BODY_NO_BACKUP,
-          confirmLabel: RESTORE_CONFIRM,
+          title: say("RESTORE_TITLE"),
+          body: say(willBackUp ? "RESTORE_BODY" : "RESTORE_BODY_NO_BACKUP"),
+          confirmLabel: say("RESTORE_CONFIRM"),
           danger: true,
           rows,
           ...(conflicts.length
-            ? { check: { label: CONFLICT_LABEL, sub: CONFLICT_SUB, checked: false } }
+            ? { check: { label: say("CONFLICT_LABEL"), sub: say("CONFLICT_SUB"), checked: false } }
             : {}),
           onCheck: (checked: boolean) => { clearConflicts = checked; },
-          note: hotkeyCount && scope !== "all"
-            ? "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin"
-            : "Your open tab and what you have expanded here stay as they are",
+          note: say(hotkeyCount && scope !== "all" ? "RESTORE_NOTE_OTHERS" : "RESTORE_NOTE"),
         });
         if (!yes) return;
 
@@ -792,20 +857,22 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
           if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
             try {
               const n = await Promise.resolve(deps.hotkeys.write(hotkeys, { scope, clearConflicts }));
-              saidHotkeys = ". " + plural(Number(n) || 0, "hotkey", "hotkeys") + " " + HOTKEYS_DONE;
+              saidHotkeys = ". " + count(Number(n) || 0, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY")
+                + " " + say("HOTKEYS_DONE");
               if (clearConflicts && conflicts.length) {
-                saidHotkeys += ", " + plural(conflicts.length, "key", "keys") + " " + CONFLICT_CLEARED;
+                saidHotkeys += ", " + count(conflicts.length, "WORD_KEY_ONE", "WORD_KEY_MANY")
+                  + " " + say("CONFLICT_CLEARED");
               }
             } catch (e) {
-              saidHotkeys = ". " + HOTKEYS_NO_METHOD;
+              saidHotkeys = ". " + say("HOTKEYS_NO_METHOD");
               console.error("inline-overhaul: хоткеи не вернулись", e);
             }
           } else {
-            saidHotkeys = ". " + HOTKEYS_NO_METHOD;
+            saidHotkeys = ". " + say("HOTKEYS_NO_METHOD");
             console.error("inline-overhaul: хоткеи в копии есть, а шва для их записи нет");
           }
         }
-        notify(changed ? RESTORE_DONE + saidHotkeys : RESTORE_SAME + saidHotkeys);
+        notify(say(changed ? "RESTORE_DONE" : "RESTORE_SAME") + saidHotkeys);
 
         /*
          * И окно — оно живёт до нажатия, а всплывающее сообщение уезжает
@@ -816,11 +883,11 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         if (typeof deps.announce === "function") {
           try {
             await deps.announce({
-              title: RESTORED_TITLE,
-              body: RESTORED_BODY,
+              title: say("RESTORED_TITLE"),
+              body: say("RESTORED_BODY"),
               rows,
-              note: RESTORED_NOTE,
-              closeLabel: RESTORED_CLOSE,
+              note: say("RESTORED_NOTE"),
+              closeLabel: say("RESTORED_CLOSE"),
             });
           } catch (e) {
             console.error("inline-overhaul: окно после восстановления не открылось", e);
@@ -834,45 +901,10 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
   };
 }
 
-/** Тексты наружу: их проверяет пин, а не сверка строк с самими собой. */
-export const ACTION_TEXTS = {
-  GUIDE_MADE,
-  GUIDE_OPENED,
-  NO_METHOD,
-  BACKUP_SAVED,
-  BACKUP_NONE,
-  RESTORE_TITLE,
-  RESTORE_BODY,
-  RESTORE_BODY_NO_BACKUP,
-  RESTORE_CONFIRM,
-  RESTORE_DONE,
-  RESTORE_SAME,
-  PICK_TITLE,
-  PICK_BODY,
-  HOTKEYS_DONE,
-  HOTKEYS_NO_METHOD,
-  RESTORED_TITLE,
-  RESTORED_BODY,
-  RESTORED_NOTE,
-  RESTORED_CLOSE,
-  SAVE_TITLE,
-  SAVE_BODY,
-  SAVE_CONFIRM,
-  SAVE_COMMENT_LABEL,
-  SAVE_COMMENT_HINT,
-  SAVE_HOTKEYS_LABEL,
-  SAVE_HOTKEYS_OWN,
-  SAVE_HOTKEYS_ALL,
-  SAVE_HOTKEYS_NONE,
-  SAVE_NOTHING,
-  CONFLICT_LABEL,
-  CONFLICT_SUB,
-  CONFLICT_NONE,
-  CONFLICT_CLEARED,
-  HOTKEYS_ALL_WARNING,
-  RESET_TITLE,
-  RESET_BODY,
-  RESET_CONFIRM,
-  RESET_DONE,
-  RESET_NOTHING,
-} as const;
+/**
+ * Тексты наружу: их проверяет пин, а не сверка строк с самими собой.
+ *
+ * Живут они в `texts_dialogs.ts` (10.13.46): текст видим, значит у него
+ * есть ключ каталога. Здесь имя оставлено ради тех, кто его уже зовёт.
+ */
+export { ACTION_TEXTS } from "./texts_dialogs.ts";

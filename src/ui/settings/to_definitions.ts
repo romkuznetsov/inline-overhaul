@@ -31,6 +31,7 @@ import { isBound } from "./types.ts";
 import { themeColorFor } from "./custom/theme_colors.ts";
 /* Текст калитки модуля выведен из прототипа генератором, а не написан здесь. */
 import { MODULE_OFF_NOTE } from "./schema/custom_texts.ts";
+import { SINGLE_KEYS } from "./texts_custom.ts";
 
 /** То, что слой настроек умеет делать помимо чтения и записи значений. */
 export interface Wiring {
@@ -351,7 +352,10 @@ function moduleGate(
   );
   const items: SettingGroupItem[] = [];
   if (row) items.push(row as unknown as SettingGroupItem);
-  items.push({ name: "", desc: MODULE_OFF_NOTE, searchable: false } as unknown as SettingGroupItem);
+  /* Текст калитки тоже переводится (10.13.38): без него выключенная
+     вкладка была бы единственным английским местом в панели. */
+  const moduleOff = w.ctx.t ? w.ctx.t(SINGLE_KEYS.moduleOff, MODULE_OFF_NOTE) : MODULE_OFF_NOTE;
+  items.push({ name: "", desc: moduleOff, searchable: false } as unknown as SettingGroupItem);
 
   return {
     type: "group",

@@ -1595,15 +1595,15 @@ var require_vault_module_bridge = __commonJS({
       if (globalThis[key].has(vaultPath)) return globalThis[key].get(vaultPath);
       const src = String(vaultPath || "").trim();
       const candidates = [];
-      const push = (p) => {
+      const push2 = (p) => {
         const v = String(p || "").trim();
         if (!v || candidates.includes(v)) return;
         candidates.push(v);
       };
-      push(src);
-      if (src.startsWith("./")) push(src.slice(2));
-      else push("./" + src);
-      if (src.includes("/")) push(src.slice(src.lastIndexOf("/") + 1));
+      push2(src);
+      if (src.startsWith("./")) push2(src.slice(2));
+      else push2("./" + src);
+      if (src.includes("/")) push2(src.slice(src.lastIndexOf("/") + 1));
       let code = "";
       let found = false;
       const adapter = app_ && app_.vault ? app_.vault.adapter : null;
@@ -2410,7 +2410,7 @@ var require_status_date = __commonJS({
     }
     function getRuntimeFieldKeyCandidates(rtCfg, fieldKey, field) {
       const out = [];
-      const push = (v) => {
+      const push2 = (v) => {
         const k = String(v || "").trim();
         if (!k || out.includes(k)) return;
         out.push(k);
@@ -2419,16 +2419,16 @@ var require_status_date = __commonJS({
       const key = String(fieldKey || "").trim();
       const fieldId = String(srcField.id || "").trim();
       const orderKey = String(srcField.orderKey || "").trim();
-      push(fieldId);
-      push(orderKey);
-      push(key);
+      push2(fieldId);
+      push2(orderKey);
+      push2(key);
       const canonical = isObj(rtCfg == null ? void 0 : rtCfg.canonical) ? rtCfg.canonical : {};
       for (const k of Object.keys(canonical)) {
         const cv = String(canonical[k] || "").trim();
         if (!cv) continue;
         if (cv === fieldId || cv === orderKey || cv === key) {
-          push(k);
-          push(cv);
+          push2(k);
+          push2(cv);
         }
       }
       return out;
@@ -13852,15 +13852,15 @@ var require_pkm_rules_runtime_helpers = __commonJS({
     function buildPathCandidates(pathLike) {
       const src = String(pathLike || "").trim();
       const out = [];
-      const push = (p) => {
+      const push2 = (p) => {
         const v = String(p || "").trim();
         if (!v || out.includes(v)) return;
         out.push(v);
       };
-      push(src);
-      if (src.startsWith("./")) push(src.slice(2));
-      else push("./" + src);
-      if (src.includes("/")) push(src.slice(src.lastIndexOf("/") + 1));
+      push2(src);
+      if (src.startsWith("./")) push2(src.slice(2));
+      else push2("./" + src);
+      if (src.includes("/")) push2(src.slice(src.lastIndexOf("/") + 1));
       return out;
     }
     function normalizeRulesPath(raw, defaultRulesPath) {
@@ -14111,7 +14111,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       const useInclude = include.size > 0;
       const collapseSubs = !!opts.collapseSubToParent;
       const out = [];
-      const push = (k) => {
+      const push2 = (k) => {
         if (!k) return;
         const activeMode = resolveFieldActiveMode(orderCfg, k);
         if (activeMode === "no" || activeMode === "hotkey_only") return;
@@ -14124,7 +14124,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       for (const rawKey of src) {
         const k = String(rawKey || "").trim();
         if (!k) continue;
-        push(k);
+        push2(k);
         const subCandidates = Object.keys(enabled).filter((cand) => {
           const ck = String(cand || "").trim();
           if (!ck || ck === k || !/_sub$/.test(ck)) return false;
@@ -14132,7 +14132,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         });
         for (const subKey of subCandidates) {
           if (enabled[subKey] === false) continue;
-          push(subKey);
+          push2(subKey);
         }
       }
       return out;
@@ -14325,20 +14325,20 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       const seenPairs = /* @__PURE__ */ new Set();
       const runtimeKeysForField = (field) => {
         const outKeys = [];
-        const push = (v) => {
+        const push2 = (v) => {
           const k = String(v || "").trim();
           if (!k || outKeys.includes(k)) return;
           outKeys.push(k);
         };
         const orderKey = String(field && field.orderKey || "").trim();
         const fieldId = String(field && field.id || "").trim();
-        push(orderKey);
-        push(fieldId);
+        push2(orderKey);
+        push2(fieldId);
         for (const ck of Object.keys(canonical)) {
           const cv = String(canonical[ck] || "").trim();
           if (cv && (cv === orderKey || cv === fieldId)) {
-            push(ck);
-            push(cv);
+            push2(ck);
+            push2(cv);
           }
         }
         return outKeys;
@@ -14408,7 +14408,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       for (let i = 0; i < orderKeys.length; i++) rank[orderKeys[i]] = i;
       const map = tokenToKey && typeof tokenToKey === "object" ? tokenToKey : {};
       const markers = opts.markers && typeof opts.markers === "object" ? opts.markers : null;
-      const keyOf = (tokenInput) => {
+      const keyOf2 = (tokenInput) => {
         let token = String(tokenInput || "");
         if (opts.normalizeSlashToken && /^\/\S+/.test(token)) token = `#${token}`;
         let key = map[token] || "";
@@ -14456,7 +14456,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       const buckets = {};
       const unknown = [];
       for (const part of parts) {
-        const resolved = keyOf(part);
+        const resolved = keyOf2(part);
         if (!resolved.key || rank[resolved.key] === void 0) {
           unknown.push(resolved.token);
           continue;
@@ -15356,10 +15356,10 @@ var require_priority_strip_engine = __commonJS({
         const token = String(m[0] || "").trim();
         if (!token || !tokenSet.has(token)) continue;
         const row = typeof readRowForToken === "function" ? readRowForToken(token) : null;
-        const fill = row && row.fillColor ? String(row.fillColor || "").trim() : "";
+        const fill2 = row && row.fillColor ? String(row.fillColor || "").trim() : "";
         return {
           token,
-          color: fill || "var(--interactive-accent)",
+          color: fill2 || "var(--interactive-accent)",
           index: Number(m.index || 0)
         };
       }
@@ -17215,7 +17215,7 @@ var require_token_graph_unified = __commonJS({
     function collectRightMarkers(rules) {
       var out = [];
       var seen = {};
-      function push(marker) {
+      function push2(marker) {
         var m = String(marker || "").trim();
         if (!m || seen[m]) return;
         seen[m] = true;
@@ -17223,7 +17223,7 @@ var require_token_graph_unified = __commonJS({
       }
       var rightFields = Array.isArray(rules && rules.rightMode && rules.rightMode.fields) ? rules.rightMode.fields : [];
       var i;
-      for (i = 0; i < rightFields.length; i++) push(rightFields[i] && rightFields[i].marker);
+      for (i = 0; i < rightFields.length; i++) push2(rightFields[i] && rightFields[i].marker);
       var behavior = rules && typeof rules.behavior === "object" && !Array.isArray(rules.behavior) ? rules.behavior : {};
       var dateRuntime = behavior && typeof behavior.dateRuntimeConfig === "object" && !Array.isArray(behavior.dateRuntimeConfig) ? behavior.dateRuntimeConfig : {};
       var byField = dateRuntime && typeof dateRuntime.byField === "object" && !Array.isArray(dateRuntime.byField) ? dateRuntime.byField : {};
@@ -17231,8 +17231,8 @@ var require_token_graph_unified = __commonJS({
       for (i = 0; i < keys.length; i++) {
         var row = byField[keys[i]];
         if (!row || typeof row !== "object" || Array.isArray(row)) continue;
-        push(row.emoji);
-        push(row.marker);
+        push2(row.emoji);
+        push2(row.marker);
       }
       return out;
     }
@@ -21301,6 +21301,136 @@ var init_custom_texts = __esm({
   }
 });
 
+// src/ui/settings/texts_custom.ts
+function calloutKey(tab, slot) {
+  return "callout." + tab + "." + slot;
+}
+function previewKey(id, slot) {
+  return "preview." + id + "." + slot;
+}
+function commandKey(area, slot) {
+  return "commands." + area + "." + slot;
+}
+function frameKey(name) {
+  return "frame." + name.toLowerCase().replace(/_/g, "-");
+}
+function push(out, key, text, gap) {
+  if (typeof text !== "string" || text === "") return;
+  out.push(gap ? { key, text, gap } : { key, text });
+}
+function treeEntries(out, id, path, nodes) {
+  nodes.forEach((node, i) => {
+    const here = path + "." + i;
+    push(out, previewKey(id, here + ".text"), node.text);
+    if (node.children && node.children.length) treeEntries(out, id, here + ".children", node.children);
+  });
+}
+function calloutEntries(out, tab) {
+  const text = TAB_CALLOUTS[tab];
+  if (!text) return;
+  push(out, calloutKey(tab, "head"), text.head);
+  push(out, calloutKey(tab, "tip"), text.tip);
+  push(out, calloutKey(tab, "body"), text.body);
+}
+function previewEntries(out, id) {
+  const text = PREVIEW_TEXTS[id];
+  if (!text) return;
+  push(out, previewKey(id, "cap"), text.cap);
+  push(out, previewKey(id, "tip"), text.tip);
+  push(out, previewKey(id, "line"), text.line);
+  push(out, previewKey(id, "element"), text.element);
+  push(out, previewKey(id, "link"), text.link);
+  push(out, previewKey(id, "note"), text.note);
+  if (text.tree) treeEntries(out, id, "tree", text.tree);
+}
+function commandEntries(out) {
+  COMMAND_TEXTS.forEach((area, i) => {
+    push(out, commandKey(i, "area"), area.area);
+    if (area.parts) {
+      push(out, commandKey(i, "parts.standard"), area.parts.standard);
+      push(out, commandKey(i, "parts.user"), area.parts.user);
+    }
+    area.list.forEach((cmd, k) => push(out, commandKey(i, "list." + k + ".does"), cmd.does));
+  });
+}
+function blockEntries(tab, _group, it) {
+  const out = [];
+  const id = it.id;
+  if (/-callout$/.test(id)) calloutEntries(out, tab);
+  else if (PREVIEW_TEXTS[id]) previewEntries(out, id);
+  else if (id === "command-list") commandEntries(out);
+  return out;
+}
+function sharedEntries() {
+  const out = [];
+  let first = true;
+  for (const [key, text] of Object.entries(SHARED_TEXTS)) {
+    push(out, key, text, first ? true : void 0);
+    first = false;
+  }
+  first = true;
+  for (const [name, text] of Object.entries(FRAME_BY_NAME)) {
+    push(out, frameKey(name), text, first ? true : void 0);
+    first = false;
+  }
+  return out;
+}
+var SINGLE_KEYS, SHARED_TEXTS, FRAME_TEXTS, FRAME_BY_NAME;
+var init_texts_custom = __esm({
+  "src/ui/settings/texts_custom.ts"() {
+    "use strict";
+    init_custom_texts();
+    SINGLE_KEYS = {
+      previewExample: "text.preview-example",
+      previewLine: "text.preview-line",
+      previewEmptyRight: "text.preview-empty-right",
+      moduleOff: "text.module-off",
+      calloutTipLabel: "text.callout-tip-label",
+      groupReset: "text.group-reset"
+    };
+    SHARED_TEXTS = {
+      [SINGLE_KEYS.previewExample]: PREVIEW_EXAMPLE,
+      [SINGLE_KEYS.previewLine]: PREVIEW_LINE_TEXT,
+      [SINGLE_KEYS.previewEmptyRight]: PREVIEW_EMPTY_RIGHT,
+      [SINGLE_KEYS.moduleOff]: MODULE_OFF_NOTE,
+      [SINGLE_KEYS.calloutTipLabel]: "this tab",
+      [SINGLE_KEYS.groupReset]: "Reset the group"
+    };
+    FRAME_TEXTS = {
+      /* Сброс группы (Н3, Н5). */
+      RESET_TITLE: "Reset {0}",
+      RESET_ONE: "One setting in this group goes back to its default",
+      RESET_MANY: "{0} settings in this group go back to their defaults",
+      RESET_MORE: "and {0} more",
+      RESET_CONFIRM: "Reset the group",
+      RESET_NOTE: "Your Fields, Values and rules are not touched",
+      RESET_DONE: "{0} settings back to default. Use Undo settings change to revert",
+      RESET_TIP_ONE: "Reset group: {0} setting differs from the default",
+      RESET_TIP_MANY: "Reset group: {0} settings differ from the default",
+      RESET_TIP_CLEAN: "Everything here is already at its default",
+      /* «?» у заголовка группы. */
+      MORE_ABOUT: "More about {0}",
+      /* Значение словами в списке того, что сбрасывается. */
+      WORD_ON: "on",
+      WORD_OFF: "off",
+      WORD_EMPTY: "empty",
+      /* Пустые состояния живых предпросмотров. */
+      BARS_NEED_FIELD: "Bars need a Field: pick one in <code>Which Field draws Bars</code> above",
+      BARS_NO_TAG_FIELD: "Bars are drawn from the colours of a tag Field, and there is no tag Field yet: add one under <code>Tags &amp; PKM</code>",
+      BARS_FIELD_GONE: "The Field these Bars were drawn for is gone: pick another one above",
+      PREVIEW_LEFT_BLOCK: "Left Block",
+      PREVIEW_RIGHT_BLOCK: "Right Block",
+      PREVIEW_SEPARATOR_1: "separator 1",
+      PREVIEW_SEPARATOR_2: "separator 2",
+      PREVIEW_EMPTY_VALUE: "empty",
+      PREVIEW_BEFORE: "Before",
+      PREVIEW_AFTER: "After",
+      PREVIEW_NO_FIELDS: "no Fields yet \u2014 set one up under <code>Tags &amp; PKM</code> and the example fills in"
+    };
+    FRAME_BY_NAME = FRAME_TEXTS;
+  }
+});
+
 // src/ui/settings/describe.ts
 function richParts(text) {
   const out = [];
@@ -21499,19 +21629,20 @@ function callout(tab) {
     const text = TAB_CALLOUTS[tab];
     if (!text) return () => {
     };
+    const say3 = (slot) => ctx.t ? ctx.t(calloutKey(tab, slot), text[slot]) : text[slot];
     const box = el(host, "div", "io-callout");
     const head = el(box, "div", "io-callout__head");
-    rich(head, text.head);
+    rich(head, say3("head"));
     const closeTip = tipBelow({
       head,
       host,
-      text: text.tip,
+      text: say3("tip"),
       label: "this tab",
       id: "io-tip-callout-" + tab,
       showTips: Boolean(ctx.get("general.help.showTips")),
       showIds: Boolean(ctx.get("advanced.showSettingIds"))
     });
-    rich(el(box, "p", "io-callout__body"), text.body);
+    rich(el(box, "p", "io-callout__body"), say3("body"));
     return closeTip;
   };
 }
@@ -21519,6 +21650,7 @@ var init_callouts = __esm({
   "src/ui/settings/custom/callouts.ts"() {
     "use strict";
     init_custom_texts();
+    init_texts_custom();
     init_dom();
   }
 });
@@ -21540,6 +21672,27 @@ var init_general = __esm({
           { kind: "custom", id: "general-callout", render: callout("general") }
         ],
         visible: on("general.help.showCallouts")
+      },
+      {
+        id: "language",
+        tab: "general",
+        order: 50,
+        heading: "Language",
+        intro: "The panel, its tips and the messages this plugin shows can speak another language, and the words behind them live in a file you can edit yourself",
+        tip: "Every visible line of this panel has a name of its own, and the words behind those names sit in a small text file inside the plugin folder \u2014 one file per language. Change a line there, reload the plugin, and the panel says what you wrote: rewording a setting is no longer something you have to ask for. To add a language, copy the English file under a new name and translate the right-hand side. Anything you leave alone keeps its English wording, so a half-finished translation is still worth using",
+        items: [
+          {
+            kind: "dropdown",
+            id: "ui-language",
+            path: "general.language",
+            default: "en",
+            options: [],
+            optionsFrom: "languages",
+            name: "Language",
+            desc: "What language this panel and the plugin messages speak",
+            tip: "The list holds English plus every language file found in the plugin folder, and it is built from the files themselves \u2014 nothing has to be registered anywhere. Switching takes effect at once, without a reload. A line that has no translation yet keeps its English wording rather than showing you a blank"
+          }
+        ]
       },
       {
         id: "help",
@@ -22245,6 +22398,7 @@ var init_command_reference = __esm({
     init_dom();
     init_keepview();
     init_custom_texts();
+    init_texts_custom();
     init_hotkeys();
     FAMILY_BY_ROW = {
       "Status next": "field-next",
@@ -22272,7 +22426,7 @@ var init_command_reference = __esm({
         const keep2 = keepView(box);
         const next = el(box, "div", "io-cmdblock__mount");
         try {
-          fill(next);
+          fill2(next);
         } catch (e) {
           next.remove();
           console.error("inline-overhaul: \u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A \u043A\u043E\u043C\u0430\u043D\u0434 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
@@ -22282,30 +22436,32 @@ var init_command_reference = __esm({
         mounted = next;
         keep2.restore();
       };
-      const fill = (mount) => {
+      const fill2 = (mount) => {
         const commands = typeof plugin.listOwnCommands === "function" ? plugin.listOwnCommands() : [];
         const scroll = el(mount, "div", "io-scroll");
         const card = el(scroll, "div", "io-cmd");
         const inner = el(card, "div", "io-cmd__inner");
         const head = el(inner, "div", "io-cmd__head");
         for (const title of HEAD2) el(head, "div", void 0, title);
-        for (const area of COMMAND_TEXTS) {
+        COMMAND_TEXTS.forEach((area, areaAt) => {
           const rows = [];
-          for (const protoRow of area.list) {
+          const say3 = (slot, fallback) => ctx.t ? ctx.t(commandKey(areaAt, slot), fallback) : fallback;
+          area.list.forEach((protoRow, rowAt) => {
+            const does = say3("list." + rowAt + ".does", protoRow.does);
             const family = FAMILY_BY_ROW[protoRow.name];
             if (!family) {
               const cmd = commands.find((c) => c.area === area.area && c.name === protoRow.name) || commands.find((c) => c.name === protoRow.name) || null;
-              if (cmd) rows.push({ row: protoRow, cmd, band: "standard" });
-              continue;
+              if (cmd) rows.push({ row: { name: protoRow.name, does }, cmd, band: "standard" });
+              return;
             }
             const members = commands.filter((c) => c.family === family);
-            if (!members.length) continue;
+            if (!members.length) return;
             for (const cmd of members) {
-              rows.push({ row: { name: cmd.name, does: protoRow.does }, cmd, band: "user" });
+              rows.push({ row: { name: cmd.name, does }, cmd, band: "user" });
             }
-          }
-          if (!rows.length) continue;
-          el(inner, "div", "io-cmd__area", area.area);
+          });
+          if (!rows.length) return;
+          el(inner, "div", "io-cmd__area", say3("area", area.area));
           const ordered = area.parts ? splitAndGroup(rows) : rows;
           let part = "";
           let field = "";
@@ -22313,12 +22469,7 @@ var init_command_reference = __esm({
             if (area.parts && band && band !== part) {
               part = band;
               field = "";
-              el(
-                inner,
-                "div",
-                "io-cmd__sub",
-                band === "user" ? area.parts.user : area.parts.standard
-              );
+              el(inner, "div", "io-cmd__sub", band === "user" ? say3("parts.user", area.parts.user) : say3("parts.standard", area.parts.standard));
             }
             if (area.parts) {
               const heading = fieldHeading(cmd);
@@ -22342,7 +22493,7 @@ var init_command_reference = __esm({
               if (canOpen) openHotkeys(plugin, row.name);
             }));
           }
-        }
+        });
       };
       draw();
       const stop = ctx.watch([
@@ -22612,19 +22763,19 @@ function createFieldsModel(deps) {
   };
   const getOrderKeys = () => {
     const out = [];
-    const push = (k) => {
+    const push2 = (k) => {
       const key = String(k || "").trim();
       if (!key || SUB_SUFFIX_RE.test(key)) return;
       if (!out.includes(key)) out.push(key);
     };
-    for (const k of pkmOrderFields) push(k);
-    for (const k of orderState.left || []) push(k);
-    for (const k of orderState.right || []) push(k);
-    for (const k of Object.keys(orderState.labels || {})) push(k);
-    for (const k of Object.keys(orderState.strictNames || {})) push(k);
-    for (const k of Object.keys(orderState.active || {})) push(k);
-    for (const k of Object.keys(orderState.freeRoam || {})) push(k);
-    for (const k of Object.keys(orderState.types || {})) push(k);
+    for (const k of pkmOrderFields) push2(k);
+    for (const k of orderState.left || []) push2(k);
+    for (const k of orderState.right || []) push2(k);
+    for (const k of Object.keys(orderState.labels || {})) push2(k);
+    for (const k of Object.keys(orderState.strictNames || {})) push2(k);
+    for (const k of Object.keys(orderState.active || {})) push2(k);
+    for (const k of Object.keys(orderState.freeRoam || {})) push2(k);
+    for (const k of Object.keys(orderState.types || {})) push2(k);
     return out;
   };
   const getFieldKind = (k) => {
@@ -23274,15 +23425,15 @@ function createFieldsModel(deps) {
         if (marker) tokens.push(marker);
       } else {
         const ve = valuesEditor(row.key);
-        const push = (raw) => {
+        const push2 = (raw) => {
           const token = String(raw || "").trim();
           if (!token) return;
           const shown = row.kind === "wikilink" ? token.replace(/^\[\[|\]\]$/g, "").replace(/^#/, "").trim() : token;
           if (shown && !tokens.includes(shown)) tokens.push(shown);
         };
         for (const top of ve.tree) {
-          push(top.token);
-          for (const child of top.children || []) push(child.token);
+          push2(top.token);
+          for (const child of top.children || []) push2(child.token);
         }
       }
       out.push({ key: row.key, label: row.label, kind: row.kind, tokens });
@@ -25964,7 +26115,7 @@ var require_fields_editor_legacy = __commonJS({
                     if (visualRow.fillColor) preview.style.background = visualRow.fillColor;
                     if (visualRow.textColor) preview.style.color = visualRow.textColor;
                     const applyPreview = () => {
-                      const fill = normalizeHexColorInput(fillHex.value);
+                      const fill2 = normalizeHexColorInput(fillHex.value);
                       const text = normalizeHexColorInput(textHex.value);
                       const visRaw = String(visSel.value || "default").trim().toLowerCase();
                       const vis = ["default", "empty", "custom"].includes(visRaw) ? visRaw : "default";
@@ -25988,7 +26139,7 @@ var require_fields_editor_legacy = __commonJS({
                         preview.style.whiteSpace = "nowrap";
                         preview.style.color = text || visualRow.textColor || "";
                       }
-                      if (fill) preview.style.background = fill;
+                      if (fill2) preview.style.background = fill2;
                       else preview.style.background = visualRow.fillColor || "var(--background-primary)";
                       if (effectiveVis !== "empty") {
                         if (text) preview.style.color = text;
@@ -26001,8 +26152,8 @@ var require_fields_editor_legacy = __commonJS({
                         txtBtn.style.color = getContrastTextHex(text || "#999999");
                       }
                       if (fillBtn && fillBtn.style) {
-                        fillBtn.style.background = fill || "";
-                        fillBtn.style.color = getContrastTextHex(fill || "#999999");
+                        fillBtn.style.background = fill2 || "";
+                        fillBtn.style.color = getContrastTextHex(fill2 || "#999999");
                       }
                     };
                     const commitText = () => {
@@ -26415,14 +26566,14 @@ var require_fields_editor_legacy = __commonJS({
             renderOrderBoard();
           };
           const applyPreview = () => {
-            const fill = normalizeHexColorInput(fillHex.value || fillPicker.value);
+            const fill2 = normalizeHexColorInput(fillHex.value || fillPicker.value);
             const text = normalizeHexColorInput(textHex.value || textPicker.value);
             const vis = String(visSel.value || "default").trim().toLowerCase() === "empty" ? "empty" : "default";
             preview.setText(vis === "empty" ? "   " : token);
-            preview.style.background = fill || "";
+            preview.style.background = fill2 || "";
             preview.style.color = text || "";
-            fillHex.style.background = fill || "";
-            fillHex.style.color = getContrastTextHex(fill || "#111111");
+            fillHex.style.background = fill2 || "";
+            fillHex.style.color = getContrastTextHex(fill2 || "#111111");
           };
           const commitText = () => {
             const norm = normalizeHexColorInput(textHex.value);
@@ -26599,7 +26750,7 @@ function sortableList(host, o) {
     }
   });
 }
-function block(host, ctx, cls, paths, fill) {
+function block(host, ctx, cls, paths, fill2) {
   const box = el(host, "div", cls);
   let mounted = null;
   const commit = (write) => {
@@ -26615,7 +26766,7 @@ function block(host, ctx, cls, paths, fill) {
     const keep2 = keepView(box);
     const next = el(box, "div", cls + "__mount");
     try {
-      fill(next, commit);
+      fill2(next, commit);
     } catch (e) {
       next.remove();
       console.error("inline-overhaul: \u0441\u043F\u0438\u0441\u043E\u043A \u043F\u043E\u0440\u044F\u0434\u043A\u0430 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
@@ -27256,7 +27407,7 @@ function realFields(ctx) {
       if (row.kind !== "element") {
         const ve = model.valuesEditor(row.key);
         const fieldId = ve.parentFieldId || row.strictName;
-        const push = (token, depth) => {
+        const push2 = (token, depth) => {
           const tok = String(token || "").trim();
           if (!tok) return;
           const visual = model.getValueVisual(fieldId, tok);
@@ -27270,8 +27421,8 @@ function realFields(ctx) {
           });
         };
         for (const top of ve.tree) {
-          push(top.token, 0);
-          for (const child of top.children || []) push(child.token, 1);
+          push2(top.token, 0);
+          for (const child of top.children || []) push2(child.token, 1);
         }
       }
       out.push({
@@ -27392,6 +27543,12 @@ function num(ctx, path) {
   const v = Number(ctx.get(path));
   return Number.isFinite(v) ? v : 0;
 }
+function say(ctx, key, fallback) {
+  return ctx.t ? ctx.t(key, fallback) : fallback;
+}
+function frame(ctx, name) {
+  return say(ctx, frameKey(name), FRAME_BY_NAME[name] || "");
+}
 function str2(ctx, path, fallback) {
   const v = ctx.get(path);
   const s = v === void 0 || v === null ? "" : String(v);
@@ -27399,14 +27556,15 @@ function str2(ctx, path, fallback) {
 }
 function previewShell(host, ctx, id) {
   const text = PREVIEW_TEXTS[id];
+  const cap0 = text ? say(ctx, previewKey(id, "cap"), text.cap) : "";
   const box = el(host, "div", "io-preview");
   const cap = el(box, "div", "io-preview__cap");
-  el(cap, "span", void 0, text ? text.cap : "");
+  el(cap, "span", void 0, cap0);
   const close = tipBelow({
     head: cap,
     host: box,
-    text: text ? text.tip : "",
-    label: text ? text.cap : id,
+    text: text ? say(ctx, previewKey(id, "tip"), text.tip) : "",
+    label: cap0 || id,
     id: "io-tip-" + id,
     showTips: Boolean(ctx.get("general.help.showTips")),
     showIds: Boolean(ctx.get("advanced.showSettingIds"))
@@ -27463,11 +27621,11 @@ function structuralLine(parent, ctx, fields, chipFor, cls) {
   const left = fieldsOn(fields, "left");
   if (left.length) put(el(line, "span", "io-line__side io-line__side--left"), left);
   el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
-  el(line, "span", "io-line__text", PREVIEW_LINE_TEXT);
+  el(line, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT));
   el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator2", "||"));
   const right = fieldsOn(fields, "right");
   if (right.length) put(el(line, "span", "io-line__side io-line__side--right"), right);
-  else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
+  else el(line, "span", "io-line__hint", say(ctx, SINGLE_KEYS.previewEmptyRight, PREVIEW_EMPTY_RIGHT));
   return line;
 }
 function valueSpellings(fields) {
@@ -27522,13 +27680,14 @@ function caretBlinkMs(speed) {
   const s = Number.isFinite(speed) ? Math.max(1, Math.min(10, speed)) : 5;
   return 2200 - s * 200;
 }
-var import_transform_feature, TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_FIELD_NONE, BARS_NO_TAGS, BARS_FIELD_GONE, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview, FLOAT_PATHS, FLOAT_LABEL, floatingButton, SOURCE_BEFORE, SOURCE_AFTER, SOURCE_NO_FIELDS, SOURCE_PATHS, sourcePreview, CARET_PATHS, CARET_THEME_WIDTH, CARET_THEME_BLINK, caretPreview;
+var import_transform_feature, TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview, FLOAT_PATHS, FLOAT_LABEL, floatingButton, SOURCE_PATHS, sourcePreview, CARET_PATHS, CARET_THEME_WIDTH, CARET_THEME_BLINK, caretPreview;
 var init_previews = __esm({
   "src/ui/settings/custom/previews.ts"() {
     "use strict";
     init_custom_texts();
     init_dom();
     init_preview_data();
+    init_texts_custom();
     import_transform_feature = __toESM(require_transform_feature());
     TAG_PATHS = [
       "visual.tags.opacityLeft",
@@ -27614,7 +27773,7 @@ var init_previews = __esm({
         const room = (rows2) => (rows2 ? rows2 * WHEEL_ROW + WHEEL_CHROME : 0) + "px";
         cssVar(shell.box, "--io-wheel-up", room(up.length));
         cssVar(shell.box, "--io-wheel-down", room(down.length));
-        const fill = str2(ctx, "visual.tagWheel.fillColor", "");
+        const fill2 = str2(ctx, "visual.tagWheel.fillColor", "");
         const text = str2(ctx, "visual.tagWheel.textColor", "");
         const activeText = str2(ctx, "visual.tagWheel.activeTextColor", "") || text;
         const lit = Boolean(ctx.get("visual.tagWheel.highlightLine"));
@@ -27634,7 +27793,7 @@ var init_previews = __esm({
           side.addClass("io-wheelline");
           if (!lit) return;
           side.addClass("io-wheelline--lit");
-          if (fill) cssVar(side, "--io-wheel-lit", fill);
+          if (fill2) cssVar(side, "--io-wheel-lit", fill2);
         };
         structuralLine(stage, ctx, fields, (side, f) => {
           dressSide(side);
@@ -27656,7 +27815,7 @@ var init_previews = __esm({
           scrollerBox(col, up, "up");
           scrollerBox(col, down, "down");
         }, "io-line--wheel");
-        if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+        if (example) rich(el(foot, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
       };
       draw();
       const unwatch = ctx.watch(WHEEL_PATHS, draw);
@@ -27665,9 +27824,6 @@ var init_previews = __esm({
         shell.close();
       };
     };
-    BARS_FIELD_NONE = "Bars need a Field: pick one in <code>Which Field draws Bars</code> above";
-    BARS_NO_TAGS = "Bars are drawn from the colours of a tag Field, and there is no tag Field yet: add one under <code>Tags &amp; PKM</code>";
-    BARS_FIELD_GONE = "The Field these Bars were drawn for is gone: pick another one above";
     BARS_PATHS = [
       "visual.tagBars.active",
       "visual.tagBars.tagVisibility",
@@ -27773,9 +27929,9 @@ var init_previews = __esm({
         for (const node of nodes) drawNode(tree, node, 0, fields, slots);
         const chosen = chosenField();
         if (ctx.get("visual.tagBars.active") && !fields.some((f) => f.id === chosen)) {
-          rich(el(tree, "p", "io-preview__note"), !tags.length ? BARS_NO_TAGS : chosen ? BARS_FIELD_GONE : BARS_FIELD_NONE);
+          rich(el(tree, "p", "io-preview__note"), !tags.length ? frame(ctx, "BARS_NO_TAG_FIELD") : frame(ctx, chosen ? "BARS_FIELD_GONE" : "BARS_NEED_FIELD"));
         }
-        if (example) rich(el(tree, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+        if (example) rich(el(tree, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
       };
       draw();
       const unwatch = ctx.watch(BARS_PATHS, draw);
@@ -27784,11 +27940,6 @@ var init_previews = __esm({
         shell.close();
       };
     };
-    STRUCT_LEFT = "Left Block";
-    STRUCT_RIGHT = "Right Block";
-    STRUCT_SEP1 = "separator 1";
-    STRUCT_SEP2 = "separator 2";
-    STRUCT_EMPTY_RIGHT = "empty";
     LINE_PATHS = [
       "pkm.lineFormat.separator1",
       "pkm.lineFormat.separator2",
@@ -27816,9 +27967,9 @@ var init_previews = __esm({
         foot.empty();
         applyTagVars(holder, ctx);
         const { fields, example } = previewFields(ctx);
-        const cell = (cls, fill) => {
+        const cell = (cls, fill2) => {
           const c = el(holder, "div", "io-struct__cell " + cls);
-          if (fill) fill(c);
+          if (fill2) fill2(c);
           return c;
         };
         cell("io-struct__prefix", (c) => {
@@ -27831,7 +27982,7 @@ var init_previews = __esm({
           el(c, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
         });
         cell("io-struct__text", (c) => {
-          el(c, "span", "io-line__text", PREVIEW_LINE_TEXT);
+          el(c, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT));
         });
         cell("io-struct__sep", (c) => {
           el(c, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator2", "||"));
@@ -27839,7 +27990,7 @@ var init_previews = __esm({
         cell("io-struct__side io-line__side--right", (c) => {
           const right = fieldsOn(fields, "right");
           if (right.length) for (const f of right) fieldChip(c, f);
-          else el(c, "span", "io-line__hint", STRUCT_EMPTY_RIGHT);
+          else el(c, "span", "io-line__hint", frame(ctx, "PREVIEW_EMPTY_VALUE"));
         });
         const block2 = (text) => {
           const w = el(holder, "div", "io-struct__block");
@@ -27847,21 +27998,21 @@ var init_previews = __esm({
           el(w, "div", "io-struct__name", text);
         };
         el(holder, "div");
-        block2(STRUCT_LEFT);
+        block2(frame(ctx, "PREVIEW_LEFT_BLOCK"));
         el(holder, "div", "io-struct__tick");
         el(holder, "div");
         el(holder, "div", "io-struct__tick");
-        block2(STRUCT_RIGHT);
+        block2(frame(ctx, "PREVIEW_RIGHT_BLOCK"));
         const sepName = (text) => {
           el(el(holder, "div", "io-struct__sepname"), "span", void 0, text);
         };
         el(holder, "div");
         el(holder, "div");
-        sepName(STRUCT_SEP1);
+        sepName(frame(ctx, "PREVIEW_SEPARATOR_1"));
         el(holder, "div");
-        sepName(STRUCT_SEP2);
+        sepName(frame(ctx, "PREVIEW_SEPARATOR_2"));
         el(holder, "div");
-        if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+        if (example) rich(el(foot, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
       };
       draw();
       const unwatch = ctx.watch(LINE_PATHS, draw);
@@ -27888,12 +28039,12 @@ var init_previews = __esm({
           if (f) tagField(left, f, ctx);
         }
         el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
-        el(line, "span", "io-line__text", text ? text.line || "" : "");
+        el(line, "span", "io-line__text", text ? say(ctx, previewKey("tag-preview", "line"), text.line || "") : "");
         el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator2", "||"));
         const right = el(line, "span", "io-line__side io-line__side--right");
-        if (text && text.element) el(right, "span", "io-elem", text.element);
-        if (text && text.link) el(right, "span", "io-link", text.link);
-        if (example) rich(el(holder, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+        if (text && text.element) el(right, "span", "io-elem", say(ctx, previewKey("tag-preview", "element"), text.element));
+        if (text && text.link) el(right, "span", "io-link", say(ctx, previewKey("tag-preview", "link"), text.link));
+        if (example) rich(el(holder, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
       };
       draw();
       const unwatch = ctx.watch(TAG_PATHS, draw);
@@ -27929,7 +28080,7 @@ var init_previews = __esm({
         structuralLine(row, ctx, fields);
         const button = el(row, "span", "io-flybtn", FLOAT_LABEL);
         cssVar(button, "--io-flybtn-gap", num(ctx, "transform.inline2note.floatingButtonGap") + "px");
-        el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+        el(holder, "p", "io-preview__note", text ? say(ctx, previewKey("i2n-button-preview", "note"), text.note || "") : "");
       };
       draw();
       const unwatch = ctx.watch(FLOAT_PATHS, draw);
@@ -27938,9 +28089,6 @@ var init_previews = __esm({
         shell.close();
       };
     };
-    SOURCE_BEFORE = "Before";
-    SOURCE_AFTER = "After";
-    SOURCE_NO_FIELDS = "no Fields yet \u2014 set one up under <code>Tags &amp; PKM</code> and the example fills in";
     SOURCE_PATHS = [
       "transform.inline2note.sourceProcessing.text",
       "transform.inline2note.sourceProcessing.keepWords",
@@ -27965,7 +28113,7 @@ var init_previews = __esm({
         const before = tree && Array.isArray(tree.before) ? tree.before : [];
         const after = tree && Array.isArray(tree.after) ? tree.after : [];
         if (!before.length) {
-          rich(el(body, "p", "io-preview__note"), SOURCE_NO_FIELDS);
+          rich(el(body, "p", "io-preview__note"), frame(ctx, "PREVIEW_NO_FIELDS"));
           return;
         }
         const fields = previewFields(ctx).fields;
@@ -27979,8 +28127,8 @@ var init_previews = __esm({
             drawSourceLine(row, ctx, line.replace(/^\s+/, ""), known);
           }
         };
-        half(SOURCE_BEFORE, before);
-        half(SOURCE_AFTER, after);
+        half(frame(ctx, "PREVIEW_BEFORE"), before);
+        half(frame(ctx, "PREVIEW_AFTER"), after);
       };
       draw();
       const unwatch = ctx.watch(SOURCE_PATHS, draw);
@@ -28005,7 +28153,7 @@ var init_previews = __esm({
       const draw = () => {
         holder.empty();
         const row = el(holder, "div", "io-caretline");
-        el(row, "span", void 0, PREVIEW_LINE_TEXT + " ");
+        el(row, "span", void 0, say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT) + " ");
         el(row, "span", "io-caret");
         const shaped = ctx.get("visual.caret.shapeEnabled") === true;
         const width = shaped ? num(ctx, "visual.caret.width") || 2 : CARET_THEME_WIDTH;
@@ -28017,7 +28165,7 @@ var init_previews = __esm({
         cssVar(row, "--io-caret-blink", (shaped ? caretBlinkMs(speed) : CARET_THEME_BLINK) + "ms");
         if (shaped && speed <= 0) row.classList.add("io-caretline--still");
         else row.classList.remove("io-caretline--still");
-        el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+        el(holder, "p", "io-preview__note", text ? say(ctx, previewKey("caret-preview", "note"), text.note || "") : "");
       };
       draw();
       const unwatch = ctx.watch(CARET_PATHS, draw);
@@ -30760,23 +30908,26 @@ var init_smart_rules_model = __esm({
 });
 
 // src/ui/settings/templates.ts
-function templatesEmptyChoice(folder) {
+function templatesEmptyChoice(folder, say3) {
   const root = String(folder || "").trim().replace(/\/+$/, "");
-  return root ? { value: "", label: "No templates in " + root } : { value: "", label: "Set a Templates folder first" };
+  const t = say3 || PLAIN;
+  return root ? { value: "", label: t("NO_TEMPLATES", "No templates in") + " " + root } : { value: "", label: t("NO_TEMPLATE_FOLDER", "Set a Templates folder first") };
 }
-function templateOptions(folder, notes) {
+function templateOptions(folder, notes, say3) {
   const root = String(folder || "").trim().replace(/\/+$/, "");
-  if (!root) return [templatesEmptyChoice(root)];
+  if (!root) return [templatesEmptyChoice(root, say3)];
   const prefix = root + "/";
   const inside = notes.map((p) => String(p || "")).filter((p) => p.startsWith(prefix)).sort((a, b) => a.localeCompare(b));
-  if (!inside.length) return [templatesEmptyChoice(root)];
-  return [{ value: "", label: "None" }].concat(
+  if (!inside.length) return [templatesEmptyChoice(root, say3)];
+  return [{ value: "", label: (say3 || PLAIN)("WORD_NONE", "None") }].concat(
     inside.map((p) => ({ value: p, label: p.slice(prefix.length) }))
   );
 }
+var PLAIN;
 var init_templates = __esm({
   "src/ui/settings/templates.ts"() {
     "use strict";
+    PLAIN = (_name, english) => english;
   }
 });
 
@@ -31266,7 +31417,7 @@ var init_source_fields = __esm({
         const keep2 = keepView(box);
         const next = el(box, "div", "io-keepfields__mount");
         try {
-          fill(next);
+          fill2(next);
         } catch (e) {
           next.remove();
           console.error("inline-overhaul: \u0441\u043F\u0438\u0441\u043E\u043A Fields \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439 \u0441\u0442\u0440\u043E\u043A\u0438 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
@@ -31276,7 +31427,7 @@ var init_source_fields = __esm({
         mounted = next;
         keep2.restore();
       };
-      const fill = (mount) => {
+      const fill2 = (mount) => {
         const fields = realFields(ctx);
         const kept = new Set(keptIds(ctx));
         const enabled = Boolean(ctx.get("transform.inline2note.enabled"));
@@ -32251,12 +32402,12 @@ function migrateV1(raw, report) {
 }
 function fillDefaults(cfg) {
   const fromSchema = buildDefaultConfig(SCHEMA);
-  const fill = (defaults, prefix) => {
+  const fill2 = (defaults, prefix) => {
     for (const key of Object.keys(defaults)) {
       const path = prefix ? prefix + "." + key : key;
       const value = defaults[key];
       if (isPlainObject(value)) {
-        fill(value, path);
+        fill2(value, path);
         continue;
       }
       if (getIn(cfg, path) === void 0) setIn(cfg, path, cloneJson(value));
@@ -32265,7 +32416,7 @@ function fillDefaults(cfg) {
   for (const path of Object.keys(V2_SKELETON)) {
     if (getIn(cfg, path) === void 0) setIn(cfg, path, cloneJson(V2_SKELETON[path]));
   }
-  fill(fromSchema, "");
+  fill2(fromSchema, "");
   return cfg;
 }
 function migrate(raw, opts) {
@@ -32310,8 +32461,8 @@ async function backupV1Once(files, dir, originalText) {
 async function moveGeneratedRulesIntoPluginFolder(files, dir, cfg, legacyDefaults) {
   const target = join(dir, RULES_FILE);
   const current = String(getIn(cfg, "advanced.generatedRulesPath") || "").trim();
-  const untouched = !current || current === LEGACY_RULES_FILE || legacyDefaults.indexOf(current) !== -1 || current === target;
-  if (!untouched) return { path: current, moved: false, orphanRemoved: false };
+  const untouched2 = !current || current === LEGACY_RULES_FILE || legacyDefaults.indexOf(current) !== -1 || current === target;
+  if (!untouched2) return { path: current, moved: false, orphanRemoved: false };
   setIn(cfg, "advanced.generatedRulesPath", target);
   let orphanRemoved = false;
   if (typeof files.remove === "function") {
@@ -32343,12 +32494,12 @@ async function loadConfig(files, dir, notify, opts) {
   };
   if (!await files.exists(configPath)) {
     const fresh = migrate(null, merged);
-    const seeded = applyStarterSet(fresh);
+    const seeded2 = applyStarterSet(fresh);
     return withRulesPath({
       config: fresh,
       state: "absent",
       report,
-      ...seeded ? { starterSet: true } : {}
+      ...seeded2 ? { starterSet: true } : {}
     });
   }
   const text = await files.read(configPath);
@@ -32627,6 +32778,10 @@ var init_config_migration_v2 = __esm({
       /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание
          досыпает схема (замечание заказчика 2026-09-04). */
       keepV2("general.help.showCallouts"),
+      /* Язык панели (10.13.38): путь версии 2, пары в версии 1 нет. Без маршрута
+         форма v2 в конфиге считалась бы неизвестным ключом и уезжала в
+         `_unmigrated`. */
+      keepV2("general.language"),
       keepV2("advanced.newSettingsPane"),
       /* Тумблер подписи id в подсказках (10.13.5): настройка новая, ветки v1 у неё
          нет, и мигрировать нечего — но маршрут нужен, чтобы форма v2 в конфиге
@@ -32865,7 +33020,8 @@ function moduleGate(schema, active, w) {
   );
   const items = [];
   if (row) items.push(row);
-  items.push({ name: "", desc: MODULE_OFF_NOTE, searchable: false });
+  const moduleOff = w.ctx.t ? w.ctx.t(SINGLE_KEYS.moduleOff, MODULE_OFF_NOTE) : MODULE_OFF_NOTE;
+  items.push({ name: "", desc: moduleOff, searchable: false });
   return {
     type: "group",
     heading: active.label,
@@ -32895,6 +33051,7 @@ var init_to_definitions = __esm({
     init_types();
     init_theme_colors();
     init_custom_texts();
+    init_texts_custom();
     CONTROL_TYPE = {
       toggle: "toggle",
       dropdown: "dropdown",
@@ -32908,14 +33065,431 @@ var init_to_definitions = __esm({
   }
 });
 
+// src/ui/settings/texts_dialogs.ts
+function dialogKey(name) {
+  const owner = OWNER_OF[name] || "shared";
+  return "dialog." + owner + "." + name.toLowerCase().replace(/_/g, "-");
+}
+function dialogEntries(owner) {
+  const table = DIALOG_TEXTS[owner];
+  if (!table) return [];
+  return Object.entries(table).map(([name, text]) => ({ key: dialogKey(name), text }));
+}
+function fill(text, ...args) {
+  return String(text).replace(/\{(\d+)\}/g, (whole, n) => {
+    const value = args[Number(n)];
+    return value === void 0 ? whole : String(value);
+  });
+}
+var DIALOG_TEXTS, ACTION_TEXTS, TEXT_BY_NAME, OWNER_OF;
+var init_texts_dialogs = __esm({
+  "src/ui/settings/texts_dialogs.ts"() {
+    "use strict";
+    DIALOG_TEXTS = {
+      "open-howto": {
+        GUIDE_MADE: "Guide written and opened",
+        GUIDE_OPENED: "Guide opened"
+      },
+      "save-backup": {
+        SAVE_TITLE: "Save a backup",
+        /** Оно же стояло абзацем под заголовком до 2026-09-06 (замечание заказчика). */
+        SAVE_TIP: "Everything is picked already, so pressing the button straight away saves the lot. Uncheck a tab and it stays out: restoring this backup will then leave that tab exactly as you have it",
+        SAVE_COMMENT_LABEL: "What is this backup for",
+        SAVE_COMMENT_HINT: "Optional. You will see this line in `Restore a backup`",
+        SAVE_PARTS_LABEL: "Choose modules you want to backup",
+        SAVE_PARTS_TIP: "One box per tab of this plugin. A tab you leave unchecked is not written into this backup at all, and restoring it later leaves that tab exactly as you have it then",
+        SAVE_HOTKEYS_LABEL: "Hotkeys to keep",
+        SAVE_HOTKEYS_TIP: "`Only this plugin\u2019s commands` is the safe one: restoring can then never take a key away from another plugin. `Every hotkey in this vault` writes other plugins\u2019 keys into the backup as well, and restoring puts them back",
+        SAVE_HOTKEYS_OWN: "Only this plugin\u2019s commands",
+        SAVE_HOTKEYS_ALL: "Every hotkey in this vault",
+        SAVE_HOTKEYS_NONE: "None",
+        SAVE_CONFIRM: "Save",
+        SAVE_NOTHING: "Nothing was picked, so there is nothing to save",
+        BACKUP_SAVED: "Settings saved"
+      },
+      "restore-backup": {
+        /* Окно выбора копии (Б9). */
+        PICK_TITLE: "Restore a backup",
+        PICK_BODY: "Newest first",
+        BACKUP_NONE: "No backups found in",
+        /* Окно подтверждения. */
+        RESTORE_TITLE: "Restore these settings",
+        RESTORE_BODY: "This replaces everything you have set up, on every tab. What you have now is saved as a backup first",
+        /**
+         * Тот же вопрос, когда копия перед записью выключена (C56). Обещать копию,
+         * которой не будет, нельзя: вопрос о разрушительном действии — единственное
+         * место, где человек ещё может остановиться.
+         */
+        RESTORE_BODY_NO_BACKUP: "This replaces everything you have set up, on every tab, and what you have now is not saved anywhere first",
+        RESTORE_CONFIRM: "Replace my settings",
+        RESTORE_NOTE: "Your open tab and what you have expanded here stay as they are",
+        RESTORE_NOTE_OTHERS: "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin",
+        /* Строки списка «что вернётся и что останется». */
+        ROW_RESTORING: "Restoring {0}",
+        ROW_PARTS_BACK: "Tabs coming back: {0}",
+        ROW_PARTS_KEPT: "Staying as you have them now: {0}",
+        ROW_HOTKEYS_OWN: "And {0} on the plugin commands",
+        ROW_HOTKEYS_VAULT: "And {0} from this vault",
+        /* Объём хоткеев в копии — сказать в окне восстановления прямо. */
+        HOTKEYS_ALL_WARNING: "This backup holds hotkeys of other plugins too, and restoring puts them back",
+        /* Конфликты хоткеев (ответ заказчика 2026-09-06). */
+        CONFLICT_LABEL: "Free up keys other commands are holding",
+        CONFLICT_SUB: "Off by default: this is the one thing here that changes settings outside this plugin",
+        CONFLICT_HELD: "Held by {0}: {1}",
+        /**
+         * Конфликтов нет — сказать об этом вслух (замечание заказчика 2026-09-06:
+         * «я не увидел этой опции при восстановлении… хотя там были конфликтующие
+         * хоткеи»). Молчание неотличимо от «плагин не посмотрел», и разбирать потом
+         * приходится по памяти человека, а не по тому, что было на экране (У-80).
+         */
+        CONFLICT_NONE: "No other command is holding those keys",
+        /**
+         * Копия объёма `all` несёт чужие хоткеи в себе и сама их и перезапишет —
+         * галочки тут не бывает, и это надо сказать, а не оставить пустое место.
+         */
+        CONFLICT_SCOPE_ALL: "This backup sets other commands\u2019 keys itself, so there is nothing to free up separately",
+        /** В копии хоткеев нет вовсе — тоже ответ, и его тоже надо дать. */
+        HOTKEYS_NONE_HERE: "No hotkeys in this backup, so the ones you have now stay",
+        /** Папка копий остаётся своей — иначе следующее нажатие ищет её не там. */
+        FOLDER_KEPT: "Backups stay where they are now",
+        /* Чем всё кончилось. */
+        RESTORE_DONE: "Settings restored. Restart Obsidian so every part of the plugin picks them up",
+        RESTORE_SAME: "That backup matches what you already have",
+        /** Хоткеи вернулись — сказать отдельно: их человек ищет не там, где настройки. */
+        HOTKEYS_DONE: "hotkeys back on the plugin commands",
+        CONFLICT_CLEARED: "keys taken off other commands",
+        /** В копии хоткеи есть, а вернуть их этой сборкой нечем. */
+        HOTKEYS_NO_METHOD: "The hotkeys in that backup could not be put back",
+        /* Окно после восстановления (просьба заказчика 2026-09-06). */
+        RESTORED_TITLE: "Settings restored",
+        RESTORED_BODY: "Everything from that backup is in place. A few parts of the plugin read your settings once, when Obsidian starts, so they still show what you had a minute ago",
+        RESTORED_NOTE: "Restart Obsidian to be sure every part matches the backup",
+        RESTORED_CLOSE: "Got it"
+      },
+      "reset-settings": {
+        RESET_TITLE: "Delete all your settings",
+        RESET_BODY: "Everything you have set up in this plugin goes, on every tab, and the plugin starts as if it had just been installed. What you have now is saved as a backup first",
+        RESET_CONFIRM: "Delete my settings",
+        RESET_NOTE: "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin and the folder your backups are kept in",
+        ROW_DELETING: "Deleting {0}",
+        ROW_DELETING_HOTKEYS: "And {0} you assigned to plugin commands",
+        RESET_DONE: "Settings deleted and back to defaults. Restart Obsidian so every part of the plugin picks them up",
+        RESET_NOTHING: "Your settings are already at their defaults",
+        HOTKEYS_CLEARED: "cleared"
+      },
+      shared: {
+        /** Метода нет — говорим об этом, а не молчим. */
+        NO_METHOD: "This build cannot do that yet",
+        CANCEL: "Cancel",
+        /** Пустой выбор в списке шаблонов. Своё слово, а не то же, что у хоткеев. */
+        WORD_NONE: "None",
+        SAVED_AS: "Backup",
+        /**
+         * Счёт по-английски меняет слово, по-русски — три слова. Обе формы лежат
+         * в каталоге, и выбирает между ними `plural`: собрать множественное из
+         * единственного нельзя ни в одном языке, кроме английского.
+         */
+        WORD_HOTKEY_ONE: "hotkey",
+        WORD_HOTKEY_MANY: "hotkeys",
+        WORD_KEY_ONE: "key",
+        WORD_KEY_MANY: "keys",
+        WORD_FIELD_ONE: "Field",
+        WORD_FIELD_MANY: "Fields",
+        WORD_VALUE_ONE: "Value",
+        WORD_VALUE_MANY: "Values",
+        WORD_BINDER_ROW_ONE: "Binder row",
+        WORD_BINDER_ROW_MANY: "Binder rows",
+        /** Состав копии одной строкой: столько-то Fields, столько-то Values. */
+        SUMMARY_LINE: "{0}, {1} and {2}",
+        PLUGIN_VERSION: "plugin {0}",
+        /* Каталог текстов сломан — сказать, а не промолчать (Я1). */
+        TEXTS_BROKEN: "inlineOverhaul could not read {0}, so it is using English",
+        /* Панель на Obsidian старше 1.13: пустая панель хуже честного объяснения. */
+        NEEDS_UPDATE: "inlineOverhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API.",
+        NEEDS_UPDATE_HOW: "Update Obsidian, or install an earlier release of the plugin.",
+        /* Список шаблонов Transform: пусто — тоже ответ. */
+        NO_TEMPLATES: "No templates in",
+        NO_TEMPLATE_FOLDER: "Set a Templates folder first"
+      }
+    };
+    ACTION_TEXTS = (() => {
+      const out = {};
+      for (const owner of Object.keys(DIALOG_TEXTS)) {
+        const table = DIALOG_TEXTS[owner];
+        for (const [name, text] of Object.entries(table)) out[name] = text;
+      }
+      return out;
+    })();
+    TEXT_BY_NAME = ACTION_TEXTS;
+    OWNER_OF = (() => {
+      const out = {};
+      for (const owner of Object.keys(DIALOG_TEXTS)) {
+        const table = DIALOG_TEXTS[owner];
+        for (const name of Object.keys(table)) out[name] = owner;
+      }
+      return out;
+    })();
+  }
+});
+
+// src/ui/settings/texts.ts
+function groupKey(group, slot) {
+  return group + "." + slot;
+}
+function itemKey(group, item, slot) {
+  return group + "." + item + "." + slot;
+}
+function tabKey(tab, slot) {
+  return "tab." + tab + "." + slot;
+}
+function optionKey(group, item, value) {
+  return itemKey(group, item, "option." + (value === "" ? EMPTY_VALUE : value));
+}
+function pushText(out, key, text) {
+  if (typeof text !== "string" || text === "") return;
+  out.push({ key, text });
+}
+function itemEntries(out, group, it) {
+  const id = it.id;
+  const any = it;
+  pushText(out, itemKey(group, id, "name"), any.name);
+  pushText(out, itemKey(group, id, "desc"), any.desc);
+  pushText(out, itemKey(group, id, "tip"), any.tip);
+  pushText(out, itemKey(group, id, "placeholder"), any.placeholder);
+  pushText(out, itemKey(group, id, "unit"), any.unit);
+  const seeAlso = any.seeAlso;
+  if (seeAlso) pushText(out, itemKey(group, id, "seeAlso"), seeAlso.label);
+  const buttons = any.buttons;
+  if (Array.isArray(buttons)) {
+    for (const b of buttons) pushText(out, itemKey(group, id, "button." + String(b.action)), b.label);
+  }
+  const options = any.options;
+  if (Array.isArray(options)) {
+    for (const o of options) pushText(out, optionKey(group, id, String(o.value)), o.label);
+  }
+  const search = any.searchTerms;
+  if (Array.isArray(search)) {
+    search.forEach((term, i) => pushText(out, itemKey(group, id, "search." + i), term));
+  }
+}
+function catalogEntries(schema, tabs, extras) {
+  const out = [];
+  const forItem = extras && extras.forItem;
+  for (const tab of tabs) {
+    const groups = schema.filter((g) => g.tab === tab.id).slice().sort((a, b) => a.order - b.order);
+    if (!groups.length) continue;
+    out.push({ key: tabKey(tab.id, "label"), text: tab.label, gap: true });
+    pushText(out, tabKey(tab.id, "desc"), tab.desc);
+    for (const g of groups) {
+      const before = out.length;
+      pushText(out, groupKey(g.id, "heading"), g.heading);
+      pushText(out, groupKey(g.id, "intro"), g.intro);
+      pushText(out, groupKey(g.id, "tip"), g.tip);
+      for (const it of g.items) {
+        itemEntries(out, g.id, it);
+        if (forItem) for (const entry of forItem(tab.id, g, it)) out.push(entry);
+      }
+      const first = out[before];
+      if (first) first.gap = true;
+    }
+  }
+  for (const entry of extras && extras.tail || []) out.push(entry);
+  return out;
+}
+function catalogFile(lang, entries) {
+  const mine = lang === DEFAULT_FILE;
+  const head = mine ? [
+    "/*",
+    " * inlineOverhaul: every visible text of the settings panel, in English.",
+    " *",
+    " * THE PLUGIN WRITES THIS FILE. Do not edit it - each update rewrites it,",
+    " * so a new setting, a new window and a reworded line all show up here on",
+    " * their own, and anything you typed here would be gone.",
+    " *",
+    " * To translate, copy this file next to it under its own name - ru.js,",
+    " * de.js - and change " + LANGUAGE_NAME_KEY + " to the name of that language. That copy is",
+    " * yours: the plugin never touches it. Name it en.js and you are rewording",
+    " * the English instead of translating it.",
+    " *",
+    " * A line missing from your copy, and a line left empty, falls back to the",
+    " * English written here.",
+    " *",
+    " * This file is read as JSON, so keep it plain: no comments inside the",
+    " * braces below, and no comma after the last line. The plugin reads",
+    " * everything between the line that is just { and the last line that is };",
+    " */"
+  ] : [
+    "/*",
+    " * inlineOverhaul: panel texts, " + lang + ".",
+    " *",
+    " * Edit the right-hand side of any line and reload the plugin to see it.",
+    " * A line you delete, and a line you leave empty, falls back to English.",
+    " *",
+    " * This file is yours: the plugin stops touching it the moment you change",
+    " * a line in it. The English it was copied from is kept current next door,",
+    " * in default.js - copy that file again to pick up new lines.",
+    " *",
+    " * This file is read as JSON, so keep it plain: no comments inside the",
+    " * braces below, and no comma after the last line. The plugin reads",
+    " * everything between the line that is just { and the last line that is };",
+    " */"
+  ];
+  head.push(
+    "window.IO_TEXTS = window.IO_TEXTS || {};",
+    "window.IO_TEXTS[" + JSON.stringify(lang) + "] ="
+  );
+  const body = ["{"];
+  entries.forEach((entry, i) => {
+    if (entry.gap && i > 0) body.push("");
+    body.push("  " + JSON.stringify(entry.key) + ": " + JSON.stringify(entry.text) + (i === entries.length - 1 ? "" : ","));
+  });
+  body.push("};");
+  return head.join("\n") + "\n" + body.join("\n") + "\n";
+}
+function parseCatalog(text) {
+  const lines = String(text === void 0 || text === null ? "" : text).replace(/\r\n?/g, "\n").split("\n");
+  let from = -1;
+  let to = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (String(lines[i]).trim() === "{") {
+      from = i;
+      break;
+    }
+  }
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/^\}\s*;?$/.test(String(lines[i]).trim())) {
+      to = i;
+      break;
+    }
+  }
+  if (from < 0 || to <= from) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(lines.slice(from, to + 1).join("\n").replace(/;\s*$/, ""));
+  } catch (e) {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value !== "string" || value === "") continue;
+    out[key] = value;
+  }
+  return out;
+}
+function makeResolve(catalogs, lang) {
+  const own = catalogs && catalogs[lang] ? catalogs[lang] : null;
+  const base = catalogs && catalogs[BASE_LANG] ? catalogs[BASE_LANG] : null;
+  if (!own && !base) return (_key, fallback) => fallback;
+  return (key, fallback) => {
+    if (own) {
+      const mine = own[key];
+      if (typeof mine === "string" && mine !== "") return mine;
+    }
+    if (base && base !== own) {
+      const english = base[key];
+      if (typeof english === "string" && english !== "") return english;
+    }
+    return fallback;
+  };
+}
+function languageOptions(catalogs) {
+  const seen = /* @__PURE__ */ new Set([BASE_LANG]);
+  for (const lang of Object.keys(catalogs || {})) {
+    if (lang === DEFAULT_FILE) continue;
+    seen.add(lang);
+  }
+  return Array.from(seen).sort().map((lang) => {
+    const named = catalogs && catalogs[lang] ? catalogs[lang][LANGUAGE_NAME_KEY] : "";
+    const fallback = lang === BASE_LANG ? BASE_LANG_SEED[LANGUAGE_NAME_KEY] : "";
+    return { value: lang, label: named && String(named) || fallback || lang };
+  });
+}
+function say2(t, key, value) {
+  if (typeof value !== "string" || value === "") return void 0;
+  return t(key, value);
+}
+function localizeItem(group, it, t) {
+  const any = it;
+  const out = { ...any };
+  const id = it.id;
+  const put = (slot, value) => {
+    const next = say2(t, itemKey(group, id, slot), value);
+    if (next !== void 0) out[slot] = next;
+  };
+  put("name", any.name);
+  put("desc", any.desc);
+  put("tip", any.tip);
+  put("placeholder", any.placeholder);
+  put("unit", any.unit);
+  const seeAlso = any.seeAlso;
+  if (seeAlso && typeof seeAlso.label === "string") {
+    out.seeAlso = { ...seeAlso, label: t(itemKey(group, id, "seeAlso"), seeAlso.label) };
+  }
+  const buttons = any.buttons;
+  if (Array.isArray(buttons)) {
+    out.buttons = buttons.map((b) => ({
+      ...b,
+      label: t(itemKey(group, id, "button." + String(b.action)), String(b.label))
+    }));
+  }
+  const options = any.options;
+  if (Array.isArray(options)) {
+    out.options = options.map((o) => ({
+      ...o,
+      label: t(optionKey(group, id, String(o.value)), String(o.label))
+    }));
+  }
+  const search = any.searchTerms;
+  if (Array.isArray(search)) {
+    out.searchTerms = search.map((term, i) => t(itemKey(group, id, "search." + i), String(term)));
+  }
+  return out;
+}
+function localizeSchema(schema, t) {
+  return schema.map((g) => {
+    const out = {
+      ...g,
+      heading: t(groupKey(g.id, "heading"), g.heading),
+      items: g.items.map((it) => localizeItem(g.id, it, t))
+    };
+    const intro2 = say2(t, groupKey(g.id, "intro"), g.intro);
+    if (intro2 !== void 0) out.intro = intro2;
+    const tip = say2(t, groupKey(g.id, "tip"), g.tip);
+    if (tip !== void 0) out.tip = tip;
+    return out;
+  });
+}
+function localizeTabs(tabs, t) {
+  return tabs.map((tab) => {
+    const out = { ...tab, label: t(tabKey(tab.id, "label"), tab.label) };
+    const desc = say2(t, tabKey(tab.id, "desc"), tab.desc);
+    if (desc !== void 0) out.desc = desc;
+    return out;
+  });
+}
+var LANGUAGE_NAME_KEY, BASE_LANG, BASE_LANG_SEED, TEXTS_DIR, DEFAULT_FILE, EMPTY_VALUE, PLAIN2;
+var init_texts = __esm({
+  "src/ui/settings/texts.ts"() {
+    "use strict";
+    LANGUAGE_NAME_KEY = "$language";
+    BASE_LANG = "en";
+    BASE_LANG_SEED = { [LANGUAGE_NAME_KEY]: "English" };
+    TEXTS_DIR = "texts";
+    DEFAULT_FILE = "default";
+    EMPTY_VALUE = "-";
+    PLAIN2 = (_key, fallback) => fallback;
+  }
+});
+
 // src/ui/settings/settings_tab.ts
-function valueWords(value) {
-  if (value === true) return "on";
-  if (value === false) return "off";
-  if (value === "" || value === null || value === void 0) return "empty";
+function valueWords(value, say3) {
+  if (value === true) return say3("WORD_ON");
+  if (value === false) return say3("WORD_OFF");
+  if (value === "" || value === null || value === void 0) return say3("WORD_EMPTY");
   return String(value);
 }
-var OPTION_SOURCE_DEPS, RESET_ROWS, RESET_NOTE, SettingsPane;
+var OPTION_SOURCE_DEPS, LANGUAGE_PATH, RESET_ROWS, SettingsPane;
 var init_settings_tab = __esm({
   "src/ui/settings/settings_tab.ts"() {
     "use strict";
@@ -32924,8 +33498,18 @@ var init_settings_tab = __esm({
     init_preview_data();
     init_theme_colors();
     init_templates();
+    init_texts_dialogs();
+    init_texts_custom();
     init_describe();
+    init_texts();
     OPTION_SOURCE_DEPS = {
+      /*
+       * Языки не зависят ни от одного пути конфига: список приходит из файлов
+       * папки плагина, а они читаются при загрузке. Запись стоит здесь, чтобы
+       * источник без зависимостей отличался от источника, который забыли
+       * объявить.
+       */
+      languages: [],
       /* Шаблоны берутся только из назначенной папки: сменилась папка — сменился список. */
       templates: ["transform.inline2note.templatesFolder"],
       /*
@@ -32936,8 +33520,8 @@ var init_settings_tab = __esm({
        */
       "tag-fields": ["pkm.fields"]
     };
+    LANGUAGE_PATH = "general.language";
     RESET_ROWS = 10;
-    RESET_NOTE = "Your Fields, Values and rules are not touched";
     SettingsPane = class _SettingsPane {
       constructor(deps) {
         /** Свои блоки, подписанные на пути (П2). */
@@ -32972,6 +33556,24 @@ var init_settings_tab = __esm({
          * значениями обоих тумблеров.
          */
         this.tipSlots = /* @__PURE__ */ new Map();
+        /**
+         * Схема и вкладки на выбранном языке (10.13.38).
+         *
+         * Считается один раз на язык и держится до его смены: подстановка идёт по
+         * всем строкам каталога, а `getSettingDefinitions` платформа зовёт часто
+         * (П-11). Пометка — язык плюс список прочитанных каталогов: сменилось то
+         * или другое, и копия собирается заново.
+         *
+         * Копия, а не правка схемы на месте: схема — модуль, живущий всё время
+         * работы плагина, и переписать её значило бы сделать переключение языка
+         * необратимым.
+         */
+        this.localized = null;
+        /**
+         * Строка самой панели по имени из таблицы `FRAME_TEXTS`. Поле со стрелкой:
+         * его передают дальше как значение, и `this` у него должен остаться свой.
+         */
+        this.frame = (name) => this.textFor(frameKey(name), FRAME_BY_NAME[name] || "");
         this.invertedCache = null;
         this._themedColorPaths = null;
         /**
@@ -32994,6 +33596,38 @@ var init_settings_tab = __esm({
         this.stopWatchingStore();
         this.stopWatchingStore = () => {
         };
+      }
+      /**
+       * Каким языком говорит панель. Английский — это «как в схеме»: файла
+       * `en.js` человек может и не заводить, и тогда подстановки нет вовсе.
+       */
+      language() {
+        const raw = String(this.storedValue(LANGUAGE_PATH) || "").trim();
+        return raw || BASE_LANG;
+      }
+      /** Схема и вкладки, тексты которых уже переведены. */
+      view() {
+        const catalogs = this.deps.texts ? this.deps.texts() || {} : {};
+        const lang = this.language();
+        const stamp = lang + "|" + Object.keys(catalogs).sort().join(",");
+        if (this.localized && this.localized.stamp === stamp) return this.localized;
+        const t = makeResolve(catalogs, lang);
+        this.localized = {
+          stamp,
+          t,
+          schema: t === PLAIN2 ? this.deps.schema : localizeSchema(this.deps.schema, t),
+          tabs: t === PLAIN2 ? this.deps.tabs : localizeTabs(this.deps.tabs, t)
+        };
+        return this.localized;
+      }
+      /**
+       * Видимый текст по ключу каталога — для тех, кто рисует не в панели
+       * (10.13.46): окна платформы и реестр действий. Своего резолвера они завести
+       * не могут — язык живёт в конфиге, а конфиг у панели, — и второй завёлся бы
+       * с другим порядком подстановки (У-32).
+       */
+      textFor(key, fallback) {
+        return this.view().t(key, fallback);
       }
       /** Какая вкладка открыта. */
       activeTab() {
@@ -33031,7 +33665,7 @@ var init_settings_tab = __esm({
       inverted() {
         if (this.invertedCache) return this.invertedCache;
         const map = /* @__PURE__ */ new Map();
-        for (const group of this.deps.schema) {
+        for (const group of this.view().schema) {
           for (const it of group.items) {
             if (!isBound(it)) continue;
             const invert = Number(it["invert"]);
@@ -33129,7 +33763,7 @@ var init_settings_tab = __esm({
        * перещелкивании вкладок… должно быть онлайн» (2026-09-05).
        */
       definitionsChanged(key) {
-        return key === "general.help.showTips" || key === "general.help.showCallouts" || key === "advanced.showSettingIds";
+        return key === "general.help.showTips" || key === "general.help.showCallouts" || key === "advanced.showSettingIds" || key === LANGUAGE_PATH;
       }
       /*
        * Третий случай — путь, от которого зависит **список** значений выпадающего
@@ -33170,15 +33804,16 @@ var init_settings_tab = __esm({
        * расходится молча (У-32), и по C44 это уже подтвердилось мутацией.
        */
       rebuildNeeded(changed) {
+        if (changed.indexOf(LANGUAGE_PATH) >= 0) return true;
         if (this.optionSourcesTouched(changed).length) return true;
-        const tab = this.deps.tabs.find((t) => t.id === this.active);
+        const tab = this.view().tabs.find((t) => t.id === this.active);
         const gate = String(tab && tab.module || "").trim();
         if (!gate) return false;
         return changed.some((c) => _SettingsPane.touches(gate, c));
       }
       optionSourcesTouched(changed) {
         const out = [];
-        for (const group of this.deps.schema) {
+        for (const group of this.view().schema) {
           if (group.tab !== this.active) continue;
           for (const it of group.items) {
             const source = it.optionsFrom;
@@ -33193,7 +33828,7 @@ var init_settings_tab = __esm({
       }
       /** Обновить кнопку сброса той группы, чьё значение изменилось. */
       syncResetButtons(key) {
-        for (const group of this.deps.schema) {
+        for (const group of this.view().schema) {
           if (!group.items.some((it) => isBound(it) && it.path === key)) continue;
           const btn2 = this.resetButtons.get(group.id);
           if (btn2) this.paintResetButton(group, btn2);
@@ -33206,7 +33841,7 @@ var init_settings_tab = __esm({
       themedColorPaths() {
         if (!this._themedColorPaths) {
           const out = /* @__PURE__ */ new Set();
-          for (const group of this.deps.schema) {
+          for (const group of this.view().schema) {
             for (const it of group.items) {
               if (isBound(it) && it.kind === "color" && themeVarFor(it.path)) out.add(it.path);
             }
@@ -33217,7 +33852,7 @@ var init_settings_tab = __esm({
       }
       /** Склейка записей идёт по id настройки, а не по пути (CS3). */
       coalesceKeyFor(path) {
-        for (const group of this.deps.schema) {
+        for (const group of this.view().schema) {
           for (const it of group.items) {
             if (isBound(it) && it.path === path) return it.id;
           }
@@ -33232,7 +33867,15 @@ var init_settings_tab = __esm({
           get: (path) => this.storedValue(path),
           set: (path, value, opts) => this.deps.store.set(path, value, opts),
           run: (action) => this.run(action),
-          watch: (paths, redraw) => this.watch(paths, redraw)
+          watch: (paths, redraw) => this.watch(paths, redraw),
+          /*
+           * Текст по ключу — для своих блоков (10.13.38). У записи `custom` нет
+           * ни имени, ни описания, и подстановка по схеме до её текстов не
+           * достаёт: коллаут вкладки, предпросмотры и справочник команд берут
+           * свои строки из `schema/custom_texts.ts` сами. Второй аргумент — то,
+           * что там написано: он же и ответ, когда перевода нет.
+           */
+          t: (key, fallback) => this.view().t(key, fallback)
         };
         if (this.deps.platform) ctx.platform = this.deps.platform;
         return ctx;
@@ -33322,21 +33965,28 @@ var init_settings_tab = __esm({
       optionsFor(source, ctx) {
         var _a;
         if (source === "tag-fields") return fieldOptions(ctx, (f) => f.kind === "tag");
+        if (source === "languages") return languageOptions(this.deps.texts ? this.deps.texts() || {} : {});
         if (source === "templates") {
           const dep = ((_a = OPTION_SOURCE_DEPS["templates"]) == null ? void 0 : _a[0]) || "";
           const folder = String(this.storedValue(dep) || "").trim();
           const notes = ctx.platform && ctx.platform.listNotes ? ctx.platform.listNotes() : [];
-          return templateOptions(folder, notes);
+          return templateOptions(
+            folder,
+            notes,
+            (name, english) => this.textFor(dialogKey(name), english)
+          );
         }
         return [];
       }
       /** Вкладки, у которых есть хотя бы одна группа: пустых не показываем. */
       tabsWithGroups() {
-        return this.deps.tabs.filter((t) => this.deps.schema.some((g) => g.tab === t.id));
+        const view = this.view();
+        return view.tabs.filter((t) => view.schema.some((g) => g.tab === t.id));
       }
       getSettingDefinitions() {
         this.resetButtons.clear();
-        return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
+        const view = this.view();
+        return toDefinitions(view.schema, view.tabs, this.wiring());
       }
       /* ---- сброс группы к значениям по умолчанию (10.13.1) --------------- */
       /** Что в группе отличается от значения по умолчанию. */
@@ -33369,15 +34019,16 @@ var init_settings_tab = __esm({
           console.error("inline-overhaul: \u0441\u0431\u0440\u043E\u0441 \u0433\u0440\u0443\u043F\u043F\u044B \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
           return 0;
         }
-        const shown = drift.slice(0, RESET_ROWS).map((d) => d.name + ": " + valueWords(d.now) + " \u2192 " + valueWords(d.was));
+        const say3 = this.frame;
+        const shown = drift.slice(0, RESET_ROWS).map((d) => d.name + ": " + valueWords(d.now, say3) + " \u2192 " + valueWords(d.was, say3));
         const hidden = drift.length - shown.length;
-        if (hidden > 0) shown.push("and " + hidden + " more");
+        if (hidden > 0) shown.push(fill(say3("RESET_MORE"), hidden));
         const yes = await ask({
-          title: "Reset " + group.heading,
-          body: drift.length === 1 ? "One setting in this group goes back to its default" : drift.length + " settings in this group go back to their defaults",
-          confirmLabel: "Reset the group",
+          title: fill(say3("RESET_TITLE"), group.heading),
+          body: drift.length === 1 ? say3("RESET_ONE") : fill(say3("RESET_MANY"), drift.length),
+          confirmLabel: this.textFor(SINGLE_KEYS.groupReset, "Reset the group"),
           rows: shown,
-          note: RESET_NOTE
+          note: say3("RESET_NOTE")
         });
         if (!yes) return 0;
         let first = true;
@@ -33388,7 +34039,7 @@ var init_settings_tab = __esm({
           first = false;
         }
         if (drift.length && this.deps.notify) {
-          this.deps.notify(drift.length + " settings back to default. Use Undo settings change to revert");
+          this.deps.notify(fill(say3("RESET_DONE"), drift.length));
         }
         if (drift.length) {
           if (this.deps.rebuild) this.deps.rebuild();
@@ -33618,7 +34269,7 @@ var init_settings_tab = __esm({
       groupTipButtonFor(group, showTips, showIds) {
         const hint = String(group.tip || "").trim();
         if (!hint && !group.id) return null;
-        const label = "More about " + group.heading;
+        const label = fill(this.frame("MORE_ABOUT"), group.heading);
         return (btn2) => {
           const node = btn2.extraSettingsEl;
           let body = null;
@@ -33681,7 +34332,7 @@ var init_settings_tab = __esm({
       /** Состояние кнопки: сколько настроек группы отличается от умолчания. */
       paintResetButton(group, btn2) {
         const n = this.drift(group).length;
-        const tooltip = n ? "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default" : "Everything here is already at its default";
+        const tooltip = n ? fill(this.frame(n === 1 ? "RESET_TIP_ONE" : "RESET_TIP_MANY"), n) : this.frame("RESET_TIP_CLEAN");
         return btn2.setDisabled(n === 0).setTooltip(tooltip);
       }
     };
@@ -34003,7 +34654,14 @@ function proTips() {
     "* **Change one thing at a time.** Do not touch every option at once. One change, then",
     "  straight back to a real note to see whether you like the result, then the next one.",
     "* **Use the hotkeys.** You cannot get much out of this plugin without them. It is",
-    "  awkward for the first day and pays for itself every day after that."
+    "  awkward for the first day and pays for itself every day after that.",
+    "* **The words in the panel are yours to change.** `General \u2192 Language` picks the",
+    "  language, and the words themselves sit in plain text files in the plugin folder,",
+    "  under `texts`: one file per language, key on the left, what you see on the",
+    "  right. Edit a line, reload the plugin, and the panel says what you wrote. Your file",
+    "  is never overwritten, and a line you leave out keeps the wording that ships with",
+    "  the plugin. To add a language, copy a file under a new name and change its first",
+    "  line. This note stays English for now."
   ].join("\n");
 }
 function recipes() {
@@ -34054,6 +34712,7 @@ var require_settings_backup = __commonJS({
     var NOTES_HINT = "Write anything here";
     var HOTKEYS_MARK = "<!-- " + MARKER + ": hotkeys below, do not edit by hand -->";
     var DEVICE_LOCAL = ["viewState", "backups", "meta", "_unmigrated"];
+    var DEVICE_LOCAL_LEAVES = ["advanced.backups.folder"];
     var PARTS2 = [
       { id: "general", label: "General", branches: ["features", "general"] },
       { id: "keyboard", label: "Keyboard", branches: ["editor"] },
@@ -34098,7 +34757,7 @@ var require_settings_backup = __commonJS({
       }
       return out;
     }
-    function partLabels2(partIds) {
+    function partLabels(partIds) {
       const ids = Array.isArray(partIds) ? partIds : allPartIds2();
       return PARTS2.filter(function(part) {
         return ids.indexOf(part.id) >= 0;
@@ -34134,7 +34793,7 @@ var require_settings_backup = __commonJS({
       for (const branch of Object.keys(wanted)) {
         if (!isObj(restored) || restored[branch] === void 0) delete out[branch];
       }
-      return out;
+      return keepLocalLeaves(current, out);
     }
     function normalizeComment(value) {
       return String(value === void 0 || value === null ? "" : value).replace(/[\r\n]+/g, " ").trim().slice(0, 300);
@@ -34174,7 +34833,45 @@ var require_settings_backup = __commonJS({
       for (const key of DEVICE_LOCAL) {
         if (current[key] !== void 0) out[key] = cloneJson2(current[key]);
       }
-      return out;
+      return keepLocalLeaves(current, out);
+    }
+    function readLeaf(obj, path) {
+      let node = obj;
+      for (const step of String(path).split(".")) {
+        if (!isObj(node)) return void 0;
+        node = node[step];
+      }
+      return node;
+    }
+    function writeLeaf(obj, path, value) {
+      if (!isObj(obj)) return;
+      const steps = String(path).split(".");
+      const last = steps.pop();
+      let node = obj;
+      for (const step of steps) {
+        if (!isObj(node[step])) node[step] = {};
+        node = node[step];
+      }
+      node[last] = value;
+    }
+    function deleteLeaf(obj, path) {
+      const steps = String(path).split(".");
+      const last = steps.pop();
+      let node = obj;
+      for (const step of steps) {
+        if (!isObj(node)) return;
+        node = node[step];
+      }
+      if (isObj(node)) delete node[last];
+    }
+    function keepLocalLeaves(current, next) {
+      if (!isObj(next)) return next;
+      for (const path of DEVICE_LOCAL_LEAVES) {
+        const value = readLeaf(current, path);
+        if (value === void 0) deleteLeaf(next, path);
+        else writeLeaf(next, path, cloneJson2(value));
+      }
+      return next;
     }
     function countValues(map) {
       if (!isObj(map)) return 0;
@@ -34186,7 +34883,7 @@ var require_settings_backup = __commonJS({
       }
       return total;
     }
-    function summarize(cfg) {
+    function summarize2(cfg) {
       const pkm = isObj(cfg) && isObj(cfg.pkm) ? cfg.pkm : {};
       const fields = isObj(pkm.fields) ? pkm.fields : {};
       const order = isObj(fields.order) ? fields.order : {};
@@ -34200,10 +34897,10 @@ var require_settings_backup = __commonJS({
       const binder2 = isObj(editor.binder) && Array.isArray(editor.binder.rows) ? editor.binder.rows.length : 0;
       return { fields: own.length, values, binderRows: binder2 };
     }
-    function plural2(n, one, many) {
+    function plural(n, one, many) {
       return String(n) + " " + (n === 1 ? one : many);
     }
-    function missingLabels2(partIds) {
+    function missingLabels(partIds) {
       const ids = Array.isArray(partIds) ? partIds : allPartIds2();
       return PARTS2.filter(function(part) {
         return ids.indexOf(part.id) === -1;
@@ -34211,9 +34908,9 @@ var require_settings_backup = __commonJS({
         return part.label;
       });
     }
-    function summaryLine2(cfg) {
-      const s = summarize(cfg);
-      return plural2(s.fields, "Field", "Fields") + ", " + plural2(s.values, "Value", "Values") + " and " + plural2(s.binderRows, "Binder row", "Binder rows");
+    function summaryLine(cfg) {
+      const s = summarize2(cfg);
+      return plural(s.fields, "Field", "Fields") + ", " + plural(s.values, "Value", "Values") + " and " + plural(s.binderRows, "Binder row", "Binder rows");
     }
     function two(n) {
       return (n < 10 ? "0" : "") + String(n);
@@ -34239,16 +34936,37 @@ var require_settings_backup = __commonJS({
       const d = date instanceof Date ? date : /* @__PURE__ */ new Date();
       return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + two(d.getHours()) + ":" + two(d.getMinutes());
     }
-    function hotkeyWords(binding2) {
+    function hotkeyWords(binding2, opts) {
       if (!isObj(binding2)) return "";
-      const mods = Array.isArray(binding2.modifiers) ? binding2.modifiers.map((m) => String(m || "").trim()).filter(Boolean) : [];
-      const key = String(binding2.key === void 0 ? "" : binding2.key).trim();
+      const mac = !!(isObj(opts) && opts.mac);
+      const named = isObj(opts) && opts.mac !== void 0;
+      const mods = Array.isArray(binding2.modifiers) ? binding2.modifiers.map((m) => named ? physicalModifier(m, mac) : String(m || "").trim()).filter(Boolean) : [];
+      const key = bindingCode(binding2);
       const parts = mods.concat(key ? [key] : []);
       return parts.join(" + ");
     }
-    function hotkeyListWords2(bindings) {
+    function hotkeyListWords2(bindings, opts) {
       if (!Array.isArray(bindings)) return "";
-      return bindings.map(hotkeyWords).filter(Boolean).join(", ");
+      return bindings.map((b) => hotkeyWords(b, opts)).filter(Boolean).join(", ");
+    }
+    function bindingCode(binding2) {
+      if (!isObj(binding2)) return "";
+      const code = String(binding2.code === void 0 || binding2.code === null ? "" : binding2.code).trim();
+      if (code) return code.length === 4 && code.indexOf("Key") === 0 ? code.charAt(3) : code;
+      return String(binding2.key === void 0 || binding2.key === null ? "" : binding2.key).trim();
+    }
+    function physicalModifier(name, mac) {
+      const raw = String(name || "").trim();
+      if (raw === "Mod") return mac ? "Meta" : "Ctrl";
+      return raw;
+    }
+    function bindingKey2(binding2, opts) {
+      if (!isObj(binding2)) return "";
+      const mac = !!(isObj(opts) && opts.mac);
+      const mods = Array.isArray(binding2.modifiers) ? binding2.modifiers.map((m) => physicalModifier(m, mac).toLowerCase()).filter(Boolean).sort() : [];
+      const key = bindingCode(binding2).toLowerCase();
+      if (!key) return "";
+      return mods.join("+") + "|" + key;
     }
     function normalizeHotkeys(map) {
       const out = {};
@@ -34258,10 +34976,15 @@ var require_settings_backup = __commonJS({
         if (!key) continue;
         const bindings = Array.isArray(map[id]) ? map[id] : null;
         if (!bindings) continue;
-        const kept = bindings.filter(isObj).map((b) => ({
-          modifiers: Array.isArray(b.modifiers) ? b.modifiers.map((m) => String(m || "")) : [],
-          key: String(b.key === void 0 ? "" : b.key)
-        })).filter((b) => b.key);
+        const kept = bindings.filter(isObj).map((b) => {
+          const row = {
+            modifiers: Array.isArray(b.modifiers) ? b.modifiers.map((m) => String(m || "")) : [],
+            key: String(b.key === void 0 || b.key === null ? "" : b.key)
+          };
+          const code = String(b.code === void 0 || b.code === null ? "" : b.code).trim();
+          if (code) row.code = code;
+          return row;
+        }).filter((b) => b.key || b.code);
         out[key] = kept;
       }
       return out;
@@ -34309,9 +35032,9 @@ var require_settings_backup = __commonJS({
         "# inlineOverhaul settings backup",
         "",
         "Saved on " + readable(when) + (version ? " from plugin version " + version : "") + ".",
-        "Holds " + summaryLine2(config) + ".",
-        "Tabs inside: " + partLabels2(parts).join(", ") + ".",
-        ...missingLabels2(parts).length ? ["Left out, so restoring keeps what you have there: " + missingLabels2(parts).join(", ") + "."] : [],
+        "Holds " + summaryLine(config) + ".",
+        "Tabs inside: " + partLabels(parts).join(", ") + ".",
+        ...missingLabels(parts).length ? ["Left out, so restoring keeps what you have there: " + missingLabels(parts).join(", ") + "."] : [],
         "",
         "To bring these settings back, open **Settings \u2192 inlineOverhaul \u2192 Advanced \u2192 Settings backup**",
         "and press `Restore a backup`. Restoring replaces the tabs listed above and leaves the rest alone;",
@@ -34330,7 +35053,7 @@ var require_settings_backup = __commonJS({
         lines.push("# Hotkeys");
         lines.push("");
         lines.push("Hotkeys live in Obsidian, not in the plugin settings, so they are kept here separately.");
-        lines.push("Restoring this backup puts them back on the plugin commands and touches nothing else.");
+        lines.push(scope === "all" ? "This backup was taken with every hotkey in the vault, so restoring puts other commands' keys back too." : "Restoring this backup puts them back on the plugin commands and touches nothing else.");
         lines.push("");
         for (const id of hotkeyIds) {
           const words = hotkeyListWords2(hotkeys[id]);
@@ -34411,7 +35134,7 @@ var require_settings_backup = __commonJS({
       const commentLine = /^note\s*:\s*(.+)$/m.exec(front);
       let summary = "";
       try {
-        summary = summaryLine2(parseBackupNote2(raw));
+        summary = summaryLine(parseBackupNote2(raw));
       } catch (e) {
         summary = "";
       }
@@ -34452,8 +35175,8 @@ var require_settings_backup = __commonJS({
       allPartIds: allPartIds2,
       normalizeParts,
       branchesOf,
-      partLabels: partLabels2,
-      missingLabels: missingLabels2,
+      partLabels,
+      missingLabels,
       selectParts,
       mergeParts: mergeParts2,
       normalizeComment,
@@ -34464,10 +35187,15 @@ var require_settings_backup = __commonJS({
       frontmatter,
       hotkeyWords,
       hotkeyListWords: hotkeyListWords2,
+      bindingCode,
+      bindingKey: bindingKey2,
+      physicalModifier,
       normalizeHotkeys,
       parseBackupHotkeys: parseBackupHotkeys2,
       DEFAULT_FOLDER,
       DEVICE_LOCAL,
+      DEVICE_LOCAL_LEAVES,
+      keepLocalLeaves,
       NO_SETTINGS,
       BROKEN,
       backupFolder: backupFolder2,
@@ -34475,9 +35203,9 @@ var require_settings_backup = __commonJS({
       AUTO_SUFFIX,
       stripDeviceLocal,
       keepDeviceLocal: keepDeviceLocal2,
-      summarize,
-      summaryLine: summaryLine2,
-      plural: plural2,
+      summarize: summarize2,
+      summaryLine,
+      plural,
       stamp,
       backupPath: backupPath2,
       fenceFor,
@@ -34498,6 +35226,23 @@ function messageOf(e) {
 }
 function buildActions(deps) {
   const { notify } = deps;
+  const say3 = (name) => {
+    const english = TEXT_BY_NAME[name] || "";
+    return typeof deps.t === "function" ? deps.t(dialogKey(name), english) : english;
+  };
+  const count = (n, one, many) => String(n) + " " + say3(n === 1 ? one : many);
+  const summaryFor = (cfg) => {
+    const s = (0, import_settings_backup.summarize)(cfg);
+    return fill(
+      say3("SUMMARY_LINE"),
+      count(s.fields, "WORD_FIELD_ONE", "WORD_FIELD_MANY"),
+      count(s.values, "WORD_VALUE_ONE", "WORD_VALUE_MANY"),
+      count(s.binderRows, "WORD_BINDER_ROW_ONE", "WORD_BINDER_ROW_MANY")
+    );
+  };
+  const partLabel = (id, english) => typeof deps.t === "function" ? deps.t(tabKey(id, "label"), english) : english;
+  const partLabelsFor = (ids, inside) => import_settings_backup.PARTS.filter((p) => ids.indexOf(p.id) >= 0 === inside).map((p) => partLabel(p.id, p.label));
+  const partLabelsSaid = (ids) => partLabelsFor(ids, true);
   const writeBackup = async (vault, config, auto, picked) => {
     const cfg = config.get();
     const folder = (0, import_settings_backup.backupFolder)(cfg);
@@ -34534,24 +35279,40 @@ function buildActions(deps) {
     })));
     return path;
   };
+  const tipsShown = () => {
+    if (!deps.config) return true;
+    try {
+      const cfg = deps.config.get();
+      const general = cfg && typeof cfg.general === "object" ? cfg.general : null;
+      const help = general && typeof general.help === "object" ? general.help : null;
+      return help ? help.showTips !== false : true;
+    } catch (e) {
+      console.error("inline-overhaul: \u0442\u0443\u043C\u0431\u043B\u0435\u0440 \u043F\u043E\u0434\u0441\u043A\u0430\u0437\u043E\u043A \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0441\u044F", e);
+      return true;
+    }
+  };
   const askParts = async () => {
     if (typeof deps.askBackupOptions !== "function") return void 0;
     const hotkeyOptions = [
-      { value: "own", label: SAVE_HOTKEYS_OWN },
-      { value: "all", label: SAVE_HOTKEYS_ALL },
-      { value: "none", label: SAVE_HOTKEYS_NONE }
+      { value: "own", label: say3("SAVE_HOTKEYS_OWN") },
+      { value: "all", label: say3("SAVE_HOTKEYS_ALL") },
+      { value: "none", label: say3("SAVE_HOTKEYS_NONE") }
     ];
     return await deps.askBackupOptions({
-      title: SAVE_TITLE,
-      body: SAVE_BODY,
+      title: say3("SAVE_TITLE"),
+      tip: say3("SAVE_TIP"),
       /* По умолчанию отмечено всё: человек только снимает лишнее. */
-      parts: import_settings_backup.PARTS.map((part) => ({ id: part.id, label: part.label, checked: true })),
-      commentLabel: SAVE_COMMENT_LABEL,
-      commentHint: SAVE_COMMENT_HINT,
-      hotkeyLabel: SAVE_HOTKEYS_LABEL,
+      parts: import_settings_backup.PARTS.map((part) => ({ id: part.id, label: partLabel(part.id, part.label), checked: true })),
+      partsLabel: say3("SAVE_PARTS_LABEL"),
+      partsTip: say3("SAVE_PARTS_TIP"),
+      commentLabel: say3("SAVE_COMMENT_LABEL"),
+      commentHint: say3("SAVE_COMMENT_HINT"),
+      hotkeyLabel: say3("SAVE_HOTKEYS_LABEL"),
+      hotkeyTip: say3("SAVE_HOTKEYS_TIP"),
       hotkeyOptions,
       hotkeyDefault: "own",
-      confirmLabel: SAVE_CONFIRM
+      confirmLabel: say3("SAVE_CONFIRM"),
+      showTips: tipsShown()
     });
   };
   const listBackups = async (vault, folder) => {
@@ -34580,9 +35341,9 @@ function buildActions(deps) {
         /* Комментарий человека — первым: его он и ищет в списке. */
         about.comment,
         about.summary,
-        about.parts && about.parts.length < import_settings_backup.PARTS.length ? (0, import_settings_backup.partLabels)(about.parts).join(", ") : "",
-        about.hotkeys ? (0, import_settings_backup.plural)(about.hotkeys, "hotkey", "hotkeys") : "",
-        about.pluginVersion ? "plugin " + about.pluginVersion : ""
+        about.parts && about.parts.length < import_settings_backup.PARTS.length ? partLabelsSaid(about.parts).join(", ") : "",
+        about.hotkeys ? count(about.hotkeys, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY") : "",
+        about.pluginVersion ? fill(say3("PLUGIN_VERSION"), about.pluginVersion) : ""
       ].filter(Boolean).join(" \xB7 ");
       const note = about.savedAt ? name : "";
       options.push({ value: file.path, label: about.savedAt || name, sub, note });
@@ -34590,16 +35351,16 @@ function buildActions(deps) {
     return options;
   };
   const goingAway = (cfg) => {
-    const rows = ["Deleting " + (0, import_settings_backup.summaryLine)(cfg)];
+    const rows = [fill(say3("ROW_DELETING"), summaryFor(cfg))];
     if (deps.hotkeys && typeof deps.hotkeys.read === "function") {
-      let count = 0;
+      let n = 0;
       try {
-        count = Object.keys(deps.hotkeys.read() || {}).length;
+        n = Object.keys(deps.hotkeys.read() || {}).length;
       } catch (e) {
         console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u0434\u043B\u044F \u0441\u0431\u0440\u043E\u0441\u0430 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
       }
-      if (count) {
-        rows.push("And " + (0, import_settings_backup.plural)(count, "hotkey", "hotkeys") + " you assigned to plugin commands");
+      if (n) {
+        rows.push(fill(say3("ROW_DELETING_HOTKEYS"), count(n, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY")));
       }
     }
     return rows;
@@ -34613,7 +35374,7 @@ function buildActions(deps) {
     "open-howto": async () => {
       const vault = deps.vault;
       if (!vault) {
-        notify(NO_METHOD);
+        notify(say3("NO_METHOD"));
         console.error("inline-overhaul: \u0440\u0443\u043A\u043E\u0432\u043E\u0434\u0441\u0442\u0432\u043E \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault");
         return;
       }
@@ -34623,7 +35384,7 @@ function buildActions(deps) {
         const path = legacy5 ? HOWTO_LEGACY_PATH : HOWTO_PATH;
         if (!had && !legacy5) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
         await Promise.resolve(vault.open(path));
-        notify(said(had || legacy5 ? GUIDE_OPENED : GUIDE_MADE, path));
+        notify(said(say3(had || legacy5 ? "GUIDE_OPENED" : "GUIDE_MADE"), path));
       } catch (e) {
         const message = e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
         notify(message);
@@ -34638,7 +35399,7 @@ function buildActions(deps) {
       const vault = deps.vault;
       const config = deps.config;
       if (!vault || !config) {
-        notify(NO_METHOD);
+        notify(say3("NO_METHOD"));
         console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044E \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A \u0441\u043D\u0438\u043C\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault \u0438\u043B\u0438 \u043A\u043E\u043D\u0444\u0438\u0433\u0443");
         return;
       }
@@ -34646,10 +35407,10 @@ function buildActions(deps) {
         const picked = await askParts();
         if (picked === null) return;
         if (picked && (!Array.isArray(picked.parts) || !picked.parts.length)) {
-          notify(SAVE_NOTHING);
+          notify(say3("SAVE_NOTHING"));
           return;
         }
-        notify(said(BACKUP_SAVED, await writeBackup(vault, config, void 0, picked || void 0)));
+        notify(said(say3("BACKUP_SAVED"), await writeBackup(vault, config, void 0, picked || void 0)));
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044F \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A \u043D\u0435 \u0437\u0430\u043F\u0438\u0441\u0430\u043B\u0430\u0441\u044C", e);
@@ -34674,7 +35435,7 @@ function buildActions(deps) {
       const config = deps.config;
       const ask = deps.confirm;
       if (!vault || !config) {
-        notify(NO_METHOD);
+        notify(say3("NO_METHOD"));
         console.error("inline-overhaul: \u0441\u0431\u0440\u0430\u0441\u044B\u0432\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault \u0438\u043B\u0438 \u043A\u043E\u043D\u0444\u0438\u0433\u0443");
         return;
       }
@@ -34685,12 +35446,12 @@ function buildActions(deps) {
       try {
         const before = config.get();
         const yes = await ask({
-          title: RESET_TITLE,
-          body: RESET_BODY,
-          confirmLabel: RESET_CONFIRM,
+          title: say3("RESET_TITLE"),
+          body: say3("RESET_BODY"),
+          confirmLabel: say3("RESET_CONFIRM"),
           danger: true,
           rows: goingAway(before),
-          note: "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin"
+          note: say3("RESET_NOTE")
         });
         if (!yes) return;
         const saved = await writeBackup(vault, config, true);
@@ -34701,12 +35462,14 @@ function buildActions(deps) {
         if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
           try {
             const n = await Promise.resolve(deps.hotkeys.write({}));
-            if (n) saidHotkeys = ". " + (0, import_settings_backup.plural)(Number(n) || 0, "hotkey", "hotkeys") + " cleared";
+            if (n) {
+              saidHotkeys = ". " + count(Number(n) || 0, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY") + " " + say3("HOTKEYS_CLEARED");
+            }
           } catch (e) {
             console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u043F\u0440\u0438 \u0441\u0431\u0440\u043E\u0441\u0435 \u043D\u0435 \u0441\u043D\u044F\u043B\u0438\u0441\u044C", e);
           }
         }
-        notify((changed ? RESET_DONE : RESET_NOTHING) + saidHotkeys + ". Backup: " + saved);
+        notify((changed ? say3("RESET_DONE") : say3("RESET_NOTHING")) + saidHotkeys + ". " + say3("SAVED_AS") + ": " + saved);
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: \u0441\u0431\u0440\u043E\u0441 \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u043B\u0441\u044F", e);
@@ -34724,7 +35487,7 @@ function buildActions(deps) {
       const ask = deps.confirm;
       const choose = deps.pick;
       if (!vault || !config) {
-        notify(NO_METHOD);
+        notify(say3("NO_METHOD"));
         console.error("inline-overhaul: \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault \u0438\u043B\u0438 \u043A\u043E\u043D\u0444\u0438\u0433\u0443");
         return;
       }
@@ -34736,13 +35499,13 @@ function buildActions(deps) {
       try {
         const options = await listBackups(vault, folder);
         if (!options.length) {
-          notify(said(BACKUP_NONE, folder));
+          notify(said(say3("BACKUP_NONE"), folder));
           return;
         }
-        const picked = await choose({ title: PICK_TITLE, body: PICK_BODY, options });
+        const picked = await choose({ title: say3("PICK_TITLE"), body: say3("PICK_BODY"), options });
         if (!picked) return;
         if (typeof vault.read !== "function") {
-          notify(NO_METHOD);
+          notify(say3("NO_METHOD"));
           console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044E \u0447\u0438\u0442\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C");
           return;
         }
@@ -34752,16 +35515,19 @@ function buildActions(deps) {
         const hotkeys = (0, import_settings_backup.parseBackupHotkeys)(text);
         const hotkeyCount = Object.keys(hotkeys).length;
         const scope = about.hotkeyScope === "all" ? "all" : "own";
-        const rows = ["Restoring " + (0, import_settings_backup.summaryLine)(restored)];
+        const rows = [fill(say3("ROW_RESTORING"), summaryFor(restored))];
         if (about.parts) {
-          rows.push("Tabs coming back: " + (0, import_settings_backup.partLabels)(about.parts).join(", "));
-          const kept = (0, import_settings_backup.missingLabels)(about.parts);
-          if (kept.length) rows.push("Staying as you have them now: " + kept.join(", "));
+          rows.push(fill(say3("ROW_PARTS_BACK"), partLabelsSaid(about.parts).join(", ")));
+          const kept = partLabelsFor(about.parts, false);
+          if (kept.length) rows.push(fill(say3("ROW_PARTS_KEPT"), kept.join(", ")));
         }
         if (hotkeyCount) {
-          rows.push("And " + (0, import_settings_backup.plural)(hotkeyCount, "hotkey", "hotkeys") + (scope === "all" ? " from this vault" : " on the plugin commands"));
+          rows.push(fill(
+            say3(scope === "all" ? "ROW_HOTKEYS_VAULT" : "ROW_HOTKEYS_OWN"),
+            count(hotkeyCount, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY")
+          ));
         }
-        if (scope === "all") rows.push(HOTKEYS_ALL_WARNING);
+        if (scope === "all") rows.push(say3("HOTKEYS_ALL_WARNING"));
         let conflicts = [];
         if (hotkeyCount && deps.hotkeys && typeof deps.hotkeys.conflicts === "function") {
           try {
@@ -34771,21 +35537,26 @@ function buildActions(deps) {
           }
         }
         for (const clash of conflicts) {
-          rows.push("Held by " + clash.name + ": " + clash.hotkey);
+          rows.push(fill(say3("CONFLICT_HELD"), clash.name, clash.hotkey));
         }
+        if (hotkeyCount && !conflicts.length) {
+          rows.push(say3(scope === "all" ? "CONFLICT_SCOPE_ALL" : "CONFLICT_NONE"));
+        }
+        if (!hotkeyCount) rows.push(say3("HOTKEYS_NONE_HERE"));
+        if ((0, import_settings_backup.backupFolder)(restored) !== folder) rows.push(said(say3("FOLDER_KEPT"), folder));
         let clearConflicts = false;
         const willBackUp = (0, import_settings_backup.backupBeforeRestore)(config.get());
         const yes = await ask({
-          title: RESTORE_TITLE,
-          body: willBackUp ? RESTORE_BODY : RESTORE_BODY_NO_BACKUP,
-          confirmLabel: RESTORE_CONFIRM,
+          title: say3("RESTORE_TITLE"),
+          body: say3(willBackUp ? "RESTORE_BODY" : "RESTORE_BODY_NO_BACKUP"),
+          confirmLabel: say3("RESTORE_CONFIRM"),
           danger: true,
           rows,
-          ...conflicts.length ? { check: { label: CONFLICT_LABEL, sub: CONFLICT_SUB, checked: false } } : {},
+          ...conflicts.length ? { check: { label: say3("CONFLICT_LABEL"), sub: say3("CONFLICT_SUB"), checked: false } } : {},
           onCheck: (checked) => {
             clearConflicts = checked;
           },
-          note: hotkeyCount && scope !== "all" ? "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin" : "Your open tab and what you have expanded here stay as they are"
+          note: say3(hotkeyCount && scope !== "all" ? "RESTORE_NOTE_OTHERS" : "RESTORE_NOTE")
         });
         if (!yes) return;
         if (willBackUp) await writeBackup(vault, config, true);
@@ -34804,28 +35575,28 @@ function buildActions(deps) {
           if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
             try {
               const n = await Promise.resolve(deps.hotkeys.write(hotkeys, { scope, clearConflicts }));
-              saidHotkeys = ". " + (0, import_settings_backup.plural)(Number(n) || 0, "hotkey", "hotkeys") + " " + HOTKEYS_DONE;
+              saidHotkeys = ". " + count(Number(n) || 0, "WORD_HOTKEY_ONE", "WORD_HOTKEY_MANY") + " " + say3("HOTKEYS_DONE");
               if (clearConflicts && conflicts.length) {
-                saidHotkeys += ", " + (0, import_settings_backup.plural)(conflicts.length, "key", "keys") + " " + CONFLICT_CLEARED;
+                saidHotkeys += ", " + count(conflicts.length, "WORD_KEY_ONE", "WORD_KEY_MANY") + " " + say3("CONFLICT_CLEARED");
               }
             } catch (e) {
-              saidHotkeys = ". " + HOTKEYS_NO_METHOD;
+              saidHotkeys = ". " + say3("HOTKEYS_NO_METHOD");
               console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u043D\u0435 \u0432\u0435\u0440\u043D\u0443\u043B\u0438\u0441\u044C", e);
             }
           } else {
-            saidHotkeys = ". " + HOTKEYS_NO_METHOD;
+            saidHotkeys = ". " + say3("HOTKEYS_NO_METHOD");
             console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u0432 \u043A\u043E\u043F\u0438\u0438 \u0435\u0441\u0442\u044C, \u0430 \u0448\u0432\u0430 \u0434\u043B\u044F \u0438\u0445 \u0437\u0430\u043F\u0438\u0441\u0438 \u043D\u0435\u0442");
           }
         }
-        notify(changed ? RESTORE_DONE + saidHotkeys : RESTORE_SAME + saidHotkeys);
+        notify(say3(changed ? "RESTORE_DONE" : "RESTORE_SAME") + saidHotkeys);
         if (typeof deps.announce === "function") {
           try {
             await deps.announce({
-              title: RESTORED_TITLE,
-              body: RESTORED_BODY,
+              title: say3("RESTORED_TITLE"),
+              body: say3("RESTORED_BODY"),
               rows,
-              note: RESTORED_NOTE,
-              closeLabel: RESTORED_CLOSE
+              note: say3("RESTORED_NOTE"),
+              closeLabel: say3("RESTORED_CLOSE")
             });
           } catch (e) {
             console.error("inline-overhaul: \u043E\u043A\u043D\u043E \u043F\u043E\u0441\u043B\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u043B\u043E\u0441\u044C", e);
@@ -34838,50 +35609,15 @@ function buildActions(deps) {
     }
   };
 }
-var import_settings_backup, GUIDE_MADE, GUIDE_OPENED, BACKUP_SAVED, BACKUP_NONE, RESTORE_TITLE, RESTORE_BODY, RESTORE_BODY_NO_BACKUP, RESTORE_CONFIRM, RESTORE_DONE, HOTKEYS_DONE, RESTORED_TITLE, RESTORED_BODY, RESTORED_NOTE, RESTORED_CLOSE, SAVE_TITLE, SAVE_BODY, SAVE_CONFIRM, SAVE_COMMENT_LABEL, SAVE_COMMENT_HINT, SAVE_HOTKEYS_LABEL, SAVE_HOTKEYS_OWN, SAVE_HOTKEYS_ALL, SAVE_HOTKEYS_NONE, SAVE_NOTHING, CONFLICT_LABEL, CONFLICT_SUB, CONFLICT_CLEARED, HOTKEYS_ALL_WARNING, HOTKEYS_NO_METHOD, RESET_TITLE, RESET_BODY, RESET_CONFIRM, RESET_DONE, RESET_NOTHING, RESTORE_SAME, PICK_TITLE, PICK_BODY, NO_METHOD;
+var import_settings_backup;
 var init_actions = __esm({
   "src/ui/settings/actions.ts"() {
     "use strict";
     init_howto();
+    init_texts_dialogs();
+    init_texts();
     import_settings_backup = __toESM(require_settings_backup());
-    GUIDE_MADE = "Guide written and opened";
-    GUIDE_OPENED = "Guide opened";
-    BACKUP_SAVED = "Settings saved";
-    BACKUP_NONE = "No backups found in";
-    RESTORE_TITLE = "Restore these settings";
-    RESTORE_BODY = "This replaces everything you have set up, on every tab. What you have now is saved as a backup first";
-    RESTORE_BODY_NO_BACKUP = "This replaces everything you have set up, on every tab, and what you have now is not saved anywhere first";
-    RESTORE_CONFIRM = "Replace my settings";
-    RESTORE_DONE = "Settings restored. Restart Obsidian so every part of the plugin picks them up";
-    HOTKEYS_DONE = "hotkeys back on the plugin commands";
-    RESTORED_TITLE = "Settings restored";
-    RESTORED_BODY = "Everything from that backup is in place. A few parts of the plugin read your settings once, when Obsidian starts, so they still show what you had a minute ago";
-    RESTORED_NOTE = "Restart Obsidian to be sure every part matches the backup";
-    RESTORED_CLOSE = "Got it";
-    SAVE_TITLE = "Save a backup";
-    SAVE_BODY = "Everything is picked already, so pressing the button straight away saves the lot. Uncheck a tab and it stays out: restoring this backup will then leave that tab exactly as you have it";
-    SAVE_CONFIRM = "Save";
-    SAVE_COMMENT_LABEL = "What is this backup for";
-    SAVE_COMMENT_HINT = "Optional. You will see this line in `Restore a backup`";
-    SAVE_HOTKEYS_LABEL = "Hotkeys to keep";
-    SAVE_HOTKEYS_OWN = "Only this plugin\u2019s commands";
-    SAVE_HOTKEYS_ALL = "Every hotkey in this vault";
-    SAVE_HOTKEYS_NONE = "None";
-    SAVE_NOTHING = "Nothing was picked, so there is nothing to save";
-    CONFLICT_LABEL = "Free up keys other commands are holding";
-    CONFLICT_SUB = "Off by default: this is the one thing here that changes settings outside this plugin";
-    CONFLICT_CLEARED = "keys taken off other commands";
-    HOTKEYS_ALL_WARNING = "This backup holds hotkeys of other plugins too, and restoring puts them back";
-    HOTKEYS_NO_METHOD = "The hotkeys in that backup could not be put back";
-    RESET_TITLE = "Delete all your settings";
-    RESET_BODY = "Everything you have set up in this plugin goes, on every tab, and the plugin starts as if it had just been installed. What you have now is saved as a backup first";
-    RESET_CONFIRM = "Delete my settings";
-    RESET_DONE = "Settings deleted and back to defaults. Restart Obsidian so every part of the plugin picks them up";
-    RESET_NOTHING = "Your settings are already at their defaults";
-    RESTORE_SAME = "That backup matches what you already have";
-    PICK_TITLE = "Restore a backup";
-    PICK_BODY = "Newest first";
-    NO_METHOD = "This build cannot do that yet";
+    init_texts_dialogs();
   }
 });
 
@@ -34949,6 +35685,176 @@ var init_tab_strip = __esm({
   }
 });
 
+// src/ui/settings/texts_files.ts
+function textsDirOf(pluginFolder) {
+  return String(pluginFolder || "").replace(/\/+$/, "") + "/" + TEXTS_DIR;
+}
+function seeded(entries, seed) {
+  const name = seed[LANGUAGE_NAME_KEY];
+  const head = name ? [{ key: LANGUAGE_NAME_KEY, text: String(name) }] : [];
+  return head.concat(entries.map((e) => seed[e.key] ? { ...e, text: String(seed[e.key]) } : e));
+}
+function fileFor(lang, entries, seeds) {
+  const seed = seeds ? seeds[lang] : void 0;
+  return catalogFile(lang, seed ? seeded(entries, seed) : entries);
+}
+function shippedMap(english, seed) {
+  const out = {};
+  const name = seed ? seed[LANGUAGE_NAME_KEY] : "";
+  if (name) out[LANGUAGE_NAME_KEY] = String(name);
+  for (const [key, text] of Object.entries(english || {})) {
+    if (key === LANGUAGE_NAME_KEY) continue;
+    out[key] = seed && seed[key] ? String(seed[key]) : text;
+  }
+  return out;
+}
+function untouched(onDisk, expected, partial) {
+  const theirs = parseCatalog(onDisk);
+  if (!theirs) return false;
+  const keys = Object.keys(theirs);
+  if (!partial && keys.length !== Object.keys(expected).length) return false;
+  for (const key of keys) if (theirs[key] !== expected[key]) return false;
+  return true;
+}
+async function ensureCatalogFiles(files, pluginFolder, entries, seeds) {
+  const dir = textsDirOf(pluginFolder);
+  const written = [];
+  if (typeof files.write !== "function") return written;
+  if (!await Promise.resolve(files.exists(dir)) && typeof files.mkdir === "function") {
+    await Promise.resolve(files.mkdir(dir));
+  }
+  const put = async (lang, text) => {
+    const path = dir + "/" + lang + ".js";
+    await Promise.resolve(files.write(path, text));
+    written.push(path);
+  };
+  const mine = catalogFile(DEFAULT_FILE, entries);
+  const defaultPath = dir + "/" + DEFAULT_FILE + ".js";
+  let before = null;
+  if (await Promise.resolve(files.exists(defaultPath))) {
+    try {
+      before = parseCatalog(String(await Promise.resolve(files.read(defaultPath))));
+    } catch (e) {
+      console.error("inline-overhaul: " + DEFAULT_FILE + ".js \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0441\u044F, \u043F\u0438\u0448\u0435\u043C \u0437\u0430\u043D\u043E\u0432\u043E", e);
+    }
+  }
+  const english = {};
+  for (const entry of entries) english[entry.key] = entry.text;
+  if (!before || JSON.stringify(before) !== JSON.stringify(english)) await put(DEFAULT_FILE, mine);
+  for (const lang of MANAGED_LANGS) {
+    const path = dir + "/" + lang + ".js";
+    const seed = seeds && seeds[lang] || {};
+    const text = fileFor(lang, entries, seeds);
+    if (!await Promise.resolve(files.exists(path))) {
+      if (SHIPPED_LANGS.indexOf(lang) >= 0) await put(lang, text);
+      continue;
+    }
+    let onDisk = "";
+    try {
+      onDisk = String(await Promise.resolve(files.read(path)));
+    } catch (e) {
+      console.error("inline-overhaul: \u043A\u0430\u0442\u0430\u043B\u043E\u0433 " + lang + " \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0441\u044F, \u043E\u0441\u0442\u0430\u0432\u043B\u044F\u0435\u043C \u043A\u0430\u043A \u0435\u0441\u0442\u044C", e);
+      continue;
+    }
+    if (onDisk.replace(/\r\n?/g, "\n") === text) continue;
+    const was = shippedMap(before || english, seed);
+    if (untouched(onDisk, was, !before)) await put(lang, text);
+  }
+  return written;
+}
+async function readCatalogs(files, pluginFolder) {
+  const catalogs = {};
+  const broken = [];
+  const dir = textsDirOf(pluginFolder);
+  if (typeof files.list !== "function") return { catalogs, broken };
+  try {
+    if (!await Promise.resolve(files.exists(dir))) return { catalogs, broken };
+    const listed = await Promise.resolve(files.list(dir));
+    for (const path of listed && listed.files || []) {
+      const name = String(path).split("/").pop() || "";
+      if (!/\.js$/i.test(name)) continue;
+      const lang = name.replace(/\.js$/i, "");
+      if (!lang) continue;
+      if (lang === DEFAULT_FILE) continue;
+      try {
+        const parsed = parseCatalog(String(await Promise.resolve(files.read(String(path)))));
+        if (parsed) catalogs[lang] = parsed;
+        else broken.push(name);
+      } catch (e) {
+        broken.push(name);
+        console.error("inline-overhaul: \u043A\u0430\u0442\u0430\u043B\u043E\u0433 \u0442\u0435\u043A\u0441\u0442\u043E\u0432 \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u043B\u0441\u044F: " + path, e);
+      }
+    }
+  } catch (e) {
+    console.error("inline-overhaul: \u043F\u0430\u043F\u043A\u0430 \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u043E\u0432 \u0442\u0435\u043A\u0441\u0442\u043E\u0432 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0430\u0441\u044C", e);
+  }
+  return { catalogs, broken };
+}
+var SHIPPED_LANGS, MANAGED_LANGS;
+var init_texts_files = __esm({
+  "src/ui/settings/texts_files.ts"() {
+    "use strict";
+    init_texts();
+    SHIPPED_LANGS = ["ru"];
+    MANAGED_LANGS = [BASE_LANG, "ru"];
+  }
+});
+
+// src/ui/settings/texts_panel.ts
+function dialogsOf(it) {
+  const buttons = it.buttons;
+  if (!Array.isArray(buttons)) return [];
+  const out = [];
+  for (const b of buttons) {
+    const said2 = dialogEntries(String(b.action));
+    said2.forEach((entry, i) => out.push(i === 0 ? { ...entry, gap: true } : { ...entry }));
+  }
+  return out;
+}
+function panelExtras() {
+  return {
+    forItem: (tab, group, it) => {
+      const blocks = blockEntries(tab, group, it);
+      const dialogs = dialogsOf(it);
+      return blocks.length ? blocks.concat(dialogs) : dialogs;
+    },
+    tail: sharedEntries().concat(dialogEntries("shared").map((e) => ({ ...e })))
+  };
+}
+function panelCatalog(schema, tabs) {
+  return catalogEntries(schema, tabs, panelExtras());
+}
+var init_texts_panel = __esm({
+  "src/ui/settings/texts_panel.ts"() {
+    "use strict";
+    init_texts();
+    init_texts_custom();
+    init_texts_dialogs();
+  }
+});
+
+// src/ui/settings/texts_seed_ru.ts
+var RU_SEED;
+var init_texts_seed_ru = __esm({
+  "src/ui/settings/texts_seed_ru.ts"() {
+    "use strict";
+    init_texts();
+    RU_SEED = {
+      [LANGUAGE_NAME_KEY]: "\u0420\u0443\u0441\u0441\u043A\u0438\u0439",
+      "tab.general.label": "\u041E\u0431\u0449\u0435\u0435",
+      "tab.keyboard.label": "\u041A\u043B\u0430\u0432\u0438\u0430\u0442\u0443\u0440\u0430",
+      "tab.navigation.label": "\u041D\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u044F",
+      "tab.pkm.label": "\u0422\u0435\u0433\u0438 \u0438 PKM",
+      "tab.visual.label": "\u0412\u0438\u0434",
+      "tab.transform.label": "\u041F\u0440\u0435\u0432\u0440\u0430\u0449\u0435\u043D\u0438\u0435",
+      "tab.advanced.label": "\u0414\u043E\u043F\u043E\u043B\u043D\u0438\u0442\u0435\u043B\u044C\u043D\u043E",
+      "language.heading": "\u042F\u0437\u044B\u043A",
+      "language.ui-language.name": "\u042F\u0437\u044B\u043A",
+      "language.ui-language.desc": "\u041D\u0430 \u043A\u0430\u043A\u043E\u043C \u044F\u0437\u044B\u043A\u0435 \u0433\u043E\u0432\u043E\u0440\u044F\u0442 \u043F\u0430\u043D\u0435\u043B\u044C \u0438 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u043F\u043B\u0430\u0433\u0438\u043D\u0430"
+    };
+  }
+});
+
 // src/ui/settings/obsidian_tab.ts
 var obsidian_tab_exports = {};
 __export(obsidian_tab_exports, {
@@ -34981,7 +35887,20 @@ function storeFor(plugin) {
     }
   };
 }
-function askConfirm(app3, o) {
+function dlgHead(box, o) {
+  const host = el(box, "div", "io-dlg__head");
+  const row = el(host, "div", "io-dlg__head-row");
+  el(row, o.tag || "div", "io-dlg__head-name", o.text);
+  tipBelow({
+    head: row,
+    host,
+    text: o.tip || "",
+    label: o.text,
+    id: o.id,
+    showTips: o.showTips === true
+  });
+}
+function askConfirm(app3, o, say3) {
   return new Promise((resolve) => {
     let answered = false;
     const finish = (yes) => {
@@ -34995,26 +35914,29 @@ function askConfirm(app3, o) {
         box.empty();
         box.addClass("io-dlg");
         el(box, "h4", void 0, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        el(box, "p", "io-dlg__body", o.body);
         if (o.rows && o.rows.length) {
           const list = el(box, "ul", "io-dlg__list");
           for (const row of o.rows) el(list, "li", void 0, row);
         }
-        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        if (o.note) el(box, "p", "io-dlg__body io-dlg__note", o.note);
         if (o.check) {
           const input = checkInput(box, "io-dlg__check", {
             label: o.check.label,
             labelCls: "io-dlg__check-label",
             checked: o.check.checked === true
           });
-          if (o.check.sub) el(box, "p", "io-item__desc io-dlg__note", o.check.sub);
+          if (o.check.sub) el(box, "p", "io-dlg__body io-dlg__sub", o.check.sub);
           input.addEventListener("change", (() => {
             if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
           }));
           if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
         }
         const foot = el(box, "div", "io-dlg__foot");
-        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        const cancel = foot.createEl(
+          "button",
+          { cls: "io-btn", text: say3("CANCEL"), attr: { type: "button" } }
+        );
         cancel.addEventListener("click", (() => {
           finish(false);
           this.close();
@@ -35051,12 +35973,12 @@ function announce(app3, o) {
         box.empty();
         box.addClass("io-dlg");
         el(box, "h4", void 0, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        el(box, "p", "io-dlg__body", o.body);
         if (o.rows && o.rows.length) {
           const list = el(box, "ul", "io-dlg__list");
           for (const row of o.rows) el(list, "li", void 0, row);
         }
-        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        if (o.note) el(box, "p", "io-dlg__body io-dlg__note", o.note);
         const foot = el(box, "div", "io-dlg__foot");
         const go = foot.createEl("button", {
           cls: "io-btn io-btn--cta",
@@ -35076,7 +35998,7 @@ function announce(app3, o) {
     new AnnounceModal(app3).open();
   });
 }
-function askBackupOptions(app3, o) {
+function askBackupOptions(app3, o, say3) {
   return new Promise((resolve) => {
     let answered = false;
     const finish = (value) => {
@@ -35089,13 +36011,18 @@ function askBackupOptions(app3, o) {
         const box = this.contentEl;
         box.empty();
         box.addClass("io-dlg");
-        el(box, "h4", void 0, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        dlgHead(box, { text: o.title, tip: o.tip, showTips: o.showTips, id: "backup-save-tip", tag: "h4" });
         el(box, "div", "io-dlg__field-label", o.commentLabel);
         const comment = textInput(box, "io-dlg__input", {
           value: "",
           label: o.commentLabel,
           placeholder: o.commentHint
+        });
+        dlgHead(box, {
+          text: o.partsLabel,
+          tip: o.partsTip,
+          showTips: o.showTips,
+          id: "backup-parts-tip"
         });
         const boxes = [];
         const list = el(box, "div", "io-dlg__checks");
@@ -35109,14 +36036,22 @@ function askBackupOptions(app3, o) {
             })
           });
         }
-        el(box, "div", "io-dlg__field-label", o.hotkeyLabel);
+        dlgHead(box, {
+          text: o.hotkeyLabel,
+          tip: o.hotkeyTip,
+          showTips: o.showTips,
+          id: "backup-hotkeys-tip"
+        });
         const scope = selectInput(box, "io-dlg__select", {
           options: o.hotkeyOptions,
           value: o.hotkeyDefault,
           label: o.hotkeyLabel
         });
         const foot = el(box, "div", "io-dlg__foot");
-        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        const cancel = foot.createEl(
+          "button",
+          { cls: "io-btn", text: say3("CANCEL"), attr: { type: "button" } }
+        );
         cancel.addEventListener("click", (() => {
           finish(null);
           this.close();
@@ -35143,7 +36078,7 @@ function askBackupOptions(app3, o) {
     new OptionsModal(app3).open();
   });
 }
-function askPick(app3, o) {
+function askPick(app3, o, say3) {
   return new Promise((resolve) => {
     let answered = false;
     const finish = (value) => {
@@ -35157,7 +36092,7 @@ function askPick(app3, o) {
         box.empty();
         box.addClass("io-dlg");
         el(box, "h4", void 0, o.title);
-        el(box, "p", "io-item__desc", o.body);
+        el(box, "p", "io-dlg__body", o.body);
         const list = el(box, "div", "io-dlg__picks");
         for (const option of o.options) {
           const row = list.createEl("button", { cls: "io-dlg__pick", attr: { type: "button" } });
@@ -35174,7 +36109,10 @@ function askPick(app3, o) {
           }));
         }
         const foot = el(box, "div", "io-dlg__foot");
-        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        const cancel = foot.createEl(
+          "button",
+          { cls: "io-btn", text: say3("CANCEL"), attr: { type: "button" } }
+        );
         cancel.addEventListener("click", (() => {
           finish(null);
           this.close();
@@ -35267,13 +36205,8 @@ function commandNameOf(app3, id) {
   const name = found && found.name ? String(found.name) : "";
   return name || id;
 }
-function bindingKey(binding2) {
-  const row = binding2 && typeof binding2 === "object" ? binding2 : null;
-  if (!row) return "";
-  const mods = Array.isArray(row.modifiers) ? row.modifiers.map((m) => String(m || "").trim().toLowerCase()).filter(Boolean).sort() : [];
-  const key = String(row.key === void 0 || row.key === null ? "" : row.key).trim().toLowerCase();
-  if (!key) return "";
-  return mods.join("+") + "|" + key;
+function keyOf(binding2) {
+  return (0, import_settings_backup2.bindingKey)(binding2, { mac: import_obsidian.Platform.isMacOS });
 }
 function hotkeyManagerOf(app3) {
   const holder = app3;
@@ -35323,7 +36256,7 @@ function hotkeySeam(app3, plugin) {
       for (const id of Object.keys(map || {})) {
         const list = Array.isArray(map[id]) ? map[id] : [];
         for (const binding2 of list) {
-          const key = bindingKey(binding2);
+          const key = keyOf(binding2);
           if (key) wanted.set(key, true);
         }
       }
@@ -35335,9 +36268,15 @@ function hotkeySeam(app3, plugin) {
       const out = [];
       for (const id of ids) {
         if (mine(id) || map[id] !== void 0) continue;
-        const clashing = effective(hm, id).filter((binding2) => wanted.has(bindingKey(binding2)));
+        const clashing = effective(hm, id).filter((binding2) => wanted.has(keyOf(binding2)));
         if (!clashing.length) continue;
-        out.push({ id, name: commandNameOf(app3, id), hotkey: (0, import_settings_backup2.hotkeyListWords)(clashing) });
+        out.push({
+          id,
+          name: commandNameOf(app3, id),
+          /* Клавиши называются так, как их пишет экран `Hotkeys`: там `Mod` не
+             показывается никогда — стоит `Ctrl` или `Cmd`. */
+          hotkey: (0, import_settings_backup2.hotkeyListWords)(clashing, { mac: import_obsidian.Platform.isMacOS })
+        });
       }
       return out;
     },
@@ -35366,7 +36305,7 @@ function hotkeySeam(app3, plugin) {
         for (const id of Object.keys(map || {})) {
           const list = Array.isArray(map[id]) ? map[id] : [];
           for (const binding2 of list) {
-            const key = bindingKey(binding2);
+            const key = keyOf(binding2);
             if (key) wantedKeys.add(key);
           }
         }
@@ -35377,7 +36316,7 @@ function hotkeySeam(app3, plugin) {
         for (const id of ids) {
           if (mine(id) || map[id] !== void 0) continue;
           const now = effective(hm, id);
-          const kept = now.filter((binding2) => !wantedKeys.has(bindingKey(binding2)));
+          const kept = now.filter((binding2) => !wantedKeys.has(keyOf(binding2)));
           if (kept.length === now.length) continue;
           hm.setHotkeys(id, kept);
           touched++;
@@ -35401,6 +36340,24 @@ function hotkeySeam(app3, plugin) {
     }
   };
 }
+function pluginFolderOf(app3, plugin) {
+  const configDir = String(app3 && app3.vault && app3.vault.configDir || ".obsidian");
+  const manifest = plugin.manifest;
+  const id = manifest && manifest.id ? String(manifest.id) : "inline-overhaul";
+  return configDir + "/plugins/" + id;
+}
+function textFilesOf(app3) {
+  const holder = app3 && app3.vault ? app3.vault.adapter : null;
+  if (!holder || typeof holder !== "object") return null;
+  const adapter = holder;
+  return {
+    exists: (p) => adapter.exists(p),
+    read: (p) => adapter.read(p),
+    write: (p, data) => adapter.write(p, data),
+    ...typeof adapter.mkdir === "function" ? { mkdir: (p) => adapter.mkdir(p) } : {},
+    ...typeof adapter.list === "function" ? { list: (p) => adapter.list(p) } : {}
+  };
+}
 var import_obsidian, import_settings_backup2, InlineOverhaulSettings;
 var init_obsidian_tab = __esm({
   "src/ui/settings/obsidian_tab.ts"() {
@@ -35413,13 +36370,35 @@ var init_obsidian_tab = __esm({
     init_dom();
     import_settings_backup2 = __toESM(require_settings_backup());
     init_tab_strip();
+    init_texts();
+    init_texts_files();
+    init_texts_panel();
+    init_texts_dialogs();
+    init_texts_seed_ru();
     InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
       constructor(app3, plugin, bridge) {
         super(app3, plugin);
+        /**
+         * Каталоги текстов, прочитанные с диска (10.13.38). Пусто до того, как
+         * чтение закончится, и это не проблема: пустой каталог — это английский из
+         * схемы, то есть ровно то, чем панель была до 2026-09-06.
+         */
+        this.catalogs = {};
+        /**
+         * Текст окна по имени из таблицы. Поле со стрелкой, а не метод: его
+         * передают дальше как значение, и `this` у него должен остаться свой.
+         */
+        this.say = (name) => this.textFor(dialogKey(name), TEXT_BY_NAME[name] || "");
         const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function" ? bridge.normalizePkmOrder : null;
         this.pane = new SettingsPane({
           schema: SCHEMA,
           tabs: TABS,
+          /*
+           * Видимые тексты по ключу (10.13.38). Чтение идёт с диска и потому
+           * асинхронно, а панель строится сразу: до конца чтения она говорит
+           * английским из схемы, а закончив, перерисовывается сама.
+           */
+          texts: () => this.catalogs,
           store: new ConfigStoreAdapter(storeFor(plugin)),
           /*
            * Реестр действий (5.6). Кнопка, действия которой здесь нет, в схему
@@ -35429,8 +36408,8 @@ var init_obsidian_tab = __esm({
             notify: (message) => {
               new import_obsidian.Notice(message);
             },
-            confirm: (o) => askConfirm(app3, o),
-            pick: (o) => askPick(app3, o),
+            confirm: (o) => askConfirm(app3, o, this.say),
+            pick: (o) => askPick(app3, o, this.say),
             vault: vaultSeam(app3),
             /*
              * Копии настроек пишутся и читаются через то же хранилище, что и всё
@@ -35448,11 +36427,17 @@ var init_obsidian_tab = __esm({
              * перезапуска — про него и говорит окно.
              */
             rebuildFromConfig: typeof plugin.rebuildFromConfig === "function" ? () => plugin.rebuildFromConfig() : void 0,
+            /*
+             * Тексты окон — из каталога (10.13.46). Замыкание, а не значение:
+             * панель в этот момент ещё собирается, а язык человек меняет на
+             * лету.
+             */
+            t: (key, fallback) => this.textFor(key, fallback),
             announce: (o) => announce(app3, o),
-            askBackupOptions: (o) => askBackupOptions(app3, o)
+            askBackupOptions: (o) => askBackupOptions(app3, o, this.say)
           }),
           /* То же окно и для сброса группы (Н3). */
-          confirm: (o) => askConfirm(app3, o),
+          confirm: (o) => askConfirm(app3, o, this.say),
           fragments: {
             createFragment: () => document.createDocumentFragment()
           },
@@ -35491,6 +36476,39 @@ var init_obsidian_tab = __esm({
             pkmOrderFields: bridge && bridge.pkmOrderFields || []
           } : void 0
         });
+        void this.loadTexts(app3, plugin);
+      }
+      /** Видимый текст по ключу каталога. Спрашивается у панели — она одна. */
+      textFor(key, fallback) {
+        return this.pane ? this.pane.textFor(key, fallback) : fallback;
+      }
+      /**
+       * Положить недостающие каталоги и прочитать то, что в папке лежит.
+       *
+       * Порядок обязателен: сначала запись, потом чтение — иначе первый запуск
+       * не увидел бы собственных файлов и список языков был бы пуст до
+       * перезапуска.
+       */
+      async loadTexts(app3, plugin) {
+        const files = textFilesOf(app3);
+        if (!files) return;
+        try {
+          const folder = pluginFolderOf(app3, plugin);
+          await ensureCatalogFiles(
+            files,
+            folder,
+            panelCatalog(SCHEMA, TABS),
+            { en: BASE_LANG_SEED, ru: RU_SEED }
+          );
+          const read = await readCatalogs(files, folder);
+          this.catalogs = read.catalogs;
+          for (const name of read.broken) {
+            new import_obsidian.Notice(fill(this.say("TEXTS_BROKEN"), name));
+          }
+          this.update();
+        } catch (e) {
+          console.error("inline-overhaul: \u043A\u0430\u0442\u0430\u043B\u043E\u0433\u0438 \u0442\u0435\u043A\u0441\u0442\u043E\u0432 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0438\u0441\u044C", e);
+        }
       }
       /* ---- декларативный путь Obsidian 1.13 ------------------------------- */
       /*
@@ -35517,12 +36535,8 @@ var init_obsidian_tab = __esm({
         const el2 = this.containerEl;
         el2.empty();
         const box = el2.createDiv({ cls: "io-needs-update" });
-        box.createEl("p", {
-          text: "inlineOverhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API."
-        });
-        box.createEl("p", {
-          text: "Update Obsidian, or install an earlier release of the plugin."
-        });
+        box.createEl("p", { text: this.say("NEEDS_UPDATE") });
+        box.createEl("p", { text: this.say("NEEDS_UPDATE_HOW") });
       }
     };
   }
@@ -36545,13 +37559,13 @@ var require_main = __commonJS({
       const leftById = new Set(leftFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
       const rightById = new Set(rightFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
       const keys = [];
-      const push = (k) => {
+      const push2 = (k) => {
         const id = String(k || "").trim();
         if (!id || /_sub$/.test(id)) return;
         if (!keys.includes(id)) keys.push(id);
       };
-      for (const k of order.left || []) push(k);
-      for (const k of order.right || []) push(k);
+      for (const k of order.left || []) push2(k);
+      for (const k of order.right || []) push2(k);
       const builtInLeftIds = /* @__PURE__ */ new Set();
       const builtInRightIds = /* @__PURE__ */ new Set();
       const builtInOrderKeys = /* @__PURE__ */ new Set();
@@ -37611,7 +38625,7 @@ var require_main = __commonJS({
       const registry2 = getCommandRegistry();
       const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : {};
       const out = [];
-      const push = (defs, area, family) => {
+      const push2 = (defs, area, family) => {
         for (const d of Array.isArray(defs) ? defs : []) {
           const id = String(d && d.id ? d.id : "").trim();
           if (!id) continue;
@@ -37631,8 +38645,8 @@ var require_main = __commonJS({
         }
       };
       try {
-        push(registry2.buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath), "Navigation", "");
-        push(
+        push2(registry2.buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath), "Navigation", "");
+        push2(
           registry2.buildPkmCommandDefs(
             getActiveTagWheelRulesPath,
             serializePkmOrderForMacro,
@@ -37647,17 +38661,17 @@ var require_main = __commonJS({
             return d.direction === "decrease" ? "field-previous" : "field-next";
           }
         );
-        push(
+        push2(
           [{ id: "transform-inline-to-note", name: __commandIds.commandName("transform-inline-to-note") }],
           "Transform",
           ""
         );
-        push(
+        push2(
           registry2.buildBinderCommandDefs(cfg),
           "Binder",
           (d) => String(d && d.id ? d.id : "") === BINDER_SMART_BRACKET_COMMAND_ID ? "" : "binder-row"
         );
-        push(
+        push2(
           registry2.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META),
           "General",
           (d) => /^toggle-feature-/.test(String(d && d.id ? d.id : "")) ? "module-toggle" : ""

@@ -546,6 +546,54 @@ else ok("схема загружена: групп " + SCHEMA.length);
           ", снято " + cleanups);
 }
 
+/* ---- Г24: каталог видимых текстов и переводы (10.13.38) ---------------- */
+{
+  const { SCHEMA: liveSchema, TABS: liveTabs } =
+    await import("../../src/ui/settings/schema/index.ts");
+  const { reportCatalog, LANGUAGE_NAME_KEY } =
+    await import("../../src/ui/settings/texts.ts");
+  const { panelCatalog } = await import("../../src/ui/settings/texts_panel.ts");
+  const { RU_SEED } = await import("../../src/ui/settings/texts_seed_ru.ts");
+
+  const entries = panelCatalog(liveSchema, liveTabs);
+  const report = reportCatalog("ru", RU_SEED, entries);
+
+  /*
+   * Лишний ключ — это **мёртвая строка перевода**: человек её перевёл, а на
+   * экране ничего не изменилось, и понять это по экрану нельзя. Появляется
+   * она сама собой — от переименования группы или строки, — и молча.
+   */
+  if (report.unknown.length) {
+    fail("Г24: в русском каталоге ключи, которых нет в панели (переименование?): "
+      + report.unknown.join(", "));
+  } else if (!entries.length) {
+    fail("Г24: каталог текстов пуст — гейт ничего не проверяет");
+  } else {
+    /*
+     * Недостающее не роняет гейт: русский заведён плейсхолдером по решению
+     * заказчика, и незаполненное молча уступает английскому (Я4). Гейт про
+     * него **говорит** — это и есть «строка в отчёте вместо дефекта на
+     * экране».
+     */
+    ok("Г24: строк в каталоге " + report.total
+      + ", переведено на русский " + (report.total - report.missing.length)
+      + ", ждёт перевода " + report.missing.length
+      + " (имя языка: " + String(RU_SEED[LANGUAGE_NAME_KEY] || "—") + ")");
+  }
+}
+
+/* ---- Г25: всё видимое лежит в файле текстов (10.13.46) ----------------- */
+{
+  const { checkTextsCoverage } = await import("./texts_coverage.ts");
+  const r = checkTextsCoverage();
+  for (const line of r.lines) console.log("  " + line);
+  if (r.problems.length) for (const p of r.problems) fail(p);
+  else {
+    ok("Г25: в каталоге " + r.total + " строк; видимых в исходниках " + r.found
+      + ", вне каталога " + r.uncovered + " (второй кусок, В-67)");
+  }
+}
+
 if (notices.length) console.log("  показанные Notice: " + notices.length);
 console.log(failures ? "\n" + failures + " problem(s)" : "\nвсе гейты фазы " + phaseLabel + " прошли");
 process.exit(failures ? 1 : 0);

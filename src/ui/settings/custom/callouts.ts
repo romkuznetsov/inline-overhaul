@@ -14,6 +14,7 @@
  */
 
 import { TAB_CALLOUTS } from "../schema/custom_texts.ts";
+import { calloutKey } from "../texts_custom.ts";
 import type { SettingsCtx } from "../types.ts";
 import { el, rich, tipBelow, type El } from "./dom.ts";
 
@@ -24,21 +25,30 @@ export function callout(tab: string): (host: El, ctx: SettingsCtx) => () => void
        ситуация: рисовать пустую рамку незачем. */
     if (!text) return () => {};
 
+    /*
+     * Текст спрашивается по ключу, а написанное в выгрузке идёт ответом,
+     * когда перевода нет (10.13.38, Я4). Своего словаря блок не заводит:
+     * подстановка по схеме до `kind: "custom"` не достаёт — ни `name`, ни
+     * `desc` у такой записи нет.
+     */
+    const say = (slot: "head" | "tip" | "body"): string =>
+      (ctx.t ? ctx.t(calloutKey(tab, slot), text[slot]) : text[slot]);
+
     const box = el(host, "div", "io-callout");
     const head = el(box, "div", "io-callout__head");
-    rich(head, text.head);
+    rich(head, say("head"));
     /* «?» в шапке, подсказка — под коллаутом: внутри рамки она раздвигает
        его текст, и это выглядит как прыжок панели */
     const closeTip = tipBelow({
       head,
       host,
-      text: text.tip,
+      text: say("tip"),
       label: "this tab",
       id: "io-tip-callout-" + tab,
       showTips: Boolean(ctx.get("general.help.showTips")),
       showIds: Boolean(ctx.get("advanced.showSettingIds")),
     });
-    rich(el(box, "p", "io-callout__body"), text.body);
+    rich(el(box, "p", "io-callout__body"), say("body"));
 
     /* Снимаем только то, что могли оставить открытым: остальное уходит
        вместе со строкой, которую убирает платформа (С5). */

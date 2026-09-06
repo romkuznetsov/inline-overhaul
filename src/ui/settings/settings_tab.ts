@@ -16,12 +16,30 @@ import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { fieldOptions } from "./custom/preview_data.ts";
 import { themeVarFor } from "./custom/theme_colors.ts";
 import { templateOptions } from "./templates.ts";
+import { dialogKey, fill } from "./texts_dialogs.ts";
+import { FRAME_BY_NAME, SINGLE_KEYS, frameKey } from "./texts_custom.ts";
 import { Describer, paintRich, type DocLike, type FragmentHost } from "./describe.ts";
 import type { ConfirmRequest } from "./actions.ts";
+import {
+  BASE_LANG,
+  PLAIN,
+  languageOptions,
+  localizeSchema,
+  localizeTabs,
+  makeResolve,
+  type Catalogs,
+  type Resolve,
+} from "./texts.ts";
 
 export interface TabDeps {
   schema: readonly SettingsGroup[];
   tabs: readonly TabDef[];
+  /**
+   * Каталоги видимых текстов, прочитанные из папки плагина (10.13.38).
+   * Нет их — панель говорит по-английски тем текстом, что стоит в схеме, и
+   * это ровно то, чем она была до 2026-09-06.
+   */
+  texts?: () => Catalogs;
   store: SettingsStore;
   /** Реестр действий (5.6). Кнопка без действия в схему не попадает (З8). */
   actions: Record<string, () => Promise<void> | void>;
@@ -129,6 +147,13 @@ interface ClassListLike {
  * (П-11).
  */
 const OPTION_SOURCE_DEPS: Record<string, readonly string[]> = {
+  /*
+   * Языки не зависят ни от одного пути конфига: список приходит из файлов
+   * папки плагина, а они читаются при загрузке. Запись стоит здесь, чтобы
+   * источник без зависимостей отличался от источника, который забыли
+   * объявить.
+   */
+  languages: [],
   /* Шаблоны берутся только из назначенной папки: сменилась папка — сменился список. */
   templates: ["transform.inline2note.templatesFolder"],
   /*
@@ -140,17 +165,23 @@ const OPTION_SOURCE_DEPS: Record<string, readonly string[]> = {
   "tag-fields": ["pkm.fields"],
 };
 
+/**
+ * Где лежит выбранный язык. Путь объявлен здесь один раз: его спрашивают и
+ * подстановка текстов, и список значений, и пробуждение панели (У-32).
+ */
+const LANGUAGE_PATH = "general.language";
+
 /** Сколько строк списка показывать, прежде чем свернуть остаток (Н3). */
 const RESET_ROWS = 10;
 
-/** Н5: сброс не трогает данные человека, и об этом сказано одной строкой. */
-const RESET_NOTE = "Your Fields, Values and rules are not touched";
-
-/** Значение словами: в списке изменений его надо прочесть, а не разобрать. */
-function valueWords(value: unknown): string {
-  if (value === true) return "on";
-  if (value === false) return "off";
-  if (value === "" || value === null || value === undefined) return "empty";
+/**
+ * Значение словами: в списке изменений его надо прочесть, а не разобрать.
+ * Слова видимые, значит из каталога (10.13.46).
+ */
+function valueWords(value: unknown, say: (name: string) => string): string {
+  if (value === true) return say("WORD_ON");
+  if (value === false) return say("WORD_OFF");
+  if (value === "" || value === null || value === undefined) return say("WORD_EMPTY");
   return String(value);
 }
 
@@ -202,6 +233,20 @@ export class SettingsPane {
   /** Отписка от хранилища: панель живёт до выгрузки плагина, но не дольше. */
   private stopWatchingStore: () => void;
 
+  /**
+   * Схема и вкладки на выбранном языке (10.13.38).
+   *
+   * Считается один раз на язык и держится до его смены: подстановка идёт по
+   * всем строкам каталога, а `getSettingDefinitions` платформа зовёт часто
+   * (П-11). Пометка — язык плюс список прочитанных каталогов: сменилось то
+   * или другое, и копия собирается заново.
+   *
+   * Копия, а не правка схемы на месте: схема — модуль, живущий всё время
+   * работы плагина, и переписать её значило бы сделать переключение языка
+   * необратимым.
+   */
+  private localized: { stamp: string; schema: readonly SettingsGroup[]; tabs: readonly TabDef[]; t: Resolve } | null = null;
+
   constructor(deps: TabDeps) {
     this.deps = deps;
     this.describer = new Describer(deps.fragments);
@@ -223,6 +268,48 @@ export class SettingsPane {
     this.stopWatchingStore();
     this.stopWatchingStore = () => {};
   }
+
+  /**
+   * Каким языком говорит панель. Английский — это «как в схеме»: файла
+   * `en.js` человек может и не заводить, и тогда подстановки нет вовсе.
+   */
+  private language(): string {
+    const raw = String(this.storedValue(LANGUAGE_PATH) || "").trim();
+    return raw || BASE_LANG;
+  }
+
+  /** Схема и вкладки, тексты которых уже переведены. */
+  private view(): { schema: readonly SettingsGroup[]; tabs: readonly TabDef[]; t: Resolve } {
+    const catalogs: Catalogs = this.deps.texts ? (this.deps.texts() || {}) : {};
+    const lang = this.language();
+    const stamp = lang + "|" + Object.keys(catalogs).sort().join(",");
+    if (this.localized && this.localized.stamp === stamp) return this.localized;
+    const t = makeResolve(catalogs, lang);
+    this.localized = {
+      stamp,
+      t,
+      schema: t === PLAIN ? this.deps.schema : localizeSchema(this.deps.schema, t),
+      tabs: t === PLAIN ? this.deps.tabs : localizeTabs(this.deps.tabs, t),
+    };
+    return this.localized;
+  }
+
+  /**
+   * Видимый текст по ключу каталога — для тех, кто рисует не в панели
+   * (10.13.46): окна платформы и реестр действий. Своего резолвера они завести
+   * не могут — язык живёт в конфиге, а конфиг у панели, — и второй завёлся бы
+   * с другим порядком подстановки (У-32).
+   */
+  textFor(key: string, fallback: string): string {
+    return this.view().t(key, fallback);
+  }
+
+  /**
+   * Строка самой панели по имени из таблицы `FRAME_TEXTS`. Поле со стрелкой:
+   * его передают дальше как значение, и `this` у него должен остаться свой.
+   */
+  private frame = (name: string): string =>
+    this.textFor(frameKey(name), FRAME_BY_NAME[name] || "");
 
   /** Какая вкладка открыта. */
   activeTab(): TabId {
@@ -264,7 +351,7 @@ export class SettingsPane {
   private inverted(): Map<string, number> {
     if (this.invertedCache) return this.invertedCache;
     const map = new Map<string, number>();
-    for (const group of this.deps.schema) {
+    for (const group of this.view().schema) {
       for (const it of group.items) {
         if (!isBound(it)) continue;
         const invert = Number((it as unknown as Record<string, unknown>)["invert"]);
@@ -419,7 +506,10 @@ export class SettingsPane {
   private definitionsChanged(key: string): boolean {
     return key === "general.help.showTips"
       || key === "general.help.showCallouts"
-      || key === "advanced.showSettingIds";
+      || key === "advanced.showSettingIds"
+      /* Язык меняет не значение, а весь видимый текст (10.13.38): без
+         пересборки панель осталась бы прежней до перехода по вкладкам. */
+      || key === LANGUAGE_PATH;
   }
 
   /*
@@ -462,8 +552,15 @@ export class SettingsPane {
    * расходится молча (У-32), и по C44 это уже подтвердилось мутацией.
    */
   private rebuildNeeded(changed: readonly string[]): boolean {
+    /*
+     * Ровно этот путь, а не «задевает» его: `touches` считает совпадением и
+     * предка, а хранилище сообщает вместе с листом и его ветку — тогда
+     * пересборкой отвечала бы любая запись внутри `general`. Язык — лист,
+     * и сравнивать его надо с листом.
+     */
+    if (changed.indexOf(LANGUAGE_PATH) >= 0) return true;
     if (this.optionSourcesTouched(changed).length) return true;
-    const tab = this.deps.tabs.find(t => t.id === this.active);
+    const tab = this.view().tabs.find(t => t.id === this.active);
     const gate = String((tab && tab.module) || "").trim();
     if (!gate) return false;
     return changed.some(c => SettingsPane.touches(gate, c));
@@ -471,7 +568,7 @@ export class SettingsPane {
 
   private optionSourcesTouched(changed: readonly string[]): string[] {
     const out: string[] = [];
-    for (const group of this.deps.schema) {
+    for (const group of this.view().schema) {
       if (group.tab !== this.active) continue;
       for (const it of group.items) {
         const source = (it as { optionsFrom?: unknown }).optionsFrom;
@@ -487,7 +584,7 @@ export class SettingsPane {
 
   /** Обновить кнопку сброса той группы, чьё значение изменилось. */
   private syncResetButtons(key: string): void {
-    for (const group of this.deps.schema) {
+    for (const group of this.view().schema) {
       if (!group.items.some(it => isBound(it) && it.path === key)) continue;
       const btn = this.resetButtons.get(group.id);
       if (btn) this.paintResetButton(group, btn);
@@ -501,7 +598,7 @@ export class SettingsPane {
   private themedColorPaths(): Set<string> {
     if (!this._themedColorPaths) {
       const out = new Set<string>();
-      for (const group of this.deps.schema) {
+      for (const group of this.view().schema) {
         for (const it of group.items) {
           if (isBound(it) && it.kind === "color" && themeVarFor(it.path)) out.add(it.path);
         }
@@ -515,7 +612,7 @@ export class SettingsPane {
 
   /** Склейка записей идёт по id настройки, а не по пути (CS3). */
   private coalesceKeyFor(path: string): string {
-    for (const group of this.deps.schema) {
+    for (const group of this.view().schema) {
       for (const it of group.items) {
         if (isBound(it) && it.path === path) return it.id;
       }
@@ -533,6 +630,14 @@ export class SettingsPane {
       set: (path: string, value: unknown, opts?: SetOpts) => this.deps.store.set(path, value, opts),
       run: (action: ActionId) => this.run(action),
       watch: (paths: readonly string[], redraw: () => void) => this.watch(paths, redraw),
+      /*
+       * Текст по ключу — для своих блоков (10.13.38). У записи `custom` нет
+       * ни имени, ни описания, и подстановка по схеме до её текстов не
+       * достаёт: коллаут вкладки, предпросмотры и справочник команд берут
+       * свои строки из `schema/custom_texts.ts` сами. Второй аргумент — то,
+       * что там написано: он же и ответ, когда перевода нет.
+       */
+      t: (key: string, fallback: string) => this.view().t(key, fallback),
     };
     if (this.deps.platform) ctx.platform = this.deps.platform;
     return ctx;
@@ -640,27 +745,37 @@ export class SettingsPane {
   ): ReadonlyArray<{ value: string; label: string }> {
     /* Полосы красятся цветом Value, а он есть только у тега (З8). */
     if (source === "tag-fields") return fieldOptions(ctx, f => f.kind === "tag");
+    /*
+     * Языки: английский плюс всё, что нашлось в папке плагина. Имя языка
+     * берётся из самого файла — список в коде пришлось бы править ради
+     * каждого нового языка, и «добавить язык» перестало бы быть простым.
+     */
+    if (source === "languages") return languageOptions(this.deps.texts ? (this.deps.texts() || {}) : {});
     if (source === "templates") {
       /* Путь тот же, что объявлен в `OPTION_SOURCE_DEPS`: одно правило — одно
          место, иначе список и его зависимость разойдутся молча (У-32). */
       const dep = OPTION_SOURCE_DEPS["templates"]?.[0] || "";
       const folder = String(this.storedValue(dep) || "").trim();
       const notes = ctx.platform && ctx.platform.listNotes ? ctx.platform.listNotes() : [];
-      return templateOptions(folder, notes);
+      /* Строки «шаблонов нет» человек читает — значит, они из каталога. */
+      return templateOptions(folder, notes,
+        (name: string, english: string) => this.textFor(dialogKey(name), english));
     }
     return [];
   }
 
   /** Вкладки, у которых есть хотя бы одна группа: пустых не показываем. */
   tabsWithGroups(): readonly TabDef[] {
-    return this.deps.tabs.filter(t => this.deps.schema.some(g => g.tab === t.id));
+    const view = this.view();
+    return view.tabs.filter(t => view.schema.some(g => g.tab === t.id));
   }
 
   getSettingDefinitions(): SettingDefinitionItem[] {
     /* Кнопки создаст платформа, когда вызовет функции из extraButtons: до тех
        пор прежние ссылки указывают на снятые узлы и держать их незачем. */
     this.resetButtons.clear();
-    return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
+    const view = this.view();
+    return toDefinitions(view.schema, view.tabs, this.wiring());
   }
 
   /* ---- сброс группы к значениям по умолчанию (10.13.1) --------------- */
@@ -697,18 +812,19 @@ export class SettingsPane {
       console.error("inline-overhaul: сброс группы без окна подтверждения не идёт");
       return 0;
     }
+    const say = this.frame;
     const shown = drift.slice(0, RESET_ROWS).map(d =>
-      d.name + ": " + valueWords(d.now) + " \u2192 " + valueWords(d.was));
+      d.name + ": " + valueWords(d.now, say) + " \u2192 " + valueWords(d.was, say));
     const hidden = drift.length - shown.length;
-    if (hidden > 0) shown.push("and " + hidden + " more");
+    if (hidden > 0) shown.push(fill(say("RESET_MORE"), hidden));
     const yes = await ask({
-      title: "Reset " + group.heading,
+      title: fill(say("RESET_TITLE"), group.heading),
       body: drift.length === 1
-        ? "One setting in this group goes back to its default"
-        : drift.length + " settings in this group go back to their defaults",
-      confirmLabel: "Reset the group",
+        ? say("RESET_ONE")
+        : fill(say("RESET_MANY"), drift.length),
+      confirmLabel: this.textFor(SINGLE_KEYS.groupReset, "Reset the group"),
       rows: shown,
-      note: RESET_NOTE,
+      note: say("RESET_NOTE"),
     });
     if (!yes) return 0;
     let first = true;
@@ -719,7 +835,7 @@ export class SettingsPane {
       first = false;
     }
     if (drift.length && this.deps.notify) {
-      this.deps.notify(drift.length + " settings back to default. Use Undo settings change to revert");
+      this.deps.notify(fill(say("RESET_DONE"), drift.length));
     }
     if (drift.length) {
       if (this.deps.rebuild) this.deps.rebuild();
@@ -1017,7 +1133,7 @@ export class SettingsPane {
      * Показан он или спрятан, решает `paint`, и решает по значениям, взятым
      * в момент отрисовки.
      */
-    const label = "More about " + group.heading;
+    const label = fill(this.frame("MORE_ABOUT"), group.heading);
     return (btn: ExtraButtonComponent) => {
       const node = (btn as unknown as { extraSettingsEl?: TipButtonEl }).extraSettingsEl;
       /* Тело живёт в замыкании кнопки: она его и создала, она и снимает. */
@@ -1106,8 +1222,8 @@ export class SettingsPane {
   private paintResetButton(group: SettingsGroup, btn: ExtraButtonComponent): unknown {
     const n = this.drift(group).length;
     const tooltip = n
-      ? "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default"
-      : "Everything here is already at its default";
+      ? fill(this.frame(n === 1 ? "RESET_TIP_ONE" : "RESET_TIP_MANY"), n)
+      : this.frame("RESET_TIP_CLEAN");
     return btn.setDisabled(n === 0).setTooltip(tooltip);
   }
 }

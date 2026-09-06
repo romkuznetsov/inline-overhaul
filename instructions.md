@@ -62,6 +62,24 @@ Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **
 - **Advanced → Diagnostics** shows schema version, enabled modules, and last save time.
 - **Developer mode** can write troubleshooting logs to a vault-relative path. Keep it off unless diagnosing a problem; logs may contain note text involved in commands.
 
+### The words the panel uses
+
+**General → Language** decides what language the panel speaks. Every visible line has a key of its own, and the words behind those keys live in plain text files inside the plugin folder, one file per language:
+
+```
+<your vault>/.obsidian/plugins/inline-overhaul/texts/default.js   written by the plugin
+<your vault>/.obsidian/plugins/inline-overhaul/texts/ru.js        yours, one per language
+```
+
+Left of the colon is the key, right of it is what you see on screen. Edit a line, reload the plugin, and the panel says what you wrote — the English wording included, so rewording a setting is no longer something you have to ask for.
+
+- **`default.js` belongs to the plugin and is always current.** Every update rewrites it, so a new setting, a new window and a reworded line show up there on their own. Do not edit it: copy it instead. There is no English file of your own unless you make one — an English snapshot that is never rewritten would freeze every later rewording, because a file on disk is read before the wording built into the panel.
+- **Your file is never overwritten.** The plugin writes a language file only when there is none, so your edits survive an update. A file it wrote and nobody changed is kept in step; the moment you change one line in it, it becomes yours and the plugin stops touching it.
+- **A line you leave out falls back.** A key that is missing, or left empty, keeps the wording the plugin ships with, and so does a whole file that fails to load. You never see a key instead of a text.
+- **The file is read as JSON**, so keep it plain: no comments between the braces, and no comma after the last line. A file the plugin cannot read is named in a notice, and the panel opens in English.
+- **To add a language**, copy one of the files under a new name and change its first line, `"$language"`, to the name of that language. It appears in the list on its own; nothing has to be registered anywhere.
+- **Command names stay in English.** Obsidian takes those from its own command registry, so translating them here would leave the command palette and the reference table disagreeing.
+
 ### Module toggles
 
 Four global modules exist:
@@ -836,6 +854,7 @@ Transform stops before target mutation when a selected template cannot be read o
   renamed commands.
 - Transform performs real note mutations; behavior is automated-tested but still requires user verification with each vault's templates, YAML, and field taxonomy.
 - General Visual features are implemented: tag bubbles, Tag Bars, Separator colors, and the TagWheel panel and scroller appearance. They are not the disabled Processed-marker styling feature.
+- The language files cover the settings panel, its tips, the tab callouts, the live previews, the command reference and the windows the panel opens — 886 lines in all. The Fields editor and its neighbours, this guide note and the messages shown while you type stay English whatever you pick: 296 more lines, listed file by file in `tests/gates/texts_coverage.ts`. Russian ships as a placeholder: the language name, the tab labels and the `Language` group are translated, and the rest of the file is English and waiting for a hand.
 
 ## Safe copyable test
 

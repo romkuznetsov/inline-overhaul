@@ -32,6 +32,7 @@ import {
   type PreviewValue,
 } from "./preview_data.ts";
 import type { PreviewNode } from "../schema/custom_texts.ts";
+import { FRAME_BY_NAME, SINGLE_KEYS, frameKey, previewKey } from "../texts_custom.ts";
 /* Движок Transform: считает он, блок только рисует (У-4). */
 import sourceEngine from "../../../features/transform_feature.js";
 
@@ -39,6 +40,25 @@ import sourceEngine from "../../../features/transform_feature.js";
 function num(ctx: SettingsCtx, path: string): number {
   const v = Number(ctx.get(path));
   return Number.isFinite(v) ? v : 0;
+}
+
+/**
+ * Видимый текст предпросмотра по ключу каталога (10.13.38).
+ *
+ * У записи `kind: "custom"` нет ни `name`, ни `desc`, и подстановка, идущая
+ * по схеме, до её текстов не достаёт. Второй аргумент — то, что написано в
+ * выгрузке из прототипа: он же и ответ, когда перевода нет (Я4).
+ */
+function say(ctx: SettingsCtx, key: string, fallback: string): string {
+  return ctx.t ? ctx.t(key, fallback) : fallback;
+}
+
+/**
+ * Строка панели по имени из `FRAME_TEXTS`: пустые состояния и подписи
+ * разбора строки. Ключ строит `frameKey` — литерала на его месте нет (У-82).
+ */
+function frame(ctx: SettingsCtx, name: string): string {
+  return say(ctx, frameKey(name), FRAME_BY_NAME[name] || "");
 }
 
 /** Значение настройки строкой, с запасным вариантом на пустое место. */
@@ -55,14 +75,15 @@ function str(ctx: SettingsCtx, path: string, fallback: string): string {
  */
 function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close: () => void } {
   const text = PREVIEW_TEXTS[id];
+  const cap0 = text ? say(ctx, previewKey(id, "cap"), text.cap) : "";
   const box = el(host, "div", "io-preview");
   const cap = el(box, "div", "io-preview__cap");
-  el(cap, "span", undefined, text ? text.cap : "");
+  el(cap, "span", undefined, cap0);
   const close = tipBelow({
     head: cap,
     host: box,
-    text: text ? text.tip : "",
-    label: text ? text.cap : id,
+    text: text ? say(ctx, previewKey(id, "tip"), text.tip) : "",
+    label: cap0 || id,
     id: "io-tip-" + id,
     showTips: Boolean(ctx.get("general.help.showTips")),
     showIds: Boolean(ctx.get("advanced.showSettingIds")),
@@ -181,12 +202,12 @@ function structuralLine(
   const left = fieldsOn(fields, "left");
   if (left.length) put(el(line, "span", "io-line__side io-line__side--left"), left);
   el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
-  el(line, "span", "io-line__text", PREVIEW_LINE_TEXT);
+  el(line, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT));
   el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
 
   const right = fieldsOn(fields, "right");
   if (right.length) put(el(line, "span", "io-line__side io-line__side--right"), right);
-  else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
+  else el(line, "span", "io-line__hint", say(ctx, SINGLE_KEYS.previewEmptyRight, PREVIEW_EMPTY_RIGHT));
   return line;
 }
 
@@ -378,7 +399,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
      */
     }, "io-line--wheel");
 
-    if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+    if (example) rich(el(foot, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -390,13 +411,9 @@ export const wheelPreview: CustomRender = (host, ctx) => {
  * Почему полос нет, когда они включены. Две разные причины, и обе — про
  * настройку выше, а не про поломку (замечание заказчика 1.5.3.2).
  */
-const BARS_FIELD_NONE =
-  "Bars need a Field: pick one in <code>Which Field draws Bars</code> above";
-const BARS_NO_TAGS =
-  "Bars are drawn from the colours of a tag Field, and there is no tag Field yet: "
-  + "add one under <code>Tags &amp; PKM</code>";
-const BARS_FIELD_GONE =
-  "The Field these Bars were drawn for is gone: pick another one above";
+
+/* Английское этих трёх строк живёт в `FRAME_TEXTS` (10.13.46); здесь их
+   больше никто не читает, и второго дома у текста нет (У-32). */
 
 /** Пути, от которых зависят полосы. */
 const BARS_PATHS = [
@@ -600,10 +617,10 @@ export const barsPreview: CustomRender = (host, ctx) => {
     const chosen = chosenField();
     if (ctx.get("visual.tagBars.active") && !fields.some(f => f.id === chosen)) {
       rich(el(tree, "p", "io-preview__note"), !tags.length
-        ? BARS_NO_TAGS
-        : (chosen ? BARS_FIELD_GONE : BARS_FIELD_NONE));
+        ? frame(ctx, "BARS_NO_TAG_FIELD")
+        : frame(ctx, chosen ? "BARS_FIELD_GONE" : "BARS_NEED_FIELD"));
     }
-    if (example) rich(el(tree, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+    if (example) rich(el(tree, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -617,12 +634,6 @@ export const barsPreview: CustomRender = (host, ctx) => {
  * Подписи под разбором строки. Сняты с прототипа: он показывает не значения, а
  * устройство строки, и подписи — часть этого объяснения.
  */
-const STRUCT_LEFT = "Left Block";
-const STRUCT_RIGHT = "Right Block";
-const STRUCT_SEP1 = "separator 1";
-const STRUCT_SEP2 = "separator 2";
-/** Правый Block пуст: в разборе строки это одно слово, а не приглашение. */
-const STRUCT_EMPTY_RIGHT = "empty";
 
 /** Пути, от которых зависит разбор строки. */
 const LINE_PATHS = [
@@ -680,14 +691,14 @@ export const linePreview: CustomRender = (host, ctx) => {
     cell("io-struct__sep", c => {
       el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
     });
-    cell("io-struct__text", c => { el(c, "span", "io-line__text", PREVIEW_LINE_TEXT); });
+    cell("io-struct__text", c => { el(c, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT)); });
     cell("io-struct__sep", c => {
       el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
     });
     cell("io-struct__side io-line__side--right", c => {
       const right = fieldsOn(fields, "right");
       if (right.length) for (const f of right) fieldChip(c, f);
-      else el(c, "span", "io-line__hint", STRUCT_EMPTY_RIGHT);
+      else el(c, "span", "io-line__hint", frame(ctx, "PREVIEW_EMPTY_VALUE"));
     });
 
     /* Ряд второй — скобки под Blocks и засечки под Separator. */
@@ -697,11 +708,11 @@ export const linePreview: CustomRender = (host, ctx) => {
       el(w, "div", "io-struct__name", text);
     };
     el(holder, "div");
-    block(STRUCT_LEFT);
+    block(frame(ctx, "PREVIEW_LEFT_BLOCK"));
     el(holder, "div", "io-struct__tick");
     el(holder, "div");
     el(holder, "div", "io-struct__tick");
-    block(STRUCT_RIGHT);
+    block(frame(ctx, "PREVIEW_RIGHT_BLOCK"));
 
     /* Ряд третий — подписи Separator, каждая по центру своей колонки. */
     const sepName = (text: string): void => {
@@ -709,13 +720,13 @@ export const linePreview: CustomRender = (host, ctx) => {
     };
     el(holder, "div");
     el(holder, "div");
-    sepName(STRUCT_SEP1);
+    sepName(frame(ctx, "PREVIEW_SEPARATOR_1"));
     el(holder, "div");
-    sepName(STRUCT_SEP2);
+    sepName(frame(ctx, "PREVIEW_SEPARATOR_2"));
     el(holder, "div");
 
     /* Пример помечается: иначе человек решит, что видит свои Fields (ПЗ2). */
-    if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+    if (example) rich(el(foot, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -760,16 +771,16 @@ export const tagPreview: CustomRender = (host, ctx) => {
     }
 
     el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
-    el(line, "span", "io-line__text", text ? text.line || "" : "");
+    el(line, "span", "io-line__text", text ? say(ctx, previewKey("tag-preview", "line"), text.line || "") : "");
     el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
 
     const right = el(line, "span", "io-line__side io-line__side--right");
-    if (text && text.element) el(right, "span", "io-elem", text.element);
-    if (text && text.link) el(right, "span", "io-link", text.link);
+    if (text && text.element) el(right, "span", "io-elem", say(ctx, previewKey("tag-preview", "element"), text.element));
+    if (text && text.link) el(right, "span", "io-link", say(ctx, previewKey("tag-preview", "link"), text.link));
 
     /* Пример помечается, иначе человек с настроенными Fields решит, что
        панель показывает его собственные (ПЗ2). */
-    if (example) rich(el(holder, "p", "io-preview__note"), PREVIEW_EXAMPLE);
+    if (example) rich(el(holder, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -836,7 +847,7 @@ export const floatingButton: CustomRender = (host, ctx) => {
     /* Отступ — из слайдера, той же переменной, которой его ставит декорация
        строки в заметке: одно правило, одно место (У-32). */
     cssVar(button, "--io-flybtn-gap", num(ctx, "transform.inline2note.floatingButtonGap") + "px");
-    el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+    el(holder, "p", "io-preview__note", text ? say(ctx, previewKey("i2n-button-preview", "note"), text.note || "") : "");
   };
 
   draw();
@@ -943,11 +954,6 @@ function drawSourceLine(
   }
 }
 
-/** Подписи двух половин. Сняты с прототипа. */
-const SOURCE_BEFORE = "Before";
-const SOURCE_AFTER = "After";
-/** Считать нечего: Fields ещё не заведены. */
-const SOURCE_NO_FIELDS = "no Fields yet — set one up under <code>Tags &amp; PKM</code> and the example fills in";
 
 /** Пути, от которых зависит, что останется на строке. */
 const SOURCE_PATHS = [
@@ -988,7 +994,7 @@ export const sourcePreview: CustomRender = (host, ctx) => {
     const before = tree && Array.isArray(tree.before) ? tree.before : [];
     const after = tree && Array.isArray(tree.after) ? tree.after : [];
     if (!before.length) {
-      rich(el(body, "p", "io-preview__note"), SOURCE_NO_FIELDS);
+      rich(el(body, "p", "io-preview__note"), frame(ctx, "PREVIEW_NO_FIELDS"));
       return;
     }
     const fields = previewFields(ctx).fields;
@@ -1004,8 +1010,8 @@ export const sourcePreview: CustomRender = (host, ctx) => {
         drawSourceLine(row, ctx, line.replace(/^\s+/, ""), known);
       }
     };
-    half(SOURCE_BEFORE, before);
-    half(SOURCE_AFTER, after);
+    half(frame(ctx, "PREVIEW_BEFORE"), before);
+    half(frame(ctx, "PREVIEW_AFTER"), after);
   };
 
   draw();
@@ -1065,7 +1071,7 @@ export const caretPreview: CustomRender = (host, ctx) => {
   const draw = (): void => {
     holder.empty();
     const row = el(holder, "div", "io-caretline");
-    el(row, "span", undefined, PREVIEW_LINE_TEXT + " ");
+    el(row, "span", undefined, say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT) + " ");
     el(row, "span", "io-caret");
 
     const shaped = ctx.get("visual.caret.shapeEnabled") === true;
@@ -1086,7 +1092,7 @@ export const caretPreview: CustomRender = (host, ctx) => {
     if (shaped && speed <= 0) row.classList.add("io-caretline--still");
     else row.classList.remove("io-caretline--still");
 
-    el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+    el(holder, "p", "io-preview__note", text ? say(ctx, previewKey("caret-preview", "note"), text.note || "") : "");
   };
 
   draw();
