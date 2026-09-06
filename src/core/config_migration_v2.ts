@@ -7,10 +7,10 @@
  * операции приходят швом `VaultFiles`, уведомление — швом `notify`. Иначе
  * проверку пришлось бы гонять на подделке всего плагина.
  *
- * **Модуль ещё никем не зовётся.** Включать миграцию можно только после того,
- * как движки начнут читать пути v2 (фаза 2, пункт 4): `migrateConfig` в
- * `main.js` прогоняется на каждом патче, и конфиг, переехавший наполовину,
- * ломает и старую панель, и рантайм.
+ * **Модуль подключён 2026-08-31**, второй ступенью `migrateConfig` в `main.js`,
+ * тем же заходом, которым движки перешли на пути v2 (фаза 2, пункт 4).
+ * Разделить это было нельзя: `migrateConfig` прогоняется на каждом патче, и
+ * конфиг, переехавший наполовину, ломает и панель, и рантайм.
  *
  * Три вещи, о которые легко споткнуться при чтении карты маршрутов ниже.
  *
@@ -29,6 +29,7 @@
 
 import { SCHEMA } from "../ui/settings/schema/index.ts";
 import { buildDefaultConfig, getIn, setIn } from "../ui/settings/types.ts";
+import { applyStarterSet } from "./starter_config.ts";
 
 export const SCHEMA_VERSION_V2 = 2;
 
@@ -36,6 +37,14 @@ export const SCHEMA_VERSION_V2 = 2;
 export const CONFIG_FILE = "data.json";
 export const BACKUP_V1_FILE = "data.backup.v1.json";
 export const BROKEN_FILE = "data.broken.json";
+/**
+ * Служебный файл правил — с 2026-09-04 он тоже живёт здесь, рядом с
+ * `data.json` (решение заказчика В-39). Имя объявлено один раз: литерал
+ * полного пути в `pkm_option_keys.DEFAULT_RULES_PATH` сверяется с ним пином.
+ */
+export const RULES_FILE = "generated_rules.md";
+/** Прежнее место того же файла — корень vault. */
+export const LEGACY_RULES_FILE = "InlineOverhaul_Generated_RULES_TagWheel.md";
 
 type Dict = Record<string, unknown>;
 
@@ -101,10 +110,11 @@ function drop(path: string): [string, Route] {
 }
 
 /**
- * Карта маршрутов наружу. Её читает мост `ui/settings/v1_bridge.ts`: пока
- * миграция не подключена, панель обязана писать пути версии 1, а схема
- * выведена из прототипа и пользуется путями версии 2. Второй такой карты быть
- * не должно — разойдутся.
+ * Карта маршрутов наружу. Её читают две вещи, и обе — не панель: сборщик карты
+ * чтений `tools/read_map_v1.js` и проверка МГ5. Мост `ui/settings/v1_bridge.ts`
+ * снят в фазе 2 вместе с пунктом 4 (М-5): движки читают версию 2, схема тоже,
+ * и переводить стало нечего. Второй копии этой карты в проекте быть не должно —
+ * разойдутся.
  */
 export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   /* --- модули: без изменений ------------------------------------------- */
@@ -119,6 +129,11 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.moveLine.headerMode"),
   keep("navigation.moveLine.crossSectionAllowed"),
   keep("navigation.moveLine.highlightMovedLines"),
+  /* Прокрутка при перемещении строки заведена 2026-09-05 вместе с 10.13.36:
+     пары в версии 1 нет, поэтому `keepV2`, иначе ключ уезжает в
+     `_unmigrated` (МГ3). */
+  keepV2("navigation.moveLine.keepInView"),
+  keepV2("navigation.moveLine.viewPosition"),
   keep("navigation.moveSelection.enabled"),
   keep("navigation.moveSelection.inlineEnabled"),
   keep("navigation.moveSelection.prefixCyclerEnabled"),
@@ -127,8 +142,14 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.moveSelection.inlineMoveMode"),
   keep("navigation.moveSelection.cycleOrder", true),
   keepV2("navigation.moveSelection.rightCycles"),
+  /* Заведена вместе с новой панелью 2026-09-04: пары в версии 1 нет, поэтому
+     `keepV2`, иначе ключ уезжает в `_unmigrated` (МГ3). */
+  keepV2("navigation.moveSelection.inlineBoundaryJump"),
   keep("navigation.jumpToHeader.enabled"),
   keep("navigation.jumpToHeader.centerCursor"),
+  /* Место на экране после перехода заведено 2026-09-06 вместе с 10.13.37:
+     пары в версии 1 нет, поэтому `keepV2` (МГ3). */
+  keepV2("navigation.jumpToHeader.viewPosition"),
   keep("navigation.jumpToHeader.centerDelayMs"),
   keep("navigation.jumpToHeader.centerThrottleMs"),
   keep("navigation.jumpToHeader.jumpMode"),
@@ -164,6 +185,15 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   move("pkm.behavior.leftMode", "pkm.fields.tags", { whole: true }),
   move("pkm.behavior.rightMode", "pkm.fields.links", { whole: true }),
   move("pkm.behavior.elements", "pkm.fields.elements", { whole: true }),
+  /*
+   * Легаси-ветка дат. Маршрута у неё не было, и лист за листом она уехала бы в
+   * `_unmigrated` — то есть настройки полей-дат, заведённых до перехода на
+   * элементы, пропали бы из панели молча. Разбирает её третья ступень
+   * `migrateConfig` (`ensureBehaviorModesFromOrder`): она сворачивает
+   * `pkm.fields.dates` в `pkm.fields.elements` и удаляет ветку. Маршрут нужен
+   * ровно затем, чтобы ветка до неё доехала целиком.
+   */
+  move("pkm.behavior.dates", "pkm.fields.dates", { whole: true }),
   move("pkm.taxonomy", "pkm.fields.taxonomy", { whole: true }),
   move("pkm.behavior.projects", "pkm.fields.projects", { whole: true }),
   move("pkm.behavior.typeCheckboxByValue", "pkm.fields.checkboxByValue", { whole: true }),
@@ -192,10 +222,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   move("pkm.behavior.prefixRules.priorityCheckboxes", "pkm.prefixRules.priorityCheckboxes", { whole: true }),
   move("pkm.behavior.prefixRules.checkboxByFieldValue", "pkm.prefixRules.checkboxByFieldValue", { whole: true }),
 
-  /* --- PKM: заметка конфига --------------------------------------------- */
-  move("pkm.tagWheelConfigPath", "pkm.configNote.path"),
-  move("pkm.tagWheelConfigTemplatePath", "pkm.configNote.templatePath"),
-  move("pkm.configExportMode", "pkm.configNote.detail"),
+  /* --- PKM: заметка конфига снята 2026-09-03 (PRD 10.12) ---------------- */
+  drop("pkm.tagWheelConfigPath"),
+  drop("pkm.tagWheelConfigTemplatePath"),
+  drop("pkm.configExportMode"),
   move("pkm.generatedRulesPath", "advanced.generatedRulesPath"),
 
   /* --- PKM: удаляемое ---------------------------------------------------- */
@@ -258,6 +288,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tagBars.thickness"),
   keepV2("visual.tagBars.childOffset"),
   keepV2("visual.tagWheel.showMarkers"),
+  keepV2("visual.tagWheel.highlightLine"),
   keepV2("visual.tagWheel.textColor"),
   keepV2("visual.tagWheel.fillColor"),
   keepV2("visual.tagWheel.scroller.enabled"),
@@ -271,6 +302,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("transform.inline2note.defaultTemplate"),
   keep("transform.inline2note.yamlNoteFormat"),
   keep("transform.inline2note.smartRules", true),
+  keepV2("transform.inline2note.placement.headerLevel"),
   keep("transform.inline2note.noteName.mode"),
   keep("transform.inline2note.noteName.preferHeaderTitle"),
   keep("transform.inline2note.nameCollision.mode"),
@@ -278,7 +310,15 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("transform.inline2note.placement.headerMode"),
   keep("transform.inline2note.preview.sampleLine"),
   keep("transform.inline2note.sourceProcessing.cleanupFieldIds", true),
+  /*
+   * Ветка целиком — и три её листа отдельно: у каждого с 2026-09-01 есть свой
+   * контрол (10.13.12), а проверка `settings_paths_v2_tests.ts` спрашивает
+   * маршрут именно у пути контрола, не у ветки над ним.
+   */
   keep("transform.inline2note.sourceProcessing.visual", true),
+  keep("transform.inline2note.sourceProcessing.visual.enabled"),
+  keep("transform.inline2note.sourceProcessing.visual.color"),
+  keep("transform.inline2note.sourceProcessing.visual.opacity"),
   move("transform.inline2note.templateFolder", "transform.inline2note.templatesFolder"),
   move("transform.inline2note.noteName.explicitNameDelimiters", "transform.inline2note.noteName.delimiters"),
   move("transform.inline2note.noteName.autoWordsCount", "transform.inline2note.noteName.wordCount"),
@@ -298,12 +338,19 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("transform.inline2note.sourceProcessing.token"),
   keepV2("transform.inline2note.sourceProcessing.panel"),
   keepV2("transform.inline2note.sourceProcessing.replaceWithLink"),
+  /* Судьба текста исходной строки: своя настройка с 2026-09-01. Ключа нет в
+     старых файлах, и умолчание там выводит движок из `replaceWithLink`. */
+  keepV2("transform.inline2note.sourceProcessing.text"),
+  keepV2("transform.inline2note.sourceProcessing.keepWords"),
   keepV2("transform.inline2note.openTarget"),
   keepV2("transform.inline2note.sublines"),
   keepV2("transform.inline2note.floatingButton"),
+  /* Отступ кнопки от текста: ключа нет в старых файлах, умолчание досыпает
+     схема (замечание заказчика 2026-09-04). */
+  keepV2("transform.inline2note.floatingButtonGap"),
 
-  /* --- резервные копии заметки конфига ---------------------------------- */
-  keep("backups.tagWheelConfigApplies", true),
+  /* --- журнал применений заметки: снят вместе с ней (PRD 10.12) --------- */
+  drop("backups.tagWheelConfigApplies"),
 
   /* --- режим разработчика → Advanced ------------------------------------ */
   move("devMode.enabled", "advanced.devMode.enabled"),
@@ -323,11 +370,19 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("editor.selectAll.clearOnLast"),
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),
+  /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание
+     досыпает схема (замечание заказчика 2026-09-04). */
+  keepV2("general.help.showCallouts"),
   keepV2("advanced.newSettingsPane"),
   /* Тумблер подписи id в подсказках (10.13.5): настройка новая, ветки v1 у неё
      нет, и мигрировать нечего — но маршрут нужен, чтобы форма v2 в конфиге
      заказчика не считалась неизвестным ключом и не уезжала в `_unmigrated`. */
   keepV2("advanced.showSettingIds"),
+  /* Папка копий настроек (10.13.2, Б2): путь версии 2, в версии 1 его не было. */
+  keepV2("advanced.backups.folder"),
+  /* Копия перед восстановлением — тумблер с 2026-09-04 (замечание C56).
+     Тоже путь версии 2, пары в версии 1 нет. */
+  keepV2("advanced.backups.beforeRestore"),
   keepV2("advanced.generatedRulesPath"),
   keepV2("advanced.devMode.enabled"),
   keepV2("advanced.devMode.aiLog"),
@@ -354,10 +409,11 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("pkm.prefixRules.priorityTargets", true),
   keepV2("pkm.prefixRules.priorityCheckboxes", true),
   keepV2("pkm.prefixRules.checkboxByFieldValue", true),
-  keepV2("pkm.configNote.path"),
-  keepV2("pkm.configNote.templatePath"),
-  keepV2("pkm.configNote.detail"),
+  drop("pkm.configNote"),
   keepV2("viewState.activeTab"),
+  /* Флаг одноразового уведомления о смене ID команд (фаза 2, пункт 8). Это
+     состояние, а не настройка: контрола у него нет и быть не должно. */
+  keepV2("viewState.commandIdsNotice"),
   keepV2("viewState.fieldOrder.expanded", true),
   keepV2("viewState.fieldOrder.showColors"),
   keepV2("_unmigrated", true),
@@ -381,7 +437,6 @@ const V2_SKELETON: Dict = {
   "pkm.fields.taxonomy": {},
   "pkm.fields.checkboxByValue": {},
   "pkm.fields.defaultBlock": "left",
-  "pkm.configNote.templatePath": "",
   "pkm.prefixRules.resolver": "priority-first",
   "pkm.prefixRules.priorityTargets": [],
   "pkm.prefixRules.priorityCheckboxes": [],
@@ -393,8 +448,7 @@ const V2_SKELETON: Dict = {
   "visual.tags.byTag": {},
   "visual.tags.userTags": {},
   "editor.binder.rows": [],
-  "backups.tagWheelConfigApplies": [],
-  "advanced.generatedRulesPath": "InlineOverhaul_Generated_RULES_TagWheel.md",
+  "advanced.generatedRulesPath": ".obsidian/plugins/inline-overhaul/generated_rules.md",
   "viewState.activeTab": "general",
   "viewState.fieldOrder.expanded": {},
   "viewState.fieldOrder.showColors": true,
@@ -559,6 +613,12 @@ export interface MigrateOptions {
   log?: (message: string) => void;
   /** Отчёт заполняется на месте: тесту нужны имена, а не только конфиг. */
   report?: MigrateReport;
+  /**
+   * Литеральные умолчания пути служебного файла правил — признак «человек
+   * путь не менял» при переезде в папку плагина (В-39). Приходит швом, а не
+   * читается из `pkm_option_keys`: у модуля миграции обращений к движку нет.
+   */
+  legacyRulesDefaults?: readonly string[];
 }
 
 /**
@@ -620,6 +680,8 @@ export interface VaultFiles {
   exists(path: string): Promise<boolean>;
   read(path: string): Promise<string>;
   write(path: string, data: string): Promise<void>;
+  /** Удаление файла. Нужно одному месту — сироте в корне vault (В-39). */
+  remove?(path: string): Promise<void>;
 }
 
 function join(dir: string, name: string): string {
@@ -639,6 +701,46 @@ export async function backupV1Once(files: VaultFiles, dir: string, originalText:
   return "created";
 }
 
+/**
+ * Переезд служебного файла правил из корня vault в папку плагина
+ * (решение заказчика В-39 от 2026-09-04).
+ *
+ * **Путь считается, а не берётся литералом:** папка плагина зависит от
+ * `vault.configDir`, и у того, кто держит настройки Obsidian не в `.obsidian`,
+ * литерал был бы неверен. Литерал в `pkm_option_keys.DEFAULT_RULES_PATH`
+ * остаётся только на случай, когда конфига нет вовсе.
+ *
+ * Свой путь человека не трогается. «Свой» — это любой, кроме прежнего места и
+ * литеральных умолчаний: только по ним видно, что человек путь не менял.
+ *
+ * Файл в корне удаляется, а не остаётся сиротой: он читается как «правила»
+ * последним запасным кандидатом, и заметка, которую никто не пишет, но все
+ * читают, — худшее из двух состояний.
+ */
+export async function moveGeneratedRulesIntoPluginFolder(
+  files: VaultFiles,
+  dir: string,
+  cfg: Dict,
+  legacyDefaults: readonly string[],
+): Promise<{ path: string; moved: boolean; orphanRemoved: boolean }> {
+  const target = join(dir, RULES_FILE);
+  const current = String(getIn(cfg, "advanced.generatedRulesPath") || "").trim();
+  const untouched = !current || current === LEGACY_RULES_FILE
+    || legacyDefaults.indexOf(current) !== -1 || current === target;
+  if (!untouched) return { path: current, moved: false, orphanRemoved: false };
+  setIn(cfg, "advanced.generatedRulesPath", target);
+  let orphanRemoved = false;
+  if (typeof files.remove === "function") {
+    try {
+      if (await files.exists(LEGACY_RULES_FILE)) {
+        await files.remove(LEGACY_RULES_FILE);
+        orphanRemoved = true;
+      }
+    } catch (_err) { /* сирота не удалилась — это не повод не стартовать */ }
+  }
+  return { path: target, moved: current !== target, orphanRemoved };
+}
+
 export interface LoadResult {
   config: Dict;
   /** Что случилось с файлом: прочитан, отсутствовал, не разобрался. */
@@ -647,6 +749,12 @@ export interface LoadResult {
   brokenSavedAs?: string;
   /** Куда положена копия v1 до переезда (МГ4). */
   backupSavedAs?: string;
+  /** Куда уехал служебный файл правил, если путь был прежним (В-39). */
+  rulesPathMovedTo?: string;
+  /** Сирота в корне vault, если она была и удалилась (В-39). */
+  legacyRulesRemoved?: string;
+  /** Положен ли стартовый набор Fields первой установке (ПЗ1). */
+  starterSet?: boolean;
   report: MigrateReport;
 }
 
@@ -668,9 +776,33 @@ export async function loadConfig(
   const report: MigrateReport = { unknown: [], contested: [], migrated: false };
   const merged: MigrateOptions = { ...(opts || {}), report };
   const configPath = join(dir, CONFIG_FILE);
+  const legacyDefaults = (opts && opts.legacyRulesDefaults) || [];
+
+  /*
+   * Переезд служебного файла правил делается **на каждом из трёх выходов**, а
+   * не на одном: конфига может не быть вовсе, он может не разобраться, и в
+   * обоих случаях путь всё равно приходит из умолчаний — то есть прежний.
+   */
+  const withRulesPath = async (result: LoadResult): Promise<LoadResult> => {
+    const move = await moveGeneratedRulesIntoPluginFolder(
+      files, dir, result.config, legacyDefaults);
+    if (move.moved) result.rulesPathMovedTo = move.path;
+    if (move.orphanRemoved) result.legacyRulesRemoved = LEGACY_RULES_FILE;
+    return result;
+  };
 
   if (!(await files.exists(configPath))) {
-    return { config: migrate(null, merged), state: "absent", report };
+    /*
+     * ПЗ1: файла не было вовсе — значит, это первая установка, и человек
+     * получает стартовый набор Fields. Только здесь: у нечитаемого файла
+     * (`broken` ниже) настройки у человека были, и класть ему поверх аварии
+     * чужие Fields нельзя.
+     */
+    const fresh = migrate(null, merged) as Dict;
+    const seeded = applyStarterSet(fresh);
+    return withRulesPath({
+      config: fresh, state: "absent", report, ...(seeded ? { starterSet: true } : {}),
+    });
   }
 
   const text = await files.read(configPath);
@@ -684,7 +816,9 @@ export async function loadConfig(
       notify("Inline Overhaul could not read its settings file. A copy is kept at "
         + target + " and the plugin started with default settings");
     }
-    return { config: migrate(null, merged), state: "broken", brokenSavedAs: target, report };
+    return withRulesPath({
+      config: migrate(null, merged), state: "broken", brokenSavedAs: target, report,
+    });
   }
 
   const version = isPlainObject(raw) ? Number(raw.schemaVersion) || 0 : 0;
@@ -694,5 +828,5 @@ export async function loadConfig(
     if (backup === "created") result.backupSavedAs = join(dir, BACKUP_V1_FILE);
   }
   result.config = migrate(raw, merged);
-  return result;
+  return withRulesPath(result);
 }

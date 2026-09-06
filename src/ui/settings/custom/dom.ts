@@ -209,6 +209,14 @@ export function tipBelow(o: {
   /** Связка кнопки и подсказки. */
   id: string;
   showTips: boolean;
+  /**
+   * Тумблер `Show setting ids in tips` (10.13.5). Подписи id стояли у всех
+   * строк схемы и **ни у одной** подсказки своего блока: `Values`,
+   * `Behavior`, `YAML property`, `Name in TagWheel`, предпросмотры,
+   * `Color your Tags`. Заказчик называет элементы их id, и без подписи ему
+   * приходилось объяснять словами, о чём речь (A3 и C52, 2026-09-02).
+   */
+  showIds?: boolean;
 }): () => void {
   if (!o.text || !o.showTips) return () => {};
 
@@ -233,8 +241,80 @@ export function tipBelow(o: {
     }
     open = o.host.createEl("div", { cls: "io-tip io-tip--below", attr: { id: o.id } });
     rich(open, o.text);
+    /*
+     * Id последней строкой — так же, как у строки настройки. Имя берётся из
+     * `id` подсказки: он стабилен, задан в коде рядом с самим элементом и
+     * называет именно его. Хвост `-tip` снимается: он про подсказку, а
+     * человеку нужен элемент.
+     */
+    if (o.showIds) {
+      const name = o.id.replace(/-tip$/, "");
+      if (name) open.createEl("div", { text: name, cls: "io-tip__id" });
+    }
     mark.setAttribute("aria-expanded", "true");
   });
 
   return () => { if (open) { open.remove(); open = null; } };
+}
+
+/* ---- прокручиваемый предок (полоса вкладок, 10.13.13) ------------------ */
+
+/** Узел в том виде, в каком его нужно осмотреть, чтобы найти прокрутку. */
+export interface ScrollProbe {
+  parentElement?: ScrollProbe | null;
+  /**
+   * Свой стиль узла. Читается двумя способами, потому что оба существуют:
+   * в браузере у `style` есть и свойство `overflowY`, и
+   * `getPropertyValue("overflow-y")`; заглушка DOM держит только второй.
+   */
+  style?: {
+    overflowY?: string;
+    overflow?: string;
+    getPropertyValue?: (name: string) => string;
+  };
+}
+
+/**
+ * Ближайший прокручиваемый предок узла.
+ *
+ * Зачем. Полоса вкладок приклеена `position: sticky`, а он держится на том,
+ * что между полосой и прокруткой нет предка с `overflow`, отличным от
+ * `visible`. Полосу рисует строка `render`, то есть она лежит **внутри списка
+ * платформы**, и что там за предки — из типов Obsidian не видно. Заказчик
+ * написал, что полоса не приклеена (свободное замечание, 2026-09-02), и
+ * проверить это из репозитория нечем: DOM живого окна здесь недостижим.
+ *
+ * Поэтому полоса переезжает первым ребёнком **самой прокрутки** — тогда
+ * ломаться нечему. Найти её и есть задача этой функции.
+ *
+ * Порядок осмотра: сначала вычисленный стиль (в живом Obsidian `overflow`
+ * задан таблицей стилей, а не атрибутом), потом собственный стиль узла — по
+ * нему функцию можно проверить на заглушке.
+ */
+export function findScrollHost(node: ScrollProbe | null | undefined): ScrollProbe | null {
+  const readStyle = (at: ScrollProbe): string => {
+    const g = (globalThis as { getComputedStyle?: (n: unknown) => { overflowY?: string; overflow?: string } })
+      .getComputedStyle;
+    if (typeof g === "function") {
+      try {
+        const computed = g(at);
+        const value = String((computed && (computed.overflowY || computed.overflow)) || "").trim();
+        if (value) return value;
+      } catch { /* у заглушки вычисленного стиля нет, и это не ошибка */ }
+    }
+    const own = at.style || {};
+    if (typeof own.getPropertyValue === "function") {
+      const byName = String(own.getPropertyValue("overflow-y") || own.getPropertyValue("overflow") || "").trim();
+      if (byName) return byName;
+    }
+    return String(own.overflowY || own.overflow || "").trim();
+  };
+
+  let at: ScrollProbe | null | undefined = node && node.parentElement;
+  while (at) {
+    const overflow = readStyle(at);
+    if (overflow === "auto" || overflow === "scroll" || overflow === "overlay") return at;
+    at = at.parentElement;
+  }
+  return null;
 }

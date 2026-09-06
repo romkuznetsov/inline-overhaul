@@ -85,14 +85,22 @@ function indentLineSource(): string {
   const at = src.indexOf("function indentLine(");
   assert.ok(at > 0, "не нашлась indentLine в navigation_runtime.js");
   const end = src.indexOf("\nfunction ", at + 10);
-  return src.slice(at, end > 0 ? end : src.length);
+  const body = src.slice(at, end > 0 ? end : src.length);
+  /*
+   * Комментарии снимаются: проверка про **код**, а не про прозу рядом с ним.
+   * Пока они оставались, объяснение правой ветки — оно называет `isBullet`
+   * словами — попадало в срез левой и роняло проверку на пустом месте.
+   */
+  return body.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*/g, "");
 }
 
 {
   const body = indentLineSource();
 
   /* Ветка `left`: сперва отступ, потом цикл Prefix. */
-  const left = body.slice(body.indexOf('direction === "left"'), body.indexOf("if (currentIndent > 0 || isBullet"));
+  /* Срез левой ветки кончается на первом условии правой: комментарий к правой
+     стоит перед ним и называет `isBullet` словами. */
+  const left = body.slice(body.indexOf('direction === "left"'), body.indexOf("if (currentIndent > 0 ||"));
   const leftIndentAt = left.indexOf("removeOneIndent");
   const leftCycleAt = left.indexOf('cycleLineType(editor, lineNo, "left"');
   assert.ok(leftIndentAt > 0 && leftCycleAt > 0, "в ветке left нашлись обе развилки");
@@ -100,22 +108,26 @@ function indentLineSource(): string {
     "Move left: отступ снимается раньше, чем циклируется Prefix — как в таблице");
 
   /* Ветка `right`: сперва «список или уже с отступом», потом цикл Prefix. */
-  const right = body.slice(body.indexOf("if (currentIndent > 0 || isBullet"));
-  const rightIndentAt = right.indexOf("isBullet(line)");
+  const right = body.slice(body.indexOf("if (currentIndent > 0 ||"));
+  const rightIndentAt = right.indexOf("currentIndent > 0");
   const rightCycleAt = right.indexOf('cycleLineType(editor, lineNo, "right"');
   assert.ok(rightIndentAt >= 0 && rightCycleAt > 0, "в ветке right нашлись обе развилки");
   assert.ok(rightIndentAt < rightCycleAt,
     "Move right: элемент списка получает отступ раньше, чем циклируется Prefix");
 
   /*
-   * Асимметрия, названная в Д2 словами: слева цикл идёт при нулевом отступе
-   * всегда, справа — только если строка ещё не элемент списка. Именно это
-   * различие и делает таблицы разными, и именно оно проверяется.
+   * Зеркальность, названная в Д2 словами (В-12, 2026-09-01). Раньше здесь
+   * пинилась обратная вещь — что справа стоит `isBullet`, — и это было
+   * верно: `Move right` циклировал только на строке, которая ещё не элемент
+   * списка. Теперь этим управляет тумблер, и проверяется именно связь с ним,
+   * а не сам факт условия.
    */
   assert.ok(!left.includes("isBullet"),
     "Move left про элемент списка не спрашивает: в таблице слева этого условия нет");
-  assert.ok(right.includes("isBullet"),
-    "Move right спрашивает: в таблице справа это условие есть");
+  assert.ok(right.includes("isBullet(line) && !rightMayCycle"),
+    "Move right спрашивает про элемент списка только когда тумблер выключен");
+  assert.ok(/const rightMayCycle = rules\.prefixCyclerEnabled && rules\.rightCycles;/.test(body),
+    "и берёт ответ у настройки, а не решает сам");
   ok("Д2: порядок ветвей рантайма совпадает с порядком строк в таблицах");
 }
 
@@ -125,8 +137,14 @@ function indentLineSource(): string {
   const right = DISPATCH_TABLES[1];
   assert.ok(left?.steps[1]?.then.includes("indent"), "второй шаг слева про отступ");
   assert.ok(left?.steps[2]?.then.includes("prefix"), "третий — про Prefix");
-  assert.ok(right?.steps[1]?.when.includes("list item"),
-    "второй шаг справа спрашивает про элемент списка");
+  /* Таблицы стали зеркальными (В-12): второй шаг справа спрашивает про отступ,
+     как и слева, а не про элемент списка. */
+  assert.ok(right?.steps[1]?.when.includes("indent"),
+    "второй шаг справа спрашивает про отступ");
+  assert.equal(right?.steps[1]?.when, left?.steps[1]?.when,
+    "и спрашивает ровно то же, что слева: направления зеркальны");
+  assert.ok(right?.steps[1]?.then.includes("add") && left?.steps[1]?.then.includes("remove"),
+    "а делают противоположное");
   assert.ok(right?.steps[2]?.then.includes("forwards")
     && left?.steps[2]?.then.includes("backwards"),
     "и направления цикла названы разными словами");

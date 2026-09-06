@@ -154,6 +154,25 @@ function buildOrderConfig(overrides) {
       fullPlacement: "smart",
     },
   };
+  /*
+   * Ключ Order и имя Field в фикстуре **разные**: ключ `category`, а поле
+   * названо `context` (и так же `importance`/`priority`,
+   * `category_sub`/`nestedContext`, `type_sub`/`modal`). Связь между ними
+   * объявляется здесь тем же каналом, каким её несёт продукт, — `strictNames`:
+   * его пишет `setStrictName` при переименовании Field, и по нему движок
+   * находит поле по ключу (A17).
+   *
+   * До 2026-09-04 связи здесь не было вовсе, и движок угадывал поле по номеру
+   * в списке. В фикстуре догадка попадала верно, поэтому двадцать проверок
+   * были зелёными на совпадении (У-49). Совпадение в фикстуре — не упрощение,
+   * а снятая проверка (У-47).
+   */
+  const STRICT_NAMES_BY_KEY = {
+    importance: "priority",
+    category: "context",
+    category_sub: "nestedContext",
+    type_sub: "modal",
+  };
   const src = overrides && typeof overrides === "object" ? overrides : {};
   const out = JSON.parse(JSON.stringify(base));
   ["active", "panel", "freeRoam", "freeRoamBehavior"].forEach((k) => {
@@ -166,6 +185,12 @@ function buildOrderConfig(overrides) {
     const sides = mapToSides(out.panel);
     out.left = sides.left;
     out.right = sides.right;
+  }
+  out.strictNames = { ...(out.strictNames || {}) };
+  for (const k of out.left.concat(out.right)) {
+    const key = String(k || "").trim();
+    if (!key) continue;
+    out.strictNames[key] = STRICT_NAMES_BY_KEY[key] || key;
   }
   return JSON.stringify(out);
 }
@@ -996,6 +1021,128 @@ async function testTagWheelMinimalOffNoDuplicatePriorityOnReapply() {
   assertTrue(!/\|\|\s+#\/1/.test(line), "minimalSeparator off should not force right separator slot for priority");
 }
 
+/*
+ * A18. Токен, стоящий в строке **после** прозы, не должен уносить прозу с
+ * собой: разбор исходного текста снимает объявленные токены по всему телу, а не
+ * только с начала (`line_pipeline.extractOriginalTextFromRawLine`). До правки
+ * вход ниже давал `- [a] #/2 #area-alpha 111 111 || :: 111 111 || #/2` — проза
+ * в строке дважды.
+ */
+async function testStatusTagsManagedTokenAfterTextDoesNotDuplicateText() {
+  const editor = makeEditor("- 111 111 || #/2", 2);
+  await runPkmCommandWithEditor("statusTags", editor, {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Action type": "cycle_field:category",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      freeRoam: { category: "minimal" },
+      panel: { category: "left" },
+      freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  assertEq((line.match(/111 111/g) || []).length, 1, "managed token after text must not duplicate source text");
+  assertEq((line.match(/#\/2/g) || []).length, 1, "managed token after text must not duplicate the token itself");
+  assertTrue(/#area-alpha/.test(line), "managed token after text must not block the cycled token");
+}
+
+async function testStatusTagsManagedTokenInsideTextKeepsTail() {
+  const editor = makeEditor("- 111 #/2 tail", 2);
+  await runPkmCommandWithEditor("statusTags", editor, {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Action type": "cycle_field:category",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      freeRoam: { category: "minimal" },
+      panel: { category: "left" },
+      freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  assertEq((line.match(/\btail\b/g) || []).length, 1, "text after a managed token must stay once");
+  assertEq((line.match(/\b111\b/g) || []).length, 1, "text before a managed token must stay once");
+  assertTrue(/#area-alpha\s+\S+\s+111 tail\s*$/.test(line), "text around a managed token must land in the text slot in source order");
+}
+
+/*
+ * У-51. Тег человека — часть его текста, и правка A18 не имеет права его
+ * снимать: снимается только то, что объявлено в документе правил. Наивная
+ * версия правки стирала `#myownhashtag` и `[[Проект]]`, и ни одна из
+ * тогдашних 45 проверок этого не показывала.
+ */
+async function testStatusTagsForeignTagInTextIsPreserved() {
+  const editor = makeEditor("- text #myownhashtag [[SomeNote]] more", 2);
+  await runPkmCommandWithEditor("statusTags", editor, {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Action type": "cycle_field:category",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      freeRoam: { category: "minimal" },
+      panel: { category: "left" },
+      freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  assertEq((line.match(/#myownhashtag/g) || []).length, 1, "an undeclared tag must survive exactly once");
+  assertEq((line.match(/\[\[SomeNote\]\]/g) || []).length, 1, "an undeclared wikilink must survive exactly once");
+  /*
+   * Наивная версия правки A18 роняла не тег, а прозу: чужой токен уходил из
+   * «исходного текста», и текстовый слот получал урезанную копию, тогда как
+   * левый сегмент нёс полную. Поэтому проза считается пословно.
+   */
+  assertEq((line.match(/\btext\b/g) || []).length, 1, "text before an undeclared tag must stay exactly once");
+  assertEq((line.match(/\bmore\b/g) || []).length, 1, "text after an undeclared tag must stay exactly once");
+}
+
+/*
+ * Чужой тег принадлежит тексту человека, а не панели: он остаётся **за**
+ * разделителем, вместе с прозой, и в левый сегмент не переезжает. Наивная
+ * версия правки A18 давала `- [a] #area-alpha #myownhashtag :: 111` — тег
+ * человека в панели поля.
+ */
+async function testStatusTagsForeignTagStaysInTextSlot() {
+  const editor = makeEditor("- 111 #myownhashtag", 2);
+  await runPkmCommandWithEditor("statusTags", editor, {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Action type": "cycle_field:category",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      freeRoam: { category: "minimal" },
+      panel: { category: "left" },
+      freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  const textAt = line.indexOf("111");
+  const foreignAt = line.indexOf("#myownhashtag");
+  assertTrue(textAt !== -1 && foreignAt !== -1, "both the text and the undeclared tag must stay on the line");
+  assertTrue(textAt < foreignAt, "an undeclared tag must stay with the text, not move into the field panel");
+  assertTrue(/#area-alpha\s+\S+\s+111 #myownhashtag\s*$/.test(line), "the text slot must hold the prose and the undeclared tag in source order");
+}
+
+/*
+ * A16. Разобрана и включена 2026-09-04. Пока она лежала невключённой, за её
+ * падением стояли два дефекта движка и ошибка в её собственном ожидании.
+ *
+ * Ожидание требовало разделитель `||`, которого фикстура не объявляет: у неё
+ * `separator1 = separator2 = "::"`, то есть `||` в ней обычный текст. Поэтому
+ * разделитель здесь больше не пишется буквой — проверяется **порядок**: токен
+ * поля слева, исходный текст после разделителя и ровно один раз, токен правой
+ * панели за ним (У-48).
+ *
+ * Дефекты: A17 — ключ Order сопоставлялся с Field по номеру в списке, и при
+ * `panel: {importance: right}` команда категории уходила в чужое поле `modal`
+ * с пустым циклом, отчего строка не менялась вовсе; A18 — проза попадала в
+ * строку дважды, когда управляемый токен стоял после неё.
+ */
 async function testStatusTagsMinimalContextKeepsTextAfterSeparator() {
   const editor = makeEditor("- 111 111 || #/2", 2);
   await runPkmCommandWithEditor("statusTags", editor, {
@@ -1011,7 +1158,60 @@ async function testStatusTagsMinimalContextKeepsTextAfterSeparator() {
     "Cursor policy": "text_end",
   });
   const line = editor.snapshot().line;
-  assertTrue(/#area-alpha\s+\|\|\s+111 111\s+\|\|\s+#\/2/.test(line), "status_tags minimal context should keep text in text-slot between separators");
+  assertEq((line.match(/111 111/g) || []).length, 1, "status_tags minimal context must keep the source text exactly once");
+  const tokenAt = line.indexOf("#area-alpha");
+  const textAt = line.indexOf("111 111");
+  const rightAt = line.lastIndexOf("#/2");
+  assertTrue(tokenAt !== -1, "status_tags minimal context must place the cycled token on the line");
+  assertTrue(rightAt !== -1, "status_tags minimal context must keep the right-panel token on the line");
+  assertTrue(tokenAt < textAt, "status_tags minimal context must keep the cycled token left of the text slot");
+  assertTrue(textAt < rightAt, "status_tags minimal context must keep the text slot left of the right-panel token");
+  assertTrue(/^-\s+\[[^\]]+\]\s+#area-alpha\s+\S+\s+111 111/.test(line), "status_tags minimal context must keep a separator between the token and the text slot");
+}
+
+/*
+ * A17. Ключ Order и имя Field — разные имена, и после переименования Field
+ * связь между ними несёт только `strictNames`. Проверка стоит ровно на том
+ * конфиге, на котором ломалась позиционная догадка: `importance` уходит в
+ * правую панель, из левого списка порядка исчезают два имени, и номер ключа
+ * `category` начинает указывать на чужое поле.
+ *
+ * Сама фикстура эту связь объявляет — ключ `category` при поле `context`
+ * (`buildOrderConfig`, `STRICT_NAMES_BY_KEY`). Совпади они, проверка была бы
+ * слепа к их расхождению (У-47).
+ */
+async function testStatusTagsOrderKeyResolvesRenamedFieldNotNeighbour() {
+  const settings = (panelOverride) => ({
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Action type": "cycle_field:category",
+    "Direction": "increase",
+    /*
+     * Списки порядка задаются **явно и без синонимов**: у ключа `category`
+     * нет в них соседа `context`, который мог бы его выручить. Значит
+     * разрешение может пройти только через `strictNames`, и пин держит именно
+     * его, а не удачное соседство. Без него последняя ветка отдаёт
+     * единственное поле, похожее на важность, — это и проверяется ниже.
+     */
+    "Order config": buildOrderConfig({
+      freeRoam: { category: "minimal", importance: "minimal" },
+      panel: panelOverride,
+      left: ["category"],
+      right: ["importance"],
+      freeRoamBehavior: { minimalSeparator: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const importanceLeft = makeEditor("111", 1);
+  await runPkmCommandWithEditor("statusTags", importanceLeft, settings({ category: "left" }));
+  const importanceRight = makeEditor("111", 1);
+  await runPkmCommandWithEditor("statusTags", importanceRight, settings({ category: "left", importance: "right" }));
+  const lineLeft = importanceLeft.snapshot().line;
+  const lineRight = importanceRight.snapshot().line;
+  assertTrue(/#area-alpha/.test(lineLeft), "cycle_field:category must reach its own field when importance sits left");
+  assertTrue(/#area-alpha/.test(lineRight), "cycle_field:category must reach its own field when importance sits right");
+  assertTrue(lineRight !== "111", "moving another field to the right panel must not silence cycle_field:category");
+  assertTrue(!/#todo|#idea|#note|#\/\d/.test(lineRight), "cycle_field:category must not cycle a neighbouring field's values");
 }
 
 
@@ -1416,6 +1616,12 @@ async function run() {
   await testStatusTagsCycleFieldClientMinimalOffRespectsLeftPanel();
   await testStatusTagsCycleFieldClientOffRightReapplyDoesNotDuplicate();
   await testTagWheelMinimalOffNoDuplicatePriorityOnReapply();
+  await testStatusTagsMinimalContextKeepsTextAfterSeparator();
+  await testStatusTagsOrderKeyResolvesRenamedFieldNotNeighbour();
+  await testStatusTagsManagedTokenAfterTextDoesNotDuplicateText();
+  await testStatusTagsManagedTokenInsideTextKeepsTail();
+  await testStatusTagsForeignTagInTextIsPreserved();
+  await testStatusTagsForeignTagStaysInTextSlot();
   await testTagWheelPreservesCheckboxPrefix();
   await testTagWheelKeepsTagTokensAsTagsOnApply();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();

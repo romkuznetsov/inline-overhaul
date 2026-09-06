@@ -210,7 +210,7 @@ function makeEditor(): { pane: StubNode; box: StubNode; close: () => void } {
   const cfg: Any = {
     ui: {},
     pkm: {
-      behavior: {
+      fields: {
         order: {
           left: ["status"], right: [], lead: {},
           labels: { status: "Status" }, strictNames: { status: "status" },
@@ -218,16 +218,18 @@ function makeEditor(): { pane: StubNode; box: StubNode; close: () => void } {
           freeRoam: { status: "off" }, enabled: { status: true },
           propertiesByField: {},
         },
-        leftMode: {
+        tags: {
           fields: [{
             id: "status", orderKey: "status", prefix: "#",
             values: [{ token: "#todo", active: true }, { token: "#doing", active: true }],
           }],
         },
-        rightMode: { fields: [] },
+        links: { fields: [] },
         elements: { fields: [], byField: {} },
-        tagVisuals: { byTag: {}, byField: {}, userTags: {} },
       },
+    },
+    visual: {
+      tags: { byTag: {}, byField: {}, userTags: {} },
     },
   };
   const merge = (dst: Any, src: Any): void => {

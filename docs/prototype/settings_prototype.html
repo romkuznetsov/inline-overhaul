@@ -230,11 +230,17 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .pane { min-width: 0; display: flex; flex-direction: column; }
 
 /* Tab row — PRD 5.4. No mod-cta; active state is background + color
-   + an accent underline, never opacity. */
+   + an accent underline, never opacity.
+
+   Sticky since 2026-09-02 (PRD 10.13.13): the row stays put while the page
+   scrolls, so the tabs are always in reach. It needs a background of its own —
+   a transparent sticky row lets the settings slide under it. */
 .io-tabs {
   display: flex; gap: 2px; padding: 12px 24px 0;
   border-bottom: 1px solid var(--background-modifier-border);
   overflow-x: auto; scrollbar-width: thin;
+  position: sticky; top: 0; z-index: 3;
+  background: var(--background-primary);
 }
 .io-tab {
   appearance: none; border: 0; background: transparent; font-family: inherit;
@@ -253,7 +259,25 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-group { padding-top: 18px; }
 .io-group + .io-group { padding-top: 4px; }
 .io-group__heading { padding: 14px 0 0; font-size: 16px; font-weight: 600; color: var(--text-normal); text-wrap: balance; }
-.io-group__intro { margin: 4px 0 2px; max-width: 64ch; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.io-group__title { flex: 0 0 auto; }
+/* Кнопка сворачивания заголовка. Свёрнутое положение отличается и знаком
+   (▸ против ▾), и цветом рамки — на одном знаке в мелком кегле разницу видно
+   плохо. */
+.io-fold {
+  appearance: none; flex: 0 0 auto; order: -1;
+  width: 18px; height: 18px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: transparent; color: var(--text-muted);
+  font-family: inherit; font-size: 11px; line-height: 1; cursor: pointer;
+}
+.io-fold:hover { color: var(--text-normal); border-color: var(--background-modifier-border-hover); }
+.io-fold--shut { background: var(--background-modifier-hover); color: var(--text-normal); }
+/* Вводная фраза группы: тот же коллаут, что и вводный у вкладки, только
+   поуже и без шапки. Одно объявление вида на оба (У-32) — своё держит только
+   отступ. */
+.io-callout--group { margin: 6px 0 10px; }
 .io-group__cmds { margin: 3px 0 2px; font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .io-group__cmds code {
   font-family: var(--font-mono); font-size: 11px; padding: 1px 5px; border-radius: 3px;
@@ -265,7 +289,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   padding: 13px 0; border-top: 1px solid var(--background-modifier-border);
 }
 .io-group__heading + .io-item,
-.io-group__intro + .io-item,
+.io-callout--group + .io-item,
 .io-group__cmds + .io-item { border-top: 0; }
 
 .io-item__info { min-width: 0; flex: 1 1 auto; }
@@ -537,7 +561,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* ============================================================ Custom editors */
 .io-custom { padding: 4px 0 14px; border-top: 1px solid var(--background-modifier-border); margin-top: 13px; }
 .io-group__heading + .io-custom,
-.io-group__intro + .io-custom,
+.io-callout--group + .io-custom,
 .io-group__cmds + .io-custom { border-top: 0; margin-top: 0; }
 
 .io-card {
@@ -637,6 +661,17 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   border-radius: var(--radius-s); background: var(--background-modifier-form-field); cursor: pointer;
 }
 .io-sub { margin: 16px 0 7px; font-size: 13px; font-weight: 600; color: var(--text-normal); }
+/* Субхедер, делящий группу настроек.
+
+   Своей черты снизу у него больше нет: платформа рисует свою сверху у первой
+   строки настройки под подписью, и на экране их было две (замечание
+   заказчика 2026-09-04, скриншот 5.png). Осталась платформенная — она и
+   отделяет подпись от того, что под ней. */
+.io-sub--group {
+  display: flex; align-items: center; gap: 6px;
+  margin: 14px 0 2px; padding-bottom: 4px;
+}
+.io-sub__text { flex: 0 0 auto; }
 
 /* drag-and-drop order lists */
 .io-sortable { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
@@ -656,7 +691,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   appearance: none; font-family: var(--font-mono); font-size: 11px;
   padding: 2px 8px; border-radius: var(--radius-s); cursor: pointer;
   background: var(--background-secondary); border: 1px solid var(--background-modifier-border);
-  color: var(--text-normal); white-space: nowrap;
+  color: var(--text-normal);
+  /* Длинный хоткей переносится: `Alt + Ctrl + Arrow Up` в одну строку не
+     влезал и обрезался на слове `Arrow` (замечание заказчика 1.2.3.3). */
+  white-space: normal; text-align: center; line-height: 1.3;
 }
 .io-hk:hover { border-color: var(--interactive-accent); color: var(--text-accent); }
 .io-hk--none { color: var(--text-faint); font-family: var(--font-ui); }
@@ -665,10 +703,26 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-cmd { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
 .io-cmd__area {
   padding: 7px 12px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-faint); background: var(--background-primary-alt);
+  color: var(--text-normal); background: color-mix(in srgb, var(--text-normal) 12%, var(--background-primary));
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-cmd__area:not(:first-child) { border-top: 1px solid var(--background-modifier-border); }
+/* Подпись части области: стандартные команды и созданные из Fields
+   (замечания заказчика 1.2.3.4.1 и 1.2.3.4.2). Тише рубрикатора области и
+   заметнее описания. */
+.io-cmd__sub {
+  grid-column: 1 / -1; padding: 5px 12px 5px 20px;
+  font-size: var(--font-ui-smaller); color: var(--text-normal);
+  background: color-mix(in srgb, var(--text-normal) 7%, var(--background-primary));
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+/* Подзаголовок Field внутри второй части: `task (tag)` (замечание заказчика
+   2026-08-31). Третий уровень, поэтому отступ больше, а вес меньше. */
+.io-cmd__field {
+  grid-column: 1 / -1; padding: 4px 12px 4px 28px;
+  font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-normal);
+  background: color-mix(in srgb, var(--text-normal) 4%, var(--background-primary));
+}
 .io-cmd__row {
   display: flex; align-items: baseline; justify-content: space-between; gap: 14px;
   padding: 6px 12px; font-size: var(--font-ui-small); color: var(--text-normal);
@@ -720,8 +774,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-kind { display: grid; grid-template-columns: 76px minmax(0, 1fr) 24px; gap: 9px; align-items: center; padding: 5px 0; }
 .io-kind + .io-kind { border-top: 1px dashed var(--background-modifier-border); }
-.io-kind__label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.io-kind--empty .io-kind__label { color: var(--text-faint); }
+.io-kind__label { font-size: var(--font-ui-smaller); color: var(--text-normal); }
+.io-kind--empty .io-kind__label { color: var(--text-muted); }
 .io-kind__chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; min-width: 0; }
 .io-kind__none { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .io-vchip {
@@ -768,6 +822,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-note { font-size: var(--font-ui-smaller); color: var(--text-muted); margin: 8px 0 0; max-width: 66ch; }
 .io-rowactions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+/* Поле `Add tag` — последняя строка таблицы, отделённая линией, на одном
+   отступе с полем тега в строках (замечание заказчика 1.4.1.1). */
+.io-vals--tags .io-rowactions {
+  margin-top: 0; padding: 8px 10px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: color-mix(in srgb, var(--text-normal) 4%, var(--background-primary));
+}
 
 @media (max-width: 860px) {
   .io-kind { grid-template-columns: 60px minmax(0, 1fr) 24px; gap: 7px; }
@@ -816,7 +877,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* command reference as a real table */
 .io-cmd__head {
   font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-faint); background: var(--background-primary-alt);
+  color: var(--text-muted); background: var(--background-primary-alt);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-cmd__name { font-size: var(--font-ui-small); color: var(--text-normal); }
@@ -837,7 +898,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 
 /* A destructive action should look destructive, and this one is asked to
    catch the eye: a white bin on a red fill, no wording. The glyph is an
-   emoji and comes with its own colours, so it is bleached to white with a
+   emoji and comes with its own colors, so it is bleached to white with a
    filter — brightness(0) makes it black, invert(1) makes it white. */
 .io-danger {
   appearance: none; display: inline-flex; align-items: center; justify-content: center;
@@ -847,7 +908,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   padding: 3px 8px; cursor: pointer; margin-left: auto;
 }
 .io-danger:hover { filter: brightness(1.15); }
-.io-danger__icon { font-size: 13px; line-height: 1; filter: brightness(0) invert(1); }
+/* Корзина рисуется маской и красится `currentColor`: цветной эмодзи,
+   обесцвеченный фильтром, читался пятном (замечание заказчика 1.4.1.2.3). */
+.io-danger__icon {
+  width: 13px; height: 13px; background-color: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9.4 3h5.2l1 2H20v2H4V5h4.4l1-2ZM6 9h12l-1 12.2A2 2 0 0 1 15 23H9a2 2 0 0 1-2-1.8L6 9Zm3.8 2.6v8h1.4v-8H9.8Zm3 0v8h1.4v-8h-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9.4 3h5.2l1 2H20v2H4V5h4.4l1-2ZM6 9h12l-1 12.2A2 2 0 0 1 15 23H9a2 2 0 0 1-2-1.8L6 9Zm3.8 2.6v8h1.4v-8H9.8Zm3 0v8h1.4v-8h-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 
 /* Кнопки в ячейке узкие: двум обычным не хватало колонки, и удаление
    наезжало на рамку таблицы (замечание заказчика 2026-08-27). */
@@ -915,12 +982,12 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* command reference as one grid */
 .io-cmd__inner { min-width: 560px; }
 .io-cmd__head, .io-cmd__row {
-  display: grid; grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.3fr) 112px;
+  display: grid; grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.3fr) 132px;
   gap: 12px; align-items: center; padding: 7px 12px;
 }
 .io-cmd__area { grid-column: 1 / -1; }
 
-/* Link fields keep everything a tag has except colour — `Level` included:
+/* Link fields keep everything a tag has except color — `Level` included:
    the runtime reads child Values of a link the same way it reads a tag’s
    (2026-08-27, разбор в PRD фазе 3b). */
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
@@ -930,6 +997,49 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    raised from 26 to 44px on 2026-08-28 together with the big table: the
    column caption was clipped. */
 .io-vals__inner--link { min-width: 242px; }
+
+/* Color your Tags: та же таблица, что Values, без `Level` и `Prefix`
+   (замечание заказчика 1.5.2.2). Шесть колонок: тег, показ, две заливки,
+   предпросмотр и кнопки. */
+.io-vals--tags .io-vals__head, .io-vals--tags .io-vals__row {
+  grid-template-columns: minmax(86px, 1.6fr) minmax(58px, 0.9fr) 40px 40px minmax(72px, 1.4fr) 44px;
+}
+.io-vals__inner--tags { min-width: 352px; }
+
+/* Какие Fields остаются на исходной строке (1.6.5.1): строка на Field,
+   флажок слева, тип справа приглушённым. */
+/* Предпросмотр `Source line` (10.13.10): две половины, «до» и «после». */
+.io-srcprev { display: flex; flex-direction: column; gap: 4px; }
+.io-srcprev__cap {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-muted); margin-top: 4px;
+}
+.io-srcprev__lines {
+  display: flex; flex-direction: column; gap: 2px; padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
+  background: var(--background-primary); overflow-x: auto;
+}
+.io-srcprev__line {
+  font-family: var(--font-monospace); font-size: var(--font-ui-smaller);
+  color: var(--text-normal); white-space: pre;
+}
+.io-srcprev__line--sub { padding-left: 18px; color: var(--text-muted); }
+/* Список Fields стоит своей карточкой на белом: на серой подложке строки
+   настройки его было «сложно различимо» (замечание заказчика 2026-09-04). */
+.io-keepfields__list {
+  display: flex; flex-direction: column;
+  padding: 0 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+.io-keepfields__row {
+  display: flex; align-items: center; gap: 8px; padding: 5px 2px; cursor: pointer;
+  font-size: var(--font-ui-small); color: var(--text-normal);
+}
+.io-keepfields__row + .io-keepfields__row { border-top: 1px solid var(--background-modifier-border); }
+.io-keepfields__name { flex: 1 1 auto; min-width: 0; }
+.io-keepfields__kind { flex: 0 0 auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 
 /* round six: one rule so an inline reference always reads as a reference,
    wherever it appears in the pane. Without this the markup was there and
@@ -1017,7 +1127,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    space gives it in proportion, and every one of them has a floor: a track
    squeezed to zero is a control you cannot use, and a narrow pane did exactly
    that to the Value cell. Fixed pixels are left only where the content is a
-   fixed size: the grip, the two colour swatches and the remove button. */
+   fixed size: the grip, the two color swatches and the remove button. */
 .io-vals__head, .io-vals__row {
   display: grid; gap: 4px; align-items: center; padding: 6px 10px;
   /* Нижние границы держат ПОДПИСЬ колонки, а не только её содержимое:
@@ -1054,6 +1164,22 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   background: var(--io-wheel-bg, var(--background-primary));
   border: 1px solid var(--background-modifier-border);
   box-shadow: 0 4px 14px rgba(20, 17, 32, 0.16);
+}
+/* the panel of the picker is text, not bubbles: two text colors and a fill,
+   which is what its settings actually change (10.13.22) */
+.io-wheelcell {
+  white-space: nowrap;
+  font-size: calc(11.5px * var(--io-text-scale, 1));
+  color: var(--io-wheel-cell, var(--text-muted));
+}
+.io-wheelcell--active {
+  font-weight: 700;
+  color: var(--io-wheel-cell-active, var(--text-accent));
+}
+.io-wheelline--lit {
+  border-radius: var(--radius-s);
+  padding: 0 2px;
+  background: var(--io-wheel-lit, var(--text-highlight-bg));
 }
 .io-wheelpanel--up { bottom: calc(100% + 5px); }
 .io-wheelpanel--down { top: calc(100% + 5px); }
@@ -1108,7 +1234,19 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* the property picker. In the plugin the popover is Obsidian's own
    (`AbstractInputSuggest`); here it stays hand-drawn — the prototype has no
    Obsidian to borrow it from. */
-.io-pick2 { position: relative; min-width: 0; }
+/* Коробка держит ширину: крестик сжимает поле, а не толкает его влево
+   (замечание заказчика 1.3.2.2). */
+.io-pick2 { position: relative; display: flex; align-items: center; gap: 6px; width: 172px; }
+.io-pick2 .io-text--prop { width: auto; flex: 1 1 auto; min-width: 0; }
+/* Стереть выбранное свойство одним нажатием (замечание заказчика 1.4.1.2.6).
+   Красная, как и просили, но цветом темы: литералов в стилях нет (З6). */
+.io-clear {
+  appearance: none; flex: 0 0 auto; width: 18px; height: 18px; padding: 0;
+  display: grid; place-items: center; cursor: pointer; font-size: 11px; line-height: 1;
+  color: var(--text-error); background: transparent;
+  border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
+}
+.io-clear:hover { border-color: var(--text-error); }
 .io-pick2__list {
   display: none; position: absolute; left: 0; top: calc(100% + 3px); z-index: 6;
   min-width: 168px; max-height: 176px; overflow-y: auto;
@@ -1132,11 +1270,19 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 
 /* Color your Tags: тег, два цвета, показ и кнопки. Сетка здесь, а не в
-   атрибутах узлов. */
+   атрибутах узлов.
+
+   Строки и пустое состояние стоят на белом, а не на подложке карточки:
+   «вся таблица сейчас серого цвета, сделай, чтобы фон места где должны быть
+   пользовательские теги был белого цвета» (замечание заказчика 2026-09-04).
+   Шапка и подвал остаются на подложке — по ним и видно, где кончается
+   список. Так же устроена таблица Binder. */
 .io-usertags .io-tablehead,
 .io-usertags .io-tablerow {
   grid-template-columns: minmax(96px, 1fr) 34px 34px 96px 62px;
 }
+.io-usertags .io-tablerow,
+.io-usertags .io-side__empty { background: var(--background-primary); }
 .io-usertags .io-tablefoot { display: flex; gap: 8px; align-items: center; }
 .io-usertags .io-tablefoot .io-text { flex: 1 1 auto; min-width: 0; }
 
@@ -1153,7 +1299,50 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   background: var(--interactive-accent); border: 1px solid transparent; color: var(--text-on-accent);
   box-shadow: 0 2px 8px rgba(20, 17, 32, 0.2);
 }
+/* Кнопка в том виде, в каком её рисует заметка: одна стрелка, отступ от текста
+   из слайдера `Distance from the text`. Одно объявление на предпросмотр и на
+   декорацию строки (У-32). */
+.io-flybtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto;
+  width: 1.15em; height: 1.15em;
+  margin-left: var(--io-flybtn-gap, 6px);
+  vertical-align: baseline; cursor: pointer;
+  font-size: 0.85em; line-height: 1;
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  user-select: none;
+}
+.io-flybtn:hover { color: var(--text-accent); border-color: var(--text-accent); }
 .io-float:hover { background: var(--interactive-accent-hover); }
+
+/* Предпросмотр каретки (10.13.33 Ц8). Мерцает тем же шагом, что редактор:
+   `steps(1)` — половину времени видна, половину нет, без затухания.
+   Толщину, сдвиг и цвет ставит рендерер переменными; сдвиг равен половине
+   толщины, как у самого Obsidian, иначе каретка съезжает вправо. */
+.io-caretline {
+  display: flex; align-items: center;
+  padding: 6px 8px;
+  font-family: var(--font-monospace, monospace);
+  color: var(--text-normal);
+}
+.io-caret {
+  display: inline-block;
+  width: 0; height: 1.2em;
+  margin-left: var(--io-caret-shift, -0.6px);
+  border-left: var(--io-caret-width, 1.2px) solid var(--io-caret-color, var(--text-normal));
+  animation: io-caret-blink var(--io-caret-blink, 1200ms) steps(1) infinite;
+}
+/* Скорость 0 значит «не мигает». Нулевая длительность в CSS означает
+   «мгновенно», а не «никогда», поэтому анимация снимается целиком. */
+.io-caretline--still .io-caret { animation: none; }
+@keyframes io-caret-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
 
 /* the drag handle, and what a row looks like while it moves */
 .io-grip { cursor: grab; }
@@ -1317,6 +1506,11 @@ const TAB_MODULE = {
 const on  = (path) => ({ deps: [path], test: c => c.get(path) === true });
 const not = (path) => ({ deps: [path], test: c => !c.get(path) });
 const eq  = (path, value) => ({ deps: [path], test: c => c.get(path) === value });
+/* У настройки бывает два хозяина. `Smart Delete` и `Smart backspace` включаются
+   врозь (заказчик 2026-09-05, замечание G1.2), а `Drop the line Prefix` и
+   `Join with a space` относятся к обеим клавишам: гасить их надо, только когда
+   не включена ни одна. */
+const neither = (a, b) => ({ deps: [a, b], test: c => !c.get(a) && !c.get(b) });
 
 const SCHEMA = [
 
@@ -1324,6 +1518,7 @@ const SCHEMA = [
 {
   id: "modules", tab: "general", order: 200, heading: "Modules",
   intro: "Four separate things live in this plugin. Turn off the ones you do not want and they stop adding commands and stop touching your notes",
+  tip: "Turning an area off is not the same as leaving it alone. Its commands disappear from the palette, so a hotkey you gave them stops doing anything, and its settings are hidden here until you turn it back on. Nothing you configured is lost — the settings come back exactly as they were. Use this to keep the palette short: if you only ever wanted the tags, three of the four can go",
   items: [
     { kind:"toggle", id:"module-navigation", path:"features.navigation.enabled", default:true,
       name:"Navigation", desc:"Move lines, text and the cursor without reaching for the mouse",
@@ -1342,13 +1537,23 @@ const SCHEMA = [
 {
   id: "help", tab: "general", order: 100, heading: "Help",
   intro: "Where to start, and how much hand-holding you want along the way",
+  tip: "<code>Read</code> writes a guide into your vault the first time you press it and opens it every time after, and the note is yours from then on — the plugin never overwrites it. <code>Show tips</code> controls these very boxes: off, the panel keeps only the one-line descriptions, which is what you want once you know your way around",
   items: [
     { kind:"buttons", id:"howto",
       name:"Guide", desc:"Worked examples of the things people set up first",
-      tip:"Opens a note in your vault with the practical side: which commands are worth a key, how to lay out your " +
-          "first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. " +
-          "It is an ordinary note, so you can scribble your own notes in it",
-      buttons:[ {label:"Open the guide", action:"open-howto", cta:true} ] },
+      tip:"<code>Read</code> writes the guide into your vault the first time you press it, and opens it every time " +
+          "after that. Inside is the practical side: which commands are worth a key, how to lay out your first few " +
+          "Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
+          "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
+          "so nothing you add there can be lost by pressing this button",
+      buttons:[ {label:"Read", action:"open-howto", cta:true} ] },
+    /* Заказчик 2026-09-04: «добавь в help опцию Show callouts над show-tips
+       (при off — все коллауты должны быть скрыты, это относится и к главным
+       коллаутам, которые сверху в каждой вкладке)». */
+    { kind:"toggle", id:"show-callouts", path:"general.help.showCallouts", default:true,
+      name:"Show callouts", desc:"Keep the boxes that say what a tab or a block of settings is for",
+      searchTerms:["Show intro boxes"],
+      tip:"The boxes are the ones with a coloured edge: one at the top of every tab saying what the tab is for, and one under each block of settings saying what that block does. Turn this off once you know your way around and the panel keeps the settings and the one-line descriptions under their names. It is a separate switch from <code>Show tips</code>: that one hides the <code>?</code> marks, this one hides the boxes" },
     { kind:"toggle", id:"show-tips", path:"general.help.showTips", default:true,
       name:"Show tips", desc:"Put a ? beside anything that needs more explanation",
       tip:"Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way" }
@@ -1357,8 +1562,9 @@ const SCHEMA = [
 
 /* ============================================================ KEYBOARD */
 {
-  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A'",
+  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A' ('⌘+A')",
   intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
+  tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder — the line you are on, then more of the note with each press — so you can grab one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide how many rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. The key itself is Obsidian’s, and nothing here rebinds it",
   items: [
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
       name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
@@ -1384,41 +1590,83 @@ const SCHEMA = [
       searchTerms:["Multi-press delay"],
       visible: on("editor.selectAll.useDelay"), disabled: not("editor.selectAll.enabled") },
     { kind:"toggle", id:"select-all-clear", path:"editor.selectAll.clearOnLast", default:false,
-      name:"One more press clears it", desc:"After the last step, pressing again drops the selection and returns the cursor",
+      name:"Last press clears highlighting", desc:"After the last step, pressing again drops the selection and returns the cursor",
       tip:"Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
-      searchTerms:["Last press clears selection"], disabled: not("editor.selectAll.enabled") }
+      searchTerms:["Last press clears selection", "One more press clears it"], disabled: not("editor.selectAll.enabled") }
+  ]
+},
+/* Заказ заказчика 2026-09-05, вечер (PRD 10.13.32). Стоит над `Binder`, как он
+   и просил: между `Expanded 'Ctrl+A'` (100) и `Binder` (200). Умолчания
+   выключены по той же причине, что у `Ctrl+A`, — клавиши принадлежат Obsidian.
+
+   Заказчик 2026-09-05, поздний вечер (замечания G1.1–G1.5): заголовок называет
+   обе клавиши, `Backspace` стоит вторым и включается сам по себе, а два нижних
+   тумблера относятся к обеим клавишам сразу — отсюда `neither`. */
+{
+  id: "smart-delete", tab: "keyboard", order: 150, heading: "Smart Delete\\Backspace",
+  intro: "<code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind",
+  tip: "Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did",
+  items: [
+    { kind:"toggle", id:"smart-delete-enabled", path:"editor.smartDelete.enabled", default:false,
+      name:"Smart Delete", desc:"Let <code>Del</code> at the end of a line bring up the words without the indent and the Prefix",
+      searchTerms:["Smart Del","Delete the junk"],
+      tip:"Nothing here rebinds the key: <code>Del</code> stays Obsidian’s, and this only changes what happens in the one case where it joins two lines. Off, the key behaves as it always has. <code>Smart backspace</code> below is a switch of its own and does not need this one" },
+    /* Зеркальный случай. Заказчик 2026-09-05: «да, но отдельным тумблером» —
+       он выбрал это, отказавшись делать обе клавиши одним переключателем,
+       поэтому умолчание выключено: иначе отдельный тумблер ничем не отличался
+       бы от общего (10.13.32 Д9). Тем же вечером он попросил включать его
+       независимо от `Smart Delete` и поднять сюда, вторым (Д11). */
+    { kind:"toggle", id:"smart-delete-backspace", path:"editor.smartDelete.onBackspace", default:false,
+      name:"Smart backspace", desc:"Let <code>Backspace</code> at the start of a line send it up without its own indent and Prefix",
+      searchTerms:["Smart Backspace","Do the same on Backspace"],
+      tip:"The same thing from the other side, and it stands on its own: <code>Smart Delete</code> above can stay off and this still works. <code>Backspace</code> at the start of a line joins it to the line above, and by default it takes the indent and the bullet along. On, they stay behind and only the words go up. A line with nothing on it disappears, which is the quickest way to close a gap" },
+    { kind:"toggle", id:"smart-delete-prefix", path:"editor.smartDelete.dropPrefix", default:true,
+      name:"Drop the line Prefix", desc:"Take the bullet, checkbox, number or quote mark off the arriving line, not only its indent",
+      searchTerms:["Drop the bullet"], disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
+      tip:"On, <code>- [ ] read the docs</code> arrives as <code>read the docs</code>. Off, only the indent goes and the line keeps its Prefix, which is what you want when the two lines are meant to stay two list items. This one answers to both keys above" },
+    { kind:"toggle", id:"smart-delete-space", path:"editor.smartDelete.joinWithSpace", default:true,
+      name:"Join with a space", desc:"Put one space between your text and the text that arrives, so the two do not run together",
+      searchTerms:["Add a space"], disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
+      tip:"Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above" }
   ]
 },
 {
   id: "binder", tab: "keyboard", order: 200, heading: "Binder (custom insert commands)",
   intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
-  tip: "The <code>Hotkey</code> column shows the key a row has now; click it to go and set one. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
+  tip: "Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings \u2192 Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton \u2014 anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian\u2019s list to change it. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
   items: [ { kind:"custom", id:"binder-table", render: renderBinder } ]
 },
 {
-  id: "command-reference", tab: "keyboard", order: 300, heading: "Command reference",
+  id: "command-reference", tab: "keyboard", order: 300, heading: "Commands & Hotkeys",
   intro: "Everything this plugin can do, in one list. None of it has a key until you give it one \u2014 click in the <code>Hotkey</code> column to do that",
-  tip: "In Obsidian\u2019s own hotkey list these all appear under <b>Inline Overhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
+  tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>Inline Overhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
   items: [ { kind:"custom", id:"command-list", render: renderCommandReference } ]
 },
 
 /* ============================================================ NAVIGATION */
 { id: "general-intro",   tab: "general",    order: 10, heading: "Before you start",
-  items: [ { kind:"custom", id:"general-callout", render: renderTabCallout } ] },
+  items: [ { kind:"custom", id:"general-callout", render: renderTabCallout } ],
+  visible: on("general.help.showCallouts") },
 { id: "nav-intro",       tab: "navigation", order: 50, heading: "Before you start",
-  items: [ { kind:"custom", id:"nav-callout", render: renderTabCallout } ] },
+  items: [ { kind:"custom", id:"nav-callout", render: renderTabCallout } ],
+  visible: on("general.help.showCallouts") },
 { id: "keyboard-intro",  tab: "keyboard",   order: 50, heading: "Before you start",
-  items: [ { kind:"custom", id:"keyboard-callout", render: renderTabCallout } ] },
+  items: [ { kind:"custom", id:"keyboard-callout", render: renderTabCallout } ],
+  visible: on("general.help.showCallouts") },
 { id: "pkm-intro",       tab: "pkm",        order: 50, heading: "Before you start",
-  items: [ { kind:"custom", id:"pkm-callout", render: renderTabCallout } ] },
+  items: [ { kind:"custom", id:"pkm-callout", render: renderTabCallout } ],
+  visible: on("general.help.showCallouts") },
 { id: "visual-intro",    tab: "visual",     order: 50, heading: "Before you start",
-  items: [ { kind:"custom", id:"visual-callout", render: renderTabCallout } ] },
+  items: [ { kind:"custom", id:"visual-callout", render: renderTabCallout } ],
+  visible: on("general.help.showCallouts") },
 { id: "transform-intro", tab: "transform",  order: 50, heading: "Before you start",
-  items: [ { kind:"custom", id:"transform-callout", render: renderTabCallout } ] },
+  items: [ { kind:"custom", id:"transform-callout", render: renderTabCallout } ],
+  visible: on("general.help.showCallouts") },
 { id: "advanced-intro",  tab: "advanced",   order: 50, heading: "Before you start",
-  items: [ { kind:"custom", id:"advanced-callout", render: renderTabCallout } ] },
+  items: [ { kind:"custom", id:"advanced-callout", render: renderTabCallout } ],
+  visible: on("general.help.showCallouts") },
 {
-  id: "move-lines", tab: "navigation", order: 100, heading: "Moving lines",
+  id: "move-lines", tab: "navigation", order: 100, heading: "Moving lines (up and down)",
   intro: "Reorder a note without cutting and pasting: pick up a line and walk it up or down",
   tip: "When a line has other lines indented beneath it, the whole bundle is called its <b>tree</b>. That word turns up in a few places here. The setting below is where you decide whether the bundle travels with the line or stays behind",
   commands: ["Move line up", "Move line down"],
@@ -1441,18 +1689,35 @@ const SCHEMA = [
       searchTerms:["Cross-section allowed"], disabled: not("navigation.moveLine.enabled"),
       tip:"Leave it on and a line keeps going wherever you push it. Turn it off and it stops at the heading, which is what you want in a note where each heading has to keep its own contents" },
     { kind:"toggle", id:"move-lines-select", path:"navigation.moveLine.highlightMovedLines", default:false,
-      name:"Select after moving", desc:"Keep the lines highlighted once they land, so you can see what moved",
+      name:"Highlight after moving", desc:"Keep the lines highlighted once they land, so you can see what moved",
       tip:"Useful when you move a tree of several lines and want to be sure the whole thing came along",
-      searchTerms:["Highlight moved lines"], disabled: not("navigation.moveLine.enabled") }
+      searchTerms:["Highlight moved lines", "Select after moving"], disabled: not("navigation.moveLine.enabled") },
+    /* Прокрутка при перемещении строки: заказ заказчика 2026-09-05, поздний
+       вечер (PRD 10.13.36). До этого прокруткой распоряжалась платформа, и
+       выбора не было вовсе — свой код до неё не доезжал. */
+    { kind:"toggle", id:"move-lines-view", path:"navigation.moveLine.keepInView", default:true,
+      name:"Follow the moved line", desc:"Scroll the note to the line you moved instead of leaving the view where it was",
+      searchTerms:["Scroll on move","Keep in view","Screen jumps"], disabled: not("navigation.moveLine.enabled"),
+      tip:"Off, the note does not scroll at all: what you see stays exactly where it was, and a line pushed past the edge goes on moving out of sight. On, the view follows the line and puts it where the setting below says" },
+    { kind:"dropdown", id:"move-lines-view-position", path:"navigation.moveLine.viewPosition", default:"center",
+      name:"Where the line lands", desc:"The place on screen the moved line is scrolled to",
+      searchTerms:["Scroll position","Center on move"],
+      visible: on("navigation.moveLine.keepInView"), disabled: not("navigation.moveLine.enabled"),
+      options:[ {value:"center",label:"Center of the screen"},
+                {value:"top",label:"Top of the screen"},
+                {value:"bottom",label:"Bottom of the screen"} ],
+      tip:"The same place every time, which is the whole point: before this the note scrolled by whatever the editor thought was nearest, so one press centered the line and the next threw it to the top. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 },
 {
   id: "left-right", tab: "navigation", order: 200, heading: "Move left and move right",
   intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
-  commands: ["Move left", "Move right"],
+  tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and each job below can be switched off on its own, so you can narrow the keys down to the one thing you want them to do",
   items: [
     { kind:"custom", id:"left-right-order", render: renderLeftRightOrder },
 
+    { kind:"custom", id:"move-text-sub", render: renderSubheader("Move text",
+        "These two keys can do three different jobs, and this half is the one that needs a selection: highlight a phrase and they slide it along the line, leaving the line itself alone. With nothing highlighted none of it applies and the keys fall through to the rows further down") },
     { kind:"toggle", id:"move-text-enabled", path:"navigation.moveSelection.inlineEnabled", default:true,
       name:"Move selected text", desc:"Slide a highlighted phrase along its line",
       searchTerms:["Enable inline text move"],
@@ -1463,16 +1728,23 @@ const SCHEMA = [
       options:[ {value:"auto",label:"Automatic"}, {value:"char",label:"One character"},
                 {value:"word",label:"Whole word"}, {value:"disabled",label:"Off"} ],
       tip:"<b>Automatic</b> reads what you highlighted: part of a word moves letter by letter, a whole word hops over whole words. Pick one of the others if you would rather it always behave the same way" },
+    { kind:"toggle", id:"move-text-cross", path:"navigation.moveSelection.inlineBoundaryJump", default:true,
+      name:"Continue past a Separator", desc:"Let the highlighted text leave your text and move into the tags at either end",
+      disabled: not("navigation.moveSelection.inlineEnabled"),
+      tip:"Off, a highlighted phrase stays between the Separators: it will not slide back into the tags at the start of the line, nor forward into the dates at the end. Turn it on when you do want to shuffle a tag and a phrase past each other",
+      seeAlso:{ id:"in-line-cross", label:"The cursor has the same setting of its own" } },
 
+    { kind:"custom", id:"move-line-sub", render: renderSubheader("Moving lines (left and right)",
+        "The other half, and it works with nothing highlighted: the same two keys change the marker at the start of the line, or how far the line is indented. Which of the two you get is decided by the line you are on, and the two tables at the top of this group show the order those checks run in") },
     { kind:"toggle", id:"prefix-cycle-enabled", path:"navigation.moveSelection.prefixCyclerEnabled", default:true,
       name:"Cycle line Prefixes", desc:"Turn a line into a heading, a bullet, a numbered item or plain text, one press at a time",
       searchTerms:["Enable PrefixCycler"],
-      tip:"<code>Move right</code> walks down the list below, <code>Move left</code> walks back up, and an empty row in it means plain text with no Prefix at all. <code>Move left</code> cycles whenever the line has no indent; <code>Move right</code> only cycles when the line is not already a list item, because on a list item it indents instead" },
+      tip:"<code>Move right</code> walks down the list below, <code>Move left</code> walks back up, and an empty row in it means plain text with no Prefix at all. Both cycle whenever the line has no indent; on an indented line they change the indent instead. Whether the right key cycles at all is the row below" },
     { kind:"custom", id:"cycle-order", render: renderCycleOrder },
     { kind:"toggle", id:"right-cycles", path:"navigation.moveSelection.rightCycles", default:true,
-      name:"Cycle in both directions", desc:"Off: <code>Move right</code> only ever indents, and cycling becomes a <code>Move left</code> job",
+      name:"Cycle in both directions", desc:"On: <code>Move right</code> changes the marker too, but only on a line with no indent",
       disabled: not("navigation.moveSelection.prefixCyclerEnabled"),
-      tip:"On a plain line <code>Move right</code> walks down the list and <code>Move left</code> walks back up. Switch this off and the two keys split the work: <code>Move left</code> changes the marker, <code>Move right</code> only ever indents. Some people find that easier to keep in their head" },
+      tip:"On, both keys change the marker while the line sits at the left edge: <code>Move right</code> walks down the list below and <code>Move left</code> walks back up. <b>An indented line is not part of this</b> \u2014 there <code>Move right</code> indents as it always did, and cycling stays a <code>Move left</code> job. <b>The price is at the left edge</b>: a line with no indent is no longer pushed by <code>Move right</code> while the list still has somewhere to go, and what happens when it runs out is <code>After the last one</code> \u2014 with <b>Start over</b> the key never pushes at all, and indenting is left to <code>Tab</code>. Switch this off and the two keys split the work: <code>Move left</code> changes the marker, <code>Move right</code> only ever indents" },
     { kind:"dropdown", id:"prefix-cycle-end", path:"navigation.moveSelection.onCycleEnd", default:"indent",
       name:"After the last one", desc:"What happens when you reach the bottom of the list below",
       tip:"<b>Start over</b> loops back to the top, so you can keep pressing until you find what you want. <b>Increase indent</b> stops cycling and starts pushing the line to the right instead",
@@ -1486,22 +1758,19 @@ const SCHEMA = [
   ]
 },
 {
-  id: "heading-jumps", tab: "navigation", order: 300, heading: "Jumping between headings",
+  id: "heading-jumps", tab: "navigation", order: 500, heading: "Moving cursor inside a note",
   intro: "Skip through a long note by its headings instead of scrolling",
+  tip: "In a note with headings these two keys move you a section at a time, which beats scrolling and beats the outline sidebar once your hands are on the keyboard. The settings below decide what counts as a stop — every heading, or every line — where on the line you land, and whether the note scrolls so that what you jumped to is actually on screen",
   commands: ["Jump back", "Jump next"],
   items: [
     { kind:"toggle", id:"heading-jumps-enabled", path:"navigation.jumpToHeader.enabled", default:true,
       name:"Jump between headings", desc:"Turn on the <code>Jump back</code> and <code>Jump next</code> commands",
       searchTerms:["Enable Jump To Header"] },
-    { kind:"toggle", id:"heading-jumps-center", path:"navigation.jumpToHeader.centerCursor", default:true,
-      name:"Center the target", desc:"After a jump, scroll the note so the line you landed on sits mid-screen",
-      tip:"Without it you often arrive at the very bottom of the window, with the section you jumped to still off screen below \u2014 so you have to scroll anyway. With it on, you can read straight away",
-      disabled: not("navigation.jumpToHeader.enabled") },
     { kind:"dropdown", id:"heading-jumps-mode", path:"navigation.jumpToHeader.jumpMode", default:"edge",
-      name:"Jump target", desc:"Hop between headings, or crawl line by line",
+      name:"Jump target", desc:"Hop between headings, or crawl from one written line to the next",
       searchTerms:["Jump mode"], disabled: not("navigation.jumpToHeader.enabled"),
       options:[ {value:"edge",label:"Heading to heading"}, {value:"line",label:"Line by line"} ],
-      tip:"<b>Heading to heading</b> is for finding your way around a long note. <b>Line by line</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys" },
+      tip:"<b>Heading to heading</b> is for finding your way around a long note. <b>Line by line</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be" },
     { kind:"dropdown", id:"heading-jumps-edge", path:"navigation.jumpToHeader.edgeMode", default:"start-end",
       name:"Where in the section", desc:"Land at the start of the part you jump to, or at its end",
       tip:"<b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
@@ -1509,18 +1778,36 @@ const SCHEMA = [
       visible: eq("navigation.jumpToHeader.jumpMode","edge"), disabled: not("navigation.jumpToHeader.enabled"),
       options:[ {value:"start-end",label:"Alternate start and end"},
                 {value:"start",label:"Start only"}, {value:"end",label:"End only"} ] },
-    { kind:"dropdown", id:"heading-jumps-cursor", path:"navigation.jumpToHeader.jumpCursorPosition", default:"start",
-      name:"Cursor on arrival", desc:"Where on that line the cursor ends up",
-      searchTerms:["Jump cursor position"], disabled: not("navigation.jumpToHeader.enabled"),
+    { kind:"dropdown", id:"heading-jumps-cursor", path:"navigation.jumpToHeader.jumpCursorPosition", default:"section-end",
+      name:"Cursor position after jumping", desc:"Where on that line the cursor ends up",
+      searchTerms:["Jump cursor position", "Cursor on arrival"], disabled: not("navigation.jumpToHeader.enabled"),
       options:[ {value:"start",label:"Line start"}, {value:"end",label:"Line end"},
                 {value:"section-end",label:"End of your text"} ],
       tip:"<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them",
-      seeAlso:{ id:"separator-2", label:"Where your text ends is set by the second Separator" } }
+      seeAlso:{ id:"separator-2", label:"Where your text ends is set by the second Separator" } },
+    /* \u041c\u0435\u0441\u0442\u043e \u043d\u0430 \u044d\u043a\u0440\u0430\u043d\u0435 \u043f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0430: \u0437\u0430\u043a\u0430\u0437 \u0437\u0430\u043a\u0430\u0437\u0447\u0438\u043a\u0430 2026-09-06, \u00ab\u0442\u0430\u043a\u0430\u044f \u0436\u0435
+       \u043e\u043f\u0446\u0438\u044f, \u043a\u0430\u043a \u0443 \u043f\u0435\u0440\u0435\u043c\u0435\u0449\u0435\u043d\u0438\u044f \u0441\u0442\u0440\u043e\u043a\u0438\u00bb (PRD 10.13.37). \u0422\u0443\u043c\u0431\u043b\u0435\u0440 \u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u0438 \u043a\u043b\u044e\u0447
+       \u0435\u0433\u043e \u043f\u0440\u0435\u0436\u043d\u0438\u0439 \u2014 \u0441\u043c\u0435\u043d\u0438\u043b\u0430\u0441\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0434\u043f\u0438\u0441\u044c, \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u00ab\u043f\u043e \u0446\u0435\u043d\u0442\u0440\u0443\u00bb \u0441\u0442\u0430\u043b\u043e
+       \u043e\u0434\u043d\u0438\u043c \u0438\u0437 \u0442\u0440\u0451\u0445 \u043f\u043e\u043b\u043e\u0436\u0435\u043d\u0438\u0439. */
+    { kind:"toggle", id:"heading-jumps-center", path:"navigation.jumpToHeader.centerCursor", default:true,
+      name:"Follow the jump target", desc:"After a jump, scroll the note so the line you landed on is on screen",
+      searchTerms:["Center the target","Center the screen on target","Scroll on jump"],
+      tip:"Without it you often arrive at the very bottom of the window, with the section you jumped to still off screen below \u2014 so you have to scroll anyway. With it on, you can read straight away, and the row below says where on the screen you land",
+      disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"dropdown", id:"heading-jumps-view-position", path:"navigation.jumpToHeader.viewPosition", default:"center",
+      name:"Where the target lands", desc:"The place on screen the line you jump to is scrolled to",
+      searchTerms:["Scroll position","Center on jump"],
+      visible: on("navigation.jumpToHeader.centerCursor"), disabled: not("navigation.jumpToHeader.enabled"),
+      options:[ {value:"center",label:"Center of the screen"},
+                {value:"top",label:"Top of the screen"},
+                {value:"bottom",label:"Bottom of the screen"} ],
+      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 },
 {
-  id: "in-line", tab: "navigation", order: 400, heading: "Moving inside a line",
+  id: "in-line", tab: "navigation", order: 400, heading: "Moving cursor inside a line",
   intro: "A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line",
+  tip: "A tagged line has three parts: what comes before your text, your text, and what comes after. The arrow keys treat all of it as one long string and walk through the tags character by character. These two keys hop instead — word, sentence, or straight to one end of your text — and by default they stop at the Separators, so the cursor stays in the sentence you are writing and never lands inside a tag by accident",
   commands: ["Move cursor left in line", "Move cursor right in line"],
   items: [
     { kind:"toggle", id:"in-line-enabled", path:"navigation.navigateInline.enabled", default:true,
@@ -1533,12 +1820,12 @@ const SCHEMA = [
       options:[ {value:"word",label:"Word"}, {value:"sentence",label:"Sentence"},
                 {value:"begin-end",label:"Straight to the start or end"} ] },
     { kind:"toggle", id:"in-line-cross", path:"navigation.navigateInline.boundaryJump", default:false,
-      name:"Continue past a Separator", desc:"Let the cursor leave your text and walk into the tags at either end",
-      searchTerms:["Allow crossing Separators"], disabled: not("navigation.navigateInline.enabled"),
+      name:"Continue past Separators", desc:"Let the cursor leave your text and walk into the tags at either end",
+      searchTerms:["Allow crossing Separators", "Continue past a Separator"], disabled: not("navigation.navigateInline.enabled"),
       tip:"Off is the safer setting while you are writing: the cursor stays in your sentence and cannot wander into the tags. Turn it on when you want to reach a tag with the same keys instead of the mouse" },
     { kind:"dropdown", id:"in-line-boundary", path:"navigation.navigateInline.onBoundary", default:"wrap",
-      name:"At the far end", desc:"What to do when there is nowhere further to go",
-      searchTerms:["On boundary"], disabled: not("navigation.navigateInline.enabled"),
+      name:"What to do at the end", desc:"When there is nowhere further to go in the line",
+      searchTerms:["On boundary", "At the far end"], disabled: not("navigation.navigateInline.enabled"),
       tip:"Say the cursor is on the last word before the closing Separator and you press again. <b>Stay put</b> does nothing. <b>Wrap</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely",
       options:[ {value:"stay",label:"Stay put"}, {value:"wrap",label:"Wrap to the other end"},
                 {value:"next-line",label:"Go to the next line"} ] }
@@ -1571,6 +1858,7 @@ const SCHEMA = [
 {
   id: "writing-rules", tab: "pkm", order: 300, heading: "Writing rules",
   intro: "The small habits: how a tag is written when it has a Value underneath it, what is left when you clear a line, and where the cursor waits for you afterwards",
+  tip: "These are the settings you set once and forget. They do not decide which Fields you have or what they offer — that is the <code>Fields</code> block above. They decide the shape of what lands on the line: whether a nested Value is written as <code>#parent #child</code> or <code>#parent/child</code>, what a Field leaves behind when you step it past its last Value, and where the cursor ends up so you can keep typing",
   items: [
     { kind:"dropdown", id:"child-tag-format", path:"pkm.behavior.childTagFormat", default:"separate",
       name:"Child tag format", desc:"When a Value sits under another one, whether they are written as two tags or one",
@@ -1620,13 +1908,14 @@ const SCHEMA = [
 {
   id: "prefix-priority", tab: "pkm", order: 500, heading: "Prefix priority",
   intro: "Some Values want to change the start of the line \u2014 a checkbox from Status, an exclamation mark from Priority. When two of them ask at once, only one can win. These rules decide who",
+  tip: "This block matters only if two of your Values both want the start of the line. If none of them do, or only one ever does, nothing here changes anything. <b>Decide by</b> is the main choice: settle it by where the Fields stand in your own order, or by a list of openings you rank yourself. The row below it decides whether a nested Value outranks its parent or the other way round",
   items: [
     { kind:"dropdown", id:"prefix-priority-decide", path:"pkm.prefixPriority.decideBy", default:"by-section",
       name:"Decide by", desc:"Settle it by the order of your Fields, or by a list of openings you rank yourself",
       searchTerms:["Main checkbox priority","Prefix Resolver"],
       options:[ {value:"by-section",label:"Field order"}, {value:"by-checkbox-list",label:"Prefix order"} ],
       tip:"<b>Field order</b> is the simple answer: whichever Field comes first in your list gets its way. <b>Prefix order</b> is for when you care about the openings themselves \u2014 say an urgent mark should always beat a tick, no matter which Field asked for it" },
-    { kind:"dropdown", id:"prefix-priority-source", path:"pkm.prefixPriority.fieldOrderSource", default:"auto",
+    { kind:"dropdown", id:"prefix-priority-source", path:"pkm.prefixPriority.fieldOrderSource", default:"manual",
       name:"Field order source", desc:"Use the order your Fields are already in, or arrange a separate one",
       searchTerms:["Fields order mode"],
       visible: eq("pkm.prefixPriority.decideBy","by-section"),
@@ -1637,96 +1926,82 @@ const SCHEMA = [
                         && c.get("pkm.prefixPriority.fieldOrderSource") === "manual" } },
     { kind:"custom", id:"prefix-order-list", render: renderPrefixOrderList,
       visible: eq("pkm.prefixPriority.decideBy","by-checkbox-list") },
-    { kind:"dropdown", id:"prefix-priority-parent", path:"pkm.prefixPriority.parentOrChild", default:"tag-over-subtag",
+    { kind:"dropdown", id:"prefix-priority-parent", path:"pkm.prefixPriority.parentOrChild", default:"subtag-over-tag",
       name:"Parent or child wins", desc:"When a tag and its child Value both carry a Prefix",
       searchTerms:["Tag/Subtag priority"],
       options:[ {value:"tag-over-subtag",label:"Parent tag"}, {value:"subtag-over-tag",label:"Child tag"} ] }
   ]
 },
-{
-  id: "config-note", tab: "pkm", order: 600, heading: "Config note",
-  intro: "Your whole setup, written out as an ordinary note you can read, edit and keep. Generate it to save a copy of where you are now; apply it to put a copy back",
-  tip: "It works both ways, and that makes it useful twice over. As a <b>backup</b>: generate it before you start rearranging, and you can always get back. As a <b>way to move</b>: copy the note into another vault, press apply there, and that vault has your setup. As an <b>editor</b>: for a long list of Values it is far quicker to type in the note than to click through the table above \u2014 press apply when you are done",
-  commands: ["Apply config note"],
-  items: [
-    { kind:"text", id:"config-note-path", path:"pkm.configNote.path", wide:true,
-      default:"InlineOverhaul_Config.md", mono:true,
-      name:"Where to keep it", desc:"The note that Generate writes and Apply reads",
-      tip:"Put it wherever you keep your own notes about your setup. If you sync your vault, this travels with it, which is the simplest way to carry your setup between machines" },
-    { kind:"dropdown", id:"config-note-detail", path:"pkm.configNote.detail", default:"detailed",
-      name:"How much detail", desc:"Whether the generated note explains itself or just lists the settings",
-      tip:"<b>Detailed</b> adds comments describing each block, which helps if you are going to edit it by hand. <b>Minimal</b> is easier to read as a backup and easier to compare between two versions",
-      searchTerms:["Config Export Mode"],
-      options:[ {value:"detailed",label:"Detailed"}, {value:"minimal",label:"Minimal"} ] },
-    { kind:"buttons", id:"config-note-actions",
-      name:"Generate and apply", desc:"Write your setup out to the note, or read it back in",
-      searchTerms:["TagWheel Note Editor"],
-      tip:"<b>Generate</b> overwrites the note with your settings as they are right now, so it is always a fresh copy rather than something that can go stale. <b>Apply</b> goes the other way and replaces your settings with what the note says \u2014 the previous setup is kept aside first, so a mistake is recoverable",
-      buttons:[ {label:"Generate", action:"generate-config-note"},
-                {label:"Apply", action:"apply-config-note", cta:true} ] },
-  ]
-},
+/* Группа `config-note` снята 2026-09-03 по решению заказчика (В-28, PRD 10.12).
+   Копию настроек и перенос в другой vault делает `Settings backup` на вкладке
+   `Advanced`, и делает целиком: заметка несла 176 настроек из 393. */
 
 /* ============================================================ VISUAL */
 {
-  id: "tag-appearance", tab: "visual", order: 100, heading: "Tag appearance",
-  intro: "How a tagged line looks while you write. Tags are drawn as small coloured bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
+  id: "tag-appearance", tab: "visual", order: 100, heading: "Inline appearance",
+  intro: "How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
+  tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
   items: [
     { kind:"custom", id:"tag-preview", render: renderTagPreview },
     { kind:"slider", id:"tags-opacity-left", path:"visual.tags.opacityLeft", default:100,
       min:0, max:100, step:1, unit:"%",
-      name:"Opacity before the text", desc:"Dims everything written before your text, tags and elements alike",
+      name:"Opacity of the Left Block", desc:"Dims everything written before your text, tags and elements alike",
       searchTerms:["Opacity Left"],
       seeAlso:{ id:"field-editor", label:"Tag colors are set per Value under Fields" } },
     { kind:"slider", id:"tags-opacity-right", path:"visual.tags.opacityRight", default:100,
       min:0, max:100, step:1, unit:"%",
-      name:"Opacity after the text", desc:"Dims everything written after your text, tags and elements alike",
+      name:"Opacity of the Right Block", desc:"Dims everything written after your text, tags and elements alike",
       searchTerms:["Opacity Right"] },
     { kind:"slider", id:"tags-text-size", path:"visual.tags.textSizePct", default:100,
       min:80, max:140, step:5, unit:"%",
-      name:"Text size", desc:"How big the writing inside a bubble is, next to the rest of your note",
-      tip:"Below 100 the tags step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100",
+      name:"Text size", desc:"How big everything in the two Blocks is written, next to the rest of your note",
+      tip:"This reaches the whole of both Blocks, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Blocks step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100",
       searchTerms:["Tag text size"] },
     { kind:"slider", id:"tags-bubble-width", path:"visual.tags.bubbleWidthPct", default:100,
       min:80, max:140, step:5, unit:"%",
-      name:"Bubble width", desc:"How much breathing room there is either side of the word",
-      searchTerms:["Tag bubble size - width"] },
+      name:"Tags bubble width", desc:"How much breathing room there is either side of the word",
+      searchTerms:["Tag bubble size - width", "Bubble width"] },
     { kind:"slider", id:"tags-bubble-height", path:"visual.tags.bubbleHeightPct", default:100,
       min:80, max:140, step:5, unit:"%",
-      name:"Bubble height", desc:"How tall the bubble is around the word",
+      name:"Tags bubble size", desc:"How tall the bubble is around the word",
       tip:"Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read",
-      searchTerms:["Tag bubble size - height"] },
+      searchTerms:["Tag bubble size - height", "Bubble height"] },
     { kind:"slider", id:"tags-empty-bubble", path:"visual.tags.emptyBubblePct", default:100,
       min:50, max:180, step:5, unit:"%",
-      name:"Empty bubble width", desc:"Width of a bubble whose <code>Show</code> is set to <code>empty</code>",
-      searchTerms:["Empty bubble size"],
+      name:"Empty tags bubble width", desc:"Width of a bubble whose <code>Show</code> is set to <code>empty</code>",
+      searchTerms:["Empty bubble size", "Empty bubble width"],
       tip:"Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets",
       seeAlso:{ id:"field-editor", label:"Set a Value to empty under Fields" } },
     { kind:"slider", id:"tags-corners", path:"visual.tags.cornersPct", default:0,
       min:0, max:100, step:1,
-      name:"Bubble corners", desc:"Slide from fully rounded to completely square",
-      searchTerms:["Tag shape"] }
+      name:"Tags bubble corners", desc:"Slide from fully rounded to completely square",
+      searchTerms:["Tag shape", "Bubble corners"] }
   ]
 },
 {
   id: "user-tag-colors", tab: "visual", order: 150, heading: "Color your Tags",
-  intro: "Colours for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
-  tip: "A Field gives its own Values their colours under <code>Tags &amp; PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, so it lives here. Leave a colour unset and the tag takes the colour of your theme, and keeps following it when the theme changes",
+  intro: "Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
+  tip: "Every tag in a note is drawn as a bubble, whether the plugin put it there or you typed it. Each row below is one tag: the fill behind it, the color of the writing on it, and whether the bubble shows the word, the word with its hash, or nothing at all. Values of a Field take their colors from the Field, under <code>Tags & PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, and this is where it gets its look. Leave a color unset and the tag follows your theme, and keeps following it when the theme changes",
   items: [ { kind:"custom", id:"user-tag-list", render: renderUserTagColors } ]
 },
 {
   id: "tag-bars", tab: "visual", order: 200, heading: "Tag Bars",
-  intro: "A coloured Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
+  intro: "A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
+  tip: "Bars are drawn from the colors of one Field, and you pick which one below. Only a tag Field can do it: the color of a Bar is the color of a Value, and links and dates have none. A Bar belongs to the line that carries the Value and runs the full height of that line and everything nested under it; a deeper line with a Value of its own gets its own Bar in the next lane along, so the number of lanes follows how deep your lists go. Bars sit in the margin, so the text column never moves, and you can hide the tag itself once its Bar says the same thing",
   items: [
     { kind:"custom", id:"bars-preview", render: renderBarsPreview },
-    { kind:"toggle", id:"bars-active", path:"visual.tagBars.active", default:true,
+    { kind:"toggle", id:"bars-active", path:"visual.tagBars.active", default:false,
       name:"Tag Bars", desc:"Draw the Bars",
       searchTerms:["Activate strip","Strip","Hierarchy Bars","Level Bars"] },
-    { kind:"dropdown", id:"bars-field", path:"visual.tagBars.fieldId", default:"status",
-      name:"Which Field draws Bars", desc:"Bars are drawn for one Field only. Lines without a Value for it get none",
+    { kind:"dropdown", id:"bars-field", path:"visual.tagBars.fieldId", default:"",
+      name:"Which Field draws Bars", desc:"Bars work with tag Fields only, and only for the one chosen here",
       searchTerms:["Strip Field"], visible: on("visual.tagBars.active"),
-      options:[ {value:"status",label:"Status"}, {value:"priority",label:"Priority"} ],
-      tip:"Pick the one thing you scan a page for \u2014 usually how far along something is, or how urgent it is. Switch between the two in the preview above and you will see the Bars change shape, not just colour, because different lines carry different Fields",
+      /* Список — ваши Fields, а не эти два имени: они мокданные прототипа
+         (Р8), и в панели их быть не должно. Первая строка отвечает за
+         значение по умолчанию: без неё список показывал первый Field,
+         когда не выбрано ничего (замечание заказчика 1.5.3.2). */
+      options:[ {value:"",label:"No Field chosen"} ], optionsFrom:"tag-fields",
+      tip:"Pick the one thing you scan a page for \u2014 usually how far along something is, or how urgent it is. The list is your own tag Fields: a Field of another type has no Value color, and a Bar is drawn in the color of the Value. Switch between Fields and the Bars in the preview above change shape, not just color, because different lines carry different Fields",
       seeAlso:{ id:"field-editor", label:"Bar colors are the Value colors under Fields" } },
     { kind:"slider", id:"bars-count", path:"visual.tagBars.stripesToShow", default:2,
       min:1, max:3, step:1,
@@ -1748,24 +2023,41 @@ const SCHEMA = [
       searchTerms:["Strip mode"], visible: on("visual.tagBars.active"),
       options:[ {value:"default",label:"Parent keeps the outer lane"}, {value:"crossing",label:"Lanes rotate"} ],
       tip:"Bars are drawn in lanes, one per level, left to right. With <b>parent keeps the outer lane</b> the top line of a tree always owns the leftmost lane, its child the next one in, and so on \u2014 so a lane always means the same depth, and you can read nesting by counting from the left. With <b>lanes rotate</b> each new level takes the next lane round in turn, which keeps deep trees narrower but means a lane no longer tells you the depth" },
-    { kind:"slider", id:"bars-thickness", path:"visual.tagBars.thickness", default:3,
+    { kind:"slider", id:"bars-thickness", path:"visual.tagBars.thickness", default:2,
       min:1, max:12, step:1, unit:"px",
       name:"Bar thickness", desc:"How wide each Bar is",
       searchTerms:["Strip thickness"], visible: on("visual.tagBars.active") },
-    { kind:"slider", id:"bars-gap", path:"visual.tagBars.childOffset", default:11,
+    { kind:"slider", id:"bars-gap", path:"visual.tagBars.childOffset", default:12,
       min:2, max:20, step:1, unit:"px",
       name:"Space between Bars", desc:"The gap between one level and the next",
       searchTerms:["Parent/child strip distance"], visible: on("visual.tagBars.active") },
-    { kind:"slider", id:"bars-distance", path:"visual.tagBars.spacing", default:14,
+    { kind:"slider", id:"bars-distance", path:"visual.tagBars.spacing", default:20,
       min:8, max:48, step:1, unit:"px",
       name:"Distance from the text", desc:"How far the Bars sit from where your line begins",
-      searchTerms:["Strip spacing"], visible: on("visual.tagBars.active") }
+      searchTerms:["Strip spacing"], visible: on("visual.tagBars.active") },
+    { kind:"slider", id:"bars-line-gap", path:"visual.tagBars.lineGap", default:2,
+      min:0, max:8, step:1, unit:"px",
+      name:"Gap between Bars", desc:"Blank left above and below a Bar, so two lines in a row stay apart",
+      searchTerms:["Bar height"], visible: on("visual.tagBars.active"),
+      tip:"Two lines one under the other used to give one unbroken Bar, and there was no telling which line owned which part of it. A small gap draws that boundary. The number is the blank above and below, so a bigger number means a shorter Bar; at <code>0</code> the Bars meet again" },
+    /* Полоса по всему поддереву или только по своей строке (PRD 10.13.21,
+       замечание заказчика H1 от 2026-09-04). Стоит над `Join Bars in a tree`:
+       так просил заказчик, и это верный порядок — второй тумблер про зазор
+       внутри того, что рисует первый. */
+    { kind:"toggle", id:"bars-whole-tree", path:"visual.tagBars.drawWholeTree", default:true,
+      name:"Bars for the whole tree", desc:"A Bar runs down everything nested under its line, not just the line itself",
+      searchTerms:["Draw bars for the whole tree","Bars for subtree"], visible: on("visual.tagBars.active"),
+      tip:"On, a line with a Value draws its Bar down its own line and everything indented under it, and a deeper line with a Value of its own adds a Bar in the next lane along \u2014 so a nested line can carry several. Off, a Bar belongs to one line and nothing is inherited: a line without a Value of its own gets none at all, and <code>Join Bars in a tree</code> below has nothing left to join" },
+    { kind:"toggle", id:"bars-join-tree", path:"visual.tagBars.joinTree", default:true,
+      name:"Join Bars in a tree", desc:"A parent and its own children draw one unbroken Bar",
+      searchTerms:["Tree gap"], visible: on("visual.tagBars.active"),
+      tip:"The gap that keeps two neighboring lines apart also cuts the Bar of a tree, where it stands for one thing running down through the nesting. With this on, the gap is dropped wherever a Bar carries on from a parent into its own children, and kept between lines that have nothing to do with each other" }
   ]
 },
 {
   id: "tagwheel", tab: "visual", order: 300, heading: "TagWheel",
   intro: "TagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down",
-  tip: "Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything",
+  tip: "Every Field has its own pair of cycle commands, and one key each adds up to more keys than anyone remembers. TagWheel is the way round that: one command opens a picker over the line, with your Fields laid out across it and the Values of the Field you are on running down it, so you choose by looking instead of by memory. Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything. The settings below decide how the picker looks, and whether the neighboring Values stay in sight as you move",
   commands: ["Open TagWheel on the left", "Open TagWheel on the right"],
   items: [
     { kind:"custom", id:"wheel-preview", render: renderWheelPreview },
@@ -1773,24 +2065,100 @@ const SCHEMA = [
       name:"Show tag markers", desc:"Show the hash and emoji in the picker, or just the words",
       searchTerms:["Show Prefix"],
       tip:"A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way" },
-    { kind:"color", id:"panel-text-color", path:"visual.tagWheel.textColor", default:"#5d5b6b",
-      name:"Text color", desc:"The colour of the Values you are not on", allowReset:true },
-    { kind:"color", id:"panel-background", path:"visual.tagWheel.fillColor", default:"#f1e596",
-      name:"Background", desc:"The colour behind the picker",
-      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text", allowReset:true },
-    { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:true,
-      name:"Scroller", desc:"Show the next and previous Values around the current one, in a box you can style",
+    { kind:"toggle", id:"panel-highlight", path:"visual.tagWheel.highlightLine", default:false,
+      name:"Highlight the TagWheel line", desc:"Mark the line while the picker is open, so it stands out from the page",
+      searchTerms:["Highlight the line"],
+      tip:"TagWheel draws itself over the line you are on, and on a busy page it is not always clear where the picker ends and your note begins. On, the line is wrapped in <code>==</code> for as long as the picker is open, and that is what paints it: <code>Background color</code> below gives the color, and without one Obsidian uses its own highlight. The marks belong to the picker, not to your line — they leave with it, and nothing stays behind in the note" },
+    { kind:"color", id:"panel-text-color", path:"visual.tagWheel.textColor", default:"",
+      name:"Non-active Field text color", desc:"The color of the Field names you are not standing on, while the line is marked",
+      searchTerms:["Text color"],
+      tip:"This paints the picker drawn over your line, and only while <code>Highlight the TagWheel line</code> is on: without the marks there is nothing to paint. The scroller box below takes its colors from your theme and is not affected",
+      allowReset:true },
+    /* Цвет активного Field: третий из трёх, о которых просил заказчик (D6,
+       PRD 10.13.15). Он на строке, а не в коробке скроллера: коробка показывает
+       соседние значения, а тот Field, в котором человек стоит, нарисован в самой
+       строке. Без него активный отличался только начертанием. */
+    { kind:"color", id:"panel-active-color", path:"visual.tagWheel.activeTextColor", default:"",
+      name:"Active Field text color", desc:"The color of the Field you are on, while the line is marked",
+      searchTerms:["Current Field color"],
+      tip:"The Field you are standing in is the one the up and down keys move through. Without its own color it differs from the rest only by weight, and on a line with many Fields that is easy to lose. Empty means it takes <code>Non-active Field text color</code> like the others",
+      allowReset:true },
+    { kind:"color", id:"panel-background", path:"visual.tagWheel.fillColor", default:"",
+      name:"Background color", desc:"The color behind the picker, while the line is marked",
+      searchTerms:["Background"],
+      tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the TagWheel line</code> on: the marks are what carries the color", allowReset:true },
+    { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:false,
+      name:"Scroller", desc:"Show the next and previous Values around the current one",
       tip:"Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through",
       searchTerms:["TagWheel Scroller"] },
     { kind:"dropdown", id:"scroller-direction", path:"visual.tagWheel.scroller.direction", default:"full",
-      name:"Opens", desc:"Which way the Values unroll from the Field you are on",
-      searchTerms:["Scroller direction"], visible: on("visual.tagWheel.scroller.enabled"),
+      name:"Scroller opening direction", desc:"Which way the Values unroll from the Field you are on",
+      searchTerms:["Scroller direction","Opens"], visible: on("visual.tagWheel.scroller.enabled"),
       options:[ {value:"up",label:"Upwards"}, {value:"down",label:"Downwards"},
                 {value:"full",label:"Both ways"} ] },
+    /* Цвета скроллера (PRD 10.13.15, замечание заказчика D6 от 2026-09-02).
+       Скроллер не читал ни одной настройки цвета: его коробка была целиком из
+       переменных темы, а подпись цвета текста панели обещала как раз его. Пустое
+       значение здесь значит «взять у темы», как и у цветов Value. */
+    { kind:"color", id:"scroller-fill", path:"visual.tagWheel.scroller.fillColor", default:"",
+      name:"Scroller background color", desc:"The color behind the box of neighboring Values",
+      searchTerms:["Scroller background"],
+      tip:"Leave it empty and the box takes the color your theme gives a popover. Set it and the box stands out from the note even where the theme is pale",
+      visible: on("visual.tagWheel.scroller.enabled"), allowReset:true },
+    { kind:"color", id:"scroller-text", path:"visual.tagWheel.scroller.textColor", default:"",
+      name:"Scroller text color", desc:"The color of the Values you are not on, inside the box",
+      searchTerms:["Scroller text"],
+      tip:"Empty means the color your theme gives ordinary text. The Value you are standing on is not in the box at all — it is drawn in the line itself, and <code>Active Field text color</code> above is what paints it",
+      visible: on("visual.tagWheel.scroller.enabled"), allowReset:true },
     { kind:"slider", id:"scroller-size", path:"visual.tagWheel.scroller.size", default:3,
       min:1, max:20, step:1,
-      name:"Values per side", desc:"How many neighbouring Values stay visible around the current one",
-      searchTerms:["Scroller size"], visible: on("visual.tagWheel.scroller.enabled") }
+      name:"Scroller size", desc:"How many neighboring Values stay visible around the current one",
+      searchTerms:["Values per side"], visible: on("visual.tagWheel.scroller.enabled") },
+    /* Край Block: заказ заказчика 2026-09-05, поздний вечер (10.13.35). Место
+       он назвал сам — «под scroller-size». Умолчание прежнее поведение. */
+    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
+      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
+      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
+      options:[ {value:"stay",label:"Stay in the same Block"},
+                {value:"next-block",label:"Move to the next Block"} ],
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+  ]
+},
+/* Заказ заказчика 2026-09-05, вечер (PRD 10.13.33). Последняя группа вкладки:
+   каретка не про теги, и место между блоками про Fields обещало бы связь,
+   которой нет. */
+{
+  id: "text-cursor", tab: "visual", order: 400, heading: "Text cursor",
+  intro: "The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page",
+  tip: "Obsidian draws the caret in the color of your text, which is the color everything else on the page already is. In a long note, or in a theme built on one shade, that makes it easy to lose and easy to leave behind. Pick a color that appears nowhere else in your writing and you can find the caret at a glance. This is the caret in your notes only: the boxes in this window and in the search box keep the one they had",
+  items: [
+    { kind:"toggle", id:"caret-enabled", path:"visual.caret.enabled", default:false,
+      name:"Color the text cursor", desc:"Draw the blinking caret in a color you pick instead of the color of your text",
+      searchTerms:["Caret color","Cursor color"],
+      tip:"Off, the caret is whatever your theme makes it. On, the color below takes over, and only in the editor" },
+    { kind:"color", id:"caret-color", path:"visual.caret.color", default:"",
+      name:"Cursor color", desc:"The color of the blinking caret in your notes",
+      searchTerms:["Caret"], visible: on("visual.caret.enabled"),
+      tip:"Empty means the color your theme gives the caret. A color that stands well apart from your text is the whole point of this: something the page does not already use", allowReset:true },
+    /* Толщина и мерцание — заказ заказчика 2026-09-05, поздний вечер
+       (10.13.33 Ц6–Ц8). Свой тумблер, а не общий с цветом: цвет он уже
+       принял, и подчинить принятое новому переключателю значило бы поменять
+       то, что он видел. Каждая половина включается своей строкой. */
+    { kind:"toggle", id:"caret-shape", path:"visual.caret.shapeEnabled", default:false,
+      name:"Shape the text cursor", desc:"Set how thick the caret is and how fast it blinks, instead of taking both from your theme",
+      searchTerms:["Caret width","Cursor blink","Caret thickness"],
+      tip:"Separate from the color above, and neither needs the other. Off, the caret keeps the thickness and the blinking your theme and Obsidian give it" },
+    { kind:"slider", id:"caret-width", path:"visual.caret.width", default:2,
+      min:1, max:8, step:1, unit:"px",
+      name:"Cursor width", desc:"How thick the caret is drawn, in pixels",
+      searchTerms:["Caret thickness"], visible: on("visual.caret.shapeEnabled"),
+      tip:"Obsidian draws it a little over one pixel wide, which disappears on a bright background and on a large screen. Two or three is enough to find it without it reading as a selection" },
+    { kind:"slider", id:"caret-blink", path:"visual.caret.blinkSpeed", default:5,
+      min:0, max:10, step:1,
+      name:"Blink speed", desc:"How fast the caret blinks, from not blinking at all to very fast",
+      searchTerms:["Blink rate","Cursor blinking"], visible: on("visual.caret.shapeEnabled"),
+      tip:"At <code>0</code> the caret stops blinking and simply stays where it is, which is the quietest a cursor gets. <code>5</code> is the speed Obsidian uses now, and every step up from there is quicker" },
+    { kind:"custom", id:"caret-preview", render: renderCaretPreview }
   ]
 },
 
@@ -1801,35 +2169,64 @@ const SCHEMA = [
   intro: "You write a thought on one line. Press the key, and that line becomes a note of its own \u2014 or gets added to a note you already have. The line stays where it was, with a link to the new note in its place if you want one",
   commands: ["Transform inline to note"],
   items: [
-    { kind:"toggle", id:"i2n-enabled", path:"transform.inline2note.enabled", default:true,
+    { kind:"toggle", id:"i2n-enabled", path:"transform.inline2note.enabled", default:false,
       name:"Inline to note", desc:"Allow this to create notes and add to notes you already have",
       searchTerms:["Inline2Note enabled"],
       tip:"This is the switch that lets the plugin write to your vault. Everything else on this tab only decides how. Make a backup and try it on a note you do not mind breaking: one keypress can add a note, change a note, and edit the line you were on" },
-    { kind:"text", id:"i2n-templates-folder", path:"transform.inline2note.templatesFolder", default:"Templates",
-      name:"Templates folder", desc:"The folder your note templates live in",
-      tip:"A template is an ordinary note that a new note starts out as a copy of. Whatever you keep in this folder shows up in the lists below",
-      visible: on("transform.inline2note.enabled") },
-    { kind:"text", id:"i2n-output-folder", path:"transform.inline2note.outputFolder", default:"",
+    { kind:"folder", id:"i2n-output-folder", path:"transform.inline2note.outputFolder", default:"",
       name:"New notes folder", desc:"Where to put the notes this creates. Leave it empty to keep them next to the note you are in",
+      placeholder:"Next to the note you are in",
+      tip:"Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time a note goes into it. Left empty, a new note lands beside the note you pressed the key in",
       searchTerms:["Output folder for new notes"], visible: on("transform.inline2note.enabled") },
+    { kind:"folder", id:"i2n-templates-folder", path:"transform.inline2note.templatesFolder", default:"",
+      name:"Templates folder", desc:"The folder your note templates live in",
+      placeholder:"Pick or type a folder",
+      tip:"A template is an ordinary note that a new note starts out as a copy of. Whatever you keep in this folder shows up in the lists below. Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time it is needed",
+      visible: on("transform.inline2note.enabled") },
+    /* `Default template` идёт сразу за своей папкой: между ними стояла пара
+       строк про кнопку, и дочерняя настройка возникала через строку от
+       родительской (замечание заказчика C43, 2026-09-02). */
+    { kind:"dropdown", id:"i2n-default-template", path:"transform.inline2note.defaultTemplate", default:"",
+      name:"Default template", desc:"The template on creation of new note when no special rules apply (see <code>Smart Rules</code> below)",
+      tip:"You can set up rules further down that pick a different template for certain lines. This one is used for everything else. The list holds the notes from the folder above and nothing else \u2014 set that folder first, and the list fills itself",
+      visible: on("transform.inline2note.enabled"),
+      /* Только заметки из назначенной папки (1.6.2.4). Постоянных строк
+         нет: что показать, когда папки нет, решает сам источник. */
+      options:[], optionsFrom:"templates" },
     { kind:"toggle", id:"i2n-floating", path:"transform.inline2note.floatingButton", default:false,
       name:"Floating button", desc:"Put a small button at the end of the line you are on",
       searchTerms:["Flying button"],
       visible: on("transform.inline2note.enabled"),
       tip:"Click it and the line turns into a note, the same as pressing the key would. The button is only drawn on screen \u2014 it is never saved into your note, so nothing changes if you open the file elsewhere",
       seeAlso:{ id:"i2n-button-preview", label:"See where it appears" } },
+    /* Расстояние от последнего символа строки до кнопки. Заказчик 2026-09-04:
+       «при i2n-floating=ON кнопка находится слишком близко к тексту». Слайдер
+       стоит под тумблером и **вместе с ним**: у выключенной кнопки настраивать
+       нечего, и 2026-09-05 заказчик сказал прямо — не гасить строку, а убирать
+       её. Условие то же, что у предпросмотра ниже. */
+    { kind:"slider", id:"i2n-floating-gap", path:"transform.inline2note.floatingButtonGap", default:12,
+      min:0, max:40, step:1, unit:"px",
+      name:"Distance from the text", desc:"How much room to leave between the line and the button",
+      searchTerms:["Floating button gap","Button offset"],
+      visible:{ deps:["transform.inline2note.enabled","transform.inline2note.floatingButton"],
+                test: c => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton")) },
+      tip:"The button is drawn after the last character of the line you are on, and on a short line it can sit close enough to read as part of the text. This is how much room to leave between them. At <code>0</code> it sits right against the text; the widest setting puts it a whole word away",
+      seeAlso:{ id:"i2n-button-preview", label:"The preview below moves with it" } },
     { kind:"custom", id:"i2n-button-preview", render: renderFloatingButton,
       visible:{ deps:["transform.inline2note.enabled","transform.inline2note.floatingButton"],
                 test: c => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton")) } },
-    { kind:"dropdown", id:"i2n-default-template", path:"transform.inline2note.defaultTemplate", default:"task.md",
-      name:"Default template", desc:"The template on creation of new note when no special rules apply (see <code>Smart Rules</code> below)",
-      tip:"You can set up rules further down that pick a different template for certain lines. This one is used for everything else",
-      visible: on("transform.inline2note.enabled"),
-      options:[ {value:"",label:"None"}, {value:"task.md",label:"task.md"}, {value:"meeting.md",label:"meeting.md"} ] }
+    /* `Open note after creation` переехал сюда из `Note content` по просьбе
+       заказчика (B21, 2026-09-02): он про то, что делает команда, а не про
+       содержимое заметки, и стоит последней строкой блока. */
+    { kind:"toggle", id:"content-open", path:"transform.inline2note.openTarget", default:false,
+      name:"Open note after creation", desc:"Jump straight to the note once it is written",
+      tip:"Handy while you are still setting this up, so you can see what came out. Turn it off once you trust it and you can keep writing without losing your place",
+      searchTerms:["Open transformed note", "Open the note afterwards"],
+      visible: on("transform.inline2note.enabled") },
   ]
 },
 {
-  id: "naming", tab: "transform", order: 200, heading: "Naming",
+  id: "naming", tab: "transform", order: 200, heading: "New note naming",
   intro: "The new note needs a name. This block defines how to choose a name of a new note",
   tip: "Three ways of finding one are tried in turn, and the first that works wins: the text between your chosen brackets, then a heading on the line, then simply the first few words",
   visible: on("transform.inline2note.enabled"),
@@ -1839,17 +2236,17 @@ const SCHEMA = [
       tip:"<b>Ask me</b> opens a small box with the suggested name already filled in, so you can accept it or type your own",
       searchTerms:["Note name mode"],
       options:[ {value:"auto",label:"From the line"}, {value:"manual",label:"Ask me"} ] },
-    { kind:"text", id:"naming-delimiters", path:"transform.inline2note.noteName.delimiters", default:"()", mono:true,
-      name:"Name brackets", desc:"Two characters. Whatever you put between them becomes the name",
-      searchTerms:["Title delimiters", "Explicit name delimiters"],
+    { kind:"text", id:"naming-delimiters", path:"transform.inline2note.noteName.delimiters", default:"[]", mono:true,
+      name:"Name placeholders", desc:"Two characters. Whatever you put between them becomes the name",
+      searchTerms:["Title delimiters", "Explicit name delimiters", "Name brackets"],
       tip:"Put <code>()</code> here, write the line <code>- call (Anna about the contract) || text</code>, and you get a note called <b>Anna about the contract</b>. Leave this box empty and the name comes from the heading or the first words instead" },
-    { kind:"number", id:"naming-word-count", path:"transform.inline2note.noteName.wordCount", default:5, min:1, max:20,
+    { kind:"number", id:"naming-word-count", path:"transform.inline2note.noteName.wordCount", default:6, min:1, max:20,
       name:"Words to use instead", desc:"How many of the first words to use when there are no brackets",
       searchTerms:["Auto title word count"],
       tip:"Set this to 3 and the line <code>- draft the settings prototype today</code> becomes a note called <b>draft the settings</b>. Too few and the names all look alike; too many and they get unwieldy" },
     { kind:"dropdown", id:"naming-collision", path:"transform.inline2note.nameCollision.mode", default:"new_note",
-      name:"If the name is taken", desc:"What to do when you already have a note with that name",
-      searchTerms:["Name collision mode"],
+      name:"If the name already taken", desc:"What to do when you already have a note with that name",
+      searchTerms:["Name collision mode", "If the name is taken"],
       options:[ {value:"new_note",label:"Create a second note"}, {value:"add_to_note",label:"Add to the existing one"},
                 {value:"overwrite",label:"Replace what is in it"} ],
       tip:"<b>Create a second note</b> adds a number to the name and never touches what you already wrote \u2014 the safe choice. <b>Add to the existing one</b> is what you want for a running log. <b>Replace what is in it</b> throws the old contents away, and this plugin cannot give them back" }
@@ -1858,58 +2255,119 @@ const SCHEMA = [
 {
   id: "note-content", tab: "transform", order: 300, heading: "Note content",
   intro: "What the note looks like inside: where your text goes, and what sits above it",
+  tip: "Two decisions live here. The first is where in the note your line lands — at the top, or after whatever is already there, which is what you want when one note collects many entries. The second is what goes on the line above it, so entries in a collecting note do not run together: a date, a fixed word of your own, or nothing at all. The rest of the note comes from the template, and the template is chosen further up",
   visible: on("transform.inline2note.enabled"),
   items: [
-    { kind:"dropdown", id:"content-position", path:"transform.inline2note.placement.position", default:"beginning",
+    { kind:"dropdown", id:"content-position", path:"transform.inline2note.placement.position", default:"end",
       name:"Where to put the text", desc:"At the top of the note, or after whatever is already there",
       searchTerms:["Where to place inline text?"],
       options:[ {value:"beginning",label:"At the beginning"}, {value:"end",label:"At the end"} ],
       tip:"If you are adding to a note over and over \u2014 a diary, a log of calls \u2014 pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference" },
-    { kind:"dropdown", id:"content-header-mode", path:"transform.inline2note.placement.headerMode", default:"custom",
+    { kind:"dropdown", id:"content-header-mode", path:"transform.inline2note.placement.headerMode", default:"datetime",
       name:"Line above the text", desc:"Something to put above your text so entries stay apart",
-      tip:"Useful when a note collects many entries: a date, or a word like <code>## Captured</code>, keeps them from running together",
+      tip:"Useful when a note collects many entries: a date, or a word of your own, keeps them from running together. Whether that line is a heading is a separate question, and the row below answers it",
       searchTerms:["Inserted block header"],
       options:[ {value:"custom",label:"Fixed text"}, {value:"datetime",label:"Date and time"},
                 {value:"none",label:"Nothing"} ] },
-    { kind:"text", id:"content-header-text", path:"transform.inline2note.placement.customHeader", default:"## Captured", mono:true,
-      name:"What it says", desc:"Typed into the note exactly as you write it here",
-      tip:"Start it with <code>##</code> and Obsidian treats it as a heading you can fold. Without the hashes it is just a line of text",
+    { kind:"dropdown", id:"content-header-level", path:"transform.inline2note.placement.headerLevel", default:"3",
+      name:"Line above is header", desc:"Make that line a heading you can fold, or leave it as plain text",
+      tip:"A heading can be folded, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
+      visible:{ deps:["transform.inline2note.placement.headerMode"],
+                test: c => String(c.get("transform.inline2note.placement.headerMode") || "") !== "none" },
+      options:[ {value:"0",label:"No (plain text)"}, {value:"1",label:"1"}, {value:"2",label:"2"},
+                {value:"3",label:"3"}, {value:"4",label:"4"}, {value:"5",label:"5"}, {value:"6",label:"6"} ] },
+    { kind:"text", id:"content-header-text", path:"transform.inline2note.placement.customHeader", default:"Captured", mono:true,
+      name:"Text of the line above", desc:"Typed into the note exactly as you write it here",
+      tip:"Just the words \u2014 hashes are added by <code>Line above is header</code> above, and any you type here are taken back out",
       visible: eq("transform.inline2note.placement.headerMode","custom") },
-    { kind:"text", id:"content-datetime", path:"transform.inline2note.placement.datetimeFormat", default:"## YYYY-MM-DD HH:mm", mono:true,
+    { kind:"text", id:"content-datetime", path:"transform.inline2note.placement.datetimeFormat", default:"YYYY-MM-DD HH:mm", mono:true,
       name:"Date format", desc:"Today\u2019s date, written the way you set out here",
       searchTerms:["Datetime header format"],
       visible: eq("transform.inline2note.placement.headerMode","datetime"),
-      tip:"<code>YYYY</code> is the year, <code>MM</code> the month, <code>DD</code> the day, and <code>HH mm ss</code> the time. Anything else you type is kept as it is, so <code>## YYYY-MM-DD</code> gives you a heading like <b>## 2026-08-21</b>, and adding a third hash makes it a smaller heading" },
-    { kind:"dropdown", id:"content-sublines", path:"transform.inline2note.sublines", default:"stay",
-      name:"Lines indented under it", desc:"Leave them where they are, or take them into the note too",
-      tip:"Say the line has three sub-points under it. <b>Take them along</b> moves all four into the note and leaves the place they came from empty. <b>Leave them</b> moves only the line you pressed on",
-      searchTerms:["Sublines behavior"],
-      options:[ {value:"stay",label:"Leave them"}, {value:"remove",label:"Take them along"} ] },
-    { kind:"toggle", id:"content-open", path:"transform.inline2note.openTarget", default:true,
-      name:"Open the note afterwards", desc:"Jump straight to the note once it is written",
-      tip:"Handy while you are still setting this up, so you can see what came out. Turn it off once you trust it and you can keep writing without losing your place",
-      searchTerms:["Open transformed note"] }
+      tip:"<code>YYYY</code> is the year, <code>MM</code> the month, <code>DD</code> the day, and <code>HH mm ss</code> the time. Anything else you type is kept as it is, so <code>YYYY-MM-DD</code> gives you <b>2026-08-21</b>. Whether that line is a heading is decided by <code>Line above is header</code> above" }
   ]
 },
 {
   id: "source-line", tab: "transform", order: 400, heading: "Source line",
   intro: "What happens to the line you pressed on, once the note is safely written",
+  tip: "The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: your text can be swapped for a link to the new note, and a marker of your choosing can be added so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note",
   visible: on("transform.inline2note.enabled"),
   items: [
+    { kind:"custom", id:"source-preview", render: renderSourcePreview },
+    /* Судьба детей спрашивается раньше судьбы текста: у `What happens to
+       your text` есть дочерняя строка `Words to keep`, и между ними
+       вклинивалась эта — дочерняя оказывалась через строку от своей
+       родительской (замечание заказчика B18, 2026-09-02). */
+    { kind:"dropdown", id:"content-sublines", path:"transform.inline2note.sublines", default:"stay",
+      name:"Sub-lines (tree) behavior", desc:"Leave them where they are, or take them into the note too",
+      tip:"Say the line has three sub-points under it. <b>Take them along</b> moves all four into the note and leaves the place they came from empty. <b>Leave them</b> moves only the line you pressed on",
+      searchTerms:["Sublines behavior"],
+      options:[ {value:"stay",label:"Leave them"}, {value:"remove",label:"Take them along"} ],
+      visible: on("transform.inline2note.enabled") },
+    /* Судьба текста и ссылка — разные настройки (решение заказчика
+       2026-09-01). До этого обе жили в одном тумблере, и половина
+       сочетаний была недостижима: оставить текст И получить ссылку. */
+    { kind:"dropdown", id:"source-text", path:"transform.inline2note.sourceProcessing.text", default:"remove",
+      name:"What happens with current line", desc:"The text goes into the note either way \u2014 this is about the line you pressed on",
+      searchTerms:["What happens to your text"],
+      options:[ {value:"remove",label:"Take it away"}, {value:"leave",label:"Leave it"},
+                {value:"words",label:"Keep the first words"} ],
+      tip:"<b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move. <b>Keep the first words</b> is the middle way: enough of the line left to recognise it at a glance. Sub-lines are a separate question, and the row above answers it",
+      visible: on("transform.inline2note.enabled") },
+    { kind:"number", id:"source-keep-words", path:"transform.inline2note.sourceProcessing.keepWords", default:3, min:1, max:20,
+      name:"Words to keep", desc:"How much of the line stays behind",
+      tip:"Counted from the start of your text. The rest goes into the note and leaves the line",
+      visible: eq("transform.inline2note.sourceProcessing.text","words") },
+    /* Список флажков начинался сразу под предыдущей строкой, и было непонятно,
+       к чему он относится: «нужно добавить над fields название опции (Fields to
+       keep) и tip к ней» (B13, B18). Строка без контрола: сам список ниже. */
+    { kind:"note", id:"source-fields-head",
+      name:"Fields to keep", desc:"Which Fields stay on the line you pressed on",
+      tip:"Everything you tick here is left behind on the line; everything you do not goes into the note with the text. A Field you keep is still written into the note as well — keeping it does not take it away from the note, it only leaves a copy where you were. Ticking nothing leaves the line with your text and the marker and nothing else",
+      visible: on("transform.inline2note.enabled") },
+    { kind:"custom", id:"source-fields", render: renderSourceFields,
+      visible: on("transform.inline2note.enabled") },
     { kind:"toggle", id:"source-link", path:"transform.inline2note.sourceProcessing.replaceWithLink", default:true,
-      name:"Leave a link behind", desc:"Put a link to the new note where your text used to be",
-      searchTerms:["Replace payload with note link"],
-      tip:"On, the line becomes a tidy pointer: click the link and you are in the note. Off, the text stays where it is \u2014 which means you can press again by mistake and get a second note. The marker below is the usual way to guard against that" },
-    { kind:"text", id:"source-marker", path:"transform.inline2note.sourceProcessing.token", default:"", mono:true,
-      name:"Mark the line as done", desc:"A word or tag added to the line so you can see it has been handled",
-      searchTerms:["Processed token"],
+      name:"Insert wikilink in current line", desc:"Put a link to the new note on the line you pressed on",
+      searchTerms:["Replace payload with note link", "Leave a link behind"],
+      tip:"On, the line keeps a pointer: click the link and you are in the note. Off with the text taken away, nothing on the line says where it went \u2014 and you can press again by mistake and get a second note. The marker below is the usual way to guard against that" },
+    { kind:"text", id:"source-marker", path:"transform.inline2note.sourceProcessing.token", default:"#processed", mono:true,
+      name:"Mark transformed line", desc:"A word or tag added to the line so you can see it has been handled",
+      searchTerms:["Processed token", "Mark the line as done"],
       tip:"Type something like <code>#moved</code>. Afterwards you can search for it to find everything you have filed, or hide those lines from a list of things still to do. Leave the box empty and nothing is added" },
     { kind:"dropdown", id:"source-marker-position", path:"transform.inline2note.sourceProcessing.panel", default:"right",
       name:"Where the mark goes", desc:"Before your text, or after it",
       searchTerms:["Processed token panel"],
       visible:{ deps:["transform.inline2note.sourceProcessing.token"],
                 test: c => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== "" },
-      options:[ {value:"left",label:"Left, before the text"}, {value:"right",label:"Right, after the text"} ] }
+      options:[ {value:"left",label:"Left Block"}, {value:"right",label:"Right Block"} ] },
+    /*
+     * Подсветка обработанной строки (10.13.12). Признак обработанной — та же
+     * метка, что выше: другого у плагина нет и заводить его нельзя. Поэтому
+     * все три строки показываются только при заданной метке.
+     */
+    { kind:"toggle", id:"source-dim", path:"transform.inline2note.sourceProcessing.visual.enabled", default:false,
+      name:"Dim transformed line", desc:"Fade a line once it carries the mark above, so your eye skips it",
+      searchTerms:["Dim the lines already filed"],
+      visible:{ deps:["transform.inline2note.sourceProcessing.token"],
+                test: c => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== "" },
+      tip:"A page you have worked through fills up with lines that <code>Inline to note</code> has already taken, and they still read as loudly as the rest. Faded, they stay where they are \u2014 you can find them, search them, undo them \u2014 but stop competing for attention. Only the look changes: nothing is written into the note, and taking the mark off a line by hand brings it back to full strength" },
+    { kind:"slider", id:"source-dim-opacity", path:"transform.inline2note.sourceProcessing.visual.opacity", default:65,
+      min:0, max:80, step:5, unit:"%", invert:100,
+      name:"Opacity of transformed line", desc:"Zero leaves the line as it is, eighty makes it barely readable",
+      searchTerms:["How much is left"],
+      tip:"How far the line fades. It is only a look: the text stays whole, search still finds it, and <code>Undo</code> still works. Pick as little as lets your eye skip the line \u2014 too much and you stop noticing a line you still have to fix",
+      visible:{ deps:["transform.inline2note.sourceProcessing.token","transform.inline2note.sourceProcessing.visual.enabled"],
+                test: c => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== ""
+                  && Boolean(c.get("transform.inline2note.sourceProcessing.visual.enabled")) } },
+    { kind:"color", id:"source-dim-color", path:"transform.inline2note.sourceProcessing.visual.color", default:"",
+      name:"Color of transformed line", desc:"Leave it unset to keep the color your theme gives the text",
+      allowReset:true,
+      searchTerms:["Color of a filed line"],
+      tip:"Set this only if fading alone is not enough to tell a taken line at a glance. A color of your own is read instead of the theme one, and the fade above still applies to it",
+      visible:{ deps:["transform.inline2note.sourceProcessing.token","transform.inline2note.sourceProcessing.visual.enabled"],
+                test: c => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== ""
+                  && Boolean(c.get("transform.inline2note.sourceProcessing.visual.enabled")) } }
   ]
 },
 {
@@ -1921,23 +2379,10 @@ const SCHEMA = [
 },
 
 /* ============================================================ ADVANCED */
-{
-  id: "generated-files", tab: "advanced", order: 100, heading: "Generated files",
-  intro: "The plugin keeps its own compiled copy of your setup inside the vault. You never need to touch it, but it can be rebuilt from here if it ever falls out of step",
-  tip: "It is not the same thing as the config note on the Tags & PKM tab. That one is for you to read and edit; this one is written for the plugin and is overwritten on every change, so editing it by hand has no lasting effect",
-  items: [
-    { kind:"buttons", id:"config-template",
-      name:"Template note", desc:"A reference note showing every block the config note understands",
-      searchTerms:["Open Detailed Template"],
-      tip:"Open this when you want to write a config note by hand and need to know what the blocks are called",
-      buttons:[ {label:"Open", action:"open-config-template"} ] },
-    { kind:"buttons", id:"regenerate-rules",
-      name:"Regenerate", desc:"Rewrite the file from your current Field setup",
-      searchTerms:["Regenerate Rules Now"],
-      tip:"Use this if a command stops recognising a Field you know you configured. It usually means the file and the settings have drifted apart",
-      buttons:[ {label:"Regenerate", action:"regenerate-rules"} ] }
-  ]
-},
+/* Группа `generated-files` снята 2026-09-03 по решению заказчика (В-29, PRD
+   10.12). Служебный файл правил остался — по нему движок читает Fields, — но
+   плагин пишет его сам: при загрузке и после каждой правки настроек. Кнопки
+   ручной пересборки больше нет; уйдёт и сам файл вместе с мостом в фазе 6. */
 {
   id: "setting-ids", tab: "advanced", order: 150, heading: "Setting ids",
   intro: "Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen",
@@ -1949,13 +2394,32 @@ const SCHEMA = [
   ]
 },
 {
+  id: "settings-backup", tab: "advanced", order: 190, heading: "Settings backup",
+  intro: "A backup is an ordinary note in your vault. It holds everything you have set up here, so you can come back to it later or carry your setup to another vault",
+  tip: "Saving writes a new note every time and never overwrites an earlier one, so the folder fills up and it is on you to delete what you no longer want. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards; whether the plugin saves what you have now before it writes is the toggle below. Because a backup is an ordinary note, syncing your vault carries it to your other machine, and restoring it there is how a setup travels",
+  items: [
+    { kind:"text", id:"backup-folder", path:"advanced.backups.folder", default:"Inline Overhaul/Backups", wide:true,
+      name:"Backup folder", desc:"Where in your vault the backups are kept",
+      tip:"Any folder you like. It is made when you save the first backup, not before. Backups are ordinary notes, so they travel with the vault and sync along with the rest of it" },
+    { kind:"toggle", id:"backup-before-restore", path:"advanced.backups.beforeRestore", default:true,
+      name:"Save a backup before restoring", desc:"Write what you have now into the folder above before an earlier backup replaces it",
+      tip:"On, every restore leaves you a way back, and that copy is named with <code>Autogenerated</code> at the end so you can tell it from the ones you saved yourself. Off, restoring writes straight over what you have and the confirmation says so — pick that if you restore often and the folder fills up with copies you never asked for" },
+    { kind:"buttons", id:"settings-backup-actions",
+      name:"Your settings", desc:"Save what you have set up now, or bring back an earlier backup",
+      tip:"Saving writes a new note every time and never overwrites an earlier one \u2014 delete the ones you no longer want yourself. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards. Whether what you have now is saved first is the toggle above, and a copy taken that way is named with <code>Autogenerated</code> at the end",
+      buttons:[ {label:"Save a backup", action:"save-backup"},
+                {label:"Restore a backup", action:"restore-backup", warning:true} ] },
+    { kind:"buttons", id:"settings-reset-actions",
+      name:"Start over", desc:"Delete everything you have set up here and go back to the plugin\u2019s own defaults",
+      tip:"Everything means everything: every tab, every Field, every Value, every rule, every Binder row, and the hotkeys you gave to plugin commands. Hotkeys of other plugins are left alone. A backup of what you have now is written first, into the folder above, named with <code>Autogenerated</code> at the end, so the way back is the button next to this one \u2014 which is also what this is for: a way to check that a backup really brings everything back. This button writes that copy always, whatever the toggle above says: here it is the only way back there is",
+      buttons:[ {label:"Delete all my settings", action:"reset-settings", warning:true} ] }
+  ]
+},
+{
   id: "diagnostics", tab: "advanced", order: 200, heading: "Diagnostics",
   intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
+  tip: "Leave this off unless you are chasing a problem. The log is an ordinary note in your vault, it grows with every keypress the plugin handles, and it records the lines you were on — so it carries whatever you happened to be writing. Turn it on, reproduce the problem once, turn it off, and read the note",
   items: [
-    { kind:"buttons", id:"restore-backup",
-      name:"Settings backup", desc:"The settings you had before the update, kept in case you want them back",
-      tip:"This row only appears while the backup file is there. Restoring replaces <b>everything</b> you have set since the update, including your Fields and rules, and it cannot be undone from the settings history \u2014 so the plugin saves what you have now before it writes, and asks you to restart afterwards",
-      buttons:[ {label:"Restore the backup", action:"restore-backup", warning:true} ] },
     { kind:"toggle", id:"dev-mode", path:"advanced.devMode.enabled", default:false,
       name:"Developer logging", desc:"Record what the plugin did, to help track down a problem",
       searchTerms:["Enable Dev Mode"],
@@ -2040,9 +2504,13 @@ const VAULT_PROPERTIES = [
 ];
 
 const BINDER_ROWS = [
-  { insert:"[]", name:"Smart bracket", desc:"Insert or cycle bracket forms", system:true },
+  { insert:"[]", name:"Smart bracket", desc:"Cycle the brackets at the cursor: none, then [], then a wikilink", system:true },
   { insert:"→",  name:"Arrow",         desc:"Insert an arrow",               system:false }
 ];
+
+/* Какие Fields остаются на исходной строке после inline2note. Пусто —
+   умолчание: со строки уходят все Values (замечание заказчика 1.6.5.1). */
+const SOURCE_KEEP = [];
 
 const USER_TAGS = [
   { token:"urgent", color:"#b3261e", textColor:"#ffffff", shown:"value" },
@@ -2050,6 +2518,14 @@ const USER_TAGS = [
   { token:"draft",  color:"#4a4458", textColor:"#ffffff", shown:"nothing" }
 ];
 
+/* `field` — условие «любое значение Field» (10.13.7): выбирается сам Field,
+   а не одно из его значений, и значение, добавленное завтра, ловится тем же
+   условием (замечания заказчика 1.6.6.1 и 1.4.4.1). */
+/* Строки условий в карточке правила. Своей строки у «любого значения Field»
+   нет: Field встаёт в строку СВОЕГО типа и читается там наравне со
+   значениями, через `or`. Прежняя отдельная строка соединялась с остальными
+   через `and`, то есть значила обратное тому, о чём просил заказчик
+   (решение 2026-09-03 по замечанию B14). */
 const KINDS = [
   { id:"tag",     label:"Tag",     ph:"#task" },
   { id:"element", label:"Element", ph:"\u{1F4C5}" },
@@ -2060,12 +2536,23 @@ const RULES = [
     conditions:[ {kind:"tag", value:"#task", op:"or"}, {kind:"tag", value:"#todo", op:"or"},
                  {kind:"element", value:"\u{1F4C5}", op:"or"} ] },
   { id:"r2", name:"Client meetings", enabled:true, template:"meeting.md", conflict:"",
+    folderMode:"folder", folder:"Clients",
     conditions:[ {kind:"tag", value:"#meeting", op:"or"}, {kind:"link", value:"[[ClientA]]", op:"or"} ] },
+  { id:"r4", name:"Anything urgent", enabled:true, template:"task.md", conflict:"",
+    folderMode:"near", folder:"",
+    conditions:[ {kind:"tag", field:"Importance", value:"", op:"or"} ] },
   { id:"r3", name:"", enabled:false, template:"person.md",
     conflict:"Every line this would match is already caught by rule 2, so it never runs",
     conditions:[ {kind:"tag", value:"#meeting", op:"or"} ] }
 ];
-const TEMPLATES = ["None", "task.md", "meeting.md", "person.md"];
+/* Мокданные vault: папки для подсказчика и заметки, из которых берутся
+   шаблоны. В панели то же самое приходит от Obsidian (Р8: сюда мокданные
+   не переносятся). */
+const VAULT_FOLDERS = ["", "Templates", "Inbox", "Projects", "Projects/2026", "Archive"];
+const VAULT_NOTES = [
+  "Templates/task.md", "Templates/meeting.md", "Templates/person.md",
+  "Inbox/today.md", "Projects/2026/plan.md"
+];
 
 /* The prefix list Prefix priority walks when it is set to Prefix order. */
 const PREFIX_ORDER = ["- [!]", "- [ ]", "- [/]", "- [x]", "- "];
@@ -2085,21 +2572,23 @@ const COMMANDS = [
     { name:"Move cursor left in line",  does:"Step the cursor back through the parts of the line" },
     { name:"Move cursor right in line", does:"Step the cursor on through the parts of the line" }
   ]},
-  { area:"Tags & PKM", list:[
+  /* Две части, и подписи у них видимые, поэтому живут здесь (Р8).
+     Стандартные команды — те, что есть всегда; ваши — пара на каждый Field,
+     она заводится сама (замечания 1.2.3.4.1 и 1.2.3.4.2). */
+  { area:"Tags & PKM",
+    parts:{ standard:"Standard commands", user:"Commands from your Fields" }, list:[
     { name:"Status next",     does:"One pair per Field, created automatically from your Field list" },
     { name:"Status previous", does:"The same Field, backwards through its Values" },
     { name:"Open TagWheel on the left",  does:"Open TagWheel starting on the Fields before your text" },
     { name:"Open TagWheel on the right", does:"Open TagWheel starting on the Fields after your text" }
   ]},
-  { area:"Config", list:[
-    { name:"Apply config note",    does:"Read the config note and replace your Field setup with it" },
-    { name:"Open config template", does:"Open the reference note for the config format" }
-  ]},
+  /* Область `Config` снята вместе с конфиг-заметкой 2026-09-03 (В-28): команды
+     `Apply config note` и `Open config template` из палитры убраны. */
   { area:"Transform", list:[
     { name:"Transform inline to note", does:"Turn the current line into a note, or append it to one" }
   ]},
   { area:"Binder", list:[
-    { name:"Smart bracket", does:"Insert or cycle bracket forms around the cursor" },
+    { name:"Smart bracket", does:"Cycle the brackets around the cursor or selection: none, then [], then a wikilink" },
     { name:"<your rows>",   does:"One command per row you add under Keyboard" }
   ]},
   { area:"General", list:[
@@ -2114,18 +2603,34 @@ const state = {};
 const bindings = new Map();
 let previewRefreshers = [];
 let activeTab = "general";
+/* Свёрнутые группы. Состояние взгляда, а не настройка: в конфиг не пишется и
+   в undo не попадает (5.4) — как и открытая вкладка. Заказчик 2026-09-04:
+   «хочу, чтобы запоминалось состояние хедеров (свернуто\развернуто) … как
+   минимум в рамках текущей сессии». */
+const FOLDED = new Set();
 let selectedFieldId = "status";
 let showAll = false;
 let wheelField = 0, wheelValue = 2;
 let dialog = null;
 
+/*
+ * Путь настройки режется ПО ТОЧКАМ. Здесь стояло `split("")`, то есть разбор
+ * посимвольно, и `state` был не деревом конфига, а деревом букв. Работало это
+ * по случайности: `getIn` резал так же, поэтому запись и чтение сходились.
+ *
+ * Случайность кончилась на первой паре настроек, где путь одной — начало пути
+ * другой: `…floatingButton` кладёт `false` в букву `n`, а `…floatingButtonGap`
+ * следом пытается положить в неё букву `G`, и разбор схемы падал целиком
+ * (2026-09-04). Такая пара рано или поздно появляется у любой настройки с
+ * уточнением, поэтому починен разбор, а не имя настройки.
+ */
 function setIn(obj, path, value) {
-  const keys = path.split("");
+  const keys = path.split(".");
   let cur = obj;
   for (let i = 0; i < keys.length - 1; i++) cur = (cur[keys[i]] ??= {});
   cur[keys[keys.length - 1]] = value;
 }
-function getIn(obj, path) { return path.split("").reduce((a, k) => (a == null ? a : a[k]), obj); }
+function getIn(obj, path) { return path.split(".").reduce((a, k) => (a == null ? a : a[k]), obj); }
 function seed() {
   for (const g of SCHEMA) for (const it of g.items) if ("path" in it && it.path) setIn(state, it.path, it.default);
 }
@@ -2336,6 +2841,7 @@ function renderContent(resetScroll) {
   queueMicrotask(() => { host.scrollTop = keepScroll; });
 
   bind("general.help.showTips", renderContent);
+  bind("general.help.showCallouts", renderContent);
 
   const gate = TAB_MODULE[activeTab];
   if (gate && !ctx.get(gate)) {
@@ -2343,7 +2849,7 @@ function renderContent(resetScroll) {
     const g = el("div", "io-group", host);
     el("div", "io-group__heading", g, TABS.find(t => t.id === activeTab).label);
     renderItem(g, Object.assign({}, master, { id: master.id + "-tab" }));
-    el("p", "io-empty", g, "This module is off, so its settings are hidden. Turn it on to configure it");
+    el("p", "io-empty", g, MODULE_OFF_NOTE);
     return;
   }
 
@@ -2354,12 +2860,34 @@ function renderContent(resetScroll) {
 
     const g = el("div", "io-group" + (forced ? " io-group--forced" : ""), host);
     if (!/-intro$/.test(group.id)) {
-      const h = el("div", "io-group__heading io-item__namerow", g, group.heading);
+      const h = el("div", "io-group__heading io-item__namerow", g);
+      /* Кнопка сворачивания — ДО названия (просьба заказчика 2026-09-04), и
+         свёрнутое положение отличается от развёрнутого и знаком, и классом. */
+      const shut = FOLDED.has(group.id);
+      const fold = el("button", "io-fold" + (shut ? " io-fold--shut" : ""), h,
+        shut ? "\u25B8" : "\u25BE");
+      fold.type = "button";
+      fold.setAttribute("aria-expanded", shut ? "false" : "true");
+      fold.setAttribute("aria-label", (shut ? "Expand " : "Collapse ") + group.heading);
+      fold.addEventListener("click", () => {
+        if (FOLDED.has(group.id)) FOLDED.delete(group.id); else FOLDED.add(group.id);
+        renderContent();
+      });
+      el("span", "io-group__title", h, group.heading);
       attachTip(h, group.tip, group.heading, g);
       commentAffordance(h, g, "group:" + group.id);
       if (group.items.some(it => it.kind !== "custom" && it.path)) resetAffordance(h, group, g);
+      /* Свёрнутая группа показывает один заголовок: ни вводной фразы, ни
+         строк настроек под ним нет. */
+      if (shut) { g.classList.add("io-group--shut"); continue; }
     }
-    if (group.intro) rich(el("p", "io-group__intro", g), group.intro);
+    /* Вводная фраза группы — коллаутом под заголовком и до самих настроек
+       (замечание заказчика 2026-09-04, скриншот 6.png: «это сделано не
+       красиво, как plain text сверху над настройками»). Тумблер
+       `Show callouts` убирает её вместе с вводными коллаутами вкладок. */
+    if (group.intro && ctx.get("general.help.showCallouts")) {
+      rich(el("div", "io-callout io-callout--group", g), group.intro);
+    }
     if (group.commands) {
       const row = el("div", "io-group__cmds", g);
       el("span", "io-group__cmdlabel", row, group.commands.length > 1 ? "Commands" : "Command");
@@ -2560,7 +3088,48 @@ function resetAffordance(headingEl, group, host) {
 
 /* ============================================================ Controls */
 
+/*
+ * Список значений, который считается, а не выписан. Нужен там, где выбирать
+ * приходится из данных человека: Fields, папки, шаблоны. В прототипе
+ * источник читает мокданные, в панели — конфиг; имя источника одно и то же
+ * и переносится генератором как обычная строка.
+ */
+const OPTION_SOURCES = {
+  /* Полосы берут цвет у Value, а Value с цветом есть только у тега:
+     Field другого типа в этот список попадать не должен (З8). */
+  "tag-fields": () => FIELDS.filter(f => f.type === "tag").map(f => ({ value:f.id, label:f.name })),
+  /* Шаблоны — только из назначенной папки (1.6.2.4). Папки нет — списка
+     тоже нет, и вместо него сказано, чего не хватает. */
+  "templates": () => templateOptions(String(val("transform.inline2note.templatesFolder") || "").trim(),
+    VAULT_NOTES)
+};
+
+/* Один список шаблонов на прототип и на панель: правило «только из папки»
+   живёт в одном месте, и разойтись двум спискам не на чем. */
+function templateOptions(folder, notes) {
+  if (!folder) return [{ value:"", label:"Set a Templates folder first" }];
+  const prefix = folder.replace(/\/+$/, "") + "/";
+  const inside = notes.filter(p => p.startsWith(prefix));
+  if (!inside.length) return [{ value:"", label:"No templates in " + folder }];
+  return [{ value:"", label:"None" }].concat(
+    inside.map(p => ({ value:p, label:p.slice(prefix.length) })));
+}
+
+function dropdownOptions(item) {
+  const fixed = item.options || [];
+  const src = item.optionsFrom ? OPTION_SOURCES[item.optionsFrom] : null;
+  return src ? fixed.concat(src()) : fixed;
+}
+
 const CONTROLS = {
+  /*
+     Строка-подпись: имя, описание и подсказка, а контрола нет.
+
+     Нужна там, где следующий блок сам по себе не объясняет, к чему он
+     относится: список флажков `Fields to keep` начинался сразу под предыдущей
+     строкой (замечание заказчика B13, B18, 2026-09-02).
+  */
+  note() {},
   toggle(host, item) {
     const input = el("input", "io-toggle", host);
     input.type = "checkbox";
@@ -2569,8 +3138,25 @@ const CONTROLS = {
     input.addEventListener("change", () => ctx.set(item.path, input.checked));
     bind(item.path, () => { input.checked = !!ctx.get(item.path); });
   },
+  /* Контрол папки Obsidian 1.13: поле ввода с подсказчиком папок vault.
+     Прототип рисует то же самое списком `datalist` — свободный ввод и
+     подсказки, как просил заказчик (1.6.2.3). */
+  folder(host, item) {
+    const input = el("input", "io-text" + (item.wide ? " io-text--wide" : ""), host);
+    input.type = "text";
+    input.value = String(ctx.get(item.path) || "");
+    if (item.placeholder) input.placeholder = item.placeholder;
+    input.setAttribute("aria-label", item.name);
+    const listId = "io-folders-" + item.id;
+    input.setAttribute("list", listId);
+    const list = el("datalist", null, host);
+    list.id = listId;
+    VAULT_FOLDERS.filter(Boolean).forEach(f => { el("option", null, list).value = f; });
+    input.addEventListener("change", () => ctx.set(item.path, input.value));
+    bind(item.path, () => { input.value = String(ctx.get(item.path) || ""); });
+  },
   dropdown(host, item) {
-    const s = selectEl(host, item.options, String(ctx.get(item.path)), item.name);
+    const s = selectEl(host, dropdownOptions(item), String(ctx.get(item.path)), item.name);
     s.addEventListener("change", () => ctx.set(item.path, s.value));
     bind(item.path, () => { s.value = String(ctx.get(item.path)); });
   },
@@ -2580,7 +3166,15 @@ const CONTROLS = {
     const range = el("input", "io-range", host);
     range.type = "range";
     range.min = item.min; range.max = item.max; range.step = item.step;
-    range.value = ctx.get(item.path);
+    /* Перевёрнутый слайдер: в конфиге лежит одно, а человек видит другое.
+       `invert: 100` значит «показать 100 минус записанное». Нужен там, где
+       записанное значение читается наоборот тому, о чём человек думает:
+       `Opacity of transformed line` растёт вправо, а в конфиге лежит доля
+       оставшейся яркости. Менять смысл записанного нельзя — это З1. */
+    const inv = Number(item.invert) || 0;
+    const shown = v => (inv ? inv - Number(v) : Number(v));
+    const stored = v => (inv ? inv - Number(v) : Number(v));
+    range.value = shown(ctx.get(item.path));
     range.setAttribute("aria-label", item.name);
     const out = el("span", "io-value", host);
     const fmt = v => v + (item.unit ? " " + item.unit : "");
@@ -2589,16 +3183,19 @@ const CONTROLS = {
       out.textContent = fmt(range.value);
       out.classList.add("io-value--pending");
       out.classList.remove("io-value--saved");
-      LIVE[item.path] = Number(range.value);
+      LIVE[item.path] = stored(range.value);
       refreshPreviews();
     });
     range.addEventListener("change", () => {
-      ctx.set(item.path, Number(range.value));
+      ctx.set(item.path, stored(range.value));
       out.classList.remove("io-value--pending");
       out.classList.add("io-value--saved");
       setTimeout(() => out.classList.remove("io-value--saved"), 900);
     });
-    bind(item.path, () => { range.value = ctx.get(item.path); out.textContent = fmt(range.value); });
+    bind(item.path, () => {
+      range.value = shown(ctx.get(item.path));
+      out.textContent = fmt(range.value);
+    });
   },
   number(host, item) {
     const input = el("input", "io-number", host);
@@ -2674,7 +3271,6 @@ function previewShell(host, caption, tip) {
   el("span", null, cap, caption);
   attachTip(cap, tip, caption, box);
   el("span", "io-preview__rule", cap);
-  el("p", "io-preview__note io-preview__note--top", box, PREVIEW_NOTE);
   return box;
 }
 function applyTagVars(node) {
@@ -2746,18 +3342,30 @@ function structuralLine(parent, chipFor) {
 
 /* Every live preview says the same two things: what it is, and how far it
    can be trusted. The copy lives in one table so the panel, the document
-   and the plugin all read the same words. */
+   and the plugin all read the same words.
+
+   PRD 10.3 P9 and P10: a preview is drawn by the settings pane with its own
+   markup, not by the editor, so each one has to say so. It says it in its
+   own "?", where a long explanation belongs, and no longer as a grey line
+   above the picture — the owner's remark 1.4.1.1.1. */
 const PREVIEW_TEXTS = {
+  "source-preview": {
+    cap: "Live preview",
+    tip: "The line you pressed on, before and after. <b>Before</b> is a made-up line carrying every Field you have set up, with two sub-lines under it; <b>After</b> is what stays on the page once the note is written. Everything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Note content</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
+  },
   "line-preview": {
     cap: "Live preview",
-    tip: "One chip per Field, in the order they are written. Everything you change below shows up here: rename a Field, " +
-    "give it a short name, move it to the other side, or change a Separator"
+    tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they will be written, " +
+    "with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to " +
+    "the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once — add a " +
+    "Field, rename one, give it a short name for TagWheel, drag it across the line, change a Separator — so you can " +
+    "see what a tagged line will look like before you type one. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "tag-preview": {
     cap: "Live preview",
     tip: "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no " +
     "bubble — but the two opacity settings dim a whole side of the line, including them. Priority is set to " +
-    "<code>empty</code>, which is why it shows as a bare color",
+    "<code>empty</code>, which is why it shows as a bare color. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     line: "Rewrite the settings copy",
     element: "\u{1F4C5} 2026-08-24",
     link: "[[ClientA]]"
@@ -2766,7 +3374,7 @@ const PREVIEW_TEXTS = {
     cap: "Live preview",
     tip: "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested " +
     "under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar " +
-    "sits in the margin, so the text column never moves",
+    "sits in the margin, so the text column never moves. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     tree: [
       { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
         { text: "Rewrite every description", fields: ["status"], children: [
@@ -2787,20 +3395,20 @@ const PREVIEW_TEXTS = {
   "wheel-preview": {
     cap: "Live preview",
     tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the " +
-    "settings ask for: <code>Values per side</code> rows on each side that <code>Opens</code> allows. The list is a " +
-    "loop, so it keeps going past the last Value and starts again"
+    "settings ask for: <code>Scroller size</code> rows on each side that <code>Scroller opening direction</code> allows. The list is a " +
+    "loop, so it keeps going past the last Value and starts again. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "i2n-button-preview": {
     cap: "Live preview",
-    tip: "The button is part of the editor, not the note: nothing is written into your file until you press it",
+    tip: "The button is part of the editor, not the note: nothing is written into your file until you press it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     note: "Shown on the line the cursor is on"
   },
+  "caret-preview": {
+    cap: "Live preview",
+    tip: "The caret below is drawn with the color, the width and the blink speed set above, and it changes while you drag. It blinks the way the editor blinks: on for half the time, off for the other half, with no fading in between. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    note: "The caret as it will look in a note"
+  },
 };
-
-/* PRD 10.3 P9: the preview is not the editor. It is drawn by the settings
-   pane with its own markup, so it says so once, in every preview, instead
-   of quietly drifting from what the editor really shows. */
-const PREVIEW_NOTE = "Close to what the editor draws, not the editor itself";
 
 /* PZ2: a preview without a Field of your own still has to show something.
    It says so, so nobody mistakes the example for their own setup. */
@@ -2810,6 +3418,10 @@ const PREVIEW_EXAMPLE = "Example Fields, until you set up your own under Fields 
    the rest of the copy rather than inside a renderer. */
 const PREVIEW_LINE_TEXT = "your text";
 const PREVIEW_EMPTY_RIGHT = "nothing on the right yet";
+
+/* What a tab says when its module is off. It is copy, so it lives here and
+   travels to the panel with the rest of it. */
+const MODULE_OFF_NOTE = "This module is off, so its settings are hidden. Turn it on to configure it";
 
 function renderLinePreview(host) {
   const pt = PREVIEW_TEXTS["line-preview"];
@@ -2896,6 +3508,13 @@ function renderTagPreview(host) {
 
 
 
+/* Почему полос нет, когда они включены. Две причины, и обе про настройку
+   выше, а не про поломку (замечание заказчика 1.5.3.2). */
+const BARS_FIELD_NONE =
+  "Bars need a Field: pick one in <code>Which Field draws Bars</code> above";
+const BARS_FIELD_GONE =
+  "The Field these Bars were drawn for is gone: pick another one above";
+
 function renderBarsPreview(host) {
   const pt = PREVIEW_TEXTS["bars-preview"];
   const box = previewShell(host, pt.cap, pt.tip);
@@ -2907,9 +3526,15 @@ function renderBarsPreview(host) {
     cssVar(line, "--io-depth", String(depth));
     el("span", "io-line__prefix", line, "- ");
     /* the line always carries whatever it carries: switching the field
-       changes the bars, never the text */
+       changes the bars, never the text.
+
+       Места этого дерева — Fields ТИПА TAG, и только они: цвет полосы это
+       цвет Value, а он есть у тега и ни у ссылки, ни у элемента. В панели то
+       же самое делает фильтр по `kind` (замечание заказчика 1.5.3.2, п. 2). */
     const active = ctx.get("visual.tagBars.active");
-    const chosen = val("visual.tagBars.fieldId") || "status";
+    /* Выбранный Field — только тот, что и правда выбран: подстановка
+       `status` искала Field, которого у человека нет (замечание 1.5.3.2). */
+    const chosen = val("visual.tagBars.fieldId");
     const hideChosen = active && !ctx.get("visual.tagBars.tagVisibility");
     const carried = Array.isArray(node.fields) ? node.fields : [];
     const shown = [];
@@ -2935,18 +3560,27 @@ function renderBarsPreview(host) {
   const drawNode = (parent, node, depth, lane) => {
     const active = ctx.get("visual.tagBars.active");
     const cap = val("visual.tagBars.stripesToShow");
-    const chosen = val("visual.tagBars.fieldId") || "status";
+    const chosen = val("visual.tagBars.fieldId");
+    /* Полоса по всему поддереву или только по своей строке (10.13.21 Б5). */
+    const whole = ctx.get("visual.tagBars.drawWholeTree") !== false;
     const carried = Array.isArray(node.fields) ? node.fields : [];
     const v = carried.indexOf(chosen) >= 0 ? valueAtDepth(chosen, depth) : null;
-    const bar = active && v && lane < cap;
+    const bar = active && v && (whole ? lane < cap : true);
 
     const nodeBox = el("div", "io-node" + (bar ? " io-node--bar" : ""), parent);
     if (bar) {
       cssVar(nodeBox, "--io-bar-color", v.color);
-      cssVar(nodeBox, "--io-lane", String(lane));
+      /* Выключенный тумблер: дорожка одна на всех — наследования нет. */
+      cssVar(nodeBox, "--io-lane", String(whole ? lane : 0));
     }
     drawLine(nodeBox, node, depth);
-    (node.children || []).forEach(c => drawNode(nodeBox, c, depth + 1, bar ? lane + 1 : lane));
+    /*
+     * Дочерние строки лежат **внутри** узла с полосой, и потому полоса идёт по
+     * всему поддереву. Выключенный тумблер выносит их наружу: тогда узел
+     * высотой в одну строку, и полоса не длиннее её.
+     */
+    (node.children || []).forEach(c => drawNode(
+      whole ? nodeBox : parent, c, depth + 1, whole ? (bar ? lane + 1 : lane) : 0));
   };
 
   const draw = () => {
@@ -2955,11 +3589,18 @@ function renderBarsPreview(host) {
     cssVar(tree, "--io-bar-gap",       val("visual.tagBars.childOffset") + "px");
     cssVar(tree, "--io-bar-distance",  val("visual.tagBars.spacing") + "px");
     (pt.tree || []).forEach(n => drawNode(tree, n, 0, 0));
+    /* Полосы включены, а Field не выбран: на экране пустое дерево, и
+       человек не знает, что настройка ждёт ещё один выбор (1.5.3.2). */
+    const chosen = val("visual.tagBars.fieldId");
+    if (ctx.get("visual.tagBars.active") && !FIELDS.some(f => f.id === chosen)) {
+      rich(el("p", "io-preview__note", tree), chosen ? BARS_FIELD_GONE : BARS_FIELD_NONE);
+    }
   };
   draw();
   previewRefreshers.push(draw);
   ["visual.tagBars.active", "visual.tagBars.tagVisibility", "visual.tagBars.fieldId",
    "visual.tagBars.hideSeparatorWhenOnlyStripToken", "visual.tagBars.stripesToShow",
+   "visual.tagBars.drawWholeTree",
    "visual.tagBars.thickness", "visual.tagBars.childOffset", "visual.tagBars.spacing"]
     .forEach(p => bind(p, draw));
 }
@@ -2997,21 +3638,56 @@ function renderWheelPreview(host) {
     cssVar(box, "--io-wheel-up",   (up.length   ? up.length   * ROW + 18 : 0) + "px");
     cssVar(box, "--io-wheel-down", (down.length ? down.length * ROW + 18 : 0) + "px");
 
+    /* Цвета панели: два цвета текста и заливка (PRD 10.13.22 Пр2). До
+       2026-09-04 они применялись только к коробке скроллера, а Fields
+       рисовались чипами Value — то есть настройками панели не управлялись. */
+    const fill = val("visual.tagWheel.fillColor");
+    const text = val("visual.tagWheel.textColor");
+    const activeText = val("visual.tagWheel.activeTextColor") || text;
+    const lit = ctx.get("visual.tagWheel.highlightLine");
+    /* Коробка скроллера — не панель, и цвета у неё свои: `Scroller background
+       color` и `Scroller text color`. Здесь стояли цвета панели, и заказчик
+       увидел ровно это: «panel-background меняет цвет и заливки tagwheel и
+       заливки scroller» (замечание к H2). Пусто — цвета темы, их подставляет
+       запасное значение переменной в стилях. */
+    const scrollFill = val("visual.tagWheel.scroller.fillColor");
+    const scrollText = val("visual.tagWheel.scroller.textColor");
+
     const panel = (idx, where) => {
       if (!idx.length) return null;
       const p = el("span", "io-wheelpanel io-wheelpanel--" + where, null);
-      cssVar(p, "--io-wheel-bg", val("visual.tagWheel.fillColor") || "#f1e596");
-      cssVar(p, "--io-wheel-fg", val("visual.tagWheel.textColor") || "#5d5b6b");
+      if (scrollFill) cssVar(p, "--io-wheel-bg", scrollFill);
+      if (scrollText) cssVar(p, "--io-wheel-fg", scrollText);
       idx.forEach(i => el("span", "io-wheelval", p, values[i]));
       return p;
     };
 
+    /* Обособление строки — на контейнере стороны: в заметке `==…==` обнимает
+       панель целиком, и заливка у неё одна (Пр4). */
+    const dressed = [];
+    const dressSide = (side) => {
+      if (dressed.indexOf(side) >= 0) return;
+      dressed.push(side);
+      side.classList.add("io-wheelline");
+      if (!lit) return;
+      side.classList.add("io-wheelline--lit");
+      if (fill) cssVar(side, "--io-wheel-lit", fill);
+    };
+
     structuralLine(stage, (side, f) => {
+      dressSide(side);
       const isShown = f === shown;
       const col = el("span", "io-wheelcol", side);
-      const chip = el("span", "io-bubble" + (isShown ? " io-bubble--current" : ""), col,
-        isShown ? values[at] : (f.short || f.name));
-      cssVar(chip, "--io-bubble-bg", fieldColor(f));
+      /* Ячейка панели — текст, как в заметке: активная в квадратных скобках и
+         полужирная, остальные обычным словом. Активная ровно одна (Пр1, Пр5). */
+      const label = f.short || f.name;
+      const cell = el("span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""), col,
+        isShown ? "[" + String(values[at] || label) + "]" : label);
+      if (isShown) {
+        if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
+      } else if (text) {
+        cssVar(cell, "--io-wheel-cell", text);
+      }
       if (!isShown) return;
       const u = panel(up, "up");
       if (u) col.appendChild(u);
@@ -3024,6 +3700,8 @@ function renderWheelPreview(host) {
   ["visual.tagWheel.scroller.size", "visual.tagWheel.scroller.direction",
    "visual.tagWheel.scroller.enabled", "visual.tagWheel.showMarkers",
    "visual.tagWheel.fillColor", "visual.tagWheel.textColor",
+   /* Этих двух тут не было, и предпросмотр на них не перерисовывался (Пр3). */
+   "visual.tagWheel.activeTextColor", "visual.tagWheel.highlightLine",
    "pkm.lineFormat.separator1", "pkm.lineFormat.separator2"].forEach(p => bind(p, draw));
 }
 
@@ -3034,12 +3712,20 @@ function renderWheelPreview(host) {
    what you will find here. */
 const TAB_CALLOUTS = {
   general: {
-    head: "Inline Overhaul is about writing a note and tagging it in the same breath",
-    tip: "Everything the plugin does is built on one idea: a line can carry more than words. Put a status, a due date " +
-         "or a link on the same line as the thought, and you never break off to fill in a form. The tabs across the " +
-         "top go from moving text around, through setting up those slots, to turning a line into a note of its own",
-    body: "Nothing here changes your notes on its own. Each area below can be switched off, and the one part that " +
-          "creates files asks again before it will run. If you are new to it, start with the guide"
+    head: "Inline Overhaul lets one line of a note carry its own status, dates and links",
+    tip: "The tabs across the top follow the order in which people usually set the plugin up, so reading them left " +
+         "to right is reading the plugin. Nothing here depends on anything else: a Field you set up on " +
+         "<b>Tags & PKM</b> works with the keys off, and the keys work with no Fields at all. The two areas worth " +
+         "knowing about before you start are <b>Transform</b>, the only one that creates and edits files, and " +
+         "<b>Keyboard</b>: none of the commands has a key by default, so until you bind one nothing responds",
+    body: "Four areas, and one of them is enough. <b>Keyboard</b> gives you the keys and shows what each one is " +
+          "bound to. <b>Navigation</b> moves lines, text and the cursor without the mouse. <b>Tags & PKM</b> is the " +
+          "heart of it: you lay out the slots a line can hold — a status, a priority, a due date — and " +
+          "afterwards one keypress fills one in and steps it forward. <b>Visual</b> decides how those slots look " +
+          "while you write, and <b>Transform</b> turns a finished line into a note of its own. Three steps to get " +
+          "going: switch off any area you do not want, press <code>Read</code> above for a worked example, then lay " +
+          "out your first Field on <b>Tags & PKM</b>. Nothing is written into your notes until you press a key, and " +
+          "the one area that creates files stays off until you switch it on"
   },
   navigation: {
     head: "This menu helps to make inline navigation in Obsidian comfortable",
@@ -3066,7 +3752,7 @@ const TAB_CALLOUTS = {
     head: "How a tagged line looks while you are writing",
     tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this " +
          "plugin and you will see plain text with ordinary tags",
-    body: "Draw tags as coloured bubbles instead of raw text, put a Bar in the margin so you can see what a block of " +
+    body: "Draw tags as colored bubbles instead of raw text, put a Bar in the margin so you can see what a block of " +
           "lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
   },
   transform: {
@@ -3084,6 +3770,23 @@ const TAB_CALLOUTS = {
           "record a log when something needs reporting"
   }
 };
+
+/* Субхедер внутри группы: подпись, делящая длинную группу на части.
+   Ни настройки, ни пути за ним нет — только вёрстка, поэтому это свой блок,
+   а не вид контрола. Замечание заказчика 2026-09-04 про группу
+   `Move left and move right`: в ней два разных дела, и на глаз они слитые.
+
+   Подсказка — второй аргумент, и «?» стоит рядом с подписью, как у заголовка
+   группы (замечание того же дня, вторая половина G3). Открывается она **под
+   подписью**, а не внутри неё: строка подписи узкая, и раскрытие внутри
+   растолкало бы её пополам. */
+function renderSubheader(label, tip) {
+  return function (host) {
+    const row = el("div", "io-sub io-sub--group", host);
+    el("span", "io-sub__text", row, label);
+    attachTip(row, tip, label, host, row);
+  };
+}
 
 function renderTabCallout(host) {
   const c = TAB_CALLOUTS[activeTab];
@@ -3106,7 +3809,7 @@ function renderLeftRightOrder(host) {
     ]],
     ["Move right", [
       ["part of a line is selected", "move that text"],
-      ["a list item, or already indented", "add one indent level"],
+      ["the line is indented", "add one indent level"],
       ["anything else", "cycle the prefix forwards"]
     ]]
   ].forEach(([cmd, steps]) => {
@@ -3322,6 +4025,10 @@ function renderFieldEditor(host) {
   const detailCol = el("div", "io-fields__col", wrap);
   const detailHead = el("div", "io-fields__colhead", detailCol);
   el("span", null, detailHead, f.type === "element" ? TYPE_LABEL.element : "Values");
+  /* «?» у шапки правой колонки: у левой он был, у правой нет, и заказчик
+     заметил именно эту разницу (замечание 1.4.1.2.1). */
+  attachTip(detailHead, "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes",
+    "this column", detailCol);
   const detail = el("div", "io-fields__detail", detailCol);
 
   /*
@@ -3332,8 +4039,9 @@ function renderFieldEditor(host) {
    */
   const title = el("div", "io-fields__title", detail);
   /* The system name is set once, in the Add Field dialog, and shown here as
-     a heading. It sits in the config note and in the names of the commands,
-     so changing it later would leave both pointing at a name that is gone. */
+     a heading. It sits in the names of the commands and in the file the plugin
+     generates for itself, so changing it later would leave both pointing at a
+     name that is gone. */
   el("h4", null, title, f.strict || f.name);
   cssVar(el("span", "io-chip io-chip--typed", title, TYPE_LABEL[f.type]), "--io-chip-bg", TYPE_COLOR[f.type]);
   /*
@@ -3343,8 +4051,17 @@ function renderFieldEditor(host) {
    * заливке читается грязным пятном, а слова `Delete` рядом с ним не нужно —
    * корзина говорит сама.
    */
+  /* Карандаш слева от корзины: системное имя можно переименовать, и окно
+     называет цену — старый тег остаётся в заметках, хоткей отвязывается
+     (замечание заказчика 1.4.1.2.2, решение 2026-08-31). */
+  const pencil = iconBtn(title, "✎", "Rename the Field " + f.name);
+  pencil.addEventListener("click", () => {
+    dialog = { rename: f.strict };
+    renderContent();
+  });
+
   const del = el("button", "io-danger", title);
-  el("span", "io-danger__icon", del, "🗑");
+  el("span", "io-danger__icon", del);
   del.type = "button";
   /* Одна подсказка на узел: `aria-label` Obsidian показывает сам. */
   del.setAttribute("aria-label", "Delete the Field " + f.name);
@@ -3357,12 +4074,10 @@ function renderFieldEditor(host) {
    */
   nameInWheelRow(detail, f);
 
-  /* Заголовок раздела — `Behavior`: под ним `Active`, `Prefix behavior` и
-     `Child Field` (замечание заказчика 2026-08-27). */
-  el("div", "io-sub", detail, "Behavior");
-  placementRows(detail, f);
-  propertyRow(detail, f);
-
+  /* Что Field пишет в строку — раньше того, как он себя ведёт: заказчик
+     просил поднять `Values` под `Name in TagWheel`, над `Behavior`, и для
+     всех типов Field сразу (замечание 1.4.1.2.4). У `element` значение
+     одно, и на этом месте стоит его блок. */
   if (f.type === "element") {
     elementRows(detail, f);
   } else {
@@ -3374,13 +4089,22 @@ function renderFieldEditor(host) {
     valuesTable(detail, f);
   }
 
+  /* Заголовок раздела — `Behavior`: под ним `Active`, `Prefix behavior` и
+     `Child Field` (замечание заказчика 2026-08-27). «?» у него появился по
+     замечанию 1.4.1.2.5: заголовок был единственным без объяснения. */
+  const bh = el("div", "io-sub io-item__namerow", detail);
+  el("span", null, bh, "Behavior");
+  attachTipItem(bh, detail, { name:"Behavior", tip:"Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line" });
+  placementRows(detail, f);
+  propertyRow(detail, f);
+
   /* Таблица команд Field (Ф11) остаётся целью, но в панель она приезжает
      только в фазе 5: её смысл в колонке `Hotkey`, а та держится на реестре
      действий (5.6) и на именах команд после переименования фазы 2. Решение
      заказчика 2026-08-27, подтверждено им же 2026-08-27 после показа. */
   el("div", "io-sub", detail, "Commands");
   const cmdCard = el("div", "io-cmd", detail);
-  const cmdCols = "minmax(120px,0.8fr) minmax(140px,1.2fr) 112px";
+  const cmdCols = "minmax(120px,0.8fr) minmax(140px,1.2fr) 132px";
   const cmdHead = el("div", "io-cmd__head", cmdCard);
   cmdHead.style.setProperty("grid-template-columns", cmdCols);
   ["Command", "Description", "Hotkey"].forEach(t => el("div", null, cmdHead, t));
@@ -3521,7 +4245,11 @@ function elementRows(host, f) {
    * куче под `Behavior`: заказчик читал их как настройки размещения
    * (замечание 2026-08-27).
    */
-  el("div", "io-sub", host, "Value");
+  /* «?» у заголовка: у Field типа element он был без объяснения, как и
+     `Behavior` (замечание заказчика 1.4.1.2.5). */
+  const vhe = el("div", "io-sub io-item__namerow", host);
+  el("span", null, vhe, "Value");
+  attachTipItem(vhe, host, { name:"Value", tip:"An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along" });
 
   const row = (r, value, apply) => {
     const item = el("div", "io-item", host);
@@ -3839,6 +4567,16 @@ function renderCycleOrder(host) {
   el("span", "io-note", actions, "Drag a row, or use the arrows, to change the order");
 }
 
+/* Предпросмотр плавающей кнопки.
+
+   Кнопка нарисована ТЕМ ЖЕ классом, что в заметке (`io-flybtn`), и несёт ту же
+   стрелку: заказчик 2026-09-04 — «в io-tip-i2n-button-preview button
+   отображается как `-> note`, сделай чтобы было как в заметке (т.е. просто
+   стрелочка)». Свой вид у предпросмотра означал бы второе объявление того же
+   правила (У-32), и разошлись бы они молча.
+
+   Отступ от текста — из слайдера, той же переменной, которую ставит декорация
+   в заметке. */
 function renderFloatingButton(host) {
   const pt = PREVIEW_TEXTS["i2n-button-preview"];
   const box = previewShell(host, pt.cap, pt.tip);
@@ -3847,16 +4585,70 @@ function renderFloatingButton(host) {
     holder.textContent = "";
     const row = el("div", "io-floatrow", holder);
     const line = structuralLine(row);
-    line.style.setProperty("flex", "1 1 auto");
-    const btn = el("button", "io-float", row, "\u2192 note");
-    btn.type = "button";
+    /* Ширина строки — по содержимому: иначе кнопка прижата к правому краю
+       рамки и отступ от текста не виден (замечание заказчика 2026-09-05). */
+    line.style.setProperty("flex", "0 1 auto");
+    const btn = el("span", "io-flybtn", row, "\u2192");
+    btn.setAttribute("role", "button");
     btn.title = "Turn this line into a note";
     btn.setAttribute("aria-label", "Turn this line into a note");
+    cssVar(btn, "--io-flybtn-gap", Number(ctx.get("transform.inline2note.floatingButtonGap") || 0) + "px");
     el("p", "io-preview__note", holder, pt.note);
   };
   draw();
   previewRefreshers.push(draw);
-  ["pkm.lineFormat.separator1", "pkm.lineFormat.separator2"].forEach(p => bind(p, draw));
+  ["pkm.lineFormat.separator1", "pkm.lineFormat.separator2",
+   "transform.inline2note.floatingButtonGap"].forEach(p => bind(p, draw));
+}
+
+/* Предпросмотр каретки (10.13.33 Ц8).
+
+   Показывает три настройки сразу — цвет, толщину и скорость мерцания — и
+   мерцает так же, как мерцает редактор: `steps(1)`, то есть половину времени
+   видна и половину не видна, без плавного затухания. Скорость приходит
+   переменной, а саму анимацию держит стиль: перерисовка на каждом шаге
+   слайдера иначе сбрасывала бы мерцание в начало.
+
+   Скорость 0 значит «не мигает». Тогда анимация снимается совсем, и каретка
+   просто стоит: гасить её нулевой длительностью нельзя — нулевая длительность
+   в CSS означает «мгновенно», а не «никогда». */
+function caretPreviewVars(node) {
+  const speed = Number(ctx.get("visual.caret.blinkSpeed"));
+  const shaped = ctx.get("visual.caret.shapeEnabled") === true;
+  const width = shaped ? Number(ctx.get("visual.caret.width")) || 2 : 1.2;
+  const color = ctx.get("visual.caret.enabled") === true ? String(ctx.get("visual.caret.color") || "") : "";
+  cssVar(node, "--io-caret-width", width + "px");
+  cssVar(node, "--io-caret-shift", (-width / 2) + "px");
+  cssVar(node, "--io-caret-color", color || "var(--text-normal)");
+  const still = shaped && Number.isFinite(speed) && speed <= 0;
+  cssVar(node, "--io-caret-blink", (shaped ? caretBlinkMs(speed) : 1200) + "ms");
+  node.classList.toggle("io-caretline--still", still);
+}
+
+/* Скорость 1..10 в миллисекунды. 5 — то, чем Obsidian мерцает сейчас (1200),
+   поэтому умолчание слайдера и есть 5: включённый тумблер сам по себе ничего
+   не меняет, пока человек не подвинул ползунок. */
+function caretBlinkMs(speed) {
+  const s = Number.isFinite(speed) ? Math.max(1, Math.min(10, speed)) : 5;
+  return 2200 - s * 200;
+}
+
+function renderCaretPreview(host) {
+  const pt = PREVIEW_TEXTS["caret-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
+  const holder = el("div", null, box);
+  const draw = () => {
+    holder.textContent = "";
+    const row = el("div", "io-caretline", holder);
+    el("span", null, row, PREVIEW_LINE_TEXT + " ");
+    el("span", "io-caret", row);
+    caretPreviewVars(row);
+    el("p", "io-preview__note", holder, pt.note);
+  };
+  draw();
+  previewRefreshers.push(draw);
+  ["visual.caret.enabled", "visual.caret.color", "visual.caret.shapeEnabled",
+   "visual.caret.width", "visual.caret.blinkSpeed"].forEach(p => bind(p, draw));
 }
 
 /* how many fields share this property decides Auto */
@@ -3889,6 +4681,17 @@ function yamlLineFor(f) {
 function propertyPicker(host, f, redraw) {
   const wrap = el("div", "io-pick2", host);
   const input = textEl(wrap, f.property || "", "select Property", "YAML property for " + f.name, "io-text io-text--mono io-text--prop");
+
+  /* Стереть выбранное свойство одним нажатием (замечание 1.4.1.2.6):
+     руками это значило выделить текст в поле, которое на каждое нажатие
+     открывает список подсказок. Нечего стирать — кнопки нет (З8). */
+  if (String(f.property || "").trim()) {
+    const clear = el("button", "io-clear", wrap, "\u2715");
+    clear.type = "button";
+    clear.setAttribute("aria-label", "Clear the property of " + f.name);
+    clear.title = "Clear the property of " + f.name;
+    clear.addEventListener("click", () => { f.property = ""; redraw(); });
+  }
 
   const list = el("div", "io-pick2__list", wrap);
   let open = false;
@@ -3967,23 +4770,63 @@ function renderPrefixOrderList(host) {
 
 /* ============================================================ Binder */
 
+/*
+ * Color your Tags: **та же таблица, что Values у Field типа tag**, за вычетом
+ * колонок `Level` и `Prefix` (замечание заказчика 1.5.2.2). Прежняя своя
+ * вёрстка ему не понравилась, и правильно: человек уже выучил таблицу Values,
+ * и вторая, похожая, но другая, заставляла учить её заново.
+ *
+ * Чего в этой таблице нет и почему:
+ *   * `Level` — у своего тега нет родителя: он не принадлежит ни одному Field;
+ *   * `Prefix` — маркер строки ставит Value Field, а свой тег его не меняет;
+ *   * ручки перетаскивания — у Values порядок это порядок команд `next` и
+ *     `previous`, а своим тегам порядок не нужен, и ручка, которая ничего не
+ *     меняет, хуже её отсутствия (З8).
+ *
+ * Показ бывает только `default` или `empty`: `custom` конфиг для этой ветки не
+ * хранит.
+ */
 function renderUserTagColors(host) {
-  const card = el("div", "io-card io-usertags", host);
-  const head = el("div", "io-tablehead", card);
-  ["Tag", "Fill", "Text", "Show", ""].forEach(t => el("div", null, head, t));
+  const box = el("div", "io-vals io-vals--tags", host);
+  const scroll = el("div", "io-scroll", box);
+  const inner = el("div", "io-vals__inner io-vals__inner--tags", scroll);
+
+  const head = el("div", "io-vals__head", inner);
+  const COLTIP = {
+    Tag: "The tag as it is written in a line. With <code>#</code> or without it \u2014 both are read the same way",
+    Show: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
+    Fill: "The color of the bubble behind the tag",
+    Text: "The color of the writing on the bubble"
+  };
+  const tipSlot = el("div", "io-vals__tipslot", inner);
+  ["Tag", "Show", "Fill", "Text", "Preview", ""].forEach(title => {
+    const cell = el("div", "io-vals__col", head);
+    el("span", "io-vals__coltext", cell, title);
+    if (COLTIP[title]) attachTip(cell, COLTIP[title], title, tipSlot, tipSlot);
+  });
 
   const draw = () => {
-    card.querySelectorAll(".io-tablerow, .io-tablefoot").forEach(n => n.remove());
+    inner.querySelectorAll(".io-vals__row").forEach(n => n.remove());
+    box.querySelectorAll(".io-side__empty, .io-rowactions").forEach(n => n.remove());
+
+    if (!USER_TAGS.length) el("div", "io-side__empty", box, "no tags of your own yet — add one below");
 
     USER_TAGS.forEach((v, i) => {
-      const row = el("div", "io-tablerow", card);
+      const row = el("div", "io-vals__row", inner);
 
-      /* Имя тега и есть предпросмотр: оно нарисовано выбранными цветами.
-         Отдельного чипа рядом нет (решение заказчика 2026-08-29). */
-      const cell = el("div", "io-vals__prev", row);
-      applyTagVars(cell);
-      bubble(cell, v);
-      contrastNote(cell, v);
+      /* Имя тега правится на месте, как `Value` в таблице Values. */
+      const name = textEl(el("div", null, row), "#" + v.token, "#tag",
+        "Tag " + v.token, "io-text io-text--mono");
+      name.addEventListener("change", () => {
+        const next = String(name.value || "").trim().replace(/^#+/, "");
+        if (!next) { draw(); return; }
+        v.token = next;
+        draw();
+      });
+
+      const ss = selectEl(el("div", "io-showncell", row), USER_TAG_SHOWN, v.shown,
+        "Show, for #" + v.token);
+      ss.addEventListener("change", () => { v.shown = ss.value; draw(); });
 
       const mkColor = (key, label) => {
         const w = el("div", null, row);
@@ -3995,22 +4838,24 @@ function renderUserTagColors(host) {
       mkColor("color", "Fill color");
       mkColor("textColor", "Text color");
 
-      const ss = selectEl(el("div", "io-showncell", row), USER_TAG_SHOWN, v.shown,
-        "Show, for #" + v.token);
-      ss.addEventListener("change", () => { v.shown = ss.value; draw(); });
+      /* Своя колонка предпросмотра — как в таблице Values. */
+      const prev = el("div", "io-vals__prev", row);
+      applyTagVars(prev);
+      bubble(prev, v);
+      contrastNote(prev, v);
 
       const tools = el("div", "io-valtools", row);
       if (v.color || v.textColor) {
-        const reset = iconBtn(tools, "↺",
+        const reset = iconBtn(tools, "\u21BA",
           "Reset the colors of #" + v.token + " back to the colors of the theme");
         reset.addEventListener("click", () => { v.color = ""; v.textColor = ""; draw(); });
       }
-      const del = iconBtn(tools, "✕", "Remove #" + v.token);
+      const del = iconBtn(tools, "\u2715", "Remove #" + v.token);
       del.classList.add("io-icon--danger");
       del.addEventListener("click", () => { USER_TAGS.splice(i, 1); draw(); });
     });
 
-    const foot = el("div", "io-tablefoot", card);
+    const foot = el("div", "io-rowactions", box);
     const add = textEl(foot, "", "#tag", "New tag to color", "io-text io-text--mono");
     const btn = el("button", "io-btn io-btn--sm io-btn--cta", foot, "Add tag");
     btn.type = "button";
@@ -4029,7 +4874,7 @@ function renderBinder(host) {
   const card = el("div", "io-card", scroll);
   const inner = el("div", null, card);
   inner.style.setProperty("min-width", "560px");
-  const cols = "18px 62px minmax(88px,0.8fr) minmax(120px,1.3fr) 112px 26px";
+  const cols = "18px 62px minmax(88px,0.8fr) minmax(120px,1.3fr) 132px 26px";
 
   const head = el("div", "io-tablehead", inner);
   head.style.setProperty("grid-template-columns", cols);
@@ -4060,6 +4905,11 @@ function renderBinder(host) {
 /* ============================================================ Command reference */
 
 
+/* Строки прототипа, которые описывают семью, а не команду. Тот же список
+   держит панель (`FAMILY_BY_ROW` в `command_reference.ts`): он закрытый, и
+   новая семья обязана попасть в оба. */
+const FAMILY_ROWS = ["Status next", "Status previous"];
+
 function renderCommandReference(host) {
   const scroll = el("div", "io-scroll", host);
   const card = el("div", "io-cmd", scroll);
@@ -4068,15 +4918,48 @@ function renderCommandReference(host) {
   const head = el("div", "io-cmd__head", inner);
   ["Command", "Description", "Hotkey"].forEach(t => el("div", null, head, t));
 
+  const drawRow = (name, does, template) => {
+    const row = el("div", "io-cmd__row", inner);
+    el("div", "io-cmd__name", row, name);
+    el("div", "io-cmd__does", row, does);
+    const cell = el("div", null, row);
+    if (template) el("span", "io-hk io-hk--none", cell, "one per Field");
+    else hotkeyCell(cell, name);
+  };
+
   COMMANDS.forEach(group => {
     el("div", "io-cmd__area", inner, group.area);
-    group.list.forEach(c => {
-      const row = el("div", "io-cmd__row", inner);
-      el("div", "io-cmd__name", row, c.name);
-      el("div", "io-cmd__does", row, c.does);
-      const cell = el("div", null, row);
-      if (/[<>]/.test(c.name)) el("span", "io-hk io-hk--none", cell, "one per row");
-      else hotkeyCell(cell, c.name);
+    /* Строка-шаблон описывает не команду, а семью: настоящих строк столько,
+       сколько у человека Fields. */
+    const template = c => /[<>]/.test(c.name) || FAMILY_ROWS.indexOf(c.name) >= 0;
+    const standard = group.list.filter(c => !template(c));
+    const fromData = group.list.filter(template);
+    if (!group.parts) {
+      group.list.forEach(c => drawRow(c.name, c.does, template(c)));
+      return;
+    }
+    /* Стандартные выше созданных из данных (1.2.3.4.2). */
+    el("div", "io-cmd__sub", inner, group.parts.standard);
+    standard.forEach(c => drawRow(c.name, c.does, false));
+    el("div", "io-cmd__sub", inner, group.parts.user);
+    if (!fromData.length) return;
+    /* Пара на Field, и пары одного Field стоят рядом: сперва сам Field,
+       затем его дочерний (1.2.3.4.3). В панели строки настоящие, здесь —
+       собраны из примерных Fields. */
+    const next = fromData.find(c => / next$/.test(c.name)) || fromData[0];
+    const prev = fromData.find(c => / previous$/.test(c.name)) || fromData[0];
+    /* Свой подзаголовок на каждый Field: `task (tag)` (замечание заказчика
+       2026-08-31). Команды дочернего Field стоят под тем же подзаголовком:
+       это тот же Field, только его дочерние значения. */
+    const KIND_WORD = { tag:"tag", link:"link", element:"element" };
+    FIELDS.forEach(f => {
+      el("div", "io-cmd__field", inner, f.name + " (" + (KIND_WORD[f.type] || f.type) + ")");
+      const hasSub = (f.values || []).some(v => v.depth === 1);
+      const names = [f.strict].concat(hasSub ? [f.strict + "_sub"] : []);
+      names.forEach(base => {
+        drawRow(base + " next", next.does, false);
+        drawRow(base + " previous", prev.does, false);
+      });
     });
   });
 
@@ -4094,6 +4977,60 @@ function pickValues(kind) {
     return FIELDS.filter(f => f.type === "element").map(f => ({ name:f.name, values:[f.marker] }));
   }
   return FIELDS.filter(f => f.type === "link").map(f => ({ name:f.name, values:f.values.map(v => v.token) }));
+}
+
+/*
+ * `Which Fields stay on the line` (замечание заказчика 1.6.5.1).
+ *
+ * Настройка не новая: движок читает `sourceProcessing.cleanupFieldIds` с самого
+ * начала и убирает со строки Values всех Fields, КРОМЕ перечисленных. Контрола
+ * к ней не было ни в одной панели — её потеряли при переносе, а не убрали
+ * решением (З2). Подпись говорит правду про поведение, а не повторяет имя
+ * ключа: отмечено — значит остаётся.
+ */
+function renderSourceFields(host) {
+  const box = el("div", "io-keepfields", host);
+
+  const draw = () => {
+    box.textContent = "";
+    if (!FIELDS.length) {
+      el("div", "io-side__empty", box, "no Fields yet — set them up under Tags & PKM");
+      return;
+    }
+    const list = el("div", "io-keepfields__list", box);
+    FIELDS.forEach(f => {
+      const row = el("label", "io-keepfields__row", list);
+      const input = el("input", "io-toggle io-toggle--check", row);
+      input.type = "checkbox";
+      input.checked = SOURCE_KEEP.indexOf(f.id) >= 0;
+      input.setAttribute("aria-label", "Keep the Values of " + f.name + " on the line");
+      input.addEventListener("change", () => {
+        const at = SOURCE_KEEP.indexOf(f.id);
+        if (input.checked && at < 0) SOURCE_KEEP.push(f.id);
+        if (!input.checked && at >= 0) SOURCE_KEEP.splice(at, 1);
+        draw();
+      });
+      el("span", "io-keepfields__name", row, f.name);
+      el("span", "io-keepfields__kind", row, f.type);
+    });
+    if (!SOURCE_KEEP.length) {
+      el("p", "io-preview__note", box, "nothing is kept: every Value leaves the line");
+    }
+    const actions = el("div", "io-rowactions", box);
+    const all = el("button", "io-btn io-btn--sm", actions, "Keep all");
+    all.type = "button";
+    all.disabled = SOURCE_KEEP.length === FIELDS.length;
+    all.addEventListener("click", () => {
+      SOURCE_KEEP.length = 0;
+      FIELDS.forEach(f => SOURCE_KEEP.push(f.id));
+      draw();
+    });
+    const none = el("button", "io-btn io-btn--sm", actions, "Keep none");
+    none.type = "button";
+    none.disabled = !SOURCE_KEEP.length;
+    none.addEventListener("click", () => { SOURCE_KEEP.length = 0; draw(); });
+  };
+  draw();
 }
 
 function renderSmartRules(host) {
@@ -4131,7 +5068,10 @@ function renderSmartRules(host) {
       if (!mine.length) el("span", "io-kind__none", chips, "any");
       mine.forEach((c, ci) => {
         if (ci) el("span", "io-op" + (c.op === "and" ? " io-op--and" : ""), chips, c.op || "or");
-        const chip = el("span", "io-vchip", chips, c.value || "(empty)");
+        const shown = c.field
+          ? c.field + " \u2014 any Value"
+          : (c.value || "(empty)");
+        const chip = el("span", "io-vchip", chips, shown);
         const x = iconBtn(chip, "✕", "Remove " + c.value + " from rule " + (i + 1));
         x.disabled = r.conditions.length < 2;
         x.addEventListener("click", () => {
@@ -4152,8 +5092,35 @@ function renderSmartRules(host) {
 
     const out = el("div", "io-rule__out", main);
     el("span", "io-rule__arrow", out, "→");
-    el("span", null, out, "use");
-    selectEl(out, TEMPLATES, r.template, "Template for rule " + (i + 1));
+    el("span", null, out, "Use template");
+    /* Тот же список, что у `Default template`: только из назначенной папки,
+       и пустота объясняется теми же словами (замечание 1.6.6.2). */
+    selectEl(out, OPTION_SOURCES["templates"](), r.template, "Template for rule " + (i + 1));
+
+    /* Папка новой заметки у правила (10.13.8). `Default` — как
+       `New notes folder`, `Near current note` — рядом с текущей заметкой,
+       своя папка открывает поле рядом. */
+    const where = el("div", "io-rule__out io-rule__where", main);
+    el("span", "io-rule__arrow", where, "→");
+    el("span", null, where, "Move to folder");
+    const mode = selectEl(where, [
+      { value:"default", label:"Default" },
+      { value:"near",    label:"Near current note" },
+      { value:"folder",  label:"Another folder\u2026" }
+    ], r.folderMode || "default", "Move to folder for rule " + (i + 1));
+    mode.addEventListener("change", () => {
+      r.folderMode = mode.value;
+      if (r.folderMode !== "folder") r.folder = "";
+      renderContent();
+    });
+    if ((r.folderMode || "default") === "folder") {
+      const path = el("input", "io-text io-text--mono", where);
+      path.type = "text";
+      path.value = r.folder || "";
+      path.placeholder = "type or pick a folder";
+      path.setAttribute("aria-label", "Move to folder path for rule " + (i + 1));
+      path.addEventListener("change", () => { r.folder = path.value; renderContent(); });
+    }
 
     if (r.conflict) {
       const warn = el("div", "io-rule__warn", main);
@@ -4166,10 +5133,57 @@ function renderSmartRules(host) {
   const add = el("button", "io-btn io-btn--sm io-btn--cta", actions, "Add rule");
   add.type = "button";
   add.addEventListener("click", () => {
-    RULES.push({ id:"r" + (RULES.length + 1), name:"", enabled:true, template:"None", conflict:"", conditions:[] });
+    RULES.push({ id:"r" + (RULES.length + 1), name:"", enabled:true, template:"None", conflict:"",
+      folderMode:"default", folder:"", conditions:[] });
     renderContent();
   });
 
+}
+
+/*
+ * `Source line`: что станет со строкой после `Inline to note` (замечание
+ * заказчика 1.4.3.1.2). Раньше под настройками стояла одна фраза «nothing is
+ * kept…», и она пропадала, стоило отметить хоть один Field: человек видел
+ * подпись пустого случая и не видел остальных.
+ *
+ * В прототипе строка выдуманная, в панели её считает движок тем же путём,
+ * которым переносит по-настоящему.
+ */
+function renderSourcePreview(host) {
+  const pt = PREVIEW_TEXTS["source-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
+  const body = el("div", "io-srcprev", box);
+
+  const sep = String(val("pkm.lineFormat.separator1") || "||");
+  const chips = FIELDS.filter(f => f.values && f.values.length)
+    .map(f => f.type === "link" ? "[[" + f.values[0].token + "]]" : "#" + f.values[0].token);
+  const line = (text) => chips.join(" ") + " " + sep + " " + text;
+  const before = [line("Text"), line("Sub-line 1"), line("Sub-line 2")];
+
+  const kept = FIELDS.filter(f => SOURCE_KEEP.indexOf(f.id) >= 0 && f.values && f.values.length)
+    .map(f => f.type === "link" ? "[[" + f.values[0].token + "]]" : "#" + f.values[0].token);
+  const fate = String(val("transform.inline2note.sourceProcessing.text") || "remove");
+  const body_text = fate === "leave" ? "Text" : (fate === "words" ? "Text\u2026" : "");
+  const link = val("transform.inline2note.sourceProcessing.replaceWithLink") === false ? "" : "[[Preview]]";
+  const token = String(val("transform.inline2note.sourceProcessing.token") || "").trim();
+  const onRight = String(val("transform.inline2note.sourceProcessing.panel") || "right") === "right";
+  const head = kept.concat(onRight ? [] : (token ? [token] : [])).join(" ");
+  const tail = onRight && token ? [token] : [];
+  const parts = [head, [link, body_text].filter(Boolean).join(" ")].filter(Boolean);
+  const parentAfter = "- " + parts.join(" " + sep + " ") + (tail.length ? " " + sep + " " + tail.join(" ") : "");
+  const takeAlong = String(val("transform.inline2note.sublines") || "stay") === "remove";
+  const after = takeAlong ? [parentAfter] : [parentAfter, before[1], before[2]];
+
+  const half = (label, lines) => {
+    el("div", "io-srcprev__cap", body, label);
+    const holder = el("div", "io-srcprev__lines", body);
+    lines.forEach((text, i) => {
+      const row = el("div", "io-srcprev__line" + (i && lines.length === 3 ? " io-srcprev__line--sub" : ""), holder);
+      row.textContent = text;
+    });
+  };
+  half("Before", before);
+  half("After", after);
 }
 
 /* A Field is created with a name and a type, and the type is not editable
@@ -4194,7 +5208,7 @@ function renderAddFieldDialog() {
   const nRow = el("div", "io-item", body);
   const ni = el("div", "io-item__info", nRow);
   el("div", "io-item__name", ni, "Name");
-  el("div", "io-item__desc", ni, "What this Field is called here and in the config note");
+  el("div", "io-item__desc", ni, "What this Field is called here and in the names of its commands");
   const input = textEl(el("div", "io-item__control", nRow), dialog.name, "Priority", "Name of the new Field");
 
   const tRow = el("div", "io-item", body);
@@ -4240,8 +5254,62 @@ function renderAddFieldDialog() {
   input.focus();
 }
 
+/*
+ * Переименование системного имени Field (замечание заказчика 1.4.1.2.2,
+ * решение 2026-08-31). Имя стоит в заметках человека и в идентификаторах
+ * команд Field, поэтому окно не спрашивает «уверены?», а перечисляет, что за
+ * новым именем НЕ последует.
+ */
+function renderRenameFieldDialog() {
+  const f = FIELDS.find(x => x.strict === dialog.rename);
+  if (!f) { dialog = null; return; }
+
+  const scrim = el("div", "io-scrim", document.body);
+  scrim.addEventListener("click", e => { if (e.target === scrim) { dialog = null; renderContent(); } });
+
+  const dlg = el("div", "io-dlg", scrim);
+  dlg.setAttribute("role", "dialog");
+  dlg.setAttribute("aria-modal", "true");
+  dlg.setAttribute("aria-label", "Rename the Field " + f.name);
+
+  const head = el("div", "io-dlg__head", dlg);
+  el("h4", null, head, "Rename Field");
+
+  const row = el("div", "io-item", dlg);
+  const info = el("div", "io-item__info", row);
+  el("div", "io-item__name", info, "New name");
+  el("div", "io-item__desc", info, "Lowercase letters, digits, spaces, hyphens and underscores");
+  const input = textEl(el("div", "io-item__control", row), f.strict, "",
+    "New name for the Field " + f.name, "io-text io-text--mono");
+
+  const warn = el("div", "io-dlg__warn", dlg);
+  el("p", "io-item__desc", warn, "Two things will not follow the new name:");
+  const list = el("ul", "io-dlg__list", warn);
+  el("li", "io-item__desc", list,
+    "lines you have already written keep the old tag \u2014 the plugin does not edit your notes");
+  el("li", "io-item__desc", list,
+    "a hotkey given to this Field\u2019s commands comes loose: Obsidian keeps hotkeys by "
+    + "command id, and the id is built from the name");
+
+  const foot = el("div", "io-dlg__foot", dlg);
+  const cancel = el("button", "io-btn", foot, "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => { dialog = null; renderContent(); });
+  const go = el("button", "io-btn io-btn--cta", foot, "Rename");
+  go.type = "button";
+  go.addEventListener("click", () => {
+    const next = String(input.value || "").trim();
+    if (!next || next === f.strict) { dialog = null; renderContent(); return; }
+    f.strict = next;
+    f.name = next;
+    dialog = null;
+    renderContent();
+  });
+}
+
 function renderDialog() {
   if (dialog.addField) { renderAddFieldDialog(); return; }
+  if (dialog.rename) { renderRenameFieldDialog(); return; }
   const kind = kindOf(dialog.kind);
   const rule = RULES.find(r => r.id === dialog.ruleId);
   if (!rule) { dialog = null; return; }
@@ -4279,8 +5347,22 @@ function renderDialog() {
   const fi = el("div", "io-item__info", fRow);
   el("div", "io-item__name", fi, "Field");
   el("div", "io-item__desc", fi, "Pick a Field to list its Values");
-  const fs = selectEl(el("div", "io-item__control", fRow), groups.map(g => g.name), picked.name, "Field to pick from");
+  const fCtl = el("div", "io-item__control", fRow);
+  const fs = selectEl(fCtl, groups.map(g => g.name), picked.name, "Field to pick from");
   fs.addEventListener("change", () => { dialog.fieldName = fs.value; dialog.value = ""; renderContent(); });
+  /* Take the whole Field, not one of its Values (PRD 10.13.14, remark B14 of
+     2026-09-02). The panel puts this on the Field name itself, which is what
+     the owner asked for; here the Field is a select, so the affordance is a
+     button beside it. Same capability, different shape — recorded as X-7. */
+  const anyBtn = el("button", "io-btn io-btn--sm", fCtl, "Any Value");
+  anyBtn.type = "button";
+  anyBtn.setAttribute("aria-label", "Use any Value of " + picked.name);
+  anyBtn.addEventListener("click", () => {
+    const r = RULES.find(x => x.id === dialog.ruleId);
+    if (r) r.conditions.push({ kind:dialog.kind, op:dialog.op, value:"", field:picked.name });
+    dialog = null;
+    renderContent();
+  });
 
   const vRow = el("div", "io-item", body);
   const vi = el("div", "io-item__info", vRow);

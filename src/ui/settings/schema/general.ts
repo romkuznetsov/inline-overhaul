@@ -6,23 +6,32 @@
  */
 
 import type { SettingsGroup } from "../types.ts";
+import { on } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 
 export const GENERAL_GROUPS: readonly SettingsGroup[] = [
 { id: "general-intro",   tab: "general",    order: 10, heading: "Before you start",
   items: [
     { kind:"custom", id:"general-callout", render: callout("general") }
-  ] },
+  ],
+  visible: on("general.help.showCallouts") },
 {
   id: "help", tab: "general", order: 100, heading: "Help",
   intro: "Where to start, and how much hand-holding you want along the way",
+  tip: "<code>Read</code> writes a guide into your vault the first time you press it and opens it every time after, and the note is yours from then on — the plugin never overwrites it. <code>Show tips</code> controls these very boxes: off, the panel keeps only the one-line descriptions, which is what you want once you know your way around",
   items: [
     { kind:"buttons", id:"howto",
       name:"Guide", desc:"Worked examples of the things people set up first",
-      tip:"Opens a note in your vault with the practical side: which commands are worth a key, how to lay out your " +
-          "first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. " +
-          "It is an ordinary note, so you can scribble your own notes in it",
-      buttons:[ {label:"Open the guide", action:"open-howto", cta:true} ] },
+      tip:"<code>Read</code> writes the guide into your vault the first time you press it, and opens it every time " +
+          "after that. Inside is the practical side: which commands are worth a key, how to lay out your first few " +
+          "Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. From " +
+          "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
+          "so nothing you add there can be lost by pressing this button",
+      buttons:[ {label:"Read", action:"open-howto", cta:true} ] },
+    { kind:"toggle", id:"show-callouts", path:"general.help.showCallouts", default:true,
+      name:"Show callouts", desc:"Keep the boxes that say what a tab or a block of settings is for",
+      searchTerms:["Show intro boxes"],
+      tip:"The boxes are the ones with a coloured edge: one at the top of every tab saying what the tab is for, and one under each block of settings saying what that block does. Turn this off once you know your way around and the panel keeps the settings and the one-line descriptions under their names. It is a separate switch from <code>Show tips</code>: that one hides the <code>?</code> marks, this one hides the boxes" },
     { kind:"toggle", id:"show-tips", path:"general.help.showTips", default:true,
       name:"Show tips", desc:"Put a ? beside anything that needs more explanation",
       tip:"Click a ? and a short explanation opens underneath, usually with an example. Turn this off once you no longer need them: the one-line descriptions stay either way" }
@@ -31,6 +40,7 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
 {
   id: "modules", tab: "general", order: 200, heading: "Modules",
   intro: "Four separate things live in this plugin. Turn off the ones you do not want and they stop adding commands and stop touching your notes",
+  tip: "Turning an area off is not the same as leaving it alone. Its commands disappear from the palette, so a hotkey you gave them stops doing anything, and its settings are hidden here until you turn it back on. Nothing you configured is lost — the settings come back exactly as they were. Use this to keep the palette short: if you only ever wanted the tags, three of the four can go",
   items: [
     { kind:"toggle", id:"module-navigation", path:"features.navigation.enabled", default:true,
       name:"Navigation", desc:"Move lines, text and the cursor without reaching for the mouse",

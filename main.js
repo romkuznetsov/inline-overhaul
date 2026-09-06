@@ -14,6 +14,25 @@ let __priorityStripCm6Adapter = {
 let __priorityStripEngineIsStub = true;
 let __priorityStripCm6AdapterIsStub = true;
 
+/*
+ * Движок полосы берётся синхронным `require` сразу, а заглушки выше — только
+ * последний рубеж.
+ *
+ * Причина та же, что у Transform: `normalizeStripConfig` задаёт форму ветки
+ * `visual.tagBars` и отсекает значения по краям, и делает это третья ступень
+ * `migrateConfig` на каждом патче. Заглушка `(x) => x || {}` на её месте
+ * означала бы ветку без формы и без клампов — то есть полосу, нарисованную по
+ * тому, что пришло в патче. Асинхронный загрузчик остаётся: в vault-варианте
+ * `require` не находит модуль, и его находит он.
+ */
+try {
+  const mod = require("./src/core/priority_strip_engine.js");
+  if (hasValidPriorityStripEngine(mod)) {
+    __priorityStripEngine = mod;
+    __priorityStripEngineIsStub = false;
+  }
+} catch (_e) { /* модуль приедет асинхронным загрузчиком */ }
+
 const __sharedUtilsFallback = {
   cloneJson(x) {
     return JSON.parse(JSON.stringify(x));
@@ -113,6 +132,9 @@ const __pkmOptionKeys = (() => {
       TAGWHEEL_SCROLLER_ENABLED: "TagWheel scroller enabled",
       TAGWHEEL_SCROLLER_DIRECTION: "TagWheel scroller direction",
       TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size",
+      TAGWHEEL_SCROLLER_FILL: "TagWheel scroller fill color",
+      TAGWHEEL_SCROLLER_TEXT: "TagWheel scroller text color",
+      TAGWHEEL_EDGE_MODE: "TagWheel edge mode",
     },
   };
 })();
@@ -156,12 +178,9 @@ const __compatProfile = (() => {
 
 let __commandRegistry = null;
 let __orderDeepEditorState = null;
-let __configNoteOrchestrator = null;
-let __tagWheelConfigCodec = null;
-let __tagWheelConfigParser = null;
 let __rulesMarkdownBuilder = null;
-let __configNoteHelpers = null;
 let __enhancedSelectAllEngine = null;
+let __smartDeleteEngine = null;
 let __storeEventsOrchestrator = null;
 let __configStoreModule = null;
 let __configMigrationModule = null;
@@ -343,7 +362,6 @@ function hasValidCommandRegistry(mod) {
     && typeof mod.buildCoreCommandDefs === "function"
     && typeof mod.buildNavigationCommandDefs === "function"
     && typeof mod.buildPkmCommandDefs === "function"
-    && typeof mod.buildConfigCommandDefs === "function"
     && typeof mod.buildBinderCommandDefs === "function");
 }
 
@@ -377,7 +395,6 @@ async function loadCommandRegistrySafe(app) {
     buildCoreCommandDefs: () => [],
     buildNavigationCommandDefs: () => [],
     buildPkmCommandDefs: () => [],
-    buildConfigCommandDefs: () => [],
     buildBinderCommandDefs: () => [],
   };
   return __commandRegistry;
@@ -385,11 +402,23 @@ async function loadCommandRegistrySafe(app) {
 
 function getCommandRegistry() {
   if (hasValidCommandRegistry(__commandRegistry)) return __commandRegistry;
+  /*
+   * Синхронная попытка перед заглушкой. Заглушка отдаёт пустые списки, то есть
+   * плагин без команд — и, что незаметнее, поиск хоткея поля-даты без
+   * определений: он спрашивает идентификатор у реестра (корень Б-11), и на
+   * заглушке нашёл бы пустоту. Правило то же, что у Transform и полосы.
+   */
+  try {
+    const mod = require("./src/features/command_registry.js");
+    if (hasValidCommandRegistry(mod)) {
+      __commandRegistry = mod;
+      return __commandRegistry;
+    }
+  } catch (_e) { /* модуль приедет асинхронным загрузчиком */ }
   return {
     buildCoreCommandDefs: () => [],
     buildNavigationCommandDefs: () => [],
     buildPkmCommandDefs: () => [],
-    buildConfigCommandDefs: () => [],
     buildBinderCommandDefs: () => [],
   };
 }
@@ -429,6 +458,21 @@ async function loadTransformFeatureSafe(app) {
 
 function getTransformFeature() {
   if (hasValidTransformFeature(__transformFeature)) return __transformFeature;
+  /*
+   * Синхронная попытка перед заглушкой, и она здесь не для удобства.
+   * `normalizeTransformConfig` ставит **умолчания движка** ветки Transform, а
+   * заглушка ниже отдаёт конфиг как есть. Если бы дело кончалось заглушкой,
+   * умолчания досыпала бы схема — то есть Transform включался бы из коробки, а
+   * папкой шаблонов становилась `Templates` (девятнадцать расхождений В-7).
+   * Продуктовое решение не должно приниматься тем, успел ли загрузиться модуль.
+   */
+  try {
+    const mod = require("./src/features/transform_feature.js");
+    if (hasValidTransformFeature(mod)) {
+      __transformFeature = mod;
+      return __transformFeature;
+    }
+  } catch (_e) { /* в vault-варианте загрузки модуль приедет асинхронно */ }
   return {
     normalizeInline2Note: () => ({ enabled: false }),
     normalizeTransformConfig: (cfg) => cfg,
@@ -437,36 +481,40 @@ function getTransformFeature() {
   };
 }
 
-const BINDER_SMART_BRACKET_COMMAND_ID = "inlineOverhaul_Binder_Smart_bracket";
+/**
+ * Идентификаторы и имена команд — один модуль на весь плагин (PRD 7.2).
+ * Синхронный `require`, как у остальных: заглушка здесь означала бы команды с
+ * пустыми идентификаторами, то есть плагин без команд.
+ */
+const __commandIds = require("./src/features/command_ids.js");
+const BINDER_SMART_BRACKET_COMMAND_ID = __commandIds.SMART_BRACKET_COMMAND_ID;
 
-function makeBinderCommandSuffix(text) {
-  const src = String(text || "").trim();
-  if (!src) return "item";
-  const collapsed = src.replace(/\s+/g, "_");
-  const cleaned = collapsed
-    .replace(/[^A-Za-z0-9_\-]+/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return cleaned || "item";
-}
-
+/**
+ * Идентификатор строки Binder. Схема живёт в `command_ids.js`: своей копии
+ * здесь больше нет, потому что она уже разошлась однажды с копией в реестре.
+ */
 function makeBinderCommandId(seedText, used) {
-  const usedSet = used instanceof Set ? used : new Set();
-  const base = `inlineOverhaul_Binder_${makeBinderCommandSuffix(seedText)}`;
-  let candidate = base;
-  let i = 2;
-  while (usedSet.has(candidate)) {
-    candidate = `${base}_${i}`;
-    i += 1;
-  }
-  usedSet.add(candidate);
-  return candidate;
+  return __commandIds.binderCommandId(seedText, used);
 }
 
+/**
+ * Строки Binder: форма, идентификаторы команд и системная строка.
+ *
+ * **Про перевод идентификаторов (фаза 2, пункт 8).** Идентификатор строки лежит
+ * в конфиге, а не только в памяти, и после перехода на kebab-case старая форма
+ * `inlineOverhaul_Binder_<Suffix>` в нём остаётся. Такой идентификатор считается
+ * **отсутствующим** и пересобирается из имени строки: это тот самый разрыв
+ * хоткеев, о котором Р3 предупреждает и о котором плагин один раз сообщает.
+ * Оставить старую форму было нельзя — команда с префиксом плагина не отвечает
+ * T7, а держать две формы одновременно значит держать две схемы.
+ *
+ * Набор занятых начинается с идентификаторов ядра: строка Binder, названная
+ * `Move left`, не должна затенять команду навигации.
+ */
 function normalizeBinderRows(rawRows) {
   const source = Array.isArray(rawRows) ? rawRows : [];
   const out = [];
-  const used = new Set([BINDER_SMART_BRACKET_COMMAND_ID]);
+  const used = __commandIds.reservedCommandIds(FEATURE_ORDER);
   let hasSmartBracket = false;
 
   for (const row of source) {
@@ -480,21 +528,28 @@ function normalizeBinderRows(rawRows) {
     if (existingId === "inlineOverhaul_Binder_InsertBrackets" || existingId === "inlineOverhaul_Binder_Bracket_right" || String(insertText || "").trim() === "InsertBrackets" || String(insertText || "").trim() === "]") continue;
 
     let normalizedId = "";
-    if (existingId === BINDER_SMART_BRACKET_COMMAND_ID || existingId === "inlineOverhaul_Binder_Bracket_left") {
+    if (existingId === BINDER_SMART_BRACKET_COMMAND_ID
+      || existingId === "inlineOverhaul_Binder_Smart_bracket"
+      || existingId === "inlineOverhaul_Binder_Bracket_left") {
       normalizedId = BINDER_SMART_BRACKET_COMMAND_ID;
       hasSmartBracket = true;
       out.push({
         rowId: "binder-system-smart-bracket",
         insertText: "[]",
         commandName: "Smart bracket",
-        description: "Smart bracket",
+        description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
         commandId: BINDER_SMART_BRACKET_COMMAND_ID,
       });
       continue;
     } else {
       const seed = String(commandName || "").trim() || String(insertText || "").trim() || existingId;
-      normalizedId = existingId
-        ? (used.has(existingId) ? makeBinderCommandId(seed, used) : (used.add(existingId), existingId))
+      /* Старая форма и занятый идентификатор — оба повод пересобрать. */
+      const reusable = existingId
+        && !__commandIds.isLegacyCommandId(existingId)
+        && __commandIds.isCompliantCommandId(existingId)
+        && !used.has(existingId);
+      normalizedId = reusable
+        ? (used.add(existingId), existingId)
         : makeBinderCommandId(seed, used);
     }
     out.push({ rowId, insertText, commandName, description, commandId: normalizedId });
@@ -505,7 +560,7 @@ function normalizeBinderRows(rawRows) {
       rowId: "binder-system-smart-bracket",
       insertText: "[]",
       commandName: "Smart bracket",
-      description: "Smart bracket",
+      description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
       commandId: BINDER_SMART_BRACKET_COMMAND_ID,
     });
   }
@@ -553,220 +608,34 @@ async function ensureOrderDeepEditorStateSafe(app) {
   return null;
 }
 
-function hasValidTagWheelConfigCodec(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.normalizeTagWheelConfigPath === "function"
-    && typeof mod.normalizeTagWheelConfigTemplatePath === "function"
-    && typeof mod.buildDefaultTagWheelDetailedTemplateMarkdown === "function"
-    && typeof mod.renderTagWheelConfigFromTemplate === "function"
-    && typeof mod.buildMinimalFromRenderedTemplate === "function"
-    && typeof mod.buildTagWheelConfigParts === "function"
-    && typeof mod.buildTagWheelConfigMarkdown === "function"
-    && typeof mod.parseTagWheelConfigMarkdown === "function");
-}
-
-function createTagWheelConfigCodecFallback() {
-  try {
-    const mod = require("./src/features/tagwheel_config_codec_fallback.js");
-    if (mod && typeof mod.createTagWheelConfigCodecFallback === "function") {
-      return mod.createTagWheelConfigCodecFallback({
-        isObj,
-        TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH,
-        TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH,
-        TAGWHEEL_TECHNICAL_BLOCK_MARKER,
-        TAGWHEEL_TECH_MARKER_PREFIX,
-        TAGWHEEL_IMPORTANT_LINE,
-        CFG_H2_TAGS,
-        CFG_H2_ELEMENTS_COMBINED,
-        TAGWHEEL_PREFIX_RESOLVER_H3,
-      });
-    }
-  } catch (_) {
-    // Silent sandbox fallback.
-  }
-  return {
-    normalizeTagWheelConfigPath() {
-      return TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH;
-    },
-    normalizeTagWheelConfigTemplatePath() {
-      return TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH;
-    },
-    buildDefaultTagWheelDetailedTemplateMarkdown() {
-      throw new Error("TagWheel config codec fallback module unavailable: buildDefaultTagWheelDetailedTemplateMarkdown");
-    },
-    renderTagWheelConfigFromTemplate() {
-      throw new Error("TagWheel config codec fallback module unavailable: renderTagWheelConfigFromTemplate");
-    },
-    buildMinimalFromRenderedTemplate() {
-      throw new Error("TagWheel config codec fallback module unavailable: buildMinimalFromRenderedTemplate");
-    },
-    buildTagWheelConfigParts() {
-      throw new Error("TagWheel config codec unavailable: buildTagWheelConfigParts");
-    },
-    buildTagWheelConfigMarkdown() {
-      throw new Error("TagWheel config codec unavailable: buildTagWheelConfigMarkdown");
-    },
-    parseTagWheelConfigMarkdown() {
-      throw new Error("TagWheel config codec unavailable: parseTagWheelConfigMarkdown");
-    },
-  };
-}
-
-function hasValidTagWheelConfigParser(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.createTagWheelConfigParser === "function");
-}
-
-async function loadTagWheelConfigParserSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js",
-    "plugins/inline-overhaul/src/features/tagwheel_config_parser.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/tagwheel_config_parser.js",
-    candidates,
-    cacheKey: "feature:tagwheel-config-parser",
-    validate: hasValidTagWheelConfigParser,
-  });
-  if (loaded.mod) {
-    __tagWheelConfigParser = loaded.mod;
-    return __tagWheelConfigParser;
-  }
-  __tagWheelConfigParser = null;
-  return null;
-}
-
-function getTagWheelConfigParserFactory() {
-  if (hasValidTagWheelConfigParser(__tagWheelConfigParser)) {
-    return __tagWheelConfigParser.createTagWheelConfigParser;
-  }
-  return null;
-}
-
-async function loadTagWheelConfigCodecSafe(app) {
-  await loadConfigNoteHelpersSafe(app);
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec.js",
-    "plugins/inline-overhaul/src/features/tagwheel_config_codec.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/tagwheel_config_codec.js",
-    candidates,
-    cacheKey: "feature:tagwheel-config-codec",
-    validate: (mod) => !!(mod && typeof mod.createTagWheelConfigCodec === "function"),
-  });
-  if (loaded.mod && typeof loaded.mod.createTagWheelConfigCodec === "function") {
-    const helpers = getConfigNoteHelpers();
-    const codec = loaded.mod.createTagWheelConfigCodec({
-      isObj,
-      getOrderStrictName,
-      ORDER_KEY_TO_LEFT_FIELD_ID,
-      getFieldById: helpers.getFieldById,
-      getLeftFields: helpers.getLeftFields,
-      getRightFields: helpers.getRightFields,
-      collectTagSections: helpers.collectTagSections,
-      collectWikilinkFieldIds: helpers.collectWikilinkFieldIds,
-      collectOrderedElementFields: helpers.collectOrderedElementFields,
-      getPrefixRulesFromCfg: helpers.getPrefixRulesFromCfg,
-      denormTagToken,
-      parseCustomPrefixResolverBlock: helpers.parseCustomPrefixResolverBlock,
-      isWikilinkToken,
-      parseWikilinkLineStrict,
-      extractFirstTagToken,
-      parseCheckboxAndTag,
-      createTagWheelConfigParser: (deps) => {
-        const factory = getTagWheelConfigParserFactory();
-        if (typeof factory !== "function") throw new Error("TagWheel config parser module unavailable");
-        return factory(deps);
-      },
-      TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH,
-      TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH,
-      TAGWHEEL_TECHNICAL_BLOCK_MARKER,
-      TAGWHEEL_TECH_MARKER_PREFIX,
-      TAGWHEEL_IMPORTANT_LINE,
-      CFG_H1_SETTINGS,
-      CFG_H2_TAGS,
-      CFG_H2_ELEMENTS_COMBINED,
-      CFG_H2_DATES,
-      CFG_H2_ELEMENTS,
-      TAGWHEEL_PREFIX_RESOLVER_H3,
-      TAGWHEEL_PREFIX_RESOLVER_SECTION,
-      TAGWHEEL_WIKILINK_SECTION,
-    });
-    if (hasValidTagWheelConfigCodec(codec)) {
-      __tagWheelConfigCodec = codec;
-      return __tagWheelConfigCodec;
-    }
-  }
-  __tagWheelConfigCodec = createTagWheelConfigCodecFallback();
-  return __tagWheelConfigCodec;
-}
-
-function getTagWheelConfigCodec() {
-  if (hasValidTagWheelConfigCodec(__tagWheelConfigCodec)) return __tagWheelConfigCodec;
-  __tagWheelConfigCodec = createTagWheelConfigCodecFallback();
-  return __tagWheelConfigCodec;
-}
-
 function hasValidRulesMarkdownBuilder(mod) {
   return !!(mod
     && typeof mod === "object"
     && typeof mod.buildTagWheelRulesMarkdownFromConfig === "function");
 }
 
+/**
+ * Заглушка сборщика заметки правил. Своей копии сборки здесь больше нет.
+ *
+ * Раньше копия была, и после перехода конфига на версию 2 её пришлось бы
+ * править дважды: форма документа правил осталась версии 1, и перекладка
+ * значений — работа тонкая. Одна копия из двух неизбежно разошлась бы, а
+ * разошлась бы она молча — в заметке правил, которую человек не читает.
+ * Поэтому синхронный `require` того же модуля: он работает и в Node, и в
+ * сборке, а vault-вариант загрузки к этому времени уже положил модуль в
+ * `__rulesMarkdownBuilder`.
+ */
 function createRulesMarkdownBuilderFallback() {
+  try {
+    const mod = require("./src/features/rules_markdown_builder.js");
+    if (mod && typeof mod.createRulesMarkdownBuilder === "function") {
+      const builder = mod.createRulesMarkdownBuilder({ isObj, cloneJson, toPrettyJson });
+      if (hasValidRulesMarkdownBuilder(builder)) return builder;
+    }
+  } catch (_e) { /* модуль приедет асинхронным загрузчиком */ }
   return {
-    buildTagWheelRulesMarkdownFromConfig(cfg) {
-      const behaviorRoot = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-      const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
-      const io = isObj(behaviorRoot.io) ? behaviorRoot.io : {};
-      const inlineLayout = isObj(behaviorRoot.inlineLayout) ? behaviorRoot.inlineLayout : {};
-      const dateRules = isObj(behaviorRoot.dateRules) ? behaviorRoot.dateRules : {};
-      const behavior = cloneJson(behaviorRoot);
-      const ui = isObj(behaviorRoot.ui) ? behaviorRoot.ui : {};
-      const leftMode = isObj(behaviorRoot.leftMode) ? behaviorRoot.leftMode : {};
-      const rightMode = isObj(behaviorRoot.rightMode) ? behaviorRoot.rightMode : {};
-      const projects = isObj(behaviorRoot.projects) ? behaviorRoot.projects : {};
-      const colors = isObj(behaviorRoot.colors) ? behaviorRoot.colors : {};
-      const meta = isObj(behaviorRoot.meta) ? cloneJson(behaviorRoot.meta) : {};
-
-      behavior.subtagFormat = (pkm.behavior && pkm.behavior.subtagFormat === "combined") ? "combined" : "separate";
-      behavior.defaultMode = String(behavior.defaultMode || "").trim().toLowerCase() === "right" ? "right" : "left";
-      meta.generatedBy = "inline-overhaul";
-      meta.generatedAt = new Date().toISOString();
-
-      const blocks = [
-        ["tagwheel-meta", meta],
-        ["tagwheel-io", io],
-        ["tagwheel-inline-layout", inlineLayout],
-        ["tagwheel-date-rules", dateRules],
-        ["tagwheel-behavior", behavior],
-        ["tagwheel-ui", ui],
-        ["tagwheel-left-mode", leftMode],
-        ["tagwheel-right-mode", rightMode],
-        ["tagwheel-projects", projects],
-        ["tagwheel-colors", colors],
-      ];
-
-      const lines = [];
-      lines.push("# InlineOverhaul Generated TagWheel Rules");
-      lines.push("");
-      lines.push("<!-- AUTO-GENERATED. DO NOT EDIT MANUALLY. Source: plugin data.json -->");
-      lines.push("");
-
-      for (let i = 0; i < blocks.length; i++) {
-        const name = blocks[i][0];
-        const payload = blocks[i][1];
-        lines.push("```" + name);
-        lines.push(toPrettyJson(payload));
-        lines.push("```");
-        lines.push("");
-      }
-      return lines.join("\n");
+    buildTagWheelRulesMarkdownFromConfig() {
+      throw new Error("rules_markdown_builder unavailable");
     },
   };
 }
@@ -798,84 +667,6 @@ function getRulesMarkdownBuilder() {
   if (hasValidRulesMarkdownBuilder(__rulesMarkdownBuilder)) return __rulesMarkdownBuilder;
   __rulesMarkdownBuilder = createRulesMarkdownBuilderFallback();
   return __rulesMarkdownBuilder;
-}
-
-function hasValidConfigNoteHelpers(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.getLeftFields === "function"
-    && typeof mod.getRightFields === "function"
-    && typeof mod.getFieldById === "function"
-    && typeof mod.resolveOrderField === "function"
-    && typeof mod.collectWikilinkFieldIds === "function"
-    && typeof mod.collectTagSections === "function"
-    && typeof mod.collectOrderedElementFields === "function"
-    && typeof mod.getPrefixRulesFromCfg === "function"
-    && typeof mod.collectCheckboxTokensFromMap === "function"
-    && typeof mod.parseCustomPrefixResolverBlock === "function"
-    && typeof mod.syncCustomPrefixResolverBlock === "function");
-}
-
-function createConfigNoteHelpersFallback() {
-  const fail = (name) => {
-    throw new Error("Config note helpers unavailable: " + name);
-  };
-  return {
-    getLeftFields: (cfg) => fail("getLeftFields") && cfg,
-    getRightFields: (cfg) => fail("getRightFields") && cfg,
-    getFieldById: (fields, fieldId) => fail("getFieldById") && fields && fieldId,
-    resolveOrderField: (cfg, orderKey) => fail("resolveOrderField") && cfg && orderKey,
-    collectWikilinkFieldIds: (cfg) => fail("collectWikilinkFieldIds") && cfg,
-    collectTagSections: (cfg) => fail("collectTagSections") && cfg,
-    collectOrderedElementFields: (cfg) => fail("collectOrderedElementFields") && cfg,
-    getPrefixRulesFromCfg: (cfg) => fail("getPrefixRulesFromCfg") && cfg,
-    collectCheckboxTokensFromMap: (x) => fail("collectCheckboxTokensFromMap") && x,
-    parseCustomPrefixResolverBlock: (md, allowedSections) => fail("parseCustomPrefixResolverBlock") && md && allowedSections,
-    syncCustomPrefixResolverBlock: (md, sectionOrder, checkboxOrder, mode, fieldsOrderMode, tagSubtagPriority) => fail("syncCustomPrefixResolverBlock") && md && sectionOrder && checkboxOrder && mode && fieldsOrderMode && tagSubtagPriority,
-  };
-}
-
-async function loadConfigNoteHelpersSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/config_note_helpers.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/config_note_helpers.js",
-    "plugins/inline-overhaul/src/features/config_note_helpers.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/config_note_helpers.js",
-    candidates,
-    cacheKey: "feature:config-note-helpers",
-    validate: (mod) => !!(mod && typeof mod.createConfigNoteHelpers === "function"),
-  });
-  if (loaded.mod && typeof loaded.mod.createConfigNoteHelpers === "function") {
-    const helpers = loaded.mod.createConfigNoteHelpers({
-      isObj,
-      normalizePkmOrder,
-      getOrderStrictName,
-      TAGWHEEL_PREFIX_RESOLVER_H3,
-    });
-    if (hasValidConfigNoteHelpers(helpers)) {
-      __configNoteHelpers = helpers;
-      return __configNoteHelpers;
-    }
-  }
-  __configNoteHelpers = createConfigNoteHelpersFallback();
-  return __configNoteHelpers;
-}
-
-function getConfigNoteHelpers() {
-  if (hasValidConfigNoteHelpers(__configNoteHelpers)) return __configNoteHelpers;
-  __configNoteHelpers = createConfigNoteHelpersFallback();
-  return __configNoteHelpers;
-}
-
-function hasValidConfigNoteOrchestrator(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.openTagWheelConfigNote === "function"
-    && typeof mod.openTagWheelConfigTemplateNote === "function"
-    && typeof mod.applyTagWheelConfigNote === "function"
-    && typeof mod.renameStrictNameInConfigNote === "function");
 }
 
 function hasValidConfigStoreModule(mod) {
@@ -939,6 +730,46 @@ function getEnhancedSelectAllEngine() {
   return __enhancedSelectAllEngine;
 }
 
+function hasValidSmartDeleteEngine(mod) {
+  return !!(mod
+    && typeof mod === "object"
+    && typeof mod.handleSmartDeleteKeymap === "function");
+}
+
+async function loadSmartDeleteEngineSafe(app) {
+  const candidates = [
+    ".obsidian/plugins/inline-overhaul/src/features/smart_delete_engine.js",
+    "./.obsidian/plugins/inline-overhaul/src/features/smart_delete_engine.js",
+    "plugins/inline-overhaul/src/features/smart_delete_engine.js",
+  ];
+  const loaded = await loadModuleWithVaultFallback(app, {
+    requirePath: "./src/features/smart_delete_engine.js",
+    candidates,
+    cacheKey: "feature:smart-delete-engine",
+    validate: hasValidSmartDeleteEngine,
+  });
+  if (loaded.mod) {
+    __smartDeleteEngine = loaded.mod;
+    return __smartDeleteEngine;
+  }
+  __smartDeleteEngine = {
+    handleSmartDeleteKeymap() {
+      return false;
+    },
+  };
+  return __smartDeleteEngine;
+}
+
+function getSmartDeleteEngine() {
+  if (hasValidSmartDeleteEngine(__smartDeleteEngine)) return __smartDeleteEngine;
+  __smartDeleteEngine = {
+    handleSmartDeleteKeymap() {
+      return false;
+    },
+  };
+  return __smartDeleteEngine;
+}
+
 function hasValidPriorityStripEngine(mod) {
   return !!(mod
     && typeof mod === "object"
@@ -994,86 +825,6 @@ async function loadPriorityStripAdapterSafe(app) {
   __priorityStripCm6AdapterIsStub = true;
   if (loaded.requireErr) reportLoaderFallback("main.loadPriorityStripAdapterSafe", loaded.requireErr);
   return __priorityStripCm6Adapter;
-}
-
-function fallbackConfigNoteOrchestrator() {
-  return {
-    async openTagWheelConfigNote() {
-      throw new Error("Config note orchestrator unavailable");
-    },
-    async openTagWheelConfigTemplateNote(ctx) {
-      const app = ctx && ctx.app;
-      const cfg = ctx && ctx.cfg;
-      const codec = (ctx && ctx.tagWheelConfigCodec) || {};
-      const normalizeTagWheelConfigTemplatePath = typeof codec.normalizeTagWheelConfigTemplatePath === "function"
-        ? codec.normalizeTagWheelConfigTemplatePath
-        : (ctx && ctx.normalizeTagWheelConfigTemplatePath);
-      const buildDefaultTagWheelDetailedTemplateMarkdown = typeof codec.buildDefaultTagWheelDetailedTemplateMarkdown === "function"
-        ? codec.buildDefaultTagWheelDetailedTemplateMarkdown
-        : (ctx && ctx.buildDefaultTagWheelDetailedTemplateMarkdown);
-      const templatePath = normalizeTagWheelConfigTemplatePath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigTemplatePath : "");
-      let file = app.vault.getAbstractFileByPath(templatePath);
-      if (!file) {
-        await app.vault.create(templatePath, buildDefaultTagWheelDetailedTemplateMarkdown());
-        file = app.vault.getAbstractFileByPath(templatePath);
-      }
-      if (!file) throw new Error("Failed to create/open detailed template note: " + templatePath);
-      const leaf = app.workspace.getLeaf(true);
-      await leaf.openFile(file);
-      return templatePath;
-    },
-    async applyTagWheelConfigNote() {
-      throw new Error("Config note orchestrator unavailable");
-    },
-    async renameStrictNameInConfigNote(ctx, oldName, newName) {
-      const app = ctx && ctx.app;
-      const cfg = ctx && ctx.cfg;
-      const codec = (ctx && ctx.tagWheelConfigCodec) || {};
-      const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function"
-        ? codec.normalizeTagWheelConfigPath
-        : (ctx && ctx.normalizeTagWheelConfigPath);
-      const from = String(oldName || "").trim();
-      const to = String(newName || "").trim();
-      if (!from || !to || from === to) return;
-      const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-      const file = app.vault.getAbstractFileByPath(notePath);
-      if (!file) return;
-      const src = await app.vault.read(file);
-      let out = String(src || "");
-      const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const fromEsc = esc(from);
-      out = out.replace(new RegExp(`(^|\\n)(\\s*#{4,5}\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-      out = out.replace(new RegExp(`(^|\\n)(\\s*[-*]\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-      if (out !== src) await app.vault.modify(file, out);
-    },
-  };
-}
-
-async function loadConfigNoteOrchestratorSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/config_note_orchestrator.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/config_note_orchestrator.js",
-    "plugins/inline-overhaul/src/features/config_note_orchestrator.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/config_note_orchestrator.js",
-    candidates,
-    cacheKey: "feature:config-note-orchestrator",
-    validate: hasValidConfigNoteOrchestrator,
-  });
-  if (loaded.mod) {
-    __configNoteOrchestrator = loaded.mod;
-    return __configNoteOrchestrator;
-  }
-
-  __configNoteOrchestrator = fallbackConfigNoteOrchestrator();
-  return __configNoteOrchestrator;
-}
-
-function getConfigNoteOrchestrator() {
-  if (hasValidConfigNoteOrchestrator(__configNoteOrchestrator)) return __configNoteOrchestrator;
-  __configNoteOrchestrator = fallbackConfigNoteOrchestrator();
-  return __configNoteOrchestrator;
 }
 
 async function loadConfigStoreModuleSafe(app) {
@@ -1148,7 +899,7 @@ function fallbackRulesSyncOrchestrator() {
     async ensureGeneratedRulesNow(ctx, reason) {
       const cfg = ctx.getConfig();
       if (!(cfg && cfg.pkm)) return;
-      const genPath = String((cfg.pkm && cfg.pkm.generatedRulesPath) || ctx.defaultGeneratedRulesPath || "").trim();
+      const genPath = String(readCfgPath(cfg, "advanced.generatedRulesPath") || ctx.defaultGeneratedRulesPath || "").trim();
       if (!genPath) throw new Error("Generated rules path is empty");
       const md = ctx.buildRulesMarkdown(cfg);
       await ctx.writeText(genPath, md);
@@ -1528,22 +1279,6 @@ const HOTKEYS_SUB_TABS = [
 const PKM_ORDER_FIELDS = [];
 const DATE_RUNTIME_KEY_NOW = "time_now";
 const DATE_RUNTIME_KEY_ESTIMATED = "time_estimated";
-const TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH = "InlineOverhaul_Config.md";
-const TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH = "InlineOverhaul_Config_template.md";
-const TAGWHEEL_TECHNICAL_BLOCK_MARKER = "<!-- INLINE_OVERHAUL:TECHNICAL_BLOCK -->";
-const TAGWHEEL_TECH_MARKER_PREFIX = "INLINE_OVERHAUL:TECH:";
-const TAGWHEEL_IMPORTANT_LINE = ">!!! **IMPORTANT** - after making changes in this file -> Apply them, or it won't work!";
-const TAGWHEEL_WIKILINK_SECTION = "wikilink fields (from Order)";
-const TAGWHEEL_PREFIX_RESOLVER_SECTION = "prefix resolver";
-const TAGWHEEL_PREFIX_RESOLVER_H3 = "PREFIX RESOLVER";
-const TAGWHEEL_CONFIG_MODE_DETAILED = "detailed";
-const TAGWHEEL_CONFIG_MODE_MINIMAL = "minimal";
-const CFG_H1_SETTINGS = "Settings";
-const CFG_H2_TAGS = "`#TAGS/#SUBTAGS` + `WIKILINKS`";
-const CFG_H3_TAG_FIELDS = "Tag fields";
-const CFG_H2_DATES = "DATES+TIME";
-const CFG_H2_ELEMENTS = "ELEMENTS";
-const CFG_H2_ELEMENTS_COMBINED = "`DATE/TIME + ELEMENTS`";
 const ORDER_KEY_TO_LEFT_FIELD_ID = {};
 
 function normalizeOrderFieldKey(key) {
@@ -1619,18 +1354,19 @@ function buildRightElementFieldDefinition(key) {
 }
 
 function ensureBehaviorModesFromOrder(cfg) {
-  if (!isObj(cfg && cfg.pkm && cfg.pkm.behavior)) return;
-  const behavior = cfg.pkm.behavior;
-  const order = normalizePkmOrder(behavior.order);
-  behavior.order = order;
+  if (!isObj(cfg && cfg.pkm)) return;
+  if (!isObj(cfg.pkm.fields)) cfg.pkm.fields = {};
+  const fields = cfg.pkm.fields;
+  const order = normalizePkmOrder(fields.order);
+  fields.order = order;
 
-  if (!isObj(behavior.leftMode)) behavior.leftMode = { fields: [] };
-  if (!Array.isArray(behavior.leftMode.fields)) behavior.leftMode.fields = [];
-  if (!isObj(behavior.rightMode)) behavior.rightMode = { fields: [] };
-  if (!Array.isArray(behavior.rightMode.fields)) behavior.rightMode.fields = [];
+  if (!isObj(fields.tags)) fields.tags = { fields: [] };
+  if (!Array.isArray(fields.tags.fields)) fields.tags.fields = [];
+  if (!isObj(fields.links)) fields.links = { fields: [] };
+  if (!Array.isArray(fields.links.fields)) fields.links.fields = [];
 
-  const leftFields = behavior.leftMode.fields;
-  const rightFields = behavior.rightMode.fields;
+  const leftFields = fields.tags.fields;
+  const rightFields = fields.links.fields;
   const leftById = new Set(leftFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
   const rightById = new Set(rightFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
 
@@ -1674,7 +1410,7 @@ function ensureBehaviorModesFromOrder(cfg) {
       if (kind0 === "tag") allowedCustomSubIds.add(inferSubFieldKey(key));
     }
   }
-  behavior.leftMode.fields = leftFields.filter((f) => {
+  fields.tags.fields = leftFields.filter((f) => {
     const id = String(f && f.id || "").trim();
     if (!id) return false;
     if (builtInLeftIds.has(id)) return true;
@@ -1682,7 +1418,7 @@ function ensureBehaviorModesFromOrder(cfg) {
     if (allowedCustomSubIds.has(id)) return true;
     return false;
   });
-  behavior.rightMode.fields = rightFields.filter((f) => {
+  fields.links.fields = rightFields.filter((f) => {
     const id = String(f && f.id || "").trim();
     if (!id) return false;
     if (builtInRightIds.has(id)) return true;
@@ -1692,8 +1428,8 @@ function ensureBehaviorModesFromOrder(cfg) {
     return false;
   });
 
-  const leftFieldsLive = behavior.leftMode.fields;
-  const rightFieldsLive = behavior.rightMode.fields;
+  const leftFieldsLive = fields.tags.fields;
+  const rightFieldsLive = fields.links.fields;
   const leftByIdLive = new Set(leftFieldsLive.map((f) => String(f && f.id || "").trim()).filter(Boolean));
   const rightByIdLive = new Set(rightFieldsLive.map((f) => String(f && f.id || "").trim()).filter(Boolean));
 
@@ -1701,8 +1437,8 @@ function ensureBehaviorModesFromOrder(cfg) {
     const kind = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
     if (builtInOrderKeys.has(key)) continue;
     if (kind === "element") {
-      const elemCfg = isObj(behavior.elements && behavior.elements.byField && behavior.elements.byField[key])
-        ? behavior.elements.byField[key]
+      const elemCfg = isObj(fields.elements && fields.elements.byField && fields.elements.byField[key])
+        ? fields.elements.byField[key]
         : {};
       const marker = String(elemCfg.emoji || inferElementDefaultsByKey(key).marker || "").trim();
       const placeholder = String(order.labels && order.labels[key] ? order.labels[key] : (key || "")).trim() || key;
@@ -1768,22 +1504,24 @@ function ensureBehaviorModesFromOrder(cfg) {
     }
   }
 
-  if (!isObj(behavior.elements)) behavior.elements = { fields: [], byField: {} };
-  if (!Array.isArray(behavior.elements.fields)) behavior.elements.fields = [];
-  if (!isObj(behavior.elements.byField)) behavior.elements.byField = {};
+  if (!isObj(fields.elements)) fields.elements = { fields: [], byField: {} };
+  if (!Array.isArray(fields.elements.fields)) fields.elements.fields = [];
+  if (!isObj(fields.elements.byField)) fields.elements.byField = {};
 
-  // Legacy migration: dates.* -> elements.* (elements-only SoT)
-  if (isObj(behavior.dates)) {
-    const legacyDates = behavior.dates;
+  /* Легаси-ветка `pkm.fields.dates` сворачивается в `pkm.fields.elements`:
+     единственный источник истины по элементам — `elements`. Маршрут
+     `pkm.behavior.dates` заведён в миграции ровно ради этой ступени. */
+  if (isObj(fields.dates)) {
+    const legacyDates = fields.dates;
     const legacyFields = Array.isArray(legacyDates.fields) ? legacyDates.fields.map((x) => String(x || "").trim()).filter(Boolean) : [];
     for (const f of legacyFields) {
-      if (!behavior.elements.fields.includes(f)) behavior.elements.fields.push(f);
+      if (!fields.elements.fields.includes(f)) fields.elements.fields.push(f);
     }
     const legacyByField = isObj(legacyDates.byField) ? legacyDates.byField : {};
     for (const fid of Object.keys(legacyByField)) {
       const id = String(fid || "").trim();
       if (!id) continue;
-      const cur = isObj(behavior.elements.byField[id]) ? behavior.elements.byField[id] : {};
+      const cur = isObj(fields.elements.byField[id]) ? fields.elements.byField[id] : {};
       const src = isObj(legacyByField[id]) ? legacyByField[id] : {};
       const merged = {
         ...src,
@@ -1795,9 +1533,9 @@ function ensureBehaviorModesFromOrder(cfg) {
       };
       if (!String(merged.emoji || "").trim() && String(src.emoji || "").trim()) merged.emoji = String(src.emoji || "").trim();
       if (!String(merged.format || "").trim() && String(src.format || "").trim()) merged.format = String(src.format || "").trim();
-      behavior.elements.byField[id] = merged;
+      fields.elements.byField[id] = merged;
     }
-    delete behavior.dates;
+    delete fields.dates;
   }
 
   const strictNames = isObj(order && order.strictNames) ? order.strictNames : {};
@@ -1806,10 +1544,10 @@ function ensureBehaviorModesFromOrder(cfg) {
     const kind = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
     if (kind !== "element") continue;
     const strictKey = String(strictNames[key] || key).trim() || key;
-    if (!behavior.elements.fields.includes(key)) behavior.elements.fields.push(key);
-    const curElem = isObj(behavior.elements.byField[key])
-      ? behavior.elements.byField[key]
-      : (isObj(behavior.elements.byField[strictKey]) ? behavior.elements.byField[strictKey] : {});
+    if (!fields.elements.fields.includes(key)) fields.elements.fields.push(key);
+    const curElem = isObj(fields.elements.byField[key])
+      ? fields.elements.byField[key]
+      : (isObj(fields.elements.byField[strictKey]) ? fields.elements.byField[strictKey] : {});
     const cur = curElem;
     const incCur = isObj(cur.increment) ? cur.increment : {};
     const modeRaw = String(incCur.mode || "standard").trim().toLowerCase();
@@ -1836,7 +1574,7 @@ function ensureBehaviorModesFromOrder(cfg) {
         custom,
       },
     };
-    behavior.elements.byField[key] = normalizedEntry;
+    fields.elements.byField[key] = normalizedEntry;
   }
 
   const activeElementKeys = new Set();
@@ -1844,31 +1582,15 @@ function ensureBehaviorModesFromOrder(cfg) {
     const kind = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
     if (kind === "element") activeElementKeys.add(String(key || "").trim());
   }
-  behavior.elements.fields = (Array.isArray(behavior.elements.fields) ? behavior.elements.fields : [])
+  fields.elements.fields = (Array.isArray(fields.elements.fields) ? fields.elements.fields : [])
     .map((k) => String(k || "").trim())
     .filter((k) => k && activeElementKeys.has(k));
-  for (const key of Object.keys(behavior.elements.byField || {})) {
+  for (const key of Object.keys(fields.elements.byField || {})) {
     const normKey = String(key || "").trim();
-    if (!activeElementKeys.has(normKey)) delete behavior.elements.byField[key];
+    if (!activeElementKeys.has(normKey)) delete fields.elements.byField[key];
   }
-  behavior.elements.fields = behavior.elements.fields.filter((k) => activeElementKeys.has(String(k || "").trim()));
+  fields.elements.fields = fields.elements.fields.filter((k) => activeElementKeys.has(String(k || "").trim()));
 
-  const tax = isObj(cfg.pkm && cfg.pkm.taxonomy && cfg.pkm.taxonomy.tagWheelConfig)
-    ? cfg.pkm.taxonomy.tagWheelConfig
-    : null;
-  if (tax) {
-    if (isObj(tax.elements)) {
-      tax.elements.fields = (Array.isArray(tax.elements.fields) ? tax.elements.fields : [])
-        .map((k) => String(k || "").trim())
-        .filter((k) => k && activeElementKeys.has(k));
-      if (isObj(tax.elements.byField)) {
-        for (const key of Object.keys(tax.elements.byField)) {
-          if (!activeElementKeys.has(String(key || "").trim())) delete tax.elements.byField[key];
-        }
-      }
-    }
-    if (isObj(tax.dates)) delete tax.dates;
-  }
 }
 
 function makeDefaultPkmOrder() {
@@ -1885,6 +1607,16 @@ function makeDefaultPkmOrder() {
     propertiesByField: {},
   };
 }
+
+/**
+ * Что можно написать в имени Field.
+ *
+ * Та же строка стоит в панели — `STRICT_NAME_RE` в
+ * `src/ui/settings/custom/fields_model.ts` — и то же говорит окно
+ * переименования. Три места, одно правило: расхождение двух из них уже стоило
+ * заказчику молча несработавшего переименования (1.3.1).
+ */
+const STRICT_FIELD_NAME_RE = /^[a-z0-9_\- ]+$/i;
 
 function normalizePkmOrder(rawOrder) {
   const out = makeDefaultPkmOrder();
@@ -1975,10 +1707,24 @@ function normalizePkmOrder(rawOrder) {
     }
   }
   if (isObj(rawOrder.strictNames)) {
+    /*
+     * Правило имени Field — одно на оба прохода.
+     *
+     * Раньше их было два: первый принимал имя с заглавными и пробелами,
+     * второй требовал `^[a-z0-9_-]+$` и всё остальное **молча** возвращал к
+     * исходному ключу. Панель разрешает то же, что первый проход, — и
+     * переименование через карандаш не срабатывало никак: окно закрывалось,
+     * имя оставалось прежним, сообщения не было (замечание заказчика 1.3.1).
+     *
+     * Верным признано мягкое правило: в идентификатор команды имя всё равно
+     * идёт через `kebab()` (`src/features/command_ids.js`), а он и заглавные,
+     * и пробелы переводит сам. То, что панель и конфиг говорят об имени одно
+     * и то же, держит пин в `bootstrap_loader_tests.js`.
+     */
     const used = new Set();
     for (const k of orderFields) {
       const v = String(rawOrder.strictNames[k] || "").trim();
-      if (!/^[a-z0-9_\- ]+$/i.test(v)) continue;
+      if (!STRICT_FIELD_NAME_RE.test(v)) continue;
       if (used.has(v)) continue;
       out.strictNames[k] = v;
       used.add(v);
@@ -1986,7 +1732,7 @@ function normalizePkmOrder(rawOrder) {
     const seen = new Set();
     for (const k of orderFields) {
       const v = String(out.strictNames[k] || "").trim() || k;
-      if (!/^[a-z0-9_-]+$/.test(v) || seen.has(v)) out.strictNames[k] = k;
+      if (!STRICT_FIELD_NAME_RE.test(v) || seen.has(v)) out.strictNames[k] = k;
       seen.add(out.strictNames[k]);
     }
   }
@@ -2008,33 +1754,41 @@ function normalizePkmOrder(rawOrder) {
 function getOrderStrictName(cfg, orderKey) {
   const key = normalizeOrderFieldKey(orderKey);
   if (!key) return "";
-  const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
+  const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
   const strict = isObj(order && order.strictNames) ? order.strictNames : {};
   const candidate = String(strict[key] || "").trim();
-  if (/^[a-z0-9_-]+$/.test(candidate)) return candidate;
+  /*
+   * Третье место, где стояло то же строгое правило, и с тем же следствием:
+   * имя с заглавной или пробелом здесь молча подменялось ключом, и в заметке
+   * конфигурации Field назывался по-старому даже после успешного
+   * переименования. Нашлось не чтением, а пином на совпадение правил (1.3.1).
+   */
+  if (STRICT_FIELD_NAME_RE.test(candidate)) return candidate;
   return key;
 }
 
 function serializePkmOrderForMacro(cfg) {
-  const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-  const fr = isObj(behavior.freeRoam) ? behavior.freeRoam : {};
+  const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
+  const placement = isObj(readCfgPath(cfg, "pkm.placement")) ? readCfgPath(cfg, "pkm.placement") : {};
+  /* Имена внутри `freeRoamBehavior` — часть контракта макросов рантайма
+     (`docs/PKM_Runtime_Unified_Contract_v1.md`), поэтому меняются только
+     источники значений, а не ключи. */
   order.freeRoamBehavior = {
-    minimalSeparator: fr.minimalSeparator !== false,
-    minimalPrefix: fr.minimalPrefix !== false,
-    offPrefix: fr.offPrefix === true,
-    fullPlacement: ["smart", "left", "right"].includes(String(fr.fullPlacement || "").trim().toLowerCase())
-      ? String(fr.fullPlacement || "").trim().toLowerCase()
+    minimalSeparator: placement.keepPrefixInsertOnly !== false,
+    minimalPrefix: placement.fieldPrefixInsertOnly !== false,
+    offPrefix: placement.bulletInStrict === true,
+    fullPlacement: ["smart", "left", "right"].includes(String(placement.freeInsertPosition || "").trim().toLowerCase())
+      ? String(placement.freeInsertPosition || "").trim().toLowerCase()
       : "smart",
   };
   return JSON.stringify(order);
 }
 
 function serializeDateRuntimeConfigForMacro(cfg) {
-  const elementsCfg = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.elements)
-    ? cfg.pkm.behavior.elements
+  const elementsCfg = isObj(readCfgPath(cfg, "pkm.fields.elements"))
+    ? readCfgPath(cfg, "pkm.fields.elements")
     : {};
-  const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
+  const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
   const strict = isObj(order && order.strictNames) ? order.strictNames : {};
   const ORDER_DATE_DUE = `date_${"due"}`;
   const ORDER_DATE_START = `date_${"start"}`;
@@ -2111,20 +1865,6 @@ function getBoundHotkeyForCommand(app, commandId, pluginId) {
   return "";
 }
 
-function detectDateFieldHotkeys(app, cfg, fieldId, pluginId) {
-  const fid = String(fieldId || "").trim();
-  if (!fid) return { increase: "", decrease: "" };
-  const incCandidates = [];
-  const decCandidates = [];
-  incCandidates.push(`inlineOverhaul_Hotkey_${fid}_increase`);
-  decCandidates.push(`inlineOverhaul_Hotkey_${fid}_decrease`);
-  let increase = "";
-  let decrease = "";
-  for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app, incCandidates[i], pluginId);
-  for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app, decCandidates[i], pluginId);
-  return { increase, decrease };
-}
-
 const DEFAULT_CONFIG = {
   schemaVersion: SCHEMA_VERSION,
   features: {
@@ -2140,6 +1880,8 @@ const DEFAULT_CONFIG = {
       headerMode: "move-as-line",
       crossSectionAllowed: true,
       highlightMovedLines: false,
+      keepInView: true,
+      viewPosition: "center",
     },
     moveSelection: {
       enabled: true,
@@ -2149,15 +1891,22 @@ const DEFAULT_CONFIG = {
       onCycleEnd: "indent",
       cycleOrder: ["#", "##", "###", "####", "#####", "1. ", "", "- "],
       inlineMoveMode: "auto",
+      inlineBoundaryJump: true,
     },
     jumpToHeader: {
       enabled: true,
       centerCursor: true,
+      /* Место на экране после перехода (10.13.37). Умолчание `center` — это
+         ровно то, что делал прежний `centerCursor`, поэтому у тех, кто ничего
+         не трогал, поведение не меняется. */
+      viewPosition: "center",
       centerDelayMs: 60,
       centerThrottleMs: 200,
       jumpMode: "edge",
       edgeMode: "start-end",
-      jumpCursorPosition: "start",
+      /* Умолчание `End of your text` — заказ заказчика 2026-09-04, вечер.
+         Совпадение с умолчанием схемы сторожит `settings_paths_v2_tests.ts`. */
+      jumpCursorPosition: "section-end",
     },
     navigateInline: {
       enabled: true,
@@ -2178,9 +1927,6 @@ const DEFAULT_CONFIG = {
   },
   pkm: {
     taxonomy: {},
-    tagWheelConfigPath: TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH,
-    tagWheelConfigTemplatePath: TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH,
-    configExportMode: TAGWHEEL_CONFIG_MODE_DETAILED,
     executionBackend: PKM_BACKENDS.internalV2,
     generatedRulesPath: __pkmOptionKeys.DEFAULT_RULES_PATH,
     behavior: {
@@ -2246,9 +1992,7 @@ const DEFAULT_CONFIG = {
     inline2fleet: {},
     inline2note: {},
   },
-  backups: {
-    tagWheelConfigApplies: [],
-  },
+  backups: {},
   meta: {},
   ui: {
     activeSettingsTab: "general",
@@ -2264,7 +2008,7 @@ const DEFAULT_CONFIG = {
         rowId: "binder-system-smart-bracket",
         insertText: "[]",
         commandName: "Smart bracket",
-        description: "Smart bracket",
+        description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
         commandId: BINDER_SMART_BRACKET_COMMAND_ID,
       },
     ],
@@ -2289,15 +2033,6 @@ function normalizePkmTopLevelConfig(cfg) {
     } else {
       cfg.pkm.generatedRulesPath = DEFAULT_CONFIG.pkm.generatedRulesPath;
     }
-  }
-  if (typeof cfg.pkm.tagWheelConfigPath !== "string" || !cfg.pkm.tagWheelConfigPath.trim()) {
-    cfg.pkm.tagWheelConfigPath = DEFAULT_CONFIG.pkm.tagWheelConfigPath;
-  }
-  if (typeof cfg.pkm.tagWheelConfigTemplatePath !== "string" || !cfg.pkm.tagWheelConfigTemplatePath.trim()) {
-    cfg.pkm.tagWheelConfigTemplatePath = DEFAULT_CONFIG.pkm.tagWheelConfigTemplatePath;
-  }
-  if (![TAGWHEEL_CONFIG_MODE_DETAILED, TAGWHEEL_CONFIG_MODE_MINIMAL].includes(String(cfg.pkm.configExportMode || ""))) {
-    cfg.pkm.configExportMode = DEFAULT_CONFIG.pkm.configExportMode;
   }
   const deprecatedPkm = Array.isArray(__compatProfile.DEPRECATED_CONFIG_KEYS?.pkm)
     ? __compatProfile.DEPRECATED_CONFIG_KEYS.pkm
@@ -2329,6 +2064,28 @@ function normalizeConfigV1(raw) {
   let cfg = deepMerge(DEFAULT_CONFIG, source);
   const ver = Number(cfg.schemaVersion) || 0;
 
+  /**
+   * Значение из **исходного файла**, а не из слитого с умолчаниями.
+   *
+   * Без этого переименования старой формы были мертвы, и это не догадка:
+   * `deepMerge(DEFAULT_CONFIG, source)` кладёт новый ключ раньше, чем код
+   * успевает спросить старый. Проверка «нового значения нет» на слитом конфиге
+   * никогда не срабатывала — умолчание уже стояло на месте. Человек,
+   * обновившийся с версии до переименования, терял свой цикл Prefix, размер
+   * тегов, задержку и режим прыжка: молча, на первой же загрузке.
+   *
+   * Найдено 2026-08-31 при попытке закрепить порядок ступеней пином: пин не
+   * встал, и оказалось, что закреплять было нечего.
+   */
+  const fromFile = (dotted) => {
+    let node = source;
+    for (const key of String(dotted).split(".")) {
+      if (!isObj(node)) return undefined;
+      node = node[key];
+    }
+    return node;
+  };
+
   if (ver < 1) {
     cfg.schemaVersion = 1;
   }
@@ -2357,7 +2114,6 @@ function normalizeConfigV1(raw) {
   if (typeof cfg.ui.orderShowDeepEditor !== "boolean") cfg.ui.orderShowDeepEditor = true;
   if (typeof cfg.ui.orderShowColorSettings !== "boolean") cfg.ui.orderShowColorSettings = true;
   if (typeof cfg.ui.orderActiveCommandsCollapsed !== "boolean") cfg.ui.orderActiveCommandsCollapsed = true;
-  cfg.ui.binderRows = normalizeBinderRows(cfg.ui.binderRows);
 
   if (!isObj(cfg.rules)) cfg.rules = cloneJson(DEFAULT_CONFIG.rules);
   {
@@ -2378,9 +2134,12 @@ function normalizeConfigV1(raw) {
   if (typeof cfg.globalFunctions.enhancedSelectAll.useMultiPressDelay !== "boolean") {
     cfg.globalFunctions.enhancedSelectAll.useMultiPressDelay = false;
   }
-  const oldDelay = Number(cfg.globalFunctions.enhancedSelectAll.multiPressWindowMs);
-  const curDelay = Number(cfg.globalFunctions.enhancedSelectAll.delayMs);
-  const pickedDelay = Number.isFinite(curDelay) ? curDelay : (Number.isFinite(oldDelay) ? oldDelay : 700);
+  const oldDelay = Number(fromFile("globalFunctions.enhancedSelectAll.multiPressWindowMs"));
+  const ownDelay = Number(fromFile("globalFunctions.enhancedSelectAll.delayMs"));
+  const curDelay = Number.isFinite(ownDelay)
+    ? ownDelay
+    : (Number.isFinite(oldDelay) ? oldDelay : Number(cfg.globalFunctions.enhancedSelectAll.delayMs));
+  const pickedDelay = Number.isFinite(curDelay) ? curDelay : 700;
   cfg.globalFunctions.enhancedSelectAll.delayMs = Math.max(250, Math.min(2000, Math.floor(pickedDelay)));
   delete cfg.globalFunctions.enhancedSelectAll.multiPressWindowMs;
   if (typeof cfg.globalFunctions.enhancedSelectAll.clearSelectionOnLastPress !== "boolean") {
@@ -2415,10 +2174,13 @@ function normalizeConfigV1(raw) {
     cfg.navigation.moveSelection.onCycleEnd = "indent";
   }
   cfg.navigation.moveSelection.enabled = cfg.navigation.moveSelection.inlineEnabled;
-  if (!Array.isArray(cfg.navigation.moveSelection.cycleOrder) || !cfg.navigation.moveSelection.cycleOrder.length) {
-    if (Array.isArray(cfg.navigation.moveSelection.leftToRight) && cfg.navigation.moveSelection.leftToRight.length) {
-      cfg.navigation.moveSelection.cycleOrder = cfg.navigation.moveSelection.leftToRight.slice();
-    } else {
+  {
+    const ownCycle = fromFile("navigation.moveSelection.cycleOrder");
+    const legacyCycle = fromFile("navigation.moveSelection.leftToRight");
+    const hasOwn = Array.isArray(ownCycle) && ownCycle.length;
+    if (!hasOwn && Array.isArray(legacyCycle) && legacyCycle.length) {
+      cfg.navigation.moveSelection.cycleOrder = legacyCycle.slice();
+    } else if (!Array.isArray(cfg.navigation.moveSelection.cycleOrder) || !cfg.navigation.moveSelection.cycleOrder.length) {
       cfg.navigation.moveSelection.cycleOrder = DEFAULT_CONFIG.navigation.moveSelection.cycleOrder.slice();
     }
   }
@@ -2432,15 +2194,27 @@ function normalizeConfigV1(raw) {
   if (!["edge", "line"].includes(cfg.navigation.jumpToHeader.jumpMode)) {
     cfg.navigation.jumpToHeader.jumpMode = "edge";
   }
-  if (!["start-end", "start", "end"].includes(cfg.navigation.jumpToHeader.edgeMode)) {
-    let inferredEdge = "start-end";
-    if (cfg.navigation.jumpToHeader.insideTarget === "section-start" && cfg.navigation.jumpToHeader.boundaryTarget === "section-start") inferredEdge = "start";
-    if (cfg.navigation.jumpToHeader.insideTarget === "section-end" && cfg.navigation.jumpToHeader.boundaryTarget === "section-end") inferredEdge = "end";
-    cfg.navigation.jumpToHeader.edgeMode = inferredEdge;
+  {
+    const ownEdge = fromFile("navigation.jumpToHeader.edgeMode");
+    const inside = fromFile("navigation.jumpToHeader.insideTarget");
+    const boundary = fromFile("navigation.jumpToHeader.boundaryTarget");
+    const legacyEdge = inside === "section-start" && boundary === "section-start"
+      ? "start"
+      : (inside === "section-end" && boundary === "section-end" ? "end" : "");
+    if (!["start-end", "start", "end"].includes(ownEdge) && legacyEdge) {
+      cfg.navigation.jumpToHeader.edgeMode = legacyEdge;
+    } else if (!["start-end", "start", "end"].includes(cfg.navigation.jumpToHeader.edgeMode)) {
+      cfg.navigation.jumpToHeader.edgeMode = "start-end";
+    }
   }
-  if (!["start", "end", "section-end"].includes(cfg.navigation.jumpToHeader.jumpCursorPosition)) {
-    if (cfg.navigation.jumpToHeader.endAnchorMode === "active-text-end") cfg.navigation.jumpToHeader.jumpCursorPosition = "section-end";
-    else cfg.navigation.jumpToHeader.jumpCursorPosition = "start";
+  {
+    const ownCursor = fromFile("navigation.jumpToHeader.jumpCursorPosition");
+    const legacyAnchor = fromFile("navigation.jumpToHeader.endAnchorMode");
+    if (!["start", "end", "section-end"].includes(ownCursor) && legacyAnchor === "active-text-end") {
+      cfg.navigation.jumpToHeader.jumpCursorPosition = "section-end";
+    } else if (!["start", "end", "section-end"].includes(cfg.navigation.jumpToHeader.jumpCursorPosition)) {
+      cfg.navigation.jumpToHeader.jumpCursorPosition = "start";
+    }
   }
   delete cfg.navigation.jumpToHeader.insideTarget;
   delete cfg.navigation.jumpToHeader.boundaryTarget;
@@ -2506,26 +2280,25 @@ function normalizeConfigV1(raw) {
     if (typeof visuals.showColorSettings !== "boolean") {
       visuals.showColorSettings = DEFAULT_CONFIG.pkm.behavior.tagVisuals.showColorSettings;
     }
-    const legacySizeN = Math.trunc(Number(visuals.tagSizePct));
-    const legacySize = Number.isFinite(legacySizeN)
-      ? Math.max(80, Math.min(140, legacySizeN))
-      : 100;
-    const textSizeN = Math.trunc(Number(visuals.tagTextSizePct));
-    visuals.tagTextSizePct = Number.isFinite(textSizeN)
-      ? Math.max(80, Math.min(140, textSizeN))
-      : legacySize;
-    const legacyBubbleN = Math.trunc(Number(visuals.tagBubbleSizePct));
-    const legacyBubble = Number.isFinite(legacyBubbleN)
-      ? Math.max(80, Math.min(140, legacyBubbleN))
-      : legacySize;
-    const bubbleWidthN = Math.trunc(Number(visuals.tagBubbleWidthPct));
-    visuals.tagBubbleWidthPct = Number.isFinite(bubbleWidthN)
-      ? Math.max(80, Math.min(140, bubbleWidthN))
-      : legacyBubble;
-    const bubbleHeightN = Math.trunc(Number(visuals.tagBubbleHeightPct));
-    visuals.tagBubbleHeightPct = Number.isFinite(bubbleHeightN)
-      ? Math.max(80, Math.min(140, bubbleHeightN))
-      : legacyBubble;
+    /* Старое имя берётся из файла, новое — тоже: иначе умолчание, которое уже
+       положил `deepMerge`, всегда выигрывает у выбора человека. */
+    const clampPct = (n) => Math.max(80, Math.min(140, n));
+    const pickPct = (ownPath, legacyPaths, fallback) => {
+      const own = Math.trunc(Number(fromFile(ownPath)));
+      if (Number.isFinite(own)) return clampPct(own);
+      for (const legacyPath of legacyPaths) {
+        const old = Math.trunc(Number(fromFile(legacyPath)));
+        if (Number.isFinite(old)) return clampPct(old);
+      }
+      const merged = Math.trunc(Number(fallback));
+      return Number.isFinite(merged) ? clampPct(merged) : 100;
+    };
+    const B = "pkm.behavior.tagVisuals.";
+    visuals.tagTextSizePct = pickPct(B + "tagTextSizePct", [B + "tagSizePct"], visuals.tagTextSizePct);
+    visuals.tagBubbleWidthPct = pickPct(B + "tagBubbleWidthPct",
+      [B + "tagBubbleSizePct", B + "tagSizePct"], visuals.tagBubbleWidthPct);
+    visuals.tagBubbleHeightPct = pickPct(B + "tagBubbleHeightPct",
+      [B + "tagBubbleSizePct", B + "tagSizePct"], visuals.tagBubbleHeightPct);
     const emptyBubbleN = Math.trunc(Number(visuals.emptyBubbleSizePct));
     visuals.emptyBubbleSizePct = Number.isFinite(emptyBubbleN)
       ? Math.max(50, Math.min(180, emptyBubbleN))
@@ -2546,79 +2319,11 @@ function normalizeConfigV1(raw) {
     visuals.opacity.left = normOpacity(visuals.opacity.left, DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity.left);
     visuals.opacity.right = normOpacity(visuals.opacity.right, DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity.right);
 
-    const normalizeTagToken = (token) => {
-      const src = String(token || "").trim();
-      if (!src) return "";
-      return src.charAt(0) === "#" ? src : "";
-    };
-    const normalizeVisibility = (value, fallback) => {
-      const mode = String(value || "").trim().toLowerCase();
-      if (mode === "empty" || mode === "default" || mode === "custom") return mode;
-      return fallback;
-    };
-    const normalizeTagVisualRow = (row, fallbackVisibility) => {
-      const src = isObj(row) ? row : {};
-      const fillColor = normalizeHexColorInput(src.fillColor);
-      const textColor = normalizeHexColorInput(src.textColor);
-      const visibility = normalizeVisibility(src.visibility, fallbackVisibility);
-      return {
-        fillColor,
-        textColor,
-        visibility,
-        customText: String(src.customText || "").trim(),
-      };
-    };
-
-    const byFieldIn = isObj(visuals.byField) ? visuals.byField : {};
-    const byFieldOut = {};
-    for (const fieldIdRaw of Object.keys(byFieldIn)) {
-      const fieldId = String(fieldIdRaw || "").trim();
-      if (!fieldId) continue;
-      const fieldRow = isObj(byFieldIn[fieldIdRaw]) ? byFieldIn[fieldIdRaw] : {};
-      byFieldOut[fieldId] = {
-        visibilityDefault: normalizeVisibility(fieldRow.visibilityDefault, "default"),
-      };
-    }
-    visuals.byField = byFieldOut;
-
-    const byTagIn = isObj(visuals.byTag) ? visuals.byTag : {};
-    const byTagOut = {};
-    for (const fieldIdRaw of Object.keys(byTagIn)) {
-      const fieldId = String(fieldIdRaw || "").trim();
-      if (!fieldId) continue;
-      const fieldMap = isObj(byTagIn[fieldIdRaw]) ? byTagIn[fieldIdRaw] : {};
-      const outFieldMap = {};
-      for (const rawToken of Object.keys(fieldMap)) {
-        const token = normalizeTagToken(rawToken);
-        if (!token || Object.prototype.hasOwnProperty.call(outFieldMap, token)) continue;
-        outFieldMap[token] = normalizeTagVisualRow(fieldMap[rawToken], "default");
-      }
-      byTagOut[fieldId] = outFieldMap;
-    }
-    visuals.byTag = byTagOut;
-
-    const userTagsIn = isObj(visuals.userTags) ? visuals.userTags : {};
-    const userTagsOut = {};
-    for (const rawToken of Object.keys(userTagsIn)) {
-      const token = normalizeTagToken(rawToken);
-      if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
-      /*
-       * Надгробие. Единственный шов записи у панели -- setConfigPatch, а он
-       * идёт через deepMerge, который ключ карты убрать не умеет: на месте
-       * удалённого остаётся null. Раньше null превращался здесь в строку с
-       * цветами темы, и удалённый тег возвращался в список на первой же
-       * перерисовке -- то есть удаление своего тега не работало вовсе.
-       */
-      if (userTagsIn[rawToken] === null) continue;
-      userTagsOut[token] = normalizeTagVisualRow(userTagsIn[rawToken], "default");
-    }
-    visuals.userTags = userTagsOut;
-
+    /* Карты `byField`, `byTag` и `userTags` вместе с полосой нормализуются
+       третьей ступенью на путях версии 2 (`normalizeTagVisualMapsV2`): они
+       обязаны отрабатывать на каждом патче, а первая ступень идёт только для
+       файла версии ниже второй. */
     if (isObj(visuals.line)) delete visuals.line;
-
-    if (!isObj(visuals.strip)) visuals.strip = cloneJson(DEFAULT_CONFIG.pkm.behavior.tagVisuals.strip);
-    const strip = __priorityStripEngine.normalizeStripConfig(visuals.strip);
-    visuals.strip = strip;
 
     cfg.pkm.behavior.tagVisuals = visuals;
   }
@@ -2640,12 +2345,12 @@ function normalizeConfigV1(raw) {
       ? place
       : DEFAULT_CONFIG.pkm.behavior.freeRoam.fullPlacement;
   }
-  cfg.pkm.behavior.order = normalizePkmOrder(cfg.pkm.behavior.order);
-  ensureBehaviorModesFromOrder(cfg);
-  cfg = getConfigMigrationModule().normalizePkmBehaviorShape(cfg, { cloneJson, isObj });
+  /* Order, определения Fields и формы чекбоксов Prefix нормализуются
+     третьей ступенью на путях версии 2: `normalizePkmOrder`,
+     `ensureBehaviorModesFromOrder` и `normalizePkmBehaviorShape` читают
+     `pkm.fields.*` и `pkm.prefixRules.*`, которых в форме версии 1 нет. */
 
   if (!isObj(cfg.backups)) cfg.backups = cloneJson(DEFAULT_CONFIG.backups);
-  if (!Array.isArray(cfg.backups.tagWheelConfigApplies)) cfg.backups.tagWheelConfigApplies = [];
 
   if (!isObj(cfg.meta)) cfg.meta = cloneJson(DEFAULT_CONFIG.meta);
 
@@ -2657,12 +2362,13 @@ function normalizeConfigV1(raw) {
     cfg.devMode.logPath = p || DEFAULT_CONFIG.devMode.logPath;
   }
   {
-    const oldLevel = String(cfg.devMode.logLevel || "").trim().toLowerCase();
-    const oldSize = String(cfg.devMode.logSize || "").trim();
-    if (typeof cfg.devMode.generateAiLog !== "boolean") {
+    const oldLevel = String(fromFile("devMode.logLevel") || "").trim().toLowerCase();
+    const oldSize = String(fromFile("devMode.logSize") || "").trim();
+    const own = fromFile("devMode.generateAiLog");
+    if (typeof own !== "boolean") {
       if (oldSize) cfg.devMode.generateAiLog = oldSize === "for AI";
       else if (oldLevel) cfg.devMode.generateAiLog = ["trace", "info"].includes(oldLevel);
-      else cfg.devMode.generateAiLog = DEFAULT_CONFIG.devMode.generateAiLog;
+      else if (typeof cfg.devMode.generateAiLog !== "boolean") cfg.devMode.generateAiLog = DEFAULT_CONFIG.devMode.generateAiLog;
     }
   }
   if (typeof cfg.devMode.generateAiLog !== "boolean") cfg.devMode.generateAiLog = DEFAULT_CONFIG.devMode.generateAiLog;
@@ -2674,6 +2380,327 @@ function normalizeConfigV1(raw) {
   }
 
   cfg.schemaVersion = SCHEMA_VERSION;
+  return cfg;
+}
+
+/**
+ * Миграция `1 → 2` берётся синхронным `require`, а не ленивым загрузчиком с
+ * заглушкой. Заглушка здесь означала бы конфиг, не прошедший миграцию, — то
+ * есть половину настроек, которых движок не найдёт. Путь с расширением `.ts`
+ * работает и в Node 24 (стирание типов), и в сборке esbuild
+ * (`resolveExtensions` в `build/release.js`).
+ */
+let __configMigrationV2 = null;
+function getConfigMigrationV2Module() {
+  if (__configMigrationV2) return __configMigrationV2;
+  __configMigrationV2 = require("./src/core/config_migration_v2.ts");
+  return __configMigrationV2;
+}
+
+/** Прочитать значение по точечному пути. */
+function readCfgPath(root, path) {
+  let node = root;
+  for (const key of String(path || "").split(".")) {
+    if (!isObj(node)) return undefined;
+    node = node[key];
+  }
+  return node;
+}
+
+/** Записать значение по точечному пути, создавая объекты по дороге. */
+function writeCfgPath(root, path, value) {
+  const parts = String(path || "").split(".");
+  let node = root;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!isObj(node[parts[i]])) node[parts[i]] = {};
+    node = node[parts[i]];
+  }
+  node[parts[parts.length - 1]] = value;
+  return root;
+}
+
+let __engineDefaultsV2 = null;
+/**
+ * Умолчания **движка** в форме версии 2.
+ *
+ * Считаются один раз прогоном первых двух ступеней на пустом конфиге, а не
+ * выписываются рядом списком: второй список умолчаний разошёлся бы с первым на
+ * первой же правке. Схема сюда не заглядывает намеренно — девятнадцать
+ * расхождений умолчаний схемы и движка (В-7) остаются продуктовым вопросом
+ * заказчика, и порядок вызовов их не решает.
+ */
+function getEngineDefaultsV2() {
+  if (__engineDefaultsV2) return __engineDefaultsV2;
+  const migrated = getConfigMigrationV2Module().migrate(normalizeConfigV1({}), { log: () => {} });
+  __engineDefaultsV2 = migrated;
+  return __engineDefaultsV2;
+}
+
+/**
+ * Карты вида тегов на путях версии 2: `visual.tags.byField`, `.byTag`,
+ * `.userTags`.
+ *
+ * Живут в третьей ступени, а не в первой, потому что панель правит их на
+ * каждом патче, а первая ступень идёт только для файла версии ниже второй.
+ */
+function normalizeTagVisualMapsV2(cfg) {
+  const tags = isObj(readCfgPath(cfg, "visual.tags")) ? readCfgPath(cfg, "visual.tags") : {};
+  writeCfgPath(cfg, "visual.tags", tags);
+
+  const normalizeTagToken = (token) => {
+    const src = String(token || "").trim();
+    if (!src) return "";
+    return src.charAt(0) === "#" ? src : "";
+  };
+  const normalizeVisibility = (value, fallback) => {
+    const mode = String(value || "").trim().toLowerCase();
+    if (mode === "empty" || mode === "default" || mode === "custom") return mode;
+    return fallback;
+  };
+  const normalizeTagVisualRow = (row, fallbackVisibility) => {
+    const src = isObj(row) ? row : {};
+    return {
+      fillColor: normalizeHexColorInput(src.fillColor),
+      textColor: normalizeHexColorInput(src.textColor),
+      visibility: normalizeVisibility(src.visibility, fallbackVisibility),
+      customText: String(src.customText || "").trim(),
+    };
+  };
+
+  const byFieldIn = isObj(tags.byField) ? tags.byField : {};
+  const byFieldOut = {};
+  for (const fieldIdRaw of Object.keys(byFieldIn)) {
+    const fieldId = String(fieldIdRaw || "").trim();
+    if (!fieldId) continue;
+    const fieldRow = isObj(byFieldIn[fieldIdRaw]) ? byFieldIn[fieldIdRaw] : {};
+    byFieldOut[fieldId] = {
+      visibilityDefault: normalizeVisibility(fieldRow.visibilityDefault, "default"),
+    };
+  }
+  tags.byField = byFieldOut;
+
+  const byTagIn = isObj(tags.byTag) ? tags.byTag : {};
+  const byTagOut = {};
+  for (const fieldIdRaw of Object.keys(byTagIn)) {
+    const fieldId = String(fieldIdRaw || "").trim();
+    if (!fieldId) continue;
+    const fieldMap = isObj(byTagIn[fieldIdRaw]) ? byTagIn[fieldIdRaw] : {};
+    const outFieldMap = {};
+    for (const rawToken of Object.keys(fieldMap)) {
+      const token = normalizeTagToken(rawToken);
+      if (!token || Object.prototype.hasOwnProperty.call(outFieldMap, token)) continue;
+      outFieldMap[token] = normalizeTagVisualRow(fieldMap[rawToken], "default");
+    }
+    byTagOut[fieldId] = outFieldMap;
+  }
+  tags.byTag = byTagOut;
+
+  const userTagsIn = isObj(tags.userTags) ? tags.userTags : {};
+  const userTagsOut = {};
+  for (const rawToken of Object.keys(userTagsIn)) {
+    const token = normalizeTagToken(rawToken);
+    if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
+    /*
+     * Надгробие. Единственный шов записи у панели -- setConfigPatch, а он
+     * идёт через deepMerge, который ключ карты убрать не умеет: на месте
+     * удалённого остаётся null. Раньше null превращался здесь в строку с
+     * цветами темы, и удалённый тег возвращался в список на первой же
+     * перерисовке -- то есть удаление своего тега не работало вовсе.
+     */
+    if (userTagsIn[rawToken] === null) continue;
+    userTagsOut[token] = normalizeTagVisualRow(userTagsIn[rawToken], "default");
+  }
+  tags.userTags = userTagsOut;
+}
+
+/**
+ * Третья ступень: клампы, перечисления и структура на путях версии 2.
+ *
+ * Идёт на **каждом** патче, в том числе на записи из панели. Первая ступень
+ * (`normalizeConfigV1`) в это время молчит: её работа — принять файл, который
+ * лежал на диске в старой форме, и она выполняется один раз за обновление.
+ *
+ * Умолчание, которым здесь заменяется испорченное значение, берётся у
+ * **движка** (`getEngineDefaultsV2`), а не у схемы. Иначе третья ступень тихо
+ * решила бы девятнадцать расхождений В-7 в пользу прототипа.
+ */
+function normalizeConfigV2(cfg) {
+  if (!isObj(cfg)) return cfg;
+  const defaults = getEngineDefaultsV2();
+  const def = (path) => cloneJson(readCfgPath(defaults, path));
+
+  const bool = (path) => {
+    if (typeof readCfgPath(cfg, path) !== "boolean") writeCfgPath(cfg, path, def(path));
+  };
+  const oneOf = (path, values) => {
+    const value = String(readCfgPath(cfg, path) ?? "").trim();
+    if (!values.includes(value)) writeCfgPath(cfg, path, def(path));
+    else writeCfgPath(cfg, path, value);
+  };
+  const int = (path, min, max) => {
+    const n = Math.trunc(Number(readCfgPath(cfg, path)));
+    if (!Number.isFinite(n)) {
+      writeCfgPath(cfg, path, def(path));
+      return;
+    }
+    writeCfgPath(cfg, path, Math.max(min, Math.min(max, n)));
+  };
+  const text = (path) => {
+    const value = String(readCfgPath(cfg, path) ?? "").trim();
+    writeCfgPath(cfg, path, value || def(path));
+  };
+  const hex = (path) => {
+    writeCfgPath(cfg, path, normalizeHexColorInput(readCfgPath(cfg, path)));
+  };
+  const list = (path) => {
+    if (!Array.isArray(readCfgPath(cfg, path))) writeCfgPath(cfg, path, def(path) || []);
+  };
+  const map = (path) => {
+    if (!isObj(readCfgPath(cfg, path))) writeCfgPath(cfg, path, {});
+  };
+
+  /* --- модули ---------------------------------------------------------- */
+  for (const feature of FEATURE_ORDER) bool("features." + feature + ".enabled");
+
+  /* --- Fields: Order, определения, элементы ---------------------------- */
+  map("pkm.fields");
+  ensureBehaviorModesFromOrder(cfg);
+  map("pkm.fields.taxonomy");
+  map("pkm.fields.checkboxByValue");
+  map("pkm.fields.projects");
+  oneOf("pkm.fields.defaultBlock", ["left", "right"]);
+
+  /* --- Prefix: формы чекбоксов и списки приоритета ---------------------- */
+  cfg = getConfigMigrationModule().normalizePkmBehaviorShape(cfg, { cloneJson, isObj });
+  oneOf("pkm.prefixPriority.decideBy", ["by-section", "by-checkbox-list"]);
+  oneOf("pkm.prefixPriority.fieldOrderSource", ["manual", "auto"]);
+  oneOf("pkm.prefixPriority.parentOrChild", ["subtag-over-tag", "tag-over-subtag"]);
+
+  /* --- как Field встаёт в строку --------------------------------------- */
+  oneOf("pkm.behavior.childTagFormat", ["separate", "combined"]);
+  writeCfgPath(cfg, "pkm.behavior.cycleEndBehavior",
+    normalizeCycleEndBehaviorLegacy(readCfgPath(cfg, "pkm.behavior.cycleEndBehavior")));
+  oneOf("pkm.behavior.cursorPolicy", ["text_end", "current_position", "line_end"]);
+  bool("pkm.placement.keepPrefixInsertOnly");
+  bool("pkm.placement.fieldPrefixInsertOnly");
+  bool("pkm.placement.bulletInStrict");
+  oneOf("pkm.placement.freeInsertPosition", ["smart", "left", "right"]);
+  text("pkm.lineFormat.separator1");
+  text("pkm.lineFormat.separator2");
+
+  /* --- заметки PKM ------------------------------------------------------ */
+  text("advanced.generatedRulesPath");
+
+  /* --- навигация -------------------------------------------------------- */
+  oneOf("navigation.moveLine.noSelectionMode", ["line-only", "with-children"]);
+  oneOf("navigation.moveLine.headerMode", ["move-as-line", "move-with-section"]);
+  bool("navigation.moveLine.crossSectionAllowed");
+  bool("navigation.moveLine.highlightMovedLines");
+  /* Прокрутка при перемещении строки (10.13.36). До этого её не было вовсе:
+     свой код до платформы не доезжал, и прыжок решала она. */
+  bool("navigation.moveLine.keepInView");
+  oneOf("navigation.moveLine.viewPosition", ["center", "top", "bottom"]);
+  bool("navigation.moveSelection.inlineEnabled");
+  bool("navigation.moveSelection.prefixCyclerEnabled");
+  bool("navigation.moveSelection.indentFallbackEnabled");
+  oneOf("navigation.moveSelection.onCycleEnd", ["indent", "wrap"]);
+  oneOf("navigation.moveSelection.inlineMoveMode", ["auto", "char", "word", "disabled"]);
+  bool("navigation.moveSelection.inlineBoundaryJump");
+  writeCfgPath(cfg, "navigation.moveSelection.enabled",
+    readCfgPath(cfg, "navigation.moveSelection.inlineEnabled") === true);
+  list("navigation.moveSelection.cycleOrder");
+  oneOf("navigation.jumpToHeader.jumpMode", ["edge", "line"]);
+  oneOf("navigation.jumpToHeader.edgeMode", ["start-end", "start", "end"]);
+  oneOf("navigation.jumpToHeader.jumpCursorPosition", ["start", "end", "section-end"]);
+  bool("navigation.jumpToHeader.centerCursor");
+  /* Место на экране после перехода по заголовкам (10.13.37): те же три
+     положения, что у перемещения строки. */
+  oneOf("navigation.jumpToHeader.viewPosition", ["center", "top", "bottom"]);
+  int("navigation.jumpToHeader.centerDelayMs", 0, 2000);
+  int("navigation.jumpToHeader.centerThrottleMs", 0, 5000);
+  oneOf("navigation.navigateInline.stepMode", ["word", "sentence", "begin-end"]);
+  bool("navigation.navigateInline.boundaryJump");
+  oneOf("navigation.navigateInline.onBoundary", ["stay", "wrap", "next-line"]);
+
+  /* --- «выделить всё» и Binder ------------------------------------------ */
+  bool("editor.selectAll.enabled");
+  oneOf("editor.selectAll.mode", ["line-note", "line-tree-note", "line-tree-header-note"]);
+  bool("editor.selectAll.useDelay");
+  int("editor.selectAll.delayMs", 250, 2000);
+  bool("editor.selectAll.clearOnLast");
+  /* Smart Delete (10.13.32). Клавиша Obsidian, поэтому умолчание выключено. */
+  bool("editor.smartDelete.enabled");
+  bool("editor.smartDelete.dropPrefix");
+  bool("editor.smartDelete.onBackspace");
+  bool("editor.smartDelete.joinWithSpace");
+  writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows")));
+
+  /* --- вид тегов -------------------------------------------------------- */
+  int("visual.tags.opacityLeft", 0, 100);
+  int("visual.tags.opacityRight", 0, 100);
+  int("visual.tags.textSizePct", 80, 140);
+  int("visual.tags.bubbleWidthPct", 80, 140);
+  int("visual.tags.bubbleHeightPct", 80, 140);
+  int("visual.tags.emptyBubblePct", 50, 180);
+  int("visual.tags.cornersPct", 0, 100);
+  normalizeTagVisualMapsV2(cfg);
+
+  /* --- каретка: цвет, толщина, мерцание (10.13.33) ---------------------- */
+  bool("visual.caret.enabled");
+  /* Пусто = взять у темы, и `hex` возвращает пустую строку для чего угодно,
+     что не похоже на цвет (то же правило, что у цветов TagWheel). */
+  hex("visual.caret.color");
+  /* Форма — своя половина группы, со своим тумблером (Ц6). */
+  bool("visual.caret.shapeEnabled");
+  int("visual.caret.width", 1, 8);
+  /* Ноль — законное значение и значит «не мигает вовсе», поэтому нижняя
+     граница здесь 0, а не 1 (Ц7). */
+  int("visual.caret.blinkSpeed", 0, 10);
+
+  /* --- Tag Bars: форму задаёт сам движок полосы -------------------------- */
+  writeCfgPath(cfg, "visual.tagBars", __priorityStripEngine.normalizeStripConfig(
+    isObj(readCfgPath(cfg, "visual.tagBars")) ? readCfgPath(cfg, "visual.tagBars") : {}));
+
+  /* --- TagWheel ---------------------------------------------------------- */
+  hex("visual.tagWheel.textColor");
+  hex("visual.tagWheel.fillColor");
+  bool("visual.tagWheel.showMarkers");
+  bool("visual.tagWheel.highlightLine");
+  bool("visual.tagWheel.scroller.enabled");
+  oneOf("visual.tagWheel.scroller.direction", ["up", "down", "full"]);
+  int("visual.tagWheel.scroller.size", 1, 20);
+  /* Цвета скроллера (10.13.15). Пустое значение — «взять у темы», и `hex`
+     оставляет его пустым: второго смысла у пустоты в панели быть не должно. */
+  hex("visual.tagWheel.scroller.fillColor");
+  hex("visual.tagWheel.scroller.textColor");
+  /* Что делает стрелка на краю Block (10.13.35). Умолчание прежнее
+     поведение: менять его всем без спроса нельзя. */
+  oneOf("visual.tagWheel.edgeMode", ["stay", "next-block"]);
+  /* Цвет активного Field: он на строке, а не в коробке скроллера (10.13.15). */
+  hex("visual.tagWheel.activeTextColor");
+
+  /* --- режим разработчика ------------------------------------------------ */
+  bool("advanced.devMode.enabled");
+  bool("advanced.devMode.aiLog");
+  bool("advanced.devMode.traceTagVisualLine");
+  text("advanced.devMode.logPath");
+
+
+  /*
+   * Ветка Transform: клампы, перечисления и снятие решёток с текстбоксов.
+   *
+   * Этот вызов стоял **только** в первой ступени, то есть работал ровно для
+   * файла версии ниже второй. Для файла версии 2 и для любого патча из панели
+   * ветка Transform не нормализовалась вовсе — а третья ступень обязана идти
+   * на каждом патче (У-13). Видно это стало на решётках: решение 1.6.4.1 от
+   * 2026-08-31 убирает `#` из `Text of the line above` в пользу
+   * `Line above is header`, снятие написано в `normalizeInline2Note`, а в
+   * конфиге заказчика по-прежнему лежало `### Inline transformed`
+   * (замечание B16, 2026-09-02).
+   */
+  cfg = getTransformFeature().normalizeTransformConfig(cfg);
+
+  cfg.schemaVersion = getConfigMigrationV2Module().SCHEMA_VERSION_V2;
   return cfg;
 }
 
@@ -2690,18 +2717,124 @@ function normalizeConfigV1(raw) {
  * 2. миграция `1 → 2` — перенос по карте `ROUTES` плюс досыпка умолчаний.
  * 3. `normalizeConfigV2` — клампы, перечисления и структура на путях версии 2.
  *
- * Пока подключены только первая ступень и разделение: вторая и третья
- * приезжают вместе с переводом чтений в движках (пункт 4 фазы 2). Разделять их
- * нельзя — миграция, включённая раньше движков, оставит конфиг переехавшим
- * наполовину, и это сломает и панель, и рантайм.
+ * **Почему первая ступень идёт до второй, а не после.** Умолчания движка
+ * ставит первая ступень; досыпка умолчаний внутри миграции берёт значения из
+ * схемы и заполняет только отсутствующее. Пока порядок такой, девятнадцать
+ * расхождений схемы и движка (В-7) остаются продуктовым вопросом заказчика.
+ * Переставь ступени местами — и на свежей установке победит прототип: Transform
+ * включится из коробки, папка шаблонов станет `Templates`, созданная заметка
+ * начнёт открываться сама. То есть продуктовое решение примет порядок вызовов.
+ * Закреплено проверкой `tests/regression/migrate_stage_order_tests.ts`.
  */
 function migrateConfig(raw) {
-  return normalizeConfigV1(raw);
+  const source = isObj(raw) ? raw : {};
+  const version = Number(source.schemaVersion) || 0;
+  const accepted = version >= getConfigMigrationV2Module().SCHEMA_VERSION_V2
+    ? source
+    : normalizeConfigV1(source);
+  return normalizeConfigV2(getConfigMigrationV2Module().migrate(accepted));
+}
+
+/**
+ * Все определения Fields подряд: сперва теги (`pkm.fields.tags`), затем ссылки
+ * и элементы (`pkm.fields.links`).
+ *
+ * Имена веток названы по **типу** Field, а не по стороне панели (ответ В9):
+ * ловушка `leftMode` / `rightMode` стоила проекту трёх правок подряд.
+ */
+function collectPkmFieldDefinitions(cfg) {
+  const fields = isObj(readCfgPath(cfg, "pkm.fields")) ? readCfgPath(cfg, "pkm.fields") : {};
+  return []
+    .concat(Array.isArray(fields.tags && fields.tags.fields) ? fields.tags.fields : [])
+    .concat(Array.isArray(fields.links && fields.links.fields) ? fields.links.fields : []);
+}
+
+/**
+ * Все команды плагина одним списком — для справочника 10.5.
+ *
+ * Собирается из **того же реестра**, которым команды регистрируются. Выписать
+ * список во второй раз значило бы завести таблицу, которая разойдётся с набором
+ * команд на первом же новом Field — и разойдётся молча, в том самом месте, куда
+ * человек приходит узнать правду. Своей копии этих правил не должно быть и в
+ * проверке: она зовёт эту же функцию.
+ *
+ * `area` — область справочника, `family` — признак «команда одна из многих
+ * одинаковых»: у Field пара команд, у строки Binder своя, у модуля тумблер. По
+ * ним справочник разворачивает шаблонные строки прототипа в настоящие.
+ *
+ * Отказ реестра — пустой список, а не исключение: справочник покажет пустую
+ * таблицу, панель не упадёт.
+ */
+function buildOwnCommandList(plugin) {
+  const registry = getCommandRegistry();
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : {};
+  const out = [];
+  const push = (defs, area, family) => {
+    for (const d of Array.isArray(defs) ? defs : []) {
+      const id = String(d && d.id ? d.id : "").trim();
+      if (!id) continue;
+      /*
+       * `group` и `sub` нужны справочнику: команды одного Field обязаны
+       * стоять рядом, а дочерние — сразу за родительскими (замечание
+       * заказчика 1.2.3.4.3). Заполняются только там, где у определения есть
+       * `strictName`, то есть у пары команд Field.
+       */
+      /*
+       * Подпись дочернего Field в имени команды — через ДЕФИС (`type-sub`):
+       * её ставит `commandStrictForKey` в реестре, а ключ Order при этом
+       * оканчивается на `_sub`. Первая версия этой строки резала `_sub`, и
+       * дочерние команды уезжали в конец списка отдельными семьями.
+       */
+      const strict = String(d && d.strictName ? d.strictName : "").trim();
+      const isSub = /[-_]sub$/.test(strict);
+      out.push({
+        id,
+        name: String(d && d.name ? d.name : id),
+        area,
+        family: typeof family === "function" ? family(d) : (family || ""),
+        group: strict ? strict.replace(/[-_]sub$/, "") : "",
+        sub: isSub,
+        /* Подзаголовок справочника: подпись Field и его тип (2026-08-31). */
+        groupLabel: String(d && d.groupLabel ? d.groupLabel : ""),
+        kind: String(d && d.kind ? d.kind : ""),
+      });
+    }
+  };
+
+  try {
+    push(registry.buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath), "Navigation", "");
+    push(
+      registry.buildPkmCommandDefs(
+        getActiveTagWheelRulesPath,
+        serializePkmOrderForMacro,
+        serializeDateRuntimeConfigForMacro,
+        normalizePkmOrder,
+        cfg,
+        FEATURE_ORDER
+      ),
+      "Tags & PKM",
+      (d) => {
+        /* Команды TagWheel — не семья: их всегда ровно две, и в прототипе они
+           названы поимённо. */
+        if (!String(d && d.strictName ? d.strictName : "").trim()) return "";
+        return d.direction === "decrease" ? "field-previous" : "field-next";
+      }
+    );
+    push([{ id: "transform-inline-to-note", name: __commandIds.commandName("transform-inline-to-note") }],
+      "Transform", "");
+    push(registry.buildBinderCommandDefs(cfg), "Binder",
+      (d) => (String(d && d.id ? d.id : "") === BINDER_SMART_BRACKET_COMMAND_ID ? "" : "binder-row"));
+    push(registry.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META), "General",
+      (d) => (/^toggle-feature-/.test(String(d && d.id ? d.id : "")) ? "module-toggle" : ""));
+  } catch (e) {
+    reportLoaderFallback("main.buildOwnCommandList", e);
+    return [];
+  }
+  return out;
 }
 
 function getActiveTagWheelRulesPath(cfg) {
-  const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
-  const generated = String(pkm.generatedRulesPath || "").trim();
+  const generated = String(readCfgPath(cfg, "advanced.generatedRulesPath") || "").trim();
   if (generated) return generated;
   return String(DEFAULT_CONFIG.pkm.generatedRulesPath);
 }
@@ -2713,30 +2846,28 @@ function normalizeHexColorInput(value) {
 }
 
 function getTagwheelHeaderColorsFromConfig(cfg) {
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-  const colors = isObj(behavior.colors) ? behavior.colors : {};
-  const header = isObj(colors.tagwheelHeader) ? colors.tagwheelHeader : {};
+  const wheel = isObj(readCfgPath(cfg, "visual.tagWheel")) ? readCfgPath(cfg, "visual.tagWheel") : {};
   return {
-    defaultTextColor: normalizeHexColorInput(header.defaultTextColor),
-    fillColor: normalizeHexColorInput(header.fillColor),
-    showPrefix: header.showPrefix !== false,
+    defaultTextColor: normalizeHexColorInput(wheel.textColor),
+    /* Цвет активного Field: пусто — он красится как остальные (10.13.15). */
+    activeTextColor: normalizeHexColorInput(wheel.activeTextColor),
+    fillColor: normalizeHexColorInput(wheel.fillColor),
+    showPrefix: wheel.showMarkers !== false,
   };
 }
 
 function buildTagwheelPlaceholderSetFromConfig(cfg) {
   const out = new Set();
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order)
-    ? cfg.pkm.behavior.order
-    : {};
+  const order = isObj(readCfgPath(cfg, "pkm.fields.order")) ? readCfgPath(cfg, "pkm.fields.order") : {};
   const labels = isObj(order.labels) ? order.labels : {};
   for (const key of Object.keys(labels)) {
     const value = String(labels[key] || "").trim();
     if (value) out.add(value);
   }
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+  const fields = isObj(readCfgPath(cfg, "pkm.fields")) ? readCfgPath(cfg, "pkm.fields") : {};
   const modes = [
-    isObj(behavior.leftMode) ? behavior.leftMode : {},
-    isObj(behavior.rightMode) ? behavior.rightMode : {},
+    isObj(fields.tags) ? fields.tags : {},
+    isObj(fields.links) ? fields.links : {},
   ];
   for (const mode of modes) {
     const fields = Array.isArray(mode.fields) ? mode.fields : [];
@@ -2750,43 +2881,62 @@ function buildTagwheelPlaceholderSetFromConfig(cfg) {
   return out;
 }
 
+/**
+ * Вид тегов на путях версии 2 (`visual.tags.*`, `visual.tagBars.*`).
+ *
+ * Имена возвращаемых полей — контракт с виджетами и с проверками, поэтому
+ * остались прежними; поменялось только то, откуда берутся значения.
+ *
+ * **Прозрачность меняет единицы.** В версии 1 это доля `0..1`, в версии 2 —
+ * проценты `0..100` (PRD 8.1в). Наружу отдаётся по-прежнему доля: её кладут
+ * прямо в CSS.
+ */
 function getTagVisualsFromConfig(cfg) {
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-  const visuals = isObj(behavior.tagVisuals) ? behavior.tagVisuals : {};
+  const tags = isObj(readCfgPath(cfg, "visual.tags")) ? readCfgPath(cfg, "visual.tags") : {};
   const ui = isObj(cfg && cfg.ui) ? cfg.ui : {};
-  const opacity = isObj(visuals.opacity) ? visuals.opacity : {};
-  const strip = __priorityStripEngine.normalizeStripConfig(isObj(visuals.strip) ? visuals.strip : {});
-  const clamp01 = (v, f) => {
+  const strip = __priorityStripEngine.normalizeStripConfig(
+    isObj(readCfgPath(cfg, "visual.tagBars")) ? readCfgPath(cfg, "visual.tagBars") : {});
+  const pctToShare = (v, f) => {
     const n = Number(v);
     if (!Number.isFinite(n)) return f;
-    return Math.max(0, Math.min(1, n));
+    return Math.max(0, Math.min(1, n / 100));
   };
   return {
-    opacityLeft: clamp01(opacity.left, 1),
-    opacityRight: clamp01(opacity.right, 1),
-    tagTextSizePct: Number.isFinite(Math.trunc(Number(visuals.tagTextSizePct)))
-      ? Math.max(80, Math.min(140, Math.trunc(Number(visuals.tagTextSizePct))))
+    opacityLeft: pctToShare(tags.opacityLeft, 1),
+    opacityRight: pctToShare(tags.opacityRight, 1),
+    tagTextSizePct: Number.isFinite(Math.trunc(Number(tags.textSizePct)))
+      ? Math.max(80, Math.min(140, Math.trunc(Number(tags.textSizePct))))
       : 100,
-    tagBubbleWidthPct: Number.isFinite(Math.trunc(Number(visuals.tagBubbleWidthPct)))
-      ? Math.max(80, Math.min(140, Math.trunc(Number(visuals.tagBubbleWidthPct))))
+    tagBubbleWidthPct: Number.isFinite(Math.trunc(Number(tags.bubbleWidthPct)))
+      ? Math.max(80, Math.min(140, Math.trunc(Number(tags.bubbleWidthPct))))
       : 100,
-    tagBubbleHeightPct: Number.isFinite(Math.trunc(Number(visuals.tagBubbleHeightPct)))
-      ? Math.max(80, Math.min(140, Math.trunc(Number(visuals.tagBubbleHeightPct))))
+    tagBubbleHeightPct: Number.isFinite(Math.trunc(Number(tags.bubbleHeightPct)))
+      ? Math.max(80, Math.min(140, Math.trunc(Number(tags.bubbleHeightPct))))
       : 100,
-    emptyBubbleSizePct: Number.isFinite(Math.trunc(Number(visuals.emptyBubbleSizePct)))
-      ? Math.max(50, Math.min(180, Math.trunc(Number(visuals.emptyBubbleSizePct))))
+    emptyBubbleSizePct: Number.isFinite(Math.trunc(Number(tags.emptyBubblePct)))
+      ? Math.max(50, Math.min(180, Math.trunc(Number(tags.emptyBubblePct))))
       : 100,
-    tagShapePct: Number.isFinite(Math.trunc(Number(visuals.tagShapePct)))
-      ? Math.max(0, Math.min(100, Math.trunc(Number(visuals.tagShapePct))))
+    tagShapePct: Number.isFinite(Math.trunc(Number(tags.cornersPct)))
+      ? Math.max(0, Math.min(100, Math.trunc(Number(tags.cornersPct))))
       : 0,
-    byTag: isObj(visuals.byTag) ? visuals.byTag : {},
-    userTags: isObj(visuals.userTags) ? visuals.userTags : {},
-    separator1TextColor: normalizeHexColorInput(visuals.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
-    separator2TextColor: normalizeHexColorInput(visuals.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
+    byTag: isObj(tags.byTag) ? tags.byTag : {},
+    userTags: isObj(tags.userTags) ? tags.userTags : {},
+    separator1TextColor: normalizeHexColorInput(tags.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
+    separator2TextColor: normalizeHexColorInput(tags.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
     stripActive: strip.active === true,
     strip,
   };
 }
+
+/**
+ * Ширина пустого пузыря при 100 %.
+ *
+ * То же число стоит в панели: `.io-bubble--empty` в `styles.css` считает
+ * `calc(30px * var(--io-empty-x))`. Два места, одно число — за их сходством
+ * следит `tag_visual_render_tests.ts`, потому что разъехавшиеся формулы уже
+ * стоили заказчику настройки, которая «ни на что не влияет» (И-2.3).
+ */
+const TAG_EMPTY_BUBBLE_BASE_PX = 30;
 
 function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, shapePct) {
   const textSize = Number.isFinite(Math.trunc(Number(textSizePct))) ? Math.max(80, Math.min(140, Math.trunc(Number(textSizePct)))) : 100;
@@ -2825,12 +2975,9 @@ function formatFieldTokenForVisual(field, rawToken) {
 
 function buildFieldTagVisualMap(cfg) {
   const out = {};
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
   const visuals = getTagVisualsFromConfig(cfg);
   const byTag = visuals.byTag;
-  const fields = []
-    .concat(Array.isArray(behavior.leftMode?.fields) ? behavior.leftMode.fields : [])
-    .concat(Array.isArray(behavior.rightMode?.fields) ? behavior.rightMode.fields : []);
+  const fields = collectPkmFieldDefinitions(cfg);
   for (const field of fields) {
     const fieldId = String(field && field.id || "").trim();
     if (!fieldId) continue;
@@ -2966,10 +3113,7 @@ function buildTagTokenSetForField(cfg, selectedFieldId) {
     if (!tok || tok.charAt(0) !== "#") return;
     out.add(tok);
   };
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-  const fields = []
-    .concat(Array.isArray(behavior.leftMode?.fields) ? behavior.leftMode.fields : [])
-    .concat(Array.isArray(behavior.rightMode?.fields) ? behavior.rightMode.fields : []);
+  const fields = collectPkmFieldDefinitions(cfg);
   for (const field of fields) {
     const id = String(field && field.id || "").trim();
     if (id !== fid && id !== `${fid}_sub`) continue;
@@ -2981,8 +3125,7 @@ function buildTagTokenSetForField(cfg, selectedFieldId) {
       pushStrict(token);
     }
   }
-  const visuals = isObj(behavior.tagVisuals) ? behavior.tagVisuals : {};
-  const byTag = isObj(visuals.byTag) ? visuals.byTag : {};
+  const byTag = isObj(readCfgPath(cfg, "visual.tags.byTag")) ? readCfgPath(cfg, "visual.tags.byTag") : {};
   const fieldMaps = [];
   if (isObj(byTag[fid])) fieldMaps.push(byTag[fid]);
   if (isObj(byTag[`${fid}_sub`])) fieldMaps.push(byTag[`${fid}_sub`]);
@@ -3102,8 +3245,21 @@ class TagVisualTokenWidget extends cmView.WidgetType {
     el.style.fontSize = `${st.fontSizePx}px`;
     el.style.lineHeight = String(st.lineHeight);
     if (this.emptyMode) {
-      el.style.width = `${Math.max(6, Math.round(st.horizontalPaddingPx * 2 * emptyScale))}px`;
+      /*
+       * Ширина пустого пузыря считается так же, как в панели:
+       * `.io-bubble--empty { width: calc(30px * var(--io-empty-x)) }`
+       * (`styles.css`), горизонтальные поля при этом снимаются.
+       *
+       * Раньше здесь стояла своя формула — от горизонтального поля пузыря, —
+       * и вся шкала настройки 50…180 % умещалась в заметке в 6…18 px, причём
+       * нижняя треть упиралась в предел и не двигалась вовсе. Настройка
+       * работала, но увидеть её было нельзя (замечание И-2.3). Панель по Р8
+       * нормативна, поэтому равняется заметка.
+       */
+      el.style.width = `${Math.round(TAG_EMPTY_BUBBLE_BASE_PX * emptyScale)}px`;
       el.style.minWidth = el.style.width;
+      el.style.paddingLeft = "0px";
+      el.style.paddingRight = "0px";
       el.style.lineHeight = "1";
     }
     if (this.fillColor) el.style.backgroundColor = this.fillColor;
@@ -3183,9 +3339,163 @@ class LineLaneWidget extends cmView.WidgetType {
   }
 }
 
+/**
+ * Метки элементов, какие завёл человек: `📅`, `⏰` и прочие.
+ *
+ * Берутся из конфига, а не из списка литералов: элемент — это Field, и его
+ * метку человек меняет в панели.
+ */
+/**
+ * Хвост токена эмодзи-элемента, выведенный из ФОРМАТА поля.
+ *
+ * Зачем не «всё до пробела». Сканер искал элемент именно так, и формат из
+ * нескольких слов обрывался на первом же: у `📅YYYY-MM-DD hh:mm` оформлялась
+ * только дата, а `hh:mm` оставалось без прозрачности блока и без размера
+ * текста (замечание заказчика C35, 2026-09-02).
+ *
+ * Формат разбирается буквами: подряд идущие буквы образца (`YYYY`, `MM`, `hh`)
+ * становятся столькими же цифрами, пробел — пробелом, остальное — собой. Так
+ * хвост знает свою длину и не съедает следующий токен: жадное «до пробела»
+ * съело бы и `#work`, если бы тот стоял без пробела.
+ */
+function elementTailPatternFromFormat(format) {
+  const src = String(format || "").trim();
+  if (!src) return "";
+  let out = "";
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (/[A-Za-z]/.test(ch)) {
+      let n = 0;
+      while (i < src.length && /[A-Za-z]/.test(src[i])) { i += 1; n += 1; }
+      out += "\\d{" + n + "}";
+      continue;
+    }
+    if (ch === " ") { out += "[ ]"; i += 1; continue; }
+    out += escapeRegExp(ch);
+    i += 1;
+  }
+  return out;
+}
+
+/**
+ * Эмодзи-элементы: метка и то, чем записан её хвост.
+ *
+ * Отдаются пары, а не одни метки: без формата длину хвоста посчитать нечем, а
+ * формат живёт у поля.
+ */
+function buildElementMarkersFromConfig(cfg) {
+  const byField = isObj(readCfgPath(cfg, "pkm.fields.elements.byField"))
+    ? readCfgPath(cfg, "pkm.fields.elements.byField")
+    : {};
+  const out = [];
+  const seen = new Set();
+  for (const key of Object.keys(byField)) {
+    const row = isObj(byField[key]) ? byField[key] : {};
+    const marker = String(row.emoji || "").trim();
+    if (!marker || seen.has(marker)) continue;
+    seen.add(marker);
+    out.push({ marker, tail: elementTailPatternFromFormat(row.format) });
+  }
+  /* Длинные метки первыми: короткая не должна откусывать начало длинной. */
+  out.sort((a, b) => b.marker.length - a.marker.length);
+  return out;
+}
+
+/**
+ * Всё, что плагин сам поставил в строку: теги, ссылки и элементы.
+ *
+ * До этого сканер искал только `#\S+`, и настройки блока — прозрачность и
+ * размер текста — доставались одним тегам: эмодзи-элемент `📅2026-09-01` и
+ * ссылка `[[Note]]` в разбор не попадали вовсе (замечание И-2.2).
+ *
+ * Пересечения снимаются: `#` внутри ссылки (`[[#heading]]`) — часть ссылки, а
+ * не отдельный тег. Побеждает тот, кто начался раньше, а при равном начале —
+ * тот, кто длиннее.
+ */
+function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
+  const src = String(text || "");
+  const found = [];
+  const pushAll = (rx, kind) => {
+    let m;
+    while ((m = rx.exec(src)) !== null) {
+      const raw = String(m[0] || "");
+      const token = raw.trim();
+      if (!token) continue;
+      found.push({ token, kind, index: m.index, end: m.index + token.length });
+    }
+  };
+  pushAll(/\[\[[^\][\n]+\]\]/g, "link");
+  const markers = Array.isArray(elementMarkers) ? elementMarkers : [];
+  for (const entry of markers) {
+    /* Метка бывает и строкой: так её отдавала прежняя форма списка. */
+    const marker = typeof entry === "string" ? entry : String(entry && entry.marker || "");
+    const tail = typeof entry === "string" ? "" : String(entry && entry.tail || "");
+    if (!marker) continue;
+    /*
+     * Хвост берётся из формата поля, а не «всё до пробела»: формат из
+     * нескольких слов иначе обрывается на первом (C35). Формата нет —
+     * остаётся прежнее правило: гадать о длине честнее, чем выдумать её.
+     */
+    pushAll(new RegExp(escapeRegExp(marker) + (tail || "\\S+"), "g"), "element");
+  }
+  pushAll(/#\S+/g, "tag");
+
+  found.sort((a, b) => {
+    if (a.index !== b.index) return a.index - b.index;
+    return (b.end - b.index) - (a.end - a.index);
+  });
+
+  const out = [];
+  let claimedTo = -1;
+  for (const entry of found) {
+    if (entry.index < claimedTo) continue;
+    out.push({
+      token: entry.token,
+      kind: entry.kind,
+      index: entry.index,
+      end: entry.end,
+      zone: resolveTagVisualZone(src, entry.index, sep1, sep2),
+    });
+    claimedTo = entry.end;
+  }
+  return out;
+}
+
+/**
+ * Прозрачность блока и размер текста для токена, у которого нет своего цвета.
+ *
+ * Токен со своим цветом получает и то и другое через пузырь
+ * (`TagVisualTokenWidget`); всем остальным нужна декорация **стилем**, а не
+ * подменой: заменить `[[Note]]` своим узлом значит забрать у ссылки клик.
+ *
+ * Текст между разделителями не трогается — это ваш текст, а не запись
+ * плагина (решение заказчика 2026-09-01).
+ */
+function buildBlockStyleCss(entry, visuals) {
+  const zone = String(entry && entry.zone || "");
+  if (zone !== "left" && zone !== "right") return "";
+  const opacity = Number(entry && entry.zoneOpacity);
+  const sizePct = Number(visuals && visuals.tagTextSizePct);
+  const parts = [];
+  if (Number.isFinite(opacity) && opacity < 1) parts.push("opacity: " + opacity + ";");
+  if (Number.isFinite(sizePct) && sizePct !== 100) {
+    /* Размер берётся той же функцией, что и у пузыря: иначе текст в блоке
+       разъедется с текстом в пузыре при одной и той же настройке. */
+    parts.push("font-size: " + computeTagVisualStyle(sizePct, 100, 100, 0).fontSizePx + "px;");
+  }
+  return parts.join(" ");
+}
+
+function buildBlockStyleDecoration(entry, visuals) {
+  const style = buildBlockStyleCss(entry, visuals);
+  if (!style) return null;
+  return cmView.Decoration.mark({ attributes: { style } });
+}
+
 function buildTagVisualDecorations(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
-  const debugLine = !!(cfg && cfg.devMode && cfg.devMode.enabled && cfg.devMode.traceTagVisualLine === true);
+  const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
   const traceTxId = plugin && typeof plugin.getLineTraceTxId === "function"
     ? String(plugin.getLineTraceTxId() || "")
     : "";
@@ -3193,7 +3503,7 @@ function buildTagVisualDecorations(view, plugin) {
   const userTags = visuals.userTags;
   const fieldMap = buildFieldTagVisualMap(cfg);
   const globalMap = buildGlobalTagVisualMap(cfg);
-  const io = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io) ? cfg.pkm.behavior.io : {};
+  const io = isObj(readCfgPath(cfg, "pkm.lineFormat")) ? readCfgPath(cfg, "pkm.lineFormat") : {};
   const sep1 = String(io.separator1 || "").trim();
   const sep2 = String(io.separator2 || "").trim();
   const sep1Color = normalizeHexColorInput(visuals.separator1TextColor);
@@ -3203,14 +3513,15 @@ function buildTagVisualDecorations(view, plugin) {
   const stripFieldId = String(stripCfg.fieldId || "").trim();
   const stripFieldTokenSet = visuals.stripActive ? buildTagTokenSetForField(cfg, stripFieldId) : new Set();
   const stripFieldTokenSetNorm = new Set(Array.from(stripFieldTokenSet).map((t) => normalizeVisualTokenKey(t)).filter(Boolean));
-  const cfgStrip = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagVisuals && cfg.pkm.behavior.tagVisuals.strip)
-    ? cfg.pkm.behavior.tagVisuals.strip
-    : {};
+  const cfgStrip = isObj(readCfgPath(cfg, "visual.tagBars")) ? readCfgPath(cfg, "visual.tagBars") : {};
   const rawStripTagVisibility = cfgStrip.tagVisibility;
   const hideStripFieldTags = !!stripFieldId && (
     stripCfg.tagVisibility === false || rawStripTagVisibility === false
   );
   const suppressedRanges = [];
+  const elementMarkers = buildElementMarkersFromConfig(cfg);
+  /* Цвета TagWheel нужны здесь ровно затем, чтобы узнать его отрезок (B2). */
+  const tagwheelColors = getTagwheelHeaderColorsFromConfig(cfg);
 
   const readRowForToken = (token) => readTagVisualRowByTokenMaps(token, fieldMap, userTags, globalMap);
   for (const vr of view.visibleRanges) {
@@ -3219,22 +3530,30 @@ function buildTagVisualDecorations(view, plugin) {
     while (lineNo <= endLineNo) {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
-      const rx = /#\S+/g;
       const scannedTokens = [];
       const hiddenTokens = [];
       const tokenEntries = [];
-      let m;
-      while ((m = rx.exec(text)) !== null) {
-        const token = String(m[0] || "").trim();
+      /*
+       * Отрезок, который забирает себе слой TagWheel: там мы не рисуем ничего.
+       *
+       * Два слоя претендовали на одни и те же символы: этот прятал токены
+       * своими заменами нулевой ширины, а слой TagWheel заменял весь отрезок
+       * `==…==` одним виджетом. Токены оказывались спрятаны, а виджет их не
+       * рисовал — «fields невидимы и не занимают места» (B2, 2026-09-02).
+       * Правило про отрезок объявлено один раз, в `tagwheelPanelSpanInLine`.
+       */
+      const wheelSpan = tagwheelPanelSpanInLine(text, tagwheelColors);
+      for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers)) {
+        const token = hit.token;
+        if (wheelSpan && hit.index >= wheelSpan.start && hit.index < wheelSpan.end) continue;
         scannedTokens.push(token);
-        const zone = resolveTagVisualZone(text, m.index, sep1, sep2);
-        const from = line.from + m.index;
+        const from = line.from + hit.index;
         const to = from + token.length;
         const tokenNorm = normalizeVisualTokenKey(token);
         const inStripField = stripFieldTokenSet.has(token) || (tokenNorm && stripFieldTokenSetNorm.has(tokenNorm));
         const row = readRowForToken(token);
-        const zoneOpacity = zone === "left" ? visuals.opacityLeft : (zone === "right" ? visuals.opacityRight : 1);
-        tokenEntries.push({ token, from, to, zone, inStripField, row, zoneOpacity, index: m.index });
+        const zoneOpacity = hit.zone === "left" ? visuals.opacityLeft : (hit.zone === "right" ? visuals.opacityRight : 1);
+        tokenEntries.push({ token, kind: hit.kind, from, to, zone: hit.zone, inStripField, row, zoneOpacity, index: hit.index });
       }
 
       if (sep1 && sep1Color) {
@@ -3338,7 +3657,6 @@ function buildTagVisualDecorations(view, plugin) {
           continue;
         }
         const row = entry.row;
-        if (!row) continue;
         let suppressed = false;
         for (let si = 0; si < suppressedRanges.length; si++) {
           const sr = suppressedRanges[si] || {};
@@ -3348,10 +3666,20 @@ function buildTagVisualDecorations(view, plugin) {
           }
         }
         if (suppressed) continue;
-        const hasVisualOverride = !!normalizeHexColorInput(row.fillColor)
+        const hasVisualOverride = !!row && (!!normalizeHexColorInput(row.fillColor)
           || !!normalizeHexColorInput(row.textColor)
-          || resolveEffectiveTagVisualMode(row) !== "default";
-        if (!hasVisualOverride) continue;
+          || resolveEffectiveTagVisualMode(row) !== "default");
+        /*
+         * Свой цвет — свой пузырь; всем остальным токенам блока достаётся
+         * прозрачность и размер стилем, без подмены узла (И-2.2). Ссылка,
+         * элемент и тег без цвета до этого не получали ничего.
+         */
+        if (!hasVisualOverride) {
+          if (to <= from) continue;
+          const styleDeco = buildBlockStyleDecoration(entry, visuals);
+          if (styleDeco) ranges.push({ from, to, deco: styleDeco });
+          continue;
+        }
         if (to <= from) continue;
         const effectiveMode = resolveEffectiveTagVisualMode(row);
         if (debugLine && token === "#/1" && plugin && typeof plugin.devLogEvent === "function") {
@@ -3416,14 +3744,14 @@ function buildTagVisualDecorations(view, plugin) {
 
 function buildStripDecorations(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
-  const debugLine = !!(cfg && cfg.devMode && cfg.devMode.enabled && cfg.devMode.traceTagVisualLine === true);
+  const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
   const traceTxId = plugin && typeof plugin.getLineTraceTxId === "function"
     ? String(plugin.getLineTraceTxId() || "")
     : "";
   const visuals = getTagVisualsFromConfig(cfg);
   if (!visuals.stripActive) return cmView.Decoration.none;
 
-  const io = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io) ? cfg.pkm.behavior.io : {};
+  const io = isObj(readCfgPath(cfg, "pkm.lineFormat")) ? readCfgPath(cfg, "pkm.lineFormat") : {};
   const sep1 = String(io.separator1 || "").trim();
   const sep2 = String(io.separator2 || "").trim();
   const stripCfg = visuals.strip || __priorityStripEngine.normalizeStripConfig({});
@@ -3483,6 +3811,7 @@ function buildStripDecorations(view, plugin) {
     isHardBoundary: (text) => isHardLineBlockBoundary(text),
     mode: stripCfg.mode,
     stripesToShow: stripCfg.stripesToShow,
+    drawWholeTree: stripCfg.drawWholeTree,
   });
   const stripRanges = __priorityStripCm6Adapter.buildStripDecorationRanges(stripSpecs, view, cmView, stripCfg);
 
@@ -3591,13 +3920,289 @@ function formatTagwheelDisplayToken(token, showPrefix) {
   return t;
 }
 
+/*
+ * Фон панели рисуется пометкой на самом отрезке, поэтому правила для него
+ * здесь больше нет. Осталось одно: токен, у которого спрятана приставка,
+ * должен читаться как обычный текст строки.
+ */
 const TAGWHEEL_FILL_STYLE_CSS = [
-  ".markdown-source-view.mod-cm6 .inline-overhaul-tw-fill-widget {",
-  "  background-color: var(--inline-overhaul-tw-fill) !important;",
-  "  border-radius: 4px;",
-  "  padding: 0 2px;",
+  ".markdown-source-view.mod-cm6 .inline-overhaul-tw-token {",
+  "  font: inherit;",
+  "  color: inherit;",
+  "  background: transparent;",
   "}",
 ].join("\n");
+
+/**
+ * Каретка: цвет, толщина и мерцание (10.13.33).
+ *
+ * **Цвет — три объявления, и это не перестраховка.** Obsidian рисует каретку
+ * сам — `.cm-cursor` с `border-left`, — но при выключенном `drawSelection`
+ * работает родная каретка браузера, а ею командует `caret-color`. Плюс
+ * переменная темы `--caret-color`: её читают собственные правила Obsidian и
+ * часть тем.
+ *
+ * **Толщина — это `border-left-width`, и вместе с ней двигается `margin-left`.**
+ * У Obsidian стоит `borderLeft: 1.2px` и парный `marginLeft: -0.6px`, то есть
+ * половина толщины: он центрирует каретку на границе символа. Поставить одну
+ * толщину и не тронуть сдвиг значит уронить каретку вправо тем сильнее, чем
+ * она толще (прочитано в `app.js` 1.13.7, а не выведено из типов — У-44).
+ *
+ * **И толщина, и мерцание бьют только по нарисованной каретке, а на строке
+ * без выделения её нет.** Замечание заказчика 2026-09-06: «работает только
+ * когда я выделяю текст». Причина прочитана в `app.js` 1.13.7, а не выведена.
+ * В сборке Obsidian лежат **две** копии `drawSelection` CodeMirror, и слой
+ * каретки у них разный:
+ *
+ *   - копия, отданную плагинам (`drawSelection` из `@codemirror/view`), рисует
+ *     `.cm-cursor` и для пустого отрезка;
+ *   - копия, на которой собран сам редактор заметки, спрашивает
+ *     `range.empty ? !isMain : drawRangeCursor` — то есть **главный пустой
+ *     отрезок она не рисует вовсе**. Курсор на строке без выделения — родная
+ *     каретка браузера, а у неё из CSS настраивается только `caret-color`.
+ *
+ * Отсюда и «цвет работает, а толщина нет». Поэтому включённая форма заводит
+ * **свой слой** (`io-editor-caretlayer`, см. `createCaretLayerExtension`) и гасит
+ * родную каретку: `.cm-cursor` остаётся за выделением и за вторыми курсорами,
+ * своя каретка — за строкой без выделения. Оба правила описывают одну вещь и
+ * стоят рядом.
+ *
+ * **Мерцание живёт на слое, а не на самой каретке.** CodeMirror пишет
+ * длительность прямо в `style` узла `.cm-cursorLayer`
+ * (`animationDuration = cursorBlinkRate + "ms"`), а инлайновый стиль правилу
+ * не уступает — отсюда `!important`. «Не мигает» — это снятая анимация, а не
+ * нулевая длительность: ноль в CSS означает «мгновенно», а не «никогда», и
+ * каретка от него замерла бы невидимой.
+ *
+ * Селекторы прибиты к `.markdown-source-view`: каретка в полях самой панели
+ * настроек и в поиске остаётся тем, чем была (Ц4).
+ */
+/*
+ * Имена своего слоя каретки и её метки — **одно объявление на оба места**.
+ * Их называют блок стилей и сам слой, и разойдись они, слой получил бы класс,
+ * которого нет ни в одном правиле: каретки не видно, а обе проверки зелёные
+ * (У-32, У-56). `io-caret` тут занят — так называется каретка предпросмотра в
+ * панели, и её глобальное правило накрыло бы метки слоя своей высотой и своим
+ * мерцанием (У-65).
+ */
+const CARET_LAYER_CLASS = "io-editor-caretlayer";
+const CARET_MARKER_CLASS = "io-editor-caret";
+
+function buildCaretStyleCss(look) {
+  const cfg = isObj(look) ? look : {};
+  const value = String(cfg.color || "").trim();
+  const width = Number(cfg.width);
+  const blinkMs = Number(cfg.blinkMs);
+  const out = [];
+
+  if (value) {
+    out.push(
+      ".markdown-source-view.mod-cm6 {",
+      "  --caret-color: " + value + ";",
+      "}",
+      ".markdown-source-view.mod-cm6 .cm-content {",
+      "  caret-color: " + value + ";",
+      "}"
+    );
+  }
+  if (value || Number.isFinite(width)) {
+    out.push(
+      ".markdown-source-view.mod-cm6 .cm-cursor,",
+      ".markdown-source-view.mod-cm6 .cm-cursor-primary,",
+      ".markdown-source-view.mod-cm6 .cm-dropCursor {"
+    );
+    if (value) out.push("  border-left-color: " + value + ";");
+    if (Number.isFinite(width)) {
+      out.push("  border-left-width: " + width + "px;");
+      out.push("  margin-left: " + (-width / 2) + "px;");
+    }
+    out.push("}");
+  }
+  if (Number.isFinite(blinkMs)) {
+    out.push(".markdown-source-view.mod-cm6 .cm-cursorLayer {");
+    out.push(blinkMs > 0
+      ? "  animation-duration: " + blinkMs + "ms !important;"
+      : "  animation: none !important;");
+    out.push("}");
+  }
+  if (Number.isFinite(width) || Number.isFinite(blinkMs)) {
+    const w = Number.isFinite(width) ? width : 2;
+    out.push(
+      /* Родная каретка гасится ровно тогда, когда её заменяет своя: ширина и
+         мерцание у неё браузерные, и CSS их не задаёт. */
+      ".markdown-source-view.mod-cm6 .cm-content {",
+      "  caret-color: transparent;",
+      "}",
+      ".markdown-source-view.mod-cm6 ." + CARET_LAYER_CLASS + " {",
+      "  pointer-events: none;",
+      "  display: none;",
+      "}",
+      ".markdown-source-view.mod-cm6 ." + CARET_LAYER_CLASS + " ." + CARET_MARKER_CLASS + " {",
+      /* Цвет берётся переменной, а не литералом: за цвет отвечает первая
+         половина группы, и объявлять его тут значило бы объявить одно правило
+         дважды (У-32). Своей переменной нет — берётся тема Obsidian. */
+      "  border-left: " + w + "px solid var(--caret-color);",
+      "  margin-left: " + (-w / 2) + "px;",
+      "  pointer-events: none;",
+      "}",
+      ".markdown-source-view.mod-cm6 .cm-focused > .cm-scroller > ." + CARET_LAYER_CLASS + " {",
+      "  display: block;",
+      Number.isFinite(blinkMs) && blinkMs > 0
+        ? "  animation: steps(1) io-caret-blink " + blinkMs + "ms infinite;"
+        : "  animation: none;",
+      "}"
+    );
+  }
+  return out.join("\n");
+}
+
+/**
+ * Скорость мерцания 1..10 в миллисекунды (Ц7).
+ *
+ * Пятёрка — ровно то, чем Obsidian мерцает сейчас (`cursorBlinkRate` 1200),
+ * поэтому она же умолчание слайдера: включённый тумблер сам по себе мерцание
+ * не меняет, пока человек не подвинул ползунок. Ноль сюда не доходит — он
+ * значит «не мигает вовсе» и решается снятием анимации.
+ */
+function caretBlinkMsFromSpeed(speed) {
+  const s = Number.isFinite(speed) ? Math.max(1, Math.min(10, speed)) : 5;
+  return 2200 - s * 200;
+}
+
+/**
+ * Вид каретки из конфига. Две половины группы независимы: цвет включает
+ * `enabled`, толщину и мерцание — `shapeEnabled` (Ц6). Выключенная половина
+ * не объявляет ничего, и тогда своё берёт тема.
+ */
+function caretLookFromConfig(cfg) {
+  const caret = isObj(readCfgPath(cfg, "visual.caret")) ? readCfgPath(cfg, "visual.caret") : {};
+  const look = { color: "", width: NaN, blinkMs: NaN };
+  if (caret.enabled === true) look.color = normalizeHexColorInput(caret.color);
+  if (caret.shapeEnabled === true) {
+    const width = Number(caret.width);
+    look.width = Number.isFinite(width) ? width : 2;
+    const speed = Number(caret.blinkSpeed);
+    look.blinkMs = Number.isFinite(speed) && speed <= 0 ? 0 : caretBlinkMsFromSpeed(speed);
+  }
+  return look;
+}
+
+/**
+ * Своя каретка на строке без выделения (10.13.33 Ц9).
+ *
+ * **Зачем она вообще нужна** — разбор в комментарии к `buildCaretStyleCss`:
+ * редактор заметки собран на копии `drawSelection`, которая главный **пустой**
+ * отрезок не рисует, и курсор там родной браузерный. Толщину и мерцание у
+ * такого не задать ничем, поэтому включённая форма рисует каретку сама.
+ *
+ * **Слой берётся у платформы, а не изобретается.** `layer` и
+ * `RectangleMarker` есть в `@codemirror/view`, который Obsidian отдаёт
+ * плагинам (проверено по карте экспортов `app.js` 1.13.7). Значит и позиция
+ * каретки считается тем же кодом, что у самого CodeMirror, — со всеми его
+ * поправками на масштаб, направление письма и прокрутку.
+ *
+ * **Рисуется ровно то, чего не рисует Obsidian:** главный отрезок и только
+ * пустой. Непустой отрезок и вторые курсоры — по-прежнему его `.cm-cursor`,
+ * иначе на строке стояло бы две каретки.
+ *
+ * Тумблер читается **на каждой отрисовке**, а не запоминается при загрузке:
+ * иначе включение формы доезжало бы до заметки только после перезапуска.
+ * `update` отвечает `true` в том числе на смену тумблера — без этого слой
+ * не перерисуется, пока человек не тронет курсор.
+ */
+/** Включена ли форма каретки: тот же тумблер, что и у блока стилей (У-32). */
+function caretShapeActive(plugin) {
+  try {
+    return Number.isFinite(caretLookFromConfig(plugin.getConfig()).width);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Стоит ли каретка в конце строки, за которой может стоять виджет.
+ *
+ * **Замечание заказчика 2026-09-06, критичный дефект:** «при heading-jumps и
+ * просто при печати каретка смещена вправо, приклеена к началу
+ * `i2n-floating button`, текст возникает слева от неё; при выключенной кнопке
+ * поведение нормальное».
+ *
+ * Причина прочитана в `app.js` 1.13.7, а не выведена (У-44). `forRange` меряет
+ * пустой отрезок как `coordsAtPos(head, assoc || 1)`, то есть по умолчанию
+ * **справа** от позиции. Справа от конца строки стоит не текст, а виджет
+ * `Floating button`: он объявлен `side: 1` на `line.to`, и разбор строки при
+ * положительной стороне выбирает именно его (`p > l || 32 & flags && t <= 1` в
+ * `resolveInline`). Меряется левая граница кнопки, а она отстоит от текста на
+ * `Distance from the text`, — отсюда и сдвиг ровно в этот отступ, и текст,
+ * появляющийся слева от каретки.
+ *
+ * Поэтому на конце непустой строки каретка меряется **слева**: там последний
+ * символ текста, то есть то самое место, где стоит родная каретка браузера.
+ * Виджета за строкой может и не быть — тогда обе стороны дают одно и то же и
+ * правка не меняет ничего.
+ *
+ * Дефект видит только тот, у кого включены обе функции: без своего слоя
+ * каретку рисует браузер по позиции в DOM, а не по измерению.
+ */
+function caretSitsAtLineEnd(state, head) {
+  try {
+    const line = state.doc.lineAt(head);
+    return line.to === head && line.to > line.from;
+  } catch (_) {
+    /* Разбор строки — дело состояния редактора. Нет его — меряем как раньше. */
+    return false;
+  }
+}
+
+/**
+ * Что рисует свой слой: главный **пустой** отрезок и только он.
+ *
+ * Решение вынесено отдельно, потому что оно и есть предмет: непустой отрезок и
+ * вторые курсоры Obsidian рисует сам, и нарисовать их ещё раз значит поставить
+ * на строку две каретки. Проверяется без окна — окна тут и не будет.
+ */
+function caretLayerRangeFor(plugin, state) {
+  if (!caretShapeActive(plugin)) return null;
+  const main = state && state.selection ? state.selection.main : null;
+  if (!main || main.empty !== true) return null;
+  if (!caretSitsAtLineEnd(state, main.head)) return main;
+  /*
+   * Отрезку меняется только сторона измерения. Пустой отрезок `forRange`
+   * читает тремя полями — `empty`, `head` и `assoc`, — и объявлять тут второй
+   * курсор нечем и незачем: `EditorSelection` живёт в копии состояния,
+   * отданной плагинам, а меряет по этим полям копия, на которой собран
+   * редактор заметки. Остальные поля курсора выписаны, чтобы отрезок остался
+   * отрезком для любого читателя.
+   */
+  return { empty: true, head: main.head, anchor: main.head, from: main.head, to: main.head, assoc: -1 };
+}
+
+function createCaretLayerExtension(plugin) {
+  if (typeof cmView.layer !== "function" || typeof cmView.RectangleMarker !== "function") {
+    /* Громко: тихий отказ здесь неотличим от дефекта (У-41, У-73). */
+    console.warn("[inline-overhaul][caret] @codemirror/view без layer/RectangleMarker: своя каретка не рисуется");
+    return [];
+  }
+  return cmView.layer({
+    above: true,
+    class: CARET_LAYER_CLASS,
+    markers(view) {
+      try {
+        const range = caretLayerRangeFor(plugin, view.state);
+        if (!range) return [];
+        return cmView.RectangleMarker.forRange(view, CARET_MARKER_CLASS, range);
+      } catch (_) {
+        return [];
+      }
+    },
+    update(update, dom) {
+      const now = caretShapeActive(plugin);
+      const flipped = dom.__ioCaretActive !== now;
+      dom.__ioCaretActive = now;
+      return flipped || update.docChanged || update.selectionSet || update.viewportChanged;
+    },
+  });
+}
 
 const STRIP_LINE_STYLE_CSS = [
   ".markdown-source-view.mod-cm6 .cm-line.io-strip-line {",
@@ -3609,125 +4214,335 @@ const STRIP_LINE_STYLE_CSS = [
   "  content: \"\";",
   "  position: absolute;",
   "  pointer-events: none;",
-  "  top: 0;",
-  "  bottom: 0;",
+  /*
+   * Полоса не занимает высоту строки целиком: у двух строк подряд полосы
+   * стыкуются без зазора и читаются как одна — «не видно, к какой строке
+   * относится какой bar» (замечание B22, 2026-09-02). Зазор сверху и снизу
+   * делает границу видимой.
+   *
+   * Величина больше не литерал: её задаёт слайдер `Gap between Bars`, а у
+   * строки внутри дерева зазор снимает тумблер `Join Bars in a tree`
+   * (PRD 10.13.16). Число приходит переменной от адаптера, и та же
+   * переменная читается предпросмотром полос — одно правило, одно место
+   * (У-32). Запасное значение здесь равно умолчанию настройки.
+   */
+  "  top: var(--io-strip-line-gap, 2px);",
+  "  bottom: var(--io-strip-line-gap, 2px);",
   "  width: var(--io-strip-thickness, 2px);",
   "  left: calc(-1 * var(--io-strip-x1, 20px));",
   "  background: var(--io-strip-c1, transparent);",
   "  box-shadow: var(--io-strip-shadow2, none), var(--io-strip-shadow3, none);",
   "  border-radius: 1px;",
   "}",
-  ".markdown-source-view.mod-cm6 .cm-line .io-strip-hidden-token {",
-  "  opacity: 0 !important;",
-  "  color: transparent !important;",
-  "  background: transparent !important;",
-  "  border-color: transparent !important;",
-  "  text-shadow: none !important;",
-  "  font-size: 0 !important;",
-  "  line-height: 0 !important;",
-  "  letter-spacing: 0 !important;",
-  "  margin: 0 !important;",
-  "  padding: 0 !important;",
-  "}",
-  ".markdown-source-view.mod-cm6 .cm-line .io-strip-hidden-space {",
-  "  font-size: 0 !important;",
-  "  color: transparent !important;",
-  "  line-height: 0 !important;",
-  "  margin: 0 !important;",
-  "  padding: 0 !important;",
-  "}",
-  ".markdown-source-view.mod-cm6 .cm-line .cm-formatting-hashtag:has(.io-strip-hidden-token),",
-  ".markdown-source-view.mod-cm6 .cm-line .cm-hashtag:has(.io-strip-hidden-token),",
-  ".markdown-source-view.mod-cm6 .cm-line .cm-tag:has(.io-strip-hidden-token),",
-  ".markdown-source-view.mod-cm6 .cm-line .cm-meta:has(.io-strip-hidden-token) {",
-  "  background: transparent !important;",
-  "  border: 0 !important;",
-  "  box-shadow: none !important;",
-  "  outline: 0 !important;",
-  "}",
+  /*
+   * Правила для классов `io-strip-hidden-token` и `io-strip-hidden-space`
+   * сняты 2026-09-03. Классы не ставил никто: тег Field слой полос прячет
+   * заменой нулевой ширины, а не пометкой, — то есть правила обещали
+   * поведение, которого нет. Записано это было в
+   * `docs/AWAITING_OWNER_CHECK.md`, раздел 8, с оговоркой «снять при
+   * следующей правке слоя полос».
+   */
 ].join("\n");
 
-class TagwheelFillWidget extends cmView.WidgetType {
-  constructor(fullText, fillColor, textColor, placeholders, showPrefix) {
+/**
+ * Один токен панели без своей приставки.
+ *
+ * Нужен ровно там, где `Show tag markers` выключен: текст токена меняется, и
+ * пометкой этого не сделать. Виджет закрывает **один токен** — в отличие от
+ * прежнего `TagwheelFillWidget`, который закрывал весь отрезок `==…==` вместе
+ * со всем, что Obsidian оформляет сам (B2, 2026-09-02).
+ */
+class TagwheelTokenWidget extends cmView.WidgetType {
+  constructor(text) {
     super();
-    this.fullText = String(fullText || "");
-    this.fillColor = String(fillColor || "");
-    this.textColor = String(textColor || "");
-    this.placeholders = placeholders instanceof Set ? placeholders : new Set();
-    this.showPrefix = showPrefix !== false;
+    this.text = String(text || "");
   }
 
   eq(other) {
-    return !!(other
-      && other.fullText === this.fullText
-      && other.fillColor === this.fillColor
-      && other.textColor === this.textColor
-      && other.placeholders === this.placeholders
-      && other.showPrefix === this.showPrefix);
+    return !!(other && other.text === this.text);
   }
 
   toDOM() {
-    const wrap = document.createElement("span");
-    wrap.className = "inline-overhaul-tw-fill-widget";
-    if (this.fillColor) wrap.style.setProperty("--inline-overhaul-tw-fill", this.fillColor);
-
-    const src = this.fullText;
-    const rx = /`([^`]+)`|\*\*\[([^\]]+)\]\*\*/g;
-    let last = 0;
-    let m;
-    while ((m = rx.exec(src)) !== null) {
-      if (m.index > last) wrap.appendChild(document.createTextNode(src.slice(last, m.index)));
-      const matched = String(m[0] || "");
-      const tickToken = String(m[1] || "").trim();
-      const activeToken = String(m[2] || "").trim();
-      var shownTick = tickToken ? formatTagwheelDisplayToken(tickToken, this.showPrefix) : "";
-      var shownActive = activeToken ? formatTagwheelDisplayToken(activeToken, this.showPrefix) : "";
-      if (m[1] && this.textColor && tickToken && this.placeholders.has(tickToken)) {
-        const colored = document.createElement("span");
-        colored.style.color = this.textColor;
-        colored.textContent = "`" + shownTick + "`";
-        wrap.appendChild(colored);
-      } else if (m[1]) {
-        wrap.appendChild(document.createTextNode("`" + shownTick + "`"));
-      } else if (m[2]) {
-        const pre = matched.indexOf("[");
-        const post = matched.lastIndexOf("]");
-        if (pre >= 0 && post > pre) {
-          wrap.appendChild(document.createTextNode(matched.slice(0, pre + 1)));
-          const activeSpan = document.createElement("span");
-          activeSpan.className = "inline-overhaul-tw-active-anchor";
-          activeSpan.textContent = shownActive;
-          if (this.textColor && activeToken && this.placeholders.has(activeToken)) {
-            activeSpan.style.color = this.textColor;
-          }
-          wrap.appendChild(activeSpan);
-          wrap.appendChild(document.createTextNode(matched.slice(post)));
-        } else {
-          wrap.appendChild(document.createTextNode(matched));
-        }
-      } else {
-        wrap.appendChild(document.createTextNode(matched));
-      }
-      last = m.index + matched.length;
-    }
-    if (last < src.length) wrap.appendChild(document.createTextNode(src.slice(last)));
-    return wrap;
+    const node = document.createElement("span");
+    node.className = "inline-overhaul-tw-token";
+    node.textContent = this.text;
+    return node;
   }
+}
+
+/**
+ * Отрезок строки, который слой TagWheel **заменит своим виджетом**.
+ *
+ * `null` — не заменит: либо на строке нет обособления `==…==`, либо у TagWheel
+ * не задана заливка и маркеры не спрятаны, и тогда слой ограничивается
+ * покраской текста.
+ *
+ * Функция одна на два слоя, и это главное в ней. Правило «панель заменяется
+ * целиком» раньше жило только внутри слоя TagWheel, а слой пузырей о нём не
+ * знал: он к тому времени уже спрятал токены строки своими нулевой ширины, и
+ * на один и тот же отрезок приходились две замены. На экране это выглядело
+ * так, как заказчик и написал: «вся строка tagwheel пропадает, я вижу только
+ * selector, но fields невидимы и не занимают места» (B2, 2026-09-02). Второе
+ * объявление того же правила разошлось бы снова (У-32).
+ */
+/**
+ * Метка панели TagWheel на строке.
+ *
+ * **Отрезок `==…==` сам по себе панелью не является.** `==` — разметка
+ * выделения Obsidian, и её человек ставит себе сам. До 2026-09-04 слой брал
+ * первый такой отрезок на любой строке, и заливка панели доставалась любому
+ * выделенному тексту, а слой пузырей внутри него ничего не рисовал — то есть
+ * `==#todo==` человека терял пузырь. Красили мы, выходит, чужую разметку.
+ *
+ * Своя метка у панели одна и та же с самого начала: активную ячейку движок
+ * пишет как `**[текст]**` (`renderControlLine` в `tagwheel_core.js`), и другой
+ * пометки активности на строке нет. Её и спрашиваем — **тем же** выражением,
+ * которым ниже красится сама активная ячейка (У-32).
+ *
+ * Признак читается из текста строки, а не из состояния окна, и это выбор:
+ * состояние может устареть — окно закрылось, заметка открыта во второй
+ * панели, отрисовка случилась раньше, — а метка в строке либо есть, либо нет,
+ * и в редакторе и в повторной отрисовке она одна и та же.
+ *
+ * Чего признак не покрывает: панель без активной ячейки. Такой не бывает —
+ * `buildGroupDisplay` помечает активной ту группу, в которой стоит человек, —
+ * но если она однажды появится, красить её слой не станет.
+ */
+const TAGWHEEL_ACTIVE_CELL_RE = /\*\*\[([\s\S]+?)\]\*\*/;
+
+/**
+ * Отрезок панели на строке: границы, внутренность и признак. Одно объявление
+ * на оба слоя — пузырей и панели.
+ */
+function tagwheelPanelSegmentInLine(text) {
+  const src = String(text || "");
+  const openIdx = src.indexOf("==");
+  const closeIdx = openIdx >= 0 ? src.indexOf("==", openIdx + 2) : -1;
+  if (openIdx < 0 || closeIdx <= openIdx) return null;
+  const innerAt = openIdx + 2;
+  if (closeIdx <= innerAt) return null;
+  const segment = src.slice(innerAt, closeIdx);
+  if (!TAGWHEEL_ACTIVE_CELL_RE.test(segment)) return null;
+  return { start: openIdx, end: closeIdx + 2, innerAt, closeIdx, segment };
+}
+
+function tagwheelPanelSpanInLine(text, colors) {
+  const usePanelWidget = Boolean(colors && colors.fillColor) || (colors && colors.showPrefix === false);
+  if (!usePanelWidget) return null;
+  const seg = tagwheelPanelSegmentInLine(text);
+  if (!seg) return null;
+  return { start: seg.start, end: seg.end };
+}
+
+/**
+ * Что оформляется в панели TagWheel на одной строке.
+ *
+ * Чистая функция: на входе текст строки, цвета и набор плейсхолдеров, на
+ * выходе список отрезков с видом оформления. CodeMirror здесь не участвует —
+ * и это главное в ней.
+ *
+ * Зачем так. Слой панели раньше заменял весь отрезок `==…==` **одним
+ * виджетом**, и это был класс поломки, а не настройка: внутри отрезка живут
+ * вещи, которые Obsidian оформляет сам — ссылка `[[…]]`, полужирный `**…**`,
+ * тег, — и что получится, когда наши замены сложатся с его, из кода не видно.
+ * Заказчик видел итог: «вся панель tagwheel невидима и безразмерна… только у
+ * tagwheel left — у right всё нормально» (B2, 2026-09-02). Слева у него в
+ * панели стоит ссылка, справа нет.
+ *
+ * Проверить это в живом редакторе нечем: DOM Obsidian из проверок
+ * недостижим, библиотеки DOM в проекте нет. Поэтому утверждение выписано про
+ * **механизм**: `kind: "replace"` появляется здесь ровно на одном случае —
+ * когда решётки в панели просят спрятать, и тогда заменяется один токен.
+ * Остальное — пометки, а пометка ничего не закрывает собой.
+ *
+ * Виды отрезков:
+ *   `fill`    — фон панели;
+ *   `text`    — цвет неактивных ячеек, на весь отрезок;
+ *   `active`  — цвет и начертание активной ячейки;
+ *   `replace` — один токен без приставки (только при спрятанных решётках).
+ */
+/**
+ * Есть ли вообще что оформлять в панели. Одно объявление на два места: и на
+ * расчёт отрезков, и на раннее «красить нечего» в сборке украшений (У-32).
+ */
+function tagwheelPanelPaints(colors) {
+  if (!colors) return false;
+  return Boolean(colors.fillColor) || Boolean(colors.defaultTextColor)
+    || Boolean(colors.activeTextColor) || colors.showPrefix === false;
+}
+
+function tagwheelPanelSpans(text, colors, placeholders) {
+  const out = [];
+  /* Ни одного цвета и решётки на месте — оформлять нечего: полужирное
+     начертание активной ячейки рисует сам Obsidian, по звёздочкам. */
+  if (!tagwheelPanelPaints(colors)) return out;
+  /* Панель узнаётся по своей метке, а не по разметке выделения Obsidian:
+     правило объявлено один раз, в `tagwheelPanelSegmentInLine`. */
+  const seg = tagwheelPanelSegmentInLine(text);
+  if (!seg) return out;
+
+  const innerAt = seg.innerAt;
+  const closeIdx = seg.closeIdx;
+  const segment = seg.segment;
+  const known = placeholders instanceof Set ? placeholders : new Set();
+  const fillColor = String(colors && colors.fillColor || "");
+  const textColor = String(colors && colors.defaultTextColor || "");
+  const activeColor = String(colors && colors.activeTextColor || "") || textColor;
+  const showPrefix = !(colors && colors.showPrefix === false);
+
+  /*
+   * Пометка на всю строку панели — и цвет заливки, приезжающий на ней же
+   * переменной `--io-twfill`.
+   *
+   * **Почему заливка не рисуется своим отрезком.** Рисовалась — и это был
+   * дефект. Отрезок `mark` CodeMirror режет по своим же границам: тег
+   * (`cm-hashtag`), плейсхолдер в обратных кавычках (`cm-inline-code`),
+   * спрятанные `**` — каждый рвёт отрезок на куски. Куски получали фон
+   * поштучно, пробелы между ячейками оставались незакрашенными, а поля тега
+   * и кода делали соседние куски разной высоты. Заказчик 2026-09-05 по
+   * скриншоту `12.png`: «по прежнему различается высота элементов, теперь
+   * ещё пустоты стали белого цвета, а активный field вообще с непонятной
+   * прыгающей рамкой».
+   *
+   * Сплошной слой на этом месте **уже есть** — подсветка `==…==` самой
+   * Obsidian, и она ровно одна на весь отрезок вместе с метками. Спорить с
+   * ней было нечем (её `--text-highlight-bg` полупрозрачен и ложился **на**
+   * наш цвет), а вот заменить ей цвет — можно: правило в `styles.css` красит
+   * `span.cm-highlight` и `span.cm-formatting-highlight` на помеченной строке
+   * значением этой переменной. Чужой слой перестаёт быть чужим, и рвать
+   * нечего (У-68).
+   *
+   * Той же пометкой гасятся фон и рамка тегов Obsidian и вставок кода внутри
+   * панели: там они ничего не значат — пузыри Value слой внутрь панели не
+   * рисует (`tagwheelPanelSpanInLine` отдаёт отрезок слою пузырей), — а вот
+   * высоту строки рвут своими полями. Различать ячейки — работа
+   * `Non-active Field text color` и `Active Field text color`.
+   */
+  out.push({
+    kind: "line",
+    start: seg.start,
+    end: seg.end,
+    style: fillColor ? "--io-twfill: " + fillColor + ";" : "",
+  });
+  /*
+   * Цвет неактивных ячеек — на весь отрезок: ячейкой здесь может быть и
+   * плейсхолдер в обратных кавычках, и готовое значение, и элемент из двух
+   * слов. Резать отрезок на ячейки значило бы завести второй разбор панели
+   * рядом с движком (У-4).
+   */
+  if (textColor) {
+    out.push({ kind: "text", start: seg.start, end: seg.end, style: "color: " + textColor + ";" });
+  }
+
+  /*
+   * Активная ячейка. Движок пишет её как `**[текст]**` (`renderControlLine` в
+   * `tagwheel_core.js`) — это единственная пометка активности на строке.
+   *
+   * Цвет ставится **всегда**, а не только когда значение ещё не выбрано.
+   * Прежнее условие требовало, чтобы текст ячейки был в наборе
+   * плейсхолдеров, — то есть цвет пропадал, стоило выбрать значение:
+   * «panel-active-color применяется только для исходного положения field, а
+   * когда я начинаю прокручивать — подсветка слетает» (B2, 2026-09-02).
+   * Отличать исходное состояние теперь начертание: плейсхолдер полужирный,
+   * значение обычное — так и просил заказчик. `!important` нужен потому, что
+   * полужирным ячейку делает и сам Obsidian, по звёздочкам вокруг неё.
+   */
+  const active = TAGWHEEL_ACTIVE_CELL_RE.exec(segment);
+  if (active) {
+    const inner = String(active[1] || "");
+    const bracketAt = String(active[0] || "").indexOf("[");
+    const start = innerAt + active.index + bracketAt + 1;
+    const end = start + inner.length;
+    if (end > start) {
+      const bold = known.has(inner.trim());
+      out.push({
+        kind: "active",
+        start,
+        end,
+        style: (activeColor ? "color: " + activeColor + ";" : "")
+          + "font-weight: " + (bold ? "700" : "400") + " !important;",
+      });
+    }
+  }
+
+  /*
+   * Спрятанные решётки (`Show tag markers` выключен). Здесь без подмены не
+   * обойтись — меняется сам текст, — но подменяется **один токен**, а не
+   * отрезок: внутри токена чужого оформления нет.
+   */
+  if (!showPrefix) {
+    const tokenRe = /`([^`]+)`|(#\S+)/g;
+    let m;
+    while ((m = tokenRe.exec(segment)) !== null) {
+      const raw = String(m[1] || m[2] || "");
+      const shown = formatTagwheelDisplayToken(raw, false);
+      if (!shown || shown === raw) continue;
+      const start = innerAt + m.index + String(m[0] || "").indexOf(raw);
+      const end = start + raw.length;
+      if (end > start) out.push({ kind: "replace", start, end, text: shown });
+    }
+  }
+
+  return out;
+}
+
+/** Порядок наложения: строка, общий цвет, активная ячейка, подмена токена. */
+const TAGWHEEL_SPAN_RANK = { line: -1, text: 1, active: 2, replace: 3 };
+
+/**
+ * Переменные темы, которыми красится панель TagWheel, пока цвет не задан
+ * (PRD 10.13.23 Ц2, замечание заказчика H4 от 2026-09-04).
+ *
+ * **То же объявление живёт в панели** — `src/ui/settings/custom/theme_colors.ts`,
+ * где эти же переменные показываются в поле выбора цвета. Два объявления
+ * одного правила разошлись бы молча, и первым это увидел бы человек: поле
+ * показывало бы одно, строка — другое. Совпадение держит пин на литералы
+ * (У-32), `tag_visual_render_tests.ts`.
+ *
+ * Пары взяты у самой Obsidian, а не собраны на глаз: `--text-highlight-bg` —
+ * ровно то, чем она красит `==…==`, а панель обособлена именно им.
+ */
+const TAGWHEEL_THEME_COLOR_VARS = {
+  defaultTextColor: "--text-muted",
+  activeTextColor: "--text-accent",
+  fillColor: "--text-highlight-bg",
+};
+
+/**
+ * Цвета, которыми панель и правда красится: пустое значение заменяется
+ * переменной темы (10.13.23 Ц2). Цвет, заданный человеком, сильнее темы
+ * всегда (Ц6).
+ *
+ * Отдельная функция, а не правка `getTagwheelHeaderColorsFromConfig`: та
+ * отвечает на вопрос «что сказано в конфиге», и её «пусто» означает «человек
+ * не задал». Смешать эти два ответа значило бы потерять признак, по которому
+ * панель показывает поле незаполненным.
+ */
+function resolveTagwheelPaintColors(colors) {
+  const src = isObj(colors) ? colors : {};
+  const themed = (value, variable) => {
+    const own = String(value || "").trim();
+    return own || ("var(" + variable + ")");
+  };
+  return {
+    defaultTextColor: themed(src.defaultTextColor, TAGWHEEL_THEME_COLOR_VARS.defaultTextColor),
+    activeTextColor: themed(src.activeTextColor, TAGWHEEL_THEME_COLOR_VARS.activeTextColor),
+    fillColor: themed(src.fillColor, TAGWHEEL_THEME_COLOR_VARS.fillColor),
+    showPrefix: src.showPrefix !== false,
+  };
 }
 
 function buildTagwheelHeaderDecorations(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
-  const colors = getTagwheelHeaderColorsFromConfig(cfg);
-  const hasTextColor = !!colors.defaultTextColor;
-  const hasFillColor = !!colors.fillColor;
-  const usePanelWidget = hasFillColor || colors.showPrefix === false;
-  if (!hasTextColor && !hasFillColor && colors.showPrefix !== false) return cmView.Decoration.none;
+  /*
+   * Красить всегда есть чем: незаданный цвет берётся у темы (10.13.23 Ц2).
+   * Прежняя ранняя отбивка «ни одного цвета — не рисуем» снята вместе с
+   * причиной: панель на чистом vault была нечитаемой ровно из-за неё.
+   */
+  const colors = resolveTagwheelPaintColors(getTagwheelHeaderColorsFromConfig(cfg));
 
   const placeholders = buildTagwheelPlaceholderSetFromConfig(cfg);
   const ranges = [];
-  const textDeco = hasTextColor
-    ? cmView.Decoration.mark({ attributes: { style: "color: " + colors.defaultTextColor + ";" } })
-    : null;
 
   for (const vr of view.visibleRanges) {
     let lineNo = view.state.doc.lineAt(vr.from).number;
@@ -3735,43 +4550,33 @@ function buildTagwheelHeaderDecorations(view, plugin) {
     while (lineNo <= endLineNo) {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
-      const openIdx = text.indexOf("==");
-      const closeIdx = openIdx >= 0 ? text.indexOf("==", openIdx + 2) : -1;
-      if (openIdx >= 0 && closeIdx > openIdx) {
-        const segStart = line.from + openIdx;
-        const segEnd = line.from + closeIdx + 2;
-        if (usePanelWidget && segEnd > segStart) {
-          const fullSeg = text.slice(openIdx, closeIdx + 2);
-          const widgetDeco = cmView.Decoration.replace({
-            widget: new TagwheelFillWidget(fullSeg, colors.fillColor, colors.defaultTextColor, placeholders, colors.showPrefix),
-            inclusive: false,
+      for (const span of tagwheelPanelSpans(text, colors, placeholders)) {
+        /*
+         * Пометка на всю строку: по ней стили красят подсветку Obsidian
+         * цветом панели и гасят фон её тегов внутри неё. Цвет приезжает сюда
+         * же переменной `--io-twfill` — заливка живёт **одним** слоем на всю
+         * строку, а не отрезком, который платформа порежет на куски.
+         * Декорация строки, поэтому `start`/`end` отрезка ей не нужны и она
+         * разбирается отдельно.
+         */
+        if (span.kind === "line") {
+          const spec = { class: "io-twline" };
+          if (span.style) spec.attributes = { style: span.style };
+          ranges.push({
+            from: line.from,
+            to: line.from,
+            rank: TAGWHEEL_SPAN_RANK.line,
+            deco: cmView.Decoration.line(spec),
           });
-          ranges.push({ from: segStart, to: segEnd, deco: widgetDeco, rank: 0 });
+          continue;
         }
-        if (textDeco && !usePanelWidget) {
-          const segment = text.slice(openIdx + 2, closeIdx);
-          const tickRe = /`([^`]+)`/g;
-          let m;
-          while ((m = tickRe.exec(segment)) !== null) {
-            const token = String(m[1] || "").trim();
-            if (!token) continue;
-            const from = line.from + openIdx + 2 + m.index;
-            const to = from + String(m[0] || "").length;
-            if (to > from) ranges.push({ from, to, deco: textDeco, rank: 1 });
-          }
-          if (placeholders.size) {
-            const activeRe = /\*\*\[([^\]]+)\]\*\*/g;
-            while ((m = activeRe.exec(segment)) !== null) {
-              const token = String(m[1] || "").trim();
-              if (!token || !placeholders.has(token)) continue;
-              const full = String(m[0] || "");
-              const innerStart = full.indexOf("[") + 1;
-              const from = line.from + openIdx + 2 + m.index + innerStart;
-              const to = from + token.length;
-              if (to > from) ranges.push({ from, to, deco: textDeco, rank: 2 });
-            }
-          }
-        }
+        const from = line.from + span.start;
+        const to = line.from + span.end;
+        if (to <= from) continue;
+        const deco = span.kind === "replace"
+          ? cmView.Decoration.replace({ widget: new TagwheelTokenWidget(span.text), inclusive: false })
+          : cmView.Decoration.mark({ attributes: { style: span.style } });
+        ranges.push({ from, to, rank: TAGWHEEL_SPAN_RANK[span.kind] || 0, deco });
       }
       lineNo += 1;
     }
@@ -3790,6 +4595,159 @@ function buildTagwheelHeaderDecorations(view, plugin) {
     } catch (_) {}
   }
   return builder.finish();
+}
+
+/**
+ * Отметки на строке (10.13.12): подсветка обработанной и `Floating button`.
+ *
+ * Один проход и одно расширение на две функции: обе рисуются поверх строки,
+ * обе включаются в Transform и обе живут только на экране. Второй проход по
+ * тем же строкам ради второй из них был бы работой на ровном месте.
+ */
+function getSourceMarksFromConfig(cfg) {
+  const i2n = isObj(readCfgPath(cfg, "transform.inline2note")) ? readCfgPath(cfg, "transform.inline2note") : {};
+  const sp = isObj(i2n.sourceProcessing) ? i2n.sourceProcessing : {};
+  const visual = isObj(sp.visual) ? sp.visual : {};
+  const token = String(sp.token || "").trim();
+  const moduleOn = readCfgPath(cfg, "features.transform.enabled") === true
+    && readCfgPath(cfg, "transform.inline2note.enabled") === true;
+  const pct = Number(visual.opacity);
+  return {
+    moduleOn,
+    /* Метка — единственный признак обработанной строки (Н2). Нет метки —
+       нечего искать, и подсветка не рисуется вовсе (Н3). */
+    token,
+    highlight: moduleOn && !!token && visual.enabled === true,
+    color: normalizeHexColorInput(visual.color),
+    /* Доля для CSS. В конфиге процент, как у остальной прозрачности (Н5). */
+    opacity: Number.isFinite(pct) ? Math.max(0, Math.min(100, Math.trunc(pct))) / 100 : 0.65,
+    button: moduleOn && i2n.floatingButton === true,
+    /*
+     * Отступ кнопки от текста (замечание заказчика 2026-09-04: «кнопка
+     * находится слишком близко к тексту»). Клампит и досыпает умолчание
+     * `transform_feature.js` — тот же код, что нормализует остальной
+     * Transform, — поэтому здесь число уже законное, и второго объявления
+     * границ не появляется (У-32).
+     */
+    buttonGap: Number(i2n.floatingButtonGap),
+  };
+}
+
+/** Кнопка `Inline to note` в конце строки. Только на экране (Н8). */
+class FloatingTransformButtonWidget extends cmView.WidgetType {
+  constructor(plugin, gap) {
+    super();
+    this.plugin = plugin;
+    /* Отступ от текста: слайдер `Distance from the text`. */
+    this.gap = Number.isFinite(Number(gap)) ? Number(gap) : 12;
+  }
+  eq(other) {
+    /*
+     * Кнопка одна и та же на любой строке — но не при разном отступе.
+     * Здесь стояло `return true`, и это было бы ровно тем дефектом, о
+     * котором предупреждает У-24: CodeMirror оставляет прежний узел, человек
+     * двигает слайдер и не видит ничего.
+     */
+    return !!other && other.gap === this.gap;
+  }
+  toDOM() {
+    const el = document.createElement("span");
+    el.className = "io-flybtn";
+    el.textContent = "\u2192";
+    /* Единственное, что виджет задаёт стилем, — своя переменная: саму
+       геометрию держит `styles.css` (правило З6 и Г1 по духу). */
+    el.style.setProperty("--io-flybtn-gap", this.gap + "px");
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", __commandIds.commandName("transform-inline-to-note"));
+    el.title = __commandIds.commandName("transform-inline-to-note");
+    /*
+     * `mousedown`, а не `click`: до `click` редактор успевает поставить
+     * каретку по месту нажатия, и перенесена была бы не та строка (Н11).
+     */
+    el.addEventListener("mousedown", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      Promise.resolve(this.plugin.runInlineToNote()).catch((e) => {
+        console.error("[inline-overhaul][floating-button]", e);
+      });
+    });
+    return el;
+  }
+  ignoreEvent() {
+    return false;
+  }
+}
+
+function buildSourceMarkDecorations(view, plugin) {
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  const marks = getSourceMarksFromConfig(cfg);
+  if (!marks.highlight && !marks.button) return cmView.Decoration.none;
+
+  const cursorLine = marks.button && view.state.selection && view.state.selection.main
+    ? view.state.doc.lineAt(view.state.selection.main.head).number
+    : -1;
+  const style = [
+    "opacity: " + marks.opacity + ";",
+    marks.color ? "color: " + marks.color + ";" : "",
+  ].filter(Boolean).join(" ");
+  const lineDeco = cmView.Decoration.line({ attributes: { style, class: "io-done-line" } });
+
+  const ranges = [];
+  for (const vr of view.visibleRanges) {
+    let lineNo = view.state.doc.lineAt(vr.from).number;
+    const endLineNo = view.state.doc.lineAt(vr.to).number;
+    while (lineNo <= endLineNo) {
+      const line = view.state.doc.line(lineNo);
+      const text = String(line.text || "");
+      if (marks.highlight && lineHasProcessedToken(text, marks.token)) {
+        ranges.push({ from: line.from, to: line.from, deco: lineDeco, side: -1 });
+      }
+      if (lineNo === cursorLine && text.trim()) {
+        ranges.push({
+          from: line.to,
+          to: line.to,
+          side: 1,
+          deco: cmView.Decoration.widget({
+            widget: new FloatingTransformButtonWidget(plugin, marks.buttonGap),
+            side: 1,
+          }),
+        });
+      }
+      lineNo += 1;
+    }
+  }
+
+  ranges.sort((a, b) => (a.from !== b.from ? a.from - b.from : a.side - b.side));
+  const builder = new cmState.RangeSetBuilder();
+  for (const r of ranges) {
+    try { builder.add(r.from, r.to, r.deco); } catch (_) {}
+  }
+  return builder.finish();
+}
+
+/**
+ * Метка стоит в строке отдельным токеном, а не куском слова: `#processed`
+ * не должен зажигать строку со словом `#processed-later`.
+ */
+function lineHasProcessedToken(text, token) {
+  const needle = String(token || "").trim();
+  if (!needle) return false;
+  const rx = new RegExp("(^|\\s)" + escapeRegExp(needle) + "(?=$|\\s)");
+  return rx.test(String(text || ""));
+}
+
+function createSourceMarkDecorationExtension(plugin) {
+  return cmView.ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.decorations = buildSourceMarkDecorations(view, plugin);
+    }
+    update(update) {
+      if (!update.docChanged && !update.viewportChanged && !update.selectionSet) return;
+      this.decorations = buildSourceMarkDecorations(update.view, plugin);
+    }
+  }, {
+    decorations: (v) => v.decorations,
+  });
 }
 
 function createTagwheelHeaderDecorationExtension(plugin) {
@@ -3913,11 +4871,9 @@ class InlineOverhaulPlugin extends Plugin {
     await loadConfigMigrationModuleSafe(this.app);
     await loadConfigStoreModuleSafe(this.app);
     await loadCommandRegistrySafe(this.app);
-    await loadConfigNoteHelpersSafe(this.app);
-    await loadTagWheelConfigCodecSafe(this.app);
     await loadRulesMarkdownBuilderSafe(this.app);
     await loadEnhancedSelectAllEngineSafe(this.app);
-    await loadConfigNoteOrchestratorSafe(this.app);
+    await loadSmartDeleteEngineSafe(this.app);
     await loadStoreEventsOrchestratorSafe(this.app);
     await loadRulesSyncOrchestratorSafe(this.app);
     await loadTransformFeatureSafe(this.app);
@@ -3937,6 +4893,9 @@ class InlineOverhaulPlugin extends Plugin {
     this._tagVisualCompartment = new cmState.Compartment();
     this._stripCompartment = new cmState.Compartment();
     this._tagwheelHeaderCompartment = new cmState.Compartment();
+    /* Отметки на строке (10.13.12): подсветка обработанной и `Floating button`. */
+    this._sourceMarksExtension = null;
+    this._sourceMarksCompartment = new cmState.Compartment();
     this._inlineExtensionMountedEditors = typeof WeakSet !== "undefined" ? new WeakSet() : null;
 
     const ConfigStoreCtor = getConfigStoreCtor();
@@ -3951,6 +4910,11 @@ class InlineOverhaulPlugin extends Plugin {
       Notice,
     });
 
+    /* МГ4 и МГ6 — до первой записи формы версии 2, а не после. */
+    const prepared = await this.prepareConfigFileForV2();
+    /* Переезд с версии 1 виден ровно здесь: копия снимается один раз, и
+       именно она означает, что хоткеи человека были привязаны к старым ID. */
+    this._migratedFromV1 = !!(prepared && prepared.backupSavedAs);
     await this.store.init();
     try {
       await this.initializeDevLogSession(this.getConfig());
@@ -3966,16 +4930,60 @@ class InlineOverhaulPlugin extends Plugin {
     }
 
     this.registerCommands();
+    this.noticeCommandIdsChangedOnce();
     this.ensureTagwheelFillStyles();
     this.ensureStripLineStyles();
+    this.ensureCaretStyles();
     this.registerGlobalFunctions();
     this.registerStoreEvents();
 
     await this.ensureGeneratedRulesNow("onload");
 
-    const devEnabled = !!(this.getConfig && this.getConfig() && this.getConfig().devMode && this.getConfig().devMode.enabled);
+    const devEnabled = !!(readCfgPath(this.getConfig && this.getConfig(), "advanced.devMode.enabled") === true);
     if (devEnabled) {
       console.info("[inline-overhaul] loaded");
+    }
+  }
+
+  /**
+   * Одноразовое уведомление о смене ID команд (фаза 2, пункт 8; Р3).
+   *
+   * **Почему уведомление, а не миграция.** Хоткеи живут не в нашем конфиге, а
+   * в настройках Obsidian, и привязаны к идентификатору команды. Переименование
+   * их не переносит, и перенести их нам нечем: чужой файл настроек плагин не
+   * правит. Значит, единственное честное — сказать об этом один раз и показать,
+   * что во что превратилось.
+   *
+   * **Флаг живёт в `viewState`, а не в настройках** (пункт 8): это состояние
+   * плагина, а не выбор человека, и контрола у него нет.
+   *
+   * **Показывается только тому, у кого был конфиг версии 1.** На свежей
+   * установке хоткеев на старые ID быть не могло, и уведомление было бы
+   * сообщением, адресованным разработчику (З8).
+   *
+   * **Ни `app.setting`, ни `app.hotkeyManager` здесь нет.** 7.2 разрешает
+   * приватное API одним исключением — колонкой хоткея в справочнике команд, — и
+   * это исключение не здесь. Поэтому путь к настройкам сказан словами, а карта
+   * печатается в консоль и лежит в репозитории.
+   */
+  noticeCommandIdsChangedOnce() {
+    try {
+      if (!this._migratedFromV1) return;
+      const cfg = this.getConfig();
+      if (String(readCfgPath(cfg, "viewState.commandIdsNotice") || "") === "shown") return;
+
+      const lines = ["[inline-overhaul] команды переименованы, старый ID → новый:"];
+      for (const [was, now] of __commandIds.RENAMED) lines.push("  " + was + " → " + now);
+      for (const [was, now] of __commandIds.RENAME_RULES) lines.push("  " + was + " → " + now);
+      console.info(lines.join("\n"));
+
+      this.notice("Inline Overhaul renamed its commands, so hotkeys you had set for them are no longer bound."
+        + " Set them again in Settings, Hotkeys, searching for Inline Overhaul."
+        + " The full old-to-new map is printed in the developer console and in docs/command_ids_v1_v2.md");
+
+      this.store.patch({ viewState: { commandIdsNotice: "shown" } }, "commands:ids:notice", { undoable: false });
+    } catch (e) {
+      console.error("[inline-overhaul][commands:ids:notice]", e);
     }
   }
 
@@ -3993,6 +5001,10 @@ class InlineOverhaulPlugin extends Plugin {
       this._stripLineStyleEl.parentNode.removeChild(this._stripLineStyleEl);
     }
     this._stripLineStyleEl = null;
+    if (this._caretStyleEl && this._caretStyleEl.parentNode) {
+      this._caretStyleEl.parentNode.removeChild(this._caretStyleEl);
+    }
+    this._caretStyleEl = null;
     if (this.store) this.store.unload();
     if (__safeModuleCache && typeof __safeModuleCache.clear === "function") __safeModuleCache.clear();
   }
@@ -4008,6 +5020,39 @@ class InlineOverhaulPlugin extends Plugin {
       this.register(() => {
         if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
       });
+    } catch (_) {}
+  }
+
+  /**
+   * Свой блок стилей каретки и подписка на хранилище (10.13.33 Ц5).
+   *
+   * Подписка своя, а не через перерисовку панели: та откладывается, пока
+   * фокус стоит в поле ввода (`store_events_orchestrator.js`), а цвет должен
+   * меняться под рукой, а не после ухода фокуса.
+   */
+  ensureCaretStyles() {
+    try {
+      if (!this._caretStyleEl || !this._caretStyleEl.parentNode) {
+        const styleEl = document.createElement("style");
+        styleEl.setAttribute("data-inline-overhaul", "caret");
+        document.head.appendChild(styleEl);
+        this._caretStyleEl = styleEl;
+        this.register(() => {
+          if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
+        });
+      }
+      this.refreshCaretStyles();
+      if (this.store && typeof this.store.subscribe === "function") {
+        this.register(this.store.subscribe(() => this.refreshCaretStyles()));
+      }
+    } catch (_) {}
+  }
+
+  refreshCaretStyles() {
+    try {
+      if (!this._caretStyleEl) return;
+      const css = buildCaretStyleCss(caretLookFromConfig(this.getConfig()));
+      if (this._caretStyleEl.textContent !== css) this._caretStyleEl.textContent = css;
     } catch (_) {}
   }
 
@@ -4091,6 +5136,15 @@ class InlineOverhaulPlugin extends Plugin {
     }, reason);
   }
 
+  /**
+   * Все команды плагина: справочнику 10.5 и никому больше. Работа — в
+   * `buildOwnCommandList`, чтобы проверка могла позвать её без Obsidian и без
+   * своей копии тех же правил.
+   */
+  listOwnCommands() {
+    return buildOwnCommandList(this);
+  }
+
   registerCommands() {
     const registry = getCommandRegistry();
     const coreDefs = registry.buildCoreCommandDefs(this, FEATURE_ORDER, FEATURE_META);
@@ -4112,22 +5166,6 @@ class InlineOverhaulPlugin extends Plugin {
     this.registerPkmCommands();
     this.registerBinderCommands();
     this.registerTransformCommands();
-
-    const defs = registry.buildConfigCommandDefs();
-    if (!Array.isArray(defs) || !defs.length) {
-      console.warn("[inline-overhaul] command registry unavailable: config commands skipped");
-      return;
-    }
-    for (const d of defs) {
-      this.addCommand({
-        id: d.id,
-        name: d.name,
-        callback: async () => {
-          await d.run(this);
-        },
-      });
-    }
-
   }
 
   registerGlobalFunctions() {
@@ -4137,13 +5175,31 @@ class InlineOverhaulPlugin extends Plugin {
         mac: "m-a",
         run: () => this.handleEnhancedSelectAllKeymap(),
       },
+      /* Smart Delete (10.13.32). Клавиша Obsidian, перехват тем же способом,
+         что и `Ctrl+A`: выключенная функция возвращает `false`, и `Del`
+         работает так, как работал. */
+      {
+        key: "Delete",
+        run: () => this.handleSmartDeleteKeymap(),
+      },
+      /* Зеркальный случай, свой тумблер (10.13.32 Д9). */
+      {
+        key: "Backspace",
+        run: () => this.handleSmartBackspaceKeymap(),
+      },
     ])));
     this._tagwheelHeaderExtension = createTagwheelHeaderDecorationExtension(this);
     this._tagVisualExtension = createTagVisualDecorationExtension(this);
     this._stripExtension = createStripDecorationExtension(this);
+    this._sourceMarksExtension = createSourceMarkDecorationExtension(this);
     this.registerEditorExtension(this._tagwheelHeaderCompartment.of(this._tagwheelHeaderExtension));
+    this.registerEditorExtension(this._sourceMarksCompartment.of(this._sourceMarksExtension));
     this.registerEditorExtension(this._tagVisualCompartment.of(cmState.Prec.highest(this._tagVisualExtension)));
     this.registerEditorExtension(this._stripCompartment.of(this._stripExtension));
+    /* Своя каретка (10.13.33 Ц9). Компартмента у неё нет и не нужно: слой
+       спрашивает тумблер на каждой отрисовке, а видимостью правит блок стилей,
+       который переписывается сразу за правкой настройки. */
+    this.registerEditorExtension(createCaretLayerExtension(this));
     this.registerStripDebugApi();
   }
 
@@ -4238,6 +5294,16 @@ class InlineOverhaulPlugin extends Plugin {
     return getEnhancedSelectAllEngine().handleEnhancedSelectAllKeymap(this);
   }
 
+  handleSmartDeleteKeymap() {
+    return getSmartDeleteEngine().handleSmartDeleteKeymap(this);
+  }
+
+  handleSmartBackspaceKeymap() {
+    const engine = getSmartDeleteEngine();
+    if (typeof engine.handleSmartBackspaceKeymap !== "function") return false;
+    return engine.handleSmartBackspaceKeymap(this);
+  }
+
   getActiveEditor() {
     return this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView)?.editor ?? this.app.workspace.activeEditor?.editor;
   }
@@ -4312,14 +5378,19 @@ class InlineOverhaulPlugin extends Plugin {
 
     const settings = {
       [__pkmOptionKeys.KEYS.RULES_PATH]: getActiveTagWheelRulesPath(cfg),
-      [__pkmOptionKeys.KEYS.CYCLE_END_BEHAVIOR]: cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.cycleEndBehavior : "keep-bullet",
-      [__pkmOptionKeys.KEYS.SUBTAG_FORMAT]: cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.subtagFormat : "separate",
-      [__pkmOptionKeys.KEYS.CURSOR_POLICY]: cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.cursorPolicy : "text_end",
+      [__pkmOptionKeys.KEYS.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
+      [__pkmOptionKeys.KEYS.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
+      [__pkmOptionKeys.KEYS.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
       [__pkmOptionKeys.KEYS.ORDER_CONFIG]: serializePkmOrderForMacro(cfg),
       [__pkmOptionKeys.KEYS.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfg),
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_ENABLED]: !!(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagWheelScroller && cfg.pkm.behavior.tagWheelScroller.enabled),
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_DIRECTION]: (cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagWheelScroller && cfg.pkm.behavior.tagWheelScroller.direction) || "full",
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_SIZE]: (cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagWheelScroller && cfg.pkm.behavior.tagWheelScroller.size) || 3,
+      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_ENABLED]: readCfgPath(cfg, "visual.tagWheel.scroller.enabled") === true,
+      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_DIRECTION]: readCfgPath(cfg, "visual.tagWheel.scroller.direction") || "full",
+      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_SIZE]: readCfgPath(cfg, "visual.tagWheel.scroller.size") || 3,
+      /* Цвета коробки скроллера (10.13.15). Пусто — коробка берёт цвета темы. */
+      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
+      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
+      /* Край Block: остаться в своём или перейти в соседний (10.13.35). */
+      [__pkmOptionKeys.KEYS.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
       ...(isObj(extraSettings) ? extraSettings : {}),
     };
     return await Promise.resolve(rt.runCommand({
@@ -4358,7 +5429,8 @@ class InlineOverhaulPlugin extends Plugin {
       serializePkmOrderForMacro,
       serializeDateRuntimeConfigForMacro,
       normalizePkmOrder,
-      cfgNow
+      cfgNow,
+      FEATURE_ORDER
     );
     if (!Array.isArray(defs) || !defs.length) {
       console.warn("[inline-overhaul] command registry unavailable: PKM commands skipped");
@@ -4410,23 +5482,32 @@ class InlineOverhaulPlugin extends Plugin {
     }
   }
 
+  /**
+   * Превратить строку в заметку.
+   *
+   * Метод, а не тело обработчика команды: то же самое делает `Floating button`
+   * (10.13.12 Н9), и два входа в одну работу однажды разошлись бы — проверка
+   * модуля есть у одного, обработка ошибки у другого. Здесь один вход.
+   */
+  async runInlineToNote() {
+    const cfg = this.getConfig();
+    if (!cfg.features.transform.enabled) {
+      this.notice("InlineOverhaul: Transform module disabled");
+      return;
+    }
+    try {
+      await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal, lineFinalize: __transformLineFinalize }));
+    } catch (e) {
+      console.error("[inline-overhaul][transform]", e);
+      this.notice("InlineOverhaul transform error: " + (e && e.message ? e.message : e));
+    }
+  }
+
   registerTransformCommands() {
     this.addCommand({
-      id: "inlineOverhaul_Transform_inline2note",
-      name: "Transform: inline2note",
-      callback: async () => {
-        const cfg = this.getConfig();
-        if (!cfg.features.transform.enabled) {
-          this.notice("InlineOverhaul: Transform module disabled");
-          return;
-        }
-        try {
-          await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal, lineFinalize: __transformLineFinalize }));
-        } catch (e) {
-          console.error("[inline-overhaul][transform]", e);
-          this.notice("InlineOverhaul transform error: " + (e && e.message ? e.message : e));
-        }
-      },
+      id: "transform-inline-to-note",
+      name: __commandIds.commandName("transform-inline-to-note"),
+      callback: async () => { await this.runInlineToNote(); },
     });
   }
 
@@ -4468,10 +5549,86 @@ class InlineOverhaulPlugin extends Plugin {
     return null;
   }
 
+  /**
+   * Папка плагина в vault. Нужна только для двух файлов рядом с `data.json`:
+   * резервной копии версии 1 (МГ4) и нечитаемого файла (МГ6).
+   */
+  pluginFolderPath() {
+    const configDir = String((this.app && this.app.vault && this.app.vault.configDir) || ".obsidian");
+    const id = String((this.manifest && this.manifest.id) || "inline-overhaul");
+    return configDir + "/plugins/" + id;
+  }
+
+  /**
+   * МГ4 и МГ6. Идут **до** `store.init()`, потому что обе про то, что лежало
+   * на диске до переезда: `store.init()` первым же действием пишет конфиг
+   * обратно уже в форме версии 2.
+   *
+   * Работа вынесена в `config_migration_v2.loadConfig`, а сюда приходит только
+   * граница с миром — файловые операции адаптера vault и `Notice`. Своей
+   * логики здесь нет намеренно: у `loadConfig` есть проверка, а у обвязки
+   * поверх Obsidian её быть не может.
+   *
+   * Ошибка не роняет загрузку плагина: без копии плагин работает, без плагина
+   * — нет.
+   */
+  async prepareConfigFileForV2() {
+    const adapter = this.app && this.app.vault ? this.app.vault.adapter : null;
+    if (!adapter || typeof adapter.read !== "function" || typeof adapter.write !== "function") return null;
+    try {
+      const migration = getConfigMigrationV2Module();
+      const files = {
+        exists: (p) => adapter.exists(p),
+        read: (p) => adapter.read(p),
+        write: (p, data) => adapter.write(p, data),
+        /* Удаление нужно одному месту: сироте служебного файла в корне
+           vault после переезда в папку плагина (В-39). */
+        remove: (p) => adapter.remove(p),
+      };
+      const result = await migration.loadConfig(
+        files,
+        this.pluginFolderPath(),
+        (message) => { new Notice(message); },
+        {
+          /*
+           * Признак «человек путь служебного файла не менял»: оба литеральных
+           * умолчания — нынешнее и прежнее. Приходят швом, потому что у модуля
+           * миграции обращений к движку нет и быть не должно.
+           */
+          legacyRulesDefaults: [
+            __pkmOptionKeys.DEFAULT_RULES_PATH,
+            __pkmOptionKeys.LEGACY_RULES_PATH,
+          ],
+        },
+      );
+      /*
+       * Конфиг записывается на диск сразу: при нечитаемом файле (МГ6) `loadData`
+       * Obsidian отдал бы тот же мусор, а при переезде с версии 1 (МГ4) копия
+       * уже снята и терять исходник больше нечем.
+       */
+      await this.saveData(result.config);
+      if (result.backupSavedAs) {
+        console.info("[inline-overhaul] копия конфига версии 1: " + result.backupSavedAs);
+      }
+      if (result.rulesPathMovedTo) {
+        console.info("[inline-overhaul] служебный файл правил уехал в папку плагина: "
+          + result.rulesPathMovedTo);
+      }
+      if (result.legacyRulesRemoved) {
+        console.info("[inline-overhaul] прежний служебный файл в корне vault удалён: "
+          + result.legacyRulesRemoved);
+      }
+      return result;
+    } catch (e) {
+      console.error("[inline-overhaul][config:prepare]", e);
+      return null;
+    }
+  }
+
   getDevModeConfig(cfg) {
     const snapshot = isObj(cfg) ? cfg : this.getConfig();
-    const raw = isObj(snapshot && snapshot.devMode) ? snapshot.devMode : {};
-    const genAi = raw.generateAiLog === true;
+    const raw = isObj(readCfgPath(snapshot, "advanced.devMode")) ? readCfgPath(snapshot, "advanced.devMode") : {};
+    const genAi = raw.aiLog === true;
     return {
       enabled: raw.enabled === true,
       logPath: String(raw.logPath || DEFAULT_CONFIG.devMode.logPath).trim() || DEFAULT_CONFIG.devMode.logPath,
@@ -4768,10 +5925,9 @@ class InlineOverhaulPlugin extends Plugin {
     const stripPatchFieldId = String(
       patchObj
       && patchObj.pkm
-      && patchObj.pkm.behavior
-      && patchObj.pkm.behavior.tagVisuals
-      && patchObj.pkm.behavior.tagVisuals.strip
-      && patchObj.pkm.behavior.tagVisuals.strip.fieldId
+      && patchObj.visual
+      && patchObj.visual.tagBars
+      && patchObj.visual.tagBars.fieldId
       || ""
     ).trim();
     this._lineTraceSeq = Math.max(0, Math.trunc(Number(this._lineTraceSeq || 0))) + 1;
@@ -4779,13 +5935,13 @@ class InlineOverhaulPlugin extends Plugin {
     const changed = this.store.patch(patchObj, reason || "settings") === true;
     if (!changed) return;
     const after = this.getConfig();
-    const debugLine = !!(after && after.devMode && after.devMode.enabled && after.devMode.traceTagVisualLine === true);
-    const wasEnabled = !!(before && before.devMode && before.devMode.enabled);
-    const isEnabled = !!(after && after.devMode && after.devMode.enabled);
-    const beforePath = String(before && before.devMode && before.devMode.logPath ? before.devMode.logPath : "");
-    const afterPath = String(after && after.devMode && after.devMode.logPath ? after.devMode.logPath : "");
-    const beforeAi = !!(before && before.devMode && before.devMode.generateAiLog);
-    const afterAi = !!(after && after.devMode && after.devMode.generateAiLog);
+    const debugLine = !!(readCfgPath(after, "advanced.devMode.enabled") === true && readCfgPath(after, "advanced.devMode.traceTagVisualLine") === true);
+    const wasEnabled = readCfgPath(before, "advanced.devMode.enabled") === true;
+    const isEnabled = readCfgPath(after, "advanced.devMode.enabled") === true;
+    const beforePath = String(readCfgPath(before, "advanced.devMode.logPath") || "");
+    const afterPath = String(readCfgPath(after, "advanced.devMode.logPath") || "");
+    const beforeAi = readCfgPath(before, "advanced.devMode.aiLog") === true;
+    const afterAi = readCfgPath(after, "advanced.devMode.aiLog") === true;
     if (!wasEnabled && isEnabled) {
       this.initializeDevLogSession(after).catch((e) => {
         console.error("[inline-overhaul][dev-mode-log:toggle-on]", e);
@@ -4809,11 +5965,11 @@ class InlineOverhaulPlugin extends Plugin {
           traceTxId: this._lineTraceTxId,
           reason: reasonKey,
           requestedStripFieldId: stripPatchFieldId,
-          beforeStripFieldId: String(before && before.pkm && before.pkm.behavior && before.pkm.behavior.tagVisuals && before.pkm.behavior.tagVisuals.strip && before.pkm.behavior.tagVisuals.strip.fieldId || "").trim(),
-          afterStripFieldId: String(after && after.pkm && after.pkm.behavior && after.pkm.behavior.tagVisuals && after.pkm.behavior.tagVisuals.strip && after.pkm.behavior.tagVisuals.strip.fieldId || "").trim(),
-          beforeStripActive: !!(before && before.pkm && before.pkm.behavior && before.pkm.behavior.tagVisuals && before.pkm.behavior.tagVisuals.strip && before.pkm.behavior.tagVisuals.strip.active === true),
-          afterStripActive: !!(after && after.pkm && after.pkm.behavior && after.pkm.behavior.tagVisuals && after.pkm.behavior.tagVisuals.strip && after.pkm.behavior.tagVisuals.strip.active === true),
-          mismatchDetected: !!(stripPatchFieldId && String(after && after.pkm && after.pkm.behavior && after.pkm.behavior.tagVisuals && after.pkm.behavior.tagVisuals.strip && after.pkm.behavior.tagVisuals.strip.fieldId || "").trim() !== stripPatchFieldId),
+          beforeStripFieldId: String(readCfgPath(before, "visual.tagBars.fieldId") || "").trim(),
+          afterStripFieldId: String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim(),
+          beforeStripActive: readCfgPath(before, "visual.tagBars.active") === true,
+          afterStripActive: readCfgPath(after, "visual.tagBars.active") === true,
+          mismatchDetected: !!(stripPatchFieldId && String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim() !== stripPatchFieldId),
         }, "trace", after);
       } catch (_) {}
     }
@@ -4833,7 +5989,7 @@ class InlineOverhaulPlugin extends Plugin {
 
   refreshLivePreviewDecorations() {
     const cfg = this.getConfig();
-    const debugLine = !!(cfg && cfg.devMode && cfg.devMode.enabled && cfg.devMode.traceTagVisualLine === true);
+    const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
     const leaves = this.app && this.app.workspace && typeof this.app.workspace.getLeavesOfType === "function"
       ? this.app.workspace.getLeavesOfType("markdown")
       : [];
@@ -4843,8 +5999,8 @@ class InlineOverhaulPlugin extends Plugin {
           traceTxId: this.getLineTraceTxId(),
           reason: "config-patch",
           leaves: Array.isArray(leaves) ? leaves.length : 0,
-          stripFieldId: String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagVisuals && cfg.pkm.behavior.tagVisuals.strip && cfg.pkm.behavior.tagVisuals.strip.fieldId || "").trim(),
-          stripActive: !!(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagVisuals && cfg.pkm.behavior.tagVisuals.strip && cfg.pkm.behavior.tagVisuals.strip.active === true),
+          stripFieldId: String(readCfgPath(cfg, "visual.tagBars.fieldId") || "").trim(),
+          stripActive: readCfgPath(cfg, "visual.tagBars.active") === true,
         }, "trace", cfg);
       } catch (_) {}
     }
@@ -4862,6 +6018,7 @@ class InlineOverhaulPlugin extends Plugin {
             this._tagwheelHeaderCompartment.of(this._tagwheelHeaderExtension),
             this._tagVisualCompartment.of(cmState.Prec.highest(this._tagVisualExtension)),
             this._stripCompartment.of(this._stripExtension),
+            this._sourceMarksCompartment.of(this._sourceMarksExtension),
           ]) });
           if (this._inlineExtensionMountedEditors instanceof WeakSet) this._inlineExtensionMountedEditors.add(cm);
         } else if (this._tagVisualExtension && this._stripExtension && this._tagwheelHeaderExtension) {
@@ -4869,6 +6026,7 @@ class InlineOverhaulPlugin extends Plugin {
             this._tagwheelHeaderCompartment.reconfigure(this._tagwheelHeaderExtension),
             this._tagVisualCompartment.reconfigure(cmState.Prec.highest(this._tagVisualExtension)),
             this._stripCompartment.reconfigure(this._stripExtension),
+            this._sourceMarksCompartment.reconfigure(this._sourceMarksExtension),
           ] });
         }
         const head = cm.state && cm.state.selection && cm.state.selection.main
@@ -4899,93 +6057,6 @@ class InlineOverhaulPlugin extends Plugin {
 
   setHotkeysSubTab(subTabId) {
     this.setConfigPatch({ ui: { hotkeysSubTab: subTabId } }, "settings:hotkeys-subtab");
-  }
-
-  async openTagWheelConfigNote() {
-    const cfg = this.getConfig();
-    const orch = getConfigNoteOrchestrator();
-    if (!orch) throw new Error("Config note orchestrator unavailable");
-    return await orch.openTagWheelConfigNote({
-      app: this.app,
-      cfg,
-      tagWheelConfigCodec: getTagWheelConfigCodec(),
-      cloneJson,
-      isObj,
-      readVaultText,
-      detectDateFieldHotkeys: (fid, cfgForDetect) =>
-        detectDateFieldHotkeys(this.app, cfgForDetect, fid, this.manifest && this.manifest.id),
-      normalizePkmOrder,
-      TAGWHEEL_CONFIG_MODE_DETAILED,
-      TAGWHEEL_CONFIG_MODE_MINIMAL,
-    });
-  }
-
-  async openTagWheelConfigTemplateNote() {
-    const cfg = this.getConfig();
-    const orch = getConfigNoteOrchestrator();
-    if (!orch) throw new Error("Config note orchestrator unavailable");
-    return await orch.openTagWheelConfigTemplateNote({
-      app: this.app,
-      cfg,
-      tagWheelConfigCodec: getTagWheelConfigCodec(),
-    });
-  }
-
-  async applyTagWheelConfigNote() {
-    try {
-      if (__safeModuleCache && typeof __safeModuleCache.delete === "function") {
-        __safeModuleCache.delete("feature:config-note-orchestrator");
-        __safeModuleCache.delete("feature:tagwheel-config-codec");
-        __safeModuleCache.delete("feature:tagwheel-config-parser");
-      }
-    } catch (_) {}
-    __configNoteOrchestrator = null;
-    __tagWheelConfigCodec = null;
-    __tagWheelConfigParser = null;
-    await loadConfigNoteOrchestratorSafe(this.app);
-    await loadTagWheelConfigParserSafe(this.app);
-    await loadTagWheelConfigCodecSafe(this.app);
-    const cfg = this.getConfig();
-    const orch = getConfigNoteOrchestrator();
-    const helpers = getConfigNoteHelpers();
-    if (!orch) throw new Error("Config note orchestrator unavailable");
-    return await orch.applyTagWheelConfigNote({
-      app: this.app,
-      cfg,
-      tagWheelConfigCodec: getTagWheelConfigCodec(),
-      store: this.store,
-      readVaultText,
-      getOrderStrictName,
-      isObj,
-      cloneJson,
-      collectTagSections: helpers.collectTagSections,
-      getFieldById: helpers.getFieldById,
-      extractFieldMetaMap,
-      rebuildTagValues,
-      rebuildSubtagValues,
-      denormTagToken,
-      getPrefixRulesFromCfg: helpers.getPrefixRulesFromCfg,
-      collectCheckboxTokensFromMap: helpers.collectCheckboxTokensFromMap,
-      deepMerge,
-      syncCustomPrefixResolverBlock: helpers.syncCustomPrefixResolverBlock,
-      normalizePkmOrder,
-      CFG_H2_DATES,
-    });
-  }
-
-  async renameStrictNameInConfigNote(oldName, newName) {
-    const cfg = this.getConfig();
-    const orch = getConfigNoteOrchestrator();
-    if (!orch) throw new Error("Config note orchestrator unavailable");
-    return await orch.renameStrictNameInConfigNote(
-      {
-        app: this.app,
-        cfg,
-        tagWheelConfigCodec: getTagWheelConfigCodec(),
-      },
-      oldName,
-      newName
-    );
   }
 
   isFeatureEnabled(featureKey) {

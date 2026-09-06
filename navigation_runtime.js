@@ -39,17 +39,47 @@ function pickMoveLineCfg(cfg) {
     headerMode: c.headerMode === "move-with-section" ? "move-with-section" : "move-as-line",
     crossSectionAllowed: typeof c.crossSectionAllowed === "boolean" ? c.crossSectionAllowed : true,
     highlightMovedLines: typeof c.highlightMovedLines === "boolean" ? c.highlightMovedLines : false,
+    /* Прокрутка при перемещении строки (10.13.36). */
+    keepInView: typeof c.keepInView === "boolean" ? c.keepInView : true,
+    viewPosition: normalizeViewPosition(c.viewPosition),
   };
 }
 
-function pickMoveSelectionCfg(cfg) {
+/** Где оказывается перемещённая строка на экране (10.13.36). */
+function normalizeViewPosition(value) {
+  const v = String(value || "").trim();
+  return v === "top" || v === "bottom" ? v : "center";
+}
+
+function pickMoveSelectionCfg(cfg, lineFormat) {
   const c = isObj(cfg) ? cfg : {};
+  const lf = isObj(lineFormat) ? lineFormat : {};
+  const sep = (v, fallback) => (typeof v === "string" && v ? v : fallback);
+  const separator1 = sep(lf.separator1, sep(c.separator1, "||"));
   const cycle = Array.isArray(c.cycleOrder) && c.cycleOrder.length
     ? c.cycleOrder.slice()
     : (Array.isArray(c.leftToRight) && c.leftToRight.length ? c.leftToRight.slice() : ["#", "##", "###", "####", "#####", "1. ", "", "- "]);
   return {
+    /*
+     * `Continue past a Separator` для переноса текста (замечание заказчика
+     * 2026-09-04). Полярность та же, что у одноимённого тумблера курсора
+     * (`navigateInline.boundaryJump`): выключен — текст остаётся между
+     * разделителями, включён — уходит куда угодно.
+     *
+     * Умолчание, в отличие от тумблера курсора, **включено**: до этой правки
+     * перенос ходил через разделитель всегда, и заказчик такое поведение уже
+     * принял — его пример 2026-09-02 (`- [ ] #/1 #todo || 123 ||` →
+     * `- [ ] #/1 #todo 123 || ||`, одиннадцатое исключение к З3) на нём и
+     * стоит. Выключенное умолчание молча отменило бы принятое поведение.
+     */
+    inlineBoundaryJump: typeof c.inlineBoundaryJump === "boolean" ? c.inlineBoundaryJump : true,
+    separator1,
+    separator2: sep(lf.separator2, sep(c.separator2, separator1)),
     inlineEnabled: typeof c.inlineEnabled === "boolean" ? c.inlineEnabled : (typeof c.enabled === "boolean" ? c.enabled : true),
     prefixCyclerEnabled: typeof c.prefixCyclerEnabled === "boolean" ? c.prefixCyclerEnabled : true,
+    /* `Cycle in both directions` (10.13.11, В-12). Ключ был в конфиге и не
+       читался никем: тумблер стоял в панели и ничего не делал. */
+    rightCycles: typeof c.rightCycles === "boolean" ? c.rightCycles : true,
     indentFallbackEnabled: typeof c.indentFallbackEnabled === "boolean" ? c.indentFallbackEnabled : true,
     onCycleEnd: c.onCycleEnd === "wrap" ? "wrap" : "indent",
     leftToRight: cycle,
@@ -58,15 +88,38 @@ function pickMoveSelectionCfg(cfg) {
   };
 }
 
-function pickJumpCfg(cfg) {
+/*
+ * Настройки перехода по заголовкам.
+ *
+ * Разделители приходят вторым аргументом — из `pkm.lineFormat`, а не из ветки
+ * `navigation.jumpToHeader`: в ней их нет и быть не должно. До 2026-09-04
+ * никто их сюда и не передавал, а `lineEndPos` их спрашивала, — поэтому режим
+ * `End of your text` молча работал как `Line end` у всех, чей разделитель не
+ * `||`. Замечание заказчика 2026-09-04.
+ *
+ * Собственный список полей здесь не случаен: он отсекает всё, что не спросили.
+ * Значит и разделители надо назвать, иначе они не доедут даже если их
+ * передать (это и был второй разрыв той же цепочки).
+ */
+function pickJumpCfg(cfg, lineFormat) {
   const c = isObj(cfg) ? cfg : {};
+  const lf = isObj(lineFormat) ? lineFormat : {};
+  const sep = (v, fallback) => (typeof v === "string" && v ? v : fallback);
+  const separator1 = sep(lf.separator1, sep(c.separator1, "||"));
   return {
     centerCursor: typeof c.centerCursor === "boolean" ? c.centerCursor : true,
+    /* Место на экране после перехода (10.13.37). Разбор один и тот же, что у
+       перемещения строки, поэтому и функция одна — `normalizeViewPosition`. */
+    viewPosition: normalizeViewPosition(c.viewPosition),
     centerDelayMs: nInt(c.centerDelayMs, 60, 0),
     centerThrottleMs: nInt(c.centerThrottleMs, 200, 0),
     jumpMode: typeof c.jumpMode === "string" ? c.jumpMode : "edge",
     edgeMode: typeof c.edgeMode === "string" ? c.edgeMode : "start-end",
     jumpCursorPosition: typeof c.jumpCursorPosition === "string" ? c.jumpCursorPosition : "start",
+    separator1,
+    /* Второй разделитель по умолчанию равен первому: у заказчика оба `::`, и
+       в панели это обычная настройка. */
+    separator2: sep(lf.separator2, sep(c.separator2, separator1)),
   };
 }
 
@@ -86,7 +139,6 @@ function moveLine(editor, direction, rawCfg) {
   const cfg = pickMoveLineCfg(rawCfg);
   const total = editor.lastLine() + 1;
   const cursor = editor.getCursor();
-  const viewportBefore = getViewportSafe(editor, total);
   const scrollBefore = getScrollStateSafe(editor);
 
   const selections = (editor && typeof editor.listSelections === "function" ? editor.listSelections() : []) || [];
@@ -116,7 +168,7 @@ function moveLine(editor, direction, rawCfg) {
   if (isInsideCodeBlock(editor, anchorLine)) return;
 
   if (isTableLine(editor.getLine(anchorLine))) {
-    tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg);
+    tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
     return;
   }
 
@@ -125,7 +177,7 @@ function moveLine(editor, direction, rawCfg) {
   const { bStart, bEnd } = body;
   const insertAfter = findInsertAfter(editor, bStart, bEnd, direction, cfg, total, yamlEnd);
   if (insertAfter === null) return;
-  applyMove(editor, bStart, bEnd, insertAfter, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg);
+  applyMove(editor, bStart, bEnd, insertAfter, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
 }
 
 function getBody(editor, anchorLine, hasSel, bSelStart, bSelEnd, cfg, total) {
@@ -159,7 +211,22 @@ function findInsertAfter(editor, bStart, bEnd, direction, cfg, total, yamlEnd) {
 
 function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
   const myText = nz(editor.getLine(bStart), "");
-  if (isHeader(myText)) {
+  /*
+   * Заголовок ищет цель за соседним заголовком того же уровня **только** при
+   * `Headers with their sections`: там переезжает секция, и переезд от секции
+   * к секции и есть замысел.
+   *
+   * При `Headers only` переносится одна строка, и цель обязана считаться как у
+   * обычной строки. До 2026-09-02 условие не читалось здесь вовсе: тело
+   * бралось из одной строки (`getBody`), а цель — за целую секцию, и заголовок
+   * перелетал через неё. Заказчик: «при move-lines-heading = Headers only я
+   * хочу, чтобы хедеры вели себя как обычные строки; сейчас перемещается
+   * как-то непонятно» (D1, 2026-09-02). Название значения — `move as line` —
+   * обещало ровно то, чего код не делал.
+   *
+   * Одиннадцатое исключение к З3, разрешение заказчика 2026-09-02.
+   */
+  if (cfg.headerMode === "move-with-section" && isHeader(myText)) {
     const myLevel = getHeaderLevel(myText);
     const prevH = prevHeaderOfLevel(editor, bStart - 1, myLevel, yamlEnd);
     if (prevH === null) return null;
@@ -197,7 +264,9 @@ function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
 
 function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
   const myText = nz(editor.getLine(bStart), "");
-  if (isHeader(myText)) {
+  /* То же условие, что и вверх: за соседний заголовок цель ищется только при
+     переносе заголовка вместе с секцией (D1, 2026-09-02). */
+  if (cfg.headerMode === "move-with-section" && isHeader(myText)) {
     const myLevel = getHeaderLevel(myText);
     const nextH = nextHeaderOfLevel(editor, bEnd + 1, myLevel, total);
     if (nextH === null) return null;
@@ -229,7 +298,7 @@ function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
   return next;
 }
 
-function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg) {
+function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, scrollBefore, selRestore, cursorRestore, cfg) {
   const doc = editor.getValue();
   const lines = doc.split("\n");
   const bodyLines = lines.slice(bStart, bEnd + 1);
@@ -256,10 +325,10 @@ function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, view
   } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, movedStart, movedEnd);
   else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, movedStart, movedEnd);
   else editor.setCursor({ line: movedStart, ch: 0 });
-  maybeRevealMovedRange(editor, movedStart, movedEnd, direction, viewportBefore, scrollBefore, cfg);
+  maybeRevealMovedRange(editor, movedStart, movedEnd, direction, scrollBefore, cfg);
 }
 
-function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg) {
+function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, scrollBefore, selRestore, cursorRestore, cfg) {
   if (isTableSep(editor.getLine(anchorLine))) return;
   const { top, bot } = tableBounds(editor, anchorLine, total);
   let bStart, bEnd;
@@ -283,7 +352,7 @@ function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, to
     } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
     else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, newStart, newEnd);
     else editor.setCursor({ line: newStart, ch: 0 });
-    maybeRevealMovedRange(editor, newStart, newEnd, direction, viewportBefore, scrollBefore, cfg);
+    maybeRevealMovedRange(editor, newStart, newEnd, direction, scrollBefore, cfg);
   } else {
     const targetLine = bEnd + 1;
     if (targetLine > bot || isTableSep(editor.getLine(targetLine))) return;
@@ -298,19 +367,8 @@ function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, to
     } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
     else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, newStart, newEnd);
     else editor.setCursor({ line: newStart, ch: 0 });
-    maybeRevealMovedRange(editor, newStart, newEnd, direction, viewportBefore, scrollBefore, cfg);
+    maybeRevealMovedRange(editor, newStart, newEnd, direction, scrollBefore, cfg);
   }
-}
-
-function getViewportSafe(editor, total) {
-  try {
-    if (!editor || typeof editor.getViewport !== "function") return null;
-    const vp = editor.getViewport();
-    if (!vp || typeof vp.from !== "number" || typeof vp.to !== "number") return null;
-    const from = Math.max(0, vp.from);
-    const toIncl = Math.max(from, Math.min(total - 1, vp.to - 1));
-    return { from, to: toIncl };
-  } catch (_) { return null; }
 }
 
 function getScrollStateSafe(editor) {
@@ -331,15 +389,82 @@ function restoreScrollStateSafe(editor, state) {
   } catch (_) {}
 }
 
-function maybeRevealMovedRange(editor, startLine, endLine, direction, viewportBefore, scrollBefore, cfg) {
-  if (!viewportBefore) return;
-  if (startLine >= viewportBefore.from && endLine <= viewportBefore.to) {
-    restoreScrollStateSafe(editor, scrollBefore);
+/**
+ * Прокрутка после перемещения строки (10.13.36).
+ *
+ * **Что здесь было и почему не работало.** Прежняя версия сперва спрашивала
+ * `editor.getViewport()` и выходила, если его нет. У редактора Obsidian такого
+ * метода нет вовсе — список его методов снят из `app.js` 1.13.7, — значит
+ * функция выходила первой же строкой **всегда и у всех**. Второй разрыв той
+ * же цепочки стоял ниже: `editor.scrollIntoView({line, ch})` получает
+ * **точку**, а Obsidian ждёт **отрезок** и внутри читает `range.from`; на
+ * `undefined` он падает, и падение съедал `catch`. Оба — тихий отказ (У-41).
+ *
+ * Прокруткой поэтому распоряжалась платформа: `replaceRange`, `setSelection`
+ * и `setCursor` шлют транзакцию с `scrollIntoView: true` и режимом
+ * «ближайшее». «Ближайшее» кладёт строку к верхнему краю, если она была выше
+ * экрана, и к нижнему, если ниже, — отсюда и «прыгает произвольно».
+ *
+ * **Что здесь теперь.** Выключено — экран остаётся на месте. Включено —
+ * строка встаёт туда, куда просили: по центру, к верху или к низу.
+ */
+function maybeRevealMovedRange(editor, startLine, endLine, direction, scrollBefore, cfg) {
+  if (!cfg.keepInView) {
+    holdScrollState(editor, scrollBefore);
     return;
   }
-  const movedUpOutOfView = direction === "up" && startLine < viewportBefore.from;
-  const target = movedUpOutOfView ? { line: startLine, ch: 0 } : { line: endLine, ch: 0 };
-  try { editor.scrollIntoView(target); } catch (_) {}
+  const line = direction === "up" ? startLine : endLine;
+  revealLineAt(editor, line, cfg.viewPosition);
+}
+
+/**
+ * Удержать прокрутку на месте.
+ *
+ * Одной синхронной записи мало: платформа уже назначила свою прокрутку и
+ * применяет её в своём проходе измерения, то есть **после** нашей записи.
+ * Поэтому та же запись повторяется в следующем кадре, когда проход уже
+ * прошёл. Без второй записи «выключено» работало бы через раз — а «через раз»
+ * это ровно то, на что заказчик и жалуется.
+ */
+function holdScrollState(editor, state) {
+  if (!state) return;
+  restoreScrollStateSafe(editor, state);
+  try {
+    const win = editor && editor.cm && editor.cm.dom && editor.cm.dom.ownerDocument
+      ? editor.cm.dom.ownerDocument.defaultView
+      : null;
+    const raf = win && typeof win.requestAnimationFrame === "function"
+      ? win.requestAnimationFrame.bind(win)
+      : null;
+    if (raf) raf(() => restoreScrollStateSafe(editor, state));
+  } catch (_) {}
+}
+
+/**
+ * Поставить строку в названное место экрана.
+ *
+ * Считает не сам: у CodeMirror для этого есть `y: "center" | "start" | "end"`,
+ * и оно уже умеет и края документа, и строки любой высоты. Обёртка Obsidian
+ * наружу отдаёт только `center` и `nearest`, поэтому эффект берётся у самого
+ * класса представления — он же конструктор живого редактора.
+ *
+ * Запасной путь — обёртка Obsidian, и ей передаётся **отрезок** `{from, to}`,
+ * а не точка: точку она не понимает, и на этом здесь уже обжигались.
+ */
+function revealLineAt(editor, line, position, ch) {
+  const pos = { line, ch: Number.isFinite(ch) ? ch : 0 };
+  try {
+    const view = editor && editor.cm;
+    const ViewClass = view && view.constructor;
+    if (view && typeof view.dispatch === "function"
+      && ViewClass && typeof ViewClass.scrollIntoView === "function"
+      && typeof editor.posToOffset === "function") {
+      const y = position === "top" ? "start" : (position === "bottom" ? "end" : "center");
+      view.dispatch({ effects: ViewClass.scrollIntoView(editor.posToOffset(pos), { y }) });
+      return;
+    }
+  } catch (_) {}
+  try { editor.scrollIntoView({ from: pos, to: pos }, position === "center"); } catch (_) {}
 }
 
 function restoreMovedSelection(editor, selRestore, oldStart, oldEnd, newStart, newEnd) {
@@ -398,9 +523,49 @@ function isInsideCodeBlock(editor, lineNo) { let depth = 0; for (let l = 0; l < 
 function prevHeaderOfLevel(editor, fromLine, maxLevel, yamlEnd) { for (let l = fromLine; l >= 0; l--) { if (yamlEnd !== -1 && l <= yamlEnd) return null; const t = nz(editor.getLine(l), ""); if (isHeader(t) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
 function nextHeaderOfLevel(editor, fromLine, maxLevel, total) { for (let l = fromLine; l < total; l++) { const t = nz(editor.getLine(l), ""); if (isHeader(t) && getHeaderLevel(t) <= maxLevel) return l; } return null; }
 
+/*
+ * Границы, за которые перенос выделенного текста не выходит.
+ *
+ * Замечание заказчика 2026-09-04: у курсора внутри строки такая опция есть
+ * (`Continue past a Separator`), а у переноса текста не было, и выделенная
+ * фраза уезжала за первый разделитель в теги и за второй в даты.
+ *
+ * Зона считается тем же правилом, что у курсора на прибытии
+ * (`lineEndPos`): первый разделитель ищется первым, второй — вторым и после
+ * первого. Разделителя нет — с этой стороны границей становится сама строка:
+ * за её край перенос всё равно не ходит.
+ *
+ * `null` значит «границ нет» — тумблер включён, и поведение то же, что было
+ * до правки.
+ */
+function moveTextBounds(editor, line, rules) {
+  if (!rules || rules.inlineBoundaryJump === true) return null;
+  const s = txt(editor, line);
+  const lineStart = editor.posToOffset({ line: line, ch: 0 });
+  const sep1 = typeof rules.separator1 === "string" && rules.separator1 ? rules.separator1 : "||";
+  const sep2 = typeof rules.separator2 === "string" && rules.separator2 ? rules.separator2 : sep1;
+  let loRel = 0;
+  let hiRel = s.length;
+  const first = s.indexOf(sep1);
+  if (first !== -1) {
+    loRel = first + sep1.length;
+    const second = s.indexOf(sep2, first + sep1.length);
+    if (second !== -1) hiRel = second;
+  }
+  /*
+   * Зазор у разделителя в зону не входит. Иначе посимвольный шаг менял текст
+   * местами с этим пробелом: `:: купить` превращалось в `::купить `, — фраза
+   * формально оставалась внутри зоны, а зазор съедала. Правило то же, каким
+   * `lineEndPos` подрезает хвост перед вторым разделителем.
+   */
+  while (loRel < hiRel && isHorizSpace(s[loRel])) loRel++;
+  while (hiRel > loRel && isHorizSpace(s[hiRel - 1])) hiRel--;
+  return { lo: lineStart + loRel, hi: lineStart + hiRel };
+}
+
 // ---- move-selection ----
-function moveSelection(editor, direction, rawCfg) {
-  const rules = pickMoveSelectionCfg(rawCfg);
+function moveSelection(editor, direction, rawCfg, lineFormat) {
+  const rules = pickMoveSelectionCfg(rawCfg, lineFormat);
   rules.indentWidth = getEditorTabSize(editor);
   const sel = editor && typeof editor.getSelection === "function" ? nz(editor.getSelection(), "") : "";
   const from = editor.getCursor("from");
@@ -427,8 +592,13 @@ function moveSelection(editor, direction, rawCfg) {
   const b = editor.posToOffset(to);
   const mode = decideMoveMode(doc, a, b, direction, rules.inlineMoveMode);
   if (mode === "noop") return;
-  if (mode === "char") bubbleSwapByCodePoint(doc, editor, a, b, direction);
-  else jumpByWordToken(doc, editor, a, b, direction);
+  /*
+   * Границы считаются по строке курсора: перенос текста живёт в одной строке,
+   * многострочное выделение сюда не доходит (проверено выше).
+   */
+  const bounds = moveTextBounds(editor, from.line, rules);
+  if (mode === "char") bubbleSwapByCodePoint(doc, editor, a, b, direction, bounds);
+  else jumpByWordToken(doc, editor, a, b, direction, bounds);
 }
 
 function isWholeLineSelected(editor, from, to, selectedText) {
@@ -468,10 +638,12 @@ function decideMoveMode(doc, a, b, direction, inlineMoveMode) {
   return "word";
 }
 function everyChar(str, fn) { for (let i = 0; i < str.length; i++) if (!fn(str[i])) return false; return true; }
-function bubbleSwapByCodePoint(doc, editor, a, b, direction) {
+function bubbleSwapByCodePoint(doc, editor, a, b, direction, bounds) {
   const sel = doc.slice(a, b); if (!sel) return;
   if (direction === "left") {
     const prevStart = prevCodePointStart(doc, a); if (prevStart == null) return;
+    /* Тумблер `Continue past a Separator` выключен: за разделитель не ходим. */
+    if (bounds && prevStart < bounds.lo) return;
     const before = doc.slice(prevStart, a); if (!before) return;
     const newDoc = doc.slice(0, prevStart) + sel + before + doc.slice(b);
     if (newDoc !== doc) editor.setValue(newDoc);
@@ -479,28 +651,62 @@ function bubbleSwapByCodePoint(doc, editor, a, b, direction) {
     return;
   }
   const nextEnd = nextCodePointEnd(doc, b); if (nextEnd == null) return;
+  if (bounds && nextEnd > bounds.hi) return;
   const after = doc.slice(b, nextEnd); if (!after) return;
   const newDoc = doc.slice(0, a) + after + sel + doc.slice(nextEnd);
   if (newDoc !== doc) editor.setValue(newDoc);
   const newA = a + after.length;
   editor.setSelection(editor.offsetToPos(newA), editor.offsetToPos(newA + sel.length));
 }
-function jumpByWordToken(doc, editor, a, b, direction) {
+/**
+ * Единица перескока — **целый токен строки**, а не буквенная его часть.
+ *
+ * Раньше токеном считался подряд идущий набор «символов слова», а всё
+ * остальное между ним и переносимым текстом объявлялось зазором. У тега
+ * `#todo` в единицу попадало `todo`, решётка оставалась на месте — и текст
+ * встраивался внутрь тега: заказчик прислал `- [ ] #/1 #123 || todo`,
+ * ожидая `- [ ] #/1 #todo 123 ||` (свободное замечание, 2026-09-02). Со
+ * ссылкой то же: `[[` и `]]` символами слова не являются, и текст уезжал
+ * внутрь скобок.
+ *
+ * Теперь токен — то, что стоит **между пробелами**, а зазор — только сами
+ * пробелы. Это не новое правило, а то же самое, каким живёт весь движок
+ * (`split(/\s+/)` в разборе строки), и потому оно не разойдётся с ним: тег,
+ * ссылка, эмодзи-элемент и разделитель переставляются целиком. В обычном
+ * тексте единица остаётся словом.
+ *
+ * Одиннадцатое исключение к З3, разрешение заказчика 2026-09-02.
+ *
+ * Чего это **не** лечит: эмодзи-элемент из двух слов (`📅2026-09-02 20:43`)
+ * между пробелами не помещается, и здесь он по-прежнему два токена. Это то же
+ * допущение движка, что и в Т-14; починка там.
+ */
+function isTokenChar(ch) {
+  if (ch == null) return false;
+  /* Перенос строки токеном не бывает: иначе набор перешёл бы на соседнюю. */
+  if (ch === "\n") return false;
+  return !isHorizSpace(ch);
+}
+
+function jumpByWordToken(doc, editor, a, b, direction, bounds) {
   while (a < b && isHorizSpace(doc[a])) a++;
   while (b > a && isHorizSpace(doc[b - 1])) b--;
   const phrase = doc.slice(a, b); if (!phrase) return;
   if (direction === "left") {
-    let i = a; while (i > 0 && isGapChar(doc[i - 1])) i--; const gap = doc.slice(i, a);
-    const tEnd = i; while (i > 0 && isWordChar(doc[i - 1])) i--; const tStart = i;
+    let i = a; while (i > 0 && isHorizSpace(doc[i - 1])) i--; const gap = doc.slice(i, a);
+    const tEnd = i; while (i > 0 && isTokenChar(doc[i - 1])) i--; const tStart = i;
     if (tStart === tEnd) return; const token = doc.slice(tStart, tEnd);
+    /* Соседний токен лежит за разделителем — меняться с ним нечем. */
+    if (bounds && tStart < bounds.lo) return;
     const newDoc = doc.slice(0, tStart) + phrase + gap + token + doc.slice(b);
     if (newDoc !== doc) editor.setValue(newDoc);
     editor.setSelection(editor.offsetToPos(tStart), editor.offsetToPos(tStart + phrase.length));
     return;
   }
-  let i = b; while (i < doc.length && isGapChar(doc[i])) i++; const gap = doc.slice(b, i);
-  const tStart = i; while (i < doc.length && isWordChar(doc[i])) i++; const tEnd = i;
+  let i = b; while (i < doc.length && isHorizSpace(doc[i])) i++; const gap = doc.slice(b, i);
+  const tStart = i; while (i < doc.length && isTokenChar(doc[i])) i++; const tEnd = i;
   if (tStart === tEnd) return; const token = doc.slice(tStart, tEnd);
+  if (bounds && tEnd > bounds.hi) return;
   const newDoc = doc.slice(0, a) + token + gap + phrase + doc.slice(tEnd);
   if (newDoc !== doc) editor.setValue(newDoc);
   const newA = a + token.length + gap.length;
@@ -531,7 +737,21 @@ function indentLine(editor, direction, rules) {
     return;
   }
 
-  if (currentIndent > 0 || isBullet(line)) {
+  /*
+   * Симметричный цикл (В-12, разрешение заказчика 2026-09-01 — восьмое
+   * исключение к З3).
+   *
+   * Здесь стояло `currentIndent > 0 || isBullet(line)`, и второе слагаемое
+   * уводило буллит в отступ: с обычной строки `Move right` циклировал ровно
+   * один раз — строка становилась буллитом, — а дальше только сдвигал её.
+   * `Move left` при нулевом отступе циклировал сколько угодно.
+   *
+   * Чем это управляется, решает `Cycle in both directions`: включён — правое
+   * направление циклирует наравне с левым, выключен — правое только сдвигает,
+   * и смена вида строки остаётся за `Move left`.
+   */
+  const rightMayCycle = rules.prefixCyclerEnabled && rules.rightCycles;
+  if (currentIndent > 0 || (isBullet(line) && !rightMayCycle)) {
     if (rules.indentFallbackEnabled) {
       editor.replaceRange(INDENT, { line: lineNo, ch: 0 });
       editor.setCursor({ line: lineNo, ch: cur.ch + indentWidth });
@@ -539,7 +759,7 @@ function indentLine(editor, direction, rules) {
     return;
   }
 
-  if (rules.prefixCyclerEnabled) {
+  if (rightMayCycle) {
     const result = cycleLineType(editor, lineNo, "right", rules);
     if (result) {
       editor.setLine(lineNo, result.newLine);
@@ -620,28 +840,38 @@ function getPrefixFromInfo(info) { if (info.type === "header") return info.prefi
 function getNextNumber(editor, currentLineNo) { for (let i = currentLineNo - 1; i >= 0; i--) { const line = editor.getLine(i); const m = line.match(/^(\d+)\.\s/); if (m) return parseInt(m[1], 10) + 1; if (line.replace(/^\s*/, "").length > 0) break; } return 1; }
 function isWordChar(ch) { return /[0-9A-Za-zА-Яа-яЁё_]/.test(ch || ""); }
 function isHorizSpace(ch) { return ch === " " || ch === "\t"; }
-function isGapChar(ch) { if (ch == null) return false; if (ch === "\n") return false; return !isWordChar(ch); }
 function isHighSurrogate(code) { return code >= 0xd800 && code <= 0xdbff; }
 function isLowSurrogate(code) { return code >= 0xdc00 && code <= 0xdfff; }
 function prevCodePointStart(str, index) { if (index <= 0) return null; let j = index - 1; const c = str.charCodeAt(j); if (isLowSurrogate(c) && j - 1 >= 0) { const p = str.charCodeAt(j - 1); if (isHighSurrogate(p)) j -= 1; } return j; }
 function nextCodePointEnd(str, index) { if (index >= str.length) return null; const c = str.charCodeAt(index); if (isHighSurrogate(c) && index + 1 < str.length) { const n = str.charCodeAt(index + 1); if (isLowSurrogate(n)) return index + 2; } return index + 1; }
 
 // ---- jump-to-header ----
-function jumpToHeader(editor, direction, rawCfg) {
-  const cfg = pickJumpCfg(rawCfg);
+function jumpToHeader(editor, direction, rawCfg, lineFormat) {
+  const cfg = pickJumpCfg(rawCfg, lineFormat);
   const cur = editor.getCursor();
   const yamlEnd = findYamlEnd(editor);
   if (yamlEnd !== -1 && cur.line >= 0 && cur.line <= yamlEnd) {
-    if (direction === "up") return setCursorRobustCentered(editor, { line: 0, ch: 0 }, cfg);
-    const firstH = findNextHeader(editor, -1);
-    if (firstH !== -1) return setCursorRobustCentered(editor, sectionAnchorsAvoidTables(editor, firstH, cfg).startPos, cfg);
-    return;
+    /*
+     * Курсор внутри свойств заметки. Вверх идти некуда: выше frontmatter
+     * ничего нет, и раньше переход уводил на нулевую строку — внутрь тех же
+     * свойств. Вниз — в начало безымянной секции, то есть на первую строку
+     * после frontmatter (решение заказчика В-20 от 2026-09-02).
+     */
+    if (direction === "up") return;
+    return setCursorRobustCentered(editor, sectionAnchorsAvoidTables(editor, -1, cfg).startPos, cfg);
   }
-  let curH = findPrevHeader(editor, cur.line);
-  if (curH === -1) {
-    curH = findNextHeader(editor, -1);
-    if (curH === -1) return;
-  }
+  /*
+   * Заголовка выше курсора нет — значит, курсор в **безымянной секции**:
+   * тексте от первой строки после frontmatter до первого заголовка. Она
+   * участвует в переходах наравне с остальными (решение заказчика В-20 от
+   * 2026-09-02, D2).
+   *
+   * Здесь стояло `findNextHeader`: курсор из этого текста считался стоящим в
+   * ПЕРВОЙ секции, то есть ниже себя, и переход назад уводил его в начало
+   * заметки. Заметка без заголовков вовсе тогда не двигалась совсем; теперь
+   * она — одна безымянная секция, и переходы работают внутри неё.
+   */
+  const curH = findPrevHeader(editor, cur.line);
   const tb = tableBlockInSection(editor, curH, cur.line);
   if (tb) {
     if (direction === "up") {
@@ -658,7 +888,7 @@ function jumpToHeader(editor, direction, rawCfg) {
 
   const a = sectionAnchorsAvoidTables(editor, curH, cfg);
   if (cfg.jumpMode === "line") {
-    return jumpByLineMode(editor, cur, curH, direction, cfg, yamlEnd);
+    return jumpByLineMode(editor, cur, direction, cfg);
   }
   return jumpByEdgeMode(editor, cur, curH, direction, cfg, yamlEnd, a);
 }
@@ -687,30 +917,28 @@ function jumpByEdgeMode(editor, cur, curH, direction, cfg, yamlEnd, anchors) {
   return jumpToAdjacentSection(editor, curH, direction, cfg, yamlEnd, "end");
 }
 
-function jumpByLineMode(editor, cur, curH, direction, cfg, yamlEnd) {
-  const sec = sectionContentRange(editor, curH);
+/*
+ * «Строка за строкой»: заголовок — такая же строка, как остальные
+ * (замечание заказчика 2026-09-04, вечер; PRD 10.13.24).
+ *
+ * Раньше режим ходил по секциям, а `sectionContentRange` начинает со строки
+ * **после** заголовка. Дойдя до конца секции, переход брал следующий
+ * заголовок и вставал на первую строку под ним — сам заголовок оставался
+ * пропущен. Секции этому режиму не нужны вовсе: они предмет режима
+ * `Heading to heading`.
+ *
+ * Поэтому обход идёт по всей заметке, а что считать остановкой — решает
+ * `isContentLine`: пустые строки, линейки и строки таблиц она пропускает, а
+ * заголовок остановкой считает без единого условия. Верхняя граница —
+ * первая строка после свойств заметки: выше неё переход не идёт (решение
+ * заказчика В-20 от 2026-09-02).
+ */
+function jumpByLineMode(editor, cur, direction, cfg) {
   const curLine = cur.line;
-  if (direction === "down") {
-    const nextLine = findNextContentLineInRange(editor, curLine + 1, sec.b);
-    if (nextLine !== -1) return setCursorRobustCentered(editor, targetPosForLine(editor, nextLine, cfg), cfg);
-    const nextH = findNextHeader(editor, curH);
-    if (nextH === -1) return;
-    const nextSec = sectionContentRange(editor, nextH);
-    const first = findNextContentLineInRange(editor, nextSec.a, nextSec.b);
-    const line = first !== -1 ? first : nextH;
-    return setCursorRobustCentered(editor, targetPosForLine(editor, line, cfg), cfg);
-  }
-
-  const prevLine = findPrevContentLineInRange(editor, curLine - 1, sec.a);
-  if (prevLine !== -1) return setCursorRobustCentered(editor, targetPosForLine(editor, prevLine, cfg), cfg);
-  const prevH = findPrevHeader(editor, curH - 1);
-  if (prevH === -1) {
-    if (yamlEnd !== -1) return setCursorRobustCentered(editor, { line: yamlEnd, ch: 0 }, cfg);
-    return setCursorRobustCentered(editor, { line: 0, ch: 0 }, cfg);
-  }
-  const prevSec = sectionContentRange(editor, prevH);
-  const last = findPrevContentLineInRange(editor, prevSec.b, prevSec.a);
-  const line = last !== -1 ? last : prevH;
+  const line = direction === "down"
+    ? findNextContentLineInRange(editor, curLine + 1, editor.lastLine())
+    : findPrevContentLineInRange(editor, curLine - 1, unnamedSectionStart(editor));
+  if (line === -1) return;
   return setCursorRobustCentered(editor, targetPosForLine(editor, line, cfg), cfg);
 }
 
@@ -723,12 +951,18 @@ function jumpToAdjacentSection(editor, curH, direction, cfg, yamlEnd, targetKind
     return setCursorRobustCentered(editor, target, cfg);
   }
 
+  /*
+   * Выше первого заголовка лежит **безымянная секция**, а не «начало
+   * заметки»: решение заказчика В-20 от 2026-09-02. Раньше здесь стоял откат
+   * на нулевую строку, и переход назад из первой секции уезжал в самое начало
+   * — заказчик прочёл это как промах (D2).
+   *
+   * Из безымянной секции наверх идти некуда: она первая. Курсор остаётся на
+   * месте, как у обычной строки на первой строке заметки.
+   */
+  if (curH < 0) return;
   const prevH = findPrevHeader(editor, curH - 1);
-  if (prevH === -1) {
-    if (yamlEnd !== -1) return setCursorRobustCentered(editor, { line: yamlEnd, ch: 0 }, cfg);
-    return setCursorRobustCentered(editor, { line: 0, ch: 0 }, cfg);
-  }
-  const prevAnchors = sectionAnchorsAvoidTables(editor, prevH, cfg);
+  const prevAnchors = sectionAnchorsAvoidTables(editor, prevH === -1 ? -1 : prevH, cfg);
   const target = targetKind === "start" ? prevAnchors.startPos : prevAnchors.endPos;
   return setCursorRobustCentered(editor, target, cfg);
 }
@@ -742,7 +976,16 @@ function targetPosForLine(ed, line, cfg) {
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 function smartLineStartCh(s) { const t = String(s || ""); let i = 0; while (i < t.length && (t[i] === " " || t[i] === "\t")) i++; if (t.slice(i).startsWith("|")) { i += 1; while (i < t.length && t[i] === " ") i++; return i; } let m = t.slice(i).match(/^([-*+])\s+/); if (m) i += m[0].length; else { m = t.slice(i).match(/^(\d+)\.\s+/); if (m) i += m[0].length; } const mCb = t.slice(i).match(/^\[[^\]]\]\s+/); if (mCb) i += mCb[0].length; return i; }
-function centerOnCursorOnce(ed, p, cfg) { if (!cfg.centerCursor) return; if (!globalThis.__jumpCenterState) globalThis.__jumpCenterState = { t: 0, line: -1 }; const st = globalThis.__jumpCenterState; const now = Date.now(); if (now - st.t < cfg.centerThrottleMs && st.line === p.line) return; st.t = now; st.line = p.line; setTimeout(() => { try { if (typeof ed.scrollIntoView === "function") ed.scrollIntoView({ from: p, to: p }, true); } catch (_) {} }, cfg.centerDelayMs); }
+/**
+ * Прокрутка после перехода по заголовкам (10.13.37).
+ *
+ * Тумблер прежний (`centerCursor`), а вот «по центру» стало одним из трёх
+ * положений — заказ заказчика 2026-09-06 «такая же опция, как у перемещения
+ * строки». Само место на экране считает `revealLineAt` — та же функция, что и
+ * у перемещения: одно правило живёт в одном месте (У-32). Прежняя строка
+ * звала обёртку Obsidian с `center = true`, и это ровно её `center`.
+ */
+function centerOnCursorOnce(ed, p, cfg) { if (!cfg.centerCursor) return; if (!globalThis.__jumpCenterState) globalThis.__jumpCenterState = { t: 0, line: -1 }; const st = globalThis.__jumpCenterState; const now = Date.now(); if (now - st.t < cfg.centerThrottleMs && st.line === p.line) return; st.t = now; st.line = p.line; setTimeout(() => { try { revealLineAt(ed, p.line, cfg.viewPosition, p.ch); } catch (_) {} }, cfg.centerDelayMs); }
 async function setCursorRobustCentered(ed, p, cfg) { const apply = () => { ed.setCursor(p); if (typeof ed.focus === "function") ed.focus(); }; apply(); await sleep(0); apply(); await sleep(40); apply(); centerOnCursorOnce(ed, p, cfg); }
 function txt(ed, l) { return String(nz(ed.getLine(l), "")); }
 function len(ed, l) { return txt(ed, l).length; }
@@ -751,7 +994,19 @@ function isTableLineText(s) { return String(nz(s, "")).trimStart().startsWith("|
 function isDashSepText(s) { return /^-+$/.test(String(nz(s, "")).trim()); }
 function findPrevHeader(ed, fromLine) { for (let l = Math.min(fromLine, ed.lastLine()); l >= 0; l--) if (isHeader(ed.getLine(l))) return l; return -1; }
 function findNextHeader(ed, fromLine) { const max = ed.lastLine(); for (let l = Math.max(0, fromLine + 1); l <= max; l++) if (isHeader(ed.getLine(l))) return l; return -1; }
-function sectionContentRange(ed, headerLine) { const max = ed.lastLine(); const nextH = findNextHeader(ed, headerLine); return { a: headerLine + 1, b: nextH === -1 ? max : nextH - 1, nextH }; }
+/*
+ * Начало безымянной секции — текста выше первого заголовка.
+ *
+ * Решение заказчика В-20 от 2026-09-02: этот текст считается такой же
+ * секцией, только без строки-заголовка. Выше первой строки после frontmatter
+ * переход не идёт: свойства заметки — не место, куда прыгают.
+ */
+function unnamedSectionStart(ed) { const yamlEnd = findYamlEnd(ed); return yamlEnd === -1 ? 0 : yamlEnd + 1; }
+/*
+ * Содержимое секции. `headerLine === -1` — безымянная секция: у неё нет
+ * строки-заголовка, и начинается она сразу после frontmatter.
+ */
+function sectionContentRange(ed, headerLine) { const max = ed.lastLine(); const nextH = findNextHeader(ed, headerLine); const a = headerLine < 0 ? unnamedSectionStart(ed) : headerLine + 1; return { a, b: nextH === -1 ? max : nextH - 1, nextH }; }
 function tableBlockInSection(ed, headerLine, curLine) { const { a, b } = sectionContentRange(ed, headerLine); if (curLine < a || curLine > b || !isTableLineText(txt(ed, curLine))) return null; let top = curLine; while (top - 1 >= a && isTableLineText(txt(ed, top - 1)) && !isBlank(ed, top - 1)) top--; let bot = curLine; while (bot + 1 <= b && isTableLineText(txt(ed, bot + 1)) && !isBlank(ed, bot + 1)) bot++; return { top, bot, a, b }; }
 function findAllowedLineUp(ed, startLine, a) { for (let l = startLine; l >= a; l--) { const s = txt(ed, l); if (isTableLineText(s) || isDashSepText(s)) continue; return l; } return -1; }
 function findAllowedLineDown(ed, startLine, b) { for (let l = startLine; l <= b; l++) { const s = txt(ed, l); if (isTableLineText(s) || isDashSepText(s)) continue; return l; } return -1; }
@@ -771,10 +1026,13 @@ function findPrevContentLineInRange(ed, fromLine, toLine) {
 }
 function sectionAnchorsAvoidTables(ed, headerLine, cfg) {
   const { a, b } = sectionContentRange(ed, headerLine);
-  if (a > b) return { startPos: targetPosForLine(ed, headerLine, cfg), endPos: targetPosForLine(ed, headerLine, cfg) };
+  /* Секция пуста: у обычной остаётся её заголовок, у безымянной — её первая
+     строка. Строки с номером -1 не существует, и прыгать туда нельзя. */
+  const fallback = headerLine < 0 ? unnamedSectionStart(ed) : headerLine;
+  if (a > b) return { startPos: targetPosForLine(ed, fallback, cfg), endPos: targetPosForLine(ed, fallback, cfg) };
   let startLine = -1; for (let l = a; l <= b; l++) { const s = txt(ed, l); if (isBlank(ed, l) || isDashSepText(s) || isTableLineText(s)) continue; startLine = l; break; }
   let endLine = -1; for (let l = b; l >= a; l--) { const s = txt(ed, l); if (isBlank(ed, l) || isDashSepText(s) || isTableLineText(s)) continue; endLine = l; break; }
-  if (startLine === -1 || endLine === -1) return { startPos: targetPosForLine(ed, headerLine, cfg), endPos: targetPosForLine(ed, headerLine, cfg) };
+  if (startLine === -1 || endLine === -1) return { startPos: targetPosForLine(ed, fallback, cfg), endPos: targetPosForLine(ed, fallback, cfg) };
   return { startPos: targetPosForLine(ed, startLine, cfg), endPos: targetPosForLine(ed, endLine, cfg) };
 }
 
@@ -782,9 +1040,12 @@ function lineEndPos(ed, line, cfg) {
   const s = txt(ed, line);
   if (!cfg || cfg.jumpCursorPosition !== "section-end") return { line: line, ch: len(ed, line) };
   const sep = typeof (cfg && cfg.separator1) === "string" && cfg.separator1 ? cfg.separator1 : "||";
+  /* Второй разделитель ищется вторым разделителем, а не первым: у заказчика
+     оба `::` и разницы не видно, но в панели это две разные настройки. */
+  const sep2 = typeof (cfg && cfg.separator2) === "string" && cfg.separator2 ? cfg.separator2 : sep;
   const first = s.indexOf(sep);
   if (first === -1) return { line: line, ch: len(ed, line) };
-  const second = s.indexOf(sep, first + sep.length);
+  const second = s.indexOf(sep2, first + sep.length);
   if (second === -1) {
     const beforeFirst = s.slice(0, first).replace(/[ \t]+$/, "");
     if (!hasTextPartBeforeFirstSeparator(beforeFirst)) return { line: line, ch: len(ed, line) };
@@ -871,25 +1132,47 @@ async function loadNavigateRules(app, rulesPath) {
   if (src.startsWith("./")) pushCandidate(src.slice(2));
   if (src.indexOf("/") !== -1) pushCandidate(src.slice(src.lastIndexOf("/") + 1));
   pushCandidate("RULES_TagWheel.md");
+  /*
+   * Прежнее место служебного файла — корень vault. Остаётся последним
+   * кандидатом, а не новым умолчанием: новый путь приходит сюда первым
+   * аргументом из конфига, и объявить его здесь во второй раз значило бы
+   * развести два объявления одного пути (У-32). Эта строка нужна тому, у
+   * кого файл ещё лежит в корне (переезд 2026-09-04, решение В-39).
+   */
   pushCandidate("InlineOverhaul_Generated_RULES_TagWheel.md");
 
-  let f = null;
+  let md = null;
   let usedPath = "";
+  const adapter = app && app.vault ? app.vault.adapter : null;
   for (let i = 0; i < candidates.length; i++) {
     const cand = candidates[i];
     const af = app.vault.getAbstractFileByPath(cand);
     if (af) {
-      f = af;
+      md = await app.vault.read(af);
       usedPath = cand;
       break;
     }
+    /*
+     * Запасной путь через адаптер — единственный работающий для файла в папке
+     * плагина: `.obsidian/**` vault не индексирует, и `getAbstractFileByPath`
+     * такой путь не находит вовсе. У общего чтения правил
+     * (`readRulesMarkdownWithFallback`) эта ветка есть с самого начала, у
+     * навигации её не было — и переезд файла погасил бы обе команды курсора
+     * внутри строки целиком (решение В-39 от 2026-09-04).
+     */
+    if (adapter && typeof adapter.read === "function") {
+      try {
+        md = await adapter.read(cand);
+        usedPath = cand;
+        break;
+      } catch (_) {}
+    }
   }
 
-  if (!f) {
+  if (md === null) {
     throw new Error("Rules file not found: " + src + " (checked: " + candidates.join(", ") + ")");
   }
 
-  const md = await app.vault.read(f);
   const io = parseJsonFence(md, "tagwheel-io") || {};
   const leftMode = parseJsonFence(md, "tagwheel-left-mode") || {};
   const dateRules = parseJsonFence(md, "tagwheel-date-rules") || {};
@@ -1181,8 +1464,20 @@ function navigateInline(editor, direction, navRules, rawCfg) {
         foundSentenceBoundary = true;
         anchors.push(sentenceStart + mt.index);
       }
+      /*
+       * Конца предложения в зоне нет — шаг идёт в её начало и конец, а не
+       * пересобирается по словам.
+       *
+       * Здесь стояло `collectWordAnchors`, и `sentence` на строке без точки
+       * вёл себя как `word`: заказчик ждал прыжка в начало и конец, как при
+       * `straight to the start or end` (D3, решение В-17 от 2026-09-02,
+       * девятое исключение к З3). Причина замены, а не добавления: со словами
+       * в списке остановок начало и конец зоны терялись среди них, и разницы
+       * между двумя режимами не было вовсе.
+       */
       if (!foundSentenceBoundary) {
-        anchors.push.apply(anchors, collectWordAnchors(rawLine, sentenceStart, sentenceEnd));
+        anchors.push(sentenceStart);
+        anchors.push(sentenceEnd);
       }
     }
 

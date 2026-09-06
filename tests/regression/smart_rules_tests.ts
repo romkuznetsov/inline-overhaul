@@ -47,7 +47,8 @@ const { ConfigStore } = requireCjs(path.join(root, "src", "core", "config_store.
 };
 const engine = requireCjs(path.join(root, "src", "features", "transform_feature.js")) as {
   validateSmartRules: (rules: Any[]) => Any[];
-  selectSmartTemplate: (parsed: Any, rules: Any[], fallback: string) => string;
+  selectSmartTemplate: (parsed: Any, rules: Any[], fallback: string, cfg?: Any) => string;
+  resolveRuleFolder: (rule: Any, i2n: Any) => string;
   normalizeTransformConfig: (cfg: Any) => Any;
   parseInlineLine: (line: string, cfg: Any) => Any;
   collectTemplateOptions: (app: Any, folder: string) => string[];
@@ -81,15 +82,22 @@ const byLabel = (node: StubNode, prefix: string): StubNode | undefined =>
 
 interface Panel {
   host: StubNode;
+  /** Модель того же захода отрисовки: списки выбора считает она. */
+  model: () => Any;
   cfg: () => Any;
   rules: () => Any[];
   writes: Array<{ reason: string }>;
   draw: () => void;
   /** Ответ окна выбора значения: что «выбрал» человек в следующий раз. */
   answer: (value: string | null) => void;
+  /** Нажатие на имя Field в том же окне: заводит «любое значение» (10.13.14). */
+  answerField: (fieldId: string) => void;
 }
 
-function makePanel(base: Any, o?: { enabled?: boolean }): Panel {
+function makePanel(
+  base: Any,
+  o?: { enabled?: boolean; templates?: readonly string[]; templatesFolder?: string },
+): Panel {
   const host = makeNode("div");
   const store = new ConfigStore(
     { loadData: async () => base, saveData: async () => {} },
@@ -112,7 +120,10 @@ function makePanel(base: Any, o?: { enabled?: boolean }): Panel {
     },
   };
 
-  let nextAnswer: string | null = null;
+  /* Что «выберет» человек в окне. С 10.13.14 ответ называет свой вид:
+     значение или Field целиком. Строка остаётся сокращением для значения. */
+  let nextAnswer: { kind: "value" | "field"; id: string } | null = null;
+  let lastModel: Any = null;
   const draw = (): void => {
     host.empty();
     const model = createRulesModel({
@@ -126,10 +137,12 @@ function makePanel(base: Any, o?: { enabled?: boolean }): Panel {
         deepState: deepState as never,
       }).listFieldTokens(),
     });
+    lastModel = model;
     renderSmartRules(host as unknown as El, {
       model,
       enabled: !(o && o.enabled === false),
-      templates: ["Templates/task.md", "Templates/meeting.md"],
+      templates: o && o.templates ? o.templates : ["Templates/task.md", "Templates/meeting.md"],
+      templatesFolder: o && o.templatesFolder !== undefined ? o.templatesFolder : "Templates",
       redraw: draw,
       askCondition: (_kind, done) => done(nextAnswer),
     });
@@ -137,11 +150,16 @@ function makePanel(base: Any, o?: { enabled?: boolean }): Panel {
   draw();
   return {
     host,
+    model: () => lastModel,
     cfg: () => store.getSnapshot(),
     rules: () => (store.getSnapshot().transform?.inline2note?.smartRules || []) as Any[],
     writes,
     draw,
-    answer: (value: string | null) => { nextAnswer = value; },
+    answer: (value: string | null) => {
+      nextAnswer = value === null ? null : { kind: "value", id: value };
+    },
+    /* Нажатие на имя Field в окне выбора: заводит «любое значение». */
+    answerField: (fieldId: string) => { nextAnswer = { kind: "field", id: fieldId }; },
   };
 }
 
@@ -281,15 +299,29 @@ function baseConfig(rules?: Any[]): Any {
  * ====================================================================== */
 
 {
+  /*
+   * Условия у правил РАЗНЫЕ, и это не украшение фикстуры.
+   * `validateSmartRules` выключает оба правила, чьи условия могут совпасть на
+   * одной строке, — а совпасть могут любые два, кроме тех, у которых общая
+   * размерность заполнена и не пересекается (`rulesCanOverlap`). Два правила
+   * на один и тот же тег до движка просто не доходят: он их обесточивает и
+   * отвечает шаблоном по умолчанию. Значимость порядка видна только на
+   * правилах, которые движок оставил включёнными, — то есть на разных Values,
+   * встреченных в одной строке.
+   *
+   * До 2026-08-31 фикстура держала два правила на `#todo` и проходила: в
+   * проверках `normalizeTransformConfig` подменялась заглушкой из `main.js`
+   * (`getTransformFeature`), и правила не нормализовались вовсе.
+   */
   const p = makePanel(baseConfig([
     { id: "rule-1", name: "First", enabled: true, targetTemplate: "Templates/task.md",
       conditions: { tags: ["#todo"], emojiFields: [], wikilinks: [] } },
     { id: "rule-2", name: "Second", enabled: true, targetTemplate: "Templates/meeting.md",
-      conditions: { tags: ["#todo"], emojiFields: [], wikilinks: [] } },
+      conditions: { tags: ["#doing"], emojiFields: [], wikilinks: [] } },
   ]));
   const cfg = p.cfg();
   const pick = (): string =>
-    engine.selectSmartTemplate(engine.parseInlineLine("- #todo || x", cfg), p.rules(), "plain");
+    engine.selectSmartTemplate(engine.parseInlineLine("- #todo #doing || x", cfg), p.rules(), "plain");
   assert.equal(pick(), "Templates/task.md", "срабатывает первое подходящее");
 
   /* Перенос второго правила наверх меняет ответ движка. */
@@ -343,6 +375,16 @@ function baseConfig(rules?: Any[]): Any {
  * ====================================================================== */
 
 {
+  /*
+   * Разбор обязан переживать конфиг. `normalizeSmartRules` идёт внутри
+   * `migrateConfig`, то есть на каждом патче, и до 2026-08-31 она сохраняла
+   * вердикт спора в `enabled: false`. Следующий прогон выключенные правила
+   * пропускал и вердикт не пересчитывал: предупреждение исчезало, а тумблер
+   * оставался снятым — человек получал выключенное правило без объяснения.
+   * Проверка этого не видела, потому что `normalizeTransformConfig`
+   * подменялась заглушкой из `main.js` (`getTransformFeature`); заглушки
+   * больше нет, и вердикт теперь живёт только в `validation`.
+   */
   const p = makePanel(baseConfig([
     { id: "rule-1", enabled: true, targetTemplate: "Templates/task.md",
       conditions: { tags: ["#todo"], emojiFields: [], wikilinks: [] } },
@@ -355,6 +397,14 @@ function baseConfig(rules?: Any[]): Any {
     "и текст предупреждения от движка: " + warns[0]?.textContent);
   assert.equal(all(p.host, "io-rule--clash").length, warns.length,
     "спорная карточка помечена");
+  assert.deepEqual(p.rules().map((r: Any) => r.enabled), [true, true],
+    "и вердикт не записан в конфиг: тумблеры человек не трогал");
+
+  /* Спорное правило шаблон не выбирает, хотя тумблер у него включён. */
+  const cfg = p.cfg();
+  assert.equal(
+    engine.selectSmartTemplate(engine.parseInlineLine("- #todo || x", cfg), p.rules(), "plain"),
+    "plain", "спорное правило до выбора шаблона не доходит");
 
   /* Правило без условий движок выключает сам и говорит, почему. */
   const empty = makePanel(baseConfig([
@@ -407,11 +457,15 @@ function baseConfig(rules?: Any[]): Any {
     }).listFieldTokens(),
   });
 
-  assert.deepEqual(model.choicesFor("tags"), [{ label: "Status", values: ["#todo", "#doing"] }],
-    "у тега значения с Prefix — так их видит движок в строке");
-  assert.deepEqual(model.choicesFor("wikilinks"), [{ label: "Project", values: ["ClientA"] }],
+  /* `fieldId` у группы появился для 10.13.14: по нему имя Field в окне
+     становится кнопкой. Значения при этом остались те же. */
+  assert.deepEqual(model.choicesFor("tags"),
+    [{ label: "Status", fieldId: "status", values: ["#todo", "#doing"] }],
+    "у тега значения с Prefix и id самого Field — так их видит движок в строке");
+  assert.deepEqual(model.choicesFor("wikilinks"),
+    [{ label: "Project", fieldId: "project", values: ["ClientA"] }],
     "у ссылки имя без скобок: `normalizeRuleWikilink` снимает их и у правила, и у строки");
-  assert.deepEqual(model.choicesFor("emojiFields"), [{ label: "Due", values: ["\u{1F4C5}"] }],
+  assert.deepEqual(model.choicesFor("emojiFields"), [{ label: "Due", fieldId: "due", values: ["\u{1F4C5}"] }],
     "у элемента значение одно — его маркер");
 
   /* Окно выбора рисует то же самое. */
@@ -558,6 +612,305 @@ function baseConfig(rules?: Any[]): Any {
   assert.equal(rule.targetTemplate, "Templates/task.md", "и всё остальное на месте");
   assert.deepEqual(rule.conditions.tags, ["#todo"]);
   ok("имя правила переживает нормализацию самого движка");
+}
+
+/* ---- пустой список шаблонов объясняет себя (замечание 1.6.6.2) ---------- */
+
+{
+  /*
+   * Раньше при пустом списке в правиле стояло одинокое `None`, и по нему
+   * нельзя было понять, кончились ли шаблоны или папка не назначена вовсе.
+   * Слова здесь те же, что у `Default template`: два разных ответа на два
+   * разных случая, и оба — из одного места (`templates.ts`).
+   */
+  const noFolder = makePanel(baseConfig([{ id: "r1", name: "one", enabled: true, targetTemplate: "", conditions: { tags: ["#todo"] } }]), { templates: [], templatesFolder: "" });
+  const labels = (p: Panel): string[] =>
+    all(p.host, "io-select")
+      .flatMap(sel => sel.children.map(c => String(c.textContent || "").trim()))
+      .filter(Boolean);
+  assert.ok(labels(noFolder).includes("Set a Templates folder first"),
+    "правило молчит о том, что папка шаблонов не назначена: " + labels(noFolder).join(" | "));
+
+  const emptyFolder = makePanel(baseConfig([{ id: "r1", name: "one", enabled: true, targetTemplate: "", conditions: { tags: ["#todo"] } }]), { templates: [], templatesFolder: "Blueprints" });
+  assert.ok(labels(emptyFolder).includes("No templates in Blueprints"),
+    "правило не сказало, что папка пуста: " + labels(emptyFolder).join(" | "));
+
+  const full = makePanel(baseConfig([{ id: "r1", name: "one", enabled: true, targetTemplate: "", conditions: { tags: ["#todo"] } }]), { templates: ["Templates/task.md"] });
+  assert.ok(labels(full).includes("None"),
+    "с непустым списком первой строкой снова обычное None");
+  ok("пустой список шаблонов в правиле объясняет, чего не хватает");
+}
+
+
+/* ======================================================================
+ * Условие «любое значение Field» (10.13.7, замечания 1.6.6.1 и 1.4.4.1).
+ *
+ * Заказчик просил добавлять Field целиком, а не накликивать значения по
+ * одному, и особо оговорил: значение, добавленное позже, должно ловиться тем
+ * же условием. Поэтому проверка не только про запись, но и про то, что список
+ * значений читается в момент срабатывания.
+ * ====================================================================== */
+
+{
+  const p = makePanel(baseConfig([{ id: "r1", enabled: true, targetTemplate: "Templates/task.md" }]));
+  /*
+   * Своей строки у Field больше нет: он заводится нажатием на имя Field в
+   * окне своей строки и встаёт **в эту же строку**, через `or` со значениями
+   * (решение заказчика 2026-09-03 по B14).
+   */
+  assert.ok(!byLabel(p.host, "Add a field to"),
+    "отдельной строки Field в карточке нет");
+
+  p.answerField("status");
+  const plus = byLabel(p.host, "Add a tag");
+  assert.ok(plus, "условие заводится из строки своего типа");
+  plus?.click();
+  assert.deepEqual(p.rules()[0].conditions.fields, ["status"],
+    "условие записалось id Field, а не токеном");
+  assert.deepEqual(p.rules()[0].conditions.tags || [], [],
+    "и не подменило собой условие на значение");
+
+  /* Чип виден в строке Tag: Field типа tag стоит рядом со значениями. */
+  const tagRow = all(p.host, "io-kind").find(
+    box => String(box.querySelector(".io-kind__label")?.textContent || "") === "Tag");
+  assert.ok(tagRow, "строка Tag нашлась");
+  const chips = (tagRow?.querySelectorAll(".io-vchip") || [])
+    .map(c => String(c.textContent || "").replace(/✕$/, ""));
+  assert.ok(chips.some(t => t.includes("any Value")),
+    "и читается словами в строке Tag: " + chips.join(" | "));
+
+  /* Своего окна у Field нет: список для ветки `fields` больше не строится. */
+  assert.deepEqual(p.model().choicesFor("fields"), [],
+    "отдельного списка Fields в окне выбора нет");
+  ok("Field целиком встаёт в строку своего типа, одним условием");
+}
+
+{
+  /* Конфиг едет через настоящую `migrateConfig`: движок читает форму версии
+     2 (`pkm.lineFormat`, `pkm.fields.*`), а фикстура написана формой версии 1. */
+  const cfg = internals.migrateConfig(baseConfig([{
+    id: "r1", enabled: true, targetTemplate: "Templates/status.md",
+    conditions: { tags: [], emojiFields: [], wikilinks: [], fields: ["status"] },
+  }]));
+  const rules = engine.validateSmartRules(
+    (cfg.transform.inline2note.smartRules as Any[]).map((r: Any) => ({ ...r })));
+  const pick = (line: string, on: Any): string =>
+    engine.selectSmartTemplate(engine.parseInlineLine(line, on), rules, "Templates/plain.md", on);
+
+  assert.equal(pick("- #todo || work", cfg), "Templates/status.md",
+    "строка со значением Field ловится условием");
+  assert.equal(pick("- #other || work", cfg), "Templates/plain.md",
+    "строка без значений этого Field — не ловится");
+
+  /* Значение, добавленное после того, как правило написано (Н3). */
+  const later = JSON.parse(JSON.stringify(cfg));
+  later.pkm.fields.tags.fields[0].values.push({ token: "later" });
+  assert.equal(pick("- #later || work", later), "Templates/status.md",
+    "значение, добавленное позже, ловится тем же условием — без правки правила");
+  ok("«любое значение Field» ловит и то, чего в правиле нет");
+}
+
+{
+  /*
+   * Соединение «любого значения Field» с остальным (решение заказчика
+   * 2026-09-03 по B14): **ИЛИ внутри своего типа**, а не И рядом с ним.
+   *
+   * До этого условие было четвёртой группой и соединялось через И: правило
+   * `Tag #other` + `Field status` не срабатывало ни на строке с `#other`, ни
+   * на строке со значением `status` — нужны были оба. Проверка написана так,
+   * чтобы прежнее поведение её краснило: она и есть мутация.
+   */
+  const cfg = internals.migrateConfig(baseConfig([{
+    id: "r1", enabled: true, targetTemplate: "Templates/either.md",
+    conditions: { tags: ["#other"], emojiFields: [], wikilinks: [], fields: ["status"] },
+  }]));
+  const rules = engine.validateSmartRules(
+    (cfg.transform.inline2note.smartRules as Any[]).map((r: Any) => ({ ...r })));
+  const pick = (line: string): string =>
+    engine.selectSmartTemplate(engine.parseInlineLine(line, cfg), rules, "Templates/plain.md", cfg);
+
+  assert.equal(pick("- #other || work"), "Templates/either.md",
+    "хватает значения из строки Tag");
+  assert.equal(pick("- #todo || work"), "Templates/either.md",
+    "хватает и любого значения Field того же типа");
+  assert.equal(pick("- #nothing || work"), "Templates/plain.md",
+    "а без обоих правило молчит");
+  ok("Field соединяется со значениями своего типа через ИЛИ");
+}
+
+{
+  /*
+   * Разные типы по-прежнему соединяются через И: правка не должна была
+   * размыть С-7. Field типа tag и условие на ссылку — две группы.
+   */
+  const cfg = internals.migrateConfig(baseConfig([{
+    id: "r1", enabled: true, targetTemplate: "Templates/both.md",
+    conditions: { tags: [], emojiFields: [], wikilinks: ["[[test1]]"], fields: ["status"] },
+  }]));
+  const rules = engine.validateSmartRules(
+    (cfg.transform.inline2note.smartRules as Any[]).map((r: Any) => ({ ...r })));
+  const pick = (line: string): string =>
+    engine.selectSmartTemplate(engine.parseInlineLine(line, cfg), rules, "Templates/plain.md", cfg);
+
+  assert.equal(pick("- #todo [[test1]] || work"), "Templates/both.md",
+    "оба типа на месте — правило срабатывает");
+  assert.equal(pick("- #todo || work"), "Templates/plain.md",
+    "без ссылки не срабатывает");
+  assert.equal(pick("- [[test1]] || work"), "Templates/plain.md",
+    "и без значения Field тоже");
+  ok("между типами соединение осталось И (С-7)");
+}
+
+{
+  /*
+   * Field, которого в конфиге больше нет, правило не блокирует. Прежде такое
+   * условие делало правило невыполнимым навсегда, а увидеть его человек не
+   * мог: чипа для неизвестного типа в карточке нет.
+   */
+  const cfg = internals.migrateConfig(baseConfig([{
+    id: "r1", enabled: true, targetTemplate: "Templates/ghost.md",
+    conditions: { tags: ["#todo"], emojiFields: [], wikilinks: [], fields: ["deleted_field"] },
+  }]));
+  const rules = engine.validateSmartRules(
+    (cfg.transform.inline2note.smartRules as Any[]).map((r: Any) => ({ ...r })));
+  const pick = (line: string): string =>
+    engine.selectSmartTemplate(engine.parseInlineLine(line, cfg), rules, "Templates/plain.md", cfg);
+
+  assert.equal(pick("- #todo || work"), "Templates/ghost.md",
+    "правило решается тем, что видно в карточке");
+  ok("удалённый Field в условии правило не блокирует");
+}
+
+/* ======================================================================
+ * Папка новой заметки у правила (10.13.8, замечания 1.6.6.4 и 1.4.4.2).
+ * ====================================================================== */
+
+{
+  const folderOf = engine.resolveRuleFolder;
+  assert.equal(folderOf({ targetFolderMode: "default" }, { outputFolder: "Notes" }), "Notes",
+    "Default — это New notes folder");
+  assert.equal(folderOf({ targetFolderMode: "near" }, { outputFolder: "Notes" }), "",
+    "Near current note — пусто, и дальше срабатывает та же ветка, что у пустого New notes folder");
+  assert.equal(folderOf({ targetFolderMode: "folder", targetFolder: "/Clients/A/" }, { outputFolder: "Notes" }),
+    "Clients/A", "своя папка правила побеждает общую, и путь приводится к виду vault");
+  assert.equal(folderOf({ targetFolderMode: "folder", targetFolder: "  " }, { outputFolder: "Notes" }), "Notes",
+    "своя папка, которую не назвали, — это Default: обещать место, которого нет, нельзя");
+  assert.equal(folderOf(null, { outputFolder: "Notes" }), "Notes",
+    "правило не сработало — папка общая");
+  ok("папка правила выбирается по режиму, а не по имени папки");
+}
+
+{
+  const p = makePanel(baseConfig([{ id: "r1", enabled: true, targetTemplate: "Templates/task.md" }]));
+  const selects = all(p.host, "io-select");
+  const where = selects.find(n => String(n.getAttribute("aria-label") || "").startsWith("Move to folder"));
+  assert.ok(where, "строка Move to folder есть в карточке правила");
+  (where as StubNode).value = "folder";
+  (where as StubNode).dispatch("change");
+  assert.equal(p.rules()[0].targetFolderMode, "folder", "режим записался");
+
+  const path = all(p.host, "io-text").find(n =>
+    String(n.getAttribute("aria-label") || "").startsWith("Move to folder path"));
+  assert.ok(path, "и рядом появилось поле пути");
+  (path as StubNode).value = "Clients/A";
+  (path as StubNode).dispatch("change");
+  assert.equal(p.rules()[0].targetFolder, "Clients/A", "путь записался");
+
+  const back = all(p.host, "io-select").find(n =>
+    String(n.getAttribute("aria-label") || "").startsWith("Move to folder"));
+  (back as StubNode).value = "near";
+  (back as StubNode).dispatch("change");
+  assert.equal(p.rules()[0].targetFolderMode, "near", "режим сменился");
+  assert.equal(p.rules()[0].targetFolder, "", "и путь снят: он значим только у своей папки");
+  ok("Move to folder пишет режим и путь на настоящем пути записи");
+}
+
+/* ---- Field целиком заводится из окна выбора значения (B14) ------------- */
+
+/*
+ * Заказчик: «я хотел, чтобы Field добавлялся через «+» в Tag, element, link...
+ * я хочу, чтобы fields были кликабельными — при клике этот field добавляется».
+ *
+ * Условие «любое значение Field» работает с 2026-09-01 (10.13.7); спор был о
+ * том, как его завести. Теперь имя Field в окне выбора — кнопка, а строка
+ * `Field` со своим `+` осталась: она показывает уже заведённое (10.13.14 Н3).
+ *
+ * Проверяется настоящая модель на настоящем пути записи; окно подделано, как
+ * и раньше, — `Modal` принадлежит платформе.
+ */
+{
+  const p = makePanel(baseConfig());
+  (byLabel(p.host, "Add rule") as StubNode).click();
+
+  /* Нажатие на имя Field заводит условие вида `fields`, из какой бы строки
+     окно ни открыли: у «любого значения» вида нет (10.13.14 Н5). */
+  p.answerField("status");
+  (byLabel(p.host, "Add a tag") as StubNode).click();
+
+  const rule = p.rules()[0];
+  assert.deepEqual(rule.conditions.fields, ["status"],
+    "нажатие на имя Field завело условие «любое значение»: "
+    + JSON.stringify(rule.conditions));
+  assert.deepEqual(rule.conditions.tags || [], [],
+    "и не завело условие на значение");
+  ok("B14: имя Field в окне выбора заводит условие «любое значение»");
+}
+
+{
+  /* Обратная сторона: выбор значения по-прежнему заводит условие на значение,
+     а не на Field. Иначе правка подменила бы одно другим. */
+  const p = makePanel(baseConfig());
+  (byLabel(p.host, "Add rule") as StubNode).click();
+  p.answer("#todo");
+  (byLabel(p.host, "Add a tag") as StubNode).click();
+  const rule = p.rules()[0];
+  assert.deepEqual(rule.conditions.tags, ["#todo"], "значение завелось значением");
+  assert.deepEqual(rule.conditions.fields || [], [], "и Field целиком не завёлся");
+  ok("выбор значения остался выбором значения");
+}
+
+{
+  /*
+   * Имя Field, у которого условие уже есть, в окне неактивно (10.13.14 Н4):
+   * повтор ничего не меняет в правиле. Проверяется вёрстка окна — она рисуется
+   * на заглушке, и другого способа посмотреть на неё нет.
+   */
+  const host = makeNode("div");
+  renderConditionPicker(host as unknown as El, {
+    kind: "tags",
+    choices: [
+      { label: "Status", fieldId: "status", values: ["#todo"] },
+      { label: "Priority", fieldId: "priority", values: ["#high"] },
+    ],
+    fieldsTaken: ["status"],
+    pick: () => {},
+    pickField: () => {},
+  });
+  const names = all(host, "io-pickvals__name");
+  assert.equal(names.length, 2, "имена обоих Fields нарисованы");
+  assert.equal(names[0]?.disabled, true, "уже заведённый Field неактивен");
+  assert.equal(names[1]?.disabled, false, "а свободный нажимается");
+  ok("B14: уже заведённый Field в окне неактивен");
+}
+
+{
+  /* Без обработчика имя остаётся подписью: тот же тихий отказ, что у
+     подсказчика папок. */
+  const host = makeNode("div");
+  renderConditionPicker(host as unknown as El, {
+    kind: "tags",
+    choices: [{ label: "Status", fieldId: "status", values: ["#todo"] }],
+    pick: () => {},
+  });
+  const names = all(host, "io-pickvals__name");
+  assert.equal(names.length, 1, "имя нарисовано");
+  /* Признак — класс кнопки, а не поле `disabled`: у заглушки узла оно есть у
+     любого узла, и опираться на него значило бы проверять заглушку. */
+  assert.equal(names[0]?.classList.contains("io-pickvals__name--pick"), false,
+    "и это не кнопка: класса кнопки на узле нет");
+  assert.equal(all(host, "io-pickvals__name--pick").length, 0,
+    "кнопок-имён в окне нет вовсе");
+  ok("без обработчика имя Field остаётся подписью");
 }
 
 console.log("\n" + passed + " проверок пройдено");

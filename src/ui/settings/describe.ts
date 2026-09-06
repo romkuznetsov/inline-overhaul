@@ -39,12 +39,21 @@ export function richParts(text: string): Array<{ tag: "text" | "code" | "b"; tex
   return out;
 }
 
-function paint(host: DocLike, text: string): void {
+/**
+ * Нарисовать нашу мини-разметку в узел.
+ *
+ * Экспортируется затем, что теми же словами пишутся тексты, которые панель
+ * рисует не через `desc`: вводная фраза группы и тело её подсказки. Второй
+ * разбор той же разметки разошёлся бы с первым на первой правке (У-32).
+ */
+export function paintRich(host: DocLike, text: string): void {
   for (const part of richParts(text)) {
     if (part.tag === "text") host.createSpan({ text: part.text });
     else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
   }
 }
+
+const paint = paintRich;
 
 export interface DescribeOptions {
   /** Тумблер `Show tips` из группы Help. */
@@ -106,6 +115,24 @@ export class Describer {
      */
     if ((o.showTips && it.tip) || showId) {
       const box = frag.createEl("details", { cls: "io-tip" });
+      /*
+       * Обработчика нажатия здесь нет, и его отсутствие — решение, а не
+       * забывчивость.
+       *
+       * До 2026-09-02 на подсказку вешался `addEventListener` со
+       * `stopPropagation`: у строки с действием платформа делает кликабельной
+       * всю строку, и нажатие на «?» исполняло действие (C9). Правка была
+       * бесполезна дважды. **Во-первых**, платформа описание
+       * клонирует — `sg(e) = e.cloneNode(true)` в `app.js`, — а `cloneNode`
+       * обработчики не переносит: в живом окне этого слушателя не было
+       * никогда. **Во-вторых**, строк с действием у панели больше нет: по
+       * тому же замечанию C9 все пять стали строками с настоящими кнопками
+       * (`kind: "buttons"` → `render`), и перехватывать нечего.
+       *
+       * Отсюда правило для всего описания: **внутри `desc` не бывает
+       * обработчиков.** Всё, что должно отвечать на нажатие, живёт там, где
+       * узел принадлежит нам, — как тело подсказки группы.
+       */
       box.createEl("summary", { text: "?", cls: "io-tip__mark" });
       const body = box.createEl("div", { cls: "io-tip__body" });
       if (o.showTips && it.tip) paint(body, it.tip);

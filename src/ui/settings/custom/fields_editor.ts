@@ -36,7 +36,7 @@ interface LegacyModule {
 const helpers = legacy as unknown as LegacyModule;
 
 /** Пути, на которых редактор перерисовывается целиком. */
-const EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips"] as const;
+const EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips", "advanced.showSettingIds"] as const;
 
 /* ---- окна платформы ---------------------------------------------------- */
 
@@ -172,6 +172,87 @@ function confirmDeleteModal(
   new DeleteFieldModal(app).open();
 }
 
+/**
+ * Окно «Rename Field»: новое имя и цена, которую за него платят.
+ *
+ * Решение заказчика 2026-08-31 по замечанию 1.4.1.2.2: переименовывать
+ * системное имя можно, но молча — нельзя. Имя стоит в ваших заметках и в
+ * идентификаторах команд Field, и после переименования старый тег в заметках
+ * остаётся, а назначенный хоткей отвязывается: Obsidian держит хоткей за
+ * идентификатором, а тот собран из имени.
+ *
+ * Поэтому окно не спрашивает «уверены?» — оно **перечисляет последствия**.
+ */
+function askRenameModal(
+  Modal: ModalCtor,
+  app: unknown,
+  current: string,
+  done: (next: string | null) => void,
+): void {
+  let answered = false;
+  const finish = (next: string | null): void => {
+    if (answered) return;
+    answered = true;
+    done(next);
+  };
+
+  class RenameFieldModal extends Modal {
+    override onOpen(): void {
+      const box = this.contentEl;
+      box.empty();
+      box.addClass("io-dlg");
+      el(box, "h4", undefined, "Rename Field");
+
+      const row = el(box, "div", "io-item");
+      const info = el(row, "div", "io-item__info");
+      el(info, "div", "io-item__name", "New name");
+      el(info, "div", "io-item__desc",
+        "Lowercase letters, digits, spaces, hyphens and underscores");
+      const input = el(row, "div", "io-item__control").createEl("input", {
+        cls: "io-text io-text--mono",
+        type: "text",
+        value: current,
+        attr: { "aria-label": "New name for the Field " + current },
+      }) as El & { value: string };
+
+      /* Цена названа до нажатия, а не после (З8 наоборот: это человеку). */
+      const warn = el(box, "div", "io-dlg__warn");
+      el(warn, "p", "io-item__desc",
+        "Two things will not follow the new name:");
+      const list = el(warn, "ul", "io-dlg__list");
+      el(list, "li", "io-item__desc",
+        "lines you have already written keep the old tag \u2014 the plugin does not edit your notes");
+      el(list, "li", "io-item__desc",
+        "a hotkey given to this Field\u2019s commands comes loose: Obsidian keeps hotkeys by command id, and the id is built from the name");
+
+      const foot = el(box, "div", "io-dlg__foot");
+      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
+      const go = foot.createEl("button", {
+        cls: "io-btn io-btn--cta",
+        text: "Rename",
+        attr: { type: "button" },
+      }) as El & { disabled: boolean };
+      const same = (): boolean =>
+        !String(input.value || "").trim() || String(input.value || "").trim() === current;
+      go.disabled = same();
+      input.addEventListener("input", (() => { go.disabled = same(); }) as never);
+      go.addEventListener("click", (() => {
+        if (same()) return;
+        finish(String(input.value || "").trim());
+        this.close();
+      }) as never);
+    }
+
+    override onClose(): void {
+      finish(null);
+      this.contentEl.empty();
+    }
+  }
+
+  new RenameFieldModal(app).open();
+}
+
 /* ---- блок --------------------------------------------------------------- */
 
 export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
@@ -231,10 +312,12 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         state,
         enabled: Boolean(ctx.get("features.pkm.enabled")),
         showTips: Boolean(ctx.get("general.help.showTips")),
+        showIds: Boolean(ctx.get("advanced.showSettingIds")),
         redraw: () => { draw(); },
         notice,
         askNewField: done => askNewFieldModal(Modal, app, done),
         confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done),
+        askRename: (name, done) => askRenameModal(Modal, app, name, done),
       });
     } catch (e) {
       next.remove();

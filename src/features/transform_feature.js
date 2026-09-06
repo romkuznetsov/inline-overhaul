@@ -6,14 +6,14 @@ function isObj(v) {
 
 const DEFAULT_INLINE2NOTE = {
   enabled: false,
-  templateFolder: "",
+  templatesFolder: "",
   outputFolder: "",
   defaultTemplate: "",
   smartRules: [],
   noteName: {
     mode: "auto",
-    explicitNameDelimiters: "[]",
-    autoWordsCount: 6,
+    delimiters: "[]",
+    wordCount: 6,
     preferHeaderTitle: true,
   },
   nameCollision: {
@@ -22,26 +22,44 @@ const DEFAULT_INLINE2NOTE = {
   placement: {
     position: "end",
     headerMode: "datetime",
-    customHeaderText: "### Inline transformed",
-    datetimeHeaderFormat: "YYYY-MM-DD HH:mm",
+    /*
+      * Единственное из двадцати одного расхождения В-7, где заказчик выбрал
+      * схему (2026-08-31): `## Captured` короче и стоит на уровне заголовка,
+      * который не спорит с `###` внутри заметки. Поведения это не меняет —
+      * меняется текст, который плагин вставляет по умолчанию.
+      */
+    customHeader: "Captured",
+    /* Уровень строки над текстом (10.13.9). `3` — не выбор, а сохранение
+       поведения: `###` стоял в коде `formatHeaderByMode`. */
+    headerLevel: "3",
+    datetimeFormat: "YYYY-MM-DD HH:mm",
   },
   yamlNoteFormat: "raw",
   sourceProcessing: {
     cleanupFieldIds: [],
-    processedToken: "#processed",
-    processedTokenPanel: "right",
-    replacePayloadWithLink: true,
+    /*
+     * Судьба текста исходной строки, отдельно от ссылки (решение заказчика
+     * 2026-09-01). Умолчание совпадает с прежним поведением при
+     * `replaceWithLink: true`: текст уходит, на его месте ссылка.
+     */
+    text: "remove",
+    keepWords: 3,
+    token: "#processed",
+    panel: "right",
+    replaceWithLink: true,
     visual: {
       enabled: false,
       color: "",
-      opacity: 0.65,
+      /* Процент, как у остальной прозрачности версии 2 (10.13.12 Н5). */
+      opacity: 65,
     },
   },
-  openTransformedNote: false,
-  sublinesBehavior: "stay",
-  flyingButton: {
-    enabled: false,
-  },
+  openTarget: false,
+  sublines: "stay",
+  floatingButton: false,
+  /* Расстояние от последнего символа строки до кнопки, в пикселях
+     (10.13.12 Н12, замечание заказчика 2026-09-04). */
+  floatingButtonGap: 12,
   preview: {
     sampleLine: "- [ ] #/1 #todo #context",
   },
@@ -83,9 +101,18 @@ function uniq(arr) {
   return out;
 }
 
+/**
+ * Виды условия правила — один список на весь модуль.
+ *
+ * `fields` — условие «любое значение Field» (10.13.7): в нём лежат id Fields,
+ * а не токены. Список стоит здесь, потому что раньше эти четыре имени были
+ * выписаны в четырёх местах, и четвёртый вид пришлось бы добавлять в каждое.
+ */
+const RULE_CONDITION_DIMS = ["tags", "emojiFields", "wikilinks", "fields"];
+
 function hasAnyCondition(rule) {
   const c = rule && rule.conditions ? rule.conditions : {};
-  return !!((Array.isArray(c.tags) && c.tags.length) || (Array.isArray(c.emojiFields) && c.emojiFields.length) || (Array.isArray(c.wikilinks) && c.wikilinks.length));
+  return RULE_CONDITION_DIMS.some((d) => Array.isArray(c[d]) && c[d].length);
 }
 
 function intersects(a, b) {
@@ -100,7 +127,7 @@ function intersects(a, b) {
 function rulesCanOverlap(a, b) {
   const ca = a && a.conditions ? a.conditions : {};
   const cb = b && b.conditions ? b.conditions : {};
-  const dims = ["tags", "emojiFields", "wikilinks"];
+  const dims = RULE_CONDITION_DIMS;
   for (let i = 0; i < dims.length; i++) {
     const d = dims[i];
     const va = Array.isArray(ca[d]) ? ca[d] : [];
@@ -123,10 +150,27 @@ function validateSmartRules(rules) {
     },
   }));
 
+  /*
+   * Вердикт разбора кладётся только в `validation`; `enabled` остаётся тем,
+   * что выставил человек.
+   *
+   * Так решено 2026-08-29 («вывод движка остаётся разбором и в конфиг не
+   * попадает», проверка `smart_rules_tests.ts`, раздел 10), и вторая половина
+   * решения живёт здесь. `normalizeSmartRules` зовёт эту функцию и идёт внутри
+   * `migrateConfig`, то есть на **каждом** патче: записанный в `enabled`
+   * вердикт следующий прогон уже не пересчитает — он пропускает выключенные
+   * правила, — и человек получит выключенное правило без объяснения и снятый
+   * тумблер, которого не касался. Найдено 2026-08-31, когда проверки
+   * перестали подменять `normalizeTransformConfig` заглушкой.
+   *
+   * Поведение при выборе шаблона не меняется: `selectSmartTemplate` и так
+   * пропускает правило со `validation.isConflict`.
+   */
+  const noConditions = out.map(() => false);
   for (let i = 0; i < out.length; i++) {
     if (!out[i].enabled) continue;
     if (!hasAnyCondition(out[i])) {
-      out[i].enabled = false;
+      noConditions[i] = true;
       out[i].validation = {
         isConflict: true,
         message: "Rule has no conditions. Add at least one tag/emoji/wikilink.",
@@ -139,12 +183,13 @@ function validateSmartRules(rules) {
   for (let i = 0; i < out.length; i++) {
     for (let j = i + 1; j < out.length; j++) {
       if (!out[i].enabled || !out[j].enabled) continue;
+      if (noConditions[i] || noConditions[j]) continue;
       if (!rulesCanOverlap(out[i], out[j])) continue;
       const ri = String(out[i].id || `rule-${i + 1}`);
       const rj = String(out[j].id || `rule-${j + 1}`);
       const detailsI = [];
       const detailsJ = [];
-      const dims = ["tags", "emojiFields", "wikilinks"];
+      const dims = RULE_CONDITION_DIMS;
       for (let di = 0; di < dims.length; di++) {
         const d = dims[di];
         const ai = Array.isArray(out[i].conditions && out[i].conditions[d]) ? out[i].conditions[d] : [];
@@ -163,7 +208,6 @@ function validateSmartRules(rules) {
   }
   for (let i = 0; i < out.length; i++) {
     if (!conflicts[i].length) continue;
-    out[i].enabled = false;
     out[i].validation = {
       isConflict: true,
       message: `Conflicts with ${conflicts[i].map((entry) => entry.peerRuleId).join(", ")}. Overlapping conditions detected.`,
@@ -185,6 +229,8 @@ function normalizeSmartRules(rawRules) {
     const tags = Array.isArray(conditions.tags) ? conditions.tags.map((x) => String(x || "").trim()).filter(Boolean) : [];
     const emojiFields = Array.isArray(conditions.emojiFields) ? conditions.emojiFields.map((x) => String(x || "").trim()).filter(Boolean) : [];
     const wikilinks = Array.isArray(conditions.wikilinks) ? conditions.wikilinks.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    /* Условие «любое значение Field» (10.13.7): id Fields, не токены. */
+    const fields = Array.isArray(conditions.fields) ? conditions.fields.map((x) => String(x || "").trim()).filter(Boolean) : [];
     out.push({
       id,
       /*
@@ -198,7 +244,11 @@ function normalizeSmartRules(rawRules) {
       name: String(r.name || "").trim(),
       enabled: r.enabled !== false,
       targetTemplate,
-      conditions: { tags: uniq(tags), emojiFields: uniq(emojiFields), wikilinks: uniq(wikilinks) },
+      conditions: { tags: uniq(tags), emojiFields: uniq(emojiFields), wikilinks: uniq(wikilinks), fields: uniq(fields) },
+      /* Папка правила (10.13.8). Два ключа, а не один: папку с именем
+         `near current note` иначе не отличить от самого выбора. */
+      targetFolderMode: normalizeRuleFolderMode(r.targetFolderMode),
+      targetFolder: normalizeFolderPath(r.targetFolder),
       validation: {
         isConflict: !!(r.validation && r.validation.isConflict),
         message: String(r.validation && r.validation.message ? r.validation.message : "").trim(),
@@ -209,11 +259,41 @@ function normalizeSmartRules(rawRules) {
   return validateSmartRules(out);
 }
 
+/**
+ * Прозрачность обработанной строки — процент `0…100` (10.13.12 Н5).
+ *
+ * В старом файле здесь лежала доля `0…1`, поэтому всё, что не больше единицы,
+ * умножается на сто. Ключ до сих пор не читался никем, так что смена единиц
+ * ничего не ломает; разные единицы в одной панели однажды сломали бы. Доля
+ * ровно `1` означала «непрозрачно» и становится `100`: панель значения ниже
+ * двадцати не отдаёт, и спутать его с процентом не с чем.
+ */
+function normalizeProcessedOpacity(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return DEFAULT_INLINE2NOTE.sourceProcessing.visual.opacity;
+  const pct = n > 0 && n <= 1 ? n * 100 : n;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
+/**
+ * Отступ плавающей кнопки от текста, в пикселях.
+ *
+ * Границы те же, что у слайдера в панели: панель их показывает, а движок
+ * обязан их же соблюдать — иначе рукописный `data.json` уедет за шкалу.
+ * Нечисло и отсутствие ключа дают умолчание, а не ноль: ноль это «вплотную»,
+ * и он вернул бы ровно тот дефект, из-за которого настройка и появилась.
+ */
+function normalizeFloatingButtonGap(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return DEFAULT_INLINE2NOTE.floatingButtonGap;
+  return Math.max(0, Math.min(40, Math.round(n)));
+}
+
 function normalizeInline2Note(raw) {
   const src = isObj(raw) ? raw : {};
   const out = {
     enabled: src.enabled === true,
-    templateFolder: String(src.templateFolder || "").trim(),
+    templatesFolder: String(src.templatesFolder || "").trim(),
     outputFolder: String(src.outputFolder || "").trim(),
     defaultTemplate: String(src.defaultTemplate || "").trim(),
     smartRules: normalizeSmartRules(src.smartRules),
@@ -221,14 +301,13 @@ function normalizeInline2Note(raw) {
     nameCollision: {},
     placement: {},
     sourceProcessing: {},
-    flyingButton: {},
     preview: {},
   };
 
   const noteName = isObj(src.noteName) ? src.noteName : {};
   out.noteName.mode = normalizeMode(noteName.mode, ["auto", "manual"], DEFAULT_INLINE2NOTE.noteName.mode);
-  out.noteName.explicitNameDelimiters = String(noteName.explicitNameDelimiters || DEFAULT_INLINE2NOTE.noteName.explicitNameDelimiters).trim() || "[]";
-  out.noteName.autoWordsCount = Math.max(1, Math.min(32, Math.trunc(Number(noteName.autoWordsCount) || DEFAULT_INLINE2NOTE.noteName.autoWordsCount)));
+  out.noteName.delimiters = String(noteName.delimiters || DEFAULT_INLINE2NOTE.noteName.delimiters).trim() || "[]";
+  out.noteName.wordCount = Math.max(1, Math.min(32, Math.trunc(Number(noteName.wordCount) || DEFAULT_INLINE2NOTE.noteName.wordCount)));
   out.noteName.preferHeaderTitle = noteName.preferHeaderTitle !== false;
 
   const nameCollision = isObj(src.nameCollision) ? src.nameCollision : {};
@@ -237,29 +316,68 @@ function normalizeInline2Note(raw) {
   const placement = isObj(src.placement) ? src.placement : {};
   out.placement.position = normalizeMode(placement.position, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.position);
   out.placement.headerMode = normalizeMode(placement.headerMode, ["custom", "datetime", "none"], DEFAULT_INLINE2NOTE.placement.headerMode);
-  out.placement.customHeaderText = String(placement.customHeaderText || DEFAULT_INLINE2NOTE.placement.customHeaderText).trim() || DEFAULT_INLINE2NOTE.placement.customHeaderText;
-  out.placement.datetimeHeaderFormat = String(placement.datetimeHeaderFormat || DEFAULT_INLINE2NOTE.placement.datetimeHeaderFormat).trim() || DEFAULT_INLINE2NOTE.placement.datetimeHeaderFormat;
+  /*
+   * Решётки живут в `headerLevel`, и только там. С текстбоксов они снимаются
+   * на каждой записи: два источника решёток однажды дали бы двойные, а какой
+   * из них главный — по строке в заметке не понять (10.13.9 Н3).
+   */
+  const customParts = splitLeadingHashes(placement.customHeader || DEFAULT_INLINE2NOTE.placement.customHeader);
+  const formatParts = splitLeadingHashes(placement.datetimeFormat || DEFAULT_INLINE2NOTE.placement.datetimeFormat);
+  out.placement.customHeader = customParts.text || DEFAULT_INLINE2NOTE.placement.customHeader;
+  out.placement.datetimeFormat = formatParts.text || DEFAULT_INLINE2NOTE.placement.datetimeFormat;
+  /*
+   * Ключа `headerLevel` в старом файле нет, и умолчание схемы тут не годится:
+   * у человека, писавшего `## Captured`, заголовок молча стал бы мельче.
+   * Поэтому уровень **выводится** — из его же решёток, а при `Date and time`
+   * из того, что делал код (`###`). Тот же приём, что у `sourceProcessing.text`
+   * (У-17), и по той же причине (10.13.9 Н5).
+   */
+  out.placement.headerLevel = String(Object.prototype.hasOwnProperty.call(placement, "headerLevel")
+    ? normalizeHeaderLevel(placement.headerLevel)
+    : (customParts.level || (out.placement.headerMode === "datetime" ? 3 : 0)));
   out.yamlNoteFormat = normalizeMode(src.yamlNoteFormat, ["raw", "clean"], DEFAULT_INLINE2NOTE.yamlNoteFormat);
 
   const sp = isObj(src.sourceProcessing) ? src.sourceProcessing : {};
   out.sourceProcessing.cleanupFieldIds = Array.isArray(sp.cleanupFieldIds) ? sp.cleanupFieldIds.map((x) => String(x || "").trim()).filter(Boolean) : [];
-  out.sourceProcessing.processedToken = Object.prototype.hasOwnProperty.call(sp, "processedToken")
-    ? String(sp.processedToken || "").trim()
-    : DEFAULT_INLINE2NOTE.sourceProcessing.processedToken;
-  out.sourceProcessing.processedTokenPanel = normalizeMode(sp.processedTokenPanel, ["left", "right"], DEFAULT_INLINE2NOTE.sourceProcessing.processedTokenPanel);
-  out.sourceProcessing.replacePayloadWithLink = sp.replacePayloadWithLink !== false;
+  out.sourceProcessing.token = Object.prototype.hasOwnProperty.call(sp, "token")
+    ? String(sp.token || "").trim()
+    : DEFAULT_INLINE2NOTE.sourceProcessing.token;
+  out.sourceProcessing.panel = normalizeMode(sp.panel, ["left", "right"], DEFAULT_INLINE2NOTE.sourceProcessing.panel);
+  out.sourceProcessing.replaceWithLink = sp.replaceWithLink !== false;
+  /*
+   * Ключа `text` в старых настройках нет, и умолчание схемы тут не годится:
+   * до разделения судьбу текста решал тот же тумблер, что и ссылку. Поэтому
+   * при отсутствии ключа она **выводится из него** — иначе у человека,
+   * выключившего ссылку, текст начал бы исчезать после обновления.
+   */
+  out.sourceProcessing.text = Object.prototype.hasOwnProperty.call(sp, "text")
+    ? normalizeMode(sp.text, ["leave", "remove", "words"], DEFAULT_INLINE2NOTE.sourceProcessing.text)
+    : (out.sourceProcessing.replaceWithLink ? "remove" : "leave");
+  out.sourceProcessing.keepWords = Number.isFinite(Number(sp.keepWords))
+    ? Math.max(1, Math.min(20, Math.trunc(Number(sp.keepWords))))
+    : DEFAULT_INLINE2NOTE.sourceProcessing.keepWords;
   const visual = isObj(sp.visual) ? sp.visual : {};
   out.sourceProcessing.visual = {
     enabled: visual.enabled === true,
     color: String(visual.color || "").trim(),
-    opacity: Number.isFinite(Number(visual.opacity)) ? Math.max(0, Math.min(1, Number(visual.opacity))) : DEFAULT_INLINE2NOTE.sourceProcessing.visual.opacity,
+    opacity: normalizeProcessedOpacity(visual.opacity),
   };
 
-  out.openTransformedNote = src.openTransformedNote === true;
-  out.sublinesBehavior = normalizeMode(src.sublinesBehavior, ["stay", "remove"], DEFAULT_INLINE2NOTE.sublinesBehavior);
+  out.openTarget = src.openTarget === true;
+  out.sublines = normalizeMode(src.sublines, ["stay", "remove"], DEFAULT_INLINE2NOTE.sublines);
 
-  const fb = isObj(src.flyingButton) ? src.flyingButton : {};
-  out.flyingButton.enabled = fb.enabled === true;
+  /* Тумблер, а не ветка: `flyingButton.enabled` переехал в `floatingButton`
+     одним значением (PRD 8.1б, Р12). Форму версии 1 сюда уже не приносят —
+     её разбирает миграция. */
+  out.floatingButton = src.floatingButton === true;
+  /*
+   * Отступ кнопки от текста. Границы те же, что у слайдера в панели: панель
+   * их показывает, а движок обязан их же соблюдать — иначе рукописный
+   * `data.json` уедет за шкалу. Нечисло и отсутствие ключа дают умолчание, а
+   * не ноль: ноль это «вплотную», и он бы вернул ровно тот дефект, из-за
+   * которого настройка и появилась.
+   */
+  out.floatingButtonGap = normalizeFloatingButtonGap(src.floatingButtonGap);
 
   const preview = isObj(src.preview) ? src.preview : {};
   out.preview.sampleLine = String(preview.sampleLine || DEFAULT_INLINE2NOTE.preview.sampleLine);
@@ -271,7 +389,6 @@ function normalizeTransformConfig(cfg) {
   const root = isObj(cfg) ? cfg : {};
   if (!isObj(root.transform)) root.transform = {};
   root.transform.inline2note = normalizeInline2Note(root.transform.inline2note);
-  if (!isObj(root.transform.inline2fleet)) root.transform.inline2fleet = {};
   return root;
 }
 
@@ -291,11 +408,11 @@ function collectTemplateOptions(app, folder) {
 }
 
 function resolveIoSeparators(cfg) {
-  const io = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io) ? cfg.pkm.behavior.io : null;
+  const io = isObj(cfg && cfg.pkm && cfg.pkm.lineFormat) ? cfg.pkm.lineFormat : null;
   const s1 = String(io && io.separator1 || "").trim();
   const s2 = String(io && io.separator2 || "").trim();
   if (!s1 || !s2) {
-    throw new Error("InlineOverhaul: missing pkm.behavior.io separators (separator1/separator2)");
+    throw new Error("InlineOverhaul: missing pkm.lineFormat separators (separator1/separator2)");
   }
   return { separator1: s1, separator2: s2 };
 }
@@ -323,7 +440,7 @@ function escapeRegexLiteral(s) {
 function getElementMarkersFromConfig(cfg) {
   const out = [];
   const seen = new Set();
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
   const orderTypes = isObj(order.types) ? order.types : {};
   const fields = getModeFields(cfg);
   for (let i = 0; i < fields.length; i++) {
@@ -360,13 +477,46 @@ function formatDateTimeByPattern(date, pattern) {
   return String(pattern || "YYYY-MM-DD HH:mm").replace(/YYYY|MM|DD|HH|mm|ss/g, (token) => values[token]);
 }
 
+/** Ведущие решётки строки: сколько их, и что остаётся без них. */
+function splitLeadingHashes(raw) {
+  const src = String(raw || "").trim();
+  const m = /^(#{1,6})\s*(.*)$/.exec(src);
+  if (!m) return { level: 0, text: src };
+  return { level: String(m[1]).length, text: String(m[2] || "").trim() };
+}
+
+/**
+ * `0` — обычная строка, `1`…`6` — заголовок такой глубины (10.13.9).
+ *
+ * Наружу отдаётся **число**, а в конфиге лежит строка: значения выпадающего
+ * списка в схеме — строки, и хранить их иначе значило бы, что панель не найдёт
+ * выбранное. Тот же приём, что у остальных списков.
+ */
+function normalizeHeaderLevel(raw) {
+  const n = Math.trunc(Number(raw));
+  if (!Number.isFinite(n)) return Number(DEFAULT_INLINE2NOTE.placement.headerLevel);
+  return Math.max(0, Math.min(6, n));
+}
+
+/**
+ * Строка над вставленным текстом (10.13.9).
+ *
+ * Решётки ставит **уровень**, а не текст. Раньше при `Date and time` три
+ * решётки стояли жёстко в коде, а подсказка советовала вписать их в формат —
+ * и `## YYYY-MM-DD` в текстбоксе дало бы в заметке `### ## 2026-09-01`
+ * (замечание заказчика 1.6.4.1).
+ */
 function formatHeaderByMode(i2n, now) {
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const mode = String(placement.headerMode || "").trim().toLowerCase();
   if (mode === "none") return "";
-  if (mode === "custom") return String(placement.customHeaderText || "").trim();
-  const fmt = String(placement.datetimeHeaderFormat || "YYYY-MM-DD HH:mm").trim();
-  return `### ${formatDateTimeByPattern(now, fmt)}`;
+  const text = mode === "custom"
+    ? splitLeadingHashes(placement.customHeader).text
+    : formatDateTimeByPattern(now, splitLeadingHashes(
+      String(placement.datetimeFormat || "YYYY-MM-DD HH:mm")).text || "YYYY-MM-DD HH:mm");
+  if (!text) return "";
+  const level = normalizeHeaderLevel(placement.headerLevel);
+  return level > 0 ? `${"#".repeat(level)} ${text}` : text;
 }
 
 function normalizeRuleWikilink(raw) {
@@ -375,35 +525,117 @@ function normalizeRuleWikilink(raw) {
   return match ? String(match[1] || "").trim() : src;
 }
 
-function selectSmartTemplate(parsed, smartRules, defaultTemplate) {
+/**
+ * Какие Fields «стоят» в строке и в какую группу условий каждый из них
+ * попадает.
+ *
+ * Список значений читается из конфига **в момент срабатывания**, а не из
+ * правила: значение, добавленное после того, как правило написано, обязано
+ * ловиться тем же условием (10.13.7 Н3).
+ *
+ * Тип Field выводится здесь один раз и отдаётся вместе с ответом: по нему
+ * условие «любое значение Field» ложится в группу своего типа. Второе такое
+ * же выведение разошлось бы с этим на первой правке (У-32).
+ */
+function fieldsOnLine(cfg, present) {
+  const seen = new Set();
+  const groupOf = new Map();
+  const fields = getModeFields(cfg);
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i];
+    const id = String(field && field.id || "").trim();
+    if (!id) continue;
+    const marker = String(field && field.marker || "").trim();
+    const source = String(field && field.source || "").trim();
+    const isLink = source === "projects" || source.indexOf("wikilinks:") === 0;
+    groupOf.set(id, marker ? "emojiFields" : (isLink ? "wikilinks" : "tags"));
+    if (marker && present.emojiMarkers.has(marker)) { seen.add(id); continue; }
+    const candidates = fieldTokenCandidates(field);
+    for (let vi = 0; vi < candidates.length; vi++) {
+      const raw = String(candidates[vi].rawToken || "").trim();
+      const full = String(candidates[vi].fullToken || "").trim();
+      const hit = isLink
+        ? present.wikilinks.has(normalizeRuleWikilink(raw))
+        : present.tags.has(full);
+      if (hit) { seen.add(id); break; }
+    }
+  }
+  return { seen, groupOf };
+}
+
+/**
+ * Правило, которое поймало строку, — или `null`.
+ *
+ * Раньше здесь возвращался сразу шаблон, и папке правила (10.13.8) взять его
+ * решение было негде: второй такой же проход разошёлся бы с первым на первой
+ * же правке. Теперь проход один, и его результат — само правило.
+ *
+ * **Условие «любое значение Field» — часть группы своего типа** (решение
+ * заказчика 2026-09-03, B14). До этого оно было четвёртой группой, то есть
+ * соединялось с остальными через И: Field требовался **вместе** с тегом.
+ * Заказчик просил обратное — «вместо того, чтобы накликивать отдельные
+ * values», — то есть ИЛИ внутри своего типа. Ветка конфига не менялась:
+ * условие по-прежнему лежит в `conditions.fields` и хранит id Field (З1).
+ *
+ * Field, которого в конфиге больше нет, не попадает ни в одну группу — и
+ * правило не блокирует. Прежде такое условие делало правило невыполнимым
+ * навсегда, а увидеть его человек не мог: в карточке оно не рисуется.
+ */
+function selectSmartRule(parsed, smartRules, cfg) {
   const p = isObj(parsed) ? parsed : {};
-  const tags = new Set(Array.isArray(p.tags) ? p.tags.map((x) => String(x || "").trim()).filter(Boolean) : []);
-  const wikilinks = new Set(Array.isArray(p.wikilinks) ? p.wikilinks.map(normalizeRuleWikilink).filter(Boolean) : []);
-  const emojiMarkers = new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean));
+  const present = {
+    tags: new Set(Array.isArray(p.tags) ? p.tags.map((x) => String(x || "").trim()).filter(Boolean) : []),
+    wikilinks: new Set(Array.isArray(p.wikilinks) ? p.wikilinks.map(normalizeRuleWikilink).filter(Boolean) : []),
+    emojiMarkers: new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean)),
+  };
   const rules = Array.isArray(smartRules) ? smartRules : [];
+  let onLine = null;
   for (let i = 0; i < rules.length; i++) {
     const rule = rules[i];
     if (!rule || rule.enabled === false || rule.validation && rule.validation.isConflict) continue;
     const conditions = isObj(rule.conditions) ? rule.conditions : {};
+    const wantedFields = Array.isArray(conditions.fields) ? conditions.fields : [];
+    if (wantedFields.length && onLine === null) onLine = fieldsOnLine(cfg, present);
+    const seen = onLine ? onLine.seen : new Set();
+    const groupOf = onLine ? onLine.groupOf : new Map();
+    const fieldsIn = (group) => wantedFields.filter(
+      (id) => groupOf.get(String(id || "").trim()) === group);
     const conditionGroups = [
-      [Array.isArray(conditions.tags) ? conditions.tags : [], tags, (x) => String(x || "").trim()],
-      [Array.isArray(conditions.emojiFields) ? conditions.emojiFields : [], emojiMarkers, (x) => String(x || "").trim()],
-      [Array.isArray(conditions.wikilinks) ? conditions.wikilinks : [], wikilinks, normalizeRuleWikilink],
+      [Array.isArray(conditions.tags) ? conditions.tags : [], present.tags, (x) => String(x || "").trim(), fieldsIn("tags")],
+      [Array.isArray(conditions.emojiFields) ? conditions.emojiFields : [], present.emojiMarkers, (x) => String(x || "").trim(), fieldsIn("emojiFields")],
+      [Array.isArray(conditions.wikilinks) ? conditions.wikilinks : [], present.wikilinks, normalizeRuleWikilink, fieldsIn("wikilinks")],
     ];
-    if (!conditionGroups.some((group) => group[0].length)) continue;
+    if (!conditionGroups.some((group) => group[0].length || group[3].length)) continue;
     let matches = true;
     for (let gi = 0; gi < conditionGroups.length; gi++) {
-      const [wanted, actual, normalize] = conditionGroups[gi];
-      if (!wanted.length) continue;
-      if (!wanted.some((value) => actual.has(normalize(value)))) {
+      const [wanted, actual, normalize, wantedGroupFields] = conditionGroups[gi];
+      if (!wanted.length && !wantedGroupFields.length) continue;
+      const byValue = wanted.some((value) => actual.has(normalize(value)));
+      const byField = wantedGroupFields.some((id) => seen.has(String(id || "").trim()));
+      if (!byValue && !byField) {
         matches = false;
         break;
       }
     }
-    const target = String(rule.targetTemplate || "").trim();
-    if (matches && target) return target;
+    if (matches) return rule;
   }
-  return String(defaultTemplate || "").trim();
+  return null;
+}
+
+function selectSmartTemplate(parsed, smartRules, defaultTemplate, cfg) {
+  const rule = selectSmartRule(parsed, smartRules, cfg);
+  const target = rule ? String(rule.targetTemplate || "").trim() : "";
+  return target || String(defaultTemplate || "").trim();
+}
+
+/** `default` | `near` | `folder`; всё незнакомое — `default` (10.13.8 Н2). */
+function normalizeRuleFolderMode(raw) {
+  const v = String(raw || "").trim().toLowerCase();
+  return v === "near" || v === "folder" ? v : "default";
+}
+
+function normalizeFolderPath(raw) {
+  return String(raw || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
 }
 
 function escapeRegExp(s) {
@@ -484,9 +716,9 @@ function parseInlineLine(rawLine, cfg) {
 }
 
 function getModeFields(cfg) {
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-  const left = isObj(behavior.leftMode) && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : [];
-  const right = isObj(behavior.rightMode) && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : [];
+  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
+  const left = isObj(behavior.tags) && Array.isArray(behavior.tags.fields) ? behavior.tags.fields : [];
+  const right = isObj(behavior.links) && Array.isArray(behavior.links.fields) ? behavior.links.fields : [];
   return left.concat(right).filter((f) => isObj(f) && String(f.id || "").trim());
 }
 
@@ -543,15 +775,32 @@ function resolveEffectiveFieldType(field, orderTypes, fieldId) {
 
 function buildTransformContext(parsed, cfg) {
   const p = isObj(parsed) ? parsed : { line: "", tags: [], wikilinks: [], emojis: [], payloadText: "" };
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
   const orderTypes = isObj(order.types) ? order.types : {};
   const fields = getModeFields(cfg);
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-  const leftFieldIds = new Set((isObj(behavior.leftMode) && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : [])
-    .map((field) => String(field && field.id || "").trim()));
-  const rightFieldIds = new Set((isObj(behavior.rightMode) && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : [])
-    .map((field) => String(field && field.id || "").trim()));
+  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
+  /*
+   * В каком Block Field пишется — говорит Order, а не список определений, в
+   * котором Field объявлен.
+   *
+   * Здесь стояли `pkm.fields.tags.fields` и `pkm.fields.links.fields`: Field
+   * из списка ссылок считался «правым» всегда, даже стоя в левом Block. На
+   * настоящей строке с разделителями его сторона не совпадала с ожидаемой, он
+   * не попадал в совпадения — и не попадал в свойства заметки. Предпросмотр
+   * при этом собирает строку **без** разделителей, там сторона у всех `any`,
+   * и он показывал Field, которого заметка не получала (замечания заказчика
+   * B21 и B11, 2026-09-02).
+   *
+   * Это та же ловушка `leftMode` / `rightMode`, что закрывалась исключением
+   * И-4 для карты токенов (У-9): у ключа Order своя правда, и спрашивать надо
+   * её. Дочерний Field стороны не имеет — она у родителя (Ф3).
+   */
+  const orderSideSet = (key) => new Set((Array.isArray(order[key]) ? order[key] : [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean));
+  const leftFieldIds = orderSideSet("left");
+  const rightFieldIds = orderSideSet("right");
   const fieldById = {};
   for (let i = 0; i < fields.length; i++) {
     const fid = String(fields[i] && fields[i].id || "").trim();
@@ -602,7 +851,11 @@ function buildTransformContext(parsed, cfg) {
       if (isSubField) return cand || defaultYamlProperty || parentYamlProperty;
       return cand || defaultYamlProperty;
     };
-    const expectedPanel = leftFieldIds.has(fid) ? "left" : (rightFieldIds.has(fid) ? "right" : "any");
+    /* Дочерний Field стоит в Block родителя: своей строки в Order у него нет. */
+    const sideKey = isSubField && !leftFieldIds.has(fid) && !rightFieldIds.has(fid) ? parentFid : fid;
+    const expectedPanel = leftFieldIds.has(sideKey)
+      ? "left"
+      : (rightFieldIds.has(sideKey) ? "right" : "any");
     const isPanelMatch = (occurrence) => occurrence && (occurrence.panel === expectedPanel || occurrence.panel === "any");
 
     if (fType === "element") {
@@ -688,7 +941,16 @@ function normalizeYamlValueForFormat(rawToken, yamlFormat, row) {
     const mElement = token.match(/^[\u{1F300}-\u{1FAFF}]\s*(.*)$/u);
     return mElement ? String(mElement[1] || "").trim() : token;
   }
-  if (/^#\/\d+$/.test(token)) return Number(String(token.replace(/^#\//, "")).trim());
+  /*
+   * Значение вида `#/1` остаётся **строкой**, а не становится числом.
+   *
+   * Число отрисовка YAML честно печатает без кавычек, и в списке появлялось
+   * `tags: [1, "work", …]`. Свойство типа `tags` в Obsidian ждёт строк, и он
+   * ставил у заметки знак «несоответствие типа, ожидалось tags» (замечание
+   * B21, 2026-09-02). Кавычки числоподобному значению поставит уже написанное
+   * правило (`needsYamlQuotes`), и в заметке выйдет `"1"` — законный тег.
+   */
+  if (/^#\/\d+$/.test(token)) return String(token.replace(/^#\//, "")).trim();
   if (/^#[^\s#]+$/.test(token)) return String(token.slice(1)).trim();
   if (/^[\u{1F300}-\u{1FAFF}]\d{2}:\d{2}$/u.test(token)) return String(token.slice(2)).trim();
   if (/^[\u{1F300}-\u{1FAFF}]\d{4}-\d{2}-\d{2}$/u.test(token)) return String(token.slice(2)).trim();
@@ -711,18 +973,62 @@ function normalizeYamlValueRule(raw) {
   return v === "raw" || v === "clean" ? v : "";
 }
 
-function buildYamlMapFromContext(transformContext, cfg) {
+/**
+ * Типы свойств, объявленные в самом хранилище (Я4).
+ *
+ * `app.metadataTypeManager` — приватное API: его нет в типах пакета
+ * `obsidian`, форма не обещана. Поэтому обязателен feature-detect и тихий
+ * отказ: без него запись идёт как раньше, просто без оглядки на объявленный
+ * тип.
+ *
+ * Одно объявление на два места (У-32): этим же читает пример свойства в
+ * панели (`yaml_property.ts` берёт функцию из этого модуля), а не своей копией
+ * — иначе предпросмотр и заметка разошлись бы.
+ */
+function readVaultPropertyTypes(app) {
+  const out = {};
+  try {
+    const mgr = app && typeof app === "object" ? app.metadataTypeManager : null;
+    if (!mgr || typeof mgr !== "object") return out;
+    const raw = typeof mgr.getAllProperties === "function"
+      ? mgr.getAllProperties()
+      : (mgr.properties || mgr.types);
+    if (!raw || typeof raw !== "object") return out;
+    const rows = Array.isArray(raw) ? raw : Object.keys(raw).map((k) => raw[k]);
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const name = String(row.name || "").trim();
+      const type = String(row.type || "").trim();
+      if (!name || !type) continue;
+      if (!out[name]) out[name] = type;
+    }
+  } catch (_) {
+    /* Приватное API имеет право пропасть: это не повод не создать заметку. */
+  }
+  return out;
+}
+
+/**
+ * Типы Obsidian, у которых значение свойства — **список**.
+ *
+ * `tags` и `aliases` — встроенные свойства, `multitext` — «список текста».
+ * Имена сняты с самого менеджера типов, а не выдуманы.
+ */
+const YAML_LIST_PROPERTY_TYPES = new Set(["multitext", "tags", "aliases", "list"]);
+
+function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
   const out = {};
   const byFieldId = isObj(transformContext && transformContext.byFieldId) ? transformContext.byFieldId : {};
   const rows = Array.isArray(transformContext && transformContext.matches)
     ? transformContext.matches
     : Object.keys(byFieldId).map((k) => byFieldId[k]);
   const yamlFormat = String(cfg && cfg.transform && cfg.transform.inline2note && cfg.transform.inline2note.yamlNoteFormat || "raw").trim().toLowerCase();
-  const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+  const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
   const cardinalityByField = isObj(order.yamlCardinalityByField) ? order.yamlCardinalityByField : {};
   const propertyFieldCounts = {};
   const listYamlKeys = new Set();
+  const singleYamlKeys = new Set();
   const configuredFields = getModeFields(cfg);
   /* Определения по id: правило ищется у того Field, чьё совпадение пришло
      строкой, а у дочернего — ещё и у родителя. */
@@ -762,10 +1068,44 @@ function buildYamlMapFromContext(transformContext, cfg) {
     const cardinality = String(field && field.yamlCardinality || cardinalityByField[fid] || "").trim().toLowerCase();
     if (cardinality === "list" || cardinality === "many" || cardinality === "array") {
       for (const key of keys) listYamlKeys.add(key);
+    } else if (cardinality === "one" || cardinality === "single") {
+      for (const key of keys) singleYamlKeys.add(key);
     }
   }
+  /*
+   * `Property type` = `One Value` перебивает догадку.
+   *
+   * Догадка простая: в свойство пишут два и более Field — значит список. Она
+   * верна почти всегда, но стояла **после** ручной настройки и молча её
+   * перекрывала: свойство `tags`, в которое пишут два Field, оставалось
+   * списком, сколько бы раз человек ни выбрал `One Value`. Подсказка контрола
+   * при этом обещает обратное — «Set it by hand only when Auto guesses wrong»
+   * (замечание заказчика 1.3.2.3).
+   *
+   * Порядок теперь такой: явный `A list` у любого из Fields — список; иначе
+   * явный `One Value` — одно значение; иначе догадка по числу Fields.
+   */
   for (const key of Object.keys(propertyFieldCounts)) {
-    if (propertyFieldCounts[key] > 1) listYamlKeys.add(key);
+    if (propertyFieldCounts[key] > 1 && !singleYamlKeys.has(key)) listYamlKeys.add(key);
+  }
+  /*
+   * **Тип, объявленный в хранилище, сильнее догадки и сильнее контрола.**
+   *
+   * Решение заказчика 2026-09-02: свойство `tag` он объявил в Obsidian
+   * списком, а плагин написал одно значение — свойство одно, контрол в `Auto`,
+   * — и Obsidian ставил «несоответствие типа, ожидалось список» (B21). Теперь
+   * плагин сначала спрашивает у хранилища. Свойство, о котором хранилище
+   * ничего не знает, решается как раньше: явный контрол, потом догадка по
+   * числу Fields.
+   */
+  const declared = propertyTypes && typeof propertyTypes === "object" ? propertyTypes : {};
+  for (const key of Object.keys(propertyFieldCounts)) {
+    const type = String(declared[key] || "").trim().toLowerCase();
+    if (!type) continue;
+    if (YAML_LIST_PROPERTY_TYPES.has(type)) {
+      listYamlKeys.add(key);
+      singleYamlKeys.delete(key);
+    }
   }
   for (let i = 0; i < rows.length; i++) {
     const row = isObj(rows[i]) ? rows[i] : {};
@@ -847,11 +1187,47 @@ function renderYamlBlockWithOrder(existingYamlLines, yamlPatch, cfg) {
     keyToLineIndex[k] = i;
   }
 
+  /*
+   * Кавычки у значения свойства ставятся только там, где без них YAML
+   * прочитается неправильно.
+   *
+   * Раньше в кавычки бралось **всё**, и в заметке появлялось
+   * `property: "value"`. Документация Obsidian (Help → Properties) пишет
+   * текстовое свойство без кавычек — `title: A New Hope`, — и требует их
+   * ровно у одного случая: внутренней ссылки, `link: "[[Episode IV]]"`.
+   * Замечание заказчика 1.3.2.4, проверено по документации 2026-09-01.
+   *
+   * Кавычки остаются там, где иначе меняется смысл: пустая строка, ссылка,
+   * ведущие и хвостовые пробелы, начало со служебного знака YAML, двоеточие с
+   * пробелом или решётка внутри, перенос строки, а также значение, которое
+   * без кавычек перестало бы быть текстом — число, `true`, `null` и их родня.
+   */
+  const YAML_PLAIN_UNSAFE_HEAD = /^[-?:,[\]{}#&*!|>'"%@`]/;
+  const YAML_LOOKS_LIKE_NUMBER = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
+  const YAML_LOOKS_LIKE_KEYWORD = /^(?:true|false|yes|no|on|off|null|~)$/i;
+  const needsYamlQuotes = (text) => {
+    const s = String(text);
+    if (!s) return true;
+    if (s !== s.trim()) return true;
+    if (YAML_PLAIN_UNSAFE_HEAD.test(s)) return true;
+    if (/[\n\r]/.test(s)) return true;
+    if (s.includes(": ") || s.endsWith(":")) return true;
+    if (/\s#/.test(s)) return true;
+    if (YAML_LOOKS_LIKE_NUMBER.test(s)) return true;
+    if (YAML_LOOKS_LIKE_KEYWORD.test(s)) return true;
+    return false;
+  };
+  const renderYamlText = (value) => {
+    const s = String(value ?? "");
+    return needsYamlQuotes(s) ? JSON.stringify(s) : s;
+  };
   const renderYamlScalar = (value) => {
-    if (Array.isArray(value)) return `[${value.map((x) => typeof x === "number" && Number.isFinite(x) ? String(x) : JSON.stringify(String(x ?? ""))).join(", ")}]`;
+    if (Array.isArray(value)) {
+      return `[${value.map((x) => typeof x === "number" && Number.isFinite(x) ? String(x) : renderYamlText(x)).join(", ")}]`;
+    }
     if (typeof value === "number" && Number.isFinite(value)) return String(value);
     if (typeof value === "boolean") return value ? "true" : "false";
-    return JSON.stringify(String(value ?? ""));
+    return renderYamlText(value);
   };
 
   const mergedLines = [];
@@ -871,7 +1247,7 @@ function renderYamlBlockWithOrder(existingYamlLines, yamlPatch, cfg) {
     if (!keysExisting.includes(k)) keysExisting.push(k);
   }
 
-  const orderCfg = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+  const orderCfg = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
   const pbf = isObj(orderCfg.propertiesByField) ? orderCfg.propertiesByField : {};
   const orderLeft = Array.isArray(orderCfg.left) ? orderCfg.left.slice() : [];
   const orderRight = Array.isArray(orderCfg.right) ? orderCfg.right.slice() : [];
@@ -912,7 +1288,7 @@ function extractHeaderTitle(line) {
 function resolveAutoTitle(parsed, i2n) {
   const line = String(parsed && parsed.line || "");
   const payload = String(parsed && parsed.payloadText || "").trim();
-  const delim = String(i2n && i2n.noteName && i2n.noteName.explicitNameDelimiters || "[]").trim() || "[]";
+  const delim = String(i2n && i2n.noteName && i2n.noteName.delimiters || "[]").trim() || "[]";
   const open = delim.slice(0, Math.max(1, Math.floor(delim.length / 2))) || "[";
   const close = delim.slice(open.length) || "]";
   const re = new RegExp(escapeRegexLiteral(open) + "([\\s\\S]*?)" + escapeRegexLiteral(close), "g");
@@ -929,7 +1305,7 @@ function resolveAutoTitle(parsed, i2n) {
     if (hh) return hh;
   }
   const base = payload && payload !== "-" ? payload : "";
-  const wordsN = Math.max(1, Math.min(32, Math.trunc(Number(i2n && i2n.noteName && i2n.noteName.autoWordsCount) || 6)));
+  const wordsN = Math.max(1, Math.min(32, Math.trunc(Number(i2n && i2n.noteName && i2n.noteName.wordCount) || 6)));
   const words = base.split(/\s+/).filter(Boolean).slice(0, wordsN);
   if (words.length) return words.join(" ");
   return "";
@@ -1006,14 +1382,39 @@ function slugSafeTitle(raw) {
     .trim();
 }
 
-async function pickTargetPath(plugin, title, i2n) {
+/**
+ * Папка новой заметки: своя у правила или общая (10.13.8).
+ *
+ * `default` — как `New notes folder`; `near` — рядом с текущей заметкой, то
+ * есть так, как ведёт себя пустой `New notes folder`; `folder` — своя папка
+ * правила. Пустая своя папка означает то же, что `default`: обещать место,
+ * которого не назвали, нельзя.
+ */
+function resolveRuleFolder(rule, i2n) {
+  const mode = normalizeRuleFolderMode(rule && rule.targetFolderMode);
+  if (mode === "near") return "";
+  if (mode === "folder") {
+    const own = normalizeFolderPath(rule && rule.targetFolder);
+    if (own) return own;
+  }
+  return normalizeFolderPath(i2n && i2n.outputFolder);
+}
+
+async function pickTargetPath(plugin, title, i2n, rule) {
   const app = plugin.app;
-  let folder = String(i2n && i2n.outputFolder || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
+  let folder = resolveRuleFolder(rule, i2n);
   if (!folder) {
     try {
       const activeFile = app && app.workspace && typeof app.workspace.getActiveFile === "function" ? app.workspace.getActiveFile() : null;
-      const parent = activeFile && activeFile.parent ? String(activeFile.parent.path || "").trim() : "";
-      folder = parent;
+      /*
+       * Папка активной заметки проходит ту же нормализацию, что и папка из
+       * настроек. У заметки в корне Obsidian отдаёт `parent.path === "/"`, и
+       * без нормализации путь склеивался через два слэша: файл создавался как
+       * `тест.md` (Obsidian путь чистит сам), а в исходную строку уходила
+       * ссылка `[[//тест]]` — она собирается из пути до чистки
+       * (замечание заказчика B21, 2026-09-02).
+       */
+      folder = normalizeFolderPath(activeFile && activeFile.parent ? activeFile.parent.path : "");
     } catch (_) {}
   }
   const baseTitle = slugSafeTitle(title) || "inline2note";
@@ -1036,36 +1437,116 @@ function deriveSourceWikilinkFromTargetPath(targetPath) {
   return String(targetPath || "").trim().replace(/\\/g, "/").replace(/\.md$/i, "");
 }
 
-function applySourcePayloadReplace(line, noteTitle, separators) {
+/**
+ * Разбор исходной строки на «до текста», сам текст и «после текста».
+ *
+ * Раньше эта раскладка жила внутри замены текста ссылкой и была ей не нужна:
+ * замена выбрасывала текст, не читая. Теперь текст надо ещё и **прочитать** —
+ * его можно оставить целиком или обрезать до первых слов, — и второй разбор
+ * той же строки разошёлся бы с первым на ближайшей правке. Поэтому разбор
+ * один, а склейка обратно (`joinSourcePayload`) повторяет прежние ветки
+ * дословно, включая то, что при пустом хвосте второй Separator не пишется.
+ */
+function splitSourcePayload(line, separators) {
   const src = String(line || "");
   const indent = String((src.match(/^[\t ]*/) || [""])[0] || "");
   const body = src.slice(indent.length);
-  const title = String(noteTitle || "").trim();
-  if (!title) return src;
-  const replacement = `[[${title}]]`;
   const s1 = String(separators && separators.separator1 || "").trim();
   const s2 = String(separators && separators.separator2 || "").trim();
   if (s1 && s2 && body.includes(s1) && body.includes(s2)) {
     const firstIdx = body.indexOf(s1);
     const secondIdx = body.indexOf(s2, firstIdx + s1.length);
     if (firstIdx >= 0 && secondIdx > firstIdx) {
-      const left = String(body.slice(0, firstIdx) || "").trimEnd();
-      const right = String(body.slice(secondIdx + s2.length) || "").trim();
-      if (right) return `${indent}${left} ${s1} ${replacement} ${s2} ${right}`;
-      return `${indent}${left} ${s1} ${replacement}`;
+      return {
+        kind: "both", src, indent, s1, s2,
+        left: String(body.slice(0, firstIdx) || "").trimEnd(),
+        payload: String(body.slice(firstIdx + s1.length, secondIdx) || "").trim(),
+        right: String(body.slice(secondIdx + s2.length) || "").trim(),
+      };
     }
   }
   if (s1 && body.includes(s1)) {
     const firstIdx = body.indexOf(s1);
     if (firstIdx >= 0) {
-      const left = String(body.slice(0, firstIdx) || "").trimEnd();
-      return `${indent}${left} ${s1} ${replacement}`;
+      return {
+        kind: "left-only", src, indent, s1, s2,
+        left: String(body.slice(0, firstIdx) || "").trimEnd(),
+        payload: String(body.slice(firstIdx + s1.length) || "").trim(),
+      };
     }
   }
   const bullet = src.match(/^([\s]*[-*]\s+)(.+)$/);
-  if (bullet) return `${bullet[1]}${replacement}`;
-  if (s1 && s2) return `${src} ${s1} ${replacement}`;
-  return `${src} ${replacement}`;
+  if (bullet) {
+    return { kind: "bullet", src, s1, s2, prefix: bullet[1], payload: String(bullet[2] || "").trim() };
+  }
+  /* Ни Separator, ни маркера списка: читать нечего, дописывать — в конец. */
+  return { kind: "none", src, s1, s2, payload: "" };
+}
+
+/**
+ * Собрать строку обратно с новым текстом на месте прежнего.
+ *
+ * Пустые куски не дают пустых мест: текста может не остаться вовсе (`Take it
+ * away` без ссылки), и тогда между Separator получалось два пробела. По той же
+ * причине уходит и ведущий пробел у строки, которая начинается с Separator.
+ */
+function joinSourcePayload(parts, payload) {
+  const p = String(payload || "").trim();
+  const glue = (...bits) => bits.filter((x) => String(x || "").length).join(" ");
+  if (parts.kind === "both") {
+    if (parts.right) return `${parts.indent}${glue(parts.left, parts.s1, p, parts.s2, parts.right)}`;
+    return `${parts.indent}${glue(parts.left, parts.s1, p)}`;
+  }
+  if (parts.kind === "left-only") return `${parts.indent}${glue(parts.left, parts.s1, p)}`;
+  if (parts.kind === "bullet") return `${parts.prefix}${p}`;
+  if (parts.s1 && parts.s2) return `${parts.src} ${parts.s1} ${p}`;
+  return `${parts.src} ${p}`;
+}
+
+/** Первые `count` слов текста: остальное уходит вместе с ним в заметку. */
+function firstWordsOf(text, count) {
+  const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+  const take = Number.isFinite(Number(count)) ? Math.max(1, Math.trunc(Number(count))) : 1;
+  return words.slice(0, take).join(" ");
+}
+
+function applySourcePayloadReplace(line, noteTitle, separators) {
+  const src = String(line || "");
+  const title = String(noteTitle || "").trim();
+  if (!title) return src;
+  return joinSourcePayload(splitSourcePayload(line, separators), `[[${title}]]`);
+}
+
+/**
+ * Судьба текста исходной строки и ссылка на заметку — **две разные вещи**
+ * (решение заказчика 2026-09-01). До этого обе жили в одном тумблере
+ * `replaceWithLink`, и из четырёх сочетаний были достижимы два: «текст ушёл,
+ * ссылка есть» и «текст остался, ссылки нет». Заказчику нужны и остальные:
+ * оставить текст И получить ссылку, оставить первые слова текста.
+ *
+ * `text`:
+ *   `leave`  — текст остаётся целиком;
+ *   `remove` — текст уходит в заметку и со строки убирается;
+ *   `words`  — на строке остаются первые `keepWords` слов.
+ */
+function applySourceTextFate(line, noteTitle, separators, opts) {
+  const src = String(line || "");
+  const fate = normalizeMode(opts && opts.text, ["leave", "remove", "words"], "remove");
+  const link = !!(opts && opts.link);
+  const title = String(noteTitle || "").trim();
+  const linkText = link && title ? `[[${title}]]` : "";
+  /*
+   * Текст остаётся, ссылки нет — строку не трогаем вовсе. Не осторожность:
+   * склейка нормализует пробелы вокруг Separator, и строка, которую человек
+   * не просил менять, менялась бы на пробел.
+   */
+  if (fate === "leave" && !linkText) return src;
+  const parts = splitSourcePayload(line, separators);
+  let text = parts.payload;
+  if (fate === "remove") text = "";
+  else if (fate === "words") text = firstWordsOf(parts.payload, opts && opts.keepWords);
+  const next = [text, linkText].filter(Boolean).join(" ");
+  return joinSourcePayload(parts, next);
 }
 
 function insertProcessedToken(line, token, panel, separators) {
@@ -1140,7 +1621,8 @@ function applySourcePrefixResolution(line, originalLine, transformContext, prese
   if (!lineFinalize || typeof lineFinalize.buildPrefixUnified !== "function") {
     throw new Error("InlineOverhaul: shared prefix resolver unavailable");
   }
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+  const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
+  const behavior = { prefixRules: pkm.prefixRules, order: pkm.fields && pkm.fields.order };
   if (!isObj(behavior.prefixRules)) return String(line || "");
   const orderTypes = isObj(behavior.order && behavior.order.types) ? behavior.order.types : {};
   const fields = getModeFields(cfg);
@@ -1243,7 +1725,7 @@ function normalizeSourceLineAfterCleanup(line, separators) {
 }
 
 function getActiveOrderedFieldIds(cfg) {
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
   const order = isObj(behavior.order) ? behavior.order : {};
   const left = Array.isArray(order.left) ? order.left.slice() : [];
   const right = Array.isArray(order.right) ? order.right.slice() : [];
@@ -1293,9 +1775,21 @@ function sampleValueForField(field, fType) {
   return "";
 }
 
+/**
+ * Текст выдуманной строки предпросмотров и её префикс.
+ *
+ * Оба видимые, поэтому названы, а не вписаны посреди сборки строки. Префикс —
+ * буллит с чекбоксом: без него в половинах «до» и «после» не было видно, что
+ * с началом строки вообще что-то происходит, а происходит там немало —
+ * `Prefix behavior` у Value, `Bullet in strict` и метка «обработано»
+ * (замечание заказчика B13, 2026-09-02).
+ */
+const PREVIEW_TEXT_WORDS = "buy milk bread and eggs today";
+const PREVIEW_LINE_PREFIX = "- [ ] ";
+
 function buildPreviewBaseLine(cfg) {
   const separators = resolveIoSeparators(cfg);
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
   const order = isObj(behavior.order) ? behavior.order : {};
   const labels = isObj(order.labels) ? order.labels : {};
   const orderTypes = isObj(order.types) ? order.types : {};
@@ -1327,10 +1821,64 @@ function buildPreviewBaseLine(cfg) {
   }
   const left = leftTokens.join(" ").trim();
   const right = rightTokens.join(" ").trim();
-  if (left && right) return `${left} ${separators.separator1} Text ${separators.separator2} ${right}`;
-  if (left) return `${left} ${separators.separator1} Text`;
-  if (right) return `Text ${separators.separator2} ${right}`;
-  return "Text";
+  /*
+   * Текст выдуманной строки — несколько слов, а не одно.
+   *
+   * Стояло одно слово `Text`, и на нём не было видно, работает ли
+   * `Words to keep`: сколько бы слов ни просили оставить, оставалось то же
+   * одно. Заказчик так и написал: «в live preview текст состоит из одного
+   * слова "text", так что не понятно, работает ли source-keep-words» (B18,
+   * 2026-09-02). Слов шесть — больше, чем предел ползунка по умолчанию, и
+   * меньше, чем строка, в которой их уже не пересчитать глазами.
+   */
+  const text = PREVIEW_TEXT_WORDS;
+  const p = PREVIEW_LINE_PREFIX;
+  if (left && right) return `${p}${left} ${separators.separator1} ${text} ${separators.separator2} ${right}`;
+  if (left) return `${p}${left} ${separators.separator1} ${text}`;
+  if (right) return `${p}${text} ${separators.separator2} ${right}`;
+  return p + text;
+}
+
+/**
+ * Дерево «до и после» для предпросмотра `Source line` (10.13.10).
+ *
+ * Считает **тот же путь**, что переносит строку по-настоящему: разбор строки,
+ * очистка по `cleanupFieldIds`, судьба текста, метка «обработано». Свой разбор
+ * разошёлся бы с движком на первой правке (У-4), поэтому здесь только сборка
+ * дерева вокруг него.
+ *
+ * Дочерние строки — те же самые, что родительская, но с другим текстом и
+ * отступом: заказчик просил показать строку, «полностью заполненную всеми
+ * имеющимися Fields», и её детей.
+ *
+ * Судьба детей — не наша: её решает `Sub-lines (tree) behavior` в
+ * `Note content`. `stay` — они остаются на месте нетронутыми, `remove` — они
+ * уходят в заметку вместе с текстом, и на странице их больше нет.
+ */
+function buildSourcePreviewTree(i2n, cfg) {
+  const base = buildPreviewBaseLine(cfg);
+  if (!base) return { before: [], after: [] };
+  const separators = resolveIoSeparators(cfg);
+  /*
+   * Fields нет — показывать нечего: без них строка вырождается в одно слово
+   * `Text`, и предпросмотр говорил бы неправду о настройках. Признак берётся
+   * оттуда же, откуда строка: Separator в ней появляется только вместе с
+   * первым Field.
+   */
+  if (!base.includes(separators.separator1) && !base.includes(separators.separator2)) {
+    return { before: [], after: [] };
+  }
+  const indent = "\t";
+  /* У ребёнка свой текст, чтобы видеть, какая строка куда уехала. */
+  const childOf = (n) => indent + base.replace(PREVIEW_TEXT_WORDS, "sub-line " + n + " of the same list");
+  const children = [childOf(1), childOf(2)];
+  const parentAfter = buildSourcePreviewLine(i2n, cfg).after;
+  const sublines = String(i2n && i2n.sublines || "").trim().toLowerCase() === "remove" ? "remove" : "stay";
+  return {
+    before: [base].concat(children),
+    after: sublines === "remove" ? [parentAfter] : [parentAfter].concat(children),
+    sublines,
+  };
 }
 
 function buildSourcePreviewLine(i2n, cfg) {
@@ -1341,13 +1889,15 @@ function buildSourcePreviewLine(i2n, cfg) {
   const ctx = buildTransformContext(parsed, cfg);
   const ids = resolveSourceCleanupFieldIds(i2n, cfg);
   const cleaned = applySourceCleanupByFieldIds(before, ctx, ids, separators);
-  const linked = i2n && i2n.sourceProcessing && i2n.sourceProcessing.replacePayloadWithLink
-    ? applySourcePayloadReplace(cleaned, "Preview", separators)
-    : cleaned;
+  const linked = applySourceTextFate(cleaned, "Preview", separators, {
+    text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
+    keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
+    link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink),
+  });
   const processed = insertProcessedToken(
     linked,
-    i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedToken,
-    i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedTokenPanel,
+    i2n && i2n.sourceProcessing && i2n.sourceProcessing.token,
+    i2n && i2n.sourceProcessing && i2n.sourceProcessing.panel,
     separators
   );
   const after = normalizePreviewSeparators(normalizeSourceLineAfterCleanup(processed, separators), separators);
@@ -1362,13 +1912,15 @@ function buildExamplePreviewLine(i2n, cfg) {
   const ctx = buildTransformContext(parsed, cfg);
   const ids = resolveSourceCleanupFieldIds(i2n, cfg);
   const cleaned = applySourceCleanupByFieldIds(sample, ctx, ids, separators);
-  const withLink = i2n && i2n.sourceProcessing && i2n.sourceProcessing.replacePayloadWithLink
-    ? applySourcePayloadReplace(cleaned, "Example", separators)
-    : cleaned;
+  const withLink = applySourceTextFate(cleaned, "Example", separators, {
+    text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
+    keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
+    link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink),
+  });
   const replaced = insertProcessedToken(
     withLink,
-    i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedToken,
-    i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedTokenPanel,
+    i2n && i2n.sourceProcessing && i2n.sourceProcessing.token,
+    i2n && i2n.sourceProcessing && i2n.sourceProcessing.panel,
     separators
   );
   return {
@@ -1466,11 +2018,11 @@ function assertEditorSnapshot(plugin, ed, info, expectedBlock) {
   }
 }
 
-function replaceEditorSourceBlock(ed, info, nextRootLine, sublinesBehavior) {
+function replaceEditorSourceBlock(ed, info, nextRootLine, sublines) {
   if (!ed || typeof ed.replaceRange !== "function") throw new Error("InlineOverhaul: editor replace API unavailable");
   const start = Number(info.blockStart || 0);
   const end = Number(info.blockEnd || start);
-  if (String(sublinesBehavior || "stay").trim().toLowerCase() !== "remove") {
+  if (String(sublines || "stay").trim().toLowerCase() !== "remove") {
     const oldRoot = String(ed.getLine(start) || "");
     ed.replaceRange(String(nextRootLine || ""), { line: start, ch: 0 }, { line: start, ch: oldRoot.length });
     return;
@@ -1658,10 +2210,13 @@ function normalizeRuleDraft(rule, fallbackId) {
     id: String(src.id || fallbackId || "rule").trim() || String(fallbackId || "rule"),
     enabled: src.enabled !== false,
     targetTemplate: String(src.targetTemplate || "").trim(),
+    targetFolderMode: normalizeRuleFolderMode(src.targetFolderMode),
+    targetFolder: normalizeFolderPath(src.targetFolder),
     conditions: {
       tags: uniq(Array.isArray(conditions.tags) ? conditions.tags : []),
       emojiFields: uniq(Array.isArray(conditions.emojiFields) ? conditions.emojiFields : []),
       wikilinks: uniq(Array.isArray(conditions.wikilinks) ? conditions.wikilinks : []),
+      fields: uniq(Array.isArray(conditions.fields) ? conditions.fields : []),
     },
     validation: {
       isConflict: false,
@@ -1858,11 +2413,11 @@ function renderTransformSettings(ctx) {
     .setDesc("Vault folder used to resolve markdown templates.")
     .addText((txt) => {
       txt.setPlaceholder("Templates");
-      txt.setValue(i2n.templateFolder || "");
-      let draftValue = String(i2n.templateFolder || "");
+      txt.setValue(i2n.templatesFolder || "");
+      let draftValue = String(i2n.templatesFolder || "");
       txt.onChange((v) => { draftValue = String(v || ""); });
       wireTextCommitOnBlur(txt.inputEl, () => draftValue, (nextValue) => {
-        plugin.setConfigPatch({ transform: { inline2note: { templateFolder: nextValue } } }, "transform:inline2note:templateFolder");
+        plugin.setConfigPatch({ transform: { inline2note: { templatesFolder: nextValue } } }, "transform:inline2note:templatesFolder");
       });
       if (!enabled || !i2n.enabled) txt.setDisabled(true);
     });
@@ -1881,7 +2436,7 @@ function renderTransformSettings(ctx) {
       if (!enabled || !i2n.enabled) txt.setDisabled(true);
     });
 
-  const templateOptions = collectTemplateOptions(plugin.app, i2n.templateFolder);
+  const templateOptions = collectTemplateOptions(plugin.app, i2n.templatesFolder);
   new Setting(containerEl)
     .setName("Default template")
     .setDesc("Used when no smart rule matches.")
@@ -1914,11 +2469,11 @@ function renderTransformSettings(ctx) {
     .setName("Explicit name delimiters")
     .setDesc("Auto naming priority starts with text inside these opening/closing delimiters.")
     .addText((txt) => {
-      txt.setValue(i2n.noteName.explicitNameDelimiters || "[]");
-      let draftValue = String(i2n.noteName.explicitNameDelimiters || "[]");
+      txt.setValue(i2n.noteName.delimiters || "[]");
+      let draftValue = String(i2n.noteName.delimiters || "[]");
       txt.onChange((v) => { draftValue = String(v || ""); });
       wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => {
-        plugin.setConfigPatch({ transform: { inline2note: { noteName: { explicitNameDelimiters: value } } } }, "transform:inline2note:noteName:delimiters");
+        plugin.setConfigPatch({ transform: { inline2note: { noteName: { delimiters: value } } } }, "transform:inline2note:noteName:delimiters");
       });
       if (!enabled || !i2n.enabled) txt.setDisabled(true);
     });
@@ -1928,11 +2483,11 @@ function renderTransformSettings(ctx) {
     .setDesc("Fallback title length when delimiters and markdown header are absent.")
     .addText((txt) => {
       txt.inputEl.type = "number";
-      txt.setValue(String(i2n.noteName.autoWordsCount || 6));
-      let draftValue = String(i2n.noteName.autoWordsCount || 6);
+      txt.setValue(String(i2n.noteName.wordCount || 6));
+      let draftValue = String(i2n.noteName.wordCount || 6);
       txt.onChange((v) => { draftValue = String(v || ""); });
       wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => {
-        plugin.setConfigPatch({ transform: { inline2note: { noteName: { autoWordsCount: Number(value) } } } }, "transform:inline2note:noteName:words");
+        plugin.setConfigPatch({ transform: { inline2note: { noteName: { wordCount: Number(value) } } } }, "transform:inline2note:noteName:words");
       });
       if (!enabled || !i2n.enabled) txt.setDisabled(true);
     });
@@ -1980,10 +2535,10 @@ function renderTransformSettings(ctx) {
     new Setting(containerEl)
       .setName("Custom header text")
       .addText((txt) => {
-        txt.setValue(i2n.placement.customHeaderText || "");
-        let draftValue = String(i2n.placement.customHeaderText || "");
+        txt.setValue(i2n.placement.customHeader || "");
+        let draftValue = String(i2n.placement.customHeader || "");
         txt.onChange((v) => { draftValue = String(v || ""); });
-        wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { customHeaderText: value } } } }, "transform:inline2note:placement:customHeader"));
+        wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { customHeader: value } } } }, "transform:inline2note:placement:customHeader"));
         if (!enabled || !i2n.enabled) txt.setDisabled(true);
       });
   }
@@ -1992,10 +2547,10 @@ function renderTransformSettings(ctx) {
       .setName("Datetime header format")
       .setDesc("Tokens: YYYY MM DD HH mm ss")
       .addText((txt) => {
-        txt.setValue(i2n.placement.datetimeHeaderFormat || "YYYY-MM-DD HH:mm");
-        let draftValue = String(i2n.placement.datetimeHeaderFormat || "YYYY-MM-DD HH:mm");
+        txt.setValue(i2n.placement.datetimeFormat || "YYYY-MM-DD HH:mm");
+        let draftValue = String(i2n.placement.datetimeFormat || "YYYY-MM-DD HH:mm");
         txt.onChange((v) => { draftValue = String(v || ""); });
-        wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { datetimeHeaderFormat: value } } } }, "transform:inline2note:placement:datetimeFormat"));
+        wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { datetimeFormat: value } } } }, "transform:inline2note:placement:datetimeFormat"));
         if (!enabled || !i2n.enabled) txt.setDisabled(true);
       });
   }
@@ -2017,8 +2572,8 @@ function renderTransformSettings(ctx) {
     .setName("Open transformed note")
     .setDesc("When enabled, open created/updated note after transform.")
     .addToggle((t) => {
-      t.setValue(!!i2n.openTransformedNote).onChange((v) => {
-        plugin.setConfigPatch({ transform: { inline2note: { openTransformedNote: !!v } } }, "transform:inline2note:openTransformedNote");
+      t.setValue(!!i2n.openTarget).onChange((v) => {
+        plugin.setConfigPatch({ transform: { inline2note: { openTarget: !!v } } }, "transform:inline2note:openTarget");
       });
       if (!enabled || !i2n.enabled) t.setDisabled(true);
     });
@@ -2029,9 +2584,9 @@ function renderTransformSettings(ctx) {
     .addDropdown((d) => {
       d.addOption("stay", "Stay");
       d.addOption("remove", "Remove");
-      d.setValue(String(i2n.sublinesBehavior || "stay"));
+      d.setValue(String(i2n.sublines || "stay"));
       d.onChange((v) => {
-        plugin.setConfigPatch({ transform: { inline2note: { sublinesBehavior: String(v || "stay") } } }, "transform:inline2note:sublinesBehavior");
+        plugin.setConfigPatch({ transform: { inline2note: { sublines: String(v || "stay") } } }, "transform:inline2note:sublines");
       });
       if (!enabled || !i2n.enabled) d.setDisabled(true);
     });
@@ -2048,8 +2603,8 @@ function renderTransformSettings(ctx) {
     .setName("Replace payload with note link")
     .setDesc("After successful transform, replace first payload segment with [[noteTitle]] in source line.")
     .addToggle((t) => {
-      t.setValue(!!(i2n.sourceProcessing && i2n.sourceProcessing.replacePayloadWithLink)).onChange((v) => {
-        plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { replacePayloadWithLink: !!v } } } }, "transform:inline2note:source:replacePayload");
+      t.setValue(!!(i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink)).onChange((v) => {
+        plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { replaceWithLink: !!v } } } }, "transform:inline2note:source:replacePayload");
       });
       if (!enabled || !i2n.enabled) t.setDisabled(true);
     });
@@ -2058,10 +2613,10 @@ function renderTransformSettings(ctx) {
     .setName("Processed token")
     .setDesc("Optional token inserted after successful transform. Empty disables insertion.")
     .addText((txt) => {
-      txt.setValue(i2n.sourceProcessing.processedToken || "");
-      let draftValue = String(i2n.sourceProcessing.processedToken || "");
+      txt.setValue(i2n.sourceProcessing.token || "");
+      let draftValue = String(i2n.sourceProcessing.token || "");
       txt.onChange((v) => { draftValue = String(v || ""); });
-      wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { processedToken: value } } } }, "transform:inline2note:source:processedToken"));
+      wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { token: value } } } }, "transform:inline2note:source:token"));
       if (!enabled || !i2n.enabled) txt.setDisabled(true);
     });
 
@@ -2070,15 +2625,15 @@ function renderTransformSettings(ctx) {
     .addDropdown((d) => {
       d.addOption("left", "Left");
       d.addOption("right", "Right");
-      d.setValue(i2n.sourceProcessing.processedTokenPanel || "right");
-      d.onChange((value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { processedTokenPanel: String(value || "right") } } } }, "transform:inline2note:source:processedPanel"));
+      d.setValue(i2n.sourceProcessing.panel || "right");
+      d.onChange((value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { panel: String(value || "right") } } } }, "transform:inline2note:source:processedPanel"));
       if (!enabled || !i2n.enabled) d.setDisabled(true);
     });
 
   const cleanupIds = resolveSourceCleanupFieldIds(i2n, cfg);
   const cleanupSet = new Set(cleanupIds);
   const modeFields = getModeFields(cfg);
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
   const order = isObj(behavior.order) ? behavior.order : {};
   const strictNames = isObj(order.strictNames) ? order.strictNames : {};
   const orderTypes = isObj(order.types) ? order.types : {};
@@ -2322,9 +2877,15 @@ async function runInline2Note(plugin, runtimeOptions) {
   }
   const title = sanitizeResolvedTitle(resolvedTitle);
   if (!title) throw new Error("InlineOverhaul: note title is empty");
-  const target = await pickTargetPath(plugin, title, i2n);
-  const yamlMap = buildYamlMapFromContext(transformContext, cfg);
-  const templatePath = selectSmartTemplate(parsed, i2n.smartRules, i2n.defaultTemplate);
+  /* Правило выбирается **один раз**: и шаблон, и папка берутся у него, иначе
+     два прохода однажды разойдутся и заметка уедет не туда (10.13.8 Н5). */
+  const smartRule = selectSmartRule(parsed, i2n.smartRules, cfg);
+  const target = await pickTargetPath(plugin, title, i2n, smartRule);
+  /* Типы свойств из хранилища: список остаётся списком, даже если значение
+     одно (B21, решение заказчика 2026-09-02). */
+  const yamlMap = buildYamlMapFromContext(transformContext, cfg, readVaultPropertyTypes(plugin && plugin.app));
+  const templatePath = String(smartRule && smartRule.targetTemplate || "").trim()
+    || String(i2n.defaultTemplate || "").trim();
   const templateContent = target.mode === "add_to_note" && target.exists
     ? ""
     : await readTemplateContent(plugin, templatePath);
@@ -2342,11 +2903,14 @@ async function runInline2Note(plugin, runtimeOptions) {
     const cleanupFieldIds = resolveSourceCleanupFieldIds(i2n, cfg);
     let nextRoot = applySourceCleanupByFieldIds(sourceLine, transformContext, cleanupFieldIds, separators);
     nextRoot = applySourcePrefixResolution(nextRoot, sourceLine, transformContext, cleanupFieldIds, cfg, runtimeOptions && runtimeOptions.lineFinalize);
-    if (i2n.sourceProcessing.replacePayloadWithLink) {
-      nextRoot = applySourcePayloadReplace(nextRoot, deriveSourceWikilinkFromTargetPath(actualTarget.path), separators);
-    }
-    nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.processedToken, i2n.sourceProcessing.processedTokenPanel, separators);
-    replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublinesBehavior);
+    /* Ссылка и судьба текста решаются вместе, одной записью строки. */
+    nextRoot = applySourceTextFate(nextRoot, deriveSourceWikilinkFromTargetPath(actualTarget.path), separators, {
+      text: i2n.sourceProcessing.text,
+      keepWords: i2n.sourceProcessing.keepWords,
+      link: i2n.sourceProcessing.replaceWithLink,
+    });
+    nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators);
+    replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines);
   } catch (sourceError) {
     try {
       await mutation.rollback();
@@ -2355,7 +2919,7 @@ async function runInline2Note(plugin, runtimeOptions) {
     }
     throw new Error(`InlineOverhaul: source edit failed; target mutation rolled back: ${sourceError && sourceError.message ? sourceError.message : sourceError}`);
   }
-  if (i2n.openTransformedNote) {
+  if (i2n.openTarget) {
     try {
       const opened = plugin.app.vault.getAbstractFileByPath(actualTarget.path);
       if (opened && plugin.app.workspace && typeof plugin.app.workspace.getLeaf === "function") {
@@ -2379,12 +2943,22 @@ module.exports = {
   parseInlineLine,
   buildTransformContext,
   buildYamlMapFromContext,
+  readVaultPropertyTypes,
   parseFrontmatter,
   renderYamlBlockWithOrder,
   resolveAutoTitle,
   formatHeaderByMode,
   selectSmartTemplate,
+  selectSmartRule,
+  buildSourcePreviewTree,
+  buildSourcePreviewLine,
+  resolveRuleFolder,
+  normalizeRuleFolderMode,
+  normalizeFolderPath,
   applySourcePayloadReplace,
+  applySourceTextFate,
+  splitSourcePayload,
+  resolveSourceCleanupFieldIds,
   applySourceCleanupByFieldIds,
   applySourcePrefixResolution,
   insertProcessedToken,

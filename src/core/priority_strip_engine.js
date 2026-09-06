@@ -31,35 +31,46 @@ function detectOwnMatch(text, tokenSet, readRowForToken) {
   return null;
 }
 
+/**
+ * Рельсы строки: столько, сколько уровней в цепочке, но не больше, чем просит
+ * `Number of Bars` (PRD 10.13.21 Б1).
+ *
+ * **Раньше список достраивался** повтором последнего уровня до полного числа
+ * полос, и строка без своего значения получала два одинаковых рельса.
+ * Заплаткой на это стояла обрезка списка до одного рельса у режима
+ * `list-inherit` в `buildStripSpecs` — она же стирала полосу дочерней строки у
+ * внучатой: «bar дочерней и внучатой строки применяются только для своей
+ * строки» (замечание заказчика H1, 2026-09-04).
+ */
 function buildRailsDefault(chain, stripesToShow) {
   const levels = Array.isArray(chain) ? chain.slice(0) : [];
   if (!levels.length) return [];
   const maxN = Math.max(1, Math.min(3, Number(stripesToShow || 2)));
+  const n = Math.min(maxN, levels.length);
   const out = [];
-  for (let i = 0; i < maxN; i++) {
-    const srcIdx = Math.min(i, Math.max(0, levels.length - 1));
-    const src = levels[srcIdx] || {};
+  for (let i = 0; i < n; i++) {
+    const src = levels[i] || {};
     out.push({ role: i === 0 ? "parent" : (i === 1 ? "child" : "grandchild"), color: src.color || "" });
   }
   return out.filter((r) => !!String(r.color || "").trim());
 }
 
+/** То же правило про число рельсов, что в `buildRailsDefault` (Б1). */
 function buildRailsCrossing(chain, stripesToShow) {
   const levels = Array.isArray(chain) ? chain.slice(0) : [];
   if (!levels.length) return [];
   const maxN = Math.max(1, Math.min(3, Number(stripesToShow || 2)));
-  if (maxN === 1) return [{ role: "parent", color: levels[0].color || "" }].filter((r) => r.color);
-  if (maxN === 2) {
-    const parent = levels[0];
-    const deepest = levels[Math.max(0, levels.length - 1)];
+  const n = Math.min(maxN, levels.length);
+  const parent = levels[0];
+  const deepest = levels[levels.length - 1];
+  if (n === 1) return [{ role: "parent", color: parent && parent.color || "" }].filter((r) => r.color);
+  if (n === 2) {
     return [
       { role: "parent", color: parent && parent.color || "" },
       { role: "child", color: deepest && deepest.color || "" },
     ].filter((r) => r.color);
   }
-  const parent = levels[0];
-  const deepest = levels[Math.max(0, levels.length - 1)];
-  const prev = levels[Math.max(1, levels.length - 2)] || deepest;
+  const prev = levels[levels.length - 2] || deepest;
   return [
     { role: "parent", color: parent && parent.color || "" },
     { role: "child", color: prev && prev.color || "" },
@@ -80,6 +91,14 @@ function buildStripSpecs(lines, options) {
     ? "crossing"
     : "default";
   const stripesToShow = clampInt(options && options.stripesToShow, 2, 1, 3);
+  /*
+   * `Draw bars for the whole tree` (PRD 10.13.21 Б5). Включённый — полоса
+   * строки со значением идёт по всему её поддереву; выключенный — только по
+   * своей строке, и строка без своего значения не получает ни рельса, ни
+   * пометки. Умолчание включено: выключенное отменило бы поведение родителя,
+   * которое заказчик описал как правильное (У-57).
+   */
+  const drawWholeTree = !(options && options.drawWholeTree === false);
 
   const stack = [];
   const out = [];
@@ -123,7 +142,7 @@ function buildStripSpecs(lines, options) {
 
     while (stack.length && listMeta.indent <= stack[stack.length - 1].indent) stack.pop();
 
-    const inherited = stack.length ? stack[stack.length - 1] : null;
+    const inherited = drawWholeTree && stack.length ? stack[stack.length - 1] : null;
     if (!own && !inherited) continue;
     const depthFromRoot = inherited ? (Number(inherited.depthFromRoot || 0) + 1) : 0;
     const effectiveStripes = Math.max(1, Math.min(stripesToShow, depthFromRoot + 1));
@@ -143,19 +162,19 @@ function buildStripSpecs(lines, options) {
     };
 
     const levelChain = [];
-    for (let j = 0; j < stack.length; j++) {
-      const lv = stack[j] || {};
-      if (lv.color) levelChain.push({ color: lv.color, token: lv.token || "" });
+    if (drawWholeTree) {
+      for (let j = 0; j < stack.length; j++) {
+        const lv = stack[j] || {};
+        if (lv.color) levelChain.push({ color: lv.color, token: lv.token || "" });
+      }
     }
     if (own && own.color) levelChain.push({ color: own.color, token: own.token || "" });
     spec.rails = stripMode === "crossing"
       ? buildRailsCrossing(levelChain, effectiveStripes)
       : buildRailsDefault(levelChain, effectiveStripes);
-    if (spec.mode === "list-inherit" && spec.rails.length > 1) {
-      spec.rails = [spec.rails[0]];
-    }
     if (spec.mode === "list-inherit") {
-      if (spec.rails[0]) spec.rails[0].role = "inherit";
+      /* Все рельсы такой строки унаследованы: своего значения у неё нет. */
+      for (let r = 0; r < spec.rails.length; r++) spec.rails[r].role = "inherit";
     } else if (spec.mode === "list-own") {
       if (spec.rails[0]) spec.rails[0].role = "own";
     } else if (spec.mode === "list-own+inherit") {
@@ -170,7 +189,41 @@ function buildStripSpecs(lines, options) {
     }
   }
 
+  markTreeRuns(out);
   return out;
+}
+
+/**
+ * Пометить строки, у которых полоса продолжается в соседнюю строку дерева
+ * (PRD 10.13.16 Н4).
+ *
+ * Зазор сверху и снизу разделяет полосы двух несвязанных строк подряд — это
+ * то, о чём просил заказчик заходом раньше. У дерева он рвёт полосу, которая
+ * по смыслу непрерывна, и второй просьбой стало убрать его там.
+ *
+ * Считает это движок, а не вёрстка: здесь уже известны режим строки и её
+ * глубина. Строка помечается, если она **наследует** полосу сверху или если
+ * следующая строка наследует у неё. Пометка одна на строку — зазор общий для
+ * всех её рельсов (Н5).
+ */
+function markTreeRuns(specs) {
+  for (let i = 0; i < specs.length; i++) {
+    const spec = specs[i];
+    if (!spec) continue;
+    const inherits = spec.mode === "list-inherit" || spec.mode === "list-own+inherit";
+    if (inherits) spec.joinsAbove = true;
+    const next = specs[i + 1];
+    const nextInherits = next
+      && (next.mode === "list-inherit" || next.mode === "list-own+inherit")
+      && Number(next.lineNo || 0) === Number(spec.lineNo || 0) + 1
+      && Number(next.depthFromRoot || 0) > Number(spec.depthFromRoot || 0);
+    if (nextInherits) {
+      spec.joinsBelow = true;
+      next.joinsAbove = true;
+    }
+    spec.inTree = Boolean(spec.joinsAbove || spec.joinsBelow);
+  }
+  return specs;
 }
 
 function normalizeStripConfig(strip) {
@@ -187,6 +240,12 @@ function normalizeStripConfig(strip) {
     thickness: clampInt(src.thickness, 2, 1, 12),
     spacing: clampInt(src.spacing, 20, 8, 48),
     childOffset: clampInt(src.childOffset, 12, 2, 20),
+    /* Зазор сверху и снизу полосы, и слитное дерево (PRD 10.13.16). Ноль
+       означает «полосы стыкуются», как было до появления зазора. */
+    lineGap: clampInt(src.lineGap, 2, 0, 8),
+    joinTree: src.joinTree !== false,
+    /* Полоса идёт по всему поддереву или только по своей строке (10.13.21). */
+    drawWholeTree: src.drawWholeTree !== false,
   };
 }
 

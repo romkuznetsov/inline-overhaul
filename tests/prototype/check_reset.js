@@ -1,6 +1,6 @@
 "use strict";
 /* Три новые функции слоя настроек проверяются выводом, а не чтением кода:
-   сброс группы, предупреждение о контрасте, строка восстановления копии. */
+   сброс группы, предупреждение о контрасте, строки копий настроек. */
 const fs = require("fs");
 const path = require("path");
 
@@ -60,16 +60,27 @@ check("толщина вернулась к умолчанию",
   "true");
 check("Fields не тронуты", run('FIELDS.length > 0 && FIELDS[0].values.length > 0'), "true");
 
-/* ---- 3. восстановление из копии ------------------------------------- */
-console.log("\nстрока восстановления:");
-const restore = run([
+/* ---- 3. копии настроек (10.13.2) ------------------------------------- */
+console.log("\nстрока копий настроек:");
+const backup = run([
   '(() => {',
-  '  const it = SCHEMA.flatMap(g => g.items).find(x => x.id === "restore-backup");',
+  '  const it = SCHEMA.flatMap(g => g.items).find(x => x.id === "settings-backup-actions");',
   '  if (!it) return "нет";',
   '  return it.kind + " / " + it.buttons.map(b => b.action + (b.warning ? " (warning)" : "")).join(", ");',
   '})()'
 ].join("\n"));
-check("описана в схеме", restore, "buttons / restore-backup (warning)");
+/* Порядок кнопок обязателен: сначала сохранить, потом заменить. Красная
+   кнопка первой предлагала бы разрушительное действие раньше безопасного. */
+check("описана в схеме", backup, "buttons / save-backup, restore-backup (warning)");
+
+const folder = run([
+  '(() => {',
+  '  const it = SCHEMA.flatMap(g => g.items).find(x => x.id === "backup-folder");',
+  '  if (!it) return "нет";',
+  '  return it.kind + " / " + it.path + " / " + it.default;',
+  '})()'
+].join("\n"));
+check("папка копий описана", folder, "text / advanced.backups.folder / Inline Overhaul/Backups");
 
 console.log(failures ? "\n" + failures + " problem(s)" : "\nвсе три функции ведут себя как описано");
 process.exit(failures ? 1 : 0);

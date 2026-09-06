@@ -9,8 +9,14 @@
  *      разойдись они — и в схеме окажется кнопка, которая ничего не делает
  *      (З8). Сверяются оба списка, а заодно и сама схема: у каждой кнопки в
  *      ней действие обязано быть в реестре.
- *   2. **Действие зовёт метод плагина**, а не свою копию его работы.
- *   3. **Применение заметки спрашивает** (Э2), и отказ — это отказ.
+ *   2. **Каждое действие реестра стоит на кнопке** (Г22, обратная сторона).
+ *   3. **Шов, которого нет, — это сообщение, а не молчание**: без доступа к
+ *      vault руководство говорит об этом человеку.
+ *
+ * Два раздела — «действие зовёт метод плагина» и «применение заметки
+ * спрашивает» — сняты 2026-09-03 вместе с конфиг-заметкой (PRD 10.12): их
+ * предмета в плагине больше нет. Подтверждение как таковое проверяется на
+ * восстановлении копии — `settings_backup_tests.ts`.
  *
  * Настоящие здесь схема и реестр. Подделан плагин: его методы ходят в vault,
  * а vault в Node нет.
@@ -22,7 +28,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTION_TEXTS, READY_ACTIONS, buildActions, type ConfirmRequest } from "../../src/ui/settings/actions.ts";
 import { HOWTO_PATH, howtoMarkdown } from "../../src/ui/settings/howto.ts";
-import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
+import { STARTER_LEFT_BLOCK, STARTER_RIGHT_BLOCK } from "../../src/core/starter_config.ts";
+import { SCHEMA, TABS } from "../../src/ui/settings/schema/index.ts";
+
+/** Схема разбирается здесь как данные: типы её строк проверке не нужны. */
+type Any = ReturnType<typeof JSON.parse>;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
@@ -62,7 +72,7 @@ function ok(label: string): void {
       }
     }
   }
-  assert.ok(seen.length >= 4, "кнопки в схеме вообще есть: " + seen.join(", "));
+  assert.ok(seen.length >= 3, "кнопки в схеме вообще есть: " + seen.join(", "));
   ok("З8: в схеме нет кнопки, за которой нет действия");
 }
 
@@ -91,118 +101,12 @@ function ok(label: string): void {
    * И обратное: недоделанные действия в схему не проползли. Список закрытый —
    * появится у них метод, проверка заставит его сюда вписать.
    */
-  const notReady = ["restore-backup", "open-hotkey"];
+  const notReady = ["open-hotkey"];
   for (const action of notReady) {
     assert.ok(!READY_ACTIONS.includes(action as never),
       action + " числится готовым: обновите список недоделанных");
   }
-  ok("два недоделанных действия названы поимённо");
-}
-
-/* ---- 2. действие зовёт метод плагина ------------------------------------ */
-
-interface Calls {
-  called: string[];
-  notes: string[];
-}
-
-function makeHost(over?: Record<string, unknown>): {
-  calls: Calls;
-  actions: ReturnType<typeof buildActions>;
-  asked: ConfirmRequest[];
-  answer: (yes: boolean) => void;
-} {
-  const calls: Calls = { called: [], notes: [] };
-  const asked: ConfirmRequest[] = [];
-  let yes = true;
-  const plugin = {
-    openTagWheelConfigNote: () => { calls.called.push("open"); return "PKM/Config.md"; },
-    openTagWheelConfigTemplateNote: () => { calls.called.push("template"); return "PKM/Template.md"; },
-    applyTagWheelConfigNote: () => { calls.called.push("apply"); return true; },
-    ensureGeneratedRulesNow: (reason: string) => { calls.called.push("rules:" + reason); return true; },
-    ...(over || {}),
-  };
-  const actions = buildActions({
-    plugin,
-    notify: (m: string) => { calls.notes.push(m); },
-    confirm: async (o: ConfirmRequest) => { asked.push(o); return yes; },
-  });
-  return { calls, actions, asked, answer: (v: boolean) => { yes = v; } };
-}
-
-{
-  const h = makeHost();
-  await h.actions["generate-config-note"]!();
-  assert.deepEqual(h.calls.called, ["open"], "зовётся метод плагина, а не своя копия его работы");
-  assert.equal(h.calls.notes[0], ACTION_TEXTS.GENERATED + ": PKM/Config.md",
-    "и человеку сказано, куда написано");
-  ok("`Generate` пишет заметку методом плагина и называет путь");
-}
-
-{
-  const h = makeHost();
-  await h.actions["open-config-template"]!();
-  await h.actions["regenerate-rules"]!();
-  assert.deepEqual(h.calls.called, ["template", "rules:manual"],
-    "шаблон и пересборка зовут свои методы, и пересборка называет причину");
-  assert.equal(h.calls.notes[1], ACTION_TEXTS.RULES_DONE, "и обе отвечают словами");
-  ok("`Open` и `Regenerate` зовут методы плагина");
-}
-
-{
-  /* Метода нет — человеку говорят, панель работает. */
-  const h = makeHost({ ensureGeneratedRulesNow: undefined });
-  await h.actions["regenerate-rules"]!();
-  assert.deepEqual(h.calls.called, [], "звать нечего");
-  assert.ok(h.calls.notes[0]?.includes(ACTION_TEXTS.NO_METHOD),
-    "и это сказано, а не проглочено: " + h.calls.notes.join(" | "));
-  ok("отсутствие метода — сообщение, а не молчание");
-}
-
-{
-  /* Метод бросил — сообщение, а не падение панели. */
-  const h = makeHost({
-    openTagWheelConfigNote: () => { throw new Error("no such folder"); },
-  });
-  await h.actions["generate-config-note"]!();
-  assert.ok(h.calls.notes[0]?.includes("no such folder"),
-    "причина показана человеку: " + h.calls.notes.join(" | "));
-  ok("ошибка метода доходит до человека словами");
-}
-
-/* ---- 3. применение спрашивает (Э2) -------------------------------------- */
-
-{
-  const h = makeHost();
-  await h.actions["apply-config-note"]!();
-  assert.equal(h.asked.length, 1, "спросили один раз");
-  assert.equal(h.asked[0]?.title, ACTION_TEXTS.APPLY_TITLE, "и назвали, что произойдёт");
-  assert.equal(h.asked[0]?.danger, true, "кнопка согласия отмечена как уносящая данные");
-  assert.deepEqual(h.calls.called, ["apply"], "после согласия метод позван");
-  ok("Э2: применение заметки спрашивает перед тем, как переписать настройки");
-}
-
-{
-  const h = makeHost();
-  h.answer(false);
-  await h.actions["apply-config-note"]!();
-  assert.equal(h.asked.length, 1, "спросили");
-  assert.deepEqual(h.calls.called, [], "и отказ ничего не позвал");
-  assert.deepEqual(h.calls.notes, [], "и ничего не сказал");
-  ok("отказ — это отказ: настройки не тронуты");
-}
-
-{
-  /* Окна подтверждения нет вовсе — применение не идёт. Молчаливое согласие
-     в разрушительном действии хуже неработающей кнопки. */
-  const calls: string[] = [];
-  const actions = buildActions({
-    plugin: { applyTagWheelConfigNote: () => { calls.push("apply"); } },
-    notify: () => {},
-  });
-  await actions["apply-config-note"]!();
-  assert.deepEqual(calls, [], "без окна подтверждения применение не идёт");
-  ok("без окна подтверждения применение не идёт вовсе");
+  ok("недоделанное действие названо поимённо");
 }
 
 /* ---- руководство (5.1, пункт 1) ----------------------------------------- */
@@ -230,7 +134,7 @@ function makeVault(has: boolean): {
 {
   const v = makeVault(false);
   const notes: string[] = [];
-  const actions = buildActions({ plugin: {}, notify: m => { notes.push(m); }, vault: v.seam });
+  const actions = buildActions({ notify: m => { notes.push(m); }, vault: v.seam });
   await actions["open-howto"]!();
 
   assert.equal(v.made.length, 1, "заметки не было — она создана");
@@ -249,7 +153,7 @@ function makeVault(has: boolean): {
    */
   const v = makeVault(true);
   const notes: string[] = [];
-  const actions = buildActions({ plugin: {}, notify: m => { notes.push(m); }, vault: v.seam });
+  const actions = buildActions({ notify: m => { notes.push(m); }, vault: v.seam });
   await actions["open-howto"]!();
 
   assert.deepEqual(v.made, [], "существующая заметка не переписывается");
@@ -262,7 +166,7 @@ function makeVault(has: boolean): {
 {
   /* Без доступа к vault кнопка отвечает словами, а не молчит. */
   const notes: string[] = [];
-  const actions = buildActions({ plugin: {}, notify: m => { notes.push(m); } });
+  const actions = buildActions({ notify: m => { notes.push(m); } });
   await actions["open-howto"]!();
   assert.ok(notes[0]?.includes(ACTION_TEXTS.NO_METHOD),
     "сказано, что открывать нечем: " + notes.join(" | "));
@@ -271,22 +175,19 @@ function makeVault(has: boolean): {
 
 {
   /*
-   * Текст руководства не обещает того, чего нет. Плавающей кнопки Transform в
-   * плагине нет (Ж3), справочника команд в панели нет — значит, и в заметке о
-   * них ни слова. То же правило, что и в панели (З8), только на другом
-   * материале.
+   * Разделы руководства сверяются целиком: проверка на одно слово в тексте
+   * пропускала переименование раздела (найдено мутацией). Порядок и состав —
+   * тот, которым заказчик переписал заметку 2026-09-05 (F2).
+   *
+   * Прежний запрет называть «floating button» и «command reference» снят: обе
+   * вещи в плагине есть. Кнопка сделана 2026-09-01, справочник стоит на
+   * вкладке Keyboard под именем `Commands & Hotkeys`. Пин четверо суток
+   * охранял утверждение о состоянии, которое успело устареть, — ровно тот же
+   * класс, что и «not implemented» в README (У-64). Что руководство не должно
+   * называть снятые контролы, сторожит теперь `docs_terms_tests.ts`: список
+   * снятого там один на все три документа (У-32).
    */
   const text = howtoMarkdown();
-  for (const promise of ["floating button", "Floating button", "command reference"]) {
-    assert.ok(!text.includes(promise),
-      "руководство обещает то, чего в плагине нет: " + promise);
-  }
-  /*
-   * И рассказывает про то, что есть, — по плану из 5.1: с чего начать, из чего
-   * собрана строка, что даёт TagWheel, и готовые наборы в конце. Разделы
-   * сверяются целиком: проверка на одно слово в тексте пропускала
-   * переименование раздела (найдено мутацией).
-   */
   const headings = text.split("\n").filter(l => l.startsWith("## ")).map(l => l.slice(3));
   assert.deepEqual(headings, [
     "What to set up first",
@@ -296,11 +197,100 @@ function makeVault(has: boolean): {
     "Tag Bars",
     "Binder",
     "Transform: a line becomes a note",
+    "Some pro tips to make things smoother",
     "Three setups you can copy",
-    "Where things live",
   ], "разделы руководства: " + headings.join(" | "));
-  assert.ok(text.startsWith("# "), "заметка начинается заголовком");
-  ok("руководство обещает только то, что работает");
+  assert.ok(text.startsWith("> [!Guide] Inline Overhaul"),
+    "заметка начинается вводным коллаутом, которым её начал заказчик");
+  ok("разделы руководства на месте");
+}
+
+{
+  /*
+   * Длинного тире в заметке быть не должно: прямая просьба заказчика
+   * 2026-09-05 («убери ИИ-змы, `—` и т.д.»). Правило машинное, потому что
+   * глазами оно теряется: в присланном им же тексте таких тире осталось шесть.
+   */
+  const text = howtoMarkdown();
+  const dashes = text.split("\n")
+    .map((line, i) => [i + 1, line] as [number, string])
+    .filter(([, line]) => line.includes("\u2014"))
+    .map(([i, line]) => i + ": " + line.trim());
+  assert.deepEqual(dashes, [], "в руководстве осталось длинное тире:\n  " + dashes.join("\n  "));
+  ok("длинных тире в руководстве нет");
+}
+
+{
+  /*
+   * Каждый путь к настройке, названный в руководстве, ведёт туда, где эта
+   * настройка правда лежит.
+   *
+   * 2026-09-05 в присланном заказчиком тексте таких путей устарело три:
+   * `Values per side` и `Opens` у скроллера, `Child tag` промежуточным
+   * уровнем, `Start over` вне `Settings backup`. Нашлись они вычиткой, то есть
+   * случайно, и стареть будут дальше: имя группы меняется правкой прототипа, а
+   * заметка про это не узнаёт. Пин разбирает путь вида
+   * `Вкладка → Группа → Строка` и спрашивает схему, есть ли там такое.
+   */
+  const text = howtoMarkdown();
+  const paths = new Set<string>();
+  const re = /`([^`]*→[^`]*)`/g;
+  for (let m = re.exec(text); m; m = re.exec(text)) paths.add(String(m[1]));
+
+  /* Путь Obsidian, а не наш: своей вкладки `Settings` у плагина нет. */
+  paths.delete("Settings → Hotkeys");
+
+  const tabByLabel = new Map(TABS.map(t => [String(t.label), String(t.id)]));
+  /* Имена строк, кнопок и подзаголовков группы — всё, чем может быть третий шаг. */
+  const namesOf = (group: Any): string[] => {
+    const out: string[] = [];
+    for (const it of (group.items || []) as Any[]) {
+      if (it.name) out.push(String(it.name));
+      for (const b of (it.buttons || []) as Any[]) if (b.label) out.push(String(b.label));
+    }
+    return out;
+  };
+
+  const broken: string[] = [];
+  for (const raw of paths) {
+    const steps = raw.split("→").map(s => s.trim()).filter(Boolean);
+    /* Полное имя панели впереди пути — не шаг, а адрес самой панели. */
+    if (steps[0] === "Inline Overhaul") steps.shift();
+
+    const tab = tabByLabel.get(String(steps[0]));
+    if (!tab) { broken.push(raw + ": нет вкладки " + steps[0]); continue; }
+    if (steps.length < 2) continue;
+
+    const group = SCHEMA.find((g: Any) => g.tab === tab && String(g.heading) === steps[1]);
+    if (!group) { broken.push(raw + ": на вкладке нет группы " + steps[1]); continue; }
+    if (steps.length < 3) continue;
+
+    const names = namesOf(group);
+    if (!names.includes(String(steps[2]))) {
+      broken.push(raw + ": в группе нет строки " + steps[2] + " (есть: " + names.join(", ") + ")");
+    }
+  }
+  assert.deepEqual(broken, [], "путь в руководстве ведёт не туда:\n  " + broken.join("\n  "));
+  ok("пути к настройкам в руководстве сверены со схемой");
+}
+
+{
+  /*
+   * Стартовый набор назван в заметке правдиво (ПЗ1, дефект A32). До 2026-09-05
+   * она обещала `Status` и `Priority`, которых на свежей установке не было ни
+   * одного: набор в коде отсутствовал. Пин сверяет обещание с тем, что
+   * действительно кладёт первая установка, а не с литералом рядом.
+   */
+  const promised = howtoMarkdown()
+    .split("\n")
+    .filter(l => l.includes("A fresh install comes with"))
+    .join(" ");
+  assert.ok(promised, "руководство обязано сказать, что человек получает из коробки");
+  for (const name of STARTER_LEFT_BLOCK.concat(STARTER_RIGHT_BLOCK)) {
+    assert.ok(howtoMarkdown().includes("`" + name + "`"),
+      "стартовый Field не назван в руководстве: " + name);
+  }
+  ok("руководство называет тот стартовый набор, который и правда ставится");
 }
 
 console.log("\n" + passed + " проверок пройдено");

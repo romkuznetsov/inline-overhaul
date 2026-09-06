@@ -36,6 +36,7 @@ export function callout(tab: string): (host: El, ctx: SettingsCtx) => () => void
       label: "this tab",
       id: "io-tip-callout-" + tab,
       showTips: Boolean(ctx.get("general.help.showTips")),
+      showIds: Boolean(ctx.get("advanced.showSettingIds")),
     });
     rich(el(box, "p", "io-callout__body"), text.body);
 

@@ -6,6 +6,7 @@ const unified = require(path.join(__dirname, "..", "..", "src", "core", "pkm_lin
 const tokenGraph = require(path.join(__dirname, "..", "..", "src", "core", "token_graph_unified.js"));
 const statusLineRuntime = require(path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js"));
 const runtimeHelpers = require(path.join(__dirname, "..", "..", "src", "core", "pkm_rules_runtime_helpers.js"));
+const tagwheelCore = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js"));
 
 function assertEq(actual, expected, name) {
   if (actual !== expected) throw new Error(name + ": expected '" + expected + "' got '" + actual + "'");
@@ -151,6 +152,76 @@ function run() {
     }),
     "\t- 111",
     "minimal-off normalizer drops cleared field-owned checkbox while preserving indent"
+  );
+
+  /*
+   * И-3: выход из цикла у Field, у которого есть правило чекбокса.
+   *
+   * Решение принимает этот модуль, а два хода расходились ровно на одном
+   * аргументе: `status_tags.js` считал `clearedOwnCheckbox`, а `tagwheel.js`
+   * передавал литерал `false` — и строка `- [ ] #todo || text` после выхода
+   * из цикла оставалась с `- [ ]` вместо `- `.
+   *
+   * Пин держит **контракт аргумента** на настоящих функциях модуля: снятое
+   * значение уносит чекбокс, несnятое — сохраняет. То, что оба хода этот
+   * аргумент считают, а не подставляют константой, держит пин на исходники
+   * (`bootstrap_loader_tests.js`).
+   */
+  const offRules = {
+    behavior: {
+      prefixRules: {
+        resolver: "priority-first",
+        priorityTargets: ["type"],
+        checkboxByFieldValue: { type: { "#todo": "[ ]" } },
+      },
+    },
+    leftMode: { fields: [{ id: "type", prefix: "#", values: [{ id: "#todo", token: "#todo" }] }] },
+  };
+  const offParsed = { bulletToken: "-", checkboxToken: "[ ]" };
+  /* Префикс собирается той же функцией плагина, которую зовут оба хода
+     (`core.buildPrefix` → `buildPrefixUnified`), а не пересобирается здесь
+     своими зависимостями (У-4). */
+  const buildOffPrefix = (session) => tagwheelCore.buildPrefix(offParsed, offRules, session, { prefixShared: unified });
+
+  const clearedFlags = unified.resolveOffPrefixFlagsUnified({
+    mode: "off",
+    freeRoamBehavior: { offPrefix: false },
+    hasOwnCheckbox: false,
+    clearedOwnCheckbox: true,
+  });
+  assertEq(clearedFlags.forceBulletPrefix, true, "cleared field checkbox forces the bullet prefix");
+  assertEq(clearedFlags.preserveCheckboxPrefix, false, "cleared field checkbox does not preserve the old one");
+  assertEq(
+    buildOffPrefix({
+      selected: {},
+      __forceBulletPrefix: clearedFlags.forceBulletPrefix,
+      __preserveCheckboxPrefix: clearedFlags.preserveCheckboxPrefix,
+    }),
+    "- ",
+    "cycle exit on a checkbox-owning field leaves the bullet, not the old checkbox"
+  );
+
+  const keptFlags = unified.resolveOffPrefixFlagsUnified({
+    mode: "off",
+    freeRoamBehavior: { offPrefix: false },
+    hasOwnCheckbox: false,
+    clearedOwnCheckbox: false,
+  });
+  assertEq(keptFlags.preserveCheckboxPrefix, true, "untouched line keeps its own checkbox");
+  assertEq(
+    buildOffPrefix({
+      selected: {},
+      __forceBulletPrefix: keptFlags.forceBulletPrefix,
+      __preserveCheckboxPrefix: keptFlags.preserveCheckboxPrefix,
+    }),
+    "- [ ] ",
+    "a line nobody cleared keeps the checkbox it came with"
+  );
+
+  assertEq(
+    buildOffPrefix({ selected: { type: "#todo" }, __forceBulletPrefix: false, __preserveCheckboxPrefix: false }),
+    "- [ ] ",
+    "a selected value still writes its own checkbox"
   );
 
   const noContentFinalizePost = unified.applyCycleEndPostProcessing({
@@ -341,6 +412,62 @@ function run() {
     }),
     "- [ ] #topic-alpha :: 111",
     "final-line invariants helper moves plain text spill from left slot into text slot"
+  );
+  /*
+   * Строка без текста получает ОБА разделителя, когда слева тег (10.13.34,
+   * заказ заказчика 2026-09-05).
+   *
+   * Здесь закреплены обе половины правила сразу, потому что дефект и был в
+   * том, что осталась одна: слева тег — два разделителя и место под текст
+   * между ними; слева обычный текст — один, писать уже написано.
+   *
+   * Случай заказчика взят слово в слово из его записи, с одинаковыми
+   * разделителями: разошлись два объявления правила именно на них.
+   */
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "",
+      line: "- #/1 :: 📅2026-09-05 21:19",
+      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      mode: "off",
+    }),
+    "#/1 ::  :: 📅2026-09-05 21:19",
+    "final-line invariants keep both separators when the left slot holds a tag"
+  );
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "",
+      line: "- #/1 ::  :: 📅2026-09-05 21:19",
+      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      mode: "off",
+    }),
+    "#/1 ::  :: 📅2026-09-05 21:19",
+    "final-line invariants do not collapse a line that already has both separators"
+  );
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "",
+      line: "- #/1 :: 📅2026-09-05 21:19",
+      rules: { io: { separator1: "::", separator2: "||" }, dates: { markers: ["📅"] } },
+      mode: "off",
+    }),
+    "#/1 :: || 📅2026-09-05 21:19",
+    "different separators keep a single space between them, the same as before"
+  );
+  /*
+   * Обратная половина: слева обычный текст — один разделитель. Это и есть
+   * пять прежних утверждений набора, но сказанное прямо: без него правка
+   * «два разделителя всегда» была бы зелёной.
+   */
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "- 11",
+      line: "- 11 :: 📅2026-09-05 21:19",
+      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      mode: "off",
+    }),
+    "- 11 :: 📅2026-09-05 21:19",
+    "plain text in the left slot keeps one separator: there is nowhere to type"
   );
   assertEq(
     unified.collapseEmptyLeftSeparatorToText({

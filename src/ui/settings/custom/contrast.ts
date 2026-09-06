@@ -39,6 +39,28 @@ function channels(hex: string): [number, number, number] | null {
   ];
 }
 
+/**
+ * Цвет в форме `#rrggbb` — то единственное, что понимает поле выбора цвета.
+ *
+ * Пусто, если разобрать не удалось: у заглушки DOM `getComputedStyle` нет, и
+ * цвет темы там не прочтётся. Это не ошибка, и поле тогда обходится своим
+ * запасным значением.
+ *
+ * Живёт здесь, а не рядом с полем: разбор цвета в панели один, и второй его
+ * разбор разошёлся бы с этим на первой правке (У-32). Нужен для того, чтобы
+ * образец заливки Value показывал **тот цвет, которым тема и рисует пузырь**,
+ * а не белый (замечания заказчика C31 и C39, 2026-09-02).
+ */
+export function toHexColor(color: string): string {
+  const rgb = channels(color);
+  if (!rgb) return "";
+  const byte = (x: number): string => {
+    const n = Math.round(Math.min(1, Math.max(0, x)) * 255);
+    return (n < 16 ? "0" : "") + n.toString(16);
+  };
+  return "#" + byte(rgb[0]) + byte(rgb[1]) + byte(rgb[2]);
+}
+
 /** Относительная яркость по WCAG 2.1. */
 function relativeLuminance(hex: string): number | null {
   const rgb = channels(hex);

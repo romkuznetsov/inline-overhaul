@@ -18,8 +18,9 @@ import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
 import { el, btn, cssVar, cssVarValue, rich, selectInput, textInput, tipBelow } from "./dom.ts";
 import type { FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
-import { CONTRAST_FLOOR, contrastRatio, contrastWarning } from "./contrast.ts";
+import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble } from "./previews.ts";
+import { TYPE_COLOR, typeColor } from "./preview_data.ts";
 import {
   CARDINALITY_OPTIONS,
   NOT_WRITTEN,
@@ -46,15 +47,10 @@ export const TYPE_LABEL: Record<FieldKind, string> = {
 };
 
 /**
- * Цвет чипа типа (Ф4). Значения лежат в `styles.css` переменными: цвет типа
- * намеренно не совпадает с акцентом темы — акцент занят основными действиями,
- * — и потому не может быть взят из переменных Obsidian.
+ * Цвет чипа типа (Ф4). Карта живёт в `preview_data.ts` — она же красит чипы
+ * Fields в предпросмотрах, и второе объявление разошлось бы с первым (У-32).
  */
-export const TYPE_COLOR: Record<FieldKind, string> = {
-  tag: "var(--io-type-tag)",
-  wikilink: "var(--io-type-link)",
-  element: "var(--io-type-element)",
-};
+export { TYPE_COLOR };
 
 const SIDE_LABEL = { left: "Left Block", right: "Right Block" } as const;
 
@@ -87,6 +83,21 @@ const BEHAVIOR_OPTIONS = [
 ] as const;
 
 /** Ф10: порядок Values и есть порядок цикла. Сказано один раз, в шапке таблицы. */
+/** 1.4.1.2.5: заголовок `Behavior` был единственным разделом без «?». */
+const BEHAVIOR_HEAD_TIP =
+  "Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line";
+
+/** У Field типа element значение одно, и раздел называется в единственном. */
+const ELEMENT_VALUE_TIP =
+  "An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along";
+
+/**
+ * 1.4.1.2.1: шапка правой колонки. Левая («Fields») объясняла себя, правая —
+ * нет, и заметил это заказчик, а не проверка.
+ */
+const DETAIL_TIP =
+  "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes";
+
 const VALUES_TIP =
   "The <code>next</code> and <code>previous</code> commands walk this list in order. "
   + "A child Value follows its parent: it sits in the same Block and takes the parent\u2019s <code>Behavior</code>";
@@ -192,6 +203,18 @@ const PROPERTY_HEAD_TIP =
   + "ones your vault already uses. Leave it empty and the Field is simply not copied";
 const PROPERTY_NAME = "Property";
 const PROPERTY_DESC = "If you use inline2note, to which YAML property this Field should go";
+/*
+ * Подсказка у строки, 2026-09-01 (замечание 1.3.2.1). Заказчик 2026-08-27
+ * решил обратное — «?» здесь не ставить, потому что подсказка раздела стоит
+ * прямо над ней, — и теперь попросил её вернуть. Последнее слово за ним;
+ * прежнее решение записано, чтобы третий круг не начался с нуля.
+ */
+const PROPERTY_TIP =
+  "The properties are the ones Obsidian shows at the top of a note. Start typing and the box offers "
+  + "the names your vault already uses; you can also type a name that does not exist yet, and it "
+  + "appears the first time a note is written with it. Leave the box empty and this Field is simply "
+  + "not copied into the note. Two Fields may point at the same property \u2014 then <code>Property "
+  + "type</code> below decides whether it holds a list or a single Value";
 /* Подсказка в пустом поле: замечание заказчика 2026-08-27, третий круг. */
 const PROPERTY_PLACEHOLDER = "select Property";
 /*
@@ -217,12 +240,17 @@ const VALUE_RULE_TIP =
   + "around a link — which is what you want if you plan to search or sort by the property. The rule "
   + "belongs to the Field and applies to every one of its Values";
 
+/* Видимая строка, поэтому без точки в конце (Р10). */
+const LINK_IN_TAGS =
+  "A tags property does not take links: Obsidian will flag the value in the note";
+
 const WRITTEN_NAME = "Preview";
 /* Текст задан заказчиком 2026-08-28. */
 const WRITTEN_DESC = "How this Value will look like in YAML";
 const WRITTEN_TIP =
-  "It follows the three choices above and updates as you change them. Two Fields can share one "
-  + "property name, and then both Values go into the same list";
+  "It follows the three choices above and updates as you change them, and it shows what "
+  + "<b>this</b> Field writes. Two Fields can share one property name — then the note gets both "
+  + "of them in the same list, while each Field shows only its own part here";
 const BEHAVIOR_TIP =
   "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. "
   + "<b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. "
@@ -273,7 +301,7 @@ export interface FieldsViewState {
 
 /** Ответ окна `Add Field`. */
 export interface NewField {
-  /** Системное имя: им Field назван в конфиге и в заметке конфига. */
+  /** Системное имя: им Field назван в конфиге и в именах его команд. */
   name: string;
   kind: FieldKind;
 }
@@ -290,6 +318,8 @@ export interface FieldsViewOpts {
   /** Модуль выключен: вёрстка показывается, но ничего не меняет. */
   enabled: boolean;
   showTips: boolean;
+  /** Тумблер `Show setting ids in tips`: подпись id в конце подсказки (A3, C52). */
+  showIds?: boolean;
   /** Перерисовать редактор целиком: список зависит от порядка Fields. */
   redraw: () => void;
   /** Показать сообщение человеку. Текст приходит от модели, показывает панель. */
@@ -307,6 +337,11 @@ export interface FieldsViewOpts {
    * свойство заметки, и переспросить дешевле, чем восстанавливать.
    */
   confirmDeleteField: (name: string, done: (yes: boolean) => void) => void;
+  /**
+   * Окно переименования Field. Спрашивает новое имя и называет цену:
+   * в заметках останется старый тег, а хоткей отвяжется (1.4.1.2.2).
+   */
+  askRename?: (name: string, done: (next: string | null) => void) => void;
 }
 
 /* ---- левая колонка: список Fields -------------------------------------- */
@@ -403,7 +438,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
       cssVar(
         el(pick, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
         "--io-chip-bg",
-        TYPE_COLOR[row.kind],
+        typeColor(row.kind),
       );
       pick.addEventListener("click", (() => {
         o.state.selected = row.key;
@@ -522,16 +557,19 @@ function itemRow(host: El, o: {
   tip?: string;
   tipId?: string;
   showTips: boolean;
-}): { control: El; closeTip: () => void } {
+  showIds?: boolean;
+}): { control: El; info: El; closeTip: () => void } {
   const row = el(host, "div", "io-item");
   const info = el(row, "div", "io-item__info");
   const nameRow = el(info, "div", "io-item__namerow");
   el(nameRow, "div", "io-item__name", o.name);
   const closeTip = o.tip && o.tipId
-    ? tipBelow({ head: nameRow, host: info, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips })
+    ? tipBelow({ head: nameRow, host: info, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips, showIds: o.showIds })
     : () => {};
   rich(el(info, "div", "io-item__desc"), o.desc);
-  return { control: el(row, "div", "io-item__control"), closeTip };
+  /* `info` отдаётся наружу: под описанием иногда встаёт предупреждение — оно
+     принадлежит строке, а не колонке контролов (B21). */
+  return { control: el(row, "div", "io-item__control"), info, closeTip };
 }
 
 /**
@@ -559,7 +597,7 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
     desc: PREREQ_DESC,
     tip: PREREQ_TIP,
     tipId: "io-field-prereq-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(on.closeTip);
   const onPick = selectInput(on.control, "io-select", {
@@ -585,7 +623,7 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
     desc: PREREQ_FIELD_DESC,
     tip: PREREQ_FIELD_TIP,
     tipId: "io-field-prereq-which-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(which.closeTip);
   const whichPick = selectInput(which.control, "io-select", {
@@ -612,7 +650,7 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
     desc: PREREQ_VALUE_DESC,
     tip: PREREQ_VALUE_TIP,
     tipId: "io-field-prereq-value-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(value.closeTip);
   const valuePick = selectInput(value.control, "io-select", {
@@ -645,7 +683,8 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
    * Шапка несёт только то, чем Field является: системное имя, тип и удаление.
    * Системное имя — заголовок, а не поле: оно задаётся один раз в окне
    * `Add Field` и дальше не меняется (решение заказчика 2026-08-27, пересмотр
-   * того же дня). Причина: имя стоит в заметке конфига и в именах команд.
+   * того же дня). Причина: имя стоит в именах команд и в служебном файле,
+   * по которому движок читает Fields.
    *
    * Короткое имя стояло здесь же и уехало своей строкой ниже: в шапке оно
    * оказалось зажато между чипом типа и красной корзиной (замечание
@@ -656,8 +695,36 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   cssVar(
     el(title, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
     "--io-chip-bg",
-    TYPE_COLOR[row.kind],
+    typeColor(row.kind),
   );
+  /*
+   * Карандаш — слева от корзины (замечание заказчика 1.4.1.2.2). Системное
+   * имя задавалось один раз в окне `Add a Field` и дальше не менялось: оно
+   * стоит в заметках и в идентификаторах команд. Заказчик решил 2026-08-31,
+   * что менять его можно, но панель обязана назвать цену — это делает окно.
+   *
+   * Кнопки нет, когда окна нет: нажатие, которому некуда вести, хуже его
+   * отсутствия (З8).
+   */
+  if (o.askRename) {
+    const ask = o.askRename;
+    const pencil = btn(title, "io-icon", {
+      text: "\u270E",
+      label: "Rename the Field " + row.strictName,
+    });
+    pencil.disabled = !o.enabled;
+    pencil.addEventListener("click", (() => {
+      if (!o.enabled) return;
+      ask(row.strictName, next => {
+        if (!next) return;
+        void Promise.resolve(o.model.setStrictName(row.key, next)).then(res => {
+          if (!res.ok && res.error) o.notice(res.error);
+          o.redraw();
+        });
+      });
+    }) as never);
+  }
+
   /*
    * Удаление — белая корзина на красном, без слова (замечание заказчика
    * 2026-08-27): оно должно бросаться в глаза, а не притворяться обычной
@@ -668,7 +735,8 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   const del = btn(title, "io-danger", {
     label: "Delete the Field " + row.strictName,
   });
-  el(del, "span", "io-danger__icon", "🗑");
+  /* Текста у значка нет: корзину рисует маска в styles.css (1.4.1.2.3). */
+  el(del, "span", "io-danger__icon");
   del.disabled = !o.enabled;
   del.addEventListener("click", (() => {
     if (!o.enabled) return;
@@ -692,7 +760,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     desc: SHORT_NAME_DESC,
     tip: SHORT_NAME_TIP,
     tipId: "io-field-short-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(shortRow.closeTip);
   const short = textInput(shortRow.control, "io-text io-text--prop", {
@@ -714,9 +782,29 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     o.redraw();
   }) as never);
 
+  /*
+   * Что Field пишет в строку — раньше того, как он себя ведёт. Заказчик
+   * просил поднять `Values` под `Name in TagWheel` и над `Behavior`, и для
+   * всех типов Field сразу (замечание 1.4.1.2.4); у `element` значение одно,
+   * и на этом месте стоит его блок.
+   */
+  /* У `element` значений нет: у него маркер, формат и способ шага (Ф6). */
+  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
+  else closers.push(renderValuesTable(detail, row, o));
+
   /* Заголовок раздела — Behavior: под ним Active, Prefix behavior и
-     Child Field (замечание заказчика 2026-08-27). */
-  el(detail, "div", "io-sub", "Behavior");
+     Child Field (замечание заказчика 2026-08-27). «?» у него появился по
+     замечанию 1.4.1.2.5: заголовок был единственным без объяснения. */
+  const behaviorHead = el(detail, "div", "io-sub io-item__namerow");
+  el(behaviorHead, "span", undefined, "Behavior");
+  closers.push(tipBelow({
+    head: behaviorHead,
+    host: el(detail, "div", "io-tipslot"),
+    text: BEHAVIOR_HEAD_TIP,
+    label: "Behavior",
+    id: "io-field-behavior-tip",
+    showTips: o.showTips, showIds: o.showIds,
+  }));
 
   /*
    * Работает ли Field. У дочернего Field этого ряда нет намеренно: его
@@ -730,7 +818,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
       desc: ACTIVE_DESC,
       tip: ACTIVE_TIP,
       tipId: "io-field-active-tip",
-      showTips: o.showTips,
+      showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(active.closeTip);
     const mode = selectInput(active.control, "io-select", {
@@ -751,7 +839,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     desc: BEHAVIOR_DESC,
     tip: BEHAVIOR_TIP,
     tipId: "io-field-behavior-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(behavior.closeTip);
   const mode = selectInput(behavior.control, "io-select", {
@@ -788,7 +876,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
       desc: CHILD_DESC,
       tip: CHILD_TIP,
       tipId: "io-field-child-tip",
-      showTips: o.showTips,
+      showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(child.closeTip);
     const pick = selectInput(child.control, "io-select", {
@@ -835,13 +923,9 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     text: PROPERTY_HEAD_TIP,
     label: PROPERTY_HEAD,
     id: "io-field-property-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   }));
   closers.push(yamlPropertyRows(detail, row, o));
-
-  /* У `element` значений нет: у него маркер, формат и способ шага (Ф6). */
-  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
-  else closers.push(renderValuesTable(detail, row, o));
 
   return () => { closers.forEach(fn => fn()); };
 }
@@ -881,26 +965,41 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
   const rows = o.model.listYamlFields();
   const mine = rows.find(r => r.key === row.key);
 
-  /*
-   * У строки `Property` своей «?» нет: подсказка раздела стоит прямо над ней,
-   * и два знака оказались бы рядом (замечание заказчика 2026-08-27). Всё, что
-   * нужно сказать про имя свойства, сказано в подсказке заголовка.
-   */
   const property = itemRow(detail, {
     name: PROPERTY_NAME,
     desc: PROPERTY_DESC,
-    showTips: o.showTips,
+    tip: PROPERTY_TIP,
+    tipId: "io-field-yaml-property-tip",
+    showTips: o.showTips, showIds: o.showIds,
   });
+  closers.push(property.closeTip);
   /*
    * Имена свойств подсказываются из vault (Я4). Приватное API может не
    * ответить — тогда список пуст, и поле работает как обычное поле ввода.
    */
   const app = o.ctx.platform ? (o.ctx.platform.plugin as { app?: unknown }).app : null;
+  const props = vaultProperties(app);
+  /*
+   * Ссылка в свойстве типа `tags` — предупреждение, а не запрет (решение
+   * заказчика 2026-09-02).
+   *
+   * Он назначил Field типа ссылка на свойство `tags`, и в заметку попадало
+   * `"[[test1]]"`; для типа `tags` Obsidian ссылок не принимает и ставит знак
+   * несоответствия (B21). Запись остаётся его: плагин пишет то, что назначено,
+   * и не решает за человека — только говорит, чем это кончится.
+   */
+  const declaredType = (name: string): string => {
+    const at = props.find(p => p.name === String(name || "").trim());
+    return at ? String(at.type || "").trim().toLowerCase() : "";
+  };
+  if (row.kind === "wikilink" && declaredType(row.property) === "tags") {
+    el(property.info, "div", "io-item__warn", LINK_IN_TAGS);
+  }
   propertyPicker(property.control, {
     value: row.property,
     label: row.strictName,
     placeholder: PROPERTY_PLACEHOLDER,
-    props: vaultProperties(app),
+    props,
     /* Подсказку рисует платформа; без класса поле остаётся обычным полем. */
     suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest
       ? { ctor: o.ctx.platform.AbstractInputSuggest, app }
@@ -914,7 +1013,7 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
     desc: CARDINALITY_DESC,
     tip: CARDINALITY_TIP,
     tipId: "io-field-yaml-type-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(cardinality.closeTip);
   const holds = selectInput(cardinality.control, "io-select", {
@@ -933,7 +1032,7 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
     desc: VALUE_RULE_DESC,
     tip: VALUE_RULE_TIP,
     tipId: "io-field-yaml-rule-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(rule.closeTip);
   const ruleSelect = selectInput(rule.control, "io-select", {
@@ -960,10 +1059,10 @@ function yamlPropertyRows(detail: El, row: FieldRow, o: FieldsViewOpts): () => v
       desc: WRITTEN_DESC,
       tip: WRITTEN_TIP,
       tipId: "io-field-yaml-written-tip",
-      showTips: o.showTips,
+      showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(written.closeTip);
-    const example = yamlExamples(rows, cfg)[row.key] || "";
+    const example = yamlExamples(rows, cfg, app)[row.key] || "";
     const box = el(written.control, "div", "io-yamlex" + (example ? "" : " io-yamlex--empty"));
     el(box, "div", "io-yamlex__line", example || NOT_WRITTEN);
   }
@@ -1069,7 +1168,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     text: VALUES_TIP,
     label: "Values",
     id: "io-values-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   }));
 
   const box = el(host, "div", "io-vals" + (isLink ? " io-vals--link" : ""));
@@ -1104,7 +1203,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       text: tip,
       label: title,
       id: "io-values-col-" + title.toLowerCase() + "-tip",
-      showTips: o.showTips,
+      showTips: o.showTips, showIds: o.showIds,
     }));
   }
 
@@ -1267,10 +1366,26 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
 
       const color = (key: "fillColor" | "textColor", label: string, reason: string): void => {
         const wrap = el(line, "div");
+        /*
+         * Пока своего цвета у Value нет, в образце стоит цвет **темы** — тот,
+         * которым тема и рисует пузырь.
+         *
+         * Здесь стоял белый: у поля выбора цвета нет состояния «не задано», и
+         * оно всегда показывает какой-то цвет. Белый образец рядом с пузырём,
+         * который тема красит акцентом, читался как расхождение — заказчик
+         * так его и прочёл (C31, C39). Цвет темы читается тем же помощником,
+         * которым уже считается контраст незаданного цвета, и приводится к
+         * `#rrggbb` тем же разбором (`toHexColor`), а не вторым своим.
+         *
+         * Белый остаётся последним запасным: у заглушки DOM темы нет, а
+         * значение полю нужно всегда.
+         */
+        const own = key === "fillColor" ? visual.fillColor : visual.textColor;
+        const fromTheme = toHexColor(key === "fillColor" ? theme.fill : theme.text);
         const input = wrap.createEl("input", {
           cls: "io-colin",
           type: "color",
-          value: (key === "fillColor" ? visual.fillColor : visual.textColor) || "#ffffff",
+          value: own || fromTheme || "#ffffff",
           attr: { "aria-label": label + " for " + v.token },
         }) as ElInput;
         input.disabled = !o.enabled;
@@ -1434,12 +1549,21 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   const ed = o.model.elementEditor(row.key);
   const closers: Array<() => void> = [];
 
-  el(host, "div", "io-sub", "Value");
+  const valueHead = el(host, "div", "io-sub io-item__namerow");
+  el(valueHead, "span", undefined, "Value");
+  closers.push(tipBelow({
+    head: valueHead,
+    host: el(host, "div", "io-tipslot"),
+    text: ELEMENT_VALUE_TIP,
+    label: "Value",
+    id: "io-element-value-tip",
+    showTips: o.showTips, showIds: o.showIds,
+  }));
 
   /** Строка с полем ввода. */
   const line = (name: string, desc: string, tip: string, tipId: string, value: string,
     placeholder: string, save: (v: string) => void): void => {
-    const item = itemRow(host, { name, desc, tip, tipId, showTips: o.showTips });
+    const item = itemRow(host, { name, desc, tip, tipId, showTips: o.showTips, showIds: o.showIds });
     closers.push(item.closeTip);
     const input = textInput(item.control, "io-text io-text--mono", {
       value,
@@ -1464,7 +1588,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     desc: STEP_DESC,
     tip: STEP_TIP,
     tipId: "io-element-step-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   });
   closers.push(steps.closeTip);
   const mode = selectInput(steps.control, "io-select", {
@@ -1486,7 +1610,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       desc: AMOUNT_DESC,
       tip: AMOUNT_TIP,
       tipId: "io-element-amount-tip",
-      showTips: o.showTips,
+      showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(by.closeTip);
     const input = textInput(by.control, "io-text io-text--mono", {
@@ -1504,7 +1628,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       desc: COMMAND_DESC,
       tip: COMMAND_TIP,
       tipId: "io-element-command-tip",
-      showTips: o.showTips,
+      showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(cmd.closeTip);
     const pick = selectInput(cmd.control, "io-select", {
@@ -1527,7 +1651,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
       desc: STEPS_DESC,
       tip: STEPS_TIP,
       tipId: "io-element-steps-tip",
-      showTips: o.showTips,
+      showTips: o.showTips, showIds: o.showIds,
     });
     closers.push(own.closeTip);
     const area = own.control.createEl("textarea", {
@@ -1566,7 +1690,7 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
     text: LIST_TIP,
     label: "the Fields list",
     id: "io-fields-list-tip",
-    showTips: o.showTips,
+    showTips: o.showTips, showIds: o.showIds,
   }));
 
   const list = el(listCol, "div", "io-fields__list");
@@ -1580,7 +1704,20 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   const detailHead = el(detailCol, "div", "io-fields__colhead");
   /* У Field типа `element` значений нет: у него один маркер и один формат.
      Колонка названа так же, как чип типа, — одним словом. */
-  el(detailHead, "span", undefined, row && row.kind === "element" ? TYPE_LABEL.element : "Values");
+  const detailName = row && row.kind === "element" ? TYPE_LABEL.element : "Values";
+  el(detailHead, "span", undefined, detailName);
+  /*
+   * «?» у шапки правой колонки. У левой он был с самого начала, у правой не
+   * было вовсе, и заказчик заметил именно эту разницу (замечание 1.4.1.2.1).
+   */
+  closers.push(tipBelow({
+    head: detailHead,
+    host: el(detailCol, "div", "io-tipslot"),
+    text: DETAIL_TIP,
+    label: "this column",
+    id: "io-fields-detail-tip",
+    showTips: o.showTips, showIds: o.showIds,
+  }));
   const detail = el(detailCol, "div", "io-fields__detail");
   /* Ни одного Field — не ошибка, а приглашение (ПЗ2, ПЗ3). */
   if (row) closers.push(renderFieldDetail(detail, row, o));

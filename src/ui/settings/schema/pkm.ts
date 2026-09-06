@@ -6,7 +6,7 @@
  */
 
 import type { SettingsGroup } from "../types.ts";
-import { eq } from "../types.ts";
+import { on, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { fieldsEditor } from "../custom/fields_editor.ts";
 import { fieldOrderList, prefixOrderList } from "../custom/order_lists.ts";
@@ -16,7 +16,8 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
 { id: "pkm-intro",       tab: "pkm",        order: 50, heading: "Before you start",
   items: [
     { kind:"custom", id:"pkm-callout", render: callout("pkm") }
-  ] },
+  ],
+  visible: on("general.help.showCallouts") },
 {
   id: "fields", tab: "pkm", order: 100, heading: "Fields",
   intro: "A Field is one slot a line can hold: a tag, a link to another note, or an element such as a date. Set out the slots you want, the Values each one offers, and where on the line they go",
@@ -42,6 +43,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
 {
   id: "writing-rules", tab: "pkm", order: 300, heading: "Writing rules",
   intro: "The small habits: how a tag is written when it has a Value underneath it, what is left when you clear a line, and where the cursor waits for you afterwards",
+  tip: "These are the settings you set once and forget. They do not decide which Fields you have or what they offer — that is the <code>Fields</code> block above. They decide the shape of what lands on the line: whether a nested Value is written as <code>#parent #child</code> or <code>#parent/child</code>, what a Field leaves behind when you step it past its last Value, and where the cursor ends up so you can keep typing",
   items: [
     { kind:"dropdown", id:"child-tag-format", path:"pkm.behavior.childTagFormat", default:"separate",
       name:"Child tag format", desc:"When a Value sits under another one, whether they are written as two tags or one",
@@ -91,13 +93,14 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
 {
   id: "prefix-priority", tab: "pkm", order: 500, heading: "Prefix priority",
   intro: "Some Values want to change the start of the line \u2014 a checkbox from Status, an exclamation mark from Priority. When two of them ask at once, only one can win. These rules decide who",
+  tip: "This block matters only if two of your Values both want the start of the line. If none of them do, or only one ever does, nothing here changes anything. <b>Decide by</b> is the main choice: settle it by where the Fields stand in your own order, or by a list of openings you rank yourself. The row below it decides whether a nested Value outranks its parent or the other way round",
   items: [
     { kind:"dropdown", id:"prefix-priority-decide", path:"pkm.prefixPriority.decideBy", default:"by-section",
       name:"Decide by", desc:"Settle it by the order of your Fields, or by a list of openings you rank yourself",
       searchTerms:["Main checkbox priority","Prefix Resolver"],
       options:[ {value:"by-section",label:"Field order"}, {value:"by-checkbox-list",label:"Prefix order"} ],
       tip:"<b>Field order</b> is the simple answer: whichever Field comes first in your list gets its way. <b>Prefix order</b> is for when you care about the openings themselves \u2014 say an urgent mark should always beat a tick, no matter which Field asked for it" },
-    { kind:"dropdown", id:"prefix-priority-source", path:"pkm.prefixPriority.fieldOrderSource", default:"auto",
+    { kind:"dropdown", id:"prefix-priority-source", path:"pkm.prefixPriority.fieldOrderSource", default:"manual",
       name:"Field order source", desc:"Use the order your Fields are already in, or arrange a separate one",
       searchTerms:["Fields order mode"],
       visible: eq("pkm.prefixPriority.decideBy","by-section"),
@@ -108,33 +111,10 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
                         && c.get("pkm.prefixPriority.fieldOrderSource") === "manual" } },
     { kind:"custom", id:"prefix-order-list", render: prefixOrderList,
       visible: eq("pkm.prefixPriority.decideBy","by-checkbox-list") },
-    { kind:"dropdown", id:"prefix-priority-parent", path:"pkm.prefixPriority.parentOrChild", default:"tag-over-subtag",
+    { kind:"dropdown", id:"prefix-priority-parent", path:"pkm.prefixPriority.parentOrChild", default:"subtag-over-tag",
       name:"Parent or child wins", desc:"When a tag and its child Value both carry a Prefix",
       searchTerms:["Tag/Subtag priority"],
       options:[ {value:"tag-over-subtag",label:"Parent tag"}, {value:"subtag-over-tag",label:"Child tag"} ] }
-  ]
-},
-{
-  id: "config-note", tab: "pkm", order: 600, heading: "Config note",
-  intro: "Your whole setup, written out as an ordinary note you can read, edit and keep. Generate it to save a copy of where you are now; apply it to put a copy back",
-  tip: "It works both ways, and that makes it useful twice over. As a <b>backup</b>: generate it before you start rearranging, and you can always get back. As a <b>way to move</b>: copy the note into another vault, press apply there, and that vault has your setup. As an <b>editor</b>: for a long list of Values it is far quicker to type in the note than to click through the table above \u2014 press apply when you are done",
-  commands: ["Apply config note"],
-  items: [
-    { kind:"text", id:"config-note-path", path:"pkm.configNote.path", wide:true,
-      default:"InlineOverhaul_Config.md", mono:true,
-      name:"Where to keep it", desc:"The note that Generate writes and Apply reads",
-      tip:"Put it wherever you keep your own notes about your setup. If you sync your vault, this travels with it, which is the simplest way to carry your setup between machines" },
-    { kind:"dropdown", id:"config-note-detail", path:"pkm.configNote.detail", default:"detailed",
-      name:"How much detail", desc:"Whether the generated note explains itself or just lists the settings",
-      tip:"<b>Detailed</b> adds comments describing each block, which helps if you are going to edit it by hand. <b>Minimal</b> is easier to read as a backup and easier to compare between two versions",
-      searchTerms:["Config Export Mode"],
-      options:[ {value:"detailed",label:"Detailed"}, {value:"minimal",label:"Minimal"} ] },
-    { kind:"buttons", id:"config-note-actions",
-      name:"Generate and apply", desc:"Write your setup out to the note, or read it back in",
-      searchTerms:["TagWheel Note Editor"],
-      tip:"<b>Generate</b> overwrites the note with your settings as they are right now, so it is always a fresh copy rather than something that can go stale. <b>Apply</b> goes the other way and replaces your settings with what the note says \u2014 the previous setup is kept aside first, so a mistake is recoverable",
-      buttons:[ {label:"Generate", action:"generate-config-note"},
-                {label:"Apply", action:"apply-config-note", cta:true} ] }
   ]
 }
 ];

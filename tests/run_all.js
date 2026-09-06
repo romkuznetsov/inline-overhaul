@@ -14,14 +14,15 @@ const { spawnSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 
-/** Почему пропущено — обязательная часть записи, а не комментарий. */
-const SKIP = {
-  "status_runtime_behavior_tests.js":
-    "падает на чистом чекауте до наших правок: vault_module_bridge не находит " +
-    "модуль по пути вида .obsidian/plugins/... в этом окружении. Файл под " +
-    "запретом З3, и в фазе 6 сам мост удаляется (A1, A2). Включить обратно " +
-    "после фазы 6 или отдельным разбором.",
-};
+/**
+ * Почему пропущено — обязательная часть записи, а не комментарий.
+ *
+ * Список пуст с 2026-09-01. Последним в нём был
+ * `status_runtime_behavior_tests.js` (A15): он падал не на своём предмете, а на
+ * загрузке — вне Obsidian плагин не находил собственные модули. Причина снята в
+ * `src/core/vault_module_bridge.js`, тест включён, все 60 его проверок зелёные.
+ */
+const SKIP = {};
 
 function collect(dir, out) {
   for (const name of fs.readdirSync(dir)) {

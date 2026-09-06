@@ -22,7 +22,7 @@
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
-import { createBinderModel, type BinderDraft, type BinderRow } from "./binder_model.ts";
+import { createBinderModel, type BinderClash, type BinderDraft, type BinderRow } from "./binder_model.ts";
 import { renderAddForm, renderBinder as drawBinder } from "./binder_view.ts";
 import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
 
@@ -39,7 +39,7 @@ const registry = commandRegistry as unknown as RegistryApi;
  * Ветка, которую блок показывает. Схема в неё пока не пишет, но подписка
  * объявляет зависимость: появится там контрол — блок обновится сам.
  */
-const BINDER_PATHS = ["ui.binderRows"] as const;
+const BINDER_PATHS = ["editor.binder.rows"] as const;
 
 interface ModalCtor {
   new (app: unknown): {
@@ -56,6 +56,7 @@ function askAddModal(
   Modal: ModalCtor,
   app: unknown,
   done: (draft: BinderDraft | null) => void,
+  duplicateOf?: (draft: BinderDraft) => BinderClash | null,
 ): void {
   let answered = false;
   const finish = (draft: BinderDraft | null): void => {
@@ -72,6 +73,7 @@ function askAddModal(
       renderAddForm(box, {
         add: draft => { finish(draft); this.close(); },
         cancel: () => { finish(null); this.close(); },
+        duplicateOf,
       });
     }
 
@@ -96,6 +98,11 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
   const plugin = p.plugin;
   const app = (plugin as { app?: unknown }).app;
   const canOpen = canOpenHotkeys(plugin);
+  /* Сообщение человеку — тем же способом, что у редактора Fields. */
+  const notice = (text: string): void => {
+    const N = p.Notice as new (message: string) => unknown;
+    try { new N(text); } catch { console.error("inline-overhaul: " + text); }
+  };
 
   let mounted: El | null = null;
 
@@ -127,10 +134,19 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
         onDescription: (row, text) => commit(() => { model.setDescription(row.rowId, text); }),
         onRemove: row => commit(() => { model.remove(row.rowId); }),
         onMove: (from, to) => commit(() => { model.move(from, to); }),
+        /*
+         * Повтор ловится **в окне**, пока человек печатает: сообщение стоит
+         * под тем полем, которое повторяется, и `Add` при этом недоступна
+         * (C13, 2026-09-02). Всплывающее сообщение остаётся последней
+         * преградой — на случай, если строка пришла не из окна.
+         */
         onAdd: () => askAddModal(Modal, app, draft => {
           if (!draft) return;
-          commit(() => { model.add(draft); });
-        }),
+          commit(() => {
+            const res = model.add(draft);
+            if (!res.ok && res.error) notice(res.error);
+          });
+        }, draft => model.duplicateOf(draft)),
       });
     } catch (e) {
       /* Неудачная попытка выбрасывается целиком, а на экране остаётся то, что

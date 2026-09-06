@@ -36,7 +36,19 @@ function buildStripLineStyle(spec, stripCfg) {
   const gutterInset = Math.max(16, x3 + thickness + 6);
   const shadow2 = `${childOffset}px 0 0 0 ${colors[1]}`;
   const shadow3 = `${childOffset * 2}px 0 0 0 ${colors[2]}`;
+  /*
+   * Зазор сверху и снизу полосы (PRD 10.13.16). Слитное дерево снимает его у
+   * строки, чья полоса продолжается в соседнюю строку дерева: признак ставит
+   * движок (`markTreeRuns`), вёрстка его только читает.
+   *
+   * Число уходит переменной, а не литералом в стилях: то же значение читает
+   * предпросмотр полос, и два объявления одного правила разошлись бы (У-32).
+   */
+  const lineGap = clampInt(s.lineGap, 2, 0, 8);
+  const joinTree = s.joinTree !== false;
+  const gap = joinTree && spec && spec.inTree ? 0 : lineGap;
   return [
+    `--io-strip-line-gap:${gap}px`,
     `--io-strip-thickness:${thickness}px`,
     `--io-strip-gap:${Math.max(2, childOffset)}px`,
     `--io-strip-spacing:${spacing}px`,

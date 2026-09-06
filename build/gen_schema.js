@@ -70,11 +70,10 @@ const TAB_CONST = {
  * попадает целиком.
  */
 const READY_ACTIONS = new Set([
-  "generate-config-note",
-  "apply-config-note",
-  "open-config-template",
-  "regenerate-rules",
   "open-howto",
+  "save-backup",
+  "restore-backup",
+  "reset-settings",
 ]);
 
 /**
@@ -82,17 +81,60 @@ const READY_ACTIONS = new Set([
  * прототип тут ни при чём: он показывает панель, какой она будет. Каждая
  * запись названа причиной и снимается вместе с работой, которая её сделает.
  */
-const AWAITING_ENGINE = {
-  /* `flyingButton.enabled` нормализуется в transform_feature.js и больше
-     никем не читается: декорации CM6 нет. PRD 10.10, Ж2 — фаза 5. */
-  "i2n-floating": "нет декорации CM6",
-};
+/*
+ * Пусто с 2026-09-01: `Floating button` получил декорацию CM6 вместе с
+ * подсветкой обработанной строки (10.13.12), и причина держать его вне схемы
+ * снялась. Список остаётся: он и заводился под такие случаи.
+ */
+const AWAITING_ENGINE = {};
 
 const CUSTOM_IMPL = {
+  renderSourceFields: {
+    module: "source_fields.ts",
+    named: "sourceFields",
+    expr: () => "sourceFields",
+  },
+  renderSourcePreview: {
+    module: "previews.ts",
+    named: "sourcePreview",
+    expr: () => "sourcePreview",
+  },
+  renderFloatingButton: {
+    module: "previews.ts",
+    named: "floatingButton",
+    expr: () => "floatingButton",
+  },
+  renderCaretPreview: {
+    module: "previews.ts",
+    named: "caretPreview",
+    expr: () => "caretPreview",
+  },
+  renderCommandReference: {
+    module: "command_reference.ts",
+    named: "commandReference",
+    expr: () => "commandReference",
+  },
   renderTabCallout: {
     module: "callouts.ts",
     named: "callout",
     expr: group => 'callout("' + group.tab + '")',
+  },
+  /*
+   * Субхедер несёт свою подпись и свою подсказку аргументами:
+   * `render: renderSubheader("Move text", "…")`. Оба — согласованный текст,
+   * поэтому они переносятся из прототипа как есть, а не выводятся из `id`.
+   *
+   * Список аргументов копируется целиком, а не разбирается по одному: их
+   * стало два, и разбор по позициям пришлось бы править на каждом следующем.
+   */
+  renderSubheader: {
+    module: "subheader.ts",
+    named: "subheader",
+    expr: ({ item }) => {
+      const m = /render:\s*renderSubheader\(((?:[^()"]|"(?:[^"\\]|\\.)*")*)\)/.exec(String(item || ""));
+      if (!m || !m[1].trim()) throw new Error("renderSubheader без подписи: " + String(item || "").slice(0, 120));
+      return "subheader(" + m[1].trim() + ")";
+    },
   },
   renderLinePreview: {
     module: "previews.ts",
@@ -247,8 +289,13 @@ for (const g of groups) {
         continue;
       }
       /* Имя функции прототипа меняется на выражение из реестра; всё
-         остальное в записи остаётся как согласовано. */
-      keep.push(it.replace(new RegExp("render:\\s*" + fn), "render: " + impl.expr({ tab })));
+         остальное в записи остаётся как согласовано. Аргументы, если
+         рендерер их несёт (`renderSubheader("Move text")`), снимаются вместе
+         с именем: выражение реестра подставляет их само. */
+      keep.push(it.replace(
+        new RegExp("render:\\s*" + fn + "(\\s*\\((?:[^()\"]|\"(?:[^\"\\\\]|\\\\.)*\")*\\))?"),
+        "render: " + impl.expr({ tab, item: it }),
+      ));
       const imports = perTabImports[tab] = perTabImports[tab] || new Map();
       imports.set(impl.named, impl.module);
       customs++;
@@ -289,7 +336,7 @@ for (const tab of Object.keys(TAB_FILE)) {
   if (!list.length) continue;
 
   const text = list.map(g => g.text).join(",\n");
-  const helpers = ["on", "not", "eq"].filter(h => new RegExp("[^A-Za-z]" + h + "\\(").test(text));
+  const helpers = ["on", "not", "eq", "neither"].filter(h => new RegExp("[^A-Za-z]" + h + "\\(").test(text));
 
   const skipNote = (skipped[tab] || [])
     .map(s => " *   " + s.id + ": " + s.drop.join(", "))
@@ -431,6 +478,14 @@ function literalAfter(marker) {
   return src.slice(from, matchBrace(src, from) + 1);
 }
 
+/** То же для массива: `const X = [ ... ]`. */
+function arrayAfter(marker) {
+  const at = src.indexOf(marker);
+  if (at < 0) throw new Error("не нашёл в прототипе: " + marker);
+  const from = src.indexOf("[", at + marker.length - 1);
+  return src.slice(from, matchBrace(src, from) + 1);
+}
+
 const customTexts = [
   "/**",
   " * ВНИМАНИЕ: файл сгенерирован из docs/prototype/settings_prototype.html.",
@@ -477,9 +532,6 @@ const customTexts = [
   "export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = " +
     literalAfter("const PREVIEW_TEXTS = {") + ";",
   "",
-  "/** П9: предпросмотр рисует панель, а не редактор, и говорит об этом. */",
-  "export const PREVIEW_NOTE = " + stringAfter("const PREVIEW_NOTE = ") + ";",
-  "",
   "/** ПЗ2: Fields в предпросмотре примерные, пока не настроены свои. */",
   "export const PREVIEW_EXAMPLE = " + stringAfter("const PREVIEW_EXAMPLE = ") + ";",
   "",
@@ -488,6 +540,46 @@ const customTexts = [
   "",
   "/** Пустое состояние правого Block: что здесь бывает (ПЗ2). */",
   "export const PREVIEW_EMPTY_RIGHT = " + stringAfter("const PREVIEW_EMPTY_RIGHT = ") + ";",
+  "",
+  "/**",
+  " * Что вкладка говорит, когда её модуль выключен (замечание заказчика C7).",
+  " *",
+  " * Калитка модуля живёт в прототипе с самого начала, а в панели её не было",
+  " * ни одной строкой: поле `module` у вкладки не читалось нигде. Текст едет",
+  " * отсюда, чтобы панель и прототип говорили одно.",
+  " */",
+  "export const MODULE_OFF_NOTE = " + stringAfter("const MODULE_OFF_NOTE = ") + ";",
+  "",
+  "/**",
+  " * Справочник команд (10.5): области, имена и описания.",
+  " *",
+  " * Имена здесь — те же, что в `src/features/command_ids.js`: и тот, и этот",
+  " * список выведены из одного прототипа, и их совпадение проверяется",
+  " * (`command_ids_tests.ts`). Описания живут только здесь.",
+  " *",
+  " * Три записи описывают не команду, а **семью**: у Field пара команд, у",
+  " * строки Binder своя, у каждого модуля свой тумблер. Их имена в прототипе",
+  " * — примеры и шаблоны (`Status next`, `<your rows>`,",
+  " * `Toggle <module> module`), а настоящие строки собираются из данных.",
+  " */",
+  "export interface CommandText {",
+  "  name: string;",
+  "  does: string;",
+  "}",
+  "",
+  "export interface CommandArea {",
+  "  area: string;",
+  "  /**",
+  "   * Подписи двух частей области: стандартные команды и созданные из",
+  "   * данных человека. Есть только там, где деление есть (10.5, замечания",
+  "   * заказчика 1.2.3.4.1 и 1.2.3.4.2).",
+  "   */",
+  "  parts?: { standard: string; user: string };",
+  "  list: readonly CommandText[];",
+  "}",
+  "",
+  "export const COMMAND_TEXTS: readonly CommandArea[] = " +
+    arrayAfter("const COMMANDS = [") + ";",
   "",
 ].join("\n");
 fs.writeFileSync(path.join(OUT_DIR, "custom_texts.ts"), customTexts, "utf8");

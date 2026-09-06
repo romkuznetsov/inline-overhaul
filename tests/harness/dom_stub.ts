@@ -56,6 +56,7 @@ export interface StubNode {
   appendChild(c: StubNode): StubNode;
   insertBefore(c: StubNode, ref: StubNode | null): StubNode;
   insertAdjacentElement(where: string, other: StubNode): StubNode;
+  setChildrenInPlace(next: StubNode[]): void;
   removeChild(c: StubNode): StubNode;
   remove(): void;
   setAttribute(k: string, v: string): void;
@@ -86,6 +87,9 @@ export interface StubNode {
   appendText(t: string): void;
   querySelector(sel: string): StubNode | null;
   querySelectorAll(sel: string): StubNode[];
+  /** Ближайший предок (или сам узел), подходящий под селектор. */
+  closest(sel: string): StubNode | null;
+  readonly ownerDocument: { getElementById: (id: string) => StubNode | null } | null;
   readonly lastChild: StubNode | null;
   readonly firstChild: StubNode | null;
   readonly parentElement: StubNode | null;
@@ -150,6 +154,17 @@ export function makeNode(tag?: string): StubNode {
 
     appendChild(c: StubNode) { node.children.push(c); (c as any).parent = node; return c; },
     insertBefore(c: StubNode, ref: StubNode | null) {
+      /*
+       * Как в браузере: узел **переезжает**. Без этого шага заглушка была
+       * добрее DOM — созданный внутри узла и тут же вставленный первым
+       * ребёнком того же узла оставался в дереве дважды, — и полоса вкладок
+       * рисовалась в двух экземплярах, чего проверка не видела (10.13.13).
+       */
+      const had = (c as any).parent as StubNode | null | undefined;
+      if (had) {
+        const at = had.children.indexOf(c);
+        if (at >= 0) had.children.splice(at, 1);
+      }
       const i = ref ? node.children.indexOf(ref) : -1;
       if (i < 0) node.children.push(c); else node.children.splice(i, 0, c);
       (c as any).parent = node;
@@ -157,10 +172,44 @@ export function makeNode(tag?: string): StubNode {
     },
     insertAdjacentElement(where: string, other: StubNode) {
       if (!node.parent) return other;
+      /*
+       * Как в браузере: узел **переезжает**, а не копируется. Без этого шага
+       * заглушка была добрее DOM — узел, созданный внутри предка и потом
+       * вставленный рядом с соседом, оставался в дереве дважды, и проверка
+       * места вставки была зелёной ни о чём (B7, 2026-09-02).
+       */
+      const had = (other as any).parent as StubNode | null | undefined;
+      if (had) {
+        const at = had.children.indexOf(other);
+        if (at >= 0) had.children.splice(at, 1);
+      }
       const i = node.parent.children.indexOf(node);
       node.parent.children.splice(where === "afterend" ? i + 1 : i, 0, other);
       (other as any).parent = node.parent;
       return other;
+    },
+    /*
+     * `setChildrenInPlace` из Obsidian (`enhance.js`): узел оставляет ровно
+     * перечисленных детей в перечисленном порядке, всех прочих удаляет, а
+     * пришедших со стороны **переносит** к себе.
+     *
+     * Нужен затем, что именно этим вызовом платформа заканчивает и группу
+     * (`i6`), и страницу (`e6`), и именно он отменял переезд полосы вкладок
+     * (10.13.13). Без него проверка места полосы была бы зелёной ни о чём.
+     */
+    setChildrenInPlace(next: StubNode[]) {
+      const keep = new Set(next);
+      for (const c of node.children.slice()) if (!keep.has(c)) node.removeChild(c);
+      node.children.length = 0;
+      for (const c of next) {
+        const had = (c as any).parent as StubNode | null | undefined;
+        if (had && had !== node) {
+          const at = had.children.indexOf(c);
+          if (at >= 0) had.children.splice(at, 1);
+        }
+        node.children.push(c);
+        (c as any).parent = node;
+      }
     },
     removeChild(c: StubNode) {
       const i = node.children.indexOf(c);
@@ -230,6 +279,19 @@ export function makeNode(tag?: string): StubNode {
 
     querySelector(sel: string) { return query(node, sel)[0] || null; },
     querySelectorAll(sel: string) { return query(node, sel); },
+    /*
+     * `closest` начинает с самого узла и идёт вверх — как в браузере. Нужен
+     * панели: «?» заголовка группы поднимается от кнопки до группы, чтобы
+     * найти тело подсказки (B7).
+     */
+    closest(sel: string) {
+      let at: StubNode | null = node;
+      while (at) {
+        if (matches(at, sel)) return at;
+        at = at.parent;
+      }
+      return null;
+    },
   };
 
   /* Настоящий DOM отдаёт детей и по краям: старый рендерер этим пользуется
@@ -244,6 +306,11 @@ export function makeNode(tag?: string): StubNode {
     get(): StubNode | null { return node.parent; },
   });
   Object.defineProperty(node, "isConnected", { get(): boolean { return true; } });
+  /* В браузере документ есть у каждого узла. Панель через него ищет тело
+     подсказки группы по id (B7), поэтому заглушка отдаёт тот же документ. */
+  Object.defineProperty(node, "ownerDocument", {
+    get(): { getElementById: (id: string) => StubNode | null } | null { return currentDoc; },
+  });
 
   /*
    * Выпадающий список отдаёт свои варианты и номер выбранного. Без них доска
@@ -316,6 +383,13 @@ function query(root: StubNode, sel: string): StubNode[] {
   return out;
 }
 
+/**
+ * Документ, который отдаёт `ownerDocument` любого узла. В браузере он один на
+ * дерево; здесь — последний созданный, и этого хватает: заглушка живёт внутри
+ * одного прогона.
+ */
+let currentDoc: any = null;
+
 export function makeDocument() {
   const doc: any = {
     body: makeNode("body"),
@@ -323,9 +397,15 @@ export function makeDocument() {
     get activeElement() { return focused; },
     createElement: (t: string) => makeNode(t),
     createTextNode: (t: string) => { const n = makeNode("#text") as any; n.textContent = String(t); return n; },
-    getElementById: (id: string) => null as StubNode | null,
+    /*
+     * Поиск по id идёт по дереву документа, как в браузере: узел, никуда не
+     * добавленный, не находится. Раньше здесь стояло `null` всегда — то есть
+     * любая проверка, опирающаяся на поиск по id, была зелёной ни о чём.
+     */
+    getElementById: (id: string) => query(doc.body, "#" + id)[0] || null,
     querySelector: (sel: string) => query(doc.body, sel)[0] || null,
     querySelectorAll: (sel: string) => query(doc.body, sel),
   };
+  currentDoc = doc;
   return doc;
 }

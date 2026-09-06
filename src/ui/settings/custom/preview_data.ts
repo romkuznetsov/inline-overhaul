@@ -112,7 +112,7 @@ export interface PreviewFields {
  * Field (`parentFieldId`), а не у дочернего, и токен в конфиге хранится с
  * решёткой — её ставит отрисовка пузыря, поэтому здесь она снимается.
  */
-function fieldsFromConfig(ctx: SettingsCtx): readonly PreviewField[] {
+export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
   const p = ctx.platform;
   if (!p) return [];
   try {
@@ -172,9 +172,27 @@ function fieldsFromConfig(ctx: SettingsCtx): readonly PreviewField[] {
  * когда читать нечего, и тогда панель об этом говорит (ПЗ2).
  */
 export function previewFields(ctx: SettingsCtx): PreviewFields {
-  const real = fieldsFromConfig(ctx);
+  const real = realFields(ctx);
   if (real.length) return { fields: real, example: false };
   return { fields: EXAMPLE_FIELDS, example: true };
+}
+
+/**
+ * Fields для выпадающего списка. Списку нужны только настоящие: примерный
+ * набор — иллюстрация прототипа (Р8), и предложить выбрать Field, которого у
+ * человека нет, значит вернуть дефект 1.5.3.2 — настройка встанет в значение,
+ * которого движок не найдёт.
+ *
+ * `kind` фильтруется вызывающим: полосам нужен тег, потому что цвет полосы —
+ * это цвет Value, а он есть только у тега.
+ */
+export function fieldOptions(
+  ctx: SettingsCtx,
+  keep?: (f: PreviewField) => boolean,
+): ReadonlyArray<{ value: string; label: string }> {
+  return realFields(ctx)
+    .filter(f => (keep ? keep(f) : true))
+    .map(f => ({ value: f.id, label: f.name || f.id }));
 }
 
 /**
@@ -227,17 +245,36 @@ export function fieldsOn(fields: readonly PreviewField[], side: "left" | "right"
 }
 
 /**
- * Цвет чипа Field. У Field своего цвета нет: tag берёт заливку первого своего
- * Value, остальные — цвет своего вида. Литералов нет, только переменные темы
- * или то, что лежит в конфиге (З6).
+ * Цвет вида Field — одна карта на всю панель.
+ *
+ * Раньше вид красился в двух местах по-разному: левая колонка редактора Fields
+ * брала эти переменные, а чип в предпросмотре — заливку **первого Value**
+ * тега. Из-за этого один и тот же Field выглядел в таблице коричневым, а в
+ * предпросмотре — цветом своего первого значения, и человек читал их как два
+ * разных (замечание заказчика C20, 2026-09-02). Два объявления одного правила
+ * расходятся молча (У-32), поэтому карта здесь одна и обе стороны берут её.
+ *
+ * Значения лежат в `styles.css` переменными: цвет вида намеренно не совпадает
+ * с акцентом темы — акцент занят основными действиями (З6, литералов нет).
+ *
+ * Ключи покрывают оба написания: схема зовёт ссылку `wikilink`,
+ * предпросмотр — `link`, и это шов, а не расхождение.
  */
+export const TYPE_COLOR: Record<string, string> = {
+  tag: "var(--io-type-tag)",
+  wikilink: "var(--io-type-link)",
+  link: "var(--io-type-link)",
+  element: "var(--io-type-element)",
+};
+
+/** Цвет вида по его имени. Неизвестный вид красится как тег. */
+export function typeColor(kind: string): string {
+  return TYPE_COLOR[kind] ?? "var(--io-type-tag)";
+}
+
+/** Цвет чипа Field: цвет его вида, тот же, что в таблице Fields. */
 export function fieldColor(f: PreviewField): string {
-  if (f.kind === "tag") {
-    const first = f.values.find(v => v.depth === 0);
-    if (first) return first.fill;
-    return "var(--color-orange)";
-  }
-  return f.kind === "link" ? "var(--color-blue)" : "var(--color-green)";
+  return typeColor(f.kind);
 }
 
 /** Field по id: предпросмотрам нужны конкретные, а не первый попавшийся. */

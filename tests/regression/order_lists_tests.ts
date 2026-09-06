@@ -147,7 +147,7 @@ function baseConfig(over?: Any): Any {
 }
 
 const cycleOf = (cfg: Any): string[] => cfg.navigation.moveSelection.cycleOrder as string[];
-const rulesOf = (cfg: Any): Any => cfg.pkm.behavior.prefixRules;
+const rulesOf = (cfg: Any): Any => cfg.pkm.prefixRules;
 
 /* ======================================================================
  * 1. Цикл Prefix: что записано, то рантайм и проходит.

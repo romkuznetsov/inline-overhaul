@@ -1,16 +1,29 @@
 # Inline Overhaul
 
-Inline Overhaul adds desktop Obsidian commands for inline-note navigation, PKM field and tag cycling, TagWheel editing, and opt-in inline-to-note transforms.
+A line of a note can carry more than words. Inline Overhaul lets you put a status, a
+priority, a due date and a link to a project on the same line as the thought, then move,
+cycle and edit all of it from the keyboard.
 
-See the [visual showcase](showcase.md) for animated examples and the [setup and user guide](instructions.md) for installation, configuration, Transform safety, and troubleshooting.
+```markdown
+- [ ] #todo #high || call the bank || [[Project A]] 📅 2026-09-15
+```
+
+Everything above is ordinary markdown in the file. The tags are searchable, the link is a
+real link, and nothing is hidden from your other plugins.
+
+See the [visual showcase](showcase.md) for animated examples and the
+[setup and user guide](instructions.md) for installation, configuration, Transform safety
+and troubleshooting.
 
 > [!WARNING]
-> This is a public beta. Back up your vault before installing or updating. Test important workflows on non-critical notes first.
+> This is a public beta. Back up your vault before installing or updating, and try
+> important workflows on notes you can afford to lose.
 
 ## Requirements
 
-- Obsidian desktop 1.13.0 or newer (the settings pane uses the declarative settings API added in 1.13)
-- Desktop only; mobile is not supported
+- Obsidian desktop 1.13.0 or newer. The settings pane uses the declarative settings API
+  that arrived in 1.13.
+- Desktop only. Mobile is not supported.
 
 ## Install with BRAT
 
@@ -19,64 +32,168 @@ See the [visual showcase](showcase.md) for animated examples and the [setup and 
 3. Enter `romkuznetsov/inline-overhaul`.
 4. Enable **Inline Overhaul** in Obsidian's Community plugins settings.
 
-## Feature index
+## What you get on a fresh install
 
-Every workflow below links to its matching animation in the [visual showcase](showcase.md). Command hotkeys are configurable in Obsidian; Enhanced Mod+A uses fixed `Ctrl/Cmd+A`.
+Four Fields, so there is something to press on the first day:
+
+| Field | Type | Where it sits | Values |
+|---|---|---|---|
+| `Status` | tag | before your text | `#todo`, `#doing`, `#done` |
+| `Priority` | tag | before your text | `#low`, `#med`, `#high` |
+| `Due` | emoji element | after your text | 📅, format `YYYY-MM-DD` |
+| `Project` | link | after your text | `[[Project A]]`, `[[Project B]]` |
+
+They are yours to change or delete in **Tags & PKM → Fields**. They arrive with a fresh
+install only: **Advanced → Settings backup → Start over** wipes them and does not put them
+back.
+
+**No command has a key until you give it one.** The plugin assigns no default hotkeys, so
+it cannot fight with what you already use. **Keyboard → Commands & Hotkeys** lists every
+command with the key it has now and takes you to Obsidian's Hotkeys screen. The single
+exception is **Expanded `Ctrl/Cmd+A`**, which takes over a key Obsidian already owns, and
+it lives under **Keyboard** too.
+
+> [!WARNING]
+> **Command identifiers changed in this version.** Obsidian binds hotkeys to identifiers
+> rather than names, so keys you had assigned to Inline Overhaul commands stopped working
+> after the update. The old-to-new map is in
+> [`docs/command_ids_v1_v2.md`](docs/command_ids_v1_v2.md), and the plugin says so once on
+> first load.
+
+## What is on each tab
+
+Every entry names the tab and group you set it in. Links go to the matching animation in
+the [visual showcase](showcase.md).
 
 ### General
 
-- [Open settings and module toggles](showcase.md#open-settings-and-module-toggles) — Open Inline Overhaul settings and guard Navigation, Tag & PKM, Visual, and Transform independently.
-- [Settings undo/flush](showcase.md#settings-undoflush) — Undo the latest settings mutation or flush pending autosave immediately.
-- [Diagnostics/developer logs](showcase.md#diagnosticsdeveloper-logs) — Inspect diagnostics and optional logs; logs may contain private note content.
-- [Enhanced Ctrl+A](showcase.md#enhanced-ctrla) — Expand selection from the current line to its indentation tree and then the whole note.
+Module switches for Navigation, Tags & PKM, Visual and Transform, so a whole area can be
+turned off without uninstalling anything. **General → Help → Read** writes the guide note
+into your vault and opens it; **Show callouts** and **Show tips** decide how much the
+panel explains itself.
+
+- [Open settings and module toggles](showcase.md#open-settings-and-module-toggles)
+- [Settings undo](showcase.md#settings-undoflush): **Undo last settings change** rolls back
+  the most recent change. It is a command, not a button. Saving is automatic and there is
+  no manual flush.
+- [Diagnostics and developer logs](showcase.md#diagnosticsdeveloper-logs): **Advanced →
+  Diagnostics**. The log is a note in your vault and it records the lines you were working
+  on, so read it before you share it.
+
+### Keyboard
+
+- [Expanded Ctrl+A](showcase.md#enhanced-ctrla): grow the selection from the line to its
+  indentation tree, then to the whole note.
+- **Smart Delete**: **Keyboard → Smart Delete\Backspace** changes what `Del` does at the
+  end of a line. It joins the line below without its indent and without its bullet,
+  checkbox or quote mark, so you get the words and not the punctuation. A line that
+  holds nothing but a Prefix goes whole. `Smart backspace` puts the same behaviour on
+  `Backspace` at the start of a line, and switches on separately: either key can do
+  this without the other. Both off by default.
+- **Commands & Hotkeys**: every command, the key it has now, and a click through to
+  Obsidian's Hotkeys screen.
+- [Custom insertion commands](showcase.md#custom-insertion-commands): **Binder (custom
+  insert commands)** turns a row of text into a command of its own.
+- [Smart bracket](showcase.md#smart-bracket): the one Binder row that ships with the
+  plugin. It cycles `text`, `[text]`, `[[text]]` and back.
 
 ### Navigation
 
-- [Move lines/trees](showcase.md#move-linestrees) — Move the active line or indentation tree up and down without cut-and-paste.
-- [Move selected inline text](showcase.md#move-selected-inline-text) — Shift selected inline text left or right within the current line.
-- [Prefix cycle/indent fallback](showcase.md#prefix-cycleindent-fallback) — Cycle configured line prefixes, then apply the selected cycle-end or indentation policy.
-- [Header jumps](showcase.md#header-jumps) — Jump between nearby Markdown headers from the editor.
-- [Inline PKM zone navigation](showcase.md#inline-pkm-zone-navigation) — Move through configured inline PKM zones on the active line.
+- [Move lines and trees](showcase.md#move-linestrees): **Move line up** and **Move line
+  down** carry the line, or its whole tree, past its neighbours.
+- [Move selected inline text](showcase.md#move-selected-inline-text): **Move left** and
+  **Move right** shift the selection inside the line.
+- [Prefix cycle and indent fallback](showcase.md#prefix-cycleindent-fallback): the same two
+  commands cycle the line Prefix and change the indent when nothing is selected. What
+  happens at the end of the cycle is **Navigation → Move left and move right → When a line
+  empties out**.
+- [Header jumps](showcase.md#header-jumps): **Jump back** and **Jump next**, tuned in
+  **Navigation → Moving cursor inside a note**.
+- [Inline zone navigation](showcase.md#inline-pkm-zone-navigation): **Move cursor left in
+  line** and **Move cursor right in line** step through the parts of a line rather than
+  through characters. Their settings are **Navigation → Moving cursor inside a line**.
 
-### Binder
+### Tags & PKM
 
-- [Custom insertion commands](showcase.md#custom-insertion-commands) — Insert user-defined text through dedicated Binder commands.
-- [Smart bracket](showcase.md#smart-bracket) — Insert or cycle context-aware bracket forms around text.
-
-### PKM design/config
-
-- [Field schema/order/panels](showcase.md#field-schemaorderpanels) — Define PKM fields, their order, and panel placement from settings.
-- [Deep Editor hierarchy](showcase.md#deep-editor-hierarchy) — Edit nested field values and hierarchy in the Deep Editor.
-- [Per-value prefixes/dependencies](showcase.md#per-value-prefixesdependencies) — Assign value-specific prefixes and dependency rules.
-- [Generic elements/date/time/number](showcase.md#generic-elementsdatetimenumber) — Configure reusable generic, date, time, and number elements.
-- [YAML field mapping](showcase.md#yaml-field-mapping) — Map inline PKM fields to YAML properties.
-- [Separators/prefix resolver/cursor/free-roam policies](showcase.md#separatorsprefix-resolvercursorfree-roam-policies) — Control line separators, prefix resolution, cursor placement, and free-roam behavior.
-- [Generate/apply portable Markdown config](showcase.md#generateapply-portable-markdown-config) — Open editable config or detailed template Markdown, then apply config in this or another vault.
-
-### PKM runtime
-
-- [Direct tag/link field cycle increase/decrease](showcase.md#direct-taglink-field-cycle-increasedecrease) — Cycle configured tag or link field values forward and backward from the editor.
-- [Element increment/decrement](showcase.md#element-incrementdecrement) — Increase or decrease supported generic, date, time, and number elements.
-- [TagWheel left/right/navigation/apply/cancel](showcase.md#tagwheel-leftrightnavigationapplycancel) — Open TagWheel, navigate fields and values, apply a choice, or cancel.
+- [Fields, Blocks and order](showcase.md#field-schemaorderpanels): **Tags & PKM → Fields**.
+  One list holds every Field; drag a Field across the line in it to move it between the
+  `Left Block` and the `Right Block`.
+- [Value hierarchy](showcase.md#deep-editor-hierarchy): the `Values` table in the right
+  column of the same editor. A Value can hold a child Value.
+- [Per-Value Prefixes and prerequisites](showcase.md#per-value-prefixesdependencies): the
+  `Behavior` block of a Field, where `Prerequisite Field` makes one Field wait for another.
+- [Emoji elements, dates and numbers](showcase.md#generic-elementsdatetimenumber): a Field
+  of type element carries a marker and a format instead of a list of Values.
+- [YAML property mapping](showcase.md#yaml-field-mapping): the `YAML property` row of a
+  Field decides which property of a transformed note it becomes.
+- [Separators, Prefix priority, cursor and placement
+  modes](showcase.md#separatorsprefix-resolvercursorfree-roam-policies): **Tags & PKM →
+  Separators**, **Prefix priority**, **Writing rules** and **Placement modes**.
+- [Cycle a Field from the keyboard](showcase.md#direct-taglink-field-cycle-increasedecrease):
+  every Field gets a pair of commands, `<Field> next` and `<Field> previous`, created for
+  it automatically.
+- [Step an element up or down](showcase.md#element-incrementdecrement): the same pair for a
+  date, a time or a number.
+- [TagWheel](showcase.md#tagwheel-leftrightnavigationapplycancel): **Open TagWheel on the
+  left** and **Open TagWheel on the right** open a panel over the line, where arrow keys
+  pick Values and `Enter` applies them.
 
 ### Visual
 
-- [Tag bubbles/per-value styles/separator colors](showcase.md#tag-bubblesper-value-stylesseparator-colors) — Style inline tags, individual values, and separators.
-- [TagWheel panel/scroller](showcase.md#tagwheel-panelscroller) — Present TagWheel fields and values in a configurable scrolling panel.
-- [Hierarchy Strip/token hiding](showcase.md#hierarchy-striptoken-hiding) — Show hierarchy context and optionally hide the configured Strip field token and its separator.
+- [Tag bubbles and per-Value styles](showcase.md#tag-bubblesper-value-stylesseparator-colors):
+  **Visual → Inline appearance** for size, opacity and corners; **Color your Tags** for
+  tags of your own that no Field owns.
+- [TagWheel panel and scroller](showcase.md#tagwheel-panelscroller): **Visual → TagWheel**,
+  where `Scroller` adds a list of neighbouring Values and `Highlight the TagWheel line`
+  fills the line you are editing.
+- [Tag Bars](showcase.md#hierarchy-striptoken-hiding): **Visual → Tag Bars** draws a
+  coloured stripe in the margin down a line and everything nested under it. One tag Field
+  draws them, chosen in `Which Field draws Bars`, and the colours come from that Field's
+  Values. Off by default.
+- **Text cursor**: **Visual → Text cursor** gives the blinking caret a color of its own,
+  so it stops disappearing into the page. A second switch sets its width and its
+  `Blink speed`, from `0` (no blinking at all) to `10`, with a live preview under both.
+  Off by default, and it changes the caret in your notes only. With `Shape the text
+  cursor` on, the plugin draws the caret itself: the editor draws no caret of its own on
+  a line with nothing selected, and a caret it does not draw cannot be made thicker.
+- **Moving lines**: **Navigation → Moving lines** now decides where the view goes after a
+  move. `Follow the moved line` off leaves the note exactly where it was; on,
+  `Where the line lands` puts the moved line at the center, the top or the bottom of the
+  screen — the same place every time.
+- **TagWheel edges**: **Visual → TagWheel**, `TagWheel navigation behavior` decides what
+  the arrows do at the end of a Block: stay in it, or step across into the other one.
+- **Heading jumps**: **Navigation → Moving cursor inside a note** now has the same pair.
+  `Follow the jump target` decides whether the note scrolls after a jump, and
+  `Where the target lands` puts the line you jumped to at the center, the top or the
+  bottom of the screen.
 
-### Transform Inline2Note
+### Transform
 
-- [Synthetic preview/opt-in](showcase.md#synthetic-previewopt-in) — Review the settings-only source-processing example before enabling the execution gate.
-- [Current root or selected tree](showcase.md#current-root-or-selected-tree) — Transform the current root tree or an explicitly selected tree.
-- [Templates/Smart Rules/auto-manual naming](showcase.md#templatessmart-rulesauto-manual-naming) — Route output through templates and Smart Rules with automatic or manual note names.
-- [Collision/body/header policies](showcase.md#collisionbodyheader-policies) — Decide how existing targets, note bodies, and headers are handled.
-- [YAML Raw/Clean mapping](showcase.md#yaml-rawclean-mapping) — Map recognized inline fields into template/target YAML using Raw or Clean values.
-- [Source cleanup/link/processed token/sublines/open target](showcase.md#source-cleanuplinkprocessed-tokensublinesopen-target) — Configure source replacement, processed markers, subline handling, and target opening.
+**Transform → Inline to note** is off out of the box. Turn it on before running
+**Transform inline to note**, and read [the guide](instructions.md) first: this command
+rewrites the line you are standing on.
 
-## Transform opt-in
+- [Preview before you enable it](showcase.md#synthetic-previewopt-in): the group shows what
+  it would do to an example line, without touching a note.
+- [Current root or selected tree](showcase.md#current-root-or-selected-tree).
+- [Templates, Smart Rules and naming](showcase.md#templatessmart-rulesauto-manual-naming):
+  `Templates folder` and `Default template` under **Inline to note**, the rules under
+  **Smart Rules**, and the name under **New note naming**.
+- [Collision, body and header policies](showcase.md#collisionbodyheader-policies): **Note
+  content**, plus `If the name already taken` under **New note naming**.
+- [YAML Raw and Clean mapping](showcase.md#yaml-rawclean-mapping): each Field carries the
+  rule, set once for the Field in **Tags & PKM → Fields**.
+- [What happens to the source
+  line](showcase.md#source-cleanuplinkprocessed-tokensublinesopen-target): **Transform →
+  Source line**.
 
-The Transform module is enabled by default, but the Inline2Note execution gate is off by default. Enable that gate explicitly in **Settings → Inline Overhaul → Transform** before running `Transform: inline2note`. Review the preview, [full instructions](instructions.md), and backup policy before transforming production notes.
+### Advanced
+
+- **Settings backup**: `Save a backup` writes everything you have set up into an ordinary
+  note in your vault. It travels with the vault, so restoring it on another machine is how
+  a setup moves. `Start over` deletes everything and always writes a backup first.
+- **Setting ids**: puts the id of a setting into its tip, which is the fastest way to tell
+  us exactly which control you mean.
 
 ## Build and test
 
@@ -92,6 +209,15 @@ Release assets are written to `dist/`.
 
 ## Current beta limitations
 
-- Flying button is unavailable.
-- Special processed-token styling is unavailable; other Visual styling remains available.
-- Obsidian-only manual cases, including clean-vault startup and Transform workflows, still require verification.
+- The one-off cases still need checking by hand on a real Obsidian: the first start on a
+  clean vault, the move of an older config to the new form, and the notice about renamed
+  commands.
+- Transform writes real notes. It is covered by automated checks, but every vault has its
+  own templates, properties and Fields, and those need your eyes.
+
+## Terms
+
+Several mechanisms were renamed so that the interface says what a thing is rather than how
+it was built: `Order` became **Fields**, `Strip` became **Tag Bars**, `free roam` became
+placement modes, `Prefix Resolver` became **Prefix priority**. Stored config values did not
+change. The full table is in the [glossary](instructions.md#glossary).

@@ -64,7 +64,8 @@ function makeConfig(step: StepMode = "command"): Any {
   return JSON.parse(JSON.stringify({
     ui: { pkmSubTab: "main" },
     pkm: {
-      behavior: {
+      prefixRules: { checkboxByFieldValue: {} },
+      fields: {
         order: {
           left: ["status", "status_sub"],
           right: ["project", "due"],
@@ -77,13 +78,13 @@ function makeConfig(step: StepMode = "command"): Any {
           enabled: { status: true, status_sub: true, project: true, due: true },
           propertiesByField: { status: "status" },
         },
-        leftMode: {
+        tags: {
           fields: [
             { id: "status", orderKey: "status", prefix: "#", values: [{ token: "todo", active: true }, { token: "doing", active: true }] },
             { id: "status_sub", orderKey: "status_sub", prefix: "#", dependsOn: "status", values: [{ token: "early", allowedParentValues: ["todo"], active: true }] },
           ],
         },
-        rightMode: {
+        links: {
           fields: [
             { id: "project", orderKey: "project", source: "wikilinks:project", values: [{ token: "ClientA", active: true }] },
             { id: "due", orderKey: "due", values: [] },
@@ -100,9 +101,10 @@ function makeConfig(step: StepMode = "command"): Any {
             due: { emoji: "!", format: "YYYY-MM-DD", mode: step, command: "now", increment: { mode: step } },
           },
         },
-        tagVisuals: { byTag: { status: { "#todo": { fillColor: "#222222", textColor: "#ffffff" } } }, userTags: {} },
-        prefixRules: { checkboxByFieldValue: {} },
       },
+    },
+    visual: {
+      tags: { byTag: { status: { "#todo": { fillColor: "#222222", textColor: "#ffffff" } } }, userTags: {} },
     },
   }));
 }
@@ -526,21 +528,26 @@ function buildMap(): { text: string; paths: Set<string>; reasons: Set<string> } 
  */
 function shape(raw: string): string {
   const p = raw.replace(/ = \{\}$/, "");
-  /* Карты Order: ключ — имя Field. */
-  const orderMaps = /^(pkm\.behavior\.order\.(?:labels|strictNames|types|active|freeRoam|enabled|propertiesByField))\./;
-  if (orderMaps.test(p)) return p.replace(orderMaps, "$1.") .replace(/\.[^.]+$/, ".*");
+  /*
+   * Обе карты — версии 2: старая доска переведена вместе с движками в фазе 2,
+   * пункт 4. До этого сюда приходили пути версии 1, и приведение к форме
+   * заодно переводило путь; теперь переводить нечего, и осталось только
+   * подстановочное имя ключа.
+   */
+  const orderMaps = /^(pkm\.fields\.order\.(?:labels|strictNames|types|active|freeRoam|enabled|propertiesByField))\./;
+  if (orderMaps.test(p)) return p.replace(orderMaps, "$1.").replace(/\.[^.]+$/, ".*");
   /* Элементы: ключ — имя Field, дальше своя форма. */
-  if (/^pkm\.behavior\.elements\.byField\./.test(p)) {
-    return "pkm.behavior.elements.byField.*" + p.replace(/^pkm\.behavior\.elements\.byField\.[^.]+/, "");
+  if (/^pkm\.fields\.elements\.byField\./.test(p)) {
+    return "pkm.fields.elements.byField.*" + p.replace(/^pkm\.fields\.elements\.byField\.[^.]+/, "");
   }
-  if (p === "pkm.behavior.elements.byField") return "pkm.behavior.elements.byField.*";
+  if (p === "pkm.fields.elements.byField") return "pkm.fields.elements.byField.*";
   /* Цвета: ключи — Field и значение, дальше имя свойства. */
-  const byTag = /^pkm\.behavior\.tagVisuals\.byTag\.([^.]+)\.([^.]+)/;
-  if (byTag.test(p)) return p.replace(byTag, "pkm.behavior.tagVisuals.byTag.*.*");
-  if (/^pkm\.behavior\.tagVisuals\.userTags\./.test(p)) return "pkm.behavior.tagVisuals.userTags.*";
+  const byTag = /^visual\.tags\.byTag\.([^.]+)\.([^.]+)/;
+  if (byTag.test(p)) return p.replace(byTag, "visual.tags.byTag.*.*");
+  if (/^visual\.tags\.userTags\./.test(p)) return "visual.tags.userTags.*";
   /* Чекбоксы префикса: ключи — Field и значение. */
-  const cb = /^pkm\.behavior\.prefixRules\.checkboxByFieldValue\.([^.]+)(\.[^.]+)?/;
-  if (cb.test(p)) return p.replace(cb, "pkm.behavior.prefixRules.checkboxByFieldValue.*.*");
+  const cb = /^pkm\.prefixRules\.checkboxByFieldValue\.([^.]+)(\.[^.]+)?/;
+  if (cb.test(p)) return p.replace(cb, "pkm.prefixRules.checkboxByFieldValue.*.*");
   return p;
 }
 
@@ -586,7 +593,7 @@ const DROPPED: Array<{ path: string; why: string }> = [
   { path: "ui.orderShowInfoTips", why: "тумблер вида удалён по Ф15: описания показываются всегда" },
   { path: "ui.orderShowDeepEditor", why: "тумблер вида удалён по Ф15" },
   { path: "ui.orderShowColorSettings", why: "тумблер вида удалён по Ф15" },
-  { path: "pkm.behavior.tagVisuals.userTags", why: "блок «Color your Tags» уезжает своим блоком на вкладку Visual в фазе 3c — решение заказчика 2026-08-27" },
+  { path: "visual.tags.userTags", why: "блок «Color your Tags» уезжает своим блоком на вкладку Visual в фазе 3c — решение заказчика 2026-08-27" },
 ];
 
 /**
@@ -596,7 +603,7 @@ const DROPPED: Array<{ path: string; why: string }> = [
  * ветки появляются — но это не новая возможность редактора.
  */
 const UNSEEN: Array<{ path: string; why: string }> = [
-  { path: "pkm.behavior.elements.fields", why: "удаление Field: старая карта диалог не подтверждала" },
+  { path: "pkm.fields.elements.fields", why: "удаление Field: старая карта диалог не подтверждала" },
 ];
 
 /* ---- сверка ------------------------------------------------------------- */

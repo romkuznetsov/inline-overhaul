@@ -6,7 +6,7 @@
  *
  * Что изменилось против старой панели:
  *
- *   * колонки `Command ID` и подписи `inlineOverhaul_Binder_*` нет (Б2);
+ *   * колонки `Command ID` и подписи идентификатора команды нет (Б2);
  *   * системная строка не удаляется, и её описание не редактируется (Б5).
  *     Второе — не строгость, а правда: `normalizeBinderRows` переписывает
  *     описание этой строки своим на каждом патче, и поле для правки было бы
@@ -15,14 +15,15 @@
  */
 
 import { el, btn, textInput, type DragEv, type El, type ElInput } from "./dom.ts";
-import type { BinderDraft, BinderRow } from "./binder_model.ts";
+import type { BinderClash, BinderDraft, BinderRow } from "./binder_model.ts";
 
 /* ---- тексты: сняты с прототипа (Приложение B, 10.4) -------------------- */
 
 export const HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""] as const;
 export const ADD_COMMAND = "Add command";
 export const HOTKEY_NONE = "not set";
-export const HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
+export { HOTKEY_TITLE } from "./hotkeys.ts";
+import { HOTKEY_TITLE } from "./hotkeys.ts";
 export const SYSTEM_TITLE = "Built in";
 /** Имя команды в списке хоткеев начинается с этого — в таблице оно лишнее. */
 export const LABEL_PREFIX = "Binder: ";
@@ -106,16 +107,29 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
     el(line, "div", "io-cellname", name);
 
     const cell = el(line, "div", "io-binder__desc");
-    const desc = textInput(cell, "io-text", {
-      value: row.description,
-      label: "Description for " + name,
-    });
-    /* Б5: описание системной строки переписывает нормализация — править нечего. */
-    desc.disabled = row.system;
-    if (row.system) desc.title = SYSTEM_TITLE;
-    desc.addEventListener("change", (() => {
-      if (!row.system) o.onDescription(row, desc.value);
-    }) as never);
+    if (row.system) {
+      /*
+       * У системной строки описание рисуется **текстом**, а не отключённым
+       * полем ввода.
+       *
+       * Поле ввода однострочно и не переносится: описание `Smart bracket`
+       * длинное, и заказчик видел только его начало (C11, 2026-09-02). Править
+       * его всё равно нельзя — `normalizeBinderRows` переписывает его своим на
+       * каждом патче (Б5), — значит, поле тут вообще не нужно: текст читается
+       * целиком и переносится по словам.
+       */
+      const note = el(cell, "div", "io-binder__note", row.description);
+      note.setAttribute("aria-label", "Description for " + name);
+      note.title = SYSTEM_TITLE;
+    } else {
+      const desc = textInput(cell, "io-text", {
+        value: row.description,
+        label: "Description for " + name,
+      });
+      desc.addEventListener("change", (() => {
+        o.onDescription(row, desc.value);
+      }) as never);
+    }
 
     const hotkey = o.hotkeyOf(row);
     const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
@@ -153,20 +167,30 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
 export function renderAddForm(box: El, o: {
   add: (draft: BinderDraft) => void;
   cancel: () => void;
+  /**
+   * Повторяет ли то, что человек уже напечатал, заведённую строку. Правило
+   * живёт в модели одним объявлением (`BinderModel.duplicateOf`): окно только
+   * спрашивает и показывает ответ.
+   */
+  duplicateOf?: (draft: BinderDraft) => BinderClash | null;
 }): void {
   el(box, "h4", undefined, ADD_TITLE);
   el(box, "p", "io-item__desc", ADD_NOTE);
 
-  const field = (name: string, desc: string, placeholder: string): ElInput => {
+  const field = (name: string, desc: string, placeholder: string): { input: ElInput; warn: El } => {
     const row = el(box, "div", "io-item");
     const info = el(row, "div", "io-item__info");
     el(info, "div", "io-item__name", name);
     el(info, "div", "io-item__desc", desc);
-    return textInput(el(row, "div", "io-item__control"), "io-text", {
+    const input = textInput(el(row, "div", "io-item__control"), "io-text", {
       value: "",
       label: name + " of the new command",
       placeholder,
     });
+    /* Причина отказа стоит под своим полем, а не над панелью: человек читает
+       её там, где печатает (C13). Пустая строка ничего не занимает. */
+    const warn = el(info, "div", "io-item__warn");
+    return { input, warn };
   };
 
   const insert = field(INSERT_NAME, INSERT_DESC, "→");
@@ -177,16 +201,39 @@ export function renderAddForm(box: El, o: {
   const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
   cancel.addEventListener("click", (() => { o.cancel(); }) as never);
   const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
-  add.disabled = true;
-  insert.addEventListener("input", (() => {
-    add.disabled = !String(insert.value || "").trim();
-  }) as never);
+
+  const draftNow = (): BinderDraft => ({
+    insertText: insert.input.value,
+    commandName: command.input.value,
+    description: note.input.value,
+  });
+
+  /*
+   * Состояние окна пересчитывается на каждый набранный символ: `Add` доступна
+   * только когда есть текст вставки и когда ничего не повторяется.
+   *
+   * До 2026-09-02 повтор ловился уже после нажатия: окно закрывалось, блок
+   * перерисовывался — и человека возвращало на вкладку `Keyboard`, — а причина
+   * приезжала всплывающим сообщением Obsidian. Заказчик: «я хочу, чтобы у
+   * пользователя в окне добавлении команды возникали предупреждения» (C13).
+   */
+  const recheck = (): void => {
+    const draft = draftNow();
+    const clash = o.duplicateOf ? o.duplicateOf(draft) : null;
+    insert.warn.textContent = clash && clash.field === "insertText" ? clash.error : "";
+    command.warn.textContent = clash && clash.field === "commandName" ? clash.error : "";
+    add.disabled = !String(draft.insertText || "").trim() || Boolean(clash);
+  };
+
+  for (const f of [insert, command, note]) {
+    f.input.addEventListener("input", (() => { recheck(); }) as never);
+  }
+  recheck();
+
   add.addEventListener("click", (() => {
-    if (!String(insert.value || "").trim()) return;
-    o.add({
-      insertText: insert.value,
-      commandName: command.value,
-      description: note.value,
-    });
+    const draft = draftNow();
+    if (!String(draft.insertText || "").trim()) return;
+    if (o.duplicateOf && o.duplicateOf(draft)) return;
+    o.add(draft);
   }) as never);
 }

@@ -24,7 +24,16 @@ export default [
   {
     ...js.configs.recommended,
     files: ["**/*.mjs"],
-    languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      /* Инструменты в `tools/` — обычные скрипты Node: печатают и читают argv. */
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        globalThis: "readonly",
+      },
+    },
   },
 
   // существующий движок и тесты: только настоящие ошибки

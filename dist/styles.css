@@ -28,6 +28,211 @@
 .io-tip {
   margin-top: 4px;
 }
+
+/*
+ * Тело подсказки группы. Его создаёт сама кнопка «?» в строке заголовка и
+ * ставит сразу за этой строкой — то есть между заголовком и карточкой
+ * настроек группы. Так это делает прототип (`attachTip`), и так узел
+ * принадлежит нам: скрывать его классом больше не нужно, потому что до
+ * нажатия его просто нет.
+ *
+ * До 2026-09-02 тело ехало вводной строкой группы в поле `desc` и скрывалось
+ * классом. Строку без имени и без `render` платформа отбрасывает до
+ * отрисовки, и тела в окне не было ни разу — отсюда пять заходов «нажимаю на
+ * "?", ничего не происходит» (B7, C18, C41, C42).
+ */
+.io-grouptip {
+  margin: 4px 0 8px;
+  padding: 8px 11px;
+  max-width: 100%;
+  border-left: 2px solid var(--interactive-accent);
+  border-radius: 0 var(--radius-s) var(--radius-s) 0;
+  background: var(--background-primary-alt);
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+.io-grouptip b {
+  color: var(--text-normal);
+  font-weight: 500;
+}
+
+/*
+ * Вводная фраза группы — коллаутом между заголовком и карточкой настроек
+ * (замечание заказчика 2026-09-04, скриншот 6.png: «это сделано не красиво,
+ * как plain text сверху над настройками… коллауты должны размещаться под
+ * хедерами настроек и до самих настроек (т.е. до серого поля). Коллауты не
+ * должны находится на сером фоне»).
+ *
+ * Вида своего у неё нет: она тот же `.io-callout`, что и вводный коллаут
+ * вкладки, — второе объявление вида разошлось бы с первым молча (У-32).
+ * Своё здесь только место в потоке.
+ *
+ * Строка заголовка у платформы стоит **вне** карточки
+ * (`.setting-group .setting-item-heading` прозрачна, серое даёт
+ * `.setting-items`), поэтому узел, вставленный сразу за ней, оказывается
+ * ровно там, где просил заказчик: под заголовком и до серого поля.
+ */
+/*
+ * Коллаут стоит посередине между заголовком и карточкой настроек.
+ *
+ * **Почему отступ объявлен здесь, а не у `.io-callout--group`.** Узел несёт
+ * оба класса — `io-callout io-callout--group`, — а `.io-callout` ниже по файлу
+ * задаёт `margin: 0 0 2px`. Специфичность у них была одинаковая, и побеждало
+ * то, что стоит позже: снизу оставалось две точки вместо двенадцати. Правка
+ * от 2026-09-05 ужала отступ заголовка с 16 до 12 и объявила «12 и 12», а на
+ * экране было «22 и 2» — заказчик увидел ровно это: «нет, визуально стоит там
+ * же где и раньше». Отбор по группе поднимает специфичность, и правило теперь
+ * и правда сильнее (У-67).
+ *
+ * Три части, и каждая нужна:
+ *   1. отступ **под** коллаутом — двенадцать;
+ *   2. отступ **над** ним — столько же, у строки заголовка;
+ *   3. провис самой строки заголовка убран: её высоту растит колонка кнопок
+ *      (`.clickable-icon` с полем сверху и снизу), а имя при `flex-start`
+ *      прижато к верху — под именем оставалось ещё шесть точек пустоты, и
+ *      они читались как часть верхнего зазора.
+ *
+ * Ужимается **только группа с коллаутом** — пометку ставит панель, когда его
+ * рисует; у группы без коллаута шаг платформы остаётся прежним.
+ */
+[class*="io-group-"].io-group--callout > .io-callout--group {
+  margin: 0 0 var(--size-4-3);
+}
+[class*="io-group-"].io-group--callout > .setting-item-heading {
+  margin-bottom: var(--size-4-3);
+  align-items: center;
+}
+[class*="io-group-"].io-group--callout > .setting-item-heading .clickable-icon {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/*
+ * Слот коллаута. Платформа даёт строке заголовка один способ дотянуться до
+ * себя — колонку кнопок, — и коллаут приходит оттуда. Кнопки при этом нет:
+ * нажимать нечего. Тот же приём, что у припаркованной строки полосы вкладок.
+ */
+.io-calloutslot,
+/* Спрятанный знак «?» у заголовка группы: узел платформы остаётся на месте,
+   потому что второй раз она его не создаст (У-69, A30). */
+.io-tipslot {
+  display: none !important;
+}
+
+/*
+ * Кнопка сворачивания группы (просьба заказчика 2026-09-04: «приходится много
+ * скролить… сделай каждый хедер сворачиваемым»).
+ *
+ * Место — **до названия**, как он и просил. Кнопкой платформы этого не сделать:
+ * её узел лежит в колонке контролов, а та стоит после имени, и порядком внутри
+ * колонки туда не попасть. Поэтому знак — свой узел, первым ребёнком строки
+ * заголовка; кнопка платформы остаётся точкой опоры и скрыта (`io-calloutslot`).
+ *
+ * Свёрнутое положение отличается и знаком (▸ против ▾), и заливкой: на одном
+ * знаке в мелком кегле разницу видно плохо.
+ */
+[class*="io-group-"] > .setting-item-heading > .io-fold,
+[class*="io-group-"].setting-item-heading > .io-fold {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.io-fold:hover {
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+.io-fold--shut {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+/*
+ * Свёрнутая группа: остаётся один заголовок. Прячется и карточка настроек, и
+ * вводный коллаут — иначе свёрнутая группа занимала бы почти столько же места.
+ */
+[class*="io-group-"].io-group--shut > .setting-items,
+[class*="io-group-"].io-group--shut > .io-callout--group,
+[class*="io-group-"].io-group--shut > .io-grouptip {
+  display: none;
+}
+
+/*
+ * «?» стоит **рядом с текстом заголовка**, а сброс группы — у правого края
+ * (замечание B7 в двух заходах: сначала «знак слишком далеко справа», потом
+ * «сдвинь reset group обратно вправо»).
+ *
+ * Прототип рисует «?» в самой строке заголовка сразу за текстом, а сброс —
+ * у края. Панель обе кнопки объявляет в `extraButtons`, и платформа кладёт
+ * их в одну колонку контролов у правого края. Значит развести их может
+ * только своя пометка: `io-groupreset` ставит `resetButtonFor` на узел
+ * кнопки, и она уезжает вправо автоматическим отступом.
+ *
+ * Строка заголовка группы у платформы устроена иначе, чем строка настройки:
+ * `.setting-item-info` в ней **нет** — только `.setting-item-name` и
+ * `.setting-item-control` (`Xb` в `app.js`). Правило про `info` два захода
+ * ничего не отбирало.
+ *
+ * Отбор идёт по **нашему** классу группы (`io-group-<id>`, ставит
+ * `to_definitions.ts`): `styles.css` плагина Obsidian применяет ко всему окну,
+ * и правило без такого отбора поехало бы по заголовкам чужих настроек.
+ */
+[class*="io-group-"] > .setting-item-heading,
+[class*="io-group-"].setting-item-heading {
+  justify-content: flex-start;
+  gap: 6px;
+}
+[class*="io-group-"] > .setting-item-heading > .setting-item-name,
+[class*="io-group-"].setting-item-heading > .setting-item-name {
+  flex: 0 0 auto;
+}
+[class*="io-group-"] > .setting-item-heading > .setting-item-control,
+[class*="io-group-"].setting-item-heading > .setting-item-control {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  gap: 6px;
+}
+[class*="io-group-"] .setting-item-control > .io-groupreset {
+  margin-inline-start: auto;
+}
+
+/*
+ * «?» в строке заголовка группы. Платформа рисует кнопку своим значком —
+ * значок мы снимаем и ставим знак вопроса, поэтому размеры задаются здесь, а
+ * не наследуются от `clickable-icon`.
+ */
+.io-help--group {
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+}
+.io-help--group:hover {
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+.io-help--group svg { display: none; }
 .io-tip__mark {
   display: inline-flex;
   align-items: center;
@@ -69,11 +274,52 @@
 /*
  * Полоса вкладок. Декларативный API её не умеет, поэтому она наша, и
  * оформление тоже наше — но цвета только из переменных темы (З6).
+ *
+ * Полоса стоит **над прокруткой**, а не внутри неё, и потому не уезжает
+ * (10.13.13, просьба заказчика в трёх заходах).
+ *
+ * Два прежних решения не держались. `position: sticky` на строке настроек
+ * прилипает только пока в виду её родитель, а родитель — список строк одной
+ * группы; переезд строки первым ребёнком прокрутки платформа отменяет на
+ * каждой отрисовке (`i6` и `e6` в `app.js` заканчиваются
+ * `setChildrenInPlace`). Поэтому полоса — свой узел в родителе прокрутки:
+ * родитель становится колонкой, полоса первой строкой этой колонки, а
+ * прокрутка забирает остаток высоты. Уезжать полосе больше некуда, и код
+ * прокрутки для этого не нужен.
+ *
+ * Своя строка при этом остаётся в списке группы пустой и скрытой: она нужна
+ * затем, чтобы полоса пересобиралась на каждой отрисовке.
  */
+.io-tabshost {
+  display: flex;
+  flex-direction: column;
+}
+.io-tabshost > .io-tabsscroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  /*
+   * У страницы настроек Obsidian верхний отступ в 48 точек
+   * (`.vertical-tab-content { padding-top: var(--size-4-12) }`). Он рассчитан
+   * на страницу, которая начинается заголовком; у нас над ней стоит своя
+   * полоса вкладок, и эти 48 точек читались пустотой между полосой и первым
+   * коллаутом — «не нравится, что такое большое расстояние от верхней панели
+   * со вкладками до коллаута» (замечание заказчика 2026-09-04).
+   */
+  padding-top: var(--size-4-4);
+}
+.io-tabsbar {
+  flex: 0 0 auto;
+  padding: 8px max(var(--size-4-8), var(--setting-group-center-offset, 0px)) 0;
+  background: var(--background-primary);
+}
+.io-tabsrow--parked {
+  display: none !important;
+}
 .io-tabsrow {
   display: block;
-  padding: 0 0 4px;
+  padding: 4px 0;
   border: 0;
+  background: var(--background-primary);
 }
 .io-tabs {
   display: flex;
@@ -131,11 +377,16 @@
  * Коллаут занимает ширину панели. Ограничение в 66ch оставляло справа пустую
  * полосу шириной чуть ли не в половину панели (замечание заказчика
  * 2026-08-28).
+ *
+ * Верхнего отступа у него больше нет: он складывался с отступом карточки и
+ * отступом строки, и от полосы вкладок до коллаута выходило больше восьмидесяти
+ * точек пустоты — «не нравится, что такое большое расстояние от верхней панели
+ * со вкладками до коллаута» (замечание заказчика 2026-09-04).
  */
 .io-callout {
   box-sizing: border-box;
   width: 100%;
-  margin: 14px 0 2px;
+  margin: 0 0 2px;
   padding: 11px 13px;
   max-width: 100%;
   border: 1px solid var(--background-modifier-border);
@@ -158,6 +409,29 @@
 }
 .io-callout__body {
   margin: 6px 0 0;
+}
+
+/*
+ * Вводная группа вкладки (`io-group-<вкладка>-intro`) — это один коллаут и
+ * ничего больше, а платформа кладёт его в ту же серую карточку, что и
+ * настройки: «мне не нравится серый фон» (замечание заказчика 2026-09-04,
+ * скриншот 6.png). Карточка у этой группы снимается целиком — вместе со
+ * своими двадцатью точками отступа сверху и снизу и такими же у строки внутри.
+ *
+ * Отбор идёт по нашему классу группы: `styles.css` плагина Obsidian применяет
+ * ко всему окну, и правило без такого отбора поехало бы по чужим настройкам.
+ */
+[class*="io-group-"][class*="-intro"] .setting-items {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+[class*="io-group-"][class*="-intro"] .setting-item {
+  padding: 0;
+}
+[class*="io-group-"][class*="-intro"] .setting-item::before {
+  content: none;
 }
 
 /*
@@ -281,6 +555,24 @@
   font-size: 11px;
   color: var(--text-faint);
 }
+/*
+ * Пробел в предпросмотре `Source line`: свой узел, потому что куски строки
+ * рисуются своими узлами и без него склеиваются (B13). `pre` — чтобы
+ * несколько пробелов подряд остались несколькими.
+ */
+.io-line__gap { white-space: pre; }
+
+/*
+ * Причина отказа под своим полем в окне заведения строки Binder (C13).
+ * Пустая строка ничего не занимает, поэтому окно не прыгает, пока причины нет.
+ */
+.io-item__warn:empty { display: none; }
+.io-item__warn {
+  margin-top: 3px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-error);
+}
+
 .io-line__side {
   display: inline-flex;
   align-items: center;
@@ -291,6 +583,26 @@
   opacity: var(--io-opacity-left);
 }
 .io-line__side--right {
+  opacity: var(--io-opacity-right);
+}
+
+/*
+ * Предпросмотр TagWheel: прозрачность блока гасит чипы, но не коробку
+ * скроллера (B2, 2026-09-02).
+ *
+ * Прозрачность объявлена у контейнера стороны, а коробка лежит внутри него, и
+ * `opacity` предка потомком не отменяется — коробка тускнела вместе с блоком.
+ * Здесь сторона остаётся яркой, а гаснут её чипы: коробка показывает соседние
+ * значения, и без них скроллер читать нечем.
+ */
+.io-line--wheel .io-line__side--left,
+.io-line--wheel .io-line__side--right { opacity: 1; }
+.io-line--wheel .io-line__side--left > .io-bubble,
+.io-line--wheel .io-line__side--left > .io-wheelcol > .io-bubble {
+  opacity: var(--io-opacity-left);
+}
+.io-line--wheel .io-line__side--right > .io-bubble,
+.io-line--wheel .io-line__side--right > .io-wheelcol > .io-bubble {
   opacity: var(--io-opacity-right);
 }
 
@@ -344,12 +656,19 @@
   flex-direction: column;
 }
 /* Полоса не занимает места в потоке: она абсолютная и тянется во всю высоту
-   поддерева, потому что поддерево и есть её узел (П5). */
+   поддерева, потому что поддерево и есть её узел (П5).
+
+   Сверху и снизу оставлен разрыв: у двух строк подряд полосы иначе стыкуются
+   и читаются как одна (B22, 2026-09-02). Величину задаёт слайдер
+   `Gap between Bars`, а у строки внутри дерева зазор снимает тумблер
+   `Join Bars in a tree` (PRD 10.13.16); число ставит предпросмотр
+   переменной, как и отрисовка заметки, — одно правило, одно место (У-32).
+   Запасное значение равно умолчанию настройки. */
 .io-node--bar::before {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: var(--io-bar-inset, 2px);
+  bottom: var(--io-bar-inset, 2px);
   left: calc(var(--io-lane, 0) * var(--io-bar-gap));
   width: var(--io-bar-thickness);
   border-radius: 2px;
@@ -414,6 +733,35 @@
   white-space: nowrap;
   color: var(--io-wheel-fg, var(--text-muted));
 }
+/*
+ * Панель TagWheel в предпросмотре — текст, а не пузыри (10.13.22 Пр1).
+ *
+ * Заказчик не мог проверить два цвета текста: ячейки красились цветом Field,
+ * как чипы Value, а панель в заметке красится своими цветами. Теперь ячейка —
+ * слово, активная в квадратных скобках и полужирная, как её пишет движок.
+ */
+.io-wheelcell {
+  white-space: nowrap;
+  font-size: calc(11.5px * var(--io-text-scale));
+  color: var(--io-wheel-cell, var(--text-muted));
+}
+.io-wheelcell--active {
+  font-weight: 700;
+  color: var(--io-wheel-cell-active, var(--text-accent));
+}
+/* Обособление строки: то же, что делает `==…==` в заметке (Пр4). */
+.io-wheelline--lit {
+  border-radius: var(--radius-s);
+  padding: 0 2px;
+  background: var(--io-wheel-lit, var(--text-highlight-bg));
+}
+/* Прозрачность блока гасит ячейки наравне с пузырями, но не коробку (B2). */
+.io-line--wheel .io-line__side--left > .io-wheelcol > .io-wheelcell {
+  opacity: var(--io-opacity-left);
+}
+.io-line--wheel .io-line__side--right > .io-wheelcol > .io-wheelcell {
+  opacity: var(--io-opacity-right);
+}
 /* Значение, на котором стоит скроллер. */
 .io-bubble--current {
   box-shadow: 0 0 0 2px var(--interactive-accent);
@@ -437,7 +785,8 @@
  * смыслом нет, поэтому значение задаётся один раз тут, а код знает только
  * имя переменной (З6).
  */
-.io-type-colors,
+/* Селектор один: `:root`. Пара `.io-type-colors` стояла рядом с ним и не
+   относилась ни к чему — этот класс не ставит никто. */
 :root {
   --io-type-tag: #c2683f;
   --io-type-link: #3b82c4;
@@ -692,13 +1041,35 @@
 .io-danger:hover {
   filter: brightness(1.15);
 }
+/* Корзина рисуется маской и красится `currentColor`, а не цветным эмодзи
+   под фильтром: тот читался пятном (замечание заказчика 1.4.1.2.3). */
 .io-danger__icon {
-  font-size: 13px;
-  line-height: 1;
-  filter: brightness(0) invert(1);
+  width: 13px;
+  height: 13px;
+  background-color: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9.4 3h5.2l1 2H20v2H4V5h4.4l1-2ZM6 9h12l-1 12.2A2 2 0 0 1 15 23H9a2 2 0 0 1-2-1.8L6 9Zm3.8 2.6v8h1.4v-8H9.8Zm3 0v8h1.4v-8h-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M9.4 3h5.2l1 2H20v2H4V5h4.4l1-2ZM6 9h12l-1 12.2A2 2 0 0 1 15 23H9a2 2 0 0 1-2-1.8L6 9Zm3.8 2.6v8h1.4v-8H9.8Zm3 0v8h1.4v-8h-1.4Z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .io-sub { margin: 16px 0 7px; font-size: 13px; font-weight: 600; color: var(--text-normal); }
+/* Субхедер, делящий группу настроек.
+
+   Своей черты снизу у него больше нет. Платформа рисует свою сверху у первой
+   строки настройки под подписью, и на экране их было две — «после этих
+   субхедеров две разделительные горизонтальные линии, оставь одну»
+   (замечание G3, скриншот 5.png). Осталась платформенная: она и отделяет
+   подпись от того, что под ней, и стоит там же, где у остальных строк.
+
+   Строка подписи — флекс: рядом с текстом встаёт «?», как у заголовка
+   группы. */
+.io-sub--group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 2px;
+  padding-bottom: 4px;
+}
+.io-sub__text { flex: 0 0 auto; }
 .io-item {
   display: flex;
   align-items: flex-start;
@@ -711,6 +1082,46 @@
 .io-item__namerow { display: flex; align-items: center; gap: 6px; }
 .io-item__name { color: var(--text-normal); }
 .io-item__desc { margin-top: 2px; max-width: 60ch; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+/* Стереть выбранное свойство одним нажатием (замечание заказчика 1.4.1.2.6).
+   Красная, как и просили, но цветом темы: литералов в стилях нет (З6).
+   Кнопки нет вовсе, когда стирать нечего, — это решает вёрстка блока. */
+.io-clear {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-error);
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+}
+.io-clear:hover { border-color: var(--text-error); }
+
+/*
+ * Коробка выбора свойства держит ширину, что бы в ней ни стояло: появившийся
+ * крестик сжимает поле, а не толкает его влево (замечание заказчика 1.3.2.2).
+ * Ширина та же, что была у самого поля, — строка остаётся в общей геометрии.
+ */
+.io-pick2 {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 172px;
+}
+.io-pick2 .io-text--prop,
+.io-fields .io-pick2 .io-text--prop {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .io-item__control { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding-top: 1px; }
 
 .io-select,
@@ -748,6 +1159,233 @@
  */
 .io-vals__inner { min-width: 408px; }
 /* 206px нижних границ, четыре зазора по 4 и поля по 10 с каждой стороны. */
+/* Color your Tags: та же таблица, что Values, без `Level` и `Prefix`
+   (замечание заказчика 1.5.2.2). Шесть колонок: тег, показ, две заливки,
+   предпросмотр и кнопки. */
+.io-vals--tags .io-vals__head,
+.io-vals--tags .io-vals__row {
+  grid-template-columns: minmax(86px, 1.6fr) minmax(58px, 0.9fr) 40px 40px minmax(72px, 1.4fr) 44px;
+}
+.io-vals__inner--tags { min-width: 352px; }
+
+/* Какие Fields остаются на исходной строке (замечание заказчика 1.6.5.1):
+   строка на Field, флажок слева, тип справа приглушённым. */
+/*
+ * Предпросмотр `Source line` (10.13.10): что станет со строкой после
+ * `Inline to note`. Две половины, «до» и «после», обе моноширинные — читается
+ * текст строки, а не её оформление.
+ */
+/*
+ * `Floating button` (10.13.12): кнопка `Inline to note` в конце строки, на
+ * которой стоит курсор. Часть редактора, а не заметки — в файл не попадает.
+ *
+ * Размер и цвета от темы: кнопка стоит внутри текста, и собственный кегль
+ * развалил бы строку.
+ */
+.io-flybtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  /* Отступ от последнего символа строки: слайдер `Distance from the text`
+     (замечание заказчика 2026-09-04 — кнопка стояла к тексту вплотную).
+     Запасное значение равно умолчанию настройки. */
+  margin-left: var(--io-flybtn-gap, 12px);
+  vertical-align: baseline;
+  cursor: pointer;
+  font-size: 0.85em;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--background-modifier-hover);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  user-select: none;
+}
+.io-flybtn:hover {
+  color: var(--text-accent);
+  border-color: var(--text-accent);
+}
+
+/*
+ * Предпросмотр каретки (10.13.33 Ц8).
+ *
+ * Мерцает тем же шагом, каким мерцает CodeMirror: `steps(1)` — половину
+ * времени видна, половину нет, без затухания между. Толщину, сдвиг и цвет
+ * ставит блок предпросмотра переменными; сдвиг равен половине толщины, как у
+ * самого Obsidian (`marginLeft: -0.6px` при `borderLeft: 1.2px`), иначе
+ * каретка съезжает вправо тем сильнее, чем она толще.
+ */
+.io-caretline {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  font-family: var(--font-monospace, monospace);
+  color: var(--text-normal);
+}
+.io-caret {
+  display: inline-block;
+  width: 0;
+  height: 1.2em;
+  margin-left: var(--io-caret-shift, -0.6px);
+  border-left: var(--io-caret-width, 1.2px) solid var(--io-caret-color, var(--text-normal));
+  animation: io-caret-blink var(--io-caret-blink, 1200ms) steps(1) infinite;
+}
+/* Скорость 0 значит «не мигает». Нулевая длительность в CSS означает
+   «мгновенно», а не «никогда», поэтому анимация снимается целиком. */
+.io-caretline--still .io-caret {
+  animation: none;
+}
+@keyframes io-caret-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+/* Строка, уже перенесённая в заметку (10.13.12). Прозрачность и цвет ставит
+   декорация: они приходят из настроек, а не из стиля. */
+.io-done-line { transition: opacity 120ms ease; }
+
+/*
+ * Строка, на которой открыта панель TagWheel (замечания заказчика 2026-09-05,
+ * скриншоты `10.png`, `11.png`, `12.png`).
+ *
+ * **Заливку рисует подсветка Obsidian, перекрашенная в наш цвет.** Три захода
+ * ушло на то, чтобы это понять:
+ *
+ *   1. красили своим отрезком **поверх** — чужая подсветка полупрозрачна
+ *      (`--text-highlight-bg: rgba(255, 208, 0, 0.4)` в её `app.css`) и легла
+ *      на наш цвет, а не под него: «исходный цвет заливки obsidian
+ *      подмешивается в цвет panel-background»;
+ *   2. **гасили** чужую подсветку, а красили по-прежнему своим отрезком — и
+ *      остались без единственного сплошного слоя на строке. Отрезок `mark`
+ *      CodeMirror режет на своих границах — тег, вставка кода, спрятанные
+ *      `**`, — поэтому пробелы между ячейками побелели, а куски вышли разной
+ *      высоты: «по прежнему различается высота элементов, теперь ещё пустоты
+ *      стали белого цвета, а активный field вообще с непонятной прыгающей
+ *      рамкой»;
+ *   3. чужой слой **перекрашивается**: цвет панели приезжает на строку
+ *      переменной `--io-twfill` (декорация строки в `main.js`), и подсветка
+ *      `==…==` вместе с самими метками красится им. Слой ровно один, на весь
+ *      отрезок, рвать нечего (У-68);
+ *   4. а тег и вставку кода при этом **гасили** — и они побелели. Заказчик
+ *      прислал разметку строки из DevTools, и в ней видно, чего не было видно
+ *      ни на одном скриншоте: подсветка и тег — **один и тот же узел**,
+ *      `<span class="cm-hashtag … cm-highlight">`. Два правила спорили за
+ *      `background-color` одного элемента, специфичность одинаковая, и
+ *      побеждало то, что стоит ниже, — гашение (У-67, второй раз за заход).
+ *
+ * Поэтому теперь **одно** правило на все четыре имени: спорить нечему.
+ *
+ * Своя коробка у тега и у вставки кода снимается целиком — поля, рамка,
+ * скругление и кегль. Гасить их фон было нельзя, а оставить их коробку значит
+ * вернуть «разную высоту элементов»: у тега `--tag-padding-y` и `--tag-size`,
+ * у вставки кода `padding: .15em .3em` и свой моноширинный шрифт.
+ *
+ * Различать ячейки — по-прежнему работа `Non-active Field text color` и
+ * `Active Field text color`: пузыри Value слой внутрь панели не рисует.
+ */
+.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-highlight,
+.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-formatting-highlight,
+.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-hashtag,
+.markdown-source-view.mod-cm6 .cm-line.io-twline span.cm-inline-code {
+  background-color: var(--io-twfill, var(--text-highlight-bg));
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.io-srcprev {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.io-srcprev__cap {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.io-srcprev__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  overflow-x: auto;
+}
+.io-srcprev__line {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+  white-space: pre;
+}
+/* Дочерняя строка сдвинута классом, а не символом табуляции: так отступ виден
+   одинаково при любой ширине панели. */
+.io-srcprev__line--sub { padding-left: 18px; color: var(--text-muted); }
+
+/*
+ * Черта над списком Fields снята: её рисует платформа между строками
+ * настройки, и из-за неё список читался как отдельная настройка, а не как
+ * содержимое строки над ним — «кажется, что этот список не относится к опции
+ * source-fields-head» (замечание заказчика 2026-09-05).
+ *
+ * Отбор — по пометке строки своего блока (`data-io-item`), а не по всем своим
+ * блокам сразу: у остальных черта сверху на месте и разделяет их с соседями.
+ */
+[class*="io-group-"] .setting-item[data-io-item="source-fields"]::before {
+  content: none;
+}
+/*
+ * И пустоты между ними тоже нет: «черты нет, но есть много пустого места между
+ * source-fields-head и списком Fields — сделай, чтобы список шёл сразу после
+ * source-fields-head» (замечание заказчика 2026-09-05).
+ *
+ * Пустоту давала не черта, а поля строк: платформа кладёт каждой строке
+ * настройки по двадцать точек сверху и снизу (`--setting-items-padding-y`), и
+ * между двумя строками их складывалось сорок. Снимаются обе половины — низ у
+ * строки над списком и верх у самого списка, — иначе останется половина.
+ *
+ * Строку над списком платформа рисует сама, и своей пометки у неё нет:
+ * `data-io-item` панель ставит только своим блокам. Поэтому она ищется по
+ * соседству — «строка, за которой идёт этот блок».
+ */
+[class*="io-group-"] .setting-item:has(+ .setting-item[data-io-item="source-fields"]) {
+  padding-bottom: 0;
+}
+[class*="io-group-"] .setting-item[data-io-item="source-fields"] {
+  padding-top: 0;
+}
+
+/* Список Fields стоит своей карточкой на белом: на серой подложке строки
+   настройки его было «сложно различимо» (замечание заказчика 2026-09-04). */
+.io-keepfields__list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+.io-keepfields__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  cursor: pointer;
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+.io-keepfields__row + .io-keepfields__row { border-top: 1px solid var(--background-modifier-border); }
+.io-keepfields__name { flex: 1 1 auto; min-width: 0; }
+.io-keepfields__kind { flex: 0 0 auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+
 .io-vals__inner--link { min-width: 242px; }
 /*
  * Одно место, где задана сетка таблицы: колонок девять и порядок из Ф7.
@@ -1311,8 +1949,8 @@
   align-items: center;
   padding: 5px 0;
 }
-.io-kind__label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.io-kind--empty .io-kind__label { color: var(--text-faint); }
+.io-kind__label { font-size: var(--font-ui-smaller); color: var(--text-normal); }
+.io-kind--empty .io-kind__label { color: var(--text-muted); }
 .io-kind__chips {
   display: flex;
   flex-wrap: wrap;
@@ -1357,6 +1995,31 @@
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
   margin-bottom: 4px;
+}
+/*
+ * Имя Field, которое можно нажать: заводит условие «любое значение этого
+ * Field» (10.13.14). Выглядит подписью, ведёт себя кнопкой — подчёркивание
+ * появляется под курсором, чтобы её было видно, но она не спорила за внимание
+ * с самими значениями.
+ */
+.io-pickvals__name--pick {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+.io-pickvals__name--pick:hover:not(:disabled) {
+  color: var(--text-normal);
+  text-decoration: underline;
+}
+.io-pickvals__name--pick:disabled {
+  color: var(--text-faint);
+  cursor: default;
 }
 .io-pickvals__chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .io-vchip--pick {
@@ -1476,6 +2139,18 @@
   flex-wrap: wrap;
   align-items: center;
 }
+/*
+ * Поле `Add tag` — последняя строка таблицы, а не хвост под её левым углом
+ * (замечание заказчика 1.4.1.1). Отделено линией, чтобы новый тег визуально
+ * не смешивался с уже раскрашенными, и стоит на одном отступе с полем тега в
+ * строках: те же 10px, что у `.io-vals__row`.
+ */
+.io-vals--tags .io-rowactions {
+  margin-top: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: color-mix(in srgb, var(--text-normal) 4%, var(--background-primary));
+}
 /* Пояснение над списком: как менять порядок и кто выигрывает спор. */
 .io-note--lead { margin-top: 0; }
 .io-mono {
@@ -1516,7 +2191,7 @@
 .io-binder { min-width: 560px; }
 .io-binder .io-tablehead,
 .io-binder .io-tablerow {
-  grid-template-columns: 18px 62px minmax(88px, 0.8fr) minmax(120px, 1.3fr) 112px 26px;
+  grid-template-columns: 18px 62px minmax(88px, 0.8fr) minmax(120px, 1.3fr) 132px 26px;
 }
 .io-binder .io-tablerow { background: var(--background-primary); }
 .io-cellname {
@@ -1528,7 +2203,22 @@
 }
 .io-binder__desc { min-width: 0; }
 .io-binder__desc .io-text { width: 100%; min-width: 0; }
-/* Хоткей: моноширинный, в одну строку, и заметно бледнее, когда его нет. */
+/*
+ * Описание системной строки — текст, а не поле ввода: править его нельзя, а
+ * длинное оно не влезало в одну строку и обрезалось (замечание C11).
+ * Переносится по словам и держит высоту строки таблицы.
+ */
+.io-binder__note {
+  min-width: 0;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+/* Хоткей: моноширинный и заметно бледнее, когда его нет. Переносится по
+   словам: `Alt + Ctrl + Arrow Up` в одну строку не влезал и обрезался на
+   слове `Arrow` (замечание заказчика 1.2.3.3). */
 .io-hk {
   appearance: none;
   font-family: var(--font-monospace);
@@ -1539,9 +2229,9 @@
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   color: var(--text-normal);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.3;
 }
 .io-hk:hover:not(:disabled) { border-color: var(--interactive-accent); color: var(--text-accent); }
 .io-hk--none { color: var(--text-faint); font-family: var(--font-ui); }
@@ -1565,35 +2255,41 @@
   border-radius: var(--radius-s);
   background: var(--background-modifier-hover);
 }
-.io-floatrow .io-line { flex: 1 1 auto; min-width: 0; }
-/* Не кнопка, а её вид: нажимать здесь нечего (З8), поэтому и курсор обычный. */
-.io-float {
-  flex: 0 0 auto;
-  font-family: inherit;
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: 20px;
-  background: var(--interactive-accent);
-  border: 1px solid transparent;
-  color: var(--text-on-accent);
-  box-shadow: 0 2px 8px rgba(20, 17, 32, 0.2);
-  white-space: nowrap;
-}
+/*
+ * Строка занимает **свою ширину**, а не всю доступную: иначе кнопка
+ * прижималась к правому краю рамки и отступ слайдера было не разглядеть —
+ * «эта кнопка находится в крайней правой части preview вне зависимости от
+ * положения скроллера» (замечание заказчика 2026-09-05).
+ */
+.io-floatrow .io-line { flex: 0 1 auto; min-width: 0; }
+/* Правил по классу `io-float` здесь больше нет: предпросмотр рисует кнопку
+   тем же классом, что и заметка (`io-flybtn`), и таблетка `→ note` ушла
+   вместе с ним (замечание заказчика 2026-09-04). */
 /* ---- Color your Tags: цвета тегов вне Fields -----------------------------
-   Сетка та же по смыслу, что у таблицы Values, но колонок пять: имя тега (оно
-   же предпросмотр), два цвета, показ и кнопки. Сетка живёт здесь, а не в
-   атрибутах узлов. */
-.io-usertags .io-tablehead,
-.io-usertags .io-tablerow {
-  grid-template-columns: minmax(96px, 1fr) 34px 34px 96px 62px;
-}
-.io-usertags .io-tablefoot {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.io-usertags .io-tablefoot .io-text { flex: 1 1 auto; min-width: 0; }
-.io-usertags .io-side__empty { padding: 10px 12px; }
+
+   Правил по классу `io-usertags` здесь больше нет, и заводить их не надо: в
+   панели такого класса не существует. Он живёт в прототипе, где блок собран
+   иначе; панель рисует `io-usertagsblock` снаружи и таблицу `io-vals--tags`
+   внутри — те же классы, что у таблицы Values, со своей сеткой колонок
+   (правило стоит рядом с самой таблицей).
+
+   Целый блок правил, написанный по прототипным именам, не красил ничего и
+   пережил две сессии: заказчику пришлось написать про серый фон дважды.
+   Пин на это стоит в `settings_layer_tests.ts`. */
+/*
+ * Таблица `Color your Tags` стоит на белом, а не на подложке группы:
+ * «вся таблица сейчас серого цвета, сделай, чтобы фон места где должны быть
+ * пользовательские теги был белого цвета» (замечание заказчика 2026-09-04).
+ *
+ * Отбор идёт по `io-vals--tags`, а не по `io-usertags`: **в панели этого
+ * класса нет** — он остался от прототипа, где блок называется иначе. Первая
+ * правка была написана по прототипу и не красила ничего; заказчик увидел ту
+ * же серую строку и написал об этом второй раз.
+ *
+ * Шапка остаётся на подложке — она задаёт свой фон сама, и по ней видно, где
+ * начинается список.
+ */
+.io-vals--tags { background: var(--background-primary); }
 /* Окно подтверждения: список того, что изменится (Н3). */
 .io-dlg__list {
   margin: 10px 0 0;
@@ -1605,3 +2301,148 @@
 }
 .io-dlg__list li { margin: 2px 0; }
 .io-dlg__note { margin-top: 10px; }
+/* Окно выбора копии настроек (10.13.2, Б9): строка — кнопка в две строки
+   текста. Список проматывается: копий у человека может быть много, а окно
+   Obsidian выше экрана расти не должно. */
+.io-dlg__picks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  /* `min-height: 0` — иначе flex-контейнер не даёт списку сжаться и прокрутка
+     не включается: то же правило, что и у полос вкладок. */
+  min-height: 0;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+/*
+ * Строка выбора — кнопка с двумя строками текста внутри, и вся правка тут про
+ * то, что Obsidian задаёт всем кнопкам в `app.css`:
+ *
+ *     button { height: var(--input-height); white-space: nowrap;
+ *              display: inline-flex; align-items: center }
+ *
+ * Фиксированная высота и запрет переноса и делали окно «зажёванным»: вторая
+ * строка не влезала в 30 пикселей и уезжала под соседнюю. В типах платформы
+ * этого правила нет (У-44), и `display: block` его не снимал — высоту он не
+ * трогает. Поэтому высота и перенос переопределяются здесь явно.
+ */
+.io-dlg__pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  flex: 0 0 auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-family: inherit;
+  font-weight: normal;
+  padding: 10px 12px;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  box-shadow: none;
+  cursor: pointer;
+}
+.io-dlg__pick:hover,
+.io-dlg__pick:focus-visible {
+  border-color: var(--interactive-accent);
+  background: var(--background-modifier-hover);
+}
+.io-dlg__pick-name {
+  color: var(--text-normal);
+  font-weight: var(--font-medium);
+  line-height: var(--line-height-tight);
+}
+.io-dlg__pick-sub {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  line-height: var(--line-height-tight);
+}
+/* Имя файла: тише состава, но читается — им и различаются две копии одной минуты. */
+.io-dlg__pick-note {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  line-height: var(--line-height-tight);
+  font-family: var(--font-monospace);
+}
+/* ---- справочник команд (10.5) ------------------------------------------ */
+/* Вёрстка снята с прототипа: `.io-cmd*` там же, где и остальное. Таблица не
+   сжимается ниже читаемого — узкую панель проматывает `io-scroll`. */
+.io-cmd {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+.io-cmd__inner { min-width: 560px; }
+.io-cmd__head,
+.io-cmd__row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.3fr) 132px;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 12px;
+}
+.io-cmd__head {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--background-primary-alt);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+/*
+ * Три ступени заливки у рубрикаторов справочника: раздел, часть раздела,
+ * Field. Цвет один, меняется только его доля — так глубина читается сразу и
+ * не спорит с темой (замечание заказчика 1.2.1.2).
+ *
+ * Доля берётся от `--text-normal`, а не от готового фона: в светлой теме этот
+ * цвет тёмный, в тёмной светлый, и подмешивание всегда усиливает контраст с
+ * основой. Литеральный серый в одной из тем стал бы пятном (З6).
+ */
+.io-cmd__area {
+  padding: 7px 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--text-normal) 12%, var(--background-primary));
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.io-cmd__area:not(:first-child) { border-top: 1px solid var(--background-modifier-border); }
+/* Подпись части области: стандартные команды и созданные из Fields
+   (замечания заказчика 1.2.3.4.1 и 1.2.3.4.2). Тише рубрикатора области и
+   заметнее описания. */
+.io-cmd__sub {
+  grid-column: 1 / -1;
+  padding: 5px 12px 5px 20px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--text-normal) 7%, var(--background-primary));
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+/* Подзаголовок Field внутри второй части: `task (tag)` (замечание заказчика
+   2026-08-31). Третий уровень, поэтому отступ больше, а вес меньше. */
+.io-cmd__field {
+  grid-column: 1 / -1;
+  padding: 4px 12px 4px 28px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--text-normal) 4%, var(--background-primary));
+}
+.io-cmd__row + .io-cmd__row { border-top: 1px solid var(--background-modifier-border); }
+.io-cmd__name { font-size: var(--font-ui-small); color: var(--text-normal); }
+.io-cmd__does {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  text-align: left;
+  max-width: none;
+}

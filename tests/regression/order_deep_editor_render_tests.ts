@@ -70,7 +70,8 @@ function makeConfig(): Any {
     ui: { pkmSubTab: "main", orderShowDeepEditor: true, orderShowInfoTips: false },
     pkm: {
       taxonomy: {},
-      behavior: {
+      lineFormat: { separator1: "||", separator2: "||" },
+      fields: {
         order: {
           left: ["status", "status_sub"],
           right: ["project"],
@@ -82,19 +83,20 @@ function makeConfig(): Any {
           freeRoam: { status: "off", status_sub: "off", project: "off" },
           enabled: { status: true, status_sub: true, project: true },
         },
-        leftMode: {
+        tags: {
           fields: [
             { id: "status", orderKey: "status", values: [{ token: "#todo" }] },
             { id: "status_sub", orderKey: "status_sub", values: [{ token: "#early", allowedParentValues: ["#todo"] }] },
           ],
         },
-        rightMode: {
+        links: {
           fields: [{ id: "project", orderKey: "project", source: "projects", values: [{ token: "[[A]]" }] }],
         },
         elements: { fields: ["status"], byField: { status: { emoji: "x" } } },
-        io: { separator1: "||", separator2: "||" },
-        tagVisuals: { byTag: {}, byField: {} },
       },
+    },
+    visual: {
+      tags: { byTag: {}, byField: {} },
     },
   };
 }
@@ -228,7 +230,7 @@ async function main(): Promise<void> {
     byText(dialog, "Cancel").onclick();
     await settle();
     assert.equal(plugin.patches.length, 0, "после отказа не должно быть ни одной записи");
-    assert.deepEqual(cfg.pkm.behavior.order.left, ["status", "status_sub"], "Order остался как был");
+    assert.deepEqual(cfg.pkm.fields.order.left, ["status", "status_sub"], "Order остался как был");
   });
 
   await test("подтверждение удаляет Field вместе с подполем", async () => {
@@ -244,7 +246,7 @@ async function main(): Promise<void> {
 
     const orderPatch = plugin.patches.find((p: Patch) => p.reason.startsWith("pkm:behavior:order:delete:"));
     assert.ok(orderPatch, "нет записи Order: " + plugin.patches.map((p: Patch) => p.reason).join(", "));
-    const order = orderPatch.patch.pkm.behavior.order;
+    const order = orderPatch.patch.pkm.fields.order;
 
     assert.deepEqual(order.left, [], "из левой стороны уходит и Field, и его подполе");
     assert.deepEqual(order.right, ["project"], "чужая сторона не трогается");
@@ -274,10 +276,10 @@ async function main(): Promise<void> {
 
     const fieldsPatch = plugin.patches.find((p: Patch) => p.reason.startsWith("pkm:behavior:delete-field:"));
     assert.ok(fieldsPatch, "нет записи описаний Field");
-    const behavior = fieldsPatch.patch.pkm.behavior;
+    const behavior = fieldsPatch.patch.pkm.fields;
 
-    assert.deepEqual(behavior.leftMode.fields, [], "описания Field и подполя уходят");
-    assert.equal(behavior.rightMode.fields.length, 1, "правая сторона не трогается");
+    assert.deepEqual(behavior.tags.fields, [], "описания Field и подполя уходят");
+    assert.equal(behavior.links.fields.length, 1, "правая сторона не трогается");
     assert.deepEqual(behavior.elements.fields, [], "из списка элементов ключ уходит");
     assert.ok(!Object.prototype.hasOwnProperty.call(behavior.elements.byField, "status"),
       "и из настроек элемента тоже");
@@ -295,7 +297,7 @@ async function main(): Promise<void> {
     await settle();
 
     const orderPatch = plugin.patches.find((p: Patch) => p.reason.startsWith("pkm:behavior:order:delete:"));
-    const order = orderPatch.patch.pkm.behavior.order;
+    const order = orderPatch.patch.pkm.fields.order;
     assert.deepEqual(order.left, ["status", "status_sub"], "левая сторона цела");
     assert.deepEqual(order.right, [], "удалённый Field уходит из своей стороны");
     assert.equal(order.lead.right, "", "ведущий справа очищен");

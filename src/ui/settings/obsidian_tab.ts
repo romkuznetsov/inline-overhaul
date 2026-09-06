@@ -20,8 +20,17 @@ import { SCHEMA, TABS } from "./schema/index.ts";
 import type { TabDef, TabId } from "./types.ts";
 import { SettingsPane } from "./settings_tab.ts";
 import { ConfigStoreAdapter, type ConfigStoreLike } from "./store.ts";
-import { buildActions, type ConfirmRequest, type VaultSeam } from "./actions.ts";
+import {
+  buildActions,
+  type BackupFile,
+  type ConfigSeam,
+  type ConfirmRequest,
+  type HotkeySeam,
+  type PickRequest,
+  type VaultSeam,
+} from "./actions.ts";
 import { el } from "./custom/dom.ts";
+import { tabStripRow } from "./custom/tab_strip.ts";
 import type { ActionId } from "./types.ts";
 
 /** То, что слою настроек нужно от плагина. */
@@ -57,6 +66,10 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
       if (typeof plugin.getConfig === "function") return plugin.getConfig();
       return {};
     },
+    subscribe(listener) {
+      if (typeof store.subscribe !== "function") return () => {};
+      return store.subscribe(listener);
+    },
     update(mutator, reason, opts) {
       /* ConfigStore ждёт функцию, которая возвращает следующий конфиг. */
       return store.update(
@@ -67,63 +80,6 @@ function storeFor(plugin: HostPlugin): ConfigStoreLike {
         reason,
         opts,
       );
-    },
-  };
-}
-
-/**
- * Полоса вкладок (решение заказчика 2026-08-24). Декларативный API её не
- * умеет, поэтому она рисуется своей вёрсткой в строке `render`, а настройки
- * открытой вкладки по-прежнему рисует платформа.
- *
- * Полоса наша — значит и клавиатура наша (5.4): это `tablist`, между
- * вкладками ходят стрелками, в обход табуляции остаётся только активная.
- */
-function tabStripRow(state: {
-  tabs: readonly TabDef[];
-  active: TabId;
-  pick: (id: TabId) => void;
-}): unknown {
-  return {
-    name: "",
-    searchable: false,
-    render: (setting: Setting) => {
-      const row = setting.settingEl;
-      row.empty();
-      row.addClass("io-tabsrow");
-
-      const strip = row.createDiv({ cls: "io-tabs" });
-      strip.setAttribute("role", "tablist");
-      strip.setAttribute("aria-label", "Settings areas");
-
-      const buttons: HTMLElement[] = [];
-      state.tabs.forEach(tab => {
-        const isActive = tab.id === state.active;
-        const btn = strip.createEl("button", {
-          cls: "io-tab" + (isActive ? " io-tab--active" : ""),
-          text: tab.label,
-        });
-        btn.setAttribute("role", "tab");
-        btn.setAttribute("aria-selected", isActive ? "true" : "false");
-        btn.tabIndex = isActive ? 0 : -1;
-        if (tab.desc) btn.setAttribute("aria-description", tab.desc);
-        btn.addEventListener("click", () => state.pick(tab.id));
-        buttons.push(btn);
-      });
-
-      /* Стрелки ходят по полосе, Home и End прыгают на края. */
-      strip.addEventListener("keydown", (ev: KeyboardEvent) => {
-        const at = state.tabs.findIndex(t => t.id === state.active);
-        let next = -1;
-        if (ev.key === "ArrowRight") next = (at + 1) % state.tabs.length;
-        else if (ev.key === "ArrowLeft") next = (at - 1 + state.tabs.length) % state.tabs.length;
-        else if (ev.key === "Home") next = 0;
-        else if (ev.key === "End") next = state.tabs.length - 1;
-        if (next < 0) return;
-        ev.preventDefault();
-        const tab = state.tabs[next];
-        if (tab) state.pick(tab.id);
-      });
     },
   };
 }
@@ -176,18 +132,227 @@ function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
 }
 
 /**
+ * Окно выбора копии настроек (Б9). Отдельное от окна подтверждения: там ответ
+ * «да или нет», здесь — «какая из». Закрытие мимо строк — отказ.
+ */
+function askPick(app: App, o: PickRequest): Promise<string | null> {
+  return new Promise<string | null>(resolve => {
+    let answered = false;
+    const finish = (value: string | null): void => {
+      if (answered) return;
+      answered = true;
+      resolve(value);
+    };
+
+    class PickModal extends Modal {
+      override onOpen(): void {
+        const box = this.contentEl as unknown as import("./custom/dom.ts").El;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", undefined, o.title);
+        el(box, "p", "io-item__desc", o.body);
+        const list = el(box, "div", "io-dlg__picks");
+        for (const option of o.options) {
+          const row = list.createEl("button", { cls: "io-dlg__pick", attr: { type: "button" } });
+          el(row as unknown as import("./custom/dom.ts").El, "div", "io-dlg__pick-name", option.label);
+          if (option.sub) {
+            el(row as unknown as import("./custom/dom.ts").El, "div", "io-dlg__pick-sub", option.sub);
+          }
+          if (option.note) {
+            el(row as unknown as import("./custom/dom.ts").El, "div", "io-dlg__pick-note", option.note);
+          }
+          row.addEventListener("click", (() => { finish(option.value); this.close(); }) as never);
+        }
+        const foot = el(box, "div", "io-dlg__foot");
+        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
+      }
+
+      override onClose(): void {
+        finish(null);
+        this.contentEl.empty();
+      }
+    }
+
+    new PickModal(app).open();
+  });
+}
+
+/**
  * Vault для руководства. Единственное место, где слой настроек пишет файл в
  * хранилище, и оно здесь по той же причине, что и окно подтверждения: это
  * платформа, а реестр действий обязан собираться без неё.
  */
 function vaultSeam(app: App): VaultSeam {
   return {
-    exists: (path: string) => !!app.vault.getAbstractFileByPath(path),
+    /*
+     * `exists` идёт через адаптер, а не через `getAbstractFileByPath`: копия
+     * переезда лежит в папке плагина, а её файлы в дерево vault не попадают.
+     */
+    exists: async (path: string) => await app.vault.adapter.exists(path),
     create: async (path: string, text: string) => { await app.vault.create(path, text); },
     open: async (path: string) => {
       const file = app.vault.getAbstractFileByPath(path);
       if (!file) throw new Error("Cannot open " + path);
       await app.workspace.getLeaf(true).openFile(file as never);
+    },
+    read: async (path: string) => await app.vault.adapter.read(path),
+    /*
+     * Папка под копии создаётся при первом сохранении, не раньше (Б2). Уже
+     * существующая — не ошибка: адаптер об этом сообщает исключением, и оно
+     * здесь гасится намеренно.
+     */
+    ensureFolder: async (path: string) => {
+      const folder = String(path || "").replace(/\/+$/, "");
+      if (!folder) return;
+      if (await app.vault.adapter.exists(folder)) return;
+      try {
+        await app.vault.createFolder(folder);
+      } catch (e) {
+        if (!await app.vault.adapter.exists(folder)) throw e;
+      }
+    },
+    list: async (folder: string): Promise<BackupFile[]> => {
+      const path = String(folder || "").replace(/\/+$/, "");
+      if (!path || !(await app.vault.adapter.exists(path))) return [];
+      const found = await app.vault.adapter.list(path);
+      const out: BackupFile[] = [];
+      for (const file of found.files || []) {
+        let mtime = 0;
+        try {
+          const stat = await app.vault.adapter.stat(file);
+          mtime = stat && typeof stat.mtime === "number" ? stat.mtime : 0;
+        } catch (e) {
+          mtime = 0;
+        }
+        out.push({ path: file, mtime });
+      }
+      return out;
+    },
+  };
+}
+
+/**
+ * Хранилище для копий настроек. Чтение — снимок, запись — тот же `update`,
+ * которым пишет вся панель: миграция, undo и сохранение достаются даром.
+ */
+function configSeam(plugin: HostPlugin): ConfigSeam {
+  const store = storeFor(plugin);
+  return {
+    /* Снимок, а не живой объект: восстановление собирает следующий конфиг из
+       нынешнего, и подмена под руками ему не нужна. */
+    get: () => JSON.parse(JSON.stringify(store.getConfig())) as Record<string, unknown>,
+    replace: async (next: Record<string, unknown>) => {
+      const before = JSON.stringify(store.getConfig());
+      await store.update(
+        cfg => {
+          for (const key of Object.keys(cfg)) delete cfg[key];
+          Object.assign(cfg, next);
+        },
+        "settings:restore-backup",
+      );
+      return JSON.stringify(store.getConfig()) !== before;
+    },
+  };
+}
+
+function pluginVersionOf(plugin: HostPlugin): string {
+  const manifest = (plugin as { manifest?: { version?: unknown } }).manifest;
+  return manifest && manifest.version ? String(manifest.version) : "";
+}
+
+/**
+ * Хоткеи команд плагина: прочитать и вернуть назад (Б18, вопрос В-32).
+ *
+ * **Служебное API Obsidian, и это второе исключение к 7.2.** Первое — колонка
+ * `Hotkey` в справочнике команд (К-2), только чтение. Здесь появляется запись,
+ * и разрешение на неё дано заказчиком 2026-09-04 после разбора.
+ *
+ * Что именно читалось в `app.js` Obsidian 1.13.7, чтобы это писать не наугад:
+ *
+ *   - `hotkeyManager.customKeys` — **геттер, отдающий копию**
+ *     (`Object.assign({}, this[Symbol("customKeys")])`). Присвоить ему нельзя:
+ *     настоящее хранилище лежит под символом. Отсюда `setHotkeys`, а не
+ *     присваивание.
+ *   - `setHotkeys(id, list)` кладёт список и сбрасывает `baked` — новая
+ *     привязка начинает работать сразу, без перезапуска.
+ *   - `removeHotkeys(id)` убирает запись целиком: команда возвращается к
+ *     умолчанию плагина, если оно есть.
+ *   - `save()` пишет `hotkeys.json` через `vault.writeConfigJson`. Без него
+ *     назначение живёт до конца сеанса.
+ *
+ * **Трогаются только свои команды.** Идентификатор команды в Obsidian —
+ * `<id плагина>:<id команды>`, и всё, что не начинается с нашего префикса,
+ * пропускается в обе стороны. Восстановление копии не имеет права снять
+ * хоткей другого плагина или самого Obsidian, и это единственное место, где
+ * такое ограничение можно нарушить.
+ */
+interface HotkeyManagerApi {
+  customKeys?: Record<string, unknown>;
+  setHotkeys?: (id: string, bindings: unknown[]) => void;
+  removeHotkeys?: (id: string) => void;
+  save?: () => Promise<void> | void;
+}
+
+function hotkeyManagerOf(app: App): HotkeyManagerApi | null {
+  const holder = app as unknown as { hotkeyManager?: unknown };
+  const value = holder && typeof holder === "object" ? holder.hotkeyManager : null;
+  return value && typeof value === "object" ? (value as HotkeyManagerApi) : null;
+}
+
+/** Префикс идентификаторов команд плагина: `<id плагина>:`. */
+function commandPrefixOf(plugin: HostPlugin): string {
+  const manifest = (plugin as { manifest?: { id?: unknown } }).manifest;
+  const id = manifest && manifest.id ? String(manifest.id) : "inline-overhaul";
+  return id + ":";
+}
+
+function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
+  const prefix = commandPrefixOf(plugin);
+  const mine = (id: string): boolean => String(id || "").startsWith(prefix);
+
+  return {
+    read: () => {
+      const out: Record<string, unknown[]> = {};
+      const hm = hotkeyManagerOf(app);
+      const custom = hm && hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : null;
+      if (!custom) return out;
+      for (const id of Object.keys(custom)) {
+        if (!mine(id)) continue;
+        const value = custom[id];
+        if (Array.isArray(value)) out[id] = value as unknown[];
+      }
+      return out;
+    },
+
+    write: async (map: Record<string, unknown[]>) => {
+      const hm = hotkeyManagerOf(app);
+      if (!hm || typeof hm.setHotkeys !== "function" || typeof hm.removeHotkeys !== "function") {
+        throw new Error("This build of Obsidian does not let the plugin write hotkeys");
+      }
+      const wanted = new Set<string>();
+      let touched = 0;
+      for (const id of Object.keys(map || {})) {
+        if (!mine(id)) continue;
+        const bindings = Array.isArray(map[id]) ? map[id] : [];
+        wanted.add(id);
+        hm.setHotkeys(id, bindings);
+        touched++;
+      }
+      /*
+       * Своё, чего в копии нет, снимается: копия описывает состояние целиком,
+       * и оставленный хоткей был бы состоянием, которого в ней не было. Ровно
+       * так же поступает восстановление настроек — заменой, а не слиянием
+       * (Б10).
+       */
+      const custom = hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : {};
+      for (const id of Object.keys(custom)) {
+        if (!mine(id) || wanted.has(id)) continue;
+        hm.removeHotkeys(id);
+        touched++;
+      }
+      if (typeof hm.save === "function") await Promise.resolve(hm.save());
+      return touched;
     },
   };
 }
@@ -209,10 +374,19 @@ export class InlineOverhaulSettings extends PluginSettingTab {
        * не попадает вовсе — этим занят `READY_ACTIONS` в `actions.ts`.
        */
       actions: buildActions({
-        plugin: plugin as never,
         notify: (message: string) => { new Notice(message); },
         confirm: (o: ConfirmRequest) => askConfirm(app, o),
+        pick: (o: PickRequest) => askPick(app, o),
         vault: vaultSeam(app),
+        /*
+         * Копии настроек пишутся и читаются через то же хранилище, что и всё
+         * остальное: замена идёт `update`-мутатором и потому проходит миграцию
+         * (CS10). Второй точки записи в конфиг нет.
+         */
+        config: configSeam(plugin),
+        pluginVersion: pluginVersionOf(plugin),
+        /* Хоткеи: второе исключение к 7.2, разрешение заказчика 2026-09-04. */
+        hotkeys: hotkeySeam(app, plugin),
       }) as Record<string, () => Promise<void> | void>,
       /* То же окно и для сброса группы (Н3). */
       confirm: (o: ConfirmRequest) => askConfirm(app, o),
@@ -235,6 +409,12 @@ export class InlineOverhaulSettings extends PluginSettingTab {
           Modal,
           AbstractInputSuggest,
           setIcon: (node: unknown, icon: string) => { setIcon(node as HTMLElement, icon); },
+          /*
+           * Пути заметок vault: из них собирается список шаблонов (1.6.2.4).
+           * Список файлов Obsidian держит в памяти, поэтому чтение синхронное
+           * и годится для `getSettingDefinitions` (П-11).
+           */
+          listNotes: () => app.vault.getMarkdownFiles().map(f => f.path),
           plugin,
           getConfig: () => (typeof plugin.getConfig === "function" ? plugin.getConfig() : {}),
           normalizePkmOrder,

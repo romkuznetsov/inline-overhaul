@@ -174,8 +174,8 @@ function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, sha
 }
 
 function readTagVisualsConfig(cfg) {
-  const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-  const visuals = behavior && behavior.tagVisuals ? behavior.tagVisuals : {};
+  const behavior = cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields : {};
+  const visuals = cfg && cfg.visual && cfg.visual.tags ? cfg.visual.tags : {};
   const opacity = visuals && visuals.opacity ? visuals.opacity : {};
   const strip = visuals && visuals.strip ? visuals.strip : {};
   const toOpacity = (value, fallback) => {
@@ -465,8 +465,8 @@ function renderPkmOrderBoardSection(ctx) {
       const out = { key: k, kind };
       if (kind === "element") {
         const live = plugin.getConfig();
-        const byField = live && live.pkm && live.pkm.behavior && live.pkm.behavior.elements && live.pkm.behavior.elements.byField
-          ? live.pkm.behavior.elements.byField
+        const byField = live && live.pkm && live.pkm.fields && live.pkm.fields.elements && live.pkm.fields.elements.byField
+          ? live.pkm.fields.elements.byField
           : {};
         const ec = byField && byField[k] ? byField[k] : {};
         const inc = ec && ec.increment ? ec.increment : {};
@@ -2184,8 +2184,8 @@ function renderPkmOrderBoardSection(ctx) {
       line.style.padding = "2px 0";
     }
 
-    const sep1 = String((cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator1) || "||").trim() || "||";
-    const sep2 = String((cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator2) || "||").trim() || "||";
+    const sep1 = String((cfg && cfg.pkm && cfg.pkm.lineFormat && cfg.pkm.lineFormat.separator1) || "||").trim() || "||";
+    const sep2 = String((cfg && cfg.pkm && cfg.pkm.lineFormat && cfg.pkm.lineFormat.separator2) || "||").trim() || "||";
 
     const toType = (key) => {
       const k = String(key || "").trim();
@@ -2198,10 +2198,10 @@ function renderPkmOrderBoardSection(ctx) {
         if (t === "element") return "element";
         if (t === "tag") return "tag";
       }
-      const behaviorNow = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
+      const behaviorNow = cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields : {};
       const fields = []
-        .concat(Array.isArray(behaviorNow.leftMode && behaviorNow.leftMode.fields) ? behaviorNow.leftMode.fields : [])
-        .concat(Array.isArray(behaviorNow.rightMode && behaviorNow.rightMode.fields) ? behaviorNow.rightMode.fields : []);
+        .concat(Array.isArray(behaviorNow.tags && behaviorNow.tags.fields) ? behaviorNow.tags.fields : [])
+        .concat(Array.isArray(behaviorNow.links && behaviorNow.links.fields) ? behaviorNow.links.fields : []);
       const field = fields.find((f) => {
         const id = String(f && f.id || "").trim();
         const orderKey = String(f && f.orderKey || "").trim();
@@ -2342,8 +2342,8 @@ function renderPkmOrderBoardSection(ctx) {
     }
 
     const cfgNow = plugin.getConfig();
-    const visualsNow = cfgNow && cfgNow.pkm && cfgNow.pkm.behavior && cfgNow.pkm.behavior.tagVisuals
-      ? cfgNow.pkm.behavior.tagVisuals
+    const visualsNow = cfgNow && cfgNow.visual && cfgNow.visual.tags
+      ? cfgNow.visual.tags
       : {};
     const userTagsMap = visualsNow && visualsNow.userTags && typeof visualsNow.userTags === "object"
       ? visualsNow.userTags
@@ -2373,7 +2373,7 @@ function renderPkmOrderBoardSection(ctx) {
           ? (String(patch.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default")
           : (String(cur.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default"),
       };
-      plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [tok]: next } } } } }, reason || "pkm:visuals:user-tags");
+      plugin.setConfigPatch({ visual: { tags: { userTags: { [tok]: next } } } }, reason || "pkm:visuals:user-tags");
     };
 
     for (const token of tokens) {
@@ -2412,7 +2412,7 @@ function renderPkmOrderBoardSection(ctx) {
       if (normalizeHexColorInput(state.textColor)) preview.style.color = normalizeHexColorInput(state.textColor);
       const del = row.createEl("button", { text: "x" });
       del.onclick = () => {
-        plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: null } } } } }, "pkm:visuals:user-tags:delete");
+        plugin.setConfigPatch({ visual: { tags: { userTags: { [token]: null } } } }, "pkm:visuals:user-tags:delete");
         renderOrderBoard();
       };
       const applyPreview = () => {
@@ -2467,7 +2467,7 @@ function renderPkmOrderBoardSection(ctx) {
       const raw = String(addInput.value || "").trim();
       const token = raw ? (raw.charAt(0) === "#" ? raw : `#${raw}`) : "";
       if (!/^#\S+/.test(token)) return;
-      plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: { fillColor: "", textColor: "", visibility: "default" } } } } } }, "pkm:visuals:user-tags:add");
+      plugin.setConfigPatch({ visual: { tags: { userTags: { [token]: { fillColor: "", textColor: "", visibility: "default" } } } } }, "pkm:visuals:user-tags:add");
       addInput.value = "";
       renderOrderBoard();
     };

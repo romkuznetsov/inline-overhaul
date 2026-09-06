@@ -18,17 +18,17 @@ function makeConfig(overrides) {
     outputFolder: "Notes",
     defaultTemplate: "",
     smartRules: [],
-    noteName: { mode: "auto", explicitNameDelimiters: "[]", autoWordsCount: 6, preferHeaderTitle: true },
+    noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: true },
     nameCollision: { mode: "new_note" },
-    placement: { position: "end", headerMode: "none", customHeaderText: "", datetimeHeaderFormat: "YYYY-MM-DD" },
-    sourceProcessing: { cleanupFieldIds: [], processedToken: "", processedTokenPanel: "right", replacePayloadWithLink: true },
-    sublinesBehavior: "stay",
+    placement: { position: "end", headerMode: "none", customHeader: "", datetimeFormat: "YYYY-MM-DD" },
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true },
+    sublines: "stay",
     ...(overrides || {}),
   };
   return {
     features: { transform: { enabled: true } },
     transform: { inline2note: i2n },
-    pkm: { behavior: { io: { separator1: "::", separator2: "::" }, order: { left: [], right: [], active: {}, enabled: {}, types: {}, propertiesByField: {} }, leftMode: { fields: [] }, rightMode: { fields: [] } } },
+    pkm: { lineFormat: { separator1: "::", separator2: "::" }, fields: { order: { left: [], right: [], active: {}, enabled: {}, types: {}, propertiesByField: {} }, tags: { fields: [] }, links: { fields: [] } } },
   };
 }
 
@@ -99,9 +99,9 @@ async function testNewNoteRaceUsesActualPathLink() {
 
 async function testReplacePayloadFalse() {
   const editor = makeEditor("- [ ] :: Keep me");
-  const plugin = makePlugin(makeConfig({ sourceProcessing: { cleanupFieldIds: [], processedToken: "#done", processedTokenPanel: "right", replacePayloadWithLink: false } }), editor);
+  const plugin = makePlugin(makeConfig({ sourceProcessing: { cleanupFieldIds: [], token: "#done", panel: "right", replaceWithLink: false } }), editor);
   await transform.runInline2Note(plugin, { lineFinalize });
-  assertEq(editor.text(), "- [ ] :: Keep me :: #done", "replacePayloadWithLink false preserves payload and inserts processed token");
+  assertEq(editor.text(), "- [ ] :: Keep me :: #done", "replaceWithLink false preserves payload and inserts processed token");
 }
 
 async function testSourceFailureRollsBackCreatedTarget() {
@@ -135,7 +135,7 @@ async function testAddToNoteDoesNotDuplicateTemplateOrHeader() {
   const config = makeConfig({
     defaultTemplate: "Templates/Missing.md",
     nameCollision: { mode: "add_to_note" },
-    placement: { position: "end", headerMode: "custom", customHeaderText: "### Custom", datetimeHeaderFormat: "YYYY" },
+    placement: { position: "end", headerMode: "custom", customHeader: "### Custom", datetimeFormat: "YYYY" },
   });
   const plugin = makePlugin(config, editor, { initialFiles: { "Notes/Existing.md": "---\nkeep: yes\n---\nTemplate body\n" } });
   await transform.runInline2Note(plugin, { lineFinalize });

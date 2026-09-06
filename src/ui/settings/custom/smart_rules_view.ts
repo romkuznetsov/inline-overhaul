@@ -21,8 +21,9 @@
 
 import type { El, ElInput, DragEv } from "./dom.ts";
 import { el, btn, selectInput, textInput } from "./dom.ts";
-import type { RuleKind, RuleRow, RulesModel } from "./smart_rules_model.ts";
-import { RULE_KINDS } from "./smart_rules_model.ts";
+import type { RowKind, RuleKind, RuleRow, RulesModel } from "./smart_rules_model.ts";
+import { ROW_KINDS } from "./smart_rules_model.ts";
+import { templatesEmptyChoice } from "../templates.ts";
 
 /* ---- тексты: сняты с прототипа (Приложение B, 10.8) -------------------- */
 
@@ -31,7 +32,15 @@ const KIND_LABEL: Record<RuleKind, string> = {
   tags: "Tag",
   emojiFields: "Element",
   wikilinks: "Link",
+  /* Своей строки у Field больше нет; подпись осталась для подписей кнопок. */
+  fields: "Field",
 };
+
+/**
+ * Хвост чипа условия «любое значение Field» (10.13.7). Условие хранит id
+ * Field, а читается оно словами: `Importance — any Value`.
+ */
+const ANY_VALUE = " \u2014 any Value";
 
 const RULE_NAME_PLACEHOLDER = "Name this rule (optional)";
 /** Имя пустое — правило зовётся по своему месту в очереди (С-3). */
@@ -39,8 +48,14 @@ const RULE_FALLBACK = "Rule ";
 /** У типа нет условий — правило не смотрит на него вовсе. */
 const KIND_ANY = "any";
 const ADD_RULE = "Add rule";
-const TEMPLATE_LEAD = "use";
+const TEMPLATE_LEAD = "Use template";
 const TEMPLATE_NONE = "None";
+/* Папка новой заметки у правила (10.13.8). */
+const FOLDER_LEAD = "Move to folder";
+const FOLDER_DEFAULT = "Default";
+const FOLDER_NEAR = "Near current note";
+const FOLDER_OTHER = "Another folder\u2026";
+const FOLDER_PLACEHOLDER = "type or pick a folder";
 /** Пустой список: правил нет, и это приглашение, а не ошибка (ПЗ2, ПЗ3). */
 const EMPTY_RULES = "no rules yet — the default template is used for every line";
 
@@ -59,12 +74,24 @@ export interface RulesViewOpts {
   enabled: boolean;
   /** Шаблоны из vault: имя файла и есть значение. */
   templates: readonly string[];
+  /** Папка, из которой они взяты: нужна подписи пустого списка (1.6.6.2). */
+  templatesFolder?: string;
   redraw: () => void;
   /**
    * Спросить значение условия. Окно рисует панель: `Modal` принадлежит
    * платформе, а блок про неё знать не должен. `null` — человек отказался.
    */
-  askCondition: (kind: RuleKind, done: (value: string | null) => void) => void;
+  askCondition: (
+    kind: RuleKind,
+    done: (answer: { kind: "value" | "field"; id: string } | null) => void,
+  ) => void;
+  /**
+   * Повесить на поле подсказчик папок vault. Его даёт панель: класс
+   * `AbstractInputSuggest` принадлежит платформе, а вёрстка обязана
+   * рисоваться и на заглушке (Г16). Нет подсказчика — поле остаётся обычным
+   * полем ввода, и папку можно вписать руками.
+   */
+  folderSuggest?: (input: ElInput, write: (value: string) => void) => void;
 }
 
 /** Номер правила и его имя: по имени человек его и зовёт. */
@@ -76,24 +103,43 @@ function ruleTitle(row: RuleRow, index: number): string {
  * Строка условий одного типа: подпись, значения и кнопка `+`. Значения
  * перечислены через `or`, и это подпись, а не контрол.
  */
-function kindRow(host: El, row: RuleRow, kind: RuleKind, o: RulesViewOpts): void {
+function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void {
+  /*
+   * В строке стоят и значения этого типа, и Fields этого типа целиком —
+   * через `or`, одним списком. Отдельной строки `Field` больше нет: заказчик
+   * просил «вместо того, чтобы накликивать отдельные values», а прежняя
+   * строка соединялась с остальными через `and`, то есть значила обратное
+   * (B14, решение 2026-09-03).
+   *
+   * Field, тип которого неизвестен (его удалили из конфига), не попадает ни в
+   * одну строку — и правило он тоже не блокирует, см. `selectSmartRule`.
+   */
   const values = row.conditions[kind];
-  const box = el(host, "div", "io-kind" + (values.length ? "" : " io-kind--empty"));
+  const fields = row.conditions.fields.filter(id => o.model.fieldRowKind(id) === kind);
+  const items: Array<{ shown: string; kind: RuleKind; value: string }> = values
+    .map(value => ({ shown: value, kind: kind as RuleKind, value }))
+    .concat(fields.map(id => ({
+      shown: o.model.fieldLabel(id) + ANY_VALUE,
+      kind: "fields" as RuleKind,
+      value: id,
+    })));
+
+  const box = el(host, "div", "io-kind" + (items.length ? "" : " io-kind--empty"));
   el(box, "div", "io-kind__label", KIND_LABEL[kind]);
 
   const chips = el(box, "div", "io-kind__chips");
-  if (!values.length) el(chips, "span", "io-kind__none", KIND_ANY);
-  values.forEach((value, i) => {
+  if (!items.length) el(chips, "span", "io-kind__none", KIND_ANY);
+  items.forEach((item, i) => {
     if (i) el(chips, "span", "io-op", OP_OR);
-    const chip = el(chips, "span", "io-vchip", value);
+    const chip = el(chips, "span", "io-vchip", item.shown);
     const drop = btn(chip, "io-icon", {
       text: "✕",
-      label: "Remove " + value + " from " + ruleTitle(row, 0),
+      label: "Remove " + item.shown + " from " + ruleTitle(row, 0),
     });
     drop.disabled = !o.enabled;
     drop.addEventListener("click", (() => {
       if (!o.enabled) return;
-      o.model.removeCondition(row.id, kind, value);
+      o.model.removeCondition(row.id, item.kind, item.value);
       o.redraw();
     }) as never);
   });
@@ -105,9 +151,16 @@ function kindRow(host: El, row: RuleRow, kind: RuleKind, o: RulesViewOpts): void
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
     if (!o.enabled) return;
-    o.askCondition(kind, value => {
-      if (!value) return;
-      o.model.addCondition(row.id, kind, value);
+    o.askCondition(kind, answer => {
+      if (!answer || !answer.id) return;
+      /*
+       * Ветка конфига у «любого значения Field» своя (`conditions.fields`,
+       * там лежит id Field, а не токен), а строка — та, из которой открыли
+       * окно: окно перечисляет Fields только своего типа, поэтому чип
+       * вернётся сюда же (10.13.14 Н5, B14).
+       */
+      const into: RuleKind = answer.kind === "field" ? "fields" : kind;
+      o.model.addCondition(row.id, into, answer.id);
       o.redraw();
     });
   }) as never);
@@ -196,7 +249,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
 
   const conds = el(main, "div", "io-rule__conds");
   el(conds, "div", "io-rule__lead", CONDS_LEAD);
-  RULE_KINDS.forEach((kind, i) => {
+  ROW_KINDS.forEach((kind, i) => {
     /* Между типами — И, и это сказано словом, а не значком (С-7). */
     if (i) el(conds, "div", "io-op io-op--and io-op--row", OP_AND);
     kindRow(conds, row, kind, o);
@@ -205,9 +258,17 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   const out = el(main, "div", "io-rule__out");
   el(out, "span", "io-rule__arrow", "→");
   el(out, "span", undefined, TEMPLATE_LEAD);
+  /*
+   * Пустой список объясняется, а не показывает одно `None`: человек не
+   * должен гадать, кончились ли шаблоны или он не назначил папку
+   * (замечание заказчика 1.6.6.2). Слова — те же, что у `Default template`.
+   */
+  const choices = o.templates.length
+    ? [{ value: "", label: TEMPLATE_NONE }]
+      .concat(o.templates.map(t => ({ value: t, label: t })))
+    : [templatesEmptyChoice(String(o.templatesFolder || ""))];
   const template = selectInput(out, "io-select", {
-    options: [{ value: "", label: TEMPLATE_NONE }]
-      .concat(o.templates.map(t => ({ value: t, label: t }))),
+    options: choices,
     value: row.targetTemplate,
     label: "Template for " + ruleTitle(row, index),
   });
@@ -217,6 +278,47 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
     o.model.setTemplate(row.id, template.value);
     o.redraw();
   }) as never);
+
+  /*
+   * Папка новой заметки (10.13.8). Один список на три случая: `Default` —
+   * как `New notes folder`, `Near current note` — рядом с текущей заметкой,
+   * и своя папка. Своя папка открывает поле рядом: подсказчик папок Obsidian
+   * живёт в панели, а вёрстка обязана рисоваться и без него.
+   */
+  const where = el(main, "div", "io-rule__out io-rule__where");
+  el(where, "span", "io-rule__arrow", "\u2192");
+  el(where, "span", undefined, FOLDER_LEAD);
+  const folderPick = selectInput(where, "io-select", {
+    options: [
+      { value: "default", label: FOLDER_DEFAULT },
+      { value: "near", label: FOLDER_NEAR },
+      { value: "folder", label: FOLDER_OTHER },
+    ],
+    value: row.folderMode,
+    label: FOLDER_LEAD + " for " + ruleTitle(row, index),
+  });
+  folderPick.disabled = !o.enabled;
+  folderPick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.model.setFolder(row.id, folderPick.value as never, row.folder);
+    o.redraw();
+  }) as never);
+
+  if (row.folderMode === "folder") {
+    const path: ElInput = textInput(where, "io-text io-text--mono", {
+      value: row.folder,
+      placeholder: FOLDER_PLACEHOLDER,
+      label: FOLDER_LEAD + " path for " + ruleTitle(row, index),
+    });
+    path.disabled = !o.enabled;
+    const writeFolder = (value: string): void => {
+      if (!o.enabled) return;
+      o.model.setFolder(row.id, "folder", value);
+      o.redraw();
+    };
+    if (o.folderSuggest) o.folderSuggest(path, writeFolder);
+    path.addEventListener("change", (() => { writeFolder(path.value); }) as never);
+  }
 
   /* Спор с другим правилом считает движок, а не карточка. */
   if (row.conflict) {
@@ -258,18 +360,55 @@ export function renderSmartRules(host: El, o: RulesViewOpts): void {
  */
 export function renderConditionPicker(host: El, o: {
   kind: RuleKind;
-  choices: ReadonlyArray<{ label: string; values: readonly string[] }>;
+  choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[] }>;
   pick: (value: string) => void;
+  /**
+   * Завести условие «любое значение этого Field» (10.13.14). Отсутствует —
+   * имя Field остаётся подписью, как было: это тот же тихий отказ, что у
+   * подсказчика папок.
+   */
+  pickField?: (fieldId: string) => void;
+  /** Fields, у которых такое условие в правиле уже есть: их имя неактивно. */
+  fieldsTaken?: readonly string[];
 }): void {
   const box = el(host, "div", "io-pickvals");
   if (!o.choices.length) {
-    el(box, "div", "io-side__empty",
-      "no " + KIND_LABEL[o.kind].toLowerCase() + " Fields yet — set one up on the Tags & PKM tab");
+    el(box, "div", "io-side__empty", o.kind === "fields"
+      ? "no Fields yet — set one up on the Tags & PKM tab"
+      : "no " + KIND_LABEL[o.kind].toLowerCase() + " Fields yet — set one up on the Tags & PKM tab");
     return;
   }
+  const taken = new Set((o.fieldsTaken || []).map(x => String(x || "").trim()));
   for (const group of o.choices) {
     const wrap = el(box, "div", "io-pickvals__group");
-    el(wrap, "div", "io-pickvals__name", group.label);
+    /*
+     * Имя Field — кнопка: нажатие заводит условие «любое значение этого
+     * Field» и закрывает окно (10.13.14, замечание заказчика B14 от
+     * 2026-09-02). Раньше имя было подписью, и Field целиком заводился только
+     * через отдельную строку `Field` — заказчик просил другой способ
+     * добавления, а не другой способ показа, поэтому строка осталась.
+     *
+     * Условие уже заведено — имя неактивно: повтор ничего не меняет в
+     * правиле, а нажатие, которое ничего не делает, хуже отсутствия кнопки
+     * (З8).
+     */
+    const fieldId = String(group.fieldId || "").trim();
+    if (o.pickField && fieldId) {
+      const already = taken.has(fieldId);
+      const name = btn(wrap, "io-pickvals__name io-pickvals__name--pick", {
+        text: group.label,
+        label: already
+          ? group.label + " — any Value is already in this rule"
+          : "Use any Value of " + group.label,
+      });
+      name.disabled = already;
+      if (!already) {
+        const take = o.pickField;
+        name.addEventListener("click", (() => { take(fieldId); }) as never);
+      }
+    } else {
+      el(wrap, "div", "io-pickvals__name", group.label);
+    }
     const chips = el(wrap, "div", "io-pickvals__chips");
     if (!group.values.length) {
       el(chips, "span", "io-kind__none", "no Values yet");

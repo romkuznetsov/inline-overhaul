@@ -94,7 +94,18 @@ function getAnchorRect(editor, lineNumber, controlLine) {
   }
 }
 
-function createRoot() {
+/**
+ * Цвет из настроек или пусто. Пустое значение означает «взять у темы», и
+ * тогда стиль не задаётся вовсе: подставить сюда свой цвет значило бы решить
+ * за тему (PRD 10.13.15 Н2, замечание заказчика D6 от 2026-09-02).
+ */
+function pickColor(value) {
+  var s = String(value == null ? "" : value).trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(s) ? s : "";
+}
+
+function createRoot(colors) {
+  var c = colors && typeof colors === "object" ? colors : {};
   var root = document.createElement("div");
   root.style.position = "fixed";
   root.style.zIndex = "60";
@@ -102,7 +113,8 @@ function createRoot() {
   root.style.display = "none";
   root.style.border = "1px solid var(--background-modifier-border)";
   root.style.borderRadius = "8px";
-  root.style.background = "var(--background-primary)";
+  /* Свой фон, если он задан; иначе — фон поповера темы, как было. */
+  root.style.background = c.fill || "var(--background-primary)";
   root.style.boxShadow = "var(--shadow-s)";
   root.style.padding = "4px 0";
   root.style.fontSize = "12px";
@@ -117,7 +129,7 @@ function createRoot() {
   list.style.gap = "0";
   root.appendChild(list);
   document.body.appendChild(root);
-  return { root: root, list: list };
+  return { root: root, list: list, colors: { fill: c.fill || "", text: c.text || "" } };
 }
 
 function createTagWheelScrollerOverlay(options) {
@@ -125,8 +137,13 @@ function createTagWheelScrollerOverlay(options) {
   var direction = normalizeDirection(cfg.direction);
   var size = normalizeSize(cfg.size);
 
-  var boxPrimary = createRoot();
-  var boxSecondary = createRoot();
+  /* Цвета приходят настройками; пустые означают «как в теме» (10.13.15). */
+  var colors = {
+    fill: pickColor(cfg.fillColor),
+    text: pickColor(cfg.textColor),
+  };
+  var boxPrimary = createRoot(colors);
+  var boxSecondary = createRoot(colors);
 
   function hide() {
     boxPrimary.root.style.display = "none";
@@ -153,8 +170,18 @@ function createTagWheelScrollerOverlay(options) {
     return maxW;
   }
 
+  /*
+   * Строки коробки. Свой цвет текста, если он задан; иначе — цвет темы, как
+   * было (10.13.15 Н1, Н2).
+   *
+   * Текущего значения в коробке нет: она показывает **соседние** значения, а
+   * то, в котором человек стоит, нарисовано в самой строке. Поэтому третий
+   * цвет, о котором просил заказчик, живёт не здесь, а у панели
+   * (`visual.tagWheel.activeTextColor`).
+   */
   function renderRows(target, rows) {
     target.list.innerHTML = "";
+    var colors = target.colors || {};
     var i;
     for (i = 0; i < rows.length; i++) {
       var item = document.createElement("div");
@@ -163,6 +190,7 @@ function createTagWheelScrollerOverlay(options) {
       item.style.overflow = "hidden";
       item.style.textOverflow = "ellipsis";
       item.style.opacity = "0.95";
+      if (colors.text) item.style.color = colors.text;
       target.list.appendChild(item);
     }
   }

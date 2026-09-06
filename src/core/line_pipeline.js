@@ -369,6 +369,37 @@ function enforceTextSegmentForLeftTag(line, rules, originalText) {
   return buildFromSegments({ indent: seg.indent, left: left, text: text, dates: dates }, rules);
 }
 
+/**
+ * Токены значений, объявленные в документе правил, — и только они.
+ *
+ * Нужен, чтобы отличить управляемый токен от хештега человека. Наивное «всё,
+ * что начинается с # или [[» стирало из текста и его собственные теги, и все
+ * 45 проверок при этом оставались зелёными (У-51): чужих тегов в фикстурах нет
+ * ни одного.
+ *
+ * Форм значения в документе две, и обе живые: в фикстуре проверок `values` —
+ * массив строк, в заметке правил, которую пишет плагин, — объекты с `token`.
+ * Код, читающий одну форму, на другой молча не делает ничего.
+ */
+function collectManagedTokens(rules) {
+  const out = new Set();
+  const modes = [rules && rules.leftMode, rules && rules.rightMode];
+  for (const mode of modes) {
+    const fields = mode && Array.isArray(mode.fields) ? mode.fields : [];
+    for (const field of fields) {
+      const prefix = field && typeof field.prefix === "string" ? field.prefix : "#";
+      const values = field && Array.isArray(field.values) ? field.values : [];
+      for (const v of values) {
+        const token = String((typeof v === "string" ? v : (v && v.token)) || "").trim();
+        if (!token) continue;
+        out.add(token);
+        if (!/^(#|\[\[)/.test(token)) out.add(prefix + token);
+      }
+    }
+  }
+  return out;
+}
+
 function extractOriginalTextFromRawLine(rawLine, rules) {
   const seg = splitSegments(rawLine, rules);
   if (String(seg.text || "").trim()) return String(seg.text || "").trim();
@@ -395,6 +426,22 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
     const mDateLike = left.match(/^(\d{4}-\d{2}(?:-\d{2})?(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\d{2}:\d{2}(?::\d{2})?)\s*/);
     if (mDateLike) { left = left.slice(mDateLike[0].length).trim(); continue; }
     break;
+  }
+  /*
+   * Цикл выше снимает токены только **с начала** тела, и токен, стоящий после
+   * прозы, уезжал в «исходный текст» вместе с ней. Дальше
+   * `enforceTextSegmentForLeftTag` вычищает эту фразу из сегментов целиком, но
+   * перестановка токена к тому моменту уже разбила фразу — вычищать нечего, и
+   * проза попадала в строку дважды (A18). Поэтому объявленные токены снимаются
+   * по всему телу, а не только с начала.
+   */
+  const managed = collectManagedTokens(rules);
+  if (managed.size) {
+    left = left
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter(function(t) { return !managed.has(t); })
+      .join(" ");
   }
   left = left.trim();
   if (left === "-") return "";

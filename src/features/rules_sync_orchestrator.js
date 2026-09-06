@@ -17,7 +17,7 @@ function scheduleGeneratedRulesSync(ctx) {
 async function ensureGeneratedRulesNow(ctx, reason) {
   const cfg = ctx.getConfig();
   if (!(cfg && cfg.pkm)) return;
-  const genPath = String((cfg.pkm && cfg.pkm.generatedRulesPath) || ctx.defaultGeneratedRulesPath || "").trim();
+  const genPath = String((cfg.advanced && cfg.advanced.generatedRulesPath) || ctx.defaultGeneratedRulesPath || "").trim();
   if (!genPath) throw new Error("Generated rules path is empty");
   const md = ctx.buildRulesMarkdown(cfg);
   await ctx.writeText(genPath, md);

@@ -25,10 +25,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import {
   BACKUP_V1_FILE,
   BROKEN_FILE,
+  LEGACY_RULES_FILE,
+  RULES_FILE,
   SCHEMA_VERSION_V2,
   backupV1Once,
   loadConfig,
@@ -42,6 +45,9 @@ type Any = ReturnType<typeof JSON.parse>;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 const internals = loadPluginInternals();
+/* Литерал пути живёт в модуле движка — читается настоящим `require` (У-32). */
+const optionKeys = createRequire(import.meta.url)(
+  path.join(root, "src", "core", "pkm_option_keys.js")) as Any;
 
 let passed = 0;
 function ok(label: string): void {
@@ -116,9 +122,6 @@ const MOVED: ReadonlyArray<readonly [string, string]> = [
   ["pkm.behavior.prefixRules.priorityCheckboxes", "pkm.prefixRules.priorityCheckboxes"],
   ["pkm.behavior.prefixRules.checkboxByFieldValue", "pkm.prefixRules.checkboxByFieldValue"],
 
-  ["pkm.tagWheelConfigPath", "pkm.configNote.path"],
-  ["pkm.tagWheelConfigTemplatePath", "pkm.configNote.templatePath"],
-  ["pkm.configExportMode", "pkm.configNote.detail"],
   ["pkm.generatedRulesPath", "advanced.generatedRulesPath"],
 
   ["pkm.behavior.tagVisuals.opacity.left", "visual.tags.opacityLeft"],
@@ -210,6 +213,12 @@ const KEPT: readonly string[] = [
 
 /** Удаляются (8.1, «Удаляются»). */
 const DROPPED: readonly string[] = [
+  /* Конфиг-заметка снята 2026-09-03 (PRD 10.12): её ключи не переезжают. */
+  "pkm.tagWheelConfigPath",
+  "pkm.tagWheelConfigTemplatePath",
+  "pkm.configExportMode",
+  "pkm.configNote",
+  "backups.tagWheelConfigApplies",
   "visual.displayModes",
   "visual.colors",
   "transform.inline2fleet",
@@ -247,12 +256,27 @@ function movedFor(dotted: string): readonly [string, string] | null {
 
 /* ---- фикстура ---------------------------------------------------------- */
 
+/*
+ * Опора заморожена, а не пересчитывается на месте — и это следствие пункта 4
+ * фазы 2, а не удобство.
+ *
+ * До 2026-08-30 фикстура собиралась так: `tests/fixtures/config_v1.json`
+ * (данные пользователя) прогонялась через настоящий `migrateConfig` из
+ * `main.js`, и тот досыпал ей все ветки `DEFAULT_CONFIG`. После пункта 4
+ * `migrateConfig` отдаёт версию 2 — производителя формы версии 1 в проекте не
+ * осталось вовсе. Поэтому его последний ответ снят в
+ * `tests/fixtures/config_v1_full.json` и заморожен: проверка МГ5 стоит именно
+ * на нём. `config_v1.json` остаётся рядом — он показывает, что из этого
+ * набрал человек, а что досыпал плагин.
+ */
 const fixture = JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1.json"), "utf8")) as Any;
+const v1 = JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1_full.json"), "utf8")) as Record<string, unknown>;
 
-/* Настоящая нормализация плагина: именно её результат лежит в `data.json`. */
-const v1 = internals.migrateConfig(fixture) as Record<string, unknown>;
-
-assert.equal(Number(v1.schemaVersion), 1, "фикстура прошла настоящий migrateConfig и осталась версии 1");
+assert.equal(Number(v1.schemaVersion), 1, "замороженная опора — конфиг версии 1");
+for (const key of Object.keys(fixture as Record<string, unknown>)) {
+  assert.ok(Object.prototype.hasOwnProperty.call(v1, key),
+    "замороженная опора накрывает данные пользователя: ветка " + key);
+}
 assert.ok(Object.keys(getIn(v1, "pkm.behavior.order.labels") as Any).length, "в фикстуре непустой Order");
 assert.ok(Object.keys(getIn(v1, "pkm.behavior.tagVisuals.byTag") as Any).length, "в фикстуре непустой byTag");
 assert.ok((getIn(v1, "ui.binderRows") as Any[]).length >= 2, "в фикстуре непустые строки Binder");
@@ -319,7 +343,10 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
     accounted.unmigrated++;
   }
 
-  assert.ok(accounted.moved > 100, "переездов проверено больше сотни, а не десяток: " + accounted.moved);
+  /* Сотня переездов — признак того, что фикстура богата, а не пуста. Три
+     маршрута конфиг-заметки сняты 2026-09-03 вместе с ней (PRD 10.12), и
+     порог опущен ровно на них. */
+  assert.ok(accounted.moved >= 100, "переездов проверено меньше сотни: " + accounted.moved);
   ok("каждый лист конфига v1 нашёл место в v2: переехал " + accounted.moved
     + ", остался " + accounted.kept + ", удалён " + accounted.dropped
     + ", в _unmigrated " + accounted.unmigrated + ", уступил новой панели " + accounted.contested);
@@ -334,11 +361,15 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
     "pkm.behavior.prefixRules", "pkm.behavior.subtagFormat", "pkm.behavior.defaultMode",
     "pkm.behavior.typeCheckboxByValue", "pkm.behavior.tagWheelScroller", "pkm.executionBackend",
     "pkm.generatedRulesPath", "pkm.tagWheelConfigPath", "ui.binderRows",
+    /* Конфиг-заметка снята 2026-09-03 (PRD 10.12): её ключи не переезжают,
+       а уходят вместе с функцией. */
+    "pkm.tagWheelConfigTemplatePath", "pkm.configExportMode", "pkm.configNote",
+    "backups.tagWheelConfigApplies",
     "visual.displayModes", "visual.colors", "transform.inline2fleet"]) {
     assert.equal(getIn(v2, dead), undefined, "ветки v1 больше нет: " + dead);
   }
   assert.deepEqual(Object.keys(v2.pkm as Any).sort(),
-    ["behavior", "configNote", "fields", "lineFormat", "placement", "prefixPriority", "prefixRules"],
+    ["behavior", "fields", "lineFormat", "placement", "prefixPriority", "prefixRules"],
     "у pkm остались только ветки v2");
   assert.deepEqual(Object.keys(getIn(v2, "pkm.behavior") as Any).sort(),
     ["childTagFormat", "cursorPolicy", "cycleEndBehavior"],
@@ -454,15 +485,20 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
 /* ---- МГ4 и МГ6: границы с vault ---------------------------------------- */
 
 /** Файловая система в памяти. Подделка стоит на границе с миром и названа. */
-function memoryVault(seed: Record<string, string>): VaultFiles & { files: Record<string, string>; writes: string[] } {
+function memoryVault(seed: Record<string, string>):
+  VaultFiles & { files: Record<string, string>; writes: string[]; removed: string[] } {
   const files: Record<string, string> = { ...seed };
   const writes: string[] = [];
+  const removed: string[] = [];
   return {
     files,
     writes,
+    removed,
     async exists(p: string): Promise<boolean> { return Object.prototype.hasOwnProperty.call(files, p); },
     async read(p: string): Promise<string> { return files[p] as string; },
     async write(p: string, data: string): Promise<void> { files[p] = data; writes.push(p); },
+    /* Удаление нужно одному месту — сироте служебного файла в корне (В-39). */
+    async remove(p: string): Promise<void> { delete files[p]; removed.push(p); },
   };
 }
 
@@ -522,6 +558,146 @@ const DIR = ".obsidian/plugins/inline-overhaul";
   assert.equal(Number(result.config.schemaVersion), SCHEMA_VERSION_V2, "конфиг собран из умолчаний");
   assert.deepEqual(vault.writes, [], "и ни одного файла не написано");
   ok("чистый vault: миграция ничего не пишет и отдаёт умолчания");
+}
+
+/* ======================================================================
+ * Третья ступень нормализует ветку Transform на КАЖДОМ проходе, а не только
+ * на файле версии ниже второй.
+ *
+ * `normalizeTransformConfig` стоял в первой ступени — то есть работал ровно
+ * для старого файла. Файл версии 2 и любой патч из панели ветку Transform не
+ * нормализовали вовсе, а третья ступень обязана идти всегда (У-13).
+ *
+ * Видно это стало на решётках: решение 1.6.4.1 от 2026-08-31 убирает `#` из
+ * `Text of the line above` в пользу `Line above is header`, снятие написано,
+ * а в конфиге заказчика по-прежнему лежало `### Inline transformed`
+ * (замечание B16, 2026-09-02).
+ *
+ * Ожидание выписано отдельно от того, из чего считается результат (У-5):
+ * здесь названы вход и выход, а не повторено снятие решёток.
+ * ====================================================================== */
+
+{
+  const v2 = internals.migrateConfig({
+    schemaVersion: SCHEMA_VERSION_V2,
+    transform: {
+      inline2note: {
+        enabled: true,
+        placement: {
+          headerMode: "custom",
+          customHeader: "### Inline transformed",
+          headerLevel: "3",
+        },
+      },
+    },
+  });
+  const placement = getIn(v2, "transform.inline2note.placement") as Record<string, unknown>;
+  assert.equal(placement["customHeader"], "Inline transformed",
+    "решётки сняты с текстбокса: получилось " + JSON.stringify(placement["customHeader"]));
+  assert.equal(String(placement["headerLevel"]), "3", "а глубина осталась выбранной");
+  ok("файл версии 2: ветка Transform нормализуется, решётки живут в глубине заголовка");
+}
+
+{
+  /* Клампы той же ветки на файле версии 2: до правки они тоже не работали. */
+  const v2 = internals.migrateConfig({
+    schemaVersion: SCHEMA_VERSION_V2,
+    transform: {
+      inline2note: {
+        enabled: true,
+        sourceProcessing: { text: "какая-то чушь", keepWords: 999 },
+      },
+    },
+  });
+  const src = getIn(v2, "transform.inline2note.sourceProcessing") as Record<string, unknown>;
+  assert.ok(["remove", "leave", "words"].includes(String(src["text"])),
+    "мусор в списке уступил допустимому значению: " + JSON.stringify(src["text"]));
+  assert.ok(Number(src["keepWords"]) <= 32,
+    "число слов зажато: " + JSON.stringify(src["keepWords"]));
+  ok("файл версии 2: клампы ветки Transform тоже работают");
+}
+
+/* ---- H6: служебный файл правил уезжает в папку плагина (В-39) ---------- */
+
+/*
+ * Что закреплено. Путь **считается** по папке плагина, а не берётся литералом:
+ * папка зависит от `vault.configDir`. Свой путь человека не трогается, а
+ * прежний файл в корне vault удаляется — иначе он остаётся сиротой, которую
+ * никто не пишет, но читают запасным кандидатом.
+ *
+ * Спрашивается результат: что оказалось в конфиге и что осталось на диске.
+ */
+{
+  const LEGACY = "InlineOverhaul_Generated_RULES_TagWheel.md";
+  const TARGET = DIR + "/" + RULES_FILE;
+  const legacyDefaults = [LEGACY, ".obsidian/plugins/inline-overhaul/generated_rules.md"];
+
+  /* 1. Чистый vault: путь сразу новый, удалять нечего. */
+  {
+    const vault = memoryVault({});
+    const result = await loadConfig(vault, DIR, undefined,
+      { log: () => {}, legacyRulesDefaults: legacyDefaults });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), TARGET,
+      "на чистом vault путь сразу в папке плагина");
+    assert.deepEqual(vault.removed, [], "удалять в чистом vault нечего");
+  }
+
+  /* 2. Прежний путь и прежний файл: путь переехал, сирота удалена. */
+  {
+    const vault = memoryVault({
+      [DIR + "/data.json"]: JSON.stringify({
+        schemaVersion: SCHEMA_VERSION_V2,
+        advanced: { generatedRulesPath: LEGACY },
+      }),
+      [LEGACY]: "```tagwheel-io\n{}\n```",
+    });
+    const result = await loadConfig(vault, DIR, undefined,
+      { log: () => {}, legacyRulesDefaults: legacyDefaults });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), TARGET,
+      "прежний путь заменён на путь в папке плагина");
+    assert.equal(result.rulesPathMovedTo, TARGET, "и переезд назван");
+    assert.deepEqual(vault.removed, [LEGACY], "прежний файл в корне удалён");
+    assert.equal(result.legacyRulesRemoved, LEGACY, "и это тоже названо");
+    assert.equal(vault.files[LEGACY], undefined, "сироты в корне не осталось");
+  }
+
+  /* 3. Свой путь человека сильнее переезда: его не трогают и файл не удаляют. */
+  {
+    const vault = memoryVault({
+      [DIR + "/data.json"]: JSON.stringify({
+        schemaVersion: SCHEMA_VERSION_V2,
+        advanced: { generatedRulesPath: "Служебное/Мои правила.md" },
+      }),
+      [LEGACY]: "```tagwheel-io\n{}\n```",
+    });
+    const result = await loadConfig(vault, DIR, undefined,
+      { log: () => {}, legacyRulesDefaults: legacyDefaults });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), "Служебное/Мои правила.md",
+      "свой путь человека остался своим");
+    assert.equal(result.rulesPathMovedTo, undefined, "переезда не было");
+    assert.deepEqual(vault.removed, [], "и чужой файл никто не удалял");
+  }
+
+  /* 4. Папка настроек Obsidian не `.obsidian`: путь считается, а не литерал. */
+  {
+    const OTHER = ".myconfig/plugins/inline-overhaul";
+    const vault = memoryVault({});
+    const result = await loadConfig(vault, OTHER, undefined,
+      { log: () => {}, legacyRulesDefaults: legacyDefaults });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), OTHER + "/" + RULES_FILE,
+      "путь взят у папки плагина, а не из литерала");
+  }
+
+  /* 5. Литерал умолчания и имя файла — одно и то же (У-32). */
+  assert.equal(
+    optionKeys.DEFAULT_RULES_PATH,
+    ".obsidian/plugins/inline-overhaul/" + RULES_FILE,
+    "литерал в pkm_option_keys собран из того же имени файла",
+  );
+  assert.equal(optionKeys.LEGACY_RULES_PATH, LEGACY_RULES_FILE,
+    "и прежнее место объявлено один раз");
+
+  ok("H6: служебный файл правил живёт в папке плагина, сирота в корне удалена");
 }
 
 console.log("\n" + passed + " проверок пройдено");

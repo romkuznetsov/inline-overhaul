@@ -71,15 +71,43 @@ var require_navigation_runtime = __commonJS({
         noSelectionMode: c.noSelectionMode === "with-children" ? "with-children" : "line-only",
         headerMode: c.headerMode === "move-with-section" ? "move-with-section" : "move-as-line",
         crossSectionAllowed: typeof c.crossSectionAllowed === "boolean" ? c.crossSectionAllowed : true,
-        highlightMovedLines: typeof c.highlightMovedLines === "boolean" ? c.highlightMovedLines : false
+        highlightMovedLines: typeof c.highlightMovedLines === "boolean" ? c.highlightMovedLines : false,
+        /* Прокрутка при перемещении строки (10.13.36). */
+        keepInView: typeof c.keepInView === "boolean" ? c.keepInView : true,
+        viewPosition: normalizeViewPosition(c.viewPosition)
       };
     }
-    function pickMoveSelectionCfg(cfg) {
+    function normalizeViewPosition(value) {
+      const v = String(value || "").trim();
+      return v === "top" || v === "bottom" ? v : "center";
+    }
+    function pickMoveSelectionCfg(cfg, lineFormat) {
       const c = isObj(cfg) ? cfg : {};
+      const lf = isObj(lineFormat) ? lineFormat : {};
+      const sep = (v, fallback) => typeof v === "string" && v ? v : fallback;
+      const separator1 = sep(lf.separator1, sep(c.separator1, "||"));
       const cycle = Array.isArray(c.cycleOrder) && c.cycleOrder.length ? c.cycleOrder.slice() : Array.isArray(c.leftToRight) && c.leftToRight.length ? c.leftToRight.slice() : ["#", "##", "###", "####", "#####", "1. ", "", "- "];
       return {
+        /*
+         * `Continue past a Separator` для переноса текста (замечание заказчика
+         * 2026-09-04). Полярность та же, что у одноимённого тумблера курсора
+         * (`navigateInline.boundaryJump`): выключен — текст остаётся между
+         * разделителями, включён — уходит куда угодно.
+         *
+         * Умолчание, в отличие от тумблера курсора, **включено**: до этой правки
+         * перенос ходил через разделитель всегда, и заказчик такое поведение уже
+         * принял — его пример 2026-09-02 (`- [ ] #/1 #todo || 123 ||` →
+         * `- [ ] #/1 #todo 123 || ||`, одиннадцатое исключение к З3) на нём и
+         * стоит. Выключенное умолчание молча отменило бы принятое поведение.
+         */
+        inlineBoundaryJump: typeof c.inlineBoundaryJump === "boolean" ? c.inlineBoundaryJump : true,
+        separator1,
+        separator2: sep(lf.separator2, sep(c.separator2, separator1)),
         inlineEnabled: typeof c.inlineEnabled === "boolean" ? c.inlineEnabled : typeof c.enabled === "boolean" ? c.enabled : true,
         prefixCyclerEnabled: typeof c.prefixCyclerEnabled === "boolean" ? c.prefixCyclerEnabled : true,
+        /* `Cycle in both directions` (10.13.11, В-12). Ключ был в конфиге и не
+           читался никем: тумблер стоял в панели и ничего не делал. */
+        rightCycles: typeof c.rightCycles === "boolean" ? c.rightCycles : true,
         indentFallbackEnabled: typeof c.indentFallbackEnabled === "boolean" ? c.indentFallbackEnabled : true,
         onCycleEnd: c.onCycleEnd === "wrap" ? "wrap" : "indent",
         leftToRight: cycle,
@@ -87,15 +115,25 @@ var require_navigation_runtime = __commonJS({
         inlineMoveMode: typeof c.inlineMoveMode === "string" ? c.inlineMoveMode : "auto"
       };
     }
-    function pickJumpCfg(cfg) {
+    function pickJumpCfg(cfg, lineFormat) {
       const c = isObj(cfg) ? cfg : {};
+      const lf = isObj(lineFormat) ? lineFormat : {};
+      const sep = (v, fallback) => typeof v === "string" && v ? v : fallback;
+      const separator1 = sep(lf.separator1, sep(c.separator1, "||"));
       return {
         centerCursor: typeof c.centerCursor === "boolean" ? c.centerCursor : true,
+        /* Место на экране после перехода (10.13.37). Разбор один и тот же, что у
+           перемещения строки, поэтому и функция одна — `normalizeViewPosition`. */
+        viewPosition: normalizeViewPosition(c.viewPosition),
         centerDelayMs: nInt(c.centerDelayMs, 60, 0),
         centerThrottleMs: nInt(c.centerThrottleMs, 200, 0),
         jumpMode: typeof c.jumpMode === "string" ? c.jumpMode : "edge",
         edgeMode: typeof c.edgeMode === "string" ? c.edgeMode : "start-end",
-        jumpCursorPosition: typeof c.jumpCursorPosition === "string" ? c.jumpCursorPosition : "start"
+        jumpCursorPosition: typeof c.jumpCursorPosition === "string" ? c.jumpCursorPosition : "start",
+        separator1,
+        /* Второй разделитель по умолчанию равен первому: у заказчика оба `::`, и
+           в панели это обычная настройка. */
+        separator2: sep(lf.separator2, sep(c.separator2, separator1))
       };
     }
     function pickNavigateInlineCfg(cfg) {
@@ -112,7 +150,6 @@ var require_navigation_runtime = __commonJS({
       const cfg = pickMoveLineCfg(rawCfg);
       const total = editor.lastLine() + 1;
       const cursor = editor.getCursor();
-      const viewportBefore = getViewportSafe(editor, total);
       const scrollBefore = getScrollStateSafe(editor);
       const selections = (editor && typeof editor.listSelections === "function" ? editor.listSelections() : []) || [];
       const hasSel = selections.length > 0 && !(selections[0].anchor.line === selections[0].head.line && selections[0].anchor.ch === selections[0].head.ch);
@@ -136,7 +173,7 @@ var require_navigation_runtime = __commonJS({
       if (yamlEnd !== -1 && anchorLine <= yamlEnd) return;
       if (isInsideCodeBlock(editor, anchorLine)) return;
       if (isTableLine(editor.getLine(anchorLine))) {
-        tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg);
+        tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
         return;
       }
       const body = getBody(editor, anchorLine, hasSel, bSelStart, bSelEnd, cfg, total);
@@ -144,7 +181,7 @@ var require_navigation_runtime = __commonJS({
       const { bStart, bEnd } = body;
       const insertAfter = findInsertAfter(editor, bStart, bEnd, direction, cfg, total, yamlEnd);
       if (insertAfter === null) return;
-      applyMove(editor, bStart, bEnd, insertAfter, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg);
+      applyMove(editor, bStart, bEnd, insertAfter, direction, total, scrollBefore, selRestore, cursorRestore, cfg);
     }
     function getBody(editor, anchorLine, hasSel, bSelStart, bSelEnd, cfg, total) {
       if (hasSel) return { bStart: bSelStart, bEnd: bSelEnd };
@@ -173,7 +210,7 @@ var require_navigation_runtime = __commonJS({
     }
     function findInsertAfterUp(editor, bStart, bEnd, cfg, total, yamlEnd) {
       const myText = nz(editor.getLine(bStart), "");
-      if (isHeader(myText)) {
+      if (cfg.headerMode === "move-with-section" && isHeader(myText)) {
         const myLevel = getHeaderLevel(myText);
         const prevH = prevHeaderOfLevel(editor, bStart - 1, myLevel, yamlEnd);
         if (prevH === null) return null;
@@ -210,7 +247,7 @@ var require_navigation_runtime = __commonJS({
     }
     function findInsertAfterDown(editor, bStart, bEnd, cfg, total, yamlEnd) {
       const myText = nz(editor.getLine(bStart), "");
-      if (isHeader(myText)) {
+      if (cfg.headerMode === "move-with-section" && isHeader(myText)) {
         const myLevel = getHeaderLevel(myText);
         const nextH = nextHeaderOfLevel(editor, bEnd + 1, myLevel, total);
         if (nextH === null) return null;
@@ -241,7 +278,7 @@ var require_navigation_runtime = __commonJS({
       }
       return next;
     }
-    function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg) {
+    function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, scrollBefore, selRestore, cursorRestore, cfg) {
       const doc = editor.getValue();
       const lines = doc.split("\n");
       const bodyLines = lines.slice(bStart, bEnd + 1);
@@ -268,9 +305,9 @@ var require_navigation_runtime = __commonJS({
       } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, movedStart, movedEnd);
       else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, movedStart, movedEnd);
       else editor.setCursor({ line: movedStart, ch: 0 });
-      maybeRevealMovedRange(editor, movedStart, movedEnd, direction, viewportBefore, scrollBefore, cfg);
+      maybeRevealMovedRange(editor, movedStart, movedEnd, direction, scrollBefore, cfg);
     }
-    function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, viewportBefore, scrollBefore, selRestore, cursorRestore, cfg) {
+    function tableMove(editor, anchorLine, hasSel, bSelStart, bSelEnd, direction, total, scrollBefore, selRestore, cursorRestore, cfg) {
       if (isTableSep(editor.getLine(anchorLine))) return;
       const { top, bot } = tableBounds(editor, anchorLine, total);
       let bStart, bEnd;
@@ -295,7 +332,7 @@ var require_navigation_runtime = __commonJS({
         } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
         else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, newStart, newEnd);
         else editor.setCursor({ line: newStart, ch: 0 });
-        maybeRevealMovedRange(editor, newStart, newEnd, direction, viewportBefore, scrollBefore, cfg);
+        maybeRevealMovedRange(editor, newStart, newEnd, direction, scrollBefore, cfg);
       } else {
         const targetLine = bEnd + 1;
         if (targetLine > bot || isTableSep(editor.getLine(targetLine))) return;
@@ -310,19 +347,7 @@ var require_navigation_runtime = __commonJS({
         } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, newStart, newEnd);
         else if (cursorRestore) restoreMovedCursor(editor, cursorRestore, bStart, bEnd, newStart, newEnd);
         else editor.setCursor({ line: newStart, ch: 0 });
-        maybeRevealMovedRange(editor, newStart, newEnd, direction, viewportBefore, scrollBefore, cfg);
-      }
-    }
-    function getViewportSafe(editor, total) {
-      try {
-        if (!editor || typeof editor.getViewport !== "function") return null;
-        const vp = editor.getViewport();
-        if (!vp || typeof vp.from !== "number" || typeof vp.to !== "number") return null;
-        const from = Math.max(0, vp.from);
-        const toIncl = Math.max(from, Math.min(total - 1, vp.to - 1));
-        return { from, to: toIncl };
-      } catch (_) {
-        return null;
+        maybeRevealMovedRange(editor, newStart, newEnd, direction, scrollBefore, cfg);
       }
     }
     function getScrollStateSafe(editor) {
@@ -344,16 +369,38 @@ var require_navigation_runtime = __commonJS({
       } catch (_) {
       }
     }
-    function maybeRevealMovedRange(editor, startLine, endLine, direction, viewportBefore, scrollBefore, cfg) {
-      if (!viewportBefore) return;
-      if (startLine >= viewportBefore.from && endLine <= viewportBefore.to) {
-        restoreScrollStateSafe(editor, scrollBefore);
+    function maybeRevealMovedRange(editor, startLine, endLine, direction, scrollBefore, cfg) {
+      if (!cfg.keepInView) {
+        holdScrollState(editor, scrollBefore);
         return;
       }
-      const movedUpOutOfView = direction === "up" && startLine < viewportBefore.from;
-      const target = movedUpOutOfView ? { line: startLine, ch: 0 } : { line: endLine, ch: 0 };
+      const line = direction === "up" ? startLine : endLine;
+      revealLineAt(editor, line, cfg.viewPosition);
+    }
+    function holdScrollState(editor, state) {
+      if (!state) return;
+      restoreScrollStateSafe(editor, state);
       try {
-        editor.scrollIntoView(target);
+        const win = editor && editor.cm && editor.cm.dom && editor.cm.dom.ownerDocument ? editor.cm.dom.ownerDocument.defaultView : null;
+        const raf = win && typeof win.requestAnimationFrame === "function" ? win.requestAnimationFrame.bind(win) : null;
+        if (raf) raf(() => restoreScrollStateSafe(editor, state));
+      } catch (_) {
+      }
+    }
+    function revealLineAt(editor, line, position, ch) {
+      const pos = { line, ch: Number.isFinite(ch) ? ch : 0 };
+      try {
+        const view = editor && editor.cm;
+        const ViewClass = view && view.constructor;
+        if (view && typeof view.dispatch === "function" && ViewClass && typeof ViewClass.scrollIntoView === "function" && typeof editor.posToOffset === "function") {
+          const y = position === "top" ? "start" : position === "bottom" ? "end" : "center";
+          view.dispatch({ effects: ViewClass.scrollIntoView(editor.posToOffset(pos), { y }) });
+          return;
+        }
+      } catch (_) {
+      }
+      try {
+        editor.scrollIntoView({ from: pos, to: pos }, position === "center");
       } catch (_) {
       }
     }
@@ -485,8 +532,26 @@ var require_navigation_runtime = __commonJS({
       }
       return null;
     }
-    function moveSelection(editor, direction, rawCfg) {
-      const rules = pickMoveSelectionCfg(rawCfg);
+    function moveTextBounds(editor, line, rules) {
+      if (!rules || rules.inlineBoundaryJump === true) return null;
+      const s = txt(editor, line);
+      const lineStart = editor.posToOffset({ line, ch: 0 });
+      const sep1 = typeof rules.separator1 === "string" && rules.separator1 ? rules.separator1 : "||";
+      const sep2 = typeof rules.separator2 === "string" && rules.separator2 ? rules.separator2 : sep1;
+      let loRel = 0;
+      let hiRel = s.length;
+      const first = s.indexOf(sep1);
+      if (first !== -1) {
+        loRel = first + sep1.length;
+        const second = s.indexOf(sep2, first + sep1.length);
+        if (second !== -1) hiRel = second;
+      }
+      while (loRel < hiRel && isHorizSpace(s[loRel])) loRel++;
+      while (hiRel > loRel && isHorizSpace(s[hiRel - 1])) hiRel--;
+      return { lo: lineStart + loRel, hi: lineStart + hiRel };
+    }
+    function moveSelection(editor, direction, rawCfg, lineFormat) {
+      const rules = pickMoveSelectionCfg(rawCfg, lineFormat);
       rules.indentWidth = getEditorTabSize(editor);
       const sel = editor && typeof editor.getSelection === "function" ? nz(editor.getSelection(), "") : "";
       const from = editor.getCursor("from");
@@ -509,8 +574,9 @@ var require_navigation_runtime = __commonJS({
       const b = editor.posToOffset(to);
       const mode = decideMoveMode(doc, a, b, direction, rules.inlineMoveMode);
       if (mode === "noop") return;
-      if (mode === "char") bubbleSwapByCodePoint(doc, editor, a, b, direction);
-      else jumpByWordToken(doc, editor, a, b, direction);
+      const bounds = moveTextBounds(editor, from.line, rules);
+      if (mode === "char") bubbleSwapByCodePoint(doc, editor, a, b, direction, bounds);
+      else jumpByWordToken(doc, editor, a, b, direction, bounds);
     }
     function isWholeLineSelected(editor, from, to, selectedText) {
       if (!editor || !from || !to) return false;
@@ -553,12 +619,13 @@ var require_navigation_runtime = __commonJS({
       for (let i = 0; i < str3.length; i++) if (!fn(str3[i])) return false;
       return true;
     }
-    function bubbleSwapByCodePoint(doc, editor, a, b, direction) {
+    function bubbleSwapByCodePoint(doc, editor, a, b, direction, bounds) {
       const sel = doc.slice(a, b);
       if (!sel) return;
       if (direction === "left") {
         const prevStart = prevCodePointStart(doc, a);
         if (prevStart == null) return;
+        if (bounds && prevStart < bounds.lo) return;
         const before = doc.slice(prevStart, a);
         if (!before) return;
         const newDoc2 = doc.slice(0, prevStart) + sel + before + doc.slice(b);
@@ -568,6 +635,7 @@ var require_navigation_runtime = __commonJS({
       }
       const nextEnd = nextCodePointEnd(doc, b);
       if (nextEnd == null) return;
+      if (bounds && nextEnd > bounds.hi) return;
       const after = doc.slice(b, nextEnd);
       if (!after) return;
       const newDoc = doc.slice(0, a) + after + sel + doc.slice(nextEnd);
@@ -575,33 +643,40 @@ var require_navigation_runtime = __commonJS({
       const newA = a + after.length;
       editor.setSelection(editor.offsetToPos(newA), editor.offsetToPos(newA + sel.length));
     }
-    function jumpByWordToken(doc, editor, a, b, direction) {
+    function isTokenChar(ch) {
+      if (ch == null) return false;
+      if (ch === "\n") return false;
+      return !isHorizSpace(ch);
+    }
+    function jumpByWordToken(doc, editor, a, b, direction, bounds) {
       while (a < b && isHorizSpace(doc[a])) a++;
       while (b > a && isHorizSpace(doc[b - 1])) b--;
       const phrase = doc.slice(a, b);
       if (!phrase) return;
       if (direction === "left") {
         let i2 = a;
-        while (i2 > 0 && isGapChar(doc[i2 - 1])) i2--;
+        while (i2 > 0 && isHorizSpace(doc[i2 - 1])) i2--;
         const gap2 = doc.slice(i2, a);
         const tEnd2 = i2;
-        while (i2 > 0 && isWordChar(doc[i2 - 1])) i2--;
+        while (i2 > 0 && isTokenChar(doc[i2 - 1])) i2--;
         const tStart2 = i2;
         if (tStart2 === tEnd2) return;
         const token2 = doc.slice(tStart2, tEnd2);
+        if (bounds && tStart2 < bounds.lo) return;
         const newDoc2 = doc.slice(0, tStart2) + phrase + gap2 + token2 + doc.slice(b);
         if (newDoc2 !== doc) editor.setValue(newDoc2);
         editor.setSelection(editor.offsetToPos(tStart2), editor.offsetToPos(tStart2 + phrase.length));
         return;
       }
       let i = b;
-      while (i < doc.length && isGapChar(doc[i])) i++;
+      while (i < doc.length && isHorizSpace(doc[i])) i++;
       const gap = doc.slice(b, i);
       const tStart = i;
-      while (i < doc.length && isWordChar(doc[i])) i++;
+      while (i < doc.length && isTokenChar(doc[i])) i++;
       const tEnd = i;
       if (tStart === tEnd) return;
       const token = doc.slice(tStart, tEnd);
+      if (bounds && tEnd > bounds.hi) return;
       const newDoc = doc.slice(0, a) + token + gap + phrase + doc.slice(tEnd);
       if (newDoc !== doc) editor.setValue(newDoc);
       const newA = a + token.length + gap.length;
@@ -636,14 +711,15 @@ var require_navigation_runtime = __commonJS({
         }
         return;
       }
-      if (currentIndent > 0 || isBullet(line)) {
+      const rightMayCycle = rules.prefixCyclerEnabled && rules.rightCycles;
+      if (currentIndent > 0 || isBullet(line) && !rightMayCycle) {
         if (rules.indentFallbackEnabled) {
           editor.replaceRange(INDENT, { line: lineNo, ch: 0 });
           editor.setCursor({ line: lineNo, ch: cur.ch + indentWidth });
         }
         return;
       }
-      if (rules.prefixCyclerEnabled) {
+      if (rightMayCycle) {
         const result = cycleLineType(editor, lineNo, "right", rules);
         if (result) {
           editor.setLine(lineNo, result.newLine);
@@ -779,11 +855,6 @@ var require_navigation_runtime = __commonJS({
     function isHorizSpace(ch) {
       return ch === " " || ch === "	";
     }
-    function isGapChar(ch) {
-      if (ch == null) return false;
-      if (ch === "\n") return false;
-      return !isWordChar(ch);
-    }
     function isHighSurrogate(code) {
       return code >= 55296 && code <= 56319;
     }
@@ -809,21 +880,15 @@ var require_navigation_runtime = __commonJS({
       }
       return index + 1;
     }
-    function jumpToHeader(editor, direction, rawCfg) {
-      const cfg = pickJumpCfg(rawCfg);
+    function jumpToHeader(editor, direction, rawCfg, lineFormat) {
+      const cfg = pickJumpCfg(rawCfg, lineFormat);
       const cur = editor.getCursor();
       const yamlEnd = findYamlEnd(editor);
       if (yamlEnd !== -1 && cur.line >= 0 && cur.line <= yamlEnd) {
-        if (direction === "up") return setCursorRobustCentered(editor, { line: 0, ch: 0 }, cfg);
-        const firstH = findNextHeader(editor, -1);
-        if (firstH !== -1) return setCursorRobustCentered(editor, sectionAnchorsAvoidTables(editor, firstH, cfg).startPos, cfg);
-        return;
+        if (direction === "up") return;
+        return setCursorRobustCentered(editor, sectionAnchorsAvoidTables(editor, -1, cfg).startPos, cfg);
       }
-      let curH = findPrevHeader(editor, cur.line);
-      if (curH === -1) {
-        curH = findNextHeader(editor, -1);
-        if (curH === -1) return;
-      }
+      const curH = findPrevHeader(editor, cur.line);
       const tb = tableBlockInSection(editor, curH, cur.line);
       if (tb) {
         if (direction === "up") {
@@ -839,7 +904,7 @@ var require_navigation_runtime = __commonJS({
       }
       const a = sectionAnchorsAvoidTables(editor, curH, cfg);
       if (cfg.jumpMode === "line") {
-        return jumpByLineMode(editor, cur, curH, direction, cfg, yamlEnd);
+        return jumpByLineMode(editor, cur, direction, cfg);
       }
       return jumpByEdgeMode(editor, cur, curH, direction, cfg, yamlEnd, a);
     }
@@ -862,29 +927,10 @@ var require_navigation_runtime = __commonJS({
       if (!atStartLine) return setCursorRobustCentered(editor, anchors.startPos, cfg);
       return jumpToAdjacentSection(editor, curH, direction, cfg, yamlEnd, "end");
     }
-    function jumpByLineMode(editor, cur, curH, direction, cfg, yamlEnd) {
-      const sec = sectionContentRange(editor, curH);
+    function jumpByLineMode(editor, cur, direction, cfg) {
       const curLine = cur.line;
-      if (direction === "down") {
-        const nextLine = findNextContentLineInRange(editor, curLine + 1, sec.b);
-        if (nextLine !== -1) return setCursorRobustCentered(editor, targetPosForLine(editor, nextLine, cfg), cfg);
-        const nextH = findNextHeader(editor, curH);
-        if (nextH === -1) return;
-        const nextSec = sectionContentRange(editor, nextH);
-        const first = findNextContentLineInRange(editor, nextSec.a, nextSec.b);
-        const line2 = first !== -1 ? first : nextH;
-        return setCursorRobustCentered(editor, targetPosForLine(editor, line2, cfg), cfg);
-      }
-      const prevLine = findPrevContentLineInRange(editor, curLine - 1, sec.a);
-      if (prevLine !== -1) return setCursorRobustCentered(editor, targetPosForLine(editor, prevLine, cfg), cfg);
-      const prevH = findPrevHeader(editor, curH - 1);
-      if (prevH === -1) {
-        if (yamlEnd !== -1) return setCursorRobustCentered(editor, { line: yamlEnd, ch: 0 }, cfg);
-        return setCursorRobustCentered(editor, { line: 0, ch: 0 }, cfg);
-      }
-      const prevSec = sectionContentRange(editor, prevH);
-      const last = findPrevContentLineInRange(editor, prevSec.b, prevSec.a);
-      const line = last !== -1 ? last : prevH;
+      const line = direction === "down" ? findNextContentLineInRange(editor, curLine + 1, editor.lastLine()) : findPrevContentLineInRange(editor, curLine - 1, unnamedSectionStart(editor));
+      if (line === -1) return;
       return setCursorRobustCentered(editor, targetPosForLine(editor, line, cfg), cfg);
     }
     function jumpToAdjacentSection(editor, curH, direction, cfg, yamlEnd, targetKind) {
@@ -895,12 +941,9 @@ var require_navigation_runtime = __commonJS({
         const target2 = targetKind === "end" ? nextAnchors.endPos : nextAnchors.startPos;
         return setCursorRobustCentered(editor, target2, cfg);
       }
+      if (curH < 0) return;
       const prevH = findPrevHeader(editor, curH - 1);
-      if (prevH === -1) {
-        if (yamlEnd !== -1) return setCursorRobustCentered(editor, { line: yamlEnd, ch: 0 }, cfg);
-        return setCursorRobustCentered(editor, { line: 0, ch: 0 }, cfg);
-      }
-      const prevAnchors = sectionAnchorsAvoidTables(editor, prevH, cfg);
+      const prevAnchors = sectionAnchorsAvoidTables(editor, prevH === -1 ? -1 : prevH, cfg);
       const target = targetKind === "start" ? prevAnchors.startPos : prevAnchors.endPos;
       return setCursorRobustCentered(editor, target, cfg);
     }
@@ -942,7 +985,7 @@ var require_navigation_runtime = __commonJS({
       st.line = p.line;
       setTimeout(() => {
         try {
-          if (typeof ed.scrollIntoView === "function") ed.scrollIntoView({ from: p, to: p }, true);
+          revealLineAt(ed, p.line, cfg.viewPosition, p.ch);
         } catch (_) {
         }
       }, cfg.centerDelayMs);
@@ -983,10 +1026,15 @@ var require_navigation_runtime = __commonJS({
       for (let l = Math.max(0, fromLine + 1); l <= max; l++) if (isHeader(ed.getLine(l))) return l;
       return -1;
     }
+    function unnamedSectionStart(ed) {
+      const yamlEnd = findYamlEnd(ed);
+      return yamlEnd === -1 ? 0 : yamlEnd + 1;
+    }
     function sectionContentRange(ed, headerLine) {
       const max = ed.lastLine();
       const nextH = findNextHeader(ed, headerLine);
-      return { a: headerLine + 1, b: nextH === -1 ? max : nextH - 1, nextH };
+      const a = headerLine < 0 ? unnamedSectionStart(ed) : headerLine + 1;
+      return { a, b: nextH === -1 ? max : nextH - 1, nextH };
     }
     function tableBlockInSection(ed, headerLine, curLine) {
       const { a, b } = sectionContentRange(ed, headerLine);
@@ -1029,7 +1077,8 @@ var require_navigation_runtime = __commonJS({
     }
     function sectionAnchorsAvoidTables(ed, headerLine, cfg) {
       const { a, b } = sectionContentRange(ed, headerLine);
-      if (a > b) return { startPos: targetPosForLine(ed, headerLine, cfg), endPos: targetPosForLine(ed, headerLine, cfg) };
+      const fallback = headerLine < 0 ? unnamedSectionStart(ed) : headerLine;
+      if (a > b) return { startPos: targetPosForLine(ed, fallback, cfg), endPos: targetPosForLine(ed, fallback, cfg) };
       let startLine = -1;
       for (let l = a; l <= b; l++) {
         const s = txt(ed, l);
@@ -1044,16 +1093,17 @@ var require_navigation_runtime = __commonJS({
         endLine = l;
         break;
       }
-      if (startLine === -1 || endLine === -1) return { startPos: targetPosForLine(ed, headerLine, cfg), endPos: targetPosForLine(ed, headerLine, cfg) };
+      if (startLine === -1 || endLine === -1) return { startPos: targetPosForLine(ed, fallback, cfg), endPos: targetPosForLine(ed, fallback, cfg) };
       return { startPos: targetPosForLine(ed, startLine, cfg), endPos: targetPosForLine(ed, endLine, cfg) };
     }
     function lineEndPos(ed, line, cfg) {
       const s = txt(ed, line);
       if (!cfg || cfg.jumpCursorPosition !== "section-end") return { line, ch: len(ed, line) };
       const sep = typeof (cfg && cfg.separator1) === "string" && cfg.separator1 ? cfg.separator1 : "||";
+      const sep2 = typeof (cfg && cfg.separator2) === "string" && cfg.separator2 ? cfg.separator2 : sep;
       const first = s.indexOf(sep);
       if (first === -1) return { line, ch: len(ed, line) };
-      const second = s.indexOf(sep, first + sep.length);
+      const second = s.indexOf(sep2, first + sep.length);
       if (second === -1) {
         const beforeFirst = s.slice(0, first).replace(/[ \t]+$/, "");
         if (!hasTextPartBeforeFirstSeparator(beforeFirst)) return { line, ch: len(ed, line) };
@@ -1130,21 +1180,29 @@ var require_navigation_runtime = __commonJS({
       if (src.indexOf("/") !== -1) pushCandidate(src.slice(src.lastIndexOf("/") + 1));
       pushCandidate("RULES_TagWheel.md");
       pushCandidate("InlineOverhaul_Generated_RULES_TagWheel.md");
-      let f = null;
+      let md = null;
       let usedPath = "";
+      const adapter = app3 && app3.vault ? app3.vault.adapter : null;
       for (let i = 0; i < candidates.length; i++) {
         const cand = candidates[i];
         const af = app3.vault.getAbstractFileByPath(cand);
         if (af) {
-          f = af;
+          md = await app3.vault.read(af);
           usedPath = cand;
           break;
         }
+        if (adapter && typeof adapter.read === "function") {
+          try {
+            md = await adapter.read(cand);
+            usedPath = cand;
+            break;
+          } catch (_) {
+          }
+        }
       }
-      if (!f) {
+      if (md === null) {
         throw new Error("Rules file not found: " + src + " (checked: " + candidates.join(", ") + ")");
       }
-      const md = await app3.vault.read(f);
       const io = parseJsonFence(md, "tagwheel-io") || {};
       const leftMode = parseJsonFence(md, "tagwheel-left-mode") || {};
       const dateRules = parseJsonFence(md, "tagwheel-date-rules") || {};
@@ -1397,7 +1455,8 @@ var require_navigation_runtime = __commonJS({
             anchors.push(sentenceStart + mt.index);
           }
           if (!foundSentenceBoundary) {
-            anchors.push.apply(anchors, collectWordAnchors(rawLine, sentenceStart, sentenceEnd));
+            anchors.push(sentenceStart);
+            anchors.push(sentenceEnd);
           }
         }
         if (cfg.boundaryJump) {
@@ -1497,6 +1556,22 @@ var require_vault_module_bridge = __commonJS({
       }
       return { found: false, value: void 0 };
     }
+    function requirePluginLocalModule(vaultPath) {
+      if (globalThis[BUNDLED_REGISTRY_KEY]) return { found: false, value: void 0 };
+      if (typeof require !== "function" || typeof __dirname !== "string") {
+        return { found: false, value: void 0 };
+      }
+      const normalized = normalizeVaultModulePath(vaultPath);
+      if (!normalized.startsWith(PLUGIN_PATH_PREFIX)) return { found: false, value: void 0 };
+      const rel = normalized.slice(PLUGIN_PATH_PREFIX.length);
+      if (!rel) return { found: false, value: void 0 };
+      try {
+        return { found: true, value: require(__dirname + "/../../" + rel) };
+      } catch (e) {
+        reportLoaderFallback("vault_module_bridge.requireLocal:" + rel, e);
+        return { found: false, value: void 0 };
+      }
+    }
     async function loadVaultModule(app_, vaultPath, forceReload, cacheKey) {
       var _a;
       const key = String(cacheKey || "__pkmModuleCache");
@@ -1539,7 +1614,14 @@ var require_vault_module_bridge = __commonJS({
           }
         }
       }
-      if (!found) throw new Error("Module file not found in vault: " + vaultPath);
+      if (!found) {
+        const local = requirePluginLocalModule(vaultPath);
+        if (local.found) {
+          globalThis[key].set(vaultPath, local.value);
+          return local.value;
+        }
+        throw new Error("Module file not found in vault: " + vaultPath);
+      }
       const module3 = { exports: {} };
       const exports3 = module3.exports;
       const fn = new Function("module", "exports", "app", "Notice", `${code}
@@ -1550,7 +1632,9 @@ var require_vault_module_bridge = __commonJS({
     }
     module2.exports = {
       BUNDLED_REGISTRY_KEY,
+      PLUGIN_PATH_PREFIX,
       normalizeVaultModulePath,
+      requirePluginLocalModule,
       loadVaultModule
     };
   }
@@ -1607,23 +1691,23 @@ var require_pkm_runtime_v2 = __commonJS({
       return active && active.editor ? active.editor : null;
     }
     async function loadVaultModuleBridge(app3, vaultPath, forceReload) {
-      let bridge2 = globalThis && globalThis.__inlineVaultModuleBridge;
-      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
+      let bridge = globalThis && globalThis.__inlineVaultModuleBridge;
+      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
         try {
           const mod = require_vault_module_bridge();
           if (mod && typeof mod.loadVaultModule === "function") {
-            bridge2 = mod;
+            bridge = mod;
             globalThis.__inlineVaultModuleBridge = mod;
           }
         } catch (e) {
           reportLoaderFallback("pkm_runtime_v2.bridge.require", e);
         }
       }
-      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
+      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
         throw new Error("pkm_runtime_v2: vault_module_bridge unavailable");
       }
       try {
-        return await bridge2.loadVaultModule(app3, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache");
+        return await bridge.loadVaultModule(app3, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache");
       } catch (e) {
         reportLoaderFallback(`pkm_runtime_v2.bridge.load:${vaultPath}`, e);
         throw e;
@@ -3120,7 +3204,7 @@ var require_status_date = __commonJS({
         const missingEmojiFields = collectMissingEmojiFields(rules, dateRuntimeCfg);
         if (missingEmojiFields.length) {
           try {
-            new Notice(`TagWheel config error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Fix: [[InlineOverhaul_Config]] (DATE/TIME + ELEMENTS section)`);
+            new Notice(`TagWheel config error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Set it in Settings -> Inline Overhaul -> Tags & PKM -> Fields`);
           } catch (_) {
           }
         }
@@ -3792,16 +3876,16 @@ var require_status_tags = __commonJS({
       const fromRules = String(b.subtagFormat || "separate").trim().toLowerCase();
       return fromRules === "combined" ? "combined" : "separate";
     }
-    function getAllowedSubValues(subField, parentToken) {
+    function getAllowedSubValues(subField2, parentToken) {
       try {
         const common = getStatusRuntimeCommon();
         if (common && typeof common.getAllowedSubValues === "function") {
-          return common.getAllowedSubValues(subField, parentToken);
+          return common.getAllowedSubValues(subField2, parentToken);
         }
       } catch (_) {
       }
       const out = [];
-      const vals = Array.isArray(subField == null ? void 0 : subField.values) ? subField.values : [];
+      const vals = Array.isArray(subField2 == null ? void 0 : subField2.values) ? subField2.values : [];
       for (const v of vals) {
         if (!isObj(v) || typeof v.token !== "string" || !v.token || v.active === false) continue;
         const allowed = Array.isArray(v.allowedParentValues) ? v.allowedParentValues : [];
@@ -3839,8 +3923,8 @@ var require_status_tags = __commonJS({
         parentTokens
       });
     }
-    function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, subField) {
-      if (!parentField || !subField) return;
+    function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, subField2) {
+      if (!parentField || !subField2) return;
       const linePipeline = globalThis.__inlineLinePipeline;
       if (!linePipeline || typeof linePipeline.splitSegments !== "function") {
         throw new Error("line_pipeline unavailable: splitSegments");
@@ -3858,7 +3942,7 @@ var require_status_tags = __commonJS({
         const parentId = valueId(pv);
         const pTok = pp + String((pv == null ? void 0 : pv.token) || "");
         if (!pTok) continue;
-        const subs = getAllowedSubValues(subField, String(pv.token || ""));
+        const subs = getAllowedSubValues(subField2, String(pv.token || ""));
         for (const sv of subs) {
           const subId = valueId(sv);
           const combo = pTok + "/" + String((sv == null ? void 0 : sv.token) || "");
@@ -3882,7 +3966,7 @@ var require_status_tags = __commonJS({
       const pair = hit && hit.id ? pairByHitId[String(hit.id)] : null;
       if (!pair) return;
       state.selected[parentField.id] = String(pair.parentId || "");
-      state.selected[subField.id] = String(pair.subId || "");
+      state.selected[subField2.id] = String(pair.subId || "");
     }
     function composeToken(prefix, rawToken) {
       try {
@@ -4730,7 +4814,7 @@ var require_status_tags = __commonJS({
       return valueId(arr[idx + 1]);
     }
     function resolveFieldIdByOrderKey(rules, orderKey) {
-      var _a, _b, _c, _d, _e, _f;
+      var _a, _b, _c, _d, _e, _f, _g, _h;
       const key = String(orderKey || "").trim();
       if (!key) return "";
       const left = Array.isArray((_a = rules == null ? void 0 : rules.leftMode) == null ? void 0 : _a.fields) ? rules.leftMode.fields : [];
@@ -4745,7 +4829,6 @@ var require_status_tags = __commonJS({
         }
         return false;
       };
-      const isCompatibleFieldForKey = (field) => isCycleCapableField(field);
       const byOrderKey = fields.find((x) => x && String(x.orderKey || "").trim() === key);
       if (byOrderKey && byOrderKey.id) return String(byOrderKey.id);
       if (reg && typeof reg.resolveLeftFieldIdByOrderKey === "function") {
@@ -4755,8 +4838,16 @@ var require_status_tags = __commonJS({
           if (byResolved && byResolved.id) return String(byResolved.id || "").trim();
         }
       }
-      const leftOrder = Array.isArray((_d = (_c = rules == null ? void 0 : rules.behavior) == null ? void 0 : _c.order) == null ? void 0 : _d.left) ? rules.behavior.order.left : [];
-      const rightOrder = Array.isArray((_f = (_e = rules == null ? void 0 : rules.behavior) == null ? void 0 : _e.order) == null ? void 0 : _f.right) ? rules.behavior.order.right : [];
+      const strictNames = isObj((_d = (_c = rules == null ? void 0 : rules.behavior) == null ? void 0 : _c.order) == null ? void 0 : _d.strictNames) ? rules.behavior.order.strictNames : null;
+      if (strictNames) {
+        const strictName = String(strictNames[key] || "").trim();
+        if (strictName && strictName !== key) {
+          const byStrict = fields.find((x) => x && (String(x.id || "").trim() === strictName || String(x.orderKey || "").trim() === strictName));
+          if (byStrict && byStrict.id) return String(byStrict.id || "").trim();
+        }
+      }
+      const leftOrder = Array.isArray((_f = (_e = rules == null ? void 0 : rules.behavior) == null ? void 0 : _e.order) == null ? void 0 : _f.left) ? rules.behavior.order.left : [];
+      const rightOrder = Array.isArray((_h = (_g = rules == null ? void 0 : rules.behavior) == null ? void 0 : _g.order) == null ? void 0 : _h.right) ? rules.behavior.order.right : [];
       const priorityLikeFields = fields.filter((x) => {
         if (!x || !Array.isArray(x.values)) return false;
         return x.values.some((v) => {
@@ -4794,17 +4885,11 @@ var require_status_tags = __commonJS({
         return "";
       };
       const leftIdx = leftOrder.findIndex((k) => String(k || "").trim() === key);
-      if (leftIdx >= 0 && left[leftIdx] && left[leftIdx].id && isCompatibleFieldForKey(left[leftIdx])) {
-        return String(left[leftIdx].id || "").trim();
-      }
       if (leftIdx >= 0) {
         const byNeighborLeft = resolveByNeighborInOrder(leftOrder, left, leftIdx);
         if (byNeighborLeft) return byNeighborLeft;
       }
       const rightIdx = rightOrder.findIndex((k) => String(k || "").trim() === key);
-      if (rightIdx >= 0 && right[rightIdx] && right[rightIdx].id && isCompatibleFieldForKey(right[rightIdx])) {
-        return String(right[rightIdx].id || "").trim();
-      }
       if (rightIdx >= 0) {
         const byNeighborRight = resolveByNeighborInOrder(rightOrder, right, rightIdx);
         if (byNeighborRight) return byNeighborRight;
@@ -5796,6 +5881,9 @@ var require_tagwheel = __commonJS({
     var TAGWHEEL_SCROLLER_ENABLED_OPTION = "TagWheel scroller enabled";
     var TAGWHEEL_SCROLLER_DIRECTION_OPTION = "TagWheel scroller direction";
     var TAGWHEEL_SCROLLER_SIZE_OPTION = "TagWheel scroller size";
+    var TAGWHEEL_SCROLLER_FILL_OPTION = "TagWheel scroller fill color";
+    var TAGWHEEL_SCROLLER_TEXT_OPTION = "TagWheel scroller text color";
+    var TAGWHEEL_EDGE_MODE_OPTION = "TagWheel edge mode";
     var DEFAULT_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
     var LINE_FINALIZE_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_line_finalize_unified.js";
     var STATUS_LINE_RUNTIME_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/status_line_runtime_unified.js";
@@ -5958,7 +6046,44 @@ var require_tagwheel = __commonJS({
       if (out.scrollerSize == null && qa[TAGWHEEL_SCROLLER_SIZE_OPTION] != null) {
         out.scrollerSize = qa[TAGWHEEL_SCROLLER_SIZE_OPTION];
       }
+      if (out.scrollerFillColor == null && typeof qa[TAGWHEEL_SCROLLER_FILL_OPTION] === "string") {
+        out.scrollerFillColor = qa[TAGWHEEL_SCROLLER_FILL_OPTION];
+      }
+      if (out.scrollerTextColor == null && typeof qa[TAGWHEEL_SCROLLER_TEXT_OPTION] === "string") {
+        out.scrollerTextColor = qa[TAGWHEEL_SCROLLER_TEXT_OPTION];
+      }
+      if (!out.edgeMode && typeof qa[TAGWHEEL_EDGE_MODE_OPTION] === "string") {
+        out.edgeMode = qa[TAGWHEEL_EDGE_MODE_OPTION];
+      }
       return out;
+    }
+    function normalizeEdgeMode(value) {
+      return String(value || "").trim().toLowerCase() === "next-block" ? "next-block" : "stay";
+    }
+    function planFieldStep(input) {
+      var o = input && typeof input === "object" ? input : {};
+      var ids = Array.isArray(o.ids) ? o.ids : [];
+      if (!ids.length) return null;
+      var mode = o.mode === "right" ? "right" : "left";
+      var dir = Number(o.dir) < 0 ? -1 : 1;
+      var idx = ids.indexOf(String(o.activeFieldId || ""));
+      if (idx === -1) idx = 0;
+      var next = idx + dir;
+      if (normalizeEdgeMode(o.edgeMode) === "next-block" && (next < 0 || next >= ids.length)) {
+        var otherIds = Array.isArray(o.otherIds) ? o.otherIds : [];
+        if (otherIds.length) {
+          return {
+            mode: mode === "right" ? "left" : "right",
+            activeFieldId: dir > 0 ? otherIds[0] : otherIds[otherIds.length - 1],
+            crossed: true
+          };
+        }
+      }
+      return {
+        mode,
+        activeFieldId: ids[(next + ids.length) % ids.length],
+        crossed: false
+      };
     }
     function normalizeScrollerConfig(input) {
       var raw = input && typeof input === "object" ? input : {};
@@ -5966,10 +6091,16 @@ var require_tagwheel = __commonJS({
       var direction = directionRaw === "up" || directionRaw === "down" || directionRaw === "full" ? directionRaw : "full";
       var sizeNum = Math.trunc(Number(raw.scrollerSize));
       var size = isFinite(sizeNum) ? Math.max(1, Math.min(20, sizeNum)) : 3;
+      var hex = function(value) {
+        var v = String(value == null ? "" : value).trim().toLowerCase();
+        return /^#[0-9a-f]{6}$/.test(v) ? v : "";
+      };
       return {
         enabled: raw.scrollerEnabled === true,
         direction,
-        size
+        size,
+        fillColor: hex(raw.scrollerFillColor),
+        textColor: hex(raw.scrollerTextColor)
       };
     }
     async function loadDateRuntimeShared(app_, loadVaultModule) {
@@ -6056,6 +6187,9 @@ var require_tagwheel = __commonJS({
         TAGWHEEL_SCROLLER_ENABLED_OPTION = String(keys.TAGWHEEL_SCROLLER_ENABLED || TAGWHEEL_SCROLLER_ENABLED_OPTION);
         TAGWHEEL_SCROLLER_DIRECTION_OPTION = String(keys.TAGWHEEL_SCROLLER_DIRECTION || TAGWHEEL_SCROLLER_DIRECTION_OPTION);
         TAGWHEEL_SCROLLER_SIZE_OPTION = String(keys.TAGWHEEL_SCROLLER_SIZE || TAGWHEEL_SCROLLER_SIZE_OPTION);
+        TAGWHEEL_SCROLLER_FILL_OPTION = String(keys.TAGWHEEL_SCROLLER_FILL || TAGWHEEL_SCROLLER_FILL_OPTION);
+        TAGWHEEL_SCROLLER_TEXT_OPTION = String(keys.TAGWHEEL_SCROLLER_TEXT || TAGWHEEL_SCROLLER_TEXT_OPTION);
+        TAGWHEEL_EDGE_MODE_OPTION = String(keys.TAGWHEEL_EDGE_MODE || TAGWHEEL_EDGE_MODE_OPTION);
         DEFAULT_RULES_PATH = String(mod.DEFAULT_RULES_PATH || DEFAULT_RULES_PATH);
       }
       function getDomainRegistry() {
@@ -6173,14 +6307,47 @@ var require_tagwheel = __commonJS({
         }
         state2.session.activeField = 0;
       }
+      function panelFieldIdsFor(state2, mode) {
+        var session2 = state2 && state2.session;
+        if (!session2) return [];
+        if (session2.mode === mode) return panelFieldIds(state2);
+        var core2 = state2.core;
+        var rules2 = state2.rules;
+        if (core2 && typeof core2.getNavigableFieldSequence === "function") {
+          var probe = {};
+          var key;
+          for (key in session2) {
+            if (Object.prototype.hasOwnProperty.call(session2, key)) probe[key] = session2[key];
+          }
+          probe.mode = mode;
+          probe.activeFieldId = "";
+          return core2.getNavigableFieldSequence(rules2, probe);
+        }
+        var alt = mode === "right" ? rules2.rightMode : rules2.leftMode;
+        var arr = alt && Array.isArray(alt.fields) ? alt.fields : [];
+        var out = [];
+        var i;
+        for (i = 0; i < arr.length; i++) {
+          if (!arr[i] || !arr[i].id) continue;
+          out.push(arr[i].id);
+        }
+        return out;
+      }
       function nextVirtualField(state2, dir) {
         var ids = panelFieldIds(state2);
         if (!ids.length) return;
-        var cur = String(state2.session.activeFieldId || "");
-        var idx = ids.indexOf(cur);
-        if (idx === -1) idx = 0;
-        idx = (idx + dir + ids.length) % ids.length;
-        state2.session.activeFieldId = ids[idx];
+        var mode = state2.session.mode === "right" ? "right" : "left";
+        var plan = planFieldStep({
+          ids,
+          otherIds: state2.edgeMode === "next-block" ? panelFieldIdsFor(state2, mode === "right" ? "left" : "right") : [],
+          activeFieldId: state2.session.activeFieldId,
+          mode,
+          dir,
+          edgeMode: state2.edgeMode
+        });
+        if (!plan) return;
+        state2.session.mode = plan.mode;
+        state2.session.activeFieldId = plan.activeFieldId;
         ensureActiveFieldId(state2);
       }
       function selectedTagTokenForField(field, session2, rules2, byId) {
@@ -6686,6 +6853,19 @@ var require_tagwheel = __commonJS({
         if (!token) return false;
         return !!String(row[token] || "").trim();
       }
+      function fieldHasAnyCheckboxRule(rules2, fieldId) {
+        var fid = String(fieldId || "").trim();
+        if (!fid) return false;
+        var byField = rules2 && rules2.behavior && rules2.behavior.prefixRules && rules2.behavior.prefixRules.checkboxByFieldValue ? rules2.behavior.prefixRules.checkboxByFieldValue : {};
+        var row = byField && typeof byField === "object" ? byField[fid] : null;
+        if (!row || typeof row !== "object") return false;
+        var keys = Object.keys(row);
+        var i;
+        for (i = 0; i < keys.length; i++) {
+          if (String(row[keys[i]] || "").trim()) return true;
+        }
+        return false;
+      }
       function applySelection(state2, core2) {
         var applyStartedAt = Date.now();
         var beforeSourceLine = String(state2 && state2.originalLine ? state2.originalLine : "");
@@ -6743,11 +6923,12 @@ var require_tagwheel = __commonJS({
           var fieldKey = activeField ? String(activeField.orderKey || activeField.id || "").trim() : "";
           var mode = fieldKey ? rulesHelpers.resolveFieldFreeRoamMode(state2.orderCfg, fieldKey) : "off";
           var hasOwnCheckbox = activeFieldId ? fieldHasOwnCheckbox(state2.rules, state2.session, activeFieldId) : false;
+          var clearedOwnCheckbox = !!activeFieldId && !selectedTokenForField(state2.rules, state2.session, activeField) && fieldHasAnyCheckboxRule(state2.rules, activeFieldId);
           offPrefixFlags = finalize.resolveOffPrefixFlagsUnified({
             mode,
             freeRoamBehavior,
             hasOwnCheckbox,
-            clearedOwnCheckbox: false
+            clearedOwnCheckbox
           });
         }
         prefixState = Object.assign({}, prefixState, {
@@ -7247,7 +7428,7 @@ var require_tagwheel = __commonJS({
         rulesHelpers.applyOrderToRules(rules, orderCfg);
         var missingEmojiFields = dateRuntimeShared.collectMissingEmojiFieldsFromRules(rules, dateRuntimeCfg);
         if (missingEmojiFields.length) {
-          notice("TagWheel config error: Emoji is required for fields: " + missingEmojiFields.join(", ") + ". Fix: [[InlineOverhaul_Config]] (DATE/TIME + ELEMENTS section)");
+          notice("TagWheel config error: Emoji is required for fields: " + missingEmojiFields.join(", ") + ". Set it in Settings -> Inline Overhaul -> Tags & PKM -> Fields");
           return;
         }
         var sf = String(runtimeInput && runtimeInput.subtagFormat ? runtimeInput.subtagFormat : "").toLowerCase().trim();
@@ -7298,6 +7479,7 @@ var require_tagwheel = __commonJS({
           originalCursorCh: cursor.ch,
           keyHandler: null,
           scrollerCfg,
+          edgeMode: normalizeEdgeMode(runtimeInput.edgeMode),
           scrollerOverlay: null
         };
         if (scrollerCfg.enabled) {
@@ -7305,7 +7487,10 @@ var require_tagwheel = __commonJS({
             var scrollerMod = await loadTagWheelScrollerOverlay(app_, loadVaultModule);
             state.scrollerOverlay = scrollerMod.createTagWheelScrollerOverlay({
               direction: scrollerCfg.direction,
-              size: scrollerCfg.size
+              size: scrollerCfg.size,
+              /* Цвета коробки (10.13.15). Пусто — оверлей оставляет цвета темы. */
+              fillColor: scrollerCfg.fillColor,
+              textColor: scrollerCfg.textColor
             });
           } catch (eScroller) {
             state.scrollerOverlay = null;
@@ -7374,7 +7559,6 @@ var require_tagwheel = __commonJS({
         editor.setLine(lineNumber, initialControl);
         editor.setCursor({ line: lineNumber, ch: getControlCursorCh(state, initialControl) });
         updateScrollerOverlay(state, initialControl);
-        notice("TagWheel: \u0440\u0435\u0436\u0438\u043C \u0430\u043A\u0442\u0438\u0432\u0438\u0440\u043E\u0432\u0430\u043D (" + modeName + ")");
       } catch (e) {
         notice("TagWheel error: " + (e.message || e));
         reportTagWheelError(e);
@@ -7424,6 +7608,8 @@ var require_tagwheel = __commonJS({
     module2.exports.entry = async function(QuickAdd, settings) {
       return await runTagWheel(QuickAdd, settings);
     };
+    module2.exports.planFieldStep = planFieldStep;
+    module2.exports.normalizeEdgeMode = normalizeEdgeMode;
   }
 });
 
@@ -11500,7 +11686,11 @@ var require_pkm_line_finalize_unified = __commonJS({
         return `${indent}${baseLeft} ${sep1} ${text} ${sep2} ${dates}`;
       }
       if (dates) {
-        if (sep1 === sep2) return `${indent}${baseLeft} ${sep1} ${dates}`;
+        const leftTech = /(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(baseLeft) || baseLeft.split(/\s+/).some(function(t) {
+          return startsWithAnyDateMarker(t, rules);
+        });
+        if (!leftTech) return `${indent}${baseLeft} ${sep1} ${dates}`;
+        if (sep1 === sep2) return `${indent}${baseLeft} ${sep1}  ${sep2} ${dates}`;
         return `${indent}${baseLeft} ${sep1} ${sep2} ${dates}`;
       }
       return line;
@@ -11760,11 +11950,13 @@ var require_config_migration = __commonJS({
     "use strict";
     function normalizePkmBehaviorShape(cfg, deps) {
       const isObj = deps && typeof deps.isObj === "function" ? deps.isObj : (x) => !!x && typeof x === "object" && !Array.isArray(x);
-      const cloneJson = deps && typeof deps.cloneJson === "function" ? deps.cloneJson : (x) => JSON.parse(JSON.stringify(x));
+      const cloneJson2 = deps && typeof deps.cloneJson === "function" ? deps.cloneJson : (x) => JSON.parse(JSON.stringify(x));
       const out = isObj(cfg) ? cfg : {};
       if (!isObj(out.pkm)) out.pkm = {};
-      if (!isObj(out.pkm.behavior)) out.pkm.behavior = {};
-      const behavior = isObj(out.pkm.behavior) ? out.pkm.behavior : {};
+      if (!isObj(out.pkm.fields)) out.pkm.fields = {};
+      if (!isObj(out.pkm.prefixRules)) out.pkm.prefixRules = {};
+      const fields = out.pkm.fields;
+      const prefixRules2 = out.pkm.prefixRules;
       const normalizeCheckbox = (token) => {
         try {
           const lf = require_pkm_line_finalize_unified();
@@ -11779,36 +11971,29 @@ var require_config_migration = __commonJS({
         return inner ? `[${inner}]` : "[ ]";
       };
       {
-        const behaviorDefaultMode = String(behavior.defaultMode || "").trim().toLowerCase();
-        if (behaviorDefaultMode === "left" || behaviorDefaultMode === "right") {
-          behavior.defaultMode = behaviorDefaultMode;
-        } else {
-          behavior.defaultMode = "left";
-        }
+        const defaultBlock = String(fields.defaultBlock || "").trim().toLowerCase();
+        fields.defaultBlock = defaultBlock === "left" || defaultBlock === "right" ? defaultBlock : "left";
       }
-      if (!isObj(behavior.typeCheckboxByValue) && isObj(behavior.prefixRules) && isObj(behavior.prefixRules.checkboxByFieldValue) && isObj(behavior.prefixRules.checkboxByFieldValue.type)) {
-        behavior.typeCheckboxByValue = cloneJson(behavior.prefixRules.checkboxByFieldValue.type);
+      if (Array.isArray(prefixRules2.priorityCheckboxes)) {
+        prefixRules2.priorityCheckboxes = Array.from(new Set(prefixRules2.priorityCheckboxes.map((x) => normalizeCheckbox(x)).filter(Boolean)));
       }
-      if (isObj(behavior.prefixRules)) {
-        if (Array.isArray(behavior.prefixRules.priorityCheckboxes)) {
-          behavior.prefixRules.priorityCheckboxes = Array.from(new Set(behavior.prefixRules.priorityCheckboxes.map((x) => normalizeCheckbox(x)).filter(Boolean)));
-        }
-        if (isObj(behavior.prefixRules.checkboxByFieldValue)) {
-          const byField = behavior.prefixRules.checkboxByFieldValue;
-          for (const fid of Object.keys(byField)) {
-            if (!isObj(byField[fid])) continue;
-            for (const tok of Object.keys(byField[fid])) {
-              const norm = normalizeCheckbox(byField[fid][tok]);
-              if (!norm) {
-                delete byField[fid][tok];
-                continue;
-              }
-              byField[fid][tok] = norm;
+      if (isObj(prefixRules2.checkboxByFieldValue)) {
+        const byField = prefixRules2.checkboxByFieldValue;
+        for (const fid of Object.keys(byField)) {
+          if (!isObj(byField[fid])) continue;
+          for (const tok of Object.keys(byField[fid])) {
+            const norm = normalizeCheckbox(byField[fid][tok]);
+            if (!norm) {
+              delete byField[fid][tok];
+              continue;
             }
+            byField[fid][tok] = norm;
           }
         }
       }
-      out.pkm.behavior = behavior;
+      if (!isObj(fields.checkboxByValue) && isObj(prefixRules2.checkboxByFieldValue) && isObj(prefixRules2.checkboxByFieldValue.type)) {
+        fields.checkboxByValue = cloneJson2(prefixRules2.checkboxByFieldValue.type);
+      }
       return out;
     }
     module2.exports = {
@@ -12325,6 +12510,24 @@ var require_line_pipeline = __commonJS({
       text = textRaw;
       return buildFromSegments({ indent: seg.indent, left, text, dates }, rules);
     }
+    function collectManagedTokens(rules) {
+      const out = /* @__PURE__ */ new Set();
+      const modes = [rules && rules.leftMode, rules && rules.rightMode];
+      for (const mode of modes) {
+        const fields = mode && Array.isArray(mode.fields) ? mode.fields : [];
+        for (const field of fields) {
+          const prefix = field && typeof field.prefix === "string" ? field.prefix : "#";
+          const values = field && Array.isArray(field.values) ? field.values : [];
+          for (const v of values) {
+            const token = String((typeof v === "string" ? v : v && v.token) || "").trim();
+            if (!token) continue;
+            out.add(token);
+            if (!/^(#|\[\[)/.test(token)) out.add(prefix + token);
+          }
+        }
+      }
+      return out;
+    }
     function extractOriginalTextFromRawLine(rawLine, rules) {
       const seg = splitSegments(rawLine, rules);
       if (String(seg.text || "").trim()) return String(seg.text || "").trim();
@@ -12360,6 +12563,12 @@ var require_line_pipeline = __commonJS({
           continue;
         }
         break;
+      }
+      const managed = collectManagedTokens(rules);
+      if (managed.size) {
+        left = left.split(/\s+/).filter(Boolean).filter(function(t) {
+          return !managed.has(t);
+        }).join(" ");
       }
       left = left.trim();
       if (left === "-") return "";
@@ -12825,7 +13034,7 @@ var require_order_deep_editor_state = __commonJS({
     function isObj(x) {
       return !!x && typeof x === "object" && !Array.isArray(x);
     }
-    function cloneJson(x) {
+    function cloneJson2(x) {
       return JSON.parse(JSON.stringify(x));
     }
     function normalizeToken(raw, kind) {
@@ -12847,11 +13056,11 @@ var require_order_deep_editor_state = __commonJS({
       const inner = String(m[1] || "").trim();
       return inner ? `[${inner}]` : "[ ]";
     }
-    function buildTagTree(parentField, subField, kind, options) {
+    function buildTagTree(parentField, subField2, kind, options) {
       const opts = isObj(options) ? options : {};
       const checkboxByToken = isObj(opts.checkboxByToken) ? opts.checkboxByToken : {};
       const pValues = Array.isArray(parentField && parentField.values) ? parentField.values : [];
-      const subValues = Array.isArray(subField && subField.values) ? subField.values : [];
+      const subValues = Array.isArray(subField2 && subField2.values) ? subField2.values : [];
       const subByParent = /* @__PURE__ */ new Map();
       for (const row of subValues) {
         if (!isObj(row)) continue;
@@ -12894,7 +13103,7 @@ var require_order_deep_editor_state = __commonJS({
       }
       return out;
     }
-    function applyTagTreeToFields(tree, parentField, subField, kind) {
+    function applyTagTreeToFields(tree, parentField, subField2, kind) {
       const items = Array.isArray(tree) ? tree : [];
       const pOut = [];
       const sMap = /* @__PURE__ */ new Map();
@@ -12924,7 +13133,7 @@ var require_order_deep_editor_state = __commonJS({
         sOut.push({ token, allowedParentValues: Array.from(parentSet), active: true });
       }
       const nextParent = { ...parentField || {}, values: pOut };
-      const nextSub = subField ? { ...subField || {}, values: sOut } : null;
+      const nextSub = subField2 ? { ...subField2 || {}, values: sOut } : null;
       return { parentField: nextParent, subField: nextSub, checkboxByToken };
     }
     function validateDraft(draft) {
@@ -12979,7 +13188,7 @@ var require_order_deep_editor_state = __commonJS({
     }
     function pushHistory(history, snapshot) {
       const h = isObj(history) ? history : createHistory();
-      h.past.push(cloneJson(snapshot));
+      h.past.push(cloneJson2(snapshot));
       while (h.past.length > h.max) h.past.shift();
       h.future = [];
       return h;
@@ -12988,14 +13197,14 @@ var require_order_deep_editor_state = __commonJS({
       const h = isObj(history) ? history : createHistory();
       if (!h.past.length) return { changed: false, snapshot: currentSnapshot, history: h };
       const prev = h.past.pop();
-      h.future.push(cloneJson(currentSnapshot));
+      h.future.push(cloneJson2(currentSnapshot));
       return { changed: true, snapshot: prev, history: h };
     }
     function redoHistory(history, currentSnapshot) {
       const h = isObj(history) ? history : createHistory();
       if (!h.future.length) return { changed: false, snapshot: currentSnapshot, history: h };
       const next = h.future.pop();
-      h.past.push(cloneJson(currentSnapshot));
+      h.past.push(cloneJson2(currentSnapshot));
       return { changed: true, snapshot: next, history: h };
     }
     function resetHistory(history) {
@@ -13060,12 +13269,12 @@ var require_pkm_macro_runtime_entry = __commonJS({
       }
     }
     function ensureVaultBridge() {
-      let bridge2 = globalThis.__inlineVaultModuleBridge;
-      if (bridge2 && typeof bridge2.loadVaultModule === "function") return bridge2;
+      let bridge = globalThis.__inlineVaultModuleBridge;
+      if (bridge && typeof bridge.loadVaultModule === "function") return bridge;
       try {
         const mod = require_vault_module_bridge();
         if (mod && typeof mod.loadVaultModule === "function") {
-          bridge2 = mod;
+          bridge = mod;
           globalThis.__inlineVaultModuleBridge = mod;
           return mod;
         }
@@ -13077,10 +13286,10 @@ var require_pkm_macro_runtime_entry = __commonJS({
     async function loadMacroRuntimeShared(app_) {
       const cached = globalThis.__inlinePkmMacroRuntimeSharedMod;
       if (cached && typeof cached.loadVaultModule === "function") return cached;
-      const bridge2 = ensureVaultBridge();
-      if (bridge2 && typeof bridge2.loadVaultModule === "function") {
+      const bridge = ensureVaultBridge();
+      if (bridge && typeof bridge.loadVaultModule === "function") {
         try {
-          const mod = await bridge2.loadVaultModule(app_, MACRO_RUNTIME_SHARED_PATH, false, RUNTIME_CACHE_KEY);
+          const mod = await bridge.loadVaultModule(app_, MACRO_RUNTIME_SHARED_PATH, false, RUNTIME_CACHE_KEY);
           if (mod && typeof mod.loadVaultModule === "function") {
             globalThis.__inlinePkmMacroRuntimeSharedMod = mod;
             return mod;
@@ -13134,23 +13343,23 @@ var require_pkm_macro_runtime_shared = __commonJS({
       }
     }
     async function loadVaultModule(app_, vaultPath, forceReload) {
-      let bridge2 = globalThis.__inlineVaultModuleBridge;
-      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
+      let bridge = globalThis.__inlineVaultModuleBridge;
+      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
         try {
           const mod = require_vault_module_bridge();
           if (mod && typeof mod.loadVaultModule === "function") {
-            bridge2 = mod;
+            bridge = mod;
             globalThis.__inlineVaultModuleBridge = mod;
           }
         } catch (e) {
           reportLoaderFallback("pkm_macro_runtime_shared.bridge.require", e);
         }
       }
-      if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
+      if (!(bridge && typeof bridge.loadVaultModule === "function")) {
         throw new Error("pkm_macro_runtime_shared: vault_module_bridge unavailable");
       }
       try {
-        return await bridge2.loadVaultModule(app_, vaultPath, forceReload, RUNTIME_CACHE_KEY);
+        return await bridge.loadVaultModule(app_, vaultPath, forceReload, RUNTIME_CACHE_KEY);
       } catch (e) {
         reportLoaderFallback(`pkm_macro_runtime_shared.bridge.load:${vaultPath}`, e);
         throw e;
@@ -13540,7 +13749,8 @@ var require_pkm_macro_shared = __commonJS({
 var require_pkm_option_keys = __commonJS({
   "src/core/pkm_option_keys.js"(exports2, module2) {
     "use strict";
-    var DEFAULT_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
+    var DEFAULT_RULES_PATH = ".obsidian/plugins/inline-overhaul/generated_rules.md";
+    var LEGACY_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
     var KEYS = {
       RULES_PATH: "Rules path",
       ACTION_TYPE: "Action type",
@@ -13552,10 +13762,18 @@ var require_pkm_option_keys = __commonJS({
       DATE_RUNTIME_CONFIG: "Date runtime config",
       TAGWHEEL_SCROLLER_ENABLED: "TagWheel scroller enabled",
       TAGWHEEL_SCROLLER_DIRECTION: "TagWheel scroller direction",
-      TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size"
+      TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size",
+      /* Цвета коробки скроллера (10.13.15, замечание заказчика D6 2026-09-02).
+         Пустая строка означает «взять у темы». */
+      TAGWHEEL_SCROLLER_FILL: "TagWheel scroller fill color",
+      TAGWHEEL_SCROLLER_TEXT: "TagWheel scroller text color",
+      /* Что делает стрелка на краю Block: остаться в своём или перейти в
+         соседний (10.13.35, заказ заказчика 2026-09-05). */
+      TAGWHEEL_EDGE_MODE: "TagWheel edge mode"
     };
     module2.exports = {
       DEFAULT_RULES_PATH,
+      LEGACY_RULES_PATH,
       KEYS
     };
   }
@@ -13699,18 +13917,18 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       };
       if (!src || typeof src !== "object" || Array.isArray(src)) return out;
       const discover = new Set(Object.keys(activeDefault));
-      const collect = (k) => {
+      const collect2 = (k) => {
         const key = normalize(String(k || "").trim());
         if (!key) return;
         discover.add(key);
       };
-      if (Array.isArray(src.left)) for (const k of src.left) collect(k);
-      if (Array.isArray(src.right)) for (const k of src.right) collect(k);
+      if (Array.isArray(src.left)) for (const k of src.left) collect2(k);
+      if (Array.isArray(src.right)) for (const k of src.right) collect2(k);
       if (src.active && typeof src.active === "object" && !Array.isArray(src.active)) {
-        for (const k of Object.keys(src.active)) collect(k);
+        for (const k of Object.keys(src.active)) collect2(k);
       }
       if (src.enabled && typeof src.enabled === "object" && !Array.isArray(src.enabled)) {
-        for (const k of Object.keys(src.enabled)) collect(k);
+        for (const k of Object.keys(src.enabled)) collect2(k);
       }
       for (const k of Array.from(discover)) {
         if (!Object.prototype.hasOwnProperty.call(out.active, k)) out.active[k] = "yes";
@@ -14017,6 +14235,63 @@ var require_pkm_rules_runtime_helpers = __commonJS({
     function escapeRegex(text) {
       return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
+    function elementTailPatternFromFormat(format) {
+      const src = String(format || "").trim();
+      if (!src) return "";
+      let out = "";
+      let i = 0;
+      while (i < src.length) {
+        const ch = src[i];
+        if (/[A-Za-z]/.test(ch)) {
+          let n = 0;
+          while (i < src.length && /[A-Za-z]/.test(src[i])) {
+            i += 1;
+            n += 1;
+          }
+          out += "\\d{" + n + "}";
+          continue;
+        }
+        if (ch === " ") {
+          out += "[ ]";
+          i += 1;
+          continue;
+        }
+        out += escapeRegex(ch);
+        i += 1;
+      }
+      return out;
+    }
+    function tokenizeSegmentBody(body, markers) {
+      const src = String(body || "");
+      const tails = markers && typeof markers.tailByMarker === "object" && markers.tailByMarker ? markers.tailByMarker : null;
+      const marked = tails ? Object.keys(tails).filter((mk) => mk && String(tails[mk] || "").trim()).sort((a, b) => b.length - a.length) : [];
+      const out = [];
+      let i = 0;
+      while (i < src.length) {
+        if (/\s/.test(src[i])) {
+          i += 1;
+          continue;
+        }
+        let taken = "";
+        for (const mk of marked) {
+          if (!src.startsWith(mk, i)) continue;
+          const rx = new RegExp("^" + escapeRegex(mk) + "(?:" + tails[mk] + ")");
+          const m = rx.exec(src.slice(i));
+          if (m && m[0]) {
+            taken = m[0];
+            break;
+          }
+        }
+        if (!taken) {
+          let j = i;
+          while (j < src.length && !/\s/.test(src[j])) j += 1;
+          taken = src.slice(i, j);
+        }
+        if (taken) out.push(taken);
+        i += taken.length;
+      }
+      return out;
+    }
     function getDateMarkersFromRules(rules, options) {
       const opts = options && typeof options === "object" ? options : {};
       const dateFields = getDateFieldsFromRules(rules);
@@ -14089,6 +14364,16 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         start: String(dateFields.start && dateFields.start.orderKey || "").trim(),
         due: String(dateFields.due && dateFields.due.orderKey || "").trim()
       };
+      const elements = behavior && typeof behavior.elements === "object" && !Array.isArray(behavior.elements) ? behavior.elements : {};
+      const elementsByField = elements && typeof elements.byField === "object" && !Array.isArray(elements.byField) ? elements.byField : {};
+      out.tailByMarker = {};
+      for (const key of Object.keys(elementsByField)) {
+        const row = elementsByField[key] && typeof elementsByField[key] === "object" ? elementsByField[key] : {};
+        const marker = String(row.emoji || row.marker || "").trim();
+        const tail = elementTailPatternFromFormat(row.format);
+        if (!marker || !tail) continue;
+        if (!out.tailByMarker[marker]) out.tailByMarker[marker] = tail;
+      }
       return out;
     }
     function reorderSegmentTokensByOrder(segText, orderCfg, panelName, tokenToKey, options) {
@@ -14098,7 +14383,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       const match = source.match(/^(-\s+(?:\[[^\]]\]\s+)?)(.*)$/);
       const lead = match ? match[1] : "";
       const body = match ? String(match[2] || "").trim() : source;
-      const parts = body.split(/\s+/).filter(Boolean);
+      const parts = tokenizeSegmentBody(body, opts.markers);
       if (!parts.length) return lead ? String(lead).trim() : "";
       const orderKeys = buildPanelOrderKeys(orderCfg, panelName, {
         includeKeys: opts.includeKeys,
@@ -14313,7 +14598,9 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         return `${p}${t}`;
       };
       const leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [];
-      const fieldById = (id) => leftFields.find((f) => f && f.id === id) || null;
+      const rightFields = rules && rules.rightMode && Array.isArray(rules.rightMode.fields) ? rules.rightMode.fields : [];
+      const mapFields = leftFields.concat(rightFields);
+      const fieldById = (id) => mapFields.find((f) => f && f.id === id) || null;
       const out = {};
       const normalizeOrderKey = (field) => {
         if (!field) return "";
@@ -14341,52 +14628,61 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         }
         return "tag";
       };
-      const addFieldTokens = (key, field) => {
+      const addFieldTokens = (key, field, keepExisting) => {
         if (!field) return;
         const vals = activeValues(field);
         const outputMode = resolveFieldOutputMode(field);
+        const put = (token) => {
+          if (!token) return;
+          if (keepExisting === true && Object.prototype.hasOwnProperty.call(out, token)) return;
+          out[token] = key;
+        };
         for (const v of vals) {
           const rawToken = String(v && v.token ? v.token : "");
           if (!rawToken) continue;
           const link = String(v && v.link ? v.link : rawToken).trim();
-          if (outputMode === "wikilink" && link) out[`[[${link}]]`] = key;
+          if (outputMode === "wikilink" && link) put(`[[${link}]]`);
           if (outputMode !== "wikilink" || projectTagWhenWikilink) {
             const pref = typeof field.prefix === "string" ? field.prefix : "#";
-            const tok = composeToken(pref, rawToken);
-            if (tok) out[tok] = key;
+            put(composeToken(pref, rawToken));
           }
         }
       };
       for (const field of leftFields) {
         const key = normalizeOrderKey(field);
         if (!key) continue;
-        addFieldTokens(key, field);
+        addFieldTokens(key, field, false);
+      }
+      for (const field of rightFields) {
+        const key = normalizeOrderKey(field);
+        if (!key) continue;
+        addFieldTokens(key, field, true);
       }
       const pairEntries = [];
-      const pushPair = (parentField, subField) => {
-        if (!parentField || !parentField.id || !subField || !subField.id) return;
-        const dedupeKey = `${parentField.id}::${subField.id}`;
+      const pushPair = (parentField, subField2) => {
+        if (!parentField || !parentField.id || !subField2 || !subField2.id) return;
+        const dedupeKey = `${parentField.id}::${subField2.id}`;
         if (pairEntries.some((p) => p.key === dedupeKey)) return;
-        pairEntries.push({ key: dedupeKey, parentField, subField });
+        pairEntries.push({ key: dedupeKey, parentField, subField: subField2 });
       };
-      for (const subField of leftFields) {
-        if (!subField || !subField.id) continue;
-        const parentId = String(subField.dependsOn || "").trim();
+      for (const subField2 of mapFields) {
+        if (!subField2 || !subField2.id) continue;
+        const parentId = String(subField2.dependsOn || "").trim();
         if (!parentId) continue;
         const parentField = fieldById(parentId);
         if (!parentField) continue;
-        pushPair(parentField, subField);
+        pushPair(parentField, subField2);
       }
       for (const pair of pairEntries) {
         const parentField = pair.parentField;
-        const subField = pair.subField;
+        const subField2 = pair.subField;
         const parentKey = normalizeOrderKey(parentField);
         if (!parentKey) continue;
         const pref = typeof parentField.prefix === "string" ? parentField.prefix : "#";
         for (const pv of activeValues(parentField)) {
           const pTok = String(pv && pv.token ? pv.token : "");
           if (!pTok) continue;
-          for (const sv of activeValues(subField)) {
+          for (const sv of activeValues(subField2)) {
             const sTok = String(sv && sv.token ? sv.token : "");
             if (!sTok) continue;
             out[composeToken(pref, `${pTok}/${sTok}`)] = parentKey;
@@ -14564,6 +14860,22 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       };
       reconcileModeDependencies(rules.leftMode, leftFields);
       reconcileModeDependencies(rules.rightMode, leftFields.concat(rightFields));
+      const labelsMap = isObj(orderCfg.labels) ? orderCfg.labels : {};
+      const ownShortName = (rawKey) => {
+        const key = String(rawKey || "").trim();
+        if (!key) return "";
+        const v = String(labelsMap[key] ? labelsMap[key] : "").trim();
+        return v && v !== key ? v : "";
+      };
+      const shortNameFor = (rawKey) => {
+        const key = String(rawKey || "").trim();
+        if (!key) return "";
+        const own = ownShortName(key);
+        if (own) return own;
+        if (!/_sub$/.test(key)) return "";
+        const parentShort = ownShortName(key.slice(0, -4));
+        return parentShort ? parentShort + "_sub" : "";
+      };
       for (const f of allFields) {
         const k = keyById[f.id];
         const fid = String(f && f.id || "").trim();
@@ -14578,7 +14890,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
         if (rightOrderSet.has(k)) f.panel = "right";
         else if (leftOrderSet.has(k)) f.panel = "left";
         f.orderKey = k;
-        const label = String(orderCfg.labels && orderCfg.labels[k] ? orderCfg.labels[k] : "").trim();
+        const label = shortNameFor(k);
         if (label) f.placeholder = label;
       }
       const prevTechOrder = Array.isArray(rules && rules.inlineLayout && rules.inlineLayout.techOrder) ? rules.inlineLayout.techOrder : [];
@@ -14630,7 +14942,7 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       };
       const leftOrderArr = Array.isArray(orderCfg && orderCfg.left) ? orderCfg.left : [];
       const resolveLeftDisplay = (k, field) => {
-        const fromOrder = String(orderCfg.labels && orderCfg.labels[k] ? orderCfg.labels[k] : "").trim();
+        const fromOrder = shortNameFor(k);
         if (fromOrder) return fromOrder;
         const fromField = String(field && field.placeholder ? field.placeholder : "").trim();
         if (fromField) return fromField;
@@ -14676,6 +14988,8 @@ var require_pkm_rules_runtime_helpers = __commonJS({
       removeMarkerTokensFromSegment,
       getDateMarkersFromRules,
       reorderSegmentTokensByOrder,
+      tokenizeSegmentBody,
+      elementTailPatternFromFormat,
       getDefaultTagTokenKeyMapOptions,
       getStatusTagReorderOptions,
       getStatusMixedReorderOptions,
@@ -14758,7 +15072,7 @@ var require_pkm_runtime_bootstrap = __commonJS({
         if (!af) return null;
         const txt = await app_.vault.read(af);
         const json = JSON.parse(String(txt || "{}"));
-        const order = json && json.pkm && json.pkm.behavior ? json.pkm.behavior.order : null;
+        const order = json && json.pkm && json.pkm.fields ? json.pkm.fields.order : null;
         return isObj(order) ? order : null;
       } catch (e) {
         reportLoaderFallback("pkm_runtime_bootstrap.loadOrderConfigFromPluginData", e);
@@ -14931,7 +15245,11 @@ var require_priority_strip_cm6_adapter = __commonJS({
       const gutterInset = Math.max(16, x3 + thickness + 6);
       const shadow2 = `${childOffset}px 0 0 0 ${colors[1]}`;
       const shadow3 = `${childOffset * 2}px 0 0 0 ${colors[2]}`;
+      const lineGap = clampInt(s.lineGap, 2, 0, 8);
+      const joinTree = s.joinTree !== false;
+      const gap = joinTree && spec && spec.inTree ? 0 : lineGap;
       return [
+        `--io-strip-line-gap:${gap}px`,
         `--io-strip-thickness:${thickness}px`,
         `--io-strip-gap:${Math.max(2, childOffset)}px`,
         `--io-strip-spacing:${spacing}px`,
@@ -15037,10 +15355,10 @@ var require_priority_strip_engine = __commonJS({
       const levels = Array.isArray(chain) ? chain.slice(0) : [];
       if (!levels.length) return [];
       const maxN = Math.max(1, Math.min(3, Number(stripesToShow || 2)));
+      const n = Math.min(maxN, levels.length);
       const out = [];
-      for (let i = 0; i < maxN; i++) {
-        const srcIdx = Math.min(i, Math.max(0, levels.length - 1));
-        const src = levels[srcIdx] || {};
+      for (let i = 0; i < n; i++) {
+        const src = levels[i] || {};
         out.push({ role: i === 0 ? "parent" : i === 1 ? "child" : "grandchild", color: src.color || "" });
       }
       return out.filter((r) => !!String(r.color || "").trim());
@@ -15049,18 +15367,17 @@ var require_priority_strip_engine = __commonJS({
       const levels = Array.isArray(chain) ? chain.slice(0) : [];
       if (!levels.length) return [];
       const maxN = Math.max(1, Math.min(3, Number(stripesToShow || 2)));
-      if (maxN === 1) return [{ role: "parent", color: levels[0].color || "" }].filter((r) => r.color);
-      if (maxN === 2) {
-        const parent2 = levels[0];
-        const deepest2 = levels[Math.max(0, levels.length - 1)];
+      const n = Math.min(maxN, levels.length);
+      const parent = levels[0];
+      const deepest = levels[levels.length - 1];
+      if (n === 1) return [{ role: "parent", color: parent && parent.color || "" }].filter((r) => r.color);
+      if (n === 2) {
         return [
-          { role: "parent", color: parent2 && parent2.color || "" },
-          { role: "child", color: deepest2 && deepest2.color || "" }
+          { role: "parent", color: parent && parent.color || "" },
+          { role: "child", color: deepest && deepest.color || "" }
         ].filter((r) => r.color);
       }
-      const parent = levels[0];
-      const deepest = levels[Math.max(0, levels.length - 1)];
-      const prev = levels[Math.max(1, levels.length - 2)] || deepest;
+      const prev = levels[levels.length - 2] || deepest;
       return [
         { role: "parent", color: parent && parent.color || "" },
         { role: "child", color: prev && prev.color || "" },
@@ -15074,6 +15391,7 @@ var require_priority_strip_engine = __commonJS({
       const isHardBoundary = options && typeof options.isHardBoundary === "function" ? options.isHardBoundary : (text) => !String(text || "").trim();
       const stripMode = options && String(options.mode || "default").trim().toLowerCase() === "crossing" ? "crossing" : "default";
       const stripesToShow = clampInt(options && options.stripesToShow, 2, 1, 3);
+      const drawWholeTree = !(options && options.drawWholeTree === false);
       const stack = [];
       const out = [];
       for (let i = 0; i < src.length; i++) {
@@ -15109,7 +15427,7 @@ var require_priority_strip_engine = __commonJS({
           continue;
         }
         while (stack.length && listMeta.indent <= stack[stack.length - 1].indent) stack.pop();
-        const inherited = stack.length ? stack[stack.length - 1] : null;
+        const inherited = drawWholeTree && stack.length ? stack[stack.length - 1] : null;
         if (!own && !inherited) continue;
         const depthFromRoot = inherited ? Number(inherited.depthFromRoot || 0) + 1 : 0;
         const effectiveStripes = Math.max(1, Math.min(stripesToShow, depthFromRoot + 1));
@@ -15125,17 +15443,16 @@ var require_priority_strip_engine = __commonJS({
           rails: []
         };
         const levelChain = [];
-        for (let j = 0; j < stack.length; j++) {
-          const lv = stack[j] || {};
-          if (lv.color) levelChain.push({ color: lv.color, token: lv.token || "" });
+        if (drawWholeTree) {
+          for (let j = 0; j < stack.length; j++) {
+            const lv = stack[j] || {};
+            if (lv.color) levelChain.push({ color: lv.color, token: lv.token || "" });
+          }
         }
         if (own && own.color) levelChain.push({ color: own.color, token: own.token || "" });
         spec.rails = stripMode === "crossing" ? buildRailsCrossing(levelChain, effectiveStripes) : buildRailsDefault(levelChain, effectiveStripes);
-        if (spec.mode === "list-inherit" && spec.rails.length > 1) {
-          spec.rails = [spec.rails[0]];
-        }
         if (spec.mode === "list-inherit") {
-          if (spec.rails[0]) spec.rails[0].role = "inherit";
+          for (let r = 0; r < spec.rails.length; r++) spec.rails[r].role = "inherit";
         } else if (spec.mode === "list-own") {
           if (spec.rails[0]) spec.rails[0].role = "own";
         } else if (spec.mode === "list-own+inherit") {
@@ -15148,7 +15465,24 @@ var require_priority_strip_engine = __commonJS({
           stack.push({ indent: listMeta.indent, color: own.color, token: own.token, depthFromRoot });
         }
       }
+      markTreeRuns(out);
       return out;
+    }
+    function markTreeRuns(specs) {
+      for (let i = 0; i < specs.length; i++) {
+        const spec = specs[i];
+        if (!spec) continue;
+        const inherits = spec.mode === "list-inherit" || spec.mode === "list-own+inherit";
+        if (inherits) spec.joinsAbove = true;
+        const next = specs[i + 1];
+        const nextInherits = next && (next.mode === "list-inherit" || next.mode === "list-own+inherit") && Number(next.lineNo || 0) === Number(spec.lineNo || 0) + 1 && Number(next.depthFromRoot || 0) > Number(spec.depthFromRoot || 0);
+        if (nextInherits) {
+          spec.joinsBelow = true;
+          next.joinsAbove = true;
+        }
+        spec.inTree = Boolean(spec.joinsAbove || spec.joinsBelow);
+      }
+      return specs;
     }
     function normalizeStripConfig(strip) {
       const src = strip && typeof strip === "object" ? strip : {};
@@ -15163,7 +15497,13 @@ var require_priority_strip_engine = __commonJS({
         stripesToShow: clampInt(src.stripesToShow, 2, 1, 3),
         thickness: clampInt(src.thickness, 2, 1, 12),
         spacing: clampInt(src.spacing, 20, 8, 48),
-        childOffset: clampInt(src.childOffset, 12, 2, 20)
+        childOffset: clampInt(src.childOffset, 12, 2, 20),
+        /* Зазор сверху и снизу полосы, и слитное дерево (PRD 10.13.16). Ноль
+           означает «полосы стыкуются», как было до появления зазора. */
+        lineGap: clampInt(src.lineGap, 2, 0, 8),
+        joinTree: src.joinTree !== false,
+        /* Полоса идёт по всему поддереву или только по своей строке (10.13.21). */
+        drawWholeTree: src.drawWholeTree !== false
       };
     }
     module2.exports = {
@@ -15177,7 +15517,7 @@ var require_priority_strip_engine = __commonJS({
 var require_shared_utils = __commonJS({
   "src/core/shared_utils.js"(exports2, module2) {
     "use strict";
-    function cloneJson(x) {
+    function cloneJson2(x) {
       return JSON.parse(JSON.stringify(x));
     }
     function nz(v, dflt) {
@@ -15544,14 +15884,14 @@ var require_shared_utils = __commonJS({
       return x && typeof x === "object" && !Array.isArray(x);
     }
     function deepMerge(base, patch) {
-      if (!isObj(base)) return cloneJson(patch);
-      const out = cloneJson(base);
+      if (!isObj(base)) return cloneJson2(patch);
+      const out = cloneJson2(base);
       if (!isObj(patch)) return out;
       for (const k of Object.keys(patch)) {
         const bv = out[k];
         const pv = patch[k];
         if (isObj(bv) && isObj(pv)) out[k] = deepMerge(bv, pv);
-        else out[k] = cloneJson(pv);
+        else out[k] = cloneJson2(pv);
       }
       return out;
     }
@@ -15573,7 +15913,7 @@ var require_shared_utils = __commonJS({
       return JSON.stringify(x, null, 2);
     }
     module2.exports = {
-      cloneJson,
+      cloneJson: cloneJson2,
       nz,
       escapeRe,
       normalizeFormatMask,
@@ -15635,9 +15975,9 @@ var require_status_line_runtime_unified = __commonJS({
       const out = [];
       const seen = {};
       for (let i = 0; i < fields.length; i++) {
-        const subField = fields[i];
-        const subId = String(subField && subField.id || "").trim();
-        const parentId = String(subField && subField.dependsOn || "").trim();
+        const subField2 = fields[i];
+        const subId = String(subField2 && subField2.id || "").trim();
+        const parentId = String(subField2 && subField2.dependsOn || "").trim();
         if (!subId || !parentId) continue;
         const parentField = byId[parentId];
         if (!parentField) continue;
@@ -15645,13 +15985,13 @@ var require_status_line_runtime_unified = __commonJS({
         const selectedSubId = String(((_b = state == null ? void 0 : state.selected) == null ? void 0 : _b[subId]) || "").trim();
         if (!selectedParentId || !selectedSubId) continue;
         const parentValue = typeof resolveSelectedValue === "function" ? resolveSelectedValue(parentField, selectedParentId, state, rules) : findValueById(parentField, selectedParentId);
-        const subValue = typeof resolveSelectedValue === "function" ? resolveSelectedValue(subField, selectedSubId, state, rules) : findValueById(subField, selectedSubId);
+        const subValue = typeof resolveSelectedValue === "function" ? resolveSelectedValue(subField2, selectedSubId, state, rules) : findValueById(subField2, selectedSubId);
         if (!parentValue || !subValue) continue;
         const rawParentToken = String(parentValue.token || "").trim();
         const rawSubToken = String(subValue.token || "").trim();
         if (!rawParentToken || !rawSubToken) continue;
         const parentToken = String(buildOutputTokenForField(parentField, parentValue, rules) || "").trim() || composeToken(typeof parentField.prefix === "string" ? parentField.prefix : "#", rawParentToken);
-        const subToken = String(buildOutputTokenForField(subField, subValue, rules) || "").trim() || composeToken(typeof subField.prefix === "string" ? subField.prefix : "#", rawSubToken);
+        const subToken = String(buildOutputTokenForField(subField2, subValue, rules) || "").trim() || composeToken(typeof subField2.prefix === "string" ? subField2.prefix : "#", rawSubToken);
         if (!parentToken || !subToken) continue;
         const parentPrefix = typeof parentField.prefix === "string" ? parentField.prefix : "#";
         const combinedToken = parentPrefix + rawParentToken + "/" + rawSubToken.replace(/^#/, "");
@@ -15665,7 +16005,7 @@ var require_status_line_runtime_unified = __commonJS({
           subToken,
           combinedToken,
           parentField,
-          subField
+          subField: subField2
         });
       }
       return out;
@@ -16373,9 +16713,9 @@ var require_status_runtime_common = __commonJS({
         const fromRules = String(behavior.subtagFormat || "separate").trim().toLowerCase();
         return fromRules === "combined" ? "combined" : "separate";
       }
-      function getAllowedSubValues(subField, parentToken) {
+      function getAllowedSubValues(subField2, parentToken) {
         const out = [];
-        const values = Array.isArray(subField && subField.values) ? subField.values : [];
+        const values = Array.isArray(subField2 && subField2.values) ? subField2.values : [];
         for (const value of values) {
           if (!isObj(value) || typeof value.token !== "string" || !value.token || value.active === false) continue;
           const allowed = Array.isArray(value.allowedParentValues) ? value.allowedParentValues : [];
@@ -16946,6 +17286,137 @@ var require_token_graph_unified = __commonJS({
   }
 });
 
+// src/features/command_ids.js
+var require_command_ids = __commonJS({
+  "src/features/command_ids.js"(exports2, module2) {
+    "use strict";
+    function kebab(value) {
+      const src = String(value == null ? "" : value).trim().toLowerCase();
+      if (!src) return "";
+      const cleaned = src.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+      return cleaned;
+    }
+    var RENAMED = /* @__PURE__ */ new Map([
+      ["inlineOverhaul_Navigation_MoveUp", "move-line-up"],
+      ["inlineOverhaul_Navigation_MoveDown", "move-line-down"],
+      ["inlineOverhaul_Navigation_MoveLeft", "move-left"],
+      ["inlineOverhaul_Navigation_MoveRight", "move-right"],
+      ["inlineOverhaul_Navigation_JumpHeaderUp", "jump-back"],
+      ["inlineOverhaul_Navigation_JumpHeaderDown", "jump-next"],
+      ["inlineOverhaul_Navigation_InlineLeft", "move-cursor-left-in-line"],
+      ["inlineOverhaul_Navigation_InlineRight", "move-cursor-right-in-line"],
+      ["inlineOverhaul_Hotkey_tagwheel_left", "open-tagwheel-left"],
+      ["inlineOverhaul_Hotkey_tagwheel_right", "open-tagwheel-right"],
+      ["inlineOverhaul_Transform_inline2note", "transform-inline-to-note"],
+      ["inlineOverhaul_Binder_Smart_bracket", "smart-bracket"]
+    ]);
+    var RENAME_RULES = [
+      ["inlineOverhaul_Hotkey_<field>_increase", "<field>-next"],
+      ["inlineOverhaul_Hotkey_<field>_decrease", "<field>-previous"],
+      ["inlineOverhaul_Binder_<name>", "<name>"]
+    ];
+    var NAMES = {
+      "move-line-up": "Move line up",
+      "move-line-down": "Move line down",
+      "move-left": "Move left",
+      "move-right": "Move right",
+      "jump-back": "Jump back",
+      "jump-next": "Jump next",
+      "move-cursor-left-in-line": "Move cursor left in line",
+      "move-cursor-right-in-line": "Move cursor right in line",
+      "open-tagwheel-left": "Open TagWheel on the left",
+      "open-tagwheel-right": "Open TagWheel on the right",
+      "transform-inline-to-note": "Transform inline to note",
+      "smart-bracket": "Smart bracket",
+      "undo-last-settings-change": "Undo last settings change",
+      "open-inline-overhaul-settings": "Open settings"
+    };
+    var KEPT = /* @__PURE__ */ new Set([
+      "undo-last-settings-change",
+      "open-inline-overhaul-settings"
+    ]);
+    function featureToggleCommandId(feature) {
+      return "toggle-feature-" + kebab(feature);
+    }
+    var SMART_BRACKET_COMMAND_ID = "smart-bracket";
+    function reservedCommandIds(featureOrder) {
+      const out = new Set(RENAMED.values());
+      for (const id of KEPT) out.add(id);
+      for (const feature of Array.isArray(featureOrder) ? featureOrder : []) {
+        out.add(featureToggleCommandId(feature));
+      }
+      return out;
+    }
+    function directionLabel(direction) {
+      return String(direction || "").trim() === "decrease" ? "previous" : "next";
+    }
+    function pkmFieldCommandId(strictName, direction, used) {
+      const base = kebab(strictName) || "field";
+      const suffix = directionLabel(direction);
+      const usedSet = used instanceof Set ? used : /* @__PURE__ */ new Set();
+      let candidate = base + "-" + suffix;
+      let i = 2;
+      while (usedSet.has(candidate)) {
+        candidate = base + "-" + i + "-" + suffix;
+        i += 1;
+      }
+      usedSet.add(candidate);
+      return candidate;
+    }
+    function legacyPkmFieldCommandId(strictName, direction) {
+      const dir = String(direction || "").trim() === "decrease" ? "decrease" : "increase";
+      return "inlineOverhaul_Hotkey_" + String(strictName || "").trim() + "_" + dir;
+    }
+    function binderCommandId(seedText, used) {
+      const base = kebab(seedText) || "insert";
+      const usedSet = used instanceof Set ? used : /* @__PURE__ */ new Set();
+      let candidate = base;
+      let i = 2;
+      while (usedSet.has(candidate)) {
+        candidate = base + "-" + i;
+        i += 1;
+      }
+      usedSet.add(candidate);
+      return candidate;
+    }
+    function isLegacyCommandId(id) {
+      return /^inlineOverhaul_/.test(String(id == null ? "" : id));
+    }
+    function renameCommandId(oldId) {
+      const id = String(oldId == null ? "" : oldId).trim();
+      if (!id) return "";
+      if (RENAMED.has(id)) return RENAMED.get(id);
+      if (KEPT.has(id) || /^toggle-feature-/.test(id)) return id;
+      return "";
+    }
+    function commandName(id) {
+      const key = String(id == null ? "" : id).trim();
+      return Object.prototype.hasOwnProperty.call(NAMES, key) ? NAMES[key] : "";
+    }
+    function isCompliantCommandId(id) {
+      return /^[\p{Ll}\p{N}]+(-[\p{Ll}\p{N}]+)*$/u.test(String(id == null ? "" : id));
+    }
+    module2.exports = {
+      kebab,
+      RENAMED,
+      RENAME_RULES,
+      NAMES,
+      KEPT,
+      SMART_BRACKET_COMMAND_ID,
+      featureToggleCommandId,
+      reservedCommandIds,
+      directionLabel,
+      pkmFieldCommandId,
+      legacyPkmFieldCommandId,
+      binderCommandId,
+      isLegacyCommandId,
+      renameCommandId,
+      commandName,
+      isCompliantCommandId
+    };
+  }
+});
+
 // src/features/command_registry.js
 var require_command_registry = __commonJS({
   "src/features/command_registry.js"(exports2, module2) {
@@ -16987,6 +17458,14 @@ var require_command_registry = __commonJS({
       if (cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior[key] != null) return cfg.pkm.behavior[key];
       return dflt;
     }
+    function getLineFormat(cfg) {
+      if (cfg && cfg.pkm && cfg.pkm.lineFormat && typeof cfg.pkm.lineFormat === "object") return cfg.pkm.lineFormat;
+      return null;
+    }
+    function getChildTagFormat(cfg) {
+      return getBehaviorValue(cfg, "childTagFormat", "separate");
+    }
+    var __commandIds = require_command_ids();
     function normalizeLabelPart(value, dflt) {
       const s = String(value || "").replace(/\s+/g, " ").trim();
       return s || dflt;
@@ -16994,8 +17473,11 @@ var require_command_registry = __commonJS({
     function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
       const defs = [
         {
+          /* Идентификатор уже отвечает T7 и не переименовывается: ломать
+             работающий хоткей ради красоты — второй разрыв, которого Р3 не даёт.
+             Сама команда удаляется в фазе 6, пункт 5 (T8). */
           id: "open-inline-overhaul-settings",
-          name: "General: Open settings",
+          name: __commandIds.commandName("open-inline-overhaul-settings"),
           run: () => {
             plugin.app.setting.open();
             plugin.app.setting.openTabById(plugin.manifest.id);
@@ -17003,7 +17485,7 @@ var require_command_registry = __commonJS({
         },
         {
           id: "undo-last-settings-change",
-          name: "General: Undo last settings change",
+          name: __commandIds.commandName("undo-last-settings-change"),
           run: () => {
             const ok = plugin.store.undo("command:undo");
             if (!ok) plugin.notice("InlineOverhaul: nothing to undo");
@@ -17015,8 +17497,8 @@ var require_command_registry = __commonJS({
       for (const feature of order) {
         const label = meta[feature] && meta[feature].label ? meta[feature].label : feature;
         defs.push({
-          id: `toggle-feature-${feature}`,
-          name: `General: Toggle ${label} module`,
+          id: __commandIds.featureToggleCommandId(feature),
+          name: `Toggle ${label} module`,
           run: () => {
             const cfg = plugin.store.getSnapshot();
             const cur = !!cfg.features[feature].enabled;
@@ -17030,8 +17512,8 @@ var require_command_registry = __commonJS({
     function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       return [
         {
-          id: "inlineOverhaul_Navigation_MoveUp",
-          name: "Navigation: Move Up",
+          id: "move-line-up",
+          name: __commandIds.commandName("move-line-up"),
           run: (ed, nav, fullCfg, rt) => {
             if (!nav.moveLine.enabled) return plugin.notice("MoveLine disabled in settings");
             if (!rt || typeof rt.moveLine !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
@@ -17039,8 +17521,8 @@ var require_command_registry = __commonJS({
           }
         },
         {
-          id: "inlineOverhaul_Navigation_MoveDown",
-          name: "Navigation: Move Down",
+          id: "move-line-down",
+          name: __commandIds.commandName("move-line-down"),
           run: (ed, nav, fullCfg, rt) => {
             if (!nav.moveLine.enabled) return plugin.notice("MoveLine disabled in settings");
             if (!rt || typeof rt.moveLine !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
@@ -17048,42 +17530,42 @@ var require_command_registry = __commonJS({
           }
         },
         {
-          id: "inlineOverhaul_Navigation_MoveLeft",
-          name: "Navigation: Move Left",
+          id: "move-left",
+          name: __commandIds.commandName("move-left"),
           run: (ed, nav, fullCfg, rt) => {
             if (!rt || typeof rt.moveSelection !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-            rt.moveSelection(ed, "left", nav.moveSelection);
+            rt.moveSelection(ed, "left", nav.moveSelection, getLineFormat(fullCfg));
           }
         },
         {
-          id: "inlineOverhaul_Navigation_MoveRight",
-          name: "Navigation: Move Right",
+          id: "move-right",
+          name: __commandIds.commandName("move-right"),
           run: (ed, nav, fullCfg, rt) => {
             if (!rt || typeof rt.moveSelection !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-            rt.moveSelection(ed, "right", nav.moveSelection);
+            rt.moveSelection(ed, "right", nav.moveSelection, getLineFormat(fullCfg));
           }
         },
         {
-          id: "inlineOverhaul_Navigation_JumpHeaderUp",
-          name: "Navigation: Jump Header Up",
+          id: "jump-back",
+          name: __commandIds.commandName("jump-back"),
           run: (ed, nav, fullCfg, rt) => {
             if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
             if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-            rt.jumpToHeader(ed, "up", nav.jumpToHeader);
+            rt.jumpToHeader(ed, "up", nav.jumpToHeader, getLineFormat(fullCfg));
           }
         },
         {
-          id: "inlineOverhaul_Navigation_JumpHeaderDown",
-          name: "Navigation: Jump Header Down",
+          id: "jump-next",
+          name: __commandIds.commandName("jump-next"),
           run: (ed, nav, fullCfg, rt) => {
             if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
             if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-            rt.jumpToHeader(ed, "down", nav.jumpToHeader);
+            rt.jumpToHeader(ed, "down", nav.jumpToHeader, getLineFormat(fullCfg));
           }
         },
         {
-          id: "inlineOverhaul_Navigation_InlineLeft",
-          name: "Navigation: Inline Left",
+          id: "move-cursor-left-in-line",
+          name: __commandIds.commandName("move-cursor-left-in-line"),
           run: async (ed, nav, fullCfg, rt) => {
             if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
             if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
@@ -17094,8 +17576,8 @@ var require_command_registry = __commonJS({
           }
         },
         {
-          id: "inlineOverhaul_Navigation_InlineRight",
-          name: "Navigation: Inline Right",
+          id: "move-cursor-right-in-line",
+          name: __commandIds.commandName("move-cursor-right-in-line"),
           run: async (ed, nav, fullCfg, rt) => {
             if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
             if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
@@ -17107,10 +17589,10 @@ var require_command_registry = __commonJS({
         }
       ];
     }
-    function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfgNow) {
+    function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfgNow, featureOrder) {
       const O = __pkmOptionKeys.KEYS;
       const cfg = cfgNow && typeof cfgNow === "object" ? cfgNow : {};
-      const order = typeof normalizePkmOrder === "function" ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null) : { left: [], right: [], strictNames: {}, types: {} };
+      const order = typeof normalizePkmOrder === "function" ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields.order : null) : { left: [], right: [], strictNames: {}, types: {} };
       const keys = [];
       const pushKey = (k) => {
         const key = String(k || "").trim();
@@ -17171,13 +17653,25 @@ var require_command_registry = __commonJS({
         [O.ORDER_CONFIG]: serializePkmOrderForMacro(cfgInner)
       });
       const defs = [];
-      const pushDef = (strict, dir, _name, v2Command, makeExtra) => {
-        const id = `inlineOverhaul_Hotkey_${strict}_${dir}`;
-        const strictLabel = normalizeLabelPart(strict, "field");
-        const dirLabel = dir === "decrease" ? "decrease" : "increase";
+      const usedIds = __commandIds.reservedCommandIds(featureOrder);
+      const pushDef = (strict, dir, orderKey, v2Command, makeExtra) => {
+        const id = __commandIds.pkmFieldCommandId(strict, dir, usedIds);
+        const shown = normalizeLabelPart(strict, "field");
+        const strictLabel = shown;
+        const parentKey = String(orderKey || "").replace(/_sub$/, "");
+        const groupLabel = normalizeLabelPart(strictNameForKey(parentKey), "") || normalizeLabelPart(parentKey, "field");
+        const dirLabel = __commandIds.directionLabel(dir);
         defs.push({
           id,
-          name: `PKM: ${strictLabel} ${dirLabel}`,
+          /* Поле, из которого команда выросла: по нему её находит поиск хоткея
+             (`detectDateFieldHotkeys`), а не по пересобранной строке. */
+          orderKey: String(orderKey || ""),
+          strictName: String(strict || ""),
+          /* Для подзаголовка справочника: подпись Field и его тип. */
+          groupLabel: String(groupLabel || ""),
+          kind: String(typeForKey(parentKey) || ""),
+          direction: dir === "decrease" ? "decrease" : "increase",
+          name: `${strictLabel} ${dirLabel}`,
           v2Command,
           makeSettings: (cfgInner) => ({
             ...makeBase(cfgInner),
@@ -17191,82 +17685,42 @@ var require_command_registry = __commonJS({
         if (!strict) continue;
         const incSpec = buildActionSpec(key, kind, "increase");
         const decSpec = buildActionSpec(key, kind, "decrease");
-        pushDef(strict, "increase", `PKM: ${strict} increase`, incSpec.v2Command, (cfgInner) => ({
+        pushDef(strict, "increase", key, incSpec.v2Command, (cfgInner) => ({
           ...incSpec.settings,
           [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-          ...incSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate") }
+          ...incSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner) }
         }));
-        pushDef(strict, "decrease", `PKM: ${strict} decrease`, decSpec.v2Command, (cfgInner) => ({
+        pushDef(strict, "decrease", key, decSpec.v2Command, (cfgInner) => ({
           ...decSpec.settings,
           [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-          ...decSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate") }
+          ...decSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner) }
         }));
       }
       defs.push({
-        id: "inlineOverhaul_Hotkey_tagwheel_left",
-        name: "PKM: TagWheel left",
+        id: "open-tagwheel-left",
+        name: __commandIds.commandName("open-tagwheel-left"),
         v2Command: "tagWheel",
         makeSettings: (cfgInner) => ({
           ...makeBase(cfgInner),
           "Start setting": "left",
           "Start mode override": "left",
           [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-          [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate")
+          [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner)
         })
       });
       defs.push({
-        id: "inlineOverhaul_Hotkey_tagwheel_right",
-        name: "PKM: TagWheel right",
+        id: "open-tagwheel-right",
+        name: __commandIds.commandName("open-tagwheel-right"),
         v2Command: "tagWheel",
         makeSettings: (cfgInner) => ({
           ...makeBase(cfgInner),
           "Start setting": "right",
           "Start mode override": "right",
           [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-          [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate")
+          [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner)
         })
       });
       return defs;
-    }
-    function buildConfigCommandDefs() {
-      return [
-        {
-          id: "inlineOverhaul_Rules_apply",
-          name: "Config: Apply TagWheel config",
-          run: async (plugin) => {
-            const cfg = plugin.getConfig();
-            if (!cfg.features.pkm.enabled) {
-              plugin.notice("InlineOverhaul: Tag & PKM module disabled");
-              return;
-            }
-            try {
-              await plugin.applyTagWheelConfigNote();
-              plugin.notice("InlineOverhaul: TagWheel config applied");
-            } catch (e) {
-              console.error("[inline-overhaul][tagwheel-config-apply:command]", e);
-              plugin.notice("InlineOverhaul: " + (e && e.message ? e.message : e));
-            }
-          }
-        },
-        {
-          id: "inlineOverhaul_Rules_open_detailed_template",
-          name: "Config: Open TagWheel template",
-          run: async (plugin) => {
-            const cfg = plugin.getConfig();
-            if (!cfg.features.pkm.enabled) {
-              plugin.notice("InlineOverhaul: Tag & PKM module disabled");
-              return;
-            }
-            try {
-              const p = await plugin.openTagWheelConfigTemplateNote();
-              plugin.notice("Detailed template opened: " + p);
-            } catch (e) {
-              console.error("[inline-overhaul][tagwheel-config-template-open:command]", e);
-              plugin.notice("InlineOverhaul: " + (e && e.message ? e.message : e));
-            }
-          }
-        }
-      ];
     }
     function normalizeBinderRows(rawRows) {
       const src = Array.isArray(rawRows) ? rawRows : [];
@@ -17342,15 +17796,15 @@ var require_command_registry = __commonJS({
     }
     function buildBinderCommandDefs(cfgNow) {
       const cfg = cfgNow && typeof cfgNow === "object" ? cfgNow : {};
-      const rows = normalizeBinderRows(cfg && cfg.ui && cfg.ui.binderRows);
+      const rows = normalizeBinderRows(cfg && cfg.editor && cfg.editor.binder ? cfg.editor.binder.rows : null);
       const defs = [];
       for (const row of rows) {
         const commandId = String(row.commandId || "").trim();
         if (!commandId) continue;
-        if (commandId === "inlineOverhaul_Binder_Smart_bracket") {
+        if (commandId === __commandIds.SMART_BRACKET_COMMAND_ID) {
           defs.push({
             id: commandId,
-            name: "Binder: Smart bracket",
+            name: __commandIds.commandName(__commandIds.SMART_BRACKET_COMMAND_ID),
             run: (plugin) => runInsertBracketsCommand(plugin)
           });
           continue;
@@ -17358,7 +17812,7 @@ var require_command_registry = __commonJS({
         const binderNameSeed = normalizeLabelPart(row.commandName, "") || normalizeLabelPart(row.insertText, "item");
         defs.push({
           id: commandId,
-          name: `Binder: ${binderNameSeed}`,
+          name: `${binderNameSeed}`,
           run: (plugin) => runInsertTextCommand(plugin, row.insertText)
         });
       }
@@ -17368,1845 +17822,7 @@ var require_command_registry = __commonJS({
       buildCoreCommandDefs,
       buildNavigationCommandDefs,
       buildPkmCommandDefs,
-      buildConfigCommandDefs,
       buildBinderCommandDefs
-    };
-  }
-});
-
-// src/features/config_note_helpers.js
-var require_config_note_helpers = __commonJS({
-  "src/features/config_note_helpers.js"(exports2, module2) {
-    "use strict";
-    function createConfigNoteHelpers(deps) {
-      const isObj = deps && typeof deps.isObj === "function" ? deps.isObj : function(x) {
-        return x && typeof x === "object" && !Array.isArray(x);
-      };
-      const normalizePkmOrder = deps && typeof deps.normalizePkmOrder === "function" ? deps.normalizePkmOrder : function(x) {
-        return isObj(x) ? x : { left: [], right: [], enabled: {} };
-      };
-      const getOrderStrictName = deps && typeof deps.getOrderStrictName === "function" ? deps.getOrderStrictName : function(_, k) {
-        return String(k || "");
-      };
-      const TAGWHEEL_PREFIX_RESOLVER_H3 = String(deps && deps.TAGWHEEL_PREFIX_RESOLVER_H3 ? deps.TAGWHEEL_PREFIX_RESOLVER_H3 : "PREFIX RESOLVER");
-      function getLeftFields(cfg) {
-        const fields = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.leftMode && Array.isArray(cfg.pkm.behavior.leftMode.fields) ? cfg.pkm.behavior.leftMode.fields : [];
-        return fields;
-      }
-      function getFieldById(fields, fieldId) {
-        for (let i = 0; i < fields.length; i++) {
-          if (fields[i] && fields[i].id === fieldId) return fields[i];
-        }
-        return null;
-      }
-      function getRightFields(cfg) {
-        const fields = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.rightMode && Array.isArray(cfg.pkm.behavior.rightMode.fields) ? cfg.pkm.behavior.rightMode.fields : [];
-        return fields;
-      }
-      function getAllFields(cfg) {
-        const left = getLeftFields(cfg);
-        const right = getRightFields(cfg);
-        return left.concat(right);
-      }
-      function findFieldByOrderKey(fields, orderKey) {
-        const key = String(orderKey || "").trim();
-        if (!key) return null;
-        for (let i = 0; i < fields.length; i++) {
-          const f = fields[i];
-          if (!f || !f.id) continue;
-          if (String(f.orderKey || "").trim() === key) return f;
-        }
-        for (let i = 0; i < fields.length; i++) {
-          const f = fields[i];
-          if (!f || !f.id) continue;
-          if (String(f.id || "").trim() === key) return f;
-        }
-        return null;
-      }
-      function resolveOrderField(cfg, orderKey) {
-        const key = String(orderKey || "").trim();
-        if (!key) return null;
-        const fields = getAllFields(cfg);
-        let field = findFieldByOrderKey(fields, key);
-        if (field) return field;
-        if (/_sub$/.test(key)) {
-          const parentKey = key.slice(0, -4);
-          const parent = findFieldByOrderKey(fields, parentKey);
-          if (!parent || !parent.id) return null;
-          for (let i = 0; i < fields.length; i++) {
-            const f = fields[i];
-            if (!f || !f.id) continue;
-            if (String(f.dependsOn || "").trim() !== String(parent.id || "").trim()) continue;
-            const fk = String(f.orderKey || "").trim();
-            if (fk === key) return f;
-          }
-          for (let i = 0; i < fields.length; i++) {
-            const f = fields[i];
-            if (!f || !f.id) continue;
-            if (String(f.dependsOn || "").trim() !== String(parent.id || "").trim()) continue;
-            const fid = String(f.id || "").trim();
-            if (fid === key) return f;
-          }
-        }
-        return null;
-      }
-      function isWikilinkField(field) {
-        const source = String(field && field.source ? field.source : "").trim();
-        return source === "projects" || source.startsWith("wikilinks:");
-      }
-      function isTagLikeField(field) {
-        const prefix = typeof (field && field.prefix) === "string" ? field.prefix : "#";
-        return prefix === "#";
-      }
-      function isElementLikeField(field, orderKey, orderCfg) {
-        const f = field && typeof field === "object" ? field : null;
-        if (!f || !f.id) return false;
-        const kind = String(f.kind || "").trim();
-        if (kind === "dateOffset" || kind === "nowTime" || kind === "estimatedCycle" || kind === "genericElement") return true;
-        const key = String(orderKey || "").trim();
-        const types = isObj(orderCfg && orderCfg.types) ? orderCfg.types : {};
-        const typeByKey = String(types[key] || "").trim().toLowerCase();
-        return typeByKey === "element";
-      }
-      function collectWikilinkFieldIds(cfg) {
-        const out = [];
-        const seen = /* @__PURE__ */ new Set();
-        const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
-        const keys = (Array.isArray(order.left) ? order.left : []).concat(Array.isArray(order.right) ? order.right : []);
-        for (let i = 0; i < keys.length; i++) {
-          const key = String(keys[i] || "").trim();
-          if (!key) continue;
-          const field = resolveOrderField(cfg, key);
-          if (!field || !field.id) continue;
-          if (!isWikilinkField(field)) continue;
-          const fid = String(field.id || "").trim();
-          if (!fid || seen.has(fid)) continue;
-          seen.add(fid);
-          out.push(fid);
-        }
-        return out;
-      }
-      function collectTagSections(cfg) {
-        const out = [];
-        const seen = /* @__PURE__ */ new Set();
-        const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
-        const allFields = getAllFields(cfg);
-        const push = (sectionId, fieldId, subFieldId) => {
-          const sid = String(sectionId || "").trim();
-          if (!sid || seen.has(sid)) return;
-          if (!getFieldById(allFields, fieldId)) return;
-          seen.add(sid);
-          out.push({ sectionId: sid, fieldId, subFieldId: subFieldId || "" });
-        };
-        const orderedKeys = (Array.isArray(order.left) ? order.left : []).concat(Array.isArray(order.right) ? order.right : []);
-        for (let i = 0; i < orderedKeys.length; i++) {
-          const key = String(orderedKeys[i] || "").trim();
-          if (!key || /_sub$/.test(key)) continue;
-          const field = resolveOrderField(cfg, key);
-          if (!field || !field.id) continue;
-          if (isElementLikeField(field, key, order)) continue;
-          if (!isTagLikeField(field) && !isWikilinkField(field)) continue;
-          let subFieldId = "";
-          const subByOrder = resolveOrderField(cfg, `${key}_sub`);
-          if (subByOrder && subByOrder.id && String(subByOrder.dependsOn || "").trim() === String(field.id || "").trim()) {
-            subFieldId = String(subByOrder.id || "").trim();
-          } else {
-            for (let j = 0; j < allFields.length; j++) {
-              const sf = allFields[j];
-              if (!sf || !sf.id) continue;
-              if (String(sf.dependsOn || "").trim() !== String(field.id || "").trim()) continue;
-              if (!isTagLikeField(sf)) continue;
-              subFieldId = String(sf.id || "").trim();
-              break;
-            }
-          }
-          const strictSection = String(getOrderStrictName(cfg, key) || key).trim();
-          push(strictSection, String(field.id || "").trim(), subFieldId);
-        }
-        return out;
-      }
-      function collectOrderedElementFields(cfg) {
-        const out = [];
-        const seen = /* @__PURE__ */ new Set();
-        const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
-        const keys = (Array.isArray(order.left) ? order.left : []).concat(Array.isArray(order.right) ? order.right : []);
-        for (let i = 0; i < keys.length; i++) {
-          const key = String(keys[i] || "").trim();
-          if (!key || seen.has(key)) continue;
-          const field = resolveOrderField(cfg, key);
-          if (!field || !field.id) continue;
-          if (!isElementLikeField(field, key, order)) continue;
-          out.push({
-            orderKey: key,
-            sectionId: String(getOrderStrictName(cfg, key) || key).trim() || key,
-            fieldId: String(field.id || "").trim(),
-            kind: String(field.kind || "").trim()
-          });
-          seen.add(key);
-        }
-        return out;
-      }
-      function getPrefixRulesFromCfg(cfg) {
-        const out = {
-          resolver: "priority-first",
-          priorityMode: "by-section",
-          fieldsOrderMode: "manual",
-          tagSubtagPriority: "subtag-over-tag",
-          priorityTargets: [],
-          priorityCheckboxes: [],
-          checkboxByFieldValue: {}
-        };
-        const pkmBehavior = cfg && cfg.pkm && isObj(cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-        const src = isObj(pkmBehavior.prefixRules) ? pkmBehavior.prefixRules : {};
-        const resolver = String(src.resolver || "").trim();
-        if (resolver) out.resolver = resolver;
-        const priorityMode = String(src.priorityMode || "").trim();
-        if (priorityMode) out.priorityMode = priorityMode;
-        const fieldsOrderMode = String(src.fieldsOrderMode || "").trim();
-        if (fieldsOrderMode) out.fieldsOrderMode = fieldsOrderMode;
-        const tagSubtagPriority = String(src.tagSubtagPriority || "").trim();
-        if (tagSubtagPriority) out.tagSubtagPriority = tagSubtagPriority;
-        const pr = Array.isArray(src.priorityTargets) ? src.priorityTargets : [];
-        out.priorityTargets = pr.map((x) => String(x || "").trim()).filter(Boolean);
-        const pc = Array.isArray(src.priorityCheckboxes) ? src.priorityCheckboxes : [];
-        out.priorityCheckboxes = Array.from(new Set(pc.map((x) => String(x || "").trim()).filter(Boolean)));
-        const cb = isObj(src.checkboxByFieldValue) ? src.checkboxByFieldValue : {};
-        for (const fid of Object.keys(cb)) {
-          if (!isObj(cb[fid])) continue;
-          out.checkboxByFieldValue[fid] = {};
-          for (const tok of Object.keys(cb[fid])) {
-            const v = String(cb[fid][tok] || "").trim();
-            if (!v) continue;
-            out.checkboxByFieldValue[fid][tok] = v;
-          }
-        }
-        return out;
-      }
-      function collectCheckboxTokensFromMap(checkboxByFieldValue) {
-        const out = [];
-        const map = isObj(checkboxByFieldValue) ? checkboxByFieldValue : {};
-        for (const fid of Object.keys(map)) {
-          if (!isObj(map[fid])) continue;
-          for (const token of Object.keys(map[fid])) {
-            const cb = String(map[fid][token] || "").trim();
-            if (!cb) continue;
-            if (!out.includes(cb)) out.push(cb);
-          }
-        }
-        return out;
-      }
-      function parseCustomPrefixResolverBlock(md, allowedSections) {
-        const lines = String(md || "").split(/\r?\n/);
-        let start = -1;
-        for (let i = 0; i < lines.length; i++) {
-          if (/^#{3,5}\s+`?(?:PREFIX\s+RESOLVER|Prefix\s+resolver)`?\s*$/i.test(String(lines[i] || "").trim())) {
-            start = i;
-            break;
-          }
-        }
-        if (start === -1) return null;
-        let end = lines.length;
-        for (let i = start + 1; i < lines.length; i++) {
-          if (/^###\s+/.test(String(lines[i] || "").trim())) {
-            end = i;
-            break;
-          }
-        }
-        const block2 = lines.slice(start, end);
-        const pickChecked = (re) => {
-          const out = [];
-          for (let i = 0; i < block2.length; i++) {
-            const t = String(block2[i] || "");
-            if (!/^\s*-\s*\[x\]\s+/i.test(t)) continue;
-            if (re.test(t)) out.push({ idx: i, lineNo: start + i + 1, text: t.trim() });
-          }
-          return out;
-        };
-        const checkedMainFields = pickChecked(/\*\*by\s+Fields\s+Order\*\*/i);
-        const checkedMainCheckbox = pickChecked(/\*\*by\s+Checkbox\s+Order\*\*/i);
-        const totalMainChecked = checkedMainFields.length + checkedMainCheckbox.length;
-        if (totalMainChecked > 1) throw new Error("Prefix resolver: choose only one main priority option (by Fields Order OR by Checkbox Order).");
-        if (totalMainChecked === 0) throw new Error("Prefix resolver: choose one main priority option.");
-        const mode = checkedMainCheckbox.length ? "by-checkbox-list" : "by-section";
-        const checkedAuto = pickChecked(/\*\*Automatically\*\*/i);
-        const checkedManual = pickChecked(/\*\*Manually\*\*/i);
-        let fieldsOrderMode = "manual";
-        if (mode === "by-section") {
-          const total = checkedAuto.length + checkedManual.length;
-          if (total > 1) throw new Error("Prefix resolver: choose only one fields-order mode (Automatically OR Manually).");
-          if (total === 0) throw new Error("Prefix resolver: choose one fields-order mode for by Fields Order.");
-          fieldsOrderMode = checkedAuto.length ? "auto" : "manual";
-        }
-        const checkedTagOverSubtag = pickChecked(/\*\*Tag\s*>\s*Subtag\*\*/i);
-        const checkedSubtagOverTag = pickChecked(/\*\*Subtag\s*>\s*Tag\*\*/i);
-        const totalTagMode = checkedTagOverSubtag.length + checkedSubtagOverTag.length;
-        if (totalTagMode > 1) throw new Error("Prefix resolver: choose only one Tag/Subtag priority option.");
-        if (totalTagMode === 0) throw new Error("Prefix resolver: choose one Tag/Subtag priority option.");
-        const tagSubtagPriority = checkedSubtagOverTag.length ? "subtag-over-tag" : "tag-over-subtag";
-        const sectionOrder = [];
-        const sectionOrderRaw = [];
-        const checkboxOrder = [];
-        let inFields = false;
-        let inCheckbox = false;
-        for (let i = 0; i < block2.length; i++) {
-          const raw = String(block2[i] || "");
-          const t = raw.trim();
-          if (/^1[\).]\s*\*\*Fields\s+Order:\*\*/i.test(t)) {
-            inFields = true;
-            inCheckbox = false;
-            continue;
-          }
-          if (/^2[\).]\s*\*\*Checkbox\s+Order:\*\*/i.test(t)) {
-            inFields = false;
-            inCheckbox = true;
-            continue;
-          }
-          if (inFields) {
-            const m = t.match(/^[-*]\s+([A-Za-z0-9_-]+)$/);
-            if (m) {
-              const sid = String(m[1] || "").trim();
-              if (sid && !sectionOrderRaw.includes(sid)) sectionOrderRaw.push(sid);
-              if (allowedSections.includes(sid) && !sectionOrder.includes(sid)) sectionOrder.push(sid);
-            }
-            continue;
-          }
-          if (inCheckbox) {
-            const m = t.match(/^[-*]\s+(\[[^\]]+\])/);
-            if (m) {
-              const cb = String(m[1] || "").trim();
-              if (cb && !checkboxOrder.includes(cb)) checkboxOrder.push(cb);
-            }
-          }
-        }
-        return { mode, fieldsOrderMode, tagSubtagPriority, sectionOrder, sectionOrderRaw, checkboxOrder, range: { start, end } };
-      }
-      function syncCustomPrefixResolverBlock(md, sectionOrder, checkboxOrder, mode, fieldsOrderMode, tagSubtagPriority) {
-        const lines = String(md || "").split(/\r?\n/);
-        const parsed = parseCustomPrefixResolverBlock(md, sectionOrder);
-        const modeName = String(mode || "by-section").trim() === "by-checkbox-list" ? "by-checkbox-list" : "by-section";
-        const fieldsModeName = String(fieldsOrderMode || "manual").trim() === "auto" ? "auto" : "manual";
-        const tagModeName = String(tagSubtagPriority || "subtag-over-tag").trim() === "tag-over-subtag" ? "tag-over-subtag" : "subtag-over-tag";
-        const buildBlock = (oldLines) => {
-          const src = Array.isArray(oldLines) ? oldLines.slice() : [];
-          if (!src.length) {
-            return [
-              "### " + TAGWHEEL_PREFIX_RESOLVER_H3,
-              "> if you have tags with checkboxes in different fields (i.e. 'type' and 'category') - it can lead to conflicts (like, which tag's checkbox should be visible if you use both tags in the same time)",
-              "#### Settings",
-              "1. **Main checkbox priority** (Choose only one option by clicking on it):",
-              "> If you have tags with checkboxes in different fields (i.e. 'type' (#todo) and 'category' (#home)) - it can lead to conflicts (which tag's checkbox should be active if you use both tags at the same time?). So you need to decide how you want to resolve this conflict",
-              "> Choose only one parent option by clicking on it (and un-click the second).",
-              "- [" + (modeName === "by-section" ? "x" : " ") + "] **by Fields Order** (choose only one option below)",
-              "	- [" + (modeName === "by-section" && fieldsModeName === "auto" ? "x" : " ") + '] **Automatically** - by plugin settings "Order" (PKM -> Order). Left panel tags > right panel tags, priority decreases from up to down',
-              "	- [" + (modeName === "by-section" && fieldsModeName === "manual" ? "x" : " ") + "] **Manually** - by your settings `Fields order` (go below to subheader `Order`)",
-              "- [" + (modeName === "by-checkbox-list" ? "x" : " ") + "] **by Checkbox Order** - by your settings `Checkbox order` (go to subheader `Order`)",
-              "",
-              "2. **Tag vs Subtag checkbox priority** (Choose only one option by clicking on it)",
-              "> If both your tag (#home) and its subtag (#budget) have their own checkbox, which one's checkbox should appear?",
-              "> Choose only one option by clicking on it (and un-click the second)",
-              "- [" + (tagModeName === "tag-over-subtag" ? "x" : " ") + "] **Tag > Subtag** - (the checkbox will be from `#home`)",
-              "- [" + (tagModeName === "subtag-over-tag" ? "x" : " ") + "] **Subtag > Tag** - (the checkbox will be from `#budget`)",
-              "",
-              "#### Order",
-              ">You can manually setup the order below (just reorder them from up to down)",
-              ">The higher element is -> the more powerful the checkbox would be.",
-              ">After making changes -> Apply them so it works ()",
-              "",
-              "**Settings**",
-              "1) **Fields Order:**",
-              ...sectionOrder.map((x) => "	- " + x),
-              "",
-              "2) **Checkbox Order:**",
-              ...checkboxOrder.map((x) => "	- " + x + " - `- " + x + "`")
-            ];
-          }
-          const out = src.slice();
-          for (let i = 0; i < out.length; i++) {
-            if (/^\s*-\s*\[[x ]\]\s*\*\*by\s+Fields\s+Order\*\*/i.test(out[i])) {
-              out[i] = modeName === "by-section" ? out[i].replace(/^\s*-\s*\[[x ]\]/, "- [x]") : out[i].replace(/^\s*-\s*\[[x ]\]/, "- [ ]");
-            }
-            if (/^\s*[-*]\s*\[[x ]\]\s*\*\*Automatically\*\*/i.test(out[i])) {
-              out[i] = "	- [" + (modeName === "by-section" && fieldsModeName === "auto" ? "x" : " ") + '] **Automatically** - by plugin settings "Order" (PKM -> Order). Left panel tags > right panel tags, priority decreases from up to down';
-            }
-            if (/^\s*[-*]\s*\[[x ]\]\s*\*\*Manually\*\*/i.test(out[i])) {
-              out[i] = "	- [" + (modeName === "by-section" && fieldsModeName === "manual" ? "x" : " ") + "] **Manually** - by your settings `Fields order` (go below to subheader `Order`)";
-            }
-            if (/^\s*-\s*\[[x ]\]\s*\*\*by\s+Checkbox\s+Order\*\*/i.test(out[i])) {
-              out[i] = modeName === "by-checkbox-list" ? out[i].replace(/^\s*-\s*\[[x ]\]/, "- [x]") : out[i].replace(/^\s*-\s*\[[x ]\]/, "- [ ]");
-            }
-            if (/^\s*[-*]\s*\[[x ]\]\s*\*\*Tag\s*>\s*Subtag\*\*/i.test(out[i])) {
-              out[i] = tagModeName === "tag-over-subtag" ? out[i].replace(/^\s*[-*]\s*\[[x ]\]/, "- [x]") : out[i].replace(/^\s*[-*]\s*\[[x ]\]/, "- [ ]");
-            }
-            if (/^\s*[-*]\s*\[[x ]\]\s*\*\*Subtag\s*>\s*Tag\*\*/i.test(out[i])) {
-              out[i] = tagModeName === "subtag-over-tag" ? out[i].replace(/^\s*[-*]\s*\[[x ]\]/, "- [x]") : out[i].replace(/^\s*[-*]\s*\[[x ]\]/, "- [ ]");
-            }
-          }
-          const fieldsHdr = out.findIndex((l) => /^\s*1[\).]\s*\*\*Fields\s+Order:\*\*/i.test(String(l || "")));
-          const checksHdr = out.findIndex((l) => /^\s*2[\).]\s*\*\*Checkbox\s+Order:\*\*/i.test(String(l || "")));
-          if (fieldsHdr !== -1 && checksHdr !== -1 && checksHdr > fieldsHdr) {
-            const keepHead = out.slice(0, fieldsHdr + 1);
-            const between = sectionOrder.map((x) => "	- " + x);
-            const tail = out.slice(checksHdr + 1);
-            const newTail = checkboxOrder.map((x) => "	- " + x + " - `- " + x + "`");
-            return keepHead.concat(between, [""], [out[checksHdr]], newTail, [""], tail.filter((l) => !/^\s*[-*]\s+\[[^\]]+\]\s*-\s*`-\s*\[[^\]]+\]`\s*$/i.test(String(l || ""))));
-          }
-          return out;
-        };
-        if (!parsed) {
-          const block2 = buildBlock([]);
-          return lines.concat(["", ...block2]).join("\n");
-        }
-        const before = lines.slice(0, parsed.range.start);
-        const oldBlock = lines.slice(parsed.range.start, parsed.range.end);
-        const after = lines.slice(parsed.range.end);
-        const synced = buildBlock(oldBlock);
-        return before.concat(synced, after).join("\n");
-      }
-      return {
-        getLeftFields,
-        getRightFields,
-        resolveOrderField,
-        getFieldById,
-        collectWikilinkFieldIds,
-        collectTagSections,
-        collectOrderedElementFields,
-        getPrefixRulesFromCfg,
-        collectCheckboxTokensFromMap,
-        parseCustomPrefixResolverBlock,
-        syncCustomPrefixResolverBlock
-      };
-    }
-    module2.exports = {
-      createConfigNoteHelpers
-    };
-  }
-});
-
-// src/features/config_note_orchestrator.js
-var require_config_note_orchestrator = __commonJS({
-  "src/features/config_note_orchestrator.js"(exports2, module2) {
-    "use strict";
-    function sanitizeDatesByFieldFromConfigNote(input, isObj) {
-      const src = isObj(input) ? input : {};
-      const out = {};
-      for (const fid of Object.keys(src)) {
-        const fc = isObj(src[fid]) ? src[fid] : {};
-        const next = { ...fc };
-        delete next.active;
-        delete next.activeMode;
-        out[fid] = next;
-      }
-      return out;
-    }
-    function sanitizeElementsByFieldFromConfigNote(input, isObj) {
-      const src = isObj(input) ? input : {};
-      const out = {};
-      for (const fid of Object.keys(src)) {
-        const fc = isObj(src[fid]) ? src[fid] : {};
-        const next = { ...fc };
-        delete next.enabled;
-        delete next.active;
-        delete next.activeMode;
-        out[fid] = next;
-      }
-      return out;
-    }
-    function resolveOrderFieldScopes(cfg, normalizePkmOrder, isObj) {
-      const rawOrder = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior.order : null;
-      const order = typeof normalizePkmOrder === "function" ? normalizePkmOrder(rawOrder) : isObj(rawOrder) ? rawOrder : {};
-      const types = isObj(order.types) ? order.types : {};
-      const activeElements = /* @__PURE__ */ new Set();
-      for (const key of Object.keys(types)) {
-        const id = String(key || "").trim();
-        if (!id) continue;
-        if (String(types[key] || "").trim().toLowerCase() !== "element") continue;
-        activeElements.add(id);
-      }
-      return { activeElements };
-    }
-    function filterBehaviorDateElementConfigs(cfgLike, scopes, isObj) {
-      const cfg = isObj(cfgLike) ? cfgLike : {};
-      const behavior = isObj(cfg.pkm) && isObj(cfg.pkm.behavior) ? cfg.pkm.behavior : null;
-      if (!behavior) return cfg;
-      const activeElements = scopes && scopes.activeElements instanceof Set ? scopes.activeElements : /* @__PURE__ */ new Set();
-      if (isObj(behavior.elements)) {
-        const elements = behavior.elements;
-        const fields = Array.isArray(elements.fields) ? elements.fields : [];
-        elements.fields = fields.map((x) => String(x || "").trim()).filter((x) => x && activeElements.has(x));
-        if (isObj(elements.byField)) {
-          const next = {};
-          for (const key of Object.keys(elements.byField)) {
-            const id = String(key || "").trim();
-            if (!id || !activeElements.has(id)) continue;
-            next[id] = elements.byField[key];
-          }
-          elements.byField = next;
-        }
-      }
-      if (isObj(behavior.dates)) delete behavior.dates;
-      if (isObj(cfg.pkm.taxonomy) && isObj(cfg.pkm.taxonomy.tagWheelConfig)) {
-        const tw = cfg.pkm.taxonomy.tagWheelConfig;
-        if (isObj(tw.elements)) {
-          const ef = Array.isArray(tw.elements.fields) ? tw.elements.fields : [];
-          tw.elements.fields = ef.map((x) => String(x || "").trim()).filter((x) => x && activeElements.has(x));
-          if (isObj(tw.elements.byField)) {
-            const next = {};
-            for (const key of Object.keys(tw.elements.byField)) {
-              const id = String(key || "").trim();
-              if (!id || !activeElements.has(id)) continue;
-              next[id] = tw.elements.byField[key];
-            }
-            tw.elements.byField = next;
-          }
-        }
-        if (isObj(tw.dates)) delete tw.dates;
-      }
-      return cfg;
-    }
-    async function openTagWheelConfigNote(ctx) {
-      var _a, _b;
-      const {
-        app: app3,
-        cfg,
-        tagWheelConfigCodec,
-        cloneJson,
-        isObj,
-        readVaultText,
-        detectDateFieldHotkeys,
-        normalizePkmOrder,
-        TAGWHEEL_CONFIG_MODE_DETAILED,
-        TAGWHEEL_CONFIG_MODE_MINIMAL
-      } = ctx;
-      const codec = tagWheelConfigCodec || {};
-      const parseTagWheelConfigMarkdown = typeof codec.parseTagWheelConfigMarkdown === "function" ? codec.parseTagWheelConfigMarkdown : ctx.parseTagWheelConfigMarkdown;
-      const buildTagWheelConfigParts = typeof codec.buildTagWheelConfigParts === "function" ? codec.buildTagWheelConfigParts : ctx.buildTagWheelConfigParts;
-      const buildDefaultTagWheelDetailedTemplateMarkdown = typeof codec.buildDefaultTagWheelDetailedTemplateMarkdown === "function" ? codec.buildDefaultTagWheelDetailedTemplateMarkdown : ctx.buildDefaultTagWheelDetailedTemplateMarkdown;
-      const renderTagWheelConfigFromTemplate = typeof codec.renderTagWheelConfigFromTemplate === "function" ? codec.renderTagWheelConfigFromTemplate : ctx.renderTagWheelConfigFromTemplate;
-      const buildMinimalFromRenderedTemplate = typeof codec.buildMinimalFromRenderedTemplate === "function" ? codec.buildMinimalFromRenderedTemplate : ctx.buildMinimalFromRenderedTemplate;
-      const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function" ? codec.normalizeTagWheelConfigPath : ctx.normalizeTagWheelConfigPath;
-      const normalizeTagWheelConfigTemplatePath = typeof codec.normalizeTagWheelConfigTemplatePath === "function" ? codec.normalizeTagWheelConfigTemplatePath : ctx.normalizeTagWheelConfigTemplatePath;
-      const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-      const modeRaw = cfg && cfg.pkm ? cfg.pkm.configExportMode : TAGWHEEL_CONFIG_MODE_DETAILED;
-      const mode = String(modeRaw || TAGWHEEL_CONFIG_MODE_DETAILED).trim() === TAGWHEEL_CONFIG_MODE_MINIMAL ? TAGWHEEL_CONFIG_MODE_MINIMAL : TAGWHEEL_CONFIG_MODE_DETAILED;
-      const existing = app3.vault.getAbstractFileByPath(notePath);
-      let renderCfg = cfg;
-      let currentMd = "";
-      if (existing) {
-        currentMd = await app3.vault.read(existing);
-        try {
-          const parsedExisting = parseTagWheelConfigMarkdown(currentMd, cfg);
-          if (parsedExisting && (parsedExisting.datesConfig || parsedExisting.elementsConfig)) {
-            const clone = cloneJson(cfg) || cfg;
-            if (!isObj(clone.pkm)) clone.pkm = {};
-            if (!isObj(clone.pkm.behavior)) clone.pkm.behavior = {};
-            if (!isObj(clone.pkm.behavior.elements)) clone.pkm.behavior.elements = {};
-            const datesSrc = parsedExisting.datesConfig || {};
-            const elemsSrc = parsedExisting.elementsConfig || {};
-            const curElemFields = Array.isArray(clone.pkm.behavior.elements.fields) ? clone.pkm.behavior.elements.fields.slice() : [];
-            const parsedElemFields = Array.isArray(elemsSrc.fields) ? elemsSrc.fields.slice() : [];
-            const parsedDateFields = Array.isArray(datesSrc.fields) ? datesSrc.fields.slice() : [];
-            clone.pkm.behavior.elements.fields = Array.from(new Set(curElemFields.concat(parsedElemFields).map((x) => String(x || "").trim()).filter(Boolean)));
-            clone.pkm.behavior.elements.fields = Array.from(new Set(clone.pkm.behavior.elements.fields.concat(parsedDateFields).map((x) => String(x || "").trim()).filter(Boolean)));
-            if (!isObj(clone.pkm.behavior.elements.byField)) clone.pkm.behavior.elements.byField = {};
-            const parsedElemsByField = sanitizeElementsByFieldFromConfigNote(elemsSrc.byField, isObj);
-            const parsedDatesByField = sanitizeDatesByFieldFromConfigNote(datesSrc.byField, isObj);
-            for (const fid of Object.keys(parsedDatesByField)) {
-              const src = isObj(parsedDatesByField[fid]) ? parsedDatesByField[fid] : {};
-              const dst = isObj(clone.pkm.behavior.elements.byField[fid]) ? clone.pkm.behavior.elements.byField[fid] : {};
-              const merged = {
-                ...src,
-                ...dst,
-                increment: {
-                  ...isObj(src.increment) ? src.increment : {},
-                  ...isObj(dst.increment) ? dst.increment : {}
-                }
-              };
-              if (!String(merged.emoji || "").trim() && String(src.emoji || "").trim()) merged.emoji = String(src.emoji || "").trim();
-              if (!String(merged.format || "").trim() && String(src.format || "").trim()) merged.format = String(src.format || "").trim();
-              clone.pkm.behavior.elements.byField[fid] = merged;
-            }
-            for (const fid of Object.keys(parsedElemsByField)) {
-              const dst = isObj(clone.pkm.behavior.elements.byField[fid]) ? clone.pkm.behavior.elements.byField[fid] : {};
-              clone.pkm.behavior.elements.byField[fid] = { ...dst, ...parsedElemsByField[fid] };
-            }
-            renderCfg = clone;
-          }
-        } catch (_) {
-        }
-      }
-      filterBehaviorDateElementConfigs(renderCfg, resolveOrderFieldScopes(renderCfg, normalizePkmOrder, isObj), isObj);
-      try {
-        const dstCfg = cloneJson(renderCfg) || renderCfg;
-        if (isObj(dstCfg) && isObj(dstCfg.pkm) && isObj(dstCfg.pkm.behavior) && isObj(dstCfg.pkm.behavior.elements)) {
-          const byField = isObj(dstCfg.pkm.behavior.elements.byField) ? dstCfg.pkm.behavior.elements.byField : {};
-          for (const fid of Object.keys(byField)) {
-            const hk = detectDateFieldHotkeys(fid, dstCfg);
-            const fc = isObj(byField[fid]) ? byField[fid] : {};
-            byField[fid] = {
-              ...fc,
-              hotkey: {
-                ...isObj(fc.hotkey) ? fc.hotkey : {},
-                increase: hk.increase || String(((_a = fc == null ? void 0 : fc.hotkey) == null ? void 0 : _a.increase) || "").trim(),
-                decrease: hk.decrease || String(((_b = fc == null ? void 0 : fc.hotkey) == null ? void 0 : _b.decrease) || "").trim()
-              }
-            };
-          }
-          dstCfg.pkm.behavior.elements.byField = byField;
-          renderCfg = dstCfg;
-        }
-      } catch (_) {
-      }
-      const parts = buildTagWheelConfigParts(renderCfg);
-      const templatePath = normalizeTagWheelConfigTemplatePath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigTemplatePath : "");
-      const templateFile = app3.vault.getAbstractFileByPath(templatePath);
-      if (!templateFile) {
-        const seed = buildDefaultTagWheelDetailedTemplateMarkdown();
-        await app3.vault.create(templatePath, seed);
-      }
-      const templateMd = await readVaultText(app3, templatePath);
-      const renderedMd = renderTagWheelConfigFromTemplate(templateMd, parts);
-      const freshMd = mode === TAGWHEEL_CONFIG_MODE_MINIMAL ? buildMinimalFromRenderedTemplate(renderedMd) : renderedMd;
-      if (!existing) {
-        await app3.vault.create(notePath, freshMd);
-      } else {
-        if (currentMd !== freshMd) {
-          await app3.vault.modify(existing, freshMd);
-        }
-      }
-      const file = app3.vault.getAbstractFileByPath(notePath);
-      if (!file) throw new Error("Failed to create/open config note: " + notePath);
-      const leaf = app3.workspace.getLeaf(true);
-      await leaf.openFile(file);
-      return notePath;
-    }
-    async function openTagWheelConfigTemplateNote(ctx) {
-      const { app: app3, cfg, tagWheelConfigCodec } = ctx;
-      const codec = tagWheelConfigCodec || {};
-      const normalizeTagWheelConfigTemplatePath = typeof codec.normalizeTagWheelConfigTemplatePath === "function" ? codec.normalizeTagWheelConfigTemplatePath : ctx.normalizeTagWheelConfigTemplatePath;
-      const buildDefaultTagWheelDetailedTemplateMarkdown = typeof codec.buildDefaultTagWheelDetailedTemplateMarkdown === "function" ? codec.buildDefaultTagWheelDetailedTemplateMarkdown : ctx.buildDefaultTagWheelDetailedTemplateMarkdown;
-      const templatePath = normalizeTagWheelConfigTemplatePath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigTemplatePath : "");
-      let file = app3.vault.getAbstractFileByPath(templatePath);
-      if (!file) {
-        await app3.vault.create(templatePath, buildDefaultTagWheelDetailedTemplateMarkdown());
-        file = app3.vault.getAbstractFileByPath(templatePath);
-      }
-      if (!file) throw new Error("Failed to create/open detailed template note: " + templatePath);
-      const leaf = app3.workspace.getLeaf(true);
-      await leaf.openFile(file);
-      return templatePath;
-    }
-    async function applyTagWheelConfigNote(ctx) {
-      const {
-        app: app3,
-        cfg,
-        tagWheelConfigCodec,
-        store,
-        readVaultText,
-        getOrderStrictName,
-        isObj,
-        cloneJson,
-        collectTagSections,
-        getFieldById,
-        extractFieldMetaMap,
-        rebuildTagValues,
-        rebuildSubtagValues,
-        denormTagToken,
-        getPrefixRulesFromCfg,
-        collectCheckboxTokensFromMap,
-        deepMerge,
-        syncCustomPrefixResolverBlock,
-        normalizePkmOrder,
-        CFG_H2_DATES
-      } = ctx;
-      const codec = tagWheelConfigCodec || {};
-      const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function" ? codec.normalizeTagWheelConfigPath : ctx.normalizeTagWheelConfigPath;
-      const parseTagWheelConfigMarkdown = typeof codec.parseTagWheelConfigMarkdown === "function" ? codec.parseTagWheelConfigMarkdown : ctx.parseTagWheelConfigMarkdown;
-      const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-      const md = await readVaultText(app3, notePath);
-      const parsed = parseTagWheelConfigMarkdown(md, cfg);
-      void getOrderStrictName;
-      void CFG_H2_DATES;
-      let isWikilinkSourceFieldSafe = (fieldLike) => {
-        const source = String(fieldLike && fieldLike.source || "").trim();
-        return source === "projects" || source.indexOf("wikilinks:") === 0;
-      };
-      try {
-        const runtimeHelpers = require_pkm_rules_runtime_helpers();
-        if (runtimeHelpers && typeof runtimeHelpers.isWikilinkSourceField === "function") {
-          isWikilinkSourceFieldSafe = runtimeHelpers.isWikilinkSourceField;
-        }
-      } catch (_) {
-      }
-      const behaviorCfg = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cloneJson(cfg.pkm.behavior) : {};
-      const leftMode = isObj(behaviorCfg.leftMode) ? behaviorCfg.leftMode : { fields: [] };
-      if (!Array.isArray(leftMode.fields)) leftMode.fields = [];
-      const rightMode = isObj(behaviorCfg.rightMode) ? behaviorCfg.rightMode : { fields: [] };
-      if (!Array.isArray(rightMode.fields)) rightMode.fields = [];
-      let allModeFields = leftMode.fields.concat(rightMode.fields);
-      const refreshAllModeFields = () => {
-        allModeFields = leftMode.fields.concat(rightMode.fields);
-      };
-      const getFieldAcrossModes = (fieldId) => {
-        const id = String(fieldId || "").trim();
-        if (!id) return null;
-        return getFieldById(allModeFields, id);
-      };
-      const orderCfg = normalizePkmOrder(behaviorCfg.order || null);
-      behaviorCfg.order = cloneJson(orderCfg);
-      if (!isObj(behaviorCfg.order.propertiesByField)) behaviorCfg.order.propertiesByField = {};
-      const strictToOrderKey = {};
-      const registerStrict = (orderKey) => {
-        const key = String(orderKey || "").trim();
-        if (!key) return;
-        const strict = String(behaviorCfg.order && behaviorCfg.order.strictNames && behaviorCfg.order.strictNames[key] || key).trim();
-        if (!strict) return;
-        strictToOrderKey[strict] = key;
-      };
-      const leftKeys = Array.isArray(behaviorCfg.order && behaviorCfg.order.left) ? behaviorCfg.order.left : [];
-      const rightKeys = Array.isArray(behaviorCfg.order && behaviorCfg.order.right) ? behaviorCfg.order.right : [];
-      for (let i = 0; i < leftKeys.length; i++) registerStrict(leftKeys[i]);
-      for (let i = 0; i < rightKeys.length; i++) registerStrict(rightKeys[i]);
-      const parsedSectionOrder = Array.isArray(parsed.sectionOrder) ? parsed.sectionOrder : [];
-      const parsedSectionKinds = isObj(parsed.sectionKinds) ? parsed.sectionKinds : {};
-      for (let i = 0; i < parsedSectionOrder.length; i++) {
-        const strictName = String(parsedSectionOrder[i] || "").trim();
-        if (!strictName) continue;
-        if (!/[\S]/.test(strictName)) continue;
-        const kind = String(parsedSectionKinds[strictName] || "tag").trim().toLowerCase() === "link" ? "link" : "tag";
-        if (strictToOrderKey[strictName]) {
-          const existingField = getFieldAcrossModes(strictName);
-          if (existingField && kind === "link") {
-            existingField.source = String(existingField.source || "").trim() === "projects" ? "projects" : `wikilinks:${strictName}`;
-          }
-          if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
-          behaviorCfg.order.types[strictName] = kind === "link" ? "wikilink" : "tag";
-          continue;
-        }
-        const fieldDef = kind === "link" ? { id: strictName, prefix: "#", source: `wikilinks:${strictName}`, placeholder: strictName, values: [""] } : { id: strictName, prefix: "#", placeholder: strictName, values: [""] };
-        rightMode.fields.push(fieldDef);
-        allModeFields.push(fieldDef);
-        if (!Array.isArray(behaviorCfg.order.right)) behaviorCfg.order.right = [];
-        behaviorCfg.order.right.push(strictName);
-        if (!isObj(behaviorCfg.order.strictNames)) behaviorCfg.order.strictNames = {};
-        behaviorCfg.order.strictNames[strictName] = strictName;
-        if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
-        behaviorCfg.order.types[strictName] = kind === "link" ? "wikilink" : "tag";
-        strictToOrderKey[strictName] = strictName;
-      }
-      const parsedWikilinkFieldIds = Array.isArray(parsed.wikilinkFields) ? parsed.wikilinkFields.map((x) => String(x || "").trim()).filter(Boolean) : [];
-      for (let i = 0; i < parsedWikilinkFieldIds.length; i++) {
-        const fieldId = parsedWikilinkFieldIds[i];
-        if (!fieldId) continue;
-        const existingField = getFieldAcrossModes(fieldId);
-        if (existingField) {
-          if (!isWikilinkSourceFieldSafe(existingField)) continue;
-          existingField.source = `wikilinks:${fieldId}`;
-          if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
-          behaviorCfg.order.types[fieldId] = "wikilink";
-          continue;
-        }
-        const fieldDef = { id: fieldId, prefix: "#", source: `wikilinks:${fieldId}`, placeholder: fieldId, values: [""] };
-        rightMode.fields.push(fieldDef);
-        allModeFields.push(fieldDef);
-        if (!Array.isArray(behaviorCfg.order.right)) behaviorCfg.order.right = [];
-        const leftHas = Array.isArray(behaviorCfg.order.left) && behaviorCfg.order.left.includes(fieldId);
-        if (!leftHas && !behaviorCfg.order.right.includes(fieldId)) behaviorCfg.order.right.push(fieldId);
-        if (!isObj(behaviorCfg.order.strictNames)) behaviorCfg.order.strictNames = {};
-        behaviorCfg.order.strictNames[fieldId] = fieldId;
-        if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
-        behaviorCfg.order.types[fieldId] = "wikilink";
-        if (!isObj(behaviorCfg.order.active)) behaviorCfg.order.active = {};
-        if (!String(behaviorCfg.order.active[fieldId] || "").trim()) behaviorCfg.order.active[fieldId] = "yes";
-        if (!isObj(behaviorCfg.order.enabled)) behaviorCfg.order.enabled = {};
-        if (typeof behaviorCfg.order.enabled[fieldId] !== "boolean") behaviorCfg.order.enabled[fieldId] = true;
-        strictToOrderKey[fieldId] = fieldId;
-      }
-      const dedupeOrder = (arr) => {
-        const src = Array.isArray(arr) ? arr : [];
-        const out = [];
-        const seen = /* @__PURE__ */ new Set();
-        for (let i = 0; i < src.length; i++) {
-          const id = String(src[i] || "").trim();
-          if (!id || seen.has(id)) continue;
-          seen.add(id);
-          out.push(id);
-        }
-        return out;
-      };
-      behaviorCfg.order.left = dedupeOrder(behaviorCfg.order.left);
-      behaviorCfg.order.right = dedupeOrder(behaviorCfg.order.right);
-      {
-        const leftSet = new Set(Array.isArray(behaviorCfg.order.left) ? behaviorCfg.order.left : []);
-        if (Array.isArray(behaviorCfg.order.right)) {
-          behaviorCfg.order.right = behaviorCfg.order.right.filter((id) => !leftSet.has(String(id || "").trim()));
-        }
-      }
-      {
-        const rightSet = new Set(Array.isArray(behaviorCfg.order.right) ? behaviorCfg.order.right : []);
-        const findInMode = (arr, fieldId) => {
-          const list = Array.isArray(arr) ? arr : [];
-          const target = String(fieldId || "").trim();
-          if (!target) return -1;
-          for (let i = 0; i < list.length; i++) {
-            if (String(list[i] && list[i].id || "").trim() === target) return i;
-          }
-          return -1;
-        };
-        for (const fieldId of rightSet.values()) {
-          const id = String(fieldId || "").trim();
-          if (!id) continue;
-          const leftIdx = findInMode(leftMode.fields, id);
-          if (leftIdx === -1) continue;
-          const leftField = leftMode.fields[leftIdx];
-          if (!isWikilinkSourceFieldSafe(leftField)) continue;
-          const rightIdx = findInMode(rightMode.fields, id);
-          if (rightIdx === -1) {
-            rightMode.fields.push(leftField);
-          }
-          leftMode.fields.splice(leftIdx, 1);
-        }
-      }
-      refreshAllModeFields();
-      const cfgForSections = cloneJson(cfg || {});
-      if (!isObj(cfgForSections.pkm)) cfgForSections.pkm = {};
-      cfgForSections.pkm.behavior = cloneJson(behaviorCfg);
-      const sectionDefs = collectTagSections(cfgForSections);
-      const parsedSectionSet = new Set(
-        Object.keys(isObj(parsed.sections) ? parsed.sections : {}).concat(Array.isArray(parsed.sectionOrder) ? parsed.sectionOrder.map((x) => String(x || "").trim()).filter(Boolean) : [])
-      );
-      const removedFieldIds = /* @__PURE__ */ new Set();
-      for (let i = 0; i < sectionDefs.length; i++) {
-        const d = sectionDefs[i];
-        const sid = String(d && d.sectionId || "").trim();
-        if (!sid || parsedSectionSet.has(sid)) continue;
-        const fid = String(d && d.fieldId || "").trim();
-        const sfid = String(d && d.subFieldId || "").trim();
-        if (fid) removedFieldIds.add(fid);
-        if (sfid) removedFieldIds.add(sfid);
-      }
-      if (removedFieldIds.size) {
-        const shouldKeepField = (f) => {
-          const id = String(f && f.id || "").trim();
-          if (!id) return true;
-          return !removedFieldIds.has(id);
-        };
-        leftMode.fields = leftMode.fields.filter(shouldKeepField);
-        rightMode.fields = rightMode.fields.filter(shouldKeepField);
-        const cleanOrderArray = (arr) => Array.isArray(arr) ? arr.filter((k) => !removedFieldIds.has(String(k || "").trim())) : [];
-        behaviorCfg.order.left = cleanOrderArray(behaviorCfg.order.left);
-        behaviorCfg.order.right = cleanOrderArray(behaviorCfg.order.right);
-        const cleanObjMap = (obj) => {
-          const src = isObj(obj) ? obj : {};
-          const out = {};
-          for (const k of Object.keys(src)) {
-            if (removedFieldIds.has(String(k || "").trim())) continue;
-            out[k] = src[k];
-          }
-          return out;
-        };
-        behaviorCfg.order.strictNames = cleanObjMap(behaviorCfg.order.strictNames);
-        behaviorCfg.order.labels = cleanObjMap(behaviorCfg.order.labels);
-        behaviorCfg.order.types = cleanObjMap(behaviorCfg.order.types);
-        behaviorCfg.order.active = cleanObjMap(behaviorCfg.order.active);
-        behaviorCfg.order.enabled = cleanObjMap(behaviorCfg.order.enabled);
-        behaviorCfg.order.freeRoam = cleanObjMap(behaviorCfg.order.freeRoam);
-        behaviorCfg.order.propertiesByField = cleanObjMap(behaviorCfg.order.propertiesByField);
-        if (isObj(parsed.checkboxByFieldValue)) {
-          for (const rid of removedFieldIds.values()) delete parsed.checkboxByFieldValue[rid];
-        }
-        if (isObj(parsed.orphanWikilinks)) {
-          for (const rid of removedFieldIds.values()) delete parsed.orphanWikilinks[rid];
-        }
-        refreshAllModeFields();
-      }
-      const sectionIdByFieldId = {};
-      const sectionDefById = {};
-      for (let i = 0; i < sectionDefs.length; i++) {
-        const d = sectionDefs[i];
-        sectionDefById[d.sectionId] = d;
-        sectionIdByFieldId[d.fieldId] = d.sectionId;
-        if (d.subFieldId) sectionIdByFieldId[d.subFieldId] = d.sectionId;
-      }
-      const appliedSectionIds = /* @__PURE__ */ new Set();
-      for (let i = 0; i < sectionDefs.length; i++) {
-        const d = sectionDefs[i];
-        const sec = parsed.sections[d.sectionId];
-        if (!sec) continue;
-        appliedSectionIds.add(String(d.sectionId || "").trim());
-        const sectionId = String(d.sectionId || "").trim();
-        const sectionOrderKey = String(strictToOrderKey[sectionId] || sectionId).trim();
-        const sectionFieldYaml = String(parsed.fieldYamlBySection && parsed.fieldYamlBySection[sectionId] || "").trim();
-        if (sectionOrderKey) {
-          if (sectionFieldYaml) behaviorCfg.order.propertiesByField[sectionOrderKey] = sectionFieldYaml;
-        }
-        const parentField = getFieldAcrossModes(d.fieldId);
-        if (parentField) {
-          const parentMeta = extractFieldMetaMap(parentField);
-          const parentYamlByToken = isObj(parsed.yamlByFieldValue && parsed.yamlByFieldValue[d.fieldId]) ? parsed.yamlByFieldValue[d.fieldId] : {};
-          const parentList = Array.isArray(sec.parents) ? sec.parents : [];
-          for (let pi = 0; pi < parentList.length; pi++) {
-            const tok = denormTagToken(parentList[pi] && parentList[pi].token || "");
-            if (!tok) continue;
-            const candidate = String(parentYamlByToken[tok] || "").trim();
-            if (candidate && candidate !== sectionFieldYaml) {
-              if (!isObj(parentMeta[tok])) parentMeta[tok] = {};
-              parentMeta[tok].yamlProperty = candidate;
-            } else if (isObj(parentMeta[tok]) && Object.prototype.hasOwnProperty.call(parentMeta[tok], "yamlProperty")) {
-              delete parentMeta[tok].yamlProperty;
-            }
-          }
-          parentField.values = rebuildTagValues(sec.parents.map((x) => x.token), parentMeta);
-        }
-        if (d.subFieldId) {
-          const subField = getFieldAcrossModes(d.subFieldId);
-          if (subField) {
-            const subMeta = extractFieldMetaMap(subField);
-            const subYamlByToken = isObj(parsed.yamlByFieldValue && parsed.yamlByFieldValue[d.subFieldId]) ? parsed.yamlByFieldValue[d.subFieldId] : {};
-            const parents = Array.isArray(sec.parents) ? sec.parents : [];
-            for (let pi = 0; pi < parents.length; pi++) {
-              const subs = Array.isArray(parents[pi] && parents[pi].subtags) ? parents[pi].subtags : [];
-              for (let si = 0; si < subs.length; si++) {
-                const tok = denormTagToken(subs[si]);
-                if (!tok) continue;
-                const candidate = String(subYamlByToken[tok] || "").trim();
-                if (candidate && candidate !== sectionFieldYaml) {
-                  if (!isObj(subMeta[tok])) subMeta[tok] = {};
-                  subMeta[tok].yamlProperty = candidate;
-                } else if (isObj(subMeta[tok]) && Object.prototype.hasOwnProperty.call(subMeta[tok], "yamlProperty")) {
-                  delete subMeta[tok].yamlProperty;
-                }
-              }
-            }
-            subField.values = rebuildSubtagValues(sec.parents, subMeta);
-          }
-        }
-      }
-      const parsedSectionsObj = isObj(parsed.sections) ? parsed.sections : {};
-      for (const sectionIdRaw of Object.keys(parsedSectionsObj)) {
-        const sectionId = String(sectionIdRaw || "").trim();
-        if (!sectionId || appliedSectionIds.has(sectionId)) continue;
-        const sec = parsedSectionsObj[sectionId];
-        if (!isObj(sec)) continue;
-        const parentTokens = Array.isArray(sec.parents) ? sec.parents.map((x) => isObj(x) ? x.token : "").filter((x) => String(x || "").trim()) : [];
-        const parentField = getFieldAcrossModes(sectionId);
-        const sectionOrderKey = String(strictToOrderKey[sectionId] || sectionId).trim();
-        const sectionFieldYaml = String(parsed.fieldYamlBySection && parsed.fieldYamlBySection[sectionId] || "").trim();
-        if (sectionOrderKey) {
-          if (sectionFieldYaml) behaviorCfg.order.propertiesByField[sectionOrderKey] = sectionFieldYaml;
-        }
-        if (parentField) {
-          const parentMeta = extractFieldMetaMap(parentField);
-          const parentYamlByToken = isObj(parsed.yamlByFieldValue && parsed.yamlByFieldValue[String(parentField.id || "").trim()]) ? parsed.yamlByFieldValue[String(parentField.id || "").trim()] : {};
-          for (let pi = 0; pi < parentTokens.length; pi++) {
-            const tok = denormTagToken(parentTokens[pi]);
-            if (!tok) continue;
-            const candidate = String(parentYamlByToken[tok] || "").trim();
-            if (candidate && candidate !== sectionFieldYaml) {
-              if (!isObj(parentMeta[tok])) parentMeta[tok] = {};
-              parentMeta[tok].yamlProperty = candidate;
-            } else if (isObj(parentMeta[tok]) && Object.prototype.hasOwnProperty.call(parentMeta[tok], "yamlProperty")) {
-              delete parentMeta[tok].yamlProperty;
-            }
-          }
-          parentField.values = rebuildTagValues(parentTokens, parentMeta);
-        }
-        const subField = getFieldAcrossModes(`${sectionId}_sub`);
-        if (subField) {
-          const subMeta = extractFieldMetaMap(subField);
-          const subYamlByToken = isObj(parsed.yamlByFieldValue && parsed.yamlByFieldValue[String(subField.id || "").trim()]) ? parsed.yamlByFieldValue[String(subField.id || "").trim()] : {};
-          const parents = Array.isArray(sec.parents) ? sec.parents : [];
-          for (let pi = 0; pi < parents.length; pi++) {
-            const subs = Array.isArray(parents[pi] && parents[pi].subtags) ? parents[pi].subtags : [];
-            for (let si = 0; si < subs.length; si++) {
-              const tok = denormTagToken(subs[si]);
-              if (!tok) continue;
-              const candidate = String(subYamlByToken[tok] || "").trim();
-              if (candidate && candidate !== sectionFieldYaml) {
-                if (!isObj(subMeta[tok])) subMeta[tok] = {};
-                subMeta[tok].yamlProperty = candidate;
-              } else if (isObj(subMeta[tok]) && Object.prototype.hasOwnProperty.call(subMeta[tok], "yamlProperty")) {
-                delete subMeta[tok].yamlProperty;
-              }
-            }
-          }
-          subField.values = rebuildSubtagValues(Array.isArray(sec.parents) ? sec.parents : [], subMeta);
-        }
-      }
-      const normalizeWikilinkTokenRaw = (token) => {
-        const src = String(token || "").trim();
-        if (!src) return "";
-        const m = src.match(/^\[\[([^\]]+)\]\]$/);
-        return m ? String(m[1] || "").trim() : src;
-      };
-      const buildWikilinkFieldValues = (field, sourceFieldId, parsedSections, orphanWikilinks2) => {
-        const sourceId = String(sourceFieldId || "").trim();
-        const sectionsSrc = isObj(parsedSections) ? parsedSections : {};
-        if (!sourceId) return [];
-        const mergeEntries = [];
-        for (const sectionName of Object.keys(sectionsSrc)) {
-          const sec = sectionsSrc[sectionName];
-          if (!isObj(sec)) continue;
-          const wlRoot = isObj(sec.wikilinks) ? sec.wikilinks : {};
-          const wl = isObj(wlRoot[sourceId]) ? wlRoot[sourceId] : null;
-          if (!wl) continue;
-          mergeEntries.push({ sectionName, wl });
-        }
-        const orphanByField = isObj(orphanWikilinks2) ? orphanWikilinks2 : {};
-        const orphanList = Array.isArray(orphanByField[sourceId]) ? orphanByField[sourceId] : [];
-        if (!mergeEntries.length && !orphanList.length) return [];
-        const existingMeta = extractFieldMetaMap(field);
-        const withDepends = typeof (field == null ? void 0 : field.dependsOn) === "string" && String(field.dependsOn || "").trim().length > 0;
-        const dependsOnFieldId = String(field && field.dependsOn || "").trim();
-        const sectionForDepends = String(sectionIdByFieldId[dependsOnFieldId] || "").trim();
-        const parentDefForDepends = sectionForDepends && isObj(sectionDefById[sectionForDepends]) ? sectionDefById[sectionForDepends] : null;
-        const defaultParentFieldId = parentDefForDepends && parentDefForDepends.fieldId ? String(parentDefForDepends.fieldId || "").trim() : "";
-        if (!withDepends) {
-          const out2 = [];
-          const seen = /* @__PURE__ */ new Set();
-          const pushToken = (rawTok) => {
-            const token = normalizeWikilinkTokenRaw(rawTok);
-            if (!token || seen.has(token)) return;
-            seen.add(token);
-            const meta = isObj(existingMeta[token]) ? cloneJson(existingMeta[token]) : {};
-            delete meta.allowedParentValues;
-            out2.push({
-              ...meta,
-              token,
-              __ioParentBinding: "",
-              __ioParentFieldId: "",
-              active: typeof meta.active === "boolean" ? meta.active : true
-            });
-          };
-          for (let ni = 0; ni < mergeEntries.length; ni++) {
-            const wl = mergeEntries[ni] && isObj(mergeEntries[ni].wl) ? mergeEntries[ni].wl : {};
-            const defs = Array.isArray(wl.defaults) ? wl.defaults : [];
-            for (let i = 0; i < defs.length; i++) pushToken(defs[i]);
-            const parentMap = isObj(wl.byParent) ? wl.byParent : {};
-            for (const parentToken of Object.keys(parentMap)) {
-              const node = isObj(parentMap[parentToken]) ? parentMap[parentToken] : {};
-              const branch = Array.isArray(node.branch) ? node.branch : [];
-              for (let i = 0; i < branch.length; i++) pushToken(branch[i]);
-              const leaf = isObj(node.leaf) ? node.leaf : {};
-              for (const subToken of Object.keys(leaf)) {
-                const arr = Array.isArray(leaf[subToken]) ? leaf[subToken] : [];
-                for (let i = 0; i < arr.length; i++) pushToken(arr[i]);
-              }
-            }
-          }
-          for (let oi = 0; oi < orphanList.length; oi++) pushToken(orphanList[oi]);
-          return out2;
-        }
-        const allowedByToken = {};
-        const tokenOrder = [];
-        const bindingByToken = {};
-        const assertCanonicalBinding = (binding2, token, reason) => {
-          const src = String(binding2 || "").trim();
-          const mLeaf = src.match(/^s:#[^|]+\|p:#[^|]+\|f:[^|]+$/);
-          const mBranch = src.match(/^p:#[^|]+\|f:[^|]+$/);
-          if (!mLeaf && !mBranch) {
-            throw new Error(`Config apply failed: non-canonical binding for wikilink token=[[${token}]], field=${sourceId}, reason=${reason}, binding=${src || "<empty>"}`);
-          }
-        };
-        const pushDefault = (rawTok) => {
-          const token = normalizeWikilinkTokenRaw(rawTok);
-          if (!token) return;
-          if (!allowedByToken[token]) tokenOrder.push(token);
-          if (!allowedByToken[token]) allowedByToken[token] = /* @__PURE__ */ new Set();
-        };
-        const pushAllowed = (rawTok, rawParent, sourceParentFieldId, sourceSectionName) => {
-          const token = normalizeWikilinkTokenRaw(rawTok);
-          const parent = denormTagToken(rawParent);
-          if (!token || !parent) return;
-          const parentFieldId = String(sourceParentFieldId || defaultParentFieldId || "").trim();
-          if (!parentFieldId) {
-            throw new Error(`Config apply failed: unresolved parent field id for wikilink token=[[${token}]], section=${sourceSectionName || "<unknown>"}, field=${sourceId}`);
-          }
-          const binding2 = `p:#${parent}|f:${parentFieldId}`;
-          assertCanonicalBinding(binding2, token, "branch");
-          if (!allowedByToken[token]) tokenOrder.push(token);
-          if (!allowedByToken[token]) allowedByToken[token] = /* @__PURE__ */ new Set();
-          allowedByToken[token].add(parent);
-          if (bindingByToken[token] && bindingByToken[token] !== binding2) {
-            throw new Error(`Config apply failed: conflicting parent binding for wikilink token=[[${token}]], field=${sourceId}, bindings=${bindingByToken[token]} vs ${binding2}`);
-          }
-          if (!bindingByToken[token]) bindingByToken[token] = binding2;
-        };
-        const pushLeaf = (rawTok, rawParent, rawSub, sourceParentFieldId, sourceSectionName) => {
-          const token = normalizeWikilinkTokenRaw(rawTok);
-          const parent = denormTagToken(rawParent);
-          const sub = denormTagToken(rawSub);
-          if (!token || !parent || !sub) return;
-          const parentFieldId = String(sourceParentFieldId || defaultParentFieldId || "").trim();
-          if (!parentFieldId) {
-            throw new Error(`Config apply failed: unresolved parent field id for wikilink token=[[${token}]], section=${sourceSectionName || "<unknown>"}, field=${sourceId}`);
-          }
-          const binding2 = `s:#${sub}|p:#${parent}|f:${parentFieldId}`;
-          assertCanonicalBinding(binding2, token, "leaf");
-          if (!allowedByToken[token]) tokenOrder.push(token);
-          if (!allowedByToken[token]) allowedByToken[token] = /* @__PURE__ */ new Set();
-          allowedByToken[token].add(parent);
-          allowedByToken[token].add(sub);
-          if (bindingByToken[token] && bindingByToken[token] !== binding2) {
-            throw new Error(`Config apply failed: conflicting parent binding for wikilink token=[[${token}]], field=${sourceId}, bindings=${bindingByToken[token]} vs ${binding2}`);
-          }
-          bindingByToken[token] = binding2;
-        };
-        for (let ni = 0; ni < mergeEntries.length; ni++) {
-          const entry = mergeEntries[ni] && isObj(mergeEntries[ni]) ? mergeEntries[ni] : {};
-          const wl = isObj(entry.wl) ? entry.wl : {};
-          const sourceSectionName = String(entry.sectionName || "").trim();
-          const defs = Array.isArray(wl.defaults) ? wl.defaults : [];
-          for (let di = 0; di < defs.length; di++) pushDefault(defs[di]);
-          const sourceSectionDef = sourceSectionName && isObj(sectionDefById[sourceSectionName]) ? sectionDefById[sourceSectionName] : null;
-          const sourceParentFieldId = sourceSectionDef && sourceSectionDef.fieldId ? String(sourceSectionDef.fieldId || "").trim() : defaultParentFieldId;
-          const sourceSectionParents = sourceSectionName && sectionsSrc[sourceSectionName] && Array.isArray(sectionsSrc[sourceSectionName].parents) ? sectionsSrc[sourceSectionName].parents : [];
-          const validParentTokens = new Set(sourceSectionParents.map((x) => denormTagToken(x && x.token || "")).filter(Boolean));
-          const validSubTokensByParent = {};
-          for (let pi = 0; pi < sourceSectionParents.length; pi++) {
-            const pRow = sourceSectionParents[pi] && typeof sourceSectionParents[pi] === "object" ? sourceSectionParents[pi] : null;
-            const pTok = denormTagToken(pRow && pRow.token || "");
-            if (!pTok) continue;
-            const subtags = Array.isArray(pRow.subtags) ? pRow.subtags : [];
-            validSubTokensByParent[pTok] = new Set(subtags.map((x) => denormTagToken(x)).filter(Boolean));
-          }
-          const parentMap = isObj(wl.byParent) ? wl.byParent : {};
-          for (const parentToken of Object.keys(parentMap)) {
-            const normalizedParent = denormTagToken(parentToken);
-            if (!normalizedParent || !validParentTokens.has(normalizedParent)) {
-              throw new Error(`Config apply failed: unknown parent token for wikilink field=${sourceId}, parent=${String(parentToken || "").trim()}, section=${sourceSectionName || "<unknown>"}`);
-            }
-            const node = isObj(parentMap[parentToken]) ? parentMap[parentToken] : {};
-            const branch = Array.isArray(node.branch) ? node.branch : [];
-            for (let i = 0; i < branch.length; i++) pushAllowed(branch[i], parentToken, sourceParentFieldId, sourceSectionName);
-            const leaf = isObj(node.leaf) ? node.leaf : {};
-            for (const subToken of Object.keys(leaf)) {
-              const normalizedSub = denormTagToken(subToken);
-              const validSubs = validSubTokensByParent[normalizedParent] instanceof Set ? validSubTokensByParent[normalizedParent] : /* @__PURE__ */ new Set();
-              if (!normalizedSub || !validSubs.has(normalizedSub)) {
-                throw new Error(`Config apply failed: unknown sub token for wikilink field=${sourceId}, parent=${String(parentToken || "").trim()}, sub=${String(subToken || "").trim()}, section=${sourceSectionName || "<unknown>"}`);
-              }
-              const arr = Array.isArray(leaf[subToken]) ? leaf[subToken] : [];
-              for (let i = 0; i < arr.length; i++) {
-                pushLeaf(arr[i], parentToken, subToken, sourceParentFieldId, sourceSectionName);
-              }
-            }
-          }
-        }
-        for (let oi = 0; oi < orphanList.length; oi++) {
-          const tok = normalizeWikilinkTokenRaw(orphanList[oi]);
-          if (!tok || allowedByToken[tok]) continue;
-          tokenOrder.push(tok);
-          allowedByToken[tok] = /* @__PURE__ */ new Set();
-        }
-        const out = [];
-        for (const token of tokenOrder) {
-          const meta = isObj(existingMeta[token]) ? cloneJson(existingMeta[token]) : {};
-          const allowedParentValues = Array.from(allowedByToken[token]);
-          const binding2 = String(bindingByToken[token] || "").trim();
-          if (allowedParentValues.length && !binding2) {
-            throw new Error(`Config apply failed: missing binding for linked wikilink token=[[${token}]], field=${sourceId}`);
-          }
-          if (binding2) assertCanonicalBinding(binding2, token, "finalize");
-          const bindingFieldMatch = binding2.match(/\|f:([^|]+)$/);
-          const parentFieldId = String(bindingFieldMatch ? bindingFieldMatch[1] : "").trim();
-          if (allowedParentValues.length && !parentFieldId) {
-            throw new Error(`Config apply failed: missing binding field id for wikilink token=[[${token}]], field=${sourceId}, binding=${binding2 || "<empty>"}`);
-          }
-          out.push({
-            ...meta,
-            token,
-            allowedParentValues,
-            __ioParentBinding: binding2,
-            __ioParentFieldId: parentFieldId,
-            active: typeof meta.active === "boolean" ? meta.active : true
-          });
-        }
-        return out;
-      };
-      const resolveDependsOnForWikilinkField = (sourceFieldId, parsedSections) => {
-        const sourceId = String(sourceFieldId || "").trim();
-        const sectionsSrc = isObj(parsedSections) ? parsedSections : {};
-        if (!sourceId) return { hasBindings: false, dependsOn: "" };
-        const leafCandidates = /* @__PURE__ */ new Set();
-        const branchCandidates = /* @__PURE__ */ new Set();
-        for (const sectionName of Object.keys(sectionsSrc)) {
-          const sec = isObj(sectionsSrc[sectionName]) ? sectionsSrc[sectionName] : null;
-          if (!sec) continue;
-          const wlRoot = isObj(sec.wikilinks) ? sec.wikilinks : {};
-          const wl = isObj(wlRoot[sourceId]) ? wlRoot[sourceId] : null;
-          if (!wl) continue;
-          const def = isObj(sectionDefById[sectionName]) ? sectionDefById[sectionName] : null;
-          if (!def) {
-            throw new Error(`Config apply failed: cannot resolve section definition for wikilink field=${sourceId}, section=${sectionName}`);
-          }
-          const parentMap = isObj(wl.byParent) ? wl.byParent : {};
-          for (const parentToken of Object.keys(parentMap)) {
-            const node = isObj(parentMap[parentToken]) ? parentMap[parentToken] : {};
-            const branch = Array.isArray(node.branch) ? node.branch : [];
-            if (branch.some((x) => String(x || "").trim())) {
-              const parentFieldId = String(def.fieldId || "").trim();
-              if (!parentFieldId) {
-                throw new Error(`Config apply failed: cannot resolve parent field for wikilink field=${sourceId}, section=${sectionName}`);
-              }
-              branchCandidates.add(parentFieldId);
-            }
-            const leaf = isObj(node.leaf) ? node.leaf : {};
-            for (const subToken of Object.keys(leaf)) {
-              const arr = Array.isArray(leaf[subToken]) ? leaf[subToken] : [];
-              if (!arr.some((x) => String(x || "").trim())) continue;
-              const subFieldId = String(def.subFieldId || "").trim();
-              if (!subFieldId) {
-                throw new Error(`Config apply failed: cannot resolve sub field for wikilink field=${sourceId}, section=${sectionName}`);
-              }
-              leafCandidates.add(subFieldId);
-            }
-          }
-        }
-        if (!leafCandidates.size && !branchCandidates.size) return { hasBindings: false, dependsOn: "" };
-        if (leafCandidates.size > 1) {
-          throw new Error(`Config apply failed: ambiguous sub-field dependsOn for wikilink field=${sourceId}, candidates=${Array.from(leafCandidates).join(",")}`);
-        }
-        if (branchCandidates.size > 1) {
-          throw new Error(`Config apply failed: ambiguous parent-field dependsOn for wikilink field=${sourceId}, candidates=${Array.from(branchCandidates).join(",")}`);
-        }
-        if (leafCandidates.size === 1) return { hasBindings: true, dependsOn: Array.from(leafCandidates)[0] };
-        return { hasBindings: true, dependsOn: Array.from(branchCandidates)[0] };
-      };
-      for (let i = 0; i < allModeFields.length; i++) {
-        const field = allModeFields[i];
-        if (!isObj(field) || !field.id) continue;
-        const source = String(field.source || "").trim();
-        if (!isWikilinkSourceFieldSafe(field)) continue;
-        const sourceFieldId = source.indexOf("wikilinks:") !== 0 ? String(field.id || "").trim() : String(source.slice("wikilinks:".length) || "").trim();
-        if (!sourceFieldId) continue;
-        const depRes = resolveDependsOnForWikilinkField(sourceFieldId, parsed.sections);
-        if (depRes && depRes.hasBindings) {
-          field.dependsOn = String(depRes.dependsOn || "").trim();
-        }
-        field.values = buildWikilinkFieldValues(field, sourceFieldId, parsed.sections, parsed.orphanWikilinks);
-        {
-          const rows = Array.isArray(field.values) ? field.values : [];
-          const isPlaceholderOnly = rows.length === 1 && String(rows[0] || "").trim() === "";
-          const isEmpty = rows.length === 0 || isPlaceholderOnly;
-          const orphanList = isObj(parsed.orphanWikilinks) && Array.isArray(parsed.orphanWikilinks[sourceFieldId]) ? parsed.orphanWikilinks[sourceFieldId] : [];
-          if (isEmpty && orphanList.length) {
-            const seen = /* @__PURE__ */ new Set();
-            const out = [];
-            for (let oi = 0; oi < orphanList.length; oi++) {
-              const rawTok = String(orphanList[oi] || "").trim();
-              if (!rawTok) continue;
-              const m = rawTok.match(/^\[\[([^\]]+)\]\]$/);
-              const token = String(m ? m[1] : rawTok).trim();
-              if (!token || seen.has(token)) continue;
-              seen.add(token);
-              out.push({
-                token,
-                __ioParentBinding: "",
-                __ioParentFieldId: "",
-                active: true
-              });
-            }
-            if (out.length) field.values = out;
-          }
-        }
-      }
-      refreshAllModeFields();
-      {
-        const liveIds = /* @__PURE__ */ new Set();
-        for (let i = 0; i < allModeFields.length; i++) {
-          const id = String(allModeFields[i] && allModeFields[i].id || "").trim();
-          if (id) liveIds.add(id);
-        }
-        for (let i = 0; i < allModeFields.length; i++) {
-          const f = allModeFields[i];
-          if (!isObj(f)) continue;
-          const dep = String(f.dependsOn || "").trim();
-          if (!dep || liveIds.has(dep)) continue;
-          delete f.dependsOn;
-          delete f.enabledForParentValues;
-        }
-      }
-      const wikilinkTaxonomy = {};
-      const fields = parsed.wikilinkFields;
-      for (let i = 0; i < fields.length; i++) {
-        wikilinkTaxonomy[fields[i]] = { bySection: {} };
-      }
-      for (const sectionName of Object.keys(parsed.sections)) {
-        const sec = parsed.sections[sectionName];
-        const wl = isObj(sec.wikilinks) ? sec.wikilinks : {};
-        for (const fieldId of Object.keys(wl)) {
-          if (!isObj(wikilinkTaxonomy[fieldId])) wikilinkTaxonomy[fieldId] = { bySection: {} };
-          wikilinkTaxonomy[fieldId].bySection[sectionName] = wl[fieldId];
-        }
-      }
-      const activeWikilinkFieldIds = /* @__PURE__ */ new Set();
-      for (let i = 0; i < allModeFields.length; i++) {
-        const f = allModeFields[i];
-        if (!isObj(f) || !f.id) continue;
-        const source = String(f.source || "").trim();
-        if (!isWikilinkSourceFieldSafe(f)) continue;
-        const sourceFieldId = source.indexOf("wikilinks:") !== 0 ? String(f.id || "").trim() : String(source.slice("wikilinks:".length) || "").trim();
-        if (!sourceFieldId) continue;
-        activeWikilinkFieldIds.add(sourceFieldId);
-      }
-      const orphanWikilinks = {};
-      if (isObj(parsed.orphanWikilinks)) {
-        for (const fieldId of Object.keys(parsed.orphanWikilinks)) {
-          const fid = String(fieldId || "").trim();
-          if (!fid || !activeWikilinkFieldIds.has(fid)) continue;
-          const list = Array.isArray(parsed.orphanWikilinks[fieldId]) ? parsed.orphanWikilinks[fieldId].map((x) => String(x || "").trim()).filter(Boolean) : [];
-          if (!list.length) continue;
-          orphanWikilinks[fid] = list;
-        }
-      }
-      const prevProjectsCfg = isObj(behaviorCfg.projects) ? behaviorCfg.projects : {};
-      const projectsCfg = {
-        output: String(prevProjectsCfg.output || "wikilink").trim() || "wikilink",
-        filterKeys: [],
-        includeDefaultsWhenFiltered: prevProjectsCfg.includeDefaultsWhenFiltered === true,
-        defaults: [],
-        byContext: {},
-        items: [],
-        rules: [],
-        catalog: []
-      };
-      let projectsFieldId = "";
-      for (let i = 0; i < allModeFields.length; i++) {
-        const f = allModeFields[i];
-        if (!f || !f.id) continue;
-        if (String(f.source || "").trim() !== "projects") continue;
-        projectsFieldId = String(f.id || "").trim();
-        if (projectsFieldId) break;
-      }
-      if (projectsFieldId) {
-        const defaultsOut = [];
-        const defaultsSeen = /* @__PURE__ */ new Set();
-        const projectFilterKeys = [];
-        const parsedScopeKeys = [];
-        const byFieldId = {};
-        for (let i = 0; i < allModeFields.length; i++) {
-          const f = allModeFields[i];
-          const fid = String(f && f.id || "").trim();
-          if (!fid) continue;
-          byFieldId[fid] = f;
-        }
-        const pushFilterKey = (key) => {
-          const k = String(key || "").trim();
-          if (!k) return;
-          if (projectFilterKeys.includes(k)) return;
-          projectFilterKeys.push(k);
-        };
-        const projectField = byFieldId[projectsFieldId] || null;
-        let depCursor = String(projectField && projectField.dependsOn || "").trim();
-        const depSeen = /* @__PURE__ */ new Set();
-        const depChain = [];
-        while (depCursor && !depSeen.has(depCursor)) {
-          depSeen.add(depCursor);
-          depChain.unshift(depCursor);
-          const depField = byFieldId[depCursor] || null;
-          depCursor = String(depField && depField.dependsOn || "").trim();
-        }
-        for (let i = 0; i < depChain.length; i++) pushFilterKey(depChain[i]);
-        const nextByContext = {};
-        const pushUnique = (arr, value) => {
-          const v = String(value || "").trim();
-          if (!v) return;
-          if (arr.includes(v)) return;
-          arr.push(v);
-        };
-        const mergeProjectCfg = (projectCfg) => {
-          const defs = Array.isArray(projectCfg && projectCfg.defaults) ? projectCfg.defaults : [];
-          for (let i = 0; i < defs.length; i++) {
-            const v = String(defs[i] || "").trim();
-            if (!v || defaultsSeen.has(v)) continue;
-            defaultsSeen.add(v);
-            defaultsOut.push(v);
-          }
-          const byParent = isObj(projectCfg && projectCfg.byParent) ? projectCfg.byParent : {};
-          for (const parentToken of Object.keys(byParent)) {
-            const parentKey = denormTagToken(parentToken);
-            if (!parentKey) continue;
-            const src = byParent[parentToken];
-            if (!isObj(nextByContext[parentKey])) nextByContext[parentKey] = { branch: [], leaf: {} };
-            const dst = nextByContext[parentKey];
-            const branch = Array.isArray(src && src.branch) ? src.branch : [];
-            for (let i = 0; i < branch.length; i++) pushUnique(dst.branch, branch[i]);
-            const leaf = isObj(src && src.leaf) ? src.leaf : {};
-            for (const subToken of Object.keys(leaf)) {
-              const subKey = denormTagToken(subToken);
-              if (!subKey) continue;
-              if (!Array.isArray(dst.leaf[subKey])) dst.leaf[subKey] = [];
-              const vals = Array.isArray(leaf[subToken]) ? leaf[subToken] : [];
-              for (let i = 0; i < vals.length; i++) pushUnique(dst.leaf[subKey], vals[i]);
-            }
-          }
-        };
-        for (const sectionName of Object.keys(parsed.sections || {})) {
-          const sec = parsed.sections[sectionName];
-          if (!isObj(sec) || !isObj(sec.wikilinks) || !isObj(sec.wikilinks[projectsFieldId])) continue;
-          const secDef = sectionDefById[sectionName];
-          const secWl = sec.wikilinks[projectsFieldId];
-          const byParent = isObj(secWl && secWl.byParent) ? secWl.byParent : {};
-          let hasLeafRows = false;
-          for (const parentToken of Object.keys(byParent)) {
-            const node = isObj(byParent[parentToken]) ? byParent[parentToken] : {};
-            const leaf = isObj(node.leaf) ? node.leaf : {};
-            if (Object.keys(leaf).length) {
-              hasLeafRows = true;
-              break;
-            }
-          }
-          if (isObj(secDef)) {
-            const parentKey = String(secDef.fieldId || "").trim();
-            if (parentKey && !parsedScopeKeys.includes(parentKey)) parsedScopeKeys.push(parentKey);
-            if (hasLeafRows) {
-              const childKey = String(secDef.subFieldId || "").trim();
-              if (childKey && !parsedScopeKeys.includes(childKey)) parsedScopeKeys.push(childKey);
-            }
-          }
-          mergeProjectCfg(sec.wikilinks[projectsFieldId]);
-        }
-        if (parsedScopeKeys.length) projectsCfg.filterKeys = parsedScopeKeys.slice();
-        else if (projectFilterKeys.length) projectsCfg.filterKeys = projectFilterKeys.slice();
-        else projectsCfg.filterKeys = [];
-        projectsCfg.defaults = defaultsOut;
-        projectsCfg.byContext = nextByContext;
-      }
-      behaviorCfg.projects = projectsCfg;
-      const existingPrefixRules = getPrefixRulesFromCfg(cfg);
-      const sectionById = {};
-      for (let i = 0; i < sectionDefs.length; i++) sectionById[sectionDefs[i].sectionId] = sectionDefs[i];
-      const resolvedFieldsOrderMode = parsed.prefixResolver && parsed.prefixResolver.fieldsOrderMode ? parsed.prefixResolver.fieldsOrderMode : existingPrefixRules.fieldsOrderMode || "manual";
-      const secOrder = resolvedFieldsOrderMode === "auto" ? sectionDefs.map((x) => x.sectionId) : parsed.prefixResolver && Array.isArray(parsed.prefixResolver.sectionOrder) ? parsed.prefixResolver.sectionOrder : sectionDefs.map((x) => x.sectionId);
-      const secOrderRaw = parsed.prefixResolver && Array.isArray(parsed.prefixResolver.sectionOrderRaw) ? parsed.prefixResolver.sectionOrderRaw.map((x) => String(x || "").trim()).filter(Boolean) : secOrder.slice();
-      const prefixPriorityTargets = [];
-      const pushTarget = (fid) => {
-        const v = String(fid || "").trim();
-        if (!v) return;
-        if (!prefixPriorityTargets.includes(v)) prefixPriorityTargets.push(v);
-      };
-      for (let i = 0; i < secOrder.length; i++) {
-        const def = sectionById[secOrder[i]];
-        if (!def) continue;
-        pushTarget(def.fieldId);
-        if (def.subFieldId) pushTarget(def.subFieldId);
-      }
-      for (let i = 0; i < sectionDefs.length; i++) {
-        pushTarget(sectionDefs[i].fieldId);
-        if (sectionDefs[i].subFieldId) pushTarget(sectionDefs[i].subFieldId);
-      }
-      const fieldToSection = {};
-      for (let i = 0; i < sectionDefs.length; i++) {
-        fieldToSection[sectionDefs[i].fieldId] = sectionDefs[i].sectionId;
-        if (sectionDefs[i].subFieldId) fieldToSection[sectionDefs[i].subFieldId] = sectionDefs[i].sectionId;
-      }
-      const effectiveSectionOrder = [];
-      for (let i = 0; i < prefixPriorityTargets.length; i++) {
-        const sid = fieldToSection[prefixPriorityTargets[i]];
-        if (!sid) continue;
-        if (!effectiveSectionOrder.includes(sid)) effectiveSectionOrder.push(sid);
-      }
-      const nextBehavior = {};
-      const rawCheckboxByFieldValue = isObj(parsed.checkboxByFieldValue) ? parsed.checkboxByFieldValue : {};
-      const normalizeCheckbox = (token) => {
-        try {
-          const lf = require_pkm_line_finalize_unified();
-          if (lf && typeof lf.normalizeCheckboxToken === "function") return lf.normalizeCheckboxToken(token);
-        } catch (_) {
-        }
-        return String(token || "").trim();
-      };
-      const checkboxByFieldValue = {};
-      for (const fid of Object.keys(rawCheckboxByFieldValue)) {
-        if (!isObj(rawCheckboxByFieldValue[fid])) continue;
-        checkboxByFieldValue[fid] = {};
-        for (const tok of Object.keys(rawCheckboxByFieldValue[fid])) {
-          const cbNorm = normalizeCheckbox(rawCheckboxByFieldValue[fid][tok]);
-          if (!cbNorm) continue;
-          checkboxByFieldValue[fid][tok] = cbNorm;
-        }
-      }
-      const discoveredCheckboxes = collectCheckboxTokensFromMap(checkboxByFieldValue);
-      const baseCheckboxOrder = parsed.prefixResolver && Array.isArray(parsed.prefixResolver.checkboxOrder) ? parsed.prefixResolver.checkboxOrder.slice() : Array.isArray(existingPrefixRules.priorityCheckboxes) ? existingPrefixRules.priorityCheckboxes.slice() : [];
-      const mergedCheckboxOrder = Array.from(new Set(baseCheckboxOrder.concat(discoveredCheckboxes).map((x) => normalizeCheckbox(x)).filter(Boolean)));
-      nextBehavior.prefixRules = {
-        resolver: String(existingPrefixRules.resolver || "priority-first"),
-        priorityMode: String(parsed.prefixResolver && parsed.prefixResolver.mode ? parsed.prefixResolver.mode : existingPrefixRules.priorityMode || "by-section"),
-        fieldsOrderMode: String(parsed.prefixResolver && parsed.prefixResolver.fieldsOrderMode ? parsed.prefixResolver.fieldsOrderMode : existingPrefixRules.fieldsOrderMode || "manual"),
-        tagSubtagPriority: String(parsed.prefixResolver && parsed.prefixResolver.tagSubtagPriority ? parsed.prefixResolver.tagSubtagPriority : existingPrefixRules.tagSubtagPriority || "subtag-over-tag"),
-        priorityTargets: prefixPriorityTargets,
-        priorityCheckboxes: mergedCheckboxOrder,
-        checkboxByFieldValue
-      };
-      const pickTypeFieldId = () => {
-        const existingTypeMap = isObj(behaviorCfg.typeCheckboxByValue) ? behaviorCfg.typeCheckboxByValue : {};
-        const existingTokens = Object.keys(existingTypeMap).map((x) => String(x || "").trim()).filter(Boolean);
-        let bestFieldId = "";
-        let bestScore = -1;
-        const candidateIds = [];
-        for (let i = 0; i < sectionDefs.length; i++) {
-          const fid = String(sectionDefs[i] && sectionDefs[i].fieldId || "").trim();
-          if (!fid) continue;
-          candidateIds.push(fid);
-        }
-        const ids = candidateIds.length ? candidateIds : Object.keys(checkboxByFieldValue || {});
-        for (let i = 0; i < ids.length; i++) {
-          const fid = String(ids[i] || "").trim();
-          if (!fid) continue;
-          const cmap = isObj(checkboxByFieldValue[fid]) ? checkboxByFieldValue[fid] : {};
-          const tokens = Object.keys(cmap).map((x) => String(x || "").trim()).filter(Boolean);
-          if (!tokens.length) continue;
-          let score = tokens.length;
-          if (existingTokens.length) {
-            score = 0;
-            for (let ti = 0; ti < tokens.length; ti++) {
-              if (existingTokens.includes(tokens[ti])) score += 10;
-              else score += 1;
-            }
-          }
-          if (score > bestScore) {
-            bestScore = score;
-            bestFieldId = fid;
-          }
-        }
-        return bestFieldId;
-      };
-      const typeFieldId = pickTypeFieldId();
-      const typeMap = isObj(checkboxByFieldValue[typeFieldId]) ? checkboxByFieldValue[typeFieldId] : {};
-      nextBehavior.typeCheckboxByValue = cloneJson(typeMap);
-      const parsedElementsForPatch = cloneJson(parsed.elementsConfig || {});
-      if (!isObj(parsedElementsForPatch.byField)) parsedElementsForPatch.byField = {};
-      parsedElementsForPatch.byField = sanitizeElementsByFieldFromConfigNote(parsedElementsForPatch.byField, isObj);
-      const parsedDatesForPatch = cloneJson(parsed.datesConfig || {});
-      if (!isObj(parsedDatesForPatch.byField)) parsedDatesForPatch.byField = {};
-      parsedDatesForPatch.byField = sanitizeDatesByFieldFromConfigNote(parsedDatesForPatch.byField, isObj);
-      for (const fid of Object.keys(parsedDatesForPatch.byField)) {
-        const id = String(fid || "").trim();
-        if (!id) continue;
-        const src = isObj(parsedDatesForPatch.byField[id]) ? parsedDatesForPatch.byField[id] : {};
-        const dst = isObj(parsedElementsForPatch.byField[id]) ? parsedElementsForPatch.byField[id] : {};
-        const merged = {
-          ...src,
-          ...dst,
-          increment: {
-            ...isObj(src.increment) ? src.increment : {},
-            ...isObj(dst.increment) ? dst.increment : {}
-          }
-        };
-        if (!String(merged.emoji || "").trim() && String(src.emoji || "").trim()) merged.emoji = String(src.emoji || "").trim();
-        if (!String(merged.format || "").trim() && String(src.format || "").trim()) merged.format = String(src.format || "").trim();
-        parsedElementsForPatch.byField[id] = merged;
-      }
-      const dateFields = Array.isArray(parsedDatesForPatch.fields) ? parsedDatesForPatch.fields.map((x) => String(x || "").trim()).filter(Boolean) : [];
-      parsedElementsForPatch.fields = Array.from(new Set((Array.isArray(parsedElementsForPatch.fields) ? parsedElementsForPatch.fields : []).concat(dateFields).map((x) => String(x || "").trim()).filter(Boolean)));
-      const ensureElementOrderField = (fieldId) => {
-        const fid = String(fieldId || "").trim();
-        if (!fid) return;
-        const existing = getFieldAcrossModes(fid);
-        const elemMeta = isObj(parsedElementsForPatch.byField[fid]) ? parsedElementsForPatch.byField[fid] : {};
-        const marker = String(elemMeta.emoji || "").trim();
-        if (existing) {
-          existing.kind = "genericElement";
-          if (!String(existing.marker || "").trim() && marker) existing.marker = marker;
-          if (!String(existing.placeholder || "").trim()) existing.placeholder = fid;
-          if (!Array.isArray(existing.values)) existing.values = [""];
-        } else {
-          rightMode.fields.push({
-            id: fid,
-            kind: "genericElement",
-            marker,
-            placeholder: fid,
-            values: [""]
-          });
-          refreshAllModeFields();
-        }
-        if (!Array.isArray(behaviorCfg.order.right)) behaviorCfg.order.right = [];
-        if (!behaviorCfg.order.right.includes(fid)) behaviorCfg.order.right.push(fid);
-        if (!isObj(behaviorCfg.order.strictNames)) behaviorCfg.order.strictNames = {};
-        if (!String(behaviorCfg.order.strictNames[fid] || "").trim()) behaviorCfg.order.strictNames[fid] = fid;
-        if (!isObj(behaviorCfg.order.types)) behaviorCfg.order.types = {};
-        behaviorCfg.order.types[fid] = "element";
-        if (!isObj(behaviorCfg.order.active)) behaviorCfg.order.active = {};
-        if (!String(behaviorCfg.order.active[fid] || "").trim()) behaviorCfg.order.active[fid] = "yes";
-        if (!isObj(behaviorCfg.order.enabled)) behaviorCfg.order.enabled = {};
-        if (typeof behaviorCfg.order.enabled[fid] !== "boolean") behaviorCfg.order.enabled[fid] = true;
-      };
-      const elementIdsFromConfig = Array.from(new Set(
-        (Array.isArray(parsedElementsForPatch.fields) ? parsedElementsForPatch.fields : []).concat(Object.keys(parsedElementsForPatch.byField || {})).map((x) => String(x || "").trim()).filter(Boolean)
-      ));
-      const currentElementIds = Array.from(new Set(
-        Object.keys(isObj(behaviorCfg.order && behaviorCfg.order.types) ? behaviorCfg.order.types : {}).map((x) => String(x || "").trim()).filter((id) => id && String(behaviorCfg.order.types[id] || "").trim().toLowerCase() === "element")
-      ));
-      const elementIdsSet = new Set(elementIdsFromConfig);
-      const removedElementIds = currentElementIds.filter((id) => !elementIdsSet.has(id));
-      if (removedElementIds.length) {
-        const removedSet = new Set(removedElementIds);
-        rightMode.fields = (Array.isArray(rightMode.fields) ? rightMode.fields : []).filter((f) => {
-          const fid = String(f && f.id || "").trim();
-          return !removedSet.has(fid);
-        });
-        if (Array.isArray(behaviorCfg.order.right)) {
-          behaviorCfg.order.right = behaviorCfg.order.right.filter((k) => !removedSet.has(String(k || "").trim()));
-        }
-        const cleanOrderMap = (obj) => {
-          const src = isObj(obj) ? obj : {};
-          const out = {};
-          for (const key of Object.keys(src)) {
-            const id = String(key || "").trim();
-            if (removedSet.has(id)) continue;
-            out[id] = src[key];
-          }
-          return out;
-        };
-        behaviorCfg.order.types = cleanOrderMap(behaviorCfg.order.types);
-        behaviorCfg.order.strictNames = cleanOrderMap(behaviorCfg.order.strictNames);
-        behaviorCfg.order.labels = cleanOrderMap(behaviorCfg.order.labels);
-        behaviorCfg.order.active = cleanOrderMap(behaviorCfg.order.active);
-        behaviorCfg.order.enabled = cleanOrderMap(behaviorCfg.order.enabled);
-        behaviorCfg.order.freeRoam = cleanOrderMap(behaviorCfg.order.freeRoam);
-        behaviorCfg.order.propertiesByField = cleanOrderMap(behaviorCfg.order.propertiesByField);
-        parsedElementsForPatch.fields = (Array.isArray(parsedElementsForPatch.fields) ? parsedElementsForPatch.fields : []).map((x) => String(x || "").trim()).filter((id) => id && !removedSet.has(id));
-        const nextElementsByField = {};
-        for (const key of Object.keys(isObj(parsedElementsForPatch.byField) ? parsedElementsForPatch.byField : {})) {
-          const id = String(key || "").trim();
-          if (!id || removedSet.has(id)) continue;
-          nextElementsByField[id] = parsedElementsForPatch.byField[key];
-        }
-        parsedElementsForPatch.byField = nextElementsByField;
-        parsedDatesForPatch.fields = (Array.isArray(parsedDatesForPatch.fields) ? parsedDatesForPatch.fields : []).map((x) => String(x || "").trim()).filter((id) => id && !removedSet.has(id));
-        if (isObj(parsedDatesForPatch.byField)) {
-          for (const rid of removedSet.values()) delete parsedDatesForPatch.byField[rid];
-        }
-        refreshAllModeFields();
-      }
-      for (let i = 0; i < elementIdsFromConfig.length; i++) ensureElementOrderField(elementIdsFromConfig[i]);
-      for (let i = 0; i < elementIdsFromConfig.length; i++) {
-        const eid = String(elementIdsFromConfig[i] || "").trim();
-        if (!eid) continue;
-        const row = isObj(parsedElementsForPatch.byField && parsedElementsForPatch.byField[eid]) ? parsedElementsForPatch.byField[eid] : {};
-        const yaml = String(row.yamlProperty || "").trim();
-        if (yaml) behaviorCfg.order.propertiesByField[eid] = yaml;
-        else delete behaviorCfg.order.propertiesByField[eid];
-      }
-      const tmpCfgForScope = cloneJson(cfg) || cfg;
-      if (!isObj(tmpCfgForScope.pkm)) tmpCfgForScope.pkm = {};
-      if (!isObj(tmpCfgForScope.pkm.behavior)) tmpCfgForScope.pkm.behavior = {};
-      tmpCfgForScope.pkm.behavior.elements = cloneJson(parsedElementsForPatch);
-      filterBehaviorDateElementConfigs(tmpCfgForScope, resolveOrderFieldScopes(tmpCfgForScope, normalizePkmOrder, isObj), isObj);
-      const cleanedElementsForPatch = cloneJson(tmpCfgForScope.pkm.behavior.elements || parsedElementsForPatch);
-      const patch = {
-        pkm: {
-          tagWheelConfigPath: notePath,
-          behavior: {
-            order: cloneJson(behaviorCfg.order || {}),
-            prefixRules: cloneJson(nextBehavior.prefixRules),
-            typeCheckboxByValue: cloneJson(nextBehavior.typeCheckboxByValue),
-            elements: cloneJson(cleanedElementsForPatch),
-            leftMode: cloneJson(leftMode),
-            rightMode: cloneJson(rightMode),
-            projects: cloneJson(projectsCfg),
-            tagVisuals: {
-              byTag: cloneJson(parsed.tagVisuals && parsed.tagVisuals.byTag ? parsed.tagVisuals.byTag : {}),
-              userTags: cloneJson(parsed.tagVisuals && parsed.tagVisuals.userTags ? parsed.tagVisuals.userTags : {})
-            }
-          },
-          taxonomy: {
-            tagWheelConfig: {
-              sourcePath: notePath,
-              updatedAt: (/* @__PURE__ */ new Date()).toISOString(),
-              wikilinkFields: parsed.wikilinkFields.slice(),
-              wikilinks: wikilinkTaxonomy,
-              orphanWikilinks,
-              prefixResolver: {
-                fieldsOrderRaw: secOrderRaw
-              },
-              elements: cloneJson(cleanedElementsForPatch)
-            }
-          }
-        }
-      };
-      store.update((prev) => {
-        const normalizeHexColor = (value) => {
-          const src = String(value || "").trim().toLowerCase();
-          return /^#[0-9a-f]{6}$/.test(src) ? src : "";
-        };
-        const normalizeVisibility = (value) => {
-          const src = String(value || "").trim().toLowerCase();
-          return src === "empty" || src === "custom" || src === "default" ? src : "default";
-        };
-        const mergeByTagVisualsPreserveVisibility = (existingByTag, parsedByTag) => {
-          const out = {};
-          const existing = isObj(existingByTag) ? existingByTag : {};
-          const parsedMap = isObj(parsedByTag) ? parsedByTag : {};
-          for (const fid of Object.keys(parsedMap)) {
-            const fieldId = String(fid || "").trim();
-            if (!fieldId) continue;
-            const parsedField = isObj(parsedMap[fid]) ? parsedMap[fid] : {};
-            const existingField = isObj(existing[fieldId]) ? existing[fieldId] : {};
-            const fieldOut = {};
-            for (const tok of Object.keys(parsedField)) {
-              const token = String(tok || "").trim();
-              if (!token) continue;
-              const parsedRow = isObj(parsedField[tok]) ? parsedField[tok] : {};
-              const existingRow = isObj(existingField[token]) ? existingField[token] : null;
-              const parsedFill = normalizeHexColor(parsedRow.fillColor);
-              const parsedText = normalizeHexColor(parsedRow.textColor);
-              const rowOut = {
-                fillColor: parsedFill,
-                textColor: parsedText,
-                customText: String(parsedRow.customText || "").trim(),
-                visibility: existingRow ? normalizeVisibility(existingRow.visibility) : normalizeVisibility(parsedRow.visibility)
-              };
-              fieldOut[token] = rowOut;
-            }
-            out[fieldId] = fieldOut;
-          }
-          return out;
-        };
-        const mergeUserTagVisualsPreserveVisibility = (existingUserTags, parsedUserTags) => {
-          const out = {};
-          const existing = isObj(existingUserTags) ? existingUserTags : {};
-          const parsedMap = isObj(parsedUserTags) ? parsedUserTags : {};
-          for (const tok of Object.keys(parsedMap)) {
-            const token = String(tok || "").trim();
-            if (!token) continue;
-            const parsedRow = isObj(parsedMap[tok]) ? parsedMap[tok] : {};
-            const existingRow = isObj(existing[token]) ? existing[token] : null;
-            const parsedFill = normalizeHexColor(parsedRow.fillColor);
-            const parsedText = normalizeHexColor(parsedRow.textColor);
-            out[token] = {
-              fillColor: parsedFill,
-              textColor: parsedText,
-              customText: String(parsedRow.customText || "").trim(),
-              visibility: existingRow ? normalizeVisibility(existingRow.visibility) : normalizeVisibility(parsedRow.visibility)
-            };
-          }
-          return out;
-        };
-        const next = deepMerge(prev, patch);
-        if (!isObj(next.pkm)) next.pkm = {};
-        if (!isObj(next.pkm.behavior)) next.pkm.behavior = {};
-        next.pkm.behavior.order = cloneJson(behaviorCfg.order || {});
-        next.pkm.behavior.leftMode = cloneJson(leftMode);
-        next.pkm.behavior.rightMode = cloneJson(rightMode);
-        next.pkm.behavior.projects = cloneJson(projectsCfg);
-        next.pkm.behavior.elements = cloneJson(cleanedElementsForPatch);
-        if (!isObj(next.pkm.behavior.tagVisuals)) next.pkm.behavior.tagVisuals = {};
-        next.pkm.behavior.tagVisuals.byTag = mergeByTagVisualsPreserveVisibility(
-          prev && prev.pkm && prev.pkm.behavior && prev.pkm.behavior.tagVisuals ? prev.pkm.behavior.tagVisuals.byTag : {},
-          parsed.tagVisuals && parsed.tagVisuals.byTag ? parsed.tagVisuals.byTag : {}
-        );
-        next.pkm.behavior.tagVisuals.userTags = mergeUserTagVisualsPreserveVisibility(
-          prev && prev.pkm && prev.pkm.behavior && prev.pkm.behavior.tagVisuals ? prev.pkm.behavior.tagVisuals.userTags : {},
-          parsed.tagVisuals && parsed.tagVisuals.userTags ? parsed.tagVisuals.userTags : {}
-        );
-        if (!isObj(next.pkm.taxonomy)) next.pkm.taxonomy = {};
-        if (!isObj(next.pkm.taxonomy.tagWheelConfig)) next.pkm.taxonomy.tagWheelConfig = {};
-        next.pkm.taxonomy.tagWheelConfig.wikilinkFields = parsed.wikilinkFields.slice();
-        next.pkm.taxonomy.tagWheelConfig.wikilinks = cloneJson(wikilinkTaxonomy);
-        next.pkm.taxonomy.tagWheelConfig.orphanWikilinks = cloneJson(orphanWikilinks);
-        next.pkm.taxonomy.tagWheelConfig.prefixResolver = { fieldsOrderRaw: secOrderRaw.slice() };
-        next.pkm.taxonomy.tagWheelConfig.elements = cloneJson(cleanedElementsForPatch);
-        {
-          const behavior = isObj(next.pkm.behavior) ? next.pkm.behavior : {};
-          if (!isObj(behavior.leftMode)) behavior.leftMode = { fields: [] };
-          if (!Array.isArray(behavior.leftMode.fields)) behavior.leftMode.fields = [];
-          if (!isObj(behavior.rightMode)) behavior.rightMode = { fields: [] };
-          if (!Array.isArray(behavior.rightMode.fields)) behavior.rightMode.fields = [];
-          const order = isObj(behavior.order) ? behavior.order : {};
-          const rightSet = new Set((Array.isArray(order.right) ? order.right : []).map((x) => String(x || "").trim()).filter(Boolean));
-          const findIdx = (arr, fieldId) => {
-            const id = String(fieldId || "").trim();
-            const list = Array.isArray(arr) ? arr : [];
-            for (let i = 0; i < list.length; i++) {
-              if (String(list[i] && list[i].id || "").trim() === id) return i;
-            }
-            return -1;
-          };
-          for (const fieldId of rightSet.values()) {
-            const id = String(fieldId || "").trim();
-            if (!id) continue;
-            const li = findIdx(behavior.leftMode.fields, id);
-            if (li !== -1) {
-              const lf = behavior.leftMode.fields[li];
-              if (isWikilinkSourceFieldSafe(lf)) {
-                if (findIdx(behavior.rightMode.fields, id) === -1) behavior.rightMode.fields.push(lf);
-                behavior.leftMode.fields.splice(li, 1);
-              }
-            }
-            const ri = findIdx(behavior.rightMode.fields, id);
-            if (ri === -1) continue;
-            const rf = behavior.rightMode.fields[ri];
-            if (!isWikilinkSourceFieldSafe(rf)) continue;
-            const rows = Array.isArray(rf.values) ? rf.values : [];
-            const isPlaceholderOnly = rows.length === 1 && String(rows[0] || "").trim() === "";
-            const isEmpty = rows.length === 0 || isPlaceholderOnly;
-            const orphanList = isObj(next.pkm.taxonomy && next.pkm.taxonomy.tagWheelConfig && next.pkm.taxonomy.tagWheelConfig.orphanWikilinks) && Array.isArray(next.pkm.taxonomy.tagWheelConfig.orphanWikilinks[id]) ? next.pkm.taxonomy.tagWheelConfig.orphanWikilinks[id] : [];
-            if (!isEmpty || !orphanList.length) continue;
-            const seen = /* @__PURE__ */ new Set();
-            const out = [];
-            for (let oi = 0; oi < orphanList.length; oi++) {
-              const rawTok = String(orphanList[oi] || "").trim();
-              if (!rawTok) continue;
-              const m = rawTok.match(/^\[\[([^\]]+)\]\]$/);
-              const token = String(m ? m[1] : rawTok).trim();
-              if (!token || seen.has(token)) continue;
-              seen.add(token);
-              out.push({ token, __ioParentBinding: "", __ioParentFieldId: "", active: true });
-            }
-            if (out.length) rf.values = out;
-          }
-          next.pkm.behavior = behavior;
-        }
-        if (!isObj(next.backups)) next.backups = {};
-        if (!Array.isArray(next.backups.tagWheelConfigApplies)) next.backups.tagWheelConfigApplies = [];
-        next.backups.tagWheelConfigApplies.push({
-          at: (/* @__PURE__ */ new Date()).toISOString(),
-          sourcePath: notePath
-        });
-        if (next.backups.tagWheelConfigApplies.length > 10) next.backups.tagWheelConfigApplies.shift();
-        return next;
-      }, "pkm:tagwheel-config:apply");
-      try {
-        const syncedMd = syncCustomPrefixResolverBlock(
-          md,
-          effectiveSectionOrder.length ? effectiveSectionOrder : sectionDefs.map((x) => x.sectionId),
-          mergedCheckboxOrder,
-          parsed.prefixResolver && parsed.prefixResolver.mode ? parsed.prefixResolver.mode : "by-section",
-          parsed.prefixResolver && parsed.prefixResolver.fieldsOrderMode ? parsed.prefixResolver.fieldsOrderMode : "manual",
-          parsed.prefixResolver && parsed.prefixResolver.tagSubtagPriority ? parsed.prefixResolver.tagSubtagPriority : "subtag-over-tag"
-        );
-        if (syncedMd !== md) {
-          const af = app3.vault.getAbstractFileByPath(notePath);
-          if (af) await app3.vault.modify(af, syncedMd);
-        }
-      } catch (e) {
-        console.warn("[inline-overhaul][tagwheel-prefix-sync]", e);
-      }
-    }
-    async function renameStrictNameInConfigNote(ctx, oldName, newName) {
-      const { app: app3, cfg, tagWheelConfigCodec } = ctx;
-      const codec = tagWheelConfigCodec || {};
-      const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function" ? codec.normalizeTagWheelConfigPath : ctx.normalizeTagWheelConfigPath;
-      const from = String(oldName || "").trim();
-      const to = String(newName || "").trim();
-      if (!from || !to || from === to) return;
-      const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-      const file = app3.vault.getAbstractFileByPath(notePath);
-      if (!file) return;
-      const src = await app3.vault.read(file);
-      let out = String(src || "");
-      const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const fromEsc = esc(from);
-      out = out.replace(new RegExp(`(^|\\n)(\\s*#{4,5}\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-      out = out.replace(new RegExp(`(^|\\n)(\\s*[-*]\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-      if (out !== src) await app3.vault.modify(file, out);
-    }
-    module2.exports = {
-      openTagWheelConfigNote,
-      openTagWheelConfigTemplateNote,
-      applyTagWheelConfigNote,
-      renameStrictNameInConfigNote
     };
   }
 });
@@ -19382,7 +17998,7 @@ var require_enhanced_select_all_engine = __commonJS({
       const seq = buildSelectAllSequence(editor, mode, st.origin.line);
       if (!seq.length) return false;
       const clampedIdx = Math.max(0, Math.min(st.idx, seq.length - 1));
-      if (gf.clearSelectionOnLastPress && clampedIdx === seq.length - 1) {
+      if (gf.clearOnLast && clampedIdx === seq.length - 1) {
         collapseSelectionToCursor(editor, st.origin);
         plugin._enhancedSelectAllCycle = null;
         return true;
@@ -19419,7 +18035,7 @@ var require_enhanced_select_all_engine = __commonJS({
           break;
         }
       }
-      if (gf.clearSelectionOnLastPress && idx === seq.length - 1) {
+      if (gf.clearOnLast && idx === seq.length - 1) {
         collapseSelectionToCursor(editor, origin);
         plugin._enhancedSelectAllCycle = null;
         return true;
@@ -19439,7 +18055,7 @@ var require_enhanced_select_all_engine = __commonJS({
     }
     function handleEnhancedSelectAllKeymap(plugin) {
       const cfg = plugin.getConfig();
-      const gf = cfg && cfg.globalFunctions && cfg.globalFunctions.enhancedSelectAll ? cfg.globalFunctions.enhancedSelectAll : null;
+      const gf = cfg && cfg.editor && cfg.editor.selectAll ? cfg.editor.selectAll : null;
       if (!gf || !gf.enabled) {
         plugin._enhancedSelectAllCycle = null;
         return false;
@@ -19451,7 +18067,7 @@ var require_enhanced_select_all_engine = __commonJS({
       }
       try {
         const mode = String(gf.mode || "line-note");
-        if (gf.useMultiPressDelay) {
+        if (gf.useDelay) {
           return handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf);
         }
         return handleEnhancedSelectAllByContext(plugin, editor, mode, gf);
@@ -19466,6 +18082,139 @@ var require_enhanced_select_all_engine = __commonJS({
   }
 });
 
+// src/features/smart_delete_engine.js
+var require_smart_delete_engine = __commonJS({
+  "src/features/smart_delete_engine.js"(exports2, module2) {
+    "use strict";
+    var INDENT = /^[ \t]*/;
+    var QUOTE = /^>[ \t]?/;
+    var BULLET = /^[-*+][ \t]+(?:\[[ xX]\][ \t]+)?/;
+    var ORDERED = /^\d+[.)][ \t]+/;
+    var HEADING = /^#{1,6}[ \t]+/;
+    function junkLengthOf(text, dropPrefix) {
+      const src = String(text || "");
+      let at = src.match(INDENT)[0].length;
+      if (dropPrefix) {
+        for (; ; ) {
+          const rest2 = src.slice(at);
+          const quote = rest2.match(QUOTE);
+          if (quote) {
+            at += quote[0].length;
+            at += src.slice(at).match(INDENT)[0].length;
+            continue;
+          }
+          break;
+        }
+        const rest = src.slice(at);
+        const mark = rest.match(BULLET) || rest.match(ORDERED) || rest.match(HEADING);
+        if (mark) at += mark[0].length;
+      }
+      at += src.slice(at).match(INDENT)[0].length;
+      return at;
+    }
+    function planSmartDelete(opts) {
+      const o = opts && typeof opts === "object" ? opts : {};
+      if (!o.enabled) return null;
+      const text = String(o.lineText || "");
+      const ch = Math.max(0, Math.min(Number(o.ch) || 0, text.length));
+      if (String(text.slice(ch)).trim() !== "") return null;
+      if (typeof o.nextLineText !== "string") return null;
+      const next = o.nextLineText;
+      const junk = junkLengthOf(next, o.dropPrefix !== false);
+      const arriving = next.slice(junk);
+      if (arriving.trim() === "") {
+        return { fromCh: ch, toCh: next.length, insert: "", cursorCh: ch, emptied: true };
+      }
+      const left = text.slice(0, ch);
+      const needsSpace = o.joinWithSpace !== false && left.trim() !== "" && !/[ \t]$/.test(left);
+      return {
+        fromCh: ch,
+        toCh: junk,
+        insert: needsSpace ? " " : "",
+        cursorCh: ch,
+        emptied: false
+      };
+    }
+    function planSmartBackspace(opts) {
+      const o = opts && typeof opts === "object" ? opts : {};
+      if (!o.enabled) return null;
+      if (typeof o.prevLineText !== "string") return null;
+      const text = String(o.lineText || "");
+      const ch = Math.max(0, Math.min(Number(o.ch) || 0, text.length));
+      const junk = junkLengthOf(text, o.dropPrefix !== false);
+      if (ch > junk) return null;
+      const prev = o.prevLineText;
+      const arriving = text.slice(junk);
+      if (arriving.trim() === "") {
+        return { fromCh: prev.length, toCh: text.length, insert: "", cursorCh: prev.length, emptied: true };
+      }
+      const kept = prev.replace(/[ \t]+$/, "");
+      const needsSpace = o.joinWithSpace !== false && kept.trim() !== "";
+      const insert = needsSpace ? " " : "";
+      return {
+        fromCh: kept.length,
+        toCh: junk,
+        insert,
+        /* Курсор встаёт вплотную к приехавшему тексту, а не перед пробелом. */
+        cursorCh: kept.length + insert.length,
+        emptied: false
+      };
+    }
+    function handleSmartKeymap(plugin, back) {
+      const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+      const sd = cfg && cfg.editor && cfg.editor.smartDelete ? cfg.editor.smartDelete : null;
+      if (!sd) return false;
+      if (back ? sd.onBackspace !== true : sd.enabled !== true) return false;
+      const editor = plugin && typeof plugin.getActiveEditor === "function" ? plugin.getActiveEditor() : null;
+      if (!editor) return false;
+      try {
+        if (typeof editor.somethingSelected === "function" && editor.somethingSelected()) return false;
+        if (typeof editor.listSelections === "function") {
+          const sels = editor.listSelections();
+          if (Array.isArray(sels) && sels.length > 1) return false;
+        }
+        const cursor = editor.getCursor();
+        const line = Number(cursor && cursor.line);
+        if (!Number.isFinite(line)) return false;
+        if (back ? line <= 0 : line >= editor.lastLine()) return false;
+        const common = {
+          enabled: true,
+          lineText: String(editor.getLine(line) || ""),
+          ch: Number(cursor.ch) || 0,
+          dropPrefix: sd.dropPrefix !== false,
+          joinWithSpace: sd.joinWithSpace !== false
+        };
+        const plan = back ? planSmartBackspace({ ...common, prevLineText: String(editor.getLine(line - 1) || "") }) : planSmartDelete({ ...common, nextLineText: String(editor.getLine(line + 1) || "") });
+        if (!plan) return false;
+        const top = back ? line - 1 : line;
+        editor.replaceRange(
+          plan.insert,
+          { line: top, ch: plan.fromCh },
+          { line: top + 1, ch: plan.toCh }
+        );
+        editor.setCursor({ line: top, ch: plan.cursorCh });
+        return true;
+      } catch (e) {
+        console.error("[inline-overhaul][smart-delete]", e);
+        return false;
+      }
+    }
+    function handleSmartDeleteKeymap(plugin) {
+      return handleSmartKeymap(plugin, false);
+    }
+    function handleSmartBackspaceKeymap(plugin) {
+      return handleSmartKeymap(plugin, true);
+    }
+    module2.exports = {
+      junkLengthOf,
+      planSmartDelete,
+      planSmartBackspace,
+      handleSmartDeleteKeymap,
+      handleSmartBackspaceKeymap
+    };
+  }
+});
+
 // src/features/rules_markdown_builder.js
 var require_rules_markdown_builder = __commonJS({
   "src/features/rules_markdown_builder.js"(exports2, module2) {
@@ -19474,48 +18223,82 @@ var require_rules_markdown_builder = __commonJS({
       const isObj = deps && typeof deps.isObj === "function" ? deps.isObj : function(x) {
         return x && typeof x === "object" && !Array.isArray(x);
       };
-      const cloneJson = deps && typeof deps.cloneJson === "function" ? deps.cloneJson : function(x) {
+      const cloneJson2 = deps && typeof deps.cloneJson === "function" ? deps.cloneJson : function(x) {
         return x === void 0 ? void 0 : JSON.parse(JSON.stringify(x));
       };
       const toPrettyJson = deps && typeof deps.toPrettyJson === "function" ? deps.toPrettyJson : function(x) {
         return JSON.stringify(x, null, 2);
       };
-      function getBehaviorRoot(cfg, cloneIt) {
-        const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-        return cloneIt ? cloneJson(behavior) : behavior;
+      function slice(node, key) {
+        return isObj(node) && isObj(node[key]) ? node[key] : {};
       }
-      function getBehaviorSlice(cfg, key, cloneIt) {
-        const behavior = getBehaviorRoot(cfg, false);
-        const raw = isObj(behavior[key]) ? behavior[key] : {};
-        return cloneIt ? cloneJson(raw) : raw;
-      }
-      function buildTagWheelRulesMarkdownFromConfig(cfg) {
+      function buildRulesShapeFromConfig(cfg) {
         const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
-        const io = getBehaviorSlice(cfg, "io", false);
-        const inlineLayout = getBehaviorSlice(cfg, "inlineLayout", false);
-        const dateRules = getBehaviorSlice(cfg, "dateRules", false);
-        const behavior = getBehaviorRoot(cfg, true);
-        const ui = getBehaviorSlice(cfg, "ui", false);
-        const leftMode = getBehaviorSlice(cfg, "leftMode", false);
-        const rightMode = getBehaviorSlice(cfg, "rightMode", false);
-        const projects = getBehaviorSlice(cfg, "projects", false);
-        const colors = getBehaviorSlice(cfg, "colors", false);
-        const meta = getBehaviorSlice(cfg, "meta", true);
-        behavior.subtagFormat = pkm.behavior && pkm.behavior.subtagFormat === "combined" ? "combined" : "separate";
-        behavior.defaultMode = String(behavior.defaultMode || "").trim().toLowerCase() === "right" ? "right" : "left";
+        const fields = slice(pkm, "fields");
+        const placement = slice(pkm, "placement");
+        const behaviorCfg = slice(pkm, "behavior");
+        const wheel = slice(slice(cfg, "visual"), "tagWheel");
+        const behavior = cloneJson2(behaviorCfg);
+        delete behavior.childTagFormat;
+        behavior.subtagFormat = behaviorCfg.childTagFormat === "combined" ? "combined" : "separate";
+        behavior.defaultMode = String(fields.defaultBlock || "").trim().toLowerCase() === "right" ? "right" : "left";
+        behavior.order = cloneJson2(slice(fields, "order"));
+        behavior.elements = cloneJson2(slice(fields, "elements"));
+        behavior.leftMode = cloneJson2(slice(fields, "tags"));
+        behavior.rightMode = cloneJson2(slice(fields, "links"));
+        behavior.projects = cloneJson2(slice(fields, "projects"));
+        behavior.typeCheckboxByValue = cloneJson2(slice(fields, "checkboxByValue"));
+        behavior.prefixRules = Object.assign(cloneJson2(slice(pkm, "prefixRules")), {
+          priorityMode: slice(pkm, "prefixPriority").decideBy,
+          fieldsOrderMode: slice(pkm, "prefixPriority").fieldOrderSource,
+          tagSubtagPriority: slice(pkm, "prefixPriority").parentOrChild
+        });
+        behavior.freeRoam = {
+          minimalSeparator: placement.keepPrefixInsertOnly !== false,
+          minimalPrefix: placement.fieldPrefixInsertOnly !== false,
+          offPrefix: placement.bulletInStrict === true,
+          fullPlacement: String(placement.freeInsertPosition || "smart")
+        };
+        const ui = cloneJson2(slice(behaviorCfg, "ui"));
+        const activePanel = isObj(ui.activePanel) ? cloneJson2(ui.activePanel) : {};
+        activePanel.enabled = true;
+        activePanel.useHighlight = wheel.highlightLine === true;
+        ui.activePanel = activePanel;
+        const meta = cloneJson2(slice(behaviorCfg, "meta"));
         meta.generatedBy = "inline-overhaul";
         meta.generatedAt = (/* @__PURE__ */ new Date()).toISOString();
+        return {
+          meta,
+          io: slice(pkm, "lineFormat"),
+          inlineLayout: slice(behaviorCfg, "inlineLayout"),
+          dateRules: slice(behaviorCfg, "dateRules"),
+          behavior,
+          ui,
+          leftMode: behavior.leftMode,
+          rightMode: behavior.rightMode,
+          projects: behavior.projects,
+          colors: {
+            tagwheelHeader: {
+              defaultTextColor: String(wheel.textColor || ""),
+              fillColor: String(wheel.fillColor || ""),
+              showPrefix: wheel.showMarkers !== false
+            }
+          }
+        };
+      }
+      function buildTagWheelRulesMarkdownFromConfig(cfg) {
+        const shape = buildRulesShapeFromConfig(cfg);
         const blocks = [
-          ["tagwheel-meta", meta],
-          ["tagwheel-io", io],
-          ["tagwheel-inline-layout", inlineLayout],
-          ["tagwheel-date-rules", dateRules],
-          ["tagwheel-behavior", behavior],
-          ["tagwheel-ui", ui],
-          ["tagwheel-left-mode", leftMode],
-          ["tagwheel-right-mode", rightMode],
-          ["tagwheel-projects", projects],
-          ["tagwheel-colors", colors]
+          ["tagwheel-meta", shape.meta],
+          ["tagwheel-io", shape.io],
+          ["tagwheel-inline-layout", shape.inlineLayout],
+          ["tagwheel-date-rules", shape.dateRules],
+          ["tagwheel-behavior", shape.behavior],
+          ["tagwheel-ui", shape.ui],
+          ["tagwheel-left-mode", shape.leftMode],
+          ["tagwheel-right-mode", shape.rightMode],
+          ["tagwheel-projects", shape.projects],
+          ["tagwheel-colors", shape.colors]
         ];
         const lines = [];
         lines.push("# InlineOverhaul Generated TagWheel Rules");
@@ -19533,6 +18316,7 @@ var require_rules_markdown_builder = __commonJS({
         return lines.join("\n");
       }
       return {
+        buildRulesShapeFromConfig,
         buildTagWheelRulesMarkdownFromConfig
       };
     }
@@ -19562,7 +18346,7 @@ var require_rules_sync_orchestrator = __commonJS({
     async function ensureGeneratedRulesNow(ctx, reason) {
       const cfg = ctx.getConfig();
       if (!(cfg && cfg.pkm)) return;
-      const genPath = String(cfg.pkm && cfg.pkm.generatedRulesPath || ctx.defaultGeneratedRulesPath || "").trim();
+      const genPath = String(cfg.advanced && cfg.advanced.generatedRulesPath || ctx.defaultGeneratedRulesPath || "").trim();
       if (!genPath) throw new Error("Generated rules path is empty");
       const md = ctx.buildRulesMarkdown(cfg);
       await ctx.writeText(genPath, md);
@@ -19639,2241 +18423,6 @@ var require_store_events_orchestrator = __commonJS({
   }
 });
 
-// src/features/tagwheel_config_codec.js
-var require_tagwheel_config_codec = __commonJS({
-  "src/features/tagwheel_config_codec.js"(exports2, module2) {
-    "use strict";
-    function createTagWheelConfigCodec(opts) {
-      const {
-        isObj,
-        getOrderStrictName,
-        getFieldById,
-        getLeftFields,
-        getRightFields,
-        collectTagSections,
-        collectWikilinkFieldIds,
-        collectOrderedElementFields,
-        getPrefixRulesFromCfg,
-        denormTagToken,
-        parseCustomPrefixResolverBlock,
-        isWikilinkToken,
-        parseWikilinkLineStrict,
-        extractFirstTagToken,
-        parseCheckboxAndTag,
-        createTagWheelConfigParser,
-        TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH,
-        TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH,
-        TAGWHEEL_TECHNICAL_BLOCK_MARKER,
-        TAGWHEEL_TECH_MARKER_PREFIX,
-        TAGWHEEL_IMPORTANT_LINE,
-        CFG_H1_SETTINGS,
-        CFG_H2_TAGS,
-        CFG_H2_DATES,
-        CFG_H2_ELEMENTS,
-        CFG_H2_ELEMENTS_COMBINED,
-        TAGWHEEL_PREFIX_RESOLVER_H3,
-        TAGWHEEL_PREFIX_RESOLVER_SECTION,
-        TAGWHEEL_WIKILINK_SECTION
-      } = opts || {};
-      let __configParser = null;
-      function normalizeTagWheelConfigPath() {
-        return String(TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH || "InlineOverhaul_Config.md");
-      }
-      function normalizeTagWheelConfigTemplatePath() {
-        return String(TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH || "InlineOverhaul_Config_template.md");
-      }
-      function buildDefaultTagWheelDetailedTemplateMarkdown() {
-        const lines = [];
-        lines.push(">This is the place where you can set up your PKM in user-friendly way.");
-        lines.push(">Add or edit your comments here. Technical settings are inserted via markers.");
-        lines.push("---");
-        lines.push("## Instructions and Rules");
-        lines.push("- Keep your custom comments and explanations in this template.");
-        lines.push("- Do not remove technical markers.");
-        lines.push("#### Wikilink fields (from plugin settings -> PKM -> Order)");
-        lines.push("<!-- INLINE_OVERHAUL:TECH:WIKILINK_FIELDS -->");
-        lines.push("");
-        lines.push("## Settings");
-        lines.push(`### ${String(CFG_H2_TAGS || "#TAGS/#SUBTAGS + WIKILINKS")}`);
-        lines.push("<!-- INLINE_OVERHAUL:TECH:TAGS -->");
-        lines.push("");
-        lines.push(`### ${String(TAGWHEEL_PREFIX_RESOLVER_H3 || "PREFIX RESOLVER")}`);
-        lines.push("#### Settings");
-        lines.push("<!-- INLINE_OVERHAUL:TECH:PREFIX_SETTINGS -->");
-        lines.push("#### Order");
-        lines.push("1.  **Fields Order:**");
-        lines.push("<!-- INLINE_OVERHAUL:TECH:FIELDS_ORDER_ITEMS -->");
-        lines.push("");
-        lines.push("2. **Checkbox Order:**");
-        lines.push("<!-- INLINE_OVERHAUL:TECH:CHECKBOX_ORDER_ITEMS -->");
-        lines.push("");
-        lines.push(`### ${String(CFG_H2_ELEMENTS_COMBINED || "DATE/TIME + ELEMENTS")}`);
-        lines.push("<!-- INLINE_OVERHAUL:TECH:ELEMENTS -->");
-        lines.push("");
-        return lines.join("\n");
-      }
-      function renderTagWheelConfigFromTemplate(templateMd, parts) {
-        const src = String(templateMd || "");
-        const byKey = isObj && isObj(parts) ? parts : {};
-        const hasDatesMarker = /<!--\s*INLINE_OVERHAUL:TECH:DATES\s*-->/i.test(src);
-        const markerRe = /<!--\s*INLINE_OVERHAUL:TECH:([A-Z_]+)\s*-->/g;
-        let hasNamed = false;
-        let out = src.replace(markerRe, (_, keyRaw) => {
-          hasNamed = true;
-          const key = String(keyRaw || "").trim();
-          if (!Object.prototype.hasOwnProperty.call(byKey, key)) {
-            throw new Error(`Detailed template error: unknown marker '${String(TAGWHEEL_TECH_MARKER_PREFIX || "INLINE_OVERHAUL:TECH:")}${key}'`);
-          }
-          if (key === "ELEMENTS" && hasDatesMarker && Object.prototype.hasOwnProperty.call(byKey, "ELEMENTS_ONLY")) {
-            return String(byKey.ELEMENTS_ONLY || "");
-          }
-          return String(byKey[key] || "");
-        });
-        if (out.includes(String(TAGWHEEL_TECHNICAL_BLOCK_MARKER || "<!-- INLINE_OVERHAUL:TECHNICAL_BLOCK -->"))) {
-          const fallback = String(byKey.MINIMAL_FULL || "").trim();
-          if (!fallback) {
-            throw new Error(`Detailed template error: missing marker '${String(TAGWHEEL_TECHNICAL_BLOCK_MARKER || "<!-- INLINE_OVERHAUL:TECHNICAL_BLOCK -->")}' payload`);
-          }
-          out = out.split(String(TAGWHEEL_TECHNICAL_BLOCK_MARKER || "<!-- INLINE_OVERHAUL:TECHNICAL_BLOCK -->")).join(fallback);
-          hasNamed = true;
-        }
-        if (!hasNamed) {
-          throw new Error("Detailed template error: no technical markers found");
-        }
-        return out;
-      }
-      function buildMinimalFromRenderedTemplate(renderedMd) {
-        const src = String(renderedMd || "");
-        const lines = src.split(/\r?\n/);
-        const start = lines.findIndex((ln) => /^##\s+Settings\s*$/i.test(String(ln || "").trim()));
-        const body = (start === -1 ? lines : lines.slice(start)).filter((ln) => !/^\s*>/.test(String(ln || "")));
-        const out = [];
-        out.push(String(TAGWHEEL_IMPORTANT_LINE || ""));
-        out.push("---");
-        out.push(...body);
-        return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
-      }
-      function buildTagWheelConfigParts(cfg) {
-        var _a;
-        const sections = collectTagSections(cfg);
-        const fields = [].concat(getLeftFields(cfg), getRightFields(cfg));
-        const wikilinkFields = collectWikilinkFieldIds(cfg);
-        const prefixRules2 = getPrefixRulesFromCfg(cfg);
-        const projects = cfg && cfg.pkm && cfg.pkm.behavior && isObj(cfg.pkm.behavior.projects) ? cfg.pkm.behavior.projects : {};
-        const taxonomyWikilinks = cfg && cfg.pkm && cfg.pkm.taxonomy && cfg.pkm.taxonomy.tagWheelConfig && isObj(cfg.pkm.taxonomy.tagWheelConfig.wikilinks) ? cfg.pkm.taxonomy.tagWheelConfig.wikilinks : {};
-        const orphanWikilinks = cfg && cfg.pkm && cfg.pkm.taxonomy && cfg.pkm.taxonomy.tagWheelConfig && isObj(cfg.pkm.taxonomy.tagWheelConfig.orphanWikilinks) ? cfg.pkm.taxonomy.tagWheelConfig.orphanWikilinks : {};
-        const tagVisuals = cfg && cfg.pkm && cfg.pkm.behavior && isObj(cfg.pkm.behavior.tagVisuals) ? cfg.pkm.behavior.tagVisuals : {};
-        const byTagVisuals = isObj(tagVisuals.byTag) ? tagVisuals.byTag : {};
-        const userTagVisuals = isObj(tagVisuals.userTags) ? tagVisuals.userTags : {};
-        const orderCfg = cfg && cfg.pkm && cfg.pkm.behavior && isObj(cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
-        const orderStrictNames = isObj(orderCfg.strictNames) ? orderCfg.strictNames : {};
-        const propertiesByField = isObj(orderCfg.propertiesByField) ? orderCfg.propertiesByField : {};
-        const strictToOrderKey = {};
-        for (const orderKey of Object.keys(orderStrictNames)) {
-          const strictName = String(orderStrictNames[orderKey] || "").trim();
-          const ok = String(orderKey || "").trim();
-          if (!strictName || !ok) continue;
-          strictToOrderKey[strictName] = ok;
-        }
-        const resolveFieldYamlBySection = (sectionId) => {
-          const sid = String(sectionId || "").trim();
-          if (!sid) return "";
-          const byStrict = String(propertiesByField[sid] || "").trim();
-          if (byStrict) return byStrict;
-          const orderKey = String(strictToOrderKey[sid] || "").trim();
-          if (!orderKey) return "";
-          return String(propertiesByField[orderKey] || "").trim();
-        };
-        const tagsBody = [];
-        const tokenYamlForField = (fieldId, token) => {
-          const fid = String(fieldId || "").trim();
-          const tok = String(token || "").trim();
-          if (!fid || !tok) return "";
-          const field = getFieldById(fields, fid);
-          const vals = field && Array.isArray(field.values) ? field.values : [];
-          const wanted = denormTagToken(tok);
-          if (!wanted) return "";
-          for (let i = 0; i < vals.length; i++) {
-            const row = vals[i] && typeof vals[i] === "object" ? vals[i] : null;
-            if (!row) continue;
-            const rTok = denormTagToken(row.token);
-            if (!rTok || rTok !== wanted) continue;
-            return String(row.yamlProperty || "").trim();
-          }
-          return "";
-        };
-        const buildPipeTail = (payload) => {
-          const src = payload && typeof payload === "object" ? payload : {};
-          const out = [];
-          const customText = String(src.customText || "").trim();
-          const fill = String(src.fillColor || "").trim().toLowerCase();
-          const text = String(src.textColor || "").trim().toLowerCase();
-          const yaml = String(src.yamlProperty || "").trim();
-          if (customText) out.push(`custom name = \`${customText}\``);
-          const hasColors = /^#[0-9a-f]{6}$/.test(fill) && /^#[0-9a-f]{6}$/.test(text);
-          if (hasColors) out.push(`hex = \`${fill}\`/\`${text}\``);
-          if (yaml) out.push(`yaml = \`${yaml}\``);
-          return out.length ? ` | ${out.join(" | ")}` : "";
-        };
-        const visualTailForTag = (fieldId, token, sectionId) => {
-          const fid = String(fieldId || "").trim();
-          const tok = String(token || "").trim();
-          if (!fid || !/^#\S+/.test(tok)) return "";
-          const row = byTagVisuals[fid] && isObj(byTagVisuals[fid][tok]) ? byTagVisuals[fid][tok] : null;
-          const fieldYaml = resolveFieldYamlBySection(sectionId);
-          const tokenYaml = tokenYamlForField(fid, tok);
-          const effectiveYaml = tokenYaml || fieldYaml;
-          return buildPipeTail({
-            customText: row ? String(row.customText || "").trim() : "",
-            fillColor: row ? String(row.fillColor || "").trim() : "",
-            textColor: row ? String(row.textColor || "").trim() : "",
-            yamlProperty: effectiveYaml
-          });
-        };
-        const visualTailForUserTag = (token) => {
-          const tok = String(token || "").trim();
-          if (!/^#\S+/.test(tok)) return "";
-          const row = isObj(userTagVisuals[tok]) ? userTagVisuals[tok] : null;
-          const fill = row ? String(row.fillColor || "").trim() : "";
-          const text = row ? String(row.textColor || "").trim() : "";
-          const customText = row ? String(row.customText || "").trim() : "";
-          const hasColors = /^#[0-9a-fA-F]{6}$/.test(fill) && /^#[0-9a-fA-F]{6}$/.test(text);
-          if (customText && hasColors) return ` - \`${customText}\` - \`${fill.toLowerCase()}\`/\`${text.toLowerCase()}\``;
-          if (customText) return ` - \`${customText}\``;
-          if (!hasColors) return "";
-          return ` - \`${fill.toLowerCase()}\`/\`${text.toLowerCase()}\``;
-        };
-        const parentTokens = (field) => {
-          const vals = field && Array.isArray(field.values) ? field.values : [];
-          const pref = field && typeof field.prefix === "string" ? field.prefix : "#";
-          const source = String(field && field.source ? field.source : "").trim();
-          const isWikilinkSource = source === "projects" || source.startsWith("wikilinks:");
-          const out = [];
-          for (let i = 0; i < vals.length; i++) {
-            const v = vals[i];
-            if (!v || typeof v !== "object" || Array.isArray(v)) continue;
-            if (v.active === false) continue;
-            const tok = String(v.token || "").trim();
-            if (!tok) continue;
-            if (/^\[\[[^\]]+\]\]$/.test(tok)) {
-              out.push(tok);
-              continue;
-            }
-            if (/^#\S+/.test(tok)) {
-              out.push(tok);
-              continue;
-            }
-            if (isWikilinkSource) {
-              out.push(`[[${tok}]]`);
-              continue;
-            }
-            if (!pref && /^\//.test(tok)) out.push(`#${tok}`);
-            else out.push(`${pref}${tok}`);
-          }
-          return out;
-        };
-        const subByParent = (subField) => {
-          const vals = subField && Array.isArray(subField.values) ? subField.values : [];
-          const map = {};
-          for (let i = 0; i < vals.length; i++) {
-            const v = vals[i];
-            if (!v || typeof v !== "object" || Array.isArray(v)) continue;
-            if (v.active === false) continue;
-            const tok = String(v.token || "").trim();
-            if (!tok) continue;
-            const parents = Array.isArray(v.allowedParentValues) ? v.allowedParentValues : [];
-            for (let j = 0; j < parents.length; j++) {
-              const p = `#${String(parents[j] || "").trim()}`;
-              if (!map[p]) map[p] = [];
-              if (!map[p].includes(`#${tok}`)) map[p].push(`#${tok}`);
-            }
-          }
-          return map;
-        };
-        const sectionIdByFieldId = {};
-        for (let i = 0; i < sections.length; i++) {
-          const s = sections[i] || {};
-          const fid = String(s.fieldId || "").trim();
-          const sfid = String(s.subFieldId || "").trim();
-          if (fid && !sectionIdByFieldId[fid]) sectionIdByFieldId[fid] = s.sectionId;
-          if (sfid && !sectionIdByFieldId[sfid]) sectionIdByFieldId[sfid] = s.sectionId;
-        }
-        const formatTokenForField = (field, rawToken) => {
-          const tok = String(rawToken || "").trim();
-          if (!tok) return "";
-          if (/^\[\[[^\]]+\]\]$/.test(tok)) return tok;
-          if (/^#\S+/.test(tok)) return tok;
-          const source = String(field && field.source ? field.source : "").trim();
-          if (source === "projects" || source.startsWith("wikilinks:")) return `[[${tok}]]`;
-          const pref = field && typeof field.prefix === "string" ? field.prefix : "#";
-          if (!pref && /^\//.test(tok)) return `#${tok}`;
-          return `${pref}${tok}`;
-        };
-        const buildWikilinkNodeFromFieldValues = (field, options) => {
-          const f = field && typeof field === "object" ? field : null;
-          if (!f) return null;
-          const opts2 = options && typeof options === "object" ? options : {};
-          const src = String(f.source || "").trim();
-          if (!(src === "projects" || src.indexOf("wikilinks:") === 0)) return null;
-          const vals = Array.isArray(f.values) ? f.values : [];
-          const node = { defaults: [], byParent: {} };
-          const bySection = {};
-          const boundTokenSet = /* @__PURE__ */ new Set();
-          const unboundOrdered = [];
-          const canonicalWikilinkToken = (rawTok) => {
-            const v = String(rawTok || "").trim();
-            if (!v) return "";
-            if (/^\[\[[^\]]+\]\]$/.test(v)) return v;
-            if (/^#\S+/.test(v)) return v;
-            return `[[${v.replace(/^\[\[/, "").replace(/\]\]$/, "")}]]`;
-          };
-          const defsSeen = /* @__PURE__ */ new Set();
-          const pushScoped = (sectionId, parentTok, subTok, tok) => {
-            const sid = String(sectionId || "").trim();
-            const v = String(tok || "").trim();
-            if (!sid || !v) return;
-            if (!bySection[sid]) bySection[sid] = { defaults: [], byParent: {} };
-            const sec = bySection[sid];
-            if (!parentTok) {
-              if (!sec.defaults.includes(v)) sec.defaults.push(v);
-              return;
-            }
-            const pTok = String(parentTok || "").trim();
-            if (!pTok) return;
-            if (!sec.byParent[pTok]) sec.byParent[pTok] = { branch: [], leaf: {} };
-            if (subTok) {
-              const sTok = String(subTok || "").trim();
-              if (!sTok) return;
-              if (!Array.isArray(sec.byParent[pTok].leaf[sTok])) sec.byParent[pTok].leaf[sTok] = [];
-              if (!sec.byParent[pTok].leaf[sTok].includes(v)) sec.byParent[pTok].leaf[sTok].push(v);
-              return;
-            }
-            if (!sec.byParent[pTok].branch.includes(v)) sec.byParent[pTok].branch.push(v);
-          };
-          const pushDefault = (tok) => {
-            const v = String(tok || "").trim();
-            if (!v || defsSeen.has(v)) return;
-            defsSeen.add(v);
-            node.defaults.push(v);
-            if (!unboundOrdered.includes(v)) unboundOrdered.push(v);
-          };
-          for (let i = 0; i < vals.length; i++) {
-            const row = vals[i] && typeof vals[i] === "object" ? vals[i] : null;
-            if (!row || row.active === false) continue;
-            const tok = canonicalWikilinkToken(row.token);
-            if (!tok) continue;
-            const binding2 = String(row.__ioParentBinding || "").trim();
-            const mSub = binding2.match(/^s:([^|]+)\|p:([^|]+)/);
-            const mParent = binding2.match(/^p:([^|]+)/);
-            const mField = binding2.match(/\|f:([^|]+)$/);
-            const parentFieldId = mField ? String(mField[1] || "").trim() : "";
-            const sectionFromBinding = parentFieldId && opts2.sectionIdByFieldId ? String(opts2.sectionIdByFieldId[parentFieldId] || "").trim() : "";
-            if (mSub) {
-              const subTok = String(mSub[1] || "").trim();
-              const parentTok = String(mSub[2] || "").trim();
-              if (subTok && parentTok) {
-                if (!node.byParent[parentTok]) node.byParent[parentTok] = { branch: [], leaf: {} };
-                const leaf = node.byParent[parentTok].leaf;
-                if (!Array.isArray(leaf[subTok])) leaf[subTok] = [];
-                if (!leaf[subTok].includes(tok)) leaf[subTok].push(tok);
-                pushScoped(sectionFromBinding, parentTok, subTok, tok);
-                boundTokenSet.add(tok);
-                continue;
-              }
-            }
-            if (mParent) {
-              const parentTok = String(mParent[1] || "").trim();
-              if (parentTok) {
-                if (!node.byParent[parentTok]) node.byParent[parentTok] = { branch: [], leaf: {} };
-                const branch = node.byParent[parentTok].branch;
-                if (!branch.includes(tok)) branch.push(tok);
-                pushScoped(sectionFromBinding, parentTok, "", tok);
-                boundTokenSet.add(tok);
-                continue;
-              }
-            }
-            const allowed = Array.isArray(row.allowedParentValues) ? row.allowedParentValues.map((x) => String(x || "").trim()).filter(Boolean) : [];
-            if (!allowed.length) {
-              pushDefault(tok);
-              pushScoped(String(opts2.ownSectionId || "").trim(), "", "", tok);
-              continue;
-            }
-            for (let ai = 0; ai < allowed.length; ai++) {
-              const parentTok = `#${allowed[ai].replace(/^#/, "")}`;
-              if (!node.byParent[parentTok]) node.byParent[parentTok] = { branch: [], leaf: {} };
-              const branch = node.byParent[parentTok].branch;
-              if (!branch.includes(tok)) branch.push(tok);
-              pushScoped(sectionFromBinding || String(opts2.ownSectionId || "").trim(), parentTok, "", tok);
-            }
-          }
-          return { node, bySection, boundTokenSet, unboundOrdered };
-        };
-        const sectionKindByField = (field) => {
-          const source = String(field && field.source ? field.source : "").trim();
-          return source === "projects" || source.startsWith("wikilinks:") ? "link" : "tag";
-        };
-        const projectFieldId = (() => {
-          for (let i = 0; i < fields.length; i++) {
-            const f = fields[i];
-            if (!f || !f.id) continue;
-            const src = String(f.source || "").trim();
-            if (src !== "projects") continue;
-            return String(f.id || "").trim();
-          }
-          return "";
-        })();
-        const projectTaxBySection = projectFieldId && isObj(taxonomyWikilinks[projectFieldId]) && isObj(taxonomyWikilinks[projectFieldId].bySection) ? taxonomyWikilinks[projectFieldId].bySection : {};
-        const hasProjectTaxonomyBySection = Object.keys(projectTaxBySection).length > 0;
-        const buildProjectCompatSectionNode = (sectionId) => {
-          if (hasProjectTaxonomyBySection) return null;
-          if (!projectFieldId || !isObj(projects) || !isObj(projects.byContext)) return null;
-          const fk = Array.isArray(projects.filterKeys) ? projects.filterKeys.map((x) => String(x || "").trim()).filter(Boolean) : [];
-          const parentFieldId = fk[0] || "";
-          const parentSectionId = sectionIdByFieldId[parentFieldId] || "";
-          if (!parentSectionId || String(parentSectionId) !== String(sectionId)) return null;
-          const node = { defaults: [], byParent: {} };
-          const defs = Array.isArray(projects.defaults) ? projects.defaults : [];
-          for (let i = 0; i < defs.length; i++) {
-            const tok = String(defs[i] || "").trim();
-            if (!tok) continue;
-            node.defaults.push(tok);
-          }
-          const byContext = isObj(projects.byContext) ? projects.byContext : {};
-          for (const parentKey of Object.keys(byContext)) {
-            const srcNode = isObj(byContext[parentKey]) ? byContext[parentKey] : {};
-            const branch = Array.isArray(srcNode.branch) ? srcNode.branch : [];
-            const leafSrc = isObj(srcNode.leaf) ? srcNode.leaf : {};
-            const dstNode = { branch: [], leaf: {} };
-            for (let i = 0; i < branch.length; i++) {
-              const tok = String(branch[i] || "").trim();
-              if (!tok) continue;
-              dstNode.branch.push(tok);
-            }
-            for (const subKey of Object.keys(leafSrc)) {
-              const arr = Array.isArray(leafSrc[subKey]) ? leafSrc[subKey] : [];
-              const outArr = [];
-              for (let i = 0; i < arr.length; i++) {
-                const tok = String(arr[i] || "").trim();
-                if (!tok) continue;
-                outArr.push(tok);
-              }
-              dstNode.leaf[`#${String(subKey || "").trim()}`] = outArr;
-            }
-            node.byParent[`#${String(parentKey || "").trim()}`] = dstNode;
-          }
-          return node;
-        };
-        const pickByDenormToken = (obj, tokenLike) => {
-          const map = isObj(obj) ? obj : {};
-          const wanted = denormTagToken(tokenLike);
-          for (const k of Object.keys(map)) {
-            if (denormTagToken(k) === wanted) return map[k];
-          }
-          return null;
-        };
-        const mergeWikilinkNodes = (baseNode, extraNode) => {
-          const out = {
-            defaults: [],
-            byParent: {}
-          };
-          const pushDefault = (tok) => {
-            const v = String(tok || "").trim();
-            if (!v) return;
-            if (!out.defaults.includes(v)) out.defaults.push(v);
-          };
-          const mergeParent = (parentToken, srcNode) => {
-            const pTok = String(parentToken || "").trim();
-            if (!pTok || !isObj(srcNode)) return;
-            if (!isObj(out.byParent[pTok])) out.byParent[pTok] = { branch: [], leaf: {} };
-            const dst = out.byParent[pTok];
-            const branch = Array.isArray(srcNode.branch) ? srcNode.branch : [];
-            for (let i = 0; i < branch.length; i++) {
-              const v = String(branch[i] || "").trim();
-              if (!v) continue;
-              if (!dst.branch.includes(v)) dst.branch.push(v);
-            }
-            const leaf = isObj(srcNode.leaf) ? srcNode.leaf : {};
-            for (const subToken of Object.keys(leaf)) {
-              const sTok = String(subToken || "").trim();
-              if (!sTok) continue;
-              if (!Array.isArray(dst.leaf[sTok])) dst.leaf[sTok] = [];
-              const arr = Array.isArray(leaf[subToken]) ? leaf[subToken] : [];
-              for (let i = 0; i < arr.length; i++) {
-                const v = String(arr[i] || "").trim();
-                if (!v) continue;
-                if (!dst.leaf[sTok].includes(v)) dst.leaf[sTok].push(v);
-              }
-            }
-          };
-          const applyNode = (node) => {
-            const src = isObj(node) ? node : {};
-            const defs = Array.isArray(src.defaults) ? src.defaults : [];
-            for (let i = 0; i < defs.length; i++) pushDefault(defs[i]);
-            const byParent = isObj(src.byParent) ? src.byParent : {};
-            for (const parentToken of Object.keys(byParent)) mergeParent(parentToken, byParent[parentToken]);
-          };
-          applyNode(baseNode);
-          applyNode(extraNode);
-          return out;
-        };
-        const filterNodeDefaults = (node, denySet) => {
-          const src = isObj(node) ? node : { defaults: [], byParent: {} };
-          const deny = denySet instanceof Set ? denySet : /* @__PURE__ */ new Set();
-          const out = {
-            defaults: (Array.isArray(src.defaults) ? src.defaults : []).filter((tok) => {
-              const v = String(tok || "").trim();
-              if (!v) return false;
-              return !deny.has(v);
-            }),
-            byParent: isObj(src.byParent) ? src.byParent : {}
-          };
-          return out;
-        };
-        const collectBoundFromNode = (node, outSet) => {
-          const src = isObj(node) ? node : {};
-          const byParent = isObj(src.byParent) ? src.byParent : {};
-          for (const parentToken of Object.keys(byParent)) {
-            const pNode = isObj(byParent[parentToken]) ? byParent[parentToken] : {};
-            const branch = Array.isArray(pNode.branch) ? pNode.branch : [];
-            for (let i = 0; i < branch.length; i++) {
-              const tok = String(branch[i] || "").trim();
-              if (tok) outSet.add(tok);
-            }
-            const leaf = isObj(pNode.leaf) ? pNode.leaf : {};
-            for (const subToken of Object.keys(leaf)) {
-              const arr = Array.isArray(leaf[subToken]) ? leaf[subToken] : [];
-              for (let i = 0; i < arr.length; i++) {
-                const tok = String(arr[i] || "").trim();
-                if (tok) outSet.add(tok);
-              }
-            }
-          }
-        };
-        const getWikilinkRowOrder = (field) => {
-          const f = field && typeof field === "object" ? field : null;
-          if (!f) return [];
-          const src = String(f.source || "").trim();
-          if (!(src === "projects" || src.indexOf("wikilinks:") === 0)) return [];
-          const vals = Array.isArray(f.values) ? f.values : [];
-          const out = [];
-          for (let i = 0; i < vals.length; i++) {
-            const row = vals[i] && typeof vals[i] === "object" ? vals[i] : null;
-            if (!row || row.active === false) continue;
-            const tok = String(row.token || "").trim();
-            if (!tok) continue;
-            const token = /^\[\[[^\]]+\]\]$/.test(tok) ? tok : `[[${tok.replace(/^\[\[/, "").replace(/\]\]$/, "")}]]`;
-            const binding2 = String(row.__ioParentBinding || "").trim();
-            out.push({ token, binding: binding2 });
-          }
-          return out;
-        };
-        const orderedTokens = (candidateList, orderRows, predicate) => {
-          const cset = new Set((Array.isArray(candidateList) ? candidateList : []).map((x) => String(x || "").trim()).filter(Boolean));
-          const out = [];
-          for (let i = 0; i < orderRows.length; i++) {
-            const row = orderRows[i] || {};
-            const tok = String(row.token || "").trim();
-            if (!tok || !cset.has(tok)) continue;
-            if (typeof predicate === "function" && !predicate(row)) continue;
-            if (!out.includes(tok)) out.push(tok);
-          }
-          const base = Array.isArray(candidateList) ? candidateList : [];
-          for (let i = 0; i < base.length; i++) {
-            const tok = String(base[i] || "").trim();
-            if (!tok) continue;
-            if (out.includes(tok)) continue;
-            out.push(tok);
-          }
-          return out;
-        };
-        const parseBindingPath = (binding2) => {
-          const src = String(binding2 || "").trim();
-          if (!src) return null;
-          const mLeaf = src.match(/^s:([^|]+)\|p:([^|]+)(?:\|f:([^|]+))?$/);
-          if (mLeaf) {
-            return {
-              kind: "leaf",
-              sub: String(mLeaf[1] || "").trim(),
-              parent: String(mLeaf[2] || "").trim(),
-              fieldId: String(mLeaf[3] || "").trim()
-            };
-          }
-          const mParent = src.match(/^p:([^|]+)(?:\|f:([^|]+))?$/);
-          if (mParent) {
-            return {
-              kind: "branch",
-              parent: String(mParent[1] || "").trim(),
-              fieldId: String(mParent[2] || "").trim()
-            };
-          }
-          return null;
-        };
-        const getLiveWikilinkStateMap = (field) => {
-          const map = {};
-          const vals = field && Array.isArray(field.values) ? field.values : [];
-          for (let i = 0; i < vals.length; i++) {
-            const row = vals[i] && typeof vals[i] === "object" ? vals[i] : null;
-            if (!row || row.active === false) continue;
-            const tokRaw = String(row.token || "").trim();
-            if (!tokRaw) continue;
-            const tok = /^\[\[[^\]]+\]\]$/.test(tokRaw) ? tokRaw : `[[${tokRaw.replace(/^\[\[/, "").replace(/\]\]$/, "")}]]`;
-            const parsed = parseBindingPath(row.__ioParentBinding);
-            if (!parsed) {
-              map[tok] = { state: "explicit_unbound" };
-              continue;
-            }
-            if (parsed.kind === "leaf") {
-              map[tok] = {
-                state: "bound",
-                kind: "leaf",
-                parent: String(parsed.parent || "").trim(),
-                sub: String(parsed.sub || "").trim(),
-                fieldId: String(parsed.fieldId || "").trim()
-              };
-              continue;
-            }
-            map[tok] = {
-              state: "bound",
-              kind: "branch",
-              parent: String(parsed.parent || "").trim(),
-              fieldId: String(parsed.fieldId || "").trim()
-            };
-          }
-          return map;
-        };
-        const reconcileNodeByLiveState = (node, liveStateMap) => {
-          const src = isObj(node) ? node : { defaults: [], byParent: {} };
-          const live = isObj(liveStateMap) ? liveStateMap : {};
-          const out = { defaults: [], byParent: {} };
-          const defs = Array.isArray(src.defaults) ? src.defaults : [];
-          for (let i = 0; i < defs.length; i++) {
-            const tok = String(defs[i] || "").trim();
-            if (!tok) continue;
-            const st = live[tok];
-            if (st && st.state === "bound") continue;
-            if (!out.defaults.includes(tok)) out.defaults.push(tok);
-          }
-          const byParent = isObj(src.byParent) ? src.byParent : {};
-          for (const parentToken of Object.keys(byParent)) {
-            const pNode = isObj(byParent[parentToken]) ? byParent[parentToken] : {};
-            const dst = { branch: [], leaf: {} };
-            const branch = Array.isArray(pNode.branch) ? pNode.branch : [];
-            for (let i = 0; i < branch.length; i++) {
-              const tok = String(branch[i] || "").trim();
-              if (!tok) continue;
-              const st = live[tok];
-              if (!st) {
-                if (!dst.branch.includes(tok)) dst.branch.push(tok);
-                continue;
-              }
-              if (st.state === "explicit_unbound") continue;
-              if (st.state !== "bound" || st.kind !== "branch") continue;
-              if (st.parent !== String(parentToken || "").trim()) continue;
-              if (!dst.branch.includes(tok)) dst.branch.push(tok);
-            }
-            const leaf = isObj(pNode.leaf) ? pNode.leaf : {};
-            for (const subToken of Object.keys(leaf)) {
-              const arr = Array.isArray(leaf[subToken]) ? leaf[subToken] : [];
-              for (let i = 0; i < arr.length; i++) {
-                const tok = String(arr[i] || "").trim();
-                if (!tok) continue;
-                const st = live[tok];
-                if (!st) {
-                  if (!Array.isArray(dst.leaf[subToken])) dst.leaf[subToken] = [];
-                  if (!dst.leaf[subToken].includes(tok)) dst.leaf[subToken].push(tok);
-                  continue;
-                }
-                if (st.state === "explicit_unbound") continue;
-                if (st.state !== "bound" || st.kind !== "leaf") continue;
-                if (st.parent !== String(parentToken || "").trim()) continue;
-                if (st.sub !== String(subToken || "").trim()) continue;
-                if (!Array.isArray(dst.leaf[subToken])) dst.leaf[subToken] = [];
-                if (!dst.leaf[subToken].includes(tok)) dst.leaf[subToken].push(tok);
-              }
-            }
-            if (dst.branch.length || Object.keys(dst.leaf).length) out.byParent[parentToken] = dst;
-          }
-          return out;
-        };
-        const globalBoundByField = {};
-        for (let wi = 0; wi < wikilinkFields.length; wi++) {
-          const fid = String(wikilinkFields[wi] || "").trim();
-          if (!fid) continue;
-          const taxonomyBoundSet = /* @__PURE__ */ new Set();
-          const taxEntry = isObj(taxonomyWikilinks[fid]) ? taxonomyWikilinks[fid] : {};
-          const bySec = isObj(taxEntry.bySection) ? taxEntry.bySection : {};
-          for (const secName of Object.keys(bySec)) collectBoundFromNode(bySec[secName], taxonomyBoundSet);
-          const ownField = getFieldById(fields, fid);
-          const liveState = getLiveWikilinkStateMap(ownField);
-          const ownSectionId = String(sectionIdByFieldId[fid] || "").trim();
-          const ownFallbackPack = buildWikilinkNodeFromFieldValues(ownField, { ownSectionId, sectionIdByFieldId });
-          const ownBound = ownFallbackPack && ownFallbackPack.boundTokenSet instanceof Set ? ownFallbackPack.boundTokenSet : null;
-          const outSet = /* @__PURE__ */ new Set();
-          if (ownBound) {
-            for (const tok of ownBound.values()) {
-              const v = String(tok || "").trim();
-              if (v) outSet.add(v);
-            }
-          }
-          for (const tok of taxonomyBoundSet.values()) {
-            const v = String(tok || "").trim();
-            if (!v) continue;
-            const st = liveState[v];
-            if (st && st.state === "explicit_unbound") continue;
-            outSet.add(v);
-          }
-          globalBoundByField[fid] = outSet;
-        }
-        for (let i = 0; i < sections.length; i++) {
-          const s = sections[i];
-          const field = getFieldById(fields, s.fieldId);
-          const subField = s.subFieldId ? getFieldById(fields, s.subFieldId) : null;
-          const sectionWlByField = {};
-          for (let wi = 0; wi < wikilinkFields.length; wi++) {
-            const fid = String(wikilinkFields[wi] || "").trim();
-            if (!fid) continue;
-            const ownField = getFieldById(fields, fid);
-            const liveStateMap = getLiveWikilinkStateMap(ownField);
-            const ownSectionId = String(sectionIdByFieldId[fid] || s.sectionId || "").trim();
-            const ownFallbackPack = buildWikilinkNodeFromFieldValues(ownField, { ownSectionId, sectionIdByFieldId });
-            const ownFallback = ownFallbackPack && ownFallbackPack.node ? ownFallbackPack.node : null;
-            const ownBySection = ownFallbackPack && ownFallbackPack.bySection ? ownFallbackPack.bySection : {};
-            const boundSetLocal = ownFallbackPack && ownFallbackPack.boundTokenSet instanceof Set ? ownFallbackPack.boundTokenSet : /* @__PURE__ */ new Set();
-            const boundSet = globalBoundByField[fid] instanceof Set ? globalBoundByField[fid] : boundSetLocal;
-            const unboundOrdered = ownFallbackPack && Array.isArray(ownFallbackPack.unboundOrdered) ? ownFallbackPack.unboundOrdered : [];
-            const scopedNode = ownBySection[s.sectionId] && isObj(ownBySection[s.sectionId]) ? ownBySection[s.sectionId] : null;
-            const taxEntry = isObj(taxonomyWikilinks[fid]) ? taxonomyWikilinks[fid] : {};
-            const bySec = isObj(taxEntry.bySection) ? taxEntry.bySection : {};
-            const secNode = isObj(bySec[s.sectionId]) ? bySec[s.sectionId] : null;
-            if (secNode) {
-              let merged = scopedNode ? mergeWikilinkNodes(secNode, scopedNode) : secNode;
-              merged = reconcileNodeByLiveState(merged, liveStateMap);
-              merged = filterNodeDefaults(merged, boundSet);
-              if (fid === s.fieldId) {
-                const d = Array.isArray(merged.defaults) ? merged.defaults.slice() : [];
-                for (let ui = 0; ui < unboundOrdered.length; ui++) {
-                  const tok = String(unboundOrdered[ui] || "").trim();
-                  if (!tok || boundSet.has(tok)) continue;
-                  if (!d.includes(tok)) d.push(tok);
-                }
-                merged = { ...merged, defaults: d };
-              }
-              sectionWlByField[fid] = merged;
-              continue;
-            }
-            {
-              if (scopedNode && (scopedNode.defaults.length || Object.keys(scopedNode.byParent || {}).length)) {
-                sectionWlByField[fid] = filterNodeDefaults(reconcileNodeByLiveState(scopedNode, liveStateMap), boundSet);
-                continue;
-              }
-              if (fid === s.fieldId && ownFallback && (ownFallback.defaults.length || Object.keys(ownFallback.byParent).length)) {
-                const mergedOwn = filterNodeDefaults(reconcileNodeByLiveState(ownFallback, liveStateMap), boundSet);
-                const d = Array.isArray(mergedOwn.defaults) ? mergedOwn.defaults.slice() : [];
-                for (let ui = 0; ui < unboundOrdered.length; ui++) {
-                  const tok = String(unboundOrdered[ui] || "").trim();
-                  if (!tok || boundSet.has(tok)) continue;
-                  if (!d.includes(tok)) d.push(tok);
-                }
-                sectionWlByField[fid] = { ...mergedOwn, defaults: d };
-                continue;
-              }
-            }
-            if (fid === projectFieldId) {
-              const compat = buildProjectCompatSectionNode(s.sectionId);
-              if (compat) sectionWlByField[fid] = compat;
-            }
-          }
-          tagsBody.push(`##### ${s.sectionId} - ${sectionKindByField(field)}`);
-          {
-            const sectionYaml = resolveFieldYamlBySection(s.sectionId);
-            if (sectionKindByField(field) === "link" && sectionYaml) tagsBody.push(`- YAML: ${sectionYaml}`);
-          }
-          const hasOwnSourceNode = Object.prototype.hasOwnProperty.call(sectionWlByField, String(s.fieldId || ""));
-          const sectionWikilinkFieldIds = Object.keys(sectionWlByField).filter((x) => String(x || "").trim());
-          const sectionIsMixedWikilinks = sectionWikilinkFieldIds.length > 1;
-          const pushSourceLine = (indent, tokenOut, wlFieldId, ownSection) => {
-            if (!tokenOut) return;
-            if (!sectionIsMixedWikilinks) {
-              tagsBody.push(`${indent}- ${tokenOut}`);
-              return;
-            }
-            const fid = String(wlFieldId || "").trim();
-            if (!fid) {
-              if (ownSection) tagsBody.push(`${indent}- ${tokenOut}`);
-              return;
-            }
-            tagsBody.push(`${indent}- ${tokenOut} - ${fid}`);
-          };
-          for (const wlFieldId of Object.keys(sectionWlByField)) {
-            const ownSection = wlFieldId === s.fieldId;
-            const wlField = getFieldById(fields, wlFieldId);
-            const rowOrder = getWikilinkRowOrder(wlField);
-            const wlNode = isObj(sectionWlByField[wlFieldId]) ? sectionWlByField[wlFieldId] : {};
-            const defs = Array.isArray(wlNode.defaults) ? wlNode.defaults : [];
-            const orderedDefs = orderedTokens(defs, rowOrder, (r) => !String(r.binding || "").trim());
-            const defsSeen = /* @__PURE__ */ new Set();
-            const denyBound = globalBoundByField[wlFieldId] instanceof Set ? globalBoundByField[wlFieldId] : /* @__PURE__ */ new Set();
-            for (let di = 0; di < orderedDefs.length; di++) {
-              const rawTok = String(orderedDefs[di] || "").trim();
-              if (!rawTok) continue;
-              if (denyBound.has(rawTok)) continue;
-              if (defsSeen.has(rawTok)) continue;
-              defsSeen.add(rawTok);
-              const tokenOut = formatTokenForField(wlField, rawTok);
-              pushSourceLine("", tokenOut, wlFieldId, ownSection);
-            }
-          }
-          const parents = hasOwnSourceNode ? [] : parentTokens(field);
-          const subMap = hasOwnSourceNode ? {} : subByParent(subField);
-          if (!hasOwnSourceNode && !parents.length) tagsBody.push("- ");
-          for (let pi = 0; pi < parents.length; pi++) {
-            const pTok = parents[pi];
-            const pKey = denormTagToken(pTok);
-            const pCb = isObj(prefixRules2.checkboxByFieldValue[s.fieldId]) ? String(prefixRules2.checkboxByFieldValue[s.fieldId][pKey] || "").trim() : "";
-            const pTail = visualTailForTag(s.fieldId, pTok, s.sectionId);
-            tagsBody.push(pCb ? `- ${pCb} ${pTok}${pTail}` : `- ${pTok}${pTail}`);
-            const subs = subMap[pTok] || [];
-            const parentNodesByFieldId = {};
-            for (const wlFieldId of Object.keys(sectionWlByField)) {
-              const wlField = getFieldById(fields, wlFieldId);
-              const rowOrder = getWikilinkRowOrder(wlField);
-              const wlNode = isObj(sectionWlByField[wlFieldId]) ? sectionWlByField[wlFieldId] : {};
-              const byParent = isObj(wlNode.byParent) ? wlNode.byParent : {};
-              const parentNode = pickByDenormToken(byParent, pTok);
-              if (!isObj(parentNode)) continue;
-              parentNodesByFieldId[wlFieldId] = { field: wlField, node: parentNode, ownSection: wlFieldId === s.fieldId };
-              const branch = Array.isArray(parentNode.branch) ? parentNode.branch : [];
-              const orderedBranch = orderedTokens(branch, rowOrder, (r) => {
-                const b = String(r.binding || "").trim();
-                return b === `p:${pTok}` || b === `p:${pTok}|f:${String(wlField && wlField.id || "").trim()}`;
-              });
-              for (let bi = 0; bi < orderedBranch.length; bi++) {
-                const tokenOut = formatTokenForField(wlField, orderedBranch[bi]);
-                pushSourceLine("    ", tokenOut, wlFieldId, wlFieldId === s.fieldId);
-              }
-            }
-            for (let si = 0; si < subs.length; si++) {
-              const subTok = subs[si];
-              const subKey = denormTagToken(subTok);
-              const subFieldId = s.subFieldId || s.fieldId;
-              const subCb = isObj(prefixRules2.checkboxByFieldValue[subFieldId]) ? String(prefixRules2.checkboxByFieldValue[subFieldId][subKey] || "").trim() : "";
-              const subVisualFieldId = s.subFieldId || s.fieldId;
-              const subTail = visualTailForTag(subVisualFieldId, subTok, s.sectionId);
-              tagsBody.push(subCb ? `    - ${subCb} ${subTok}${subTail}` : `    - ${subTok}${subTail}`);
-              for (const wlFieldId of Object.keys(parentNodesByFieldId)) {
-                const entry = parentNodesByFieldId[wlFieldId] || {};
-                const wlField = entry.field || getFieldById(fields, wlFieldId);
-                const ownSection = entry.ownSection === true;
-                const parentNode = isObj(entry.node) ? entry.node : {};
-                const leaf = isObj(parentNode.leaf) ? parentNode.leaf : {};
-                const leafArr = pickByDenormToken(leaf, subTok);
-                const arr = Array.isArray(leafArr) ? leafArr : [];
-                const rowOrder = getWikilinkRowOrder(wlField);
-                const orderedLeaf = orderedTokens(arr, rowOrder, (r) => {
-                  const b = String(r.binding || "").trim();
-                  return b.indexOf(`s:${subTok}|p:${pTok}`) === 0;
-                });
-                for (let wi = 0; wi < orderedLeaf.length; wi++) {
-                  const tokenOut = formatTokenForField(wlField, orderedLeaf[wi]);
-                  pushSourceLine("        ", tokenOut, wlFieldId, ownSection);
-                }
-              }
-            }
-          }
-          tagsBody.push("");
-        }
-        const userTags = Object.keys(userTagVisuals).filter((x) => /^#\S+/.test(String(x || "").trim()));
-        if (userTags.length) {
-          tagsBody.push("##### User tags");
-          for (let i = 0; i < userTags.length; i++) {
-            const tok = String(userTags[i] || "").trim();
-            tagsBody.push(`- ${tok}${visualTailForUserTag(tok)}`);
-          }
-          tagsBody.push("");
-        }
-        const activeWikilinkFieldSet = new Set((Array.isArray(wikilinkFields) ? wikilinkFields : []).map((x) => String(x || "").trim()).filter(Boolean));
-        const orphanFieldIds = Object.keys(orphanWikilinks).map((x) => String(x || "").trim()).filter((x) => x && activeWikilinkFieldSet.has(x) && Array.isArray(orphanWikilinks[x]) && orphanWikilinks[x].length);
-        if (orphanFieldIds.length) {
-          tagsBody.push("##### Orphan wikilinks - link");
-          const orphanIsMixedWikilinks = orphanFieldIds.length > 1;
-          for (let i = 0; i < orphanFieldIds.length; i++) {
-            const fieldId = String(orphanFieldIds[i] || "").trim();
-            if (!fieldId) continue;
-            const wlField = getFieldById(fields, fieldId);
-            const vals = Array.isArray(orphanWikilinks[fieldId]) ? orphanWikilinks[fieldId] : [];
-            for (let j = 0; j < vals.length; j++) {
-              const tokenOut = formatTokenForField(wlField, vals[j]);
-              if (!tokenOut) continue;
-              if (orphanIsMixedWikilinks) tagsBody.push(`- ${tokenOut} - ${fieldId}`);
-              else tagsBody.push(`- ${tokenOut}`);
-            }
-          }
-          tagsBody.push("");
-        }
-        const sectionOrderDefault = sections.map((x) => x.sectionId);
-        const fieldIdToSectionId = { ...sectionIdByFieldId };
-        const sectionOrderFromRules = [];
-        for (let i = 0; i < prefixRules2.priorityTargets.length; i++) {
-          const sid = fieldIdToSectionId[prefixRules2.priorityTargets[i]];
-          if (!sid) continue;
-          if (!sectionOrderFromRules.includes(sid)) sectionOrderFromRules.push(sid);
-        }
-        const sectionOrder = sectionOrderFromRules.length ? sectionOrderFromRules : sectionOrderDefault;
-        const prefixSettings = [];
-        prefixSettings.push("1. **Main checkbox priority**");
-        const modeName = String(prefixRules2.priorityMode || "by-section").trim() === "by-checkbox-list" ? "by-checkbox-list" : "by-section";
-        const fieldsModeName = String(prefixRules2.fieldsOrderMode || "manual").trim() === "auto" ? "auto" : "manual";
-        const tagModeName = String(prefixRules2.tagSubtagPriority || "subtag-over-tag").trim() === "tag-over-subtag" ? "tag-over-subtag" : "subtag-over-tag";
-        prefixSettings.push(`- [${modeName === "by-section" ? "x" : " "}] **by Fields Order** `);
-        prefixSettings.push(`	- [${modeName === "by-section" && fieldsModeName === "auto" ? "x" : " "}] **Automatically** - by plugin settings "Order" (PKM -> Order). Left panel tags > right panel tags, priority decreases from up to down`);
-        prefixSettings.push(`	- [${modeName === "by-section" && fieldsModeName === "manual" ? "x" : " "}] **Manually** - by your settings \`Fields order\` (go below to subheader \`Order\`)`);
-        prefixSettings.push(`- [${modeName === "by-checkbox-list" ? "x" : " "}] **by Checkbox Order** - by your settings \`Checkbox order\` below`);
-        prefixSettings.push("");
-        prefixSettings.push("2. **Tag vs Subtag checkbox priority**");
-        prefixSettings.push(`- [${tagModeName === "tag-over-subtag" ? "x" : " "}] **Tag > Subtag** `);
-        prefixSettings.push(`- [${tagModeName === "subtag-over-tag" ? "x" : " "}] **Subtag > Tag** `);
-        const fieldsOrderItems = [];
-        const prefixMeta = cfg && cfg.pkm && cfg.pkm.taxonomy && cfg.pkm.taxonomy.tagWheelConfig && isObj(cfg.pkm.taxonomy.tagWheelConfig.prefixResolver) ? cfg.pkm.taxonomy.tagWheelConfig.prefixResolver : {};
-        const rawFieldsOrder = Array.isArray(prefixMeta.fieldsOrderRaw) ? prefixMeta.fieldsOrderRaw.map((x) => String(x || "").trim()).filter(Boolean) : [];
-        const effectiveFieldsOrder = rawFieldsOrder.length ? rawFieldsOrder : sectionOrder;
-        for (let i = 0; i < effectiveFieldsOrder.length; i++) fieldsOrderItems.push(`- ${effectiveFieldsOrder[i]}`);
-        const checkboxOrderItems = [];
-        const cbOrder = Array.isArray(prefixRules2.priorityCheckboxes) ? prefixRules2.priorityCheckboxes : [];
-        for (let i = 0; i < cbOrder.length; i++) checkboxOrderItems.push(`- ${cbOrder[i]} - \`- ${cbOrder[i]}\``);
-        const elementsCfgSource = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.elements) ? cfg.pkm.behavior.elements : {};
-        const legacyDatesCfgSource = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.dates) ? cfg.pkm.behavior.dates : {};
-        const legacyDatesByField = isObj(legacyDatesCfgSource.byField) ? legacyDatesCfgSource.byField : {};
-        const elementsByField = isObj(elementsCfgSource.byField) ? elementsCfgSource.byField : {};
-        const orderedElementDefs = Array.isArray(collectOrderedElementFields(cfg)) ? collectOrderedElementFields(cfg) : [];
-        const dateFieldIds = [];
-        const elementFieldIds = [];
-        for (let i = 0; i < orderedElementDefs.length; i++) {
-          const def = orderedElementDefs[i] || {};
-          const key = String(def.orderKey || "").trim();
-          if (!key) continue;
-          const headingName = String(def.sectionId || key).trim().toLowerCase();
-          const looksDateTime = /date|time|дата|время/.test(headingName);
-          if (looksDateTime) dateFieldIds.push(key);
-          else elementFieldIds.push(key);
-        }
-        const toIntPos = (v, d) => {
-          const n = Number(v);
-          return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : d;
-        };
-        const normInc = (src, fallback) => {
-          const inSrc = isObj(src) ? src : {};
-          const modeRaw = String(inSrc.mode || "standard").trim().toLowerCase();
-          const mode = modeRaw === "custom" || modeRaw === "command" ? modeRaw : "standard";
-          let custom = Array.isArray(inSrc.custom) ? inSrc.custom.map((x) => toIntPos(x, 0)).filter((x) => Number.isFinite(x)) : [];
-          const customRaw = Array.isArray(inSrc.customRaw) ? inSrc.customRaw.map((x) => String(x || "").trim()).filter((x) => x.length) : [];
-          const incrementBy = toIntPos(inSrc.incrementBy, 0);
-          const command = String(inSrc.command || "now").trim() || "now";
-          if (!custom.length && Array.isArray(fallback)) custom = fallback.map((x) => toIntPos(x, 0));
-          return { mode, custom, customRaw, incrementBy, command };
-        };
-        const compressSteps = (arr) => {
-          const src = Array.isArray(arr) ? arr.map((x) => Math.max(0, Math.trunc(Number(x || 0)))).filter((x) => Number.isFinite(x)) : [];
-          if (!src.length) return [];
-          const out = [];
-          let cur = src[0];
-          let count = 1;
-          for (let i = 1; i < src.length; i++) {
-            if (src[i] === cur) {
-              count += 1;
-            } else {
-              out.push(count > 1 ? `${cur} (${count})` : `${cur}`);
-              cur = src[i];
-              count = 1;
-            }
-          }
-          out.push(count > 1 ? `${cur} (${count})` : `${cur}`);
-          return out;
-        };
-        const datesLines = [];
-        for (let i = 0; i < dateFieldIds.length; i++) {
-          const fid = dateFieldIds[i];
-          const dateDef = orderedElementDefs.find((x) => String(x && x.orderKey || "").trim() === fid) || {};
-          const headingName = String(dateDef.sectionId || fid).trim() || fid;
-          const isTimeField = /^time/i.test(fid);
-          const fieldCfgBase = isObj(elementsByField[fid]) ? elementsByField[fid] : {};
-          const fieldCfgLegacy = isObj(legacyDatesByField[fid]) ? legacyDatesByField[fid] : {};
-          const fieldCfg = {
-            ...fieldCfgLegacy,
-            ...fieldCfgBase,
-            increment: {
-              ...isObj(fieldCfgLegacy.increment) ? fieldCfgLegacy.increment : {},
-              ...isObj(fieldCfgBase.increment) ? fieldCfgBase.increment : {}
-            }
-          };
-          if (!String(fieldCfg.emoji || "").trim() && String(fieldCfgLegacy.emoji || "").trim()) fieldCfg.emoji = String(fieldCfgLegacy.emoji || "").trim();
-          if (!String(fieldCfg.format || "").trim() && String(fieldCfgLegacy.format || "").trim()) fieldCfg.format = String(fieldCfgLegacy.format || "").trim();
-          const emoji = String(fieldCfg.emoji || "").trim();
-          const formatDefault = isTimeField ? "HH:mm" : "YYYY-MM-DD";
-          const format = String(fieldCfg.format || formatDefault).trim() || formatDefault;
-          const increment = normInc(fieldCfg.increment, []);
-          const customCompressed = compressSteps(increment.custom);
-          datesLines.push(`##### ${headingName}`);
-          datesLines.push(`- Emoji: ${emoji}`);
-          datesLines.push(`- Format: ${format}`);
-          const incBy = increment.incrementBy > 0 ? increment.incrementBy : isTimeField ? 5 : 1;
-          datesLines.push("- Behavior:");
-          datesLines.push(`  - [${increment.mode === "standard" ? "x" : " "}] increment by (${incBy})`);
-          datesLines.push(`  - [${increment.mode === "command" ? "x" : " "}] command (${increment.command || "now"})`);
-          datesLines.push(`  - [${increment.mode === "custom" ? "x" : " "}] custom increment`);
-          const customToRender = increment.customRaw.length ? increment.customRaw : customCompressed;
-          if (customToRender.length) {
-            for (let ci = 0; ci < customToRender.length; ci++) {
-              datesLines.push(`    ${ci + 1}. ${customToRender[ci]}`);
-            }
-          } else {
-            datesLines.push("    1. ");
-          }
-          if (i !== dateFieldIds.length - 1) datesLines.push("");
-        }
-        const elementsLines = [];
-        for (let i = 0; i < elementFieldIds.length; i++) {
-          const eid = elementFieldIds[i];
-          const elementDef = orderedElementDefs.find((x) => String(x && x.orderKey || "").trim() === eid) || {};
-          const headingName = String(elementDef.sectionId || eid).trim() || eid;
-          const fieldCfgBase = isObj(elementsByField[eid]) ? elementsByField[eid] : {};
-          const fieldCfgLegacy = isObj(legacyDatesByField[eid]) ? legacyDatesByField[eid] : {};
-          const fieldCfg = {
-            ...fieldCfgLegacy,
-            ...fieldCfgBase,
-            increment: {
-              ...isObj(fieldCfgLegacy.increment) ? fieldCfgLegacy.increment : {},
-              ...isObj(fieldCfgBase.increment) ? fieldCfgBase.increment : {}
-            }
-          };
-          if (!String(fieldCfg.emoji || "").trim() && String(fieldCfgLegacy.emoji || "").trim()) fieldCfg.emoji = String(fieldCfgLegacy.emoji || "").trim();
-          if (!String(fieldCfg.format || "").trim() && String(fieldCfgLegacy.format || "").trim()) fieldCfg.format = String(fieldCfgLegacy.format || "").trim();
-          const increment = normInc(fieldCfg.increment, [1]);
-          const emoji = String(fieldCfg.emoji || "").trim();
-          const hasOwnFormat = Object.prototype.hasOwnProperty.call(fieldCfg, "format");
-          const format = hasOwnFormat ? String((_a = fieldCfg.format) != null ? _a : "").trim() : "";
-          const elementYaml = String((propertiesByField[eid] != null ? propertiesByField[eid] : "") || "").trim();
-          elementsLines.push(`##### ${headingName}`);
-          elementsLines.push(`- Emoji: ${emoji}`);
-          elementsLines.push(`- Format: ${format}`);
-          if (elementYaml) elementsLines.push(`- YAML: ${elementYaml}`);
-          elementsLines.push("- Behavior:");
-          elementsLines.push(`  - [${increment.mode === "standard" ? "x" : " "}] increment by (${Math.max(1, Math.trunc(Number(increment.incrementBy || 1)))})`);
-          elementsLines.push(`  - [${increment.mode === "command" ? "x" : " "}] command (${increment.command || "now"})`);
-          elementsLines.push(`  - [${increment.mode === "custom" ? "x" : " "}] custom increment`);
-          if (Array.isArray(increment.customRaw) && increment.customRaw.length) {
-            for (let ci = 0; ci < increment.customRaw.length; ci++) {
-              elementsLines.push(`    ${ci + 1}. ${increment.customRaw[ci]}`);
-            }
-          } else if (Array.isArray(increment.custom) && increment.custom.length) {
-            for (let ci = 0; ci < increment.custom.length; ci++) {
-              elementsLines.push(`    ${ci + 1}. ${increment.custom[ci]}`);
-            }
-          } else {
-            elementsLines.push("    1. ");
-          }
-          if (i !== elementFieldIds.length - 1) elementsLines.push("");
-        }
-        const parts = {
-          IMPORTANT: TAGWHEEL_IMPORTANT_LINE,
-          SETTINGS_HEADER: "## Settings",
-          TAGS: tagsBody.join("\n").trim(),
-          WIKILINK_FIELDS: wikilinkFields.map((x) => `- ${x}`).join("\n").trim(),
-          PREFIX_SETTINGS: prefixSettings.join("\n").trim(),
-          FIELDS_ORDER_ITEMS: fieldsOrderItems.join("\n").trim(),
-          CHECKBOX_ORDER_ITEMS: checkboxOrderItems.join("\n").trim(),
-          DATES: datesLines.join("\n").trim(),
-          ELEMENTS: [datesLines.join("\n").trim(), elementsLines.join("\n").trim()].filter(Boolean).join("\n\n").trim(),
-          ELEMENTS_ONLY: elementsLines.join("\n").trim()
-        };
-        const minimalLines = [];
-        minimalLines.push(TAGWHEEL_IMPORTANT_LINE);
-        minimalLines.push("---");
-        minimalLines.push("## Settings");
-        minimalLines.push(`### ${CFG_H2_TAGS}`);
-        minimalLines.push(parts.TAGS);
-        minimalLines.push("");
-        minimalLines.push(`### ${TAGWHEEL_PREFIX_RESOLVER_H3}`);
-        minimalLines.push("#### Settings");
-        minimalLines.push(parts.PREFIX_SETTINGS);
-        minimalLines.push("#### Order");
-        minimalLines.push("1.  **Fields Order:**");
-        if (parts.FIELDS_ORDER_ITEMS) minimalLines.push(parts.FIELDS_ORDER_ITEMS);
-        minimalLines.push("");
-        minimalLines.push("2. **Checkbox Order:**");
-        if (parts.CHECKBOX_ORDER_ITEMS) minimalLines.push(parts.CHECKBOX_ORDER_ITEMS);
-        minimalLines.push("");
-        minimalLines.push(`### ${CFG_H2_DATES}`);
-        minimalLines.push(parts.DATES);
-        minimalLines.push("");
-        minimalLines.push(`### ${CFG_H2_ELEMENTS}`);
-        minimalLines.push(parts.ELEMENTS);
-        parts.MINIMAL_FULL = minimalLines.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
-        return parts;
-      }
-      function buildTagWheelConfigMarkdown(cfg, mode) {
-        const parts = buildTagWheelConfigParts(cfg);
-        const exportMode = String(mode || "detailed").trim() === "minimal" ? "minimal" : "detailed";
-        if (exportMode === "minimal") {
-          return String(parts.MINIMAL_FULL || "");
-        }
-        return String(parts.MINIMAL_FULL || "");
-      }
-      function parseTagWheelConfigMarkdown(md, cfg) {
-        if (!__configParser) {
-          const parserFactory = typeof createTagWheelConfigParser === "function" ? createTagWheelConfigParser : null;
-          if (!parserFactory) throw new Error("TagWheel config parser module unavailable");
-          __configParser = parserFactory({
-            isObj,
-            collectTagSections,
-            collectWikilinkFieldIds,
-            parseCustomPrefixResolverBlock,
-            isWikilinkToken,
-            parseWikilinkLineStrict,
-            extractFirstTagToken,
-            parseCheckboxAndTag,
-            denormTagToken,
-            getOrderStrictName,
-            CFG_H1_SETTINGS,
-            CFG_H2_DATES,
-            CFG_H2_ELEMENTS,
-            CFG_H2_ELEMENTS_COMBINED,
-            TAGWHEEL_PREFIX_RESOLVER_SECTION,
-            TAGWHEEL_WIKILINK_SECTION
-          });
-        }
-        return __configParser(md, cfg);
-      }
-      return {
-        normalizeTagWheelConfigPath,
-        normalizeTagWheelConfigTemplatePath,
-        buildDefaultTagWheelDetailedTemplateMarkdown,
-        renderTagWheelConfigFromTemplate,
-        buildMinimalFromRenderedTemplate,
-        buildTagWheelConfigParts,
-        buildTagWheelConfigMarkdown,
-        parseTagWheelConfigMarkdown
-      };
-    }
-    module2.exports = {
-      createTagWheelConfigCodec
-    };
-  }
-});
-
-// src/features/tagwheel_config_codec_fallback.js
-var require_tagwheel_config_codec_fallback = __commonJS({
-  "src/features/tagwheel_config_codec_fallback.js"(exports2, module2) {
-    "use strict";
-    function createTagWheelConfigCodecFallback(deps) {
-      const d = deps && typeof deps === "object" ? deps : {};
-      const isObj = typeof d.isObj === "function" ? d.isObj : function(x) {
-        return x && typeof x === "object" && !Array.isArray(x);
-      };
-      const TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH = String(d.TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH || "InlineOverhaul_Config.md");
-      const TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH = String(d.TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH || "InlineOverhaul_Config_Template.md");
-      const TAGWHEEL_TECHNICAL_BLOCK_MARKER = String(d.TAGWHEEL_TECHNICAL_BLOCK_MARKER || "<!-- INLINE_OVERHAUL:TECHNICAL_BLOCK -->");
-      const TAGWHEEL_TECH_MARKER_PREFIX = String(d.TAGWHEEL_TECH_MARKER_PREFIX || "<!-- INLINE_OVERHAUL:TECH:");
-      const TAGWHEEL_IMPORTANT_LINE = String(d.TAGWHEEL_IMPORTANT_LINE || "");
-      const CFG_H2_TAGS = String(d.CFG_H2_TAGS || "Tags");
-      const CFG_H2_ELEMENTS_COMBINED = String(d.CFG_H2_ELEMENTS_COMBINED || "Elements");
-      const TAGWHEEL_PREFIX_RESOLVER_H3 = String(d.TAGWHEEL_PREFIX_RESOLVER_H3 || "Prefix Resolver");
-      return {
-        normalizeTagWheelConfigPath() {
-          return TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH;
-        },
-        normalizeTagWheelConfigTemplatePath() {
-          return TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH;
-        },
-        buildDefaultTagWheelDetailedTemplateMarkdown() {
-          const lines = [];
-          lines.push(">This is the place where you can set up your PKM in user-friendly way.");
-          lines.push(">Add or edit your comments here. Technical settings are inserted via markers.");
-          lines.push("---");
-          lines.push("## Instructions and Rules");
-          lines.push("- Keep your custom comments and explanations in this template.");
-          lines.push("- Do not remove technical markers.");
-          lines.push("#### Wikilink fields (from plugin settings -> PKM -> Order)");
-          lines.push("<!-- INLINE_OVERHAUL:TECH:WIKILINK_FIELDS -->");
-          lines.push("");
-          lines.push("## Settings");
-          lines.push(`### ${CFG_H2_TAGS}`);
-          lines.push("<!-- INLINE_OVERHAUL:TECH:TAGS -->");
-          lines.push("");
-          lines.push(`### ${TAGWHEEL_PREFIX_RESOLVER_H3}`);
-          lines.push("#### Settings");
-          lines.push("<!-- INLINE_OVERHAUL:TECH:PREFIX_SETTINGS -->");
-          lines.push("#### Order");
-          lines.push("1.  **Fields Order:**");
-          lines.push("<!-- INLINE_OVERHAUL:TECH:FIELDS_ORDER_ITEMS -->");
-          lines.push("");
-          lines.push("2. **Checkbox Order:**");
-          lines.push("<!-- INLINE_OVERHAUL:TECH:CHECKBOX_ORDER_ITEMS -->");
-          lines.push("");
-          lines.push(`### ${CFG_H2_ELEMENTS_COMBINED}`);
-          lines.push("<!-- INLINE_OVERHAUL:TECH:ELEMENTS -->");
-          lines.push("");
-          return lines.join("\n");
-        },
-        renderTagWheelConfigFromTemplate(templateMd, parts) {
-          const src = String(templateMd || "");
-          const byKey = isObj(parts) ? parts : {};
-          const hasDatesMarker = /<!--\s*INLINE_OVERHAUL:TECH:DATES\s*-->/i.test(src);
-          const markerRe = /<!--\s*INLINE_OVERHAUL:TECH:([A-Z_]+)\s*-->/g;
-          let hasNamed = false;
-          let out = src.replace(markerRe, (_, keyRaw) => {
-            hasNamed = true;
-            const key = String(keyRaw || "").trim();
-            if (!Object.prototype.hasOwnProperty.call(byKey, key)) {
-              throw new Error(`Detailed template error: unknown marker '${TAGWHEEL_TECH_MARKER_PREFIX}${key}'`);
-            }
-            if (key === "ELEMENTS" && hasDatesMarker && Object.prototype.hasOwnProperty.call(byKey, "ELEMENTS_ONLY")) {
-              return String(byKey.ELEMENTS_ONLY || "");
-            }
-            return String(byKey[key] || "");
-          });
-          if (out.includes(TAGWHEEL_TECHNICAL_BLOCK_MARKER)) {
-            const fallback = String(byKey.MINIMAL_FULL || "").trim();
-            if (!fallback) throw new Error(`Detailed template error: missing marker '${TAGWHEEL_TECHNICAL_BLOCK_MARKER}' payload`);
-            out = out.split(TAGWHEEL_TECHNICAL_BLOCK_MARKER).join(fallback);
-            hasNamed = true;
-          }
-          if (!hasNamed) {
-            throw new Error("Detailed template error: no technical markers found");
-          }
-          return out;
-        },
-        buildMinimalFromRenderedTemplate(renderedMd) {
-          const src = String(renderedMd || "");
-          const lines = src.split(/\r?\n/);
-          const start = lines.findIndex((ln) => /^##\s+Settings\s*$/i.test(String(ln || "").trim()));
-          const body = (start === -1 ? lines : lines.slice(start)).filter((ln) => !/^\s*>/.test(String(ln || "")));
-          const out = [];
-          out.push(TAGWHEEL_IMPORTANT_LINE);
-          out.push("---");
-          out.push(...body);
-          return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
-        },
-        buildTagWheelConfigParts() {
-          throw new Error("TagWheel config codec unavailable: buildTagWheelConfigParts");
-        },
-        buildTagWheelConfigMarkdown() {
-          throw new Error("TagWheel config codec unavailable: buildTagWheelConfigMarkdown");
-        },
-        parseTagWheelConfigMarkdown() {
-          throw new Error("TagWheel config codec unavailable: parseTagWheelConfigMarkdown");
-        }
-      };
-    }
-    module2.exports = {
-      createTagWheelConfigCodecFallback
-    };
-  }
-});
-
-// src/features/tagwheel_config_parser.js
-var require_tagwheel_config_parser = __commonJS({
-  "src/features/tagwheel_config_parser.js"(exports2, module2) {
-    "use strict";
-    function createTagWheelConfigParser(opts) {
-      const {
-        isObj,
-        collectTagSections,
-        collectWikilinkFieldIds,
-        parseCustomPrefixResolverBlock,
-        isWikilinkToken,
-        parseWikilinkLineStrict,
-        extractFirstTagToken,
-        parseCheckboxAndTag,
-        denormTagToken,
-        CFG_H1_SETTINGS,
-        CFG_H2_DATES,
-        CFG_H2_ELEMENTS,
-        CFG_H2_ELEMENTS_COMBINED,
-        TAGWHEEL_PREFIX_RESOLVER_SECTION,
-        TAGWHEEL_WIKILINK_SECTION
-      } = opts || {};
-      function collectMissingEmojiFields(parsed) {
-        const out = [];
-        const pushIfMissing = (fieldId, row) => {
-          const fid = String(fieldId || "").trim();
-          if (!fid) return;
-          const src = isObj(row) ? row : {};
-          const emoji = String(src.emoji == null ? "" : src.emoji).trim();
-          if (!emoji && !out.includes(fid)) out.push(fid);
-        };
-        const elems = isObj(parsed && parsed.elementsConfig) ? parsed.elementsConfig : {};
-        const elemsByField = isObj(elems.byField) ? elems.byField : {};
-        const elemsFields = Array.isArray(elems.fields) ? elems.fields : [];
-        const allElems = Array.from(new Set(elemsFields.concat(Object.keys(elemsByField || {}))));
-        for (let i = 0; i < allElems.length; i++) pushIfMissing(allElems[i], elemsByField[allElems[i]]);
-        return out;
-      }
-      return function parseTagWheelConfigMarkdown(md, cfg) {
-        var _a;
-        const lines = String(md || "").split(/\r?\n/);
-        const USER_TAGS_SECTION = "User tags";
-        const ORPHAN_WIKILINKS_SECTION = "Orphan wikilinks";
-        const parseSectionHeader = (rawSection) => {
-          const src = String(rawSection || "").trim();
-          const m = src.match(/^(.*?)\s*-\s*(tag|link|wikilink)\s*$/i);
-          if (!m) return { sectionId: src, kind: "" };
-          const sectionId = String(m[1] || "").trim();
-          const kindRaw = String(m[2] || "").trim().toLowerCase();
-          return { sectionId, kind: kindRaw === "tag" ? "tag" : "link" };
-        };
-        const tagsHeaderRe = /^###\s+(?:`?#?TAGS\/#?SUBTAGS`?\s*\+\s*`?WIKILINKS`?|TAGS\/SUBTAGS\+WIKILINKS|#TAGS\/#SUBTAGS\s*\+\s*WIKILINKS|TagWheel)\s*$/mi;
-        const prefixResolverHeaderRe = /^#{3,5}\s+`?(?:PREFIX\s+RESOLVER|Prefix\s+resolver)`?\s*$/mi;
-        if (!/^##\s+Settings\s*$/m.test(String(md || ""))) throw new Error("Config format error: missing '## Settings'");
-        if (!tagsHeaderRe.test(String(md || ""))) throw new Error("Config format error: missing tags section header");
-        if (!prefixResolverHeaderRe.test(String(md || ""))) throw new Error("Config format error: missing '###/#### Prefix resolver'");
-        const sectionDefs = collectTagSections(cfg);
-        const allowedSections = sectionDefs.map((x) => x.sectionId);
-        const sectionDefById = {};
-        for (let i = 0; i < sectionDefs.length; i++) sectionDefById[sectionDefs[i].sectionId] = sectionDefs[i];
-        const sectionMap = {};
-        for (let i = 0; i < allowedSections.length; i++) sectionMap[allowedSections[i]] = true;
-        const allowedWikilinkFields = collectWikilinkFieldIds(cfg);
-        const leftFields = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.leftMode && Array.isArray(cfg.pkm.behavior.leftMode.fields) ? cfg.pkm.behavior.leftMode.fields : [];
-        const fieldById = {};
-        for (let i = 0; i < leftFields.length; i++) {
-          const f = leftFields[i];
-          if (!f || !f.id) continue;
-          fieldById[String(f.id)] = f;
-        }
-        const isWikilinkField = (fieldId) => {
-          const fid = String(fieldId || "").trim();
-          if (!fid) return false;
-          if (allowedWikilinkFields.includes(fid)) return true;
-          const f = fieldById[fid];
-          if (!f) return false;
-          const src = String(f.source || "").trim();
-          return src === "projects" || src.startsWith("wikilinks:");
-        };
-        const allowedWikilinkFieldsDynamic = Array.isArray(allowedWikilinkFields) ? allowedWikilinkFields.slice() : [];
-        const allowedWikilinkFieldsBySection = {};
-        for (let i = 0; i < sectionDefs.length; i++) {
-          const d = sectionDefs[i] || {};
-          const sid = String(d.sectionId || "").trim();
-          if (!sid) continue;
-          const scoped = [];
-          const pushScoped = (fid) => {
-            const id = String(fid || "").trim();
-            if (!id || scoped.includes(id)) return;
-            if (!isWikilinkField(id)) return;
-            scoped.push(id);
-          };
-          pushScoped(d.fieldId);
-          pushScoped(d.subFieldId);
-          allowedWikilinkFieldsBySection[sid] = scoped;
-        }
-        const sections = {};
-        const sectionKinds = {};
-        const sectionOrder = [];
-        let current = "";
-        let topH3 = "";
-        let topH2 = "";
-        for (let i = 0; i < lines.length; i++) {
-          const lineNo = i + 1;
-          const raw = lines[i];
-          const h2 = String(raw || "").match(/^##\s+(.+)$/);
-          if (h2) {
-            topH2 = String(h2[1] || "").trim();
-            topH3 = "";
-            current = "";
-            continue;
-          }
-          const h3 = String(raw || "").match(/^###\s+(.+)$/);
-          if (h3) {
-            topH3 = String(h3[1] || "").trim();
-            current = "";
-            continue;
-          }
-          const h = String(raw || "").match(/^#{4,5}\s+(.+)$/);
-          if (h) {
-            if (String(topH2 || "").toLowerCase() !== String(CFG_H1_SETTINGS || "Settings").toLowerCase()) {
-              current = "";
-              continue;
-            }
-            if (!/^(?:`?#?TAGS\/#?SUBTAGS`?\s*\+\s*`?WIKILINKS`?|TAGS\/SUBTAGS\+WIKILINKS|#TAGS\/#SUBTAGS\s*\+\s*WIKILINKS|TagWheel)$/i.test(String(topH3 || ""))) {
-              current = "";
-              continue;
-            }
-            const rawSection = String(h[1] || "").trim();
-            if (/^(Prefix resolver|Settings|Order)$/i.test(rawSection)) {
-              current = "";
-              continue;
-            }
-            const parsedHeader = parseSectionHeader(rawSection);
-            current = String(parsedHeader.sectionId || "").trim();
-            const explicitKind = String(parsedHeader.kind || "").trim();
-            if (!current) {
-              current = "";
-              continue;
-            }
-            if (!sectionMap[current] && current !== USER_TAGS_SECTION && current !== ORPHAN_WIKILINKS_SECTION && !explicitKind) {
-              current = "";
-              continue;
-            }
-            if (!sections[current]) sections[current] = { name: current, line: lineNo, items: [] };
-            if (current !== USER_TAGS_SECTION && !sectionOrder.includes(current)) {
-              sectionOrder.push(current);
-            }
-            if (current === ORPHAN_WIKILINKS_SECTION) {
-              if (explicitKind) sectionKinds[current] = explicitKind;
-            } else if (current !== USER_TAGS_SECTION) {
-              if (explicitKind) sectionKinds[current] = explicitKind;
-              else {
-                const def = sectionDefById[current];
-                const fid = String(def && def.fieldId ? def.fieldId : "").trim();
-                sectionKinds[current] = isWikilinkField(fid) ? "link" : "tag";
-              }
-            }
-            continue;
-          }
-          const m = String(raw || "").match(/^(\s*)-\s+(.+)$/);
-          if (!m || !current) continue;
-          sections[current].items.push({ indent: m[1].length, text: String(m[2] || "").trim(), line: lineNo });
-        }
-        for (const sectionId of Object.keys(sectionKinds)) {
-          const sid = String(sectionId || "").trim();
-          if (!sid) continue;
-          const kind = String(sectionKinds[sid] || "").trim().toLowerCase();
-          if (kind !== "link") continue;
-          if (!allowedWikilinkFieldsDynamic.includes(sid)) allowedWikilinkFieldsDynamic.push(sid);
-          if (!Array.isArray(allowedWikilinkFieldsBySection[sid]) || !allowedWikilinkFieldsBySection[sid].length) {
-            allowedWikilinkFieldsBySection[sid] = [sid];
-          }
-        }
-        const parsed = {
-          sections: {},
-          wikilinkFields: allowedWikilinkFieldsDynamic.slice(),
-          checkboxByFieldValue: {},
-          datesConfig: {
-            behavior: {
-              time_step_minutes: 5,
-              time_rounding: "nearest",
-              date_step_days: 1,
-              date_format: "YYYY-MM-DD",
-              time_format: "HH:mm"
-            },
-            fields: [],
-            byField: {}
-          },
-          elementsConfig: {
-            fields: [],
-            byField: {}
-          },
-          tagVisuals: {
-            byTag: {},
-            userTags: {}
-          },
-          yamlByFieldValue: {},
-          fieldYamlBySection: {},
-          elementYamlByField: {},
-          prefixResolver: {
-            mode: "by-section",
-            fieldsOrderMode: "manual",
-            tagSubtagPriority: "subtag-over-tag",
-            sectionOrder: allowedSections.slice(),
-            sectionOrderRaw: allowedSections.slice(),
-            checkboxOrder: []
-          },
-          orphanWikilinks: {},
-          sectionKinds,
-          sectionOrder
-        };
-        const parseH2ListAndKv = (h2Name) => {
-          const all = String(md || "").split(/\r?\n/);
-          const start = all.findIndex((ln) => new RegExp(`^##\\s+${h2Name}\\s*$`, "i").test(String(ln || "").trim()));
-          if (start === -1) return { kv: {}, list: [] };
-          let end = all.length;
-          for (let i = start + 1; i < all.length; i++) {
-            if (/^##\s+/.test(String(all[i] || "").trim())) {
-              end = i;
-              break;
-            }
-          }
-          const block2 = all.slice(start + 1, end);
-          const kv = {};
-          const list = [];
-          for (let i = 0; i < block2.length; i++) {
-            const m = String(block2[i] || "").match(/^\s*-\s+(.+)$/);
-            if (!m) continue;
-            const text = String(m[1] || "").trim();
-            const kvm = text.match(/^([A-Za-z0-9_\-]+)\s*:\s*(.+)$/);
-            if (kvm) kv[String(kvm[1]).trim()] = String(kvm[2]).trim();
-            else list.push(text);
-          }
-          return { kv, list };
-        };
-        const parseCombinedDateElementsBlocks = () => {
-          const all = String(md || "").split(/\r?\n/);
-          const combinedHeaders = [
-            String(CFG_H2_ELEMENTS_COMBINED || "").trim(),
-            "DATE/TIME + ELEMENTS",
-            "DATES + TIME + ELEMENTS",
-            "DATES + EMOJI ELEMENTS"
-          ].filter(Boolean);
-          const normalizeHeader = (h) => String(h || "").trim().replace(/^`|`$/g, "").toLowerCase();
-          const normalizeHeaderLoose = (h) => normalizeHeader(h).replace(/[\u{1F000}-\u{1FAFF}\u2600-\u27BF]/gu, " ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
-          const expected = new Set(combinedHeaders.map((h) => normalizeHeader(h)));
-          const expectedLoose = new Set(combinedHeaders.map((h) => normalizeHeaderLoose(h)).filter(Boolean));
-          const start = all.findIndex((ln) => {
-            const t = String(ln || "").trim();
-            const m = t.match(/^###\s+(.+)$/);
-            if (!m) return false;
-            const strict = normalizeHeader(m[1]);
-            if (expected.has(strict)) return true;
-            const loose = normalizeHeaderLoose(m[1]);
-            if (expectedLoose.has(loose)) return true;
-            const parts = loose.split(" ").filter(Boolean);
-            const hasDate = parts.includes("date") || parts.includes("dates");
-            const hasTime = parts.some((p) => /^time$/i.test(String(p || "")));
-            const hasElements = parts.includes("elements");
-            return hasDate && hasTime && hasElements;
-          });
-          if (start === -1) return { body: null, hasCombined: false };
-          let end = all.length;
-          for (let i = start + 1; i < all.length; i++) {
-            const t = String(all[i] || "").trim();
-            if (/^##\s+/.test(t)) {
-              end = i;
-              break;
-            }
-          }
-          const body = all.slice(start + 1, end);
-          return { body, hasCombined: true };
-        };
-        const parseDateTimeFromBlock = (blockLines) => {
-          const block2 = Array.isArray(blockLines) ? blockLines : [];
-          const fields = [];
-          const byField = {};
-          const kv = {};
-          let cur = "";
-          let inIncrement = false;
-          let inHotkey = false;
-          for (let i = 0; i < block2.length; i++) {
-            const raw = String(block2[i] || "");
-            const t = raw.trim();
-            const hh = t.match(/^#####\s+(.+)$/);
-            if (hh) {
-              cur = String(hh[1] || "").trim();
-              inIncrement = false;
-              inHotkey = false;
-              if (cur && !fields.includes(cur)) fields.push(cur);
-              if (!isObj(byField[cur])) byField[cur] = {};
-              continue;
-            }
-            if (!cur) {
-              const topKV = t.match(/^-\s+([A-Za-z0-9_\-]+)\s*:\s*(.+)$/);
-              if (topKV) kv[String(topKV[1] || "").trim()] = String(topKV[2] || "").trim();
-              continue;
-            }
-            const activeM = t.match(/^-\s*Active\s*:\s*(.+)$/i);
-            if (activeM) {
-              byField[cur].activeMode = String(activeM[1] || "").trim().toLowerCase();
-              inIncrement = false;
-              inHotkey = false;
-              continue;
-            }
-            const emojiM = t.match(/^-\s*Emoji\s*:\s*(.*)$/i);
-            if (emojiM) {
-              byField[cur].emoji = String(emojiM[1] || "");
-              continue;
-            }
-            const fmtM = t.match(/^-\s*Format\s*:\s*(.*)$/i);
-            if (fmtM) {
-              byField[cur].format = String(fmtM[1] || "").trim();
-              continue;
-            }
-            const yamlM = t.match(/^-\s*YAML\s*:\s*(.*)$/i);
-            if (yamlM) {
-              byField[cur].yamlProperty = String(yamlM[1] || "").trim();
-              continue;
-            }
-            if (/^-\s*Hotkey\s*:\s*$/i.test(t)) {
-              inHotkey = true;
-              inIncrement = false;
-              if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-              continue;
-            }
-            if (inHotkey) {
-              const incHot = t.match(/^[-*]\s*increase\s*:\s*(.*)$/i);
-              if (incHot) {
-                if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-                byField[cur].hotkey.increase = String(incHot[1] || "").trim();
-                continue;
-              }
-              const decHot = t.match(/^[-*]\s*decrease\s*:\s*(.*)$/i);
-              if (decHot) {
-                if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-                byField[cur].hotkey.decrease = String(decHot[1] || "").trim();
-                continue;
-              }
-            }
-            if (/^-\s*(increment|behavior)\s*:\s*$/i.test(t)) {
-              inIncrement = true;
-              inHotkey = false;
-              if (!isObj(byField[cur].increment)) byField[cur].increment = { mode: "standard", custom: [], customRaw: [], incrementBy: 0, command: "now" };
-              continue;
-            }
-            if (inIncrement) {
-              if (/^[-*]\s*\[x\]\s*standard/i.test(t)) byField[cur].increment.mode = "standard";
-              const incM = t.match(/^[-*]\s*\[x\]\s*increment\s+by\s*\(\s*(-?\d+)\s*\)/i);
-              if (incM) {
-                byField[cur].increment.mode = "standard";
-                byField[cur].increment.incrementBy = Math.max(0, Math.trunc(Number(incM[1] || 0)));
-              }
-              const cmdM = t.match(/^[-*]\s*\[x\]\s*command\s*\(\s*([^\)]+)\s*\)/i);
-              if (cmdM) {
-                byField[cur].increment.mode = "command";
-                byField[cur].increment.command = String(cmdM[1] || "now").trim() || "now";
-              }
-              if (/^[-*]\s*\[x\]\s*custom/i.test(t)) byField[cur].increment.mode = "custom";
-              const rawItemM = t.match(/^\d+[\).]\s*(.+?)\s*$/);
-              if (rawItemM) {
-                if (!Array.isArray(byField[cur].increment.customRaw)) byField[cur].increment.customRaw = [];
-                byField[cur].increment.customRaw.push(String(rawItemM[1] || "").trim());
-              }
-              const stepM = t.match(/^\d+[\).]\s*(-?\d+)(?:\s*\(\s*(\d+)\s*\))?\s*$/);
-              if (stepM) {
-                if (!Array.isArray(byField[cur].increment.custom)) byField[cur].increment.custom = [];
-                const stepVal = Math.max(0, Math.trunc(Number(stepM[1] || 0)));
-                const repeat = Math.max(1, Math.trunc(Number(stepM[2] || 1)));
-                for (let ri = 0; ri < repeat; ri++) byField[cur].increment.custom.push(stepVal);
-              }
-            }
-          }
-          return { fields, byField, kv };
-        };
-        const inferDateLikeFieldIdsFromConfig = (cfgInput) => {
-          const out = /* @__PURE__ */ new Set();
-          const byField = cfgInput && cfgInput.pkm && cfgInput.pkm.behavior && cfgInput.pkm.behavior.elements && isObj(cfgInput.pkm.behavior.elements.byField) ? cfgInput.pkm.behavior.elements.byField : {};
-          const maybeDateFormat = (fmt) => {
-            const s = String(fmt || "").trim();
-            if (!s) return false;
-            const hasCalendar = /Y|M|D/.test(s);
-            const hasClock = /H\s*:?\s*m|h\s*:?\s*m|:\s*m/.test(s);
-            return hasCalendar || hasClock;
-          };
-          for (const fid of Object.keys(byField)) {
-            const row = isObj(byField[fid]) ? byField[fid] : {};
-            if (maybeDateFormat(row.format)) out.add(String(fid || "").trim());
-          }
-          return out;
-        };
-        const parseDateTimeByField = (h3Names) => {
-          const names2 = Array.isArray(h3Names) ? h3Names : [h3Names];
-          const all = String(md || "").split(/\r?\n/);
-          let start = -1;
-          for (let ni = 0; ni < names2.length; ni++) {
-            start = all.findIndex((ln) => new RegExp(`^###\\s+${String(names2[ni] || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i").test(String(ln || "").trim()));
-            if (start !== -1) break;
-          }
-          if (start === -1) return { fields: [], byField: {}, kv: {} };
-          let end = all.length;
-          for (let i = start + 1; i < all.length; i++) {
-            const t = String(all[i] || "").trim();
-            if (/^###\s+/.test(t) || /^##\s+/.test(t)) {
-              end = i;
-              break;
-            }
-          }
-          const block2 = all.slice(start + 1, end);
-          const fields = [];
-          const byField = {};
-          const kv = {};
-          let cur = "";
-          let inIncrement = false;
-          let inHotkey = false;
-          for (let i = 0; i < block2.length; i++) {
-            const raw = String(block2[i] || "");
-            const t = raw.trim();
-            const hh = t.match(/^#####\s+(.+)$/);
-            if (hh) {
-              cur = String(hh[1] || "").trim();
-              inIncrement = false;
-              inHotkey = false;
-              if (cur && !fields.includes(cur)) fields.push(cur);
-              if (!isObj(byField[cur])) byField[cur] = {};
-              continue;
-            }
-            if (!cur) {
-              const topKV = t.match(/^-\s+([A-Za-z0-9_\-]+)\s*:\s*(.+)$/);
-              if (topKV) kv[String(topKV[1] || "").trim()] = String(topKV[2] || "").trim();
-              continue;
-            }
-            const activeM = t.match(/^-\s*Active\s*:\s*(.+)$/i);
-            if (activeM) {
-              byField[cur].activeMode = String(activeM[1] || "").trim().toLowerCase();
-              inIncrement = false;
-              inHotkey = false;
-              continue;
-            }
-            const emojiM = t.match(/^-\s*Emoji\s*:\s*(.*)$/i);
-            if (emojiM) {
-              byField[cur].emoji = String(emojiM[1] || "");
-              continue;
-            }
-            const fmtM = t.match(/^-\s*Format\s*:\s*(.*)$/i);
-            if (fmtM) {
-              byField[cur].format = String(fmtM[1] || "").trim();
-              continue;
-            }
-            const yamlM = t.match(/^-\s*YAML\s*:\s*(.*)$/i);
-            if (yamlM) {
-              byField[cur].yamlProperty = String(yamlM[1] || "").trim();
-              continue;
-            }
-            if (/^-\s*Hotkey\s*:\s*$/i.test(t)) {
-              inHotkey = true;
-              inIncrement = false;
-              if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-              continue;
-            }
-            if (inHotkey) {
-              const incHot = t.match(/^[-*]\s*increase\s*:\s*(.*)$/i);
-              if (incHot) {
-                if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-                byField[cur].hotkey.increase = String(incHot[1] || "").trim();
-                continue;
-              }
-              const decHot = t.match(/^[-*]\s*decrease\s*:\s*(.*)$/i);
-              if (decHot) {
-                if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-                byField[cur].hotkey.decrease = String(decHot[1] || "").trim();
-                continue;
-              }
-            }
-            if (/^-\s*(increment|behavior)\s*:\s*$/i.test(t)) {
-              inIncrement = true;
-              inHotkey = false;
-              if (!isObj(byField[cur].increment)) byField[cur].increment = { mode: "standard", custom: [], customRaw: [], incrementBy: 0, command: "now" };
-              continue;
-            }
-            if (inIncrement) {
-              if (/^[-*]\s*\[x\]\s*standard/i.test(t)) byField[cur].increment.mode = "standard";
-              const incM = t.match(/^[-*]\s*\[x\]\s*increment\s+by\s*\(\s*(-?\d+)\s*\)/i);
-              if (incM) {
-                byField[cur].increment.mode = "standard";
-                byField[cur].increment.incrementBy = Math.max(0, Math.trunc(Number(incM[1] || 0)));
-              }
-              const cmdM = t.match(/^[-*]\s*\[x\]\s*command\s*\(\s*([^\)]+)\s*\)/i);
-              if (cmdM) {
-                byField[cur].increment.mode = "command";
-                byField[cur].increment.command = String(cmdM[1] || "now").trim() || "now";
-              }
-              if (/^[-*]\s*\[x\]\s*custom/i.test(t)) byField[cur].increment.mode = "custom";
-              const rawItemM = t.match(/^\d+[\).]\s*(.+?)\s*$/);
-              if (rawItemM) {
-                if (!Array.isArray(byField[cur].increment.customRaw)) byField[cur].increment.customRaw = [];
-                byField[cur].increment.customRaw.push(String(rawItemM[1] || "").trim());
-              }
-              const stepM = t.match(/^\d+[\).]\s*(-?\d+)(?:\s*\(\s*(\d+)\s*\))?\s*$/);
-              if (stepM) {
-                if (!Array.isArray(byField[cur].increment.custom)) byField[cur].increment.custom = [];
-                const stepVal = Math.max(0, Math.trunc(Number(stepM[1] || 0)));
-                const repeat = Math.max(1, Math.trunc(Number(stepM[2] || 1)));
-                for (let ri = 0; ri < repeat; ri++) byField[cur].increment.custom.push(stepVal);
-              }
-            }
-          }
-          return { fields, byField, kv };
-        };
-        const parseElementsByField = (h3Names) => {
-          const names2 = Array.isArray(h3Names) ? h3Names : [h3Names];
-          const all = String(md || "").split(/\r?\n/);
-          let start = -1;
-          for (let ni = 0; ni < names2.length; ni++) {
-            start = all.findIndex((ln) => new RegExp(`^###\\s+${String(names2[ni] || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i").test(String(ln || "").trim()));
-            if (start !== -1) break;
-          }
-          if (start === -1) return { fields: [], byField: {} };
-          let end = all.length;
-          for (let i = start + 1; i < all.length; i++) {
-            const t = String(all[i] || "").trim();
-            if (/^###\s+/.test(t) || /^##\s+/.test(t)) {
-              end = i;
-              break;
-            }
-          }
-          const block2 = all.slice(start + 1, end);
-          const fields = [];
-          const byField = {};
-          let cur = "";
-          let inIncrement = false;
-          let inHotkey = false;
-          for (let i = 0; i < block2.length; i++) {
-            const raw = String(block2[i] || "");
-            const t = raw.trim();
-            const hh = t.match(/^#####\s+(.+)$/);
-            if (hh) {
-              cur = String(hh[1] || "").trim();
-              inIncrement = false;
-              inHotkey = false;
-              if (cur && !fields.includes(cur)) fields.push(cur);
-              if (!isObj(byField[cur])) byField[cur] = {};
-              continue;
-            }
-            if (!cur) continue;
-            const emojiM = t.match(/^-\s*Emoji\s*:\s*(.*)$/i);
-            if (emojiM) {
-              byField[cur].emoji = String(emojiM[1] || "");
-              inIncrement = false;
-              inHotkey = false;
-              continue;
-            }
-            const fmtM = t.match(/^-\s*Format\s*:\s*(.*)$/i);
-            if (fmtM) {
-              byField[cur].format = String(fmtM[1] || "").trim();
-              inIncrement = false;
-              inHotkey = false;
-              continue;
-            }
-            if (/^-\s*Hotkey\s*:\s*$/i.test(t)) {
-              inHotkey = true;
-              inIncrement = false;
-              if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-              continue;
-            }
-            if (inHotkey) {
-              const incHot = t.match(/^[-*]\s*increase\s*:\s*(.*)$/i);
-              if (incHot) {
-                if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-                byField[cur].hotkey.increase = String(incHot[1] || "").trim();
-                continue;
-              }
-              const decHot = t.match(/^[-*]\s*decrease\s*:\s*(.*)$/i);
-              if (decHot) {
-                if (!isObj(byField[cur].hotkey)) byField[cur].hotkey = { increase: "", decrease: "" };
-                byField[cur].hotkey.decrease = String(decHot[1] || "").trim();
-                continue;
-              }
-            }
-            if (/^-\s*(increment|behavior)\s*:\s*$/i.test(t)) {
-              inIncrement = true;
-              inHotkey = false;
-              if (!isObj(byField[cur].increment)) byField[cur].increment = { mode: "standard", custom: [], customRaw: [], incrementBy: 0, command: "now" };
-              continue;
-            }
-            if (inIncrement) {
-              if (/^[-*]\s*\[x\]\s*standard/i.test(t)) byField[cur].increment.mode = "standard";
-              const incM = t.match(/^[-*]\s*\[x\]\s*increment\s+by\s*\(\s*(-?\d+)\s*\)/i);
-              if (incM) {
-                byField[cur].increment.mode = "standard";
-                byField[cur].increment.incrementBy = Math.max(0, Math.trunc(Number(incM[1] || 0)));
-              }
-              const cmdM = t.match(/^[-*]\s*\[x\]\s*command\s*\(\s*([^\)]+)\s*\)/i);
-              if (cmdM) {
-                byField[cur].increment.mode = "command";
-                byField[cur].increment.command = String(cmdM[1] || "now").trim() || "now";
-              }
-              if (/^[-*]\s*\[x\]\s*custom/i.test(t)) byField[cur].increment.mode = "custom";
-              const rawItemM = t.match(/^\d+[\).]\s*(.+?)\s*$/);
-              if (rawItemM) {
-                if (!Array.isArray(byField[cur].increment.customRaw)) byField[cur].increment.customRaw = [];
-                byField[cur].increment.customRaw.push(String(rawItemM[1] || "").trim());
-              }
-              const stepM = t.match(/^\d+[\).]\s*(-?\d+)(?:\s*\(\s*(\d+)\s*\))?\s*$/);
-              if (stepM) {
-                if (!Array.isArray(byField[cur].increment.custom)) byField[cur].increment.custom = [];
-                const stepVal = Math.max(0, Math.trunc(Number(stepM[1] || 0)));
-                const repeat = Math.max(1, Math.trunc(Number(stepM[2] || 1)));
-                for (let ri = 0; ri < repeat; ri++) byField[cur].increment.custom.push(stepVal);
-              }
-            }
-            const em = t.match(/^-\s*enabled\s*:\s*(.+)$/i);
-            if (em) {
-              if (!isObj(byField[cur])) byField[cur] = {};
-              byField[cur].enabled = /^true$/i.test(String(em[1] || "").trim());
-            }
-          }
-          return { fields, byField };
-        };
-        const combinedBlocks = parseCombinedDateElementsBlocks();
-        const allCombinedParsed = combinedBlocks.hasCombined ? parseDateTimeFromBlock(combinedBlocks.body) : null;
-        const datesParsed = combinedBlocks.hasCombined ? { fields: [], byField: {}, kv: allCombinedParsed.kv || {} } : parseDateTimeByField([CFG_H2_DATES, "DATES"]);
-        const elemsParsed = combinedBlocks.hasCombined ? { fields: [], byField: {} } : parseElementsByField([CFG_H2_ELEMENTS]);
-        const datesFallback = parseH2ListAndKv("DATES");
-        const elemsFallback = parseH2ListAndKv(CFG_H2_ELEMENTS);
-        const dkv = Object.keys(datesParsed.kv || {}).length ? datesParsed.kv || {} : datesFallback.kv || {};
-        const toInt = (v, d) => {
-          const n = Number(v);
-          return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : d;
-        };
-        parsed.datesConfig.behavior.time_step_minutes = toInt(dkv.time_step_minutes, 5);
-        parsed.datesConfig.behavior.date_step_days = toInt(dkv.date_step_days, 1);
-        parsed.datesConfig.behavior.time_rounding = String(dkv.time_rounding || "nearest").trim() || "nearest";
-        parsed.datesConfig.behavior.date_format = String(dkv.date_format || "YYYY-MM-DD").trim() || "YYYY-MM-DD";
-        parsed.datesConfig.behavior.time_format = String(dkv.time_format || "HH:mm").trim() || "HH:mm";
-        parsed.datesConfig.fields = Array.isArray(datesParsed.fields) && datesParsed.fields.length ? datesParsed.fields : (datesFallback.list || []).filter((x) => x && x !== "(none)");
-        parsed.datesConfig.byField = isObj(datesParsed.byField) ? datesParsed.byField : {};
-        const combinedByField = combinedBlocks.hasCombined && isObj(allCombinedParsed && allCombinedParsed.byField) ? allCombinedParsed.byField : null;
-        if (combinedByField) {
-          parsed.datesConfig.byField = {};
-          parsed.elementsConfig.byField = {};
-          const forcedDateFields = inferDateLikeFieldIdsFromConfig(cfg);
-          const maybeDateFormat = (fmt) => {
-            const s = String(fmt || "").trim();
-            if (!s) return false;
-            const hasCalendar = /Y|M|D/.test(s);
-            const hasClock = /H\s*:?\s*m|h\s*:?\s*m|:\s*m/.test(s);
-            return hasCalendar || hasClock;
-          };
-          for (const fid of Object.keys(combinedByField)) {
-            const fc = isObj(combinedByField[fid]) ? combinedByField[fid] : {};
-            const fieldId = String(fid || "").trim();
-            if (forcedDateFields.has(fieldId) || maybeDateFormat(fc.format)) parsed.datesConfig.byField[fid] = fc;
-            else parsed.elementsConfig.byField[fid] = fc;
-          }
-          parsed.datesConfig.fields = Object.keys(parsed.datesConfig.byField);
-          parsed.elementsConfig.fields = Object.keys(parsed.elementsConfig.byField);
-        }
-        const dateFieldsSet = new Set(parsed.datesConfig.fields || []);
-        for (const fid of Object.keys(parsed.datesConfig.byField || {})) {
-          if (!dateFieldsSet.has(fid)) dateFieldsSet.add(fid);
-          const fc = isObj(parsed.datesConfig.byField[fid]) ? parsed.datesConfig.byField[fid] : {};
-          const activeRaw = String(fc.activeMode || fc.active || "yes").trim().toLowerCase();
-          const activeMode = activeRaw === "no" || activeRaw === "hotkey_only" ? activeRaw : "yes";
-          const isTimeField = /^time/i.test(String(fid || ""));
-          const format = Object.prototype.hasOwnProperty.call(fc, "format") ? String((_a = fc.format) != null ? _a : "").trim() : isTimeField ? "HH:mm" : "YYYY-MM-DD";
-          const incSrc = isObj(fc.increment) ? fc.increment : {};
-          const modeRaw = String(incSrc.mode || "standard").trim().toLowerCase();
-          const mode = modeRaw === "custom" || modeRaw === "command" ? modeRaw : "standard";
-          const custom = Array.isArray(incSrc.custom) ? incSrc.custom.map((x) => Math.max(0, Math.trunc(Number(x || 0)))).filter((x) => Number.isFinite(x)) : [];
-          const customRaw = Array.isArray(incSrc.customRaw) ? incSrc.customRaw.map((x) => String(x || "").trim()).filter((x) => x.length) : [];
-          const incrementBy = Math.max(0, Math.trunc(Number(incSrc.incrementBy || 0)));
-          const command = String(incSrc.command || "now").trim() || "now";
-          const hk = isObj(fc.hotkey) ? fc.hotkey : {};
-          parsed.datesConfig.byField[fid] = {
-            activeMode,
-            emoji: String(fc.emoji || ""),
-            format,
-            hotkey: {
-              increase: String(hk.increase || "").trim(),
-              decrease: String(hk.decrease || "").trim()
-            },
-            increment: {
-              mode,
-              custom,
-              customRaw,
-              incrementBy,
-              command
-            }
-          };
-        }
-        parsed.datesConfig.fields = Array.from(dateFieldsSet);
-        if (!combinedByField) {
-          parsed.elementsConfig.fields = Array.isArray(elemsParsed.fields) && elemsParsed.fields.length ? elemsParsed.fields : (elemsFallback.list || []).filter((x) => x && x !== "(none)");
-          parsed.elementsConfig.byField = isObj(elemsParsed.byField) ? elemsParsed.byField : {};
-        }
-        if (sections[TAGWHEEL_PREFIX_RESOLVER_SECTION]) {
-          const resolverItems = sections[TAGWHEEL_PREFIX_RESOLVER_SECTION].items;
-          let inCheckboxOrder = false;
-          let checkboxBaseIndent = -1;
-          for (let i = 0; i < resolverItems.length; i++) {
-            const it = resolverItems[i];
-            const text = String(it.text || "").trim();
-            if (!text) continue;
-            const modeM = text.match(/^mode\s*:\s*(.+)$/i);
-            if (modeM) {
-              const mode = String(modeM[1] || "").trim();
-              if (mode !== "by-section" && mode !== "by-checkbox-list") {
-                throw new Error(`Section #### ${TAGWHEEL_PREFIX_RESOLVER_SECTION}, line ${it.line}: mode must be by-section or by-checkbox-list`);
-              }
-              parsed.prefixResolver.mode = mode;
-              inCheckboxOrder = false;
-              continue;
-            }
-            const secM = text.match(/^section-order\s*:\s*(.*)$/i);
-            if (secM) {
-              const rawOrder = String(secM[1] || "").trim();
-              const items = rawOrder ? rawOrder.split(",").map((x) => String(x || "").trim()).filter(Boolean) : [];
-              const raw = items.length ? Array.from(new Set(items)) : allowedSections.slice();
-              const resolved = raw.filter((x) => allowedSections.includes(x));
-              parsed.prefixResolver.sectionOrderRaw = raw;
-              parsed.prefixResolver.sectionOrder = resolved.length ? resolved : allowedSections.slice();
-              inCheckboxOrder = false;
-              continue;
-            }
-            const cbM = text.match(/^checkbox-order\s*:\s*(.*)$/i);
-            if (cbM) {
-              const rawCb = String(cbM[1] || "").trim();
-              if (rawCb) {
-                parsed.prefixResolver.checkboxOrder = Array.from(new Set(rawCb.split(",").map((x) => String(x || "").trim()).filter(Boolean)));
-                inCheckboxOrder = false;
-              } else {
-                inCheckboxOrder = true;
-                checkboxBaseIndent = it.indent;
-              }
-              continue;
-            }
-            if (inCheckboxOrder && it.indent > checkboxBaseIndent) {
-              parsed.prefixResolver.checkboxOrder.push(text);
-            }
-          }
-          parsed.prefixResolver.checkboxOrder = Array.from(new Set(parsed.prefixResolver.checkboxOrder.map((x) => String(x || "").trim()).filter(Boolean)));
-        } else {
-          const custom = parseCustomPrefixResolverBlock(md, allowedSections);
-          if (custom) {
-            parsed.prefixResolver.mode = custom.mode;
-            parsed.prefixResolver.fieldsOrderMode = custom.fieldsOrderMode;
-            parsed.prefixResolver.tagSubtagPriority = custom.tagSubtagPriority;
-            parsed.prefixResolver.sectionOrder = custom.sectionOrder.length ? custom.sectionOrder : allowedSections.slice();
-            parsed.prefixResolver.sectionOrderRaw = Array.isArray(custom.sectionOrderRaw) && custom.sectionOrderRaw.length ? custom.sectionOrderRaw.slice() : custom.sectionOrder.length ? custom.sectionOrder.slice() : allowedSections.slice();
-            parsed.prefixResolver.checkboxOrder = custom.checkboxOrder;
-          }
-        }
-        const parseTagPipeSegments = (text) => {
-          const src = String(text || "").trim();
-          const out = {
-            fillColor: "",
-            textColor: "",
-            customText: "",
-            yamlProperty: ""
-          };
-          if (!src.includes("|")) return out;
-          const parts = src.split("|").map((x) => String(x || "").trim()).filter(Boolean);
-          if (parts.length <= 1) return out;
-          for (let i = 1; i < parts.length; i++) {
-            const seg = String(parts[i] || "").trim();
-            if (!seg) continue;
-            const mCustom = seg.match(/^custom\s+name\s*=\s*`([^`]*)`\s*$/i);
-            if (mCustom) {
-              out.customText = String(mCustom[1] || "").trim();
-              continue;
-            }
-            const mHex = seg.match(/^hex\s*=\s*`?(#[0-9a-fA-F]{6})`?\s*\/\s*`?(#[0-9a-fA-F]{6})`?\s*$/i);
-            if (mHex) {
-              out.fillColor = String(mHex[1] || "").toLowerCase();
-              out.textColor = String(mHex[2] || "").toLowerCase();
-              continue;
-            }
-            const mHexInvalid = seg.match(/^hex\s*=/i);
-            if (mHexInvalid) {
-              throw new Error("Config format error: invalid hex segment, expected hex = `#rrggbb`/`#rrggbb`");
-            }
-            const mYaml = seg.match(/^yaml\s*=\s*`([^`]*)`\s*$/i);
-            if (mYaml) {
-              out.yamlProperty = String(mYaml[1] || "").trim();
-              continue;
-            }
-          }
-          return out;
-        };
-        const setByTagFirstWins = (fieldId, tagToken, visual) => {
-          const fid = String(fieldId || "").trim();
-          const tok = String(tagToken || "").trim();
-          if (!fid || !/^#\S+/.test(tok) || !isObj(visual)) return;
-          if (!isObj(parsed.tagVisuals.byTag[fid])) parsed.tagVisuals.byTag[fid] = {};
-          if (Object.prototype.hasOwnProperty.call(parsed.tagVisuals.byTag[fid], tok)) return;
-          parsed.tagVisuals.byTag[fid][tok] = visual;
-        };
-        const setUserTagFirstWins = (tagToken, visual) => {
-          const tok = String(tagToken || "").trim();
-          if (!/^#\S+/.test(tok) || !isObj(visual)) return;
-          if (Object.prototype.hasOwnProperty.call(parsed.tagVisuals.userTags, tok)) return;
-          parsed.tagVisuals.userTags[tok] = visual;
-        };
-        const names = Object.keys(sections).filter((x) => x !== TAGWHEEL_WIKILINK_SECTION && x !== TAGWHEEL_PREFIX_RESOLVER_SECTION);
-        for (let ni = 0; ni < names.length; ni++) {
-          const secName = names[ni];
-          const sec = sections[secName];
-          if (secName === USER_TAGS_SECTION) {
-            for (let ii = 0; ii < sec.items.length; ii++) {
-              const it = sec.items[ii];
-              const tagTok = extractFirstTagToken(it.text);
-              if (!tagTok) continue;
-              const seg = parseTagPipeSegments(it.text);
-              const visual = seg.fillColor || seg.textColor || seg.customText ? {
-                fillColor: String(seg.fillColor || "").toLowerCase(),
-                textColor: String(seg.textColor || "").toLowerCase(),
-                visibility: "default",
-                customText: String(seg.customText || "").trim()
-              } : null;
-              if (!visual) continue;
-              setUserTagFirstWins(tagTok, visual);
-            }
-            continue;
-          }
-          if (secName === ORPHAN_WIKILINKS_SECTION) {
-            const orphanSectionKind = String(sectionKinds[secName] || "").trim().toLowerCase();
-            const orphanScopedFields = Array.isArray(allowedWikilinkFieldsBySection[secName]) && allowedWikilinkFieldsBySection[secName].length ? allowedWikilinkFieldsBySection[secName] : orphanSectionKind === "link" ? [secName] : [];
-            const orphanAllowedExplicitFields = orphanScopedFields.concat(allowedWikilinkFieldsDynamic).filter((x, idx, arr) => {
-              const id = String(x || "").trim();
-              if (!id) return false;
-              return arr.indexOf(id) === idx;
-            });
-            for (let ii = 0; ii < sec.items.length; ii++) {
-              const it = sec.items[ii];
-              const orphanRaw = String(it.text || "").trim();
-              const orphanMatch = orphanRaw.match(/^(\[\[[^\]]+\]\])(?:\s*-\s*([A-Za-z0-9_-]+))?$/);
-              if (!orphanMatch) {
-                throw new Error(`Section #### ${secName}, line ${it.line}: expected wikilink '[[...]] - fieldId'`);
-              }
-              const orphanExplicitFieldId = String(orphanMatch[2] || "").trim();
-              let parsedW = null;
-              if (!orphanExplicitFieldId && orphanSectionKind === "link" && orphanScopedFields.length === 1) {
-                parsedW = { token: String(orphanMatch[1] || "").trim(), fieldId: orphanScopedFields[0] };
-              } else {
-                const orphanRequireExplicitFieldId = orphanSectionKind !== "link" && orphanAllowedExplicitFields.length > 1;
-                parsedW = parseWikilinkLineStrict(it.text, secName, it.line, orphanAllowedExplicitFields, {
-                  requireExplicitFieldId: orphanRequireExplicitFieldId
-                });
-              }
-              const fid = String(parsedW.fieldId || "").trim();
-              const tok = String(parsedW.token || "").trim();
-              if (!fid || !tok) continue;
-              if (!Array.isArray(parsed.orphanWikilinks[fid])) parsed.orphanWikilinks[fid] = [];
-              if (!parsed.orphanWikilinks[fid].includes(tok)) parsed.orphanWikilinks[fid].push(tok);
-            }
-            continue;
-          }
-          const out = { parents: [], wikilinks: {} };
-          const sectionHasTagRows = Array.isArray(sec.items) ? sec.items.some((row) => {
-            const rowText = row && row.text ? String(row.text) : "";
-            if (!rowText) return false;
-            if (isWikilinkToken(rowText) || /^\[\[[^\]]+\]\]\s*-/.test(rowText)) return false;
-            return !!extractFirstTagToken(rowText);
-          }) : false;
-          let curParent = "";
-          let curSub = "";
-          let subIndent = -1;
-          const ensureParent = (pTok) => {
-            const hit = out.parents.find((x) => x.token === pTok);
-            if (hit) return hit;
-            const created = { token: pTok, subtags: [] };
-            out.parents.push(created);
-            return created;
-          };
-          const ensureWikiNode = (fieldId, parentToken) => {
-            if (!out.wikilinks[fieldId]) out.wikilinks[fieldId] = { defaults: [], byParent: {} };
-            if (!parentToken) return out.wikilinks[fieldId];
-            if (!out.wikilinks[fieldId].byParent[parentToken]) out.wikilinks[fieldId].byParent[parentToken] = { branch: [], leaf: {} };
-            return out.wikilinks[fieldId].byParent[parentToken];
-          };
-          for (let ii = 0; ii < sec.items.length; ii++) {
-            const it = sec.items[ii];
-            if (!it.text) continue;
-            if (/^yaml\s*:/i.test(String(it.text || "").trim())) continue;
-            if (isWikilinkToken(it.text) || /^\[\[[^\]]+\]\]\s*-/.test(it.text)) {
-              const sectionKind = String(sectionKinds[secName] || "").trim().toLowerCase();
-              const scopedWikilinkFields = Array.isArray(allowedWikilinkFieldsBySection[secName]) && allowedWikilinkFieldsBySection[secName].length ? allowedWikilinkFieldsBySection[secName] : sectionKind === "link" ? [secName] : allowedWikilinkFieldsDynamic;
-              const requireExplicitFieldId = sectionHasTagRows && scopedWikilinkFields.length > 1;
-              const parsedW = parseWikilinkLineStrict(it.text, secName, it.line, scopedWikilinkFields, {
-                requireExplicitFieldId
-              });
-              if (!curParent || it.indent === 0) {
-                const n = ensureWikiNode(parsedW.fieldId, "");
-                if (!n.defaults.includes(parsedW.token)) n.defaults.push(parsedW.token);
-                continue;
-              }
-              const pn = ensureWikiNode(parsedW.fieldId, curParent);
-              if (curSub && it.indent > subIndent) {
-                if (!pn.leaf[curSub]) pn.leaf[curSub] = [];
-                if (!pn.leaf[curSub].includes(parsedW.token)) pn.leaf[curSub].push(parsedW.token);
-              } else {
-                if (!pn.branch.includes(parsedW.token)) pn.branch.push(parsedW.token);
-              }
-              continue;
-            }
-            const tagTok = extractFirstTagToken(it.text);
-            if (!tagTok) {
-              throw new Error(`Section #### ${secName}, line ${it.line}: expected tag '#...' or wikilink '[[...]] - fieldId'`);
-            }
-            const tagMeta = parseCheckboxAndTag(it.text);
-            const seg = parseTagPipeSegments(it.text);
-            const visual = seg.fillColor || seg.textColor || seg.customText ? {
-              fillColor: String(seg.fillColor || "").toLowerCase(),
-              textColor: String(seg.textColor || "").toLowerCase(),
-              visibility: "default",
-              customText: String(seg.customText || "").trim()
-            } : null;
-            if (!curParent || it.indent === 0) {
-              const p = ensureParent(tagTok);
-              curParent = p.token;
-              curSub = "";
-              subIndent = -1;
-              if (tagMeta.checkbox) {
-                const def = sectionDefById[secName];
-                const fieldId = def ? def.fieldId : "";
-                const tokenKey = denormTagToken(tagTok);
-                if (fieldId && tokenKey) {
-                  if (!isObj(parsed.checkboxByFieldValue[fieldId])) parsed.checkboxByFieldValue[fieldId] = {};
-                  parsed.checkboxByFieldValue[fieldId][tokenKey] = tagMeta.checkbox;
-                }
-              }
-              {
-                const def = sectionDefById[secName];
-                const fieldId = def ? def.fieldId : "";
-                if (visual && fieldId) setByTagFirstWins(fieldId, tagTok, visual);
-                if (fieldId) {
-                  const yamlToken = String(seg.yamlProperty || "").trim();
-                  if (yamlToken) {
-                    if (!isObj(parsed.yamlByFieldValue[fieldId])) parsed.yamlByFieldValue[fieldId] = {};
-                    const tokenKey = denormTagToken(tagTok);
-                    if (tokenKey) parsed.yamlByFieldValue[fieldId][tokenKey] = yamlToken;
-                  }
-                }
-              }
-            } else {
-              const p = ensureParent(curParent);
-              if (!p.subtags.includes(tagTok)) p.subtags.push(tagTok);
-              curSub = tagTok;
-              subIndent = it.indent;
-              if (tagMeta.checkbox) {
-                const def = sectionDefById[secName];
-                const fieldId = def && def.subFieldId ? def.subFieldId : def ? def.fieldId : "";
-                const tokenKey = denormTagToken(tagTok);
-                if (fieldId && tokenKey) {
-                  if (!isObj(parsed.checkboxByFieldValue[fieldId])) parsed.checkboxByFieldValue[fieldId] = {};
-                  parsed.checkboxByFieldValue[fieldId][tokenKey] = tagMeta.checkbox;
-                }
-              }
-              {
-                const def = sectionDefById[secName];
-                const fieldId = def && def.subFieldId ? def.subFieldId : def ? def.fieldId : "";
-                if (visual && fieldId) setByTagFirstWins(fieldId, tagTok, visual);
-                if (fieldId) {
-                  const yamlToken = String(seg.yamlProperty || "").trim();
-                  if (yamlToken) {
-                    if (!isObj(parsed.yamlByFieldValue[fieldId])) parsed.yamlByFieldValue[fieldId] = {};
-                    const tokenKey = denormTagToken(tagTok);
-                    if (tokenKey) parsed.yamlByFieldValue[fieldId][tokenKey] = yamlToken;
-                  }
-                }
-              }
-            }
-          }
-          parsed.sections[secName] = out;
-          {
-            const fieldYaml = (() => {
-              for (let ii = 0; ii < sec.items.length; ii++) {
-                const text = String(sec.items[ii] && sec.items[ii].text || "").trim();
-                const m = text.match(/^yaml\s*:\s*(.+)$/i);
-                if (!m) continue;
-                return String(m[1] || "").trim();
-              }
-              return "";
-            })();
-            if (fieldYaml) parsed.fieldYamlBySection[secName] = fieldYaml;
-          }
-        }
-        const missingEmojiFields = collectMissingEmojiFields(parsed);
-        if (missingEmojiFields.length) {
-          throw new Error(
-            `Config validation error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Fix: [[InlineOverhaul_Config]] (DATE/TIME + ELEMENTS section)`
-          );
-        }
-        return parsed;
-      };
-    }
-    module2.exports = {
-      createTagWheelConfigParser
-    };
-  }
-});
-
 // src/features/transform_feature.js
 var require_transform_feature = __commonJS({
   "src/features/transform_feature.js"(exports2, module2) {
@@ -21883,14 +18432,14 @@ var require_transform_feature = __commonJS({
     }
     var DEFAULT_INLINE2NOTE = {
       enabled: false,
-      templateFolder: "",
+      templatesFolder: "",
       outputFolder: "",
       defaultTemplate: "",
       smartRules: [],
       noteName: {
         mode: "auto",
-        explicitNameDelimiters: "[]",
-        autoWordsCount: 6,
+        delimiters: "[]",
+        wordCount: 6,
         preferHeaderTitle: true
       },
       nameCollision: {
@@ -21899,26 +18448,44 @@ var require_transform_feature = __commonJS({
       placement: {
         position: "end",
         headerMode: "datetime",
-        customHeaderText: "### Inline transformed",
-        datetimeHeaderFormat: "YYYY-MM-DD HH:mm"
+        /*
+          * Единственное из двадцати одного расхождения В-7, где заказчик выбрал
+          * схему (2026-08-31): `## Captured` короче и стоит на уровне заголовка,
+          * который не спорит с `###` внутри заметки. Поведения это не меняет —
+          * меняется текст, который плагин вставляет по умолчанию.
+          */
+        customHeader: "Captured",
+        /* Уровень строки над текстом (10.13.9). `3` — не выбор, а сохранение
+           поведения: `###` стоял в коде `formatHeaderByMode`. */
+        headerLevel: "3",
+        datetimeFormat: "YYYY-MM-DD HH:mm"
       },
       yamlNoteFormat: "raw",
       sourceProcessing: {
         cleanupFieldIds: [],
-        processedToken: "#processed",
-        processedTokenPanel: "right",
-        replacePayloadWithLink: true,
+        /*
+         * Судьба текста исходной строки, отдельно от ссылки (решение заказчика
+         * 2026-09-01). Умолчание совпадает с прежним поведением при
+         * `replaceWithLink: true`: текст уходит, на его месте ссылка.
+         */
+        text: "remove",
+        keepWords: 3,
+        token: "#processed",
+        panel: "right",
+        replaceWithLink: true,
         visual: {
           enabled: false,
           color: "",
-          opacity: 0.65
+          /* Процент, как у остальной прозрачности версии 2 (10.13.12 Н5). */
+          opacity: 65
         }
       },
-      openTransformedNote: false,
-      sublinesBehavior: "stay",
-      flyingButton: {
-        enabled: false
-      },
+      openTarget: false,
+      sublines: "stay",
+      floatingButton: false,
+      /* Расстояние от последнего символа строки до кнопки, в пикселях
+         (10.13.12 Н12, замечание заказчика 2026-09-04). */
+      floatingButtonGap: 12,
       preview: {
         sampleLine: "- [ ] #/1 #todo #context"
       }
@@ -21952,9 +18519,10 @@ var require_transform_feature = __commonJS({
       }
       return out;
     }
+    var RULE_CONDITION_DIMS = ["tags", "emojiFields", "wikilinks", "fields"];
     function hasAnyCondition(rule) {
       const c = rule && rule.conditions ? rule.conditions : {};
-      return !!(Array.isArray(c.tags) && c.tags.length || Array.isArray(c.emojiFields) && c.emojiFields.length || Array.isArray(c.wikilinks) && c.wikilinks.length);
+      return RULE_CONDITION_DIMS.some((d) => Array.isArray(c[d]) && c[d].length);
     }
     function intersects(a, b) {
       const setB = new Set(Array.isArray(b) ? b : []);
@@ -21967,7 +18535,7 @@ var require_transform_feature = __commonJS({
     function rulesCanOverlap(a, b) {
       const ca = a && a.conditions ? a.conditions : {};
       const cb = b && b.conditions ? b.conditions : {};
-      const dims = ["tags", "emojiFields", "wikilinks"];
+      const dims = RULE_CONDITION_DIMS;
       for (let i = 0; i < dims.length; i++) {
         const d = dims[i];
         const va = Array.isArray(ca[d]) ? ca[d] : [];
@@ -21988,10 +18556,11 @@ var require_transform_feature = __commonJS({
           details: []
         }
       }));
+      const noConditions = out.map(() => false);
       for (let i = 0; i < out.length; i++) {
         if (!out[i].enabled) continue;
         if (!hasAnyCondition(out[i])) {
-          out[i].enabled = false;
+          noConditions[i] = true;
           out[i].validation = {
             isConflict: true,
             message: "Rule has no conditions. Add at least one tag/emoji/wikilink.",
@@ -22003,12 +18572,13 @@ var require_transform_feature = __commonJS({
       for (let i = 0; i < out.length; i++) {
         for (let j = i + 1; j < out.length; j++) {
           if (!out[i].enabled || !out[j].enabled) continue;
+          if (noConditions[i] || noConditions[j]) continue;
           if (!rulesCanOverlap(out[i], out[j])) continue;
           const ri = String(out[i].id || `rule-${i + 1}`);
           const rj = String(out[j].id || `rule-${j + 1}`);
           const detailsI = [];
           const detailsJ = [];
-          const dims = ["tags", "emojiFields", "wikilinks"];
+          const dims = RULE_CONDITION_DIMS;
           for (let di = 0; di < dims.length; di++) {
             const d = dims[di];
             const ai = Array.isArray(out[i].conditions && out[i].conditions[d]) ? out[i].conditions[d] : [];
@@ -22027,7 +18597,6 @@ var require_transform_feature = __commonJS({
       }
       for (let i = 0; i < out.length; i++) {
         if (!conflicts[i].length) continue;
-        out[i].enabled = false;
         out[i].validation = {
           isConflict: true,
           message: `Conflicts with ${conflicts[i].map((entry) => entry.peerRuleId).join(", ")}. Overlapping conditions detected.`,
@@ -22047,6 +18616,7 @@ var require_transform_feature = __commonJS({
         const tags = Array.isArray(conditions.tags) ? conditions.tags.map((x) => String(x || "").trim()).filter(Boolean) : [];
         const emojiFields = Array.isArray(conditions.emojiFields) ? conditions.emojiFields.map((x) => String(x || "").trim()).filter(Boolean) : [];
         const wikilinks = Array.isArray(conditions.wikilinks) ? conditions.wikilinks.map((x) => String(x || "").trim()).filter(Boolean) : [];
+        const fields = Array.isArray(conditions.fields) ? conditions.fields.map((x) => String(x || "").trim()).filter(Boolean) : [];
         out.push({
           id,
           /*
@@ -22060,7 +18630,11 @@ var require_transform_feature = __commonJS({
           name: String(r.name || "").trim(),
           enabled: r.enabled !== false,
           targetTemplate,
-          conditions: { tags: uniq(tags), emojiFields: uniq(emojiFields), wikilinks: uniq(wikilinks) },
+          conditions: { tags: uniq(tags), emojiFields: uniq(emojiFields), wikilinks: uniq(wikilinks), fields: uniq(fields) },
+          /* Папка правила (10.13.8). Два ключа, а не один: папку с именем
+             `near current note` иначе не отличить от самого выбора. */
+          targetFolderMode: normalizeRuleFolderMode(r.targetFolderMode),
+          targetFolder: normalizeFolderPath(r.targetFolder),
           validation: {
             isConflict: !!(r.validation && r.validation.isConflict),
             message: String(r.validation && r.validation.message ? r.validation.message : "").trim(),
@@ -22070,11 +18644,22 @@ var require_transform_feature = __commonJS({
       }
       return validateSmartRules(out);
     }
+    function normalizeProcessedOpacity(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return DEFAULT_INLINE2NOTE.sourceProcessing.visual.opacity;
+      const pct = n > 0 && n <= 1 ? n * 100 : n;
+      return Math.max(0, Math.min(100, Math.round(pct)));
+    }
+    function normalizeFloatingButtonGap(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return DEFAULT_INLINE2NOTE.floatingButtonGap;
+      return Math.max(0, Math.min(40, Math.round(n)));
+    }
     function normalizeInline2Note(raw) {
       const src = isObj(raw) ? raw : {};
       const out = {
         enabled: src.enabled === true,
-        templateFolder: String(src.templateFolder || "").trim(),
+        templatesFolder: String(src.templatesFolder || "").trim(),
         outputFolder: String(src.outputFolder || "").trim(),
         defaultTemplate: String(src.defaultTemplate || "").trim(),
         smartRules: normalizeSmartRules(src.smartRules),
@@ -22082,37 +18667,41 @@ var require_transform_feature = __commonJS({
         nameCollision: {},
         placement: {},
         sourceProcessing: {},
-        flyingButton: {},
         preview: {}
       };
       const noteName = isObj(src.noteName) ? src.noteName : {};
       out.noteName.mode = normalizeMode(noteName.mode, ["auto", "manual"], DEFAULT_INLINE2NOTE.noteName.mode);
-      out.noteName.explicitNameDelimiters = String(noteName.explicitNameDelimiters || DEFAULT_INLINE2NOTE.noteName.explicitNameDelimiters).trim() || "[]";
-      out.noteName.autoWordsCount = Math.max(1, Math.min(32, Math.trunc(Number(noteName.autoWordsCount) || DEFAULT_INLINE2NOTE.noteName.autoWordsCount)));
+      out.noteName.delimiters = String(noteName.delimiters || DEFAULT_INLINE2NOTE.noteName.delimiters).trim() || "[]";
+      out.noteName.wordCount = Math.max(1, Math.min(32, Math.trunc(Number(noteName.wordCount) || DEFAULT_INLINE2NOTE.noteName.wordCount)));
       out.noteName.preferHeaderTitle = noteName.preferHeaderTitle !== false;
       const nameCollision = isObj(src.nameCollision) ? src.nameCollision : {};
       out.nameCollision.mode = normalizeMode(nameCollision.mode, ["new_note", "add_to_note", "overwrite"], DEFAULT_INLINE2NOTE.nameCollision.mode);
       const placement = isObj(src.placement) ? src.placement : {};
       out.placement.position = normalizeMode(placement.position, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.position);
       out.placement.headerMode = normalizeMode(placement.headerMode, ["custom", "datetime", "none"], DEFAULT_INLINE2NOTE.placement.headerMode);
-      out.placement.customHeaderText = String(placement.customHeaderText || DEFAULT_INLINE2NOTE.placement.customHeaderText).trim() || DEFAULT_INLINE2NOTE.placement.customHeaderText;
-      out.placement.datetimeHeaderFormat = String(placement.datetimeHeaderFormat || DEFAULT_INLINE2NOTE.placement.datetimeHeaderFormat).trim() || DEFAULT_INLINE2NOTE.placement.datetimeHeaderFormat;
+      const customParts = splitLeadingHashes(placement.customHeader || DEFAULT_INLINE2NOTE.placement.customHeader);
+      const formatParts = splitLeadingHashes(placement.datetimeFormat || DEFAULT_INLINE2NOTE.placement.datetimeFormat);
+      out.placement.customHeader = customParts.text || DEFAULT_INLINE2NOTE.placement.customHeader;
+      out.placement.datetimeFormat = formatParts.text || DEFAULT_INLINE2NOTE.placement.datetimeFormat;
+      out.placement.headerLevel = String(Object.prototype.hasOwnProperty.call(placement, "headerLevel") ? normalizeHeaderLevel(placement.headerLevel) : customParts.level || (out.placement.headerMode === "datetime" ? 3 : 0));
       out.yamlNoteFormat = normalizeMode(src.yamlNoteFormat, ["raw", "clean"], DEFAULT_INLINE2NOTE.yamlNoteFormat);
       const sp = isObj(src.sourceProcessing) ? src.sourceProcessing : {};
       out.sourceProcessing.cleanupFieldIds = Array.isArray(sp.cleanupFieldIds) ? sp.cleanupFieldIds.map((x) => String(x || "").trim()).filter(Boolean) : [];
-      out.sourceProcessing.processedToken = Object.prototype.hasOwnProperty.call(sp, "processedToken") ? String(sp.processedToken || "").trim() : DEFAULT_INLINE2NOTE.sourceProcessing.processedToken;
-      out.sourceProcessing.processedTokenPanel = normalizeMode(sp.processedTokenPanel, ["left", "right"], DEFAULT_INLINE2NOTE.sourceProcessing.processedTokenPanel);
-      out.sourceProcessing.replacePayloadWithLink = sp.replacePayloadWithLink !== false;
+      out.sourceProcessing.token = Object.prototype.hasOwnProperty.call(sp, "token") ? String(sp.token || "").trim() : DEFAULT_INLINE2NOTE.sourceProcessing.token;
+      out.sourceProcessing.panel = normalizeMode(sp.panel, ["left", "right"], DEFAULT_INLINE2NOTE.sourceProcessing.panel);
+      out.sourceProcessing.replaceWithLink = sp.replaceWithLink !== false;
+      out.sourceProcessing.text = Object.prototype.hasOwnProperty.call(sp, "text") ? normalizeMode(sp.text, ["leave", "remove", "words"], DEFAULT_INLINE2NOTE.sourceProcessing.text) : out.sourceProcessing.replaceWithLink ? "remove" : "leave";
+      out.sourceProcessing.keepWords = Number.isFinite(Number(sp.keepWords)) ? Math.max(1, Math.min(20, Math.trunc(Number(sp.keepWords)))) : DEFAULT_INLINE2NOTE.sourceProcessing.keepWords;
       const visual = isObj(sp.visual) ? sp.visual : {};
       out.sourceProcessing.visual = {
         enabled: visual.enabled === true,
         color: String(visual.color || "").trim(),
-        opacity: Number.isFinite(Number(visual.opacity)) ? Math.max(0, Math.min(1, Number(visual.opacity))) : DEFAULT_INLINE2NOTE.sourceProcessing.visual.opacity
+        opacity: normalizeProcessedOpacity(visual.opacity)
       };
-      out.openTransformedNote = src.openTransformedNote === true;
-      out.sublinesBehavior = normalizeMode(src.sublinesBehavior, ["stay", "remove"], DEFAULT_INLINE2NOTE.sublinesBehavior);
-      const fb = isObj(src.flyingButton) ? src.flyingButton : {};
-      out.flyingButton.enabled = fb.enabled === true;
+      out.openTarget = src.openTarget === true;
+      out.sublines = normalizeMode(src.sublines, ["stay", "remove"], DEFAULT_INLINE2NOTE.sublines);
+      out.floatingButton = src.floatingButton === true;
+      out.floatingButtonGap = normalizeFloatingButtonGap(src.floatingButtonGap);
       const preview = isObj(src.preview) ? src.preview : {};
       out.preview.sampleLine = String(preview.sampleLine || DEFAULT_INLINE2NOTE.preview.sampleLine);
       return out;
@@ -22121,7 +18710,6 @@ var require_transform_feature = __commonJS({
       const root = isObj(cfg) ? cfg : {};
       if (!isObj(root.transform)) root.transform = {};
       root.transform.inline2note = normalizeInline2Note(root.transform.inline2note);
-      if (!isObj(root.transform.inline2fleet)) root.transform.inline2fleet = {};
       return root;
     }
     function collectTemplateOptions(app3, folder) {
@@ -22135,11 +18723,11 @@ var require_transform_feature = __commonJS({
       }).map((f) => String(f.path || "").trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
     }
     function resolveIoSeparators(cfg) {
-      const io = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io) ? cfg.pkm.behavior.io : null;
+      const io = isObj(cfg && cfg.pkm && cfg.pkm.lineFormat) ? cfg.pkm.lineFormat : null;
       const s1 = String(io && io.separator1 || "").trim();
       const s2 = String(io && io.separator2 || "").trim();
       if (!s1 || !s2) {
-        throw new Error("InlineOverhaul: missing pkm.behavior.io separators (separator1/separator2)");
+        throw new Error("InlineOverhaul: missing pkm.lineFormat separators (separator1/separator2)");
       }
       return { separator1: s1, separator2: s2 };
     }
@@ -22164,7 +18752,7 @@ var require_transform_feature = __commonJS({
     function getElementMarkersFromConfig(cfg) {
       const out = [];
       const seen = /* @__PURE__ */ new Set();
-      const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+      const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
       const orderTypes = isObj(order.types) ? order.types : {};
       const fields = getModeFields(cfg);
       for (let i = 0; i < fields.length; i++) {
@@ -22198,48 +18786,114 @@ var require_transform_feature = __commonJS({
       };
       return String(pattern || "YYYY-MM-DD HH:mm").replace(/YYYY|MM|DD|HH|mm|ss/g, (token) => values[token]);
     }
+    function splitLeadingHashes(raw) {
+      const src = String(raw || "").trim();
+      const m = /^(#{1,6})\s*(.*)$/.exec(src);
+      if (!m) return { level: 0, text: src };
+      return { level: String(m[1]).length, text: String(m[2] || "").trim() };
+    }
+    function normalizeHeaderLevel(raw) {
+      const n = Math.trunc(Number(raw));
+      if (!Number.isFinite(n)) return Number(DEFAULT_INLINE2NOTE.placement.headerLevel);
+      return Math.max(0, Math.min(6, n));
+    }
     function formatHeaderByMode(i2n, now) {
       const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
       const mode = String(placement.headerMode || "").trim().toLowerCase();
       if (mode === "none") return "";
-      if (mode === "custom") return String(placement.customHeaderText || "").trim();
-      const fmt = String(placement.datetimeHeaderFormat || "YYYY-MM-DD HH:mm").trim();
-      return `### ${formatDateTimeByPattern(now, fmt)}`;
+      const text = mode === "custom" ? splitLeadingHashes(placement.customHeader).text : formatDateTimeByPattern(now, splitLeadingHashes(
+        String(placement.datetimeFormat || "YYYY-MM-DD HH:mm")
+      ).text || "YYYY-MM-DD HH:mm");
+      if (!text) return "";
+      const level = normalizeHeaderLevel(placement.headerLevel);
+      return level > 0 ? `${"#".repeat(level)} ${text}` : text;
     }
     function normalizeRuleWikilink(raw) {
       const src = String(raw || "").trim();
       const match = src.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/);
       return match ? String(match[1] || "").trim() : src;
     }
-    function selectSmartTemplate(parsed, smartRules2, defaultTemplate) {
+    function fieldsOnLine(cfg, present) {
+      const seen = /* @__PURE__ */ new Set();
+      const groupOf = /* @__PURE__ */ new Map();
+      const fields = getModeFields(cfg);
+      for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+        const id = String(field && field.id || "").trim();
+        if (!id) continue;
+        const marker = String(field && field.marker || "").trim();
+        const source = String(field && field.source || "").trim();
+        const isLink = source === "projects" || source.indexOf("wikilinks:") === 0;
+        groupOf.set(id, marker ? "emojiFields" : isLink ? "wikilinks" : "tags");
+        if (marker && present.emojiMarkers.has(marker)) {
+          seen.add(id);
+          continue;
+        }
+        const candidates = fieldTokenCandidates(field);
+        for (let vi = 0; vi < candidates.length; vi++) {
+          const raw = String(candidates[vi].rawToken || "").trim();
+          const full = String(candidates[vi].fullToken || "").trim();
+          const hit = isLink ? present.wikilinks.has(normalizeRuleWikilink(raw)) : present.tags.has(full);
+          if (hit) {
+            seen.add(id);
+            break;
+          }
+        }
+      }
+      return { seen, groupOf };
+    }
+    function selectSmartRule(parsed, smartRules2, cfg) {
       const p = isObj(parsed) ? parsed : {};
-      const tags = new Set(Array.isArray(p.tags) ? p.tags.map((x) => String(x || "").trim()).filter(Boolean) : []);
-      const wikilinks = new Set(Array.isArray(p.wikilinks) ? p.wikilinks.map(normalizeRuleWikilink).filter(Boolean) : []);
-      const emojiMarkers = new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean));
+      const present = {
+        tags: new Set(Array.isArray(p.tags) ? p.tags.map((x) => String(x || "").trim()).filter(Boolean) : []),
+        wikilinks: new Set(Array.isArray(p.wikilinks) ? p.wikilinks.map(normalizeRuleWikilink).filter(Boolean) : []),
+        emojiMarkers: new Set((Array.isArray(p.emojis) ? p.emojis : []).map((x) => String(x && x.marker || "").trim()).filter(Boolean))
+      };
       const rules = Array.isArray(smartRules2) ? smartRules2 : [];
+      let onLine = null;
       for (let i = 0; i < rules.length; i++) {
         const rule = rules[i];
         if (!rule || rule.enabled === false || rule.validation && rule.validation.isConflict) continue;
         const conditions = isObj(rule.conditions) ? rule.conditions : {};
+        const wantedFields = Array.isArray(conditions.fields) ? conditions.fields : [];
+        if (wantedFields.length && onLine === null) onLine = fieldsOnLine(cfg, present);
+        const seen = onLine ? onLine.seen : /* @__PURE__ */ new Set();
+        const groupOf = onLine ? onLine.groupOf : /* @__PURE__ */ new Map();
+        const fieldsIn = (group) => wantedFields.filter(
+          (id) => groupOf.get(String(id || "").trim()) === group
+        );
         const conditionGroups = [
-          [Array.isArray(conditions.tags) ? conditions.tags : [], tags, (x) => String(x || "").trim()],
-          [Array.isArray(conditions.emojiFields) ? conditions.emojiFields : [], emojiMarkers, (x) => String(x || "").trim()],
-          [Array.isArray(conditions.wikilinks) ? conditions.wikilinks : [], wikilinks, normalizeRuleWikilink]
+          [Array.isArray(conditions.tags) ? conditions.tags : [], present.tags, (x) => String(x || "").trim(), fieldsIn("tags")],
+          [Array.isArray(conditions.emojiFields) ? conditions.emojiFields : [], present.emojiMarkers, (x) => String(x || "").trim(), fieldsIn("emojiFields")],
+          [Array.isArray(conditions.wikilinks) ? conditions.wikilinks : [], present.wikilinks, normalizeRuleWikilink, fieldsIn("wikilinks")]
         ];
-        if (!conditionGroups.some((group) => group[0].length)) continue;
+        if (!conditionGroups.some((group) => group[0].length || group[3].length)) continue;
         let matches = true;
         for (let gi = 0; gi < conditionGroups.length; gi++) {
-          const [wanted, actual, normalize] = conditionGroups[gi];
-          if (!wanted.length) continue;
-          if (!wanted.some((value) => actual.has(normalize(value)))) {
+          const [wanted, actual, normalize, wantedGroupFields] = conditionGroups[gi];
+          if (!wanted.length && !wantedGroupFields.length) continue;
+          const byValue = wanted.some((value) => actual.has(normalize(value)));
+          const byField = wantedGroupFields.some((id) => seen.has(String(id || "").trim()));
+          if (!byValue && !byField) {
             matches = false;
             break;
           }
         }
-        const target = String(rule.targetTemplate || "").trim();
-        if (matches && target) return target;
+        if (matches) return rule;
       }
-      return String(defaultTemplate || "").trim();
+      return null;
+    }
+    function selectSmartTemplate(parsed, smartRules2, defaultTemplate, cfg) {
+      const rule = selectSmartRule(parsed, smartRules2, cfg);
+      const target = rule ? String(rule.targetTemplate || "").trim() : "";
+      return target || String(defaultTemplate || "").trim();
+    }
+    function normalizeRuleFolderMode(raw) {
+      const v = String(raw || "").trim().toLowerCase();
+      return v === "near" || v === "folder" ? v : "default";
+    }
+    function normalizeFolderPath(raw) {
+      return String(raw || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
     }
     function parseInlineLine(rawLine, cfg) {
       const line = String(rawLine || "");
@@ -22302,9 +18956,9 @@ var require_transform_feature = __commonJS({
       return { line, tags: uniq(tags), wikilinks: uniq(wikilinks), emojis, payloadText, tagOccurrences, wikilinkOccurrences, emojiOccurrences };
     }
     function getModeFields(cfg) {
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-      const left = isObj(behavior.leftMode) && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : [];
-      const right = isObj(behavior.rightMode) && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : [];
+      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
+      const left = isObj(behavior.tags) && Array.isArray(behavior.tags.fields) ? behavior.tags.fields : [];
+      const right = isObj(behavior.links) && Array.isArray(behavior.links.fields) ? behavior.links.fields : [];
       return left.concat(right).filter((f) => isObj(f) && String(f.id || "").trim());
     }
     function fieldTokenCandidates(field) {
@@ -22356,13 +19010,14 @@ var require_transform_feature = __commonJS({
     }
     function buildTransformContext(parsed, cfg) {
       const p = isObj(parsed) ? parsed : { line: "", tags: [], wikilinks: [], emojis: [], payloadText: "" };
-      const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+      const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
       const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
       const orderTypes = isObj(order.types) ? order.types : {};
       const fields = getModeFields(cfg);
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-      const leftFieldIds = new Set((isObj(behavior.leftMode) && Array.isArray(behavior.leftMode.fields) ? behavior.leftMode.fields : []).map((field) => String(field && field.id || "").trim()));
-      const rightFieldIds = new Set((isObj(behavior.rightMode) && Array.isArray(behavior.rightMode.fields) ? behavior.rightMode.fields : []).map((field) => String(field && field.id || "").trim()));
+      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
+      const orderSideSet = (key) => new Set((Array.isArray(order[key]) ? order[key] : []).map((id) => String(id || "").trim()).filter(Boolean));
+      const leftFieldIds = orderSideSet("left");
+      const rightFieldIds = orderSideSet("right");
       const fieldById = {};
       for (let i = 0; i < fields.length; i++) {
         const fid = String(fields[i] && fields[i].id || "").trim();
@@ -22408,7 +19063,8 @@ var require_transform_feature = __commonJS({
           if (isSubField) return cand || defaultYamlProperty || parentYamlProperty;
           return cand || defaultYamlProperty;
         };
-        const expectedPanel = leftFieldIds.has(fid) ? "left" : rightFieldIds.has(fid) ? "right" : "any";
+        const sideKey = isSubField && !leftFieldIds.has(fid) && !rightFieldIds.has(fid) ? parentFid : fid;
+        const expectedPanel = leftFieldIds.has(sideKey) ? "left" : rightFieldIds.has(sideKey) ? "right" : "any";
         const isPanelMatch = (occurrence) => occurrence && (occurrence.panel === expectedPanel || occurrence.panel === "any");
         if (fType === "element") {
           const marker = resolveFieldMarker(f);
@@ -22482,7 +19138,7 @@ var require_transform_feature = __commonJS({
         const mElement = token.match(/^[\u{1F300}-\u{1FAFF}]\s*(.*)$/u);
         return mElement ? String(mElement[1] || "").trim() : token;
       }
-      if (/^#\/\d+$/.test(token)) return Number(String(token.replace(/^#\//, "")).trim());
+      if (/^#\/\d+$/.test(token)) return String(token.replace(/^#\//, "")).trim();
       if (/^#[^\s#]+$/.test(token)) return String(token.slice(1)).trim();
       if (/^[\u{1F300}-\u{1FAFF}]\d{2}:\d{2}$/u.test(token)) return String(token.slice(2)).trim();
       if (/^[\u{1F300}-\u{1FAFF}]\d{4}-\d{2}-\d{2}$/u.test(token)) return String(token.slice(2)).trim();
@@ -22495,16 +19151,37 @@ var require_transform_feature = __commonJS({
       const v = String(raw || "").trim().toLowerCase();
       return v === "raw" || v === "clean" ? v : "";
     }
-    function buildYamlMapFromContext(transformContext, cfg) {
+    function readVaultPropertyTypes(app3) {
+      const out = {};
+      try {
+        const mgr = app3 && typeof app3 === "object" ? app3.metadataTypeManager : null;
+        if (!mgr || typeof mgr !== "object") return out;
+        const raw = typeof mgr.getAllProperties === "function" ? mgr.getAllProperties() : mgr.properties || mgr.types;
+        if (!raw || typeof raw !== "object") return out;
+        const rows = Array.isArray(raw) ? raw : Object.keys(raw).map((k) => raw[k]);
+        for (const row of rows) {
+          if (!row || typeof row !== "object") continue;
+          const name = String(row.name || "").trim();
+          const type = String(row.type || "").trim();
+          if (!name || !type) continue;
+          if (!out[name]) out[name] = type;
+        }
+      } catch (_) {
+      }
+      return out;
+    }
+    var YAML_LIST_PROPERTY_TYPES = /* @__PURE__ */ new Set(["multitext", "tags", "aliases", "list"]);
+    function buildYamlMapFromContext(transformContext, cfg, propertyTypes) {
       const out = {};
       const byFieldId = isObj(transformContext && transformContext.byFieldId) ? transformContext.byFieldId : {};
       const rows = Array.isArray(transformContext && transformContext.matches) ? transformContext.matches : Object.keys(byFieldId).map((k) => byFieldId[k]);
       const yamlFormat = String(cfg && cfg.transform && cfg.transform.inline2note && cfg.transform.inline2note.yamlNoteFormat || "raw").trim().toLowerCase();
-      const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+      const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
       const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
       const cardinalityByField = isObj(order.yamlCardinalityByField) ? order.yamlCardinalityByField : {};
       const propertyFieldCounts = {};
       const listYamlKeys = /* @__PURE__ */ new Set();
+      const singleYamlKeys = /* @__PURE__ */ new Set();
       const configuredFields = getModeFields(cfg);
       const fieldDefById = {};
       for (let i = 0; i < configuredFields.length; i++) {
@@ -22535,10 +19212,21 @@ var require_transform_feature = __commonJS({
         const cardinality = String(field && field.yamlCardinality || cardinalityByField[fid] || "").trim().toLowerCase();
         if (cardinality === "list" || cardinality === "many" || cardinality === "array") {
           for (const key of keys) listYamlKeys.add(key);
+        } else if (cardinality === "one" || cardinality === "single") {
+          for (const key of keys) singleYamlKeys.add(key);
         }
       }
       for (const key of Object.keys(propertyFieldCounts)) {
-        if (propertyFieldCounts[key] > 1) listYamlKeys.add(key);
+        if (propertyFieldCounts[key] > 1 && !singleYamlKeys.has(key)) listYamlKeys.add(key);
+      }
+      const declared = propertyTypes && typeof propertyTypes === "object" ? propertyTypes : {};
+      for (const key of Object.keys(propertyFieldCounts)) {
+        const type = String(declared[key] || "").trim().toLowerCase();
+        if (!type) continue;
+        if (YAML_LIST_PROPERTY_TYPES.has(type)) {
+          listYamlKeys.add(key);
+          singleYamlKeys.delete(key);
+        }
       }
       for (let i = 0; i < rows.length; i++) {
         const row = isObj(rows[i]) ? rows[i] : {};
@@ -22626,11 +19314,32 @@ var require_transform_feature = __commonJS({
         keysExisting.push(k);
         keyToLineIndex[k] = i;
       }
+      const YAML_PLAIN_UNSAFE_HEAD = /^[-?:,[\]{}#&*!|>'"%@`]/;
+      const YAML_LOOKS_LIKE_NUMBER = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
+      const YAML_LOOKS_LIKE_KEYWORD = /^(?:true|false|yes|no|on|off|null|~)$/i;
+      const needsYamlQuotes = (text) => {
+        const s = String(text);
+        if (!s) return true;
+        if (s !== s.trim()) return true;
+        if (YAML_PLAIN_UNSAFE_HEAD.test(s)) return true;
+        if (/[\n\r]/.test(s)) return true;
+        if (s.includes(": ") || s.endsWith(":")) return true;
+        if (/\s#/.test(s)) return true;
+        if (YAML_LOOKS_LIKE_NUMBER.test(s)) return true;
+        if (YAML_LOOKS_LIKE_KEYWORD.test(s)) return true;
+        return false;
+      };
+      const renderYamlText = (value) => {
+        const s = String(value != null ? value : "");
+        return needsYamlQuotes(s) ? JSON.stringify(s) : s;
+      };
       const renderYamlScalar = (value) => {
-        if (Array.isArray(value)) return `[${value.map((x) => typeof x === "number" && Number.isFinite(x) ? String(x) : JSON.stringify(String(x != null ? x : ""))).join(", ")}]`;
+        if (Array.isArray(value)) {
+          return `[${value.map((x) => typeof x === "number" && Number.isFinite(x) ? String(x) : renderYamlText(x)).join(", ")}]`;
+        }
         if (typeof value === "number" && Number.isFinite(value)) return String(value);
         if (typeof value === "boolean") return value ? "true" : "false";
-        return JSON.stringify(String(value != null ? value : ""));
+        return renderYamlText(value);
       };
       const mergedLines = [];
       for (let i = 0; i < lines.length; i++) {
@@ -22648,7 +19357,7 @@ var require_transform_feature = __commonJS({
       for (const k of Object.keys(keyToLineIndex)) {
         if (!keysExisting.includes(k)) keysExisting.push(k);
       }
-      const orderCfg = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+      const orderCfg = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
       const pbf = isObj(orderCfg.propertiesByField) ? orderCfg.propertiesByField : {};
       const orderLeft = Array.isArray(orderCfg.left) ? orderCfg.left.slice() : [];
       const orderRight = Array.isArray(orderCfg.right) ? orderCfg.right.slice() : [];
@@ -22683,7 +19392,7 @@ var require_transform_feature = __commonJS({
     function resolveAutoTitle(parsed, i2n) {
       const line = String(parsed && parsed.line || "");
       const payload = String(parsed && parsed.payloadText || "").trim();
-      const delim = String(i2n && i2n.noteName && i2n.noteName.explicitNameDelimiters || "[]").trim() || "[]";
+      const delim = String(i2n && i2n.noteName && i2n.noteName.delimiters || "[]").trim() || "[]";
       const open = delim.slice(0, Math.max(1, Math.floor(delim.length / 2))) || "[";
       const close = delim.slice(open.length) || "]";
       const re = new RegExp(escapeRegexLiteral(open) + "([\\s\\S]*?)" + escapeRegexLiteral(close), "g");
@@ -22698,7 +19407,7 @@ var require_transform_feature = __commonJS({
         if (hh) return hh;
       }
       const base = payload && payload !== "-" ? payload : "";
-      const wordsN = Math.max(1, Math.min(32, Math.trunc(Number(i2n && i2n.noteName && i2n.noteName.autoWordsCount) || 6)));
+      const wordsN = Math.max(1, Math.min(32, Math.trunc(Number(i2n && i2n.noteName && i2n.noteName.wordCount) || 6)));
       const words = base.split(/\s+/).filter(Boolean).slice(0, wordsN);
       if (words.length) return words.join(" ");
       return "";
@@ -22766,14 +19475,22 @@ var require_transform_feature = __commonJS({
     function slugSafeTitle(raw) {
       return String(raw || "").trim().replace(/[\\/:*?"<>|]/g, " ").replace(/\s+/g, " ").trim();
     }
-    async function pickTargetPath(plugin, title, i2n) {
+    function resolveRuleFolder(rule, i2n) {
+      const mode = normalizeRuleFolderMode(rule && rule.targetFolderMode);
+      if (mode === "near") return "";
+      if (mode === "folder") {
+        const own = normalizeFolderPath(rule && rule.targetFolder);
+        if (own) return own;
+      }
+      return normalizeFolderPath(i2n && i2n.outputFolder);
+    }
+    async function pickTargetPath(plugin, title, i2n, rule) {
       const app3 = plugin.app;
-      let folder = String(i2n && i2n.outputFolder || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
+      let folder = resolveRuleFolder(rule, i2n);
       if (!folder) {
         try {
           const activeFile = app3 && app3.workspace && typeof app3.workspace.getActiveFile === "function" ? app3.workspace.getActiveFile() : null;
-          const parent = activeFile && activeFile.parent ? String(activeFile.parent.path || "").trim() : "";
-          folder = parent;
+          folder = normalizeFolderPath(activeFile && activeFile.parent ? activeFile.parent.path : "");
         } catch (_) {
         }
       }
@@ -22795,36 +19512,84 @@ var require_transform_feature = __commonJS({
     function deriveSourceWikilinkFromTargetPath(targetPath) {
       return String(targetPath || "").trim().replace(/\\/g, "/").replace(/\.md$/i, "");
     }
-    function applySourcePayloadReplace(line, noteTitle, separators) {
+    function splitSourcePayload(line, separators) {
       const src = String(line || "");
       const indent = String((src.match(/^[\t ]*/) || [""])[0] || "");
       const body = src.slice(indent.length);
-      const title = String(noteTitle || "").trim();
-      if (!title) return src;
-      const replacement = `[[${title}]]`;
       const s1 = String(separators && separators.separator1 || "").trim();
       const s2 = String(separators && separators.separator2 || "").trim();
       if (s1 && s2 && body.includes(s1) && body.includes(s2)) {
         const firstIdx = body.indexOf(s1);
         const secondIdx = body.indexOf(s2, firstIdx + s1.length);
         if (firstIdx >= 0 && secondIdx > firstIdx) {
-          const left = String(body.slice(0, firstIdx) || "").trimEnd();
-          const right = String(body.slice(secondIdx + s2.length) || "").trim();
-          if (right) return `${indent}${left} ${s1} ${replacement} ${s2} ${right}`;
-          return `${indent}${left} ${s1} ${replacement}`;
+          return {
+            kind: "both",
+            src,
+            indent,
+            s1,
+            s2,
+            left: String(body.slice(0, firstIdx) || "").trimEnd(),
+            payload: String(body.slice(firstIdx + s1.length, secondIdx) || "").trim(),
+            right: String(body.slice(secondIdx + s2.length) || "").trim()
+          };
         }
       }
       if (s1 && body.includes(s1)) {
         const firstIdx = body.indexOf(s1);
         if (firstIdx >= 0) {
-          const left = String(body.slice(0, firstIdx) || "").trimEnd();
-          return `${indent}${left} ${s1} ${replacement}`;
+          return {
+            kind: "left-only",
+            src,
+            indent,
+            s1,
+            s2,
+            left: String(body.slice(0, firstIdx) || "").trimEnd(),
+            payload: String(body.slice(firstIdx + s1.length) || "").trim()
+          };
         }
       }
       const bullet = src.match(/^([\s]*[-*]\s+)(.+)$/);
-      if (bullet) return `${bullet[1]}${replacement}`;
-      if (s1 && s2) return `${src} ${s1} ${replacement}`;
-      return `${src} ${replacement}`;
+      if (bullet) {
+        return { kind: "bullet", src, s1, s2, prefix: bullet[1], payload: String(bullet[2] || "").trim() };
+      }
+      return { kind: "none", src, s1, s2, payload: "" };
+    }
+    function joinSourcePayload(parts, payload) {
+      const p = String(payload || "").trim();
+      const glue = (...bits) => bits.filter((x) => String(x || "").length).join(" ");
+      if (parts.kind === "both") {
+        if (parts.right) return `${parts.indent}${glue(parts.left, parts.s1, p, parts.s2, parts.right)}`;
+        return `${parts.indent}${glue(parts.left, parts.s1, p)}`;
+      }
+      if (parts.kind === "left-only") return `${parts.indent}${glue(parts.left, parts.s1, p)}`;
+      if (parts.kind === "bullet") return `${parts.prefix}${p}`;
+      if (parts.s1 && parts.s2) return `${parts.src} ${parts.s1} ${p}`;
+      return `${parts.src} ${p}`;
+    }
+    function firstWordsOf(text, count) {
+      const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+      const take = Number.isFinite(Number(count)) ? Math.max(1, Math.trunc(Number(count))) : 1;
+      return words.slice(0, take).join(" ");
+    }
+    function applySourcePayloadReplace(line, noteTitle, separators) {
+      const src = String(line || "");
+      const title = String(noteTitle || "").trim();
+      if (!title) return src;
+      return joinSourcePayload(splitSourcePayload(line, separators), `[[${title}]]`);
+    }
+    function applySourceTextFate(line, noteTitle, separators, opts) {
+      const src = String(line || "");
+      const fate = normalizeMode(opts && opts.text, ["leave", "remove", "words"], "remove");
+      const link = !!(opts && opts.link);
+      const title = String(noteTitle || "").trim();
+      const linkText = link && title ? `[[${title}]]` : "";
+      if (fate === "leave" && !linkText) return src;
+      const parts = splitSourcePayload(line, separators);
+      let text = parts.payload;
+      if (fate === "remove") text = "";
+      else if (fate === "words") text = firstWordsOf(parts.payload, opts && opts.keepWords);
+      const next = [text, linkText].filter(Boolean).join(" ");
+      return joinSourcePayload(parts, next);
     }
     function insertProcessedToken(line, token, panel, separators) {
       const src = String(line || "");
@@ -22888,7 +19653,8 @@ var require_transform_feature = __commonJS({
       if (!lineFinalize || typeof lineFinalize.buildPrefixUnified !== "function") {
         throw new Error("InlineOverhaul: shared prefix resolver unavailable");
       }
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+      const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
+      const behavior = { prefixRules: pkm.prefixRules, order: pkm.fields && pkm.fields.order };
       if (!isObj(behavior.prefixRules)) return String(line || "");
       const orderTypes = isObj(behavior.order && behavior.order.types) ? behavior.order.types : {};
       const fields = getModeFields(cfg);
@@ -22929,8 +19695,8 @@ var require_transform_feature = __commonJS({
       const resolved = String(lineFinalize.buildPrefixUnified(parsedLine, rules, { selected }, {
         isObj,
         getFieldById: (mode, fieldId) => {
-          const sourceFields = Array.isArray(mode && mode.fields) ? mode.fields : [];
-          return sourceFields.find((field) => String(field && field.id || "") === String(fieldId || "")) || null;
+          const sourceFields2 = Array.isArray(mode && mode.fields) ? mode.fields : [];
+          return sourceFields2.find((field) => String(field && field.id || "") === String(fieldId || "")) || null;
         }
       }) || "").trim();
       const indent = String((String(line || "").match(/^[\t ]*/) || [""])[0] || "");
@@ -22983,7 +19749,7 @@ var require_transform_feature = __commonJS({
       return [leftNoPrefix, right].filter(Boolean).join(" ").replace(/\s{2,}/g, " ").trim();
     }
     function getActiveOrderedFieldIds(cfg) {
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
       const order = isObj(behavior.order) ? behavior.order : {};
       const left = Array.isArray(order.left) ? order.left.slice() : [];
       const right = Array.isArray(order.right) ? order.right.slice() : [];
@@ -23031,9 +19797,11 @@ var require_transform_feature = __commonJS({
       if (tags.length) return tags[0].fullToken;
       return "";
     }
+    var PREVIEW_TEXT_WORDS = "buy milk bread and eggs today";
+    var PREVIEW_LINE_PREFIX = "- [ ] ";
     function buildPreviewBaseLine(cfg) {
       const separators = resolveIoSeparators(cfg);
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
       const order = isObj(behavior.order) ? behavior.order : {};
       const labels = isObj(order.labels) ? order.labels : {};
       const orderTypes = isObj(order.types) ? order.types : {};
@@ -23065,10 +19833,30 @@ var require_transform_feature = __commonJS({
       }
       const left = leftTokens.join(" ").trim();
       const right = rightTokens.join(" ").trim();
-      if (left && right) return `${left} ${separators.separator1} Text ${separators.separator2} ${right}`;
-      if (left) return `${left} ${separators.separator1} Text`;
-      if (right) return `Text ${separators.separator2} ${right}`;
-      return "Text";
+      const text = PREVIEW_TEXT_WORDS;
+      const p = PREVIEW_LINE_PREFIX;
+      if (left && right) return `${p}${left} ${separators.separator1} ${text} ${separators.separator2} ${right}`;
+      if (left) return `${p}${left} ${separators.separator1} ${text}`;
+      if (right) return `${p}${text} ${separators.separator2} ${right}`;
+      return p + text;
+    }
+    function buildSourcePreviewTree(i2n, cfg) {
+      const base = buildPreviewBaseLine(cfg);
+      if (!base) return { before: [], after: [] };
+      const separators = resolveIoSeparators(cfg);
+      if (!base.includes(separators.separator1) && !base.includes(separators.separator2)) {
+        return { before: [], after: [] };
+      }
+      const indent = "	";
+      const childOf = (n) => indent + base.replace(PREVIEW_TEXT_WORDS, "sub-line " + n + " of the same list");
+      const children = [childOf(1), childOf(2)];
+      const parentAfter = buildSourcePreviewLine(i2n, cfg).after;
+      const sublines = String(i2n && i2n.sublines || "").trim().toLowerCase() === "remove" ? "remove" : "stay";
+      return {
+        before: [base].concat(children),
+        after: sublines === "remove" ? [parentAfter] : [parentAfter].concat(children),
+        sublines
+      };
     }
     function buildSourcePreviewLine(i2n, cfg) {
       const before = buildPreviewBaseLine(cfg);
@@ -23078,11 +19866,15 @@ var require_transform_feature = __commonJS({
       const ctx = buildTransformContext(parsed, cfg);
       const ids = resolveSourceCleanupFieldIds(i2n, cfg);
       const cleaned = applySourceCleanupByFieldIds(before, ctx, ids, separators);
-      const linked = i2n && i2n.sourceProcessing && i2n.sourceProcessing.replacePayloadWithLink ? applySourcePayloadReplace(cleaned, "Preview", separators) : cleaned;
+      const linked = applySourceTextFate(cleaned, "Preview", separators, {
+        text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
+        keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
+        link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink)
+      });
       const processed = insertProcessedToken(
         linked,
-        i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedToken,
-        i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedTokenPanel,
+        i2n && i2n.sourceProcessing && i2n.sourceProcessing.token,
+        i2n && i2n.sourceProcessing && i2n.sourceProcessing.panel,
         separators
       );
       const after = normalizePreviewSeparators(normalizeSourceLineAfterCleanup(processed, separators), separators);
@@ -23096,11 +19888,15 @@ var require_transform_feature = __commonJS({
       const ctx = buildTransformContext(parsed, cfg);
       const ids = resolveSourceCleanupFieldIds(i2n, cfg);
       const cleaned = applySourceCleanupByFieldIds(sample, ctx, ids, separators);
-      const withLink = i2n && i2n.sourceProcessing && i2n.sourceProcessing.replacePayloadWithLink ? applySourcePayloadReplace(cleaned, "Example", separators) : cleaned;
+      const withLink = applySourceTextFate(cleaned, "Example", separators, {
+        text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
+        keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
+        link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink)
+      });
       const replaced = insertProcessedToken(
         withLink,
-        i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedToken,
-        i2n && i2n.sourceProcessing && i2n.sourceProcessing.processedTokenPanel,
+        i2n && i2n.sourceProcessing && i2n.sourceProcessing.token,
+        i2n && i2n.sourceProcessing && i2n.sourceProcessing.panel,
         separators
       );
       return {
@@ -23195,11 +19991,11 @@ var require_transform_feature = __commonJS({
         throw new Error("InlineOverhaul: source changed before transform completed");
       }
     }
-    function replaceEditorSourceBlock(ed, info, nextRootLine, sublinesBehavior) {
+    function replaceEditorSourceBlock(ed, info, nextRootLine, sublines) {
       if (!ed || typeof ed.replaceRange !== "function") throw new Error("InlineOverhaul: editor replace API unavailable");
       const start = Number(info.blockStart || 0);
       const end = Number(info.blockEnd || start);
-      if (String(sublinesBehavior || "stay").trim().toLowerCase() !== "remove") {
+      if (String(sublines || "stay").trim().toLowerCase() !== "remove") {
         const oldRoot = String(ed.getLine(start) || "");
         ed.replaceRange(String(nextRootLine || ""), { line: start, ch: 0 }, { line: start, ch: oldRoot.length });
         return;
@@ -23378,10 +20174,13 @@ var require_transform_feature = __commonJS({
         id: String(src.id || fallbackId || "rule").trim() || String(fallbackId || "rule"),
         enabled: src.enabled !== false,
         targetTemplate: String(src.targetTemplate || "").trim(),
+        targetFolderMode: normalizeRuleFolderMode(src.targetFolderMode),
+        targetFolder: normalizeFolderPath(src.targetFolder),
         conditions: {
           tags: uniq(Array.isArray(conditions.tags) ? conditions.tags : []),
           emojiFields: uniq(Array.isArray(conditions.emojiFields) ? conditions.emojiFields : []),
-          wikilinks: uniq(Array.isArray(conditions.wikilinks) ? conditions.wikilinks : [])
+          wikilinks: uniq(Array.isArray(conditions.wikilinks) ? conditions.wikilinks : []),
+          fields: uniq(Array.isArray(conditions.fields) ? conditions.fields : [])
         },
         validation: {
           isConflict: false,
@@ -23389,7 +20188,7 @@ var require_transform_feature = __commonJS({
         }
       };
     }
-    function renderSmartRulesSection(ctx, i2n, templateOptions) {
+    function renderSmartRulesSection(ctx, i2n, templateOptions2) {
       const { Setting, containerEl, plugin, enabled } = ctx;
       containerEl.createEl("h4", { text: "SmartTransform rules" });
       const hint = containerEl.createEl("small", { text: "Conflicting rules are auto-disabled. A rule must contain at least one condition." });
@@ -23509,7 +20308,7 @@ var require_transform_feature = __commonJS({
         }
         new Setting(row).setName("Target template").setDesc("Template used when this rule matches").addDropdown((d) => {
           d.addOption("", "-- none --");
-          for (let ti = 0; ti < templateOptions.length; ti++) d.addOption(templateOptions[ti], templateOptions[ti]);
+          for (let ti = 0; ti < templateOptions2.length; ti++) d.addOption(templateOptions2[ti], templateOptions2[ti]);
           d.setValue(rule.targetTemplate || "");
           d.onChange((v) => {
             const next = normalizeInline2Note(i2n);
@@ -23546,13 +20345,13 @@ var require_transform_feature = __commonJS({
       });
       new Setting(containerEl).setName("Templates folder").setDesc("Vault folder used to resolve markdown templates.").addText((txt) => {
         txt.setPlaceholder("Templates");
-        txt.setValue(i2n.templateFolder || "");
-        let draftValue = String(i2n.templateFolder || "");
+        txt.setValue(i2n.templatesFolder || "");
+        let draftValue = String(i2n.templatesFolder || "");
         txt.onChange((v) => {
           draftValue = String(v || "");
         });
         wireTextCommitOnBlur(txt.inputEl, () => draftValue, (nextValue) => {
-          plugin.setConfigPatch({ transform: { inline2note: { templateFolder: nextValue } } }, "transform:inline2note:templateFolder");
+          plugin.setConfigPatch({ transform: { inline2note: { templatesFolder: nextValue } } }, "transform:inline2note:templatesFolder");
         });
         if (!enabled || !i2n.enabled) txt.setDisabled(true);
       });
@@ -23568,17 +20367,17 @@ var require_transform_feature = __commonJS({
         });
         if (!enabled || !i2n.enabled) txt.setDisabled(true);
       });
-      const templateOptions = collectTemplateOptions(plugin.app, i2n.templateFolder);
+      const templateOptions2 = collectTemplateOptions(plugin.app, i2n.templatesFolder);
       new Setting(containerEl).setName("Default template").setDesc("Used when no smart rule matches.").addDropdown((d) => {
         d.addOption("", "-- none --");
-        for (let i = 0; i < templateOptions.length; i++) d.addOption(templateOptions[i], templateOptions[i]);
+        for (let i = 0; i < templateOptions2.length; i++) d.addOption(templateOptions2[i], templateOptions2[i]);
         d.setValue(i2n.defaultTemplate || "");
         d.onChange((v) => {
           plugin.setConfigPatch({ transform: { inline2note: { defaultTemplate: String(v || "") } } }, "transform:inline2note:defaultTemplate");
         });
         if (!enabled || !i2n.enabled) d.setDisabled(true);
       });
-      renderSmartRulesSection(ctx, i2n, templateOptions);
+      renderSmartRulesSection(ctx, i2n, templateOptions2);
       new Setting(containerEl).setName("Note name mode").setDesc("Auto: derive title from inline; Manual: prompt user for title.").addDropdown((d) => {
         d.addOption("auto", "Auto");
         d.addOption("manual", "Manual");
@@ -23589,25 +20388,25 @@ var require_transform_feature = __commonJS({
         if (!enabled || !i2n.enabled) d.setDisabled(true);
       });
       new Setting(containerEl).setName("Explicit name delimiters").setDesc("Auto naming priority starts with text inside these opening/closing delimiters.").addText((txt) => {
-        txt.setValue(i2n.noteName.explicitNameDelimiters || "[]");
-        let draftValue = String(i2n.noteName.explicitNameDelimiters || "[]");
+        txt.setValue(i2n.noteName.delimiters || "[]");
+        let draftValue = String(i2n.noteName.delimiters || "[]");
         txt.onChange((v) => {
           draftValue = String(v || "");
         });
         wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => {
-          plugin.setConfigPatch({ transform: { inline2note: { noteName: { explicitNameDelimiters: value } } } }, "transform:inline2note:noteName:delimiters");
+          plugin.setConfigPatch({ transform: { inline2note: { noteName: { delimiters: value } } } }, "transform:inline2note:noteName:delimiters");
         });
         if (!enabled || !i2n.enabled) txt.setDisabled(true);
       });
       new Setting(containerEl).setName("Auto title word count").setDesc("Fallback title length when delimiters and markdown header are absent.").addText((txt) => {
         txt.inputEl.type = "number";
-        txt.setValue(String(i2n.noteName.autoWordsCount || 6));
-        let draftValue = String(i2n.noteName.autoWordsCount || 6);
+        txt.setValue(String(i2n.noteName.wordCount || 6));
+        let draftValue = String(i2n.noteName.wordCount || 6);
         txt.onChange((v) => {
           draftValue = String(v || "");
         });
         wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => {
-          plugin.setConfigPatch({ transform: { inline2note: { noteName: { autoWordsCount: Number(value) } } } }, "transform:inline2note:noteName:words");
+          plugin.setConfigPatch({ transform: { inline2note: { noteName: { wordCount: Number(value) } } } }, "transform:inline2note:noteName:words");
         });
         if (!enabled || !i2n.enabled) txt.setDisabled(true);
       });
@@ -23640,23 +20439,23 @@ var require_transform_feature = __commonJS({
       });
       if (i2n.placement.headerMode === "custom") {
         new Setting(containerEl).setName("Custom header text").addText((txt) => {
-          txt.setValue(i2n.placement.customHeaderText || "");
-          let draftValue = String(i2n.placement.customHeaderText || "");
+          txt.setValue(i2n.placement.customHeader || "");
+          let draftValue = String(i2n.placement.customHeader || "");
           txt.onChange((v) => {
             draftValue = String(v || "");
           });
-          wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { customHeaderText: value } } } }, "transform:inline2note:placement:customHeader"));
+          wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { customHeader: value } } } }, "transform:inline2note:placement:customHeader"));
           if (!enabled || !i2n.enabled) txt.setDisabled(true);
         });
       }
       if (i2n.placement.headerMode === "datetime") {
         new Setting(containerEl).setName("Datetime header format").setDesc("Tokens: YYYY MM DD HH mm ss").addText((txt) => {
-          txt.setValue(i2n.placement.datetimeHeaderFormat || "YYYY-MM-DD HH:mm");
-          let draftValue = String(i2n.placement.datetimeHeaderFormat || "YYYY-MM-DD HH:mm");
+          txt.setValue(i2n.placement.datetimeFormat || "YYYY-MM-DD HH:mm");
+          let draftValue = String(i2n.placement.datetimeFormat || "YYYY-MM-DD HH:mm");
           txt.onChange((v) => {
             draftValue = String(v || "");
           });
-          wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { datetimeHeaderFormat: value } } } }, "transform:inline2note:placement:datetimeFormat"));
+          wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { placement: { datetimeFormat: value } } } }, "transform:inline2note:placement:datetimeFormat"));
           if (!enabled || !i2n.enabled) txt.setDisabled(true);
         });
       }
@@ -23670,17 +20469,17 @@ var require_transform_feature = __commonJS({
         if (!enabled || !i2n.enabled) d.setDisabled(true);
       });
       new Setting(containerEl).setName("Open transformed note").setDesc("When enabled, open created/updated note after transform.").addToggle((t) => {
-        t.setValue(!!i2n.openTransformedNote).onChange((v) => {
-          plugin.setConfigPatch({ transform: { inline2note: { openTransformedNote: !!v } } }, "transform:inline2note:openTransformedNote");
+        t.setValue(!!i2n.openTarget).onChange((v) => {
+          plugin.setConfigPatch({ transform: { inline2note: { openTarget: !!v } } }, "transform:inline2note:openTarget");
         });
         if (!enabled || !i2n.enabled) t.setDisabled(true);
       });
       new Setting(containerEl).setName("Sublines behavior").setDesc("For selection/root tree: Stay keeps sublines in source; Remove moves them into note and removes from source.").addDropdown((d) => {
         d.addOption("stay", "Stay");
         d.addOption("remove", "Remove");
-        d.setValue(String(i2n.sublinesBehavior || "stay"));
+        d.setValue(String(i2n.sublines || "stay"));
         d.onChange((v) => {
-          plugin.setConfigPatch({ transform: { inline2note: { sublinesBehavior: String(v || "stay") } } }, "transform:inline2note:sublinesBehavior");
+          plugin.setConfigPatch({ transform: { inline2note: { sublines: String(v || "stay") } } }, "transform:inline2note:sublines");
         });
         if (!enabled || !i2n.enabled) d.setDisabled(true);
       });
@@ -23689,31 +20488,31 @@ var require_transform_feature = __commonJS({
         t.setDisabled(true);
       });
       new Setting(containerEl).setName("Replace payload with note link").setDesc("After successful transform, replace first payload segment with [[noteTitle]] in source line.").addToggle((t) => {
-        t.setValue(!!(i2n.sourceProcessing && i2n.sourceProcessing.replacePayloadWithLink)).onChange((v) => {
-          plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { replacePayloadWithLink: !!v } } } }, "transform:inline2note:source:replacePayload");
+        t.setValue(!!(i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink)).onChange((v) => {
+          plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { replaceWithLink: !!v } } } }, "transform:inline2note:source:replacePayload");
         });
         if (!enabled || !i2n.enabled) t.setDisabled(true);
       });
       new Setting(containerEl).setName("Processed token").setDesc("Optional token inserted after successful transform. Empty disables insertion.").addText((txt) => {
-        txt.setValue(i2n.sourceProcessing.processedToken || "");
-        let draftValue = String(i2n.sourceProcessing.processedToken || "");
+        txt.setValue(i2n.sourceProcessing.token || "");
+        let draftValue = String(i2n.sourceProcessing.token || "");
         txt.onChange((v) => {
           draftValue = String(v || "");
         });
-        wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { processedToken: value } } } }, "transform:inline2note:source:processedToken"));
+        wireTextCommitOnBlur(txt.inputEl, () => draftValue, (value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { token: value } } } }, "transform:inline2note:source:token"));
         if (!enabled || !i2n.enabled) txt.setDisabled(true);
       });
       new Setting(containerEl).setName("Processed token panel").addDropdown((d) => {
         d.addOption("left", "Left");
         d.addOption("right", "Right");
-        d.setValue(i2n.sourceProcessing.processedTokenPanel || "right");
-        d.onChange((value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { processedTokenPanel: String(value || "right") } } } }, "transform:inline2note:source:processedPanel"));
+        d.setValue(i2n.sourceProcessing.panel || "right");
+        d.onChange((value) => plugin.setConfigPatch({ transform: { inline2note: { sourceProcessing: { panel: String(value || "right") } } } }, "transform:inline2note:source:processedPanel"));
         if (!enabled || !i2n.enabled) d.setDisabled(true);
       });
       const cleanupIds = resolveSourceCleanupFieldIds(i2n, cfg);
       const cleanupSet = new Set(cleanupIds);
       const modeFields2 = getModeFields(cfg);
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
       const order = isObj(behavior.order) ? behavior.order : {};
       const strictNames = isObj(order.strictNames) ? order.strictNames : {};
       const orderTypes = isObj(order.types) ? order.types : {};
@@ -23947,9 +20746,10 @@ var require_transform_feature = __commonJS({
       }
       const title = sanitizeResolvedTitle(resolvedTitle);
       if (!title) throw new Error("InlineOverhaul: note title is empty");
-      const target = await pickTargetPath(plugin, title, i2n);
-      const yamlMap = buildYamlMapFromContext(transformContext, cfg);
-      const templatePath = selectSmartTemplate(parsed, i2n.smartRules, i2n.defaultTemplate);
+      const smartRule = selectSmartRule(parsed, i2n.smartRules, cfg);
+      const target = await pickTargetPath(plugin, title, i2n, smartRule);
+      const yamlMap = buildYamlMapFromContext(transformContext, cfg, readVaultPropertyTypes(plugin && plugin.app));
+      const templatePath = String(smartRule && smartRule.targetTemplate || "").trim() || String(i2n.defaultTemplate || "").trim();
       const templateContent = target.mode === "add_to_note" && target.exists ? "" : await readTemplateContent(plugin, templatePath);
       const { yamlLines, body, newline } = parseFrontmatter(templateContent);
       const mergedYaml = renderYamlBlockWithOrder(yamlLines, yamlMap, cfg);
@@ -23965,11 +20765,13 @@ var require_transform_feature = __commonJS({
         const cleanupFieldIds = resolveSourceCleanupFieldIds(i2n, cfg);
         let nextRoot = applySourceCleanupByFieldIds(sourceLine, transformContext, cleanupFieldIds, separators);
         nextRoot = applySourcePrefixResolution(nextRoot, sourceLine, transformContext, cleanupFieldIds, cfg, runtimeOptions && runtimeOptions.lineFinalize);
-        if (i2n.sourceProcessing.replacePayloadWithLink) {
-          nextRoot = applySourcePayloadReplace(nextRoot, deriveSourceWikilinkFromTargetPath(actualTarget.path), separators);
-        }
-        nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.processedToken, i2n.sourceProcessing.processedTokenPanel, separators);
-        replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublinesBehavior);
+        nextRoot = applySourceTextFate(nextRoot, deriveSourceWikilinkFromTargetPath(actualTarget.path), separators, {
+          text: i2n.sourceProcessing.text,
+          keepWords: i2n.sourceProcessing.keepWords,
+          link: i2n.sourceProcessing.replaceWithLink
+        });
+        nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators);
+        replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines);
       } catch (sourceError) {
         try {
           await mutation.rollback();
@@ -23978,7 +20780,7 @@ var require_transform_feature = __commonJS({
         }
         throw new Error(`InlineOverhaul: source edit failed; target mutation rolled back: ${sourceError && sourceError.message ? sourceError.message : sourceError}`);
       }
-      if (i2n.openTransformedNote) {
+      if (i2n.openTarget) {
         try {
           const opened = plugin.app.vault.getAbstractFileByPath(actualTarget.path);
           if (opened && plugin.app.workspace && typeof plugin.app.workspace.getLeaf === "function") {
@@ -24002,12 +20804,22 @@ var require_transform_feature = __commonJS({
       parseInlineLine,
       buildTransformContext,
       buildYamlMapFromContext,
+      readVaultPropertyTypes,
       parseFrontmatter,
       renderYamlBlockWithOrder,
       resolveAutoTitle,
       formatHeaderByMode,
       selectSmartTemplate,
+      selectSmartRule,
+      buildSourcePreviewTree,
+      buildSourcePreviewLine,
+      resolveRuleFolder,
+      normalizeRuleFolderMode,
+      normalizeFolderPath,
       applySourcePayloadReplace,
+      applySourceTextFate,
+      splitSourcePayload,
+      resolveSourceCleanupFieldIds,
       applySourceCleanupByFieldIds,
       applySourcePrefixResolution,
       insertProcessedToken,
@@ -24115,7 +20927,12 @@ var require_tagwheel_scroller_overlay = __commonJS({
         return null;
       }
     }
-    function createRoot() {
+    function pickColor(value) {
+      var s = String(value == null ? "" : value).trim().toLowerCase();
+      return /^#[0-9a-f]{6}$/.test(s) ? s : "";
+    }
+    function createRoot(colors) {
+      var c = colors && typeof colors === "object" ? colors : {};
       var root = document.createElement("div");
       root.style.position = "fixed";
       root.style.zIndex = "60";
@@ -24123,7 +20940,7 @@ var require_tagwheel_scroller_overlay = __commonJS({
       root.style.display = "none";
       root.style.border = "1px solid var(--background-modifier-border)";
       root.style.borderRadius = "8px";
-      root.style.background = "var(--background-primary)";
+      root.style.background = c.fill || "var(--background-primary)";
       root.style.boxShadow = "var(--shadow-s)";
       root.style.padding = "4px 0";
       root.style.fontSize = "12px";
@@ -24137,14 +20954,18 @@ var require_tagwheel_scroller_overlay = __commonJS({
       list.style.gap = "0";
       root.appendChild(list);
       document.body.appendChild(root);
-      return { root, list };
+      return { root, list, colors: { fill: c.fill || "", text: c.text || "" } };
     }
     function createTagWheelScrollerOverlay(options) {
       var cfg = options && typeof options === "object" ? options : {};
       var direction = normalizeDirection(cfg.direction);
       var size = normalizeSize(cfg.size);
-      var boxPrimary = createRoot();
-      var boxSecondary = createRoot();
+      var colors = {
+        fill: pickColor(cfg.fillColor),
+        text: pickColor(cfg.textColor)
+      };
+      var boxPrimary = createRoot(colors);
+      var boxSecondary = createRoot(colors);
       function hide() {
         boxPrimary.root.style.display = "none";
         boxSecondary.root.style.display = "none";
@@ -24170,6 +20991,7 @@ var require_tagwheel_scroller_overlay = __commonJS({
       }
       function renderRows(target, rows) {
         target.list.innerHTML = "";
+        var colors2 = target.colors || {};
         var i;
         for (i = 0; i < rows.length; i++) {
           var item = document.createElement("div");
@@ -24178,6 +21000,7 @@ var require_tagwheel_scroller_overlay = __commonJS({
           item.style.overflow = "hidden";
           item.style.textOverflow = "ellipsis";
           item.style.opacity = "0.95";
+          if (colors2.text) item.style.color = colors2.text;
           target.list.appendChild(item);
         }
       }
@@ -24278,16 +21101,64 @@ var require_tagwheel_scroller_overlay = __commonJS({
   }
 });
 
+// src/ui/settings/types.ts
+function isBound(it) {
+  return typeof it.path === "string";
+}
+function getIn(obj, path) {
+  return path.split(".").reduce((acc, key) => {
+    if (acc === null || typeof acc !== "object") return void 0;
+    return acc[key];
+  }, obj);
+}
+function setIn(obj, path, value) {
+  const keys = path.split(".");
+  let cur = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    const next = cur[k];
+    if (next === null || typeof next !== "object") cur[k] = {};
+    cur = cur[k];
+  }
+  cur[keys[keys.length - 1]] = value;
+}
+function buildDefaultConfig(schema) {
+  const out = {};
+  for (const group of schema) {
+    for (const it of group.items) {
+      if (isBound(it)) setIn(out, it.path, it.default);
+    }
+  }
+  return out;
+}
+function on(path) {
+  return { deps: [path], test: (ctx) => Boolean(ctx.get(path)) };
+}
+function not(path) {
+  return { deps: [path], test: (ctx) => !ctx.get(path) };
+}
+function eq(path, value) {
+  return { deps: [path], test: (ctx) => ctx.get(path) === value };
+}
+function neither(a, b) {
+  return { deps: [a, b], test: (ctx) => !ctx.get(a) && !ctx.get(b) };
+}
+var init_types = __esm({
+  "src/ui/settings/types.ts"() {
+    "use strict";
+  }
+});
+
 // src/ui/settings/schema/custom_texts.ts
-var TAB_CALLOUTS, PREVIEW_TEXTS, PREVIEW_NOTE, PREVIEW_EXAMPLE, PREVIEW_LINE_TEXT, PREVIEW_EMPTY_RIGHT;
+var TAB_CALLOUTS, PREVIEW_TEXTS, PREVIEW_EXAMPLE, PREVIEW_LINE_TEXT, PREVIEW_EMPTY_RIGHT, MODULE_OFF_NOTE, COMMAND_TEXTS;
 var init_custom_texts = __esm({
   "src/ui/settings/schema/custom_texts.ts"() {
     "use strict";
     TAB_CALLOUTS = {
       general: {
-        head: "Inline Overhaul is about writing a note and tagging it in the same breath",
-        tip: "Everything the plugin does is built on one idea: a line can carry more than words. Put a status, a due date or a link on the same line as the thought, and you never break off to fill in a form. The tabs across the top go from moving text around, through setting up those slots, to turning a line into a note of its own",
-        body: "Nothing here changes your notes on its own. Each area below can be switched off, and the one part that creates files asks again before it will run. If you are new to it, start with the guide"
+        head: "Inline Overhaul lets one line of a note carry its own status, dates and links",
+        tip: "The tabs across the top follow the order in which people usually set the plugin up, so reading them left to right is reading the plugin. Nothing here depends on anything else: a Field you set up on <b>Tags & PKM</b> works with the keys off, and the keys work with no Fields at all. The two areas worth knowing about before you start are <b>Transform</b>, the only one that creates and edits files, and <b>Keyboard</b>: none of the commands has a key by default, so until you bind one nothing responds",
+        body: "Four areas, and one of them is enough. <b>Keyboard</b> gives you the keys and shows what each one is bound to. <b>Navigation</b> moves lines, text and the cursor without the mouse. <b>Tags & PKM</b> is the heart of it: you lay out the slots a line can hold \u2014 a status, a priority, a due date \u2014 and afterwards one keypress fills one in and steps it forward. <b>Visual</b> decides how those slots look while you write, and <b>Transform</b> turns a finished line into a note of its own. Three steps to get going: switch off any area you do not want, press <code>Read</code> above for a worked example, then lay out your first Field on <b>Tags & PKM</b>. Nothing is written into your notes until you press a key, and the one area that creates files stays off until you switch it on"
       },
       navigation: {
         head: "This menu helps to make inline navigation in Obsidian comfortable",
@@ -24307,7 +21178,7 @@ var init_custom_texts = __esm({
       visual: {
         head: "How a tagged line looks while you are writing",
         tip: "Nothing on this tab changes a character in your files. Open the same note on another device without this plugin and you will see plain text with ordinary tags",
-        body: "Draw tags as coloured bubbles instead of raw text, put a Bar in the margin so you can see what a block of lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
+        body: "Draw tags as colored bubbles instead of raw text, put a Bar in the margin so you can see what a block of lines is about at a glance, and set up the picker that lets you choose a Value with the arrow keys"
       },
       transform: {
         head: "Turn a line you have already written into a note of its own",
@@ -24321,20 +21192,24 @@ var init_custom_texts = __esm({
       }
     };
     PREVIEW_TEXTS = {
+      "source-preview": {
+        cap: "Live preview",
+        tip: "The line you pressed on, before and after. <b>Before</b> is a made-up line carrying every Field you have set up, with two sub-lines under it; <b>After</b> is what stays on the page once the note is written. Everything in this group changes it, and so does <code>Sub-lines (tree) behavior</code> under <code>Note content</code>: take the sub-lines along and they leave the page with the text. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
+      },
       "line-preview": {
         cap: "Live preview",
-        tip: "One chip per Field, in the order they are written. Everything you change below shows up here: rename a Field, give it a short name, move it to the other side, or change a Separator"
+        tip: "The shape of a line once your Fields are set up: one chip per Field, in the order they will be written, with your text in the middle and a Separator marking each end of it. Chips to the left of your text belong to the Left Block, chips to the right to the Right Block. Everything you do below shows up here at once \u2014 add a Field, rename one, give it a short name for TagWheel, drag it across the line, change a Separator \u2014 so you can see what a tagged line will look like before you type one. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
       },
       "tag-preview": {
         cap: "Live preview",
-        tip: "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no bubble \u2014 but the two opacity settings dim a whole side of the line, including them. Priority is set to <code>empty</code>, which is why it shows as a bare color",
+        tip: "Real Values here, because that is what these settings style. The date and the link are not tags, so they get no bubble \u2014 but the two opacity settings dim a whole side of the line, including them. Priority is set to <code>empty</code>, which is why it shows as a bare color. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
         line: "Rewrite the settings copy",
         element: "\u{1F4C5} 2026-08-24",
         link: "[[ClientA]]"
       },
       "bars-preview": {
         cap: "Live preview",
-        tip: "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar sits in the margin, so the text column never moves",
+        tip: "A Bar belongs to the line that carries the Field, and runs the full height of that line and everything nested under it \u2014 tagged or not. Deeper lines with a Value of their own get a Bar in the next lane along. Every Bar sits in the margin, so the text column never moves. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
         tree: [
           { text: "Ship the settings overhaul", fields: ["status", "priority"], children: [
             { text: "Rewrite every description", fields: ["status"], children: [
@@ -24354,18 +21229,61 @@ var init_custom_texts = __esm({
       },
       "wheel-preview": {
         cap: "Live preview",
-        tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the settings ask for: <code>Values per side</code> rows on each side that <code>Opens</code> allows. The list is a loop, so it keeps going past the last Value and starts again"
+        tip: "The middle row is your line. The scroller sits on the second Field from the left and shows exactly what the settings ask for: <code>Scroller size</code> rows on each side that <code>Scroller opening direction</code> allows. The list is a loop, so it keeps going past the last Value and starts again. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
       },
       "i2n-button-preview": {
         cap: "Live preview",
-        tip: "The button is part of the editor, not the note: nothing is written into your file until you press it",
+        tip: "The button is part of the editor, not the note: nothing is written into your file until you press it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
         note: "Shown on the line the cursor is on"
+      },
+      "caret-preview": {
+        cap: "Live preview",
+        tip: "The caret below is drawn with the color, the width and the blink speed set above, and it changes while you drag. It blinks the way the editor blinks: on for half the time, off for the other half, with no fading in between. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+        note: "The caret as it will look in a note"
       }
     };
-    PREVIEW_NOTE = "Close to what the editor draws, not the editor itself";
     PREVIEW_EXAMPLE = "Example Fields, until you set up your own under Fields on the Tags & PKM tab";
     PREVIEW_LINE_TEXT = "your text";
     PREVIEW_EMPTY_RIGHT = "nothing on the right yet";
+    MODULE_OFF_NOTE = "This module is off, so its settings are hidden. Turn it on to configure it";
+    COMMAND_TEXTS = [
+      { area: "Navigation", list: [
+        { name: "Move line up", does: "Move the line you are on, or its whole tree, up" },
+        { name: "Move line down", does: "The same, downwards" },
+        { name: "Move left", does: "Move selected text, cycle the line Prefix, or unindent" },
+        { name: "Move right", does: "Move selected text, cycle the line Prefix, or indent" },
+        { name: "Jump back", does: "Move the cursor to the heading or line above" },
+        { name: "Jump next", does: "Move the cursor to the heading or line below" },
+        { name: "Move cursor left in line", does: "Step the cursor back through the parts of the line" },
+        { name: "Move cursor right in line", does: "Step the cursor on through the parts of the line" }
+      ] },
+      /* Две части, и подписи у них видимые, поэтому живут здесь (Р8).
+         Стандартные команды — те, что есть всегда; ваши — пара на каждый Field,
+         она заводится сама (замечания 1.2.3.4.1 и 1.2.3.4.2). */
+      {
+        area: "Tags & PKM",
+        parts: { standard: "Standard commands", user: "Commands from your Fields" },
+        list: [
+          { name: "Status next", does: "One pair per Field, created automatically from your Field list" },
+          { name: "Status previous", does: "The same Field, backwards through its Values" },
+          { name: "Open TagWheel on the left", does: "Open TagWheel starting on the Fields before your text" },
+          { name: "Open TagWheel on the right", does: "Open TagWheel starting on the Fields after your text" }
+        ]
+      },
+      /* Область `Config` снята вместе с конфиг-заметкой 2026-09-03 (В-28): команды
+         `Apply config note` и `Open config template` из палитры убраны. */
+      { area: "Transform", list: [
+        { name: "Transform inline to note", does: "Turn the current line into a note, or append it to one" }
+      ] },
+      { area: "Binder", list: [
+        { name: "Smart bracket", does: "Cycle the brackets around the cursor or selection: none, then [], then a wikilink" },
+        { name: "<your rows>", does: "One command per row you add under Keyboard" }
+      ] },
+      { area: "General", list: [
+        { name: "Toggle <module> module", does: "One command per module, for turning a whole area off quickly" },
+        { name: "Undo last settings change", does: "Roll back the most recent change made in these settings" }
+      ] }
+    ];
   }
 });
 
@@ -24383,16 +21301,17 @@ function richParts(text) {
   if (last < text.length) out.push({ tag: "text", text: text.slice(last) });
   return out;
 }
-function paint(host, text) {
+function paintRich(host, text) {
   for (const part of richParts(text)) {
     if (part.tag === "text") host.createSpan({ text: part.text });
     else host.createEl(part.tag, { text: part.text, cls: part.tag === "code" ? "io-code" : "" });
   }
 }
-var Describer;
+var paint, Describer;
 var init_describe = __esm({
   "src/ui/settings/describe.ts"() {
     "use strict";
+    paint = paintRich;
     Describer = class {
       constructor(host) {
         this.cache = /* @__PURE__ */ new Map();
@@ -24507,6 +21426,10 @@ function tipBelow(o) {
     }
     open = o.host.createEl("div", { cls: "io-tip io-tip--below", attr: { id: o.id } });
     rich(open, o.text);
+    if (o.showIds) {
+      const name = o.id.replace(/-tip$/, "");
+      if (name) open.createEl("div", { text: name, cls: "io-tip__id" });
+    }
     mark.setAttribute("aria-expanded", "true");
   });
   return () => {
@@ -24515,6 +21438,32 @@ function tipBelow(o) {
       open = null;
     }
   };
+}
+function findScrollHost(node) {
+  const readStyle = (at2) => {
+    const g = globalThis.getComputedStyle;
+    if (typeof g === "function") {
+      try {
+        const computed = g(at2);
+        const value = String(computed && (computed.overflowY || computed.overflow) || "").trim();
+        if (value) return value;
+      } catch (e) {
+      }
+    }
+    const own = at2.style || {};
+    if (typeof own.getPropertyValue === "function") {
+      const byName = String(own.getPropertyValue("overflow-y") || own.getPropertyValue("overflow") || "").trim();
+      if (byName) return byName;
+    }
+    return String(own.overflowY || own.overflow || "").trim();
+  };
+  let at = node && node.parentElement;
+  while (at) {
+    const overflow = readStyle(at);
+    if (overflow === "auto" || overflow === "scroll" || overflow === "overlay") return at;
+    at = at.parentElement;
+  }
+  return null;
 }
 var init_dom = __esm({
   "src/ui/settings/custom/dom.ts"() {
@@ -24538,7 +21487,8 @@ function callout(tab) {
       text: text.tip,
       label: "this tab",
       id: "io-tip-callout-" + tab,
-      showTips: Boolean(ctx.get("general.help.showTips"))
+      showTips: Boolean(ctx.get("general.help.showTips")),
+      showIds: Boolean(ctx.get("advanced.showSettingIds"))
     });
     rich(el(box, "p", "io-callout__body"), text.body);
     return closeTip;
@@ -24557,6 +21507,7 @@ var GENERAL_GROUPS;
 var init_general = __esm({
   "src/ui/settings/schema/general.ts"() {
     "use strict";
+    init_types();
     init_callouts();
     GENERAL_GROUPS = [
       {
@@ -24566,7 +21517,8 @@ var init_general = __esm({
         heading: "Before you start",
         items: [
           { kind: "custom", id: "general-callout", render: callout("general") }
-        ]
+        ],
+        visible: on("general.help.showCallouts")
       },
       {
         id: "help",
@@ -24574,14 +21526,25 @@ var init_general = __esm({
         order: 100,
         heading: "Help",
         intro: "Where to start, and how much hand-holding you want along the way",
+        tip: "<code>Read</code> writes a guide into your vault the first time you press it and opens it every time after, and the note is yours from then on \u2014 the plugin never overwrites it. <code>Show tips</code> controls these very boxes: off, the panel keeps only the one-line descriptions, which is what you want once you know your way around",
         items: [
           {
             kind: "buttons",
             id: "howto",
             name: "Guide",
             desc: "Worked examples of the things people set up first",
-            tip: "Opens a note in your vault with the practical side: which commands are worth a key, how to lay out your first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. It is an ordinary note, so you can scribble your own notes in it",
-            buttons: [{ label: "Open the guide", action: "open-howto", cta: true }]
+            tip: "<code>Read</code> writes the guide into your vault the first time you press it, and opens it every time after that. Inside is the practical side: which commands are worth a key, how to lay out your first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. From then on the note is yours \u2014 scribble in it, move it, rename it. The plugin never writes over it again, so nothing you add there can be lost by pressing this button",
+            buttons: [{ label: "Read", action: "open-howto", cta: true }]
+          },
+          {
+            kind: "toggle",
+            id: "show-callouts",
+            path: "general.help.showCallouts",
+            default: true,
+            name: "Show callouts",
+            desc: "Keep the boxes that say what a tab or a block of settings is for",
+            searchTerms: ["Show intro boxes"],
+            tip: "The boxes are the ones with a coloured edge: one at the top of every tab saying what the tab is for, and one under each block of settings saying what that block does. Turn this off once you know your way around and the panel keeps the settings and the one-line descriptions under their names. It is a separate switch from <code>Show tips</code>: that one hides the <code>?</code> marks, this one hides the boxes"
           },
           {
             kind: "toggle",
@@ -24600,6 +21563,7 @@ var init_general = __esm({
         order: 200,
         heading: "Modules",
         intro: "Four separate things live in this plugin. Turn off the ones you do not want and they stop adding commands and stop touching your notes",
+        tip: "Turning an area off is not the same as leaving it alone. Its commands disappear from the palette, so a hotkey you gave them stops doing anything, and its settings are hidden here until you turn it back on. Nothing you configured is lost \u2014 the settings come back exactly as they were. Use this to keep the palette short: if you only ever wanted the tags, three of the four can go",
         items: [
           {
             kind: "toggle",
@@ -24640,51 +21604,6 @@ var init_general = __esm({
         ]
       }
     ];
-  }
-});
-
-// src/ui/settings/types.ts
-function isBound(it) {
-  return typeof it.path === "string";
-}
-function getIn(obj, path) {
-  return path.split(".").reduce((acc, key) => {
-    if (acc === null || typeof acc !== "object") return void 0;
-    return acc[key];
-  }, obj);
-}
-function setIn(obj, path, value) {
-  const keys = path.split(".");
-  let cur = obj;
-  for (let i = 0; i < keys.length - 1; i++) {
-    const k = keys[i];
-    const next = cur[k];
-    if (next === null || typeof next !== "object") cur[k] = {};
-    cur = cur[k];
-  }
-  cur[keys[keys.length - 1]] = value;
-}
-function buildDefaultConfig(schema) {
-  const out = {};
-  for (const group of schema) {
-    for (const it of group.items) {
-      if (isBound(it)) setIn(out, it.path, it.default);
-    }
-  }
-  return out;
-}
-function on(path) {
-  return { deps: [path], test: (ctx) => Boolean(ctx.get(path)) };
-}
-function not(path) {
-  return { deps: [path], test: (ctx) => !ctx.get(path) };
-}
-function eq(path, value) {
-  return { deps: [path], test: (ctx) => ctx.get(path) === value };
-}
-var init_types = __esm({
-  "src/ui/settings/types.ts"() {
-    "use strict";
   }
 });
 
@@ -24797,7 +21716,7 @@ function str(value) {
   return typeof value === "string" ? value : value === void 0 || value === null ? "" : String(value);
 }
 function storedRows(cfg) {
-  const raw = asObject(asObject(cfg)["ui"])["binderRows"];
+  const raw = asObject(asObject(asObject(cfg)["editor"])["binder"])["rows"];
   return Array.isArray(raw) ? raw.map(asObject) : [];
 }
 function newRowId() {
@@ -24807,13 +21726,27 @@ function createBinderModel(deps) {
   const { plugin } = deps;
   const read = () => storedRows(plugin.getConfig());
   const save = (rows, reason, registerCommands) => {
-    plugin.setConfigPatch({ ui: { binderRows: rows } }, reason);
+    plugin.setConfigPatch({ editor: { binder: { rows } } }, reason);
     if (!registerCommands || typeof plugin.registerBinderCommands !== "function") return;
     try {
       plugin.registerBinderCommands();
     } catch (e) {
       console.error("inline-overhaul: \u043A\u043E\u043C\u0430\u043D\u0434\u044B Binder \u043D\u0435 \u043F\u0435\u0440\u0435\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u043B\u0438\u0441\u044C", e);
     }
+  };
+  const duplicateOf = (draft) => {
+    const same = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase() && a.trim() !== "";
+    const insertText = String(draft && draft.insertText || "");
+    const commandName = String(draft && draft.commandName || "");
+    for (const row of read()) {
+      if (same(str(row["insertText"]), insertText)) {
+        return { field: "insertText", error: DUPLICATE_INSERT };
+      }
+      if (same(str(row["commandName"]), commandName)) {
+        return { field: "commandName", error: DUPLICATE_NAME };
+      }
+    }
+    return null;
   };
   return {
     listRows() {
@@ -24862,9 +21795,12 @@ function createBinderModel(deps) {
       next.splice(to, 0, taken);
       save(next, "settings:binder:reorder", true);
     },
+    duplicateOf,
     add(draft) {
       const insertText = String(draft && draft.insertText || "");
-      if (!insertText.trim()) return;
+      if (!insertText.trim()) return { ok: false };
+      const clash = duplicateOf(draft);
+      if (clash) return { ok: false, error: clash.error };
       const next = read().concat([{
         rowId: newRowId(),
         insertText,
@@ -24874,156 +21810,17 @@ function createBinderModel(deps) {
         commandId: ""
       }]);
       save(next, "settings:binder:add", true);
+      return { ok: true };
     }
   };
 }
-var SYSTEM_ROW_ID;
+var SYSTEM_ROW_ID, DUPLICATE_INSERT, DUPLICATE_NAME;
 var init_binder_model = __esm({
   "src/ui/settings/custom/binder_model.ts"() {
     "use strict";
     SYSTEM_ROW_ID = "binder-system-smart-bracket";
-  }
-});
-
-// src/ui/settings/custom/binder_view.ts
-function rowTitle(row) {
-  const short = row.commandLabel.startsWith(LABEL_PREFIX) ? row.commandLabel.slice(LABEL_PREFIX.length) : row.commandLabel;
-  return short.trim() || row.commandName.trim() || row.insertText.trim() || "this row";
-}
-function renderBinder(host, o) {
-  const scroll = el(host, "div", "io-scroll");
-  const card = el(scroll, "div", "io-card io-binder");
-  const head = el(card, "div", "io-tablehead");
-  for (const cap of HEAD) el(head, "div", void 0, cap);
-  let taken = null;
-  o.rows.forEach((row, i) => {
-    const line = el(card, "div", "io-tablerow");
-    const name = rowTitle(row);
-    const grip = el(line, "span", "io-grip", "\u283F");
-    grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", "Drag " + name + " to reorder it");
-    grip.draggable = true;
-    grip.addEventListener("dragstart", ((ev) => {
-      var _a;
-      taken = i;
-      line.classList.add("io-dragging");
-      try {
-        (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", String(i));
-      } catch (e) {
-      }
-    }));
-    grip.addEventListener("dragend", (() => {
-      taken = null;
-      line.classList.remove("io-dragging");
-    }));
-    line.addEventListener("dragover", ((ev) => {
-      if (taken === null) return;
-      ev.preventDefault();
-      line.classList.add("io-dragover");
-    }));
-    line.addEventListener("dragleave", (() => {
-      line.classList.remove("io-dragover");
-    }));
-    line.addEventListener("drop", ((ev) => {
-      ev.preventDefault();
-      line.classList.remove("io-dragover");
-      const from = taken;
-      taken = null;
-      if (from === null || from === i) return;
-      o.onMove(from, i);
-    }));
-    el(line, "code", "io-mono", row.insertText);
-    el(line, "div", "io-cellname", name);
-    const cell = el(line, "div", "io-binder__desc");
-    const desc = textInput(cell, "io-text", {
-      value: row.description,
-      label: "Description for " + name
-    });
-    desc.disabled = row.system;
-    if (row.system) desc.title = SYSTEM_TITLE;
-    desc.addEventListener("change", (() => {
-      if (!row.system) o.onDescription(row, desc.value);
-    }));
-    const hotkey = o.hotkeyOf(row);
-    const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
-      text: hotkey || HOTKEY_NONE,
-      label: (hotkey ? "Change" : "Assign") + " the hotkey for " + name,
-      title: HOTKEY_TITLE
-    });
-    hk.disabled = !o.openHotkey;
-    hk.addEventListener("click", (() => {
-      if (o.openHotkey) o.openHotkey(row);
-    }));
-    const drop2 = btn(line, "io-icon", {
-      text: row.system ? "" : "\u2715",
-      label: row.system ? SYSTEM_TITLE : "Remove " + name
-    });
-    drop2.disabled = row.system;
-    drop2.addEventListener("click", (() => {
-      if (!row.system) o.onRemove(row);
-    }));
-  });
-  const foot = el(card, "div", "io-tablefoot");
-  const add = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_COMMAND, label: ADD_COMMAND });
-  add.addEventListener("click", (() => {
-    o.onAdd();
-  }));
-}
-function renderAddForm(box, o) {
-  el(box, "h4", void 0, ADD_TITLE);
-  el(box, "p", "io-item__desc", ADD_NOTE);
-  const field = (name, desc, placeholder) => {
-    const row = el(box, "div", "io-item");
-    const info = el(row, "div", "io-item__info");
-    el(info, "div", "io-item__name", name);
-    el(info, "div", "io-item__desc", desc);
-    return textInput(el(row, "div", "io-item__control"), "io-text", {
-      value: "",
-      label: name + " of the new command",
-      placeholder
-    });
-  };
-  const insert = field(INSERT_NAME, INSERT_DESC, "\u2192");
-  const command = field(CMD_NAME, CMD_DESC, "Arrow");
-  const note = field(DESC_NAME, DESC_DESC, "");
-  const foot = el(box, "div", "io-dlg__foot");
-  const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
-  cancel.addEventListener("click", (() => {
-    o.cancel();
-  }));
-  const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
-  add.disabled = true;
-  insert.addEventListener("input", (() => {
-    add.disabled = !String(insert.value || "").trim();
-  }));
-  add.addEventListener("click", (() => {
-    if (!String(insert.value || "").trim()) return;
-    o.add({
-      insertText: insert.value,
-      commandName: command.value,
-      description: note.value
-    });
-  }));
-}
-var HEAD, ADD_COMMAND, HOTKEY_NONE, HOTKEY_TITLE, SYSTEM_TITLE, LABEL_PREFIX, ADD_TITLE, ADD_NOTE, INSERT_NAME, INSERT_DESC, CMD_NAME, CMD_DESC, DESC_NAME, DESC_DESC;
-var init_binder_view = __esm({
-  "src/ui/settings/custom/binder_view.ts"() {
-    "use strict";
-    init_dom();
-    HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""];
-    ADD_COMMAND = "Add command";
-    HOTKEY_NONE = "not set";
-    HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
-    SYSTEM_TITLE = "Built in";
-    LABEL_PREFIX = "Binder: ";
-    ADD_TITLE = "Add a Binder command";
-    ADD_NOTE = "The command is made from the row, so the text it inserts cannot be changed afterwards";
-    INSERT_NAME = "Inserts";
-    INSERT_DESC = "The text this command drops in at the cursor";
-    CMD_NAME = "Command name";
-    CMD_DESC = "What to call it in Obsidian's list of hotkeys";
-    DESC_NAME = "Description";
-    DESC_DESC = "A note to yourself about what the row is for";
+    DUPLICATE_INSERT = "A row with this text to insert already exists";
+    DUPLICATE_NAME = "A row with this command name already exists";
   }
 });
 
@@ -25097,14 +21894,178 @@ function openHotkeys(plugin, commandName) {
     return false;
   }
 }
+var HOTKEY_NONE, HOTKEY_TITLE;
 var init_hotkeys = __esm({
   "src/ui/settings/custom/hotkeys.ts"() {
     "use strict";
+    HOTKEY_NONE = "not set";
+    HOTKEY_TITLE = "Open Obsidian's Hotkeys settings at this command";
+  }
+});
+
+// src/ui/settings/custom/binder_view.ts
+function rowTitle(row) {
+  const short = row.commandLabel.startsWith(LABEL_PREFIX) ? row.commandLabel.slice(LABEL_PREFIX.length) : row.commandLabel;
+  return short.trim() || row.commandName.trim() || row.insertText.trim() || "this row";
+}
+function renderBinder(host, o) {
+  const scroll = el(host, "div", "io-scroll");
+  const card = el(scroll, "div", "io-card io-binder");
+  const head = el(card, "div", "io-tablehead");
+  for (const cap of HEAD) el(head, "div", void 0, cap);
+  let taken = null;
+  o.rows.forEach((row, i) => {
+    const line = el(card, "div", "io-tablerow");
+    const name = rowTitle(row);
+    const grip = el(line, "span", "io-grip", "\u283F");
+    grip.setAttribute("role", "button");
+    grip.setAttribute("aria-label", "Drag " + name + " to reorder it");
+    grip.draggable = true;
+    grip.addEventListener("dragstart", ((ev) => {
+      var _a;
+      taken = i;
+      line.classList.add("io-dragging");
+      try {
+        (_a = ev.dataTransfer) == null ? void 0 : _a.setData("text/plain", String(i));
+      } catch (e) {
+      }
+    }));
+    grip.addEventListener("dragend", (() => {
+      taken = null;
+      line.classList.remove("io-dragging");
+    }));
+    line.addEventListener("dragover", ((ev) => {
+      if (taken === null) return;
+      ev.preventDefault();
+      line.classList.add("io-dragover");
+    }));
+    line.addEventListener("dragleave", (() => {
+      line.classList.remove("io-dragover");
+    }));
+    line.addEventListener("drop", ((ev) => {
+      ev.preventDefault();
+      line.classList.remove("io-dragover");
+      const from = taken;
+      taken = null;
+      if (from === null || from === i) return;
+      o.onMove(from, i);
+    }));
+    el(line, "code", "io-mono", row.insertText);
+    el(line, "div", "io-cellname", name);
+    const cell = el(line, "div", "io-binder__desc");
+    if (row.system) {
+      const note = el(cell, "div", "io-binder__note", row.description);
+      note.setAttribute("aria-label", "Description for " + name);
+      note.title = SYSTEM_TITLE;
+    } else {
+      const desc = textInput(cell, "io-text", {
+        value: row.description,
+        label: "Description for " + name
+      });
+      desc.addEventListener("change", (() => {
+        o.onDescription(row, desc.value);
+      }));
+    }
+    const hotkey = o.hotkeyOf(row);
+    const hk = btn(line, "io-hk" + (hotkey ? "" : " io-hk--none"), {
+      text: hotkey || HOTKEY_NONE2,
+      label: (hotkey ? "Change" : "Assign") + " the hotkey for " + name,
+      title: HOTKEY_TITLE
+    });
+    hk.disabled = !o.openHotkey;
+    hk.addEventListener("click", (() => {
+      if (o.openHotkey) o.openHotkey(row);
+    }));
+    const drop2 = btn(line, "io-icon", {
+      text: row.system ? "" : "\u2715",
+      label: row.system ? SYSTEM_TITLE : "Remove " + name
+    });
+    drop2.disabled = row.system;
+    drop2.addEventListener("click", (() => {
+      if (!row.system) o.onRemove(row);
+    }));
+  });
+  const foot = el(card, "div", "io-tablefoot");
+  const add = btn(foot, "io-btn io-btn--sm io-btn--cta", { text: ADD_COMMAND, label: ADD_COMMAND });
+  add.addEventListener("click", (() => {
+    o.onAdd();
+  }));
+}
+function renderAddForm(box, o) {
+  el(box, "h4", void 0, ADD_TITLE);
+  el(box, "p", "io-item__desc", ADD_NOTE);
+  const field = (name, desc, placeholder) => {
+    const row = el(box, "div", "io-item");
+    const info = el(row, "div", "io-item__info");
+    el(info, "div", "io-item__name", name);
+    el(info, "div", "io-item__desc", desc);
+    const input = textInput(el(row, "div", "io-item__control"), "io-text", {
+      value: "",
+      label: name + " of the new command",
+      placeholder
+    });
+    const warn = el(info, "div", "io-item__warn");
+    return { input, warn };
+  };
+  const insert = field(INSERT_NAME, INSERT_DESC, "\u2192");
+  const command = field(CMD_NAME, CMD_DESC, "Arrow");
+  const note = field(DESC_NAME, DESC_DESC, "");
+  const foot = el(box, "div", "io-dlg__foot");
+  const cancel = btn(foot, "io-btn", { text: "Cancel", label: "Cancel" });
+  cancel.addEventListener("click", (() => {
+    o.cancel();
+  }));
+  const add = btn(foot, "io-btn io-btn--cta", { text: "Add", label: ADD_COMMAND });
+  const draftNow = () => ({
+    insertText: insert.input.value,
+    commandName: command.input.value,
+    description: note.input.value
+  });
+  const recheck = () => {
+    const draft = draftNow();
+    const clash = o.duplicateOf ? o.duplicateOf(draft) : null;
+    insert.warn.textContent = clash && clash.field === "insertText" ? clash.error : "";
+    command.warn.textContent = clash && clash.field === "commandName" ? clash.error : "";
+    add.disabled = !String(draft.insertText || "").trim() || Boolean(clash);
+  };
+  for (const f of [insert, command, note]) {
+    f.input.addEventListener("input", (() => {
+      recheck();
+    }));
+  }
+  recheck();
+  add.addEventListener("click", (() => {
+    const draft = draftNow();
+    if (!String(draft.insertText || "").trim()) return;
+    if (o.duplicateOf && o.duplicateOf(draft)) return;
+    o.add(draft);
+  }));
+}
+var HEAD, ADD_COMMAND, HOTKEY_NONE2, SYSTEM_TITLE, LABEL_PREFIX, ADD_TITLE, ADD_NOTE, INSERT_NAME, INSERT_DESC, CMD_NAME, CMD_DESC, DESC_NAME, DESC_DESC;
+var init_binder_view = __esm({
+  "src/ui/settings/custom/binder_view.ts"() {
+    "use strict";
+    init_dom();
+    init_hotkeys();
+    init_hotkeys();
+    HEAD = ["", "Inserts", "Command name", "Description", "Hotkey", ""];
+    ADD_COMMAND = "Add command";
+    HOTKEY_NONE2 = "not set";
+    SYSTEM_TITLE = "Built in";
+    LABEL_PREFIX = "Binder: ";
+    ADD_TITLE = "Add a Binder command";
+    ADD_NOTE = "The command is made from the row, so the text it inserts cannot be changed afterwards";
+    INSERT_NAME = "Inserts";
+    INSERT_DESC = "The text this command drops in at the cursor";
+    CMD_NAME = "Command name";
+    CMD_DESC = "What to call it in Obsidian's list of hotkeys";
+    DESC_NAME = "Description";
+    DESC_DESC = "A note to yourself about what the row is for";
   }
 });
 
 // src/ui/settings/custom/binder.ts
-function askAddModal(Modal2, app3, done) {
+function askAddModal(Modal2, app3, done, duplicateOf) {
   let answered = false;
   const finish = (draft) => {
     if (answered) return;
@@ -25124,7 +22085,8 @@ function askAddModal(Modal2, app3, done) {
         cancel: () => {
           finish(null);
           this.close();
-        }
+        },
+        duplicateOf
       });
     }
     onClose() {
@@ -25145,7 +22107,7 @@ var init_binder = __esm({
     init_hotkeys();
     import_command_registry = __toESM(require_command_registry());
     registry = import_command_registry.default;
-    BINDER_PATHS = ["ui.binderRows"];
+    BINDER_PATHS = ["editor.binder.rows"];
     binderTable = (host, ctx) => {
       const p = ctx.platform;
       const box = el(host, "div", "io-binderblock");
@@ -25156,6 +22118,14 @@ var init_binder = __esm({
       const plugin = p.plugin;
       const app3 = plugin.app;
       const canOpen = canOpenHotkeys(plugin);
+      const notice = (text) => {
+        const N = p.Notice;
+        try {
+          new N(text);
+        } catch (e) {
+          console.error("inline-overhaul: " + text);
+        }
+      };
       let mounted = null;
       const draw = () => {
         const keep2 = keepView(box);
@@ -25189,12 +22159,19 @@ var init_binder = __esm({
             onMove: (from, to) => commit(() => {
               model.move(from, to);
             }),
+            /*
+             * Повтор ловится **в окне**, пока человек печатает: сообщение стоит
+             * под тем полем, которое повторяется, и `Add` при этом недоступна
+             * (C13, 2026-09-02). Всплывающее сообщение остаётся последней
+             * преградой — на случай, если строка пришла не из окна.
+             */
             onAdd: () => askAddModal(Modal2, app3, (draft) => {
               if (!draft) return;
               commit(() => {
-                model.add(draft);
+                const res = model.add(draft);
+                if (!res.ok && res.error) notice(res.error);
               });
-            })
+            }, (draft) => model.duplicateOf(draft))
           });
         } catch (e) {
           next.remove();
@@ -25216,6 +22193,153 @@ var init_binder = __esm({
   }
 });
 
+// src/ui/settings/custom/command_reference.ts
+function fieldHeading(cmd) {
+  const label = String(cmd && cmd.groupLabel ? cmd.groupLabel : "").trim();
+  if (!label) return "";
+  const kind = KIND_WORD[String(cmd && cmd.kind ? cmd.kind : "").trim().toLowerCase()];
+  return kind ? label + " (" + kind + ")" : label;
+}
+function splitAndGroup(rows) {
+  const standard = rows.filter((r) => r.band === "standard");
+  const user = rows.filter((r) => r.band === "user");
+  const groups = [];
+  for (const r of user) {
+    const g = String(r.cmd && r.cmd.group ? r.cmd.group : "");
+    if (!groups.includes(g)) groups.push(g);
+  }
+  const rank = (r) => {
+    const g = String(r.cmd && r.cmd.group ? r.cmd.group : "");
+    const sub = r.cmd && r.cmd.sub ? 1 : 0;
+    const back = r.cmd && r.cmd.family === "field-previous" ? 1 : 0;
+    return groups.indexOf(g) * 4 + sub * 2 + back;
+  };
+  const sorted = user.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map((x) => x.r);
+  return standard.concat(sorted);
+}
+var FAMILY_BY_ROW, HEAD2, KIND_WORD, commandReference;
+var init_command_reference = __esm({
+  "src/ui/settings/custom/command_reference.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_custom_texts();
+    init_hotkeys();
+    FAMILY_BY_ROW = {
+      "Status next": "field-next",
+      "Status previous": "field-previous",
+      "<your rows>": "binder-row",
+      "Toggle <module> module": "module-toggle"
+    };
+    HEAD2 = ["Command", "Description", "Hotkey"];
+    KIND_WORD = {
+      tag: "tag",
+      wikilink: "link",
+      link: "link",
+      element: "element"
+    };
+    commandReference = (host, ctx) => {
+      const box = el(host, "div", "io-cmdblock");
+      const platform = ctx.platform;
+      if (!platform) return () => {
+        box.empty();
+      };
+      const plugin = platform.plugin;
+      const canOpen = canOpenHotkeys(plugin);
+      let mounted = null;
+      const draw = () => {
+        const keep2 = keepView(box);
+        const next = el(box, "div", "io-cmdblock__mount");
+        try {
+          fill(next);
+        } catch (e) {
+          next.remove();
+          console.error("inline-overhaul: \u0441\u043F\u0440\u0430\u0432\u043E\u0447\u043D\u0438\u043A \u043A\u043E\u043C\u0430\u043D\u0434 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
+          return;
+        }
+        if (mounted) mounted.remove();
+        mounted = next;
+        keep2.restore();
+      };
+      const fill = (mount) => {
+        const commands = typeof plugin.listOwnCommands === "function" ? plugin.listOwnCommands() : [];
+        const scroll = el(mount, "div", "io-scroll");
+        const card = el(scroll, "div", "io-cmd");
+        const inner = el(card, "div", "io-cmd__inner");
+        const head = el(inner, "div", "io-cmd__head");
+        for (const title of HEAD2) el(head, "div", void 0, title);
+        for (const area of COMMAND_TEXTS) {
+          const rows = [];
+          for (const protoRow of area.list) {
+            const family = FAMILY_BY_ROW[protoRow.name];
+            if (!family) {
+              const cmd = commands.find((c) => c.area === area.area && c.name === protoRow.name) || commands.find((c) => c.name === protoRow.name) || null;
+              if (cmd) rows.push({ row: protoRow, cmd, band: "standard" });
+              continue;
+            }
+            const members = commands.filter((c) => c.family === family);
+            if (!members.length) continue;
+            for (const cmd of members) {
+              rows.push({ row: { name: cmd.name, does: protoRow.does }, cmd, band: "user" });
+            }
+          }
+          if (!rows.length) continue;
+          el(inner, "div", "io-cmd__area", area.area);
+          const ordered = area.parts ? splitAndGroup(rows) : rows;
+          let part = "";
+          let field = "";
+          for (const { row, cmd, band } of ordered) {
+            if (area.parts && band && band !== part) {
+              part = band;
+              field = "";
+              el(
+                inner,
+                "div",
+                "io-cmd__sub",
+                band === "user" ? area.parts.user : area.parts.standard
+              );
+            }
+            if (area.parts) {
+              const heading = fieldHeading(cmd);
+              if (heading !== field) {
+                field = heading;
+                if (heading) el(inner, "div", "io-cmd__field", heading);
+              }
+            }
+            const line = el(inner, "div", "io-cmd__row");
+            el(line, "div", "io-cmd__name", row.name);
+            el(line, "div", "io-cmd__does", row.does);
+            const cell = el(line, "div");
+            const current = hotkeyOf(plugin, cmd.id);
+            const hk = btn(cell, "io-hk" + (current ? "" : " io-hk--none"), {
+              text: current || HOTKEY_NONE,
+              label: (current ? "Change" : "Assign") + " the hotkey for " + row.name,
+              title: HOTKEY_TITLE
+            });
+            hk.disabled = !canOpen;
+            hk.addEventListener("click", (() => {
+              if (canOpen) openHotkeys(plugin, row.name);
+            }));
+          }
+        }
+      };
+      draw();
+      const stop = ctx.watch([
+        "pkm.fields.order",
+        "editor.binder.rows",
+        "features.navigation.enabled",
+        "features.pkm.enabled",
+        "features.visual.enabled",
+        "features.transform.enabled"
+      ], draw);
+      return () => {
+        stop();
+        box.empty();
+      };
+    };
+  }
+});
+
 // src/ui/settings/schema/keyboard.ts
 var KEYBOARD_GROUPS;
 var init_keyboard = __esm({
@@ -25224,6 +22348,7 @@ var init_keyboard = __esm({
     init_types();
     init_binder();
     init_callouts();
+    init_command_reference();
     KEYBOARD_GROUPS = [
       {
         id: "keyboard-intro",
@@ -25232,14 +22357,16 @@ var init_keyboard = __esm({
         heading: "Before you start",
         items: [
           { kind: "custom", id: "keyboard-callout", render: callout("keyboard") }
-        ]
+        ],
+        visible: on("general.help.showCallouts")
       },
       {
         id: "select-all",
         tab: "keyboard",
         order: 100,
-        heading: "Expanded 'Ctrl+A'",
+        heading: "Expanded 'Ctrl+A' ('\u2318+A')",
         intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
+        tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder \u2014 the line you are on, then more of the note with each press \u2014 so you can grab one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide how many rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. The key itself is Obsidian\u2019s, and nothing here rebinds it",
         items: [
           {
             kind: "toggle",
@@ -25299,11 +22426,63 @@ var init_keyboard = __esm({
             id: "select-all-clear",
             path: "editor.selectAll.clearOnLast",
             default: false,
-            name: "One more press clears it",
+            name: "Last press clears highlighting",
             desc: "After the last step, pressing again drops the selection and returns the cursor",
             tip: "Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
-            searchTerms: ["Last press clears selection"],
+            searchTerms: ["Last press clears selection", "One more press clears it"],
             disabled: not("editor.selectAll.enabled")
+          }
+        ]
+      },
+      {
+        id: "smart-delete",
+        tab: "keyboard",
+        order: 150,
+        heading: "Smart Delete\\Backspace",
+        intro: "<code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind",
+        tip: "Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did",
+        items: [
+          {
+            kind: "toggle",
+            id: "smart-delete-enabled",
+            path: "editor.smartDelete.enabled",
+            default: false,
+            name: "Smart Delete",
+            desc: "Let <code>Del</code> at the end of a line bring up the words without the indent and the Prefix",
+            searchTerms: ["Smart Del", "Delete the junk"],
+            tip: "Nothing here rebinds the key: <code>Del</code> stays Obsidian\u2019s, and this only changes what happens in the one case where it joins two lines. Off, the key behaves as it always has. <code>Smart backspace</code> below is a switch of its own and does not need this one"
+          },
+          {
+            kind: "toggle",
+            id: "smart-delete-backspace",
+            path: "editor.smartDelete.onBackspace",
+            default: false,
+            name: "Smart backspace",
+            desc: "Let <code>Backspace</code> at the start of a line send it up without its own indent and Prefix",
+            searchTerms: ["Smart Backspace", "Do the same on Backspace"],
+            tip: "The same thing from the other side, and it stands on its own: <code>Smart Delete</code> above can stay off and this still works. <code>Backspace</code> at the start of a line joins it to the line above, and by default it takes the indent and the bullet along. On, they stay behind and only the words go up. A line with nothing on it disappears, which is the quickest way to close a gap"
+          },
+          {
+            kind: "toggle",
+            id: "smart-delete-prefix",
+            path: "editor.smartDelete.dropPrefix",
+            default: true,
+            name: "Drop the line Prefix",
+            desc: "Take the bullet, checkbox, number or quote mark off the arriving line, not only its indent",
+            searchTerms: ["Drop the bullet"],
+            disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
+            tip: "On, <code>- [ ] read the docs</code> arrives as <code>read the docs</code>. Off, only the indent goes and the line keeps its Prefix, which is what you want when the two lines are meant to stay two list items. This one answers to both keys above"
+          },
+          {
+            kind: "toggle",
+            id: "smart-delete-space",
+            path: "editor.smartDelete.joinWithSpace",
+            default: true,
+            name: "Join with a space",
+            desc: "Put one space between your text and the text that arrives, so the two do not run together",
+            searchTerms: ["Add a space"],
+            disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
+            tip: "Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above"
           }
         ]
       },
@@ -25313,9 +22492,20 @@ var init_keyboard = __esm({
         order: 200,
         heading: "Binder (custom insert commands)",
         intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
-        tip: "The <code>Hotkey</code> column shows the key a row has now; click it to go and set one. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
+        tip: "Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings \u2192 Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton \u2014 anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian\u2019s list to change it. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
         items: [
           { kind: "custom", id: "binder-table", render: binderTable }
+        ]
+      },
+      {
+        id: "command-reference",
+        tab: "keyboard",
+        order: 300,
+        heading: "Commands & Hotkeys",
+        intro: "Everything this plugin can do, in one list. None of it has a key until you give it one \u2014 click in the <code>Hotkey</code> column to do that",
+        tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>Inline Overhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
+        items: [
+          { kind: "custom", id: "command-list", render: commandReference }
         ]
       }
     ];
@@ -25341,8 +22531,8 @@ var init_dispatch_tables = __esm({
         command: "Move right",
         steps: [
           { when: "part of a line is selected", then: "move that text" },
-          { when: "a list item, or already indented", then: "add one indent level" },
-          { when: "anything else", then: "cycle the prefix forwards" }
+          { when: "the line is indented", then: "add one indent level" },
+          { when: "no indent", then: "cycle the prefix forwards" }
         ]
       }
     ];
@@ -25381,10 +22571,10 @@ function asArray(value) {
 }
 function behaviorOf(cfg) {
   const pkm = asObject2(asObject2(cfg)["pkm"]);
-  return asObject2(pkm["behavior"]);
+  return asObject2(pkm["fields"]);
 }
 function modeFields(behavior, side) {
-  return asArray(asObject2(behavior[side])["fields"]);
+  return asArray(asObject2(behavior[MODE_BRANCH[side]])["fields"]);
 }
 function idOf(row) {
   return String(asObject2(row)["id"] || "").trim();
@@ -25488,7 +22678,7 @@ function createFieldsModel(deps) {
          */
         propertiesByField: withTombstones(next.propertiesByField, current.propertiesByField)
       };
-      plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch2 } } }, reason);
+      plugin.setConfigPatch({ pkm: { fields: { order: orderPatch2 } } }, reason);
       return;
     }
     const orderPatch = {
@@ -25501,7 +22691,7 @@ function createFieldsModel(deps) {
       freeRoam: withTombstones(next.freeRoam, current.freeRoam),
       enabled: withTombstones(next.enabled, current.enabled)
     };
-    plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch } } }, reason);
+    plugin.setConfigPatch({ pkm: { fields: { order: orderPatch } } }, reason);
   };
   const captureSnapshot = () => {
     var _a2;
@@ -25518,10 +22708,10 @@ function createFieldsModel(deps) {
     const s = snap && typeof snap === "object" ? snap : captureSnapshot();
     plugin.setConfigPatch({
       pkm: {
-        behavior: {
+        fields: {
           order: s.order,
-          leftMode: { fields: Array.isArray(s.leftMode) ? s.leftMode : [] },
-          rightMode: { fields: Array.isArray(s.rightMode) ? s.rightMode : [] },
+          tags: { fields: Array.isArray(s.leftMode) ? s.leftMode : [] },
+          links: { fields: Array.isArray(s.rightMode) ? s.rightMode : [] },
           elements: s.elements || {}
         }
       }
@@ -25596,7 +22786,6 @@ function createFieldsModel(deps) {
       orderState.freeRoam[subKey] = "off";
       orderState.enabled[subKey] = false;
       orderState.types[subKey] = "tag";
-      orderState.labels[subKey] = `${key} sub`;
       orderState.strictNames[subKey] = subStrict;
     }
     setOrderPatch({
@@ -25608,7 +22797,6 @@ function createFieldsModel(deps) {
       freeRoam: { [key]: "off" },
       enabled: { [key]: true },
       ...subKey ? {
-        labels: { [key]: key, [subKey]: `${key} sub` },
         strictNames: { [key]: key, [subKey]: subStrict },
         types: { [key]: kind, [subKey]: "tag" },
         active: { [key]: "yes", [subKey]: "no" },
@@ -25642,7 +22830,7 @@ function createFieldsModel(deps) {
       }
     }
     plugin.setConfigPatch(
-      { pkm: { behavior: { leftMode: { fields: leftMode }, rightMode: { fields: rightMode } } } },
+      { pkm: { fields: { tags: { fields: leftMode }, links: { fields: rightMode } } } },
       "pkm:behavior:modes:add-field:" + key
     );
     try {
@@ -25675,7 +22863,7 @@ function createFieldsModel(deps) {
         }
       };
       plugin.setConfigPatch(
-        { pkm: { behavior: { elements: { fields, byField } } } },
+        { pkm: { fields: { elements: { fields, byField } } } },
         "pkm:behavior:elements:add-field:" + key
       );
     }
@@ -25744,9 +22932,9 @@ function createFieldsModel(deps) {
     delete elementsByField[k];
     plugin.setConfigPatch({
       pkm: {
-        behavior: {
-          leftMode: { fields: leftFields },
-          rightMode: { fields: rightFields },
+        fields: {
+          tags: { fields: leftFields },
+          links: { fields: rightFields },
           elements: { ...elementsCfg, fields: elementsFields, byField: elementsByField }
         }
       }
@@ -25769,14 +22957,17 @@ function createFieldsModel(deps) {
       return { ok: false, error: "A Field with this name already exists" };
     }
     orderState.strictNames = { ...orderState.strictNames || {}, [k]: next };
-    setOrderPatch({ strictNames: { [k]: next } }, "pkm:behavior:order:strict:" + k);
-    try {
-      if (typeof plugin.renameStrictNameInConfigNote === "function") {
-        await plugin.renameStrictNameInConfigNote(oldName, next);
-      }
-    } catch (e) {
-      console.error("[inline-overhaul][strict-rename:config-note]", e);
+    const labels = { ...orderState.labels || {} };
+    const patchLabels = {};
+    if (String(labels[k] || k).trim() === oldName) {
+      labels[k] = next;
+      patchLabels[k] = next;
     }
+    orderState.labels = labels;
+    setOrderPatch(
+      Object.keys(patchLabels).length ? { strictNames: { [k]: next }, labels: patchLabels } : { strictNames: { [k]: next } },
+      "pkm:behavior:order:strict:" + k
+    );
     return { ok: true };
   };
   const setLabel = (k, rawValue) => {
@@ -25844,7 +23035,7 @@ function createFieldsModel(deps) {
     const nextLeft = upsertById(upsertById(leftFieldsNow, parentPatched), subPatched);
     const nextRight = upsertById(upsertById(rightFieldsNow, parentPatched), subPatched);
     plugin.setConfigPatch(
-      { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+      { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
       "pkm:behavior:order:yaml-propagate:" + strictNameNow
     );
     return { ok: true };
@@ -25858,7 +23049,7 @@ function createFieldsModel(deps) {
     const idx = leftMode.findIndex((f) => idOf(f) === subKey);
     if (idx !== -1) leftMode[idx] = { ...asObject2(leftMode[idx]), enabled: next !== "no" };
     plugin.setConfigPatch(
-      { pkm: { behavior: { leftMode: { fields: leftMode } } } },
+      { pkm: { fields: { tags: { fields: leftMode } } } },
       "pkm:behavior:leftmode:subtoggle:" + subKey
     );
     setOrderPatch(
@@ -26029,7 +23220,7 @@ function createFieldsModel(deps) {
       else nextDef[key] = value;
     }
     plugin.setConfigPatch(
-      { pkm: { behavior: { [pool]: { fields: upsertField(list, id, nextDef) } } } },
+      { pkm: { fields: { [MODE_BRANCH[pool]]: { fields: upsertField(list, id, nextDef) } } } },
       reason
     );
     return { ok: true };
@@ -26165,7 +23356,7 @@ function createFieldsModel(deps) {
     }
     list[idx] = next;
     plugin.setConfigPatch(
-      { pkm: { behavior: { [side]: { fields: list } } } },
+      { pkm: { fields: { [MODE_BRANCH[side]]: { fields: list } } } },
       "pkm:behavior:order:prerequisite:" + key
     );
     return { ok: true };
@@ -26182,7 +23373,7 @@ function createFieldsModel(deps) {
   const getValueVisual = (fieldId, token) => {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
-    const visuals = asObject2(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const visuals = asObject2(asObject2(asObject2(plugin.getConfig())["visual"])["tags"]);
     const byTag = asObject2(visuals["byTag"]);
     const fm = fid ? asObject2(byTag[fid]) : {};
     const row = tok ? asObject2(fm[tok]) : {};
@@ -26197,7 +23388,7 @@ function createFieldsModel(deps) {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
     if (!fid || !tok || tok.charAt(0) !== "#") return;
-    const visuals = asObject2(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const visuals = asObject2(asObject2(asObject2(plugin.getConfig())["visual"])["tags"]);
     const byTag = asObject2(visuals["byTag"]);
     const current = asObject2(asObject2(byTag[fid])[tok]);
     const has = (key) => Object.prototype.hasOwnProperty.call(patch, key);
@@ -26208,7 +23399,7 @@ function createFieldsModel(deps) {
       customText: has("customText") ? String(patch.customText || "").trim() : String(current["customText"] || "").trim()
     };
     plugin.setConfigPatch(
-      { pkm: { behavior: { tagVisuals: { byTag: { [fid]: { [tok]: next } } } } } },
+      { visual: { tags: { byTag: { [fid]: { [tok]: next } } } } },
       reason || "pkm:visuals:tag"
     );
   };
@@ -26279,7 +23470,7 @@ function createFieldsModel(deps) {
     const inc = cur.increment;
     const write = (nextRow, reason) => {
       plugin.setConfigPatch(
-        { pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } },
+        { pkm: { fields: { elements: { byField: { [elementFieldId]: nextRow } } } } },
         reason
       );
     };
@@ -26323,12 +23514,12 @@ function createFieldsModel(deps) {
     const kind = getFieldKind(k);
     const parentField = findFieldByOrderKey(leftMode, k) || findFieldByOrderKey(rightMode, k);
     const subKey = `${k}_sub`;
-    const subField = findFieldByOrderKey(leftMode, subKey) || findFieldByOrderKey(rightMode, subKey);
+    const subField2 = findFieldByOrderKey(leftMode, subKey) || findFieldByOrderKey(rightMode, subKey);
     const parentFieldId = String(parentField && parentField.id || "").trim();
-    const subFieldId = String(subField && subField.id || "").trim();
+    const subFieldId = String(subField2 && subField2.id || "").trim();
     const parentInRight = hasFieldById(rightMode, parentFieldId);
     const subInRight = hasFieldById(rightMode, subFieldId);
-    const prefixRules2 = asObject2(behavior["prefixRules"]);
+    const prefixRules2 = asObject2(asObject2(asObject2(plugin.getConfig())["pkm"])["prefixRules"]);
     const checkboxByFieldValue = asObject2(prefixRules2["checkboxByFieldValue"]);
     const parentCheckboxRaw = parentFieldId ? asObject2(checkboxByFieldValue[parentFieldId]) : {};
     const subCheckboxRaw = subFieldId ? asObject2(checkboxByFieldValue[subFieldId]) : {};
@@ -26343,7 +23534,7 @@ function createFieldsModel(deps) {
       const cb = normCheckbox(subCheckboxRaw[rawToken]);
       if (t && cb) fieldCheckboxByToken[t] = cb;
     }
-    const tree = typeof deep.buildTagTree === "function" ? deep.buildTagTree(parentField, subField, kind, { checkboxByToken: fieldCheckboxByToken }) : [];
+    const tree = typeof deep.buildTagTree === "function" ? deep.buildTagTree(parentField, subField2, kind, { checkboxByToken: fieldCheckboxByToken }) : [];
     if (kind === "wikilink") {
       const vals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
       const byTok = {};
@@ -26436,8 +23627,8 @@ function createFieldsModel(deps) {
           if (cTok && cCb) subOut[cTok] = cCb;
         }
       }
-      const patch = { pkm: { behavior: { prefixRules: { checkboxByFieldValue: {} } } } };
-      const map = patch.pkm.behavior.prefixRules.checkboxByFieldValue;
+      const patch = { pkm: { prefixRules: { checkboxByFieldValue: {} } } };
+      const map = patch.pkm.prefixRules.checkboxByFieldValue;
       if (parentFieldId) map[parentFieldId] = parentOut;
       if (subFieldId) map[subFieldId] = subOut;
       if (parentFieldId) {
@@ -26539,7 +23730,7 @@ function createFieldsModel(deps) {
       if (typeof deep.applyTagTreeToFields !== "function") return { ok: false, changed: false };
       if (kind === "wikilink") {
         const prevVals = parentField && Array.isArray(parentField.values) ? parentField.values : [];
-        const prevSubVals = subField && Array.isArray(subField.values) ? subField.values : [];
+        const prevSubVals = subField2 && Array.isArray(subField2.values) ? subField2.values : [];
         const metaByToken = {};
         for (const list of [prevVals, prevSubVals]) {
           for (let i = 0; i < list.length; i++) {
@@ -26610,9 +23801,9 @@ function createFieldsModel(deps) {
         if (inRight) nextRight2 = upsertField(nextRight2, fidParent, nextParent);
         else nextLeft2 = upsertField(nextLeft2, fidParent, nextParent);
         const subId = String(subFieldId || `${fidParent}_sub`).trim();
-        if (nextSubValues.length || subField) {
+        if (nextSubValues.length || subField2) {
           const nextSub = {
-            ...subField || {
+            ...subField2 || {
               id: subId,
               prefix: "#",
               dependsOn: fidParent,
@@ -26628,7 +23819,7 @@ function createFieldsModel(deps) {
           else nextLeft2 = upsertField(nextLeft2, subId, nextSub);
         }
         plugin.setConfigPatch(
-          { pkm: { behavior: { leftMode: { fields: nextLeft2 }, rightMode: { fields: nextRight2 } } } },
+          { pkm: { fields: { tags: { fields: nextLeft2 }, links: { fields: nextRight2 } } } },
           reason
         );
         return { ok: true };
@@ -26636,7 +23827,7 @@ function createFieldsModel(deps) {
       const merged = deep.applyTagTreeToFields(
         nextTree,
         parentField || { id: k, prefix: "#", values: [] },
-        subField || { id: subKey, values: [] },
+        subField2 || { id: subKey, values: [] },
         kind
       );
       if (kind === "tag") {
@@ -26699,7 +23890,7 @@ function createFieldsModel(deps) {
         }
       }
       plugin.setConfigPatch(
-        { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+        { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
         reason
       );
       plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), reason + ":prefix");
@@ -26753,7 +23944,7 @@ function createFieldsModel(deps) {
         const nextLeft2 = toRight ? leftNow : upsertField(leftNow, targetId, nextTarget);
         const nextRight = toRight ? upsertField(rightNow, targetId, nextTarget) : rightNow;
         plugin.setConfigPatch(
-          { pkm: { behavior: { leftMode: { fields: nextLeft2 }, rightMode: { fields: nextRight } } } },
+          { pkm: { fields: { tags: { fields: nextLeft2 }, links: { fields: nextRight } } } },
           "pkm:behavior:order:deep:add-token:" + k
         );
         return { ok: true };
@@ -26764,7 +23955,7 @@ function createFieldsModel(deps) {
       const merged = deep.applyTagTreeToFields(
         nextTree,
         parentField || { id: strictName, orderKey: k, prefix: "#", values: [] },
-        subField || { id: `${strictName}_sub`, orderKey: `${k}_sub`, values: [] },
+        subField2 || { id: `${strictName}_sub`, orderKey: `${k}_sub`, values: [] },
         kind
       );
       let nextLeft = leftMode.map((f) => {
@@ -26774,9 +23965,9 @@ function createFieldsModel(deps) {
         return f;
       });
       if (!parentField && merged.parentField) nextLeft = upsertField(nextLeft, merged.parentField.id, merged.parentField);
-      if (!subField && merged.subField) nextLeft = upsertField(nextLeft, merged.subField.id, merged.subField);
+      if (!subField2 && merged.subField) nextLeft = upsertField(nextLeft, merged.subField.id, merged.subField);
       plugin.setConfigPatch(
-        { pkm: { behavior: { leftMode: { fields: nextLeft } } } },
+        { pkm: { fields: { tags: { fields: nextLeft } } } },
         "pkm:behavior:order:deep:add-token:" + k
       );
       plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), "pkm:behavior:order:deep:add-token:" + k + ":prefix");
@@ -26788,7 +23979,7 @@ function createFieldsModel(deps) {
       parentFieldId,
       subFieldId,
       parentField,
-      subField,
+      subField: subField2,
       normalizeCheckbox: normCheckbox,
       tree,
       linkParents: kind === "wikilink" ? buildLinkParents() : [],
@@ -26844,12 +24035,16 @@ function createFieldsModel(deps) {
     normalizeCustomRaw
   };
 }
-var STRICT_NAME_RE, SUB_SUFFIX_RE;
+var STRICT_NAME_RE, SUB_SUFFIX_RE, MODE_BRANCH;
 var init_fields_model = __esm({
   "src/ui/settings/custom/fields_model.ts"() {
     "use strict";
     STRICT_NAME_RE = /^[a-z0-9_\- ]+$/i;
     SUB_SUFFIX_RE = /_sub$/;
+    MODE_BRANCH = {
+      leftMode: "tags",
+      rightMode: "links"
+    };
   }
 });
 
@@ -26877,8 +24072,8 @@ var require_fields_editor_legacy = __commonJS({
         buildTagTree() {
           return [];
         },
-        applyTagTreeToFields(_tree, parentField, subField) {
-          return { parentField: parentField || { values: [] }, subField: subField || null };
+        applyTagTreeToFields(_tree, parentField, subField2) {
+          return { parentField: parentField || { values: [] }, subField: subField2 || null };
         },
         createHistory() {
           return { max: 100, past: [], future: [] };
@@ -27015,8 +24210,8 @@ var require_fields_editor_legacy = __commonJS({
       };
     }
     function readTagVisualsConfig(cfg) {
-      const behavior = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-      const visuals = behavior && behavior.tagVisuals ? behavior.tagVisuals : {};
+      const behavior = cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields : {};
+      const visuals = cfg && cfg.visual && cfg.visual.tags ? cfg.visual.tags : {};
       const opacity = visuals && visuals.opacity ? visuals.opacity : {};
       const strip = visuals && visuals.strip ? visuals.strip : {};
       const toOpacity = (value, fallback) => {
@@ -27273,7 +24468,7 @@ var require_fields_editor_legacy = __commonJS({
           const out = { key: k, kind };
           if (kind === "element") {
             const live = plugin.getConfig();
-            const byField = live && live.pkm && live.pkm.behavior && live.pkm.behavior.elements && live.pkm.behavior.elements.byField ? live.pkm.behavior.elements.byField : {};
+            const byField = live && live.pkm && live.pkm.fields && live.pkm.fields.elements && live.pkm.fields.elements.byField ? live.pkm.fields.elements.byField : {};
             const ec = byField && byField[k] ? byField[k] : {};
             const inc = ec && ec.increment ? ec.increment : {};
             out.emoji = String(ec.emoji || "").trim();
@@ -28064,7 +25259,7 @@ var require_fields_editor_legacy = __commonJS({
               } else {
                 const values = model.valuesEditor(k);
                 const parentField = values.parentField;
-                const subField = values.subField;
+                const subField2 = values.subField;
                 const parentFieldId = values.parentFieldId;
                 const normalizeCheckbox = values.normalizeCheckbox;
                 const tree = values.tree;
@@ -28386,7 +25581,7 @@ var require_fields_editor_legacy = __commonJS({
                   const resolveTokenYamlFromFields = () => {
                     if (kind !== "tag") return "";
                     const wanted = typeof deepState.denormToken === "function" ? deepState.denormToken(token) : String(token || "").trim().replace(/^#/, "");
-                    const list2 = level === 0 ? parentField && Array.isArray(parentField.values) ? parentField.values : [] : subField && Array.isArray(subField.values) ? subField.values : [];
+                    const list2 = level === 0 ? parentField && Array.isArray(parentField.values) ? parentField.values : [] : subField2 && Array.isArray(subField2.values) ? subField2.values : [];
                     for (let i = 0; i < list2.length; i++) {
                       const row2 = list2[i] && typeof list2[i] === "object" ? list2[i] : null;
                       if (!row2) continue;
@@ -28983,8 +26178,8 @@ var require_fields_editor_legacy = __commonJS({
           line.style.lineHeight = "var(--line-height-normal)";
           line.style.padding = "2px 0";
         }
-        const sep1 = String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator1 || "||").trim() || "||";
-        const sep2 = String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io && cfg.pkm.behavior.io.separator2 || "||").trim() || "||";
+        const sep1 = String(cfg && cfg.pkm && cfg.pkm.lineFormat && cfg.pkm.lineFormat.separator1 || "||").trim() || "||";
+        const sep2 = String(cfg && cfg.pkm && cfg.pkm.lineFormat && cfg.pkm.lineFormat.separator2 || "||").trim() || "||";
         const toType = (key) => {
           const k = String(key || "").trim();
           const strict = String(orderState && orderState.strictNames && orderState.strictNames[k] || "").trim();
@@ -28996,8 +26191,8 @@ var require_fields_editor_legacy = __commonJS({
             if (t === "element") return "element";
             if (t === "tag") return "tag";
           }
-          const behaviorNow = cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior : {};
-          const fields = [].concat(Array.isArray(behaviorNow.leftMode && behaviorNow.leftMode.fields) ? behaviorNow.leftMode.fields : []).concat(Array.isArray(behaviorNow.rightMode && behaviorNow.rightMode.fields) ? behaviorNow.rightMode.fields : []);
+          const behaviorNow = cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields : {};
+          const fields = [].concat(Array.isArray(behaviorNow.tags && behaviorNow.tags.fields) ? behaviorNow.tags.fields : []).concat(Array.isArray(behaviorNow.links && behaviorNow.links.fields) ? behaviorNow.links.fields : []);
           const field = fields.find((f) => {
             const id = String(f && f.id || "").trim();
             const orderKey = String(f && f.orderKey || "").trim();
@@ -29133,7 +26328,7 @@ var require_fields_editor_legacy = __commonJS({
           tips.createEl("div", { text: "Use this section to color tags that are not currently present in Order rows." });
         }
         const cfgNow = plugin.getConfig();
-        const visualsNow = cfgNow && cfgNow.pkm && cfgNow.pkm.behavior && cfgNow.pkm.behavior.tagVisuals ? cfgNow.pkm.behavior.tagVisuals : {};
+        const visualsNow = cfgNow && cfgNow.visual && cfgNow.visual.tags ? cfgNow.visual.tags : {};
         const userTagsMap = visualsNow && visualsNow.userTags && typeof visualsNow.userTags === "object" ? visualsNow.userTags : {};
         const tokens = Object.keys(userTagsMap).filter((x) => /^#\S+/.test(String(x || "").trim()));
         if (tokens.length > 300) {
@@ -29157,7 +26352,7 @@ var require_fields_editor_legacy = __commonJS({
             textColor: Object.prototype.hasOwnProperty.call(patch, "textColor") ? normalizeHexColorInput(patch.textColor) : normalizeHexColorInput(cur.textColor),
             visibility: Object.prototype.hasOwnProperty.call(patch, "visibility") ? String(patch.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default" : String(cur.visibility || "default").trim().toLowerCase() === "empty" ? "empty" : "default"
           };
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [tok]: next } } } } }, reason || "pkm:visuals:user-tags");
+          plugin.setConfigPatch({ visual: { tags: { userTags: { [tok]: next } } } }, reason || "pkm:visuals:user-tags");
         };
         for (const token of tokens) {
           const row2 = list.createDiv();
@@ -29195,7 +26390,7 @@ var require_fields_editor_legacy = __commonJS({
           if (normalizeHexColorInput(state.textColor)) preview.style.color = normalizeHexColorInput(state.textColor);
           const del = row2.createEl("button", { text: "x" });
           del.onclick = () => {
-            plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: null } } } } }, "pkm:visuals:user-tags:delete");
+            plugin.setConfigPatch({ visual: { tags: { userTags: { [token]: null } } } }, "pkm:visuals:user-tags:delete");
             renderOrderBoard();
           };
           const applyPreview = () => {
@@ -29259,7 +26454,7 @@ var require_fields_editor_legacy = __commonJS({
           const raw = String(addInput.value || "").trim();
           const token = raw ? raw.charAt(0) === "#" ? raw : `#${raw}` : "";
           if (!/^#\S+/.test(token)) return;
-          plugin.setConfigPatch({ pkm: { behavior: { tagVisuals: { userTags: { [token]: { fillColor: "", textColor: "", visibility: "default" } } } } } }, "pkm:visuals:user-tags:add");
+          plugin.setConfigPatch({ visual: { tags: { userTags: { [token]: { fillColor: "", textColor: "", visibility: "default" } } } } }, "pkm:visuals:user-tags:add");
           addInput.value = "";
           renderOrderBoard();
         };
@@ -29309,8 +26504,7 @@ function strings(value) {
   return Array.isArray(value) ? value.map((x) => String(x != null ? x : "")) : [];
 }
 function prefixRules(cfg) {
-  const behavior = asObject3(asObject3(asObject3(cfg)["pkm"])["behavior"]);
-  return asObject3(behavior["prefixRules"]);
+  return asObject3(asObject3(asObject3(cfg)["pkm"])["prefixRules"]);
 }
 function moved(list, from, to) {
   const out = list.slice();
@@ -29433,7 +26627,7 @@ function priorityBlock(host, ctx, o) {
     const save = (next, reason) => {
       commit(() => {
         p.plugin.setConfigPatch(
-          { pkm: { behavior: { prefixRules: { [o.key]: next.slice() } } } },
+          { pkm: { prefixRules: { [o.key]: next.slice() } } },
           reason
         );
       });
@@ -29567,6 +26761,29 @@ var init_order_lists = __esm({
   }
 });
 
+// src/ui/settings/custom/subheader.ts
+function subheader(label, tip) {
+  return (host, ctx) => {
+    const row = el(host, "div", "io-sub io-sub--group");
+    el(row, "span", "io-sub__text", label);
+    return tipBelow({
+      head: row,
+      host,
+      text: String(tip || ""),
+      label,
+      id: "io-tip-sub-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+      showTips: Boolean(ctx.get("general.help.showTips")),
+      showIds: Boolean(ctx.get("advanced.showSettingIds"))
+    });
+  };
+}
+var init_subheader = __esm({
+  "src/ui/settings/custom/subheader.ts"() {
+    "use strict";
+    init_dom();
+  }
+});
+
 // src/ui/settings/schema/navigation.ts
 var NAVIGATION_GROUPS;
 var init_navigation = __esm({
@@ -29576,6 +26793,7 @@ var init_navigation = __esm({
     init_callouts();
     init_dispatch_tables();
     init_order_lists();
+    init_subheader();
     NAVIGATION_GROUPS = [
       {
         id: "nav-intro",
@@ -29584,13 +26802,14 @@ var init_navigation = __esm({
         heading: "Before you start",
         items: [
           { kind: "custom", id: "nav-callout", render: callout("navigation") }
-        ]
+        ],
+        visible: on("general.help.showCallouts")
       },
       {
         id: "move-lines",
         tab: "navigation",
         order: 100,
-        heading: "Moving lines",
+        heading: "Moving lines (up and down)",
         intro: "Reorder a note without cutting and pasting: pick up a line and walk it up or down",
         tip: "When a line has other lines indented beneath it, the whole bundle is called its <b>tree</b>. That word turns up in a few places here. The setting below is where you decide whether the bundle travels with the line or stays behind",
         commands: ["Move line up", "Move line down"],
@@ -29644,11 +26863,39 @@ var init_navigation = __esm({
             id: "move-lines-select",
             path: "navigation.moveLine.highlightMovedLines",
             default: false,
-            name: "Select after moving",
+            name: "Highlight after moving",
             desc: "Keep the lines highlighted once they land, so you can see what moved",
             tip: "Useful when you move a tree of several lines and want to be sure the whole thing came along",
-            searchTerms: ["Highlight moved lines"],
+            searchTerms: ["Highlight moved lines", "Select after moving"],
             disabled: not("navigation.moveLine.enabled")
+          },
+          {
+            kind: "toggle",
+            id: "move-lines-view",
+            path: "navigation.moveLine.keepInView",
+            default: true,
+            name: "Follow the moved line",
+            desc: "Scroll the note to the line you moved instead of leaving the view where it was",
+            searchTerms: ["Scroll on move", "Keep in view", "Screen jumps"],
+            disabled: not("navigation.moveLine.enabled"),
+            tip: "Off, the note does not scroll at all: what you see stays exactly where it was, and a line pushed past the edge goes on moving out of sight. On, the view follows the line and puts it where the setting below says"
+          },
+          {
+            kind: "dropdown",
+            id: "move-lines-view-position",
+            path: "navigation.moveLine.viewPosition",
+            default: "center",
+            name: "Where the line lands",
+            desc: "The place on screen the moved line is scrolled to",
+            searchTerms: ["Scroll position", "Center on move"],
+            visible: on("navigation.moveLine.keepInView"),
+            disabled: not("navigation.moveLine.enabled"),
+            options: [
+              { value: "center", label: "Center of the screen" },
+              { value: "top", label: "Top of the screen" },
+              { value: "bottom", label: "Bottom of the screen" }
+            ],
+            tip: "The same place every time, which is the whole point: before this the note scrolled by whatever the editor thought was nearest, so one press centered the line and the next threw it to the top. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows"
           }
         ]
       },
@@ -29658,9 +26905,13 @@ var init_navigation = __esm({
         order: 200,
         heading: "Move left and move right",
         intro: "Two keys, one for left and one for right, and between them they do three jobs: nudge a piece of text along a line, change the marker at the start of a line, or change how far the line is indented. Which one you get depends on what is selected \u2014 the two lists below spell it out",
-        commands: ["Move left", "Move right"],
+        tip: "Two keys, three jobs, and the line decides which one you get. Highlight some text and they slide it along the line. On a plain line with nothing highlighted they change the marker at the start of it, walking down the list below. On a list item, <code>Move right</code> indents instead, because that is what you almost always mean there. The two lists at the top of this group show the order the checks run in, and each job below can be switched off on its own, so you can narrow the keys down to the one thing you want them to do",
         items: [
           { kind: "custom", id: "left-right-order", render: dispatchTables },
+          { kind: "custom", id: "move-text-sub", render: subheader(
+            "Move text",
+            "These two keys can do three different jobs, and this half is the one that needs a selection: highlight a phrase and they slide it along the line, leaving the line itself alone. With nothing highlighted none of it applies and the keys fall through to the rows further down"
+          ) },
           {
             kind: "toggle",
             id: "move-text-enabled",
@@ -29690,13 +26941,28 @@ var init_navigation = __esm({
           },
           {
             kind: "toggle",
+            id: "move-text-cross",
+            path: "navigation.moveSelection.inlineBoundaryJump",
+            default: true,
+            name: "Continue past a Separator",
+            desc: "Let the highlighted text leave your text and move into the tags at either end",
+            disabled: not("navigation.moveSelection.inlineEnabled"),
+            tip: "Off, a highlighted phrase stays between the Separators: it will not slide back into the tags at the start of the line, nor forward into the dates at the end. Turn it on when you do want to shuffle a tag and a phrase past each other",
+            seeAlso: { id: "in-line-cross", label: "The cursor has the same setting of its own" }
+          },
+          { kind: "custom", id: "move-line-sub", render: subheader(
+            "Moving lines (left and right)",
+            "The other half, and it works with nothing highlighted: the same two keys change the marker at the start of the line, or how far the line is indented. Which of the two you get is decided by the line you are on, and the two tables at the top of this group show the order those checks run in"
+          ) },
+          {
+            kind: "toggle",
             id: "prefix-cycle-enabled",
             path: "navigation.moveSelection.prefixCyclerEnabled",
             default: true,
             name: "Cycle line Prefixes",
             desc: "Turn a line into a heading, a bullet, a numbered item or plain text, one press at a time",
             searchTerms: ["Enable PrefixCycler"],
-            tip: "<code>Move right</code> walks down the list below, <code>Move left</code> walks back up, and an empty row in it means plain text with no Prefix at all. <code>Move left</code> cycles whenever the line has no indent; <code>Move right</code> only cycles when the line is not already a list item, because on a list item it indents instead"
+            tip: "<code>Move right</code> walks down the list below, <code>Move left</code> walks back up, and an empty row in it means plain text with no Prefix at all. Both cycle whenever the line has no indent; on an indented line they change the indent instead. Whether the right key cycles at all is the row below"
           },
           { kind: "custom", id: "cycle-order", render: cycleOrder },
           {
@@ -29705,9 +26971,9 @@ var init_navigation = __esm({
             path: "navigation.moveSelection.rightCycles",
             default: true,
             name: "Cycle in both directions",
-            desc: "Off: <code>Move right</code> only ever indents, and cycling becomes a <code>Move left</code> job",
+            desc: "On: <code>Move right</code> changes the marker too, but only on a line with no indent",
             disabled: not("navigation.moveSelection.prefixCyclerEnabled"),
-            tip: "On a plain line <code>Move right</code> walks down the list and <code>Move left</code> walks back up. Switch this off and the two keys split the work: <code>Move left</code> changes the marker, <code>Move right</code> only ever indents. Some people find that easier to keep in their head"
+            tip: "On, both keys change the marker while the line sits at the left edge: <code>Move right</code> walks down the list below and <code>Move left</code> walks back up. <b>An indented line is not part of this</b> \u2014 there <code>Move right</code> indents as it always did, and cycling stays a <code>Move left</code> job. <b>The price is at the left edge</b>: a line with no indent is no longer pushed by <code>Move right</code> while the list still has somewhere to go, and what happens when it runs out is <code>After the last one</code> \u2014 with <b>Start over</b> the key never pushes at all, and indenting is left to <code>Tab</code>. Switch this off and the two keys split the work: <code>Move left</code> changes the marker, <code>Move right</code> only ever indents"
           },
           {
             kind: "dropdown",
@@ -29734,86 +27000,12 @@ var init_navigation = __esm({
         ]
       },
       {
-        id: "heading-jumps",
-        tab: "navigation",
-        order: 300,
-        heading: "Jumping between headings",
-        intro: "Skip through a long note by its headings instead of scrolling",
-        commands: ["Jump back", "Jump next"],
-        items: [
-          {
-            kind: "toggle",
-            id: "heading-jumps-enabled",
-            path: "navigation.jumpToHeader.enabled",
-            default: true,
-            name: "Jump between headings",
-            desc: "Turn on the <code>Jump back</code> and <code>Jump next</code> commands",
-            searchTerms: ["Enable Jump To Header"]
-          },
-          {
-            kind: "toggle",
-            id: "heading-jumps-center",
-            path: "navigation.jumpToHeader.centerCursor",
-            default: true,
-            name: "Center the target",
-            desc: "After a jump, scroll the note so the line you landed on sits mid-screen",
-            tip: "Without it you often arrive at the very bottom of the window, with the section you jumped to still off screen below \u2014 so you have to scroll anyway. With it on, you can read straight away",
-            disabled: not("navigation.jumpToHeader.enabled")
-          },
-          {
-            kind: "dropdown",
-            id: "heading-jumps-mode",
-            path: "navigation.jumpToHeader.jumpMode",
-            default: "edge",
-            name: "Jump target",
-            desc: "Hop between headings, or crawl line by line",
-            searchTerms: ["Jump mode"],
-            disabled: not("navigation.jumpToHeader.enabled"),
-            options: [{ value: "edge", label: "Heading to heading" }, { value: "line", label: "Line by line" }],
-            tip: "<b>Heading to heading</b> is for finding your way around a long note. <b>Line by line</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys"
-          },
-          {
-            kind: "dropdown",
-            id: "heading-jumps-edge",
-            path: "navigation.jumpToHeader.edgeMode",
-            default: "start-end",
-            name: "Where in the section",
-            desc: "Land at the start of the part you jump to, or at its end",
-            tip: "<b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
-            searchTerms: ["Edge behavior"],
-            visible: eq("navigation.jumpToHeader.jumpMode", "edge"),
-            disabled: not("navigation.jumpToHeader.enabled"),
-            options: [
-              { value: "start-end", label: "Alternate start and end" },
-              { value: "start", label: "Start only" },
-              { value: "end", label: "End only" }
-            ]
-          },
-          {
-            kind: "dropdown",
-            id: "heading-jumps-cursor",
-            path: "navigation.jumpToHeader.jumpCursorPosition",
-            default: "start",
-            name: "Cursor on arrival",
-            desc: "Where on that line the cursor ends up",
-            searchTerms: ["Jump cursor position"],
-            disabled: not("navigation.jumpToHeader.enabled"),
-            options: [
-              { value: "start", label: "Line start" },
-              { value: "end", label: "Line end" },
-              { value: "section-end", label: "End of your text" }
-            ],
-            tip: "<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them",
-            seeAlso: { id: "separator-2", label: "Where your text ends is set by the second Separator" }
-          }
-        ]
-      },
-      {
         id: "in-line",
         tab: "navigation",
         order: 400,
-        heading: "Moving inside a line",
+        heading: "Moving cursor inside a line",
         intro: "A line can hold tags before your text and dates after it. These keys walk the cursor between those parts without leaving the line",
+        tip: "A tagged line has three parts: what comes before your text, your text, and what comes after. The arrow keys treat all of it as one long string and walk through the tags character by character. These two keys hop instead \u2014 word, sentence, or straight to one end of your text \u2014 and by default they stop at the Separators, so the cursor stays in the sentence you are writing and never lands inside a tag by accident",
         commands: ["Move cursor left in line", "Move cursor right in line"],
         items: [
           {
@@ -29846,9 +27038,9 @@ var init_navigation = __esm({
             id: "in-line-cross",
             path: "navigation.navigateInline.boundaryJump",
             default: false,
-            name: "Continue past a Separator",
+            name: "Continue past Separators",
             desc: "Let the cursor leave your text and walk into the tags at either end",
-            searchTerms: ["Allow crossing Separators"],
+            searchTerms: ["Allow crossing Separators", "Continue past a Separator"],
             disabled: not("navigation.navigateInline.enabled"),
             tip: "Off is the safer setting while you are writing: the cursor stays in your sentence and cannot wander into the tags. Turn it on when you want to reach a tag with the same keys instead of the mouse"
           },
@@ -29857,9 +27049,9 @@ var init_navigation = __esm({
             id: "in-line-boundary",
             path: "navigation.navigateInline.onBoundary",
             default: "wrap",
-            name: "At the far end",
-            desc: "What to do when there is nowhere further to go",
-            searchTerms: ["On boundary"],
+            name: "What to do at the end",
+            desc: "When there is nowhere further to go in the line",
+            searchTerms: ["On boundary", "At the far end"],
             disabled: not("navigation.navigateInline.enabled"),
             tip: "Say the cursor is on the last word before the closing Separator and you press again. <b>Stay put</b> does nothing. <b>Wrap</b> sends it back to the first word of the same stretch. <b>Next line</b> leaves the line entirely",
             options: [
@@ -29867,6 +27059,100 @@ var init_navigation = __esm({
               { value: "wrap", label: "Wrap to the other end" },
               { value: "next-line", label: "Go to the next line" }
             ]
+          }
+        ]
+      },
+      {
+        id: "heading-jumps",
+        tab: "navigation",
+        order: 500,
+        heading: "Moving cursor inside a note",
+        intro: "Skip through a long note by its headings instead of scrolling",
+        tip: "In a note with headings these two keys move you a section at a time, which beats scrolling and beats the outline sidebar once your hands are on the keyboard. The settings below decide what counts as a stop \u2014 every heading, or every line \u2014 where on the line you land, and whether the note scrolls so that what you jumped to is actually on screen",
+        commands: ["Jump back", "Jump next"],
+        items: [
+          {
+            kind: "toggle",
+            id: "heading-jumps-enabled",
+            path: "navigation.jumpToHeader.enabled",
+            default: true,
+            name: "Jump between headings",
+            desc: "Turn on the <code>Jump back</code> and <code>Jump next</code> commands",
+            searchTerms: ["Enable Jump To Header"]
+          },
+          {
+            kind: "dropdown",
+            id: "heading-jumps-mode",
+            path: "navigation.jumpToHeader.jumpMode",
+            default: "edge",
+            name: "Jump target",
+            desc: "Hop between headings, or crawl from one written line to the next",
+            searchTerms: ["Jump mode"],
+            disabled: not("navigation.jumpToHeader.enabled"),
+            options: [{ value: "edge", label: "Heading to heading" }, { value: "line", label: "Line by line" }],
+            tip: "<b>Heading to heading</b> is for finding your way around a long note. <b>Line by line</b> turns the same keys into a slow walk through the text, which some people prefer to the arrow keys. It steps from one written line to the next and does not stop on the empty ones, nor on rules and table rows: those are spacing, not places to be"
+          },
+          {
+            kind: "dropdown",
+            id: "heading-jumps-edge",
+            path: "navigation.jumpToHeader.edgeMode",
+            default: "start-end",
+            name: "Where in the section",
+            desc: "Land at the start of the part you jump to, or at its end",
+            tip: "<b>Alternate</b> means one press takes you to the start, the next to the end, so you can reach both without changing the setting",
+            searchTerms: ["Edge behavior"],
+            visible: eq("navigation.jumpToHeader.jumpMode", "edge"),
+            disabled: not("navigation.jumpToHeader.enabled"),
+            options: [
+              { value: "start-end", label: "Alternate start and end" },
+              { value: "start", label: "Start only" },
+              { value: "end", label: "End only" }
+            ]
+          },
+          {
+            kind: "dropdown",
+            id: "heading-jumps-cursor",
+            path: "navigation.jumpToHeader.jumpCursorPosition",
+            default: "section-end",
+            name: "Cursor position after jumping",
+            desc: "Where on that line the cursor ends up",
+            searchTerms: ["Jump cursor position", "Cursor on arrival"],
+            disabled: not("navigation.jumpToHeader.enabled"),
+            options: [
+              { value: "start", label: "Line start" },
+              { value: "end", label: "Line end" },
+              { value: "section-end", label: "End of your text" }
+            ],
+            tip: "<b>End of your text</b> puts the cursor after the last word you wrote but before the tags and dates at the end of the line, so you can carry on typing without having to step back over them",
+            seeAlso: { id: "separator-2", label: "Where your text ends is set by the second Separator" }
+          },
+          {
+            kind: "toggle",
+            id: "heading-jumps-center",
+            path: "navigation.jumpToHeader.centerCursor",
+            default: true,
+            name: "Follow the jump target",
+            desc: "After a jump, scroll the note so the line you landed on is on screen",
+            searchTerms: ["Center the target", "Center the screen on target", "Scroll on jump"],
+            tip: "Without it you often arrive at the very bottom of the window, with the section you jumped to still off screen below \u2014 so you have to scroll anyway. With it on, you can read straight away, and the row below says where on the screen you land",
+            disabled: not("navigation.jumpToHeader.enabled")
+          },
+          {
+            kind: "dropdown",
+            id: "heading-jumps-view-position",
+            path: "navigation.jumpToHeader.viewPosition",
+            default: "center",
+            name: "Where the target lands",
+            desc: "The place on screen the line you jump to is scrolled to",
+            searchTerms: ["Scroll position", "Center on jump"],
+            visible: on("navigation.jumpToHeader.centerCursor"),
+            disabled: not("navigation.jumpToHeader.enabled"),
+            options: [
+              { value: "center", label: "Center of the screen" },
+              { value: "top", label: "Top of the screen" },
+              { value: "bottom", label: "Bottom of the screen" }
+            ],
+            tip: "The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows"
           }
         ]
       }
@@ -29896,6 +27182,15 @@ function channels(hex) {
     parseInt(parts[2], 16) / 255
   ];
 }
+function toHexColor(color) {
+  const rgb = channels(color);
+  if (!rgb) return "";
+  const byte = (x) => {
+    const n = Math.round(Math.min(1, Math.max(0, x)) * 255);
+    return (n < 16 ? "0" : "") + n.toString(16);
+  };
+  return "#" + byte(rgb[0]) + byte(rgb[1]) + byte(rgb[2]);
+}
 function relativeLuminance(hex) {
   const rgb = channels(hex);
   if (!rgb) return null;
@@ -29922,7 +27217,7 @@ var init_contrast = __esm({
 });
 
 // src/ui/settings/custom/preview_data.ts
-function fieldsFromConfig(ctx) {
+function realFields(ctx) {
   const p = ctx.platform;
   if (!p) return [];
   try {
@@ -29973,9 +27268,12 @@ function fieldsFromConfig(ctx) {
   }
 }
 function previewFields(ctx) {
-  const real = fieldsFromConfig(ctx);
+  const real = realFields(ctx);
   if (real.length) return { fields: real, example: false };
   return { fields: EXAMPLE_FIELDS, example: true };
+}
+function fieldOptions(ctx, keep2) {
+  return realFields(ctx).filter((f) => keep2 ? keep2(f) : true).map((f) => ({ value: f.id, label: f.name || f.id }));
 }
 function resolveSlots(fields, slots) {
   const out = /* @__PURE__ */ new Map();
@@ -30005,13 +27303,12 @@ function resolveSlots(fields, slots) {
 function fieldsOn(fields, side) {
   return fields.filter((f) => f.side === side);
 }
+function typeColor(kind) {
+  var _a;
+  return (_a = TYPE_COLOR[kind]) != null ? _a : "var(--io-type-tag)";
+}
 function fieldColor(f) {
-  if (f.kind === "tag") {
-    const first = f.values.find((v) => v.depth === 0);
-    if (first) return first.fill;
-    return "var(--color-orange)";
-  }
-  return f.kind === "link" ? "var(--color-blue)" : "var(--color-green)";
+  return typeColor(f.kind);
 }
 function valueAtDepth(f, depth) {
   if (!f) return null;
@@ -30027,7 +27324,7 @@ function valuePair(f) {
   }
   return { parent: f.values.find((v) => v.depth === 0) || null, child: null };
 }
-var import_fields_editor_legacy2, helpers2, EXAMPLE_FIELDS;
+var import_fields_editor_legacy2, helpers2, EXAMPLE_FIELDS, TYPE_COLOR;
 var init_preview_data = __esm({
   "src/ui/settings/custom/preview_data.ts"() {
     "use strict";
@@ -30060,6 +27357,12 @@ var init_preview_data = __esm({
         ]
       }
     ];
+    TYPE_COLOR = {
+      tag: "var(--io-type-tag)",
+      wikilink: "var(--io-type-link)",
+      link: "var(--io-type-link)",
+      element: "var(--io-type-element)"
+    };
   }
 });
 
@@ -30084,10 +27387,10 @@ function previewShell(host, ctx, id) {
     text: text ? text.tip : "",
     label: text ? text.cap : id,
     id: "io-tip-" + id,
-    showTips: Boolean(ctx.get("general.help.showTips"))
+    showTips: Boolean(ctx.get("general.help.showTips")),
+    showIds: Boolean(ctx.get("advanced.showSettingIds"))
   });
   el(cap, "span", "io-preview__rule");
-  el(box, "p", "io-preview__note io-preview__note--top", PREVIEW_NOTE);
   return { box, close };
 }
 function applyTagVars(node, ctx) {
@@ -30126,8 +27429,8 @@ function fieldChip(parent, f) {
   cssVar(chip, "--io-bubble-bg", fieldColor(f));
   return chip;
 }
-function structuralLine(parent, ctx, fields, chipFor) {
-  const line = el(parent, "div", "io-line");
+function structuralLine(parent, ctx, fields, chipFor, cls) {
+  const line = el(parent, "div", "io-line" + (cls ? " " + cls : ""));
   applyTagVars(line, ctx);
   el(line, "span", "io-line__prefix", "- ");
   const put = (side, list) => {
@@ -30146,13 +27449,66 @@ function structuralLine(parent, ctx, fields, chipFor) {
   else el(line, "span", "io-line__hint", PREVIEW_EMPTY_RIGHT);
   return line;
 }
-var TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview;
+function valueSpellings(fields) {
+  const out = /* @__PURE__ */ new Map();
+  const put = (key, value, kind) => {
+    const k = key.trim();
+    if (k && !out.has(k)) out.set(k, { value, kind });
+  };
+  for (const f of fields) {
+    for (const v of f.values) {
+      if (!v.token) continue;
+      put(v.token, v, f.kind);
+      put("#" + v.token, v, f.kind);
+      put("[[" + v.token + "]]", v, f.kind);
+    }
+  }
+  return out;
+}
+function drawSourceLine(row, ctx, line, known) {
+  applyTagVars(row, ctx);
+  const sep1 = str2(ctx, "pkm.lineFormat.separator1", "||");
+  const sep2 = str2(ctx, "pkm.lineFormat.separator2", "||");
+  const prefix = /^(\s*(?:[-*+]|\d+\.)\s+(?:\[[^\]]?\]\s+)?)/.exec(line);
+  let rest = line;
+  if (prefix) {
+    el(row, "span", "io-line__prefix", prefix[1]);
+    rest = line.slice(prefix[1].length);
+  }
+  for (const piece of rest.split(/(\s+)/)) {
+    if (!piece) continue;
+    if (/^\s+$/.test(piece)) {
+      el(row, "span", "io-line__gap", piece);
+      continue;
+    }
+    if (piece === sep1 || piece === sep2) {
+      el(row, "span", "io-line__sep", piece);
+      continue;
+    }
+    const hit = known.get(piece);
+    if (hit && hit.kind === "tag") {
+      bubble(row, hit.value, piece.replace(/^#/, "") ? void 0 : piece);
+      continue;
+    }
+    if (hit) {
+      el(row, "span", "io-line__side io-line__side--left", piece);
+      continue;
+    }
+    el(row, "span", "io-line__text", piece);
+  }
+}
+function caretBlinkMs(speed) {
+  const s = Number.isFinite(speed) ? Math.max(1, Math.min(10, speed)) : 5;
+  return 2200 - s * 200;
+}
+var import_transform_feature, TAG_PATHS, WHEEL_PATHS, WHEEL_ROW, WHEEL_CHROME, wheelPreview, BARS_FIELD_NONE, BARS_NO_TAGS, BARS_FIELD_GONE, BARS_PATHS, barsPreview, STRUCT_LEFT, STRUCT_RIGHT, STRUCT_SEP1, STRUCT_SEP2, STRUCT_EMPTY_RIGHT, LINE_PATHS, linePreview, TAG_SLOTS, tagPreview, FLOAT_PATHS, FLOAT_LABEL, floatingButton, SOURCE_BEFORE, SOURCE_AFTER, SOURCE_NO_FIELDS, SOURCE_PATHS, sourcePreview, CARET_PATHS, CARET_THEME_WIDTH, CARET_THEME_BLINK, caretPreview;
 var init_previews = __esm({
   "src/ui/settings/custom/previews.ts"() {
     "use strict";
     init_custom_texts();
     init_dom();
     init_preview_data();
+    import_transform_feature = __toESM(require_transform_feature());
     TAG_PATHS = [
       "visual.tags.opacityLeft",
       "visual.tags.opacityRight",
@@ -30163,19 +27519,50 @@ var init_previews = __esm({
       "visual.tags.cornersPct",
       "pkm.behavior.childTagFormat",
       "pkm.lineFormat.separator1",
-      "pkm.lineFormat.separator2"
+      "pkm.lineFormat.separator2",
+      /*
+       * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
+       * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
+       * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
+       * список Values, и перечислить это по листьям значит однажды отстать.
+       */
+      "pkm.fields",
+      "visual.tags.byTag"
     ];
     WHEEL_PATHS = [
       "visual.tagWheel.scroller.enabled",
       "visual.tagWheel.scroller.direction",
       "visual.tagWheel.scroller.size",
+      /*
+       * Цвета коробки скроллера. Их тут тоже не было — та же половина дефекта,
+       * что у цвета активного Field (У-24): предпросмотр не перерисовывался на их
+       * изменение, и человек не увидел бы работу настройки, даже когда коробка
+       * научилась их читать.
+       */
+      "visual.tagWheel.scroller.fillColor",
+      "visual.tagWheel.scroller.textColor",
       "visual.tagWheel.showMarkers",
       "visual.tagWheel.fillColor",
       "visual.tagWheel.textColor",
+      /*
+       * Эти два пути тут не было, и предпросмотр не перерисовывался на их
+       * изменение вовсе — то есть не показал бы работу настроек, даже если бы
+       * умел их рисовать (замечание H2, PRD 10.13.22 Пр3; У-24).
+       */
+      "visual.tagWheel.activeTextColor",
+      "visual.tagWheel.highlightLine",
       "visual.tags.opacityLeft",
       "visual.tags.opacityRight",
       "pkm.lineFormat.separator1",
-      "pkm.lineFormat.separator2"
+      "pkm.lineFormat.separator2",
+      /*
+       * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
+       * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
+       * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
+       * список Values, и перечислить это по листьям значит однажды отстать.
+       */
+      "pkm.fields",
+      "visual.tags.byTag"
     ];
     WHEEL_ROW = 21;
     WHEEL_CHROME = 18;
@@ -30206,29 +27593,48 @@ var init_previews = __esm({
         const room = (rows2) => (rows2 ? rows2 * WHEEL_ROW + WHEEL_CHROME : 0) + "px";
         cssVar(shell.box, "--io-wheel-up", room(up.length));
         cssVar(shell.box, "--io-wheel-down", room(down.length));
-        const panel = (col, idx, where) => {
+        const fill = str2(ctx, "visual.tagWheel.fillColor", "");
+        const text = str2(ctx, "visual.tagWheel.textColor", "");
+        const activeText = str2(ctx, "visual.tagWheel.activeTextColor", "") || text;
+        const lit = Boolean(ctx.get("visual.tagWheel.highlightLine"));
+        const scrollFill = str2(ctx, "visual.tagWheel.scroller.fillColor", "");
+        const scrollText = str2(ctx, "visual.tagWheel.scroller.textColor", "");
+        const scrollerBox = (col, idx, where) => {
           if (!idx.length) return;
           const p = el(col, "span", "io-wheelpanel io-wheelpanel--" + where);
-          const fill = str2(ctx, "visual.tagWheel.fillColor", "");
-          const text = str2(ctx, "visual.tagWheel.textColor", "");
-          if (fill) cssVar(p, "--io-wheel-bg", fill);
-          if (text) cssVar(p, "--io-wheel-fg", text);
+          if (scrollFill) cssVar(p, "--io-wheel-bg", scrollFill);
+          if (scrollText) cssVar(p, "--io-wheel-fg", scrollText);
           for (const i of idx) el(p, "span", "io-wheelval", values[i]);
         };
+        const dressed = /* @__PURE__ */ new Set();
+        const dressSide = (side) => {
+          if (dressed.has(side)) return;
+          dressed.add(side);
+          side.addClass("io-wheelline");
+          if (!lit) return;
+          side.addClass("io-wheelline--lit");
+          if (fill) cssVar(side, "--io-wheel-lit", fill);
+        };
         structuralLine(stage, ctx, fields, (side, f) => {
+          dressSide(side);
           const isShown = f === shown;
           const col = el(side, "span", "io-wheelcol");
-          const chip = el(
+          const label = f.short || f.name;
+          const cell = el(
             col,
             "span",
-            "io-bubble" + (isShown ? " io-bubble--current" : ""),
-            isShown ? values[at] : f.short || f.name
+            "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""),
+            isShown ? "[" + String(values[at] || label) + "]" : label
           );
-          cssVar(chip, "--io-bubble-bg", fieldColor(f));
+          if (isShown) {
+            if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
+          } else if (text) {
+            cssVar(cell, "--io-wheel-cell", text);
+          }
           if (!isShown) return;
-          panel(col, up, "up");
-          panel(col, down, "down");
-        });
+          scrollerBox(col, up, "up");
+          scrollerBox(col, down, "down");
+        }, "io-line--wheel");
         if (example) rich(el(foot, "p", "io-preview__note"), PREVIEW_EXAMPLE);
       };
       draw();
@@ -30238,6 +27644,9 @@ var init_previews = __esm({
         shell.close();
       };
     };
+    BARS_FIELD_NONE = "Bars need a Field: pick one in <code>Which Field draws Bars</code> above";
+    BARS_NO_TAGS = "Bars are drawn from the colours of a tag Field, and there is no tag Field yet: add one under <code>Tags &amp; PKM</code>";
+    BARS_FIELD_GONE = "The Field these Bars were drawn for is gone: pick another one above";
     BARS_PATHS = [
       "visual.tagBars.active",
       "visual.tagBars.tagVisibility",
@@ -30247,15 +27656,26 @@ var init_previews = __esm({
       "visual.tagBars.thickness",
       "visual.tagBars.childOffset",
       "visual.tagBars.spacing",
+      "visual.tagBars.lineGap",
+      "visual.tagBars.joinTree",
+      "visual.tagBars.drawWholeTree",
       "visual.tags.opacityLeft",
       "visual.tags.opacityRight",
-      "pkm.lineFormat.separator1"
+      "pkm.lineFormat.separator1",
+      /*
+       * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
+       * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
+       * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
+       * список Values, и перечислить это по листьям значит однажды отстать.
+       */
+      "pkm.fields",
+      "visual.tags.byTag"
     ];
     barsPreview = (host, ctx) => {
       const text = PREVIEW_TEXTS["bars-preview"];
       const shell = previewShell(host, ctx, "bars-preview");
       const tree = el(shell.box, "div", "io-tree");
-      const chosenField = () => str2(ctx, "visual.tagBars.fieldId", "status");
+      const chosenField = () => str2(ctx, "visual.tagBars.fieldId", "");
       const treeSlots = (nodes) => {
         const out = [];
         const walk = (list) => {
@@ -30299,31 +27719,41 @@ var init_previews = __esm({
         if (!sepHidden) el(line, "span", "io-line__sep", str2(ctx, "pkm.lineFormat.separator1", "||"));
         el(line, "span", "io-line__text", node.text);
       };
-      const drawNode = (parent, node, depth, lane, fields, slots) => {
+      const drawNode = (parent, node, depth, fields, slots) => {
         const active = Boolean(ctx.get("visual.tagBars.active"));
         const cap = num(ctx, "visual.tagBars.stripesToShow");
         const chosen = chosenField();
         const v = carried(node, slots).includes(chosen) ? valueAtDepth(fields.find((f) => f.id === chosen) || null, depth) : null;
-        const bar = active && v !== null && lane < cap;
+        const whole = ctx.get("visual.tagBars.drawWholeTree") !== false;
+        const bar = active && v !== null && (whole ? depth < cap : true);
         const box = el(parent, "div", "io-node" + (bar ? " io-node--bar" : ""));
         if (bar && v) {
           cssVar(box, "--io-bar-color", v.fill);
-          cssVar(box, "--io-lane", String(lane));
+          cssVar(box, "--io-lane", String(whole ? depth : 0));
+          cssVar(box, "--io-bar-inset", num(ctx, "visual.tagBars.lineGap") + "px");
         }
         drawLine(box, node, depth, fields, slots);
+        const kids = whole ? box : parent;
         for (const child of node.children) {
-          drawNode(box, child, depth + 1, bar ? lane + 1 : lane, fields, slots);
+          drawNode(kids, child, depth + 1, fields, slots);
         }
       };
       const draw = () => {
         tree.empty();
-        const { fields, example } = previewFields(ctx);
+        const all = previewFields(ctx);
+        const tags = all.fields.filter((f) => f.kind === "tag");
+        const fields = tags;
+        const example = all.example;
         cssVar(tree, "--io-bar-thickness", num(ctx, "visual.tagBars.thickness") + "px");
         cssVar(tree, "--io-bar-gap", num(ctx, "visual.tagBars.childOffset") + "px");
         cssVar(tree, "--io-bar-distance", num(ctx, "visual.tagBars.spacing") + "px");
         const nodes = text && text.tree || [];
         const slots = resolveSlots(fields, treeSlots(nodes));
-        for (const node of nodes) drawNode(tree, node, 0, 0, fields, slots);
+        for (const node of nodes) drawNode(tree, node, 0, fields, slots);
+        const chosen = chosenField();
+        if (ctx.get("visual.tagBars.active") && !fields.some((f) => f.id === chosen)) {
+          rich(el(tree, "p", "io-preview__note"), !tags.length ? BARS_NO_TAGS : chosen ? BARS_FIELD_GONE : BARS_FIELD_NONE);
+        }
         if (example) rich(el(tree, "p", "io-preview__note"), PREVIEW_EXAMPLE);
       };
       draw();
@@ -30346,7 +27776,15 @@ var init_previews = __esm({
       "visual.tags.textSizePct",
       "visual.tags.bubbleWidthPct",
       "visual.tags.bubbleHeightPct",
-      "visual.tags.cornersPct"
+      "visual.tags.cornersPct",
+      /*
+       * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
+       * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
+       * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
+       * список Values, и перечислить это по листьям значит однажды отстать.
+       */
+      "pkm.fields",
+      "visual.tags.byTag"
     ];
     linePreview = (host, ctx) => {
       const shell = previewShell(host, ctx, "line-preview");
@@ -30443,6 +27881,130 @@ var init_previews = __esm({
         shell.close();
       };
     };
+    FLOAT_PATHS = [
+      "pkm.lineFormat.separator1",
+      "pkm.lineFormat.separator2",
+      /*
+       * Fields и цвета их Values: предпросмотр читает их через `previewFields`,
+       * а подписан на них не был — вторая половина дефекта 1.4.1.1.3. Ветка
+       * целиком, а не отдельные пути: у Field меняется то имя, то сторона, то
+       * список Values, и перечислить это по листьям значит однажды отстать.
+       */
+      "pkm.fields",
+      "visual.tags.byTag",
+      /* Расстояние от текста до кнопки: предпросмотр обязан двигать её вместе со
+         слайдером, иначе он показывает не то, чем управляют (У-24). */
+      "transform.inline2note.floatingButtonGap"
+    ];
+    FLOAT_LABEL = "\u2192";
+    floatingButton = (host, ctx) => {
+      const shell = previewShell(host, ctx, "i2n-button-preview");
+      const text = PREVIEW_TEXTS["i2n-button-preview"];
+      const holder = el(shell.box, "div");
+      const draw = () => {
+        holder.empty();
+        const row = el(holder, "div", "io-floatrow");
+        const { fields } = previewFields(ctx);
+        structuralLine(row, ctx, fields);
+        const button = el(row, "span", "io-flybtn", FLOAT_LABEL);
+        cssVar(button, "--io-flybtn-gap", num(ctx, "transform.inline2note.floatingButtonGap") + "px");
+        el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+      };
+      draw();
+      const unwatch = ctx.watch(FLOAT_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
+    SOURCE_BEFORE = "Before";
+    SOURCE_AFTER = "After";
+    SOURCE_NO_FIELDS = "no Fields yet \u2014 set one up under <code>Tags &amp; PKM</code> and the example fills in";
+    SOURCE_PATHS = [
+      "transform.inline2note.sourceProcessing.text",
+      "transform.inline2note.sourceProcessing.keepWords",
+      "transform.inline2note.sourceProcessing.cleanupFieldIds",
+      "transform.inline2note.sourceProcessing.replaceWithLink",
+      "transform.inline2note.sourceProcessing.token",
+      "transform.inline2note.sourceProcessing.panel",
+      "transform.inline2note.sublines",
+      "pkm.fields",
+      "pkm.lineFormat"
+    ];
+    sourcePreview = (host, ctx) => {
+      const shell = previewShell(host, ctx, "source-preview");
+      const body = el(shell.box, "div", "io-srcprev");
+      const draw = () => {
+        var _a;
+        body.empty();
+        const p = ctx.platform;
+        const cfg = p ? p.getConfig() : null;
+        const i2n = (_a = cfg == null ? void 0 : cfg["transform"]) == null ? void 0 : _a["inline2note"];
+        const tree = cfg ? import_transform_feature.default.buildSourcePreviewTree(i2n, cfg) : null;
+        const before = tree && Array.isArray(tree.before) ? tree.before : [];
+        const after = tree && Array.isArray(tree.after) ? tree.after : [];
+        if (!before.length) {
+          rich(el(body, "p", "io-preview__note"), SOURCE_NO_FIELDS);
+          return;
+        }
+        const fields = previewFields(ctx).fields;
+        const known = valueSpellings(fields);
+        const half = (label, lines) => {
+          el(body, "div", "io-srcprev__cap", label);
+          const box = el(body, "div", "io-srcprev__lines");
+          for (const line of lines) {
+            const row = el(box, "div", "io-srcprev__line");
+            if (/^\s/.test(line)) row.classList.add("io-srcprev__line--sub");
+            drawSourceLine(row, ctx, line.replace(/^\s+/, ""), known);
+          }
+        };
+        half(SOURCE_BEFORE, before);
+        half(SOURCE_AFTER, after);
+      };
+      draw();
+      const unwatch = ctx.watch(SOURCE_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
+    CARET_PATHS = [
+      "visual.caret.enabled",
+      "visual.caret.color",
+      "visual.caret.shapeEnabled",
+      "visual.caret.width",
+      "visual.caret.blinkSpeed"
+    ];
+    CARET_THEME_WIDTH = 1.2;
+    CARET_THEME_BLINK = 1200;
+    caretPreview = (host, ctx) => {
+      const shell = previewShell(host, ctx, "caret-preview");
+      const text = PREVIEW_TEXTS["caret-preview"];
+      const holder = el(shell.box, "div");
+      const draw = () => {
+        holder.empty();
+        const row = el(holder, "div", "io-caretline");
+        el(row, "span", void 0, PREVIEW_LINE_TEXT + " ");
+        el(row, "span", "io-caret");
+        const shaped = ctx.get("visual.caret.shapeEnabled") === true;
+        const width = shaped ? num(ctx, "visual.caret.width") || 2 : CARET_THEME_WIDTH;
+        const speed = num(ctx, "visual.caret.blinkSpeed");
+        const color = ctx.get("visual.caret.enabled") === true ? str2(ctx, "visual.caret.color", "") : "";
+        cssVar(row, "--io-caret-width", width + "px");
+        cssVar(row, "--io-caret-shift", -width / 2 + "px");
+        cssVar(row, "--io-caret-color", color || "var(--text-normal)");
+        cssVar(row, "--io-caret-blink", (shaped ? caretBlinkMs(speed) : CARET_THEME_BLINK) + "ms");
+        if (shaped && speed <= 0) row.classList.add("io-caretline--still");
+        else row.classList.remove("io-caretline--still");
+        el(holder, "p", "io-preview__note", text ? text.note || "" : "");
+      };
+      draw();
+      const unwatch = ctx.watch(CARET_PATHS, draw);
+      return () => {
+        unwatch();
+        shell.close();
+      };
+    };
   }
 });
 
@@ -30477,31 +28039,23 @@ function fakeLine(rows) {
   const tokens = rows.map((r) => r.lineToken).filter(Boolean);
   return tokens.length ? "- " + tokens.join(" ") : "";
 }
-function yamlExamples(rows, cfg) {
-  var _a;
+function yamlExamples(rows, cfg, app3) {
   const line = fakeLine(rows);
   if (!line || !cfg) return {};
+  const propertyTypes = app3 ? engine.readVaultPropertyTypes(app3) : {};
   try {
     const ctx = engine.buildTransformContext(engine.parseInlineLine(line, cfg), cfg);
     const matches = Array.isArray(ctx.matches) ? ctx.matches : [];
-    const full = engine.buildYamlMapFromContext(ctx, cfg);
     const out = {};
     for (const row of rows) {
       const own = matches.filter((m) => {
-        var _a2;
-        return String((_a2 = m.fieldId) != null ? _a2 : "").trim() === row.fieldId;
+        var _a;
+        return String((_a = m.fieldId) != null ? _a : "").trim() === row.fieldId;
       });
       if (!own.length) continue;
-      const keys = [];
-      for (const m of own) {
-        const key = String((_a = m.yamlProperty) != null ? _a : "").trim();
-        if (key && !keys.includes(key)) keys.push(key);
-      }
-      const patch = {};
-      for (const key of keys) {
-        if (Object.prototype.hasOwnProperty.call(full, key)) patch[key] = full[key];
-      }
-      if (!Object.keys(patch).length) continue;
+      const mine = Object.assign({}, ctx, { matches: own });
+      const patch = engine.buildYamlMapFromContext(mine, cfg, propertyTypes);
+      if (!patch || !Object.keys(patch).length) continue;
       const text = engine.renderYamlBlockWithOrder([], patch, cfg).filter(Boolean).join(" ");
       if (text) out[row.key] = text;
     }
@@ -30512,7 +28066,8 @@ function yamlExamples(rows, cfg) {
   }
 }
 function propertyPicker(host, o) {
-  const input = textInput(host, "io-text io-text--mono io-text--prop", {
+  const box = el(host, "div", "io-pick2");
+  const input = textInput(box, "io-text io-text--mono io-text--prop", {
     value: o.value,
     placeholder: o.placeholder,
     label: "YAML property for " + o.label
@@ -30522,6 +28077,16 @@ function propertyPicker(host, o) {
     if (!o.enabled) return;
     o.write(input.value);
   }));
+  if (o.enabled && String(o.value || "").trim()) {
+    const clear = btn(box, "io-clear", {
+      text: "\u2715",
+      label: "Clear the property of " + o.label
+    });
+    clear.addEventListener("click", (() => {
+      input.value = "";
+      o.write("");
+    }));
+  }
   if (!o.enabled || !o.suggest || typeof o.suggest.ctor !== "function") return;
   try {
     const Base = o.suggest.ctor;
@@ -30550,13 +28115,13 @@ function propertyPicker(host, o) {
     console.error("inline-overhaul: \u043F\u043E\u0434\u0441\u043A\u0430\u0437\u043A\u0430 \u0438\u043C\u0451\u043D \u0441\u0432\u043E\u0439\u0441\u0442\u0432 \u043D\u0435 \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u043B\u0430\u0441\u044C", e);
   }
 }
-var import_transform_feature, engine, NOT_WRITTEN, CARDINALITY_OPTIONS, VALUE_RULE_OPTIONS;
+var import_transform_feature2, engine, NOT_WRITTEN, CARDINALITY_OPTIONS, VALUE_RULE_OPTIONS;
 var init_yaml_property = __esm({
   "src/ui/settings/custom/yaml_property.ts"() {
     "use strict";
     init_dom();
-    import_transform_feature = __toESM(require_transform_feature());
-    engine = import_transform_feature.default;
+    import_transform_feature2 = __toESM(require_transform_feature());
+    engine = import_transform_feature2.default;
     NOT_WRITTEN = "not written";
     CARDINALITY_OPTIONS = [
       { value: "auto", label: "Auto" },
@@ -30650,7 +28215,7 @@ function renderFieldList(list, o) {
       cssVar(
         el(pick, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
         "--io-chip-bg",
-        TYPE_COLOR[row.kind]
+        typeColor(row.kind)
       );
       pick.addEventListener("click", (() => {
         o.state.selected = row.key;
@@ -30724,10 +28289,10 @@ function itemRow(host, o) {
   const info = el(row, "div", "io-item__info");
   const nameRow = el(info, "div", "io-item__namerow");
   el(nameRow, "div", "io-item__name", o.name);
-  const closeTip = o.tip && o.tipId ? tipBelow({ head: nameRow, host: info, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips }) : () => {
+  const closeTip = o.tip && o.tipId ? tipBelow({ head: nameRow, host: info, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips, showIds: o.showIds }) : () => {
   };
   rich(el(info, "div", "io-item__desc"), o.desc);
-  return { control: el(row, "div", "io-item__control"), closeTip };
+  return { control: el(row, "div", "io-item__control"), info, closeTip };
 }
 function prerequisiteRows(detail, row, o) {
   const closers = [];
@@ -30740,7 +28305,8 @@ function prerequisiteRows(detail, row, o) {
     desc: PREREQ_DESC,
     tip: PREREQ_TIP,
     tipId: "io-field-prereq-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(on2.closeTip);
   const onPick = selectInput(on2.control, "io-select", {
@@ -30762,7 +28328,8 @@ function prerequisiteRows(detail, row, o) {
     desc: PREREQ_FIELD_DESC,
     tip: PREREQ_FIELD_TIP,
     tipId: "io-field-prereq-which-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(which.closeTip);
   const whichPick = selectInput(which.control, "io-select", {
@@ -30785,7 +28352,8 @@ function prerequisiteRows(detail, row, o) {
     desc: PREREQ_VALUE_DESC,
     tip: PREREQ_VALUE_TIP,
     tipId: "io-field-prereq-value-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(value.closeTip);
   const valuePick = selectInput(value.control, "io-select", {
@@ -30811,12 +28379,30 @@ function renderFieldDetail(detail, row, o) {
   cssVar(
     el(title, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
     "--io-chip-bg",
-    TYPE_COLOR[row.kind]
+    typeColor(row.kind)
   );
+  if (o.askRename) {
+    const ask = o.askRename;
+    const pencil = btn(title, "io-icon", {
+      text: "\u270E",
+      label: "Rename the Field " + row.strictName
+    });
+    pencil.disabled = !o.enabled;
+    pencil.addEventListener("click", (() => {
+      if (!o.enabled) return;
+      ask(row.strictName, (next) => {
+        if (!next) return;
+        void Promise.resolve(o.model.setStrictName(row.key, next)).then((res) => {
+          if (!res.ok && res.error) o.notice(res.error);
+          o.redraw();
+        });
+      });
+    }));
+  }
   const del = btn(title, "io-danger", {
     label: "Delete the Field " + row.strictName
   });
-  el(del, "span", "io-danger__icon", "\u{1F5D1}");
+  el(del, "span", "io-danger__icon");
   del.disabled = !o.enabled;
   del.addEventListener("click", (() => {
     if (!o.enabled) return;
@@ -30832,7 +28418,8 @@ function renderFieldDetail(detail, row, o) {
     desc: SHORT_NAME_DESC,
     tip: SHORT_NAME_TIP,
     tipId: "io-field-short-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(shortRow.closeTip);
   const short = textInput(shortRow.control, "io-text io-text--prop", {
@@ -30848,14 +28435,27 @@ function renderFieldDetail(detail, row, o) {
     o.model.setLabel(row.key, short.value);
     o.redraw();
   }));
-  el(detail, "div", "io-sub", "Behavior");
+  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
+  else closers.push(renderValuesTable(detail, row, o));
+  const behaviorHead = el(detail, "div", "io-sub io-item__namerow");
+  el(behaviorHead, "span", void 0, "Behavior");
+  closers.push(tipBelow({
+    head: behaviorHead,
+    host: el(detail, "div", "io-tipslot"),
+    text: BEHAVIOR_HEAD_TIP,
+    label: "Behavior",
+    id: "io-field-behavior-tip",
+    showTips: o.showTips,
+    showIds: o.showIds
+  }));
   if (!row.parent) {
     const active = itemRow(detail, {
       name: ACTIVE_NAME,
       desc: ACTIVE_DESC,
       tip: ACTIVE_TIP,
       tipId: "io-field-active-tip",
-      showTips: o.showTips
+      showTips: o.showTips,
+      showIds: o.showIds
     });
     closers.push(active.closeTip);
     const mode2 = selectInput(active.control, "io-select", {
@@ -30875,7 +28475,8 @@ function renderFieldDetail(detail, row, o) {
     desc: BEHAVIOR_DESC,
     tip: BEHAVIOR_TIP,
     tipId: "io-field-behavior-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(behavior.closeTip);
   const mode = selectInput(behavior.control, "io-select", {
@@ -30896,7 +28497,8 @@ function renderFieldDetail(detail, row, o) {
       desc: CHILD_DESC,
       tip: CHILD_TIP,
       tipId: "io-field-child-tip",
-      showTips: o.showTips
+      showTips: o.showTips,
+      showIds: o.showIds
     });
     closers.push(child.closeTip);
     const pick = selectInput(child.control, "io-select", {
@@ -30921,11 +28523,10 @@ function renderFieldDetail(detail, row, o) {
     text: PROPERTY_HEAD_TIP,
     label: PROPERTY_HEAD,
     id: "io-field-property-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   }));
   closers.push(yamlPropertyRows(detail, row, o));
-  if (row.kind === "element") closers.push(renderElementRows(detail, row, o));
-  else closers.push(renderValuesTable(detail, row, o));
   return () => {
     closers.forEach((fn) => fn());
   };
@@ -30947,14 +28548,26 @@ function yamlPropertyRows(detail, row, o) {
   const property = itemRow(detail, {
     name: PROPERTY_NAME,
     desc: PROPERTY_DESC,
-    showTips: o.showTips
+    tip: PROPERTY_TIP,
+    tipId: "io-field-yaml-property-tip",
+    showTips: o.showTips,
+    showIds: o.showIds
   });
+  closers.push(property.closeTip);
   const app3 = o.ctx.platform ? o.ctx.platform.plugin.app : null;
+  const props = vaultProperties(app3);
+  const declaredType = (name) => {
+    const at = props.find((p) => p.name === String(name || "").trim());
+    return at ? String(at.type || "").trim().toLowerCase() : "";
+  };
+  if (row.kind === "wikilink" && declaredType(row.property) === "tags") {
+    el(property.info, "div", "io-item__warn", LINK_IN_TAGS);
+  }
   propertyPicker(property.control, {
     value: row.property,
     label: row.strictName,
     placeholder: PROPERTY_PLACEHOLDER,
-    props: vaultProperties(app3),
+    props,
     /* Подсказку рисует платформа; без класса поле остаётся обычным полем. */
     suggest: o.ctx.platform && o.ctx.platform.AbstractInputSuggest ? { ctor: o.ctx.platform.AbstractInputSuggest, app: app3 } : void 0,
     enabled: o.enabled,
@@ -30967,7 +28580,8 @@ function yamlPropertyRows(detail, row, o) {
     desc: CARDINALITY_DESC,
     tip: CARDINALITY_TIP,
     tipId: "io-field-yaml-type-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(cardinality.closeTip);
   const holds = selectInput(cardinality.control, "io-select", {
@@ -30987,7 +28601,8 @@ function yamlPropertyRows(detail, row, o) {
     desc: VALUE_RULE_DESC,
     tip: VALUE_RULE_TIP,
     tipId: "io-field-yaml-rule-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(rule.closeTip);
   const ruleSelect = selectInput(rule.control, "io-select", {
@@ -31008,10 +28623,11 @@ function yamlPropertyRows(detail, row, o) {
       desc: WRITTEN_DESC,
       tip: WRITTEN_TIP,
       tipId: "io-field-yaml-written-tip",
-      showTips: o.showTips
+      showTips: o.showTips,
+      showIds: o.showIds
     });
     closers.push(written.closeTip);
-    const example = yamlExamples(rows, cfg)[row.key] || "";
+    const example = yamlExamples(rows, cfg, app3)[row.key] || "";
     const box = el(written.control, "div", "io-yamlex" + (example ? "" : " io-yamlex--empty"));
     el(box, "div", "io-yamlex__line", example || NOT_WRITTEN);
   }
@@ -31069,7 +28685,8 @@ function renderValuesTable(host, row, o) {
     text: VALUES_TIP,
     label: "Values",
     id: "io-values-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   }));
   const box = el(host, "div", "io-vals" + (isLink ? " io-vals--link" : ""));
   const scroll = el(box, "div", "io-scroll");
@@ -31089,7 +28706,8 @@ function renderValuesTable(host, row, o) {
       text: tip,
       label: title,
       id: "io-values-col-" + title.toLowerCase() + "-tip",
-      showTips: o.showTips
+      showTips: o.showTips,
+      showIds: o.showIds
     }));
   }
   const rows = flatten(ve.tree);
@@ -31235,10 +28853,12 @@ function renderValuesTable(host, row, o) {
       }
       const color = (key, label, reason) => {
         const wrap = el(line, "div");
+        const own = key === "fillColor" ? visual.fillColor : visual.textColor;
+        const fromTheme = toHexColor(key === "fillColor" ? theme.fill : theme.text);
         const input = wrap.createEl("input", {
           cls: "io-colin",
           type: "color",
-          value: (key === "fillColor" ? visual.fillColor : visual.textColor) || "#ffffff",
+          value: own || fromTheme || "#ffffff",
           attr: { "aria-label": label + " for " + v.token }
         });
         input.disabled = !o.enabled;
@@ -31318,9 +28938,19 @@ function renderValuesTable(host, row, o) {
 function renderElementRows(host, row, o) {
   const ed = o.model.elementEditor(row.key);
   const closers = [];
-  el(host, "div", "io-sub", "Value");
+  const valueHead = el(host, "div", "io-sub io-item__namerow");
+  el(valueHead, "span", void 0, "Value");
+  closers.push(tipBelow({
+    head: valueHead,
+    host: el(host, "div", "io-tipslot"),
+    text: ELEMENT_VALUE_TIP,
+    label: "Value",
+    id: "io-element-value-tip",
+    showTips: o.showTips,
+    showIds: o.showIds
+  }));
   const line = (name, desc, tip, tipId, value, placeholder, save) => {
-    const item = itemRow(host, { name, desc, tip, tipId, showTips: o.showTips });
+    const item = itemRow(host, { name, desc, tip, tipId, showTips: o.showTips, showIds: o.showIds });
     closers.push(item.closeTip);
     const input = textInput(item.control, "io-text io-text--mono", {
       value,
@@ -31357,7 +28987,8 @@ function renderElementRows(host, row, o) {
     desc: STEP_DESC,
     tip: STEP_TIP,
     tipId: "io-element-step-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   });
   closers.push(steps.closeTip);
   const mode = selectInput(steps.control, "io-select", {
@@ -31377,7 +29008,8 @@ function renderElementRows(host, row, o) {
       desc: AMOUNT_DESC,
       tip: AMOUNT_TIP,
       tipId: "io-element-amount-tip",
-      showTips: o.showTips
+      showTips: o.showTips,
+      showIds: o.showIds
     });
     closers.push(by.closeTip);
     const input = textInput(by.control, "io-text io-text--mono", {
@@ -31395,7 +29027,8 @@ function renderElementRows(host, row, o) {
       desc: COMMAND_DESC,
       tip: COMMAND_TIP,
       tipId: "io-element-command-tip",
-      showTips: o.showTips
+      showTips: o.showTips,
+      showIds: o.showIds
     });
     closers.push(cmd.closeTip);
     const pick = selectInput(cmd.control, "io-select", {
@@ -31418,7 +29051,8 @@ function renderElementRows(host, row, o) {
       desc: STEPS_DESC,
       tip: STEPS_TIP,
       tipId: "io-element-steps-tip",
-      showTips: o.showTips
+      showTips: o.showTips,
+      showIds: o.showIds
     });
     closers.push(own.closeTip);
     const area = own.control.createEl("textarea", {
@@ -31448,7 +29082,8 @@ function renderFieldsEditor(host, o) {
     text: LIST_TIP,
     label: "the Fields list",
     id: "io-fields-list-tip",
-    showTips: o.showTips
+    showTips: o.showTips,
+    showIds: o.showIds
   }));
   const list = el(listCol, "div", "io-fields__list");
   renderFieldList(list, o);
@@ -31457,7 +29092,17 @@ function renderFieldsEditor(host, o) {
   const row = rows.find((r) => r.key === key) || null;
   const detailCol = el(wrap, "div", "io-fields__col");
   const detailHead = el(detailCol, "div", "io-fields__colhead");
-  el(detailHead, "span", void 0, row && row.kind === "element" ? TYPE_LABEL.element : "Values");
+  const detailName = row && row.kind === "element" ? TYPE_LABEL.element : "Values";
+  el(detailHead, "span", void 0, detailName);
+  closers.push(tipBelow({
+    head: detailHead,
+    host: el(detailCol, "div", "io-tipslot"),
+    text: DETAIL_TIP,
+    label: "this column",
+    id: "io-fields-detail-tip",
+    showTips: o.showTips,
+    showIds: o.showIds
+  }));
   const detail = el(detailCol, "div", "io-fields__detail");
   if (row) closers.push(renderFieldDetail(detail, row, o));
   else el(detail, "div", "io-fields__hint", "add a Field on the left to set it up here");
@@ -31466,23 +29111,19 @@ function renderFieldsEditor(host, o) {
     wrap.remove();
   };
 }
-var TYPE_LABEL, TYPE_COLOR, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_NAME, SHORT_NAME_DESC, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PREREQ_NAME, PREREQ_DESC, PREREQ_TIP, PREREQ_OPTIONS, PREREQ_FIELD_NAME, PREREQ_FIELD_DESC, PREREQ_FIELD_TIP, PREREQ_FIELD_NONE, PREREQ_VALUE_NAME, PREREQ_VALUE_DESC, PREREQ_VALUE_TIP, PREREQ_VALUE_ANY, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, PROPERTY_PLACEHOLDER, CARDINALITY_NAME, CARDINALITY_DESC, CARDINALITY_TIP, VALUE_RULE_NAME, VALUE_RULE_DESC, VALUE_RULE_TIP, WRITTEN_NAME, WRITTEN_DESC, WRITTEN_TIP, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
+var TYPE_LABEL, SIDE_LABEL, LIST_TIP, EMPTY_SIDE, SHORT_NAME_NAME, SHORT_NAME_DESC, SHORT_NAME_TIP, BEHAVIOR_OPTIONS, BEHAVIOR_HEAD_TIP, ELEMENT_VALUE_TIP, DETAIL_TIP, VALUES_TIP, SHOWN_OPTIONS, BEHAVIOR_NAME, BEHAVIOR_DESC, ACTIVE_NAME, ACTIVE_DESC, ACTIVE_TIP, ACTIVE_OPTIONS, CHILD_NAME, CHILD_DESC, CHILD_TIP, CHILD_OPTIONS, PREREQ_NAME, PREREQ_DESC, PREREQ_TIP, PREREQ_OPTIONS, PREREQ_FIELD_NAME, PREREQ_FIELD_DESC, PREREQ_FIELD_TIP, PREREQ_FIELD_NONE, PREREQ_VALUE_NAME, PREREQ_VALUE_DESC, PREREQ_VALUE_TIP, PREREQ_VALUE_ANY, PROPERTY_HEAD, PROPERTY_HEAD_TIP, PROPERTY_NAME, PROPERTY_DESC, PROPERTY_TIP, PROPERTY_PLACEHOLDER, CARDINALITY_NAME, CARDINALITY_DESC, CARDINALITY_TIP, VALUE_RULE_NAME, VALUE_RULE_DESC, VALUE_RULE_TIP, LINK_IN_TAGS, WRITTEN_NAME, WRITTEN_DESC, WRITTEN_TIP, BEHAVIOR_TIP, STEP_OPTIONS, MARKER_NAME, MARKER_DESC, MARKER_TIP, FORMAT_NAME, FORMAT_DESC, FORMAT_PLACEHOLDER, FORMAT_TIP, STEP_DESC, STEP_TIP, AMOUNT_DESC, AMOUNT_TIP, COMMAND_DESC, COMMAND_TIP, STEPS_DESC, STEPS_TIP;
 var init_fields_editor_view = __esm({
   "src/ui/settings/custom/fields_editor_view.ts"() {
     "use strict";
     init_dom();
     init_contrast();
     init_previews();
+    init_preview_data();
     init_yaml_property();
     TYPE_LABEL = {
       tag: "Tag",
       wikilink: "Link",
       element: "Emoji"
-    };
-    TYPE_COLOR = {
-      tag: "var(--io-type-tag)",
-      wikilink: "var(--io-type-link)",
-      element: "var(--io-type-element)"
     };
     SIDE_LABEL = { left: "Left Block", right: "Right Block" };
     LIST_TIP = "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right \u2014 at the edge of a Block they cross the line too";
@@ -31495,6 +29136,9 @@ var init_fields_editor_view = __esm({
       { value: "minimal", label: "Insert only" },
       { value: "full", label: "Free" }
     ];
+    BEHAVIOR_HEAD_TIP = "Three things about how this Field acts, and none about what it writes. <b>Active</b> turns its commands on and off without deleting the Field. <b>Prefix behavior</b> decides whether a Value may change the marker at the start of the line \u2014 a checkbox, for instance. <b>Child Field</b> ties this Field to another one, so it comes into play only once that one is on the line";
+    ELEMENT_VALUE_TIP = "An element Field holds one Value, not a list: a date, a time, a counter. The rows below say what it prints \u2014 the emoji in front and the format of the value itself \u2014 and how the <code>next</code> and <code>previous</code> commands move it along";
+    DETAIL_TIP = "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes";
     VALUES_TIP = "The <code>next</code> and <code>previous</code> commands walk this list in order. A child Value follows its parent: it sits in the same Block and takes the parent\u2019s <code>Behavior</code>";
     SHOWN_OPTIONS = [
       { value: "default", label: "default" },
@@ -31537,6 +29181,7 @@ var init_fields_editor_view = __esm({
     PROPERTY_HEAD_TIP = "<code>Inline to note</code> on the Transform tab turns a line into a note, and every Field can be written into a property of that note \u2014 the same properties you see at the top of a note in Obsidian. This is where you say which property a Field goes to. Start typing and it offers the ones your vault already uses. Leave it empty and the Field is simply not copied";
     PROPERTY_NAME = "Property";
     PROPERTY_DESC = "If you use inline2note, to which YAML property this Field should go";
+    PROPERTY_TIP = "The properties are the ones Obsidian shows at the top of a note. Start typing and the box offers the names your vault already uses; you can also type a name that does not exist yet, and it appears the first time a note is written with it. Leave the box empty and this Field is simply not copied into the note. Two Fields may point at the same property \u2014 then <code>Property type</code> below decides whether it holds a list or a single Value";
     PROPERTY_PLACEHOLDER = "select Property";
     CARDINALITY_NAME = "Property type";
     CARDINALITY_DESC = "Whether the property holds one Value or a list";
@@ -31544,9 +29189,10 @@ var init_fields_editor_view = __esm({
     VALUE_RULE_NAME = "How to show Value in YAML";
     VALUE_RULE_DESC = "How the Value is written into the property";
     VALUE_RULE_TIP = "<b>Raw</b> copies the Value exactly as it appears in your line, hash and all. <b>Clean</b> strips the decoration \u2014 no <code>#</code> on a tag, no emoji on a date, no <code>[[ ]]</code> around a link \u2014 which is what you want if you plan to search or sort by the property. The rule belongs to the Field and applies to every one of its Values";
+    LINK_IN_TAGS = "A tags property does not take links: Obsidian will flag the value in the note";
     WRITTEN_NAME = "Preview";
     WRITTEN_DESC = "How this Value will look like in YAML";
-    WRITTEN_TIP = "It follows the three choices above and updates as you change them. Two Fields can share one property name, and then both Values go into the same list";
+    WRITTEN_TIP = "It follows the three choices above and updates as you change them, and it shows what <b>this</b> Field writes. Two Fields can share one property name \u2014 then the note gets both of them in the same list, while each Field shows only its own part here";
     BEHAVIOR_TIP = "<b>Strict</b> writes the Value in its own Block and changes the line Prefix. <b>Insert only</b> writes the Value in its own Block and does not change the line Prefix. <b>Free</b> inserts the Value where the cursor is now";
     STEP_OPTIONS = [
       { value: "increment", label: "Fixed step" },
@@ -31676,6 +29322,83 @@ function confirmDeleteModal(Modal2, app3, fieldName, done) {
   }
   new DeleteFieldModal(app3).open();
 }
+function askRenameModal(Modal2, app3, current, done) {
+  let answered = false;
+  const finish = (next) => {
+    if (answered) return;
+    answered = true;
+    done(next);
+  };
+  class RenameFieldModal extends Modal2 {
+    onOpen() {
+      const box = this.contentEl;
+      box.empty();
+      box.addClass("io-dlg");
+      el(box, "h4", void 0, "Rename Field");
+      const row = el(box, "div", "io-item");
+      const info = el(row, "div", "io-item__info");
+      el(info, "div", "io-item__name", "New name");
+      el(
+        info,
+        "div",
+        "io-item__desc",
+        "Lowercase letters, digits, spaces, hyphens and underscores"
+      );
+      const input = el(row, "div", "io-item__control").createEl("input", {
+        cls: "io-text io-text--mono",
+        type: "text",
+        value: current,
+        attr: { "aria-label": "New name for the Field " + current }
+      });
+      const warn = el(box, "div", "io-dlg__warn");
+      el(
+        warn,
+        "p",
+        "io-item__desc",
+        "Two things will not follow the new name:"
+      );
+      const list = el(warn, "ul", "io-dlg__list");
+      el(
+        list,
+        "li",
+        "io-item__desc",
+        "lines you have already written keep the old tag \u2014 the plugin does not edit your notes"
+      );
+      el(
+        list,
+        "li",
+        "io-item__desc",
+        "a hotkey given to this Field\u2019s commands comes loose: Obsidian keeps hotkeys by command id, and the id is built from the name"
+      );
+      const foot = el(box, "div", "io-dlg__foot");
+      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      cancel.addEventListener("click", (() => {
+        finish(null);
+        this.close();
+      }));
+      const go = foot.createEl("button", {
+        cls: "io-btn io-btn--cta",
+        text: "Rename",
+        attr: { type: "button" }
+      });
+      const same = () => !String(input.value || "").trim() || String(input.value || "").trim() === current;
+      go.disabled = same();
+      input.addEventListener("input", (() => {
+        go.disabled = same();
+      }));
+      go.addEventListener("click", (() => {
+        if (same()) return;
+        finish(String(input.value || "").trim());
+        this.close();
+      }));
+    }
+    onClose() {
+      finish(null);
+      this.contentEl.empty();
+    }
+  }
+  new RenameFieldModal(app3).open();
+}
 var import_fields_editor_legacy3, helpers3, EDITOR_PATHS, fieldsEditor;
 var init_fields_editor = __esm({
   "src/ui/settings/custom/fields_editor.ts"() {
@@ -31686,7 +29409,7 @@ var init_fields_editor = __esm({
     init_fields_editor_view();
     import_fields_editor_legacy3 = __toESM(require_fields_editor_legacy());
     helpers3 = import_fields_editor_legacy3.default;
-    EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips"];
+    EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips", "advanced.showSettingIds"];
     fieldsEditor = (host, ctx) => {
       const p = ctx.platform;
       const box = el(host, "div", "io-fieldsblock");
@@ -31724,12 +29447,14 @@ var init_fields_editor = __esm({
             state,
             enabled: Boolean(ctx.get("features.pkm.enabled")),
             showTips: Boolean(ctx.get("general.help.showTips")),
+            showIds: Boolean(ctx.get("advanced.showSettingIds")),
             redraw: () => {
               draw();
             },
             notice,
             askNewField: (done) => askNewFieldModal(Modal2, app3, done),
-            confirmDeleteField: (name, done) => confirmDeleteModal(Modal2, app3, name, done)
+            confirmDeleteField: (name, done) => confirmDeleteModal(Modal2, app3, name, done),
+            askRename: (name, done) => askRenameModal(Modal2, app3, name, done)
           });
         } catch (e) {
           next.remove();
@@ -31773,7 +29498,8 @@ var init_pkm = __esm({
         heading: "Before you start",
         items: [
           { kind: "custom", id: "pkm-callout", render: callout("pkm") }
-        ]
+        ],
+        visible: on("general.help.showCallouts")
       },
       {
         id: "fields",
@@ -31823,6 +29549,7 @@ var init_pkm = __esm({
         order: 300,
         heading: "Writing rules",
         intro: "The small habits: how a tag is written when it has a Value underneath it, what is left when you clear a line, and where the cursor waits for you afterwards",
+        tip: "These are the settings you set once and forget. They do not decide which Fields you have or what they offer \u2014 that is the <code>Fields</code> block above. They decide the shape of what lands on the line: whether a nested Value is written as <code>#parent #child</code> or <code>#parent/child</code>, what a Field leaves behind when you step it past its last Value, and where the cursor ends up so you can keep typing",
         items: [
           {
             kind: "dropdown",
@@ -31927,6 +29654,7 @@ var init_pkm = __esm({
         order: 500,
         heading: "Prefix priority",
         intro: "Some Values want to change the start of the line \u2014 a checkbox from Status, an exclamation mark from Priority. When two of them ask at once, only one can win. These rules decide who",
+        tip: "This block matters only if two of your Values both want the start of the line. If none of them do, or only one ever does, nothing here changes anything. <b>Decide by</b> is the main choice: settle it by where the Fields stand in your own order, or by a list of openings you rank yourself. The row below it decides whether a nested Value outranks its parent or the other way round",
         items: [
           {
             kind: "dropdown",
@@ -31943,7 +29671,7 @@ var init_pkm = __esm({
             kind: "dropdown",
             id: "prefix-priority-source",
             path: "pkm.prefixPriority.fieldOrderSource",
-            default: "auto",
+            default: "manual",
             name: "Field order source",
             desc: "Use the order your Fields are already in, or arrange a separate one",
             searchTerms: ["Fields order mode"],
@@ -31969,56 +29697,11 @@ var init_pkm = __esm({
             kind: "dropdown",
             id: "prefix-priority-parent",
             path: "pkm.prefixPriority.parentOrChild",
-            default: "tag-over-subtag",
+            default: "subtag-over-tag",
             name: "Parent or child wins",
             desc: "When a tag and its child Value both carry a Prefix",
             searchTerms: ["Tag/Subtag priority"],
             options: [{ value: "tag-over-subtag", label: "Parent tag" }, { value: "subtag-over-tag", label: "Child tag" }]
-          }
-        ]
-      },
-      {
-        id: "config-note",
-        tab: "pkm",
-        order: 600,
-        heading: "Config note",
-        intro: "Your whole setup, written out as an ordinary note you can read, edit and keep. Generate it to save a copy of where you are now; apply it to put a copy back",
-        tip: "It works both ways, and that makes it useful twice over. As a <b>backup</b>: generate it before you start rearranging, and you can always get back. As a <b>way to move</b>: copy the note into another vault, press apply there, and that vault has your setup. As an <b>editor</b>: for a long list of Values it is far quicker to type in the note than to click through the table above \u2014 press apply when you are done",
-        commands: ["Apply config note"],
-        items: [
-          {
-            kind: "text",
-            id: "config-note-path",
-            path: "pkm.configNote.path",
-            wide: true,
-            default: "InlineOverhaul_Config.md",
-            mono: true,
-            name: "Where to keep it",
-            desc: "The note that Generate writes and Apply reads",
-            tip: "Put it wherever you keep your own notes about your setup. If you sync your vault, this travels with it, which is the simplest way to carry your setup between machines"
-          },
-          {
-            kind: "dropdown",
-            id: "config-note-detail",
-            path: "pkm.configNote.detail",
-            default: "detailed",
-            name: "How much detail",
-            desc: "Whether the generated note explains itself or just lists the settings",
-            tip: "<b>Detailed</b> adds comments describing each block, which helps if you are going to edit it by hand. <b>Minimal</b> is easier to read as a backup and easier to compare between two versions",
-            searchTerms: ["Config Export Mode"],
-            options: [{ value: "detailed", label: "Detailed" }, { value: "minimal", label: "Minimal" }]
-          },
-          {
-            kind: "buttons",
-            id: "config-note-actions",
-            name: "Generate and apply",
-            desc: "Write your setup out to the note, or read it back in",
-            searchTerms: ["TagWheel Note Editor"],
-            tip: "<b>Generate</b> overwrites the note with your settings as they are right now, so it is always a fresh copy rather than something that can go stale. <b>Apply</b> goes the other way and replaces your settings with what the note says \u2014 the previous setup is kept aside first, so a mistake is recoverable",
-            buttons: [
-              { label: "Generate", action: "generate-config-note" },
-              { label: "Apply", action: "apply-config-note", cta: true }
-            ]
           }
         ]
       }
@@ -32039,8 +29722,7 @@ function normalizeShown(value) {
   return String(value || "default").trim().toLowerCase() === "empty" ? "empty" : "default";
 }
 function userTagsOf(cfg) {
-  const behavior = asObject4(asObject4(asObject4(cfg)["pkm"])["behavior"]);
-  return asObject4(asObject4(behavior["tagVisuals"])["userTags"]);
+  return asObject4(asObject4(asObject4(asObject4(cfg)["visual"])["tags"])["userTags"]);
 }
 function tokenOf(raw) {
   const s = String(raw || "").trim();
@@ -32050,7 +29732,7 @@ function tokenOf(raw) {
 function createUserTagsModel(plugin) {
   const write = (token, next, reason) => {
     plugin.setConfigPatch(
-      { pkm: { behavior: { tagVisuals: { userTags: { [token]: next } } } } },
+      { visual: { tags: { userTags: { [token]: next } } } },
       reason
     );
   };
@@ -32086,8 +29768,27 @@ function createUserTagsModel(plugin) {
       const tok = tokenOf(token);
       if (!tok) return;
       plugin.setConfigPatch(
-        { pkm: { behavior: { tagVisuals: { userTags: { [tok]: null } } } } },
+        { visual: { tags: { userTags: { [tok]: null } } } },
         "pkm:visuals:user-tags:delete"
+      );
+    },
+    rename(from, to) {
+      const was = tokenOf(from);
+      const now = tokenOf(to);
+      if (!was || !now || was === now) return;
+      const map = userTagsOf(plugin.getConfig());
+      if (Object.prototype.hasOwnProperty.call(map, now)) return;
+      const current = asObject4(map[was]);
+      plugin.setConfigPatch(
+        { visual: { tags: { userTags: {
+          [now]: {
+            fillColor: normalizeHex(current["fillColor"]),
+            textColor: normalizeHex(current["textColor"]),
+            visibility: normalizeShown(current["visibility"])
+          },
+          [was]: null
+        } } } },
+        "pkm:visuals:user-tags:rename"
       );
     },
     add(raw) {
@@ -32109,13 +29810,72 @@ function themePair2(node) {
   };
 }
 function renderUserTags(host, o) {
-  const card = el(host, "div", "io-card io-usertags");
-  const head = el(card, "div", "io-tablehead");
-  for (const cap of HEAD2) el(head, "div", void 0, cap);
-  const theme = themePair2(card);
-  if (!o.rows.length) el(card, "div", "io-side__empty", EMPTY_LIST);
+  const box = el(host, "div", "io-vals io-vals--tags");
+  const scroll = el(box, "div", "io-scroll");
+  const inner = el(scroll, "div", "io-vals__inner io-vals__inner--tags");
+  const head = el(inner, "div", "io-vals__head");
+  const tipSlot = el(inner, "div", "io-vals__tipslot");
+  for (const title of HEAD3) {
+    const cell = el(head, "div", "io-vals__col");
+    el(cell, "span", "io-vals__coltext", title);
+    const tip = COLUMN_TIPS[title];
+    if (!tip) continue;
+    o.closers.push(tipBelow({
+      head: cell,
+      host: tipSlot,
+      text: tip,
+      label: title,
+      id: "io-usertags-col-" + title.toLowerCase() + "-tip",
+      showTips: o.showTips,
+      showIds: o.showIds
+    }));
+  }
+  const theme = themePair2(box);
+  if (!o.rows.length) el(box, "div", "io-side__empty", EMPTY_LIST);
   for (const row of o.rows) {
-    const line = el(card, "div", "io-tablerow");
+    const line = el(inner, "div", "io-vals__row");
+    const name = textInput(el(line, "div"), "io-text io-text--mono", {
+      value: row.token,
+      placeholder: ADD_PLACEHOLDER,
+      label: "Tag " + row.token
+    });
+    name.disabled = !o.enabled;
+    name.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      o.onRename(row, name.value);
+    }));
+    const shown = selectInput(el(line, "div", "io-showncell"), "io-select", {
+      options: SHOWN_OPTIONS2,
+      value: row.visibility,
+      label: "Show, for " + row.token
+    });
+    shown.disabled = !o.enabled;
+    shown.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      o.onVisual(
+        row,
+        { visibility: shown.value },
+        "pkm:visuals:user-tags:visibility"
+      );
+    }));
+    const color = (key, label, reason) => {
+      const wrap = el(line, "div");
+      const own = key === "fillColor" ? row.fillColor : row.textColor;
+      const fromTheme = toHexColor(key === "fillColor" ? theme.fill : theme.text);
+      const input = wrap.createEl("input", {
+        cls: "io-colin",
+        type: "color",
+        value: own || fromTheme || "#ffffff",
+        attr: { "aria-label": label + " for " + row.token }
+      });
+      input.disabled = !o.enabled;
+      input.addEventListener("change", (() => {
+        if (!o.enabled) return;
+        o.onVisual(row, { [key]: input.value }, reason);
+      }));
+    };
+    color("fillColor", "Fill color", "pkm:visuals:user-tags:fill");
+    color("textColor", "Text color", "pkm:visuals:user-tags:text");
     const cell = el(line, "div", "io-vals__prev");
     applyTagVars(cell, o.ctx);
     bubble(cell, {
@@ -32133,36 +29893,6 @@ function renderUserTags(host, o) {
         warn.setAttribute("aria-label", contrastWarning(ratio));
       }
     }
-    const color = (key, label, reason) => {
-      const wrap = el(line, "div");
-      const input = wrap.createEl("input", {
-        cls: "io-colin",
-        type: "color",
-        value: (key === "fillColor" ? row.fillColor : row.textColor) || "#ffffff",
-        attr: { "aria-label": label + " for " + row.token }
-      });
-      input.disabled = !o.enabled;
-      input.addEventListener("change", (() => {
-        if (!o.enabled) return;
-        o.onVisual(row, { [key]: input.value }, reason);
-      }));
-    };
-    color("fillColor", "Fill color", "pkm:visuals:user-tags:fill");
-    color("textColor", "Text color", "pkm:visuals:user-tags:text");
-    const shown = selectInput(el(line, "div", "io-showncell"), "io-select", {
-      options: SHOWN_OPTIONS2,
-      value: row.visibility,
-      label: "Show, for " + row.token
-    });
-    shown.disabled = !o.enabled;
-    shown.addEventListener("change", (() => {
-      if (!o.enabled) return;
-      o.onVisual(
-        row,
-        { visibility: shown.value },
-        "pkm:visuals:user-tags:visibility"
-      );
-    }));
     const tools = el(line, "div", "io-valtools");
     if (row.fillColor || row.textColor) {
       const back = btn(tools, "io-icon", {
@@ -32185,7 +29915,7 @@ function renderUserTags(host, o) {
       o.onRemove(row);
     }));
   }
-  const foot = el(card, "div", "io-tablefoot");
+  const foot = el(box, "div", "io-rowactions");
   const add = textInput(foot, "io-text io-text--mono", {
     value: "",
     placeholder: ADD_PLACEHOLDER,
@@ -32199,7 +29929,7 @@ function renderUserTags(host, o) {
     o.onAdd(add.value);
   }));
 }
-var HEAD2, ADD_TAG, ADD_PLACEHOLDER, ADD_LABEL, EMPTY_LIST, SHOWN_OPTIONS2, TAG_PATHS2, userTagColors;
+var HEAD3, COLUMN_TIPS, ADD_TAG, ADD_PLACEHOLDER, ADD_LABEL, EMPTY_LIST, SHOWN_OPTIONS2, TAG_PATHS2, userTagColors;
 var init_user_tags = __esm({
   "src/ui/settings/custom/user_tags.ts"() {
     "use strict";
@@ -32207,7 +29937,13 @@ var init_user_tags = __esm({
     init_keepview();
     init_previews();
     init_contrast();
-    HEAD2 = ["Tag", "Fill", "Text", "Show", ""];
+    HEAD3 = ["Tag", "Show", "Fill", "Text", "Preview", ""];
+    COLUMN_TIPS = {
+      Tag: "The tag as it is written in a line. With <code>#</code> or without it \u2014 both are read the same way",
+      Show: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
+      Fill: "The color of the bubble behind the tag",
+      Text: "The color of the writing on the bubble"
+    };
     ADD_TAG = "Add tag";
     ADD_PLACEHOLDER = "#tag";
     ADD_LABEL = "New tag to color";
@@ -32237,6 +29973,7 @@ var init_user_tags = __esm({
         const next = el(box, "div", "io-usertagsblock__mount");
         try {
           const model = createUserTagsModel(p.plugin);
+          const closers = [];
           const commit = (write) => {
             try {
               write();
@@ -32258,7 +29995,13 @@ var init_user_tags = __esm({
             }),
             onAdd: (raw) => commit(() => {
               model.add(raw);
-            })
+            }),
+            onRename: (row, raw) => commit(() => {
+              model.rename(row.token, raw);
+            }),
+            showTips: Boolean(ctx.get("general.help.showTips")),
+            showIds: Boolean(ctx.get("advanced.showSettingIds")),
+            closers
           });
         } catch (e) {
           next.remove();
@@ -32297,14 +30040,16 @@ var init_visual = __esm({
         heading: "Before you start",
         items: [
           { kind: "custom", id: "visual-callout", render: callout("visual") }
-        ]
+        ],
+        visible: on("general.help.showCallouts")
       },
       {
         id: "tag-appearance",
         tab: "visual",
         order: 100,
-        heading: "Tag appearance",
-        intro: "How a tagged line looks while you write. Tags are drawn as small coloured bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
+        heading: "Inline appearance",
+        intro: "How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
+        tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out \u2014 they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
         items: [
           { kind: "custom", id: "tag-preview", render: tagPreview },
           {
@@ -32316,7 +30061,7 @@ var init_visual = __esm({
             max: 100,
             step: 1,
             unit: "%",
-            name: "Opacity before the text",
+            name: "Opacity of the Left Block",
             desc: "Dims everything written before your text, tags and elements alike",
             searchTerms: ["Opacity Left"],
             seeAlso: { id: "field-editor", label: "Tag colors are set per Value under Fields" }
@@ -32330,7 +30075,7 @@ var init_visual = __esm({
             max: 100,
             step: 1,
             unit: "%",
-            name: "Opacity after the text",
+            name: "Opacity of the Right Block",
             desc: "Dims everything written after your text, tags and elements alike",
             searchTerms: ["Opacity Right"]
           },
@@ -32344,8 +30089,8 @@ var init_visual = __esm({
             step: 5,
             unit: "%",
             name: "Text size",
-            desc: "How big the writing inside a bubble is, next to the rest of your note",
-            tip: "Below 100 the tags step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100",
+            desc: "How big everything in the two Blocks is written, next to the rest of your note",
+            tip: "This reaches the whole of both Blocks, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Blocks step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100",
             searchTerms: ["Tag text size"]
           },
           {
@@ -32357,9 +30102,9 @@ var init_visual = __esm({
             max: 140,
             step: 5,
             unit: "%",
-            name: "Bubble width",
+            name: "Tags bubble width",
             desc: "How much breathing room there is either side of the word",
-            searchTerms: ["Tag bubble size - width"]
+            searchTerms: ["Tag bubble size - width", "Bubble width"]
           },
           {
             kind: "slider",
@@ -32370,10 +30115,10 @@ var init_visual = __esm({
             max: 140,
             step: 5,
             unit: "%",
-            name: "Bubble height",
+            name: "Tags bubble size",
             desc: "How tall the bubble is around the word",
             tip: "Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read",
-            searchTerms: ["Tag bubble size - height"]
+            searchTerms: ["Tag bubble size - height", "Bubble height"]
           },
           {
             kind: "slider",
@@ -32384,9 +30129,9 @@ var init_visual = __esm({
             max: 180,
             step: 5,
             unit: "%",
-            name: "Empty bubble width",
+            name: "Empty tags bubble width",
             desc: "Width of a bubble whose <code>Show</code> is set to <code>empty</code>",
-            searchTerms: ["Empty bubble size"],
+            searchTerms: ["Empty bubble size", "Empty bubble width"],
             tip: "Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text \u2014 a marker instead of a word. This is how wide that marker gets",
             seeAlso: { id: "field-editor", label: "Set a Value to empty under Fields" }
           },
@@ -32398,9 +30143,9 @@ var init_visual = __esm({
             min: 0,
             max: 100,
             step: 1,
-            name: "Bubble corners",
+            name: "Tags bubble corners",
             desc: "Slide from fully rounded to completely square",
-            searchTerms: ["Tag shape"]
+            searchTerms: ["Tag shape", "Bubble corners"]
           }
         ]
       },
@@ -32409,8 +30154,8 @@ var init_visual = __esm({
         tab: "visual",
         order: 150,
         heading: "Color your Tags",
-        intro: "Colours for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
-        tip: "A Field gives its own Values their colours under <code>Tags &amp; PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, so it lives here. Leave a colour unset and the tag takes the colour of your theme, and keeps following it when the theme changes",
+        intro: "Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like",
+        tip: "Every tag in a note is drawn as a bubble, whether the plugin put it there or you typed it. Each row below is one tag: the fill behind it, the color of the writing on it, and whether the bubble shows the word, the word with its hash, or nothing at all. Values of a Field take their colors from the Field, under <code>Tags & PKM</code>. Everything else \u2014 a tag you typed once, a tag another plugin put there \u2014 has no Field to belong to, and this is where it gets its look. Leave a color unset and the tag follows your theme, and keeps following it when the theme changes",
         items: [
           { kind: "custom", id: "user-tag-list", render: userTagColors }
         ]
@@ -32420,14 +30165,15 @@ var init_visual = __esm({
         tab: "visual",
         order: 200,
         heading: "Tag Bars",
-        intro: "A coloured Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
+        intro: "A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it",
+        tip: "Bars are drawn from the colors of one Field, and you pick which one below. Only a tag Field can do it: the color of a Bar is the color of a Value, and links and dates have none. A Bar belongs to the line that carries the Value and runs the full height of that line and everything nested under it; a deeper line with a Value of its own gets its own Bar in the next lane along, so the number of lanes follows how deep your lists go. Bars sit in the margin, so the text column never moves, and you can hide the tag itself once its Bar says the same thing",
         items: [
           { kind: "custom", id: "bars-preview", render: barsPreview },
           {
             kind: "toggle",
             id: "bars-active",
             path: "visual.tagBars.active",
-            default: true,
+            default: false,
             name: "Tag Bars",
             desc: "Draw the Bars",
             searchTerms: ["Activate strip", "Strip", "Hierarchy Bars", "Level Bars"]
@@ -32436,13 +30182,18 @@ var init_visual = __esm({
             kind: "dropdown",
             id: "bars-field",
             path: "visual.tagBars.fieldId",
-            default: "status",
+            default: "",
             name: "Which Field draws Bars",
-            desc: "Bars are drawn for one Field only. Lines without a Value for it get none",
+            desc: "Bars work with tag Fields only, and only for the one chosen here",
             searchTerms: ["Strip Field"],
             visible: on("visual.tagBars.active"),
-            options: [{ value: "status", label: "Status" }, { value: "priority", label: "Priority" }],
-            tip: "Pick the one thing you scan a page for \u2014 usually how far along something is, or how urgent it is. Switch between the two in the preview above and you will see the Bars change shape, not just colour, because different lines carry different Fields",
+            /* Список — ваши Fields, а не эти два имени: они мокданные прототипа
+               (Р8), и в панели их быть не должно. Первая строка отвечает за
+               значение по умолчанию: без неё список показывал первый Field,
+               когда не выбрано ничего (замечание заказчика 1.5.3.2). */
+            options: [{ value: "", label: "No Field chosen" }],
+            optionsFrom: "tag-fields",
+            tip: "Pick the one thing you scan a page for \u2014 usually how far along something is, or how urgent it is. The list is your own tag Fields: a Field of another type has no Value color, and a Bar is drawn in the color of the Value. Switch between Fields and the Bars in the preview above change shape, not just color, because different lines carry different Fields",
             seeAlso: { id: "field-editor", label: "Bar colors are the Value colors under Fields" }
           },
           {
@@ -32500,7 +30251,7 @@ var init_visual = __esm({
             kind: "slider",
             id: "bars-thickness",
             path: "visual.tagBars.thickness",
-            default: 3,
+            default: 2,
             min: 1,
             max: 12,
             step: 1,
@@ -32514,7 +30265,7 @@ var init_visual = __esm({
             kind: "slider",
             id: "bars-gap",
             path: "visual.tagBars.childOffset",
-            default: 11,
+            default: 12,
             min: 2,
             max: 20,
             step: 1,
@@ -32528,7 +30279,7 @@ var init_visual = __esm({
             kind: "slider",
             id: "bars-distance",
             path: "visual.tagBars.spacing",
-            default: 14,
+            default: 20,
             min: 8,
             max: 48,
             step: 1,
@@ -32537,6 +30288,43 @@ var init_visual = __esm({
             desc: "How far the Bars sit from where your line begins",
             searchTerms: ["Strip spacing"],
             visible: on("visual.tagBars.active")
+          },
+          {
+            kind: "slider",
+            id: "bars-line-gap",
+            path: "visual.tagBars.lineGap",
+            default: 2,
+            min: 0,
+            max: 8,
+            step: 1,
+            unit: "px",
+            name: "Gap between Bars",
+            desc: "Blank left above and below a Bar, so two lines in a row stay apart",
+            searchTerms: ["Bar height"],
+            visible: on("visual.tagBars.active"),
+            tip: "Two lines one under the other used to give one unbroken Bar, and there was no telling which line owned which part of it. A small gap draws that boundary. The number is the blank above and below, so a bigger number means a shorter Bar; at <code>0</code> the Bars meet again"
+          },
+          {
+            kind: "toggle",
+            id: "bars-whole-tree",
+            path: "visual.tagBars.drawWholeTree",
+            default: true,
+            name: "Bars for the whole tree",
+            desc: "A Bar runs down everything nested under its line, not just the line itself",
+            searchTerms: ["Draw bars for the whole tree", "Bars for subtree"],
+            visible: on("visual.tagBars.active"),
+            tip: "On, a line with a Value draws its Bar down its own line and everything indented under it, and a deeper line with a Value of its own adds a Bar in the next lane along \u2014 so a nested line can carry several. Off, a Bar belongs to one line and nothing is inherited: a line without a Value of its own gets none at all, and <code>Join Bars in a tree</code> below has nothing left to join"
+          },
+          {
+            kind: "toggle",
+            id: "bars-join-tree",
+            path: "visual.tagBars.joinTree",
+            default: true,
+            name: "Join Bars in a tree",
+            desc: "A parent and its own children draw one unbroken Bar",
+            searchTerms: ["Tree gap"],
+            visible: on("visual.tagBars.active"),
+            tip: "The gap that keeps two neighboring lines apart also cuts the Bar of a tree, where it stands for one thing running down through the nesting. With this on, the gap is dropped wherever a Bar carries on from a parent into its own children, and kept between lines that have nothing to do with each other"
           }
         ]
       },
@@ -32546,7 +30334,7 @@ var init_visual = __esm({
         order: 300,
         heading: "TagWheel",
         intro: "TagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down",
-        tip: "Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything",
+        tip: "Every Field has its own pair of cycle commands, and one key each adds up to more keys than anyone remembers. TagWheel is the way round that: one command opens a picker over the line, with your Fields laid out across it and the Values of the Field you are on running down it, so you choose by looking instead of by memory. Steer it with the arrow keys: left and right move between Fields, up and down between that Field\u2019s Values. <code>Tab</code> jumps across to the Fields on the other side of your text, and <code>Escape</code> closes it without changing anything. The settings below decide how the picker looks, and whether the neighboring Values stay in sight as you move",
         commands: ["Open TagWheel on the left", "Open TagWheel on the right"],
         items: [
           { kind: "custom", id: "wheel-preview", render: wheelPreview },
@@ -32561,31 +30349,55 @@ var init_visual = __esm({
             tip: "A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way"
           },
           {
+            kind: "toggle",
+            id: "panel-highlight",
+            path: "visual.tagWheel.highlightLine",
+            default: false,
+            name: "Highlight the TagWheel line",
+            desc: "Mark the line while the picker is open, so it stands out from the page",
+            searchTerms: ["Highlight the line"],
+            tip: "TagWheel draws itself over the line you are on, and on a busy page it is not always clear where the picker ends and your note begins. On, the line is wrapped in <code>==</code> for as long as the picker is open, and that is what paints it: <code>Background color</code> below gives the color, and without one Obsidian uses its own highlight. The marks belong to the picker, not to your line \u2014 they leave with it, and nothing stays behind in the note"
+          },
+          {
             kind: "color",
             id: "panel-text-color",
             path: "visual.tagWheel.textColor",
-            default: "#5d5b6b",
-            name: "Text color",
-            desc: "The colour of the Values you are not on",
+            default: "",
+            name: "Non-active Field text color",
+            desc: "The color of the Field names you are not standing on, while the line is marked",
+            searchTerms: ["Text color"],
+            tip: "This paints the picker drawn over your line, and only while <code>Highlight the TagWheel line</code> is on: without the marks there is nothing to paint. The scroller box below takes its colors from your theme and is not affected",
+            allowReset: true
+          },
+          {
+            kind: "color",
+            id: "panel-active-color",
+            path: "visual.tagWheel.activeTextColor",
+            default: "",
+            name: "Active Field text color",
+            desc: "The color of the Field you are on, while the line is marked",
+            searchTerms: ["Current Field color"],
+            tip: "The Field you are standing in is the one the up and down keys move through. Without its own color it differs from the rest only by weight, and on a line with many Fields that is easy to lose. Empty means it takes <code>Non-active Field text color</code> like the others",
             allowReset: true
           },
           {
             kind: "color",
             id: "panel-background",
             path: "visual.tagWheel.fillColor",
-            default: "#f1e596",
-            name: "Background",
-            desc: "The colour behind the picker",
-            tip: "Pick something solid enough to read against your note, since the picker is drawn on top of your text",
+            default: "",
+            name: "Background color",
+            desc: "The color behind the picker, while the line is marked",
+            searchTerms: ["Background"],
+            tip: "Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the TagWheel line</code> on: the marks are what carries the color",
             allowReset: true
           },
           {
             kind: "toggle",
             id: "scroller-enabled",
             path: "visual.tagWheel.scroller.enabled",
-            default: true,
+            default: false,
             name: "Scroller",
-            desc: "Show the next and previous Values around the current one, in a box you can style",
+            desc: "Show the next and previous Values around the current one",
             tip: "Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through",
             searchTerms: ["TagWheel Scroller"]
           },
@@ -32594,15 +30406,39 @@ var init_visual = __esm({
             id: "scroller-direction",
             path: "visual.tagWheel.scroller.direction",
             default: "full",
-            name: "Opens",
+            name: "Scroller opening direction",
             desc: "Which way the Values unroll from the Field you are on",
-            searchTerms: ["Scroller direction"],
+            searchTerms: ["Scroller direction", "Opens"],
             visible: on("visual.tagWheel.scroller.enabled"),
             options: [
               { value: "up", label: "Upwards" },
               { value: "down", label: "Downwards" },
               { value: "full", label: "Both ways" }
             ]
+          },
+          {
+            kind: "color",
+            id: "scroller-fill",
+            path: "visual.tagWheel.scroller.fillColor",
+            default: "",
+            name: "Scroller background color",
+            desc: "The color behind the box of neighboring Values",
+            searchTerms: ["Scroller background"],
+            tip: "Leave it empty and the box takes the color your theme gives a popover. Set it and the box stands out from the note even where the theme is pale",
+            visible: on("visual.tagWheel.scroller.enabled"),
+            allowReset: true
+          },
+          {
+            kind: "color",
+            id: "scroller-text",
+            path: "visual.tagWheel.scroller.textColor",
+            default: "",
+            name: "Scroller text color",
+            desc: "The color of the Values you are not on, inside the box",
+            searchTerms: ["Scroller text"],
+            tip: "Empty means the color your theme gives ordinary text. The Value you are standing on is not in the box at all \u2014 it is drawn in the line itself, and <code>Active Field text color</code> above is what paints it",
+            visible: on("visual.tagWheel.scroller.enabled"),
+            allowReset: true
           },
           {
             kind: "slider",
@@ -32612,11 +30448,97 @@ var init_visual = __esm({
             min: 1,
             max: 20,
             step: 1,
-            name: "Values per side",
-            desc: "How many neighbouring Values stay visible around the current one",
-            searchTerms: ["Scroller size"],
+            name: "Scroller size",
+            desc: "How many neighboring Values stay visible around the current one",
+            searchTerms: ["Values per side"],
             visible: on("visual.tagWheel.scroller.enabled")
+          },
+          {
+            kind: "dropdown",
+            id: "wheel-edge",
+            path: "visual.tagWheel.edgeMode",
+            default: "stay",
+            name: "TagWheel navigation behavior",
+            desc: "What the arrow keys do when there is no next Field on this side",
+            searchTerms: ["Edge of a Block", "Wrap around", "Move to the next Block", "At the last Field"],
+            options: [
+              { value: "stay", label: "Stay in the same Block" },
+              { value: "next-block", label: "Move to the next Block" }
+            ],
+            tip: "The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring \u2014 step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way"
           }
+        ]
+      },
+      {
+        id: "text-cursor",
+        tab: "visual",
+        order: 400,
+        heading: "Text cursor",
+        intro: "The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page",
+        tip: "Obsidian draws the caret in the color of your text, which is the color everything else on the page already is. In a long note, or in a theme built on one shade, that makes it easy to lose and easy to leave behind. Pick a color that appears nowhere else in your writing and you can find the caret at a glance. This is the caret in your notes only: the boxes in this window and in the search box keep the one they had",
+        items: [
+          {
+            kind: "toggle",
+            id: "caret-enabled",
+            path: "visual.caret.enabled",
+            default: false,
+            name: "Color the text cursor",
+            desc: "Draw the blinking caret in a color you pick instead of the color of your text",
+            searchTerms: ["Caret color", "Cursor color"],
+            tip: "Off, the caret is whatever your theme makes it. On, the color below takes over, and only in the editor"
+          },
+          {
+            kind: "color",
+            id: "caret-color",
+            path: "visual.caret.color",
+            default: "",
+            name: "Cursor color",
+            desc: "The color of the blinking caret in your notes",
+            searchTerms: ["Caret"],
+            visible: on("visual.caret.enabled"),
+            tip: "Empty means the color your theme gives the caret. A color that stands well apart from your text is the whole point of this: something the page does not already use",
+            allowReset: true
+          },
+          {
+            kind: "toggle",
+            id: "caret-shape",
+            path: "visual.caret.shapeEnabled",
+            default: false,
+            name: "Shape the text cursor",
+            desc: "Set how thick the caret is and how fast it blinks, instead of taking both from your theme",
+            searchTerms: ["Caret width", "Cursor blink", "Caret thickness"],
+            tip: "Separate from the color above, and neither needs the other. Off, the caret keeps the thickness and the blinking your theme and Obsidian give it"
+          },
+          {
+            kind: "slider",
+            id: "caret-width",
+            path: "visual.caret.width",
+            default: 2,
+            min: 1,
+            max: 8,
+            step: 1,
+            unit: "px",
+            name: "Cursor width",
+            desc: "How thick the caret is drawn, in pixels",
+            searchTerms: ["Caret thickness"],
+            visible: on("visual.caret.shapeEnabled"),
+            tip: "Obsidian draws it a little over one pixel wide, which disappears on a bright background and on a large screen. Two or three is enough to find it without it reading as a selection"
+          },
+          {
+            kind: "slider",
+            id: "caret-blink",
+            path: "visual.caret.blinkSpeed",
+            default: 5,
+            min: 0,
+            max: 10,
+            step: 1,
+            name: "Blink speed",
+            desc: "How fast the caret blinks, from not blinking at all to very fast",
+            searchTerms: ["Blink rate", "Cursor blinking"],
+            visible: on("visual.caret.shapeEnabled"),
+            tip: "At <code>0</code> the caret stops blinking and simply stays where it is, which is the quietest a cursor gets. <code>5</code> is the speed Obsidian uses now, and every step up from there is quicker"
+          },
+          { kind: "custom", id: "caret-preview", render: caretPreview }
         ]
       }
     ];
@@ -32637,6 +30559,10 @@ function strings2(value) {
     if (v && !out.includes(v)) out.push(v);
   }
   return out;
+}
+function normalizeFolderMode(raw) {
+  const v = String(raw || "").trim().toLowerCase();
+  return v === "near" || v === "folder" ? v : "default";
 }
 function inline2note(cfg) {
   return asObject5(asObject5(asObject5(cfg)["transform"])["inline2note"]);
@@ -32665,18 +30591,31 @@ function createRulesModel(deps) {
          */
         enabled: r["enabled"] !== false,
         targetTemplate: String(r["targetTemplate"] || "").trim(),
+        folderMode: normalizeFolderMode(r["targetFolderMode"]),
+        folder: String(r["targetFolder"] || "").trim(),
         conditions: {
           tags: strings2(conditions["tags"]),
           emojiFields: strings2(conditions["emojiFields"]),
-          wikilinks: strings2(conditions["wikilinks"])
+          wikilinks: strings2(conditions["wikilinks"]),
+          fields: strings2(conditions["fields"])
         },
         conflict: validation["isConflict"] ? String(validation["message"] || "").trim() : ""
       };
     });
   };
   const choicesFor = (kind) => {
+    if (kind === "fields") return [];
     const want = KIND_OF_FIELD[kind];
-    return fieldTokens().filter((f) => f.kind === want).map((f) => ({ label: f.label, values: f.tokens.slice() }));
+    return fieldTokens().filter((f) => f.kind === want).map((f) => ({ label: f.label, fieldId: f.key, values: f.tokens.slice() }));
+  };
+  const fieldLabel = (key) => {
+    const hit = fieldTokens().find((f) => f.key === key);
+    return hit ? hit.label || hit.key : key;
+  };
+  const fieldRowKind = (key) => {
+    const hit = fieldTokens().find((f) => f.key === key);
+    const row = hit ? ROW_OF_FIELD_KIND[String(hit.kind)] : void 0;
+    return row || null;
   };
   const save = (rules, reason) => {
     const out = rules.map((r) => ({
@@ -32684,10 +30623,13 @@ function createRulesModel(deps) {
       name: r.name,
       enabled: r.enabled,
       targetTemplate: r.targetTemplate,
+      targetFolderMode: r.folderMode,
+      targetFolder: r.folder,
       conditions: {
         tags: r.conditions.tags.slice(),
         emojiFields: r.conditions.emojiFields.slice(),
-        wikilinks: r.conditions.wikilinks.slice()
+        wikilinks: r.conditions.wikilinks.slice(),
+        fields: r.conditions.fields.slice()
       }
     }));
     plugin.setConfigPatch({ transform: { inline2note: { smartRules: out } } }, reason);
@@ -32705,7 +30647,9 @@ function createRulesModel(deps) {
       name: "",
       enabled: true,
       targetTemplate: "",
-      conditions: { tags: [], emojiFields: [], wikilinks: [] },
+      folderMode: "default",
+      folder: "",
+      conditions: { tags: [], emojiFields: [], wikilinks: [], fields: [] },
       conflict: ""
     });
     save(rules, "transform:smart-rules:add");
@@ -32748,6 +30692,10 @@ function createRulesModel(deps) {
     });
     save(rules, "transform:smart-rules:condition-remove:" + id);
   };
+  const setFolder = (id, mode, folder) => {
+    const rules = listRules().map((r) => r.id === id ? { ...r, folderMode: mode, folder: mode === "folder" ? String(folder || "").trim() : "" } : r);
+    save(rules, "transform:smart-rules:folder:" + id);
+  };
   const moveRule = (from, to) => {
     const rules = listRules();
     if (from < 0 || from >= rules.length || to < 0 || to >= rules.length || from === to) return;
@@ -32764,21 +30712,50 @@ function createRulesModel(deps) {
     setName,
     setEnabled,
     setTemplate,
+    setFolder,
+    fieldLabel,
+    fieldRowKind,
     addCondition,
     removeCondition,
     moveRule
   };
 }
-var RULE_KINDS, KIND_OF_FIELD;
+var ROW_KINDS, KIND_OF_FIELD, ROW_OF_FIELD_KIND;
 var init_smart_rules_model = __esm({
   "src/ui/settings/custom/smart_rules_model.ts"() {
     "use strict";
-    RULE_KINDS = ["tags", "emojiFields", "wikilinks"];
+    ROW_KINDS = ["tags", "emojiFields", "wikilinks"];
     KIND_OF_FIELD = {
       tags: "tag",
       emojiFields: "element",
       wikilinks: "wikilink"
     };
+    ROW_OF_FIELD_KIND = {
+      tag: "tags",
+      element: "emojiFields",
+      wikilink: "wikilinks"
+    };
+  }
+});
+
+// src/ui/settings/templates.ts
+function templatesEmptyChoice(folder) {
+  const root = String(folder || "").trim().replace(/\/+$/, "");
+  return root ? { value: "", label: "No templates in " + root } : { value: "", label: "Set a Templates folder first" };
+}
+function templateOptions(folder, notes) {
+  const root = String(folder || "").trim().replace(/\/+$/, "");
+  if (!root) return [templatesEmptyChoice(root)];
+  const prefix = root + "/";
+  const inside = notes.map((p) => String(p || "")).filter((p) => p.startsWith(prefix)).sort((a, b) => a.localeCompare(b));
+  if (!inside.length) return [templatesEmptyChoice(root)];
+  return [{ value: "", label: "None" }].concat(
+    inside.map((p) => ({ value: p, label: p.slice(prefix.length) }))
+  );
+}
+var init_templates = __esm({
+  "src/ui/settings/templates.ts"() {
+    "use strict";
   }
 });
 
@@ -32788,21 +30765,27 @@ function ruleTitle(row, index) {
 }
 function kindRow(host, row, kind, o) {
   const values = row.conditions[kind];
-  const box = el(host, "div", "io-kind" + (values.length ? "" : " io-kind--empty"));
+  const fields = row.conditions.fields.filter((id) => o.model.fieldRowKind(id) === kind);
+  const items = values.map((value) => ({ shown: value, kind, value })).concat(fields.map((id) => ({
+    shown: o.model.fieldLabel(id) + ANY_VALUE,
+    kind: "fields",
+    value: id
+  })));
+  const box = el(host, "div", "io-kind" + (items.length ? "" : " io-kind--empty"));
   el(box, "div", "io-kind__label", KIND_LABEL[kind]);
   const chips = el(box, "div", "io-kind__chips");
-  if (!values.length) el(chips, "span", "io-kind__none", KIND_ANY);
-  values.forEach((value, i) => {
+  if (!items.length) el(chips, "span", "io-kind__none", KIND_ANY);
+  items.forEach((item, i) => {
     if (i) el(chips, "span", "io-op", OP_OR);
-    const chip = el(chips, "span", "io-vchip", value);
+    const chip = el(chips, "span", "io-vchip", item.shown);
     const drop2 = btn(chip, "io-icon", {
       text: "\u2715",
-      label: "Remove " + value + " from " + ruleTitle(row, 0)
+      label: "Remove " + item.shown + " from " + ruleTitle(row, 0)
     });
     drop2.disabled = !o.enabled;
     drop2.addEventListener("click", (() => {
       if (!o.enabled) return;
-      o.model.removeCondition(row.id, kind, value);
+      o.model.removeCondition(row.id, item.kind, item.value);
       o.redraw();
     }));
   });
@@ -32813,9 +30796,10 @@ function kindRow(host, row, kind, o) {
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
     if (!o.enabled) return;
-    o.askCondition(kind, (value) => {
-      if (!value) return;
-      o.model.addCondition(row.id, kind, value);
+    o.askCondition(kind, (answer) => {
+      if (!answer || !answer.id) return;
+      const into = answer.kind === "field" ? "fields" : kind;
+      o.model.addCondition(row.id, into, answer.id);
       o.redraw();
     });
   }));
@@ -32893,15 +30877,16 @@ function ruleCard(host, row, index, o, drag) {
   }));
   const conds = el(main, "div", "io-rule__conds");
   el(conds, "div", "io-rule__lead", CONDS_LEAD);
-  RULE_KINDS.forEach((kind, i) => {
+  ROW_KINDS.forEach((kind, i) => {
     if (i) el(conds, "div", "io-op io-op--and io-op--row", OP_AND);
     kindRow(conds, row, kind, o);
   });
   const out = el(main, "div", "io-rule__out");
   el(out, "span", "io-rule__arrow", "\u2192");
   el(out, "span", void 0, TEMPLATE_LEAD);
+  const choices = o.templates.length ? [{ value: "", label: TEMPLATE_NONE }].concat(o.templates.map((t) => ({ value: t, label: t }))) : [templatesEmptyChoice(String(o.templatesFolder || ""))];
   const template = selectInput(out, "io-select", {
-    options: [{ value: "", label: TEMPLATE_NONE }].concat(o.templates.map((t) => ({ value: t, label: t }))),
+    options: choices,
     value: row.targetTemplate,
     label: "Template for " + ruleTitle(row, index)
   });
@@ -32911,6 +30896,41 @@ function ruleCard(host, row, index, o, drag) {
     o.model.setTemplate(row.id, template.value);
     o.redraw();
   }));
+  const where = el(main, "div", "io-rule__out io-rule__where");
+  el(where, "span", "io-rule__arrow", "\u2192");
+  el(where, "span", void 0, FOLDER_LEAD);
+  const folderPick = selectInput(where, "io-select", {
+    options: [
+      { value: "default", label: FOLDER_DEFAULT },
+      { value: "near", label: FOLDER_NEAR },
+      { value: "folder", label: FOLDER_OTHER }
+    ],
+    value: row.folderMode,
+    label: FOLDER_LEAD + " for " + ruleTitle(row, index)
+  });
+  folderPick.disabled = !o.enabled;
+  folderPick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.model.setFolder(row.id, folderPick.value, row.folder);
+    o.redraw();
+  }));
+  if (row.folderMode === "folder") {
+    const path = textInput(where, "io-text io-text--mono", {
+      value: row.folder,
+      placeholder: FOLDER_PLACEHOLDER,
+      label: FOLDER_LEAD + " path for " + ruleTitle(row, index)
+    });
+    path.disabled = !o.enabled;
+    const writeFolder = (value) => {
+      if (!o.enabled) return;
+      o.model.setFolder(row.id, "folder", value);
+      o.redraw();
+    };
+    if (o.folderSuggest) o.folderSuggest(path, writeFolder);
+    path.addEventListener("change", (() => {
+      writeFolder(path.value);
+    }));
+  }
   if (row.conflict) {
     const warn = el(main, "div", "io-rule__warn");
     el(warn, "span", void 0, "\u26A0");
@@ -32944,17 +30964,29 @@ function renderSmartRules(host, o) {
 function renderConditionPicker(host, o) {
   const box = el(host, "div", "io-pickvals");
   if (!o.choices.length) {
-    el(
-      box,
-      "div",
-      "io-side__empty",
-      "no " + KIND_LABEL[o.kind].toLowerCase() + " Fields yet \u2014 set one up on the Tags & PKM tab"
-    );
+    el(box, "div", "io-side__empty", o.kind === "fields" ? "no Fields yet \u2014 set one up on the Tags & PKM tab" : "no " + KIND_LABEL[o.kind].toLowerCase() + " Fields yet \u2014 set one up on the Tags & PKM tab");
     return;
   }
+  const taken = new Set((o.fieldsTaken || []).map((x) => String(x || "").trim()));
   for (const group of o.choices) {
     const wrap = el(box, "div", "io-pickvals__group");
-    el(wrap, "div", "io-pickvals__name", group.label);
+    const fieldId = String(group.fieldId || "").trim();
+    if (o.pickField && fieldId) {
+      const already = taken.has(fieldId);
+      const name = btn(wrap, "io-pickvals__name io-pickvals__name--pick", {
+        text: group.label,
+        label: already ? group.label + " \u2014 any Value is already in this rule" : "Use any Value of " + group.label
+      });
+      name.disabled = already;
+      if (!already) {
+        const take = o.pickField;
+        name.addEventListener("click", (() => {
+          take(fieldId);
+        }));
+      }
+    } else {
+      el(wrap, "div", "io-pickvals__name", group.label);
+    }
     const chips = el(wrap, "div", "io-pickvals__chips");
     if (!group.values.length) {
       el(chips, "span", "io-kind__none", "no Values yet");
@@ -32974,23 +31006,32 @@ function renderConditionPicker(host, o) {
 function conditionDialogTitle(kind) {
   return "Add a " + KIND_LABEL[kind].toLowerCase();
 }
-var KIND_LABEL, RULE_NAME_PLACEHOLDER, RULE_FALLBACK, KIND_ANY, ADD_RULE, TEMPLATE_LEAD, TEMPLATE_NONE, EMPTY_RULES, OP_OR, OP_AND, CONDS_LEAD, CONDITION_DIALOG_NOTE;
+var KIND_LABEL, ANY_VALUE, RULE_NAME_PLACEHOLDER, RULE_FALLBACK, KIND_ANY, ADD_RULE, TEMPLATE_LEAD, TEMPLATE_NONE, FOLDER_LEAD, FOLDER_DEFAULT, FOLDER_NEAR, FOLDER_OTHER, FOLDER_PLACEHOLDER, EMPTY_RULES, OP_OR, OP_AND, CONDS_LEAD, CONDITION_DIALOG_NOTE;
 var init_smart_rules_view = __esm({
   "src/ui/settings/custom/smart_rules_view.ts"() {
     "use strict";
     init_dom();
     init_smart_rules_model();
+    init_templates();
     KIND_LABEL = {
       tags: "Tag",
       emojiFields: "Element",
-      wikilinks: "Link"
+      wikilinks: "Link",
+      /* Своей строки у Field больше нет; подпись осталась для подписей кнопок. */
+      fields: "Field"
     };
+    ANY_VALUE = " \u2014 any Value";
     RULE_NAME_PLACEHOLDER = "Name this rule (optional)";
     RULE_FALLBACK = "Rule ";
     KIND_ANY = "any";
     ADD_RULE = "Add rule";
-    TEMPLATE_LEAD = "use";
+    TEMPLATE_LEAD = "Use template";
     TEMPLATE_NONE = "None";
+    FOLDER_LEAD = "Move to folder";
+    FOLDER_DEFAULT = "Default";
+    FOLDER_NEAR = "Near current note";
+    FOLDER_OTHER = "Another folder\u2026";
+    FOLDER_PLACEHOLDER = "type or pick a folder";
     EMPTY_RULES = "no rules yet \u2014 the default template is used for every line";
     OP_OR = "or";
     OP_AND = "and";
@@ -33002,10 +31043,10 @@ var init_smart_rules_view = __esm({
 // src/ui/settings/custom/smart_rules.ts
 function askConditionModal(Modal2, app3, o) {
   let answered = false;
-  const finish = (value) => {
+  const finish = (answer) => {
     if (answered) return;
     answered = true;
-    o.done(value);
+    o.done(answer);
   };
   class ConditionModal extends Modal2 {
     onOpen() {
@@ -33017,8 +31058,13 @@ function askConditionModal(Modal2, app3, o) {
       renderConditionPicker(box, {
         kind: o.kind,
         choices: o.choices,
+        fieldsTaken: o.fieldsTaken,
         pick: (value) => {
-          finish(value);
+          finish({ kind: "value", id: value });
+          this.close();
+        },
+        pickField: (fieldId) => {
+          finish({ kind: "field", id: fieldId });
           this.close();
         }
       });
@@ -33036,7 +31082,42 @@ function askConditionModal(Modal2, app3, o) {
   }
   new ConditionModal(app3).open();
 }
-var import_fields_editor_legacy4, import_transform_feature2, helpers4, engine2, RULES_PATHS, smartRules;
+function vaultFolders(app3) {
+  try {
+    const vault = app3.vault;
+    if (!vault || typeof vault.getAllFolders !== "function") return [];
+    return vault.getAllFolders(false).map((f) => String(f && f.path || "").trim()).filter(Boolean).sort();
+  } catch (e) {
+    console.error("inline-overhaul: \u043F\u0430\u043F\u043A\u0438 vault \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+    return [];
+  }
+}
+function attachFolderSuggest(ctor, app3, input, write) {
+  if (typeof ctor !== "function") return;
+  try {
+    const Base = ctor;
+    const folders = vaultFolders(app3);
+    class FolderSuggest extends Base {
+      getSuggestions(query) {
+        const q = String(query || "").trim().toLowerCase();
+        return folders.filter((f) => !q || f.toLowerCase().includes(q));
+      }
+      renderSuggestion(value, node) {
+        el(node, "span", "io-suggest__name", value);
+      }
+      selectSuggestion(value) {
+        this.setValue(value);
+        this.close();
+        write(value);
+      }
+    }
+    const live = new FolderSuggest(app3, input);
+    live.limit = 50;
+  } catch (e) {
+    console.error("inline-overhaul: \u043F\u043E\u0434\u0441\u043A\u0430\u0437\u0447\u0438\u043A \u043F\u0430\u043F\u043E\u043A \u043D\u0435 \u0432\u0441\u0442\u0430\u043B", e);
+  }
+}
+var import_fields_editor_legacy4, import_transform_feature3, helpers4, engine2, RULES_PATHS, smartRules;
 var init_smart_rules = __esm({
   "src/ui/settings/custom/smart_rules.ts"() {
     "use strict";
@@ -33046,14 +31127,15 @@ var init_smart_rules = __esm({
     init_smart_rules_model();
     init_smart_rules_view();
     import_fields_editor_legacy4 = __toESM(require_fields_editor_legacy());
-    import_transform_feature2 = __toESM(require_transform_feature());
+    import_transform_feature3 = __toESM(require_transform_feature());
     helpers4 = import_fields_editor_legacy4.default;
-    engine2 = import_transform_feature2.default;
+    engine2 = import_transform_feature3.default;
     RULES_PATHS = [
       "features.transform.enabled",
       "transform.inline2note.enabled",
       "transform.inline2note.templatesFolder",
-      "general.help.showTips"
+      "general.help.showTips",
+      "advanced.showSettingIds"
     ];
     smartRules = (host, ctx) => {
       const p = ctx.platform;
@@ -33094,12 +31176,29 @@ var init_smart_rules = __esm({
             model,
             enabled: Boolean(ctx.get("transform.inline2note.enabled")),
             templates: templates(),
+            /* Имя папки нужно самой подписи: пустой список обязан сказать,
+               чего не хватает, теми же словами, что и `Default template`. */
+            templatesFolder: String(ctx.get("transform.inline2note.templatesFolder") || ""),
             redraw: () => {
               draw();
             },
+            /* Выбор из подсказчика — это уже нажатие: значение пишется сразу, а
+               не ждёт, пока человек уйдёт из поля. */
+            folderSuggest: (input, write) => attachFolderSuggest(
+              p.AbstractInputSuggest,
+              app3,
+              input,
+              (value) => {
+                input.value = value;
+                write(value);
+              }
+            ),
             askCondition: (kind, done) => askConditionModal(Modal2, app3, {
               kind,
               choices: model.choicesFor(kind),
+              /* Какие Fields уже стоят условием «любое значение»: их имя в окне
+                 неактивно (10.13.14 Н4). Считается по правилам, а не по памяти. */
+              fieldsTaken: model.listRules().flatMap((r) => r.conditions.fields),
               done
             })
           });
@@ -33123,6 +31222,102 @@ var init_smart_rules = __esm({
   }
 });
 
+// src/ui/settings/custom/source_fields.ts
+function keptIds(ctx) {
+  const raw = ctx.get(KEEP_PATH);
+  if (!Array.isArray(raw)) return [];
+  return raw.map((x) => String(x || "").trim()).filter(Boolean);
+}
+var KEEP_PATH, NO_FIELDS, NONE_KEPT, sourceFields;
+var init_source_fields = __esm({
+  "src/ui/settings/custom/source_fields.ts"() {
+    "use strict";
+    init_dom();
+    init_keepview();
+    init_preview_data();
+    KEEP_PATH = "transform.inline2note.sourceProcessing.cleanupFieldIds";
+    NO_FIELDS = "no Fields yet \u2014 set them up under Tags & PKM";
+    NONE_KEPT = "nothing is kept: every Value leaves the line";
+    sourceFields = (host, ctx) => {
+      const box = el(host, "div", "io-keepfields");
+      let mounted = null;
+      const draw = () => {
+        const keep2 = keepView(box);
+        const next = el(box, "div", "io-keepfields__mount");
+        try {
+          fill(next);
+        } catch (e) {
+          next.remove();
+          console.error("inline-overhaul: \u0441\u043F\u0438\u0441\u043E\u043A Fields \u0438\u0441\u0445\u043E\u0434\u043D\u043E\u0439 \u0441\u0442\u0440\u043E\u043A\u0438 \u043D\u0435 \u043E\u0442\u0440\u0438\u0441\u043E\u0432\u0430\u043B\u0441\u044F", e);
+          return;
+        }
+        if (mounted) mounted.remove();
+        mounted = next;
+        keep2.restore();
+      };
+      const fill = (mount) => {
+        const fields = realFields(ctx);
+        const kept = new Set(keptIds(ctx));
+        const enabled = Boolean(ctx.get("transform.inline2note.enabled"));
+        if (!fields.length) {
+          el(mount, "div", "io-side__empty", NO_FIELDS);
+          return;
+        }
+        const list = el(mount, "div", "io-keepfields__list");
+        for (const f of fields) {
+          const row = el(list, "label", "io-keepfields__row");
+          const input = row.createEl("input", {
+            cls: "io-toggle io-toggle--check",
+            type: "checkbox",
+            attr: { "aria-label": "Keep the Values of " + (f.name || f.id) + " on the line" }
+          });
+          input.checked = kept.has(f.id);
+          input.disabled = !enabled;
+          input.addEventListener("change", (() => {
+            if (!enabled) return;
+            const now = new Set(keptIds(ctx));
+            if (input.checked) now.add(f.id);
+            else now.delete(f.id);
+            const ordered = fields.map((x) => x.id).filter((id) => now.has(id));
+            void ctx.set(KEEP_PATH, ordered);
+            draw();
+          }));
+          el(row, "span", "io-keepfields__name", f.name || f.id);
+          el(row, "span", "io-keepfields__kind", f.kind === "link" ? "link" : f.kind);
+        }
+        if (!kept.size) el(mount, "p", "io-preview__note", NONE_KEPT);
+        const actions = el(mount, "div", "io-rowactions");
+        const all = btn(actions, "io-btn io-btn--sm", {
+          text: "Keep all",
+          label: "Keep the Values of every Field on the line"
+        });
+        all.disabled = !enabled || kept.size === fields.length;
+        all.addEventListener("click", (() => {
+          if (!enabled) return;
+          void ctx.set(KEEP_PATH, fields.map((f) => f.id));
+          draw();
+        }));
+        const none = btn(actions, "io-btn io-btn--sm", {
+          text: "Keep none",
+          label: "Let every Value leave the line"
+        });
+        none.disabled = !enabled || kept.size === 0;
+        none.addEventListener("click", (() => {
+          if (!enabled) return;
+          void ctx.set(KEEP_PATH, []);
+          draw();
+        }));
+      };
+      draw();
+      const stop = ctx.watch([KEEP_PATH, "pkm.fields", "transform.inline2note.enabled"], draw);
+      return () => {
+        stop();
+        box.empty();
+      };
+    };
+  }
+});
+
 // src/ui/settings/schema/transform.ts
 var TRANSFORM_GROUPS;
 var init_transform = __esm({
@@ -33130,7 +31325,9 @@ var init_transform = __esm({
     "use strict";
     init_types();
     init_callouts();
+    init_previews();
     init_smart_rules();
+    init_source_fields();
     TRANSFORM_GROUPS = [
       {
         id: "transform-intro",
@@ -33139,7 +31336,8 @@ var init_transform = __esm({
         heading: "Before you start",
         items: [
           { kind: "custom", id: "transform-callout", render: callout("transform") }
-        ]
+        ],
+        visible: on("general.help.showCallouts")
       },
       {
         id: "inline-to-note",
@@ -33154,42 +31352,99 @@ var init_transform = __esm({
             kind: "toggle",
             id: "i2n-enabled",
             path: "transform.inline2note.enabled",
-            default: true,
+            default: false,
             name: "Inline to note",
             desc: "Allow this to create notes and add to notes you already have",
             searchTerms: ["Inline2Note enabled"],
             tip: "This is the switch that lets the plugin write to your vault. Everything else on this tab only decides how. Make a backup and try it on a note you do not mind breaking: one keypress can add a note, change a note, and edit the line you were on"
           },
           {
-            kind: "text",
-            id: "i2n-templates-folder",
-            path: "transform.inline2note.templatesFolder",
-            default: "Templates",
-            name: "Templates folder",
-            desc: "The folder your note templates live in",
-            tip: "A template is an ordinary note that a new note starts out as a copy of. Whatever you keep in this folder shows up in the lists below",
-            visible: on("transform.inline2note.enabled")
-          },
-          {
-            kind: "text",
+            kind: "folder",
             id: "i2n-output-folder",
             path: "transform.inline2note.outputFolder",
             default: "",
             name: "New notes folder",
             desc: "Where to put the notes this creates. Leave it empty to keep them next to the note you are in",
+            placeholder: "Next to the note you are in",
+            tip: "Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time a note goes into it. Left empty, a new note lands beside the note you pressed the key in",
             searchTerms: ["Output folder for new notes"],
+            visible: on("transform.inline2note.enabled")
+          },
+          {
+            kind: "folder",
+            id: "i2n-templates-folder",
+            path: "transform.inline2note.templatesFolder",
+            default: "",
+            name: "Templates folder",
+            desc: "The folder your note templates live in",
+            placeholder: "Pick or type a folder",
+            tip: "A template is an ordinary note that a new note starts out as a copy of. Whatever you keep in this folder shows up in the lists below. Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time it is needed",
             visible: on("transform.inline2note.enabled")
           },
           {
             kind: "dropdown",
             id: "i2n-default-template",
             path: "transform.inline2note.defaultTemplate",
-            default: "task.md",
+            default: "",
             name: "Default template",
             desc: "The template on creation of new note when no special rules apply (see <code>Smart Rules</code> below)",
-            tip: "You can set up rules further down that pick a different template for certain lines. This one is used for everything else",
+            tip: "You can set up rules further down that pick a different template for certain lines. This one is used for everything else. The list holds the notes from the folder above and nothing else \u2014 set that folder first, and the list fills itself",
             visible: on("transform.inline2note.enabled"),
-            options: [{ value: "", label: "None" }, { value: "task.md", label: "task.md" }, { value: "meeting.md", label: "meeting.md" }]
+            /* Только заметки из назначенной папки (1.6.2.4). Постоянных строк
+               нет: что показать, когда папки нет, решает сам источник. */
+            options: [],
+            optionsFrom: "templates"
+          },
+          {
+            kind: "toggle",
+            id: "i2n-floating",
+            path: "transform.inline2note.floatingButton",
+            default: false,
+            name: "Floating button",
+            desc: "Put a small button at the end of the line you are on",
+            searchTerms: ["Flying button"],
+            visible: on("transform.inline2note.enabled"),
+            tip: "Click it and the line turns into a note, the same as pressing the key would. The button is only drawn on screen \u2014 it is never saved into your note, so nothing changes if you open the file elsewhere",
+            seeAlso: { id: "i2n-button-preview", label: "See where it appears" }
+          },
+          {
+            kind: "slider",
+            id: "i2n-floating-gap",
+            path: "transform.inline2note.floatingButtonGap",
+            default: 12,
+            min: 0,
+            max: 40,
+            step: 1,
+            unit: "px",
+            name: "Distance from the text",
+            desc: "How much room to leave between the line and the button",
+            searchTerms: ["Floating button gap", "Button offset"],
+            visible: {
+              deps: ["transform.inline2note.enabled", "transform.inline2note.floatingButton"],
+              test: (c) => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton"))
+            },
+            tip: "The button is drawn after the last character of the line you are on, and on a short line it can sit close enough to read as part of the text. This is how much room to leave between them. At <code>0</code> it sits right against the text; the widest setting puts it a whole word away",
+            seeAlso: { id: "i2n-button-preview", label: "The preview below moves with it" }
+          },
+          {
+            kind: "custom",
+            id: "i2n-button-preview",
+            render: floatingButton,
+            visible: {
+              deps: ["transform.inline2note.enabled", "transform.inline2note.floatingButton"],
+              test: (c) => Boolean(c.get("transform.inline2note.enabled") && c.get("transform.inline2note.floatingButton"))
+            }
+          },
+          {
+            kind: "toggle",
+            id: "content-open",
+            path: "transform.inline2note.openTarget",
+            default: false,
+            name: "Open note after creation",
+            desc: "Jump straight to the note once it is written",
+            tip: "Handy while you are still setting this up, so you can see what came out. Turn it off once you trust it and you can keep writing without losing your place",
+            searchTerms: ["Open transformed note", "Open the note afterwards"],
+            visible: on("transform.inline2note.enabled")
           }
         ]
       },
@@ -33197,7 +31452,7 @@ var init_transform = __esm({
         id: "naming",
         tab: "transform",
         order: 200,
-        heading: "Naming",
+        heading: "New note naming",
         intro: "The new note needs a name. This block defines how to choose a name of a new note",
         tip: "Three ways of finding one are tried in turn, and the first that works wins: the text between your chosen brackets, then a heading on the line, then simply the first few words",
         visible: on("transform.inline2note.enabled"),
@@ -33217,18 +31472,18 @@ var init_transform = __esm({
             kind: "text",
             id: "naming-delimiters",
             path: "transform.inline2note.noteName.delimiters",
-            default: "()",
+            default: "[]",
             mono: true,
-            name: "Name brackets",
+            name: "Name placeholders",
             desc: "Two characters. Whatever you put between them becomes the name",
-            searchTerms: ["Title delimiters", "Explicit name delimiters"],
+            searchTerms: ["Title delimiters", "Explicit name delimiters", "Name brackets"],
             tip: "Put <code>()</code> here, write the line <code>- call (Anna about the contract) || text</code>, and you get a note called <b>Anna about the contract</b>. Leave this box empty and the name comes from the heading or the first words instead"
           },
           {
             kind: "number",
             id: "naming-word-count",
             path: "transform.inline2note.noteName.wordCount",
-            default: 5,
+            default: 6,
             min: 1,
             max: 20,
             name: "Words to use instead",
@@ -33241,9 +31496,9 @@ var init_transform = __esm({
             id: "naming-collision",
             path: "transform.inline2note.nameCollision.mode",
             default: "new_note",
-            name: "If the name is taken",
+            name: "If the name already taken",
             desc: "What to do when you already have a note with that name",
-            searchTerms: ["Name collision mode"],
+            searchTerms: ["Name collision mode", "If the name is taken"],
             options: [
               { value: "new_note", label: "Create a second note" },
               { value: "add_to_note", label: "Add to the existing one" },
@@ -33259,13 +31514,14 @@ var init_transform = __esm({
         order: 300,
         heading: "Note content",
         intro: "What the note looks like inside: where your text goes, and what sits above it",
+        tip: "Two decisions live here. The first is where in the note your line lands \u2014 at the top, or after whatever is already there, which is what you want when one note collects many entries. The second is what goes on the line above it, so entries in a collecting note do not run together: a date, a fixed word of your own, or nothing at all. The rest of the note comes from the template, and the template is chosen further up",
         visible: on("transform.inline2note.enabled"),
         items: [
           {
             kind: "dropdown",
             id: "content-position",
             path: "transform.inline2note.placement.position",
-            default: "beginning",
+            default: "end",
             name: "Where to put the text",
             desc: "At the top of the note, or after whatever is already there",
             searchTerms: ["Where to place inline text?"],
@@ -33276,10 +31532,10 @@ var init_transform = __esm({
             kind: "dropdown",
             id: "content-header-mode",
             path: "transform.inline2note.placement.headerMode",
-            default: "custom",
+            default: "datetime",
             name: "Line above the text",
             desc: "Something to put above your text so entries stay apart",
-            tip: "Useful when a note collects many entries: a date, or a word like <code>## Captured</code>, keeps them from running together",
+            tip: "Useful when a note collects many entries: a date, or a word of your own, keeps them from running together. Whether that line is a heading is a separate question, and the row below answers it",
             searchTerms: ["Inserted block header"],
             options: [
               { value: "custom", label: "Fixed text" },
@@ -33288,48 +31544,49 @@ var init_transform = __esm({
             ]
           },
           {
+            kind: "dropdown",
+            id: "content-header-level",
+            path: "transform.inline2note.placement.headerLevel",
+            default: "3",
+            name: "Line above is header",
+            desc: "Make that line a heading you can fold, or leave it as plain text",
+            tip: "A heading can be folded, shows up in the outline, and is what you want when one note collects many entries. The number is how deep the heading sits: <code>1</code> is the biggest. You do not type the hashes yourself \u2014 this row puts them in, so the boxes below hold only the text",
+            visible: {
+              deps: ["transform.inline2note.placement.headerMode"],
+              test: (c) => String(c.get("transform.inline2note.placement.headerMode") || "") !== "none"
+            },
+            options: [
+              { value: "0", label: "No (plain text)" },
+              { value: "1", label: "1" },
+              { value: "2", label: "2" },
+              { value: "3", label: "3" },
+              { value: "4", label: "4" },
+              { value: "5", label: "5" },
+              { value: "6", label: "6" }
+            ]
+          },
+          {
             kind: "text",
             id: "content-header-text",
             path: "transform.inline2note.placement.customHeader",
-            default: "## Captured",
+            default: "Captured",
             mono: true,
-            name: "What it says",
+            name: "Text of the line above",
             desc: "Typed into the note exactly as you write it here",
-            tip: "Start it with <code>##</code> and Obsidian treats it as a heading you can fold. Without the hashes it is just a line of text",
+            tip: "Just the words \u2014 hashes are added by <code>Line above is header</code> above, and any you type here are taken back out",
             visible: eq("transform.inline2note.placement.headerMode", "custom")
           },
           {
             kind: "text",
             id: "content-datetime",
             path: "transform.inline2note.placement.datetimeFormat",
-            default: "## YYYY-MM-DD HH:mm",
+            default: "YYYY-MM-DD HH:mm",
             mono: true,
             name: "Date format",
             desc: "Today\u2019s date, written the way you set out here",
             searchTerms: ["Datetime header format"],
             visible: eq("transform.inline2note.placement.headerMode", "datetime"),
-            tip: "<code>YYYY</code> is the year, <code>MM</code> the month, <code>DD</code> the day, and <code>HH mm ss</code> the time. Anything else you type is kept as it is, so <code>## YYYY-MM-DD</code> gives you a heading like <b>## 2026-08-21</b>, and adding a third hash makes it a smaller heading"
-          },
-          {
-            kind: "dropdown",
-            id: "content-sublines",
-            path: "transform.inline2note.sublines",
-            default: "stay",
-            name: "Lines indented under it",
-            desc: "Leave them where they are, or take them into the note too",
-            tip: "Say the line has three sub-points under it. <b>Take them along</b> moves all four into the note and leaves the place they came from empty. <b>Leave them</b> moves only the line you pressed on",
-            searchTerms: ["Sublines behavior"],
-            options: [{ value: "stay", label: "Leave them" }, { value: "remove", label: "Take them along" }]
-          },
-          {
-            kind: "toggle",
-            id: "content-open",
-            path: "transform.inline2note.openTarget",
-            default: true,
-            name: "Open the note afterwards",
-            desc: "Jump straight to the note once it is written",
-            tip: "Handy while you are still setting this up, so you can see what came out. Turn it off once you trust it and you can keep writing without losing your place",
-            searchTerms: ["Open transformed note"]
+            tip: "<code>YYYY</code> is the year, <code>MM</code> the month, <code>DD</code> the day, and <code>HH mm ss</code> the time. Anything else you type is kept as it is, so <code>YYYY-MM-DD</code> gives you <b>2026-08-21</b>. Whether that line is a heading is decided by <code>Line above is header</code> above"
           }
         ]
       },
@@ -33339,27 +31596,83 @@ var init_transform = __esm({
         order: 400,
         heading: "Source line",
         intro: "What happens to the line you pressed on, once the note is safely written",
+        tip: "The note is written first, and only then is your line touched, so nothing is lost if the writing fails. Two things can happen to it: your text can be swapped for a link to the new note, and a marker of your choosing can be added so you can see at a glance that this line has already been filed. Both are optional, but leaving both off means the line looks untouched and you can press again by mistake and get a second note",
         visible: on("transform.inline2note.enabled"),
         items: [
+          { kind: "custom", id: "source-preview", render: sourcePreview },
+          {
+            kind: "dropdown",
+            id: "content-sublines",
+            path: "transform.inline2note.sublines",
+            default: "stay",
+            name: "Sub-lines (tree) behavior",
+            desc: "Leave them where they are, or take them into the note too",
+            tip: "Say the line has three sub-points under it. <b>Take them along</b> moves all four into the note and leaves the place they came from empty. <b>Leave them</b> moves only the line you pressed on",
+            searchTerms: ["Sublines behavior"],
+            options: [{ value: "stay", label: "Leave them" }, { value: "remove", label: "Take them along" }],
+            visible: on("transform.inline2note.enabled")
+          },
+          {
+            kind: "dropdown",
+            id: "source-text",
+            path: "transform.inline2note.sourceProcessing.text",
+            default: "remove",
+            name: "What happens with current line",
+            desc: "The text goes into the note either way \u2014 this is about the line you pressed on",
+            searchTerms: ["What happens to your text"],
+            options: [
+              { value: "remove", label: "Take it away" },
+              { value: "leave", label: "Leave it" },
+              { value: "words", label: "Keep the first words" }
+            ],
+            tip: "<b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move. <b>Keep the first words</b> is the middle way: enough of the line left to recognise it at a glance. Sub-lines are a separate question, and the row above answers it",
+            visible: on("transform.inline2note.enabled")
+          },
+          {
+            kind: "number",
+            id: "source-keep-words",
+            path: "transform.inline2note.sourceProcessing.keepWords",
+            default: 3,
+            min: 1,
+            max: 20,
+            name: "Words to keep",
+            desc: "How much of the line stays behind",
+            tip: "Counted from the start of your text. The rest goes into the note and leaves the line",
+            visible: eq("transform.inline2note.sourceProcessing.text", "words")
+          },
+          {
+            kind: "note",
+            id: "source-fields-head",
+            name: "Fields to keep",
+            desc: "Which Fields stay on the line you pressed on",
+            tip: "Everything you tick here is left behind on the line; everything you do not goes into the note with the text. A Field you keep is still written into the note as well \u2014 keeping it does not take it away from the note, it only leaves a copy where you were. Ticking nothing leaves the line with your text and the marker and nothing else",
+            visible: on("transform.inline2note.enabled")
+          },
+          {
+            kind: "custom",
+            id: "source-fields",
+            render: sourceFields,
+            visible: on("transform.inline2note.enabled")
+          },
           {
             kind: "toggle",
             id: "source-link",
             path: "transform.inline2note.sourceProcessing.replaceWithLink",
             default: true,
-            name: "Leave a link behind",
-            desc: "Put a link to the new note where your text used to be",
-            searchTerms: ["Replace payload with note link"],
-            tip: "On, the line becomes a tidy pointer: click the link and you are in the note. Off, the text stays where it is \u2014 which means you can press again by mistake and get a second note. The marker below is the usual way to guard against that"
+            name: "Insert wikilink in current line",
+            desc: "Put a link to the new note on the line you pressed on",
+            searchTerms: ["Replace payload with note link", "Leave a link behind"],
+            tip: "On, the line keeps a pointer: click the link and you are in the note. Off with the text taken away, nothing on the line says where it went \u2014 and you can press again by mistake and get a second note. The marker below is the usual way to guard against that"
           },
           {
             kind: "text",
             id: "source-marker",
             path: "transform.inline2note.sourceProcessing.token",
-            default: "",
+            default: "#processed",
             mono: true,
-            name: "Mark the line as done",
+            name: "Mark transformed line",
             desc: "A word or tag added to the line so you can see it has been handled",
-            searchTerms: ["Processed token"],
+            searchTerms: ["Processed token", "Mark the line as done"],
             tip: "Type something like <code>#moved</code>. Afterwards you can search for it to find everything you have filed, or hide those lines from a list of things still to do. Leave the box empty and nothing is added"
           },
           {
@@ -33374,7 +31687,55 @@ var init_transform = __esm({
               deps: ["transform.inline2note.sourceProcessing.token"],
               test: (c) => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== ""
             },
-            options: [{ value: "left", label: "Left, before the text" }, { value: "right", label: "Right, after the text" }]
+            options: [{ value: "left", label: "Left Block" }, { value: "right", label: "Right Block" }]
+          },
+          {
+            kind: "toggle",
+            id: "source-dim",
+            path: "transform.inline2note.sourceProcessing.visual.enabled",
+            default: false,
+            name: "Dim transformed line",
+            desc: "Fade a line once it carries the mark above, so your eye skips it",
+            searchTerms: ["Dim the lines already filed"],
+            visible: {
+              deps: ["transform.inline2note.sourceProcessing.token"],
+              test: (c) => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== ""
+            },
+            tip: "A page you have worked through fills up with lines that <code>Inline to note</code> has already taken, and they still read as loudly as the rest. Faded, they stay where they are \u2014 you can find them, search them, undo them \u2014 but stop competing for attention. Only the look changes: nothing is written into the note, and taking the mark off a line by hand brings it back to full strength"
+          },
+          {
+            kind: "slider",
+            id: "source-dim-opacity",
+            path: "transform.inline2note.sourceProcessing.visual.opacity",
+            default: 65,
+            min: 0,
+            max: 80,
+            step: 5,
+            unit: "%",
+            invert: 100,
+            name: "Opacity of transformed line",
+            desc: "Zero leaves the line as it is, eighty makes it barely readable",
+            searchTerms: ["How much is left"],
+            tip: "How far the line fades. It is only a look: the text stays whole, search still finds it, and <code>Undo</code> still works. Pick as little as lets your eye skip the line \u2014 too much and you stop noticing a line you still have to fix",
+            visible: {
+              deps: ["transform.inline2note.sourceProcessing.token", "transform.inline2note.sourceProcessing.visual.enabled"],
+              test: (c) => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== "" && Boolean(c.get("transform.inline2note.sourceProcessing.visual.enabled"))
+            }
+          },
+          {
+            kind: "color",
+            id: "source-dim-color",
+            path: "transform.inline2note.sourceProcessing.visual.color",
+            default: "",
+            name: "Color of transformed line",
+            desc: "Leave it unset to keep the color your theme gives the text",
+            allowReset: true,
+            searchTerms: ["Color of a filed line"],
+            tip: "Set this only if fading alone is not enough to tell a taken line at a glance. A color of your own is read instead of the theme one, and the fade above still applies to it",
+            visible: {
+              deps: ["transform.inline2note.sourceProcessing.token", "transform.inline2note.sourceProcessing.visual.enabled"],
+              test: (c) => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== "" && Boolean(c.get("transform.inline2note.sourceProcessing.visual.enabled"))
+            }
           }
         ]
       },
@@ -33409,35 +31770,8 @@ var init_advanced = __esm({
         heading: "Before you start",
         items: [
           { kind: "custom", id: "advanced-callout", render: callout("advanced") }
-        ]
-      },
-      {
-        id: "generated-files",
-        tab: "advanced",
-        order: 100,
-        heading: "Generated files",
-        intro: "The plugin keeps its own compiled copy of your setup inside the vault. You never need to touch it, but it can be rebuilt from here if it ever falls out of step",
-        tip: "It is not the same thing as the config note on the Tags & PKM tab. That one is for you to read and edit; this one is written for the plugin and is overwritten on every change, so editing it by hand has no lasting effect",
-        items: [
-          {
-            kind: "buttons",
-            id: "config-template",
-            name: "Template note",
-            desc: "A reference note showing every block the config note understands",
-            searchTerms: ["Open Detailed Template"],
-            tip: "Open this when you want to write a config note by hand and need to know what the blocks are called",
-            buttons: [{ label: "Open", action: "open-config-template" }]
-          },
-          {
-            kind: "buttons",
-            id: "regenerate-rules",
-            name: "Regenerate",
-            desc: "Rewrite the file from your current Field setup",
-            searchTerms: ["Regenerate Rules Now"],
-            tip: "Use this if a command stops recognising a Field you know you configured. It usually means the file and the settings have drifted apart",
-            buttons: [{ label: "Regenerate", action: "regenerate-rules" }]
-          }
-        ]
+        ],
+        visible: on("general.help.showCallouts")
       },
       {
         id: "setting-ids",
@@ -33459,11 +31793,60 @@ var init_advanced = __esm({
         ]
       },
       {
+        id: "settings-backup",
+        tab: "advanced",
+        order: 190,
+        heading: "Settings backup",
+        intro: "A backup is an ordinary note in your vault. It holds everything you have set up here, so you can come back to it later or carry your setup to another vault",
+        tip: "Saving writes a new note every time and never overwrites an earlier one, so the folder fills up and it is on you to delete what you no longer want. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards; whether the plugin saves what you have now before it writes is the toggle below. Because a backup is an ordinary note, syncing your vault carries it to your other machine, and restoring it there is how a setup travels",
+        items: [
+          {
+            kind: "text",
+            id: "backup-folder",
+            path: "advanced.backups.folder",
+            default: "Inline Overhaul/Backups",
+            wide: true,
+            name: "Backup folder",
+            desc: "Where in your vault the backups are kept",
+            tip: "Any folder you like. It is made when you save the first backup, not before. Backups are ordinary notes, so they travel with the vault and sync along with the rest of it"
+          },
+          {
+            kind: "toggle",
+            id: "backup-before-restore",
+            path: "advanced.backups.beforeRestore",
+            default: true,
+            name: "Save a backup before restoring",
+            desc: "Write what you have now into the folder above before an earlier backup replaces it",
+            tip: "On, every restore leaves you a way back, and that copy is named with <code>Autogenerated</code> at the end so you can tell it from the ones you saved yourself. Off, restoring writes straight over what you have and the confirmation says so \u2014 pick that if you restore often and the folder fills up with copies you never asked for"
+          },
+          {
+            kind: "buttons",
+            id: "settings-backup-actions",
+            name: "Your settings",
+            desc: "Save what you have set up now, or bring back an earlier backup",
+            tip: "Saving writes a new note every time and never overwrites an earlier one \u2014 delete the ones you no longer want yourself. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards. Whether what you have now is saved first is the toggle above, and a copy taken that way is named with <code>Autogenerated</code> at the end",
+            buttons: [
+              { label: "Save a backup", action: "save-backup" },
+              { label: "Restore a backup", action: "restore-backup", warning: true }
+            ]
+          },
+          {
+            kind: "buttons",
+            id: "settings-reset-actions",
+            name: "Start over",
+            desc: "Delete everything you have set up here and go back to the plugin\u2019s own defaults",
+            tip: "Everything means everything: every tab, every Field, every Value, every rule, every Binder row, and the hotkeys you gave to plugin commands. Hotkeys of other plugins are left alone. A backup of what you have now is written first, into the folder above, named with <code>Autogenerated</code> at the end, so the way back is the button next to this one \u2014 which is also what this is for: a way to check that a backup really brings everything back. This button writes that copy always, whatever the toggle above says: here it is the only way back there is",
+            buttons: [{ label: "Delete all my settings", action: "reset-settings", warning: true }]
+          }
+        ]
+      },
+      {
         id: "diagnostics",
         tab: "advanced",
         order: 200,
         heading: "Diagnostics",
         intro: "If something misbehaves, a log helps work out why. Be aware the log is saved into your vault and will contain the text of the lines you were working on",
+        tip: "Leave this off unless you are chasing a problem. The log is an ordinary note in your vault, it grows with every keypress the plugin handles, and it records the lines you were on \u2014 so it carries whatever you happened to be writing. Turn it on, reproduce the problem once, turn it off, and read the note",
         items: [
           {
             kind: "toggle",
@@ -33517,7 +31900,7 @@ var init_schema = __esm({
     init_transform();
     init_advanced();
     TABS = [
-      { id: "general", label: "General", desc: "Inline Overhaul is about writing a note and tagging it in the same breath", flat: true },
+      { id: "general", label: "General", desc: "Inline Overhaul lets one line of a note carry its own status, dates and links", flat: true },
       { id: "keyboard", label: "Keyboard", desc: "Everything about keys lives here" },
       { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "This menu helps to make inline navigation in Obsidian comfortable" },
       { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },
@@ -33537,425 +31920,227 @@ var init_schema = __esm({
   }
 });
 
-// src/ui/settings/to_definitions.ts
-function controlFor(it, w) {
-  if (!isBound(it)) return void 0;
-  const type = CONTROL_TYPE[it.kind];
-  if (!type) return void 0;
-  const control = { type, key: it.path };
-  const raw = it;
-  if ("default" in raw) control["defaultValue"] = raw["default"];
-  if (it.disabled) {
-    const p = it.disabled;
-    control["disabled"] = () => p.test(w.ctx);
-  }
-  if (it.kind === "dropdown") {
-    const options = {};
-    for (const o of it.options) options[o.value] = o.label;
-    control["options"] = options;
-  }
-  if (it.kind === "slider") {
-    control["min"] = it.min;
-    control["max"] = it.max;
-    control["step"] = it.step;
-    if (it.unit) {
-      const unit = it.unit;
-      control["displayFormat"] = (v) => v + " " + unit;
-    }
-  }
-  if (it.kind === "number") {
-    if (it.min !== void 0) control["min"] = it.min;
-    if (it.max !== void 0) control["max"] = it.max;
-  }
-  if (it.kind === "text" || it.kind === "textarea") {
-    if (it.placeholder !== void 0) control["placeholder"] = it.placeholder;
-    if (it.kind === "text" && it.validate) control["validate"] = it.validate;
-  }
-  return control;
+// src/core/starter_config.ts
+function tagField2(id, values) {
+  return {
+    id,
+    prefix: "#",
+    placeholder: id,
+    values: values.map((v) => ({ token: v.token, subtags: [], active: true })),
+    yamlValueRule: "raw"
+  };
 }
-function itemToDefinition(it, w) {
-  if (it.kind === "custom") {
-    const def = w.renderCustom ? w.renderCustom(it) : null;
-    if (!def) return null;
-    if (it.visible) {
-      const p = it.visible;
-      def["visible"] = () => p.test(w.ctx);
-    }
-    return def;
-  }
-  const common = { name: it.name };
-  const desc = w.describe(it);
-  if (desc !== void 0) common["desc"] = desc;
-  if (it.searchTerms && it.searchTerms.length) common["aliases"] = it.searchTerms.slice();
-  if (it.visible) {
-    const p = it.visible;
-    common["visible"] = () => p.test(w.ctx);
-  }
-  if (it.kind === "buttons") {
-    const first = it.buttons[0];
-    if (!first) return null;
-    const off = it.disabled;
-    const busy = w.busy;
-    if (off || busy) {
-      common["disabled"] = () => Boolean(
-        off && off.test(w.ctx) || busy && it.buttons.some((b) => busy(b.action))
-      );
-    }
-    common["action"] = () => w.run(first.action);
-    const rest = it.buttons.slice(1);
-    if (rest.length) {
-      common["extraButtons"] = rest.map((b) => (btn2) => btn2.setTooltip(b.label).onClick(() => w.run(b.action)));
-    }
-    return common;
-  }
-  const control = controlFor(it, w);
-  if (control) common["control"] = control;
-  return common;
+function subField(parentId) {
+  return {
+    id: `${parentId}_sub`,
+    prefix: "#",
+    enabled: false,
+    dependsOn: parentId,
+    disabledForParentValues: [],
+    placeholder: "sub",
+    values: []
+  };
 }
-function introRow(text) {
-  return { name: "", desc: text, searchable: false };
-}
-function introTextFor(group, w) {
-  const intro2 = group.intro || "";
-  if (!w.showIds || !intro2) return intro2;
-  return intro2 + " \u2014 " + group.id;
-}
-function groupToDefinition(group, w) {
-  const items = [];
-  const intro2 = introTextFor(group, w);
-  if (intro2) items.push(introRow(intro2));
-  for (const it of group.items) {
-    const def2 = itemToDefinition(it, w);
-    if (def2) items.push(def2);
+function colorsOf(values) {
+  const out = {};
+  for (const v of values) {
+    out["#" + v.token] = {
+      fillColor: v.fill,
+      textColor: v.text,
+      visibility: "default",
+      customText: ""
+    };
   }
-  const introOnly = /-intro$/.test(group.id);
-  const def = { type: "group", items, cls: "io-group-" + group.id };
-  if (!introOnly) def["heading"] = group.heading;
-  if (group.visible) {
-    const p = group.visible;
-    def["visible"] = () => p.test(w.ctx);
-  }
-  const reset = w.resetGroup ? w.resetGroup(group) : null;
-  if (reset) def["extraButtons"] = [reset];
-  return def;
-}
-function toDefinitions(schema, tabs, w) {
-  const out = [];
-  const strip = w.tabStrip ? w.tabStrip() : null;
-  if (strip) out.push(strip);
-  const active = tabs.find((t) => t.id === w.activeTab) || tabs[0];
-  if (!active) return out;
-  const groups = schema.filter((g) => g.tab === active.id).slice().sort((a, b) => a.order - b.order);
-  for (const g of groups) out.push(groupToDefinition(g, w));
   return out;
 }
-var CONTROL_TYPE;
-var init_to_definitions = __esm({
-  "src/ui/settings/to_definitions.ts"() {
-    "use strict";
-    init_types();
-    CONTROL_TYPE = {
-      toggle: "toggle",
-      dropdown: "dropdown",
-      slider: "slider",
-      number: "number",
-      text: "text",
-      textarea: "textarea",
-      color: "color"
-    };
-  }
-});
-
-// src/ui/settings/settings_tab.ts
-function valueWords(value) {
-  if (value === true) return "on";
-  if (value === false) return "off";
-  if (value === "" || value === null || value === void 0) return "empty";
-  return String(value);
+function starterOrder() {
+  return {
+    left: STARTER_LEFT_BLOCK.slice(),
+    right: STARTER_RIGHT_BLOCK.slice(),
+    lead: {},
+    active: {
+      Status: "yes",
+      Status_sub: "no",
+      Priority: "yes",
+      Priority_sub: "no",
+      Due: "yes",
+      Project: "yes"
+    },
+    freeRoam: {
+      Status: "off",
+      Status_sub: "off",
+      Priority: "off",
+      Priority_sub: "off",
+      Due: "off",
+      Project: "off"
+    },
+    enabled: {
+      Status: true,
+      Status_sub: false,
+      Priority: true,
+      Priority_sub: false,
+      Due: true,
+      Project: true
+    },
+    types: {
+      Status: "tag",
+      Status_sub: "tag",
+      Priority: "tag",
+      Priority_sub: "tag",
+      Due: "element",
+      Project: "wikilink"
+    },
+    /* Подпись для TagWheel. Дочернему Field её не пишут: своё короткое имя он
+       выводит из родителя (`shortNameFor` в `pkm_rules_runtime_helpers.js`). */
+    labels: { Status: "Status", Priority: "Priority", Due: "Due", Project: "Project" },
+    strictNames: {
+      Status: "Status",
+      Status_sub: "Status_sub",
+      Priority: "Priority",
+      Priority_sub: "Priority_sub",
+      Due: "Due",
+      Project: "Project"
+    },
+    propertiesByField: {}
+  };
 }
-var RESET_ROWS, RESET_NOTE, SettingsPane;
-var init_settings_tab = __esm({
-  "src/ui/settings/settings_tab.ts"() {
+function starterConfigPatch() {
+  return {
+    pkm: {
+      fields: {
+        order: starterOrder(),
+        tags: {
+          fields: [
+            tagField2("Status", STATUS_VALUES),
+            subField("Status"),
+            tagField2("Priority", PRIORITY_VALUES),
+            subField("Priority")
+          ]
+        },
+        links: {
+          fields: [
+            {
+              id: "Due",
+              kind: "genericElement",
+              marker: DUE_MARKER,
+              placeholder: "Due",
+              values: [""],
+              yamlValueRule: "clean"
+            },
+            {
+              id: "Project",
+              prefix: "#",
+              source: "wikilinks:Project",
+              placeholder: "Project",
+              values: PROJECT_VALUES.map((token) => ({
+                token,
+                allowedParentValues: [],
+                __ioParentBinding: "",
+                __ioParentFieldId: "",
+                active: true
+              })),
+              yamlValueRule: "raw"
+            }
+          ]
+        },
+        elements: {
+          fields: ["Due"],
+          byField: {
+            Due: {
+              emoji: DUE_MARKER,
+              format: "YYYY-MM-DD",
+              increment: {
+                mode: "standard",
+                incrementBy: 1,
+                command: "now",
+                customRaw: [],
+                custom: []
+              }
+            }
+          }
+        }
+      }
+    },
+    visual: {
+      tags: {
+        byTag: {
+          Status: colorsOf(STATUS_VALUES),
+          Priority: colorsOf(PRIORITY_VALUES)
+        }
+      }
+    }
+  };
+}
+function hasAnyField(cfg) {
+  const pkm = cfg["pkm"];
+  const fields = pkm && typeof pkm === "object" ? pkm["fields"] : null;
+  const order = fields && typeof fields === "object" ? fields["order"] : null;
+  if (!order || typeof order !== "object") return false;
+  const o = order;
+  const left = Array.isArray(o["left"]) ? o["left"] : [];
+  const right = Array.isArray(o["right"]) ? o["right"] : [];
+  return left.length > 0 || right.length > 0;
+}
+function applyStarterSet(cfg) {
+  if (!cfg || typeof cfg !== "object") return false;
+  if (hasAnyField(cfg)) return false;
+  const patch = starterConfigPatch();
+  mergeInto(cfg, patch);
+  return true;
+}
+function mergeInto(target, patch) {
+  for (const key of Object.keys(patch)) {
+    const next = patch[key];
+    const cur = target[key];
+    if (next && typeof next === "object" && !Array.isArray(next) && cur && typeof cur === "object" && !Array.isArray(cur)) {
+      mergeInto(cur, next);
+    } else {
+      target[key] = next;
+    }
+  }
+}
+var DUE_MARKER, STATUS_VALUES, PRIORITY_VALUES, PROJECT_VALUES, STARTER_LEFT_BLOCK, STARTER_RIGHT_BLOCK;
+var init_starter_config = __esm({
+  "src/core/starter_config.ts"() {
     "use strict";
-    init_types();
-    init_to_definitions();
-    init_describe();
-    RESET_ROWS = 10;
-    RESET_NOTE = "Your Fields, Values and rules are not touched";
-    SettingsPane = class {
-      constructor(deps) {
-        /** Свои блоки, подписанные на пути (П2). */
-        this.watchers = /* @__PURE__ */ new Set();
-        /**
-         * Кнопки сброса, которые платформа уже создала: по одной на группу. Панель
-         * держит их, чтобы менять неактивность и подсказку на месте, а не
-         * пересобирать определения из-за одного изменённого значения.
-         */
-        this.resetButtons = /* @__PURE__ */ new Map();
-        /**
-         * Действия, которые сейчас выполняются. Пока действие идёт, его кнопка
-         * неактивна (5.6): второе нажатие по «Применить» запускало бы применение
-         * заметки поверх незаконченного первого.
-         */
-        this.busy = /* @__PURE__ */ new Set();
-        this.deps = deps;
-        this.describer = new Describer(deps.fragments);
-        this.defaults = buildDefaultConfig(deps.schema);
-        const first = deps.tabs.find((t) => deps.schema.some((g) => g.tab === t.id));
-        this.active = first ? first.id : "general";
-      }
-      /** Какая вкладка открыта. */
-      activeTab() {
-        return this.active;
-      }
-      /** Переключить вкладку и перерисовать содержимое. */
-      setActiveTab(id) {
-        if (id === this.active) return;
-        this.active = id;
-        if (this.deps.rebuild) this.deps.rebuild();
-      }
-      /* ---- шов с платформой (П-1) ---------------------------------------- */
-      getControlValue(key) {
-        const v = this.deps.store.get(key);
-        return v === void 0 ? getIn(this.defaults, key) : v;
-      }
-      async setControlValue(key, value) {
-        const opts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
-        await this.deps.store.set(key, value, opts);
-        this.wake(key);
-        this.syncResetButtons(key);
-        if (this.definitionsChanged(key)) {
-          if (this.deps.rebuild) this.deps.rebuild();
-          else if (this.deps.refresh) this.deps.refresh();
-        } else if (this.deps.refresh) {
-          this.deps.refresh();
-        }
-      }
-      /* ---- точечная перерисовка своих блоков (П2) ------------------------ */
-      watch(paths, redraw) {
-        const w = { paths, redraw };
-        this.watchers.add(w);
-        return () => {
-          this.watchers.delete(w);
-        };
-      }
-      /** Сколько блоков сейчас слушают пути: подписки не должны накапливаться. */
-      watcherCount() {
-        return this.watchers.size;
-      }
-      /**
-       * Разбудить подписчиков изменённого пути. Совпадением считается и путь
-       * внутри пути: у группы значений ветка меняется целиком.
-       */
-      wake(changed) {
-        for (const w of Array.from(this.watchers)) {
-          const hit = w.paths.some((p) => p === changed || changed.startsWith(p + ".") || p.startsWith(changed + "."));
-          if (!hit) continue;
-          try {
-            w.redraw();
-          } catch (e) {
-            console.error("inline-overhaul: \u0441\u0432\u043E\u0439 \u0431\u043B\u043E\u043A \u0443\u043F\u0430\u043B \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u0440\u0438\u0441\u043E\u0432\u043A\u0435", e);
-          }
-        }
-      }
-      /**
-       * Меняет ли эта запись сами определения, а не только значения.
-       *
-       * Таких случаев два, и оба про тексты: тумблер подсказок и подпись id в них
-       * (10.13.5). Значения платформа подхватывает пересчётом предикатов, а
-       * описания собираются один раз и кешируются (П-11) — их надо пересобрать.
-       */
-      definitionsChanged(key) {
-        return key === "general.help.showTips" || key === "advanced.showSettingIds";
-      }
-      /** Обновить кнопку сброса той группы, чьё значение изменилось. */
-      syncResetButtons(key) {
-        for (const group of this.deps.schema) {
-          if (!group.items.some((it) => isBound(it) && it.path === key)) continue;
-          const btn2 = this.resetButtons.get(group.id);
-          if (btn2) this.paintResetButton(group, btn2);
-        }
-      }
-      /** Склейка записей идёт по id настройки, а не по пути (CS3). */
-      coalesceKeyFor(path) {
-        for (const group of this.deps.schema) {
-          for (const it of group.items) {
-            if (isBound(it) && it.path === path) return it.id;
-          }
-        }
-        return path;
-      }
-      /* ---- определения для платформы ------------------------------------- */
-      ctx() {
-        const ctx = {
-          get: (path) => this.getControlValue(path),
-          set: (path, value, opts) => this.deps.store.set(path, value, opts),
-          run: (action) => this.run(action),
-          watch: (paths, redraw) => this.watch(paths, redraw)
-        };
-        if (this.deps.platform) ctx.platform = this.deps.platform;
-        return ctx;
-      }
-      /* ---- свои блоки (раздел 10) ---------------------------------------- */
-      /**
-       * Строка со своей вёрсткой. Платформа отдаёт блоку строку целиком, блок
-       * её очищает и рисует своё; возвращённая функция снимает то, что блок
-       * завёл сам (С5).
-       *
-       * `searchable: false` — в поиск попадают настройки, а не предпросмотры и
-       * не вводные тексты. `data-io-item` нужен переходу по `id`: у строки,
-       * которую рисует платформа, других приметных признаков нет.
-       */
-      renderCustom(it) {
-        if (it.kind !== "custom") return null;
-        const draw = it.render;
-        const ctx = this.ctx();
-        return {
-          name: "",
-          searchable: false,
-          render: (setting) => {
-            const row = setting.settingEl;
-            row.empty();
-            row.addClass("io-block");
-            row.setAttribute("data-io-item", it.id);
-            return draw(row, ctx);
-          }
-        };
-      }
-      async run(action) {
-        const fn = this.deps.actions[action];
-        if (!fn) {
-          throw new Error("\u043D\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435: " + action);
-        }
-        if (this.busy.has(action)) return;
-        this.busy.add(action);
-        if (this.deps.rebuild) this.deps.rebuild();
-        try {
-          await fn();
-        } finally {
-          this.busy.delete(action);
-          if (this.deps.rebuild) this.deps.rebuild();
-        }
-      }
-      wiring() {
-        const ctx = this.ctx();
-        const showTips = Boolean(this.getControlValue("general.help.showTips"));
-        const showIds = Boolean(this.getControlValue("advanced.showSettingIds"));
-        const wiring = {
-          ctx,
-          run: (action) => {
-            void this.run(action);
-          },
-          busy: (action) => this.busy.has(action),
-          describe: (it) => this.describer.describe(it, { showTips, showIds }),
-          showIds,
-          renderCustom: (it) => this.renderCustom(it),
-          resetGroup: (group) => this.resetButtonFor(group),
-          activeTab: this.active
-        };
-        if (this.deps.tabStrip) {
-          const draw = this.deps.tabStrip;
-          wiring.tabStrip = () => draw({
-            tabs: this.tabsWithGroups(),
-            active: this.active,
-            pick: (id) => this.setActiveTab(id)
-          });
-        }
-        return wiring;
-      }
-      /** Вкладки, у которых есть хотя бы одна группа: пустых не показываем. */
-      tabsWithGroups() {
-        return this.deps.tabs.filter((t) => this.deps.schema.some((g) => g.tab === t.id));
-      }
-      getSettingDefinitions() {
-        this.resetButtons.clear();
-        return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
-      }
-      /* ---- сброс группы к значениям по умолчанию (10.13.1) --------------- */
-      /** Что в группе отличается от значения по умолчанию. */
-      drift(group) {
-        const out = [];
-        for (const it of group.items) {
-          if (!isBound(it)) continue;
-          const was = it["default"];
-          const now = this.getControlValue(it.path);
-          if (JSON.stringify(now) !== JSON.stringify(was)) {
-            out.push({ id: it.id, name: it.name, now, was });
-          }
-        }
-        return out;
-      }
-      /**
-       * Сброс идёт одной записью undo: одно нажатие — один шаг назад (Н4).
-       * Свои блоки не трогаются: Fields, Values и правила — данные, а не
-       * настройки (Н5).
-       *
-       * И спрашивает перед тем, как что-то менять (Н3). Окна нет — сброса нет:
-       * молчаливое согласие в действии, которое меняет разом всю группу, хуже
-       * неработающей кнопки. Так же устроено применение конфиг-заметки (5.6).
-       */
-      async resetGroup(group) {
-        const drift = this.drift(group);
-        if (!drift.length) return 0;
-        const ask = this.deps.confirm;
-        if (typeof ask !== "function") {
-          console.error("inline-overhaul: \u0441\u0431\u0440\u043E\u0441 \u0433\u0440\u0443\u043F\u043F\u044B \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
-          return 0;
-        }
-        const shown = drift.slice(0, RESET_ROWS).map((d) => d.name + ": " + valueWords(d.now) + " \u2192 " + valueWords(d.was));
-        const hidden = drift.length - shown.length;
-        if (hidden > 0) shown.push("and " + hidden + " more");
-        const yes = await ask({
-          title: "Reset " + group.heading,
-          body: drift.length === 1 ? "One setting in this group goes back to its default" : drift.length + " settings in this group go back to their defaults",
-          confirmLabel: "Reset the group",
-          rows: shown,
-          note: RESET_NOTE
-        });
-        if (!yes) return 0;
-        let first = true;
-        for (const d of drift) {
-          const it = group.items.find((x) => x.id === d.id);
-          if (!it || !isBound(it)) continue;
-          await this.deps.store.set(it.path, d.was, { coalesceKey: "reset:" + group.id, undoable: first });
-          first = false;
-        }
-        if (drift.length && this.deps.notify) {
-          this.deps.notify(drift.length + " settings back to default. Use Undo settings change to revert");
-        }
-        if (drift.length) {
-          if (this.deps.rebuild) this.deps.rebuild();
-          else if (this.deps.refresh) this.deps.refresh();
-        }
-        return drift.length;
-      }
-      /**
-       * Н1: место кнопки в заголовке занято всегда, а Н2 гасит её, когда сбрасывать
-       * нечего. Первая версия кнопку показывала и убирала — и этим меняла само
-       * определение группы на первом же шаге слайдера: платформа пересобирала
-       * страницу, заменяла узел слайдера, и перетаскивание обрывалось.
-       */
-      resetButtonFor(group) {
-        if (!group.items.some((it) => isBound(it))) return null;
-        return (btn2) => {
-          this.resetButtons.set(group.id, btn2);
-          btn2.setIcon("rotate-ccw").onClick(() => {
-            void this.resetGroup(group);
-          });
-          return this.paintResetButton(group, btn2);
-        };
-      }
-      /** Состояние кнопки: сколько настроек группы отличается от умолчания. */
-      paintResetButton(group, btn2) {
-        const n = this.drift(group).length;
-        const tooltip = n ? "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default" : "Everything here is already at its default";
-        return btn2.setDisabled(n === 0).setTooltip(tooltip);
-      }
-    };
+    DUE_MARKER = "\u{1F4C5}";
+    STATUS_VALUES = [
+      { token: "todo", fill: "#3b6fd4", text: "#ffffff" },
+      { token: "doing", fill: "#c77b26", text: "#ffffff" },
+      { token: "done", fill: "#2f8a4c", text: "#ffffff" }
+    ];
+    PRIORITY_VALUES = [
+      { token: "low", fill: "#6b7280", text: "#ffffff" },
+      { token: "med", fill: "#b07d10", text: "#ffffff" },
+      { token: "high", fill: "#c0392b", text: "#ffffff" }
+    ];
+    PROJECT_VALUES = ["Project A", "Project B"];
+    STARTER_LEFT_BLOCK = ["Status", "Priority"];
+    STARTER_RIGHT_BLOCK = ["Due", "Project"];
   }
 });
 
 // src/core/config_migration_v2.ts
+var config_migration_v2_exports = {};
+__export(config_migration_v2_exports, {
+  BACKUP_V1_FILE: () => BACKUP_V1_FILE,
+  BROKEN_FILE: () => BROKEN_FILE,
+  CONFIG_FILE: () => CONFIG_FILE,
+  LEGACY_RULES_FILE: () => LEGACY_RULES_FILE,
+  ROUTES: () => ROUTES,
+  RULES_FILE: () => RULES_FILE,
+  SCHEMA_VERSION_V2: () => SCHEMA_VERSION_V2,
+  backupV1Once: () => backupV1Once,
+  loadConfig: () => loadConfig,
+  migrate: () => migrate,
+  moveGeneratedRulesIntoPluginFolder: () => moveGeneratedRulesIntoPluginFolder
+});
+function isPlainObject(x) {
+  return !!x && typeof x === "object" && !Array.isArray(x);
+}
+function cloneJson(x) {
+  return x === void 0 ? x : JSON.parse(JSON.stringify(x));
+}
 function shareToPercent(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return v;
@@ -33977,12 +32162,213 @@ function move(from, to, opts) {
 function drop(path) {
   return [path, { drop: true, whole: true }];
 }
-var ROUTES;
+function collect(node, path, walk) {
+  const route = ROUTES.get(path);
+  if (route) {
+    if (route.drop) return;
+    if (route.whole || !isPlainObject(node)) {
+      const target = route.to;
+      if (!target) return;
+      const fromV1 = !route.alreadyV2;
+      const value = route.cast ? route.cast(node) : cloneJson(node);
+      const prev = walk.landings.get(target);
+      const raw = cloneJson(node);
+      if (!prev) {
+        walk.landings.set(target, { value, raw, fromV1, source: path });
+        return;
+      }
+      if (!fromV1 && prev.fromV1) {
+        walk.losers.push({ path: prev.source, value: prev.raw });
+        walk.landings.set(target, { value, raw, fromV1, source: path });
+        return;
+      }
+      walk.losers.push({ path, value: raw });
+      return;
+    }
+  }
+  if (isPlainObject(node)) {
+    for (const key of Object.keys(node)) {
+      collect(node[key], path ? path + "." + key : key, walk);
+    }
+    return;
+  }
+  walk.unknown.push(path);
+}
+function migrateV1(raw, report) {
+  const walk = { landings: /* @__PURE__ */ new Map(), losers: [], unknown: [] };
+  const rulesBranch = isPlainObject(raw.rules) ? raw.rules : {};
+  const legacyRulesPath = typeof rulesBranch.tagWheelPath === "string" ? rulesBranch.tagWheelPath.trim() : "";
+  const ownRulesPath = typeof getIn(raw, "pkm.generatedRulesPath") === "string" ? String(getIn(raw, "pkm.generatedRulesPath")).trim() : "";
+  for (const key of Object.keys(raw)) {
+    if (key === "schemaVersion") continue;
+    collect(raw[key], key, walk);
+  }
+  const prevRulesPath = walk.landings.get("advanced.generatedRulesPath");
+  if (!ownRulesPath && legacyRulesPath && (!prevRulesPath || prevRulesPath.fromV1)) {
+    if (prevRulesPath) walk.losers.push({ path: prevRulesPath.source, value: prevRulesPath.raw });
+    walk.landings.set("advanced.generatedRulesPath", {
+      value: legacyRulesPath,
+      raw: legacyRulesPath,
+      fromV1: true,
+      source: "rules.tagWheelPath"
+    });
+  }
+  const out = {};
+  for (const [target, landing] of walk.landings) setIn(out, target, landing.value);
+  const rejected = {};
+  for (const path of walk.unknown) rejected[path] = cloneJson(getIn(raw, path));
+  for (const loser of walk.losers) {
+    rejected[loser.path] = loser.value;
+    report.contested.push(loser.path);
+  }
+  report.unknown = walk.unknown.slice();
+  if (Object.keys(rejected).length) {
+    const prev = isPlainObject(out._unmigrated) ? out._unmigrated : {};
+    out._unmigrated = { ...prev, ...rejected };
+  }
+  return out;
+}
+function fillDefaults(cfg) {
+  const fromSchema = buildDefaultConfig(SCHEMA);
+  const fill = (defaults, prefix) => {
+    for (const key of Object.keys(defaults)) {
+      const path = prefix ? prefix + "." + key : key;
+      const value = defaults[key];
+      if (isPlainObject(value)) {
+        fill(value, path);
+        continue;
+      }
+      if (getIn(cfg, path) === void 0) setIn(cfg, path, cloneJson(value));
+    }
+  };
+  for (const path of Object.keys(V2_SKELETON)) {
+    if (getIn(cfg, path) === void 0) setIn(cfg, path, cloneJson(V2_SKELETON[path]));
+  }
+  fill(fromSchema, "");
+  return cfg;
+}
+function migrate(raw, opts) {
+  const report = opts && opts.report ? opts.report : { unknown: [], contested: [], migrated: false };
+  report.unknown = [];
+  report.contested = [];
+  report.migrated = false;
+  const source = isPlainObject(raw) ? raw : {};
+  const version = Number(source.schemaVersion) || 0;
+  let out;
+  if (version >= SCHEMA_VERSION_V2) {
+    out = cloneJson(source);
+  } else {
+    out = migrateV1(source, report);
+    report.migrated = true;
+  }
+  fillDefaults(out);
+  out.schemaVersion = SCHEMA_VERSION_V2;
+  if (report.migrated && (report.unknown.length || report.contested.length)) {
+    const log = opts && opts.log || ((m) => console.warn(m));
+    const parts = [];
+    if (report.unknown.length) {
+      parts.push("\u043D\u0435\u0437\u043D\u0430\u043A\u043E\u043C\u044B\u0435 \u0432\u0435\u0442\u043A\u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B \u0432 _unmigrated: " + report.unknown.join(", "));
+    }
+    if (report.contested.length) {
+      parts.push("\u0441\u0442\u0430\u0440\u044B\u0435 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u0443\u0441\u0442\u0443\u043F\u0438\u043B\u0438 \u0442\u043E\u043C\u0443, \u0447\u0442\u043E \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u043E \u0432 \u043D\u043E\u0432\u043E\u0439 \u043F\u0430\u043D\u0435\u043B\u0438, \u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B \u0432 _unmigrated: " + report.contested.join(", "));
+    }
+    log("Inline Overhaul, \u043C\u0438\u0433\u0440\u0430\u0446\u0438\u044F \u043A\u043E\u043D\u0444\u0438\u0433\u0430 1 \u2192 2. " + parts.join("; "));
+  }
+  return out;
+}
+function join(dir, name) {
+  const base = String(dir || "").replace(/[/\\]+$/, "");
+  return base ? base + "/" + name : name;
+}
+async function backupV1Once(files, dir, originalText) {
+  const target = join(dir, BACKUP_V1_FILE);
+  if (await files.exists(target)) return "kept";
+  await files.write(target, originalText);
+  return "created";
+}
+async function moveGeneratedRulesIntoPluginFolder(files, dir, cfg, legacyDefaults) {
+  const target = join(dir, RULES_FILE);
+  const current = String(getIn(cfg, "advanced.generatedRulesPath") || "").trim();
+  const untouched = !current || current === LEGACY_RULES_FILE || legacyDefaults.indexOf(current) !== -1 || current === target;
+  if (!untouched) return { path: current, moved: false, orphanRemoved: false };
+  setIn(cfg, "advanced.generatedRulesPath", target);
+  let orphanRemoved = false;
+  if (typeof files.remove === "function") {
+    try {
+      if (await files.exists(LEGACY_RULES_FILE)) {
+        await files.remove(LEGACY_RULES_FILE);
+        orphanRemoved = true;
+      }
+    } catch (_err) {
+    }
+  }
+  return { path: target, moved: current !== target, orphanRemoved };
+}
+async function loadConfig(files, dir, notify, opts) {
+  const report = { unknown: [], contested: [], migrated: false };
+  const merged = { ...opts || {}, report };
+  const configPath = join(dir, CONFIG_FILE);
+  const legacyDefaults = opts && opts.legacyRulesDefaults || [];
+  const withRulesPath = async (result2) => {
+    const move2 = await moveGeneratedRulesIntoPluginFolder(
+      files,
+      dir,
+      result2.config,
+      legacyDefaults
+    );
+    if (move2.moved) result2.rulesPathMovedTo = move2.path;
+    if (move2.orphanRemoved) result2.legacyRulesRemoved = LEGACY_RULES_FILE;
+    return result2;
+  };
+  if (!await files.exists(configPath)) {
+    const fresh = migrate(null, merged);
+    const seeded = applyStarterSet(fresh);
+    return withRulesPath({
+      config: fresh,
+      state: "absent",
+      report,
+      ...seeded ? { starterSet: true } : {}
+    });
+  }
+  const text = await files.read(configPath);
+  let raw;
+  try {
+    raw = JSON.parse(text);
+  } catch (_err) {
+    const target = join(dir, BROKEN_FILE);
+    if (!await files.exists(target)) await files.write(target, text);
+    if (notify) {
+      notify("Inline Overhaul could not read its settings file. A copy is kept at " + target + " and the plugin started with default settings");
+    }
+    return withRulesPath({
+      config: migrate(null, merged),
+      state: "broken",
+      brokenSavedAs: target,
+      report
+    });
+  }
+  const version = isPlainObject(raw) ? Number(raw.schemaVersion) || 0 : 0;
+  const result = { config: {}, state: "read", report };
+  if (version < SCHEMA_VERSION_V2) {
+    const backup = await backupV1Once(files, dir, text);
+    if (backup === "created") result.backupSavedAs = join(dir, BACKUP_V1_FILE);
+  }
+  result.config = migrate(raw, merged);
+  return withRulesPath(result);
+}
+var SCHEMA_VERSION_V2, CONFIG_FILE, BACKUP_V1_FILE, BROKEN_FILE, RULES_FILE, LEGACY_RULES_FILE, ROUTES, V2_SKELETON;
 var init_config_migration_v2 = __esm({
   "src/core/config_migration_v2.ts"() {
     "use strict";
     init_schema();
     init_types();
+    init_starter_config();
+    SCHEMA_VERSION_V2 = 2;
+    CONFIG_FILE = "data.json";
+    BACKUP_V1_FILE = "data.backup.v1.json";
+    BROKEN_FILE = "data.broken.json";
+    RULES_FILE = "generated_rules.md";
+    LEGACY_RULES_FILE = "InlineOverhaul_Generated_RULES_TagWheel.md";
     ROUTES = new Map([
       /* --- модули: без изменений ------------------------------------------- */
       keep("features.navigation.enabled"),
@@ -33995,6 +32381,11 @@ var init_config_migration_v2 = __esm({
       keep("navigation.moveLine.headerMode"),
       keep("navigation.moveLine.crossSectionAllowed"),
       keep("navigation.moveLine.highlightMovedLines"),
+      /* Прокрутка при перемещении строки заведена 2026-09-05 вместе с 10.13.36:
+         пары в версии 1 нет, поэтому `keepV2`, иначе ключ уезжает в
+         `_unmigrated` (МГ3). */
+      keepV2("navigation.moveLine.keepInView"),
+      keepV2("navigation.moveLine.viewPosition"),
       keep("navigation.moveSelection.enabled"),
       keep("navigation.moveSelection.inlineEnabled"),
       keep("navigation.moveSelection.prefixCyclerEnabled"),
@@ -34003,8 +32394,14 @@ var init_config_migration_v2 = __esm({
       keep("navigation.moveSelection.inlineMoveMode"),
       keep("navigation.moveSelection.cycleOrder", true),
       keepV2("navigation.moveSelection.rightCycles"),
+      /* Заведена вместе с новой панелью 2026-09-04: пары в версии 1 нет, поэтому
+         `keepV2`, иначе ключ уезжает в `_unmigrated` (МГ3). */
+      keepV2("navigation.moveSelection.inlineBoundaryJump"),
       keep("navigation.jumpToHeader.enabled"),
       keep("navigation.jumpToHeader.centerCursor"),
+      /* Место на экране после перехода заведено 2026-09-06 вместе с 10.13.37:
+         пары в версии 1 нет, поэтому `keepV2` (МГ3). */
+      keepV2("navigation.jumpToHeader.viewPosition"),
       keep("navigation.jumpToHeader.centerDelayMs"),
       keep("navigation.jumpToHeader.centerThrottleMs"),
       keep("navigation.jumpToHeader.jumpMode"),
@@ -34036,6 +32433,15 @@ var init_config_migration_v2 = __esm({
       move("pkm.behavior.leftMode", "pkm.fields.tags", { whole: true }),
       move("pkm.behavior.rightMode", "pkm.fields.links", { whole: true }),
       move("pkm.behavior.elements", "pkm.fields.elements", { whole: true }),
+      /*
+       * Легаси-ветка дат. Маршрута у неё не было, и лист за листом она уехала бы в
+       * `_unmigrated` — то есть настройки полей-дат, заведённых до перехода на
+       * элементы, пропали бы из панели молча. Разбирает её третья ступень
+       * `migrateConfig` (`ensureBehaviorModesFromOrder`): она сворачивает
+       * `pkm.fields.dates` в `pkm.fields.elements` и удаляет ветку. Маршрут нужен
+       * ровно затем, чтобы ветка до неё доехала целиком.
+       */
+      move("pkm.behavior.dates", "pkm.fields.dates", { whole: true }),
       move("pkm.taxonomy", "pkm.fields.taxonomy", { whole: true }),
       move("pkm.behavior.projects", "pkm.fields.projects", { whole: true }),
       move("pkm.behavior.typeCheckboxByValue", "pkm.fields.checkboxByValue", { whole: true }),
@@ -34060,10 +32466,10 @@ var init_config_migration_v2 = __esm({
       move("pkm.behavior.prefixRules.priorityTargets", "pkm.prefixRules.priorityTargets", { whole: true }),
       move("pkm.behavior.prefixRules.priorityCheckboxes", "pkm.prefixRules.priorityCheckboxes", { whole: true }),
       move("pkm.behavior.prefixRules.checkboxByFieldValue", "pkm.prefixRules.checkboxByFieldValue", { whole: true }),
-      /* --- PKM: заметка конфига --------------------------------------------- */
-      move("pkm.tagWheelConfigPath", "pkm.configNote.path"),
-      move("pkm.tagWheelConfigTemplatePath", "pkm.configNote.templatePath"),
-      move("pkm.configExportMode", "pkm.configNote.detail"),
+      /* --- PKM: заметка конфига снята 2026-09-03 (PRD 10.12) ---------------- */
+      drop("pkm.tagWheelConfigPath"),
+      drop("pkm.tagWheelConfigTemplatePath"),
+      drop("pkm.configExportMode"),
       move("pkm.generatedRulesPath", "advanced.generatedRulesPath"),
       /* --- PKM: удаляемое ---------------------------------------------------- */
       drop("pkm.executionBackend"),
@@ -34120,6 +32526,7 @@ var init_config_migration_v2 = __esm({
       keepV2("visual.tagBars.thickness"),
       keepV2("visual.tagBars.childOffset"),
       keepV2("visual.tagWheel.showMarkers"),
+      keepV2("visual.tagWheel.highlightLine"),
       keepV2("visual.tagWheel.textColor"),
       keepV2("visual.tagWheel.fillColor"),
       keepV2("visual.tagWheel.scroller.enabled"),
@@ -34132,6 +32539,7 @@ var init_config_migration_v2 = __esm({
       keep("transform.inline2note.defaultTemplate"),
       keep("transform.inline2note.yamlNoteFormat"),
       keep("transform.inline2note.smartRules", true),
+      keepV2("transform.inline2note.placement.headerLevel"),
       keep("transform.inline2note.noteName.mode"),
       keep("transform.inline2note.noteName.preferHeaderTitle"),
       keep("transform.inline2note.nameCollision.mode"),
@@ -34139,7 +32547,15 @@ var init_config_migration_v2 = __esm({
       keep("transform.inline2note.placement.headerMode"),
       keep("transform.inline2note.preview.sampleLine"),
       keep("transform.inline2note.sourceProcessing.cleanupFieldIds", true),
+      /*
+       * Ветка целиком — и три её листа отдельно: у каждого с 2026-09-01 есть свой
+       * контрол (10.13.12), а проверка `settings_paths_v2_tests.ts` спрашивает
+       * маршрут именно у пути контрола, не у ветки над ним.
+       */
       keep("transform.inline2note.sourceProcessing.visual", true),
+      keep("transform.inline2note.sourceProcessing.visual.enabled"),
+      keep("transform.inline2note.sourceProcessing.visual.color"),
+      keep("transform.inline2note.sourceProcessing.visual.opacity"),
       move("transform.inline2note.templateFolder", "transform.inline2note.templatesFolder"),
       move("transform.inline2note.noteName.explicitNameDelimiters", "transform.inline2note.noteName.delimiters"),
       move("transform.inline2note.noteName.autoWordsCount", "transform.inline2note.noteName.wordCount"),
@@ -34159,11 +32575,18 @@ var init_config_migration_v2 = __esm({
       keepV2("transform.inline2note.sourceProcessing.token"),
       keepV2("transform.inline2note.sourceProcessing.panel"),
       keepV2("transform.inline2note.sourceProcessing.replaceWithLink"),
+      /* Судьба текста исходной строки: своя настройка с 2026-09-01. Ключа нет в
+         старых файлах, и умолчание там выводит движок из `replaceWithLink`. */
+      keepV2("transform.inline2note.sourceProcessing.text"),
+      keepV2("transform.inline2note.sourceProcessing.keepWords"),
       keepV2("transform.inline2note.openTarget"),
       keepV2("transform.inline2note.sublines"),
       keepV2("transform.inline2note.floatingButton"),
-      /* --- резервные копии заметки конфига ---------------------------------- */
-      keep("backups.tagWheelConfigApplies", true),
+      /* Отступ кнопки от текста: ключа нет в старых файлах, умолчание досыпает
+         схема (замечание заказчика 2026-09-04). */
+      keepV2("transform.inline2note.floatingButtonGap"),
+      /* --- журнал применений заметки: снят вместе с ней (PRD 10.12) --------- */
+      drop("backups.tagWheelConfigApplies"),
       /* --- режим разработчика → Advanced ------------------------------------ */
       move("devMode.enabled", "advanced.devMode.enabled"),
       move("devMode.generateAiLog", "advanced.devMode.aiLog"),
@@ -34180,11 +32603,19 @@ var init_config_migration_v2 = __esm({
       keepV2("editor.selectAll.clearOnLast"),
       keepV2("editor.binder.rows", true),
       keepV2("general.help.showTips"),
+      /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание
+         досыпает схема (замечание заказчика 2026-09-04). */
+      keepV2("general.help.showCallouts"),
       keepV2("advanced.newSettingsPane"),
       /* Тумблер подписи id в подсказках (10.13.5): настройка новая, ветки v1 у неё
          нет, и мигрировать нечего — но маршрут нужен, чтобы форма v2 в конфиге
          заказчика не считалась неизвестным ключом и не уезжала в `_unmigrated`. */
       keepV2("advanced.showSettingIds"),
+      /* Папка копий настроек (10.13.2, Б2): путь версии 2, в версии 1 его не было. */
+      keepV2("advanced.backups.folder"),
+      /* Копия перед восстановлением — тумблер с 2026-09-04 (замечание C56).
+         Тоже путь версии 2, пары в версии 1 нет. */
+      keepV2("advanced.backups.beforeRestore"),
       keepV2("advanced.generatedRulesPath"),
       keepV2("advanced.devMode.enabled"),
       keepV2("advanced.devMode.aiLog"),
@@ -34211,88 +32642,1089 @@ var init_config_migration_v2 = __esm({
       keepV2("pkm.prefixRules.priorityTargets", true),
       keepV2("pkm.prefixRules.priorityCheckboxes", true),
       keepV2("pkm.prefixRules.checkboxByFieldValue", true),
-      keepV2("pkm.configNote.path"),
-      keepV2("pkm.configNote.templatePath"),
-      keepV2("pkm.configNote.detail"),
+      drop("pkm.configNote"),
       keepV2("viewState.activeTab"),
+      /* Флаг одноразового уведомления о смене ID команд (фаза 2, пункт 8). Это
+         состояние, а не настройка: контрола у него нет и быть не должно. */
+      keepV2("viewState.commandIdsNotice"),
       keepV2("viewState.fieldOrder.expanded", true),
       keepV2("viewState.fieldOrder.showColors"),
       keepV2("_unmigrated", true)
     ]);
+    V2_SKELETON = {
+      "pkm.fields.order": {},
+      "pkm.fields.tags": {},
+      "pkm.fields.links": {},
+      "pkm.fields.elements": {},
+      "pkm.fields.taxonomy": {},
+      "pkm.fields.checkboxByValue": {},
+      "pkm.fields.defaultBlock": "left",
+      "pkm.prefixRules.resolver": "priority-first",
+      "pkm.prefixRules.priorityTargets": [],
+      "pkm.prefixRules.priorityCheckboxes": [],
+      "pkm.prefixRules.checkboxByFieldValue": {},
+      "pkm.prefixPriority.decideBy": "by-section",
+      "pkm.prefixPriority.fieldOrderSource": "manual",
+      "pkm.prefixPriority.parentOrChild": "subtag-over-tag",
+      "visual.tags.byField": {},
+      "visual.tags.byTag": {},
+      "visual.tags.userTags": {},
+      "editor.binder.rows": [],
+      "advanced.generatedRulesPath": ".obsidian/plugins/inline-overhaul/generated_rules.md",
+      "viewState.activeTab": "general",
+      "viewState.fieldOrder.expanded": {},
+      "viewState.fieldOrder.showColors": true
+    };
   }
 });
 
-// src/ui/settings/v1_bridge.ts
-function shareToPercent2(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return v;
-  const pct = Math.round(n * 100);
-  return pct < 0 ? 0 : pct > 100 ? 100 : pct;
+// src/ui/settings/custom/theme_colors.ts
+function themeVarFor(path) {
+  return Object.prototype.hasOwnProperty.call(THEME_COLOR_VARS, path) ? String(THEME_COLOR_VARS[path]) : "";
 }
-function percentToShare(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return v;
-  const share = n / 100;
-  return share < 0 ? 0 : share > 1 ? 1 : share;
+function readVariable(variable) {
+  if (reader) return String(reader(variable) || "");
+  const g = globalThis;
+  if (typeof g.getComputedStyle !== "function" || !g.document || !g.document.body) return "";
+  try {
+    return String(g.getComputedStyle(g.document.body).getPropertyValue(variable) || "");
+  } catch (_err) {
+    return "";
+  }
 }
-function bridge(schemaPath) {
-  const found = BACK.get(schemaPath);
-  return found || { path: schemaPath, read: same, write: same };
+function themeColorFor(path) {
+  const variable = themeVarFor(path);
+  if (!variable) return "";
+  return toHexColor(readVariable(variable));
 }
-var same, BACK;
-var init_v1_bridge = __esm({
-  "src/ui/settings/v1_bridge.ts"() {
+var THEME_COLOR_VARS, reader;
+var init_theme_colors = __esm({
+  "src/ui/settings/custom/theme_colors.ts"() {
     "use strict";
-    init_config_migration_v2();
-    same = (v) => v;
-    BACK = (() => {
-      const out = /* @__PURE__ */ new Map();
-      for (const [from, route] of ROUTES) {
-        if (route.drop || route.whole || route.alreadyV2) continue;
-        const to = route.to;
-        if (!to || to === from) continue;
-        out.set(to, {
-          path: from,
-          /* Единицы меняет ровно один маршрут — прозрачность. */
-          read: route.cast === void 0 ? same : shareToPercent2,
-          write: route.cast === void 0 ? same : percentToShare
+    init_contrast();
+    THEME_COLOR_VARS = {
+      "visual.tagWheel.textColor": "--text-muted",
+      "visual.tagWheel.activeTextColor": "--text-accent",
+      "visual.tagWheel.fillColor": "--text-highlight-bg",
+      "visual.tagWheel.scroller.fillColor": "--background-primary",
+      "visual.tagWheel.scroller.textColor": "--text-normal"
+    };
+    reader = null;
+  }
+});
+
+// src/ui/settings/to_definitions.ts
+function controlFor(it, w) {
+  if (!isBound(it)) return void 0;
+  const type = CONTROL_TYPE[it.kind];
+  if (!type) return void 0;
+  const control = { type, key: it.path };
+  const raw = it;
+  if ("default" in raw) control["defaultValue"] = raw["default"];
+  if (it.kind === "color" && !String(raw["default"] || "")) {
+    const themed = themeColorFor(it.path);
+    if (themed) control["defaultValue"] = themed;
+  }
+  if (it.disabled) {
+    const p = it.disabled;
+    control["disabled"] = () => p.test(w.ctx);
+  }
+  if (it.kind === "folder" && it.placeholder) control["placeholder"] = it.placeholder;
+  if (it.kind === "dropdown") {
+    const options = {};
+    for (const o of it.options) options[o.value] = o.label;
+    if (it.optionsFrom && w.optionsFrom) {
+      for (const o of w.optionsFrom(it.optionsFrom)) options[o.value] = o.label;
+    }
+    control["options"] = options;
+  }
+  if (it.kind === "slider") {
+    control["min"] = it.min;
+    control["max"] = it.max;
+    control["step"] = it.step;
+    if (it.invert) control["defaultValue"] = it.invert - Number(it.default);
+    if (it.unit) {
+      const unit = it.unit;
+      control["displayFormat"] = (v) => v + " " + unit;
+    }
+  }
+  if (it.kind === "number") {
+    if (it.min !== void 0) control["min"] = it.min;
+    if (it.max !== void 0) control["max"] = it.max;
+  }
+  if (it.kind === "text" || it.kind === "textarea") {
+    if (it.placeholder !== void 0) control["placeholder"] = it.placeholder;
+    if (it.kind === "text" && it.validate) control["validate"] = it.validate;
+  }
+  return control;
+}
+function itemToDefinition(it, w) {
+  if (it.kind === "custom") {
+    const def = w.renderCustom ? w.renderCustom(it) : null;
+    if (!def) return null;
+    if (it.visible) {
+      const p = it.visible;
+      def["visible"] = () => p.test(w.ctx);
+    }
+    return def;
+  }
+  const common = { name: it.name };
+  const desc = w.describe(it);
+  if (desc !== void 0) common["desc"] = desc;
+  if (it.searchTerms && it.searchTerms.length) common["aliases"] = it.searchTerms.slice();
+  if (it.visible) {
+    const p = it.visible;
+    common["visible"] = () => p.test(w.ctx);
+  }
+  if (it.kind === "buttons") {
+    const buttons = it.buttons.slice();
+    if (!buttons.length) return null;
+    const off = it.disabled;
+    const busy = w.busy;
+    common["render"] = (setting) => {
+      for (const b of buttons) {
+        setting.addButton((btn2) => {
+          btn2.setButtonText(b.label).onClick(() => w.run(b.action));
+          if (b.cta) btn2.setCta();
+          if (b.warning) btn2.setWarning();
+          if (off && off.test(w.ctx) || busy && busy(b.action)) btn2.setDisabled(true);
+          return btn2;
         });
       }
-      return out;
-    })();
+    };
+    return common;
+  }
+  const control = controlFor(it, w);
+  if (control) common["control"] = control;
+  return common;
+}
+function groupToDefinition(group, w) {
+  const items = [];
+  for (const it of group.items) {
+    const def2 = itemToDefinition(it, w);
+    if (def2) items.push(def2);
+  }
+  const introOnly = /-intro$/.test(group.id);
+  const def = { type: "group", items, cls: "io-group-" + group.id };
+  if (!introOnly) def["heading"] = group.heading;
+  if (group.visible) {
+    const p = group.visible;
+    def["visible"] = () => p.test(w.ctx);
+  }
+  const buttons = [];
+  const fold = !introOnly && w.groupFold ? w.groupFold(group) : null;
+  if (fold) buttons.push(fold);
+  const callout2 = !introOnly && w.groupCallout ? w.groupCallout(group) : null;
+  if (callout2) buttons.push(callout2);
+  const tip = !introOnly && w.groupTip ? w.groupTip(group) : null;
+  if (tip) buttons.push(tip);
+  const reset = w.resetGroup ? w.resetGroup(group) : null;
+  if (reset) buttons.push(reset);
+  if (buttons.length) def["extraButtons"] = buttons;
+  return def;
+}
+function moduleGate(schema, active, w) {
+  const path = String(active.module || "").trim();
+  if (!path) return null;
+  if (w.ctx.get(path) !== false) return null;
+  let master = null;
+  for (const group of schema) {
+    for (const it of group.items) {
+      if (isBound(it) && it.path === path) {
+        master = it;
+        break;
+      }
+    }
+    if (master) break;
+  }
+  if (!master) return null;
+  const row = itemToDefinition(
+    { ...master, id: master.id + "-tab" },
+    w
+  );
+  const items = [];
+  if (row) items.push(row);
+  items.push({ name: "", desc: MODULE_OFF_NOTE, searchable: false });
+  return {
+    type: "group",
+    heading: active.label,
+    cls: "io-group-module-off",
+    items
+  };
+}
+function toDefinitions(schema, tabs, w) {
+  const out = [];
+  const strip = w.tabStrip ? w.tabStrip() : null;
+  if (strip) out.push(strip);
+  const active = tabs.find((t) => t.id === w.activeTab) || tabs[0];
+  if (!active) return out;
+  const gate = moduleGate(schema, active, w);
+  if (gate) {
+    out.push(gate);
+    return out;
+  }
+  const groups = schema.filter((g) => g.tab === active.id).slice().sort((a, b) => a.order - b.order);
+  for (const g of groups) out.push(groupToDefinition(g, w));
+  return out;
+}
+var CONTROL_TYPE;
+var init_to_definitions = __esm({
+  "src/ui/settings/to_definitions.ts"() {
+    "use strict";
+    init_types();
+    init_theme_colors();
+    init_custom_texts();
+    CONTROL_TYPE = {
+      toggle: "toggle",
+      dropdown: "dropdown",
+      slider: "slider",
+      number: "number",
+      text: "text",
+      textarea: "textarea",
+      folder: "folder",
+      color: "color"
+    };
+  }
+});
+
+// src/ui/settings/settings_tab.ts
+function valueWords(value) {
+  if (value === true) return "on";
+  if (value === false) return "off";
+  if (value === "" || value === null || value === void 0) return "empty";
+  return String(value);
+}
+var OPTION_SOURCE_DEPS, RESET_ROWS, RESET_NOTE, SettingsPane;
+var init_settings_tab = __esm({
+  "src/ui/settings/settings_tab.ts"() {
+    "use strict";
+    init_types();
+    init_to_definitions();
+    init_preview_data();
+    init_theme_colors();
+    init_templates();
+    init_describe();
+    OPTION_SOURCE_DEPS = {
+      /* Шаблоны берутся только из назначенной папки: сменилась папка — сменился список. */
+      templates: ["transform.inline2note.templatesFolder"],
+      /*
+       * Fields человека. Ветка целиком, а не отдельные листья: у Field меняется то
+       * имя, то вид, то сторона, и перечислить это по листьям значит однажды
+       * отстать — та же причина, по которой на `pkm.fields` подписаны
+       * предпросмотры.
+       */
+      "tag-fields": ["pkm.fields"]
+    };
+    RESET_ROWS = 10;
+    RESET_NOTE = "Your Fields, Values and rules are not touched";
+    SettingsPane = class _SettingsPane {
+      constructor(deps) {
+        /** Свои блоки, подписанные на пути (П2). */
+        this.watchers = /* @__PURE__ */ new Set();
+        /**
+         * Кнопки сброса, которые платформа уже создала: по одной на группу. Панель
+         * держит их, чтобы менять неактивность и подсказку на месте, а не
+         * пересобирать определения из-за одного изменённого значения.
+         */
+        this.resetButtons = /* @__PURE__ */ new Map();
+        /**
+         * Свёрнутые группы (просьба заказчика 2026-09-04: «сделай каждый хедер
+         * сворачиваемым… хочу, чтобы запоминалось состояние хедеров»).
+         *
+         * Живёт в памяти панели, а не в конфиге: это состояние взгляда, как и
+         * открытая вкладка, — в `data.json` оно не пишется и в undo не попадает
+         * (5.4). Панель живёт до выгрузки плагина, поэтому свёрнутое остаётся
+         * свёрнутым и после закрытия окна настроек — ровно то, о чём просил
+         * заказчик («как минимум в рамках текущей сессии»).
+         */
+        this.folded = /* @__PURE__ */ new Set();
+        /**
+         * Строки заголовков групп с вводной фразой: по ним `Show callouts` рисует
+         * и снимает коллауты **сам**, не прося пересборку. Почему не пересборкой —
+         * у `syncGroupCallouts`. Запись заводится при каждой отрисовке группы,
+         * поэтому пересозданный платформой заголовок заменяет прежний.
+         */
+        this.calloutSlots = /* @__PURE__ */ new Map();
+        /**
+         * Знаки «?» у заголовков групп: та же история, что у коллаутов (A30).
+         * Ключ — id группы, значение — «показать или спрятать» с текущими
+         * значениями обоих тумблеров.
+         */
+        this.tipSlots = /* @__PURE__ */ new Map();
+        this.invertedCache = null;
+        this._themedColorPaths = null;
+        /**
+         * Действия, которые сейчас выполняются. Пока действие идёт, его кнопка
+         * неактивна (5.6): второе нажатие по «Применить» запускало бы применение
+         * заметки поверх незаконченного первого.
+         */
+        this.busy = /* @__PURE__ */ new Set();
+        this.deps = deps;
+        this.describer = new Describer(deps.fragments);
+        this.defaults = buildDefaultConfig(deps.schema);
+        const first = deps.tabs.find((t) => deps.schema.some((g) => g.tab === t.id));
+        this.active = first ? first.id : "general";
+        this.stopWatchingStore = deps.store.subscribe((paths) => {
+          this.wakeFor(paths);
+        });
+      }
+      /** Снять подписку на хранилище. Зовётся при выгрузке плагина. */
+      dispose() {
+        this.stopWatchingStore();
+        this.stopWatchingStore = () => {
+        };
+      }
+      /** Какая вкладка открыта. */
+      activeTab() {
+        return this.active;
+      }
+      /** Переключить вкладку и перерисовать содержимое. */
+      setActiveTab(id) {
+        if (id === this.active) return;
+        this.active = id;
+        if (this.deps.rebuild) this.deps.rebuild();
+      }
+      /* ---- шов с платформой (П-1) ---------------------------------------- */
+      /**
+       * Значение так, как оно **лежит в конфиге**. Этим живёт вся панель:
+       * предикаты видимости, предпросмотры, сброс группы. Платформе отдаётся
+       * другое — см. `getControlValue`.
+       */
+      storedValue(key) {
+        const v = this.deps.store.get(key);
+        return v === void 0 ? getIn(this.defaults, key) : v;
+      }
+      /**
+       * Перевёрнутые слайдеры: путь → число, из которого вычитается записанное.
+       *
+       * Заказчик попросил, чтобы `Opacity of transformed line` росла вправо
+       * (2026-09-02), а в конфиге по этому пути лежит **доля оставшейся
+       * яркости** — так её читает движок (`getSourceMarksFromConfig`). Менять
+       * смысл записанного нельзя: это З1, и починить это миграцией негде —
+       * третья ступень идёт на каждом патче и «уже перевёрнуто» от «ещё нет» не
+       * отличит.
+       *
+       * Поэтому переворот живёт **на шве с платформой** и только здесь: панель
+       * внутри себя по-прежнему работает с записанным значением.
+       */
+      inverted() {
+        if (this.invertedCache) return this.invertedCache;
+        const map = /* @__PURE__ */ new Map();
+        for (const group of this.deps.schema) {
+          for (const it of group.items) {
+            if (!isBound(it)) continue;
+            const invert = Number(it["invert"]);
+            if (Number.isFinite(invert) && invert > 0) map.set(it.path, invert);
+          }
+        }
+        this.invertedCache = map;
+        return map;
+      }
+      getControlValue(key) {
+        const stored = this.storedValue(key);
+        if (this.themedColorPaths().has(key) && !String(stored == null ? "" : stored).trim()) {
+          return void 0;
+        }
+        const invert = this.inverted().get(key);
+        if (invert === void 0) return stored;
+        const n = Number(stored);
+        return Number.isFinite(n) ? invert - n : stored;
+      }
+      async setControlValue(key, value) {
+        const opts = { coalesceKey: this.coalesceKeyFor(key), undoable: true };
+        const invert = this.inverted().get(key);
+        const shown = Number(value);
+        const write = invert !== void 0 && Number.isFinite(shown) ? invert - shown : value;
+        await this.deps.store.set(key, write, opts);
+        this.syncResetButtons(key);
+        if (this.definitionsChanged(key)) {
+          if (this.deps.rebuild) this.deps.rebuild();
+          else if (this.deps.refresh) this.deps.refresh();
+        } else if (this.deps.refresh) {
+          this.deps.refresh();
+        }
+      }
+      /* ---- точечная перерисовка своих блоков (П2) ------------------------ */
+      watch(paths, redraw) {
+        const w = { paths, redraw };
+        this.watchers.add(w);
+        return () => {
+          this.watchers.delete(w);
+        };
+      }
+      /** Сколько блоков сейчас слушают пути: подписки не должны накапливаться. */
+      watcherCount() {
+        return this.watchers.size;
+      }
+      /** Задевает ли изменившийся путь тот, на который подписан блок. */
+      static touches(watched, changed) {
+        return watched === changed || changed.startsWith(watched + ".") || watched.startsWith(changed + ".");
+      }
+      /**
+       * Разбудить подписчиков изменившихся путей. Совпадением считается и путь
+       * внутри пути: у группы значений ветка меняется целиком.
+       *
+       * Одна запись меняет много путей сразу — переименование Field задевает
+       * почти три десятка, — поэтому подписчики сначала собираются в множество,
+       * а рисуются по одному разу. Иначе предпросмотр перерисовался бы столько
+       * раз, сколько путей задел патч.
+       */
+      wakeFor(changed) {
+        const hit = /* @__PURE__ */ new Set();
+        for (const w of Array.from(this.watchers)) {
+          if (w.paths.some((p) => changed.some((c) => _SettingsPane.touches(p, c)))) hit.add(w);
+        }
+        for (const w of hit) {
+          try {
+            w.redraw();
+          } catch (e) {
+            console.error("inline-overhaul: \u0441\u0432\u043E\u0439 \u0431\u043B\u043E\u043A \u0443\u043F\u0430\u043B \u043F\u0440\u0438 \u043F\u0435\u0440\u0435\u0440\u0438\u0441\u043E\u0432\u043A\u0435", e);
+          }
+        }
+        if (this.rebuildNeeded(changed)) {
+          if (this.deps.rebuild) this.deps.rebuild();
+          else if (this.deps.refresh) this.deps.refresh();
+        }
+        if (changed.some((c) => _SettingsPane.touches("general.help.showCallouts", c))) {
+          this.syncGroupCallouts();
+        }
+        if (changed.some((c) => _SettingsPane.touches("general.help.showTips", c) || _SettingsPane.touches("advanced.showSettingIds", c))) {
+          this.syncGroupTips();
+        }
+      }
+      /**
+       * Меняет ли эта запись сами определения, а не только значения.
+       *
+       * Таких случаев три, и все про тексты: тумблер подсказок, подпись id в них
+       * (10.13.5) и тумблер коллаутов. Значения платформа подхватывает пересчётом
+       * предикатов, а описания собираются один раз и кешируются (П-11) — их надо
+       * пересобрать.
+       *
+       * `Show callouts` попал сюда доделкой: вводные коллауты вкладок он убирал
+       * сразу (у их групп предикат `visible`, а его платформа пересчитывает
+       * сама), а коллауты групп — только после перехода по вкладкам. Они приезжают
+       * из `extraButtons`, то есть из **определений**, а те пересобираются лишь по
+       * этому списку. Заказчик: «обновление экрана происходит только при
+       * перещелкивании вкладок… должно быть онлайн» (2026-09-05).
+       */
+      definitionsChanged(key) {
+        return key === "general.help.showTips" || key === "general.help.showCallouts" || key === "advanced.showSettingIds";
+      }
+      /*
+       * Третий случай — путь, от которого зависит **список** значений выпадающего
+       * списка (C44), — сюда намеренно не добавлен, и это выяснила мутация.
+       *
+       * Первая версия правки считала источники и здесь, и в `wakeFor`. Снятие
+       * ветки отсюда проверку не покрасило: запись через шов панели всё равно
+       * идёт в хранилище, хранилище отдаёт изменившиеся пути, и пересборку просит
+       * `wakeFor`. То есть ветка была вторым объявлением одного правила, а два
+       * объявления расходятся молча (У-32). Осталось одно место, и оно ловит и
+       * записи из панели, и патчи своих блоков.
+       */
+      /**
+       * Источники значений, задетые этими путями, — но только те, что и правда
+       * стоят на открытой вкладке.
+       *
+       * Оговорка про вкладку не про экономию. Записи в Fields идут не через шов
+       * панели, а патчами из своего блока, и их много: перетаскивание, каждая
+       * буква короткого имени. Пересобирать панель на каждой такой записи значит
+       * заменять узлы под руками человека — тем самым, из-за чего пересборка на
+       * шаге слайдера однажды отобрала у слайдера перетаскивание. А список
+       * `Which Field draws Bars` живёт на другой вкладке, и к моменту, когда
+       * человек до неё дойдёт, определения соберутся заново сами: переход по
+       * вкладкам — законная пересборка.
+       */
+      /**
+       * Нужна ли пересборка определений из-за этих путей.
+       *
+       * Два случая, и оба про **структуру**, а не про значение:
+       *
+       *   1. путь, от которого зависит список значений выпадающего списка (C44);
+       *   2. тумблер модуля открытой вкладки — от него зависит, показывает вкладка
+       *      свои группы или калитку (C7). Без этого включить модуль на его же
+       *      вкладке было бы нельзя: калитка осталась бы стоять до перехода по
+       *      вкладкам.
+       *
+       * Оба спрашиваются в одном месте: второе объявление того же правила
+       * расходится молча (У-32), и по C44 это уже подтвердилось мутацией.
+       */
+      rebuildNeeded(changed) {
+        if (this.optionSourcesTouched(changed).length) return true;
+        const tab = this.deps.tabs.find((t) => t.id === this.active);
+        const gate = String(tab && tab.module || "").trim();
+        if (!gate) return false;
+        return changed.some((c) => _SettingsPane.touches(gate, c));
+      }
+      optionSourcesTouched(changed) {
+        const out = [];
+        for (const group of this.deps.schema) {
+          if (group.tab !== this.active) continue;
+          for (const it of group.items) {
+            const source = it.optionsFrom;
+            if (typeof source !== "string" || !source) continue;
+            if (out.includes(source)) continue;
+            const deps = OPTION_SOURCE_DEPS[source] || [];
+            const hit = deps.some((d) => changed.some((c) => _SettingsPane.touches(d, c)));
+            if (hit) out.push(source);
+          }
+        }
+        return out;
+      }
+      /** Обновить кнопку сброса той группы, чьё значение изменилось. */
+      syncResetButtons(key) {
+        for (const group of this.deps.schema) {
+          if (!group.items.some((it) => isBound(it) && it.path === key)) continue;
+          const btn2 = this.resetButtons.get(group.id);
+          if (btn2) this.paintResetButton(group, btn2);
+        }
+      }
+      /**
+       * Пути цветов, у которых пустое значение означает «взять у темы»
+       * (10.13.23). Считается один раз: схема за время жизни панели не меняется.
+       */
+      themedColorPaths() {
+        if (!this._themedColorPaths) {
+          const out = /* @__PURE__ */ new Set();
+          for (const group of this.deps.schema) {
+            for (const it of group.items) {
+              if (isBound(it) && it.kind === "color" && themeVarFor(it.path)) out.add(it.path);
+            }
+          }
+          this._themedColorPaths = out;
+        }
+        return this._themedColorPaths;
+      }
+      /** Склейка записей идёт по id настройки, а не по пути (CS3). */
+      coalesceKeyFor(path) {
+        for (const group of this.deps.schema) {
+          for (const it of group.items) {
+            if (isBound(it) && it.path === path) return it.id;
+          }
+        }
+        return path;
+      }
+      /* ---- определения для платформы ------------------------------------- */
+      ctx() {
+        const ctx = {
+          /* Внутри панели читается записанное: предикаты и предпросмотры знают
+             конфиг, а не то, что показано на слайдере. */
+          get: (path) => this.storedValue(path),
+          set: (path, value, opts) => this.deps.store.set(path, value, opts),
+          run: (action) => this.run(action),
+          watch: (paths, redraw) => this.watch(paths, redraw)
+        };
+        if (this.deps.platform) ctx.platform = this.deps.platform;
+        return ctx;
+      }
+      /* ---- свои блоки (раздел 10) ---------------------------------------- */
+      /**
+       * Строка со своей вёрсткой. Платформа отдаёт блоку строку целиком, блок
+       * её очищает и рисует своё; возвращённая функция снимает то, что блок
+       * завёл сам (С5).
+       *
+       * `searchable: false` — в поиск попадают настройки, а не предпросмотры и
+       * не вводные тексты. `data-io-item` нужен переходу по `id`: у строки,
+       * которую рисует платформа, других приметных признаков нет.
+       */
+      renderCustom(it) {
+        if (it.kind !== "custom") return null;
+        const draw = it.render;
+        const ctx = this.ctx();
+        return {
+          name: "",
+          searchable: false,
+          render: (setting) => {
+            const row = setting.settingEl;
+            row.empty();
+            row.addClass("io-block");
+            row.setAttribute("data-io-item", it.id);
+            return draw(row, ctx);
+          }
+        };
+      }
+      async run(action) {
+        const fn = this.deps.actions[action];
+        if (!fn) {
+          throw new Error("\u043D\u0435\u0442 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F \u0432 \u0440\u0435\u0435\u0441\u0442\u0440\u0435: " + action);
+        }
+        if (this.busy.has(action)) return;
+        this.busy.add(action);
+        if (this.deps.rebuild) this.deps.rebuild();
+        try {
+          await fn();
+        } finally {
+          this.busy.delete(action);
+          if (this.deps.rebuild) this.deps.rebuild();
+        }
+      }
+      wiring() {
+        const ctx = this.ctx();
+        const showTips = Boolean(this.storedValue("general.help.showTips"));
+        const showIds = Boolean(this.storedValue("advanced.showSettingIds"));
+        const showCallouts = Boolean(this.storedValue("general.help.showCallouts"));
+        const wiring = {
+          ctx,
+          run: (action) => {
+            void this.run(action);
+          },
+          busy: (action) => this.busy.has(action),
+          describe: (it) => this.describer.describe(it, { showTips, showIds }),
+          groupFold: (group) => this.groupFoldButtonFor(group),
+          groupCallout: (group) => this.groupCalloutButtonFor(group, showCallouts),
+          showIds,
+          renderCustom: (it) => this.renderCustom(it),
+          resetGroup: (group) => this.resetButtonFor(group),
+          groupTip: (group) => this.groupTipButtonFor(group, showTips, showIds),
+          /*
+           * Значения, которых в схеме нет: Fields человека. Читаются тем же
+           * чтением, которым их берут предпросмотры, — второй разбор того же
+           * формата разошёлся бы с первым (П11).
+           */
+          optionsFrom: (source) => this.optionsFor(source, ctx),
+          activeTab: this.active
+        };
+        if (this.deps.tabStrip) {
+          const draw = this.deps.tabStrip;
+          wiring.tabStrip = () => draw({
+            tabs: this.tabsWithGroups(),
+            active: this.active,
+            pick: (id) => this.setActiveTab(id)
+          });
+        }
+        return wiring;
+      }
+      /**
+       * Значения списка, которых в схеме нет и быть не может: они приходят из
+       * данных человека. Источник называется именем, чтобы прототип мог назвать
+       * его так же и генератор перенёс это как обычную строку.
+       */
+      optionsFor(source, ctx) {
+        var _a;
+        if (source === "tag-fields") return fieldOptions(ctx, (f) => f.kind === "tag");
+        if (source === "templates") {
+          const dep = ((_a = OPTION_SOURCE_DEPS["templates"]) == null ? void 0 : _a[0]) || "";
+          const folder = String(this.storedValue(dep) || "").trim();
+          const notes = ctx.platform && ctx.platform.listNotes ? ctx.platform.listNotes() : [];
+          return templateOptions(folder, notes);
+        }
+        return [];
+      }
+      /** Вкладки, у которых есть хотя бы одна группа: пустых не показываем. */
+      tabsWithGroups() {
+        return this.deps.tabs.filter((t) => this.deps.schema.some((g) => g.tab === t.id));
+      }
+      getSettingDefinitions() {
+        this.resetButtons.clear();
+        return toDefinitions(this.deps.schema, this.deps.tabs, this.wiring());
+      }
+      /* ---- сброс группы к значениям по умолчанию (10.13.1) --------------- */
+      /** Что в группе отличается от значения по умолчанию. */
+      drift(group) {
+        const out = [];
+        for (const it of group.items) {
+          if (!isBound(it)) continue;
+          const was = it["default"];
+          const now = this.storedValue(it.path);
+          if (JSON.stringify(now) !== JSON.stringify(was)) {
+            out.push({ id: it.id, name: it.name, now, was });
+          }
+        }
+        return out;
+      }
+      /**
+       * Сброс идёт одной записью undo: одно нажатие — один шаг назад (Н4).
+       * Свои блоки не трогаются: Fields, Values и правила — данные, а не
+       * настройки (Н5).
+       *
+       * И спрашивает перед тем, как что-то менять (Н3). Окна нет — сброса нет:
+       * молчаливое согласие в действии, которое меняет разом всю группу, хуже
+       * неработающей кнопки. Так же устроено восстановление копии настроек (5.6).
+       */
+      async resetGroup(group) {
+        const drift = this.drift(group);
+        if (!drift.length) return 0;
+        const ask = this.deps.confirm;
+        if (typeof ask !== "function") {
+          console.error("inline-overhaul: \u0441\u0431\u0440\u043E\u0441 \u0433\u0440\u0443\u043F\u043F\u044B \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
+          return 0;
+        }
+        const shown = drift.slice(0, RESET_ROWS).map((d) => d.name + ": " + valueWords(d.now) + " \u2192 " + valueWords(d.was));
+        const hidden = drift.length - shown.length;
+        if (hidden > 0) shown.push("and " + hidden + " more");
+        const yes = await ask({
+          title: "Reset " + group.heading,
+          body: drift.length === 1 ? "One setting in this group goes back to its default" : drift.length + " settings in this group go back to their defaults",
+          confirmLabel: "Reset the group",
+          rows: shown,
+          note: RESET_NOTE
+        });
+        if (!yes) return 0;
+        let first = true;
+        for (const d of drift) {
+          const it = group.items.find((x) => x.id === d.id);
+          if (!it || !isBound(it)) continue;
+          await this.deps.store.set(it.path, d.was, { coalesceKey: "reset:" + group.id, undoable: first });
+          first = false;
+        }
+        if (drift.length && this.deps.notify) {
+          this.deps.notify(drift.length + " settings back to default. Use Undo settings change to revert");
+        }
+        if (drift.length) {
+          if (this.deps.rebuild) this.deps.rebuild();
+          else if (this.deps.refresh) this.deps.refresh();
+        }
+        return drift.length;
+      }
+      /**
+       * Н1: место кнопки в заголовке занято всегда, а Н2 гасит её, когда сбрасывать
+       * нечего. Первая версия кнопку показывала и убирала — и этим меняла само
+       * определение группы на первом же шаге слайдера: платформа пересобирала
+       * страницу, заменяла узел слайдера, и перетаскивание обрывалось.
+       */
+      resetButtonFor(group) {
+        if (!group.items.some((it) => isBound(it))) return null;
+        return (btn2) => {
+          this.resetButtons.set(group.id, btn2);
+          const node = btn2.extraSettingsEl;
+          if (node && node.classList && typeof node.classList.add === "function") {
+            node.classList.add("io-groupreset");
+          }
+          btn2.setIcon("rotate-ccw").onClick(() => {
+            void this.resetGroup(group);
+          });
+          return this.paintResetButton(group, btn2);
+        };
+      }
+      /**
+       * Вводная фраза группы — своей строкой под заголовком.
+       *
+       * Рисуется, а не описывается: строку, у которой есть только `desc`,
+       * платформа **не рисует вовсе** (`app.js`, `Z2`: нужно `name`, `render`,
+       * `control` или `action`). Из-за этого вводных фраз в панели не было
+       * никогда, а вместе с ними до окна не доезжало тело подсказки группы,
+       * которое ехало той же строкой, — отсюда четыре захода «при нажатии на "?"
+       * ничего не происходит» (B7, C18, C41, C42).
+       */
+      /**
+       * Вводная фраза группы — коллаутом между заголовком и карточкой настроек.
+       *
+       * **Почему через `extraButtons`.** Строка заголовка принадлежит платформе, и
+       * единственное, что она у неё просит, — функции для колонки кнопок. Узел
+       * кнопки и есть та точка опоры, с которой видно и саму строку заголовка, и
+       * её место в группе; дальше коллаут встаёт `insertAdjacentElement`
+       * («afterend»), то есть между заголовком и карточкой. Ровно так уже стоит
+       * тело подсказки группы, и это единственное место, где узел переживает
+       * отрисовку: список строк платформа переписывает целиком (`i6`), а детей
+       * группы помимо списка не трогает.
+       *
+       * Сам узел кнопки скрыт классом: кнопки здесь нет и быть не должно —
+       * коллаут не нажимается. Тот же приём, что у припаркованной строки полосы
+       * вкладок (`io-tabsrow--parked`).
+       *
+       * **Почему не строкой внутри карточки, как было до 2026-09-04.** Заказчик:
+       * «это сделано не красиво, как plain text сверху над настройками… коллауты
+       * должны размещаться под хедерами настроек и до самих настроек (т.е. до
+       * серого поля). Коллауты не должны находится на сером фоне».
+       *
+       * Повторную отрисовку коллаут переживает **снятием прежнего**: платформа
+       * зовёт эти функции на каждой сборке определений, а строку заголовка может
+       * и переиспользовать — без снятия коллаутов накапливалось бы по одному на
+       * отрисовку.
+       */
+      /**
+       * Кнопка сворачивания группы.
+       *
+       * Место: строка заголовка, до названия. Узел кнопки платформа кладёт в
+       * колонку контролов — то есть **после** имени, — и вернуть его на место
+       * переносом нельзя: список детей строки платформа переписывает на каждой
+       * отрисовке. Поэтому кнопка остаётся там, куда её положили, а до названия
+       * встаёт вёрсткой: `order: -1` внутри строки заголовка, ставшей флексом.
+       *
+       * Что прячется: карточка настроек и коллаут группы. Заголовок остаётся —
+       * иначе разворачивать было бы нечем.
+       *
+       * Класс ставится на узел группы, а не на каждую строку: строки платформа
+       * пересобирает, узел группы — нет.
+       */
+      groupFoldButtonFor(group) {
+        return (btn2) => {
+          const node = btn2.extraSettingsEl;
+          if (node && node.classList && typeof node.classList.add === "function") {
+            node.classList.add("io-calloutslot");
+          }
+          const heading = node && typeof node.closest === "function" ? node.closest(".setting-item") : node ? node.parentElement || null : null;
+          const box = heading && heading.parentElement ? heading.parentElement : null;
+          if (!heading || typeof heading.createEl !== "function") return btn2;
+          const stale = typeof heading.querySelectorAll === "function" ? heading.querySelectorAll(".io-fold") : [];
+          for (const old of stale) {
+            if (typeof old.remove === "function") old.remove();
+          }
+          const mark = heading.createEl("button", { cls: "io-fold" });
+          const first = heading.children && heading.children[0];
+          if (first && first !== mark && typeof heading.insertBefore === "function") {
+            heading.insertBefore(mark, first);
+          }
+          const paint2 = () => {
+            const shut = this.folded.has(group.id);
+            mark.textContent = shut ? "\u25B8" : "\u25BE";
+            const cls = mark.classList;
+            if (cls && typeof cls.add === "function" && typeof cls.remove === "function") {
+              if (shut) cls.add("io-fold--shut");
+              else cls.remove("io-fold--shut");
+            }
+            if (typeof mark.setAttribute === "function") {
+              mark.setAttribute("type", "button");
+              mark.setAttribute("aria-expanded", shut ? "false" : "true");
+              mark.setAttribute(
+                "aria-label",
+                (shut ? "Expand " : "Collapse ") + group.heading
+              );
+            }
+            if (box && box.classList) {
+              if (shut) {
+                if (typeof box.classList.add === "function") box.classList.add("io-group--shut");
+              } else if (typeof box.classList.remove === "function") box.classList.remove("io-group--shut");
+            }
+          };
+          paint2();
+          if (typeof mark.addEventListener === "function") {
+            mark.addEventListener("click", () => {
+              if (this.folded.has(group.id)) this.folded.delete(group.id);
+              else this.folded.add(group.id);
+              paint2();
+            });
+          }
+          return btn2;
+        };
+      }
+      /** Свёрнута ли группа. Нужно проверке: своего состояния у неё нет. */
+      isFolded(groupId) {
+        return this.folded.has(groupId);
+      }
+      /**
+       * Вводная фраза группы: снять прежнюю и, если тумблер включён, нарисовать
+       * новую. **Одно объявление на два входа** — на сборку определений и на
+       * щелчок по `Show callouts` (У-32): разойдясь, они дали бы группу, у
+       * которой коллаут есть, а пометки выравнивания нет.
+       */
+      static paintGroupCallout(heading, host, intro2, show) {
+        const stale = typeof host.querySelectorAll === "function" ? host.querySelectorAll(".io-callout--group") : [];
+        for (const old of stale) {
+          if (typeof old.remove === "function") old.remove();
+        }
+        const cls = host.classList;
+        if (cls) {
+          if (show) {
+            if (typeof cls.add === "function") cls.add("io-group--callout");
+          } else if (typeof cls.remove === "function") cls.remove("io-group--callout");
+        }
+        if (!show || typeof host.createDiv !== "function") return;
+        const box = host.createDiv({ cls: "io-callout io-callout--group" });
+        paintRich(box, intro2);
+        if (typeof heading.insertAdjacentElement === "function") {
+          heading.insertAdjacentElement("afterend", box);
+        }
+      }
+      /**
+       * Перерисовать вводные фразы групп, ничего не пересобирая.
+       *
+       * **Почему не пересборкой определений.** Она этого не делает и не может:
+       * группу платформа **переиспользует**, если совпали её тип и заголовок
+       * (`$2` и `t6` в `app.js`), а `extraButtons` вызываются только у группы,
+       * созданной заново. Коллаут приезжает как раз оттуда — и поэтому тумблер
+       * действовал лишь после перехода по вкладкам, который создаёт группы с
+       * нуля: «нет, по прежнему требуется перещелкивать вкладки» (2026-09-05,
+       * второе замечание к `Show callouts`). Ни одна проверка этого не видела:
+       * пин спрашивал, попросила ли панель пересборку, а не что от неё вышло
+       * (У-58, У-69).
+       *
+       * Поэтому строки заголовков панель запоминает, когда платформа их отдаёт,
+       * и рисует по ним сама.
+       */
+      syncGroupCallouts() {
+        const show = Boolean(this.storedValue("general.help.showCallouts"));
+        for (const slot of this.calloutSlots.values()) {
+          _SettingsPane.paintGroupCallout(slot.heading, slot.host, slot.intro, show);
+        }
+      }
+      /**
+       * Показать или спрятать знаки «?» у заголовков групп. Причина та же, что у
+       * коллаутов: пересборка определений до `extraButtons` не доходит (A30).
+       */
+      syncGroupTips() {
+        const tips = Boolean(this.storedValue("general.help.showTips"));
+        const ids = Boolean(this.storedValue("advanced.showSettingIds"));
+        for (const paint2 of this.tipSlots.values()) paint2(tips, ids);
+      }
+      groupCalloutButtonFor(group, showCallouts) {
+        const intro2 = String(group.intro || "").trim();
+        if (!intro2) return null;
+        return (btn2) => {
+          const node = btn2.extraSettingsEl;
+          if (node && node.classList && typeof node.classList.add === "function") {
+            node.classList.add("io-calloutslot");
+          }
+          const heading = node && typeof node.closest === "function" ? node.closest(".setting-item") : node ? node.parentElement || null : null;
+          const host = heading && heading.parentElement ? heading.parentElement : null;
+          if (!heading || !host) return btn2;
+          this.calloutSlots.set(group.id, { heading, host, intro: intro2 });
+          _SettingsPane.paintGroupCallout(heading, host, intro2, showCallouts);
+          return btn2;
+        };
+      }
+      /**
+       * «?» в строке заголовка группы (B7, C11, C18, C41, C42).
+       *
+       * Заказчик написал об этом знаке пять заходов подряд, и последние четыре —
+       * «нажимаю, ничего не происходит». Причина всё это время была не в поиске
+       * тела подсказки, а в том, что **тела в окне не было**: оно ехало вводной
+       * строкой группы, а строку без `name`, `render`, `control` и `action`
+       * платформа отбрасывает до отрисовки (`app.js`, `Z2`). Ни одна проверка
+       * этого не видела: правило живёт в поведении платформы, а в типах пакета
+       * его нет.
+       *
+       * Поэтому тело здесь больше не ищется. Оно **создаётся нажатием** и встаёт
+       * сразу за строкой заголовка — ровно так это делает прототип (`attachTip`:
+       * `tipEl = rich(el("div","io-tip"), text)` и
+       * `anchor.insertAdjacentElement("afterend", tipEl)`). Узел принадлежит
+       * кнопке, живёт в её замыкании, и вопросов «доехало ли», «где предок» и
+       * «не клонировала ли его платформа» больше не существует.
+       *
+       * Из DOM берётся только то, что платформа сама и отдала: узел кнопки, его
+       * строка заголовка и её место в группе. Всё под проверками на наличие: в
+       * гейтах кнопка приходит заглушкой, и падать она не должна.
+       */
+      groupTipButtonFor(group, showTips, showIds) {
+        const hint = String(group.tip || "").trim();
+        if (!hint && !group.id) return null;
+        const label = "More about " + group.heading;
+        return (btn2) => {
+          const node = btn2.extraSettingsEl;
+          let body = null;
+          const paint2 = (tips, ids) => {
+            const show = tips && Boolean(hint || ids && group.id);
+            if (node) {
+              if (typeof node.empty === "function") node.empty();
+              if (show && typeof node.setText === "function") node.setText("?");
+              const cls = node.classList;
+              if (cls && typeof cls.add === "function" && typeof cls.remove === "function") {
+                if (show) {
+                  cls.add("io-help", "io-help--group");
+                  cls.remove("io-tipslot");
+                } else {
+                  cls.remove("io-help", "io-help--group");
+                  cls.add("io-tipslot");
+                }
+              }
+            }
+            if (!show && body) {
+              if (typeof body.remove === "function") body.remove();
+              body = null;
+              if (node && typeof node.setAttribute === "function") {
+                node.setAttribute("aria-expanded", "false");
+              }
+            }
+          };
+          this.tipSlots.set(group.id, paint2);
+          paint2(showTips, showIds);
+          return btn2.setTooltip(label).onClick(() => {
+            if (body) {
+              if (typeof body.remove === "function") body.remove();
+              body = null;
+              if (node && typeof node.setAttribute === "function") {
+                node.setAttribute("aria-expanded", "false");
+              }
+              return;
+            }
+            const heading = node && typeof node.closest === "function" ? node.closest(".setting-item") : node ? node.parentElement || null : null;
+            const host = heading && heading.parentElement ? heading.parentElement : heading;
+            if (!host || typeof host.createDiv !== "function") return;
+            const made = host.createDiv({ cls: "io-tip io-grouptip" });
+            if (heading && typeof heading.insertAdjacentElement === "function") {
+              heading.insertAdjacentElement("afterend", made);
+            }
+            if (hint && typeof made.createDiv === "function") {
+              paintRich(made.createDiv({ cls: "io-tip__body" }), hint);
+            }
+            const wantId = Boolean(this.storedValue("advanced.showSettingIds")) && Boolean(group.id);
+            if (wantId && typeof made.createDiv === "function" && typeof made.createEl === "function") {
+              made.createEl("div", { text: group.id, cls: "io-tip__id" });
+            }
+            body = made;
+            if (node && typeof node.setAttribute === "function") {
+              node.setAttribute("aria-expanded", "true");
+            }
+          });
+        };
+      }
+      /** Состояние кнопки: сколько настроек группы отличается от умолчания. */
+      paintResetButton(group, btn2) {
+        const n = this.drift(group).length;
+        const tooltip = n ? "Reset group: " + n + (n === 1 ? " setting differs" : " settings differ") + " from the default" : "Everything here is already at its default";
+        return btn2.setDisabled(n === 0).setTooltip(tooltip);
+      }
+    };
   }
 });
 
 // src/ui/settings/store.ts
+function changedPaths(before, after, prefix = "", out = []) {
+  const plain2 = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+  if (!plain2(before) || !plain2(after)) {
+    if (JSON.stringify(before) !== JSON.stringify(after) && prefix) out.push(prefix);
+    return out;
+  }
+  const a = before;
+  const b = after;
+  for (const key of /* @__PURE__ */ new Set([...Object.keys(a), ...Object.keys(b)])) {
+    changedPaths(a[key], b[key], prefix ? prefix + "." + key : key, out);
+  }
+  return out;
+}
 var ConfigStoreAdapter;
 var init_store = __esm({
   "src/ui/settings/store.ts"() {
     "use strict";
     init_types();
-    init_v1_bridge();
     ConfigStoreAdapter = class {
       constructor(store) {
         this.store = store;
       }
       /*
-       * Путь переводится в тот, который читает рантайм (`v1_bridge.ts`). Схема
-       * пользуется путями версии 2, движки — версии 1, и до фазы 2 настройка,
-       * записанная по пути v2, никем не читается. Причина записи остаётся
-       * названной по пути схемы: по ней узнают контрол, а не ветку конфига.
+       * Путь схемы и путь конфига — один и тот же. Так стало в фазе 2, пункт 4:
+       * движки читают версию 2, миграция подключена, и мост `v1_bridge.ts`,
+       * переводивший путь на чтении и на записи, снят целиком (М-5).
+       *
+       * Причина записи по-прежнему называется путём схемы: по ней узнают контрол,
+       * а не ветку конфига, и по ней сверяются карты записей (М-4).
        */
       get(path) {
-        const b = bridge(path);
-        const raw = getIn(this.store.getConfig(), b.path);
-        return raw === void 0 ? void 0 : b.read(raw);
+        return getIn(this.store.getConfig(), path);
       }
       async set(path, value, opts) {
-        const b = bridge(path);
-        const stored = b.write(value);
         await this.store.update(
-          (cfg) => setIn(cfg, b.path, stored),
+          (cfg) => setIn(cfg, path, value),
           "settings:" + path,
           opts
         );
+      }
+      /**
+       * Кто изменился, а не почему. Снимок держится здесь: `ConfigStore` отдаёт
+       * подписчику причину и новый конфиг, а прошлого не помнит никто.
+       */
+      subscribe(listener) {
+        if (typeof this.store.subscribe !== "function") {
+          console.error("inline-overhaul: \u0443 \u0445\u0440\u0430\u043D\u0438\u043B\u0438\u0449\u0430 \u043D\u0435\u0442 subscribe \u2014 \u0441\u0432\u043E\u0438 \u0431\u043B\u043E\u043A\u0438 \u043D\u0435 \u0443\u0437\u043D\u0430\u044E\u0442 \u043E \u0437\u0430\u043F\u0438\u0441\u0438 \u0438\u0437 \u0434\u0440\u0443\u0433\u043E\u0433\u043E \u0431\u043B\u043E\u043A\u0430");
+          return () => {
+          };
+        }
+        let prev = JSON.parse(JSON.stringify(this.store.getConfig()));
+        return this.store.subscribe(() => {
+          const next = this.store.getConfig();
+          const paths = changedPaths(prev, next);
+          prev = JSON.parse(JSON.stringify(next));
+          if (paths.length) listener(paths);
+        });
       }
     };
   }
@@ -34309,21 +33741,31 @@ function howtoMarkdown() {
     bars(),
     binder(),
     transform(),
-    recipes(),
-    footer()
+    proTips(),
+    recipes()
   ].join("\n\n");
 }
 function intro() {
   return [
-    "# Inline Overhaul: a practical guide",
-    "",
-    "This note is yours. The plugin creates it once and never overwrites it, so you can",
-    "scribble in the margins, delete the parts you do not need, and keep your own recipes",
-    "at the bottom.",
-    "",
-    "The idea behind the plugin is one line long: **a line of a note can carry more than",
-    "words**. A status, a due date, a link to a project \u2014 put them on the same line as the",
-    "thought, and you never break off to fill in a form."
+    "> [!Guide] Inline Overhaul: a practical guide",
+    "> The mission of this plugin is to improve quality of life while working in Obsidian",
+    "> and to reduce the friction of making notes.",
+    ">",
+    "> This note is yours. The plugin writes it once and never overwrites it, so you can",
+    "> scribble in the margins, delete what you do not need, and keep your own recipes at",
+    "> the bottom.",
+    ">",
+    "> The plugin does a lot of things:",
+    "> - **Keyboard**: extends what global hotkeys can do, and lets you bind your own",
+    ">   insert commands to keys",
+    "> - **Navigation**: travel inside a line and around the whole note, move lines and",
+    ">   move text",
+    "> - **Tags & PKM**: the heart of the plugin, where you set up your tags, wikilinks",
+    ">   and emoji-elements and decide how they behave",
+    "> - **Visual**: not only makes a note nicer to look at, but also gives you Tag Bars",
+    ">   and TagWheel",
+    "> - **Transform**: turns a line into a note of its own, with properties and a",
+    ">   template, in one press"
   ].join("\n");
 }
 function firstSteps() {
@@ -34332,29 +33774,58 @@ function firstSteps() {
     "",
     "In this order. Each step takes a minute and makes the next one obvious.",
     "",
-    "1. **Give two commands a key.** `Move left` and `Move right` are the two you will press",
-    "   most: they move text inside a line, change the indent, and cycle the Prefix. Nothing",
-    "   in this plugin has a key by default \u2014 that is deliberate, so it cannot fight with",
-    "   what you already use. Open `Settings \u2192 Hotkeys`, type `Inline Overhaul`, and bind",
-    "   those two.",
-    "2. **Look at your Fields.** A fresh install comes with `Status` and `Priority`. Open",
-    "   `Settings \u2192 Inline Overhaul \u2192 Tags & PKM` and see what they hold.",
-    "3. **Type a line and watch it.** Write `- buy milk #todo` in any note. The tag turns",
-    "   into a coloured bubble; the text stays text.",
-    "4. **Open TagWheel on that line.** Bind the command that opens it, press it, and pick a",
-    "   Value with the arrow keys.",
+    "1. **Bind a few commands to keys.** Nothing in this plugin has a key by default, and",
+    "   that is deliberate: it cannot fight with what you already use. Open",
+    "   `Settings \u2192 Hotkeys`, type `Inline Overhaul` and bind what you want. The other way",
+    "   round works too: `Inline Overhaul \u2192 Keyboard \u2192 Commands & Hotkeys`, find the",
+    "   command and press `not set` in its `Hotkey` column, and Obsidian opens its own",
+    "   Hotkeys screen already filtered to that command.",
+    "	1. `Open TagWheel on the left` is the one you will press most. It opens the",
+    "	   TagWheel panel over your line, where you pick the tags, wikilinks and",
+    "	   emoji-elements you set up in `Tags & PKM \u2192 Fields`. (*I use `Alt + Arrow down`*)",
+    "	2. `Move left` and `Move right` do three things at once: they move selected text",
+    "	   inside a line, change the indent of a line, and cycle the line Prefix.",
+    "	   (*I use `Shift + Ctrl + Arrow left` and `Shift + Ctrl + Arrow right`*)",
+    "	3. `Move line up` and `Move line down` move the line you are on. Whether its tree",
+    "	   comes along, and whether a heading takes its whole section with it, is yours to",
+    "	   set in `Navigation \u2192 Moving lines (up and down)`.",
+    "	   (*I use `Shift + Ctrl + Arrow up` and `Shift + Ctrl + Arrow down`*)",
+    "2. **Look at your Fields.** A fresh install comes with four of them: `Status` and",
+    "   `Priority` before your text, `Due` and `Project` after it. Open",
+    "   `Inline Overhaul \u2192 Tags & PKM \u2192 Fields` and see what they hold. Once you have the",
+    "   idea, delete the ones you do not want with the bin button, or go to",
+    "   `Advanced \u2192 Settings backup \u2192 Start over` and begin from scratch. They come with a",
+    "   fresh install only: `Start over` does not bring them back.",
+    "3. **Type a line and open TagWheel.** Write `- buy milk` in any note, put the cursor",
+    "   on it and press your TagWheel key. The panel opens over the line. `Arrow left` and",
+    "   `Arrow right` move between Fields, `Arrow up` and `Arrow down` turn the Values of",
+    "   the Field you are on. Fields live in two places, the `Left Block` before your text",
+    "   and the `Right Block` after it, and `Tab` switches between them. `Enter`, or your",
+    "   TagWheel key a second time, closes the panel and keeps what you picked. `Esc`",
+    "   closes it and keeps nothing.",
+    "4. **Look at the result.** The line has changed: your text `buy milk` is now fenced",
+    "   off from the tags by `||`. Those are the Separators, and you can change them later",
+    "   in `Tags & PKM \u2192 Separators`. Each tag stands where its Field stands, and that",
+    "   order is the left column of `Tags & PKM \u2192 Fields`: drag a Field there, or use the",
+    "   arrow buttons if you prefer, and the line follows. The colours come from the",
+    "   `Fill` and `Text` columns of that Field `Values` table.",
+    "5. **Type a few more lines.** Try `Move left`, `Move right`, `Move line up` and",
+    "   `Move line down` on them. They are close to intuitive, and every part of them is",
+    "   adjustable in `Inline Overhaul \u2192 Navigation`. Worth doing: change one option, then",
+    "   go straight back to a real note and try it out.",
     "",
-    "Everything else \u2014 Bars, Binder, Transform \u2014 is worth reading only after those four."
+    "Everything else is worth reading only after those five steps."
   ].join("\n");
 }
 function fieldsAndValues() {
   return [
     "## Fields and Values",
     "",
-    "A **Field** is a slot on the line: `Status`, `Priority`, `Project`, `Due`. A **Value**",
-    "is what you put in that slot: `todo`, `doing`, `done`.",
+    "Open `Inline Overhaul \u2192 Tags & PKM \u2192 Fields`.",
     "",
-    "A Field is one of three types, and the type decides what lands in the line:",
+    "A **Field** is a slot on the line: `Status`, `Priority`, `Project`, `Due`, whatever",
+    "you want. A **Value** is what you put in that slot. One Field carries one kind of",
+    "Value, so it is tags, or wikilinks, or emoji-elements, never a mix.",
     "",
     "| Type | Writes | Good for |",
     "|---|---|---|",
@@ -34362,15 +33833,32 @@ function fieldsAndValues() {
     "| `Link` | `[[Project A]]` | pointing at another note |",
     "| `Element` | `\u{1F4C5} 2026-08-29` | dates and anything with a marker in front |",
     "",
-    "Two things about Values that are worth knowing early.",
+    "Three things about Values that are worth knowing early.",
     "",
-    "**A Value can have a child.** Under `Status` you can keep `open` and, under `open`, a",
-    "`wip`. In the line they appear either as two bubbles or as one `#open/wip` \u2014 that is the",
-    "`Child tag format` setting.",
+    "**A Value can have a child.** Under `Status` you can keep `#open`, and under `#open`",
+    "a `#wip`. Tag Values and link Values can do this; an emoji-element has no list of",
+    "Values to do it in. You make a Value a child with the arrows in the `Level` column of",
+    "the `Values` table: it steps to the right and turns grey, so you cannot miss it. On",
+    "the line the two show up either as separate bubbles or as one `#open/wip`, and which",
+    "one it is is `Tags & PKM \u2192 Writing rules \u2192 Child tag format`.",
     "",
-    "**A Value can be shown as empty.** It still occupies its place in the line, but prints",
-    'nothing. Useful for the state that means "nothing special": you see the slot is there',
-    "and it is not shouting at you."
+    "A child reaches TagWheel only when both of these are true: the Field has",
+    "`Child Field` turned on in its `Behavior` block, and you have already picked the",
+    "parent Value on that line.",
+    "",
+    "**A tag Value can be shown as empty.** Pick a tag Field in",
+    "`Tags & PKM \u2192 Fields` and use the `Show` column of its `Values` table. The tag stays",
+    "in the file and search still finds it, but the line prints an empty bubble instead of",
+    "the name. Useful for the values that are obvious to you, and it keeps the line short.",
+    "",
+    "**A new Field brings its own commands.** Add one and two commands appear by",
+    "themselves, `<Name> next` and `<Name> previous`, called after the Field `Name` and",
+    "not after its shorter `Name in TagWheel`. Turn `Child Field` on and there are two",
+    "more, `<Name>-sub next` and `<Name>-sub previous`. Each of them walks the Values of",
+    "that Field in a circle: nothing, the first Value, the last one, nothing again. One",
+    "key per Field is therefore enough, and you do not turn your keyboard into a piano.",
+    "This is how you set a Value without opening TagWheel at all. They are listed in",
+    "`Keyboard \u2192 Commands & Hotkeys`, and deleting the Field takes its commands with it."
   ].join("\n");
 }
 function theLine() {
@@ -34385,73 +33873,116 @@ function theLine() {
     "```",
     "",
     "* the **Prefix** is what the line starts with: a bullet, a checkbox, a heading mark;",
-    "* the **Left Block** and the **Right Block** hold Fields, and each Field sits in one of",
-    "  them \u2014 drag it across the line in the editor to move it;",
-    "* the two `||` are **Separators**. They are what tells the plugin where your text ends",
-    "  and the Fields begin, so pick something you would never type by accident.",
-    "",
-    "Nothing here is written into the file twice: what you see in the line is what is in the",
-    "file."
+    "* the **Left Block** and the **Right Block** hold Fields, and each Field sits in one",
+    "  of them. Drag it across the line in `Tags & PKM \u2192 Fields` to move it;",
+    "* the two `||` are the **Separators**. They are what tells the plugin where your text",
+    "  ends and the Fields begin, so pick something you would never type by accident. They",
+    "  live in `Tags & PKM \u2192 Separators`."
   ].join("\n");
 }
 function tagWheel() {
   return [
     "## TagWheel",
     "",
-    "TagWheel is the reason the Fields are worth setting up. Put the cursor on a line, press",
-    "the key you bound to it, and a small panel opens over the line with your Fields in it.",
-    "Arrow keys move between Fields and between Values; the line updates as you move.",
+    "TagWheel is the reason the Fields are worth setting up. Put the cursor on a line,",
+    "press the key you bound to it, and a small panel opens over the line with your Fields",
+    "in it. Arrow keys move between Fields and between Values, and the line updates as you",
+    "move.",
     "",
-    "Two settings change how it feels:",
+    "How it looks is `Inline Overhaul \u2192 Visual \u2192 TagWheel`:",
     "",
-    "* **`Values per side`** \u2014 how many Values show above and below the current one. Three is",
-    "  comfortable; more turns it into a list you have to read.",
-    "* **`Opens`** \u2014 whether the scroller opens on every Field or only where it helps.",
+    "* **`Scroller`** turns on a second small panel beside the Field you are on, showing",
+    "  the Values above and below the current one;",
+    "* **`Scroller size`** is how many Values it shows on each side;",
+    "* **`Scroller opening direction`** is which way it opens;",
+    "* **`Highlight the TagWheel line`** fills the line while the panel is open, so you can",
+    "  see at a glance what you are editing;",
+    "* **`Active Field text color`** and **`Non-active Field text color`** are what tells",
+    "  the current Field from the rest. Your tag colours are not drawn inside the panel, so",
+    "  these two are the whole difference there.",
     "",
-    "If a Field does not appear in TagWheel, check its `Active` setting and whether it waits",
-    "for another Field (`Prerequisite Field`)."
+    "If a Field does not show up in TagWheel, open its `Behavior` block in",
+    "`Tags & PKM \u2192 Fields`: check that it is `Active`, and that it is not waiting for",
+    "another Field through `Prerequisite Field`."
   ].join("\n");
 }
 function bars() {
   return [
     "## Tag Bars",
     "",
-    "A Bar is a coloured stripe in the margin. It runs down the side of a line **and",
-    "everything nested under it**, so a whole block of lines tells you what it is about",
-    "without you reading a single tag.",
+    "`Inline Overhaul \u2192 Visual \u2192 Tag Bars`",
     "",
-    "One Field draws the Bars \u2014 you pick which one. Colours come from that Field's Values, so",
-    "the Bars and the bubbles agree by construction."
+    "A Bar is a coloured stripe in the margin of a note. It runs down the side of a line",
+    "**and everything nested under it**, so a whole block of lines tells you what it is",
+    "about without you reading a single tag.",
+    "",
+    "One tag Field draws the Bars, and you say which one in `Which Field draws Bars`. The",
+    "colours come from the Values of that Field, so a Bar and a bubble can never disagree.",
+    "`Number of Bars` is how many levels deep it goes, and `Bars for the whole tree`",
+    "decides whether the stripe carries on into the lines nested under it."
   ].join("\n");
 }
 function binder() {
   return [
     "## Binder",
     "",
-    "For text you type over and over. Put it in a row, give that row a key, and one press",
-    "drops it in wherever the cursor is.",
+    "`Inline Overhaul \u2192 Keyboard \u2192 Binder (custom insert commands)`",
     "",
-    "The command is made from the row, so the text a row inserts cannot be changed",
+    "For text you type over and over. Put it in a row, give that row a key in",
+    "`Settings \u2192 Hotkeys`, and one press drops it in wherever the cursor is.",
+    "",
+    "The command is made out of the row, so the text a row inserts cannot be changed",
     "afterwards: delete the row and add it again. The description is yours to edit at any",
-    "time \u2014 it is there to remind you what the row is for."
+    "time, and it is there to remind you what the row is for.",
+    "",
+    "One row is there from the start. `Smart bracket` cycles the brackets around the",
+    "cursor or the selection: `text`, then `[text]`, then `[[text]]`, then back to `text`."
   ].join("\n");
 }
 function transform() {
   return [
     "## Transform: a line becomes a note",
     "",
-    "One command turns the line the cursor is on into a note of its own. The Fields on the",
-    "line become properties of the new note, and the line itself can keep a link back.",
+    "`Inline Overhaul \u2192 Transform`",
     "",
-    "Two things decide what the new note looks like:",
+    "The command `Transform inline to note` turns the line the cursor is on into a note of",
+    "its own. The Fields on the line become properties of the new note, and the line",
+    "itself can keep a link back to it.",
     "",
-    "* the **template** it starts from \u2014 an ordinary note in your templates folder;",
-    "* the **Smart Rules**, which pick a different template when the line carries certain",
-    "  Values. A line with `#meeting` can start from a meeting template while everything else",
-    "  starts from the plain one.",
+    "Three things decide what the new note looks like:",
     "",
-    "Inside one kind of condition the rule fires when **any** of them matches; between kinds,",
-    "**all** of them have to. The panel says this in words above the rules."
+    "* the **template** it starts from, an ordinary note in the folder you name in",
+    "  `Transform \u2192 Inline to note \u2192 Templates folder` and pick in `Default template`;",
+    "* where it lands, which is `New notes folder` in the same group;",
+    "* the **Smart Rules** in `Transform \u2192 Smart Rules`, which pick a different template",
+    "  when the line carries certain Fields or Values. A line with `#meeting` can start",
+    "  from a meeting template while everything else starts from the plain one. Inside one",
+    "  kind of condition the rule fires when **any** of them matches; between kinds, **all**",
+    "  of them have to.",
+    "",
+    "Which Field becomes which property of the new note is set per Field, in the",
+    "`YAML property` row of that Field in `Tags & PKM \u2192 Fields`.",
+    "",
+    "What happens to the line you started from is `Transform \u2192 Source line`."
+  ].join("\n");
+}
+function proTips() {
+  return [
+    "## Some pro tips to make things smoother",
+    "",
+    "* **Turn the explanations on.** `General \u2192 Help \u2192 Show callouts` and `Show tips`. If",
+    "  Inline Overhaul is new to you, both are worth having on: a callout explains a whole",
+    "  group, a tip explains one setting.",
+    "* **Do not forget to make backups.** `Advanced \u2192 Settings backup \u2192 Save a backup`",
+    "  writes an ordinary note with everything you have set up. You can type into it, for",
+    "  instance a reminder of why you took this copy.",
+    "* **A backup brings everything back**, including the keys you gave to plugin commands.",
+    "  Copy that note into another vault and restore it there, and the other vault is set",
+    "  up exactly the same.",
+    "* **Change one thing at a time.** Do not touch every option at once. One change, then",
+    "  straight back to a real note to see whether you like the result, then the next one.",
+    "* **Use the hotkeys.** You cannot get much out of this plugin without them. It is",
+    "  awkward for the first day and pays for itself every day after that."
   ].join("\n");
 }
 function recipes() {
@@ -34460,43 +33991,26 @@ function recipes() {
     "",
     "### A task list that sorts itself",
     "",
-    "* `Status` (Tag): `todo`, `doing`, `done`. Left Block.",
-    "* `Priority` (Tag): `low`, `med`, `high`. Left Block, and `high` in red.",
-    "* Bars drawn by `Status`.",
-    "* `Move left` and `Move right` on `Alt + \u2190` and `Alt + \u2192`.",
+    "* `Status` (Tag): `#todo`, `#doing`, `#done`. Left Block.",
+    "* `Priority` (Tag): `#low`, `#med`, `#high`. Left Block, with `#high` in red.",
+    "* Bars drawn by `Priority`.",
+    "* `Move left` and `Move right` on `Alt + Arrow left` and `Alt + Arrow right`.",
     "",
-    "You type a line, press the TagWheel key, pick a status, and the Bar tells you the state",
-    "of the whole block from across the room.",
+    "You type a line, press the TagWheel key, pick a status, and the Bar tells you the",
+    "state of the whole block from across the room.",
     "",
     "### A reading log",
     "",
     "* `Source` (Link): the notes of the books you read. Right Block.",
     "* `Read` (Element) with the calendar marker: the date you got to it.",
-    "* `Status` (Tag): `queued`, `reading`, `finished`, and `queued` shown as empty \u2014 a book",
-    "  you have not started needs no shouting.",
+    "* `Status` (Tag): `#queued`, `#reading`, `#finished`, with `#queued` shown as empty.",
+    "  A book you have not started needs no shouting.",
     "",
     "### Meeting notes that become their own notes",
     "",
-    "* `Kind` (Tag): `standup`, `review`, `one-on-one`.",
+    "* `Kind` (Tag): `#standup`, `#review`, `#one-on-one`.",
     "* Transform on, a template per kind, and a Smart Rule per Value of `Kind`.",
     "* The source line keeps a link back, so the outline of the day stays readable."
-  ].join("\n");
-}
-function footer() {
-  return [
-    "## Where things live",
-    "",
-    "* **Settings** \u2014 `Settings \u2192 Inline Overhaul`. Seven tabs, and each one starts with a",
-    "  short paragraph about what it is for.",
-    "* **Hotkeys** \u2014 `Settings \u2192 Hotkeys`, search for `Inline Overhaul`. Everything the",
-    "  plugin can do is there, and none of it has a key until you give it one.",
-    "* **Your setup as a note** \u2014 the `Config note` group on the `Tags & PKM` tab writes your",
-    "  Fields out to a note you can read, edit and carry to another vault.",
-    "",
-    "---",
-    "",
-    "*Written by the plugin the first time you asked for the guide. It will not be",
-    "overwritten, so anything you add below is safe.*"
   ].join("\n");
 }
 var HOWTO_PATH;
@@ -34507,45 +34021,398 @@ var init_howto = __esm({
   }
 });
 
+// src/features/settings_backup.js
+var require_settings_backup = __commonJS({
+  "src/features/settings_backup.js"(exports2, module2) {
+    "use strict";
+    var MARKER = "inline-overhaul-backup";
+    var DEFAULT_FOLDER = "Inline Overhaul/Backups";
+    var SETTINGS_MARK = "<!-- " + MARKER + ": settings below, do not edit by hand -->";
+    var NOTES_HEADING = "# Your notes";
+    var NOTES_HINT = "Write anything here";
+    var HOTKEYS_MARK = "<!-- " + MARKER + ": hotkeys below, do not edit by hand -->";
+    var DEVICE_LOCAL = ["viewState", "backups", "meta", "_unmigrated"];
+    var NO_SETTINGS = "That note does not hold plugin settings";
+    var BROKEN = "The settings in that note could not be read";
+    function isObj(v) {
+      return !!v && typeof v === "object" && !Array.isArray(v);
+    }
+    function cloneJson2(v) {
+      return JSON.parse(JSON.stringify(v));
+    }
+    function backupFolder2(cfg) {
+      const advanced = isObj(cfg) && isObj(cfg.advanced) ? cfg.advanced : {};
+      const backups = isObj(advanced.backups) ? advanced.backups : {};
+      const raw = String(backups.folder === void 0 ? "" : backups.folder).trim();
+      const cleaned = raw.replace(/^[\\/]+/, "").replace(/[\\/]+$/, "").replace(/\\/g, "/");
+      return cleaned || DEFAULT_FOLDER;
+    }
+    function backupBeforeRestore2(cfg) {
+      const advanced = isObj(cfg) && isObj(cfg.advanced) ? cfg.advanced : {};
+      const backups = isObj(advanced.backups) ? advanced.backups : {};
+      return backups.beforeRestore === false ? false : true;
+    }
+    function stripDeviceLocal(cfg) {
+      const out = {};
+      if (!isObj(cfg)) return out;
+      for (const key of Object.keys(cfg)) {
+        if (DEVICE_LOCAL.indexOf(key) >= 0) continue;
+        out[key] = cloneJson2(cfg[key]);
+      }
+      return out;
+    }
+    function keepDeviceLocal2(current, restored) {
+      const out = stripDeviceLocal(restored);
+      if (!isObj(current)) return out;
+      for (const key of DEVICE_LOCAL) {
+        if (current[key] !== void 0) out[key] = cloneJson2(current[key]);
+      }
+      return out;
+    }
+    function countValues(map) {
+      if (!isObj(map)) return 0;
+      let total = 0;
+      for (const key of Object.keys(map)) {
+        const values = map[key];
+        if (Array.isArray(values)) total += values.length;
+        else if (isObj(values)) total += Object.keys(values).length;
+      }
+      return total;
+    }
+    function summarize(cfg) {
+      const pkm = isObj(cfg) && isObj(cfg.pkm) ? cfg.pkm : {};
+      const fields = isObj(pkm.fields) ? pkm.fields : {};
+      const order = isObj(fields.order) ? fields.order : {};
+      const sides = [];
+      for (const side of ["left", "right"]) {
+        if (Array.isArray(order[side])) for (const id of order[side]) sides.push(String(id));
+      }
+      const own = sides.filter((id) => id && !/_sub$/.test(id));
+      const values = countValues(fields.tags) + countValues(fields.links) + countValues(fields.elements);
+      const editor = isObj(cfg) && isObj(cfg.editor) ? cfg.editor : {};
+      const binder2 = isObj(editor.binder) && Array.isArray(editor.binder.rows) ? editor.binder.rows.length : 0;
+      return { fields: own.length, values, binderRows: binder2 };
+    }
+    function plural2(n, one, many) {
+      return String(n) + " " + (n === 1 ? one : many);
+    }
+    function summaryLine2(cfg) {
+      const s = summarize(cfg);
+      return plural2(s.fields, "Field", "Fields") + ", " + plural2(s.values, "Value", "Values") + " and " + plural2(s.binderRows, "Binder row", "Binder rows");
+    }
+    function two(n) {
+      return (n < 10 ? "0" : "") + String(n);
+    }
+    function stamp(date) {
+      const d = date instanceof Date ? date : /* @__PURE__ */ new Date();
+      return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + two(d.getHours()) + "-" + two(d.getMinutes()) + "-" + two(d.getSeconds());
+    }
+    var AUTO_SUFFIX = " Autogenerated";
+    function backupPath2(folder, date, auto) {
+      return String(folder || DEFAULT_FOLDER) + "/Settings " + stamp(date) + (auto === true ? AUTO_SUFFIX : "") + ".md";
+    }
+    function fenceFor(text) {
+      let longest = 0;
+      const runs = String(text).match(/`+/g);
+      if (runs) {
+        for (const run of runs) if (run.length > longest) longest = run.length;
+      }
+      const width = Math.max(3, longest + 1);
+      return new Array(width + 1).join("`");
+    }
+    function readable(date) {
+      const d = date instanceof Date ? date : /* @__PURE__ */ new Date();
+      return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + two(d.getHours()) + ":" + two(d.getMinutes());
+    }
+    function hotkeyWords(binding2) {
+      if (!isObj(binding2)) return "";
+      const mods = Array.isArray(binding2.modifiers) ? binding2.modifiers.map((m) => String(m || "").trim()).filter(Boolean) : [];
+      const key = String(binding2.key === void 0 ? "" : binding2.key).trim();
+      const parts = mods.concat(key ? [key] : []);
+      return parts.join(" + ");
+    }
+    function hotkeyListWords(bindings) {
+      if (!Array.isArray(bindings)) return "";
+      return bindings.map(hotkeyWords).filter(Boolean).join(", ");
+    }
+    function normalizeHotkeys(map) {
+      const out = {};
+      if (!isObj(map)) return out;
+      for (const id of Object.keys(map)) {
+        const key = String(id || "").trim();
+        if (!key) continue;
+        const bindings = Array.isArray(map[id]) ? map[id] : null;
+        if (!bindings) continue;
+        const kept = bindings.filter(isObj).map((b) => ({
+          modifiers: Array.isArray(b.modifiers) ? b.modifiers.map((m) => String(m || "")) : [],
+          key: String(b.key === void 0 ? "" : b.key)
+        })).filter((b) => b.key);
+        out[key] = kept;
+      }
+      return out;
+    }
+    function buildBackupNote2(o) {
+      const opts = isObj(o) ? o : {};
+      const config = stripDeviceLocal(opts.config);
+      const version = String(opts.pluginVersion || "").trim();
+      const when = opts.savedAt instanceof Date ? opts.savedAt : /* @__PURE__ */ new Date();
+      const json = JSON.stringify(config, null, 2);
+      const fence = fenceFor(json);
+      const hotkeys = normalizeHotkeys(opts.hotkeys);
+      const hotkeyIds = Object.keys(hotkeys).sort();
+      const hotkeysJson = JSON.stringify(hotkeys, null, 2);
+      const hotkeysFence = fenceFor(hotkeysJson);
+      const lines = [
+        "---",
+        MARKER + ": 1",
+        "saved: " + readable(when),
+        "plugin: " + (version || "unknown"),
+        "---",
+        "",
+        /*
+         * Раздел человека идёт первым: он для его пометок — зачем снята эта копия,
+         * что в ней особенного, к чему возвращаться. Плагин его не читает и при
+         * восстановлении не смотрит вовсе.
+         */
+        NOTES_HEADING,
+        "",
+        NOTES_HINT + ". The plugin never reads this part, so nothing you write here changes what comes back",
+        "",
+        "# Inline Overhaul settings backup",
+        "",
+        "Saved on " + readable(when) + (version ? " from plugin version " + version : "") + ".",
+        "Holds " + summaryLine2(config) + ".",
+        "",
+        "To bring these settings back, open **Settings \u2192 Inline Overhaul \u2192 Advanced \u2192 Settings backup**",
+        "and press `Restore a backup`. Restoring replaces everything you have set up now;",
+        "whether the plugin saves what you have at that moment before it writes is a toggle there.",
+        "",
+        "You can move this note to another vault, or send it to yourself on another device.",
+        "",
+        SETTINGS_MARK,
+        "",
+        fence + "json",
+        json,
+        fence,
+        ""
+      ];
+      if (hotkeyIds.length) {
+        lines.push("# Hotkeys");
+        lines.push("");
+        lines.push("Hotkeys live in Obsidian, not in the plugin settings, so they are kept here separately.");
+        lines.push("Restoring this backup puts them back on the plugin commands and touches nothing else.");
+        lines.push("");
+        for (const id of hotkeyIds) {
+          const words = hotkeyListWords(hotkeys[id]);
+          lines.push("- `" + id + "` \u2014 " + (words || "no hotkey"));
+        }
+        lines.push("");
+        lines.push(HOTKEYS_MARK);
+        lines.push("");
+        lines.push(hotkeysFence + "json");
+        lines.push(hotkeysJson);
+        lines.push(hotkeysFence);
+        lines.push("");
+      }
+      return lines.join("\n");
+    }
+    function parseBackupNote2(text) {
+      const raw = String(text === void 0 || text === null ? "" : text);
+      const inner = fencedJson(raw);
+      const source = inner === null ? raw.trim() : inner;
+      if (!source) throw new Error(NO_SETTINGS);
+      let parsed;
+      try {
+        parsed = JSON.parse(source);
+      } catch (e) {
+        throw new Error(inner === null ? NO_SETTINGS : BROKEN);
+      }
+      if (!isObj(parsed)) throw new Error(NO_SETTINGS);
+      return parsed;
+    }
+    function fencedJson(text) {
+      const lines = String(text).split(/\r?\n/);
+      const bodyFrom = (i) => {
+        const open = /^(`{3,}|~{3,})\s*json\s*$/.exec(lines[i]);
+        if (!open) return null;
+        const fence = open[1];
+        const closer = new RegExp("^" + fence[0] + "{" + fence.length + ",}\\s*$");
+        const body = [];
+        for (let j = i + 1; j < lines.length; j++) {
+          if (closer.test(lines[j])) return body.join("\n");
+          body.push(lines[j]);
+        }
+        return body.join("\n");
+      };
+      const markAt = lines.findIndex((line) => String(line).trim() === SETTINGS_MARK);
+      if (markAt >= 0) {
+        for (let i = markAt + 1; i < lines.length; i++) {
+          const body = bodyFrom(i);
+          if (body !== null) return body;
+        }
+      }
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const body = bodyFrom(i);
+        if (body !== null) return body;
+      }
+      return null;
+    }
+    function parseBackupHotkeys2(text) {
+      const raw = String(text === void 0 || text === null ? "" : text);
+      const lines = raw.split(/\r?\n/);
+      const markAt = lines.findIndex((line) => String(line).trim() === HOTKEYS_MARK);
+      if (markAt < 0) return {};
+      const tail = lines.slice(markAt + 1).join("\n");
+      const inner = fencedJson(tail);
+      if (inner === null) return {};
+      try {
+        return normalizeHotkeys(JSON.parse(inner));
+      } catch (e) {
+        return {};
+      }
+    }
+    function describeBackup2(text) {
+      const raw = String(text === void 0 || text === null ? "" : text);
+      const front = frontmatter(raw);
+      const saved = /^saved\s*:\s*(.+)$/m.exec(front);
+      const version = /^plugin\s*:\s*(.+)$/m.exec(front);
+      let summary = "";
+      try {
+        summary = summaryLine2(parseBackupNote2(raw));
+      } catch (e) {
+        summary = "";
+      }
+      return {
+        savedAt: saved ? String(saved[1]).trim() : "",
+        pluginVersion: version ? String(version[1]).trim() : "",
+        summary,
+        hotkeys: Object.keys(parseBackupHotkeys2(raw)).length
+      };
+    }
+    function frontmatter(text) {
+      const raw = String(text === void 0 || text === null ? "" : text);
+      const lines = raw.split(/\r?\n/);
+      let i = 0;
+      while (i < lines.length && String(lines[i]).trim() === "") i++;
+      if (String(lines[i] || "").trim() !== "---") return "";
+      const body = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (String(lines[j]).trim() === "---") return body.join("\n");
+        body.push(lines[j]);
+      }
+      return "";
+    }
+    function looksLikeBackup(text) {
+      return new RegExp("^" + MARKER + "\\s*:", "m").test(frontmatter(text));
+    }
+    module2.exports = {
+      MARKER,
+      SETTINGS_MARK,
+      HOTKEYS_MARK,
+      NOTES_HEADING,
+      NOTES_HINT,
+      frontmatter,
+      hotkeyWords,
+      hotkeyListWords,
+      normalizeHotkeys,
+      parseBackupHotkeys: parseBackupHotkeys2,
+      DEFAULT_FOLDER,
+      DEVICE_LOCAL,
+      NO_SETTINGS,
+      BROKEN,
+      backupFolder: backupFolder2,
+      backupBeforeRestore: backupBeforeRestore2,
+      AUTO_SUFFIX,
+      stripDeviceLocal,
+      keepDeviceLocal: keepDeviceLocal2,
+      summarize,
+      summaryLine: summaryLine2,
+      plural: plural2,
+      stamp,
+      backupPath: backupPath2,
+      fenceFor,
+      buildBackupNote: buildBackupNote2,
+      parseBackupNote: parseBackupNote2,
+      describeBackup: describeBackup2,
+      looksLikeBackup
+    };
+  }
+});
+
 // src/ui/settings/actions.ts
-function pathOf2(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
 function said(message, path) {
   return path ? message + ": " + path : message;
 }
+function messageOf(e) {
+  return e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
+}
 function buildActions(deps) {
-  const { plugin, notify } = deps;
-  const guard = async (what, call, done) => {
-    if (typeof call !== "function") {
-      notify(NO_METHOD);
-      console.error("inline-overhaul: \u0443 \u043F\u043B\u0430\u0433\u0438\u043D\u0430 \u043D\u0435\u0442 \u043C\u0435\u0442\u043E\u0434\u0430 \u0434\u043B\u044F \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044F " + what);
-      return;
+  const { notify } = deps;
+  const writeBackup = async (vault, config, auto) => {
+    const cfg = config.get();
+    const folder = (0, import_settings_backup.backupFolder)(cfg);
+    if (typeof vault.ensureFolder === "function") await Promise.resolve(vault.ensureFolder(folder));
+    const base = (0, import_settings_backup.backupPath)(folder, /* @__PURE__ */ new Date(), auto);
+    let path = base;
+    for (let n = 2; await Promise.resolve(vault.exists(path)); n++) {
+      path = base.replace(/\.md$/, "") + " (" + n + ").md";
     }
-    try {
-      notify(done(await Promise.resolve(call())));
-    } catch (e) {
-      const message = e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
-      notify(message);
-      console.error("inline-overhaul: \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435 " + what + " \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u043B\u043E\u0441\u044C", e);
+    let hotkeys;
+    if (deps.hotkeys && typeof deps.hotkeys.read === "function") {
+      try {
+        hotkeys = deps.hotkeys.read();
+      } catch (e) {
+        console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u0434\u043B\u044F \u043A\u043E\u043F\u0438\u0438 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+      }
     }
+    await Promise.resolve(vault.create(path, (0, import_settings_backup.buildBackupNote)({
+      config: cfg,
+      pluginVersion: deps.pluginVersion,
+      savedAt: /* @__PURE__ */ new Date(),
+      hotkeys
+    })));
+    return path;
+  };
+  const listBackups = async (vault, folder) => {
+    const found = typeof vault.list === "function" ? await Promise.resolve(vault.list(folder)) || [] : [];
+    const notes = found.filter((f) => f && typeof f.path === "string" && /\.md$/i.test(f.path)).sort((a, b) => (Number(b.mtime) || 0) - (Number(a.mtime) || 0) || String(b.path).localeCompare(String(a.path)));
+    const options = [];
+    for (const file of notes) {
+      let about = { savedAt: "", pluginVersion: "", summary: "", hotkeys: 0 };
+      try {
+        if (typeof vault.read === "function") {
+          about = (0, import_settings_backup.describeBackup)(await Promise.resolve(vault.read(file.path)));
+        }
+      } catch (e) {
+        console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044F \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0430\u0441\u044C: " + file.path, e);
+      }
+      const name = String(file.path).split("/").pop() || file.path;
+      const sub = [
+        about.summary,
+        about.hotkeys ? (0, import_settings_backup.plural)(about.hotkeys, "hotkey", "hotkeys") : "",
+        about.pluginVersion ? "plugin " + about.pluginVersion : ""
+      ].filter(Boolean).join(" \xB7 ");
+      const note = about.savedAt ? name : "";
+      options.push({ value: file.path, label: about.savedAt || name, sub, note });
+    }
+    return options;
+  };
+  const goingAway = (cfg) => {
+    const rows = ["Deleting " + (0, import_settings_backup.summaryLine)(cfg)];
+    if (deps.hotkeys && typeof deps.hotkeys.read === "function") {
+      let count = 0;
+      try {
+        count = Object.keys(deps.hotkeys.read() || {}).length;
+      } catch (e) {
+        console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u0434\u043B\u044F \u0441\u0431\u0440\u043E\u0441\u0430 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+      }
+      if (count) {
+        rows.push("And " + (0, import_settings_backup.plural)(count, "hotkey", "hotkeys") + " you assigned to plugin commands");
+      }
+    }
+    return rows;
   };
   return {
-    "generate-config-note": () => guard(
-      "generate-config-note",
-      plugin.openTagWheelConfigNote && (() => plugin.openTagWheelConfigNote()),
-      (result) => said(GENERATED, pathOf2(result))
-    ),
-    "open-config-template": () => guard(
-      "open-config-template",
-      plugin.openTagWheelConfigTemplateNote && (() => plugin.openTagWheelConfigTemplateNote()),
-      (result) => said(TEMPLATE_OPENED, pathOf2(result))
-    ),
-    "regenerate-rules": () => guard(
-      "regenerate-rules",
-      plugin.ensureGeneratedRulesNow && (() => plugin.ensureGeneratedRulesNow("manual")),
-      () => RULES_DONE
-    ),
     /**
      * Руководство создаётся **один раз** и дальше только открывается: заметка
      * принадлежит человеку, он в ней пишет, и перезаписать её значило бы
@@ -34570,45 +34437,249 @@ function buildActions(deps) {
       }
     },
     /**
-     * Применение заметки переписывает настройки целиком, поэтому спрашивает
-     * (Э2). Отказ — это отказ: ничего не зовётся.
+     * Копия настроек — обычная заметка vault (Б1). Ничего не спрашивает:
+     * сохранение ничего не портит, а каждое нажатие пишет новый файл (Б6).
      */
-    "apply-config-note": async () => {
-      const ask = deps.confirm;
-      if (typeof ask !== "function") {
-        console.error("inline-overhaul: \u043F\u0440\u0438\u043C\u0435\u043D\u0435\u043D\u0438\u0435 \u0437\u0430\u043C\u0435\u0442\u043A\u0438 \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
+    "save-backup": async () => {
+      const vault = deps.vault;
+      const config = deps.config;
+      if (!vault || !config) {
+        notify(NO_METHOD);
+        console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044E \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A \u0441\u043D\u0438\u043C\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault \u0438\u043B\u0438 \u043A\u043E\u043D\u0444\u0438\u0433\u0443");
         return;
       }
-      const yes = await ask({
-        title: APPLY_TITLE,
-        body: APPLY_BODY,
-        confirmLabel: APPLY_CONFIRM,
-        danger: true
-      });
-      if (!yes) return;
-      await guard(
-        "apply-config-note",
-        plugin.applyTagWheelConfigNote && (() => plugin.applyTagWheelConfigNote()),
-        () => APPLY_DONE
-      );
+      try {
+        notify(said(BACKUP_SAVED, await writeBackup(vault, config)));
+      } catch (e) {
+        notify(messageOf(e));
+        console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044F \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A \u043D\u0435 \u0437\u0430\u043F\u0438\u0441\u0430\u043B\u0430\u0441\u044C", e);
+      }
+    },
+    /**
+     * Сброс до умолчаний. Заводился под проверку копий (замечание заказчика
+     * 2026-09-04): чтобы убедиться, что копия и вправду возвращает всё, нужно
+     * сперва честно всё потерять.
+     *
+     * Порядок тот же, что у восстановления, и по той же причине: подтверждение
+     * — копия текущего — запись. Копия пишется **всегда**, даже если человек
+     * уверен: это единственный путь назад, и стоит он одну заметку.
+     *
+     * Умолчания не собираются здесь заново. Пустой конфиг проходит миграцию на
+     * записи (CS10) и выходит из неё полным конфигом по умолчанию — ровно тем,
+     * что видит человек после установки. Второго объявления умолчаний в
+     * продукте нет и быть не должно (У-32).
+     */
+    "reset-settings": async () => {
+      const vault = deps.vault;
+      const config = deps.config;
+      const ask = deps.confirm;
+      if (!vault || !config) {
+        notify(NO_METHOD);
+        console.error("inline-overhaul: \u0441\u0431\u0440\u0430\u0441\u044B\u0432\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault \u0438\u043B\u0438 \u043A\u043E\u043D\u0444\u0438\u0433\u0443");
+        return;
+      }
+      if (typeof ask !== "function") {
+        console.error("inline-overhaul: \u0441\u0431\u0440\u043E\u0441 \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
+        return;
+      }
+      try {
+        const before = config.get();
+        const yes = await ask({
+          title: RESET_TITLE,
+          body: RESET_BODY,
+          confirmLabel: RESET_CONFIRM,
+          danger: true,
+          rows: goingAway(before),
+          note: "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin"
+        });
+        if (!yes) return;
+        const saved = await writeBackup(vault, config, true);
+        const changed = await Promise.resolve(
+          config.replace((0, import_settings_backup.keepDeviceLocal)(before, {}))
+        );
+        let saidHotkeys = "";
+        if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
+          try {
+            const n = await Promise.resolve(deps.hotkeys.write({}));
+            if (n) saidHotkeys = ". " + (0, import_settings_backup.plural)(Number(n) || 0, "hotkey", "hotkeys") + " cleared";
+          } catch (e) {
+            console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u043F\u0440\u0438 \u0441\u0431\u0440\u043E\u0441\u0435 \u043D\u0435 \u0441\u043D\u044F\u043B\u0438\u0441\u044C", e);
+          }
+        }
+        notify((changed ? RESET_DONE : RESET_NOTHING) + saidHotkeys + ". Backup: " + saved);
+      } catch (e) {
+        notify(messageOf(e));
+        console.error("inline-overhaul: \u0441\u0431\u0440\u043E\u0441 \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u043B\u0441\u044F", e);
+      }
+    },
+    /**
+     * Восстановление: список — выбор — подтверждение — копия текущего — запись
+     * (Б9–Б15). Порядок обязателен, и каждый шаг умеет отказаться: нет окна
+     * выбора или подтверждения — действие не идёт вовсе, как и применение
+     * конфиг-заметки.
+     */
+    "restore-backup": async () => {
+      const vault = deps.vault;
+      const config = deps.config;
+      const ask = deps.confirm;
+      const choose = deps.pick;
+      if (!vault || !config) {
+        notify(NO_METHOD);
+        console.error("inline-overhaul: \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C \u2014 \u043D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A vault \u0438\u043B\u0438 \u043A\u043E\u043D\u0444\u0438\u0433\u0443");
+        return;
+      }
+      if (typeof choose !== "function" || typeof ask !== "function") {
+        console.error("inline-overhaul: \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u0431\u0435\u0437 \u043E\u043A\u043D\u0430 \u0432\u044B\u0431\u043E\u0440\u0430 \u0438 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F \u043D\u0435 \u0438\u0434\u0451\u0442");
+        return;
+      }
+      const folder = (0, import_settings_backup.backupFolder)(config.get());
+      try {
+        const options = await listBackups(vault, folder);
+        if (!options.length) {
+          notify(said(BACKUP_NONE, folder));
+          return;
+        }
+        const picked = await choose({ title: PICK_TITLE, body: PICK_BODY, options });
+        if (!picked) return;
+        if (typeof vault.read !== "function") {
+          notify(NO_METHOD);
+          console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044E \u0447\u0438\u0442\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C");
+          return;
+        }
+        const restored = (0, import_settings_backup.parseBackupNote)(await Promise.resolve(vault.read(picked)));
+        const hotkeys = (0, import_settings_backup.parseBackupHotkeys)(await Promise.resolve(vault.read(picked)));
+        const hotkeyCount = Object.keys(hotkeys).length;
+        const rows = ["Restoring " + (0, import_settings_backup.summaryLine)(restored)];
+        if (hotkeyCount) {
+          rows.push("And " + (0, import_settings_backup.plural)(hotkeyCount, "hotkey", "hotkeys") + " on the plugin commands");
+        }
+        const willBackUp = (0, import_settings_backup.backupBeforeRestore)(config.get());
+        const yes = await ask({
+          title: RESTORE_TITLE,
+          body: willBackUp ? RESTORE_BODY : RESTORE_BODY_NO_BACKUP,
+          confirmLabel: RESTORE_CONFIRM,
+          danger: true,
+          rows,
+          note: hotkeyCount ? "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin" : "Your open tab and what you have expanded here stay as they are"
+        });
+        if (!yes) return;
+        if (willBackUp) await writeBackup(vault, config, true);
+        const changed = await Promise.resolve(
+          config.replace((0, import_settings_backup.keepDeviceLocal)(config.get(), restored))
+        );
+        let saidHotkeys = "";
+        if (hotkeyCount) {
+          if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
+            try {
+              const n = await Promise.resolve(deps.hotkeys.write(hotkeys));
+              saidHotkeys = ". " + (0, import_settings_backup.plural)(Number(n) || 0, "hotkey", "hotkeys") + " " + HOTKEYS_DONE;
+            } catch (e) {
+              saidHotkeys = ". " + HOTKEYS_NO_METHOD;
+              console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u043D\u0435 \u0432\u0435\u0440\u043D\u0443\u043B\u0438\u0441\u044C", e);
+            }
+          } else {
+            saidHotkeys = ". " + HOTKEYS_NO_METHOD;
+            console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u0432 \u043A\u043E\u043F\u0438\u0438 \u0435\u0441\u0442\u044C, \u0430 \u0448\u0432\u0430 \u0434\u043B\u044F \u0438\u0445 \u0437\u0430\u043F\u0438\u0441\u0438 \u043D\u0435\u0442");
+          }
+        }
+        notify(changed ? RESTORE_DONE + saidHotkeys : RESTORE_SAME + saidHotkeys);
+      } catch (e) {
+        notify(messageOf(e));
+        console.error("inline-overhaul: \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u043B\u043E\u0441\u044C", e);
+      }
     }
   };
 }
-var APPLY_TITLE, APPLY_BODY, APPLY_CONFIRM, APPLY_DONE, GENERATED, TEMPLATE_OPENED, RULES_DONE, GUIDE_MADE, GUIDE_OPENED, NO_METHOD;
+var import_settings_backup, GUIDE_MADE, GUIDE_OPENED, BACKUP_SAVED, BACKUP_NONE, RESTORE_TITLE, RESTORE_BODY, RESTORE_BODY_NO_BACKUP, RESTORE_CONFIRM, RESTORE_DONE, HOTKEYS_DONE, HOTKEYS_NO_METHOD, RESET_TITLE, RESET_BODY, RESET_CONFIRM, RESET_DONE, RESET_NOTHING, RESTORE_SAME, PICK_TITLE, PICK_BODY, NO_METHOD;
 var init_actions = __esm({
   "src/ui/settings/actions.ts"() {
     "use strict";
     init_howto();
-    APPLY_TITLE = "Apply the config note";
-    APPLY_BODY = "This replaces your current setup with what the note says. The previous setup is kept aside first";
-    APPLY_CONFIRM = "Replace my setup";
-    APPLY_DONE = "Settings replaced with the config note";
-    GENERATED = "Config note written and opened";
-    TEMPLATE_OPENED = "Template note opened";
-    RULES_DONE = "Generated file rebuilt from your Fields";
+    import_settings_backup = __toESM(require_settings_backup());
     GUIDE_MADE = "Guide written and opened";
     GUIDE_OPENED = "Guide opened";
+    BACKUP_SAVED = "Settings saved";
+    BACKUP_NONE = "No backups found in";
+    RESTORE_TITLE = "Restore these settings";
+    RESTORE_BODY = "This replaces everything you have set up, on every tab. What you have now is saved as a backup first";
+    RESTORE_BODY_NO_BACKUP = "This replaces everything you have set up, on every tab, and what you have now is not saved anywhere first";
+    RESTORE_CONFIRM = "Replace my settings";
+    RESTORE_DONE = "Settings restored. Restart Obsidian so every part of the plugin picks them up";
+    HOTKEYS_DONE = "hotkeys back on the plugin commands";
+    HOTKEYS_NO_METHOD = "The hotkeys in that backup could not be put back";
+    RESET_TITLE = "Delete all your settings";
+    RESET_BODY = "Everything you have set up in this plugin goes, on every tab, and the plugin starts as if it had just been installed. What you have now is saved as a backup first";
+    RESET_CONFIRM = "Delete my settings";
+    RESET_DONE = "Settings deleted and back to defaults. Restart Obsidian so every part of the plugin picks them up";
+    RESET_NOTHING = "Your settings are already at their defaults";
+    RESTORE_SAME = "That backup matches what you already have";
+    PICK_TITLE = "Restore a backup";
+    PICK_BODY = "Newest first";
     NO_METHOD = "This build cannot do that yet";
+  }
+});
+
+// src/ui/settings/custom/tab_strip.ts
+function tabStripRow(state) {
+  return {
+    name: "",
+    searchable: false,
+    render: (setting) => {
+      const row = setting.settingEl;
+      row.empty();
+      row.classList.remove("io-tabsrow--parked");
+      row.addClass("io-tabsrow");
+      const scroll = findScrollHost(row);
+      const outer = scroll && scroll.parentElement ? scroll.parentElement : null;
+      let box = row;
+      if (outer && typeof outer.createDiv === "function" && typeof outer.insertBefore === "function") {
+        const kids = Array.from(outer.children || []);
+        for (const old of kids) {
+          if (old !== scroll && typeof old.hasClass === "function" && old.hasClass("io-tabsbar")) {
+            old.remove();
+          }
+        }
+        outer.addClass("io-tabshost");
+        if (scroll) scroll.addClass("io-tabsscroll");
+        const made = outer.createDiv({ cls: "io-tabsbar" });
+        outer.insertBefore(made, outer.firstChild || null);
+        box = made;
+        row.addClass("io-tabsrow--parked");
+      }
+      const strip = box.createDiv({ cls: "io-tabs" });
+      strip.setAttribute("role", "tablist");
+      strip.setAttribute("aria-label", "Settings areas");
+      state.tabs.forEach((tab) => {
+        const isActive = tab.id === state.active;
+        const btn2 = strip.createEl("button", {
+          cls: "io-tab" + (isActive ? " io-tab--active" : ""),
+          text: tab.label
+        });
+        btn2.setAttribute("role", "tab");
+        btn2.setAttribute("aria-selected", isActive ? "true" : "false");
+        btn2.tabIndex = isActive ? 0 : -1;
+        if (tab.desc) btn2.setAttribute("aria-description", tab.desc);
+        btn2.addEventListener("click", (() => state.pick(tab.id)));
+      });
+      strip.addEventListener("keydown", ((ev) => {
+        const at = state.tabs.findIndex((t) => t.id === state.active);
+        let next = -1;
+        if (ev.key === "ArrowRight") next = (at + 1) % state.tabs.length;
+        else if (ev.key === "ArrowLeft") next = (at - 1 + state.tabs.length) % state.tabs.length;
+        else if (ev.key === "Home") next = 0;
+        else if (ev.key === "End") next = state.tabs.length - 1;
+        if (next < 0) return;
+        ev.preventDefault();
+        const tab = state.tabs[next];
+        if (tab) state.pick(tab.id);
+      }));
+    }
+  };
+}
+var init_tab_strip = __esm({
+  "src/ui/settings/custom/tab_strip.ts"() {
+    "use strict";
+    init_dom();
   }
 });
 
@@ -34627,6 +34698,11 @@ function storeFor(plugin) {
       if (typeof plugin.getConfig === "function") return plugin.getConfig();
       return {};
     },
+    subscribe(listener) {
+      if (typeof store.subscribe !== "function") return () => {
+      };
+      return store.subscribe(listener);
+    },
     update(mutator, reason, opts) {
       return store.update(
         (cfg) => {
@@ -34636,46 +34712,6 @@ function storeFor(plugin) {
         reason,
         opts
       );
-    }
-  };
-}
-function tabStripRow(state) {
-  return {
-    name: "",
-    searchable: false,
-    render: (setting) => {
-      const row = setting.settingEl;
-      row.empty();
-      row.addClass("io-tabsrow");
-      const strip = row.createDiv({ cls: "io-tabs" });
-      strip.setAttribute("role", "tablist");
-      strip.setAttribute("aria-label", "Settings areas");
-      const buttons = [];
-      state.tabs.forEach((tab) => {
-        const isActive = tab.id === state.active;
-        const btn2 = strip.createEl("button", {
-          cls: "io-tab" + (isActive ? " io-tab--active" : ""),
-          text: tab.label
-        });
-        btn2.setAttribute("role", "tab");
-        btn2.setAttribute("aria-selected", isActive ? "true" : "false");
-        btn2.tabIndex = isActive ? 0 : -1;
-        if (tab.desc) btn2.setAttribute("aria-description", tab.desc);
-        btn2.addEventListener("click", () => state.pick(tab.id));
-        buttons.push(btn2);
-      });
-      strip.addEventListener("keydown", (ev) => {
-        const at = state.tabs.findIndex((t) => t.id === state.active);
-        let next = -1;
-        if (ev.key === "ArrowRight") next = (at + 1) % state.tabs.length;
-        else if (ev.key === "ArrowLeft") next = (at - 1 + state.tabs.length) % state.tabs.length;
-        else if (ev.key === "Home") next = 0;
-        else if (ev.key === "End") next = state.tabs.length - 1;
-        if (next < 0) return;
-        ev.preventDefault();
-        const tab = state.tabs[next];
-        if (tab) state.pick(tab.id);
-      });
     }
   };
 }
@@ -34723,9 +34759,58 @@ function askConfirm(app3, o) {
     new ConfirmModal(app3).open();
   });
 }
+function askPick(app3, o) {
+  return new Promise((resolve) => {
+    let answered = false;
+    const finish = (value) => {
+      if (answered) return;
+      answered = true;
+      resolve(value);
+    };
+    class PickModal extends import_obsidian.Modal {
+      onOpen() {
+        const box = this.contentEl;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", void 0, o.title);
+        el(box, "p", "io-item__desc", o.body);
+        const list = el(box, "div", "io-dlg__picks");
+        for (const option of o.options) {
+          const row = list.createEl("button", { cls: "io-dlg__pick", attr: { type: "button" } });
+          el(row, "div", "io-dlg__pick-name", option.label);
+          if (option.sub) {
+            el(row, "div", "io-dlg__pick-sub", option.sub);
+          }
+          if (option.note) {
+            el(row, "div", "io-dlg__pick-note", option.note);
+          }
+          row.addEventListener("click", (() => {
+            finish(option.value);
+            this.close();
+          }));
+        }
+        const foot = el(box, "div", "io-dlg__foot");
+        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        cancel.addEventListener("click", (() => {
+          finish(null);
+          this.close();
+        }));
+      }
+      onClose() {
+        finish(null);
+        this.contentEl.empty();
+      }
+    }
+    new PickModal(app3).open();
+  });
+}
 function vaultSeam(app3) {
   return {
-    exists: (path) => !!app3.vault.getAbstractFileByPath(path),
+    /*
+     * `exists` идёт через адаптер, а не через `getAbstractFileByPath`: копия
+     * переезда лежит в папке плагина, а её файлы в дерево vault не попадают.
+     */
+    exists: async (path) => await app3.vault.adapter.exists(path),
     create: async (path, text) => {
       await app3.vault.create(path, text);
     },
@@ -34733,6 +34818,113 @@ function vaultSeam(app3) {
       const file = app3.vault.getAbstractFileByPath(path);
       if (!file) throw new Error("Cannot open " + path);
       await app3.workspace.getLeaf(true).openFile(file);
+    },
+    read: async (path) => await app3.vault.adapter.read(path),
+    /*
+     * Папка под копии создаётся при первом сохранении, не раньше (Б2). Уже
+     * существующая — не ошибка: адаптер об этом сообщает исключением, и оно
+     * здесь гасится намеренно.
+     */
+    ensureFolder: async (path) => {
+      const folder = String(path || "").replace(/\/+$/, "");
+      if (!folder) return;
+      if (await app3.vault.adapter.exists(folder)) return;
+      try {
+        await app3.vault.createFolder(folder);
+      } catch (e) {
+        if (!await app3.vault.adapter.exists(folder)) throw e;
+      }
+    },
+    list: async (folder) => {
+      const path = String(folder || "").replace(/\/+$/, "");
+      if (!path || !await app3.vault.adapter.exists(path)) return [];
+      const found = await app3.vault.adapter.list(path);
+      const out = [];
+      for (const file of found.files || []) {
+        let mtime = 0;
+        try {
+          const stat = await app3.vault.adapter.stat(file);
+          mtime = stat && typeof stat.mtime === "number" ? stat.mtime : 0;
+        } catch (e) {
+          mtime = 0;
+        }
+        out.push({ path: file, mtime });
+      }
+      return out;
+    }
+  };
+}
+function configSeam(plugin) {
+  const store = storeFor(plugin);
+  return {
+    /* Снимок, а не живой объект: восстановление собирает следующий конфиг из
+       нынешнего, и подмена под руками ему не нужна. */
+    get: () => JSON.parse(JSON.stringify(store.getConfig())),
+    replace: async (next) => {
+      const before = JSON.stringify(store.getConfig());
+      await store.update(
+        (cfg) => {
+          for (const key of Object.keys(cfg)) delete cfg[key];
+          Object.assign(cfg, next);
+        },
+        "settings:restore-backup"
+      );
+      return JSON.stringify(store.getConfig()) !== before;
+    }
+  };
+}
+function pluginVersionOf(plugin) {
+  const manifest = plugin.manifest;
+  return manifest && manifest.version ? String(manifest.version) : "";
+}
+function hotkeyManagerOf(app3) {
+  const holder = app3;
+  const value = holder && typeof holder === "object" ? holder.hotkeyManager : null;
+  return value && typeof value === "object" ? value : null;
+}
+function commandPrefixOf(plugin) {
+  const manifest = plugin.manifest;
+  const id = manifest && manifest.id ? String(manifest.id) : "inline-overhaul";
+  return id + ":";
+}
+function hotkeySeam(app3, plugin) {
+  const prefix = commandPrefixOf(plugin);
+  const mine = (id) => String(id || "").startsWith(prefix);
+  return {
+    read: () => {
+      const out = {};
+      const hm = hotkeyManagerOf(app3);
+      const custom = hm && hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : null;
+      if (!custom) return out;
+      for (const id of Object.keys(custom)) {
+        if (!mine(id)) continue;
+        const value = custom[id];
+        if (Array.isArray(value)) out[id] = value;
+      }
+      return out;
+    },
+    write: async (map) => {
+      const hm = hotkeyManagerOf(app3);
+      if (!hm || typeof hm.setHotkeys !== "function" || typeof hm.removeHotkeys !== "function") {
+        throw new Error("This build of Obsidian does not let the plugin write hotkeys");
+      }
+      const wanted = /* @__PURE__ */ new Set();
+      let touched = 0;
+      for (const id of Object.keys(map || {})) {
+        if (!mine(id)) continue;
+        const bindings = Array.isArray(map[id]) ? map[id] : [];
+        wanted.add(id);
+        hm.setHotkeys(id, bindings);
+        touched++;
+      }
+      const custom = hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : {};
+      for (const id of Object.keys(custom)) {
+        if (!mine(id) || wanted.has(id)) continue;
+        hm.removeHotkeys(id);
+        touched++;
+      }
+      if (typeof hm.save === "function") await Promise.resolve(hm.save());
+      return touched;
     }
   };
 }
@@ -34746,10 +34938,11 @@ var init_obsidian_tab = __esm({
     init_store();
     init_actions();
     init_dom();
+    init_tab_strip();
     InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
-      constructor(app3, plugin, bridge2) {
+      constructor(app3, plugin, bridge) {
         super(app3, plugin);
-        const normalizePkmOrder = bridge2 && typeof bridge2.normalizePkmOrder === "function" ? bridge2.normalizePkmOrder : null;
+        const normalizePkmOrder = bridge && typeof bridge.normalizePkmOrder === "function" ? bridge.normalizePkmOrder : null;
         this.pane = new SettingsPane({
           schema: SCHEMA,
           tabs: TABS,
@@ -34759,12 +34952,21 @@ var init_obsidian_tab = __esm({
            * не попадает вовсе — этим занят `READY_ACTIONS` в `actions.ts`.
            */
           actions: buildActions({
-            plugin,
             notify: (message) => {
               new import_obsidian.Notice(message);
             },
             confirm: (o) => askConfirm(app3, o),
-            vault: vaultSeam(app3)
+            pick: (o) => askPick(app3, o),
+            vault: vaultSeam(app3),
+            /*
+             * Копии настроек пишутся и читаются через то же хранилище, что и всё
+             * остальное: замена идёт `update`-мутатором и потому проходит миграцию
+             * (CS10). Второй точки записи в конфиг нет.
+             */
+            config: configSeam(plugin),
+            pluginVersion: pluginVersionOf(plugin),
+            /* Хоткеи: второе исключение к 7.2, разрешение заказчика 2026-09-04. */
+            hotkeys: hotkeySeam(app3, plugin)
           }),
           /* То же окно и для сброса группы (Н3). */
           confirm: (o) => askConfirm(app3, o),
@@ -34794,10 +34996,16 @@ var init_obsidian_tab = __esm({
             setIcon: (node, icon) => {
               (0, import_obsidian.setIcon)(node, icon);
             },
+            /*
+             * Пути заметок vault: из них собирается список шаблонов (1.6.2.4).
+             * Список файлов Obsidian держит в памяти, поэтому чтение синхронное
+             * и годится для `getSettingDefinitions` (П-11).
+             */
+            listNotes: () => app3.vault.getMarkdownFiles().map((f) => f.path),
             plugin,
             getConfig: () => typeof plugin.getConfig === "function" ? plugin.getConfig() : {},
             normalizePkmOrder,
-            pkmOrderFields: bridge2 && bridge2.pkmOrderFields || []
+            pkmOrderFields: bridge && bridge.pkmOrderFields || []
           } : void 0
         });
       }
@@ -34853,6 +35061,14 @@ var require_main = __commonJS({
     };
     var __priorityStripEngineIsStub = true;
     var __priorityStripCm6AdapterIsStub = true;
+    try {
+      const mod = require_priority_strip_engine();
+      if (hasValidPriorityStripEngine(mod)) {
+        __priorityStripEngine = mod;
+        __priorityStripEngineIsStub = false;
+      }
+    } catch (_e) {
+    }
     var __sharedUtilsFallback = {
       cloneJson(x) {
         return JSON.parse(JSON.stringify(x));
@@ -34862,15 +35078,15 @@ var require_main = __commonJS({
       },
       deepMerge(base, patch) {
         const isObj2 = __sharedUtilsFallback.isObj;
-        const cloneJson2 = __sharedUtilsFallback.cloneJson;
-        if (!isObj2(base)) return cloneJson2(patch);
-        const out = cloneJson2(base);
+        const cloneJson3 = __sharedUtilsFallback.cloneJson;
+        if (!isObj2(base)) return cloneJson3(patch);
+        const out = cloneJson3(base);
         if (!isObj2(patch)) return out;
         for (const k of Object.keys(patch)) {
           const bv = out[k];
           const pv = patch[k];
           if (isObj2(bv) && isObj2(pv)) out[k] = __sharedUtilsFallback.deepMerge(bv, pv);
-          else out[k] = cloneJson2(pv);
+          else out[k] = cloneJson3(pv);
         }
         return out;
       },
@@ -34951,7 +35167,10 @@ var require_main = __commonJS({
           DATE_RUNTIME_CONFIG: "Date runtime config",
           TAGWHEEL_SCROLLER_ENABLED: "TagWheel scroller enabled",
           TAGWHEEL_SCROLLER_DIRECTION: "TagWheel scroller direction",
-          TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size"
+          TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size",
+          TAGWHEEL_SCROLLER_FILL: "TagWheel scroller fill color",
+          TAGWHEEL_SCROLLER_TEXT: "TagWheel scroller text color",
+          TAGWHEEL_EDGE_MODE: "TagWheel edge mode"
         }
       };
     })();
@@ -34993,12 +35212,9 @@ var require_main = __commonJS({
       };
     })();
     var __commandRegistry = null;
-    var __configNoteOrchestrator = null;
-    var __tagWheelConfigCodec = null;
-    var __tagWheelConfigParser = null;
     var __rulesMarkdownBuilder = null;
-    var __configNoteHelpers = null;
     var __enhancedSelectAllEngine = null;
+    var __smartDeleteEngine = null;
     var __storeEventsOrchestrator = null;
     var __configStoreModule = null;
     var __configMigrationModule = null;
@@ -35019,150 +35235,8 @@ var require_main = __commonJS({
       } catch (_) {
       }
     }
-    function denormTagToken(token) {
-      let value = String(token || "").trim();
-      if (!value) return "";
-      if (value.charAt(0) === "#") value = value.slice(1);
-      return String(value || "").trim();
-    }
-    function isWikilinkToken(text) {
-      const raw = String(text || "").trim();
-      return /^\[\[[^\]]+\]\]$/.test(raw);
-    }
-    function parseWikilinkLineStrict(text, sectionName, lineNo, allowedFields, options) {
-      const raw = String(text || "").trim();
-      const m = raw.match(/^(\[\[[^\]]+\]\])(?:\s*-\s*([A-Za-z0-9_-]+))?$/);
-      if (!m) {
-        throw new Error(`Section #### ${sectionName}, line ${lineNo}: expected wikilink '[[...]] - fieldId'`);
-      }
-      const token = String(m[1] || "").trim();
-      const allowed = Array.isArray(allowedFields) ? allowedFields.map((x) => String(x || "").trim()).filter(Boolean) : [];
-      const opts = options && typeof options === "object" ? options : {};
-      const requireExplicitFieldId = opts.requireExplicitFieldId === true;
-      if (!allowed.length) {
-        throw new Error(`Section #### ${sectionName}, line ${lineNo}: no wikilink fields are configured`);
-      }
-      let fieldId = String(m[2] || "").trim();
-      if (requireExplicitFieldId && !fieldId) {
-        throw new Error(`Section #### ${sectionName}, line ${lineNo}: field id is required for wikilink in mixed tag/wikilink section`);
-      }
-      if (!fieldId) {
-        if (allowed.length === 1) fieldId = allowed[0];
-        else if (allowed.length > 1) {
-          throw new Error(`Section #### ${sectionName}, line ${lineNo}: field id is required for wikilink when multiple fields are available (${allowed.join(", ")})`);
-        }
-      }
-      if (!fieldId) {
-        throw new Error(`Section #### ${sectionName}, line ${lineNo}: missing wikilink field id`);
-      }
-      if (allowed.length && !allowed.includes(fieldId)) {
-        throw new Error(`Section #### ${sectionName}, line ${lineNo}: unknown wikilink field '${fieldId}'`);
-      }
-      return { token, fieldId };
-    }
-    function extractFirstTagToken(text) {
-      const raw = String(text || "");
-      const m = raw.match(/#[^\s#]+/);
-      return m ? String(m[0] || "").trim() : "";
-    }
-    function parseCheckboxAndTag(text) {
-      const raw = String(text || "");
-      const m = raw.match(/^\s*(?:[-*]\s*)?(\[[^\]]+\])\s+/);
-      let checkbox = "";
-      if (m) {
-        const token = String(m[1] || "").trim();
-        try {
-          const lf = require_pkm_line_finalize_unified();
-          if (lf && typeof lf.normalizeCheckboxToken === "function") checkbox = lf.normalizeCheckboxToken(token);
-        } catch (_) {
-          checkbox = token;
-        }
-      }
-      return {
-        checkbox,
-        tag: extractFirstTagToken(raw)
-      };
-    }
-    async function readVaultText(app3, path) {
-      const safePath = String(path || "").trim();
-      if (!safePath) throw new Error("Vault read failed: empty path");
-      const vault = app3 && app3.vault;
-      if (!vault || typeof vault.getAbstractFileByPath !== "function" || typeof vault.read !== "function") {
-        throw new Error("Vault read failed: vault API unavailable");
-      }
-      const file = vault.getAbstractFileByPath(safePath);
-      if (!file) throw new Error("Vault file not found: " + safePath);
-      return await vault.read(file);
-    }
-    function extractFieldMetaMap(field) {
-      const values = field && Array.isArray(field.values) ? field.values : [];
-      const out = {};
-      for (let i = 0; i < values.length; i++) {
-        const v = values[i];
-        if (!isObj(v)) continue;
-        const token = denormTagToken(v.token);
-        if (!token) continue;
-        const meta = cloneJson(v);
-        delete meta.token;
-        out[token] = meta;
-      }
-      return out;
-    }
-    function rebuildTagValues(parentTokens, metaByToken) {
-      const tokens = Array.isArray(parentTokens) ? parentTokens : [];
-      const metaMap = isObj(metaByToken) ? metaByToken : {};
-      const out = [];
-      const seen = /* @__PURE__ */ new Set();
-      for (let i = 0; i < tokens.length; i++) {
-        const token = denormTagToken(tokens[i]);
-        if (!token || seen.has(token)) continue;
-        seen.add(token);
-        const meta = isObj(metaMap[token]) ? cloneJson(metaMap[token]) : {};
-        delete meta.allowedParentValues;
-        out.push({
-          ...meta,
-          token,
-          active: typeof meta.active === "boolean" ? meta.active : true
-        });
-      }
-      return out;
-    }
-    function rebuildSubtagValues(parents, metaByToken) {
-      const src = Array.isArray(parents) ? parents : [];
-      const metaMap = isObj(metaByToken) ? metaByToken : {};
-      const byToken = {};
-      const order = [];
-      for (let i = 0; i < src.length; i++) {
-        const parent = isObj(src[i]) ? src[i] : {};
-        const parentToken = denormTagToken(parent.token);
-        if (!parentToken) continue;
-        const subtags = Array.isArray(parent.subtags) ? parent.subtags : [];
-        for (let si = 0; si < subtags.length; si++) {
-          const subToken = denormTagToken(subtags[si]);
-          if (!subToken) continue;
-          if (!Object.prototype.hasOwnProperty.call(byToken, subToken)) {
-            byToken[subToken] = /* @__PURE__ */ new Set();
-            order.push(subToken);
-          }
-          byToken[subToken].add(parentToken);
-        }
-      }
-      const out = [];
-      for (let i = 0; i < order.length; i++) {
-        const token = order[i];
-        const meta = isObj(metaMap[token]) ? cloneJson(metaMap[token]) : {};
-        const allowedParentValues = Array.from(byToken[token]);
-        out.push({
-          ...meta,
-          token,
-          allowedParentValues,
-          active: typeof meta.active === "boolean" ? meta.active : true
-        });
-      }
-      return out;
-    }
     function hasValidCommandRegistry(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.buildCoreCommandDefs === "function" && typeof mod.buildNavigationCommandDefs === "function" && typeof mod.buildPkmCommandDefs === "function" && typeof mod.buildConfigCommandDefs === "function" && typeof mod.buildBinderCommandDefs === "function");
+      return !!(mod && typeof mod === "object" && typeof mod.buildCoreCommandDefs === "function" && typeof mod.buildNavigationCommandDefs === "function" && typeof mod.buildPkmCommandDefs === "function" && typeof mod.buildBinderCommandDefs === "function");
     }
     function hasValidTransformFeature(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.normalizeInline2Note === "function" && typeof mod.normalizeTransformConfig === "function" && typeof mod.renderTransformSettings === "function" && typeof mod.runInline2Note === "function");
@@ -35187,18 +35261,24 @@ var require_main = __commonJS({
         buildCoreCommandDefs: () => [],
         buildNavigationCommandDefs: () => [],
         buildPkmCommandDefs: () => [],
-        buildConfigCommandDefs: () => [],
         buildBinderCommandDefs: () => []
       };
       return __commandRegistry;
     }
     function getCommandRegistry() {
       if (hasValidCommandRegistry(__commandRegistry)) return __commandRegistry;
+      try {
+        const mod = require_command_registry();
+        if (hasValidCommandRegistry(mod)) {
+          __commandRegistry = mod;
+          return __commandRegistry;
+        }
+      } catch (_e) {
+      }
       return {
         buildCoreCommandDefs: () => [],
         buildNavigationCommandDefs: () => [],
         buildPkmCommandDefs: () => [],
-        buildConfigCommandDefs: () => [],
         buildBinderCommandDefs: () => []
       };
     }
@@ -35236,6 +35316,14 @@ var require_main = __commonJS({
     }
     function getTransformFeature() {
       if (hasValidTransformFeature(__transformFeature)) return __transformFeature;
+      try {
+        const mod = require_transform_feature();
+        if (hasValidTransformFeature(mod)) {
+          __transformFeature = mod;
+          return __transformFeature;
+        }
+      } catch (_e) {
+      }
       return {
         normalizeInline2Note: () => ({ enabled: false }),
         normalizeTransformConfig: (cfg) => cfg,
@@ -35245,30 +35333,15 @@ var require_main = __commonJS({
         }
       };
     }
-    var BINDER_SMART_BRACKET_COMMAND_ID = "inlineOverhaul_Binder_Smart_bracket";
-    function makeBinderCommandSuffix(text) {
-      const src = String(text || "").trim();
-      if (!src) return "item";
-      const collapsed = src.replace(/\s+/g, "_");
-      const cleaned = collapsed.replace(/[^A-Za-z0-9_\-]+/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
-      return cleaned || "item";
-    }
+    var __commandIds = require_command_ids();
+    var BINDER_SMART_BRACKET_COMMAND_ID = __commandIds.SMART_BRACKET_COMMAND_ID;
     function makeBinderCommandId(seedText, used) {
-      const usedSet = used instanceof Set ? used : /* @__PURE__ */ new Set();
-      const base = `inlineOverhaul_Binder_${makeBinderCommandSuffix(seedText)}`;
-      let candidate = base;
-      let i = 2;
-      while (usedSet.has(candidate)) {
-        candidate = `${base}_${i}`;
-        i += 1;
-      }
-      usedSet.add(candidate);
-      return candidate;
+      return __commandIds.binderCommandId(seedText, used);
     }
     function normalizeBinderRows(rawRows) {
       const source = Array.isArray(rawRows) ? rawRows : [];
       const out = [];
-      const used = /* @__PURE__ */ new Set([BINDER_SMART_BRACKET_COMMAND_ID]);
+      const used = __commandIds.reservedCommandIds(FEATURE_ORDER);
       let hasSmartBracket = false;
       for (const row of source) {
         const obj = isObj(row) ? row : {};
@@ -35279,20 +35352,21 @@ var require_main = __commonJS({
         const existingId = String(obj.commandId || "").trim();
         if (existingId === "inlineOverhaul_Binder_InsertBrackets" || existingId === "inlineOverhaul_Binder_Bracket_right" || String(insertText || "").trim() === "InsertBrackets" || String(insertText || "").trim() === "]") continue;
         let normalizedId = "";
-        if (existingId === BINDER_SMART_BRACKET_COMMAND_ID || existingId === "inlineOverhaul_Binder_Bracket_left") {
+        if (existingId === BINDER_SMART_BRACKET_COMMAND_ID || existingId === "inlineOverhaul_Binder_Smart_bracket" || existingId === "inlineOverhaul_Binder_Bracket_left") {
           normalizedId = BINDER_SMART_BRACKET_COMMAND_ID;
           hasSmartBracket = true;
           out.push({
             rowId: "binder-system-smart-bracket",
             insertText: "[]",
             commandName: "Smart bracket",
-            description: "Smart bracket",
+            description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
             commandId: BINDER_SMART_BRACKET_COMMAND_ID
           });
           continue;
         } else {
           const seed = String(commandName || "").trim() || String(insertText || "").trim() || existingId;
-          normalizedId = existingId ? used.has(existingId) ? makeBinderCommandId(seed, used) : (used.add(existingId), existingId) : makeBinderCommandId(seed, used);
+          const reusable = existingId && !__commandIds.isLegacyCommandId(existingId) && __commandIds.isCompliantCommandId(existingId) && !used.has(existingId);
+          normalizedId = reusable ? (used.add(existingId), existingId) : makeBinderCommandId(seed, used);
         }
         out.push({ rowId, insertText, commandName, description, commandId: normalizedId });
       }
@@ -35301,200 +35375,27 @@ var require_main = __commonJS({
           rowId: "binder-system-smart-bracket",
           insertText: "[]",
           commandName: "Smart bracket",
-          description: "Smart bracket",
+          description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
           commandId: BINDER_SMART_BRACKET_COMMAND_ID
         });
       }
       return out;
     }
-    function hasValidTagWheelConfigCodec(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.normalizeTagWheelConfigPath === "function" && typeof mod.normalizeTagWheelConfigTemplatePath === "function" && typeof mod.buildDefaultTagWheelDetailedTemplateMarkdown === "function" && typeof mod.renderTagWheelConfigFromTemplate === "function" && typeof mod.buildMinimalFromRenderedTemplate === "function" && typeof mod.buildTagWheelConfigParts === "function" && typeof mod.buildTagWheelConfigMarkdown === "function" && typeof mod.parseTagWheelConfigMarkdown === "function");
-    }
-    function createTagWheelConfigCodecFallback() {
-      try {
-        const mod = require_tagwheel_config_codec_fallback();
-        if (mod && typeof mod.createTagWheelConfigCodecFallback === "function") {
-          return mod.createTagWheelConfigCodecFallback({
-            isObj,
-            TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH,
-            TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH,
-            TAGWHEEL_TECHNICAL_BLOCK_MARKER,
-            TAGWHEEL_TECH_MARKER_PREFIX,
-            TAGWHEEL_IMPORTANT_LINE,
-            CFG_H2_TAGS,
-            CFG_H2_ELEMENTS_COMBINED,
-            TAGWHEEL_PREFIX_RESOLVER_H3
-          });
-        }
-      } catch (_) {
-      }
-      return {
-        normalizeTagWheelConfigPath() {
-          return TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH;
-        },
-        normalizeTagWheelConfigTemplatePath() {
-          return TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH;
-        },
-        buildDefaultTagWheelDetailedTemplateMarkdown() {
-          throw new Error("TagWheel config codec fallback module unavailable: buildDefaultTagWheelDetailedTemplateMarkdown");
-        },
-        renderTagWheelConfigFromTemplate() {
-          throw new Error("TagWheel config codec fallback module unavailable: renderTagWheelConfigFromTemplate");
-        },
-        buildMinimalFromRenderedTemplate() {
-          throw new Error("TagWheel config codec fallback module unavailable: buildMinimalFromRenderedTemplate");
-        },
-        buildTagWheelConfigParts() {
-          throw new Error("TagWheel config codec unavailable: buildTagWheelConfigParts");
-        },
-        buildTagWheelConfigMarkdown() {
-          throw new Error("TagWheel config codec unavailable: buildTagWheelConfigMarkdown");
-        },
-        parseTagWheelConfigMarkdown() {
-          throw new Error("TagWheel config codec unavailable: parseTagWheelConfigMarkdown");
-        }
-      };
-    }
-    function hasValidTagWheelConfigParser(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.createTagWheelConfigParser === "function");
-    }
-    async function loadTagWheelConfigParserSafe(app3) {
-      const candidates = [
-        ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js",
-        "./.obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js",
-        "plugins/inline-overhaul/src/features/tagwheel_config_parser.js"
-      ];
-      const loaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/features/tagwheel_config_parser.js",
-        candidates,
-        cacheKey: "feature:tagwheel-config-parser",
-        validate: hasValidTagWheelConfigParser
-      });
-      if (loaded.mod) {
-        __tagWheelConfigParser = loaded.mod;
-        return __tagWheelConfigParser;
-      }
-      __tagWheelConfigParser = null;
-      return null;
-    }
-    function getTagWheelConfigParserFactory() {
-      if (hasValidTagWheelConfigParser(__tagWheelConfigParser)) {
-        return __tagWheelConfigParser.createTagWheelConfigParser;
-      }
-      return null;
-    }
-    async function loadTagWheelConfigCodecSafe(app3) {
-      await loadConfigNoteHelpersSafe(app3);
-      const candidates = [
-        ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec.js",
-        "./.obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec.js",
-        "plugins/inline-overhaul/src/features/tagwheel_config_codec.js"
-      ];
-      const loaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/features/tagwheel_config_codec.js",
-        candidates,
-        cacheKey: "feature:tagwheel-config-codec",
-        validate: (mod) => !!(mod && typeof mod.createTagWheelConfigCodec === "function")
-      });
-      if (loaded.mod && typeof loaded.mod.createTagWheelConfigCodec === "function") {
-        const helpers5 = getConfigNoteHelpers();
-        const codec = loaded.mod.createTagWheelConfigCodec({
-          isObj,
-          getOrderStrictName,
-          ORDER_KEY_TO_LEFT_FIELD_ID,
-          getFieldById: helpers5.getFieldById,
-          getLeftFields: helpers5.getLeftFields,
-          getRightFields: helpers5.getRightFields,
-          collectTagSections: helpers5.collectTagSections,
-          collectWikilinkFieldIds: helpers5.collectWikilinkFieldIds,
-          collectOrderedElementFields: helpers5.collectOrderedElementFields,
-          getPrefixRulesFromCfg: helpers5.getPrefixRulesFromCfg,
-          denormTagToken,
-          parseCustomPrefixResolverBlock: helpers5.parseCustomPrefixResolverBlock,
-          isWikilinkToken,
-          parseWikilinkLineStrict,
-          extractFirstTagToken,
-          parseCheckboxAndTag,
-          createTagWheelConfigParser: (deps) => {
-            const factory = getTagWheelConfigParserFactory();
-            if (typeof factory !== "function") throw new Error("TagWheel config parser module unavailable");
-            return factory(deps);
-          },
-          TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH,
-          TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH,
-          TAGWHEEL_TECHNICAL_BLOCK_MARKER,
-          TAGWHEEL_TECH_MARKER_PREFIX,
-          TAGWHEEL_IMPORTANT_LINE,
-          CFG_H1_SETTINGS,
-          CFG_H2_TAGS,
-          CFG_H2_ELEMENTS_COMBINED,
-          CFG_H2_DATES,
-          CFG_H2_ELEMENTS,
-          TAGWHEEL_PREFIX_RESOLVER_H3,
-          TAGWHEEL_PREFIX_RESOLVER_SECTION,
-          TAGWHEEL_WIKILINK_SECTION
-        });
-        if (hasValidTagWheelConfigCodec(codec)) {
-          __tagWheelConfigCodec = codec;
-          return __tagWheelConfigCodec;
-        }
-      }
-      __tagWheelConfigCodec = createTagWheelConfigCodecFallback();
-      return __tagWheelConfigCodec;
-    }
-    function getTagWheelConfigCodec() {
-      if (hasValidTagWheelConfigCodec(__tagWheelConfigCodec)) return __tagWheelConfigCodec;
-      __tagWheelConfigCodec = createTagWheelConfigCodecFallback();
-      return __tagWheelConfigCodec;
-    }
     function hasValidRulesMarkdownBuilder(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.buildTagWheelRulesMarkdownFromConfig === "function");
     }
     function createRulesMarkdownBuilderFallback() {
+      try {
+        const mod = require_rules_markdown_builder();
+        if (mod && typeof mod.createRulesMarkdownBuilder === "function") {
+          const builder = mod.createRulesMarkdownBuilder({ isObj, cloneJson: cloneJson2, toPrettyJson });
+          if (hasValidRulesMarkdownBuilder(builder)) return builder;
+        }
+      } catch (_e) {
+      }
       return {
-        buildTagWheelRulesMarkdownFromConfig(cfg) {
-          const behaviorRoot = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-          const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
-          const io = isObj(behaviorRoot.io) ? behaviorRoot.io : {};
-          const inlineLayout = isObj(behaviorRoot.inlineLayout) ? behaviorRoot.inlineLayout : {};
-          const dateRules = isObj(behaviorRoot.dateRules) ? behaviorRoot.dateRules : {};
-          const behavior = cloneJson(behaviorRoot);
-          const ui = isObj(behaviorRoot.ui) ? behaviorRoot.ui : {};
-          const leftMode = isObj(behaviorRoot.leftMode) ? behaviorRoot.leftMode : {};
-          const rightMode = isObj(behaviorRoot.rightMode) ? behaviorRoot.rightMode : {};
-          const projects = isObj(behaviorRoot.projects) ? behaviorRoot.projects : {};
-          const colors = isObj(behaviorRoot.colors) ? behaviorRoot.colors : {};
-          const meta = isObj(behaviorRoot.meta) ? cloneJson(behaviorRoot.meta) : {};
-          behavior.subtagFormat = pkm.behavior && pkm.behavior.subtagFormat === "combined" ? "combined" : "separate";
-          behavior.defaultMode = String(behavior.defaultMode || "").trim().toLowerCase() === "right" ? "right" : "left";
-          meta.generatedBy = "inline-overhaul";
-          meta.generatedAt = (/* @__PURE__ */ new Date()).toISOString();
-          const blocks = [
-            ["tagwheel-meta", meta],
-            ["tagwheel-io", io],
-            ["tagwheel-inline-layout", inlineLayout],
-            ["tagwheel-date-rules", dateRules],
-            ["tagwheel-behavior", behavior],
-            ["tagwheel-ui", ui],
-            ["tagwheel-left-mode", leftMode],
-            ["tagwheel-right-mode", rightMode],
-            ["tagwheel-projects", projects],
-            ["tagwheel-colors", colors]
-          ];
-          const lines = [];
-          lines.push("# InlineOverhaul Generated TagWheel Rules");
-          lines.push("");
-          lines.push("<!-- AUTO-GENERATED. DO NOT EDIT MANUALLY. Source: plugin data.json -->");
-          lines.push("");
-          for (let i = 0; i < blocks.length; i++) {
-            const name = blocks[i][0];
-            const payload = blocks[i][1];
-            lines.push("```" + name);
-            lines.push(toPrettyJson(payload));
-            lines.push("```");
-            lines.push("");
-          }
-          return lines.join("\n");
+        buildTagWheelRulesMarkdownFromConfig() {
+          throw new Error("rules_markdown_builder unavailable");
         }
       };
     }
@@ -35511,7 +35412,7 @@ var require_main = __commonJS({
         validate: (mod) => !!(mod && typeof mod.createRulesMarkdownBuilder === "function")
       });
       if (loaded.mod && typeof loaded.mod.createRulesMarkdownBuilder === "function") {
-        const builder = loaded.mod.createRulesMarkdownBuilder({ isObj, cloneJson, toPrettyJson });
+        const builder = loaded.mod.createRulesMarkdownBuilder({ isObj, cloneJson: cloneJson2, toPrettyJson });
         if (hasValidRulesMarkdownBuilder(builder)) {
           __rulesMarkdownBuilder = builder;
           return __rulesMarkdownBuilder;
@@ -35524,62 +35425,6 @@ var require_main = __commonJS({
       if (hasValidRulesMarkdownBuilder(__rulesMarkdownBuilder)) return __rulesMarkdownBuilder;
       __rulesMarkdownBuilder = createRulesMarkdownBuilderFallback();
       return __rulesMarkdownBuilder;
-    }
-    function hasValidConfigNoteHelpers(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.getLeftFields === "function" && typeof mod.getRightFields === "function" && typeof mod.getFieldById === "function" && typeof mod.resolveOrderField === "function" && typeof mod.collectWikilinkFieldIds === "function" && typeof mod.collectTagSections === "function" && typeof mod.collectOrderedElementFields === "function" && typeof mod.getPrefixRulesFromCfg === "function" && typeof mod.collectCheckboxTokensFromMap === "function" && typeof mod.parseCustomPrefixResolverBlock === "function" && typeof mod.syncCustomPrefixResolverBlock === "function");
-    }
-    function createConfigNoteHelpersFallback() {
-      const fail = (name) => {
-        throw new Error("Config note helpers unavailable: " + name);
-      };
-      return {
-        getLeftFields: (cfg) => fail("getLeftFields") && cfg,
-        getRightFields: (cfg) => fail("getRightFields") && cfg,
-        getFieldById: (fields, fieldId) => fail("getFieldById") && fields && fieldId,
-        resolveOrderField: (cfg, orderKey) => fail("resolveOrderField") && cfg && orderKey,
-        collectWikilinkFieldIds: (cfg) => fail("collectWikilinkFieldIds") && cfg,
-        collectTagSections: (cfg) => fail("collectTagSections") && cfg,
-        collectOrderedElementFields: (cfg) => fail("collectOrderedElementFields") && cfg,
-        getPrefixRulesFromCfg: (cfg) => fail("getPrefixRulesFromCfg") && cfg,
-        collectCheckboxTokensFromMap: (x) => fail("collectCheckboxTokensFromMap") && x,
-        parseCustomPrefixResolverBlock: (md, allowedSections) => fail("parseCustomPrefixResolverBlock") && md && allowedSections,
-        syncCustomPrefixResolverBlock: (md, sectionOrder, checkboxOrder, mode, fieldsOrderMode, tagSubtagPriority) => fail("syncCustomPrefixResolverBlock") && md && sectionOrder && checkboxOrder && mode && fieldsOrderMode && tagSubtagPriority
-      };
-    }
-    async function loadConfigNoteHelpersSafe(app3) {
-      const candidates = [
-        ".obsidian/plugins/inline-overhaul/src/features/config_note_helpers.js",
-        "./.obsidian/plugins/inline-overhaul/src/features/config_note_helpers.js",
-        "plugins/inline-overhaul/src/features/config_note_helpers.js"
-      ];
-      const loaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/features/config_note_helpers.js",
-        candidates,
-        cacheKey: "feature:config-note-helpers",
-        validate: (mod) => !!(mod && typeof mod.createConfigNoteHelpers === "function")
-      });
-      if (loaded.mod && typeof loaded.mod.createConfigNoteHelpers === "function") {
-        const helpers5 = loaded.mod.createConfigNoteHelpers({
-          isObj,
-          normalizePkmOrder,
-          getOrderStrictName,
-          TAGWHEEL_PREFIX_RESOLVER_H3
-        });
-        if (hasValidConfigNoteHelpers(helpers5)) {
-          __configNoteHelpers = helpers5;
-          return __configNoteHelpers;
-        }
-      }
-      __configNoteHelpers = createConfigNoteHelpersFallback();
-      return __configNoteHelpers;
-    }
-    function getConfigNoteHelpers() {
-      if (hasValidConfigNoteHelpers(__configNoteHelpers)) return __configNoteHelpers;
-      __configNoteHelpers = createConfigNoteHelpersFallback();
-      return __configNoteHelpers;
-    }
-    function hasValidConfigNoteOrchestrator(mod) {
-      return !!(mod && typeof mod === "object" && typeof mod.openTagWheelConfigNote === "function" && typeof mod.openTagWheelConfigTemplateNote === "function" && typeof mod.applyTagWheelConfigNote === "function" && typeof mod.renameStrictNameInConfigNote === "function");
     }
     function hasValidConfigStoreModule(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.ConfigStore === "function");
@@ -35628,6 +35473,41 @@ var require_main = __commonJS({
       };
       return __enhancedSelectAllEngine;
     }
+    function hasValidSmartDeleteEngine(mod) {
+      return !!(mod && typeof mod === "object" && typeof mod.handleSmartDeleteKeymap === "function");
+    }
+    async function loadSmartDeleteEngineSafe(app3) {
+      const candidates = [
+        ".obsidian/plugins/inline-overhaul/src/features/smart_delete_engine.js",
+        "./.obsidian/plugins/inline-overhaul/src/features/smart_delete_engine.js",
+        "plugins/inline-overhaul/src/features/smart_delete_engine.js"
+      ];
+      const loaded = await loadModuleWithVaultFallback(app3, {
+        requirePath: "./src/features/smart_delete_engine.js",
+        candidates,
+        cacheKey: "feature:smart-delete-engine",
+        validate: hasValidSmartDeleteEngine
+      });
+      if (loaded.mod) {
+        __smartDeleteEngine = loaded.mod;
+        return __smartDeleteEngine;
+      }
+      __smartDeleteEngine = {
+        handleSmartDeleteKeymap() {
+          return false;
+        }
+      };
+      return __smartDeleteEngine;
+    }
+    function getSmartDeleteEngine() {
+      if (hasValidSmartDeleteEngine(__smartDeleteEngine)) return __smartDeleteEngine;
+      __smartDeleteEngine = {
+        handleSmartDeleteKeymap() {
+          return false;
+        }
+      };
+      return __smartDeleteEngine;
+    }
     function hasValidPriorityStripEngine(mod) {
       return !!(mod && typeof mod === "object" && typeof mod.buildStripSpecs === "function" && typeof mod.normalizeStripConfig === "function");
     }
@@ -35675,76 +35555,6 @@ var require_main = __commonJS({
       __priorityStripCm6AdapterIsStub = true;
       if (loaded.requireErr) reportLoaderFallback("main.loadPriorityStripAdapterSafe", loaded.requireErr);
       return __priorityStripCm6Adapter;
-    }
-    function fallbackConfigNoteOrchestrator() {
-      return {
-        async openTagWheelConfigNote() {
-          throw new Error("Config note orchestrator unavailable");
-        },
-        async openTagWheelConfigTemplateNote(ctx) {
-          const app3 = ctx && ctx.app;
-          const cfg = ctx && ctx.cfg;
-          const codec = ctx && ctx.tagWheelConfigCodec || {};
-          const normalizeTagWheelConfigTemplatePath = typeof codec.normalizeTagWheelConfigTemplatePath === "function" ? codec.normalizeTagWheelConfigTemplatePath : ctx && ctx.normalizeTagWheelConfigTemplatePath;
-          const buildDefaultTagWheelDetailedTemplateMarkdown = typeof codec.buildDefaultTagWheelDetailedTemplateMarkdown === "function" ? codec.buildDefaultTagWheelDetailedTemplateMarkdown : ctx && ctx.buildDefaultTagWheelDetailedTemplateMarkdown;
-          const templatePath = normalizeTagWheelConfigTemplatePath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigTemplatePath : "");
-          let file = app3.vault.getAbstractFileByPath(templatePath);
-          if (!file) {
-            await app3.vault.create(templatePath, buildDefaultTagWheelDetailedTemplateMarkdown());
-            file = app3.vault.getAbstractFileByPath(templatePath);
-          }
-          if (!file) throw new Error("Failed to create/open detailed template note: " + templatePath);
-          const leaf = app3.workspace.getLeaf(true);
-          await leaf.openFile(file);
-          return templatePath;
-        },
-        async applyTagWheelConfigNote() {
-          throw new Error("Config note orchestrator unavailable");
-        },
-        async renameStrictNameInConfigNote(ctx, oldName, newName) {
-          const app3 = ctx && ctx.app;
-          const cfg = ctx && ctx.cfg;
-          const codec = ctx && ctx.tagWheelConfigCodec || {};
-          const normalizeTagWheelConfigPath = typeof codec.normalizeTagWheelConfigPath === "function" ? codec.normalizeTagWheelConfigPath : ctx && ctx.normalizeTagWheelConfigPath;
-          const from = String(oldName || "").trim();
-          const to = String(newName || "").trim();
-          if (!from || !to || from === to) return;
-          const notePath = normalizeTagWheelConfigPath(cfg && cfg.pkm ? cfg.pkm.tagWheelConfigPath : "");
-          const file = app3.vault.getAbstractFileByPath(notePath);
-          if (!file) return;
-          const src = await app3.vault.read(file);
-          let out = String(src || "");
-          const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const fromEsc = esc(from);
-          out = out.replace(new RegExp(`(^|\\n)(\\s*#{4,5}\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-          out = out.replace(new RegExp(`(^|\\n)(\\s*[-*]\\s+)${fromEsc}(\\s*(?:\\n|$))`, "g"), `$1$2${to}$3`);
-          if (out !== src) await app3.vault.modify(file, out);
-        }
-      };
-    }
-    async function loadConfigNoteOrchestratorSafe(app3) {
-      const candidates = [
-        ".obsidian/plugins/inline-overhaul/src/features/config_note_orchestrator.js",
-        "./.obsidian/plugins/inline-overhaul/src/features/config_note_orchestrator.js",
-        "plugins/inline-overhaul/src/features/config_note_orchestrator.js"
-      ];
-      const loaded = await loadModuleWithVaultFallback(app3, {
-        requirePath: "./src/features/config_note_orchestrator.js",
-        candidates,
-        cacheKey: "feature:config-note-orchestrator",
-        validate: hasValidConfigNoteOrchestrator
-      });
-      if (loaded.mod) {
-        __configNoteOrchestrator = loaded.mod;
-        return __configNoteOrchestrator;
-      }
-      __configNoteOrchestrator = fallbackConfigNoteOrchestrator();
-      return __configNoteOrchestrator;
-    }
-    function getConfigNoteOrchestrator() {
-      if (hasValidConfigNoteOrchestrator(__configNoteOrchestrator)) return __configNoteOrchestrator;
-      __configNoteOrchestrator = fallbackConfigNoteOrchestrator();
-      return __configNoteOrchestrator;
     }
     async function loadConfigStoreModuleSafe(app3) {
       const candidates = [
@@ -35814,7 +35624,7 @@ var require_main = __commonJS({
         async ensureGeneratedRulesNow(ctx, reason) {
           const cfg = ctx.getConfig();
           if (!(cfg && cfg.pkm)) return;
-          const genPath = String(cfg.pkm && cfg.pkm.generatedRulesPath || ctx.defaultGeneratedRulesPath || "").trim();
+          const genPath = String(readCfgPath(cfg, "advanced.generatedRulesPath") || ctx.defaultGeneratedRulesPath || "").trim();
           if (!genPath) throw new Error("Generated rules path is empty");
           const md = ctx.buildRulesMarkdown(cfg);
           await ctx.writeText(genPath, md);
@@ -35953,7 +35763,7 @@ var require_main = __commonJS({
       }
       return __sharedUtils;
     }
-    function cloneJson(x) {
+    function cloneJson2(x) {
       return __sharedUtils.cloneJson(x);
     }
     function isObj(x) {
@@ -35991,8 +35801,8 @@ var require_main = __commonJS({
         }
       }
       const loadVaultBridgeSafe = async () => {
-        let bridge2 = globalThis.__inlineVaultModuleBridge;
-        if (bridge2 && typeof bridge2.loadVaultModule === "function") return bridge2;
+        let bridge = globalThis.__inlineVaultModuleBridge;
+        if (bridge && typeof bridge.loadVaultModule === "function") return bridge;
         try {
           const mod = require_vault_module_bridge();
           if (mod && typeof mod.loadVaultModule === "function") {
@@ -36030,13 +35840,13 @@ var require_main = __commonJS({
         return null;
       };
       const tryLoadWithVaultBridge = async (modulePath) => {
-        let bridge2 = globalThis.__inlineVaultModuleBridge;
-        if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) {
-          bridge2 = await loadVaultBridgeSafe();
+        let bridge = globalThis.__inlineVaultModuleBridge;
+        if (!(bridge && typeof bridge.loadVaultModule === "function")) {
+          bridge = await loadVaultBridgeSafe();
         }
-        if (!(bridge2 && typeof bridge2.loadVaultModule === "function")) return null;
+        if (!(bridge && typeof bridge.loadVaultModule === "function")) return null;
         try {
-          return await bridge2.loadVaultModule(app3, modulePath, false, "__inlineOverhaulMainModuleCache");
+          return await bridge.loadVaultModule(app3, modulePath, false, "__inlineOverhaulMainModuleCache");
         } catch (e) {
           reportLoaderFallback(`main.tryLoadWithVaultBridge.load:${modulePath}`, e);
           return null;
@@ -36177,22 +35987,6 @@ var require_main = __commonJS({
     var PKM_ORDER_FIELDS = [];
     var DATE_RUNTIME_KEY_NOW = "time_now";
     var DATE_RUNTIME_KEY_ESTIMATED = "time_estimated";
-    var TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH = "InlineOverhaul_Config.md";
-    var TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH = "InlineOverhaul_Config_template.md";
-    var TAGWHEEL_TECHNICAL_BLOCK_MARKER = "<!-- INLINE_OVERHAUL:TECHNICAL_BLOCK -->";
-    var TAGWHEEL_TECH_MARKER_PREFIX = "INLINE_OVERHAUL:TECH:";
-    var TAGWHEEL_IMPORTANT_LINE = ">!!! **IMPORTANT** - after making changes in this file -> Apply them, or it won't work!";
-    var TAGWHEEL_WIKILINK_SECTION = "wikilink fields (from Order)";
-    var TAGWHEEL_PREFIX_RESOLVER_SECTION = "prefix resolver";
-    var TAGWHEEL_PREFIX_RESOLVER_H3 = "PREFIX RESOLVER";
-    var TAGWHEEL_CONFIG_MODE_DETAILED = "detailed";
-    var TAGWHEEL_CONFIG_MODE_MINIMAL = "minimal";
-    var CFG_H1_SETTINGS = "Settings";
-    var CFG_H2_TAGS = "`#TAGS/#SUBTAGS` + `WIKILINKS`";
-    var CFG_H2_DATES = "DATES+TIME";
-    var CFG_H2_ELEMENTS = "ELEMENTS";
-    var CFG_H2_ELEMENTS_COMBINED = "`DATE/TIME + ELEMENTS`";
-    var ORDER_KEY_TO_LEFT_FIELD_ID = {};
     function normalizeOrderFieldKey(key) {
       const k = String(key || "").trim().replace(/\s+/g, " ");
       if (!k) return "";
@@ -36253,16 +36047,17 @@ var require_main = __commonJS({
     }
     function ensureBehaviorModesFromOrder(cfg) {
       var _a;
-      if (!isObj(cfg && cfg.pkm && cfg.pkm.behavior)) return;
-      const behavior = cfg.pkm.behavior;
-      const order = normalizePkmOrder(behavior.order);
-      behavior.order = order;
-      if (!isObj(behavior.leftMode)) behavior.leftMode = { fields: [] };
-      if (!Array.isArray(behavior.leftMode.fields)) behavior.leftMode.fields = [];
-      if (!isObj(behavior.rightMode)) behavior.rightMode = { fields: [] };
-      if (!Array.isArray(behavior.rightMode.fields)) behavior.rightMode.fields = [];
-      const leftFields = behavior.leftMode.fields;
-      const rightFields = behavior.rightMode.fields;
+      if (!isObj(cfg && cfg.pkm)) return;
+      if (!isObj(cfg.pkm.fields)) cfg.pkm.fields = {};
+      const fields = cfg.pkm.fields;
+      const order = normalizePkmOrder(fields.order);
+      fields.order = order;
+      if (!isObj(fields.tags)) fields.tags = { fields: [] };
+      if (!Array.isArray(fields.tags.fields)) fields.tags.fields = [];
+      if (!isObj(fields.links)) fields.links = { fields: [] };
+      if (!Array.isArray(fields.links.fields)) fields.links.fields = [];
+      const leftFields = fields.tags.fields;
+      const rightFields = fields.links.fields;
       const leftById = new Set(leftFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
       const rightById = new Set(rightFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
       const keys = [];
@@ -36293,7 +36088,7 @@ var require_main = __commonJS({
           if (kind0 === "tag") allowedCustomSubIds.add(inferSubFieldKey(key));
         }
       }
-      behavior.leftMode.fields = leftFields.filter((f) => {
+      fields.tags.fields = leftFields.filter((f) => {
         const id = String(f && f.id || "").trim();
         if (!id) return false;
         if (builtInLeftIds.has(id)) return true;
@@ -36301,7 +36096,7 @@ var require_main = __commonJS({
         if (allowedCustomSubIds.has(id)) return true;
         return false;
       });
-      behavior.rightMode.fields = rightFields.filter((f) => {
+      fields.links.fields = rightFields.filter((f) => {
         const id = String(f && f.id || "").trim();
         if (!id) return false;
         if (builtInRightIds.has(id)) return true;
@@ -36310,15 +36105,15 @@ var require_main = __commonJS({
         if (allowedCustomElementIds.has(id)) return true;
         return false;
       });
-      const leftFieldsLive = behavior.leftMode.fields;
-      const rightFieldsLive = behavior.rightMode.fields;
+      const leftFieldsLive = fields.tags.fields;
+      const rightFieldsLive = fields.links.fields;
       const leftByIdLive = new Set(leftFieldsLive.map((f) => String(f && f.id || "").trim()).filter(Boolean));
       const rightByIdLive = new Set(rightFieldsLive.map((f) => String(f && f.id || "").trim()).filter(Boolean));
       for (const key of keys) {
         const kind = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
         if (builtInOrderKeys.has(key)) continue;
         if (kind === "element") {
-          const elemCfg = isObj(behavior.elements && behavior.elements.byField && behavior.elements.byField[key]) ? behavior.elements.byField[key] : {};
+          const elemCfg = isObj(fields.elements && fields.elements.byField && fields.elements.byField[key]) ? fields.elements.byField[key] : {};
           const marker = String(elemCfg.emoji || inferElementDefaultsByKey(key).marker || "").trim();
           const placeholder = String(order.labels && order.labels[key] ? order.labels[key] : key || "").trim() || key;
           if (!rightByIdLive.has(key)) {
@@ -36382,20 +36177,20 @@ var require_main = __commonJS({
           }
         }
       }
-      if (!isObj(behavior.elements)) behavior.elements = { fields: [], byField: {} };
-      if (!Array.isArray(behavior.elements.fields)) behavior.elements.fields = [];
-      if (!isObj(behavior.elements.byField)) behavior.elements.byField = {};
-      if (isObj(behavior.dates)) {
-        const legacyDates = behavior.dates;
+      if (!isObj(fields.elements)) fields.elements = { fields: [], byField: {} };
+      if (!Array.isArray(fields.elements.fields)) fields.elements.fields = [];
+      if (!isObj(fields.elements.byField)) fields.elements.byField = {};
+      if (isObj(fields.dates)) {
+        const legacyDates = fields.dates;
         const legacyFields = Array.isArray(legacyDates.fields) ? legacyDates.fields.map((x) => String(x || "").trim()).filter(Boolean) : [];
         for (const f of legacyFields) {
-          if (!behavior.elements.fields.includes(f)) behavior.elements.fields.push(f);
+          if (!fields.elements.fields.includes(f)) fields.elements.fields.push(f);
         }
         const legacyByField = isObj(legacyDates.byField) ? legacyDates.byField : {};
         for (const fid of Object.keys(legacyByField)) {
           const id = String(fid || "").trim();
           if (!id) continue;
-          const cur = isObj(behavior.elements.byField[id]) ? behavior.elements.byField[id] : {};
+          const cur = isObj(fields.elements.byField[id]) ? fields.elements.byField[id] : {};
           const src = isObj(legacyByField[id]) ? legacyByField[id] : {};
           const merged = {
             ...src,
@@ -36407,17 +36202,17 @@ var require_main = __commonJS({
           };
           if (!String(merged.emoji || "").trim() && String(src.emoji || "").trim()) merged.emoji = String(src.emoji || "").trim();
           if (!String(merged.format || "").trim() && String(src.format || "").trim()) merged.format = String(src.format || "").trim();
-          behavior.elements.byField[id] = merged;
+          fields.elements.byField[id] = merged;
         }
-        delete behavior.dates;
+        delete fields.dates;
       }
       const strictNames = isObj(order && order.strictNames) ? order.strictNames : {};
       for (const key of keys) {
         const kind = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
         if (kind !== "element") continue;
         const strictKey = String(strictNames[key] || key).trim() || key;
-        if (!behavior.elements.fields.includes(key)) behavior.elements.fields.push(key);
-        const curElem = isObj(behavior.elements.byField[key]) ? behavior.elements.byField[key] : isObj(behavior.elements.byField[strictKey]) ? behavior.elements.byField[strictKey] : {};
+        if (!fields.elements.fields.includes(key)) fields.elements.fields.push(key);
+        const curElem = isObj(fields.elements.byField[key]) ? fields.elements.byField[key] : isObj(fields.elements.byField[strictKey]) ? fields.elements.byField[strictKey] : {};
         const cur = curElem;
         const incCur = isObj(cur.increment) ? cur.increment : {};
         const modeRaw = String(incCur.mode || "standard").trim().toLowerCase();
@@ -36440,31 +36235,19 @@ var require_main = __commonJS({
             custom
           }
         };
-        behavior.elements.byField[key] = normalizedEntry;
+        fields.elements.byField[key] = normalizedEntry;
       }
       const activeElementKeys = /* @__PURE__ */ new Set();
       for (const key of keys) {
         const kind = String(order.types && order.types[key] ? order.types[key] : inferOrderFieldType(key)).trim().toLowerCase();
         if (kind === "element") activeElementKeys.add(String(key || "").trim());
       }
-      behavior.elements.fields = (Array.isArray(behavior.elements.fields) ? behavior.elements.fields : []).map((k) => String(k || "").trim()).filter((k) => k && activeElementKeys.has(k));
-      for (const key of Object.keys(behavior.elements.byField || {})) {
+      fields.elements.fields = (Array.isArray(fields.elements.fields) ? fields.elements.fields : []).map((k) => String(k || "").trim()).filter((k) => k && activeElementKeys.has(k));
+      for (const key of Object.keys(fields.elements.byField || {})) {
         const normKey = String(key || "").trim();
-        if (!activeElementKeys.has(normKey)) delete behavior.elements.byField[key];
+        if (!activeElementKeys.has(normKey)) delete fields.elements.byField[key];
       }
-      behavior.elements.fields = behavior.elements.fields.filter((k) => activeElementKeys.has(String(k || "").trim()));
-      const tax = isObj(cfg.pkm && cfg.pkm.taxonomy && cfg.pkm.taxonomy.tagWheelConfig) ? cfg.pkm.taxonomy.tagWheelConfig : null;
-      if (tax) {
-        if (isObj(tax.elements)) {
-          tax.elements.fields = (Array.isArray(tax.elements.fields) ? tax.elements.fields : []).map((k) => String(k || "").trim()).filter((k) => k && activeElementKeys.has(k));
-          if (isObj(tax.elements.byField)) {
-            for (const key of Object.keys(tax.elements.byField)) {
-              if (!activeElementKeys.has(String(key || "").trim())) delete tax.elements.byField[key];
-            }
-          }
-        }
-        if (isObj(tax.dates)) delete tax.dates;
-      }
+      fields.elements.fields = fields.elements.fields.filter((k) => activeElementKeys.has(String(k || "").trim()));
     }
     function makeDefaultPkmOrder() {
       return {
@@ -36480,6 +36263,7 @@ var require_main = __commonJS({
         propertiesByField: {}
       };
     }
+    var STRICT_FIELD_NAME_RE = /^[a-z0-9_\- ]+$/i;
     function normalizePkmOrder(rawOrder) {
       const out = makeDefaultPkmOrder();
       if (!isObj(rawOrder)) return out;
@@ -36584,7 +36368,7 @@ var require_main = __commonJS({
         const used = /* @__PURE__ */ new Set();
         for (const k of orderFields) {
           const v = String(rawOrder.strictNames[k] || "").trim();
-          if (!/^[a-z0-9_\- ]+$/i.test(v)) continue;
+          if (!STRICT_FIELD_NAME_RE.test(v)) continue;
           if (used.has(v)) continue;
           out.strictNames[k] = v;
           used.add(v);
@@ -36592,7 +36376,7 @@ var require_main = __commonJS({
         const seen = /* @__PURE__ */ new Set();
         for (const k of orderFields) {
           const v = String(out.strictNames[k] || "").trim() || k;
-          if (!/^[a-z0-9_-]+$/.test(v) || seen.has(v)) out.strictNames[k] = k;
+          if (!STRICT_FIELD_NAME_RE.test(v) || seen.has(v)) out.strictNames[k] = k;
           seen.add(out.strictNames[k]);
         }
       }
@@ -36610,30 +36394,20 @@ var require_main = __commonJS({
       }
       return out;
     }
-    function getOrderStrictName(cfg, orderKey) {
-      const key = normalizeOrderFieldKey(orderKey);
-      if (!key) return "";
-      const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
-      const strict = isObj(order && order.strictNames) ? order.strictNames : {};
-      const candidate = String(strict[key] || "").trim();
-      if (/^[a-z0-9_-]+$/.test(candidate)) return candidate;
-      return key;
-    }
     function serializePkmOrderForMacro(cfg) {
-      const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-      const fr = isObj(behavior.freeRoam) ? behavior.freeRoam : {};
+      const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
+      const placement = isObj(readCfgPath(cfg, "pkm.placement")) ? readCfgPath(cfg, "pkm.placement") : {};
       order.freeRoamBehavior = {
-        minimalSeparator: fr.minimalSeparator !== false,
-        minimalPrefix: fr.minimalPrefix !== false,
-        offPrefix: fr.offPrefix === true,
-        fullPlacement: ["smart", "left", "right"].includes(String(fr.fullPlacement || "").trim().toLowerCase()) ? String(fr.fullPlacement || "").trim().toLowerCase() : "smart"
+        minimalSeparator: placement.keepPrefixInsertOnly !== false,
+        minimalPrefix: placement.fieldPrefixInsertOnly !== false,
+        offPrefix: placement.bulletInStrict === true,
+        fullPlacement: ["smart", "left", "right"].includes(String(placement.freeInsertPosition || "").trim().toLowerCase()) ? String(placement.freeInsertPosition || "").trim().toLowerCase() : "smart"
       };
       return JSON.stringify(order);
     }
     function serializeDateRuntimeConfigForMacro(cfg) {
-      const elementsCfg = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.elements) ? cfg.pkm.behavior.elements : {};
-      const order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null);
+      const elementsCfg = isObj(readCfgPath(cfg, "pkm.fields.elements")) ? readCfgPath(cfg, "pkm.fields.elements") : {};
+      const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
       const strict = isObj(order && order.strictNames) ? order.strictNames : {};
       const ORDER_DATE_DUE = `date_${"due"}`;
       const ORDER_DATE_START = `date_${"start"}`;
@@ -36646,14 +36420,14 @@ var require_main = __commonJS({
       const dueName = String(datesCanonical.date_due || "").trim();
       const startName = String(datesCanonical.date_start || "").trim();
       const timeName = String(datesCanonical.time || "").trim();
-      const byField = isObj(elementsCfg.byField) ? cloneJson(elementsCfg.byField) : {};
-      const elementsByField = isObj(elementsCfg.byField) ? cloneJson(elementsCfg.byField) : {};
+      const byField = isObj(elementsCfg.byField) ? cloneJson2(elementsCfg.byField) : {};
+      const elementsByField = isObj(elementsCfg.byField) ? cloneJson2(elementsCfg.byField) : {};
       const canonicalKeys = new Set([dueName, startName, timeName, DATE_RUNTIME_KEY_NOW, DATE_RUNTIME_KEY_ESTIMATED].filter(Boolean));
       const nonEmpty = (v) => String(v == null ? "" : v).trim();
       const mergeRuntimeField = (baseRow, incomingRow) => {
         var _a;
-        const dst = isObj(baseRow) ? cloneJson(baseRow) : {};
-        const src = isObj(incomingRow) ? cloneJson(incomingRow) : {};
+        const dst = isObj(baseRow) ? cloneJson2(baseRow) : {};
+        const src = isObj(incomingRow) ? cloneJson2(incomingRow) : {};
         const out = { ...dst, ...src };
         if (!nonEmpty(src.emoji) && Object.prototype.hasOwnProperty.call(dst, "emoji")) out.emoji = String(dst.emoji || "");
         if (!nonEmpty(src.format) && Object.prototype.hasOwnProperty.call(dst, "format")) out.format = String((_a = dst.format) != null ? _a : "");
@@ -36676,45 +36450,6 @@ var require_main = __commonJS({
         }
       });
     }
-    function formatHotkeyBinding(binding2) {
-      if (!binding2 || !isObj(binding2)) return "";
-      const mods = Array.isArray(binding2.modifiers) ? binding2.modifiers.map((x) => String(x || "").trim()).filter(Boolean) : [];
-      const key = String(binding2.key || "").trim();
-      if (!key) return "";
-      return mods.length ? `${mods.join(" + ")} + ${key}` : key;
-    }
-    function getBoundHotkeyForCommand(app3, commandId, pluginId) {
-      if (!app3 || !commandId) return "";
-      const hm = app3.hotkeyManager;
-      if (!hm) return "";
-      const bare = String(commandId || "").trim();
-      const owner = String(pluginId || "").trim();
-      const id = owner && bare.indexOf(":") === -1 ? owner + ":" + bare : bare;
-      try {
-        if (isObj(hm.customKeys) && Array.isArray(hm.customKeys[id]) && hm.customKeys[id].length) {
-          return formatHotkeyBinding(hm.customKeys[id][0]);
-        }
-        if (typeof hm.getHotkeys === "function") {
-          const arr = hm.getHotkeys(id);
-          if (Array.isArray(arr) && arr.length) return formatHotkeyBinding(arr[0]);
-        }
-      } catch (_) {
-      }
-      return "";
-    }
-    function detectDateFieldHotkeys(app3, cfg, fieldId, pluginId) {
-      const fid = String(fieldId || "").trim();
-      if (!fid) return { increase: "", decrease: "" };
-      const incCandidates = [];
-      const decCandidates = [];
-      incCandidates.push(`inlineOverhaul_Hotkey_${fid}_increase`);
-      decCandidates.push(`inlineOverhaul_Hotkey_${fid}_decrease`);
-      let increase = "";
-      let decrease = "";
-      for (let i = 0; i < incCandidates.length && !increase; i++) increase = getBoundHotkeyForCommand(app3, incCandidates[i], pluginId);
-      for (let i = 0; i < decCandidates.length && !decrease; i++) decrease = getBoundHotkeyForCommand(app3, decCandidates[i], pluginId);
-      return { increase, decrease };
-    }
     var DEFAULT_CONFIG = {
       schemaVersion: SCHEMA_VERSION,
       features: {
@@ -36729,7 +36464,9 @@ var require_main = __commonJS({
           noSelectionMode: "line-only",
           headerMode: "move-as-line",
           crossSectionAllowed: true,
-          highlightMovedLines: false
+          highlightMovedLines: false,
+          keepInView: true,
+          viewPosition: "center"
         },
         moveSelection: {
           enabled: true,
@@ -36738,16 +36475,23 @@ var require_main = __commonJS({
           indentFallbackEnabled: true,
           onCycleEnd: "indent",
           cycleOrder: ["#", "##", "###", "####", "#####", "1. ", "", "- "],
-          inlineMoveMode: "auto"
+          inlineMoveMode: "auto",
+          inlineBoundaryJump: true
         },
         jumpToHeader: {
           enabled: true,
           centerCursor: true,
+          /* Место на экране после перехода (10.13.37). Умолчание `center` — это
+             ровно то, что делал прежний `centerCursor`, поэтому у тех, кто ничего
+             не трогал, поведение не меняется. */
+          viewPosition: "center",
           centerDelayMs: 60,
           centerThrottleMs: 200,
           jumpMode: "edge",
           edgeMode: "start-end",
-          jumpCursorPosition: "start"
+          /* Умолчание `End of your text` — заказ заказчика 2026-09-04, вечер.
+             Совпадение с умолчанием схемы сторожит `settings_paths_v2_tests.ts`. */
+          jumpCursorPosition: "section-end"
         },
         navigateInline: {
           enabled: true,
@@ -36768,9 +36512,6 @@ var require_main = __commonJS({
       },
       pkm: {
         taxonomy: {},
-        tagWheelConfigPath: TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH,
-        tagWheelConfigTemplatePath: TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH,
-        configExportMode: TAGWHEEL_CONFIG_MODE_DETAILED,
         executionBackend: PKM_BACKENDS.internalV2,
         generatedRulesPath: __pkmOptionKeys.DEFAULT_RULES_PATH,
         behavior: {
@@ -36836,9 +36577,7 @@ var require_main = __commonJS({
         inline2fleet: {},
         inline2note: {}
       },
-      backups: {
-        tagWheelConfigApplies: []
-      },
+      backups: {},
       meta: {},
       ui: {
         activeSettingsTab: "general",
@@ -36854,7 +36593,7 @@ var require_main = __commonJS({
             rowId: "binder-system-smart-bracket",
             insertText: "[]",
             commandName: "Smart bracket",
-            description: "Smart bracket",
+            description: "Cycle the brackets at the cursor: none, then [], then a wikilink",
             commandId: BINDER_SMART_BRACKET_COMMAND_ID
           }
         ]
@@ -36868,7 +36607,7 @@ var require_main = __commonJS({
     };
     function normalizePkmTopLevelConfig(cfg) {
       var _a;
-      if (!isObj(cfg.pkm)) cfg.pkm = cloneJson(DEFAULT_CONFIG.pkm);
+      if (!isObj(cfg.pkm)) cfg.pkm = cloneJson2(DEFAULT_CONFIG.pkm);
       cfg.pkm.executionBackend = PKM_BACKENDS.internalV2;
       if (typeof cfg.pkm.generatedRulesPath !== "string" || !cfg.pkm.generatedRulesPath.trim()) {
         const allowShim = typeof __compatProfile.isCompatEnabled === "function" ? __compatProfile.isCompatEnabled("ENABLE_CONFIG_MIGRATION_SHIMS") : true;
@@ -36878,15 +36617,6 @@ var require_main = __commonJS({
           cfg.pkm.generatedRulesPath = DEFAULT_CONFIG.pkm.generatedRulesPath;
         }
       }
-      if (typeof cfg.pkm.tagWheelConfigPath !== "string" || !cfg.pkm.tagWheelConfigPath.trim()) {
-        cfg.pkm.tagWheelConfigPath = DEFAULT_CONFIG.pkm.tagWheelConfigPath;
-      }
-      if (typeof cfg.pkm.tagWheelConfigTemplatePath !== "string" || !cfg.pkm.tagWheelConfigTemplatePath.trim()) {
-        cfg.pkm.tagWheelConfigTemplatePath = DEFAULT_CONFIG.pkm.tagWheelConfigTemplatePath;
-      }
-      if (![TAGWHEEL_CONFIG_MODE_DETAILED, TAGWHEEL_CONFIG_MODE_MINIMAL].includes(String(cfg.pkm.configExportMode || ""))) {
-        cfg.pkm.configExportMode = DEFAULT_CONFIG.pkm.configExportMode;
-      }
       const deprecatedPkm = Array.isArray((_a = __compatProfile.DEPRECATED_CONFIG_KEYS) == null ? void 0 : _a.pkm) ? __compatProfile.DEPRECATED_CONFIG_KEYS.pkm : ["sourceOfTruth", "autoGenerateRules"];
       for (const key of deprecatedPkm) delete cfg.pkm[key];
     }
@@ -36895,15 +36625,23 @@ var require_main = __commonJS({
       const source = isObj(raw) ? raw : {};
       let cfg = deepMerge(DEFAULT_CONFIG, source);
       const ver = Number(cfg.schemaVersion) || 0;
+      const fromFile = (dotted) => {
+        let node = source;
+        for (const key of String(dotted).split(".")) {
+          if (!isObj(node)) return void 0;
+          node = node[key];
+        }
+        return node;
+      };
       if (ver < 1) {
         cfg.schemaVersion = 1;
       }
-      if (!isObj(cfg.features)) cfg.features = cloneJson(DEFAULT_CONFIG.features);
+      if (!isObj(cfg.features)) cfg.features = cloneJson2(DEFAULT_CONFIG.features);
       for (const feature of FEATURE_ORDER) {
         if (!isObj(cfg.features[feature])) cfg.features[feature] = { enabled: true };
         if (typeof cfg.features[feature].enabled !== "boolean") cfg.features[feature].enabled = true;
       }
-      if (!isObj(cfg.ui)) cfg.ui = cloneJson(DEFAULT_CONFIG.ui);
+      if (!isObj(cfg.ui)) cfg.ui = cloneJson2(DEFAULT_CONFIG.ui);
       if (cfg.ui.activeSettingsTab === "colors") cfg.ui.activeSettingsTab = "visual";
       if (SETTINGS_TABS.findIndex((t) => t.id === cfg.ui.activeSettingsTab) === -1) {
         cfg.ui.activeSettingsTab = "general";
@@ -36921,14 +36659,13 @@ var require_main = __commonJS({
       if (typeof cfg.ui.orderShowDeepEditor !== "boolean") cfg.ui.orderShowDeepEditor = true;
       if (typeof cfg.ui.orderShowColorSettings !== "boolean") cfg.ui.orderShowColorSettings = true;
       if (typeof cfg.ui.orderActiveCommandsCollapsed !== "boolean") cfg.ui.orderActiveCommandsCollapsed = true;
-      cfg.ui.binderRows = normalizeBinderRows(cfg.ui.binderRows);
-      if (!isObj(cfg.rules)) cfg.rules = cloneJson(DEFAULT_CONFIG.rules);
+      if (!isObj(cfg.rules)) cfg.rules = cloneJson2(DEFAULT_CONFIG.rules);
       {
         const deprecatedRules = Array.isArray((_a = __compatProfile.DEPRECATED_CONFIG_KEYS) == null ? void 0 : _a.rules) ? __compatProfile.DEPRECATED_CONFIG_KEYS.rules : ["tagWheelPath"];
         for (const key of deprecatedRules) delete cfg.rules[key];
       }
-      if (!isObj(cfg.globalFunctions)) cfg.globalFunctions = cloneJson(DEFAULT_CONFIG.globalFunctions);
-      if (!isObj(cfg.globalFunctions.enhancedSelectAll)) cfg.globalFunctions.enhancedSelectAll = cloneJson(DEFAULT_CONFIG.globalFunctions.enhancedSelectAll);
+      if (!isObj(cfg.globalFunctions)) cfg.globalFunctions = cloneJson2(DEFAULT_CONFIG.globalFunctions);
+      if (!isObj(cfg.globalFunctions.enhancedSelectAll)) cfg.globalFunctions.enhancedSelectAll = cloneJson2(DEFAULT_CONFIG.globalFunctions.enhancedSelectAll);
       if (typeof cfg.globalFunctions.enhancedSelectAll.enabled !== "boolean") {
         cfg.globalFunctions.enhancedSelectAll.enabled = false;
       }
@@ -36938,15 +36675,16 @@ var require_main = __commonJS({
       if (typeof cfg.globalFunctions.enhancedSelectAll.useMultiPressDelay !== "boolean") {
         cfg.globalFunctions.enhancedSelectAll.useMultiPressDelay = false;
       }
-      const oldDelay = Number(cfg.globalFunctions.enhancedSelectAll.multiPressWindowMs);
-      const curDelay = Number(cfg.globalFunctions.enhancedSelectAll.delayMs);
-      const pickedDelay = Number.isFinite(curDelay) ? curDelay : Number.isFinite(oldDelay) ? oldDelay : 700;
+      const oldDelay = Number(fromFile("globalFunctions.enhancedSelectAll.multiPressWindowMs"));
+      const ownDelay = Number(fromFile("globalFunctions.enhancedSelectAll.delayMs"));
+      const curDelay = Number.isFinite(ownDelay) ? ownDelay : Number.isFinite(oldDelay) ? oldDelay : Number(cfg.globalFunctions.enhancedSelectAll.delayMs);
+      const pickedDelay = Number.isFinite(curDelay) ? curDelay : 700;
       cfg.globalFunctions.enhancedSelectAll.delayMs = Math.max(250, Math.min(2e3, Math.floor(pickedDelay)));
       delete cfg.globalFunctions.enhancedSelectAll.multiPressWindowMs;
       if (typeof cfg.globalFunctions.enhancedSelectAll.clearSelectionOnLastPress !== "boolean") {
         cfg.globalFunctions.enhancedSelectAll.clearSelectionOnLastPress = false;
       }
-      if (!isObj(cfg.navigation)) cfg.navigation = cloneJson(DEFAULT_CONFIG.navigation);
+      if (!isObj(cfg.navigation)) cfg.navigation = cloneJson2(DEFAULT_CONFIG.navigation);
       {
         const deprecatedNavigation = Array.isArray((_b = __compatProfile.DEPRECATED_CONFIG_KEYS) == null ? void 0 : _b.navigation) ? __compatProfile.DEPRECATED_CONFIG_KEYS.navigation : ["topRevealOffsetLines"];
         for (const key of deprecatedNavigation) delete cfg.navigation[key];
@@ -36970,10 +36708,13 @@ var require_main = __commonJS({
         cfg.navigation.moveSelection.onCycleEnd = "indent";
       }
       cfg.navigation.moveSelection.enabled = cfg.navigation.moveSelection.inlineEnabled;
-      if (!Array.isArray(cfg.navigation.moveSelection.cycleOrder) || !cfg.navigation.moveSelection.cycleOrder.length) {
-        if (Array.isArray(cfg.navigation.moveSelection.leftToRight) && cfg.navigation.moveSelection.leftToRight.length) {
-          cfg.navigation.moveSelection.cycleOrder = cfg.navigation.moveSelection.leftToRight.slice();
-        } else {
+      {
+        const ownCycle = fromFile("navigation.moveSelection.cycleOrder");
+        const legacyCycle = fromFile("navigation.moveSelection.leftToRight");
+        const hasOwn = Array.isArray(ownCycle) && ownCycle.length;
+        if (!hasOwn && Array.isArray(legacyCycle) && legacyCycle.length) {
+          cfg.navigation.moveSelection.cycleOrder = legacyCycle.slice();
+        } else if (!Array.isArray(cfg.navigation.moveSelection.cycleOrder) || !cfg.navigation.moveSelection.cycleOrder.length) {
           cfg.navigation.moveSelection.cycleOrder = DEFAULT_CONFIG.navigation.moveSelection.cycleOrder.slice();
         }
       }
@@ -36987,15 +36728,25 @@ var require_main = __commonJS({
       if (!["edge", "line"].includes(cfg.navigation.jumpToHeader.jumpMode)) {
         cfg.navigation.jumpToHeader.jumpMode = "edge";
       }
-      if (!["start-end", "start", "end"].includes(cfg.navigation.jumpToHeader.edgeMode)) {
-        let inferredEdge = "start-end";
-        if (cfg.navigation.jumpToHeader.insideTarget === "section-start" && cfg.navigation.jumpToHeader.boundaryTarget === "section-start") inferredEdge = "start";
-        if (cfg.navigation.jumpToHeader.insideTarget === "section-end" && cfg.navigation.jumpToHeader.boundaryTarget === "section-end") inferredEdge = "end";
-        cfg.navigation.jumpToHeader.edgeMode = inferredEdge;
+      {
+        const ownEdge = fromFile("navigation.jumpToHeader.edgeMode");
+        const inside = fromFile("navigation.jumpToHeader.insideTarget");
+        const boundary = fromFile("navigation.jumpToHeader.boundaryTarget");
+        const legacyEdge = inside === "section-start" && boundary === "section-start" ? "start" : inside === "section-end" && boundary === "section-end" ? "end" : "";
+        if (!["start-end", "start", "end"].includes(ownEdge) && legacyEdge) {
+          cfg.navigation.jumpToHeader.edgeMode = legacyEdge;
+        } else if (!["start-end", "start", "end"].includes(cfg.navigation.jumpToHeader.edgeMode)) {
+          cfg.navigation.jumpToHeader.edgeMode = "start-end";
+        }
       }
-      if (!["start", "end", "section-end"].includes(cfg.navigation.jumpToHeader.jumpCursorPosition)) {
-        if (cfg.navigation.jumpToHeader.endAnchorMode === "active-text-end") cfg.navigation.jumpToHeader.jumpCursorPosition = "section-end";
-        else cfg.navigation.jumpToHeader.jumpCursorPosition = "start";
+      {
+        const ownCursor = fromFile("navigation.jumpToHeader.jumpCursorPosition");
+        const legacyAnchor = fromFile("navigation.jumpToHeader.endAnchorMode");
+        if (!["start", "end", "section-end"].includes(ownCursor) && legacyAnchor === "active-text-end") {
+          cfg.navigation.jumpToHeader.jumpCursorPosition = "section-end";
+        } else if (!["start", "end", "section-end"].includes(cfg.navigation.jumpToHeader.jumpCursorPosition)) {
+          cfg.navigation.jumpToHeader.jumpCursorPosition = "start";
+        }
       }
       delete cfg.navigation.jumpToHeader.insideTarget;
       delete cfg.navigation.jumpToHeader.boundaryTarget;
@@ -37017,7 +36768,7 @@ var require_main = __commonJS({
       }
       normalizePkmTopLevelConfig(cfg);
       cfg = getTransformFeature().normalizeTransformConfig(cfg);
-      if (!isObj(cfg.pkm.behavior)) cfg.pkm.behavior = cloneJson(DEFAULT_CONFIG.pkm.behavior);
+      if (!isObj(cfg.pkm.behavior)) cfg.pkm.behavior = cloneJson2(DEFAULT_CONFIG.pkm.behavior);
       if (!["separate", "combined"].includes(cfg.pkm.behavior.subtagFormat)) {
         cfg.pkm.behavior.subtagFormat = "separate";
       }
@@ -37026,7 +36777,7 @@ var require_main = __commonJS({
         const cp = String(cfg.pkm.behavior.cursorPolicy || "").trim();
         if (!["text_end", "current_position", "line_end"].includes(cp)) cfg.pkm.behavior.cursorPolicy = "text_end";
       }
-      if (!isObj(cfg.pkm.behavior.tagWheelScroller)) cfg.pkm.behavior.tagWheelScroller = cloneJson(DEFAULT_CONFIG.pkm.behavior.tagWheelScroller);
+      if (!isObj(cfg.pkm.behavior.tagWheelScroller)) cfg.pkm.behavior.tagWheelScroller = cloneJson2(DEFAULT_CONFIG.pkm.behavior.tagWheelScroller);
       {
         const tws = cfg.pkm.behavior.tagWheelScroller;
         if (typeof tws.enabled !== "boolean") tws.enabled = DEFAULT_CONFIG.pkm.behavior.tagWheelScroller.enabled;
@@ -37035,9 +36786,9 @@ var require_main = __commonJS({
         const n = Math.trunc(Number(tws.size));
         tws.size = Number.isFinite(n) ? Math.max(1, Math.min(20, n)) : DEFAULT_CONFIG.pkm.behavior.tagWheelScroller.size;
       }
-      if (!isObj(cfg.pkm.behavior.colors)) cfg.pkm.behavior.colors = cloneJson(DEFAULT_CONFIG.pkm.behavior.colors);
+      if (!isObj(cfg.pkm.behavior.colors)) cfg.pkm.behavior.colors = cloneJson2(DEFAULT_CONFIG.pkm.behavior.colors);
       if (!isObj(cfg.pkm.behavior.colors.tagwheelHeader)) {
-        cfg.pkm.behavior.colors.tagwheelHeader = cloneJson(DEFAULT_CONFIG.pkm.behavior.colors.tagwheelHeader);
+        cfg.pkm.behavior.colors.tagwheelHeader = cloneJson2(DEFAULT_CONFIG.pkm.behavior.colors.tagwheelHeader);
       }
       {
         const headerColors = cfg.pkm.behavior.colors.tagwheelHeader;
@@ -37050,29 +36801,42 @@ var require_main = __commonJS({
         headerColors.fillColor = normalizeHex2(headerColors.fillColor);
         if (typeof headerColors.showPrefix !== "boolean") headerColors.showPrefix = true;
       }
-      if (!isObj(cfg.pkm.behavior.tagVisuals)) cfg.pkm.behavior.tagVisuals = cloneJson(DEFAULT_CONFIG.pkm.behavior.tagVisuals);
+      if (!isObj(cfg.pkm.behavior.tagVisuals)) cfg.pkm.behavior.tagVisuals = cloneJson2(DEFAULT_CONFIG.pkm.behavior.tagVisuals);
       {
         const visuals = isObj(cfg.pkm.behavior.tagVisuals) ? cfg.pkm.behavior.tagVisuals : {};
         if (typeof visuals.showColorSettings !== "boolean") {
           visuals.showColorSettings = DEFAULT_CONFIG.pkm.behavior.tagVisuals.showColorSettings;
         }
-        const legacySizeN = Math.trunc(Number(visuals.tagSizePct));
-        const legacySize = Number.isFinite(legacySizeN) ? Math.max(80, Math.min(140, legacySizeN)) : 100;
-        const textSizeN = Math.trunc(Number(visuals.tagTextSizePct));
-        visuals.tagTextSizePct = Number.isFinite(textSizeN) ? Math.max(80, Math.min(140, textSizeN)) : legacySize;
-        const legacyBubbleN = Math.trunc(Number(visuals.tagBubbleSizePct));
-        const legacyBubble = Number.isFinite(legacyBubbleN) ? Math.max(80, Math.min(140, legacyBubbleN)) : legacySize;
-        const bubbleWidthN = Math.trunc(Number(visuals.tagBubbleWidthPct));
-        visuals.tagBubbleWidthPct = Number.isFinite(bubbleWidthN) ? Math.max(80, Math.min(140, bubbleWidthN)) : legacyBubble;
-        const bubbleHeightN = Math.trunc(Number(visuals.tagBubbleHeightPct));
-        visuals.tagBubbleHeightPct = Number.isFinite(bubbleHeightN) ? Math.max(80, Math.min(140, bubbleHeightN)) : legacyBubble;
+        const clampPct = (n) => Math.max(80, Math.min(140, n));
+        const pickPct = (ownPath, legacyPaths, fallback) => {
+          const own = Math.trunc(Number(fromFile(ownPath)));
+          if (Number.isFinite(own)) return clampPct(own);
+          for (const legacyPath of legacyPaths) {
+            const old = Math.trunc(Number(fromFile(legacyPath)));
+            if (Number.isFinite(old)) return clampPct(old);
+          }
+          const merged = Math.trunc(Number(fallback));
+          return Number.isFinite(merged) ? clampPct(merged) : 100;
+        };
+        const B = "pkm.behavior.tagVisuals.";
+        visuals.tagTextSizePct = pickPct(B + "tagTextSizePct", [B + "tagSizePct"], visuals.tagTextSizePct);
+        visuals.tagBubbleWidthPct = pickPct(
+          B + "tagBubbleWidthPct",
+          [B + "tagBubbleSizePct", B + "tagSizePct"],
+          visuals.tagBubbleWidthPct
+        );
+        visuals.tagBubbleHeightPct = pickPct(
+          B + "tagBubbleHeightPct",
+          [B + "tagBubbleSizePct", B + "tagSizePct"],
+          visuals.tagBubbleHeightPct
+        );
         const emptyBubbleN = Math.trunc(Number(visuals.emptyBubbleSizePct));
         visuals.emptyBubbleSizePct = Number.isFinite(emptyBubbleN) ? Math.max(50, Math.min(180, emptyBubbleN)) : 100;
         delete visuals.tagSizePct;
         delete visuals.tagBubbleSizePct;
         const shapeN = Math.trunc(Number(visuals.tagShapePct));
         visuals.tagShapePct = Number.isFinite(shapeN) ? Math.max(0, Math.min(100, shapeN)) : DEFAULT_CONFIG.pkm.behavior.tagVisuals.tagShapePct;
-        if (!isObj(visuals.opacity)) visuals.opacity = cloneJson(DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity);
+        if (!isObj(visuals.opacity)) visuals.opacity = cloneJson2(DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity);
         const normOpacity = (value, fallback) => {
           const n = Number(value);
           if (!Number.isFinite(n)) return fallback;
@@ -37080,77 +36844,17 @@ var require_main = __commonJS({
         };
         visuals.opacity.left = normOpacity(visuals.opacity.left, DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity.left);
         visuals.opacity.right = normOpacity(visuals.opacity.right, DEFAULT_CONFIG.pkm.behavior.tagVisuals.opacity.right);
-        const normalizeTagToken = (token) => {
-          const src = String(token || "").trim();
-          if (!src) return "";
-          return src.charAt(0) === "#" ? src : "";
-        };
-        const normalizeVisibility = (value, fallback) => {
-          const mode = String(value || "").trim().toLowerCase();
-          if (mode === "empty" || mode === "default" || mode === "custom") return mode;
-          return fallback;
-        };
-        const normalizeTagVisualRow = (row, fallbackVisibility) => {
-          const src = isObj(row) ? row : {};
-          const fillColor = normalizeHexColorInput(src.fillColor);
-          const textColor = normalizeHexColorInput(src.textColor);
-          const visibility = normalizeVisibility(src.visibility, fallbackVisibility);
-          return {
-            fillColor,
-            textColor,
-            visibility,
-            customText: String(src.customText || "").trim()
-          };
-        };
-        const byFieldIn = isObj(visuals.byField) ? visuals.byField : {};
-        const byFieldOut = {};
-        for (const fieldIdRaw of Object.keys(byFieldIn)) {
-          const fieldId = String(fieldIdRaw || "").trim();
-          if (!fieldId) continue;
-          const fieldRow = isObj(byFieldIn[fieldIdRaw]) ? byFieldIn[fieldIdRaw] : {};
-          byFieldOut[fieldId] = {
-            visibilityDefault: normalizeVisibility(fieldRow.visibilityDefault, "default")
-          };
-        }
-        visuals.byField = byFieldOut;
-        const byTagIn = isObj(visuals.byTag) ? visuals.byTag : {};
-        const byTagOut = {};
-        for (const fieldIdRaw of Object.keys(byTagIn)) {
-          const fieldId = String(fieldIdRaw || "").trim();
-          if (!fieldId) continue;
-          const fieldMap = isObj(byTagIn[fieldIdRaw]) ? byTagIn[fieldIdRaw] : {};
-          const outFieldMap = {};
-          for (const rawToken of Object.keys(fieldMap)) {
-            const token = normalizeTagToken(rawToken);
-            if (!token || Object.prototype.hasOwnProperty.call(outFieldMap, token)) continue;
-            outFieldMap[token] = normalizeTagVisualRow(fieldMap[rawToken], "default");
-          }
-          byTagOut[fieldId] = outFieldMap;
-        }
-        visuals.byTag = byTagOut;
-        const userTagsIn = isObj(visuals.userTags) ? visuals.userTags : {};
-        const userTagsOut = {};
-        for (const rawToken of Object.keys(userTagsIn)) {
-          const token = normalizeTagToken(rawToken);
-          if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
-          if (userTagsIn[rawToken] === null) continue;
-          userTagsOut[token] = normalizeTagVisualRow(userTagsIn[rawToken], "default");
-        }
-        visuals.userTags = userTagsOut;
         if (isObj(visuals.line)) delete visuals.line;
-        if (!isObj(visuals.strip)) visuals.strip = cloneJson(DEFAULT_CONFIG.pkm.behavior.tagVisuals.strip);
-        const strip = __priorityStripEngine.normalizeStripConfig(visuals.strip);
-        visuals.strip = strip;
         cfg.pkm.behavior.tagVisuals = visuals;
       }
-      if (!isObj(cfg.pkm.behavior.io)) cfg.pkm.behavior.io = cloneJson(DEFAULT_CONFIG.pkm.behavior.io);
+      if (!isObj(cfg.pkm.behavior.io)) cfg.pkm.behavior.io = cloneJson2(DEFAULT_CONFIG.pkm.behavior.io);
       {
         const s1 = String(cfg.pkm.behavior.io.separator1 || "").trim();
         const s2 = String(cfg.pkm.behavior.io.separator2 || "").trim();
         cfg.pkm.behavior.io.separator1 = s1 || DEFAULT_CONFIG.pkm.behavior.io.separator1;
         cfg.pkm.behavior.io.separator2 = s2 || DEFAULT_CONFIG.pkm.behavior.io.separator2;
       }
-      if (!isObj(cfg.pkm.behavior.freeRoam)) cfg.pkm.behavior.freeRoam = cloneJson(DEFAULT_CONFIG.pkm.behavior.freeRoam);
+      if (!isObj(cfg.pkm.behavior.freeRoam)) cfg.pkm.behavior.freeRoam = cloneJson2(DEFAULT_CONFIG.pkm.behavior.freeRoam);
       {
         const fr = cfg.pkm.behavior.freeRoam;
         if (typeof fr.minimalSeparator !== "boolean") fr.minimalSeparator = DEFAULT_CONFIG.pkm.behavior.freeRoam.minimalSeparator;
@@ -37159,13 +36863,9 @@ var require_main = __commonJS({
         const place = String(fr.fullPlacement || "").trim().toLowerCase();
         fr.fullPlacement = ["smart", "left", "right"].includes(place) ? place : DEFAULT_CONFIG.pkm.behavior.freeRoam.fullPlacement;
       }
-      cfg.pkm.behavior.order = normalizePkmOrder(cfg.pkm.behavior.order);
-      ensureBehaviorModesFromOrder(cfg);
-      cfg = getConfigMigrationModule().normalizePkmBehaviorShape(cfg, { cloneJson, isObj });
-      if (!isObj(cfg.backups)) cfg.backups = cloneJson(DEFAULT_CONFIG.backups);
-      if (!Array.isArray(cfg.backups.tagWheelConfigApplies)) cfg.backups.tagWheelConfigApplies = [];
-      if (!isObj(cfg.meta)) cfg.meta = cloneJson(DEFAULT_CONFIG.meta);
-      if (!isObj(cfg.devMode)) cfg.devMode = cloneJson(DEFAULT_CONFIG.devMode);
+      if (!isObj(cfg.backups)) cfg.backups = cloneJson2(DEFAULT_CONFIG.backups);
+      if (!isObj(cfg.meta)) cfg.meta = cloneJson2(DEFAULT_CONFIG.meta);
+      if (!isObj(cfg.devMode)) cfg.devMode = cloneJson2(DEFAULT_CONFIG.devMode);
       if (typeof cfg.devMode.enabled !== "boolean") cfg.devMode.enabled = DEFAULT_CONFIG.devMode.enabled;
       if (typeof cfg.devMode.traceTagVisualLine !== "boolean") cfg.devMode.traceTagVisualLine = DEFAULT_CONFIG.devMode.traceTagVisualLine;
       {
@@ -37173,12 +36873,13 @@ var require_main = __commonJS({
         cfg.devMode.logPath = p || DEFAULT_CONFIG.devMode.logPath;
       }
       {
-        const oldLevel = String(cfg.devMode.logLevel || "").trim().toLowerCase();
-        const oldSize = String(cfg.devMode.logSize || "").trim();
-        if (typeof cfg.devMode.generateAiLog !== "boolean") {
+        const oldLevel = String(fromFile("devMode.logLevel") || "").trim().toLowerCase();
+        const oldSize = String(fromFile("devMode.logSize") || "").trim();
+        const own = fromFile("devMode.generateAiLog");
+        if (typeof own !== "boolean") {
           if (oldSize) cfg.devMode.generateAiLog = oldSize === "for AI";
           else if (oldLevel) cfg.devMode.generateAiLog = ["trace", "info"].includes(oldLevel);
-          else cfg.devMode.generateAiLog = DEFAULT_CONFIG.devMode.generateAiLog;
+          else if (typeof cfg.devMode.generateAiLog !== "boolean") cfg.devMode.generateAiLog = DEFAULT_CONFIG.devMode.generateAiLog;
         }
       }
       if (typeof cfg.devMode.generateAiLog !== "boolean") cfg.devMode.generateAiLog = DEFAULT_CONFIG.devMode.generateAiLog;
@@ -37189,12 +36890,302 @@ var require_main = __commonJS({
       cfg.schemaVersion = SCHEMA_VERSION;
       return cfg;
     }
+    var __configMigrationV2 = null;
+    function getConfigMigrationV2Module() {
+      if (__configMigrationV2) return __configMigrationV2;
+      __configMigrationV2 = (init_config_migration_v2(), __toCommonJS(config_migration_v2_exports));
+      return __configMigrationV2;
+    }
+    function readCfgPath(root, path) {
+      let node = root;
+      for (const key of String(path || "").split(".")) {
+        if (!isObj(node)) return void 0;
+        node = node[key];
+      }
+      return node;
+    }
+    function writeCfgPath(root, path, value) {
+      const parts = String(path || "").split(".");
+      let node = root;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!isObj(node[parts[i]])) node[parts[i]] = {};
+        node = node[parts[i]];
+      }
+      node[parts[parts.length - 1]] = value;
+      return root;
+    }
+    var __engineDefaultsV2 = null;
+    function getEngineDefaultsV2() {
+      if (__engineDefaultsV2) return __engineDefaultsV2;
+      const migrated = getConfigMigrationV2Module().migrate(normalizeConfigV1({}), { log: () => {
+      } });
+      __engineDefaultsV2 = migrated;
+      return __engineDefaultsV2;
+    }
+    function normalizeTagVisualMapsV2(cfg) {
+      const tags = isObj(readCfgPath(cfg, "visual.tags")) ? readCfgPath(cfg, "visual.tags") : {};
+      writeCfgPath(cfg, "visual.tags", tags);
+      const normalizeTagToken = (token) => {
+        const src = String(token || "").trim();
+        if (!src) return "";
+        return src.charAt(0) === "#" ? src : "";
+      };
+      const normalizeVisibility = (value, fallback) => {
+        const mode = String(value || "").trim().toLowerCase();
+        if (mode === "empty" || mode === "default" || mode === "custom") return mode;
+        return fallback;
+      };
+      const normalizeTagVisualRow = (row, fallbackVisibility) => {
+        const src = isObj(row) ? row : {};
+        return {
+          fillColor: normalizeHexColorInput(src.fillColor),
+          textColor: normalizeHexColorInput(src.textColor),
+          visibility: normalizeVisibility(src.visibility, fallbackVisibility),
+          customText: String(src.customText || "").trim()
+        };
+      };
+      const byFieldIn = isObj(tags.byField) ? tags.byField : {};
+      const byFieldOut = {};
+      for (const fieldIdRaw of Object.keys(byFieldIn)) {
+        const fieldId = String(fieldIdRaw || "").trim();
+        if (!fieldId) continue;
+        const fieldRow = isObj(byFieldIn[fieldIdRaw]) ? byFieldIn[fieldIdRaw] : {};
+        byFieldOut[fieldId] = {
+          visibilityDefault: normalizeVisibility(fieldRow.visibilityDefault, "default")
+        };
+      }
+      tags.byField = byFieldOut;
+      const byTagIn = isObj(tags.byTag) ? tags.byTag : {};
+      const byTagOut = {};
+      for (const fieldIdRaw of Object.keys(byTagIn)) {
+        const fieldId = String(fieldIdRaw || "").trim();
+        if (!fieldId) continue;
+        const fieldMap = isObj(byTagIn[fieldIdRaw]) ? byTagIn[fieldIdRaw] : {};
+        const outFieldMap = {};
+        for (const rawToken of Object.keys(fieldMap)) {
+          const token = normalizeTagToken(rawToken);
+          if (!token || Object.prototype.hasOwnProperty.call(outFieldMap, token)) continue;
+          outFieldMap[token] = normalizeTagVisualRow(fieldMap[rawToken], "default");
+        }
+        byTagOut[fieldId] = outFieldMap;
+      }
+      tags.byTag = byTagOut;
+      const userTagsIn = isObj(tags.userTags) ? tags.userTags : {};
+      const userTagsOut = {};
+      for (const rawToken of Object.keys(userTagsIn)) {
+        const token = normalizeTagToken(rawToken);
+        if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
+        if (userTagsIn[rawToken] === null) continue;
+        userTagsOut[token] = normalizeTagVisualRow(userTagsIn[rawToken], "default");
+      }
+      tags.userTags = userTagsOut;
+    }
+    function normalizeConfigV2(cfg) {
+      if (!isObj(cfg)) return cfg;
+      const defaults = getEngineDefaultsV2();
+      const def = (path) => cloneJson2(readCfgPath(defaults, path));
+      const bool = (path) => {
+        if (typeof readCfgPath(cfg, path) !== "boolean") writeCfgPath(cfg, path, def(path));
+      };
+      const oneOf = (path, values) => {
+        var _a;
+        const value = String((_a = readCfgPath(cfg, path)) != null ? _a : "").trim();
+        if (!values.includes(value)) writeCfgPath(cfg, path, def(path));
+        else writeCfgPath(cfg, path, value);
+      };
+      const int = (path, min, max) => {
+        const n = Math.trunc(Number(readCfgPath(cfg, path)));
+        if (!Number.isFinite(n)) {
+          writeCfgPath(cfg, path, def(path));
+          return;
+        }
+        writeCfgPath(cfg, path, Math.max(min, Math.min(max, n)));
+      };
+      const text = (path) => {
+        var _a;
+        const value = String((_a = readCfgPath(cfg, path)) != null ? _a : "").trim();
+        writeCfgPath(cfg, path, value || def(path));
+      };
+      const hex = (path) => {
+        writeCfgPath(cfg, path, normalizeHexColorInput(readCfgPath(cfg, path)));
+      };
+      const list = (path) => {
+        if (!Array.isArray(readCfgPath(cfg, path))) writeCfgPath(cfg, path, def(path) || []);
+      };
+      const map = (path) => {
+        if (!isObj(readCfgPath(cfg, path))) writeCfgPath(cfg, path, {});
+      };
+      for (const feature of FEATURE_ORDER) bool("features." + feature + ".enabled");
+      map("pkm.fields");
+      ensureBehaviorModesFromOrder(cfg);
+      map("pkm.fields.taxonomy");
+      map("pkm.fields.checkboxByValue");
+      map("pkm.fields.projects");
+      oneOf("pkm.fields.defaultBlock", ["left", "right"]);
+      cfg = getConfigMigrationModule().normalizePkmBehaviorShape(cfg, { cloneJson: cloneJson2, isObj });
+      oneOf("pkm.prefixPriority.decideBy", ["by-section", "by-checkbox-list"]);
+      oneOf("pkm.prefixPriority.fieldOrderSource", ["manual", "auto"]);
+      oneOf("pkm.prefixPriority.parentOrChild", ["subtag-over-tag", "tag-over-subtag"]);
+      oneOf("pkm.behavior.childTagFormat", ["separate", "combined"]);
+      writeCfgPath(
+        cfg,
+        "pkm.behavior.cycleEndBehavior",
+        normalizeCycleEndBehaviorLegacy(readCfgPath(cfg, "pkm.behavior.cycleEndBehavior"))
+      );
+      oneOf("pkm.behavior.cursorPolicy", ["text_end", "current_position", "line_end"]);
+      bool("pkm.placement.keepPrefixInsertOnly");
+      bool("pkm.placement.fieldPrefixInsertOnly");
+      bool("pkm.placement.bulletInStrict");
+      oneOf("pkm.placement.freeInsertPosition", ["smart", "left", "right"]);
+      text("pkm.lineFormat.separator1");
+      text("pkm.lineFormat.separator2");
+      text("advanced.generatedRulesPath");
+      oneOf("navigation.moveLine.noSelectionMode", ["line-only", "with-children"]);
+      oneOf("navigation.moveLine.headerMode", ["move-as-line", "move-with-section"]);
+      bool("navigation.moveLine.crossSectionAllowed");
+      bool("navigation.moveLine.highlightMovedLines");
+      bool("navigation.moveLine.keepInView");
+      oneOf("navigation.moveLine.viewPosition", ["center", "top", "bottom"]);
+      bool("navigation.moveSelection.inlineEnabled");
+      bool("navigation.moveSelection.prefixCyclerEnabled");
+      bool("navigation.moveSelection.indentFallbackEnabled");
+      oneOf("navigation.moveSelection.onCycleEnd", ["indent", "wrap"]);
+      oneOf("navigation.moveSelection.inlineMoveMode", ["auto", "char", "word", "disabled"]);
+      bool("navigation.moveSelection.inlineBoundaryJump");
+      writeCfgPath(
+        cfg,
+        "navigation.moveSelection.enabled",
+        readCfgPath(cfg, "navigation.moveSelection.inlineEnabled") === true
+      );
+      list("navigation.moveSelection.cycleOrder");
+      oneOf("navigation.jumpToHeader.jumpMode", ["edge", "line"]);
+      oneOf("navigation.jumpToHeader.edgeMode", ["start-end", "start", "end"]);
+      oneOf("navigation.jumpToHeader.jumpCursorPosition", ["start", "end", "section-end"]);
+      bool("navigation.jumpToHeader.centerCursor");
+      oneOf("navigation.jumpToHeader.viewPosition", ["center", "top", "bottom"]);
+      int("navigation.jumpToHeader.centerDelayMs", 0, 2e3);
+      int("navigation.jumpToHeader.centerThrottleMs", 0, 5e3);
+      oneOf("navigation.navigateInline.stepMode", ["word", "sentence", "begin-end"]);
+      bool("navigation.navigateInline.boundaryJump");
+      oneOf("navigation.navigateInline.onBoundary", ["stay", "wrap", "next-line"]);
+      bool("editor.selectAll.enabled");
+      oneOf("editor.selectAll.mode", ["line-note", "line-tree-note", "line-tree-header-note"]);
+      bool("editor.selectAll.useDelay");
+      int("editor.selectAll.delayMs", 250, 2e3);
+      bool("editor.selectAll.clearOnLast");
+      bool("editor.smartDelete.enabled");
+      bool("editor.smartDelete.dropPrefix");
+      bool("editor.smartDelete.onBackspace");
+      bool("editor.smartDelete.joinWithSpace");
+      writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows")));
+      int("visual.tags.opacityLeft", 0, 100);
+      int("visual.tags.opacityRight", 0, 100);
+      int("visual.tags.textSizePct", 80, 140);
+      int("visual.tags.bubbleWidthPct", 80, 140);
+      int("visual.tags.bubbleHeightPct", 80, 140);
+      int("visual.tags.emptyBubblePct", 50, 180);
+      int("visual.tags.cornersPct", 0, 100);
+      normalizeTagVisualMapsV2(cfg);
+      bool("visual.caret.enabled");
+      hex("visual.caret.color");
+      bool("visual.caret.shapeEnabled");
+      int("visual.caret.width", 1, 8);
+      int("visual.caret.blinkSpeed", 0, 10);
+      writeCfgPath(cfg, "visual.tagBars", __priorityStripEngine.normalizeStripConfig(
+        isObj(readCfgPath(cfg, "visual.tagBars")) ? readCfgPath(cfg, "visual.tagBars") : {}
+      ));
+      hex("visual.tagWheel.textColor");
+      hex("visual.tagWheel.fillColor");
+      bool("visual.tagWheel.showMarkers");
+      bool("visual.tagWheel.highlightLine");
+      bool("visual.tagWheel.scroller.enabled");
+      oneOf("visual.tagWheel.scroller.direction", ["up", "down", "full"]);
+      int("visual.tagWheel.scroller.size", 1, 20);
+      hex("visual.tagWheel.scroller.fillColor");
+      hex("visual.tagWheel.scroller.textColor");
+      oneOf("visual.tagWheel.edgeMode", ["stay", "next-block"]);
+      hex("visual.tagWheel.activeTextColor");
+      bool("advanced.devMode.enabled");
+      bool("advanced.devMode.aiLog");
+      bool("advanced.devMode.traceTagVisualLine");
+      text("advanced.devMode.logPath");
+      cfg = getTransformFeature().normalizeTransformConfig(cfg);
+      cfg.schemaVersion = getConfigMigrationV2Module().SCHEMA_VERSION_V2;
+      return cfg;
+    }
     function migrateConfig(raw) {
-      return normalizeConfigV1(raw);
+      const source = isObj(raw) ? raw : {};
+      const version = Number(source.schemaVersion) || 0;
+      const accepted = version >= getConfigMigrationV2Module().SCHEMA_VERSION_V2 ? source : normalizeConfigV1(source);
+      return normalizeConfigV2(getConfigMigrationV2Module().migrate(accepted));
+    }
+    function collectPkmFieldDefinitions(cfg) {
+      const fields = isObj(readCfgPath(cfg, "pkm.fields")) ? readCfgPath(cfg, "pkm.fields") : {};
+      return [].concat(Array.isArray(fields.tags && fields.tags.fields) ? fields.tags.fields : []).concat(Array.isArray(fields.links && fields.links.fields) ? fields.links.fields : []);
+    }
+    function buildOwnCommandList(plugin) {
+      const registry2 = getCommandRegistry();
+      const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : {};
+      const out = [];
+      const push = (defs, area, family) => {
+        for (const d of Array.isArray(defs) ? defs : []) {
+          const id = String(d && d.id ? d.id : "").trim();
+          if (!id) continue;
+          const strict = String(d && d.strictName ? d.strictName : "").trim();
+          const isSub = /[-_]sub$/.test(strict);
+          out.push({
+            id,
+            name: String(d && d.name ? d.name : id),
+            area,
+            family: typeof family === "function" ? family(d) : family || "",
+            group: strict ? strict.replace(/[-_]sub$/, "") : "",
+            sub: isSub,
+            /* Подзаголовок справочника: подпись Field и его тип (2026-08-31). */
+            groupLabel: String(d && d.groupLabel ? d.groupLabel : ""),
+            kind: String(d && d.kind ? d.kind : "")
+          });
+        }
+      };
+      try {
+        push(registry2.buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath), "Navigation", "");
+        push(
+          registry2.buildPkmCommandDefs(
+            getActiveTagWheelRulesPath,
+            serializePkmOrderForMacro,
+            serializeDateRuntimeConfigForMacro,
+            normalizePkmOrder,
+            cfg,
+            FEATURE_ORDER
+          ),
+          "Tags & PKM",
+          (d) => {
+            if (!String(d && d.strictName ? d.strictName : "").trim()) return "";
+            return d.direction === "decrease" ? "field-previous" : "field-next";
+          }
+        );
+        push(
+          [{ id: "transform-inline-to-note", name: __commandIds.commandName("transform-inline-to-note") }],
+          "Transform",
+          ""
+        );
+        push(
+          registry2.buildBinderCommandDefs(cfg),
+          "Binder",
+          (d) => String(d && d.id ? d.id : "") === BINDER_SMART_BRACKET_COMMAND_ID ? "" : "binder-row"
+        );
+        push(
+          registry2.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META),
+          "General",
+          (d) => /^toggle-feature-/.test(String(d && d.id ? d.id : "")) ? "module-toggle" : ""
+        );
+      } catch (e) {
+        reportLoaderFallback("main.buildOwnCommandList", e);
+        return [];
+      }
+      return out;
     }
     function getActiveTagWheelRulesPath(cfg) {
-      const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
-      const generated = String(pkm.generatedRulesPath || "").trim();
+      const generated = String(readCfgPath(cfg, "advanced.generatedRulesPath") || "").trim();
       if (generated) return generated;
       return String(DEFAULT_CONFIG.pkm.generatedRulesPath);
     }
@@ -37204,31 +37195,31 @@ var require_main = __commonJS({
       return /^#[0-9a-f]{6}$/.test(src) ? src : "";
     }
     function getTagwheelHeaderColorsFromConfig(cfg) {
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-      const colors = isObj(behavior.colors) ? behavior.colors : {};
-      const header = isObj(colors.tagwheelHeader) ? colors.tagwheelHeader : {};
+      const wheel = isObj(readCfgPath(cfg, "visual.tagWheel")) ? readCfgPath(cfg, "visual.tagWheel") : {};
       return {
-        defaultTextColor: normalizeHexColorInput(header.defaultTextColor),
-        fillColor: normalizeHexColorInput(header.fillColor),
-        showPrefix: header.showPrefix !== false
+        defaultTextColor: normalizeHexColorInput(wheel.textColor),
+        /* Цвет активного Field: пусто — он красится как остальные (10.13.15). */
+        activeTextColor: normalizeHexColorInput(wheel.activeTextColor),
+        fillColor: normalizeHexColorInput(wheel.fillColor),
+        showPrefix: wheel.showMarkers !== false
       };
     }
     function buildTagwheelPlaceholderSetFromConfig(cfg) {
       const out = /* @__PURE__ */ new Set();
-      const order = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order) ? cfg.pkm.behavior.order : {};
+      const order = isObj(readCfgPath(cfg, "pkm.fields.order")) ? readCfgPath(cfg, "pkm.fields.order") : {};
       const labels = isObj(order.labels) ? order.labels : {};
       for (const key of Object.keys(labels)) {
         const value = String(labels[key] || "").trim();
         if (value) out.add(value);
       }
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
+      const fields = isObj(readCfgPath(cfg, "pkm.fields")) ? readCfgPath(cfg, "pkm.fields") : {};
       const modes = [
-        isObj(behavior.leftMode) ? behavior.leftMode : {},
-        isObj(behavior.rightMode) ? behavior.rightMode : {}
+        isObj(fields.tags) ? fields.tags : {},
+        isObj(fields.links) ? fields.links : {}
       ];
       for (const mode of modes) {
-        const fields = Array.isArray(mode.fields) ? mode.fields : [];
-        for (const field of fields) {
+        const fields2 = Array.isArray(mode.fields) ? mode.fields : [];
+        for (const field of fields2) {
           const id = String(field && field.id || "").trim();
           const placeholder = String(field && field.placeholder || "").trim();
           if (id) out.add(id);
@@ -37238,32 +37229,33 @@ var require_main = __commonJS({
       return out;
     }
     function getTagVisualsFromConfig(cfg) {
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-      const visuals = isObj(behavior.tagVisuals) ? behavior.tagVisuals : {};
+      const tags = isObj(readCfgPath(cfg, "visual.tags")) ? readCfgPath(cfg, "visual.tags") : {};
       const ui = isObj(cfg && cfg.ui) ? cfg.ui : {};
-      const opacity = isObj(visuals.opacity) ? visuals.opacity : {};
-      const strip = __priorityStripEngine.normalizeStripConfig(isObj(visuals.strip) ? visuals.strip : {});
-      const clamp01 = (v, f) => {
+      const strip = __priorityStripEngine.normalizeStripConfig(
+        isObj(readCfgPath(cfg, "visual.tagBars")) ? readCfgPath(cfg, "visual.tagBars") : {}
+      );
+      const pctToShare = (v, f) => {
         const n = Number(v);
         if (!Number.isFinite(n)) return f;
-        return Math.max(0, Math.min(1, n));
+        return Math.max(0, Math.min(1, n / 100));
       };
       return {
-        opacityLeft: clamp01(opacity.left, 1),
-        opacityRight: clamp01(opacity.right, 1),
-        tagTextSizePct: Number.isFinite(Math.trunc(Number(visuals.tagTextSizePct))) ? Math.max(80, Math.min(140, Math.trunc(Number(visuals.tagTextSizePct)))) : 100,
-        tagBubbleWidthPct: Number.isFinite(Math.trunc(Number(visuals.tagBubbleWidthPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(visuals.tagBubbleWidthPct)))) : 100,
-        tagBubbleHeightPct: Number.isFinite(Math.trunc(Number(visuals.tagBubbleHeightPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(visuals.tagBubbleHeightPct)))) : 100,
-        emptyBubbleSizePct: Number.isFinite(Math.trunc(Number(visuals.emptyBubbleSizePct))) ? Math.max(50, Math.min(180, Math.trunc(Number(visuals.emptyBubbleSizePct)))) : 100,
-        tagShapePct: Number.isFinite(Math.trunc(Number(visuals.tagShapePct))) ? Math.max(0, Math.min(100, Math.trunc(Number(visuals.tagShapePct)))) : 0,
-        byTag: isObj(visuals.byTag) ? visuals.byTag : {},
-        userTags: isObj(visuals.userTags) ? visuals.userTags : {},
-        separator1TextColor: normalizeHexColorInput(visuals.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
-        separator2TextColor: normalizeHexColorInput(visuals.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
+        opacityLeft: pctToShare(tags.opacityLeft, 1),
+        opacityRight: pctToShare(tags.opacityRight, 1),
+        tagTextSizePct: Number.isFinite(Math.trunc(Number(tags.textSizePct))) ? Math.max(80, Math.min(140, Math.trunc(Number(tags.textSizePct)))) : 100,
+        tagBubbleWidthPct: Number.isFinite(Math.trunc(Number(tags.bubbleWidthPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(tags.bubbleWidthPct)))) : 100,
+        tagBubbleHeightPct: Number.isFinite(Math.trunc(Number(tags.bubbleHeightPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(tags.bubbleHeightPct)))) : 100,
+        emptyBubbleSizePct: Number.isFinite(Math.trunc(Number(tags.emptyBubblePct))) ? Math.max(50, Math.min(180, Math.trunc(Number(tags.emptyBubblePct)))) : 100,
+        tagShapePct: Number.isFinite(Math.trunc(Number(tags.cornersPct))) ? Math.max(0, Math.min(100, Math.trunc(Number(tags.cornersPct)))) : 0,
+        byTag: isObj(tags.byTag) ? tags.byTag : {},
+        userTags: isObj(tags.userTags) ? tags.userTags : {},
+        separator1TextColor: normalizeHexColorInput(tags.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
+        separator2TextColor: normalizeHexColorInput(tags.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
         stripActive: strip.active === true,
         strip
       };
     }
+    var TAG_EMPTY_BUBBLE_BASE_PX = 30;
     function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, shapePct) {
       const textSize = Number.isFinite(Math.trunc(Number(textSizePct))) ? Math.max(80, Math.min(140, Math.trunc(Number(textSizePct)))) : 100;
       const bubbleWidth = Number.isFinite(Math.trunc(Number(bubbleWidthPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(bubbleWidthPct)))) : 100;
@@ -37296,12 +37288,10 @@ var require_main = __commonJS({
       return `${pref}${tok}`;
     }
     function buildFieldTagVisualMap(cfg) {
-      var _a, _b;
       const out = {};
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
       const visuals = getTagVisualsFromConfig(cfg);
       const byTag = visuals.byTag;
-      const fields = [].concat(Array.isArray((_a = behavior.leftMode) == null ? void 0 : _a.fields) ? behavior.leftMode.fields : []).concat(Array.isArray((_b = behavior.rightMode) == null ? void 0 : _b.fields) ? behavior.rightMode.fields : []);
+      const fields = collectPkmFieldDefinitions(cfg);
       for (const field of fields) {
         const fieldId = String(field && field.id || "").trim();
         if (!fieldId) continue;
@@ -37414,7 +37404,6 @@ var require_main = __commonJS({
       return String(row && row.customText || "").trim() ? "custom" : "empty";
     }
     function buildTagTokenSetForField(cfg, selectedFieldId) {
-      var _a, _b;
       const out = /* @__PURE__ */ new Set();
       const fid = String(selectedFieldId || "").trim();
       if (!fid) return out;
@@ -37423,8 +37412,7 @@ var require_main = __commonJS({
         if (!tok || tok.charAt(0) !== "#") return;
         out.add(tok);
       };
-      const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-      const fields = [].concat(Array.isArray((_a = behavior.leftMode) == null ? void 0 : _a.fields) ? behavior.leftMode.fields : []).concat(Array.isArray((_b = behavior.rightMode) == null ? void 0 : _b.fields) ? behavior.rightMode.fields : []);
+      const fields = collectPkmFieldDefinitions(cfg);
       for (const field of fields) {
         const id = String(field && field.id || "").trim();
         if (id !== fid && id !== `${fid}_sub`) continue;
@@ -37436,8 +37424,7 @@ var require_main = __commonJS({
           pushStrict(token);
         }
       }
-      const visuals = isObj(behavior.tagVisuals) ? behavior.tagVisuals : {};
-      const byTag = isObj(visuals.byTag) ? visuals.byTag : {};
+      const byTag = isObj(readCfgPath(cfg, "visual.tags.byTag")) ? readCfgPath(cfg, "visual.tags.byTag") : {};
       const fieldMaps = [];
       if (isObj(byTag[fid])) fieldMaps.push(byTag[fid]);
       if (isObj(byTag[`${fid}_sub`])) fieldMaps.push(byTag[`${fid}_sub`]);
@@ -37468,6 +37455,9 @@ var require_main = __commonJS({
       const bt = Number(bTo || 0);
       if (at <= af || bt <= bf) return false;
       return af < bt && bf < at;
+    }
+    function escapeRegExp(src) {
+      return String(src || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     }
     function isRenderableStripContext(text, sep1, sep2, tokenSet) {
       const src = String(text || "");
@@ -37525,8 +37515,10 @@ var require_main = __commonJS({
         el2.style.fontSize = `${st.fontSizePx}px`;
         el2.style.lineHeight = String(st.lineHeight);
         if (this.emptyMode) {
-          el2.style.width = `${Math.max(6, Math.round(st.horizontalPaddingPx * 2 * emptyScale))}px`;
+          el2.style.width = `${Math.round(TAG_EMPTY_BUBBLE_BASE_PX * emptyScale)}px`;
           el2.style.minWidth = el2.style.width;
+          el2.style.paddingLeft = "0px";
+          el2.style.paddingRight = "0px";
           el2.style.lineHeight = "1";
         }
         if (this.fillColor) el2.style.backgroundColor = this.fillColor;
@@ -37593,15 +37585,112 @@ var require_main = __commonJS({
         return wrap;
       }
     };
+    function elementTailPatternFromFormat(format) {
+      const src = String(format || "").trim();
+      if (!src) return "";
+      let out = "";
+      let i = 0;
+      while (i < src.length) {
+        const ch = src[i];
+        if (/[A-Za-z]/.test(ch)) {
+          let n = 0;
+          while (i < src.length && /[A-Za-z]/.test(src[i])) {
+            i += 1;
+            n += 1;
+          }
+          out += "\\d{" + n + "}";
+          continue;
+        }
+        if (ch === " ") {
+          out += "[ ]";
+          i += 1;
+          continue;
+        }
+        out += escapeRegExp(ch);
+        i += 1;
+      }
+      return out;
+    }
+    function buildElementMarkersFromConfig(cfg) {
+      const byField = isObj(readCfgPath(cfg, "pkm.fields.elements.byField")) ? readCfgPath(cfg, "pkm.fields.elements.byField") : {};
+      const out = [];
+      const seen = /* @__PURE__ */ new Set();
+      for (const key of Object.keys(byField)) {
+        const row = isObj(byField[key]) ? byField[key] : {};
+        const marker = String(row.emoji || "").trim();
+        if (!marker || seen.has(marker)) continue;
+        seen.add(marker);
+        out.push({ marker, tail: elementTailPatternFromFormat(row.format) });
+      }
+      out.sort((a, b) => b.marker.length - a.marker.length);
+      return out;
+    }
+    function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
+      const src = String(text || "");
+      const found = [];
+      const pushAll = (rx, kind) => {
+        let m;
+        while ((m = rx.exec(src)) !== null) {
+          const raw = String(m[0] || "");
+          const token = raw.trim();
+          if (!token) continue;
+          found.push({ token, kind, index: m.index, end: m.index + token.length });
+        }
+      };
+      pushAll(/\[\[[^\][\n]+\]\]/g, "link");
+      const markers = Array.isArray(elementMarkers) ? elementMarkers : [];
+      for (const entry of markers) {
+        const marker = typeof entry === "string" ? entry : String(entry && entry.marker || "");
+        const tail = typeof entry === "string" ? "" : String(entry && entry.tail || "");
+        if (!marker) continue;
+        pushAll(new RegExp(escapeRegExp(marker) + (tail || "\\S+"), "g"), "element");
+      }
+      pushAll(/#\S+/g, "tag");
+      found.sort((a, b) => {
+        if (a.index !== b.index) return a.index - b.index;
+        return b.end - b.index - (a.end - a.index);
+      });
+      const out = [];
+      let claimedTo = -1;
+      for (const entry of found) {
+        if (entry.index < claimedTo) continue;
+        out.push({
+          token: entry.token,
+          kind: entry.kind,
+          index: entry.index,
+          end: entry.end,
+          zone: resolveTagVisualZone(src, entry.index, sep1, sep2)
+        });
+        claimedTo = entry.end;
+      }
+      return out;
+    }
+    function buildBlockStyleCss(entry, visuals) {
+      const zone = String(entry && entry.zone || "");
+      if (zone !== "left" && zone !== "right") return "";
+      const opacity = Number(entry && entry.zoneOpacity);
+      const sizePct = Number(visuals && visuals.tagTextSizePct);
+      const parts = [];
+      if (Number.isFinite(opacity) && opacity < 1) parts.push("opacity: " + opacity + ";");
+      if (Number.isFinite(sizePct) && sizePct !== 100) {
+        parts.push("font-size: " + computeTagVisualStyle(sizePct, 100, 100, 0).fontSizePx + "px;");
+      }
+      return parts.join(" ");
+    }
+    function buildBlockStyleDecoration(entry, visuals) {
+      const style = buildBlockStyleCss(entry, visuals);
+      if (!style) return null;
+      return cmView.Decoration.mark({ attributes: { style } });
+    }
     function buildTagVisualDecorations(view, plugin) {
       const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
-      const debugLine = !!(cfg && cfg.devMode && cfg.devMode.enabled && cfg.devMode.traceTagVisualLine === true);
+      const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
       const traceTxId = plugin && typeof plugin.getLineTraceTxId === "function" ? String(plugin.getLineTraceTxId() || "") : "";
       const visuals = getTagVisualsFromConfig(cfg);
       const userTags = visuals.userTags;
       const fieldMap = buildFieldTagVisualMap(cfg);
       const globalMap = buildGlobalTagVisualMap(cfg);
-      const io = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io) ? cfg.pkm.behavior.io : {};
+      const io = isObj(readCfgPath(cfg, "pkm.lineFormat")) ? readCfgPath(cfg, "pkm.lineFormat") : {};
       const sep1 = String(io.separator1 || "").trim();
       const sep2 = String(io.separator2 || "").trim();
       const sep1Color = normalizeHexColorInput(visuals.separator1TextColor);
@@ -37611,10 +37700,12 @@ var require_main = __commonJS({
       const stripFieldId = String(stripCfg.fieldId || "").trim();
       const stripFieldTokenSet = visuals.stripActive ? buildTagTokenSetForField(cfg, stripFieldId) : /* @__PURE__ */ new Set();
       const stripFieldTokenSetNorm = new Set(Array.from(stripFieldTokenSet).map((t) => normalizeVisualTokenKey(t)).filter(Boolean));
-      const cfgStrip = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagVisuals && cfg.pkm.behavior.tagVisuals.strip) ? cfg.pkm.behavior.tagVisuals.strip : {};
+      const cfgStrip = isObj(readCfgPath(cfg, "visual.tagBars")) ? readCfgPath(cfg, "visual.tagBars") : {};
       const rawStripTagVisibility = cfgStrip.tagVisibility;
       const hideStripFieldTags = !!stripFieldId && (stripCfg.tagVisibility === false || rawStripTagVisibility === false);
       const suppressedRanges = [];
+      const elementMarkers = buildElementMarkersFromConfig(cfg);
+      const tagwheelColors = getTagwheelHeaderColorsFromConfig(cfg);
       const readRowForToken = (token) => readTagVisualRowByTokenMaps(token, fieldMap, userTags, globalMap);
       for (const vr of view.visibleRanges) {
         let lineNo = view.state.doc.lineAt(vr.from).number;
@@ -37622,22 +37713,21 @@ var require_main = __commonJS({
         while (lineNo <= endLineNo) {
           const line = view.state.doc.line(lineNo);
           const text = String(line.text || "");
-          const rx = /#\S+/g;
           const scannedTokens = [];
           const hiddenTokens = [];
           const tokenEntries = [];
-          let m;
-          while ((m = rx.exec(text)) !== null) {
-            const token = String(m[0] || "").trim();
+          const wheelSpan = tagwheelPanelSpanInLine(text, tagwheelColors);
+          for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers)) {
+            const token = hit.token;
+            if (wheelSpan && hit.index >= wheelSpan.start && hit.index < wheelSpan.end) continue;
             scannedTokens.push(token);
-            const zone = resolveTagVisualZone(text, m.index, sep1, sep2);
-            const from = line.from + m.index;
+            const from = line.from + hit.index;
             const to = from + token.length;
             const tokenNorm = normalizeVisualTokenKey(token);
             const inStripField = stripFieldTokenSet.has(token) || tokenNorm && stripFieldTokenSetNorm.has(tokenNorm);
             const row = readRowForToken(token);
-            const zoneOpacity = zone === "left" ? visuals.opacityLeft : zone === "right" ? visuals.opacityRight : 1;
-            tokenEntries.push({ token, from, to, zone, inStripField, row, zoneOpacity, index: m.index });
+            const zoneOpacity = hit.zone === "left" ? visuals.opacityLeft : hit.zone === "right" ? visuals.opacityRight : 1;
+            tokenEntries.push({ token, kind: hit.kind, from, to, zone: hit.zone, inStripField, row, zoneOpacity, index: hit.index });
           }
           if (sep1 && sep1Color) {
             const i1 = text.indexOf(sep1);
@@ -37739,7 +37829,6 @@ var require_main = __commonJS({
               continue;
             }
             const row = entry.row;
-            if (!row) continue;
             let suppressed = false;
             for (let si = 0; si < suppressedRanges.length; si++) {
               const sr = suppressedRanges[si] || {};
@@ -37749,8 +37838,13 @@ var require_main = __commonJS({
               }
             }
             if (suppressed) continue;
-            const hasVisualOverride = !!normalizeHexColorInput(row.fillColor) || !!normalizeHexColorInput(row.textColor) || resolveEffectiveTagVisualMode(row) !== "default";
-            if (!hasVisualOverride) continue;
+            const hasVisualOverride = !!row && (!!normalizeHexColorInput(row.fillColor) || !!normalizeHexColorInput(row.textColor) || resolveEffectiveTagVisualMode(row) !== "default");
+            if (!hasVisualOverride) {
+              if (to <= from) continue;
+              const styleDeco = buildBlockStyleDecoration(entry, visuals);
+              if (styleDeco) ranges.push({ from, to, deco: styleDeco });
+              continue;
+            }
             if (to <= from) continue;
             const effectiveMode = resolveEffectiveTagVisualMode(row);
             if (debugLine && token === "#/1" && plugin && typeof plugin.devLogEvent === "function") {
@@ -37819,11 +37913,11 @@ var require_main = __commonJS({
     }
     function buildStripDecorations(view, plugin) {
       const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
-      const debugLine = !!(cfg && cfg.devMode && cfg.devMode.enabled && cfg.devMode.traceTagVisualLine === true);
+      const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
       const traceTxId = plugin && typeof plugin.getLineTraceTxId === "function" ? String(plugin.getLineTraceTxId() || "") : "";
       const visuals = getTagVisualsFromConfig(cfg);
       if (!visuals.stripActive) return cmView.Decoration.none;
-      const io = isObj(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.io) ? cfg.pkm.behavior.io : {};
+      const io = isObj(readCfgPath(cfg, "pkm.lineFormat")) ? readCfgPath(cfg, "pkm.lineFormat") : {};
       const sep1 = String(io.separator1 || "").trim();
       const sep2 = String(io.separator2 || "").trim();
       const stripCfg = visuals.strip || __priorityStripEngine.normalizeStripConfig({});
@@ -37879,7 +37973,8 @@ var require_main = __commonJS({
         readRowForToken,
         isHardBoundary: (text) => isHardLineBlockBoundary(text),
         mode: stripCfg.mode,
-        stripesToShow: stripCfg.stripesToShow
+        stripesToShow: stripCfg.stripesToShow,
+        drawWholeTree: stripCfg.drawWholeTree
       });
       const stripRanges = __priorityStripCm6Adapter.buildStripDecorationRanges(stripSpecs, view, cmView, stripCfg);
       try {
@@ -37985,12 +38080,139 @@ var require_main = __commonJS({
       return t;
     }
     var TAGWHEEL_FILL_STYLE_CSS = [
-      ".markdown-source-view.mod-cm6 .inline-overhaul-tw-fill-widget {",
-      "  background-color: var(--inline-overhaul-tw-fill) !important;",
-      "  border-radius: 4px;",
-      "  padding: 0 2px;",
+      ".markdown-source-view.mod-cm6 .inline-overhaul-tw-token {",
+      "  font: inherit;",
+      "  color: inherit;",
+      "  background: transparent;",
       "}"
     ].join("\n");
+    var CARET_LAYER_CLASS = "io-editor-caretlayer";
+    var CARET_MARKER_CLASS = "io-editor-caret";
+    function buildCaretStyleCss(look) {
+      const cfg = isObj(look) ? look : {};
+      const value = String(cfg.color || "").trim();
+      const width = Number(cfg.width);
+      const blinkMs = Number(cfg.blinkMs);
+      const out = [];
+      if (value) {
+        out.push(
+          ".markdown-source-view.mod-cm6 {",
+          "  --caret-color: " + value + ";",
+          "}",
+          ".markdown-source-view.mod-cm6 .cm-content {",
+          "  caret-color: " + value + ";",
+          "}"
+        );
+      }
+      if (value || Number.isFinite(width)) {
+        out.push(
+          ".markdown-source-view.mod-cm6 .cm-cursor,",
+          ".markdown-source-view.mod-cm6 .cm-cursor-primary,",
+          ".markdown-source-view.mod-cm6 .cm-dropCursor {"
+        );
+        if (value) out.push("  border-left-color: " + value + ";");
+        if (Number.isFinite(width)) {
+          out.push("  border-left-width: " + width + "px;");
+          out.push("  margin-left: " + -width / 2 + "px;");
+        }
+        out.push("}");
+      }
+      if (Number.isFinite(blinkMs)) {
+        out.push(".markdown-source-view.mod-cm6 .cm-cursorLayer {");
+        out.push(blinkMs > 0 ? "  animation-duration: " + blinkMs + "ms !important;" : "  animation: none !important;");
+        out.push("}");
+      }
+      if (Number.isFinite(width) || Number.isFinite(blinkMs)) {
+        const w = Number.isFinite(width) ? width : 2;
+        out.push(
+          /* Родная каретка гасится ровно тогда, когда её заменяет своя: ширина и
+             мерцание у неё браузерные, и CSS их не задаёт. */
+          ".markdown-source-view.mod-cm6 .cm-content {",
+          "  caret-color: transparent;",
+          "}",
+          ".markdown-source-view.mod-cm6 ." + CARET_LAYER_CLASS + " {",
+          "  pointer-events: none;",
+          "  display: none;",
+          "}",
+          ".markdown-source-view.mod-cm6 ." + CARET_LAYER_CLASS + " ." + CARET_MARKER_CLASS + " {",
+          /* Цвет берётся переменной, а не литералом: за цвет отвечает первая
+             половина группы, и объявлять его тут значило бы объявить одно правило
+             дважды (У-32). Своей переменной нет — берётся тема Obsidian. */
+          "  border-left: " + w + "px solid var(--caret-color);",
+          "  margin-left: " + -w / 2 + "px;",
+          "  pointer-events: none;",
+          "}",
+          ".markdown-source-view.mod-cm6 .cm-focused > .cm-scroller > ." + CARET_LAYER_CLASS + " {",
+          "  display: block;",
+          Number.isFinite(blinkMs) && blinkMs > 0 ? "  animation: steps(1) io-caret-blink " + blinkMs + "ms infinite;" : "  animation: none;",
+          "}"
+        );
+      }
+      return out.join("\n");
+    }
+    function caretBlinkMsFromSpeed(speed) {
+      const s = Number.isFinite(speed) ? Math.max(1, Math.min(10, speed)) : 5;
+      return 2200 - s * 200;
+    }
+    function caretLookFromConfig(cfg) {
+      const caret = isObj(readCfgPath(cfg, "visual.caret")) ? readCfgPath(cfg, "visual.caret") : {};
+      const look = { color: "", width: NaN, blinkMs: NaN };
+      if (caret.enabled === true) look.color = normalizeHexColorInput(caret.color);
+      if (caret.shapeEnabled === true) {
+        const width = Number(caret.width);
+        look.width = Number.isFinite(width) ? width : 2;
+        const speed = Number(caret.blinkSpeed);
+        look.blinkMs = Number.isFinite(speed) && speed <= 0 ? 0 : caretBlinkMsFromSpeed(speed);
+      }
+      return look;
+    }
+    function caretShapeActive(plugin) {
+      try {
+        return Number.isFinite(caretLookFromConfig(plugin.getConfig()).width);
+      } catch (_) {
+        return false;
+      }
+    }
+    function caretSitsAtLineEnd(state, head) {
+      try {
+        const line = state.doc.lineAt(head);
+        return line.to === head && line.to > line.from;
+      } catch (_) {
+        return false;
+      }
+    }
+    function caretLayerRangeFor(plugin, state) {
+      if (!caretShapeActive(plugin)) return null;
+      const main = state && state.selection ? state.selection.main : null;
+      if (!main || main.empty !== true) return null;
+      if (!caretSitsAtLineEnd(state, main.head)) return main;
+      return { empty: true, head: main.head, anchor: main.head, from: main.head, to: main.head, assoc: -1 };
+    }
+    function createCaretLayerExtension(plugin) {
+      if (typeof cmView.layer !== "function" || typeof cmView.RectangleMarker !== "function") {
+        console.warn("[inline-overhaul][caret] @codemirror/view \u0431\u0435\u0437 layer/RectangleMarker: \u0441\u0432\u043E\u044F \u043A\u0430\u0440\u0435\u0442\u043A\u0430 \u043D\u0435 \u0440\u0438\u0441\u0443\u0435\u0442\u0441\u044F");
+        return [];
+      }
+      return cmView.layer({
+        above: true,
+        class: CARET_LAYER_CLASS,
+        markers(view) {
+          try {
+            const range = caretLayerRangeFor(plugin, view.state);
+            if (!range) return [];
+            return cmView.RectangleMarker.forRange(view, CARET_MARKER_CLASS, range);
+          } catch (_) {
+            return [];
+          }
+        },
+        update(update, dom) {
+          const now = caretShapeActive(plugin);
+          const flipped = dom.__ioCaretActive !== now;
+          dom.__ioCaretActive = now;
+          return flipped || update.docChanged || update.selectionSet || update.viewportChanged;
+        }
+      });
+    }
     var STRIP_LINE_STYLE_CSS = [
       ".markdown-source-view.mod-cm6 .cm-line.io-strip-line {",
       "  position: relative;",
@@ -38001,155 +38223,172 @@ var require_main = __commonJS({
       '  content: "";',
       "  position: absolute;",
       "  pointer-events: none;",
-      "  top: 0;",
-      "  bottom: 0;",
+      /*
+       * Полоса не занимает высоту строки целиком: у двух строк подряд полосы
+       * стыкуются без зазора и читаются как одна — «не видно, к какой строке
+       * относится какой bar» (замечание B22, 2026-09-02). Зазор сверху и снизу
+       * делает границу видимой.
+       *
+       * Величина больше не литерал: её задаёт слайдер `Gap between Bars`, а у
+       * строки внутри дерева зазор снимает тумблер `Join Bars in a tree`
+       * (PRD 10.13.16). Число приходит переменной от адаптера, и та же
+       * переменная читается предпросмотром полос — одно правило, одно место
+       * (У-32). Запасное значение здесь равно умолчанию настройки.
+       */
+      "  top: var(--io-strip-line-gap, 2px);",
+      "  bottom: var(--io-strip-line-gap, 2px);",
       "  width: var(--io-strip-thickness, 2px);",
       "  left: calc(-1 * var(--io-strip-x1, 20px));",
       "  background: var(--io-strip-c1, transparent);",
       "  box-shadow: var(--io-strip-shadow2, none), var(--io-strip-shadow3, none);",
       "  border-radius: 1px;",
-      "}",
-      ".markdown-source-view.mod-cm6 .cm-line .io-strip-hidden-token {",
-      "  opacity: 0 !important;",
-      "  color: transparent !important;",
-      "  background: transparent !important;",
-      "  border-color: transparent !important;",
-      "  text-shadow: none !important;",
-      "  font-size: 0 !important;",
-      "  line-height: 0 !important;",
-      "  letter-spacing: 0 !important;",
-      "  margin: 0 !important;",
-      "  padding: 0 !important;",
-      "}",
-      ".markdown-source-view.mod-cm6 .cm-line .io-strip-hidden-space {",
-      "  font-size: 0 !important;",
-      "  color: transparent !important;",
-      "  line-height: 0 !important;",
-      "  margin: 0 !important;",
-      "  padding: 0 !important;",
-      "}",
-      ".markdown-source-view.mod-cm6 .cm-line .cm-formatting-hashtag:has(.io-strip-hidden-token),",
-      ".markdown-source-view.mod-cm6 .cm-line .cm-hashtag:has(.io-strip-hidden-token),",
-      ".markdown-source-view.mod-cm6 .cm-line .cm-tag:has(.io-strip-hidden-token),",
-      ".markdown-source-view.mod-cm6 .cm-line .cm-meta:has(.io-strip-hidden-token) {",
-      "  background: transparent !important;",
-      "  border: 0 !important;",
-      "  box-shadow: none !important;",
-      "  outline: 0 !important;",
       "}"
+      /*
+       * Правила для классов `io-strip-hidden-token` и `io-strip-hidden-space`
+       * сняты 2026-09-03. Классы не ставил никто: тег Field слой полос прячет
+       * заменой нулевой ширины, а не пометкой, — то есть правила обещали
+       * поведение, которого нет. Записано это было в
+       * `docs/AWAITING_OWNER_CHECK.md`, раздел 8, с оговоркой «снять при
+       * следующей правке слоя полос».
+       */
     ].join("\n");
-    var TagwheelFillWidget = class extends cmView.WidgetType {
-      constructor(fullText, fillColor, textColor, placeholders, showPrefix) {
+    var TagwheelTokenWidget = class extends cmView.WidgetType {
+      constructor(text) {
         super();
-        this.fullText = String(fullText || "");
-        this.fillColor = String(fillColor || "");
-        this.textColor = String(textColor || "");
-        this.placeholders = placeholders instanceof Set ? placeholders : /* @__PURE__ */ new Set();
-        this.showPrefix = showPrefix !== false;
+        this.text = String(text || "");
       }
       eq(other) {
-        return !!(other && other.fullText === this.fullText && other.fillColor === this.fillColor && other.textColor === this.textColor && other.placeholders === this.placeholders && other.showPrefix === this.showPrefix);
+        return !!(other && other.text === this.text);
       }
       toDOM() {
-        const wrap = document.createElement("span");
-        wrap.className = "inline-overhaul-tw-fill-widget";
-        if (this.fillColor) wrap.style.setProperty("--inline-overhaul-tw-fill", this.fillColor);
-        const src = this.fullText;
-        const rx = /`([^`]+)`|\*\*\[([^\]]+)\]\*\*/g;
-        let last = 0;
-        let m;
-        while ((m = rx.exec(src)) !== null) {
-          if (m.index > last) wrap.appendChild(document.createTextNode(src.slice(last, m.index)));
-          const matched = String(m[0] || "");
-          const tickToken = String(m[1] || "").trim();
-          const activeToken = String(m[2] || "").trim();
-          var shownTick = tickToken ? formatTagwheelDisplayToken(tickToken, this.showPrefix) : "";
-          var shownActive = activeToken ? formatTagwheelDisplayToken(activeToken, this.showPrefix) : "";
-          if (m[1] && this.textColor && tickToken && this.placeholders.has(tickToken)) {
-            const colored = document.createElement("span");
-            colored.style.color = this.textColor;
-            colored.textContent = "`" + shownTick + "`";
-            wrap.appendChild(colored);
-          } else if (m[1]) {
-            wrap.appendChild(document.createTextNode("`" + shownTick + "`"));
-          } else if (m[2]) {
-            const pre = matched.indexOf("[");
-            const post = matched.lastIndexOf("]");
-            if (pre >= 0 && post > pre) {
-              wrap.appendChild(document.createTextNode(matched.slice(0, pre + 1)));
-              const activeSpan = document.createElement("span");
-              activeSpan.className = "inline-overhaul-tw-active-anchor";
-              activeSpan.textContent = shownActive;
-              if (this.textColor && activeToken && this.placeholders.has(activeToken)) {
-                activeSpan.style.color = this.textColor;
-              }
-              wrap.appendChild(activeSpan);
-              wrap.appendChild(document.createTextNode(matched.slice(post)));
-            } else {
-              wrap.appendChild(document.createTextNode(matched));
-            }
-          } else {
-            wrap.appendChild(document.createTextNode(matched));
-          }
-          last = m.index + matched.length;
-        }
-        if (last < src.length) wrap.appendChild(document.createTextNode(src.slice(last)));
-        return wrap;
+        const node = document.createElement("span");
+        node.className = "inline-overhaul-tw-token";
+        node.textContent = this.text;
+        return node;
       }
     };
+    var TAGWHEEL_ACTIVE_CELL_RE = /\*\*\[([\s\S]+?)\]\*\*/;
+    function tagwheelPanelSegmentInLine(text) {
+      const src = String(text || "");
+      const openIdx = src.indexOf("==");
+      const closeIdx = openIdx >= 0 ? src.indexOf("==", openIdx + 2) : -1;
+      if (openIdx < 0 || closeIdx <= openIdx) return null;
+      const innerAt = openIdx + 2;
+      if (closeIdx <= innerAt) return null;
+      const segment = src.slice(innerAt, closeIdx);
+      if (!TAGWHEEL_ACTIVE_CELL_RE.test(segment)) return null;
+      return { start: openIdx, end: closeIdx + 2, innerAt, closeIdx, segment };
+    }
+    function tagwheelPanelSpanInLine(text, colors) {
+      const usePanelWidget = Boolean(colors && colors.fillColor) || colors && colors.showPrefix === false;
+      if (!usePanelWidget) return null;
+      const seg = tagwheelPanelSegmentInLine(text);
+      if (!seg) return null;
+      return { start: seg.start, end: seg.end };
+    }
+    function tagwheelPanelPaints(colors) {
+      if (!colors) return false;
+      return Boolean(colors.fillColor) || Boolean(colors.defaultTextColor) || Boolean(colors.activeTextColor) || colors.showPrefix === false;
+    }
+    function tagwheelPanelSpans(text, colors, placeholders) {
+      const out = [];
+      if (!tagwheelPanelPaints(colors)) return out;
+      const seg = tagwheelPanelSegmentInLine(text);
+      if (!seg) return out;
+      const innerAt = seg.innerAt;
+      const closeIdx = seg.closeIdx;
+      const segment = seg.segment;
+      const known = placeholders instanceof Set ? placeholders : /* @__PURE__ */ new Set();
+      const fillColor = String(colors && colors.fillColor || "");
+      const textColor = String(colors && colors.defaultTextColor || "");
+      const activeColor = String(colors && colors.activeTextColor || "") || textColor;
+      const showPrefix = !(colors && colors.showPrefix === false);
+      out.push({
+        kind: "line",
+        start: seg.start,
+        end: seg.end,
+        style: fillColor ? "--io-twfill: " + fillColor + ";" : ""
+      });
+      if (textColor) {
+        out.push({ kind: "text", start: seg.start, end: seg.end, style: "color: " + textColor + ";" });
+      }
+      const active = TAGWHEEL_ACTIVE_CELL_RE.exec(segment);
+      if (active) {
+        const inner = String(active[1] || "");
+        const bracketAt = String(active[0] || "").indexOf("[");
+        const start = innerAt + active.index + bracketAt + 1;
+        const end = start + inner.length;
+        if (end > start) {
+          const bold = known.has(inner.trim());
+          out.push({
+            kind: "active",
+            start,
+            end,
+            style: (activeColor ? "color: " + activeColor + ";" : "") + "font-weight: " + (bold ? "700" : "400") + " !important;"
+          });
+        }
+      }
+      if (!showPrefix) {
+        const tokenRe = /`([^`]+)`|(#\S+)/g;
+        let m;
+        while ((m = tokenRe.exec(segment)) !== null) {
+          const raw = String(m[1] || m[2] || "");
+          const shown = formatTagwheelDisplayToken(raw, false);
+          if (!shown || shown === raw) continue;
+          const start = innerAt + m.index + String(m[0] || "").indexOf(raw);
+          const end = start + raw.length;
+          if (end > start) out.push({ kind: "replace", start, end, text: shown });
+        }
+      }
+      return out;
+    }
+    var TAGWHEEL_SPAN_RANK = { line: -1, text: 1, active: 2, replace: 3 };
+    var TAGWHEEL_THEME_COLOR_VARS = {
+      defaultTextColor: "--text-muted",
+      activeTextColor: "--text-accent",
+      fillColor: "--text-highlight-bg"
+    };
+    function resolveTagwheelPaintColors(colors) {
+      const src = isObj(colors) ? colors : {};
+      const themed = (value, variable) => {
+        const own = String(value || "").trim();
+        return own || "var(" + variable + ")";
+      };
+      return {
+        defaultTextColor: themed(src.defaultTextColor, TAGWHEEL_THEME_COLOR_VARS.defaultTextColor),
+        activeTextColor: themed(src.activeTextColor, TAGWHEEL_THEME_COLOR_VARS.activeTextColor),
+        fillColor: themed(src.fillColor, TAGWHEEL_THEME_COLOR_VARS.fillColor),
+        showPrefix: src.showPrefix !== false
+      };
+    }
     function buildTagwheelHeaderDecorations(view, plugin) {
       const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
-      const colors = getTagwheelHeaderColorsFromConfig(cfg);
-      const hasTextColor = !!colors.defaultTextColor;
-      const hasFillColor = !!colors.fillColor;
-      const usePanelWidget = hasFillColor || colors.showPrefix === false;
-      if (!hasTextColor && !hasFillColor && colors.showPrefix !== false) return cmView.Decoration.none;
+      const colors = resolveTagwheelPaintColors(getTagwheelHeaderColorsFromConfig(cfg));
       const placeholders = buildTagwheelPlaceholderSetFromConfig(cfg);
       const ranges = [];
-      const textDeco = hasTextColor ? cmView.Decoration.mark({ attributes: { style: "color: " + colors.defaultTextColor + ";" } }) : null;
       for (const vr of view.visibleRanges) {
         let lineNo = view.state.doc.lineAt(vr.from).number;
         const endLineNo = view.state.doc.lineAt(vr.to).number;
         while (lineNo <= endLineNo) {
           const line = view.state.doc.line(lineNo);
           const text = String(line.text || "");
-          const openIdx = text.indexOf("==");
-          const closeIdx = openIdx >= 0 ? text.indexOf("==", openIdx + 2) : -1;
-          if (openIdx >= 0 && closeIdx > openIdx) {
-            const segStart = line.from + openIdx;
-            const segEnd = line.from + closeIdx + 2;
-            if (usePanelWidget && segEnd > segStart) {
-              const fullSeg = text.slice(openIdx, closeIdx + 2);
-              const widgetDeco = cmView.Decoration.replace({
-                widget: new TagwheelFillWidget(fullSeg, colors.fillColor, colors.defaultTextColor, placeholders, colors.showPrefix),
-                inclusive: false
+          for (const span of tagwheelPanelSpans(text, colors, placeholders)) {
+            if (span.kind === "line") {
+              const spec = { class: "io-twline" };
+              if (span.style) spec.attributes = { style: span.style };
+              ranges.push({
+                from: line.from,
+                to: line.from,
+                rank: TAGWHEEL_SPAN_RANK.line,
+                deco: cmView.Decoration.line(spec)
               });
-              ranges.push({ from: segStart, to: segEnd, deco: widgetDeco, rank: 0 });
+              continue;
             }
-            if (textDeco && !usePanelWidget) {
-              const segment = text.slice(openIdx + 2, closeIdx);
-              const tickRe = /`([^`]+)`/g;
-              let m;
-              while ((m = tickRe.exec(segment)) !== null) {
-                const token = String(m[1] || "").trim();
-                if (!token) continue;
-                const from = line.from + openIdx + 2 + m.index;
-                const to = from + String(m[0] || "").length;
-                if (to > from) ranges.push({ from, to, deco: textDeco, rank: 1 });
-              }
-              if (placeholders.size) {
-                const activeRe = /\*\*\[([^\]]+)\]\*\*/g;
-                while ((m = activeRe.exec(segment)) !== null) {
-                  const token = String(m[1] || "").trim();
-                  if (!token || !placeholders.has(token)) continue;
-                  const full = String(m[0] || "");
-                  const innerStart = full.indexOf("[") + 1;
-                  const from = line.from + openIdx + 2 + m.index + innerStart;
-                  const to = from + token.length;
-                  if (to > from) ranges.push({ from, to, deco: textDeco, rank: 2 });
-                }
-              }
-            }
+            const from = line.from + span.start;
+            const to = line.from + span.end;
+            if (to <= from) continue;
+            const deco = span.kind === "replace" ? cmView.Decoration.replace({ widget: new TagwheelTokenWidget(span.text), inclusive: false }) : cmView.Decoration.mark({ attributes: { style: span.style } });
+            ranges.push({ from, to, rank: TAGWHEEL_SPAN_RANK[span.kind] || 0, deco });
           }
           lineNo += 1;
         }
@@ -38167,6 +38406,126 @@ var require_main = __commonJS({
         }
       }
       return builder.finish();
+    }
+    function getSourceMarksFromConfig(cfg) {
+      const i2n = isObj(readCfgPath(cfg, "transform.inline2note")) ? readCfgPath(cfg, "transform.inline2note") : {};
+      const sp = isObj(i2n.sourceProcessing) ? i2n.sourceProcessing : {};
+      const visual = isObj(sp.visual) ? sp.visual : {};
+      const token = String(sp.token || "").trim();
+      const moduleOn = readCfgPath(cfg, "features.transform.enabled") === true && readCfgPath(cfg, "transform.inline2note.enabled") === true;
+      const pct = Number(visual.opacity);
+      return {
+        moduleOn,
+        /* Метка — единственный признак обработанной строки (Н2). Нет метки —
+           нечего искать, и подсветка не рисуется вовсе (Н3). */
+        token,
+        highlight: moduleOn && !!token && visual.enabled === true,
+        color: normalizeHexColorInput(visual.color),
+        /* Доля для CSS. В конфиге процент, как у остальной прозрачности (Н5). */
+        opacity: Number.isFinite(pct) ? Math.max(0, Math.min(100, Math.trunc(pct))) / 100 : 0.65,
+        button: moduleOn && i2n.floatingButton === true,
+        /*
+         * Отступ кнопки от текста (замечание заказчика 2026-09-04: «кнопка
+         * находится слишком близко к тексту»). Клампит и досыпает умолчание
+         * `transform_feature.js` — тот же код, что нормализует остальной
+         * Transform, — поэтому здесь число уже законное, и второго объявления
+         * границ не появляется (У-32).
+         */
+        buttonGap: Number(i2n.floatingButtonGap)
+      };
+    }
+    var FloatingTransformButtonWidget = class extends cmView.WidgetType {
+      constructor(plugin, gap) {
+        super();
+        this.plugin = plugin;
+        this.gap = Number.isFinite(Number(gap)) ? Number(gap) : 12;
+      }
+      eq(other) {
+        return !!other && other.gap === this.gap;
+      }
+      toDOM() {
+        const el2 = document.createElement("span");
+        el2.className = "io-flybtn";
+        el2.textContent = "\u2192";
+        el2.style.setProperty("--io-flybtn-gap", this.gap + "px");
+        el2.setAttribute("role", "button");
+        el2.setAttribute("aria-label", __commandIds.commandName("transform-inline-to-note"));
+        el2.title = __commandIds.commandName("transform-inline-to-note");
+        el2.addEventListener("mousedown", (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          Promise.resolve(this.plugin.runInlineToNote()).catch((e) => {
+            console.error("[inline-overhaul][floating-button]", e);
+          });
+        });
+        return el2;
+      }
+      ignoreEvent() {
+        return false;
+      }
+    };
+    function buildSourceMarkDecorations(view, plugin) {
+      const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+      const marks = getSourceMarksFromConfig(cfg);
+      if (!marks.highlight && !marks.button) return cmView.Decoration.none;
+      const cursorLine = marks.button && view.state.selection && view.state.selection.main ? view.state.doc.lineAt(view.state.selection.main.head).number : -1;
+      const style = [
+        "opacity: " + marks.opacity + ";",
+        marks.color ? "color: " + marks.color + ";" : ""
+      ].filter(Boolean).join(" ");
+      const lineDeco = cmView.Decoration.line({ attributes: { style, class: "io-done-line" } });
+      const ranges = [];
+      for (const vr of view.visibleRanges) {
+        let lineNo = view.state.doc.lineAt(vr.from).number;
+        const endLineNo = view.state.doc.lineAt(vr.to).number;
+        while (lineNo <= endLineNo) {
+          const line = view.state.doc.line(lineNo);
+          const text = String(line.text || "");
+          if (marks.highlight && lineHasProcessedToken(text, marks.token)) {
+            ranges.push({ from: line.from, to: line.from, deco: lineDeco, side: -1 });
+          }
+          if (lineNo === cursorLine && text.trim()) {
+            ranges.push({
+              from: line.to,
+              to: line.to,
+              side: 1,
+              deco: cmView.Decoration.widget({
+                widget: new FloatingTransformButtonWidget(plugin, marks.buttonGap),
+                side: 1
+              })
+            });
+          }
+          lineNo += 1;
+        }
+      }
+      ranges.sort((a, b) => a.from !== b.from ? a.from - b.from : a.side - b.side);
+      const builder = new cmState.RangeSetBuilder();
+      for (const r of ranges) {
+        try {
+          builder.add(r.from, r.to, r.deco);
+        } catch (_) {
+        }
+      }
+      return builder.finish();
+    }
+    function lineHasProcessedToken(text, token) {
+      const needle = String(token || "").trim();
+      if (!needle) return false;
+      const rx = new RegExp("(^|\\s)" + escapeRegExp(needle) + "(?=$|\\s)");
+      return rx.test(String(text || ""));
+    }
+    function createSourceMarkDecorationExtension(plugin) {
+      return cmView.ViewPlugin.fromClass(class {
+        constructor(view) {
+          this.decorations = buildSourceMarkDecorations(view, plugin);
+        }
+        update(update) {
+          if (!update.docChanged && !update.viewportChanged && !update.selectionSet) return;
+          this.decorations = buildSourceMarkDecorations(update.view, plugin);
+        }
+      }, {
+        decorations: (v) => v.decorations
+      });
     }
     function createTagwheelHeaderDecorationExtension(plugin) {
       return cmView.ViewPlugin.fromClass(class {
@@ -38187,7 +38546,7 @@ var require_main = __commonJS({
         this.defaults = options.defaults;
         this.undoLimit = options.undoLimit || 20;
         this.saveDebounceMs = options.saveDebounceMs || 250;
-        this.config = cloneJson(this.defaults);
+        this.config = cloneJson2(this.defaults);
         this.undoStack = [];
         this.listeners = /* @__PURE__ */ new Set();
         this.saveTimer = null;
@@ -38200,7 +38559,7 @@ var require_main = __commonJS({
         this.lastSavedAt = Date.now();
       }
       getSnapshot() {
-        return cloneJson(this.config);
+        return cloneJson2(this.config);
       }
       getLastSavedAt() {
         return this.lastSavedAt;
@@ -38274,11 +38633,9 @@ var require_main = __commonJS({
         await loadConfigMigrationModuleSafe(this.app);
         await loadConfigStoreModuleSafe(this.app);
         await loadCommandRegistrySafe(this.app);
-        await loadConfigNoteHelpersSafe(this.app);
-        await loadTagWheelConfigCodecSafe(this.app);
         await loadRulesMarkdownBuilderSafe(this.app);
         await loadEnhancedSelectAllEngineSafe(this.app);
-        await loadConfigNoteOrchestratorSafe(this.app);
+        await loadSmartDeleteEngineSafe(this.app);
         await loadStoreEventsOrchestratorSafe(this.app);
         await loadRulesSyncOrchestratorSafe(this.app);
         await loadTransformFeatureSafe(this.app);
@@ -38298,18 +38655,22 @@ var require_main = __commonJS({
         this._tagVisualCompartment = new cmState.Compartment();
         this._stripCompartment = new cmState.Compartment();
         this._tagwheelHeaderCompartment = new cmState.Compartment();
+        this._sourceMarksExtension = null;
+        this._sourceMarksCompartment = new cmState.Compartment();
         this._inlineExtensionMountedEditors = typeof WeakSet !== "undefined" ? /* @__PURE__ */ new WeakSet() : null;
         const ConfigStoreCtor = getConfigStoreCtor();
         this.store = new ConfigStoreCtor(this, {
           defaults: DEFAULT_CONFIG,
           undoLimit: UNDO_LIMIT,
           saveDebounceMs: SAVE_DEBOUNCE_MS,
-          cloneJson,
+          cloneJson: cloneJson2,
           isObj,
           deepMerge,
           migrateConfig,
           Notice: Notice3
         });
+        const prepared = await this.prepareConfigFileForV2();
+        this._migratedFromV1 = !!(prepared && prepared.backupSavedAs);
         await this.store.init();
         try {
           await this.initializeDevLogSession(this.getConfig());
@@ -38321,14 +38682,52 @@ var require_main = __commonJS({
           if (tab) this.addSettingTab(tab);
         }
         this.registerCommands();
+        this.noticeCommandIdsChangedOnce();
         this.ensureTagwheelFillStyles();
         this.ensureStripLineStyles();
+        this.ensureCaretStyles();
         this.registerGlobalFunctions();
         this.registerStoreEvents();
         await this.ensureGeneratedRulesNow("onload");
-        const devEnabled = !!(this.getConfig && this.getConfig() && this.getConfig().devMode && this.getConfig().devMode.enabled);
+        const devEnabled = !!(readCfgPath(this.getConfig && this.getConfig(), "advanced.devMode.enabled") === true);
         if (devEnabled) {
           console.info("[inline-overhaul] loaded");
+        }
+      }
+      /**
+       * Одноразовое уведомление о смене ID команд (фаза 2, пункт 8; Р3).
+       *
+       * **Почему уведомление, а не миграция.** Хоткеи живут не в нашем конфиге, а
+       * в настройках Obsidian, и привязаны к идентификатору команды. Переименование
+       * их не переносит, и перенести их нам нечем: чужой файл настроек плагин не
+       * правит. Значит, единственное честное — сказать об этом один раз и показать,
+       * что во что превратилось.
+       *
+       * **Флаг живёт в `viewState`, а не в настройках** (пункт 8): это состояние
+       * плагина, а не выбор человека, и контрола у него нет.
+       *
+       * **Показывается только тому, у кого был конфиг версии 1.** На свежей
+       * установке хоткеев на старые ID быть не могло, и уведомление было бы
+       * сообщением, адресованным разработчику (З8).
+       *
+       * **Ни `app.setting`, ни `app.hotkeyManager` здесь нет.** 7.2 разрешает
+       * приватное API одним исключением — колонкой хоткея в справочнике команд, — и
+       * это исключение не здесь. Поэтому путь к настройкам сказан словами, а карта
+       * печатается в консоль и лежит в репозитории.
+       */
+      noticeCommandIdsChangedOnce() {
+        try {
+          if (!this._migratedFromV1) return;
+          const cfg = this.getConfig();
+          if (String(readCfgPath(cfg, "viewState.commandIdsNotice") || "") === "shown") return;
+          const lines = ["[inline-overhaul] \u043A\u043E\u043C\u0430\u043D\u0434\u044B \u043F\u0435\u0440\u0435\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u043D\u044B, \u0441\u0442\u0430\u0440\u044B\u0439 ID \u2192 \u043D\u043E\u0432\u044B\u0439:"];
+          for (const [was, now] of __commandIds.RENAMED) lines.push("  " + was + " \u2192 " + now);
+          for (const [was, now] of __commandIds.RENAME_RULES) lines.push("  " + was + " \u2192 " + now);
+          console.info(lines.join("\n"));
+          this.notice("Inline Overhaul renamed its commands, so hotkeys you had set for them are no longer bound. Set them again in Settings, Hotkeys, searching for Inline Overhaul. The full old-to-new map is printed in the developer console and in docs/command_ids_v1_v2.md");
+          this.store.patch({ viewState: { commandIdsNotice: "shown" } }, "commands:ids:notice", { undoable: false });
+        } catch (e) {
+          console.error("[inline-overhaul][commands:ids:notice]", e);
         }
       }
       getLineTraceTxId() {
@@ -38347,6 +38746,10 @@ var require_main = __commonJS({
           this._stripLineStyleEl.parentNode.removeChild(this._stripLineStyleEl);
         }
         this._stripLineStyleEl = null;
+        if (this._caretStyleEl && this._caretStyleEl.parentNode) {
+          this._caretStyleEl.parentNode.removeChild(this._caretStyleEl);
+        }
+        this._caretStyleEl = null;
         if (this.store) this.store.unload();
         if (__safeModuleCache && typeof __safeModuleCache.clear === "function") __safeModuleCache.clear();
       }
@@ -38361,6 +38764,39 @@ var require_main = __commonJS({
           this.register(() => {
             if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
           });
+        } catch (_) {
+        }
+      }
+      /**
+       * Свой блок стилей каретки и подписка на хранилище (10.13.33 Ц5).
+       *
+       * Подписка своя, а не через перерисовку панели: та откладывается, пока
+       * фокус стоит в поле ввода (`store_events_orchestrator.js`), а цвет должен
+       * меняться под рукой, а не после ухода фокуса.
+       */
+      ensureCaretStyles() {
+        try {
+          if (!this._caretStyleEl || !this._caretStyleEl.parentNode) {
+            const styleEl = document.createElement("style");
+            styleEl.setAttribute("data-inline-overhaul", "caret");
+            document.head.appendChild(styleEl);
+            this._caretStyleEl = styleEl;
+            this.register(() => {
+              if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
+            });
+          }
+          this.refreshCaretStyles();
+          if (this.store && typeof this.store.subscribe === "function") {
+            this.register(this.store.subscribe(() => this.refreshCaretStyles()));
+          }
+        } catch (_) {
+        }
+      }
+      refreshCaretStyles() {
+        try {
+          if (!this._caretStyleEl) return;
+          const css = buildCaretStyleCss(caretLookFromConfig(this.getConfig()));
+          if (this._caretStyleEl.textContent !== css) this._caretStyleEl.textContent = css;
         } catch (_) {
         }
       }
@@ -38438,6 +38874,14 @@ var require_main = __commonJS({
           notice: (msg) => new Notice3(msg)
         }, reason);
       }
+      /**
+       * Все команды плагина: справочнику 10.5 и никому больше. Работа — в
+       * `buildOwnCommandList`, чтобы проверка могла позвать её без Obsidian и без
+       * своей копии тех же правил.
+       */
+      listOwnCommands() {
+        return buildOwnCommandList(this);
+      }
       registerCommands() {
         const registry2 = getCommandRegistry();
         const coreDefs = registry2.buildCoreCommandDefs(this, FEATURE_ORDER, FEATURE_META);
@@ -38458,20 +38902,6 @@ var require_main = __commonJS({
         this.registerPkmCommands();
         this.registerBinderCommands();
         this.registerTransformCommands();
-        const defs = registry2.buildConfigCommandDefs();
-        if (!Array.isArray(defs) || !defs.length) {
-          console.warn("[inline-overhaul] command registry unavailable: config commands skipped");
-          return;
-        }
-        for (const d of defs) {
-          this.addCommand({
-            id: d.id,
-            name: d.name,
-            callback: async () => {
-              await d.run(this);
-            }
-          });
-        }
       }
       registerGlobalFunctions() {
         this.registerEditorExtension(cmState.Prec.highest(cmView.keymap.of([
@@ -38479,14 +38909,29 @@ var require_main = __commonJS({
             key: "c-a",
             mac: "m-a",
             run: () => this.handleEnhancedSelectAllKeymap()
+          },
+          /* Smart Delete (10.13.32). Клавиша Obsidian, перехват тем же способом,
+             что и `Ctrl+A`: выключенная функция возвращает `false`, и `Del`
+             работает так, как работал. */
+          {
+            key: "Delete",
+            run: () => this.handleSmartDeleteKeymap()
+          },
+          /* Зеркальный случай, свой тумблер (10.13.32 Д9). */
+          {
+            key: "Backspace",
+            run: () => this.handleSmartBackspaceKeymap()
           }
         ])));
         this._tagwheelHeaderExtension = createTagwheelHeaderDecorationExtension(this);
         this._tagVisualExtension = createTagVisualDecorationExtension(this);
         this._stripExtension = createStripDecorationExtension(this);
+        this._sourceMarksExtension = createSourceMarkDecorationExtension(this);
         this.registerEditorExtension(this._tagwheelHeaderCompartment.of(this._tagwheelHeaderExtension));
+        this.registerEditorExtension(this._sourceMarksCompartment.of(this._sourceMarksExtension));
         this.registerEditorExtension(this._tagVisualCompartment.of(cmState.Prec.highest(this._tagVisualExtension)));
         this.registerEditorExtension(this._stripCompartment.of(this._stripExtension));
+        this.registerEditorExtension(createCaretLayerExtension(this));
         this.registerStripDebugApi();
       }
       registerStripDebugApi() {
@@ -38579,6 +39024,14 @@ var require_main = __commonJS({
       handleEnhancedSelectAllKeymap() {
         return getEnhancedSelectAllEngine().handleEnhancedSelectAllKeymap(this);
       }
+      handleSmartDeleteKeymap() {
+        return getSmartDeleteEngine().handleSmartDeleteKeymap(this);
+      }
+      handleSmartBackspaceKeymap() {
+        const engine3 = getSmartDeleteEngine();
+        if (typeof engine3.handleSmartBackspaceKeymap !== "function") return false;
+        return engine3.handleSmartBackspaceKeymap(this);
+      }
       getActiveEditor() {
         var _a, _b, _c;
         return (_c = (_a = this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView)) == null ? void 0 : _a.editor) != null ? _c : (_b = this.app.workspace.activeEditor) == null ? void 0 : _b.editor;
@@ -38647,14 +39100,19 @@ var require_main = __commonJS({
         if (typeof rt.runCommand !== "function") throw new Error("PKM runtime v2 has no runCommand");
         const settings = {
           [__pkmOptionKeys.KEYS.RULES_PATH]: getActiveTagWheelRulesPath(cfg),
-          [__pkmOptionKeys.KEYS.CYCLE_END_BEHAVIOR]: cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.cycleEndBehavior : "keep-bullet",
-          [__pkmOptionKeys.KEYS.SUBTAG_FORMAT]: cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.subtagFormat : "separate",
-          [__pkmOptionKeys.KEYS.CURSOR_POLICY]: cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.cursorPolicy : "text_end",
+          [__pkmOptionKeys.KEYS.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
+          [__pkmOptionKeys.KEYS.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
+          [__pkmOptionKeys.KEYS.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
           [__pkmOptionKeys.KEYS.ORDER_CONFIG]: serializePkmOrderForMacro(cfg),
           [__pkmOptionKeys.KEYS.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfg),
-          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_ENABLED]: !!(cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagWheelScroller && cfg.pkm.behavior.tagWheelScroller.enabled),
-          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_DIRECTION]: cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagWheelScroller && cfg.pkm.behavior.tagWheelScroller.direction || "full",
-          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_SIZE]: cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagWheelScroller && cfg.pkm.behavior.tagWheelScroller.size || 3,
+          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_ENABLED]: readCfgPath(cfg, "visual.tagWheel.scroller.enabled") === true,
+          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_DIRECTION]: readCfgPath(cfg, "visual.tagWheel.scroller.direction") || "full",
+          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_SIZE]: readCfgPath(cfg, "visual.tagWheel.scroller.size") || 3,
+          /* Цвета коробки скроллера (10.13.15). Пусто — коробка берёт цвета темы. */
+          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
+          [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
+          /* Край Block: остаться в своём или перейти в соседний (10.13.35). */
+          [__pkmOptionKeys.KEYS.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
           ...isObj(extraSettings) ? extraSettings : {}
         };
         return await Promise.resolve(rt.runCommand({
@@ -38690,7 +39148,8 @@ var require_main = __commonJS({
           serializePkmOrderForMacro,
           serializeDateRuntimeConfigForMacro,
           normalizePkmOrder,
-          cfgNow
+          cfgNow,
+          FEATURE_ORDER
         );
         if (!Array.isArray(defs) || !defs.length) {
           console.warn("[inline-overhaul] command registry unavailable: PKM commands skipped");
@@ -38737,22 +39196,32 @@ var require_main = __commonJS({
           this._registeredBinderCommandIds.add(id);
         }
       }
+      /**
+       * Превратить строку в заметку.
+       *
+       * Метод, а не тело обработчика команды: то же самое делает `Floating button`
+       * (10.13.12 Н9), и два входа в одну работу однажды разошлись бы — проверка
+       * модуля есть у одного, обработка ошибки у другого. Здесь один вход.
+       */
+      async runInlineToNote() {
+        const cfg = this.getConfig();
+        if (!cfg.features.transform.enabled) {
+          this.notice("InlineOverhaul: Transform module disabled");
+          return;
+        }
+        try {
+          await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal: Modal2, lineFinalize: __transformLineFinalize }));
+        } catch (e) {
+          console.error("[inline-overhaul][transform]", e);
+          this.notice("InlineOverhaul transform error: " + (e && e.message ? e.message : e));
+        }
+      }
       registerTransformCommands() {
         this.addCommand({
-          id: "inlineOverhaul_Transform_inline2note",
-          name: "Transform: inline2note",
+          id: "transform-inline-to-note",
+          name: __commandIds.commandName("transform-inline-to-note"),
           callback: async () => {
-            const cfg = this.getConfig();
-            if (!cfg.features.transform.enabled) {
-              this.notice("InlineOverhaul: Transform module disabled");
-              return;
-            }
-            try {
-              await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal: Modal2, lineFinalize: __transformLineFinalize }));
-            } catch (e) {
-              console.error("[inline-overhaul][transform]", e);
-              this.notice("InlineOverhaul transform error: " + (e && e.message ? e.message : e));
-            }
+            await this.runInlineToNote();
           }
         });
       }
@@ -38787,10 +39256,79 @@ var require_main = __commonJS({
         this.notice("Inline Overhaul settings need Obsidian 1.13 or newer");
         return null;
       }
+      /**
+       * Папка плагина в vault. Нужна только для двух файлов рядом с `data.json`:
+       * резервной копии версии 1 (МГ4) и нечитаемого файла (МГ6).
+       */
+      pluginFolderPath() {
+        const configDir = String(this.app && this.app.vault && this.app.vault.configDir || ".obsidian");
+        const id = String(this.manifest && this.manifest.id || "inline-overhaul");
+        return configDir + "/plugins/" + id;
+      }
+      /**
+       * МГ4 и МГ6. Идут **до** `store.init()`, потому что обе про то, что лежало
+       * на диске до переезда: `store.init()` первым же действием пишет конфиг
+       * обратно уже в форме версии 2.
+       *
+       * Работа вынесена в `config_migration_v2.loadConfig`, а сюда приходит только
+       * граница с миром — файловые операции адаптера vault и `Notice`. Своей
+       * логики здесь нет намеренно: у `loadConfig` есть проверка, а у обвязки
+       * поверх Obsidian её быть не может.
+       *
+       * Ошибка не роняет загрузку плагина: без копии плагин работает, без плагина
+       * — нет.
+       */
+      async prepareConfigFileForV2() {
+        const adapter = this.app && this.app.vault ? this.app.vault.adapter : null;
+        if (!adapter || typeof adapter.read !== "function" || typeof adapter.write !== "function") return null;
+        try {
+          const migration = getConfigMigrationV2Module();
+          const files = {
+            exists: (p) => adapter.exists(p),
+            read: (p) => adapter.read(p),
+            write: (p, data) => adapter.write(p, data),
+            /* Удаление нужно одному месту: сироте служебного файла в корне
+               vault после переезда в папку плагина (В-39). */
+            remove: (p) => adapter.remove(p)
+          };
+          const result = await migration.loadConfig(
+            files,
+            this.pluginFolderPath(),
+            (message) => {
+              new Notice3(message);
+            },
+            {
+              /*
+               * Признак «человек путь служебного файла не менял»: оба литеральных
+               * умолчания — нынешнее и прежнее. Приходят швом, потому что у модуля
+               * миграции обращений к движку нет и быть не должно.
+               */
+              legacyRulesDefaults: [
+                __pkmOptionKeys.DEFAULT_RULES_PATH,
+                __pkmOptionKeys.LEGACY_RULES_PATH
+              ]
+            }
+          );
+          await this.saveData(result.config);
+          if (result.backupSavedAs) {
+            console.info("[inline-overhaul] \u043A\u043E\u043F\u0438\u044F \u043A\u043E\u043D\u0444\u0438\u0433\u0430 \u0432\u0435\u0440\u0441\u0438\u0438 1: " + result.backupSavedAs);
+          }
+          if (result.rulesPathMovedTo) {
+            console.info("[inline-overhaul] \u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439 \u0444\u0430\u0439\u043B \u043F\u0440\u0430\u0432\u0438\u043B \u0443\u0435\u0445\u0430\u043B \u0432 \u043F\u0430\u043F\u043A\u0443 \u043F\u043B\u0430\u0433\u0438\u043D\u0430: " + result.rulesPathMovedTo);
+          }
+          if (result.legacyRulesRemoved) {
+            console.info("[inline-overhaul] \u043F\u0440\u0435\u0436\u043D\u0438\u0439 \u0441\u043B\u0443\u0436\u0435\u0431\u043D\u044B\u0439 \u0444\u0430\u0439\u043B \u0432 \u043A\u043E\u0440\u043D\u0435 vault \u0443\u0434\u0430\u043B\u0451\u043D: " + result.legacyRulesRemoved);
+          }
+          return result;
+        } catch (e) {
+          console.error("[inline-overhaul][config:prepare]", e);
+          return null;
+        }
+      }
       getDevModeConfig(cfg) {
         const snapshot = isObj(cfg) ? cfg : this.getConfig();
-        const raw = isObj(snapshot && snapshot.devMode) ? snapshot.devMode : {};
-        const genAi = raw.generateAiLog === true;
+        const raw = isObj(readCfgPath(snapshot, "advanced.devMode")) ? readCfgPath(snapshot, "advanced.devMode") : {};
+        const genAi = raw.aiLog === true;
         return {
           enabled: raw.enabled === true,
           logPath: String(raw.logPath || DEFAULT_CONFIG.devMode.logPath).trim() || DEFAULT_CONFIG.devMode.logPath,
@@ -39098,20 +39636,20 @@ var require_main = __commonJS({
         const before = this.getConfig();
         const reasonKey = String(reason || "settings");
         const stripPatchFieldId = String(
-          patchObj && patchObj.pkm && patchObj.pkm.behavior && patchObj.pkm.behavior.tagVisuals && patchObj.pkm.behavior.tagVisuals.strip && patchObj.pkm.behavior.tagVisuals.strip.fieldId || ""
+          patchObj && patchObj.pkm && patchObj.visual && patchObj.visual.tagBars && patchObj.visual.tagBars.fieldId || ""
         ).trim();
         this._lineTraceSeq = Math.max(0, Math.trunc(Number(this._lineTraceSeq || 0))) + 1;
         this._lineTraceTxId = `linecfg-${Date.now()}-${this._lineTraceSeq}`;
         const changed = this.store.patch(patchObj, reason || "settings") === true;
         if (!changed) return;
         const after = this.getConfig();
-        const debugLine = !!(after && after.devMode && after.devMode.enabled && after.devMode.traceTagVisualLine === true);
-        const wasEnabled = !!(before && before.devMode && before.devMode.enabled);
-        const isEnabled = !!(after && after.devMode && after.devMode.enabled);
-        const beforePath = String(before && before.devMode && before.devMode.logPath ? before.devMode.logPath : "");
-        const afterPath = String(after && after.devMode && after.devMode.logPath ? after.devMode.logPath : "");
-        const beforeAi = !!(before && before.devMode && before.devMode.generateAiLog);
-        const afterAi = !!(after && after.devMode && after.devMode.generateAiLog);
+        const debugLine = !!(readCfgPath(after, "advanced.devMode.enabled") === true && readCfgPath(after, "advanced.devMode.traceTagVisualLine") === true);
+        const wasEnabled = readCfgPath(before, "advanced.devMode.enabled") === true;
+        const isEnabled = readCfgPath(after, "advanced.devMode.enabled") === true;
+        const beforePath = String(readCfgPath(before, "advanced.devMode.logPath") || "");
+        const afterPath = String(readCfgPath(after, "advanced.devMode.logPath") || "");
+        const beforeAi = readCfgPath(before, "advanced.devMode.aiLog") === true;
+        const afterAi = readCfgPath(after, "advanced.devMode.aiLog") === true;
         if (!wasEnabled && isEnabled) {
           this.initializeDevLogSession(after).catch((e) => {
             console.error("[inline-overhaul][dev-mode-log:toggle-on]", e);
@@ -39133,11 +39671,11 @@ var require_main = __commonJS({
               traceTxId: this._lineTraceTxId,
               reason: reasonKey,
               requestedStripFieldId: stripPatchFieldId,
-              beforeStripFieldId: String(before && before.pkm && before.pkm.behavior && before.pkm.behavior.tagVisuals && before.pkm.behavior.tagVisuals.strip && before.pkm.behavior.tagVisuals.strip.fieldId || "").trim(),
-              afterStripFieldId: String(after && after.pkm && after.pkm.behavior && after.pkm.behavior.tagVisuals && after.pkm.behavior.tagVisuals.strip && after.pkm.behavior.tagVisuals.strip.fieldId || "").trim(),
-              beforeStripActive: !!(before && before.pkm && before.pkm.behavior && before.pkm.behavior.tagVisuals && before.pkm.behavior.tagVisuals.strip && before.pkm.behavior.tagVisuals.strip.active === true),
-              afterStripActive: !!(after && after.pkm && after.pkm.behavior && after.pkm.behavior.tagVisuals && after.pkm.behavior.tagVisuals.strip && after.pkm.behavior.tagVisuals.strip.active === true),
-              mismatchDetected: !!(stripPatchFieldId && String(after && after.pkm && after.pkm.behavior && after.pkm.behavior.tagVisuals && after.pkm.behavior.tagVisuals.strip && after.pkm.behavior.tagVisuals.strip.fieldId || "").trim() !== stripPatchFieldId)
+              beforeStripFieldId: String(readCfgPath(before, "visual.tagBars.fieldId") || "").trim(),
+              afterStripFieldId: String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim(),
+              beforeStripActive: readCfgPath(before, "visual.tagBars.active") === true,
+              afterStripActive: readCfgPath(after, "visual.tagBars.active") === true,
+              mismatchDetected: !!(stripPatchFieldId && String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim() !== stripPatchFieldId)
             }, "trace", after);
           } catch (_) {
           }
@@ -39156,7 +39694,7 @@ var require_main = __commonJS({
       }
       refreshLivePreviewDecorations() {
         const cfg = this.getConfig();
-        const debugLine = !!(cfg && cfg.devMode && cfg.devMode.enabled && cfg.devMode.traceTagVisualLine === true);
+        const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
         const leaves = this.app && this.app.workspace && typeof this.app.workspace.getLeavesOfType === "function" ? this.app.workspace.getLeavesOfType("markdown") : [];
         if (debugLine) {
           try {
@@ -39164,8 +39702,8 @@ var require_main = __commonJS({
               traceTxId: this.getLineTraceTxId(),
               reason: "config-patch",
               leaves: Array.isArray(leaves) ? leaves.length : 0,
-              stripFieldId: String(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagVisuals && cfg.pkm.behavior.tagVisuals.strip && cfg.pkm.behavior.tagVisuals.strip.fieldId || "").trim(),
-              stripActive: !!(cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.tagVisuals && cfg.pkm.behavior.tagVisuals.strip && cfg.pkm.behavior.tagVisuals.strip.active === true)
+              stripFieldId: String(readCfgPath(cfg, "visual.tagBars.fieldId") || "").trim(),
+              stripActive: readCfgPath(cfg, "visual.tagBars.active") === true
             }, "trace", cfg);
           } catch (_) {
           }
@@ -39181,14 +39719,16 @@ var require_main = __commonJS({
               cm.dispatch({ effects: cmState.StateEffect.appendConfig.of([
                 this._tagwheelHeaderCompartment.of(this._tagwheelHeaderExtension),
                 this._tagVisualCompartment.of(cmState.Prec.highest(this._tagVisualExtension)),
-                this._stripCompartment.of(this._stripExtension)
+                this._stripCompartment.of(this._stripExtension),
+                this._sourceMarksCompartment.of(this._sourceMarksExtension)
               ]) });
               if (this._inlineExtensionMountedEditors instanceof WeakSet) this._inlineExtensionMountedEditors.add(cm);
             } else if (this._tagVisualExtension && this._stripExtension && this._tagwheelHeaderExtension) {
               cm.dispatch({ effects: [
                 this._tagwheelHeaderCompartment.reconfigure(this._tagwheelHeaderExtension),
                 this._tagVisualCompartment.reconfigure(cmState.Prec.highest(this._tagVisualExtension)),
-                this._stripCompartment.reconfigure(this._stripExtension)
+                this._stripCompartment.reconfigure(this._stripExtension),
+                this._sourceMarksCompartment.reconfigure(this._sourceMarksExtension)
               ] });
             }
             const head = cm.state && cm.state.selection && cm.state.selection.main ? cm.state.selection.main.head : 0;
@@ -39214,89 +39754,6 @@ var require_main = __commonJS({
       }
       setHotkeysSubTab(subTabId) {
         this.setConfigPatch({ ui: { hotkeysSubTab: subTabId } }, "settings:hotkeys-subtab");
-      }
-      async openTagWheelConfigNote() {
-        const cfg = this.getConfig();
-        const orch = getConfigNoteOrchestrator();
-        if (!orch) throw new Error("Config note orchestrator unavailable");
-        return await orch.openTagWheelConfigNote({
-          app: this.app,
-          cfg,
-          tagWheelConfigCodec: getTagWheelConfigCodec(),
-          cloneJson,
-          isObj,
-          readVaultText,
-          detectDateFieldHotkeys: (fid, cfgForDetect) => detectDateFieldHotkeys(this.app, cfgForDetect, fid, this.manifest && this.manifest.id),
-          normalizePkmOrder,
-          TAGWHEEL_CONFIG_MODE_DETAILED,
-          TAGWHEEL_CONFIG_MODE_MINIMAL
-        });
-      }
-      async openTagWheelConfigTemplateNote() {
-        const cfg = this.getConfig();
-        const orch = getConfigNoteOrchestrator();
-        if (!orch) throw new Error("Config note orchestrator unavailable");
-        return await orch.openTagWheelConfigTemplateNote({
-          app: this.app,
-          cfg,
-          tagWheelConfigCodec: getTagWheelConfigCodec()
-        });
-      }
-      async applyTagWheelConfigNote() {
-        try {
-          if (__safeModuleCache && typeof __safeModuleCache.delete === "function") {
-            __safeModuleCache.delete("feature:config-note-orchestrator");
-            __safeModuleCache.delete("feature:tagwheel-config-codec");
-            __safeModuleCache.delete("feature:tagwheel-config-parser");
-          }
-        } catch (_) {
-        }
-        __configNoteOrchestrator = null;
-        __tagWheelConfigCodec = null;
-        __tagWheelConfigParser = null;
-        await loadConfigNoteOrchestratorSafe(this.app);
-        await loadTagWheelConfigParserSafe(this.app);
-        await loadTagWheelConfigCodecSafe(this.app);
-        const cfg = this.getConfig();
-        const orch = getConfigNoteOrchestrator();
-        const helpers5 = getConfigNoteHelpers();
-        if (!orch) throw new Error("Config note orchestrator unavailable");
-        return await orch.applyTagWheelConfigNote({
-          app: this.app,
-          cfg,
-          tagWheelConfigCodec: getTagWheelConfigCodec(),
-          store: this.store,
-          readVaultText,
-          getOrderStrictName,
-          isObj,
-          cloneJson,
-          collectTagSections: helpers5.collectTagSections,
-          getFieldById: helpers5.getFieldById,
-          extractFieldMetaMap,
-          rebuildTagValues,
-          rebuildSubtagValues,
-          denormTagToken,
-          getPrefixRulesFromCfg: helpers5.getPrefixRulesFromCfg,
-          collectCheckboxTokensFromMap: helpers5.collectCheckboxTokensFromMap,
-          deepMerge,
-          syncCustomPrefixResolverBlock: helpers5.syncCustomPrefixResolverBlock,
-          normalizePkmOrder,
-          CFG_H2_DATES
-        });
-      }
-      async renameStrictNameInConfigNote(oldName, newName) {
-        const cfg = this.getConfig();
-        const orch = getConfigNoteOrchestrator();
-        if (!orch) throw new Error("Config note orchestrator unavailable");
-        return await orch.renameStrictNameInConfigNote(
-          {
-            app: this.app,
-            cfg,
-            tagWheelConfigCodec: getTagWheelConfigCodec()
-          },
-          oldName,
-          newName
-        );
       }
       isFeatureEnabled(featureKey) {
         const cfg = this.getConfig();
@@ -39357,15 +39814,11 @@ var bundledVaultModules = new Map(Object.entries({
   ".obsidian/plugins/inline-overhaul/src/core/token_graph_unified.js": require_token_graph_unified(),
   ".obsidian/plugins/inline-overhaul/src/core/vault_module_bridge.js": require_vault_module_bridge(),
   ".obsidian/plugins/inline-overhaul/src/features/command_registry.js": require_command_registry(),
-  ".obsidian/plugins/inline-overhaul/src/features/config_note_helpers.js": require_config_note_helpers(),
-  ".obsidian/plugins/inline-overhaul/src/features/config_note_orchestrator.js": require_config_note_orchestrator(),
   ".obsidian/plugins/inline-overhaul/src/features/enhanced_select_all_engine.js": require_enhanced_select_all_engine(),
+  ".obsidian/plugins/inline-overhaul/src/features/smart_delete_engine.js": require_smart_delete_engine(),
   ".obsidian/plugins/inline-overhaul/src/features/rules_markdown_builder.js": require_rules_markdown_builder(),
   ".obsidian/plugins/inline-overhaul/src/features/rules_sync_orchestrator.js": require_rules_sync_orchestrator(),
   ".obsidian/plugins/inline-overhaul/src/features/store_events_orchestrator.js": require_store_events_orchestrator(),
-  ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec.js": require_tagwheel_config_codec(),
-  ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_codec_fallback.js": require_tagwheel_config_codec_fallback(),
-  ".obsidian/plugins/inline-overhaul/src/features/tagwheel_config_parser.js": require_tagwheel_config_parser(),
   ".obsidian/plugins/inline-overhaul/src/features/transform_feature.js": require_transform_feature(),
   ".obsidian/plugins/inline-overhaul/src/ui/tagwheel_scroller_overlay.js": require_tagwheel_scroller_overlay()
 }));

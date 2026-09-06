@@ -32,7 +32,7 @@
  * `leftMode` / `rightMode`, что стреляла трижды.
  */
 
-import { el, textInput, type El } from "./dom.ts";
+import { btn, el, textInput, type El } from "./dom.ts";
 import type { YamlFieldRow } from "./fields_model.ts";
 
 /*
@@ -47,8 +47,16 @@ import transformFeature from "../../../features/transform_feature.js";
 interface TransformYamlApi {
   parseInlineLine: (line: string, cfg: unknown) => unknown;
   buildTransformContext: (parsed: unknown, cfg: unknown) => { matches?: unknown[] };
-  buildYamlMapFromContext: (ctx: unknown, cfg: unknown) => Record<string, unknown>;
+  buildYamlMapFromContext: (
+    ctx: unknown, cfg: unknown, propertyTypes?: Record<string, string>,
+  ) => Record<string, unknown>;
   renderYamlBlockWithOrder: (lines: string[], patch: Record<string, unknown>, cfg: unknown) => string[];
+  /**
+   * Типы свойств, объявленные в хранилище. Берётся у движка, а не читается
+   * здесь второй раз: пример обязан показывать то же, что получит заметка
+   * (B21, решение заказчика 2026-09-02).
+   */
+  readVaultPropertyTypes: (app: unknown) => Record<string, string>;
 }
 
 const engine = transformFeature as unknown as TransformYamlApi;
@@ -132,44 +140,45 @@ function fakeLine(rows: readonly YamlFieldRow[]): string {
  * Что запишет движок — по строке на Field. Ключ карты — ключ Order, значение —
  * строка YAML целиком, вместе с именем свойства и формой списка (Я2).
  *
- * Строка показывает **свойство целиком**, а не только вклад своего Field. Так
- * решено вместе с переносом раздела к Field: межполевого вида в панели больше
- * нет, а два Field могут делить одно свойство — и тогда единственное место,
- * где это видно, здесь. Подсказка строки об этом и говорит.
+ * Строка показывает вклад **своего** Field, а не свойство целиком (замечание
+ * B11, 2026-09-02). До этого показывалось свойство целиком: тогда в настройках
+ * `Category` было видно `tags: [1, work, "[[test1]]"]` — значения трёх чужих
+ * Fields, — и заказчик написал, что не понимает, почему в настройках одного
+ * Field видит значения других. Его слово здесь главнее прежнего решения.
  *
- * Считается сразу на все Fields: строка одного Field зависит от остальных,
- * а второй проход по тому же конфигу стоил бы столько же.
+ * **Цена названа в подсказке строки:** там, где одно свойство делят несколько
+ * Fields, заметка получит их вместе одним списком, а здесь виден только свой
+ * вклад.
+ *
+ * Форму — одно значение или список — по-прежнему решает движок и по-прежнему
+ * по всем Fields: строка собирается со всеми, а фильтруются уже совпадения.
+ * Иначе `Property type` показывал бы одно, а заметка получала другое.
  */
 export function yamlExamples(
   rows: readonly YamlFieldRow[],
   cfg: unknown,
+  app?: unknown,
 ): Readonly<Record<string, string>> {
   const line = fakeLine(rows);
   if (!line || !cfg) return {};
+  /* Тип свойства из хранилища сильнее догадки — и в заметке, и здесь. */
+  const propertyTypes = app ? engine.readVaultPropertyTypes(app) : {};
   try {
     const ctx = engine.buildTransformContext(engine.parseInlineLine(line, cfg), cfg);
     const matches = Array.isArray(ctx.matches) ? ctx.matches : [];
-    /* Свойства всей заметки: строка Field берётся из них, а не считается по
-       одному Field. */
-    const full = engine.buildYamlMapFromContext(ctx, cfg);
     const out: Record<string, string> = {};
     for (const row of rows) {
       const own = matches.filter(m => String((m as { fieldId?: unknown }).fieldId ?? "").trim() === row.fieldId);
       if (!own.length) continue;
       /*
-       * Свойства, в которые пишет этот Field. Обычно одно — то, что стоит у
-       * Field, — но у отдельного Value имя может быть своё, и тогда их два.
+       * Свойства этого Field считает тот же движок, но по контексту, в котором
+       * оставлены **его** совпадения. Своей арифметики здесь нет: правила
+       * (`raw`/`clean`, форма списка, кавычки) живут у движка, и вторая их
+       * копия разошлась бы с ним на первой правке (У-4).
        */
-      const keys: string[] = [];
-      for (const m of own) {
-        const key = String((m as { yamlProperty?: unknown }).yamlProperty ?? "").trim();
-        if (key && !keys.includes(key)) keys.push(key);
-      }
-      const patch: Record<string, unknown> = {};
-      for (const key of keys) {
-        if (Object.prototype.hasOwnProperty.call(full, key)) patch[key] = full[key];
-      }
-      if (!Object.keys(patch).length) continue;
+      const mine = Object.assign({}, ctx as Record<string, unknown>, { matches: own });
+      const patch = engine.buildYamlMapFromContext(mine, cfg, propertyTypes) as Record<string, unknown>;
+      if (!patch || !Object.keys(patch).length) continue;
       const text = engine.renderYamlBlockWithOrder([], patch, cfg).filter(Boolean).join(" ");
       if (text) out[row.key] = text;
     }
@@ -232,7 +241,15 @@ export function propertyPicker(host: El, o: {
   suggest?: { ctor: unknown; app: unknown } | undefined;
   write: (value: string) => void;
 }): void {
-  const input = textInput(host, "io-text io-text--mono io-text--prop", {
+  /*
+   * Поле и крестик стоят в одной коробке постоянной ширины: появившийся
+   * крестик **сжимает поле**, а не сдвигает его влево. Раньше он вставал
+   * рядом, коробка становилась шире на его ширину, и строка уезжала из общей
+   * геометрии панели (замечание заказчика 1.3.2.2). Класс тот же, что в
+   * прототипе, — `io-pick2`.
+   */
+  const box = el(host, "div", "io-pick2");
+  const input = textInput(box, "io-text io-text--mono io-text--prop", {
     value: o.value,
     placeholder: o.placeholder,
     label: "YAML property for " + o.label,
@@ -242,6 +259,26 @@ export function propertyPicker(host: El, o: {
     if (!o.enabled) return;
     o.write(input.value);
   }) as never);
+
+  /*
+   * Стереть выбранное свойство одним нажатием (замечание заказчика
+   * 1.4.1.2.6). Раньше приходилось выделять текст и удалять его руками, а
+   * поле с подсказчиком на каждое нажатие открывает список — стирание
+   * выходило борьбой с подсказками.
+   *
+   * Кнопка исчезает, когда стирать нечего: кнопка, которая ничего не делает,
+   * хуже её отсутствия (З8).
+   */
+  if (o.enabled && String(o.value || "").trim()) {
+    const clear = btn(box, "io-clear", {
+      text: "\u2715",
+      label: "Clear the property of " + o.label,
+    });
+    clear.addEventListener("click", (() => {
+      input.value = "";
+      o.write("");
+    }) as never);
+  }
 
   if (!o.enabled || !o.suggest || typeof o.suggest.ctor !== "function") return;
 

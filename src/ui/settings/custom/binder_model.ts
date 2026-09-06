@@ -2,13 +2,14 @@
  * Модель Binder (PRD 10.4, фаза 3c).
  *
  * Только чтение конфига и сборка патчей — ни DOM, ни `Notice`: вёрстка обязана
- * рисоваться на заглушке (гейт Г16). Путь `ui.binderRows` — версии 1, живой:
- * его читает `buildBinderCommandDefs` (`src/features/command_registry.js`) и
- * нормализует `normalizeBinderRows` внутри `migrateConfig` (`main.js`).
+ * рисоваться на заглушке (гейт Г16). Путь `editor.binder.rows` — версии 2
+ * (PRD 8.1): его читает `buildBinderCommandDefs`
+ * (`src/features/command_registry.js`) и нормализует `normalizeBinderRows`
+ * внутри третьей ступени `migrateConfig` (`main.js`).
  *
  * **Идентификатор команды здесь не выдумывается.** `normalizeBinderRows`
  * умеет его выдать: пустой `commandId` она заменяет на
- * `inlineOverhaul_Binder_<имя>` и разводит совпадения. Она идёт на каждом
+ * kebab-case из имени строки и разводит совпадения. Она идёт на каждом
  * патче, поэтому новой строке достаточно родиться без идентификатора — его
  * поставит та функция, с которой начинается работа. Старая панель считала его
  * своей копией той же логики (`buildId`), и копия эта могла разойтись.
@@ -53,12 +54,43 @@ export interface BinderDraft {
   description: string;
 }
 
+/** Итог записи: отказ обязан сказать, почему (как у переименования Field). */
+export interface BinderWriteResult {
+  ok: boolean;
+  error?: string;
+}
+
+/* Тексты отказов. Видимые строки, поэтому без точки в конце (Р10). */
+export const DUPLICATE_INSERT = "A row with this text to insert already exists";
+export const DUPLICATE_NAME = "A row with this command name already exists";
+
+/**
+ * Совпадение с уже заведённой строкой: какое поле повторяется и что об этом
+ * сказать. Поле нужно окну — сообщение встаёт под ним, а не над панелью.
+ */
+export interface BinderClash {
+  field: "insertText" | "commandName";
+  error: string;
+}
+
 export interface BinderModel {
   listRows(): BinderRow[];
   setDescription(rowId: string, text: string): void;
   remove(rowId: string): void;
   move(from: number, to: number): void;
-  add(draft: BinderDraft): void;
+  /**
+   * Повторяет ли черновик уже заведённую строку. Спрашивает окно заведения,
+   * пока человек печатает: до 2026-09-02 отказ приходил всплывающим
+   * сообщением Obsidian **после** закрытия окна и перерисовки блока — «меня
+   * выбрасывает во вкладку Keyboard» (C13).
+   */
+  duplicateOf(draft: BinderDraft): BinderClash | null;
+  /**
+   * Завести строку. Отказ приходит причиной, а не тишиной: до 2026-09-02
+   * повтор заводился молча, а `normalizeBinderRows` разводила совпавшие
+   * идентификаторы — и получались две команды с одной подписью (C13).
+   */
+  add(draft: BinderDraft): BinderWriteResult;
 }
 
 export interface BinderModelDeps {
@@ -84,7 +116,7 @@ function str(value: unknown): string {
 
 /** Строки в том виде, в каком они лежат в конфиге. */
 function storedRows(cfg: unknown): Array<Record<string, unknown>> {
-  const raw = asObject(asObject(cfg)["ui"])["binderRows"];
+  const raw = asObject(asObject(asObject(cfg)["editor"])["binder"])["rows"];
   return Array.isArray(raw) ? raw.map(asObject) : [];
 }
 
@@ -104,13 +136,46 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
    * без неё новая команда появится после перезапуска, и это не повод падать.
    */
   const save = (rows: unknown[], reason: string, registerCommands: boolean): void => {
-    plugin.setConfigPatch({ ui: { binderRows: rows } }, reason);
+    plugin.setConfigPatch({ editor: { binder: { rows } } }, reason);
     if (!registerCommands || typeof plugin.registerBinderCommands !== "function") return;
     try {
       plugin.registerBinderCommands();
     } catch (e) {
       console.error("inline-overhaul: команды Binder не перерегистрировались", e);
     }
+  };
+
+  const duplicateOf = (draft: BinderDraft): BinderClash | null => {
+    /*
+     * Повтор: одно объявление на обоих, кто про него спрашивает (У-32).
+     *
+     * Спрашивают двое: окно заведения — пока человек печатает, чтобы
+     * сказать причину под тем полем, которое повторяется, и погасить `Add`;
+     * и `add` — последней преградой, потому что записать строку можно и не
+     * через окно.
+     *
+     * Заказчик завёл строку с теми же полями и получил две одинаковые
+     * команды: сверки не было вовсе, а `normalizeBinderRows` развела
+     * совпавшие идентификаторы — молча и на уровне ниже, где о человеке уже
+     * не рассказать. Сверяются оба поля, которыми человек команду и узнаёт:
+     * текст вставки и имя (C13, 2026-09-02).
+     *
+     * Сравнение по видимому значению: пробелы по краям и регистр человек
+     * различать не обязан, а Obsidian ищет команду по подписи.
+     */
+    const same = (a: string, b: string): boolean =>
+      a.trim().toLowerCase() === b.trim().toLowerCase() && a.trim() !== "";
+    const insertText = String(draft && draft.insertText || "");
+    const commandName = String(draft && draft.commandName || "");
+    for (const row of read()) {
+      if (same(str(row["insertText"]), insertText)) {
+        return { field: "insertText", error: DUPLICATE_INSERT };
+      }
+      if (same(str(row["commandName"]), commandName)) {
+        return { field: "commandName", error: DUPLICATE_NAME };
+      }
+    }
+    return null;
   };
 
   return {
@@ -167,10 +232,16 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
       save(next, "settings:binder:reorder", true);
     },
 
+    duplicateOf,
+
     add(draft) {
       const insertText = String(draft && draft.insertText || "");
       /* Строка без текста вставки не делает ничего: команда пуста (З8). */
-      if (!insertText.trim()) return;
+      if (!insertText.trim()) return { ok: false };
+
+      const clash = duplicateOf(draft);
+      if (clash) return { ok: false, error: clash.error };
+
       const next = read().concat([{
         rowId: newRowId(),
         insertText,
@@ -180,6 +251,7 @@ export function createBinderModel(deps: BinderModelDeps): BinderModel {
         commandId: "",
       }]);
       save(next, "settings:binder:add", true);
+      return { ok: true };
     },
   };
 }

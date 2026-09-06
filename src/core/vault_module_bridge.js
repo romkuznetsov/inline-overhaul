@@ -31,6 +31,45 @@ function getBundledVaultModule(vaultPath) {
   return { found: false, value: undefined };
 }
 
+/**
+ * Запасной путь для среды без vault: Node — проверки и инструменты.
+ *
+ * Реестр забандленных модулей наполняет только `build/release_entry.js`, а он
+ * тянет `main.js`, которому нужен пакет `obsidian` — в Node этого пакета нет.
+ * Дерева исходников по пути `.obsidian/plugins/inline-overhaul/...` вне
+ * Obsidian тоже не существует: плагин ставится плоским бандлом. Поэтому
+ * плагин-локальный путь резолвится обычным `require` от корня проекта.
+ *
+ * `forceReload` здесь намеренно не сбрасывает кеш модулей Node: реестр в
+ * релизе тоже отдаёт один и тот же объект независимо от флага, и расходиться
+ * этим двум путям нельзя.
+ *
+ * В релизе ветка мёртвая: там реестр наполнен, и первое же условие её
+ * обрывает. Под `new Function` из vault она тоже не срабатывает — там нет
+ * `__dirname`. И то и другое закреплено в `release_bundle_tests.js`.
+ */
+function requirePluginLocalModule(vaultPath) {
+  /*
+   * Реестр есть — значит это сборка релиза, и другого источника модулей быть
+   * не должно. Ветка обрывается здесь, а не «реестр обычно срабатывает
+   * раньше»: так её мёртвость в релизе проверяется одним условием.
+   */
+  if (globalThis[BUNDLED_REGISTRY_KEY]) return { found: false, value: undefined };
+  if (typeof require !== "function" || typeof __dirname !== "string") {
+    return { found: false, value: undefined };
+  }
+  const normalized = normalizeVaultModulePath(vaultPath);
+  if (!normalized.startsWith(PLUGIN_PATH_PREFIX)) return { found: false, value: undefined };
+  const rel = normalized.slice(PLUGIN_PATH_PREFIX.length);
+  if (!rel) return { found: false, value: undefined };
+  try {
+    return { found: true, value: require(__dirname + "/../../" + rel) };
+  } catch (e) {
+    reportLoaderFallback("vault_module_bridge.requireLocal:" + rel, e);
+    return { found: false, value: undefined };
+  }
+}
+
 async function loadVaultModule(app_, vaultPath, forceReload, cacheKey) {
   const key = String(cacheKey || "__pkmModuleCache");
   globalThis[key] ??= new Map();
@@ -75,7 +114,14 @@ async function loadVaultModule(app_, vaultPath, forceReload, cacheKey) {
       }
     }
   }
-  if (!found) throw new Error("Module file not found in vault: " + vaultPath);
+  if (!found) {
+    const local = requirePluginLocalModule(vaultPath);
+    if (local.found) {
+      globalThis[key].set(vaultPath, local.value);
+      return local.value;
+    }
+    throw new Error("Module file not found in vault: " + vaultPath);
+  }
 
   const module = { exports: {} };
   const exports = module.exports;
@@ -87,6 +133,8 @@ async function loadVaultModule(app_, vaultPath, forceReload, cacheKey) {
 
 module.exports = {
   BUNDLED_REGISTRY_KEY,
+  PLUGIN_PATH_PREFIX,
   normalizeVaultModulePath,
+  requirePluginLocalModule,
   loadVaultModule,
 };

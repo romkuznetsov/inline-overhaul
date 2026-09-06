@@ -11,9 +11,12 @@
  * ветвей в нём разошёлся с порядком строк здесь. Тронул поведение — правь
  * таблицу тем же коммитом (Д3).
  *
- * Асимметрия строк — не опечатка, а факт: `Move left` циклирует Prefix всегда,
- * когда отступ нулевой; `Move right` — только если строка ещё не элемент
- * списка, иначе увеличивает отступ.
+ * **Таблицы зеркальны с 2026-09-01** (В-12). До этого `Move right` циклировал
+ * Prefix только на строке, которая ещё не элемент списка, — на буллите он
+ * увеличивал отступ, и таблицы расходились строкой. Теперь этим управляет
+ * `Cycle in both directions`: включён (умолчание) — направления зеркальны,
+ * выключен — `Move right` только сдвигает. Таблица показывает умолчание, а
+ * исключение названо в подсказке самого тумблера.
  */
 
 import type { CustomRender } from "../types.ts";
@@ -44,8 +47,8 @@ const TABLES: readonly Table[] = [
     command: "Move right",
     steps: [
       { when: "part of a line is selected", then: "move that text" },
-      { when: "a list item, or already indented", then: "add one indent level" },
-      { when: "anything else", then: "cycle the prefix forwards" },
+      { when: "the line is indented", then: "add one indent level" },
+      { when: "no indent", then: "cycle the prefix forwards" },
     ],
   },
 ];

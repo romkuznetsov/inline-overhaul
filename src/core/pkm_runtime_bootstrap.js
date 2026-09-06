@@ -73,7 +73,7 @@ async function loadOrderConfigFromPluginData(app_, options) {
     if (!af) return null;
     const txt = await app_.vault.read(af);
     const json = JSON.parse(String(txt || "{}"));
-    const order = json && json.pkm && json.pkm.behavior ? json.pkm.behavior.order : null;
+    const order = json && json.pkm && json.pkm.fields ? json.pkm.fields.order : null;
     return isObj(order) ? order : null;
   } catch (e) {
     reportLoaderFallback("pkm_runtime_bootstrap.loadOrderConfigFromPluginData", e);

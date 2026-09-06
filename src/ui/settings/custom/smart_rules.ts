@@ -13,7 +13,7 @@
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, type El } from "./dom.ts";
+import { el, type El, type ElInput } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 import { createRulesModel, type RuleKind } from "./smart_rules_model.ts";
@@ -52,6 +52,7 @@ const RULES_PATHS = [
   "transform.inline2note.enabled",
   "transform.inline2note.templatesFolder",
   "general.help.showTips",
+  "advanced.showSettingIds",
 ] as const;
 
 /* ---- окно выбора значения (С-5) ---------------------------------------- */
@@ -75,15 +76,22 @@ function askConditionModal(
   app: unknown,
   o: {
     kind: RuleKind;
-    choices: ReadonlyArray<{ label: string; values: readonly string[] }>;
-    done: (value: string | null) => void;
+    choices: ReadonlyArray<{ label: string; fieldId?: string; values: readonly string[] }>;
+    /** Fields, у которых условие «любое значение» в правиле уже есть. */
+    fieldsTaken: readonly string[];
+    /**
+     * Что выбрали: значение или Field целиком (10.13.14). Вид ответа названа
+     * полем, а не угадывается по строке: id Field и токен значения бывают
+     * одинаковыми на вид, и разбирать их обратно значило бы гадать.
+     */
+    done: (answer: { kind: "value" | "field"; id: string } | null) => void;
   },
 ): void {
   let answered = false;
-  const finish = (value: string | null): void => {
+  const finish = (answer: { kind: "value" | "field"; id: string } | null): void => {
     if (answered) return;
     answered = true;
-    o.done(value);
+    o.done(answer);
   };
 
   class ConditionModal extends Modal {
@@ -96,7 +104,9 @@ function askConditionModal(
       renderConditionPicker(box, {
         kind: o.kind,
         choices: o.choices,
-        pick: value => { finish(value); this.close(); },
+        fieldsTaken: o.fieldsTaken,
+        pick: value => { finish({ kind: "value", id: value }); this.close(); },
+        pickField: fieldId => { finish({ kind: "field", id: fieldId }); this.close(); },
       });
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
@@ -111,6 +121,66 @@ function askConditionModal(
   }
 
   new ConditionModal(app).open();
+}
+
+/* ---- подсказчик папок (10.13.8) ---------------------------------------- */
+
+/** Форма `AbstractInputSuggest` в том виде, в каком она нужна здесь. */
+interface SuggestInstance {
+  setValue(value: string): void;
+  close(): void;
+  limit: number;
+}
+type SuggestCtor = new (app: unknown, input: unknown) => SuggestInstance;
+
+/** Папки vault. Приватного API тут нет: `getAllFolders` — публичный. */
+function vaultFolders(app: unknown): string[] {
+  try {
+    const vault = (app as { vault?: { getAllFolders?: (root?: boolean) => Array<{ path?: unknown }> } }).vault;
+    if (!vault || typeof vault.getAllFolders !== "function") return [];
+    return vault.getAllFolders(false)
+      .map(f => String(f && f.path || "").trim())
+      .filter(Boolean)
+      .sort();
+  } catch (e) {
+    /* Vault имеет право не ответить: в проверках его нет вовсе. */
+    console.error("inline-overhaul: папки vault не прочитались", e);
+    return [];
+  }
+}
+
+/**
+ * Подсказчик папок на поле своей папки правила.
+ *
+ * Рисует его **платформа**: `AbstractInputSuggest` — публичный API Obsidian с
+ * 1.4.10, а `minAppVersion` у нас 1.13. Класса может не быть (у заглушки DOM
+ * его нет), и тогда поле остаётся обычным полем ввода — папку вписывают
+ * руками, и она создаётся при первом срабатывании правила.
+ */
+function attachFolderSuggest(ctor: unknown, app: unknown, input: ElInput, write: (value: string) => void): void {
+  if (typeof ctor !== "function") return;
+  try {
+    const Base = ctor as SuggestCtor;
+    const folders = vaultFolders(app);
+    class FolderSuggest extends Base {
+      getSuggestions(query: string): string[] {
+        const q = String(query || "").trim().toLowerCase();
+        return folders.filter(f => !q || f.toLowerCase().includes(q));
+      }
+      renderSuggestion(value: string, node: El): void {
+        el(node, "span", "io-suggest__name", value);
+      }
+      selectSuggestion(value: string): void {
+        this.setValue(value);
+        this.close();
+        write(value);
+      }
+    }
+    const live = new FolderSuggest(app, input);
+    live.limit = 50;
+  } catch (e) {
+    console.error("inline-overhaul: подсказчик папок не встал", e);
+  }
 }
 
 /* ---- блок --------------------------------------------------------------- */
@@ -163,10 +233,21 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
         model,
         enabled: Boolean(ctx.get("transform.inline2note.enabled")),
         templates: templates(),
+        /* Имя папки нужно самой подписи: пустой список обязан сказать,
+           чего не хватает, теми же словами, что и `Default template`. */
+        templatesFolder: String(ctx.get("transform.inline2note.templatesFolder") || ""),
         redraw: () => { draw(); },
+        /* Выбор из подсказчика — это уже нажатие: значение пишется сразу, а
+           не ждёт, пока человек уйдёт из поля. */
+        folderSuggest: (input, write) => attachFolderSuggest(
+          p.AbstractInputSuggest, app, input,
+          value => { input.value = value; write(value); }),
         askCondition: (kind, done) => askConditionModal(Modal, app, {
           kind,
           choices: model.choicesFor(kind),
+          /* Какие Fields уже стоят условием «любое значение»: их имя в окне
+             неактивно (10.13.14 Н4). Считается по правилам, а не по памяти. */
+          fieldsTaken: model.listRules().flatMap(r => r.conditions.fields),
           done,
         }),
       });

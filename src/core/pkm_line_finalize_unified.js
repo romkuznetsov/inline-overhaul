@@ -1530,7 +1530,24 @@ function enforceRightPayloadSeparatorInvariant(options) {
     return `${indent}${baseLeft} ${sep1} ${text} ${sep2} ${dates}`;
   }
   if (dates) {
-    if (sep1 === sep2) return `${indent}${baseLeft} ${sep1} ${dates}`;
+    /*
+     * Текста нет, а справа что-то есть. Тогда пустое место между
+     * разделителями — это слот под текст, и заводить его надо (10.13.34,
+     * заказ заказчика 2026-09-05).
+     *
+     * Правило то же, по которому его заводит `line_pipeline.buildFromSegments`:
+     * два разделителя ставятся, когда слева **тег, ссылка или элемент**, и не
+     * ставятся, когда слева обычный текст — там писать уже написано. До этой
+     * правки здесь стояло второе объявление того же правила, и разошлись они
+     * молча ровно на паре одинаковых разделителей (У-32).
+     *
+     * При одинаковых разделителях между ними два пробела: так их различает
+     * разбор строки, и так же делает `buildFromSegments`.
+     */
+    const leftTech = /(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(baseLeft)
+      || baseLeft.split(/\s+/).some(function(t) { return startsWithAnyDateMarker(t, rules); });
+    if (!leftTech) return `${indent}${baseLeft} ${sep1} ${dates}`;
+    if (sep1 === sep2) return `${indent}${baseLeft} ${sep1}  ${sep2} ${dates}`;
     return `${indent}${baseLeft} ${sep1} ${sep2} ${dates}`;
   }
   return line;

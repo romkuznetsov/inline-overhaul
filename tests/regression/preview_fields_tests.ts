@@ -17,12 +17,16 @@
 import assert from "node:assert/strict";
 import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals, Setting, Notice, Modal } from "../harness/obsidian_stub.ts";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import { previewFields, resolveSlots, EXAMPLE_FIELDS } from "../../src/ui/settings/custom/preview_data.ts";
 import {
   barsPreview,
   floatingButton,
   linePreview,
+  sourcePreview,
   tagPreview,
   wheelPreview,
 } from "../../src/ui/settings/custom/previews.ts";
@@ -31,6 +35,8 @@ import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
 import { buildDefaultConfig, getIn } from "../../src/ui/settings/types.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
 import type { SettingsCtx } from "../../src/ui/settings/types.ts";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 setupGlobals();
 
@@ -443,8 +449,8 @@ function realConfig(): Any {
 {
   /* Правый Block пуст — одно слово вместо чипов, а не пустая ячейка. */
   const base = realConfig();
-  base.pkm.behavior.order.right = [];
-  base.pkm.behavior.order.left = ["state", "urgency", "client"];
+  base.pkm.fields.order.right = [];
+  base.pkm.fields.order.left = ["state", "urgency", "client"];
   const cfg = internals.migrateConfig(base);
   const host = makeNode("div");
   const close = linePreview(host as unknown as El, makeCtx(cfg));
@@ -483,23 +489,300 @@ function realConfig(): Any {
   const host = makeNode("div");
   const close = floatingButton(host as unknown as El, makeCtx(realConfig()));
 
-  const float = all(host, "io-float");
+  /*
+   * Класс тот же, что у кнопки в заметке (`io-flybtn`), и надпись та же —
+   * одна стрелка. Заказчик 2026-09-04: «в io-tip-i2n-button-preview button
+   * отображается как `-> note`, сделай чтобы было как в заметке (т.е. просто
+   * стрелочка)». Два вида одного элемента разошлись бы молча (У-32).
+   */
+  const float = all(host, "io-flybtn");
   assert.equal(float.length, 1, "кнопка нарисована один раз");
   assert.equal(float[0]?.tagName, "SPAN", "и это не кнопка, а её вид");
-  assert.equal(float[0]?.textContent, "\u2192 note",
-    "с той же надписью, что в прототипе");
+  assert.equal(float[0]?.textContent, "\u2192",
+    "надпись — одна стрелка, как в заметке");
+  assert.equal(all(host, "io-float").length, 0,
+    "прежней таблетки в предпросмотре быть не должно");
+  /* Отступ от текста едет из слайдера той же переменной, что в заметке. */
+  assert.equal(float[0]?.style.getPropertyValue("--io-flybtn-gap"), "12px",
+    "кнопка не получила отступ из настройки: "
+    + float[0]?.style.getPropertyValue("--io-flybtn-gap"));
   assert.equal(all(host, "io-line").length, 1,
     "рядом стоит строка, на которой она появляется");
   assert.ok(texts(host, "io-preview__note").some(t => t.includes("cursor")),
     "и сказано, на какой именно строке: "
     + texts(host, "io-preview__note").join(" | "));
 
-  /* П9: предпросмотр говорит о себе, что он не редактор — как и остальные. */
-  assert.ok(texts(host, "io-preview__note--top").length === 1,
-    "фраза «это не редактор» стоит на месте");
+  /*
+   * П9 и П10: предпросмотр по-прежнему говорит о себе, что он не редактор,
+   * но говорит это в своём «?», а не серой строкой над картинкой (замечание
+   * заказчика 1.4.1.1.1). Здесь — что строки в рамке больше нет; что фраза
+   * никуда не делась, держит проверка ниже, по всем пяти предпросмотрам.
+   */
+  assert.equal(texts(host, "io-preview__note--top").length, 0,
+    "серой строки над картинкой в рамке предпросмотра больше нет");
 
   close();
   ok("плавающая кнопка: вид кнопки без кнопки, и строка рядом");
+}
+
+/* ---- оговорка «это не редактор» (10.3 П9, П10) ------------------------- */
+
+{
+  /*
+   * П9 оставляет два варианта, и выбран второй: предпросмотр объявлен
+   * приблизительным, и это сказано в интерфейсе. Сказано теперь в «?»
+   * каждого предпросмотра, а не отдельной строкой над картинкой.
+   *
+   * Проверяется каждый предпросмотр, а не один: снятие строки из общей рамки
+   * убрало оговорку сразу у всех пяти, и вернуть её поимённо — ровно та
+   * правка, которую легко забыть на новом предпросмотре.
+   */
+  const CAVEAT = "close likeness of what the editor shows";
+  const silent = Object.keys(PREVIEW_TEXTS)
+    .filter(id => !String(PREVIEW_TEXTS[id]?.tip || "").includes(CAVEAT));
+  assert.deepEqual(silent, [],
+    "предпросмотр не говорит, что он не редактор: " + silent.join(", "));
+  assert.ok(Object.keys(PREVIEW_TEXTS).length >= 5,
+    "предпросмотров стало меньше пяти — проверять нечего");
+  ok("каждый предпросмотр говорит в «?», что он не редактор");
+}
+
+
+/* ======================================================================
+ * `Number of Bars` меняет число дорожек (замечание заказчика 1.4.2.1).
+ *
+ * Заказчик написал, что при значении 3 в предпросмотре ничего не происходит.
+ * Чтением воспроизвести не удалось, и прогон на его собственном `data.json`
+ * дал 2, 4 и 7 полос на значениях 1, 2 и 3. Поэтому здесь не починка, а
+ * замер: пин печатает получившиеся дорожки (У-8) и покраснеет, если третья
+ * когда-нибудь пропадёт по-настоящему.
+ * ====================================================================== */
+
+{
+  const cfg = realConfig();
+  const lanes = (cap: number): { bars: number; lanes: string[] } => {
+    const host = makeNode("div");
+    const close = barsPreview(host as unknown as El, makeCtx(cfg, {
+      "visual.tagBars.active": true,
+      "visual.tagBars.fieldId": "state",
+      "visual.tagBars.tagVisibility": true,
+      "visual.tagBars.stripesToShow": cap,
+    }));
+    const bars = all(host, "io-node--bar");
+    const out = Array.from(new Set(bars.map(n => n.style.getPropertyValue("--io-lane")))).sort();
+    close();
+    return { bars: bars.length, lanes: out };
+  };
+
+  const one = lanes(1);
+  const two = lanes(2);
+  const three = lanes(3);
+  const shape = "1 → " + JSON.stringify(one.lanes) + ", 2 → " + JSON.stringify(two.lanes)
+    + ", 3 → " + JSON.stringify(three.lanes);
+
+  assert.deepEqual(one.lanes, ["0"], "при 1 полоса одна, самая левая: " + shape);
+  assert.deepEqual(two.lanes, ["0", "1"], "при 2 добавляется дорожка ребёнка: " + shape);
+  assert.deepEqual(three.lanes, ["0", "1", "2"], "при 3 добавляется дорожка внука: " + shape);
+  assert.ok(three.bars > two.bars && two.bars > one.bars,
+    "каждое следующее значение рисует больше полос: " + one.bars + " → " + two.bars + " → " + three.bars);
+  ok("Number of Bars двигает дорожки: " + one.bars + " → " + two.bars + " → " + three.bars + " полос");
+}
+
+/* ======================================================================
+ * Дорожка полосы — это глубина строки, а не счётчик нарисованных полос.
+ *
+ * Заказчик 2026-09-02 назвал Field (`bars-field = type`), у которого значение
+ * есть у родительской и внучатой строк и нет у дочерней: рисовались дорожки 0
+ * и 1, а вторая полоса обязана стоять на дорожке 2 — дочерняя дорожка остаётся
+ * пустой. Прежний пин про число полос это переживал зелёным: полос было
+ * правильное количество, ошибка была в их месте (замечание B22).
+ *
+ * В выдуманном дереве предпросмотра место `priority` устроено так же: оно есть
+ * у корня, нет у его ребёнка и снова есть у внука. Норматив — движок
+ * (`priority_strip_engine.js`): он считает `depthFromRoot` и наследует цвет
+ * вниз независимо от того, есть ли у строки своё значение (П9).
+ * ====================================================================== */
+
+{
+  const cfg = realConfig();
+  /* Место `priority` в дереве достаётся Field `urgency`: имён `status` и
+     `priority` в конфиге нет, и места раздаёт `resolveSlots` по порядку. */
+  const host = makeNode("div");
+  const close = barsPreview(host as unknown as El, makeCtx(cfg, {
+    "visual.tagBars.active": true,
+    "visual.tagBars.fieldId": "urgency",
+    "visual.tagBars.tagVisibility": true,
+    "visual.tagBars.stripesToShow": 3,
+  }));
+  const bars = all(host, "io-node--bar");
+  const lanes = Array.from(new Set(bars.map(n => n.style.getPropertyValue("--io-lane")))).sort();
+  close();
+
+  assert.ok(bars.length > 0, "полосы вообще нарисовались");
+  assert.deepEqual(lanes, ["0", "2"],
+    "дочерняя дорожка остаётся пустой, внучатая — третья: получилось "
+    + JSON.stringify(lanes));
+  ok("пропущенный уровень не сдвигает дорожку: " + JSON.stringify(lanes));
+}
+
+/* ======================================================================
+ * Зазор между полосами и слитное дерево в предпросмотре (PRD 10.13.16 Н6).
+ *
+ * Величина зазора объявлена в двух местах на двух потребителей — отрисовка
+ * заметки и этот предпросмотр, — и обязана совпадать (У-32). До 2026-09-03
+ * она стояла литералом в обоих; теперь это настройка, и совпадение сторожит
+ * проверка, а не память.
+ * ====================================================================== */
+
+{
+  const gapsWith = (over: Record<string, unknown>): string[] => {
+    const host = makeNode("div");
+    const close = barsPreview(host as unknown as El, makeCtx(realConfig(), {
+      "visual.tagBars.active": true,
+      "visual.tagBars.fieldId": "urgency",
+      "visual.tagBars.tagVisibility": true,
+      "visual.tagBars.stripesToShow": 3,
+      ...over,
+    }));
+    const out = all(host, "io-node--bar").map(n => n.style.getPropertyValue("--io-bar-inset"));
+    close();
+    return out;
+  };
+
+  /* Тумблер выключен: зазор одинаков у всех полос и равен настройке. */
+  const off = gapsWith({ "visual.tagBars.lineGap": 5, "visual.tagBars.joinTree": false });
+  assert.ok(off.length > 1, "полос для сравнения набралось мало: " + off.length);
+  assert.deepEqual(Array.from(new Set(off)), ["5px"],
+    "с выключенным тумблером зазор у всех один и из настройки: " + JSON.stringify(off));
+
+  /*
+   * Тумблер `Join Bars in a tree` в предпросмотре ничего не меняет, и это
+   * утверждение, а не пропуск: здесь полоса рисуется на **поддереве** целиком
+   * (П6), рвать её внутри дерева нечему. В заметке полосу рисует каждая
+   * строка своей пометкой — там тумблер и работает, и его держат проверки
+   * движка и адаптера (`priority_strip_engine_tests.js`).
+   */
+  const on = gapsWith({ "visual.tagBars.lineGap": 5, "visual.tagBars.joinTree": true });
+  assert.deepEqual(on, off,
+    "предпросмотр от тумблера не зависит: " + JSON.stringify(on));
+
+  /* Ноль на слайдере: зазора нет нигде, и тумблер тут ничего не меняет. */
+  const zero = gapsWith({ "visual.tagBars.lineGap": 0, "visual.tagBars.joinTree": false });
+  assert.deepEqual(Array.from(new Set(zero)), ["0px"],
+    "ноль означает «полосы стыкуются»: " + JSON.stringify(zero));
+
+  /* Число берётся из настройки, а не из литерала: другое значение — другой
+     зазор. Прежний литерал эту проверку не переживёт. */
+  const seven = gapsWith({ "visual.tagBars.lineGap": 7, "visual.tagBars.joinTree": false });
+  assert.deepEqual(Array.from(new Set(seven)), ["7px"],
+    "зазор следует за слайдером: " + JSON.stringify(seven));
+
+  ok("зазор между полосами в предпросмотре считается настройкой");
+}
+
+/* ======================================================================
+ * Цвет чипа Field — цвет его вида, тот же, что в таблице Fields.
+ *
+ * Брался цвет первого Value тега, и один и тот же Field выглядел в таблице
+ * коричневым, а в предпросмотре — цветом своего первого значения (замечание
+ * заказчика C20, 2026-09-02). Ожидание выписано переменными темы отдельно от
+ * карты, из которой чип красится (У-5).
+ * ====================================================================== */
+
+{
+  const cfg = realConfig();
+  const host = makeNode("div");
+  const close = linePreview(host as unknown as El, makeCtx(cfg));
+  const chips = all(host, "io-bubble");
+  const colors = Array.from(new Set(chips.map(n => n.style.getPropertyValue("--io-bubble-bg"))));
+  close();
+
+  assert.ok(chips.length >= 3, "чипы Fields нарисованы: " + chips.length);
+  const allowed = ["var(--io-type-tag)", "var(--io-type-link)", "var(--io-type-element)"];
+  const stray = colors.filter(c => !allowed.includes(c));
+  assert.deepEqual(stray, [],
+    "чип красится только цветом вида: лишние цвета " + JSON.stringify(stray));
+  assert.ok(colors.includes("var(--io-type-tag)"), "тег коричневый: " + JSON.stringify(colors));
+  assert.ok(colors.includes("var(--io-type-link)"), "ссылка синяя: " + JSON.stringify(colors));
+  ok("цвет чипа Field взят из карты видов: " + JSON.stringify(colors));
+}
+
+/* ======================================================================
+ * 9. Коробка скроллера не гаснет вместе с блоком (B2).
+ * ====================================================================== */
+
+{
+  /*
+   * Прозрачность блока объявлена у контейнера стороны, а коробка скроллера
+   * лежала внутри него: CSS `opacity` предка потомком не отменяется, и яркость
+   * коробки ехала за настройкой — «в io-tip-wheel-preview яркость scroller
+   * ретушируется при изменении opacity» (B2, 2026-09-02).
+   *
+   * Утверждение про механизм, а не про вид: у коробки не должно быть предка,
+   * несущего прозрачность блока. Проверяется подъёмом по дереву — так же, как
+   * это делает браузер.
+   */
+  const cfg = realConfig();
+  const host = makeNode("div");
+  const close = wheelPreview(host as unknown as El, makeCtx(cfg, {
+    "visual.tagWheel.scroller.enabled": true,
+    "visual.tagWheel.scroller.size": 1,
+    "visual.tagWheel.scroller.direction": "full",
+    "visual.tags.opacityLeft": 40,
+    "visual.tags.opacityRight": 40,
+  }));
+
+  const panels = all(host, "io-wheelpanel");
+  assert.ok(panels.length, "коробка скроллера нарисована");
+
+  /* Строка помечена своим классом: по нему CSS и снимает прозрачность. */
+  const lines = all(host, "io-line--wheel");
+  assert.ok(lines.length, "строка предпросмотра помечена как строка TagWheel");
+
+  /*
+   * Сама прозрачность живёт в CSS, и дерево о ней не знает. Поэтому вторая
+   * половина утверждения читается из `styles.css`: под классом строки
+   * прозрачность снимается со стороны и переносится на чипы. Так же в этом
+   * проекте проверяется геометрия таблицы Values — заглушка DOM ничего не
+   * раскладывает, но текст правил прочитать не мешает.
+   */
+  const css = readFileSync(path.join(root, "styles.css"), "utf8");
+  assert.ok(/\.io-line--wheel \.io-line__side--left,[\s\S]{0,120}opacity:\s*1/.test(css),
+    "под классом строки TagWheel прозрачность со стороны снята");
+  assert.ok(/\.io-line--wheel \.io-line__side--left[\s\S]{0,200}--io-opacity-left/.test(css),
+    "и перенесена на чипы этой стороны");
+  close();
+  ok("B2: коробка скроллера не наследует прозрачность блока");
+}
+
+/* ======================================================================
+ * 10. Предпросмотр `Source line` не склеен (B13).
+ * ====================================================================== */
+
+{
+  /*
+   * Строка резалась `split(/\s+/)`, и пробелы выбрасывались: куски вставлялись
+   * строчными узлами подряд, и весь текст выглядел склеенным
+   * («в io-tip-source-preview отсутствуют пробелы», B13, 2026-09-02).
+   *
+   * Пробел вернулся текстовым узлом, а не зазором flex, ровно затем, чтобы это
+   * можно было проверить: текст нарисованной строки обязан совпадать с
+   * исходной посимвольно.
+   */
+  const cfg = realConfig();
+  const host = makeNode("div");
+  const close = sourcePreview(host as unknown as El, makeCtx(cfg));
+  const rows = all(host, "io-srcprev__line");
+  assert.ok(rows.length, "половины предпросмотра нарисованы: " + rows.length);
+  for (const row of rows) {
+    const text = String(row.textContent || "");
+    assert.ok(text.includes(" "),
+      "в нарисованной строке есть пробелы: " + JSON.stringify(text));
+    assert.ok(!/\S{25,}/.test(text),
+      "и нет склеенного куска: " + JSON.stringify(text));
+  }
+  close();
+  ok("B13: предпросмотр `Source line` сохраняет пробелы");
 }
 
 console.log("\n" + passed + " проверок пройдено");

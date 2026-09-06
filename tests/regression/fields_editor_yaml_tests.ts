@@ -255,8 +255,8 @@ function makePanel(base: Any, selected: string, o?: {
 function baseConfig(): Any {
   return JSON.parse(JSON.stringify({
     pkm: {
-      behavior: {
-        io: { separator1: "||", separator2: "||" },
+      lineFormat: { separator1: "||", separator2: "||" },
+      fields: {
         order: {
           left: ["status"],
           right: ["project", "due"],
@@ -267,12 +267,12 @@ function baseConfig(): Any {
           enabled: { status: true, project: true, due: true },
           propertiesByField: { status: "status", project: "project", due: "due" },
         },
-        leftMode: {
+        tags: {
           fields: [
             { id: "status", prefix: "#", values: [{ token: "todo", active: true }, { token: "doing", active: true }] },
           ],
         },
-        rightMode: {
+        links: {
           fields: [
             {
               id: "project",
@@ -291,7 +291,7 @@ function baseConfig(): Any {
 }
 
 const defOf = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
-  (cfg.pkm.behavior[side].fields as Any[]).find((f: Any) => String(f && f.id || "") === id) || null;
+  (cfg.pkm.fields[side === "leftMode" ? "tags" : "links"].fields as Any[]).find((f: Any) => String(f && f.id || "") === id) || null;
 
 /**
  * Что запишет движок в заметку по этой строке. Строка приходит аргументом и
@@ -348,8 +348,8 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   assert.deepEqual(expected, [
     'status: "#todo"',
     'project: "[[ClientA]]"',
-    'due: "\u{1F4C5}YYYY-MM-DD"',
-  ], "движок пишет значения в кавычках, а элемент — с маркером");
+    'due: \u{1F4C5}YYYY-MM-DD',
+  ], "кавычки достаются тегу и ссылке, а обычному тексту нет (1.3.2.4)");
 
   for (const [key, line] of [["status", expected[0]], ["project", expected[1]], ["due", expected[2]]] as const) {
     const p = makePanel(baseConfig(), key);
@@ -373,12 +373,12 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   assert.equal(String(defOf(cfg, "leftMode", "status").yamlCardinality), "list",
     "тип свойства лёг в определение Field — оттуда его и читает движок");
   /*
-   * Ловушка, которую эта строка держит: в `pkm.behavior.order` записать тип
+   * Ловушка, которую эта строка держит: в `pkm.fields.order` записать тип
    * нельзя. `normalizePkmOrder` собирает Order из своих десяти ключей, а
    * `migrateConfig` идёт на каждом патче — значение исчезло бы тем же
    * нажатием, и контрол выглядел бы работающим (З8).
    */
-  assert.equal(cfg.pkm.behavior.order.yamlCardinalityByField, undefined,
+  assert.equal(cfg.pkm.fields.order.yamlCardinalityByField, undefined,
     "в Order тип свойства не пишется: его там стирает normalizePkmOrder");
   assert.ok(p.writes.some(w => w.reason === "pkm:behavior:yaml:cardinality:status"),
     "запись прошла своей причиной: " + p.writes.map(w => w.reason).join(", "));
@@ -411,7 +411,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
     "правило лёг в определение Field");
   assert.ok(p.writes.some(w => w.reason === "pkm:behavior:yaml:value-rule:status"),
     "запись прошла своей причиной");
-  assert.equal(writtenAs(p.host), 'status: "todo"', "у тега снялась решётка");
+  assert.equal(writtenAs(p.host), 'status: todo', "у тега снялась решётка, а с ней и кавычки: без решётки это обычный текст (1.3.2.4)");
   const lines = engineYaml(LINE, cfg);
   assert.ok(lines.includes('project: "[[ClientA]]"'),
     "а у соседнего Field правило своё и осталось прежним: " + lines.join(" | "));
@@ -429,11 +429,11 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
 
 {
   const p = makePanel(baseConfig(), "due");
-  assert.equal(writtenAs(p.host), 'due: "\u{1F4C5}YYYY-MM-DD"', "под Raw маркер на месте");
+  assert.equal(writtenAs(p.host), 'due: \u{1F4C5}YYYY-MM-DD', "под Raw маркер на месте");
   const rule = selectIn(p.host, RULE_ROW);
   rule.value = "clean";
   rule.dispatch("change");
-  assert.equal(writtenAs(p.host), 'due: "YYYY-MM-DD"', "Clean снял маркер элемента");
+  assert.equal(writtenAs(p.host), 'due: YYYY-MM-DD', "Clean снял маркер элемента");
   ok("элемент: Raw держит маркер, Clean его снимает (правка движка по Я3)");
   p.cleanup();
 }
@@ -449,9 +449,9 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
 
 {
   const base = baseConfig();
-  base.pkm.behavior.order.active.status_sub = "yes";
-  base.pkm.behavior.order.enabled.status_sub = true;
-  base.pkm.behavior.leftMode.fields.push({
+  base.pkm.fields.order.active.status_sub = "yes";
+  base.pkm.fields.order.enabled.status_sub = true;
+  base.pkm.fields.tags.fields.push({
     id: "status_sub",
     prefix: "#",
     dependsOn: "status",
@@ -485,36 +485,54 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
     "своего правила у дочернего Field нет — оно берётся у родителя");
   const lines = engineYaml(SUB_LINE, cfg);
   assert.equal(lines.length, 1, "свойство одно: " + lines.join(" | "));
-  assert.ok(lines[0]?.includes('"todo"') && !lines[0]?.includes("#todo"),
+  assert.ok(lines[0]?.includes("todo") && !lines[0]?.includes("#todo"),
     "у родителя правило сработало: " + lines.join(" | "));
-  assert.ok(lines[0]?.includes('"review"') && !lines[0]?.includes("#review"),
+  assert.ok(lines[0]?.includes("review") && !lines[0]?.includes("#review"),
     "и дошло до дочернего значения: " + lines.join(" | "));
   ok("правило Field наследуется дочерним Field по dependsOn");
   p.cleanup();
 }
 
 /* ======================================================================
- * 7. Auto: одно свойство на два Fields — список.
+ * 7. Auto: одно свойство на два Fields — список; в строке только свой вклад.
  * ====================================================================== */
 
+/*
+ * Что здесь поменялось 2026-09-02 и почему.
+ *
+ * Строка показывала **свойство целиком**: в настройках одного Field были
+ * видны значения других, делящих то же свойство. Заказчик написал, что не
+ * понимает, почему в настройках `Category` видит значения трёх чужих Fields
+ * (B11), и его слово здесь главнее прежнего решения.
+ *
+ * Что осталось прежним: **форму решает движок и по всем Fields**. Свойство,
+ * которое собирает двоих, остаётся списком у обоих — иначе `Property type`
+ * показывал бы одно, а заметка получала другое.
+ */
 {
   const base = baseConfig();
-  base.pkm.behavior.order.propertiesByField.project = "status";
+  base.pkm.fields.order.propertiesByField.project = "status";
+
   const p = makePanel(base, "status");
   const line = writtenAs(p.host);
-  assert.ok(line.startsWith("status: [") && line.includes("#todo") && line.includes("[[ClientA]]"),
-    "свойство делят два Fields — в строке оба значения: " + line);
-  assert.deepEqual(engineYaml(LINE, p.cfg())[0], line, "и это ответ движка целиком");
+  assert.ok(line.startsWith("status: ["), "форма списка сохранилась: " + line);
+  assert.ok(line.includes("#todo"), "свой вклад в строке есть: " + line);
+  assert.ok(!line.includes("ClientA"), "а чужого в ней нет: " + line);
   p.cleanup();
 
-  /*
-   * Второй Field показывает ту же строку: он пишет в то же свойство, и это
-   * единственное место в панели, где видно, что они его делят.
-   */
+  /* У соседа по свойству — своя половина, и тоже списком. */
   const other = makePanel(base, "project");
-  assert.equal(writtenAs(other.host), line, "у соседа по свойству строка та же");
+  const otherLine = writtenAs(other.host);
+  assert.ok(otherLine.startsWith("status: ["), "у соседа та же форма списка: " + otherLine);
+  assert.ok(otherLine.includes("ClientA"), "и его собственное значение: " + otherLine);
+  assert.ok(!otherLine.includes("#todo"), "без значения соседа: " + otherLine);
   other.cleanup();
-  ok("Auto делает список, когда свойство собирает два Fields, и это видно у обоих");
+
+  /* А заметка по-прежнему получает оба — движок собирает их вместе. */
+  const whole = engineYaml(LINE, base)[0] || "";
+  assert.ok(whole.includes("#todo") && whole.includes("ClientA"),
+    "в заметке значения обоих Fields сливаются в один список: " + whole);
+  ok("B11: в строке Field виден только его вклад, форма списка и заметка не изменились");
 }
 
 /* ======================================================================
@@ -523,7 +541,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
 
 {
   const base = baseConfig();
-  delete base.pkm.behavior.order.propertiesByField.project;
+  delete base.pkm.fields.order.propertiesByField.project;
   const p = makePanel(base, "project");
   assert.equal(writtenAs(p.host), "not written", "у Field без свойства примера нет");
   assert.ok(!engineYaml(LINE, p.cfg()).some(l => l.startsWith("project:")),
@@ -543,7 +561,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   input.dispatch("change");
 
   const cfg = p.cfg();
-  assert.equal(cfg.pkm.behavior.order.propertiesByField.status, "state",
+  assert.equal(cfg.pkm.fields.order.propertiesByField.status, "state",
     "имя свойства ушло в Order");
   const reasons = p.writes.map(w => w.reason);
   assert.ok(reasons.includes("pkm:behavior:order:yaml:status"),
@@ -631,7 +649,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   const other = (live.getSuggestions as (q: string) => Any[])("tag");
   assert.deepEqual(other.map((x: Any) => x.name), ["tags"], "в vault есть и другое имя");
   (live.selectSuggestion as (p: Any) => void)(other[0]);
-  assert.equal(livePanel.cfg().pkm.behavior.order.propertiesByField.status, "tags",
+  assert.equal(livePanel.cfg().pkm.fields.order.propertiesByField.status, "tags",
     "выбор из подсказки записан в конфиг");
   assert.equal(live.input.value, "tags", "и подставлен в поле");
   livePanel.cleanup();
@@ -643,7 +661,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   const plainInput = all(control(old.host, "Property"), "io-text")[0] as StubNode;
   plainInput.value = "kept";
   plainInput.dispatch("change");
-  assert.equal(old.cfg().pkm.behavior.order.propertiesByField.status, "kept",
+  assert.equal(old.cfg().pkm.fields.order.propertiesByField.status, "kept",
     "и поле по-прежнему пишет");
   old.cleanup();
   ok("Я4: подсказку рисует платформа, и без неё поле работает");
@@ -666,13 +684,13 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   assert.deepEqual(bad, [], "две разные подсказки на одном узле");
 
   /*
-   * У строки `Property` своей «?» нет и быть не должно: подсказка раздела
-   * стоит прямо над ней, и два знака оказались бы рядом (замечание заказчика
-   * 2026-08-27, третий круг). Всё про имя свойства сказано в подсказке
-   * заголовка — её и открываем вместе с остальными.
+   * У строки `Property` подсказка есть с 2026-09-01 (замечание 1.3.2.1).
+   * Заказчик 2026-08-27 решил обратное — «?» здесь не ставить, потому что
+   * подсказка раздела стоит прямо над ней, — и теперь попросил её вернуть.
+   * Прежнее решение записано, чтобы третий круг не начался с нуля.
    */
-  assert.equal(all(row(p.host, "Property"), "io-help").length, 0,
-    "у строки Property своей «?" + "» быть не должно");
+  assert.equal(all(row(p.host, "Property"), "io-help").length, 1,
+    "у строки Property своя «?" + "» одна");
   for (const name of ["Property type", RULE_ROW, PREVIEW_ROW]) {
     const help = all(row(p.host, name), "io-help")[0];
     assert.ok(help, "у строки " + name + " нет «?»");
@@ -763,7 +781,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
 
   assert.equal(defOf(p.cfg(), "leftMode", "status").yamlValueRule, "clean",
     "запись прошла, несмотря на исключение плагина");
-  assert.equal(writtenAs(p.host), 'status: "todo"',
+  assert.equal(writtenAs(p.host), 'status: todo',
     "и экран обновился: без этого человек видел прежнюю строку до смены вкладки");
   assert.equal(selectIn(p.host, RULE_ROW).value, "clean", "и список показывает записанное");
   assert.ok(said.some(m => m.includes("запись свойства заметки не удалась")),
@@ -788,7 +806,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
 
 {
   const base = baseConfig();
-  base.pkm.behavior.order.propertiesByField = { status: "tags", project: "kind" };
+  base.pkm.fields.order.propertiesByField = { status: "tags", project: "kind" };
   const p = makePanel(base, "status");
   assert.equal(writtenAs(p.host), 'tags: "#todo"', "свойство на месте");
 
@@ -796,7 +814,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   input.value = "";
   input.dispatch("change");
 
-  const order = p.cfg().pkm.behavior.order;
+  const order = p.cfg().pkm.fields.order;
   assert.equal(order.propertiesByField.status, undefined,
     "стёртое имя свойства ушло из конфига");
   assert.equal(order.propertiesByField.project, "kind",

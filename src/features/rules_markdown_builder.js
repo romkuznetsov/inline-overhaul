@@ -1,5 +1,20 @@
 "use strict";
 
+/**
+ * Заметка сгенерированных правил TagWheel.
+ *
+ * **Важное про форму.** Документ правил — отдельный контракт
+ * (`docs/PKM_Runtime_Unified_Contract_v1.md`), который читает `pkm_v2/**`, а
+ * тот под З3 не правится. Поэтому имена блоков (`tagwheel-behavior`,
+ * `tagwheel-left-mode`, …) и ключи внутри них остались формой версии 1.
+ * Конфиг при этом переехал на версию 2, и здесь стоит **шов**: значения
+ * берутся из `pkm.fields.*`, `pkm.lineFormat.*`, `pkm.placement.*`,
+ * `pkm.prefixRules.*` и `visual.tagWheel.*`, а раскладываются по старым
+ * именам документа.
+ *
+ * Переписать заодно и документ значило бы переписать рантайм TagWheel целиком —
+ * ровно то, что раздел 3.2 держит вне границ работ.
+ */
 function createRulesMarkdownBuilder(deps) {
   const isObj = deps && typeof deps.isObj === "function"
     ? deps.isObj
@@ -11,46 +26,99 @@ function createRulesMarkdownBuilder(deps) {
     ? deps.toPrettyJson
     : function(x) { return JSON.stringify(x, null, 2); };
 
-  function getBehaviorRoot(cfg, cloneIt) {
-    const behavior = isObj(cfg && cfg.pkm && cfg.pkm.behavior) ? cfg.pkm.behavior : {};
-    return cloneIt ? cloneJson(behavior) : behavior;
+  function slice(node, key) {
+    return isObj(node) && isObj(node[key]) ? node[key] : {};
   }
 
-  function getBehaviorSlice(cfg, key, cloneIt) {
-    const behavior = getBehaviorRoot(cfg, false);
-    const raw = isObj(behavior[key]) ? behavior[key] : {};
-    return cloneIt ? cloneJson(raw) : raw;
-  }
-
-  function buildTagWheelRulesMarkdownFromConfig(cfg) {
+  /** Форма документа правил, собранная из конфига версии 2. */
+  function buildRulesShapeFromConfig(cfg) {
     const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
-    const io = getBehaviorSlice(cfg, "io", false);
-    const inlineLayout = getBehaviorSlice(cfg, "inlineLayout", false);
-    const dateRules = getBehaviorSlice(cfg, "dateRules", false);
-    const behavior = getBehaviorRoot(cfg, true);
-    const ui = getBehaviorSlice(cfg, "ui", false);
-    const leftMode = getBehaviorSlice(cfg, "leftMode", false);
-    const rightMode = getBehaviorSlice(cfg, "rightMode", false);
-    const projects = getBehaviorSlice(cfg, "projects", false);
-    const colors = getBehaviorSlice(cfg, "colors", false);
-    const meta = getBehaviorSlice(cfg, "meta", true);
+    const fields = slice(pkm, "fields");
+    const placement = slice(pkm, "placement");
+    const behaviorCfg = slice(pkm, "behavior");
+    const wheel = slice(slice(cfg, "visual"), "tagWheel");
 
-    behavior.subtagFormat = (pkm.behavior && pkm.behavior.subtagFormat === "combined") ? "combined" : "separate";
-    behavior.defaultMode = String(behavior.defaultMode || "").trim().toLowerCase() === "right" ? "right" : "left";
+    const behavior = cloneJson(behaviorCfg);
+    delete behavior.childTagFormat;
+    behavior.subtagFormat = behaviorCfg.childTagFormat === "combined" ? "combined" : "separate";
+    behavior.defaultMode = String(fields.defaultBlock || "").trim().toLowerCase() === "right" ? "right" : "left";
+    behavior.order = cloneJson(slice(fields, "order"));
+    behavior.elements = cloneJson(slice(fields, "elements"));
+    behavior.leftMode = cloneJson(slice(fields, "tags"));
+    behavior.rightMode = cloneJson(slice(fields, "links"));
+    behavior.projects = cloneJson(slice(fields, "projects"));
+    behavior.typeCheckboxByValue = cloneJson(slice(fields, "checkboxByValue"));
+    behavior.prefixRules = Object.assign(cloneJson(slice(pkm, "prefixRules")), {
+      priorityMode: slice(pkm, "prefixPriority").decideBy,
+      fieldsOrderMode: slice(pkm, "prefixPriority").fieldOrderSource,
+      tagSubtagPriority: slice(pkm, "prefixPriority").parentOrChild,
+    });
+    behavior.freeRoam = {
+      minimalSeparator: placement.keepPrefixInsertOnly !== false,
+      minimalPrefix: placement.fieldPrefixInsertOnly !== false,
+      offPrefix: placement.bulletInStrict === true,
+      fullPlacement: String(placement.freeInsertPosition || "smart"),
+    };
+
+    /*
+     * Блок `tagwheel-ui`: подсветка строки, пока открыт TagWheel (10.13.6).
+     *
+     * Движок обёртку в `==` умел с самого начала — `renderControlLine` ставит
+     * её при `rules.ui.activePanel.useHighlight`, — но ветки `pkm.behavior.ui`
+     * нет в умолчаниях, и блок уезжал в заметку правил пустым. Значение
+     * приходит из настройки версии 2, а имена ключей внутри блока остаются
+     * формой версии 1: документ правил — отдельный контракт (см. шапку файла).
+     *
+     * **`showMarkers` здесь не тот, что в панели.** Внутри `activePanel` это
+     * текстовые обёртки `{TW} … {/TW}` вокруг строки, а не тумблер
+     * `Show tag markers`, который решает судьбу решёток в самом списке. Имена
+     * совпали случайно, и запись сюда значения из `visual.tagWheel.showMarkers`
+     * вписала бы человеку в строку скобки. Ключ остаётся невыставленным.
+     */
+    const ui = cloneJson(slice(behaviorCfg, "ui"));
+    const activePanel = isObj(ui.activePanel) ? cloneJson(ui.activePanel) : {};
+    activePanel.enabled = true;
+    activePanel.useHighlight = wheel.highlightLine === true;
+    ui.activePanel = activePanel;
+
+    const meta = cloneJson(slice(behaviorCfg, "meta"));
     meta.generatedBy = "inline-overhaul";
     meta.generatedAt = new Date().toISOString();
 
+    return {
+      meta,
+      io: slice(pkm, "lineFormat"),
+      inlineLayout: slice(behaviorCfg, "inlineLayout"),
+      dateRules: slice(behaviorCfg, "dateRules"),
+      behavior,
+      ui,
+      leftMode: behavior.leftMode,
+      rightMode: behavior.rightMode,
+      projects: behavior.projects,
+      colors: {
+        tagwheelHeader: {
+          defaultTextColor: String(wheel.textColor || ""),
+          fillColor: String(wheel.fillColor || ""),
+          showPrefix: wheel.showMarkers !== false,
+        },
+      },
+    };
+  }
+
+  function buildTagWheelRulesMarkdownFromConfig(cfg) {
+    const shape = buildRulesShapeFromConfig(cfg);
+
     const blocks = [
-      ["tagwheel-meta", meta],
-      ["tagwheel-io", io],
-      ["tagwheel-inline-layout", inlineLayout],
-      ["tagwheel-date-rules", dateRules],
-      ["tagwheel-behavior", behavior],
-      ["tagwheel-ui", ui],
-      ["tagwheel-left-mode", leftMode],
-      ["tagwheel-right-mode", rightMode],
-      ["tagwheel-projects", projects],
-      ["tagwheel-colors", colors],
+      ["tagwheel-meta", shape.meta],
+      ["tagwheel-io", shape.io],
+      ["tagwheel-inline-layout", shape.inlineLayout],
+      ["tagwheel-date-rules", shape.dateRules],
+      ["tagwheel-behavior", shape.behavior],
+      ["tagwheel-ui", shape.ui],
+      ["tagwheel-left-mode", shape.leftMode],
+      ["tagwheel-right-mode", shape.rightMode],
+      ["tagwheel-projects", shape.projects],
+      ["tagwheel-colors", shape.colors],
     ];
 
     const lines = [];
@@ -71,6 +139,7 @@ function createRulesMarkdownBuilder(deps) {
   }
 
   return {
+    buildRulesShapeFromConfig,
     buildTagWheelRulesMarkdownFromConfig,
   };
 }

@@ -14,7 +14,8 @@ const stubs = [
   "renderWheelPreview", "renderBinder", "renderSmartRules", "renderCommandReference",
   "renderNavCallout", "renderLeftRightOrder", "renderFieldOrderList", "renderPrefixOrderList",
   "renderCycleOrder", "renderYamlMapping", "renderFloatingButton", "renderTabCallout",
-  "renderUserTagColors"
+  "renderUserTagColors", "renderSourceFields", "renderSourcePreview", "renderSubheader",
+  "renderCaretPreview"
 ].map(n => "function " + n + "(){}").join("\n");
 
 const tmp = path.resolve(path.dirname(path.resolve(target)), "_gate_mod.js");
@@ -33,12 +34,33 @@ const bad = m => { console.log("  FAIL " + m); fail++; };
    draws from a bar in general. Obsidian's words and plain English are not. */
 const ENTITIES = ["Field","Fields","Value","Values","Bar","Bars","Prefix","Prefixes",
   "Separator","Separators","Block","Blocks","TagWheel","Binder","Transform","Wheel"];
+/* `Delete` is not here on purpose: `Smart Delete` gets its pass from KEY_NAME
+   below, where the key names live. One word, one list. */
 const PROPER = new Set(["Obsidian","Markdown","YAML","Ctrl","Cmd","Inline","Dataview",
   "Status","Priority","Strict","Free","Behavior","Position","PKM","I","Smart","Rules","Level"]);
 const CASE_OK = new Set([...ENTITIES, ...PROPER]);
 
+/*
+ * Names the owner asked for by name, longer than the five-word rule allows.
+ *
+ * The rule stays: this is a list of decisions, not a loophole. Each entry
+ * carries the date and the question it was settled by, so the next long name
+ * is a conversation, not a precedent. Adding one without an answered question
+ * is how a rule quietly stops being a rule.
+ */
+const LONG_NAME_OK = {
+  /* В-47, answered 2026-09-05: the owner asked for these exact six words back
+     after seeing the five-word version. */
+  "in-line-boundary": "What to do at the end",
+};
+
 /* A key combination, quoted or bare: 'Ctrl+A', Cmd + A, Shift+Tab. */
 const HOTKEY = /^['"]?(?:Ctrl|Cmd|Alt|Shift|Meta)(?:\s*\+\s*[A-Za-z0-9]+)+['"]?$/;
+
+/* A single key carries its own name for the same reason a combination does:
+   `Backspace` is what is printed on the key, not an English word. The list is
+   closed on purpose, so a capitalised ordinary word still fails the rule. */
+const KEY_NAME = /^['"]?(?:Backspace|Delete|Enter|Escape|Tab|Home|End)['"]?$/;
 
 /* The same rule read backwards: an entity written in lower case is the bug
    this convention exists to prevent, so catch it too. */
@@ -80,7 +102,14 @@ for (const fn of ["moveIn", "sortableList", "hotkeyCell", "commentAffordance", "
   }
 }
 
-const KINDS = new Set(["toggle","dropdown","slider","number","text","textarea","color","buttons","custom"]);
+/* `folder` — контрол Obsidian 1.13: поле ввода с подсказчиком папок vault.
+   Появился по замечанию 1.6.2.3 вместо простого текстового поля.
+
+   `note` — строка-подпись без контрола: имя, описание и подсказка. Появилась
+   по замечаниям B13 и B18 (2026-09-02), чтобы назвать список флажков
+   `Fields to keep`, который начинался сразу под предыдущей строкой. У
+   платформы для этого есть своя форма — `SettingDefinitionEmpty`. */
+const KINDS = new Set(["toggle","dropdown","slider","number","text","textarea","color","folder","buttons","custom","note"]);
 const ids = new Set();
 for (const g of SCHEMA) {
   if (ids.has(g.id)) bad("duplicate group id " + g.id); else ids.add(g.id);
@@ -146,13 +175,18 @@ for (const g of SCHEMA) for (const it of g.items) {
   if (it.kind === "custom") { custom++; continue; }
   total++; perTab[g.tab] = (perTab[g.tab] || 0) + 1;
   const words = it.name.split(" ");
-  if (words.length > 5) bad(it.id + " name over 5 words: " + it.name);
-  words.slice(1).forEach(w => {
+  if (words.length > 5 && LONG_NAME_OK[it.id] !== it.name) {
+    bad(it.id + " name over 5 words: " + it.name);
+  }
+  /* `Left Block` and `Right Block` are entities in their own right (Ct10),
+     so the pair keeps its capitals. Only as a pair: a bare `Left` in a name
+     is still the sentence case bug this check is here to find. */
+  it.name.replace(/(Left|Right) Block/g, "block block").split(" ").slice(1).forEach(w => {
     /* A key name is not an English word: 'Ctrl+A' has to keep its capitals,
        and a name cannot carry <code>, so the owner writes it in quotes.
        Stripping the punctuation first turned it into CtrlA and the sentence
        case rule flagged it. */
-    if (HOTKEY.test(w)) return;
+    if (HOTKEY.test(w) || KEY_NAME.test(w)) return;
     const c = w.replace(/[^A-Za-z]/g, "");
     if (c && c[0] === c[0].toUpperCase() && c[0] !== c[0].toLowerCase() && !CASE_OK.has(c)) {
       bad(it.id + " name not sentence case: " + it.name);

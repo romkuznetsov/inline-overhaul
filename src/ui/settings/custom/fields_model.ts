@@ -33,13 +33,12 @@ type Loose = any;
 
 /**
  * Плагин в том виде, в каком его зовёт редактор. Это не весь плагин: модель
- * специально видит от него только запись патча, чтение конфига и два вызова
- * наружу, которые редактор делал и делает.
+ * специально видит от него только запись патча, чтение конфига и один вызов
+ * наружу, который редактор делал и делает.
  */
 export interface FieldsPlugin {
   getConfig: () => PkmFieldsConfig;
   setConfigPatch: (patch: unknown, reason: string) => void;
-  renameStrictNameInConfigNote?: (from: string, to: string) => Promise<unknown>;
   registerPkmCommands?: () => void;
 }
 
@@ -298,13 +297,27 @@ function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value.slice() : [];
 }
 
+/**
+ * Ветка определений Fields: `pkm.fields` (PRD 8.1, 8.1а). Имя функции осталось
+ * прежним — так её зовут полторы сотни строк ниже, — но читает она версию 2.
+ */
 function behaviorOf(cfg: unknown): Record<string, unknown> {
   const pkm = asObject(asObject(cfg)["pkm"]);
-  return asObject(pkm["behavior"]);
+  return asObject(pkm["fields"]);
 }
 
+/**
+ * Сторона панели -> ветка конфига. В версии 2 ветки названы по **типу** Field:
+ * `tags` и `links` вместо `leftMode` и `rightMode` (ответ В9). Наружу здесь
+ * по-прежнему говорят про сторону, потому что про сторону говорит и панель.
+ */
+const MODE_BRANCH: Record<"leftMode" | "rightMode", "tags" | "links"> = {
+  leftMode: "tags",
+  rightMode: "links",
+};
+
 function modeFields(behavior: Record<string, unknown>, side: "leftMode" | "rightMode"): unknown[] {
-  return asArray(asObject(behavior[side])["fields"]);
+  return asArray(asObject(behavior[MODE_BRANCH[side]])["fields"]);
 }
 
 function idOf(row: unknown): string {
@@ -467,7 +480,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
          */
         propertiesByField: withTombstones(next.propertiesByField, current.propertiesByField),
       };
-      plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch } } }, reason);
+      plugin.setConfigPatch({ pkm: { fields: { order: orderPatch } } }, reason);
       return;
     }
     const orderPatch = {
@@ -480,7 +493,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       freeRoam: withTombstones(next.freeRoam, current.freeRoam),
       enabled: withTombstones(next.enabled, current.enabled),
     };
-    plugin.setConfigPatch({ pkm: { behavior: { order: orderPatch } } }, reason);
+    plugin.setConfigPatch({ pkm: { fields: { order: orderPatch } } }, reason);
   };
 
   const captureSnapshot = (): OrderSnapshot => {
@@ -498,10 +511,10 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const s = snap && typeof snap === "object" ? snap : captureSnapshot();
     plugin.setConfigPatch({
       pkm: {
-        behavior: {
+        fields: {
           order: s.order,
-          leftMode: { fields: Array.isArray(s.leftMode) ? s.leftMode : [] },
-          rightMode: { fields: Array.isArray(s.rightMode) ? s.rightMode : [] },
+          tags: { fields: Array.isArray(s.leftMode) ? s.leftMode : [] },
+          links: { fields: Array.isArray(s.rightMode) ? s.rightMode : [] },
           elements: s.elements || {},
         },
       },
@@ -584,12 +597,22 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     orderState.active = { ...(orderState.active || {}), [key]: "yes" };
     orderState.freeRoam = { ...(orderState.freeRoam || {}), [key]: "off" };
     orderState.enabled = { ...(orderState.enabled || {}), [key]: true };
+    /*
+     * Дочернему Field подпись не пишется, и это не пропуск. Своего короткого
+     * имени у него нет: контрола под него в панели тоже нет — строка дочернего
+     * Field недостижима по решению В7, — а имя для TagWheel выводится из имени
+     * родителя (`applyOrderToRules`, `shortNameFor`).
+     *
+     * Запись `labels[<ключ>_sub] = "<ключ> sub"` тут стояла до 2026-09-04 и
+     * никуда не доезжала: `normalizePkmOrder` перебирает `labels` только по
+     * родительским ключам и подпись дочки выбрасывает. Снята как обманчивая, а
+     * не как дефект — сам дефект D12 был в `applyOrderToRules`.
+     */
     if (subKey) {
       orderState.active[subKey] = "no";
       orderState.freeRoam[subKey] = "off";
       orderState.enabled[subKey] = false;
       orderState.types[subKey] = "tag";
-      orderState.labels[subKey] = `${key} sub`;
       orderState.strictNames[subKey] = subStrict;
     }
     setOrderPatch({
@@ -601,7 +624,6 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       freeRoam: { [key]: "off" },
       enabled: { [key]: true },
       ...(subKey ? {
-        labels: { [key]: key, [subKey]: `${key} sub` },
         strictNames: { [key]: key, [subKey]: subStrict },
         types: { [key]: kind, [subKey]: "tag" as FieldKind },
         active: { [key]: "yes", [subKey]: "no" },
@@ -636,7 +658,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       }
     }
     plugin.setConfigPatch(
-      { pkm: { behavior: { leftMode: { fields: leftMode }, rightMode: { fields: rightMode } } } },
+      { pkm: { fields: { tags: { fields: leftMode }, links: { fields: rightMode } } } },
       "pkm:behavior:modes:add-field:" + key,
     );
 
@@ -670,7 +692,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         },
       };
       plugin.setConfigPatch(
-        { pkm: { behavior: { elements: { fields, byField } } } },
+        { pkm: { fields: { elements: { fields, byField } } } },
         "pkm:behavior:elements:add-field:" + key,
       );
     }
@@ -771,9 +793,9 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     delete elementsByField[k];
     plugin.setConfigPatch({
       pkm: {
-        behavior: {
-          leftMode: { fields: leftFields },
-          rightMode: { fields: rightFields },
+        fields: {
+          tags: { fields: leftFields },
+          links: { fields: rightFields },
           elements: { ...elementsCfg, fields: elementsFields, byField: elementsByField },
         },
       },
@@ -804,14 +826,38 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       return { ok: false, error: "A Field with this name already exists" };
     }
     orderState.strictNames = { ...(orderState.strictNames || {}), [k]: next };
-    setOrderPatch({ strictNames: { [k]: next } }, "pkm:behavior:order:strict:" + k);
-    try {
-      if (typeof plugin.renameStrictNameInConfigNote === "function") {
-        await plugin.renameStrictNameInConfigNote(oldName, next);
-      }
-    } catch (e) {
-      console.error("[inline-overhaul][strict-rename:config-note]", e);
+
+    /*
+     * Короткое имя идёт следом, если человек своего не задавал.
+     *
+     * Левая колонка редактора рисует `labels`, а не `strictNames`, и запись в
+     * `labels` есть у каждого Field всегда: заведение сажает туда ключ. Без
+     * этого переименование карандашом меняло имя в правой колонке, а слева
+     * оставалось старое (замечание заказчика B9, 2026-09-02).
+     *
+     * Своё короткое имя не трогается: оно на то и своё. Признак «своего» тот
+     * же, по которому строка `Name in TagWheel` показывает поле пустым, —
+     * подпись совпадает с системным именем.
+     *
+     * Подпись дочернего Field переименование не трогает вовсе: до конфига она
+     * не доезжает (`normalizePkmOrder` перебирает `labels` по родительским
+     * ключам), а имя дочки для TagWheel выводится из имени родителя в
+     * `applyOrderToRules` и доезжает само (D12).
+     */
+    const labels = { ...(orderState.labels || {}) };
+    const patchLabels: Record<string, string> = {};
+    if (String(labels[k] || k).trim() === oldName) {
+      labels[k] = next;
+      patchLabels[k] = next;
     }
+    orderState.labels = labels;
+
+    setOrderPatch(
+      Object.keys(patchLabels).length
+        ? { strictNames: { [k]: next }, labels: patchLabels }
+        : { strictNames: { [k]: next } },
+      "pkm:behavior:order:strict:" + k,
+    );
     return { ok: true };
   };
 
@@ -887,7 +933,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const nextLeft = upsertById(upsertById(leftFieldsNow, parentPatched), subPatched);
     const nextRight = upsertById(upsertById(rightFieldsNow, parentPatched), subPatched);
     plugin.setConfigPatch(
-      { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+      { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
       "pkm:behavior:order:yaml-propagate:" + strictNameNow,
     );
     return { ok: true };
@@ -906,7 +952,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const idx = leftMode.findIndex(f => idOf(f) === subKey);
     if (idx !== -1) leftMode[idx] = { ...asObject(leftMode[idx]), enabled: next !== "no" };
     plugin.setConfigPatch(
-      { pkm: { behavior: { leftMode: { fields: leftMode } } } },
+      { pkm: { fields: { tags: { fields: leftMode } } } },
       "pkm:behavior:leftmode:subtoggle:" + subKey,
     );
     setOrderPatch({ active: { [subKey]: next }, enabled: { [subKey]: next !== "no" } },
@@ -1153,7 +1199,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       else nextDef[key] = value;
     }
     plugin.setConfigPatch(
-      { pkm: { behavior: { [pool]: { fields: upsertField(list, id, nextDef) } } } },
+      { pkm: { fields: { [MODE_BRANCH[pool]]: { fields: upsertField(list, id, nextDef) } } } },
       reason,
     );
     return { ok: true };
@@ -1364,7 +1410,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     }
     list[idx] = next;
     plugin.setConfigPatch(
-      { pkm: { behavior: { [side]: { fields: list } } } },
+      { pkm: { fields: { [MODE_BRANCH[side]]: { fields: list } } } },
       "pkm:behavior:order:prerequisite:" + key,
     );
     return { ok: true };
@@ -1387,7 +1433,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   const getValueVisual = (fieldId: string, token: string): ValueVisual => {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
-    const visuals = asObject(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const visuals = asObject(asObject(asObject(plugin.getConfig())["visual"])["tags"]);
     const byTag = asObject(visuals["byTag"]);
     const fm = fid ? asObject(byTag[fid]) : {};
     const row = tok ? asObject(fm[tok]) : {};
@@ -1404,9 +1450,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
    * полю: недостающие берутся из текущей — так это работало, и от этого
    * зависит, что уходит в конфиг.
    *
-   * Цвета живут в `pkm.behavior.tagVisuals.byTag`, а таблица 8.1 ведёт эту
-   * ветку в `visual.tags.byTag`: путь надо провести миграцией фазы 2, иначе
-   * цвета Values потеряются (Ф16).
+   * Цвета живут в `visual.tags.byTag` (версия 2, PRD 8.1). Ветка та же, что у
+   * своих тегов рядом, и читает её `getTagVisualsFromConfig` в `main.js`.
    */
   const setValueVisual = (
     fieldId: string,
@@ -1417,7 +1462,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
     if (!fid || !tok || tok.charAt(0) !== "#") return;
-    const visuals = asObject(behaviorOf(plugin.getConfig())["tagVisuals"]);
+    const visuals = asObject(asObject(asObject(plugin.getConfig())["visual"])["tags"]);
     const byTag = asObject(visuals["byTag"]);
     const current = asObject(asObject(byTag[fid])[tok]);
     const has = (key: string): boolean => Object.prototype.hasOwnProperty.call(patch, key);
@@ -1428,7 +1473,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       customText: has("customText") ? String(patch.customText || "").trim() : String(current["customText"] || "").trim(),
     };
     plugin.setConfigPatch(
-      { pkm: { behavior: { tagVisuals: { byTag: { [fid]: { [tok]: next } } } } } },
+      { visual: { tags: { byTag: { [fid]: { [tok]: next } } } } },
       reason || "pkm:visuals:tag",
     );
   };
@@ -1532,7 +1577,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const inc: Loose = cur.increment;
     const write = (nextRow: Loose, reason: string): void => {
       plugin.setConfigPatch(
-        { pkm: { behavior: { elements: { byField: { [elementFieldId]: nextRow } } } } },
+        { pkm: { fields: { elements: { byField: { [elementFieldId]: nextRow } } } } },
         reason,
       );
     };
@@ -1590,7 +1635,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     const parentInRight = hasFieldById(rightMode, parentFieldId);
     const subInRight = hasFieldById(rightMode, subFieldId);
 
-    const prefixRules = asObject(behavior["prefixRules"]);
+    const prefixRules = asObject(asObject(asObject(plugin.getConfig())["pkm"])["prefixRules"]);
     const checkboxByFieldValue = asObject(prefixRules["checkboxByFieldValue"]);
     const parentCheckboxRaw = parentFieldId ? asObject(checkboxByFieldValue[parentFieldId]) : {};
     const subCheckboxRaw = subFieldId ? asObject(checkboxByFieldValue[subFieldId]) : {};
@@ -1711,8 +1756,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
           if (cTok && cCb) subOut[cTok] = cCb;
         }
       }
-      const patch: Loose = { pkm: { behavior: { prefixRules: { checkboxByFieldValue: {} } } } };
-      const map = patch.pkm.behavior.prefixRules.checkboxByFieldValue;
+      const patch: Loose = { pkm: { prefixRules: { checkboxByFieldValue: {} } } };
+      const map = patch.pkm.prefixRules.checkboxByFieldValue;
       if (parentFieldId) map[parentFieldId] = parentOut;
       if (subFieldId) map[subFieldId] = subOut;
       if (parentFieldId) {
@@ -1969,7 +2014,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         }
 
         plugin.setConfigPatch(
-          { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+          { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
           reason,
         );
         return { ok: true };
@@ -2041,7 +2086,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         }
       }
       plugin.setConfigPatch(
-        { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+        { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
         reason,
       );
       plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), reason + ":prefix");
@@ -2101,7 +2146,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         const nextLeft = toRight ? leftNow : upsertField(leftNow, targetId, nextTarget);
         const nextRight = toRight ? upsertField(rightNow, targetId, nextTarget) : rightNow;
         plugin.setConfigPatch(
-          { pkm: { behavior: { leftMode: { fields: nextLeft }, rightMode: { fields: nextRight } } } },
+          { pkm: { fields: { tags: { fields: nextLeft }, links: { fields: nextRight } } } },
           "pkm:behavior:order:deep:add-token:" + k,
         );
         return { ok: true };
@@ -2125,7 +2170,7 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       if (!parentField && merged.parentField) nextLeft = upsertField(nextLeft, merged.parentField.id, merged.parentField);
       if (!subField && merged.subField) nextLeft = upsertField(nextLeft, merged.subField.id, merged.subField);
       plugin.setConfigPatch(
-        { pkm: { behavior: { leftMode: { fields: nextLeft } } } },
+        { pkm: { fields: { tags: { fields: nextLeft } } } },
         "pkm:behavior:order:deep:add-token:" + k,
       );
       plugin.setConfigPatch(buildCheckboxPatch(nextTree, merged), "pkm:behavior:order:deep:add-token:" + k + ":prefix");

@@ -24,18 +24,37 @@ const ok = (m: string) => console.log("  ok   " + m);
 /**
  * Текущая фаза работ. Гейты включаются по фазе (12).
  *
- * В файле стоит подпись фазы целиком — у неё бывает буква (`3a`, `3b`), —
- * а сравниваются гейты по числу перед ней. Иначе `3b` печаталось бы как
- * `3`, и по выводу гейта нельзя было бы сказать, где мы на самом деле.
+ * В файле две строки, и вторая появилась 2026-08-31 не для красоты.
+ *
+ *   1. подпись фазы, которая идёт сейчас — у неё бывает буква (`3a`, `3b`);
+ *   2. список уже закрытых фаз.
+ *
+ * Почему двух строк мало одной. Фазы закрывались не по порядку номеров:
+ * решением заказчика от 2026-08-24 сначала делались вид и паритет панели
+ * (3a, 3b, 3c), а миграция конфига — фаза 2 — после них. Порог гейтов при
+ * этом обязан помнить **максимум закрытого**, иначе переход к фазе 2 опустил
+ * бы порог с трёх до двух и молча выключил бы проверки структуры. А подпись
+ * обязана называть то, что идёт сейчас, иначе она врёт: до 2026-08-31 в файле
+ * стояло `3b`, хотя 3c была закрыта, а работа шла по фазе 2.
  */
-function currentPhaseLabel(): string {
-  try { return fs.readFileSync(PHASE_FILE, "utf8").trim() || "0"; }
-  catch { return "0"; }
+function readPhaseFile(): { label: string; closed: string[] } {
+  let text = "";
+  try { text = fs.readFileSync(PHASE_FILE, "utf8"); } catch { text = ""; }
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const label = lines[0] || "0";
+  const closedLine = lines.find(l => l.startsWith("закрыто:")) || "";
+  const closed = closedLine.replace(/^закрыто:/, "").split(",").map(x => x.trim()).filter(Boolean);
+  return { label, closed };
 }
 
-const phaseLabel = currentPhaseLabel();
-const phase = parseInt(phaseLabel, 10) || 0;
-console.log("Гейты слоя настроек, фаза " + phaseLabel);
+const phaseFile = readPhaseFile();
+const phaseLabel = phaseFile.label;
+/* Порог — максимум из идущей фазы и всех закрытых. */
+const phase = [phaseLabel, ...phaseFile.closed]
+  .map(x => parseInt(x, 10) || 0)
+  .reduce((a, b) => (b > a ? b : a), 0);
+console.log("Гейты слоя настроек, фаза " + phaseLabel
+  + (phaseFile.closed.length ? " (закрыто: " + phaseFile.closed.join(", ") + ")" : ""));
 
 setupGlobals();
 
@@ -239,6 +258,7 @@ else ok("схема загружена: групп " + SCHEMA.length);
   const { MemoryStore } = await import("../../src/ui/settings/store.ts");
   const { SettingsPane } = await import("../../src/ui/settings/settings_tab.ts");
   const { Modal, Notice: StubNotice } = await import("../harness/obsidian_stub.ts");
+  const { loadPluginInternals } = await import("../harness/plugin_internals.ts");
 
   /*
    * Перенесённый редактор Fields ждёт платформу и плагин. Без них он не
@@ -256,28 +276,43 @@ else ok("схема загружена: групп " + SCHEMA.length);
       enabled: map(o.enabled), propertiesByField: map(o.propertiesByField),
     };
   };
-  const legacyConfig: any = {
-    ui: {},
-    pkm: {
-      behavior: {
-        /*
-         * Separator обязателен: `parseInlineLine` без него бросает исключение,
-         * а блок свойств заметки (10.9) отдаёт ему выдуманную строку. Без этих
-         * двух ключей Г16 рисовал бы блок без примера и проверял пустое место.
-         */
-        io: { separator1: "||", separator2: "||" },
-        order: { left: ["status"], right: [], lead: {}, labels: { status: "Status" }, types: { status: "tag" } },
-        leftMode: { fields: [{ id: "status", orderKey: "status", values: [{ token: "#todo" }] }] },
-        rightMode: { fields: [] },
-        elements: { fields: [], byField: {} },
-        tagVisuals: { byTag: {}, byField: {} },
-      },
-    },
-  };
+  /*
+   * **Конфиг настоящий, и это важнее, чем кажется.** До 2026-08-31 здесь лежал
+   * выдуманный конфиг формы версии 1 (`pkm.behavior.order`, `ui: {}`). После
+   * фазы 2 блоки читают `pkm.fields.*` и `visual.tags.*` — данных для них в том
+   * конфиге не было вовсе. Блоки рисовались пустыми, проверка «нарисовал хоть
+   * что-то» проходила, и редактор Fields с настоящими Fields, таблица Values,
+   * предупреждение о контрасте и предпросмотры дымом не проверялись. Подделка
+   * конфига оказалась подделкой плагина, как и всякая другая: она молча
+   * выключила половину проверки, и нашлось это не чтением, а прогоном панели на
+   * настоящем файле настроек.
+   *
+   * Теперь конфиг едет через настоящую `migrateConfig` из `main.js`, а форму
+   * Order доводит настоящая `normalizePkmOrder` — обе из загрузчика. Фикстура
+   * `config_v1_full.json` заморожена для этого же (Ф2-3).
+   *
+   * Свой файл настроек гоняется тем же кодом:
+   * `node tools/panel_dry_run.mjs <путь к data.json>`.
+   */
+  const internals = loadPluginInternals();
+  const realConfig: any = internals.migrateConfig(
+    JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1_full.json"), "utf8")),
+  );
+
+  const ownFields = [
+    ...(realConfig.pkm?.fields?.order?.left || []),
+    ...(realConfig.pkm?.fields?.order?.right || []),
+  ].filter((id: unknown) => id && !/_sub$/.test(String(id)));
+  if (!ownFields.length) {
+    fail("Г16: в фикстуре нет ни одного Field — редактор Fields нарисуется пустым, и дым ничего не проверит");
+  }
+
   const legacyPlugin: any = {
     app: { workspace: {}, vault: {} },
-    getConfig: () => legacyConfig,
+    manifest: { id: "inline-overhaul", version: "gate", dir: ".obsidian/plugins/inline-overhaul" },
+    getConfig: () => realConfig,
     setConfigPatch: () => {},
+    listOwnCommands: () => internals.buildOwnCommandList(legacyPlugin),
   };
   const platform = {
     Setting,
@@ -285,8 +320,8 @@ else ok("схема загружена: групп " + SCHEMA.length);
     Modal,
     setIcon: () => {},
     plugin: legacyPlugin,
-    getConfig: () => legacyConfig,
-    normalizePkmOrder,
+    getConfig: () => realConfig,
+    normalizePkmOrder: internals.normalizePkmOrder,
     pkmOrderFields: [] as string[],
   };
 
@@ -295,8 +330,47 @@ else ok("схема загружена: групп " + SCHEMA.length);
   let blocks = 0;
   let cleanups = 0;
   let tipsOpened = 0;
+  /* Подсказки своего блока, открывшиеся без подписи id. */
+  const idless = new Set<string>();
+  /*
+   * Г20: подсказка группы доезжает до панели.
+   *
+   * До 2026-09-01 `tip` группы не читался ниоткуда — в определение уходили
+   * только `heading` и `intro`, — и подсказки, написанные у каждой группы,
+   * не показывались ни на одной вкладке (замечание заказчика 1.1.1).
+   * Смотреть надо на то, что панель отдаёт платформе: расхождение было
+   * именно между схемой и определениями.
+   */
+  const groupTipsOn = new Set<string>();
+  const groupTipsOff = new Set<string>();
+  /*
+   * «?» обязан стоять **в строке заголовка**, а не под ним. Заголовку
+   * декларативный API даёт один слот — `extraButtons`, — и панель кладёт туда
+   * знак первым, перед кнопкой сброса. Заказчик четыре раза написал, что
+   * подсказки у заголовков нет, потому что знак стоял строкой ниже
+   * (B7, C11, C18, C41, C42 листа приёмки, 2026-09-02).
+   */
+  const groupMarkOn = new Set<string>();
+  const groupMarkOff = new Set<string>();
   for (const showTips of [true, false]) {
-    const store = new MemoryStore({ general: { help: { showTips } } });
+    const store = new MemoryStore(JSON.parse(JSON.stringify(realConfig)));
+    await store.set("general.help.showTips", showTips);
+    /* Подписи id включены: гейт проверяет, что они доходят и до своих блоков. */
+    await store.set("advanced.showSettingIds", true);
+    /*
+     * Все модули включены, иначе смотреть нечего.
+     *
+     * В фикстуре `visual.enabled` выключен, и до 2026-09-02 панель это
+     * игнорировала — вкладка рисовалась целиком, что и было дефектом C7.
+     * С калиткой выключенный модуль оставляет на вкладке один тумблер, и
+     * подсказки четырёх групп Visual до панели не доезжают: не потому, что их
+     * нет, а потому, что вкладка закрыта. Гейт про тексты обязан смотреть на
+     * открытые вкладки; саму калитку держат пины в
+     * `tests/regression/settings_layer_tests.ts`.
+     */
+    for (const tab of TABS as Array<{ module?: string }>) {
+      if (tab.module) await store.set(tab.module, true);
+    }
     const pane = new SettingsPane({
       schema: SCHEMA,
       tabs: TABS,
@@ -314,6 +388,75 @@ else ok("схема загружена: групп " + SCHEMA.length);
         if (Array.isArray(def["items"])) rows.push(...def["items"]);
         else rows.push(def);
       }
+      for (const def of defs) {
+        const cls = String(def["cls"] || "");
+        if (!cls.startsWith("io-group-")) continue;
+        const id = cls.slice("io-group-".length);
+        /*
+         * Знак в заголовке и его подсказка проверяются **нажатием**, а не по
+         * определениям.
+         *
+         * До 2026-09-02 гейт искал тело подсказки в `desc` вводной строки
+         * группы — и был зелёный, хотя до окна тело не доезжало ни разу:
+         * строку без `name`, `render`, `control` и `action` платформа
+         * отбрасывает до отрисовки (`app.js`, `Z2`). Поэтому здесь
+         * собирается дерево, какое строит платформа (`Xb`: группа, отдельная
+         * строка заголовка с колонкой контролов, список строк рядом),
+         * обработчик сохраняется и зовётся, а спрашивается то, что
+         * получилось в дереве.
+         */
+        const buttons = Array.isArray(def["extraButtons"]) ? def["extraButtons"] : [];
+        for (const make of buttons) {
+          if (typeof make !== "function") continue;
+          const box = makeNode("div");
+          box.className = cls;
+          const heading = box.createDiv({ cls: "setting-item setting-item-heading" });
+          const control = heading.createDiv({ cls: "setting-item-control" });
+          box.createDiv({ cls: "setting-items" });
+          const node = control.createDiv({ cls: "clickable-icon" });
+          let handler: (() => void) | null = null;
+          const stub = {
+            extraSettingsEl: node,
+            setIcon() { return stub; },
+            setTooltip() { return stub; },
+            setDisabled() { return stub; },
+            /* Обработчик СОХРАНЯЕТСЯ, иначе проверено размещение, а не
+               поведение (У-43). */
+            onClick(cb: () => void) { handler = cb; return stub; },
+          };
+          try {
+            make(stub);
+          } catch (e) {
+            fail("Г20: кнопка заголовка группы " + id + " упала: " + String(e));
+            continue;
+          }
+          if (!node.classList.contains("io-help--group")) continue;
+          (showTips ? groupMarkOn : groupMarkOff).add(id);
+          if (typeof handler !== "function") {
+            fail("Г20: «?» группы " + id + " не завёл обработчик нажатия");
+            continue;
+          }
+          (handler as unknown as () => void)();
+          const body = box.querySelector(".io-grouptip");
+          if (!body) {
+            fail("Г20: нажатие на «?» группы " + id + " не открыло подсказку");
+            continue;
+          }
+          if (box.children.indexOf(body) !== box.children.indexOf(heading) + 1) {
+            fail("Г20: тело подсказки группы " + id + " встало не за строкой заголовка");
+            continue;
+          }
+          if (!body.querySelectorAll(".io-tip__body").length) {
+            fail("Г20: подсказка группы " + id + " открылась без текста");
+            continue;
+          }
+          (showTips ? groupTipsOn : groupTipsOff).add(id);
+          (handler as unknown as () => void)();
+          if (box.querySelector(".io-grouptip")) {
+            fail("Г20: повторное нажатие не сняло подсказку группы " + id);
+          }
+        }
+      }
       for (const row of rows) {
         if (typeof row["render"] !== "function") continue;
         const host = makeNode("div");
@@ -326,10 +469,35 @@ else ok("схема загружена: групп " + SCHEMA.length);
           for (const mark of setting.settingEl.querySelectorAll(".io-help")) {
             mark.click();
             tipsOpened++;
+            /*
+             * Подпись id обязана быть в КАЖДОЙ открытой подсказке своего блока,
+             * а не только у строк схемы. Заказчик называет элементы их id, и
+             * без подписи в подсказках `Values`, `Behavior`, `YAML property` и
+             * предпросмотров ему приходилось объяснять словами, о чём речь
+             * (A3 и C52 листа приёмки, 2026-09-02).
+             */
+            const opened = setting.settingEl.querySelectorAll(".io-tip--below");
+            for (const body of opened) {
+              if (!body.querySelectorAll(".io-tip__id").length) {
+                idless.add(String(body.getAttribute("id") || row["id"] || "без id"));
+              }
+            }
             mark.click();
           }
+          /*
+           * Очистку обязан вернуть **свой блок**: он подписан на хранилище, и
+           * без снятия подписки перерисовка удваивает слушателей. Строка с
+           * кнопками (`kind: "buttons"`) тоже рисуется через `render` — с
+           * 2026-09-02 у неё настоящие кнопки с подписями, а не кликабельная
+           * строка (C9), — но подписки у неё нет, и очищать ей нечего.
+           * Отличаются они тем, что свой блок помечает строку классом
+           * `io-block` (`SettingsPane.renderCustom`).
+           */
+          const ownBlock = setting.settingEl.classList.contains("io-block");
           if (typeof cleanup === "function") { cleanup(); cleanups++; }
-          else fail("блок " + String(row["name"]) + " на вкладке " + tab.id + " не вернул функцию очистки");
+          else if (ownBlock) {
+            fail("блок " + String(row["name"]) + " на вкладке " + tab.id + " не вернул функцию очистки");
+          }
           if (!setting.settingEl.children.length) {
             fail("блок на вкладке " + tab.id + " ничего не нарисовал");
           }
@@ -339,6 +507,39 @@ else ok("схема загружена: групп " + SCHEMA.length);
       }
     }
   }
+  const groupsWithTip = SCHEMA.filter((g: any) => String(g.tip || "").trim()).map((g: any) => String(g.id));
+  const tipMissing = groupsWithTip.filter((id: string) => !groupTipsOn.has(id));
+  /*
+   * У группы с заголовком подсказка обязана быть. Восемь групп жили без неё —
+   * `Help`, `Modules`, `Writing rules`, `Prefix priority`, `Tag appearance`,
+   * `Tag Bars`, `Settings backup`, `Diagnostics`, — и по двум из них заказчик
+   * это и написал (C35, B22 упирались в `Tag appearance` и `Tag Bars`).
+   *
+   * Вводные группы-коллауты исключены не по доброте: заголовка у них нет
+   * вовсе, а знаку негде стоять, кроме строки заголовка.
+   */
+  const headedGroups = SCHEMA
+    .filter((g: any) => !/-intro$/.test(String(g.id)))
+    .map((g: any) => String(g.id));
+  const tipUnwritten = headedGroups.filter((id: string) => !groupsWithTip.includes(id));
+  const markMissing = headedGroups.filter((id: string) => !groupMarkOn.has(id));
+
+  if (!groupsWithTip.length) fail("Г20: в схеме нет ни одной группы с подсказкой — гейт ничего не проверяет");
+  else if (tipUnwritten.length) fail("Г20: у группы с заголовком нет подсказки: " + tipUnwritten.join(", "));
+  else if (tipMissing.length) fail("Г20: подсказка группы не дошла до панели: " + tipMissing.join(", "));
+  else if (groupTipsOff.size) fail("Г20: подсказки выключены, а тело подсказки у групп осталось: " + Array.from(groupTipsOff).join(", "));
+  else if (markMissing.length) fail("Г20: «?» не встал в строку заголовка группы: " + markMissing.join(", "));
+  else if (groupMarkOff.size) fail("Г20: подсказки выключены, а «?» в заголовке остался: " + Array.from(groupMarkOff).join(", "));
+  else ok("Г20: подсказка и «?» в строке заголовка у " + groupMarkOn.size + " групп из "
+    + headedGroups.length + ", с выключенными подсказками ни одной");
+
+  if (idless.size) {
+    fail("Г16: подсказка своего блока открылась без подписи id: "
+      + Array.from(idless).slice(0, 8).join(", "));
+  } else {
+    ok("Г16: подпись id есть в каждой открытой подсказке своего блока");
+  }
+
   if (!blocks) fail("Г16: ни одного своего блока не отрисовано — проверка ничего не проверяет");
   else if (!tipsOpened) fail("Г16: ни одна подсказка не открыта — проверка неполная");
   else ok("Г16: отрисовано своих блоков " + blocks + ", открыто подсказок " + tipsOpened +

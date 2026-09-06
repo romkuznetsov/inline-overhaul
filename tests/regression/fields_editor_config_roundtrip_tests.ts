@@ -148,7 +148,7 @@ function makePanel(base: Any, selected: string): {
 function baseConfig(): Any {
   return JSON.parse(JSON.stringify({
     pkm: {
-      behavior: {
+      fields: {
         order: {
           left: ["status"],
           right: ["project"],
@@ -159,12 +159,12 @@ function baseConfig(): Any {
           freeRoam: { status: "off", project: "off" },
           enabled: { status: true, project: true },
         },
-        leftMode: {
+        tags: {
           fields: [
             { id: "status", prefix: "#", values: [{ token: "todo", active: true }, { token: "doing", active: true }] },
           ],
         },
-        rightMode: {
+        links: {
           fields: [
             {
               id: "project",
@@ -179,7 +179,7 @@ function baseConfig(): Any {
 }
 
 const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
-  (cfg.pkm.behavior[side].fields as Any[]).find((f: Any) => String(f && f.id || "") === id) || null;
+  (cfg.pkm.fields[side === "leftMode" ? "tags" : "links"].fields as Any[]).find((f: Any) => String(f && f.id || "") === id) || null;
 
 /* ======================================================================
  * Тег: контрольный случай. Он в vault работает, и здесь обязан работать.
@@ -286,14 +286,14 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
    */
   const p = makePanel(baseConfig(), "project");
   const set = p.store.getSnapshot();
-  const before = (set.pkm.behavior.rightMode.fields as Any[]).find((f: Any) => f.id === "project");
+  const before = (set.pkm.fields.links.fields as Any[]).find((f: Any) => f.id === "project");
   assert.ok(before, "ссылка на месте");
 
   p.store.patch({
     pkm: {
-      behavior: {
-        rightMode: {
-          fields: (set.pkm.behavior.rightMode.fields as Any[]).map((f: Any) =>
+      fields: {
+        links: {
+          fields: (set.pkm.fields.links.fields as Any[]).map((f: Any) =>
             (f.id === "project" ? { ...f, dependsOn: "status", enabledForParentValues: ["#todo"] } : f)),
         },
       },
@@ -301,7 +301,7 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
   }, "pkm:behavior:order:prerequisite:project");
 
   const after = p.cfg();
-  const field = (after.pkm.behavior.rightMode.fields as Any[]).find((f: Any) => f.id === "project");
+  const field = (after.pkm.fields.links.fields as Any[]).find((f: Any) => f.id === "project");
   assert.ok(field, "ссылка не потерялась");
   assert.equal(field.dependsOn, "status", "`dependsOn` пережил migrateConfig");
   assert.deepEqual(field.enabledForParentValues, ["#todo"],
@@ -331,7 +331,7 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
   assert.equal(fieldById(cfg, "rightMode", "project"), null, "ссылка удалена");
   assert.equal(fieldById(cfg, "rightMode", "project_sub"), null,
     "и дочерний Field ушёл вместе с ней, а не остался сиротой в rightMode");
-  assert.ok(!(cfg.pkm.behavior.order.right as string[]).includes("project"),
+  assert.ok(!(cfg.pkm.fields.order.right as string[]).includes("project"),
     "ключ ссылки убран из Right Block — этим и уносится дочерний");
 
   /*
@@ -351,7 +351,7 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
    */
   const del = p.writes.find(w => w.reason.startsWith("pkm:behavior:delete-field:"));
   assert.ok(del, "патч удаления написан");
-  assert.deepEqual((del.patch.pkm.behavior.rightMode.fields as Any[]).map((f: Any) => String(f && f.id || "")), [],
+  assert.deepEqual((del.patch.pkm.fields.links.fields as Any[]).map((f: Any) => String(f && f.id || "")), [],
     "и правый список в нём уже пуст: дочернего убрал патч Order до него");
   ok("удаление ссылки уносит её дочерний Field (правая сторона)");
 }
@@ -381,9 +381,9 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
   const snap = p.store.getSnapshot();
   p.store.patch({
     pkm: {
-      behavior: {
-        rightMode: {
-          fields: (snap.pkm.behavior.rightMode.fields as Any[]).map((f: Any) =>
+      fields: {
+        links: {
+          fields: (snap.pkm.fields.links.fields as Any[]).map((f: Any) =>
             (f.id === "project" ? { ...f, dependsOn: "status", enabledForParentValues: ["#todo"] } : f)),
         },
       },
@@ -400,6 +400,142 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
   assert.ok(!link.enabledForParentValues || !link.enabledForParentValues.length,
     "и список значений вместе с ним: без `dependsOn` рантайм его не читает");
   ok("удаление Field снимает чужое предусловие на него — на настоящем пути записи");
+}
+
+
+/* ======================================================================
+ * Переименование Field: карандаш в шапке правой колонки (замечание 1.3.1).
+ *
+ * Дефект был не в окне и не в модели, а в нормализации: панель принимала имя
+ * с заглавными и пробелами, первый проход `normalizePkmOrder` — тоже, а
+ * второй требовал `^[a-z0-9_-]+$` и **молча** возвращал имя к исходному
+ * ключу. Со стороны это выглядело так, что кнопка `Rename` не делает ничего.
+ *
+ * Проверять это можно только на настоящем пути записи: своё слияние патчей
+ * нормализацию не зовёт вовсе и было бы зелёным всё это время.
+ * ====================================================================== */
+
+{
+  const p = makePanel(baseConfig(), "status");
+  await p.model().setStrictName("status", "My Field");
+  assert.equal(p.cfg().pkm.fields.order.strictNames.status, "My Field",
+    "имя с заглавной и пробелом переживает настоящий путь записи");
+  assert.equal(internals.getOrderStrictName(p.cfg(), "status"), "My Field",
+    "и заметка конфигурации зовёт Field новым именем, а не ключом");
+  ok("переименование Field доезжает до конфига и до заметки конфигурации");
+}
+
+{
+  const p = makePanel(baseConfig(), "status");
+  await p.model().setStrictName("status", "Status2");
+  assert.equal(p.cfg().pkm.fields.order.strictNames.status, "Status2",
+    "заглавная в имени больше не откатывает переименование");
+  ok("заглавная буква в имени Field не теряется");
+}
+
+{
+  const p = makePanel(baseConfig(), "status");
+  const res = await p.model().setStrictName("status", "no/slash");
+  assert.equal(res.ok, false, "имя с косой чертой панель не принимает");
+  assert.ok(String(res.error || ""), "и говорит, почему");
+  assert.equal(p.cfg().pkm.fields.order.strictNames.status, "status",
+    "а конфиг остаётся прежним");
+  ok("недопустимое имя отклоняется вслух, а не молча");
+}
+
+{
+  const p = makePanel(baseConfig(), "status");
+  const res = await p.model().setStrictName("status", "project");
+  assert.equal(res.ok, false, "занятое имя не отдаётся второму Field");
+  assert.equal(p.cfg().pkm.fields.order.strictNames.status, "status",
+    "и конфиг не меняется");
+  ok("два Field не получают одно имя");
+}
+
+/*
+ * Короткое имя идёт за системным, если человек своего не задавал.
+ *
+ * Левая колонка редактора рисует `labels`, а карандаш меняет `strictNames`.
+ * Запись в `labels` есть у каждого Field всегда — заведение сажает туда ключ,
+ * — поэтому до правки переименование меняло имя в правой колонке, а слева
+ * оставалось старое (замечание заказчика B9, 2026-09-02).
+ *
+ * Фикстура берётся в том виде, в каком её делает заведение Field: подпись
+ * равна системному имени. Ожидание выписано отдельно от того, из чего оно
+ * считается (У-5).
+ */
+function configWithDefaultLabels(): Any {
+  const cfg = baseConfig();
+  cfg.pkm.fields.order.labels = { status: "status", project: "project" };
+  return cfg;
+}
+
+{
+  const p = makePanel(configWithDefaultLabels(), "status");
+  const res = await p.model().setStrictName("status", "Work status");
+  assert.equal(res.ok, true, "переименование прошло");
+  const order = p.cfg().pkm.fields.order;
+  assert.equal(order.strictNames.status, "Work status", "системное имя новое");
+  assert.equal(order.labels.status, "Work status",
+    "и подпись в левой колонке новая: получилось " + JSON.stringify(order.labels));
+  assert.equal(order.labels.project, "project", "чужой Field не тронут");
+  ok("подпись следует за системным именем, когда своей не задавали");
+}
+
+{
+  const cfg = configWithDefaultLabels();
+  /* Своё короткое имя: его переименование трогать не должно. */
+  cfg.pkm.fields.order.labels.status = "Стадия";
+  const p = makePanel(cfg, "status");
+  const res = await p.model().setStrictName("status", "Work status");
+  assert.equal(res.ok, true, "переименование прошло");
+  const order = p.cfg().pkm.fields.order;
+  assert.equal(order.strictNames.status, "Work status", "системное имя новое");
+  assert.equal(order.labels.status, "Стадия",
+    "своё короткое имя осталось: получилось " + JSON.stringify(order.labels));
+  ok("своё короткое имя переименование не трогает");
+}
+
+/*
+ * Подписи у дочернего Field в конфиге не бывает — ни от заведения, ни от
+ * переименования, ни из принесённого файла.
+ *
+ * Своего короткого имени у дочки нет: контрола под него в панели нет (решение
+ * В7 — строка дочернего Field не рисуется), а имя для TagWheel выводится из
+ * имени родителя в `applyOrderToRules`. Проверка стоит здесь не как пин на
+ * снятую запись, а как **предпосылка вывода**: пока `normalizePkmOrder`
+ * перебирает `labels` только по родительским ключам, дочке достаётся ровно то,
+ * что вывели, и спорить с выводом нечему. Начнёт доезжать — вывод перестанет
+ * работать, и заказчик снова увидит `category sub` вместо `Cat_sub` (D12).
+ */
+{
+  const p = makePanel(baseConfig(), "status");
+  const res = await p.model().addField("client", "tag");
+  assert.equal(res.ok, true, "Field заведён: " + JSON.stringify(res));
+  const order = p.cfg().pkm.fields.order;
+  assert.equal(order.active.client_sub, "no", "дочка заведена и выключена: " + JSON.stringify(order.active));
+  assert.ok(
+    !order.labels.client_sub,
+    "подписи у дочки нет: получилось " + JSON.stringify(order.labels),
+  );
+  ok("заведение Field не пишет подпись дочернему");
+}
+
+{
+  const cfg = configWithDefaultLabels();
+  /* Принесённый файл: подпись дочки в нём есть, и она обязана быть отброшена. */
+  cfg.pkm.fields.order.labels.status_sub = "status sub";
+  cfg.pkm.fields.order.active = { ...(cfg.pkm.fields.order.active || {}), status_sub: "no" };
+  const p = makePanel(cfg, "status");
+  const res = await p.model().setStrictName("status", "Work status");
+  assert.equal(res.ok, true, "переименование прошло");
+  const order = p.cfg().pkm.fields.order;
+  assert.ok(
+    !order.labels.status_sub,
+    "подпись дочки из принесённого файла не доехала: получилось " + JSON.stringify(order.labels),
+  );
+  assert.equal(order.labels.status, "Work status", "родителю подпись переименование обновило");
+  ok("подпись дочки не доезжает до конфига даже из принесённого файла");
 }
 
 console.log("\n" + passed + " проверок пройдено");

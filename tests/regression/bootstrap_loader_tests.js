@@ -143,9 +143,6 @@ function assertNoCanonicalOrderKeyLiteralsInRuntime(filePath, source) {
 
 async function run() {
   const mainPath = path.join(__dirname, "..", "..", "main.js");
-  const codecPath = path.join(__dirname, "..", "..", "src", "features", "tagwheel_config_codec.js");
-  const parserPath = path.join(__dirname, "..", "..", "src", "features", "tagwheel_config_parser.js");
-  const codecFallbackPath = path.join(__dirname, "..", "..", "src", "features", "tagwheel_config_codec_fallback.js");
   const configMigrationPath = path.join(__dirname, "..", "..", "src", "core", "config_migration.js");
   const runtimeLiteralGuardPaths = [
     path.join(__dirname, "..", "..", "main.js"),
@@ -173,8 +170,8 @@ async function run() {
   const statusLineRuntimeUnifiedPath = path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js");
   const pkmRuntimeV2Path = path.join(__dirname, "..", "..", "pkm_runtime_v2.js");
   const vaultBridgePath = path.join(__dirname, "..", "..", "src", "core", "vault_module_bridge.js");
-  const configNoteOrchestratorPath = path.join(__dirname, "..", "..", "src", "features", "config_note_orchestrator.js");
-  const configNoteHelpersPath = path.join(__dirname, "..", "..", "src", "features", "config_note_helpers.js");
+  const rulesMarkdownBuilderPath = path.join(__dirname, "..", "..", "src", "features", "rules_markdown_builder.js");
+  const commandIdsPath = path.join(__dirname, "..", "..", "src", "features", "command_ids.js");
   const commandRegistryPath = path.join(__dirname, "..", "..", "src", "features", "command_registry.js");
   const priorityStripEnginePath = path.join(__dirname, "..", "..", "src", "core", "priority_strip_engine.js");
   const priorityStripAdapterPath = path.join(__dirname, "..", "..", "src", "core", "priority_strip_cm6_adapter.js");
@@ -183,9 +180,6 @@ async function run() {
   const tagwheelPath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js");
   const tagwheelCorePath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js");
   const src = fs.readFileSync(mainPath, "utf8");
-  const codecSrc = fs.readFileSync(codecPath, "utf8");
-  const parserSrc = fs.readFileSync(parserPath, "utf8");
-  const codecFallbackSrc = fs.readFileSync(codecFallbackPath, "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -202,8 +196,8 @@ async function run() {
   const statusLineRuntimeUnifiedSrc = fs.readFileSync(statusLineRuntimeUnifiedPath, "utf8");
   const pkmRuntimeV2Src = fs.readFileSync(pkmRuntimeV2Path, "utf8");
   const vaultBridgeSrc = fs.readFileSync(vaultBridgePath, "utf8");
-  const configNoteOrchestratorSrc = fs.readFileSync(configNoteOrchestratorPath, "utf8");
-  const configNoteHelpersSrc = fs.readFileSync(configNoteHelpersPath, "utf8");
+  const rulesMarkdownBuilderSrc = fs.readFileSync(rulesMarkdownBuilderPath, "utf8");
+  const commandIdsSrc = fs.readFileSync(commandIdsPath, "utf8");
   const commandRegistrySrc = fs.readFileSync(commandRegistryPath, "utf8");
   /*
    * Редактор Fields и его помощники переехали в слой настроек (фаза 3b, пункт
@@ -246,8 +240,6 @@ async function run() {
   const pkmRuntimeV2 = require(pkmRuntimeV2Path);
   const tagwheelCore = require(tagwheelCorePath);
   const lineFinalizerUnified = require(pkmLineFinalizeUnifiedPath);
-  const tagwheelConfigParser = require(parserPath);
-  const configNoteHelpers = require(configNoteHelpersPath);
   const priorityStripEngine = require(priorityStripEnginePath);
   const priorityStripAdapter = require(priorityStripAdapterPath);
 
@@ -262,287 +254,9 @@ async function run() {
   assertEq(lineFinalizerUnified.normalizeCheckboxToken("[   ]"), "[ ]", "shared checkbox normalizer trims blank checkbox token");
   assertEq(lineFinalizerUnified.normalizeCheckboxToken("[I]"), "[I]", "shared checkbox normalizer preserves non-empty token");
 
-  const helpersFixture = configNoteHelpers.createConfigNoteHelpers({
-    normalizePkmOrder: (x) => x || { left: [], right: [], enabled: {}, strictNames: {} },
-    getOrderStrictName: (cfg, key) => {
-      const strict = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.order && cfg.pkm.behavior.order.strictNames
-        ? cfg.pkm.behavior.order.strictNames
-        : {};
-      return strict[key] || key;
-    },
-  });
-  const helperCfgFixture = {
-    pkm: {
-      behavior: {
-        order: {
-          left: ["type"],
-          right: ["client1", "clients"],
-          strictNames: { type: "type", client1: "client1", clients: "clients" },
-        },
-        leftMode: {
-          fields: [
-            { id: "type", prefix: "#", kind: "tag" },
-          ],
-        },
-        rightMode: {
-          fields: [
-            { id: "client1", prefix: "#", kind: "tag" },
-            { id: "clients", source: "wikilinks:clients", kind: "tag" },
-          ],
-        },
-      },
-    },
-  };
-  const helperSections = helpersFixture.collectTagSections(helperCfgFixture).map((x) => x.sectionId);
-  assertEq(JSON.stringify(helperSections), JSON.stringify(["type", "client1", "clients"]), "config helpers collectTagSections includes ordered right-panel tag/wikilink sections");
-  const helperWikilinks = helpersFixture.collectWikilinkFieldIds(helperCfgFixture);
-  assertEq(JSON.stringify(helperWikilinks), JSON.stringify(["clients"]), "config helpers collectWikilinkFieldIds includes right-panel wikilink fields");
+  /* Фикстуры разборщика и помощников конфиг-заметки сняты 2026-09-03
+     вместе с ней: разбирать больше нечего (PRD 10.12). */
 
-  const parserFixture = tagwheelConfigParser.createTagWheelConfigParser({
-    isObj: (x) => x && typeof x === "object" && !Array.isArray(x),
-    collectTagSections: () => ([
-      { sectionId: "type", fieldId: "type", subFieldId: "type_sub" },
-      { sectionId: "clients", fieldId: "clients", subFieldId: "" },
-    ]),
-    collectWikilinkFieldIds: (cfg) => {
-      const out = [];
-      const pushFieldId = (field) => {
-        const f = field && typeof field === "object" ? field : {};
-        const id = String(f.id || "").trim();
-        if (!id || out.indexOf(id) !== -1) return;
-        const source = String(f.source || "").trim();
-        if (source === "projects" || source.indexOf("wikilinks:") === 0) out.push(id);
-      };
-      const left = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.leftMode && Array.isArray(cfg.pkm.behavior.leftMode.fields)
-        ? cfg.pkm.behavior.leftMode.fields
-        : [];
-      const right = cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior.rightMode && Array.isArray(cfg.pkm.behavior.rightMode.fields)
-        ? cfg.pkm.behavior.rightMode.fields
-        : [];
-      for (let i = 0; i < left.length; i++) pushFieldId(left[i]);
-      for (let i = 0; i < right.length; i++) pushFieldId(right[i]);
-      return out;
-    },
-    parseCustomPrefixResolverBlock: () => null,
-    isWikilinkToken: (text) => /^\[\[[^\]]+\]\](?:\s*-\s*[A-Za-z0-9_\-]+)?$/.test(String(text || "").trim()),
-    parseWikilinkLineStrict: (text, secName, line, allowed, options) => {
-      const m = String(text || "").trim().match(/^\[\[([^\]]+)\]\](?:\s*-\s*([A-Za-z0-9_\-]+))?$/);
-      if (!m) throw new Error(`Section #### ${secName}, line ${line}: invalid wikilink line`);
-      const allowedFields = Array.isArray(allowed) ? allowed.map((x) => String(x || "").trim()).filter(Boolean) : [];
-      const explicit = String(m[2] || "").trim();
-      const requireExplicit = !!(options && options.requireExplicitFieldId === true);
-      if (requireExplicit && !explicit) {
-        throw new Error(`Section #### ${secName}, line ${line}: field id is required for wikilink in mixed tag/wikilink section`);
-      }
-      if (!explicit && allowedFields.length > 1) {
-        throw new Error(`Section #### ${secName}, line ${line}: field id is required for wikilink when multiple fields are available (${allowedFields.join(", ")})`);
-      }
-      const fieldId = explicit || String(allowedFields[0] || "").trim();
-      if (!fieldId) throw new Error(`Section #### ${secName}, line ${line}: no wikilink fields are configured`);
-      return { token: String(m[1] || "").trim(), fieldId };
-    },
-    extractFirstTagToken: (text) => {
-      const m = String(text || "").match(/#\S+/);
-      return m ? String(m[0]) : "";
-    },
-    parseCheckboxAndTag: () => ({ checkbox: "" }),
-    denormTagToken: (token) => String(token || "").trim(),
-    getOrderStrictName: (fieldId) => {
-      const id = String(fieldId || "").trim();
-      if (id === "date_due" || id === "due") return "date_due";
-      if (id === "date_start" || id === "start") return "date_start";
-      if (id === "time" || id === "timeNow" || id === "estimated") return "time";
-      return id;
-    },
-    CFG_H1_SETTINGS: "Settings",
-    CFG_H2_DATES: "DATES+TIME",
-    CFG_H2_ELEMENTS: "ELEMENTS",
-    CFG_H2_ELEMENTS_COMBINED: "DATE/TIME + ELEMENTS",
-    TAGWHEEL_PREFIX_RESOLVER_SECTION: "PREFIX RESOLVER",
-    TAGWHEEL_WIKILINK_SECTION: "WIKILINKS",
-  });
-
-  const mdFixture = [
-    "## Settings",
-    "- separator1: ||",
-    "- separator2: ||",
-    "### TAGS/SUBTAGS + WIKILINKS",
-    "#### type",
-    "- #todo",
-    "#### clients",
-    "- [[ClientA]]",
-    "##### Orphan wikilinks - link",
-    "- [[ClientOrphan]] - clients",
-    "### PREFIX RESOLVER",
-    "- mode: by-section",
-    "- section-order: type, clients",
-    "### `📅DATE/🕑TIME ➕ELEMENTS`",
-    "##### date_due",
-    "- Emoji: 📅",
-    "##### date_start",
-    "- Emoji: 🛫",
-    "##### time",
-    "- Emoji: 🕒",
-    "",
-  ].join("\n");
-  const parsedFixture = parserFixture(mdFixture, {
-    pkm: {
-      behavior: {
-        leftMode: {
-          fields: [
-            { id: "project", source: "projects" },
-            { id: "clients", source: "wikilinks:clients" },
-            { id: "type", source: "tags" },
-          ],
-        },
-        rightMode: {
-          fields: [
-            { id: "due", kind: "dateOffset" },
-            { id: "start", kind: "dateOffset" },
-            { id: "timeNow", kind: "nowTime" },
-          ],
-        },
-      },
-    },
-  });
-  assertTrue(!!(parsedFixture.sections && parsedFixture.sections.clients), "config parser behavior: clients section parsed");
-  assertTrue(!!(parsedFixture.sections && parsedFixture.sections.clients && parsedFixture.sections.clients.wikilinks && parsedFixture.sections.clients.wikilinks.clients), "config parser behavior: clients wikilink defaults are section-scoped");
-  assertTrue(Array.isArray(parsedFixture.orphanWikilinks && parsedFixture.orphanWikilinks.clients) && parsedFixture.orphanWikilinks.clients.indexOf("ClientOrphan") !== -1, "config parser behavior: orphan wikilinks section is parsed and mapped by field id");
-  const byFieldDateFixture = parsedFixture && parsedFixture.datesConfig && parsedFixture.datesConfig.byField && typeof parsedFixture.datesConfig.byField === "object"
-    ? parsedFixture.datesConfig.byField
-    : {};
-  const byFieldElemFixture = parsedFixture && parsedFixture.elementsConfig && parsedFixture.elementsConfig.byField && typeof parsedFixture.elementsConfig.byField === "object"
-    ? parsedFixture.elementsConfig.byField
-    : {};
-  assertTrue(Object.keys(byFieldDateFixture).length + Object.keys(byFieldElemFixture).length > 0, "config parser behavior: combined DATE/TIME + ELEMENTS block is parsed into field config maps");
-
-  const mdMixedNoFieldSingle = [
-    "## Settings",
-    "- separator1: ||",
-    "- separator2: ||",
-    "### TAGS/SUBTAGS + WIKILINKS",
-    "#### type",
-    "- #team",
-    "- [[ClientA]]",
-    "### PREFIX RESOLVER",
-    "- mode: by-section",
-    "- section-order: type",
-  ].join("\n");
-  const parsedMixedSingle = parserFixture(mdMixedNoFieldSingle, {
-    pkm: {
-      behavior: {
-        leftMode: { fields: [{ id: "clients", source: "wikilinks:clients" }] },
-        rightMode: { fields: [] },
-      },
-    },
-  });
-  assertTrue(
-    !!(parsedMixedSingle.sections && parsedMixedSingle.sections.type && parsedMixedSingle.sections.type.wikilinks && parsedMixedSingle.sections.type.wikilinks.clients),
-    "config parser behavior: mixed tag+wikilink section allows wikilink without explicit field when link target is unambiguous"
-  );
-
-  const mdMixedNoFieldAmbiguous = [
-    "## Settings",
-    "- separator1: ||",
-    "- separator2: ||",
-    "### TAGS/SUBTAGS + WIKILINKS",
-    "#### type",
-    "- #team",
-    "- [[ClientA]]",
-    "### PREFIX RESOLVER",
-    "- mode: by-section",
-    "- section-order: type",
-  ].join("\n");
-  let mixedFailMsg = "";
-  try {
-    parserFixture(mdMixedNoFieldAmbiguous, {
-      pkm: {
-        behavior: {
-          leftMode: {
-            fields: [
-              { id: "clients", source: "wikilinks:clients" },
-              { id: "project", source: "projects" },
-            ],
-          },
-          rightMode: { fields: [] },
-        },
-      },
-    });
-  } catch (e) {
-    mixedFailMsg = String(e && e.message ? e.message : e || "");
-  }
-  assertTrue(/field id is required for wikilink/i.test(mixedFailMsg), "config parser behavior: mixed tag+wikilink section requires explicit field id only when link target is ambiguous");
-
-  const mdOrphanNoFieldSingle = [
-    "## Settings",
-    "- separator1: ||",
-    "- separator2: ||",
-    "### TAGS/SUBTAGS + WIKILINKS",
-    "#### clients",
-    "- [[ClientA]]",
-    "##### Orphan wikilinks",
-    "- [[ClientOrphan]]",
-    "### PREFIX RESOLVER",
-    "- mode: by-section",
-    "- section-order: clients",
-  ].join("\n");
-  const parsedOrphanSingle = parserFixture(mdOrphanNoFieldSingle, {
-    pkm: {
-      behavior: {
-        leftMode: { fields: [{ id: "clients", source: "wikilinks:clients" }] },
-        rightMode: { fields: [] },
-      },
-    },
-  });
-  const orphanSingleKeys = Object.keys(parsedOrphanSingle.orphanWikilinks || {});
-  const orphanSingleHasValue = orphanSingleKeys.some((k) => {
-    const arr = Array.isArray(parsedOrphanSingle.orphanWikilinks[k]) ? parsedOrphanSingle.orphanWikilinks[k] : [];
-    return arr.indexOf("ClientOrphan") !== -1 || arr.indexOf("[[ClientOrphan]]") !== -1;
-  });
-  assertTrue(
-    orphanSingleHasValue,
-    "config parser behavior: orphan link section allows wikilink without explicit field id"
-  );
-  assertTrue(
-    Array.isArray(parsedOrphanSingle.sectionOrder) && parsedOrphanSingle.sectionOrder.indexOf("Orphan wikilinks") !== -1,
-    "config parser behavior: orphan link section participates in parsed section order"
-  );
-
-  const mdOrphanNoFieldMultiGlobal = [
-    "## Settings",
-    "- separator1: ||",
-    "- separator2: ||",
-    "### TAGS/SUBTAGS + WIKILINKS",
-    "#### clients",
-    "- [[ClientA]]",
-    "##### Orphan wikilinks - link",
-    "- [[ClientOrphan]]",
-    "### PREFIX RESOLVER",
-    "- mode: by-section",
-    "- section-order: clients",
-  ].join("\n");
-  const parsedOrphanMultiGlobal = parserFixture(mdOrphanNoFieldMultiGlobal, {
-    pkm: {
-      behavior: {
-        leftMode: {
-          fields: [
-            { id: "clients", source: "wikilinks:clients" },
-            { id: "project", source: "projects" },
-          ],
-        },
-        rightMode: { fields: [] },
-      },
-    },
-  });
-  const orphanMultiKeys = Object.keys(parsedOrphanMultiGlobal.orphanWikilinks || {});
-  const orphanMultiHasValue = orphanMultiKeys.some((k) => {
-    const arr = Array.isArray(parsedOrphanMultiGlobal.orphanWikilinks[k]) ? parsedOrphanMultiGlobal.orphanWikilinks[k] : [];
-    return arr.indexOf("ClientOrphan") !== -1 || arr.indexOf("[[ClientOrphan]]") !== -1;
-  });
-  assertTrue(
-    orphanMultiHasValue,
-    "config parser behavior: orphan link section remains unambiguous by section context even with multiple global link fields"
-  );
 
   assertTrue(/async function loadSharedUtilsSafe\(app\)/.test(src), "shared safe loader exists");
   assertTrue(/await loadSharedUtilsSafe\(this\.app\);/.test(src), "shared safe loader called in onload");
@@ -580,20 +294,6 @@ async function run() {
   assertTrue(/cacheKey: "runtime:navigation"/.test(src), "navigation cache key wired");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/pkm_runtime_v2\.js"/.test(src), "pkm runtime v2 uses shared vault fallback helper");
   assertTrue(/cacheKey: "runtime:pkm-v2"/.test(src), "pkm runtime cache key wired");
-  assertTrue(/const sectionIsMixedWikilinks = sectionWikilinkFieldIds\.length > 1;/.test(codecSrc), "config codec generate uses mixed-context detection for wikilink field-id rendering");
-  assertTrue(/if \(!sectionIsMixedWikilinks\) \{[\s\S]*?tagsBody\.push\(`\$\{indent\}- \$\{tokenOut\}`\);/.test(codecSrc), "config codec generate omits explicit field id in unambiguous section contexts");
-  assertTrue(/if \(!hasOwnSourceNode && !parents\.length\) tagsBody\.push\("- "\);/.test(codecSrc), "config codec emits empty bullet placeholder for empty sections");
-  assertFalse(/tagsBody\.push\("- #example"\);/.test(codecSrc), "config codec no longer emits #example placeholder for empty sections");
-  assertTrue(/const orphanIsMixedWikilinks = orphanFieldIds\.length > 1;/.test(codecSrc), "config codec generate uses mixed-context detection for orphan wikilinks");
-  assertTrue(/tagsBody\.push\("##### Orphan wikilinks - link"\);/.test(codecSrc), "config codec generate keeps orphan section kind as - link");
-  assertTrue(/const activeWikilinkFieldSet = new Set\(/.test(codecSrc), "config codec filters orphan section by active wikilink fields");
-  assertTrue(/const parsedWikilinkFieldIds = Array\.isArray\(parsed\.wikilinkFields\)/.test(configNoteOrchestratorSrc), "config apply materializes taxonomy wikilink fields into runtime fields/order");
-  assertTrue(/behaviorCfg\.order\.right = dedupeOrder\(behaviorCfg\.order\.right\);/.test(configNoteOrchestratorSrc), "config apply deduplicates order.right after section materialization");
-  assertTrue(/behaviorCfg\.order\.right = behaviorCfg\.order\.right\.filter\(\(id\) => !leftSet\.has\(String\(id \|\| ""\)\.trim\(\)\)\);/.test(configNoteOrchestratorSrc), "config apply preserves placement by removing left-duplicates from order.right");
-  assertTrue(/for \(const fieldId of rightSet\.values\(\)\)/.test(configNoteOrchestratorSrc), "config apply reconciles wikilink field placement to match order.right");
-  assertTrue(/if \(!mergeEntries\.length && !orphanList\.length\) return \[\];/.test(configNoteOrchestratorSrc), "config apply keeps orphan-only wikilink values when section-bound entries are absent");
-  assertTrue(/const isPlaceholderOnly = rows\.length === 1 && String\(rows\[0\] \|\| ""\)\.trim\(\) === "";/.test(configNoteOrchestratorSrc), "config apply promotes orphan-only rows into deep-editor values when wikilink field is placeholder-only");
-  assertTrue(/const activeWikilinkFieldIds = new Set\(\);/.test(configNoteOrchestratorSrc), "config apply builds active wikilink field set for orphan cleanup");
   assertTrue(/async function loadPriorityStripEngineSafe\(app\)/.test(src), "priority strip engine safe loader exists");
   assertTrue(/async function loadPriorityStripAdapterSafe\(app\)/.test(src), "priority strip adapter safe loader exists");
   assertTrue(/await loadPriorityStripEngineSafe\(this\.app\);/.test(src), "priority strip engine safe loader called in onload");
@@ -621,8 +321,6 @@ async function run() {
   assertTrue(/text: "Color your Tags"/.test(rendererPairSrc), "settings renderer renders Color your Tags block header");
   assertTrue(/Soft warning: User tags count exceeded 300\./.test(rendererPairSrc), "settings renderer includes User tags soft warning copy");
   assertTrue(/Color settings are hidden\. Enable: Tag & PKM > Order > Show color settings\./.test(rendererPairSrc), "settings renderer shows explicit hint when tag color controls are hidden");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/config_note_orchestrator\.js"/.test(src), "config note orchestrator uses shared vault fallback helper");
-  assertTrue(/cacheKey: "feature:config-note-orchestrator"/.test(src), "config note orchestrator cache key wired");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/rules_sync_orchestrator\.js"/.test(src), "rules sync orchestrator uses shared vault fallback helper");
   assertTrue(/cacheKey: "feature:rules-sync-orchestrator"/.test(src), "rules sync orchestrator cache key wired");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/store_events_orchestrator\.js"/.test(src), "store events orchestrator uses shared vault fallback helper");
@@ -658,20 +356,26 @@ async function run() {
   assertTrue(/buildCoreCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty core defs");
   assertTrue(/buildNavigationCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty nav defs");
   assertTrue(/buildPkmCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty pkm defs");
-  assertTrue(/inlineOverhaul_Hotkey_\$\{strict\}_\$\{dir\}/.test(commandRegistrySrc), "command registry uses new hotkey command ID template");
+  /*
+   * Схема идентификатора команды живёт в одном модуле (`command_ids.js`), и
+   * реестр её не повторяет: из трёх копий вырос дефект Б-11. Проверяется не
+   * шаблон строки, а то, что реестр спрашивает модуль.
+   */
+  assertTrue(/__commandIds\.pkmFieldCommandId\(strict, dir, usedIds\)/.test(commandRegistrySrc), "command registry asks the shared module for field command IDs");
+  assertFalse(/inlineOverhaul_/.test(commandRegistrySrc), "command registry has no legacy command ID of its own");
+  assertTrue(/"inlineOverhaul_Hotkey_" \+ String\(strictName \|\| ""\)\.trim\(\) \+ "_" \+ dir/.test(commandIdsSrc), "shared module remembers the legacy field command ID for the rename map");
+  assertTrue(/\["inlineOverhaul_Navigation_MoveUp", "move-line-up"\]/.test(commandIdsSrc), "rename map carries the fixed commands");
   assertFalse(/inlineOverhaul_PKM_/.test(commandRegistrySrc), "command registry has no legacy PKM command IDs");
   assertTrue(/cycle_field:importance|cycle_field:\$\{key\}/.test(commandRegistrySrc), "importance hotkeys route through generic cycle_field action");
   assertFalse(/"statusImportance"/.test(commandRegistrySrc), "command registry no longer binds importance hotkeys to statusImportance runtime");
   assertFalse(/command === "statusImportance"/.test(pkmRuntimeV2Src), "pkm_runtime_v2 has no statusImportance command route");
   assertFalse(/status_importance\.js/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer loads status_importance module");
-  assertTrue(/buildConfigCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty config defs");
 
   assertFalse(/const\s*\{[^\n]*buildNavigationCommandDefs[^\n]*\}\s*=\s*require\("\.\/src\/features\/command_registry\.js"\)/.test(src), "no top-level direct command registry import");
 
   assertTrue(/command registry unavailable: core commands skipped/.test(src), "core skip guard exists");
   assertTrue(/command registry unavailable: navigation commands skipped/.test(src), "navigation skip guard exists");
   assertTrue(/command registry unavailable: PKM commands skipped/.test(src), "pkm skip guard exists");
-  assertTrue(/command registry unavailable: config commands skipped/.test(src), "config skip guard exists");
   assertTrue(/const moveKeys = \[key\];/.test(rendererPairSrc), "order board dnd initializes moved key bundle");
   assertTrue(/const subKey = getSubKeyForParent\(key\);/.test(rendererPairSrc), "order board dnd resolves sub key for parent");
   assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "order board dnd inserts parent and sub together");
@@ -679,47 +383,14 @@ async function run() {
   assertTrue(/freeRoamSelect\.createEl\("option", \{ text: "off", value: "off" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "minimal", value: "minimal" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "full", value: "full" \}\);/.test(rendererPairSrc), "free roam select uses off\/minimal\/full options");
   assertTrue(/activeSelect\.createEl\("option", \{ text: "yes", value: "yes" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "no", value: "no" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "hotkey_only", value: "hotkey_only" \}\);/.test(rendererPairSrc), "active select uses yes\/no\/hotkey_only options");
 
-  assertTrue(/function getConfigNoteOrchestrator\(\)/.test(src), "config note orchestrator getter exists");
-  assertTrue(/async function loadConfigNoteOrchestratorSafe\(app\)/.test(src), "config note orchestrator safe loader exists");
-  assertTrue(/await loadConfigNoteOrchestratorSafe\(this\.app\);/.test(src), "config note orchestrator safe loader called in onload");
-  assertTrue(/typeof mod\.applyTagWheelConfigNote === "function"/.test(src), "config note orchestrator apply contract required");
-  assertTrue(/async applyTagWheelConfigNote\(\) \{\s*throw new Error\("Config note orchestrator unavailable"\);\s*\}/.test(src), "config note orchestrator fallback apply exists");
 
-  assertTrue(/async function loadTagWheelConfigCodecSafe\(app\)/.test(src), "tagwheel config codec safe loader exists");
-  assertTrue(/require\("\.\/src\/features\/tagwheel_config_codec_fallback\.js"\)/.test(src), "main delegates heavy codec fallback to dedicated module");
-  assertTrue(/async function loadTagWheelConfigParserSafe\(app\)/.test(src), "tagwheel config parser safe loader exists");
-  assertFalse(/await loadTagWheelConfigParserSafe\(this\.app\);\s*await loadConfigNoteHelpersSafe\(this\.app\);/.test(src), "tagwheel config parser is not eagerly loaded in onload path");
-  assertTrue(/async applyTagWheelConfigNote\(\) \{[\s\S]*?await loadTagWheelConfigParserSafe\(this\.app\);\s*await loadTagWheelConfigCodecSafe\(this\.app\);/.test(src), "tagwheel config parser is lazy-loaded on apply path");
-  assertTrue(/cacheKey: "feature:tagwheel-config-parser"/.test(src), "tagwheel config parser cache key wired");
-  assertTrue(/await loadTagWheelConfigCodecSafe\(this\.app\);/.test(src), "tagwheel config codec safe loader called in onload");
   assertTrue(/async function loadRulesMarkdownBuilderSafe\(app\)/.test(src), "rules markdown builder safe loader exists");
   assertTrue(/await loadRulesMarkdownBuilderSafe\(this\.app\);/.test(src), "rules markdown builder safe loader called in onload");
   assertTrue(/cacheKey: "feature:rules-markdown-builder"/.test(src), "rules markdown builder cache key wired");
   assertTrue(/buildRulesMarkdown: \(cfg\) => getRulesMarkdownBuilder\(\)\.buildTagWheelRulesMarkdownFromConfig\(cfg\)/.test(src), "rules sync uses extracted rules markdown builder");
-  assertTrue(/async function loadConfigNoteHelpersSafe\(app\)/.test(src), "config note helpers safe loader exists");
-  assertTrue(/await loadConfigNoteHelpersSafe\(this\.app\);/.test(src), "config note helpers safe loader called in onload");
-  assertTrue(/cacheKey: "feature:config-note-helpers"/.test(src), "config note helpers cache key wired");
-  assertTrue(/function denormTagToken\(token\)/.test(src), "main defines denormTagToken helper for config-note token normalization");
   assertFalse(/value\.charAt\(0\) === "\/"\) value = value\.slice\(1\)/.test(src), "denormTagToken preserves leading slash in #\/priority tokens");
   assertFalse(/allowed\.includes\("project"\)\) fieldId = "project"/.test(src), "wikilink parser has no semantic project fallback when field id is omitted");
-  assertTrue(/async function readVaultText\(app, path\)/.test(src), "main defines readVaultText helper for config-note IO");
-  assertTrue(/function extractFieldMetaMap\(field\)/.test(src), "main defines extractFieldMetaMap helper for config-note apply");
-  assertTrue(/function rebuildTagValues\(parentTokens, metaByToken\)/.test(src), "main defines rebuildTagValues helper for config-note apply");
-  assertTrue(/function rebuildSubtagValues\(parents, metaByToken\)/.test(src), "main defines rebuildSubtagValues helper for config-note apply");
-  assertTrue(/const helpers = getConfigNoteHelpers\(\);/.test(src), "main obtains extracted config note helpers");
-  assertTrue(/collectTagSections: helpers\.collectTagSections/.test(src), "apply config note uses extracted collectTagSections");
-  assertTrue(/syncCustomPrefixResolverBlock: helpers\.syncCustomPrefixResolverBlock/.test(src), "apply config note uses extracted prefix sync helper");
-  assertTrue(/function getTagWheelConfigCodec\(\)/.test(src), "tagwheel config codec getter exists");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/tagwheel_config_codec\.js"/.test(src), "tagwheel config codec uses shared vault fallback helper");
-  assertTrue(/cacheKey: "feature:tagwheel-config-codec"/.test(src), "tagwheel config codec cache key wired");
   assertFalse(/function parseCheckboxAndTag\(text\) \{[\s\S]*?\(\[xX \]\)/.test(src), "parseCheckboxAndTag does not limit checkbox token parser to [ ] and [x] only");
-  assertFalse(/datesLines\.push\(`- Active:/.test(codecSrc), "generated config codec does not emit Active line in date\/time blocks");
-  assertFalse(/datesLines\.push\("- Hotkey:"\)/.test(codecSrc), "generated config codec does not emit Hotkey block in date\/time blocks");
-  assertFalse(/elementsLines\.push\(`- enabled:/.test(codecSrc), "generated config codec does not emit enabled line in elements blocks");
-  assertFalse(/elementsLines\.push\("- Hotkey:"\)/.test(codecSrc), "generated config codec does not emit Hotkey block in elements");
-  assertTrue(/const fields = \[\]\.concat\(getLeftFields\(cfg\), getRightFields\(cfg\)\);/.test(codecSrc), "config codec resolves fields from both left and right panels");
-  assertTrue(/const orderedKeys = \(Array\.isArray\(order\.left\) \? order\.left : \[\]\)\.concat\(Array\.isArray\(order\.right\) \? order\.right : \[\]\);/.test(configNoteHelpersSrc), "config helpers build tag sections from order.left + order.right");
-  assertTrue(/const keys = \(Array\.isArray\(order\.left\) \? order\.left : \[\]\)\.concat\(Array\.isArray\(order\.right\) \? order\.right : \[\]\);/.test(configNoteHelpersSrc), "config helpers collect wikilink fields from order.left + order.right");
 
   assertTrue(/async function loadEnhancedSelectAllEngineSafe\(app\)/.test(src), "enhanced select-all engine safe loader exists");
   assertTrue(/await loadEnhancedSelectAllEngineSafe\(this\.app\);/.test(src), "enhanced select-all safe loader called in onload");
@@ -743,14 +414,44 @@ async function run() {
   assertFalse(/console\.log\("\[inline-overhaul\] loaded"\)/.test(src), "main has no unconditional production console.log on plugin load");
   assertTrue(/cfg\.pkm\.behavior\.io\.separator1 = s1 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator1;/.test(src), "migrateConfig normalizes separator1");
   assertTrue(/cfg\.pkm\.behavior\.io\.separator2 = s2 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator2;/.test(src), "migrateConfig normalizes separator2");
-  assertTrue(/const sep = typeof \(cfg && cfg\.separator1\) === "string" && cfg\.separator1 \? cfg\.separator1 : "\|\|";/.test(navigationRuntimeSrc), "navigation section-end cursor uses configurable separator1 fallback");
+  /*
+   * Разделители доезжают до перехода по заголовкам, а не спрашиваются у ветки,
+   * в которой их нет.
+   *
+   * Здесь остался пин по ИСХОДНИКУ, потому что предмет — шов между командой и
+   * движком: цепочку рвал не расчёт, а то, что `pickJumpCfg` не называл эти
+   * поля, а команда их не передавала. Сам результат — позиция курсора —
+   * закреплён поведением в `navigation_jumps_tests.js`, и это главный пин.
+   *
+   * Прежний пин здесь сверял строку про «configurable separator1 fallback» и
+   * был зелёный ровно столько, сколько режим `End of your text` не работал ни
+   * у кого (замечание заказчика 2026-09-04, У-53).
+   */
+  assertTrue(/function pickJumpCfg\(cfg, lineFormat\)/.test(navigationRuntimeSrc), "jump cfg accepts the line format alongside the jump branch");
+  assertTrue(/separator2: sep\(lf\.separator2, sep\(c\.separator2, separator1\)\),/.test(navigationRuntimeSrc), "jump cfg carries both separators, second defaulting to the first");
+  assertTrue(/const second = s\.indexOf\(sep2, first \+ sep\.length\);/.test(navigationRuntimeSrc), "section-end cursor looks for the second separator with the second separator");
+  assertTrue(/rt\.jumpToHeader\(ed, "up", nav\.jumpToHeader, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "jump-back hands the line format to the runtime");
+  assertTrue(/rt\.jumpToHeader\(ed, "down", nav\.jumpToHeader, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "jump-next hands the line format to the runtime");
+  /* Тот же шов у переноса выделенного текста: тумблер `Continue past a
+     Separator` без разделителей ничего не ограничил бы. */
+  assertTrue(/rt\.moveSelection\(ed, "left", nav\.moveSelection, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "move-left hands the line format to the runtime");
+  assertTrue(/rt\.moveSelection\(ed, "right", nav\.moveSelection, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "move-right hands the line format to the runtime");
   assertTrue(/if \(!isObj\(cfg\.pkm\.behavior\.freeRoam\)\) cfg\.pkm\.behavior\.freeRoam = cloneJson\(DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\);/.test(src), "migrateConfig initializes freeRoam behavior block");
   assertTrue(/if \(typeof fr\.minimalSeparator !== "boolean"\) fr\.minimalSeparator = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalSeparator;/.test(src), "migrateConfig normalizes minimalSeparator toggle");
   assertTrue(/if \(typeof fr\.minimalPrefix !== "boolean"\) fr\.minimalPrefix = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalPrefix;/.test(src), "migrateConfig normalizes minimalPrefix toggle");
   assertTrue(/fr\.fullPlacement = \["smart", "left", "right"\]\.includes\(place\)/.test(src), "migrateConfig normalizes fullPlacement");
   assertTrue(/devMode:\s*\{[\s\S]*generateAiLog:\s*true[\s\S]*logPath:\s*"InlineOverhaul_DevLog"/.test(src), "default config includes simplified devMode fields with AI log toggle");
   assertTrue(/if \(!isObj\(cfg\.devMode\)\) cfg\.devMode = cloneJson\(DEFAULT_CONFIG\.devMode\);/.test(src), "migrateConfig initializes devMode block");
-  assertTrue(/if \(typeof cfg\.devMode\.generateAiLog !== "boolean"\) \{/.test(src), "migrateConfig normalizes generateAiLog toggle");
+  /*
+   * Переименования старой формы читают ИСХОДНЫЙ файл, а не слитый с
+   * умолчаниями: `deepMerge(DEFAULT_CONFIG, source)` кладёт новый ключ раньше,
+   * чем код успевает спросить старый, и до 2026-08-31 все они были мертвы.
+   */
+  assertTrue(/const fromFile = \(dotted\) => \{/.test(src), "первая ступень читает исходный файл помощником fromFile");
+  assertTrue(/const own = fromFile\("devMode\.generateAiLog"\);/.test(src), "generateAiLog спрашивается у исходного файла");
+  assertTrue(/const oldSize = String\(fromFile\("devMode\.logSize"\) \|\| ""\)\.trim\(\);/.test(src), "и старое имя logSize тоже");
+  assertTrue(/const legacyCycle = fromFile\("navigation\.moveSelection\.leftToRight"\);/.test(src), "цикл Prefix берёт старое имя из исходного файла");
+  assertTrue(/pickPct\(B \+ "tagTextSizePct", \[B \+ "tagSizePct"\]/.test(src), "размер тегов берёт старое имя из исходного файла");
   assertTrue(/const deprecatedDevMode = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.devMode\)/.test(src), "migrateConfig resolves deprecated devMode keys from shared compat profile module");
   assertTrue(/for \(const key of deprecatedDevMode\) delete cfg\.devMode\[key\];/.test(src), "migrateConfig drops deprecated devMode keys through centralized loop");
   assertTrue(/devLog: \(event, payload\) => this\.devLogEvent\(event, payload, "info", cfg\)/.test(src), "runPkmRuntimeV2 forwards devLog callback into runtime");
@@ -771,21 +472,41 @@ async function run() {
   assertTrue(/if \(mdLine\) await this\.writeDevLogLine\(dm, "md", mdLine\);/.test(src), "dev logger always writes human markdown log");
   assertTrue(/if \(aiLine\) await this\.writeDevLogLine\(dm, "ndjson", aiLine\);/.test(src), "dev logger writes AI ndjson log when enabled");
   assertTrue(/const marker = String\(elemCfg\.emoji \|\| inferElementDefaultsByKey\(key\)\.marker \|\| ""\)\.trim\(\);/.test(src), "ensureBehaviorModesFromOrder syncs custom element marker from behavior config");
-  assertTrue(/behavior\.defaultMode = String\(behavior\.defaultMode \|\| ""\)\.trim\(\)\.toLowerCase\(\) === "right" \? "right" : "left";/.test(src), "rules builder enforces behavior.defaultMode fallback");
+  /*
+   * Сборка заметки правил живёт в одном месте. Копия в `main.js` снята
+   * 2026-08-31: форма документа правил осталась версии 1, конфиг переехал на
+   * версию 2, и перекладка значений между ними — ровно то, что нельзя
+   * держать в двух экземплярах.
+   */
+  assertFalse(/buildTagWheelRulesMarkdownFromConfig\(cfg\) \{[\s\S]*tagwheel-behavior/.test(src), "main has no second copy of the rules note builder");
+  assertTrue(/behavior\.defaultMode = String\(fields\.defaultBlock \|\| ""\)\.trim\(\)\.toLowerCase\(\) === "right" \? "right" : "left";/.test(rulesMarkdownBuilderSrc), "rules builder maps pkm.fields.defaultBlock into the rules document");
+  assertTrue(/behavior\.subtagFormat = behaviorCfg\.childTagFormat === "combined"/.test(rulesMarkdownBuilderSrc), "rules builder maps pkm.behavior.childTagFormat into the rules document");
+  /* 10.13.6: подсветка строки приходит настройкой, а ветка `ui` больше не
+     отдаётся пустой. `showMarkers` внутри `activePanel` — обёртки `{TW}`, а не
+     тумблер списка, и записи ему здесь быть не должно (Н4). */
+  assertTrue(/activePanel\.useHighlight = wheel\.highlightLine === true;/.test(rulesMarkdownBuilderSrc), "rules builder maps visual.tagWheel.highlightLine into the rules document");
+  /*
+   * 1.3.1: правило имени Field объявлено в двух файлах, и они обязаны
+   * совпадать буквой в букву. Разошлись — переименование молча откатывается,
+   * а панель об этом не знает. Поведение держит
+   * `fields_editor_config_roundtrip_tests.ts`, форму — этот пин.
+   */
+  {
+    const fieldsModelSrc = fs.readFileSync(path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_model.ts"), "utf8");
+    const inMain = /const STRICT_FIELD_NAME_RE = (\/.+\/i?);/.exec(src);
+    const inPanel = /const STRICT_NAME_RE = (\/.+\/i?);/.exec(fieldsModelSrc);
+    assertTrue(!!inMain, "config normalizer names the Field-name rule in one place");
+    assertTrue(!!inPanel, "the panel names the Field-name rule in one place");
+    assertEq(inMain[1], inPanel[1], "panel and config agree letter for letter on what a Field may be called");
+    assertFalse(/\/\^\[a-z0-9_-\]\+\$\//.test(src), "the stricter second rule that silently reverted renames is gone");
+  }
+  assertFalse(/activePanel\.showMarkers\s*=/.test(rulesMarkdownBuilderSrc), "rules builder never writes the text wrappers of the active panel");
   assertFalse(/for \(const k of orderFields\) \{[\s\S]*if \(!rightSet\.has\(k\)\) continue;[\s\S]*out\.right = out\.right\.filter\(\(x\) => x !== k\);[\s\S]*out\.left\.push\(k\);[\s\S]*\}/.test(src), "normalizePkmOrder does not force right fields back to left by sub presence");
 
   assertTrue(/handleEnhancedSelectAllKeymap\(\) \{\s*return getEnhancedSelectAllEngine\(\)\.handleEnhancedSelectAllKeymap\(this\);\s*\}/.test(src), "enhanced select-all delegated to extracted engine");
-  assertFalse(/function normalizeTagWheelConfigPath\(/.test(src), "no legacy codec wrapper normalizeTagWheelConfigPath in main");
-  assertFalse(/function normalizeTagWheelConfigTemplatePath\(/.test(src), "no legacy codec wrapper normalizeTagWheelConfigTemplatePath in main");
   assertFalse(/function buildDefaultTagWheelDetailedTemplateMarkdown\(/.test(src), "no legacy codec wrapper buildDefault template in main");
-  assertFalse(/function renderTagWheelConfigFromTemplate\(/.test(src), "no legacy codec wrapper renderFromTemplate in main");
   assertFalse(/function buildMinimalFromRenderedTemplate\(/.test(src), "no legacy codec wrapper buildMinimal in main");
-  assertFalse(/function buildTagWheelConfigParts\(/.test(src), "no legacy codec wrapper buildTagWheelConfigParts in main");
-  assertFalse(/function buildTagWheelConfigMarkdown\(/.test(src), "no legacy codec wrapper buildTagWheelConfigMarkdown in main");
-  assertFalse(/function parseTagWheelConfigMarkdown\(/.test(src), "no legacy codec wrapper parseTagWheelConfigMarkdown in main");
-  assertTrue(/function createTagWheelConfigCodecFallback\(/.test(codecFallbackSrc), "dedicated codec fallback module exports factory");
   assertFalse(/cfg\.pkm\.legacy/.test(src), "no direct cfg.pkm.legacy reads in main");
-  assertFalse(/require\("\.\/tagwheel_config_parser\.js"\)/.test(codecSrc), "codec has no direct parser require in sandbox path");
   assertFalse(/\|\|\s*s\s*===\s*"legacy"/.test(statusTagsSrc), "status_tags cursor policy has no legacy alias");
   assertFalse(/\|\|\s*s\s*===\s*"legacy"/.test(statusDateSrc), "status_date cursor policy has no legacy alias");
   assertFalse(/\|\|\s*s\s*===\s*'legacy'/.test(tagwheelSrc), "tagwheel cursor policy has no legacy alias");
@@ -793,43 +514,8 @@ async function run() {
   assertTrue(/collectMissingEmojiFields\(rules, dateRuntimeCfg\)/.test(statusDateSrc), "status_date validates required Emoji before actions");
   assertFalse(/Object\.keys\(byField\)/.test(tagwheelSrc), "tagwheel emoji gate does not validate orphan byField keys outside active panel");
   assertFalse(/Object\.keys\(byField\)/.test(statusDateSrc), "status_date emoji gate does not validate orphan byField keys outside active panel");
-  assertTrue(/Config validation error: Emoji is required for fields:/.test(parserSrc), "tagwheel config parser enforces required Emoji contract");
-  assertTrue(/InlineOverhaul_Config\]\] \(DATE\/TIME \+ ELEMENTS section\)/.test(parserSrc), "tagwheel config parser error points to config note section hint");
-  assertFalse(/wikilink entry is not allowed in this section/.test(parserSrc), "tagwheel config parser does not block wikilink entries by section");
-  assertFalse(/wikilink field '\$\{parsedW\.fieldId\}' is not allowed here/.test(parserSrc), "tagwheel config parser has no section-scoped wikilink field restriction");
-  assertTrue(/allowedWikilinkFieldsBySection/.test(parserSrc), "tagwheel config parser computes section-scoped wikilink field scope");
-  assertTrue(/const scopedWikilinkFields = Array\.isArray\(allowedWikilinkFieldsBySection\[secName\]\)/.test(parserSrc), "tagwheel config parser applies section-scoped wikilink field defaults on parse");
-  assertTrue(/parseSectionHeader/.test(parserSrc) && /sectionKinds/.test(parserSrc) && /sectionOrder/.test(parserSrc), "tagwheel config parser supports section header kind metadata for field creation");
-  assertTrue(/normalizeHeaderLoose/.test(parserSrc) && /hasDate && hasTime && hasElements/.test(parserSrc), "tagwheel config parser supports emoji-decorated combined DATE\/TIME + ELEMENTS header variants");
   assertTrue(/unknown wikilink field '\$\{fieldId\}'/.test(src), "shared wikilink parser validates field id against allowed wikilink fields");
   assertTrue(/no wikilink fields are configured/.test(src), "shared wikilink parser rejects wikilinks when no wikilink fields are configured");
-  assertTrue(/CFG_H2_ELEMENTS_COMBINED/.test(codecSrc), "tagwheel codec passes combined elements header constant into parser factory");
-  assertFalse(/isDateLikeFormat\(fmt\)/.test(parserSrc), "combined parser does not auto-cast non-canonical fields to dates by format");
-  assertFalse(/next\.pkm\.behavior\.dates\s*=/.test(configNoteOrchestratorSrc), "config apply does not write legacy dates block");
-  assertTrue(/next\.pkm\.behavior\.elements = cloneJson\(cleanedElementsForPatch\);/.test(configNoteOrchestratorSrc), "config apply replaces elements block with order-scoped cleaned values");
-  assertTrue(/parsedSectionOrder/.test(configNoteOrchestratorSrc) && /rightMode\.fields\.push\(fieldDef\)/.test(configNoteOrchestratorSrc), "config apply auto-creates missing fields from parsed section headers and appends to right panel");
-  assertTrue(/isWikilinkSourceFieldSafe/.test(configNoteOrchestratorSrc), "config apply scans source-driven wikilink fields via shared helper predicate");
-  assertTrue(/field\.values = buildWikilinkFieldValues\(field, sec, sourceFieldId\);|field\.values = buildWikilinkFieldValues\(field, sourceFieldId, parsed\.sections(?:, parsed\.orphanWikilinks)?\);/.test(configNoteOrchestratorSrc), "config apply rebuilds wikilink field values from config-note taxonomy");
-  assertTrue(/for \(const sectionName of Object\.keys\(parsed\.sections \|\| \{\}\)\)/.test(configNoteOrchestratorSrc) && /sec\.wikilinks\[projectsFieldId\]/.test(configNoteOrchestratorSrc), "config apply aggregates projects taxonomy from all parsed sections");
-  assertTrue(/if \(!isObj\(wikilinkTaxonomy\[fieldId\]\)\) wikilinkTaxonomy\[fieldId\] = \{ bySection: \{\} \};/.test(configNoteOrchestratorSrc), "config apply guards dynamic wikilink taxonomy keys before section assignment");
-  assertFalse(/categorySectionId/.test(configNoteOrchestratorSrc), "config apply has no category-only projects extraction path");
-  assertTrue(/resolveOrderFieldScopes\(tmpCfgForScope, normalizePkmOrder, isObj\)/.test(configNoteOrchestratorSrc), "config apply computes active order scope for stale cleanup");
-  assertTrue(/filterBehaviorDateElementConfigs\(renderCfg, resolveOrderFieldScopes\(renderCfg, normalizePkmOrder, isObj\), isObj\);/.test(configNoteOrchestratorSrc), "open config note cleans stale deleted element tails before rendering");
-  assertTrue(/const freshMd = mode === TAGWHEEL_CONFIG_MODE_MINIMAL[\s\S]*buildMinimalFromRenderedTemplate\(renderedMd\)[\s\S]*: renderedMd;/.test(configNoteOrchestratorSrc), "config note export keeps minimal and detailed modes distinct");
-  assertTrue(/tagVisuals:\s*\{[\s\S]*byTag:[\s\S]*parsed\.tagVisuals/.test(configNoteOrchestratorSrc), "apply config note patches tagVisuals maps from parsed markdown");
-  assertTrue(/next\.pkm\.behavior\.tagVisuals\.byTag = (?:cloneJson\(parsed\.tagVisuals|mergeByTagVisualsPreserveVisibility\()/.test(configNoteOrchestratorSrc), "apply config note updates byTag map from parsed markdown with delete-sync semantics");
-  assertTrue(/next\.pkm\.behavior\.tagVisuals\.userTags = (?:cloneJson\(parsed\.tagVisuals|mergeUserTagVisualsPreserveVisibility\()/.test(configNoteOrchestratorSrc), "apply config note updates userTags map from parsed markdown with delete-sync semantics");
-  assertTrue(/mergeByTagVisualsPreserveVisibility/.test(configNoteOrchestratorSrc) && /visibility:\s*existingRow\s*\?\s*normalizeVisibility\(existingRow\.visibility\)/.test(configNoteOrchestratorSrc), "apply config note preserves existing byTag visibility while updating parsed visual payload");
-  assertTrue(/mergeUserTagVisualsPreserveVisibility/.test(configNoteOrchestratorSrc) && /next\.pkm\.behavior\.tagVisuals\.userTags = mergeUserTagVisualsPreserveVisibility/.test(configNoteOrchestratorSrc), "apply config note preserves existing userTags visibility while updating parsed visual payload");
-  assertTrue(/const USER_TAGS_SECTION = "User tags";/.test(parserSrc), "config parser supports dedicated User tags section");
-  assertTrue(/##### \$\{s\.sectionId\} - \$\{sectionKindByField\(field\)\}/.test(codecSrc), "config codec renders section headers in strictName-kind format");
-  assertTrue(/setByTagFirstWins\(/.test(parserSrc) && /setUserTagFirstWins\(/.test(parserSrc), "config parser enforces first-wins policy for duplicate tag visual rows");
-  assertTrue(/const parseTagPipeSegments = \(text\) => \{/.test(parserSrc), "config parser uses pipe segment parser for tag rows");
-  assertTrue(parserSrc.includes("const mHex = seg.match(/^hex"), "config parser supports hex pipe segment with backticks");
-  assertTrue(parserSrc.includes("const mCustom = seg.match(/^custom\\s+name") && parserSrc.includes("const mYaml = seg.match(/^yaml\\s*="), "config parser supports custom name and yaml pipe segments");
-  assertTrue(/const buildPipeTail = \(payload\) => \{/.test(codecSrc), "config codec builds pipe tail segments for tag rows");
-  assertTrue(codecSrc.includes("out.push(`custom name = \\`${customText}\\``)") && codecSrc.includes("out.push(`hex = \\`${fill}\\`/\\`${text}\\``)"), "config codec emits custom name and hex pipe segments");
-  assertTrue(/fillColor:\s*parsedFill,/.test(configNoteOrchestratorSrc) && /textColor:\s*parsedText,/.test(configNoteOrchestratorSrc), "config apply resets colors to parsed/default instead of preserving stale colors");
   assertTrue(/if \(!nonEmpty\(src\.emoji\) && Object\.prototype\.hasOwnProperty\.call\(dst, "emoji"\)\) out\.emoji = String\(dst\.emoji \|\| ""\);/.test(src), "runtime date serializer does not overwrite non-empty emoji with empty element emoji");
   assertTrue(/const modeRaw = String\(incCur\.mode \|\| "standard"\)\.trim\(\)\.toLowerCase\(\);/.test(src), "behavior sync preserves configured increment mode for elements");
   assertTrue(/mode,\s*incrementBy,\s*command,\s*customRaw,\s*custom/.test(src), "behavior sync writes normalized increment fields without forcing standard mode");
@@ -910,6 +596,36 @@ async function run() {
   assertTrue(/function getStatusMixedReorderOptions\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export status-mixed reorder options helper");
   assertTrue(/function getTagWheelMixedReorderOptions\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export tagwheel-mixed reorder options helper");
   assertTrue(/function buildTagTokenKeyMap\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export tag token-key map builder");
+  /*
+   * В-12: тумблер `Cycle in both directions` читается движком, а `isBullet`
+   * больше не решает судьбу правой ветки в одиночку. Поведение держит
+   * `navigation_prefix_cycle_tests.js`, форму — этот пин: ключ, который
+   * никто не читает, уже стоял в панели и ничего не делал.
+   */
+  /*
+   * 10.13.12: отметки на строке — декорации CM6. Расширение должно быть не
+   * только создано, но и **примонтировано** к уже открытым редакторам: два
+   * предыдущих расширения монтируются в двух местах, и третье, забытое в
+   * одном из них, работало бы через раз.
+   */
+  assertTrue(/function buildSourceMarkDecorations\(/.test(src), "main registers the source-mark decorations");
+  assertTrue(/this\._sourceMarksExtension = createSourceMarkDecorationExtension\(this\);/.test(src), "and builds the extension on load");
+  assertEq((src.match(/_sourceMarksCompartment\.(of|reconfigure)\(/g) || []).length, 3, "and mounts it everywhere the other two are mounted");
+  /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */
+  assertTrue(/callback: async \(\) => \{ await this\.runInlineToNote\(\); \},/.test(src), "the transform command delegates to the shared method");
+  assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(src), "and so does the floating button");
+
+  {
+    const navSrc = fs.readFileSync(path.join(__dirname, "..", "..", "navigation_runtime.js"), "utf8");
+    assertTrue(/rightCycles: typeof c\.rightCycles === "boolean"/.test(navSrc), "navigation runtime reads the both-directions toggle");
+    assertTrue(/const rightMayCycle = rules\.prefixCyclerEnabled && rules\.rightCycles;/.test(navSrc), "navigation runtime decides the right-hand cycle from the toggle");
+    assertFalse(/if \(currentIndent > 0 \|\| isBullet\(line\)\) \{/.test(navSrc), "a list item no longer goes straight to indenting");
+  }
+  /* И-4: карта токенов читает обе корзины, иначе Field типа link не участвует
+     в перестановке по Order и уезжает в конец блока. Пин на исходник, потому
+     что чтение правой корзины легко потерять при следующей правке функции. */
+  assertTrue(/const rightFields = rules && rules\.rightMode && Array\.isArray\(rules\.rightMode\.fields\)/.test(pkmRulesHelpersSrc), "tag token-key map reads the links bucket, not only the tags one");
+  assertTrue(/addFieldTokens\(key, field, true\);/.test(pkmRulesHelpersSrc), "tag token-key map adds links-bucket tokens without overwriting the tags bucket");
   assertTrue(/function readRulesMarkdownWithFallback\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export rules reader");
   assertTrue(/function loadSharedModule\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports shared module loader");
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exposes debug-gated loader fallback reporter");
@@ -952,7 +668,6 @@ async function run() {
   assertTrue(/date_runtime_shared\.js/.test(tagwheelSrc), "tagwheel references shared date runtime module");
   assertTrue(/tagwheel_rules_normalizer\.js/.test(tagwheelCoreSrc), "tagwheel_core references shared rules normalizer module");
   assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(rendererPairSrc), "settings renderer infer-element defaults have no hardcoded emoji markers");
-  assertFalse(/"📅"|"🛫"|"🕒"|"⌛"|"⏳"|"➕"|"🔁"/.test(codecSrc), "tagwheel config codec has no hardcoded emoji defaults");
   assertTrue(/LINE_FINALIZE_UNIFIED_PATH/.test(statusDateSrc), "status_date references unified line finalizer module path");
   assertTrue(/function createStatusRuntimeCommon\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared status runtime factory");
   assertTrue(/function resolvePanelKeyForField\(/.test(tagwheelSrc), "tagwheel defines panel-key resolver for field placement");
@@ -1214,8 +929,10 @@ async function run() {
   assertTrue(/if \(!isObj\(cfg\.pkm\.behavior\.tagVisuals\)\) cfg\.pkm\.behavior\.tagVisuals = cloneJson\(DEFAULT_CONFIG\.pkm\.behavior\.tagVisuals\);/.test(src), "main migration initializes tagVisuals block when missing");
   assertTrue(/const normOpacity = \(value, fallback\) => \{[\s\S]*Math\.max\(0, Math\.min\(1, n\)\)/.test(src), "main migration clamps tagVisuals opacity to 0..1");
   assertTrue(/const normalizeTagToken = \(token\) => \{[\s\S]*return src\.charAt\(0\) === "#" \? src : "";/.test(src), "main migration keeps tagVisuals tokens strictly hash-prefixed");
-  assertTrue(/visuals\.strip = strip;/.test(src), "main migration normalizes strip config through shared strip engine");
-  assertTrue(/offPrefix: fr\.offPrefix === true/.test(src), "order serializer exports offPrefix behavior flag");
+  assertTrue(/function normalizeTagVisualMapsV2\(cfg\) \{/.test(src), "third stage normalizes tag visual maps on v2 paths");
+  assertTrue(/if \(userTagsIn\[rawToken\] === null\) continue;/.test(src), "third stage keeps the null tombstone for user tags");
+  assertTrue(/writeCfgPath\(cfg, "visual\.tagBars", __priorityStripEngine\.normalizeStripConfig\(/.test(src), "third stage normalizes Tag Bars through the shared strip engine");
+  assertTrue(/offPrefix: placement\.bulletInStrict === true/.test(src), "order serializer exports offPrefix behavior flag from pkm.placement");
   assertTrue(/offPrefix/.test(pkmRulesHelpersSrc), "shared rules helper parses and resolves offPrefix behavior");
   assertTrue(/offPrefix: false/.test(statusRuntimeCommonSrc), "status runtime common fallback includes offPrefix default OFF");
   assertTrue(/function resolveOffPrefixFlagsUnified\(/.test(pkmLineFinalizeUnifiedSrc), "line finalizer exports unified off-prefix resolver");
@@ -1260,6 +977,42 @@ async function run() {
   assertTrue(/linePipeline\.cleanOriginalTextForLeftDate\(\{/.test(statusDateSrc), "status_date left-date text cleanup delegates to shared line-pipeline cleaner helper");
   assertTrue(/lineFinalize\.applyCycleEndAndInvariants\(\{/.test(statusDateSrc), "status_date cycle-end plus final-invariants flow delegates to shared helper");
   assertTrue(/finalize\.resolveOffPrefixFlagsUnified\(\{/.test(tagwheelSrc), "tagwheel delegates off-prefix resolution to shared line finalizer");
+  /*
+   * И-1: успешное открытие TagWheel молчит.
+   *
+   * Пин смотрит не на текст сообщения, а на **участок**: от отрисовки панели
+   * до конца успешной ветки уведомлений быть не должно. Так он ловит и другое
+   * сообщение, если его туда положат, а не одну снятую строку.
+   *
+   * Уведомления в ветках отказа не трогаются: там человеку иначе не понять,
+   * почему ничего не произошло.
+   */
+  const openTail = (() => {
+    const from = tagwheelSrc.indexOf("var initialControl = core.renderControlLine(");
+    assertTrue(from > 0, "tagwheel open path still renders the initial control line");
+    const to = tagwheelSrc.indexOf("} catch (e) {", from);
+    assertTrue(to > from, "tagwheel open path still has its catch branch");
+    return tagwheelSrc.slice(from, to);
+  })();
+  assertFalse(/notice\(/.test(openTail), "opening TagWheel says nothing when it works");
+  /* Ищется вызов, а не слова: объяснение в комментарии рядом со снятой
+     строкой цитирует её текст, и это правильно — оно говорит, чего там больше
+     нет и почему. */
+  assertFalse(/notice\('TagWheel: режим активирован/.test(tagwheelSrc), "the activation notice is not raised anywhere in tagwheel");
+  assertTrue(/notice\('TagWheel: app context not found'\)/.test(tagwheelSrc), "tagwheel still reports a missing app context");
+  assertTrue(/notice\('TagWheel error: '/.test(tagwheelSrc), "tagwheel still reports its errors");
+
+  /*
+   * И-3: два хода обязаны считать `clearedOwnCheckbox`, а не подставлять его
+   * константой. Именно литерал `false` в TagWheel и был всей разницей между
+   * ними; поведение общего решения держит `runtime_unified_parity_tests.js`,
+   * а то, что аргумент считается на обоих ходах, — этот пин.
+   */
+  assertFalse(/clearedOwnCheckbox:\s*false/.test(tagwheelSrc), "tagwheel no longer hard-codes the cleared-checkbox flag");
+  assertTrue(/function fieldHasAnyCheckboxRule\(/.test(tagwheelSrc), "tagwheel knows whether a field has any checkbox rule at all");
+  assertTrue(/function fieldHasAnyCheckboxRule\(/.test(statusTagsSrc), "status_tags knows whether a field has any checkbox rule at all");
+  assertTrue(/clearedOwnCheckbox:\s*clearedOwnCheckbox/.test(tagwheelSrc), "tagwheel passes the computed cleared-checkbox flag");
+  assertTrue(/clearedOwnCheckbox:\s*targetSelectionClearedByAction && fieldHasAnyCheckboxRule\(/.test(statusTagsSrc), "status_tags passes the computed cleared-checkbox flag");
   assertTrue(/hasDateLikeMarkerInText\(textOnly\)/.test(statusDateSrc), "status_date due-left guard uses shared marker text classifier");
   assertTrue(/removeMarkerTokensFromSegment\(src, marker, valueRxSrc \|\| ""\)/.test(statusDateSrc), "status_date date marker cleanup uses shared marker-token remover helper");
   assertTrue(/function resolveFieldIdByOrderKey\(/.test(statusDateSrc), "status_date resolves generic order-key fields");
@@ -1423,6 +1176,43 @@ async function run() {
   assertTrue(/function demoteLeftBodyToText\(leftRaw, markers\) \{/.test(linePipelineSrc), "line pipeline tells a text-only left segment from a token one");
   assertTrue(/if \(!parts\.prefix \|\| !parts\.body\) return null;/.test(linePipelineSrc), "line pipeline demotes the left body only for list lines");
   assertFalse(/category_sub|clients/.test(pkmRulesHelpersSrc.slice(pkmRulesHelpersSrc.indexOf("const runtimeExcludedIds = new Set();"), pkmRulesHelpersSrc.indexOf("for (const f of allFields)"))), "rules helpers dependency reconcile has no hardcoded domain field names");
+  /*
+   * Десятое исключение к З3, разрешение заказчика 2026-09-02 по замечанию D6
+   * (PRD 10.13.15): цвета коробки скроллера доезжают до неё.
+   *
+   * Закреплено по исходнику по той же причине, что и Н-3 выше: `tagwheel.js`
+   * вне Obsidian не запускается — он просит редактор. Само применение цветов
+   * проверено по-настоящему в оверлее (`tagwheel_scroller_overlay_tests.js`);
+   * здесь закреплено, что цвета до него доходят и что форму им проверяют.
+   */
+  assertTrue(/fillColor: hex\(raw\.scrollerFillColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller fill colour");
+  assertTrue(/textColor: hex\(raw\.scrollerTextColor\)/.test(tagwheelSrc), "tagwheel normalizes the scroller text colour");
+  assertTrue(/fillColor: scrollerCfg\.fillColor/.test(tagwheelSrc), "tagwheel passes the scroller fill colour to the overlay");
+  assertTrue(/textColor: scrollerCfg\.textColor/.test(tagwheelSrc), "tagwheel passes the scroller text colour to the overlay");
+  /*
+   * Край Block (10.13.35). Решение проверено по-настоящему в
+   * `tests/TagWheel/tagwheel_tests.js` — `planFieldStep` чистая функция и
+   * запускается без Obsidian. Здесь закреплён **шов**: кто подаёт сюда
+   * значение (У-56). Настройка панели проходит четыре руки — конфиг,
+   * `main.js`, разбор опций, состояние сессии, — и обрыв в любой из них
+   * оставил бы решение зелёным при мёртвом контроле.
+   */
+  assertTrue(/TAGWHEEL_EDGE_MODE\]: readCfgPath\(cfg, "visual\.tagWheel\.edgeMode"\)/.test(src), "main passes the Block edge mode into the runtime settings");
+  assertTrue(/out\.edgeMode = qa\[TAGWHEEL_EDGE_MODE_OPTION\]/.test(tagwheelSrc), "tagwheel reads the Block edge mode out of the runtime settings");
+  assertTrue(/edgeMode: normalizeEdgeMode\(runtimeInput\.edgeMode\)/.test(tagwheelSrc), "tagwheel keeps the normalized edge mode on the session state");
+  assertTrue(/plan = planFieldStep\(\{/.test(tagwheelSrc), "tagwheel arrow step delegates the decision to the pure planner");
+  /*
+   * Своя каретка (10.13.33 Ц9). Решение проверено по-настоящему в
+   * `caret_color_tests.ts`, здесь закреплён **шов**: слой, который никто не
+   * зарегистрировал, не нарисует ничего, а обе проверки останутся зелёными
+   * (У-56). Ровно этим и был прежний дефект: код каретки был, а до экрана не
+   * доезжал.
+   */
+  assertTrue(/registerEditorExtension\(createCaretLayerExtension\(this\)\)/.test(src), "main registers the own caret layer as an editor extension");
+  assertTrue(/cmView\.layer\(\{/.test(src), "own caret layer is built with the platform layer helper");
+  assertTrue(/cmView\.RectangleMarker\.forRange\(view, CARET_MARKER_CLASS, range\)/.test(src), "own caret layer measures its marker with the platform helper");
+  assertTrue(/class: CARET_LAYER_CLASS,/.test(src), "own caret layer names itself from the same constant the stylesheet uses");
+  assertTrue(/module\.exports\.planFieldStep = planFieldStep/.test(tagwheelSrc), "tagwheel exports the pure planner so the decision can be checked without Obsidian");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");
   assertAnyMatch(statusTagsSrc, [/callRuntimeApi\(app_, "loadVaultModuleBridgeShared"\)/, /await loadVaultModuleBridgeShared\(app_\);/], "status_tags preloads shared vault bridge");
@@ -1435,7 +1225,6 @@ async function run() {
   assertFalse(/typeCheckboxByValue/.test(statusTagsSrc), "status_tags has no typeCheckboxByValue reads");
   assertFalse(/typeCheckboxByValue/.test(tagwheelSrc), "tagwheel runtime has no typeCheckboxByValue reads");
   assertFalse(/out\.pkm\.legacy\s*=/.test(configMigrationSrc), "config migration has no legacy mirror write");
-  assertFalse(/pkm\s*:\s*\{[\s\S]*legacy\s*:\s*\{/.test(configNoteOrchestratorSrc), "config note orchestrator patch has no pkm.legacy write path");
 
   const testRules = { io: { separator1: "||", separator2: "||" } };
   const sampleSpaces = "    - [ ] #todo || 111";
@@ -1653,27 +1442,28 @@ async function run() {
     "left panel sequence follows Order.left exactly for custom + project placement"
   );
 
-  const migratedDefaultMode = configMigration.normalizePkmBehaviorShape({ pkm: { behavior: { defaultMode: "RIGHT" } } });
-  assertEq(migratedDefaultMode.pkm.behavior.defaultMode, "right", "config migration normalizes default mode casing");
+  const migratedDefaultMode = configMigration.normalizePkmBehaviorShape({ pkm: { fields: { defaultBlock: "RIGHT" } } });
+  assertEq(migratedDefaultMode.pkm.fields.defaultBlock, "right", "config migration normalizes default block casing");
 
   const migratedLegacyCheckbox = configMigration.normalizePkmBehaviorShape({
     pkm: {
-      behavior: {
-        prefixRules: {
-          checkboxByFieldValue: {
-            type: {
-              todo: "[  ]",
-              in_progress: "[I]",
-              bad: "oops",
-            },
+      prefixRules: {
+        checkboxByFieldValue: {
+          type: {
+            todo: "[  ]",
+            in_progress: "[I]",
+            bad: "oops",
           },
         },
       },
     },
   });
-  assertEq(migratedLegacyCheckbox.pkm.behavior.prefixRules.checkboxByFieldValue.type.todo, "[ ]", "config migration normalizes empty checkbox token");
-  assertEq(migratedLegacyCheckbox.pkm.behavior.prefixRules.checkboxByFieldValue.type.in_progress, "[I]", "config migration preserves explicit checkbox state");
-  assertTrue(!Object.prototype.hasOwnProperty.call(migratedLegacyCheckbox.pkm.behavior.prefixRules.checkboxByFieldValue.type, "bad"), "config migration removes invalid checkbox tokens");
+  assertEq(migratedLegacyCheckbox.pkm.prefixRules.checkboxByFieldValue.type.todo, "[ ]", "config migration normalizes empty checkbox token");
+  assertEq(migratedLegacyCheckbox.pkm.prefixRules.checkboxByFieldValue.type.in_progress, "[I]", "config migration preserves explicit checkbox state");
+  assertTrue(!Object.prototype.hasOwnProperty.call(migratedLegacyCheckbox.pkm.prefixRules.checkboxByFieldValue.type, "bad"), "config migration removes invalid checkbox tokens");
+  assertEq(migratedLegacyCheckbox.pkm.fields.checkboxByValue.in_progress, "[I]", "config migration fills checkboxByValue from the prefix rules map");
+  assertEq(migratedLegacyCheckbox.pkm.fields.checkboxByValue.todo, "[ ]", "and fills it with already normalized tokens");
+  assertTrue(!Object.prototype.hasOwnProperty.call(migratedLegacyCheckbox.pkm.fields.checkboxByValue, "bad"), "invalid tokens do not reach checkboxByValue");
 
   const prevBridge = globalThis.__inlineVaultModuleBridge;
   const prevSharedRuntime = globalThis.__inlinePkmMacroRuntimeSharedMod;

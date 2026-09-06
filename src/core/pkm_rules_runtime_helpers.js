@@ -501,6 +501,90 @@ function escapeRegex(text) {
   return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Чем записан хвост эмодзи-элемента, выведенный из его формата.
+ *
+ * `YYYY-MM-DD hh:mm` даёт `\d{4}-\d{2}-\d{2}[ ]\d{2}:\d{2}`: буквы образца
+ * становятся цифрами, пробел — пробелом, остальное — собой.
+ *
+ * **Это второе объявление того же правила**: первое живёт в `main.js`
+ * (`elementTailPatternFromFormat`, правка C35) и нужно там отрисовке. Свести
+ * их в один модуль нечем — `main.js` грузит этот файл не через `require`, а
+ * мостом vault, — поэтому расхождение сторожит пин, сверяющий обе функции на
+ * наборе форматов (У-32).
+ */
+function elementTailPatternFromFormat(format) {
+  const src = String(format || "").trim();
+  if (!src) return "";
+  let out = "";
+  let i = 0;
+  while (i < src.length) {
+    const ch = src[i];
+    if (/[A-Za-z]/.test(ch)) {
+      let n = 0;
+      while (i < src.length && /[A-Za-z]/.test(src[i])) { i += 1; n += 1; }
+      out += "\\d{" + n + "}";
+      continue;
+    }
+    if (ch === " ") { out += "[ ]"; i += 1; continue; }
+    out += escapeRegex(ch);
+    i += 1;
+  }
+  return out;
+}
+
+/**
+ * Разбор блока строки на токены — с оглядкой на эмодзи-элементы.
+ *
+ * Почему не `split(/\s+/)`. Элемент, у которого в формате есть пробел
+ * (`📅YYYY-MM-DD hh:mm`), между пробелами не помещается: он разваливался на
+ * `📅2026-09-02` и `20:43`. Первая половина узнавалась по метке и встала на
+ * своё место в Order, вторая не узнавалась никем, уходила в корзину
+ * неизвестных — а корзина печатается последней. Новые теги вставали по Order,
+ * то есть **между половинами**:
+ *
+ *   было      `📅2026-09-02 20:43`
+ *   стало     `📅2026-09-02 #work #AK 20:43`
+ *
+ * Заказчик прислал это символ в символ (свободное замечание, 2026-09-02).
+ *
+ * Длина хвоста выводится из формата поля — тем же правилом, которым её
+ * выводит отрисовка (C35). Метки без формата и всё прочее режется по пробелу,
+ * как раньше.
+ *
+ * Двенадцатое исключение к З3, разрешение заказчика 2026-09-02.
+ */
+function tokenizeSegmentBody(body, markers) {
+  const src = String(body || "");
+  const tails = markers && typeof markers.tailByMarker === "object" && markers.tailByMarker
+    ? markers.tailByMarker
+    : null;
+  /* Длинные метки первыми: короткая не должна откусывать начало длинной. */
+  const marked = tails
+    ? Object.keys(tails).filter((mk) => mk && String(tails[mk] || "").trim()).sort((a, b) => b.length - a.length)
+    : [];
+  const out = [];
+  let i = 0;
+  while (i < src.length) {
+    if (/\s/.test(src[i])) { i += 1; continue; }
+    let taken = "";
+    for (const mk of marked) {
+      if (!src.startsWith(mk, i)) continue;
+      const rx = new RegExp("^" + escapeRegex(mk) + "(?:" + tails[mk] + ")");
+      const m = rx.exec(src.slice(i));
+      if (m && m[0]) { taken = m[0]; break; }
+    }
+    if (!taken) {
+      let j = i;
+      while (j < src.length && !/\s/.test(src[j])) j += 1;
+      taken = src.slice(i, j);
+    }
+    if (taken) out.push(taken);
+    i += taken.length;
+  }
+  return out;
+}
+
 function getDateMarkersFromRules(rules, options) {
   const opts = options && typeof options === "object" ? options : {};
   const dateFields = getDateFieldsFromRules(rules);
@@ -582,6 +666,25 @@ function getDateMarkersFromRules(rules, options) {
     start: String(dateFields.start && dateFields.start.orderKey || "").trim(),
     due: String(dateFields.due && dateFields.due.orderKey || "").trim(),
   };
+  /*
+   * Чем записан хвост у каждой метки. Без этого элемент из двух слов не
+   * собрать в один токен: длина хвоста живёт в формате поля, а не в метке
+   * (Т-14, 2026-09-02).
+   */
+  const elements = behavior && typeof behavior.elements === "object" && !Array.isArray(behavior.elements)
+    ? behavior.elements
+    : {};
+  const elementsByField = elements && typeof elements.byField === "object" && !Array.isArray(elements.byField)
+    ? elements.byField
+    : {};
+  out.tailByMarker = {};
+  for (const key of Object.keys(elementsByField)) {
+    const row = elementsByField[key] && typeof elementsByField[key] === "object" ? elementsByField[key] : {};
+    const marker = String(row.emoji || row.marker || "").trim();
+    const tail = elementTailPatternFromFormat(row.format);
+    if (!marker || !tail) continue;
+    if (!out.tailByMarker[marker]) out.tailByMarker[marker] = tail;
+  }
   return out;
 }
 
@@ -591,7 +694,9 @@ function reorderSegmentTokensByOrder(segText, orderCfg, panelName, tokenToKey, o
   const match = source.match(/^(-\s+(?:\[[^\]]\]\s+)?)(.*)$/);
   const lead = match ? match[1] : "";
   const body = match ? String(match[2] || "").trim() : source;
-  const parts = body.split(/\s+/).filter(Boolean);
+  /* Токены, а не куски между пробелами: эмодзи-элемент из двух слов иначе
+     разваливается, и новые теги встают между его половинами (Т-14). */
+  const parts = tokenizeSegmentBody(body, opts.markers);
   if (!parts.length) return lead ? String(lead).trim() : "";
 
   const orderKeys = buildPanelOrderKeys(orderCfg, panelName, {
@@ -819,7 +924,26 @@ function buildTagTokenKeyMap(rules, options) {
   };
 
   const leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [];
-  const fieldById = (id) => leftFields.find((f) => f && f.id === id) || null;
+  /*
+   * Правая корзина читается тоже, и это исключение № 7 из З3, разрешённое
+   * заказчиком 2026-09-01 (замечание И-4).
+   *
+   * `leftMode` и `rightMode` документа правил — это **не** левая и правая
+   * панели: `rules_markdown_builder` кладёт в них корзины `pkm.fields.tags` и
+   * `pkm.fields.links`. Сторону же (Block) решает Order. Поэтому Field типа
+   * link, стоящий у человека вторым слева, лежит в `rightMode`, в карту не
+   * попадал, и `reorderSegmentTokensByOrder` считал его токен незнакомым — а
+   * незнакомые дописываются **после** всех упорядоченных. Ссылка уезжала в
+   * конец блока при любом Order.
+   *
+   * Правая корзина идёт второй и **не перетирает** уже занятый токен: карта
+   * для левой корзины остаётся ровно такой, какой была, а новые ключи только
+   * добавляются. Токен, поделённый тегом и ссылкой, по-прежнему принадлежит
+   * тегу.
+   */
+  const rightFields = rules && rules.rightMode && Array.isArray(rules.rightMode.fields) ? rules.rightMode.fields : [];
+  const mapFields = leftFields.concat(rightFields);
+  const fieldById = (id) => mapFields.find((f) => f && f.id === id) || null;
   const out = {};
 
   const normalizeOrderKey = (field) => {
@@ -850,19 +974,23 @@ function buildTagTokenKeyMap(rules, options) {
     return "tag";
   };
 
-  const addFieldTokens = (key, field) => {
+  const addFieldTokens = (key, field, keepExisting) => {
     if (!field) return;
     const vals = activeValues(field);
     const outputMode = resolveFieldOutputMode(field);
+    const put = (token) => {
+      if (!token) return;
+      if (keepExisting === true && Object.prototype.hasOwnProperty.call(out, token)) return;
+      out[token] = key;
+    };
     for (const v of vals) {
       const rawToken = String(v && v.token ? v.token : "");
       if (!rawToken) continue;
       const link = String(v && v.link ? v.link : rawToken).trim();
-      if (outputMode === "wikilink" && link) out[`[[${link}]]`] = key;
+      if (outputMode === "wikilink" && link) put(`[[${link}]]`);
       if (outputMode !== "wikilink" || projectTagWhenWikilink) {
         const pref = typeof field.prefix === "string" ? field.prefix : "#";
-        const tok = composeToken(pref, rawToken);
-        if (tok) out[tok] = key;
+        put(composeToken(pref, rawToken));
       }
     }
   };
@@ -870,7 +998,13 @@ function buildTagTokenKeyMap(rules, options) {
   for (const field of leftFields) {
     const key = normalizeOrderKey(field);
     if (!key) continue;
-    addFieldTokens(key, field);
+    addFieldTokens(key, field, false);
+  }
+
+  for (const field of rightFields) {
+    const key = normalizeOrderKey(field);
+    if (!key) continue;
+    addFieldTokens(key, field, true);
   }
 
   const pairEntries = [];
@@ -881,7 +1015,7 @@ function buildTagTokenKeyMap(rules, options) {
     pairEntries.push({ key: dedupeKey, parentField, subField });
   };
 
-  for (const subField of leftFields) {
+  for (const subField of mapFields) {
     if (!subField || !subField.id) continue;
     const parentId = String(subField.dependsOn || "").trim();
     if (!parentId) continue;
@@ -1119,6 +1253,43 @@ function applyOrderToRules(rules, orderCfg, options) {
   reconcileModeDependencies(rules.leftMode, leftFields);
   reconcileModeDependencies(rules.rightMode, leftFields.concat(rightFields));
 
+  /*
+   * Короткое имя Field для TagWheel (`Name in TagWheel`, оно же `labels`).
+   * Одно место на весь разбор: отсюда берётся и `placeholder` поля, и подпись
+   * группы `rules.ui.leftGroups` (У-32).
+   *
+   * «Своего имени нет» здесь выглядит не как пустая подпись, а как подпись,
+   * равная ключу: `parseOrderConfig` досыпает в `labels` сам ключ для каждого
+   * встреченного Field. Это тот же признак, по которому панель показывает
+   * строку `Name in TagWheel` пустой (`fields_model.setStrictName`). Без него
+   * ветка вывода имени дочернего Field недостижима, и заказчик видел
+   * `Category_sub` вместо `Cat_sub` при родителе `Cat` (D12).
+   *
+   * У дочернего Field своего короткого имени нет и заводить его заказчик не
+   * захотел: дочка берёт имя родителя и добавляет `_sub` — было `sub`, стало
+   * `Imp_sub`. Ключ дочки и есть `<ключ родителя>_sub`, поэтому родитель
+   * находится отрезанием суффикса, а не отдельной картой связей.
+   *
+   * Своё короткое имя, если его когда-нибудь начнут задавать, сильнее
+   * выведенного: сначала смотрим `labels[k]`, потом уже родителя.
+   */
+  const labelsMap = isObj(orderCfg.labels) ? orderCfg.labels : {};
+  const ownShortName = (rawKey) => {
+    const key = String(rawKey || "").trim();
+    if (!key) return "";
+    const v = String(labelsMap[key] ? labelsMap[key] : "").trim();
+    return v && v !== key ? v : "";
+  };
+  const shortNameFor = (rawKey) => {
+    const key = String(rawKey || "").trim();
+    if (!key) return "";
+    const own = ownShortName(key);
+    if (own) return own;
+    if (!/_sub$/.test(key)) return "";
+    const parentShort = ownShortName(key.slice(0, -4));
+    return parentShort ? parentShort + "_sub" : "";
+  };
+
   for (const f of allFields) {
     const k = keyById[f.id];
     const fid = String(f && f.id || "").trim();
@@ -1133,7 +1304,7 @@ function applyOrderToRules(rules, orderCfg, options) {
     if (rightOrderSet.has(k)) f.panel = "right";
     else if (leftOrderSet.has(k)) f.panel = "left";
     f.orderKey = k;
-    const label = String(orderCfg.labels && orderCfg.labels[k] ? orderCfg.labels[k] : "").trim();
+    const label = shortNameFor(k);
     if (label) f.placeholder = label;
   }
 
@@ -1187,7 +1358,7 @@ function applyOrderToRules(rules, orderCfg, options) {
   };
   const leftOrderArr = Array.isArray(orderCfg && orderCfg.left) ? orderCfg.left : [];
   const resolveLeftDisplay = (k, field) => {
-    const fromOrder = String(orderCfg.labels && orderCfg.labels[k] ? orderCfg.labels[k] : "").trim();
+    const fromOrder = shortNameFor(k);
     if (fromOrder) return fromOrder;
     const fromField = String(field && field.placeholder ? field.placeholder : "").trim();
     if (fromField) return fromField;
@@ -1234,6 +1405,8 @@ module.exports = {
   removeMarkerTokensFromSegment,
   getDateMarkersFromRules,
   reorderSegmentTokensByOrder,
+  tokenizeSegmentBody,
+  elementTailPatternFromFormat,
   getDefaultTagTokenKeyMapOptions,
   getStatusTagReorderOptions,
   getStatusMixedReorderOptions,

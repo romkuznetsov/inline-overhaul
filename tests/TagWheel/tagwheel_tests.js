@@ -964,321 +964,9 @@ function runSuite(core, rules, finalize) {
   })()
 }
 
-function runConfigRoundTripSuite() {
-  var path = require('path')
-  var helpersMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'config_note_helpers.js'))
-  var parserMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'tagwheel_config_parser.js'))
-  var codecMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'tagwheel_config_codec.js'))
-
-  function isObj(x) {
-    return !!x && typeof x === 'object' && !Array.isArray(x)
-  }
-
-  function denormTagToken(token) {
-    var value = String(token || '').trim()
-    if (!value) return ''
-    if (value.charAt(0) === '#') value = value.slice(1)
-    return String(value || '').trim()
-  }
-
-  function isWikilinkToken(text) {
-    var raw = String(text || '').trim()
-    return /^\[\[[^\]]+\]\]$/.test(raw)
-  }
-
-  function parseWikilinkLineStrict(text, sectionName, lineNo, allowedFields) {
-    var raw = String(text || '').trim()
-    var m = raw.match(/^(\[\[[^\]]+\]\])(?:\s*-\s*([A-Za-z0-9_-]+))?$/)
-    if (!m) throw new Error('Section #### ' + sectionName + ', line ' + lineNo + ': expected wikilink')
-    var token = String(m[1] || '').trim()
-    var allowed = Array.isArray(allowedFields)
-      ? allowedFields.map(function(x) { return String(x || '').trim() }).filter(Boolean)
-      : []
-    if (!allowed.length) throw new Error('Section #### ' + sectionName + ', line ' + lineNo + ': no wikilink fields are configured')
-    var fieldId = String(m[2] || '').trim()
-    if (!fieldId) {
-      if (allowed.length === 1) fieldId = allowed[0]
-      else throw new Error('Section #### ' + sectionName + ', line ' + lineNo + ': field id is required for wikilink')
-    }
-    if (allowed.indexOf(fieldId) === -1) throw new Error('Section #### ' + sectionName + ', line ' + lineNo + ': unknown wikilink field ' + fieldId)
-    return { token: token, fieldId: fieldId }
-  }
-
-  function extractFirstTagToken(text) {
-    var raw = String(text || '')
-    var m = raw.match(/#[^\s#]+/)
-    return m ? String(m[0] || '').trim() : ''
-  }
-
-  function parseCheckboxAndTag(text) {
-    var raw = String(text || '')
-    var m = raw.match(/^\s*(?:[-*]\s*)?(\[[^\]]+\])\s+/)
-    return {
-      checkbox: m ? String(m[1] || '').trim() : '',
-      tag: extractFirstTagToken(raw)
-    }
-  }
-
-  function normalizePkmOrder(rawOrder) {
-    var order = isObj(rawOrder) ? JSON.parse(JSON.stringify(rawOrder)) : {}
-    if (!Array.isArray(order.left)) order.left = []
-    if (!Array.isArray(order.right)) order.right = []
-    if (!isObj(order.enabled)) order.enabled = {}
-    if (!isObj(order.types)) order.types = {}
-    if (!isObj(order.strictNames)) order.strictNames = {}
-    return order
-  }
-
-  function getOrderStrictName(cfg, key) {
-    var order = normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null)
-    var strict = String(order.strictNames[key] || '').trim()
-    return strict || String(key || '')
-  }
-
-  var configHelpers = helpersMod.createConfigNoteHelpers({
-    isObj: isObj,
-    normalizePkmOrder: normalizePkmOrder,
-    getOrderStrictName: getOrderStrictName,
-    TAGWHEEL_PREFIX_RESOLVER_H3: 'PREFIX RESOLVER'
-  })
-
-  var codec = codecMod.createTagWheelConfigCodec({
-    isObj: isObj,
-    getOrderStrictName: getOrderStrictName,
-    getFieldById: configHelpers.getFieldById,
-    getLeftFields: configHelpers.getLeftFields,
-    getRightFields: configHelpers.getRightFields,
-    collectTagSections: configHelpers.collectTagSections,
-    collectWikilinkFieldIds: configHelpers.collectWikilinkFieldIds,
-    collectOrderedElementFields: configHelpers.collectOrderedElementFields,
-    getPrefixRulesFromCfg: configHelpers.getPrefixRulesFromCfg,
-    denormTagToken: denormTagToken,
-    parseCustomPrefixResolverBlock: configHelpers.parseCustomPrefixResolverBlock,
-    isWikilinkToken: isWikilinkToken,
-    parseWikilinkLineStrict: parseWikilinkLineStrict,
-    extractFirstTagToken: extractFirstTagToken,
-    parseCheckboxAndTag: parseCheckboxAndTag,
-    createTagWheelConfigParser: parserMod.createTagWheelConfigParser,
-    TAGWHEEL_CONFIG_NOTE_DEFAULT_PATH: 'InlineOverhaul_Config.md',
-    TAGWHEEL_CONFIG_TEMPLATE_DEFAULT_PATH: 'InlineOverhaul_Config_template.md',
-    TAGWHEEL_TECHNICAL_BLOCK_MARKER: '<!-- INLINE_OVERHAUL:TECHNICAL_BLOCK -->',
-    TAGWHEEL_TECH_MARKER_PREFIX: 'INLINE_OVERHAUL:TECH:',
-    TAGWHEEL_IMPORTANT_LINE: '> [!IMPORTANT] TAGWHEEL',
-    CFG_H1_SETTINGS: 'Settings',
-    CFG_H2_TAGS: '`#TAGS/#SUBTAGS` + `WIKILINKS`',
-    CFG_H2_DATES: 'DATES',
-    CFG_H2_ELEMENTS: 'ELEMENTS',
-    CFG_H2_ELEMENTS_COMBINED: 'DATE/TIME + ELEMENTS',
-    TAGWHEEL_PREFIX_RESOLVER_H3: 'PREFIX RESOLVER',
-    TAGWHEEL_PREFIX_RESOLVER_SECTION: 'PREFIX RESOLVER',
-    TAGWHEEL_WIKILINK_SECTION: 'wikilink fields (from Order)'
-  })
-
-  var cfg = {
-    pkm: {
-      behavior: {
-        order: {
-          left: ['importance', 'category', 'category_sub', 'project', 'clients'],
-          right: ['date_due', 'date_start', 'time', 'effort1'],
-          enabled: { importance: true, category: true, category_sub: true, project: true, clients: true, date_due: true, date_start: true, time: true, effort1: true },
-          types: { importance: 'tag', category: 'tag', category_sub: 'tag', project: 'tag', clients: 'tag', date_due: 'element', date_start: 'element', time: 'element', effort1: 'element' },
-          strictNames: { importance: 'importance', category: 'category', category_sub: 'category_sub', project: 'project', clients: 'clients', date_due: 'date_due', date_start: 'date_start', time: 'time', effort1: 'effort1' },
-          propertiesByField: { importance: 'importance', clients: 'client_prop', effort1: 'effort_prop' }
-        },
-        leftMode: {
-          fields: [
-            { id: 'priority', orderKey: 'importance', prefix: '#', values: [{ token: '' }, { token: '/1', yamlProperty: 'priority_override' }] },
-            { id: 'category', orderKey: 'category', prefix: '#', values: [{ token: '' }, { token: 'area-alpha' }, { token: 'area-shared' }] },
-            { id: 'category_sub', orderKey: 'category_sub', prefix: '#', dependsOn: 'category', values: [{ token: '' }, { token: 'area-alpha-child', allowedParentValues: ['area-alpha'] }, { token: 'area-shared-child', allowedParentValues: ['area-shared'] }] },
-            { id: 'project', orderKey: 'project', source: 'projects', values: [{ token: '' }] },
-            { id: 'clients', orderKey: 'clients', source: 'wikilinks:clients', dependsOn: 'category_sub', values: [{ token: '' }, { token: '[[Entity-Alpha]]' }, { token: '[[EntityBeta]]' }] }
-          ]
-        },
-        rightMode: {
-          fields: [
-            { id: 'due', orderKey: 'date_due', kind: 'dateOffset', marker: '📅', values: [{ token: '' }] },
-            { id: 'start', orderKey: 'date_start', kind: 'dateOffset', marker: '🛫', values: [{ token: '' }] },
-            { id: 'timeNow', orderKey: 'time', kind: 'nowTime', marker: '🕒', values: [{ token: '' }] },
-            { id: 'effortField', orderKey: 'effort1', kind: 'genericElement', marker: '⛏️', values: [{ token: '' }] }
-          ]
-        },
-        prefixRules: {
-          resolver: 'priority-first',
-          priorityMode: 'by-section',
-          fieldsOrderMode: 'manual',
-          tagSubtagPriority: 'subtag-over-tag',
-          priorityTargets: ['priority', 'category', 'category_sub'],
-          priorityCheckboxes: ['[ ]'],
-          checkboxByFieldValue: {}
-        },
-        dates: { fields: ['date_due', 'date_start', 'time'], byField: { date_due: { emoji: '📅' }, date_start: { emoji: '🛫' }, time: { emoji: '🕒' } } },
-        elements: { fields: ['effort1'], byField: { effort1: { emoji: '⛏️', format: '000', increment: { mode: 'standard', incrementBy: 1 } } } },
-        projects: {
-          filterKeys: ['type', 'type_sub', 'category', 'category_sub', 'project'],
-          defaults: ['[[LEGACY_DEFAULT]]'],
-          byContext: {
-            oldctx: { branch: ['[[LEGACY_BRANCH]]'], leaf: { oldsub: ['[[LEGACY_LEAF]]'] } }
-          }
-        }
-      },
-      taxonomy: {
-        tagWheelConfig: {
-          prefixResolver: {
-            fieldsOrderRaw: ['type', 'client', 'client1', 'topic', 'clients', 'importance', 'category', 'project', 'date_due', 'time', 'date_start', 'effort', 'effort1']
-          },
-          wikilinkFields: ['project', 'clients'],
-          wikilinks: {
-            project: {
-              bySection: {
-                project: {
-                  defaults: ['[[example]]'],
-                  byParent: {}
-                },
-                category: {
-                  defaults: ['[[HomeHub]]'],
-                  byParent: {
-                    '#area-alpha': { branch: ['[[Project Alpha]]'], leaf: { '#area-alpha-child': ['[[Project Alpha Child]]'] } }
-                  }
-                }
-              }
-            },
-            clients: {
-              bySection: {
-                category: {
-                  defaults: [],
-                  byParent: {
-                    '#area-shared': { branch: [], leaf: { '#area-shared-child': ['[[Entity Linked]]'] } }
-                  }
-                },
-                clients: {
-                  defaults: ['[[Entity-Alpha]]', '[[EntityBeta]]'],
-                  byParent: {}
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  var md1 = codec.buildTagWheelConfigMarkdown(cfg, 'minimal')
-  assertTrue(md1.indexOf('- [[Project Alpha Child]] - project') !== -1, 'codec generate keeps mixed project wikilink in category section')
-  assertTrue(md1.indexOf('- [[Entity Linked]] - clients') !== -1, 'codec generate keeps mixed wikilink-source field token in category section')
-  var tagsSectionStart = md1.indexOf('### `#TAGS/#SUBTAGS` + `WIKILINKS`')
-  var tagsSectionEnd = md1.indexOf('### `DATE/TIME + ELEMENTS`')
-  var tagsSection = tagsSectionStart !== -1 && tagsSectionEnd !== -1 && tagsSectionEnd > tagsSectionStart
-    ? md1.slice(tagsSectionStart, tagsSectionEnd)
-    : ''
-  assertTrue(tagsSection.indexOf('##### date_due') === -1, 'tags section does not include date fields')
-  assertTrue(tagsSection.indexOf('##### date_start') === -1, 'tags section does not include start-date fields')
-  assertTrue(tagsSection.indexOf('##### time') === -1, 'tags section does not include time fields')
-  assertTrue(tagsSection.indexOf('##### effort') === -1, 'tags section does not include generic element fields')
-  assertTrue(md1.indexOf('**Automatically** - by plugin settings "Order" (PKM -> Order). Left panel tags > right panel tags, priority decreases from up to down') !== -1, 'prefix resolver keeps full Automatically explanatory text')
-  assertTrue(md1.indexOf('**Manually** - by your settings `Fields order` (go below to subheader `Order`)') !== -1, 'prefix resolver keeps full Manually explanatory text')
-  assertTrue(md1.indexOf('yaml = `priority_override`') !== -1, 'codec generate emits token-level yaml override for tags')
-  assertTrue(md1.indexOf('##### clients - link') !== -1 && md1.indexOf('- YAML: client_prop') !== -1, 'codec generate emits field-level yaml line for link sections')
-  assertTrue(md1.indexOf('##### effort1') !== -1 && md1.indexOf('- YAML: effort_prop') !== -1, 'codec generate emits field-level yaml line for element sections')
-  var typeSectionStart = md1.indexOf('##### type')
-  var typeSectionEnd = md1.indexOf('##### category')
-  var typeSection = typeSectionStart !== -1 && typeSectionEnd !== -1 && typeSectionEnd > typeSectionStart
-    ? md1.slice(typeSectionStart, typeSectionEnd)
-    : ''
-  assertTrue(typeSection.indexOf(' - project') === -1, 'type section does not get source-derived project rows from compat fallback')
-  var clientsSectionStart = md1.indexOf('##### clients')
-  var clientsSectionEnd = md1.indexOf('#### PREFIX RESOLVER')
-  var clientsSection = clientsSectionStart !== -1 && clientsSectionEnd !== -1 && clientsSectionEnd > clientsSectionStart
-    ? md1.slice(clientsSectionStart, clientsSectionEnd)
-    : ''
-  assertTrue(clientsSection.indexOf('[[Entity-Alpha]] - clients') === -1, 'source field own section does not duplicate entries with field suffix')
-  assertTrue(clientsSection.indexOf('[[EntityBeta]] - clients') === -1, 'source field own section does not duplicate secondary entry with field suffix')
-  var projectSectionStart = md1.indexOf('##### project')
-  var projectSectionEnd = md1.indexOf('##### client')
-  var projectSection = projectSectionStart !== -1 && projectSectionEnd !== -1 && projectSectionEnd > projectSectionStart
-    ? md1.slice(projectSectionStart, projectSectionEnd)
-    : ''
-  assertTrue(projectSection.indexOf('- [[example]]') !== -1, 'source-own project section keeps wikilink token without conversion to tag')
-  assertTrue(projectSection.indexOf('- #example') === -1, 'source-own project section does not convert wikilink defaults into tag entries')
-  var fieldsOrderStart = md1.indexOf('1.  **Fields Order:**')
-  var fieldsOrderEnd = md1.indexOf('2. **Checkbox Order:**')
-  var fieldsOrderSection = fieldsOrderStart !== -1 && fieldsOrderEnd !== -1 && fieldsOrderEnd > fieldsOrderStart
-    ? md1.slice(fieldsOrderStart, fieldsOrderEnd)
-    : ''
-  assertTrue(fieldsOrderSection.indexOf('- date_due') !== -1, 'fields order keeps non-tag entries from canonical raw order list')
-  assertTrue(fieldsOrderSection.indexOf('- effort1') !== -1, 'fields order keeps trailing raw order entries from canonical metadata')
-
-  var parsed = codec.parseTagWheelConfigMarkdown(md1, cfg)
-  var rebuiltWikilinks = {}
-  var wikilinkFields = Array.isArray(parsed.wikilinkFields) ? parsed.wikilinkFields : []
-  var i
-  for (i = 0; i < wikilinkFields.length; i++) {
-    rebuiltWikilinks[wikilinkFields[i]] = { bySection: {} }
-  }
-  var sectionNames = Object.keys(parsed.sections || {})
-  for (i = 0; i < sectionNames.length; i++) {
-    var sectionName = sectionNames[i]
-    var sec = parsed.sections[sectionName]
-    var wl = sec && sec.wikilinks && typeof sec.wikilinks === 'object' ? sec.wikilinks : {}
-    var fieldIds = Object.keys(wl)
-    var fi
-    for (fi = 0; fi < fieldIds.length; fi++) {
-      var fid = fieldIds[fi]
-      if (!rebuiltWikilinks[fid]) rebuiltWikilinks[fid] = { bySection: {} }
-      rebuiltWikilinks[fid].bySection[sectionName] = wl[fid]
-    }
-  }
-
-  var cfg2 = JSON.parse(JSON.stringify(cfg))
-  cfg2.pkm.behavior.projects = {
-    filterKeys: ['category', 'category_sub'],
-    defaults: ['[[STALE_SHOULD_NOT_RENDER]]'],
-    byContext: { stale: { branch: ['[[STALE_BRANCH]]'], leaf: {} } }
-  }
-  cfg2.pkm.taxonomy.tagWheelConfig.wikilinks = rebuiltWikilinks
-  var md2 = codec.buildTagWheelConfigMarkdown(cfg2, 'minimal')
-  assertEq(md2, md1, 'codec round-trip generate/parse/generate is idempotent for mixed wikilink bindings')
-  assertTrue(md2.indexOf('[[STALE_SHOULD_NOT_RENDER]]') === -1, 'codec prioritizes taxonomy bySection over stale projects fallback data')
-
-  var cfg3 = JSON.parse(JSON.stringify(cfg))
-  if (cfg3 && cfg3.pkm && cfg3.pkm.taxonomy && cfg3.pkm.taxonomy.tagWheelConfig && cfg3.pkm.taxonomy.tagWheelConfig.wikilinks && cfg3.pkm.taxonomy.tagWheelConfig.wikilinks.clients) {
-    cfg3.pkm.taxonomy.tagWheelConfig.wikilinks.clients.bySection = {}
-  }
-  var clientsField3 = cfg3 && cfg3.pkm && cfg3.pkm.behavior && cfg3.pkm.behavior.leftMode && Array.isArray(cfg3.pkm.behavior.leftMode.fields)
-    ? cfg3.pkm.behavior.leftMode.fields.filter(function (f) { return f && f.id === 'clients' })[0]
-    : null
-  if (clientsField3 && Array.isArray(clientsField3.values)) {
-    clientsField3.values.push({
-      token: '[[EntityGamma]]',
-      __ioParentBinding: 's:#area-shared-child|p:#area-shared|f:category_sub',
-      __ioParentFieldId: 'category_sub',
-      allowedParentValues: ['area-shared', 'area-shared-child'],
-      active: true
-    })
-  }
-  var md3 = codec.buildTagWheelConfigMarkdown(cfg3, 'minimal')
-  var categorySectionStart3 = md3.indexOf('##### category - tag')
-  var categorySectionEnd3 = md3.indexOf('##### project - link')
-  var categorySection3 = categorySectionStart3 !== -1 && categorySectionEnd3 !== -1 && categorySectionEnd3 > categorySectionStart3
-    ? md3.slice(categorySectionStart3, categorySectionEnd3)
-    : md3
-  assertTrue(categorySection3.indexOf('[[EntityGamma]] - clients') !== -1, 'codec section-aware fallback keeps linked entity token in parent section when taxonomy bySection is absent')
-  var clientsSectionMatch3 = md3.match(/##### clients - link[\s\S]*?(?=\n##### |\n#### PREFIX RESOLVER|$)/)
-  var clientsSection3 = clientsSectionMatch3 ? clientsSectionMatch3[0] : md3
-  var countIn = function (src, needle) {
-    var idx = 0
-    var cnt = 0
-    while (true) {
-      var pos = src.indexOf(needle, idx)
-      if (pos === -1) break
-      cnt += 1
-      idx = pos + needle.length
-    }
-    return cnt
-  }
-  assertEq(String(countIn(clientsSection3, '[[EntityGamma]]')), '0', 'clients own section excludes bound entity token')
-  assertEq(String(countIn(clientsSection3, '[[Entity-Alpha]]')), '1', 'clients own section keeps single deduped default token Entity-Alpha')
-  assertEq(String(countIn(clientsSection3, '[[EntityBeta]]')), '1', 'clients own section keeps single deduped default token EntityBeta')
-}
+/* Круговой обход конфиг-заметки (был `runConfigRoundTripSuite`) снят
+   2026-09-03 вместе с заметкой: кодека и разборщика в плагине больше нет
+   (PRD 10.12, решение В-28). */
 
 function runSharedOrderAlignmentSuite() {
   var path = require('path')
@@ -1288,6 +976,8 @@ function runSharedOrderAlignmentSuite() {
     return !!x && typeof x === 'object' && !Array.isArray(x)
   }
 
+  /* Это объект ПРАВИЛ, а не конфиг: форма документа правил TagWheel вместе с
+     конфигом не менялась (см. `rules_markdown_builder.js`). */
   var rules = {
     behavior: {
       order: {
@@ -1298,7 +988,7 @@ function runSharedOrderAlignmentSuite() {
         labels: {},
         strictNames: {},
         types: { importance: 'tag', type: 'tag', clients: 'tag', category: 'tag', category_sub: 'tag', project: 'tag', date_due: 'element', effort1: 'element', child_orphan: 'tag' }
-      }
+      },
     },
     inlineLayout: { techOrder: ['otherTags'] },
     leftMode: {
@@ -1385,7 +1075,261 @@ function runSharedOrderAlignmentSuite() {
   assertTrue(/\[\[Entity-Alpha\]\]/.test(lookalikeSeg), 'mixed reorder keeps distinct entity token without normalization drift')
 }
 
+/**
+ * И-4: Field типа link встаёт на своё место в Order.
+ *
+ * Форма правил взята с конфига заказчика, и в ней всё дело. Field `Project` —
+ * ссылка, поэтому `rules_markdown_builder` кладёт его в корзину `rightMode`
+ * (это корзина `pkm.fields.links`, а вовсе не «правая панель»), а сторону
+ * решает Order, и там ссылка стоит **второй слева**.
+ *
+ * До правки `buildTagTokenKeyMap` читал только `leftMode`: токен `[[test1]]`
+ * оставался для перестановки незнакомым, а незнакомые дописываются после всех
+ * упорядоченных — ссылка уезжала в конец блока при любом Order.
+ *
+ * Ожидание выписано строкой отдельно от данных, из которых строится результат
+ * (У-5), и при расхождении печатается то, что получилось (У-8).
+ */
+function runLinkFieldOrderSuite() {
+  var path = require('path')
+  var shared = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+
+  /* Это объект ПРАВИЛ, а не конфиг. */
+  var rules = {
+    behavior: {
+      order: {
+        left: ['Importance', 'Project', 'type'],
+        right: ['date_due'],
+        active: { Importance: 'yes', Project: 'yes', type: 'yes', date_due: 'yes' },
+        enabled: { Importance: true, Project: true, type: true, date_due: true },
+        types: { Importance: 'tag', Project: 'wikilink', type: 'tag', date_due: 'element' }
+      }
+    },
+    io: { separator1: '||', separator2: '||' },
+    leftMode: {
+      fields: [
+        { id: 'Importance', prefix: '#', values: [
+          { token: '#/1', active: true },
+          { token: '#/2', active: true }
+        ] },
+        { id: 'type', prefix: '#', values: [
+          { token: '#todo', active: true },
+          { token: '#note', active: true }
+        ] }
+      ]
+    },
+    rightMode: {
+      fields: [
+        { id: 'date_due', kind: 'genericElement', marker: '📅', values: [''] },
+        { id: 'Project', prefix: '#', source: 'wikilinks:Project', values: [
+          { token: 'test1', active: true },
+          { token: 'todo', active: true }
+        ] }
+      ]
+    }
+  }
+
+  var orderCfg = shared.parseOrderConfig(rules.behavior.order)
+  var tokenToKey = shared.buildTagTokenKeyMap(rules, shared.getDefaultTagTokenKeyMapOptions())
+
+  assertEq(tokenToKey['[[test1]]'], 'Project', 'карта токенов знает ссылку из корзины links')
+  assertEq(tokenToKey['#/1'], 'Importance', 'карта токенов по корзине тегов не изменилась')
+  /* Значение `todo` у ссылки даёт тег-форму `#todo`, уже занятую Field type.
+     Правая корзина не перетирает занятое: иначе починка порядка ссылок сломала
+     бы порядок тегов, и молча. */
+  assertEq(tokenToKey['#todo'], 'type', 'токен, поделённый тегом и ссылкой, остаётся за тегом')
+
+  var markers = shared.getDateMarkersFromRules(rules)
+  var input = '#/1 #todo [[test1]]'
+  var want = '#/1 [[test1]] #todo'
+
+  var wheelGot = shared.reorderSegmentTokensByOrder(
+    input, orderCfg, 'left', tokenToKey, shared.getTagWheelMixedReorderOptions(markers))
+  if (wheelGot !== want) console.log('  TagWheel слева: ' + wheelGot)
+  assertEq(wheelGot, want, 'ссылка встаёт на своё место в Order, а не в конец блока')
+
+  var statusGot = shared.reorderSegmentTokensByOrder(
+    input, orderCfg, 'left', tokenToKey, shared.getStatusMixedReorderOptions(markers))
+  if (statusGot !== want) console.log('  хоткеи слева: ' + statusGot)
+  assertEq(statusGot, want, 'хоткеи переставляют ссылку так же, как TagWheel')
+
+  /* Ссылка, которой в Order нет вовсе, по-прежнему уходит в конец: правка
+     добавляет знание о ссылках, а не меняет судьбу незнакомых токенов. */
+  var unknownGot = shared.reorderSegmentTokensByOrder(
+    '#/1 [[nobody]] #todo', orderCfg, 'left', tokenToKey, shared.getTagWheelMixedReorderOptions(markers))
+  assertEq(unknownGot, '#/1 #todo [[nobody]]', 'незнакомая ссылка остаётся в конце блока')
+}
+
+/**
+ * Т-14: эмодзи-элемент из двух слов не разрывается вставкой других Fields.
+ *
+ * Заказчик прислал (свободное замечание, 2026-09-02):
+ *
+ *   исходная строка   `- || 📅2026-09-02 20:43`
+ *   результат         `- || 📅2026-09-02 #work #AK 20:44`
+ *
+ * Причина была в разборе: `split(/\s+/)` делил элемент на `📅2026-09-02` и
+ * `20:43`. Первая половина узнавалась по метке и вставала на своё место в
+ * Order, вторая не узнавалась никем и уходила в корзину неизвестных, а
+ * корзина печатается последней — новые теги оказывались между половинами.
+ *
+ * Двенадцатое исключение к З3, разрешение заказчика 2026-09-02.
+ *
+ * Здесь же сторожится второе объявление правила хвоста (У-32): та же функция
+ * живёт в `main.js` для отрисовки, свести их в один модуль нечем — `main.js`
+ * грузит этот файл мостом vault, а не через `require`.
+ */
+function runElementTokenSuite() {
+  var path = require('path')
+  var fs = require('fs')
+  var shared = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+
+  var rules = {
+    behavior: {
+      order: {
+        left: ['Importance', 'type'],
+        right: ['date_due', 'Category'],
+        active: { Importance: 'yes', type: 'yes', date_due: 'yes', Category: 'yes' },
+        enabled: { Importance: true, type: true, date_due: true, Category: true },
+        types: { Importance: 'tag', type: 'tag', date_due: 'element', Category: 'tag' }
+      },
+      elements: { byField: { date_due: { emoji: '📅', format: 'YYYY-MM-DD hh:mm' } } }
+    },
+    io: { separator1: '||', separator2: '||' },
+    leftMode: {
+      fields: [
+        { id: 'Importance', prefix: '#', orderKey: 'Importance', values: [{ token: '#/1', active: true }] },
+        { id: 'type', prefix: '#', orderKey: 'type', values: [{ token: '#todo', active: true }] },
+        { id: 'Category', prefix: '#', orderKey: 'Category', values: [
+          { token: '#work', active: true },
+          { token: '#AK', active: true }
+        ] }
+      ]
+    },
+    rightMode: {
+      fields: [
+        { id: 'date_due', kind: 'genericElement', marker: '📅', orderKey: 'date_due', values: [''] }
+      ]
+    }
+  }
+
+  var markers = shared.getDateMarkersFromRules(rules)
+  assertEq(markers.tailByMarker['📅'], '\\d{4}-\\d{2}-\\d{2}[ ]\\d{2}:\\d{2}',
+    'хвост метки выведен из формата поля')
+
+  var orderCfg = shared.parseOrderConfig(rules.behavior.order)
+  var tokenToKey = shared.buildTagTokenKeyMap(rules, shared.getDefaultTagTokenKeyMapOptions())
+  var opts = shared.getTagWheelMixedReorderOptions(markers)
+
+  /* Разбор: элемент со временем — ОДИН токен. */
+  assertArrayEq(shared.tokenizeSegmentBody('📅2026-09-02 20:43 #work', markers),
+    ['📅2026-09-02 20:43', '#work'],
+    'элемент из двух слов разбирается одним токеном')
+
+  /* И перестановка его больше не разрывает — случай заказчика. */
+  assertEq(
+    shared.reorderSegmentTokensByOrder('📅2026-09-02 20:43 #work #AK', orderCfg, 'right', tokenToKey, opts),
+    '📅2026-09-02 20:43 #work #AK',
+    'вставленные теги встают ПОСЛЕ элемента, а не внутрь него')
+
+  /* Обратная сторона: элемент в одно слово работает как раньше. */
+  var oneWord = JSON.parse(JSON.stringify(rules))
+  oneWord.behavior.elements.byField.date_due.format = 'YYYY-MM-DD'
+  var m1 = shared.getDateMarkersFromRules(oneWord)
+  assertArrayEq(shared.tokenizeSegmentBody('📅2026-09-02 #work', m1),
+    ['📅2026-09-02', '#work'],
+    'элемент в одно слово остаётся одним токеном и без хвоста с пробелом')
+
+  /* И порядок по Order при этом соблюдается: элемент впереди своего тега. */
+  assertEq(
+    shared.reorderSegmentTokensByOrder('#work 📅2026-09-02 20:43 #AK', orderCfg, 'right', tokenToKey, opts),
+    '📅2026-09-02 20:43 #work #AK',
+    'элемент встаёт на своё место в Order, а не в конец')
+
+  /*
+   * Второе объявление правила хвоста не разошлось с первым. Сверяются обе
+   * функции на наборе форматов; `main.js` читается как текст и исполняется
+   * своим же загрузчиком — тем же, которым его берут остальные проверки.
+   */
+  var mainSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'main.js'), 'utf8')
+  var at = mainSrc.indexOf('function elementTailPatternFromFormat(format) {')
+  if (at < 0) throw new Error('в main.js нет elementTailPatternFromFormat: правило переехало, сверить нечем')
+  var end = mainSrc.indexOf('\n}\n', at)
+  var body = mainSrc.slice(at, end + 3)
+  /* `escapeRegExp` в `main.js` называется иначе, чем здесь; для сверки хватает
+     той же семантики. */
+  var fromMain = new Function('escapeRegExp', body + '\nreturn elementTailPatternFromFormat;')(
+    function (t) { return String(t || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') })
+
+  var formats = ['YYYY-MM-DD hh:mm', 'YYYY-MM-DD', 'hh:mm', 'DD.MM.YYYY', 'YYYY/MM/DD hh:mm:ss', '', 'YY']
+  for (var fi = 0; fi < formats.length; fi++) {
+    var f = formats[fi]
+    assertEq(shared.elementTailPatternFromFormat(f), fromMain(f),
+      'правило хвоста совпадает с тем, что в main.js, для формата "' + f + '"')
+  }
+  console.log('  ok Т-14: элемент из двух слов не разрывается, правило хвоста одно')
+}
+
+/**
+ * И-2.1 / PRD 10.13.6: подсветка строки, пока открыт TagWheel.
+ *
+ * Обёртку в `==` движок ставил всегда — при `rules.ui.activePanel.useHighlight`,
+ * — но записать это значение было некому: ветки `pkm.behavior.ui` нет в
+ * умолчаниях, и блок `tagwheel-ui` уезжал в заметку правил пустым. Заказчик
+ * решил 2026-09-01 вернуть подсветку тумблером (В-15).
+ *
+ * Здесь закреплены обе половины: строитель документа правил кладёт значение,
+ * а движок по нему рисует. Между ними стоит ловушка — `showMarkers` внутри
+ * `activePanel` это не тумблер `Show tag markers`, а обёртки `{TW}` вокруг
+ * строки, — и она закреплена отдельно.
+ */
+function runPanelHighlightSuite(core) {
+  var path = require('path')
+  var builderMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'rules_markdown_builder.js'))
+  var builder = builderMod.createRulesMarkdownBuilder({})
+
+  var offUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: {} } }).ui
+  var onUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: { highlightLine: true } } }).ui
+  assertEq(offUi.activePanel.useHighlight, false, 'выключенная настройка не включает подсветку')
+  assertEq(onUi.activePanel.useHighlight, true, 'включённая настройка доезжает до документа правил')
+  assertEq(onUi.activePanel.enabled, true, 'блок панели включён, иначе движок не смотрит на него вовсе')
+
+  var markersUi = builder.buildRulesShapeFromConfig({
+    visual: { tagWheel: { showMarkers: true, highlightLine: true } }
+  }).ui
+  assertEq(markersUi.activePanel.showMarkers, undefined,
+    'тумблер Show tag markers не превращается в текстовые обёртки вокруг строки')
+
+  /* Правила минимальные: нужен один Field с одним значением и разделители. */
+  var rules = {
+    io: { separator1: '||', separator2: '||' },
+    behavior: { order: { left: ['type'], right: [], active: { type: 'yes' }, enabled: { type: true } } },
+    leftMode: { fields: [{ id: 'type', prefix: '#', placeholder: 'type', values: [
+      { id: '', token: '' },
+      { id: '#todo', token: '#todo', active: true }
+    ] }] },
+    rightMode: { fields: [] }
+  }
+  var state = core.makeInitialState(rules, 'left')
+  state.selected = { type: '#todo' }
+  var parsed = { indent: '', text: '111', tags: [], dates: '' }
+
+  var plain = core.renderControlLine(rules, state, parsed)
+  assertTrue(plain.indexOf('==') === -1, 'без настройки строка панели ничем не обёрнута')
+
+  rules.ui = onUi
+  var painted = core.renderControlLine(rules, state, parsed)
+  if (painted.indexOf('==') === -1) console.log('  строка панели: ' + painted)
+  assertTrue(/^==.*==\s*\|\|\s*111$/.test(painted), 'с настройкой панель обёрнута в == и текст остаётся за разделителем')
+
+  rules.ui = offUi
+  assertEq(core.renderControlLine(rules, state, parsed), plain,
+    'выключенная настройка возвращает ту же строку, что и отсутствие ветки')
+}
+
 function runLeadFieldPolicySuite(core) {
+  /* Это объект ПРАВИЛ, а не конфиг: форма документа правил TagWheel вместе с
+     конфигом не менялась (см. `rules_markdown_builder.js`). */
   var rules = {
     behavior: {
       order: {
@@ -1394,7 +1338,7 @@ function runLeadFieldPolicySuite(core) {
         lead: { left: 'project', right: 'time' },
         active: { importance: 'yes', category: 'yes', project: 'yes', date_due: 'yes', time: 'yes' },
         enabled: { importance: true, category: true, project: true, date_due: true, time: true }
-      }
+      },
     },
     leftMode: {
       fields: [
@@ -1432,6 +1376,151 @@ function runLeadFieldPolicySuite(core) {
   assertEq(rules.rightMode.fields[rightHotkeyOnlyIdx].id, 'due', 'hotkey_only lead field falls back to first enabled field in TagWheel')
 }
 
+/*
+ * Короткое имя Field (`Name in TagWheel`, оно же `labels`) достаётся и
+ * дочернему Field: своего у него нет, и заказчик не захотел заводить второе
+ * поле именования — дочка берёт имя родителя и добавляет `_sub`. До правки
+ * 2026-09-04 она показывалась как `sub` при родителе `Imp`.
+ *
+ * Конфиг здесь **прогоняется через `parseOrderConfig`**, как его прогоняет
+ * TagWheel, а не отдаётся `applyOrderToRules` руками (У-38). Первая версия
+ * этой проверки отдавала руками и была зелёной, а на конфиге заказчика правка
+ * не работала: `parseOrderConfig` досыпает в `labels` сам ключ для каждого
+ * встреченного Field, и ветка вывода имени дочки была недостижима — заказчик
+ * видел `Category_sub` вместо `Cat_sub` (D12).
+ */
+/**
+ * Край Block: что делает стрелка, когда следующего Field на этой стороне нет
+ * (10.13.35, заказ заказчика 2026-09-05).
+ *
+ * Проверяется решение, а не запись: `planFieldStep` — чистая функция, и ей не
+ * нужна ни открытая панель, ни Obsidian. Заказчик описал четыре границы, и
+ * все четыре проверяются поимённо: обещание «зеркально» — самое лёгкое место,
+ * где правка сходится в одну сторону и расходится в другую.
+ */
+function runEdgeModeSuite() {
+  var path = require('path')
+  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var plan = tagwheel.planFieldStep
+  var left = ['importance', 'type']
+  var right = ['project', 'due']
+
+  /* Прежнее поведение — умолчание, и оно обязано остаться прежним. */
+  var stayRight = plan({ ids: left, otherIds: right, activeFieldId: 'type', mode: 'left', dir: 1, edgeMode: 'stay' })
+  assertEq(stayRight.mode, 'left', 'stay: сторона меняться не должна')
+  assertEq(stayRight.activeFieldId, 'importance', 'stay: с последнего вправо — на первый своей стороны')
+  assertEq(stayRight.crossed, false, 'stay: перехода не было')
+
+  var stayLeft = plan({ ids: left, otherIds: right, activeFieldId: 'importance', mode: 'left', dir: -1, edgeMode: 'stay' })
+  assertEq(stayLeft.activeFieldId, 'type', 'stay: с первого влево — на последний своей стороны')
+
+  /* Отсутствие настройки читается как прежнее поведение, а не как ошибка. */
+  var noMode = plan({ ids: left, otherIds: right, activeFieldId: 'type', mode: 'left', dir: 1 })
+  assertEq(noMode.mode, 'left', 'без настройки поведение обязано остаться прежним')
+
+  /* Четыре границы заказчика, слово в слово из его записи. */
+  var l2r = plan({ ids: left, otherIds: right, activeFieldId: 'type', mode: 'left', dir: 1, edgeMode: 'next-block' })
+  assertEq(l2r.mode, 'right', 'с крайнего правого левой панели вправо — в правую')
+  assertEq(l2r.activeFieldId, 'project', '…и на крайний левый её Field')
+  assertEq(l2r.crossed, true, 'переход обязан быть назван переходом')
+
+  var l2rBack = plan({ ids: left, otherIds: right, activeFieldId: 'importance', mode: 'left', dir: -1, edgeMode: 'next-block' })
+  assertEq(l2rBack.mode, 'right', 'с крайнего левого левой панели влево — в правую')
+  assertEq(l2rBack.activeFieldId, 'due', '…и на крайний правый её Field')
+
+  var r2l = plan({ ids: right, otherIds: left, activeFieldId: 'due', mode: 'right', dir: 1, edgeMode: 'next-block' })
+  assertEq(r2l.mode, 'left', 'зеркально: с крайнего правого правой панели вправо — в левую')
+  assertEq(r2l.activeFieldId, 'importance', '…и на крайний левый её Field')
+
+  var r2lBack = plan({ ids: right, otherIds: left, activeFieldId: 'project', mode: 'right', dir: -1, edgeMode: 'next-block' })
+  assertEq(r2lBack.mode, 'left', 'зеркально: с крайнего левого правой панели влево — в левую')
+  assertEq(r2lBack.activeFieldId, 'type', '…и на крайний правый её Field')
+
+  /* Внутри стороны переход не при чём: шаг обычный. */
+  var inside = plan({ ids: left, otherIds: right, activeFieldId: 'importance', mode: 'left', dir: 1, edgeMode: 'next-block' })
+  assertEq(inside.mode, 'left', 'шаг внутри стороны не обязан менять сторону')
+  assertEq(inside.activeFieldId, 'type', 'шаг внутри стороны идёт по своему списку')
+  assertEq(inside.crossed, false, 'шаг внутри стороны переходом не является')
+
+  /*
+   * Соседняя сторона пуста — уходить некуда. Кольцо замыкается на своей, а не
+   * молча ничего не делает: тихий отказ неотличим от дефекта (У-41).
+   */
+  var noOther = plan({ ids: left, otherIds: [], activeFieldId: 'type', mode: 'left', dir: 1, edgeMode: 'next-block' })
+  assertEq(noOther.mode, 'left', 'уходить некуда — сторона остаётся своей')
+  assertEq(noOther.activeFieldId, 'importance', 'уходить некуда — кольцо замыкается на своей стороне')
+
+  assertEq(plan({ ids: [], otherIds: right, mode: 'left', dir: 1, edgeMode: 'next-block' }), null,
+    'пустая сторона обязана вернуть null, а не выдумать Field')
+
+  assertEq(tagwheel.normalizeEdgeMode('NEXT-BLOCK'), 'next-block', 'значение читается без учёта регистра')
+  assertEq(tagwheel.normalizeEdgeMode('что угодно'), 'stay', 'неизвестное значение читается как прежнее поведение')
+}
+
+function runChildFieldShortNameSuite() {
+  var path = require('path')
+  var shared = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+
+  function build(labels) {
+    var rules = {
+      behavior: { order: {} },
+      inlineLayout: { techOrder: ['otherTags'] },
+      ui: {},
+      leftMode: {
+        fields: [
+          { id: 'importance', orderKey: 'importance', prefix: '#', placeholder: 'importance', values: [{ id: '', token: '' }, { id: 'p1', token: '#/1' }] },
+          { id: 'importance_sub', orderKey: 'importance_sub', dependsOn: 'importance', prefix: '#', placeholder: 'sub', values: [{ id: '', token: '' }, { id: 'p1a', token: '#/1a', allowedParentValues: ['p1'] }] },
+          { id: 'category', orderKey: 'category', prefix: '#', placeholder: 'category', values: [{ id: '', token: '' }, { id: 'alpha', token: 'area-alpha' }] },
+          { id: 'category_sub', orderKey: 'category_sub', dependsOn: 'category', prefix: '#', placeholder: 'sub', values: [{ id: '', token: '' }, { id: 'alpha-child', token: 'area-alpha-child', allowedParentValues: ['alpha'] }] }
+        ]
+      },
+      rightMode: { fields: [] }
+    }
+    var orderCfg = shared.parseOrderConfig(JSON.stringify({
+      left: ['importance', 'importance_sub', 'category', 'category_sub'],
+      right: [],
+      active: { importance: 'yes', importance_sub: 'yes', category: 'yes', category_sub: 'yes' },
+      enabled: { importance: true, importance_sub: true, category: true, category_sub: true },
+      labels: labels,
+      strictNames: { importance: 'importance', importance_sub: 'importance_sub', category: 'category', category_sub: 'category_sub' },
+      types: { importance: 'tag', importance_sub: 'tag', category: 'tag', category_sub: 'tag' }
+    }), function (k) { return String(k || '').trim() })
+    shared.applyOrderToRules(rules, orderCfg)
+    var byId = {}
+    var i
+    for (i = 0; i < rules.leftMode.fields.length; i++) byId[rules.leftMode.fields[i].id] = rules.leftMode.fields[i]
+    var groups = {}
+    var list = (rules.ui && rules.ui.leftGroups) || []
+    for (i = 0; i < list.length; i++) groups[list[i].id] = list[i].placeholder
+    return { byId: byId, groups: groups }
+  }
+
+  var short = build({ importance: 'Imp', category: 'Cat' })
+  assertEq(short.byId.importance.placeholder, 'Imp', 'parent field keeps its own short name')
+  assertEq(short.byId.importance_sub.placeholder, 'Imp_sub', 'child field takes the parent short name with _sub')
+  assertEq(short.byId.category_sub.placeholder, 'Cat_sub', 'child short name is derived per parent, not globally')
+  assertEq(short.groups.importance_subGroup, 'Imp_sub', 'TagWheel group of a child field shows the derived short name')
+  assertEq(short.groups.category_subGroup, 'Cat_sub', 'TagWheel group of the second child field shows its own parent name')
+
+  /* Короткого имени у родителя нет — дочке нечего наследовать, всё как было. */
+  var plain = build({})
+  assertEq(plain.byId.importance.placeholder, 'importance', 'without a short name the parent keeps the rules placeholder')
+  assertEq(plain.byId.importance_sub.placeholder, 'sub', 'without a parent short name the child keeps the rules placeholder')
+
+  /* Своё короткое имя дочки, если его когда-нибудь начнут задавать, сильнее выведенного. */
+  var own = build({ importance: 'Imp', importance_sub: 'Level' })
+  assertEq(own.byId.importance_sub.placeholder, 'Level', 'an explicit child short name wins over the derived one')
+
+  /*
+   * Подпись, равная ключу, именем не является: её досыпает `parseOrderConfig`
+   * каждому Field. Это и был дефект D12.
+   */
+  var echoed = build({ importance: 'Imp', importance_sub: 'importance_sub', category: 'category' })
+  assertEq(echoed.byId.importance_sub.placeholder, 'Imp_sub', 'a label equal to the key is not an own short name')
+  assertEq(echoed.groups.importance_subGroup, 'Imp_sub', 'the TagWheel group ignores the echoed key too')
+  assertEq(echoed.byId.category_sub.placeholder, 'sub', 'an echoed parent label leaves the child with the rules placeholder')
+}
+
 function runNode() {
   var fs = require('fs')
   var path = require('path')
@@ -1463,9 +1552,13 @@ function runNode() {
   }
   core.validateRules(rules)
   runSuite(core, rules, finalize)
-  runConfigRoundTripSuite()
   runSharedOrderAlignmentSuite()
   runLeadFieldPolicySuite(core)
+  runLinkFieldOrderSuite()
+  runPanelHighlightSuite(core)
+  runElementTokenSuite()
+  runChildFieldShortNameSuite()
+  runEdgeModeSuite()
   console.log('TagWheel tests: OK')
 }
 

@@ -4,6 +4,83 @@ This showcase covers the complete public feature surface as 30 grouped user work
 
 See the [full setup and user guide](instructions.md) for installation, configuration, Transform safety, copyable examples, and troubleshooting.
 
+## What is out of date
+
+> [!IMPORTANT]
+> **The settings pane was rebuilt, and most animations below predate it.** Nothing
+> here has been re-recorded: the GIFs are the author's material. This section says
+> which entries no longer match the plugin, so that a reader is not misled and the
+> re-recording list is written down rather than remembered.
+>
+> Runtime behavior — moving lines, cycling Values, TagWheel — did not change. What
+> changed is the settings pane and the names of commands.
+
+**Two changes affect almost everything below.**
+
+1. **The settings pane is new**: seven areas instead of tabs with sub-tabs, no
+   visibility toggles, one Fields editor instead of the Order board and its Deep
+   Editor. Any frame showing plugin settings shows a pane that no longer exists.
+2. **Every command was renamed**, and its identifier with it, so captions naming a
+   command are wrong: `Navigation: Move Up` is now `Move line up`,
+   `Transform: inline2note` is now `Transform inline to note`, `PKM: <field>
+   increase` is now `<Field> next`. The full map is in
+   [`docs/command_ids_v1_v2.md`](docs/command_ids_v1_v2.md).
+
+### Captions that name something removed or renamed (16 of 30)
+
+Proven by reading the text, not the picture.
+
+| Entry | What the caption still says |
+|---|---|
+| Open settings and module toggles | `General: Open settings` — command is being removed |
+| Settings undo/flush | `Flush Settings Now` — control removed; the undo button is gone, the command remains |
+| Enhanced Ctrl+A | setting is now `Expanded 'Ctrl+A'` and lives under Keyboard |
+| Move selected inline text | old Navigation command names |
+| Smart bracket | `Binder: Smart bracket` is now `Smart bracket` |
+| Deep Editor hierarchy | Deep Editor is now the right column of the Fields editor |
+| Separators/prefix resolver/cursor/free-roam policies | `prefix resolver` is now Prefix priority; `free roam` is now placement modes |
+| Generate/apply portable Markdown config | old Config command names |
+| Direct tag/link field cycle increase/decrease | `PKM: <name_strict> increase/decrease` is now `<Field> next/previous` |
+| Hierarchy Strip/token hiding | Hierarchy Strip is now Tag Bars, and it is off by default |
+| Synthetic preview/opt-in | old Transform command name |
+| Current root or selected tree | old Transform command name |
+| Templates/Smart Rules/auto-manual naming | old Transform command name |
+| Collision/body/header policies | old Transform command name |
+| YAML Raw/Clean mapping | `YAML note format` — control removed; the rule now lives on each Value |
+| Source cleanup/link/processed token/sublines/open target | processed token is now the Processed marker |
+
+### Animations that show the settings pane (17 of 30)
+
+These need re-recording whatever their captions say, because the pane itself is
+different. Judged by what each entry claims to show — the pictures themselves were
+not inspected.
+
+`general-modules.gif`, `general-settings-history.gif`, `general-diagnostics.gif`,
+`pkm-field-order.gif`, `pkm-deep-editor.gif`, `pkm-value-dependencies.gif`,
+`pkm-elements.gif`, `pkm-yaml-mapping.gif`, `pkm-line-policy.gif`,
+`pkm-config-workflow.gif`, `binder-custom-command.gif`,
+`visual-tag-bubbles.gif`, `visual-strip.gif`, `transform-preview.gif`,
+`transform-routing-naming.gif`, `transform-collisions.gif`,
+`transform-source-processing.gif`
+
+### Animations that are probably still right (8 of 30)
+
+Editor behavior only, no settings pane in frame, and nothing renamed in the
+caption. Four of them are live Obsidian captures.
+
+`move-lines.gif`, `prefix-cycle.gif`, `pkm-cycle.gif`, `tagwheel.gif` (live
+captures), `navigation-header-jump.gif`, `navigation-inline-zones.gif`,
+`pkm-element-cycle.gif`, `visual-tagwheel-scroller.gif`
+
+Two of these have stale captions even though the picture holds:
+`navigation-header-jump.gif` and `pkm-cycle.gif` name commands by their old names.
+
+### What this file is not
+
+Headings here are link targets from `README.md`. Renaming them would break those
+links, so nothing was renamed. When the animations are re-recorded, entry titles
+and README links move together, in one commit.
+
 ## Table of contents
 
 - [General](#general)
@@ -194,7 +271,7 @@ Generate a Markdown configuration and apply it to reproduce a PKM setup in anoth
 
 ![Generate and apply a portable Markdown configuration](media/showcase/pkm-config-workflow.gif)
 
-*Typical action: use **Open config**, edit the Markdown note, then run **Config: Apply TagWheel config**.*
+*Снято 2026-09-03: конфиг-заметки в плагине больше нет. Копию всех настроек пишет `Advanced → Settings backup`, гифка осталась как история.*
 
 ## PKM runtime
 

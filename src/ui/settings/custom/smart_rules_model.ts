@@ -28,17 +28,49 @@ export interface RulesPlugin {
   setConfigPatch: (patch: unknown, reason: string) => void;
 }
 
-/** Три вида условия — ровно те, что различает движок. */
-export type RuleKind = "tags" | "emojiFields" | "wikilinks";
+/**
+ * Виды условия — ровно те, что различает движок.
+ *
+ * `fields` — «любое значение Field» (10.13.7): в нём лежат **id Fields**, а не
+ * токены. Заказчик просил добавлять Field целиком, а не накликивать значения
+ * по одному, и разворота в список отдельных условий не будет: значение,
+ * добавленное завтра, в такой список не попало бы (замечания 1.6.6.1, 1.4.4.1).
+ */
+export type RuleKind = "tags" | "emojiFields" | "wikilinks" | "fields";
 
-export const RULE_KINDS: readonly RuleKind[] = ["tags", "emojiFields", "wikilinks"];
+export const RULE_KINDS: readonly RuleKind[] = ["tags", "emojiFields", "wikilinks", "fields"];
+
+/** Вид условия, у которого есть **своя строка** в карточке правила. */
+export type RowKind = Exclude<RuleKind, "fields">;
+
+/**
+ * Строки карточки правила. `fields` своей строки не имеет: Field попадает в
+ * строку **своего типа** и читается там наравне со значениями, через `or`.
+ *
+ * Так решил заказчик 2026-09-03. Прежняя отдельная строка `Field` соединялась
+ * с остальными через `and` — то есть Field требовался **вместе** с тегом, — а
+ * просил он обратное: «вместо того, чтобы накликивать отдельные values `#/1`,
+ * `#/2`». Ветка конфига при этом не менялась: условие по-прежнему лежит в
+ * `conditions.fields` и хранит id Field (З1).
+ */
+export const ROW_KINDS: readonly RowKind[] = ["tags", "emojiFields", "wikilinks"];
 
 /** Какой тип Field даёт значения этому виду условия. */
-const KIND_OF_FIELD: Record<RuleKind, FieldKind> = {
+const KIND_OF_FIELD: Record<RowKind, FieldKind> = {
   tags: "tag",
   emojiFields: "element",
   wikilinks: "wikilink",
 };
+
+/** Обратная карта: в какой строке стоит Field этого типа. */
+const ROW_OF_FIELD_KIND: Record<string, RowKind> = {
+  tag: "tags",
+  element: "emojiFields",
+  wikilink: "wikilinks",
+};
+
+/** Как выбирается папка новой заметки у правила (10.13.8). */
+export type RuleFolderMode = "default" | "near" | "folder";
 
 /** Одно правило так, как его читает вёрстка. */
 export interface RuleRow {
@@ -48,6 +80,10 @@ export interface RuleRow {
   enabled: boolean;
   /** Шаблон новой заметки; пусто — правило ничего не выбирает. */
   targetTemplate: string;
+  /** Папка новой заметки: своя у правила или общая (10.13.8). */
+  folderMode: RuleFolderMode;
+  /** Путь своей папки; значим только при `folder`. */
+  folder: string;
   conditions: Record<RuleKind, string[]>;
   /** Разбор движка: правило спорит с другим или осталось без условий. */
   conflict: string;
@@ -82,6 +118,12 @@ function strings(value: unknown): string[] {
     if (v && !out.includes(v)) out.push(v);
   }
   return out;
+}
+
+/** `default` | `near` | `folder`; всё незнакомое — `default` (10.13.8 Н2). */
+function normalizeFolderMode(raw: unknown): RuleFolderMode {
+  const v = String(raw || "").trim().toLowerCase();
+  return v === "near" || v === "folder" ? v : "default";
 }
 
 function inline2note(cfg: unknown): Record<string, unknown> {
@@ -119,10 +161,13 @@ export function createRulesModel(deps: RulesModelDeps) {
          */
         enabled: r["enabled"] !== false,
         targetTemplate: String(r["targetTemplate"] || "").trim(),
+        folderMode: normalizeFolderMode(r["targetFolderMode"]),
+        folder: String(r["targetFolder"] || "").trim(),
         conditions: {
           tags: strings(conditions["tags"]),
           emojiFields: strings(conditions["emojiFields"]),
           wikilinks: strings(conditions["wikilinks"]),
+          fields: strings(conditions["fields"]),
         },
         conflict: validation["isConflict"] ? String(validation["message"] || "").trim() : "",
       };
@@ -134,11 +179,43 @@ export function createRulesModel(deps: RulesModelDeps) {
    * Fields без значений в списке остаются — у них просто нечего выбрать, и
    * это видно, а не скрыто.
    */
-  const choicesFor = (kind: RuleKind): Array<{ label: string; values: string[] }> => {
+  const choicesFor = (kind: RuleKind): Array<{ label: string; fieldId?: string; values: string[] }> => {
+    /*
+     * Своего окна у «любого значения Field» нет: Field выбирается нажатием на
+     * его имя в окне своей строки (10.13.14). Отдельная ветка здесь была
+     * нужна прежней строке `Field`, и вместе с ней ушла.
+     */
+    if (kind === "fields") return [];
     const want = KIND_OF_FIELD[kind];
+    /*
+     * `fieldId` у группы — чтобы имя Field в окне выбора можно было нажать и
+     * завести условие «любое значение этого Field» (10.13.14, замечание
+     * заказчика B14 от 2026-09-02). Раньше имя было только подписью, и
+     * завести Field целиком можно было лишь через отдельную строку `Field`.
+     */
     return fieldTokens()
       .filter(f => f.kind === want)
-      .map(f => ({ label: f.label, values: f.tokens.slice() }));
+      .map(f => ({ label: f.label, fieldId: f.key, values: f.tokens.slice() }));
+  };
+
+  /** Имя Field по его id: условие хранит id, а человек знает имя. */
+  const fieldLabel = (key: string): string => {
+    const hit = fieldTokens().find(f => f.key === key);
+    return hit ? hit.label || hit.key : key;
+  };
+
+  /**
+   * В какой строке карточки стоит условие «любое значение этого Field».
+   *
+   * Тип Field спрашивается у того же чтения, которым живут значения, — второй
+   * разбор того же формата разошёлся бы с первым (У-32). Field, которого в
+   * конфиге больше нет, строки не получает: показывать его негде, и молча
+   * блокировать правило он тоже не должен.
+   */
+  const fieldRowKind = (key: string): RowKind | null => {
+    const hit = fieldTokens().find(f => f.key === key);
+    const row = hit ? ROW_OF_FIELD_KIND[String(hit.kind)] : undefined;
+    return row || null;
   };
 
   /* ---- записи ----------------------------------------------------------- */
@@ -154,10 +231,13 @@ export function createRulesModel(deps: RulesModelDeps) {
       name: r.name,
       enabled: r.enabled,
       targetTemplate: r.targetTemplate,
+      targetFolderMode: r.folderMode,
+      targetFolder: r.folder,
       conditions: {
         tags: r.conditions.tags.slice(),
         emojiFields: r.conditions.emojiFields.slice(),
         wikilinks: r.conditions.wikilinks.slice(),
+        fields: r.conditions.fields.slice(),
       },
     }));
     plugin.setConfigPatch({ transform: { inline2note: { smartRules: out } } }, reason);
@@ -178,7 +258,9 @@ export function createRulesModel(deps: RulesModelDeps) {
       name: "",
       enabled: true,
       targetTemplate: "",
-      conditions: { tags: [], emojiFields: [], wikilinks: [] },
+      folderMode: "default",
+      folder: "",
+      conditions: { tags: [], emojiFields: [], wikilinks: [], fields: [] },
       conflict: "",
     });
     save(rules, "transform:smart-rules:add");
@@ -235,6 +317,17 @@ export function createRulesModel(deps: RulesModelDeps) {
   };
 
   /**
+   * Папка новой заметки у правила (10.13.8). Режим и путь пишутся вместе:
+   * путь без режима `folder` ничего не значит, а режим без пути — значит.
+   */
+  const setFolder = (id: string, mode: RuleFolderMode, folder: string): void => {
+    const rules = listRules().map(r => (r.id === id
+      ? { ...r, folderMode: mode, folder: mode === "folder" ? String(folder || "").trim() : "" }
+      : r));
+    save(rules, "transform:smart-rules:folder:" + id);
+  };
+
+  /**
    * Перенос правила. Порядок значим — правила читаются сверху вниз, и
    * срабатывает первое подходящее (С-6), — поэтому это настройка, а не вид.
    */
@@ -255,6 +348,9 @@ export function createRulesModel(deps: RulesModelDeps) {
     setName,
     setEnabled,
     setTemplate,
+    setFolder,
+    fieldLabel,
+    fieldRowKind,
     addCondition,
     removeCondition,
     moveRule,

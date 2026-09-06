@@ -75,7 +75,7 @@ function makeConfig(): Any {
   return JSON.parse(JSON.stringify({
     ui: { pkmSubTab: "main" },
     pkm: {
-      behavior: {
+      fields: {
         order: {
           left: ["status", "status_sub"],
           right: ["due"],
@@ -88,7 +88,7 @@ function makeConfig(): Any {
           enabled: { status: true, status_sub: true, due: true },
           propertiesByField: { status: "status" },
         },
-        leftMode: {
+        tags: {
           fields: [
             {
               id: "status", orderKey: "status", prefix: "#",
@@ -100,13 +100,16 @@ function makeConfig(): Any {
             },
           ],
         },
-        rightMode: { fields: [{ id: "due", orderKey: "due", values: [] }] },
+        links: { fields: [{ id: "due", orderKey: "due", values: [] }] },
         elements: {
           fields: ["due"],
           byField: { due: { emoji: "!", format: "YYYY-MM-DD", increment: { mode: "command", command: "now" } } },
         },
-        tagVisuals: {
-          byTag: {
+      },
+    },
+    visual: {
+      tags: {
+        byTag: {
             status: {
               "#todo": { fillColor: "#222222", textColor: "#ffffff", visibility: "default", customText: "" },
               "#doing": { fillColor: "#ffff00", textColor: "#ffffff", visibility: "default", customText: "" },
@@ -116,8 +119,7 @@ function makeConfig(): Any {
                * заказчика 2026-08-28): пузырь всё равно нарисован — цветом
                * темы, — и белое на жёлтом читается хуже белого на красном.
                */
-              "#early": { fillColor: "#ffff00", textColor: "", visibility: "default", customText: "" },
-            },
+          "#early": { fillColor: "#ffff00", textColor: "", visibility: "default", customText: "" },
           },
         },
       },
@@ -146,6 +148,10 @@ function makeView(): {
   confirm: (v: boolean) => void;
   /** Переименования, дошедшие до заметки конфига. */
   renames: Array<[string, string]>;
+  /** Имена Fields, про переименование которых спросило окно (1.4.1.2.2). */
+  asksRename: string[];
+  /** Чем окно переименования ответит в следующий раз; null — отказ. */
+  renameTo: (v: string | null) => void;
 } {
   const cfg = makeConfig();
   const writes: Write[] = [];
@@ -193,6 +199,9 @@ function makeView(): {
   /* Ответ окна удаления: по умолчанию человек подтверждает. */
   const asksDelete: string[] = [];
   let confirms = true;
+  /* Ответ окна переименования: по умолчанию человек его закрывает. */
+  const asksRename: string[] = [];
+  let renameAnswer: string | null = null;
   const host = makeNode("div");
   let cleanup: (() => void) | null = null;
   const draw = (): void => {
@@ -208,13 +217,15 @@ function makeView(): {
       notice: (t: string) => { notices.push(t); },
       askNewField: done => { asked.push(null); done(answer); },
       confirmDeleteField: (name, done) => { asksDelete.push(name); done(confirms); },
+      askRename: (name, done) => { asksRename.push(name); done(renameAnswer); },
     });
   };
   draw();
   return {
-    host, writes, notices, state, draw, model, asked, asksDelete, renames,
+    host, writes, notices, state, draw, model, asked, asksDelete, renames, asksRename,
     reply: (v: NewFieldAnswer) => { answer = v; },
     confirm: (v: boolean) => { confirms = v; },
+    renameTo: (v: string | null) => { renameAnswer = v; },
   };
 }
 
@@ -498,7 +509,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   dragToSide(status, sides[1] as StubNode);
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:dnd"],
     "перенос Field — одна запись с той же причиной, что и в старой доске");
-  const order = v.writes[0]?.patch?.pkm?.behavior?.order;
+  const order = v.writes[0]?.patch?.pkm?.fields?.order;
   assert.deepEqual(order.left, [], "левый Block опустел");
   /* Ключа `status_sub` в списках Order нет и быть не может: настоящий
      `normalizePkmOrder` выбрасывает его из `left` и `right` (В7). Раньше
@@ -865,15 +876,21 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.equal(all(v.host, "io-vals").length, 0, "у element таблицы Values нет");
   const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
   assert.deepEqual(names,
-    [SHORT_NAME, "Active", "Prefix behavior", "Prerequisite Field",
+    [SHORT_NAME,
+      /*
+       * Значение Field идёт до его поведения: заказчик поднял `Values` под
+       * `Name in TagWheel` и над `Behavior` для всех типов Field сразу
+       * (замечание 1.4.1.2.4). У `element` на этом месте маркер, формат и шаг.
+       */
+      "Emoji-prefix", "Value format", "Steps by", "Command",
+      "Active", "Prefix behavior", "Prerequisite Field",
       /*
        * Раздел `YAML property` целиком: решение заказчика 2026-08-28 перенесло
        * сюда настройки из блока `Note properties` (10.9). Строки `Written as`
        * здесь нет — она считается движком по конфигу, а платформы у этой
        * проверки вёрстки нет; это её условие, а не пропуск.
        */
-      "Property", "Property type", "How to show Value in YAML",
-      "Emoji-prefix", "Value format", "Steps by", "Command"],
+      "Property", "Property type", "How to show Value in YAML"],
     "у element показаны маркер, формат и способ шага, и только то, чем шагает текущий режим");
   ok("Ф6: у Field типа element строки маркера, формата и шага вместо таблицы Values");
 }
@@ -1037,10 +1054,23 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.ok(rule, "правило .io-danger нашлось в styles.css");
   assert.ok(/background:\s*var\(--background-modifier-error\)/.test(String(rule?.[1])),
     "кнопка залита красным, а не обведена: заказчик просил, чтобы она бросалась в глаза");
+  /*
+   * Корзина рисуется маской, а не эмодзи: цветной значок, обесцвеченный
+   * фильтром, читался пятном (замечание заказчика 1.4.1.2.3). Проверяется и
+   * то, что фильтра больше нет: он и был причиной.
+   */
   const icon = /\.io-danger__icon \{([^}]*)\}/.exec(css);
-  assert.ok(/filter:\s*brightness\(0\)\s*invert\(1\)/.test(String(icon?.[1])),
-    "корзина обесцвечена в белый: эмодзи приходит со своими цветами, и на красном "
-    + "цветная корзина читается грязным пятном");
+  const iconBody = String(icon?.[1]);
+  assert.ok(/mask:\s*url\("data:image\/svg\+xml/.test(iconBody),
+    "значок рисуется маской из своего контура, а не шрифтовым эмодзи");
+  assert.ok(/background-color:\s*currentColor/.test(iconBody),
+    "и красится цветом кнопки, поэтому в тёмной теме не белеет отдельно");
+  assert.ok(!/filter:/.test(iconBody),
+    "фильтра обесцвечивания больше нет: он и делал из корзины пятно");
+  const viewSrc = fs.readFileSync(path.join(root, "src", "ui", "settings", "custom",
+    "fields_editor_view.ts"), "utf8");
+  assert.ok(!viewSrc.includes("\u{1F5D1}"),
+    "эмодзи корзины в виде редактора не осталось: иначе он ляжет поверх маски");
   ok("замечание 2: удаление — белая корзина на красной заливке, без слова");
 }
 
@@ -1217,7 +1247,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
   (tools.children[0] as StubNode).click();
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:visuals:tag:color-reset:status"],
     "сброс — одна запись на оба цвета");
-  const wrote = v.writes[0]?.patch?.pkm?.behavior?.tagVisuals?.byTag?.status?.["#todo"];
+  const wrote = v.writes[0]?.patch?.visual?.tags?.byTag?.status?.["#todo"];
   assert.equal(wrote.fillColor, "", "заливка вернулась к цвету темы");
   assert.equal(wrote.textColor, "", "цвет текста тоже");
   ok("сброс цвета Value вернулся: одна кнопка на оба цвета, перед удалением");
@@ -1308,8 +1338,8 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
   one(due, "io-fields__pick").click();
   const subs = all(v.host, "io-sub").map(n => String(n.textContent || "").replace("?", "").trim());
-  assert.deepEqual(subs, ["Behavior", "YAML property", "Value"],
-    "у каждого раздела свой заголовок: поведение, свойство заметки, значение");
+  assert.deepEqual(subs, ["Value", "Behavior", "YAML property"],
+    "значение идёт первым, за ним поведение и свойство заметки (1.4.1.2.4)");
   const step = all(v.host, "io-select").find(s =>
     String(s.getAttribute("aria-label") || "").startsWith("Steps by")) as StubNode;
   assert.deepEqual(step.children.map(c => String(c.textContent || "").trim()),
@@ -1326,15 +1356,18 @@ function dragToSide(from: StubNode, side: StubNode): void {
   const withTip = all(v.host, "io-item").filter(r => all(r, "io-help").length)
     .map(r => String(all(r, "io-item__name")[0]?.textContent || "").trim());
   assert.deepEqual(withTip,
-    [SHORT_NAME, "Active", "Prefix behavior", "Prerequisite Field",
+    /* Порядок тот же, что у строк: значение Field идёт до его поведения
+       (замечание заказчика 1.4.1.2.4). */
+    [SHORT_NAME, "Emoji-prefix", "Value format", "Steps by", "Command",
+      "Active", "Prefix behavior", "Prerequisite Field",
       /*
-       * У `Property` своей «?» нет — она стоит у заголовка раздела, и два
-       * знака оказались бы рядом. У двух настроек, приехавших из блока
-       * `Note properties` решением заказчика 2026-08-28, свои есть.
+       * У `Property` подсказка появилась 2026-09-01 (замечание 1.3.2.1).
+       * Заказчик 2026-08-27 решил обратное — «?» здесь не ставить, потому что
+       * подсказка раздела стоит прямо над ней, — и теперь попросил вернуть.
+       * Прежнее решение записано, чтобы третий круг не начался с нуля.
        */
-      "Property type", "How to show Value in YAML",
-      "Emoji-prefix", "Value format", "Steps by", "Command"],
-    "подсказка есть у каждой строки Field типа Emoji, кроме свойства заметки: у того подсказка стоит у заголовка раздела");
+      "Property", "Property type", "How to show Value in YAML"],
+    "подсказка есть у каждой строки Field типа Emoji, включая имя свойства заметки");
   ok("второй круг 6: у каждой строки Field типа Emoji есть подсказка");
 }
 
@@ -1416,7 +1449,7 @@ function dragToSide(from: StubNode, side: StubNode): void {
     "переключение пишет теми же двумя записями");
   assert.equal(childPick().value, "no",
     "и после перерисовки список показывает выбранное, а не yes");
-  assert.equal(String(cfg.pkm.behavior.order.active.status_sub), "no", "в конфиге тоже no");
+  assert.equal(String(cfg.pkm.fields.order.active.status_sub), "no", "в конфиге тоже no");
 
   const back = childPick();
   back.value = "yes";
@@ -1452,8 +1485,19 @@ function dragToSide(from: StubNode, side: StubNode): void {
 {
   const v = makeView();
   const subs = all(v.host, "io-sub").map(n => String(n.textContent || "").replace("?", "").trim());
-  assert.deepEqual(subs, ["Behavior", "YAML property", "Values"],
-    "разделы: поведение, свойство заметки, значения");
+  assert.deepEqual(subs, ["Values", "Behavior", "YAML property"],
+    "разделы: значения, поведение, свойство заметки (1.4.1.2.4)");
+
+  /*
+   * У каждого раздела свой «?». `Behavior` был единственным без него, и
+   * заказчик это заметил (замечание 1.4.1.2.5). Проверяются все, а не один:
+   * следующий раздел добавят так же — заголовком и без объяснения.
+   */
+  const mute = all(v.host, "io-sub")
+    .filter(head => !all(head, "io-help").length)
+    .map(head => String(head.textContent || "").replace("?", "").trim());
+  assert.deepEqual(mute, [],
+    "эти разделы правой колонки ничего о себе не говорят: " + mute.join(", "));
   const behaviorRows = all(v.host, "io-item")
     .map(r => String(all(r, "io-item__name")[0]?.textContent || "").trim());
   assert.deepEqual(behaviorRows.slice(0, 4), [SHORT_NAME, "Active", "Prefix behavior", "Child Field"],
@@ -1655,14 +1699,14 @@ function makeLinkView(): {
   draw: () => void;
 } {
   const cfg = makeConfig();
-  cfg.pkm.behavior.order.right.push("project");
-  cfg.pkm.behavior.order.labels.project = "Project";
-  cfg.pkm.behavior.order.strictNames.project = "project";
-  cfg.pkm.behavior.order.types.project = "wikilink";
-  cfg.pkm.behavior.order.active.project = "yes";
-  cfg.pkm.behavior.order.freeRoam.project = "off";
-  cfg.pkm.behavior.order.enabled.project = true;
-  cfg.pkm.behavior.rightMode.fields.push({
+  cfg.pkm.fields.order.right.push("project");
+  cfg.pkm.fields.order.labels.project = "Project";
+  cfg.pkm.fields.order.strictNames.project = "project";
+  cfg.pkm.fields.order.types.project = "wikilink";
+  cfg.pkm.fields.order.active.project = "yes";
+  cfg.pkm.fields.order.freeRoam.project = "off";
+  cfg.pkm.fields.order.enabled.project = true;
+  cfg.pkm.fields.links.fields.push({
     id: "project", orderKey: "project", source: "wikilinks:project",
     values: [{ token: "ClientA", active: true }, { token: "ProjectX", active: true }],
   });
@@ -1711,7 +1755,7 @@ const levelArrow = (row: StubNode): StubNode =>
 
 /** Дочерний Field ссылки в конфиге — тот, что делает вложенность настоящей. */
 const linkSubField = (cfg: Any): Any =>
-  (cfg.pkm.behavior.rightMode.fields as Any[]).find(f => f.id === "project_sub") || null;
+  (cfg.pkm.fields.links.fields as Any[]).find(f => f.id === "project_sub") || null;
 
 {
   const v = makeLinkView();
@@ -1753,7 +1797,7 @@ const linkSubField = (cfg: Any): Any =>
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:deep:indent:project"],
     "запись та же, что и у тега, — та же причина от той же модели");
 
-  const parent = (v.cfg.pkm.behavior.rightMode.fields as Any[]).find(f => f.id === "project");
+  const parent = (v.cfg.pkm.fields.links.fields as Any[]).find(f => f.id === "project");
   assert.deepEqual((parent.values as Any[]).map(x => x.token), ["ClientA"],
     "наверху осталось одно значение");
   assert.deepEqual((parent.values as Any[])[0].subtags, ["ProjectX"],
@@ -1913,14 +1957,14 @@ function makePrereqView(): {
   select: (label: string) => void;
 } {
   const cfg = makeConfig();
-  cfg.pkm.behavior.order.right.unshift("project");
-  cfg.pkm.behavior.order.labels.project = "Project";
-  cfg.pkm.behavior.order.strictNames.project = "project";
-  cfg.pkm.behavior.order.types.project = "wikilink";
-  cfg.pkm.behavior.order.active.project = "yes";
-  cfg.pkm.behavior.order.freeRoam.project = "off";
-  cfg.pkm.behavior.order.enabled.project = true;
-  cfg.pkm.behavior.rightMode.fields.unshift({
+  cfg.pkm.fields.order.right.unshift("project");
+  cfg.pkm.fields.order.labels.project = "Project";
+  cfg.pkm.fields.order.strictNames.project = "project";
+  cfg.pkm.fields.order.types.project = "wikilink";
+  cfg.pkm.fields.order.active.project = "yes";
+  cfg.pkm.fields.order.freeRoam.project = "off";
+  cfg.pkm.fields.order.enabled.project = true;
+  cfg.pkm.fields.links.fields.unshift({
     id: "project", orderKey: "project", source: "wikilinks:project",
     values: [{ token: "ClientA", active: true }],
   });
@@ -2011,7 +2055,7 @@ const PREREQ_VALUE = "Prerequisite Value";
   pickIn(v.host(), PREREQ_WHICH + " for project", "due");
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:prerequisite:project"],
     "выбор Field пишется одной записью со своей причиной");
-  const field = (v.writes[0]?.patch.pkm.behavior.rightMode.fields as Any[])
+  const field = (v.writes[0]?.patch.pkm.fields.links.fields as Any[])
     .find(f => f.id === "project");
   assert.equal(field.dependsOn, "due",
     "в конфиг ушёл `dependsOn` — тот самый ключ, по которому рантайм выключает Field");
@@ -2034,7 +2078,7 @@ const PREREQ_VALUE = "Prerequisite Value";
     ["Any Value", "ClientA"], "предлагаются значения выбранного Field");
   pickIn(v.host(), PREREQ_VALUE + " for due", "ClientA");
   const last = v.writes[v.writes.length - 1] as Write;
-  const field = (last.patch.pkm.behavior.rightMode.fields as Any[]).find(f => f.id === "due");
+  const field = (last.patch.pkm.fields.links.fields as Any[]).find(f => f.id === "due");
   assert.deepEqual(field.enabledForParentValues, ["ClientA"],
     "выбранное значение ушло в `enabledForParentValues` — его читает isFieldEnabled");
   assert.equal(field.dependsOn, "project", "и `dependsOn` остался на месте");
@@ -2051,7 +2095,7 @@ const PREREQ_VALUE = "Prerequisite Value";
   pickIn(v.host(), PREREQ + " for due", "no");
   assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:prerequisite:due"],
     "No снимает предусловие одной записью");
-  const field = (v.writes[0]?.patch.pkm.behavior.rightMode.fields as Any[])
+  const field = (v.writes[0]?.patch.pkm.fields.links.fields as Any[])
     .find(f => f.id === "due");
   assert.equal(field.dependsOn, undefined, "`dependsOn` снят");
   assert.equal(field.enabledForParentValues, undefined,
@@ -2129,11 +2173,161 @@ const PREREQ_VALUE = "Prerequisite Value";
   one(v.host(), "io-danger").click();
   const patch = v.writes.find(w => w.reason.startsWith("pkm:behavior:delete-field:")) as Write;
   assert.ok(patch, "удаление Field дошло до конфига");
-  const due = (patch.patch.pkm.behavior.rightMode.fields as Any[]).find(f => f.id === "due");
+  const due = (patch.patch.pkm.fields.links.fields as Any[]).find(f => f.id === "due");
   assert.ok(due, "Field due на месте");
   assert.equal(due.dependsOn, undefined,
     "а предусловие на удалённый Field снято: иначе рантайм выключил бы due молча");
   ok("Н20: удаление Field снимает чужие предусловия на него");
+}
+
+/** Узел по началу его подписи: в этом наборе такого помощника ещё не было. */
+function byLabel(node: StubNode, prefix: string): StubNode | undefined {
+  const out: StubNode[] = [];
+  const walk = (n: StubNode): void => {
+    if (String(n.getAttribute("aria-label") || "").startsWith(prefix)) out.push(n);
+    n.children.forEach(walk);
+  };
+  walk(node);
+  return out[0];
+}
+
+/* ---- 1.4.1.2.2: карандаш у имени Field ---------------------------------- */
+
+{
+  /*
+   * Системное имя задавалось один раз и дальше не менялось: оно стоит в
+   * заметках человека и в идентификаторах команд Field. Заказчик решил
+   * 2026-08-31, что менять его можно — но панель обязана назвать цену.
+   *
+   * Проверяется и место: карандаш слева от корзины, в той же строке, что имя.
+   */
+  const v = makeView();
+  const title = one(v.host, "io-fields__title");
+  const labels = title.children
+    .map(c => String(c.getAttribute("aria-label") || ""))
+    .filter(Boolean);
+  const pencilAt = labels.findIndex(l => l.startsWith("Rename the Field"));
+  const trashAt = labels.findIndex(l => l.startsWith("Delete the Field"));
+  assert.ok(pencilAt >= 0, "карандаша в шапке правой колонки нет: " + labels.join(" | "));
+  assert.ok(trashAt >= 0, "корзина на месте");
+  assert.ok(pencilAt < trashAt,
+    "карандаш обязан стоять слева от корзины: " + labels.join(" | "));
+  ok("1.4.1.2.2: карандаш стоит в шапке слева от корзины");
+}
+
+{
+  /* Закрытое окно ничего не меняет: отказ — это отказ, а не пустое имя. */
+  const v = makeView();
+  const before = JSON.stringify(v.model.listFields().map(r => r.strictName));
+  v.renameTo(null);
+  (byLabel(v.host, "Rename the Field status") as StubNode).click();
+  assert.deepEqual(v.asksRename, ["status"], "окно спросило про тот Field, что выбран");
+  assert.equal(JSON.stringify(v.model.listFields().map(r => r.strictName)), before,
+    "закрытое окно не переименовало ничего");
+  ok("отказ в окне переименования ничего не пишет");
+}
+
+{
+  /* Согласие пишет новое имя настоящей записью модели. */
+  const v = makeView();
+  v.renameTo("status_v2");
+  (byLabel(v.host, "Rename the Field status") as StubNode).click();
+
+  const names = v.model.listFields().map(r => r.strictName);
+  assert.ok(names.includes("status_v2"),
+    "новое имя не доехало до конфига: " + names.join(", "));
+  assert.ok(!names.includes("status"), "старое имя не осталось рядом с новым");
+  assert.ok(v.writes.some(w => w.reason.startsWith("pkm:behavior:order:strict:")),
+    "запись названа причиной переименования: " + v.writes.map(w => w.reason).join(", "));
+  ok("переименование доходит до конфига настоящей записью модели");
+}
+
+{
+  /*
+   * Негодное имя не пишется, и человек узнаёт почему: сообщение приходит из
+   * модели, а не выдумывается вёрсткой.
+   */
+  const v = makeView();
+  v.renameTo("Status Two!");
+  (byLabel(v.host, "Rename the Field status") as StubNode).click();
+  /*
+   * `setStrictName` асинхронна: после записи она переименовывает Field и в
+   * заметке конфига. Сообщение об отказе приходит из того же обещания, и
+   * проверять его сразу после нажатия рано.
+   */
+  await new Promise(r => setTimeout(r, 0));
+  assert.ok(v.notices.length, "об отказе не сказали вслух");
+  assert.ok(v.model.listFields().some(r => r.strictName === "status"),
+    "имя осталось прежним");
+  ok("негодное имя отклонено с объяснением");
+}
+
+{
+  /*
+   * Цена названа в самом окне, а не в подсказке рядом: заказчик согласился на
+   * переименование именно с предупреждением. Проверяется текст окна из
+   * `fields_editor.ts` — вёрстка окна живёт на платформе, и на заглушке DOM
+   * его не открыть.
+   */
+  const src = fs.readFileSync(path.join(root, "src", "ui", "settings", "custom",
+    "fields_editor.ts"), "utf8");
+  const from = src.indexOf("function askRenameModal");
+  assert.ok(from > 0, "окна переименования нет вовсе");
+  const body = src.slice(from, src.indexOf("/* ---- блок", from));
+  assert.ok(/keep the old tag/.test(body),
+    "окно не говорит, что в заметках останется старый тег");
+  assert.ok(/hotkey/.test(body) && /comes loose/.test(body),
+    "окно не говорит, что хоткей отвяжется");
+  ok("окно переименования называет обе цены, а не спрашивает «уверены?»");
+}
+
+/* ---- образец заливки: цвет темы, а не белый (C31, C39) ----------------- */
+
+/*
+ * У поля выбора цвета нет состояния «не задано» — оно всегда показывает
+ * какой-то цвет. Стоял белый, а пузырь тема красит акцентом, и белый образец
+ * рядом с фиолетовым пузырём читался как расхождение. Заказчик так его и
+ * прочёл: «по умолчанию fill hex=#FFFFFF, однако сама заливка tag bubble по
+ * умолчанию фиолетовая» (C31, и C39 ссылается на него).
+ *
+ * Тему читает `getComputedStyle`; заглушка DOM отдаёт пустое, и тогда белый
+ * остаётся последним запасным — гадать о цвете темы панель не должна.
+ */
+{
+  const textInputOf = (onAccent: string): { own: string; unset: string } => {
+    const view = (globalThis as unknown as { window: Any }).window;
+    const real = view.getComputedStyle;
+    view.getComputedStyle = () => ({
+      getPropertyValue: (name: string) => (name === "--text-on-accent" ? onAccent : ""),
+    });
+    try {
+      const v = makeView();
+      /*
+       * Вторая строка — дочернее значение `#early`: заливка у него задана, а
+       * цвет текста нет. То есть в одной строке видны оба случая разом, и
+       * заданный цвет обязан остаться собой.
+       */
+      const inputs = all(all(v.host, "io-vals__row")[1] as StubNode, "io-colin");
+      assert.equal(inputs.length, 2, "в строке два поля цвета: заливка и текст");
+      return {
+        own: String((inputs[0] as StubNode).value || ""),
+        unset: String((inputs[1] as StubNode).value || ""),
+      };
+    } finally {
+      view.getComputedStyle = real;
+    }
+  };
+
+  const painted = textInputOf("rgb(124, 58, 237)");
+  assert.equal(painted.unset, "#7c3aed",
+    "незаданный цвет показан цветом темы, приведённым к #rrggbb: " + painted.unset);
+  assert.equal(painted.own, "#ffff00",
+    "заданный цвет остался собой: " + painted.own);
+  assert.equal(textInputOf("#3b82c4").unset, "#3b82c4",
+    "тема отдала цвет решёткой — образец берёт его как есть");
+  assert.equal(textInputOf("").unset, "#ffffff",
+    "тему прочитать нечем — остаётся белый: гадать панель не должна");
+  ok("C31: образец цвета Value показывает цвет темы, пока своего нет");
 }
 
 console.log("\n" + passed + " проверок пройдено");

@@ -1303,7 +1303,6 @@ function resolveFieldIdByOrderKey(rules, orderKey) {
     }
     return false;
   };
-  const isCompatibleFieldForKey = (field) => isCycleCapableField(field);
   const byOrderKey = fields.find((x) => x && String(x.orderKey || "").trim() === key);
   if (byOrderKey && byOrderKey.id) return String(byOrderKey.id);
   if (reg && typeof reg.resolveLeftFieldIdByOrderKey === "function") {
@@ -1311,6 +1310,24 @@ function resolveFieldIdByOrderKey(rules, orderKey) {
     if (resolved) {
       const byResolved = fields.find((x) => x && String(x.id || "").trim() === resolved);
       if (byResolved && byResolved.id) return String(byResolved.id || "").trim();
+    }
+  }
+  /*
+   * Переименование Field меняет его имя, а ключ Order остаётся прежним:
+   * `setStrictName` пишет `strictNames[k]`, ключ `k` в `fields.order.*` не
+   * трогает, а в документ правил Field уезжает под новым именем. Значит
+   * «ключ → поле» после переименования знает только `strictNames`, и читать
+   * надо его, а не догадываться (A17).
+   */
+  const strictNames = isObj(rules?.behavior?.order?.strictNames) ? rules.behavior.order.strictNames : null;
+  if (strictNames) {
+    const strictName = String(strictNames[key] || "").trim();
+    if (strictName && strictName !== key) {
+      const byStrict = fields.find((x) => x && (
+        String(x.id || "").trim() === strictName
+        || String(x.orderKey || "").trim() === strictName
+      ));
+      if (byStrict && byStrict.id) return String(byStrict.id || "").trim();
     }
   }
   const leftOrder = Array.isArray(rules?.behavior?.order?.left) ? rules.behavior.order.left : [];
@@ -1351,18 +1368,24 @@ function resolveFieldIdByOrderKey(rules, orderKey) {
     }
     return "";
   };
+  /*
+   * Здесь стояла позиционная догадка: найти номер ключа в списке порядка и
+   * взять Field **с тем же номером**. Списки строятся разными проходами, у них
+   * разная длина и разный порядок — в фикстуре шесть-восемь ключей против
+   * тринадцати Field, — так что индекс из одного в другом не адресует ничего
+   * (A17, У-49). В фикстуре она попадала верно по совпадению; стоило сдвинуть
+   * поле в другую панель, и команда категории уводила по значениям чужого поля
+   * `modal`, у которого цикл значений пуст, — наружу это выходило как полное
+   * молчание движка. Разрешение по имени выше отвечает на тот же вопрос
+   * честно, а соседа по списку оставляем последним средством: он хотя бы
+   * ищется по имени, а не по номеру.
+   */
   const leftIdx = leftOrder.findIndex((k) => String(k || "").trim() === key);
-  if (leftIdx >= 0 && left[leftIdx] && left[leftIdx].id && isCompatibleFieldForKey(left[leftIdx])) {
-    return String(left[leftIdx].id || "").trim();
-  }
   if (leftIdx >= 0) {
     const byNeighborLeft = resolveByNeighborInOrder(leftOrder, left, leftIdx);
     if (byNeighborLeft) return byNeighborLeft;
   }
   const rightIdx = rightOrder.findIndex((k) => String(k || "").trim() === key);
-  if (rightIdx >= 0 && right[rightIdx] && right[rightIdx].id && isCompatibleFieldForKey(right[rightIdx])) {
-    return String(right[rightIdx].id || "").trim();
-  }
   if (rightIdx >= 0) {
     const byNeighborRight = resolveByNeighborInOrder(rightOrder, right, rightIdx);
     if (byNeighborRight) return byNeighborRight;

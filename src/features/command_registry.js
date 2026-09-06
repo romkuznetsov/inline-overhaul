@@ -38,6 +38,35 @@ function getBehaviorValue(cfg, key, dflt) {
   return dflt;
 }
 
+/*
+ * Разделители строки для перехода по заголовкам.
+ *
+ * Режим `End of your text` ставит курсор перед вторым Separator, а Separator —
+ * настройка вкладки `Tags & PKM`, не `Navigation`. Ветка `jumpToHeader` их не
+ * содержит, поэтому они передаются отдельным аргументом. Читаются из конфига,
+ * а не из заметки правил: заметка сама пишется из конфига, и лишний разбор
+ * файла на каждое нажатие клавиши не нужен.
+ */
+function getLineFormat(cfg) {
+  if (cfg && cfg.pkm && cfg.pkm.lineFormat && typeof cfg.pkm.lineFormat === "object") return cfg.pkm.lineFormat;
+  return null;
+}
+
+/**
+ * Имена макросов рантайма — контракт (`pkm_option_keys.js`), а ключ настройки
+ * в конфиге версии 2 у формата дочернего тега другой: `childTagFormat` вместо
+ * `subtagFormat` (PRD 8.1). Переводится здесь, одним местом.
+ */
+function getChildTagFormat(cfg) {
+  return getBehaviorValue(cfg, "childTagFormat", "separate");
+}
+
+/**
+ * Идентификаторы и имена команд живут одним модулем (PRD 7.2). Своей схемы
+ * здесь больше нет: из трёх копий уже вырос дефект Б-11.
+ */
+const __commandIds = require("./command_ids.js");
+
 function normalizeLabelPart(value, dflt) {
   const s = String(value || "").replace(/\s+/g, " ").trim();
   return s || dflt;
@@ -46,8 +75,11 @@ function normalizeLabelPart(value, dflt) {
 function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
   const defs = [
     {
+      /* Идентификатор уже отвечает T7 и не переименовывается: ломать
+         работающий хоткей ради красоты — второй разрыв, которого Р3 не даёт.
+         Сама команда удаляется в фазе 6, пункт 5 (T8). */
       id: "open-inline-overhaul-settings",
-      name: "General: Open settings",
+      name: __commandIds.commandName("open-inline-overhaul-settings"),
       run: () => {
         plugin.app.setting.open();
         plugin.app.setting.openTabById(plugin.manifest.id);
@@ -55,7 +87,7 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
     },
     {
       id: "undo-last-settings-change",
-      name: "General: Undo last settings change",
+      name: __commandIds.commandName("undo-last-settings-change"),
       run: () => {
         const ok = plugin.store.undo("command:undo");
         if (!ok) plugin.notice("InlineOverhaul: nothing to undo");
@@ -68,8 +100,8 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
   for (const feature of order) {
     const label = meta[feature] && meta[feature].label ? meta[feature].label : feature;
     defs.push({
-      id: `toggle-feature-${feature}`,
-      name: `General: Toggle ${label} module`,
+      id: __commandIds.featureToggleCommandId(feature),
+      name: `Toggle ${label} module`,
       run: () => {
         const cfg = plugin.store.getSnapshot();
         const cur = !!cfg.features[feature].enabled;
@@ -85,8 +117,8 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
 function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
   return [
     {
-      id: "inlineOverhaul_Navigation_MoveUp",
-      name: "Navigation: Move Up",
+      id: "move-line-up",
+      name: __commandIds.commandName("move-line-up"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.moveLine.enabled) return plugin.notice("MoveLine disabled in settings");
         if (!rt || typeof rt.moveLine !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
@@ -94,8 +126,8 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       },
     },
     {
-      id: "inlineOverhaul_Navigation_MoveDown",
-      name: "Navigation: Move Down",
+      id: "move-line-down",
+      name: __commandIds.commandName("move-line-down"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.moveLine.enabled) return plugin.notice("MoveLine disabled in settings");
         if (!rt || typeof rt.moveLine !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
@@ -103,42 +135,42 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       },
     },
     {
-      id: "inlineOverhaul_Navigation_MoveLeft",
-      name: "Navigation: Move Left",
+      id: "move-left",
+      name: __commandIds.commandName("move-left"),
       run: (ed, nav, fullCfg, rt) => {
         if (!rt || typeof rt.moveSelection !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-        rt.moveSelection(ed, "left", nav.moveSelection);
+        rt.moveSelection(ed, "left", nav.moveSelection, getLineFormat(fullCfg));
       },
     },
     {
-      id: "inlineOverhaul_Navigation_MoveRight",
-      name: "Navigation: Move Right",
+      id: "move-right",
+      name: __commandIds.commandName("move-right"),
       run: (ed, nav, fullCfg, rt) => {
         if (!rt || typeof rt.moveSelection !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-        rt.moveSelection(ed, "right", nav.moveSelection);
+        rt.moveSelection(ed, "right", nav.moveSelection, getLineFormat(fullCfg));
       },
     },
     {
-      id: "inlineOverhaul_Navigation_JumpHeaderUp",
-      name: "Navigation: Jump Header Up",
+      id: "jump-back",
+      name: __commandIds.commandName("jump-back"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
         if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-        rt.jumpToHeader(ed, "up", nav.jumpToHeader);
+        rt.jumpToHeader(ed, "up", nav.jumpToHeader, getLineFormat(fullCfg));
       },
     },
     {
-      id: "inlineOverhaul_Navigation_JumpHeaderDown",
-      name: "Navigation: Jump Header Down",
+      id: "jump-next",
+      name: __commandIds.commandName("jump-next"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
         if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
-        rt.jumpToHeader(ed, "down", nav.jumpToHeader);
+        rt.jumpToHeader(ed, "down", nav.jumpToHeader, getLineFormat(fullCfg));
       },
     },
     {
-      id: "inlineOverhaul_Navigation_InlineLeft",
-      name: "Navigation: Inline Left",
+      id: "move-cursor-left-in-line",
+      name: __commandIds.commandName("move-cursor-left-in-line"),
       run: async (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
         if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
@@ -149,8 +181,8 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       },
     },
     {
-      id: "inlineOverhaul_Navigation_InlineRight",
-      name: "Navigation: Inline Right",
+      id: "move-cursor-right-in-line",
+      name: __commandIds.commandName("move-cursor-right-in-line"),
       run: async (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
         if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
@@ -163,11 +195,11 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
   ];
 }
 
-function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfgNow) {
+function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfgNow, featureOrder) {
   const O = __pkmOptionKeys.KEYS;
   const cfg = cfgNow && typeof cfgNow === "object" ? cfgNow : {};
   const order = typeof normalizePkmOrder === "function"
-    ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.behavior ? cfg.pkm.behavior.order : null)
+    ? normalizePkmOrder(cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields.order : null)
     : { left: [], right: [], strictNames: {}, types: {} };
   const keys = [];
   const pushKey = (k) => {
@@ -233,13 +265,55 @@ function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMac
   });
 
   const defs = [];
-  const pushDef = (strict, dir, _name, v2Command, makeExtra) => {
-    const id = `inlineOverhaul_Hotkey_${strict}_${dir}`;
-    const strictLabel = normalizeLabelPart(strict, "field");
-    const dirLabel = dir === "decrease" ? "decrease" : "increase";
+  /*
+   * Идентификаторы команд полей разводятся между собой: `date_due` и
+   * `date-due` дают один kebab, и без разводки вторая команда затёрла бы
+   * первую. Набор занятых начинается с идентификаторов ядра — своя команда
+   * поля не должна затенять навигацию.
+   */
+  const usedIds = __commandIds.reservedCommandIds(featureOrder);
+  const pushDef = (strict, dir, orderKey, v2Command, makeExtra) => {
+    const id = __commandIds.pkmFieldCommandId(strict, dir, usedIds);
+    /*
+     * В имени команды — **строгое имя Field** (`Name`), а не короткое имя для
+     * TagWheel (`Name in TagWheel`).
+     *
+     * Так было не всегда: до 2026-09-04 имя собиралось из `labels`, то есть из
+     * короткого имени, и заказчик написал ровно это — «название хедера fields
+     * и название команд изменения родительского тега используются как в
+     * io-field-short, но это неправильно: они должны быть как name-strict;
+     * io-field-short должен влиять только на отображение field в TagWheel».
+     * Команды дочернего Field при этом выглядели верно, и это не совпадение:
+     * своего короткого имени у дочки нет, и `labels` для её ключа не
+     * заполнялся — она и падала на строгое имя.
+     *
+     * Идентификатор команды строится из того же строгого имени и не меняется,
+     * поэтому назначенный хоткей переименование по-прежнему переживает.
+     */
+    const shown = normalizeLabelPart(strict, "field");
+    const strictLabel = shown;
+    /*
+     * Подпись и тип Field, под которым команду показывает справочник
+     * (замечание заказчика 2026-08-31). Берётся РОДИТЕЛЬСКИЙ ключ: команды
+     * дочернего Field стоят под тем же подзаголовком, что и родительские,
+     * и тип у него тот же. Подпись — то же строгое имя, что и в самой
+     * команде: иначе заголовок и строки под ним звали бы Field по-разному.
+     */
+    const parentKey = String(orderKey || "").replace(/_sub$/, "");
+    const groupLabel = normalizeLabelPart(strictNameForKey(parentKey), "")
+      || normalizeLabelPart(parentKey, "field");
+    const dirLabel = __commandIds.directionLabel(dir);
     defs.push({
       id,
-      name: `PKM: ${strictLabel} ${dirLabel}`,
+      /* Поле, из которого команда выросла: по нему её находит поиск хоткея
+         (`detectDateFieldHotkeys`), а не по пересобранной строке. */
+      orderKey: String(orderKey || ""),
+      strictName: String(strict || ""),
+      /* Для подзаголовка справочника: подпись Field и его тип. */
+      groupLabel: String(groupLabel || ""),
+      kind: String(typeForKey(parentKey) || ""),
+      direction: dir === "decrease" ? "decrease" : "increase",
+      name: `${strictLabel} ${dirLabel}`,
       v2Command,
       makeSettings: (cfgInner) => ({
         ...makeBase(cfgInner),
@@ -254,85 +328,44 @@ function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMac
     if (!strict) continue;
     const incSpec = buildActionSpec(key, kind, "increase");
     const decSpec = buildActionSpec(key, kind, "decrease");
-    pushDef(strict, "increase", `PKM: ${strict} increase`, incSpec.v2Command, (cfgInner) => ({
+    pushDef(strict, "increase", key, incSpec.v2Command, (cfgInner) => ({
       ...incSpec.settings,
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      ...(incSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate") }),
+      ...(incSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner) }),
     }));
-    pushDef(strict, "decrease", `PKM: ${strict} decrease`, decSpec.v2Command, (cfgInner) => ({
+    pushDef(strict, "decrease", key, decSpec.v2Command, (cfgInner) => ({
       ...decSpec.settings,
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      ...(decSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate") }),
+      ...(decSpec.v2Command === "statusDate" ? {} : { [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner) }),
     }));
   }
 
   defs.push({
-    id: "inlineOverhaul_Hotkey_tagwheel_left",
-    name: "PKM: TagWheel left",
+    id: "open-tagwheel-left",
+    name: __commandIds.commandName("open-tagwheel-left"),
     v2Command: "tagWheel",
     makeSettings: (cfgInner) => ({
       ...makeBase(cfgInner),
       "Start setting": "left",
       "Start mode override": "left",
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate"),
+      [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
     }),
   });
   defs.push({
-    id: "inlineOverhaul_Hotkey_tagwheel_right",
-    name: "PKM: TagWheel right",
+    id: "open-tagwheel-right",
+    name: __commandIds.commandName("open-tagwheel-right"),
     v2Command: "tagWheel",
     makeSettings: (cfgInner) => ({
       ...makeBase(cfgInner),
       "Start setting": "right",
       "Start mode override": "right",
       [O.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfgInner),
-      [O.SUBTAG_FORMAT]: getBehaviorValue(cfgInner, "subtagFormat", "separate"),
+      [O.SUBTAG_FORMAT]: getChildTagFormat(cfgInner),
     }),
   });
 
   return defs;
-}
-
-function buildConfigCommandDefs() {
-  return [
-    {
-      id: "inlineOverhaul_Rules_apply",
-      name: "Config: Apply TagWheel config",
-      run: async (plugin) => {
-        const cfg = plugin.getConfig();
-        if (!cfg.features.pkm.enabled) {
-          plugin.notice("InlineOverhaul: Tag & PKM module disabled");
-          return;
-        }
-        try {
-          await plugin.applyTagWheelConfigNote();
-          plugin.notice("InlineOverhaul: TagWheel config applied");
-        } catch (e) {
-          console.error("[inline-overhaul][tagwheel-config-apply:command]", e);
-          plugin.notice("InlineOverhaul: " + (e && e.message ? e.message : e));
-        }
-      },
-    },
-    {
-      id: "inlineOverhaul_Rules_open_detailed_template",
-      name: "Config: Open TagWheel template",
-      run: async (plugin) => {
-        const cfg = plugin.getConfig();
-        if (!cfg.features.pkm.enabled) {
-          plugin.notice("InlineOverhaul: Tag & PKM module disabled");
-          return;
-        }
-        try {
-          const p = await plugin.openTagWheelConfigTemplateNote();
-          plugin.notice("Detailed template opened: " + p);
-        } catch (e) {
-          console.error("[inline-overhaul][tagwheel-config-template-open:command]", e);
-          plugin.notice("InlineOverhaul: " + (e && e.message ? e.message : e));
-        }
-      },
-    },
-  ];
 }
 
 function normalizeBinderRows(rawRows) {
@@ -416,15 +449,15 @@ function runInsertBracketsCommand(plugin) {
 
 function buildBinderCommandDefs(cfgNow) {
   const cfg = cfgNow && typeof cfgNow === "object" ? cfgNow : {};
-  const rows = normalizeBinderRows(cfg && cfg.ui && cfg.ui.binderRows);
+  const rows = normalizeBinderRows(cfg && cfg.editor && cfg.editor.binder ? cfg.editor.binder.rows : null);
   const defs = [];
   for (const row of rows) {
     const commandId = String(row.commandId || "").trim();
     if (!commandId) continue;
-    if (commandId === "inlineOverhaul_Binder_Smart_bracket") {
+    if (commandId === __commandIds.SMART_BRACKET_COMMAND_ID) {
       defs.push({
         id: commandId,
-        name: "Binder: Smart bracket",
+        name: __commandIds.commandName(__commandIds.SMART_BRACKET_COMMAND_ID),
         run: (plugin) => runInsertBracketsCommand(plugin),
       });
       continue;
@@ -432,7 +465,7 @@ function buildBinderCommandDefs(cfgNow) {
     const binderNameSeed = normalizeLabelPart(row.commandName, "") || normalizeLabelPart(row.insertText, "item");
     defs.push({
       id: commandId,
-      name: `Binder: ${binderNameSeed}`,
+      name: `${binderNameSeed}`,
       run: (plugin) => runInsertTextCommand(plugin, row.insertText),
     });
   }
@@ -443,6 +476,5 @@ module.exports = {
   buildCoreCommandDefs,
   buildNavigationCommandDefs,
   buildPkmCommandDefs,
-  buildConfigCommandDefs,
   buildBinderCommandDefs,
 };

@@ -73,8 +73,9 @@ function makeConfig(): Any {
   return JSON.parse(JSON.stringify({
     ui: { pkmSubTab: "main", orderShowInfoTips: true, orderShowDeepEditor: true, orderShowColorSettings: true },
     pkm: {
-      taxonomy: {},
-      behavior: {
+      lineFormat: { separator1: "||", separator2: "||" },
+      fields: {
+        taxonomy: {},
         order: {
           left: ["status", "status_sub"],
           right: ["project", "due"],
@@ -87,13 +88,13 @@ function makeConfig(): Any {
           enabled: { status: true, status_sub: true, project: true, due: true },
           propertiesByField: { status: "status" },
         },
-        leftMode: {
+        tags: {
           fields: [
             { id: "status", orderKey: "status", prefix: "#", values: [{ token: "#todo", active: true }] },
             { id: "status_sub", orderKey: "status_sub", prefix: "#", values: [{ token: "#early", allowedParentValues: ["#todo"], active: true }] },
           ],
         },
-        rightMode: {
+        links: {
           fields: [
             {
               id: "project", orderKey: "project", source: "wikilinks:project", placeholder: "project",
@@ -103,11 +104,11 @@ function makeConfig(): Any {
           ],
         },
         elements: { fields: ["due"], byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD", mode: "command", command: "now" } } },
-        io: { separator1: "||", separator2: "||" },
-        tagVisuals: { byTag: {}, byField: {}, userTags: {} },
       },
     },
-    visual: { tags: { byTag: {}, userTags: {} } },
+    visual: {
+      tags: { byTag: {}, byField: {}, userTags: {} },
+    },
   }));
 }
 

@@ -5,15 +5,15 @@
  *     Prefix строки. Путь `navigation.moveSelection.cycleOrder`, его читает
  *     `cycleLineTypeRaw` в `navigation_runtime.js`.
  *   * `field-order-list` — порядок Fields, когда приоритет решается ими.
- *     Путь `pkm.behavior.prefixRules.priorityTargets`, читает
- *     `pkm_line_finalize_unified.js`.
+ *     Путь `pkm.prefixRules.priorityTargets`, читает
+ *     `pkm_line_finalize_unified.js` через `getPrefixRulesFromCfg`.
  *   * `prefix-order-list` — порядок самих Prefix. Путь
- *     `pkm.behavior.prefixRules.priorityCheckboxes`, читает он же.
+ *     `pkm.prefixRules.priorityCheckboxes`, читает он же.
  *
  * Все три пути настоящие и живые: это установлено в 8.3 и перепроверено здесь
  * перед написанием блока. Записи идут швом `platform.plugin.setConfigPatch` —
- * тем же, которым пишут редактор Fields и Smart Rules: ветка `prefixRules`
- * живёт в форме v1, и до фазы 2 её пути в схеме нет.
+ * тем же, которым пишут редактор Fields и Smart Rules: у ветки `prefixRules`
+ * контролов в схеме нет, там лежат данные правил, а не настройки.
  *
  * Ц1: пустая строка в цикле — это «обычная строка без Prefix», и она подписана
  * словами, а не оставлена пустой. Ц2: из двух списков приоритета виден тот,
@@ -60,10 +60,9 @@ function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map(x => String(x ?? "")) : [];
 }
 
-/** Ветка правил Prefix в конфиге версии 1. */
+/** Ветка правил Prefix: `pkm.prefixRules` (PRD 8.1а). */
 function prefixRules(cfg: unknown): Record<string, unknown> {
-  const behavior = asObject(asObject(asObject(cfg)["pkm"])["behavior"]);
-  return asObject(behavior["prefixRules"]);
+  return asObject(asObject(asObject(cfg)["pkm"])["prefixRules"]);
 }
 
 /** Перестановка внутри списка: та же, что у остальных перетаскиваний. */
@@ -299,7 +298,7 @@ function priorityBlock(host: El, ctx: SettingsCtx, o: {
     const save = (next: readonly string[], reason: string): void => {
       commit(() => {
         (p.plugin as { setConfigPatch: (patch: unknown, reason: string) => void }).setConfigPatch(
-          { pkm: { behavior: { prefixRules: { [o.key]: next.slice() } } } },
+          { pkm: { prefixRules: { [o.key]: next.slice() } } },
           reason,
         );
       });

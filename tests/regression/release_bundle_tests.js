@@ -84,6 +84,56 @@ async function run() {
     delete globalThis.__releaseBundleTestCache;
   }
 
+  /*
+   * Запасной путь моста для среды без vault (A15, 2026-09-01).
+   *
+   * Вне Obsidian реестра нет, дерева исходников по пути `.obsidian/plugins/...`
+   * тоже нет, и до этой правки движок в Node не поднимался вовсе — из-за чего
+   * `status_runtime_behavior_tests.js` год стоял в пропусках. Проверяются обе
+   * стороны: без реестра модуль находится, с реестром ветка не срабатывает.
+   *
+   * Ожидание выписано отдельно от источника (У-5): свой `require` того же
+   * файла, а не то, из чего мост его достаёт.
+   */
+  {
+    const registryBackup = globalThis.__inlineOverhaulBundledVaultModules;
+    const localPath = `${pluginPrefix}src/core/shared_utils.js`;
+    try {
+      delete globalThis.__inlineOverhaulBundledVaultModules;
+      const local = bridge.requirePluginLocalModule(localPath);
+      assert.strictEqual(local.found, true, "without a registry the bridge resolves a plugin-local module");
+      assert.strictEqual(
+        local.value,
+        require(path.join(root, "src", "core", "shared_utils.js")),
+        "the module the bridge resolves is the project file itself"
+      );
+
+      globalThis.__releaseBundleLocalCache = new Map();
+      const loaded = await bridge.loadVaultModule({
+        vault: { getAbstractFileByPath() { return null; }, adapter: null },
+      }, localPath, false, "__releaseBundleLocalCache");
+      assert.strictEqual(loaded, local.value, "loadVaultModule falls through to the plugin-local module");
+
+      /*
+       * Путь не из папки плагина той же длины, что и префикс. Без проверки
+       * префикса срез отдал бы настоящий `src/core/shared_utils.js`, и чужой
+       * путь притянул бы файл проекта. Короткий чужой путь это не ловит: его
+       * отсекает пустой остаток, а не сама проверка.
+       */
+      const decoy = "z".repeat(bridge.PLUGIN_PATH_PREFIX.length) + "src/core/shared_utils.js";
+      const outside = bridge.requirePluginLocalModule(decoy);
+      assert.strictEqual(outside.found, false, "a path outside the plugin folder is not resolved locally");
+
+      globalThis.__inlineOverhaulBundledVaultModules = new Map();
+      const withRegistry = bridge.requirePluginLocalModule(localPath);
+      assert.strictEqual(withRegistry.found, false, "a filled registry means release: the local branch is dead");
+    } finally {
+      if (registryBackup === undefined) delete globalThis.__inlineOverhaulBundledVaultModules;
+      else globalThis.__inlineOverhaulBundledVaultModules = registryBackup;
+      delete globalThis.__releaseBundleLocalCache;
+    }
+  }
+
   const dist = path.join(root, "dist");
   const distMain = path.join(dist, "main.js");
   assert.ok(fs.existsSync(distMain), "dist/main.js exists");

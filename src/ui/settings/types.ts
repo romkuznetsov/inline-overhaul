@@ -12,14 +12,16 @@ import type { El } from "./custom/dom.ts";
 export type TabId =
   | "general" | "keyboard" | "navigation" | "pkm" | "visual" | "transform" | "advanced";
 
+/**
+ * Четыре действия конфиг-заметки и пересборки служебного файла сняты
+ * 2026-09-03 вместе с самой заметкой (PRD 10.12, решения В-28 и В-29).
+ */
 export type ActionId =
-  | "generate-config-note"
-  | "apply-config-note"
-  | "open-config-template"
-  | "regenerate-rules"
   | "open-howto"
   | "open-hotkey"
-  | "restore-backup";
+  | "save-backup"
+  | "restore-backup"
+  | "reset-settings";
 
 export interface SetOpts {
   /** Несколько записей с одним ключом внутри 400 мс склеиваются в одну запись undo. */
@@ -32,6 +34,18 @@ export interface SetOpts {
 export interface SettingsStore {
   get(path: string): unknown;
   set(path: string, value: unknown, opts?: SetOpts): Promise<void>;
+  /**
+   * Подписка на изменение конфига. Единственный способ узнать о записи,
+   * пришедшей **не** через шов `setControlValue`: свои блоки пишут
+   * `plugin.setConfigPatch`, и панель об этих записях не знала вовсе
+   * (дефект по замечанию заказчика 1.4.1.1.3).
+   *
+   * Слушателю приходят пути, которые действительно изменились, а не
+   * причина записи: причина у патча своя (`pkm:behavior:order:...`) и путём
+   * не является, а будить по ней всех подписчиков значит перерисовывать
+   * половину панели на каждое нажатие.
+   */
+  subscribe(listener: (paths: readonly string[]) => void): () => void;
 }
 
 /** Контекст, который слой настроек передаёт предикатам и своим блокам. */
@@ -72,6 +86,12 @@ export interface PlatformBits {
    */
   AbstractInputSuggest?: unknown;
   setIcon: (node: unknown, icon: string) => void;
+  /**
+   * Пути заметок vault. Синхронно и без чтения с диска: Obsidian держит
+   * список файлов в памяти, а `getSettingDefinitions` зовётся часто и
+   * ввода-вывода внутри себя не терпит (П-11).
+   */
+  listNotes?: () => readonly string[];
   /** Объект плагина: перенесённый код зовёт его методы как есть. */
   plugin: unknown;
   /** Живой конфиг. Перенесённый код читает и пишет пути версии 1. */
@@ -133,12 +153,45 @@ interface Bound extends Base {
 
 export type SettingDef =
   | (Bound & { kind: "toggle"; default: boolean })
-  | (Bound & { kind: "dropdown"; options: ReadonlyArray<{ value: string; label: string }>; default: string })
-  | (Bound & { kind: "slider"; min: number; max: number; step: number; unit?: string; default: number })
+  /**
+   * Папка vault. У платформы с 1.13 для этого свой контрол: поле ввода с
+   * подсказчиком папок и свободным вводом — ровно то, что просил заказчик
+   * (1.6.2.3). Своего списка папок панель не собирает.
+   */
+  | (Bound & { kind: "folder"; default: string; placeholder?: string; wide?: true })
+  | (Bound & {
+    kind: "dropdown";
+    options: ReadonlyArray<{ value: string; label: string }>;
+    /**
+     * Имя источника, из которого дописываются значения: выбирать приходится
+     * из данных человека, а их в схеме нет. `options` при этом остаётся —
+     * в нём стоят строки, которые не зависят от данных, и идут они первыми.
+     */
+    optionsFrom?: string;
+    default: string;
+  })
+  /**
+   * Слайдер. `invert` — число, из которого вычитается записанное значение,
+   * когда человеку его показывают: `min` и `max` тогда заданы в **показанных**
+   * величинах, а `default` остаётся записанным. Нужен там, где записанное
+   * читается наоборот тому, о чём человек думает, а поменять смысл записанного
+   * нельзя (З1). Переворот живёт на шве `getControlValue`/`setControlValue` и
+   * только там; внутри панели значение всегда записанное.
+   */
+  | (Bound & { kind: "slider"; min: number; max: number; step: number; unit?: string; invert?: number; default: number })
   | (Bound & { kind: "number"; min?: number; max?: number; default: number })
   | (Bound & { kind: "text"; placeholder?: string; wide?: true; mono?: true; validate?: (v: string) => string | undefined; default: string })
   | (Bound & { kind: "textarea"; placeholder?: string; rows?: number; default: string })
   | (Bound & { kind: "color"; allowReset?: true; default: string })
+  /**
+   * Строка-подпись: имя, описание и подсказка, без контрола.
+   *
+   * Нужна там, где следующий блок сам по себе не объясняет, к чему он
+   * относится: список флажков `Fields to keep` начинался сразу под предыдущей
+   * строкой, и заказчик просил назвать его (B13, B18, 2026-09-02). У платформы
+   * для этого есть своя форма — `SettingDefinitionEmpty`.
+   */
+  | (Base & { kind: "note" })
   | (Base & { kind: "buttons"; buttons: readonly SettingButton[] })
   | (Ident & { kind: "custom"; render: CustomRender });
 
@@ -234,6 +287,17 @@ export function not(path: string): Predicate {
 export function eq(path: string, value: unknown): Predicate {
   return { deps: [path], test: ctx => ctx.get(path) === value };
 }
+/**
+ * Выключен, когда ложь стоит по **обоим** путям.
+ *
+ * У настройки бывает два хозяина: `Drop the line Prefix` и `Join with a space`
+ * относятся и к `Del`, и к `Backspace`, а те включаются врозь (заказчик
+ * 2026-09-05, 10.13.32 Д11). `not()` тут дал бы строку, погашенную при
+ * работающей второй клавише.
+ */
+export function neither(a: string, b: string): Predicate {
+  return { deps: [a, b], test: ctx => !ctx.get(a) && !ctx.get(b) };
+}
 
 /* ---- конфиг редактора Fields (Ф16) ------------------------------------ */
 
@@ -270,7 +334,7 @@ export interface OrderState {
   lead: Record<string, string>;
   /** Видимое имя Field. */
   labels: Record<string, string>;
-  /** Системное имя: им Field назван в заметке конфига и в рантайме. */
+  /** Системное имя: им Field назван в именах команд и в рантайме. */
   strictNames: Record<string, string>;
   types: Record<string, FieldKind>;
   active: Record<string, FieldActiveMode>;

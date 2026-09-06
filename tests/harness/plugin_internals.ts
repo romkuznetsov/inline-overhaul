@@ -28,27 +28,15 @@ type Any = ReturnType<typeof JSON.parse>;
 
 export interface PluginInternals {
   migrateConfig: (raw: Any) => Any;
+  /**
+   * Все команды плагина одним списком (10.5). Настоящая функция из `main.js`:
+   * проверка справочника обязана спрашивать её, а не собирать список своей
+   * копией правил — иначе она проверяет копию.
+   */
+  buildOwnCommandList: (plugin: Any) => Any[];
   normalizePkmOrder: (raw: Any) => Any;
   ensureBehaviorModesFromOrder: (cfg: Any) => void;
   DEFAULT_CONFIG: Any;
-  /**
-   * Контекст, который плагин передаёт конфиг-заметке. Собирается тем же
-   * кодом и из тех же имён, что и в `main.js` (метод
-   * `applyTagWheelConfigNote`), — иначе проверка гоняла бы свою проводку
-   * вместо плагиновой.
-   *
-   * Снаружи приходят три вещи, и все три — граница с миром, а не логика:
-   * `app` (чтение заметки из vault), `cfg` (снимок конфига) и `store`.
-   */
-  buildConfigNoteCtx: (o: { app: Any; cfg: Any; store: Any }) => Any;
-  /**
-   * Подгрузить разборщик и кодек заметки теми же загрузчиками, что и плагин.
-   * Вне Obsidian они находят модули через `require` — первым делом загрузчик
-   * пробует именно его, — так что подменять тут нечего.
-   */
-  loadConfigNoteModules: (app: Any) => Promise<void>;
-  /** Кодек заметки: `buildTagWheelConfigMarkdown` и разбор обратно. */
-  getTagWheelConfigCodec: () => Any;
   /* Разрешение цвета тега: те самые функции, которыми плагин решает, каким
      цветом рисовать токен в строке. */
   buildFieldTagVisualMap: (cfg: Any) => Any;
@@ -58,16 +46,49 @@ export interface PluginInternals {
   resolveEffectiveTagVisualMode: (row: Any) => string;
   /** Виджет, которым плагин рисует токен Value в строке заметки. */
   TagVisualTokenWidget: Any;
-  normalizeHexColorInput: (v: unknown) => string;
+  /* Сканер токенов строки и правило стиля блока: ими плагин решает, кому
+     достанутся прозрачность и размер текста (И-2.2). */
+  scanLineVisualTokens: (text: string, sep1: string, sep2: string, markers: readonly Any[]) => Any[];
+  buildElementMarkersFromConfig: (cfg: Any) => Any[];
+  /* Отрезок, который забирает себе слой TagWheel: по нему слой пузырей
+     узнаёт, что эти символы не его (B2). */
+  tagwheelPanelSpanInLine: (text: string, colors: Any) => Any;
   /**
-   * Хоткеи поля-даты для заметки конфигурации. Вынесены наружу, потому
-   * что до 2026-08-29 они не находились никогда: менеджер хоткеев
-   * спрашивали голым идентификатором команды вместо полного (PRD 10.4,
-   * Б-11).
+   * Один токен панели TagWheel без приставки. Слой панели больше не заменяет
+   * отрезок целиком — он ставит пометки, — и виджет остался только на случае
+   * спрятанных решёток (B2, 2026-09-02).
    */
-  detectDateFieldHotkeys: (
-    app: Any, cfg: Any, fieldId: string, pluginId?: string,
-  ) => { increase: string; decrease: string };
+  TagwheelTokenWidget: Any;
+  /**
+   * Что оформляется в панели TagWheel на одной строке и **чем**. Проверка
+   * смотрит сюда, а не на отдельный виджет: дефект B2 был в том, что отрезок
+   * подменялся целиком, а не в том, что нарисовал виджет. CodeMirror здесь не
+   * участвует, поэтому утверждение можно выписать машиной.
+   */
+  tagwheelPanelSpans: (text: string, colors: Any, placeholders: Set<string>) => Any[];
+  buildTagwheelPlaceholderSetFromConfig: (cfg: Any) => Set<string>;
+  getTagwheelHeaderColorsFromConfig: (cfg: Any) => Any;
+  buildBlockStyleCss: (entry: Any, visuals: Any) => string;
+  computeTagVisualStyle: (textSizePct: number, bubbleWidthPct: number, bubbleHeightPct: number, shapePct: number) => Any;
+  TAG_EMPTY_BUBBLE_BASE_PX: number;
+  /* Имя Field, каким его увидит заметка конфигурации (1.3.1). */
+  getOrderStrictName: (cfg: Any, orderKey: string) => string;
+  /* Отметки на строке: подсветка обработанной и `Floating button` (10.13.12). */
+  getSourceMarksFromConfig: (cfg: Any) => Any;
+  lineHasProcessedToken: (text: string, token: string) => boolean;
+  FloatingTransformButtonWidget: Any;
+  normalizeHexColorInput: (v: unknown) => string;
+  /* Каретка: цвет, толщина и мерцание. Выключенная половина группы не
+     объявляет ничего, и тогда своё берёт тема (10.13.33). */
+  buildCaretStyleCss: (look: Any) => string;
+  caretLookFromConfig: (cfg: Any) => Any;
+  caretBlinkMsFromSpeed: (speed: number) => number;
+  /* Своя каретка на строке без выделения (10.13.33 Ц9). */
+  caretShapeActive: (plugin: Any) => boolean;
+  caretLayerRangeFor: (plugin: Any, state: Any) => Any;
+  /* Цвета панели, которыми и правда красят: пусто — переменная темы. */
+  resolveTagwheelPaintColors: (colors: Any) => Any;
+  TAGWHEEL_THEME_COLOR_VARS: Record<string, string>;
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -78,46 +99,21 @@ const mainPath = path.resolve(here, "..", "..", "main.js");
  * видимости модуля, их надо только вынести наружу. Сам `main.js` от этого не
  * меняется, и проверка читает ровно тот код, который грузит Obsidian.
  */
-/*
- * Сборка контекста повторяет метод `applyTagWheelConfigNote` в `main.js`
- * поле в поле. Скопировано намеренно: если проводка там изменится, а здесь
- * нет, проверка начнёт врать — поэтому её сходство закреплено гейтом
- * `bootstrap_loader_tests.js`.
- */
 const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
-  + "  migrateConfig, normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
-  + "  getTagWheelConfigCodec, TagVisualTokenWidget, detectDateFieldHotkeys,\n"
+  + "  migrateConfig, normalizeConfigV1, normalizeConfigV2, buildOwnCommandList,\n"
+  + "  normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
+  + "  TagVisualTokenWidget,\n"
+  + "  scanLineVisualTokens, buildElementMarkersFromConfig, buildBlockStyleCss,\n"
+  + "  tagwheelPanelSpanInLine, getTagwheelHeaderColorsFromConfig, TagwheelTokenWidget,\n"
+  + "  tagwheelPanelSpans, buildTagwheelPlaceholderSetFromConfig,\n"
+  + "  getOrderStrictName, getSourceMarksFromConfig, lineHasProcessedToken,\n"
+  + "  FloatingTransformButtonWidget,\n"
+  + "  computeTagVisualStyle, TAG_EMPTY_BUBBLE_BASE_PX,\n"
   + "  buildFieldTagVisualMap, buildGlobalTagVisualMap, readTagVisualRowByTokenMaps,\n"
   + "  getTagVisualsFromConfig, resolveEffectiveTagVisualMode, normalizeHexColorInput,\n"
-  + "  loadConfigNoteModules: async function (app) {\n"
-  + "    await loadTagWheelConfigParserSafe(app);\n"
-  + "    await loadTagWheelConfigCodecSafe(app);\n"
-  + "  },\n"
-  + "  buildConfigNoteCtx: function (o) {\n"
-  + "    var helpers = getConfigNoteHelpers();\n"
-  + "    return {\n"
-  + "      app: o.app,\n"
-  + "      cfg: o.cfg,\n"
-  + "      tagWheelConfigCodec: getTagWheelConfigCodec(),\n"
-  + "      store: o.store,\n"
-  + "      readVaultText: readVaultText,\n"
-  + "      getOrderStrictName: getOrderStrictName,\n"
-  + "      isObj: isObj,\n"
-  + "      cloneJson: cloneJson,\n"
-  + "      collectTagSections: helpers.collectTagSections,\n"
-  + "      getFieldById: helpers.getFieldById,\n"
-  + "      extractFieldMetaMap: extractFieldMetaMap,\n"
-  + "      rebuildTagValues: rebuildTagValues,\n"
-  + "      rebuildSubtagValues: rebuildSubtagValues,\n"
-  + "      denormTagToken: denormTagToken,\n"
-  + "      getPrefixRulesFromCfg: helpers.getPrefixRulesFromCfg,\n"
-  + "      collectCheckboxTokensFromMap: helpers.collectCheckboxTokensFromMap,\n"
-  + "      deepMerge: deepMerge,\n"
-  + "      syncCustomPrefixResolverBlock: helpers.syncCustomPrefixResolverBlock,\n"
-  + "      normalizePkmOrder: normalizePkmOrder,\n"
-  + "      CFG_H2_DATES: CFG_H2_DATES,\n"
-  + "    };\n"
-  + "  },\n"
+  + "  resolveTagwheelPaintColors, TAGWHEEL_THEME_COLOR_VARS,\n"
+  + "  buildCaretStyleCss, caretLookFromConfig, caretBlinkMsFromSpeed,\n"
+  + "  caretShapeActive, caretLayerRangeFor,\n"
   + "};\n";
 
 /**

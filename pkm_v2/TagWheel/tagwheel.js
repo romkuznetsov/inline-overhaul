@@ -9,6 +9,13 @@ var DATE_RUNTIME_CONFIG_OPTION = 'Date runtime config'
 var TAGWHEEL_SCROLLER_ENABLED_OPTION = 'TagWheel scroller enabled'
 var TAGWHEEL_SCROLLER_DIRECTION_OPTION = 'TagWheel scroller direction'
 var TAGWHEEL_SCROLLER_SIZE_OPTION = 'TagWheel scroller size'
+/* Цвета коробки скроллера: десятое исключение к З3, разрешение заказчика
+   2026-09-02 по замечанию D6 (PRD 10.13.15). Пусто — цвета темы. */
+var TAGWHEEL_SCROLLER_FILL_OPTION = 'TagWheel scroller fill color'
+var TAGWHEEL_SCROLLER_TEXT_OPTION = 'TagWheel scroller text color'
+/* Что делает стрелка на краю панели: двадцать первое исключение к З3,
+   разрешение заказчика 2026-09-05 (PRD 10.13.35). */
+var TAGWHEEL_EDGE_MODE_OPTION = 'TagWheel edge mode'
 var DEFAULT_RULES_PATH = 'InlineOverhaul_Generated_RULES_TagWheel.md'
 var LINE_FINALIZE_UNIFIED_PATH = '.obsidian/plugins/inline-overhaul/src/core/pkm_line_finalize_unified.js'
 var STATUS_LINE_RUNTIME_UNIFIED_PATH = '.obsidian/plugins/inline-overhaul/src/core/status_line_runtime_unified.js'
@@ -187,7 +194,70 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   if (out.scrollerSize == null && qa[TAGWHEEL_SCROLLER_SIZE_OPTION] != null) {
     out.scrollerSize = qa[TAGWHEEL_SCROLLER_SIZE_OPTION]
   }
+  if (out.scrollerFillColor == null && typeof qa[TAGWHEEL_SCROLLER_FILL_OPTION] === 'string') {
+    out.scrollerFillColor = qa[TAGWHEEL_SCROLLER_FILL_OPTION]
+  }
+  if (out.scrollerTextColor == null && typeof qa[TAGWHEEL_SCROLLER_TEXT_OPTION] === 'string') {
+    out.scrollerTextColor = qa[TAGWHEEL_SCROLLER_TEXT_OPTION]
+  }
+  if (!out.edgeMode && typeof qa[TAGWHEEL_EDGE_MODE_OPTION] === 'string') {
+    out.edgeMode = qa[TAGWHEEL_EDGE_MODE_OPTION]
+  }
   return out
+}
+
+/**
+ * Что делает стрелка, когда следующего Field в этом Block нет (10.13.35).
+ *
+ * `stay` — прежнее поведение: кольцо замкнуто внутри своей стороны.
+ * `next-block` — кольцо через обе стороны. Умолчание прежнее: менять
+ * поведение всем, кто обновится, без спроса нельзя.
+ */
+function normalizeEdgeMode(value) {
+  return String(value || '').trim().toLowerCase() === 'next-block' ? 'next-block' : 'stay'
+}
+
+/**
+ * Куда встанет активный Field на следующем шаге стрелки (10.13.35).
+ *
+ * Чистая функция: на входе два списка Field и то, где мы стоим, на выходе
+ * сторона и Field. Так решение проверяется без Obsidian и без открытой
+ * панели, а запись остаётся отдельно (тот же порядок, что у `Smart Delete`).
+ *
+ * Заказчик описал все четыре границы, и они складываются в **одно кольцо**
+ * «левая сторона, затем правая»: с последнего левого вправо — первый правый,
+ * с первого левого влево — последний правый, и зеркально. Поэтому здесь нет
+ * четырёх случаев, а есть один переход.
+ */
+function planFieldStep(input) {
+  var o = input && typeof input === 'object' ? input : {}
+  var ids = Array.isArray(o.ids) ? o.ids : []
+  if (!ids.length) return null
+
+  var mode = o.mode === 'right' ? 'right' : 'left'
+  var dir = Number(o.dir) < 0 ? -1 : 1
+  var idx = ids.indexOf(String(o.activeFieldId || ''))
+  if (idx === -1) idx = 0
+  var next = idx + dir
+
+  if (normalizeEdgeMode(o.edgeMode) === 'next-block' && (next < 0 || next >= ids.length)) {
+    var otherIds = Array.isArray(o.otherIds) ? o.otherIds : []
+    /* Соседняя сторона пуста — уходить некуда, и кольцо замыкается на своей.
+       Молча ничего не делать здесь было бы тем самым тихим отказом (У-41). */
+    if (otherIds.length) {
+      return {
+        mode: mode === 'right' ? 'left' : 'right',
+        activeFieldId: dir > 0 ? otherIds[0] : otherIds[otherIds.length - 1],
+        crossed: true
+      }
+    }
+  }
+
+  return {
+    mode: mode,
+    activeFieldId: ids[(next + ids.length) % ids.length],
+    crossed: false
+  }
 }
 
 function normalizeScrollerConfig(input) {
@@ -196,10 +266,22 @@ function normalizeScrollerConfig(input) {
   var direction = (directionRaw === 'up' || directionRaw === 'down' || directionRaw === 'full') ? directionRaw : 'full'
   var sizeNum = Math.trunc(Number(raw.scrollerSize))
   var size = isFinite(sizeNum) ? Math.max(1, Math.min(20, sizeNum)) : 3
+  /*
+   * Цвета коробки. Пустая строка — «взять у темы», и это не «прозрачный»:
+   * второго смысла у пустоты в панели быть не должно (PRD 10.13.15 Н2).
+   * Проверка формы здесь же: в коробку не должно уехать ничего, кроме
+   * `#rrggbb`, — иначе браузер молча оставит прежний цвет.
+   */
+  var hex = function(value) {
+    var v = String(value == null ? '' : value).trim().toLowerCase()
+    return /^#[0-9a-f]{6}$/.test(v) ? v : ''
+  }
   return {
     enabled: raw.scrollerEnabled === true,
     direction: direction,
     size: size,
+    fillColor: hex(raw.scrollerFillColor),
+    textColor: hex(raw.scrollerTextColor),
   }
 }
 
@@ -299,6 +381,9 @@ async function runTagWheel(input, quickAddSettings) {
     TAGWHEEL_SCROLLER_ENABLED_OPTION = String(keys.TAGWHEEL_SCROLLER_ENABLED || TAGWHEEL_SCROLLER_ENABLED_OPTION)
     TAGWHEEL_SCROLLER_DIRECTION_OPTION = String(keys.TAGWHEEL_SCROLLER_DIRECTION || TAGWHEEL_SCROLLER_DIRECTION_OPTION)
     TAGWHEEL_SCROLLER_SIZE_OPTION = String(keys.TAGWHEEL_SCROLLER_SIZE || TAGWHEEL_SCROLLER_SIZE_OPTION)
+    TAGWHEEL_SCROLLER_FILL_OPTION = String(keys.TAGWHEEL_SCROLLER_FILL || TAGWHEEL_SCROLLER_FILL_OPTION)
+    TAGWHEEL_SCROLLER_TEXT_OPTION = String(keys.TAGWHEEL_SCROLLER_TEXT || TAGWHEEL_SCROLLER_TEXT_OPTION)
+    TAGWHEEL_EDGE_MODE_OPTION = String(keys.TAGWHEEL_EDGE_MODE || TAGWHEEL_EDGE_MODE_OPTION)
     DEFAULT_RULES_PATH = String(mod.DEFAULT_RULES_PATH || DEFAULT_RULES_PATH)
   }
 
@@ -455,14 +540,64 @@ async function runTagWheel(input, quickAddSettings) {
     state.session.activeField = 0
   }
 
+  /**
+   * Список Field соседней стороны (10.13.35).
+   *
+   * Считается тем же способом, что и свой, — иначе два списка одних и тех же
+   * Field разошлись бы молча (У-32). Копия сессии, а не подмена поля в живой:
+   * `getNavigableFieldSequence` смотрит на `activeFieldId`, выбирая Field
+   * внутри группы, и с чужой стороной он тут ни при чём.
+   */
+  function panelFieldIdsFor(state, mode) {
+    var session = state && state.session
+    if (!session) return []
+    if (session.mode === mode) return panelFieldIds(state)
+
+    var core = state.core
+    var rules = state.rules
+    if (core && typeof core.getNavigableFieldSequence === 'function') {
+      var probe = {}
+      var key
+      for (key in session) {
+        if (Object.prototype.hasOwnProperty.call(session, key)) probe[key] = session[key]
+      }
+      probe.mode = mode
+      probe.activeFieldId = ''
+      return core.getNavigableFieldSequence(rules, probe)
+    }
+
+    var alt = mode === 'right' ? rules.rightMode : rules.leftMode
+    var arr = alt && Array.isArray(alt.fields) ? alt.fields : []
+    var out = []
+    var i
+    for (i = 0; i < arr.length; i++) {
+      if (!arr[i] || !arr[i].id) continue
+      out.push(arr[i].id)
+    }
+    return out
+  }
+
   function nextVirtualField(state, dir) {
     var ids = panelFieldIds(state)
     if (!ids.length) return
-    var cur = String(state.session.activeFieldId || '')
-    var idx = ids.indexOf(cur)
-    if (idx === -1) idx = 0
-    idx = (idx + dir + ids.length) % ids.length
-    state.session.activeFieldId = ids[idx]
+    var mode = state.session.mode === 'right' ? 'right' : 'left'
+    var plan = planFieldStep({
+      ids: ids,
+      otherIds: state.edgeMode === 'next-block'
+        ? panelFieldIdsFor(state, mode === 'right' ? 'left' : 'right')
+        : [],
+      activeFieldId: state.session.activeFieldId,
+      mode: mode,
+      dir: dir,
+      edgeMode: state.edgeMode
+    })
+    if (!plan) return
+
+    state.session.mode = plan.mode
+    state.session.activeFieldId = plan.activeFieldId
+    /* Номер активного Field пересчитывает `ensureActiveFieldId` — по стороне,
+       которая теперь стоит в сессии. Второй такой пересчёт здесь разошёлся бы
+       с ним молча. */
     ensureActiveFieldId(state)
   }
 
@@ -1012,6 +1147,32 @@ async function runTagWheel(input, quickAddSettings) {
     return !!String(row[token] || '').trim()
   }
 
+  /**
+   * У Field вообще есть правило чекбокса — хоть у одного значения.
+   *
+   * Отличается от `fieldHasOwnCheckbox` тем, что не смотрит на выбранное:
+   * вопрос не «даёт ли выбранное значение чекбокс», а «мог ли этот Field его
+   * давать». Ровно это и нужно на выходе из цикла, когда значения уже нет.
+   *
+   * Форма повторяет `fieldHasAnyCheckboxRule` из `status_tags.js` намеренно:
+   * два хода обязаны отвечать на один вопрос одинаково (И-3).
+   */
+  function fieldHasAnyCheckboxRule(rules, fieldId) {
+    var fid = String(fieldId || '').trim()
+    if (!fid) return false
+    var byField = rules && rules.behavior && rules.behavior.prefixRules && rules.behavior.prefixRules.checkboxByFieldValue
+      ? rules.behavior.prefixRules.checkboxByFieldValue
+      : {}
+    var row = byField && typeof byField === 'object' ? byField[fid] : null
+    if (!row || typeof row !== 'object') return false
+    var keys = Object.keys(row)
+    var i
+    for (i = 0; i < keys.length; i++) {
+      if (String(row[keys[i]] || '').trim()) return true
+    }
+    return false
+  }
+
   function applySelection(state, core) {
     var applyStartedAt = Date.now()
     var beforeSourceLine = String(state && state.originalLine ? state.originalLine : '')
@@ -1076,11 +1237,27 @@ async function runTagWheel(input, quickAddSettings) {
       var fieldKey = activeField ? String(activeField.orderKey || activeField.id || '').trim() : ''
       var mode = fieldKey ? rulesHelpers.resolveFieldFreeRoamMode(state.orderCfg, fieldKey) : 'off'
       var hasOwnCheckbox = activeFieldId ? fieldHasOwnCheckbox(state.rules, state.session, activeFieldId) : false
+      /*
+       * Выход из цикла: значение у Field снято, а правило чекбокса у него
+       * есть. Тогда чекбокс уходит вместе со значением, и префикс собирается
+       * по настройкам — остаётся буллит.
+       *
+       * Здесь стоял литерал `false`, и это была вся разница между двумя
+       * ходами: хоткей (`status_tags.js`) считает то же самое выражение и
+       * поэтому оставлял `- text`, а TagWheel сохранял исходный `- [ ]`
+       * (замечание И-3, исключение № 6 из З3, разрешено 2026-09-01).
+       *
+       * Значения нет — значит и своего чекбокса нет: `hasOwnCheckbox` в этот
+       * момент уже `false`, и два флага не спорят.
+       */
+      var clearedOwnCheckbox = !!activeFieldId
+        && !selectedTokenForField(state.rules, state.session, activeField)
+        && fieldHasAnyCheckboxRule(state.rules, activeFieldId)
       offPrefixFlags = finalize.resolveOffPrefixFlagsUnified({
         mode: mode,
         freeRoamBehavior: freeRoamBehavior,
         hasOwnCheckbox: hasOwnCheckbox,
-        clearedOwnCheckbox: false
+        clearedOwnCheckbox: clearedOwnCheckbox
       })
     }
     prefixState = Object.assign({}, prefixState, {
@@ -1630,7 +1807,7 @@ async function runTagWheel(input, quickAddSettings) {
     rulesHelpers.applyOrderToRules(rules, orderCfg)
     var missingEmojiFields = dateRuntimeShared.collectMissingEmojiFieldsFromRules(rules, dateRuntimeCfg)
     if (missingEmojiFields.length) {
-      notice('TagWheel config error: Emoji is required for fields: ' + missingEmojiFields.join(', ') + '. Fix: [[InlineOverhaul_Config]] (DATE/TIME + ELEMENTS section)')
+      notice('TagWheel config error: Emoji is required for fields: ' + missingEmojiFields.join(', ') + '. Set it in Settings -> Inline Overhaul -> Tags & PKM -> Fields')
       return
     }
     var sf = String(runtimeInput && runtimeInput.subtagFormat ? runtimeInput.subtagFormat : '').toLowerCase().trim()
@@ -1686,6 +1863,7 @@ async function runTagWheel(input, quickAddSettings) {
       originalCursorCh: cursor.ch,
       keyHandler: null,
       scrollerCfg: scrollerCfg,
+      edgeMode: normalizeEdgeMode(runtimeInput.edgeMode),
       scrollerOverlay: null
     }
 
@@ -1695,6 +1873,9 @@ async function runTagWheel(input, quickAddSettings) {
         state.scrollerOverlay = scrollerMod.createTagWheelScrollerOverlay({
           direction: scrollerCfg.direction,
           size: scrollerCfg.size,
+          /* Цвета коробки (10.13.15). Пусто — оверлей оставляет цвета темы. */
+          fillColor: scrollerCfg.fillColor,
+          textColor: scrollerCfg.textColor,
         })
       } catch (eScroller) {
         state.scrollerOverlay = null
@@ -1766,7 +1947,17 @@ async function runTagWheel(input, quickAddSettings) {
     editor.setLine(lineNumber, initialControl)
     editor.setCursor({ line: lineNumber, ch: getControlCursorCh(state, initialControl) })
     updateScrollerOverlay(state, initialControl)
-    notice('TagWheel: режим активирован (' + modeName + ')')
+    /*
+     * Успешное открытие молчит.
+     *
+     * Здесь стояло уведомление «TagWheel: режим активирован (left)» на каждое
+     * нажатие. Строка и так меняется на глазах — панель рисуется поверх неё, —
+     * так что сообщение не говорило ничего нового и мешало (замечание И-1,
+     * исключение № 5 из З3, разрешено 2026-09-01).
+     *
+     * Уведомления остаются там, где человеку без них не понять, почему ничего
+     * не произошло: нет редактора, не нашлись правила, ошибка конфигурации.
+     */
   } catch (e) {
     notice('TagWheel error: ' + (e.message || e))
     reportTagWheelError(e)
@@ -1817,3 +2008,7 @@ module.exports.settings.options[ORDER_CONFIG_OPTION] = {
 module.exports.entry = async function(QuickAdd, settings) {
   return await runTagWheel(QuickAdd, settings)
 }
+/* Решение о шаге стрелки — чистая функция, и проверяется она без Obsidian
+   (10.13.35). Запись остаётся внутри, у `nextVirtualField`. */
+module.exports.planFieldStep = planFieldStep
+module.exports.normalizeEdgeMode = normalizeEdgeMode

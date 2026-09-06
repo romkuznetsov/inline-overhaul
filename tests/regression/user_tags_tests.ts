@@ -26,6 +26,7 @@ import {
   renderUserTags,
   HEAD,
   ADD_TAG,
+  ADD_LABEL,
   EMPTY_LIST,
 } from "../../src/ui/settings/custom/user_tags.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
@@ -68,7 +69,8 @@ function all(node: StubNode, cls: string): StubNode[] {
 const texts = (node: StubNode, cls: string): string[] => all(node, cls).map(n => n.textContent);
 
 const byLabel = (node: StubNode, prefix: string): StubNode | undefined =>
-  all(node, "io-icon").concat(all(node, "io-btn"), all(node, "io-colin"), all(node, "io-select"))
+  all(node, "io-icon")
+    .concat(all(node, "io-btn"), all(node, "io-colin"), all(node, "io-select"), all(node, "io-text"))
     .find(n => String(n.getAttribute("aria-label") || "").startsWith(prefix));
 
 /* ---- панель на настоящем пути записи ----------------------------------- */
@@ -133,6 +135,9 @@ function makePanel(userTags: Record<string, Any>, o?: { enabled?: boolean }): Pa
       onVisual: (row, patch, reason) => { model.setVisual(row.token, patch, reason); draw(); },
       onRemove: row => { model.remove(row.token); draw(); },
       onAdd: raw => { model.add(raw); draw(); },
+      onRename: (row, raw) => { model.rename(row.token, raw); draw(); },
+      showTips: true,
+      closers: [],
     });
   };
   draw();
@@ -141,7 +146,7 @@ function makePanel(userTags: Record<string, Any>, o?: { enabled?: boolean }): Pa
     host,
     tags: () => {
       const cfg = store.getSnapshot();
-      const visuals = cfg?.pkm?.behavior?.tagVisuals;
+      const visuals = cfg?.visual?.tags;
       return (visuals && visuals.userTags) || {};
     },
     writes,
@@ -158,17 +163,60 @@ const TWO_TAGS = {
 /* ---- что рисуется ------------------------------------------------------ */
 
 {
+  /*
+   * 1.5.2.2: таблица та же, что Values у Field типа tag, без `Level` и
+   * `Prefix`. Проверяется и разметка (`io-vals`), и порядок колонок: своя
+   * вёрстка с другим порядком — ровно то, что заказчику не понравилось.
+   */
   const p = makePanel(TWO_TAGS);
-  const head = all(p.host, "io-tablehead")[0];
+  assert.ok(all(p.host, "io-vals").length, "таблица рисуется разметкой Values");
+  assert.equal(all(p.host, "io-tablehead").length, 0,
+    "своей вёрстки таблицы больше нет: она и была замечанием");
+  const head = all(p.host, "io-vals__head")[0];
   assert.ok(head, "шапка таблицы нарисовалась");
-  assert.deepEqual(head.children.map(n => n.textContent), Array.from(HEAD),
-    "пять колонок: тег, два цвета, показ и кнопки");
-  assert.equal(all(p.host, "io-tablerow").length, 2, "по строке на тег");
+  /*
+   * Ожидание выписано здесь, а не взято у `HEAD`: сверка константы с самой
+   * собой ничего не проверяет — мутация порядка колонок такую проверку
+   * переживала. Порядок — тот же, что у таблицы Values, минус `Level` и
+   * `Prefix` (замечание заказчика 1.5.2.2).
+   */
+  const WANT = ["Tag", "Show", "Fill", "Text", "Preview", ""];
+  assert.deepEqual(head.children.map(n => String(n.textContent || "").replace("?", "").trim()),
+    WANT,
+    "колонки и их порядок: тег, показ, две заливки, предпросмотр и кнопки");
+  assert.deepEqual(Array.from(HEAD), WANT,
+    "и та же шестёрка объявлена константой блока");
+  assert.ok(!WANT.includes("Level") && !WANT.includes("Prefix"),
+    "`Level` и `Prefix` заказчик просил убрать");
+  assert.equal(all(p.host, "io-vals__row").length, 2, "по строке на тег");
 
-  /* Имя тега и есть предпросмотр: отдельного чипа рядом нет. */
+  /* Предпросмотр — своя колонка, как в таблице Values. */
   assert.deepEqual(texts(p.host, "io-bubble"), ["#urgent", "#idea"],
     "тег нарисован пузырём — тем же, которым рисуют предпросмотры");
-  ok("таблица: строка на тег, имя тега и есть предпросмотр");
+  assert.equal(all(p.host, "io-vals__prev").length, 2,
+    "у каждой строки своя клетка предпросмотра");
+  ok("1.5.2.2: та же таблица, что Values, без `Level` и `Prefix`");
+}
+
+{
+  /*
+   * Имя тега правится на месте — как `Value` в таблице Values. Переименование
+   * это перенос ключа: цвета обязаны переехать вместе с ним, иначе правка
+   * имени молча стирает настройку.
+   */
+  const p = makePanel(TWO_TAGS);
+  const name = byLabel(p.host, "Tag #urgent") as StubNode;
+  assert.ok(name, "имя тега правится на месте");
+  name.value = "#burning";
+  name.dispatch("change");
+
+  const tags = p.tags();
+  assert.ok(!tags["#urgent"], "старого имени в конфиге не осталось");
+  assert.equal(tags["#burning"]?.fillColor, "#b3261e", "заливка переехала");
+  assert.equal(tags["#burning"]?.textColor, "#ffffff", "и цвет текста тоже");
+  assert.deepEqual(p.writes.map(w => w.reason), ["pkm:visuals:user-tags:rename"],
+    "переименование идёт одним патчем, а не парой записей");
+  ok("переименование тега переносит его цвета и идёт одной записью");
 }
 
 {
@@ -182,7 +230,7 @@ const TWO_TAGS = {
 
 {
   const p = makePanel({});
-  assert.equal(all(p.host, "io-tablerow").length, 0, "строк нет");
+  assert.equal(all(p.host, "io-vals__row").length, 0, "строк нет");
   assert.equal(texts(p.host, "io-side__empty")[0], EMPTY_LIST,
     "и пустой список говорит, что здесь бывает (ПЗ2)");
   assert.ok(byLabel(p.host, ADD_TAG), "а завести тег всё равно можно");
@@ -290,7 +338,7 @@ const TWO_TAGS = {
   (byLabel(p.host, "Remove #idea") as StubNode).click();
 
   assert.deepEqual(Object.keys(p.tags()), ["#urgent"], "тег ушёл из конфига");
-  assert.equal(all(p.host, "io-tablerow").length, 1, "и из таблицы");
+  assert.equal(all(p.host, "io-vals__row").length, 1, "и из таблицы");
   assert.deepEqual(p.writes.map(w => w.reason), ["pkm:visuals:user-tags:delete"],
     "причина записи названа");
   ok("удаление уносит тег надгробием, а не пустыми цветами");
@@ -298,7 +346,9 @@ const TWO_TAGS = {
 
 {
   const p = makePanel(TWO_TAGS);
-  const add = all(p.host, "io-text")[0] as StubNode;
+  /* Поле «завести тег» ищется по подписи: полей ввода в таблице теперь
+     несколько — имя каждого тега правится на месте (1.5.2.2). */
+  const add = byLabel(p.host, ADD_LABEL) as StubNode;
   add.value = "later";
   (byLabel(p.host, ADD_TAG) as StubNode).click();
 
@@ -315,7 +365,9 @@ const TWO_TAGS = {
 
 {
   const p = makePanel(TWO_TAGS);
-  const add = all(p.host, "io-text")[0] as StubNode;
+  /* Поле «завести тег» ищется по подписи: полей ввода в таблице теперь
+     несколько — имя каждого тега правится на месте (1.5.2.2). */
+  const add = byLabel(p.host, ADD_LABEL) as StubNode;
   add.value = "#urgent";
   (byLabel(p.host, ADD_TAG) as StubNode).click();
   assert.equal(p.tags()["#urgent"]?.fillColor, "#b3261e",
@@ -388,6 +440,49 @@ function runtimeRow(cfg: Any, token: string): Any {
   fill.dispatch("change");
   assert.deepEqual(p.writes, [], "и нажатие ничего не записывает");
   ok("выключенный модуль Visual выключает и блок");
+}
+
+
+/* ======================================================================
+ * `Add tag` — последняя строка таблицы, а не хвост под её левым углом
+ * (замечание заказчика 1.4.1.1).
+ *
+ * Как это выглядит, машина не видит. Что поле отделено линией и стоит на том
+ * же отступе, что поле тега в строках, — видит: читается текст CSS, и панель
+ * сверяется с прототипом (Р8).
+ * ====================================================================== */
+
+{
+  const fs2 = await import("node:fs");
+  const here3 = path.dirname(fileURLToPath(import.meta.url));
+  const root3 = path.resolve(here3, "..", "..");
+  const ruleOf = (css: string): string => {
+    const m = /\.io-vals--tags \.io-rowactions \{[^}]*\}/m.exec(css);
+    assert.ok(m, "правило .io-vals--tags .io-rowactions на месте");
+    return String(m ? m[0] : "");
+  };
+  const rowPadding = (css: string): string => {
+    const m = /\.io-vals__row \{[^}]*padding:\s*\d+px\s+(\d+)px/m.exec(css);
+    return String(m ? m[1] : "");
+  };
+
+  const pluginCss = fs2.readFileSync(path.join(root3, "styles.css"), "utf8");
+  const protoCss = fs2.readFileSync(path.join(root3, "docs", "prototype", "settings_prototype.html"), "utf8");
+
+  for (const [css, where] of [[pluginCss, "панель"], [protoCss, "прототип"]] as const) {
+    const rule = ruleOf(css);
+    assert.ok(/border-top:\s*1px solid var\(--background-modifier-border\)/.test(rule),
+      where + ": поле отделено линией от раскрашенных тегов");
+    assert.ok(/margin-top:\s*0/.test(rule),
+      where + ": поле подтянуто к таблице, а не висит под ней");
+    const pad = /padding:\s*\d+px\s+(\d+)px/.exec(rule);
+    assert.ok(pad, where + ": у поля есть свой отступ");
+    if (where === "панель") {
+      assert.equal(String(pad ? pad[1] : ""), rowPadding(css),
+        "панель: поле стоит на одном отступе с полем тега в строках");
+    }
+  }
+  ok("Add tag стоит последней строкой таблицы, отделённой линией");
 }
 
 console.log("\n" + passed + " проверок пройдено");

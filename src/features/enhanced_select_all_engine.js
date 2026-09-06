@@ -197,7 +197,7 @@ function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
   const seq = buildSelectAllSequence(editor, mode, st.origin.line);
   if (!seq.length) return false;
   const clampedIdx = Math.max(0, Math.min(st.idx, seq.length - 1));
-  if (gf.clearSelectionOnLastPress && clampedIdx === seq.length - 1) {
+  if (gf.clearOnLast && clampedIdx === seq.length - 1) {
     collapseSelectionToCursor(editor, st.origin);
     plugin._enhancedSelectAllCycle = null;
     return true;
@@ -238,7 +238,7 @@ function handleEnhancedSelectAllByContext(plugin, editor, mode, gf) {
     }
   }
 
-  if (gf.clearSelectionOnLastPress && idx === seq.length - 1) {
+  if (gf.clearOnLast && idx === seq.length - 1) {
     collapseSelectionToCursor(editor, origin);
     plugin._enhancedSelectAllCycle = null;
     return true;
@@ -260,9 +260,7 @@ function handleEnhancedSelectAllByContext(plugin, editor, mode, gf) {
 
 function handleEnhancedSelectAllKeymap(plugin) {
   const cfg = plugin.getConfig();
-  const gf = cfg && cfg.globalFunctions && cfg.globalFunctions.enhancedSelectAll
-    ? cfg.globalFunctions.enhancedSelectAll
-    : null;
+  const gf = cfg && cfg.editor && cfg.editor.selectAll ? cfg.editor.selectAll : null;
   if (!gf || !gf.enabled) {
     plugin._enhancedSelectAllCycle = null;
     return false;
@@ -276,7 +274,7 @@ function handleEnhancedSelectAllKeymap(plugin) {
 
   try {
     const mode = String(gf.mode || "line-note");
-    if (gf.useMultiPressDelay) {
+    if (gf.useDelay) {
       return handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf);
     }
     return handleEnhancedSelectAllByContext(plugin, editor, mode, gf);
