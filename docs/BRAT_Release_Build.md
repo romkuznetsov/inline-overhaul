@@ -1,32 +1,102 @@
-# BRAT release build
+# Выпуск версии и установка через BRAT
 
-## Contract
+## Что BRAT берёт из репозитория
 
-BRAT release assets are generated in `dist/`:
+BRAT ставит плагин **не из ветки и не из последнего коммита**, а из **релиза** —
+отдельно опубликованного выпуска с прикреплёнными к нему готовыми файлами.
+Прочитано в его исходниках (`TfTHacker/obsidian42-brat`), а не выведено:
 
-- `main.js` — self-contained CommonJS bundle;
-- `manifest.json` — unchanged source manifest;
-- `styles.css` — copied only when source file exists.
+- он запрашивает **список релизов** (`/repos/<repo>/releases`), а не
+  `/releases/latest`, и сортирует его сам — сперва по semver, при нечитаемом
+  теге по дате публикации;
+- **предрелизы отбрасываются**, если человек не включил их галочкой:
+  `.filter((release) => includePrereleases || !release.prerelease)[0]`;
+- из вложений релиза он берёт `main.js` и `manifest.json` — **обязательные**, —
+  и `styles.css`, если тот приложен. Без `main.js` установка падает с
+  `main.js is missing from the Release`; без `styles.css` плагин встанет молча
+  и **без оформления**;
+- версию он берёт из тега релиза, приводя манифест к ней.
 
-`data.json`, runtime logs, local settings, source modules, and build metadata are not copied.
+Отсюда правило, которое и определяет всю остальную страницу: **чтобы человеку
+хватило одной ссылки на репозиторий, последний релиз обязан быть обычным (не
+предрелизом) и нести все три файла.**
 
-## Build
+Что это значит на практике: `Add beta plugin` в BRAT, строка
+`romkuznetsov/inline-overhaul`, никаких галочек — ставится то, что выпущено
+последним.
 
-```powershell
-npm install
-npm run test:version
-npm run test:release
+## Как выпускается версия
+
+Три команды, всё остальное делает CI:
+
+```bash
+node build/set_version.js 0.1.0-beta.3
+git commit -am "Версия 0.1.0-beta.3"
+git tag 0.1.0-beta.3 && git push origin main --tags
+```
+
+- `build/set_version.js` правит **все четыре** места разом: `manifest.json`,
+  `package.json`, `package-lock.json` и `versions.json` (карта «версия плагина →
+  минимальная версия Obsidian», её читает сам Obsidian; старые строки остаются,
+  они про прошлые выпуски);
+- тег без префикса `v` — так уже назван прошлый выпуск, и BRAT читает такой тег
+  как номер версии;
+- `.github/workflows/release.yml` ловит тег, собирает **из того коммита, на
+  который тег указывает**, прогоняет весь набор и публикует релиз с тремя
+  вложениями. Сборка руками при этом не нужна: собранное в `dist/` в релиз не
+  копируется, оно там пересобирается.
+
+**Номер обязан расти.** BRAT сравнивает версию последнего релиза с
+установленной: не выросла — обновление не предложит.
+
+Тег и `manifest.json` сверяются в самом workflow, до сборки: разъехались — шаг
+падает и релиза не будет. Это дешевле, чем выпуск, который называет себя одной
+версией, а лежит под другой.
+
+## Чем это было до 2026-09-06
+
+Выпуск собирали руками, и ритуал из пяти шагов сделал ровно то, что делают
+такие ритуалы: к релизу `0.1.0-beta.1` от 8 августа приложены **два файла из
+трёх** — `styles.css` забыт, то есть оформление не приезжало вовсе. Плюс сам
+релиз был помечен предрелизом, а таких BRAT по умолчанию не видит: по голой
+ссылке он не находил ничего.
+
+Пятым местом, где руками правился номер версии, была сама проверка
+`version_consistency_tests.js` — литерал в её тексте. Теперь источник истины
+один, `manifest.json`, а проверка сверяет с ним остальные три файла и заодно
+форму номера: опечатка вида `0.1.0 beta`, согласованно разъехавшаяся по всем
+файлам, раньше осталась бы зелёной.
+
+## Что именно уезжает в релиз
+
+Собирает `npm run build` (`build/release.js`) в `dist/`:
+
+- `main.js` — самодостаточный CommonJS-бандл;
+- `manifest.json` — исходный манифест, скопированный без изменений;
+- `styles.css` — копируется, когда исходный файл существует.
+
+`data.json`, журналы, локальные настройки, исходные модули и метаданные сборки
+не копируются.
+
+`obsidian`, `@codemirror/view` и `@codemirror/state` остаются внешними:
+Obsidian отдаёт их плагину сам.
+
+## Проверки выпуска
+
+```bash
+npm run test:version   # версия совпадает в четырёх местах и похожа на номер
+npm run test:release   # пересборка, сверка версии, регрессии бандла
 node --check dist/main.js
 ```
 
-`obsidian`, `@codemirror/view`, and `@codemirror/state` remain external because Obsidian provides them at runtime.
+`build/release_entry.js` статически собирает плагин-локальные модули и заменяет
+`globalThis.__inlineOverhaulBundledVaultModules` при каждой загрузке бандла;
+`src/core/vault_module_bridge.js` разрешает нынешний реестр раньше глобальных
+кэшей vault-модулей, поэтому горячая перезагрузка BRAT не отдаёт устаревшие
+модули. Многофайловый режим исходников сохраняет прежние кэши и запасное чтение
+из vault.
 
-## Runtime module resolution
-
-`test:release` builds fresh assets before running release regressions. `build/release_entry.js` statically bundles plugin-local modules and replaces `globalThis.__inlineOverhaulBundledVaultModules` on every bundle evaluation. `src/core/vault_module_bridge.js` resolves current bundled registry before global vault-module caches, so BRAT hot reload cannot return stale source modules. Source multi-file mode retains existing cache and vault-read fallbacks.
-
-`tests/regression/version_consistency_tests.js` verifies the release version across source metadata, lock metadata, `versions.json`, and the built manifest. `tests/regression/release_bundle_tests.js` scans production JavaScript for plugin-local runtime vault paths, fails on registry gaps, verifies release asset allowlist behavior, and smoke-loads bundled `main.js` with host externals stubbed.
-
-## Versioning
-
-Build copies current versioned `manifest.json` unchanged. `test:release` rebuilds assets, verifies version consistency, then runs bundle regressions.
+`tests/regression/release_bundle_tests.js` ищет в рабочем JavaScript
+плагин-локальные пути, падает на пробелах в реестре, проверяет список
+разрешённых вложений и прогружает собранный `main.js` с заглушками внешних
+модулей.

@@ -1,0 +1,102 @@
+name: Release
+
+# Выпуск делается тегом, а не руками.
+#
+# Зачем так. BRAT ставит плагин не из ветки, а из **последнего релиза**, и берёт
+# оттуда вложения: `main.js`, `manifest.json` и `styles.css`. Пока релиз
+# собирали руками, забыть можно было любой шаг — и забыли: к релизу 0.1.0-beta.1
+# от 2026-08-08 приложены только два файла из трёх, без `styles.css`, то есть
+# оформление не приезжало вовсе. Теперь прикладывает их не человек.
+#
+# Порядок выпуска целиком:
+#
+#     node build/set_version.js 0.1.0-beta.2
+#     git commit -am "Версия 0.1.0-beta.2"
+#     git tag 0.1.0-beta.2 && git push origin main --tags
+#
+# Дальше всё делает этот файл: собирает из того же коммита, на который указывает
+# тег, прогоняет весь набор и публикует релиз с тремя вложениями.
+#
+# **Релиз публикуется обычным, а не предрелизом.** BRAT предрелизы по умолчанию
+# пропускает: чтобы человеку хватило одной ссылки на репозиторий, последний
+# релиз обязан быть обычным. То, что версия бета, сказано её номером.
+
+on:
+  push:
+    tags: ["[0-9]*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Тег и версия в манифесте обязаны совпадать. Иначе человек установит
+      # плагин, который называет себя одной версией, а лежит под другой, — и
+      # BRAT никогда не предложит ему обновление.
+      - name: Тег совпадает с версией в manifest.json
+        run: |
+          node -e '
+            const fs = require("fs");
+            const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+            const tag = String(process.env.GITHUB_REF_NAME || "").replace(/^v/, "");
+            if (manifest.version !== tag) {
+              console.error("тег " + tag + " не совпадает с версией в manifest.json (" + manifest.version + ")");
+              console.error("поставьте версию командой: node build/set_version.js " + tag);
+              process.exit(1);
+            }
+            console.log("тег и манифест сходятся: " + tag);
+          '
+
+      # Красный код в релиз не уезжает. Полный набор, а не только сборка:
+      # выпуск — единственный момент, когда цена пропущенного дефекта уже не
+      # наша, а того, кто его установил.
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Settings layer gates
+        run: npm run gate
+
+      - name: Prototype gates
+        run: npm run gate:prototype
+
+      - name: Release bundle
+        run: npm run test:release
+
+      # Все три файла названы поимённо: пропади один — шаг упадёт здесь, а не
+      # окажется недостачей у того, кто ставит плагин.
+      - name: Три вложения на месте
+        run: |
+          for f in dist/main.js dist/manifest.json dist/styles.css; do
+            test -s "$f" || { echo "нет вложения для релиза: $f"; exit 1; }
+            echo "$f — $(wc -c < "$f") байт"
+          done
+
+      - name: Опубликовать релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/main.js dist/manifest.json dist/styles.css \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Устанавливается через BRAT: вставьте \`${{ github.repository }}\` в \`Add beta plugin\`.
+
+          Вложения — готовые файлы плагина: \`main.js\`, \`manifest.json\`, \`styles.css\`.
+          Собраны из коммита \`${{ github.sha }}\` этим же выпуском, после полного набора проверок."
