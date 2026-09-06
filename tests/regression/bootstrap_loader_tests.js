@@ -348,9 +348,31 @@ async function run() {
   assertTrue(/cacheKey: "feature:rules-sync-orchestrator"/.test(src), "rules sync orchestrator cache key wired");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/store_events_orchestrator\.js"/.test(src), "store events orchestrator uses shared vault fallback helper");
   assertTrue(/cacheKey: "feature:store-events-orchestrator"/.test(src), "store events orchestrator cache key wired");
-  assertTrue(/reportLoaderFallback\("main\.loadVaultBridgeSafe\.require", e\)/.test(src), "main bridge require fallback reports debug context");
-  assertTrue(/reportLoaderFallback\("main\.loadVaultBridgeSafe\.vaultEval", p\)/.test(src), "main bridge vault-eval fallback reports debug context");
-  assertTrue(/reportLoaderFallback\(`main\.tryLoadWithVaultBridge\.load:\$\{modulePath\}`, e\)/.test(src), "main bridge load fallback reports debug context");
+  /*
+   * **Три утверждения сняты 2026-09-06 вместе со своим предметом** (фаза 6,
+   * пункт 1). Они стерегли отладочные сообщения трёх запасных путей загрузки
+   * модуля: `loadVaultBridgeSafe.require`, `loadVaultBridgeSafe.vaultEval` и
+   * `tryLoadWithVaultBridge.load`. Путей больше нет — в `main.js` остался
+   * один, `require`, — и держать пин на сообщение из удалённой ветки значило
+   * бы держать пин без предмета (У-56).
+   *
+   * На их месте — утверждение о **новом** состоянии, и оно сильнее: не «ветка
+   * умеет рассказать о себе», а «ветки нет вовсе». Именно это и спрашивает
+   * community review, и именно это молча вернётся первой же правкой, если не
+   * стеречь.
+   */
+  {
+    /* Читается живой код: строка комментария рядом со снятой веткой цитирует
+       её имя, и это правильно — она говорит, чего там больше нет и почему. */
+    const live = src.split("\n")
+      .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
+      .join("\n");
+    assertFalse(/new Function/.test(live), "main.js снова выполняет код модуля через new Function (A1, фаза 6 пункт 1)");
+    assertFalse(/\beval\(/.test(live), "main.js снова выполняет код через eval (A1)");
+    assertFalse(/loadVaultBridgeSafe|tryLoadWithVaultBridge/.test(live), "main.js снова грузит модули мостом из vault");
+    assertFalse(/uiVaultEvalFallback/.test(live), "ветка uiVaultEvalFallback вернулась — её не включал ни один вызов");
+    assertTrue(/const mod = require\(requirePath\);/.test(live), "единственный путь загрузки модуля — require — исчез");
+  }
   assertTrue(/bridge\.loadVaultModule\(app, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache"\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 uses canonical vault bridge loader before legacy fallback");
 
   assertTrue(/async function loadCommandRegistrySafe\(app\)/.test(src), "command registry safe loader exists");
@@ -429,7 +451,10 @@ async function run() {
   assertTrue(/__compatProfile\.isCompatEnabled\("ENABLE_CONFIG_MIGRATION_SHIMS"\)/.test(src) && /cfg\.pkm\.generatedRulesPath = String\(cfg\.rules\.tagWheelPath\)\.trim\(\);/.test(src), "migrateConfig keeps migration-only shim for rules.tagWheelPath when compat flag enabled");
   assertFalse(/cfg\.pkm\.sourceOfTruth\s*=/.test(src), "migrateConfig no longer writes dead pkm.sourceOfTruth field");
   assertFalse(/cfg\.pkm\.autoGenerateRules\s*=/.test(src), "migrateConfig no longer writes dead pkm.autoGenerateRules field");
-  assertTrue(/bridge\.loadVaultModule\(app, modulePath, false, "__inlineOverhaulMainModuleCache"\)/.test(src), "main shared loader uses canonical vault bridge path before adapter fallback");
+  /* Снято 2026-09-06 вместе с предметом: общий загрузчик `main.js` мостом
+     больше не пользуется, и «канонический путь через мост» проверять не на
+     чем (У-56). Кеш `__inlineOverhaulMainModuleCache` ушёл вместе с ним.
+     Новое состояние стережёт блок выше — «путь один, и это `require`». */
   assertFalse(/console\.log\("\[inline-overhaul\] loaded"\)/.test(src), "main has no unconditional production console.log on plugin load");
   assertTrue(/cfg\.pkm\.behavior\.io\.separator1 = s1 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator1;/.test(src), "migrateConfig normalizes separator1");
   assertTrue(/cfg\.pkm\.behavior\.io\.separator2 = s2 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator2;/.test(src), "migrateConfig normalizes separator2");

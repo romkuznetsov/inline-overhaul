@@ -1077,16 +1077,41 @@ function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
 function parseJsonFence(md, fenceName, required) { return __sharedUtils.parseJsonFence(md, fenceName, required); }
 function toPrettyJson(x) { return __sharedUtils.toPrettyJson(x); }
 
+/*
+ * Загрузка модуля плагина (фаза 6, пункт 1; дефекты A1 и A2).
+ *
+ * **С 2026-09-06 путь здесь один — `require`.** Было три, и два из них читали
+ * код модуля из vault и выполняли его через `new Function`. Ради этого пункт 1
+ * фазы 6 и написан: динамическая загрузка JS — первая причина отказа на
+ * community review, и никакие объяснения там не помогают.
+ *
+ * **Оба снятых пути были мертвы, и мертвы по-разному** — это выяснилось
+ * разбором, а не предположением:
+ *
+ *   * ветку `uiVaultEvalFallback` **не включал ни один из шестнадцати
+ *     вызовов**. Она была написана про запас и ни разу не исполнилась;
+ *   * ветка через мост модулей в релизе обрывается первым же условием:
+ *     реестр забандленных модулей наполнен, и `require` отдаёт модуль раньше.
+ *     Это и было закреплено `release_bundle_tests.js`.
+ *
+ * **Почему `require` достаточно.** В сборке его разрешает esbuild — модуль
+ * лежит в бандле, и промахнуться мимо него нельзя; в Node (проверки и
+ * инструменты) он разрешается от папки `main.js`. Оба случая проверяются
+ * шестью шагами набора, и третьего не бывает: плагин ставится плоским
+ * бандлом, дерева исходников по пути `.obsidian/plugins/...` рядом с ним нет.
+ *
+ * **Список `candidates` остался** и остался нужным: по нему собирается путь
+ * для тех модулей, которые всё ещё грузятся мостом из `pkm_v2/**` — файлов под
+ * З3, до которых пункт 1 доберётся следующим куском. Убрать его отсюда,
+ * оставив там, значило бы завести второе объявление одного правила (У-32).
+ */
 async function loadModuleWithVaultFallback(app, opts) {
   const options = opts && typeof opts === "object" ? opts : {};
   const requirePath = String(options.requirePath || "");
-  const candidates = Array.isArray(options.candidates) ? options.candidates : [];
   const validate = typeof options.validate === "function"
     ? options.validate
     : (mod) => !!(mod && typeof mod === "object");
-  const loadErrorPrefix = String(options.loadErrorPrefix || "");
   const cacheKey = String(options.cacheKey || "").trim();
-  const allowUiVaultEvalFallback = options.uiVaultEvalFallback === true;
 
   if (cacheKey && __safeModuleCache.has(cacheKey)) {
     const cached = __safeModuleCache.get(cacheKey);
@@ -1104,95 +1129,6 @@ async function loadModuleWithVaultFallback(app, opts) {
       }
     } catch (e) {
       requireErr = e;
-    }
-  }
-
-  const loadVaultBridgeSafe = async () => {
-    let bridge = globalThis.__inlineVaultModuleBridge;
-    if (bridge && typeof bridge.loadVaultModule === "function") return bridge;
-    try {
-      const mod = require("./src/core/vault_module_bridge.js");
-      if (mod && typeof mod.loadVaultModule === "function") {
-        globalThis.__inlineVaultModuleBridge = mod;
-        return mod;
-      }
-    } catch (e) {
-      reportLoaderFallback("main.loadVaultBridgeSafe.require", e);
-    }
-
-    const adapter = app && app.vault ? app.vault.adapter : null;
-    if (!adapter || typeof adapter.read !== "function") return null;
-    const bridgeCandidates = [
-      ".obsidian/plugins/inline-overhaul/src/core/vault_module_bridge.js",
-      "./.obsidian/plugins/inline-overhaul/src/core/vault_module_bridge.js",
-      "plugins/inline-overhaul/src/core/vault_module_bridge.js",
-      "src/core/vault_module_bridge.js",
-      "./src/core/vault_module_bridge.js",
-    ];
-    for (const p of bridgeCandidates) {
-      try {
-        const code = await adapter.read(p);
-        const moduleObj = { exports: {} };
-        const factory = new Function("module", "exports", String(code || "") + "\n;return module.exports;");
-        const out = factory(moduleObj, moduleObj.exports);
-        const mod = out && typeof out === "object" ? out : moduleObj.exports;
-        if (mod && typeof mod.loadVaultModule === "function") {
-          globalThis.__inlineVaultModuleBridge = mod;
-          reportLoaderFallback("main.loadVaultBridgeSafe.vaultEval", p);
-          return mod;
-        }
-      } catch (e2) {
-        reportLoaderFallback(`main.loadVaultBridgeSafe.vaultEval:${p}`, e2);
-      }
-    }
-    return null;
-  };
-
-  const tryLoadWithVaultBridge = async (modulePath) => {
-    let bridge = globalThis.__inlineVaultModuleBridge;
-    if (!(bridge && typeof bridge.loadVaultModule === "function")) {
-      bridge = await loadVaultBridgeSafe();
-    }
-    if (!(bridge && typeof bridge.loadVaultModule === "function")) return null;
-    try {
-      return await bridge.loadVaultModule(app, modulePath, false, "__inlineOverhaulMainModuleCache");
-    } catch (e) {
-      reportLoaderFallback(`main.tryLoadWithVaultBridge.load:${modulePath}`, e);
-      return null;
-    }
-  };
-
-  for (const modulePath of candidates) {
-    try {
-      const bridgeMod = await tryLoadWithVaultBridge(modulePath);
-      if (validate(bridgeMod)) {
-        if (cacheKey) __safeModuleCache.set(cacheKey, bridgeMod);
-        return { mod: bridgeMod, requireErr };
-      }
-    } catch (e2) {
-      if (loadErrorPrefix) console.error(loadErrorPrefix, modulePath, e2);
-    }
-  }
-
-  if (allowUiVaultEvalFallback) {
-    const adapter = app && app.vault ? app.vault.adapter : null;
-    if (adapter && typeof adapter.read === "function") {
-      for (const modulePath of candidates) {
-        try {
-          const code = await adapter.read(modulePath);
-          const moduleObj = { exports: {} };
-          const factory = new Function("module", "exports", String(code || "") + "\n;return module.exports;");
-          const out = factory(moduleObj, moduleObj.exports);
-          const mod = out && typeof out === "object" ? out : moduleObj.exports;
-          if (validate(mod)) {
-            if (cacheKey) __safeModuleCache.set(cacheKey, mod);
-            reportLoaderFallback("main.loadModuleWithVaultFallback.uiVaultEval", modulePath);
-            return { mod, requireErr };
-          }
-        } catch (e3) {
-          reportLoaderFallback(`main.loadModuleWithVaultFallback.uiVaultEval:${modulePath}`, e3);
-        }
-      }
     }
   }
 
