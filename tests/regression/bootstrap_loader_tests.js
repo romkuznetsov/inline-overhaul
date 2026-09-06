@@ -205,11 +205,37 @@ async function run() {
    * читают оба файла как один: разделение файлов — не изменение поведения.
    * Старой панели среди них больше нет, она удалена 2026-08-29.
    */
-  const fieldsEditorLegacySrc = fs.readFileSync(
-    path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_editor_legacy.js"), "utf8");
+  /*
+   * **С 2026-09-06 источник один — модель.** Пара была парой, пока во втором
+   * файле лежала доска Order; доска снята вместе с фазой 6, и читать её
+   * исходник больше нечем.
+   *
+   * Из двадцати двух утверждений по этой паре осталось шесть — те, чей предмет
+   * переехал в модель, и они пошли за ним (У-56). Шестнадцать сняты, и вот что
+   * с ними было. Двенадцать искали строку в исходнике доски: без доски они
+   * покраснели бы честно — предмета нет. Ещё четыре были **запретами**
+   * (`assertFalse`) — «в исходнике не должно быть такого-то старого контрола»,
+   * — и вот они не покраснели бы никогда: запрет по пустому тексту зелен
+   * всегда, и зелен он ровно тогда, когда сторожить уже нечего (У-71). Второй
+   * вид опаснее первого, и заметен только при сплошном разборе.
+   *
+   * Куда переехала каждая гарантия, чтобы её не искали заново:
+   *
+   * | Что проверяли | Где это теперь |
+   * |---|---|
+   * | `readTagVisualsConfig` — чтение вида тегов | своя копия в `main.js`, оттуда рисует рантайм; `tag_visual_render_tests.ts` |
+   * | тумблер `Show Color Settings` | снят целиком (Ф15); запрет на имя — в `REMOVED` в `docs_terms_tests.ts` |
+   * | подпись `link` у типа Field | новый редактор, `fields_editor_view_tests.ts` |
+   * | вывод привязки ссылки без отката на `allowedParentValues` | там же, и по поведению, а не по тексту |
+   * | `renderUserTagsEditor`, заголовок `Color your Tags`, предупреждение про 300 тегов | блок `user-tag-list`, `user_tags_tests.ts` (14 проверок) |
+   * | подсказка «цвета спрятаны, включите в Order» | текста нет: подвкладки `Order` не существует (Р5) |
+   * | списки `Free roam` и `Active`, их наборы значений | схема выводится из прототипа, сверяется `gen_schema` и Г24 |
+   * | путь к правилам TagWheel, размер журнала, эмодзи-умолчания элементов | снято вместе со старой панелью; схема их не объявляет, и Г7 не даст объявить |
+   * | `custom` в видимости Value и placeholder `print` | новый редактор, `fields_editor_view_tests.ts` |
+   */
   const fieldsModelSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_model.ts"), "utf8");
-  const rendererPairSrc = fieldsEditorLegacySrc + "\n" + fieldsModelSrc;
+  const rendererPairSrc = fieldsModelSrc;
   const priorityStripEngineSrc = fs.readFileSync(priorityStripEnginePath, "utf8");
   const priorityStripAdapterSrc = fs.readFileSync(priorityStripAdapterPath, "utf8");
   for (const guardPath of runtimeLiteralGuardPaths) {
@@ -303,8 +329,6 @@ async function run() {
   assertTrue(/strip\.loader\.fail/.test(src), "strip loader fail telemetry exists");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/command_registry\.js"/.test(src), "command registry uses shared vault fallback helper");
   assertTrue(/cacheKey: "feature:command-registry"/.test(src), "command registry cache key wired");
-  assertTrue(/function readTagVisualsConfig\(/.test(rendererPairSrc), "settings renderer exposes tagVisuals config reader");
-  assertTrue(/setName\("Show Color Settings"\)/.test(rendererPairSrc), "settings renderer includes Show Color Settings toggle");
   /*
    * Тринадцать проверок сняты 2026-08-29 вместе со старой панелью: их
    * предмет -- ползунки вида тегов, тумблеры журнала и поле пути к нему --
@@ -312,7 +336,6 @@ async function run() {
    * гейтами. Здесь их держать больше не на чем: исходника, в котором они
    * искались, нет.
    */
-  assertTrue(/addType\.createEl\("option", \{ text: "link", value: "wikilink" \}\);/.test(rendererPairSrc), "settings renderer add-field type selector shows link label for wikilink kind");
   assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(rendererPairSrc), "settings renderer allows spaces in name_strict validation");
   /*
    * Текст сообщения уехал в каталог (10.13.47), а ветка осталась: пин идёт
@@ -320,12 +343,7 @@ async function run() {
    * значило бы держать пин на том, чего в файле больше нет (У-56).
    */
   assertTrue(/SAY\.ERR_LINK_NO_TARGET/.test(rendererPairSrc), "settings renderer fails fast when it cannot resolve the wikilink target field");
-  assertFalse(/const allowed = Array\.isArray\(row\.allowedParentValues\) \? row\.allowedParentValues : \[\]/.test(rendererPairSrc), "wikilink binding inference does not restore parent from allowedParentValues fallback");
   assertTrue(/tokens\.push\(\{ value: `s:\$\{stok\}\|p:\$\{ptok\}\|f:\$\{fid\}`, label: `└ \$\{stok\} \(\$\{ptok\}\)` \}\);/.test(rendererPairSrc), "wikilink parent token selector disambiguates duplicate subtags by parent context");
-  assertTrue(/const renderUserTagsEditor = \(\) => \{/.test(rendererPairSrc), "settings renderer includes user tags editor renderer");
-  assertTrue(/text: "Color your Tags"/.test(rendererPairSrc), "settings renderer renders Color your Tags block header");
-  assertTrue(/Soft warning: User tags count exceeded 300\./.test(rendererPairSrc), "settings renderer includes User tags soft warning copy");
-  assertTrue(/Color settings are hidden\. Enable: Tag & PKM > Order > Show color settings\./.test(rendererPairSrc), "settings renderer shows explicit hint when tag color controls are hidden");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/rules_sync_orchestrator\.js"/.test(src), "rules sync orchestrator uses shared vault fallback helper");
   assertTrue(/cacheKey: "feature:rules-sync-orchestrator"/.test(src), "rules sync orchestrator cache key wired");
   assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/store_events_orchestrator\.js"/.test(src), "store events orchestrator uses shared vault fallback helper");
@@ -381,12 +399,9 @@ async function run() {
   assertTrue(/command registry unavailable: core commands skipped/.test(src), "core skip guard exists");
   assertTrue(/command registry unavailable: navigation commands skipped/.test(src), "navigation skip guard exists");
   assertTrue(/command registry unavailable: PKM commands skipped/.test(src), "pkm skip guard exists");
-  assertTrue(/const moveKeys = \[key\];/.test(rendererPairSrc), "order board dnd initializes moved key bundle");
-  assertTrue(/const subKey = getSubKeyForParent\(key\);/.test(rendererPairSrc), "order board dnd resolves sub key for parent");
-  assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "order board dnd inserts parent and sub together");
-  assertTrue(/const freeRoamSelect = item\.createEl\("select"\);[\s\S]*const activeSelect = item\.createEl\("select"\);/.test(rendererPairSrc), "order board renders Free roam select before Active select");
-  assertTrue(/freeRoamSelect\.createEl\("option", \{ text: "off", value: "off" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "minimal", value: "minimal" \}\);[\s\S]*freeRoamSelect\.createEl\("option", \{ text: "full", value: "full" \}\);/.test(rendererPairSrc), "free roam select uses off\/minimal\/full options");
-  assertTrue(/activeSelect\.createEl\("option", \{ text: "yes", value: "yes" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "no", value: "no" \}\);[\s\S]*activeSelect\.createEl\("option", \{ text: "hotkey_only", value: "hotkey_only" \}\);/.test(rendererPairSrc), "active select uses yes\/no\/hotkey_only options");
+  assertTrue(/const moveKeys = \[key\];/.test(rendererPairSrc), "модель Fields: перетаскивание собирает связку ключей");
+  assertTrue(/const subKey = getSubKeyForParent\(key\);/.test(rendererPairSrc), "модель Fields: у родителя находится ключ дочернего");
+  assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "модель Fields: родитель и дочерний встают вместе");
 
 
   assertTrue(/async function loadRulesMarkdownBuilderSafe\(app\)/.test(src), "rules markdown builder safe loader exists");
@@ -414,7 +429,6 @@ async function run() {
   assertTrue(/__compatProfile\.isCompatEnabled\("ENABLE_CONFIG_MIGRATION_SHIMS"\)/.test(src) && /cfg\.pkm\.generatedRulesPath = String\(cfg\.rules\.tagWheelPath\)\.trim\(\);/.test(src), "migrateConfig keeps migration-only shim for rules.tagWheelPath when compat flag enabled");
   assertFalse(/cfg\.pkm\.sourceOfTruth\s*=/.test(src), "migrateConfig no longer writes dead pkm.sourceOfTruth field");
   assertFalse(/cfg\.pkm\.autoGenerateRules\s*=/.test(src), "migrateConfig no longer writes dead pkm.autoGenerateRules field");
-  assertFalse(/\.setName\("TagWheel rules path"\)/.test(rendererPairSrc), "settings no longer expose contradictory legacy TagWheel rules path field");
   assertTrue(/bridge\.loadVaultModule\(app, modulePath, false, "__inlineOverhaulMainModuleCache"\)/.test(src), "main shared loader uses canonical vault bridge path before adapter fallback");
   assertFalse(/console\.log\("\[inline-overhaul\] loaded"\)/.test(src), "main has no unconditional production console.log on plugin load");
   assertTrue(/cfg\.pkm\.behavior\.io\.separator1 = s1 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator1;/.test(src), "migrateConfig normalizes separator1");
@@ -470,7 +484,6 @@ async function run() {
   assertTrue(/try \{\s*await this\.initializeDevLogSession\(this\.getConfig\(\)\);\s*\} catch \(e\)/.test(src), "onload guards dev-log session init with fail-open try/catch");
   assertTrue(/await this\.initializeDevLogSession\(this\.getConfig\(\)\);/.test(src), "onload initializes dev log session rotation");
   assertTrue(/session\.start/.test(src) && /session\.end/.test(src), "main writes session lifecycle events");
-  assertFalse(/Dev log max file size \(KB\)/.test(rendererPairSrc), "legacy dev max size control removed from settings");
   assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(src), "setConfigPatch starts new dev log session on dev_mode ON transition");
   assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(src), "setConfigPatch closes dev log session on dev_mode OFF transition");
   assertTrue(/if \(wasEnabled && isEnabled && \(beforePath !== afterPath \|\| beforeAi !== afterAi\)\) \{[\s\S]*dev-mode-log:reinit/.test(src), "setConfigPatch reinitializes log session when path or AI toggle changes while enabled");
@@ -672,7 +685,6 @@ async function run() {
   assertTrue(/date_runtime_shared\.js/.test(statusDateSrc), "status_date references shared date runtime module");
   assertTrue(/date_runtime_shared\.js/.test(tagwheelSrc), "tagwheel references shared date runtime module");
   assertTrue(/tagwheel_rules_normalizer\.js/.test(tagwheelCoreSrc), "tagwheel_core references shared rules normalizer module");
-  assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(rendererPairSrc), "settings renderer infer-element defaults have no hardcoded emoji markers");
   assertTrue(/LINE_FINALIZE_UNIFIED_PATH/.test(statusDateSrc), "status_date references unified line finalizer module path");
   assertTrue(/function createStatusRuntimeCommon\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared status runtime factory");
   assertTrue(/function resolvePanelKeyForField\(/.test(tagwheelSrc), "tagwheel defines panel-key resolver for field placement");
@@ -1074,8 +1086,6 @@ async function run() {
   assertTrue(/class TagVisualTokenWidget extends cmView\.WidgetType/.test(src), "main defines unified tag visual widget for full and empty rendering");
   assertTrue(/this\.displayTextOverride = String\(displayTextOverride \|\| ""\)/.test(src), "tag visual widget supports custom display text override");
   assertTrue(/displayTextOverride \|\| this\.tokenText/.test(src), "tag visual widget renders custom text when provided");
-  assertTrue(/visSel\.createEl\("option", \{ text: "custom", value: "custom" \}\)/.test(rendererPairSrc), "settings renderer exposes custom visibility option in deep color settings");
-  assertTrue(/customInput\.placeholder = "print"/.test(rendererPairSrc), "settings renderer uses print placeholder for custom visibility text");
   assertTrue(/function createTagVisualDecorationExtension\(plugin\)/.test(src), "main defines tag visual CM6 extension");
   assertTrue(/createTagVisualDecorationExtension\(this\)/.test(src), "main registers tag visual CM6 extension");
   assertFalse(/rt\.loadPkmOptionKeys\(\)/.test(tagwheelSrc), "tagwheel option key preload avoids direct runtime object method calls");

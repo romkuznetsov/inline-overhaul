@@ -95,6 +95,149 @@ setupGlobals();
   else ok("нулевых байтов в исходниках нет");
 }
 
+/* ---- Г1–Г5: слой настроек по исходникам -------------------------------- */
+{
+  /*
+   * **Эти пять гейтов объявлены в разделе 12 PRD «с фазы 1», а по коду плагина
+   * не бежали ни разу.** Они жили только в `tests/prototype/gates.js`, то есть
+   * стерегли прототип — документ, — а не то, что грузится у человека.
+   *
+   * Причина известна и записана: `custom/fields_editor_legacy.js` был выведен
+   * из Г1–Г5 «по имени», потому что в перенесённой доске Order лежали
+   * инлайновые стили, цветовые литералы и `createEl("h3")`. Требовать от неё
+   * правил слоя настроек в шаге переноса значило бы переписать её тем же шагом
+   * и потерять единственную проверку, что перенос ничего не сломал.
+   *
+   * Но исключения **по имени** не было ни в одной строке кода: гейтов над
+   * `src/ui/settings/**` не существовало вовсе, и «файл выведен из Г1–Г5»
+   * оставалось фразой в документе. Пока доска была жива, разница ничего не
+   * меняла. Теперь доска снята (2026-09-06, фаза 6), снимать нечего — и
+   * единственное, чем «снятие исключения» может быть честно, это завести сами
+   * гейты. Заведены здесь.
+   *
+   * **Исключения названы поимённо, с причиной и числом.** Молчаливый список —
+   * это и есть тот способ, каким «проверено автоматически» превращается в
+   * «проверено ничего» (10.13.46 Р2).
+   *
+   * Читается **живой код**: строка, начинающаяся с `*`, `//` или `/*`, — это
+   * объяснение. Запрещать объяснения значило бы вычистить из файлов ровно ту
+   * память, ради которой они написаны, и первая версия этой проверки честно
+   * покраснела на комментарии, который рассказывает, чего в файле больше нет.
+   */
+  const SETTINGS_ROOT = path.join(root, "src", "ui", "settings");
+
+  const sources: string[] = [];
+  const walkSettings = (dir: string): void => {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) { walkSettings(full); continue; }
+      if (/\.(ts|js)$/.test(name)) sources.push(full);
+    }
+  };
+  walkSettings(SETTINGS_ROOT);
+
+  /** Живой код без строк-объяснений. */
+  const codeLines = (file: string): Array<{ no: number; text: string }> =>
+    fs.readFileSync(file, "utf8").split("\n")
+      .map((text, i) => ({ no: i + 1, text }))
+      .filter(({ text }) => !/^\s*(\*|\/\/|\/\*)/.test(text));
+
+  /**
+   * Разрешённое — по адресу и с причиной. Пусто быть не обязано: обязано быть
+   * коротким и объяснённым.
+   */
+  const ALLOW: ReadonlyArray<{ gate: string; at: string; why: string }> = [
+    {
+      gate: "Г1",
+      at: "custom/dom.ts",
+      why: "единственный шов записи свойства — `cssVar`, и он сам бросает исключение на имя не из `--io-*`",
+    },
+    {
+      gate: "Г2",
+      at: "custom/fields_editor_view.ts",
+      why: "`<input type=\"color\">` обязан иметь значение всегда, а у заглушки DOM темы нет: белый — последний запасной, после своего цвета и цвета темы",
+    },
+    {
+      gate: "Г2",
+      at: "custom/user_tags.ts",
+      why: "то же поле выбора цвета в блоке своих тегов, тот же последний запасной",
+    },
+  ];
+  const allowed = (gate: string, rel: string): string =>
+    (ALLOW.find(a => a.gate === gate && rel.endsWith(a.at)) || { why: "" }).why;
+
+  const GATES: ReadonlyArray<{ id: string; what: string; hit: (line: string) => boolean }> = [
+    {
+      id: "Г1",
+      what: "инлайновый стиль: своему блоку разрешено только `setProperty('--io-*')`",
+      hit: (line) => {
+        let at = line.indexOf(".style.");
+        while (at >= 0) {
+          if (!/^\.style\.setProperty\(\s*["']--io-/.test(line.slice(at))) return true;
+          at = line.indexOf(".style.", at + 1);
+        }
+        return false;
+      },
+    },
+    {
+      id: "Г2",
+      what: "литерал цвета: цвет берётся из переменной темы или из конфига (З6)",
+      hit: (line) => /#[0-9a-fA-F]{3}\b|#[0-9a-fA-F]{6}\b|\brgb\(|\bhsl\(/.test(line),
+    },
+    {
+      id: "Г3",
+      what: "`createEl(\"h1\".." + "\"h6\")`: заголовки рисует платформа",
+      hit: (line) => /createEl\(\s*["']h[1-6]["']/.test(line),
+    },
+    {
+      id: "Г4",
+      what: "`innerHTML` / `outerHTML` / `insertAdjacentHTML`",
+      hit: (line) => /\binnerHTML\b|\bouterHTML\b|\binsertAdjacentHTML\b/.test(line),
+    },
+    {
+      id: "Г5",
+      what: "`new Function` / `eval(`",
+      hit: (line) => /\bnew\s+Function\b|\beval\(/.test(line),
+    },
+  ];
+
+  let usedAllowances = 0;
+  for (const gate of GATES) {
+    const strays: string[] = [];
+    for (const file of sources) {
+      const rel = path.relative(SETTINGS_ROOT, file).replace(/\\/g, "/");
+      const why = allowed(gate.id, rel);
+      for (const { no, text } of codeLines(file)) {
+        if (!gate.hit(text)) continue;
+        if (why) { usedAllowances++; continue; }
+        strays.push(rel + ":" + no + "  " + text.trim().slice(0, 100));
+      }
+    }
+    if (strays.length) {
+      fail(gate.id + " — " + gate.what + ":\n      " + strays.join("\n      "));
+    } else {
+      ok(gate.id + ": " + gate.what.replace(/^[^:]*: /, "") + " — чисто");
+    }
+  }
+
+  /* Разрешение, которое ничего не разрешает, — это запись, пережившая свой
+     предмет (У-71). Пусть скажет о себе сама. */
+  const stale = ALLOW.filter(a => {
+    const gate = GATES.find(g => g.id === a.gate);
+    if (!gate) return true;
+    return !sources.some(file => {
+      const rel = path.relative(SETTINGS_ROOT, file).replace(/\\/g, "/");
+      return rel.endsWith(a.at) && codeLines(file).some(({ text }) => gate.hit(text));
+    });
+  });
+  if (stale.length) {
+    fail("разрешение в списке Г1–Г5 больше ничего не разрешает — уберите его:\n      "
+      + stale.map(a => a.gate + " " + a.at).join("\n      "));
+  } else {
+    ok("Г1–Г5: разрешений " + ALLOW.length + ", и каждое всё ещё нужно (сработали " + usedAllowances + " раз)");
+  }
+}
+
 /* ---- мок Obsidian строит настройку без исключений ---------------------- */
 {
   const { makeNode } = await import("../harness/dom_stub.ts");
