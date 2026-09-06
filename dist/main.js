@@ -36151,7 +36151,7 @@ var init_texts_files = __esm({
   "src/ui/settings/texts_files.ts"() {
     "use strict";
     init_texts();
-    SHIPPED_LANGS = ["ru"];
+    SHIPPED_LANGS = [];
     MANAGED_LANGS = [BASE_LANG, "ru"];
   }
 });

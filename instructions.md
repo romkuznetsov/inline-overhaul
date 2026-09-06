@@ -67,9 +67,11 @@ Settings areas are **General**, **Keyboard**, **Navigation**, **Tags & PKM**, **
 **General → Language** decides what language the panel speaks. Every visible line has a key of its own, and the words behind those keys live in plain text files inside the plugin folder, one file per language:
 
 ```
-<your vault>/.obsidian/plugins/inline-overhaul/texts/default.js   written by the plugin
-<your vault>/.obsidian/plugins/inline-overhaul/texts/ru.js        yours, one per language
+<your vault>/.obsidian/plugins/inline-overhaul/texts/default.js
 ```
+
+That is the only file the plugin puts there. Every other file in that folder is one you
+made, and the plugin never touches it.
 
 Left of the colon is the key, right of it is what you see on screen. Edit a line, reload the plugin, and the panel says what you wrote — the English wording included, so rewording a setting is no longer something you have to ask for.
 

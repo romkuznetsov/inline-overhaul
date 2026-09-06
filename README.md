@@ -77,14 +77,14 @@ key of its own, and the words behind those keys live in plain text files inside 
 folder:
 
 ```
-<your vault>/.obsidian/plugins/inline-overhaul/texts/default.js   written by the plugin
-<your vault>/.obsidian/plugins/inline-overhaul/texts/ru.js        yours, one per language
+<your vault>/.obsidian/plugins/inline-overhaul/texts/default.js
 ```
 
-`default.js` is the plugin's own file and always current: a new setting, a new window and a
-reworded line all show up in it on their own. Copy it under a new name, change its first
-line, and the language appears in the list on its own. Name the copy `en.js` and you are
-rewording the English instead of translating it.
+That is the only file the plugin puts there, and it keeps it current: a new setting, a new
+window and a reworded line all show up in it on their own. Copy it under a new name, change
+its first line, and that language appears in the list on its own — nothing has to be
+registered anywhere. Name the copy `en.js` and you are rewording the English instead of
+translating it.
 
 Your copy is never overwritten, so your edits survive an update, and a line you leave out
 simply keeps the English the plugin ships with. Command names stay in English: Obsidian

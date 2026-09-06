@@ -52,7 +52,7 @@ import { dialogKey } from "../../src/ui/settings/texts_dialogs.ts";
 import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
 import { MemoryStore } from "../../src/ui/settings/store.ts";
 import { makeNode } from "../harness/dom_stub.ts";
-import { ensureCatalogFiles, readCatalogs, type TextFiles } from "../../src/ui/settings/texts_files.ts";
+import { ensureCatalogFiles, readCatalogs, seeded, type TextFiles } from "../../src/ui/settings/texts_files.ts";
 import { RU_SEED } from "../../src/ui/settings/texts_seed_ru.ts";
 import { BASE_LANG_SEED } from "../../src/ui/settings/texts.ts";
 
@@ -428,38 +428,51 @@ const FOLDER = ".obsidian/plugins/inline-overhaul";
   const fake = makeFiles();
   const written = await ensureCatalogFiles(fake.files, FOLDER, ENTRIES, { en: BASE_LANG_SEED, ru: RU_SEED });
   /*
-   * Английского снимка среди них нет и быть не должно (10.13.46): файл
-   * человека не перезаписывается, и такой снимок замораживал бы каждую
-   * позднейшую переформулировку — в подстановке он стоит раньше схемы.
+   * Файл в папке ровно один, и это решение заказчика (10.13.48): «пока должен
+   * остаться только default.js = en». Английского снимка среди них нет и по
+   * второй причине (10.13.46): файл человека не перезаписывается, и такой
+   * снимок замораживал бы каждую позднейшую переформулировку — в подстановке
+   * он стоит раньше схемы.
    */
   assert.deepEqual(written.slice().sort(),
-    [FOLDER + "/texts/" + DEFAULT_FILE + ".js", FOLDER + "/texts/ru.js"],
+    [FOLDER + "/texts/" + DEFAULT_FILE + ".js"],
     "первый запуск положил не те файлы: " + written.join(", "));
   assert.ok(fake.dirs.has(FOLDER + "/texts"), "папка каталогов не заведена");
 
   const read = await readCatalogs(fake.files, FOLDER);
   assert.deepEqual(read.broken, [], "свой же файл не прочитался: " + read.broken.join(", "));
   /* `default.js` языком не считается: английский живёт в схеме. */
-  assert.deepEqual(Object.keys(read.catalogs).sort(), ["ru"],
+  assert.deepEqual(Object.keys(read.catalogs).sort(), [],
     "прочитались не те языки: " + Object.keys(read.catalogs).join(", "));
   const mine = parseCatalog(fake.map.get(FOLDER + "/texts/" + DEFAULT_FILE + ".js") || "");
   assert.ok(mine, "файл плагина не разобрался");
   assert.equal(mine![ENTRIES[0]!.key], ENTRIES[0]!.text, "файл плагина вернул не тот текст");
   assert.equal(Object.keys(mine!).length, ENTRIES.length, "файл плагина потерял строки");
-  assert.equal(read.catalogs["ru"]?.[LANGUAGE_NAME_KEY], "Русский",
-    "русский файл не назвал своего языка");
   /* Английский в списке есть всегда, и подписан он именем, а не кодом. */
-  assert.deepEqual(languageOptions(read.catalogs).map(o => o.label), ["English", "Русский"],
+  assert.deepEqual(languageOptions(read.catalogs).map(o => o.label), ["English"],
     "список языков подписан не именами из файлов");
-  assert.equal(read.catalogs["ru"]?.[tabKey("visual", "label")], "Вид",
-    "переведённая строка не доехала до файла");
-  /* Ключ **вне** засева: непереведённая строка обязана лежать в файле
-     английской, а не пустой — так её и переводят, строка за строкой. */
+  ok("первый запуск кладёт один файл плагина, и он читается обратно");
+}
+
+{
+  /*
+   * Засев — на самой функции, а не на положенном файле: файла языка плагин
+   * больше не кладёт (10.13.48), а правило живёт и нужно тому, кто копирует
+   * `default.js` и переводит его строка за строкой.
+   */
+  const rows = seeded(ENTRIES, RU_SEED);
+  const said = new Map(rows.map(r => [r.key, r.text]));
+  assert.equal(said.get(LANGUAGE_NAME_KEY), "Русский", "имя языка не встало первой строкой");
+  assert.equal(rows[0]?.key, LANGUAGE_NAME_KEY, "имя языка стоит не первым");
+  assert.equal(said.get(tabKey("visual", "label")), "Вид", "переведённая строка не встала");
+  /* Ключ **вне** засева: непереведённая строка обязана остаться английской,
+     а не пустой — так её и переводят, строка за строкой. */
   const untouched = ENTRIES.find(e => !RU_SEED[e.key]);
   assert.ok(untouched, "в засеве переведено всё — проверять нечего");
-  assert.equal(read.catalogs["ru"]?.[untouched!.key], untouched!.text,
-    "непереведённая строка обязана лежать в файле английской, а не пустой");
-  ok("первый запуск кладёт файл плагина и русский, и они читаются обратно");
+  assert.equal(said.get(untouched!.key), untouched!.text,
+    "непереведённая строка обязана остаться английской, а не пустой");
+  assert.equal(rows.length, ENTRIES.length + 1, "засев потерял или добавил строки");
+  ok("засев кладёт перевод на английское, а непереведённое оставляет как есть");
 }
 
 {
@@ -550,6 +563,9 @@ const FOLDER = ".obsidian/plugins/inline-overhaul";
   const half = ENTRIES.slice(0, ENTRIES.length - 5);
   await ensureCatalogFiles(fake.files, FOLDER, half, { en: BASE_LANG_SEED, ru: RU_SEED });
   const ru = FOLDER + "/texts/ru.js";
+  /* Кладёт его сам тест, а не плагин: файлы языка плагин больше не кладёт
+     (10.13.48), и речь именно о папке, доставшейся от прошлой сборки. */
+  fake.map.set(ru, catalogFile("ru", seeded(half, RU_SEED)));
 
   const caught = await ensureCatalogFiles(fake.files, FOLDER, ENTRIES, { en: BASE_LANG_SEED, ru: RU_SEED });
   assert.ok(caught.indexOf(ru) >= 0, "нетронутый файл языка не догнал каталог");
