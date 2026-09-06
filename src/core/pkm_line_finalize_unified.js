@@ -1543,10 +1543,24 @@ function enforceRightPayloadSeparatorInvariant(options) {
      *
      * При одинаковых разделителях между ними два пробела: так их различает
      * разбор строки, и так же делает `buildFromSegments`.
+     *
+     * **И третий случай, тем же правилом** (замечание заказчика 2026-09-06).
+     * Слева нет ничего, кроме списочного знака: Field активировали на пустой
+     * строке. Тогда слот под текст всё равно есть — он просто пуст, — и
+     * отмечается он вторым пробелом перед разделителем. `buildFromSegments`
+     * так делает с самого начала (две строки про `- ` и про чекбокс), здесь
+     * этой ветки не было, и заведённая правильно строка схлопывалась обратно:
+     * `-  :: 📅…` уходило отсюда как `- :: 📅…`. Одно правило разошлось в двух
+     * объявлениях третий раз (У-32) — предикат взят у `buildFromSegments`
+     * буквально, а совпадение обоих ходов держит пин parity.
      */
     const leftTech = /(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(baseLeft)
       || baseLeft.split(/\s+/).some(function(t) { return startsWithAnyDateMarker(t, rules); });
-    if (!leftTech) return `${indent}${baseLeft} ${sep1} ${dates}`;
+    if (!leftTech) {
+      if (/^[-*+]\s+\[[^\]]\]$/.test(baseLeft)) return `${indent}${baseLeft}  ${sep1} ${dates}`;
+      if (baseLeft === "-") return `${indent}${baseLeft}  ${sep1} ${dates}`;
+      return `${indent}${baseLeft} ${sep1} ${dates}`;
+    }
     if (sep1 === sep2) return `${indent}${baseLeft} ${sep1}  ${sep2} ${dates}`;
     return `${indent}${baseLeft} ${sep1} ${sep2} ${dates}`;
   }

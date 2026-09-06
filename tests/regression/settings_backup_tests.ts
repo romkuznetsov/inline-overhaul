@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildActions, ACTION_TEXTS, type ActionDeps, type BackupFile, type ConfirmRequest, type HotkeySeam, type PickRequest } from "../../src/ui/settings/actions.ts";
+import { buildActions, ACTION_TEXTS, type ActionDeps, type AnnounceRequest, type BackupFile, type BackupOptions, type BackupOptionsRequest, type ConfirmRequest, type HotkeySeam, type PickRequest } from "../../src/ui/settings/actions.ts";
 
 type Any = ReturnType<typeof JSON.parse>;
 
@@ -60,6 +60,12 @@ interface Fake {
   picked: number;
   /** Запросы подтверждения целиком: сбросу важно, **что** в окне сказано. */
   confirmed: ConfirmRequest[];
+  /** Окна на одну кнопку целиком. */
+  announced: AnnounceRequest[];
+  /** Порядок шагов после записи конфига: он здесь решает. */
+  steps: string[];
+  /** Запросы окна состава копии целиком. */
+  saveAsked: BackupOptionsRequest[];
 }
 
 function makeFake(): Fake {
@@ -71,6 +77,9 @@ function makeFake(): Fake {
     asked: 0,
     picked: 0,
     confirmed: [],
+    announced: [],
+    steps: [],
+    saveAsked: [],
   };
 }
 
@@ -91,6 +100,10 @@ function wire(o?: {
   choose?: (req: PickRequest) => string | null;
   /** Шов хоткеев: без него копия обходится, и это отдельная проверка. */
   hotkeys?: HotkeySeam;
+  /** Швы 2026-09-06: без них восстановление работает, как работало. */
+  withRestartWindow?: boolean;
+  /** Окно состава копии: что оно ответит. Нет — окна нет вовсе. */
+  saveOptions?: (req: BackupOptionsRequest) => BackupOptions | null;
 }): Wiring {
   const fake = makeFake();
   const opts = o || {};
@@ -138,9 +151,23 @@ function wire(o?: {
       replace: (next: Record<string, unknown>) => {
         const before = JSON.stringify(cfg);
         cfg = JSON.parse(JSON.stringify(next));
+        fake.steps.push("config");
         return JSON.stringify(cfg) !== before;
       },
     },
+    ...(opts.saveOptions ? {
+      askBackupOptions: async (req: BackupOptionsRequest) => {
+        fake.saveAsked.push(req);
+        return opts.saveOptions ? opts.saveOptions(req) : null;
+      },
+    } : {}),
+    ...(opts.withRestartWindow === false ? {} : {
+      rebuildFromConfig: () => { fake.steps.push("commands"); },
+      announce: async (req: AnnounceRequest) => {
+        fake.steps.push("window");
+        fake.announced.push(req);
+      },
+    }),
   };
 
   const actions = buildActions(deps) as Record<string, () => Promise<void>>;
@@ -585,7 +612,7 @@ function sampleConfig(): Record<string, unknown> {
   const front = lines.indexOf("---", 1);
   const heading = lines.indexOf(backup.NOTES_HEADING);
   assert.ok(heading > front, "раздел для пометок человека стоит не сразу после frontmatter");
-  assert.ok(lines.indexOf("# Inline Overhaul settings backup") > heading,
+  assert.ok(lines.indexOf("# inlineOverhaul settings backup") > heading,
     "раздел человека стоит не первым: его пометки должны быть сверху");
   assert.ok(note.indexOf(backup.NOTES_HINT) > 0, "под заголовком нет подсказки, что там можно писать");
   assert.ok(note.indexOf(backup.SETTINGS_MARK) > 0, "перед блоком настроек нет метки");
@@ -640,7 +667,7 @@ function sampleConfig(): Record<string, unknown> {
     "plugin: 0.0.9",
     "---",
     "",
-    "# Inline Overhaul settings backup",
+    "# inlineOverhaul settings backup",
     "",
     "```json",
     JSON.stringify(backup.stripDeviceLocal(cfg), null, 2),
@@ -767,9 +794,28 @@ function sampleConfig(): Record<string, unknown> {
   assert.ok(/function commandPrefixOf/.test(src), "префикс команд плагина больше не вычисляется");
   assert.ok(/const mine = \(id: string\): boolean => String\(id \|\| ""\)\.startsWith\(prefix\)/.test(src),
     "проверка «команда наша» из шва хоткеев исчезла");
-  /* Три места: чтение, назначение и снятие. Снятие — самое опасное из них. */
-  assert.equal((src.match(/if \(!mine\(id\)/g) || []).length, 3,
-    "проверка «только свои команды» стоит не во всех трёх местах шва: чтении, назначении и снятии");
+  /*
+   * Пять мест, и каждое спрашивается поимённо. Счёт совпадений тут не годится:
+   * он остался бы зелёным, если защиту убрать из снятия и добавить в чтение
+   * (У-58: пин, считающий количество, слеп к тому, что содержание сменилось).
+   */
+  assert.ok(/read: \(\) => \{[\s\S]{0,400}?if \(!mine\(id\)\) continue;/.test(src),
+    "чтение больше не ограничено своими командами");
+  assert.ok(/if \(!wide && !mine\(id\)\) continue;/.test(src),
+    "назначение пишет чужие хоткеи не только при объёме `all`");
+  assert.ok(/const wide = opts && opts\.scope === "all";/.test(src),
+    "широкий объём включается не тем, что назвала копия");
+  assert.ok(/if \(!mine\(id\) \|\| wanted\.has\(id\)\) continue;/.test(src),
+    "снятие больше не ограничено своими командами — это самое опасное место шва");
+  /* Снятие чужих клавиш и подсчёт конфликтов — два места, и оба обходят свои. */
+  assert.equal((src.match(/if \(mine\(id\) \|\| map\[id\] !== undefined\) continue;/g) || []).length, 2,
+    "конфликты считаются или снимаются у команд, которые восстанавливаются сами");
+  /* Чужая клавиша снимается пустым списком, а не `removeHotkeys`: тот вернёт умолчание. */
+  assert.ok(/hm\.setHotkeys\(id, kept\);/.test(src),
+    "снятие конфликтующей клавиши вернёт умолчание чужого плагина вместо того, чтобы освободить клавишу");
+  /* И самое главное: чужие клавиши снимаются только по просьбе человека. */
+  assert.ok(/if \(opts && opts\.clearConflicts\) \{/.test(src),
+    "снятие чужих клавиш идёт не по явной просьбе, а как-то иначе");
   assert.ok(/hm\.setHotkeys\(id, bindings\)/.test(src) && /hm\.removeHotkeys\(id\)/.test(src),
     "запись хоткеев больше не идёт через setHotkeys/removeHotkeys");
   assert.ok(/typeof hm\.save === "function"/.test(src),
@@ -878,6 +924,253 @@ function sampleConfig(): Record<string, unknown> {
   assert.deepEqual(fresh.pkm.fields.tags, {}, "после сброса остались Values");
   assert.deepEqual(fresh.editor.binder.rows, [], "после сброса остались строки Binder");
   ok("пустой конфиг после миграции — это плагин, каким он бывает сразу после установки");
+}
+
+/* ---- 8. после восстановления: команды и окно ---------------------- */
+
+{
+  /*
+   * Замечание заказчика 2026-09-06: «часть хоткеев не восстанавливается
+   * сразу, а появляется только при перезапуске vault». Причина не в хоткеях:
+   * команды PKM строятся из конфига, а конфиг только что сменился.
+   *
+   * Закрепляется **порядок**, а не факт вызова: хоткей должен приехать на
+   * команду, которая в Obsidian уже есть. Пин на «позвали обоих» остался бы
+   * зелёным при любом порядке (У-43).
+   */
+  const assigned = { "inline-overhaul:field-next-status": [{ modifiers: ["Mod"], key: "1" }] };
+  const w = wire({
+    hotkeys: {
+      read: () => JSON.parse(JSON.stringify(assigned)) as Record<string, unknown[]>,
+      write: (map: Record<string, unknown[]>) => Object.keys(map).length,
+    },
+  });
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+
+  const back = wire({
+    hotkeys: {
+      read: () => ({}),
+      write: (map: Record<string, unknown[]>) => {
+        back.fake.steps.push("hotkeys");
+        return Object.keys(map).length;
+      },
+    },
+  });
+  back.fake.files.set(saved, note);
+  ((back.cfg as Any).visual.tags as Any).textSizePct = 140;
+  await back.run("restore-backup");
+
+  const steps = back.fake.steps.filter(s => s !== "config");
+  assert.deepEqual(steps, ["commands", "hotkeys", "window"],
+    "порядок после записи конфига не тот: " + back.fake.steps.join(" → "));
+  ok("после восстановления команды заводятся до того, как на них ложатся хоткеи");
+
+  const shown = at(back.fake.announced, 0, "окно после восстановления");
+  assert.equal(shown.title, ACTION_TEXTS.RESTORED_TITLE, "у окна чужой заголовок");
+  assert.ok(/[Rr]estart/.test(String(shown.note)),
+    "окно не советует перезапустить Obsidian: " + shown.note);
+  assert.ok((shown.rows || []).length > 0, "окно не говорит, что именно вернулось");
+  assert.ok(String(shown.closeLabel).length > 0, "у единственной кнопки нет подписи");
+  ok("после восстановления открывается окно с советом перезапустить Obsidian");
+}
+
+{
+  /* Швов нет — восстановление идёт, как шло до 2026-09-06. */
+  const w = wire({ withRestartWindow: false });
+  await w.run("save-backup");
+  ((w.cfg as Any).visual.tags as Any).textSizePct = 140;
+  await w.run("restore-backup");
+  assert.equal(w.fake.announced.length, 0, "окно открылось без шва");
+  assert.ok(w.fake.notes.some(n => n.indexOf(ACTION_TEXTS.RESTORE_DONE) === 0),
+    "без окна восстановление промолчало: " + w.fake.notes.join(" | "));
+  ok("без швов восстановление работает старым способом");
+}
+/* ---- 9. состав копии: галочки, комментарий и объём хоткеев --------- */
+
+{
+  /*
+   * Список частей не придуман, а выведен из схемы: вкладка панели — ветка
+   * конфига. Это второе объявление одного соответствия (У-32), и расходится оно
+   * молча: новая настройка в новой ветке просто не попадёт ни в одну галочку
+   * и молча поедет в копию всегда. Сверка идёт по настоящей схеме.
+   */
+  const { SCHEMA, TABS } = await import("../../src/ui/settings/schema/index.ts");
+  const fromSchema = new Map<string, Set<string>>();
+  for (const group of SCHEMA as Any[]) {
+    const set = fromSchema.get(group.tab) || new Set<string>();
+    for (const item of (group.items || []) as Any[]) {
+      if (item && typeof item.path === "string" && item.path) set.add(String(item.path).split(".")[0] as string);
+    }
+    if (group.module) set.add(String(group.module).split(".")[0] as string);
+    fromSchema.set(group.tab, set);
+  }
+
+  const declared = new Map<string, Set<string>>();
+  for (const part of backup.PARTS as Any[]) declared.set(part.id, new Set<string>(part.branches));
+
+  for (const [tab, branches] of fromSchema) {
+    const mine = declared.get(tab);
+    assert.ok(mine, "вкладка " + tab + " есть в схеме, а галочки у неё нет");
+    assert.deepEqual([...branches].sort(), [...(mine as Set<string>)].sort(),
+      "ветки вкладки " + tab + " разошлись со схемой");
+  }
+  assert.equal(backup.PARTS.length, (TABS as Any[]).length,
+    "частей и вкладок разное число");
+  ok("галочки состава выведены из схемы, а не выписаны руками");
+}
+
+{
+  /* Окно предлагает всё отмеченным и хоткеи «только свои» (заказ заказчика). */
+  let seen: BackupOptionsRequest | null = null;
+  const w = wire({
+    saveOptions: (req) => {
+      seen = req;
+      return { parts: req.parts.map(p => p.id), comment: "", hotkeyScope: req.hotkeyDefault };
+    },
+  });
+  await w.run("save-backup");
+  const req = seen as unknown as BackupOptionsRequest;
+  assert.ok(req, "окно состава не спросили вовсе");
+  assert.ok(req.parts.every(p => p.checked === true),
+    "окно открылось не со всеми галочками");
+  assert.equal(req.hotkeyDefault, "own",
+    "умолчание объёма хоткеев не «только свои»");
+  assert.equal([...w.fake.files.keys()].length, 1, "копия не записалась");
+  ok("окно сохранения открывается с максимальным выбором");
+}
+
+{
+  /* Отказ в окне — это отказ: ничего не пишется и ничего не говорится. */
+  const w = wire({ saveOptions: () => null });
+  await w.run("save-backup");
+  assert.equal([...w.fake.files.keys()].length, 0, "после отказа копия всё равно записана");
+  assert.equal(w.fake.notes.length, 0, "после отказа что-то сказали: " + w.fake.notes.join(" | "));
+
+  /* Пустой набор — не отказ, а ошибка, и молчать о ней нельзя. */
+  const empty = wire({ saveOptions: () => ({ parts: [], comment: "", hotkeyScope: "own" }) });
+  await empty.run("save-backup");
+  assert.equal([...empty.fake.files.keys()].length, 0, "пустой набор всё равно записал копию");
+  assert.ok(empty.fake.notes.some(n => n === ACTION_TEXTS.SAVE_NOTHING),
+    "про пустой набор не сказали: " + empty.fake.notes.join(" | "));
+  ok("отказ ничего не пишет, а пустой набор называется ошибкой");
+}
+
+{
+  /*
+   * Главное решение заказчика 2026-09-06: неотмеченная вкладка остаётся
+   * такой, какая сейчас. Записано по числу, которое видит человек на экране:
+   * размер текста тегов и набор Fields.
+   */
+  const w = wire({ saveOptions: () => ({ parts: ["pkm"], comment: "только Fields", hotkeyScope: "own" }) });
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+
+  const about = backup.describeBackup(note);
+  assert.deepEqual(about.parts, ["pkm"], "в шапке копии не те части: " + JSON.stringify(about.parts));
+  assert.equal(about.comment, "только Fields", "комментарий не доехал до шапки");
+  const inside = backup.parseBackupNote(note) as Any;
+  assert.ok(inside.pkm, "отмеченная вкладка в копию не попала");
+  assert.equal(inside.visual, undefined, "неотмеченная вкладка всё равно попала в копию");
+
+  /* Меняем обе вкладки и восстанавливаем. */
+  const back = wire();
+  back.fake.files.set(saved, note);
+  ((back.cfg as Any).visual.tags as Any).textSizePct = 140;
+  ((back.cfg as Any).pkm.fields.order as Any).left = ["чужое"];
+  await back.run("restore-backup");
+  assert.equal(((back.cfg as Any).visual.tags as Any).textSizePct, 140,
+    "неотмеченная вкладка Visual всё равно вернулась к тому, что в копии");
+  assert.deepEqual(((back.cfg as Any).pkm.fields.order as Any).left, ["status", "status_sub"],
+    "отмеченная вкладка Tags & PKM не вернулась");
+
+  const shown = at(back.fake.confirmed, 0, "окно восстановления");
+  const rows = (shown.rows || []).join(" | ");
+  assert.ok(/Tags & PKM/.test(rows), "окно не сказало, какая вкладка вернётся: " + rows);
+  assert.ok(/Visual/.test(rows), "окно не сказало, что останется нетронутым: " + rows);
+  ok("выборочная копия возвращает отмеченное и оставляет остальное, и говорит об этом до нажатия");
+}
+
+{
+  /* Копия без частей в шапке — та же замена целиком, что и до 2026-09-06. */
+  const w = wire();
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const old = (w.fake.files.get(saved) as string).replace(/^parts:.*$/m, "").replace(/^hotkeys:.*$/m, "");
+  assert.equal(backup.describeBackup(old).parts, null, "шапка всё ещё называет части");
+
+  const back = wire();
+  back.fake.files.set(saved, old);
+  ((back.cfg as Any).visual.tags as Any).textSizePct = 140;
+  await back.run("restore-backup");
+  assert.equal(((back.cfg as Any).visual.tags as Any).textSizePct, 90,
+    "старая копия перестала восстанавливаться заменой целиком");
+  ok("копия, снятая до галочек, восстанавливается как раньше");
+}
+
+{
+  /* Объём хоткеев: `none` не кладёт их вовсе, `all` берёт весь vault. */
+  const own = { "inline-overhaul:x": [{ modifiers: ["Mod"], key: "1" }] };
+  const every = Object.assign({ "other-plugin:y": [{ modifiers: ["Mod"], key: "2" }] }, own);
+  const seam: HotkeySeam = {
+    read: () => JSON.parse(JSON.stringify(own)) as Record<string, unknown[]>,
+    readAll: () => JSON.parse(JSON.stringify(every)) as Record<string, unknown[]>,
+    write: () => 0,
+  };
+
+  const none = wire({ hotkeys: seam, saveOptions: () => ({ parts: backup.allPartIds(), comment: "", hotkeyScope: "none" }) });
+  await none.run("save-backup");
+  const noneNote = none.fake.files.get(at([...none.fake.files.keys()], 0, "копия")) as string;
+  assert.deepEqual(backup.parseBackupHotkeys(noneNote), {}, "при объёме none хоткеи всё равно едут");
+
+  const all = wire({ hotkeys: seam, saveOptions: () => ({ parts: backup.allPartIds(), comment: "", hotkeyScope: "all" }) });
+  await all.run("save-backup");
+  const allNote = all.fake.files.get(at([...all.fake.files.keys()], 0, "копия")) as string;
+  assert.deepEqual(Object.keys(backup.parseBackupHotkeys(allNote)).sort(),
+    ["inline-overhaul:x", "other-plugin:y"],
+    "при объёме all в копию попали не все хоткеи vault");
+  assert.equal(backup.describeBackup(allNote).hotkeyScope, "all", "шапка не назвала объём");
+  ok("объём хоткеев решает человек, и копия его запоминает");
+}
+
+{
+  /*
+   * Конфликты: окно называет чужие команды поимённо, галочка по умолчанию
+   * выключена, и её положение доезжает до записи (ответ заказчика 2026-09-06).
+   */
+  const assigned = { "inline-overhaul:x": [{ modifiers: ["Mod"], key: "1" }] };
+  const w = wire({
+    hotkeys: {
+      read: () => JSON.parse(JSON.stringify(assigned)) as Record<string, unknown[]>,
+      write: () => 1,
+    },
+  });
+  await w.run("save-backup");
+  const saved = at([...w.fake.files.keys()], 0, "копия");
+  const note = w.fake.files.get(saved) as string;
+
+  let got: Any = null;
+  const back = wire({
+    hotkeys: {
+      read: () => ({}),
+      conflicts: () => [{ id: "other:y", name: "Other plugin: do a thing", hotkey: "Ctrl + 1" }],
+      write: (map: Record<string, unknown[]>, opts?: Any) => { got = opts || null; return Object.keys(map).length; },
+    },
+  });
+  back.fake.files.set(saved, note);
+  ((back.cfg as Any).visual.tags as Any).textSizePct = 140;
+  await back.run("restore-backup");
+
+  const shown = at(back.fake.confirmed, 0, "окно восстановления");
+  assert.ok((shown.rows || []).some(r => /Other plugin: do a thing/.test(r)),
+    "окно не назвало чужую команду, у которой слетит клавиша");
+  assert.ok(shown.check && shown.check.checked === false,
+    "галочка конфликтов отсутствует или стоит включённой по умолчанию");
+  assert.ok(got && got.clearConflicts === false,
+    "выключенная галочка всё равно просит снимать чужие клавиши: " + JSON.stringify(got));
+  ok("конфликты называются поимённо, а снимаются только по просьбе");
 }
 
 console.log("\n" + passed + " проверок пройдено");

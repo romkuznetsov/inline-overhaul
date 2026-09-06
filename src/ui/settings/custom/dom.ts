@@ -17,6 +17,8 @@ export interface ElOpts {
   text?: string;
   cls?: string;
   attr?: Record<string, string>;
+  /* Значение пункта списка: `createEl("option")` без него даёт пункт,
+     чьё значение равно подписи, а подпись мы переводим. */
   /* Поля ввода. Obsidian принимает их у `createEl` наравне с `cls` и `text`;
      без них `createEl("input")` выходит без типа, и любой ввод читается пустым. */
   value?: string;
@@ -61,6 +63,12 @@ export interface ElButton extends El {
 /** Поле ввода или выбор: у них есть значение. */
 export interface ElInput extends El {
   value: string;
+  disabled: boolean;
+}
+
+/** Галочка: у неё не значение, а положение. */
+export interface ElCheck extends El {
+  checked: boolean;
   disabled: boolean;
 }
 
@@ -130,6 +138,25 @@ export function textInput(parent: El, cls: string, o: {
   const opts: ElOpts = { cls, type: "text", value: o.value, attr: { "aria-label": o.label } };
   if (o.placeholder !== undefined) opts.placeholder = o.placeholder;
   return parent.createEl("input", opts) as ElInput;
+}
+
+/**
+ * Галочка с подписью в одном узле `<label>`. Подпись внутри метки, а не рядом:
+ * тогда нажатие по слову переключает её, и отдельный `aria-label` не нужен — одна
+ * подпись на узел (У-21).
+ */
+export function checkInput(parent: El, cls: string, o: {
+  label: string;
+  /* Класс подписи приходит литералом, а не склейкой из `cls`: сторож каскада
+     ищет имена классов в исходнике, и склеенное имя он не видит (У-65). */
+  labelCls: string;
+  checked: boolean;
+}): ElCheck {
+  const wrap = parent.createEl("label", { cls });
+  const node = wrap.createEl("input", { type: "checkbox" }) as ElCheck;
+  node.checked = o.checked === true;
+  wrap.createEl("span", { cls: o.labelCls, text: o.label });
+  return node;
 }
 
 /** Выбор из перечня. Значения — те, что лежат в конфиге; меняются подписи (З1). */

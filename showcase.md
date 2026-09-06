@@ -1,4 +1,4 @@
-# Inline Overhaul Showcase
+# inlineOverhaul Showcase
 
 This showcase covers the complete public feature surface as 30 grouped user workflows. `move-lines.gif`, `prefix-cycle.gif`, `pkm-cycle.gif`, and `tagwheel.gif` are live Obsidian captures; the other GIFs are animated behavior diagrams grounded in the runtime. Command hotkeys in captions are configurable; Enhanced Mod+A uses fixed `Ctrl/Cmd+A`.
 
@@ -127,7 +127,7 @@ and README links move together, in one commit.
 
 Run **General: Open settings**, then enable or disable each feature module without changing unrelated settings.
 
-![Toggle Inline Overhaul modules](media/showcase/general-modules.gif)
+![Toggle inlineOverhaul modules](media/showcase/general-modules.gif)
 
 *Typical action: open plugin settings and toggle a module; settings actions do not require a hotkey.*
 

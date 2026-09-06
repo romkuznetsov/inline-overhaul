@@ -1,4 +1,4 @@
-<title>Inline Overhaul Settings</title>
+<title>inlineOverhaul Settings</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 
@@ -1466,12 +1466,12 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
       <div class="rail__item">Hotkeys</div>
       <div class="rail__group">Community plugins</div>
       <div class="rail__item">Dataview</div>
-      <div class="rail__item rail__item--active">Inline Overhaul</div>
+      <div class="rail__item rail__item--active">inlineOverhaul</div>
       <div class="rail__item">Templater</div>
     </nav>
 
     <div class="pane">
-      <div class="io-tabs" role="tablist" aria-label="Inline Overhaul settings" id="tabs"></div>
+      <div class="io-tabs" role="tablist" aria-label="inlineOverhaul settings" id="tabs"></div>
       <div class="io-content" id="content" role="tabpanel"></div>
     </div>
   </div>
@@ -1639,7 +1639,7 @@ const SCHEMA = [
 {
   id: "command-reference", tab: "keyboard", order: 300, heading: "Commands & Hotkeys",
   intro: "Everything this plugin can do, in one list. None of it has a key until you give it one \u2014 click in the <code>Hotkey</code> column to do that",
-  tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>Inline Overhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
+  tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>inlineOverhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
   items: [ { kind:"custom", id:"command-list", render: renderCommandReference } ]
 },
 
@@ -2398,7 +2398,7 @@ const SCHEMA = [
   intro: "A backup is an ordinary note in your vault. It holds everything you have set up here, so you can come back to it later or carry your setup to another vault",
   tip: "Saving writes a new note every time and never overwrites an earlier one, so the folder fills up and it is on you to delete what you no longer want. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards; whether the plugin saves what you have now before it writes is the toggle below. Because a backup is an ordinary note, syncing your vault carries it to your other machine, and restoring it there is how a setup travels",
   items: [
-    { kind:"text", id:"backup-folder", path:"advanced.backups.folder", default:"Inline Overhaul/Backups", wide:true,
+    { kind:"text", id:"backup-folder", path:"advanced.backups.folder", default:"inlineOverhaul/Backups", wide:true,
       name:"Backup folder", desc:"Where in your vault the backups are kept",
       tip:"Any folder you like. It is made when you save the first backup, not before. Backups are ordinary notes, so they travel with the vault and sync along with the rest of it" },
     { kind:"toggle", id:"backup-before-restore", path:"advanced.backups.beforeRestore", default:true,
@@ -3712,7 +3712,7 @@ function renderWheelPreview(host) {
    what you will find here. */
 const TAB_CALLOUTS = {
   general: {
-    head: "Inline Overhaul lets one line of a note carry its own status, dates and links",
+    head: "inlineOverhaul lets one line of a note carry its own status, dates and links",
     tip: "The tabs across the top follow the order in which people usually set the plugin up, so reading them left " +
          "to right is reading the plugin. Nothing here depends on anything else: a Field you set up on " +
          "<b>Tags & PKM</b> works with the keys off, and the keys work with no Fields at all. The two areas worth " +

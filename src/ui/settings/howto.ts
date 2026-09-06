@@ -2,7 +2,7 @@
  * Заметка-руководство (PRD 5.1, пункт 1; действие `open-howto`).
  *
  * **Текст переписан заказчиком 2026-09-05** и вычитан здесь: он прислал свою
- * версию файлом (`test-vault/Inline Overhaul Guide.md`, замечание F2) и просил
+ * версию файлом (`test-vault/inlineOverhaul Guide.md`, замечание F2) и просил
  * убрать опечатки и длинные тире. Правки сверх вычитки — только там, где текст
  * расходился с панелью: три подписи устарели (`Values per side` и `Opens` у
  * скроллера, `Child tag` как уровень пути, `Start over` вне `Settings backup`),
@@ -39,7 +39,15 @@
  */
 
 /** Куда кладётся заметка. Имя видное: человек найдёт её поиском по vault. */
-export const HOWTO_PATH = "Inline Overhaul Guide.md";
+export const HOWTO_PATH = "inlineOverhaul Guide.md";
+
+/*
+ * Прежнее имя заметки (до переименования 2026-09-06). Нужно одному:
+ * открыть старую заметку, если новой ещё нет. Заметка принадлежит человеку и
+ * в ней его пометки; завести вторую рядом и молча осиротить первую — хужее
+ * из двух состояний (тот же довод, что у сироты служебного файла в В-39).
+ */
+export const HOWTO_LEGACY_PATH = "Inline Overhaul Guide.md";
 
 /**
  * Текст руководства. Собирается функцией, а не константой, чтобы длинные
@@ -62,7 +70,7 @@ export function howtoMarkdown(): string {
 
 function intro(): string {
   return [
-    "> [!Guide] Inline Overhaul: a practical guide",
+    "> [!Guide] inlineOverhaul: a practical guide",
     "> The mission of this plugin is to improve quality of life while working in Obsidian",
     "> and to reduce the friction of making notes.",
     ">",
@@ -92,8 +100,8 @@ function firstSteps(): string {
     "",
     "1. **Bind a few commands to keys.** Nothing in this plugin has a key by default, and",
     "   that is deliberate: it cannot fight with what you already use. Open",
-    "   `Settings → Hotkeys`, type `Inline Overhaul` and bind what you want. The other way",
-    "   round works too: `Inline Overhaul → Keyboard → Commands & Hotkeys`, find the",
+    "   `Settings → Hotkeys`, type `inlineOverhaul` and bind what you want. The other way",
+    "   round works too: `inlineOverhaul → Keyboard → Commands & Hotkeys`, find the",
     "   command and press `not set` in its `Hotkey` column, and Obsidian opens its own",
     "   Hotkeys screen already filtered to that command.",
     "\t1. `Open TagWheel on the left` is the one you will press most. It opens the",
@@ -108,7 +116,7 @@ function firstSteps(): string {
     "\t   (*I use `Shift + Ctrl + Arrow up` and `Shift + Ctrl + Arrow down`*)",
     "2. **Look at your Fields.** A fresh install comes with four of them: `Status` and",
     "   `Priority` before your text, `Due` and `Project` after it. Open",
-    "   `Inline Overhaul → Tags & PKM → Fields` and see what they hold. Once you have the",
+    "   `inlineOverhaul → Tags & PKM → Fields` and see what they hold. Once you have the",
     "   idea, delete the ones you do not want with the bin button, or go to",
     "   `Advanced → Settings backup → Start over` and begin from scratch. They come with a",
     "   fresh install only: `Start over` does not bring them back.",
@@ -127,7 +135,7 @@ function firstSteps(): string {
     "   `Fill` and `Text` columns of that Field `Values` table.",
     "5. **Type a few more lines.** Try `Move left`, `Move right`, `Move line up` and",
     "   `Move line down` on them. They are close to intuitive, and every part of them is",
-    "   adjustable in `Inline Overhaul → Navigation`. Worth doing: change one option, then",
+    "   adjustable in `inlineOverhaul → Navigation`. Worth doing: change one option, then",
     "   go straight back to a real note and try it out.",
     "",
     "Everything else is worth reading only after those five steps.",
@@ -138,7 +146,7 @@ function fieldsAndValues(): string {
   return [
     "## Fields and Values",
     "",
-    "Open `Inline Overhaul → Tags & PKM → Fields`.",
+    "Open `inlineOverhaul → Tags & PKM → Fields`.",
     "",
     "A **Field** is a slot on the line: `Status`, `Priority`, `Project`, `Due`, whatever",
     "you want. A **Value** is what you put in that slot. One Field carries one kind of",
@@ -208,7 +216,7 @@ function tagWheel(): string {
     "in it. Arrow keys move between Fields and between Values, and the line updates as you",
     "move.",
     "",
-    "How it looks is `Inline Overhaul → Visual → TagWheel`:",
+    "How it looks is `inlineOverhaul → Visual → TagWheel`:",
     "",
     "* **`Scroller`** turns on a second small panel beside the Field you are on, showing",
     "  the Values above and below the current one;",
@@ -230,7 +238,7 @@ function bars(): string {
   return [
     "## Tag Bars",
     "",
-    "`Inline Overhaul → Visual → Tag Bars`",
+    "`inlineOverhaul → Visual → Tag Bars`",
     "",
     "A Bar is a coloured stripe in the margin of a note. It runs down the side of a line",
     "**and everything nested under it**, so a whole block of lines tells you what it is",
@@ -247,7 +255,7 @@ function binder(): string {
   return [
     "## Binder",
     "",
-    "`Inline Overhaul → Keyboard → Binder (custom insert commands)`",
+    "`inlineOverhaul → Keyboard → Binder (custom insert commands)`",
     "",
     "For text you type over and over. Put it in a row, give that row a key in",
     "`Settings → Hotkeys`, and one press drops it in wherever the cursor is.",
@@ -265,7 +273,7 @@ function transform(): string {
   return [
     "## Transform: a line becomes a note",
     "",
-    "`Inline Overhaul → Transform`",
+    "`inlineOverhaul → Transform`",
     "",
     "The command `Transform inline to note` turns the line the cursor is on into a note of",
     "its own. The Fields on the line become properties of the new note, and the line",
@@ -294,7 +302,7 @@ function proTips(): string {
     "## Some pro tips to make things smoother",
     "",
     "* **Turn the explanations on.** `General → Help → Show callouts` and `Show tips`. If",
-    "  Inline Overhaul is new to you, both are worth having on: a callout explains a whole",
+    "  inlineOverhaul is new to you, both are worth having on: a callout explains a whole",
     "  group, a tip explains one setting.",
     "* **Do not forget to make backups.** `Advanced → Settings backup → Save a backup`",
     "  writes an ordinary note with everything you have set up. You can type into it, for",

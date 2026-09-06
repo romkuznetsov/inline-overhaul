@@ -349,7 +349,7 @@ async function run() {
    */
   assertTrue(/const tab = this\.createSettingTab\(\);[\s\S]{0,80}if \(tab\) this\.addSettingTab\(tab\);/.test(src),
     "a settings pane that failed to build does not break onload");
-  assertFalse(/throw new Error\("Inline Overhaul: settings pane/.test(src),
+  assertFalse(/throw new Error\("inlineOverhaul: settings pane/.test(src),
     "createSettingTab reports the failure instead of throwing out of onload");
 
   assertTrue(/function getCommandRegistry\(\)/.test(src), "command registry getter exists");
@@ -1491,6 +1491,43 @@ async function run() {
     globalThis.__inlinePkmMacroRuntimeSharedMod = prevSharedRuntime;
   }
 
+  /*
+   * Запасной путь служебного файла в `main.js` — второе объявление одного
+   * значения (У-32), и разошлось оно молча: переезд файла в папку плагина
+   * (В-39) правил модуль и не тронул запаску, и та двое суток указывала в
+   * корень vault. Сверяется со значением модуля, а не с литералом в самой
+   * проверке: третье объявление не лечит второго.
+   */
+  {
+    const optionKeys = require(path.join(__dirname, "..", "..", "src", "core", "pkm_option_keys.js"));
+    const fallback = /DEFAULT_RULES_PATH:\s*"([^"]+)"/.exec(src);
+    assertTrue(!!fallback, "main.js keeps a fallback rules path literal");
+    assertTrue(fallback[1] === optionKeys.DEFAULT_RULES_PATH,
+      "main.js fallback rules path matches pkm_option_keys.DEFAULT_RULES_PATH");
+    const legacy = /LEGACY_RULES_PATH:\s*"([^"]+)"/.exec(src);
+    assertTrue(!!legacy && legacy[1] === optionKeys.LEGACY_RULES_PATH,
+      "main.js fallback keeps the legacy rules path under its own name");
+  }
+  /*
+   * Шов после восстановления копии (10.13.40). Закрепляется два факта,
+   * которые поведением вне Obsidian не спросить: что шов делает обе вещи,
+   * и что место служебного файла решает **та же** функция миграции, что и при
+   * загрузке, а не второе объявление того же правила (У-32).
+   */
+  {
+    const seam = /async rebuildFromConfig\(\)\s*\{[\s\S]*?\n  \}/.exec(src);
+    assertTrue(!!seam, "main.js keeps the rebuildFromConfig seam used after a backup restore");
+    assertTrue(seam[0].indexOf("this.registerCommands()") !== -1,
+      "rebuildFromConfig re-registers commands");
+    assertTrue(seam[0].indexOf("this.reapplyGeneratedRulesLocation()") !== -1,
+      "rebuildFromConfig re-applies the generated rules location");
+    const move = /async reapplyGeneratedRulesLocation\(\)\s*\{[\s\S]*?\n  \}/.exec(src);
+    assertTrue(!!move, "main.js keeps reapplyGeneratedRulesLocation");
+    assertTrue(move[0].indexOf("await migration.moveGeneratedRulesIntoPluginFolder(") !== -1,
+      "the rules location is decided by the migration function, not by a second copy of the rule");
+    assertTrue(move[0].indexOf("this.pluginFolderPath()") !== -1,
+      "and the plugin folder is computed, not spelled out");
+  }
   console.log("Bootstrap loader regression tests: OK");
 }
 

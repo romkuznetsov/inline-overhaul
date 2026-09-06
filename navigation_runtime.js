@@ -1175,6 +1175,7 @@ async function loadNavigateRules(app, rulesPath) {
 
   const io = parseJsonFence(md, "tagwheel-io") || {};
   const leftMode = parseJsonFence(md, "tagwheel-left-mode") || {};
+  const rightMode = parseJsonFence(md, "tagwheel-right-mode") || {};
   const dateRules = parseJsonFence(md, "tagwheel-date-rules") || {};
 
   const fields = Array.isArray(leftMode.fields) ? leftMode.fields : [];
@@ -1208,6 +1209,26 @@ async function loadNavigateRules(app, rulesPath) {
     if (typeof rule.preferredMarker === "string" && rule.preferredMarker) markers.push(rule.preferredMarker);
     if (Array.isArray(rule.markers)) for (const m of rule.markers) if (typeof m === "string" && m) markers.push(m);
   }
+  /*
+   * Метки берутся ещё и у самих Field (замечание заказчика 2026-09-06).
+   *
+   * Блок `tagwheel-date-rules` описывает четыре именованных правила дат, и у
+   * заказчика он пуст: его поле-дата называется `date_due` и приезжает не
+   * оттуда, а из списка Field — со своим `marker`, тем же эмодзи. Навигация
+   * про эту метку не знала вовсе, и единственный `::` на строке читался как
+   * первый разделитель, а не как второй: зоной текста становился сам хвост с
+   * датой, и курсор вставал **после** разделителя. Признак был ровно такой,
+   * как в У-56: значение до функции не доезжает, а пин на неё зелёный.
+   *
+   * Field с меткой бывает в обоих блоках — элемент можно поставить и слева, —
+   * поэтому читаются оба, а `Set` ниже снимает повторы.
+   */
+  for (const block of [leftMode, rightMode]) {
+    const list = block && Array.isArray(block.fields) ? block.fields : [];
+    for (const f3 of list) {
+      if (f3 && typeof f3.marker === "string" && f3.marker) markers.push(f3.marker);
+    }
+  }
 
   return {
     rulesPathUsed: usedPath,
@@ -1236,15 +1257,22 @@ function navigateInline(editor, direction, navRules, rawCfg) {
   const isTagToken = (s, idx) => s[idx] === "#" && idx + 1 < s.length && !isWs(s[idx + 1]);
   const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+  /*
+   * Конец списочного знака. Пробел после знака **один**, и это не мелочь
+   * (замечание заказчика 2026-09-06): `\s+` съедал и второй пробел, а второй
+   * пробел — это и есть пустой слот под текст в строке `-  :: 📅…`. Съеденный
+   * слот уезжал в «границу строки», ниже которой курсор не опускают, и курсор
+   * вставал вплотную к разделителю вместо того места, где слово начнётся.
+   */
   const parsePrefixEnd = (s) => {
     let i = 0;
-    let m = s.match(/^([-*+])\s+/);
+    let m = s.match(/^([-*+])\s/);
     if (m) i = m[0].length;
     else {
-      m = s.match(/^(\d+)\.\s+/);
+      m = s.match(/^(\d+)\.\s/);
       if (m) i = m[0].length;
     }
-    m = s.slice(i).match(/^\[([^\]])\]\s+/);
+    m = s.slice(i).match(/^\[([^\]])\]\s/);
     if (m) i += m[0].length;
     return i;
   };
@@ -1361,9 +1389,22 @@ function navigateInline(editor, direction, navRules, rawCfg) {
       scopeStartAbs = indentAbs + textStartNoDelimRel;
       scopeEndAbs = indentAbs + trimRightBeforeIndex(s, delimIndex);
     }
-    const zoneStart = cfg.boundaryJump ? hardStartAbs : scopeStartAbs;
+    let zoneStart = cfg.boundaryJump ? hardStartAbs : scopeStartAbs;
     let zoneEnd = cfg.boundaryJump ? hardEndAbs : scopeEndAbs;
-    if (zoneEnd < zoneStart) zoneEnd = zoneStart;
+    /*
+     * Слот под текст пуст — начало обгоняет конец (замечание заказчика
+     * 2026-09-06). Так выглядит строка, у которой Field завели на пустой:
+     * `-  :: 📅…`. Начало считается пропуском пробелов вперёд от списочного
+     * знака и уезжает на сам разделитель, конец — обрезкой пробелов назад от
+     * него и встаёт сразу за знаком. Схлопывать надо к **концу**: там текст и
+     * начался бы, и напечатанное туда слово не слипнется с разделителем. До
+     * этой правки схлопывалось к началу, и курсор вставал вплотную к `::`.
+     * Ниже `hardStartAbs` не опускаемся — до списочного знака зоны нет.
+     */
+    if (zoneEnd < zoneStart) {
+      zoneStart = Math.max(hardStartAbs, zoneEnd);
+      zoneEnd = zoneStart;
+    }
 
     return {
       line: targetLine,

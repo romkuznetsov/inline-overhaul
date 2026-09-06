@@ -1487,7 +1487,7 @@ module.exports = {
     const missingEmojiFields = collectMissingEmojiFields(rules, dateRuntimeCfg);
     if (missingEmojiFields.length) {
       try {
-        new Notice(`TagWheel config error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Set it in Settings -> Inline Overhaul -> Tags & PKM -> Fields`);
+        new Notice(`TagWheel config error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields`);
       } catch (_) {}
     }
 

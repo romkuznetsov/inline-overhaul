@@ -744,5 +744,96 @@ async function jump(text, line, direction, over) {
     ok("прокрутка при переходе по заголовкам: три положения уезжают разными режимами");
   }
 
+  /* ---- пустой слот текста у строки с одним разделителем ---- */
+
+  /*
+   * Заказчик 2026-09-06: Field из правого Block активирован на пустой строке,
+   * и прыжок внутри строки ставит курсор после разделителя, а надо — в то место, где
+   * слово началось бы: `- | :: 📅2026-09-06 10:21`.
+   *
+   * Записан номер столбца, который видит человек, а не намерение кода: разница
+   * между верным и неверным ответом здесь в один символ, и он решает всё:
+   * напечатанное в позиции справа слипается с разделителем.
+   */
+  {
+    const MARKER = String.fromCodePoint(0x1F4C5);
+    const RULES = { delim: "::", trailingMarkers: [MARKER], dateRegexSrc: "\\d{4}-\\d{2}-\\d{2}" };
+    const land = async (text, from, direction) => {
+      const ed = fakeEditor(text, { line: 0, ch: from });
+      nav.navigateInline(ed, direction, RULES,
+        { stepMode: "word", boundaryJump: false, onBoundary: "stay" });
+      await settle();
+      return ed.at().ch;
+    };
+
+    const BULLET = "-  :: " + MARKER + "2026-09-06 10:21";
+    const BOX = "- [ ]  :: " + MARKER + "2026-09-06 10:20";
+
+    /* После `- ` и до пробела перед разделителем — столбец 2. */
+    assertEq(await land(BULLET, 0, "right"), 2,
+      "курсор обязан встать в пустой слот текста, а не вплотную к разделителю");
+    assertEq(await land(BULLET, BULLET.length, "left"), 2,
+      "и с конца строки — туда же");
+    assertEq(await land(BOX, 0, "right"), 6,
+      "со снятым чекбоксом — сразу за ним, а не у разделителя");
+
+    /* Обратная сторона: строка с текстом ходит, как ходила. */
+    const WITH_TEXT = "- один два :: " + MARKER + "2026-09-06 10:21";
+    assertEq(await land(WITH_TEXT, 0, "right"), 2,
+      "у строки с текстом начало зоны прежнее");
+    assertEq(await land(WITH_TEXT, WITH_TEXT.length, "left"), "- один два".length,
+      "и конец зоны прежний — перед разделителем");
+
+    ok("пустой слот текста: курсор встаёт туда, где начнётся слово");
+  }
+
+  /* ---- метка Field доезжает до навигации ---- */
+
+  /*
+   * У заказчика блок `tagwheel-date-rules` пуст: поле-дата у него не одно из
+   * четырёх именованных правил, а свой Field со своей меткой. Без метки
+   * навигация считает единственный `::` первым разделителем и уводит курсор
+   * в хвост с датой. Спрашивается результат чтения, а не факт разбора блока.
+   */
+  {
+    const MARKER = String.fromCodePoint(0x1F4C5);
+    const RULES_MD = [
+      "```tagwheel-io",
+      JSON.stringify({ separator1: "::", separator2: "::" }),
+      "```",
+      "```tagwheel-date-rules",
+      "{}",
+      "```",
+      "```tagwheel-left-mode",
+      JSON.stringify({ fields: [{ id: "type", prefix: "#", values: ["todo"] }] }),
+      "```",
+      "```tagwheel-right-mode",
+      JSON.stringify({ fields: [{ id: "date_due", kind: "genericElement", marker: MARKER }] }),
+      "```",
+    ].join("\n");
+
+    const PATH = ".obsidian/plugins/inline-overhaul/generated_rules.md";
+    const app = {
+      vault: {
+        getAbstractFileByPath: () => null,
+        adapter: { read: async (p) => { if (p === PATH) return RULES_MD; throw new Error("нет: " + p); } },
+      },
+    };
+
+    const rules = await nav.loadNavigateRules(app, PATH);
+    if (rules.trailingMarkers.indexOf(MARKER) === -1) {
+      throw new Error("метка Field не доехала до навигации: " + JSON.stringify(rules.trailingMarkers));
+    }
+    ok("метка своего Field берётся из списка Field, а не только из четырёх правил дат");
+
+    /* И она впрямь решает, куда встанет курсор: те же правила через прыжок. */
+    const LINE = "-  :: " + MARKER + "2026-09-06 10:21";
+    const ed = fakeEditor(LINE, { line: 0, ch: LINE.length });
+    nav.navigateInline(ed, "left", rules, { stepMode: "word", boundaryJump: false, onBoundary: "stay" });
+    await settle();
+    assertEq(ed.at().ch, 2, "с правилами из документа курсор всё равно встаёт в слот текста");
+    ok("путь целиком: документ правил → метка → положение каретки");
+  }
+
   console.log("\n" + passed + " проверок пройдено");
 })().catch((e) => { console.error(e); process.exit(1); });

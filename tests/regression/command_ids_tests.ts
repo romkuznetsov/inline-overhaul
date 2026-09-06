@@ -149,7 +149,7 @@ function allDefs(cfg: Any): Any[] {
     .filter(name => /^(General|Navigation|PKM|Config|Binder|Transform)\s*:/.test(name));
   assert.deepEqual(prefixed, [],
     "имя команды содержит префикс модуля — Obsidian добавит своё, и получится"
-    + " «Inline Overhaul: Navigation: …»:\n  " + prefixed.join("\n  "));
+    + " «inlineOverhaul: Navigation: …»:\n  " + prefixed.join("\n  "));
   const empty = defs.filter(d => !String(d && d.name || "").trim()).map(d => String(d.id));
   assert.deepEqual(empty, [], "команда без имени: " + empty.join(", "));
   ok("T6: ни одно имя не несёт префикса плагина или модуля");

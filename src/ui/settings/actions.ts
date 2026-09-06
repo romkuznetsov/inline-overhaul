@@ -25,16 +25,21 @@
  */
 
 import type { ActionId } from "./types.ts";
-import { HOWTO_PATH, howtoMarkdown } from "./howto.ts";
+import { HOWTO_LEGACY_PATH, HOWTO_PATH, howtoMarkdown } from "./howto.ts";
 import {
+  PARTS,
+  allPartIds,
   backupBeforeRestore,
   backupFolder,
   backupPath,
   buildBackupNote,
   describeBackup,
   keepDeviceLocal,
+  mergeParts,
+  missingLabels,
   parseBackupHotkeys,
   parseBackupNote,
+  partLabels,
   plural,
   summaryLine,
 } from "../../features/settings_backup.js";
@@ -67,6 +72,14 @@ export interface ConfirmRequest {
   rows?: readonly string[];
   /** Строка под списком: чего действие НЕ трогает. */
   note?: string;
+  /**
+   * Галочка в окне: решение внутри решения (ответ заказчика 2026-09-06 про
+   * конфликты хоткеев). Сам ответ остаётся «да или нет», а положение галочки
+   * приходит обратным вызовом: так не меняется форма ответа у всех прочих
+   * окон, которых галочка не касается.
+   */
+  check?: { label: string; sub?: string; checked: boolean };
+  onCheck?: (checked: boolean) => void;
 }
 
 /**
@@ -115,6 +128,26 @@ export interface PickRequest {
 }
 
 /**
+ * Окно на одну кнопку: сказать и закрыться, выбора в нём нет.
+ *
+ * Заведено под просьбу заказчика 2026-09-06: «хочу, чтобы после восстановления
+ * бэкапа возникало окно с уведомлением с рекомендацией перезапустить
+ * Obsidian». Всплывающее сообщение это уже говорило, но оно уезжает за
+ * несколько секунд, а восстановление — редкое действие, после которого человек
+ * идёт проверять хоткеи и не понимает, почему их часть на месте не сразу.
+ */
+export interface AnnounceRequest {
+  title: string;
+  body: string;
+  /** Что именно вернулось, построчно. */
+  rows?: readonly string[];
+  /** Строка под списком: что делать дальше. */
+  note?: string;
+  /** Подпись единственной кнопки. */
+  closeLabel: string;
+}
+
+/**
  * Хранилище в том виде, в каком его нужно восстановлению: прочитать всё и
  * заменить всё. Замена идёт через `store.update` и потому проходит миграцию
  * (CS10, Б14) — второй точки записи в конфиг нет.
@@ -134,14 +167,69 @@ export interface ConfigSeam {
  * или самого Obsidian. Ограничение стоит в реализации шва
  * (`obsidian_tab.ts`), а не здесь, — и закреплено проверкой.
  */
+export interface HotkeyConflict {
+  /** Идентификатор чужой команды. */
+  id: string;
+  /** Её имя так, как его видит человек на экране `Hotkeys`. */
+  name: string;
+  /** Клавиши словами: `Ctrl + Alt + 1`. */
+  hotkey: string;
+}
+
+export interface HotkeyWriteOptions {
+  /** `own` — только свои команды (умолчание), `all` — все хоткеи vault. */
+  scope?: "own" | "all";
+  /** Снять клавиши у чужих команд, которые мешают восстанавливаемым. */
+  clearConflicts?: boolean;
+}
+
 export interface HotkeySeam {
-  /** Что назначено сейчас: идентификатор команды → список привязок. */
+  /** Что назначено сейчас у команд плагина: идентификатор → список привязок. */
   read: () => Record<string, unknown[]>;
   /**
-   * Привести хоткеи своих команд к тому, что в копии: назначить, чего нет,
+   * Все хоткеи vault, включая чужие. Нужен объёму `all` в окне сохранения
+   * (заказ заказчика 2026-09-06). Нет его — объём молча сужается до своих.
+   */
+  readAll?: () => Record<string, unknown[]>;
+  /**
+   * Чужие команды, у которых те же клавиши, что в переданной карте. Список
+   * нужен окну: галочка «снять конфликтующие» без имён была бы просьбой
+   * согласиться вслепую.
+   */
+  conflicts?: (map: Record<string, unknown[]>) => readonly HotkeyConflict[];
+  /**
+   * Привести хоткеи к тому, что в копии: назначить, чего нет,
    * и снять то, чего в копии не было. Возвращает, сколько команд затронуто.
    */
-  write: (map: Record<string, unknown[]>) => Promise<number> | number;
+  write: (map: Record<string, unknown[]>, opts?: HotkeyWriteOptions) => Promise<number> | number;
+}
+
+/**
+ * Окно у `Save a backup` (заказ заказчика 2026-09-06).
+ *
+ * Всё, что в нём есть, уже выбрано по-максимуму: человек может только
+ * дописать комментарий и снять лишнее. Нажать `Enter` сразу — то же самое,
+ * что было до окна.
+ */
+export interface BackupOptionsRequest {
+  title: string;
+  body: string;
+  /** Части копии галочками. */
+  parts: readonly { id: string; label: string; checked: boolean }[];
+  /** Необязательное поле комментария. */
+  commentLabel: string;
+  commentHint: string;
+  /** Список объёма хоткеев. */
+  hotkeyLabel: string;
+  hotkeyOptions: readonly { value: string; label: string }[];
+  hotkeyDefault: string;
+  confirmLabel: string;
+}
+
+export interface BackupOptions {
+  parts: readonly string[];
+  comment: string;
+  hotkeyScope: string;
 }
 
 export interface ActionDeps {
@@ -164,6 +252,32 @@ export interface ActionDeps {
    * про хоткеи заметка просто ничего не скажет.
    */
   hotkeys?: HotkeySeam;
+  /**
+   * Заново собрать всё, что плагин строит из конфига.
+   *
+   * Нужно ровно одному месту — восстановлению копии (замечание заказчика
+   * 2026-09-06: «часть хоткеев не восстанавливается сразу, а появляется только
+   * при перезапуске vault»). Причина не в хоткеях: **команды PKM строятся из
+   * конфига** (`buildPkmCommandDefs` берёт `cfg`), и каждый Field заводит свою
+   * пару. Заводятся они один раз, при загрузке плагина. Копия приносит другой
+   * набор Field — и хоткей приезжает на команду, которой в Obsidian ещё нет:
+   * в справочнике команд он виден (справочник читает `hotkeys.json` и конфиг),
+   * а на экране `Hotkeys` самого Obsidian нет, потому что тот показывает
+   * только зарегистрированные команды.
+   *
+   * Шов, а не прямой вызов: реестр действий обязан собираться без Obsidian.
+   */
+  rebuildFromConfig?: () => Promise<void> | void;
+  /**
+   * Окно на одну кнопку. Без него действие обходится всплывающим сообщением,
+   * как обходилось до 2026-09-06.
+   */
+  announce?: (o: AnnounceRequest) => Promise<void>;
+  /**
+   * Окно выбора состава копии. Без него сохранение идёт как шло: всё
+   * целиком, хоткеи только свои, без комментария.
+   */
+  askBackupOptions?: (o: BackupOptionsRequest) => Promise<BackupOptions | null>;
 }
 
 /* ---- тексты: видимые строки английские, точек в конце нет (Р10) -------- */
@@ -187,6 +301,35 @@ const RESTORE_DONE =
   "Settings restored. Restart Obsidian so every part of the plugin picks them up";
 /** Хоткеи вернулись — сказать отдельно: их человек ищет не там, где настройки. */
 const HOTKEYS_DONE = "hotkeys back on the plugin commands";
+/* Окно после восстановления (просьба заказчика 2026-09-06). */
+const RESTORED_TITLE = "Settings restored";
+const RESTORED_BODY =
+  "Everything from that backup is in place. A few parts of the plugin read your settings once, when Obsidian starts, so they still show what you had a minute ago";
+const RESTORED_NOTE = "Restart Obsidian to be sure every part matches the backup";
+const RESTORED_CLOSE = "Got it";
+
+/* Окно состава копии (заказ заказчика 2026-09-06). */
+const SAVE_TITLE = "Save a backup";
+const SAVE_BODY =
+  "Everything is picked already, so pressing the button straight away saves the lot. Uncheck a tab and it stays out: restoring this backup will then leave that tab exactly as you have it";
+const SAVE_CONFIRM = "Save";
+const SAVE_COMMENT_LABEL = "What is this backup for";
+const SAVE_COMMENT_HINT = "Optional. You will see this line in `Restore a backup`";
+const SAVE_HOTKEYS_LABEL = "Hotkeys to keep";
+const SAVE_HOTKEYS_OWN = "Only this plugin’s commands";
+const SAVE_HOTKEYS_ALL = "Every hotkey in this vault";
+const SAVE_HOTKEYS_NONE = "None";
+const SAVE_NOTHING = "Nothing was picked, so there is nothing to save";
+
+/* Конфликты хоткеев при восстановлении (ответ заказчика 2026-09-06). */
+const CONFLICT_LABEL = "Free up keys other commands are holding";
+const CONFLICT_SUB =
+  "Off by default: this is the one thing here that changes settings outside this plugin";
+const CONFLICT_NONE = "No other command is holding those keys";
+const CONFLICT_CLEARED = "keys taken off other commands";
+/* Объём хоткеев в копии — сказать в окне восстановления прямо. */
+const HOTKEYS_ALL_WARNING =
+  "This backup holds hotkeys of other plugins too, and restoring puts them back";
 /** В копии хоткеи есть, а вернуть их этой сборкой нечем. */
 const HOTKEYS_NO_METHOD = "The hotkeys in that backup could not be put back";
 
@@ -231,7 +374,12 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
    * Существующий файл не перезаписывается **никогда** (Б6): совпало имя —
    * рядом появится второй, а не поверх первого.
    */
-  const writeBackup = async (vault: VaultSeam, config: ConfigSeam, auto?: true): Promise<string> => {
+  const writeBackup = async (
+    vault: VaultSeam,
+    config: ConfigSeam,
+    auto?: true,
+    picked?: BackupOptions,
+  ): Promise<string> => {
     const cfg = config.get();
     const folder = backupFolder(cfg);
     if (typeof vault.ensureFolder === "function") await Promise.resolve(vault.ensureFolder(folder));
@@ -244,13 +392,20 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
      * Хоткеи читаются здесь, а не в самом `buildBackupNote`: тот обязан
      * собираться без Obsidian, и знать о служебном API ему нечего.
      */
+    const scope = picked ? String(picked.hotkeyScope || "own") : "own";
     let hotkeys: Record<string, unknown[]> | undefined;
-    if (deps.hotkeys && typeof deps.hotkeys.read === "function") {
-      try {
-        hotkeys = deps.hotkeys.read();
-      } catch (e) {
-        /* Не прочитались — копия настроек всё равно пишется: она главное. */
-        console.error("inline-overhaul: хоткеи для копии не прочитались", e);
+    if (scope !== "none" && deps.hotkeys) {
+      /* `all` без чтения всего vault молча сужается до своих, а не падает. */
+      const reader = scope === "all" && typeof deps.hotkeys.readAll === "function"
+        ? deps.hotkeys.readAll
+        : deps.hotkeys.read;
+      if (typeof reader === "function") {
+        try {
+          hotkeys = reader();
+        } catch (e) {
+          /* Не прочитались — копия настроек всё равно пишется: она главное. */
+          console.error("inline-overhaul: хоткеи для копии не прочитались", e);
+        }
       }
     }
     await Promise.resolve(vault.create(path, buildBackupNote({
@@ -258,8 +413,43 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       pluginVersion: deps.pluginVersion,
       savedAt: new Date(),
       hotkeys,
+      /*
+       * Снятая самим плагином копия — путь назад, а не выбор человека:
+       * она всегда полная. Сузить её значило бы обещать возврат, которого нет.
+       */
+      parts: auto === true ? allPartIds() : (picked ? picked.parts : allPartIds()),
+      hotkeyScope: auto === true ? "own" : scope,
+      comment: picked ? picked.comment : "",
     })));
     return path;
+  };
+
+  /**
+   * Спросить состав копии. Окна нет — сохранение идёт как шло до 2026-09-06:
+   * всё целиком, хоткеи только свои, без комментария.
+   *
+   * Отказ (`null`) — это отказ: ничего не пишется и ничего не говорится.
+   * Пустой набор частей — не отказ, а ошибка человека, и о ней надо сказать.
+   */
+  const askParts = async (): Promise<BackupOptions | null | undefined> => {
+    if (typeof deps.askBackupOptions !== "function") return undefined;
+    const hotkeyOptions = [
+      { value: "own", label: SAVE_HOTKEYS_OWN },
+      { value: "all", label: SAVE_HOTKEYS_ALL },
+      { value: "none", label: SAVE_HOTKEYS_NONE },
+    ];
+    return await deps.askBackupOptions({
+      title: SAVE_TITLE,
+      body: SAVE_BODY,
+      /* По умолчанию отмечено всё: человек только снимает лишнее. */
+      parts: PARTS.map(part => ({ id: part.id, label: part.label, checked: true })),
+      commentLabel: SAVE_COMMENT_LABEL,
+      commentHint: SAVE_COMMENT_HINT,
+      hotkeyLabel: SAVE_HOTKEYS_LABEL,
+      hotkeyOptions,
+      hotkeyDefault: "own",
+      confirmLabel: SAVE_CONFIRM,
+    });
   };
 
   /**
@@ -278,7 +468,10 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
 
     const options: PickOption[] = [];
     for (const file of notes) {
-      let about = { savedAt: "", pluginVersion: "", summary: "", hotkeys: 0 };
+      let about: ReturnType<typeof describeBackup> = {
+        savedAt: "", pluginVersion: "", summary: "", hotkeys: 0,
+        parts: null, hotkeyScope: "own", comment: "",
+      };
       try {
         if (typeof vault.read === "function") {
           about = describeBackup(await Promise.resolve(vault.read(file.path)));
@@ -288,7 +481,12 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
       }
       const name = String(file.path).split("/").pop() || file.path;
       const sub = [
+        /* Комментарий человека — первым: его он и ищет в списке. */
+        about.comment,
         about.summary,
+        about.parts && about.parts.length < PARTS.length
+          ? partLabels(about.parts).join(", ")
+          : "",
         about.hotkeys ? plural(about.hotkeys, "hotkey", "hotkeys") : "",
         about.pluginVersion ? "plugin " + about.pluginVersion : "",
       ].filter(Boolean).join(" · ");
@@ -344,10 +542,18 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         return;
       }
       try {
+        /*
+         * Заметка переименована вместе с плагином (2026-09-06), и у того, кто
+         * уже её завёл, лежит старая — со своими пометками. Открывается она, а не
+         * создаётся вторая рядом: две заметки с одним содержанием и разными
+         * пометками — худшее из состояний.
+         */
         const had = await Promise.resolve(vault.exists(HOWTO_PATH));
-        if (!had) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
-        await Promise.resolve(vault.open(HOWTO_PATH));
-        notify(said(had ? GUIDE_OPENED : GUIDE_MADE, HOWTO_PATH));
+        const legacy = had ? false : await Promise.resolve(vault.exists(HOWTO_LEGACY_PATH));
+        const path = legacy ? HOWTO_LEGACY_PATH : HOWTO_PATH;
+        if (!had && !legacy) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
+        await Promise.resolve(vault.open(path));
+        notify(said(had || legacy ? GUIDE_OPENED : GUIDE_MADE, path));
       } catch (e) {
         const message = e && typeof e === "object" && "message" in e
           ? String((e as { message: unknown }).message)
@@ -370,7 +576,13 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         return;
       }
       try {
-        notify(said(BACKUP_SAVED, await writeBackup(vault, config)));
+        const picked = await askParts();
+        if (picked === null) return;
+        if (picked && (!Array.isArray(picked.parts) || !picked.parts.length)) {
+          notify(SAVE_NOTHING);
+          return;
+        }
+        notify(said(BACKUP_SAVED, await writeBackup(vault, config, undefined, picked || undefined)));
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: копия настроек не записалась", e);
@@ -477,15 +689,51 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
           console.error("inline-overhaul: копию читать нечем");
           return;
         }
-        /* Разбор идёт до вопроса: спрашивать про заметку, которую не прочесть, незачем. */
-        const restored = parseBackupNote(await Promise.resolve(vault.read(picked)));
-
-        const hotkeys = parseBackupHotkeys(await Promise.resolve(vault.read(picked)));
+        /* Разбор идёт до вопроса: спрашивать про заметку, которую не прочесть, незачем.
+           Читается она один раз: три разбора идут по одному и тому же тексту, и
+           второе чтение отдало бы другой файл, успей его кто-то переписать. */
+        const text = await Promise.resolve(vault.read(picked));
+        const restored = parseBackupNote(text);
+        const about = describeBackup(text);
+        const hotkeys = parseBackupHotkeys(text);
         const hotkeyCount = Object.keys(hotkeys).length;
+        const scope = about.hotkeyScope === "all" ? "all" : "own";
+
+        /*
+         * Список говорит две вещи, а не одну: что вернётся и что останется.
+         * Второе важнее первого: выборочная копия меняет смысл действия,
+         * и человек должен увидеть это до нажатия, а не после (Н3).
+         */
         const rows = ["Restoring " + summaryLine(restored)];
-        if (hotkeyCount) {
-          rows.push("And " + plural(hotkeyCount, "hotkey", "hotkeys") + " on the plugin commands");
+        if (about.parts) {
+          rows.push("Tabs coming back: " + partLabels(about.parts).join(", "));
+          const kept = missingLabels(about.parts);
+          if (kept.length) rows.push("Staying as you have them now: " + kept.join(", "));
         }
+        if (hotkeyCount) {
+          rows.push("And " + plural(hotkeyCount, "hotkey", "hotkeys")
+            + (scope === "all" ? " from this vault" : " on the plugin commands"));
+        }
+        if (scope === "all") rows.push(HOTKEYS_ALL_WARNING);
+
+        /*
+         * Конфликты — галочкой, и по умолчанию выключенной (ответ заказчика
+         * 2026-09-06). Список чужих команд считается **до** вопроса: соглашаться
+         * вслепую на то, что трогает чужой плагин, — единственный шаг, который
+         * человек потом не сможет объяснить себе сам.
+         */
+        let conflicts: readonly HotkeyConflict[] = [];
+        if (hotkeyCount && deps.hotkeys && typeof deps.hotkeys.conflicts === "function") {
+          try {
+            conflicts = deps.hotkeys.conflicts(hotkeys) || [];
+          } catch (e) {
+            console.error("inline-overhaul: конфликты хоткеев не посчитались", e);
+          }
+        }
+        for (const clash of conflicts) {
+          rows.push("Held by " + clash.name + ": " + clash.hotkey);
+        }
+        let clearConflicts = false;
 
         const willBackUp = backupBeforeRestore(config.get());
         const yes = await ask({
@@ -494,7 +742,11 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
           confirmLabel: RESTORE_CONFIRM,
           danger: true,
           rows,
-          note: hotkeyCount
+          ...(conflicts.length
+            ? { check: { label: CONFLICT_LABEL, sub: CONFLICT_SUB, checked: false } }
+            : {}),
+          onCheck: (checked: boolean) => { clearConflicts = checked; },
+          note: hotkeyCount && scope !== "all"
             ? "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin"
             : "Your open tab and what you have expanded here stay as they are",
         });
@@ -507,9 +759,29 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
          * сказал (`RESTORE_BODY` собирается по тому же значению).
          */
         if (willBackUp) await writeBackup(vault, config, true);
+        /*
+         * Неотмеченная вкладка остаётся такой, какая сейчас (решение
+         * заказчика 2026-09-06). Копия, снятая до галочек, частей не называет,
+         * и восстанавливается заменой целиком, как и раньше (Б10).
+         */
         const changed = await Promise.resolve(
-          config.replace(keepDeviceLocal(config.get(), restored) as Record<string, unknown>),
+          config.replace(mergeParts(config.get(), restored, about.parts) as Record<string, unknown>),
         );
+
+        /*
+         * Команды — до хоткеев. Набор команд PKM строится из конфига, конфиг
+         * только что сменился, и хоткей из копии обязан приехать на команду,
+         * которая в Obsidian уже есть: иначе на экране `Hotkeys` его не видно
+         * до перезапуска (замечание заказчика 2026-09-06). Неудача здесь
+         * восстановления не отменяет — настройки уже записаны.
+         */
+        if (typeof deps.rebuildFromConfig === "function") {
+          try {
+            await Promise.resolve(deps.rebuildFromConfig());
+          } catch (e) {
+            console.error("inline-overhaul: после восстановления не пересобралось то, что строится из конфига", e);
+          }
+        }
 
         /*
          * Хоткеи — после настроек, и их неудача не отменяет восстановления:
@@ -519,8 +791,11 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
         if (hotkeyCount) {
           if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
             try {
-              const n = await Promise.resolve(deps.hotkeys.write(hotkeys));
+              const n = await Promise.resolve(deps.hotkeys.write(hotkeys, { scope, clearConflicts }));
               saidHotkeys = ". " + plural(Number(n) || 0, "hotkey", "hotkeys") + " " + HOTKEYS_DONE;
+              if (clearConflicts && conflicts.length) {
+                saidHotkeys += ", " + plural(conflicts.length, "key", "keys") + " " + CONFLICT_CLEARED;
+              }
             } catch (e) {
               saidHotkeys = ". " + HOTKEYS_NO_METHOD;
               console.error("inline-overhaul: хоткеи не вернулись", e);
@@ -531,6 +806,26 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
           }
         }
         notify(changed ? RESTORE_DONE + saidHotkeys : RESTORE_SAME + saidHotkeys);
+
+        /*
+         * И окно — оно живёт до нажатия, а всплывающее сообщение уезжает
+         * (просьба заказчика 2026-09-06). Показывается и тогда, когда копия
+         * совпала с нынешним: человек нажал `Restore` и вправе узнать, чем
+         * это кончилось. Окна нет — остаётся только сообщение, как было.
+         */
+        if (typeof deps.announce === "function") {
+          try {
+            await deps.announce({
+              title: RESTORED_TITLE,
+              body: RESTORED_BODY,
+              rows,
+              note: RESTORED_NOTE,
+              closeLabel: RESTORED_CLOSE,
+            });
+          } catch (e) {
+            console.error("inline-overhaul: окно после восстановления не открылось", e);
+          }
+        }
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: восстановление не выполнилось", e);
@@ -556,6 +851,25 @@ export const ACTION_TEXTS = {
   PICK_BODY,
   HOTKEYS_DONE,
   HOTKEYS_NO_METHOD,
+  RESTORED_TITLE,
+  RESTORED_BODY,
+  RESTORED_NOTE,
+  RESTORED_CLOSE,
+  SAVE_TITLE,
+  SAVE_BODY,
+  SAVE_CONFIRM,
+  SAVE_COMMENT_LABEL,
+  SAVE_COMMENT_HINT,
+  SAVE_HOTKEYS_LABEL,
+  SAVE_HOTKEYS_OWN,
+  SAVE_HOTKEYS_ALL,
+  SAVE_HOTKEYS_NONE,
+  SAVE_NOTHING,
+  CONFLICT_LABEL,
+  CONFLICT_SUB,
+  CONFLICT_NONE,
+  CONFLICT_CLEARED,
+  HOTKEYS_ALL_WARNING,
   RESET_TITLE,
   RESET_BODY,
   RESET_CONFIRM,

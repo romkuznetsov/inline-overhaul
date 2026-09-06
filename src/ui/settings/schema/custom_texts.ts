@@ -16,7 +16,7 @@ export interface CalloutText {
 
 export const TAB_CALLOUTS: Readonly<Record<string, CalloutText>> = {
   general: {
-    head: "Inline Overhaul lets one line of a note carry its own status, dates and links",
+    head: "inlineOverhaul lets one line of a note carry its own status, dates and links",
     tip: "The tabs across the top follow the order in which people usually set the plugin up, so reading them left " +
          "to right is reading the plugin. Nothing here depends on anything else: a Field you set up on " +
          "<b>Tags & PKM</b> works with the keys off, and the keys work with no Fields at all. The two areas worth " +

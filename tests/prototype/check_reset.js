@@ -80,7 +80,7 @@ const folder = run([
   '  return it.kind + " / " + it.path + " / " + it.default;',
   '})()'
 ].join("\n"));
-check("папка копий описана", folder, "text / advanced.backups.folder / Inline Overhaul/Backups");
+check("папка копий описана", folder, "text / advanced.backups.folder / inlineOverhaul/Backups");
 
 console.log(failures ? "\n" + failures + " problem(s)" : "\nвсе три функции ведут себя как описано");
 process.exit(failures ? 1 : 0);

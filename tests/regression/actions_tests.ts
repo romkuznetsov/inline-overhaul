@@ -27,7 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTION_TEXTS, READY_ACTIONS, buildActions, type ConfirmRequest } from "../../src/ui/settings/actions.ts";
-import { HOWTO_PATH, howtoMarkdown } from "../../src/ui/settings/howto.ts";
+import { HOWTO_LEGACY_PATH, HOWTO_PATH, howtoMarkdown } from "../../src/ui/settings/howto.ts";
 import { STARTER_LEFT_BLOCK, STARTER_RIGHT_BLOCK } from "../../src/core/starter_config.ts";
 import { SCHEMA, TABS } from "../../src/ui/settings/schema/index.ts";
 
@@ -164,6 +164,33 @@ function makeVault(has: boolean): {
 }
 
 {
+  /*
+   * Переименование плагина 2026-09-06 сменило и имя заметки-руководства.
+   * У того, кто её уже завёл, лежит старая — со своими пометками. Кнопка
+   * обязана открыть её, а не завести вторую рядом.
+   */
+  const made: Array<{ path: string; text: string }> = [];
+  const opened: string[] = [];
+  const there = new Set<string>([HOWTO_LEGACY_PATH]);
+  const notes: string[] = [];
+  const actions = buildActions({
+    notify: m => { notes.push(m); },
+    vault: {
+      exists: (p: string) => there.has(p),
+      create: (p: string, t: string) => { made.push({ path: p, text: t }); there.add(p); },
+      open: (p: string) => { opened.push(p); },
+    },
+  });
+  await actions["open-howto"]!();
+
+  assert.deepEqual(made, [], "рядом со старой заметкой завели вторую");
+  assert.deepEqual(opened, [HOWTO_LEGACY_PATH], "открыли не ту заметку: " + opened.join(", "));
+  assert.equal(notes[0], ACTION_TEXTS.GUIDE_OPENED + ": " + HOWTO_LEGACY_PATH,
+    "сказали не про тот файл: " + notes.join(" | "));
+  ok("руководство под прежним именем открывается, а не дублируется");
+}
+
+{
   /* Без доступа к vault кнопка отвечает словами, а не молчит. */
   const notes: string[] = [];
   const actions = buildActions({ notify: m => { notes.push(m); } });
@@ -200,7 +227,7 @@ function makeVault(has: boolean): {
     "Some pro tips to make things smoother",
     "Three setups you can copy",
   ], "разделы руководства: " + headings.join(" | "));
-  assert.ok(text.startsWith("> [!Guide] Inline Overhaul"),
+  assert.ok(text.startsWith("> [!Guide] inlineOverhaul"),
     "заметка начинается вводным коллаутом, которым её начал заказчик");
   ok("разделы руководства на месте");
 }
@@ -255,7 +282,7 @@ function makeVault(has: boolean): {
   for (const raw of paths) {
     const steps = raw.split("→").map(s => s.trim()).filter(Boolean);
     /* Полное имя панели впереди пути — не шаг, а адрес самой панели. */
-    if (steps[0] === "Inline Overhaul") steps.shift();
+    if (steps[0] === "inlineOverhaul") steps.shift();
 
     const tab = tabByLabel.get(String(steps[0]));
     if (!tab) { broken.push(raw + ": нет вкладки " + steps[0]); continue; }

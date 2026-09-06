@@ -72,7 +72,9 @@ function main(argv) {
 
   console.log("версия: " + previous + " → " + next);
   console.log("правлены manifest.json, package.json, package-lock.json, versions.json");
-  console.log("дальше: npm run test:release, затем тег v" + next + " — сборку релиза сделает CI");
+  /* Тег **без** `v`: `release.yml` слушает `tags: ["[0-9]*"]`, и `v0.1.0` под
+     этот образец не подходит вовсе — выпуск просто не запустился бы. */
+  console.log("дальше: npm run test:release, затем тег " + next + " — сборку релиза сделает CI");
 }
 
 main(process.argv.slice(2));

@@ -1,4 +1,4 @@
-/* Inline Overhaul - settings pane and editor decorations.
+/* inlineOverhaul - settings pane and editor decorations.
  *
  * Rules for this file (PRD 5.7):
  *   - every class is prefixed io-
@@ -2370,6 +2370,40 @@
   color: var(--text-faint);
   line-height: var(--line-height-tight);
   font-family: var(--font-monospace);
+}
+/* Окно состава копии (заказ заказчика 2026-09-06): комментарий, галочки
+   вкладок и объём хоткеев. Та же галочка стоит и в окне подтверждения —
+   там она одна и решает про чужие хоткеи. */
+.io-dlg__field-label {
+  margin-top: 12px;
+  margin-bottom: 4px;
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-medium);
+  color: var(--text-muted);
+}
+.io-dlg__input,
+.io-dlg__select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.io-dlg__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 10px;
+}
+/* Подпись внутри метки: нажатие по слову переключает галочку. */
+.io-dlg__check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+.io-dlg__checks .io-dlg__check { margin-top: 0; }
+.io-dlg__check-label {
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
 }
 /* ---- справочник команд (10.5) ------------------------------------------ */
 /* Вёрстка снята с прототипа: `.io-cmd*` там же, где и остальное. Таблица не

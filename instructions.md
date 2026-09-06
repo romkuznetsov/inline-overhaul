@@ -1,6 +1,6 @@
-# Inline Overhaul: Setup and User Guide
+# inlineOverhaul: Setup and User Guide
 
-Inline Overhaul is a desktop-only Obsidian beta plugin for structured inline notes. It combines line navigation, configurable PKM fields, TagWheel editing, visual token aids, reusable text-insertion commands, and an opt-in inline-to-note transform.
+inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline notes. It combines line navigation, configurable PKM fields, TagWheel editing, visual token aids, reusable text-insertion commands, and an opt-in inline-to-note transform.
 
 > [!WARNING]
 > This is beta software. Back up the entire vault, including its `.obsidian` folder, before installation, updates, configuration imports, or Transform use. Test important workflows on disposable notes first. **Transform inline to note** can create, append to, overwrite, and edit notes.
@@ -20,26 +20,26 @@ Inline Overhaul is a desktop-only Obsidian beta plugin for structured inline not
 2. Install and enable **BRAT**.
 3. Open BRAT and choose **Add Beta plugin**.
 4. Enter `romkuznetsov/inline-overhaul`.
-5. After BRAT downloads the release, open **Settings → Community plugins** and enable **Inline Overhaul**.
+5. After BRAT downloads the release, open **Settings → Community plugins** and enable **inlineOverhaul**.
 
 ### Update
 
 1. Back up the vault.
 2. Use BRAT's update check for beta plugins, or wait for its configured update check.
-3. Confirm that **Inline Overhaul** remains enabled after the reload.
+3. Confirm that **inlineOverhaul** remains enabled after the reload.
 4. Open a disposable note and run one familiar Navigation or PKM command before using production notes.
 
 ### Uninstall
 
-1. Disable **Inline Overhaul** under **Settings → Community plugins**.
-2. Remove Inline Overhaul from BRAT's tracked beta-plugin list so BRAT does not reinstall it.
+1. Disable **inlineOverhaul** under **Settings → Community plugins**.
+2. Remove inlineOverhaul from BRAT's tracked beta-plugin list so BRAT does not reinstall it.
 3. Remove the plugin from Obsidian's installed community plugins.
 4. Delete the note the plugin generated for itself, and any settings backups you no longer want. Uninstalling the plugin does not require deleting notes you wrote yourself.
 
 ## First run
 
 1. Enable the plugin.
-2. Open **Settings → Inline Overhaul**.
+2. Open **Settings → inlineOverhaul**.
 3. In **General**, leave only modules you intend to test enabled.
 4. Open **Tags & PKM → Fields**. A fresh install already has four: `Status` and
    `Priority` before your text, `Due` and `Project` after it. Change them, delete what
@@ -87,7 +87,7 @@ Each module also has an exact command-palette toggle:
 The plugin shows this list itself, and there it also shows the key each command has now: **Keyboard → Commands & Hotkeys**. Clicking a key takes you to Obsidian's Hotkeys screen with that command already found. The list below repeats it for reading offline.
 
 > [!WARNING]
-> **Command identifiers changed.** Obsidian binds hotkeys to a command's identifier, not to its name, so every key you had assigned to an Inline Overhaul command stopped working after the update to this version. Reassign them under **Settings → Hotkeys**. The full old-to-new map is in [`docs/command_ids_v1_v2.md`](docs/command_ids_v1_v2.md), and the plugin prints it once to the developer console.
+> **Command identifiers changed.** Obsidian binds hotkeys to a command's identifier, not to its name, so every key you had assigned to an inlineOverhaul command stopped working after the update to this version. Reassign them under **Settings → Hotkeys**. The full old-to-new map is in [`docs/command_ids_v1_v2.md`](docs/command_ids_v1_v2.md), and the plugin prints it once to the developer console.
 
 ### Navigation
 
@@ -442,7 +442,7 @@ TagWheel, Navigation, Binder and Transform. Two things stay behind on purpose:
 
 Binder turns small text snippets into Obsidian commands.
 
-1. Open **Settings → Inline Overhaul → Keyboard → Binder**.
+1. Open **Settings → inlineOverhaul → Keyboard → Binder**.
 2. Enter an insert token, optional command name, and optional description.
 3. Select **Add row**.
 4. Open Obsidian **Settings → Hotkeys** and bind the new command, named after the row. **Keyboard → Commands & Hotkeys** takes you straight to it.
@@ -519,7 +519,7 @@ These defaults can rewrite the source line and create a target note. Use disposa
 ### Enable and prepare
 
 1. Keep the global **Transform module** enabled.
-2. Open **Settings → Inline Overhaul → Transform**.
+2. Open **Settings → inlineOverhaul → Transform**.
 3. Turn on **Transform inline to note**.
 4. Set a templates folder if using templates.
 5. Set an output folder, or leave it empty to use the current note's folder.
@@ -708,10 +708,10 @@ still use the left column.
 
 ## Hotkeys
 
-Inline Overhaul assigns **no** default keys to any of its commands. Two ways to give them one:
+inlineOverhaul assigns **no** default keys to any of its commands. Two ways to give them one:
 
 - **Keyboard → Commands & Hotkeys** in the plugin's settings: every command with the key it has now, and a click takes you to Obsidian's Hotkeys screen with that command already found;
-- Obsidian's own **Settings → Hotkeys**: type `Inline Overhaul` in its search box to bring up the whole set at once.
+- Obsidian's own **Settings → Hotkeys**: type `inlineOverhaul` in its search box to bring up the whole set at once.
 
 TagWheel is the exception worth knowing: once it is open you steer it with the arrow keys, so it needs only the one command that opens it.
 
@@ -776,8 +776,8 @@ Open **General** and enable the named module. For Transform, also turn on **Tran
 
 1. Confirm the Field exists in the Fields list and has a valid unique system name.
 2. Confirm the PKM module is enabled.
-3. Open **Keyboard → Commands & Hotkeys** and look for the Field's name, or search Obsidian Hotkeys for `Inline Overhaul`.
-4. If the Field was renamed or deleted, or you restored a settings backup, disable and re-enable Inline Overhaul or reload Obsidian to refresh the command registry.
+3. Open **Keyboard → Commands & Hotkeys** and look for the Field's name, or search Obsidian Hotkeys for `inlineOverhaul`.
+4. If the Field was renamed or deleted, or you restored a settings backup, disable and re-enable inlineOverhaul or reload Obsidian to refresh the command registry.
 
 Adding a Field directly in settings registers its commands immediately. Registry changes from a Field rename or delete, a restored backup, or a Binder delete and recreate need plugin disable/re-enable or an Obsidian reload. Stale commands may remain until that reload.
 
@@ -785,7 +785,7 @@ Adding a Field directly in settings registers its commands immediately. Registry
 
 1. Change any setting on **Tags & PKM**, anything at all. The plugin rewrites the
    compiled copy of your setup on every change, and that is what the commands read.
-2. Disable and re-enable Inline Overhaul.
+2. Disable and re-enable inlineOverhaul.
 
 Do not edit that compiled note by hand: it is rewritten from your settings, and
 your edits do not survive.
@@ -817,7 +817,7 @@ Transform stops before target mutation when a selected template cannot be read o
 
 ### Startup or runtime failure
 
-1. Disable Inline Overhaul.
+1. Disable inlineOverhaul.
 2. Restart Obsidian.
 3. Update through BRAT.
 4. Re-enable the plugin and test a disposable note.
@@ -842,7 +842,7 @@ Transform stops before target mutation when a selected template cannot be read o
 Use synthetic notes, tags, links, and dates:
 
 ```markdown
-## Inline Overhaul sandbox
+## inlineOverhaul sandbox
 
 - [ ] #task #research || Draft a synthetic release checklist || [[Project Atlas]] 📅2026-09-15
   - Verify package

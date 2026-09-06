@@ -14,7 +14,7 @@
  */
 
 const MARKER = "inline-overhaul-backup";
-const DEFAULT_FOLDER = "Inline Overhaul/Backups";
+const DEFAULT_FOLDER = "inlineOverhaul/Backups";
 
 /**
  * Метка перед блоком настроек. Нужна затем, что сверху заметки теперь лежит
@@ -47,6 +47,147 @@ const HOTKEYS_MARK = "<!-- " + MARKER + ": hotkeys below, do not edit by hand --
  * вместе с настройками.
  */
 const DEVICE_LOCAL = ["viewState", "backups", "meta", "_unmigrated"];
+
+/**
+ * Части копии: вкладка панели — ветка конфига (заказ заказчика 2026-09-06).
+ *
+ * Список назван тем, что человек видит на экране — вкладками, а не ветками
+ * конфига: галочка «Navigation» понятна, галочка «editor» — нет. Соответствие
+ * одно к одному и выведено из схемы, а не придумано; расхождение с ней держит
+ * пин (У-32): завели настройку в новой ветке — покраснеет здесь.
+ *
+ * Ветки, которых нет ни у одной вкладки (например `schemaVersion`), ездят в
+ * копии всегда: галочки для них нет, и показывать её было бы нечего.
+ */
+const PARTS = [
+  { id: "general", label: "General", branches: ["features", "general"] },
+  { id: "keyboard", label: "Keyboard", branches: ["editor"] },
+  { id: "navigation", label: "Navigation", branches: ["navigation"] },
+  { id: "pkm", label: "Tags & PKM", branches: ["pkm"] },
+  { id: "visual", label: "Visual", branches: ["visual"] },
+  { id: "transform", label: "Transform", branches: ["transform"] },
+  { id: "advanced", label: "Advanced", branches: ["advanced"] },
+];
+
+/** Все ветки, у которых есть галочка. */
+const PART_BRANCHES = PARTS.reduce(function(acc, part) {
+  for (const branch of part.branches) acc[branch] = part.id;
+  return acc;
+}, {});
+
+/**
+ * Объём хоткеев в копии (заказ заказчика 2026-09-06).
+ *
+ *   - `own`  — только команды плагина. Умолчание и единственный безопасный:
+ *     восстановление не имеет права тронуть чужой плагин;
+ *   - `all`  — все хоткеи vault. Снимает ту самую защиту, и окно
+ *     восстановления обязано сказать об этом прямо;
+ *   - `none` — хоткеев в копии нет вовсе.
+ */
+const HOTKEY_SCOPES = ["own", "all", "none"];
+const HOTKEY_SCOPE_DEFAULT = "own";
+
+function normalizeHotkeyScope(value) {
+  const raw = String(value === undefined || value === null ? "" : value).trim().toLowerCase();
+  return HOTKEY_SCOPES.indexOf(raw) >= 0 ? raw : HOTKEY_SCOPE_DEFAULT;
+}
+
+/** Все идентификаторы частей. Порядок тот же, что на полосе вкладок. */
+function allPartIds() {
+  return PARTS.map(function(part) { return part.id; });
+}
+
+/**
+ * Список частей из того, что пришло. `null` означает «не сказано», и это
+ * не то же, что пустой список: копии до 2026-09-06 частей не называют вовсе, и
+ * восстанавливаться они обязаны как раньше — заменой целиком (Б10).
+ */
+function normalizeParts(value) {
+  if (value === undefined || value === null) return null;
+  const list = Array.isArray(value)
+    ? value
+    : String(value).split(",");
+  const known = allPartIds();
+  const out = [];
+  for (const raw of list) {
+    const id = String(raw === undefined || raw === null ? "" : raw).trim();
+    if (known.indexOf(id) >= 0 && out.indexOf(id) === -1) out.push(id);
+  }
+  return out;
+}
+
+/** Ветки, которые едут в копии при выбранных частях. */
+function branchesOf(partIds) {
+  const ids = Array.isArray(partIds) ? partIds : allPartIds();
+  const out = {};
+  for (const part of PARTS) {
+    if (ids.indexOf(part.id) === -1) continue;
+    for (const branch of part.branches) out[branch] = true;
+  }
+  return out;
+}
+
+/** Подписи выбранных частей — для окна и для текста заметки. */
+function partLabels(partIds) {
+  const ids = Array.isArray(partIds) ? partIds : allPartIds();
+  return PARTS.filter(function(part) { return ids.indexOf(part.id) >= 0; })
+    .map(function(part) { return part.label; });
+}
+
+/**
+ * Что ложится в копию при выбранных частях. Все части — ровно
+ * `stripDeviceLocal`, то есть то же, что было до галочек.
+ */
+function selectParts(cfg, partIds) {
+  const wanted = branchesOf(partIds);
+  const out = {};
+  if (!isObj(cfg)) return out;
+  for (const key of Object.keys(cfg)) {
+    if (DEVICE_LOCAL.indexOf(key) >= 0) continue;
+    if (PART_BRANCHES[key] && !wanted[key]) continue;
+    out[key] = cloneJson(cfg[key]);
+  }
+  return out;
+}
+
+/**
+ * Нынешнее плюс то, что копия принесла (решение заказчика 2026-09-06).
+ *
+ * Неотмеченная при сохранении вкладка **остаётся такой, какая сейчас**, а не
+ * сбрасывается к заводскому: так одним нажатием не теряется работа, которой
+ * в копии и не было. Отмеченная — заменяется целиком, включая случай «в копии
+ * такой ветки нет»: копия описывает отмеченную часть целиком.
+ *
+ * `partIds` равный `null` — копия частей не называет, и восстановление идёт
+ * заменой целиком, как шло до 2026-09-06 (Б10).
+ */
+function mergeParts(current, restored, partIds) {
+  if (!Array.isArray(partIds)) return keepDeviceLocal(current, restored);
+  const wanted = branchesOf(partIds);
+  const out = {};
+  if (isObj(current)) {
+    for (const key of Object.keys(current)) out[key] = cloneJson(current[key]);
+  }
+  if (isObj(restored)) {
+    for (const key of Object.keys(restored)) {
+      if (DEVICE_LOCAL.indexOf(key) >= 0) continue;
+      if (PART_BRANCHES[key] && !wanted[key]) continue;
+      out[key] = cloneJson(restored[key]);
+    }
+  }
+  for (const branch of Object.keys(wanted)) {
+    if (!isObj(restored) || restored[branch] === undefined) delete out[branch];
+  }
+  return out;
+}
+
+/** Комментарий человека одной строкой: переводы строк в шапке недопустимы. */
+function normalizeComment(value) {
+  return String(value === undefined || value === null ? "" : value)
+    .replace(/[\r\n]+/g, " ")
+    .trim()
+    .slice(0, 300);
+}
 
 /* ---- видимые строки: английские, без точки в конце (Р9, Р10) ----------- */
 
@@ -144,6 +285,13 @@ function summarize(cfg) {
 
 function plural(n, one, many) {
   return String(n) + " " + (n === 1 ? one : many);
+}
+
+/** Подписи частей, которых в копии нет. */
+function missingLabels(partIds) {
+  const ids = Array.isArray(partIds) ? partIds : allPartIds();
+  return PARTS.filter(function(part) { return ids.indexOf(part.id) === -1; })
+    .map(function(part) { return part.label; });
 }
 
 /** Строка состава для заметки и для окна выбора. */
@@ -260,12 +408,16 @@ function normalizeHotkeys(map) {
  */
 function buildBackupNote(o) {
   const opts = isObj(o) ? o : {};
-  const config = stripDeviceLocal(opts.config);
+  /* Частей не назвали — значит все: так же, как было до галочек. */
+  const parts = normalizeParts(opts.parts) || allPartIds();
+  const scope = normalizeHotkeyScope(opts.hotkeyScope);
+  const comment = normalizeComment(opts.comment);
+  const config = selectParts(opts.config, parts);
   const version = String(opts.pluginVersion || "").trim();
   const when = opts.savedAt instanceof Date ? opts.savedAt : new Date();
   const json = JSON.stringify(config, null, 2);
   const fence = fenceFor(json);
-  const hotkeys = normalizeHotkeys(opts.hotkeys);
+  const hotkeys = scope === "none" ? {} : normalizeHotkeys(opts.hotkeys);
   const hotkeyIds = Object.keys(hotkeys).sort();
   const hotkeysJson = JSON.stringify(hotkeys, null, 2);
   const hotkeysFence = fenceFor(hotkeysJson);
@@ -274,6 +426,15 @@ function buildBackupNote(o) {
     MARKER + ": 1",
     "saved: " + readable(when),
     "plugin: " + (version || "unknown"),
+    /*
+     * Состав копии читается **только отсюда** — по той же причине, по какой
+     * шапка читается только из frontmatter (Б17): всё, что ниже, человек
+     * вправе переписать. Комментарий одной строкой: перевод строки
+     * внутри шапки завёл бы в ней чужое свойство.
+     */
+    "parts: " + parts.join(", "),
+    "hotkeys: " + scope,
+    ...(comment ? ["note: " + comment] : []),
     "---",
     "",
     /*
@@ -285,13 +446,18 @@ function buildBackupNote(o) {
     "",
     NOTES_HINT + ". The plugin never reads this part, so nothing you write here changes what comes back",
     "",
-    "# Inline Overhaul settings backup",
+    ...(comment ? [comment, ""] : []),
+    "# inlineOverhaul settings backup",
     "",
     "Saved on " + readable(when) + (version ? " from plugin version " + version : "") + ".",
     "Holds " + summaryLine(config) + ".",
+    "Tabs inside: " + partLabels(parts).join(", ") + ".",
+    ...(missingLabels(parts).length
+      ? ["Left out, so restoring keeps what you have there: " + missingLabels(parts).join(", ") + "."]
+      : []),
     "",
-    "To bring these settings back, open **Settings → Inline Overhaul → Advanced → Settings backup**",
-    "and press `Restore a backup`. Restoring replaces everything you have set up now;",
+    "To bring these settings back, open **Settings → inlineOverhaul → Advanced → Settings backup**",
+    "and press `Restore a backup`. Restoring replaces the tabs listed above and leaves the rest alone;",
     "whether the plugin saves what you have at that moment before it writes is a toggle there.",
     "",
     "You can move this note to another vault, or send it to yourself on another device.",
@@ -433,6 +599,9 @@ function describeBackup(text) {
   const front = frontmatter(raw);
   const saved = /^saved\s*:\s*(.+)$/m.exec(front);
   const version = /^plugin\s*:\s*(.+)$/m.exec(front);
+  const partsLine = /^parts\s*:\s*(.*)$/m.exec(front);
+  const scopeLine = /^hotkeys\s*:\s*(.+)$/m.exec(front);
+  const commentLine = /^note\s*:\s*(.+)$/m.exec(front);
   let summary = "";
   try {
     summary = summaryLine(parseBackupNote(raw));
@@ -444,6 +613,10 @@ function describeBackup(text) {
     pluginVersion: version ? String(version[1]).trim() : "",
     summary: summary,
     hotkeys: Object.keys(parseBackupHotkeys(raw)).length,
+    /* `null` — копия частей не называет вовсе (снята до 2026-09-06). */
+    parts: partsLine ? normalizeParts(partsLine[1]) : null,
+    hotkeyScope: scopeLine ? normalizeHotkeyScope(scopeLine[1]) : HOTKEY_SCOPE_DEFAULT,
+    comment: commentLine ? normalizeComment(commentLine[1]) : "",
   };
 }
 
@@ -475,6 +648,19 @@ function looksLikeBackup(text) {
 
 module.exports = {
   MARKER,
+  PARTS,
+  PART_BRANCHES,
+  HOTKEY_SCOPES,
+  HOTKEY_SCOPE_DEFAULT,
+  normalizeHotkeyScope,
+  allPartIds,
+  normalizeParts,
+  branchesOf,
+  partLabels,
+  missingLabels,
+  selectParts,
+  mergeParts,
+  normalizeComment,
   SETTINGS_MARK,
   HOTKEYS_MARK,
   NOTES_HEADING,

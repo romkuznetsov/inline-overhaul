@@ -22,6 +22,11 @@ import { SettingsPane } from "./settings_tab.ts";
 import { ConfigStoreAdapter, type ConfigStoreLike } from "./store.ts";
 import {
   buildActions,
+  type AnnounceRequest,
+  type BackupOptions,
+  type BackupOptionsRequest,
+  type HotkeyConflict,
+  type HotkeyWriteOptions,
   type BackupFile,
   type ConfigSeam,
   type ConfirmRequest,
@@ -29,7 +34,8 @@ import {
   type PickRequest,
   type VaultSeam,
 } from "./actions.ts";
-import { el } from "./custom/dom.ts";
+import { checkInput, el, selectInput, textInput, type ElCheck } from "./custom/dom.ts";
+import { hotkeyListWords } from "../../features/settings_backup.js";
 import { tabStripRow } from "./custom/tab_strip.ts";
 import type { ActionId } from "./types.ts";
 
@@ -37,6 +43,12 @@ import type { ActionId } from "./types.ts";
 interface HostPlugin {
   store?: ConfigStoreLike & { config?: Record<string, unknown>; getSnapshot?: () => Record<string, unknown> };
   getConfig?: () => Record<string, unknown>;
+  /*
+   * Заново собрать всё, что плагин строит из конфига: команды и место
+   * служебного файла. Необязательный: без него восстановление работает
+   * как работало, а последствия разбирает перезапуск.
+   */
+  rebuildFromConfig?: () => Promise<void> | void;
 }
 
 /**
@@ -110,6 +122,22 @@ function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
           for (const row of o.rows) el(list, "li", undefined, row);
         }
         if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        /*
+         * Галочка стоит между списком и кнопками: её читают после того, как
+         * узнали, что именно произойдёт, и до того, как нажали.
+         */
+        if (o.check) {
+          const input = checkInput(box, "io-dlg__check", {
+            label: o.check.label,
+            labelCls: "io-dlg__check-label",
+            checked: o.check.checked === true,
+          });
+          if (o.check.sub) el(box, "p", "io-item__desc io-dlg__note", o.check.sub);
+          input.addEventListener("change", (() => {
+            if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
+          }) as never);
+          if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
+        }
         const foot = el(box, "div", "io-dlg__foot");
         const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
         cancel.addEventListener("click", (() => { finish(false); this.close(); }) as never);
@@ -128,6 +156,130 @@ function askConfirm(app: App, o: ConfirmRequest): Promise<boolean> {
     }
 
     new ConfirmModal(app).open();
+  });
+}
+
+/**
+ * Окно на одну кнопку (просьба заказчика 2026-09-06). Отдельное от окна
+ * подтверждения: здесь ответа нет, есть только «прочитал». Закрытие мимо
+ * кнопки — то же самое, поэтому обещание разрешается в обоих случаях и ровно
+ * один раз.
+ */
+function announce(app: App, o: AnnounceRequest): Promise<void> {
+  return new Promise<void>(resolve => {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+
+    class AnnounceModal extends Modal {
+      override onOpen(): void {
+        const box = this.contentEl as unknown as import("./custom/dom.ts").El;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", undefined, o.title);
+        el(box, "p", "io-item__desc", o.body);
+        if (o.rows && o.rows.length) {
+          const list = el(box, "ul", "io-dlg__list");
+          for (const row of o.rows) el(list, "li", undefined, row);
+        }
+        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        const foot = el(box, "div", "io-dlg__foot");
+        const go = foot.createEl("button", {
+          cls: "io-btn io-btn--cta",
+          text: o.closeLabel,
+          attr: { type: "button" },
+        });
+        go.addEventListener("click", (() => { finish(); this.close(); }) as never);
+      }
+
+      override onClose(): void {
+        finish();
+        this.contentEl.empty();
+      }
+    }
+
+    new AnnounceModal(app).open();
+  });
+}
+
+/**
+ * Окно состава копии (заказ заказчика 2026-09-06).
+ *
+ * Всё в нём уже выбрано по-максимуму, и `Enter` сразу даёт то же, что давала
+ * кнопка до окна. Закрытие мимо кнопки — отказ, как и во всех окнах панели.
+ */
+function askBackupOptions(app: App, o: BackupOptionsRequest): Promise<BackupOptions | null> {
+  return new Promise<BackupOptions | null>(resolve => {
+    let answered = false;
+    const finish = (value: BackupOptions | null): void => {
+      if (answered) return;
+      answered = true;
+      resolve(value);
+    };
+
+    class OptionsModal extends Modal {
+      override onOpen(): void {
+        const box = this.contentEl as unknown as import("./custom/dom.ts").El;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", undefined, o.title);
+        el(box, "p", "io-item__desc", o.body);
+
+        el(box, "div", "io-dlg__field-label", o.commentLabel);
+        const comment = textInput(box, "io-dlg__input", {
+          value: "",
+          label: o.commentLabel,
+          placeholder: o.commentHint,
+        });
+
+        const boxes: { id: string; input: ElCheck }[] = [];
+        const list = el(box, "div", "io-dlg__checks");
+        for (const part of o.parts) {
+          boxes.push({
+            id: part.id,
+            input: checkInput(list, "io-dlg__check", {
+              label: part.label,
+              labelCls: "io-dlg__check-label",
+              checked: part.checked === true,
+            }),
+          });
+        }
+
+        el(box, "div", "io-dlg__field-label", o.hotkeyLabel);
+        const scope = selectInput(box, "io-dlg__select", {
+          options: o.hotkeyOptions,
+          value: o.hotkeyDefault,
+          label: o.hotkeyLabel,
+        });
+
+        const foot = el(box, "div", "io-dlg__foot");
+        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
+        const go = foot.createEl("button", {
+          cls: "io-btn io-btn--cta",
+          text: o.confirmLabel,
+          attr: { type: "button" },
+        });
+        go.addEventListener("click", (() => {
+          finish({
+            parts: boxes.filter(b => b.input.checked).map(b => b.id),
+            comment: String(comment.value || ""),
+            hotkeyScope: String(scope.value || o.hotkeyDefault),
+          });
+          this.close();
+        }) as never);
+      }
+
+      override onClose(): void {
+        finish(null);
+        this.contentEl.empty();
+      }
+    }
+
+    new OptionsModal(app).open();
   });
 }
 
@@ -289,9 +441,37 @@ function pluginVersionOf(plugin: HostPlugin): string {
  */
 interface HotkeyManagerApi {
   customKeys?: Record<string, unknown>;
+  /** Хоткеи по умолчанию: команда держит клавишу и тогда, когда её не назначали руками. */
+  defaultKeys?: Record<string, unknown>;
   setHotkeys?: (id: string, bindings: unknown[]) => void;
   removeHotkeys?: (id: string) => void;
   save?: () => Promise<void> | void;
+}
+
+/** Реестр команд Obsidian: нужно только имя, чтобы назвать чужую команду в окне. */
+function commandNameOf(app: App, id: string): string {
+  const holder = app as unknown as { commands?: { commands?: Record<string, { name?: unknown }> } };
+  const found = holder && holder.commands && holder.commands.commands
+    ? holder.commands.commands[id]
+    : null;
+  const name = found && found.name ? String(found.name) : "";
+  return name || id;
+}
+
+/**
+ * Привязка одной строкой для сравнения. Модификаторы сортируются: `Mod+Shift`
+ * и `Shift+Mod` — одна и та же клавиатурная комбинация, и человек видит их
+ * одинаково. Сравнивать по порядку значило бы пропустить половину конфликтов.
+ */
+function bindingKey(binding: unknown): string {
+  const row = binding && typeof binding === "object" ? binding as { modifiers?: unknown; key?: unknown } : null;
+  if (!row) return "";
+  const mods = Array.isArray(row.modifiers)
+    ? row.modifiers.map(m => String(m || "").trim().toLowerCase()).filter(Boolean).sort()
+    : [];
+  const key = String(row.key === undefined || row.key === null ? "" : row.key).trim().toLowerCase();
+  if (!key) return "";
+  return mods.join("+") + "|" + key;
 }
 
 function hotkeyManagerOf(app: App): HotkeyManagerApi | null {
@@ -311,7 +491,63 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
   const prefix = commandPrefixOf(plugin);
   const mine = (id: string): boolean => String(id || "").startsWith(prefix);
 
+  /** Что команда держит сейчас: назначенное руками сильнее умолчания. */
+  const effective = (hm: HotkeyManagerApi, id: string): unknown[] => {
+    const custom = hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys[id] : undefined;
+    if (Array.isArray(custom)) return custom;
+    const fallback = hm.defaultKeys && typeof hm.defaultKeys === "object" ? hm.defaultKeys[id] : undefined;
+    return Array.isArray(fallback) ? fallback : [];
+  };
+
   return {
+    /**
+     * Всё, что человек назначил руками — включая чужие команды. Умолчания
+     * сюда не попадают намеренно: они приедут с самими плагинами, а в копии
+     * означали бы «человек так решил» — чего он не решал.
+     */
+    readAll: () => {
+      const out: Record<string, unknown[]> = {};
+      const hm = hotkeyManagerOf(app);
+      const custom = hm && hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : null;
+      if (!custom) return out;
+      for (const id of Object.keys(custom)) {
+        const value = custom[id];
+        if (Array.isArray(value)) out[id] = value as unknown[];
+      }
+      return out;
+    },
+
+    /**
+     * Чужие команды, держащие те же клавиши. Считается по **действующим**
+     * привязкам, а не только по назначенным руками: команда со своим умолчанием
+     * конфликтует точно так же, и именно о ней Obsidian ругается после перезапуска.
+     */
+    conflicts: (map: Record<string, unknown[]>) => {
+      const hm = hotkeyManagerOf(app);
+      if (!hm) return [];
+      const wanted = new Map<string, true>();
+      for (const id of Object.keys(map || {})) {
+        const list = Array.isArray(map[id]) ? map[id] : [];
+        for (const binding of list) {
+          const key = bindingKey(binding);
+          if (key) wanted.set(key, true);
+        }
+      }
+      if (!wanted.size) return [];
+      const ids = new Set<string>();
+      for (const source of [hm.customKeys, hm.defaultKeys]) {
+        if (source && typeof source === "object") for (const id of Object.keys(source)) ids.add(id);
+      }
+      const out: HotkeyConflict[] = [];
+      for (const id of ids) {
+        if (mine(id) || map[id] !== undefined) continue;
+        const clashing = effective(hm, id).filter(binding => wanted.has(bindingKey(binding)));
+        if (!clashing.length) continue;
+        out.push({ id, name: commandNameOf(app, id), hotkey: hotkeyListWords(clashing) });
+      }
+      return out;
+    },
+
     read: () => {
       const out: Record<string, unknown[]> = {};
       const hm = hotkeyManagerOf(app);
@@ -325,15 +561,51 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
       return out;
     },
 
-    write: async (map: Record<string, unknown[]>) => {
+    write: async (map: Record<string, unknown[]>, opts?: HotkeyWriteOptions) => {
       const hm = hotkeyManagerOf(app);
       if (!hm || typeof hm.setHotkeys !== "function" || typeof hm.removeHotkeys !== "function") {
         throw new Error("This build of Obsidian does not let the plugin write hotkeys");
       }
+      /*
+       * Объём решает копия, а не этот код: чужие хоткеи пишутся только
+       * тогда, когда человек сам выбрал `all` при сохранении и увидел это
+       * в окне восстановления (заказ заказчика 2026-09-06). Умолчание прежнее.
+       */
+      const wide = opts && opts.scope === "all";
       const wanted = new Set<string>();
       let touched = 0;
+
+      /*
+       * Конфликты снимаются **до** того, как клавиша ляжет на нашу команду:
+       * иначе после записи «чужой держатель» и наш новый были бы неразличимы.
+       * Пустой список через `setHotkeys` — это и есть «человек снял клавишу»;
+       * `removeHotkeys` вернул бы умолчание плагина и ничего не решил.
+       */
+      if (opts && opts.clearConflicts) {
+        const wantedKeys = new Set<string>();
+        for (const id of Object.keys(map || {})) {
+          const list = Array.isArray(map[id]) ? map[id] : [];
+          for (const binding of list) {
+            const key = bindingKey(binding);
+            if (key) wantedKeys.add(key);
+          }
+        }
+        const ids = new Set<string>();
+        for (const source of [hm.customKeys, hm.defaultKeys]) {
+          if (source && typeof source === "object") for (const id of Object.keys(source)) ids.add(id);
+        }
+        for (const id of ids) {
+          if (mine(id) || map[id] !== undefined) continue;
+          const now = effective(hm, id);
+          const kept = now.filter(binding => !wantedKeys.has(bindingKey(binding)));
+          if (kept.length === now.length) continue;
+          hm.setHotkeys(id, kept);
+          touched++;
+        }
+      }
+
       for (const id of Object.keys(map || {})) {
-        if (!mine(id)) continue;
+        if (!wide && !mine(id)) continue;
         const bindings = Array.isArray(map[id]) ? map[id] : [];
         wanted.add(id);
         hm.setHotkeys(id, bindings);
@@ -341,9 +613,12 @@ function hotkeySeam(app: App, plugin: HostPlugin): HotkeySeam {
       }
       /*
        * Своё, чего в копии нет, снимается: копия описывает состояние целиком,
-       * и оставленный хоткей был бы состоянием, которого в ней не было. Ровно
-       * так же поступает восстановление настроек — заменой, а не слиянием
-       * (Б10).
+       * и оставленный хоткей был бы состоянием, которого в ней не было.
+       *
+       * **Снимается только своё, даже при `all`.** Для наших команд копия —
+       * полный список, а для чужих она говорит только про то, что в ней есть:
+       * чужой хоткей, заведённый после снятия копии, не должен исчезать оттого,
+       * что копию сняли раньше (Б10 касается наших настроек, а не чужих).
        */
       const custom = hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : {};
       for (const id of Object.keys(custom)) {
@@ -387,6 +662,17 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         pluginVersion: pluginVersionOf(plugin),
         /* Хоткеи: второе исключение к 7.2, разрешение заказчика 2026-09-04. */
         hotkeys: hotkeySeam(app, plugin),
+        /*
+         * После восстановления. `addCommand` у Obsidian кладёт команду
+         * в словарь по её id, поэтому повторный заход обновляет старые и
+         * добавляет новые, а не двоит. Команды снятых Field остаются до
+         * перезапуска — про него и говорит окно.
+         */
+        rebuildFromConfig: typeof plugin.rebuildFromConfig === "function"
+          ? () => plugin.rebuildFromConfig!()
+          : undefined,
+        announce: (o: AnnounceRequest) => announce(app, o),
+        askBackupOptions: (o: BackupOptionsRequest) => askBackupOptions(app, o),
       }) as Record<string, () => Promise<void> | void>,
       /* То же окно и для сброса группы (Н3). */
       confirm: (o: ConfirmRequest) => askConfirm(app, o),
@@ -454,7 +740,7 @@ export class InlineOverhaulSettings extends PluginSettingTab {
     el.empty();
     const box = el.createDiv({ cls: "io-needs-update" });
     box.createEl("p", {
-      text: "Inline Overhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API.",
+      text: "inlineOverhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API.",
     });
     box.createEl("p", {
       text: "Update Obsidian, or install an earlier release of the plugin.",

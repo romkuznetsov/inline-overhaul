@@ -1205,6 +1205,7 @@ var require_navigation_runtime = __commonJS({
       }
       const io = parseJsonFence(md, "tagwheel-io") || {};
       const leftMode = parseJsonFence(md, "tagwheel-left-mode") || {};
+      const rightMode = parseJsonFence(md, "tagwheel-right-mode") || {};
       const dateRules = parseJsonFence(md, "tagwheel-date-rules") || {};
       const fields = Array.isArray(leftMode.fields) ? leftMode.fields : [];
       const byId = /* @__PURE__ */ new Map();
@@ -1238,6 +1239,12 @@ var require_navigation_runtime = __commonJS({
           for (const m of rule.markers) if (typeof m === "string" && m) markers.push(m);
         }
       }
+      for (const block2 of [leftMode, rightMode]) {
+        const list = block2 && Array.isArray(block2.fields) ? block2.fields : [];
+        for (const f3 of list) {
+          if (f3 && typeof f3.marker === "string" && f3.marker) markers.push(f3.marker);
+        }
+      }
       return {
         rulesPathUsed: usedPath,
         delim: typeof io.separator1 === "string" && io.separator1 ? io.separator1 : "||",
@@ -1257,13 +1264,13 @@ var require_navigation_runtime = __commonJS({
       const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const parsePrefixEnd = (s) => {
         let i = 0;
-        let m = s.match(/^([-*+])\s+/);
+        let m = s.match(/^([-*+])\s/);
         if (m) i = m[0].length;
         else {
-          m = s.match(/^(\d+)\.\s+/);
+          m = s.match(/^(\d+)\.\s/);
           if (m) i = m[0].length;
         }
-        m = s.slice(i).match(/^\[([^\]])\]\s+/);
+        m = s.slice(i).match(/^\[([^\]])\]\s/);
         if (m) i += m[0].length;
         return i;
       };
@@ -1365,9 +1372,12 @@ var require_navigation_runtime = __commonJS({
           scopeStartAbs2 = indentAbs + textStartNoDelimRel;
           scopeEndAbs2 = indentAbs + trimRightBeforeIndex(s, delimIndex);
         }
-        const zoneStart2 = cfg.boundaryJump ? hardStartAbs : scopeStartAbs2;
+        let zoneStart2 = cfg.boundaryJump ? hardStartAbs : scopeStartAbs2;
         let zoneEnd2 = cfg.boundaryJump ? hardEndAbs : scopeEndAbs2;
-        if (zoneEnd2 < zoneStart2) zoneEnd2 = zoneStart2;
+        if (zoneEnd2 < zoneStart2) {
+          zoneStart2 = Math.max(hardStartAbs, zoneEnd2);
+          zoneEnd2 = zoneStart2;
+        }
         return {
           line: targetLine,
           rawLine: rawLine2,
@@ -3204,7 +3214,7 @@ var require_status_date = __commonJS({
         const missingEmojiFields = collectMissingEmojiFields(rules, dateRuntimeCfg);
         if (missingEmojiFields.length) {
           try {
-            new Notice(`TagWheel config error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Set it in Settings -> Inline Overhaul -> Tags & PKM -> Fields`);
+            new Notice(`TagWheel config error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields`);
           } catch (_) {
           }
         }
@@ -7428,7 +7438,7 @@ var require_tagwheel = __commonJS({
         rulesHelpers.applyOrderToRules(rules, orderCfg);
         var missingEmojiFields = dateRuntimeShared.collectMissingEmojiFieldsFromRules(rules, dateRuntimeCfg);
         if (missingEmojiFields.length) {
-          notice("TagWheel config error: Emoji is required for fields: " + missingEmojiFields.join(", ") + ". Set it in Settings -> Inline Overhaul -> Tags & PKM -> Fields");
+          notice("TagWheel config error: Emoji is required for fields: " + missingEmojiFields.join(", ") + ". Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields");
           return;
         }
         var sf = String(runtimeInput && runtimeInput.subtagFormat ? runtimeInput.subtagFormat : "").toLowerCase().trim();
@@ -11689,7 +11699,11 @@ var require_pkm_line_finalize_unified = __commonJS({
         const leftTech = /(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(baseLeft) || baseLeft.split(/\s+/).some(function(t) {
           return startsWithAnyDateMarker(t, rules);
         });
-        if (!leftTech) return `${indent}${baseLeft} ${sep1} ${dates}`;
+        if (!leftTech) {
+          if (/^[-*+]\s+\[[^\]]\]$/.test(baseLeft)) return `${indent}${baseLeft}  ${sep1} ${dates}`;
+          if (baseLeft === "-") return `${indent}${baseLeft}  ${sep1} ${dates}`;
+          return `${indent}${baseLeft} ${sep1} ${dates}`;
+        }
         if (sep1 === sep2) return `${indent}${baseLeft} ${sep1}  ${sep2} ${dates}`;
         return `${indent}${baseLeft} ${sep1} ${sep2} ${dates}`;
       }
@@ -21156,7 +21170,7 @@ var init_custom_texts = __esm({
     "use strict";
     TAB_CALLOUTS = {
       general: {
-        head: "Inline Overhaul lets one line of a note carry its own status, dates and links",
+        head: "inlineOverhaul lets one line of a note carry its own status, dates and links",
         tip: "The tabs across the top follow the order in which people usually set the plugin up, so reading them left to right is reading the plugin. Nothing here depends on anything else: a Field you set up on <b>Tags & PKM</b> works with the keys off, and the keys work with no Fields at all. The two areas worth knowing about before you start are <b>Transform</b>, the only one that creates and edits files, and <b>Keyboard</b>: none of the commands has a key by default, so until you bind one nothing responds",
         body: "Four areas, and one of them is enough. <b>Keyboard</b> gives you the keys and shows what each one is bound to. <b>Navigation</b> moves lines, text and the cursor without the mouse. <b>Tags & PKM</b> is the heart of it: you lay out the slots a line can hold \u2014 a status, a priority, a due date \u2014 and afterwards one keypress fills one in and steps it forward. <b>Visual</b> decides how those slots look while you write, and <b>Transform</b> turns a finished line into a note of its own. Three steps to get going: switch off any area you do not want, press <code>Read</code> above for a worked example, then lay out your first Field on <b>Tags & PKM</b>. Nothing is written into your notes until you press a key, and the one area that creates files stays off until you switch it on"
       },
@@ -21374,6 +21388,13 @@ function textInput(parent, cls, o) {
   const opts = { cls, type: "text", value: o.value, attr: { "aria-label": o.label } };
   if (o.placeholder !== void 0) opts.placeholder = o.placeholder;
   return parent.createEl("input", opts);
+}
+function checkInput(parent, cls, o) {
+  const wrap = parent.createEl("label", { cls });
+  const node = wrap.createEl("input", { type: "checkbox" });
+  node.checked = o.checked === true;
+  wrap.createEl("span", { cls: o.labelCls, text: o.label });
+  return node;
 }
 function selectInput(parent, cls, o) {
   const node = parent.createEl("select", { cls, attr: { "aria-label": o.label } });
@@ -22503,7 +22524,7 @@ var init_keyboard = __esm({
         order: 300,
         heading: "Commands & Hotkeys",
         intro: "Everything this plugin can do, in one list. None of it has a key until you give it one \u2014 click in the <code>Hotkey</code> column to do that",
-        tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>Inline Overhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
+        tip: "One row per command this build actually registers, so the list answers two questions at once: what the plugin can do, and which of it you have already put on a key. The <code>Hotkey</code> column is the only thing you set here \u2014 click a cell and Obsidian\u2019s own hotkey screen opens on that command. Rows appear and disappear with your setup: every Field adds a pair of cycle commands, every Binder row adds one, and turning a module off takes its commands away. In Obsidian\u2019s own hotkey list these all appear under <b>inlineOverhaul</b>, so typing that in its search box brings up the whole set at once. TagWheel is the exception: once it is open you steer it with the arrow keys, so it needs only the one command that opens it",
         items: [
           { kind: "custom", id: "command-list", render: commandReference }
         ]
@@ -31804,7 +31825,7 @@ var init_advanced = __esm({
             kind: "text",
             id: "backup-folder",
             path: "advanced.backups.folder",
-            default: "Inline Overhaul/Backups",
+            default: "inlineOverhaul/Backups",
             wide: true,
             name: "Backup folder",
             desc: "Where in your vault the backups are kept",
@@ -31900,7 +31921,7 @@ var init_schema = __esm({
     init_transform();
     init_advanced();
     TABS = [
-      { id: "general", label: "General", desc: "Inline Overhaul lets one line of a note carry its own status, dates and links", flat: true },
+      { id: "general", label: "General", desc: "inlineOverhaul lets one line of a note carry its own status, dates and links", flat: true },
       { id: "keyboard", label: "Keyboard", desc: "Everything about keys lives here" },
       { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "This menu helps to make inline navigation in Obsidian comfortable" },
       { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },
@@ -32272,7 +32293,7 @@ function migrate(raw, opts) {
     if (report.contested.length) {
       parts.push("\u0441\u0442\u0430\u0440\u044B\u0435 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u044F \u0443\u0441\u0442\u0443\u043F\u0438\u043B\u0438 \u0442\u043E\u043C\u0443, \u0447\u0442\u043E \u0437\u0430\u043F\u0438\u0441\u0430\u043D\u043E \u0432 \u043D\u043E\u0432\u043E\u0439 \u043F\u0430\u043D\u0435\u043B\u0438, \u0438 \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u044B \u0432 _unmigrated: " + report.contested.join(", "));
     }
-    log("Inline Overhaul, \u043C\u0438\u0433\u0440\u0430\u0446\u0438\u044F \u043A\u043E\u043D\u0444\u0438\u0433\u0430 1 \u2192 2. " + parts.join("; "));
+    log("inlineOverhaul, \u043C\u0438\u0433\u0440\u0430\u0446\u0438\u044F \u043A\u043E\u043D\u0444\u0438\u0433\u0430 1 \u2192 2. " + parts.join("; "));
   }
   return out;
 }
@@ -32338,7 +32359,7 @@ async function loadConfig(files, dir, notify, opts) {
     const target = join(dir, BROKEN_FILE);
     if (!await files.exists(target)) await files.write(target, text);
     if (notify) {
-      notify("Inline Overhaul could not read its settings file. A copy is kept at " + target + " and the plugin started with default settings");
+      notify("inlineOverhaul could not read its settings file. A copy is kept at " + target + " and the plugin started with default settings");
     }
     return withRulesPath({
       config: migrate(null, merged),
@@ -33747,7 +33768,7 @@ function howtoMarkdown() {
 }
 function intro() {
   return [
-    "> [!Guide] Inline Overhaul: a practical guide",
+    "> [!Guide] inlineOverhaul: a practical guide",
     "> The mission of this plugin is to improve quality of life while working in Obsidian",
     "> and to reduce the friction of making notes.",
     ">",
@@ -33776,8 +33797,8 @@ function firstSteps() {
     "",
     "1. **Bind a few commands to keys.** Nothing in this plugin has a key by default, and",
     "   that is deliberate: it cannot fight with what you already use. Open",
-    "   `Settings \u2192 Hotkeys`, type `Inline Overhaul` and bind what you want. The other way",
-    "   round works too: `Inline Overhaul \u2192 Keyboard \u2192 Commands & Hotkeys`, find the",
+    "   `Settings \u2192 Hotkeys`, type `inlineOverhaul` and bind what you want. The other way",
+    "   round works too: `inlineOverhaul \u2192 Keyboard \u2192 Commands & Hotkeys`, find the",
     "   command and press `not set` in its `Hotkey` column, and Obsidian opens its own",
     "   Hotkeys screen already filtered to that command.",
     "	1. `Open TagWheel on the left` is the one you will press most. It opens the",
@@ -33792,7 +33813,7 @@ function firstSteps() {
     "	   (*I use `Shift + Ctrl + Arrow up` and `Shift + Ctrl + Arrow down`*)",
     "2. **Look at your Fields.** A fresh install comes with four of them: `Status` and",
     "   `Priority` before your text, `Due` and `Project` after it. Open",
-    "   `Inline Overhaul \u2192 Tags & PKM \u2192 Fields` and see what they hold. Once you have the",
+    "   `inlineOverhaul \u2192 Tags & PKM \u2192 Fields` and see what they hold. Once you have the",
     "   idea, delete the ones you do not want with the bin button, or go to",
     "   `Advanced \u2192 Settings backup \u2192 Start over` and begin from scratch. They come with a",
     "   fresh install only: `Start over` does not bring them back.",
@@ -33811,7 +33832,7 @@ function firstSteps() {
     "   `Fill` and `Text` columns of that Field `Values` table.",
     "5. **Type a few more lines.** Try `Move left`, `Move right`, `Move line up` and",
     "   `Move line down` on them. They are close to intuitive, and every part of them is",
-    "   adjustable in `Inline Overhaul \u2192 Navigation`. Worth doing: change one option, then",
+    "   adjustable in `inlineOverhaul \u2192 Navigation`. Worth doing: change one option, then",
     "   go straight back to a real note and try it out.",
     "",
     "Everything else is worth reading only after those five steps."
@@ -33821,7 +33842,7 @@ function fieldsAndValues() {
   return [
     "## Fields and Values",
     "",
-    "Open `Inline Overhaul \u2192 Tags & PKM \u2192 Fields`.",
+    "Open `inlineOverhaul \u2192 Tags & PKM \u2192 Fields`.",
     "",
     "A **Field** is a slot on the line: `Status`, `Priority`, `Project`, `Due`, whatever",
     "you want. A **Value** is what you put in that slot. One Field carries one kind of",
@@ -33889,7 +33910,7 @@ function tagWheel() {
     "in it. Arrow keys move between Fields and between Values, and the line updates as you",
     "move.",
     "",
-    "How it looks is `Inline Overhaul \u2192 Visual \u2192 TagWheel`:",
+    "How it looks is `inlineOverhaul \u2192 Visual \u2192 TagWheel`:",
     "",
     "* **`Scroller`** turns on a second small panel beside the Field you are on, showing",
     "  the Values above and below the current one;",
@@ -33910,7 +33931,7 @@ function bars() {
   return [
     "## Tag Bars",
     "",
-    "`Inline Overhaul \u2192 Visual \u2192 Tag Bars`",
+    "`inlineOverhaul \u2192 Visual \u2192 Tag Bars`",
     "",
     "A Bar is a coloured stripe in the margin of a note. It runs down the side of a line",
     "**and everything nested under it**, so a whole block of lines tells you what it is",
@@ -33926,7 +33947,7 @@ function binder() {
   return [
     "## Binder",
     "",
-    "`Inline Overhaul \u2192 Keyboard \u2192 Binder (custom insert commands)`",
+    "`inlineOverhaul \u2192 Keyboard \u2192 Binder (custom insert commands)`",
     "",
     "For text you type over and over. Put it in a row, give that row a key in",
     "`Settings \u2192 Hotkeys`, and one press drops it in wherever the cursor is.",
@@ -33943,7 +33964,7 @@ function transform() {
   return [
     "## Transform: a line becomes a note",
     "",
-    "`Inline Overhaul \u2192 Transform`",
+    "`inlineOverhaul \u2192 Transform`",
     "",
     "The command `Transform inline to note` turns the line the cursor is on into a note of",
     "its own. The Fields on the line become properties of the new note, and the line",
@@ -33971,7 +33992,7 @@ function proTips() {
     "## Some pro tips to make things smoother",
     "",
     "* **Turn the explanations on.** `General \u2192 Help \u2192 Show callouts` and `Show tips`. If",
-    "  Inline Overhaul is new to you, both are worth having on: a callout explains a whole",
+    "  inlineOverhaul is new to you, both are worth having on: a callout explains a whole",
     "  group, a tip explains one setting.",
     "* **Do not forget to make backups.** `Advanced \u2192 Settings backup \u2192 Save a backup`",
     "  writes an ordinary note with everything you have set up. You can type into it, for",
@@ -34013,11 +34034,12 @@ function recipes() {
     "* The source line keeps a link back, so the outline of the day stays readable."
   ].join("\n");
 }
-var HOWTO_PATH;
+var HOWTO_PATH, HOWTO_LEGACY_PATH;
 var init_howto = __esm({
   "src/ui/settings/howto.ts"() {
     "use strict";
-    HOWTO_PATH = "Inline Overhaul Guide.md";
+    HOWTO_PATH = "inlineOverhaul Guide.md";
+    HOWTO_LEGACY_PATH = "Inline Overhaul Guide.md";
   }
 });
 
@@ -34026,12 +34048,97 @@ var require_settings_backup = __commonJS({
   "src/features/settings_backup.js"(exports2, module2) {
     "use strict";
     var MARKER = "inline-overhaul-backup";
-    var DEFAULT_FOLDER = "Inline Overhaul/Backups";
+    var DEFAULT_FOLDER = "inlineOverhaul/Backups";
     var SETTINGS_MARK = "<!-- " + MARKER + ": settings below, do not edit by hand -->";
     var NOTES_HEADING = "# Your notes";
     var NOTES_HINT = "Write anything here";
     var HOTKEYS_MARK = "<!-- " + MARKER + ": hotkeys below, do not edit by hand -->";
     var DEVICE_LOCAL = ["viewState", "backups", "meta", "_unmigrated"];
+    var PARTS2 = [
+      { id: "general", label: "General", branches: ["features", "general"] },
+      { id: "keyboard", label: "Keyboard", branches: ["editor"] },
+      { id: "navigation", label: "Navigation", branches: ["navigation"] },
+      { id: "pkm", label: "Tags & PKM", branches: ["pkm"] },
+      { id: "visual", label: "Visual", branches: ["visual"] },
+      { id: "transform", label: "Transform", branches: ["transform"] },
+      { id: "advanced", label: "Advanced", branches: ["advanced"] }
+    ];
+    var PART_BRANCHES = PARTS2.reduce(function(acc, part) {
+      for (const branch of part.branches) acc[branch] = part.id;
+      return acc;
+    }, {});
+    var HOTKEY_SCOPES = ["own", "all", "none"];
+    var HOTKEY_SCOPE_DEFAULT = "own";
+    function normalizeHotkeyScope(value) {
+      const raw = String(value === void 0 || value === null ? "" : value).trim().toLowerCase();
+      return HOTKEY_SCOPES.indexOf(raw) >= 0 ? raw : HOTKEY_SCOPE_DEFAULT;
+    }
+    function allPartIds2() {
+      return PARTS2.map(function(part) {
+        return part.id;
+      });
+    }
+    function normalizeParts(value) {
+      if (value === void 0 || value === null) return null;
+      const list = Array.isArray(value) ? value : String(value).split(",");
+      const known = allPartIds2();
+      const out = [];
+      for (const raw of list) {
+        const id = String(raw === void 0 || raw === null ? "" : raw).trim();
+        if (known.indexOf(id) >= 0 && out.indexOf(id) === -1) out.push(id);
+      }
+      return out;
+    }
+    function branchesOf(partIds) {
+      const ids = Array.isArray(partIds) ? partIds : allPartIds2();
+      const out = {};
+      for (const part of PARTS2) {
+        if (ids.indexOf(part.id) === -1) continue;
+        for (const branch of part.branches) out[branch] = true;
+      }
+      return out;
+    }
+    function partLabels2(partIds) {
+      const ids = Array.isArray(partIds) ? partIds : allPartIds2();
+      return PARTS2.filter(function(part) {
+        return ids.indexOf(part.id) >= 0;
+      }).map(function(part) {
+        return part.label;
+      });
+    }
+    function selectParts(cfg, partIds) {
+      const wanted = branchesOf(partIds);
+      const out = {};
+      if (!isObj(cfg)) return out;
+      for (const key of Object.keys(cfg)) {
+        if (DEVICE_LOCAL.indexOf(key) >= 0) continue;
+        if (PART_BRANCHES[key] && !wanted[key]) continue;
+        out[key] = cloneJson2(cfg[key]);
+      }
+      return out;
+    }
+    function mergeParts2(current, restored, partIds) {
+      if (!Array.isArray(partIds)) return keepDeviceLocal2(current, restored);
+      const wanted = branchesOf(partIds);
+      const out = {};
+      if (isObj(current)) {
+        for (const key of Object.keys(current)) out[key] = cloneJson2(current[key]);
+      }
+      if (isObj(restored)) {
+        for (const key of Object.keys(restored)) {
+          if (DEVICE_LOCAL.indexOf(key) >= 0) continue;
+          if (PART_BRANCHES[key] && !wanted[key]) continue;
+          out[key] = cloneJson2(restored[key]);
+        }
+      }
+      for (const branch of Object.keys(wanted)) {
+        if (!isObj(restored) || restored[branch] === void 0) delete out[branch];
+      }
+      return out;
+    }
+    function normalizeComment(value) {
+      return String(value === void 0 || value === null ? "" : value).replace(/[\r\n]+/g, " ").trim().slice(0, 300);
+    }
     var NO_SETTINGS = "That note does not hold plugin settings";
     var BROKEN = "The settings in that note could not be read";
     function isObj(v) {
@@ -34096,6 +34203,14 @@ var require_settings_backup = __commonJS({
     function plural2(n, one, many) {
       return String(n) + " " + (n === 1 ? one : many);
     }
+    function missingLabels2(partIds) {
+      const ids = Array.isArray(partIds) ? partIds : allPartIds2();
+      return PARTS2.filter(function(part) {
+        return ids.indexOf(part.id) === -1;
+      }).map(function(part) {
+        return part.label;
+      });
+    }
     function summaryLine2(cfg) {
       const s = summarize(cfg);
       return plural2(s.fields, "Field", "Fields") + ", " + plural2(s.values, "Value", "Values") + " and " + plural2(s.binderRows, "Binder row", "Binder rows");
@@ -34131,7 +34246,7 @@ var require_settings_backup = __commonJS({
       const parts = mods.concat(key ? [key] : []);
       return parts.join(" + ");
     }
-    function hotkeyListWords(bindings) {
+    function hotkeyListWords2(bindings) {
       if (!Array.isArray(bindings)) return "";
       return bindings.map(hotkeyWords).filter(Boolean).join(", ");
     }
@@ -34153,12 +34268,15 @@ var require_settings_backup = __commonJS({
     }
     function buildBackupNote2(o) {
       const opts = isObj(o) ? o : {};
-      const config = stripDeviceLocal(opts.config);
+      const parts = normalizeParts(opts.parts) || allPartIds2();
+      const scope = normalizeHotkeyScope(opts.hotkeyScope);
+      const comment = normalizeComment(opts.comment);
+      const config = selectParts(opts.config, parts);
       const version = String(opts.pluginVersion || "").trim();
       const when = opts.savedAt instanceof Date ? opts.savedAt : /* @__PURE__ */ new Date();
       const json = JSON.stringify(config, null, 2);
       const fence = fenceFor(json);
-      const hotkeys = normalizeHotkeys(opts.hotkeys);
+      const hotkeys = scope === "none" ? {} : normalizeHotkeys(opts.hotkeys);
       const hotkeyIds = Object.keys(hotkeys).sort();
       const hotkeysJson = JSON.stringify(hotkeys, null, 2);
       const hotkeysFence = fenceFor(hotkeysJson);
@@ -34167,6 +34285,15 @@ var require_settings_backup = __commonJS({
         MARKER + ": 1",
         "saved: " + readable(when),
         "plugin: " + (version || "unknown"),
+        /*
+         * Состав копии читается **только отсюда** — по той же причине, по какой
+         * шапка читается только из frontmatter (Б17): всё, что ниже, человек
+         * вправе переписать. Комментарий одной строкой: перевод строки
+         * внутри шапки завёл бы в ней чужое свойство.
+         */
+        "parts: " + parts.join(", "),
+        "hotkeys: " + scope,
+        ...comment ? ["note: " + comment] : [],
         "---",
         "",
         /*
@@ -34178,13 +34305,16 @@ var require_settings_backup = __commonJS({
         "",
         NOTES_HINT + ". The plugin never reads this part, so nothing you write here changes what comes back",
         "",
-        "# Inline Overhaul settings backup",
+        ...comment ? [comment, ""] : [],
+        "# inlineOverhaul settings backup",
         "",
         "Saved on " + readable(when) + (version ? " from plugin version " + version : "") + ".",
         "Holds " + summaryLine2(config) + ".",
+        "Tabs inside: " + partLabels2(parts).join(", ") + ".",
+        ...missingLabels2(parts).length ? ["Left out, so restoring keeps what you have there: " + missingLabels2(parts).join(", ") + "."] : [],
         "",
-        "To bring these settings back, open **Settings \u2192 Inline Overhaul \u2192 Advanced \u2192 Settings backup**",
-        "and press `Restore a backup`. Restoring replaces everything you have set up now;",
+        "To bring these settings back, open **Settings \u2192 inlineOverhaul \u2192 Advanced \u2192 Settings backup**",
+        "and press `Restore a backup`. Restoring replaces the tabs listed above and leaves the rest alone;",
         "whether the plugin saves what you have at that moment before it writes is a toggle there.",
         "",
         "You can move this note to another vault, or send it to yourself on another device.",
@@ -34203,7 +34333,7 @@ var require_settings_backup = __commonJS({
         lines.push("Restoring this backup puts them back on the plugin commands and touches nothing else.");
         lines.push("");
         for (const id of hotkeyIds) {
-          const words = hotkeyListWords(hotkeys[id]);
+          const words = hotkeyListWords2(hotkeys[id]);
           lines.push("- `" + id + "` \u2014 " + (words || "no hotkey"));
         }
         lines.push("");
@@ -34276,6 +34406,9 @@ var require_settings_backup = __commonJS({
       const front = frontmatter(raw);
       const saved = /^saved\s*:\s*(.+)$/m.exec(front);
       const version = /^plugin\s*:\s*(.+)$/m.exec(front);
+      const partsLine = /^parts\s*:\s*(.*)$/m.exec(front);
+      const scopeLine = /^hotkeys\s*:\s*(.+)$/m.exec(front);
+      const commentLine = /^note\s*:\s*(.+)$/m.exec(front);
       let summary = "";
       try {
         summary = summaryLine2(parseBackupNote2(raw));
@@ -34286,7 +34419,11 @@ var require_settings_backup = __commonJS({
         savedAt: saved ? String(saved[1]).trim() : "",
         pluginVersion: version ? String(version[1]).trim() : "",
         summary,
-        hotkeys: Object.keys(parseBackupHotkeys2(raw)).length
+        hotkeys: Object.keys(parseBackupHotkeys2(raw)).length,
+        /* `null` — копия частей не называет вовсе (снята до 2026-09-06). */
+        parts: partsLine ? normalizeParts(partsLine[1]) : null,
+        hotkeyScope: scopeLine ? normalizeHotkeyScope(scopeLine[1]) : HOTKEY_SCOPE_DEFAULT,
+        comment: commentLine ? normalizeComment(commentLine[1]) : ""
       };
     }
     function frontmatter(text) {
@@ -34307,13 +34444,26 @@ var require_settings_backup = __commonJS({
     }
     module2.exports = {
       MARKER,
+      PARTS: PARTS2,
+      PART_BRANCHES,
+      HOTKEY_SCOPES,
+      HOTKEY_SCOPE_DEFAULT,
+      normalizeHotkeyScope,
+      allPartIds: allPartIds2,
+      normalizeParts,
+      branchesOf,
+      partLabels: partLabels2,
+      missingLabels: missingLabels2,
+      selectParts,
+      mergeParts: mergeParts2,
+      normalizeComment,
       SETTINGS_MARK,
       HOTKEYS_MARK,
       NOTES_HEADING,
       NOTES_HINT,
       frontmatter,
       hotkeyWords,
-      hotkeyListWords,
+      hotkeyListWords: hotkeyListWords2,
       normalizeHotkeys,
       parseBackupHotkeys: parseBackupHotkeys2,
       DEFAULT_FOLDER,
@@ -34348,7 +34498,7 @@ function messageOf(e) {
 }
 function buildActions(deps) {
   const { notify } = deps;
-  const writeBackup = async (vault, config, auto) => {
+  const writeBackup = async (vault, config, auto, picked) => {
     const cfg = config.get();
     const folder = (0, import_settings_backup.backupFolder)(cfg);
     if (typeof vault.ensureFolder === "function") await Promise.resolve(vault.ensureFolder(folder));
@@ -34357,28 +34507,67 @@ function buildActions(deps) {
     for (let n = 2; await Promise.resolve(vault.exists(path)); n++) {
       path = base.replace(/\.md$/, "") + " (" + n + ").md";
     }
+    const scope = picked ? String(picked.hotkeyScope || "own") : "own";
     let hotkeys;
-    if (deps.hotkeys && typeof deps.hotkeys.read === "function") {
-      try {
-        hotkeys = deps.hotkeys.read();
-      } catch (e) {
-        console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u0434\u043B\u044F \u043A\u043E\u043F\u0438\u0438 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+    if (scope !== "none" && deps.hotkeys) {
+      const reader2 = scope === "all" && typeof deps.hotkeys.readAll === "function" ? deps.hotkeys.readAll : deps.hotkeys.read;
+      if (typeof reader2 === "function") {
+        try {
+          hotkeys = reader2();
+        } catch (e) {
+          console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u0434\u043B\u044F \u043A\u043E\u043F\u0438\u0438 \u043D\u0435 \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+        }
       }
     }
     await Promise.resolve(vault.create(path, (0, import_settings_backup.buildBackupNote)({
       config: cfg,
       pluginVersion: deps.pluginVersion,
       savedAt: /* @__PURE__ */ new Date(),
-      hotkeys
+      hotkeys,
+      /*
+       * Снятая самим плагином копия — путь назад, а не выбор человека:
+       * она всегда полная. Сузить её значило бы обещать возврат, которого нет.
+       */
+      parts: auto === true ? (0, import_settings_backup.allPartIds)() : picked ? picked.parts : (0, import_settings_backup.allPartIds)(),
+      hotkeyScope: auto === true ? "own" : scope,
+      comment: picked ? picked.comment : ""
     })));
     return path;
+  };
+  const askParts = async () => {
+    if (typeof deps.askBackupOptions !== "function") return void 0;
+    const hotkeyOptions = [
+      { value: "own", label: SAVE_HOTKEYS_OWN },
+      { value: "all", label: SAVE_HOTKEYS_ALL },
+      { value: "none", label: SAVE_HOTKEYS_NONE }
+    ];
+    return await deps.askBackupOptions({
+      title: SAVE_TITLE,
+      body: SAVE_BODY,
+      /* По умолчанию отмечено всё: человек только снимает лишнее. */
+      parts: import_settings_backup.PARTS.map((part) => ({ id: part.id, label: part.label, checked: true })),
+      commentLabel: SAVE_COMMENT_LABEL,
+      commentHint: SAVE_COMMENT_HINT,
+      hotkeyLabel: SAVE_HOTKEYS_LABEL,
+      hotkeyOptions,
+      hotkeyDefault: "own",
+      confirmLabel: SAVE_CONFIRM
+    });
   };
   const listBackups = async (vault, folder) => {
     const found = typeof vault.list === "function" ? await Promise.resolve(vault.list(folder)) || [] : [];
     const notes = found.filter((f) => f && typeof f.path === "string" && /\.md$/i.test(f.path)).sort((a, b) => (Number(b.mtime) || 0) - (Number(a.mtime) || 0) || String(b.path).localeCompare(String(a.path)));
     const options = [];
     for (const file of notes) {
-      let about = { savedAt: "", pluginVersion: "", summary: "", hotkeys: 0 };
+      let about = {
+        savedAt: "",
+        pluginVersion: "",
+        summary: "",
+        hotkeys: 0,
+        parts: null,
+        hotkeyScope: "own",
+        comment: ""
+      };
       try {
         if (typeof vault.read === "function") {
           about = (0, import_settings_backup.describeBackup)(await Promise.resolve(vault.read(file.path)));
@@ -34388,7 +34577,10 @@ function buildActions(deps) {
       }
       const name = String(file.path).split("/").pop() || file.path;
       const sub = [
+        /* Комментарий человека — первым: его он и ищет в списке. */
+        about.comment,
         about.summary,
+        about.parts && about.parts.length < import_settings_backup.PARTS.length ? (0, import_settings_backup.partLabels)(about.parts).join(", ") : "",
         about.hotkeys ? (0, import_settings_backup.plural)(about.hotkeys, "hotkey", "hotkeys") : "",
         about.pluginVersion ? "plugin " + about.pluginVersion : ""
       ].filter(Boolean).join(" \xB7 ");
@@ -34427,9 +34619,11 @@ function buildActions(deps) {
       }
       try {
         const had = await Promise.resolve(vault.exists(HOWTO_PATH));
-        if (!had) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
-        await Promise.resolve(vault.open(HOWTO_PATH));
-        notify(said(had ? GUIDE_OPENED : GUIDE_MADE, HOWTO_PATH));
+        const legacy5 = had ? false : await Promise.resolve(vault.exists(HOWTO_LEGACY_PATH));
+        const path = legacy5 ? HOWTO_LEGACY_PATH : HOWTO_PATH;
+        if (!had && !legacy5) await Promise.resolve(vault.create(HOWTO_PATH, howtoMarkdown()));
+        await Promise.resolve(vault.open(path));
+        notify(said(had || legacy5 ? GUIDE_OPENED : GUIDE_MADE, path));
       } catch (e) {
         const message = e && typeof e === "object" && "message" in e ? String(e.message) : String(e);
         notify(message);
@@ -34449,7 +34643,13 @@ function buildActions(deps) {
         return;
       }
       try {
-        notify(said(BACKUP_SAVED, await writeBackup(vault, config)));
+        const picked = await askParts();
+        if (picked === null) return;
+        if (picked && (!Array.isArray(picked.parts) || !picked.parts.length)) {
+          notify(SAVE_NOTHING);
+          return;
+        }
+        notify(said(BACKUP_SAVED, await writeBackup(vault, config, void 0, picked || void 0)));
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044F \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A \u043D\u0435 \u0437\u0430\u043F\u0438\u0441\u0430\u043B\u0430\u0441\u044C", e);
@@ -34546,13 +34746,34 @@ function buildActions(deps) {
           console.error("inline-overhaul: \u043A\u043E\u043F\u0438\u044E \u0447\u0438\u0442\u0430\u0442\u044C \u043D\u0435\u0447\u0435\u043C");
           return;
         }
-        const restored = (0, import_settings_backup.parseBackupNote)(await Promise.resolve(vault.read(picked)));
-        const hotkeys = (0, import_settings_backup.parseBackupHotkeys)(await Promise.resolve(vault.read(picked)));
+        const text = await Promise.resolve(vault.read(picked));
+        const restored = (0, import_settings_backup.parseBackupNote)(text);
+        const about = (0, import_settings_backup.describeBackup)(text);
+        const hotkeys = (0, import_settings_backup.parseBackupHotkeys)(text);
         const hotkeyCount = Object.keys(hotkeys).length;
+        const scope = about.hotkeyScope === "all" ? "all" : "own";
         const rows = ["Restoring " + (0, import_settings_backup.summaryLine)(restored)];
-        if (hotkeyCount) {
-          rows.push("And " + (0, import_settings_backup.plural)(hotkeyCount, "hotkey", "hotkeys") + " on the plugin commands");
+        if (about.parts) {
+          rows.push("Tabs coming back: " + (0, import_settings_backup.partLabels)(about.parts).join(", "));
+          const kept = (0, import_settings_backup.missingLabels)(about.parts);
+          if (kept.length) rows.push("Staying as you have them now: " + kept.join(", "));
         }
+        if (hotkeyCount) {
+          rows.push("And " + (0, import_settings_backup.plural)(hotkeyCount, "hotkey", "hotkeys") + (scope === "all" ? " from this vault" : " on the plugin commands"));
+        }
+        if (scope === "all") rows.push(HOTKEYS_ALL_WARNING);
+        let conflicts = [];
+        if (hotkeyCount && deps.hotkeys && typeof deps.hotkeys.conflicts === "function") {
+          try {
+            conflicts = deps.hotkeys.conflicts(hotkeys) || [];
+          } catch (e) {
+            console.error("inline-overhaul: \u043A\u043E\u043D\u0444\u043B\u0438\u043A\u0442\u044B \u0445\u043E\u0442\u043A\u0435\u0435\u0432 \u043D\u0435 \u043F\u043E\u0441\u0447\u0438\u0442\u0430\u043B\u0438\u0441\u044C", e);
+          }
+        }
+        for (const clash of conflicts) {
+          rows.push("Held by " + clash.name + ": " + clash.hotkey);
+        }
+        let clearConflicts = false;
         const willBackUp = (0, import_settings_backup.backupBeforeRestore)(config.get());
         const yes = await ask({
           title: RESTORE_TITLE,
@@ -34560,19 +34781,33 @@ function buildActions(deps) {
           confirmLabel: RESTORE_CONFIRM,
           danger: true,
           rows,
-          note: hotkeyCount ? "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin" : "Your open tab and what you have expanded here stay as they are"
+          ...conflicts.length ? { check: { label: CONFLICT_LABEL, sub: CONFLICT_SUB, checked: false } } : {},
+          onCheck: (checked) => {
+            clearConflicts = checked;
+          },
+          note: hotkeyCount && scope !== "all" ? "Your open tab and what you have expanded here stay as they are, and so do hotkeys of every other plugin" : "Your open tab and what you have expanded here stay as they are"
         });
         if (!yes) return;
         if (willBackUp) await writeBackup(vault, config, true);
         const changed = await Promise.resolve(
-          config.replace((0, import_settings_backup.keepDeviceLocal)(config.get(), restored))
+          config.replace((0, import_settings_backup.mergeParts)(config.get(), restored, about.parts))
         );
+        if (typeof deps.rebuildFromConfig === "function") {
+          try {
+            await Promise.resolve(deps.rebuildFromConfig());
+          } catch (e) {
+            console.error("inline-overhaul: \u043F\u043E\u0441\u043B\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u043D\u0435 \u043F\u0435\u0440\u0435\u0441\u043E\u0431\u0440\u0430\u043B\u043E\u0441\u044C \u0442\u043E, \u0447\u0442\u043E \u0441\u0442\u0440\u043E\u0438\u0442\u0441\u044F \u0438\u0437 \u043A\u043E\u043D\u0444\u0438\u0433\u0430", e);
+          }
+        }
         let saidHotkeys = "";
         if (hotkeyCount) {
           if (deps.hotkeys && typeof deps.hotkeys.write === "function") {
             try {
-              const n = await Promise.resolve(deps.hotkeys.write(hotkeys));
+              const n = await Promise.resolve(deps.hotkeys.write(hotkeys, { scope, clearConflicts }));
               saidHotkeys = ". " + (0, import_settings_backup.plural)(Number(n) || 0, "hotkey", "hotkeys") + " " + HOTKEYS_DONE;
+              if (clearConflicts && conflicts.length) {
+                saidHotkeys += ", " + (0, import_settings_backup.plural)(conflicts.length, "key", "keys") + " " + CONFLICT_CLEARED;
+              }
             } catch (e) {
               saidHotkeys = ". " + HOTKEYS_NO_METHOD;
               console.error("inline-overhaul: \u0445\u043E\u0442\u043A\u0435\u0438 \u043D\u0435 \u0432\u0435\u0440\u043D\u0443\u043B\u0438\u0441\u044C", e);
@@ -34583,6 +34818,19 @@ function buildActions(deps) {
           }
         }
         notify(changed ? RESTORE_DONE + saidHotkeys : RESTORE_SAME + saidHotkeys);
+        if (typeof deps.announce === "function") {
+          try {
+            await deps.announce({
+              title: RESTORED_TITLE,
+              body: RESTORED_BODY,
+              rows,
+              note: RESTORED_NOTE,
+              closeLabel: RESTORED_CLOSE
+            });
+          } catch (e) {
+            console.error("inline-overhaul: \u043E\u043A\u043D\u043E \u043F\u043E\u0441\u043B\u0435 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u044F \u043D\u0435 \u043E\u0442\u043A\u0440\u044B\u043B\u043E\u0441\u044C", e);
+          }
+        }
       } catch (e) {
         notify(messageOf(e));
         console.error("inline-overhaul: \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043D\u0435 \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u043B\u043E\u0441\u044C", e);
@@ -34590,7 +34838,7 @@ function buildActions(deps) {
     }
   };
 }
-var import_settings_backup, GUIDE_MADE, GUIDE_OPENED, BACKUP_SAVED, BACKUP_NONE, RESTORE_TITLE, RESTORE_BODY, RESTORE_BODY_NO_BACKUP, RESTORE_CONFIRM, RESTORE_DONE, HOTKEYS_DONE, HOTKEYS_NO_METHOD, RESET_TITLE, RESET_BODY, RESET_CONFIRM, RESET_DONE, RESET_NOTHING, RESTORE_SAME, PICK_TITLE, PICK_BODY, NO_METHOD;
+var import_settings_backup, GUIDE_MADE, GUIDE_OPENED, BACKUP_SAVED, BACKUP_NONE, RESTORE_TITLE, RESTORE_BODY, RESTORE_BODY_NO_BACKUP, RESTORE_CONFIRM, RESTORE_DONE, HOTKEYS_DONE, RESTORED_TITLE, RESTORED_BODY, RESTORED_NOTE, RESTORED_CLOSE, SAVE_TITLE, SAVE_BODY, SAVE_CONFIRM, SAVE_COMMENT_LABEL, SAVE_COMMENT_HINT, SAVE_HOTKEYS_LABEL, SAVE_HOTKEYS_OWN, SAVE_HOTKEYS_ALL, SAVE_HOTKEYS_NONE, SAVE_NOTHING, CONFLICT_LABEL, CONFLICT_SUB, CONFLICT_CLEARED, HOTKEYS_ALL_WARNING, HOTKEYS_NO_METHOD, RESET_TITLE, RESET_BODY, RESET_CONFIRM, RESET_DONE, RESET_NOTHING, RESTORE_SAME, PICK_TITLE, PICK_BODY, NO_METHOD;
 var init_actions = __esm({
   "src/ui/settings/actions.ts"() {
     "use strict";
@@ -34606,6 +34854,24 @@ var init_actions = __esm({
     RESTORE_CONFIRM = "Replace my settings";
     RESTORE_DONE = "Settings restored. Restart Obsidian so every part of the plugin picks them up";
     HOTKEYS_DONE = "hotkeys back on the plugin commands";
+    RESTORED_TITLE = "Settings restored";
+    RESTORED_BODY = "Everything from that backup is in place. A few parts of the plugin read your settings once, when Obsidian starts, so they still show what you had a minute ago";
+    RESTORED_NOTE = "Restart Obsidian to be sure every part matches the backup";
+    RESTORED_CLOSE = "Got it";
+    SAVE_TITLE = "Save a backup";
+    SAVE_BODY = "Everything is picked already, so pressing the button straight away saves the lot. Uncheck a tab and it stays out: restoring this backup will then leave that tab exactly as you have it";
+    SAVE_CONFIRM = "Save";
+    SAVE_COMMENT_LABEL = "What is this backup for";
+    SAVE_COMMENT_HINT = "Optional. You will see this line in `Restore a backup`";
+    SAVE_HOTKEYS_LABEL = "Hotkeys to keep";
+    SAVE_HOTKEYS_OWN = "Only this plugin\u2019s commands";
+    SAVE_HOTKEYS_ALL = "Every hotkey in this vault";
+    SAVE_HOTKEYS_NONE = "None";
+    SAVE_NOTHING = "Nothing was picked, so there is nothing to save";
+    CONFLICT_LABEL = "Free up keys other commands are holding";
+    CONFLICT_SUB = "Off by default: this is the one thing here that changes settings outside this plugin";
+    CONFLICT_CLEARED = "keys taken off other commands";
+    HOTKEYS_ALL_WARNING = "This backup holds hotkeys of other plugins too, and restoring puts them back";
     HOTKEYS_NO_METHOD = "The hotkeys in that backup could not be put back";
     RESET_TITLE = "Delete all your settings";
     RESET_BODY = "Everything you have set up in this plugin goes, on every tab, and the plugin starts as if it had just been installed. What you have now is saved as a backup first";
@@ -34735,6 +35001,18 @@ function askConfirm(app3, o) {
           for (const row of o.rows) el(list, "li", void 0, row);
         }
         if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        if (o.check) {
+          const input = checkInput(box, "io-dlg__check", {
+            label: o.check.label,
+            labelCls: "io-dlg__check-label",
+            checked: o.check.checked === true
+          });
+          if (o.check.sub) el(box, "p", "io-item__desc io-dlg__note", o.check.sub);
+          input.addEventListener("change", (() => {
+            if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
+          }));
+          if (typeof o.onCheck === "function") o.onCheck(input.checked === true);
+        }
         const foot = el(box, "div", "io-dlg__foot");
         const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
         cancel.addEventListener("click", (() => {
@@ -34757,6 +35035,112 @@ function askConfirm(app3, o) {
       }
     }
     new ConfirmModal(app3).open();
+  });
+}
+function announce(app3, o) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    class AnnounceModal extends import_obsidian.Modal {
+      onOpen() {
+        const box = this.contentEl;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", void 0, o.title);
+        el(box, "p", "io-item__desc", o.body);
+        if (o.rows && o.rows.length) {
+          const list = el(box, "ul", "io-dlg__list");
+          for (const row of o.rows) el(list, "li", void 0, row);
+        }
+        if (o.note) el(box, "p", "io-item__desc io-dlg__note", o.note);
+        const foot = el(box, "div", "io-dlg__foot");
+        const go = foot.createEl("button", {
+          cls: "io-btn io-btn--cta",
+          text: o.closeLabel,
+          attr: { type: "button" }
+        });
+        go.addEventListener("click", (() => {
+          finish();
+          this.close();
+        }));
+      }
+      onClose() {
+        finish();
+        this.contentEl.empty();
+      }
+    }
+    new AnnounceModal(app3).open();
+  });
+}
+function askBackupOptions(app3, o) {
+  return new Promise((resolve) => {
+    let answered = false;
+    const finish = (value) => {
+      if (answered) return;
+      answered = true;
+      resolve(value);
+    };
+    class OptionsModal extends import_obsidian.Modal {
+      onOpen() {
+        const box = this.contentEl;
+        box.empty();
+        box.addClass("io-dlg");
+        el(box, "h4", void 0, o.title);
+        el(box, "p", "io-item__desc", o.body);
+        el(box, "div", "io-dlg__field-label", o.commentLabel);
+        const comment = textInput(box, "io-dlg__input", {
+          value: "",
+          label: o.commentLabel,
+          placeholder: o.commentHint
+        });
+        const boxes = [];
+        const list = el(box, "div", "io-dlg__checks");
+        for (const part of o.parts) {
+          boxes.push({
+            id: part.id,
+            input: checkInput(list, "io-dlg__check", {
+              label: part.label,
+              labelCls: "io-dlg__check-label",
+              checked: part.checked === true
+            })
+          });
+        }
+        el(box, "div", "io-dlg__field-label", o.hotkeyLabel);
+        const scope = selectInput(box, "io-dlg__select", {
+          options: o.hotkeyOptions,
+          value: o.hotkeyDefault,
+          label: o.hotkeyLabel
+        });
+        const foot = el(box, "div", "io-dlg__foot");
+        const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+        cancel.addEventListener("click", (() => {
+          finish(null);
+          this.close();
+        }));
+        const go = foot.createEl("button", {
+          cls: "io-btn io-btn--cta",
+          text: o.confirmLabel,
+          attr: { type: "button" }
+        });
+        go.addEventListener("click", (() => {
+          finish({
+            parts: boxes.filter((b) => b.input.checked).map((b) => b.id),
+            comment: String(comment.value || ""),
+            hotkeyScope: String(scope.value || o.hotkeyDefault)
+          });
+          this.close();
+        }));
+      }
+      onClose() {
+        finish(null);
+        this.contentEl.empty();
+      }
+    }
+    new OptionsModal(app3).open();
   });
 }
 function askPick(app3, o) {
@@ -34877,6 +35261,20 @@ function pluginVersionOf(plugin) {
   const manifest = plugin.manifest;
   return manifest && manifest.version ? String(manifest.version) : "";
 }
+function commandNameOf(app3, id) {
+  const holder = app3;
+  const found = holder && holder.commands && holder.commands.commands ? holder.commands.commands[id] : null;
+  const name = found && found.name ? String(found.name) : "";
+  return name || id;
+}
+function bindingKey(binding2) {
+  const row = binding2 && typeof binding2 === "object" ? binding2 : null;
+  if (!row) return "";
+  const mods = Array.isArray(row.modifiers) ? row.modifiers.map((m) => String(m || "").trim().toLowerCase()).filter(Boolean).sort() : [];
+  const key = String(row.key === void 0 || row.key === null ? "" : row.key).trim().toLowerCase();
+  if (!key) return "";
+  return mods.join("+") + "|" + key;
+}
 function hotkeyManagerOf(app3) {
   const holder = app3;
   const value = holder && typeof holder === "object" ? holder.hotkeyManager : null;
@@ -34890,7 +35288,59 @@ function commandPrefixOf(plugin) {
 function hotkeySeam(app3, plugin) {
   const prefix = commandPrefixOf(plugin);
   const mine = (id) => String(id || "").startsWith(prefix);
+  const effective = (hm, id) => {
+    const custom = hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys[id] : void 0;
+    if (Array.isArray(custom)) return custom;
+    const fallback = hm.defaultKeys && typeof hm.defaultKeys === "object" ? hm.defaultKeys[id] : void 0;
+    return Array.isArray(fallback) ? fallback : [];
+  };
   return {
+    /**
+     * Всё, что человек назначил руками — включая чужие команды. Умолчания
+     * сюда не попадают намеренно: они приедут с самими плагинами, а в копии
+     * означали бы «человек так решил» — чего он не решал.
+     */
+    readAll: () => {
+      const out = {};
+      const hm = hotkeyManagerOf(app3);
+      const custom = hm && hm.customKeys && typeof hm.customKeys === "object" ? hm.customKeys : null;
+      if (!custom) return out;
+      for (const id of Object.keys(custom)) {
+        const value = custom[id];
+        if (Array.isArray(value)) out[id] = value;
+      }
+      return out;
+    },
+    /**
+     * Чужие команды, держащие те же клавиши. Считается по **действующим**
+     * привязкам, а не только по назначенным руками: команда со своим умолчанием
+     * конфликтует точно так же, и именно о ней Obsidian ругается после перезапуска.
+     */
+    conflicts: (map) => {
+      const hm = hotkeyManagerOf(app3);
+      if (!hm) return [];
+      const wanted = /* @__PURE__ */ new Map();
+      for (const id of Object.keys(map || {})) {
+        const list = Array.isArray(map[id]) ? map[id] : [];
+        for (const binding2 of list) {
+          const key = bindingKey(binding2);
+          if (key) wanted.set(key, true);
+        }
+      }
+      if (!wanted.size) return [];
+      const ids = /* @__PURE__ */ new Set();
+      for (const source of [hm.customKeys, hm.defaultKeys]) {
+        if (source && typeof source === "object") for (const id of Object.keys(source)) ids.add(id);
+      }
+      const out = [];
+      for (const id of ids) {
+        if (mine(id) || map[id] !== void 0) continue;
+        const clashing = effective(hm, id).filter((binding2) => wanted.has(bindingKey(binding2)));
+        if (!clashing.length) continue;
+        out.push({ id, name: commandNameOf(app3, id), hotkey: (0, import_settings_backup2.hotkeyListWords)(clashing) });
+      }
+      return out;
+    },
     read: () => {
       const out = {};
       const hm = hotkeyManagerOf(app3);
@@ -34903,15 +35353,38 @@ function hotkeySeam(app3, plugin) {
       }
       return out;
     },
-    write: async (map) => {
+    write: async (map, opts) => {
       const hm = hotkeyManagerOf(app3);
       if (!hm || typeof hm.setHotkeys !== "function" || typeof hm.removeHotkeys !== "function") {
         throw new Error("This build of Obsidian does not let the plugin write hotkeys");
       }
+      const wide = opts && opts.scope === "all";
       const wanted = /* @__PURE__ */ new Set();
       let touched = 0;
+      if (opts && opts.clearConflicts) {
+        const wantedKeys = /* @__PURE__ */ new Set();
+        for (const id of Object.keys(map || {})) {
+          const list = Array.isArray(map[id]) ? map[id] : [];
+          for (const binding2 of list) {
+            const key = bindingKey(binding2);
+            if (key) wantedKeys.add(key);
+          }
+        }
+        const ids = /* @__PURE__ */ new Set();
+        for (const source of [hm.customKeys, hm.defaultKeys]) {
+          if (source && typeof source === "object") for (const id of Object.keys(source)) ids.add(id);
+        }
+        for (const id of ids) {
+          if (mine(id) || map[id] !== void 0) continue;
+          const now = effective(hm, id);
+          const kept = now.filter((binding2) => !wantedKeys.has(bindingKey(binding2)));
+          if (kept.length === now.length) continue;
+          hm.setHotkeys(id, kept);
+          touched++;
+        }
+      }
       for (const id of Object.keys(map || {})) {
-        if (!mine(id)) continue;
+        if (!wide && !mine(id)) continue;
         const bindings = Array.isArray(map[id]) ? map[id] : [];
         wanted.add(id);
         hm.setHotkeys(id, bindings);
@@ -34928,7 +35401,7 @@ function hotkeySeam(app3, plugin) {
     }
   };
 }
-var import_obsidian, InlineOverhaulSettings;
+var import_obsidian, import_settings_backup2, InlineOverhaulSettings;
 var init_obsidian_tab = __esm({
   "src/ui/settings/obsidian_tab.ts"() {
     "use strict";
@@ -34938,6 +35411,7 @@ var init_obsidian_tab = __esm({
     init_store();
     init_actions();
     init_dom();
+    import_settings_backup2 = __toESM(require_settings_backup());
     init_tab_strip();
     InlineOverhaulSettings = class extends import_obsidian.PluginSettingTab {
       constructor(app3, plugin, bridge) {
@@ -34966,7 +35440,16 @@ var init_obsidian_tab = __esm({
             config: configSeam(plugin),
             pluginVersion: pluginVersionOf(plugin),
             /* Хоткеи: второе исключение к 7.2, разрешение заказчика 2026-09-04. */
-            hotkeys: hotkeySeam(app3, plugin)
+            hotkeys: hotkeySeam(app3, plugin),
+            /*
+             * После восстановления. `addCommand` у Obsidian кладёт команду
+             * в словарь по её id, поэтому повторный заход обновляет старые и
+             * добавляет новые, а не двоит. Команды снятых Field остаются до
+             * перезапуска — про него и говорит окно.
+             */
+            rebuildFromConfig: typeof plugin.rebuildFromConfig === "function" ? () => plugin.rebuildFromConfig() : void 0,
+            announce: (o) => announce(app3, o),
+            askBackupOptions: (o) => askBackupOptions(app3, o)
           }),
           /* То же окно и для сброса группы (Н3). */
           confirm: (o) => askConfirm(app3, o),
@@ -35035,7 +35518,7 @@ var init_obsidian_tab = __esm({
         el2.empty();
         const box = el2.createDiv({ cls: "io-needs-update" });
         box.createEl("p", {
-          text: "Inline Overhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API."
+          text: "inlineOverhaul settings need Obsidian 1.13 or newer: the pane is built on the declarative settings API."
         });
         box.createEl("p", {
           text: "Update Obsidian, or install an earlier release of the plugin."
@@ -35155,7 +35638,8 @@ var require_main = __commonJS({
       } catch (_) {
       }
       return {
-        DEFAULT_RULES_PATH: "InlineOverhaul_Generated_RULES_TagWheel.md",
+        DEFAULT_RULES_PATH: ".obsidian/plugins/inline-overhaul/generated_rules.md",
+        LEGACY_RULES_PATH: "InlineOverhaul_Generated_RULES_TagWheel.md",
         KEYS: {
           RULES_PATH: "Rules path",
           ACTION_TYPE: "Action type",
@@ -38724,7 +39208,7 @@ var require_main = __commonJS({
           for (const [was, now] of __commandIds.RENAMED) lines.push("  " + was + " \u2192 " + now);
           for (const [was, now] of __commandIds.RENAME_RULES) lines.push("  " + was + " \u2192 " + now);
           console.info(lines.join("\n"));
-          this.notice("Inline Overhaul renamed its commands, so hotkeys you had set for them are no longer bound. Set them again in Settings, Hotkeys, searching for Inline Overhaul. The full old-to-new map is printed in the developer console and in docs/command_ids_v1_v2.md");
+          this.notice("inlineOverhaul renamed its commands, so hotkeys you had set for them are no longer bound. Set them again in Settings, Hotkeys, searching for inlineOverhaul. The full old-to-new map is printed in the developer console and in docs/command_ids_v1_v2.md");
           this.store.patch({ viewState: { commandIdsNotice: "shown" } }, "commands:ids:notice", { undoable: false });
         } catch (e) {
           console.error("[inline-overhaul][commands:ids:notice]", e);
@@ -38881,6 +39365,73 @@ var require_main = __commonJS({
        */
       listOwnCommands() {
         return buildOwnCommandList(this);
+      }
+      /**
+       * Заново собрать всё, что плагин строит из конфига один раз — при загрузке.
+       *
+       * Зовётся одним местом — восстановлением копии настроек (10.13.40),
+       * потому что только там конфиг меняется целиком и разом. Две вещи:
+       *
+       *   1. **Команды.** Набор команд PKM строится из Fields конфига (У-79):
+       *      новый набор Fields без этого вызова получает команды только после
+       *      перезапуска, и хоткей из копии ложится на команду, которой ещё нет.
+       *   2. **Место служебного файла.** Копия несёт в себе
+       *      `advanced.generatedRulesPath`, и у копии, снятой до переезда В-39, там
+       *      стоит корень vault. Переезд живёт в `loadConfig` и идёт только при
+       *      загрузке — поэтому после восстановления плагин до конца сеанса писал
+       *      этот файл в корень vault, а следующий запуск его оттуда убирал.
+       *      Именно это заказчик и видел: файл появился и пропал при перезапуске.
+       *      Правило берётся там же, где и при загрузке —
+       *      `moveGeneratedRulesIntoPluginFolder`, — а не пишется второй раз (У-32).
+       *
+       * Ни одна из двух неудач не отменяет восстановления: настройки уже записаны.
+       */
+      async rebuildFromConfig() {
+        try {
+          this.registerCommands();
+        } catch (e) {
+          console.error("[inline-overhaul] \u043A\u043E\u043C\u0430\u043D\u0434\u044B \u043D\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u0432\u0435\u043B\u0438\u0441\u044C", e);
+        }
+        try {
+          await this.reapplyGeneratedRulesLocation();
+        } catch (e) {
+          console.error("[inline-overhaul] \u043C\u0435\u0441\u0442\u043E \u0441\u043B\u0443\u0436\u0435\u0431\u043D\u043E\u0433\u043E \u0444\u0430\u0439\u043B\u0430 \u043D\u0435 \u043F\u043E\u0447\u0438\u043D\u0438\u043B\u043E\u0441\u044C", e);
+        }
+      }
+      /**
+       * Переезд служебного файла — ещё раз, после того как конфиг сменился
+       * целиком. Своего правила здесь нет: решает та же функция миграции, что и при
+       * загрузке, и со всеми теми же швами к файловой системе. Свой путь человека
+       * она не трогает — только прежнее место и литеральные умолчания.
+       */
+      async reapplyGeneratedRulesLocation() {
+        const adapter = this.app && this.app.vault ? this.app.vault.adapter : null;
+        if (!adapter || typeof adapter.exists !== "function") return;
+        const migration = getConfigMigrationV2Module();
+        if (!migration || typeof migration.moveGeneratedRulesIntoPluginFolder !== "function") return;
+        const files = {
+          exists: (p) => adapter.exists(p),
+          read: (p) => adapter.read(p),
+          write: (p, data) => adapter.write(p, data),
+          remove: (p) => adapter.remove(p)
+        };
+        const probe = cloneJson2(this.getConfig());
+        const before = String(readCfgPath(probe, "advanced.generatedRulesPath") || "").trim();
+        const move2 = await migration.moveGeneratedRulesIntoPluginFolder(
+          files,
+          this.pluginFolderPath(),
+          probe,
+          [__pkmOptionKeys.DEFAULT_RULES_PATH, __pkmOptionKeys.LEGACY_RULES_PATH]
+        );
+        if (!move2 || !move2.path || move2.path === before) return;
+        this.store.update(
+          (cfg) => {
+            writeCfgPath(cfg, "advanced.generatedRulesPath", move2.path);
+            return cfg;
+          },
+          "restore:generated-rules-path"
+        );
+        await this.ensureGeneratedRulesNow("restore");
       }
       registerCommands() {
         const registry2 = getCommandRegistry();
@@ -39253,7 +39804,7 @@ var require_main = __commonJS({
           }
         }
         console.error("[inline-overhaul] settings pane unavailable: needs Obsidian 1.13 or newer");
-        this.notice("Inline Overhaul settings need Obsidian 1.13 or newer");
+        this.notice("inlineOverhaul settings need Obsidian 1.13 or newer");
         return null;
       }
       /**

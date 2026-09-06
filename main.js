@@ -118,8 +118,16 @@ const __pkmOptionKeys = (() => {
     const mod = require("./src/core/pkm_option_keys.js");
     if (mod && typeof mod === "object" && mod.KEYS && typeof mod.KEYS === "object") return mod;
   } catch (_) {}
+  /*
+   * Запасные значения на случай, когда модуля рядом нет. Путь здесь обязан
+   * совпадать с `pkm_option_keys.DEFAULT_RULES_PATH`: до 2026-09-06 тут лежало
+   * прежнее место файла — корень vault, — то есть второе объявление одного
+   * пути, разошедшееся с первым при переезде В-39 (У-32). Совпадение держит
+   * пин в `bootstrap_loader_tests.js`.
+   */
   return {
-    DEFAULT_RULES_PATH: "InlineOverhaul_Generated_RULES_TagWheel.md",
+    DEFAULT_RULES_PATH: ".obsidian/plugins/inline-overhaul/generated_rules.md",
+    LEGACY_RULES_PATH: "InlineOverhaul_Generated_RULES_TagWheel.md",
     KEYS: {
       RULES_PATH: "Rules path",
       ACTION_TYPE: "Action type",
@@ -4977,8 +4985,8 @@ class InlineOverhaulPlugin extends Plugin {
       for (const [was, now] of __commandIds.RENAME_RULES) lines.push("  " + was + " → " + now);
       console.info(lines.join("\n"));
 
-      this.notice("Inline Overhaul renamed its commands, so hotkeys you had set for them are no longer bound."
-        + " Set them again in Settings, Hotkeys, searching for Inline Overhaul."
+      this.notice("inlineOverhaul renamed its commands, so hotkeys you had set for them are no longer bound."
+        + " Set them again in Settings, Hotkeys, searching for inlineOverhaul."
         + " The full old-to-new map is printed in the developer console and in docs/command_ids_v1_v2.md");
 
       this.store.patch({ viewState: { commandIdsNotice: "shown" } }, "commands:ids:notice", { undoable: false });
@@ -5145,6 +5153,76 @@ class InlineOverhaulPlugin extends Plugin {
     return buildOwnCommandList(this);
   }
 
+  /**
+   * Заново собрать всё, что плагин строит из конфига один раз — при загрузке.
+   *
+   * Зовётся одним местом — восстановлением копии настроек (10.13.40),
+   * потому что только там конфиг меняется целиком и разом. Две вещи:
+   *
+   *   1. **Команды.** Набор команд PKM строится из Fields конфига (У-79):
+   *      новый набор Fields без этого вызова получает команды только после
+   *      перезапуска, и хоткей из копии ложится на команду, которой ещё нет.
+   *   2. **Место служебного файла.** Копия несёт в себе
+   *      `advanced.generatedRulesPath`, и у копии, снятой до переезда В-39, там
+   *      стоит корень vault. Переезд живёт в `loadConfig` и идёт только при
+   *      загрузке — поэтому после восстановления плагин до конца сеанса писал
+   *      этот файл в корень vault, а следующий запуск его оттуда убирал.
+   *      Именно это заказчик и видел: файл появился и пропал при перезапуске.
+   *      Правило берётся там же, где и при загрузке —
+   *      `moveGeneratedRulesIntoPluginFolder`, — а не пишется второй раз (У-32).
+   *
+   * Ни одна из двух неудач не отменяет восстановления: настройки уже записаны.
+   */
+  async rebuildFromConfig() {
+    try {
+      this.registerCommands();
+    } catch (e) {
+      console.error("[inline-overhaul] команды не перезавелись", e);
+    }
+    try {
+      await this.reapplyGeneratedRulesLocation();
+    } catch (e) {
+      console.error("[inline-overhaul] место служебного файла не починилось", e);
+    }
+  }
+
+  /**
+   * Переезд служебного файла — ещё раз, после того как конфиг сменился
+   * целиком. Своего правила здесь нет: решает та же функция миграции, что и при
+   * загрузке, и со всеми теми же швами к файловой системе. Свой путь человека
+   * она не трогает — только прежнее место и литеральные умолчания.
+   */
+  async reapplyGeneratedRulesLocation() {
+    const adapter = this.app && this.app.vault ? this.app.vault.adapter : null;
+    if (!adapter || typeof adapter.exists !== "function") return;
+    const migration = getConfigMigrationV2Module();
+    if (!migration || typeof migration.moveGeneratedRulesIntoPluginFolder !== "function") return;
+    const files = {
+      exists: (p) => adapter.exists(p),
+      read: (p) => adapter.read(p),
+      write: (p, data) => adapter.write(p, data),
+      remove: (p) => adapter.remove(p),
+    };
+    /* Копия конфига: функция пишет в него прямо, а единственный путь
+       записи в хранилище — `store.update` (CS10). */
+    const probe = cloneJson(this.getConfig());
+    const before = String(readCfgPath(probe, "advanced.generatedRulesPath") || "").trim();
+    const move = await migration.moveGeneratedRulesIntoPluginFolder(
+      files,
+      this.pluginFolderPath(),
+      probe,
+      [__pkmOptionKeys.DEFAULT_RULES_PATH, __pkmOptionKeys.LEGACY_RULES_PATH],
+    );
+    if (!move || !move.path || move.path === before) return;
+    this.store.update(
+      (cfg) => {
+        writeCfgPath(cfg, "advanced.generatedRulesPath", move.path);
+        return cfg;
+      },
+      "restore:generated-rules-path",
+    );
+    await this.ensureGeneratedRulesNow("restore");
+  }
   registerCommands() {
     const registry = getCommandRegistry();
     const coreDefs = registry.buildCoreCommandDefs(this, FEATURE_ORDER, FEATURE_META);
@@ -5545,7 +5623,7 @@ class InlineOverhaulPlugin extends Plugin {
       }
     }
     console.error("[inline-overhaul] settings pane unavailable: needs Obsidian 1.13 or newer");
-    this.notice("Inline Overhaul settings need Obsidian 1.13 or newer");
+    this.notice("inlineOverhaul settings need Obsidian 1.13 or newer");
     return null;
   }
 

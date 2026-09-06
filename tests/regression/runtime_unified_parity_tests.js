@@ -7,11 +7,18 @@ const tokenGraph = require(path.join(__dirname, "..", "..", "src", "core", "toke
 const statusLineRuntime = require(path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js"));
 const runtimeHelpers = require(path.join(__dirname, "..", "..", "src", "core", "pkm_rules_runtime_helpers.js"));
 const tagwheelCore = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js"));
+const linePipeline = require(path.join(__dirname, "..", "..", "src", "core", "line_pipeline.js"));
 
 function assertEq(actual, expected, name) {
   if (actual !== expected) throw new Error(name + ": expected '" + expected + "' got '" + actual + "'");
 }
 
+/* Общие данные для проверок правой части строки. */
+const DATE_PAYLOAD = String.fromCodePoint(0x1F4C5) + "2026-09-06 10:21";
+const SEP_RULES = {
+  io: { separator1: "::", separator2: "::" },
+  dates: { markers: [String.fromCodePoint(0x1F4C5)] },
+};
 function run() {
   assertEq(shared.normalizeCycleEndBehavior("OFF"), "clear-prefix", "cycle-end normalizer maps OFF alias to clear-prefix");
   assertEq(shared.normalizeCycleEndBehavior("ON"), "keep-bullet", "cycle-end normalizer maps ON alias to keep-bullet");
@@ -722,6 +729,62 @@ function run() {
   });
   assertEq(String(markerByFacts && markerByFacts.value), "2026-04-10", "shared marker resolver prioritizes tokenFacts deterministic last occurrence");
 
+  /*
+   * Пустой слот текста у строки, где Field завели на пустой (замечание
+   * заказчика 2026-09-06). Слева один списочный знак, справа дата — значит,
+   * между ними стоит пустой слот, и виден он вторым пробелом.
+   */
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "- ",
+      line: "- :: " + DATE_PAYLOAD,
+      rules: SEP_RULES,
+      mode: "off",
+    }),
+    "-  :: " + DATE_PAYLOAD,
+    "final-line invariants keep an empty text slot on a bullet-only line"
+  );
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "- [ ] ",
+      line: "- [ ] :: " + DATE_PAYLOAD,
+      rules: SEP_RULES,
+      mode: "off",
+    }),
+    "- [ ]  :: " + DATE_PAYLOAD,
+    "final-line invariants keep an empty text slot on a checkbox-only line"
+  );
+  /* И готовую строку не схлопывают обратно: именно это и происходило. */
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "- ",
+      line: "-  :: " + DATE_PAYLOAD,
+      rules: SEP_RULES,
+      mode: "off",
+    }),
+    "-  :: " + DATE_PAYLOAD,
+    "final-line invariants do not collapse an already correct empty slot"
+  );
+
+  /*
+   * Сторож на само расхождение (У-32). Правило «как выглядит строка без
+   * текста с правой частью» объявлено в двух местах и расходилось уже дважды:
+   * 2026-09-05 на паре одинаковых разделителей, 2026-09-06 на пустом слоте.
+   * Пин сверяет два хода на одних и тех же входах, а не каждый сам с собой:
+   * третье расхождение покраснеет здесь, а не у заказчика на экране.
+   */
+  for (const left of ["-", "- [ ]", "- [x]", "* ", "1.", "- #todo", "- один", ""]) {
+    const built = linePipeline.buildFromSegments(
+      { indent: "", left: left, text: "", dates: DATE_PAYLOAD }, SEP_RULES);
+    const finalized = unified.applyFinalLineInvariants({
+      rawLine: (left || "-") + " ",
+      line: built,
+      rules: SEP_RULES,
+      mode: "off",
+    });
+    assertEq(finalized, built,
+      "right-payload line rule agrees between line_pipeline and finalize for left '" + left + "'");
+  }
   console.log("Runtime unified parity tests: OK");
 }
 

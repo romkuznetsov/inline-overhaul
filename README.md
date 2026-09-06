@@ -1,6 +1,6 @@
-# Inline Overhaul
+# inlineOverhaul
 
-A line of a note can carry more than words. Inline Overhaul lets you put a status, a
+A line of a note can carry more than words. inlineOverhaul lets you put a status, a
 priority, a due date and a link to a project on the same line as the thought, then move,
 cycle and edit all of it from the keyboard.
 
@@ -30,7 +30,7 @@ and troubleshooting.
 1. Install and enable the BRAT community plugin.
 2. In BRAT, choose **Add Beta plugin**.
 3. Enter `romkuznetsov/inline-overhaul`.
-4. Enable **Inline Overhaul** in Obsidian's Community plugins settings.
+4. Enable **inlineOverhaul** in Obsidian's Community plugins settings.
 
 ## What you get on a fresh install
 
@@ -55,7 +55,7 @@ it lives under **Keyboard** too.
 
 > [!WARNING]
 > **Command identifiers changed in this version.** Obsidian binds hotkeys to identifiers
-> rather than names, so keys you had assigned to Inline Overhaul commands stopped working
+> rather than names, so keys you had assigned to inlineOverhaul commands stopped working
 > after the update. The old-to-new map is in
 > [`docs/command_ids_v1_v2.md`](docs/command_ids_v1_v2.md), and the plugin says so once on
 > first load.

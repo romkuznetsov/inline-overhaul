@@ -660,7 +660,7 @@ export function migrate(raw: unknown, opts?: MigrateOptions): Dict {
       parts.push("старые значения уступили тому, что записано в новой панели, и сохранены в _unmigrated: "
         + report.contested.join(", "));
     }
-    log("Inline Overhaul, миграция конфига 1 → 2. " + parts.join("; "));
+    log("inlineOverhaul, миграция конфига 1 → 2. " + parts.join("; "));
   }
 
   return out;
@@ -813,7 +813,7 @@ export async function loadConfig(
     const target = join(dir, BROKEN_FILE);
     if (!(await files.exists(target))) await files.write(target, text);
     if (notify) {
-      notify("Inline Overhaul could not read its settings file. A copy is kept at "
+      notify("inlineOverhaul could not read its settings file. A copy is kept at "
         + target + " and the plugin started with default settings");
     }
     return withRulesPath({

@@ -13,7 +13,7 @@ import { TRANSFORM_GROUPS } from "./transform.ts";
 import { ADVANCED_GROUPS } from "./advanced.ts";
 
 export const TABS: readonly TabDef[] = [
-  { id: "general", label: "General", desc: "Inline Overhaul lets one line of a note carry its own status, dates and links", flat: true },
+  { id: "general", label: "General", desc: "inlineOverhaul lets one line of a note carry its own status, dates and links", flat: true },
   { id: "keyboard", label: "Keyboard", desc: "Everything about keys lives here" },
   { id: "navigation", label: "Navigation", module: "features.navigation.enabled", desc: "This menu helps to make inline navigation in Obsidian comfortable" },
   { id: "pkm", label: "Tags & PKM", module: "features.pkm.enabled", desc: "This is the plugin\u2019s main feature" },

@@ -1807,7 +1807,7 @@ async function runTagWheel(input, quickAddSettings) {
     rulesHelpers.applyOrderToRules(rules, orderCfg)
     var missingEmojiFields = dateRuntimeShared.collectMissingEmojiFieldsFromRules(rules, dateRuntimeCfg)
     if (missingEmojiFields.length) {
-      notice('TagWheel config error: Emoji is required for fields: ' + missingEmojiFields.join(', ') + '. Set it in Settings -> Inline Overhaul -> Tags & PKM -> Fields')
+      notice('TagWheel config error: Emoji is required for fields: ' + missingEmojiFields.join(', ') + '. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields')
       return
     }
     var sf = String(runtimeInput && runtimeInput.subtagFormat ? runtimeInput.subtagFormat : '').toLowerCase().trim()
