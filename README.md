@@ -242,12 +242,17 @@ build bundles it into `dist/main.js`.
   commands.
 - Transform writes real notes. It is covered by automated checks, but every vault has its
   own templates, properties and Fields, and those need your eyes.
-- The language files cover the whole settings panel — its tips, the tab callouts, the
-  live previews, the command reference, the windows it opens and the Fields editor with its
-  neighbours: 1189 lines. The guide note and the messages shown while you type are still
-  English whatever you pick, and so are command names, which Obsidian takes from its own
-  registry. Russian ships as a placeholder: the language name, the tab labels and the
-  `Language` group are translated, the rest of the file is English and waiting.
+- The language file covers the whole settings panel — its tips, the tab callouts, the live
+  previews, the command reference, the windows it opens, the Fields editor with its
+  neighbours, and the messages the plugin shows while you type: 1212 lines. The guide note
+  has a file of its own, in `guide/`. Command names stay English whatever you pick:
+  Obsidian takes those from its own registry, and translating them here would leave the
+  command palette and the reference table disagreeing.
+- **No translation ships with the plugin.** The folder holds one file, `default.js`, and
+  that one belongs to the plugin: it is rewritten whenever the panel gains a line, so what
+  you copy is never out of date. A language appears when you put a file next to it, and
+  disappears when you remove it. English is always in the list and has no file at all —
+  it lives in the code, which is the only way it stays current.
 
 ## Terms
 
