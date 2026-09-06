@@ -689,6 +689,206 @@ else ok("схема загружена: групп " + SCHEMA.length);
           ", снято " + cleanups);
 }
 
+/* ---- Бюджет производительности (раздел 12) ----------------------------- */
+{
+  /*
+   * Два числа объявлены в разделе 12 PRD и до 2026-09-06 не мерились ничем.
+   * Пока их не меряют, спор «тормозит ли панель» решается ощущением, а
+   * ощущение у автора правки и у того, кто ею пользуется, разное.
+   *
+   * **Что здесь честно измеряется, а что нет — сказано прямо, потому что
+   * иначе гейт будет утверждать не то, что показывает** («утверждение
+   * пишется о числе, которое видит человек»).
+   *
+   * - **Второе число — настоящее.** «Изменение одной настройки не
+   *   перестраивает больше 10 узлов вне своего блока» — это счёт, а не
+   *   секунды: он одинаков на любой машине, и заглушка DOM считает узлы ровно
+   *   так же, как их создавал бы браузер. Этот бюджет проверяется.
+   *
+   * - **Первое число — нижняя оценка, и только.** «Открытие вкладки не дольше
+   *   150 мс на машине заказчика» меряется в браузере, где к нашей работе
+   *   добавляются раскладка, стили и отрисовка. Здесь их нет: заглушка
+   *   дешевле настоящего DOM в разы. Поэтому замер отвечает на вопрос
+   *   «сколько стоит НАША часть» — построение определений и отрисовка своих
+   *   блоков, — а не на вопрос «уложились ли мы в 150 мс у человека». Второе
+   *   остаётся за заказчиком и за разделом 0 плана ручных проверок.
+   *
+   *   Порог поэтому стоит не на 150 мс: 150 мс на заглушке означали бы, что в
+   *   браузере всё давно потеряно. Он стоит там, где начинается **регрессия
+   *   на порядок**, и меряет то, что мы можем починить сами. Гейт, который
+   *   краснеет от загрузки соседнего процесса на CI, выключают через неделю, и
+   *   тогда не меряет уже ничего.
+   */
+  const { makeNode, nodeCount } = await import("../harness/dom_stub.ts");
+  const { MemoryStore } = await import("../../src/ui/settings/store.ts");
+  const { SettingsPane } = await import("../../src/ui/settings/settings_tab.ts");
+  const { Modal, Notice: StubNotice } = await import("../harness/obsidian_stub.ts");
+  const { loadPluginInternals } = await import("../harness/plugin_internals.ts");
+
+  const internals = loadPluginInternals();
+  const budgetConfig: any = internals.migrateConfig(
+    JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1_full.json"), "utf8")),
+  );
+
+  const budgetPlugin: any = {
+    app: { workspace: {}, vault: {} },
+    manifest: { id: "inline-overhaul", version: "gate", dir: ".obsidian/plugins/inline-overhaul" },
+    getConfig: () => budgetConfig,
+    setConfigPatch: () => {},
+    listOwnCommands: () => internals.buildOwnCommandList(budgetPlugin),
+  };
+  const budgetPlatform = {
+    Setting,
+    Notice: StubNotice,
+    Modal,
+    setIcon: () => {},
+    plugin: budgetPlugin,
+    getConfig: () => budgetConfig,
+    normalizePkmOrder: internals.normalizePkmOrder,
+    pkmOrderFields: [] as string[],
+  };
+
+  const makePane = async (): Promise<any> => {
+    const store = new MemoryStore(JSON.parse(JSON.stringify(budgetConfig)));
+    await store.set("general.help.showTips", true);
+    for (const tab of TABS as Array<{ module?: string }>) {
+      if (tab.module) await store.set(tab.module, true);
+    }
+    return {
+      store,
+      pane: new SettingsPane({
+        schema: SCHEMA,
+        tabs: TABS,
+        store,
+        actions: {},
+        fragments: { createFragment: () => makeNode("fragment") },
+        platform: budgetPlatform,
+      }),
+    };
+  };
+
+  /**
+   * Открыть вкладку целиком: определения плюс отрисовка каждого своего блока.
+   *
+   * Падение блока здесь НЕ глушится. Заглушенное падение превращает
+   * замер работы в замер броска исключений, и гейт при этом зелёный.
+   * Дым ловит Г16 со своим сообщением; здесь падение обязано уронить гейт.
+   */
+  let drawn = 0;
+  const openTab = (pane: any, tabId: string): void => {
+    pane.setActiveTab(tabId);
+    const defs = pane.getSettingDefinitions() as Array<Record<string, any>>;
+    const rows: Array<Record<string, any>> = [];
+    for (const def of defs) {
+      if (Array.isArray(def["items"])) rows.push(...def["items"]);
+      else rows.push(def);
+    }
+    for (const row of rows) {
+      const render = row["render"];
+      if (typeof render !== "function") continue;
+      /*
+       * `render` получает **`Setting`**, а не узел: платформа зовёт его так, и
+       * первая версия этого замера передавала узел. Все 58 своих блоков падали
+       * на `setting.addButton is not a function`, замер показывал 0,2 мс на
+       * вкладку, и гейт был зелёный. То есть мерилось время бросить 58
+       * исключений. Числа 0,2 мс и хватило, чтобы усомниться: столько не стоит
+       * даже пустая работа такого объёма.
+       */
+      const setting = new Setting(makeNode("div"));
+      const cleanup = render(setting, {});
+      drawn++;
+      if (typeof cleanup === "function") cleanup();
+    }
+  };
+
+  /* ---- П1: цена открытия вкладки ---------------------------------------- */
+  {
+    const { pane } = await makePane();
+    /* Первый проход греет кеши модулей и схемы: мерить его — мерить импорт. */
+    for (const tab of TABS as Array<{ id: string }>) openTab(pane, tab.id);
+
+    const CEILING_MS = 150;
+    const slow: string[] = [];
+    const times: string[] = [];
+    for (const tab of TABS as Array<{ id: string; label?: string }>) {
+      const started = performance.now();
+      openTab(pane, tab.id);
+      const spent = performance.now() - started;
+      times.push(String(tab.label || tab.id) + " " + spent.toFixed(1) + " мс");
+      if (spent > CEILING_MS) slow.push(String(tab.label || tab.id) + ": " + spent.toFixed(1) + " мс");
+    }
+    if (slow.length) {
+      fail("бюджет: наша часть открытия вкладки дороже " + CEILING_MS + " мс на заглушке — "
+        + "в браузере к этому добавятся раскладка и отрисовка:\n      " + slow.join("\n      "));
+    } else {
+      ok("бюджет: наша часть открытия вкладки — " + times.join(", "));
+    }
+  }
+
+  /* ---- П2: одна настройка не перестраивает панель ------------------------ */
+  {
+    /*
+     * **Сначала доказательство, что механизм жив, потом бюджет.**
+     *
+     * Бюджет здесь — верхняя граница, а верхнюю границу лучше всего выполняет
+     * панель, которая не делает ничего. Первая версия этой проверки такой и
+     * была: свои блоки не рисовались вовсе, подписчиков не было ни одного,
+     * будить было некого — и «0 узлов из 10» выглядело отличным результатом.
+     * Тот же класс, что и у замера времени выше: обе цифры были прекрасны
+     * ровно потому, что за ними ничего не стояло.
+     *
+     * Поэтому измерений два, и **первое обязано быть больше нуля**: запись в
+     * путь, на который подписан предпросмотр, обязана его перерисовать. Только
+     * после этого второе число — «чужая настройка не будит никого» — что-то
+     * значит.
+     */
+    const { store, pane } = await makePane();
+
+    /* Вкладка Visual: на ней больше всего предпросмотров. Подписки здесь
+       остаются жить до конца замера — их и меряем. */
+    const live: Array<() => void> = [];
+    pane.setActiveTab("visual");
+    for (const def of pane.getSettingDefinitions() as Array<Record<string, any>>) {
+      const rows: Array<Record<string, any>> = Array.isArray(def["items"]) ? def["items"] : [def];
+      for (const row of rows) {
+        if (typeof row["render"] !== "function") continue;
+        const cleanup = row["render"](new Setting(makeNode("div")), {});
+        if (typeof cleanup === "function") live.push(cleanup);
+      }
+    }
+
+    if (!live.length) {
+      fail("бюджет: на вкладке Visual не подписался ни один блок — будить некого, и число ничего не значит");
+    } else {
+      /* Механизм жив? Путь из списка, на который подписан предпросмотр тегов. */
+      const wokeAt = nodeCount();
+      await store.set("visual.tags.textSizePct", 123);
+      const woke = nodeCount() - wokeAt;
+
+      /* Бюджет: настройка с другой вкладки, на которую не подписан никто. */
+      const quietAt = nodeCount();
+      const quietPath = "navigation.moveLine.wrapAround";
+      await store.set(quietPath, !(await store.get(quietPath)));
+      const quiet = nodeCount() - quietAt;
+
+      for (const stop of live) stop();
+
+      const BUDGET_NODES = 10;
+      if (woke <= 0) {
+        fail("бюджет: запись в `visual.tags.textSizePct` не разбудила ни один блок. "
+          + "Либо сломано пробуждение, либо этот замер больше ничего не меряет");
+      } else if (quiet > BUDGET_NODES) {
+        fail("бюджет: запись в `" + quietPath + "` создала " + quiet
+          + " узлов при разрешённых " + BUDGET_NODES
+          + ": проснулся тот, кто на неё не подписан");
+      } else {
+        ok("бюджет: подписано блоков " + live.length + "; своя настройка будит их ("
+          + woke + " узлов), чужая создаёт " + quiet + " при разрешённых " + BUDGET_NODES);
+      }
+    }
+  }
+}
+
 /* ---- Г24: каталог видимых текстов и переводы (10.13.38) ---------------- */
 {
   const { SCHEMA: liveSchema, TABS: liveTabs } =
