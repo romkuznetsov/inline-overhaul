@@ -14,7 +14,7 @@
  * Сам файл конфига в репозиторий не коммитится: в нём имена папок, тегов и
  * путей. Строка исключения стоит в `.gitignore`.
  *
- *   node tools/migration_report.js tests/fixtures/data_owner_2026-08-31.json
+ *   node tools/migration_report.js tests/fixtures/config_v1_realistic.json
  *
  * По умолчанию в отчёт попадают только пути. Ключ `--values` добавляет
  * значения — им отчёт становится показываемым только тому, чей это конфиг.

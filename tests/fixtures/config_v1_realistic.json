@@ -1,0 +1,560 @@
+{
+  "schemaVersion": 1,
+  "features": {
+    "navigation": {
+      "enabled": true
+    },
+    "pkm": {
+      "enabled": true
+    },
+    "visual": {
+      "enabled": true
+    },
+    "transform": {
+      "enabled": true
+    }
+  },
+  "navigation": {
+    "moveLine": {
+      "enabled": true,
+      "noSelectionMode": "line-only",
+      "headerMode": "move-as-line",
+      "crossSectionAllowed": true,
+      "highlightMovedLines": false
+    },
+    "moveSelection": {
+      "enabled": true,
+      "inlineEnabled": true,
+      "prefixCyclerEnabled": true,
+      "indentFallbackEnabled": true,
+      "onCycleEnd": "indent",
+      "cycleOrder": [
+        "#",
+        "##",
+        "###",
+        "####",
+        "#####",
+        "1. ",
+        "",
+        "- "
+      ],
+      "inlineMoveMode": "auto"
+    },
+    "jumpToHeader": {
+      "enabled": true,
+      "centerCursor": true,
+      "centerDelayMs": 60,
+      "centerThrottleMs": 200,
+      "jumpMode": "edge",
+      "edgeMode": "start-end",
+      "jumpCursorPosition": "start"
+    },
+    "navigateInline": {
+      "enabled": true,
+      "stepMode": "word",
+      "boundaryJump": false,
+      "onBoundary": "wrap"
+    }
+  },
+  "rules": {},
+  "globalFunctions": {
+    "enhancedSelectAll": {
+      "enabled": false,
+      "mode": "line-note",
+      "useMultiPressDelay": false,
+      "delayMs": 700,
+      "clearSelectionOnLastPress": false
+    }
+  },
+  "pkm": {
+    "taxonomy": {},
+    "tagWheelConfigPath": "InlineOverhaul_Config.md",
+    "tagWheelConfigTemplatePath": "InlineOverhaul_Config_template.md",
+    "configExportMode": "detailed",
+    "executionBackend": "internal-runtime-v2",
+    "generatedRulesPath": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "behavior": {
+      "subtagFormat": "separate",
+      "cycleEndBehavior": "keep-bullet",
+      "cursorPolicy": "text_end",
+      "tagWheelScroller": {
+        "enabled": false,
+        "direction": "full",
+        "size": 3
+      },
+      "colors": {
+        "tagwheelHeader": {
+          "defaultTextColor": "",
+          "fillColor": "",
+          "showPrefix": true
+        }
+      },
+      "tagVisuals": {
+        "showColorSettings": false,
+        "tagTextSizePct": 100,
+        "tagBubbleWidthPct": 100,
+        "tagBubbleHeightPct": 100,
+        "emptyBubbleSizePct": 100,
+        "tagShapePct": 0,
+        "opacity": {
+          "left": 1,
+          "right": 1
+        },
+        "byField": {},
+        "byTag": {
+          "222": {
+            "#78": {
+              "fillColor": "#513434",
+              "textColor": "#ede8e8",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#89779": {
+              "fillColor": "#4af28a",
+              "textColor": "#484747",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#98": {
+              "fillColor": "#2e497f",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#dfd": {
+              "fillColor": "#e49a9a",
+              "textColor": "#8d6868",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#8977955": {
+              "fillColor": "#6e3f3f",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#8977": {
+              "fillColor": "",
+              "textColor": "#b04f4f",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#897755555": {
+              "fillColor": "",
+              "textColor": "#824a4a",
+              "visibility": "default",
+              "customText": ""
+            }
+          },
+          "343": {
+            "#545": {
+              "fillColor": "",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            }
+          },
+          "12w": {
+            "#111": {
+              "fillColor": "#4a2121",
+              "textColor": "#ffffff",
+              "visibility": "default",
+              "customText": "8888"
+            },
+            "#щрщ": {
+              "fillColor": "",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            }
+          },
+          "Importance": {
+            "#/1": {
+              "fillColor": "#ff0000",
+              "textColor": "#ffffff",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#/2": {
+              "fillColor": "#e6c700",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#/3": {
+              "fillColor": "#00d118",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            }
+          },
+          "type": {
+            "#todo": {
+              "fillColor": "#0008f0",
+              "textColor": "#f0eaea",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#source": {
+              "fillColor": "#787878",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            },
+            "#note": {
+              "fillColor": "#cd2d65",
+              "textColor": "",
+              "visibility": "default",
+              "customText": ""
+            }
+          }
+        },
+        "userTags": {
+          "#999": {
+            "fillColor": "",
+            "textColor": "",
+            "visibility": "default",
+            "customText": ""
+          }
+        },
+        "strip": {
+          "active": false,
+          "fieldId": "",
+          "tagVisibility": true,
+          "hideSeparatorWhenOnlyStripToken": false,
+          "mode": "default",
+          "stripesToShow": 2,
+          "thickness": 2,
+          "spacing": 20,
+          "childOffset": 12
+        }
+      },
+      "freeRoam": {
+        "minimalSeparator": true,
+        "minimalPrefix": true,
+        "offPrefix": false,
+        "fullPlacement": "smart"
+      },
+      "io": {
+        "separator1": "||",
+        "separator2": "||"
+      },
+      "order": {
+        "left": [
+          "Importance",
+          "Project",
+          "date_due"
+        ],
+        "right": [
+          "type"
+        ],
+        "lead": {},
+        "active": {
+          "Importance": "yes",
+          "Project": "yes",
+          "date_due": "yes",
+          "type": "yes",
+          "Importance_sub": "no",
+          "type_sub": "no"
+        },
+        "freeRoam": {
+          "Importance": "off",
+          "Project": "off",
+          "date_due": "off",
+          "type": "off",
+          "Importance_sub": "off",
+          "type_sub": "off"
+        },
+        "enabled": {
+          "Importance": true,
+          "Project": true,
+          "date_due": true,
+          "type": true,
+          "Importance_sub": false,
+          "type_sub": false
+        },
+        "types": {
+          "Importance": "tag",
+          "Project": "wikilink",
+          "date_due": "element",
+          "type": "tag"
+        },
+        "labels": {
+          "Importance": "Importance",
+          "Project": "Project",
+          "date_due": "Due",
+          "type": "type"
+        },
+        "strictNames": {
+          "Importance": "Importance",
+          "Project": "Project",
+          "date_due": "date_due",
+          "type": "type"
+        },
+        "propertiesByField": {}
+      },
+      "leftMode": {
+        "fields": [
+          {
+            "id": "Importance",
+            "prefix": "#",
+            "placeholder": "Importance",
+            "values": [
+              {
+                "token": "#/1",
+                "subtags": [],
+                "active": true
+              },
+              {
+                "token": "#/2",
+                "subtags": [],
+                "active": true
+              },
+              {
+                "token": "#/3",
+                "subtags": [],
+                "active": true
+              }
+            ],
+            "yamlValueRule": "raw"
+          },
+          {
+            "id": "Importance_sub",
+            "prefix": "#",
+            "enabled": false,
+            "dependsOn": "Importance",
+            "disabledForParentValues": [],
+            "placeholder": "sub",
+            "values": []
+          },
+          {
+            "id": "type",
+            "prefix": "#",
+            "placeholder": "type",
+            "values": [
+              {
+                "token": "#todo",
+                "subtags": [],
+                "active": true
+              },
+              {
+                "token": "#source",
+                "subtags": [],
+                "active": true
+              },
+              {
+                "token": "#note",
+                "subtags": [],
+                "active": true
+              }
+            ]
+          },
+          {
+            "id": "type_sub",
+            "prefix": "#",
+            "enabled": false,
+            "dependsOn": "type",
+            "disabledForParentValues": [],
+            "placeholder": "sub",
+            "values": []
+          }
+        ]
+      },
+      "rightMode": {
+        "fields": [
+          {
+            "id": "date_due",
+            "kind": "genericElement",
+            "marker": "📅",
+            "placeholder": "Due",
+            "values": [
+              ""
+            ]
+          },
+          {
+            "id": "Project",
+            "prefix": "#",
+            "source": "wikilinks:Project",
+            "placeholder": "Project",
+            "values": [
+              "",
+              {
+                "token": "test1",
+                "active": true,
+                "allowedParentValues": [],
+                "prefixMode": "bullet",
+                "checkboxToken": ""
+              },
+              {
+                "token": "test2",
+                "active": true,
+                "allowedParentValues": [],
+                "prefixMode": "bullet",
+                "checkboxToken": ""
+              }
+            ],
+            "dependsOn": "type"
+          }
+        ]
+      },
+      "elements": {
+        "fields": [
+          "date_due"
+        ],
+        "byField": {
+          "date_due": {
+            "emoji": "📅",
+            "format": "YYYY-MM-DD",
+            "increment": {
+              "mode": "standard",
+              "incrementBy": 1,
+              "command": "now",
+              "customRaw": [],
+              "custom": []
+            }
+          }
+        }
+      },
+      "defaultMode": "left",
+      "childTagFormat": "separate",
+      "prefixRules": {
+        "checkboxByFieldValue": {
+          "222": {},
+          "343": {},
+          "12w": {},
+          "12w_sub": {},
+          "222_sub": {},
+          "343_sub": {},
+          "Importance": {},
+          "Importance_sub": {},
+          "type": {
+            "#todo": "[ ]",
+            "#note": "[n]",
+            "#source": "[s]"
+          },
+          "type_sub": {}
+        }
+      },
+      "typeCheckboxByValue": {}
+    }
+  },
+  "visual": {
+    "displayModes": {},
+    "colors": {},
+    "tags": {
+      "opacityLeft": 100,
+      "opacityRight": 100,
+      "textSizePct": 100,
+      "bubbleWidthPct": 100,
+      "bubbleHeightPct": 100,
+      "emptyBubblePct": 100,
+      "cornersPct": 0
+    },
+    "tagBars": {
+      "stripesToShow": 2,
+      "thickness": 3,
+      "childOffset": 11,
+      "spacing": 14,
+      "fieldId": "status",
+      "tagVisibility": true,
+      "hideSeparatorWhenOnlyStripToken": true
+    },
+    "tagWheel": {
+      "scroller": {
+        "size": 3,
+        "enabled": true
+      },
+      "fillColor": "#f1e596",
+      "textColor": "#5c5a6d"
+    }
+  },
+  "transform": {
+    "inline2fleet": {},
+    "inline2note": {
+      "enabled": true,
+      "templateFolder": "",
+      "outputFolder": "",
+      "defaultTemplate": "",
+      "smartRules": [],
+      "noteName": {
+        "mode": "auto",
+        "explicitNameDelimiters": "[]",
+        "autoWordsCount": 6,
+        "preferHeaderTitle": true
+      },
+      "nameCollision": {
+        "mode": "new_note"
+      },
+      "placement": {
+        "position": "end",
+        "headerMode": "datetime",
+        "customHeaderText": "### Inline transformed",
+        "datetimeHeaderFormat": "YYYY-MM-DD HH:mm"
+      },
+      "sourceProcessing": {
+        "cleanupFieldIds": [],
+        "processedToken": "#processed",
+        "processedTokenPanel": "right",
+        "replacePayloadWithLink": true,
+        "visual": {
+          "enabled": false,
+          "color": "",
+          "opacity": 0.65
+        }
+      },
+      "flyingButton": {
+        "enabled": false
+      },
+      "preview": {
+        "sampleLine": "- [ ] #/1 #todo #context"
+      },
+      "yamlNoteFormat": "raw",
+      "openTransformedNote": false,
+      "sublinesBehavior": "stay"
+    }
+  },
+  "backups": {
+    "tagWheelConfigApplies": []
+  },
+  "meta": {},
+  "ui": {
+    "activeSettingsTab": "general",
+    "visualSubTab": "tags",
+    "hotkeysSubTab": "global",
+    "pkmSubTab": "main",
+    "orderShowInfoTips": true,
+    "orderShowDeepEditor": true,
+    "orderShowColorSettings": true,
+    "orderActiveCommandsCollapsed": true,
+    "binderRows": [
+      {
+        "rowId": "binder-system-smart-bracket",
+        "insertText": "[]",
+        "commandName": "Smart bracket",
+        "description": "Smart bracket",
+        "commandId": "inlineOverhaul_Binder_Smart_bracket"
+      }
+    ]
+  },
+  "devMode": {
+    "enabled": false,
+    "generateAiLog": true,
+    "traceTagVisualLine": false,
+    "logPath": "InlineOverhaul_DevLog"
+  },
+  "editor": {
+    "selectAll": {
+      "enabled": true,
+      "useDelay": false,
+      "clearOnLast": false
+    }
+  },
+  "general": {
+    "help": {
+      "showTips": true
+    }
+  },
+  "advanced": {
+    "newSettingsPane": true
+  }
+}

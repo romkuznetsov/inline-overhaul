@@ -89,7 +89,7 @@ const fragments = {
  */
 function realConfig(): Any {
   const raw = JSON.parse(
-    fs.readFileSync(path.join(root, "tests", "fixtures", "data_owner_2026-08-31.json"), "utf8"),
+    fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1_realistic.json"), "utf8"),
   ) as Any;
   return internals.migrateConfig(raw);
 }
