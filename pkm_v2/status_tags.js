@@ -1546,8 +1546,25 @@ module.exports = {
     }
 
     const core = await loadVaultModule(app_, ".obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel_core.js", false);
-    const notice = (msg) => {
-      try { new Notice(String(msg ?? "")); } catch (_) {}
+    /*
+     * Уведомление спрашивает текст у каталога (PRD 10.13.50, ответ на В-74).
+     * Форма: `notice(key, english, ...args)`; английское остаётся здесь, на
+     * случай если слой настроек не загрузился. Ключ собирает функция (У-82).
+     */
+    const noticeKey = (name) => "notice.rules." + name;
+    const notice = (key, english, ...args) => {
+      let text = String(english ?? "");
+      const ask = globalThis.__inlineSay;
+      if (typeof ask === "function") {
+        try {
+          const said = ask(String(key), text);
+          if (typeof said === "string" && said !== "") text = said;
+        } catch (_) {}
+      }
+      for (let i = 0; i < args.length; i++) {
+        text = text.split("{" + i + "}").join(String(args[i] ?? ""));
+      }
+      try { new Notice(text); } catch (_) {}
     };
     const rulesHelpers = globalThis.__inlinePkmRulesHelpers;
     if (!rulesHelpers || typeof rulesHelpers.normalizeRulesPath !== "function") {
@@ -1591,11 +1608,13 @@ module.exports = {
       rulesMd = loaded.markdown;
       usedRulesPath = loaded.path;
     } catch (e) {
-      notice((e && e.message) ? e.message : `Rules file not found: ${normalizeRulesPath(rulesPathInput)}`);
+      if (e && e.message) notice("", e.message);
+      else notice(noticeKey('file-missing'),
+        'Rules file not found: {0}', normalizeRulesPath(rulesPathInput));
       return;
     }
     if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
-      notice(`Rules path fallback: ${usedRulesPath}`);
+      notice(noticeKey('path-fallback'), 'Using the rules file at {0}', usedRulesPath);
     }
     const rules = core.parseRulesFromMarkdown(rulesMd);
     const subtagFormat = getSubtagFormat(rules, settings);
@@ -1608,7 +1627,9 @@ module.exports = {
     try {
       core.validateRules(rules);
     } catch (e) {
-      notice(`TagWheel config error after Order apply: ${String(e && e.message ? e.message : e || "validateRules failed")}`);
+      notice(noticeKey('config-error'),
+        'Rules are not valid after applying the order: {0}',
+        String(e && e.message ? e.message : e || "validateRules failed"));
       return;
     }
 

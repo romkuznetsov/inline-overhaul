@@ -1016,8 +1016,33 @@ async function run() {
      строкой цитирует её текст, и это правильно — оно говорит, чего там больше
      нет и почему. */
   assertFalse(/notice\('TagWheel: режим активирован/.test(tagwheelSrc), "the activation notice is not raised anywhere in tagwheel");
-  assertTrue(/notice\('TagWheel: app context not found'\)/.test(tagwheelSrc), "tagwheel still reports a missing app context");
-  assertTrue(/notice\('TagWheel error: '/.test(tagwheelSrc), "tagwheel still reports its errors");
+  /*
+   * **Пины пошли за текстом в его новый дом** (У-56, 10.13.50). С 2026-09-06
+   * сообщения TagWheel спрашивают текст у каталога: форма вызова стала
+   * `notice(ключ, английское, …)`. Искать прежний литерал значило бы держать
+   * пин без предмета — он покраснел бы честно, и покраснел.
+   *
+   * Ищется теперь **пара**: что сообщение поднимается и что ключ ему строит
+   * функция, а не литерал (У-82). Второе важнее первого: разойтись молча
+   * может только ключ.
+   */
+  assertTrue(/notice\(tagWheelNoticeKey\('no-app'\), 'TagWheel: no app context'\)/.test(tagwheelSrc),
+    "tagwheel still reports a missing app context, through the catalogue");
+  assertTrue(/notice\(tagWheelNoticeKey\('error'\), 'TagWheel error: \{0\}'/.test(tagwheelSrc),
+    "tagwheel still reports its errors, through the catalogue");
+  assertTrue(/function tagWheelNoticeKey\(name\)/.test(tagwheelSrc),
+    "tagwheel builds its catalogue keys with one function, not with literals (У-82)");
+  assertFalse(/notice\('notice\.tagwheel\./.test(tagwheelSrc),
+    "a literal stands where the catalogue key should be built (У-82)");
+  /*
+   * Русская строка на экране была дефектом, а не выбором: интерфейс
+   * английский (Р9). Запрет именно на неё, потому что вернуться она может
+   * только правкой этого места.
+   */
+  assertFalse(/нет активного редактора/.test(tagwheelSrc),
+    "tagwheel shows a Russian string to the user again (Р9)");
+  assertTrue(/notice\(tagWheelNoticeKey\('no-editor'\), 'TagWheel: open a note first'\)/.test(tagwheelSrc),
+    "tagwheel still tells the user there is no editor");
 
   /*
    * И-3: два хода обязаны считать `clearedOwnCheckbox`, а не подставлять его

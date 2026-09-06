@@ -26,10 +26,38 @@ var __lineFinalizeUnifiedMod = null
 var __dateRuntimeSharedMod = null
 var __tagwheelScrollerOverlayMod = null
 
+/*
+ * Уведомление TagWheel. С 2026-09-06 оно спрашивает текст у каталога
+ * (PRD 10.13.50, третий кусок; ответ заказчика на В-74).
+ *
+ * Форма вызова: `notice(key, english, ...args)`. Английское остаётся здесь же,
+ * вторым аргументом: слой настроек может не загрузиться вовсе, и тогда человек
+ * обязан увидеть сообщение, а не ключ. Шов — `globalThis.__inlineSay`, тот же
+ * способ доставки, каким этот файл получает всё остальное.
+ *
+ * Ключ собирает `tagWheelNoticeKey`, а не литерал на месте вызова (У-82).
+ */
+function tagWheelNoticeKey(name) {
+  return 'notice.tagwheel.' + name
+}
+
 function makeTagWheelNotice(NoticeRef) {
-  return function notice(msg) {
-    if (typeof NoticeRef === 'function') new NoticeRef(msg)
-    else console.log('[tagwheel] ' + msg)
+  return function notice(key, english, ...args) {
+    var text = String(english == null ? '' : english)
+    var ask = globalThis.__inlineSay
+    if (typeof ask === 'function') {
+      try {
+        var said = ask(String(key), text)
+        if (typeof said === 'string' && said !== '') text = said
+      } catch (_) {}
+    }
+    /* Подстановка по номеру, а не склейка через `+`: по-русски то, что
+       по-английски стоит в конце фразы, встаёт в начало. */
+    for (var i = 0; i < args.length; i++) {
+      text = text.split('{' + i + '}').join(String(args[i] == null ? '' : args[i]))
+    }
+    if (typeof NoticeRef === 'function') new NoticeRef(text)
+    else console.log('[tagwheel] ' + text)
   }
 }
 
@@ -1674,13 +1702,13 @@ async function runTagWheel(input, quickAddSettings) {
 
   var app_ = resolveTagWheelApp(runtimeInput) || preApp
   if (!app_) {
-    notice('TagWheel: app context not found')
+    notice(tagWheelNoticeKey('no-app'), 'TagWheel: no app context')
     return
   }
 
   var editor = getTagWheelEditor(app_)
   if (!editor) {
-    notice('TagWheel: нет активного редактора')
+    notice(tagWheelNoticeKey('no-editor'), 'TagWheel: open a note first')
     return
   }
 
@@ -1768,11 +1796,14 @@ async function runTagWheel(input, quickAddSettings) {
     try {
       loadedRules = await rulesHelpers.readRulesMarkdownWithFallback(app_, rp, DEFAULT_RULES_PATH)
     } catch (e) {
-      notice((e && e.message) ? e.message : ('TagWheel: rules file not found: ' + normalizeRulesPathFn(rp)))
+      if (e && e.message) notice('', e.message)
+      else notice(tagWheelNoticeKey('rules-missing'),
+        'TagWheel: rules file not found: {0}', normalizeRulesPathFn(rp))
       return
     }
     if (loadedRules && loadedRules.path && loadedRules.path !== normalizeRulesPathFn(rp)) {
-      notice('TagWheel: rules path fallback: ' + loadedRules.path)
+      notice(tagWheelNoticeKey('rules-fallback'),
+        'TagWheel: using the rules file at {0}', loadedRules.path)
     }
     var rulesMd = loadedRules.markdown
     var rules = core.parseRulesFromMarkdown(rulesMd)
@@ -1807,7 +1838,9 @@ async function runTagWheel(input, quickAddSettings) {
     rulesHelpers.applyOrderToRules(rules, orderCfg)
     var missingEmojiFields = dateRuntimeShared.collectMissingEmojiFieldsFromRules(rules, dateRuntimeCfg)
     if (missingEmojiFields.length) {
-      notice('TagWheel config error: Emoji is required for fields: ' + missingEmojiFields.join(', ') + '. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields')
+      notice(tagWheelNoticeKey('emoji-required'),
+        'TagWheel: these Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields',
+        missingEmojiFields.join(', '))
       return
     }
     var sf = String(runtimeInput && runtimeInput.subtagFormat ? runtimeInput.subtagFormat : '').toLowerCase().trim()
@@ -1920,7 +1953,8 @@ async function runTagWheel(input, quickAddSettings) {
         }
       } catch (err) {
         try { cleanupTagWheelState(state) } catch (_) {}
-        notice('TagWheel error: ' + ((err && err.message) ? err.message : err))
+        notice(tagWheelNoticeKey('error'), 'TagWheel error: {0}',
+          (err && err.message) ? err.message : err)
         reportTagWheelError(err)
         handled = true
       }
@@ -1959,7 +1993,7 @@ async function runTagWheel(input, quickAddSettings) {
      * не произошло: нет редактора, не нашлись правила, ошибка конфигурации.
      */
   } catch (e) {
-    notice('TagWheel error: ' + (e.message || e))
+    notice(tagWheelNoticeKey('error'), 'TagWheel error: {0}', e.message || e)
     reportTagWheelError(e)
   }
 }

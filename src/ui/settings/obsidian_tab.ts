@@ -850,6 +850,32 @@ export class InlineOverhaulSettings extends PluginSettingTab {
      * говорит английским.
      */
     void this.loadTexts(app, plugin);
+
+    /*
+     * **Шов к сообщениям плагина в редакторе** (10.13.50 Ф-2).
+     *
+     * `main.js` и файлы `pkm_v2/**` про панель не знают и знать не должны: у
+     * них нет ни `ctx`, ни импорта слоя настроек, а два из трёх ещё и под З3.
+     * Так они получают всё остальное — `__inlinePkmMacroShared`,
+     * `__inlineLinePipeline`, сам `Notice`, — и заводить для одной строки
+     * второй способ доставки значило бы объявить одно правило дважды (У-32).
+     *
+     * **Резолвер здесь не свой, а тот же самый.** Зовётся `pane.textFor` — та
+     * функция, которой отвечает панель. Отсюда даром берётся то, что своим
+     * резолвером пришлось бы поддерживать руками: человек меняет язык в
+     * `General → Language`, и сообщения в редакторе меняются вместе с
+     * панелью, потому что язык живёт в одном месте.
+     *
+     * Если этой вкладки нет вовсе (старый Obsidian, не загрузившийся модуль —
+     * `createSettingTab()` отдаёт `null`), глобали нет, и каждое место в
+     * рантайме отдаёт свой английский литерал. Это не поломка, а тот же
+     * контракт, что у `PLAIN`.
+     */
+    (globalThis as Record<string, unknown>)["__inlineSay"] =
+      (key: string, fallback: string): string => {
+        try { return this.textFor(String(key), String(fallback == null ? "" : fallback)); }
+        catch { return String(fallback == null ? "" : fallback); }
+      };
   }
 
   /**

@@ -26,6 +26,7 @@ const bundledVaultModules = new Map(Object.entries({
   ".obsidian/plugins/inline-overhaul/src/core/pkm_runtime_preload_facade.js": require("../src/core/pkm_runtime_preload_facade.js"),
   ".obsidian/plugins/inline-overhaul/src/core/priority_strip_cm6_adapter.js": require("../src/core/priority_strip_cm6_adapter.js"),
   ".obsidian/plugins/inline-overhaul/src/core/priority_strip_engine.js": require("../src/core/priority_strip_engine.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/say.js": require("../src/core/say.js"),
   ".obsidian/plugins/inline-overhaul/src/core/shared_utils.js": require("../src/core/shared_utils.js"),
   ".obsidian/plugins/inline-overhaul/src/core/status_line_runtime_unified.js": require("../src/core/status_line_runtime_unified.js"),
   ".obsidian/plugins/inline-overhaul/src/core/status_runtime_common.js": require("../src/core/status_runtime_common.js"),

@@ -73,6 +73,31 @@ const __sharedUtilsFallback = {
   },
 };
 
+/*
+ * Видимый текст сообщения по ключу каталога (PRD 10.13.50, третий кусок).
+ *
+ * Шов один на весь рантайм — `globalThis.__inlineSay`, его ставит слой
+ * настроек. Пока он не поставлен (панель не собралась, старый Obsidian),
+ * `say` отдаёт английское, которое стоит вторым аргументом на месте вызова:
+ * человек обязан увидеть сообщение, а не ключ.
+ */
+let __say = (key, english, ...args) => {
+  let text = String(english == null ? "" : english);
+  return args.reduce(
+    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
+    text,
+  );
+};
+try {
+  const mod = require("./src/core/say.js");
+  if (mod && typeof mod.say === "function") __say = mod.say;
+} catch (_) {}
+
+/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
+function __noticeKey(area, name) {
+  return "notice." + area + "." + name;
+}
+
 let __sharedUtils = __sharedUtilsFallback;
 try {
   const mod = require("./src/core/shared_utils.js");
@@ -458,7 +483,7 @@ async function loadTransformFeatureSafe(app) {
       }
     },
     runInline2Note: async (plugin) => {
-      if (plugin && typeof plugin.notice === "function") plugin.notice("InlineOverhaul: transform module unavailable");
+      if (plugin && typeof plugin.notice === "function") plugin.notice(__say(__noticeKey("plugin", "transform-unavailable"), "Transform module could not be loaded"));
     },
   };
   return __transformFeature;
@@ -911,7 +936,7 @@ function fallbackRulesSyncOrchestrator() {
       if (!genPath) throw new Error("Generated rules path is empty");
       const md = ctx.buildRulesMarkdown(cfg);
       await ctx.writeText(genPath, md);
-      if (reason === "manual") ctx.notice("InlineOverhaul: generated rules updated");
+      if (reason === "manual") ctx.notice(__say(__noticeKey("plugin", "rules-updated"), "Rules file updated"));
     },
   };
 }
@@ -4850,7 +4875,7 @@ class FallbackConfigStore {
         this.lastSavedAt = Date.now();
       } catch (e) {
         console.error("[inline-overhaul] Save failed", e);
-        new Notice("InlineOverhaul: failed to save settings");
+        new Notice(__say(__noticeKey("plugin", "save-failed"), "Could not save settings"));
       }
     }, this.saveDebounceMs);
   }
@@ -5399,36 +5424,36 @@ class InlineOverhaulPlugin extends Plugin {
   async runNavGuard(moduleKey, action) {
     const cfg = this.getConfig();
     if (!cfg.features.navigation.enabled) {
-      new Notice("InlineOverhaul: Navigation module disabled");
+      new Notice(__say(__noticeKey("navigation", "module-off"), "Navigation is switched off"));
       return;
     }
     const rt = await this.ensureNavRuntime();
     if (!rt) {
-      new Notice("InlineOverhaul: navigation runtime unavailable");
+      new Notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
       return;
     }
     const ed = this.getActiveEditor();
     if (!ed) {
-      new Notice("InlineOverhaul: no active editor");
+      new Notice(__say(__noticeKey("navigation", "no-editor"), "Open a note first"));
       return;
     }
     try {
       return await Promise.resolve(action(ed, cfg.navigation || {}, cfg, rt));
     } catch (e) {
       console.error("[inline-overhaul][navigation]", e);
-      new Notice("InlineOverhaul navigation error: " + (e.message || e));
+      new Notice(__say(__noticeKey("navigation", "error"), "Navigation error: {0}", e.message || e));
     }
   }
 
   async runPkmGuard(action) {
     const cfg = this.getConfig();
     if (!cfg.features.pkm.enabled) {
-      new Notice("InlineOverhaul: Tag & PKM module disabled");
+      new Notice(__say(__noticeKey("pkm", "module-off"), "Tags & PKM is switched off"));
       return;
     }
     const ed = this.getActiveEditor();
     if (!ed) {
-      new Notice("InlineOverhaul: no active editor");
+      new Notice(__say(__noticeKey("pkm", "no-editor"), "Open a note first"));
       return;
     }
     try {
@@ -5439,7 +5464,7 @@ class InlineOverhaulPlugin extends Plugin {
         stack: e && e.stack ? String(e.stack) : "",
       }, "error", cfg);
       console.error("[inline-overhaul][pkm]", e);
-      new Notice("InlineOverhaul PKM error: " + (e.message || e));
+      new Notice(__say(__noticeKey("pkm", "error"), "Tags & PKM error: {0}", e.message || e));
     }
   }
 
@@ -5570,14 +5595,14 @@ class InlineOverhaulPlugin extends Plugin {
   async runInlineToNote() {
     const cfg = this.getConfig();
     if (!cfg.features.transform.enabled) {
-      this.notice("InlineOverhaul: Transform module disabled");
+      this.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off"));
       return;
     }
     try {
       await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal, lineFinalize: __transformLineFinalize }));
     } catch (e) {
       console.error("[inline-overhaul][transform]", e);
-      this.notice("InlineOverhaul transform error: " + (e && e.message ? e.message : e));
+      this.notice(__say(__noticeKey("transform", "error"), "Transform error: {0}", e && e.message ? e.message : e));
     }
   }
 
@@ -5623,7 +5648,7 @@ class InlineOverhaulPlugin extends Plugin {
       }
     }
     console.error("[inline-overhaul] settings pane unavailable: needs Obsidian 1.13 or newer");
-    this.notice("inlineOverhaul settings need Obsidian 1.13 or newer");
+    this.notice(__say(__noticeKey("plugin", "needs-obsidian"), "inlineOverhaul settings need Obsidian 1.13 or newer"));
     return null;
   }
 

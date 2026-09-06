@@ -47,6 +47,7 @@ import {
   previewKey,
 } from "../../src/ui/settings/texts_custom.ts";
 import { panelCatalog } from "../../src/ui/settings/texts_panel.ts";
+import { RUNTIME_TEXTS, noticeKey } from "../../src/ui/settings/texts_runtime.ts";
 import { DEFAULT_FILE } from "../../src/ui/settings/texts.ts";
 import { dialogKey } from "../../src/ui/settings/texts_dialogs.ts";
 import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
@@ -700,6 +701,56 @@ const FOLDER = ".obsidian/plugins/inline-overhaul";
   /* Соседние строки при этом не тронуты: спрашивается ключ, а не весь блок. */
   assert.ok(russian.indexOf("Move right") >= 0, "перевод одной строки задел соседнюю");
   ok("свой блок спрашивает каталог по ключу, и перевод доезжает до экрана");
+}
+
+/* ---- сообщения редактора доезжают до файла на диске --------------------- */
+
+{
+  /*
+   * **Найдено мутацией, и мутация была права.** Третий кусок каталога
+   * (10.13.50) собран правильно во всём, кроме одного: таблица
+   * `texts_runtime.ts` может существовать, шов может работать, ключи с обеих
+   * сторон могут сходиться — и при этом ни одна строка не попадёт в
+   * `default.js`, если `panelCatalog` забудет слагаемое.
+   *
+   * Человек в этом случае получает файл без единого сообщения редактора и
+   * переводить их ему негде. На экране при этом всё «работает»: место вызова
+   * отдаёт свой английский литерал.
+   *
+   * Это ровно тот случай, ради которого `panelCatalog` и заведён одной
+   * функцией (У-32) — и ровно то, что своя проверка каждого слагаемого
+   * должна ловить. Первая версия пина третьего куска этого не ловила:
+   * мутация «убрать `runtimeEntries()` из хвоста» выжила.
+   */
+  const keys = new Set(ENTRIES.map(e => e.key));
+  const missing: string[] = [];
+  for (const [area, messages] of Object.entries(RUNTIME_TEXTS)) {
+    for (const name of Object.keys(messages)) {
+      const key = noticeKey(area, name);
+      if (!keys.has(key)) missing.push(key);
+    }
+  }
+  assert.deepEqual(missing, [],
+    "сообщение редактора не доехало до каталога — человеку негде его перевести:\n  "
+    + missing.join("\n  "));
+
+  /* И они стоят разделом в конце, а не вперемешку со строками вкладок
+     (10.13.46 Р3: разделом в конце лежит то, у чего места в схеме нет). */
+  const positions = ENTRIES
+    .map((e, i) => ({ key: e.key, i }))
+    .filter(e => e.key.startsWith("notice."))
+    .map(e => e.i);
+  assert.ok(positions.length > 0, "в каталоге нет ни одного сообщения редактора");
+  const firstNotice = Math.min(...positions);
+  const strays = ENTRIES
+    .slice(firstNotice)
+    .filter(e => !e.key.startsWith("notice."))
+    .map(e => e.key);
+  assert.deepEqual(strays, [],
+    "между сообщениями редактора вклинились другие строки — раздел перестал быть разделом:\n  "
+    + strays.slice(0, 10).join("\n  "));
+
+  ok("сообщения редактора доезжают до файла на диске и лежат одним разделом в конце");
 }
 
 console.log("\n" + passed + " проверок пройдено");

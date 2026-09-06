@@ -29,6 +29,31 @@ const __pkmDomainRegistryFallback = (() => {
 
 const DATE_ACTION_OPTIONS = [];
 
+/*
+ * Видимый текст сообщения по ключу каталога (PRD 10.13.50, ответ на В-74).
+ * Английское стоит на месте вызова вторым аргументом: слой настроек может не
+ * загрузиться, и тогда человек обязан увидеть сообщение, а не ключ.
+ * Ключ собирает функция, а не литерал (У-82).
+ */
+function statusDateNoticeKey(name) {
+  return 'notice.rules.' + name;
+}
+
+function sayStatusDate(key, english, ...args) {
+  let text = String(english == null ? '' : english);
+  const ask = globalThis.__inlineSay;
+  if (typeof ask === 'function') {
+    try {
+      const said = ask(String(key), text);
+      if (typeof said === 'string' && said !== '') text = said;
+    } catch (_) {}
+  }
+  for (let i = 0; i < args.length; i++) {
+    text = text.split('{' + i + '}').join(String(args[i] == null ? '' : args[i]));
+  }
+  return text;
+}
+
 function applyPkmOptionKeys(mod) {
   const keys = mod && mod.KEYS && typeof mod.KEYS === "object" ? mod.KEYS : null;
   if (!keys) return;
@@ -1465,11 +1490,19 @@ module.exports = {
       rulesMd = loaded.markdown;
       usedRulesPath = loaded.path;
     } catch (e) {
-      try { new Notice((e && e.message) ? e.message : `Rules file not found: ${normalizeRulesPath(rulesPathInput)}`); } catch (_) {}
+      try {
+        new Notice((e && e.message)
+          ? e.message
+          : sayStatusDate(statusDateNoticeKey('file-missing'),
+            'Rules file not found: {0}', normalizeRulesPath(rulesPathInput)));
+      } catch (_) {}
       return;
     }
     if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
-      try { new Notice(`Rules path fallback: ${usedRulesPath}`); } catch (_) {}
+      try {
+        new Notice(sayStatusDate(statusDateNoticeKey('path-fallback'),
+          'Using the rules file at {0}', usedRulesPath));
+      } catch (_) {}
     }
     const rules = core.parseRulesFromMarkdown(rulesMd);
     const statusCommon = getStatusRuntimeCommon();
@@ -1480,14 +1513,18 @@ module.exports = {
       core.validateRules(rules);
     } catch (e) {
       try {
-        new Notice(`TagWheel config error after Order apply: ${String(e && e.message ? e.message : e || "validateRules failed")}`);
+        new Notice(sayStatusDate(statusDateNoticeKey('config-error'),
+          'Rules are not valid after applying the order: {0}',
+          String(e && e.message ? e.message : e || "validateRules failed")));
       } catch (_) {}
       return;
     }
     const missingEmojiFields = collectMissingEmojiFields(rules, dateRuntimeCfg);
     if (missingEmojiFields.length) {
       try {
-        new Notice(`TagWheel config error: Emoji is required for fields: ${missingEmojiFields.join(", ")}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields`);
+        new Notice(sayStatusDate(statusDateNoticeKey('emoji-required'),
+          'These Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields',
+          missingEmojiFields.join(", ")));
       } catch (_) {}
     }
 

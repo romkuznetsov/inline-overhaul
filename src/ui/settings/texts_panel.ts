@@ -20,6 +20,7 @@
 import { catalogEntries, type CatalogExtras, type TextEntry } from "./texts.ts";
 import { blockEntries, sharedEntries } from "./texts_custom.ts";
 import { dialogEntries, type DialogOwner } from "./texts_dialogs.ts";
+import { runtimeEntries } from "./texts_runtime.ts";
 import type { SettingDef, SettingsGroup, TabDef } from "./types.ts";
 
 /** У каких кнопок этой строки есть свои окна. */
@@ -42,7 +43,15 @@ export function panelExtras(): CatalogExtras {
       const dialogs = dialogsOf(it);
       return blocks.length ? blocks.concat(dialogs) : dialogs;
     },
-    tail: sharedEntries().concat(dialogEntries("shared").map(e => ({ ...e }))),
+    /*
+     * Разделом в конце — то, у чего места в схеме нет. Сообщения плагина в
+     * редакторе (10.13.50) стоят здесь по той же причине, что и общие строки:
+     * человек встречает их не в настройках, а пока печатает, и класть их
+     * между строками вкладки значило бы соврать о порядке чтения.
+     */
+    tail: sharedEntries()
+      .concat(dialogEntries("shared").map(e => ({ ...e })))
+      .concat(runtimeEntries().map(e => ({ ...e }))),
   };
 }
 
