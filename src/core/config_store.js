@@ -1,5 +1,27 @@
 "use strict";
 
+/*
+ * Видимый текст сообщения по ключу каталога (PRD 10.13.50).
+ *
+ * Модуль спрашивает `globalThis.__inlineSay` через общий помощник: своей копии
+ * этого правила заводить нельзя, из тройки таких копий уже вырос дефект Б-11.
+ */
+const __say = (() => {
+  try {
+    const mod = require("./say.js");
+    if (mod && typeof mod.say === "function") return mod.say;
+  } catch (_) {}
+  return (key, english, ...args) => args.reduce(
+    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
+    String(english == null ? "" : english),
+  );
+})();
+
+/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
+function __noticeKey(area, name) {
+  return "notice." + area + "." + name;
+}
+
 class ConfigStore {
   constructor(plugin, options) {
     this.plugin = plugin;
@@ -125,7 +147,7 @@ class ConfigStore {
         this.lastSavedAt = Date.now();
       } catch (e) {
         console.error("[inline-overhaul] Save failed", e);
-        new this.Notice("InlineOverhaul: failed to save settings");
+        new this.Notice(__say(__noticeKey("plugin", "save-failed"), "Could not save settings"));
       }
     }, this.saveDebounceMs);
   }

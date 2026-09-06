@@ -125,6 +125,10 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
    */
   const FILES = [
     ["main.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
+    ["src/features/transform_feature.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
+    ["src/features/command_registry.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
+    ["src/features/rules_sync_orchestrator.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
+    ["src/core/config_store.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
     ["pkm_v2/TagWheel/tagwheel.js", /tagWheelNoticeKey\('([a-z0-9-]+)'\)/g],
     ["pkm_v2/status_date.js", /statusDateNoticeKey\('([a-z0-9-]+)'\)/g],
     ["pkm_v2/status_tags.js", /noticeKey\('([a-z0-9-]+)'\)/g],
@@ -137,7 +141,7 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
     while ((m = rx.exec(src)) !== null) {
       /* У TagWheel и status_* область зашита в саму функцию ключа: она одна
          на файл. У `main.js` областей несколько, и она первым аргументом. */
-      if (rel === "main.js") asked.add("notice." + m[1] + "." + m[2]);
+      if (m.length > 2 && m[2]) asked.add("notice." + m[1] + "." + m[2]);
       else if (rel.includes("tagwheel")) asked.add("notice.tagwheel." + m[1]);
       else asked.add("notice.rules." + m[1]);
     }
@@ -202,6 +206,52 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
   assert.deepStrictEqual(lines.map(l => l.no), [],
     "сообщение снова начинается с имени плагина — Obsidian и так показывает источник");
   ok("ни одно сообщение не начинается с имени плагина");
+}
+
+{
+  /*
+   * **Сплошной обход, и вот зачем он появился.**
+   *
+   * Первая перепись сообщений считала `new Notice` в `main.js` и `pkm_v2/**` —
+   * и пропустила больше двадцати. Причина: модули `src/` говорят не через
+   * `new Notice`, а через `plugin.notice(...)` и через **текст исключения**,
+   * который выше по стеку подставляется человеку в `Transform error: {0}`. Со
+   * стороны `main.js` этого не видно вовсе, и обе стороны пина сходились —
+   * потому что обе смотрели не туда.
+   *
+   * Отсюда правило: **перепись, идущая по списку файлов, проверяет список, а
+   * не предмет.** Здесь обход сплошной: любой файл плагина, любая строка
+   * живого кода, начинающаяся с имени плагина.
+   *
+   * Имена файлов (`InlineOverhaul_Generated_RULES_TagWheel.md`,
+   * `InlineOverhaul_DevLog`) — не сообщения: это адреса, и переименовывать их
+   * нельзя (у человека уже лежат файлы с такими именами).
+   */
+  const skipDirs = new Set(["node_modules", ".git", "dist", "docs", "tests", "media"]);
+  const found = [];
+  const walk = (dir) => {
+    for (const name of fs.readdirSync(dir)) {
+      if (skipDirs.has(name)) continue;
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) { walk(full); continue; }
+      if (!/\.(js|ts)$/.test(name)) continue;
+      const rel = path.relative(root, full).replace(/\\/g, "/");
+      const lines = fs.readFileSync(full, "utf8").split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        const line = String(lines[i] || "");
+        if (/^\s*(\*|\/\/|\/\*)/.test(line)) continue;
+        /* Адрес, а не речь: имя файла плагина. */
+        const speech = line.replace(/InlineOverhaul_[A-Za-z0-9_]*/g, "");
+        if (/["'`]InlineOverhaul[:\s]/.test(speech)) {
+          found.push(rel + ":" + (i + 1) + "  " + line.trim().slice(0, 90));
+        }
+      }
+    }
+  };
+  walk(root);
+  assert.deepStrictEqual(found, [],
+    "строка, которую увидит человек, снова начинается с имени плагина:\n  " + found.join("\n  "));
+  ok("сплошной обход: ни в одном файле плагина нет речи, начинающейся с его имени");
 }
 
 console.log("\n" + passed + " проверок пройдено");

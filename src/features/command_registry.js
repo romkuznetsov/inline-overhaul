@@ -1,5 +1,27 @@
 "use strict";
 
+/*
+ * Видимый текст сообщения по ключу каталога (PRD 10.13.50).
+ *
+ * Модуль спрашивает `globalThis.__inlineSay` через общий помощник: своей копии
+ * этого правила заводить нельзя, из тройки таких копий уже вырос дефект Б-11.
+ */
+const __say = (() => {
+  try {
+    const mod = require("../core/say.js");
+    if (mod && typeof mod.say === "function") return mod.say;
+  } catch (_) {}
+  return (key, english, ...args) => args.reduce(
+    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
+    String(english == null ? "" : english),
+  );
+})();
+
+/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
+function __noticeKey(area, name) {
+  return "notice." + area + "." + name;
+}
+
 const __pkmOptionKeys = (() => {
   try {
     if (typeof require === "function") {
@@ -90,7 +112,7 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
       name: __commandIds.commandName("undo-last-settings-change"),
       run: () => {
         const ok = plugin.store.undo("command:undo");
-        if (!ok) plugin.notice("InlineOverhaul: nothing to undo");
+        if (!ok) plugin.notice(__say(__noticeKey("plugin", "nothing-to-undo"), "Nothing to undo"));
       },
     },
   ];
@@ -121,7 +143,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       name: __commandIds.commandName("move-line-up"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.moveLine.enabled) return plugin.notice("MoveLine disabled in settings");
-        if (!rt || typeof rt.moveLine !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+        if (!rt || typeof rt.moveLine !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         rt.moveLine(ed, "up", nav.moveLine);
       },
     },
@@ -130,7 +152,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       name: __commandIds.commandName("move-line-down"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.moveLine.enabled) return plugin.notice("MoveLine disabled in settings");
-        if (!rt || typeof rt.moveLine !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+        if (!rt || typeof rt.moveLine !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         rt.moveLine(ed, "down", nav.moveLine);
       },
     },
@@ -138,7 +160,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       id: "move-left",
       name: __commandIds.commandName("move-left"),
       run: (ed, nav, fullCfg, rt) => {
-        if (!rt || typeof rt.moveSelection !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+        if (!rt || typeof rt.moveSelection !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         rt.moveSelection(ed, "left", nav.moveSelection, getLineFormat(fullCfg));
       },
     },
@@ -146,7 +168,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       id: "move-right",
       name: __commandIds.commandName("move-right"),
       run: (ed, nav, fullCfg, rt) => {
-        if (!rt || typeof rt.moveSelection !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+        if (!rt || typeof rt.moveSelection !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         rt.moveSelection(ed, "right", nav.moveSelection, getLineFormat(fullCfg));
       },
     },
@@ -155,7 +177,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       name: __commandIds.commandName("jump-back"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
-        if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+        if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         rt.jumpToHeader(ed, "up", nav.jumpToHeader, getLineFormat(fullCfg));
       },
     },
@@ -164,7 +186,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       name: __commandIds.commandName("jump-next"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
-        if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+        if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         rt.jumpToHeader(ed, "down", nav.jumpToHeader, getLineFormat(fullCfg));
       },
     },
@@ -174,7 +196,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       run: async (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
         if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
-          return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+          return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         }
         const rules = await rt.loadNavigateRules(plugin.app, getActiveTagWheelRulesPath(fullCfg));
         rt.navigateInline(ed, "left", rules, nav.navigateInline);
@@ -186,7 +208,7 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
       run: async (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
         if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
-          return plugin.notice("InlineOverhaul: navigation runtime unavailable");
+          return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         }
         const rules = await rt.loadNavigateRules(plugin.app, getActiveTagWheelRulesPath(fullCfg));
         rt.navigateInline(ed, "right", rules, nav.navigateInline);
@@ -386,7 +408,7 @@ function normalizeBinderRows(rawRows) {
 
 function runInsertTextCommand(plugin, insertText) {
   const ed = plugin && typeof plugin.getActiveEditor === "function" ? plugin.getActiveEditor() : null;
-  if (!ed) return plugin && typeof plugin.notice === "function" ? plugin.notice("InlineOverhaul: no active editor") : null;
+  if (!ed) return plugin && typeof plugin.notice === "function" ? plugin.notice(__say(__noticeKey("pkm", "no-editor"), "Open a note first")) : null;
   const text = String(insertText || "");
   if (!text) return;
   const from = ed.getCursor("from");
@@ -397,7 +419,7 @@ function runInsertTextCommand(plugin, insertText) {
 
 function runInsertBracketsCommand(plugin) {
   const ed = plugin && typeof plugin.getActiveEditor === "function" ? plugin.getActiveEditor() : null;
-  if (!ed) return plugin && typeof plugin.notice === "function" ? plugin.notice("InlineOverhaul: no active editor") : null;
+  if (!ed) return plugin && typeof plugin.notice === "function" ? plugin.notice(__say(__noticeKey("pkm", "no-editor"), "Open a note first")) : null;
 
   const from = ed.getCursor("from");
   const to = ed.getCursor("to");

@@ -1,5 +1,27 @@
 "use strict";
 
+/*
+ * Видимый текст сообщения по ключу каталога (PRD 10.13.50).
+ *
+ * Модуль спрашивает `globalThis.__inlineSay` через общий помощник: своей копии
+ * этого правила заводить нельзя, из тройки таких копий уже вырос дефект Б-11.
+ */
+const __say = (() => {
+  try {
+    const mod = require("../core/say.js");
+    if (mod && typeof mod.say === "function") return mod.say;
+  } catch (_) {}
+  return (key, english, ...args) => args.reduce(
+    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
+    String(english == null ? "" : english),
+  );
+})();
+
+/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
+function __noticeKey(area, name) {
+  return "notice." + area + "." + name;
+}
+
 function isObj(v) {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
@@ -412,7 +434,7 @@ function resolveIoSeparators(cfg) {
   const s1 = String(io && io.separator1 || "").trim();
   const s2 = String(io && io.separator2 || "").trim();
   if (!s1 || !s2) {
-    throw new Error("InlineOverhaul: missing pkm.lineFormat separators (separator1/separator2)");
+    throw new Error("missing pkm.lineFormat separators (separator1/separator2)");
   }
   return { separator1: s1, separator2: s2 };
 }
@@ -1159,21 +1181,21 @@ function renderYamlBlockWithOrder(existingYamlLines, yamlPatch, cfg) {
         if (text[i] === quote) { end = i; break; }
       }
       if (end < 0 || !/^\s*:/.test(text.slice(end + 1))) {
-        throw new Error(`InlineOverhaul: invalid quoted YAML top-level key: ${text}`);
+        throw new Error(`invalid quoted YAML top-level key: ${text}`);
       }
       const lexeme = text.slice(0, end + 1);
       let key;
       try {
         key = quote === '"' ? JSON.parse(lexeme) : lexeme.slice(1, -1).replace(/''/g, "'");
       } catch (_) {
-        throw new Error(`InlineOverhaul: invalid quoted YAML top-level key: ${text}`);
+        throw new Error(`invalid quoted YAML top-level key: ${text}`);
       }
       return { key: String(key), lexeme };
     }
     const colon = text.indexOf(":");
     if (colon < 1) return null;
     const lexeme = text.slice(0, colon).trim();
-    if (!lexeme || /^[\-?:]/.test(lexeme)) throw new Error(`InlineOverhaul: invalid YAML top-level key: ${text}`);
+    if (!lexeme || /^[\-?:]/.test(lexeme)) throw new Error(`invalid YAML top-level key: ${text}`);
     return { key: lexeme, lexeme };
   };
   const renderYamlKey = (key) => /^[\p{L}\p{N}_.-]+$/u.test(String(key || "")) ? String(key) : JSON.stringify(String(key));
@@ -1182,7 +1204,7 @@ function renderYamlBlockWithOrder(existingYamlLines, yamlPatch, cfg) {
     if (!parsedKey) continue;
     const k = parsedKey.key;
     if (!k) continue;
-    if (Object.prototype.hasOwnProperty.call(keyToLineIndex, k)) throw new Error(`InlineOverhaul: duplicate YAML top-level key: ${k}`);
+    if (Object.prototype.hasOwnProperty.call(keyToLineIndex, k)) throw new Error(`duplicate YAML top-level key: ${k}`);
     keysExisting.push(k);
     keyToLineIndex[k] = i;
   }
@@ -1313,7 +1335,7 @@ function resolveAutoTitle(parsed, i2n) {
 
 function promptNoteTitleWithModal(plugin, ModalClass) {
   if (!plugin || !plugin.app || typeof ModalClass !== "function") {
-    throw new Error("InlineOverhaul: Obsidian Modal unavailable for manual note naming");
+    throw new Error("Obsidian Modal unavailable for manual note naming");
   }
   return new Promise((resolve) => {
     let settled = false;
@@ -1430,7 +1452,7 @@ async function pickTargetPath(plugin, title, i2n, rule) {
     if (!app.vault.getAbstractFileByPath(p)) return { mode: "new_note", path: p, basePath, exists: false };
     idx += 1;
   }
-  throw new Error(`InlineOverhaul: cannot allocate unique note path for ${basePath}`);
+  throw new Error(`cannot allocate unique note path for ${basePath}`);
 }
 
 function deriveSourceWikilinkFromTargetPath(targetPath) {
@@ -1559,7 +1581,7 @@ function insertProcessedToken(line, token, panel, separators) {
   const body = src.slice(indent.length);
   const s1 = String(separators && separators.separator1 || "").trim();
   const s2 = String(separators && separators.separator2 || "").trim();
-  if (!s1 || !s2) throw new Error("InlineOverhaul: source processing separators are required");
+  if (!s1 || !s2) throw new Error("source processing separators are required");
   const first = body.indexOf(s1);
   const second = first >= 0 ? body.indexOf(s2, first + s1.length) : -1;
   if (String(panel || "right").trim().toLowerCase() === "left") {
@@ -1606,7 +1628,7 @@ function applySourceCleanupByFieldIds(line, transformContext, cleanupFieldIds, s
   const leadingIndent = String((out.match(/^\s*/) || [""])[0] || "");
   out = String(out.slice(leadingIndent.length) || "");
   const s1 = String(separators && separators.separator1 || "").trim();
-  if (!s1) throw new Error("InlineOverhaul: separator1 is required for source cleanup");
+  if (!s1) throw new Error("separator1 is required for source cleanup");
   out = out
     .replace(new RegExp(`\\s+${escapeRegexLiteral(s1)}\\s+`, "g"), ` ${s1} `)
     .replace(/\s{2,}/g, " ")
@@ -1619,7 +1641,7 @@ function applySourcePrefixResolution(line, originalLine, transformContext, prese
   const prefixMatch = original.match(/^([\t ]*)([-*+]\s+)(?:\[([^\]]*)\]\s+)?/);
   if (!prefixMatch) return String(line || "");
   if (!lineFinalize || typeof lineFinalize.buildPrefixUnified !== "function") {
-    throw new Error("InlineOverhaul: shared prefix resolver unavailable");
+    throw new Error("shared prefix resolver unavailable");
   }
   const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
   const behavior = { prefixRules: pkm.prefixRules, order: pkm.fields && pkm.fields.order };
@@ -1970,13 +1992,13 @@ function deriveRootBlockFromEditor(ed, lineNo) {
 }
 
 function deriveSelectionRangeFromEditor(ed, from, to) {
-  if (!ed || typeof ed.getLine !== "function") throw new Error("InlineOverhaul: editor line API unavailable");
+  if (!ed || typeof ed.getLine !== "function") throw new Error("editor line API unavailable");
   const total = typeof ed.lineCount === "function" ? Math.max(1, Number(ed.lineCount() || 1)) : Math.max(1, Number(to && to.line || 0) + 1);
   let start = Math.max(0, Math.min(total - 1, Number(from && from.line || 0)));
   let selectedEnd = Math.max(start, Math.min(total - 1, Number(to && to.line || start)));
   if (selectedEnd > start && Number(to && to.ch || 0) === 0) selectedEnd -= 1;
   while (start <= selectedEnd && !String(ed.getLine(start) || "").trim()) start += 1;
-  if (start > selectedEnd) throw new Error("InlineOverhaul: selection contains no transformable line");
+  if (start > selectedEnd) throw new Error("selection contains no transformable line");
   const rootLine = String(ed.getLine(start) || "");
   const baseIndent = indentSize(rootLine);
   let end = selectedEnd;
@@ -2011,15 +2033,15 @@ function readEditorBlock(ed, info) {
 
 function assertEditorSnapshot(plugin, ed, info, expectedBlock) {
   if (!ed || plugin && typeof plugin.getActiveEditor === "function" && plugin.getActiveEditor() !== ed) {
-    throw new Error("InlineOverhaul: source editor changed before transform completed");
+    throw new Error("source editor changed before transform completed");
   }
   if (readEditorBlock(ed, info) !== String(expectedBlock || "")) {
-    throw new Error("InlineOverhaul: source changed before transform completed");
+    throw new Error("source changed before transform completed");
   }
 }
 
 function replaceEditorSourceBlock(ed, info, nextRootLine, sublines) {
-  if (!ed || typeof ed.replaceRange !== "function") throw new Error("InlineOverhaul: editor replace API unavailable");
+  if (!ed || typeof ed.replaceRange !== "function") throw new Error("editor replace API unavailable");
   const start = Number(info.blockStart || 0);
   const end = Number(info.blockEnd || start);
   if (String(sublines || "stay").trim().toLowerCase() !== "remove") {
@@ -2039,13 +2061,13 @@ function replaceEditorSourceBlock(ed, info, nextRootLine, sublines) {
 async function readTemplateContent(plugin, templatePath) {
   const path = String(templatePath || "").trim();
   if (!path) return "";
-  if (!plugin || !plugin.app || !plugin.app.vault) throw new Error("InlineOverhaul: vault unavailable for template read");
+  if (!plugin || !plugin.app || !plugin.app.vault) throw new Error("vault unavailable for template read");
   const af = plugin.app.vault.getAbstractFileByPath(path);
-  if (!af) throw new Error(`InlineOverhaul: template not found: ${path}`);
+  if (!af) throw new Error(`template not found: ${path}`);
   try {
     return await plugin.app.vault.read(af);
   } catch (error) {
-    throw new Error(`InlineOverhaul: failed to read template ${path}: ${error && error.message ? error.message : error}`);
+    throw new Error(`failed to read template ${path}: ${error && error.message ? error.message : error}`);
   }
 }
 
@@ -2115,7 +2137,7 @@ async function writeInline2Note(plugin, target, content, appendBlock) {
         throw error;
       }
     }
-    throw new Error(`InlineOverhaul: unique note allocation exhausted for ${basePath}`);
+    throw new Error(`unique note allocation exhausted for ${basePath}`);
   }
   if (!af) {
     const folderPath = String(target.path || "").replace(/\\/g, "/").replace(/\/[^/]*$/, "");
@@ -2144,7 +2166,7 @@ async function writeInline2Note(plugin, target, content, appendBlock) {
     await vault.modify(af, next);
     return { target, rollback: async () => vault.modify(af, previous) };
   }
-  throw new Error(`InlineOverhaul: unsupported collision mode ${target.mode}`);
+  throw new Error(`unsupported collision mode ${target.mode}`);
 }
 
 function patchInline2Note(plugin, nextI2n, reason) {
@@ -2849,18 +2871,18 @@ async function runInline2Note(plugin, runtimeOptions) {
   const separators = resolveIoSeparators(cfg);
   const i2n = normalizeInline2Note(cfg && cfg.transform ? cfg.transform.inline2note : null);
   if (!i2n.enabled) {
-    plugin.notice("InlineOverhaul: Transform inline2note disabled");
+    plugin.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off"));
     return;
   }
   const ed = plugin.getActiveEditor();
   if (!ed) {
-    plugin.notice("InlineOverhaul: no active editor");
+    plugin.notice(__say(__noticeKey("transform", "no-editor"), "Open a note first"));
     return;
   }
   const from = typeof ed.getCursor === "function" ? ed.getCursor("from") : null;
   const to = typeof ed.getCursor === "function" ? ed.getCursor("to") : null;
   const hasSelection = !!(ed && typeof ed.somethingSelected === "function" && ed.somethingSelected());
-  if (!from || !to) throw new Error("InlineOverhaul: editor cursor unavailable");
+  if (!from || !to) throw new Error("editor cursor unavailable");
   const selectionInfo = hasSelection
     ? deriveSelectionRangeFromEditor(ed, from, to)
     : deriveRootBlockFromEditor(ed, Number(from.line || 0));
@@ -2868,15 +2890,15 @@ async function runInline2Note(plugin, runtimeOptions) {
   const sourceBlockText = String(selectionInfo.blockText || (selectionInfo.blockLines || []).join("\n") || sourceLine);
   const sourceSnapshot = readEditorBlock(ed, selectionInfo);
   const parsed = parseInlineLine(sourceLine, cfg);
-  if (!String(parsed.payloadText || "").trim()) throw new Error("InlineOverhaul: source payload is empty");
+  if (!String(parsed.payloadText || "").trim()) throw new Error("source payload is empty");
   const transformContext = buildTransformContext(parsed, cfg);
   const resolvedTitle = await resolveNoteTitle(plugin, parsed, i2n, runtimeOptions);
   if (resolvedTitle === null) {
-    plugin.notice("InlineOverhaul: transform cancelled");
+    plugin.notice(__say(__noticeKey("transform", "cancelled"), "Transform cancelled"));
     return;
   }
   const title = sanitizeResolvedTitle(resolvedTitle);
-  if (!title) throw new Error("InlineOverhaul: note title is empty");
+  if (!title) throw new Error("note title is empty");
   /* Правило выбирается **один раз**: и шаблон, и папка берутся у него, иначе
      два прохода однажды разойдутся и заметка уедет не туда (10.13.8 Н5). */
   const smartRule = selectSmartRule(parsed, i2n.smartRules, cfg);
@@ -2915,9 +2937,9 @@ async function runInline2Note(plugin, runtimeOptions) {
     try {
       await mutation.rollback();
     } catch (rollbackError) {
-      throw new Error(`InlineOverhaul: source edit failed and target rollback failed: ${sourceError.message}; rollback: ${rollbackError.message}`);
+      throw new Error(`source edit failed and target rollback failed: ${sourceError.message}; rollback: ${rollbackError.message}`);
     }
-    throw new Error(`InlineOverhaul: source edit failed; target mutation rolled back: ${sourceError && sourceError.message ? sourceError.message : sourceError}`);
+    throw new Error(`source edit failed; target mutation rolled back: ${sourceError && sourceError.message ? sourceError.message : sourceError}`);
   }
   if (i2n.openTarget) {
     try {
@@ -2928,7 +2950,7 @@ async function runInline2Note(plugin, runtimeOptions) {
       }
     } catch (_) {}
   }
-  plugin.notice(`InlineOverhaul: inline2note created ${actualTarget.path}`);
+  plugin.notice(__say(__noticeKey("transform", "created"), "Note created: {0}", actualTarget.path));
 }
 
 module.exports = {
