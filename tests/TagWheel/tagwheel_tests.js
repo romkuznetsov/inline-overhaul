@@ -1384,6 +1384,216 @@ function runRightPayloadSurvivesSuite() {
 }
 
 /**
+ * Вид панели не попадает в историю отмен (замечание заказчика 2026-09-07).
+ *
+ * **Что было.** Пока панель открыта, TagWheel переписывает строку на каждое
+ * нажатие, и каждая запись была своей ступенью отмены. После применения
+ * `Ctrl+Z` возвращал не строку, а панель — столько раз, сколько было нажатий.
+ *
+ * **Что проверяется здесь и чего здесь нет.** Проверяется **шов**: чем именно
+ * плагин просит редактор написать строку. Что CodeMirror такую пометку и
+ * правда пропускает мимо истории — это ответ платформы, и он спрошен у её
+ * собственного кода: в `app.js` Obsidian 1.13.7 стоит ветка
+ * `!1 === t.annotation(addToHistory)`, возвращающая историю нетронутой (У-44).
+ * Пакета с историей в наборе нет, поэтому **сам `Ctrl+Z` остаётся за глазами**
+ * и вынесен в лист приёмки (У-43: подделка молчит о том, что делает кнопка).
+ */
+function runUndoSeamSuite() {
+  var path = require('path')
+  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var cmState = require('@codemirror/state')
+
+  function makeView(text) {
+    var doc = cmState.Text.of(String(text || '').split('\n'))
+    var seen = []
+    return {
+      seen: seen,
+      state: { doc: doc },
+      dispatch: function (spec) { seen.push(spec) }
+    }
+  }
+
+  /* Есть `cm` — идём своей транзакцией, с пометкой «мимо истории». */
+  var view = makeView('первая\nвторая\nтретья')
+  var wrote = []
+  var editor = {
+    cm: view,
+    setLine: function (n, v) { wrote.push([n, v]) }
+  }
+  tagwheel.setLineOutsideHistory(editor, 1, 'панель')
+  assertEq(wrote.length, 0, 'при живом редакторе обычный setLine не зовётся')
+  assertEq(view.seen.length, 1, 'послана ровно одна транзакция')
+  var spec = view.seen[0]
+  var line = view.state.doc.line(2)
+  assertEq(spec.changes.from, line.from, 'отрезок начинается с начала своей строки')
+  assertEq(spec.changes.to, line.to, 'и кончается её концом, а не концом документа')
+  assertEq(spec.changes.insert, 'панель', 'пишется то, что просили')
+  /*
+   * Пометка проверяется значением, а не фактом наличия: `addToHistory.of(true)`
+   * прошёл бы «проверку на наличие» и не значил бы ничего.
+   */
+  assertEq(spec.annotations.type, cmState.Transaction.addToHistory,
+    'пометка — именно про историю отмен')
+  assertEq(spec.annotations.value, false, 'и она говорит «не запоминать»')
+
+  /* Нет `cm` — прежний путь, и строка всё равно написана. */
+  var plainWrote = []
+  tagwheel.setLineOutsideHistory({
+    setLine: function (n, v) { plainWrote.push([n, v]) }
+  }, 3, 'без редактора')
+  assertArrayEq(plainWrote[0], [3, 'без редактора'],
+    'без доступа к редактору строка пишется как раньше')
+
+  /* И отказ редактора не роняет панель, а уходит в запасной путь. */
+  var angryWrote = []
+  tagwheel.setLineOutsideHistory({
+    cm: { state: { doc: { line: function () { throw new Error('нет такой строки') } } }, dispatch: function () {} },
+    setLine: function (n, v) { angryWrote.push([n, v]) }
+  }, 0, 'после отказа')
+  assertArrayEq(angryWrote[0], [0, 'после отказа'],
+    'редактор отказал — строка всё равно написана')
+
+  console.log('  ok вид панели пишется мимо истории отмен, а запасной путь цел')
+}
+
+/**
+ * Применение выбора оставляет в истории **одну** ступень.
+ *
+ * Проверяется не шов, а сам ход: настоящий `applySelection` из `tagwheel.js`,
+ * настоящие правила, настоящая сессия. Второй вход в `runTagWheel` при живой
+ * панели зовёт применение и возвращается — этим и пользуемся, как пользуется
+ * им сам плагин, когда человек нажимает хоткей второй раз.
+ *
+ * Редактор здесь свой, но подделан в нём только `cm`: у Obsidian это
+ * `EditorView`, а в Node его нет вовсе. Он записывает, что ему послали, — по
+ * этому и видно, сколько ступеней получит история.
+ */
+async function runUndoOneStepSuite() {
+  var path = require('path')
+  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var finalize = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_line_finalize_unified.js'))
+  var helpers = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+  var linePipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))
+  var macroShared = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_macro_shared.js'))
+  var statusLineRuntime = require(path.join(__dirname, '..', '..', 'src', 'core', 'status_line_runtime_unified.js'))
+  var cmState = require('@codemirror/state')
+
+  var savedGlobals = {
+    linePipeline: globalThis.__inlineLinePipeline,
+    helpers: globalThis.__inlinePkmRulesHelpers,
+    macroShared: globalThis.__inlinePkmMacroShared,
+    statusLineRuntime: globalThis.__inlineStatusLineRuntimeUnified,
+    win: globalThis.window,
+    app: globalThis.app,
+    add: globalThis.addEventListener,
+    remove: globalThis.removeEventListener
+  }
+  globalThis.__inlineLinePipeline = linePipeline
+  globalThis.__inlinePkmRulesHelpers = helpers
+  globalThis.__inlinePkmMacroShared = macroShared
+  globalThis.__inlineStatusLineRuntimeUnified = statusLineRuntime
+  globalThis.window = globalThis
+  globalThis.addEventListener = function () {}
+  globalThis.removeEventListener = function () {}
+
+  try {
+    var rules = {
+      behavior: {
+        defaultMode: 'left',
+        order: {
+          left: ['type'], right: [],
+          active: { type: 'yes' }, enabled: { type: true }, types: { type: 'tag' }
+        },
+        prefixRules: { checkboxByFieldValue: {} },
+        elements: { byField: {} },
+        dateRuntimeConfig: { byField: {}, canonical: {} }
+      },
+      io: { separator1: '::', separator2: '::' },
+      projects: {},
+      leftMode: {
+        fields: [
+          { id: 'type', prefix: '#', orderKey: 'type', values: [{ id: 'todo', token: '#todo', active: true }] }
+        ]
+      },
+      rightMode: { fields: [] }
+    }
+    core.validateRules(rules)
+
+    var original = '- моя строка'
+    var lines = [original]
+    var dispatched = []
+    var plainWrites = []
+    var view = {
+      state: { doc: cmState.Text.of(lines.slice()) },
+      dispatch: function (spec) {
+        dispatched.push(spec)
+        var l = view.state.doc.line(1)
+        lines[0] = String(spec.changes.insert)
+        view.state = { doc: cmState.Text.of(lines.slice()) }
+        void l
+      }
+    }
+    var editor = {
+      cm: view,
+      getLine: function (n) { return lines[n] || '' },
+      setLine: function (n, v) { plainWrites.push([n, v]); lines[n] = String(v) },
+      getCursor: function () { return { line: 0, ch: 0 } },
+      setCursor: function () {},
+      lineCount: function () { return lines.length }
+    }
+
+    var parsedLine = core.parseLine(original, rules)
+    var session = core.makeInitialState(rules, 'left')
+    session.mode = 'left'
+    core.hydrateStateFromParsedLine(rules, session, parsedLine)
+    core.sanitizeState(rules, session)
+    session.selected.type = 'todo'
+    session.activeField = 0
+    session.activeFieldId = 'type'
+
+    globalThis.app = { vault: {}, workspace: { activeEditor: { editor: editor }, activeLeaf: null } }
+    globalThis.window.__tagWheelState = {
+      active: true, core: core, editor: editor, rules: rules, lineNumber: 0,
+      originalLine: original, parsedLine: parsedLine, session: session,
+      cycleEndBehavior: 'keep-bullet', cursorPolicy: 'text_end',
+      orderCfg: helpers.parseOrderConfig(rules.behavior.order),
+      app: null, lineFinalize: finalize, targetPanel: 'left',
+      originalCursorCh: 0, keyHandler: null, scrollerCfg: { enabled: false },
+      edgeMode: 'stop', scrollerOverlay: null
+    }
+
+    await tagwheel.entry({}, {})
+
+    /* Положительный контроль: применение и правда произошло. */
+    assertTrue(lines[0] !== original, 'строка изменилась — применение отработало: ' + lines[0])
+    assertTrue(lines[0].indexOf('моя строка') !== -1, 'текст человека на месте: ' + lines[0])
+
+    /*
+     * В истории ступень одна. Мимо истории ушёл только возврат к исходной
+     * строке; итог записан обычным путём, и он в истории один.
+     */
+    assertEq(dispatched.length, 1, 'мимо истории послано ровно одно изменение')
+    assertEq(dispatched[0].changes.insert, original,
+      'мимо истории уходит возврат к исходной строке, а не итог')
+    assertEq(dispatched[0].annotations.value, false, 'и он помечен «не запоминать»')
+    assertEq(plainWrites.length, 1, 'в историю пишется ровно один раз')
+    assertEq(plainWrites[0][1], lines[0], 'и это итоговая строка')
+    console.log('  ok применение оставляет в истории одну ступень: исходная строка → итог')
+  } finally {
+    globalThis.__inlineLinePipeline = savedGlobals.linePipeline
+    globalThis.__inlinePkmRulesHelpers = savedGlobals.helpers
+    globalThis.__inlinePkmMacroShared = savedGlobals.macroShared
+    globalThis.__inlineStatusLineRuntimeUnified = savedGlobals.statusLineRuntime
+    globalThis.app = savedGlobals.app
+    globalThis.addEventListener = savedGlobals.add
+    globalThis.removeEventListener = savedGlobals.remove
+    if (savedGlobals.win === undefined) delete globalThis.window
+    else globalThis.window = savedGlobals.win
+  }
+}
+
+/**
  * И-2.1 / PRD 10.13.6: подсветка строки, пока открыт TagWheel.
  *
  * Обёртку в `==` движок ставил всегда — при `rules.ui.activePanel.useHighlight`,
@@ -1671,11 +1881,21 @@ function runNode() {
   runPanelHighlightSuite(core)
   runElementTokenSuite()
   runRightPayloadSurvivesSuite()
+  runUndoSeamSuite()
   runChildFieldShortNameSuite()
   runEdgeModeSuite()
-  console.log('TagWheel tests: OK')
+  /* Применение TagWheel асинхронно — последней идёт та проверка, которая его
+     и гоняет, и сводка печатается после неё. */
+  return runUndoOneStepSuite().then(function () {
+    console.log('TagWheel tests: OK')
+  })
 }
 
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].indexOf('tagwheel_tests.js') !== -1) {
-  runNode()
+  /* Отказ внутри обещания обязан ронять прогон, а не печатать предупреждение:
+     тихо упавшая проверка — это проверка, которой нет (У-36). */
+  Promise.resolve(runNode()).catch(function (e) {
+    console.error(e && e.stack ? e.stack : e)
+    process.exit(1)
+  })
 }

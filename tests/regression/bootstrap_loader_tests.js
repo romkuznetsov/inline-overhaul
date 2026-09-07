@@ -1812,6 +1812,51 @@ async function run() {
     assertEq(offenders.join("; "), "",
       "a checkbox is one character: brackets with a wider body are the human's text, not ours");
   }
+  /*
+   * Вид панели TagWheel пишется мимо истории отмен — и пишется так ВЕЗДЕ.
+   *
+   * Сторож нужен потому, что поведение проверено только у применения: открытие
+   * панели и каждое нажатие внутри неё гоняются лишь в живом Obsidian. Пин на
+   * одну функцию зелен и тогда, когда её перестали звать (У-56), поэтому
+   * спрашивается не наличие функции, а **все** места записи строки в этом
+   * файле.
+   *
+   * Разрешены ровно два прямых `setLine`: запасной путь внутри самой
+   * `setLineOutsideHistory` и запись итога — она в историю попасть обязана,
+   * иначе отменять человеку будет нечего.
+   *
+   * **Чтобы снять этот запрет,** нужно, чтобы открытие панели и нажатие внутри
+   * неё проверялись поведением, а не текстом исходника.
+   */
+  {
+    const twPath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js");
+    const src = fs.readFileSync(twPath, "utf8");
+    const ALLOWED = [
+      "  editor.setLine(lineNumber, text)",
+      "    state.editor.setLine(state.lineNumber, finalLine)",
+    ];
+    const lines = src.split("\n");
+    const offenders = [];
+    let allowedSeen = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!/\.setLine\(/.test(line)) continue;
+      if (ALLOWED.includes(line)) {
+        allowedSeen++;
+        continue;
+      }
+      offenders.push((i + 1) + ": " + line.trim());
+    }
+    assertEq(allowedSeen, ALLOWED.length,
+      "положительный контроль: обе разрешённые записи на месте, значит ищется предмет, а не пустота");
+    assertTrue(/setLineOutsideHistory\(state\.editor, state\.lineNumber, control\)/.test(src),
+      "вид панели при нажатии пишется мимо истории");
+    assertTrue(/setLineOutsideHistory\(editor, lineNumber, initialControl\)/.test(src),
+      "первый вид панели тоже пишется мимо истории");
+    assertEq(offenders.join("; "), "",
+      "в TagWheel строка пишется через setLineOutsideHistory: прямой setLine оставляет ступень отмены");
+  }
+
   console.log("Bootstrap loader regression tests: OK");
 }
 

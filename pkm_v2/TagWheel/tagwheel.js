@@ -34,6 +34,55 @@ var __tagwheelScrollerOverlayMod = require('../../src/ui/tagwheel_scroller_overl
 var __tagwheelCoreMod = require('./tagwheel_core.js')
 var __pkmOptionKeysMod = require('../../src/core/pkm_option_keys.js')
 var __pkmDomainRegistryMod = require('../../src/core/pkm_domain_registry.js')
+/* Пакет даёт сам Obsidian: в сборке он объявлен внешним и в бандл не идёт. */
+var __cmState = require('@codemirror/state')
+
+/**
+ * Написать строку **мимо истории отмен**.
+ *
+ * Пока панель открыта, TagWheel переписывает строку в заметке на каждое
+ * нажатие — иначе человек не увидит, что он выбирает. Каждая такая запись была
+ * своей ступенью отмены, и после применения `Ctrl+Z` возвращал не строку, а
+ * панель: столько раз, сколько было нажатий. Слова заказчика 2026-09-07: «мне
+ * приходится нажимать ctrl+z столько раз, сколько действий я совершил в
+ * tagwheel... я хочу, чтобы ctrl+z сразу возвращал исходное состояние строки».
+ *
+ * Рядом стоял комментарий «схлопнуть историю отмен» и две записи подряд — они
+ * историю не схлопывали, а добавляли к ней ещё две (У-64: утверждение о
+ * состоянии, переставшее быть верным).
+ *
+ * **Как это делается на самом деле.** История у CodeMirror отказывается брать
+ * изменение, помеченное `addToHistory = false`: в коде Obsidian 1.13.7 это
+ * `!1 === t.annotation(addToHistory)` — ветка, которая возвращает историю
+ * нетронутой. Пометка ставится только на своей транзакции, а её надо послать
+ * самому: `editor.transaction(tx, origin)` для этого не годится — `origin` там
+ * становится `userEvent`, а не пометкой истории (проверено по `app.js`, У-44).
+ * Отсюда `editor.cm` — сам `EditorView`, тот же, которым Obsidian пользуется
+ * внутри `transaction`.
+ *
+ * **Запасной путь — обычный `setLine`.** Это не заглушка на месте модуля
+ * (У-90): `cm` — не наш модуль, а поле чужого редактора, и вне Obsidian его
+ * нет вовсе. Без него всё работает как раньше, только ступеней отмены снова
+ * много.
+ */
+function setLineOutsideHistory(editor, lineNumber, text) {
+  var view = editor ? editor.cm : null
+  var Transaction = __cmState ? __cmState.Transaction : null
+  if (view && view.state && typeof view.dispatch === 'function'
+    && Transaction && Transaction.addToHistory && typeof Transaction.addToHistory.of === 'function') {
+    try {
+      var docLine = view.state.doc.line(Number(lineNumber) + 1)
+      view.dispatch({
+        changes: { from: docLine.from, to: docLine.to, insert: String(text == null ? '' : text) },
+        annotations: Transaction.addToHistory.of(false)
+      })
+      return
+    } catch (e) {
+      reportTagWheelError(e)
+    }
+  }
+  editor.setLine(lineNumber, text)
+}
 
 /*
  * Уведомление TagWheel. С 2026-09-06 оно спрашивает текст у каталога
@@ -1377,8 +1426,16 @@ async function runTagWheel(input, quickAddSettings) {
       preserveSyntheticPrefix: true,
     })
 
-    // Collapse undo stack behavior to original -> final on first Ctrl+Z.
-    state.editor.setLine(state.lineNumber, state.originalLine)
+    /*
+     * Один `Ctrl+Z` возвращает исходную строку.
+     *
+     * Ступень отмены здесь ровно одна, и делают её две записи: сначала строка
+     * возвращается к исходной **мимо истории** — все записи панели туда тоже
+     * не попадали, значит для истории документ и так стоит на исходной, — а
+     * потом итог пишется обычным путём. История получает «исходная → итог»,
+     * и первое же нажатие возвращает то, с чего человек начал.
+     */
+    setLineOutsideHistory(state.editor, state.lineNumber, state.originalLine)
     if (cyclePost && cyclePost.applyKeepBullet) {
       macroShared.applyKeepBullet(state.editor, state.lineNumber, state.parsedLine, { keepParsedPrefix: true, keepCheckbox: false })
       emitTagWheelDevEvent(state && state.app ? state.app : null, 'pkm.run.result', {
@@ -1566,7 +1623,9 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   function cancelSelection(state) {
-    state.editor.setLine(state.lineNumber, state.originalLine)
+    /* Отмена возвращает строку как была — и следа в истории не оставляет:
+       отменять после неё нечего. */
+    setLineOutsideHistory(state.editor, state.lineNumber, state.originalLine)
     state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })
     cleanupTagWheelState(state)
   }
@@ -1891,7 +1950,8 @@ async function runTagWheel(input, quickAddSettings) {
         ensureActiveFieldId(state)
         if (state.active) {
           var control = state.core.renderControlLine(state.rules, state.session, state.parsedLine)
-          state.editor.setLine(state.lineNumber, control)
+          /* Вид панели — не правка человека, и в историю отмен он не идёт. */
+          setLineOutsideHistory(state.editor, state.lineNumber, control)
           state.editor.setCursor({ line: state.lineNumber, ch: getControlCursorCh(state, control) })
           updateScrollerOverlay(state, control)
         }
@@ -1905,7 +1965,7 @@ async function runTagWheel(input, quickAddSettings) {
     window.addEventListener('keydown', state.keyHandler, true)
 
     var initialControl = core.renderControlLine(rules, session, parsedLine)
-    editor.setLine(lineNumber, initialControl)
+    setLineOutsideHistory(editor, lineNumber, initialControl)
     editor.setCursor({ line: lineNumber, ch: getControlCursorCh(state, initialControl) })
     updateScrollerOverlay(state, initialControl)
     /*
@@ -1973,3 +2033,6 @@ module.exports.entry = async function(QuickAdd, settings) {
    (10.13.35). Запись остаётся внутри, у `nextVirtualField`. */
 module.exports.planFieldStep = planFieldStep
 module.exports.normalizeEdgeMode = normalizeEdgeMode
+/* Запись строки мимо истории отмен — чистая функция над чужим редактором, и
+   проверяется она без Obsidian (10.13.53). */
+module.exports.setLineOutsideHistory = setLineOutsideHistory
