@@ -78,6 +78,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       seeAlso:{ id:"field-editor", label:"Each Field's Behavior is set under Fields" } },
     { kind:"toggle", id:"placement-keep-prefix", path:"pkm.placement.keepPrefixInsertOnly", default:true,
       name:"Insert only: keep the Prefix", desc:"Put the Value where it belongs and do not touch the start of the line",
+      tip:"A Value may carry a Prefix of its own — a checkbox, for instance — and normally it replaces what stands at the start of the line. With this on, the line keeps the marker you typed and the Value goes to its place in the Block anyway. Useful when your lists already carry markers you care about",
       searchTerms:["Minimal mode Separators"] },
     { kind:"toggle", id:"placement-field-prefix", path:"pkm.placement.fieldPrefixInsertOnly", default:true,
       name:"Insert only: use Field Prefix", desc:"Allow a Value to change the start of the line after all, if it has its own",
@@ -85,6 +86,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       tip:"Some Values carry their own opening, like <code>- [x]</code> for done. On, choosing that Value ticks the checkbox for you. Off, the line keeps whatever it started with and only the tag changes" },
     { kind:"dropdown", id:"placement-free-position", path:"pkm.placement.freeInsertPosition", default:"smart",
       name:"Free: insert position", desc:"Which end of the line a Value goes to when the cursor is mid-sentence",
+      tip:"This decides nothing when the cursor stands inside a Block: there the Value goes where the cursor is. It answers the other case — the cursor is somewhere in your sentence, and the Value has to go to one of the two ends. <code>Whichever side is closer</code> measures from the cursor; the other two always pick the same end",
       searchTerms:["Full mode"],
       options:[ {value:"smart",label:"Whichever side is closer"}, {value:"left",label:"Always left"},
                 {value:"right",label:"Always right"} ] }
@@ -102,6 +104,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       tip:"<b>Field order</b> is the simple answer: whichever Field comes first in your list gets its way. <b>Prefix order</b> is for when you care about the openings themselves \u2014 say an urgent mark should always beat a tick, no matter which Field asked for it" },
     { kind:"dropdown", id:"prefix-priority-source", path:"pkm.prefixPriority.fieldOrderSource", default:"manual",
       name:"Field order source", desc:"Use the order your Fields are already in, or arrange a separate one",
+      tip:"Two Values may both want to change the start of the line, and then one of them has to win. <code>By Fields order</code> settles it by the order your Fields already stand in, so there is one list to keep. <code>Manual order</code> gives this question its own list, independent of the Blocks",
       searchTerms:["Fields order mode"],
       visible: eq("pkm.prefixPriority.decideBy","by-section"),
       options:[ {value:"auto",label:"By Fields order"}, {value:"manual",label:"Manual order"} ] },
@@ -113,6 +116,7 @@ export const PKM_GROUPS: readonly SettingsGroup[] = [
       visible: eq("pkm.prefixPriority.decideBy","by-checkbox-list") },
     { kind:"dropdown", id:"prefix-priority-parent", path:"pkm.prefixPriority.parentOrChild", default:"subtag-over-tag",
       name:"Parent or child wins", desc:"When a tag and its child Value both carry a Prefix",
+      tip:"A child Value stands under its parent, and both may carry a Prefix. <code>Parent tag</code> keeps the line marked by the wider meaning; <code>Child tag</code> lets the narrower one speak, so a child marked as done wins over a parent that is merely open",
       searchTerms:["Tag/Subtag priority"],
       options:[ {value:"tag-over-subtag",label:"Parent tag"}, {value:"subtag-over-tag",label:"Child tag"} ] }
   ]

@@ -172,6 +172,7 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       tip:"Type something like <code>#moved</code>. Afterwards you can search for it to find everything you have filed, or hide those lines from a list of things still to do. Leave the box empty and nothing is added" },
     { kind:"dropdown", id:"source-marker-position", path:"transform.inline2note.sourceProcessing.panel", default:"right",
       name:"Where the mark goes", desc:"Before your text, or after it",
+      tip:"The mark says the line has already been turned into a note, so the next run does not do it twice. Which end it goes to is a matter of reading: the Left Block puts it with the tags, the Right Block keeps your sentence first",
       searchTerms:["Processed token panel"],
       visible:{ deps:["transform.inline2note.sourceProcessing.token"],
                 test: c => String(c.get("transform.inline2note.sourceProcessing.token") || "").trim() !== "" },

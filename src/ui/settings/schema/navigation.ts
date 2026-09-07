@@ -26,6 +26,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   items: [
     { kind:"toggle", id:"move-lines-enabled", path:"navigation.moveLine.enabled", default:true,
       name:"Move lines", desc:"Let the keys pick up a line and move it",
+      tip:"Off, the two commands stay in the palette and do nothing: nothing is deleted and no hotkey is lost. Turn it back on and everything is where you left it. What the keys do with a selection, and whether they carry the whole line or only the text, is set by the rows below",
       searchTerms:["Enable Move Line"] },
     { kind:"dropdown", id:"move-lines-no-selection", path:"navigation.moveLine.noSelectionMode", default:"line-only",
       name:"Moving behavior", desc:"Whether the tree under the line travels with it",
@@ -112,6 +113,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   items: [
     { kind:"toggle", id:"in-line-enabled", path:"navigation.navigateInline.enabled", default:true,
       name:"Move cursor inside a line", desc:"Let the keys walk the cursor along the line",
+      tip:"This is the cursor walking your own sentence, not the note: it steps by word, by whole token or to the end of a Block, and it knows where your text ends and a Separator begins. Off, the commands stay and do nothing",
       searchTerms:["Enable Navigate Inline"] },
     { kind:"dropdown", id:"in-line-step", path:"navigation.navigateInline.stepMode", default:"word",
       name:"Step size", desc:"How big a hop the cursor makes each time",
@@ -139,6 +141,7 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
   items: [
     { kind:"toggle", id:"heading-jumps-enabled", path:"navigation.jumpToHeader.enabled", default:true,
       name:"Jump between headings", desc:"Turn on the <code>Jump back</code> and <code>Jump next</code> commands",
+      tip:"Both commands move between headings only; walking line by line is a mode inside them, not a separate feature. Off, they stay in the palette and do nothing, and any hotkey you gave them is kept",
       searchTerms:["Enable Jump To Header"] },
     { kind:"dropdown", id:"heading-jumps-mode", path:"navigation.jumpToHeader.jumpMode", default:"edge",
       name:"Jump target", desc:"Hop between headings, or crawl from one written line to the next",

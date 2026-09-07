@@ -4597,6 +4597,7 @@ _Tip:_ When a line has other lines indented beneath it, the whole bundle is call
 
 - **Move lines** — `move-lines-enabled`, `toggle`, path `navigation.moveLine.enabled`, default `true`
   - desc: Let the keys pick up a line and move it
+  - tip: Off, the two commands stay in the palette and do nothing: nothing is deleted and no hotkey is lost. Turn it back on and everything is where you left it. What the keys do with a selection, and whether they carry the whole line or only the text, is set by the rows below
   - старые названия для поиска: «Enable Move Line»
 - **Moving behavior** — `move-lines-no-selection`, `dropdown`, path `navigation.moveLine.noSelectionMode`, default `line-only`
   - desc: Whether the tree under the line travels with it
@@ -4685,6 +4686,7 @@ _Tip:_ A tagged line has three parts: what comes before your text, your text, an
 
 - **Move cursor inside a line** — `in-line-enabled`, `toggle`, path `navigation.navigateInline.enabled`, default `true`
   - desc: Let the keys walk the cursor along the line
+  - tip: This is the cursor walking your own sentence, not the note: it steps by word, by whole token or to the end of a Block, and it knows where your text ends and a Separator begins. Off, the commands stay and do nothing
   - старые названия для поиска: «Enable Navigate Inline»
 - **Step size** — `in-line-step`, `dropdown`, path `navigation.navigateInline.stepMode`, default `word`
   - desc: How big a hop the cursor makes each time
@@ -4712,6 +4714,7 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
 
 - **Jump between headings** — `heading-jumps-enabled`, `toggle`, path `navigation.jumpToHeader.enabled`, default `true`
   - desc: Turn on the <code>Jump back</code> and <code>Jump next</code> commands
+  - tip: Both commands move between headings only; walking line by line is a mode inside them, not a separate feature. Off, they stay in the palette and do nothing, and any hotkey you gave them is kept
   - старые названия для поиска: «Enable Jump To Header»
 - **Jump target** — `heading-jumps-mode`, `dropdown`, path `navigation.jumpToHeader.jumpMode`, default `edge`
   - desc: Hop between headings, or crawl from one written line to the next
@@ -4808,6 +4811,7 @@ _Tip:_ You choose the mode for each Field over in <code>Fields</code>. What you 
   - старые названия для поиска: «OFF mode Prefix»
 - **Insert only: keep the Prefix** — `placement-keep-prefix`, `toggle`, path `pkm.placement.keepPrefixInsertOnly`, default `true`
   - desc: Put the Value where it belongs and do not touch the start of the line
+  - tip: A Value may carry a Prefix of its own — a checkbox, for instance — and normally it replaces what stands at the start of the line. With this on, the line keeps the marker you typed and the Value goes to its place in the Block anyway. Useful when your lists already carry markers you care about
   - старые названия для поиска: «Minimal mode Separators»
 - **Insert only: use Field Prefix** — `placement-field-prefix`, `toggle`, path `pkm.placement.fieldPrefixInsertOnly`, default `true`
   - desc: Allow a Value to change the start of the line after all, if it has its own
@@ -4815,6 +4819,7 @@ _Tip:_ You choose the mode for each Field over in <code>Fields</code>. What you 
   - старые названия для поиска: «Minimal mode Prefix»
 - **Free: insert position** — `placement-free-position`, `dropdown`, path `pkm.placement.freeInsertPosition`, default `smart`
   - desc: Which end of the line a Value goes to when the cursor is mid-sentence
+  - tip: This decides nothing when the cursor stands inside a Block: there the Value goes where the cursor is. It answers the other case — the cursor is somewhere in your sentence, and the Value has to go to one of the two ends. <code>Whichever side is closer</code> measures from the cursor; the other two always pick the same end
   - варианты: `smart` Whichever side is closer · `left` Always left · `right` Always right
   - старые названия для поиска: «Full mode»
 
@@ -4831,6 +4836,7 @@ _Tip:_ This block matters only if two of your Values both want the start of the 
   - старые названия для поиска: «Main checkbox priority», «Prefix Resolver»
 - **Field order source** — `prefix-priority-source`, `dropdown`, path `pkm.prefixPriority.fieldOrderSource`, default `manual`
   - desc: Use the order your Fields are already in, or arrange a separate one
+  - tip: Two Values may both want to change the start of the line, and then one of them has to win. <code>By Fields order</code> settles it by the order your Fields already stand in, so there is one list to keep. <code>Manual order</code> gives this question its own list, independent of the Blocks
   - варианты: `auto` By Fields order · `manual` Manual order
   - видна если: `pkm.prefixPriority.decideBy`
   - старые названия для поиска: «Fields order mode»
@@ -4838,6 +4844,7 @@ _Tip:_ This block matters only if two of your Values both want the start of the 
 - **`prefix-order-list`** — свой блок, рендерер `renderPrefixOrderList`
 - **Parent or child wins** — `prefix-priority-parent`, `dropdown`, path `pkm.prefixPriority.parentOrChild`, default `subtag-over-tag`
   - desc: When a tag and its child Value both carry a Prefix
+  - tip: A child Value stands under its parent, and both may carry a Prefix. <code>Parent tag</code> keeps the line marked by the wider meaning; <code>Child tag</code> lets the narrower one speak, so a child marked as done wins over a parent that is merely open
   - варианты: `tag-over-subtag` Parent tag · `subtag-over-tag` Child tag
   - старые названия для поиска: «Tag/Subtag priority»
 
@@ -4985,6 +4992,7 @@ _Tip:_ The note is written first, and only then is your line touched, so nothing
   - старые названия для поиска: «Processed token», «Mark the line as done»
 - **Where the mark goes** — `source-marker-position`, `dropdown`, path `transform.inline2note.sourceProcessing.panel`, default `right`
   - desc: Before your text, or after it
+  - tip: The mark says the line has already been turned into a note, so the next run does not do it twice. Which end it goes to is a matter of reading: the Left Block puts it with the tags, the Right Block keeps your sentence first
   - варианты: `left` Left Block · `right` Right Block
   - видна если: `transform.inline2note.sourceProcessing.token`
   - старые названия для поиска: «Processed token panel»
@@ -5026,11 +5034,13 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
 - **`tag-preview`** — свой блок, рендерер `renderTagPreview`
 - **Opacity of the Left Block** — `tags-opacity-left`, `slider`, path `visual.tags.opacityLeft`, default `100`
   - desc: Dims everything written before your text, tags and elements alike
+  - tip: Dimming is not hiding: at 0 the Left Block is still on the line, still searchable and still moved by the commands — it just steps out of the way while you read. Most people take it down a little so the sentence leads and the tags follow
   - диапазон: 0–100, шаг 1, ед. %
   - см. также: `field-editor` — Tag colors are set per Value under Fields
   - старые названия для поиска: «Opacity Left»
 - **Opacity of the Right Block** — `tags-opacity-right`, `slider`, path `visual.tags.opacityRight`, default `100`
   - desc: Dims everything written after your text, tags and elements alike
+  - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works
   - диапазон: 0–100, шаг 1, ед. %
   - старые названия для поиска: «Opacity Right»
 - **Text size** — `tags-text-size`, `slider`, path `visual.tags.textSizePct`, default `100`
@@ -5040,6 +5050,7 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Tag text size»
 - **Tags bubble width** — `tags-bubble-width`, `slider`, path `visual.tags.bubbleWidthPct`, default `100`
   - desc: How much breathing room there is either side of the word
+  - tip: This is the padding either side of the word, not the word itself: the writing keeps its size, the bubble around it grows. Below 100 the bubbles tighten and a long line fits; above 100 they read as separate chips even in a crowded Block
   - диапазон: 80–140, шаг 5, ед. %
   - старые названия для поиска: «Tag bubble size - width», «Bubble width»
 - **Tags bubble size** — `tags-bubble-height`, `slider`, path `visual.tags.bubbleHeightPct`, default `100`
@@ -5055,6 +5066,7 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Empty bubble size», «Empty bubble width»
 - **Tags bubble corners** — `tags-corners`, `slider`, path `visual.tags.cornersPct`, default `0`
   - desc: Slide from fully rounded to completely square
+  - tip: At 0 the bubble is a pill, at 100 a rectangle. Nothing else changes — the same colour, the same padding, the same size of writing. Square corners read as denser and pair well with narrow bubbles
   - диапазон: 0–100, шаг 1
   - старые названия для поиска: «Tag shape», «Bubble corners»
 
@@ -5075,6 +5087,7 @@ _Tip:_ Bars are drawn from the colors of one Field, and you pick which one below
 - **`bars-preview`** — свой блок, рендерер `renderBarsPreview`
 - **Tag Bars** — `bars-active`, `toggle`, path `visual.tagBars.active`, default `false`
   - desc: Draw the Bars
+  - tip: The Bars are drawn to the left of the line and say, without a word of text, which Value it carries and how deep it sits in the list. They read the colours you gave the Values of one Field — the row below picks which — so nothing has to be coloured twice. Off, nothing is drawn and the settings under it are kept
   - старые названия для поиска: «Activate strip», «Strip», «Hierarchy Bars», «Level Bars»
 - **Which Field draws Bars** — `bars-field`, `dropdown`, path `visual.tagBars.fieldId`, default `""`
   - desc: Bars work with tag Fields only, and only for the one chosen here
@@ -5107,16 +5120,19 @@ _Tip:_ Bars are drawn from the colors of one Field, and you pick which one below
   - старые названия для поиска: «Strip mode»
 - **Bar thickness** — `bars-thickness`, `slider`, path `visual.tagBars.thickness`, default `2`
   - desc: How wide each Bar is
+  - tip: One number for every Bar: they are read as a group, and a group of different widths reads as a mistake. Thin lines suit a dense note; wide ones are easier to tell apart when your Values are close in colour
   - диапазон: 1–12, шаг 1, ед. px
   - видна если: `visual.tagBars.active`
   - старые названия для поиска: «Strip thickness»
 - **Space between Bars** — `bars-gap`, `slider`, path `visual.tagBars.childOffset`, default `12`
   - desc: The gap between one level and the next
+  - tip: Each level of the list gets its own lane, and this is the empty space between two lanes. Tight spacing makes a deep list read as one ribbon; wide spacing keeps the levels apart but takes room from the text
   - диапазон: 2–20, шаг 1, ед. px
   - видна если: `visual.tagBars.active`
   - старые названия для поиска: «Parent/child strip distance»
 - **Distance from the text** — `bars-distance`, `slider`, path `visual.tagBars.spacing`, default `20`
   - desc: How far the Bars sit from where your line begins
+  - tip: The whole group of Bars moves together, away from where your text begins. Give it room if your notes are indented and the Bars crowd the list markers
   - диапазон: 8–48, шаг 1, ед. px
   - видна если: `visual.tagBars.active`
   - старые названия для поиска: «Strip spacing»
@@ -5170,6 +5186,7 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - старые названия для поиска: «TagWheel Scroller»
 - **Scroller opening direction** — `scroller-direction`, `dropdown`, path `visual.tagWheel.scroller.direction`, default `full`
   - desc: Which way the Values unroll from the Field you are on
+  - tip: The scroller shows the Values around the one you are on. Upwards keeps your line at the bottom of it and your note visible below; downwards does the opposite. <code>Both ways</code> centres the current Value and is easiest to read when a Field has many Values
   - варианты: `up` Upwards · `down` Downwards · `full` Both ways
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Scroller direction», «Opens»
@@ -5185,6 +5202,7 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - старые названия для поиска: «Scroller text»
 - **Scroller size** — `scroller-size`, `slider`, path `visual.tagWheel.scroller.size`, default `3`
   - desc: How many neighboring Values stay visible around the current one
+  - tip: How many neighbours are shown on each side, not in total. A small number keeps the scroller out of the way; a large one lets you see the whole set of a short Field at once. It never shows more than the Field has
   - диапазон: 1–20, шаг 1
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Values per side»

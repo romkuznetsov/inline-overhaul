@@ -202,6 +202,13 @@ for (const g of SCHEMA) for (const it of g.items) {
     if (lowDesc.length) bad(it.id + " desc leaves an entity in lower case: " + lowDesc.join(", "));
     if (it.desc.toLowerCase() === it.name.toLowerCase()) bad(it.id + " desc repeats name");
   }
+  /*
+   * A row with no tip is not a row without an explanation: the tipbox opens
+   * anyway, because the id line lives in it, and the owner gets a panel that
+   * answers his question with `bars-active`. He wrote exactly that on
+   * 2026-09-07 and named four rows; a sweep found eighteen (У-85).
+   */
+  if (!it.tip) bad(it.id + " has no tip: its tipbox would show the id and nothing else");
   if (it.tip) {
     tips++;
     for (const f of FORBIDDEN) if (it.tip.includes(f)) bad(it.id + " tip contains: " + f);
