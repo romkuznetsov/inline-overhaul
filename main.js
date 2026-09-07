@@ -78,6 +78,8 @@ const __editorDecorations = require("./src/ui/editor/decorations.js");
 const __pkmOrderConfig = require("./src/core/pkm_order_config.js");
 const __configNormalize = require("./src/core/config_normalize.js");
 const __devLog = require("./src/core/dev_log.js");
+const __configWrite = require("./src/core/config_write.js");
+const __generatedRules = require("./src/features/generated_rules.js");
 const __pluginCommands = require("./src/features/plugin_commands.js");
 const __editorMount = require("./src/ui/editor/mount.js");
 const __stripDebugApi = require("./src/features/strip_debug_api.js");
@@ -129,14 +131,6 @@ const __commandIds = require("./src/features/command_ids.js");
  * версии 1, и две копии перекладки значений разошлись бы молча, в заметке,
  * которую человек не читает (У-32).
  */
-let __rulesMarkdownBuilder = null;
-function getRulesMarkdownBuilder() {
-  if (__rulesMarkdownBuilder) return __rulesMarkdownBuilder;
-  const mod = require("./src/features/rules_markdown_builder.js");
-  __rulesMarkdownBuilder = mod.createRulesMarkdownBuilder({ isObj, cloneJson, toPrettyJson });
-  return __rulesMarkdownBuilder;
-}
-
 /** `Ctrl+A` по своим правилам (10.13.31). */
 function getEnhancedSelectAllEngine() {
   return require("./src/features/enhanced_select_all_engine.js");
@@ -158,16 +152,6 @@ function getConfigStoreCtor() {
 /** Вторая ступень нормализации: форма ветки поведения PKM. */
 function getConfigMigrationModule() {
   return require("./src/core/config_migration.js");
-}
-
-/** Запись служебной заметки правил: расписание и разовый вызов. */
-function getRulesSyncOrchestrator() {
-  return require("./src/features/rules_sync_orchestrator.js");
-}
-
-/** Подписка на хранилище и уборка за ней. */
-function getStoreEventsOrchestrator() {
-  return require("./src/features/store_events_orchestrator.js");
 }
 
 function cloneJson(x) { return __sharedUtils.cloneJson(x); }
@@ -332,7 +316,7 @@ class InlineOverhaulPlugin extends Plugin {
     });
 
     /* МГ4 и МГ6 — до первой записи формы версии 2, а не после. */
-    const prepared = await this.prepareConfigFileForV2();
+    const prepared = await __configWrite.prepareFileForV2(this);
     /* Переезд с версии 1 виден ровно здесь: копия снимается один раз, и
        именно она означает, что хоткеи человека были привязаны к старым ID. */
     this._migratedFromV1 = !!(prepared && prepared.backupSavedAs);
@@ -356,7 +340,7 @@ class InlineOverhaulPlugin extends Plugin {
     __editorStyles.ensureStripLine(this);
     __editorStyles.ensureCaret(this);
     __editorMount.mountExtensions(this);
-    this.registerStoreEvents();
+    __generatedRules.registerStoreEvents(this);
 
     await this.ensureGeneratedRulesNow("onload");
 
@@ -418,134 +402,18 @@ class InlineOverhaulPlugin extends Plugin {
     if (this.store) this.store.unload();
   }
 
-  registerStoreEvents() {
-    const orch = getStoreEventsOrchestrator();
-    return orch.registerStoreEvents({
-      subscribeStore: (listener) => this.store.subscribe(listener),
-      setUnsubscribe: (fn) => {
-        this._unsubscribeStore = fn;
-      },
-      getUnsubscribe: () => this._unsubscribeStore,
-      renderSettingsTab: () => {
-        const tab = this._settingsTab;
-        if (!tab) return;
-        /*
-         * Декларативная панель пересобирает определения методом `update`;
-         * `display` у неё -- объяснение для Obsidian старше 1.13.
-         */
-        if (typeof tab.update === "function") tab.update();
-        else if (typeof tab.display === "function") tab.display();
-      },
-      scheduleGeneratedRulesSync: () => this.scheduleGeneratedRulesSync(),
-      getRulesTimer: () => this._rulesGenTimer,
-      setRulesTimer: (timer) => {
-        this._rulesGenTimer = timer;
-      },
-      registerCleanup: (fn) => this.register(fn),
-    });
-  }
-
-  scheduleGeneratedRulesSync() {
-    const orch = getRulesSyncOrchestrator();
-    return orch.scheduleGeneratedRulesSync({
-      delayMs: 250,
-      getConfig: () => this.getConfig(),
-      getTimer: () => this._rulesGenTimer,
-      setTimer: (timer) => {
-        this._rulesGenTimer = timer;
-      },
-      ensureGeneratedRulesNow: (reason) => this.ensureGeneratedRulesNow(reason),
-      onError: (e) => {
-        console.error("[inline-overhaul][rules-gen]", e);
-      },
-    });
-  }
-
   async ensureGeneratedRulesNow(reason) {
-    const orch = getRulesSyncOrchestrator();
-    return await orch.ensureGeneratedRulesNow({
-      getConfig: () => this.getConfig(),
-      defaultGeneratedRulesPath: DEFAULT_CONFIG.pkm.generatedRulesPath,
-      buildRulesMarkdown: (cfg) => getRulesMarkdownBuilder().buildTagWheelRulesMarkdownFromConfig(cfg),
-      writeText: (p, md) => this.app.vault.adapter.write(p, md),
-      notice: (msg) => new Notice(msg),
-    }, reason);
+    return __generatedRules.syncNow(this, reason);
   }
 
   listOwnCommands() {
     return __pluginCommands.ownCommandList(this);
   }
 
-  /**
-   * Заново собрать всё, что плагин строит из конфига один раз — при загрузке.
-   *
-   * Зовётся одним местом — восстановлением копии настроек (10.13.40),
-   * потому что только там конфиг меняется целиком и разом. Две вещи:
-   *
-   *   1. **Команды.** Набор команд PKM строится из Fields конфига (У-79):
-   *      новый набор Fields без этого вызова получает команды только после
-   *      перезапуска, и хоткей из копии ложится на команду, которой ещё нет.
-   *   2. **Место служебного файла.** Копия несёт в себе
-   *      `advanced.generatedRulesPath`, и у копии, снятой до переезда В-39, там
-   *      стоит корень vault. Переезд живёт в `loadConfig` и идёт только при
-   *      загрузке — поэтому после восстановления плагин до конца сеанса писал
-   *      этот файл в корень vault, а следующий запуск его оттуда убирал.
-   *      Именно это заказчик и видел: файл появился и пропал при перезапуске.
-   *      Правило берётся там же, где и при загрузке —
-   *      `moveGeneratedRulesIntoPluginFolder`, — а не пишется второй раз (У-32).
-   *
-   * Ни одна из двух неудач не отменяет восстановления: настройки уже записаны.
-   */
   async rebuildFromConfig() {
-    try {
-      this.registerCommands();
-    } catch (e) {
-      console.error("[inline-overhaul] команды не перезавелись", e);
-    }
-    try {
-      await this.reapplyGeneratedRulesLocation();
-    } catch (e) {
-      console.error("[inline-overhaul] место служебного файла не починилось", e);
-    }
+    return __generatedRules.rebuildFromConfig(this);
   }
 
-  /**
-   * Переезд служебного файла — ещё раз, после того как конфиг сменился
-   * целиком. Своего правила здесь нет: решает та же функция миграции, что и при
-   * загрузке, и со всеми теми же швами к файловой системе. Свой путь человека
-   * она не трогает — только прежнее место и литеральные умолчания.
-   */
-  async reapplyGeneratedRulesLocation() {
-    const adapter = this.app && this.app.vault ? this.app.vault.adapter : null;
-    if (!adapter || typeof adapter.exists !== "function") return;
-    const migration = getConfigMigrationV2Module();
-    if (!migration || typeof migration.moveGeneratedRulesIntoPluginFolder !== "function") return;
-    const files = {
-      exists: (p) => adapter.exists(p),
-      read: (p) => adapter.read(p),
-      write: (p, data) => adapter.write(p, data),
-      remove: (p) => adapter.remove(p),
-    };
-    /* Копия конфига: функция пишет в него прямо, а единственный путь
-       записи в хранилище — `store.update` (CS10). */
-    const probe = cloneJson(this.getConfig());
-    const before = String(readCfgPath(probe, "advanced.generatedRulesPath") || "").trim();
-    const move = await migration.moveGeneratedRulesIntoPluginFolder(
-      files,
-      this.pluginFolderPath(),
-      probe,
-      [__pkmOptionKeys.DEFAULT_RULES_PATH, __pkmOptionKeys.LEGACY_RULES_PATH],
-    );
-    if (!move || !move.path || move.path === before) return;
-    this.store.update(
-      (cfg) => {
-        writeCfgPath(cfg, "advanced.generatedRulesPath", move.path);
-        return cfg;
-      },
-      "restore:generated-rules-path",
-    );
-    await this.ensureGeneratedRulesNow("restore");
-  }
   registerCommands() {
     return __pluginCommands.registerAll(this);
   }
@@ -632,72 +500,6 @@ class InlineOverhaulPlugin extends Plugin {
     return configDir + "/plugins/" + id;
   }
 
-  /**
-   * МГ4 и МГ6. Идут **до** `store.init()`, потому что обе про то, что лежало
-   * на диске до переезда: `store.init()` первым же действием пишет конфиг
-   * обратно уже в форме версии 2.
-   *
-   * Работа вынесена в `config_migration_v2.loadConfig`, а сюда приходит только
-   * граница с миром — файловые операции адаптера vault и `Notice`. Своей
-   * логики здесь нет намеренно: у `loadConfig` есть проверка, а у обвязки
-   * поверх Obsidian её быть не может.
-   *
-   * Ошибка не роняет загрузку плагина: без копии плагин работает, без плагина
-   * — нет.
-   */
-  async prepareConfigFileForV2() {
-    const adapter = this.app && this.app.vault ? this.app.vault.adapter : null;
-    if (!adapter || typeof adapter.read !== "function" || typeof adapter.write !== "function") return null;
-    try {
-      const migration = getConfigMigrationV2Module();
-      const files = {
-        exists: (p) => adapter.exists(p),
-        read: (p) => adapter.read(p),
-        write: (p, data) => adapter.write(p, data),
-        /* Удаление нужно одному месту: сироте служебного файла в корне
-           vault после переезда в папку плагина (В-39). */
-        remove: (p) => adapter.remove(p),
-      };
-      const result = await migration.loadConfig(
-        files,
-        this.pluginFolderPath(),
-        (message) => { new Notice(message); },
-        {
-          /*
-           * Признак «человек путь служебного файла не менял»: оба литеральных
-           * умолчания — нынешнее и прежнее. Приходят швом, потому что у модуля
-           * миграции обращений к движку нет и быть не должно.
-           */
-          legacyRulesDefaults: [
-            __pkmOptionKeys.DEFAULT_RULES_PATH,
-            __pkmOptionKeys.LEGACY_RULES_PATH,
-          ],
-        },
-      );
-      /*
-       * Конфиг записывается на диск сразу: при нечитаемом файле (МГ6) `loadData`
-       * Obsidian отдал бы тот же мусор, а при переезде с версии 1 (МГ4) копия
-       * уже снята и терять исходник больше нечем.
-       */
-      await this.saveData(result.config);
-      if (result.backupSavedAs) {
-        console.info("[inline-overhaul] копия конфига версии 1: " + result.backupSavedAs);
-      }
-      if (result.rulesPathMovedTo) {
-        console.info("[inline-overhaul] служебный файл правил уехал в папку плагина: "
-          + result.rulesPathMovedTo);
-      }
-      if (result.legacyRulesRemoved) {
-        console.info("[inline-overhaul] прежний служебный файл в корне vault удалён: "
-          + result.legacyRulesRemoved);
-      }
-      return result;
-    } catch (e) {
-      console.error("[inline-overhaul][config:prepare]", e);
-      return null;
-    }
-  }
-
   /*
    * Журнал разработчика уехал в `src/core/dev_log.js` (кусок четвёртый разбора
    * `main.js`). Здесь остались три шва, и каждый нужен по своей причине:
@@ -717,71 +519,7 @@ class InlineOverhaulPlugin extends Plugin {
   }
 
   setConfigPatch(patchObj, reason) {
-    const before = this.getConfig();
-    const reasonKey = String(reason || "settings");
-    const stripPatchFieldId = String(
-      patchObj
-      && patchObj.pkm
-      && patchObj.visual
-      && patchObj.visual.tagBars
-      && patchObj.visual.tagBars.fieldId
-      || ""
-    ).trim();
-    this._lineTraceSeq = Math.max(0, Math.trunc(Number(this._lineTraceSeq || 0))) + 1;
-    this._lineTraceTxId = `linecfg-${Date.now()}-${this._lineTraceSeq}`;
-    const changed = this.store.patch(patchObj, reason || "settings") === true;
-    if (!changed) return;
-    const after = this.getConfig();
-    const debugLine = !!(readCfgPath(after, "advanced.devMode.enabled") === true && readCfgPath(after, "advanced.devMode.traceTagVisualLine") === true);
-    const wasEnabled = readCfgPath(before, "advanced.devMode.enabled") === true;
-    const isEnabled = readCfgPath(after, "advanced.devMode.enabled") === true;
-    const beforePath = String(readCfgPath(before, "advanced.devMode.logPath") || "");
-    const afterPath = String(readCfgPath(after, "advanced.devMode.logPath") || "");
-    const beforeAi = readCfgPath(before, "advanced.devMode.aiLog") === true;
-    const afterAi = readCfgPath(after, "advanced.devMode.aiLog") === true;
-    if (!wasEnabled && isEnabled) {
-      this.initializeDevLogSession(after).catch((e) => {
-        console.error("[inline-overhaul][dev-mode-log:toggle-on]", e);
-      });
-    }
-    if (wasEnabled && !isEnabled) {
-      this.closeDevLogSession(before, true).catch((e) => {
-        console.error("[inline-overhaul][dev-mode-log:toggle-off]", e);
-      });
-    }
-    if (wasEnabled && isEnabled && (beforePath !== afterPath || beforeAi !== afterAi)) {
-      this.closeDevLogSession(before, true)
-        .then(() => this.initializeDevLogSession(after))
-        .catch((e) => {
-          console.error("[inline-overhaul][dev-mode-log:reinit]", e);
-        });
-    }
-    if (debugLine && typeof this.devLogEvent === "function") {
-      try {
-        this.devLogEvent("strip.config.patch", {
-          traceTxId: this._lineTraceTxId,
-          reason: reasonKey,
-          requestedStripFieldId: stripPatchFieldId,
-          beforeStripFieldId: String(readCfgPath(before, "visual.tagBars.fieldId") || "").trim(),
-          afterStripFieldId: String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim(),
-          beforeStripActive: readCfgPath(before, "visual.tagBars.active") === true,
-          afterStripActive: readCfgPath(after, "visual.tagBars.active") === true,
-          mismatchDetected: !!(stripPatchFieldId && String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim() !== stripPatchFieldId),
-        }, "trace", after);
-      } catch (_) {}
-    }
-    if (!this.isUiOnlyPatchReason(reasonKey)) {
-      __editorMount.refreshOpenEditors(this);
-    }
-  }
-
-  isUiOnlyPatchReason(reasonKey) {
-    const key = String(reasonKey || "").trim();
-    if (!key) return false;
-    if (key === "settings:tab" || key === "settings:visual-subtab" || key === "settings:hotkeys-subtab") return true;
-    if (key.startsWith("settings:ui:")) return true;
-    if (key.startsWith("settings:binder:")) return true;
-    return false;
+    return __configWrite.applyPatch(this, patchObj, reason);
   }
 
   setActiveSettingsTab(tabId) {

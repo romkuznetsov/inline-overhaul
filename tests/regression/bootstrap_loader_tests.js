@@ -205,6 +205,10 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "ui", "editor", "mount.js"), "utf8");
   const commandsSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "features", "plugin_commands.js"), "utf8");
+  const rulesSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "features", "generated_rules.js"), "utf8");
+  const configWriteSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "config_write.js"), "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -329,8 +333,15 @@ async function run() {
   assertTrue(/left:\s*\[\]/.test(orderSrc), "default order config starts empty left");
   assertTrue(/right:\s*\[\]/.test(orderSrc), "default order config starts empty right");
   assertTrue(/hotkey_only/.test(orderSrc), "order active mode supports hotkey_only");
-  assertTrue(/function getRulesSyncOrchestrator\(\)/.test(src), "rules sync orchestrator getter exists");
-  assertTrue(/function getStoreEventsOrchestrator\(\)/.test(src), "store events orchestrator getter exists");
+  assertTrue(/function getRulesSyncOrchestrator\(\)/.test(rulesSrc), "rules sync orchestrator getter exists");
+  /*
+   * Служебный файл правил и запись конфига уехали в свои модули (кусок
+   * четвёртый разбора `main.js`, 2026-09-07). В точке входа остались швы:
+   * подписка на хранилище и единственный путь записи настроек.
+   */
+  assertTrue(/__generatedRules\.registerStoreEvents\(this\);/.test(src), "точка входа подписывается на хранилище через модуль");
+  assertTrue(/return __configWrite\.applyPatch\(this, patchObj, reason\);/.test(src), "запись настроек идёт одним швом в модуль");
+  assertTrue(/function getStoreEventsOrchestrator\(\)/.test(rulesSrc), "store events orchestrator getter exists");
 
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(src), "main exposes debug-gated loader fallback reporter");
   /*
@@ -430,6 +441,7 @@ async function run() {
       "./src/core/config_migration.js",
       "./src/core/config_normalize.js",
       "./src/core/config_store.js",
+      "./src/core/config_write.js",
       "./src/core/dev_log.js",
       "./src/core/editor_visuals_config.js",
       "./src/core/pkm_domain_registry.js",
@@ -443,11 +455,9 @@ async function run() {
       "./src/core/shared_utils.js",
       "./src/features/command_ids.js",
       "./src/features/enhanced_select_all_engine.js",
+      "./src/features/generated_rules.js",
       "./src/features/plugin_commands.js",
-      "./src/features/rules_markdown_builder.js",
-      "./src/features/rules_sync_orchestrator.js",
       "./src/features/smart_delete_engine.js",
-      "./src/features/store_events_orchestrator.js",
       "./src/features/strip_debug_api.js",
       "./src/ui/editor/decorations.js",
       "./src/ui/editor/mount.js",
@@ -487,7 +497,7 @@ async function run() {
   assertTrue(/function getConfigStoreCtor\(\)/.test(src), "config store ctor getter exists");
   assertTrue(/function getConfigMigrationModule\(\)/.test(src), "config migration getter exists");
   assertTrue(/function getEnhancedSelectAllEngine\(\)/.test(src), "enhanced select-all getter exists");
-  assertTrue(/function getRulesMarkdownBuilder\(\)/.test(src), "rules markdown builder getter exists");
+  assertTrue(/function getRulesMarkdownBuilder\(\)/.test(rulesSrc), "rules markdown builder getter exists");
   assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(src), "onload публикует шов макро-рантайма PKM");
   assertTrue(/this\.navRuntime = __pluginCommands\.navigationRuntime\(\);/.test(src), "onload берёт движок навигации");
   assertTrue(/this\.pkmRuntimeV2 = __pluginCommands\.pkmRuntime\(\);/.test(src), "onload берёт движок PKM");
@@ -544,7 +554,7 @@ async function run() {
   assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "модель Fields: родитель и дочерний встают вместе");
 
 
-  assertTrue(/buildRulesMarkdown: \(cfg\) => getRulesMarkdownBuilder\(\)\.buildTagWheelRulesMarkdownFromConfig\(cfg\)/.test(src), "rules sync uses extracted rules markdown builder");
+  assertTrue(/buildRulesMarkdown: \(cfg\) => getRulesMarkdownBuilder\(\)\.buildTagWheelRulesMarkdownFromConfig\(cfg\)/.test(rulesSrc), "rules sync uses extracted rules markdown builder");
   /*
    * Здесь стояли три запрета на написание внутри разбора текста для
    * правил — «не режет ведущую косую», «нет догадки про project», «разбор
@@ -635,9 +645,9 @@ async function run() {
   assertTrue(/try \{\s*await this\.initializeDevLogSession\(this\.getConfig\(\)\);\s*\} catch \(e\)/.test(src), "onload guards dev-log session init with fail-open try/catch");
   assertTrue(/await this\.initializeDevLogSession\(this\.getConfig\(\)\);/.test(src), "onload initializes dev log session rotation");
   assertTrue(/session\.start/.test(devLogSrc) && /session\.end/.test(devLogSrc), "модуль журнала пишет начало и конец сессии");
-  assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(src), "setConfigPatch starts new dev log session on dev_mode ON transition");
-  assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(src), "setConfigPatch closes dev log session on dev_mode OFF transition");
-  assertTrue(/if \(wasEnabled && isEnabled && \(beforePath !== afterPath \|\| beforeAi !== afterAi\)\) \{[\s\S]*dev-mode-log:reinit/.test(src), "setConfigPatch reinitializes log session when path or AI toggle changes while enabled");
+  assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(configWriteSrc), "setConfigPatch starts new dev log session on dev_mode ON transition");
+  assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(configWriteSrc), "setConfigPatch closes dev log session on dev_mode OFF transition");
+  assertTrue(/if \(wasEnabled && isEnabled && \(beforePath !== afterPath \|\| beforeAi !== afterAi\)\) \{[\s\S]*dev-mode-log:reinit/.test(configWriteSrc), "setConfigPatch reinitializes log session when path or AI toggle changes while enabled");
   assertTrue(/if \(mdLine\) await writeLine\(plugin, dm, "md", mdLine\);/.test(devLogSrc), "человеческая запись пишется всегда");
   assertTrue(/if \(aiLine\) await writeLine\(plugin, dm, "ndjson", aiLine\);/.test(devLogSrc), "машинная — когда её включили");
   assertTrue(/const marker = String\(elemCfg\.emoji \|\| inferElementDefaultsByKey\(key\)\.marker \|\| ""\)\.trim\(\);/.test(orderSrc), "ensureBehaviorModesFromOrder syncs custom element marker from behavior config");
@@ -792,7 +802,7 @@ async function run() {
   assertTrue(/plugin\._sourceMarksExtension = createSourceMarkDecorationExtension\(plugin\);/.test(mountSrc), "and builds the extension on load");
   assertEq((mountSrc.match(/_sourceMarksCompartment\.(of|reconfigure)\(/g) || []).length, 3, "and mounts it everywhere the other two are mounted");
   assertTrue(/__editorMount\.mountExtensions\(this\);/.test(src), "и точка входа зовёт постановку один раз");
-  assertTrue(/__editorMount\.refreshOpenEditors\(this\);/.test(src), "а пересборку — из записи патча конфига");
+  assertTrue(/__editorMount\.refreshOpenEditors\(plugin\);/.test(configWriteSrc), "а пересборку — из записи патча конфига");
   /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */
   assertTrue(/callback: async \(\) => \{ await runInlineToNote\(plugin\); \},/.test(commandsSrc), "the transform command delegates to the shared method");
   assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(decorSrc), "and so does the floating button");
@@ -1805,17 +1815,25 @@ async function run() {
    * загрузке, а не второе объявление того же правила (У-32).
    */
   {
-    const seam = /async rebuildFromConfig\(\)\s*\{[\s\S]*?\n  \}/.exec(src);
-    assertTrue(!!seam, "main.js keeps the rebuildFromConfig seam used after a backup restore");
-    assertTrue(seam[0].indexOf("this.registerCommands()") !== -1,
+    /*
+     * Шов уехал в `src/features/generated_rules.js` (кусок четвёртый разбора
+     * `main.js`): в точке входа осталась обёртка, потому что зовёт его
+     * восстановление копии через объект плагина. Утверждения спрашивают то же
+     * самое там, где предмет теперь (У-94).
+     */
+    assertTrue(/return __generatedRules\.rebuildFromConfig\(this\);/.test(src),
+      "main.js keeps the rebuildFromConfig seam used after a backup restore");
+    const seam = /async function rebuildFromConfig\(plugin\)\s*\{[\s\S]*?\n\}/.exec(rulesSrc);
+    assertTrue(!!seam, "модуль служебного файла держит сам шов");
+    assertTrue(seam[0].indexOf("plugin.registerCommands()") !== -1,
       "rebuildFromConfig re-registers commands");
-    assertTrue(seam[0].indexOf("this.reapplyGeneratedRulesLocation()") !== -1,
+    assertTrue(seam[0].indexOf("reapplyLocation(plugin)") !== -1,
       "rebuildFromConfig re-applies the generated rules location");
-    const move = /async reapplyGeneratedRulesLocation\(\)\s*\{[\s\S]*?\n  \}/.exec(src);
-    assertTrue(!!move, "main.js keeps reapplyGeneratedRulesLocation");
+    const move = /async function reapplyLocation\(plugin\)\s*\{[\s\S]*?\n\}/.exec(rulesSrc);
+    assertTrue(!!move, "и держит переезд служебного файла");
     assertTrue(move[0].indexOf("await migration.moveGeneratedRulesIntoPluginFolder(") !== -1,
       "the rules location is decided by the migration function, not by a second copy of the rule");
-    assertTrue(move[0].indexOf("this.pluginFolderPath()") !== -1,
+    assertTrue(move[0].indexOf("plugin.pluginFolderPath()") !== -1,
       "and the plugin folder is computed, not spelled out");
   }
   /*
