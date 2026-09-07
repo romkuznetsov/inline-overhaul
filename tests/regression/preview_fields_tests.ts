@@ -22,7 +22,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
-import { previewFields, resolveSlots, EXAMPLE_FIELDS } from "../../src/ui/settings/custom/preview_data.ts";
+import { previewFields, fieldOptions, resolveSlots, EXAMPLE_FIELDS } from "../../src/ui/settings/custom/preview_data.ts";
 import {
   barsPreview,
   floatingButton,
@@ -182,8 +182,22 @@ function realConfig(): Any {
   assert.equal(got.example, false, "Fields настоящие — пример не нужен");
   assert.deepEqual(got.fields.map(f => f.id), ["state", "urgency", "client"],
     "Fields в порядке строки: левый Block, потом правый");
-  assert.deepEqual(got.fields.map(f => f.name), ["State", "Urgency", "Client"],
-    "имена — те, что человек видит в панели");
+  /*
+   * Имён у Field два, и фикстура нарочно даёт им **разные** значения: строгое
+   * (`Name`) и короткое для TagWheel (`Name in TagWheel`). Пока `name` нёс
+   * короткое, а `short` не заполнялся вовсе, расхождения не видел никто —
+   * предпросмотры читают `short || name` и получали одно и то же (У-47).
+   * Видно оно было только в выпадающем списке `Field for the Bars`, и это
+   * замечание заказчика от 2026-09-07.
+   */
+  assert.deepEqual(got.fields.map(f => f.name), ["state", "urgency", "client"],
+    "`name` — строгое имя Field, то же, каким его зовут команды");
+  assert.deepEqual(got.fields.map(f => f.short), ["State", "Urgency", "Client"],
+    "`short` — короткое имя для TagWheel");
+  assert.deepEqual(
+    fieldOptions(makeCtx(cfg), f => f.kind === "tag").map(o => o.label),
+    ["state", "urgency"],
+    "в выпадающем списке Fields зовутся строгим именем, а не коротким");
   assert.deepEqual(got.fields.map(f => f.side), ["left", "left", "right"]);
   assert.deepEqual(got.fields.map(f => f.kind), ["tag", "tag", "link"],
     "тип ссылки в конфиге называется wikilink, а предпросмотр знает его как link");

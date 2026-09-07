@@ -88,7 +88,13 @@ function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close:
     showTips: Boolean(ctx.get("general.help.showTips")),
     showIds: Boolean(ctx.get("advanced.showSettingIds")),
   });
-  el(cap, "span", "io-preview__rule");
+  /*
+   * Линии за подписью здесь больше нет: «в настройках в каждом live preview в
+   * строке хедера (live preview) после хедера есть горизонтальная линия —
+   * убери её у всех live preview окон» (заказчик, 2026-09-07). Рамку
+   * предпросмотра рисует сам блок, и вторая черта внутри неё делила его
+   * надвое без нужды.
+   */
   return { box, close };
 }
 

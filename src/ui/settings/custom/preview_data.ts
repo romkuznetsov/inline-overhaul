@@ -150,9 +150,24 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
           for (const child of top.children || []) push(child.token, 1);
         }
       }
+      /*
+       * Имён у Field два, и они не взаимозаменяемы: `Name` — строгое,
+       * которым Field зовут заголовок редактора и команды, а `Name in
+       * TagWheel` — короткое, ради тесноты панели. Здесь заполняются оба:
+       * `name` строгим, `short` коротким.
+       *
+       * До 2026-09-07 `name` заполнялся коротким, а `short` не заполнялся
+       * вовсе. Предпросмотрам это было незаметно — они читают `short ||
+       * name`, — а вот выпадающий список `Field for the Bars` показывал
+       * короткое имя: «в bars-field в выпадающем списке название Fields =
+       * io-field-short, а должны быть name-strict» (заказчик, 2026-09-07).
+       * Ровно то же замечание он писал 2026-09-04 про имена команд, и оно
+       * тогда было починено в другом месте — а здесь осталось (У-32).
+       */
       out.push({
         id: row.key,
-        name: row.label,
+        name: row.strictName || row.key,
+        short: row.label,
         kind: row.kind === "wikilink" ? "link" : row.kind,
         side: row.side,
         values,

@@ -491,8 +491,18 @@ function itemRow(host: El, o: {
   const info = el(row, "div", "io-item__info");
   const nameRow = el(info, "div", "io-item__namerow");
   el(nameRow, "div", "io-item__name", o.name);
+  /*
+   * Подсказка живёт в **строке**, а не в колонке описания: колонка кончается
+   * там, где начинается контрол, и подсказка выходила шириной с имя
+   * настройки. Заказчик прислал это скриншотом (`15.png`, 2026-09-07):
+   * «открываются узкими… а должны быть во всю доступную ширину, т.е. до
+   * правой границы полей выбора».
+   *
+   * Узел встаёт последним ребёнком строки, а строка переносит его на свою
+   * строчку (`flex-wrap` у `.io-item`). Так же это устроено и в прототипе.
+   */
   const closeTip = o.tip && o.tipId
-    ? tipBelow({ head: nameRow, host: info, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips, showIds: o.showIds })
+    ? tipBelow({ head: nameRow, host: row, text: o.tip, label: o.name, id: o.tipId, showTips: o.showTips, showIds: o.showIds })
     : () => {};
   rich(el(info, "div", "io-item__desc"), o.desc);
   /* `info` отдаётся наружу: под описанием иногда встаёт предупреждение — оно
@@ -729,7 +739,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   el(behaviorHead, "span", undefined, "Behavior");
   closers.push(tipBelow({
     head: behaviorHead,
-    host: el(detail, "div", "io-tipslot"),
+    host: el(detail, "div", "io-tiphost"),
     text: say("BEHAVIOR_HEAD_TIP"),
     label: "Behavior",
     id: "io-field-behavior-tip",
@@ -849,7 +859,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   el(propertyHead, "span", undefined, say("YAML_HEAD"));
   closers.push(tipBelow({
     head: propertyHead,
-    host: el(detail, "div", "io-tipslot"),
+    host: el(detail, "div", "io-tiphost"),
     text: say("YAML_HEAD_TIP"),
     label: say("YAML_HEAD"),
     id: "io-field-property-tip",
@@ -1098,7 +1108,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
   el(head, "span", undefined, "Values");
   closers.push(tipBelow({
     head,
-    host: el(host, "div", "io-tipslot"),
+    host: el(host, "div", "io-tiphost"),
     text: say("VALUES_TIP"),
     label: "Values",
     id: "io-values-tip",
@@ -1475,7 +1485,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   el(valueHead, "span", undefined, "Value");
   closers.push(tipBelow({
     head: valueHead,
-    host: el(host, "div", "io-tipslot"),
+    host: el(host, "div", "io-tiphost"),
     text: say("ELEMENT_VALUE_TIP"),
     label: "Value",
     id: "io-element-value-tip",
@@ -1609,7 +1619,7 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   el(listHead, "span", undefined, "Fields");
   closers.push(tipBelow({
     head: listHead,
-    host: el(listCol, "div", "io-tipslot"),
+    host: el(listCol, "div", "io-tiphost"),
     text: say("LIST_TIP"),
     label: "the Fields list",
     id: "io-fields-list-tip",
@@ -1635,7 +1645,7 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
    */
   closers.push(tipBelow({
     head: detailHead,
-    host: el(detailCol, "div", "io-tipslot"),
+    host: el(detailCol, "div", "io-tiphost"),
     text: say("DETAIL_TIP"),
     label: "this column",
     id: "io-fields-detail-tip",

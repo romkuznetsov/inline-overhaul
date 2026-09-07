@@ -9,6 +9,25 @@
 
 /* ============================================================ Настройки */
 
+/*
+ * Полоска подсказки — своим цветом, не цветом коллаутов.
+ *
+ * Подсказка и вводный коллаут вкладки нарисованы одинаково, и человеку они
+ * читались как одно и то же: «tipbox представляют собой коллауты… сделай её
+ * фиолетовой, чтобы было ярче и отличалось от коллаутов show-callouts —
+ * которые синего цвета» (заказчик, 2026-09-07). Полоска подсказки к тому же
+ * была вовсе серой (`--background-modifier-border`) и не отличалась от рамки.
+ *
+ * Цвет — переменная темы (`--color-purple`), а не литерал (З6). Объявлен один
+ * раз: подсказок в панели три вида — строки, группы и своего блока, — и три
+ * объявления одного цвета разошлись бы молча (У-32).
+ */
+.io-tip__body,
+.io-grouptip,
+.io-tip--below {
+  --io-tipstripe: var(--color-purple);
+}
+
 /* Ссылка на команду, хоткей, значение или разделитель (Ст11). */
 .io-code {
   font-family: var(--font-monospace);
@@ -45,7 +64,7 @@
   margin: 4px 0 8px;
   padding: 8px 11px;
   max-width: 100%;
-  border-left: 2px solid var(--interactive-accent);
+  border-left: 2px solid var(--io-tipstripe);
   border-radius: 0 var(--radius-s) var(--radius-s) 0;
   background: var(--background-primary-alt);
   font-size: var(--font-ui-small);
@@ -116,6 +135,24 @@
    потому что второй раз она его не создаст (У-69, A30). */
 .io-tipslot {
   display: none !important;
+}
+
+/*
+ * Место, куда раскрывается подсказка своего блока (`io-tiphost`).
+ *
+ * Имя здесь важнее правил. До 2026-09-07 редактор Fields ставил на это место
+ * класс `io-tipslot` — тот самый, которым выше **прячется** кнопка платформы,
+ * — и шесть подсказок не открывались вовсе: узел создавался и лежал в
+ * `display: none`. Заказчик написал ровно это: «в таблице fields не работают
+ * tips (не появляется tipbox при нажатии у шапки таблицы… у хедера behavior, у
+ * хедера yaml property)» (A44).
+ *
+ * Своих правил у слота нет: он обычный блок во всю ширину колонки. Правило
+ * существует затем, чтобы имя было **занято** и второй раз не совпало с
+ * прячущим; на совпадение имён заведён сторож в `settings_layer_tests.ts`.
+ */
+.io-tiphost {
+  display: block;
 }
 
 /*
@@ -258,9 +295,61 @@
 .io-tip__body {
   margin-top: 5px;
   padding-left: 9px;
-  border-left: 2px solid var(--background-modifier-border);
+  border-left: 2px solid var(--io-tipstripe);
   font-size: var(--font-ui-small);
   color: var(--text-muted);
+}
+
+/*
+ * Подсказка строки схемы — во всю ширину строки, а не колонки описания
+ * (замечание заказчика 2026-09-07, `15.png`: «должны быть во всю доступную
+ * ширину, т.е. до правой границы полей выбора»).
+ *
+ * **Почему это делается стилями, а не вёрсткой.** В прототипе подсказка
+ * встаёт узлом **после строки** (`attachTip(..., insertAfter=row)`), и вопрос
+ * ширины там не возникает. В панели строку рисует платформа: у записи с
+ * `control` нет ни `render`, ни какой-либо ручки на её узел
+ * (`SettingDefinitionControl` в `obsidian.d.ts`), а описание платформа ещё и
+ * клонирует. Единственное место, куда мы можем положить подсказку, — внутрь
+ * `desc`, то есть в левую колонку. Оттуда ширину строки достаёт только
+ * контейнерный запрос.
+ *
+ * Три правила, и каждое нужно:
+ *   1. строка объявляется контейнером — от неё и считается `100cqw`;
+ *   2. колонки перестают делить свободное место поровну: описание забирает
+ *      остаток (`flex: 1 1 0`), контрол занимает ровно себя. Без этого
+ *      раскрытая подсказка тянула бы левую колонку на себя и **двигала
+ *      контрол** — заказчик написал и об этом: «при открытии tip съезжает
+ *      вправо пиктограмма отката к дефолтным настройкам»;
+ *   3. описанию возвращается видимое переполнение: у платформы там
+ *      `overflow: hidden`, и подсказка шире колонки была бы обрезана.
+ *
+ * `width: 100%` объявлена первой — это запасное значение для окружения без
+ * контейнерных запросов. Само окружение их поддерживает: `app.css` Obsidian
+ * 1.13.7 пользуется ими девять раз, в том числе на строках настроек (У-44).
+ *
+ * **Цена названа честно.** Строка становится ближайшим контейнером и для
+ * правила самой Obsidian `@container (max-width: 400px)`, которое на узкой
+ * панели ставит колонки друг под друга: у наших строк оно теперь мерит
+ * строку, а не панель, то есть срабатывает на её ширину минус поля строки.
+ * Наружу это не выходит — отбор идёт по классу нашей группы.
+ */
+[class*="io-group-"] .setting-item {
+  container-type: inline-size;
+}
+[class*="io-group-"] .setting-item > .setting-item-info {
+  flex: 1 1 0;
+}
+[class*="io-group-"] .setting-item > .setting-item-control {
+  flex: 0 0 auto;
+}
+[class*="io-group-"] .setting-item > .setting-item-info > .setting-item-description {
+  overflow: visible;
+}
+[class*="io-group-"] .setting-item .io-tip__body {
+  box-sizing: border-box;
+  width: 100%;
+  width: 100cqw;
 }
 
 /* Панель просит версию Obsidian новее: единственное, что она может показать. */
@@ -474,7 +563,7 @@
   margin: 6px 0 2px;
   padding: 8px 11px;
   max-width: 100%;
-  border-left: 2px solid var(--interactive-accent);
+  border-left: 2px solid var(--io-tipstripe);
   border-radius: 0 var(--radius-s) var(--radius-s) 0;
   background: var(--background-primary);
   font-size: var(--font-ui-small);
@@ -516,12 +605,9 @@
   text-transform: uppercase;
   color: var(--text-faint);
 }
-/* Линия добивает подпись до края блока. */
-.io-preview__rule {
-  flex: 1;
-  height: 1px;
-  background: var(--background-modifier-border);
-}
+/* Правил по классу `io-preview__rule` здесь больше нет, и заводить их не надо:
+   черта за подписью снята вместе с узлом (замечание заказчика 2026-09-07).
+   Рамку предпросмотра рисует сам блок. */
 .io-preview__note {
   margin: 9px 0 0;
   max-width: 66ch;
@@ -905,11 +991,10 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-faint);
-  background: var(--background-primary-alt);
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.io-fields__col:first-child .io-fields__colhead { background: var(--background-secondary); }
 .io-fields__list { background: var(--background-secondary); padding: 6px; flex: 1 1 auto; }
 .io-fields__item {
   display: flex;
@@ -1074,9 +1159,21 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  /*
+   * Перенос — ради подсказки: она встаёт последним ребёнком строки и уходит
+   * на свою строчку во всю её ширину (замечание заказчика 2026-09-07,
+   * `15.png`). Пока подсказка не открыта, переносить нечего, и строка
+   * выглядит как прежде.
+   */
+  flex-wrap: wrap;
   gap: 20px;
   padding: 13px 0;
   border-top: 1px solid var(--background-modifier-border);
+}
+.io-item > .io-tip--below {
+  flex: 1 0 100%;
+  /* Отступ строки уже задан `gap`, свой верхний тут лишний. */
+  margin-top: 0;
 }
 .io-item__info { min-width: 0; flex: 1 1 auto; }
 .io-item__namerow { display: flex; align-items: center; gap: 6px; }
@@ -1458,8 +1555,8 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-faint);
-  background: var(--background-primary-alt);
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
@@ -1651,6 +1748,32 @@
   background: var(--interactive-accent);
   border-color: transparent;
   color: var(--text-on-accent);
+}
+
+/*
+ * «?» в шапке таблицы. Шапка с 2026-09-07 залита акцентом (замечание
+ * заказчика про нечитаемые шапки), и оба прежних вида знака на ней пропадали:
+ * серая буква сливалась с заливкой, а нажатая — акцент на акценте, то есть
+ * ровно та же беда, что двумя правилами выше (У-67). На заливке знак
+ * переворачивается: буква цветом текста-на-акценте, нажатый — наоборот.
+ *
+ * Вес удвоен так же, как у правил размера: иначе выигрывает объявление ниже
+ * по файлу.
+ */
+.io-fields__colhead .io-help.io-help,
+.io-vals__head .io-help.io-help,
+.io-tablehead .io-help.io-help,
+.io-cmd__head .io-help.io-help {
+  color: var(--text-on-accent);
+  border-color: var(--text-on-accent);
+}
+.io-fields__colhead .io-help.io-help[aria-expanded="true"],
+.io-vals__head .io-help.io-help[aria-expanded="true"],
+.io-tablehead .io-help.io-help[aria-expanded="true"],
+.io-cmd__head .io-help.io-help[aria-expanded="true"] {
+  background: var(--text-on-accent);
+  border-color: transparent;
+  color: var(--interactive-accent);
 }
 
 /*
@@ -2181,8 +2304,8 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-faint);
-  background: var(--background-primary-alt);
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-tablerow + .io-tablerow { border-top: 1px solid var(--background-modifier-border); }
@@ -2253,7 +2376,13 @@
   gap: 10px;
   padding: 5px 7px;
   border-radius: var(--radius-s);
-  background: var(--background-modifier-hover);
+  /*
+   * Фон — тот же, что у самой рамки предпросмотра: «io-tip-i2n-button-preview
+   * цвет заливки строки примера — серый, в то время как во всех остальных live
+   * preview фон белый. Сделай везде фон белым» (заказчик, 2026-09-07).
+   * Заливка была подсветкой наведения и выделяла строку без причины.
+   */
+  background: var(--background-primary);
 }
 /*
  * Строка занимает **свою ширину**, а не всю доступную: иначе кнопка
@@ -2473,8 +2602,8 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-muted);
-  background: var(--background-primary-alt);
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 /*

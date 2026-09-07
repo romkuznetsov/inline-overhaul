@@ -1293,7 +1293,17 @@ async function main(): Promise<void> {
     const { pane } = makePane();
     const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
     const delay = items.find((i: Def) => i.name === "Time between presses");
-    assert.equal(delay?.control?.displayFormat?.(700), "700 ms");
+    /*
+     * Пробел между числом и единицей — **неразрывный**: обычный переносился, и
+     * на трёхзначном значении знак уезжал под число («символ % переносится на
+     * следующую строку», заказчик 2026-09-07). Здесь он выписан кодом знака, а
+     * не набран: в исходнике проверки он был бы неотличим от обычного, и
+     * возврат правки прошёл бы молча.
+     */
+    const nbsp = String.fromCharCode(160);
+    assert.equal(delay?.control?.displayFormat?.(700), "700" + nbsp + "ms");
+    assert.ok(!String(delay?.control?.displayFormat?.(700) || "").includes(String.fromCharCode(32)),
+      "обычного пробела в подписи слайдера быть не должно — он и переносится");
   });
 
   await test("неактивность живёт в контроле, а не в определении", () => {
@@ -1784,6 +1794,59 @@ async function main(): Promise<void> {
     assert.deepEqual(dead, [],
       "эти правила разыскивают классы, которых никто не ставит — они не красят "
       + "ничего:\n  " + dead.join("\n  "));
+  });
+
+  await test("подсказка не раскрывается в узел, который стили прячут", () => {
+    /*
+     * Шесть подсказок редактора Fields не открывались вовсе, и разобрать это
+     * можно было только глазами: узел создавался, текст в него писался, а
+     * класс, который на него ставили, — `io-tipslot` — в `styles.css` значит
+     * «спрятать» (`display: none !important`). Класс с таким именем там уже
+     * жил и прятал **кнопку платформы** у заголовка группы; редактор Fields
+     * взял то же имя под другое дело. Заказчик написал: «в таблице fields не
+     * работают tips» (A44, 2026-09-07).
+     *
+     * Проверка идёт **на симптом**, а не на имя (У-96): собираются все классы,
+     * которые слой настроек ставит на узел-хозяин подсказки, и все классы,
+     * которые стили прячут. Пересечение обязано быть пустым — как бы ни звали
+     * следующий такой класс.
+     */
+    const read = (rel: string): string => fs.readFileSync(path.join(repoRoot, rel), "utf8");
+    const sources: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
+        const rel = dir + "/" + entry.name;
+        if (entry.isDirectory()) walk(rel);
+        else if (/\.(ts|js)$/.test(entry.name)) sources.push(read(rel));
+      }
+    };
+    walk("src/ui/settings");
+    const blob = sources.join("\n");
+
+    /* Хозяин подсказки, названный литералом прямо на месте вызова. */
+    const hosts = new Set<string>();
+    for (const m of blob.matchAll(/host:\s*el\([^,]+,\s*"[a-z]+",\s*"(io-[A-Za-z0-9_-]+)"\)/g)) {
+      hosts.add(String(m[1]));
+    }
+    assert.ok(hosts.size > 0,
+      "ни одного узла-хозяина подсказки не найдено — проверка ищет пустоту");
+
+    /* Классы, которым стили говорят «тебя не видно». */
+    const css = read("styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const hidden = new Set<string>();
+    for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/display:\s*none/.test(String(m[2] || ""))) continue;
+      for (const sel of String(m[1] || "").split(",")) {
+        for (const cls of sel.match(/\.(io-[A-Za-z0-9_-]+)/g) || []) hidden.add(cls.slice(1));
+      }
+    }
+    assert.ok(hidden.has("io-tipslot"),
+      "положительный контроль: прячущий класс в стилях есть, значит ищется предмет");
+
+    const clash = Array.from(hosts).filter(h => hidden.has(h)).sort();
+    assert.deepEqual(clash, [],
+      "подсказка раскрывается в узел, который стили прячут, — она не появится "
+      + "на экране ни разу:\n  " + clash.join("\n  "));
   });
 
   await test("объявленный отступ коллаута и правда выигрывает у соседа по классу", () => {

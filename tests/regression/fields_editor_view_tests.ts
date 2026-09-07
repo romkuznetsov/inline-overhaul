@@ -1053,11 +1053,20 @@ function dragToSide(from: StubNode, side: StubNode): void {
   mark.click();
   const opened = all(v.host, "io-tip");
   assert.equal(opened.length, 1, "подсказка открылась ровно в одном месте");
-  /* Строка своя, поэтому и подсказка открывается внутри неё, а не в конце
-     колонки: раньше текст появлялся под таблицей Values. */
-  assert.ok(String(opened[0]?.parentElement?.className || "").includes("io-item__info"),
-    "подсказка открылась внутри своей строки");
-  const ownRow = opened[0]?.parentElement?.parentElement as StubNode;
+  /*
+   * Строка своя, поэтому и подсказка открывается внутри неё, а не в конце
+   * колонки: раньше текст появлялся под таблицей Values.
+   *
+   * С 2026-09-07 она ребёнок **самой строки**, а не колонки описания: в
+   * колонке она была шириной с имя настройки, и заказчик прислал это
+   * скриншотом (`15.png`). Ширину даёт `flex-wrap` у `.io-item`; здесь
+   * проверяется место в дереве — то, от чего эта ширина зависит.
+   */
+  const ownRow = opened[0]?.parentElement as StubNode;
+  assert.ok(String(ownRow?.className || "").includes("io-item"),
+    "подсказка открылась ребёнком своей строки, а не колонки описания");
+  assert.ok(!String(ownRow?.className || "").includes("io-item__info"),
+    "и это именно строка, а не колонка внутри неё");
   assert.ok(all(ownRow, "io-item__name").some(n =>
     String(n.textContent || "").trim() === SHORT_NAME),
     "и это строка имени в TagWheel");
