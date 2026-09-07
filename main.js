@@ -78,6 +78,8 @@ const __editorDecorations = require("./src/ui/editor/decorations.js");
 const __pkmOrderConfig = require("./src/core/pkm_order_config.js");
 const __configNormalize = require("./src/core/config_normalize.js");
 const __devLog = require("./src/core/dev_log.js");
+const __editorMount = require("./src/ui/editor/mount.js");
+const __stripDebugApi = require("./src/features/strip_debug_api.js");
 const __editorStyles = require("./src/ui/editor/styles.js");
 const PKM_ORDER_FIELDS = __pkmOrderConfig.PKM_ORDER_FIELDS;
 const normalizePkmOrder = __pkmOrderConfig.normalizePkmOrder;
@@ -470,7 +472,7 @@ class InlineOverhaulPlugin extends Plugin {
     __editorStyles.ensureTagwheelFill(this);
     __editorStyles.ensureStripLine(this);
     __editorStyles.ensureCaret(this);
-    this.registerGlobalFunctions();
+    __editorMount.mountExtensions(this);
     this.registerStoreEvents();
 
     await this.ensureGeneratedRulesNow("onload");
@@ -687,128 +689,6 @@ class InlineOverhaulPlugin extends Plugin {
     this.registerPkmCommands();
     this.registerBinderCommands();
     this.registerTransformCommands();
-  }
-
-  registerGlobalFunctions() {
-    this.registerEditorExtension(cmState.Prec.highest(cmView.keymap.of([
-      {
-        key: "c-a",
-        mac: "m-a",
-        run: () => this.handleEnhancedSelectAllKeymap(),
-      },
-      /* Smart Delete (10.13.32). Клавиша Obsidian, перехват тем же способом,
-         что и `Ctrl+A`: выключенная функция возвращает `false`, и `Del`
-         работает так, как работал. */
-      {
-        key: "Delete",
-        run: () => this.handleSmartDeleteKeymap(),
-      },
-      /* Зеркальный случай, свой тумблер (10.13.32 Д9). */
-      {
-        key: "Backspace",
-        run: () => this.handleSmartBackspaceKeymap(),
-      },
-    ])));
-    this._tagwheelHeaderExtension = createTagwheelHeaderDecorationExtension(this);
-    this._tagVisualExtension = createTagVisualDecorationExtension(this);
-    this._stripExtension = createStripDecorationExtension(this);
-    this._sourceMarksExtension = createSourceMarkDecorationExtension(this);
-    this.registerEditorExtension(this._tagwheelHeaderCompartment.of(this._tagwheelHeaderExtension));
-    this.registerEditorExtension(this._sourceMarksCompartment.of(this._sourceMarksExtension));
-    this.registerEditorExtension(this._tagVisualCompartment.of(cmState.Prec.highest(this._tagVisualExtension)));
-    this.registerEditorExtension(this._stripCompartment.of(this._stripExtension));
-    /* Своя каретка (10.13.33 Ц9). Компартмента у неё нет и не нужно: слой
-       спрашивает тумблер на каждой отрисовке, а видимостью правит блок стилей,
-       который переписывается сразу за правкой настройки. */
-    this.registerEditorExtension(createCaretLayerExtension(this));
-    this.registerStripDebugApi();
-  }
-
-  registerStripDebugApi() {
-    const plugin = this;
-    try {
-      globalThis.__ioStripDebug = {
-        dumpLatest() {
-          const batch = plugin._lastStripDebugBatch || null;
-          console.log("[io-strip-debug] latest", batch);
-          return batch;
-        },
-        scanVisible() {
-          const batch = plugin._lastStripDebugBatch || {};
-          const rows = Array.isArray(batch.rows) ? batch.rows : [];
-          const mapped = rows.map((r) => ({
-            lineNo: r.lineNo,
-            mode: r.mode,
-            classes: r.classes,
-            style: r.style,
-            ownToken: r.ownToken,
-            ownColor: r.ownColor,
-            inheritColor: r.inheritColor,
-          }));
-          console.table(mapped);
-          return mapped;
-        },
-        dumpLine(lineNo) {
-          const ln = Number(lineNo || 0);
-          const batch = plugin._lastStripDebugBatch || {};
-          const rows = Array.isArray(batch.rows) ? batch.rows : [];
-          const row = rows.find((r) => Number(r.lineNo || 0) === ln) || null;
-          console.log("[io-strip-debug] line", ln, row);
-          return row;
-        },
-        dumpGeometry(lineNo) {
-          const ln = Number(lineNo || 0);
-          const batch = plugin._lastStripDebugBatch || {};
-          const rows = Array.isArray(batch.rows) ? batch.rows : [];
-          const row = rows.find((r) => Number(r.lineNo || 0) === ln) || null;
-          if (!row) {
-            console.log("[io-strip-debug] geometry", ln, null);
-            return null;
-          }
-          const payload = {
-            lineNo: row.lineNo,
-            mode: row.mode,
-            laneCount: row.laneCount,
-            laneLefts: row.laneLefts,
-            gutterInset: row.gutterInset,
-            thickness: row.style,
-          };
-          console.log("[io-strip-debug] geometry", payload);
-          return payload;
-        },
-        dumpMixed(lineNo) {
-          const ln = Number(lineNo || 0);
-          const batch = plugin._lastStripDebugBatch || {};
-          const rows = Array.isArray(batch.rows) ? batch.rows : [];
-          const row = rows.find((r) => Number(r.lineNo || 0) === ln) || null;
-          if (!row) {
-            console.log("[io-strip-debug] mixed", ln, null);
-            return null;
-          }
-          const payload = {
-            lineNo: row.lineNo,
-            mode: row.mode,
-            ownToken: row.ownToken,
-            ownColor: row.ownColor,
-            inheritColor: row.inheritColor,
-            classes: row.classes,
-            style: row.style,
-          };
-          console.log("[io-strip-debug] mixed", payload);
-          return payload;
-        },
-        css() {
-          const styleEl = plugin._stripLineStyleEl || null;
-          const payload = {
-            attached: !!(styleEl && styleEl.parentNode),
-            textLength: styleEl && styleEl.textContent ? String(styleEl.textContent).length : 0,
-            selectorCount: styleEl && styleEl.sheet && styleEl.sheet.cssRules ? styleEl.sheet.cssRules.length : 0,
-          };
-          console.log("[io-strip-debug] css", payload);
-          return payload;
-        },
-      };
-    } catch (_) {}
   }
 
   handleEnhancedSelectAllKeymap() {
@@ -1219,7 +1099,7 @@ class InlineOverhaulPlugin extends Plugin {
       } catch (_) {}
     }
     if (!this.isUiOnlyPatchReason(reasonKey)) {
-      this.refreshLivePreviewDecorations();
+      __editorMount.refreshOpenEditors(this);
     }
   }
 
@@ -1230,66 +1110,6 @@ class InlineOverhaulPlugin extends Plugin {
     if (key.startsWith("settings:ui:")) return true;
     if (key.startsWith("settings:binder:")) return true;
     return false;
-  }
-
-  refreshLivePreviewDecorations() {
-    const cfg = this.getConfig();
-    const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
-    const leaves = this.app && this.app.workspace && typeof this.app.workspace.getLeavesOfType === "function"
-      ? this.app.workspace.getLeavesOfType("markdown")
-      : [];
-    if (debugLine) {
-      try {
-        this.devLogEvent("strip.refresh.dispatch", {
-          traceTxId: this.getLineTraceTxId(),
-          reason: "config-patch",
-          leaves: Array.isArray(leaves) ? leaves.length : 0,
-          stripFieldId: String(readCfgPath(cfg, "visual.tagBars.fieldId") || "").trim(),
-          stripActive: readCfgPath(cfg, "visual.tagBars.active") === true,
-        }, "trace", cfg);
-      } catch (_) {}
-    }
-    for (const leaf of leaves) {
-      const view = leaf && leaf.view ? leaf.view : null;
-      const editor = view && view.editor ? view.editor : null;
-      const cm = editor && editor.cm ? editor.cm : null;
-      if (!cm || typeof cm.dispatch !== "function") continue;
-      try {
-        const shouldMount = this._inlineExtensionMountedEditors instanceof WeakSet
-          ? !this._inlineExtensionMountedEditors.has(cm)
-          : false;
-        if (shouldMount && this._tagVisualExtension && this._stripExtension && this._tagwheelHeaderExtension) {
-          cm.dispatch({ effects: cmState.StateEffect.appendConfig.of([
-            this._tagwheelHeaderCompartment.of(this._tagwheelHeaderExtension),
-            this._tagVisualCompartment.of(cmState.Prec.highest(this._tagVisualExtension)),
-            this._stripCompartment.of(this._stripExtension),
-            this._sourceMarksCompartment.of(this._sourceMarksExtension),
-          ]) });
-          if (this._inlineExtensionMountedEditors instanceof WeakSet) this._inlineExtensionMountedEditors.add(cm);
-        } else if (this._tagVisualExtension && this._stripExtension && this._tagwheelHeaderExtension) {
-          cm.dispatch({ effects: [
-            this._tagwheelHeaderCompartment.reconfigure(this._tagwheelHeaderExtension),
-            this._tagVisualCompartment.reconfigure(cmState.Prec.highest(this._tagVisualExtension)),
-            this._stripCompartment.reconfigure(this._stripExtension),
-            this._sourceMarksCompartment.reconfigure(this._sourceMarksExtension),
-          ] });
-        }
-        const head = cm.state && cm.state.selection && cm.state.selection.main
-          ? cm.state.selection.main.head
-          : 0;
-        cm.dispatch({ effects: cmState.StateEffect.appendConfig.of([]), selection: { anchor: head, head } });
-        if (typeof requestAnimationFrame === "function") {
-          requestAnimationFrame(() => {
-            try {
-              const h2 = cm.state && cm.state.selection && cm.state.selection.main
-                ? cm.state.selection.main.head
-                : head;
-              cm.dispatch({ effects: cmState.StateEffect.appendConfig.of([]), selection: { anchor: h2, head: h2 } });
-            } catch (_) {}
-          });
-        }
-      } catch (_) {}
-    }
   }
 
   setActiveSettingsTab(tabId) {

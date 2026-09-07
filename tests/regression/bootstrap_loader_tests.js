@@ -201,6 +201,8 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "core", "pkm_order_config.js"), "utf8");
   const devLogSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "core", "dev_log.js"), "utf8");
+  const mountSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "ui", "editor", "mount.js"), "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -440,8 +442,10 @@ async function run() {
       "./src/features/rules_sync_orchestrator.js",
       "./src/features/smart_delete_engine.js",
       "./src/features/store_events_orchestrator.js",
+      "./src/features/strip_debug_api.js",
       "./src/features/transform_feature.js",
       "./src/ui/editor/decorations.js",
+      "./src/ui/editor/mount.js",
       "./src/ui/editor/styles.js",
       "./src/ui/settings/obsidian_tab.ts",
     ];
@@ -764,8 +768,16 @@ async function run() {
    * одном из них, работало бы через раз.
    */
   assertTrue(/function buildSourceMarkDecorations\(/.test(decorSrc), "main registers the source-mark decorations");
-  assertTrue(/this\._sourceMarksExtension = createSourceMarkDecorationExtension\(this\);/.test(src), "and builds the extension on load");
-  assertEq((src.match(/_sourceMarksCompartment\.(of|reconfigure)\(/g) || []).length, 3, "and mounts it everywhere the other two are mounted");
+  /*
+   * Постановка расширений уехала в `src/ui/editor/mount.js` (кусок четвёртый
+   * разбора `main.js`, 2026-09-07) — вместе с ней уехали и эти два
+   * утверждения. Спрашивается то же самое: расширение создано и
+   * примонтировано **везде**, где монтируются два соседних (У-94).
+   */
+  assertTrue(/plugin\._sourceMarksExtension = createSourceMarkDecorationExtension\(plugin\);/.test(mountSrc), "and builds the extension on load");
+  assertEq((mountSrc.match(/_sourceMarksCompartment\.(of|reconfigure)\(/g) || []).length, 3, "and mounts it everywhere the other two are mounted");
+  assertTrue(/__editorMount\.mountExtensions\(this\);/.test(src), "и точка входа зовёт постановку один раз");
+  assertTrue(/__editorMount\.refreshOpenEditors\(this\);/.test(src), "а пересборку — из записи патча конфига");
   /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */
   assertTrue(/callback: async \(\) => \{ await this\.runInlineToNote\(\); \},/.test(src), "the transform command delegates to the shared method");
   assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(decorSrc), "and so does the floating button");
@@ -1299,7 +1311,7 @@ async function run() {
   assertFalse(/runtimeApi\.load[A-Za-z]+\(/.test(tagwheelSrc), "tagwheel has no direct runtimeApi.load* calls in adapter flow");
   assertFalse(/<span style=\"color: /.test(tagwheelCoreSrc), "tagwheel_core does not inject inline HTML color wrappers");
   assertFalse(/<mark style=\"background-color: /.test(tagwheelCoreSrc), "tagwheel_core does not inject inline HTML fill wrappers");
-  assertTrue(/createTagwheelHeaderDecorationExtension\(this\)/.test(src), "main registers live-preview tagwheel color decoration extension");
+  assertTrue(/createTagwheelHeaderDecorationExtension\(plugin\)/.test(mountSrc), "main registers live-preview tagwheel color decoration extension");
   assertTrue(/function getTagVisualsFromConfig\(/.test(visualsSrc), "main exposes tagVisuals config reader for runtime painter");
   assertTrue(/function buildFieldTagVisualMap\(/.test(visualsSrc), "main builds deterministic field-tag visual map");
   assertTrue(/function resolveEffectiveTagVisualMode\(/.test(visualsSrc), "main defines effective tag visual mode resolver with custom fallback");
@@ -1313,7 +1325,7 @@ async function run() {
   assertTrue(/this\.displayTextOverride = String\(displayTextOverride \|\| ""\)/.test(decorSrc), "tag visual widget supports custom display text override");
   assertTrue(/displayTextOverride \|\| this\.tokenText/.test(decorSrc), "tag visual widget renders custom text when provided");
   assertTrue(/function createTagVisualDecorationExtension\(plugin\)/.test(decorSrc), "main defines tag visual CM6 extension");
-  assertTrue(/createTagVisualDecorationExtension\(this\)/.test(src), "main registers tag visual CM6 extension");
+  assertTrue(/createTagVisualDecorationExtension\(plugin\)/.test(mountSrc), "main registers tag visual CM6 extension");
   assertFalse(/rt\.loadPkmOptionKeys\(\)/.test(tagwheelSrc), "tagwheel option key preload avoids direct runtime object method calls");
   assertFalse(/getDateFieldsFromRules/.test(tagwheelSrc), "tagwheel has no local getDateFieldsFromRules wrapper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: getDateValuePatterns'\)/.test(tagwheelSrc), "tagwheel date value-patterns helper is shared-only");
@@ -1459,7 +1471,7 @@ async function run() {
    * (У-56). Ровно этим и был прежний дефект: код каретки был, а до экрана не
    * доезжал.
    */
-  assertTrue(/registerEditorExtension\(createCaretLayerExtension\(this\)\)/.test(src), "main registers the own caret layer as an editor extension");
+  assertTrue(/registerEditorExtension\(createCaretLayerExtension\(plugin\)\)/.test(mountSrc), "main registers the own caret layer as an editor extension");
   assertTrue(/cmView\.layer\(\{/.test(decorSrc), "own caret layer is built with the platform layer helper");
   assertTrue(/cmView\.RectangleMarker\.forRange\(view, CARET_MARKER_CLASS, range\)/.test(decorSrc), "own caret layer measures its marker with the platform helper");
   assertTrue(/class: CARET_LAYER_CLASS,/.test(decorSrc), "own caret layer names itself from the same constant the stylesheet uses");
