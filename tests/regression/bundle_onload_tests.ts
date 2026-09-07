@@ -236,6 +236,46 @@ function makeTransformEditorStub(line: string): Any {
 }
 
 /**
+ * Редактор, у которого видно **историю отмен**.
+ *
+ * От заглушки выше отличается одним: у него есть `cm`. У Obsidian это
+ * `EditorView`, и TagWheel пишет через него свои транзакции с пометкой «не
+ * запоминать»; в Node такого объекта нет вовсе, поэтому он подделан — и
+ * подделан ровно настолько, чтобы записать, что ему послали (У-1).
+ *
+ * `plainWrites` — записи, идущие в историю обычным путём. Их и считаем: одна
+ * ступень на всю сессию панели и есть то, чего просил заказчик.
+ */
+function makeHistoryEditorStub(line: string, ch: number): Any {
+  let text = String(line || "");
+  let cur = { line: 0, ch: Number(ch || 0) };
+  const plainWrites: string[] = [];
+  const dispatched: Any[] = [];
+  const view: Any = {
+    state: { doc: { line: (_n: number) => ({ from: 0, to: text.length }) } },
+    dispatch: (spec: Any) => {
+      dispatched.push(spec);
+      const from = Number(spec.changes.from || 0);
+      const to = Number(spec.changes.to || 0);
+      text = text.slice(0, from) + String(spec.changes.insert == null ? "" : spec.changes.insert) + text.slice(to);
+    },
+  };
+  return {
+    cm: view,
+    getCursor: () => ({ line: cur.line, ch: cur.ch }),
+    getLine: () => text,
+    setLine: (_n: number, v: string) => { text = String(v || ""); plainWrites.push(text); },
+    replaceRange: (v: string) => { text = String(v || ""); plainWrites.push(text); },
+    setCursor: (n: Any) => { cur = { line: Number(n.line || 0), ch: Number(n.ch || 0) }; },
+    lineCount: () => 1,
+    getValue: () => text,
+    snapshot: () => text,
+    plainWrites,
+    dispatched,
+  };
+}
+
+/**
  * Заметки Transform пишет через `vault`, а не через адаптер: свежая установка
  * из `makeApp` этих методов не знает, потому что до сих пор их никто не звал.
  * Хранилище то же самое — `app.written`, — чтобы созданную заметку можно было
@@ -544,6 +584,68 @@ async function run(): Promise<void> {
       const line = editor.snapshot();
       assert.ok(line.includes("моя строка"), "TagWheel из сборки не потерял текст человека");
       ok("TagWheel из сборки открылся и применился, строка цела");
+    }
+
+    {
+      /*
+       * Вся сессия панели — **одна** ступень истории отмен (A37, замечание
+       * заказчика 2026-09-07: «я хочу, чтобы активация tagwheel воспринималась
+       * как одно действие»).
+       *
+       * Что здесь нового по сравнению с прежней проверкой. Поведением было
+       * закреплено только применение; открытие панели и нажатия внутри неё
+       * держал сплошной обход по тексту исходника — сторож в
+       * `bootstrap_loader_tests.js` сам называл, чего ему не хватает. Здесь
+       * гоняется сессия целиком: открытие, три нажатия, применение — и
+       * считается то, что видит история.
+       *
+       * Обработчик нажатий берётся оттуда, куда его повесил сам движок, —
+       * `window.listeners.keydown`. Событие подделано (в Node нет клавиатуры),
+       * но путь до записи строки настоящий.
+       *
+       * Сам `Ctrl+Z` жмёт человек: пакета с историей отмен в наборе нет, и это
+       * названо в листе приёмки. Здесь спрашивается то, что решаем мы, — сколько
+       * записей просит запомнить плагин.
+       */
+      const editor = makeHistoryEditorStub("- [ ] #todo :: моя строка", 8);
+      const settings = { "Date runtime config": dateRuntimeAll };
+      const keydowns = ((globalThis as Any).window.listeners.keydown || []) as Any[];
+      const before = keydowns.length;
+      await run(editor, "tagWheel", settings);
+      const handler = keydowns[keydowns.length - 1];
+      assert.ok(typeof handler === "function" && keydowns.length === before + 1,
+        "панель открылась и повесила свой обработчик нажатий");
+      const opened = editor.snapshot();
+      assert.notStrictEqual(opened, "- [ ] #todo :: моя строка",
+        "положительный контроль: панель нарисована, строка на экране изменилась");
+
+      const press = (key: string): void => {
+        handler({ key, preventDefault: () => {}, stopPropagation: () => {} });
+      };
+      press("ArrowUp");
+      press("ArrowUp");
+      press("ArrowRight");
+      const drawsAfterKeys = editor.dispatched.length;
+      assert.ok(drawsAfterKeys >= 4,
+        "каждое нажатие перерисовало строку (записей мимо истории " + drawsAfterKeys + ")");
+      assert.strictEqual(editor.plainWrites.length, 0,
+        "пока панель открыта, история не получила ни одной записи: " + editor.plainWrites.join(" | "));
+
+      press("Enter");
+      const after = editor.snapshot();
+      assert.ok(after.includes("моя строка"), "текст человека на месте: " + after);
+      /*
+       * Одна запись в историю на всю сессию — и это итог, а не вид панели.
+       * Ступень истории читается как «исходная строка → итог»: возврат к
+       * исходной послан мимо истории прямо перед ней.
+       */
+      assert.strictEqual(editor.plainWrites.length, 1,
+        "история получила ровно одну запись на всю сессию: " + editor.plainWrites.join(" | "));
+      assert.strictEqual(editor.plainWrites[0], after,
+        "и это итоговая строка, а не вид панели");
+      assert.ok(editor.dispatched.length > drawsAfterKeys,
+        "перед итогом строка возвращена к исходной мимо истории");
+      ok("вся сессия TagWheel из сборки — одна ступень истории отмен");
     }
 
   }
