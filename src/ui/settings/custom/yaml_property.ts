@@ -37,9 +37,10 @@ import { BLOCK_TEXTS } from "../texts_blocks.ts";
 import type { YamlFieldRow } from "./fields_model.ts";
 
 /*
- * Движок команды `Inline to note`. Модуль самостоятельный — ни одного
- * `require` внутри, — и в сборке он уже есть: `release_entry.js` кладёт его в
- * реестр модулей vault. Импорт здесь берёт тот же модуль, а не второй его
+ * Движок команды `Inline to note`. Свои модули он подключает литеральным
+ * `require` и в граф сборки попадает вместе с ними (У-89): реестра модулей
+ * vault и точки входа `release_entry.js` больше нет, они сняты 2026-09-07
+ * вместе с мостом. Импорт здесь берёт тот же модуль, а не второй его
  * экземпляр.
  */
 import transformFeature from "../../../features/transform_feature.js";

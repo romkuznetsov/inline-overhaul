@@ -209,6 +209,55 @@ function makeEditorStub(line: string, ch: number): Any {
   };
 }
 
+/**
+ * Редактор для Transform: ему нужны выделение, отрезки и запись по диапазону —
+ * однострочной заглушки выше не хватает.
+ */
+function makeTransformEditorStub(line: string): Any {
+  const lines: string[] = [String(line || "")];
+  const at = (n: number): string => String(lines[n] ?? "");
+  return {
+    getCursor: (which: string) => (which === "to" ? { line: 0, ch: at(0).length } : { line: 0, ch: 0 }),
+    somethingSelected: () => false,
+    getLine: (n: number) => at(n),
+    setLine: (n: number, v: string) => { lines[n] = String(v || ""); },
+    setCursor: () => {},
+    lineCount: () => lines.length,
+    replaceRange(value: string, from: Any, to: Any) {
+      const end = to || from;
+      if (from.line === end.line) {
+        lines[from.line] = at(from.line).slice(0, from.ch) + value + at(end.line).slice(end.ch);
+      } else {
+        lines.splice(from.line, end.line - from.line + 1, ...String(value).split("\n"));
+      }
+    },
+    snapshot: () => lines.join("\n"),
+  };
+}
+
+/**
+ * Заметки Transform пишет через `vault`, а не через адаптер: свежая установка
+ * из `makeApp` этих методов не знает, потому что до сих пор их никто не звал.
+ * Хранилище то же самое — `app.written`, — чтобы созданную заметку можно было
+ * прочитать там же, где всё остальное.
+ */
+function attachTransformVault(app: Any): void {
+  const written = app.written as Map<string, string>;
+  app.vault.getAbstractFileByPath = (p: string) => (written.has(p) ? { path: p } : null);
+  app.vault.create = async (p: string, data: string): Promise<Any> => {
+    if (written.has(p)) throw new Error("already exists: " + p);
+    written.set(p, String(data));
+    return { path: p };
+  };
+  app.vault.createFolder = async (p: string): Promise<void> => { written.set(p, ""); };
+  app.vault.read = async (f: Any): Promise<string> => String(written.get(f && f.path ? f.path : f) || "");
+  app.vault.modify = async (f: Any, data: string): Promise<void> => { written.set(f.path, String(data)); };
+  app.vault.delete = async (f: Any): Promise<void> => { written.delete(f.path); };
+  app.vault.getMarkdownFiles = (): Any[] => Array.from(written.keys())
+    .filter((p) => /\.md$/.test(p))
+    .map((p) => ({ path: p }));
+}
+
 async function run(): Promise<void> {
   assert.ok(fs.existsSync(distMain), "dist/main.js собран");
 
@@ -476,6 +525,108 @@ async function run(): Promise<void> {
       assert.ok(line.includes("моя строка"), "TagWheel из сборки не потерял текст человека");
       ok("TagWheel из сборки открылся и применился, строка цела");
     }
+  }
+
+  /*
+   * Transform из сборки — и он тоже на строке заказчика (R4, 2026-09-07).
+   *
+   * Четвёртый движок, и загрузка у него своя. Здесь он к тому же спрашивает
+   * длину хвоста элемента у общего модуля: у Field формат `YYYY-MM-DD hh:mm`,
+   * а `require` не разрешившийся в бандле оставил бы старое «до пробела» — и
+   * половина даты осталась бы на строке текстом человека.
+   *
+   * Спрашивается то, что видит человек: строка после команды и содержимое
+   * созданной заметки. Ожидание выписано словами заказчика, а не собрано тем
+   * же кодом (У-5).
+   */
+  {
+    /*
+     * Конфиг пишется настоящим путём — `store.patch`, тем же, каким пишет
+     * панель, и через ту же `migrateConfig`. Своего в нём ровно то, что
+     * проверке нужно: один тег, один элемент **с пробелом в формате** и папка
+     * для новых заметок. У свежей установки Fields нет ни одного, и без этого
+     * проверка была бы зелёной оттого, что мерить нечего (У-88).
+     */
+    const dueMarker = "\u{1F4C5}";
+    plugin.store.patch({
+      pkm: {
+        lineFormat: { separator1: "::", separator2: "::" },
+        fields: {
+          order: {
+            left: ["type"], right: ["due"],
+            types: { type: "tag", due: "element" },
+            active: { type: "yes", due: "yes" },
+            enabled: { type: true, due: true },
+            strictNames: { type: "type", due: "due" },
+          },
+          tags: { fields: [{ id: "type", prefix: "#", values: [{ id: "todo", token: "todo", active: true }] }] },
+          links: { fields: [{ id: "due", marker: dueMarker, values: [{ id: "", token: "", active: true }] }] },
+          elements: { fields: ["due"], byField: { due: { emoji: dueMarker, format: "YYYY-MM-DD hh:mm" } } },
+        },
+      },
+      transform: {
+        inline2note: {
+          enabled: true,
+          outputFolder: "Filed",
+          defaultTemplate: "",
+          smartRules: [],
+          noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: false },
+          placement: { position: "end", headerMode: "none", customHeader: "", datetimeFormat: "YYYY-MM-DD" },
+          sourceProcessing: {
+            cleanupFieldIds: [], token: "#processed", panel: "right",
+            replaceWithLink: true, text: "words", keepWords: 2,
+          },
+          sublines: "stay",
+          openTarget: false,
+        },
+      },
+    }, "bundle test: Fields и Transform");
+    const elementCfg = plugin.getConfig().pkm.fields.elements.byField.due;
+    assert.strictEqual(elementCfg && elementCfg.format, "YYYY-MM-DD hh:mm",
+      "формат с пробелом записался: иначе у проверки нет предмета");
+
+    const line = `- [ ] #todo :: [моё имя] ещё текст :: ${dueMarker}2026-09-07 11:25`;
+    const editor = makeTransformEditorStub(line);
+    app.workspace.activeEditor = { editor };
+    app.workspace.activeLeaf = { view: { editor } };
+    app.workspace.getActiveFile = () => ({ parent: { path: "" } });
+    app.workspace.getLeaf = () => null;
+    attachTransformVault(app);
+
+    const cmd = plugin.commands.find((c: Any) => String(c && c.id) === "transform-inline-to-note");
+    assert.ok(cmd && typeof cmd.callback === "function", "команда Transform есть в сборке");
+    loader._load = function (request: string, parent: unknown, isMain: boolean): unknown {
+      if (request === "obsidian") return platform;
+      if (request === "@codemirror/view") return cmStub();
+      if (request === "@codemirror/state") return cmStateStub();
+      return origLoad.call(this, request, parent, isMain);
+    };
+    try {
+      await cmd.callback();
+    } finally {
+      loader._load = origLoad;
+    }
+
+    const after = editor.snapshot();
+    /* Положительный контроль: команда вообще отработала, а не тихо вернулась. */
+    assert.notStrictEqual(after, line, "Transform из сборки переписал исходную строку");
+    assert.ok(!after.includes("11:25"),
+      "от даты не осталось половины: элемент снят целиком, вместе со временем — " + after);
+    assert.ok(!after.includes("[моё имя]"),
+      "имя новой заметки не осталось на строке текстом — " + after);
+    assert.ok(after.includes("[[") && after.includes("моё имя"),
+      "на строке стоит ссылка на созданную заметку — " + after);
+
+    const writtenPaths = Array.from(app.written.keys()).map((p: unknown) => String(p));
+    const notePath = writtenPaths.find((p) => /моё имя\.md$/.test(p));
+    assert.ok(notePath, "заметка создана: " + writtenPaths.join(", "));
+    const note = String(app.written.get(notePath) || "");
+    assert.ok(note.includes("ещё текст"), "текст человека уехал в заметку");
+    assert.ok(!note.includes("[моё имя]"),
+      "название не продублировано текстом внутри заметки — " + note);
+    assert.ok(note.includes("2026-09-07 11:25"),
+      "дата уехала в заметку целиком, вместе со временем — " + note);
+    ok("Transform из сборки: дата снята целиком, название не осталось текстом");
   }
 
   console.log(`Bundle onload tests: OK (${passed} checks)`);

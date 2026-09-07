@@ -27,6 +27,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 const requireCjs = createRequire(import.meta.url);
 const transform = requireCjs(path.join(root, "src", "features", "transform_feature.js")) as Any;
+/* Вторая сторона сверки образца: тот самый модуль, у которого движок и
+   спрашивает длину хвоста. */
+const helpers = requireCjs(path.join(root, "src", "core", "pkm_rules_runtime_helpers.js")) as Any;
 
 const SEP = { separator1: "||", separator2: "||" };
 
@@ -184,6 +187,140 @@ function ok(label: string): void {
   assert.deepEqual(alive, ["status"],
     "Field, которого нет, из списка выпадает, а не роняет перенос");
   ok("удалённый Field в списке не мешает: он просто не считается");
+}
+
+/* ---- 5: имя в скобках — название заметки, а не текст строки ------------- */
+
+/**
+ * Замечание заказчика по R4, 2026-09-07. Его строка и его ожидание:
+ *
+ *   было    `- [ ] #todo :: [тест-трансформ] тест1 :: 📅2026-09-07 11:25`
+ *   стало   `- [[333/тест-трансформ]] тест1 :: #processed`
+ *
+ * Здесь закреплены обе половины: имя со строки уходит, а ссылка встаёт **на
+ * его место**, а не в конец текста. Место видно только по строкам, где до
+ * имени что-то стоит: если ссылку приписывать в конец, обе строки ниже дают
+ * один и тот же ответ и проверка слепнет.
+ */
+const I2N_BRACKETS = { noteName: { mode: "auto", delimiters: "[]" } } as Any;
+
+{
+  const line = "- [ ] #todo || [тест-трансформ] tail text || \u{1F4C5}2026-08-31";
+  const title = "тест-трансформ";
+  assert.equal(transform.explicitTitleOf(line, I2N_BRACKETS), title,
+    "имя читается из скобок");
+
+  const fate = (o: Any): string => transform.applySourceTextFate(
+    line, "333/" + title, SEP, { explicitTitle: title, i2n: I2N_BRACKETS, ...o });
+
+  assert.equal(fate({ text: "words", keepWords: 2, link: true }),
+    "- [ ] #todo || [[333/тест-трансформ]] tail text || \u{1F4C5}2026-08-31",
+    "имя ушло, ссылка встала на его место, слова считаны без имени");
+
+  assert.equal(fate({ text: "remove", link: true }),
+    "- [ ] #todo || [[333/тест-трансформ]] || \u{1F4C5}2026-08-31",
+    "текст убран целиком — остаётся одна ссылка");
+
+  assert.equal(fate({ text: "leave", link: false }),
+    "- [ ] #todo || tail text || \u{1F4C5}2026-08-31",
+    "ссылки нет, текст остаётся — но имя всё равно уходит: оно стало названием");
+  ok("явное имя уходит со строки, а ссылка встаёт на его место");
+}
+
+{
+  /* Имя в середине и в конце: место ссылки повторяет место имени. */
+  const mid = "- [ ] || head [name] tail ||";
+  assert.equal(
+    transform.applySourceTextFate(mid, "N", SEP,
+      { text: "leave", link: true, explicitTitle: "name", i2n: I2N_BRACKETS }),
+    "- [ ] || head [[N]] tail",
+    "имя стояло между словами — ссылка встала между ними же");
+
+  const last = "- [ ] || head words [name] ||";
+  assert.equal(
+    transform.applySourceTextFate(last, "N", SEP,
+      { text: "leave", link: true, explicitTitle: "name", i2n: I2N_BRACKETS }),
+    "- [ ] || head words [[N]]",
+    "имя стояло в конце — ссылка встала в конец");
+  ok("ссылка повторяет место имени, а не приписывается в конец");
+}
+
+{
+  /* Имени нет — прежний порядок «текст, потом ссылка» не тронут. */
+  const plain = "- [ ] || buy milk in the shop ||";
+  assert.equal(
+    transform.applySourceTextFate(plain, "N", SEP,
+      { text: "words", keepWords: 2, link: true, explicitTitle: "", i2n: I2N_BRACKETS }),
+    "- [ ] || buy milk [[N]]",
+    "без имени ссылка по-прежнему идёт за текстом");
+
+  /* Имя названо, но на строке его нет — например, набрано в окне вручную. */
+  assert.equal(
+    transform.applySourceTextFate(plain, "N", SEP,
+      { text: "leave", link: true, explicitTitle: "typed by hand", i2n: I2N_BRACKETS }),
+    "- [ ] || buy milk in the shop [[N]]",
+    "имя, которого на строке нет, скобок не трогает");
+  ok("строки без явного имени ведут себя как раньше");
+}
+
+{
+  /* Текст, уезжающий в заметку: имя из корневой строки уходит, дерево цело. */
+  const block = "- [ ] #todo || [name] tail || \u{1F4C5}2026-08-31\n\t- дочка [name]";
+  assert.equal(
+    transform.stripExplicitTitleFromBlock(block, "name", I2N_BRACKETS),
+    "- [ ] #todo || tail || \u{1F4C5}2026-08-31\n\t- дочка [name]",
+    "в заметку уезжает строка без названия; дочерние строки не тронуты");
+  ok("название не дублируется в тексте заметки");
+}
+
+/* ---- 6: значение элемента читается по формату поля ---------------------- */
+
+/**
+ * Дефект той же строки заказчика: у Due формат `YYYY-MM-DD hh:mm`, а движок
+ * искал значение «от метки до пробела». Снималась половина, `11:25` оставалось
+ * на строке текстом человека, а в свойства заметки дата уезжала обрезанной.
+ *
+ * Ниже — обе стороны одного правила: образец, по которому значение читается, и
+ * пример, который панель по тому же формату показывает. Сверка их друг с
+ * другом и есть то, чем ловится расхождение (У-92).
+ */
+{
+  const cfg = {
+    pkm: {
+      lineFormat: { separator1: "::", separator2: "::" },
+      fields: {
+        order: { left: [], right: ["due"], types: { due: "element" }, active: { due: "yes" }, enabled: { due: true } },
+        tags: { fields: [] },
+        links: { fields: [{ id: "due", marker: "\u{1F4C5}", values: [{ token: "", active: true }] }] },
+        elements: { fields: ["due"], byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" } } },
+      },
+    },
+  } as Any;
+
+  const parsed = transform.parseInlineLine("- 11 :: \u{1F4C5}2026-09-07 11:25", cfg);
+  assert.deepEqual(parsed.emojis, [{ marker: "\u{1F4C5}", value: "2026-09-07 11:25" }],
+    "значение элемента прочитано целиком, вместе со временем");
+  assert.equal(parsed.emojiOccurrences[0].end - parsed.emojiOccurrences[0].start,
+    "\u{1F4C5}2026-09-07 11:25".length,
+    "отрезок покрывает и время: по нему элемент со строки и снимают");
+
+  const rules = transform.getElementMarkerRulesFromConfig(cfg);
+  assert.equal(rules.length, 1, "метка одна");
+  assert.equal(rules[0].tail, "\\d{4}-\\d{2}-\\d{2}[ ]\\d{2}:\\d{2}",
+    "хвост выведен из формата тем же правилом, что у разбора строки");
+
+  for (const format of ["YYYY-MM-DD", "YYYY-MM-DD hh:mm", "YYYY-MM-DD HH-mm-ss", "DD.MM.YYYY", "hh:mm"]) {
+    const sample = transform.elementSampleValueFromFormat(format);
+    const tail = helpers.elementTailPatternFromFormat(format);
+    assert.ok(new RegExp("^(?:" + tail + ")$").test(sample),
+      "пример «" + sample + "» законен для формата «" + format + "» (образец " + tail + ")");
+  }
+  /* Отрицательная сторона той же сверки: маска, которая тут стояла раньше,
+     под образец не подходит — иначе проверка была бы зелёной от того, что
+     подходит всё. */
+  assert.ok(!new RegExp("^(?:" + helpers.elementTailPatternFromFormat("YYYY-MM-DD") + ")$").test("YYYY-MM-DD"),
+    "сама маска значением не является");
+  ok("значение элемента и его пример выведены из формата поля, и они сходятся");
 }
 
 console.log("\n" + passed + " проверок пройдено");

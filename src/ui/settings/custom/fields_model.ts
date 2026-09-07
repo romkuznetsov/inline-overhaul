@@ -21,6 +21,16 @@
 
 import type { OrderState, PkmFieldsConfig, FieldKind, ValueVisibility } from "../types.ts";
 import { BLOCK_TEXTS } from "../texts_blocks.ts";
+/*
+ * Из движка нужна одна вещь: показательное значение элемента по формату поля.
+ * Своя копия этого правила разошлась бы с разборщиком молча — и уже разошлась
+ * (У-32).
+ */
+import transformFeature from "../../../features/transform_feature.js";
+
+const transformSample = transformFeature as unknown as {
+  elementSampleValueFromFormat: (format: unknown) => string;
+};
 
 /** Английское проверок имён: слова живут в каталоге (10.13.47). */
 const SAY = BLOCK_TEXTS["field-editor"];
@@ -1128,8 +1138,16 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     if (kind === "element") {
       const el = elementEditor(k);
       const marker = String(el.emoji || (def && def.marker) || "").trim();
-      const shape = String(el.format || "").trim().split(/\s+/)[0] || "";
-      return marker && shape ? marker + shape : "";
+      /*
+       * Значение — настоящая дата по формату поля, а не сама маска.
+       *
+       * Здесь стояло `format.split(/\s+/)[0]`, то есть `📅YYYY-MM-DD`: маска,
+       * да ещё и обрезанная по первому пробелу. Разборщик движка читает
+       * значение элемента **по формату** и такой строки не узнаёт — пример
+       * молча пропадал бы, ровно как обещает комментарий выше (У-38).
+       */
+      const sample = String(transformSample.elementSampleValueFromFormat(el.format) || "");
+      return marker && sample ? marker + sample : "";
     }
     const values = asArray(def && def.values);
     for (const raw of values) {

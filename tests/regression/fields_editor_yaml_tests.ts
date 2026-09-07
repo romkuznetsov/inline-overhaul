@@ -305,10 +305,16 @@ function engineYaml(line: string, cfg: Any): string[] {
 
 /**
  * Строка выдуманного примера: маркер элемента вплотную к значению — так его
- * пишет рантайм (`${marker}${value}` в `status_date.js`), а форма даты
- * подставлена маской, как её показывает прототип.
+ * пишет рантайм (`${marker}${value}` в `status_date.js`), а значение — дата по
+ * формату поля.
+ *
+ * **Здесь стояла маска** — `📅YYYY-MM-DD`, — и это была фикстура, незаконная
+ * для проверяемого (У-38): такой строки рантайм не пишет никогда, а разборщик
+ * движка читает значение элемента **по формату** и маску не узнаёт. Пока
+ * разборщик резал значение «до пробела», маска проходила заодно с чем угодно,
+ * и расхождение было невидимо. Дата ниже — то, что и правда бывает на строке.
  */
-const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
+const LINE = "- #todo [[ClientA]] \u{1F4C5}2026-08-31";
 
 /* ======================================================================
  * 1. Четыре строки раздела, и все на месте.
@@ -348,7 +354,7 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
   assert.deepEqual(expected, [
     'status: "#todo"',
     'project: "[[ClientA]]"',
-    'due: \u{1F4C5}YYYY-MM-DD',
+    'due: \u{1F4C5}2026-08-31',
   ], "кавычки достаются тегу и ссылке, а обычному тексту нет (1.3.2.4)");
 
   for (const [key, line] of [["status", expected[0]], ["project", expected[1]], ["due", expected[2]]] as const) {
@@ -429,11 +435,11 @@ const LINE = "- #todo [[ClientA]] \u{1F4C5}YYYY-MM-DD";
 
 {
   const p = makePanel(baseConfig(), "due");
-  assert.equal(writtenAs(p.host), 'due: \u{1F4C5}YYYY-MM-DD', "под Raw маркер на месте");
+  assert.equal(writtenAs(p.host), 'due: \u{1F4C5}2026-08-31', "под Raw маркер на месте");
   const rule = selectIn(p.host, RULE_ROW);
   rule.value = "clean";
   rule.dispatch("change");
-  assert.equal(writtenAs(p.host), 'due: YYYY-MM-DD', "Clean снял маркер элемента");
+  assert.equal(writtenAs(p.host), 'due: 2026-08-31', "Clean снял маркер элемента");
   ok("элемент: Raw держит маркер, Clean его снимает (правка движка по Я3)");
   p.cleanup();
 }

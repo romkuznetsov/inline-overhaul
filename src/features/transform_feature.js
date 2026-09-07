@@ -22,6 +22,21 @@ function __noticeKey(area, name) {
   return "notice." + area + "." + name;
 }
 
+/*
+ * Хвост эмодзи-элемента выводится из формата поля — тем же правилом, каким его
+ * выводят разбор строки и отрисовка (`elementTailPatternFromFormat`, У-32).
+ *
+ * Здесь стояло своё «от метки до пробела», и это было третье объявление того
+ * же правила. У Field с форматом `YYYY-MM-DD hh:mm` пробел внутри значения:
+ * снималась только дата, время оставалось на исходной строке текстом человека
+ * (`- … :: 11:25 [[…]]`), а в свойства заметки уезжало обрезанным
+ * (`date_due: 2026-09-07`). Замечание заказчика по R4, 2026-09-07.
+ *
+ * Модуль подключается литеральным `require` — по одному на модуль (У-89), без
+ * заглушки: не приехал — плагин обязан упасть громко.
+ */
+const __rulesRuntimeHelpers = require("../core/pkm_rules_runtime_helpers.js");
+
 function isObj(v) {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
@@ -459,25 +474,87 @@ function escapeRegexLiteral(s) {
   return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getElementMarkersFromConfig(cfg) {
+/**
+ * Метки эмодзи-элементов и длина хвоста у каждой.
+ *
+ * Отдаёт `[{ marker, tail }]`, где `tail` — образец записи значения, выведенный
+ * из формата поля (`YYYY-MM-DD hh:mm` → `\d{4}-\d{2}-\d{2}[ ]\d{2}:\d{2}`).
+ * Пусто у тех, у кого формата нет: такие по-прежнему режутся по пробелу.
+ *
+ * Длинные метки идут первыми: короткая не должна откусывать начало длинной —
+ * то же правило, что в `tokenizeSegmentBody`.
+ */
+function getElementMarkerRulesFromConfig(cfg) {
   const out = [];
   const seen = new Set();
   const order = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.order) ? cfg.pkm.fields.order : {};
   const orderTypes = isObj(order.types) ? order.types : {};
+  const elements = isObj(cfg && cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements)
+    ? cfg.pkm.fields.elements
+    : {};
+  const byField = isObj(elements.byField) ? elements.byField : {};
   const fields = getModeFields(cfg);
   for (let i = 0; i < fields.length; i++) {
     const f = isObj(fields[i]) ? fields[i] : {};
     const fid = String(f.id || "").trim();
     if (!fid) continue;
+    const runtime = isObj(byField[fid]) ? byField[fid] : {};
     const explicitType = String(f.type || "").trim().toLowerCase();
     const byOrderType = String(orderTypes[fid] || "").trim().toLowerCase();
     const marker = String(f.marker || "").trim();
     const isElement = explicitType === "element" || byOrderType === "element" || !!marker;
     if (!isElement) continue;
-    const finalMarker = resolveFieldMarker(f);
+    const finalMarker = resolveFieldMarker(f) || String(runtime.emoji || "").trim();
     if (!finalMarker || seen.has(finalMarker)) continue;
     seen.add(finalMarker);
-    out.push(finalMarker);
+    const format = String(f.format || runtime.format || "").trim();
+    out.push({
+      marker: finalMarker,
+      tail: format ? String(__rulesRuntimeHelpers.elementTailPatternFromFormat(format) || "") : "",
+    });
+  }
+  out.sort((a, b) => b.marker.length - a.marker.length);
+  return out;
+}
+
+/** Как записано значение этой метки: по формату поля, иначе — до пробела. */
+function elementValuePattern(rule) {
+  const tail = String(rule && rule.tail || "").trim();
+  return tail ? `(?:${tail})` : "[^\\s]+";
+}
+
+/* Из чего собирается показательное значение элемента. Дата настоящая: маска
+   `YYYY-MM-DD` на строке не встречается никогда, и подавать её разборщику —
+   это подавать ему то, чего он видеть не может (У-38). */
+const ELEMENT_SAMPLE_DIGITS = { YYYY: "2026", MM: "08", DD: "31", HH: "09", hh: "09", mm: "15", ss: "00" };
+
+/**
+ * Показательное значение элемента, законное для его же формата.
+ *
+ * Разбирает формат тем же ходом, что `elementTailPatternFromFormat`: буквенный
+ * кусок — цифры, всё прочее — само собой. Поэтому что бы человек ни написал
+ * форматом, пример останется тем, что разборщик узнает; сверку «пример
+ * подходит под образец» держит проверка, и мутация в каждую сторону краснеет
+ * (У-92).
+ */
+function elementSampleValueFromFormat(format) {
+  const src = String(format || "").trim();
+  if (!src) return "";
+  let out = "";
+  let i = 0;
+  while (i < src.length) {
+    if (!/[A-Za-z]/.test(src[i])) {
+      out += src[i];
+      i += 1;
+      continue;
+    }
+    let run = "";
+    while (i < src.length && /[A-Za-z]/.test(src[i])) {
+      run += src[i];
+      i += 1;
+    }
+    const known = ELEMENT_SAMPLE_DIGITS[run];
+    out += known && known.length === run.length ? known : "0".repeat(run.length);
   }
   return out;
 }
@@ -675,7 +752,7 @@ function parseInlineLine(rawLine, cfg) {
   const wikilinkSpans = [];
   const tagSpans = [];
   const emojis = [];
-  const markers = getElementMarkersFromConfig(cfg);
+  const markerRules = getElementMarkerRulesFromConfig(cfg);
   const firstSeparator = line.indexOf(separators.separator1);
   const secondSeparator = firstSeparator >= 0
     ? line.indexOf(separators.separator2, firstSeparator + separators.separator1.length)
@@ -705,10 +782,11 @@ function parseInlineLine(rawLine, cfg) {
     tagSpans.push(span);
     tagOccurrences.push({ token: String(m[2] || "").trim(), ...span, panel: panelForSpan(span.start) });
   }
-  for (let mi = 0; mi < markers.length; mi++) {
-    const marker = String(markers[mi] || "").trim();
+  for (let mi = 0; mi < markerRules.length; mi++) {
+    const marker = String(markerRules[mi] && markerRules[mi].marker || "").trim();
     if (!marker) continue;
-    const emRe = new RegExp(`${escapeRegexLiteral(marker)}\\s*([^\\s]+)`, "g");
+    const emRe = new RegExp(
+      `${escapeRegexLiteral(marker)}\\s*(${elementValuePattern(markerRules[mi])})`, "g");
     while ((m = emRe.exec(line)) !== null) {
       if (isInSpans(m.index, wikilinkSpans) || isInSpans(m.index, tagSpans)) continue;
       const value = String(m[1] || "").trim();
@@ -720,8 +798,10 @@ function parseInlineLine(rawLine, cfg) {
     }
   }
 
-  const markerPattern = markers.length
-    ? `(?:${markers.map((x) => escapeRegexLiteral(x)).join("|")})\\s*[^\\s]+`
+  const markerPattern = markerRules.length
+    ? markerRules
+      .map((r) => `${escapeRegexLiteral(r.marker)}\\s*${elementValuePattern(r)}`)
+      .join("|")
     : null;
   const payloadTextRaw = extractPrimaryPayloadText(line, separators);
   let textCore = line
@@ -1307,14 +1387,39 @@ function extractHeaderTitle(line) {
   return m ? String(m[1] || "").trim() : "";
 }
 
-function resolveAutoTitle(parsed, i2n) {
-  const line = String(parsed && parsed.line || "");
-  const payload = String(parsed && parsed.payloadText || "").trim();
+/**
+ * Как записано явное имя новой заметки — одна пара скобок и текст внутри.
+ *
+ * Правило объявлено здесь и только здесь: его спрашивают и тот, кто имя
+ * **читает** (`explicitTitleOf`), и те двое, кто его потом со строки
+ * **снимает** — исходная строка и текст, уезжающий в заметку. Два объявления
+ * разошлись бы молча (У-32), а цена расхождения тут — имя, оставшееся на
+ * строке текстом.
+ */
+function explicitTitleDelimiters(i2n) {
   const delim = String(i2n && i2n.noteName && i2n.noteName.delimiters || "[]").trim() || "[]";
   const open = delim.slice(0, Math.max(1, Math.floor(delim.length / 2))) || "[";
   const close = delim.slice(open.length) || "]";
-  const re = new RegExp(escapeRegexLiteral(open) + "([\\s\\S]*?)" + escapeRegexLiteral(close), "g");
-  const lineWithoutWikilinks = line
+  return { open, close };
+}
+
+function explicitTitleRegExp(i2n, flags) {
+  const { open, close } = explicitTitleDelimiters(i2n);
+  return new RegExp(
+    escapeRegexLiteral(open) + "([\\s\\S]*?)" + escapeRegexLiteral(close),
+    String(flags || ""));
+}
+
+/**
+ * Явное имя, написанное человеком в скобках, — или пусто, если его нет.
+ *
+ * Вынесено из `resolveAutoTitle` затем, что ответ нужен дважды: имя не только
+ * читается, но и **снимается** со строки — оно стало названием заметки и на
+ * строке ему делать нечего (замечание заказчика по R4, 2026-09-07).
+ */
+function explicitTitleOf(line, i2n) {
+  const re = explicitTitleRegExp(i2n, "g");
+  const lineWithoutWikilinks = String(line || "")
     .replace(/\[\[[^\]]+\]\]/g, " ")
     .replace(/^(\s*[-*+]\s+)\[[^\]]\](\s*)/, "$1$2");
   let m;
@@ -1322,6 +1427,59 @@ function resolveAutoTitle(parsed, i2n) {
     const explicit = String(m[1] || "").trim();
     if (explicit) return explicit;
   }
+  return "";
+}
+
+/**
+ * Разрезать текст по тому месту, где стояло явное имя.
+ *
+ * Отдаёт `{ head, tail, found }`: что стояло до имени и что после. Место имени
+ * нужно ссылке — она встаёт туда, где имя и было, поэтому строка заказчика
+ * `[тест-трансформ] тест1` даёт `[[333/тест-трансформ]] тест1`, а не
+ * `тест1 [[333/тест-трансформ]]`.
+ */
+function splitByExplicitTitle(text, explicitTitle, i2n) {
+  const src = String(text || "");
+  const title = String(explicitTitle || "").trim();
+  if (!title) return { head: src.trim(), tail: "", found: false };
+  const re = explicitTitleRegExp(i2n, "g");
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    if (String(m[1] || "").trim() !== title) continue;
+    return {
+      head: String(src.slice(0, m.index) || "").trim(),
+      tail: String(src.slice(m.index + String(m[0] || "").length) || "").trim(),
+      found: true,
+    };
+  }
+  return { head: src.trim(), tail: "", found: false };
+}
+
+/** Снять со строки то, что стало названием заметки. */
+function stripExplicitTitleFromLine(line, explicitTitle, i2n) {
+  const src = String(line || "");
+  const parts = splitByExplicitTitle(src, explicitTitle, i2n);
+  if (!parts.found) return src;
+  const indent = String((src.match(/^[\t ]*/) || [""])[0] || "");
+  const body = [parts.head.slice(indent.length), parts.tail]
+    .filter((x) => String(x || "").length)
+    .join(" ");
+  return `${indent}${body}`.replace(/\s{2,}/g, " ").trimEnd();
+}
+
+/** То же для блока строк: имя стояло в корневой, дочерние не трогаем. */
+function stripExplicitTitleFromBlock(blockText, explicitTitle, i2n) {
+  const lines = String(blockText || "").split("\n");
+  if (!lines.length) return String(blockText || "");
+  lines[0] = stripExplicitTitleFromLine(lines[0], explicitTitle, i2n);
+  return lines.join("\n");
+}
+
+function resolveAutoTitle(parsed, i2n) {
+  const line = String(parsed && parsed.line || "");
+  const payload = String(parsed && parsed.payloadText || "").trim();
+  const explicit = explicitTitleOf(line, i2n);
+  if (explicit) return explicit;
   if (i2n && i2n.noteName && i2n.noteName.preferHeaderTitle) {
     const hh = extractHeaderTitle(line);
     if (hh) return hh;
@@ -1532,6 +1690,11 @@ function firstWordsOf(text, count) {
   return words.slice(0, take).join(" ");
 }
 
+/** Сколько слов запрошено: ноль слов не бывает, остаётся одно. */
+function keepWordsCount(count) {
+  return Number.isFinite(Number(count)) ? Math.max(1, Math.trunc(Number(count))) : 1;
+}
+
 function applySourcePayloadReplace(line, noteTitle, separators) {
   const src = String(line || "");
   const title = String(noteTitle || "").trim();
@@ -1550,6 +1713,17 @@ function applySourcePayloadReplace(line, noteTitle, separators) {
  *   `leave`  — текст остаётся целиком;
  *   `remove` — текст уходит в заметку и со строки убирается;
  *   `words`  — на строке остаются первые `keepWords` слов.
+ *
+ * **Явное имя в скобках текстом не считается** (замечание заказчика по R4,
+ * 2026-09-07). Оно стало названием заметки, поэтому со строки уходит, в счёт
+ * слов не идёт — и ссылка встаёт ровно туда, где имя стояло:
+ *
+ *   было   `- [ ] #todo :: [тест-трансформ] тест1 :: 📅2026-09-07 11:25`
+ *   стало  `- [[333/тест-трансформ]] тест1 :: #processed`
+ *
+ * Имя приходит готовым в `explicitTitle`: решает, откуда взялось название,
+ * `resolveNoteTitle`, и переспрашивать его здесь значило бы завести второе
+ * объявление правила (У-32). Пусто — прежний порядок «текст, потом ссылка».
  */
 function applySourceTextFate(line, noteTitle, separators, opts) {
   const src = String(line || "");
@@ -1557,17 +1731,27 @@ function applySourceTextFate(line, noteTitle, separators, opts) {
   const link = !!(opts && opts.link);
   const title = String(noteTitle || "").trim();
   const linkText = link && title ? `[[${title}]]` : "";
+  const parts = splitSourcePayload(line, separators);
+  const named = splitByExplicitTitle(parts.payload, opts && opts.explicitTitle, opts && opts.i2n);
   /*
    * Текст остаётся, ссылки нет — строку не трогаем вовсе. Не осторожность:
    * склейка нормализует пробелы вокруг Separator, и строка, которую человек
-   * не просил менять, менялась бы на пробел.
+   * не просил менять, менялась бы на пробел. Имя в скобках — исключение: его
+   * надо снять и тогда.
    */
-  if (fate === "leave" && !linkText) return src;
-  const parts = splitSourcePayload(line, separators);
-  let text = parts.payload;
-  if (fate === "remove") text = "";
-  else if (fate === "words") text = firstWordsOf(parts.payload, opts && opts.keepWords);
-  const next = [text, linkText].filter(Boolean).join(" ");
+  if (fate === "leave" && !linkText && !named.found) return src;
+  let head = named.head;
+  let tail = named.tail;
+  if (fate === "remove") {
+    head = "";
+    tail = "";
+  } else if (fate === "words") {
+    const budget = keepWordsCount(opts && opts.keepWords);
+    head = firstWordsOf(head, budget);
+    const left = budget - head.split(/\s+/).filter(Boolean).length;
+    tail = left > 0 ? firstWordsOf(tail, left) : "";
+  }
+  const next = [head, linkText, tail].filter(Boolean).join(" ");
   return joinSourcePayload(parts, next);
 }
 
@@ -1780,12 +1964,15 @@ function getActiveOrderedFieldIds(cfg) {
   return out;
 }
 
-function sampleValueForField(field, fType) {
+function sampleValueForField(field, fType, elementFormat) {
   const values = Array.isArray(field && field.values) ? field.values : [];
   if (fType === "element") {
     const marker = resolveFieldMarker(field);
     if (!marker) return "";
-    return `${marker}value`;
+    /* Слово `value` разборщик элемента больше не узнаёт: значение читается по
+       формату поля. Пример обязан быть законным для того, кто его прочтёт. */
+    const sample = elementSampleValueFromFormat(elementFormat || (field && field.format));
+    return sample ? `${marker}${sample}` : `${marker}value`;
   }
   if (fType === "wikilink") {
     const wl = fieldWikilinkCandidates(field);
@@ -1821,6 +2008,8 @@ function buildPreviewBaseLine(cfg) {
     const fid = String(fields[i] && fields[i].id || "").trim();
     if (fid) byId[fid] = fields[i];
   }
+  const elements = isObj(behavior.elements) ? behavior.elements : {};
+  const elementsByField = isObj(elements.byField) ? elements.byField : {};
   const orderedActive = getActiveOrderedFieldIds(cfg);
   const leftOrder = new Set((Array.isArray(order.left) ? order.left : []).map((x) => String(x || "").trim()));
   const rightOrder = new Set((Array.isArray(order.right) ? order.right : []).map((x) => String(x || "").trim()));
@@ -1831,7 +2020,8 @@ function buildPreviewBaseLine(cfg) {
     const field = byId[fid];
     if (!field) continue;
     const type = resolveEffectiveFieldType(field, orderTypes, fid);
-    const token = sampleValueForField(field, type);
+    const token = sampleValueForField(field, type,
+      isObj(elementsByField[fid]) ? elementsByField[fid].format : "");
     if (!token) continue;
     const label = String(labels[fid] || fid).trim();
     const composed = `${token}`;
@@ -2899,6 +3089,15 @@ async function runInline2Note(plugin, runtimeOptions) {
   }
   const title = sanitizeResolvedTitle(resolvedTitle);
   if (!title) throw new Error("note title is empty");
+  /*
+   * Имя, написанное человеком в скобках, — не текст строки, а её название
+   * (замечание заказчика по R4, 2026-09-07). Оно снимается и с того, что
+   * уезжает в заметку, и с того, что остаётся на строке. Снимается **только
+   * то, что и правда стало названием**: имя, набранное в окне вручную, скобок
+   * на строке не касается.
+   */
+  const explicitTitle = title === explicitTitleOf(sourceLine, i2n) ? title : "";
+  const noteBlockText = stripExplicitTitleFromBlock(sourceBlockText || sourceLine, explicitTitle, i2n);
   /* Правило выбирается **один раз**: и шаблон, и папка берутся у него, иначе
      два прохода однажды разойдутся и заметка уедет не туда (10.13.8 Н5). */
   const smartRule = selectSmartRule(parsed, i2n.smartRules, cfg);
@@ -2913,10 +3112,10 @@ async function runInline2Note(plugin, runtimeOptions) {
     : await readTemplateContent(plugin, templatePath);
   const { yamlLines, body, newline } = parseFrontmatter(templateContent);
   const mergedYaml = renderYamlBlockWithOrder(yamlLines, yamlMap, cfg);
-  const bodyOut = composeBodyWithPlacement(body, sourceBlockText || sourceLine, i2n, newline);
+  const bodyOut = composeBodyWithPlacement(body, noteBlockText, i2n, newline);
   const yamlBlock = mergedYaml.length ? `---${newline}${mergedYaml.join(newline)}${newline}---${newline}` : "";
   const noteContent = `${yamlBlock}${bodyOut}`;
-  const appendBlock = composeAppendBlock(sourceBlockText || sourceLine, i2n);
+  const appendBlock = composeAppendBlock(noteBlockText, i2n);
   assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
   const mutation = await writeInline2Note(plugin, target, noteContent, appendBlock);
   const actualTarget = mutation.target;
@@ -2930,6 +3129,8 @@ async function runInline2Note(plugin, runtimeOptions) {
       text: i2n.sourceProcessing.text,
       keepWords: i2n.sourceProcessing.keepWords,
       link: i2n.sourceProcessing.replaceWithLink,
+      explicitTitle,
+      i2n,
     });
     nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators);
     replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines);
@@ -2969,6 +3170,16 @@ module.exports = {
   parseFrontmatter,
   renderYamlBlockWithOrder,
   resolveAutoTitle,
+  /* Явное имя в скобках: читают его здесь, а снимают со строки в двух местах
+     — правило одно, и объявлено оно один раз (У-32). */
+  explicitTitleOf,
+  splitByExplicitTitle,
+  stripExplicitTitleFromLine,
+  stripExplicitTitleFromBlock,
+  /* Метки элементов и длина хвоста у каждой; показательное значение по тому
+     же формату — им пользуется и редактор Fields. */
+  getElementMarkerRulesFromConfig,
+  elementSampleValueFromFormat,
   formatHeaderByMode,
   selectSmartTemplate,
   selectSmartRule,
