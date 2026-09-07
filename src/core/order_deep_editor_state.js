@@ -23,6 +23,14 @@ function normalizeToken(raw, kind) {
   return `#${src}`;
 }
 
+/*
+ * Знак чекбокса — РОВНО ОДИН. Так его читает сам Obsidian:
+ * `/^([>\s]*)(([*+-] |(\d+)([.)] ))(?:\[(.)\] )?)?/`
+ * в `app.js` 1.13.7, и `data-task="(.)"` в разметке задачи. Знак длиннее
+ * одного платформа задачей не считает — это обычный текст человека,
+ * и `- [test-transform] text` терял этот текст, пока правило здесь
+ * было шире платформенного (У-91).
+ */
 function normalizeCheckboxToken(raw) {
   let src = String(raw || "").trim();
   src = src.replace(/^[-*+]\s+/, "").trim();
@@ -30,6 +38,7 @@ function normalizeCheckboxToken(raw) {
   const m = src.match(/^\[([\s\S]*)\]$/);
   if (!m) return "";
   const inner = String(m[1] || "").trim();
+  if (inner.length > 1) return "";
   return inner ? `[${inner}]` : "[ ]";
 }
 

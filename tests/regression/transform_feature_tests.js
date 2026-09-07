@@ -596,4 +596,40 @@ function runVaultPropertyTypesSuite() {
 
 runVaultPropertyTypesSuite();
 
+/*
+ * Явное имя заметки в скобках — вторая функция, которую ломало то же
+ * правило (У-91). Заказчик написал `- [test-transform] test1 test2`
+ * именно для проверки `naming-delimiters`, а срез префикса съедал
+ * скобки как чекбокс — и именем заметки становился хвост строки.
+ */
+function runExplicitNameAfterBulletSuite() {
+  const i2n = { noteName: { delimiters: "[]", wordCount: 6 } };
+  const title = (line) => transform.resolveAutoTitle({ line, payloadText: "" }, i2n);
+
+  assertEq(title("- [test-transform] test1 test2"), "test-transform",
+    "явное имя сразу за буллитом читается, а не срезается как чекбокс");
+  assertEq(title("- [aa] test1"), "aa",
+    "два знака в скобках — тоже имя, а не чекбокс");
+
+  /*
+   * Положительный контроль: настоящий чекбокс из одного знака
+   * по-прежнему срезается, и имя берётся из скобок ЗА ним.
+   */
+  assertEq(title("- [ ] [test-transform] test1"), "test-transform",
+    "чекбокс из одного знака срезается, имя берётся из следующих скобок");
+  assertEq(title("- [x] [имя заметки] хвост"), "имя заметки",
+    "и с любым знаком внутри чекбокса — тоже");
+
+  /* Знак чекбокса нормализуется одним правилом на весь плагин (У-32). */
+  assertEq(lineFinalize.normalizeCheckboxToken("[x]"), "[x]",
+    "один знак — законный чекбокс");
+  assertEq(lineFinalize.normalizeCheckboxToken("[]"), "[ ]",
+    "пустые скобки означают пустой чекбокс");
+  assertEq(lineFinalize.normalizeCheckboxToken("[todo]"), "",
+    "а знак длиннее одного чекбоксом не бывает: панель обещает «[ ] или [I]»");
+  console.log("  ok У-91: скобки за буллитом — имя заметки, чекбокс только из одного знака");
+}
+
+runExplicitNameAfterBulletSuite();
+
 console.log("Transform feature regression tests: OK");

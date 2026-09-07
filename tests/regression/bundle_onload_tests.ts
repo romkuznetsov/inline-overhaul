@@ -189,6 +189,26 @@ function makeApp(): Any {
   };
 }
 
+/**
+ * Редактор одной строки. Настоящий у Obsidian, здесь — то же, что в
+ * `status_runtime_behavior_tests.js`: движку от него нужны курсор, строка
+ * и запись строки обратно.
+ */
+function makeEditorStub(line: string, ch: number): Any {
+  let text = String(line || "");
+  let cur = { line: 0, ch: Number(ch || 0) };
+  return {
+    getCursor: () => ({ line: cur.line, ch: cur.ch }),
+    getLine: () => text,
+    setLine: (_n: number, v: string) => { text = String(v || ""); },
+    replaceRange: (v: string) => { text = String(v || ""); },
+    setCursor: (n: Any) => { cur = { line: Number(n.line || 0), ch: Number(n.ch || 0) }; },
+    lineCount: () => 1,
+    getValue: () => text,
+    snapshot: () => text,
+  };
+}
+
 async function run(): Promise<void> {
   assert.ok(fs.existsSync(distMain), "dist/main.js собран");
 
@@ -328,6 +348,74 @@ async function run(): Promise<void> {
   const blocks = (rules.match(/```tagwheel-[a-z-]+/g) || []).length;
   assert.strictEqual(blocks, 10, "в файле правил все десять блоков");
   ok(`служебный файл правил записан из сборки, блоков: ${blocks}`);
+
+  /*
+   * И наконец то, что человек делает в заметке: движок PKM из СБОРКИ получает
+   * строку и переписывает её.
+   *
+   * Зачем это здесь, а не только в проверках исходников (У-91): 53 проверки
+   * были зелёными, пока TagWheel съедал текст заказчика, и одна из причин та
+   * же, что у A33 — набор спрашивал исходное дерево. Строка взята из его
+   * замечания 2026-09-07 слово в слово.
+   *
+   * Правила берутся из фикстуры репозитория, а не из файла, который плагин
+   * только что записал: у свежей установки Field не заведено ни одного, и цикл
+   * по Field на ней не тронул бы ничего (У-88 — предмет измерения обязан
+   * существовать).
+   */
+  {
+    const rulesFixture = fs.readFileSync(
+      path.join(root, "tests", "fixtures", "InlineOverhaul_Generated_RULES_TagWheel.md"),
+      "utf8",
+    );
+    const rulesPath = "InlineOverhaul_Generated_RULES_TagWheel.md";
+    app.written.set(rulesPath, rulesFixture);
+    app.vault.getAbstractFileByPath = (p: string) => (app.written.has(p) ? { path: p } : null);
+    app.vault.read = async (f: Any) => String(app.written.get(f && f.path ? f.path : f) || "");
+
+    const orderConfig = JSON.stringify({
+      active: { type: "yes" },
+      panel: { type: "left" },
+      left: ["type"],
+      right: [],
+      types: { type: "tag" },
+      strictNames: { type: "type" },
+      freeRoam: { type: "off" },
+      freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true },
+    });
+
+    const drive = async (line: string, ch: number): Promise<string> => {
+      const editor = makeEditorStub(line, ch);
+      app.workspace.activeEditor = { editor };
+      app.workspace.activeLeaf = { view: { editor } };
+      await plugin.pkmRuntimeV2.runCommand({
+        app,
+        command: "statusTags",
+        settings: {
+          "Rules path": rulesPath,
+          "Action type": "cycle_field:type",
+          "Direction": "increase",
+          "Order config": orderConfig,
+          "Cycle end behavior": "keep-bullet",
+          "Cursor policy": "text_end",
+        },
+      });
+      return editor.snapshot();
+    };
+
+    /* Положительный контроль: движок из сборки вообще что-то делает. */
+    const real = await drive("- [n] test1 test2", 6);
+    assert.match(real, /^- \[ \] #todo/,
+      "движок из сборки переписывает строку и ставит чекбокс, заданный у Value");
+
+    /* Замечание заказчика 2026-09-07: его текст в скобках обязан выжить. */
+    const owner = await drive("- [test-transform] test1 test2", 20);
+    assert.ok(owner.includes("[test-transform]"),
+      "сборка не съедает текст человека в скобках: чекбокс — ровно один знак");
+    assert.ok(owner.includes("test1") && owner.includes("test2"),
+      "и проза за ним остаётся");
+    ok("движок PKM из сборки переписал строку и сохранил текст человека");
+  }
 
   console.log(`Bundle onload tests: OK (${passed} checks)`);
 }

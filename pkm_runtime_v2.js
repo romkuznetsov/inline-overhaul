@@ -171,7 +171,7 @@ async function runCommand(ctx) {
       cursorAfterCh: cursorAfter ? cursorAfter.ch : -1,
       durationMs: Date.now() - t0,
       changed: beforeLine !== afterLine,
-      invariantPrefixInPayload: !/(^|\s)\d+\.(?=\s|$)/.test(String(afterLine || "").replace(/^\s*(?:[-*+]|\d+\.)(?:\s+\[[^\]]+\])?(?:\s+|$)/, "")),
+      invariantPrefixInPayload: !/(^|\s)\d+\.(?=\s|$)/.test(String(afterLine || "").replace(/^\s*(?:[-*+]|\d+\.)(?:\s+\[[^\]]\])?(?:\s+|$)/, "")),
     });
     return result;
   } catch (e) {

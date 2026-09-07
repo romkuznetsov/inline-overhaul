@@ -264,16 +264,16 @@ function hasListPrefix(line) {
 
 function hasStandaloneCheckboxPrefix(line) {
   const body = String(line || "").replace(/^\s*/, "");
-  return /^\[[^\]]+\](\s|$)/.test(body);
+  return /^\[[^\]]\](\s|$)/.test(body);
 }
 
 function extractOriginalPrefix(line) {
   const src = String(line || "");
-  const listMatch = src.match(/^(\s*(?:[-*+]|\d+[\.)])\s+(?:\[[^\]]+\]\s+)*)/);
+  const listMatch = src.match(/^(\s*(?:[-*+]|\d+[\.)])\s+(?:\[[^\]]\]\s+)*)/);
   if (listMatch && String(listMatch[1] || "").trim()) {
     return String(listMatch[1] || "").replace(/\s+$/g, "");
   }
-  const checkboxMatch = src.match(/^(\s*\[[^\]]+\]\s+)/);
+  const checkboxMatch = src.match(/^(\s*\[[^\]]\]\s+)/);
   if (checkboxMatch) return String(checkboxMatch[1] || "").replace(/\s+$/g, "");
   return "";
 }
@@ -283,7 +283,7 @@ function reapplyOriginalPrefix(rawLine, nextLine) {
   if (!prefix) return String(nextLine || "");
   let body = String(nextLine || "");
   body = body.replace(/^\s*(?:[-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^\[[^\]]+\]\s+/, "");
+  body = body.replace(/^\[[^\]]\]\s+/, "");
   body = body.trimStart();
   return body ? `${prefix} ${body}` : prefix;
 }
@@ -297,7 +297,7 @@ function preserveOriginalPrefixShape(rawLine, nextLine) {
   const rawIndent = (raw.match(/^(\s*)/) || ["", ""])[1];
   let body = String(next || "").replace(/^\s*/, "");
   body = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^(\[[^\]]+\])\s+/, "");
+  body = body.replace(/^(\[[^\]]\])\s+/, "");
   return rawIndent + body.trimStart();
 }
 

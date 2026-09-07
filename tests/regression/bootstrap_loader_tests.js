@@ -1635,6 +1635,89 @@ async function run() {
     assertTrue(move[0].indexOf("this.pluginFolderPath()") !== -1,
       "and the plugin folder is computed, not spelled out");
   }
+  /*
+   * Знак чекбокса — ровно один, и это правило платформы (У-91):
+   * Obsidian 1.13.7 разбирает строку списка регуляркой, где на месте
+   * знака стоит одна точка, и пишет его в разметку как `data-task="(.)"`.
+   * Скобки с содержимым длиннее одного знака платформа задачей не
+   * считает — значит это текст человека.
+   *
+   * Правило жило в трёх расходящихся написаниях в 72 местах, и широкое
+   * из них съедало первую пару скобок целиком: `- [test-transform] x`
+   * превращалось в `- [ ] #todo :: x`, а у Transform то же место
+   * съедало явное имя заметки. Поведением частичный возврат не
+   * поймать: пока хоть одно место узкое, текст выживает, — поэтому
+   * широкое написание запрещено здесь, сплошным обходом (У-85).
+   *
+   * Что должно случиться, чтобы запрет сняли (У-71): чекбокс перестанет
+   * быть чекбоксом Obsidian, то есть платформа начнёт считать задачей
+   * скобки с несколькими знаками. Тогда правило меняется ЗДЕСЬ и
+   * в `normalizeCheckboxToken`, а не в отдельном месте разбора.
+   *
+   * Положительный контроль обязателен (У-88): и файлов, и узких
+   * написаний должно быть больше нуля — запрет, которому нечего
+   * запрещать, зелен всегда.
+   */
+  {
+    const BS = String.fromCharCode(92);
+    const WIDE_PLUS = BS + "[[^" + BS + "]]+" + BS + "]";
+    const WIDE_STAR = BS + "[[^" + BS + "]]*" + BS + "]";
+    const NARROW = BS + "[[^" + BS + "]]" + BS + "]";
+    const WIKI_PRE = BS + "[";
+    const WIKI_POST = BS + "]";
+
+    function countOutsideWikilink(text, needle) {
+      let n = 0;
+      let i = 0;
+      for (;;) {
+        const j = text.indexOf(needle, i);
+        if (j < 0) return n;
+        const pre = text.slice(Math.max(0, j - 2), j);
+        const post = text.slice(j + needle.length, j + needle.length + 2);
+        if (!(pre === WIKI_PRE && post === WIKI_POST)) n += 1;
+        i = j + 1;
+      }
+    }
+
+    const roots = [
+      path.join(__dirname, "..", "..", "src"),
+      path.join(__dirname, "..", "..", "pkm_v2"),
+    ];
+    /*
+     * Корень репозитория обходится наравне с папками: первая версия
+     * этого сторожа перечисляла `main.js` руками и пропустила
+     * `pkm_runtime_v2.js`, где широкое написание и осталось. Нашлось
+     * оно не здесь, а в СБОРКЕ (У-89) — сторож был зелёный.
+     */
+    const repoRoot = path.join(__dirname, "..", "..");
+    const walked = fs.readdirSync(repoRoot)
+      .filter((name) => /\.(?:js|ts)$/.test(name))
+      .map((name) => path.join(repoRoot, name));
+    for (const r of roots) {
+      (function walk(dir) {
+        for (const name of fs.readdirSync(dir)) {
+          const abs = path.join(dir, name);
+          if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+          if (/\.(?:js|ts)$/.test(name)) walked.push(abs);
+        }
+      })(r);
+    }
+
+    let narrow = 0;
+    const offenders = [];
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      const wide = countOutsideWikilink(text, WIDE_PLUS) + countOutsideWikilink(text, WIDE_STAR);
+      if (wide) offenders.push(path.relative(path.join(__dirname, "..", ".."), abs) + " x" + wide);
+      narrow += countOutsideWikilink(text, NARROW);
+    }
+    assertTrue(walked.length > 50,
+      "положительный контроль: обход нашёл исходники, а не пустоту (" + walked.length + ")");
+    assertTrue(narrow > 30,
+      "положительный контроль: узкое написание в исходниках есть (" + narrow + ")");
+    assertEq(offenders.join("; "), "",
+      "a checkbox is one character: brackets with a wider body are the human's text, not ours");
+  }
   console.log("Bootstrap loader regression tests: OK");
 }
 

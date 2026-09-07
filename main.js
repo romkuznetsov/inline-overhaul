@@ -125,7 +125,7 @@ function extractFirstTagToken(text) {
 
 function parseCheckboxAndTag(text) {
   const raw = String(text || "");
-  const m = raw.match(/^\s*(?:[-*]\s*)?(\[[^\]]+\])\s+/);
+  const m = raw.match(/^\s*(?:[-*]\s*)?(\[[^\]]\])\s+/);
   let checkbox = "";
   if (m) {
     /* Нормализует знак чекбокса тот же модуль, что и весь финализатор строки:
@@ -2344,7 +2344,7 @@ function isRenderableStripContext(text, sep1, sep2, tokenSet) {
   const src = String(text || "");
   const trimmed = src.trim();
   if (!trimmed) return false;
-  const listLineRx = /^\s*(?:[-*+]\s+|\d+\.\s+)(?:\[[^\]]+\]\s+)?/;
+  const listLineRx = /^\s*(?:[-*+]\s+|\d+\.\s+)(?:\[[^\]]\]\s+)?/;
   if (listLineRx.test(src)) return true;
   const set = tokenSet instanceof Set ? tokenSet : new Set();
   if (!set.size) return false;

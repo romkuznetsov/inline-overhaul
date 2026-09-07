@@ -144,7 +144,7 @@ function run() {
     sourceHasPrefix: false,
     stripPrefixWhenSourceHasNoPrefix: true,
     stripPrefixKeepIndent: function(line) {
-      return String(line || "").replace(/^\s*[-*+]\s+/, "").replace(/^\[[^\]]+\]\s+/, "");
+      return String(line || "").replace(/^\s*[-*+]\s+/, "").replace(/^\[[^\]]\]\s+/, "");
     },
     parseLine: function() { return { tags: ["#area-alpha"], text: "111", dates: "" }; },
     isBulletLikeEmptyResult: function() { return false; },

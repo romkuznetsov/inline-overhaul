@@ -657,7 +657,7 @@ async function testStatusTagsContextMinimalPrefixOffDoesNotCreatePrefix() {
   });
   const line = editor.snapshot().line;
   assertTrue(/^#area-alpha\s+\S+\s+111$/.test(line), "status_tags context minimal prefix off should keep separator-form output for plain source");
-  assertTrue(!/^\s*[-*+]\s+\[[^\]]+\]/.test(line), "status_tags context minimal prefix off should not create checkbox prefix");
+  assertTrue(!/^\s*[-*+]\s+\[[^\]]\]/.test(line), "status_tags context minimal prefix off should not create checkbox prefix");
 }
 
 async function testStatusTagsContextMinimalPrefixOffPreservesExistingPrefix() {
@@ -692,7 +692,7 @@ async function testTagWheelMinimalPrefixOffDoesNotCreatePrefix() {
   });
   const line = editor.snapshot().line;
   assertTrue(/111/.test(line), "tagwheel minimal prefix off should preserve source text payload");
-  assertTrue(!/^\s*[-*+]\s+\[[^\]]+\]/.test(line), "tagwheel minimal prefix off should not create checkbox prefix");
+  assertTrue(!/^\s*[-*+]\s+\[[^\]]\]/.test(line), "tagwheel minimal prefix off should not create checkbox prefix");
 }
 
 
@@ -1166,7 +1166,7 @@ async function testStatusTagsMinimalContextKeepsTextAfterSeparator() {
   assertTrue(rightAt !== -1, "status_tags minimal context must keep the right-panel token on the line");
   assertTrue(tokenAt < textAt, "status_tags minimal context must keep the cycled token left of the text slot");
   assertTrue(textAt < rightAt, "status_tags minimal context must keep the text slot left of the right-panel token");
-  assertTrue(/^-\s+\[[^\]]+\]\s+#area-alpha\s+\S+\s+111 111/.test(line), "status_tags minimal context must keep a separator between the token and the text slot");
+  assertTrue(/^-\s+\[[^\]]\]\s+#area-alpha\s+\S+\s+111 111/.test(line), "status_tags minimal context must keep a separator between the token and the text slot");
 }
 
 /*
@@ -1228,7 +1228,7 @@ async function testTagWheelPreservesCheckboxPrefix() {
     "Cursor policy": "text_end",
   });
   const line = editor.snapshot().line;
-  assertTrue(/^\s*-\s+\[[^\]]+\]\s+/.test(line), "tagwheel apply should preserve checkbox prefix on list source");
+  assertTrue(/^\s*-\s+\[[^\]]\]\s+/.test(line), "tagwheel apply should preserve checkbox prefix on list source");
 }
 
 async function testTagWheelKeepsTagTokensAsTagsOnApply() {
@@ -1345,7 +1345,7 @@ async function testStatusTagsImportanceMinimalOffPreservesListPrefixAndIndent() 
     "Cursor policy": "text_end",
   });
   const line = editor.snapshot().line;
-  assertTrue(/^\s{4}-\s+\[[^\]]+\]\s+/.test(line), "importance minimal should preserve original list+checkbox prefix with indent");
+  assertTrue(/^\s{4}-\s+\[[^\]]\]\s+/.test(line), "importance minimal should preserve original list+checkbox prefix with indent");
   assertTrue(/#\/1|#\/2|#\/3/.test(line), "importance minimal should inject priority token into prefixed line");
 }
 
@@ -1364,7 +1364,7 @@ async function testStatusTagsImportanceMinimalSeparatorOnPreservesCheckboxPrefix
     "Cursor policy": "text_end",
   });
   const line = editor.snapshot().line;
-  assertTrue(/^\s{4}-\s+\[[^\]]+\]\s+#\/\d\s+\S+\s+/.test(line), "importance minimal separator-on should preserve checkbox prefix and separator slot");
+  assertTrue(/^\s{4}-\s+\[[^\]]\]\s+#\/\d\s+\S+\s+/.test(line), "importance minimal separator-on should preserve checkbox prefix and separator slot");
 }
 
 async function testStatusTagsMinimalOffRemovesSeparatorsForPrefixedSource() {
@@ -1443,7 +1443,7 @@ async function testStatusTagsOffPrefixTogglePreservesCheckboxWhenDisabled() {
     "Cursor policy": "text_end",
   });
   const line = editor.snapshot().line;
-  assertTrue(/^\s*-\s+\[[^\]]+\]\s+#topic-alpha\s+::\s+Task A\s*$/.test(line), "offPrefix=OFF preserves original checkbox prefix for off-mode tag without own checkbox");
+  assertTrue(/^\s*-\s+\[[^\]]\]\s+#topic-alpha\s+::\s+Task A\s*$/.test(line), "offPrefix=OFF preserves original checkbox prefix for off-mode tag without own checkbox");
 }
 
 async function testStatusTagsOffPrefixToggleForcesBulletWhenEnabled() {
@@ -1465,7 +1465,7 @@ async function testStatusTagsOffPrefixToggleForcesBulletWhenEnabled() {
   });
   const line = editor.snapshot().line;
   assertTrue(/^\s*-\s+#topic-alpha\s+::\s+Task A\s*$/.test(line), "offPrefix=ON rewrites prefix to bullet for off-mode tag without own checkbox");
-  assertTrue(!/^\s*-\s+\[[^\]]+\]/.test(line), "offPrefix=ON removes preserved checkbox prefix for tag without own checkbox");
+  assertTrue(!/^\s*-\s+\[[^\]]\]/.test(line), "offPrefix=ON removes preserved checkbox prefix for tag without own checkbox");
 }
 
 async function testStatusTagsCycleFieldClientsRendersWikilinkToken() {
@@ -1573,6 +1573,62 @@ async function testStatusTagsClientsRepeatedCycleDoesNotAccumulateDuplicates() {
 
 
 
+/*
+ * Знак чекбокса — ровно один, и это правило платформы, а не наше
+ * (У-91). `- [test-transform] test1 test2` — законная строка человека:
+ * Obsidian задачей её не считает, значит `[test-transform]` это его
+ * текст. Правило было объявлено 72 раза в трёх расходящихся написаниях,
+ * и то из них, что стояло в разборе строки, съедало первую пару скобок
+ * целиком: заказчик получил `- [ ] #todo :: test1 test2` и потерял свой
+ * текст. Набор при этом был зелёный весь, 53 из 53.
+ *
+ * Положительный контроль здесь обязателен (У-88): настоящий чекбокс из
+ * ОДНОГО знака по-прежнему заменяется тем, что задан у Value, — иначе
+ * проверка была бы зелёной и у движка, который префикс не трогает вовсе.
+ */
+async function testStatusTagsKeepsBracketedTextThatIsNotCheckbox() {
+  const settings = {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Action type": "cycle_field:type",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      freeRoam: { type: "off" },
+      panel: { type: "left" },
+      freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  };
+
+  /* Замечание заказчика 2026-09-07, слово в слово по его строке. */
+  const owner = makeEditor("- [test-transform] test1 test2", 20);
+  await runPkmCommandWithEditor("statusTags", owner, settings);
+  const ownerLine = owner.snapshot().line;
+  assertTrue(ownerLine.indexOf("[test-transform]") !== -1,
+    "bracketed text that is not a one-character checkbox belongs to the human and must survive");
+  assertTrue(/\btest1\b/.test(ownerLine) && /\btest2\b/.test(ownerLine),
+    "and the prose after it survives too");
+
+  /* Два знака — уже не чекбокс, и это та же строка человека. */
+  const twoChars = makeEditor("- [aa] test1", 8);
+  await runPkmCommandWithEditor("statusTags", twoChars, settings);
+  assertTrue(twoChars.snapshot().line.indexOf("[aa]") !== -1,
+    "two characters in brackets are not a checkbox either");
+
+  /*
+   * Положительный контроль: чекбокс из одного знака — наш, и Value
+   * `todo` меняет его на свой `[ ]`. Обязано быть больше нуля работы.
+   */
+  const realCheckbox = makeEditor("- [n] test1 test2", 6);
+  await runPkmCommandWithEditor("statusTags", realCheckbox, settings);
+  const realLine = realCheckbox.snapshot().line;
+  assertTrue(/^-\s+\[ \]\s/.test(realLine),
+    "a real one-character checkbox is still replaced by the one configured for the Value");
+  assertTrue(realLine.indexOf("[n]") === -1,
+    "and the old one is gone, not kept as text");
+}
+
+
 async function run() {
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();
   await testStatusTagsRunCommandPathCyclesType();
@@ -1638,6 +1694,7 @@ async function run() {
   await testStatusTagsImportanceHydrationUsesLastTokenOccurrence();
   await testStatusTagsClientsHydrationUsesLastTokenOccurrence();
   await testStatusTagsClientsRepeatedCycleDoesNotAccumulateDuplicates();
+  await testStatusTagsKeepsBracketedTextThatIsNotCheckbox();
   assertTrue(typeof runtime.runCommand === "function", "runtime exports runCommand");
   console.log("Status runtime behavior tests: OK");
 }

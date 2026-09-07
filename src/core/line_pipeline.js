@@ -106,7 +106,7 @@ function isLikelyDatePayloadContinuationToken(token) {
 function stripListPrefixForBody(rawLeft) {
   var left = String(rawLeft || "").trim();
   left = left.replace(/^\s*(?:[-*+]|\d+[\.)])(?:\s+|$)/, "");
-  left = left.replace(/^\s*\[[^\]]+\](?:\s+|$)/, "");
+  left = left.replace(/^\s*\[[^\]]\](?:\s+|$)/, "");
   return left.trim();
 }
 
@@ -326,7 +326,7 @@ function buildFromSegments(seg, rules) {
 
 function splitLeftPrefix(raw) {
   var src = String(raw || "").trim();
-  var m = src.match(/^((?:[-*+]|\d+\.)(?:\s+\[[^\]]+\])?)(?:\s+|$)(.*)$/);
+  var m = src.match(/^((?:[-*+]|\d+\.)(?:\s+\[[^\]]\])?)(?:\s+|$)(.*)$/);
   if (!m) return { prefix: "", body: src };
   return { prefix: String(m[1] || "").trim(), body: String(m[2] || "").trim() };
 }

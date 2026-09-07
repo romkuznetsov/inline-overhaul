@@ -8,7 +8,7 @@ function clampInt(value, fallback, min, max) {
 
 function readListMeta(text) {
   const src = String(text || "");
-  const m = src.match(/^(\s*)(?:[-*+]\s+|\d+\.\s+)(?:\[[^\]]+\]\s+)?/);
+  const m = src.match(/^(\s*)(?:[-*+]\s+|\d+\.\s+)(?:\[[^\]]\]\s+)?/);
   if (!m) return { isList: false, indent: 0 };
   return { isList: true, indent: String(m[1] || "").length };
 }

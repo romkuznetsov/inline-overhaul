@@ -15,6 +15,14 @@ function hasListPrefix(line) {
   return /^([-*+]|\d+[\.)])(\s|$)/.test(body);
 }
 
+/*
+ * Знак чекбокса — РОВНО ОДИН. Так его читает сам Obsidian:
+ * `/^([>\s]*)(([*+-] |(\d+)([.)] ))(?:\[(.)\] )?)?/`
+ * в `app.js` 1.13.7, и `data-task="(.)"` в разметке задачи. Знак длиннее
+ * одного платформа задачей не считает — это обычный текст человека,
+ * и `- [test-transform] text` терял этот текст, пока правило здесь
+ * было шире платформенного (У-91).
+ */
 function normalizeCheckboxToken(token) {
   const src = String(token || "").trim();
   if (!src) return "";
@@ -22,6 +30,7 @@ function normalizeCheckboxToken(token) {
   if (!m) return "";
   const inner = String(m[1] || "").trim();
   if (!inner) return "[ ]";
+  if (inner.length > 1) return "";
   return `[${inner}]`;
 }
 
@@ -189,16 +198,16 @@ function buildPrefixUnified(parsedLine, rules, state, deps) {
 
 function hasStandaloneCheckboxPrefix(line) {
   const body = String(line || "").replace(/^\s*/, "");
-  return /^\[[^\]]+\](\s|$)/.test(body);
+  return /^\[[^\]]\](\s|$)/.test(body);
 }
 
 function extractOriginalPrefix(line) {
   const src = String(line || "");
-  const listMatch = src.match(/^(\s*(?:[-*+]|\d+[\.)])\s+(?:\[[^\]]+\]\s+)*)/);
+  const listMatch = src.match(/^(\s*(?:[-*+]|\d+[\.)])\s+(?:\[[^\]]\]\s+)*)/);
   if (listMatch && String(listMatch[1] || "").trim()) {
     return String(listMatch[1] || "").replace(/\s+$/g, "");
   }
-  const checkboxMatch = src.match(/^(\s*\[[^\]]+\]\s+)/);
+  const checkboxMatch = src.match(/^(\s*\[[^\]]\]\s+)/);
   if (checkboxMatch) return String(checkboxMatch[1] || "").replace(/\s+$/g, "");
   return "";
 }
@@ -208,7 +217,7 @@ function reapplyOriginalPrefix(rawLine, nextLine) {
   if (!prefix) return String(nextLine || "");
   let body = String(nextLine || "");
   body = body.replace(/^\s*(?:[-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^\[[^\]]+\]\s+/, "");
+  body = body.replace(/^\[[^\]]\]\s+/, "");
   body = body.trimStart();
   return body ? `${prefix} ${body}` : prefix;
 }
@@ -221,7 +230,7 @@ function preserveOriginalPrefixShape(rawLine, nextLine) {
   const rawIndent = (raw.match(/^(\s*)/) || ["", ""])[1];
   let body = String(nextLine || "").replace(/^\s*/, "");
   body = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^(\[[^\]]+\])\s+/, "");
+  body = body.replace(/^(\[[^\]]\])\s+/, "");
   return rawIndent + body.trimStart();
 }
 
@@ -230,7 +239,7 @@ function removeSyntheticLeadingPrefix(line) {
   const indent = (src.match(/^(\s*)/) || ["", ""])[1];
   let body = src.slice(indent.length);
   body = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^\[[^\]]+\]\s+/, "");
+  body = body.replace(/^\[[^\]]\]\s+/, "");
   return indent + body;
 }
 
@@ -271,12 +280,12 @@ function applyResolvedPrefixToLine(options) {
     body = body.replace(/(^|\s)#{1,6}(?=\s|$)/g, "$1");
   }
   body = body.replace(/^([-*+]|\d+\.)(?:\s+|$)/, "");
-  body = body.replace(/^(\[[^\]]+\])(?:\s+|$)/, "");
+  body = body.replace(/^(\[[^\]]\])(?:\s+|$)/, "");
   body = body.trim();
   let out = `${indent}${nextPrefix}${body ? (" " + body) : ""}`;
 
-  out = out.replace(/^(\s*[-*+]\s+\[[^\]]+\])\s+\|\|/, "$1  ||");
-  out = out.replace(/^(\s*\d+\.\s+\[[^\]]+\])\s+\|\|/, "$1  ||");
+  out = out.replace(/^(\s*[-*+]\s+\[[^\]]\])\s+\|\|/, "$1  ||");
+  out = out.replace(/^(\s*\d+\.\s+\[[^\]]\])\s+\|\|/, "$1  ||");
   return out;
 }
 
@@ -362,7 +371,7 @@ function reapplyHeadingPrefix(rawLine, nextLine) {
   let body = src.replace(/^\s*/, "");
   while (/^#{1,6}(?:\s+|$)/.test(body)) body = body.replace(/^#{1,6}(?:\s+|$)/, "");
   body = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^\[[^\]]+\]\s+/, "");
+  body = body.replace(/^\[[^\]]\]\s+/, "");
   body = body.replace(/(^|\s)#{1,6}(?=\s|$)/g, "$1");
   body = body.replace(/\s{2,}/g, " ").trim();
   return body ? `${indent}${headingPrefix.trim()} ${body}` : `${indent}${headingPrefix.trim()} `;
@@ -570,12 +579,12 @@ function stripTrailingConfiguredSeparators(line, rules) {
 
 function hasCheckboxListPrefix(line) {
   const body = String(line || "").replace(/^\s*/, "");
-  return /^([-*+]|\d+[\.)])\s+\[[^\]]+\](\s|$)/.test(body);
+  return /^([-*+]|\d+[\.)])\s+\[[^\]]\](\s|$)/.test(body);
 }
 
 function splitLeftPrefix(raw) {
   const src = String(raw || "").trim();
-  const m = src.match(/^((?:[-*+]|\d+\.)(?:\s+\[[^\]]+\])?)(?:\s+|$)(.*)$/);
+  const m = src.match(/^((?:[-*+]|\d+\.)(?:\s+\[[^\]]\])?)(?:\s+|$)(.*)$/);
   if (!m) return { prefix: "", body: src };
   return { prefix: String(m[1] || "").trim(), body: String(m[2] || "").trim() };
 }
@@ -627,18 +636,18 @@ function normalizeMinimalOffFinalLine(rawLine, finalLine, rules, options) {
       } else if (rawHasList) {
         const markerMatch = String(raw || "")
           .replace(/^\s*/, "")
-          .match(/^((?:[-*+]|\d+[\.)]))(?:\s+\[[^\]]+\])?/);
+          .match(/^((?:[-*+]|\d+[\.)]))(?:\s+\[[^\]]\])?/);
         const marker = markerMatch ? String(markerMatch[1] || "").trim() : "-";
         const body = String(out || "")
           .replace(/^\s*/, "")
           .replace(/^([-*+]|\d+[\.)])\s+/, "")
-          .replace(/^\[[^\]]+\]\s+/, "")
+          .replace(/^\[[^\]]\]\s+/, "")
           .trimStart();
         out = body ? `${rawIndent}${marker} ${body}` : `${rawIndent}${marker}`;
       } else {
         out = rawIndent + String(out || "")
           .replace(/^\s*/, "")
-          .replace(/^\[[^\]]+\]\s+/, "");
+          .replace(/^\[[^\]]\]\s+/, "");
       }
     }
   }
@@ -671,7 +680,7 @@ function alignMinimalNoSeparatorPrefix(options) {
   const selectedToken = String(opts.selectedToken || "").trim();
   const prefixRules = opts.prefixRules && typeof opts.prefixRules === "object" ? opts.prefixRules : {};
 
-  let desiredCheckbox = ((resolvedPrefix.match(/\[[^\]]+\]/) || [""])[0] || "").trim();
+  let desiredCheckbox = ((resolvedPrefix.match(/\[[^\]]\]/) || [""])[0] || "").trim();
   if (!desiredCheckbox && targetFieldId && selectedToken) {
     const byField = prefixRules.checkboxByFieldValue && typeof prefixRules.checkboxByFieldValue === "object"
       ? prefixRules.checkboxByFieldValue
@@ -683,7 +692,7 @@ function alignMinimalNoSeparatorPrefix(options) {
   }
   if (!desiredCheckbox) return finalLine;
 
-  const currentCheckbox = ((finalLine.match(/\[[^\]]+\]/) || [""])[0] || "").trim();
+  const currentCheckbox = ((finalLine.match(/\[[^\]]\]/) || [""])[0] || "").trim();
   const indent = opts.preserveIndent === true
     ? ((rawLine.match(/^(\s*)/) || ["", ""])[1] || "")
     : "";
@@ -698,7 +707,7 @@ function alignMinimalNoSeparatorPrefix(options) {
   const body = finalLine
     .replace(/^\s*/, "")
     .replace(/^([-*+]|\d+\.)(?:\s+|$)/, "")
-    .replace(/^(\[[^\]]+\])(?:\s+|$)/, "")
+    .replace(/^(\[[^\]]\])(?:\s+|$)/, "")
     .trim();
   return `${indent}- ${desiredCheckbox}${body ? " " + body : ""}`;
 }
@@ -900,7 +909,7 @@ function isSimplePlainRaw(rawLine, rules, options) {
   const hasStandaloneCheckboxPrefix = typeof opts.hasStandaloneCheckboxPrefix === "function"
     ? opts.hasStandaloneCheckboxPrefix
     : function defaultHasStandaloneCheckboxPrefix(line) {
-      return /^\s*\[[^\]]+\](\s|$)/.test(String(line || ""));
+      return /^\s*\[[^\]]\](\s|$)/.test(String(line || ""));
     };
   const hasAnySeparatorFn = typeof opts.hasAnySeparator === "function"
     ? opts.hasAnySeparator
@@ -1211,7 +1220,7 @@ function normalizeStructuredSlots(options) {
   const headingFromLine = extractHeadingPrefix(line);
   const leftWithoutList = String(seg.left || "")
     .replace(/^\s*(?:[-*+]|\d+[\.)])\s+/, "")
-    .replace(/^\s*\[[^\]]+\]\s+/, "");
+    .replace(/^\s*\[[^\]]\]\s+/, "");
   const headingFromLeft = extractHeadingPrefix(leftWithoutList);
   const headingPrefix = headingFromRaw || headingFromLine || headingFromLeft;
   if (!headingPrefix) return line;
@@ -1223,7 +1232,7 @@ function normalizeStructuredSlots(options) {
   const leftBody = left
     .replace(/^\s*#{1,6}(?:\s+|$)/, "")
     .replace(/^\s*(?:[-*+]|\d+[\.)])\s+/, "")
-    .replace(/^\s*\[[^\]]+\]\s+/, "")
+    .replace(/^\s*\[[^\]]\]\s+/, "")
     .replace(/(^|\s)#{1,6}(?=\s|$)/g, "$1")
     .replace(/\s{2,}/g, " ")
     .trim();
@@ -1287,7 +1296,7 @@ function splitLeftDecorators(rawLeft) {
     body = body.slice(ml[0].length);
   }
 
-  const mc = body.match(/^(\[[^\]]+\])\s+/);
+  const mc = body.match(/^(\[[^\]]\])\s+/);
   if (mc) {
     checkboxToken = String(mc[1] || "").trim();
     body = body.slice(mc[0].length);
@@ -1335,7 +1344,7 @@ function stripSyntheticPrefixForPlainSource(rawLine, line) {
   const rawIndent = (raw.match(/^(\s*)/) || ["", ""])[1];
   let body = out.replace(/^\s*/, "");
   body = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^\[[^\]]+\]\s+/, "");
+  body = body.replace(/^\[[^\]]\]\s+/, "");
   return rawIndent + body;
 }
 
@@ -1414,7 +1423,7 @@ function hasMarkerAnchoredRightPayload(raw, rules) {
 function stripListDecoratorsForPlainText(raw) {
   let out = String(raw || "").trim();
   out = out.replace(/^\s*(?:[-*+]|\d+[\.)])(?:\s+|$)/, "");
-  out = out.replace(/^\s*\[[^\]]+\](?:\s+|$)/, "");
+  out = out.replace(/^\s*\[[^\]]\](?:\s+|$)/, "");
   return out.trim();
 }
 
@@ -1646,10 +1655,10 @@ function applyCycleEndPostProcessing(options) {
       finalLine = indentKeep + textAfter;
       parsedAfter = parseLine(finalLine, rules);
     }
-    if (!tagsAfter.length && !datesAfter && /^\s*[-*+]\s+\[[^\]]+\]\s+\S/.test(String(finalLine || ""))) {
+    if (!tagsAfter.length && !datesAfter && /^\s*[-*+]\s+\[[^\]]\]\s+\S/.test(String(finalLine || ""))) {
       const indentKeep = (String(finalLine || "").match(/^(\s*)/) || ["", ""])[1];
       const textOnly = String(finalLine || "")
-        .replace(/^\s*[-*+]\s+\[[^\]]+\]\s+/, "")
+        .replace(/^\s*[-*+]\s+\[[^\]]\]\s+/, "")
         .trim();
       finalLine = indentKeep + textOnly;
       parsedAfter = parseLine(finalLine, rules);

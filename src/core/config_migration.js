@@ -24,18 +24,14 @@ function normalizePkmBehaviorShape(cfg, deps) {
 
   const fields = out.pkm.fields;
   const prefixRules = out.pkm.prefixRules;
-  const normalizeCheckbox = (token) => {
-    try {
-      const lf = require("./pkm_line_finalize_unified.js");
-      if (lf && typeof lf.normalizeCheckboxToken === "function") return lf.normalizeCheckboxToken(token);
-    } catch (_) {}
-    const src = String(token || "").trim();
-    if (!src) return "";
-    const m = src.match(/^\[([\s\S]*)\]$/);
-    if (!m) return "";
-    const inner = String(m[1] || "").trim();
-    return inner ? `[${inner}]` : "[ ]";
-  };
+  /*
+   * Знак чекбокса нормализует один модуль на весь плагин. Запаска здесь
+   * была вторым объявлением того же правила (У-32) и в сборке была
+   * недостижима: путь литеральный, модуль есть всегда. Не приедет —
+   * упадём громко, а не разойдёмся молча.
+   */
+  const normalizeCheckbox = (token) =>
+    require("./pkm_line_finalize_unified.js").normalizeCheckboxToken(token);
 
   {
     const defaultBlock = String(fields.defaultBlock || "").trim().toLowerCase();

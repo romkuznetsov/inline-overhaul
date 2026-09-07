@@ -732,7 +732,7 @@ function parseInlineLine(rawLine, cfg) {
     .trim();
   const payloadParts = textCore.split(String(separators.separator1 || "")).map((s) => String(s || "").trim()).filter(Boolean);
   const payloadText = String(payloadTextRaw || (payloadParts.length ? payloadParts[0] : textCore) || "")
-    .replace(/^\s*(?:[-*+]\s+(?:\[[^\]]+\]\s+)?|#{1,6}\s+)/, "")
+    .replace(/^\s*(?:[-*+]\s+(?:\[[^\]]\]\s+)?|#{1,6}\s+)/, "")
     .trim();
   return { line, tags: uniq(tags), wikilinks: uniq(wikilinks), emojis, payloadText, tagOccurrences, wikilinkOccurrences, emojiOccurrences };
 }
@@ -1316,7 +1316,7 @@ function resolveAutoTitle(parsed, i2n) {
   const re = new RegExp(escapeRegexLiteral(open) + "([\\s\\S]*?)" + escapeRegexLiteral(close), "g");
   const lineWithoutWikilinks = line
     .replace(/\[\[[^\]]+\]\]/g, " ")
-    .replace(/^(\s*[-*+]\s+)\[[^\]]*\](\s*)/, "$1$2");
+    .replace(/^(\s*[-*+]\s+)\[[^\]]\](\s*)/, "$1$2");
   let m;
   while ((m = re.exec(lineWithoutWikilinks)) !== null) {
     const explicit = String(m[1] || "").trim();
@@ -1586,7 +1586,7 @@ function insertProcessedToken(line, token, panel, separators) {
   const second = first >= 0 ? body.indexOf(s2, first + s1.length) : -1;
   if (String(panel || "right").trim().toLowerCase() === "left") {
     if (first >= 0) return `${indent}${body.slice(0, first).trimEnd()} ${processed} ${body.slice(first).trimStart()}`;
-    const prefix = body.match(/^([-*+]\s+(?:\[[^\]]+\]\s+)?)/);
+    const prefix = body.match(/^([-*+]\s+(?:\[[^\]]\]\s+)?)/);
     if (prefix) return `${indent}${prefix[1]}${processed} ${body.slice(prefix[1].length)}`.trimEnd();
     return `${indent}${processed}${body ? " " + body : ""}`;
   }
@@ -1692,7 +1692,7 @@ function applySourcePrefixResolution(line, originalLine, transformContext, prese
     },
   }) || "").trim();
   const indent = String((String(line || "").match(/^[\t ]*/) || [""])[0] || "");
-  const body = String(line || "").slice(indent.length).replace(/^[-*+]\s+(?:\[[^\]]*\]\s+)?/, "").trimStart();
+  const body = String(line || "").slice(indent.length).replace(/^[-*+]\s+(?:\[[^\]]\]\s+)?/, "").trimStart();
   return `${indent}${resolved}${body ? " " + body : ""}`.trimEnd();
 }
 
@@ -1734,7 +1734,7 @@ function normalizeSourceLineAfterCleanup(line, separators) {
   const payload = parts[1] || "";
   const right = parts.slice(2).join(` ${s2} `).trim();
 
-  const dropPrefix = (s) => String(s || "").replace(/^[-*]\s*\[[^\]]+\]\s*/u, "").trim();
+  const dropPrefix = (s) => String(s || "").replace(/^[-*]\s*\[[^\]]\]\s*/u, "").trim();
   const leftNoPrefix = dropPrefix(left);
 
   if (!leftNoPrefix && !right && payload) return `- ${payload}`.replace(/\s{2,}/g, " ").trim();

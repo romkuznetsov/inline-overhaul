@@ -2206,7 +2206,7 @@ module.exports = {
       const resolvedPrefix = String(core?.buildPrefix?.(parsedWork, rules, prefixState, { prefixShared: lineFinalize }) || "").trim();
       const targetFieldIdForCycleEnd = String(targetFieldForPrefix?.id || "").trim();
       finalLine = lineFinalize.normalizeMinimalOffFinalLine(rawLine, finalLine, rules, {
-        shouldKeepCheckbox: /\[[^\]]+\]/.test(resolvedPrefix)
+        shouldKeepCheckbox: /\[[^\]]\]/.test(resolvedPrefix)
           || lineFinalize.hasCheckboxListPrefix(rawLine)
           || lineFinalize.hasStandaloneCheckboxPrefix(rawLine),
         clearedOwnCheckbox: targetSelectionClearedByAction && fieldHasAnyCheckboxRule(rules, targetFieldIdForCycleEnd),
