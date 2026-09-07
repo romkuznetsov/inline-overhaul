@@ -193,6 +193,12 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "core", "editor_visuals_config.js"), "utf8");
   const decorSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "ui", "editor", "decorations.js"), "utf8");
+  /* Порядок Fields и нормализация конфига — модули с 2026-09-07, кусок
+     третий разбора A3. */
+  const cfgSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"), "utf8");
+  const orderSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "pkm_order_config.js"), "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -296,16 +302,16 @@ async function run() {
      вместе с ней: разбирать больше нечего (PRD 10.12). */
 
 
-  assertTrue(/separator1:\s*"\|\|"/.test(src), "default config contains separator1");
-  assertFalse(/`📅DATE\/🕑TIME ➕ELEMENTS`/.test(src), "main has no hardcoded emoji section title for date\/time elements");
-  assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(src), "main infer-element defaults have no hardcoded emoji markers");
-  assertTrue(/separator2:\s*"\|\|"/.test(src), "default config contains separator2");
+  assertTrue(/separator1:\s*"\|\|"/.test(cfgSrc), "default config contains separator1");
+  assertFalse(/`📅DATE\/🕑TIME ➕ELEMENTS`/.test(orderSrc), "main has no hardcoded emoji section title for date\/time elements");
+  assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(orderSrc), "main infer-element defaults have no hardcoded emoji markers");
+  assertTrue(/separator2:\s*"\|\|"/.test(cfgSrc), "default config contains separator2");
   assertTrue(/replace\(/.test(src) && /\\s\+/.test(src), "order key normalizer collapses whitespace");
-  assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(src), "order key validators allow space-containing field ids");
-  assertTrue(/function makeDefaultPkmOrder\(\)/.test(src), "default order factory exists");
-  assertTrue(/left:\s*\[\]/.test(src), "default order config starts empty left");
-  assertTrue(/right:\s*\[\]/.test(src), "default order config starts empty right");
-  assertTrue(/hotkey_only/.test(src), "order active mode supports hotkey_only");
+  assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(orderSrc), "order key validators allow space-containing field ids");
+  assertTrue(/function makeDefaultPkmOrder\(\)/.test(orderSrc), "default order factory exists");
+  assertTrue(/left:\s*\[\]/.test(orderSrc), "default order config starts empty left");
+  assertTrue(/right:\s*\[\]/.test(orderSrc), "default order config starts empty right");
+  assertTrue(/hotkey_only/.test(orderSrc), "order active mode supports hotkey_only");
   assertTrue(/function getRulesSyncOrchestrator\(\)/.test(src), "rules sync orchestrator getter exists");
   assertTrue(/function getStoreEventsOrchestrator\(\)/.test(src), "store events orchestrator getter exists");
 
@@ -401,13 +407,14 @@ async function run() {
       "./pkm_runtime_v2.js",
       "./src/core/compat_profile.js",
       "./src/core/config_migration.js",
-      "./src/core/config_migration_v2.ts",
+      "./src/core/config_normalize.js",
       "./src/core/config_store.js",
       "./src/core/editor_visuals_config.js",
       "./src/core/pkm_domain_registry.js",
       "./src/core/pkm_line_finalize_unified.js",
       "./src/core/pkm_macro_runtime_entry.js",
       "./src/core/pkm_option_keys.js",
+      "./src/core/pkm_order_config.js",
       "./src/core/priority_strip_cm6_adapter.js",
       "./src/core/priority_strip_engine.js",
       "./src/core/say.js",
@@ -518,21 +525,21 @@ async function run() {
    */
 
 
-  assertTrue(/normalizePkmBehaviorShape\(cfg, \{ cloneJson, isObj \}\)/.test(src), "migrateConfig applies behavior shape normalization");
+  assertTrue(/normalizePkmBehaviorShape\(cfg, \{ cloneJson, isObj \}\)/.test(cfgSrc), "migrateConfig applies behavior shape normalization");
   assertTrue(/return "element"/.test(fieldModelSrc), "field model normalizes date-like order keys as element kind");
   assertFalse(/return "date"/.test(fieldModelSrc), "field model has no legacy date kind token");
   assertFalse(/createFieldModelFromOrder/.test(fieldModelSrc), "field model has no dead createFieldModelFromOrder export");
-  assertTrue(/const deprecatedRules = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.rules\)/.test(src), "migrateConfig resolves deprecated rules keys from shared compat profile module");
-  assertTrue(/__compatProfile\.isCompatEnabled\("ENABLE_CONFIG_MIGRATION_SHIMS"\)/.test(src) && /cfg\.pkm\.generatedRulesPath = String\(cfg\.rules\.tagWheelPath\)\.trim\(\);/.test(src), "migrateConfig keeps migration-only shim for rules.tagWheelPath when compat flag enabled");
-  assertFalse(/cfg\.pkm\.sourceOfTruth\s*=/.test(src), "migrateConfig no longer writes dead pkm.sourceOfTruth field");
-  assertFalse(/cfg\.pkm\.autoGenerateRules\s*=/.test(src), "migrateConfig no longer writes dead pkm.autoGenerateRules field");
+  assertTrue(/const deprecatedRules = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.rules\)/.test(cfgSrc), "migrateConfig resolves deprecated rules keys from shared compat profile module");
+  assertTrue(/__compatProfile\.isCompatEnabled\("ENABLE_CONFIG_MIGRATION_SHIMS"\)/.test(cfgSrc) && /cfg\.pkm\.generatedRulesPath = String\(cfg\.rules\.tagWheelPath\)\.trim\(\);/.test(cfgSrc), "migrateConfig keeps migration-only shim for rules.tagWheelPath when compat flag enabled");
+  assertFalse(/cfg\.pkm\.sourceOfTruth\s*=/.test(cfgSrc), "migrateConfig no longer writes dead pkm.sourceOfTruth field");
+  assertFalse(/cfg\.pkm\.autoGenerateRules\s*=/.test(cfgSrc), "migrateConfig no longer writes dead pkm.autoGenerateRules field");
   /* Снято 2026-09-06 вместе с предметом: общий загрузчик `main.js` мостом
      больше не пользуется, и «канонический путь через мост» проверять не на
      чем (У-56). Кеш `__inlineOverhaulMainModuleCache` ушёл вместе с ним.
      Новое состояние стережёт блок выше — «путь один, и это `require`». */
   assertFalse(/console\.log\("\[inline-overhaul\] loaded"\)/.test(src), "main has no unconditional production console.log on plugin load");
-  assertTrue(/cfg\.pkm\.behavior\.io\.separator1 = s1 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator1;/.test(src), "migrateConfig normalizes separator1");
-  assertTrue(/cfg\.pkm\.behavior\.io\.separator2 = s2 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator2;/.test(src), "migrateConfig normalizes separator2");
+  assertTrue(/cfg\.pkm\.behavior\.io\.separator1 = s1 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator1;/.test(cfgSrc), "migrateConfig normalizes separator1");
+  assertTrue(/cfg\.pkm\.behavior\.io\.separator2 = s2 \|\| DEFAULT_CONFIG\.pkm\.behavior\.io\.separator2;/.test(cfgSrc), "migrateConfig normalizes separator2");
   /*
    * Разделители доезжают до перехода по заголовкам, а не спрашиваются у ветки,
    * в которой их нет.
@@ -555,24 +562,24 @@ async function run() {
      Separator` без разделителей ничего не ограничил бы. */
   assertTrue(/rt\.moveSelection\(ed, "left", nav\.moveSelection, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "move-left hands the line format to the runtime");
   assertTrue(/rt\.moveSelection\(ed, "right", nav\.moveSelection, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "move-right hands the line format to the runtime");
-  assertTrue(/if \(!isObj\(cfg\.pkm\.behavior\.freeRoam\)\) cfg\.pkm\.behavior\.freeRoam = cloneJson\(DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\);/.test(src), "migrateConfig initializes freeRoam behavior block");
-  assertTrue(/if \(typeof fr\.minimalSeparator !== "boolean"\) fr\.minimalSeparator = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalSeparator;/.test(src), "migrateConfig normalizes minimalSeparator toggle");
-  assertTrue(/if \(typeof fr\.minimalPrefix !== "boolean"\) fr\.minimalPrefix = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalPrefix;/.test(src), "migrateConfig normalizes minimalPrefix toggle");
-  assertTrue(/fr\.fullPlacement = \["smart", "left", "right"\]\.includes\(place\)/.test(src), "migrateConfig normalizes fullPlacement");
-  assertTrue(/devMode:\s*\{[\s\S]*generateAiLog:\s*true[\s\S]*logPath:\s*"InlineOverhaul_DevLog"/.test(src), "default config includes simplified devMode fields with AI log toggle");
-  assertTrue(/if \(!isObj\(cfg\.devMode\)\) cfg\.devMode = cloneJson\(DEFAULT_CONFIG\.devMode\);/.test(src), "migrateConfig initializes devMode block");
+  assertTrue(/if \(!isObj\(cfg\.pkm\.behavior\.freeRoam\)\) cfg\.pkm\.behavior\.freeRoam = cloneJson\(DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\);/.test(cfgSrc), "migrateConfig initializes freeRoam behavior block");
+  assertTrue(/if \(typeof fr\.minimalSeparator !== "boolean"\) fr\.minimalSeparator = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalSeparator;/.test(cfgSrc), "migrateConfig normalizes minimalSeparator toggle");
+  assertTrue(/if \(typeof fr\.minimalPrefix !== "boolean"\) fr\.minimalPrefix = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalPrefix;/.test(cfgSrc), "migrateConfig normalizes minimalPrefix toggle");
+  assertTrue(/fr\.fullPlacement = \["smart", "left", "right"\]\.includes\(place\)/.test(cfgSrc), "migrateConfig normalizes fullPlacement");
+  assertTrue(/devMode:\s*\{[\s\S]*generateAiLog:\s*true[\s\S]*logPath:\s*"InlineOverhaul_DevLog"/.test(cfgSrc), "default config includes simplified devMode fields with AI log toggle");
+  assertTrue(/if \(!isObj\(cfg\.devMode\)\) cfg\.devMode = cloneJson\(DEFAULT_CONFIG\.devMode\);/.test(cfgSrc), "migrateConfig initializes devMode block");
   /*
    * Переименования старой формы читают ИСХОДНЫЙ файл, а не слитый с
    * умолчаниями: `deepMerge(DEFAULT_CONFIG, source)` кладёт новый ключ раньше,
    * чем код успевает спросить старый, и до 2026-08-31 все они были мертвы.
    */
-  assertTrue(/const fromFile = \(dotted\) => \{/.test(src), "первая ступень читает исходный файл помощником fromFile");
-  assertTrue(/const own = fromFile\("devMode\.generateAiLog"\);/.test(src), "generateAiLog спрашивается у исходного файла");
-  assertTrue(/const oldSize = String\(fromFile\("devMode\.logSize"\) \|\| ""\)\.trim\(\);/.test(src), "и старое имя logSize тоже");
-  assertTrue(/const legacyCycle = fromFile\("navigation\.moveSelection\.leftToRight"\);/.test(src), "цикл Prefix берёт старое имя из исходного файла");
-  assertTrue(/pickPct\(B \+ "tagTextSizePct", \[B \+ "tagSizePct"\]/.test(src), "размер тегов берёт старое имя из исходного файла");
-  assertTrue(/const deprecatedDevMode = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.devMode\)/.test(src), "migrateConfig resolves deprecated devMode keys from shared compat profile module");
-  assertTrue(/for \(const key of deprecatedDevMode\) delete cfg\.devMode\[key\];/.test(src), "migrateConfig drops deprecated devMode keys through centralized loop");
+  assertTrue(/const fromFile = \(dotted\) => \{/.test(cfgSrc), "первая ступень читает исходный файл помощником fromFile");
+  assertTrue(/const own = fromFile\("devMode\.generateAiLog"\);/.test(cfgSrc), "generateAiLog спрашивается у исходного файла");
+  assertTrue(/const oldSize = String\(fromFile\("devMode\.logSize"\) \|\| ""\)\.trim\(\);/.test(cfgSrc), "и старое имя logSize тоже");
+  assertTrue(/const legacyCycle = fromFile\("navigation\.moveSelection\.leftToRight"\);/.test(cfgSrc), "цикл Prefix берёт старое имя из исходного файла");
+  assertTrue(/pickPct\(B \+ "tagTextSizePct", \[B \+ "tagSizePct"\]/.test(cfgSrc), "размер тегов берёт старое имя из исходного файла");
+  assertTrue(/const deprecatedDevMode = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.devMode\)/.test(cfgSrc), "migrateConfig resolves deprecated devMode keys from shared compat profile module");
+  assertTrue(/for \(const key of deprecatedDevMode\) delete cfg\.devMode\[key\];/.test(cfgSrc), "migrateConfig drops deprecated devMode keys through centralized loop");
   assertTrue(/devLog: \(event, payload\) => this\.devLogEvent\(event, payload, "info", cfg\)/.test(src), "runPkmRuntimeV2 forwards devLog callback into runtime");
   assertTrue(/getLogPathParts\(dm\) \{/.test(src), "main exposes dev log path parts resolver");
   assertTrue(/buildLogFilePath\(parts, role, ts\) \{/.test(src), "main exposes timestamped dev log filename builder");
@@ -589,7 +596,7 @@ async function run() {
   assertTrue(/if \(wasEnabled && isEnabled && \(beforePath !== afterPath \|\| beforeAi !== afterAi\)\) \{[\s\S]*dev-mode-log:reinit/.test(src), "setConfigPatch reinitializes log session when path or AI toggle changes while enabled");
   assertTrue(/if \(mdLine\) await this\.writeDevLogLine\(dm, "md", mdLine\);/.test(src), "dev logger always writes human markdown log");
   assertTrue(/if \(aiLine\) await this\.writeDevLogLine\(dm, "ndjson", aiLine\);/.test(src), "dev logger writes AI ndjson log when enabled");
-  assertTrue(/const marker = String\(elemCfg\.emoji \|\| inferElementDefaultsByKey\(key\)\.marker \|\| ""\)\.trim\(\);/.test(src), "ensureBehaviorModesFromOrder syncs custom element marker from behavior config");
+  assertTrue(/const marker = String\(elemCfg\.emoji \|\| inferElementDefaultsByKey\(key\)\.marker \|\| ""\)\.trim\(\);/.test(orderSrc), "ensureBehaviorModesFromOrder syncs custom element marker from behavior config");
   /*
    * Сборка заметки правил живёт в одном месте. Копия в `main.js` снята
    * 2026-08-31: форма документа правил осталась версии 1, конфиг переехал на
@@ -611,20 +618,20 @@ async function run() {
    */
   {
     const fieldsModelSrc = fs.readFileSync(path.join(__dirname, "..", "..", "src", "ui", "settings", "custom", "fields_model.ts"), "utf8");
-    const inMain = /const STRICT_FIELD_NAME_RE = (\/.+\/i?);/.exec(src);
+    const inMain = /const STRICT_FIELD_NAME_RE = (\/.+\/i?);/.exec(orderSrc);
     const inPanel = /const STRICT_NAME_RE = (\/.+\/i?);/.exec(fieldsModelSrc);
     assertTrue(!!inMain, "config normalizer names the Field-name rule in one place");
     assertTrue(!!inPanel, "the panel names the Field-name rule in one place");
     assertEq(inMain[1], inPanel[1], "panel and config agree letter for letter on what a Field may be called");
-    assertFalse(/\/\^\[a-z0-9_-\]\+\$\//.test(src), "the stricter second rule that silently reverted renames is gone");
+    assertFalse(/\/\^\[a-z0-9_-\]\+\$\//.test(orderSrc), "the stricter second rule that silently reverted renames is gone");
   }
   assertFalse(/activePanel\.showMarkers\s*=/.test(rulesMarkdownBuilderSrc), "rules builder never writes the text wrappers of the active panel");
-  assertFalse(/for \(const k of orderFields\) \{[\s\S]*if \(!rightSet\.has\(k\)\) continue;[\s\S]*out\.right = out\.right\.filter\(\(x\) => x !== k\);[\s\S]*out\.left\.push\(k\);[\s\S]*\}/.test(src), "normalizePkmOrder does not force right fields back to left by sub presence");
+  assertFalse(/for \(const k of orderFields\) \{[\s\S]*if \(!rightSet\.has\(k\)\) continue;[\s\S]*out\.right = out\.right\.filter\(\(x\) => x !== k\);[\s\S]*out\.left\.push\(k\);[\s\S]*\}/.test(orderSrc), "normalizePkmOrder does not force right fields back to left by sub presence");
 
   assertTrue(/handleEnhancedSelectAllKeymap\(\) \{\s*return getEnhancedSelectAllEngine\(\)\.handleEnhancedSelectAllKeymap\(this\);\s*\}/.test(src), "enhanced select-all delegated to extracted engine");
   assertFalse(/function buildDefaultTagWheelDetailedTemplateMarkdown\(/.test(src), "no legacy codec wrapper buildDefault template in main");
   assertFalse(/function buildMinimalFromRenderedTemplate\(/.test(src), "no legacy codec wrapper buildMinimal in main");
-  assertFalse(/cfg\.pkm\.legacy/.test(src), "no direct cfg.pkm.legacy reads in main");
+  assertFalse(/cfg\.pkm\.legacy/.test(cfgSrc), "no direct cfg.pkm.legacy reads in main");
   assertFalse(/\|\|\s*s\s*===\s*"legacy"/.test(statusTagsSrc), "status_tags cursor policy has no legacy alias");
   assertFalse(/\|\|\s*s\s*===\s*"legacy"/.test(statusDateSrc), "status_date cursor policy has no legacy alias");
   assertFalse(/\|\|\s*s\s*===\s*'legacy'/.test(tagwheelSrc), "tagwheel cursor policy has no legacy alias");
@@ -639,9 +646,9 @@ async function run() {
    * `parseWikilinkLineStrict`, которую не звал никто. Их и искать больше
    * негде — во всём репозитории эти сообщения были только тут (У-71).
    */
-  assertTrue(/if \(!nonEmpty\(src\.emoji\) && Object\.prototype\.hasOwnProperty\.call\(dst, "emoji"\)\) out\.emoji = String\(dst\.emoji \|\| ""\);/.test(src), "runtime date serializer does not overwrite non-empty emoji with empty element emoji");
-  assertTrue(/const modeRaw = String\(incCur\.mode \|\| "standard"\)\.trim\(\)\.toLowerCase\(\);/.test(src), "behavior sync preserves configured increment mode for elements");
-  assertTrue(/mode,\s*incrementBy,\s*command,\s*customRaw,\s*custom/.test(src), "behavior sync writes normalized increment fields without forcing standard mode");
+  assertTrue(/if \(!nonEmpty\(src\.emoji\) && Object\.prototype\.hasOwnProperty\.call\(dst, "emoji"\)\) out\.emoji = String\(dst\.emoji \|\| ""\);/.test(orderSrc), "runtime date serializer does not overwrite non-empty emoji with empty element emoji");
+  assertTrue(/const modeRaw = String\(incCur\.mode \|\| "standard"\)\.trim\(\)\.toLowerCase\(\);/.test(orderSrc), "behavior sync preserves configured increment mode for elements");
+  assertTrue(/mode,\s*incrementBy,\s*command,\s*customRaw,\s*custom/.test(orderSrc), "behavior sync writes normalized increment fields without forcing standard mode");
   assertAnyMatch(statusTagsSrc, [/callRuntimeApi\(app_, "loadLinePipeline"\)/, /await loadLinePipeline\(app_\);/], "status_tags preloads shared line pipeline");
   assertAnyMatch(statusDateSrc, [/callRuntimeApi\(app_, "loadLinePipeline"\)/, /await loadLinePipeline\(app_\);/], "status_date preloads shared line pipeline");
   assertTrue(/linePipeline\.splitSegments\(line, rules\)|linePipeline\.splitSegments\(lineInput, runtimeRules\)|linePipeline\.splitSegments\(segLine, rules\)/.test(tagwheelSrc), "tagwheel split delegates to shared line pipeline");
@@ -859,7 +866,7 @@ async function run() {
   assertFalse(/DEFAULT_(?:LEFT|RIGHT)_ORDER|DEFAULT_ORDER_KEYS|DEFAULT_ACTIVE|DEFAULT_ENABLED/.test(pkmDomainRegistrySrc), "domain registry has no built-in default order dictionaries");
   assertFalse(/ORDER_KEY_TO_(?:LEFT|RIGHT)_FIELD_ID_DEFAULT|BUILT_IN_(?:LEFT|RIGHT)_IDS|BUILT_IN_ORDER_KEYS|\bORDER_KEYS\b/.test(pkmDomainRegistrySrc), "domain registry has no canonical order-key dictionary exports");
   assertFalse(/DEFAULT_(?:LEFT|RIGHT)_ORDER|ORDER_KEY_TO_(?:LEFT|RIGHT)_FIELD_ID_DEFAULT/.test(pkmRulesHelpersSrc), "rules helpers do not depend on registry default key maps");
-  assertFalse(/BUILT_IN_(?:LEFT|RIGHT)_IDS|BUILT_IN_ORDER_KEYS/.test(src), "main does not depend on registry built-in key dictionaries");
+  assertFalse(/BUILT_IN_(?:LEFT|RIGHT)_IDS|BUILT_IN_ORDER_KEYS/.test(orderSrc), "main does not depend on registry built-in key dictionaries");
   assertFalse(/function resolveLegacyTagActionToOrderKey\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy tag-action resolver");
   assertFalse(/function resolveLegacyDateActionToOrderKey\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action resolver");
   assertFalse(/function resolveLegacyDateActionDirection\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action direction resolver");
@@ -1128,16 +1135,16 @@ async function run() {
   assertTrue(/rulesHelpersForDates\.getDateValuePatterns\(\)/.test(statusDateSrc), "status_date text cleanup uses shared date value-patterns helper");
   assertFalse(/\[📅🛫\]/.test(statusDateSrc), "status_date has no hardcoded date emoji regex class in marker cleanup");
   assertFalse(/\)🕒/.test(statusDateSrc), "status_date has no hardcoded time emoji token in marker cleanup");
-  assertTrue(/offPrefix: false/.test(src), "main default config includes offPrefix toggle with OFF default");
-  assertTrue(/tagwheelHeader:\s*\{[\s\S]*defaultTextColor:\s*""[\s\S]*fillColor:\s*""[\s\S]*showPrefix:\s*true/.test(src), "main default config includes tagwheel header visual colors and showPrefix toggle");
-  assertTrue(/tagVisuals:\s*\{[\s\S]*showColorSettings:\s*false[\s\S]*tagTextSizePct:\s*100,[\s\S]*tagBubbleWidthPct:\s*100,[\s\S]*tagBubbleHeightPct:\s*100,[\s\S]*emptyBubbleSizePct:\s*100,[\s\S]*tagShapePct:\s*0,[\s\S]*opacity:\s*\{[\s\S]*left:\s*1,[\s\S]*right:\s*1[\s\S]*\}[\s\S]*strip:\s*\{[\s\S]*active:\s*false,[\s\S]*fieldId:\s*""[\s\S]*thickness:\s*2,[\s\S]*childOffset:\s*12/.test(src), "main default config includes strip-only tagVisuals defaults (text-size/bubble-width/bubble-height/empty-size/shape/opacity/strip)");
-  assertTrue(/if \(!isObj\(cfg\.pkm\.behavior\.tagVisuals\)\) cfg\.pkm\.behavior\.tagVisuals = cloneJson\(DEFAULT_CONFIG\.pkm\.behavior\.tagVisuals\);/.test(src), "main migration initializes tagVisuals block when missing");
-  assertTrue(/const normOpacity = \(value, fallback\) => \{[\s\S]*Math\.max\(0, Math\.min\(1, n\)\)/.test(src), "main migration clamps tagVisuals opacity to 0..1");
-  assertTrue(/const normalizeTagToken = \(token\) => \{[\s\S]*return src\.charAt\(0\) === "#" \? src : "";/.test(src), "main migration keeps tagVisuals tokens strictly hash-prefixed");
-  assertTrue(/function normalizeTagVisualMapsV2\(cfg\) \{/.test(src), "third stage normalizes tag visual maps on v2 paths");
-  assertTrue(/if \(userTagsIn\[rawToken\] === null\) continue;/.test(src), "third stage keeps the null tombstone for user tags");
-  assertTrue(/writeCfgPath\(cfg, "visual\.tagBars", __priorityStripEngine\.normalizeStripConfig\(/.test(src), "third stage normalizes Tag Bars through the shared strip engine");
-  assertTrue(/offPrefix: placement\.bulletInStrict === true/.test(src), "order serializer exports offPrefix behavior flag from pkm.placement");
+  assertTrue(/offPrefix: false/.test(cfgSrc), "main default config includes offPrefix toggle with OFF default");
+  assertTrue(/tagwheelHeader:\s*\{[\s\S]*defaultTextColor:\s*""[\s\S]*fillColor:\s*""[\s\S]*showPrefix:\s*true/.test(cfgSrc), "main default config includes tagwheel header visual colors and showPrefix toggle");
+  assertTrue(/tagVisuals:\s*\{[\s\S]*showColorSettings:\s*false[\s\S]*tagTextSizePct:\s*100,[\s\S]*tagBubbleWidthPct:\s*100,[\s\S]*tagBubbleHeightPct:\s*100,[\s\S]*emptyBubbleSizePct:\s*100,[\s\S]*tagShapePct:\s*0,[\s\S]*opacity:\s*\{[\s\S]*left:\s*1,[\s\S]*right:\s*1[\s\S]*\}[\s\S]*strip:\s*\{[\s\S]*active:\s*false,[\s\S]*fieldId:\s*""[\s\S]*thickness:\s*2,[\s\S]*childOffset:\s*12/.test(cfgSrc), "main default config includes strip-only tagVisuals defaults (text-size/bubble-width/bubble-height/empty-size/shape/opacity/strip)");
+  assertTrue(/if \(!isObj\(cfg\.pkm\.behavior\.tagVisuals\)\) cfg\.pkm\.behavior\.tagVisuals = cloneJson\(DEFAULT_CONFIG\.pkm\.behavior\.tagVisuals\);/.test(cfgSrc), "main migration initializes tagVisuals block when missing");
+  assertTrue(/const normOpacity = \(value, fallback\) => \{[\s\S]*Math\.max\(0, Math\.min\(1, n\)\)/.test(cfgSrc), "main migration clamps tagVisuals opacity to 0..1");
+  assertTrue(/const normalizeTagToken = \(token\) => \{[\s\S]*return src\.charAt\(0\) === "#" \? src : "";/.test(cfgSrc), "main migration keeps tagVisuals tokens strictly hash-prefixed");
+  assertTrue(/function normalizeTagVisualMapsV2\(cfg\) \{/.test(cfgSrc), "third stage normalizes tag visual maps on v2 paths");
+  assertTrue(/if \(userTagsIn\[rawToken\] === null\) continue;/.test(cfgSrc), "third stage keeps the null tombstone for user tags");
+  assertTrue(/writeCfgPath\(cfg, "visual\.tagBars", __priorityStripEngine\.normalizeStripConfig\(/.test(cfgSrc), "third stage normalizes Tag Bars through the shared strip engine");
+  assertTrue(/offPrefix: placement\.bulletInStrict === true/.test(orderSrc), "order serializer exports offPrefix behavior flag from pkm.placement");
   assertTrue(/offPrefix/.test(pkmRulesHelpersSrc), "shared rules helper parses and resolves offPrefix behavior");
   assertTrue(/offPrefix: false/.test(statusRuntimeCommonSrc), "status runtime common fallback includes offPrefix default OFF");
   assertTrue(/function resolveOffPrefixFlagsUnified\(/.test(pkmLineFinalizeUnifiedSrc), "line finalizer exports unified off-prefix resolver");
@@ -1274,7 +1281,7 @@ async function run() {
   assertTrue(/function normalizeRuntimeTagVisualRow\(/.test(visualsSrc), "main defines shared runtime tag visual row normalizer");
   assertTrue(/function scoreTagVisualRow\(/.test(visualsSrc), "main defines deterministic tag visual row scoring");
   assertTrue(/function pickStrongerTagVisualRow\(/.test(visualsSrc), "main defines deterministic tag visual row merge chooser");
-  assertFalse(/Object\.prototype\.hasOwnProperty\.call\(out, token\)\) continue;/.test(src), "main no longer uses first-win continue for token visual map merges");
+  assertFalse(/Object\.prototype\.hasOwnProperty\.call\(out, token\)\) continue;/.test(visualsSrc), "main no longer uses first-win continue for token visual map merges");
   assertTrue(/mode === "custom" \? "empty"/.test(visualsSrc) || /return String\(row && row\.customText \|\| ""\)\.trim\(\) \? "custom" : "empty"/.test(visualsSrc), "main maps custom mode with empty text to empty behavior");
   assertTrue(/function resolveTagVisualZone\(/.test(visualsSrc), "main defines zone resolver for left/right opacity");
   assertTrue(/class TagVisualTokenWidget extends cmView\.WidgetType/.test(decorSrc), "main defines unified tag visual widget for full and empty rendering");
@@ -1444,7 +1451,7 @@ async function run() {
   assertAnyMatch(tagwheelSrc, [/await callRuntimeApi\(app_, 'loadRulesRuntimeHelpers'\)/, /await runtimeApi\.loadRulesRuntimeHelpers\(\)/], "tagwheel preloads shared rules helpers");
   assertAnyMatch(tagwheelSrc, [/await callRuntimeApi\(app_, 'loadMacroShared'\)/, /await runtimeApi\.loadMacroShared\(\)/], "tagwheel preloads shared macro helpers");
   assertAnyMatch(tagwheelSrc, [/await callRuntimeApi\(app_, 'loadLinePipeline'\)/, /await runtimeApi\.loadLinePipeline\(\)/], "tagwheel preloads shared line pipeline");
-  assertFalse(/typeCheckboxByValue/.test(src), "main has no typeCheckboxByValue fallback reads");
+  assertFalse(/typeCheckboxByValue/.test(cfgSrc), "main has no typeCheckboxByValue fallback reads");
   assertFalse(/typeCheckboxByValue/.test(statusTagsSrc), "status_tags has no typeCheckboxByValue reads");
   assertFalse(/typeCheckboxByValue/.test(tagwheelSrc), "tagwheel runtime has no typeCheckboxByValue reads");
   assertFalse(/out\.pkm\.legacy\s*=/.test(configMigrationSrc), "config migration has no legacy mirror write");
@@ -1733,8 +1740,8 @@ async function run() {
    * только тем, что модуль снова может не доехать.
    */
   {
-    assertFalse(/DEFAULT_RULES_PATH:\s*"/.test(src), "в main.js нет второго объявления пути служебного файла");
-    assertFalse(/LEGACY_RULES_PATH:\s*"/.test(src), "в main.js нет второго объявления прежнего пути");
+    assertFalse(/DEFAULT_RULES_PATH:\s*"/.test(src + cfgSrc), "в main.js нет второго объявления пути служебного файла");
+    assertFalse(/LEGACY_RULES_PATH:\s*"/.test(src + cfgSrc), "в main.js нет второго объявления прежнего пути");
     const optionKeys = require(path.join(__dirname, "..", "..", "src", "core", "pkm_option_keys.js"));
     assertTrue(typeof optionKeys.DEFAULT_RULES_PATH === "string" && optionKeys.DEFAULT_RULES_PATH.length > 0,
       "положительный контроль: путь объявлен в модуле");

@@ -107,8 +107,7 @@ const mainPath = path.resolve(here, "..", "..", "main.js");
  * меняется, и проверка читает ровно тот код, который грузит Obsidian.
  */
 const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
-  + "  migrateConfig, normalizeConfigV1, normalizeConfigV2, buildOwnCommandList,\n"
-  + "  normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
+  + "  buildOwnCommandList,\n"
   + "};\n";
 
 /**
@@ -167,13 +166,18 @@ export function loadPluginInternals(): PluginInternals {
   } finally {
     loader._load = origLoad;
   }
-  if (!cached || typeof cached.migrateConfig !== "function") {
-    throw new Error("main.js internals not available: migrateConfig missing");
+  /* Хвост сработал: это имя объявлено в самом `main.js`. */
+  if (!cached || typeof (cached as Any).buildOwnCommandList !== "function") {
+    throw new Error("main.js internals not available: buildOwnCommandList missing");
   }
   /*
-   * Слой оформления редактора живёт в двух модулях с 2026-09-07 (кусок
-   * второй разбора A3). Проверки зовут его через тот же `internals`, но
-   * достаётся он `require`, а не дописанным к исходнику хвостом.
+   * Внутренности плагина живут в модулях с 2026-09-07 (куски второй и
+   * третий разбора A3): слой оформления редактора, порядок Fields и
+   * нормализация конфига. Проверки зовут их через тот же `internals`, но
+   * достаются они `require`, а не дописанным к исходнику хвостом.
+   *
+   * В хвосте остался один `buildOwnCommandList`: он объявлен в `main.js`
+   * и зовёт метод плагина, поэтому туда и не уехал.
    *
    * Почему это не подделка и не сокрытие: цепочку «`main.js` зовёт этот
    * модуль» держит не здесь, а `bundle_onload_tests.ts` — он берёт
@@ -183,6 +187,15 @@ export function loadPluginInternals(): PluginInternals {
   const requireCjs = Module.createRequire(mainPath);
   const visuals = requireCjs("./src/core/editor_visuals_config.js") as Any;
   const decorations = requireCjs("./src/ui/editor/decorations.js") as Any;
-  cached = { ...visuals, ...decorations, ...cached } as PluginInternals;
+  const order = requireCjs("./src/core/pkm_order_config.js") as Any;
+  const configNormalize = requireCjs("./src/core/config_normalize.js") as Any;
+  cached = {
+    ...visuals, ...decorations, ...order, ...configNormalize, ...cached,
+  } as PluginInternals;
+  /* И модули подмешались: `migrateConfig` живёт теперь в одном из них, и его
+     отсутствие означает, что переезд оборвал цепочку. */
+  if (typeof cached.migrateConfig !== "function") {
+    throw new Error("config normalize module not available: migrateConfig missing");
+  }
   return cached;
 }
