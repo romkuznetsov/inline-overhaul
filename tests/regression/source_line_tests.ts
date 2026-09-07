@@ -502,4 +502,84 @@ const I2N_WORDS = { noteName: { mode: "auto", delimiters: "[]", wordCount: 6 } }
   ok("четыре положения судьбы текста доезжают до движка");
 }
 
+/* ---- 7: строка, у которой уборка снесла левый сегмент ------------------- */
+
+/**
+ * Замечание заказчика по T4, 2026-09-07 вечер (дефект A39).
+ *
+ * Уборка Values снимает весь левый сегмент, и пустой слот схлопывается: на
+ * строке остаётся **один** Separator, и он второй. Дальше три шага разбирали
+ * строку заново — и читали её наоборот: текст как левый сегмент, правую часть
+ * как текст.
+ *
+ * Буквами такую строку не разобрать: `text :: right` и `left :: text`
+ * различаются только тем, какой Separator уцелел, а у заказчика оба `::`.
+ * Поэтому знание едет с ней от того, кто её схлопнул. Здесь закреплены обе
+ * стороны: и что `planSourceCleanup` про это говорит, и что разбор без этого
+ * знания читает ту же строку иначе.
+ */
+{
+  const cleaned = "\u002d ывыв ывы :: \u{1F4C5}2026-09-07 18:56";
+  const both = { separator1: "::", separator2: "::" };
+
+  const blind = transform.splitSourcePayload(cleaned, both);
+  assert.equal(blind.kind, "left-only",
+    "без знания о слотах разбор читает единственный Separator как первый");
+  assert.equal(blind.payload, "\u{1F4C5}2026-09-07 18:56",
+    "и тогда текстом строки оказывается дата — вот что заказчик и увидел");
+
+  const knowing = transform.splitSourcePayload(cleaned, both, { payloadFirst: true });
+  assert.equal(knowing.kind, "payload-right", "со знанием разбор другой");
+  assert.equal(knowing.prefix, "- ", "маркер списка остался префиксом, а не текстом");
+  assert.equal(knowing.payload, "ывыв ывы", "текст — это текст");
+  assert.equal(knowing.right, "\u{1F4C5}2026-09-07 18:56", "правая часть — правая часть");
+  ok("один Separator на строке — два устройства, и различает их только знание о слотах");
+}
+
+{
+  /*
+   * Само знание не выдумывается на месте: его отдаёт та же функция, что и
+   * схлопывает слот. Проверка спрашивает у неё, а не повторяет её правило
+   * (У-4).
+   */
+  const line = "- [ ] #/1 #todo || text || \u{1F4C5}2026-08-31";
+  const ctx = {
+    matches: [
+      { fieldId: "importance", span: { start: 6, end: 9 } },
+      { fieldId: "status", span: { start: 10, end: 15 } },
+    ],
+  } as Any;
+
+  const swept = transform.planSourceCleanup(line, ctx, [], SEP);
+  assert.equal(swept.line, "text || \u{1F4C5}2026-08-31",
+    "левый сегмент ушёл целиком, пустой слот схлопнулся");
+  assert.equal(swept.payloadFirst, true, "и функция говорит, что текст теперь до Separator");
+
+  const keptOne = transform.planSourceCleanup(line, ctx, ["importance"], SEP);
+  assert.equal(keptOne.payloadFirst, false,
+    "остался хоть один Value — слот на месте, и устройство строки прежнее");
+
+  const tailless = { matches: [{ fieldId: "status", span: { start: 6, end: 11 } }] } as Any;
+  const noRight = transform.planSourceCleanup("- [ ] #todo || text ||", tailless, [], SEP);
+  assert.equal(noRight.payloadFirst, false,
+    "правой части нет — Separator на строке не остаётся вовсе, и знание ни при чём");
+  ok("`planSourceCleanup` отдаёт устройство строки, а не только строку");
+}
+
+{
+  /* Метка `#processed` в правой панели: правая часть человека — не текст, и
+     второй Separator метке не нужен. */
+  const cleaned = "\u002d ывыв ывы :: \u{1F4C5}2026-09-07 18:56";
+  const both = { separator1: "::", separator2: "::" };
+  assert.equal(
+    transform.insertProcessedToken(cleaned, "#processed", "right", both, { payloadFirst: true }),
+    "\u002d ывыв ывы :: \u{1F4C5}2026-09-07 18:56 #processed",
+    "метка встала в конец правой части");
+  assert.equal(
+    transform.insertProcessedToken(cleaned, "#processed", "left", both, { payloadFirst: true }),
+    "\u002d #processed :: ывыв ывы :: \u{1F4C5}2026-09-07 18:56",
+    "в левой панели метка заводит слот заново: она и есть его содержимое");
+  ok("метка знает, где правая часть, и не заводит ей второй Separator");
+}
+
 console.log("\n" + passed + " проверок пройдено");

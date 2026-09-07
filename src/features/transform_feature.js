@@ -1697,8 +1697,17 @@ function deriveSourceWikilinkFromTargetPath(targetPath) {
  * той же строки разошёлся бы с первым на ближайшей правке. Поэтому разбор
  * один, а склейка обратно (`joinSourcePayload`) повторяет прежние ветки
  * дословно, включая то, что при пустом хвосте второй Separator не пишется.
+ *
+ * **Один Separator на строке — два разных устройства, и текстом они не
+ * различаются** (замечание заказчика по T4, 2026-09-07). `text :: right` и
+ * `left :: text` выглядят одинаково, а при равных Separator (`::` и `::` —
+ * умолчание) одинаковы буквально. Разбор по умолчанию читает такую строку как
+ * «левая часть и текст»; `shape.payloadFirst` говорит, что левый сегмент снят
+ * уборкой Fields, оставшийся Separator — второй, и текст стоит **до** него.
+ * Знание это не выводится из строки, а приходит от того, кто её схлопнул:
+ * `planSourceCleanup`.
  */
-function splitSourcePayload(line, separators) {
+function splitSourcePayload(line, separators, shape) {
   const src = String(line || "");
   const indent = String((src.match(/^[\t ]*/) || [""])[0] || "");
   const body = src.slice(indent.length);
@@ -1719,6 +1728,15 @@ function splitSourcePayload(line, separators) {
   if (s1 && body.includes(s1)) {
     const firstIdx = body.indexOf(s1);
     if (firstIdx >= 0) {
+      if (shape && shape.payloadFirst) {
+        const head = String(body.slice(0, firstIdx) || "");
+        const prefix = String((head.match(/^[-*+]\s+(?:\[.\]\s+)?/u) || [""])[0] || "");
+        return {
+          kind: "payload-right", src, indent, s1, s2, prefix,
+          payload: String(head.slice(prefix.length) || "").trim(),
+          right: String(body.slice(firstIdx + s1.length) || "").trim(),
+        };
+      }
       return {
         kind: "left-only", src, indent, s1, s2,
         left: String(body.slice(0, firstIdx) || "").trimEnd(),
@@ -1749,6 +1767,16 @@ function joinSourcePayload(parts, payload) {
     return `${parts.indent}${glue(parts.left, parts.s1, p)}`;
   }
   if (parts.kind === "left-only") return `${parts.indent}${glue(parts.left, parts.s1, p)}`;
+  /*
+   * Левого сегмента нет, и Separator на строке один — тот, что стоит между
+   * текстом и правой частью. Пустой текст слот за собой оставляет: без
+   * Separator правая часть слилась бы с прозой (У-74 про то же правило с
+   * другой стороны).
+   */
+  if (parts.kind === "payload-right") {
+    if (parts.right) return `${parts.indent}${parts.prefix}${glue(p, parts.s2, parts.right)}`;
+    return `${parts.indent}${parts.prefix}${p}`.trimEnd();
+  }
   if (parts.kind === "bullet") return `${parts.prefix}${p}`;
   if (parts.s1 && parts.s2) return `${parts.src} ${parts.s1} ${p}`;
   return `${parts.src} ${p}`;
@@ -1811,7 +1839,7 @@ function applySourceTextFate(line, noteTitle, separators, opts) {
   const link = !!(opts && opts.link);
   const title = String(noteTitle || "").trim();
   const linkText = link && title ? ("[[" + title + "]]") : "";
-  const parts = splitSourcePayload(line, separators);
+  const parts = splitSourcePayload(line, separators, opts && opts.shape);
   /*
    * Слова, ставшие названием, снимаются только там, где **на их место встаёт
    * ссылка**.
@@ -1852,7 +1880,7 @@ function applySourceTextFate(line, noteTitle, separators, opts) {
   return joinSourcePayload(parts, next);
 }
 
-function insertProcessedToken(line, token, panel, separators) {
+function insertProcessedToken(line, token, panel, separators, shape) {
   const src = String(line || "");
   const processed = String(token || "").trim();
   if (!processed) return src;
@@ -1863,6 +1891,23 @@ function insertProcessedToken(line, token, panel, separators) {
   const s1 = String(separators && separators.separator1 || "").trim();
   const s2 = String(separators && separators.separator2 || "").trim();
   if (!s1 || !s2) throw new Error("source processing separators are required");
+  /*
+   * Левый сегмент снят уборкой: единственный Separator строки — второй, и
+   * правая часть стоит **за** ним. Без этого знания метка приписывалась в
+   * конец строки через ещё один Separator, и правая часть человека оказывалась
+   * текстом (замечание заказчика по T4, 2026-09-07).
+   */
+  if (shape && shape.payloadFirst) {
+    const parts = splitSourcePayload(src, separators, shape);
+    if (parts.kind === "payload-right") {
+      if (String(panel || "right").trim().toLowerCase() === "left") {
+        const rest = [parts.payload, parts.s2, parts.right].filter((x) => String(x || "").length).join(" ");
+        return `${parts.indent}${parts.prefix}${processed} ${parts.s1} ${rest}`.trimEnd();
+      }
+      const tail = parts.right ? `${parts.right} ${processed}` : processed;
+      return `${parts.indent}${parts.prefix}${[parts.payload, parts.s2, tail].filter((x) => String(x || "").length).join(" ")}`;
+    }
+  }
   const first = body.indexOf(s1);
   const second = first >= 0 ? body.indexOf(s2, first + s1.length) : -1;
   if (String(panel || "right").trim().toLowerCase() === "left") {
@@ -1887,7 +1932,18 @@ function resolveSourceCleanupFieldIds(i2n, cfg) {
   return selected.filter((id) => known.has(id));
 }
 
-function applySourceCleanupByFieldIds(line, transformContext, cleanupFieldIds, separators) {
+/**
+ * Уборка Values со строки **и** то, каким стало её устройство.
+ *
+ * Схлопывание пустого слота знает, какой слот исчез, — и до 2026-09-07 это
+ * знание выбрасывалось вместе с возвратом одной строки. Дальше по ходу три
+ * шага разбирали строку заново, а разобрать её нельзя: `text :: right` и
+ * `left :: text` при одинаковых Separator — одна и та же строка (замечание
+ * заказчика по T4). Поэтому ход один, а `applySourceCleanupByFieldIds`
+ * остался тонкой обёрткой: второе такое же вычисление разошлось бы с этим на
+ * первой правке (У-32).
+ */
+function planSourceCleanup(line, transformContext, cleanupFieldIds, separators) {
   const src = String(line || "");
   const selected = new Set(Array.isArray(cleanupFieldIds) ? cleanupFieldIds : []);
   const rows = Array.isArray(transformContext && transformContext.matches) ? transformContext.matches : [];
@@ -1914,7 +1970,12 @@ function applySourceCleanupByFieldIds(line, transformContext, cleanupFieldIds, s
     .replace(new RegExp(`\\s+${escapeRegexLiteral(s1)}\\s+`, "g"), ` ${s1} `)
     .replace(/\s{2,}/g, " ")
     .replace(/\s+$/g, "");
-  return `${leadingIndent}${normalizeSourceLineAfterCleanup(out, separators)}`;
+  const plan = planSourceLineAfterCleanup(out, separators);
+  return { line: `${leadingIndent}${plan.line}`, payloadFirst: plan.payloadFirst };
+}
+
+function applySourceCleanupByFieldIds(line, transformContext, cleanupFieldIds, separators) {
+  return planSourceCleanup(line, transformContext, cleanupFieldIds, separators).line;
 }
 
 function applySourcePrefixResolution(line, originalLine, transformContext, preservedFieldIds, cfg, lineFinalize) {
@@ -2003,28 +2064,43 @@ function normalizePreviewSeparators(line, separators) {
   return [left, payload, right].filter(Boolean).join(" ").replace(/\s{2,}/g, " ").trim();
 }
 
-function normalizeSourceLineAfterCleanup(line, separators) {
+/**
+ * Строка после уборки — и ответ на «где теперь текст».
+ *
+ * `payloadFirst` ставится ровно в одной ветке: левый сегмент пуст, а текст и
+ * правая часть на месте. Тогда Separator на строке остаётся один, и он
+ * **второй**. Голый маркер списка (`- ` без чекбокса) прежним пустым слотом не
+ * считается и здесь: `dropPrefix` снимает только чекбокс, и строка вида
+ * `- :: text :: right` остаётся с двумя Separator — так её и ждёт заказчик
+ * (его пример к T4).
+ */
+function planSourceLineAfterCleanup(line, separators) {
   const src = String(line || "").trim();
-  if (!src) return src;
+  const plain = (value) => ({ line: value, payloadFirst: false });
+  if (!src) return plain(src);
   const s1 = String(separators && separators.separator1 || "").trim();
   const s2 = String(separators && separators.separator2 || "").trim();
-  if (!s1 || !s2) return src;
+  if (!s1 || !s2) return plain(src);
   const parts = src.split(s1).map((x) => String(x || "").trim());
-  if (parts.length < 3) return src.replace(/\s{2,}/g, " ").trim();
+  if (parts.length < 3) return plain(src.replace(/\s{2,}/g, " ").trim());
   const left = parts[0] || "";
   const payload = parts[1] || "";
   const right = parts.slice(2).join(` ${s2} `).trim();
 
-  const dropPrefix = (s) => String(s || "").replace(/^[-*]\s*\[[^\]]\]\s*/u, "").trim();
+  const dropPrefix = (s) => String(s || "").replace(/^[-*]\s*\[.\]\s*/u, "").trim();
   const leftNoPrefix = dropPrefix(left);
 
-  if (!leftNoPrefix && !right && payload) return `- ${payload}`.replace(/\s{2,}/g, " ").trim();
-  if (leftNoPrefix && payload && right) return `${left} ${s1} ${payload} ${s2} ${right}`;
-  if (leftNoPrefix && payload) return `${left} ${s1} ${payload}`;
-  if (payload && right) return `${payload} ${s2} ${right}`;
-  if (leftNoPrefix && right) return `${left} ${s2} ${right}`;
-  if (payload) return `- ${payload}`;
-  return [leftNoPrefix, right].filter(Boolean).join(" ").replace(/\s{2,}/g, " ").trim();
+  if (!leftNoPrefix && !right && payload) return plain(`- ${payload}`.replace(/\s{2,}/g, " ").trim());
+  if (leftNoPrefix && payload && right) return plain(`${left} ${s1} ${payload} ${s2} ${right}`);
+  if (leftNoPrefix && payload) return plain(`${left} ${s1} ${payload}`);
+  if (payload && right) return { line: `${payload} ${s2} ${right}`, payloadFirst: true };
+  if (leftNoPrefix && right) return plain(`${left} ${s2} ${right}`);
+  if (payload) return plain(`- ${payload}`);
+  return plain([leftNoPrefix, right].filter(Boolean).join(" ").replace(/\s{2,}/g, " ").trim());
+}
+
+function normalizeSourceLineAfterCleanup(line, separators) {
+  return planSourceLineAfterCleanup(line, separators).line;
 }
 
 function getActiveOrderedFieldIds(cfg) {
@@ -2207,7 +2283,9 @@ function buildSourcePreviewLine(i2n, cfg) {
   const parsed = parseInlineLine(before, cfg);
   const ctx = buildTransformContext(parsed, cfg);
   const ids = resolveSourceCleanupFieldIds(i2n, cfg);
-  const cleaned = applySourceCleanupByFieldIds(before, ctx, ids, separators);
+  const plan = planSourceCleanup(before, ctx, ids, separators);
+  const shape = { payloadFirst: plan.payloadFirst };
+  const cleaned = plan.line;
   /* Предпросмотр спрашивает про название **тем же** ходом, что и движок:
      иначе он показывал бы ссылку не там, где её поставит перенос (У-32). */
   const titled = resolveAutoTitleInfo(parsed, i2n);
@@ -2218,12 +2296,14 @@ function buildSourcePreviewLine(i2n, cfg) {
     explicitTitle: titled.origin === "explicit" ? titled.title : "",
     titleWords: titled.origin === "words" ? titled.title : "",
     i2n,
+    shape,
   });
   const processed = insertProcessedToken(
     linked,
     i2n && i2n.sourceProcessing && i2n.sourceProcessing.token,
     i2n && i2n.sourceProcessing && i2n.sourceProcessing.panel,
-    separators
+    separators,
+    shape
   );
   const after = normalizePreviewSeparators(normalizeSourceLineAfterCleanup(processed, separators), separators);
   return { before, after };
@@ -2236,7 +2316,9 @@ function buildExamplePreviewLine(i2n, cfg) {
   const parsed = parseInlineLine(sample, cfg);
   const ctx = buildTransformContext(parsed, cfg);
   const ids = resolveSourceCleanupFieldIds(i2n, cfg);
-  const cleaned = applySourceCleanupByFieldIds(sample, ctx, ids, separators);
+  const plan = planSourceCleanup(sample, ctx, ids, separators);
+  const shape = { payloadFirst: plan.payloadFirst };
+  const cleaned = plan.line;
   const titled = resolveAutoTitleInfo(parsed, i2n);
   const withLink = applySourceTextFate(cleaned, "Example", separators, {
     text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
@@ -2245,12 +2327,14 @@ function buildExamplePreviewLine(i2n, cfg) {
     explicitTitle: titled.origin === "explicit" ? titled.title : "",
     titleWords: titled.origin === "words" ? titled.title : "",
     i2n,
+    shape,
   });
   const replaced = insertProcessedToken(
     withLink,
     i2n && i2n.sourceProcessing && i2n.sourceProcessing.token,
     i2n && i2n.sourceProcessing && i2n.sourceProcessing.panel,
-    separators
+    separators,
+    shape
   );
   return {
     before: sample,
@@ -3249,7 +3333,11 @@ async function runInline2Note(plugin, runtimeOptions) {
   try {
     assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
     const cleanupFieldIds = resolveSourceCleanupFieldIds(i2n, cfg);
-    let nextRoot = applySourceCleanupByFieldIds(sourceLine, transformContext, cleanupFieldIds, separators);
+    /* Устройство строки после уборки решается один раз и едет с ней: заново
+       его не вывести (замечание заказчика по T4, 2026-09-07). */
+    const cleanupPlan = planSourceCleanup(sourceLine, transformContext, cleanupFieldIds, separators);
+    const shape = { payloadFirst: cleanupPlan.payloadFirst };
+    let nextRoot = cleanupPlan.line;
     nextRoot = applySourcePrefixResolution(nextRoot, sourceLine, transformContext, cleanupFieldIds, cfg, runtimeOptions && runtimeOptions.lineFinalize);
     /* Ссылка и судьба текста решаются вместе, одной записью строки. */
     nextRoot = applySourceTextFate(nextRoot, deriveSourceWikilinkFromTargetPath(actualTarget.path), separators, {
@@ -3259,8 +3347,9 @@ async function runInline2Note(plugin, runtimeOptions) {
       explicitTitle,
       titleWords,
       i2n,
+      shape,
     });
-    nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators);
+    nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators, shape);
     replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines);
   } catch (sourceError) {
     try {
@@ -3326,6 +3415,8 @@ module.exports = {
   splitSourcePayload,
   resolveSourceCleanupFieldIds,
   applySourceCleanupByFieldIds,
+  planSourceCleanup,
+  planSourceLineAfterCleanup,
   applySourcePrefixResolution,
   insertProcessedToken,
   buildPreviewBaseLine,

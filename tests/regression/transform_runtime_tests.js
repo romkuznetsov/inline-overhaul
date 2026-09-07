@@ -12,7 +12,7 @@ function assertTrue(value, name) {
   if (!value) throw new Error(`${name}: expected truthy`);
 }
 
-function makeConfig(overrides) {
+function makeConfig(overrides, pkmExtra) {
   const i2n = {
     enabled: true,
     outputFolder: "Notes",
@@ -28,7 +28,43 @@ function makeConfig(overrides) {
   return {
     features: { transform: { enabled: true } },
     transform: { inline2note: i2n },
-    pkm: { lineFormat: { separator1: "::", separator2: "::" }, fields: { order: { left: [], right: [], active: {}, enabled: {}, types: {}, propertiesByField: {} }, tags: { fields: [] }, links: { fields: [] } } },
+    pkm: {
+      lineFormat: { separator1: "::", separator2: "::" },
+      ...(pkmExtra || {}),
+      fields: (pkmExtra && pkmExtra.fields) || { order: { left: [], right: [], active: {}, enabled: {}, types: {}, propertiesByField: {} }, tags: { fields: [] }, links: { fields: [] } },
+    },
+  };
+}
+
+/**
+ * Конфиг с настоящими Fields: без них уборка Values не находит ни одного
+ * совпадения и левый сегмент со строки не уходит — то есть предмет проверки не
+ * возникает вовсе, а проверка при этом зелёная (У-88).
+ */
+function makeFieldsConfig() {
+  return {
+    /* Правила префикса — как у заказчика: без них общий сборщик префикса не
+       зовётся вовсе, и маркер списка на схлопнутой строке не возвращается. */
+    prefixRules: {
+      checkboxByFieldValue: { type: { "#todo": "[ ]" } },
+      resolver: "priority-first",
+      priorityTargets: ["type"],
+      priorityMode: "by-section",
+    },
+    fields: {
+      order: {
+        left: ["type", "Category", "Project"], right: [], active: {}, enabled: {},
+        types: { type: "tag", Category: "tag", Project: "wikilink" },
+        propertiesByField: {},
+      },
+      tags: {
+        fields: [
+          { id: "type", prefix: "#", values: [{ token: "#todo" }] },
+          { id: "Category", prefix: "#", values: [{ token: "#work" }, { token: "#new" }] },
+        ],
+      },
+      links: { fields: [{ id: "Project", type: "wikilink", values: [{ token: "test1" }] }] },
+    },
   };
 }
 
@@ -238,6 +274,63 @@ async function testLeaveNamedKeepsRestAndSwapsName() {
     "ссылка встала на место названия, остаток текста цел и не обрезан");
 }
 
+/**
+ * Строка заказчика к T4, 2026-09-07 вечер (дефект A39).
+ *
+ *   было    `- [ ] #todo #work #new [[test1]] :: ывыв ывы :: 📅2026-09-07 18:56`
+ *   стало   `- ывыв ывы :: 📅2026-09-07 18:56 [[333/ывыв ывы]] :: #processed`
+ *
+ * Уборка снимает **весь** левый сегмент, пустой слот схлопывается — и
+ * Separator у строки остаётся один, тот, что стоит между текстом и правой
+ * частью. Три шага ниже разбирали строку заново и читали её наоборот: текст
+ * как левый сегмент, правую часть как текст. Ссылка вставала за дату, а метка
+ * дописывалась через ещё один Separator.
+ *
+ * Проверка **сквозная**: знание о слотах живёт не в функции, а в том, кто её
+ * зовёт, — единичная проверка `applySourceTextFate` зелена и тогда, когда
+ * знание забыли передать (У-56). Разделители здесь одинаковые (`::` и `::`,
+ * умолчание и выбор заказчика): при разных строку ещё можно разобрать буквами,
+ * при одинаковых — нельзя ничем, кроме этого знания.
+ */
+async function testCleanedLeftSegmentKeepsTextAndTailApart() {
+  const line = "- [ ] #todo #work #new [[test1]] :: ывыв ывы :: \u{1F4C5}2026-09-07 18:56";
+  const runWith = async (text) => {
+    const editor = makeEditor(line);
+    const plugin = makePlugin(makeConfig({
+      outputFolder: "333",
+      noteName: { mode: "auto", delimiters: "[]", wordCount: 4, preferHeaderTitle: true },
+      sourceProcessing: { cleanupFieldIds: [], token: "#processed", panel: "right", replaceWithLink: true, text, keepWords: 2 },
+    }, makeFieldsConfig()), editor);
+    await transform.runInline2Note(plugin, { lineFinalize });
+    return editor.text();
+  };
+
+  assertEq(await runWith("words"),
+    "- [[333/ывыв ывы]] :: \u{1F4C5}2026-09-07 18:56 #processed",
+    "дата осталась правой частью, ссылка встала на место текста, метка не завела второй Separator");
+
+  /*
+   * То же положение с другой стороны: при `leave` текст остаётся, и ссылка
+   * обязана встать **за ним**, а не за датой. Одной строки мало — обе ветки
+   * склейки читают один и тот же разбор, и ошибка в нём видна только там, где
+   * текст не пуст.
+   */
+  assertEq(await runWith("leave"),
+    "- ывыв ывы [[333/ывыв ывы]] :: \u{1F4C5}2026-09-07 18:56 #processed",
+    "текст остался на своём слоте, дата — на своём");
+}
+
+/** Метка `#processed` в левой панели: слота больше нет, и она заводит его заново. */
+async function testProcessedTokenLeftPanelAfterCleanedLeftSegment() {
+  const editor = makeEditor("- [ ] #todo :: text words :: tail");
+  const plugin = makePlugin(makeConfig({
+    sourceProcessing: { cleanupFieldIds: [], token: "#processed", panel: "left", replaceWithLink: false, text: "leave" },
+  }, makeFieldsConfig()), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertEq(editor.text(), "- #processed :: text words :: tail",
+    "метка встала в левый слот, а не в текст");
+}
+
 async function run() {
   await testNewNoteRaceUsesActualPathLink();
   await testReplacePayloadFalse();
@@ -250,6 +343,8 @@ async function run() {
   await testTitleWordsReplacedByLink();
   await testTitleWordsSurviveLeave();
   await testLeaveNamedKeepsRestAndSwapsName();
+  await testCleanedLeftSegmentKeepsTextAndTailApart();
+  await testProcessedTokenLeftPanelAfterCleanedLeftSegment();
   console.log("Transform runtime regression tests: OK");
 }
 
