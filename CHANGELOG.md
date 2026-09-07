@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+Not published yet: `0.1.0-beta.4` is the newest release and it is broken — the
+plugin loads without its commands. Everything below is fixed in the working
+copy and waiting for a release.
+
+- **The commands are back, and so are five engines.** In the released build the
+  only working path to the plugin's own modules used a variable, and the bundler
+  substitutes a module only for a literal path. Navigation, Tags & PKM, `Ctrl+A`
+  by your own rules, Smart Delete and the priority strip were all dead in that
+  build, and the plugin looked switched on and did nothing.
+- **A checkbox is one character.** Brackets with a longer body are your text and
+  stay on the line: `- [test-transform] test1 test2` no longer loses the words
+  in brackets, and `Transform` no longer eats an explicit note name.
+- **`Transform` takes the whole value of an emoji Field.** A Field written as
+  `YYYY-MM-DD hh:mm` has a space inside its value; the time used to stay behind
+  on the line and the note property arrived without it.
+- **TagWheel keeps the right-hand side of your line.** A value that cannot be
+  expressed as an offset from today — a time already in the past, say — is kept
+  as it is instead of vanishing.
+- **One `Ctrl+Z` brings the line back, not the panel.** While the panel is open
+  the line is rewritten on every keystroke, and each rewrite used to be its own
+  undo step. Only the result goes into the history now.
+- **The link to a new note stands where its name came from.** Under
+  `Keep the first words`, the words that became the note name are replaced by
+  the link rather than left in front of it; `Words to keep` counts what is left.
+  `Leave it` is unchanged and keeps every word.
+- Faster and smaller in places: a dead 2284-line editor left over from an old
+  panel is gone, and so is the module bridge that read the vault at runtime.
+
 ## 0.1.0-beta.4
 
 - **The settings panel can speak another language.** `General → Language` picks it, and the words behind every visible line live in a plain text file inside the plugin folder. Switching takes effect at once, and a line with no translation keeps its English wording rather than showing a blank.
