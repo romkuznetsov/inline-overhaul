@@ -1,5 +1,12 @@
 "use strict";
 
+/*
+ * Модуль дат приезжает литеральным `require` (У-89). Раньше он приходил
+ * через мост модулей по пути внутри vault, и путь этот вместе с самой
+ * зависимостью `loadVaultModule` передавал сюда каждый движок.
+ */
+const dateRuntimeShared = require("./date_runtime_shared.js");
+
 function createStatusRuntimeCommon(deps) {
   const d = deps && typeof deps === "object" ? deps : {};
   const isObj = typeof d.isObj === "function"
@@ -10,7 +17,6 @@ function createStatusRuntimeCommon(deps) {
     : ((k) => String(k || "").trim());
   const orderConfigKey = String(d.orderConfigKey || "Order config");
   const dateRuntimeConfigKey = String(d.dateRuntimeConfigKey || "Date runtime config");
-  const dateRuntimeSharedPath = String(d.dateRuntimeSharedPath || ".obsidian/plugins/inline-overhaul/src/core/date_runtime_shared.js");
   const defaultPanel = String(d.defaultPanel || "left");
 
   const need = (name, fn) => {
@@ -20,7 +26,6 @@ function createStatusRuntimeCommon(deps) {
 
   const loadOrderKeyNormalizer = need("loadOrderKeyNormalizer", d.loadOrderKeyNormalizer);
   const loadRuntimePreloadFacade = need("loadRuntimePreloadFacade", d.loadRuntimePreloadFacade);
-  const loadVaultModule = need("loadVaultModule", d.loadVaultModule);
 
   function remapCursorByLineDiff(oldLine, newLine, oldCh) {
     const shared = globalThis.__inlinePkmMacroShared;
@@ -71,18 +76,14 @@ function createStatusRuntimeCommon(deps) {
         parseOrderConfig,
         normalizeKey: normalize,
         isObj,
-      }, loadVaultModule);
+      });
     }
     throw new Error("pkm_runtime_bootstrap unavailable: resolveOrderConfig");
   }
 
   async function resolveDateRuntimeConfig(app_, settings) {
-    const mod = await loadVaultModule(app_, dateRuntimeSharedPath, false);
-    if (!mod || typeof mod.parseDateRuntimeConfigJson !== "function") {
-      throw new Error("date_runtime_shared unavailable: parseDateRuntimeConfigJson");
-    }
     const raw = String(settings && settings[dateRuntimeConfigKey] || "").trim();
-    return mod.parseDateRuntimeConfigJson(raw);
+    return dateRuntimeShared.parseDateRuntimeConfigJson(raw);
   }
 
   function applyDateRuntimeConfigToRules(rules, dateRuntimeCfg) {

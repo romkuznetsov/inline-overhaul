@@ -786,7 +786,7 @@ async function run() {
   assertTrue(/date_runtime_shared\.js/.test(statusDateSrc), "status_date references shared date runtime module");
   assertTrue(/date_runtime_shared\.js/.test(tagwheelSrc), "tagwheel references shared date runtime module");
   assertTrue(/tagwheel_rules_normalizer\.js/.test(tagwheelCoreSrc), "tagwheel_core references shared rules normalizer module");
-  assertTrue(/LINE_FINALIZE_UNIFIED_PATH/.test(statusDateSrc), "status_date references unified line finalizer module path");
+  assertTrue(/require\("\.\.\/src\/core\/pkm_line_finalize_unified\.js"\)/.test(statusDateSrc), "status_date requires the unified line finalizer literally (У-89)");
   assertTrue(/function createStatusRuntimeCommon\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared status runtime factory");
   assertTrue(/function resolvePanelKeyForField\(/.test(tagwheelSrc), "tagwheel defines panel-key resolver for field placement");
   assertTrue(/field\.dependsOn/.test(tagwheelSrc), "tagwheel panel-key resolver handles dependsOn inheritance for child fields");
@@ -813,8 +813,16 @@ async function run() {
   assertFalse(/async function loadMacroRuntimeShared\(/.test(statusTagsSrc), "status_tags no longer defines local loadMacroRuntimeShared pair function");
   assertFalse(/async function loadMacroRuntimeShared\(/.test(statusDateSrc), "status_date no longer defines local loadMacroRuntimeShared pair function");
   assertFalse(/async function loadMacroRuntimeShared\(/.test(tagwheelSrc), "tagwheel no longer defines local loadMacroRuntimeShared pair function");
-  assertTrue(/loadPkmOptionKeys\(\)|"loadPkmOptionKeys"/.test(statusTagsSrc), "status_tags loads centralized pkm option keys via shared runtime helper");
-  assertTrue(/loadPkmOptionKeys\(\)|"loadPkmOptionKeys"/.test(statusDateSrc), "status_date loads centralized pkm option keys via shared runtime helper");
+  /*
+   * Ключи настроек — один модуль на весь плагин (У-32). Пин раньше искал
+   * вызов загрузчика; загрузки больше нет, модуль приезжает `require` при
+   * загрузке файла и подставляется тут же. Утверждение то же — ключи
+   * берутся из общего модуля, а не объявлены рядом, — предмет другой.
+   */
+  assertTrue(/require\("\.\.\/src\/core\/pkm_option_keys\.js"\)/.test(statusTagsSrc), "status_tags requires the shared pkm option keys literally");
+  assertTrue(/applyPkmOptionKeys\(__pkmOptionKeys\);/.test(statusTagsSrc), "and applies them at load time, not per call");
+  assertTrue(/require\("\.\.\/src\/core\/pkm_option_keys\.js"\)/.test(statusDateSrc), "status_date requires the shared pkm option keys literally");
+  assertTrue(/applyPkmOptionKeys\(__pkmOptionKeys\);/.test(statusDateSrc), "and applies them at load time, not per call");
   assertAnyMatch(tagwheelSrc, [/loadPkmOptionKeys\(\)/, /callRuntimeApi\(app_, 'loadPkmOptionKeys'\)/], "tagwheel loads centralized pkm option keys via shared runtime helper");
   assertTrue(/pkm_macro_runtime_shared\.js/.test(pkmMacroRuntimeEntrySrc), "macro runtime entry resolves shared runtime module path");
   assertTrue(/async function bootstrapMacroRuntime\(/.test(pkmMacroRuntimeEntrySrc), "macro runtime entry exports reusable bootstrap function");
@@ -924,7 +932,7 @@ async function run() {
   assertTrue(/facade\.resolveOrderConfig/.test(tagwheelSrc), "tagwheel order-config resolver is preload-facade backed");
   assertAnyMatch(statusTagsSrc, [/callRuntimeApi\(app_, "loadMacroShared"\)/, /await loadMacroShared\(app_\);/], "status_tags preloads shared macro helpers");
   assertAnyMatch(statusDateSrc, [/callRuntimeApi\(app_, "loadMacroShared"\)/, /await loadMacroShared\(app_\);/], "status_date preloads shared macro helpers");
-  assertTrue(/ensureLineFinalizeUnifiedLoaded\(app_\)/.test(statusDateSrc), "status_date loads unified line finalizer module");
+  assertTrue(/const __lineFinalizeUnified = require\(/.test(statusDateSrc), "status_date gets the unified line finalizer by a literal require (У-89)");
   assertTrue(/lineFinalize\.applyUnifiedPostFinalize\(\{/.test(statusDateSrc) || /lineFinalize\.applyMixedPostPolicies\(rawLine, finalLine, rules, \{/.test(statusDateSrc), "status_date applies shared mixed post-policy through unified finalizer helper");
   assertTrue(/lineFinalize\.applyTrailingSeparatorPolicy\(\{/.test(statusDateSrc), "status_date applies shared trailing-separator policy helper");
   assertTrue(/lineFinalize\.applyUnifiedPostFinalize\(\{/.test(statusDateSrc) || /lineFinalize\.applyFinalLineInvariants\(\{/.test(statusDateSrc), "status_date applies shared final-line invariants through unified finalizer path");
@@ -945,8 +953,8 @@ async function run() {
   assertFalse(/function reapplyOriginalPrefix\(rawLine, nextLine\)/.test(statusTagsSrc), "status_tags has no local prefix-reapply wrapper");
   assertTrue(/function reapplyOriginalPrefix\(rawLine, nextLine\)/.test(pkmMacroSharedSrc), "pkm_macro_shared exposes shared prefix reapply helper");
   assertTrue(/function preserveOriginalPrefixShape\(rawLine, nextLine\)/.test(pkmMacroSharedSrc), "pkm_macro_shared exposes shared prefix shape helper");
-  assertTrue(/LINE_FINALIZE_UNIFIED_PATH/.test(statusTagsSrc), "status_tags defines unified line finalizer module path");
-  assertTrue(/ensureLineFinalizeUnifiedLoaded\(app_\)/.test(statusTagsSrc), "status_tags loads unified line finalizer module");
+  assertTrue(/require\("\.\.\/src\/core\/pkm_line_finalize_unified\.js"\)/.test(statusTagsSrc), "status_tags requires the unified line finalizer literally (У-89)");
+  assertTrue(/const __lineFinalizeUnified = require\(/.test(statusTagsSrc), "status_tags gets the unified line finalizer by a literal require (У-89)");
   assertTrue(/lineFinalize\.applyUnifiedPostFinalize\(\{/.test(statusTagsSrc) || /lineFinalize\.applyMixedPostPolicies\(rawLine, finalLine, rules, \{/.test(statusTagsSrc), "status_tags applies shared mixed post-policy through unified finalizer path");
   assertTrue(/lineFinalize\.applyTrailingSeparatorPolicy\(\{/.test(statusTagsSrc), "status_tags applies shared trailing-separator policy helper from unified finalizer");
   assertTrue(/lineFinalize\.applyUnifiedPostFinalize\(\{/.test(statusTagsSrc) || /lineFinalize\.applyFinalLineInvariants\(\{/.test(statusTagsSrc), "status_tags applies shared final-line invariants through unified finalizer path");
@@ -979,12 +987,19 @@ async function run() {
   assertTrue(/selectedTokenFromState\(customRelocation\.field, state, rules\)/.test(statusTagsSrc), "status_tags applies relocated custom field token from state");
   assertTrue(/selectedTokenFromState\(customParentRelocation\.field, state, rules\)/.test(statusTagsSrc), "status_tags applies relocated custom parent token for sub-actions");
   assertTrue(/function enforceDependentAdjacencyForStatusLine\(/.test(statusTagsSrc), "status_tags has dedicated dependent-adjacency stabilization for cycle runtime");
-  assertTrue(/STATUS_LINE_RUNTIME_UNIFIED_PATH/.test(statusTagsSrc), "status_tags defines shared status-line runtime module path");
-  assertTrue(/ensureStatusLineRuntimeUnifiedLoaded\(app_\)/.test(statusTagsSrc), "status_tags preloads shared status-line runtime module");
+  assertTrue(/const __statusLineRuntimeUnified = require\(/.test(statusTagsSrc), "status_tags gets the shared status-line runtime by a literal require");
   assertTrue(/runtime\.relocateCoreTagsByOrder\(\{/.test(statusTagsSrc), "status_tags core tag relocation delegates to shared status-line runtime module");
   assertTrue(/runtime\.enforceDependentAdjacencyForStatusLine\(\{/.test(statusTagsSrc), "status_tags dependent adjacency delegates to shared status-line runtime module");
-  assertTrue(/typeof mod\.stripFieldTokenSetFromLine !== "function"/.test(statusTagsSrc), "status_tags shared status-line runtime loader requires field-token stripping helper");
-  assertTrue(/typeof mod\.clearDependentSelections !== "function"/.test(statusTagsSrc), "status_tags shared status-line runtime loader requires dependent-selection clear helper");
+  /*
+   * Здесь стояли четырнадцать пинов вида «загрузчик требует помощника X».
+   * Загрузки больше нет: модуль приезжает литеральным `require` (У-89), и
+   * спрашивать у графа сборки, тот ли модуль приехал, нечем и незачем.
+   *
+   * Гарантию они не унесли с собой — она была объявлена дважды. У каждого
+   * помощника рядом стоит второй пин, и он сильнее: не «загрузчик назвал X»,
+   * а «движок ЗОВЁТ X у общего модуля». Эти вторые пины на месте, все до
+   * одного, и именно они держат «своей копии помощника в движке нет» (У-32).
+   */
   assertTrue(/runtime\.stripFieldTokenSetFromLine\(\{/.test(statusTagsSrc) || /getStatusLineRuntimeUnified\(\)\.stripFieldTokenSetFromLine\(\{/.test(statusTagsSrc), "status_tags field-token stripping delegates to shared status-line runtime module");
   assertTrue(/runtime\.clearDependentSelections\(\{ rules, state, parentFieldId \}\)/.test(statusTagsSrc) || /getStatusLineRuntimeUnified\(\)\.clearDependentSelections\(\{[\s\S]*rules,[\s\S]*state,[\s\S]*parentFieldId: targetField\.id/.test(statusTagsSrc), "status_tags dependent-selection clear delegates to shared status-line runtime module");
   assertTrue(/function relocateCoreTagsByOrder\(/.test(statusLineRuntimeUnifiedSrc), "shared status-line runtime exports relocation algorithm");
@@ -1063,16 +1078,8 @@ async function run() {
   assertTrue(/throw new Error\("line_pipeline unavailable: removeTokensAcrossSegments"\);/.test(statusTagsSrc), "status_tags field-token stripping requires shared line-pipeline helper");
   assertTrue(/shared\.removeTokensAcrossSegments\(\{/.test(statusTagsSrc), "status_tags field-token stripping delegates to shared line-pipeline helper");
   assertTrue(/const hasAnySeparatorFn = lineFinalize\.hasAnySeparator;/.test(statusTagsSrc), "status_tags separator-presence checks strictly use shared finalizer helper");
-  assertTrue(/typeof mod\.resolveEffectiveSelectionPolicy !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared effective-policy helper");
-  assertTrue(/typeof mod\.hasAnySeparator !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared separator-presence helper");
-  assertTrue(/typeof mod\.hasCheckboxListPrefix !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared checkbox-list prefix helper");
-  assertTrue(/typeof mod\.hasListPrefix !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared list-prefix helper");
-  assertTrue(/typeof mod\.hasStandaloneCheckboxPrefix !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared standalone-checkbox helper");
-  assertTrue(/typeof mod\.applyResolvedPrefixToLine !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared resolved-prefix helper");
   assertTrue(/lineFinalize\.resolveEffectiveSelectionPolicy\(\{/.test(statusTagsSrc), "status_tags resolves mixed policy via shared finalizer effective-policy helper");
   assertTrue(/lineFinalize\.applyResolvedPrefixToLine\(\{/.test(statusTagsSrc), "status_tags prefix rewrite delegates to shared resolved-prefix helper");
-  assertTrue(/typeof mod\.applyUnifiedPostFinalize !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared unified post-finalize helper");
-  assertTrue(/typeof mod\.applyCycleEndAndInvariants !== "function"/.test(statusTagsSrc), "status_tags line-finalizer loader requires shared cycle-end/invariants helper");
   assertFalse(/function resolveOffPrefixFlags\(/.test(statusTagsSrc), "status_tags has no local off-prefix resolver implementation");
   assertTrue(/typeof mod\.relocateOffEntriesToRightPanel !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared off-right relocation helper");
   assertTrue(/typeof mod\.applyFullNoSourceNormalization !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared full-no-source normalization helper");
@@ -1084,15 +1091,10 @@ async function run() {
   assertTrue(/finalize\.applyOffSelectionPostPolicies\(\{/.test(tagwheelSrc), "tagwheel off-selection post-policy delegates to shared finalizer helper");
   assertTrue(/finalize\.applyFullNoSourceNormalization\(\{/.test(tagwheelSrc), "tagwheel full-mode no-source normalization delegates to shared finalizer helper");
   assertTrue(/finalize\.applyCycleEndAndInvariants\(\{/.test(tagwheelSrc), "tagwheel cycle-end plus final-invariants flow delegates to shared finalizer helper");
-  assertTrue(/typeof mod\.applyUnifiedPostFinalize !== "function"/.test(statusDateSrc), "status_date line-finalizer loader requires shared unified post-finalize helper");
-  assertTrue(/typeof mod\.applyCycleEndAndInvariants !== "function"/.test(statusDateSrc), "status_date line-finalizer loader requires shared cycle-end/invariants helper");
   assertTrue(/lineFinalize\.applyUnifiedPostFinalize\(\{/.test(statusDateSrc), "status_date post-finalize chain delegates to shared unified helper");
-  assertTrue(/typeof mod\.resolveEffectiveSelectionPolicy !== "function"/.test(statusDateSrc), "status_date line-finalizer loader requires shared effective-policy helper");
-  assertTrue(/typeof mod\.hasAnySeparator !== "function"/.test(statusDateSrc), "status_date line-finalizer loader requires shared separator-presence helper");
   assertTrue(/lineFinalize\.resolveEffectiveSelectionPolicy\(\{/.test(statusDateSrc), "status_date mixed policy uses shared effective-policy helper");
   assertTrue(/throw new Error\("line_pipeline unavailable: resolvePanelByMarkerPresence"\);/.test(statusDateSrc), "status_date marker-panel resolve requires shared line-pipeline helper");
   assertTrue(/linePipeline\.resolvePanelByMarkerPresence\(\{[\s\S]*line: rawLine,[\s\S]*rules,[\s\S]*marker: actionMarker,[\s\S]*panelByOrder/.test(statusDateSrc), "status_date marker-panel resolve delegates to shared line-pipeline helper");
-  assertTrue(/throw new Error\("status_line_runtime_unified unavailable: required deterministic selection api"\);/.test(statusDateSrc), "status_date date-offset hydration requires shared deterministic marker-selector helper");
   assertTrue(/runtime\.selectMarkerValueByPanelOrder\(\{[\s\S]*line: rawLine,[\s\S]*rules,[\s\S]*panel: targetPanel,[\s\S]*marker: markerSafe/.test(statusDateSrc), "status_date date-offset hydration delegates panel-aware marker selection to shared runtime helper");
   assertTrue(/throw new Error\("line_pipeline unavailable: cleanOriginalTextForLeftDate"\);/.test(statusDateSrc), "status_date left-date text cleanup requires shared line-pipeline cleaner helper");
   assertTrue(/linePipeline\.cleanOriginalTextForLeftDate\(\{/.test(statusDateSrc), "status_date left-date text cleanup delegates to shared line-pipeline cleaner helper");

@@ -5,27 +5,26 @@ let CURSOR_POLICY = "Cursor policy";
 let ORDER_CONFIG = "Order config";
 let DATE_RUNTIME_CONFIG = "Date runtime config";
 let DEFAULT_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
-const DOMAIN_REGISTRY_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_domain_registry.js";
-const STATUS_RUNTIME_COMMON_PATH = ".obsidian/plugins/inline-overhaul/src/core/status_runtime_common.js";
-const LINE_FINALIZE_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_line_finalize_unified.js";
-const STATUS_LINE_RUNTIME_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/status_line_runtime_unified.js";
-const DATE_RUNTIME_SHARED_PATH = ".obsidian/plugins/inline-overhaul/src/core/date_runtime_shared.js";
-const TOKEN_GRAPH_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/token_graph_unified.js";
-let __pkmDomainRegistry = null;
+/*
+ * Модули приезжают литеральным `require` — по одному на модуль (У-89).
+ *
+ * Было: шесть путей внутри vault и шесть асинхронных `ensure*Loaded` со
+ * своими проверками годности; путь шёл через макро-рантайм в мост модулей,
+ * а мост искал его в реестре забандленных. У реестра домена рядом лежала
+ * запаска литеральным `require` — и в сборке работала именно она.
+ *
+ * Проверки годности сняты вместе с загрузкой: они отвечали на «приехал не
+ * тот модуль», а из графа сборки приехать не тот не может.
+ */
+const __pkmDomainRegistry = require("../src/core/pkm_domain_registry.js");
+const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js");
+const __statusLineRuntimeUnified = require("../src/core/status_line_runtime_unified.js");
+const __dateRuntimeShared = require("../src/core/date_runtime_shared.js");
+const __tokenGraphUnified = require("../src/core/token_graph_unified.js");
+const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
+const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
+const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
 let __statusRuntimeCommonFns = null;
-let __lineFinalizeUnified = null;
-let __statusLineRuntimeUnified = null;
-let __dateRuntimeShared = null;
-let __tokenGraphUnified = null;
-const __pkmDomainRegistryFallback = (() => {
-  try {
-    if (typeof require === "function") {
-      const mod = require("../src/core/pkm_domain_registry.js");
-      if (mod && typeof mod === "object") return mod;
-    }
-  } catch (_) {}
-  return null;
-})();
 
 const DATE_ACTION_OPTIONS = [];
 
@@ -82,10 +81,6 @@ async function loadMacroRuntime(app_) {
   throw new Error("pkm_macro_runtime_entry unavailable: bootstrapMacroRuntime");
 }
 
-async function loadVaultModule(app_, vaultPath, forceReload) {
-  return callRuntimeApi(app_, "loadVaultModule", vaultPath, forceReload);
-}
-
 async function callRuntimeApi(app_, method, ...args) {
   const rt = await loadMacroRuntime(app_);
   const fn = rt && rt[method];
@@ -95,27 +90,10 @@ async function callRuntimeApi(app_, method, ...args) {
   return fn.apply(rt, args);
 }
 
-async function ensureOptionKeysLoaded(app_) {
-  const mod = await callRuntimeApi(app_, "loadPkmOptionKeys");
-  applyPkmOptionKeys(mod);
-}
+applyPkmOptionKeys(__pkmOptionKeys);
 
 function getDomainRegistry() {
-  if (__pkmDomainRegistry && typeof __pkmDomainRegistry === "object") return __pkmDomainRegistry;
-  if (__pkmDomainRegistryFallback && typeof __pkmDomainRegistryFallback === "object") return __pkmDomainRegistryFallback;
-  return null;
-}
-
-async function ensureDomainRegistryLoaded(app_) {
-  if (__pkmDomainRegistry && typeof __pkmDomainRegistry === "object") return;
-  try {
-    __pkmDomainRegistry = await loadVaultModule(app_, DOMAIN_REGISTRY_PATH, false);
-  } catch (e) {
-    __pkmDomainRegistry = null;
-    if (!(__pkmDomainRegistryFallback && typeof __pkmDomainRegistryFallback === "object")) {
-      throw e;
-    }
-  }
+  return __pkmDomainRegistry;
 }
 
 function resolveOrderKeyFromFieldId(fieldId) {
@@ -147,13 +125,9 @@ function getSharedUtils() {
   }
 }
 
-async function ensureStatusRuntimeCommonLoaded(app_) {
-  if (__statusRuntimeCommonFns && typeof __statusRuntimeCommonFns === "object") return;
-  const mod = await loadVaultModule(app_, STATUS_RUNTIME_COMMON_PATH, false);
-  if (!mod || typeof mod.createStatusRuntimeCommon !== "function") {
-    throw new Error("status_runtime_common unavailable: createStatusRuntimeCommon");
-  }
-  __statusRuntimeCommonFns = mod.createStatusRuntimeCommon({
+function ensureStatusRuntimeCommonLoaded() {
+  if (__statusRuntimeCommonFns) return;
+  __statusRuntimeCommonFns = __statusRuntimeCommonMod.createStatusRuntimeCommon({
     isObj,
     normalizeOrderKey: normalizeOrderKeyLocal,
     orderConfigKey: ORDER_CONFIG,
@@ -161,97 +135,32 @@ async function ensureStatusRuntimeCommonLoaded(app_) {
     defaultPanel: "right",
     loadOrderKeyNormalizer: async (ctxApp) => callRuntimeApi(ctxApp, "loadOrderKeyNormalizer"),
     loadRuntimePreloadFacade: async (ctxApp) => callRuntimeApi(ctxApp, "loadRuntimePreloadFacade"),
-    loadVaultModule,
   });
 }
 
-async function ensureLineFinalizeUnifiedLoaded(app_) {
-  if (__lineFinalizeUnified && typeof __lineFinalizeUnified === "object") return;
-  const mod = await loadVaultModule(app_, LINE_FINALIZE_UNIFIED_PATH, false);
-  if (
-    !mod
-    || typeof mod.applyUnifiedPostFinalize !== "function"
-    || typeof mod.resolveEffectiveSelectionPolicy !== "function"
-    || typeof mod.getPrefixRulesUnified !== "function"
-    || typeof mod.resolvePrefixCheckboxUnified !== "function"
-    || typeof mod.buildPrefixUnified !== "function"
-    || typeof mod.normalizeCheckboxToken !== "function"
-    || typeof mod.hasAnySeparator !== "function"
-    || typeof mod.normalizeSingleSeparatorLayout !== "function"
-    || typeof mod.reflowNoContentPanelLine !== "function"
-    || typeof mod.collapseEmptyLeftSeparatorToText !== "function"
-    || typeof mod.applyCycleEndAndInvariants !== "function"
-    || typeof mod.resolveCursorByPolicy !== "function"
-    || typeof mod.applyTrailingSeparatorPolicy !== "function"
-  ) {
-    throw new Error("pkm_line_finalize_unified unavailable: required mixed policy api");
-  }
-  __lineFinalizeUnified = mod;
-}
-
-async function ensureStatusLineRuntimeUnifiedLoaded(app_) {
-  if (__statusLineRuntimeUnified && typeof __statusLineRuntimeUnified === "object") return;
-  const mod = await loadVaultModule(app_, STATUS_LINE_RUNTIME_UNIFIED_PATH, false);
-  if (
-    !mod
-    || typeof mod.selectTokenByPanelOrder !== "function"
-    || typeof mod.selectMarkerValueByPanelOrder !== "function"
-  ) {
-    throw new Error("status_line_runtime_unified unavailable: required deterministic selection api");
-  }
-  __statusLineRuntimeUnified = mod;
-}
-
-async function ensureTokenGraphUnifiedLoaded(app_) {
-  if (__tokenGraphUnified && typeof __tokenGraphUnified === "object") return;
-  const mod = await loadVaultModule(app_, TOKEN_GRAPH_UNIFIED_PATH, false);
-  if (!mod || typeof mod.buildTokenFactsFromLine !== "function") {
-    throw new Error("token_graph_unified unavailable: buildTokenFactsFromLine");
-  }
-  __tokenGraphUnified = mod;
-}
-
 function getStatusRuntimeCommon() {
-  if (__statusRuntimeCommonFns && typeof __statusRuntimeCommonFns === "object") return __statusRuntimeCommonFns;
-  throw new Error("status_runtime_common unavailable: not initialized");
+  ensureStatusRuntimeCommonLoaded();
+  return __statusRuntimeCommonFns;
+}
+
+function getLineFinalizeUnified() {
+  return __lineFinalizeUnified;
 }
 
 function getStatusLineRuntimeUnified() {
-  if (__statusLineRuntimeUnified && typeof __statusLineRuntimeUnified === "object") return __statusLineRuntimeUnified;
-  throw new Error("status_line_runtime_unified unavailable: not initialized");
+  return __statusLineRuntimeUnified;
 }
 
 function getTokenGraphUnified() {
-  if (__tokenGraphUnified && typeof __tokenGraphUnified === "object") return __tokenGraphUnified;
-  throw new Error("token_graph_unified unavailable: not initialized");
-}
-
-function buildTokenFactsFromLineSafe(rawLine, rules) {
-  try {
-    const tokenGraph = getTokenGraphUnified();
-    if (tokenGraph && typeof tokenGraph.buildTokenFactsFromLine === "function") {
-      return tokenGraph.buildTokenFactsFromLine(rawLine, rules);
-    }
-  } catch (_) {}
-  return [];
-}
-
-async function ensureDateRuntimeSharedLoaded(app_) {
-  if (__dateRuntimeShared && typeof __dateRuntimeShared === "object") return;
-  const mod = await loadVaultModule(app_, DATE_RUNTIME_SHARED_PATH, false);
-  if (
-    !mod
-    || typeof mod.parseDateRuntimeConfigJson !== "function"
-    || typeof mod.collectMissingEmojiFieldsFromRules !== "function"
-  ) {
-    throw new Error("date_runtime_shared unavailable: required api");
-  }
-  __dateRuntimeShared = mod;
+  return __tokenGraphUnified;
 }
 
 function getDateRuntimeShared() {
-  if (__dateRuntimeShared && typeof __dateRuntimeShared === "object") return __dateRuntimeShared;
-  throw new Error("date_runtime_shared unavailable: not initialized");
+  return __dateRuntimeShared;
+}
+
+function buildTokenFactsFromLineSafe(rawLine, rules) {
+  return __tokenGraphUnified.buildTokenFactsFromLine(rawLine, rules);
 }
 
 function getField(mode, id) {
@@ -1431,14 +1340,12 @@ module.exports = {
     const editor = app_?.workspace?.activeLeaf?.view?.editor ?? app_?.workspace?.activeEditor?.editor;
     if (!editor) return;
 
-    await ensureOptionKeysLoaded(app_);
-    await ensureDomainRegistryLoaded(app_);
     await callRuntimeApi(app_, "loadRulesRuntimeHelpers");
-    await ensureStatusRuntimeCommonLoaded(app_);
-    await ensureLineFinalizeUnifiedLoaded(app_);
-    await ensureStatusLineRuntimeUnifiedLoaded(app_);
-    await ensureTokenGraphUnifiedLoaded(app_);
-    await ensureDateRuntimeSharedLoaded(app_);
+    /*
+     * Свои модули уже приехали `require` при загрузке файла. Остаются
+     * только те, что публикуют себя в `globalThis`: оттуда их читают
+     * `status_runtime_common` и TagWheel.
+     */
     await callRuntimeApi(app_, "loadMacroShared");
     await callRuntimeApi(app_, "loadLinePipeline");
     const lineFinalize = (__lineFinalizeUnified && typeof __lineFinalizeUnified === "object")
@@ -1471,7 +1378,7 @@ module.exports = {
       throw new Error("pkm_macro_shared unavailable: isBulletLikeEmptyResult");
     }
 
-    const core = await loadVaultModule(app_, ".obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel_core.js", false);
+    const core = __tagwheelCore;
 
     const rulesPathInput = String(settings?.[RULES_PATH] ?? "").trim();
     const rulesHelpers = globalThis.__inlinePkmRulesHelpers;

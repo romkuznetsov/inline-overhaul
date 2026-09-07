@@ -1,3 +1,28 @@
+/*
+ * Модули приезжают литеральным `require` — по одному на модуль (У-89).
+ *
+ * Было: шесть путей внутри vault и шесть асинхронных `ensure*Loaded`, каждая
+ * со своей проверкой годности и своим `let` под кеш. Путь шёл через
+ * `callRuntimeApi` в макро-рантайм, оттуда в мост модулей, а мост искал путь в
+ * реестре забандленных модулей. У `pkm_domain_registry` рядом лежала запаска
+ * литеральным `require` — и в сборке работала именно она, потому что путь в
+ * переменной esbuild не разрешает.
+ *
+ * Стало: `require` с литеральным путём. Проверки годности сняты вместе с
+ * загрузкой — они отвечали на «модуль приехал не тот», а приехать не тот
+ * модуль из графа сборки не может. Промахнуться мимо литерала нельзя.
+ *
+ * Функции `get*Unified` и `getStatusRuntimeCommon` оставлены: их зовут больше
+ * сорока мест, и подпись у них прежняя.
+ */
+const __pkmDomainRegistry = require("../src/core/pkm_domain_registry.js");
+const __statusLineRuntimeUnified = require("../src/core/status_line_runtime_unified.js");
+const __tokenGraphUnified = require("../src/core/token_graph_unified.js");
+const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js");
+const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
+const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
+const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
+
 let RULES_PATH = "Rules path";
 let ACTION_TYPE = "Action type";
 let SUBTAG_FORMAT = "Subtag format";
@@ -7,25 +32,7 @@ let ORDER_CONFIG = "Order config";
 let DATE_RUNTIME_CONFIG = "Date runtime config";
 let DIRECTION = "Direction";
 let DEFAULT_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
-const DOMAIN_REGISTRY_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_domain_registry.js";
-const STATUS_RUNTIME_COMMON_PATH = ".obsidian/plugins/inline-overhaul/src/core/status_runtime_common.js";
-const LINE_FINALIZE_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_line_finalize_unified.js";
-const STATUS_LINE_RUNTIME_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/status_line_runtime_unified.js";
-const TOKEN_GRAPH_UNIFIED_PATH = ".obsidian/plugins/inline-overhaul/src/core/token_graph_unified.js";
-let __pkmDomainRegistry = null;
 let __statusRuntimeCommonFns = null;
-let __lineFinalizeUnified = null;
-let __statusLineRuntimeUnified = null;
-let __tokenGraphUnified = null;
-const __pkmDomainRegistryFallback = (() => {
-  try {
-    if (typeof require === "function") {
-      const mod = require("../src/core/pkm_domain_registry.js");
-      if (mod && typeof mod === "object") return mod;
-    }
-  } catch (_) {}
-  return null;
-})();
 
 function applyPkmOptionKeys(mod) {
   const keys = mod && mod.KEYS && typeof mod.KEYS === "object" ? mod.KEYS : null;
@@ -41,10 +48,17 @@ function applyPkmOptionKeys(mod) {
   DEFAULT_RULES_PATH = String(mod.DEFAULT_RULES_PATH || DEFAULT_RULES_PATH);
 }
 
+applyPkmOptionKeys(__pkmOptionKeys);
+
 function normalizeOrderKeyLocal(key) {
   return String(key || "").trim();
 }
 
+/*
+ * Макро-рантайм остаётся: через него движок берёт нормализатор ключа Order и
+ * прослойку предзагрузки, и он же публикует ключи `globalThis`, которые читает
+ * `status_runtime_common`. Модули через него больше не ходят.
+ */
 async function loadMacroRuntime(app_) {
   const globalGetter = globalThis.__inlineGetPkmMacroRuntime;
   if (typeof globalGetter === "function") {
@@ -57,10 +71,6 @@ async function loadMacroRuntime(app_) {
   throw new Error("pkm_macro_runtime_entry unavailable: bootstrapMacroRuntime");
 }
 
-async function loadVaultModule(app_, vaultPath, forceReload) {
-  return callRuntimeApi(app_, "loadVaultModule", vaultPath, forceReload);
-}
-
 async function callRuntimeApi(app_, method, ...args) {
   const rt = await loadMacroRuntime(app_);
   const fn = rt && rt[method];
@@ -70,40 +80,17 @@ async function callRuntimeApi(app_, method, ...args) {
   return fn.apply(rt, args);
 }
 
-async function ensureOptionKeysLoaded(app_) {
-  const mod = await callRuntimeApi(app_, "loadPkmOptionKeys");
-  applyPkmOptionKeys(mod);
-}
-
 function getDomainRegistry() {
-  if (__pkmDomainRegistry && typeof __pkmDomainRegistry === "object") return __pkmDomainRegistry;
-  if (__pkmDomainRegistryFallback && typeof __pkmDomainRegistryFallback === "object") return __pkmDomainRegistryFallback;
-  return null;
-}
-
-async function ensureDomainRegistryLoaded(app_) {
-  if (__pkmDomainRegistry && typeof __pkmDomainRegistry === "object") return;
-  try {
-    __pkmDomainRegistry = await loadVaultModule(app_, DOMAIN_REGISTRY_PATH, false);
-  } catch (e) {
-    __pkmDomainRegistry = null;
-    if (!(__pkmDomainRegistryFallback && typeof __pkmDomainRegistryFallback === "object")) {
-      throw e;
-    }
-  }
+  return __pkmDomainRegistry;
 }
 
 function isObj(x) {
   return x && typeof x === "object" && !Array.isArray(x);
 }
 
-async function ensureStatusRuntimeCommonLoaded(app_) {
-  if (__statusRuntimeCommonFns && typeof __statusRuntimeCommonFns === "object") return;
-  const mod = await loadVaultModule(app_, STATUS_RUNTIME_COMMON_PATH, false);
-  if (!mod || typeof mod.createStatusRuntimeCommon !== "function") {
-    throw new Error("status_runtime_common unavailable: createStatusRuntimeCommon");
-  }
-  __statusRuntimeCommonFns = mod.createStatusRuntimeCommon({
+function ensureStatusRuntimeCommonLoaded() {
+  if (__statusRuntimeCommonFns) return;
+  __statusRuntimeCommonFns = __statusRuntimeCommonMod.createStatusRuntimeCommon({
     isObj,
     normalizeOrderKey: normalizeOrderKeyLocal,
     orderConfigKey: ORDER_CONFIG,
@@ -111,87 +98,30 @@ async function ensureStatusRuntimeCommonLoaded(app_) {
     defaultPanel: "left",
     loadOrderKeyNormalizer: async (ctxApp) => callRuntimeApi(ctxApp, "loadOrderKeyNormalizer"),
     loadRuntimePreloadFacade: async (ctxApp) => callRuntimeApi(ctxApp, "loadRuntimePreloadFacade"),
-    loadVaultModule,
   });
 }
 
-async function ensureLineFinalizeUnifiedLoaded(app_) {
-  if (__lineFinalizeUnified && typeof __lineFinalizeUnified === "object") return;
-  const mod = await loadVaultModule(app_, LINE_FINALIZE_UNIFIED_PATH, false);
-  if (
-    !mod
-    || typeof mod.hasListPrefix !== "function"
-    || typeof mod.hasStandaloneCheckboxPrefix !== "function"
-    || typeof mod.applyPrefixPolicy !== "function"
-    || typeof mod.removeSyntheticLeadingPrefix !== "function"
-    || typeof mod.removeStandaloneHeadingMarkers !== "function"
-    || typeof mod.removeConfiguredSeparators !== "function"
-    || typeof mod.stripTrailingConfiguredSeparators !== "function"
-    || typeof mod.normalizeMinimalPriorityNoSeparatorLine !== "function"
-    || typeof mod.alignMinimalNoSeparatorPrefix !== "function"
-    || typeof mod.hasAnySeparator !== "function"
-    || typeof mod.hasCheckboxListPrefix !== "function"
-    || typeof mod.isSimplePlainRaw !== "function"
-    || typeof mod.resolveEffectiveSelectionPolicy !== "function"
-    || typeof mod.getPrefixRulesUnified !== "function"
-    || typeof mod.resolvePrefixCheckboxUnified !== "function"
-    || typeof mod.buildPrefixUnified !== "function"
-    || typeof mod.normalizeCheckboxToken !== "function"
-    || typeof mod.applyResolvedPrefixToLine !== "function"
-    || typeof mod.applyUnifiedPostFinalize !== "function"
-    || typeof mod.applyCycleEndAndInvariants !== "function"
-    || typeof mod.applyTrailingSeparatorPolicy !== "function"
-    || typeof mod.resolveCursorByPolicy !== "function"
-  ) {
-    throw new Error("pkm_line_finalize_unified unavailable: required mixed policy api");
-  }
-  __lineFinalizeUnified = mod;
-}
-
-async function ensureStatusLineRuntimeUnifiedLoaded(app_) {
-  if (__statusLineRuntimeUnified && typeof __statusLineRuntimeUnified === "object") return;
-  const mod = await loadVaultModule(app_, STATUS_LINE_RUNTIME_UNIFIED_PATH, false);
-  if (
-    !mod
-    || typeof mod.relocateCoreTagsByOrder !== "function"
-    || typeof mod.enforceDependentAdjacencyForStatusLine !== "function"
-    || typeof mod.stripFieldTokenSetFromLine !== "function"
-    || typeof mod.clearDependentSelections !== "function"
-    || typeof mod.buildCombinedSelectionSet !== "function"
-    || typeof mod.applyCombinedToTokenList !== "function"
-  ) {
-    throw new Error("status_line_runtime_unified unavailable: required api");
-  }
-  __statusLineRuntimeUnified = mod;
-}
-
-async function ensureTokenGraphUnifiedLoaded(app_) {
-  if (__tokenGraphUnified && typeof __tokenGraphUnified === "object") return;
-  const mod = await loadVaultModule(app_, TOKEN_GRAPH_UNIFIED_PATH, false);
-  if (!mod || typeof mod.buildTokenFactsFromLine !== "function") {
-    throw new Error("token_graph_unified unavailable: buildTokenFactsFromLine");
-  }
-  __tokenGraphUnified = mod;
-}
-
+/*
+ * Собирается общая часть один раз и **на тех именах ключей, что уже
+ * подставлены**: `ORDER_CONFIG` и `DATE_RUNTIME_CONFIG` уезжают в неё
+ * значением, а не ссылкой. Ключи подставлены выше, при загрузке модуля, — то
+ * есть раньше первой сборки, и разойтись им не на чем (У-32).
+ */
 function getStatusRuntimeCommon() {
-  if (__statusRuntimeCommonFns && typeof __statusRuntimeCommonFns === "object") return __statusRuntimeCommonFns;
-  throw new Error("status_runtime_common unavailable: not initialized");
+  ensureStatusRuntimeCommonLoaded();
+  return __statusRuntimeCommonFns;
 }
 
 function getLineFinalizeUnified() {
-  if (__lineFinalizeUnified && typeof __lineFinalizeUnified === "object") return __lineFinalizeUnified;
-  throw new Error("pkm_line_finalize_unified unavailable: not initialized");
+  return __lineFinalizeUnified;
 }
 
 function getStatusLineRuntimeUnified() {
-  if (__statusLineRuntimeUnified && typeof __statusLineRuntimeUnified === "object") return __statusLineRuntimeUnified;
-  throw new Error("status_line_runtime_unified unavailable: not initialized");
+  return __statusLineRuntimeUnified;
 }
 
 function getTokenGraphUnified() {
-  if (__tokenGraphUnified && typeof __tokenGraphUnified === "object") return __tokenGraphUnified;
-  throw new Error("token_graph_unified unavailable: not initialized");
+  return __tokenGraphUnified;
 }
 
 function buildTokenFactsFromLineSafe(rawLine, rules) {
@@ -1530,13 +1460,12 @@ module.exports = {
     const editor = app_?.workspace?.activeLeaf?.view?.editor ?? app_?.workspace?.activeEditor?.editor;
     if (!editor) return;
 
-    await ensureOptionKeysLoaded(app_);
-    await ensureDomainRegistryLoaded(app_);
+    /*
+     * Свои модули уже приехали `require` при загрузке файла. Здесь
+     * остаются только те, что публикуют себя в `globalThis`: их читают
+     * оттуда и `status_runtime_common`, и TagWheel.
+     */
     await callRuntimeApi(app_, "loadRulesRuntimeHelpers");
-    await ensureStatusRuntimeCommonLoaded(app_);
-    await ensureStatusLineRuntimeUnifiedLoaded(app_);
-    await ensureTokenGraphUnifiedLoaded(app_);
-    await ensureLineFinalizeUnifiedLoaded(app_);
     await callRuntimeApi(app_, "loadMacroShared");
     await callRuntimeApi(app_, "loadLinePipeline");
     const lineFinalize = getLineFinalizeUnified();
@@ -1544,7 +1473,7 @@ module.exports = {
       throw new Error("pkm_line_finalize_unified unavailable: resolveOffPrefixFlagsUnified");
     }
 
-    const core = await loadVaultModule(app_, ".obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel_core.js", false);
+    const core = __tagwheelCore;
     /*
      * Уведомление спрашивает текст у каталога (PRD 10.13.50, ответ на В-74).
      * Форма: `notice(key, english, ...args)`; английское остаётся здесь, на
