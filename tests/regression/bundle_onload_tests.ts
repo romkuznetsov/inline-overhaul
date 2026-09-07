@@ -287,6 +287,48 @@ async function run(): Promise<void> {
   );
   ok("шов макро-рантайма опубликован");
 
+
+  /*
+   * Панель настроек собирается из сборки.
+   *
+   * Своя проверка панели (`npm run gate`) гоняет исходники слоя настроек на
+   * заглушке DOM — то есть отвечает на «схема цела», а не на «панель доехала до
+   * бандла». Разница между этими двумя вопросами и есть дефект A33.
+   *
+   * Спрашивается декларативный путь Obsidian 1.13: платформа зовёт
+   * `getSettingDefinitions()`, и пустой список для неё — панель без строк.
+   */
+  assert.strictEqual(plugin.settingTabs.length, 1, "плагин отдал платформе одну вкладку настроек");
+  const tab = plugin.settingTabs[0];
+  assert.strictEqual(typeof tab.getSettingDefinitions, "function", "вкладка идёт декларативным путём 1.13");
+  const defs = tab.getSettingDefinitions();
+  assert.ok(Array.isArray(defs) && defs.length > 0, "панель отдала непустой список определений");
+  ok(`панель настроек собралась из сборки (${defs.length} определений верхнего уровня)`);
+
+  /*
+   * Расширения редактора: ими нарисованы цвета Values, полоса приоритета,
+   * подсветка строки при открытой панели TagWheel, отметки на строке и
+   * перехваты `Ctrl+A`, `Del`, `Backspace`. Ни одного — значит в заметке плагин
+   * не делает ничего, и это то же «включился, но не работает».
+   */
+  assert.ok(plugin.editorExtensions.length > 0, "плагин зарегистрировал расширения редактора");
+  ok(`расширений редактора зарегистрировано: ${plugin.editorExtensions.length}`);
+
+  /*
+   * Служебный файл правил. Это единственный канал между настройками и
+   * движками `pkm_v2/**` (PRD 10.13.52), и пишет его сборщик — тот самый, у
+   * которого до правки была своя заглушка, бросавшая исключение.
+   *
+   * Спрашивается не «файл записан», а **сколько в нём блоков**: пустой или
+   * обрезанный файл записывается так же успешно, как полный.
+   */
+  const rulesPath = ".obsidian/plugins/inline-overhaul/generated_rules.md";
+  const rules = String(app.written.get(rulesPath) || "");
+  assert.ok(rules.length > 0, `сборка записала служебный файл правил: ${rulesPath}`);
+  const blocks = (rules.match(/```tagwheel-[a-z-]+/g) || []).length;
+  assert.strictEqual(blocks, 10, "в файле правил все десять блоков");
+  ok(`служебный файл правил записан из сборки, блоков: ${blocks}`);
+
   console.log(`Bundle onload tests: OK (${passed} checks)`);
 }
 

@@ -152,7 +152,26 @@ export function makeNode(tag?: string): StubNode {
       contains(c: string) { return classes.has(c); },
     },
 
-    appendChild(c: StubNode) { node.children.push(c); (c as any).parent = node; return c; },
+    appendChild(c: StubNode) {
+      /*
+       * Фрагмент в браузере при вставке **растворяется**: родителю достаются
+       * его дети, а сам он остаётся пустым. Заглушка, вставляющая фрагмент
+       * целиком, спрятала бы узлы на уровень глубже — и поиск по классу их не
+       * нашёл бы, а проверка была бы зелёной ни о чём (У-45).
+       */
+      if (c && String(c.tagName) === "#FRAGMENT") {
+        const moved = c.children.slice();
+        c.children.length = 0;
+        for (const inner of moved) {
+          node.children.push(inner);
+          (inner as any).parent = node;
+        }
+        return c;
+      }
+      node.children.push(c);
+      (c as any).parent = node;
+      return c;
+    },
     insertBefore(c: StubNode, ref: StubNode | null) {
       /*
        * Как в браузере: узел **переезжает**. Без этого шага заглушка была
@@ -396,6 +415,8 @@ export function makeDocument() {
     /* Как в браузере: документ отдаёт узел под фокусом, а не хранит его сам. */
     get activeElement() { return focused; },
     createElement: (t: string) => makeNode(t),
+    /* Фрагмент — обычный узел с особым именем: растворяется он при вставке. */
+    createDocumentFragment: () => makeNode("#fragment"),
     createTextNode: (t: string) => { const n = makeNode("#text") as any; n.textContent = String(t); return n; },
     /*
      * Поиск по id идёт по дереву документа, как в браузере: узел, никуда не
