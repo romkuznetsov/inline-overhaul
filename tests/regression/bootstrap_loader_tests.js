@@ -284,12 +284,6 @@ async function run() {
      вместе с ней: разбирать больше нечего (PRD 10.12). */
 
 
-  assertTrue(/async function loadSharedUtilsSafe\(app\)/.test(src), "shared safe loader exists");
-  assertTrue(/await loadSharedUtilsSafe\(this\.app\);/.test(src), "shared safe loader called in onload");
-  assertTrue(/async function loadConfigStoreModuleSafe\(app\)/.test(src), "config store safe loader exists");
-  assertTrue(/await loadConfigStoreModuleSafe\(this\.app\);/.test(src), "config store safe loader called in onload");
-  assertTrue(/function getConfigStoreCtor\(\)/.test(src), "config store ctor getter exists");
-  assertTrue(/class FallbackConfigStore/.test(src), "fallback config store class exists");
   assertTrue(/separator1:\s*"\|\|"/.test(src), "default config contains separator1");
   assertFalse(/`📅DATE\/🕑TIME ➕ELEMENTS`/.test(src), "main has no hardcoded emoji section title for date\/time elements");
   assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(src), "main infer-element defaults have no hardcoded emoji markers");
@@ -300,35 +294,10 @@ async function run() {
   assertTrue(/left:\s*\[\]/.test(src), "default order config starts empty left");
   assertTrue(/right:\s*\[\]/.test(src), "default order config starts empty right");
   assertTrue(/hotkey_only/.test(src), "order active mode supports hotkey_only");
-  assertTrue(/async function loadRulesSyncOrchestratorSafe\(app\)/.test(src), "rules sync orchestrator safe loader exists");
-  assertTrue(/await loadRulesSyncOrchestratorSafe\(this\.app\);/.test(src), "rules sync orchestrator safe loader called in onload");
   assertTrue(/function getRulesSyncOrchestrator\(\)/.test(src), "rules sync orchestrator getter exists");
-  assertTrue(/async function loadStoreEventsOrchestratorSafe\(app\)/.test(src), "store events orchestrator safe loader exists");
-  assertTrue(/await loadStoreEventsOrchestratorSafe\(this\.app\);/.test(src), "store events orchestrator safe loader called in onload");
   assertTrue(/function getStoreEventsOrchestrator\(\)/.test(src), "store events orchestrator getter exists");
 
-  assertTrue(/async function loadModuleWithVaultFallback\(app, opts\)/.test(src), "shared vault fallback loader helper exists");
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(src), "main exposes debug-gated loader fallback reporter");
-  assertTrue(/let __safeModuleCache = new Map\(\);/.test(src), "safe module cache exists");
-  assertTrue(/const cacheKey = String\(options\.cacheKey \|\| ""\)\.trim\(\);/.test(src), "shared loader supports cache key");
-  assertTrue(/__safeModuleCache\.set\(cacheKey, mod\)/.test(src), "shared loader caches validated modules");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/core\/shared_utils\.js"/.test(src), "shared utils uses shared vault fallback helper");
-  assertTrue(/cacheKey: "core:shared-utils"/.test(src), "shared utils cache key wired");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/core\/config_store\.js"/.test(src), "config store uses shared vault fallback helper");
-  assertTrue(/cacheKey: "core:config-store"/.test(src), "config store cache key wired");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/navigation_runtime\.js"/.test(src), "navigation runtime uses shared vault fallback helper");
-  assertTrue(/cacheKey: "runtime:navigation"/.test(src), "navigation cache key wired");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/pkm_runtime_v2\.js"/.test(src), "pkm runtime v2 uses shared vault fallback helper");
-  assertTrue(/cacheKey: "runtime:pkm-v2"/.test(src), "pkm runtime cache key wired");
-  assertTrue(/async function loadPriorityStripEngineSafe\(app\)/.test(src), "priority strip engine safe loader exists");
-  assertTrue(/async function loadPriorityStripAdapterSafe\(app\)/.test(src), "priority strip adapter safe loader exists");
-  assertTrue(/await loadPriorityStripEngineSafe\(this\.app\);/.test(src), "priority strip engine safe loader called in onload");
-  assertTrue(/await loadPriorityStripAdapterSafe\(this\.app\);/.test(src), "priority strip adapter safe loader called in onload");
-  assertTrue(/cacheKey: "core:priority-strip-engine"/.test(src), "priority strip engine cache key wired");
-  assertTrue(/cacheKey: "core:priority-strip-adapter"/.test(src), "priority strip adapter cache key wired");
-  assertTrue(/strip\.loader\.fail/.test(src), "strip loader fail telemetry exists");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/command_registry\.js"/.test(src), "command registry uses shared vault fallback helper");
-  assertTrue(/cacheKey: "feature:command-registry"/.test(src), "command registry cache key wired");
   /*
    * Тринадцать проверок сняты 2026-08-29 вместе со старой панелью: их
    * предмет -- ползунки вида тегов, тумблеры журнала и поле пути к нему --
@@ -344,10 +313,6 @@ async function run() {
    */
   assertTrue(/SAY\.ERR_LINK_NO_TARGET/.test(rendererPairSrc), "settings renderer fails fast when it cannot resolve the wikilink target field");
   assertTrue(/tokens\.push\(\{ value: `s:\$\{stok\}\|p:\$\{ptok\}\|f:\$\{fid\}`, label: `└ \$\{stok\} \(\$\{ptok\}\)` \}\);/.test(rendererPairSrc), "wikilink parent token selector disambiguates duplicate subtags by parent context");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/rules_sync_orchestrator\.js"/.test(src), "rules sync orchestrator uses shared vault fallback helper");
-  assertTrue(/cacheKey: "feature:rules-sync-orchestrator"/.test(src), "rules sync orchestrator cache key wired");
-  assertTrue(/loadModuleWithVaultFallback\(app, \{[\s\S]*?requirePath: "\.\/src\/features\/store_events_orchestrator\.js"/.test(src), "store events orchestrator uses shared vault fallback helper");
-  assertTrue(/cacheKey: "feature:store-events-orchestrator"/.test(src), "store events orchestrator cache key wired");
   /*
    * **Три утверждения сняты 2026-09-06 вместе со своим предметом** (фаза 6,
    * пункт 1). Они стерегли отладочные сообщения трёх запасных путей загрузки
@@ -371,12 +336,108 @@ async function run() {
     assertFalse(/\beval\(/.test(live), "main.js снова выполняет код через eval (A1)");
     assertFalse(/loadVaultBridgeSafe|tryLoadWithVaultBridge/.test(live), "main.js снова грузит модули мостом из vault");
     assertFalse(/uiVaultEvalFallback/.test(live), "ветка uiVaultEvalFallback вернулась — её не включал ни один вызов");
-    assertTrue(/const mod = require\(requirePath\);/.test(live), "единственный путь загрузки модуля — require — исчез");
   }
+  /*
+   * Загрузка модулей плагина (фаза 6, пункт 1; дефект A33).
+   *
+   * **Здесь стояло сорок утверждений, и почти все описывали машинерию, которой
+   * больше нет:** «загрузчик существует», «загрузчик позван в onload», «ключ
+   * кеша заведён». Машинерия свёрнута в один статический `require` на модуль.
+   * Пересаживать такие пины было нельзя: три из них держали не поведение, а
+   * ЗАПРЕТ, зелёный именно тем, что предмет исчез (У-71), и один из этих трёх
+   * прямо требовал того, что и стало дефектом:
+   *
+   *   * `const mod = require(requirePath)` — пин требовал ДИНАМИЧЕСКИЙ
+   *     `require`. Путь в переменной esbuild не разрешает: в бандле такой вызов
+   *     остаётся вызовом `require` хоста, а рядом с плагином лежит один плоский
+   *     файл. Заказчик получил плагин без единой команды, и пин был зелёный;
+   *   * `buildCoreCommandDefs: () => []` — пин на заглушку реестра команд. Эта
+   *     заглушка отвечала утвердительно на свой же вопрос «годен ли модуль», и
+   *     синхронная попытка `require` за ней не выполнялась никогда;
+   *   * `class FallbackConfigStore` — пин на встроенную копию единственного пути
+   *     записи конфига (A14).
+   *
+   * Вместо них стоят два утверждения, и они отвечают на разные вопросы.
+   * **Причину** ловит сплошной обход всех `require` в `main.js`: каждый обязан
+   * быть литералом, и перепись модулей сходится в обе стороны (У-85).
+   * **Следствие** ловит `bundle_onload_tests.ts`: он включает СБОРКУ и
+   * спрашивает у неё список команд — то, что видит человек в палитре.
+   *
+   * Чтобы это снять, должно случиться одно из двух: плагин перестал ставиться
+   * плоским бандлом, или сборщик научился разрешать путь в переменной. Ни того,
+   * ни другого не произошло.
+   */
+  {
+    /* Читается код, а не проза: строка комментария рядом умеет процитировать
+       снятый вызов, и это правильно — она говорит, чего там больше нет. */
+    const code = src.split("\n").filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line)).join("\n");
+    const requireArgs = Array.from(code.matchAll(/\brequire\(([^)]*)\)/g), (m) => m[1].trim());
+    assertTrue(requireArgs.length > 15, "положительный контроль: require в main.js есть, и их много");
+    const dynamic = requireArgs.filter((arg) => !/^"[^"]+"$/.test(arg));
+    assertEq(dynamic.join(" | "), "", "каждый require в main.js — литерал (A33)");
+
+    /*
+     * Перепись модулей: слева то, что `main.js` подключает, справа — то, что
+     * он обязан подключать. Список пишется здесь, а не выводится из файла:
+     * выведенный из того же файла список сошёлся бы сам с собой всегда.
+     */
+    const own = Array.from(new Set(requireArgs
+      .map((arg) => arg.replace(/^"|"$/g, ""))
+      .filter((p) => p.startsWith("./")))).sort();
+    const expected = [
+      "./navigation_runtime.js",
+      "./pkm_runtime_v2.js",
+      "./src/core/compat_profile.js",
+      "./src/core/config_migration.js",
+      "./src/core/config_migration_v2.ts",
+      "./src/core/config_store.js",
+      "./src/core/pkm_domain_registry.js",
+      "./src/core/pkm_line_finalize_unified.js",
+      "./src/core/pkm_macro_runtime_entry.js",
+      "./src/core/pkm_option_keys.js",
+      "./src/core/priority_strip_cm6_adapter.js",
+      "./src/core/priority_strip_engine.js",
+      "./src/core/say.js",
+      "./src/core/shared_utils.js",
+      "./src/features/command_ids.js",
+      "./src/features/command_registry.js",
+      "./src/features/enhanced_select_all_engine.js",
+      "./src/features/rules_markdown_builder.js",
+      "./src/features/rules_sync_orchestrator.js",
+      "./src/features/smart_delete_engine.js",
+      "./src/features/store_events_orchestrator.js",
+      "./src/features/transform_feature.js",
+      "./src/ui/settings/obsidian_tab.ts",
+    ];
+    assertEq(own.join("\n"), expected.join("\n"), "main.js подключает ровно свои модули, и каждый один раз");
+
+    /* Ни одного пути к модулю через папку плагина: их читал мост из vault. */
+    assertFalse(/plugins\/inline-overhaul\/[^"']*\.js/.test(src), "в main.js не осталось путей к своим модулям через папку плагина");
+  }
+
+  /*
+   * Заглушек модулей в `main.js` больше нет, и это запрет, а не наблюдение.
+   * Заглушка, которая отвечает на свой же вопрос «годен ли модуль»
+   * утвердительно, делает недостижимой загрузку — так и вышло с реестром
+   * команд. Снимается этот запрет только тем, что модуль снова может не
+   * доехать, то есть возвратом динамической загрузки.
+   */
+  assertFalse(/class FallbackConfigStore/.test(src), "встроенной копии ConfigStore в main.js нет (A14)");
+  assertFalse(/buildCoreCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "заглушки реестра команд в main.js нет (A33)");
+  assertFalse(/__safeModuleCache/.test(src), "своего кеша модулей нет: его помнит require");
+  assertFalse(/loadModuleWithVaultFallback/.test(src), "общего загрузчика модулей нет");
+  assertFalse(/async function load[A-Za-z]*Safe\(app\)/.test(src), "асинхронных загрузчиков модулей нет");
+  assertFalse(/cacheKey/.test(src), "ключей кеша нет вместе с кешем");
+  assertTrue(/function getCommandRegistry\(\)/.test(src), "command registry getter exists");
+  assertTrue(/function getConfigStoreCtor\(\)/.test(src), "config store ctor getter exists");
+  assertTrue(/function getConfigMigrationModule\(\)/.test(src), "config migration getter exists");
+  assertTrue(/function getEnhancedSelectAllEngine\(\)/.test(src), "enhanced select-all getter exists");
+  assertTrue(/function getRulesMarkdownBuilder\(\)/.test(src), "rules markdown builder getter exists");
+  assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(src), "onload публикует шов макро-рантайма PKM");
+  assertTrue(/this\.navRuntime = getNavigationRuntime\(\);/.test(src), "onload берёт движок навигации");
+  assertTrue(/this\.pkmRuntimeV2 = getPkmRuntimeV2\(\);/.test(src), "onload берёт движок PKM");
   assertTrue(/bridge\.loadVaultModule\(app, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache"\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 uses canonical vault bridge loader before legacy fallback");
 
-  assertTrue(/async function loadCommandRegistrySafe\(app\)/.test(src), "command registry safe loader exists");
-  assertTrue(/await loadCommandRegistrySafe\(this\.app\);/.test(src), "command registry safe loader called in onload");
 
   /*
    * Загрузчики роутера вкладок и рендерера секций сняты 2026-08-29 вместе со
@@ -397,10 +458,6 @@ async function run() {
   assertFalse(/throw new Error\("inlineOverhaul: settings pane/.test(src),
     "createSettingTab reports the failure instead of throwing out of onload");
 
-  assertTrue(/function getCommandRegistry\(\)/.test(src), "command registry getter exists");
-  assertTrue(/buildCoreCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty core defs");
-  assertTrue(/buildNavigationCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty nav defs");
-  assertTrue(/buildPkmCommandDefs:\s*\(\)\s*=>\s*\[\]/.test(src), "command registry fallback returns empty pkm defs");
   /*
    * Схема идентификатора команды живёт в одном модуле (`command_ids.js`), и
    * реестр её не повторяет: из трёх копий вырос дефект Б-11. Проверяется не
@@ -416,8 +473,6 @@ async function run() {
   assertFalse(/command === "statusImportance"/.test(pkmRuntimeV2Src), "pkm_runtime_v2 has no statusImportance command route");
   assertFalse(/status_importance\.js/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer loads status_importance module");
 
-  assertFalse(/const\s*\{[^\n]*buildNavigationCommandDefs[^\n]*\}\s*=\s*require\("\.\/src\/features\/command_registry\.js"\)/.test(src), "no top-level direct command registry import");
-
   assertTrue(/command registry unavailable: core commands skipped/.test(src), "core skip guard exists");
   assertTrue(/command registry unavailable: navigation commands skipped/.test(src), "navigation skip guard exists");
   assertTrue(/command registry unavailable: PKM commands skipped/.test(src), "pkm skip guard exists");
@@ -426,23 +481,12 @@ async function run() {
   assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "модель Fields: родитель и дочерний встают вместе");
 
 
-  assertTrue(/async function loadRulesMarkdownBuilderSafe\(app\)/.test(src), "rules markdown builder safe loader exists");
-  assertTrue(/await loadRulesMarkdownBuilderSafe\(this\.app\);/.test(src), "rules markdown builder safe loader called in onload");
-  assertTrue(/cacheKey: "feature:rules-markdown-builder"/.test(src), "rules markdown builder cache key wired");
   assertTrue(/buildRulesMarkdown: \(cfg\) => getRulesMarkdownBuilder\(\)\.buildTagWheelRulesMarkdownFromConfig\(cfg\)/.test(src), "rules sync uses extracted rules markdown builder");
   assertFalse(/value\.charAt\(0\) === "\/"\) value = value\.slice\(1\)/.test(src), "denormTagToken preserves leading slash in #\/priority tokens");
   assertFalse(/allowed\.includes\("project"\)\) fieldId = "project"/.test(src), "wikilink parser has no semantic project fallback when field id is omitted");
   assertFalse(/function parseCheckboxAndTag\(text\) \{[\s\S]*?\(\[xX \]\)/.test(src), "parseCheckboxAndTag does not limit checkbox token parser to [ ] and [x] only");
 
-  assertTrue(/async function loadEnhancedSelectAllEngineSafe\(app\)/.test(src), "enhanced select-all engine safe loader exists");
-  assertTrue(/await loadEnhancedSelectAllEngineSafe\(this\.app\);/.test(src), "enhanced select-all safe loader called in onload");
-  assertTrue(/function getEnhancedSelectAllEngine\(\)/.test(src), "enhanced select-all getter exists");
-  assertTrue(/cacheKey: "feature:enhanced-select-all-engine"/.test(src), "enhanced select-all cache key wired");
 
-  assertTrue(/async function loadConfigMigrationModuleSafe\(app\)/.test(src), "config migration safe loader exists");
-  assertTrue(/await loadConfigMigrationModuleSafe\(this\.app\);/.test(src), "config migration safe loader called in onload");
-  assertTrue(/cacheKey: "core:config-migration"/.test(src), "config migration cache key wired");
-  assertTrue(/function getConfigMigrationModule\(\)/.test(src), "config migration getter exists");
   assertTrue(/normalizePkmBehaviorShape\(cfg, \{ cloneJson, isObj \}\)/.test(src), "migrateConfig applies behavior shape normalization");
   assertTrue(/return "element"/.test(fieldModelSrc), "field model normalizes date-like order keys as element kind");
   assertFalse(/return "date"/.test(fieldModelSrc), "field model has no legacy date kind token");
@@ -728,7 +772,6 @@ async function run() {
   assertFalse(/function resolveLegacyDateActionToOrderKey\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action resolver");
   assertFalse(/function resolveLegacyDateActionDirection\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action direction resolver");
   assertFalse(/function resolveLegacyDateActionMeta\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action meta resolver");
-  assertTrue(/loadPkmMacroRuntimeEntrySafe\(this\.app\)/.test(src), "main preloads macro runtime entry bootstrap on startup");
   assertTrue(/bootstrapMacroRuntime\(app_, normalizeOrderKeyLocal\)/.test(statusTagsSrc), "status_tags uses reusable macro runtime bootstrap call");
   assertTrue(/bootstrapMacroRuntime\(app_, normalizeOrderKeyLocal\)/.test(statusDateSrc), "status_date uses reusable macro runtime bootstrap call");
   assertTrue(/bootstrapMacroRuntime\(app_, normalizeOrderKeyLocal\)/.test(tagwheelSrc), "tagwheel uses reusable macro runtime bootstrap call");
@@ -1557,21 +1600,20 @@ async function run() {
   }
 
   /*
-   * Запасной путь служебного файла в `main.js` — второе объявление одного
-   * значения (У-32), и разошлось оно молча: переезд файла в папку плагина
-   * (В-39) правил модуль и не тронул запаску, и та двое суток указывала в
-   * корень vault. Сверяется со значением модуля, а не с литералом в самой
-   * проверке: третье объявление не лечит второго.
+   * Запасного пути служебного файла в `main.js` больше нет, и это запрет.
+   *
+   * Копия была вторым объявлением одного значения (У-32) и разошлась молча:
+   * переезд файла в папку плагина (В-39) правил модуль и не тронул запаску, и
+   * та двое суток указывала в корень vault. Теперь путь один — в
+   * `pkm_option_keys`, — и разойтись ему не с чем. Снять этот запрет можно
+   * только тем, что модуль снова может не доехать.
    */
   {
+    assertFalse(/DEFAULT_RULES_PATH:\s*"/.test(src), "в main.js нет второго объявления пути служебного файла");
+    assertFalse(/LEGACY_RULES_PATH:\s*"/.test(src), "в main.js нет второго объявления прежнего пути");
     const optionKeys = require(path.join(__dirname, "..", "..", "src", "core", "pkm_option_keys.js"));
-    const fallback = /DEFAULT_RULES_PATH:\s*"([^"]+)"/.exec(src);
-    assertTrue(!!fallback, "main.js keeps a fallback rules path literal");
-    assertTrue(fallback[1] === optionKeys.DEFAULT_RULES_PATH,
-      "main.js fallback rules path matches pkm_option_keys.DEFAULT_RULES_PATH");
-    const legacy = /LEGACY_RULES_PATH:\s*"([^"]+)"/.exec(src);
-    assertTrue(!!legacy && legacy[1] === optionKeys.LEGACY_RULES_PATH,
-      "main.js fallback keeps the legacy rules path under its own name");
+    assertTrue(typeof optionKeys.DEFAULT_RULES_PATH === "string" && optionKeys.DEFAULT_RULES_PATH.length > 0,
+      "положительный контроль: путь объявлен в модуле");
   }
   /*
    * Шов после восстановления копии (10.13.40). Закрепляется два факта,

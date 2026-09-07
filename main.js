@@ -4,74 +4,38 @@ const { Plugin, PluginSettingTab, Setting, Notice, Modal, setIcon } = require("o
 const cmView = require("@codemirror/view");
 const cmState = require("@codemirror/state");
 
-let __priorityStripEngine = {
-  buildStripSpecs: () => [],
-  normalizeStripConfig: (x) => x || {},
-};
-let __priorityStripCm6Adapter = {
-  buildStripDecorationRanges: () => [],
-};
-let __priorityStripEngineIsStub = true;
-let __priorityStripCm6AdapterIsStub = true;
-
 /*
- * Движок полосы берётся синхронным `require` сразу, а заглушки выше — только
- * последний рубеж.
+ * Модули плагина: один статический `require` на модуль (фаза 6, пункт 1;
+ * дефекты A1, A2 и A33).
  *
- * Причина та же, что у Transform: `normalizeStripConfig` задаёт форму ветки
- * `visual.tagBars` и отсекает значения по краям, и делает это третья ступень
- * `migrateConfig` на каждом патче. Заглушка `(x) => x || {}` на её месте
- * означала бы ветку без формы и без клампов — то есть полосу, нарисованную по
- * тому, что пришло в патче. Асинхронный загрузчик остаётся: в vault-варианте
- * `require` не находит модуль, и его находит он.
+ * **Путь один, и он статический.** Путей было три: `require` по пути в
+ * переменной, чтение файла из vault мостом и `new Function` над его текстом.
+ * Два сняты 2026-09-06, а третий оказался не путём вовсе: путь в переменной
+ * esbuild не разрешает — такой вызов остаётся вызовом `require` хоста, а
+ * рядом с установленным плагином лежит один плоский бандл и ни одной папки.
+ * Все загрузчики стали отдавать заглушки, и заказчик увидел плагин без единой
+ * команды при 51 зелёной проверке (дефект A33). Литерал esbuild разрешает и
+ * кладёт модуль в бандл — поэтому здесь литералы, и промахнуться мимо них
+ * нельзя.
+ *
+ * **Заглушек больше нет, и это главное в правке.** Заглушка реестра команд
+ * отвечала на свой же вопрос «годен ли модуль» утвердительно — четыре пустые
+ * функции, — и синхронная попытка `require` за ней уже не выполнялась: тот же
+ * класс, что У-71, утверждение о состоянии зелено именно тогда, когда предмета
+ * нет. Модуля в бандле не может не быть; а если его всё же нет, плагин обязан
+ * упасть громко, а не работать наполовину.
+ *
+ * **Кеша нет.** `require` отдаёт один и тот же объект: в бандле его помнит
+ * обёртка esbuild, в Node — кеш модулей. Своя карта была третьим кешем поверх
+ * двух.
+ *
+ * Что проверяет это место: `tests/regression/bundle_onload_tests.ts` включает
+ * СБОРКУ и спрашивает у неё список команд, а `bootstrap_loader_tests.js` —
+ * что ни одного `require` по переменной в `main.js` не осталось.
  */
-try {
-  const mod = require("./src/core/priority_strip_engine.js");
-  if (hasValidPriorityStripEngine(mod)) {
-    __priorityStripEngine = mod;
-    __priorityStripEngineIsStub = false;
-  }
-} catch (_e) { /* модуль приедет асинхронным загрузчиком */ }
+const __priorityStripEngine = require("./src/core/priority_strip_engine.js");
+const __priorityStripCm6Adapter = require("./src/core/priority_strip_cm6_adapter.js");
 
-const __sharedUtilsFallback = {
-  cloneJson(x) {
-    return JSON.parse(JSON.stringify(x));
-  },
-  isObj(x) {
-    return x && typeof x === "object" && !Array.isArray(x);
-  },
-  deepMerge(base, patch) {
-    const isObj = __sharedUtilsFallback.isObj;
-    const cloneJson = __sharedUtilsFallback.cloneJson;
-    if (!isObj(base)) return cloneJson(patch);
-    const out = cloneJson(base);
-    if (!isObj(patch)) return out;
-    for (const k of Object.keys(patch)) {
-      const bv = out[k];
-      const pv = patch[k];
-      if (isObj(bv) && isObj(pv)) out[k] = __sharedUtilsFallback.deepMerge(bv, pv);
-      else out[k] = cloneJson(pv);
-    }
-    return out;
-  },
-  parseJsonFence(md, fenceName, required) {
-    const src = String(md || "");
-    const re = new RegExp("```" + fenceName + "\\s*([\\s\\S]*?)```");
-    const m = src.match(re);
-    if (!m) {
-      if (required) throw new Error("Fence not found: " + fenceName);
-      return null;
-    }
-    try {
-      return JSON.parse(String(m[1] || "").trim());
-    } catch (e) {
-      throw new Error("Invalid JSON in fence `" + fenceName + "`: " + e.message);
-    }
-  },
-  toPrettyJson(x) {
-    return JSON.stringify(x, null, 2);
-  },
-};
 
 /*
  * Видимый текст сообщения по ключу каталога (PRD 10.13.50, третий кусок).
@@ -79,152 +43,25 @@ const __sharedUtilsFallback = {
  * Шов один на весь рантайм — `globalThis.__inlineSay`, его ставит слой
  * настроек. Пока он не поставлен (панель не собралась, старый Obsidian),
  * `say` отдаёт английское, которое стоит вторым аргументом на месте вызова:
- * человек обязан увидеть сообщение, а не ключ.
+ * человек обязан увидеть сообщение, а не ключ. Подстановку `{0}` делает тот
+ * же модуль.
  */
-let __say = (key, english, ...args) => {
-  let text = String(english == null ? "" : english);
-  return args.reduce(
-    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
-    text,
-  );
-};
-try {
-  const mod = require("./src/core/say.js");
-  if (mod && typeof mod.say === "function") __say = mod.say;
-} catch (_) {}
+const __say = require("./src/core/say.js").say;
 
 /** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
 function __noticeKey(area, name) {
   return "notice." + area + "." + name;
 }
 
-let __sharedUtils = __sharedUtilsFallback;
-try {
-  const mod = require("./src/core/shared_utils.js");
-  if (mod && typeof mod === "object") {
-    const ok = [
-      "cloneJson",
-      "isObj",
-      "deepMerge",
-      "parseJsonFence",
-      "toPrettyJson",
-      "nz",
-      "escapeRe",
-      "normalizeFormatMask",
-      "buildFormatValueRegexSource",
-      "hasFormatTokens",
-      "parseNumericLiteralSpec",
-      "parseNumericPatternSpec",
-      "buildNumericPatternRegexSource",
-      "renderNumericPatternValue",
-      "parseNumericPatternProgress",
-      "renderTokenlessValueByProgress",
-      "buildTokenlessValueRegexSource",
-      "parseTokenlessProgress",
-      "parseHhmm",
-      "addMinutesHhmm",
-      "formatNowByMask",
-      "buildCustomPlanFromIncrement",
-      "forwardStepByCurrent",
-      "backwardStepByCurrent",
-      "getSearchLimitByUnit",
-      "detectDateUnit",
-    ]
-      .every((k) => typeof mod[k] === "function");
-    if (ok) __sharedUtils = mod;
-  }
-} catch (e) {
-  // Silent in Obsidian sandbox: fallback helpers are expected in this path.
-}
-try { globalThis.__inlineOverhaulSharedUtils = __sharedUtils; } catch (_) {}
+const __sharedUtils = require("./src/core/shared_utils.js");
+globalThis.__inlineOverhaulSharedUtils = __sharedUtils;
 
-const __pkmOptionKeys = (() => {
-  try {
-    const mod = require("./src/core/pkm_option_keys.js");
-    if (mod && typeof mod === "object" && mod.KEYS && typeof mod.KEYS === "object") return mod;
-  } catch (_) {}
-  /*
-   * Запасные значения на случай, когда модуля рядом нет. Путь здесь обязан
-   * совпадать с `pkm_option_keys.DEFAULT_RULES_PATH`: до 2026-09-06 тут лежало
-   * прежнее место файла — корень vault, — то есть второе объявление одного
-   * пути, разошедшееся с первым при переезде В-39 (У-32). Совпадение держит
-   * пин в `bootstrap_loader_tests.js`.
-   */
-  return {
-    DEFAULT_RULES_PATH: ".obsidian/plugins/inline-overhaul/generated_rules.md",
-    LEGACY_RULES_PATH: "InlineOverhaul_Generated_RULES_TagWheel.md",
-    KEYS: {
-      RULES_PATH: "Rules path",
-      ACTION_TYPE: "Action type",
-      SUBTAG_FORMAT: "Subtag format",
-      CYCLE_END_BEHAVIOR: "Cycle end behavior",
-      CURSOR_POLICY: "Cursor policy",
-      ORDER_CONFIG: "Order config",
-      DIRECTION: "Direction",
-      DATE_RUNTIME_CONFIG: "Date runtime config",
-      TAGWHEEL_SCROLLER_ENABLED: "TagWheel scroller enabled",
-      TAGWHEEL_SCROLLER_DIRECTION: "TagWheel scroller direction",
-      TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size",
-      TAGWHEEL_SCROLLER_FILL: "TagWheel scroller fill color",
-      TAGWHEEL_SCROLLER_TEXT: "TagWheel scroller text color",
-      TAGWHEEL_EDGE_MODE: "TagWheel edge mode",
-    },
-  };
-})();
+const __pkmOptionKeys = require("./src/core/pkm_option_keys.js");
+const __pkmDomainRegistry = require("./src/core/pkm_domain_registry.js");
+const __compatProfile = require("./src/core/compat_profile.js");
+const __transformLineFinalize = require("./src/core/pkm_line_finalize_unified.js");
 
-const __pkmDomainRegistry = (() => {
-  try {
-    const mod = require("./src/core/pkm_domain_registry.js");
-    if (mod && typeof mod === "object") return mod;
-  } catch (_) {}
-  return {
-    inferOrderFieldType: () => "tag",
-    inferSubFieldKey: (parentKey) => {
-      const p = String(parentKey || "").trim();
-      return p ? `${p}_sub` : "";
-    },
-  };
-})();
 
-const __compatProfile = (() => {
-  try {
-    const mod = require("./src/core/compat_profile.js");
-    if (mod && typeof mod === "object") return mod;
-  } catch (_) {}
-  return {
-    COMPAT_FLAGS: {
-      ENABLE_CONFIG_MIGRATION_SHIMS: true,
-    },
-    DEPRECATED_CONFIG_KEYS: {
-      rules: ["tagWheelPath"],
-      pkm: ["sourceOfTruth", "autoGenerateRules"],
-      devMode: ["logLevel", "maxFileSizeKb", "maxRecords", "logSize"],
-      navigation: ["topRevealOffsetLines"],
-    },
-    isCompatEnabled(flag) {
-      const key = String(flag || "").trim();
-      if (!key) return false;
-      return this.COMPAT_FLAGS[key] === true;
-    },
-  };
-})();
-
-let __commandRegistry = null;
-let __orderDeepEditorState = null;
-let __rulesMarkdownBuilder = null;
-let __enhancedSelectAllEngine = null;
-let __smartDeleteEngine = null;
-let __storeEventsOrchestrator = null;
-let __configStoreModule = null;
-let __configMigrationModule = null;
-let __rulesSyncOrchestrator = null;
-let __transformFeature = null;
-let __transformLineFinalize = null;
-try {
-  const mod = require("./src/core/pkm_line_finalize_unified.js");
-  if (mod && typeof mod.buildPrefixUnified === "function") __transformLineFinalize = mod;
-} catch (_) {}
-let __safeModuleCache = new Map();
 
 function reportLoaderFallback(stage, err) {
   try {
@@ -291,30 +128,15 @@ function parseCheckboxAndTag(text) {
   const m = raw.match(/^\s*(?:[-*]\s*)?(\[[^\]]+\])\s+/);
   let checkbox = "";
   if (m) {
-    const token = String(m[1] || "").trim();
-    try {
-      const lf = require("./src/core/pkm_line_finalize_unified.js");
-      if (lf && typeof lf.normalizeCheckboxToken === "function") checkbox = lf.normalizeCheckboxToken(token);
-    } catch (_) {
-      checkbox = token;
-    }
+    /* Нормализует знак чекбокса тот же модуль, что и весь финализатор строки:
+       второй `require` того же файла со своей запаской был вторым объявлением
+       одной зависимости (У-32). */
+    checkbox = __transformLineFinalize.normalizeCheckboxToken(String(m[1] || "").trim());
   }
   return {
     checkbox,
     tag: extractFirstTagToken(raw),
   };
-}
-
-async function readVaultText(app, path) {
-  const safePath = String(path || "").trim();
-  if (!safePath) throw new Error("Vault read failed: empty path");
-  const vault = app && app.vault;
-  if (!vault || typeof vault.getAbstractFileByPath !== "function" || typeof vault.read !== "function") {
-    throw new Error("Vault read failed: vault API unavailable");
-  }
-  const file = vault.getAbstractFileByPath(safePath);
-  if (!file) throw new Error("Vault file not found: " + safePath);
-  return await vault.read(file);
 }
 
 function extractFieldMetaMap(field) {
@@ -389,129 +211,23 @@ function rebuildSubtagValues(parents, metaByToken) {
   return out;
 }
 
-function hasValidCommandRegistry(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.buildCoreCommandDefs === "function"
-    && typeof mod.buildNavigationCommandDefs === "function"
-    && typeof mod.buildPkmCommandDefs === "function"
-    && typeof mod.buildBinderCommandDefs === "function");
-}
-
-function hasValidTransformFeature(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.normalizeInline2Note === "function"
-    && typeof mod.normalizeTransformConfig === "function"
-    && typeof mod.renderTransformSettings === "function"
-    && typeof mod.runInline2Note === "function");
-}
-
-async function loadCommandRegistrySafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/command_registry.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/command_registry.js",
-    "plugins/inline-overhaul/src/features/command_registry.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/command_registry.js",
-    candidates,
-    cacheKey: "feature:command-registry",
-    validate: hasValidCommandRegistry,
-  });
-  if (loaded.mod) {
-    __commandRegistry = loaded.mod;
-    return __commandRegistry;
-  }
-
-  __commandRegistry = {
-    buildCoreCommandDefs: () => [],
-    buildNavigationCommandDefs: () => [],
-    buildPkmCommandDefs: () => [],
-    buildBinderCommandDefs: () => [],
-  };
-  return __commandRegistry;
-}
-
+/** Реестр команд: определения для ядра, навигации, PKM и Binder (PRD 7.2). */
 function getCommandRegistry() {
-  if (hasValidCommandRegistry(__commandRegistry)) return __commandRegistry;
-  /*
-   * Синхронная попытка перед заглушкой. Заглушка отдаёт пустые списки, то есть
-   * плагин без команд — и, что незаметнее, поиск хоткея поля-даты без
-   * определений: он спрашивает идентификатор у реестра (корень Б-11), и на
-   * заглушке нашёл бы пустоту. Правило то же, что у Transform и полосы.
-   */
-  try {
-    const mod = require("./src/features/command_registry.js");
-    if (hasValidCommandRegistry(mod)) {
-      __commandRegistry = mod;
-      return __commandRegistry;
-    }
-  } catch (_e) { /* модуль приедет асинхронным загрузчиком */ }
-  return {
-    buildCoreCommandDefs: () => [],
-    buildNavigationCommandDefs: () => [],
-    buildPkmCommandDefs: () => [],
-    buildBinderCommandDefs: () => [],
-  };
+  return require("./src/features/command_registry.js");
 }
 
-async function loadTransformFeatureSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/transform_feature.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/transform_feature.js",
-    "plugins/inline-overhaul/src/features/transform_feature.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/transform_feature.js",
-    candidates,
-    cacheKey: "feature:transform",
-    validate: hasValidTransformFeature,
-  });
-  if (loaded.mod) {
-    __transformFeature = loaded.mod;
-    return __transformFeature;
-  }
-  __transformFeature = {
-    normalizeInline2Note: () => ({ enabled: false }),
-    normalizeTransformConfig: (cfg) => cfg,
-    renderTransformSettings: (ctx) => {
-      const { containerEl } = ctx || {};
-      if (containerEl && typeof containerEl.createEl === "function") {
-        const p = containerEl.createEl("p", { text: "Transform feature module unavailable." });
-        p.style.opacity = "0.8";
-      }
-    },
-    runInline2Note: async (plugin) => {
-      if (plugin && typeof plugin.notice === "function") plugin.notice(__say(__noticeKey("plugin", "transform-unavailable"), "Transform module could not be loaded"));
-    },
-  };
-  return __transformFeature;
-}
-
+/**
+ * Transform: движок превращения строки в заметку и умолчания его ветки.
+ *
+ * Заглушки здесь нет, и это важнее, чем кажется. `normalizeTransformConfig`
+ * ставит умолчания движка ветки Transform; на заглушке, отдававшей конфиг как
+ * есть, умолчания досыпала бы схема — то есть Transform включался бы из
+ * коробки, а папкой шаблонов становилась `Templates` (девятнадцать расхождений
+ * В-7). Продуктовое решение не должно принимать тот, успел ли загрузиться
+ * модуль.
+ */
 function getTransformFeature() {
-  if (hasValidTransformFeature(__transformFeature)) return __transformFeature;
-  /*
-   * Синхронная попытка перед заглушкой, и она здесь не для удобства.
-   * `normalizeTransformConfig` ставит **умолчания движка** ветки Transform, а
-   * заглушка ниже отдаёт конфиг как есть. Если бы дело кончалось заглушкой,
-   * умолчания досыпала бы схема — то есть Transform включался бы из коробки, а
-   * папкой шаблонов становилась `Templates` (девятнадцать расхождений В-7).
-   * Продуктовое решение не должно приниматься тем, успел ли загрузиться модуль.
-   */
-  try {
-    const mod = require("./src/features/transform_feature.js");
-    if (hasValidTransformFeature(mod)) {
-      __transformFeature = mod;
-      return __transformFeature;
-    }
-  } catch (_e) { /* в vault-варианте загрузки модуль приедет асинхронно */ }
-  return {
-    normalizeInline2Note: () => ({ enabled: false }),
-    normalizeTransformConfig: (cfg) => cfg,
-    renderTransformSettings: () => {},
-    runInline2Note: async () => {},
-  };
+  return require("./src/features/transform_feature.js");
 }
 
 /**
@@ -601,474 +317,53 @@ function normalizeBinderRows(rawRows) {
   return out;
 }
 
-function hasValidOrderDeepEditorState(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.buildTagTree === "function"
-    && typeof mod.applyTagTreeToFields === "function"
-    && typeof mod.createHistory === "function"
-    && typeof mod.pushHistory === "function"
-    && typeof mod.undoHistory === "function"
-    && typeof mod.redoHistory === "function"
-    && typeof mod.resetHistory === "function");
+/**
+ * Сборщик служебной заметки правил.
+ *
+ * Единственный модуль, который помнится: у него есть зависимости, и собирается
+ * он один раз. Своей копии сборки здесь больше нет — форма документа осталась
+ * версии 1, и две копии перекладки значений разошлись бы молча, в заметке,
+ * которую человек не читает (У-32).
+ */
+let __rulesMarkdownBuilder = null;
+function getRulesMarkdownBuilder() {
+  if (__rulesMarkdownBuilder) return __rulesMarkdownBuilder;
+  const mod = require("./src/features/rules_markdown_builder.js");
+  __rulesMarkdownBuilder = mod.createRulesMarkdownBuilder({ isObj, cloneJson, toPrettyJson });
+  return __rulesMarkdownBuilder;
 }
 
-async function ensureOrderDeepEditorStateSafe(app) {
-  if (hasValidOrderDeepEditorState(__orderDeepEditorState)) {
-    try { globalThis.__inlineOrderDeepEditorState = __orderDeepEditorState; } catch (_) {}
-    return __orderDeepEditorState;
-  }
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/core/order_deep_editor_state.js",
-    "./.obsidian/plugins/inline-overhaul/src/core/order_deep_editor_state.js",
-    "plugins/inline-overhaul/src/core/order_deep_editor_state.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/core/order_deep_editor_state.js",
-    candidates,
-    cacheKey: "core:order-deep-editor-state",
-    validate: hasValidOrderDeepEditorState,
-    loadErrorPrefix: "[inline-overhaul] Failed to load order_deep_editor_state from",
-  });
-  if (loaded.mod) {
-    __orderDeepEditorState = loaded.mod;
-    try { globalThis.__inlineOrderDeepEditorState = __orderDeepEditorState; } catch (_) {}
-    return __orderDeepEditorState;
-  }
-  if (loaded.requireErr) {
-    reportLoaderFallback("main.ensureOrderDeepEditorStateSafe.require", loaded.requireErr);
-  }
-  return null;
+/** `Ctrl+A` по своим правилам (10.13.31). */
+function getEnhancedSelectAllEngine() {
+  return require("./src/features/enhanced_select_all_engine.js");
 }
 
-function hasValidRulesMarkdownBuilder(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.buildTagWheelRulesMarkdownFromConfig === "function");
+/** `Del` и `Backspace` по своим правилам (10.13.32). */
+function getSmartDeleteEngine() {
+  return require("./src/features/smart_delete_engine.js");
 }
 
 /**
- * Заглушка сборщика заметки правил. Своей копии сборки здесь больше нет.
- *
- * Раньше копия была, и после перехода конфига на версию 2 её пришлось бы
- * править дважды: форма документа правил осталась версии 1, и перекладка
- * значений — работа тонкая. Одна копия из двух неизбежно разошлась бы, а
- * разошлась бы она молча — в заметке правил, которую человек не читает.
- * Поэтому синхронный `require` того же модуля: он работает и в Node, и в
- * сборке, а vault-вариант загрузки к этому времени уже положил модуль в
- * `__rulesMarkdownBuilder`.
+ * Хранилище конфига. Встроенной копии `ConfigStore` в `main.js` больше нет:
+ * она была вторым объявлением единственного пути записи (A14, У-32).
  */
-function createRulesMarkdownBuilderFallback() {
-  try {
-    const mod = require("./src/features/rules_markdown_builder.js");
-    if (mod && typeof mod.createRulesMarkdownBuilder === "function") {
-      const builder = mod.createRulesMarkdownBuilder({ isObj, cloneJson, toPrettyJson });
-      if (hasValidRulesMarkdownBuilder(builder)) return builder;
-    }
-  } catch (_e) { /* модуль приедет асинхронным загрузчиком */ }
-  return {
-    buildTagWheelRulesMarkdownFromConfig() {
-      throw new Error("rules_markdown_builder unavailable");
-    },
-  };
-}
-
-async function loadRulesMarkdownBuilderSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/rules_markdown_builder.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/rules_markdown_builder.js",
-    "plugins/inline-overhaul/src/features/rules_markdown_builder.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/rules_markdown_builder.js",
-    candidates,
-    cacheKey: "feature:rules-markdown-builder",
-    validate: (mod) => !!(mod && typeof mod.createRulesMarkdownBuilder === "function"),
-  });
-  if (loaded.mod && typeof loaded.mod.createRulesMarkdownBuilder === "function") {
-    const builder = loaded.mod.createRulesMarkdownBuilder({ isObj, cloneJson, toPrettyJson });
-    if (hasValidRulesMarkdownBuilder(builder)) {
-      __rulesMarkdownBuilder = builder;
-      return __rulesMarkdownBuilder;
-    }
-  }
-  __rulesMarkdownBuilder = createRulesMarkdownBuilderFallback();
-  return __rulesMarkdownBuilder;
-}
-
-function getRulesMarkdownBuilder() {
-  if (hasValidRulesMarkdownBuilder(__rulesMarkdownBuilder)) return __rulesMarkdownBuilder;
-  __rulesMarkdownBuilder = createRulesMarkdownBuilderFallback();
-  return __rulesMarkdownBuilder;
-}
-
-function hasValidConfigStoreModule(mod) {
-  return !!(mod && typeof mod === "object" && typeof mod.ConfigStore === "function");
-}
-
-function hasValidConfigMigrationModule(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.normalizePkmBehaviorShape === "function");
-}
-
-function hasValidRulesSyncOrchestrator(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.scheduleGeneratedRulesSync === "function"
-    && typeof mod.ensureGeneratedRulesNow === "function");
-}
-
-function hasValidStoreEventsOrchestrator(mod) {
-  return !!(mod && typeof mod === "object" && typeof mod.registerStoreEvents === "function");
-}
-
-function hasValidEnhancedSelectAllEngine(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.handleEnhancedSelectAllKeymap === "function");
-}
-
-async function loadEnhancedSelectAllEngineSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/enhanced_select_all_engine.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/enhanced_select_all_engine.js",
-    "plugins/inline-overhaul/src/features/enhanced_select_all_engine.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/enhanced_select_all_engine.js",
-    candidates,
-    cacheKey: "feature:enhanced-select-all-engine",
-    validate: hasValidEnhancedSelectAllEngine,
-  });
-  if (loaded.mod) {
-    __enhancedSelectAllEngine = loaded.mod;
-    return __enhancedSelectAllEngine;
-  }
-  __enhancedSelectAllEngine = {
-    handleEnhancedSelectAllKeymap() {
-      return false;
-    },
-  };
-  return __enhancedSelectAllEngine;
-}
-
-function getEnhancedSelectAllEngine() {
-  if (hasValidEnhancedSelectAllEngine(__enhancedSelectAllEngine)) return __enhancedSelectAllEngine;
-  __enhancedSelectAllEngine = {
-    handleEnhancedSelectAllKeymap() {
-      return false;
-    },
-  };
-  return __enhancedSelectAllEngine;
-}
-
-function hasValidSmartDeleteEngine(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.handleSmartDeleteKeymap === "function");
-}
-
-async function loadSmartDeleteEngineSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/smart_delete_engine.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/smart_delete_engine.js",
-    "plugins/inline-overhaul/src/features/smart_delete_engine.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/smart_delete_engine.js",
-    candidates,
-    cacheKey: "feature:smart-delete-engine",
-    validate: hasValidSmartDeleteEngine,
-  });
-  if (loaded.mod) {
-    __smartDeleteEngine = loaded.mod;
-    return __smartDeleteEngine;
-  }
-  __smartDeleteEngine = {
-    handleSmartDeleteKeymap() {
-      return false;
-    },
-  };
-  return __smartDeleteEngine;
-}
-
-function getSmartDeleteEngine() {
-  if (hasValidSmartDeleteEngine(__smartDeleteEngine)) return __smartDeleteEngine;
-  __smartDeleteEngine = {
-    handleSmartDeleteKeymap() {
-      return false;
-    },
-  };
-  return __smartDeleteEngine;
-}
-
-function hasValidPriorityStripEngine(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.buildStripSpecs === "function"
-    && typeof mod.normalizeStripConfig === "function");
-}
-
-function hasValidPriorityStripAdapter(mod) {
-  return !!(mod
-    && typeof mod === "object"
-    && typeof mod.buildStripDecorationRanges === "function");
-}
-
-async function loadPriorityStripEngineSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/core/priority_strip_engine.js",
-    "./.obsidian/plugins/inline-overhaul/src/core/priority_strip_engine.js",
-    "plugins/inline-overhaul/src/core/priority_strip_engine.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/core/priority_strip_engine.js",
-    candidates,
-    cacheKey: "core:priority-strip-engine",
-    validate: hasValidPriorityStripEngine,
-  });
-  if (loaded.mod) {
-    __priorityStripEngine = loaded.mod;
-    __priorityStripEngineIsStub = false;
-    return __priorityStripEngine;
-  }
-  __priorityStripEngineIsStub = true;
-  if (loaded.requireErr) reportLoaderFallback("main.loadPriorityStripEngineSafe", loaded.requireErr);
-  return __priorityStripEngine;
-}
-
-async function loadPriorityStripAdapterSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/core/priority_strip_cm6_adapter.js",
-    "./.obsidian/plugins/inline-overhaul/src/core/priority_strip_cm6_adapter.js",
-    "plugins/inline-overhaul/src/core/priority_strip_cm6_adapter.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/core/priority_strip_cm6_adapter.js",
-    candidates,
-    cacheKey: "core:priority-strip-adapter",
-    validate: hasValidPriorityStripAdapter,
-  });
-  if (loaded.mod) {
-    __priorityStripCm6Adapter = loaded.mod;
-    __priorityStripCm6AdapterIsStub = false;
-    return __priorityStripCm6Adapter;
-  }
-  __priorityStripCm6AdapterIsStub = true;
-  if (loaded.requireErr) reportLoaderFallback("main.loadPriorityStripAdapterSafe", loaded.requireErr);
-  return __priorityStripCm6Adapter;
-}
-
-async function loadConfigStoreModuleSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/core/config_store.js",
-    "./.obsidian/plugins/inline-overhaul/src/core/config_store.js",
-    "plugins/inline-overhaul/src/core/config_store.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/core/config_store.js",
-    candidates,
-    cacheKey: "core:config-store",
-    validate: hasValidConfigStoreModule,
-  });
-  if (loaded.mod) {
-    __configStoreModule = loaded.mod;
-    return __configStoreModule;
-  }
-  __configStoreModule = null;
-  return null;
-}
-
 function getConfigStoreCtor() {
-  if (hasValidConfigStoreModule(__configStoreModule)) return __configStoreModule.ConfigStore;
-  return FallbackConfigStore;
+  return require("./src/core/config_store.js").ConfigStore;
 }
 
-async function loadConfigMigrationModuleSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/core/config_migration.js",
-    "./.obsidian/plugins/inline-overhaul/src/core/config_migration.js",
-    "plugins/inline-overhaul/src/core/config_migration.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/core/config_migration.js",
-    candidates,
-    cacheKey: "core:config-migration",
-    validate: hasValidConfigMigrationModule,
-  });
-  if (loaded.mod) {
-    __configMigrationModule = loaded.mod;
-    return __configMigrationModule;
-  }
-  __configMigrationModule = null;
-  return null;
-}
-
+/** Вторая ступень нормализации: форма ветки поведения PKM. */
 function getConfigMigrationModule() {
-  if (hasValidConfigMigrationModule(__configMigrationModule)) return __configMigrationModule;
-  return {
-    normalizePkmBehaviorShape(cfg) {
-      return cfg;
-    },
-  };
+  return require("./src/core/config_migration.js");
 }
 
-function fallbackRulesSyncOrchestrator() {
-  return {
-    scheduleGeneratedRulesSync(ctx) {
-      const cfg = ctx.getConfig();
-      if (!(cfg && cfg.pkm)) return;
-      const activeTimer = ctx.getTimer();
-      if (activeTimer) clearTimeout(activeTimer);
-      const timer = setTimeout(() => {
-        ctx.setTimer(null);
-        ctx.ensureGeneratedRulesNow("store:update").catch((e) => {
-          ctx.onError(e);
-        });
-      }, ctx.delayMs);
-      ctx.setTimer(timer);
-    },
-    async ensureGeneratedRulesNow(ctx, reason) {
-      const cfg = ctx.getConfig();
-      if (!(cfg && cfg.pkm)) return;
-      const genPath = String(readCfgPath(cfg, "advanced.generatedRulesPath") || ctx.defaultGeneratedRulesPath || "").trim();
-      if (!genPath) throw new Error("Generated rules path is empty");
-      const md = ctx.buildRulesMarkdown(cfg);
-      await ctx.writeText(genPath, md);
-      if (reason === "manual") ctx.notice(__say(__noticeKey("plugin", "rules-updated"), "Rules file updated"));
-    },
-  };
-}
-
-async function loadRulesSyncOrchestratorSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/rules_sync_orchestrator.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/rules_sync_orchestrator.js",
-    "plugins/inline-overhaul/src/features/rules_sync_orchestrator.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/rules_sync_orchestrator.js",
-    candidates,
-    cacheKey: "feature:rules-sync-orchestrator",
-    validate: hasValidRulesSyncOrchestrator,
-  });
-  if (loaded.mod) {
-    __rulesSyncOrchestrator = loaded.mod;
-    return __rulesSyncOrchestrator;
-  }
-  __rulesSyncOrchestrator = fallbackRulesSyncOrchestrator();
-  return __rulesSyncOrchestrator;
-}
-
+/** Запись служебной заметки правил: расписание и разовый вызов. */
 function getRulesSyncOrchestrator() {
-  if (hasValidRulesSyncOrchestrator(__rulesSyncOrchestrator)) return __rulesSyncOrchestrator;
-  __rulesSyncOrchestrator = fallbackRulesSyncOrchestrator();
-  return __rulesSyncOrchestrator;
+  return require("./src/features/rules_sync_orchestrator.js");
 }
 
-function fallbackStoreEventsOrchestrator() {
-  return {
-    registerStoreEvents(ctx) {
-      ctx.setUnsubscribe(
-        ctx.subscribeStore(() => {
-          ctx.renderSettingsTab();
-          ctx.scheduleGeneratedRulesSync();
-        })
-      );
-
-      ctx.registerCleanup(() => {
-        const unsubscribe = ctx.getUnsubscribe();
-        if (unsubscribe) unsubscribe();
-        const timer = ctx.getRulesTimer();
-        if (timer) {
-          clearTimeout(timer);
-          ctx.setRulesTimer(null);
-        }
-      });
-    },
-  };
-}
-
-async function loadStoreEventsOrchestratorSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/features/store_events_orchestrator.js",
-    "./.obsidian/plugins/inline-overhaul/src/features/store_events_orchestrator.js",
-    "plugins/inline-overhaul/src/features/store_events_orchestrator.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/features/store_events_orchestrator.js",
-    candidates,
-    cacheKey: "feature:store-events-orchestrator",
-    validate: hasValidStoreEventsOrchestrator,
-  });
-  if (loaded.mod) {
-    __storeEventsOrchestrator = loaded.mod;
-    return __storeEventsOrchestrator;
-  }
-  __storeEventsOrchestrator = fallbackStoreEventsOrchestrator();
-  return __storeEventsOrchestrator;
-}
-
+/** Подписка на хранилище и уборка за ней. */
 function getStoreEventsOrchestrator() {
-  if (hasValidStoreEventsOrchestrator(__storeEventsOrchestrator)) return __storeEventsOrchestrator;
-  __storeEventsOrchestrator = fallbackStoreEventsOrchestrator();
-  return __storeEventsOrchestrator;
-}
-
-async function loadSharedUtilsSafe(app) {
-  const required = [
-    "cloneJson",
-    "isObj",
-    "deepMerge",
-    "parseJsonFence",
-    "toPrettyJson",
-    "nz",
-    "escapeRe",
-    "normalizeFormatMask",
-    "buildFormatValueRegexSource",
-    "hasFormatTokens",
-    "parseNumericLiteralSpec",
-    "parseNumericPatternSpec",
-    "buildNumericPatternRegexSource",
-    "renderNumericPatternValue",
-    "parseNumericPatternProgress",
-    "renderTokenlessValueByProgress",
-    "buildTokenlessValueRegexSource",
-    "parseTokenlessProgress",
-    "parseHhmm",
-    "addMinutesHhmm",
-    "formatNowByMask",
-    "buildCustomPlanFromIncrement",
-    "forwardStepByCurrent",
-    "backwardStepByCurrent",
-    "getSearchLimitByUnit",
-    "detectDateUnit",
-  ];
-  const hasAll = (obj) => !!(obj && typeof obj === "object" && required.every((k) => typeof obj[k] === "function"));
-  if (hasAll(__sharedUtils)) {
-    try { globalThis.__inlineOverhaulSharedUtils = __sharedUtils; } catch (_) {}
-    return __sharedUtils;
-  }
-
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/core/shared_utils.js",
-    "./.obsidian/plugins/inline-overhaul/src/core/shared_utils.js",
-    "plugins/inline-overhaul/src/core/shared_utils.js",
-  ];
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/core/shared_utils.js",
-    candidates,
-    cacheKey: "core:shared-utils",
-    validate: hasAll,
-  });
-  if (loaded.mod) {
-    __sharedUtils = loaded.mod;
-    try { globalThis.__inlineOverhaulSharedUtils = __sharedUtils; } catch (_) {}
-    return __sharedUtils;
-  }
-  try { globalThis.__inlineOverhaulSharedUtils = __sharedUtils; } catch (_) {}
-  return __sharedUtils;
+  return require("./src/features/store_events_orchestrator.js");
 }
 
 function cloneJson(x) { return __sharedUtils.cloneJson(x); }
@@ -1077,134 +372,34 @@ function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
 function parseJsonFence(md, fenceName, required) { return __sharedUtils.parseJsonFence(md, fenceName, required); }
 function toPrettyJson(x) { return __sharedUtils.toPrettyJson(x); }
 
-/*
- * Загрузка модуля плагина (фаза 6, пункт 1; дефекты A1 и A2).
- *
- * **С 2026-09-06 путь здесь один — `require`.** Было три, и два из них читали
- * код модуля из vault и выполняли его через `new Function`. Ради этого пункт 1
- * фазы 6 и написан: динамическая загрузка JS — первая причина отказа на
- * community review, и никакие объяснения там не помогают.
- *
- * **Оба снятых пути были мертвы, и мертвы по-разному** — это выяснилось
- * разбором, а не предположением:
- *
- *   * ветку `uiVaultEvalFallback` **не включал ни один из шестнадцати
- *     вызовов**. Она была написана про запас и ни разу не исполнилась;
- *   * ветка через мост модулей в релизе обрывается первым же условием:
- *     реестр забандленных модулей наполнен, и `require` отдаёт модуль раньше.
- *     Это и было закреплено `release_bundle_tests.js`.
- *
- * **Почему `require` достаточно.** В сборке его разрешает esbuild — модуль
- * лежит в бандле, и промахнуться мимо него нельзя; в Node (проверки и
- * инструменты) он разрешается от папки `main.js`. Оба случая проверяются
- * шестью шагами набора, и третьего не бывает: плагин ставится плоским
- * бандлом, дерева исходников по пути `.obsidian/plugins/...` рядом с ним нет.
- *
- * **Список `candidates` остался** и остался нужным: по нему собирается путь
- * для тех модулей, которые всё ещё грузятся мостом из `pkm_v2/**` — файлов под
- * З3, до которых пункт 1 доберётся следующим куском. Убрать его отсюда,
- * оставив там, значило бы завести второе объявление одного правила (У-32).
+
+
+/**
+ * Движок навигации по строкам. Файл под З3, загружается как есть.
  */
-async function loadModuleWithVaultFallback(app, opts) {
-  const options = opts && typeof opts === "object" ? opts : {};
-  const requirePath = String(options.requirePath || "");
-  const validate = typeof options.validate === "function"
-    ? options.validate
-    : (mod) => !!(mod && typeof mod === "object");
-  const cacheKey = String(options.cacheKey || "").trim();
-
-  if (cacheKey && __safeModuleCache.has(cacheKey)) {
-    const cached = __safeModuleCache.get(cacheKey);
-    if (validate(cached)) return { mod: cached, requireErr: null };
-    __safeModuleCache.delete(cacheKey);
-  }
-
-  let requireErr = null;
-  if (requirePath) {
-    try {
-      const mod = require(requirePath);
-      if (validate(mod)) {
-        if (cacheKey) __safeModuleCache.set(cacheKey, mod);
-        return { mod, requireErr: null };
-      }
-    } catch (e) {
-      requireErr = e;
-    }
-  }
-
-  return { mod: null, requireErr };
+function getNavigationRuntime() {
+  return require("./navigation_runtime.js");
 }
 
-async function loadNavigationRuntimeSafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/navigation_runtime.js",
-    "./.obsidian/plugins/inline-overhaul/navigation_runtime.js",
-    "plugins/inline-overhaul/navigation_runtime.js",
-  ];
-
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./navigation_runtime.js",
-    candidates,
-    cacheKey: "runtime:navigation",
-    validate: (mod) => !!(mod && typeof mod === "object"),
-    loadErrorPrefix: "[inline-overhaul] Failed to load navigation runtime from",
-  });
-
-  if (loaded.mod) return loaded.mod;
-  if (loaded.requireErr) {
-    console.error("[inline-overhaul] Failed to load navigation_runtime.js (require + fallback)", loaded.requireErr);
-  }
-  return null;
+/** Движок инлайновых PKM-тегов. Файл под З3. */
+function getPkmRuntimeV2() {
+  return require("./pkm_runtime_v2.js");
 }
 
-async function loadPkmRuntimeV2Safe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/pkm_runtime_v2.js",
-    "./.obsidian/plugins/inline-overhaul/pkm_runtime_v2.js",
-    "plugins/inline-overhaul/pkm_runtime_v2.js",
-  ];
-
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./pkm_runtime_v2.js",
-    candidates,
-    cacheKey: "runtime:pkm-v2",
-    validate: (mod) => !!(mod && typeof mod === "object"),
-    loadErrorPrefix: "[inline-overhaul] Failed to load PKM runtime v2 from",
-  });
-
-  if (loaded.mod) return loaded.mod;
-  if (loaded.requireErr) {
-    console.error("[inline-overhaul] Failed to load pkm_runtime_v2.js (require + fallback)", loaded.requireErr);
-  }
-  return null;
-}
-
-async function loadPkmMacroRuntimeEntrySafe(app) {
-  const candidates = [
-    ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js",
-    "./.obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js",
-    "plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js",
-  ];
-
-  const loaded = await loadModuleWithVaultFallback(app, {
-    requirePath: "./src/core/pkm_macro_runtime_entry.js",
-    candidates,
-    cacheKey: "runtime:pkm-macro-entry",
-    validate: (mod) => !!(mod && typeof mod === "object" && typeof mod.bootstrapMacroRuntime === "function"),
-    loadErrorPrefix: "[inline-overhaul] Failed to load PKM macro runtime entry from",
-  });
-
-  if (loaded.mod) {
-    try { globalThis.__inlinePkmMacroRuntimeEntryMod = loaded.mod; } catch (_) {}
-    try {
-      globalThis.__inlineGetPkmMacroRuntime = (app_, normalizeOrderKeyLocal) => loaded.mod.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal);
-    } catch (_) {}
-    return loaded.mod;
-  }
-  if (loaded.requireErr) {
-    console.error("[inline-overhaul] Failed to load pkm_macro_runtime_entry.js (require + fallback)", loaded.requireErr);
-  }
-  return null;
+/**
+ * Шов макро-рантайма PKM: по нему движки под З3 находят точку входа.
+ *
+ * Публикуется в `globalThis`, потому что спрашивают его файлы, которых
+ * `main.js` не подключает: у них свой загрузчик — мост модулей. Пока мост не
+ * снят (пункт 2 фазы 6), шов остаётся, и ставится он один раз, в `onload`.
+ */
+function publishPkmMacroRuntimeEntry() {
+  const mod = require("./src/core/pkm_macro_runtime_entry.js");
+  globalThis.__inlinePkmMacroRuntimeEntryMod = mod;
+  globalThis.__inlineGetPkmMacroRuntime = (app_, normalizeOrderKeyLocal) => (
+    mod.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal)
+  );
+  return mod;
 }
 
 const SCHEMA_VERSION = 1;
@@ -3758,21 +2953,6 @@ function buildStripDecorations(view, plugin) {
     }
   }
 
-  if (__priorityStripEngineIsStub || __priorityStripCm6AdapterIsStub) {
-    if (debugLine && plugin && typeof plugin.devLogEvent === "function") {
-      try {
-        plugin.devLogEvent("strip.loader.fail", {
-          traceTxId,
-          stripFieldId,
-          stripActive: true,
-          engineStub: __priorityStripEngineIsStub,
-          adapterStub: __priorityStripCm6AdapterIsStub,
-          reason: "loader-unavailable",
-        }, "error", cfg);
-      } catch (_) {}
-    }
-    return cmView.Decoration.none;
-  }
 
   const stripSpecs = __priorityStripEngine.buildStripSpecs(stripInputRows, {
     tokenSet: fieldTokenSet,
@@ -4733,123 +3913,17 @@ function createTagwheelHeaderDecorationExtension(plugin) {
   });
 }
 
-class FallbackConfigStore {
-  constructor(plugin, options) {
-    this.plugin = plugin;
-    this.defaults = options.defaults;
-    this.undoLimit = options.undoLimit || 20;
-    this.saveDebounceMs = options.saveDebounceMs || 250;
-    this.config = cloneJson(this.defaults);
-    this.undoStack = [];
-    this.listeners = new Set();
-    this.saveTimer = null;
-    this.lastSavedAt = null;
-  }
-
-  async init() {
-    const raw = await this.plugin.loadData();
-    this.config = migrateConfig(raw);
-    await this.plugin.saveData(this.config);
-    this.lastSavedAt = Date.now();
-  }
-
-  getSnapshot() {
-    return cloneJson(this.config);
-  }
-
-  getLastSavedAt() {
-    return this.lastSavedAt;
-  }
-
-  subscribe(listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  emit(reason) {
-    const payload = { reason: reason || "update", snapshot: this.getSnapshot() };
-    for (const l of this.listeners) {
-      try {
-        l(payload);
-      } catch (e) {
-        console.error("[inline-overhaul] Config listener failed", e);
-      }
-    }
-  }
-
-  update(mutator, reason) {
-    const before = this.getSnapshot();
-    const next = mutator(this.getSnapshot());
-    if (!isObj(next)) return;
-
-    this.undoStack.push(before);
-    if (this.undoStack.length > this.undoLimit) this.undoStack.shift();
-
-    this.config = migrateConfig(next);
-    this.emit(reason || "update");
-    this.scheduleSave();
-  }
-
-  patch(patchObj, reason) {
-    this.update((prev) => deepMerge(prev, patchObj), reason || "patch");
-  }
-
-  undo(reason) {
-    if (!this.undoStack.length) return false;
-    this.config = migrateConfig(this.undoStack.pop());
-    this.emit(reason || "undo");
-    this.scheduleSave();
-    return true;
-  }
-
-  scheduleSave() {
-    if (this.saveTimer) clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(async () => {
-      this.saveTimer = null;
-      try {
-        await this.plugin.saveData(this.config);
-        this.lastSavedAt = Date.now();
-      } catch (e) {
-        console.error("[inline-overhaul] Save failed", e);
-        new Notice(__say(__noticeKey("plugin", "save-failed"), "Could not save settings"));
-      }
-    }, this.saveDebounceMs);
-  }
-
-  async flushNow() {
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-    }
-    await this.plugin.saveData(this.config);
-    this.lastSavedAt = Date.now();
-  }
-
-  unload() {
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-    }
-  }
-}
 
 class InlineOverhaulPlugin extends Plugin {
   async onload() {
-    await loadSharedUtilsSafe(this.app);
-    await loadPkmMacroRuntimeEntrySafe(this.app);
-    await loadConfigMigrationModuleSafe(this.app);
-    await loadConfigStoreModuleSafe(this.app);
-    await loadCommandRegistrySafe(this.app);
-    await loadRulesMarkdownBuilderSafe(this.app);
-    await loadEnhancedSelectAllEngineSafe(this.app);
-    await loadSmartDeleteEngineSafe(this.app);
-    await loadStoreEventsOrchestratorSafe(this.app);
-    await loadRulesSyncOrchestratorSafe(this.app);
-    await loadTransformFeatureSafe(this.app);
-    await loadPriorityStripEngineSafe(this.app);
-    await loadPriorityStripAdapterSafe(this.app);
-    this.navRuntime = await loadNavigationRuntimeSafe(this.app);
-    this.pkmRuntimeV2 = await loadPkmRuntimeV2Safe(this.app);
+    /*
+     * Модули плагина. Ждать было нечего и до правки: единственным путём
+     * загрузки остался `require`, а он синхронный. Пятнадцать `await`
+     * описывали ту загрузку, которой уже не было (A33).
+     */
+    publishPkmMacroRuntimeEntry();
+    this.navRuntime = getNavigationRuntime();
+    this.pkmRuntimeV2 = getPkmRuntimeV2();
     this._devLogWriteQueue = Promise.resolve();
     this._enhancedSelectAllCycle = null;
     this._rulesGenTimer = null;
@@ -4975,7 +4049,7 @@ class InlineOverhaulPlugin extends Plugin {
     }
     this._caretStyleEl = null;
     if (this.store) this.store.unload();
-    if (__safeModuleCache && typeof __safeModuleCache.clear === "function") __safeModuleCache.clear();
+
   }
 
   ensureTagwheelFillStyles() {
@@ -5353,7 +4427,7 @@ class InlineOverhaulPlugin extends Plugin {
 
   async ensureNavRuntime() {
     if (this.navRuntime && typeof this.navRuntime === "object") return this.navRuntime;
-    this.navRuntime = await loadNavigationRuntimeSafe(this.app);
+    this.navRuntime = getNavigationRuntime();
     return this.navRuntime;
   }
 
@@ -5406,7 +4480,7 @@ class InlineOverhaulPlugin extends Plugin {
 
   async ensurePkmRuntimeV2() {
     if (this.pkmRuntimeV2 && typeof this.pkmRuntimeV2 === "object") return this.pkmRuntimeV2;
-    this.pkmRuntimeV2 = await loadPkmRuntimeV2Safe(this.app);
+    this.pkmRuntimeV2 = getPkmRuntimeV2();
     return this.pkmRuntimeV2;
   }
 

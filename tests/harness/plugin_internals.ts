@@ -121,7 +121,7 @@ const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
  * и которую можно позвать. `main.js` объявляет виджеты декораций на верхнем
  * уровне, а настоящий пакет при загрузке требует браузерный `document`.
  */
-function cmStub(): Any {
+export function cmStub(): Any {
   const fn = function cmAny(): Any { return cmStub(); } as Any;
   return new Proxy(fn, {
     get: (target: Any, prop: string | symbol) => (prop === "prototype" ? target.prototype : cmStub()),

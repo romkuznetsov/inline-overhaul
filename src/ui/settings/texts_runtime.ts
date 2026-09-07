@@ -62,7 +62,6 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "save-failed": "Could not save settings",
     "needs-obsidian": "inlineOverhaul settings need Obsidian 1.13 or newer",
     "rules-updated": "Rules file updated",
-    "transform-unavailable": "Transform module could not be loaded",
     "nothing-to-undo": "Nothing to undo",
   },
 
