@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals, Setting, Notice, Modal } from "../harness/obsidian_stub.ts";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
@@ -622,6 +623,44 @@ function realConfig(): Any {
   assert.deepEqual(lanes, ["0", "2"],
     "дочерняя дорожка остаётся пустой, внучатая — третья: получилось "
     + JSON.stringify(lanes));
+  /* --------------------------------------------------------------------
+   * И тот же вопрос — самому нормативу.
+   *
+   * Выше написано «норматив — движок», и до 2026-09-07 это было
+   * **утверждением о чужом состоянии**, которого никто не проверял (У-71).
+   * Движок считал глубину по строкам со значением, а не по уровням дерева: у
+   * заказчика внучатая полоса встала на дорожку дочерней, и предпросмотр с
+   * заметкой расходились ровно на то, что здесь объявлено совпадающим
+   * (замечание по M1, дефект A40).
+   *
+   * Поэтому норматив спрашивается, а не называется: то же дерево — значение у
+   * корня, ничего у его ребёнка, значение у внука — уезжает в движок, и
+   * дорожки сверяются с теми, что нарисовал предпросмотр (У-92).
+   */
+  const engine = createRequire(import.meta.url)(
+    path.join(root, "src", "core", "priority_strip_engine.js")) as Any;
+  const specs = engine.buildStripSpecs([
+    { lineNo: 1, text: "- #open root" },
+    { lineNo: 2, text: "\t- child without a value" },
+    { lineNo: 3, text: "\t\t- #shut grandchild" },
+  ], {
+    tokenSet: new Set(["#open", "#shut"]),
+    readRowForToken: (token: string) => ({ fillColor: token === "#open" ? "#111111" : "#222222" }),
+    stripesToShow: 3,
+  });
+  const engineLanes = Array.from(new Set(
+    specs.flatMap((spec: Any) => (spec.rails || [])
+      .map((rail: Any, lane: number) => (String(rail && rail.color || "").trim() ? String(lane) : ""))
+      .filter((x: string) => x !== "")),
+  )).sort();
+
+  assert.deepEqual(engineLanes, ["0", "2"],
+    "движок ставит полосы на дорожки уровней, дочерняя остаётся пустой: "
+    + JSON.stringify(engineLanes));
+  assert.deepEqual(engineLanes, lanes,
+    "предпросмотр и движок сошлись по дорожкам: предпросмотр "
+    + JSON.stringify(lanes) + ", движок " + JSON.stringify(engineLanes));
+  ok("норматив спрошен: дорожки движка совпали с дорожками предпросмотра");
   ok("пропущенный уровень не сдвигает дорожку: " + JSON.stringify(lanes));
 }
 

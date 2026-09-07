@@ -233,6 +233,84 @@ function run() {
       "и тумблер можно выключить");
   }
 
+  /*
+   * Дорожка — уровень строки в дереве (замечание заказчика по M1,
+   * 2026-09-07; дефект A40).
+   *
+   * Его дерево: родительская строка с тегом, дочерняя **без** тега, внучатая с
+   * тегом. Полоса внучатой рисовалась на дорожке дочерней, потому что глубина
+   * считалась по строкам со значением, а не по уровням дерева. Спрашиваются
+   * цвета **по дорожкам**: пустая дорожка обязана остаться пустой, иначе
+   * проверка не отличит «дорожка уровня» от «номер полосы».
+   */
+  {
+    const specs = buildSpecs([
+      { lineNo: 1, text: "- #/1 parent" },
+      { lineNo: 2, text: "\t- child without a token" },
+      { lineNo: 3, text: "\t\t- #/2 grandchild" },
+    ], { stripesToShow: 3 });
+    assertEq(specs.length, 3, "уровни: три строки — три полосы");
+    assertEq(specs[2].depthFromRoot, 2,
+      "внучатая строка лежит на втором уровне, даже если у дочерней нет тега");
+    assertEq(specs[2].rails.map((r) => r.color).join(","), "#e74c3c,,#f39c12",
+      "дорожка дочерней пуста, своя полоса — на третьей дорожке");
+    assertEq(specs[2].rails.map((r) => r.role).join(","), "inherit,inherit,own",
+      "своя дорожка — та, что отвечает своему уровню");
+    /* Дочерняя строка своей полосы не получает: тега у неё нет. */
+    assertEq(specs[1].rails.map((r) => r.color).join(","), "#e74c3c",
+      "у дочерней строки только полоса родителя, и она на первой дорожке");
+  }
+
+  {
+    /*
+     * Обратная сторона: `Number of Bars` = 2 — это две дорожки, а не «две
+     * полосы, какие найдутся». Уровень глубже второго полосы не получает, и
+     * так же показывает предпросмотр (`--io-lane` в `previews.ts`).
+     */
+    const specs = buildSpecs([
+      { lineNo: 1, text: "- #/1 parent" },
+      { lineNo: 2, text: "\t- child without a token" },
+      { lineNo: 3, text: "\t\t- #/2 grandchild" },
+    ], { stripesToShow: 2 });
+    assertEq(specs[2].rails.map((r) => r.color).join(","), "#e74c3c",
+      "две дорожки — свой уровень третий, полосы у него нет");
+    assertEq(specs[2].rails.map((r) => r.role).join(","), "inherit",
+      "и роли «своя» на строке не остаётся вовсе");
+  }
+
+  {
+    /*
+     * Режим `Lanes rotate` (`crossing`) — тот, у которого дорожки уровням не
+     * соответствуют: верхний уровень снаружи, самый глубокий внутри. Пустых
+     * дорожек в нём не бывает, и это его смысл, а не недосмотр.
+     */
+    const specs = buildSpecs([
+      { lineNo: 1, text: "- #/1 parent" },
+      { lineNo: 2, text: "\t- child without a token" },
+      { lineNo: 3, text: "\t\t- #/2 grandchild" },
+    ], { stripesToShow: 3, mode: "crossing" });
+    assertEq(specs[2].rails.map((r) => r.color).join(","), "#e74c3c,#f39c12",
+      "дорожки заполнены подряд: пустого уровня между ними нет");
+    assertEq(specs[2].rails.map((r) => r.role).join(","), "inherit,own",
+      "самый глубокий рельс — свой");
+  }
+
+  {
+    /*
+     * Уровень занимает и та строка, которой полоса не досталась вовсе: у
+     * верхних двух нет тега, и глубина третьей всё равно вторая.
+     */
+    const specs = buildSpecs([
+      { lineNo: 1, text: "- root without a token" },
+      { lineNo: 2, text: "\t- child without a token" },
+      { lineNo: 3, text: "\t\t- #/3 grandchild" },
+    ], { stripesToShow: 3 });
+    assertEq(specs.length, 1, "рисуется только строка со своим значением");
+    assertEq(specs[0].depthFromRoot, 2, "и лежит она на втором уровне");
+    assertEq(specs[0].rails.map((r) => r.color).join(","), ",,#2ecc71",
+      "две дорожки пусты, полоса на третьей");
+  }
+
   console.log("Priority strip engine tests: OK");
 }
 

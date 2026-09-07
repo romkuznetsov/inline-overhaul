@@ -41,6 +41,13 @@ function detectOwnMatch(text, tokenSet, readRowForToken) {
  * `list-inherit` в `buildStripSpecs` — она же стирала полосу дочерней строки у
  * внучатой: «bar дочерней и внучатой строки применяются только для своей
  * строки» (замечание заказчика H1, 2026-09-04).
+ *
+ * **Дорожка — это уровень строки в дереве, а не номер нарисованной полосы**
+ * (замечание заказчика по M1, 2026-09-07; в предпросмотре то же было названо
+ * B22 2026-09-02). Уровень без своего значения дорожку **занимает**, но не
+ * красит: пустой рельс остаётся на месте, иначе полоса внучатой строки
+ * съезжает на дорожку дочерней. Хвостовые пустые дорожки не рисуются — за
+ * последней полосой рисовать нечего.
  */
 function buildRailsDefault(chain, stripesToShow) {
   const levels = Array.isArray(chain) ? chain.slice(0) : [];
@@ -50,9 +57,10 @@ function buildRailsDefault(chain, stripesToShow) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const src = levels[i] || {};
-    out.push({ role: i === 0 ? "parent" : (i === 1 ? "child" : "grandchild"), color: src.color || "" });
+    out.push({ role: "inherit", color: src.color || "" });
   }
-  return out.filter((r) => !!String(r.color || "").trim());
+  while (out.length && !String(out[out.length - 1].color || "").trim()) out.pop();
+  return out;
 }
 
 /** То же правило про число рельсов, что в `buildRailsDefault` (Б1). */
@@ -142,9 +150,36 @@ function buildStripSpecs(lines, options) {
 
     while (stack.length && listMeta.indent <= stack[stack.length - 1].indent) stack.pop();
 
-    const inherited = drawWholeTree && stack.length ? stack[stack.length - 1] : null;
+    /*
+     * Уровень занимает **каждая** строка списка, со значением Field или без.
+     * До 2026-09-07 в стопке лежали только строки со значением, и глубина
+     * считалась по ним: под дочерней строкой без тега внучатая получала
+     * глубину 1, а её собственная полоса — дорожку дочерней. Заказчик увидел
+     * это как «для внучатой строки отрисовался bar на месте дочернего»
+     * (замечание по M1). Предпросмотр полос считает так с 2026-09-02 (B22), и
+     * это то же самое правило — второе его объявление и разошлось (У-32).
+     */
+    const ancestors = stack.slice(0);
+    const depthFromRoot = ancestors.length;
+    stack.push({
+      indent: listMeta.indent,
+      color: own && own.color ? own.color : "",
+      token: own ? own.token : "",
+      depthFromRoot,
+    });
+
+    /* Наследуется цвет ближайшего сверху уровня, у которого он есть: уровень
+       без значения дорожку занимает, но не красит. */
+    let inherited = null;
+    if (drawWholeTree) {
+      for (let j = ancestors.length - 1; j >= 0; j--) {
+        if (ancestors[j] && String(ancestors[j].color || "").trim()) {
+          inherited = ancestors[j];
+          break;
+        }
+      }
+    }
     if (!own && !inherited) continue;
-    const depthFromRoot = inherited ? (Number(inherited.depthFromRoot || 0) + 1) : 0;
     const effectiveStripes = Math.max(1, Math.min(stripesToShow, depthFromRoot + 1));
 
     const spec = {
@@ -161,32 +196,47 @@ function buildStripSpecs(lines, options) {
       rails: [],
     };
 
+    /*
+     * Цепочка уровней: по одному на каждый уровень дерева, включая свой.
+     * Уровень без значения — пустой цвет, и рельс на его дорожке остаётся
+     * пустым. В режиме `crossing` («Lanes rotate») дорожки уровням не
+     * соответствуют по определению: он собирает полосы из **окрашенных**
+     * уровней, ставя верхний наружу и самый глубокий внутрь.
+     */
     const levelChain = [];
     if (drawWholeTree) {
-      for (let j = 0; j < stack.length; j++) {
-        const lv = stack[j] || {};
-        if (lv.color) levelChain.push({ color: lv.color, token: lv.token || "" });
+      for (let j = 0; j < ancestors.length; j++) {
+        const lv = ancestors[j] || {};
+        if (stripMode === "crossing") {
+          if (lv.color) levelChain.push({ color: lv.color, token: lv.token || "" });
+        } else {
+          levelChain.push({ color: lv.color || "", token: lv.token || "" });
+        }
       }
     }
-    if (own && own.color) levelChain.push({ color: own.color, token: own.token || "" });
+    if (stripMode === "crossing") {
+      if (own && own.color) levelChain.push({ color: own.color, token: own.token || "" });
+    } else {
+      levelChain.push({ color: own && own.color ? own.color : "", token: own ? own.token : "" });
+    }
     spec.rails = stripMode === "crossing"
       ? buildRailsCrossing(levelChain, effectiveStripes)
       : buildRailsDefault(levelChain, effectiveStripes);
-    if (spec.mode === "list-inherit") {
-      /* Все рельсы такой строки унаследованы: своего значения у неё нет. */
-      for (let r = 0; r < spec.rails.length; r++) spec.rails[r].role = "inherit";
-    } else if (spec.mode === "list-own") {
-      if (spec.rails[0]) spec.rails[0].role = "own";
-    } else if (spec.mode === "list-own+inherit") {
-      if (spec.rails[0]) spec.rails[0].role = "inherit";
-      if (spec.rails[1]) spec.rails[1].role = "own";
-      for (let r = 2; r < spec.rails.length; r++) spec.rails[r].role = "own";
+    /*
+     * Роль рельса — «свой» или «унаследованный», и решается она в одном месте
+     * (У-32): у режима `default` своя дорожка — дорожка своего уровня, у
+     * `crossing` самый глубокий рельс и есть свой.
+     */
+    for (let r = 0; r < spec.rails.length; r++) spec.rails[r].role = "inherit";
+    if (own && own.color && spec.rails.length) {
+      const ownLane = stripMode === "crossing"
+        ? spec.rails.length - 1
+        : Math.min(depthFromRoot, spec.rails.length - 1);
+      if (stripMode === "crossing" || depthFromRoot < spec.rails.length) {
+        spec.rails[ownLane].role = "own";
+      }
     }
     out.push(spec);
-
-    if (own && own.color) {
-      stack.push({ indent: listMeta.indent, color: own.color, token: own.token, depthFromRoot });
-    }
   }
 
   markTreeRuns(out);
