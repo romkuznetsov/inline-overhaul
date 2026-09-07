@@ -31,6 +31,9 @@ import { createFieldsModel } from "../../src/ui/settings/custom/fields_model.ts"
 import { renderFieldsEditor, type FieldsViewState } from "../../src/ui/settings/custom/fields_editor_view.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
 import * as deepStateModule from "../../src/core/order_deep_editor_state.js";
+/* Тот, кто читает имена Field в продукте: его `strictNames` и есть
+   живое правило переименования (У-32). */
+const helpers = createRequire(import.meta.url)("../../src/core/pkm_rules_runtime_helpers.js") as Any;
 
 setupGlobals();
 
@@ -420,8 +423,15 @@ const fieldById = (cfg: Any, side: "leftMode" | "rightMode", id: string): Any =>
   await p.model().setStrictName("status", "My Field");
   assert.equal(p.cfg().pkm.fields.order.strictNames.status, "My Field",
     "имя с заглавной и пробелом переживает настоящий путь записи");
-  assert.equal(internals.getOrderStrictName(p.cfg(), "status"), "My Field",
-    "и заметка конфигурации зовёт Field новым именем, а не ключом");
+  /*
+   * Второй конец сверки — не помощник из `main.js`, а тот, кто имя и
+   * правда читает. `getOrderStrictName` снят 2026-09-07: в продукте его
+   * не звал никто, а заметки конфигурации, о которой он говорил, нет с
+   * 2026-09-03. Живое правило — `parseOrderConfig`: это его `strictNames`
+   * читают движки, и по нему же Field находится после переименования.
+   */
+  assert.equal(helpers.parseOrderConfig(p.cfg().pkm.fields.order).strictNames.status, "My Field",
+    "и движок зовёт Field новым именем, а не ключом");
   ok("переименование Field доезжает до конфига и до заметки конфигурации");
 }
 

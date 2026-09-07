@@ -71,146 +71,6 @@ function reportLoaderFallback(stage, err) {
   } catch (_) {}
 }
 
-function denormTagToken(token) {
-  let value = String(token || "").trim();
-  if (!value) return "";
-  if (value.charAt(0) === "#") value = value.slice(1);
-  return String(value || "").trim();
-}
-
-function isWikilinkToken(text) {
-  const raw = String(text || "").trim();
-  return /^\[\[[^\]]+\]\]$/.test(raw);
-}
-
-function parseWikilinkLineStrict(text, sectionName, lineNo, allowedFields, options) {
-  const raw = String(text || "").trim();
-  const m = raw.match(/^(\[\[[^\]]+\]\])(?:\s*-\s*([A-Za-z0-9_-]+))?$/);
-  if (!m) {
-    throw new Error(`Section #### ${sectionName}, line ${lineNo}: expected wikilink '[[...]] - fieldId'`);
-  }
-  const token = String(m[1] || "").trim();
-  const allowed = Array.isArray(allowedFields)
-    ? allowedFields.map((x) => String(x || "").trim()).filter(Boolean)
-    : [];
-  const opts = options && typeof options === "object" ? options : {};
-  const requireExplicitFieldId = opts.requireExplicitFieldId === true;
-  if (!allowed.length) {
-    throw new Error(`Section #### ${sectionName}, line ${lineNo}: no wikilink fields are configured`);
-  }
-  let fieldId = String(m[2] || "").trim();
-  if (requireExplicitFieldId && !fieldId) {
-    throw new Error(`Section #### ${sectionName}, line ${lineNo}: field id is required for wikilink in mixed tag/wikilink section`);
-  }
-  if (!fieldId) {
-    if (allowed.length === 1) fieldId = allowed[0];
-    else if (allowed.length > 1) {
-      throw new Error(`Section #### ${sectionName}, line ${lineNo}: field id is required for wikilink when multiple fields are available (${allowed.join(", ")})`);
-    }
-  }
-  if (!fieldId) {
-    throw new Error(`Section #### ${sectionName}, line ${lineNo}: missing wikilink field id`);
-  }
-  if (allowed.length && !allowed.includes(fieldId)) {
-    throw new Error(`Section #### ${sectionName}, line ${lineNo}: unknown wikilink field '${fieldId}'`);
-  }
-  return { token, fieldId };
-}
-
-function extractFirstTagToken(text) {
-  const raw = String(text || "");
-  const m = raw.match(/#[^\s#]+/);
-  return m ? String(m[0] || "").trim() : "";
-}
-
-function parseCheckboxAndTag(text) {
-  const raw = String(text || "");
-  const m = raw.match(/^\s*(?:[-*]\s*)?(\[[^\]]\])\s+/);
-  let checkbox = "";
-  if (m) {
-    /* Нормализует знак чекбокса тот же модуль, что и весь финализатор строки:
-       второй `require` того же файла со своей запаской был вторым объявлением
-       одной зависимости (У-32). */
-    checkbox = __transformLineFinalize.normalizeCheckboxToken(String(m[1] || "").trim());
-  }
-  return {
-    checkbox,
-    tag: extractFirstTagToken(raw),
-  };
-}
-
-function extractFieldMetaMap(field) {
-  const values = field && Array.isArray(field.values) ? field.values : [];
-  const out = {};
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i];
-    if (!isObj(v)) continue;
-    const token = denormTagToken(v.token);
-    if (!token) continue;
-    const meta = cloneJson(v);
-    delete meta.token;
-    out[token] = meta;
-  }
-  return out;
-}
-
-function rebuildTagValues(parentTokens, metaByToken) {
-  const tokens = Array.isArray(parentTokens) ? parentTokens : [];
-  const metaMap = isObj(metaByToken) ? metaByToken : {};
-  const out = [];
-  const seen = new Set();
-  for (let i = 0; i < tokens.length; i++) {
-    const token = denormTagToken(tokens[i]);
-    if (!token || seen.has(token)) continue;
-    seen.add(token);
-    const meta = isObj(metaMap[token]) ? cloneJson(metaMap[token]) : {};
-    delete meta.allowedParentValues;
-    out.push({
-      ...meta,
-      token,
-      active: typeof meta.active === "boolean" ? meta.active : true,
-    });
-  }
-  return out;
-}
-
-function rebuildSubtagValues(parents, metaByToken) {
-  const src = Array.isArray(parents) ? parents : [];
-  const metaMap = isObj(metaByToken) ? metaByToken : {};
-  const byToken = {};
-  const order = [];
-
-  for (let i = 0; i < src.length; i++) {
-    const parent = isObj(src[i]) ? src[i] : {};
-    const parentToken = denormTagToken(parent.token);
-    if (!parentToken) continue;
-    const subtags = Array.isArray(parent.subtags) ? parent.subtags : [];
-    for (let si = 0; si < subtags.length; si++) {
-      const subToken = denormTagToken(subtags[si]);
-      if (!subToken) continue;
-      if (!Object.prototype.hasOwnProperty.call(byToken, subToken)) {
-        byToken[subToken] = new Set();
-        order.push(subToken);
-      }
-      byToken[subToken].add(parentToken);
-    }
-  }
-
-  const out = [];
-  for (let i = 0; i < order.length; i++) {
-    const token = order[i];
-    const meta = isObj(metaMap[token]) ? cloneJson(metaMap[token]) : {};
-    const allowedParentValues = Array.from(byToken[token]);
-    out.push({
-      ...meta,
-      token,
-      allowedParentValues,
-      active: typeof meta.active === "boolean" ? meta.active : true,
-    });
-  }
-  return out;
-}
-
 /** Реестр команд: определения для ядра, навигации, PKM и Binder (PRD 7.2). */
 function getCommandRegistry() {
   return require("./src/features/command_registry.js");
@@ -369,7 +229,6 @@ function getStoreEventsOrchestrator() {
 function cloneJson(x) { return __sharedUtils.cloneJson(x); }
 function isObj(x) { return __sharedUtils.isObj(x); }
 function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
-function parseJsonFence(md, fenceName, required) { return __sharedUtils.parseJsonFence(md, fenceName, required); }
 function toPrettyJson(x) { return __sharedUtils.toPrettyJson(x); }
 
 
@@ -443,20 +302,12 @@ const HOTKEYS_SUB_TABS = [
 const PKM_ORDER_FIELDS = [];
 const DATE_RUNTIME_KEY_NOW = "time_now";
 const DATE_RUNTIME_KEY_ESTIMATED = "time_estimated";
-const ORDER_KEY_TO_LEFT_FIELD_ID = {};
+;
 
 function normalizeOrderFieldKey(key) {
   const k = String(key || "").trim().replace(/\s+/g, " ");
   if (!k) return "";
   return /^[a-z0-9_\- ]+$/i.test(k) ? k : "";
-}
-
-function inferSubFieldKeySafe(parentKey) {
-  if (__pkmDomainRegistry && typeof __pkmDomainRegistry.inferSubFieldKey === "function") {
-    return __pkmDomainRegistry.inferSubFieldKey(parentKey);
-  }
-  const p = String(parentKey || "").trim();
-  return p ? `${p}_sub` : "";
 }
 
 function inferOrderFieldType(key) {
@@ -915,22 +766,6 @@ function normalizePkmOrder(rawOrder) {
   return out;
 }
 
-function getOrderStrictName(cfg, orderKey) {
-  const key = normalizeOrderFieldKey(orderKey);
-  if (!key) return "";
-  const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
-  const strict = isObj(order && order.strictNames) ? order.strictNames : {};
-  const candidate = String(strict[key] || "").trim();
-  /*
-   * Третье место, где стояло то же строгое правило, и с тем же следствием:
-   * имя с заглавной или пробелом здесь молча подменялось ключом, и в заметке
-   * конфигурации Field назывался по-старому даже после успешного
-   * переименования. Нашлось не чтением, а пином на совпадение правил (1.3.1).
-   */
-  if (STRICT_FIELD_NAME_RE.test(candidate)) return candidate;
-  return key;
-}
-
 function serializePkmOrderForMacro(cfg) {
   const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
   const placement = isObj(readCfgPath(cfg, "pkm.placement")) ? readCfgPath(cfg, "pkm.placement") : {};
@@ -993,40 +828,6 @@ function serializeDateRuntimeConfigForMacro(cfg) {
       time: String(timeName || ""),
     },
   });
-}
-
-function formatHotkeyBinding(binding) {
-  if (!binding || !isObj(binding)) return "";
-  const mods = Array.isArray(binding.modifiers) ? binding.modifiers.map((x) => String(x || "").trim()).filter(Boolean) : [];
-  const key = String(binding.key || "").trim();
-  if (!key) return "";
-  return mods.length ? `${mods.join(" + ")} + ${key}` : key;
-}
-
-/**
- * Идентификатор команды в менеджере хоткеев -- полный: `<id плагина>:<id
- * команды>`. Раньше спрашивали голым, и менеджер не находил ничего никогда:
- * хоткеи полей-дат в заметке конфигурации всегда были пустыми. Имя плагина
- * приходит снаружи, а при его отсутствии спрашиваем как раньше -- пусть уж
- * лучше не найдёт, чем упадёт.
- */
-function getBoundHotkeyForCommand(app, commandId, pluginId) {
-  if (!app || !commandId) return "";
-  const hm = app.hotkeyManager;
-  if (!hm) return "";
-  const bare = String(commandId || "").trim();
-  const owner = String(pluginId || "").trim();
-  const id = owner && bare.indexOf(":") === -1 ? owner + ":" + bare : bare;
-  try {
-    if (isObj(hm.customKeys) && Array.isArray(hm.customKeys[id]) && hm.customKeys[id].length) {
-      return formatHotkeyBinding(hm.customKeys[id][0]);
-    }
-    if (typeof hm.getHotkeys === "function") {
-      const arr = hm.getHotkeys(id);
-      if (Array.isArray(arr) && arr.length) return formatHotkeyBinding(arr[0]);
-    }
-  } catch (_) {}
-  return "";
 }
 
 const DEFAULT_CONFIG = {
@@ -2329,17 +2130,6 @@ function escapeRegExp(src) {
   return String(src || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function isRenderableLineContext(text, sep1, sep2) {
-  const src = String(text || "");
-  if (!src.trim()) return false;
-  const s1 = String(sep1 || "").trim();
-  const s2 = String(sep2 || "").trim();
-  const hasSep = (s1 && src.includes(s1)) || (s2 && src.includes(s2));
-  if (!hasSep) return false;
-  const tokenLeadRx = /^\s*(?:[-*+]\s+|\d+\.\s+)?(?:#\S+\s*)+/;
-  return tokenLeadRx.test(src);
-}
-
 function isRenderableStripContext(text, sep1, sep2, tokenSet) {
   const src = String(text || "");
   const trimmed = src.trim();
@@ -2459,47 +2249,6 @@ class ZeroWidthInlineWidget extends cmView.WidgetType {
     el.style.overflow = "hidden";
     el.style.verticalAlign = "baseline";
     return el;
-  }
-}
-
-class LineLaneWidget extends cmView.WidgetType {
-  constructor(lanes) {
-    super();
-    this.lanes = Array.isArray(lanes) ? lanes : [];
-  }
-  eq(other) {
-    if (!other || !Array.isArray(other.lanes)) return false;
-    if (other.lanes.length !== this.lanes.length) return false;
-    for (let i = 0; i < this.lanes.length; i++) {
-      const a = this.lanes[i] || {};
-      const b = other.lanes[i] || {};
-      if (a.left !== b.left || a.thickness !== b.thickness || a.color !== b.color) return false;
-    }
-    return true;
-  }
-  toDOM() {
-    const wrap = document.createElement("span");
-    wrap.style.position = "relative";
-    wrap.style.display = "inline-block";
-    wrap.style.width = "0";
-    wrap.style.height = "0";
-    wrap.style.overflow = "visible";
-    for (let i = 0; i < this.lanes.length; i++) {
-      const lane = this.lanes[i] || {};
-      const color = String(lane.color || "").trim();
-      if (!color) continue;
-      const el = document.createElement("span");
-      el.style.position = "absolute";
-      el.style.pointerEvents = "none";
-      el.style.left = `${Math.trunc(Number(lane.left) || 0)}px`;
-      el.style.top = "-1.05em";
-      el.style.height = "2.3em";
-      el.style.width = `${Math.max(1, Math.trunc(Number(lane.thickness) || 1))}px`;
-      el.style.background = color;
-      el.style.borderRadius = "1px";
-      wrap.appendChild(el);
-    }
-    return wrap;
   }
 }
 

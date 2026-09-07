@@ -488,9 +488,18 @@ async function run() {
 
 
   assertTrue(/buildRulesMarkdown: \(cfg\) => getRulesMarkdownBuilder\(\)\.buildTagWheelRulesMarkdownFromConfig\(cfg\)/.test(src), "rules sync uses extracted rules markdown builder");
-  assertFalse(/value\.charAt\(0\) === "\/"\) value = value\.slice\(1\)/.test(src), "denormTagToken preserves leading slash in #\/priority tokens");
-  assertFalse(/allowed\.includes\("project"\)\) fieldId = "project"/.test(src), "wikilink parser has no semantic project fallback when field id is omitted");
-  assertFalse(/function parseCheckboxAndTag\(text\) \{[\s\S]*?\(\[xX \]\)/.test(src), "parseCheckboxAndTag does not limit checkbox token parser to [ ] and [x] only");
+  /*
+   * Здесь стояли три запрета на написание внутри разбора текста для
+   * правил — «не режет ведущую косую», «нет догадки про project», «разбор
+   * чекбокса не сужен до [ ] и [x]». Сняты 2026-09-07 вместе с предметом:
+   * восемь функций той связки не звал никто, и запреты были зелены именно
+   * потому, что сторожить было нечего (У-71).
+   *
+   * Куда переехало то, что они держали: знак чекбокса — сплошной обход
+   * ниже в этом же файле (A34, ровно один знак), ведущая косая у #/1 —
+   * движки PKM и их проверки поведения, разбор ссылки — Field типа
+   * wikilink в редакторе Fields.
+   */
 
 
   assertTrue(/normalizePkmBehaviorShape\(cfg, \{ cloneJson, isObj \}\)/.test(src), "migrateConfig applies behavior shape normalization");
@@ -607,8 +616,13 @@ async function run() {
   assertTrue(/collectMissingEmojiFields\(rules, dateRuntimeCfg\)/.test(statusDateSrc), "status_date validates required Emoji before actions");
   assertFalse(/Object\.keys\(byField\)/.test(tagwheelSrc), "tagwheel emoji gate does not validate orphan byField keys outside active panel");
   assertFalse(/Object\.keys\(byField\)/.test(statusDateSrc), "status_date emoji gate does not validate orphan byField keys outside active panel");
-  assertTrue(/unknown wikilink field '\$\{fieldId\}'/.test(src), "shared wikilink parser validates field id against allowed wikilink fields");
-  assertTrue(/no wikilink fields are configured/.test(src), "shared wikilink parser rejects wikilinks when no wikilink fields are configured");
+  /*
+   * Здесь стояли ещё два утверждения о том же разборе ссылки — про
+   * неизвестный Field и про «ни один Field не объявлен ссылкой». Сняты
+   * 2026-09-07 вместе с предметом: обе строки жили внутри
+   * `parseWikilinkLineStrict`, которую не звал никто. Их и искать больше
+   * негде — во всём репозитории эти сообщения были только тут (У-71).
+   */
   assertTrue(/if \(!nonEmpty\(src\.emoji\) && Object\.prototype\.hasOwnProperty\.call\(dst, "emoji"\)\) out\.emoji = String\(dst\.emoji \|\| ""\);/.test(src), "runtime date serializer does not overwrite non-empty emoji with empty element emoji");
   assertTrue(/const modeRaw = String\(incCur\.mode \|\| "standard"\)\.trim\(\)\.toLowerCase\(\);/.test(src), "behavior sync preserves configured increment mode for elements");
   assertTrue(/mode,\s*incrementBy,\s*command,\s*customRaw,\s*custom/.test(src), "behavior sync writes normalized increment fields without forcing standard mode");
