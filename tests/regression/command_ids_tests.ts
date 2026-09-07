@@ -371,15 +371,21 @@ function allDefs(cfg: Any): Any[] {
   assert.equal(fresh.viewState.commandIdsNotice, undefined,
     "на свежей установке флаг заранее не выставлен: иначе уведомление не покажется никому");
 
-  const src = fs.readFileSync(path.join(root, "main.js"), "utf8");
-  assert.ok(/noticeCommandIdsChangedOnce\(\)/.test(src), "уведомление не позвано из onload");
-  assert.ok(/if \(!this\._migratedFromV1\) return;/.test(src),
+  /*
+   * Уведомление уехало в `src/features/plugin_bootstrap.js` вместе с самой
+   * загрузкой (кусок четвёртый разбора `main.js`, 2026-09-07). Утверждения
+   * спрашивают то же самое там, где предмет теперь (У-94).
+   */
+  const src = fs.readFileSync(
+    path.join(root, "src", "features", "plugin_bootstrap.js"), "utf8");
+  assert.ok(/noticeCommandIdsChanged\(plugin\)/.test(src), "уведомление не позвано из onload");
+  assert.ok(/if \(!plugin\._migratedFromV1\) return;/.test(src),
     "уведомление показывается не только тому, у кого был конфиг версии 1 (З8)");
-  /* Тело метода целиком, а не отрезок в две тысячи знаков: отрезок задевал
+  /* Тело функции целиком, а не отрезок в две тысячи знаков: отрезок задевал
      соседний код и проверял не то. */
   const noticeBody = src.slice(
-    src.indexOf("  noticeCommandIdsChangedOnce() {"),
-    src.indexOf("  getLineTraceTxId() {"),
+    src.indexOf("function noticeCommandIdsChanged(plugin) {"),
+    src.indexOf("function createSettingTab(plugin) {"),
   );
   assert.ok(noticeBody.length > 400, "тело уведомления не нашлось: " + noticeBody.length);
   assert.ok(!/app\.setting|hotkeyManager/.test(noticeBody),

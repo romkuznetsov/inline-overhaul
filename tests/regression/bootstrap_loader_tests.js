@@ -209,6 +209,8 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "features", "generated_rules.js"), "utf8");
   const configWriteSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "core", "config_write.js"), "utf8");
+  const bootstrapSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "features", "plugin_bootstrap.js"), "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -339,7 +341,7 @@ async function run() {
    * четвёртый разбора `main.js`, 2026-09-07). В точке входа остались швы:
    * подписка на хранилище и единственный путь записи настроек.
    */
-  assertTrue(/__generatedRules\.registerStoreEvents\(this\);/.test(src), "точка входа подписывается на хранилище через модуль");
+  assertTrue(/__generatedRules\.registerStoreEvents\(plugin\);/.test(bootstrapSrc), "загрузка подписывается на хранилище через модуль");
   assertTrue(/return __configWrite\.applyPatch\(this, patchObj, reason\);/.test(src), "запись настроек идёт одним швом в модуль");
   assertTrue(/function getStoreEventsOrchestrator\(\)/.test(rulesSrc), "store events orchestrator getter exists");
 
@@ -418,7 +420,14 @@ async function run() {
        снятый вызов, и это правильно — она говорит, чего там больше нет. */
     const code = src.split("\n").filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line)).join("\n");
     const requireArgs = Array.from(code.matchAll(/\brequire\(([^)]*)\)/g), (m) => m[1].trim());
-    assertTrue(requireArgs.length > 15, "положительный контроль: require в main.js есть, и их много");
+    /*
+     * Положительный контроль: требования в точке входа есть, и их не одно.
+     * Порог был `> 15` — до разбора класса плагина их было двадцать шесть.
+     * Теперь одиннадцать: точка входа подключает ровно то, что зовёт сама
+     * (кусок четвёртый разбора `main.js`, 2026-09-07). Порог обязан двигаться
+     * за предметом, иначе он не контроль, а память о прошлом (У-94).
+     */
+    assertTrue(requireArgs.length > 8, "положительный контроль: require в main.js есть, и их много");
     const dynamic = requireArgs.filter((arg) => !/^"[^"]+"$/.test(arg));
     assertEq(dynamic.join(" | "), "", "каждый require в main.js — литерал (A33)");
 
@@ -438,22 +447,15 @@ async function run() {
       .map((arg) => arg.replace(/^"|"$/g, ""))
       .filter((p) => p.startsWith("./")))).sort();
     const expected = [
-      "./src/core/config_normalize.js",
-      "./src/core/config_store.js",
       "./src/core/config_write.js",
       "./src/core/dev_log.js",
-      "./src/core/pkm_macro_runtime_entry.js",
-      "./src/core/pkm_order_config.js",
-      "./src/core/say.js",
       "./src/core/shared_utils.js",
-      "./src/features/command_ids.js",
       "./src/features/enhanced_select_all_engine.js",
       "./src/features/generated_rules.js",
+      "./src/features/plugin_bootstrap.js",
       "./src/features/plugin_commands.js",
       "./src/features/smart_delete_engine.js",
-      "./src/ui/editor/mount.js",
       "./src/ui/editor/styles.js",
-      "./src/ui/settings/obsidian_tab.ts",
     ];
     assertEq(own.join("\n"), expected.join("\n"), "main.js подключает ровно свои модули, и каждый один раз");
 
@@ -485,7 +487,7 @@ async function run() {
   assertTrue(/__pluginCommands\.registerAll\(this\);/.test(src), "точка входа зовёт регистрацию команд из модуля");
   assertTrue(/return __pluginCommands\.ownCommandList\(this\);/.test(src), "справочник команд спрашивает тот же модуль");
   assertTrue(/return __pluginCommands\.runInlineToNote\(this\);/.test(src), "команда и плавающая кнопка ходят одним швом");
-  assertTrue(/function getConfigStoreCtor\(\)/.test(src), "config store ctor getter exists");
+  assertTrue(/function getConfigStoreCtor\(\)/.test(bootstrapSrc), "config store ctor getter exists");
   /*
    * Обёртка над модулем миграции уехала из точки входа вместе со своим
    * единственным вызовом: спрашивает миграцию `config_normalize.js`, он же
@@ -494,9 +496,17 @@ async function run() {
   assertTrue(/getConfigMigrationV2Module/.test(cfgSrc), "config migration getter exists");
   assertTrue(/function getEnhancedSelectAllEngine\(\)/.test(src), "enhanced select-all getter exists");
   assertTrue(/function getRulesMarkdownBuilder\(\)/.test(rulesSrc), "rules markdown builder getter exists");
-  assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(src), "onload публикует шов макро-рантайма PKM");
-  assertTrue(/this\.navRuntime = __pluginCommands\.navigationRuntime\(\);/.test(src), "onload берёт движок навигации");
-  assertTrue(/this\.pkmRuntimeV2 = __pluginCommands\.pkmRuntime\(\);/.test(src), "onload берёт движок PKM");
+  assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(bootstrapSrc), "onload публикует шов макро-рантайма PKM");
+  /*
+   * Загрузка уехала в `src/features/plugin_bootstrap.js` (кусок четвёртый
+   * разбора `main.js`, 2026-09-07): порядок в ней — требование, а не список
+   * дел, и линтер точку входа не видит вовсе (PRD 12). В `main.js` остался
+   * вызов — им Obsidian и запускает плагин.
+   */
+  assertTrue(/async onload\(\) \{\s*return __bootstrap\.load\(this\);\s*\}/.test(src),
+    "точка входа зовёт загрузку одним швом");
+  assertTrue(/plugin\.navRuntime = __pluginCommands\.navigationRuntime\(\);/.test(bootstrapSrc), "onload берёт движок навигации");
+  assertTrue(/plugin\.pkmRuntimeV2 = __pluginCommands\.pkmRuntime\(\);/.test(bootstrapSrc), "onload берёт движок PKM");
   /*
    * Мост модулей снят целиком (У-89): модули команд приезжают литеральным
    * `require`, и своего кеша у загрузки больше нет — кешем является сам граф
@@ -513,16 +523,16 @@ async function run() {
    * старой панелью: этих модулей больше нет. Панель настроек теперь одна, и
    * проверяется то, что запасного пути к старой у неё не осталось.
    */
-  assertTrue(/function getDeclarativeSettingTabCtor\(\)/.test(src), "declarative settings pane loader exists");
-  assertTrue(/require\("\.\/src\/ui\/settings\/obsidian_tab\.ts"\)/.test(src), "settings pane is loaded from the settings layer");
-  assertTrue(/const Declarative = getDeclarativeSettingTabCtor\(\);/.test(src), "createSettingTab asks the loader every time");
+  assertTrue(/function getDeclarativeSettingTabCtor\(\)/.test(bootstrapSrc), "declarative settings pane loader exists");
+  assertTrue(/require\("\.\.\/ui\/settings\/obsidian_tab\.ts"\)/.test(bootstrapSrc), "settings pane is loaded from the settings layer");
+  assertTrue(/const Declarative = getDeclarativeSettingTabCtor\(\);/.test(bootstrapSrc), "createSettingTab asks the loader every time");
   assertFalse(/newSettingsPane/.test(src), "the settings pane flag is gone: there is nothing to choose between");
   assertFalse(/InlineOverhaulSettingTab/.test(src), "the old settings tab class is gone");
   /*
    * addSettingTab стоит внутри onload: исключение оттуда роняет загрузку
    * плагина целиком — ни команд, ни рантайма. Панель важна, но не настолько.
    */
-  assertTrue(/const tab = this\.createSettingTab\(\);[\s\S]{0,80}if \(tab\) this\.addSettingTab\(tab\);/.test(src),
+  assertTrue(/const tab = createSettingTab\(plugin\);[\s\S]{0,80}if \(tab\) plugin\.addSettingTab\(tab\);/.test(bootstrapSrc),
     "a settings pane that failed to build does not break onload");
   assertFalse(/throw new Error\("inlineOverhaul: settings pane/.test(src),
     "createSettingTab reports the failure instead of throwing out of onload");
@@ -638,8 +648,8 @@ async function run() {
   assertTrue(/function trimHumanLogContent\(content, dm\) \{/.test(devLogSrc), "человеческая — тоже");
   assertTrue(devLogSrc.includes("const maybeDir = /\\/$/.test(asForward);"), "путь, кончающийся косой, читается как папка");
   assertTrue(/async function ensureDirectoryForFilePath\(adapter, filePath\)/.test(devLogSrc), "папки под запись создаются до записи");
-  assertTrue(/try \{\s*await this\.initializeDevLogSession\(this\.getConfig\(\)\);\s*\} catch \(e\)/.test(src), "onload guards dev-log session init with fail-open try/catch");
-  assertTrue(/await this\.initializeDevLogSession\(this\.getConfig\(\)\);/.test(src), "onload initializes dev log session rotation");
+  assertTrue(/try \{\s*await plugin\.initializeDevLogSession\(plugin\.getConfig\(\)\);\s*\} catch \(e\)/.test(bootstrapSrc), "onload guards dev-log session init with fail-open try/catch");
+  assertTrue(/await plugin\.initializeDevLogSession\(plugin\.getConfig\(\)\);/.test(bootstrapSrc), "onload initializes dev log session rotation");
   assertTrue(/session\.start/.test(devLogSrc) && /session\.end/.test(devLogSrc), "модуль журнала пишет начало и конец сессии");
   assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(configWriteSrc), "setConfigPatch starts new dev log session on dev_mode ON transition");
   assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(configWriteSrc), "setConfigPatch closes dev log session on dev_mode OFF transition");
@@ -797,7 +807,7 @@ async function run() {
    */
   assertTrue(/plugin\._sourceMarksExtension = createSourceMarkDecorationExtension\(plugin\);/.test(mountSrc), "and builds the extension on load");
   assertEq((mountSrc.match(/_sourceMarksCompartment\.(of|reconfigure)\(/g) || []).length, 3, "and mounts it everywhere the other two are mounted");
-  assertTrue(/__editorMount\.mountExtensions\(this\);/.test(src), "и точка входа зовёт постановку один раз");
+  assertTrue(/__editorMount\.mountExtensions\(plugin\);/.test(bootstrapSrc), "и загрузка зовёт постановку один раз");
   assertTrue(/__editorMount\.refreshOpenEditors\(plugin\);/.test(configWriteSrc), "а пересборку — из записи патча конфига");
   /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */
   assertTrue(/callback: async \(\) => \{ await runInlineToNote\(plugin\); \},/.test(commandsSrc), "the transform command delegates to the shared method");
