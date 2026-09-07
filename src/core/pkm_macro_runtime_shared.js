@@ -1,126 +1,103 @@
 "use strict";
 
-const SHARED_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_shared.js";
-const PRELOAD_FACADE_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_runtime_preload_facade.js";
-const OPTION_KEYS_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_option_keys.js";
-const RUNTIME_CACHE_KEY = "__inlineOverhaulRuntimeModuleCache";
+/*
+ * Общая часть макро-рантайма: один статический `require` на модуль (У-89).
+ *
+ * Мост модулей отсюда ушёл вместе со своим кешем и со своим ключом
+ * `globalThis`. Обёртка `loadVaultModule`, которая его звала, осталась ровно
+ * потому, что её зовут места в файлах под З3 — по **пути внутри vault**.
+ * Путь резолвится таблицей `MODULES_BY_VAULT_PATH`: и таблица, и всё в ней —
+ * литеральные `require`, то есть то же, что раньше делал реестр
+ * забандленных модулей, но без чтения vault, без `new Function` и без реестра.
+ *
+ * Таблица тут временная и уйдёт вместе с последним чтением по пути: движки
+ * должны требовать модуль сами, литералом. Пока чтения на месте, таблица —
+ * единственное место, где путь превращается в модуль, и промахнуться мимо
+ * литерала в ней нельзя.
+ *
+ * Неизвестный путь — не `null`, а исключение: «модуль не приехал» и «модуля не
+ * просили» — разные вещи, и первое обязано быть громким (У-90).
+ */
 
-function reportLoaderFallback(stage, err) {
-  try {
-    if (globalThis.__inlineDebugLoaders !== true) return;
-    const msg = err && err.message ? String(err.message) : String(err || "");
-    console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {}
+const MODULES_BY_VAULT_PATH = {
+  ".obsidian/plugins/inline-overhaul/pkm_v2/field_model.js": require("../../pkm_v2/field_model.js"),
+  ".obsidian/plugins/inline-overhaul/pkm_v2/status_date.js": require("../../pkm_v2/status_date.js"),
+  ".obsidian/plugins/inline-overhaul/pkm_v2/status_tags.js": require("../../pkm_v2/status_tags.js"),
+  ".obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel.js": require("../../pkm_v2/TagWheel/tagwheel.js"),
+  ".obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel_core.js": require("../../pkm_v2/TagWheel/tagwheel_core.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/date_runtime_shared.js": require("./date_runtime_shared.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/line_pipeline.js": require("./line_pipeline.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/markdown_json_block_parser.js": require("./markdown_json_block_parser.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/pkm_domain_registry.js": require("./pkm_domain_registry.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/pkm_line_finalize_unified.js": require("./pkm_line_finalize_unified.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_shared.js": require("./pkm_macro_shared.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/pkm_option_keys.js": require("./pkm_option_keys.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/pkm_rules_runtime_helpers.js": require("./pkm_rules_runtime_helpers.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/pkm_runtime_bootstrap.js": require("./pkm_runtime_bootstrap.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/pkm_runtime_preload_facade.js": require("./pkm_runtime_preload_facade.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/status_line_runtime_unified.js": require("./status_line_runtime_unified.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/status_runtime_common.js": require("./status_runtime_common.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/tagwheel_rules_normalizer.js": require("./tagwheel_rules_normalizer.js"),
+  ".obsidian/plugins/inline-overhaul/src/core/token_graph_unified.js": require("./token_graph_unified.js"),
+  ".obsidian/plugins/inline-overhaul/src/ui/tagwheel_scroller_overlay.js": require("../ui/tagwheel_scroller_overlay.js"),
+};
+
+const facade = require("./pkm_runtime_preload_facade.js");
+const optionKeys = require("./pkm_option_keys.js");
+
+function normalizeVaultModulePath(vaultPath) {
+  let path = String(vaultPath || "").trim().replace(/\\/g, "/");
+  while (path.startsWith("./")) path = path.slice(2);
+  if (path.startsWith("plugins/inline-overhaul/")) path = ".obsidian/" + path;
+  const marker = path.indexOf(".obsidian/plugins/inline-overhaul/");
+  return marker >= 0 ? path.slice(marker) : path;
 }
 
-async function loadVaultModule(app_, vaultPath, forceReload) {
-  let bridge = globalThis.__inlineVaultModuleBridge;
-  if (!(bridge && typeof bridge.loadVaultModule === "function")) {
-    try {
-      const mod = require("./vault_module_bridge.js");
-      if (mod && typeof mod.loadVaultModule === "function") {
-        bridge = mod;
-        globalThis.__inlineVaultModuleBridge = mod;
-      }
-    } catch (e) {
-      reportLoaderFallback("pkm_macro_runtime_shared.bridge.require", e);
-    }
+async function loadVaultModule(app_, vaultPath) {
+  const path = normalizeVaultModulePath(vaultPath);
+  if (!Object.prototype.hasOwnProperty.call(MODULES_BY_VAULT_PATH, path)) {
+    throw new Error("pkm_macro_runtime_shared: module is not bundled: " + path);
   }
-  if (!(bridge && typeof bridge.loadVaultModule === "function")) {
-    throw new Error("pkm_macro_runtime_shared: vault_module_bridge unavailable");
-  }
-  try {
-    return await bridge.loadVaultModule(app_, vaultPath, forceReload, RUNTIME_CACHE_KEY);
-  } catch (e) {
-    reportLoaderFallback(`pkm_macro_runtime_shared.bridge.load:${vaultPath}`, e);
-    throw e;
-  }
+  return MODULES_BY_VAULT_PATH[path];
 }
 
-async function loadRuntimePreloadFacade(app_) {
-  globalThis.__inlineRuntimePreloadFacade ??= null;
-  if (globalThis.__inlineRuntimePreloadFacade) return globalThis.__inlineRuntimePreloadFacade;
-  try {
-    const mod = await loadVaultModule(app_, PRELOAD_FACADE_PATH, false);
-    if (mod && typeof mod.loadRuntimeBootstrap === "function" && typeof mod.loadRulesRuntimeHelpers === "function" && typeof mod.loadMacroShared === "function") {
-      globalThis.__inlineRuntimePreloadFacade = mod;
-      return mod;
-    }
-  } catch (e) {
-    reportLoaderFallback("pkm_macro_runtime_shared.loadRuntimePreloadFacade", e);
-  }
-  return null;
+async function loadRuntimePreloadFacade() {
+  globalThis.__inlineRuntimePreloadFacade = facade;
+  return facade;
 }
 
 function normalizeOrderKeyLocal(key) {
   return String(key || "").trim();
 }
 
-async function loadVaultModuleBridgeShared(app_) {
-  const facade = await loadRuntimePreloadFacade(app_);
-  if (facade && typeof facade.loadVaultModuleBridgeShared === "function") {
-    return facade.loadVaultModuleBridgeShared(app_, loadVaultModule);
-  }
-  return null;
-}
-
 async function loadOrderKeyNormalizer(app_, fallbackNormalize) {
-  const facade = await loadRuntimePreloadFacade(app_);
   const fallback = typeof fallbackNormalize === "function" ? fallbackNormalize : normalizeOrderKeyLocal;
-  if (facade && typeof facade.loadOrderKeyNormalizer === "function") {
-    return facade.loadOrderKeyNormalizer(app_, loadVaultModule, fallback);
-  }
-  globalThis.__inlineOrderKeyNormalizer = fallback;
-  return globalThis.__inlineOrderKeyNormalizer;
+  return facade.loadOrderKeyNormalizer(app_, loadVaultModule, fallback);
 }
 
-async function loadLinePipeline(app_) {
-  const facade = await loadRuntimePreloadFacade(app_);
-  if (facade && typeof facade.loadLinePipeline === "function") {
-    return facade.loadLinePipeline(app_, loadVaultModule);
-  }
-  return null;
+async function loadLinePipeline() {
+  return facade.loadLinePipeline();
 }
 
-async function loadMacroShared(app_) {
-  const facade = await loadRuntimePreloadFacade(app_);
-  if (facade && typeof facade.loadMacroShared === "function") {
-    return facade.loadMacroShared(app_, loadVaultModule);
-  }
-  return null;
+async function loadMacroShared() {
+  return facade.loadMacroShared();
 }
 
-async function loadRulesRuntimeHelpers(app_) {
-  const facade = await loadRuntimePreloadFacade(app_);
-  if (facade && typeof facade.loadRulesRuntimeHelpers === "function") {
-    return facade.loadRulesRuntimeHelpers(app_, loadVaultModule);
-  }
-  return null;
+async function loadRulesRuntimeHelpers() {
+  return facade.loadRulesRuntimeHelpers();
 }
 
-async function loadPkmOptionKeys(app_) {
-  globalThis.__inlinePkmOptionKeysMod ??= null;
-  if (globalThis.__inlinePkmOptionKeysMod) return globalThis.__inlinePkmOptionKeysMod;
-  try {
-    const mod = await loadVaultModule(app_, OPTION_KEYS_PATH, false);
-    if (mod && typeof mod === "object" && mod.KEYS && typeof mod.KEYS === "object") {
-      globalThis.__inlinePkmOptionKeysMod = mod;
-      return mod;
-    }
-  } catch (e) {
-    reportLoaderFallback("pkm_macro_runtime_shared.loadPkmOptionKeys", e);
-  }
-  return null;
+async function loadPkmOptionKeys() {
+  globalThis.__inlinePkmOptionKeysMod = optionKeys;
+  return optionKeys;
 }
 
 module.exports = {
-  SHARED_PATH,
-  OPTION_KEYS_PATH,
-  RUNTIME_CACHE_KEY,
+  MODULES_BY_VAULT_PATH,
+  normalizeVaultModulePath,
   loadVaultModule,
   loadRuntimePreloadFacade,
   normalizeOrderKeyLocal,
-  loadVaultModuleBridgeShared,
   loadOrderKeyNormalizer,
   loadLinePipeline,
   loadMacroShared,

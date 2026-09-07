@@ -1,63 +1,37 @@
 "use strict";
 
-const MACRO_RUNTIME_SHARED_PATH = ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_shared.js";
-const RUNTIME_CACHE_KEY = "__inlineOverhaulRuntimeModuleCache";
+/*
+ * Точка входа макро-рантайма: собирает объект, через который движки под З3
+ * достают чужие модули.
+ *
+ * Мост модулей отсюда ушёл (У-89): общая часть приезжает литеральным `require`,
+ * а не поиском по пути внутри vault. Вместе с ним ушли `ensureVaultBridge`,
+ * свой ключ кеша и ветка «моста нет — бросаем исключение с его именем».
+ *
+ * Метод `loadVaultModuleBridgeShared` снят: он прогревал мост, которого больше
+ * нет. Функция, которая делает вид, что грузит снятую вещь, — это заглушка, а
+ * заглушек здесь быть не должно (У-90). Его три вызова в движках сняты тем же
+ * заходом.
+ */
 
-function reportLoaderFallback(stage, err) {
-  try {
-    if (globalThis.__inlineDebugLoaders !== true) return;
-    const msg = err && err.message ? String(err.message) : String(err || "");
-    console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {}
-}
-
-function ensureVaultBridge() {
-  let bridge = globalThis.__inlineVaultModuleBridge;
-  if (bridge && typeof bridge.loadVaultModule === "function") return bridge;
-  try {
-    const mod = require("./vault_module_bridge.js");
-    if (mod && typeof mod.loadVaultModule === "function") {
-      bridge = mod;
-      globalThis.__inlineVaultModuleBridge = mod;
-      return mod;
-    }
-  } catch (e) {
-    reportLoaderFallback("pkm_macro_runtime_entry.bridge.require", e);
-  }
-  return null;
-}
-
-async function loadMacroRuntimeShared(app_) {
-  const cached = globalThis.__inlinePkmMacroRuntimeSharedMod;
-  if (cached && typeof cached.loadVaultModule === "function") return cached;
-
-  const bridge = ensureVaultBridge();
-  if (bridge && typeof bridge.loadVaultModule === "function") {
-    try {
-      const mod = await bridge.loadVaultModule(app_, MACRO_RUNTIME_SHARED_PATH, false, RUNTIME_CACHE_KEY);
-      if (mod && typeof mod.loadVaultModule === "function") {
-        globalThis.__inlinePkmMacroRuntimeSharedMod = mod;
-        return mod;
-      }
-    } catch (e) {
-      reportLoaderFallback("pkm_macro_runtime_entry.bridge.loadMacroRuntimeShared", e);
-    }
-  }
-  throw new Error("pkm_macro_runtime_entry: vault_module_bridge unavailable");
-}
+const shared = require("./pkm_macro_runtime_shared.js");
 
 function normalizeOrderKeyDefault(key) {
   return String(key || "").trim();
 }
 
+async function loadMacroRuntimeShared() {
+  globalThis.__inlinePkmMacroRuntimeSharedMod = shared;
+  return shared;
+}
+
 async function bootstrapMacroRuntime(app_, normalizeOrderKeyLocal) {
-  const shared = await loadMacroRuntimeShared(app_);
+  await loadMacroRuntimeShared();
   const normalizeKey = typeof normalizeOrderKeyLocal === "function"
     ? normalizeOrderKeyLocal
     : normalizeOrderKeyDefault;
   return {
     loadVaultModule: (vaultPath, forceReload) => shared.loadVaultModule(app_, vaultPath, forceReload),
-    loadVaultModuleBridgeShared: () => shared.loadVaultModuleBridgeShared(app_),
     loadRuntimePreloadFacade: () => shared.loadRuntimePreloadFacade(app_),
     loadMacroShared: () => shared.loadMacroShared(app_),
     loadRulesRuntimeHelpers: () => shared.loadRulesRuntimeHelpers(app_),
@@ -68,8 +42,6 @@ async function bootstrapMacroRuntime(app_, normalizeOrderKeyLocal) {
 }
 
 module.exports = {
-  MACRO_RUNTIME_SHARED_PATH,
-  RUNTIME_CACHE_KEY,
   loadMacroRuntimeShared,
   bootstrapMacroRuntime,
 };

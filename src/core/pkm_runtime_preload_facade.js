@@ -1,99 +1,66 @@
 "use strict";
 
-function reportLoaderFallback(stage, err) {
-  try {
-    if (globalThis.__inlineDebugLoaders !== true) return;
-    const msg = err && err.message ? String(err.message) : String(err || "");
-    console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {}
-}
+/*
+ * Прослойка предзагрузки: один статический `require` на модуль.
+ *
+ * Было — шесть слоёв, чтобы найти модуль, который уже лежит в бандле: движок
+ * звал макро-рантайм, тот прослойку, прослойка загрузчик, загрузчик мост, мост
+ * искал путь в реестре забандленных модулей. Каждый слой ловил отказ, кешировал
+ * результат в своём ключе `globalThis` и отдавал `null`, если не вышло, — то
+ * есть «работаем наполовину и молчим» (У-90).
+ *
+ * Стало — литеральный `require`. Причина в У-89: путь в переменной esbuild не
+ * разрешает, а литерал разрешает всегда, и промахнуться мимо литерала нельзя.
+ * Поэтому запасных путей у загрузки здесь нет и заводить их не надо: модуль
+ * лежит в бандле, не приехал — плагин обязан упасть громко.
+ *
+ * **Ключи `globalThis` остаются, и это шов, а не кеш.** Движки под З3 читают
+ * `__inlinePkmRulesHelpers`, `__inlinePkmMacroShared` и `__inlineLinePipeline`
+ * прямо из `globalThis` — сразу после того, как позвали соответствующий
+ * `load*`. Пока эти чтения на месте, публикация обязана остаться: снимать её
+ * надо вместе с ними, а не раньше.
+ *
+ * Формы вызова оставлены прежними — асинхронными и с теми же аргументами.
+ * Аргументы `app_` и `loadVaultModule` больше не нужны и не читаются: их
+ * передают места в файлах под З3, и менять их подписи ради снятия моста дороже,
+ * чем оставить. Уйдут они вместе с этими местами.
+ */
 
-async function loadRuntimeBootstrap(app_, loadVaultModule) {
-  globalThis.__inlineRuntimeBootstrap ??= null;
-  if (globalThis.__inlineRuntimeBootstrap) return globalThis.__inlineRuntimeBootstrap;
-  try {
-    const mod = await loadVaultModule(app_, ".obsidian/plugins/inline-overhaul/src/core/pkm_runtime_bootstrap.js", false);
-    if (mod && typeof mod.loadSharedModule === "function" && typeof mod.loadOrderKeyNormalizer === "function" && typeof mod.loadVaultModuleBridgeShared === "function") {
-      globalThis.__inlineRuntimeBootstrap = mod;
-      return mod;
-    }
-  } catch (e) {
-    reportLoaderFallback("pkm_runtime_preload_facade.loadRuntimeBootstrap", e);
-  }
-  return null;
-}
+const bootstrap = require("./pkm_runtime_bootstrap.js");
+const linePipeline = require("./line_pipeline.js");
+const macroShared = require("./pkm_macro_shared.js");
+const rulesRuntimeHelpers = require("./pkm_rules_runtime_helpers.js");
 
-async function loadVaultModuleBridgeShared(app_, loadVaultModule) {
-  const bootstrap = await loadRuntimeBootstrap(app_, loadVaultModule);
-  if (bootstrap && typeof bootstrap.loadVaultModuleBridgeShared === "function") {
-    return bootstrap.loadVaultModuleBridgeShared(app_, loadVaultModule);
-  }
-  return null;
+async function loadRuntimeBootstrap() {
+  return bootstrap;
 }
 
 async function loadOrderKeyNormalizer(app_, loadVaultModule, fallbackNormalize) {
-  const bootstrap = await loadRuntimeBootstrap(app_, loadVaultModule);
-  if (bootstrap && typeof bootstrap.loadOrderKeyNormalizer === "function") {
-    return bootstrap.loadOrderKeyNormalizer(app_, loadVaultModule, fallbackNormalize);
-  }
-  globalThis.__inlineOrderKeyNormalizer = typeof fallbackNormalize === "function" ? fallbackNormalize : ((k) => String(k || "").trim());
-  return globalThis.__inlineOrderKeyNormalizer;
+  return bootstrap.loadOrderKeyNormalizer(fallbackNormalize);
 }
 
-async function loadLinePipeline(app_, loadVaultModule) {
-  const bootstrap = await loadRuntimeBootstrap(app_, loadVaultModule);
-  if (bootstrap && typeof bootstrap.loadSharedModule === "function") {
-    return bootstrap.loadSharedModule(
-      app_,
-      loadVaultModule,
-      "__inlineLinePipeline",
-      ".obsidian/plugins/inline-overhaul/src/core/line_pipeline.js",
-      (mod) => typeof mod.splitSegments === "function" && typeof mod.buildFromSegments === "function"
-    );
-  }
-  return null;
+async function loadLinePipeline() {
+  globalThis.__inlineLinePipeline = linePipeline;
+  return linePipeline;
 }
 
-async function loadMacroShared(app_, loadVaultModule) {
-  const bootstrap = await loadRuntimeBootstrap(app_, loadVaultModule);
-  if (bootstrap && typeof bootstrap.loadSharedModule === "function") {
-    return bootstrap.loadSharedModule(
-      app_,
-      loadVaultModule,
-      "__inlinePkmMacroShared",
-      ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_shared.js",
-      (mod) => typeof mod.normalizeCycleEndBehavior === "function"
-    );
-  }
-  return null;
+async function loadMacroShared() {
+  globalThis.__inlinePkmMacroShared = macroShared;
+  return macroShared;
 }
 
-async function loadRulesRuntimeHelpers(app_, loadVaultModule) {
-  const bootstrap = await loadRuntimeBootstrap(app_, loadVaultModule);
-  if (bootstrap && typeof bootstrap.loadSharedModule === "function") {
-    return bootstrap.loadSharedModule(
-      app_,
-      loadVaultModule,
-      "__inlinePkmRulesHelpers",
-      ".obsidian/plugins/inline-overhaul/src/core/pkm_rules_runtime_helpers.js",
-      (mod) => typeof mod.parseOrderConfig === "function"
-    );
-  }
-  return null;
+async function loadRulesRuntimeHelpers() {
+  globalThis.__inlinePkmRulesHelpers = rulesRuntimeHelpers;
+  return rulesRuntimeHelpers;
 }
 
-async function resolveOrderConfig(app_, settings, options, loadVaultModule) {
+async function resolveOrderConfig(app_, settings, options) {
   const opts = options && typeof options === "object" ? options : {};
-  const bootstrap = await loadRuntimeBootstrap(app_, loadVaultModule);
-  if (bootstrap && typeof bootstrap.resolveOrderConfig === "function") {
-    return bootstrap.resolveOrderConfig(app_, settings, opts);
-  }
-  throw new Error("pkm_runtime_bootstrap unavailable: resolveOrderConfig");
+  return bootstrap.resolveOrderConfig(app_, settings, opts);
 }
 
 module.exports = {
   loadRuntimeBootstrap,
-  loadVaultModuleBridgeShared,
   loadOrderKeyNormalizer,
   loadLinePipeline,
   loadMacroShared,

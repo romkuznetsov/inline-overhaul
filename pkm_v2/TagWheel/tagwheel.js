@@ -1756,7 +1756,6 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   try {
-    await callRuntimeApi(app_, 'loadVaultModuleBridgeShared')
     await callRuntimeApi(app_, 'loadRulesRuntimeHelpers')
     rulesHelpers = globalThis.__inlinePkmRulesHelpers
     if (!rulesHelpers || typeof rulesHelpers.resolvePanelForField !== 'function') throw new Error('pkm_rules_runtime_helpers unavailable: resolvePanelForField')

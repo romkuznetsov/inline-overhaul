@@ -1,5 +1,22 @@
 "use strict";
 
+/*
+ * Загрузчик, у которого не осталось загрузки: модули приезжают литеральным
+ * `require` (У-89), а здесь живёт то, что загрузкой не было никогда, —
+ * разрешение конфига порядка Field.
+ *
+ * Что ушло вместе с мостом модулей: `loadSharedModule` — общая обёртка «позови
+ * мост, проверь годность, положи в `globalThis`», и `loadVaultModuleBridgeShared`
+ * — прогрев самого моста. Обе умели вернуть `null`, и на этом `null` плагин
+ * работал наполовину и молчал (У-90).
+ *
+ * `normalizeOrderKeyFallback` тоже снята. Она была умолчанием на случай, если
+ * `pkm_v2/field_model.js` не приедет, — то есть вторым объявлением правила
+ * нормализации ключа (У-32). Модуль лежит в бандле и приезжает всегда.
+ */
+
+const fieldModel = require("../../pkm_v2/field_model.js");
+
 function reportLoaderFallback(stage, err) {
   try {
     if (globalThis.__inlineDebugLoaders !== true) return;
@@ -8,56 +25,22 @@ function reportLoaderFallback(stage, err) {
   } catch (_) {}
 }
 
-async function loadSharedModule(app_, loadVaultModule, globalKey, modulePath, validate) {
-  const key = String(globalKey || "").trim();
-  if (!key) throw new Error("pkm_runtime_bootstrap: global key is required");
-  if (globalThis[key]) return globalThis[key];
-  try {
-    const mod = await loadVaultModule(app_, modulePath, false);
-    if (mod && typeof validate === "function" && validate(mod)) {
-      globalThis[key] = mod;
-      return mod;
-    }
-  } catch (e) {
-    reportLoaderFallback(`pkm_runtime_bootstrap.loadSharedModule:${modulePath}`, e);
+/*
+ * Ключ `globalThis` остаётся швом: `status_runtime_common` и движки под З3
+ * спрашивают нормализатор через него. Аргумент `fallbackNormalize` больше не
+ * умолчание на отказ, а **выбор места вызова**: у TagWheel своя нормализация
+ * ключа, и она сильнее общей.
+ */
+function loadOrderKeyNormalizer(fallbackNormalize) {
+  if (typeof globalThis.__inlineOrderKeyNormalizer === "function") {
+    return globalThis.__inlineOrderKeyNormalizer;
   }
-  return null;
-}
-
-async function loadVaultModuleBridgeShared(app_, loadVaultModule) {
-  if (globalThis.__inlineVaultModuleBridge && typeof globalThis.__inlineVaultModuleBridge.loadVaultModule === "function") {
-    return globalThis.__inlineVaultModuleBridge;
-  }
-  try {
-    const mod = await loadVaultModule(app_, ".obsidian/plugins/inline-overhaul/src/core/vault_module_bridge.js", false);
-    if (mod && typeof mod.loadVaultModule === "function") {
-      globalThis.__inlineVaultModuleBridge = mod;
-      return mod;
-    }
-  } catch (e) {
-    reportLoaderFallback("pkm_runtime_bootstrap.loadVaultModuleBridgeShared", e);
-  }
-  return null;
-}
-
-function normalizeOrderKeyFallback(key) {
-  return String(key || "").trim();
-}
-
-async function loadOrderKeyNormalizer(app_, loadVaultModule, fallbackNormalize) {
-  if (typeof globalThis.__inlineOrderKeyNormalizer === "function") return globalThis.__inlineOrderKeyNormalizer;
-  try {
-    const fieldModel = await loadVaultModule(app_, ".obsidian/plugins/inline-overhaul/pkm_v2/field_model.js", false);
-    if (fieldModel && typeof fieldModel.normalizeOrderKey === "function") {
-      globalThis.__inlineOrderKeyNormalizer = fieldModel.normalizeOrderKey;
-      return globalThis.__inlineOrderKeyNormalizer;
-    }
-  } catch (e) {
-    reportLoaderFallback("pkm_runtime_bootstrap.loadOrderKeyNormalizer", e);
+  if (typeof fieldModel.normalizeOrderKey !== "function") {
+    throw new Error("pkm_v2/field_model.js unavailable: normalizeOrderKey");
   }
   globalThis.__inlineOrderKeyNormalizer = typeof fallbackNormalize === "function"
     ? fallbackNormalize
-    : normalizeOrderKeyFallback;
+    : fieldModel.normalizeOrderKey;
   return globalThis.__inlineOrderKeyNormalizer;
 }
 
@@ -100,9 +83,6 @@ async function resolveOrderConfig(app_, settings, options) {
 }
 
 module.exports = {
-  loadSharedModule,
-  loadVaultModuleBridgeShared,
-  normalizeOrderKeyFallback,
   loadOrderKeyNormalizer,
   loadOrderConfigFromPluginData,
   resolveOrderConfig,

@@ -714,10 +714,46 @@ async function run() {
   assertTrue(/const rightFields = rules && rules\.rightMode && Array\.isArray\(rules\.rightMode\.fields\)/.test(pkmRulesHelpersSrc), "tag token-key map reads the links bucket, not only the tags one");
   assertTrue(/addFieldTokens\(key, field, true\);/.test(pkmRulesHelpersSrc), "tag token-key map adds links-bucket tokens without overwriting the tags bucket");
   assertTrue(/function readRulesMarkdownWithFallback\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export rules reader");
-  assertTrue(/function loadSharedModule\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports shared module loader");
+  /*
+   * Прослойка макро-рантайма: один статический `require` на модуль (У-89).
+   *
+   * **Что здесь стояло раньше и куда ушло.** Семь пинов держали машинерию
+   * загрузки через мост: `loadSharedModule`, `loadVaultModuleBridgeShared`,
+   * `normalizeOrderKeyFallback` и по два сообщения отладочного отчёта на
+   * каждый из двух файлов. Предмета у них больше нет — модули приезжают
+   * литеральным `require`, — и **пин без предмета зелен именно тогда,
+   * когда сторожить уже нечего** (У-71). Их гарантия переехала сюда: не
+   * «обёртка загрузки на месте», а «в этих файлах нет ни одного `require`
+   * по переменной». Это то самое утверждение, которое поймало бы A33.
+   *
+   * Чтобы это снять, должно случиться одно из двух: плагин перестал
+   * ставиться плоским бандлом, или сборщик научился разрешать путь в
+   * переменной. Ни того, ни другого не произошло.
+   */
+  {
+    const layer = [
+      ["pkm_runtime_bootstrap.js", pkmRuntimeBootstrapSrc],
+      ["pkm_runtime_preload_facade.js", pkmRuntimePreloadFacadeSrc],
+      ["pkm_macro_runtime_entry.js", pkmMacroRuntimeEntrySrc],
+      ["pkm_macro_runtime_shared.js", pkmMacroRuntimeSharedSrc],
+    ];
+    let total = 0;
+    const dynamicInLayer = [];
+    for (const [name, text] of layer) {
+      /* Читается код, а не проза: комментарий умеет процитировать снятый вызов. */
+      const code = text.split("\n").filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line)).join("\n");
+      const args = Array.from(code.matchAll(/\brequire\(([^)]*)\)/g), (m) => m[1].trim());
+      total += args.length;
+      for (const arg of args) {
+        if (!/^"[^"]+"$/.test(arg)) dynamicInLayer.push(name + ": " + arg);
+      }
+    }
+    assertTrue(total > 20,
+      "положительный контроль: require в прослойке есть, и их много (" + total + ")");
+    assertEq(dynamicInLayer.join(" | "), "",
+      "каждый require в прослойке макро-рантайма — литерал (A33, У-89)");
+  }
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exposes debug-gated loader fallback reporter");
-  assertTrue(/reportLoaderFallback\(`pkm_runtime_bootstrap\.loadSharedModule:\$\{modulePath\}`, e\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap reports shared-module loader fallback context");
-  assertTrue(/reportLoaderFallback\("pkm_runtime_bootstrap\.loadVaultModuleBridgeShared", e\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap reports bridge loader fallback context");
   assertFalse(/function cycleStatusTags\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusTags runtime path");
   assertFalse(/function cycleStatusDate\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusDate runtime path");
   assertEq(typeof pkmRuntimeV2.runCommand, "function", "pkm_runtime_v2 exports runCommand entry");
@@ -725,14 +761,10 @@ async function run() {
   assertEq(typeof pkmRuntimeV2.cycleStatusTags, "undefined", "pkm_runtime_v2 no longer exports legacy cycleStatusTags helper");
   assertEq(typeof pkmRuntimeV2.cycleStatusDate, "undefined", "pkm_runtime_v2 no longer exports legacy cycleStatusDate helper");
   assertTrue(/function loadRuntimeBootstrap\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports bootstrap resolver");
-  assertTrue(/function reportLoaderFallback\(stage, err\)/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exposes debug-gated loader fallback reporter");
-  assertTrue(/reportLoaderFallback\("pkm_runtime_preload_facade\.loadRuntimeBootstrap", e\)/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade reports bootstrap loader fallback context");
   assertTrue(/function loadLinePipeline\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports line pipeline loader");
   assertTrue(/function loadMacroShared\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports macro loader");
   assertTrue(/function loadRulesRuntimeHelpers\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports rules helpers loader");
   assertTrue(/function resolveOrderConfig\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports order resolver");
-  assertTrue(/function loadVaultModuleBridgeShared\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports vault bridge loader");
-  assertTrue(/function normalizeOrderKeyFallback\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports order-key fallback normalizer");
   assertTrue(/function loadOrderKeyNormalizer\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports order-key normalizer loader");
   assertTrue(/function loadOrderConfigFromPluginData\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports plugin data order-config loader");
   assertTrue(/function resolveOrderConfig\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports order-config resolver");
@@ -788,9 +820,13 @@ async function run() {
   assertTrue(/async function bootstrapMacroRuntime\(/.test(pkmMacroRuntimeEntrySrc), "macro runtime entry exports reusable bootstrap function");
   assertTrue(/pkm_option_keys\.js/.test(pkmMacroRuntimeSharedSrc), "shared macro runtime references centralized pkm option keys module");
   assertTrue(/async function loadPkmOptionKeys\(/.test(pkmMacroRuntimeSharedSrc), "shared macro runtime exports pkm option keys loader");
-  assertTrue(/loadVaultModule\(app_, PRELOAD_FACADE_PATH, false\)/.test(pkmMacroRuntimeSharedSrc), "shared macro runtime loader resolves preload facade cache-first");
-  assertTrue(/loadVaultModule\(app_, modulePath, false\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap shared loader is cache-first");
-  assertTrue(/loadVaultModule\(app_, \"\.obsidian\/plugins\/inline-overhaul\/src\/core\/vault_module_bridge\.js\", false\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap bridge loader is cache-first");
+  /*
+   * Здесь стояли три пина «загрузчик сначала смотрит в кеш»: у прослойки, у
+   * загрузчика и у прогрева моста. Кешем теперь является сам статический
+   * `require` — модуль в графе сборки один и отдаётся один, — и сторожить в
+   * этом месте больше нечего. Гарантия переехала в запрет `require` по
+   * переменной выше.
+   */
   assertTrue(/loadVaultModuleBridge\(app, macroPath, forceReload\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 macro loader supports force-reload flag");
   assertTrue(/async function ensureMacroRuntimeBootstrap\(app\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 preloads macro runtime bootstrap helper");
   assertFalse(/async function readVaultMtime\(pathKey\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 has no local mtime cache fallback loader");
@@ -1323,9 +1359,13 @@ async function run() {
   assertTrue(/module\.exports\.planFieldStep = planFieldStep/.test(tagwheelSrc), "tagwheel exports the pure planner so the decision can be checked without Obsidian");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");
-  assertAnyMatch(statusTagsSrc, [/callRuntimeApi\(app_, "loadVaultModuleBridgeShared"\)/, /await loadVaultModuleBridgeShared\(app_\);/], "status_tags preloads shared vault bridge");
-  assertAnyMatch(statusDateSrc, [/callRuntimeApi\(app_, "loadVaultModuleBridgeShared"\)/, /await loadVaultModuleBridgeShared\(app_\);/], "status_date preloads shared vault bridge");
-  assertAnyMatch(tagwheelSrc, [/await callRuntimeApi\(app_, 'loadVaultModuleBridgeShared'\)/, /await runtimeApi\.loadVaultModuleBridgeShared\(\)/], "tagwheel preloads shared vault bridge");
+  /*
+   * Здесь стояли три пина «движок прогревает мост модулей» — по одному на
+   * status_tags, status_date и TagWheel. Прогревать больше нечего: модули
+   * приезжают литеральным `require`, и три вызова сняты вместе с методом
+   * `loadVaultModuleBridgeShared`. Оставить пины значило бы держать
+   * утверждение о снятой вещи (У-71).
+   */
   assertAnyMatch(tagwheelSrc, [/await callRuntimeApi\(app_, 'loadRulesRuntimeHelpers'\)/, /await runtimeApi\.loadRulesRuntimeHelpers\(\)/], "tagwheel preloads shared rules helpers");
   assertAnyMatch(tagwheelSrc, [/await callRuntimeApi\(app_, 'loadMacroShared'\)/, /await runtimeApi\.loadMacroShared\(\)/], "tagwheel preloads shared macro helpers");
   assertAnyMatch(tagwheelSrc, [/await callRuntimeApi\(app_, 'loadLinePipeline'\)/, /await runtimeApi\.loadLinePipeline\(\)/], "tagwheel preloads shared line pipeline");
@@ -1573,30 +1613,44 @@ async function run() {
   assertEq(migratedLegacyCheckbox.pkm.fields.checkboxByValue.todo, "[ ]", "and fills it with already normalized tokens");
   assertTrue(!Object.prototype.hasOwnProperty.call(migratedLegacyCheckbox.pkm.fields.checkboxByValue, "bad"), "invalid tokens do not reach checkboxByValue");
 
-  const prevBridge = globalThis.__inlineVaultModuleBridge;
-  const prevSharedRuntime = globalThis.__inlinePkmMacroRuntimeSharedMod;
-  try {
-    globalThis.__inlinePkmMacroRuntimeSharedMod = null;
-    globalThis.__inlineVaultModuleBridge = { loadVaultModule: async () => ({}) };
-    let invalidExportFailFast = false;
-    try {
-      await pkmMacroRuntimeEntry.loadMacroRuntimeShared({});
-    } catch (e) {
-      invalidExportFailFast = /vault_module_bridge unavailable/.test(String(e && e.message ? e.message : e || ""));
-    }
-    assertTrue(invalidExportFailFast, "macro runtime entry fails fast when bridge returns invalid shared export");
+  /*
+   * Загрузка падает громко, а не молчит.
+   *
+   * Здесь стояли два пина о том же, но про мост модулей: «мост отдал не то —
+   * бросаем», «мост упал — не глушим». Моста в этой цепочке больше нет, и
+   * подделать его нечем: модули приезжают литеральным `require`. Утверждение
+   * осталось прежним, предмет сменился — теперь громко падает **запрос
+   * модуля, которого нет в графе сборки**.
+   *
+   * Почему это важнее, чем выглядит (У-90): прежняя цепочка на каждом слое
+   * умела вернуть `null`, и на этом `null` плагин работал наполовину. Пустого
+   * ответа у загрузки быть не должно вовсе.
+   */
+  {
+    /* Положительный контроль: известный путь отдаёт настоящий модуль. */
+    const known = await pkmMacroRuntimeShared.loadVaultModule(
+      {},
+      ".obsidian/plugins/inline-overhaul/src/core/pkm_option_keys.js",
+    );
+    assertTrue(known && typeof known === "object" && known.KEYS && typeof known.KEYS === "object",
+      "положительный контроль: известный путь отдаёт модуль, а не пустоту");
 
-    globalThis.__inlineVaultModuleBridge = { loadVaultModule: async () => { throw new Error("bridge load failed"); } };
-    let bridgeLoadFailFast = false;
+    let unknownFailFast = "";
     try {
-      await pkmMacroRuntimeShared.loadVaultModule({}, ".obsidian/plugins/inline-overhaul/src/core/pkm_option_keys.js", false);
+      await pkmMacroRuntimeShared.loadVaultModule({}, ".obsidian/plugins/inline-overhaul/src/core/nope.js");
     } catch (e) {
-      bridgeLoadFailFast = /bridge load failed/.test(String(e && e.message ? e.message : e || ""));
+      unknownFailFast = String(e && e.message ? e.message : e || "");
     }
-    assertTrue(bridgeLoadFailFast, "macro runtime shared loader propagates bridge load failure without local eval fallback");
-  } finally {
-    globalThis.__inlineVaultModuleBridge = prevBridge;
-    globalThis.__inlinePkmMacroRuntimeSharedMod = prevSharedRuntime;
+    assertTrue(/module is not bundled/.test(unknownFailFast),
+      "неизвестный путь роняет загрузку, а не отдаёт null");
+
+    /* Форма пути значения не меняет: её приводит одна функция. */
+    const viaShortPath = await pkmMacroRuntimeShared.loadVaultModule(
+      {},
+      "./plugins/inline-overhaul/src/core/pkm_option_keys.js",
+    );
+    assertTrue(viaShortPath === known,
+      "путь приводится к одной форме, и модуль отдаётся тот же самый");
   }
 
   /*

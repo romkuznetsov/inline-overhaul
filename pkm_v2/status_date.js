@@ -1431,7 +1431,6 @@ module.exports = {
     const editor = app_?.workspace?.activeLeaf?.view?.editor ?? app_?.workspace?.activeEditor?.editor;
     if (!editor) return;
 
-    await callRuntimeApi(app_, "loadVaultModuleBridgeShared");
     await ensureOptionKeysLoaded(app_);
     await ensureDomainRegistryLoaded(app_);
     await callRuntimeApi(app_, "loadRulesRuntimeHelpers");
