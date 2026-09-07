@@ -218,7 +218,7 @@ for (const name of FIXTURES) {
   asInBundle(() => {
     try {
       nodeRequire(normalizerPath);
-    } catch (_e) {
+    } catch {
       reachable = false;
     }
   });
