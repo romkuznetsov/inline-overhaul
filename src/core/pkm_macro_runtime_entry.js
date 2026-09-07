@@ -8,10 +8,10 @@
  * а не поиском по пути внутри vault. Вместе с ним ушли `ensureVaultBridge`,
  * свой ключ кеша и ветка «моста нет — бросаем исключение с его именем».
  *
- * Метод `loadVaultModuleBridgeShared` снят: он прогревал мост, которого больше
- * нет. Функция, которая делает вид, что грузит снятую вещь, — это заглушка, а
- * заглушек здесь быть не должно (У-90). Его три вызова в движках сняты тем же
- * заходом.
+ * Методы `loadVaultModuleBridgeShared` и `loadVaultModule` сняты: первый
+ * прогревал мост, второй искал модуль по пути внутри vault. Обоих предметов
+ * больше нет, а функция, которая делает вид, что грузит снятую вещь, — это
+ * заглушка, и заглушек здесь быть не должно (У-90).
  */
 
 const shared = require("./pkm_macro_runtime_shared.js");
@@ -31,7 +31,6 @@ async function bootstrapMacroRuntime(app_, normalizeOrderKeyLocal) {
     ? normalizeOrderKeyLocal
     : normalizeOrderKeyDefault;
   return {
-    loadVaultModule: (vaultPath, forceReload) => shared.loadVaultModule(app_, vaultPath, forceReload),
     loadRuntimePreloadFacade: () => shared.loadRuntimePreloadFacade(app_),
     loadMacroShared: () => shared.loadMacroShared(app_),
     loadRulesRuntimeHelpers: () => shared.loadRulesRuntimeHelpers(app_),

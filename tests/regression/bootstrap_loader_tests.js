@@ -169,7 +169,6 @@ async function run() {
   const statusRuntimeCommonPath = path.join(__dirname, "..", "..", "src", "core", "status_runtime_common.js");
   const statusLineRuntimeUnifiedPath = path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js");
   const pkmRuntimeV2Path = path.join(__dirname, "..", "..", "pkm_runtime_v2.js");
-  const vaultBridgePath = path.join(__dirname, "..", "..", "src", "core", "vault_module_bridge.js");
   const rulesMarkdownBuilderPath = path.join(__dirname, "..", "..", "src", "features", "rules_markdown_builder.js");
   const commandIdsPath = path.join(__dirname, "..", "..", "src", "features", "command_ids.js");
   const commandRegistryPath = path.join(__dirname, "..", "..", "src", "features", "command_registry.js");
@@ -195,7 +194,6 @@ async function run() {
   const statusRuntimeCommonSrc = fs.readFileSync(statusRuntimeCommonPath, "utf8");
   const statusLineRuntimeUnifiedSrc = fs.readFileSync(statusLineRuntimeUnifiedPath, "utf8");
   const pkmRuntimeV2Src = fs.readFileSync(pkmRuntimeV2Path, "utf8");
-  const vaultBridgeSrc = fs.readFileSync(vaultBridgePath, "utf8");
   const rulesMarkdownBuilderSrc = fs.readFileSync(rulesMarkdownBuilderPath, "utf8");
   const commandIdsSrc = fs.readFileSync(commandIdsPath, "utf8");
   const commandRegistrySrc = fs.readFileSync(commandRegistryPath, "utf8");
@@ -436,7 +434,15 @@ async function run() {
   assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(src), "onload публикует шов макро-рантайма PKM");
   assertTrue(/this\.navRuntime = getNavigationRuntime\(\);/.test(src), "onload берёт движок навигации");
   assertTrue(/this\.pkmRuntimeV2 = getPkmRuntimeV2\(\);/.test(src), "onload берёт движок PKM");
-  assertTrue(/bridge\.loadVaultModule\(app, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache"\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 uses canonical vault bridge loader before legacy fallback");
+  /*
+   * Мост модулей снят целиком (У-89): модули команд приезжают литеральным
+   * `require`, и своего кеша у загрузки больше нет — кешем является сам граф
+   * сборки. Пин на «зовёт мост со своим ключом кеша» предмета лишился.
+   */
+  assertTrue(/statusTags: require\("\.\/pkm_v2\/status_tags\.js"\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 requires the statusTags macro literally");
+  assertTrue(/statusDate: require\("\.\/pkm_v2\/status_date\.js"\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 requires the statusDate macro literally");
+  assertTrue(/tagWheel: require\("\.\/pkm_v2\/TagWheel\/tagwheel\.js"\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 requires the tagWheel macro literally");
+  assertFalse(/loadVaultModule/.test(pkmRuntimeV2Src), "and does not load a module by a vault path at all");
 
 
   /*
@@ -731,27 +737,46 @@ async function run() {
    * переменной. Ни того, ни другого не произошло.
    */
   {
-    const layer = [
-      ["pkm_runtime_bootstrap.js", pkmRuntimeBootstrapSrc],
-      ["pkm_runtime_preload_facade.js", pkmRuntimePreloadFacadeSrc],
-      ["pkm_macro_runtime_entry.js", pkmMacroRuntimeEntrySrc],
-      ["pkm_macro_runtime_shared.js", pkmMacroRuntimeSharedSrc],
-    ];
+    /*
+     * Обход сплошной, а не по списку файлов (У-85): корень репозитория,
+     * `src/**` и `pkm_v2/**`. Предмет может завестись в любом файле, и первая
+     * версия этого запрета покрывала только четыре файла прослойки — мутация
+     * «путь в переменной в `tagwheel_core.js`» её не роняла.
+     */
+    const repoRoot = path.join(__dirname, "..", "..");
+    const walked = fs.readdirSync(repoRoot)
+      .filter((name) => /\.js$/.test(name))
+      .map((name) => path.join(repoRoot, name));
+    for (const dir of ["src", "pkm_v2"]) {
+      (function walk(target) {
+        for (const name of fs.readdirSync(target)) {
+          const abs = path.join(target, name);
+          if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+          if (/\.(?:js|ts)$/.test(name)) walked.push(abs);
+        }
+      })(path.join(repoRoot, dir));
+    }
+
     let total = 0;
-    const dynamicInLayer = [];
-    for (const [name, text] of layer) {
+    const dynamicRequires = [];
+    for (const abs of walked) {
       /* Читается код, а не проза: комментарий умеет процитировать снятый вызов. */
+      const text = fs.readFileSync(abs, "utf8");
       const code = text.split("\n").filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line)).join("\n");
       const args = Array.from(code.matchAll(/\brequire\(([^)]*)\)/g), (m) => m[1].trim());
       total += args.length;
       for (const arg of args) {
-        if (!/^"[^"]+"$/.test(arg)) dynamicInLayer.push(name + ": " + arg);
+        if (!/^"[^"]+"$/.test(arg) && !/^'[^']+'$/.test(arg)) {
+          dynamicRequires.push(path.relative(repoRoot, abs) + ": " + arg);
+        }
       }
     }
-    assertTrue(total > 20,
-      "положительный контроль: require в прослойке есть, и их много (" + total + ")");
-    assertEq(dynamicInLayer.join(" | "), "",
-      "каждый require в прослойке макро-рантайма — литерал (A33, У-89)");
+    assertTrue(walked.length > 50,
+      "положительный контроль: обход нашёл файлы рантайма (" + walked.length + ")");
+    assertTrue(total > 40,
+      "положительный контроль: require в рантайме есть, и их много (" + total + ")");
+    assertEq(dynamicRequires.join(" | "), "",
+      "каждый require в рантайме — литерал, ни одного по переменной (A33, У-89)");
   }
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exposes debug-gated loader fallback reporter");
   assertFalse(/function cycleStatusTags\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusTags runtime path");
@@ -770,10 +795,15 @@ async function run() {
   assertTrue(/function resolveOrderConfig\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports order-config resolver");
   assertTrue(/const hasSettingsOrder = rawSettings !== undefined && rawSettings !== null/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap detects explicit settings order config");
   assertTrue(/if \(hasSettingsOrder\) \{\s*return parseOrderConfig\(rawSettings, normalizeKey\);\s*\}/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap prioritizes settings order config over plugin data fallback");
-  assertTrue(/function loadVaultModule\(/.test(vaultBridgeSrc), "vault module bridge exports loader");
+  /*
+   * Пин «мост экспортирует загрузчик» снят вместе с самим мостом: файла
+   * `src/core/vault_module_bridge.js` больше нет. Что мост не вернулся,
+   * держит запрет в `release_bundle_tests.js` — по СБОРКЕ, а не по
+   * исходнику, — и запрет `require` по переменной ниже.
+   */
   assertAnyMatch(statusTagsSrc, [/callRuntimeApi\(ctxApp, "loadRuntimePreloadFacade"\)/, /loadRuntimePreloadFacade\(app_\)/], "status_tags uses runtime preload facade");
   assertAnyMatch(statusDateSrc, [/callRuntimeApi\(ctxApp, "loadRuntimePreloadFacade"\)/, /loadRuntimePreloadFacade\(app_\)/], "status_date uses runtime preload facade");
-  assertAnyMatch(tagwheelSrc, [/loadRuntimePreloadFacade\(\)/, /callRuntimeApi\(app_, 'loadRuntimePreloadFacade'\)/], "tagwheel uses runtime preload facade");
+  assertAnyMatch(tagwheelSrc, [/loadRuntimePreloadFacade\(\)/, /callRuntimeApi\(app_, 'loadRuntimePreloadFacade'\)/, /runtimeApi\.loadRuntimePreloadFacade/], "tagwheel uses runtime preload facade");
   assertTrue(/__inlineGetPkmMacroRuntime/.test(statusTagsSrc), "status_tags uses global reusable macro runtime getter");
   assertTrue(/__inlineGetPkmMacroRuntime/.test(statusDateSrc), "status_date uses global reusable macro runtime getter");
   assertTrue(/__inlineGetPkmMacroRuntime/.test(tagwheelSrc), "tagwheel uses global reusable macro runtime getter");
@@ -823,7 +853,7 @@ async function run() {
   assertTrue(/applyPkmOptionKeys\(__pkmOptionKeys\);/.test(statusTagsSrc), "and applies them at load time, not per call");
   assertTrue(/require\("\.\.\/src\/core\/pkm_option_keys\.js"\)/.test(statusDateSrc), "status_date requires the shared pkm option keys literally");
   assertTrue(/applyPkmOptionKeys\(__pkmOptionKeys\);/.test(statusDateSrc), "and applies them at load time, not per call");
-  assertAnyMatch(tagwheelSrc, [/loadPkmOptionKeys\(\)/, /callRuntimeApi\(app_, 'loadPkmOptionKeys'\)/], "tagwheel loads centralized pkm option keys via shared runtime helper");
+  assertTrue(/require\('\.\.\/\.\.\/src\/core\/pkm_option_keys\.js'\)/.test(tagwheelSrc), "tagwheel requires the shared pkm option keys literally (У-89)");
   assertTrue(/pkm_macro_runtime_shared\.js/.test(pkmMacroRuntimeEntrySrc), "macro runtime entry resolves shared runtime module path");
   assertTrue(/async function bootstrapMacroRuntime\(/.test(pkmMacroRuntimeEntrySrc), "macro runtime entry exports reusable bootstrap function");
   assertTrue(/pkm_option_keys\.js/.test(pkmMacroRuntimeSharedSrc), "shared macro runtime references centralized pkm option keys module");
@@ -835,8 +865,13 @@ async function run() {
    * этом месте больше нечего. Гарантия переехала в запрет `require` по
    * переменной выше.
    */
-  assertTrue(/loadVaultModuleBridge\(app, macroPath, forceReload\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 macro loader supports force-reload flag");
-  assertTrue(/async function ensureMacroRuntimeBootstrap\(app\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 preloads macro runtime bootstrap helper");
+  /*
+   * `forceReload` ушёл вместе с мостом: в сборке он не значил ничего — реестр
+   * отдавал один и тот же объект при любом флаге, — а вне Obsidian сбрасывал
+   * кеш загрузчика, чего ни одна проверка не просила.
+   */
+  assertTrue(/function macroModuleForCommand\(command\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 resolves the macro module by command name, not by a path");
+  assertTrue(/async function ensureMacroRuntimeBootstrap\(\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 preloads macro runtime bootstrap helper");
   assertFalse(/async function readVaultMtime\(pathKey\)/.test(pkmRuntimeV2Src), "pkm_runtime_v2 has no local mtime cache fallback loader");
   assertFalse(/new Function\("module", "exports", "app", "Notice"/.test(pkmRuntimeV2Src), "pkm_runtime_v2 has no local dynamic module eval fallback");
   assertTrue(/emitDev\("pkm\.run\.start"/.test(pkmRuntimeV2Src), "pkm_runtime_v2 emits dev start event");
@@ -961,7 +996,7 @@ async function run() {
   assertTrue(/lineFinalize\.applyCycleEndAndInvariants\(\{/.test(statusTagsSrc) || /lineFinalize\.applyCycleEndPostProcessing\(\{/.test(statusTagsSrc), "status_tags delegates cycle-end post-processing through shared finalizer helper");
   assertTrue(/lineFinalize\.isSimplePlainRaw\(rawLine, rules/.test(statusTagsSrc), "status_tags plain-raw minimal guard delegates to shared finalizer helper");
   assertTrue(/lineFinalize\.resolveCursorByPolicy\(\{/.test(statusTagsSrc), "status_tags delegates cursor policy resolution to shared finalizer");
-  assertTrue(/LINE_FINALIZE_UNIFIED_PATH/.test(tagwheelSrc), "tagwheel defines unified line finalizer module path");
+  assertTrue(/require\('\.\.\/\.\.\/src\/core\/pkm_line_finalize_unified\.js'\)/.test(tagwheelSrc), "tagwheel requires the unified line finalizer literally (У-89)");
   assertTrue(/loadLineFinalizeUnified\(app_\)/.test(tagwheelSrc), "tagwheel loads unified line finalizer module");
   assertTrue(/finalize\.applyUnifiedPostFinalize\(\{/.test(tagwheelSrc) || /finalLine = finalize\.applyMixedPostPolicies\(state\.originalLine, finalLine, state\.rules, policy\)/.test(tagwheelSrc), "tagwheel applies shared mixed post policies through unified finalizer path");
   assertTrue(/finalize\.applyUnifiedPostFinalize\(\{/.test(tagwheelSrc) || /finalLine = finalize\.applyFinalLineInvariants\(\{/.test(tagwheelSrc), "tagwheel applies shared final-line invariants through unified finalizer path");
@@ -1010,8 +1045,12 @@ async function run() {
   assertTrue(/function stripFieldTokenSetFromLine\(/.test(statusLineRuntimeUnifiedSrc), "shared status-line runtime exports field-token stripping helper");
   assertTrue(/function clearDependentSelections\(/.test(statusLineRuntimeUnifiedSrc), "shared status-line runtime exports dependent-selection clear helper");
   assertTrue(/runtime\.buildCombinedSelectionSet\(\{/.test(statusTagsSrc), "status_tags combined render delegates pair-build logic to shared status-line runtime");
-  assertTrue(/STATUS_LINE_RUNTIME_UNIFIED_PATH/.test(tagwheelSrc) && /loadStatusLineRuntimeUnified\(app_\)/.test(tagwheelSrc), "tagwheel runtime preloads shared status-line runtime for universal combined behavior");
-  assertTrue(/typeof mod\.enforceDependentAdjacencyForStatusLine !== 'function'/.test(tagwheelSrc), "tagwheel shared status-line runtime loader requires adjacency api");
+  assertTrue(/require\('\.\.\/\.\.\/src\/core\/status_line_runtime_unified\.js'\)/.test(tagwheelSrc) && /loadStatusLineRuntimeUnified\(\)/.test(tagwheelSrc), "tagwheel runtime preloads shared status-line runtime for universal combined behavior");
+  /*
+   * И такие же у TagWheel. Тот же разбор: пин на проверку годности
+   * помощника дублировал пин на его ВЫЗОВ, а предмет ушёл вместе с
+   * загрузкой (У-89, У-71). Пины на вызовы — ниже, все на месте.
+   */
   assertTrue(/function normalizeMinimalOffFinalLine\(/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer exposes minimal-off normalizer");
   assertTrue(/function alignMinimalNoSeparatorPrefix\(/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer exposes minimal no-separator prefix aligner");
   assertTrue(/function relocateOffEntriesToRightPanel\(/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer exposes off-right relocation helper");
@@ -1081,12 +1120,6 @@ async function run() {
   assertTrue(/lineFinalize\.resolveEffectiveSelectionPolicy\(\{/.test(statusTagsSrc), "status_tags resolves mixed policy via shared finalizer effective-policy helper");
   assertTrue(/lineFinalize\.applyResolvedPrefixToLine\(\{/.test(statusTagsSrc), "status_tags prefix rewrite delegates to shared resolved-prefix helper");
   assertFalse(/function resolveOffPrefixFlags\(/.test(statusTagsSrc), "status_tags has no local off-prefix resolver implementation");
-  assertTrue(/typeof mod\.relocateOffEntriesToRightPanel !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared off-right relocation helper");
-  assertTrue(/typeof mod\.applyFullNoSourceNormalization !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared full-no-source normalization helper");
-  assertTrue(/typeof mod\.applyOffSelectionPostPolicies !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared off-selection post-policy helper");
-  assertTrue(/typeof mod\.applyMinimalSelectionNormalization !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared minimal-selection normalization helper");
-  assertTrue(/typeof mod\.applyCycleEndAndInvariants !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared cycle-end/invariants helper");
-  assertTrue(/typeof mod\.applyUnifiedPostFinalize !== 'function'/.test(tagwheelSrc), "tagwheel line-finalizer loader requires shared unified post-finalize helper");
   assertTrue(/finalize\.applyMinimalSelectionNormalization\(\{/.test(tagwheelSrc), "tagwheel minimal-left normalization delegates to shared finalizer helper");
   assertTrue(/finalize\.applyOffSelectionPostPolicies\(\{/.test(tagwheelSrc), "tagwheel off-selection post-policy delegates to shared finalizer helper");
   assertTrue(/finalize\.applyFullNoSourceNormalization\(\{/.test(tagwheelSrc), "tagwheel full-mode no-source normalization delegates to shared finalizer helper");
@@ -1200,7 +1233,7 @@ async function run() {
   assertTrue(/shared\.resolvePrefixCheckboxUnified\(/.test(tagwheelCoreSrc), "tagwheel_core resolvePrefixCheckbox delegates to shared prefix behavior");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules'\)/.test(tagwheelSrc), "tagwheel date-marker resolver is shared-only");
   assertTrue(/async function callRuntimeApi\(app_, method\)/.test(tagwheelSrc), "tagwheel defines runtime api dispatcher helper");
-  assertTrue(/return callRuntimeApi\(app_, 'loadVaultModule', vaultPath, forceReload\)/.test(tagwheelSrc), "tagwheel vault module loading delegates via runtime api dispatcher");
+  assertFalse(/loadVaultModule/.test(tagwheelSrc), "tagwheel does not load modules by a vault path at all any more (У-89)");
   assertFalse(/runtimeApi\.load[A-Za-z]+\(/.test(tagwheelSrc), "tagwheel has no direct runtimeApi.load* calls in adapter flow");
   assertFalse(/<span style=\"color: /.test(tagwheelCoreSrc), "tagwheel_core does not inject inline HTML color wrappers");
   assertFalse(/<mark style=\"background-color: /.test(tagwheelCoreSrc), "tagwheel_core does not inject inline HTML fill wrappers");
@@ -1245,7 +1278,6 @@ async function run() {
   assertTrue(/var rightSourceEntries = rightEntries\.filter\(function \(e\)/.test(tagwheelSrc), "tagwheel collects right-panel source-driven entries for apply path");
   /* Здесь стоял пин на литерал `'right'` в этом вызове — то есть на сам
      дефект Н-3. Заменён ниже на проверку посчитанной панели. */
-  assertTrue(/typeof mod\.relocateCoreTagsByOrder !== 'function'/.test(tagwheelSrc), "tagwheel status-line runtime loader requires shared relocation helper");
   assertTrue(/removeMarkerTokens:\s*function\(segLine, mk, valueRx\)\s*\{[\s\S]*removeMarkerTokensFromSegment\(segLine, mk, valueRx\)/.test(tagwheelSrc), "tagwheel relocate-date cleanup uses shared marker-token remover helper through adapter callback");
   assertTrue(/shared\.getTagWheelMixedReorderOptions\(markers\)/.test(tagwheelSrc), "tagwheel mixed reorder options come from shared helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: buildTagTokenKeyMap'\)/.test(tagwheelSrc), "tagwheel token-key map helper is shared-only");
@@ -1616,43 +1648,38 @@ async function run() {
   assertTrue(!Object.prototype.hasOwnProperty.call(migratedLegacyCheckbox.pkm.fields.checkboxByValue, "bad"), "invalid tokens do not reach checkboxByValue");
 
   /*
-   * Загрузка падает громко, а не молчит.
+   * У макро-рантайма не осталось загрузки модулей вовсе.
    *
-   * Здесь стояли два пина о том же, но про мост модулей: «мост отдал не то —
-   * бросаем», «мост упал — не глушим». Моста в этой цепочке больше нет, и
-   * подделать его нечем: модули приезжают литеральным `require`. Утверждение
-   * осталось прежним, предмет сменился — теперь громко падает **запрос
-   * модуля, которого нет в графе сборки**.
+   * Здесь по очереди стояли три поколения одного утверждения. Сначала два
+   * пина про мост: «мост отдал не то — бросаем», «мост упал — не глушим».
+   * Потом, когда мост сняли, — «неизвестный путь роняет загрузку, а не
+   * отдаёт null», по временной таблице «путь → модуль». Таблица ушла
+   * вместе с последним чтением по пути, и осталось самое сильное из трёх:
+   * **способа попросить модуль по пути в этом API больше нет**.
    *
    * Почему это важнее, чем выглядит (У-90): прежняя цепочка на каждом слое
-   * умела вернуть `null`, и на этом `null` плагин работал наполовину. Пустого
-   * ответа у загрузки быть не должно вовсе.
+   * умела вернуть `null`, и на этом `null` плагин работал наполовину.
+   * Теперь вернуть `null` неоткуда.
    */
   {
-    /* Положительный контроль: известный путь отдаёт настоящий модуль. */
-    const known = await pkmMacroRuntimeShared.loadVaultModule(
-      {},
-      ".obsidian/plugins/inline-overhaul/src/core/pkm_option_keys.js",
-    );
-    assertTrue(known && typeof known === "object" && known.KEYS && typeof known.KEYS === "object",
-      "положительный контроль: известный путь отдаёт модуль, а не пустоту");
+    assertEq(typeof pkmMacroRuntimeShared.loadVaultModule, "undefined",
+      "у общей части макро-рантайма нет загрузки модуля по пути");
+    assertEq(typeof pkmMacroRuntimeShared.MODULES_BY_VAULT_PATH, "undefined",
+      "и таблицы путей тоже нет");
 
-    let unknownFailFast = "";
-    try {
-      await pkmMacroRuntimeShared.loadVaultModule({}, ".obsidian/plugins/inline-overhaul/src/core/nope.js");
-    } catch (e) {
-      unknownFailFast = String(e && e.message ? e.message : e || "");
-    }
-    assertTrue(/module is not bundled/.test(unknownFailFast),
-      "неизвестный путь роняет загрузку, а не отдаёт null");
-
-    /* Форма пути значения не меняет: её приводит одна функция. */
-    const viaShortPath = await pkmMacroRuntimeShared.loadVaultModule(
-      {},
-      "./plugins/inline-overhaul/src/core/pkm_option_keys.js",
-    );
-    assertTrue(viaShortPath === known,
-      "путь приводится к одной форме, и модуль отдаётся тот же самый");
+    /*
+     * Положительный контроль (У-88): API не пустое, и то, что в нём есть,
+     * отдаёт настоящие модули.
+     */
+    const api = await pkmMacroRuntimeEntry.bootstrapMacroRuntime({}, null);
+    assertEq(typeof api.loadVaultModule, "undefined",
+      "и в объекте, который получают движки, его тоже нет");
+    const keys = await api.loadPkmOptionKeys();
+    assertTrue(keys && keys.KEYS && typeof keys.KEYS === "object",
+      "положительный контроль: ключи настроек приезжают настоящим модулем");
+    const helpers = await api.loadRulesRuntimeHelpers();
+    assertTrue(helpers && typeof helpers.parseOrderConfig === "function",
+      "и помощники правил — тоже");
   }
 
   /*

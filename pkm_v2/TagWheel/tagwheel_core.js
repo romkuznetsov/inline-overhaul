@@ -2,54 +2,64 @@ function err(msg) {
   throw new Error('[tagwheel] ' + msg)
 }
 
-function loadCoreHelperFromGlobalOrRequire(globalKey, requirePath) {
-  try {
-    var key = String(globalKey || '').trim()
-    var modPath = String(requirePath || '').trim()
-    var g = key && globalThis ? globalThis[key] : null
-    if (g && typeof g === 'object') return g
-    if (typeof require === 'function' && modPath) {
-      try {
-        var mod = require(modPath)
-        if (mod && typeof mod === 'object') return mod
-      } catch (_) {}
-    }
-    return null
-  } catch (_) {
-    return null
-  }
-}
+/*
+ * Свои модули — литеральным `require`, по одному на модуль (У-89).
+ *
+ * Было: `loadCoreHelperFromGlobalOrRequire(ключ, путь)` — сначала смотрит
+ * глобальную переменную, потом делает `require` **по переменной**. В сборке
+ * путь в переменной не разрешается никогда, значит работала только первая
+ * половина, а из восьми ключей кто-то ставит **три**:
+ * `__inlineOverhaulSharedUtils`, `__inlinePkmRulesHelpers`,
+ * `__inlineStatusLineRuntimeUnified`. Остальные пять не ставит никто, и в
+ * установленном плагине эти пять геттеров отдавали `null` всегда.
+ *
+ * Что при этом работало: у каждого места вызова стояла своя копия логики
+ * рядом. То есть вынесение пяти модулей в сборке не действовало, а работали
+ * копии — при зелёном наборе, потому что в дереве исходников путь
+ * `../../src/core/...` разрешается всегда. Тот же класс, что дефект A33.
+ *
+ * Копии стали недостижимы и снимаются следующим шагом: недостижимая
+ * заплатка, похожая на страховку, — это У-90.
+ */
+var __sharedUtils = require('../../src/core/shared_utils.js')
+var __statusLineRuntimeUnified = require('../../src/core/status_line_runtime_unified.js')
+var __rulesRuntimeHelpers = require('../../src/core/pkm_rules_runtime_helpers.js')
+var __markdownJsonBlockParser = require('../../src/core/markdown_json_block_parser.js')
+var __tagwheelRulesNormalizer = require('../../src/core/tagwheel_rules_normalizer.js')
+var __tokenGraphUnified = require('../../src/core/token_graph_unified.js')
+var __pkmDomainRegistry = require('../../src/core/pkm_domain_registry.js')
+var __statusRuntimeCommonMod = require('../../src/core/status_runtime_common.js')
 
 function getSharedUtils() {
-  return loadCoreHelperFromGlobalOrRequire('__inlineOverhaulSharedUtils', '../../src/core/shared_utils.js')
+  return __sharedUtils
 }
 
 function getStatusLineRuntimeUnified() {
-  return loadCoreHelperFromGlobalOrRequire('__inlineStatusLineRuntimeUnified', '../../src/core/status_line_runtime_unified.js')
+  return __statusLineRuntimeUnified
 }
 
 function getRulesRuntimeHelpers() {
-  return loadCoreHelperFromGlobalOrRequire('__inlinePkmRulesHelpers', '../../src/core/pkm_rules_runtime_helpers.js')
+  return __rulesRuntimeHelpers
 }
 
 function getMarkdownJsonBlockParser() {
-  return loadCoreHelperFromGlobalOrRequire('__inlineMarkdownJsonBlockParser', '../../src/core/markdown_json_block_parser.js')
+  return __markdownJsonBlockParser
 }
 
 function getTagwheelRulesNormalizer() {
-  return loadCoreHelperFromGlobalOrRequire('__inlineTagwheelRulesNormalizer', '../../src/core/tagwheel_rules_normalizer.js')
+  return __tagwheelRulesNormalizer
 }
 
 function getTokenGraphUnified() {
-  return loadCoreHelperFromGlobalOrRequire('__inlineTokenGraphUnified', '../../src/core/token_graph_unified.js')
+  return __tokenGraphUnified
 }
 
 function getDomainRegistry() {
-  return loadCoreHelperFromGlobalOrRequire('__inlinePkmDomainRegistry', '../../src/core/pkm_domain_registry.js')
+  return __pkmDomainRegistry
 }
 
 function getStatusRuntimeCommon() {
-  return loadCoreHelperFromGlobalOrRequire('__inlineStatusRuntimeCommon', '../../src/core/status_runtime_common.js')
+  return __statusRuntimeCommonMod
 }
 
 function resolveSourceKind(field) {
@@ -120,8 +130,7 @@ function ensureStatusRuntimeCommonFns() {
     normalizeOrderKey: function (k) { return String(k || '').trim() },
     defaultPanel: 'left',
     loadOrderKeyNormalizer: async function () { return function (k) { return String(k || '').trim() } },
-    loadRuntimePreloadFacade: async function () { return null },
-    loadVaultModule: async function () { throw new Error('tagwheel_core: loadVaultModule not available for local shared helper bootstrap') }
+    loadRuntimePreloadFacade: async function () { return null }
   })
   globalThis.__inlineStatusRuntimeCommonFns = fns
   return fns

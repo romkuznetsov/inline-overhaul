@@ -1,12 +1,30 @@
 "use strict";
 
+/**
+ * Сборка релиза: что в ней есть и чего в ней быть не должно.
+ *
+ * **Чего здесь больше нет и почему.** До 2026-09-07 половина файла проверяла
+ * мост модулей и реестр забандленных путей: что реестр покрывает все пути,
+ * которые рантайм просит у vault; что реестр сильнее устаревшего кеша; что вне
+ * Obsidian мост резолвит плагин-локальный путь через `require`, а в релизе эта
+ * ветка мертва. Моста и реестра больше нет — модули приезжают литеральным
+ * `require` (У-89), — и все эти утверждения потеряли предмет.
+ *
+ * **Но одно из них не исчезло, а стало сильнее.** Было: «каждый путь внутри
+ * vault, который просит рантайм, лежит в реестре». Стало: **рантайм не просит
+ * у vault ни одного пути**. Это то же требование в пределе, и проверяется оно
+ * сплошным обходом (У-85), а не списком файлов.
+ *
+ * Остальное прежнее: состав папки `dist`, отсутствие локальных `require` в
+ * бандле, наличие панели настроек и отсутствие старой.
+ */
+
 const assert = require("assert");
 const fs = require("fs");
 const Module = require("module");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..", "..");
-const pluginPrefix = ".obsidian/plugins/inline-overhaul/";
 
 function walkJs(target) {
   if (!fs.existsSync(target)) return [];
@@ -17,15 +35,18 @@ function walkJs(target) {
   ));
 }
 
-function canonicalPluginPath(value) {
-  let out = String(value || "").replace(/\\/g, "/");
-  while (out.startsWith("./")) out = out.slice(2);
-  if (out.startsWith("plugins/inline-overhaul/")) out = ".obsidian/" + out;
-  const marker = out.indexOf(pluginPrefix);
-  return marker >= 0 ? out.slice(marker) : out;
-}
-
-function collectRuntimeVaultPaths() {
+/**
+ * Пути внутри vault, по которым рантайм просил бы модуль.
+ *
+ * Ищется тот же признак, каким его искала прежняя версия файла, — литерал вида
+ * `.obsidian/plugins/inline-overhaul/<...>.js`. Разница в ожидании: раньше
+ * каждый такой путь обязан был лежать в реестре, теперь их не должно быть
+ * вовсе.
+ *
+ * Служебный файл правил под это не попадает: он `.md`, и читается он как
+ * данные, а не как модуль.
+ */
+function collectRuntimeVaultModulePaths() {
   const files = [
     path.join(root, "main.js"),
     path.join(root, "navigation_runtime.js"),
@@ -34,105 +55,28 @@ function collectRuntimeVaultPaths() {
     ...walkJs(path.join(root, "src")),
   ];
   const pattern = /(?:\.\/)?(?:\.obsidian\/)?plugins\/inline-overhaul\/[^"'`\s]+\.js(?=["'`])/g;
-  const found = new Set();
+  const found = [];
   for (const file of files) {
     const source = fs.readFileSync(file, "utf8");
-    for (const match of source.match(pattern) || []) found.add(canonicalPluginPath(match));
+    for (const match of source.match(pattern) || []) {
+      found.push(`${path.relative(root, file).replace(/\\/g, "/")}: ${match}`);
+    }
   }
-  return found;
-}
-
-function collectRegistryPaths() {
-  const source = fs.readFileSync(path.join(root, "build", "release_entry.js"), "utf8");
-  const pattern = /["'](\.obsidian\/plugins\/inline-overhaul\/[^"']+\.js)["']\s*:/g;
-  return new Set(Array.from(source.matchAll(pattern), (match) => match[1]));
+  return { files: files.length, found };
 }
 
 async function run() {
-  const runtimePaths = collectRuntimeVaultPaths();
-  const registryPaths = collectRegistryPaths();
-  const missing = Array.from(runtimePaths).filter((item) => !registryPaths.has(item)).sort();
-  assert.deepStrictEqual(missing, [], `release registry missing runtime vault paths:\n${missing.join("\n")}`);
-
-  const bridge = require(path.join(root, "src", "core", "vault_module_bridge.js"));
-  const previousRegistry = globalThis.__inlineOverhaulBundledVaultModules;
-  const sentinel = { bundled: true };
-  globalThis.__inlineOverhaulBundledVaultModules = new Map([
-    [`${pluginPrefix}src/core/shared_utils.js`, sentinel],
-  ]);
-  try {
-    globalThis.__releaseBundleTestCache = new Map([
-      ["./plugins/inline-overhaul/src/core/shared_utils.js", { stale: true }],
-    ]);
-    const loaded = await bridge.loadVaultModule({
-      vault: {
-        getAbstractFileByPath() { throw new Error("vault fallback must not run"); },
-      },
-    }, "./plugins/inline-overhaul/src/core/shared_utils.js", true, "__releaseBundleTestCache");
-    assert.strictEqual(loaded, sentinel, "bundled registry wins over stale global module cache");
-
-    const reloadedSentinel = { bundled: "reloaded" };
-    globalThis.__inlineOverhaulBundledVaultModules.set(`${pluginPrefix}src/core/shared_utils.js`, reloadedSentinel);
-    const reloaded = await bridge.loadVaultModule({
-      vault: {
-        getAbstractFileByPath() { throw new Error("vault fallback must not run on hot reload"); },
-      },
-    }, "./plugins/inline-overhaul/src/core/shared_utils.js", false, "__releaseBundleTestCache");
-    assert.strictEqual(reloaded, reloadedSentinel, "updated bundled registry wins without forceReload");
-  } finally {
-    globalThis.__inlineOverhaulBundledVaultModules = previousRegistry;
-    delete globalThis.__releaseBundleTestCache;
-  }
-
   /*
-   * Запасной путь моста для среды без vault (A15, 2026-09-01).
-   *
-   * Вне Obsidian реестра нет, дерева исходников по пути `.obsidian/plugins/...`
-   * тоже нет, и до этой правки движок в Node не поднимался вовсе — из-за чего
-   * `status_runtime_behavior_tests.js` год стоял в пропусках. Проверяются обе
-   * стороны: без реестра модуль находится, с реестром ветка не срабатывает.
-   *
-   * Ожидание выписано отдельно от источника (У-5): свой `require` того же
-   * файла, а не то, из чего мост его достаёт.
+   * Положительный контроль (У-88): обход обязан найти файлы, иначе «путей нет»
+   * будет зелёным от пустоты.
    */
-  {
-    const registryBackup = globalThis.__inlineOverhaulBundledVaultModules;
-    const localPath = `${pluginPrefix}src/core/shared_utils.js`;
-    try {
-      delete globalThis.__inlineOverhaulBundledVaultModules;
-      const local = bridge.requirePluginLocalModule(localPath);
-      assert.strictEqual(local.found, true, "without a registry the bridge resolves a plugin-local module");
-      assert.strictEqual(
-        local.value,
-        require(path.join(root, "src", "core", "shared_utils.js")),
-        "the module the bridge resolves is the project file itself"
-      );
-
-      globalThis.__releaseBundleLocalCache = new Map();
-      const loaded = await bridge.loadVaultModule({
-        vault: { getAbstractFileByPath() { return null; }, adapter: null },
-      }, localPath, false, "__releaseBundleLocalCache");
-      assert.strictEqual(loaded, local.value, "loadVaultModule falls through to the plugin-local module");
-
-      /*
-       * Путь не из папки плагина той же длины, что и префикс. Без проверки
-       * префикса срез отдал бы настоящий `src/core/shared_utils.js`, и чужой
-       * путь притянул бы файл проекта. Короткий чужой путь это не ловит: его
-       * отсекает пустой остаток, а не сама проверка.
-       */
-      const decoy = "z".repeat(bridge.PLUGIN_PATH_PREFIX.length) + "src/core/shared_utils.js";
-      const outside = bridge.requirePluginLocalModule(decoy);
-      assert.strictEqual(outside.found, false, "a path outside the plugin folder is not resolved locally");
-
-      globalThis.__inlineOverhaulBundledVaultModules = new Map();
-      const withRegistry = bridge.requirePluginLocalModule(localPath);
-      assert.strictEqual(withRegistry.found, false, "a filled registry means release: the local branch is dead");
-    } finally {
-      if (registryBackup === undefined) delete globalThis.__inlineOverhaulBundledVaultModules;
-      else globalThis.__inlineOverhaulBundledVaultModules = registryBackup;
-      delete globalThis.__releaseBundleLocalCache;
-    }
-  }
+  const scan = collectRuntimeVaultModulePaths();
+  assert.ok(scan.files > 30, `положительный контроль: обход нашёл файлы рантайма (${scan.files})`);
+  assert.deepStrictEqual(
+    scan.found.sort(),
+    [],
+    `рантайм не просит модуль по пути внутри vault (У-89):\n${scan.found.join("\n")}`,
+  );
 
   const dist = path.join(root, "dist");
   const distMain = path.join(dist, "main.js");
@@ -159,6 +103,24 @@ async function run() {
   const bundledRequires = Array.from(bundledSource.matchAll(/require\(["']([^"']+)["']\)/g), (match) => match[1]);
   const unexpectedRequires = Array.from(new Set(bundledRequires.filter((item) => !allowedExternals.has(item)))).sort();
   assert.deepStrictEqual(unexpectedRequires, [], `bundle has unexpected external requires: ${unexpectedRequires.join(", ")}`);
+
+  /*
+   * Мост модулей и его реестр: снятого в сборке быть не должно. Запрет
+   * назван, а не подразумевается, и снимается он только тем, что плагин снова
+   * начнёт читать модули из vault (У-71).
+   */
+  const bridgeMarks = [
+    "__inlineOverhaulBundledVaultModules",
+    "__inlineVaultModuleBridge",
+    "vault_module_bridge",
+  ];
+  for (const mark of bridgeMarks) {
+    assert.ok(!bundledSource.includes(mark), `bundle no longer contains the vault module bridge: ${mark}`);
+  }
+  assert.ok(
+    !/new Function\(\s*["']module["']/.test(bundledSource),
+    "bundle has no dynamic module eval left (A1)",
+  );
 
   /*
    * Панель настроек теперь одна: старая удалена 2026-08-29. Значит собранный
@@ -214,27 +176,11 @@ async function run() {
     delete require.cache[require.resolve(distMain)];
     const PluginExport = require(distMain);
     assert.strictEqual(typeof PluginExport, "function", "bundle exports plugin class");
-    assert.ok(globalThis.__inlineOverhaulBundledVaultModules instanceof Map, "bundle initializes vault-module registry");
-    for (const runtimePath of runtimePaths) {
-      assert.ok(globalThis.__inlineOverhaulBundledVaultModules.has(runtimePath), `bundle registry contains ${runtimePath}`);
-    }
-    const staleBridge = { loadVaultModule() { return { stale: true }; } };
-    globalThis.__inlineVaultModuleBridge = staleBridge;
-    globalThis.__inlineOverhaulMainModuleCache = new Map([["stale", true]]);
-    delete require.cache[require.resolve(distMain)];
-    require(distMain);
-    assert.notStrictEqual(globalThis.__inlineVaultModuleBridge, staleBridge, "bundle reload replaces stale global bridge");
-    assert.strictEqual(
-      globalThis.__inlineVaultModuleBridge,
-      globalThis.__inlineOverhaulBundledVaultModules.get(`${pluginPrefix}src/core/vault_module_bridge.js`),
-      "bundle reload publishes current bundled bridge"
-    );
-    assert.strictEqual(globalThis.__inlineOverhaulMainModuleCache.size, 0, "bundle reload clears stale global module cache");
   } finally {
     Module._load = originalLoad;
   }
 
-  console.log(`Release bundle regression tests: OK (${runtimePaths.size} runtime vault paths covered)`);
+  console.log(`Release bundle regression tests: OK (${scan.files} runtime files scanned, no vault module paths)`);
 }
 
 run().catch((error) => {

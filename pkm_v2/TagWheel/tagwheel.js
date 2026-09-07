@@ -17,14 +17,23 @@ var TAGWHEEL_SCROLLER_TEXT_OPTION = 'TagWheel scroller text color'
    разрешение заказчика 2026-09-05 (PRD 10.13.35). */
 var TAGWHEEL_EDGE_MODE_OPTION = 'TagWheel edge mode'
 var DEFAULT_RULES_PATH = 'InlineOverhaul_Generated_RULES_TagWheel.md'
-var LINE_FINALIZE_UNIFIED_PATH = '.obsidian/plugins/inline-overhaul/src/core/pkm_line_finalize_unified.js'
-var STATUS_LINE_RUNTIME_UNIFIED_PATH = '.obsidian/plugins/inline-overhaul/src/core/status_line_runtime_unified.js'
-var DATE_RUNTIME_SHARED_PATH = '.obsidian/plugins/inline-overhaul/src/core/date_runtime_shared.js'
-var LINE_PIPELINE_PATH = '.obsidian/plugins/inline-overhaul/src/core/line_pipeline.js'
-var TAGWHEEL_SCROLLER_OVERLAY_PATH = '.obsidian/plugins/inline-overhaul/src/ui/tagwheel_scroller_overlay.js'
-var __lineFinalizeUnifiedMod = null
-var __dateRuntimeSharedMod = null
-var __tagwheelScrollerOverlayMod = null
+/*
+ * Свои модули — литеральным `require`, по одному на модуль (У-89).
+ *
+ * Было: пять путей внутри vault и шесть асинхронных загрузок, каждая со
+ * своей проверкой годности и своим кешем. Три из них просили модуль с
+ * `forceReload = true` — то есть заново на каждый вызов, — и в сборке это
+ * ничего не значило: реестр забандленных модулей отдаёт один и тот же
+ * объект независимо от флага.
+ */
+var __lineFinalizeUnifiedMod = require('../../src/core/pkm_line_finalize_unified.js')
+var __statusLineRuntimeUnifiedMod = require('../../src/core/status_line_runtime_unified.js')
+var __dateRuntimeSharedMod = require('../../src/core/date_runtime_shared.js')
+var __linePipelineMod = require('../../src/core/line_pipeline.js')
+var __tagwheelScrollerOverlayMod = require('../../src/ui/tagwheel_scroller_overlay.js')
+var __tagwheelCoreMod = require('./tagwheel_core.js')
+var __pkmOptionKeysMod = require('../../src/core/pkm_option_keys.js')
+var __pkmDomainRegistryMod = require('../../src/core/pkm_domain_registry.js')
 
 /*
  * Уведомление TagWheel. С 2026-09-06 оно спрашивает текст у каталога
@@ -313,31 +322,12 @@ function normalizeScrollerConfig(input) {
   }
 }
 
-async function loadDateRuntimeShared(app_, loadVaultModule) {
-  if (__dateRuntimeSharedMod && typeof __dateRuntimeSharedMod === 'object') return __dateRuntimeSharedMod
-  var mod = await loadVaultModule(app_, DATE_RUNTIME_SHARED_PATH, false)
-  if (
-    !mod
-    || typeof mod.parseDateRuntimeConfigJson !== 'function'
-    || typeof mod.collectMissingEmojiFieldsFromRules !== 'function'
-  ) {
-    throw new Error('date_runtime_shared unavailable: required api')
-  }
-  __dateRuntimeSharedMod = mod
-  return mod
+async function loadDateRuntimeShared() {
+  return __dateRuntimeSharedMod
 }
 
-async function loadTagWheelScrollerOverlay(app_, loadVaultModule) {
-  if (
-    __tagwheelScrollerOverlayMod
-    && typeof __tagwheelScrollerOverlayMod.createTagWheelScrollerOverlay === 'function'
-  ) return __tagwheelScrollerOverlayMod
-  var mod = await loadVaultModule(app_, TAGWHEEL_SCROLLER_OVERLAY_PATH, false)
-  if (!mod || typeof mod.createTagWheelScrollerOverlay !== 'function') {
-    throw new Error('tagwheel_scroller_overlay unavailable: createTagWheelScrollerOverlay')
-  }
-  __tagwheelScrollerOverlayMod = mod
-  return mod
+async function loadTagWheelScrollerOverlay() {
+  return __tagwheelScrollerOverlayMod
 }
 
 function resolveFieldOutputMode(field, rules) {
@@ -385,17 +375,7 @@ async function runTagWheel(input, quickAddSettings) {
   var rulesHelpers = globalThis.__inlinePkmRulesHelpers
   var linePipeline = globalThis.__inlineLinePipeline
   var statusLineRuntime = globalThis.__inlineStatusLineRuntimeUnified
-  var DOMAIN_REGISTRY_PATH = '.obsidian/plugins/inline-overhaul/src/core/pkm_domain_registry.js'
-  var domainRegistry = null
-  var domainRegistryFallback = (function() {
-    try {
-      if (typeof require === 'function') {
-        var mod = require('../../src/core/pkm_domain_registry.js')
-        if (mod && typeof mod === 'object') return mod
-      }
-    } catch (_) {}
-    return null
-  })()
+  var domainRegistry = __pkmDomainRegistryMod
 
   function applyPkmOptionKeys(mod) {
     var keys = mod && mod.KEYS && typeof mod.KEYS === 'object' ? mod.KEYS : null
@@ -416,18 +396,10 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   function getDomainRegistry() {
-    if (domainRegistry && typeof domainRegistry === 'object') return domainRegistry
-    if (domainRegistryFallback && typeof domainRegistryFallback === 'object') return domainRegistryFallback
-    return null
+    return domainRegistry
   }
 
-  async function ensureDomainRegistryLoaded(app_) {
-    if (domainRegistry && typeof domainRegistry === 'object') return
-    try {
-      domainRegistry = await loadVaultModule(app_, DOMAIN_REGISTRY_PATH, false)
-    } catch (_) {
-      domainRegistry = null
-    }
+  async function ensureDomainRegistryLoaded() {
   }
 
   function resolveOrderKeyFromFieldId(fieldId) {
@@ -460,70 +432,26 @@ async function runTagWheel(input, quickAddSettings) {
     return fn.apply(rt, args)
   }
 
-  async function loadVaultModule(app_, vaultPath, forceReload) {
-    return callRuntimeApi(app_, 'loadVaultModule', vaultPath, forceReload)
-  }
-
-  async function loadLineFinalizeUnified(app_) {
-    var mod = await loadVaultModule(app_, LINE_FINALIZE_UNIFIED_PATH, true)
-    if (
-      !mod
-      || typeof mod.hasListPrefix !== 'function'
-      || typeof mod.resolveMixedSelectionPolicy !== 'function'
-      || typeof mod.applyUnifiedPostFinalize !== 'function'
-      || typeof mod.relocateOffEntriesToRightPanel !== 'function'
-      || typeof mod.applyFullNoSourceNormalization !== 'function'
-      || typeof mod.applyOffSelectionPostPolicies !== 'function'
-      || typeof mod.applyMinimalSelectionNormalization !== 'function'
-      || typeof mod.composeMinimalHeadingLine !== 'function'
-      || typeof mod.normalizeFullTagLineByEntries !== 'function'
-      || typeof mod.applyCycleEndAndInvariants !== 'function'
-      || typeof mod.resolveCursorByPolicy !== 'function'
-      || typeof mod.applyTrailingSeparatorPolicy !== 'function'
-      || typeof mod.getPrefixRulesUnified !== 'function'
-      || typeof mod.resolvePrefixCheckboxUnified !== 'function'
-      || typeof mod.buildPrefixUnified !== 'function'
-      || typeof mod.normalizeCheckboxToken !== 'function'
-    ) {
-      throw new Error('pkm_line_finalize_unified unavailable: required mixed policy api')
-    }
-    __lineFinalizeUnifiedMod = mod
+  /*
+   * Модули приехали `require` при загрузке файла. Публикация в
+   * `globalThis` остаётся швом: оттуда их читает `tagwheel_core`.
+   */
+  async function loadLineFinalizeUnified() {
     return __lineFinalizeUnifiedMod
   }
 
-  async function loadLinePipelineFresh(app_) {
-    var mod = await loadVaultModule(app_, LINE_PIPELINE_PATH, true)
-    if (
-      !mod
-      || typeof mod.splitSegments !== 'function'
-      || typeof mod.buildFromSegments !== 'function'
-      || typeof mod.splitLeftPrefix !== 'function'
-      || typeof mod.joinLeftPrefix !== 'function'
-      || typeof mod.relocateTokenSetByPanel !== 'function'
-      || typeof mod.normalizeRightPayloadTailToDates !== 'function'
-    ) {
-      throw new Error('line_pipeline unavailable: required api')
-    }
-    try { globalThis.__inlineLinePipeline = mod } catch (_) {}
-    return mod
+  async function loadLinePipelineFresh() {
+    globalThis.__inlineLinePipeline = __linePipelineMod
+    return __linePipelineMod
   }
 
-  async function loadStatusLineRuntimeUnified(app_) {
-    var mod = await loadVaultModule(app_, STATUS_LINE_RUNTIME_UNIFIED_PATH, false)
-    if (!mod
-      || typeof mod.relocateCoreTagsByOrder !== 'function'
-      || typeof mod.buildCombinedSelectionSet !== 'function'
-      || typeof mod.applyCombinedToTokenList !== 'function'
-      || typeof mod.enforceDependentAdjacencyForStatusLine !== 'function') {
-      throw new Error('status_line_runtime_unified unavailable: required combined api')
-    }
-    try { globalThis.__inlineStatusLineRuntimeUnified = mod } catch (_) {}
-    return mod
+  async function loadStatusLineRuntimeUnified() {
+    globalThis.__inlineStatusLineRuntimeUnified = __statusLineRuntimeUnifiedMod
+    return __statusLineRuntimeUnifiedMod
   }
 
-  async function ensureOptionKeysLoaded(app_) {
-    var mod = await callRuntimeApi(app_, 'loadPkmOptionKeys')
-    applyPkmOptionKeys(mod)
+  async function ensureOptionKeysLoaded() {
+    applyPkmOptionKeys(__pkmOptionKeysMod)
   }
 
 
@@ -1789,7 +1717,7 @@ async function runTagWheel(input, quickAddSettings) {
     if (typeof linePipeline.enforceTextSegmentForLeftTag !== 'function') throw new Error('line_pipeline unavailable: enforceTextSegmentForLeftTag')
     var lineFinalize = await loadLineFinalizeUnified(app_)
     statusLineRuntime = await loadStatusLineRuntimeUnified(app_)
-    var core = await loadVaultModule(app_, '.obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel_core.js', true)
+    var core = __tagwheelCoreMod
     var rp = String(runtimeInput && runtimeInput.rulesPath ? runtimeInput.rulesPath : DEFAULT_RULES_PATH).trim()
     var loadedRules
     try {
@@ -1806,7 +1734,7 @@ async function runTagWheel(input, quickAddSettings) {
     }
     var rulesMd = loadedRules.markdown
     var rules = core.parseRulesFromMarkdown(rulesMd)
-    var dateRuntimeShared = await loadDateRuntimeShared(app_, loadVaultModule)
+    var dateRuntimeShared = await loadDateRuntimeShared()
     var dateRuntimeCfg = dateRuntimeShared.parseDateRuntimeConfigJson(runtimeInput.dateRuntimeConfig)
     if (!rules.behavior || typeof rules.behavior !== 'object') rules.behavior = {}
     rules.behavior.dateRuntimeConfig = dateRuntimeCfg
@@ -1830,7 +1758,7 @@ async function runTagWheel(input, quickAddSettings) {
         orderConfigKey: ORDER_CONFIG_OPTION,
         parseOrderConfig: parseOrderConfigFn,
         normalizeKey: normalizeOrderKey
-      }, loadVaultModule)
+      })
     } else {
       orderCfg = parseOrderConfigFn(rawOrder, normalizeOrderKey)
     }
@@ -1901,7 +1829,7 @@ async function runTagWheel(input, quickAddSettings) {
 
     if (scrollerCfg.enabled) {
       try {
-        var scrollerMod = await loadTagWheelScrollerOverlay(app_, loadVaultModule)
+        var scrollerMod = await loadTagWheelScrollerOverlay()
         state.scrollerOverlay = scrollerMod.createTagWheelScrollerOverlay({
           direction: scrollerCfg.direction,
           size: scrollerCfg.size,

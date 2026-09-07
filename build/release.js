@@ -11,7 +11,14 @@ fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 
 esbuild.buildSync({
-  entryPoints: [path.join(__dirname, "release_entry.js")],
+  /*
+   * Точка входа — сам `main.js`. Раньше между ним и сборщиком стоял
+   * `release_entry.js`: он собирал реестр плагин-локальных модулей, чтобы
+   * мост находил модуль по пути внутри vault, не читая сам vault. Моста
+   * больше нет, модули приезжают литеральным `require` (У-89), и реестр
+   * вместе с ним ушёл.
+   */
+  entryPoints: [path.join(root, "main.js")],
   bundle: true,
   outfile: path.join(dist, "main.js"),
   platform: "node",

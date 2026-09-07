@@ -9,8 +9,7 @@ Core domain layer placeholders for Sprint 0.
 - line_pipeline.js (AC-RF1-008 extraction: shared split/assemble pipeline with strict leading-whitespace preservation contract)
 - pkm_macro_shared.js (AC-RF1-009..015 extraction: shared macro postprocess/cursor/cycle + token/regex segment helpers for status modules and TagWheel)
 - pkm_rules_runtime_helpers.js (AC-RF1-009..019 extraction: shared order parsing/apply + panel/order resolver + marker/segment reorder + token-key map + rules path/read fallback helpers)
-- pkm_runtime_bootstrap.js (AC-RF1-021..026 extraction: shared runtime bootstrap loader for line/macro/rules modules, vault bridge loader, order-key fallback and order-config resolver)
-- vault_module_bridge.js (AC-RF1-009 extraction: shared vault module loader bridge with unified cache policy)
+- pkm_runtime_bootstrap.js (order-key normalizer seam and order-config resolver; the module loaders and the vault bridge are gone since 2026-09-07 — every module arrives by a literal require)
 - compat_profile.js (de-legacy transition: centralized compatibility flags and deprecated-config-key map)
 - token_graph_unified.js (BUILD-ENGINE-P2: canonical token-fact extraction for unified hydrate/resolve paths)
 - events

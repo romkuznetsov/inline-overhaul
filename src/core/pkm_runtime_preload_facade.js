@@ -20,10 +20,10 @@
  * `load*`. Пока эти чтения на месте, публикация обязана остаться: снимать её
  * надо вместе с ними, а не раньше.
  *
- * Формы вызова оставлены прежними — асинхронными и с теми же аргументами.
- * Аргументы `app_` и `loadVaultModule` больше не нужны и не читаются: их
- * передают места в файлах под З3, и менять их подписи ради снятия моста дороже,
- * чем оставить. Уйдут они вместе с этими местами.
+ * Формы вызова остались асинхронными: их зовут через `await` места в файлах
+ * под З3. Аргументы «приложение» и «загрузчик модулей» ушли вместе с самой
+ * загрузкой — передавать их было незачем, а оставлять значило бы держать в
+ * подписи то, чего нет.
  */
 
 const bootstrap = require("./pkm_runtime_bootstrap.js");
@@ -35,7 +35,7 @@ async function loadRuntimeBootstrap() {
   return bootstrap;
 }
 
-async function loadOrderKeyNormalizer(app_, loadVaultModule, fallbackNormalize) {
+async function loadOrderKeyNormalizer(fallbackNormalize) {
   return bootstrap.loadOrderKeyNormalizer(fallbackNormalize);
 }
 

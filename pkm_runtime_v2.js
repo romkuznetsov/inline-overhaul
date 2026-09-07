@@ -51,51 +51,34 @@ function getActiveEditor(app) {
   return active && active.editor ? active.editor : null;
 }
 
-async function loadVaultModuleBridge(app, vaultPath, forceReload) {
-  let bridge = globalThis && globalThis.__inlineVaultModuleBridge;
-  if (!(bridge && typeof bridge.loadVaultModule === "function")) {
-    try {
-      const mod = require("./src/core/vault_module_bridge.js");
-      if (mod && typeof mod.loadVaultModule === "function") {
-        bridge = mod;
-        globalThis.__inlineVaultModuleBridge = mod;
-      }
-    } catch (e) {
-      reportLoaderFallback("pkm_runtime_v2.bridge.require", e);
-    }
-  }
-  if (!(bridge && typeof bridge.loadVaultModule === "function")) {
-    throw new Error("pkm_runtime_v2: vault_module_bridge unavailable");
-  }
-  try {
-    return await bridge.loadVaultModule(app, vaultPath, forceReload, "__inlineOverhaulPkmV2ModuleCache");
-  } catch (e) {
-    reportLoaderFallback(`pkm_runtime_v2.bridge.load:${vaultPath}`, e);
-    throw e;
-  }
+/*
+ * Модули команд — литеральным `require` (У-89). Мост модулей снят: он искал
+ * путь внутри vault в реестре забандленных модулей, а реестр существовал
+ * ровно затем, чтобы мост его нашёл.
+ *
+ * `forceReload` тоже ушёл. В сборке он ничего не значил: реестр отдавал один
+ * и тот же объект независимо от флага, — а вне Obsidian сбрасывал кеш
+ * загрузчика, чего проверки не просили ни разу.
+ */
+const MACRO_MODULES = {
+  statusTags: require("./pkm_v2/status_tags.js"),
+  statusDate: require("./pkm_v2/status_date.js"),
+  tagWheel: require("./pkm_v2/TagWheel/tagwheel.js"),
+};
+
+const macroRuntimeEntry = require("./src/core/pkm_macro_runtime_entry.js");
+
+function macroModuleForCommand(command) {
+  return Object.prototype.hasOwnProperty.call(MACRO_MODULES, command)
+    ? MACRO_MODULES[command]
+    : null;
 }
 
-function modulePathForCommand(command) {
-  if (command === "statusTags") return ".obsidian/plugins/inline-overhaul/pkm_v2/status_tags.js";
-  if (command === "statusDate") return ".obsidian/plugins/inline-overhaul/pkm_v2/status_date.js";
-  if (command === "tagWheel") return ".obsidian/plugins/inline-overhaul/pkm_v2/TagWheel/tagwheel.js";
-  return "";
-}
-
-async function ensureMacroRuntimeBootstrap(app) {
+async function ensureMacroRuntimeBootstrap() {
   if (typeof globalThis.__inlineGetPkmMacroRuntime === "function") return;
-  const cached = globalThis.__inlinePkmMacroRuntimeEntryMod;
-  if (cached && typeof cached.bootstrapMacroRuntime === "function") {
-    globalThis.__inlineGetPkmMacroRuntime = (app_, normalizeOrderKeyLocal) => cached.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal);
-    return;
-  }
-  const entryPath = ".obsidian/plugins/inline-overhaul/src/core/pkm_macro_runtime_entry.js";
-  const mod = await loadVaultModuleBridge(app, entryPath, false);
-  if (!mod || typeof mod.bootstrapMacroRuntime !== "function") {
-    throw new Error("pkm_macro_runtime_entry unavailable: bootstrapMacroRuntime");
-  }
-  globalThis.__inlinePkmMacroRuntimeEntryMod = mod;
-  globalThis.__inlineGetPkmMacroRuntime = (app_, normalizeOrderKeyLocal) => mod.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal);
+  globalThis.__inlinePkmMacroRuntimeEntryMod = macroRuntimeEntry;
+  globalThis.__inlineGetPkmMacroRuntime = (app_, normalizeOrderKeyLocal) =>
+    macroRuntimeEntry.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal);
 }
 
 function normalizeSettingsForCommand(command, settings) {
@@ -120,14 +103,10 @@ async function runCommand(ctx) {
 
   const editor = getActiveEditor(app);
   if (!editor) throw new Error("runCommand: no active editor");
-  var macroPath = modulePathForCommand(command);
-  if (!macroPath) throw new Error("runCommand: unknown command " + command);
+  var mod = macroModuleForCommand(command);
+  if (!mod) throw new Error("runCommand: unknown command " + command);
 
-  await ensureMacroRuntimeBootstrap(app);
-
-  var forceReload = true;
-  if (ctx && ctx.forceReload === false) forceReload = false;
-  var mod = await loadVaultModuleBridge(app, macroPath, forceReload);
+  await ensureMacroRuntimeBootstrap();
   var entry = mod && typeof mod.entry === "function"
     ? mod.entry
     : (typeof mod === "function" ? mod : null);
@@ -141,7 +120,6 @@ async function runCommand(ctx) {
 
   emitDev("pkm.run.start", {
     command: command,
-    macroPath: macroPath,
     lineNo: lineNo,
     cursorCh: cursor ? cursor.ch : -1,
     beforeLine: beforeLine,
