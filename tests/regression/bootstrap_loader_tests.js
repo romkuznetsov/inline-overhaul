@@ -199,6 +199,8 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"), "utf8");
   const orderSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "core", "pkm_order_config.js"), "utf8");
+  const devLogSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "dev_log.js"), "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -306,7 +308,18 @@ async function run() {
   assertFalse(/`📅DATE\/🕑TIME ➕ELEMENTS`/.test(orderSrc), "main has no hardcoded emoji section title for date\/time elements");
   assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(orderSrc), "main infer-element defaults have no hardcoded emoji markers");
   assertTrue(/separator2:\s*"\|\|"/.test(cfgSrc), "default config contains separator2");
-  assertTrue(/replace\(/.test(src) && /\\s\+/.test(src), "order key normalizer collapses whitespace");
+  /*
+   * Пин переехал за предметом (У-94): нормализатор ключа Order живёт в
+   * `pkm_order_config.js` с куска третьего, а спрашивал этот пин **весь
+   * текст main.js** — «есть ли где-нибудь `replace(` и где-нибудь
+   * пробельный образец». Зелёным он был оттого, что и то и другое нашлось
+   * в журнале разработчика; журнал уехал в свой модуль — и пин покраснел,
+   * ничего при этом не сломав.
+   */
+  assertTrue(/function normalizeOrderFieldKey\(key\) \{/.test(orderSrc),
+    "order key normalizer lives in the order module");
+  assertTrue(/String\(key \|\| ""\)\.trim\(\)\.replace\(\/\\s\+\/g, " "\)/.test(orderSrc),
+    "order key normalizer collapses whitespace");
   assertTrue(/\^\[a-z0-9_\\- \]\+\$/.test(orderSrc), "order key validators allow space-containing field ids");
   assertTrue(/function makeDefaultPkmOrder\(\)/.test(orderSrc), "default order factory exists");
   assertTrue(/left:\s*\[\]/.test(orderSrc), "default order config starts empty left");
@@ -409,6 +422,7 @@ async function run() {
       "./src/core/config_migration.js",
       "./src/core/config_normalize.js",
       "./src/core/config_store.js",
+      "./src/core/dev_log.js",
       "./src/core/editor_visuals_config.js",
       "./src/core/pkm_domain_registry.js",
       "./src/core/pkm_line_finalize_unified.js",
@@ -581,21 +595,31 @@ async function run() {
   assertTrue(/const deprecatedDevMode = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.devMode\)/.test(cfgSrc), "migrateConfig resolves deprecated devMode keys from shared compat profile module");
   assertTrue(/for \(const key of deprecatedDevMode\) delete cfg\.devMode\[key\];/.test(cfgSrc), "migrateConfig drops deprecated devMode keys through centralized loop");
   assertTrue(/devLog: \(event, payload\) => this\.devLogEvent\(event, payload, "info", cfg\)/.test(src), "runPkmRuntimeV2 forwards devLog callback into runtime");
-  assertTrue(/getLogPathParts\(dm\) \{/.test(src), "main exposes dev log path parts resolver");
-  assertTrue(/buildLogFilePath\(parts, role, ts\) \{/.test(src), "main exposes timestamped dev log filename builder");
-  assertTrue(/listMatchingLogFiles\(adapter, parts\) \{/.test(src), "main can enumerate existing timestamped dev logs");
-  assertTrue(/trimAiLogContent\(content, dm\) \{/.test(src), "main trims AI logs by time window and record cap");
-  assertTrue(/trimHumanLogContent\(content, dm\) \{/.test(src), "main trims Human logs by time window and record cap");
-  assertTrue(src.includes("const maybeDir = /\\/$/.test(asForward);"), "main resolves directory-like log_path values");
-  assertTrue(/async ensureDirectoryForFilePath\(adapter, filePath\)/.test(src), "main has helper to create parent directories for logs");
+  /*
+   * Журнал разработчика уехал в `src/core/dev_log.js` (кусок четвёртый разбора
+   * `main.js`, 2026-09-07). Утверждения о его устройстве переехали туда же:
+   * `assertTrue` на переехавшее краснеет сам, и все семь покраснели (У-94).
+   * В `main.js` осталось три шва — их и спрашиваем здесь.
+   */
+  assertTrue(/return __devLog\.event\(this, eventName, payload, level, cfg\);/.test(src),
+    "devLogEvent — шов к модулю: его зовут слой редактора и TagWheel");
+  assertTrue(/return __devLog\.startSession\(this, cfg\);/.test(src), "начало сессии — шов к модулю");
+  assertTrue(/return __devLog\.closeSession\(this, cfg, forceWrite\);/.test(src), "конец сессии — тоже");
+  assertTrue(/function logPathParts\(dm\) \{/.test(devLogSrc), "модуль журнала разбирает путь записи");
+  assertTrue(/function logFilePath\(parts, role, ts\) \{/.test(devLogSrc), "и собирает имя файла со временем");
+  assertTrue(/async function listLogFiles\(adapter, parts\) \{/.test(devLogSrc), "и перечисляет прежние записи");
+  assertTrue(/function trimAiLogContent\(content, dm\) \{/.test(devLogSrc), "машинная запись обрезается по времени и числу");
+  assertTrue(/function trimHumanLogContent\(content, dm\) \{/.test(devLogSrc), "человеческая — тоже");
+  assertTrue(devLogSrc.includes("const maybeDir = /\\/$/.test(asForward);"), "путь, кончающийся косой, читается как папка");
+  assertTrue(/async function ensureDirectoryForFilePath\(adapter, filePath\)/.test(devLogSrc), "папки под запись создаются до записи");
   assertTrue(/try \{\s*await this\.initializeDevLogSession\(this\.getConfig\(\)\);\s*\} catch \(e\)/.test(src), "onload guards dev-log session init with fail-open try/catch");
   assertTrue(/await this\.initializeDevLogSession\(this\.getConfig\(\)\);/.test(src), "onload initializes dev log session rotation");
-  assertTrue(/session\.start/.test(src) && /session\.end/.test(src), "main writes session lifecycle events");
+  assertTrue(/session\.start/.test(devLogSrc) && /session\.end/.test(devLogSrc), "модуль журнала пишет начало и конец сессии");
   assertTrue(/if \(!wasEnabled && isEnabled\) \{[\s\S]*initializeDevLogSession\(after\)/.test(src), "setConfigPatch starts new dev log session on dev_mode ON transition");
   assertTrue(/if \(wasEnabled && !isEnabled\) \{[\s\S]*closeDevLogSession\(before, true\)/.test(src), "setConfigPatch closes dev log session on dev_mode OFF transition");
   assertTrue(/if \(wasEnabled && isEnabled && \(beforePath !== afterPath \|\| beforeAi !== afterAi\)\) \{[\s\S]*dev-mode-log:reinit/.test(src), "setConfigPatch reinitializes log session when path or AI toggle changes while enabled");
-  assertTrue(/if \(mdLine\) await this\.writeDevLogLine\(dm, "md", mdLine\);/.test(src), "dev logger always writes human markdown log");
-  assertTrue(/if \(aiLine\) await this\.writeDevLogLine\(dm, "ndjson", aiLine\);/.test(src), "dev logger writes AI ndjson log when enabled");
+  assertTrue(/if \(mdLine\) await writeLine\(plugin, dm, "md", mdLine\);/.test(devLogSrc), "человеческая запись пишется всегда");
+  assertTrue(/if \(aiLine\) await writeLine\(plugin, dm, "ndjson", aiLine\);/.test(devLogSrc), "машинная — когда её включили");
   assertTrue(/const marker = String\(elemCfg\.emoji \|\| inferElementDefaultsByKey\(key\)\.marker \|\| ""\)\.trim\(\);/.test(orderSrc), "ensureBehaviorModesFromOrder syncs custom element marker from behavior config");
   /*
    * Сборка заметки правил живёт в одном месте. Копия в `main.js` снята
