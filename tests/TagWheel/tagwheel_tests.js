@@ -1271,6 +1271,119 @@ function runElementTokenSuite() {
 }
 
 /**
+ * Правая часть строки переживает TagWheel (замечание заказчика 2026-09-07).
+ *
+ * **Что было.** Строка `- 11 :: 📅2026-09-07 11:34`, выбрать значение в левом
+ * Block — и получалось `- [ ] #todo :: 11`. Правой части не оставалось.
+ * Команда `Field next` на той же строке её сохраняла: два хода отвечали на один
+ * вопрос по-разному.
+ *
+ * **Две причины, и обе здесь.**
+ *
+ *   1. Граф токенов резал строку по пробелу и видел `📅2026-09-07` — без
+ *      времени. Отбор значения верит графу, и в сессию приезжала половина.
+ *   2. Значение элемента хранится смещением от «сегодня». Смещение ищется
+ *      перебором **вперёд**, поэтому запись со временем в прошлом не выражается
+ *      им никогда — и в сессию не попадало ничего.
+ *
+ * **Спрашивается то, что видит человек:** правая часть, собранная заново из
+ * сессии, равна той, что была на строке. Ожидание выписано отдельно от того,
+ * из чего строится результат (У-5).
+ *
+ * Оба пути отбора гоняются по очереди: с поднятой прослойкой строки и без неё.
+ * Ветки разные, и до правки половину из них не проходил никто.
+ */
+function runRightPayloadSurvivesSuite() {
+  var path = require('path')
+  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var tokenGraph = require(path.join(__dirname, '..', '..', 'src', 'core', 'token_graph_unified.js'))
+  var linePipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))
+
+  function rulesWithFormat(format) {
+    return {
+      behavior: {
+        order: {
+          left: ['type'],
+          right: ['date_due'],
+          active: { type: 'yes', date_due: 'yes' },
+          enabled: { type: true, date_due: true },
+          types: { type: 'tag', date_due: 'element' }
+        },
+        elements: { byField: { date_due: { emoji: '📅', format: format } } },
+        dateRuntimeConfig: {
+          byField: { date_due: { emoji: '📅', format: format, increment: { mode: 'standard', incrementBy: 1 } } },
+          canonical: {}
+        },
+        prefixRules: {}
+      },
+      io: { separator1: '::', separator2: '::' },
+      leftMode: {
+        fields: [
+          { id: 'type', prefix: '#', orderKey: 'type', values: [{ id: 'todo', token: '#todo', active: true }] }
+        ]
+      },
+      rightMode: {
+        fields: [
+          { id: 'date_due', kind: 'genericElement', marker: '📅', orderKey: 'date_due', values: [{ id: '', token: '' }] }
+        ]
+      }
+    }
+  }
+
+  /* Граф токенов: элемент со временем — один токен, а не два. */
+  var facts = tokenGraph.buildTokenFactsFromLine(':: 📅2026-09-07 11:34', rulesWithFormat('YYYY-MM-DD hh:mm'))
+  assertEq(facts.length, 1, 'граф видит один токен, а не половину даты и обрывок времени')
+  assertEq(facts[0].raw, '📅2026-09-07 11:34', 'токен графа — значение целиком')
+
+  /* Положительный контроль: у формата без пробела ответ прежний. */
+  var factsShort = tokenGraph.buildTokenFactsFromLine(':: 📅2026-09-07', rulesWithFormat('YYYY-MM-DD'))
+  assertEq(factsShort.length, 1, 'формат без пробела: по-прежнему один токен')
+  assertEq(factsShort[0].raw, '📅2026-09-07', 'и значение то же')
+
+  /* И два разных токена по-прежнему два: иначе проверка была бы зелёной от
+     того, что всё склеилось в один. */
+  var factsTwo = tokenGraph.buildTokenFactsFromLine(':: 📅2026-09-07 11:34 #work', rulesWithFormat('YYYY-MM-DD hh:mm'))
+  assertEq(factsTwo.length, 2, 'элемент и тег за ним — два токена')
+  assertEq(factsTwo[1].raw, '#work', 'тег после элемента остался собой')
+
+  /* Круг: что стояло на строке, то и собирается обратно. */
+  function roundTrip(rules, line) {
+    var parsed = core.parseLine(line, rules)
+    var state = core.makeInitialState(rules, 'left')
+    state.mode = 'left'
+    state.__nowHHmm = '12:00'
+    state.__todayIso = '2026-09-07'
+    core.hydrateStateFromParsedLine(rules, state, parsed)
+    core.sanitizeState(rules, state)
+    return core.buildRightDates(rules, state).join(' ')
+  }
+
+  var withPipeline = globalThis.__inlineLinePipeline
+  var pass
+  for (pass = 0; pass < 2; pass++) {
+    var how = pass === 0 ? 'через прослойку строки' : 'без прослойки строки'
+    globalThis.__inlineLinePipeline = pass === 0 ? linePipeline : undefined
+
+    /* Время в прошлом относительно «сейчас»: смещением не выражается никогда. */
+    assertEq(roundTrip(rulesWithFormat('YYYY-MM-DD hh:mm'), '- 11 :: 📅2000-01-02 03:04'),
+      '📅2000-01-02 03:04',
+      'запись, которую смещением не выразить, возвращается собой (' + how + ')')
+
+    /* Положительный контроль: то, что смещением выражается, тоже цело. */
+    assertEq(roundTrip(rulesWithFormat('YYYY-MM-DD'), '- 11 :: 📅2026-09-07'),
+      '📅2026-09-07',
+      'сегодняшняя дата возвращается той же (' + how + ')')
+
+    /* И пустая правая часть остаётся пустой: не «возвращается» ниоткуда. */
+    assertEq(roundTrip(rulesWithFormat('YYYY-MM-DD hh:mm'), '- 11'), '',
+      'правой части не было — и не появилось (' + how + ')')
+  }
+  globalThis.__inlineLinePipeline = withPipeline
+
+  console.log('  ok правая часть строки переживает сборку заново, обоими путями отбора')
+}
+
+/**
  * И-2.1 / PRD 10.13.6: подсветка строки, пока открыт TagWheel.
  *
  * Обёртку в `==` движок ставил всегда — при `rules.ui.activePanel.useHighlight`,
@@ -1557,6 +1670,7 @@ function runNode() {
   runLinkFieldOrderSuite()
   runPanelHighlightSuite(core)
   runElementTokenSuite()
+  runRightPayloadSurvivesSuite()
   runChildFieldShortNameSuite()
   runEdgeModeSuite()
   console.log('TagWheel tests: OK')

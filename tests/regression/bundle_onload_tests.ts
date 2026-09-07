@@ -511,6 +511,25 @@ async function run(): Promise<void> {
       ok("движок дат из сборки переписал строку");
     }
 
+    /*
+     * Все метки элементов, объявленные фикстурой.
+     *
+     * Без них TagWheel **не запускается вовсе**: он проверяет, что у каждого
+     * Field-элемента есть эмодзи, и молча возвращается с сообщением. Проверка
+     * ниже была от этого зелёной — строка оставалась целой потому, что её никто
+     * не трогал (У-88: у измерения обязан быть предмет). Заодно это отвечает на
+     * вопрос, ради которого проверка заведена: доехал ли TagWheel до сборки.
+     */
+    const dateRuntimeAll = JSON.stringify({
+      byField: {
+        timeNow: { emoji: "\u{1F552}", format: "hh:mm", increment: { mode: "standard", incrementBy: 1 } },
+        estimated: { emoji: "\u{231B}", format: "hh:mm", increment: { mode: "standard", incrementBy: 1 } },
+        start: { emoji: "\u{1F6EB}", format: "YYYY-MM-DD", increment: { mode: "standard", incrementBy: 1 } },
+        due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm", increment: { mode: "standard", incrementBy: 1 } },
+      },
+      canonical: { date_due: "due", date_start: "start", time: "timeNow" },
+    });
+
     {
       /*
        * TagWheel открывается первым вызовом и применяет выбор вторым — тем же
@@ -519,12 +538,14 @@ async function run(): Promise<void> {
        * до бандла, роняет вызов, а не портит строку.
        */
       const editor = makeEditorStub("- [ ] #todo :: моя строка", 8);
-      await run(editor, "tagWheel", {});
-      await run(editor, "tagWheel", {});
+      const settings = { "Date runtime config": dateRuntimeAll };
+      await run(editor, "tagWheel", settings);
+      await run(editor, "tagWheel", settings);
       const line = editor.snapshot();
       assert.ok(line.includes("моя строка"), "TagWheel из сборки не потерял текст человека");
       ok("TagWheel из сборки открылся и применился, строка цела");
     }
+
   }
 
   /*
@@ -560,8 +581,22 @@ async function run(): Promise<void> {
             strictNames: { type: "type", due: "due" },
           },
           tags: { fields: [{ id: "type", prefix: "#", values: [{ id: "todo", token: "todo", active: true }] }] },
-          links: { fields: [{ id: "due", marker: dueMarker, values: [{ id: "", token: "", active: true }] }] },
-          elements: { fields: ["due"], byField: { due: { emoji: dueMarker, format: "YYYY-MM-DD hh:mm" } } },
+          /*
+           * Определения Field-элемента здесь нет нарочно: его строит сам
+           * плагин по Order (`ensureBehaviorModesFromOrder`). Написанное руками
+           * приезжает без `kind`, а по `kind` движки и узнают элемент — то есть
+           * проверка гоняла бы Field, которого у человека не бывает (У-2).
+           */
+          elements: {
+            fields: ["due"],
+            byField: {
+              due: {
+                emoji: dueMarker,
+                format: "YYYY-MM-DD hh:mm",
+                increment: { mode: "standard", incrementBy: 1, command: "now", customRaw: [], custom: [] },
+              },
+            },
+          },
         },
       },
       transform: {
@@ -627,6 +662,78 @@ async function run(): Promise<void> {
     assert.ok(note.includes("2026-09-07 11:25"),
       "дата уехала в заметку целиком, вместе со временем — " + note);
     ok("Transform из сборки: дата снята целиком, название не осталось текстом");
+  }
+
+  /*
+   * Правая часть строки переживает TagWheel — и переживает В СБОРКЕ
+   * (замечание заказчика 2026-09-07).
+   *
+   * Строка та же, что у него, и время в ней **в прошлом**: значение элемента
+   * хранится смещением от «сегодня», смещение ищется перебором вперёд, и такая
+   * запись им не выражается никогда. Раньше в сессию не попадало ничего, а
+   * правую часть TagWheel собирает заново из сессии — и она исчезала. Дата с
+   * временем нужна ещё и затем, что граф токенов резал её пополам по пробелу.
+   *
+   * **Правила берутся не из фикстуры, а те, что плагин пишет сам** из конфига,
+   * заданного выше: у фикстуры репозитория Due объявлен другой формой, и на
+   * ней предмета измерения нет вовсе — проверка была бы зелёной от пустоты
+   * (У-88), что и показали две мутации, её не уронившие.
+   */
+  {
+    const ownRulesPath = ".obsidian/plugins/inline-overhaul/generated_rules.md";
+    await plugin.ensureGeneratedRulesNow("bundle test: правила по своему конфигу");
+    const ownRules = String(app.written.get(ownRulesPath) || "");
+    assert.ok(/```tagwheel-/.test(ownRules), "плагин переписал служебный файл под новый конфиг");
+
+    const vaultRulesPath = "OwnRules.md";
+    app.written.set(vaultRulesPath, ownRules);
+
+    const payload = "\u{1F4C5}2000-01-02 03:04";
+    const editor = makeTransformEditorStub(`- 11 :: ${payload}`);
+    app.workspace.activeEditor = { editor };
+    app.workspace.activeLeaf = { view: { editor } };
+
+    const cfgNow = plugin.getConfig();
+    const twSettings = {
+      "Rules path": vaultRulesPath,
+      "Order config": JSON.stringify(cfgNow.pkm.fields.order),
+      "Date runtime config": JSON.stringify({
+        byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm", increment: { mode: "standard", incrementBy: 1 } } },
+        canonical: { date_due: "due" },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    };
+    const wheel = async (): Promise<void> => {
+      await plugin.pkmRuntimeV2.runCommand({ app, command: "tagWheel", settings: twSettings });
+    };
+
+    await wheel();
+    /*
+     * Между вызовами человек выбирает значение стрелкой. Без выбора второй
+     * вызов применяет пустое, строка не меняется вовсе — и проверка зеленеет
+     * оттого, что мерить нечего. Выбор ставится в **настоящем** объекте сессии,
+     * который завёл сам движок: нажатия клавиши в Node нет.
+     */
+    const session = (globalThis as Any).window
+      && (globalThis as Any).window.__tagWheelState
+      && (globalThis as Any).window.__tagWheelState.session;
+    assert.ok(session && session.selected, "TagWheel в сборке завёл сессию: панель открылась");
+    assert.ok(Object.prototype.hasOwnProperty.call(session.selected, "due"),
+      "Field-элемент доехал до сессии: есть что терять — " + Object.keys(session.selected).join(", "));
+    assert.strictEqual(String(session.selected.due || ""), "2000-01-02 03:04",
+      "значение элемента прочитано со строки целиком, вместе со временем");
+    session.selected.type = "todo";
+    session.activeFieldId = "type";
+    await wheel();
+
+    const line = editor.snapshot();
+    assert.notStrictEqual(line, `- 11 :: ${payload}`,
+      "TagWheel в сборке отработал, а не вернулся молча — " + line);
+    assert.ok(line.includes("11"), "текст человека на месте — " + line);
+    assert.ok(line.includes(payload),
+      "правая часть строки пережила TagWheel в сборке целиком, вместе со временем — " + line);
+    ok("TagWheel из сборки не съедает правую часть строки");
   }
 
   console.log(`Bundle onload tests: OK (${passed} checks)`);

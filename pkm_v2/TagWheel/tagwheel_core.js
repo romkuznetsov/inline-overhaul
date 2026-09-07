@@ -1776,6 +1776,59 @@ function resolveDateOffsetByFormatValue(state, rawValue, format, maxDays) {
   return null
 }
 
+/**
+ * Что положить в сессию по значению элемента, стоящему на строке.
+ *
+ * **Дефект, ради которого это одна функция** (замечание заказчика 2026-09-07).
+ * Значение элемента хранится в сессии смещением от «сегодня»: так его умеет
+ * прокручивать стрелка. Смещение ищется перебором — сегодня, завтра, и так до
+ * предела, — и значение, которого в этом ряду нет, не находилось **никак**.
+ * Тогда в сессию не попадало ничего, а правую часть строки TagWheel собирает
+ * заново, из сессии: она просто исчезала.
+ *
+ * Поймать это было легко на любой строке заказчика: у его Due формат
+ * `YYYY-MM-DD hh:mm`, единица перебора — минута, а ряд идёт **вперёд**. Дата,
+ * записанная хотя бы минуту назад, смещением не выражается никогда:
+ *
+ *   было      `- 11 :: 📅2026-09-07 11:34`, выбрать `#todo` в левом Block
+ *   получено  `- [ ] #todo :: 11`
+ *   ждали     `- [ ] #todo :: 11 :: 📅2026-09-07 11:34`
+ *
+ * Та же строка через команду `Field next` правую часть сохраняла: два хода
+ * отвечали на один вопрос по-разному.
+ *
+ * **Правило теперь одно: значение, которое не выражается смещением, остаётся
+ * собой.** Обратный ход у сырого значения уже есть — `buildDateLikeTokenByOffset`
+ * при нечисловом отдаёт `маркер + текст`, — и этим же путём давно ходит
+ * значение команды `randome`. Прокрутка сырого значения ведёт себя как прежде:
+ * вверх ставит «сейчас», вниз очищает.
+ *
+ * Предел перебора спрашивается у `getSearchLimitByUnit`, а не пишется числом:
+ * два места считали его по-разному — здесь `3660` при любой единице, там по
+ * единице формата, — и это было второе объявление одного правила (У-32).
+ *
+ * Двадцать восьмое исключение к З3, разрешение заказчика 2026-09-07.
+ */
+function resolveElementSelectionFromRaw(state, field, rawValue, cfgDate) {
+  var raw = String(rawValue || '').trim()
+  if (!raw) return ''
+  var fmt = String(cfgDate && cfgDate.format == null ? '' : cfgDate.format)
+  var incMode = String(cfgDate && cfgDate.increment && cfgDate.increment.mode || '').trim().toLowerCase()
+  var incCommand = String(cfgDate && cfgDate.increment && cfgDate.increment.command || '').trim()
+  if (hasFormatTokens(fmt)) {
+    var diff = resolveDateOffsetByFormatValue(state, raw, fmt, getSearchLimitByUnit(detectDateUnit(fmt)))
+    if (diff !== null && isFinite(diff)) return String(Math.max(0, Math.trunc(diff)))
+  } else {
+    if (field && field.kind === 'genericElement' && incMode === 'command'
+      && shouldHydrateGenericElementRaw(fmt, incCommand, raw)) {
+      return raw
+    }
+    var progress = parseTokenlessProgress(raw, cfgDate ? cfgDate.format : '')
+    if (progress !== null && isFinite(progress)) return String(Math.max(0, Math.trunc(progress)))
+  }
+  return raw
+}
+
 function buildDateLikeTokenByOffset(state, rules, field, rawOffset) {
   var off = Number(rawOffset)
   if (isNaN(off)) {
@@ -2869,24 +2922,7 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
           deps: { splitSegments: linePipeline.splitSegments }
         })
         if (hitDate && hitDate.value) {
-          var selectedRaw = String(hitDate.value || '').trim()
-          if (hasFormatTokens(fmtHydrate)) {
-            var diffSelected = resolveDateOffsetByFormatValue(state, selectedRaw, fmtHydrate, 3660)
-            if (diffSelected !== null && isFinite(diffSelected)) {
-              state.selected[f.id] = String(Math.max(0, Math.trunc(diffSelected)))
-              continue
-            }
-          } else {
-            if (f.kind === 'genericElement' && modeHydrate === 'command' && shouldHydrateGenericElementRaw(fmtHydrate, cmdHydrate, selectedRaw)) {
-              state.selected[f.id] = selectedRaw
-              continue
-            }
-            var selectedProgress = parseTokenlessProgress(selectedRaw, fmtHydrate)
-            if (selectedProgress !== null && isFinite(selectedProgress)) {
-              state.selected[f.id] = String(Math.max(0, Math.trunc(selectedProgress)))
-              continue
-            }
-          }
+          state.selected[f.id] = resolveElementSelectionFromRaw(state, f, hitDate.value, cfgDateHydrate)
         }
         continue
       }
@@ -2908,17 +2944,7 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
       }
       var mDate = datesText.match(rDate)
       if (mDate) {
-        if (hasFormatTokens(fmtHydrate)) {
-          var diff = resolveDateOffsetByFormatValue(state, mDate[1], fmtHydrate, getSearchLimitByUnit(detectDateUnit(fmtHydrate)))
-          if (diff !== null && isFinite(diff)) state.selected[f.id] = String(Math.max(0, Math.trunc(diff)))
-        } else {
-          if (f.kind === 'genericElement' && modeHydrate === 'command' && shouldHydrateGenericElementRaw(fmtHydrate, cmdHydrate, mDate[1])) {
-            state.selected[f.id] = String(mDate[1] || '').trim()
-            continue
-          }
-          var p = parseTokenlessProgress(mDate[1], cfgDateHydrate.format)
-          if (p !== null && isFinite(p)) state.selected[f.id] = String(Math.max(0, Math.trunc(p)))
-        }
+        state.selected[f.id] = resolveElementSelectionFromRaw(state, f, mDate[1], cfgDateHydrate)
       }
     }
   }
