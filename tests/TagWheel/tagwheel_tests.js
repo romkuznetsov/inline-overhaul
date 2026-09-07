@@ -1422,21 +1422,59 @@ function runUndoSeamSuite() {
     }
   }
 
-  /* Есть `cm` — идём своей транзакцией, с пометкой «мимо истории». */
-  var view = makeView('первая\nвторая\nтретья')
+  /*
+   * Есть `cm` — идём своей транзакцией, с пометкой «мимо истории».
+   *
+   * У строки и вида панели общий край: без него проверка не отличила бы
+   * запись различием от записи строки целиком (У-47). Прежняя фикстура была
+   * ровно такой — `вторая` и `панель` не совпадают ни одним символом.
+   */
+  var view = makeView('первая\n- текст :: хвост\nтретья')
   var wrote = []
   var editor = {
     cm: view,
     setLine: function (n, v) { wrote.push([n, v]) }
   }
-  tagwheel.setLineOutsideHistory(editor, 1, 'панель')
+  tagwheel.setLineOutsideHistory(editor, 1, '- панель :: хвост')
   assertEq(wrote.length, 0, 'при живом редакторе обычный setLine не зовётся')
   assertEq(view.seen.length, 1, 'послана ровно одна транзакция')
   var spec = view.seen[0]
   var line = view.state.doc.line(2)
-  assertEq(spec.changes.from, line.from, 'отрезок начинается с начала своей строки')
-  assertEq(spec.changes.to, line.to, 'и кончается её концом, а не концом документа')
-  assertEq(spec.changes.insert, 'панель', 'пишется то, что просили')
+  assertEq(spec.changes.from, line.from + 2, 'общее начало строки не тронуто')
+  assertEq(spec.changes.to, line.from + 2 + 'текст'.length, 'общий конец — тоже')
+  assertEq(spec.changes.insert, 'панель', 'пишется только различие')
+  assertEq(
+    line.text.slice(0, spec.changes.from - line.from)
+    + spec.changes.insert
+    + line.text.slice(spec.changes.to - line.from),
+    '- панель :: хвост',
+    'а на строке получается то, что просили')
+
+  /*
+   * Эмодзи в строке — две половины одного знака, и граница различия между
+   * ними стоять не должна. Проверяется с обеих сторон, потому что условия там
+   * два и они разные: у `\uD83D\uDCC5` (📅) и `\uD83D\uDCC6` (📆) совпадает первая
+   * половина, у `\uD83D\uDCC5` и `\uD83E\uDCC5` — вторая. Обе мутации краснеют.
+   */
+  var headPair = tagwheel.lineDiffChange(0, '- \uD83D\uDCC5a', '- \uD83D\uDCC6b')
+  assertEq(headPair.from, 2, 'начало отрезка встало перед парой, а не внутрь неё')
+  assertEq('- \uD83D\uDCC5a'.slice(0, headPair.from) + headPair.insert
+    + '- \uD83D\uDCC5a'.slice(headPair.to), '- \uD83D\uDCC6b',
+    'и строка получается той, что просили')
+
+  var tailPair = tagwheel.lineDiffChange(0, '- a\uD83D\uDCC5', '- b\uD83E\uDCC5')
+  assertEq(tailPair.to, '- a\uD83D\uDCC5'.length, 'конец отрезка встал за парой, а не внутрь неё')
+  assertEq('- a\uD83D\uDCC5'.slice(0, tailPair.from) + tailPair.insert
+    + '- a\uD83D\uDCC5'.slice(tailPair.to), '- b\uD83E\uDCC5',
+    'и здесь строка получается той, что просили')
+
+  /* Строка уже такая, как просят: транзакции нет вовсе — переносить чужие
+     ступени через пустое изменение незачем. */
+  var same = makeView('первая\n- текст :: хвост')
+  tagwheel.setLineOutsideHistory({ cm: same, setLine: function () { wrote.push(['plain']) } },
+    1, '- текст :: хвост')
+  assertEq(same.seen.length, 0, 'равная строка не пишется вовсе')
+  assertEq(wrote.length, 0, 'и в запасной путь не уходит')
   /*
    * Пометка проверяется значением, а не фактом наличия: `addToHistory.of(true)`
    * прошёл бы «проверку на наличие» и не значил бы ничего.
@@ -1477,6 +1515,222 @@ function runUndoSeamSuite() {
  * `EditorView`, а в Node его нет вовсе. Он записывает, что ему послали, — по
  * этому и видно, сколько ступеней получит история.
  */
+/**
+ * `Ctrl+Z` после сессии панели — на настоящей истории CodeMirror (дефект A41).
+ *
+ * **Чего здесь не было до 2026-09-07.** Пометка «мимо истории» проверялась
+ * швом: чем именно плагин просит редактор написать строку. Сам `Ctrl+Z`
+ * оставался за глазами и был назван в листе приёмки — «пакета с историей в
+ * наборе нет». Пакет добавлен (`@codemirror/commands` — та же реализация, что
+ * лежит в сборке Obsidian), и теперь спрашивается то, что видит человек:
+ * документ после каждого нажатия.
+ *
+ * **Что показал вопрос.** Замечание заказчика: он набрал `- 1`, нажал Enter,
+ * напечатал `2`, прогнал TagWheel — и `Ctrl+Z` после первого нажатия пошёл
+ * вразнос: «вторая строка пропала, а первая стала `- 1- 2`». Причина не в
+ * пометке: пометка говорит истории не заводить **свою** ступень и ничего не
+ * говорит про чужие. Изменение всё равно случилось, и прежние ступени
+ * CodeMirror переносит через него — что мы удалили, из чужой ступени пропадает,
+ * а ступень, у которой после переноса не осталось изменений, выбрасывается.
+ * Перезапись строки целиком удаляла всё, что человек на ней набрал.
+ *
+ * **Эталон стоит рядом.** Те же нажатия без панели — вот с чем сверяется
+ * каждая ступень. И тут же положительный контроль: прежняя запись строки
+ * целиком, которая обязана дать ту самую строку из замечания. Без него
+ * проверка не отличила бы починку от того, что предмета нет (У-88).
+ */
+function runUndoAfterPanelSuite() {
+  var path = require('path')
+  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var helpers = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+  var linePipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))
+  var macroShared = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_macro_shared.js'))
+  var cmState = require('@codemirror/state')
+  var cmCommands = require('@codemirror/commands')
+
+  var saved = {
+    linePipeline: globalThis.__inlineLinePipeline,
+    helpers: globalThis.__inlinePkmRulesHelpers,
+    macroShared: globalThis.__inlinePkmMacroShared
+  }
+  globalThis.__inlineLinePipeline = linePipeline
+  globalThis.__inlinePkmRulesHelpers = helpers
+  globalThis.__inlinePkmMacroShared = macroShared
+
+  try {
+    var rules = {
+      behavior: {
+        defaultMode: 'left',
+        order: {
+          left: ['Imp', 'type'], right: [],
+          active: { Imp: 'yes', type: 'yes' }, enabled: { Imp: true, type: true },
+          types: { Imp: 'tag', type: 'tag' }, labels: { Imp: 'Imp', type: 'type' }
+        },
+        prefixRules: { checkboxByFieldValue: { type: { '#todo': '[ ]' } } },
+        elements: { byField: {} },
+        dateRuntimeConfig: { byField: {}, canonical: {} }
+      },
+      io: { separator1: '::', separator2: '::' },
+      projects: {},
+      leftMode: {
+        fields: [
+          { id: 'Imp', prefix: '#', orderKey: 'Imp', values: [{ id: 'p1', token: '#/1', active: true }, { id: 'p2', token: '#/2', active: true }] },
+          { id: 'type', prefix: '#', orderKey: 'type', values: [{ id: 'todo', token: '#todo', active: true }, { id: 'note', token: '#note', active: true }] }
+        ]
+      },
+      rightMode: { fields: [] }
+    }
+    core.validateRules(rules)
+
+    /* Виды панели берутся у самой панели: свой список был бы вторым
+       объявлением её вида (У-4). */
+    var original = '- 2'
+    var parsed = core.parseLine(original, rules)
+    var session = core.makeInitialState(rules, 'left')
+    session.mode = 'left'
+    core.hydrateStateFromParsedLine(rules, session, parsed)
+    core.sanitizeState(rules, session)
+    var views = [core.renderControlLine(rules, session, parsed)]
+    session.selected.Imp = 'p1'
+    core.sanitizeState(rules, session)
+    views.push(core.renderControlLine(rules, session, parsed))
+    session.selected.type = 'todo'
+    session.activeField = 1
+    session.activeFieldId = 'type'
+    core.sanitizeState(rules, session)
+    views.push(core.renderControlLine(rules, session, parsed))
+    assertTrue(views[0] !== views[2], 'нажатия и правда меняют вид панели: ' + views.join(' | '))
+    assertTrue(views[2].indexOf('2') !== -1, 'текст человека на строке панели виден: ' + views[2])
+
+    var applied = '- [ ] #/1 #todo :: 2 :: \u{1F4C5}2026-09-07 19:06'
+
+    /* Редактор — настоящий: документ, история и `cm`, как у Obsidian. */
+    function makeEditor() {
+      var view = { state: cmState.EditorState.create({ doc: '- 1', extensions: [cmCommands.history()] }) }
+      view.dispatch = function (spec) { view.state = view.state.update(spec).state }
+      var clock = 1000
+      return {
+        cm: view,
+        doc: function () { return view.state.doc.toString() },
+        /* Нажатия человека: своя ступень у каждого — между ними больше
+           полусекунды, и CodeMirror их не склеивает. */
+        human: function (spec) {
+          clock += 1000
+          view.dispatch(Object.assign({}, spec, {
+            annotations: cmState.Transaction.time.of(clock)
+          }))
+        },
+        undo: function () {
+          return cmCommands.undo({ state: view.state, dispatch: function (tr) { view.state = tr.state } })
+        },
+        getLine: function (n) { return view.state.doc.line(Number(n) + 1).text },
+        setLine: function (n, v) {
+          var line = view.state.doc.line(Number(n) + 1)
+          clock += 1000
+          view.dispatch({
+            changes: { from: line.from, to: line.to, insert: String(v) },
+            userEvent: 'input', annotations: cmState.Transaction.time.of(clock)
+          })
+        },
+        setCursor: function () {},
+        lineCount: function () { return view.state.doc.lines }
+      }
+    }
+
+    /* Те же три нажатия человека, что в замечании: Enter и `2`. */
+    function typeHisLines(editor) {
+      editor.human({ changes: { from: 3, insert: '\n- ' }, selection: { anchor: 6 }, userEvent: 'input' })
+      editor.human({ changes: { from: 6, insert: '2' }, selection: { anchor: 7 }, userEvent: 'input.type' })
+      assertEq(editor.doc(), '- 1\n- 2', 'исходный документ собран его нажатиями')
+    }
+
+    function undoSteps(editor, times) {
+      var out = []
+      for (var i = 0; i < times; i++) {
+        var ok = editor.undo()
+        out.push((ok ? '' : '· ') + editor.doc())
+      }
+      return out
+    }
+
+    /* --- эталон: панели не было вовсе --------------------------------- */
+    var plainEditor = makeEditor()
+    typeHisLines(plainEditor)
+    var plain = undoSteps(plainEditor, 3)
+    assertArrayEq(plain, ['- 1\n- ', '- 1', '· - 1'],
+      'эталон: сам Obsidian снимает набранное, потом перенос строки')
+
+    /* --- сессия панели: открытие, два нажатия, применение -------------- */
+    function runPanel(writeWholeLine) {
+      var editor = makeEditor()
+      typeHisLines(editor)
+      var i
+      for (i = 0; i < views.length; i++) {
+        if (writeWholeLine) {
+          var line = editor.cm.state.doc.line(2)
+          editor.cm.dispatch({
+            changes: { from: line.from, to: line.to, insert: views[i] },
+            annotations: cmState.Transaction.addToHistory.of(false)
+          })
+        } else {
+          tagwheel.setLineOutsideHistory(editor, 1, views[i])
+        }
+      }
+      assertEq(editor.getLine(1), views[views.length - 1],
+        'на строке стоит последний вид панели')
+      /* Применение: возврат к исходной мимо истории, затем итог. */
+      if (writeWholeLine) {
+        var back = editor.cm.state.doc.line(2)
+        editor.cm.dispatch({
+          changes: { from: back.from, to: back.to, insert: original },
+          annotations: cmState.Transaction.addToHistory.of(false)
+        })
+      } else {
+        tagwheel.setLineOutsideHistory(editor, 1, original)
+      }
+      editor.setLine(1, applied)
+      assertEq(editor.doc(), '- 1\n' + applied, 'итог применения на месте')
+      return editor
+    }
+
+    var afterPanel = runPanel(false)
+    var steps = undoSteps(afterPanel, 4)
+
+    /* Первое нажатие: исходная строка, а не панель (это свойство A37). */
+    assertEq(steps[0], '- 1\n- 2',
+      'один Ctrl+Z возвращает строку, с которой человек начал')
+    /* Второе: то же, что без панели. Ради этого правка и делалась. */
+    assertEq(steps[1], plain[0],
+      'второе нажатие снимает набранное им `2` — как без панели')
+    /*
+     * Третье: остаётся расхождение на один символ. Панель снимает со строки
+     * маркер списка `- `, и ступень Enter теряет его: `- 1-` вместо `- 1`.
+     * Это замер, а не починка (У-8): совсем цела история только у панели,
+     * которая не пишет в документ вовсе — разбор и цена в PRD 10.13.53,
+     * вопрос заказчику В-80.
+     */
+    assertEq(steps[2], '- 1-',
+      'третье нажатие: от маркера списка остаётся символ — известный остаток дефекта')
+
+    /* --- положительный контроль: прежняя запись строки целиком ---------- */
+    var afterWhole = runPanel(true)
+    var wholeSteps = undoSteps(afterWhole, 3)
+    assertEq(wholeSteps[0], '- 1\n- 2',
+      'при прежней записи первое нажатие тоже возвращало строку')
+    assertEq(wholeSteps[1], '- 1- 2',
+      'а второе давало ровно то, что он прислал: строки склеились')
+    assertTrue(wholeSteps[1] !== plain[0],
+      'то есть проверка отличает починку от прежнего поведения')
+
+    console.log('  ok Ctrl+Z после панели: второе нажатие снимает набранное, как без панели')
+  } finally {
+    globalThis.__inlineLinePipeline = saved.linePipeline
+    globalThis.__inlinePkmRulesHelpers = saved.helpers
+    globalThis.__inlinePkmMacroShared = saved.macroShared
+  }
+}
+
 async function runUndoOneStepSuite() {
   var path = require('path')
   var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
@@ -1533,14 +1787,21 @@ async function runUndoOneStepSuite() {
     var lines = [original]
     var dispatched = []
     var plainWrites = []
+    /*
+     * Заглушка применяет изменение так, как применил бы редактор: по
+     * отрезку. Прежняя ставила всю строку из `insert` — с 2026-09-07 панель
+     * пишет **различие**, и такая заглушка была бы добрее браузера (У-45).
+     */
     var view = {
       state: { doc: cmState.Text.of(lines.slice()) },
       dispatch: function (spec) {
         dispatched.push(spec)
         var l = view.state.doc.line(1)
-        lines[0] = String(spec.changes.insert)
+        var text = lines[0]
+        lines[0] = text.slice(0, spec.changes.from - l.from)
+          + String(spec.changes.insert == null ? '' : spec.changes.insert)
+          + text.slice(spec.changes.to - l.from)
         view.state = { doc: cmState.Text.of(lines.slice()) }
-        void l
       }
     }
     var editor = {
@@ -1572,6 +1833,17 @@ async function runUndoOneStepSuite() {
       edgeMode: 'stop', scrollerOverlay: null
     }
 
+    /*
+     * Панель рисуется до применения — как в жизни. Без этого строка уже
+     * стоит на исходной, возврат к ней пустой, и предмета у проверки ниже
+     * нет вовсе (У-88).
+     */
+    var panelView = core.renderControlLine(rules, session, parsedLine)
+    assertTrue(panelView !== original, 'вид панели отличается от строки: ' + panelView)
+    tagwheel.setLineOutsideHistory(editor, 0, panelView)
+    assertEq(lines[0], panelView, 'панель нарисована на строке')
+    var drawn = dispatched.length
+
     await tagwheel.entry({}, {})
 
     /* Положительный контроль: применение и правда произошло. */
@@ -1582,10 +1854,23 @@ async function runUndoOneStepSuite() {
      * В истории ступень одна. Мимо истории ушёл только возврат к исходной
      * строке; итог записан обычным путём, и он в истории один.
      */
-    assertEq(dispatched.length, 1, 'мимо истории послано ровно одно изменение')
-    assertEq(dispatched[0].changes.insert, original,
+    assertEq(dispatched.length, drawn + 1, 'мимо истории послано ровно одно изменение')
+    var restore = dispatched[dispatched.length - 1]
+    assertEq(restore.annotations.value, false, 'и он помечен «не запоминать»')
+    /*
+     * Спрашивается **результат** записи, а не её форма: панель пишет
+     * различие, и отрезок у неё короче строки. Прежнее утверждение читало
+     * `insert` как всю строку и после правки было бы верным про пустоту
+     * (У-94).
+     */
+    var rebuilt = panelView.slice(0, restore.changes.from)
+      + String(restore.changes.insert == null ? '' : restore.changes.insert)
+      + panelView.slice(restore.changes.to)
+    assertEq(rebuilt, original,
       'мимо истории уходит возврат к исходной строке, а не итог')
-    assertEq(dispatched[0].annotations.value, false, 'и он помечен «не запоминать»')
+    assertTrue(restore.changes.from > 0 || restore.changes.to < panelView.length,
+      'и пишется различие, а не строка целиком: '
+      + JSON.stringify(restore.changes))
     assertEq(plainWrites.length, 1, 'в историю пишется ровно один раз')
     assertEq(plainWrites[0][1], lines[0], 'и это итоговая строка')
     console.log('  ok применение оставляет в истории одну ступень: исходная строка → итог')
@@ -1891,6 +2176,7 @@ function runNode() {
   runElementTokenSuite()
   runRightPayloadSurvivesSuite()
   runUndoSeamSuite()
+  runUndoAfterPanelSuite()
   runChildFieldShortNameSuite()
   runEdgeModeSuite()
   /* Применение TagWheel асинхронно — последней идёт та проверка, которая его

@@ -65,6 +65,62 @@ var __cmState = require('@codemirror/state')
  * нет вовсе. Без него всё работает как раньше, только ступеней отмены снова
  * много.
  */
+/**
+ * Что именно переписать, чтобы строка стала другой: **только различие**.
+ *
+ * Пометка «мимо истории» говорит истории не заводить ступень — и ничего не
+ * говорит про **чужие** ступени. Изменение всё равно случилось, и все прежние
+ * ступени CodeMirror переносит через него (`addMapping` в `app.js` 1.13.7):
+ * то, что мы удалили, из чужой ступени пропадает, а ступень, у которой после
+ * переноса не осталось изменений, **выбрасывается совсем**.
+ *
+ * Перезапись строки целиком удаляла всё, что человек на ней набрал. Его
+ * `Ctrl+Z` после панели упирался в это: «вторая строка пропала, а первая
+ * стала `- 1- 2`» — набранное на строке из истории выпало, а от Enter в ней
+ * остался один перевод строки (замечание по W3, дефект A41).
+ *
+ * Поэтому пишется различие: общее начало и общий конец строки не трогаются
+ * вовсе, и набранное человеком остаётся тем же символом, что и было. Границу
+ * различия отодвигает `alignSurrogate`: разрезать пару UTF-16 нельзя — в
+ * строках живут эмодзи (`📅`), и половина пары испортила бы текст.
+ *
+ * Полностью это дефект не снимает: маркер списка `- ` панель со строки всё
+ * равно снимает, и ступень Enter теряет один символ из трёх. Совсем цела
+ * история только у панели, которая **не пишет в документ вовсе** (разбор и
+ * цена — PRD 10.13.53, вопрос заказчику В-80).
+ */
+function lineDiffChange(from, oldText, newText) {
+  var a = String(oldText == null ? '' : oldText)
+  var b = String(newText == null ? '' : newText)
+  var head = 0
+  while (head < a.length && head < b.length && a.charCodeAt(head) === b.charCodeAt(head)) head++
+  var tail = 0
+  while (tail < a.length - head && tail < b.length - head
+    && a.charCodeAt(a.length - 1 - tail) === b.charCodeAt(b.length - 1 - tail)) tail++
+  /*
+   * Пара UTF-16 неделима: если граница встала между её половинами, отрезок
+   * расширяется так, чтобы пара целиком оказалась внутри него. Условие с двух
+   * сторон одно и то же — «на границе стоит вторая половина пары», — и обе
+   * стороны проверены мутацией: у эмодзи `📅` и `📆` совпадает первая половина,
+   * у `📅` и `🣅` — вторая.
+   */
+  if (head > 0 && head < a.length && isLowSurrogate(a.charCodeAt(head))) head--
+  if (tail > 0 && tail < a.length && isLowSurrogate(a.charCodeAt(a.length - tail))) tail--
+  return {
+    from: from + head,
+    to: from + a.length - tail,
+    insert: b.slice(head, b.length - tail)
+  }
+}
+
+function isHighSurrogate(code) {
+  return code >= 0xd800 && code <= 0xdbff
+}
+
+function isLowSurrogate(code) {
+  return code >= 0xdc00 && code <= 0xdfff
+}
+
 function setLineOutsideHistory(editor, lineNumber, text) {
   var view = editor ? editor.cm : null
   var Transaction = __cmState ? __cmState.Transaction : null
@@ -72,8 +128,12 @@ function setLineOutsideHistory(editor, lineNumber, text) {
     && Transaction && Transaction.addToHistory && typeof Transaction.addToHistory.of === 'function') {
     try {
       var docLine = view.state.doc.line(Number(lineNumber) + 1)
+      var next = String(text == null ? '' : text)
+      var change = lineDiffChange(docLine.from, docLine.text, next)
+      /* Строка уже такая: пустое изменение историю не переносит вовсе. */
+      if (change.from === change.to && change.insert === '') return
       view.dispatch({
-        changes: { from: docLine.from, to: docLine.to, insert: String(text == null ? '' : text) },
+        changes: change,
         annotations: Transaction.addToHistory.of(false)
       })
       return
@@ -2036,3 +2096,4 @@ module.exports.normalizeEdgeMode = normalizeEdgeMode
 /* Запись строки мимо истории отмен — чистая функция над чужим редактором, и
    проверяется она без Obsidian (10.13.53). */
 module.exports.setLineOutsideHistory = setLineOutsideHistory
+module.exports.lineDiffChange = lineDiffChange
