@@ -166,83 +166,29 @@ for (const name of FIXTURES) {
 }
 
 /*
- * Внутренняя копия нормализатора против вынесенного модуля.
+ * Копии нормализатора больше нет — и это то, чем закончилась её история.
  *
- * **Зачем это здесь.** В установленном плагине `tagwheel_core` идёт своим
- * запасным путём: глобальной переменной `__inlineTagwheelRulesNormalizer` не
- * ставит никто, а путь к модулю стоит в переменной и сборщиком не
- * разрешается — та же причина, что у дефекта A33. Значит форму списка Fields в
- * продукте досыпает **копия внутри `tagwheel_core`**, а вынесенный модуль
- * `src/core/tagwheel_rules_normalizer.js` в сборке мёртв. Два объявления одного
- * правила расходятся молча (У-32), и держит их вместе только эта проверка.
+ * **Что здесь стояло.** Сверка внутренней копии `tagwheel_core` с вынесенным
+ * модулем `src/core/tagwheel_rules_normalizer.js`. Нужна она была потому, что
+ * в установленном плагине работала **копия**: глобальную переменную никто не
+ * ставил, а путь к модулю стоял в переменной и сборщиком не разрешался — та
+ * же причина, что у дефекта A33. Приём: ломать резолв модуля вокруг ВЫЗОВА,
+ * потому что `require` стоял внутри геттера и выполнялся на каждом вызове.
  *
- * **Как копия вызывается.** `require` модуля стоит не при загрузке
- * `tagwheel_core`, а **внутри геттера**, то есть выполняется на каждом вызове.
- * Поэтому ломать резолв надо вокруг ВЫЗОВА, а не вокруг `require` самого
- * `tagwheel_core`: первая версия этой проверки ломала загрузку, была зелёной и
- * мерила модуль против модуля — мутация в модуле её не покраснела (У-37).
+ * **Почему её больше нет.** 2026-09-07 геттеры `tagwheel_core` переведены на
+ * литеральный `require` при загрузке файла, а шесть копий сняты. Сверять
+ * стало нечего — но заметить это было **нельзя по зелёному цвету**: с
+ * переездом `require` на загрузку приём перестал работать, и сверка начала
+ * сверять модуль сам с собой. Мутация в вынесенном модуле её не роняла,
+ * а строка отчёта продолжала утверждать «копия равна модулю».
  *
- * **Снимается эта проверка тем, что копия уйдёт** — вместе с мостом модулей
- * (PRD, раздел 11, «Кусок третий»).
+ * **Положительный контроль этого не поймал**, и это стоит записать: он
+ * проверял, что при сломанном резолве модуль не находится, — и это осталось
+ * верным. Он отвечал на «приём работает», а не на «приём применён к тому,
+ * что меряется». Второй вопрос задаётся только мутацией (У-37).
+ *
+ * Что копий не осталось, держит `bootstrap_loader_tests.js`: запрет на
+ * ветку `if (normalizer && typeof normalizer...)` в `tagwheel_core`.
  */
-{
-  const normalizerPath = nodeRequire.resolve(path.join(root, "src", "core", "tagwheel_rules_normalizer.js"));
-  const loader = Module as unknown as {
-    _load: (request: string, parent: unknown, isMain: boolean) => unknown;
-  };
-
-  /** Позвать так, как зовётся в сборке: вынесенного модуля не видно. */
-  function asInBundle<T>(fn: () => T): T {
-    const origLoad = loader._load;
-    delete nodeRequire.cache[normalizerPath];
-    loader._load = function (request: string, parent: unknown, isMain: boolean): unknown {
-      if (/tagwheel_rules_normalizer\.js$/.test(String(request))) {
-        throw new Error("нет такого модуля: так это выглядит в сборке");
-      }
-      return origLoad.call(this, request, parent, isMain);
-    };
-    try {
-      return fn();
-    } finally {
-      loader._load = origLoad;
-      delete nodeRequire.cache[normalizerPath];
-    }
-  }
-
-  /*
-   * Положительный контроль самого приёма (У-88): пока резолв сломан, модуль
-   * действительно не находится. Без этого утверждения вся проверка была бы
-   * сверкой модуля с самим собой — ровно то, чем она и была в первой версии.
-   */
-  let reachable = true;
-  asInBundle(() => {
-    try {
-      nodeRequire(normalizerPath);
-    } catch {
-      reachable = false;
-    }
-  });
-  assert.strictEqual(reachable, false, "положительный контроль: пока резолв сломан, модуль не находится");
-
-  for (const name of FIXTURES) {
-    const cfg = internals.migrateConfig(
-      JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", name), "utf8")),
-    );
-    const md = builder.buildTagWheelRulesMarkdownFromConfig(cfg);
-    const viaModule = core.parseRulesFromMarkdown(md);
-    const viaCopy = asInBundle(() => core.parseRulesFromMarkdown(md));
-
-    assert.ok(
-      viaModule.leftMode && Array.isArray(viaModule.leftMode.fields),
-      `${name}: положительный контроль — модуль вернул форму списка Fields`,
-    );
-    assert.deepStrictEqual(
-      viaCopy,
-      viaModule,
-      `${name}: внутренняя копия нормализатора равна вынесенному модулю`,
-    );
-  }
-  ok("внутренняя копия нормализатора равна вынесенному модулю (в сборке работает копия)");
-}
 
 console.log(`Rules document roundtrip tests: OK (${passed} checks)`);

@@ -202,137 +202,45 @@ function isDateLikeToken(token, rules) {
   return /^\d{4}-\d{2}-\d{2}$/.test(src) || /^\d{2}:\d{2}$/.test(src)
 }
 
+/*
+ * Копии логики этих шести функций сняты 2026-09-07 вместе с мостом модулей.
+ *
+ * Они не были страховкой: в установленном плагине работали именно они, а
+ * вынесенные модули были мертвы — путь к ним стоял в переменной, и сборщик
+ * его не разрешал (У-89). В проверках было наоборот, потому что в дереве
+ * исходников путь разрешается всегда. То есть у одного правила было два
+ * объявления, и продукт с набором проверок читали разные (У-32).
+ *
+ * Держала их вместе сверка в `rules_document_roundtrip_tests.ts`. Она
+ * ломала резолв модуля вокруг ВЫЗОВА — и это работало, пока `require` стоял
+ * внутри геттера. С переездом `require` на загрузку файла сверка стала
+ * сверять модуль сам с собой: мутация в вынесенном модуле её не роняла.
+ * Поэтому копии снимаются здесь, а сверка — там.
+ */
 function cleanJsonText(s) {
-  var parser = getMarkdownJsonBlockParser()
-  if (parser && typeof parser.cleanJsonText === 'function') {
-    return parser.cleanJsonText(s)
-  }
-  return String(s || '')
-    .replace(/\uFEFF/g, '')
-    .replace(/^\s*>\s?/gm, '')
-    .trim()
+  return __markdownJsonBlockParser.cleanJsonText(s)
 }
 
 function parseJsonBlock(content, blockName, required) {
-  var parser = getMarkdownJsonBlockParser()
-  if (parser && typeof parser.parseJsonBlock === 'function') {
-    return parser.parseJsonBlock(content, blockName, required, function(message) {
-      err(message)
-    })
-  }
-  var re = new RegExp('```' + blockName + '\\s*([\\s\\S]*?)```')
-  var m = String(content || '').match(re)
-  if (!m) {
-    if (required) err('Block `' + blockName + '` not found')
-    return null
-  }
-  try {
-    return JSON.parse(cleanJsonText(m[1]))
-  } catch (e) {
-    err('Invalid JSON in `' + blockName + '`: ' + e.message)
-  }
+  return __markdownJsonBlockParser.parseJsonBlock(content, blockName, required, function(message) {
+    err(message)
+  })
 }
 
 function normalizeValue(v) {
-  var normalizer = getTagwheelRulesNormalizer()
-  if (normalizer && typeof normalizer.normalizeValue === 'function') {
-    return normalizer.normalizeValue(v, { isObj: isObj, err: err })
-  }
-  if (typeof v === 'string') {
-    return { id: v, token: v, allowedParentValues: null }
-  }
-  if (!isObj(v)) err('Field value must be string or object')
-  var token = typeof v.token === 'string' ? v.token : ''
-  if (!token && token !== '') err('Value token must be string')
-  var id = typeof v.id === 'string' ? v.id : token
-  if (typeof id !== 'string') err('Value id must be string')
-  return {
-    id: id,
-    token: token,
-    allowedParentValues: Array.isArray(v.allowedParentValues) ? v.allowedParentValues : null
-  }
+  return __tagwheelRulesNormalizer.normalizeValue(v, { isObj: isObj, err: err })
 }
 
 function normalizeImportanceValueToken(raw) {
-  var normalizer = getTagwheelRulesNormalizer()
-  if (normalizer && typeof normalizer.normalizeImportanceValueToken === 'function') {
-    return normalizer.normalizeImportanceValueToken(raw)
-  }
-  var src = String(raw || '').trim()
-  if (!src) return ''
-  if (/^#\//.test(src)) return src
-  if (/^\//.test(src)) return '#' + src
-  if (src.charAt(0) === '#') return '#/' + src.slice(1)
-  return '#/' + src
+  return __tagwheelRulesNormalizer.normalizeImportanceValueToken(raw)
 }
 
 function normalizeField(field, modeName, idx) {
-  var normalizer = getTagwheelRulesNormalizer()
-  if (normalizer && typeof normalizer.normalizeField === 'function') {
-    return normalizer.normalizeField(field, modeName, idx, { isObj: isObj, err: err })
-  }
-  if (!isObj(field)) err(modeName + '.fields[' + idx + '] must be object')
-  if (typeof field.id !== 'string' || !field.id) err(modeName + '.fields[' + idx + '].id must be non-empty string')
-
-  var out = {
-    id: field.id,
-    orderKey: typeof field.orderKey === 'string' ? field.orderKey : '',
-    prefix: typeof field.prefix === 'string' ? field.prefix : '#',
-    dependsOn: typeof field.dependsOn === 'string' ? field.dependsOn : '',
-    source: typeof field.source === 'string' ? field.source : '',
-    enabled: field.enabled !== false,
-    enabledForParentValues: Array.isArray(field.enabledForParentValues) ? field.enabledForParentValues.slice() : null,
-    disabledForParentValues: Array.isArray(field.disabledForParentValues) ? field.disabledForParentValues.slice() : null,
-    kind: typeof field.kind === 'string' ? field.kind : '',
-    marker: typeof field.marker === 'string' ? field.marker : '',
-    placeholder: typeof field.placeholder === 'string' && field.placeholder ? field.placeholder : field.id,
-    values: []
-  }
-
-  var rawValues = Array.isArray(field.values)
-    ? field.values
-    : (isProjectsSourceField(out) ? [] : null)
-  if (!rawValues) err(modeName + '.fields[' + field.id + '].values must be array')
-
-  var hasEmpty = false
-  var importanceLike = false
-  var j
-  for (j = 0; j < rawValues.length; j++) {
-    var vv = rawValues[j]
-    var tkn = String(vv && vv.token || '').trim()
-    if (/^#\//.test(tkn) || /^\//.test(tkn)) {
-      importanceLike = true
-      break
-    }
-  }
-  var i
-  for (i = 0; i < rawValues.length; i++) {
-    var nv = normalizeValue(rawValues[i])
-    if (importanceLike && nv.token) {
-      var before = String(nv.token || '')
-      nv.token = normalizeImportanceValueToken(before)
-      if (String(nv.id || '') === before || String(nv.id || '') === before.replace(/^#/, '')) nv.id = nv.token
-    }
-    if (nv.token === '') hasEmpty = true
-    out.values.push(nv)
-  }
-  if (!hasEmpty) out.values.unshift({ id: '', token: '', allowedParentValues: null })
-  return out
+  return __tagwheelRulesNormalizer.normalizeField(field, modeName, idx, { isObj: isObj, err: err })
 }
 
 function normalizeMode(mode, modeName) {
-  var normalizer = getTagwheelRulesNormalizer()
-  if (normalizer && typeof normalizer.normalizeMode === 'function') {
-    return normalizer.normalizeMode(mode, modeName, { isObj: isObj, err: err })
-  }
-  if (!isObj(mode)) err(modeName + ' must be object')
-  if (!Array.isArray(mode.fields)) err(modeName + '.fields must be array')
-  var out = { fields: [] }
-  var i
-  for (i = 0; i < mode.fields.length; i++) {
-    out.fields.push(normalizeField(mode.fields[i], modeName, i))
-  }
-  return out
+  return __tagwheelRulesNormalizer.normalizeMode(mode, modeName, { isObj: isObj, err: err })
 }
 
 function parseRulesFromMarkdown(content) {

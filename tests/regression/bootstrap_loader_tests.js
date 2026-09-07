@@ -1299,7 +1299,18 @@ async function run() {
   assertTrue(/throw new Error\('shared_utils unavailable: parseHhmm'\)/.test(tagwheelCoreSrc), "tagwheel_core HH:mm parser is shared-utils-only");
   assertTrue(/throw new Error\('shared_utils unavailable: addMinutesHhmm'\)/.test(tagwheelCoreSrc), "tagwheel_core HH:mm adder is shared-utils-only");
   assertTrue(/throw new Error\('shared_utils unavailable: formatNowByMask'\)/.test(tagwheelCoreSrc), "tagwheel_core now-mask formatter is shared-utils-only");
-  assertTrue(/normalizer\.normalizeMode\(mode, modeName, \{ isObj: isObj, err: err \}\)/.test(tagwheelCoreSrc), "tagwheel_core normalizeMode delegates to shared rules normalizer when available");
+  /*
+   * Разбор правил у `tagwheel_core` **только** общим модулем: копии сняты
+   * 2026-09-07 вместе с мостом. Слово «when available» в прежней формулировке
+   * и было всей проблемой — «а если недоступен, то своей копией», и в сборке
+   * недоступен он был всегда (У-89). Теперь недоступным ему быть негде.
+   */
+  assertTrue(/__tagwheelRulesNormalizer\.normalizeMode\(mode, modeName, \{ isObj: isObj, err: err \}\)/.test(tagwheelCoreSrc), "tagwheel_core normalizeMode delegates to the shared rules normalizer, with no local copy");
+  assertTrue(/__tagwheelRulesNormalizer\.normalizeField\(/.test(tagwheelCoreSrc), "and so does normalizeField");
+  assertTrue(/__tagwheelRulesNormalizer\.normalizeValue\(/.test(tagwheelCoreSrc), "and normalizeValue");
+  assertTrue(/__markdownJsonBlockParser\.parseJsonBlock\(/.test(tagwheelCoreSrc), "and the JSON block parser");
+  assertFalse(/if \(normalizer && typeof normalizer\./.test(tagwheelCoreSrc), "tagwheel_core keeps no fallback branch around the shared rules normalizer");
+  assertFalse(/if \(parser && typeof parser\./.test(tagwheelCoreSrc), "and none around the shared JSON block parser");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: applyOrderToRules'\)/.test(tagwheelSrc), "tagwheel order apply helper is shared-only");
   assertTrue(/if \(\/_sub\$\/\.test\(raw\) && collapsed === raw\) return raw\.slice\(0, -4\);/.test(pkmRulesHelpersSrc), "rules helpers collapseSubOrderKey force-collapses _sub when registry fallback returns unchanged key");
   assertTrue(/const seen = visited instanceof Set \? visited : new Set\(\);/.test(pkmRulesHelpersSrc) && /if \(seen\.has\(k\)\) return "";/.test(pkmRulesHelpersSrc), "rules helpers resolveIdByOrderKey guards against recursive key resolution loops");
