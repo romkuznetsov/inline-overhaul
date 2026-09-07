@@ -138,16 +138,22 @@ const TAG_PATHS = [
  * рисовать Value ровно тем же кодом, что и предпросмотры (П9). Иначе
  * предпросмотр и редактор однажды разойдутся, и никто этого не заметит.
  */
+/**
+ * Подпись пузыря. Вынесена отдельно затем, что зовут её двое: отрисовка ниже и
+ * живое обновление колонки `Preview`, пока человек печатает свой текст. Две
+ * копии этого правила разошлись бы молча (У-32), и разошлись бы на пустом
+ * тексте: подпись пустого пузыря — **неразрывный** пробел, иначе пузырь
+ * схлопывается в точку.
+ */
+export function bubbleLabel(v: PreviewValue, override?: string): string {
+  if (v.shown === "empty") return " ";
+  if (override !== undefined) return override;
+  return v.shown === "custom" ? (v.custom || " ") : "#" + v.token;
+}
+
 export function bubble(parent: El, v: PreviewValue, override?: string): El {
   const empty = v.shown === "empty";
-  const label = empty
-    ? " "
-    : override !== undefined
-      ? override
-      : v.shown === "custom"
-        ? (v.custom || " ")
-        : "#" + v.token;
-  const b = el(parent, "span", "io-bubble" + (empty ? " io-bubble--empty" : ""), label);
+  const b = el(parent, "span", "io-bubble" + (empty ? " io-bubble--empty" : ""), bubbleLabel(v, override));
   cssVar(b, "--io-bubble-bg", v.fill);
   if (v.text) cssVar(b, "--io-bubble-fg", v.text);
   return b;

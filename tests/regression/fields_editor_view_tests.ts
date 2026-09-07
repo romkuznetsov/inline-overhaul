@@ -717,6 +717,56 @@ function dragToSide(from: StubNode, side: StubNode): void {
   ok("Ф9: Show переключается, а custom открывает поле своего текста");
 }
 
+/* ---- Ф9б: Preview следует за набором своего текста --------------------- */
+{
+  /*
+   * Замечание заказчика 2026-09-07: «при выборе custom и вводе значения в
+   * текстбокс в preview обновление происходит не сразу, а после перещёлкивания
+   * вкладок». Так и было: подпись писалась только по `change`, то есть по уходу
+   * фокуса.
+   *
+   * Проверяется то, что видит человек, — **подпись пузыря в колонке
+   * `Preview`**, — и проверяется в обе стороны: до набора она другая
+   * (положительный контроль, У-88), после набора равна набранному, а в конфиг
+   * от набора не уезжает ничего.
+   */
+  const v = makeView();
+  const cellOf = (): StubNode => one(all(v.host, "io-vals__row")[0] as StubNode, "io-showncell");
+  const bubbleOf = (): StubNode => one(
+    one(all(v.host, "io-vals__row")[0] as StubNode, "io-vals__prev"),
+    "io-bubble",
+  );
+
+  const shown = cellOf().children[0] as StubNode;
+  shown.value = "custom";
+  shown.dispatch("change");
+
+  const before = String(bubbleOf().textContent || "");
+  assert.notEqual(before, "ASAP", "до набора в Preview стоит не то, что будет набрано");
+
+  const custom = cellOf().children[1] as StubNode;
+  const writesBefore = v.writes.length;
+  custom.value = "ASAP";
+  custom.dispatch("input");
+  assert.equal(String(bubbleOf().textContent || ""), "ASAP",
+    "Preview показывает набранное, не дожидаясь ухода фокуса");
+  assert.equal(v.writes.length, writesBefore,
+    "набор буквы в конфиг не пишет: это A9, и перерисовка унесла бы каретку (У-20)");
+
+  /* Пустой текст — пузырь остаётся пузырём, а не схлопывается в точку. */
+  custom.value = "";
+  custom.dispatch("input");
+  assert.equal(String(bubbleOf().textContent || ""), "\u00A0",
+    "у пустого своего текста подпись — неразрывный пробел");
+
+  custom.value = "ASAP";
+  custom.dispatch("change");
+  assert.deepEqual(v.writes.slice(writesBefore).map(w => w.reason),
+    ["pkm:visuals:tag:custom-text:status"],
+    "в конфиг значение уезжает по уходу фокуса, той же записью, что и раньше");
+  ok("Ф9б: Preview следует за набором, конфиг — за уходом фокуса");
+}
+
 /* ---- Ф10: порядок цикла сказан один раз, в шапке ----------------------- */
 {
   const v = makeView();

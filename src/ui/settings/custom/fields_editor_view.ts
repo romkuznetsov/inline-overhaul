@@ -19,7 +19,7 @@ import { el, btn, cssVar, cssVarValue, rich, selectInput, textInput, tipBelow } 
 import type { FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
-import { applyTagVars, bubble } from "./previews.ts";
+import { applyTagVars, bubble, bubbleLabel } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { TYPE_COLOR, typeColor } from "./preview_data.ts";
 import {
@@ -1051,10 +1051,10 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
   text: string;
   shown: ValueVisibility;
   custom: string;
-}): void {
+}): El {
   const cell = el(host, "div", "io-vals__prev");
   applyTagVars(cell, o.ctx);
-  bubble(cell, {
+  const drawn = bubble(cell, {
     token: plain(v.token),
     fill: v.fill,
     text: v.text,
@@ -1063,7 +1063,7 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
     depth: 0,
   });
   /* У пустого Value текста нет, читать нечего (Н18). */
-  if (v.shown === "empty") return;
+  if (v.shown === "empty") return drawn;
   /*
    * Сравниваются цвета, которыми Value НАРИСОВАН, а не только заданные руками.
    * До 2026-08-28 незаданный цвет текста означал «претензий нет», и значок
@@ -1072,11 +1072,12 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
    * хуже. Незаданный цвет — не отсутствие цвета, а цвет темы.
    */
   const ratio = contrastRatio(v.fill || theme.fill, v.text || theme.text);
-  if (ratio >= CONTRAST_FLOOR) return;
+  if (ratio >= CONTRAST_FLOOR) return drawn;
   const warn = el(cell, "span", "io-warn", "\u26A0");
   /* Одна подсказка на узел — и только `aria-label`: `title` рисует вторую. */
   const note = contrastWarning(ratio);
   warn.setAttribute("aria-label", note);
+  return drawn;
 }
 
 /**
@@ -1281,6 +1282,11 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
           "pkm:visuals:tag:visibility:" + fieldId);
         o.redraw();
       }) as never);
+      /*
+       * Пузырь колонки `Preview` рисуется ниже, а нужен он обработчику выше —
+       * поэтому ссылка, а не значение.
+       */
+      let previewBubble: El | null = null;
       if (visual.visibility === "custom") {
         const custom = textInput(shownCell, "io-text io-text--mono", {
           value: visual.customText,
@@ -1288,6 +1294,29 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
           label: say("VALUE_CUSTOM_FOR", v.token),
         });
         custom.disabled = !o.enabled;
+        /*
+         * `Preview` следует за набором, а конфиг — нет, и это разные события
+         * намеренно (замечание заказчика 2026-09-07).
+         *
+         * `change` у поля ввода приходит по уходу фокуса или по `Enter`, и до
+         * правки колонка `Preview` меняла подпись только после него — то есть
+         * после перещёлкивания вкладок. Перерисовывать таблицу на каждую букву
+         * нельзя: она унесёт каретку и скролл (У-20), а запись конфига на
+         * каждую букву — это A9. Поэтому на `input` меняется **одна подпись
+         * одного узла**, строит её то же правило, что и отрисовку, а в конфиг
+         * значение уезжает по-прежнему на `change`.
+         */
+        custom.addEventListener("input", (() => {
+          if (!o.enabled || !previewBubble) return;
+          previewBubble.textContent = bubbleLabel({
+            token: plain(v.token),
+            fill: visual.fillColor,
+            text: visual.textColor,
+            shown: "custom",
+            custom: custom.value,
+            depth: 0,
+          });
+        }) as never);
         custom.addEventListener("change", (() => {
           if (!o.enabled) return;
           o.model.setValueVisual(fieldId, v.token, { customText: custom.value },
@@ -1329,7 +1358,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       color("fillColor", "Fill color", "pkm:visuals:tag:fill");
       color("textColor", "Text color", "pkm:visuals:tag:text");
 
-      previewCell(line, o, theme, {
+      previewBubble = previewCell(line, o, theme, {
         token: v.token,
         fill: visual.fillColor,
         text: visual.textColor,
