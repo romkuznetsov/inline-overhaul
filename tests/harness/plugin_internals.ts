@@ -102,13 +102,19 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const mainPath = path.resolve(here, "..", "..", "main.js");
 
 /*
- * Хвост добавляется к исходнику, а не правит его: имена уже есть в области
- * видимости модуля, их надо только вынести наружу. Сам `main.js` от этого не
- * меняется, и проверка читает ровно тот код, который грузит Obsidian.
+ * **Хвоста больше нет** (кусок четвёртый разбора `main.js`, 2026-09-07).
+ *
+ * Он дописывал к исходнику `module.exports.__internals` ровно затем, чтобы
+ * достать `buildOwnCommandList` — последнее имя, объявленное в самом
+ * `main.js`. Список команд уехал в `src/features/plugin_commands.js`, и брать
+ * его надо оттуда.
+ *
+ * **Зачем `main.js` всё равно исполняется.** У него есть работа на уровне
+ * модуля: он публикует `globalThis.__inlineOverhaulSharedUtils` — шов, которым
+ * движки под З3 берут общие помощники. Проверки, гоняющие эти движки, на него
+ * и опираются. Заодно это ответ на «а собирается ли точка входа вообще»:
+ * ошибка в ней роняет загрузку внутренностей, а не одну проверку.
  */
-const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
-  + "  buildOwnCommandList,\n"
-  + "};\n";
 
 /**
  * Заглушка CodeMirror: любое имя отдаёт функцию, от которой можно наследовать
@@ -136,7 +142,11 @@ let cached: PluginInternals | null = null;
 
 export function loadPluginInternals(): PluginInternals {
   if (cached) return cached;
-  const src = fs.readFileSync(mainPath, "utf8") + EXPORT_TAIL;
+  let entryLoaded = false;
+  let commands: Any = null;
+  const requireInsideStub = (request: string): Any =>
+    (Module.createRequire(mainPath) as (id: string) => Any)(request);
+  const src = fs.readFileSync(mainPath, "utf8");
   const platform = { ...obsidianStub, setIcon: () => {}, MarkdownView: class {} };
   const loader = Module as unknown as {
     _load: (request: string, parent: unknown, isMain: boolean) => unknown;
@@ -162,13 +172,18 @@ export function loadPluginInternals(): PluginInternals {
     mod.filename = mainPath;
     mod.paths = loader._nodeModulePaths(path.dirname(mainPath));
     mod._compile(src, mainPath);
-    cached = mod.exports.__internals as PluginInternals;
+    /* Точка входа исполнилась: её работа на уровне модуля сделана, а имена
+       внутренностей ниже берутся у модулей. */
+    entryLoaded = typeof mod.exports === "function";
+    commands = requireInsideStub("./src/features/plugin_commands.js");
   } finally {
     loader._load = origLoad;
   }
-  /* Хвост сработал: это имя объявлено в самом `main.js`. */
-  if (!cached || typeof (cached as Any).buildOwnCommandList !== "function") {
-    throw new Error("main.js internals not available: buildOwnCommandList missing");
+  if (!entryLoaded) {
+    throw new Error("main.js did not export the plugin class");
+  }
+  if (!commands || typeof commands.buildOwnCommandList !== "function") {
+    throw new Error("plugin commands module not available: buildOwnCommandList missing");
   }
   /*
    * Внутренности плагина живут в модулях с 2026-09-07 (куски второй и
@@ -176,8 +191,9 @@ export function loadPluginInternals(): PluginInternals {
    * нормализация конфига. Проверки зовут их через тот же `internals`, но
    * достаются они `require`, а не дописанным к исходнику хвостом.
    *
-   * В хвосте остался один `buildOwnCommandList`: он объявлен в `main.js`
-   * и зовёт метод плагина, поэтому туда и не уехал.
+   * Список команд уехал туда же — в `src/features/plugin_commands.js`,
+   * рядом с их регистрацией, — и хвоста в наборе больше не осталось ни
+   * одного имени.
    *
    * Почему это не подделка и не сокрытие: цепочку «`main.js` зовёт этот
    * модуль» держит не здесь, а `bundle_onload_tests.ts` — он берёт
@@ -190,7 +206,8 @@ export function loadPluginInternals(): PluginInternals {
   const order = requireCjs("./src/core/pkm_order_config.js") as Any;
   const configNormalize = requireCjs("./src/core/config_normalize.js") as Any;
   cached = {
-    ...visuals, ...decorations, ...order, ...configNormalize, ...cached,
+    ...visuals, ...decorations, ...order, ...configNormalize,
+    buildOwnCommandList: commands.buildOwnCommandList,
   } as PluginInternals;
   /* И модули подмешались: `migrateConfig` живёт теперь в одном из них, и его
      отсутствие означает, что переезд оборвал цепочку. */

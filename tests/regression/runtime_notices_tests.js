@@ -125,6 +125,7 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
    */
   const FILES = [
     ["main.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
+    ["src/features/plugin_commands.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
     ["src/features/transform_feature.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
     ["src/features/command_registry.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
     ["src/features/rules_sync_orchestrator.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],

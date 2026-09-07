@@ -203,6 +203,8 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "core", "dev_log.js"), "utf8");
   const mountSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "ui", "editor", "mount.js"), "utf8");
+  const commandsSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "features", "plugin_commands.js"), "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -413,13 +415,17 @@ async function run() {
      * Перепись модулей: слева то, что `main.js` подключает, справа — то, что
      * он обязан подключать. Список пишется здесь, а не выводится из файла:
      * выведенный из того же файла список сошёлся бы сам с собой всегда.
+     *
+     * **Движков навигации и PKM, реестра команд и Transform в списке больше
+     * нет** (кусок четвёртый разбора `main.js`, 2026-09-07): их подключает
+     * `src/features/plugin_commands.js` — тот, кто их и зовёт. Точка входа
+     * спрашивает у него прогрев и регистрацию, а сплошной обход требований
+     * рантайма от этого не ослаб: он идёт по всем файлам, а не по `main.js`.
      */
     const own = Array.from(new Set(requireArgs
       .map((arg) => arg.replace(/^"|"$/g, ""))
       .filter((p) => p.startsWith("./")))).sort();
     const expected = [
-      "./navigation_runtime.js",
-      "./pkm_runtime_v2.js",
       "./src/core/compat_profile.js",
       "./src/core/config_migration.js",
       "./src/core/config_normalize.js",
@@ -436,14 +442,13 @@ async function run() {
       "./src/core/say.js",
       "./src/core/shared_utils.js",
       "./src/features/command_ids.js",
-      "./src/features/command_registry.js",
       "./src/features/enhanced_select_all_engine.js",
+      "./src/features/plugin_commands.js",
       "./src/features/rules_markdown_builder.js",
       "./src/features/rules_sync_orchestrator.js",
       "./src/features/smart_delete_engine.js",
       "./src/features/store_events_orchestrator.js",
       "./src/features/strip_debug_api.js",
-      "./src/features/transform_feature.js",
       "./src/ui/editor/decorations.js",
       "./src/ui/editor/mount.js",
       "./src/ui/editor/styles.js",
@@ -468,14 +473,24 @@ async function run() {
   assertFalse(/loadModuleWithVaultFallback/.test(src), "общего загрузчика модулей нет");
   assertFalse(/async function load[A-Za-z]*Safe\(app\)/.test(src), "асинхронных загрузчиков модулей нет");
   assertFalse(/cacheKey/.test(src), "ключей кеша нет вместе с кешем");
-  assertTrue(/function getCommandRegistry\(\)/.test(src), "command registry getter exists");
+  assertTrue(/function getCommandRegistry\(\)/.test(commandsSrc), "command registry getter exists");
+  /*
+   * Команды и их охрана уехали в `src/features/plugin_commands.js` (кусок
+   * четвёртый разбора `main.js`, 2026-09-07). Восемь утверждений о них уехали
+   * туда же и покраснели сами — искались они не по именам, а совпадением
+   * образца по всем файлам рантайма (У-94). В `main.js` остались швы, их и
+   * спрашиваем.
+   */
+  assertTrue(/__pluginCommands\.registerAll\(this\);/.test(src), "точка входа зовёт регистрацию команд из модуля");
+  assertTrue(/return __pluginCommands\.ownCommandList\(this\);/.test(src), "справочник команд спрашивает тот же модуль");
+  assertTrue(/return __pluginCommands\.runInlineToNote\(this\);/.test(src), "команда и плавающая кнопка ходят одним швом");
   assertTrue(/function getConfigStoreCtor\(\)/.test(src), "config store ctor getter exists");
   assertTrue(/function getConfigMigrationModule\(\)/.test(src), "config migration getter exists");
   assertTrue(/function getEnhancedSelectAllEngine\(\)/.test(src), "enhanced select-all getter exists");
   assertTrue(/function getRulesMarkdownBuilder\(\)/.test(src), "rules markdown builder getter exists");
   assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(src), "onload публикует шов макро-рантайма PKM");
-  assertTrue(/this\.navRuntime = getNavigationRuntime\(\);/.test(src), "onload берёт движок навигации");
-  assertTrue(/this\.pkmRuntimeV2 = getPkmRuntimeV2\(\);/.test(src), "onload берёт движок PKM");
+  assertTrue(/this\.navRuntime = __pluginCommands\.navigationRuntime\(\);/.test(src), "onload берёт движок навигации");
+  assertTrue(/this\.pkmRuntimeV2 = __pluginCommands\.pkmRuntime\(\);/.test(src), "onload берёт движок PKM");
   /*
    * Мост модулей снят целиком (У-89): модули команд приезжают литеральным
    * `require`, и своего кеша у загрузки больше нет — кешем является сам граф
@@ -521,9 +536,9 @@ async function run() {
   assertFalse(/command === "statusImportance"/.test(pkmRuntimeV2Src), "pkm_runtime_v2 has no statusImportance command route");
   assertFalse(/status_importance\.js/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer loads status_importance module");
 
-  assertTrue(/command registry unavailable: core commands skipped/.test(src), "core skip guard exists");
-  assertTrue(/command registry unavailable: navigation commands skipped/.test(src), "navigation skip guard exists");
-  assertTrue(/command registry unavailable: PKM commands skipped/.test(src), "pkm skip guard exists");
+  assertTrue(/command registry unavailable: core commands skipped/.test(commandsSrc), "core skip guard exists");
+  assertTrue(/command registry unavailable: navigation commands skipped/.test(commandsSrc), "navigation skip guard exists");
+  assertTrue(/command registry unavailable: PKM commands skipped/.test(commandsSrc), "pkm skip guard exists");
   assertTrue(/const moveKeys = \[key\];/.test(rendererPairSrc), "модель Fields: перетаскивание собирает связку ключей");
   assertTrue(/const subKey = getSubKeyForParent\(key\);/.test(rendererPairSrc), "модель Fields: у родителя находится ключ дочернего");
   assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "модель Fields: родитель и дочерний встают вместе");
@@ -599,7 +614,7 @@ async function run() {
   assertTrue(/pickPct\(B \+ "tagTextSizePct", \[B \+ "tagSizePct"\]/.test(cfgSrc), "размер тегов берёт старое имя из исходного файла");
   assertTrue(/const deprecatedDevMode = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.devMode\)/.test(cfgSrc), "migrateConfig resolves deprecated devMode keys from shared compat profile module");
   assertTrue(/for \(const key of deprecatedDevMode\) delete cfg\.devMode\[key\];/.test(cfgSrc), "migrateConfig drops deprecated devMode keys through centralized loop");
-  assertTrue(/devLog: \(event, payload\) => this\.devLogEvent\(event, payload, "info", cfg\)/.test(src), "runPkmRuntimeV2 forwards devLog callback into runtime");
+  assertTrue(/devLog: \(event, payload\) => plugin\.devLogEvent\(event, payload, "info", cfg\)/.test(commandsSrc), "runPkmRuntimeV2 forwards devLog callback into runtime");
   /*
    * Журнал разработчика уехал в `src/core/dev_log.js` (кусок четвёртый разбора
    * `main.js`, 2026-09-07). Утверждения о его устройстве переехали туда же:
@@ -779,7 +794,7 @@ async function run() {
   assertTrue(/__editorMount\.mountExtensions\(this\);/.test(src), "и точка входа зовёт постановку один раз");
   assertTrue(/__editorMount\.refreshOpenEditors\(this\);/.test(src), "а пересборку — из записи патча конфига");
   /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */
-  assertTrue(/callback: async \(\) => \{ await this\.runInlineToNote\(\); \},/.test(src), "the transform command delegates to the shared method");
+  assertTrue(/callback: async \(\) => \{ await runInlineToNote\(plugin\); \},/.test(commandsSrc), "the transform command delegates to the shared method");
   assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(decorSrc), "and so does the floating button");
 
   {
@@ -1460,7 +1475,7 @@ async function run() {
    * `main.js`, разбор опций, состояние сессии, — и обрыв в любой из них
    * оставил бы решение зелёным при мёртвом контроле.
    */
-  assertTrue(/TAGWHEEL_EDGE_MODE\]: readCfgPath\(cfg, "visual\.tagWheel\.edgeMode"\)/.test(src), "main passes the Block edge mode into the runtime settings");
+  assertTrue(/TAGWHEEL_EDGE_MODE\]: readCfgPath\(cfg, "visual\.tagWheel\.edgeMode"\)/.test(commandsSrc), "main passes the Block edge mode into the runtime settings");
   assertTrue(/out\.edgeMode = qa\[TAGWHEEL_EDGE_MODE_OPTION\]/.test(tagwheelSrc), "tagwheel reads the Block edge mode out of the runtime settings");
   assertTrue(/edgeMode: normalizeEdgeMode\(runtimeInput\.edgeMode\)/.test(tagwheelSrc), "tagwheel keeps the normalized edge mode on the session state");
   assertTrue(/plan = planFieldStep\(\{/.test(tagwheelSrc), "tagwheel arrow step delegates the decision to the pure planner");

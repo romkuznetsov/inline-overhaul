@@ -78,6 +78,7 @@ const __editorDecorations = require("./src/ui/editor/decorations.js");
 const __pkmOrderConfig = require("./src/core/pkm_order_config.js");
 const __configNormalize = require("./src/core/config_normalize.js");
 const __devLog = require("./src/core/dev_log.js");
+const __pluginCommands = require("./src/features/plugin_commands.js");
 const __editorMount = require("./src/ui/editor/mount.js");
 const __stripDebugApi = require("./src/features/strip_debug_api.js");
 const __editorStyles = require("./src/ui/editor/styles.js");
@@ -112,25 +113,6 @@ function reportLoaderFallback(stage, err) {
     const msg = err && err.message ? String(err.message) : String(err || "");
     console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
   } catch (_) {}
-}
-
-/** Реестр команд: определения для ядра, навигации, PKM и Binder (PRD 7.2). */
-function getCommandRegistry() {
-  return require("./src/features/command_registry.js");
-}
-
-/**
- * Transform: движок превращения строки в заметку и умолчания его ветки.
- *
- * Заглушки здесь нет, и это важнее, чем кажется. `normalizeTransformConfig`
- * ставит умолчания движка ветки Transform; на заглушке, отдававшей конфиг как
- * есть, умолчания досыпала бы схема — то есть Transform включался бы из
- * коробки, а папкой шаблонов становилась `Templates` (девятнадцать расхождений
- * В-7). Продуктовое решение не должно принимать тот, успел ли загрузиться
- * модуль.
- */
-function getTransformFeature() {
-  return require("./src/features/transform_feature.js");
 }
 
 /**
@@ -196,18 +178,6 @@ function toPrettyJson(x) { return __sharedUtils.toPrettyJson(x); }
 
 
 /**
- * Движок навигации по строкам. Файл под З3, загружается как есть.
- */
-function getNavigationRuntime() {
-  return require("./navigation_runtime.js");
-}
-
-/** Движок инлайновых PKM-тегов. Файл под З3. */
-function getPkmRuntimeV2() {
-  return require("./pkm_runtime_v2.js");
-}
-
-/**
  * Шов макро-рантайма PKM: по нему движки под З3 находят точку входа.
  *
  * Публикуется в `globalThis`, потому что спрашивают его файлы, которых
@@ -231,95 +201,6 @@ const UNDO_LIMIT = 20;
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
 function writeCfgPath(root, path, value) { return __sharedUtils.writeCfgPath(root, path, value); }
 
-/**
- * Все команды плагина одним списком — для справочника 10.5.
- *
- * Собирается из **того же реестра**, которым команды регистрируются. Выписать
- * список во второй раз значило бы завести таблицу, которая разойдётся с набором
- * команд на первом же новом Field — и разойдётся молча, в том самом месте, куда
- * человек приходит узнать правду. Своей копии этих правил не должно быть и в
- * проверке: она зовёт эту же функцию.
- *
- * `area` — область справочника, `family` — признак «команда одна из многих
- * одинаковых»: у Field пара команд, у строки Binder своя, у модуля тумблер. По
- * ним справочник разворачивает шаблонные строки прототипа в настоящие.
- *
- * Отказ реестра — пустой список, а не исключение: справочник покажет пустую
- * таблицу, панель не упадёт.
- */
-function buildOwnCommandList(plugin) {
-  const registry = getCommandRegistry();
-  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : {};
-  const out = [];
-  const push = (defs, area, family) => {
-    for (const d of Array.isArray(defs) ? defs : []) {
-      const id = String(d && d.id ? d.id : "").trim();
-      if (!id) continue;
-      /*
-       * `group` и `sub` нужны справочнику: команды одного Field обязаны
-       * стоять рядом, а дочерние — сразу за родительскими (замечание
-       * заказчика 1.2.3.4.3). Заполняются только там, где у определения есть
-       * `strictName`, то есть у пары команд Field.
-       */
-      /*
-       * Подпись дочернего Field в имени команды — через ДЕФИС (`type-sub`):
-       * её ставит `commandStrictForKey` в реестре, а ключ Order при этом
-       * оканчивается на `_sub`. Первая версия этой строки резала `_sub`, и
-       * дочерние команды уезжали в конец списка отдельными семьями.
-       */
-      const strict = String(d && d.strictName ? d.strictName : "").trim();
-      const isSub = /[-_]sub$/.test(strict);
-      out.push({
-        id,
-        name: String(d && d.name ? d.name : id),
-        area,
-        family: typeof family === "function" ? family(d) : (family || ""),
-        group: strict ? strict.replace(/[-_]sub$/, "") : "",
-        sub: isSub,
-        /* Подзаголовок справочника: подпись Field и его тип (2026-08-31). */
-        groupLabel: String(d && d.groupLabel ? d.groupLabel : ""),
-        kind: String(d && d.kind ? d.kind : ""),
-      });
-    }
-  };
-
-  try {
-    push(registry.buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath), "Navigation", "");
-    push(
-      registry.buildPkmCommandDefs(
-        getActiveTagWheelRulesPath,
-        serializePkmOrderForMacro,
-        serializeDateRuntimeConfigForMacro,
-        normalizePkmOrder,
-        cfg,
-        FEATURE_ORDER
-      ),
-      "Tags & PKM",
-      (d) => {
-        /* Команды TagWheel — не семья: их всегда ровно две, и в прототипе они
-           названы поимённо. */
-        if (!String(d && d.strictName ? d.strictName : "").trim()) return "";
-        return d.direction === "decrease" ? "field-previous" : "field-next";
-      }
-    );
-    push([{ id: "transform-inline-to-note", name: __commandIds.commandName("transform-inline-to-note") }],
-      "Transform", "");
-    push(registry.buildBinderCommandDefs(cfg), "Binder",
-      (d) => (String(d && d.id ? d.id : "") === BINDER_SMART_BRACKET_COMMAND_ID ? "" : "binder-row"));
-    push(registry.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META), "General",
-      (d) => (/^toggle-feature-/.test(String(d && d.id ? d.id : "")) ? "module-toggle" : ""));
-  } catch (e) {
-    reportLoaderFallback("main.buildOwnCommandList", e);
-    return [];
-  }
-  return out;
-}
-
-function getActiveTagWheelRulesPath(cfg) {
-  const generated = String(readCfgPath(cfg, "advanced.generatedRulesPath") || "").trim();
-  if (generated) return generated;
-  return String(DEFAULT_CONFIG.pkm.generatedRulesPath);
-}
 
 /**
  * Метки элементов, какие завёл человек: `📅`, `⏰` и прочие.
@@ -417,8 +298,10 @@ class InlineOverhaulPlugin extends Plugin {
      * описывали ту загрузку, которой уже не было (A33).
      */
     publishPkmMacroRuntimeEntry();
-    this.navRuntime = getNavigationRuntime();
-    this.pkmRuntimeV2 = getPkmRuntimeV2();
+    /* Прогрев движков: дальше их спрашивает охрана команд, и она же
+       положит их сюда, если прогрев не случился. */
+    this.navRuntime = __pluginCommands.navigationRuntime();
+    this.pkmRuntimeV2 = __pluginCommands.pkmRuntime();
     this._devLogWriteQueue = Promise.resolve();
     this._enhancedSelectAllCycle = null;
     this._rulesGenTimer = null;
@@ -589,13 +472,8 @@ class InlineOverhaulPlugin extends Plugin {
     }, reason);
   }
 
-  /**
-   * Все команды плагина: справочнику 10.5 и никому больше. Работа — в
-   * `buildOwnCommandList`, чтобы проверка могла позвать её без Obsidian и без
-   * своей копии тех же правил.
-   */
   listOwnCommands() {
-    return buildOwnCommandList(this);
+    return __pluginCommands.ownCommandList(this);
   }
 
   /**
@@ -669,26 +547,7 @@ class InlineOverhaulPlugin extends Plugin {
     await this.ensureGeneratedRulesNow("restore");
   }
   registerCommands() {
-    const registry = getCommandRegistry();
-    const coreDefs = registry.buildCoreCommandDefs(this, FEATURE_ORDER, FEATURE_META);
-    if (!Array.isArray(coreDefs) || !coreDefs.length) {
-      console.warn("[inline-overhaul] command registry unavailable: core commands skipped");
-    } else {
-      for (const d of coreDefs) {
-        this.addCommand({
-          id: d.id,
-          name: d.name,
-          callback: async () => {
-            await d.run(this);
-          },
-        });
-      }
-    }
-
-    this.registerNavigationCommands();
-    this.registerPkmCommands();
-    this.registerBinderCommands();
-    this.registerTransformCommands();
+    return __pluginCommands.registerAll(this);
   }
 
   handleEnhancedSelectAllKeymap() {
@@ -713,203 +572,16 @@ class InlineOverhaulPlugin extends Plugin {
     new Notice(String(message || ""));
   }
 
-  async ensureNavRuntime() {
-    if (this.navRuntime && typeof this.navRuntime === "object") return this.navRuntime;
-    this.navRuntime = getNavigationRuntime();
-    return this.navRuntime;
-  }
-
-  async runNavGuard(moduleKey, action) {
-    const cfg = this.getConfig();
-    if (!cfg.features.navigation.enabled) {
-      new Notice(__say(__noticeKey("navigation", "module-off"), "Navigation is switched off"));
-      return;
-    }
-    const rt = await this.ensureNavRuntime();
-    if (!rt) {
-      new Notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
-      return;
-    }
-    const ed = this.getActiveEditor();
-    if (!ed) {
-      new Notice(__say(__noticeKey("navigation", "no-editor"), "Open a note first"));
-      return;
-    }
-    try {
-      return await Promise.resolve(action(ed, cfg.navigation || {}, cfg, rt));
-    } catch (e) {
-      console.error("[inline-overhaul][navigation]", e);
-      new Notice(__say(__noticeKey("navigation", "error"), "Navigation error: {0}", e.message || e));
-    }
-  }
-
-  async runPkmGuard(action) {
-    const cfg = this.getConfig();
-    if (!cfg.features.pkm.enabled) {
-      new Notice(__say(__noticeKey("pkm", "module-off"), "Tags & PKM is switched off"));
-      return;
-    }
-    const ed = this.getActiveEditor();
-    if (!ed) {
-      new Notice(__say(__noticeKey("pkm", "no-editor"), "Open a note first"));
-      return;
-    }
-    try {
-      return await Promise.resolve(action(cfg));
-    } catch (e) {
-      this.devLogEvent("pkm.guard.error", {
-        message: String(e && e.message ? e.message : e || ""),
-        stack: e && e.stack ? String(e.stack) : "",
-      }, "error", cfg);
-      console.error("[inline-overhaul][pkm]", e);
-      new Notice(__say(__noticeKey("pkm", "error"), "Tags & PKM error: {0}", e.message || e));
-    }
-  }
-
-  async ensurePkmRuntimeV2() {
-    if (this.pkmRuntimeV2 && typeof this.pkmRuntimeV2 === "object") return this.pkmRuntimeV2;
-    this.pkmRuntimeV2 = getPkmRuntimeV2();
-    return this.pkmRuntimeV2;
-  }
-
-  async runPkmRuntimeV2(command, cfg, extraSettings) {
-    const rt = await this.ensurePkmRuntimeV2();
-    if (!rt) throw new Error("PKM runtime v2 is unavailable");
-    if (typeof rt.runCommand !== "function") throw new Error("PKM runtime v2 has no runCommand");
-
-    const settings = {
-      [__pkmOptionKeys.KEYS.RULES_PATH]: getActiveTagWheelRulesPath(cfg),
-      [__pkmOptionKeys.KEYS.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
-      [__pkmOptionKeys.KEYS.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
-      [__pkmOptionKeys.KEYS.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
-      [__pkmOptionKeys.KEYS.ORDER_CONFIG]: serializePkmOrderForMacro(cfg),
-      [__pkmOptionKeys.KEYS.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfg),
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_ENABLED]: readCfgPath(cfg, "visual.tagWheel.scroller.enabled") === true,
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_DIRECTION]: readCfgPath(cfg, "visual.tagWheel.scroller.direction") || "full",
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_SIZE]: readCfgPath(cfg, "visual.tagWheel.scroller.size") || 3,
-      /* Цвета коробки скроллера (10.13.15). Пусто — коробка берёт цвета темы. */
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
-      [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
-      /* Край Block: остаться в своём или перейти в соседний (10.13.35). */
-      [__pkmOptionKeys.KEYS.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
-      ...(isObj(extraSettings) ? extraSettings : {}),
-    };
-    return await Promise.resolve(rt.runCommand({
-      app: this.app,
-      command,
-      settings,
-      Notice,
-      devLog: (event, payload) => this.devLogEvent(event, payload, "info", cfg),
-    }));
-  }
-
-  registerNavigationCommands() {
-    const registry = getCommandRegistry();
-    const defs = registry.buildNavigationCommandDefs(this, getActiveTagWheelRulesPath);
-    if (!Array.isArray(defs) || !defs.length) {
-      console.warn("[inline-overhaul] command registry unavailable: navigation commands skipped");
-      return;
-    }
-
-    for (const d of defs) {
-      this.addCommand({
-        id: d.id,
-        name: d.name,
-        callback: async () => {
-          await this.runNavGuard("navigation", d.run);
-        },
-      });
-    }
-  }
-
   registerPkmCommands() {
-    const registry = getCommandRegistry();
-    const cfgNow = this.getConfig();
-    const defs = registry.buildPkmCommandDefs(
-      getActiveTagWheelRulesPath,
-      serializePkmOrderForMacro,
-      serializeDateRuntimeConfigForMacro,
-      normalizePkmOrder,
-      cfgNow,
-      FEATURE_ORDER
-    );
-    if (!Array.isArray(defs) || !defs.length) {
-      console.warn("[inline-overhaul] command registry unavailable: PKM commands skipped");
-      return;
-    }
-
-    this._registeredPkmCommandIds = this._registeredPkmCommandIds || new Set();
-
-    for (const d of defs) {
-      const id = String(d && d.id ? d.id : "").trim();
-      if (!id) continue;
-      if (this._registeredPkmCommandIds.has(id)) continue;
-      this.addCommand({
-        id,
-        name: d.name,
-        callback: async () => {
-          await this.runPkmGuard(async (cfg) => {
-            const macroSettings = d.makeSettings(cfg);
-            await this.runPkmRuntimeV2(d.v2Command, cfg, macroSettings);
-          });
-        },
-      });
-      this._registeredPkmCommandIds.add(id);
-    }
+    return __pluginCommands.registerPkm(this);
   }
 
   registerBinderCommands() {
-    const registry = getCommandRegistry();
-    const cfgNow = this.getConfig();
-    const defs = registry.buildBinderCommandDefs(cfgNow);
-    if (!Array.isArray(defs) || !defs.length) {
-      console.warn("[inline-overhaul] command registry unavailable: binder commands skipped");
-      return;
-    }
-
-    this._registeredBinderCommandIds = this._registeredBinderCommandIds || new Set();
-    for (const d of defs) {
-      const id = String(d && d.id ? d.id : "").trim();
-      if (!id) continue;
-      if (this._registeredBinderCommandIds.has(id)) continue;
-      this.addCommand({
-        id,
-        name: String(d && d.name ? d.name : id),
-        callback: async () => {
-          await Promise.resolve(d.run(this));
-        },
-      });
-      this._registeredBinderCommandIds.add(id);
-    }
+    return __pluginCommands.registerBinder(this);
   }
 
-  /**
-   * Превратить строку в заметку.
-   *
-   * Метод, а не тело обработчика команды: то же самое делает `Floating button`
-   * (10.13.12 Н9), и два входа в одну работу однажды разошлись бы — проверка
-   * модуля есть у одного, обработка ошибки у другого. Здесь один вход.
-   */
   async runInlineToNote() {
-    const cfg = this.getConfig();
-    if (!cfg.features.transform.enabled) {
-      this.notice(__say(__noticeKey("transform", "module-off"), "Transform is switched off"));
-      return;
-    }
-    try {
-      await Promise.resolve(getTransformFeature().runInline2Note(this, { Modal, lineFinalize: __transformLineFinalize }));
-    } catch (e) {
-      console.error("[inline-overhaul][transform]", e);
-      this.notice(__say(__noticeKey("transform", "error"), "Transform error: {0}", e && e.message ? e.message : e));
-    }
-  }
-
-  registerTransformCommands() {
-    this.addCommand({
-      id: "transform-inline-to-note",
-      name: __commandIds.commandName("transform-inline-to-note"),
-      callback: async () => { await this.runInlineToNote(); },
-    });
+    return __pluginCommands.runInlineToNote(this);
   }
 
   getConfig() {
