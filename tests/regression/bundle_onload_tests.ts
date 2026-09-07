@@ -251,10 +251,24 @@ function makeHistoryEditorStub(line: string, ch: number): Any {
   let cur = { line: 0, ch: Number(ch || 0) };
   const plainWrites: string[] = [];
   const dispatched: Any[] = [];
+  /* Строка **до** каждой записи: без неё «различие это или строка целиком»
+     не отличить — отрезок сравнивать не с чем. */
+  const dispatchedBefore: string[] = [];
   const view: Any = {
-    state: { doc: { line: (_n: number) => ({ from: 0, to: text.length }) } },
+    /*
+     * `text` у строки — не украшение: панель считает от него **различие**, и
+     * заглушка без него была бы добрее браузера (У-45). У настоящей строки
+     * CodeMirror это поле есть всегда.
+     */
+    state: {
+      doc: {
+        line: (_n: number) => ({ from: 0, to: text.length, text }),
+        sliceString: (from: number, to: number) => text.slice(from, to),
+      },
+    },
     dispatch: (spec: Any) => {
       dispatched.push(spec);
+      dispatchedBefore.push(text);
       const from = Number(spec.changes.from || 0);
       const to = Number(spec.changes.to || 0);
       text = text.slice(0, from) + String(spec.changes.insert == null ? "" : spec.changes.insert) + text.slice(to);
@@ -272,6 +286,7 @@ function makeHistoryEditorStub(line: string, ch: number): Any {
     snapshot: () => text,
     plainWrites,
     dispatched,
+    dispatchedBefore,
   };
 }
 
@@ -603,9 +618,10 @@ async function run(): Promise<void> {
        * `window.listeners.keydown`. Событие подделано (в Node нет клавиатуры),
        * но путь до записи строки настоящий.
        *
-       * Сам `Ctrl+Z` жмёт человек: пакета с историей отмен в наборе нет, и это
-       * названо в листе приёмки. Здесь спрашивается то, что решаем мы, — сколько
-       * записей просит запомнить плагин.
+       * Сам `Ctrl+Z` с 2026-09-07 нажимается проверкой — на настоящей истории
+       * CodeMirror, в `tagwheel_tests.js` (`runUndoAfterPanelSuite`). Здесь
+       * спрашивается то, что видно **у сборки**: сколько записей просит
+       * запомнить плагин и какой отрезок он для них выбрал.
        */
       const editor = makeHistoryEditorStub("- [ ] #todo :: моя строка", 8);
       const settings = { "Date runtime config": dateRuntimeAll };
@@ -626,8 +642,40 @@ async function run(): Promise<void> {
       press("ArrowUp");
       press("ArrowRight");
       const drawsAfterKeys = editor.dispatched.length;
-      assert.ok(drawsAfterKeys >= 4,
-        "каждое нажатие перерисовало строку (записей мимо истории " + drawsAfterKeys + ")");
+      /*
+       * Записей столько, сколько нажатий **что-то изменили**: с 2026-09-07
+       * строка, уже равная тому, что просят, не пишется вовсе — пустое
+       * изменение всё равно заставило бы историю переносить чужие ступени
+       * (A41). Прежнее «каждое нажатие перерисовало строку» после этого
+       * перестало быть верным, а не сломалось (У-94).
+       */
+      assert.ok(drawsAfterKeys >= 3,
+        "открытие и нажатия перерисовали строку (записей мимо истории " + drawsAfterKeys + ")");
+      const emptyDraws = (editor.dispatched as Any[]).filter((spec: Any) => {
+        const ch = spec && spec.changes ? spec.changes : {};
+        return Number(ch.from) === Number(ch.to) && String(ch.insert || "") === "";
+      });
+      assert.strictEqual(emptyDraws.length, 0, "пустых записей панель не посылает");
+      /*
+       * И записи эти — **различия**, а не строка целиком (A41, У-97). Если
+       * хоть одна пришла бы отрезком «вся строка», прежние ступени отмены
+       * человека она бы и снесла. Спрашивается у сборки: правка живёт в
+       * `tagwheel.js`, а у человека стоит бандл (У-89).
+       */
+      const shapes = (editor.dispatched as Any[]).map((spec: Any, i: number) => ({
+        from: Number(spec.changes.from), to: Number(spec.changes.to),
+        was: String((editor.dispatchedBefore as string[])[i] || "").length,
+      }));
+      const wholeLineDraws = shapes.filter((sh) => sh.from === 0 && sh.to === sh.was);
+      assert.strictEqual(wholeLineDraws.length, 0,
+        "ни одна запись панели из сборки не покрывает строку целиком: " + JSON.stringify(shapes));
+      /*
+       * И то, ради чего всё это: текст человека за отрезком остаётся. У первой
+       * записи — вида панели поверх строки — конец отрезка обязан быть **до**
+       * конца строки: там стоит `:: моя строка`.
+       */
+      assert.ok(shapes[0] && shapes[0].to < shapes[0].was,
+        "вид панели пишется, не задевая текст человека: " + JSON.stringify(shapes[0]));
       assert.strictEqual(editor.plainWrites.length, 0,
         "пока панель открыта, история не получила ни одной записи: " + editor.plainWrites.join(" | "));
 
@@ -807,6 +855,70 @@ async function run(): Promise<void> {
     assert.ok(after.indexOf("слово7") > after.indexOf(link),
       "остаток текста стоит после ссылки, а не до неё — " + after);
     ok("Transform из сборки: ссылка встала на место слов, ставших названием");
+  }
+
+  /*
+   * И третья строка заказчика той же командой из той же сборки (A39,
+   * 2026-09-07 вечер): уборка Values снимает со строки **весь** левый сегмент.
+   *
+   * Тогда пустой слот схлопывается, Separator у строки остаётся один — и он
+   * второй. Он прислал `- ывыв ывы :: 📅2026-09-07 18:56 [[333/ывыв ывы]] ::
+   * #processed`: ссылка уехала за дату, а метка завела ещё один Separator,
+   * потому что дальше строку разбирали заново и читали наоборот.
+   *
+   * Здесь спрашивается сборка: правка живёт в `transform_feature.js`, а у
+   * человека лежит бандл (У-89). Дату оставляем на строке — `cleanupFieldIds`
+   * с одним Field, — иначе правой части не останется и предмета у проверки
+   * нет вовсе (У-88).
+   */
+  {
+    const dueMarker = "\u{1F4C5}";
+    plugin.store.patch({
+      transform: {
+        inline2note: {
+          sourceProcessing: {
+            cleanupFieldIds: ["due"], token: "#processed", panel: "right",
+            replaceWithLink: true, text: "words", keepWords: 2,
+          },
+        },
+      },
+    }, "bundle test: уборка снимает левый сегмент");
+    const kept = plugin.getConfig().transform.inline2note.sourceProcessing.cleanupFieldIds;
+    assert.deepStrictEqual(kept, ["due"], "дата остаётся на строке: иначе мерить нечего");
+
+    const line = `- [ ] #todo :: ывыв ывы :: ${dueMarker}2026-09-07 18:56`;
+    const editor = makeTransformEditorStub(line);
+    app.workspace.activeEditor = { editor };
+    app.workspace.activeLeaf = { view: { editor } };
+
+    const cmd = plugin.commands.find((c: Any) => String(c && c.id) === "transform-inline-to-note");
+    loader._load = function (request: string, parent: unknown, isMain: boolean): unknown {
+      if (request === "obsidian") return platform;
+      if (request === "@codemirror/view") return cmStub();
+      if (request === "@codemirror/state") return cmStateStub();
+      return origLoad.call(this, request, parent, isMain);
+    };
+    try {
+      await cmd.callback();
+    } finally {
+      loader._load = origLoad;
+    }
+
+    const after = editor.snapshot();
+    assert.notStrictEqual(after, line, "положительный контроль: команда отработала");
+    const link = "[[Filed/ывыв ывы]]";
+    const date = `${dueMarker}2026-09-07 18:56`;
+    assert.ok(after.includes(link), "ссылка на созданную заметку стоит на строке — " + after);
+    assert.ok(after.includes(date), "дата человека на строке цела — " + after);
+    /* Главное: ссылка стоит **до** даты, то есть на месте текста. */
+    assert.ok(after.indexOf(link) < after.indexOf(date),
+      "ссылка встала на место текста, а не за правой частью — " + after);
+    /* И метка не завела второй Separator: она приписана к правой части. */
+    assert.strictEqual((after.match(/::/g) || []).length, 1,
+      "Separator на строке остался один — " + after);
+    assert.ok(after.trimEnd().endsWith("#processed"),
+      "метка стоит в конце правой части — " + after);
+    ok("Transform из сборки: текст и правая часть не поменялись местами");
   }
 
   /*

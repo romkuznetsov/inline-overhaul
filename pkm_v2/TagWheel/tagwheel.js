@@ -129,7 +129,20 @@ function setLineOutsideHistory(editor, lineNumber, text) {
     try {
       var docLine = view.state.doc.line(Number(lineNumber) + 1)
       var next = String(text == null ? '' : text)
-      var change = lineDiffChange(docLine.from, docLine.text, next)
+      /*
+       * Различие считается от того, что на строке **сейчас**. Не удалось
+       * прочитать — пишем строку целиком, как писали до 2026-09-07: пустая
+       * «прежняя строка» дала бы вставку без удаления, то есть панель поверх
+       * текста человека.
+       */
+      var current = typeof docLine.text === 'string'
+        ? docLine.text
+        : (view.state.doc && typeof view.state.doc.sliceString === 'function'
+          ? String(view.state.doc.sliceString(docLine.from, docLine.to))
+          : null)
+      var change = current === null
+        ? { from: docLine.from, to: docLine.to, insert: next }
+        : lineDiffChange(docLine.from, current, next)
       /* Строка уже такая: пустое изменение историю не переносит вовсе. */
       if (change.from === change.to && change.insert === '') return
       view.dispatch({
