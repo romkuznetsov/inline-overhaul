@@ -442,6 +442,7 @@ async function run() {
       "./src/features/store_events_orchestrator.js",
       "./src/features/transform_feature.js",
       "./src/ui/editor/decorations.js",
+      "./src/ui/editor/styles.js",
       "./src/ui/settings/obsidian_tab.ts",
     ];
     assertEq(own.join("\n"), expected.join("\n"), "main.js подключает ровно свои модули, и каждый один раз");

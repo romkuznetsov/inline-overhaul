@@ -78,6 +78,7 @@ const __editorDecorations = require("./src/ui/editor/decorations.js");
 const __pkmOrderConfig = require("./src/core/pkm_order_config.js");
 const __configNormalize = require("./src/core/config_normalize.js");
 const __devLog = require("./src/core/dev_log.js");
+const __editorStyles = require("./src/ui/editor/styles.js");
 const PKM_ORDER_FIELDS = __pkmOrderConfig.PKM_ORDER_FIELDS;
 const normalizePkmOrder = __pkmOrderConfig.normalizePkmOrder;
 const serializePkmOrderForMacro = __pkmOrderConfig.serializePkmOrderForMacro;
@@ -466,9 +467,9 @@ class InlineOverhaulPlugin extends Plugin {
 
     this.registerCommands();
     this.noticeCommandIdsChangedOnce();
-    this.ensureTagwheelFillStyles();
-    this.ensureStripLineStyles();
-    this.ensureCaretStyles();
+    __editorStyles.ensureTagwheelFill(this);
+    __editorStyles.ensureStripLine(this);
+    __editorStyles.ensureCaret(this);
     this.registerGlobalFunctions();
     this.registerStoreEvents();
 
@@ -528,93 +529,8 @@ class InlineOverhaulPlugin extends Plugin {
 
   onunload() {
     try { this.closeDevLogSession(this.getConfig()); } catch (_) {}
-    if (this._tagwheelFillStyleEl && this._tagwheelFillStyleEl.parentNode) {
-      this._tagwheelFillStyleEl.parentNode.removeChild(this._tagwheelFillStyleEl);
-    }
-    this._tagwheelFillStyleEl = null;
-    if (this._stripLineStyleEl && this._stripLineStyleEl.parentNode) {
-      this._stripLineStyleEl.parentNode.removeChild(this._stripLineStyleEl);
-    }
-    this._stripLineStyleEl = null;
-    if (this._caretStyleEl && this._caretStyleEl.parentNode) {
-      this._caretStyleEl.parentNode.removeChild(this._caretStyleEl);
-    }
-    this._caretStyleEl = null;
+    __editorStyles.removeAll(this);
     if (this.store) this.store.unload();
-
-  }
-
-  ensureTagwheelFillStyles() {
-    try {
-      if (this._tagwheelFillStyleEl && this._tagwheelFillStyleEl.parentNode) return;
-      const styleEl = document.createElement("style");
-      styleEl.setAttribute("data-inline-overhaul", "tagwheel-fill");
-      styleEl.textContent = TAGWHEEL_FILL_STYLE_CSS;
-      document.head.appendChild(styleEl);
-      this._tagwheelFillStyleEl = styleEl;
-      this.register(() => {
-        if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
-      });
-    } catch (_) {}
-  }
-
-  /**
-   * Свой блок стилей каретки и подписка на хранилище (10.13.33 Ц5).
-   *
-   * Подписка своя, а не через перерисовку панели: та откладывается, пока
-   * фокус стоит в поле ввода (`store_events_orchestrator.js`), а цвет должен
-   * меняться под рукой, а не после ухода фокуса.
-   */
-  ensureCaretStyles() {
-    try {
-      if (!this._caretStyleEl || !this._caretStyleEl.parentNode) {
-        const styleEl = document.createElement("style");
-        styleEl.setAttribute("data-inline-overhaul", "caret");
-        document.head.appendChild(styleEl);
-        this._caretStyleEl = styleEl;
-        this.register(() => {
-          if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
-        });
-      }
-      this.refreshCaretStyles();
-      if (this.store && typeof this.store.subscribe === "function") {
-        this.register(this.store.subscribe(() => this.refreshCaretStyles()));
-      }
-    } catch (_) {}
-  }
-
-  refreshCaretStyles() {
-    try {
-      if (!this._caretStyleEl) return;
-      const css = buildCaretStyleCss(caretLookFromConfig(this.getConfig()));
-      if (this._caretStyleEl.textContent !== css) this._caretStyleEl.textContent = css;
-    } catch (_) {}
-  }
-
-  ensureStripLineStyles() {
-    try {
-      if (this._stripLineStyleEl && this._stripLineStyleEl.parentNode) return;
-      const styleEl = document.createElement("style");
-      styleEl.setAttribute("data-inline-overhaul", "strip-line");
-      styleEl.textContent = STRIP_LINE_STYLE_CSS;
-      document.head.appendChild(styleEl);
-      this._stripLineStyleEl = styleEl;
-      this.register(() => {
-        if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
-      });
-      try {
-        const cfg = this.getConfig();
-        this.devLogEvent("strip.css.inject", { ok: true }, "trace", cfg);
-      } catch (_) {}
-    } catch (e) {
-      try {
-        const cfg = this.getConfig();
-        this.devLogEvent("strip.css.inject", {
-          ok: false,
-          message: String(e && e.message ? e.message : e || ""),
-        }, "error", cfg);
-      } catch (_) {}
-    }
   }
 
   registerStoreEvents() {
