@@ -665,6 +665,49 @@ async function run(): Promise<void> {
   }
 
   /*
+   * Та же команда из той же сборки — и второе правило про название (T1,
+   * 2026-09-07). Имени в скобках здесь нет: название собирается из первых
+   * шести слов текста, и ссылка обязана встать **на их место**, а не за ними.
+   *
+   * Заказчик видел `тест-трансформ4 тест1 [[…]]` — слова названия остались на
+   * строке, а ссылка встала за первыми двумя из них. Настройки те же, что у
+   * него: `wordCount` = 6, `words`, `keepWords` = 2.
+   */
+  {
+    const dueMarker = "\u{1F4C5}";
+    const line = `- [ ] #todo :: слово1 слово2 слово3 слово4 слово5 слово6 слово7 :: ${dueMarker}2026-09-07 13:27`;
+    const editor = makeTransformEditorStub(line);
+    app.workspace.activeEditor = { editor };
+    app.workspace.activeLeaf = { view: { editor } };
+
+    const cmd = plugin.commands.find((c: Any) => String(c && c.id) === "transform-inline-to-note");
+    assert.ok(cmd && typeof cmd.callback === "function", "команда Transform есть в сборке");
+    loader._load = function (request: string, parent: unknown, isMain: boolean): unknown {
+      if (request === "obsidian") return platform;
+      if (request === "@codemirror/view") return cmStub();
+      if (request === "@codemirror/state") return cmStateStub();
+      return origLoad.call(this, request, parent, isMain);
+    };
+    try {
+      await cmd.callback();
+    } finally {
+      loader._load = origLoad;
+    }
+
+    const after = editor.snapshot();
+    assert.notStrictEqual(after, line, "положительный контроль: команда отработала, а не вернулась молча");
+    const link = "[[Filed/слово1 слово2 слово3 слово4 слово5 слово6]]";
+    assert.ok(after.includes(link), "ссылка на созданную заметку стоит на строке — " + after);
+    /* Слова названия со строки ушли: до ссылки от них не осталось ничего. */
+    assert.ok(!/слово1 слово2/.test(after.slice(0, after.indexOf(link))),
+      "слова, ставшие названием, до ссылки не остались — " + after);
+    /* А остаток остался, и стоит он ПОСЛЕ ссылки — на месте, где был. */
+    assert.ok(after.indexOf("слово7") > after.indexOf(link),
+      "остаток текста стоит после ссылки, а не до неё — " + after);
+    ok("Transform из сборки: ссылка встала на место слов, ставших названием");
+  }
+
+  /*
    * Правая часть строки переживает TagWheel — и переживает В СБОРКЕ
    * (замечание заказчика 2026-09-07).
    *

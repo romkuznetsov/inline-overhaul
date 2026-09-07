@@ -64,10 +64,14 @@ function makeConfig() {
    * `Words to keep`; префикса не было вовсе, и в половинах «до» и «после» не
    * было видно, что с началом строки что-то происходит (замечания заказчика
    * B13 и B18, 2026-09-02).
+   *
+   * Слов в тексте **больше**, чем уходит в название (`wordCount` = 6): иначе
+   * название забирает текст целиком, остатка не остаётся и ползунок ниже
+   * меряет пустоту (T1, 2026-09-07).
    */
   assertEq(
     transform.buildPreviewBaseLine(cfg),
-    "- [ ] #todo #next :: buy milk bread and eggs today :: [[ProjectA]] @value",
+    "- [ ] #todo #next :: buy milk and bread on the way home after work today :: [[ProjectA]] @value",
     "preview separator contract",
   );
 })();
@@ -100,6 +104,37 @@ function makeConfig() {
     "число оставленных слов растёт: " + one + " → " + three + " → " + five);
   assertTrue(/^- /.test(String(after(3))),
     "префикс на строке виден: " + after(3));
+})();
+
+/*
+ * Предпросмотр «Source line» показывает то же правило, что применяет движок:
+ * ссылка встаёт **на место** слов, ставших названием (T1, 2026-09-07).
+ *
+ * Пин нужен потому, что правило объявлено в одном месте, а спрашивают его два:
+ * перенос строки и эта выдуманная строка. Разойдясь, они разойдутся молча —
+ * человек увидит в панели одно, а в заметке получит другое (У-32).
+ */
+(function testPreviewShowsLinkInPlaceOfTitleWords() {
+  const cfg = makeConfig();
+  const i2n = (wordCount, keepWords) => ({
+    enabled: true,
+    sublines: "stay",
+    noteName: { mode: "auto", delimiters: "[]", wordCount, preferHeaderTitle: true },
+    sourceProcessing: {
+      text: "words", keepWords, replaceWithLink: true,
+      token: "#processed", panel: "right", cleanupFieldIds: [],
+    },
+  });
+  const after = (wordCount, keepWords) => transform.buildSourcePreviewLine(i2n(wordCount, keepWords), cfg).after;
+
+  assertEq(after(6, 2), "- [[Preview]] way home :: #processed",
+    "шесть слов ушли в название — ссылка встала на их место, дальше остаток");
+  /* Сдвинув `wordCount`, сдвигается и место ссылки: это и значит, что
+     предпросмотр спрашивает название, а не рисует ссылку в начало текста. */
+  assertEq(after(1, 2), "- [[Preview]] milk and :: #processed",
+    "в название ушло одно слово — остатка стало больше");
+  assertEq(after(6, 5), "- [[Preview]] way home after work today :: #processed",
+    "`Words to keep` распоряжается остатком");
 })();
 
 (function testDisabledRulesDoNotConflict() {

@@ -178,6 +178,47 @@ async function testManualCancelDoesNotMutate() {
   assertEq(editor.text(), "- [ ] :: Cancel me", "manual cancel preserves source");
 }
 
+/**
+ * T1 целиком: от команды до строки в заметке (замечание заказчика 2026-09-07).
+ *
+ * Проверка сквозная не для красоты: правка живёт в двух местах — в самой
+ * `applySourceTextFate` и в том, что место вызова спрашивает у
+ * `resolveAutoTitleInfo`, откуда взялось название. Единичная проверка зелена и
+ * тогда, когда второе забыли, — а тогда правка недостижима (У-56).
+ */
+async function testTitleWordsReplacedByLink() {
+  const line = "- :: тест-трансформ4 тест1 тест2 тест3 тест4 тест5 тест6 :: \u{1F4C5}2026-09-07 13:27";
+  const editor = makeEditor(line);
+  const plugin = makePlugin(makeConfig({
+    sourceProcessing: { cleanupFieldIds: [], token: "#processed", panel: "right", replaceWithLink: true, text: "words", keepWords: 2 },
+  }), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertTrue(plugin.files.has("Notes/тест-трансформ4 тест1 тест2 тест3 тест4 тест5.md"),
+    "заметка названа первыми шестью словами: " + Array.from(plugin.files.keys()).join(", "));
+  assertEq(editor.text(),
+    "- :: [[Notes/тест-трансформ4 тест1 тест2 тест3 тест4 тест5]] тест6 :: \u{1F4C5}2026-09-07 13:27 #processed",
+    "ссылка встала на место слов названия, остаток текста остался на строке");
+  /* Слова названия — текст человека, и в заметку они уезжают целиком: имя
+     заметки их повторяет, а содержимым остаются они же. */
+  const note = String(plugin.files.get("Notes/тест-трансформ4 тест1 тест2 тест3 тест4 тест5.md"));
+  assertTrue(note.includes("тест6"), "в заметку уехала вся строка, вместе с остатком: " + note);
+  assertTrue(note.includes("тест-трансформ4"), "и вместе со словами, ставшими названием: " + note);
+}
+
+/**
+ * `leave` не тронут: слова названия — это текст, и человек попросил его
+ * оставить. Обратное молча отменило бы смысл настройки.
+ */
+async function testTitleWordsSurviveLeave() {
+  const editor = makeEditor("- :: one two three :: tail");
+  const plugin = makePlugin(makeConfig({
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "leave" },
+  }), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertEq(editor.text(), "- :: one two three [[Notes/one two three]] :: tail",
+    "при `leave` текст остаётся целиком, ссылка идёт за ним");
+}
+
 async function run() {
   await testNewNoteRaceUsesActualPathLink();
   await testReplacePayloadFalse();
@@ -187,6 +228,8 @@ async function run() {
   await testAddToNoteDoesNotDuplicateTemplateOrHeader();
   await testTemplateErrorSurfacesBeforeMutation();
   await testManualCancelDoesNotMutate();
+  await testTitleWordsReplacedByLink();
+  await testTitleWordsSurviveLeave();
   console.log("Transform runtime regression tests: OK");
 }
 

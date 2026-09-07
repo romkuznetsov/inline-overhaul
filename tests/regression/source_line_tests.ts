@@ -323,4 +323,130 @@ const I2N_BRACKETS = { noteName: { mode: "auto", delimiters: "[]" } } as Any;
   ok("значение элемента и его пример выведены из формата поля, и они сходятся");
 }
 
+/* ---- 6: слова, ставшие названием, уходят вместе со ссылкой -------------- */
+
+/**
+ * Замечание заказчика по T1, 2026-09-07. Его настройки — `wordCount` = 6,
+ * `words`, `keepWords` = 2, — его строка и три записи одного результата:
+ *
+ *   было    `- [ ] #/1 #todo :: тест-трансформ4 тест1 … тест6 :: 📅…`
+ *   видел   `- #/1 :: тест-трансформ4 тест1 [[333/тест-трансформ4 … тест5]] :: 📅…`
+ *   хочет   `- #/1 :: [[333/тест-трансформ4 … тест5]] тест6 :: 📅…`
+ *
+ * Название собралось из первых шести слов текста — и эти же слова остались на
+ * строке, а ссылка встала за первыми двумя из них. Его слова: «wikilink на
+ * новую заметку должен заменить слова, из которых получилась заметка, иначе
+ * преобразование получается странным».
+ *
+ * Закреплено здесь: ссылка встаёт **на место** слов названия, `keepWords`
+ * считает остаток, а `leave` и `remove` не меняются ни на пробел.
+ */
+const I2N_WORDS = { noteName: { mode: "auto", delimiters: "[]", wordCount: 6 } } as Any;
+
+{
+  const line = "- [ ] || тест-трансформ4 тест1 тест2 тест3 тест4 тест5 тест6 || \u{1F4C5}2026-09-07 13:27";
+  const parsed = { line, payloadText: "тест-трансформ4 тест1 тест2 тест3 тест4 тест5 тест6" };
+  const titled = transform.resolveAutoTitleInfo(parsed, I2N_WORDS);
+  assert.equal(titled.origin, "words", "название собралось из слов текста, а не из скобок");
+  assert.equal(titled.title, "тест-трансформ4 тест1 тест2 тест3 тест4 тест5",
+    "в название пошли первые шесть слов");
+
+  const fate = (o: Any): string => transform.applySourceTextFate(
+    line, "333/" + titled.title, SEP, { i2n: I2N_WORDS, ...o });
+
+  assert.equal(fate({ text: "words", keepWords: 2, link: true, titleWords: titled.title }),
+    "- [ ] || [[333/тест-трансформ4 тест1 тест2 тест3 тест4 тест5]] тест6 || \u{1F4C5}2026-09-07 13:27",
+    "ссылка встала на место слов названия, а на строке остался остаток");
+
+  /* Та же строка без нового знания — то, что заказчик видел. Отрицательная
+     сторона: без него ответ другой, значит правка достижима и работает. */
+  assert.equal(fate({ text: "words", keepWords: 2, link: true }),
+    "- [ ] || тест-трансформ4 тест1 [[333/тест-трансформ4 тест1 тест2 тест3 тест4 тест5]] || \u{1F4C5}2026-09-07 13:27",
+    "положительный контроль: не назвав слова названия, получаем прежний ответ");
+
+  assert.equal(fate({ text: "leave", link: true, titleWords: titled.title }),
+    "- [ ] || тест-трансформ4 тест1 тест2 тест3 тест4 тест5 тест6 "
+    + "[[333/тест-трансформ4 тест1 тест2 тест3 тест4 тест5]] || \u{1F4C5}2026-09-07 13:27",
+    "`leave` обещает строку как была: слова названия из неё не снимаются");
+
+  assert.equal(fate({ text: "remove", link: true, titleWords: titled.title }),
+    "- [ ] || [[333/тест-трансформ4 тест1 тест2 тест3 тест4 тест5]] || \u{1F4C5}2026-09-07 13:27",
+    "`remove` не изменился: текста не остаётся, остаётся ссылка");
+  ok("ссылка встаёт на место слов, ставших названием, и только при `words`");
+}
+
+{
+  /* Место ссылки видно только там, где до слов названия что-то стоит. */
+  const withHead = "- [ ] || \u{1F4C5}2026-09-07 head one two tail || ";
+  assert.equal(
+    transform.applySourceTextFate(withHead, "N", SEP, {
+      text: "words", keepWords: 5, link: true, i2n: I2N_WORDS, titleWords: "head one two",
+    }),
+    "- [ ] || \u{1F4C5}2026-09-07 [[N]] tail",
+    "то, что в название не пошло, осталось слева от ссылки, а не пропало");
+
+  /* Названием стал весь текст — на строке остаётся одна ссылка. */
+  assert.equal(
+    transform.applySourceTextFate("- [ ] || one two || ", "N", SEP, {
+      text: "words", keepWords: 2, link: true, i2n: I2N_WORDS, titleWords: "one two",
+    }),
+    "- [ ] || [[N]]",
+    "текст целиком стал названием — остатка нет");
+
+  /* Слова названы, но на строке их нет: имя набрано в окне вручную, строка с
+     тех пор изменилась. Прежний порядок «текст, потом ссылка» цел. */
+  assert.equal(
+    transform.applySourceTextFate("- [ ] || one two three || ", "N", SEP, {
+      text: "words", keepWords: 2, link: true, i2n: I2N_WORDS, titleWords: "typed by hand",
+    }),
+    "- [ ] || one two [[N]]",
+    "слов названия на строке нет — считаем по-старому");
+  ok("остаток, пустой остаток и ненайденные слова названия");
+}
+
+{
+  /* Разрез сам по себе: он же отвечает на «что стало названием» второму
+     месту — предпросмотру в панели. */
+  assert.deepEqual(
+    transform.splitByTitleWords("one two three four", "one two"),
+    { head: "", tail: "three four", found: true },
+    "слова названия сняты с начала, остаток цел");
+  assert.deepEqual(
+    transform.splitByTitleWords("one two three", "one three"),
+    { head: "two", tail: "", found: true },
+    "то, что между словами названия, остаётся на строке");
+  assert.deepEqual(
+    transform.splitByTitleWords("one two", "one nine"),
+    { head: "one two", tail: "", found: false },
+    "нашлось не всё — разреза нет");
+  assert.deepEqual(
+    transform.splitByTitleWords("one two", ""),
+    { head: "one two", tail: "", found: false },
+    "слов не назвали — разреза нет");
+  ok("разрез по словам названия: остаток, середина и отказ");
+}
+
+{
+  /*
+   * Почему на месте вызова стоит `origin === "words"`, а не «всё, кроме
+   * скобок». Мутация между этими двумя записями **не краснеет**, и это не
+   * пробел в проверках, а свойство заголовка: название из заголовка — строка
+   * целиком, вместе с Separator, а в тексте между Separator их нет. Слова
+   * такого названия подпоследовательностью текста не бывают, и разрез не
+   * находится ни при какой записи условия.
+   *
+   * Свойство закреплено здесь затем, что молчащая мутация без объяснения — то
+   * же самое, что зелёная проверка без предмета (У-92).
+   */
+  const header = transform.resolveAutoTitleInfo(
+    { line: "## one two :: one two three :: tail", payloadText: "one two three" },
+    { noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: true } } as Any);
+  assert.equal(header.origin, "header", "заголовок сильнее первых слов текста");
+  assert.ok(header.title.includes("::"),
+    "название из заголовка — строка целиком, вместе с Separator: " + header.title);
+  assert.equal(transform.splitByTitleWords("one two three", header.title).found, false,
+    "слова такого названия в тексте не находятся, поэтому разреза и нет");
+  ok("название из заголовка слов со строки не снимает, и это свойство заголовка");
+}
+
 console.log("\n" + passed + " проверок пройдено");

@@ -2323,11 +2323,11 @@ const SCHEMA = [
       searchTerms:["What happens to your text"],
       options:[ {value:"remove",label:"Take it away"}, {value:"leave",label:"Leave it"},
                 {value:"words",label:"Keep the first words"} ],
-      tip:"<b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move. <b>Keep the first words</b> is the middle way: enough of the line left to recognise it at a glance. Sub-lines are a separate question, and the row above answers it",
+      tip:"<b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move, and it is the one choice that keeps every word, including the words the name was made of. <b>Keep the first words</b> is the middle way: the link takes the place of the words that named the note, and what follows them stays. Sub-lines are a separate question, and the row above answers it",
       visible: on("transform.inline2note.enabled") },
     { kind:"number", id:"source-keep-words", path:"transform.inline2note.sourceProcessing.keepWords", default:3, min:1, max:20,
       name:"Words to keep", desc:"How much of the line stays behind",
-      tip:"Counted from the start of your text. The rest goes into the note and leaves the line",
+      tip:"Counted from what is left of your text once the words that became the note name are gone \u2014 the link to the note stands where they were. The rest goes into the note and leaves the line. A line whose whole text became the name keeps the link alone: there is nothing left to count",
       visible: eq("transform.inline2note.sourceProcessing.text","words") },
     /* Список флажков начинался сразу под предыдущей строкой, и было непонятно,
        к чему он относится: «нужно добавить над fields название опции (Fields to

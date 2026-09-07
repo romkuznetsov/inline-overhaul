@@ -1456,6 +1456,55 @@ function splitByExplicitTitle(text, explicitTitle, i2n) {
 }
 
 /** Снять со строки то, что стало названием заметки. */
+/**
+ * Разрезать текст по тому месту, где стояли слова, ставшие названием.
+ *
+ * Слова снимаются **по одному и по порядку**, а не отрезанием начала строки:
+ * между ними может стоять то, что в название не пошло, — Value отмеченного
+ * Field остаётся на строке, а `payloadText` его не видит. Такой токен остаётся
+ * с левой половиной, а не пропадает.
+ *
+ * Не нашлось всех слов — разреза нет, и вызывающий работает по-прежнему: имя
+ * могло быть набрано в окне вручную, а строка с тех пор измениться.
+ */
+function splitByTitleWords(text, titleWords) {
+  const src = String(text || "");
+  const words = String(titleWords || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return { head: src.trim(), tail: "", found: false };
+  const tokens = [];
+  const re = /\S+/g;
+  let m;
+  while ((m = re.exec(src)) !== null) tokens.push(m[0]);
+  const consumed = new Set();
+  let wordIdx = 0;
+  let lastIdx = -1;
+  for (let i = 0; i < tokens.length && wordIdx < words.length; i++) {
+    if (tokens[i] !== words[wordIdx]) continue;
+    consumed.add(i);
+    lastIdx = i;
+    wordIdx++;
+  }
+  if (wordIdx < words.length || lastIdx < 0) return { head: src.trim(), tail: "", found: false };
+  return {
+    head: tokens.filter((_, i) => i < lastIdx && !consumed.has(i)).join(" "),
+    tail: tokens.slice(lastIdx + 1).join(" "),
+    found: true,
+  };
+}
+
+/**
+ * Где на строке стояло название — в одном ответе на оба его вида.
+ *
+ * Вызывающему всё равно, из скобок пришло имя или из первых слов: он ставит на
+ * это место ссылку. Поэтому и спрашивает он один раз, а не разбирает вид имени
+ * у себя.
+ */
+function splitByTitleSource(text, explicitTitle, titleWords, i2n) {
+  const explicit = splitByExplicitTitle(text, explicitTitle, i2n);
+  if (explicit.found) return explicit;
+  return splitByTitleWords(text, titleWords);
+}
+
 function stripExplicitTitleFromLine(line, explicitTitle, i2n) {
   const src = String(line || "");
   const parts = splitByExplicitTitle(src, explicitTitle, i2n);
@@ -1475,20 +1524,42 @@ function stripExplicitTitleFromBlock(blockText, explicitTitle, i2n) {
   return lines.join("\n");
 }
 
-function resolveAutoTitle(parsed, i2n) {
+/**
+ * Откуда взялось название заметки и какой кусок строки им стал.
+ *
+ * Порядок «имя в скобках → заголовок → первые слова текста» объявлен **здесь и
+ * только здесь**: его спрашивает и тот, кто название читает, и те, кто потом
+ * ставит на его место ссылку. Второе объявление этого порядка разошлось бы с
+ * первым молча (У-32), а цена расхождения — ссылка, вставшая не туда, где
+ * человек ждёт её увидеть.
+ *
+ * `origin`:
+ *   `explicit` — имя в скобках `naming-delimiters`; со строки уходит всегда,
+ *                оно не текст, а название;
+ *   `header`   — заголовок строки; на строке его и не было;
+ *   `words`    — первые `wordCount` слов текста. Это и есть текст человека,
+ *                поэтому уходит он только там, где текст и так не сохраняется
+ *                целиком (замечание заказчика по T1, 2026-09-07);
+ *   `""`       — названия нет.
+ */
+function resolveAutoTitleInfo(parsed, i2n) {
   const line = String(parsed && parsed.line || "");
   const payload = String(parsed && parsed.payloadText || "").trim();
   const explicit = explicitTitleOf(line, i2n);
-  if (explicit) return explicit;
+  if (explicit) return { title: explicit, origin: "explicit" };
   if (i2n && i2n.noteName && i2n.noteName.preferHeaderTitle) {
     const hh = extractHeaderTitle(line);
-    if (hh) return hh;
+    if (hh) return { title: hh, origin: "header" };
   }
   const base = payload && payload !== "-" ? payload : "";
   const wordsN = Math.max(1, Math.min(32, Math.trunc(Number(i2n && i2n.noteName && i2n.noteName.wordCount) || 6)));
   const words = base.split(/\s+/).filter(Boolean).slice(0, wordsN);
-  if (words.length) return words.join(" ");
-  return "";
+  if (words.length) return { title: words.join(" "), origin: "words" };
+  return { title: "", origin: "" };
+}
+
+function resolveAutoTitle(parsed, i2n) {
+  return resolveAutoTitleInfo(parsed, i2n).title;
 }
 
 function promptNoteTitleWithModal(plugin, ModalClass) {
@@ -1721,18 +1792,35 @@ function applySourcePayloadReplace(line, noteTitle, separators) {
  *   было   `- [ ] #todo :: [тест-трансформ] тест1 :: 📅2026-09-07 11:25`
  *   стало  `- [[333/тест-трансформ]] тест1 :: #processed`
  *
- * Имя приходит готовым в `explicitTitle`: решает, откуда взялось название,
- * `resolveNoteTitle`, и переспрашивать его здесь значило бы завести второе
- * объявление правила (У-32). Пусто — прежний порядок «текст, потом ссылка».
+ * **И то же самое — со словами, из которых название собралось само**
+ * (замечание заказчика по T1, 2026-09-07): его строка
+ * `:: тест-трансформ4 тест1 … тест6 ::` при `wordCount` = 6 давала название из
+ * шести слов, а на строке эти же слова оставались текстом, и ссылка вставала
+ * за ними. Стало: ссылка встаёт **на место** этих слов, а на строке остаётся
+ * то, что в название не пошло, — `[[…]] тест6`. В счёт `keepWords` слова
+ * названия не идут: считается остаток.
+ *
+ * Имена приходят готовыми в `explicitTitle` и `titleWords`: решает, откуда
+ * взялось название, `resolveAutoTitleInfo`, и переспрашивать его здесь значило
+ * бы завести второе объявление правила (У-32). Пусто — прежний порядок «текст,
+ * потом ссылка».
  */
 function applySourceTextFate(line, noteTitle, separators, opts) {
   const src = String(line || "");
   const fate = normalizeMode(opts && opts.text, ["leave", "remove", "words"], "remove");
   const link = !!(opts && opts.link);
   const title = String(noteTitle || "").trim();
-  const linkText = link && title ? `[[${title}]]` : "";
+  const linkText = link && title ? ("[[" + title + "]]") : "";
   const parts = splitSourcePayload(line, separators);
-  const named = splitByExplicitTitle(parts.payload, opts && opts.explicitTitle, opts && opts.i2n);
+  /*
+   * Слова, ставшие названием, снимаются только при `words`.
+   *
+   * При `leave` человек попросил строку как была — снять из неё шесть слов
+   * значило бы отменить его же выбор; при `remove` текста не остаётся вовсе, и
+   * снимать нечего. Имя в скобках уходит при любом из трёх: оно не текст.
+   */
+  const titleWords = fate === "words" ? (opts && opts.titleWords) : "";
+  const named = splitByTitleSource(parts.payload, opts && opts.explicitTitle, titleWords, opts && opts.i2n);
   /*
    * Текст остаётся, ссылки нет — строку не трогаем вовсе. Не осторожность:
    * склейка нормализует пробелы вокруг Separator, и строка, которую человек
@@ -1993,7 +2081,17 @@ function sampleValueForField(field, fType, elementFormat) {
  * `Prefix behavior` у Value, `Bullet in strict` и метка «обработано»
  * (замечание заказчика B13, 2026-09-02).
  */
-const PREVIEW_TEXT_WORDS = "buy milk bread and eggs today";
+/*
+ * Текст выдуманной строки **длиннее названия**, и это условие, а не вкус.
+ *
+ * Ссылка на заметку встаёт на место слов, из которых название собралось
+ * (замечание заказчика по T1, 2026-09-07). Текста было ровно шесть слов при
+ * `wordCount` = 6 — то есть весь он уходил в название, на строке оставалась
+ * одна ссылка, и `Words to keep` в предпросмотре не менял ничего. Теперь
+ * видны оба конца правила: ссылка на месте названия и остаток, которым
+ * ползунок и распоряжается.
+ */
+const PREVIEW_TEXT_WORDS = "buy milk and bread on the way home after work today";
 const PREVIEW_LINE_PREFIX = "- [ ] ";
 
 function buildPreviewBaseLine(cfg) {
@@ -2101,10 +2199,16 @@ function buildSourcePreviewLine(i2n, cfg) {
   const ctx = buildTransformContext(parsed, cfg);
   const ids = resolveSourceCleanupFieldIds(i2n, cfg);
   const cleaned = applySourceCleanupByFieldIds(before, ctx, ids, separators);
+  /* Предпросмотр спрашивает про название **тем же** ходом, что и движок:
+     иначе он показывал бы ссылку не там, где её поставит перенос (У-32). */
+  const titled = resolveAutoTitleInfo(parsed, i2n);
   const linked = applySourceTextFate(cleaned, "Preview", separators, {
     text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
     keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
     link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink),
+    explicitTitle: titled.origin === "explicit" ? titled.title : "",
+    titleWords: titled.origin === "words" ? titled.title : "",
+    i2n,
   });
   const processed = insertProcessedToken(
     linked,
@@ -2124,10 +2228,14 @@ function buildExamplePreviewLine(i2n, cfg) {
   const ctx = buildTransformContext(parsed, cfg);
   const ids = resolveSourceCleanupFieldIds(i2n, cfg);
   const cleaned = applySourceCleanupByFieldIds(sample, ctx, ids, separators);
+  const titled = resolveAutoTitleInfo(parsed, i2n);
   const withLink = applySourceTextFate(cleaned, "Example", separators, {
     text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
     keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
     link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink),
+    explicitTitle: titled.origin === "explicit" ? titled.title : "",
+    titleWords: titled.origin === "words" ? titled.title : "",
+    i2n,
   });
   const replaced = insertProcessedToken(
     withLink,
@@ -3097,6 +3205,16 @@ async function runInline2Note(plugin, runtimeOptions) {
    * на строке не касается.
    */
   const explicitTitle = title === explicitTitleOf(sourceLine, i2n) ? title : "";
+  /*
+   * Слова, из которых название собралось само, — тоже название, и ссылка
+   * встаёт на их место (замечание заказчика по T1, 2026-09-07). Снимается
+   * **только то, что и правда стало названием**: имя из заголовка или
+   * набранное в окне вручную слов на строке не касается.
+   */
+  const titled = resolveAutoTitleInfo(parsed, i2n);
+  const titleWords = !explicitTitle && titled.origin === "words" && title === titled.title
+    ? titled.title
+    : "";
   const noteBlockText = stripExplicitTitleFromBlock(sourceBlockText || sourceLine, explicitTitle, i2n);
   /* Правило выбирается **один раз**: и шаблон, и папка берутся у него, иначе
      два прохода однажды разойдутся и заметка уедет не туда (10.13.8 Н5). */
@@ -3130,6 +3248,7 @@ async function runInline2Note(plugin, runtimeOptions) {
       keepWords: i2n.sourceProcessing.keepWords,
       link: i2n.sourceProcessing.replaceWithLink,
       explicitTitle,
+      titleWords,
       i2n,
     });
     nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators);
@@ -3170,10 +3289,15 @@ module.exports = {
   parseFrontmatter,
   renderYamlBlockWithOrder,
   resolveAutoTitle,
+  /* Откуда название и какой кусок строки им стал: один ответ на оба вида
+     имени, и спрашивают его движок, предпросмотр и проверки (У-32). */
+  resolveAutoTitleInfo,
   /* Явное имя в скобках: читают его здесь, а снимают со строки в двух местах
      — правило одно, и объявлено оно один раз (У-32). */
   explicitTitleOf,
   splitByExplicitTitle,
+  splitByTitleWords,
+  splitByTitleSource,
   stripExplicitTitleFromLine,
   stripExplicitTitleFromBlock,
   /* Метки элементов и длина хвоста у каждой; показательное значение по тому
