@@ -1,40 +1,7 @@
 "use strict";
 
-const { Plugin, PluginSettingTab, Setting, Notice, Modal, setIcon } = require("obsidian");
-const cmView = require("@codemirror/view");
+const { Plugin, Notice } = require("obsidian");
 const cmState = require("@codemirror/state");
-
-/*
- * Модули плагина: один статический `require` на модуль (фаза 6, пункт 1;
- * дефекты A1, A2 и A33).
- *
- * **Путь один, и он статический.** Путей было три: `require` по пути в
- * переменной, чтение файла из vault мостом и `new Function` над его текстом.
- * Два сняты 2026-09-06, а третий оказался не путём вовсе: путь в переменной
- * esbuild не разрешает — такой вызов остаётся вызовом `require` хоста, а
- * рядом с установленным плагином лежит один плоский бандл и ни одной папки.
- * Все загрузчики стали отдавать заглушки, и заказчик увидел плагин без единой
- * команды при 51 зелёной проверке (дефект A33). Литерал esbuild разрешает и
- * кладёт модуль в бандл — поэтому здесь литералы, и промахнуться мимо них
- * нельзя.
- *
- * **Заглушек больше нет, и это главное в правке.** Заглушка реестра команд
- * отвечала на свой же вопрос «годен ли модуль» утвердительно — четыре пустые
- * функции, — и синхронная попытка `require` за ней уже не выполнялась: тот же
- * класс, что У-71, утверждение о состоянии зелено именно тогда, когда предмета
- * нет. Модуля в бандле не может не быть; а если его всё же нет, плагин обязан
- * упасть громко, а не работать наполовину.
- *
- * **Кеша нет.** `require` отдаёт один и тот же объект: в бандле его помнит
- * обёртка esbuild, в Node — кеш модулей. Своя карта была третьим кешем поверх
- * двух.
- *
- * Что проверяет это место: `tests/regression/bundle_onload_tests.ts` включает
- * СБОРКУ и спрашивает у неё список команд, а `bootstrap_loader_tests.js` —
- * что ни одного `require` по переменной в `main.js` не осталось.
- */
-const __priorityStripEngine = require("./src/core/priority_strip_engine.js");
-const __priorityStripCm6Adapter = require("./src/core/priority_strip_cm6_adapter.js");
 
 
 /*
@@ -56,10 +23,6 @@ function __noticeKey(area, name) {
 const __sharedUtils = require("./src/core/shared_utils.js");
 globalThis.__inlineOverhaulSharedUtils = __sharedUtils;
 
-const __pkmOptionKeys = require("./src/core/pkm_option_keys.js");
-const __pkmDomainRegistry = require("./src/core/pkm_domain_registry.js");
-const __compatProfile = require("./src/core/compat_profile.js");
-const __transformLineFinalize = require("./src/core/pkm_line_finalize_unified.js");
 
 /*
  * Слой оформления редактора уехал в два модуля (кусок второй разбора A3,
@@ -68,8 +31,6 @@ const __transformLineFinalize = require("./src/core/pkm_line_finalize_unified.js
  * имена, которые зовёт сам класс плагина, и объявлены они однострочно — тем
  * же способом, каким тут объявлены `isObj` и `cloneJson`.
  */
-const __editorVisualsConfig = require("./src/core/editor_visuals_config.js");
-const __editorDecorations = require("./src/ui/editor/decorations.js");
 
 /*
  * Порядок Fields и нормализация конфига уехали в модули (кусок третий разбора
@@ -82,40 +43,12 @@ const __configWrite = require("./src/core/config_write.js");
 const __generatedRules = require("./src/features/generated_rules.js");
 const __pluginCommands = require("./src/features/plugin_commands.js");
 const __editorMount = require("./src/ui/editor/mount.js");
-const __stripDebugApi = require("./src/features/strip_debug_api.js");
 const __editorStyles = require("./src/ui/editor/styles.js");
 const PKM_ORDER_FIELDS = __pkmOrderConfig.PKM_ORDER_FIELDS;
 const normalizePkmOrder = __pkmOrderConfig.normalizePkmOrder;
-const serializePkmOrderForMacro = __pkmOrderConfig.serializePkmOrderForMacro;
-const serializeDateRuntimeConfigForMacro = __pkmOrderConfig.serializeDateRuntimeConfigForMacro;
-const BINDER_SMART_BRACKET_COMMAND_ID = __configNormalize.BINDER_SMART_BRACKET_COMMAND_ID;
 const DEFAULT_CONFIG = __configNormalize.DEFAULT_CONFIG;
-const FEATURE_META = __configNormalize.FEATURE_META;
-const FEATURE_ORDER = __configNormalize.FEATURE_ORDER;
-const getConfigMigrationV2Module = __configNormalize.getConfigMigrationV2Module;
 const migrateConfig = __configNormalize.migrateConfig;
 
-const normalizeHexColorInput = __editorVisualsConfig.normalizeHexColorInput;
-const buildCaretStyleCss = __editorVisualsConfig.buildCaretStyleCss;
-const caretLookFromConfig = __editorVisualsConfig.caretLookFromConfig;
-const STRIP_LINE_STYLE_CSS = __editorVisualsConfig.STRIP_LINE_STYLE_CSS;
-const TAGWHEEL_FILL_STYLE_CSS = __editorVisualsConfig.TAGWHEEL_FILL_STYLE_CSS;
-const createTagVisualDecorationExtension = __editorDecorations.createTagVisualDecorationExtension;
-const createStripDecorationExtension = __editorDecorations.createStripDecorationExtension;
-const createCaretLayerExtension = __editorDecorations.createCaretLayerExtension;
-const createSourceMarkDecorationExtension = __editorDecorations.createSourceMarkDecorationExtension;
-const createTagwheelHeaderDecorationExtension = __editorDecorations.createTagwheelHeaderDecorationExtension;
-
-
-
-
-function reportLoaderFallback(stage, err) {
-  try {
-    if (globalThis.__inlineDebugLoaders !== true) return;
-    const msg = err && err.message ? String(err.message) : String(err || "");
-    console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {}
-}
 
 /**
  * Идентификаторы и имена команд — один модуль на весь плагин (PRD 7.2).
@@ -149,16 +82,10 @@ function getConfigStoreCtor() {
   return require("./src/core/config_store.js").ConfigStore;
 }
 
-/** Вторая ступень нормализации: форма ветки поведения PKM. */
-function getConfigMigrationModule() {
-  return require("./src/core/config_migration.js");
-}
 
 function cloneJson(x) { return __sharedUtils.cloneJson(x); }
 function isObj(x) { return __sharedUtils.isObj(x); }
 function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
-function toPrettyJson(x) { return __sharedUtils.toPrettyJson(x); }
-
 
 
 /**
@@ -183,7 +110,6 @@ const UNDO_LIMIT = 20;
 /* Путь к настройке читают и пишут по обе стороны границы слоя
    оформления, поэтому правило живёт в общем модуле (У-32). */
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
-function writeCfgPath(root, path, value) { return __sharedUtils.writeCfgPath(root, path, value); }
 
 
 /**

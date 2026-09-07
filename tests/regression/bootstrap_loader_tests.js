@@ -343,7 +343,7 @@ async function run() {
   assertTrue(/return __configWrite\.applyPatch\(this, patchObj, reason\);/.test(src), "запись настроек идёт одним швом в модуль");
   assertTrue(/function getStoreEventsOrchestrator\(\)/.test(rulesSrc), "store events orchestrator getter exists");
 
-  assertTrue(/function reportLoaderFallback\(stage, err\)/.test(src), "main exposes debug-gated loader fallback reporter");
+  assertTrue(/function reportLoaderFallback\(stage, err\)/.test(commandsSrc), "main exposes debug-gated loader fallback reporter");
   /*
    * Тринадцать проверок сняты 2026-08-29 вместе со старой панелью: их
    * предмет -- ползунки вида тегов, тумблеры журнала и поле пути к нему --
@@ -427,30 +427,23 @@ async function run() {
      * он обязан подключать. Список пишется здесь, а не выводится из файла:
      * выведенный из того же файла список сошёлся бы сам с собой всегда.
      *
-     * **Движков навигации и PKM, реестра команд и Transform в списке больше
-     * нет** (кусок четвёртый разбора `main.js`, 2026-09-07): их подключает
-     * `src/features/plugin_commands.js` — тот, кто их и зовёт. Точка входа
-     * спрашивает у него прогрев и регистрацию, а сплошной обход требований
+     * **Список короче на десять имён** (кусок четвёртый разбора `main.js`,
+     * 2026-09-07). Точка входа подключает ровно то, что зовёт сама; всё
+     * остальное подключает тот модуль, который этим пользуется — движки и
+     * реестр команд ушли к `plugin_commands`, слой оформления к `ui/editor`,
+     * ключи и профиль совместимости к `core`. Сплошной обход требований
      * рантайма от этого не ослаб: он идёт по всем файлам, а не по `main.js`.
      */
     const own = Array.from(new Set(requireArgs
       .map((arg) => arg.replace(/^"|"$/g, ""))
       .filter((p) => p.startsWith("./")))).sort();
     const expected = [
-      "./src/core/compat_profile.js",
-      "./src/core/config_migration.js",
       "./src/core/config_normalize.js",
       "./src/core/config_store.js",
       "./src/core/config_write.js",
       "./src/core/dev_log.js",
-      "./src/core/editor_visuals_config.js",
-      "./src/core/pkm_domain_registry.js",
-      "./src/core/pkm_line_finalize_unified.js",
       "./src/core/pkm_macro_runtime_entry.js",
-      "./src/core/pkm_option_keys.js",
       "./src/core/pkm_order_config.js",
-      "./src/core/priority_strip_cm6_adapter.js",
-      "./src/core/priority_strip_engine.js",
       "./src/core/say.js",
       "./src/core/shared_utils.js",
       "./src/features/command_ids.js",
@@ -458,8 +451,6 @@ async function run() {
       "./src/features/generated_rules.js",
       "./src/features/plugin_commands.js",
       "./src/features/smart_delete_engine.js",
-      "./src/features/strip_debug_api.js",
-      "./src/ui/editor/decorations.js",
       "./src/ui/editor/mount.js",
       "./src/ui/editor/styles.js",
       "./src/ui/settings/obsidian_tab.ts",
@@ -495,7 +486,12 @@ async function run() {
   assertTrue(/return __pluginCommands\.ownCommandList\(this\);/.test(src), "справочник команд спрашивает тот же модуль");
   assertTrue(/return __pluginCommands\.runInlineToNote\(this\);/.test(src), "команда и плавающая кнопка ходят одним швом");
   assertTrue(/function getConfigStoreCtor\(\)/.test(src), "config store ctor getter exists");
-  assertTrue(/function getConfigMigrationModule\(\)/.test(src), "config migration getter exists");
+  /*
+   * Обёртка над модулем миграции уехала из точки входа вместе со своим
+   * единственным вызовом: спрашивает миграцию `config_normalize.js`, он же
+   * её и подключает (кусок четвёртый разбора `main.js`).
+   */
+  assertTrue(/getConfigMigrationV2Module/.test(cfgSrc), "config migration getter exists");
   assertTrue(/function getEnhancedSelectAllEngine\(\)/.test(src), "enhanced select-all getter exists");
   assertTrue(/function getRulesMarkdownBuilder\(\)/.test(rulesSrc), "rules markdown builder getter exists");
   assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(src), "onload публикует шов макро-рантайма PKM");
@@ -906,7 +902,14 @@ async function run() {
   assertTrue(/__inlineGetPkmMacroRuntime/.test(statusTagsSrc), "status_tags uses global reusable macro runtime getter");
   assertTrue(/__inlineGetPkmMacroRuntime/.test(statusDateSrc), "status_date uses global reusable macro runtime getter");
   assertTrue(/__inlineGetPkmMacroRuntime/.test(tagwheelSrc), "tagwheel uses global reusable macro runtime getter");
-  assertTrue(/pkm_domain_registry\.js/.test(src), "main loads canonical pkm domain registry module");
+  /*
+   * Реестр областей PKM точка входа больше не подключает: его спрашивают те
+   * восемь файлов, которым он нужен, — от порядка Fields до TagWheel. Пин
+   * переехал за предметом и спрашивает **сплошным обходом**: одно имя модуля
+   * на весь рантайм, второго объявления быть не должно (У-94).
+   */
+  assertTrue(/require\("\.\/pkm_domain_registry\.js"\)/.test(orderSrc),
+    "main loads canonical pkm domain registry module");
   assertTrue(/pkm_domain_registry\.js/.test(pkmRulesHelpersSrc), "rules runtime helpers reference canonical pkm domain registry module");
   assertTrue(/pkm_domain_registry\.js/.test(statusDateSrc), "status_date references canonical pkm domain registry module");
   assertTrue(/pkm_domain_registry\.js/.test(tagwheelSrc), "tagwheel references canonical pkm domain registry module");
