@@ -2322,8 +2322,9 @@ const SCHEMA = [
       name:"What happens with current line", desc:"The text goes into the note either way \u2014 this is about the line you pressed on",
       searchTerms:["What happens to your text"],
       options:[ {value:"remove",label:"Take it away"}, {value:"leave",label:"Leave it"},
+                {value:"leave_named",label:"Leave it, but not the name"},
                 {value:"words",label:"Keep the first words"} ],
-      tip:"<b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move, and it is the one choice that keeps every word, including the words the name was made of. <b>Keep the first words</b> is the middle way: the link takes the place of the words that named the note, and what follows them stays. Sub-lines are a separate question, and the row above answers it",
+      tip:"<b>Take it away</b> leaves the line short and tidy, and with the link below it still points at what you wrote. <b>Leave it</b> keeps the line readable on its own \u2014 useful when the note is an addition, not a move, and it is the one choice that keeps every word, including the words the name was made of. <b>Leave it, but not the name</b> keeps the rest of your text and lets the link stand where the name came from, so nothing is said twice. <b>Keep the first words</b> does the same and trims what is left to the number of words below. Sub-lines are a separate question, and the row above answers it",
       visible: on("transform.inline2note.enabled") },
     { kind:"number", id:"source-keep-words", path:"transform.inline2note.sourceProcessing.keepWords", default:3, min:1, max:20,
       name:"Words to keep", desc:"How much of the line stays behind",
@@ -5177,6 +5178,10 @@ function renderSourcePreview(host) {
   const kept = FIELDS.filter(f => SOURCE_KEEP.indexOf(f.id) >= 0 && f.values && f.values.length)
     .map(f => f.type === "link" ? "[[" + f.values[0].token + "]]" : "#" + f.values[0].token);
   const fate = String(val("transform.inline2note.sourceProcessing.text") || "remove");
+  /* Текст выдуманной строки здесь — одно слово `Text`, и при
+     `leave_named` оно целиком уходит в название: остатка не остаётся, и
+     показывать тут нечего. Разницу между положениями видно на живом
+     предпросмотре в панели — там строка из одиннадцати слов. */
   const body_text = fate === "leave" ? "Text" : (fate === "words" ? "Text\u2026" : "");
   const link = val("transform.inline2note.sourceProcessing.replaceWithLink") === false ? "" : "[[Preview]]";
   const token = String(val("transform.inline2note.sourceProcessing.token") || "").trim();

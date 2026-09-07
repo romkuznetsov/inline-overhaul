@@ -26,7 +26,10 @@ copy and waiting for a release.
 - **The link to a new note stands where its name came from.** Under
   `Keep the first words`, the words that became the note name are replaced by
   the link rather than left in front of it; `Words to keep` counts what is left.
-  `Leave it` is unchanged and keeps every word.
+  `Leave it` is unchanged and keeps every word, and a new choice sits between
+  the two: **`Leave it, but not the name`** keeps the rest of your text and lets
+  the link stand where the name came from. The swap needs the link: with it off,
+  `Keep the first words` counts the first words of your text as it always did.
 - Faster and smaller in places: a dead 2284-line editor left over from an old
   panel is gone, and so is the module bridge that read the vault at runtime.
 

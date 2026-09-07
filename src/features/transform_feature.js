@@ -388,7 +388,7 @@ function normalizeInline2Note(raw) {
    * выключившего ссылку, текст начал бы исчезать после обновления.
    */
   out.sourceProcessing.text = Object.prototype.hasOwnProperty.call(sp, "text")
-    ? normalizeMode(sp.text, ["leave", "remove", "words"], DEFAULT_INLINE2NOTE.sourceProcessing.text)
+    ? normalizeMode(sp.text, ["leave", "remove", "words", "leave_named"], DEFAULT_INLINE2NOTE.sourceProcessing.text)
     : (out.sourceProcessing.replaceWithLink ? "remove" : "leave");
   out.sourceProcessing.keepWords = Number.isFinite(Number(sp.keepWords))
     ? Math.max(1, Math.min(20, Math.trunc(Number(sp.keepWords))))
@@ -1807,19 +1807,28 @@ function applySourcePayloadReplace(line, noteTitle, separators) {
  */
 function applySourceTextFate(line, noteTitle, separators, opts) {
   const src = String(line || "");
-  const fate = normalizeMode(opts && opts.text, ["leave", "remove", "words"], "remove");
+  const fate = normalizeMode(opts && opts.text, ["leave", "remove", "words", "leave_named"], "remove");
   const link = !!(opts && opts.link);
   const title = String(noteTitle || "").trim();
   const linkText = link && title ? ("[[" + title + "]]") : "";
   const parts = splitSourcePayload(line, separators);
   /*
-   * Слова, ставшие названием, снимаются только при `words`.
+   * Слова, ставшие названием, снимаются только там, где **на их место встаёт
+   * ссылка**.
    *
-   * При `leave` человек попросил строку как была — снять из неё шесть слов
-   * значило бы отменить его же выбор; при `remove` текста не остаётся вовсе, и
-   * снимать нечего. Имя в скобках уходит при любом из трёх: оно не текст.
+   * Два условия, и оба обязательны. Положение: `leave` обещает строку как была
+   * — снять из неё шесть слов значило бы отменить выбор человека; при `remove`
+   * текста не остаётся вовсе, и снимать нечего. И ссылка: без неё на месте
+   * снятых слов не окажется ничего, а «заменить» значит поставить что-то
+   * вместо (замечание заказчика по T1, решение В-78 2026-09-07).
+   *
+   * `leave_named` — третье положение, заведённое его решением: текст остаётся
+   * целиком, кроме слов названия, и число слов ниже к нему не применяется.
+   *
+   * Имя в скобках уходит при любом положении: оно не текст, а название.
    */
-  const titleWords = fate === "words" ? (opts && opts.titleWords) : "";
+  const swapsName = fate === "words" || fate === "leave_named";
+  const titleWords = linkText && swapsName ? (opts && opts.titleWords) : "";
   const named = splitByTitleSource(parts.payload, opts && opts.explicitTitle, titleWords, opts && opts.i2n);
   /*
    * Текст остаётся, ссылки нет — строку не трогаем вовсе. Не осторожность:
@@ -1827,7 +1836,7 @@ function applySourceTextFate(line, noteTitle, separators, opts) {
    * не просил менять, менялась бы на пробел. Имя в скобках — исключение: его
    * надо снять и тогда.
    */
-  if (fate === "leave" && !linkText && !named.found) return src;
+  if ((fate === "leave" || fate === "leave_named") && !linkText && !named.found) return src;
   let head = named.head;
   let tail = named.tail;
   if (fate === "remove") {

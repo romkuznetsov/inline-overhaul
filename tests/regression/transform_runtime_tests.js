@@ -219,6 +219,25 @@ async function testTitleWordsSurviveLeave() {
     "при `leave` текст остаётся целиком, ссылка идёт за ним");
 }
 
+/**
+ * Третье положение целиком, от команды до строки (решение В-78, 2026-09-07).
+ *
+ * Сквозная не для красоты: значение приходит из конфига, а нормализация
+ * значений и разбор их в движке — два разных списка. Разойдутся — положение
+ * будет в панели и не будет в заметке.
+ */
+async function testLeaveNamedKeepsRestAndSwapsName() {
+  const editor = makeEditor("- :: one two three four five six seven :: tail");
+  const plugin = makePlugin(makeConfig({
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "leave_named" },
+  }), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertTrue(plugin.files.has("Notes/one two three four five six.md"),
+    "заметка названа первыми шестью словами: " + Array.from(plugin.files.keys()).join(", "));
+  assertEq(editor.text(), "- :: [[Notes/one two three four five six]] seven :: tail",
+    "ссылка встала на место названия, остаток текста цел и не обрезан");
+}
+
 async function run() {
   await testNewNoteRaceUsesActualPathLink();
   await testReplacePayloadFalse();
@@ -230,6 +249,7 @@ async function run() {
   await testManualCancelDoesNotMutate();
   await testTitleWordsReplacedByLink();
   await testTitleWordsSurviveLeave();
+  await testLeaveNamedKeepsRestAndSwapsName();
   console.log("Transform runtime regression tests: OK");
 }
 
