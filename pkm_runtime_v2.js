@@ -110,7 +110,7 @@ async function runCommand(ctx) {
   var entry = mod && typeof mod.entry === "function"
     ? mod.entry
     : (typeof mod === "function" ? mod : null);
-  if (!entry) throw new Error("runCommand: module has no callable entry: " + macroPath);
+  if (!entry) throw new Error("runCommand: module has no callable entry: " + command);
 
   var quickAddCtx = { app: app };
   var cursor = editor.getCursor();
