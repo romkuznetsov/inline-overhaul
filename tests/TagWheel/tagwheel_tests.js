@@ -1615,10 +1615,16 @@ function runUndoAfterPanelSuite() {
       return {
         cm: view,
         doc: function () { return view.state.doc.toString() },
-        /* Нажатия человека: своя ступень у каждого — между ними больше
-           полусекунды, и CodeMirror их не склеивает. */
-        human: function (spec) {
-          clock += 1000
+        /*
+         * Нажатия человека. `pause` решает, склеит ли их CodeMirror в одну
+         * ступень: больше полусотни миллисекунд — своя ступень у каждого,
+         * подряд — одна на оба. **Быстрый набор — это не мелочь фикстуры**:
+         * заказчик печатает Enter и цифру подряд, и в его случае ступень
+         * одна, а фикстура набора их разводила и потому видела дефект вдвое
+         * меньшим, чем он был (У-47).
+         */
+        human: function (spec, pause) {
+          if (pause !== false) clock += 1000
           view.dispatch(Object.assign({}, spec, {
             annotations: cmState.Transaction.time.of(clock)
           }))
@@ -1641,9 +1647,9 @@ function runUndoAfterPanelSuite() {
     }
 
     /* Те же три нажатия человека, что в замечании: Enter и `2`. */
-    function typeHisLines(editor) {
+    function typeHisLines(editor, pause) {
       editor.human({ changes: { from: 3, insert: '\n- ' }, selection: { anchor: 6 }, userEvent: 'input' })
-      editor.human({ changes: { from: 6, insert: '2' }, selection: { anchor: 7 }, userEvent: 'input.type' })
+      editor.human({ changes: { from: 6, insert: '2' }, selection: { anchor: 7 }, userEvent: 'input.type' }, pause)
       assertEq(editor.doc(), '- 1\n- 2', 'исходный документ собран его нажатиями')
     }
 
@@ -1656,33 +1662,42 @@ function runUndoAfterPanelSuite() {
       return out
     }
 
-    /* --- эталон: панели не было вовсе --------------------------------- */
-    var plainEditor = makeEditor()
-    typeHisLines(plainEditor)
-    var plain = undoSteps(plainEditor, 3)
-    assertArrayEq(plain, ['- 1\n- ', '- 1', '· - 1'],
-      'эталон: сам Obsidian снимает набранное, потом перенос строки')
-
-    /* --- сессия панели: открытие, два нажатия, применение -------------- */
-    function runPanel(writeWholeLine) {
+    /*
+     * Сессия панели, три записи вида и применение.
+     *
+     * `how` — чем панель пишет строку, и это три поколения одного места:
+     *   `now`      — как пишет плагин сегодня: различие **и** сохранённое
+     *                начало строки (`withKeptPrefix`, A43);
+     *   `diffOnly` — как писал вчера: только различие (A41). Начало строки
+     *                панель при этом снимала;
+     *   `whole`    — как писал позавчера: строка целиком (до A41).
+     *
+     * Вид панели берётся у самой панели, и начало строки к нему приписывает
+     * **функция плагина**, а не проверка: повторить её здесь значило бы
+     * закрепить свою копию правила (У-4).
+     */
+    function runPanel(how, pause) {
       var editor = makeEditor()
-      typeHisLines(editor)
+      typeHisLines(editor, pause)
+      var shown = views.map(function (v) {
+        return how === 'now' ? tagwheel.withKeptPrefix(original, v) : v
+      })
       var i
-      for (i = 0; i < views.length; i++) {
-        if (writeWholeLine) {
+      for (i = 0; i < shown.length; i++) {
+        if (how === 'whole') {
           var line = editor.cm.state.doc.line(2)
           editor.cm.dispatch({
-            changes: { from: line.from, to: line.to, insert: views[i] },
+            changes: { from: line.from, to: line.to, insert: shown[i] },
             annotations: cmState.Transaction.addToHistory.of(false)
           })
         } else {
-          tagwheel.setLineOutsideHistory(editor, 1, views[i])
+          tagwheel.setLineOutsideHistory(editor, 1, shown[i])
         }
       }
-      assertEq(editor.getLine(1), views[views.length - 1],
+      assertEq(editor.getLine(1), shown[shown.length - 1],
         'на строке стоит последний вид панели')
       /* Применение: возврат к исходной мимо истории, затем итог. */
-      if (writeWholeLine) {
+      if (how === 'whole') {
         var back = editor.cm.state.doc.line(2)
         editor.cm.dispatch({
           changes: { from: back.from, to: back.to, insert: original },
@@ -1696,36 +1711,88 @@ function runUndoAfterPanelSuite() {
       return editor
     }
 
-    var afterPanel = runPanel(false)
-    var steps = undoSteps(afterPanel, 4)
-
-    /* Первое нажатие: исходная строка, а не панель (это свойство A37). */
-    assertEq(steps[0], '- 1\n- 2',
-      'один Ctrl+Z возвращает строку, с которой человек начал')
-    /* Второе: то же, что без панели. Ради этого правка и делалась. */
-    assertEq(steps[1], plain[0],
-      'второе нажатие снимает набранное им `2` — как без панели')
     /*
-     * Третье: остаётся расхождение на один символ. Панель снимает со строки
-     * маркер списка `- `, и ступень Enter теряет его: `- 1-` вместо `- 1`.
-     * Это замер, а не починка (У-8): совсем цела история только у панели,
-     * которая не пишет в документ вовсе — разбор и цена в PRD 10.13.53,
-     * вопрос заказчику В-80.
+     * Два набора, и оба его: с паузой между Enter и цифрой и без неё. Второй —
+     * то, как человек печатает на самом деле, и ровно в нём дефект был вдвое
+     * крупнее: CodeMirror склеивает Enter и цифру в одну ступень, и панель
+     * уносила из неё сразу и перенос строки, и напечатанное.
      */
-    assertEq(steps[2], '- 1-',
-      'третье нажатие: от маркера списка остаётся символ — известный остаток дефекта')
+    var CASES = [
+      {
+        pause: true,
+        plain: ['- 1\n- ', '- 1', '· - 1'],
+        diffOnly: '- 1-',
+        whole: '- 1- 2'
+      },
+      {
+        pause: false,
+        plain: ['- 1', '· - 1', '· - 1'],
+        diffOnly: '- 1-',
+        whole: '- 1- 2'
+      }
+    ]
 
-    /* --- положительный контроль: прежняя запись строки целиком ---------- */
-    var afterWhole = runPanel(true)
-    var wholeSteps = undoSteps(afterWhole, 3)
-    assertEq(wholeSteps[0], '- 1\n- 2',
-      'при прежней записи первое нажатие тоже возвращало строку')
-    assertEq(wholeSteps[1], '- 1- 2',
-      'а второе давало ровно то, что он прислал: строки склеились')
-    assertTrue(wholeSteps[1] !== plain[0],
-      'то есть проверка отличает починку от прежнего поведения')
+    var ci
+    for (ci = 0; ci < CASES.length; ci++) {
+      var c = CASES[ci]
+      var how = c.pause ? 'с паузой' : 'быстрым набором'
 
-    console.log('  ok Ctrl+Z после панели: второе нажатие снимает набранное, как без панели')
+      /* --- эталон: панели не было вовсе -------------------------------- */
+      var plainEditor = makeEditor()
+      typeHisLines(plainEditor, c.pause)
+      var plain = undoSteps(plainEditor, 3)
+      assertArrayEq(plain, c.plain,
+        'эталон (' + how + '): так Obsidian отменяет набранное без панели')
+
+      /* --- как пишет плагин сегодня ------------------------------------ */
+      var steps = undoSteps(runPanel('now', c.pause), 4)
+      /* Первое нажатие: исходная строка, а не панель (это свойство A37). */
+      assertEq(steps[0], '- 1\n- 2',
+        'один Ctrl+Z возвращает строку, с которой человек начал (' + how + ')')
+      /*
+       * И дальше — посимвольно эталон. Не «похоже», а **равно**: у истории
+       * после панели не осталось ни одного расхождения с историей без панели.
+       */
+      assertArrayEq(steps.slice(1), plain,
+        'после панели история совпадает с историей без панели (' + how + ')')
+
+      /*
+       * Положительный контроль, и он двусторонний: оба прежних поведения
+       * обязаны дать ровно то, что заказчик и прислал. Без него проверка не
+       * отличила бы починку от того, что предмета нет (У-88).
+       */
+      var diffOnly = undoSteps(runPanel('diffOnly', c.pause), 4)
+      assertEq(diffOnly[0], '- 1\n- 2',
+        'вчерашняя запись тоже возвращала строку первым нажатием (' + how + ')')
+      assertTrue(diffOnly.slice(1).indexOf(c.diffOnly) !== -1,
+        'вчерашняя запись обязана дать `' + c.diffOnly + '` — то, что прислал '
+        + 'заказчик (' + how + '), а дала: ' + diffOnly.join(' | '))
+      assertTrue(diffOnly.slice(1).join('') !== plain.concat(plain[2]).join(''),
+        'то есть проверка отличает сегодняшнюю запись от вчерашней (' + how + ')')
+
+      var whole = undoSteps(runPanel('whole', c.pause), 4)
+      assertTrue(whole.indexOf(c.whole) !== -1,
+        'позавчерашняя обязана склеить строки в `' + c.whole + '` — первое '
+        + 'замечание (' + how + '), а дала: ' + whole.join(' | '))
+    }
+
+    /*
+     * И то, ради чего начало строки бережётся именно из **строки**, а не из
+     * разбора: у строки без знака списка его нет, и приписывать его человеку
+     * нельзя. `parseLine` в этом месте бесполезен — он досыпает `-` и такой
+     * строке.
+     */
+    assertEq(tagwheel.keptLinePrefix('plain text'), '',
+      'у строки без знака списка беречь нечего')
+    assertEq(tagwheel.keptLinePrefix('  - [x] сделано'), '  - [x] ',
+      'отступ, знак списка и чекбокс берегутся целиком')
+    assertEq(tagwheel.keptLinePrefix('- [test-transform] мой текст'), '- ',
+      'скобки длиннее одного знака чекбоксом не являются (У-91)')
+    assertEq(tagwheel.withKeptPrefix('plain text', 'панель :: plain text'),
+      'панель :: plain text',
+      'и тогда вид панели не трогается вовсе')
+
+    console.log('  ok Ctrl+Z после панели: история совпадает с историей без панели, оба набора')
   } finally {
     globalThis.__inlineLinePipeline = saved.linePipeline
     globalThis.__inlinePkmRulesHelpers = saved.helpers

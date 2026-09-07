@@ -56,10 +56,11 @@ var __cmState = require('@codemirror/state')
  * различия отодвигает `alignSurrogate`: разрезать пару UTF-16 нельзя — в
  * строках живут эмодзи (`📅`), и половина пары испортила бы текст.
  *
- * Полностью это дефект не снимает: маркер списка `- ` панель со строки всё
- * равно снимает, и ступень Enter теряет один символ из трёх. Совсем цела
- * история только у панели, которая **не пишет в документ вовсе** (разбор и
- * цена — PRD 10.13.53, вопрос заказчику В-80).
+ * Одного различия оказалось мало, и это выяснила вторая проверка заказчика:
+ * общего начала у строки и вида панели не было **ни одного символа**, потому
+ * что знака списка `renderControlLine` не рисует. Начало строки бережёт
+ * `withKeptPrefix` ниже (A43); вместе с ним история после панели совпадает с
+ * историей без панели посимвольно — и при быстром наборе тоже.
  */
 function lineDiffChange(from, oldText, newText) {
   var a = String(oldText == null ? '' : oldText)
@@ -87,6 +88,48 @@ function lineDiffChange(from, oldText, newText) {
 
 function isHighSurrogate(code) {
   return code >= 0xd800 && code <= 0xdbff
+}
+
+/**
+ * Начало строки, которое панель переписывать не имеет права: отступ, знак
+ * списка или заголовка и чекбокс — ровно в том написании, в каком их набрал
+ * человек.
+ *
+ * **Зачем это здесь.** `lineDiffChange` бережёт общий край строки, и этого
+ * оказалось мало: `renderControlLine` знака списка не рисует вовсе, поэтому
+ * общего начала у строки и вида панели не было ни одного символа. Панель
+ * снимала `- `, а вместе с ним из чужой ступени отмены пропадал перенос
+ * строки, которым человек эту строку и завёл. Его вторая проверка (W4,
+ * дефект A43): «строка 1 `- 3`, строка 2 `- 4`… ctrl-z second `- 3- 4`».
+ * Ступень Enter теряла две трети себя, а при быстром наборе — вместе с
+ * напечатанной цифрой, потому что Enter и цифра склеиваются CodeMirror в одну
+ * ступень.
+ *
+ * **Почему знак берётся из строки, а не из разбора.** `parseLine` досыпает
+ * `bulletToken: '-'` и строке, у которой знака списка не было вовсе
+ * (`plain text`), — по разбору знак не отличить от придуманного, и панель
+ * приписала бы человеку маркер, которого он не ставил.
+ *
+ * Чекбокс — ровно один знак в скобках: это правило платформы, а не наше
+ * (У-91).
+ */
+function keptLinePrefix(line) {
+  var m = /^(\s*(?:[-*+]|\d+[.)]|#{1,6})[ \t]+(?:\[.\][ \t]+)?)/.exec(String(line == null ? '' : line))
+  return m ? m[1] : ''
+}
+
+/**
+ * Вид панели с сохранённым началом строки.
+ *
+ * `renderControlLine` начинает с отступа (`parsedLine.indent`), поэтому знак
+ * списка встаёт **после** отступа, а не перед ним: иначе отступ удвоился бы.
+ */
+function withKeptPrefix(originalLine, control) {
+  var kept = keptLinePrefix(originalLine)
+  var text = String(control == null ? '' : control)
+  if (!kept || text.indexOf(kept) === 0) return text
+  var indent = /^[ \t]*/.exec(text)[0]
+  return kept + text.slice(indent.length)
 }
 
 function isLowSurrogate(code) {
@@ -2022,7 +2065,8 @@ async function runTagWheel(input, quickAddSettings) {
         state.core.sanitizeState(state.rules, state.session)
         ensureActiveFieldId(state)
         if (state.active) {
-          var control = state.core.renderControlLine(state.rules, state.session, state.parsedLine)
+          var control = withKeptPrefix(state.originalLine,
+            state.core.renderControlLine(state.rules, state.session, state.parsedLine))
           /* Вид панели — не правка человека, и в историю отмен он не идёт. */
           setLineOutsideHistory(state.editor, state.lineNumber, control)
           state.editor.setCursor({ line: state.lineNumber, ch: getControlCursorCh(state, control) })
@@ -2037,7 +2081,8 @@ async function runTagWheel(input, quickAddSettings) {
     ensureActiveFieldId(state)
     window.addEventListener('keydown', state.keyHandler, true)
 
-    var initialControl = core.renderControlLine(rules, session, parsedLine)
+    var initialControl = withKeptPrefix(originalLine,
+      core.renderControlLine(rules, session, parsedLine))
     setLineOutsideHistory(editor, lineNumber, initialControl)
     editor.setCursor({ line: lineNumber, ch: getControlCursorCh(state, initialControl) })
     updateScrollerOverlay(state, initialControl)
@@ -2110,3 +2155,5 @@ module.exports.normalizeEdgeMode = normalizeEdgeMode
    проверяется она без Obsidian (10.13.53). */
 module.exports.setLineOutsideHistory = setLineOutsideHistory
 module.exports.lineDiffChange = lineDiffChange
+module.exports.keptLinePrefix = keptLinePrefix
+module.exports.withKeptPrefix = withKeptPrefix

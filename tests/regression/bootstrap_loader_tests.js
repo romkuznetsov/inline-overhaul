@@ -1256,7 +1256,7 @@ async function run() {
    * почему ничего не произошло.
    */
   const openTail = (() => {
-    const from = tagwheelSrc.indexOf("var initialControl = core.renderControlLine(");
+    const from = tagwheelSrc.indexOf("var initialControl = withKeptPrefix(originalLine,");
     assertTrue(from > 0, "tagwheel open path still renders the initial control line");
     const to = tagwheelSrc.indexOf("} catch (e) {", from);
     assertTrue(to > from, "tagwheel open path still has its catch branch");
@@ -1978,6 +1978,21 @@ async function run() {
       "вид панели при нажатии пишется мимо истории");
     assertTrue(/setLineOutsideHistory\(editor, lineNumber, initialControl\)/.test(src),
       "первый вид панели тоже пишется мимо истории");
+    /*
+     * И оба вида собираются с сохранённым началом строки (A43). Пометки
+     * «мимо истории» и записи различием для целой истории мало: знака списка
+     * `renderControlLine` не рисует, и без `withKeptPrefix` панель снимала со
+     * строки `- `, унося его из чужой ступени отмены. Поведение закреплено в
+     * `tagwheel_tests.js`, но там вид панели собирает сама проверка — а вот
+     * **кто зовёт** эту функцию в плагине, видно только отсюда (У-56).
+     */
+    for (const call of [
+      "var control = withKeptPrefix(state.originalLine,",
+      "var initialControl = withKeptPrefix(originalLine,",
+    ]) {
+      assertTrue(src.includes(call),
+        "вид панели собирается без сохранённого начала строки: нет `" + call + "`");
+    }
     assertEq(offenders.join("; "), "",
       "в TagWheel строка пишется через setLineOutsideHistory: прямой setLine оставляет ступень отмены");
   }
