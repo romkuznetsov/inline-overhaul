@@ -444,8 +444,40 @@ function toPrettyJson(x) {
   return JSON.stringify(x, null, 2);
 }
 
+/**
+ * Прочитать значение по точечному пути.
+ *
+ * Отдаёт `undefined`, как только по дороге встретился не-объект: на этом стоит
+ * различение «настройки нет» и «настройка пуста», и менять его нельзя.
+ *
+ * Жило в `main.js`; переехало сюда 2026-09-07, когда слой оформления редактора
+ * стал отдельным модулем и звать этот путь понадобилось с двух сторон (У-32).
+ */
+function readCfgPath(root, path) {
+  let node = root;
+  for (const key of String(path || "").split(".")) {
+    if (!isObj(node)) return undefined;
+    node = node[key];
+  }
+  return node;
+}
+
+/** Записать значение по точечному пути, создавая объекты по дороге. */
+function writeCfgPath(root, path, value) {
+  const parts = String(path || "").split(".");
+  let node = root;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!isObj(node[parts[i]])) node[parts[i]] = {};
+    node = node[parts[i]];
+  }
+  node[parts[parts.length - 1]] = value;
+  return root;
+}
+
 module.exports = {
   cloneJson,
+  readCfgPath,
+  writeCfgPath,
   nz,
   escapeRe,
   normalizeFormatMask,

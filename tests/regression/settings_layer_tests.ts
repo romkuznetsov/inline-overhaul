@@ -1936,7 +1936,8 @@ async function main(): Promise<void> {
   await test("цвет панели TagWheel есть кому прочитать", () => {
     /*
      * Цвет заливки панели приезжает на строку переменной `--io-twfill`
-     * (`main.js`, декорация строки). Сама по себе она не красит ничего:
+     * (`src/core/editor_visuals_config.js`, разбор панели на отрезки; до
+     * 2026-09-07 это лежало в `main.js`). Сама по себе она не красит ничего:
      * красит правило в `styles.css`, которое ею перекрашивает подсветку
      * `==…==` самой Obsidian — единственный сплошной слой на этой строке.
      *
@@ -1947,7 +1948,8 @@ async function main(): Promise<void> {
      * «пустоты стали белого цвета» (`12.png`).
      */
     const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
-    const engine = fs.readFileSync(path.join(repoRoot, "main.js"), "utf8");
+    const engine = fs.readFileSync(
+      path.join(repoRoot, "src", "core", "editor_visuals_config.js"), "utf8");
 
     assert.ok(engine.includes("--io-twfill: "),
       "строка панели больше не несёт цвет заливки — красить будет нечем");

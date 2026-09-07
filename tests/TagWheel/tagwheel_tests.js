@@ -1247,26 +1247,35 @@ function runElementTokenSuite() {
     'элемент встаёт на своё место в Order, а не в конец')
 
   /*
-   * Второе объявление правила хвоста не разошлось с первым. Сверяются обе
-   * функции на наборе форматов; `main.js` читается как текст и исполняется
-   * своим же загрузчиком — тем же, которым его берут остальные проверки.
+   * Второе объявление правила хвоста не разошлось с первым.
+   *
+   * **Обе стороны — настоящие модули.** До 2026-09-07 второе объявление лежало
+   * в `main.js`, и достать его можно было только чтением исходника с
+   * исполнением через `new Function`; теперь слой оформления редактора —
+   * модуль, и он берётся `require`. Приём, который подменял одну из сторон,
+   * больше не нужен, а с ним ушла и ловушка У-92: сравнивать две стороны,
+   * достающиеся из одного места, значит получать «равны» само собой.
+   *
+   * Стороны разные по сути: `pkm_rules_runtime_helpers` выводит хвост для
+   * движков, `editor_visuals_config` — для отрисовки в редакторе.
    */
-  var mainSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'main.js'), 'utf8')
-  var at = mainSrc.indexOf('function elementTailPatternFromFormat(format) {')
-  if (at < 0) throw new Error('в main.js нет elementTailPatternFromFormat: правило переехало, сверить нечем')
-  var end = mainSrc.indexOf('\n}\n', at)
-  var body = mainSrc.slice(at, end + 3)
-  /* `escapeRegExp` в `main.js` называется иначе, чем здесь; для сверки хватает
-     той же семантики. */
-  var fromMain = new Function('escapeRegExp', body + '\nreturn elementTailPatternFromFormat;')(
-    function (t) { return String(t || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') })
+  var visuals = require(path.join(__dirname, '..', '..', 'src', 'core', 'editor_visuals_config.js'))
+  if (typeof visuals.elementTailPatternFromFormat !== 'function') {
+    throw new Error('в editor_visuals_config нет elementTailPatternFromFormat: правило переехало, сверить нечем')
+  }
 
   var formats = ['YYYY-MM-DD hh:mm', 'YYYY-MM-DD', 'hh:mm', 'DD.MM.YYYY', 'YYYY/MM/DD hh:mm:ss', '', 'YY']
+  var sameCount = 0
   for (var fi = 0; fi < formats.length; fi++) {
     var f = formats[fi]
-    assertEq(shared.elementTailPatternFromFormat(f), fromMain(f),
-      'правило хвоста совпадает с тем, что в main.js, для формата "' + f + '"')
+    var a = shared.elementTailPatternFromFormat(f)
+    var b = visuals.elementTailPatternFromFormat(f)
+    assertEq(a, b, 'правило хвоста совпадает с тем, что у слоя оформления, для формата "' + f + '"')
+    if (String(a || '').length) sameCount++
   }
+  /* Положительный контроль: сверка мерила не пустоту. Формат без токенов даёт
+     пустой хвост законно, поэтому непустых обязано быть больше нуля. */
+  assertTrue(sameCount >= 5, 'сверено непустых хвостов: ' + sameCount)
   console.log('  ok Т-14: элемент из двух слов не разрывается, правило хвоста одно')
 }
 

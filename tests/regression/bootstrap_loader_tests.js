@@ -179,6 +179,20 @@ async function run() {
   const tagwheelPath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js");
   const tagwheelCorePath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js");
   const src = fs.readFileSync(mainPath, "utf8");
+  /*
+   * Слой оформления редактора — два модуля с 2026-09-07 (кусок второй
+   * разбора A3). Утверждения о том, ГДЕ объявлено, читают их; о том, что
+   * расширение доехало до регистрации, — по-прежнему `main.js`.
+   *
+   * Переведены они не по именам, а сплошным обходом: у каждого утверждения
+   * о тексте `main.js` спросили, где теперь лежит его предмет. Иначе
+   * `assertFalse` на переехавшее осталось бы зелёным и охраняло пустоту
+   * (У-71).
+   */
+  const visualsSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "editor_visuals_config.js"), "utf8");
+  const decorSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "ui", "editor", "decorations.js"), "utf8");
   const configMigrationSrc = fs.readFileSync(configMigrationPath, "utf8");
   const linePipelineSrc = fs.readFileSync(linePipelinePath, "utf8");
   const pkmMacroSharedSrc = fs.readFileSync(pkmMacroSharedPath, "utf8");
@@ -389,6 +403,7 @@ async function run() {
       "./src/core/config_migration.js",
       "./src/core/config_migration_v2.ts",
       "./src/core/config_store.js",
+      "./src/core/editor_visuals_config.js",
       "./src/core/pkm_domain_registry.js",
       "./src/core/pkm_line_finalize_unified.js",
       "./src/core/pkm_macro_runtime_entry.js",
@@ -405,6 +420,7 @@ async function run() {
       "./src/features/smart_delete_engine.js",
       "./src/features/store_events_orchestrator.js",
       "./src/features/transform_feature.js",
+      "./src/ui/editor/decorations.js",
       "./src/ui/settings/obsidian_tab.ts",
     ];
     assertEq(own.join("\n"), expected.join("\n"), "main.js подключает ровно свои модули, и каждый один раз");
@@ -715,12 +731,12 @@ async function run() {
    * предыдущих расширения монтируются в двух местах, и третье, забытое в
    * одном из них, работало бы через раз.
    */
-  assertTrue(/function buildSourceMarkDecorations\(/.test(src), "main registers the source-mark decorations");
+  assertTrue(/function buildSourceMarkDecorations\(/.test(decorSrc), "main registers the source-mark decorations");
   assertTrue(/this\._sourceMarksExtension = createSourceMarkDecorationExtension\(this\);/.test(src), "and builds the extension on load");
   assertEq((src.match(/_sourceMarksCompartment\.(of|reconfigure)\(/g) || []).length, 3, "and mounts it everywhere the other two are mounted");
   /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */
   assertTrue(/callback: async \(\) => \{ await this\.runInlineToNote\(\); \},/.test(src), "the transform command delegates to the shared method");
-  assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(src), "and so does the floating button");
+  assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(decorSrc), "and so does the floating button");
 
   {
     const navSrc = fs.readFileSync(path.join(__dirname, "..", "..", "navigation_runtime.js"), "utf8");
@@ -1252,19 +1268,19 @@ async function run() {
   assertFalse(/<span style=\"color: /.test(tagwheelCoreSrc), "tagwheel_core does not inject inline HTML color wrappers");
   assertFalse(/<mark style=\"background-color: /.test(tagwheelCoreSrc), "tagwheel_core does not inject inline HTML fill wrappers");
   assertTrue(/createTagwheelHeaderDecorationExtension\(this\)/.test(src), "main registers live-preview tagwheel color decoration extension");
-  assertTrue(/function getTagVisualsFromConfig\(/.test(src), "main exposes tagVisuals config reader for runtime painter");
-  assertTrue(/function buildFieldTagVisualMap\(/.test(src), "main builds deterministic field-tag visual map");
-  assertTrue(/function resolveEffectiveTagVisualMode\(/.test(src), "main defines effective tag visual mode resolver with custom fallback");
-  assertTrue(/function normalizeRuntimeTagVisualRow\(/.test(src), "main defines shared runtime tag visual row normalizer");
-  assertTrue(/function scoreTagVisualRow\(/.test(src), "main defines deterministic tag visual row scoring");
-  assertTrue(/function pickStrongerTagVisualRow\(/.test(src), "main defines deterministic tag visual row merge chooser");
+  assertTrue(/function getTagVisualsFromConfig\(/.test(visualsSrc), "main exposes tagVisuals config reader for runtime painter");
+  assertTrue(/function buildFieldTagVisualMap\(/.test(visualsSrc), "main builds deterministic field-tag visual map");
+  assertTrue(/function resolveEffectiveTagVisualMode\(/.test(visualsSrc), "main defines effective tag visual mode resolver with custom fallback");
+  assertTrue(/function normalizeRuntimeTagVisualRow\(/.test(visualsSrc), "main defines shared runtime tag visual row normalizer");
+  assertTrue(/function scoreTagVisualRow\(/.test(visualsSrc), "main defines deterministic tag visual row scoring");
+  assertTrue(/function pickStrongerTagVisualRow\(/.test(visualsSrc), "main defines deterministic tag visual row merge chooser");
   assertFalse(/Object\.prototype\.hasOwnProperty\.call\(out, token\)\) continue;/.test(src), "main no longer uses first-win continue for token visual map merges");
-  assertTrue(/mode === "custom" \? "empty"/.test(src) || /return String\(row && row\.customText \|\| ""\)\.trim\(\) \? "custom" : "empty"/.test(src), "main maps custom mode with empty text to empty behavior");
-  assertTrue(/function resolveTagVisualZone\(/.test(src), "main defines zone resolver for left/right opacity");
-  assertTrue(/class TagVisualTokenWidget extends cmView\.WidgetType/.test(src), "main defines unified tag visual widget for full and empty rendering");
-  assertTrue(/this\.displayTextOverride = String\(displayTextOverride \|\| ""\)/.test(src), "tag visual widget supports custom display text override");
-  assertTrue(/displayTextOverride \|\| this\.tokenText/.test(src), "tag visual widget renders custom text when provided");
-  assertTrue(/function createTagVisualDecorationExtension\(plugin\)/.test(src), "main defines tag visual CM6 extension");
+  assertTrue(/mode === "custom" \? "empty"/.test(visualsSrc) || /return String\(row && row\.customText \|\| ""\)\.trim\(\) \? "custom" : "empty"/.test(visualsSrc), "main maps custom mode with empty text to empty behavior");
+  assertTrue(/function resolveTagVisualZone\(/.test(visualsSrc), "main defines zone resolver for left/right opacity");
+  assertTrue(/class TagVisualTokenWidget extends cmView\.WidgetType/.test(decorSrc), "main defines unified tag visual widget for full and empty rendering");
+  assertTrue(/this\.displayTextOverride = String\(displayTextOverride \|\| ""\)/.test(decorSrc), "tag visual widget supports custom display text override");
+  assertTrue(/displayTextOverride \|\| this\.tokenText/.test(decorSrc), "tag visual widget renders custom text when provided");
+  assertTrue(/function createTagVisualDecorationExtension\(plugin\)/.test(decorSrc), "main defines tag visual CM6 extension");
   assertTrue(/createTagVisualDecorationExtension\(this\)/.test(src), "main registers tag visual CM6 extension");
   assertFalse(/rt\.loadPkmOptionKeys\(\)/.test(tagwheelSrc), "tagwheel option key preload avoids direct runtime object method calls");
   assertFalse(/getDateFieldsFromRules/.test(tagwheelSrc), "tagwheel has no local getDateFieldsFromRules wrapper");
@@ -1412,9 +1428,9 @@ async function run() {
    * доезжал.
    */
   assertTrue(/registerEditorExtension\(createCaretLayerExtension\(this\)\)/.test(src), "main registers the own caret layer as an editor extension");
-  assertTrue(/cmView\.layer\(\{/.test(src), "own caret layer is built with the platform layer helper");
-  assertTrue(/cmView\.RectangleMarker\.forRange\(view, CARET_MARKER_CLASS, range\)/.test(src), "own caret layer measures its marker with the platform helper");
-  assertTrue(/class: CARET_LAYER_CLASS,/.test(src), "own caret layer names itself from the same constant the stylesheet uses");
+  assertTrue(/cmView\.layer\(\{/.test(decorSrc), "own caret layer is built with the platform layer helper");
+  assertTrue(/cmView\.RectangleMarker\.forRange\(view, CARET_MARKER_CLASS, range\)/.test(decorSrc), "own caret layer measures its marker with the platform helper");
+  assertTrue(/class: CARET_LAYER_CLASS,/.test(decorSrc), "own caret layer names itself from the same constant the stylesheet uses");
   assertTrue(/module\.exports\.planFieldStep = planFieldStep/.test(tagwheelSrc), "tagwheel exports the pure planner so the decision can be checked without Obsidian");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");

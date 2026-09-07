@@ -26,6 +26,13 @@ import * as obsidianStub from "./obsidian_stub.ts";
 
 type Any = ReturnType<typeof JSON.parse>;
 
+/*
+ * Часть имён здесь приходит уже не из `main.js`, а из модулей слоя
+ * оформления (`src/core/editor_visuals_config.js` и
+ * `src/ui/editor/decorations.js`). Для проверки разницы нет — она зовёт
+ * настоящую функцию плагина, — а для чтения кода есть: искать её надо в
+ * модуле.
+ */
 export interface PluginInternals {
   migrateConfig: (raw: Any) => Any;
   /**
@@ -102,18 +109,6 @@ const mainPath = path.resolve(here, "..", "..", "main.js");
 const EXPORT_TAIL = "\n;module.exports.__internals = {\n"
   + "  migrateConfig, normalizeConfigV1, normalizeConfigV2, buildOwnCommandList,\n"
   + "  normalizePkmOrder, ensureBehaviorModesFromOrder, DEFAULT_CONFIG,\n"
-  + "  TagVisualTokenWidget,\n"
-  + "  scanLineVisualTokens, buildElementMarkersFromConfig, buildBlockStyleCss,\n"
-  + "  tagwheelPanelSpanInLine, getTagwheelHeaderColorsFromConfig, TagwheelTokenWidget,\n"
-  + "  tagwheelPanelSpans, buildTagwheelPlaceholderSetFromConfig,\n"
-  + "  getSourceMarksFromConfig, lineHasProcessedToken,\n"
-  + "  FloatingTransformButtonWidget,\n"
-  + "  computeTagVisualStyle, TAG_EMPTY_BUBBLE_BASE_PX,\n"
-  + "  buildFieldTagVisualMap, buildGlobalTagVisualMap, readTagVisualRowByTokenMaps,\n"
-  + "  getTagVisualsFromConfig, resolveEffectiveTagVisualMode, normalizeHexColorInput,\n"
-  + "  resolveTagwheelPaintColors, TAGWHEEL_THEME_COLOR_VARS,\n"
-  + "  buildCaretStyleCss, caretLookFromConfig, caretBlinkMsFromSpeed,\n"
-  + "  caretShapeActive, caretLayerRangeFor,\n"
   + "};\n";
 
 /**
@@ -175,5 +170,19 @@ export function loadPluginInternals(): PluginInternals {
   if (!cached || typeof cached.migrateConfig !== "function") {
     throw new Error("main.js internals not available: migrateConfig missing");
   }
+  /*
+   * Слой оформления редактора живёт в двух модулях с 2026-09-07 (кусок
+   * второй разбора A3). Проверки зовут его через тот же `internals`, но
+   * достаётся он `require`, а не дописанным к исходнику хвостом.
+   *
+   * Почему это не подделка и не сокрытие: цепочку «`main.js` зовёт этот
+   * модуль» держит не здесь, а `bundle_onload_tests.ts` — он берёт
+   * собранный файл и считает зарегистрированные расширения редактора.
+   * Забудь `main.js` подключить модуль — краснеет там.
+   */
+  const requireCjs = Module.createRequire(mainPath);
+  const visuals = requireCjs("./src/core/editor_visuals_config.js") as Any;
+  const decorations = requireCjs("./src/ui/editor/decorations.js") as Any;
+  cached = { ...visuals, ...decorations, ...cached } as PluginInternals;
   return cached;
 }
