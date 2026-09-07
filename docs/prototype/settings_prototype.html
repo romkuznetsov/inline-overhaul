@@ -292,6 +292,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-callout--group + .io-item,
 .io-group__cmds + .io-item { border-top: 0; }
 
+/* Подсказка встаёт последним ребёнком строки и уходит на свою строчку
+   во всю её ширину (замечание заказчика 2026-09-07, 15.png). */
+.io-item { flex-wrap: wrap; }
+.io-item > .io-tip { flex: 1 0 100%; margin-top: 0; }
 .io-item__info { min-width: 0; flex: 1 1 auto; }
 .io-item__namerow { display: flex; align-items: center; gap: 6px; }
 .io-item__name { color: var(--text-normal); }
@@ -319,8 +323,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-help[aria-expanded="true"] { background: var(--interactive-accent); border-color: transparent; color: var(--text-on-accent); }
 
 .io-tip {
+  --io-tipstripe: var(--color-purple);
   margin: 7px 0 1px; padding: 8px 11px; max-width: 100%;
-  border-left: 2px solid var(--interactive-accent);
+  border-left: 2px solid var(--io-tipstripe);
   border-radius: 0 var(--radius-s) var(--radius-s) 0;
   background: var(--background-primary);
   font-size: var(--font-ui-small); color: var(--text-muted);
@@ -468,7 +473,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
   color: var(--text-faint); margin-bottom: 9px;
 }
-.io-preview__cap::after { content: ""; flex: 1; height: 1px; background: var(--background-modifier-border); }
 .io-preview__note { margin: 9px 0 0; font-size: var(--font-ui-smaller); color: var(--text-faint); max-width: 66ch; }
 .io-preview__note--top { margin: -4px 0 9px; }
 
@@ -575,7 +579,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-tablehead, .io-tablerow { display: grid; gap: 10px; align-items: center; padding: 8px 12px; }
 .io-tablehead {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-faint); background: var(--background-primary-alt);
+  color: var(--text-on-accent); background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-tablerow + .io-tablerow { border-top: 1px solid var(--background-modifier-border); }
@@ -637,7 +641,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-vals__inner { min-width: 620px; }
 .io-vals__head {
   font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-faint); background: var(--background-primary-alt);
+  color: var(--text-on-accent); background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
@@ -877,7 +881,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* command reference as a real table */
 .io-cmd__head {
   font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-muted); background: var(--background-primary-alt);
+  color: var(--text-on-accent); background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-cmd__name { font-size: var(--font-ui-small); color: var(--text-normal); }
@@ -888,8 +892,6 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 
 /* round four */
 .io-preview__cap { gap: 7px; }
-.io-preview__rule { flex: 1; height: 1px; background: var(--background-modifier-border); }
-.io-preview__cap::after { content: none; }
 
 .io-lead {
   margin: 14px 0 2px; max-width: 66ch;
@@ -1290,7 +1292,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-floatrow {
   display: flex; align-items: center; gap: 10px;
   padding: 5px 7px; border-radius: var(--radius-s);
-  background: var(--background-modifier-hover);
+  background: var(--background-primary);
 }
 .io-float {
   appearance: none; flex: 0 0 auto; cursor: pointer;
@@ -1391,11 +1393,19 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   display: flex; align-items: center; gap: 6px;
   padding: 7px 12px;
   font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-faint); background: var(--background-primary-alt);
+  color: var(--text-on-accent); background: var(--interactive-accent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-fields__colhead .io-tip { text-transform: none; letter-spacing: 0; font-weight: 400; }
-.io-fields__col:first-child .io-fields__colhead { background: var(--background-secondary); }
+/* «?» стоит на заливке акцентом: серая буква на ней сливалась. */
+.io-tablehead .io-help, .io-vals__head .io-help,
+.io-cmd__head .io-help, .io-fields__colhead .io-help {
+  color: var(--text-on-accent); border-color: var(--text-on-accent);
+}
+.io-tablehead .io-help[aria-expanded="true"], .io-vals__head .io-help[aria-expanded="true"],
+.io-cmd__head .io-help[aria-expanded="true"], .io-fields__colhead .io-help[aria-expanded="true"] {
+  background: var(--text-on-accent); border-color: transparent; color: var(--interactive-accent);
+}
 .io-btn--warn { border-color: var(--background-modifier-error); color: var(--text-error, #c0392b); }
 .io-btn--warn:hover { background: var(--background-modifier-error); color: var(--text-on-accent); }
 .io-vals__prev { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
@@ -2957,10 +2967,10 @@ function withId(text, id) {
   return String(text || "") + (text ? "<br><br>" : "") + "<code>" + key + "</code>";
 }
 
-function helpButton(nameRow, info, item) {
+function helpButton(nameRow, info, item, row) {
   const tipText = withId(item.tip, item.id);
   if (!tipText || !ctx.get("general.help.showTips")) return;
-  /* on a settings row the description sits between, so the tip goes after it */
+  /* the tip belongs to the whole row, so it spans past the control column */
   let tipEl = null;
   const help = el("button", "io-help", nameRow, "?");
   help.type = "button";
@@ -2971,8 +2981,8 @@ function helpButton(nameRow, info, item) {
     help.setAttribute("aria-expanded", shown ? "false" : "true");
     if (shown) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
     tipEl = rich(el("div", "io-tip"), tipText);
-    const anchor = info.querySelector(".io-meta");
-    if (anchor) info.insertBefore(tipEl, anchor); else info.appendChild(tipEl);
+    const host = row || info;
+    host.appendChild(tipEl);
   });
 }
 
@@ -3001,7 +3011,7 @@ function renderItem(parent, item) {
   const info = el("div", "io-item__info", row);
   const nameRow = el("div", "io-item__namerow", info);
   el("div", "io-item__name", nameRow, item.name);
-  helpButton(nameRow, info, item);
+  helpButton(nameRow, info, item, row);
   if (item.desc) rich(el("div", "io-item__desc", info), item.desc);
 
   const meta = el("div", "io-meta", info);
@@ -3285,7 +3295,6 @@ function previewShell(host, caption, tip) {
   const cap = el("div", "io-preview__cap", box);
   el("span", null, cap, caption);
   attachTip(cap, tip, caption, box);
-  el("span", "io-preview__rule", cap);
   return box;
 }
 function applyTagVars(node) {
