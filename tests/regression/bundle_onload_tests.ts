@@ -384,21 +384,27 @@ async function run(): Promise<void> {
       freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true },
     });
 
-    const drive = async (line: string, ch: number): Promise<string> => {
-      const editor = makeEditorStub(line, ch);
+    const run = async (editor: Any, command: string, extra: Any): Promise<void> => {
       app.workspace.activeEditor = { editor };
       app.workspace.activeLeaf = { view: { editor } };
       await plugin.pkmRuntimeV2.runCommand({
         app,
-        command: "statusTags",
+        command,
         settings: {
           "Rules path": rulesPath,
-          "Action type": "cycle_field:type",
-          "Direction": "increase",
           "Order config": orderConfig,
           "Cycle end behavior": "keep-bullet",
           "Cursor policy": "text_end",
+          ...extra,
         },
+      });
+    };
+
+    const drive = async (line: string, ch: number): Promise<string> => {
+      const editor = makeEditorStub(line, ch);
+      await run(editor, "statusTags", {
+        "Action type": "cycle_field:type",
+        "Direction": "increase",
       });
       return editor.snapshot();
     };
@@ -415,6 +421,61 @@ async function run(): Promise<void> {
     assert.ok(owner.includes("test1") && owner.includes("test2"),
       "и проза за ним остаётся");
     ok("движок PKM из сборки переписал строку и сохранил текст человека");
+
+    /*
+     * Три движка, а не один.
+     *
+     * `statusTags` выше отвечает за свой файл. `statusDate` и `tagWheel` —
+     * отдельные модули, и загрузка у каждого своя: в дефекте A33 они умерли
+     * все три, а сборка при этом собиралась и включалась. Поэтому каждый
+     * спрашивается тем же способом — переписал строку или нет.
+     *
+     * Ожидание у каждого выписано по тому, что делает именно он (У-5): дата
+     * сдвигается, TagWheel помечает строку своей панелью.
+     */
+    {
+      const dateOrder = JSON.stringify({
+        active: { date_due: "yes" },
+        panel: { date_due: "right" },
+        left: [],
+        right: ["date_due"],
+        types: { date_due: "element" },
+        strictNames: { date_due: "date_due" },
+      });
+      const editor = makeEditorStub("- [ ] #todo :: text :: 📅2026-04-08", 2);
+      app.workspace.activeEditor = { editor };
+      app.workspace.activeLeaf = { view: { editor } };
+      await plugin.pkmRuntimeV2.runCommand({
+        app,
+        command: "statusDate",
+        settings: {
+          "Rules path": rulesPath,
+          "Action type": "field_inc:date_due",
+          "Order config": dateOrder,
+          "Cycle end behavior": "keep-bullet",
+          "Cursor policy": "line_end",
+        },
+      });
+      const line = editor.snapshot();
+      assert.match(line, /📅2026-04-\d{2}/, "движок дат из сборки оставил дату токеном");
+      assert.ok(line.includes("text"), "и текст человека на месте");
+      ok("движок дат из сборки переписал строку");
+    }
+
+    {
+      /*
+       * TagWheel открывается первым вызовом и применяет выбор вторым — тем же
+       * порядком, каким его гоняют проверки исходников. Спрашивается не вид
+       * панели, а то, что строка после двух вызовов цела: панель, не доехавшая
+       * до бандла, роняет вызов, а не портит строку.
+       */
+      const editor = makeEditorStub("- [ ] #todo :: моя строка", 8);
+      await run(editor, "tagWheel", {});
+      await run(editor, "tagWheel", {});
+      const line = editor.snapshot();
+      assert.ok(line.includes("моя строка"), "TagWheel из сборки не потерял текст человека");
+      ok("TagWheel из сборки открылся и применился, строка цела");
+    }
   }
 
   console.log(`Bundle onload tests: OK (${passed} checks)`);
