@@ -72,7 +72,7 @@ export interface BinderViewOpts {
   onAdd: () => void;
   /** Видимый текст по имени из каталога (10.13.47). */
   say?: Say;
-  /** Тумблеры `Show tips` и `Show setting ids in tips`. */
+  /** Тумблеры `Show tips` и `Show option IDs in tips`. */
   showTips?: boolean;
   showIds?: boolean;
   /** Куда сложить снятие открытых подсказок: очистка блока обязана убрать всё (С5). */

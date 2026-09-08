@@ -237,7 +237,7 @@ export function tipBelow(o: {
   id: string;
   showTips: boolean;
   /**
-   * Тумблер `Show setting ids in tips` (10.13.5). Подписи id стояли у всех
+   * Тумблер `Show option IDs in tips` (10.13.5). Подписи id стояли у всех
    * строк схемы и **ни у одной** подсказки своего блока: `Values`,
    * `Behavior`, `YAML property`, `Name in TagWheel`, предпросмотры,
    * `Color your Tags`. Заказчик называет элементы их id, и без подписи ему

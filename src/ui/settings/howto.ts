@@ -5,7 +5,7 @@
  * версию файлом (`test-vault/inlineOverhaul Guide.md`, замечание F2) и просил
  * убрать опечатки и длинные тире. Правки сверх вычитки — только там, где текст
  * расходился с панелью: три подписи устарели (`Values per side` и `Opens` у
- * скроллера, `Child tag` как уровень пути, `Start over` вне `Settings backup`),
+ * скроллера, `Child tag` как уровень пути, `Start over` вне `Backup`),
  * и две фразы расходились с механикой (чем красятся Bars, как складываются
  * условия Smart Rules).
  *
@@ -118,7 +118,7 @@ function firstSteps(): string {
     "   `Priority` before your text, `Due` and `Project` after it. Open",
     "   `inlineOverhaul → Tags & PKM → Fields` and see what they hold. Once you have the",
     "   idea, delete the ones you do not want with the bin button, or go to",
-    "   `Advanced → Settings backup → Start over` and begin from scratch. They come with a",
+    "   `Advanced → Backup → Start over` and begin from scratch. They come with a",
     "   fresh install only: `Start over` does not bring them back.",
     "3. **Type a line and open TagWheel.** Write `- buy milk` in any note, put the cursor",
     "   on it and press your TagWheel key. The panel opens over the line. `Arrow left` and",
@@ -304,7 +304,7 @@ function proTips(): string {
     "* **Turn the explanations on.** `General → Help → Show callouts` and `Show tips`. If",
     "  inlineOverhaul is new to you, both are worth having on: a callout explains a whole",
     "  group, a tip explains one setting.",
-    "* **Do not forget to make backups.** `Advanced → Settings backup → Save a backup`",
+    "* **Do not forget to make backups.** `Advanced → Backup → Save a backup`",
     "  writes an ordinary note with everything you have set up. You can type into it, for",
     "  instance a reminder of why you took this copy.",
     "* **A backup brings everything back**, including the keys you gave to plugin commands.",

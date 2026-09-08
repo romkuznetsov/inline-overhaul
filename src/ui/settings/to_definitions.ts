@@ -97,7 +97,7 @@ export interface Wiring {
   /** Открытая вкладка: показываются только её группы. */
   activeTab: TabId;
   /**
-   * Тумблер `Show setting ids in tips` с вкладки Advanced (10.13.5): у группы
+   * Тумблер `Show option IDs in tips` с вкладки Advanced (10.13.5): у группы
    * id дописывается к вводной строке.
    */
   showIds?: boolean;

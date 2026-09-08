@@ -65,7 +65,7 @@ export interface DescribeOptions {
   /** Тумблер `Show tips` из группы Help. */
   showTips: boolean;
   /**
-   * Тумблер `Show setting ids in tips` с вкладки Advanced (10.13.5).
+   * Тумблер `Show option IDs in tips` с вкладки Advanced (10.13.5).
    *
    * Заказчик называет настройки их id, а не описанием места на экране, и без
    * этой подписи id негде увидеть: отладочный показ id и путей у каждой строки

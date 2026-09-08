@@ -36,8 +36,13 @@ const ENTITIES = ["Field","Fields","Value","Values","Bar","Bars","Prefix","Prefi
   "Separator","Separators","Block","Blocks","TagWheel","Binder","Transform","Wheel"];
 /* `Delete` is not here on purpose: `Smart Delete` gets its pass from KEY_NAME
    below, where the key names live. One word, one list. */
+/* An abbreviation keeps its capitals in sentence case, and three of these
+   are abbreviations rather than proper nouns: YAML, PKM and `IDs`. The
+   last one arrived with В-87, answered 2026-09-08: the owner renamed the
+   group `Setting ids` to `Options IDs` and its row to `Show option IDs in
+   tips`, so the rule has to know that `IDs` is not a Title Case slip. */
 const PROPER = new Set(["Obsidian","Markdown","YAML","Ctrl","Cmd","Inline","Dataview",
-  "Status","Priority","Strict","Free","Behavior","Position","PKM","I","Smart","Rules","Level"]);
+  "Status","Priority","Strict","Free","Behavior","Position","PKM","IDs","I","Smart","Rules","Level"]);
 const CASE_OK = new Set([...ENTITIES, ...PROPER]);
 
 /*

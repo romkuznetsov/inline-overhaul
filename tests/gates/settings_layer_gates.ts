@@ -650,7 +650,7 @@ else ok("схема загружена: групп " + SCHEMA.length);
   /*
    * У группы с заголовком подсказка обязана быть. Восемь групп жили без неё —
    * `Help`, `Modules`, `Writing rules`, `Prefix priority`, `Tag appearance`,
-   * `Tag Bars`, `Settings backup`, `Diagnostics`, — и по двум из них заказчик
+   * `Tag Bars`, `Backup`, `Diagnostics`, — и по двум из них заказчик
    * это и написал (C35, B22 упирались в `Tag appearance` и `Tag Bars`).
    *
    * Вводные группы-коллауты исключены не по доброте: заголовка у них нет

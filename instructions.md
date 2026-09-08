@@ -44,11 +44,11 @@ inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline note
 4. Open **Tags & PKM → Fields**. A fresh install already has four: `Status` and
    `Priority` before your text, `Due` and `Project` after it. Change them, delete what
    you do not need, or add your own. They come with a fresh install only, and
-   **Advanced → Settings backup → Start over** does not bring them back.
+   **Advanced → Backup → Start over** does not bring them back.
 5. Choose Separators and confirm the live preview.
 6. Assign hotkeys in Obsidian's standard **Settings → Hotkeys** screen. **Keyboard → Commands & Hotkeys** lists every command with the key it has now and takes you there.
 7. Leave **Transform inline to note** off until its output, naming, template, collision, and source-cleanup settings are reviewed.
-8. Once the setup works, save it: **Advanced → Settings backup → Save a backup** writes everything you have set up into a note in your vault.
+8. Once the setup works, save it: **Advanced → Backup → Save a backup** writes everything you have set up into a note in your vault.
 
 On load, the plugin migrates saved settings and writes a generated rules note used by PKM and inline navigation. That generated rules note is derived output; do not treat it as the editable source of truth.
 
@@ -432,7 +432,7 @@ Element markers are removed from YAML values in both modes. Clean numeric priori
 
 Everything you set up here lives in one place, and one button writes it out:
 
-1. Open **Advanced → Settings backup**.
+1. Open **Advanced → Backup**.
 2. Select **Save a backup**. The plugin writes a note into the backup folder. It is
    an ordinary note, so it syncs with the vault and can be copied anywhere.
 3. In the destination vault, install and enable the same plugin version.
@@ -747,10 +747,10 @@ Recommended setup pattern:
 
 Do not bind Transform to a single easy-to-press key during beta testing.
 
-## Settings backup
+## Backup
 
 Everything you set up here lives in one file inside your vault, and the plugin can
-write a copy of it as an ordinary note. Open **Advanced → Settings backup**.
+write a copy of it as an ordinary note. Open **Advanced → Backup**.
 
 - **Backup folder**: where in your vault the copies go. The folder is made when
   you save the first backup, not before.
@@ -812,7 +812,7 @@ your edits do not survive.
 
 ### Settings look wrong after an update or an experiment
 
-Open **Advanced → Settings backup** and press **Restore a backup**. If you have
+Open **Advanced → Backup** and press **Restore a backup**. If you have
 never saved one, the list still offers the copy the plugin kept when it upgraded
 your settings. With **Save a backup before restoring** on, restoring saves what you
 have now first, so you can go back either way.
@@ -821,7 +821,7 @@ have now first, so you can go back either way.
 
 - Immediately run **Undo last settings change**.
 - Settings save on their own shortly after a change; there is no manual flush.
-- If that is not enough, restore a backup: **Advanced → Settings backup → Restore a backup**.
+- If that is not enough, restore a backup: **Advanced → Backup → Restore a backup**.
 
 ### Transform created the wrong result
 

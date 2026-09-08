@@ -591,7 +591,7 @@ function buildBackupNote(o) {
       ? ["Left out, so restoring keeps what you have there: " + missingLabels(parts).join(", ") + "."]
       : []),
     "",
-    "To bring these settings back, open **Settings → inlineOverhaul → Advanced → Settings backup**",
+    "To bring these settings back, open **Settings → inlineOverhaul → Advanced → Backup**",
     "and press `Restore a backup`. Restoring replaces the tabs listed above and leaves the rest alone;",
     "whether the plugin saves what you have at that moment before it writes is a toggle there.",
     "",

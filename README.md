@@ -44,7 +44,7 @@ Four Fields, so there is something to press on the first day:
 | `Project` | link | after your text | `[[Project A]]`, `[[Project B]]` |
 
 They are yours to change or delete in **Tags & PKM → Fields**. They arrive with a fresh
-install only: **Advanced → Settings backup → Start over** wipes them and does not put them
+install only: **Advanced → Backup → Start over** wipes them and does not put them
 back.
 
 **No command has a key until you give it one.** The plugin assigns no default hotkeys, so
@@ -210,10 +210,10 @@ rewrites the line you are standing on.
 
 ### Advanced
 
-- **Settings backup**: `Save a backup` writes everything you have set up into an ordinary
+- **Backup**: `Save a backup` writes everything you have set up into an ordinary
   note in your vault. It travels with the vault, so restoring it on another machine is how
   a setup moves. `Start over` deletes everything and always writes a backup first.
-- **Setting ids**: puts the id of a setting into its tip, which is the fastest way to tell
+- **Options IDs**: puts the id of a setting into its tip, which is the fastest way to tell
   us exactly which control you mean.
 
 ## Build and test

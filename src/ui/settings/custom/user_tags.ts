@@ -239,7 +239,7 @@ export interface UserTagsViewOpts {
   onRename: (row: UserTagRow, raw: string) => void;
   /** Показывать ли «?» у колонок: тумблер с вкладки General. */
   showTips: boolean;
-  /** Тумблер `Show setting ids in tips`: подпись id в конце подсказки (A3, C52). */
+  /** Тумблер `Show option IDs in tips`: подпись id в конце подсказки (A3, C52). */
   showIds?: boolean;
   /** Куда складывать снятие подсказок: их обязан убрать за собой блок (С5). */
   closers: Array<() => void>;

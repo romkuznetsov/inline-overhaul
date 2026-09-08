@@ -273,7 +273,7 @@ export interface FieldsViewOpts {
   /** Модуль выключен: вёрстка показывается, но ничего не меняет. */
   enabled: boolean;
   showTips: boolean;
-  /** Тумблер `Show setting ids in tips`: подпись id в конце подсказки (A3, C52). */
+  /** Тумблер `Show option IDs in tips`: подпись id в конце подсказки (A3, C52). */
   showIds?: boolean;
   /** Перерисовать редактор целиком: список зависит от порядка Fields. */
   redraw: () => void;

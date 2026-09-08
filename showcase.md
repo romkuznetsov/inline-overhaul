@@ -273,7 +273,7 @@ Generate a Markdown configuration and apply it to reproduce a PKM setup in anoth
 
 ![Generate and apply a portable Markdown configuration](media/showcase/pkm-config-workflow.gif)
 
-*Снято 2026-09-03: конфиг-заметки в плагине больше нет. Копию всех настроек пишет `Advanced → Settings backup`, гифка осталась как история.*
+*Снято 2026-09-03: конфиг-заметки в плагине больше нет. Копию всех настроек пишет `Advanced → Backup`, гифка осталась как история.*
 
 ## PKM runtime
 

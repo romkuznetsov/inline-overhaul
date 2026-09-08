@@ -16,17 +16,17 @@ export const ADVANCED_GROUPS: readonly SettingsGroup[] = [
   ],
   visible: on("general.help.showCallouts") },
 {
-  id: "setting-ids", tab: "advanced", order: 150, heading: "Setting ids",
+  id: "setting-ids", tab: "advanced", order: 150, heading: "Options IDs",
   intro: "Every setting and every group here has a short id. Turn this on and you can name one instead of describing where it sits on screen",
   tip: "Ids are what the plugin\u2019s own notes, reports and issues call settings by. They never change when a name or a description is reworded, so they are the safe way to point at a setting \u2014 in a bug report, in a question, or when someone walks you through a fix",
   items: [
     { kind:"toggle", id:"show-setting-ids", path:"advanced.showSettingIds", default:false,
-      name:"Show setting ids in tips", desc:"Put the id of each setting and group at the end of its tip",
+      name:"Show option IDs in tips", desc:"Put the id of each setting and group at the end of its tip",
       tip:"The id goes into the tip, so <code>Show tips</code> on the General tab has to be on as well. Settings without a tip of their own get one with just the id in it" }
   ]
 },
 {
-  id: "settings-backup", tab: "advanced", order: 190, heading: "Settings backup",
+  id: "settings-backup", tab: "advanced", order: 190, heading: "Backup",
   intro: "A backup is an ordinary note in your vault. It holds everything you have set up here, so you can come back to it later or carry your setup to another vault",
   tip: "Saving writes a new note every time and never overwrites an earlier one, so the folder fills up and it is on you to delete what you no longer want. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards; whether the plugin saves what you have now before it writes is the toggle below. Because a backup is an ordinary note, syncing your vault carries it to your other machine, and restoring it there is how a setup travels",
   items: [

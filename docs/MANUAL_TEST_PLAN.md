@@ -32,7 +32,7 @@
 сказать «работает» может только ваш взгляд.
 
 Найденное записывайте по ходу, не откладывая: имя вкладки, имя строки и — если
-дело в настройке — её id. **Включите `Advanced → Setting ids → Show setting ids
+дело в настройке — её id. **Включите `Advanced → Options IDs → Show option IDs
 in tips`**: он для этого и сделан, id появится последней строкой подсказки.
 
 ## 0. Подготовка
@@ -120,7 +120,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 | Tags & PKM | Before you start, Fields, Separators, Writing rules, Placement modes, Prefix priority |
 | Visual | Before you start, Inline appearance, Color your Tags, Tag Bars, TagWheel |
 | Transform | Before you start, Inline to note, Naming, Note content, Source line, Smart Rules |
-| Advanced | Before you start, Setting ids, Settings backup, Diagnostics |
+| Advanced | Before you start, Options IDs, Backup, Diagnostics |
 
 - **⚙ Всего 35 групп и 104 привязанные настройки.** Считать не нужно — важно,
   что ни одна группа не пропала и порядок не перемешался.
@@ -235,13 +235,13 @@ npm run install:test -- "C:\путь\до\новой\папки"
   тестовом vault, не на рабочем.**
 - **Конфигурационная заметка снята 2026-09-03** (PRD 10.12): проверять нечего.
   Её работу — копию настроек и перенос в другой vault — делает
-  `Advanced → Settings backup`, раздел 5 ниже.
+  `Advanced → Backup`, раздел 5 ниже.
 
 ## 5. Копии настроек — новое, проверять внимательно
 
 Сделано сегодня, в живом Obsidian не запускалось ни разу.
 
-- **👁 Круг.** `Advanced → Settings backup → Save a backup`. В vault обязана
+- **👁 Круг.** `Advanced → Backup → Save a backup`. В vault обязана
   появиться заметка в папке из настройки (по умолчанию `inlineOverhaul/Backups`).
   Откройте её глазами: сверху дата, версия и состав, ниже блок `json`.
 - **👁 Восстановление.** Поменяйте что-то заметное (размер тегов, цвет Value),
@@ -260,7 +260,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 - **👁 Дважды подряд.** Второе восстановление той же копии обязано сказать, что
   менять нечего.
 - **👁 Папка копий остаётся своей** (10.13.44). Восстановите копию, снятую в
-  другом vault, где путь папки другой. `Advanced → Settings backup →
+  другом vault, где путь папки другой. `Advanced → Backup →
   Backup folder` обязан остаться вашим, а в окне перед нажатием обязана стоять
   строка `Backups stay where they are now`.
 - **👁 Про хоткеи окно говорит всегда** (10.13.45). Четыре случая, и в каждом
@@ -309,7 +309,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 
 1. На первом устройстве сохраните копию.
 2. Дайте vault синхронизироваться (или перенесите заметку руками).
-3. На втором устройстве откройте `Advanced → Settings backup → Restore a backup`,
+3. На втором устройстве откройте `Advanced → Backup → Restore a backup`,
    выберите копию, согласитесь, перезапустите Obsidian.
 4. Проверьте, что приехало **всё**: Fields, Values, цвета, Binder, Transform.
 5. Проверьте, что **не** приехало состояние окна первого устройства.
@@ -373,7 +373,7 @@ npm run install:test -- "C:\путь\до\новой\папки"
 Чтобы находка сразу превратилась в правку, а не в переписку:
 
 1. **Где:** вкладка, группа, имя строки. Для настройки — её id (включите
-   `Show setting ids in tips`).
+   `Show option IDs in tips`).
 2. **Что сделали** — по шагам, от открытия панели.
 3. **Что получилось и что ожидали.**
 4. **Консоль:** есть ли там ошибка в момент находки.
