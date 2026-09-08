@@ -119,6 +119,20 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
   const bandColor = String(ctx.get("visual.tags.blockFill.color") || "").trim();
   cssVar(node, "--io-blockfill-color", bandColor || "var(--text-accent)");
   cssVar(node, "--io-blockfill-opacity", String(num(ctx, "visual.tags.blockFill.opacity") / 100));
+  /*
+   * На сколько подложка выходит за написанное (S7). Высота — в точках. Ширина
+   * — в долях расстояния до разделителя, а это расстояние здесь и есть
+   * промежуток флекса `--io-line-gap`: сотня значит «вплотную к разделителю»,
+   * ровно как в заметке.
+   *
+   * Без этих двух строк предпросмотр показывал бы подложку **постоянного**
+   * размера при любом положении ползунков — то есть был бы вторым,
+   * расходящимся объявлением правила (У-32). Ровно этим он и был до
+   * 2026-09-09, и заказчик увидел разницу между панелью и заметкой.
+   */
+  cssVar(node, "--io-blockfill-pady", String(num(ctx, "visual.tags.blockFill.heightPx")) + "px");
+  cssVar(node, "--io-blockfill-padx",
+    "calc(var(--io-line-gap) * " + String(num(ctx, "visual.tags.blockFill.widthPct") / 100) + ")");
   if (ctx.get("visual.tags.blockFill.enabled") === true) node.addClass("io-line--blockfill");
 }
 

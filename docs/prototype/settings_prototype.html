@@ -1265,7 +1265,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-tree { --io-lane-count: 3; padding-left: 3px; }
 .io-node { position: relative; display: flex; flex-direction: column; border-left: 0; }
 .io-node--bar::before {
-  content: ""; position: absolute; top: 0; bottom: 0;
+  content: ""; position: absolute;
+  /* Запасное значение равно умолчанию настройки — как и в стилях панели. */
+  top: var(--io-bar-inset, 2px); bottom: var(--io-bar-inset, 2px);
   left: calc(var(--io-lane, 0) * var(--io-bar-gap));
   width: var(--io-bar-thickness); border-radius: 2px;
   background: var(--io-bar-color, var(--text-faint));
@@ -3831,6 +3833,11 @@ function renderBarsPreview(host) {
     cssVar(tree, "--io-bar-thickness", val("visual.tagBars.thickness") + "px");
     cssVar(tree, "--io-bar-gap",       val("visual.tagBars.childOffset") + "px");
     cssVar(tree, "--io-bar-distance",  val("visual.tagBars.spacing") + "px");
+    /* Зазор между полосами соседних строк (`Gap between Bars`, 10.13.16).
+       Панель его показывала, а прототип — нет: правило вида было объявлено
+       дважды и разошлось молча (У-32). Найдено сверкой переменных двух
+       предпросмотров 2026-09-09. */
+    cssVar(tree, "--io-bar-inset",     val("visual.tagBars.lineGap") + "px");
     (pt.tree || []).forEach(n => drawNode(tree, n, 0, 0));
     /* Полосы включены, а Field не выбран: на экране пустое дерево, и
        человек не знает, что настройка ждёт ещё один выбор (1.5.3.2). */

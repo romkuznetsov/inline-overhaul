@@ -620,10 +620,13 @@
 
 /* Выдуманная строка: та же раскладка, что у строки в редакторе. */
 .io-line {
+  /* Промежуток между блоком и разделителем: им же меряется `Band width`
+     подложки, и второе его объявление разошлось бы с первым молча (У-32). */
+  --io-line-gap: 5px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: var(--io-line-gap);
   padding: 3px 0;
   font-size: var(--font-ui-small);
   color: var(--text-normal);
@@ -692,7 +695,19 @@
   background-color: color-mix(in srgb,
     var(--io-blockfill-color) calc(var(--io-blockfill-opacity, 0.12) * 100%), transparent);
   border-radius: var(--radius-s);
-  padding: 1px 4px;
+  /*
+   * **Поля и отрицательные отступы к ним — пара** (замечание по S7,
+   * 2026-09-09): подложка обязана выйти за написанное, но не раздвинуть
+   * строку. Поля растят её, отступы возвращают соседей на место — так же, как
+   * в заметке, где слой рисует прямоугольник и вёрстки не касается вовсе.
+   *
+   * Прежде здесь стояло `padding: 1px 4px` без отступов и без настроек. Это
+   * было второе, расходящееся объявление правила «на сколько подложка больше
+   * написанного»: в предпросмотре панели она была больше, в заметке — ровно по
+   * пузырю тега, то есть невидима. Заказчик увидел ровно эту разницу.
+   */
+  padding: var(--io-blockfill-pady, 3px) var(--io-blockfill-padx, 3px);
+  margin: calc(-1 * var(--io-blockfill-pady, 3px)) calc(-1 * var(--io-blockfill-padx, 3px));
 }
 
 /*
