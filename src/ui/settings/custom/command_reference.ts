@@ -24,7 +24,7 @@
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, btn, type El } from "./dom.ts";
+import { el, btn, tipBelow, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { COMMAND_TEXTS } from "../schema/custom_texts.ts";
 import { commandKey } from "../texts_custom.ts";
@@ -78,8 +78,19 @@ const FAMILY_BY_ROW: Readonly<Record<string, string>> = {
   "Toggle <module> module": "module-toggle",
 };
 
-/** Заголовки колонок. Сняты с прототипа, живут в каталоге (10.13.47). */
-const HEAD = ["COL_COMMAND", "COL_DOES", "COL_HOTKEY"] as const;
+/**
+ * Заголовки колонок и подсказка каждого. Сняты с прототипа, живут в каталоге
+ * (10.13.47).
+ *
+ * Подсказки заведены 2026-09-08 по заказу заказчика: «добавь tip ко всем
+ * элементам, у которых еще нет». Тело раскрывается в слот ПОД шапкой, во всю
+ * ширину справочника — тот же приём, что в таблице Values.
+ */
+const HEAD = [
+  ["COL_COMMAND", "COL_COMMAND_TIP"],
+  ["COL_DOES", "COL_DOES_TIP"],
+  ["COL_HOTKEY", "COL_HOTKEY_TIP"],
+] as const;
 
 /** Строка справочника: текст прототипа, команда плагина и часть области. */
 interface Row {
@@ -156,11 +167,21 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
 
   const plugin = platform.plugin as CommandHost & Record<string, unknown>;
   const canOpen = canOpenHotkeys(plugin);
+  const showTips = Boolean(ctx.get("general.help.showTips"));
+  const showIds = Boolean(ctx.get("advanced.showSettingIds"));
   let mounted: El | null = null;
+  /* Снятие открытых подсказок: перерисовка выбрасывает узел, а очистка блока
+     обязана убрать за собой всё, что он завёл (С5). */
+  let tipClosers: Array<() => void> = [];
+  const dropTips = (): void => {
+    for (const close of tipClosers) { try { close(); } catch { /* узла уже нет */ } }
+    tipClosers = [];
+  };
 
   const draw = (): void => {
     /* Скролл и фокус снимаются до подмены узла и возвращаются после (A8). */
     const keep = keepView(box);
+    dropTips();
     const next = el(box, "div", "io-cmdblock__mount");
     try {
       fill(next);
@@ -184,7 +205,19 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
     const inner = el(card, "div", "io-cmd__inner");
 
     const head = el(inner, "div", "io-cmd__head");
-    for (const title of HEAD) el(head, "div", undefined, words(title));
+    const headTips = el(inner, "div", "io-tabletipslot");
+    for (const [title, tipName] of HEAD) {
+      const cell = el(head, "div", undefined);
+      el(cell, "span", "io-tablehead__text", words(title));
+      tipClosers.push(tipBelow({
+        head: cell,
+        host: headTips,
+        text: words(tipName),
+        label: words(title),
+        id: "io-cmd-col-" + title.toLowerCase().replace(/_/g, "-") + "-tip",
+        showTips, showIds,
+      }));
+    }
 
     COMMAND_TEXTS.forEach((area, areaAt) => {
       const rows: Row[] = [];
@@ -249,9 +282,30 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
         if (area.parts && band && band !== part) {
           part = band;
           field = "";
-          el(inner, "div", "io-cmd__sub", band === "user"
+          /*
+           * Подпись части занимает строку целиком, поэтому «?» стоит в ней
+           * самой, а тело раскрывается сразу под ней — слот тут не нужен
+           * (заказ заказчика 2026-09-08).
+           */
+          const user = band === "user";
+          const sub = el(inner, "div", "io-cmd__sub");
+          const text = user
             ? say("parts.user", area.parts.user)
-            : say("parts.standard", area.parts.standard));
+            : say("parts.standard", area.parts.standard);
+          el(sub, "span", undefined, text);
+          /* Слот стоит сразу за подписью: `tipBelow` дописывает тело в конец
+             хозяина, и хозяином тут обязан быть узел рядом с подписью, а не
+             весь справочник — иначе подсказка откроется под последней
+             строкой таблицы. */
+          const slot = el(inner, "div", "io-tabletipslot");
+          tipClosers.push(tipBelow({
+            head: sub,
+            host: slot,
+            text: words(user ? "PART_USER_TIP" : "PART_STANDARD_TIP"),
+            label: text,
+            id: "io-cmd-part-" + (user ? "user" : "standard") + "-" + areaAt + "-tip",
+            showTips, showIds,
+          }));
         }
         /*
          * Свой подзаголовок на каждый Field (замечание заказчика 2026-08-31):
@@ -304,6 +358,7 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
 
   return () => {
     stop();
+    dropTips();
     box.empty();
   };
 };

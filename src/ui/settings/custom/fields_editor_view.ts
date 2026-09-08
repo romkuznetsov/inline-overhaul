@@ -53,7 +53,13 @@ export const TYPE_LABEL: Record<FieldKind, string> = {
  */
 export { TYPE_COLOR };
 
-const SIDE_LABEL = { left: "Left Block", right: "Right Block" } as const;
+/*
+ * Подпись стороны — **имя строки каталога**, а не слово. Литералы стояли здесь
+ * до 2026-09-08, и это было второе объявление `SIDE_LEFT` и `SIDE_RIGHT`:
+ * строки лежали в каталоге, никто их не спрашивал, и перевод подписи не
+ * применялся никогда (У-82).
+ */
+const SIDE_LABEL = { left: "SIDE_LEFT", right: "SIDE_RIGHT" } as const;
 
 
 /** Пустая сторона — приглашение, а не ошибка (ПЗ2, ПЗ3). */
@@ -172,8 +178,18 @@ const PREREQ_OPTIONS = [
 /* Текст задан заказчиком 2026-08-28. */
 
 /**
- * Подсказки колонок таблицы Values. Есть у каждой колонки, о которой человеку
- * есть что сказать; у `Fill`, `Text` и `Preview` подпись и есть объяснение.
+ * Подсказки колонок таблицы Values — **имена строк каталога**, а не слова.
+ *
+ * До 2026-09-08 здесь стояли сами слова, и это было второе их объявление:
+ * `LEVEL_TIP`, `VALUE_TAG_TIP`, `VALUE_LINK_TIP`, `VALUE_PREFIX_TIP` и
+ * `VALUE_SHOWN_TIP` лежали в каталоге, никто их не спрашивал, и **перевод
+ * колонок не применялся никогда** — человек правил строку в своём файле, а на
+ * экране ничего не менялось (У-82). Признак был на виду: константа текста
+ * объявлена, экспортирована и нигде не используется (У-80).
+ *
+ * Подсказка есть у **каждой** подписанной колонки — заказ заказчика
+ * 2026-09-08: «добавь tip ко всем элементам, у которых еще нет, чтобы было
+ * универсально (например, fill, text, preview и т.д.)».
  *
  * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
  * соседнюю ячейку — колонки узкие (замечание заказчика 2026-08-27). Сама
@@ -183,19 +199,15 @@ const PREREQ_OPTIONS = [
 function columnTips(isLink: boolean): Record<string, string> {
   return {
     /* Строка заказчика: она заменила подпись в подвале таблицы. */
-    Level: "change Value to be parent or child by pressing arrows. "
-      + "Child Values are only active when Parent Value is present",
+    Level: "LEVEL_TIP",
     /* У ссылки своя запись значения, и подсказка говорит про неё, а не про тег
        (замечание заказчика 2026-08-27). */
-    Value: isLink
-      ? "The link this Value writes. It may be written as <code>[[link]]</code> or as "
-        + "<code>link</code> — both are read the same way"
-      : "The text of the Value. A tag may be written with <code>#</code> or without it "
-        + "— both are read the same way",
-    Prefix: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or "
-      + "<code>[x]</code>. Empty leaves the usual list marker",
-    Show: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints "
-      + "its color and nothing else, <b>custom</b> prints the text you give",
+    Value: isLink ? "VALUE_LINK_TIP" : "VALUE_TAG_TIP",
+    Prefix: "VALUE_PREFIX_TIP",
+    Show: "VALUE_SHOWN_TIP",
+    Fill: "VALUE_FILL_TIP",
+    Text: "VALUE_TEXT_TIP",
+    Preview: "VALUE_PREVIEW_TIP",
   };
 }
 
@@ -292,7 +304,15 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
   const side = (value: "left" | "right"): void => {
     const sec = el(list, "div", "io-side");
     const cap = el(sec, "div", "io-side__cap");
-    el(cap, "span", "io-side__label", SIDE_LABEL[value]);
+    const label = el(cap, "span", "io-side__label", say(SIDE_LABEL[value]));
+    /*
+     * Знака «?» у подписи стороны нет, и это объявленное исключение из заказа
+     * «tip у всех элементов» (2026-09-08): колонка списка шириной 188 точек, и
+     * тело подсказки встало бы в неё столбиком по два слова (У-105). Смысл
+     * уехал в подсказку шапки колонки (`LIST_TIP`), а здесь — родная подсказка
+     * Obsidian: одна подсказка на узел и только `aria-label` (У-21).
+     */
+    label.setAttribute("aria-label", say(value === "left" ? "SIDE_LEFT_ABOUT" : "SIDE_RIGHT_ABOUT"));
 
     /* Бросок мимо строк — в конец стороны. */
     sec.addEventListener("dragover", ((ev: DragEv) => {
@@ -1139,12 +1159,12 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
   for (const title of columns) {
     const cell = el(headRow, "div", "io-vals__col");
     el(cell, "span", "io-vals__coltext", title);
-    const tip = tips[title];
-    if (!tip) continue;
+    const name = tips[title];
+    if (!name) continue;
     closers.push(tipBelow({
       head: cell,
       host: colTips,
-      text: tip,
+      text: say(name),
       label: title,
       id: "io-values-col-" + title.toLowerCase() + "-tip",
       showTips: o.showTips, showIds: o.showIds,

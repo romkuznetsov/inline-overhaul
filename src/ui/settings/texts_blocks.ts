@@ -27,10 +27,21 @@ export const BLOCK_TEXTS = {
   /* ---- редактор Fields: сам блок, его окна, проверки имён -------------- */
   "field-editor": {
     /* Левая колонка: список Fields. */
-    LIST_TIP: "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
+    /*
+     * Смысл двух подписей сторон живёт здесь, а не у них самих: колонка
+     * списка шириной 188 точек, и тело подсказки встало бы в неё столбиком по
+     * два слова (У-105). Знака «?» у `Left Block` и `Right Block` поэтому нет,
+     * и это объявленное исключение, а не забывчивость — заказ заказчика
+     * 2026-09-08 был «tip у всех элементов».
+     */
+    LIST_TIP: "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
     EMPTY_SIDE: "nothing on this side",
     SIDE_LEFT: "Left Block",
     SIDE_RIGHT: "Right Block",
+    /* Родная подсказка Obsidian у подписи стороны: одна подсказка на узел, и
+       только `aria-label` (У-21). */
+    SIDE_LEFT_ABOUT: "Everything in Left Block is written before your text on the line",
+    SIDE_RIGHT_ABOUT: "Everything in Right Block is written after your text on the line",
     TYPE_TAG: "Tag",
     TYPE_LINK: "Link",
     TYPE_ELEMENT: "Emoji",
@@ -97,6 +108,18 @@ export const BLOCK_TEXTS = {
     VALUE_TAG_TIP: "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way",
     VALUE_PREFIX_TIP: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
     VALUE_SHOWN_TIP: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give",
+    /*
+     * Три подсказки, заведённые 2026-09-08 по заказу заказчика: «добавь tip ко
+     * всем элементам, у которых еще нет, чтобы было универсально (например,
+     * fill, text, preview и т.д.)».
+     *
+     * Прежний довод — «у них подпись и есть объяснение» — не выдержал: `Text`
+     * читается как текст значения, а это цвет надписи, и предупреждение о
+     * контрасте живёт в `Preview`, о чём по одному слову не догадаться.
+     */
+    VALUE_FILL_TIP: "The color of the bubble drawn behind this Value in the line. Untouched it comes from your theme, and the round arrow at the end of the row puts it back there",
+    VALUE_TEXT_TIP: "The color of the writing inside that bubble — not the text of the Value, which is the <code>Value</code> column. If the two colors read badly together, <code>Preview</code> says so",
+    VALUE_PREVIEW_TIP: "This Value drawn the way the editor will draw it, with both colors and the <code>Show</code> choice already applied. Nothing here is a setting: it is the row showing what the columns to its left have built. A warning sign appears when the two colors are too close to read, with the contrast it measured",
     SHOWN_DEFAULT: "default",
     SHOWN_EMPTY: "empty",
     SHOWN_CUSTOM: "custom",
@@ -258,6 +281,13 @@ export const BLOCK_TEXTS = {
     COL_COMMAND_NAME: "Command name",
     COL_DESCRIPTION: "Description",
     COL_HOTKEY: "Hotkey",
+    /* Подсказки колонок, заведены 2026-09-08 (заказ «tip у всех элементов»).
+       Раскрываются в слот под шапкой, во всю ширину таблицы: ячейка шапки тут
+       шириной в шесть десятков точек. */
+    COL_INSERTS_TIP: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else",
+    COL_COMMAND_NAME_TIP: "How the command is called in the command palette and on Obsidian's <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
+    COL_DESCRIPTION_TIP: "A note to yourself about what the row is for. It is the one column here you can change later, and nothing outside this table reads it",
+    COL_HOTKEY_TIP: "The keys assigned to this command right now. Press the cell and Obsidian's own <code>Hotkeys</code> screen opens at this command — this plugin assigns no keys by itself",
     HOTKEY_CHANGE: "Change the hotkey for {0}",
     HOTKEY_ASSIGN: "Assign the hotkey for {0}",
     NEW_INSERTS_HINT: "→",
@@ -298,6 +328,10 @@ export const BLOCK_TEXTS = {
     SHOWN_TIP: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
     FILL_TIP: "The color of the bubble behind the tag",
     TEXT_TIP: "The color of the writing on the bubble",
+    /* Пятая колонка была единственной без подсказки (заказ заказчика
+       2026-09-08). Чип предпросмотра у своего тега свой, как в таблице
+       Values, и предупреждение о контрасте показывает он же. */
+    PREVIEW_TIP: "The tag drawn the way the editor will draw it, with both colors and the <code>Show</code> choice applied. A warning sign appears when the two colors are too close to read, with the contrast it measured",
     ADD_TAG: "Add tag",
     NEW_TAG_HINT: "#tag",
     NEW_TAG_ARIA: "New tag to color",
@@ -331,6 +365,11 @@ export const BLOCK_TEXTS = {
   "left-right-order": {
     MOVE_LEFT: "Move left",
     MOVE_RIGHT: "Move right",
+    /* Подсказки двух подписей, 2026-09-08 (заказ «tip у всех элементов»).
+       Тело раскрывается ПОД парой колонок: колонка тут от 268 точек, и прозе
+       в ней тесно — та же беда, что у подсказок шириной с имя настройки. */
+    MOVE_LEFT_TIP: "What the key does depends on the line, and the list is read top down: the first line that matches wins. This is a description of the command, not a setting — each of the three jobs is switched on and off by its own row further down",
+    MOVE_RIGHT_TIP: "The mirror of <code>Move left</code>, read the same way. Whether the last line applies at all is decided by <code>Cycle in both directions</code> below: switch it off and <code>Move right</code> only ever changes the indent",
     WHEN_SELECTED: "part of a line is selected",
     THEN_MOVE_TEXT: "move that text",
     WHEN_INDENTED: "the line is indented",
@@ -357,6 +396,13 @@ export const BLOCK_TEXTS = {
     COL_COMMAND: "Command",
     COL_DOES: "Description",
     COL_HOTKEY: "Hotkey",
+    /* Подсказки шапки и двух подписей частей, 2026-09-08. Шапка — в слот под
+       ней; подпись части занимает строку целиком, и знак стоит в ней самой. */
+    COL_COMMAND_TIP: "The name Obsidian knows this command by. It is the same name in the command palette and on the <code>Hotkeys</code> screen, and it is never translated: Obsidian takes it from its own register, and two lists of one command would not agree",
+    COL_DOES_TIP: "What the command does, in one line. This column is the one thing in the table a language file can change — the names beside it cannot",
+    COL_HOTKEY_TIP: "The keys assigned right now, or <code>not set</code>. Press the cell to open Obsidian's own <code>Hotkeys</code> screen at this command; this plugin assigns no keys by itself",
+    PART_STANDARD_TIP: "Commands that are always there, whatever you have set up: they come with the plugin, and their names do not change",
+    PART_USER_TIP: "Commands built from your Fields. Every Field gets a <code>next</code> and a <code>previous</code>, a child Field gets its own pair under the same heading, and the order is the order of your Fields — not the alphabet. Add, rename or remove a Field and this part changes with it",
     HOTKEY_CHANGE: "Change the hotkey for {0}",
     HOTKEY_ASSIGN: "Assign the hotkey for {0}",
     HOTKEY_NOT_SET: "not set",

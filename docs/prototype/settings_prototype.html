@@ -1406,6 +1406,28 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-cmd__head .io-help[aria-expanded="true"], .io-fields__colhead .io-help[aria-expanded="true"] {
   background: var(--text-on-accent); border-color: transparent; color: var(--interactive-accent);
 }
+/*
+ * Подсказки у всех подписанных элементов (заказ заказчика 2026-09-08).
+ *
+ * Три правила, и все три про одно: «?» обязан встать рядом с подписью, не
+ * растянув её строку, а тело подсказки — раскрыться во всю ширину блока.
+ *
+ *   1. ячейка шапки становится столбиком, и знак встаёт ПОД подписью — так же,
+ *      как в таблице Values: колонки узкие, справа знак наезжал на соседнюю;
+ *   2. подписи, которые и так занимают строку целиком (часть справочника,
+ *      половина предпросмотра, подпись колонки разбора), становятся флексом —
+ *      знак встаёт справа от слова;
+ *   3. слот под шапкой пуст, пока ни одной подсказки не открыто, и места
+ *      тогда не занимает.
+ */
+.io-tablehead > div,
+.io-cmd__head > div {
+  min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+}
+.io-cmd__sub, .io-srcprev__cap, .io-ordercol__caprow {
+  display: flex; align-items: center; gap: 6px;
+}
+.io-tabletipslot:not(:empty) { padding: 6px 12px 8px; }
 .io-btn--warn { border-color: var(--background-modifier-error); color: var(--text-error, #c0392b); }
 .io-btn--warn:hover { background: var(--background-modifier-error); color: var(--text-on-accent); }
 .io-vals__prev { display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
@@ -3843,6 +3865,17 @@ function renderTabCallout(host) {
 
 function renderLeftRightOrder(host) {
   const pair = el("div", "io-orderpair", host);
+  /*
+   * Подсказка у обеих подписей (заказ заказчика 2026-09-08). Тело
+   * раскрывается ПОД парой, а не внутри колонки: колонка тут от 268 точек, и
+   * прозе в ней тесно — та же беда, что была у подсказок шириной с имя
+   * настройки (У-105).
+   */
+  const CAPTIP = {
+    "Move left": "What the key does depends on the line, and the list is read top down: the first line that matches wins. This is a description of the command, not a setting — each of the three jobs is switched on and off by its own row further down",
+    "Move right": "The mirror of <code>Move left</code>, read the same way. Whether the last line applies at all is decided by <code>Cycle in both directions</code> below: switch it off and <code>Move right</code> only ever changes the indent"
+  };
+  const capTips = el("div", "io-tabletipslot", host);
   [
     ["Move left", [
       ["part of a line is selected", "move that text"],
@@ -3856,7 +3889,9 @@ function renderLeftRightOrder(host) {
     ]]
   ].forEach(([cmd, steps]) => {
     const col = el("div", null, pair);
-    el("code", "io-ordercol__cap", col, cmd);
+    const cap = el("div", "io-ordercol__caprow", col);
+    el("code", "io-ordercol__cap", cap, cmd);
+    attachTip(cap, CAPTIP[cmd], cmd, capTips, capTips);
     const list = el("ol", "io-order", col);
     steps.forEach(([when, then]) => {
       const li = el("li", null, list);
@@ -3969,10 +4004,14 @@ function stepField(f, dir) {
 function renderFieldList(list) {
   let dragged = null;
 
-  const side = (value, label, hint) => {
+  const side = (value, label, hint, about) => {
     const sec = el("div", "io-side", list);
     const cap = el("div", "io-side__cap", sec);
-    el("span", "io-side__label", cap, label);
+    const name = el("span", "io-side__label", cap, label);
+    /* Одна подсказка на узел, и только `aria-label`: Obsidian рисует его
+       своей подсказкой (У-21). Знака «?» тут нет по причине, выписанной у
+       подсказки шапки колонки. */
+    name.setAttribute("aria-label", about);
     if (hint) el("span", "io-side__hint", cap, hint);
 
     sec.addEventListener("dragover", e => { e.preventDefault(); sec.classList.add("io-side--over"); });
@@ -4035,9 +4074,9 @@ function renderFieldList(list) {
     return sec;
   };
 
-  side("Left", "Left Block", "");
+  side("Left", "Left Block", "", "Everything in Left Block is written before your text on the line");
   el("div", "io-side__rule", list);
-  side("Right", "Right Block", "");
+  side("Right", "Right Block", "", "Everything in Right Block is written after your text on the line");
 
   const addWrap = el("div", "io-fields__add", list);
   /* Акцентная кнопка: заказчик просил, чтобы добавление было видно
@@ -4058,7 +4097,15 @@ function renderFieldEditor(host) {
   const listCol = el("div", "io-fields__col", wrap);
   const listHead = el("div", "io-fields__colhead", listCol);
   el("span", null, listHead, "Fields");
-  attachTip(listHead, "Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
+  /*
+   * Подписи `Left Block` и `Right Block` внутри списка «?» не получают, и это
+   * объявленное исключение, а не забывчивость (заказ заказчика 2026-09-08).
+   * Колонка списка шириной 188 точек: тело подсказки встанет в неё столбиком
+   * по два слова, и это ровно тот дефект, за который заказчик присылал
+   * скриншот (У-105). Смысл двух подписей уехал сюда, в подсказку шапки —
+   * она во всю ширину, — а у самих подписей стоит родная подсказка Obsidian.
+   */
+  attachTip(listHead, "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
     "the Fields list", listCol);
   const list = el("div", "io-fields__list", listCol);
   renderFieldList(list);
@@ -4172,8 +4219,16 @@ function valuesTable(host, f) {
 
   const head = el("div", "io-vals__head", inner);
   /*
-   * Подсказка есть у каждой колонки, о которой человеку есть что сказать.
-   * `Fill`, `Text` и `Preview` в списке нет: у них подпись и есть объяснение.
+   * Подсказка есть у КАЖДОЙ подписанной колонки — заказ заказчика 2026-09-08:
+   * «добавь tip ко всем элементам, у которых еще нет, чтобы было
+   * универсально (например, fill, text, preview и т.д.)».
+   *
+   * До того у `Fill`, `Text` и `Preview` подсказки не было, и объяснялось это
+   * тем, что «у них подпись и есть объяснение». Довод оказался неверным ровно
+   * там, где подпись короче смысла: `Text` — это цвет надписи, а не текст
+   * значения, а `Preview` умеет показать предупреждение о контрасте, о котором
+   * по одному слову не догадаться.
+   *
    * Знак «?» стоит ПОД текстом заголовка, а не справа: справа он наезжал на
    * соседнюю ячейку — колонки узкие (замечание заказчика 2026-08-27).
    */
@@ -4183,7 +4238,10 @@ function valuesTable(host, f) {
       ? "The link this Value writes. It may be written as <code>[[link]]</code> or as <code>link</code> — both are read the same way"
       : "The text of the Value. A tag may be written with <code>#</code> or without it — both are read the same way",
     Prefix: "The checkbox this Value puts in front of the line, such as <code>[ ]</code> or <code>[x]</code>. Empty leaves the usual list marker",
-    Show: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give"
+    Show: "How the Value looks in the line: <b>default</b> prints the Value, <b>empty</b> prints its color and nothing else, <b>custom</b> prints the text you give",
+    Fill: "The color of the bubble drawn behind this Value in the line. Untouched it comes from your theme, and the round arrow at the end of the row puts it back there",
+    Text: "The color of the writing inside that bubble — not the text of the Value, which is the <code>Value</code> column. If the two colors read badly together, <code>Preview</code> says so",
+    Preview: "This Value drawn the way the editor will draw it, with both colors and the <code>Show</code> choice already applied. Nothing here is a setting: it is the row showing what the columns to its left have built. A warning sign appears when the two colors are too close to read, with the contrast it measured"
   };
   /* Подсказка раскрывается под шапкой во всю ширину таблицы, а не внутри
      своей ячейки: в ячейку шириной в тридцать точек текст не встанет. */
@@ -4838,7 +4896,10 @@ function renderUserTagColors(host) {
     Tag: "The tag as it is written in a line. With <code>#</code> or without it \u2014 both are read the same way",
     Show: "How the tag looks in the line: <b>default</b> prints the tag, <b>empty</b> prints its color and nothing else",
     Fill: "The color of the bubble behind the tag",
-    Text: "The color of the writing on the bubble"
+    Text: "The color of the writing on the bubble",
+    /* Подсказка колонки `Preview` завелась 2026-09-08 вместе с остальными:
+       её не было ни здесь, ни в таблице Values, и заказчик назвал обе. */
+    Preview: "The tag drawn the way the editor will draw it, with both colors and the <code>Show</code> choice applied. A warning sign appears when the two colors are too close to read, with the contrast it measured"
   };
   const tipSlot = el("div", "io-vals__tipslot", inner);
   ["Tag", "Show", "Fill", "Text", "Preview", ""].forEach(title => {
@@ -4920,7 +4981,23 @@ function renderBinder(host) {
 
   const head = el("div", "io-tablehead", inner);
   head.style.setProperty("grid-template-columns", cols);
-  ["", "Inserts", "Command name", "Description", "Hotkey", ""].forEach(t => el("div", null, head, t));
+  /*
+   * Подсказка у каждой подписанной колонки (заказ заказчика 2026-09-08).
+   * Тело раскрывается в слот ПОД шапкой, во всю ширину таблицы: ячейка шапки
+   * тут шириной в шесть десятков точек, и прозе в ней не встать — тот же
+   * приём, что в таблице Values.
+   */
+  const COLTIP = {
+    Inserts: "The text this command drops in at the cursor. It is fixed when the row is made: the command is built from the text, so changing it afterwards would leave your hotkey inserting something else",
+    "Command name": "How the command is called in the command palette and on Obsidian's <code>Hotkeys</code> screen. The plugin name goes in front of it by itself, so there is no need to repeat it here",
+    Description: "A note to yourself about what the row is for. It is the one column here you can change later, and nothing outside this table reads it",
+    Hotkey: "The keys assigned to this command right now. Press the cell and Obsidian's own <code>Hotkeys</code> screen opens at this command — this plugin assigns no keys by itself"
+  };
+  const headTips = el("div", "io-tabletipslot", inner);
+  ["", "Inserts", "Command name", "Description", "Hotkey", ""].forEach(t => {
+    const cell = el("div", null, head, t);
+    if (COLTIP[t]) attachTip(cell, COLTIP[t], t, headTips, headTips);
+  });
 
   BINDER_ROWS.forEach((r, bi) => {
     const row = el("div", "io-tablerow", inner);
@@ -4958,7 +5035,22 @@ function renderCommandReference(host) {
   const inner = el("div", "io-cmd__inner", scroll.appendChild(card));
 
   const head = el("div", "io-cmd__head", inner);
-  ["Command", "Description", "Hotkey"].forEach(t => el("div", null, head, t));
+  /* Подсказка у каждой колонки и у каждой подписи части (заказ заказчика
+     2026-09-08). Тело — в слот под шапкой, во всю ширину справочника. */
+  const COLTIP = {
+    Command: "The name Obsidian knows this command by. It is the same name in the command palette and on the <code>Hotkeys</code> screen, and it is never translated: Obsidian takes it from its own register, and two lists of one command would not agree",
+    Description: "What the command does, in one line. This column is the one thing in the table a language file can change — the names beside it cannot",
+    Hotkey: "The keys assigned right now, or <code>not set</code>. Press the cell to open Obsidian's own <code>Hotkeys</code> screen at this command; this plugin assigns no keys by itself"
+  };
+  const headTips = el("div", "io-tabletipslot", inner);
+  ["Command", "Description", "Hotkey"].forEach(t => {
+    const cell = el("div", null, head, t);
+    if (COLTIP[t]) attachTip(cell, COLTIP[t], t, headTips, headTips);
+  });
+  const PARTTIP = {
+    standard: "Commands that are always there, whatever you have set up: they come with the plugin, and their names do not change",
+    user: "Commands built from your Fields. Every Field gets a <code>next</code> and a <code>previous</code>, a child Field gets its own pair under the same heading, and the order is the order of your Fields — not the alphabet. Add, rename or remove a Field and this part changes with it"
+  };
 
   const drawRow = (name, does, template) => {
     const row = el("div", "io-cmd__row", inner);
@@ -4980,10 +5072,17 @@ function renderCommandReference(host) {
       group.list.forEach(c => drawRow(c.name, c.does, template(c)));
       return;
     }
-    /* Стандартные выше созданных из данных (1.2.3.4.2). */
-    el("div", "io-cmd__sub", inner, group.parts.standard);
+    /* Стандартные выше созданных из данных (1.2.3.4.2). Подпись части —
+       строка во всю ширину, поэтому «?» стоит прямо в ней, а тело
+       раскрывается сразу под ней. */
+    const part = (text, tip, label) => {
+      const row = el("div", "io-cmd__sub", inner);
+      el("span", null, row, text);
+      attachTip(row, tip, label, inner, row);
+    };
+    part(group.parts.standard, PARTTIP.standard, group.parts.standard);
     standard.forEach(c => drawRow(c.name, c.does, false));
-    el("div", "io-cmd__sub", inner, group.parts.user);
+    part(group.parts.user, PARTTIP.user, group.parts.user);
     if (!fromData.length) return;
     /* Пара на Field, и пары одного Field стоят рядом: сперва сам Field,
        затем его дочерний (1.2.3.4.3). В панели строки настоящие, здесь —
@@ -5220,8 +5319,15 @@ function renderSourcePreview(host) {
   const takeAlong = String(val("transform.inline2note.sublines") || "stay") === "remove";
   const after = takeAlong ? [parentAfter] : [parentAfter, before[1], before[2]];
 
+  /* Подсказка у обеих половин (заказ заказчика 2026-09-08). Подпись здесь —
+     строка во всю ширину предпросмотра, поэтому «?» стоит в ней самой. */
+  const CAPTIP = {
+    Before: "The line as you wrote it, with the Fields you have set up, and two lines indented under it. This half never changes with the settings: it is the starting point the half below is measured against",
+    After: "The same line once <code>Inline to note</code> has run, with every choice in this block applied: what happens to your text, which Values stay behind, whether a link takes their place, and whether the indented lines travel with it"
+  };
   const half = (label, lines) => {
-    el("div", "io-srcprev__cap", body, label);
+    const cap = el("div", "io-srcprev__cap", body, label);
+    attachTip(cap, CAPTIP[label], label, body, cap);
     const holder = el("div", "io-srcprev__lines", body);
     lines.forEach((text, i) => {
       const row = el("div", "io-srcprev__line" + (i && lines.length === 3 ? " io-srcprev__line--sub" : ""), holder);

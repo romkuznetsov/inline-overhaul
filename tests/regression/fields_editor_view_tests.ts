@@ -131,7 +131,7 @@ interface Write { reason: string; patch: Any }
 
 type NewFieldAnswer = { name: string; kind: "tag" | "wikilink" | "element" } | null;
 
-function makeView(): {
+function makeView(opts?: { t?: (key: string, fallback: string) => string }): {
   host: StubNode;
   writes: Write[];
   notices: string[];
@@ -191,6 +191,9 @@ function makeView(): {
     set: async () => {},
     run: async () => {},
     watch: () => () => {},
+    /* Подстановка текста, когда проверка её задала: так спрашивается, доезжает
+       ли перевод до нарисованного (10.13.47). */
+    ...(opts && opts.t ? { t: opts.t } : {}),
   };
   const state: FieldsViewState = { selected: "" };
   /* Ответ окна `Add Field`: его подставляет проверка, а в панели — Modal. */
@@ -1163,9 +1166,56 @@ function dragToSide(from: StubNode, side: StubNode): void {
     const title = String(all(cell, "io-vals__coltext")[0]?.textContent || "").trim();
     if (all(cell, "io-help").length) withTip.push(title);
   }
-  assert.deepEqual(withTip, ["Level", "Value", "Prefix", "Show"],
-    "подсказка есть у каждого заголовка, кроме Fill, Text и Preview");
-  ok("замечание 4: подсказки стоят у Level, Value, Prefix и Show, и только у них");
+  /*
+   * Подсказка у КАЖДОЙ подписанной колонки — заказ заказчика 2026-09-08:
+   * «добавь tip ко всем элементам, у которых еще нет, чтобы было универсально
+   * (например, fill, text, preview и т.д.)».
+   *
+   * Утверждение написано **списком колонок с подписью**, а не перечнем имён:
+   * появится восьмая колонка без подсказки — покраснеет здесь, а не через
+   * сессию на экране заказчика.
+   */
+  const titled: string[] = [];
+  for (const cell of head.children) {
+    const title = String(all(cell, "io-vals__coltext")[0]?.textContent || "").trim();
+    if (title) titled.push(title);
+  }
+  assert.deepEqual(withTip, titled,
+    "подсказка есть у каждой подписанной колонки: без неё остались " +
+    titled.filter(t => !withTip.includes(t)).join(", "));
+  assert.deepEqual(titled, ["Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview"],
+    "и подписанных колонок семь — порядок Ф7");
+  ok("замечание 4: подсказка стоит у каждой из семи подписанных колонок");
+}
+{
+  /*
+   * **Слова колонок берутся из каталога, а не из блока.** До 2026-09-08
+   * `columnTips` отдавала литералы, ключи `LEVEL_TIP`, `VALUE_TAG_TIP`,
+   * `VALUE_PREFIX_TIP` и `VALUE_SHOWN_TIP` лежали в каталоге, и **никто их не
+   * спрашивал**: человек правил строку в своём файле языка, а на экране
+   * ничего не менялось (У-82). Проверяется подстановкой: перевод обязан
+   * доехать до нарисованного.
+   */
+  const asked: string[] = [];
+  const v = makeView({
+    t: (key: string, fallback: string) => {
+      asked.push(key);
+      return key.endsWith(".value-fill-tip") ? "ЗАЛИВКА" : fallback;
+    },
+  });
+  const head = one(v.host, "io-vals__head");
+  const cell = head.children.find(c =>
+    String(all(c, "io-vals__coltext")[0]?.textContent || "").trim() === "Fill") as StubNode;
+  (all(cell, "io-help")[0] as StubNode).click();
+  const slot = one(v.host, "io-vals__tipslot");
+  assert.equal(String(all(slot, "io-tip")[0]?.textContent || "").trim().indexOf("ЗАЛИВКА"), 0,
+    "перевод подсказки колонки доехал до экрана");
+  for (const name of ["level-tip", "value-tag-tip", "value-prefix-tip", "value-shown-tip",
+    "value-fill-tip", "value-text-tip", "value-preview-tip"]) {
+    assert.ok(asked.includes("block.field-editor." + name),
+      "подсказка колонки спрошена у каталога по ключу: " + name);
+  }
+  ok("замечание 4: каждая подсказка колонки спрошена у каталога, и перевод доезжает");
 }
 {
   const v = makeView();

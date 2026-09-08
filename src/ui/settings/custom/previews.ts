@@ -995,8 +995,19 @@ const SOURCE_PATHS = [
 export const sourcePreview: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "source-preview");
   const body = el(shell.box, "div", "io-srcprev");
+  /*
+   * Подсказка у каждой половины — заказ заказчика 2026-09-08: «добавь tip ко
+   * всем элементам, у которых еще нет». Подпись половины занимает строку
+   * целиком, поэтому «?» стоит в ней самой, а тело — в слоте сразу за ней.
+   */
+  let halfTips: Array<() => void> = [];
+  const dropHalfTips = (): void => {
+    for (const close of halfTips) { try { close(); } catch { /* узла уже нет */ } }
+    halfTips = [];
+  };
 
   const draw = (): void => {
+    dropHalfTips();
     body.empty();
     const p = ctx.platform;
     const cfg = p ? p.getConfig() : null;
@@ -1011,8 +1022,19 @@ export const sourcePreview: CustomRender = (host, ctx) => {
     }
     const fields = previewFields(ctx).fields;
     const known = valueSpellings(fields);
-    const half = (label: string, lines: readonly string[]): void => {
-      el(body, "div", "io-srcprev__cap", label);
+    const half = (label: string, tip: string, lines: readonly string[]): void => {
+      const cap = el(body, "div", "io-srcprev__cap");
+      el(cap, "span", undefined, label);
+      const slot = el(body, "div", "io-tabletipslot");
+      halfTips.push(tipBelow({
+        head: cap,
+        host: slot,
+        text: frame(ctx, tip),
+        label,
+        id: "io-srcprev-" + tip.replace(/^PREVIEW_/, "").toLowerCase().replace(/_tip$/, "") + "-tip",
+        showTips: Boolean(ctx.get("general.help.showTips")),
+        showIds: Boolean(ctx.get("advanced.showSettingIds")),
+      }));
       const box = el(body, "div", "io-srcprev__lines");
       for (const line of lines) {
         const row = el(box, "div", "io-srcprev__line");
@@ -1022,13 +1044,13 @@ export const sourcePreview: CustomRender = (host, ctx) => {
         drawSourceLine(row, ctx, line.replace(/^\s+/, ""), known);
       }
     };
-    half(frame(ctx, "PREVIEW_BEFORE"), before);
-    half(frame(ctx, "PREVIEW_AFTER"), after);
+    half(frame(ctx, "PREVIEW_BEFORE"), "PREVIEW_BEFORE_TIP", before);
+    half(frame(ctx, "PREVIEW_AFTER"), "PREVIEW_AFTER_TIP", after);
   };
 
   draw();
   const unwatch = ctx.watch(SOURCE_PATHS, draw);
-  return () => { unwatch(); shell.close(); };
+  return () => { unwatch(); dropHalfTips(); shell.close(); };
 };
 
 /* ---- предпросмотр каретки (10.13.33 Ц8) --------------------------------- */

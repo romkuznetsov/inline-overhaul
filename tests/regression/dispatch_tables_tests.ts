@@ -44,9 +44,25 @@ function all(node: StubNode, cls: string): StubNode[] {
 
 /* ---- что рисуется ------------------------------------------------------ */
 
+/*
+ * Контекст, законный для проверяемого (У-38).
+ *
+ * До 2026-09-08 здесь стояло `{} as never`, и блок это переживал: `ctx` он
+ * трогал только через `sayIn`, которому хватало отсутствия `t`. С подсказками
+ * подписей блок начал спрашивать `ctx.get` — и проверка упала на `ctx.get is
+ * not a function`, то есть на своей же подделке. `SettingsCtx` требует `get`
+ * с самого начала; подделка была незаконной всё это время и молчала.
+ */
+const ctxWith = (tips: boolean): never => ({
+  get: (path: string) => (path === "general.help.showTips" ? tips : undefined),
+  set: async () => {},
+  run: async () => {},
+  watch: () => () => {},
+}) as never;
+
 {
   const host = makeNode("div");
-  const close = dispatchTables(host as unknown as El, {} as never);
+  const close = dispatchTables(host as unknown as El, ctxWith(true));
 
   const caps = all(host, "io-ordercol__cap").map(n => n.textContent);
   assert.deepEqual(caps, ["Move left", "Move right"], "две таблицы, по одной на команду");
@@ -66,8 +82,36 @@ function all(node: StubNode, cls: string): StubNode[] {
     "cycle the prefix forwards",
   ], "и следствия в том порядке, в каком их пробует рантайм");
 
+  /*
+   * Подсказка у каждой подписи — заказ заказчика 2026-09-08. Проверяется
+   * НАЖАТИЕМ, а не наличием кнопки: подделка, выбрасывающая обработчик,
+   * доказывает наличие «?» и молчит про то, что он делает (У-43).
+   */
+  const marks = all(host, "io-help");
+  assert.equal(marks.length, 2, "«?» стоит у обеих подписей");
+  const slot = all(host, "io-tabletipslot");
+  assert.equal(slot.length, 1, "тело раскрывается в один слот под парой, а не внутри колонки");
+  for (const mark of marks) mark.click();
+  const bodies = all(host, "io-tip--below");
+  assert.equal(bodies.length, 2, "нажатие открыло обе подсказки");
+  for (const body of bodies) {
+    assert.equal(body.parent, slot[0], "тело подсказки лежит в слоте под парой (У-105)");
+    assert.ok(String(body.textContent || "").length > 40,
+      "подсказка открылась с текстом, а не пустой: " + body.textContent);
+  }
+  /* Слова берутся из каталога, а не из блока: имя строки останется верным и
+     тогда, когда за ним будет написано что угодно (У-56). */
+  const tipWords = BLOCK_TEXTS["left-right-order"] as Readonly<Record<string, string>>;
+  assert.ok(String(bodies[0]?.textContent || "").includes("top down"),
+    "слева открылась именно её подсказка");
+  assert.ok(String(bodies[1]?.textContent || "").includes("Cycle in both directions"),
+    "справа — своя, и она называет тумблер, который решает последнюю строку");
+  assert.ok(String(tipWords["MOVE_RIGHT_TIP"] || "").includes("Cycle in both directions"),
+    "и это слово написано в каталоге, а не в блоке");
+
   close();
   assert.equal(all(host, "io-order").length, 0, "очистка убирает за собой");
+  assert.equal(all(host, "io-tip--below").length, 0, "и снимает открытые подсказки");
   assert.equal(all(host, "io-dispatch").length, 1,
     "но снимает только своё поддерево: строка настройки принадлежит платформе");
   ok("две таблицы по три шага, и очистка их снимает");
@@ -130,6 +174,17 @@ function indentLineSource(): string {
   assert.ok(/const rightMayCycle = rules\.prefixCyclerEnabled && rules\.rightCycles;/.test(body),
     "и берёт ответ у настройки, а не решает сам");
   ok("Д2: порядок ветвей рантайма совпадает с порядком строк в таблицах");
+}
+
+{
+  /* Выключенные подсказки: «?» не остаётся. Блок, падающий только с
+     выключенными подсказками, в этом проекте уже был. */
+  const host = makeNode("div");
+  const close = dispatchTables(host as unknown as El, ctxWith(false));
+  assert.equal(all(host, "io-help").length, 0, "подсказки выключены — «?» нет ни у одной подписи");
+  assert.equal(all(host, "io-ordercol__cap").length, 2, "а сами подписи на месте");
+  close();
+  ok("«?» подписей появляется и исчезает вместе с тумблером Show tips");
 }
 
 {

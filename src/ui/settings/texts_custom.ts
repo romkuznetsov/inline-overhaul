@@ -122,6 +122,11 @@ export const FRAME_TEXTS = {
   PREVIEW_EMPTY_VALUE: "empty",
   PREVIEW_BEFORE: "Before",
   PREVIEW_AFTER: "After",
+  /* Подсказки двух половин предпросмотра `Source line`, 2026-09-08 (заказ
+     заказчика «tip у всех элементов»). Подпись половины занимает строку
+     целиком, поэтому знак «?» стоит в ней самой, а тело — сразу под ней. */
+  PREVIEW_BEFORE_TIP: "The line as you wrote it, with the Fields you have set up, and two lines indented under it. This half never changes with the settings: it is the starting point the half below is measured against",
+  PREVIEW_AFTER_TIP: "The same line once <code>Inline to note</code> has run, with every choice in this block applied: what happens to your text, which Values stay behind, whether a link takes their place, and whether the indented lines travel with it",
   PREVIEW_NO_FIELDS: "no Fields yet — set one up under <code>Tags &amp; PKM</code> and the example fills in",
 } as const;
 

@@ -20,7 +20,7 @@
  */
 
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, type El } from "./dom.ts";
+import { el, tipBelow, type El } from "./dom.ts";
 import { sayIn } from "../texts_blocks.ts";
 
 /** Одна строка таблицы: когда — и что тогда происходит. */
@@ -31,6 +31,11 @@ interface Step {
 
 interface Table {
   command: string;
+  /**
+   * Имя строки каталога с подсказкой подписи. Подсказка есть у обеих —
+   * заказ заказчика 2026-09-08: «tip ко всем элементам, у которых еще нет».
+   */
+  tip: string;
   steps: readonly Step[];
 }
 
@@ -43,6 +48,7 @@ interface Table {
 const TABLES: readonly Table[] = [
   {
     command: "MOVE_LEFT",
+    tip: "MOVE_LEFT_TIP",
     steps: [
       { when: "WHEN_SELECTED", then: "THEN_MOVE_TEXT" },
       { when: "WHEN_INDENTED", then: "THEN_UNINDENT" },
@@ -51,6 +57,7 @@ const TABLES: readonly Table[] = [
   },
   {
     command: "MOVE_RIGHT",
+    tip: "MOVE_RIGHT_TIP",
     steps: [
       { when: "WHEN_SELECTED", then: "THEN_MOVE_TEXT" },
       { when: "WHEN_INDENTED", then: "THEN_INDENT" },
@@ -72,9 +79,28 @@ export const dispatchTables: CustomRender = (host: El, ctx: SettingsCtx) => {
    */
   const box = el(host, "div", "io-dispatch");
   const pair = el(box, "div", "io-orderpair");
+  /*
+   * Тело подсказки раскрывается ПОД парой, а не внутри колонки: колонка тут
+   * от 268 точек, и прозе в ней тесно — ровно тот дефект, за который заказчик
+   * присылал скриншот подсказок шириной с имя настройки (У-105).
+   */
+  const capTips = el(box, "div", "io-tabletipslot");
+  const showTips = Boolean(ctx.get("general.help.showTips"));
+  const showIds = Boolean(ctx.get("advanced.showSettingIds"));
+  const closers: Array<() => void> = [];
   for (const table of TABLES) {
     const col = el(pair, "div");
-    el(col, "code", "io-ordercol__cap", say(table.command));
+    const cap = el(col, "div", "io-ordercol__caprow");
+    const name = say(table.command);
+    el(cap, "code", "io-ordercol__cap", name);
+    closers.push(tipBelow({
+      head: cap,
+      host: capTips,
+      text: say(table.tip),
+      label: name,
+      id: "io-dispatch-" + table.command.toLowerCase().replace(/_/g, "-") + "-tip",
+      showTips, showIds,
+    }));
     const list = el(col, "ol", "io-order");
     for (const step of table.steps) {
       const li = el(list, "li");
@@ -83,8 +109,11 @@ export const dispatchTables: CustomRender = (host: El, ctx: SettingsCtx) => {
       el(li, "span", "io-order__then", say(step.then));
     }
   }
-  /* Записей нет и подписок нет: снимается только своё поддерево. */
-  return () => { box.empty(); };
+  /* Записей нет и подписок нет: снимается своё поддерево и открытые подсказки. */
+  return () => {
+    for (const close of closers) { try { close(); } catch { /* узла уже нет */ } }
+    box.empty();
+  };
 };
 
 /** Таблицы наружу: проверка Д2 сверяет их с исходником рантайма. */

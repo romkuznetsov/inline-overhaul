@@ -14,7 +14,7 @@
  *   * сетка таблицы живёт в CSS, а не в атрибутах узлов (Б4).
  */
 
-import { el, btn, textInput, type DragEv, type El, type ElInput } from "./dom.ts";
+import { el, btn, textInput, tipBelow, type DragEv, type El, type ElInput } from "./dom.ts";
 import type { BinderClash, BinderDraft, BinderRow } from "./binder_model.ts";
 import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
@@ -72,7 +72,27 @@ export interface BinderViewOpts {
   onAdd: () => void;
   /** Видимый текст по имени из каталога (10.13.47). */
   say?: Say;
+  /** Тумблеры `Show tips` и `Show setting ids in tips`. */
+  showTips?: boolean;
+  showIds?: boolean;
+  /** Куда сложить снятие открытых подсказок: очистка блока обязана убрать всё (С5). */
+  closers?: Array<() => void>;
 }
+
+/**
+ * Подсказки колонок шапки — имена строк каталога по подписи колонки.
+ *
+ * Заведены 2026-09-08 по заказу заказчика: «добавь tip ко всем элементам, у
+ * которых еще нет». Тело раскрывается в слот ПОД шапкой, во всю ширину
+ * таблицы: ячейка шапки тут шириной в шесть десятков точек, и прозе в ней не
+ * встать — тот же приём, что в таблице Values.
+ */
+const COLUMN_TIPS: readonly (readonly [string, string])[] = [
+  ["COL_INSERTS", "COL_INSERTS_TIP"],
+  ["COL_COMMAND_NAME", "COL_COMMAND_NAME_TIP"],
+  ["COL_DESCRIPTION", "COL_DESCRIPTION_TIP"],
+  ["COL_HOTKEY", "COL_HOTKEY_TIP"],
+];
 
 export function renderBinder(host: El, o: BinderViewOpts): void {
   const say = o.say || PLAIN;
@@ -80,9 +100,27 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
   const card = el(scroll, "div", "io-card io-binder");
 
   const head = el(card, "div", "io-tablehead");
-  const caps = ["", say("COL_INSERTS"), say("COL_COMMAND_NAME"), say("COL_DESCRIPTION"),
-    say("COL_HOTKEY"), ""];
-  for (const cap of caps) el(head, "div", undefined, cap);
+  const headTips = el(card, "div", "io-tabletipslot");
+  /* Первая и последняя колонки без подписи: ручка перетаскивания и удаление.
+     Подписи нет — «?» ставить некуда, и объяснять нечего. */
+  const caps: readonly (readonly [string, string])[] = [
+    ["", ""], ...COLUMN_TIPS, ["", ""],
+  ];
+  for (const [name, tipName] of caps) {
+    const cell = el(head, "div", undefined);
+    if (!name) continue;
+    el(cell, "span", "io-tablehead__text", say(name));
+    const close = tipBelow({
+      head: cell,
+      host: headTips,
+      text: say(tipName),
+      label: say(name),
+      id: "io-binder-col-" + tipName.toLowerCase().replace(/_/g, "-").replace(/-tip$/, "") + "-tip",
+      showTips: Boolean(o.showTips),
+      showIds: Boolean(o.showIds),
+    });
+    if (o.closers) o.closers.push(close);
+  }
 
   let taken: number | null = null;
 

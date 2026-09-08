@@ -108,10 +108,21 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
   };
 
   let mounted: El | null = null;
+  /*
+   * Снятие открытых подсказок шапки. Перерисовка выбрасывает узел целиком, но
+   * очистка блока обязана убирать за собой всё, что он завёл (С5), — и
+   * подсказка тут единственное, что переживает узел в виде замыкания.
+   */
+  let tipClosers: Array<() => void> = [];
+  const dropTips = (): void => {
+    for (const close of tipClosers) { try { close(); } catch { /* узла уже нет */ } }
+    tipClosers = [];
+  };
 
   const draw = (): void => {
     /* Скролл и фокус снимаются до подмены узла и возвращаются после (A8). */
     const keep = keepView(box);
+    dropTips();
     const next = el(box, "div", "io-binderblock__mount");
     try {
       const model = createBinderModel({
@@ -132,6 +143,9 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
 
       drawBinder(next, {
         say: sayIn("binder-table", ctx),
+        showTips: Boolean(ctx.get("general.help.showTips")),
+        showIds: Boolean(ctx.get("advanced.showSettingIds")),
+        closers: tipClosers,
         rows: model.listRows(),
         hotkeyOf: (row: BinderRow) => hotkeyOf(plugin, row.commandId),
         openHotkey: canOpen ? (row: BinderRow) => { openHotkeys(plugin, row.commandLabel); } : null,
@@ -168,6 +182,7 @@ export const binderTable: CustomRender = (host: El, ctx: SettingsCtx) => {
   const unwatch = ctx.watch(BINDER_PATHS, draw);
   return () => {
     unwatch();
+    dropTips();
     mounted = null;
     box.empty();
   };
