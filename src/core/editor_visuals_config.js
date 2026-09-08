@@ -753,6 +753,99 @@ function caretSitsAtLineEnd(state, head) {
  * вторые курсоры Obsidian рисует сам, и нарисовать их ещё раз значит поставить
  * на строку две каретки. Проверяется без окна — окна тут и не будет.
  */
+/* ---- заливка Left и Right Block (З-7) --------------------------------- */
+
+/**
+ * Заливка блоков рисуется **своим слоем прямоугольников за текстом** — так же,
+ * как CodeMirror рисует выделение. Решение заказчика 2026-09-08 из трёх
+ * разобранных способов.
+ *
+ * Почему не сплошной фон отрезком: `Decoration.mark` на длинный отрезок
+ * платформа режет по своим границам, и каждый наш токен внутри — тоже граница.
+ * Разваливается не фон, а скругление и вертикальные поля: на каждом куске они
+ * свои. Этим куплен дефект подсветки панели TagWheel (У-68).
+ */
+const BLOCK_FILL_LAYER_CLASS = "io-blockfill-layer";
+const BLOCK_FILL_MARKER_CLASS = "io-blockfill-marker";
+
+/** Умолчание прозрачности подложки: видно, но текст читается поверх. */
+const BLOCK_FILL_DEFAULT_OPACITY_PCT = 12;
+
+/** Что о заливке говорит конфиг: включена ли, каким цветом и насколько густо. */
+function blockFillLookFromConfig(cfg) {
+  const src = isObj(readCfgPath(cfg, "visual.tags.blockFill"))
+    ? readCfgPath(cfg, "visual.tags.blockFill")
+    : {};
+  const pct = Number(src.opacity);
+  return {
+    enabled: src.enabled === true,
+    /* Пусто = взять у темы. В значение это не влезает (У-60): смысл живёт на
+       шве, а не в цвете, и подставляется он в самом правиле стилей. */
+    color: normalizeHexColorInput(src.color),
+    opacity: Number.isFinite(pct)
+      ? Math.max(0, Math.min(100, Math.trunc(pct))) / 100
+      : BLOCK_FILL_DEFAULT_OPACITY_PCT / 100,
+  };
+}
+
+/**
+ * Отрезки строки, под которыми лежит подложка (З-7).
+ *
+ * Границы **не считаются заново**: их считает тот же разбор строки, что и
+ * прозрачность блоков, — `scanLineVisualTokens` отдаёт каждому токену его
+ * зону. Второй разбор того же разошёлся бы с первым молча (У-32).
+ *
+ * Подложка идёт от первого значения блока до последнего, а не до самого
+ * разделителя: иначе она захватила бы пробел перед ним и кончалась бы в
+ * пустоте. Значений в блоке нет — отрезка нет вовсе, и это условие заказчика:
+ * «если values left\right block отсутствуют, то эта подложка не должна
+ * появляться».
+ */
+function blockFillSpansInLine(text, sep1, sep2, elementMarkers) {
+  const tokens = scanLineVisualTokens(text, sep1, sep2, elementMarkers);
+  const out = [];
+  for (const zone of ["left", "right"]) {
+    let start = -1;
+    let end = -1;
+    for (const hit of tokens) {
+      if (hit.zone !== zone) continue;
+      if (start < 0 || hit.index < start) start = hit.index;
+      if (hit.end > end) end = hit.end;
+    }
+    if (start >= 0 && end > start) out.push({ zone, start, end });
+  }
+  return out;
+}
+
+/**
+ * Правила стилей подложки.
+ *
+ * Пусто, когда тумблер выключен: слоя тогда нет, и правил для него тоже быть
+ * не должно.
+ *
+ * **Цвет и густота — на самом прямоугольнике**, а не на слое: слой один на
+ * весь редактор, и прозрачность на нём погасила бы вместе с подложкой всё, что
+ * в него попадёт позже.
+ */
+function buildBlockFillStyleCss(look) {
+  const cfg = isObj(look) ? look : {};
+  if (cfg.enabled !== true) return "";
+  const color = String(cfg.color || "").trim();
+  const opacity = Number.isFinite(Number(cfg.opacity)) ? Number(cfg.opacity) : 0;
+  return [
+    ".markdown-source-view.mod-cm6 ." + BLOCK_FILL_LAYER_CLASS + " {",
+    "  pointer-events: none;",
+    "}",
+    ".markdown-source-view.mod-cm6 ." + BLOCK_FILL_LAYER_CLASS + " ." + BLOCK_FILL_MARKER_CLASS + " {",
+    /* Своего цвета нет — берётся тема: тот же приём, что у каретки. */
+    "  background-color: " + (color || "var(--text-accent)") + ";",
+    "  opacity: " + opacity + ";",
+    "  border-radius: var(--radius-s);",
+    "  pointer-events: none;",
+    "}",
+  ].join("\n");
+}
+
 function caretLayerRangeFor(plugin, state) {
   if (!caretShapeActive(plugin)) return null;
   const main = state && state.selection ? state.selection.main : null;
@@ -1162,6 +1255,12 @@ module.exports = {
   buildBlockStyleCss,
   formatTagwheelDisplayToken,
   TAGWHEEL_FILL_STYLE_CSS,
+  BLOCK_FILL_LAYER_CLASS,
+  BLOCK_FILL_MARKER_CLASS,
+  BLOCK_FILL_DEFAULT_OPACITY_PCT,
+  blockFillLookFromConfig,
+  blockFillSpansInLine,
+  buildBlockFillStyleCss,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
   buildCaretStyleCss,

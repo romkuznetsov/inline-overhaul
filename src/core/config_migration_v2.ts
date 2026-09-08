@@ -379,6 +379,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
      Целиком — форму ветки держит нормализация, а не карта маршрутов; без
      маршрута она уехала бы в `_unmigrated` (МГ3). */
   keepV2("editor.selectAll.customSteps", true),
+  /* Заливка Left и Right Block (З-7): ветка новая, пары в версии 1 нет. */
+  keepV2("visual.tags.blockFill.enabled"),
+  keepV2("visual.tags.blockFill.color"),
+  keepV2("visual.tags.blockFill.opacity"),
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),
   /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание

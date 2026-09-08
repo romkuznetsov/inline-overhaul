@@ -22,6 +22,8 @@
 const __editorVisualsConfig = require("../../core/editor_visuals_config.js");
 
 const buildCaretStyleCss = __editorVisualsConfig.buildCaretStyleCss;
+const buildBlockFillStyleCss = __editorVisualsConfig.buildBlockFillStyleCss;
+const blockFillLookFromConfig = __editorVisualsConfig.blockFillLookFromConfig;
 const caretLookFromConfig = __editorVisualsConfig.caretLookFromConfig;
 const STRIP_LINE_STYLE_CSS = __editorVisualsConfig.STRIP_LINE_STYLE_CSS;
 const TAGWHEEL_FILL_STYLE_CSS = __editorVisualsConfig.TAGWHEEL_FILL_STYLE_CSS;
@@ -73,6 +75,43 @@ function refreshCaret(plugin) {
   } catch (_) {}
 }
 
+/**
+ * Правила заливки Left и Right Block (З-7).
+ *
+ * Устроено как у каретки, и по той же причине: цвет и густота должны меняться
+ * под рукой, а перерисовка панели откладывается, пока фокус стоит в поле
+ * ввода. Тумблер выключен — правил нет вовсе, и слой ничего не красит.
+ */
+function ensureBlockFill(plugin) {
+  try {
+    if (!plugin._blockFillStyleEl || !plugin._blockFillStyleEl.parentNode) {
+      const styleEl = document.createElement("style");
+      styleEl.setAttribute("data-inline-overhaul", "block-fill");
+      document.head.appendChild(styleEl);
+      plugin._blockFillStyleEl = styleEl;
+      plugin.register(() => {
+        if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
+      });
+    }
+    refreshBlockFill(plugin);
+    if (plugin.store && typeof plugin.store.subscribe === "function") {
+      plugin.register(plugin.store.subscribe(() => refreshBlockFill(plugin)));
+    }
+  } catch (_) {
+    /* украшение: не встал блок правил — подложки не будет, а заметка цела */
+  }
+}
+
+function refreshBlockFill(plugin) {
+  try {
+    if (!plugin._blockFillStyleEl) return;
+    const css = buildBlockFillStyleCss(blockFillLookFromConfig(plugin.getConfig()));
+    if (plugin._blockFillStyleEl.textContent !== css) plugin._blockFillStyleEl.textContent = css;
+  } catch (_) {
+    /* украшение: правила остаются прежними, текст человека не трогается */
+  }
+}
+
 function ensureStripLine(plugin) {
   try {
     if (plugin._stripLineStyleEl && plugin._stripLineStyleEl.parentNode) return;
@@ -111,7 +150,7 @@ function ensureStripLine(plugin) {
  * конца текущей отрисовки, а человек в это время уже выключил плагин.
  */
 function removeAll(plugin) {
-  for (const key of ["_tagwheelFillStyleEl", "_stripLineStyleEl", "_caretStyleEl"]) {
+  for (const key of ["_tagwheelFillStyleEl", "_stripLineStyleEl", "_caretStyleEl", "_blockFillStyleEl"]) {
     const el = plugin ? plugin[key] : null;
     if (el && el.parentNode) el.parentNode.removeChild(el);
     if (plugin) plugin[key] = null;
@@ -122,6 +161,8 @@ module.exports = {
   ensureTagwheelFill,
   ensureCaret,
   refreshCaret,
+  ensureBlockFill,
+  refreshBlockFill,
   ensureStripLine,
   removeAll,
 };

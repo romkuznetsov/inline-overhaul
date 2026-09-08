@@ -61,7 +61,8 @@ const NARROW_OK = {
     const tabs = await page.$$eval(".io-tabs .io-tab", (els) => els.length);
     if (tabs < 7) bad("вкладок в прототипе " + tabs + ", а их семь: страница не отрисовалась");
 
-    const totals = { tips: 0, heads: 0, values: 0, narrowAllowed: 0, unlocked: 0, steps: 0 };
+    const totals = { tips: 0, heads: 0, values: 0, narrowAllowed: 0, unlocked: 0, steps: 0,
+      band: null };
 
     for (let i = 0; i < tabs; i++) {
       const found = await page.evaluate((idx) => {
@@ -127,7 +128,8 @@ const NARROW_OK = {
         const tabName = tab ? (tab.textContent || "").trim().replace(/\d+$/, "") : "?";
         if (tab) tab.click();
 
-        const out = { tab: tabName, tips: [], heads: [], values: [], unlocked: 0, steps: 0 };
+        const out = { tab: tabName, tips: [], heads: [], values: [], unlocked: 0, steps: 0,
+          bandBefore: -1, bandOn: false, bandAfter: -1, bandOnEmpty: -1, bandBack: -1 };
 
         /*
          * Строка, которая появляется только в одном состоянии, под браузер не
@@ -147,6 +149,64 @@ const NARROW_OK = {
           out.unlocked++;
         }
         if (out.unlocked) out.steps = document.querySelectorAll(".io-keepfields__row").length;
+
+        /*
+         * Заливка Left и Right Block (З-7). Тумблер выключен по умолчанию, то
+         * есть подложки на панели нет вовсе — и проверять было бы нечего.
+         * Поэтому он включается, и меряется **вычисленный фон** обеих сторон
+         * предпросмотра: то самое, чего не видит заглушка DOM.
+         *
+         * `bandOff` снимается ДО включения: без него «фон появился» нечем
+         * отличить от «фон был всегда» (У-110).
+         */
+        /*
+         * Тумблер ищется заново перед каждым нажатием. Панель перерисовывает
+         * содержимое целиком, и узел, найденный до перерисовки, к странице уже
+         * не относится: нажатие по нему меняет отсоединённый флажок и ничего
+         * не делает с экраном. Первая версия этой проверки так и не выключила
+         * подложку обратно и объявила это дефектом.
+         */
+        const findBandToggle = () => Array.from(document.querySelectorAll("input[type=checkbox]"))
+          .find((el) => {
+            const item = el.closest(".io-item");
+            const name = item ? item.querySelector(".io-item__name") : null;
+            return !!name && (name.textContent || "").trim() === "Color the Blocks";
+          });
+        const bandToggle = findBandToggle();
+        if (bandToggle) {
+          const sides = () => Array.from(document.querySelectorAll(
+            ".io-line__side--left, .io-line__side--right"));
+          const painted = () => sides().filter((el) => {
+            const bg = parseColor(getComputedStyle(el).backgroundColor);
+            return !!bg && bg.a > 0.001;
+          }).length;
+          /*
+           * Пустой стороны в предпросмотрах нет ни одной, и искать её негде:
+           * все примеры со значениями. Поэтому предмет **создаётся** — пустая
+           * сторона кладётся в ту же строку, — и у браузера спрашивается её
+           * вычисленный фон. Иначе правило «пустой блок без подложки»
+           * проверялось бы отсутствием предмета (У-88).
+           */
+          const emptyPainted = () => {
+            const line = document.querySelector(".io-line--blockfill");
+            if (!line) return -1;
+            const probe = document.createElement("span");
+            probe.className = "io-line__side io-line__side--left";
+            line.appendChild(probe);
+            const bg = parseColor(getComputedStyle(probe).backgroundColor);
+            probe.remove();
+            return bg && bg.a > 0.001 ? 1 : 0;
+          };
+
+          out.bandBefore = painted();
+          if (!bandToggle.checked) bandToggle.click();
+          const bandOnNode = findBandToggle();
+          out.bandOn = !!bandOnNode && bandOnNode.checked === true;
+          out.bandAfter = painted();
+          out.bandOnEmpty = emptyPainted();
+          if (bandOnNode && bandOnNode.checked) bandOnNode.click();
+          out.bandBack = painted();
+        }
 
         /* ---- 1. Подсказки: видны и во всю ширину своего блока ---- */
         const helps = Array.from(document.querySelectorAll(".io-help"));
@@ -203,6 +263,7 @@ const NARROW_OK = {
       }, i);
 
       totals.unlocked += found.unlocked;
+      if (found.bandBefore >= 0) totals.band = found;
       if (found.unlocked) totals.steps = found.steps;
       for (const t of found.tips) {
         totals.tips++;
@@ -256,6 +317,35 @@ const NARROW_OK = {
       bad("положительный контроль: ступеней `Ctrl+A` открылось " + totals.steps
         + ", а их пять — блок не отрисовался, и мерить было нечего");
     }
+    /*
+     * Заливка блоков (З-7). Три вопроса, и все три — про вычисленный фон:
+     * появился ли он от тумблера, не остался ли он у пустой стороны и ушёл ли
+     * обратно. Первый без второго был бы зелен и у подложки поверх всего.
+     */
+    if (!totals.band) {
+      bad("тумблер заливки блоков не найден — проверять было нечего");
+    } else {
+      const b = totals.band;
+      if (!b.bandOn) bad("тумблер заливки блоков не включился");
+      if (b.bandBefore !== 0) {
+        bad("до включения закрашенных сторон " + b.bandBefore
+          + ", а должно быть ноль: тумблер выключен по умолчанию");
+      }
+      if (b.bandAfter < 2) {
+        bad("после включения закрашенных сторон " + b.bandAfter
+          + ", а их две — подложка не появилась");
+      }
+      if (b.bandOnEmpty < 0) {
+        bad("пустую сторону некуда было положить: строки с подложкой на панели нет");
+      }
+      if (b.bandOnEmpty !== 0) {
+        bad("подложку получила пустая сторона (" + b.bandOnEmpty
+          + "), а условие заказчика — не появляться там, где значений нет");
+      }
+      if (b.bandBack !== 0) {
+        bad("после выключения закрашенных сторон " + b.bandBack + ", а должно быть ноль");
+      }
+    }
     /* И контроль на само исключение: перестало быть нужным — снимите его. */
     if (!injection && totals.narrowAllowed !== 1) {
       bad("объявленных узких подсказок " + totals.narrowAllowed + ", а объявлена одна (В-92): "
@@ -268,6 +358,7 @@ const NARROW_OK = {
       + ", подписей слайдеров " + totals.values
       + ", объявленных узких " + totals.narrowAllowed
       + ", ступеней `Ctrl+A` " + totals.steps
+      + ", закрашенных блоков " + (totals.band ? totals.band.bandAfter : "-")
       + (injection ? " | подмена: " + injection : ""));
   } finally {
     await browser.close();

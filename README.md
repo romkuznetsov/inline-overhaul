@@ -163,8 +163,8 @@ command palette and the reference table disagreeing.
 ### Visual
 
 - [Tag bubbles and per-Value styles](showcase.md#tag-bubblesper-value-stylesseparator-colors):
-  **Visual → Inline appearance** for size, opacity and corners; **Color your Tags** for
-  tags of your own that no Field owns.
+  **Visual → Inline appearance** for size, opacity, corners and a colored band behind each
+  Block; **Color your Tags** for tags of your own that no Field owns.
 - [TagWheel panel and scroller](showcase.md#tagwheel-panelscroller): **Visual → TagWheel**,
   where `Scroller` adds a list of neighbouring Values and `Highlight the TagWheel line`
   fills the line you are editing.

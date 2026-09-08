@@ -946,6 +946,11 @@ function normalizeConfigV2(cfg) {
   int("visual.tags.bubbleHeightPct", 80, 140);
   int("visual.tags.emptyBubblePct", 50, 180);
   int("visual.tags.cornersPct", 0, 100);
+  /* Заливка Left и Right Block (З-7). Цвет пустой значит «взять у темы»,
+     и `hex` возвращает пустую строку для чего угодно непохожего. */
+  bool("visual.tags.blockFill.enabled");
+  hex("visual.tags.blockFill.color");
+  int("visual.tags.blockFill.opacity", 0, 100);
   normalizeTagVisualMapsV2(cfg);
 
   /* --- каретка: цвет, толщина, мерцание (10.13.33) ---------------------- */

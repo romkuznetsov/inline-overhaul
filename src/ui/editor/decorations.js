@@ -32,6 +32,10 @@ function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path);
 /* Имена берутся из модуля конфига поштучно: тела ниже зовут их без префикса,
    и приписывать префикс значило бы править переехавший код (У-11). */
 const {
+  BLOCK_FILL_LAYER_CLASS,
+  BLOCK_FILL_MARKER_CLASS,
+  blockFillLookFromConfig,
+  blockFillSpansInLine,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
   TAGWHEEL_SPAN_RANK,
@@ -611,6 +615,111 @@ function createCaretLayerExtension(plugin) {
 }
 
 /**
+ * Заливка Left и Right Block: свой слой прямоугольников **за** текстом (З-7).
+ *
+ * Заказчик 2026-09-08: «хочу добавить опцию, чтобы left and right blocks можно
+ * было добавить цветовую заливку… чтобы сразу в глаза бросались left\right
+ * block». Способ он выбрал сам из трёх разобранных — этот.
+ *
+ * **Почему слой, а не фон отрезка.** Сплошной фон на часть строки платформа
+ * режет по своим границам, и каждый наш токен внутри — тоже граница;
+ * разваливаются скругление и вертикальные поля (У-68). Слой рисует
+ * прямоугольник, и внутри него может быть что угодно.
+ *
+ * **Слой берётся у платформы**, тот же `layer` и `RectangleMarker`, что у
+ * каретки: позиция считается кодом самого CodeMirror, со всеми поправками на
+ * масштаб, перенос строки и прокрутку. И «подстроиться под tag-appearance»
+ * подложке не надо — она ложится на те же символы, что и токены, а размер их
+ * задаёт та же настройка.
+ *
+ * **`above: false`** — под текстом. Иначе она закрыла бы его собой.
+ *
+ * Тумблер спрашивается на каждой отрисовке, а не запоминается при загрузке:
+ * иначе включение доезжало бы до заметки только после перезапуска (тот же
+ * приём, что у каретки).
+ */
+function blockFillDocRanges(view, plugin) {
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  if (!cfg) return [];
+  const look = blockFillLookFromConfig(cfg);
+  if (!look.enabled) return [];
+  const io = isObj(readCfgPath(cfg, "pkm.lineFormat")) ? readCfgPath(cfg, "pkm.lineFormat") : {};
+  const sep1 = String(io.separator1 || "").trim();
+  const sep2 = String(io.separator2 || "").trim();
+  const elementMarkers = buildElementMarkersFromConfig(cfg);
+  const out = [];
+  for (const vr of view.visibleRanges) {
+    let lineNo = view.state.doc.lineAt(vr.from).number;
+    const endLineNo = view.state.doc.lineAt(vr.to).number;
+    while (lineNo <= endLineNo) {
+      const line = view.state.doc.line(lineNo);
+      const text = String(line.text || "");
+      for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers)) {
+        const from = line.from + span.start;
+        const to = line.from + span.end;
+        if (to <= from) continue;
+        out.push({ zone: span.zone, from, to });
+      }
+      lineNo += 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * Те же отрезки, но прямоугольниками платформы.
+ *
+ * Разделено надвое нарочно: **наша половина** — какие отрезки красить, и её
+ * проверяет набор; **платформенная** — где эти отрезки на экране, и её
+ * проверять нечем и незачем, это код самого CodeMirror.
+ */
+function blockFillMarkersFor(view, plugin) {
+  const out = [];
+  for (const span of blockFillDocRanges(view, plugin)) {
+    /*
+     * Отрезок отдаётся `forRange` теми же полями, какими его читает платформа.
+     * Объявлять здесь `EditorSelection` нечем: он живёт в копии состояния,
+     * отданной плагинам, а меряет копия, на которой собран редактор заметки
+     * (тот же разбор, что у каретки).
+     */
+    const range = { empty: false, from: span.from, to: span.to, anchor: span.from, head: span.to, assoc: 0 };
+    for (const marker of cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range)) {
+      out.push(marker);
+    }
+  }
+  return out;
+}
+
+function createBlockFillLayerExtension(plugin) {
+  if (typeof cmView.layer !== "function" || typeof cmView.RectangleMarker !== "function") {
+    /* Громко: тихий отказ здесь неотличим от дефекта (У-41, У-73). */
+    console.warn("[inline-overhaul][block-fill] @codemirror/view без layer/RectangleMarker: заливка блоков не рисуется");
+    return [];
+  }
+  return cmView.layer({
+    above: false,
+    class: BLOCK_FILL_LAYER_CLASS,
+    markers(view) {
+      try {
+        return blockFillMarkersFor(view, plugin);
+      } catch (e) {
+        /* Украшение не имеет права уронить текст человека: рисование молчит,
+           а причина уходит в журнал разработчика (правило отказов, п. 3). */
+        console.error("[inline-overhaul][block-fill]", e);
+        return [];
+      }
+    },
+    update(update, dom) {
+      const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+      const now = !!(cfg && blockFillLookFromConfig(cfg).enabled);
+      const flipped = dom.__ioBlockFillActive !== now;
+      dom.__ioBlockFillActive = now;
+      return flipped || update.docChanged || update.viewportChanged || update.geometryChanged;
+    },
+  });
+}
+
+/**
  * Один токен панели без своей приставки.
  *
  * Нужен ровно там, где `Show tag markers` выключен: текст токена меняется, и
@@ -830,6 +939,9 @@ module.exports = {
   createTagVisualDecorationExtension,
   createStripDecorationExtension,
   createCaretLayerExtension,
+  blockFillDocRanges,
+  blockFillMarkersFor,
+  createBlockFillLayerExtension,
   TagwheelTokenWidget,
   buildTagwheelHeaderDecorations,
   FloatingTransformButtonWidget,

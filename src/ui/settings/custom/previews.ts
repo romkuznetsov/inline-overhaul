@@ -111,11 +111,22 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
   cssVar(node, "--io-bubble-y", String(num(ctx, "visual.tags.bubbleHeightPct") / 100));
   cssVar(node, "--io-empty-x", String(num(ctx, "visual.tags.emptyBubblePct") / 100));
   cssVar(node, "--io-corners", String((100 - num(ctx, "visual.tags.cornersPct")) / 100));
+  /*
+   * Заливка Left и Right Block (З-7): цвет и густота приходят переменными,
+   * сама подложка — классом. Пусто в цвете значит «взять у темы» — смысл
+   * живёт на шве, а не в значении (У-60).
+   */
+  const bandColor = String(ctx.get("visual.tags.blockFill.color") || "").trim();
+  cssVar(node, "--io-blockfill-color", bandColor || "var(--text-accent)");
+  cssVar(node, "--io-blockfill-opacity", String(num(ctx, "visual.tags.blockFill.opacity") / 100));
+  if (ctx.get("visual.tags.blockFill.enabled") === true) node.addClass("io-line--blockfill");
 }
 
 /** Пути, от которых зависит вид тега: на них предпросмотр перерисовывается. */
 const TAG_PATHS = [
   "visual.tags.opacityLeft",
+  /* Заливка блоков (З-7): предпросмотр обязан показывать её сразу (У-24). */
+  "visual.tags.blockFill",
   "visual.tags.opacityRight",
   "visual.tags.textSizePct",
   "visual.tags.bubbleWidthPct",

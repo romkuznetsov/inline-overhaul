@@ -97,6 +97,15 @@ const INJECTIONS = {
    */
   "value-wrap": ".io-value { min-width: 12px !important; width: 12px !important;"
     + " white-space: normal !important; word-break: break-all !important; }",
+  /*
+   * Заливка блоков (З-7). Две подмены на две половины проверки: подложка,
+   * которая есть всегда, и подложка, которой нет никогда. Одной было бы мало —
+   * «появилась от тумблера» и «ушла вместе с ним» это разные утверждения.
+   */
+  "band-always": ".io-line__side--left, .io-line__side--right"
+    + " { background-color: rgba(255, 0, 0, 0.5) !important; }",
+  "band-none": ".io-line--blockfill .io-line__side--left,"
+    + " .io-line--blockfill .io-line__side--right { background-color: transparent !important; }",
 };
 
 function injectionCss(name) {

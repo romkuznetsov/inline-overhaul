@@ -20,7 +20,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
 {
   id: "tag-appearance", tab: "visual", order: 100, heading: "Inline appearance",
   intro: "How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
-  tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
+  tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. <b>Color Left\\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
   items: [
     { kind:"custom", id:"tag-preview", render: tagPreview },
     { kind:"slider", id:"tags-opacity-left", path:"visual.tags.opacityLeft", default:100,
@@ -34,6 +34,23 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       name:"Opacity of the Right Block", desc:"Dims everything written after your text, tags and elements alike",
       tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works",
       searchTerms:["Opacity Right"] },
+    { kind:"toggle", id:"tags-block-fill", path:"visual.tags.blockFill.enabled", default:false,
+      /* Заказчик назвал строку `Color Left\\Right blocks`. В панели она стоит
+         как `Color the Blocks`: правило имён держит `Left Block` и `Right Block`
+         парой и не пускает имя длиннее пяти слов, а `Left\\Right` — ни то ни
+         другое. Смысл тот же, и обе стороны названы в описании. */
+      name:"Color the Blocks", desc:"A band behind the Left Block and the Right Block, so the two stand out from your text",
+      searchTerms:["Block background", "Color the Blocks"],
+      tip:"The band runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no band. The band sits <b>behind</b> the writing, so everything on the line stays selectable and clickable, and it follows the size and shape you set below — it is drawn on the same characters" },
+    { kind:"color", id:"tags-block-fill-color", path:"visual.tags.blockFill.color", default:"",
+      name:"Block color", desc:"Leave it unset and the band follows your theme",
+      tip:"Unset means the accent color of whatever theme you are using, so the band keeps looking right when you change themes. Pick a color here only when you want a particular one",
+      visible: on("visual.tags.blockFill.enabled") },
+    { kind:"slider", id:"tags-block-fill-opacity", path:"visual.tags.blockFill.opacity", default:12,
+      min:0, max:100, step:1, unit:"%",
+      name:"Block color strength", desc:"How strongly the band shows through",
+      tip:"Low numbers are the point: the band is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it",
+      visible: on("visual.tags.blockFill.enabled") },
     { kind:"slider", id:"tags-text-size", path:"visual.tags.textSizePct", default:100,
       min:80, max:140, step:5, unit:"%",
       name:"Text size", desc:"How big everything in the two Blocks is written, next to the rest of your note",

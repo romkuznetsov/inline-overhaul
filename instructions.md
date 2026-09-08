@@ -497,6 +497,7 @@ General Visual functionality is implemented and separate from Transform's disabl
 ### Tags
 
 - Independent left/right panel opacity
+- A colored band behind each Block (`Color the Blocks`), with its own color and strength. It runs from the first Value of a Block to its last one, never touches your text between the Separators, and does not appear for a Block with nothing in it. The band is drawn behind the writing, so everything on the line stays selectable and clickable.
 - Tag text size
 - Tags bubble width and size
 - Empty-bubble size

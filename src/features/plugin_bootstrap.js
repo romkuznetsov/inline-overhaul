@@ -153,6 +153,8 @@ async function load(plugin) {
   __editorStyles.ensureTagwheelFill(plugin);
   __editorStyles.ensureStripLine(plugin);
   __editorStyles.ensureCaret(plugin);
+  /* Заливка Left и Right Block (З-7): свой блок правил, своя подписка. */
+  __editorStyles.ensureBlockFill(plugin);
   __editorMount.mountExtensions(plugin);
   __generatedRules.registerStoreEvents(plugin);
 

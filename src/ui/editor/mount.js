@@ -33,6 +33,7 @@ const __sharedUtils = require("../../core/shared_utils.js");
 const __editorDecorations = require("./decorations.js");
 const __stripDebugApi = require("../../features/strip_debug_api.js");
 
+const createBlockFillLayerExtension = __editorDecorations.createBlockFillLayerExtension;
 const createCaretLayerExtension = __editorDecorations.createCaretLayerExtension;
 const createSourceMarkDecorationExtension = __editorDecorations.createSourceMarkDecorationExtension;
 const createStripDecorationExtension = __editorDecorations.createStripDecorationExtension;
@@ -73,6 +74,11 @@ function mountExtensions(plugin) {
      спрашивает тумблер на каждой отрисовке, а видимостью правит блок стилей,
      который переписывается сразу за правкой настройки. */
   plugin.registerEditorExtension(createCaretLayerExtension(plugin));
+  /* Заливка Left и Right Block (З-7). Компартмента у неё нет и не нужно по
+     той же причине, что у каретки: слой спрашивает тумблер на каждой
+     отрисовке, а вид правит блок стилей, который переписывается сразу за
+     правкой настройки. */
+  plugin.registerEditorExtension(createBlockFillLayerExtension(plugin));
   __stripDebugApi.publish(plugin);
 }
 

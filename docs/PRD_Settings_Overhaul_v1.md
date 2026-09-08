@@ -978,7 +978,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (39)
+### Пути, которых не было в описи v1.0 (42)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -995,6 +995,9 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
+| `visual.tags.blockFill.enabled` | Color the Blocks (`tags-block-fill`) | Inline appearance |
+| `visual.tags.blockFill.color` | Block color (`tags-block-fill-color`) | Inline appearance |
+| `visual.tags.blockFill.opacity` | Block color strength (`tags-block-fill-opacity`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -3260,6 +3263,85 @@ settings` под `Move to folder` несёт список из двух знач
 меняет состояние; новое правило рождается свёрнутым; кнопка гаснет вместе с
 модулем; `addRule` не отдаёт id.
 
+#### 10.13.59 Заливка Left и Right Block (З-7)
+
+Седьмая и последняя задача из семи. Способ заказчик выбрал сам из трёх
+разобранных: **свой слой прямоугольников за текстом**.
+
+##### 10.13.59.1 Что сделано
+
+Три строки в `Visual → Inline appearance`: тумблер **`Color the Blocks`**, а
+под ним, только при нём, цвет подложки и её густота.
+
+**Подложка идёт от первого значения блока до последнего** — не до самого
+разделителя. Иначе она захватила бы пробел перед ним и кончалась бы в пустоте.
+**Пустой блок подложки не получает** — это его условие дословно. **Текст между
+разделителями не красится никогда**, даже если человек написал в нём свой тег.
+
+**Цвет пустой значит «взять у темы»**: подложка следует за темой Obsidian и
+остаётся уместной, когда тему меняют. Смысл живёт на шве, а не в значении
+(У-60).
+
+**Имя строки.** Заказчик назвал её `Color Left\Right blocks`; в панели она
+стоит как `Color the Blocks`. Правило имён держит `Left Block` и `Right Block`
+парой и не пускает имя длиннее пяти слов, а `Left\Right` — ни то ни другое.
+Смысл тот же, обе стороны названы в описании; переименование спрошено строкой
+листа.
+
+##### 10.13.59.2 Почему слой, а не фон отрезка
+
+Сплошной фон на **часть** строки платформа режет по своим границам, и каждый
+наш токен внутри отрезка — тоже граница. Разваливается при этом не сам фон, а
+скругление и вертикальные поля: на каждом куске они свои. Этим куплен дефект
+подсветки панели TagWheel (У-68).
+
+Слой рисует прямоугольник, и внутри него может быть что угодно. Берётся он **у
+платформы** — тот же `layer` и `RectangleMarker`, что у своей каретки: позиция
+считается кодом самого CodeMirror, со всеми его поправками на масштаб, перенос
+строки и прокрутку. `above: false` — под текстом.
+
+**И «подстраиваться под tag-appearance» подложке не надо.** Она ложится на те
+же символы, что и токены, а их размер задают те же настройки — вопрос заказчика
+«не создавать визуальных шероховатостей» решается устройством, а не второй
+настройкой.
+
+**Границы не считаются заново.** Их считает тот же разбор строки, что и
+прозрачность блоков: `scanLineVisualTokens` отдаёт каждому токену его зону.
+Второй разбор того же разошёлся бы с первым молча (У-32).
+
+##### 10.13.59.3 Предпросмотр
+
+Заказчик просил, чтобы опция была видна в `Tag preview`. Слоя там нет — это не
+редактор, — и подложка ложится фоном на контейнер стороны, то есть на те же
+символы. **Густота приходит цветом (`color-mix`), а не `opacity`:**
+прозрачность контейнера погасила бы вместе с подложкой и сами теги — `opacity`
+предка потомком не отменяется, и этим уже болел предпросмотр TagWheel. Пустая
+сторона подложки не получает — `:not(:empty)`.
+
+##### 10.13.59.4 Чем закреплено
+
+**Наша половина проверяется, платформенная — нет.** Какие отрезки красить и
+какими правилами — `block_fill_tests.js` на настоящих функциях плагина: границы
+подложки на его же примере строки, остановка перед разделителем, пустой блок,
+строка без разделителей, тег человека внутри его текста, чтение конфига,
+правила стилей (включая «цвета нет — берётся тема»), пересчёт отрезков от
+начала строки и нормализация густоты за шкалой. Где эти отрезки на экране —
+считает `RectangleMarker.forRange` самого CodeMirror, и подделывать редактор
+ради этого значило бы проверять подделку (У-1).
+
+**Вид — браузером.** Гейт включает тумблер и меряет **вычисленный фон** обеих
+сторон предпросмотра: до включения закрашенных сторон ноль, после — не меньше
+двух, у пустой стороны ноль, после выключения снова ноль. Пустую сторону гейт
+**создаёт сам**: в предпросмотрах её нет ни одной, и правило проверялось бы
+отсутствием предмета (У-88). Две новые подмены — `band-always` и `band-none` —
+роняют обе половины проверки.
+
+**Девять мутаций, краснеют все:** подложка до разделителя вместо последнего
+значения; пустой блок получает подложку; средняя зона красится наравне с
+блоками; густота не доезжает до правил; выключенный тумблер даёт правила; цвета
+нет и темы тоже нет; тумблер не читается; отрезок считается от начала документа;
+густота не нормализуется.
+
 ### 10.14 Что осталось за границами
 
 Эти находки аудита разобраны и **сознательно не включены**. Записано, чтобы исполнитель не добавил их по своей инициативе и чтобы разговор не повторялся.
@@ -5221,7 +5303,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 5 | 10 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 6 | 35 | 6 |
+| 5 | Visual | `features.visual.enabled` | 6 | 38 | 6 |
 | 6 | Transform | `features.transform.enabled` | 6 | 28 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -5953,7 +6035,7 @@ _Tip:_ Rules are read from the top, the first one that fits is used, and anythin
 
 _Intro:_ How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file
 
-_Tip:_ Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab
+_Tip:_ Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. <b>Color Left\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab
 
 - **`tag-preview`** — свой блок, рендерер `renderTagPreview`
 - **Opacity of the Left Block** — `tags-opacity-left`, `slider`, path `visual.tags.opacityLeft`, default `100`
@@ -5967,6 +6049,19 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works
   - диапазон: 0–100, шаг 1, ед. %
   - старые названия для поиска: «Opacity Right»
+- **Color the Blocks** — `tags-block-fill`, `toggle`, path `visual.tags.blockFill.enabled`, default `false`
+  - desc: A band behind the Left Block and the Right Block, so the two stand out from your text
+  - tip: The band runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no band. The band sits <b>behind</b> the writing, so everything on the line stays selectable and clickable, and it follows the size and shape you set below — it is drawn on the same characters
+  - старые названия для поиска: «Block background», «Color the Blocks»
+- **Block color** — `tags-block-fill-color`, `color`, path `visual.tags.blockFill.color`, default `""`
+  - desc: Leave it unset and the band follows your theme
+  - tip: Unset means the accent color of whatever theme you are using, so the band keeps looking right when you change themes. Pick a color here only when you want a particular one
+  - видна если: `visual.tags.blockFill.enabled`
+- **Block color strength** — `tags-block-fill-opacity`, `slider`, path `visual.tags.blockFill.opacity`, default `12`
+  - desc: How strongly the band shows through
+  - tip: Low numbers are the point: the band is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it
+  - диапазон: 0–100, шаг 1, ед. %
+  - видна если: `visual.tags.blockFill.enabled`
 - **Text size** — `tags-text-size`, `slider`, path `visual.tags.textSizePct`, default `100`
   - desc: How big everything in the two Blocks is written, next to the rest of your note
   - tip: This reaches the whole of both Blocks, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Blocks step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100
@@ -6276,6 +6371,9 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `visual.tagBars.stripesToShow` | slider | `2` |
 | `visual.tagBars.tagVisibility` | toggle | `true` |
 | `visual.tagBars.thickness` | slider | `2` |
+| `visual.tags.blockFill.color` | color | `""` |
+| `visual.tags.blockFill.enabled` | toggle | `false` |
+| `visual.tags.blockFill.opacity` | slider | `12` |
 | `visual.tags.bubbleHeightPct` | slider | `100` |
 | `visual.tags.bubbleWidthPct` | slider | `100` |
 | `visual.tags.cornersPct` | slider | `0` |
