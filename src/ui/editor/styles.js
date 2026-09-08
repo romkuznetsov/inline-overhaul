@@ -28,6 +28,36 @@ const caretLookFromConfig = __editorVisualsConfig.caretLookFromConfig;
 const STRIP_LINE_STYLE_CSS = __editorVisualsConfig.STRIP_LINE_STYLE_CSS;
 const TAGWHEEL_FILL_STYLE_CSS = __editorVisualsConfig.TAGWHEEL_FILL_STYLE_CSS;
 
+/**
+ * Блок правил не встал — сказать журналу разработчика (Д-4, правило отказов).
+ *
+ * **Одно место на все четыре постановки.** До 2026-09-09 их было четыре, и
+ * вели они себя по-разному: `ensureStripLine` писала в журнал и удачу, и
+ * отказ, а три соседки молчали. Операция при этом одна и та же — создать узел
+ * `<style>` и положить в него готовый текст, — то есть правило «что делать,
+ * когда не вышло» было объявлено трижды и разошлось (У-32).
+ *
+ * **Почему журнал, а не `Notice`.** Человек этого не начинал: блоки правил
+ * ставятся при загрузке. Сломалось невидимое — значит второй вид отказа, и
+ * придёт человек со словами «оформление перестало работать». Журнал —
+ * единственное, из чего можно будет узнать, почему.
+ *
+ * Сама запись в журнал молчит: она последняя в цепочке, и уронить постановку
+ * стилей ей нечем и незачем.
+ */
+function reportStyleFailure(plugin, what, error) {
+  try {
+    plugin.devLogEvent("styles.inject", {
+      ok: false,
+      what: String(what || ""),
+      message: String(error && error.message ? error.message : error || ""),
+    }, "error", plugin.getConfig());
+  } catch (_) {
+    /* журнал не имеет права уронить постановку стилей: цель уже не достигнута,
+       и второй отказ ничего к первому не добавит */
+  }
+}
+
 function ensureTagwheelFill(plugin) {
   try {
     if (plugin._tagwheelFillStyleEl && plugin._tagwheelFillStyleEl.parentNode) return;
@@ -39,7 +69,9 @@ function ensureTagwheelFill(plugin) {
     plugin.register(() => {
       if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
     });
-  } catch (_) {}
+  } catch (e) {
+    reportStyleFailure(plugin, "tagwheel-fill", e);
+  }
 }
 
 /**
@@ -64,7 +96,9 @@ function ensureCaret(plugin) {
     if (plugin.store && typeof plugin.store.subscribe === "function") {
       plugin.register(plugin.store.subscribe(() => refreshCaret(plugin)));
     }
-  } catch (_) {}
+  } catch (e) {
+    reportStyleFailure(plugin, "caret", e);
+  }
 }
 
 function refreshCaret(plugin) {
@@ -72,7 +106,15 @@ function refreshCaret(plugin) {
     if (!plugin._caretStyleEl) return;
     const css = buildCaretStyleCss(caretLookFromConfig(plugin.getConfig()));
     if (plugin._caretStyleEl.textContent !== css) plugin._caretStyleEl.textContent = css;
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Украшение, и молчит нарочно — в отличие от постановки выше. Пересборка
+     * зовётся на **каждую** правку конфига, то есть на каждое движение
+     * ползунка: запись в журнал отсюда залила бы его целиком и спрятала бы
+     * ровно то, ради чего журнал читают. Правила остаются прежними, каретку
+     * рисует браузер, текст человека не трогается.
+     */
+  }
 }
 
 /**
@@ -97,8 +139,8 @@ function ensureBlockFill(plugin) {
     if (plugin.store && typeof plugin.store.subscribe === "function") {
       plugin.register(plugin.store.subscribe(() => refreshBlockFill(plugin)));
     }
-  } catch (_) {
-    /* украшение: не встал блок правил — подложки не будет, а заметка цела */
+  } catch (e) {
+    reportStyleFailure(plugin, "block-fill", e);
   }
 }
 
@@ -108,7 +150,9 @@ function refreshBlockFill(plugin) {
     const css = buildBlockFillStyleCss(blockFillLookFromConfig(plugin.getConfig()));
     if (plugin._blockFillStyleEl.textContent !== css) plugin._blockFillStyleEl.textContent = css;
   } catch (_) {
-    /* украшение: правила остаются прежними, текст человека не трогается */
+    /* Украшение, и молчит по той же причине, что пересборка каретки: зовётся
+       на каждую правку конфига, и журнал отсюда залило бы движением
+       ползунка. Правила остаются прежними, заметка цела. */
   }
 }
 
@@ -124,17 +168,23 @@ function ensureStripLine(plugin) {
       if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
     });
     try {
-      const cfg = plugin.getConfig();
-      plugin.devLogEvent("strip.css.inject", { ok: true }, "trace", cfg);
-    } catch (_) {}
+      plugin.devLogEvent("strip.css.inject", { ok: true }, "trace", plugin.getConfig());
+    } catch (_) {
+      /* журнал не имеет права уронить постановку стилей: блок уже встал, и
+         молчание отнимает запись об удаче, а не саму удачу */
+    }
   } catch (e) {
+    /* Своё событие у полос осталось: по нему в журнале ищут именно их, и
+       переименовать его значило бы порвать чужой поиск. Причина отказа при
+       этом называется тем же помощником, что у трёх соседок. */
     try {
-      const cfg = plugin.getConfig();
       plugin.devLogEvent("strip.css.inject", {
         ok: false,
         message: String(e && e.message ? e.message : e || ""),
-      }, "error", cfg);
-    } catch (_) {}
+      }, "error", plugin.getConfig());
+    } catch (_) {
+      /* см. выше: журнал молчит последним */
+    }
   }
 }
 

@@ -60,6 +60,21 @@ function installDocumentStub() {
   return { head, restore() { globalThis.document = previous; } };
 }
 
+/**
+ * Голова документа, в которой создать узел нельзя.
+ *
+ * Настоящий случай, а не выдумка: `createElement` бросает, когда документа уже
+ * нет — окно выгружается, а подписка ещё жива.
+ */
+function installBrokenDocumentStub() {
+  const previous = globalThis.document;
+  globalThis.document = {
+    head: { appendChild() { throw new Error("головы документа больше нет"); } },
+    createElement() { throw new Error("документа больше нет"); },
+  };
+  return { restore() { globalThis.document = previous; } };
+}
+
 function makePlugin(cfg) {
   const listeners = [];
   const unregistered = [];
@@ -143,6 +158,64 @@ function run() {
       assertEq(plugin._caretStyleEl, null, "и ссылки на узлы забыты");
       assertEq(plugin._stripLineStyleEl, null, "все три");
       assertEq(plugin._tagwheelFillStyleEl, null, "до последней");
+    }
+
+    /*
+     * --- отказ постановки называется вслух (Д-4, 2026-09-09) ---
+     *
+     * Прежде все четыре постановки молчали по-разному: `ensureStripLine`
+     * писала в журнал, три соседки — ничего. Человек, у которого оформление не
+     * встало, приходит со словами «перестало работать», и журнал —
+     * единственное, из чего можно узнать, почему.
+     *
+     * Ломается **создание узла**: другого способа заставить постановку
+     * отказать в этой подделке нет, а способ этот настоящий — `createElement`
+     * бросает, когда документа уже нет (выгрузка окна).
+     */
+    {
+      const broken = installBrokenDocumentStub();
+      try {
+        for (const [what, call] of [
+          ["tagwheel-fill", (p) => styles.ensureTagwheelFill(p)],
+          ["caret", (p) => styles.ensureCaret(p)],
+          ["block-fill", (p) => styles.ensureBlockFill(p)],
+        ]) {
+          const plugin = makePlugin(configWithCaret("#ff0000", 3));
+          const said = [];
+          plugin.devLogEvent = (name, payload, level) => said.push({ name, payload, level });
+
+          /* Отказ не выходит наружу: постановка стилей не имеет права уронить
+             загрузку плагина. */
+          call(plugin);
+
+          const errors = said.filter((s) => s.level === "error");
+          assertEq(errors.length, 1, "отказ постановки `" + what + "` назван один раз");
+          assertEq(errors[0].name, "styles.inject", "и назван общим событием");
+          assertEq(errors[0].payload.what, what, "с именем того блока, который не встал");
+          assertTrue(String(errors[0].payload.message).length > 0,
+            "и с причиной, а не пустой пометкой: " + JSON.stringify(errors[0].payload));
+        }
+
+        /*
+         * И положительный контроль к этому: **пересборка** молчит нарочно. Она
+         * зовётся на каждое движение ползунка, и запись отсюда залила бы
+         * журнал целиком. Отличить «молчит нарочно» от «забыли сказать» можно
+         * только так — спросив обе стороны (У-88).
+         */
+        const quiet = makePlugin(configWithCaret("#ff0000", 3));
+        const heard = [];
+        quiet.devLogEvent = (name, payload, level) => heard.push(level);
+        quiet._caretStyleEl = { textContent: "" };
+        Object.defineProperty(quiet._caretStyleEl, "textContent", {
+          get() { return ""; },
+          set() { throw new Error("узел отсоединён"); },
+        });
+        styles.refreshCaret(quiet);
+        assertEq(heard.filter((l) => l === "error").length, 0,
+          "пересборка каретки молчит: журнал не заливается движением ползунка");
+      } finally {
+        broken.restore();
+      }
     }
 
     console.log("  ok свои блоки правил: один узел, обновление под рукой, снятие при выгрузке");
