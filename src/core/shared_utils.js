@@ -474,12 +474,82 @@ function writeCfgPath(root, path, value) {
   return root;
 }
 
+/*
+ * Начало строки списка: отступ, цитата, маркер, номер, решётки заголовка.
+ *
+ * **Правило одно и живёт здесь.** До 2026-09-08 те же формы были объявлены
+ * дважды — в `smart_delete_engine.js` и в `enhanced_select_all_engine.js`, — и
+ * два объявления одного правила успели разойтись трижды (У-32):
+ *   1. знак чекбокса был сужен до `[ ]`, `[x]`, `[X]`, а Obsidian считает
+ *      задачей **любой один знак** (У-91, дефект A34) — из-за этого `Del` на
+ *      строке `- [I] текст` оставлял `[I]` в тексте человека;
+ *   2. у номера списка чекбокса не было вовсе: `1. [ ] текст` тоже оставлял
+ *      `[ ]`;
+ *   3. номер списка со скобкой (`1) текст`) один движок считал списком, а
+ *      другой нет.
+ *
+ * Сторож A34 этого не поймал и был прав по-своему: он запрещает написание
+ * **шире** одного знака, а здесь оно было уже (У-88 — у запрета не было
+ * положительного контроля на этот случай).
+ */
+const CHECKBOX_ONE_CHAR_SRC = "\\[[^\\]]\\]";
+const LINE_INDENT_RE = /^[ \t]*/;
+const LINE_QUOTE_RE = /^>[ \t]?/;
+const LINE_BULLET_RE = new RegExp("^[-*+][ \\t]+(?:" + CHECKBOX_ONE_CHAR_SRC + "[ \\t]+)?");
+const LINE_ORDERED_RE = new RegExp("^\\d+[.)][ \\t]+(?:" + CHECKBOX_ONE_CHAR_SRC + "[ \\t]+)?");
+const LINE_HEADING_RE = /^#{1,6}[ \t]+/;
+
+/** Длина отступа: ведущие пробелы и табуляции. */
+function lineIndentLength(text) {
+  return String(nz(text, "")).match(LINE_INDENT_RE)[0].length;
+}
+
+/**
+ * Сколько символов в начале строки занимает оформление: отступ и, если
+ * просили, Prefix. Возвращается смещение, а не остаток строки: вызывающему
+ * нужен диапазон для замены, а не копия текста.
+ *
+ * Цитата снимается столько раз, сколько её поставили (`> > текст`), маркер
+ * списка и чекбокс — как одно целое, номер и решётки заголовка по одному разу:
+ * `1. 2.` в начале строки бывает текстом, а не двумя номерами.
+ */
+function linePrefixLength(text, dropPrefix) {
+  const src = String(nz(text, ""));
+  let at = lineIndentLength(src);
+
+  if (dropPrefix) {
+    for (;;) {
+      const quote = src.slice(at).match(LINE_QUOTE_RE);
+      if (!quote) break;
+      at += quote[0].length;
+      at += lineIndentLength(src.slice(at));
+    }
+    const rest = src.slice(at);
+    const mark = rest.match(LINE_BULLET_RE) || rest.match(LINE_ORDERED_RE) || rest.match(LINE_HEADING_RE);
+    if (mark) at += mark[0].length;
+  }
+
+  /* Что бы ни сняли, пробелы за снятым тоже оформление. */
+  at += lineIndentLength(src.slice(at));
+  return at;
+}
+
+/** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
+function isListItemLine(text) {
+  const rest = String(nz(text, "")).replace(LINE_INDENT_RE, "");
+  return LINE_BULLET_RE.test(rest) || LINE_ORDERED_RE.test(rest);
+}
+
 module.exports = {
   cloneJson,
   readCfgPath,
   writeCfgPath,
   nz,
   escapeRe,
+  CHECKBOX_ONE_CHAR_SRC,
+  lineIndentLength,
+  linePrefixLength,
+  isListItemLine,
   normalizeFormatMask,
   buildFormatValueRegexSource,
   hasFormatTokens,

@@ -1,5 +1,14 @@
 "use strict";
 
+/*
+ * Формы начала строки берутся из `src/core/shared_utils.js` — одним
+ * объявлением на весь плагин. Своя копия стояла здесь до 2026-09-08, и вместе
+ * с копией в `smart_delete_engine.js` они успели разойтись трижды (У-32):
+ * знак чекбокса, чекбокс у номера списка и номер со скобкой (`1)`). Разбор —
+ * в объяснении самого правила.
+ */
+const __sharedUtils = require("../core/shared_utils.js");
+
 function isHeaderLineText(text) {
   return /^(#{1,6})\s/.test(String(text || ""));
 }
@@ -10,13 +19,11 @@ function headerLevelOfText(text) {
 }
 
 function lineIndentOfText(text) {
-  const m = String(text || "").match(/^(\s*)/);
-  return m ? m[1].length : 0;
+  return __sharedUtils.lineIndentLength(text);
 }
 
 function isListItemLineText(text) {
-  const t = String(text || "").replace(/^\s*/, "");
-  return /^[-*+]\s(?:\[[ xX]\]\s)?/.test(t) || /^\d+\.\s/.test(t);
+  return __sharedUtils.isListItemLine(text);
 }
 
 function normPos(a, b) {
