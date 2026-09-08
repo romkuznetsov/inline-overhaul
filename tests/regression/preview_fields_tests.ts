@@ -36,6 +36,7 @@ import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
 import { buildDefaultConfig, getIn } from "../../src/ui/settings/types.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
 import type { SettingsCtx } from "../../src/ui/settings/types.ts";
+import { FRAME_TEXTS } from "../../src/ui/settings/texts_custom.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -162,7 +163,36 @@ function realConfig(): Any {
 {
   const got = previewFields(makeCtx(null));
   assert.equal(got.example, true, "читать нечем — значит пример");
-  assert.deepEqual(got.fields, EXAMPLE_FIELDS, "и это ровно примерный набор");
+  /*
+   * **Утверждение переехало за предметом** (У-94). В `EXAMPLE_FIELDS` у Field
+   * теперь стоит не имя, а **адрес строки каталога**: слова `Status` и
+   * `Priority` лежали здесь литералами при живых строках `frame.example-status`
+   * и `frame.example-priority`, которые никто не спрашивал (долг A46). Подпись
+   * подставляет `previewFields`, и сверять надо с подставленным.
+   */
+  const named = EXAMPLE_FIELDS.map(f => ({
+    ...f,
+    name: String((FRAME_TEXTS as Record<string, string>)[f.name] || f.name),
+  }));
+  assert.deepEqual(got.fields, named, "и это ровно примерный набор, с подставленными именами");
+  assert.deepEqual(got.fields.map(f => f.name), ["Status", "Priority"],
+    "подписи примера — слова, а не адреса каталога: " + got.fields.map(f => f.name).join(", "));
+
+  /*
+   * И перевод доезжает: подстановка спрашивается по ключу, а не берётся из
+   * таблицы. Без этой половины утверждение выше было бы верным и у литерала.
+   */
+  const asked: string[] = [];
+  const ru = previewFields({
+    ...makeCtx(null),
+    t: (key: string, fallback: string) => {
+      asked.push(key);
+      return key === "frame.example-status" ? "Статус" : fallback;
+    },
+  } as never);
+  assert.equal(ru.fields[0]?.name, "Статус", "перевод имени примера не доехал до предпросмотра");
+  assert.ok(asked.includes("frame.example-priority"),
+    "второе имя примера у каталога не спрошено: " + asked.join(", "));
 
   const host = makeNode("div");
   const close = tagPreview(host as unknown as El, makeCtx(null));

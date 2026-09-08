@@ -57,7 +57,7 @@ function say(ctx: SettingsCtx, key: string, fallback: string): string {
  * Строка панели по имени из `FRAME_TEXTS`: пустые состояния и подписи
  * разбора строки. Ключ строит `frameKey` — литерала на его месте нет (У-82).
  */
-function frame(ctx: SettingsCtx, name: string): string {
+export function frame(ctx: SettingsCtx, name: string): string {
   return say(ctx, frameKey(name), FRAME_BY_NAME[name] || "");
 }
 

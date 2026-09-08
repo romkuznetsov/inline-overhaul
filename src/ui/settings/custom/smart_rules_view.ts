@@ -377,7 +377,7 @@ export function renderConditionPicker(host: El, o: {
   const box = el(host, "div", "io-pickvals");
   if (!o.choices.length) {
     el(box, "div", "io-side__empty", o.kind === "fields"
-      ? "no Fields yet — set one up on the Tags & PKM tab"
+      ? say("NO_FIELDS_YET")
       : say("NO_KIND_FIELDS_YET", KIND_LABEL[o.kind].toLowerCase()));
     return;
   }
@@ -414,7 +414,7 @@ export function renderConditionPicker(host: El, o: {
     }
     const chips = el(wrap, "div", "io-pickvals__chips");
     if (!group.values.length) {
-      el(chips, "span", "io-kind__none", "no Values yet");
+      el(chips, "span", "io-kind__none", say("VALUES_EMPTY"));
       continue;
     }
     for (const value of group.values) {
@@ -432,9 +432,13 @@ export function conditionDialogTitle(kind: RuleKind): string {
   return "Add a " + KIND_LABEL[kind].toLowerCase();
 }
 
-/** Подсказка под заголовком диалога: почему значений может не быть. */
-export const CONDITION_DIALOG_NOTE =
-  "Pick one of the Values your Fields already offer. A rule looks for any of the Values listed "
-  + "under one Field type, and for all of the types you have filled in";
+/**
+ * Подсказка под заголовком диалога: почему значений может не быть.
+ *
+ * Слово живёт в каталоге (`CONDITION_TIP`), а здесь только адрес. До
+ * 2026-09-08 тут стоял сам текст — то есть второе его объявление, и строка
+ * каталога никем не спрашивалась (долг A46, У-82).
+ */
+export const CONDITION_DIALOG_NOTE = "CONDITION_TIP";
 
 export { KIND_LABEL, OP_AND, OP_OR, RULE_FALLBACK };

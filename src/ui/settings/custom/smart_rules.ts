@@ -30,6 +30,7 @@ import deepStateModule from "../../../core/order_deep_editor_state.js";
 
 /* Движок Transform: тот же модуль, что грузит плагин. */
 import transformFeature from "../../../features/transform_feature.js";
+import { sayIn } from "../texts_blocks.ts";
 
 const deepState = deepStateModule as unknown as DeepState;
 
@@ -80,6 +81,8 @@ function askConditionModal(
      * одинаковыми на вид, и разбирать их обратно значило бы гадать.
      */
     done: (answer: { kind: "value" | "field"; id: string } | null) => void;
+    /** Видимый текст по имени из каталога (10.13.47). */
+    say: (name: string, ...args: readonly (string | number)[]) => string;
   },
 ): void {
   let answered = false;
@@ -95,16 +98,19 @@ function askConditionModal(
       box.empty();
       box.addClass("io-dlg");
       el(box, "h4", undefined, conditionDialogTitle(o.kind));
-      el(box, "p", "io-item__desc", CONDITION_DIALOG_NOTE);
+      el(box, "p", "io-item__desc", o.say(CONDITION_DIALOG_NOTE));
       renderConditionPicker(box, {
         kind: o.kind,
+        /* Подстановка едет и в список: без неё половина окна английская. */
+        say: o.say,
         choices: o.choices,
         fieldsTaken: o.fieldsTaken,
         pick: value => { finish({ kind: "value", id: value }); this.close(); },
         pickField: fieldId => { finish({ kind: "field", id: fieldId }); this.close(); },
       });
       const foot = el(box, "div", "io-dlg__foot");
-      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      const cancel = foot.createEl("button",
+        { cls: "io-btn", text: o.say("CANCEL"), attr: { type: "button" } });
       cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
     }
 
@@ -226,6 +232,15 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
       });
       renderSmartRules(next, {
         model,
+        /*
+         * **Подстановка текста передаётся блоку** (долг A46, 2026-09-08).
+         * Без неё вёрстка брала `PLAIN` — `say` без контекста, — и весь блок
+         * Smart Rules рисовался по-английски при любом языке. Статический
+         * обход имён этого не видел: имена спрашивались честно, только
+         * спрашивать было не у кого. Нашла поведенческая половина проверки —
+         * панель, отрисованная с переведённым каталогом.
+         */
+        say: sayIn("smart-rules-list", ctx),
         enabled: Boolean(ctx.get("transform.inline2note.enabled")),
         templates: templates(),
         /* Имя папки нужно самой подписи: пустой список обязан сказать,
@@ -244,6 +259,7 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
              неактивно (10.13.14 Н4). Считается по правилам, а не по памяти. */
           fieldsTaken: model.listRules().flatMap(r => r.conditions.fields),
           done,
+          say: sayIn("smart-rules-list", ctx),
         }),
       });
     } catch (e) {

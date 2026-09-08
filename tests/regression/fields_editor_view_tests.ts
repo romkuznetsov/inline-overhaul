@@ -24,6 +24,7 @@ import {
   type FieldsViewState,
 } from "../../src/ui/settings/custom/fields_editor_view.ts";
 import { btn, type El } from "../../src/ui/settings/custom/dom.ts";
+import { BLOCK_TEXTS } from "../../src/ui/settings/texts_blocks.ts";
 
 setupGlobals();
 
@@ -2383,10 +2384,29 @@ function byLabel(node: StubNode, prefix: string): StubNode | undefined {
   const from = src.indexOf("function askRenameModal");
   assert.ok(from > 0, "окна переименования нет вовсе");
   const body = src.slice(from, src.indexOf("/* ---- блок", from));
-  assert.ok(/keep the old tag/.test(body),
-    "окно не говорит, что в заметках останется старый тег");
-  assert.ok(/hotkey/.test(body) && /comes loose/.test(body),
-    "окно не говорит, что хоткей отвяжется");
+  /*
+   * **Утверждение переехало за предметом** (У-94). Слова стояли в этом файле
+   * литералами; 2026-09-08 они уехали в каталог (долг A46) — человек их
+   * переводил, а на экране ничего не менялось. Поэтому вопрос теперь задаётся
+   * в двух половинах, и обе нужны:
+   *
+   *   1. слова про цену есть в каталоге — иначе окно объясняет не то;
+   *   2. окно и правда спрашивает их по имени — иначе слова лежат мёртвыми.
+   *
+   * Читать одну половину значило бы держать зелёное утверждение о пустоте:
+   * имя `RENAME_WARNING_NOTES` останется верным и тогда, когда за ним будет
+   * написано что угодно (У-56).
+   */
+  const words = BLOCK_TEXTS["field-editor"] as Readonly<Record<string, string>>;
+  assert.ok(/keep the old tag/.test(String(words["RENAME_WARNING_NOTES"] || "")),
+    "каталог не говорит, что в заметках останется старый тег");
+  assert.ok(/hotkey/.test(String(words["RENAME_WARNING_HOTKEY"] || ""))
+    && /comes loose/.test(String(words["RENAME_WARNING_HOTKEY"] || "")),
+    "каталог не говорит, что хоткей отвяжется");
+  for (const name of ["RENAME_WARNING", "RENAME_WARNING_NOTES", "RENAME_WARNING_HOTKEY"]) {
+    assert.ok(body.includes('say("' + name + '")'),
+      "окно переименования не спрашивает у каталога строку " + name);
+  }
   ok("окно переименования называет обе цены, а не спрашивает «уверены?»");
 }
 

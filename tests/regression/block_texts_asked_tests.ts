@@ -40,6 +40,8 @@ const { DIALOG_TEXTS } = await import(pathToFileURL(
 const { FRAME_TEXTS } = await import(pathToFileURL(
   path.join(SRC, "ui", "settings", "texts_custom.ts")).href);
 
+type Any = ReturnType<typeof JSON.parse>;
+
 let passed = 0;
 const ok = (label: string): void => { passed++; console.log("  ok   " + label); };
 
@@ -91,99 +93,33 @@ const BUILT: ReadonlyArray<{ owner: string; match: RegExp; where: string; count:
     where: 'custom/user_tags.ts: say("HEAD_" + title.toUpperCase()) — подпись колонки по её имени',
     count: 5,
   },
-  {
-    owner: "field-editor",
-    match: /^(TYPE_)/,
-    where: "custom/fields_editor_view.ts: TYPE_LABEL по типу Field",
-    count: 3,
-  },
 ];
 
 /* ---- долг, а не решение: строки, которые пока никто не спрашивает -------- */
 
 /**
- * **Шестьдесят четыре строки каталога, до которых подстановка не доезжает.**
+ * **Список пуст, и это состояние, а не пожелание** (дефект A46 закрыт
+ * 2026-09-08).
  *
- * Это дефект A46, а не список разрешённых исключений, и разница тут важная.
- * Каждое имя ниже объявлено в таблице текстов, попадает в `default.js` на диск
- * — и рисуется в панели **литералом**, вторым объявлением тех же слов. Человек
- * может перевести любую из этих строк, и на экране не изменится ничего.
+ * Здесь лежали шестьдесят четыре имени: каждое объявлено в таблице текстов,
+ * попадает в `default.js` на диск — и рисовалось в панели **литералом**,
+ * вторым объявлением тех же слов. Человек мог перевести любую строку, и на
+ * экране не менялось ничего.
  *
- * Список закреплён составом, и работает он в обе стороны:
+ * Пятьдесят девять из них теперь спрашиваются по имени; три строки удалены —
+ * `ROW_HOTKEY_ARIA`, `VALUE_PREFIX_HINT` и с ними одна пара половинок, —
+ * потому что места на экране у них не было ни одного дня, и переводить человек
+ * стал бы то, чего не увидит (У-71). Две уехали в подстановку примера.
+ *
+ * Список работает в обе стороны и потому оставлен пустым, а не удалён:
  *
  *   * появилось новое осиротевшее имя — проверка краснеет сразу;
  *   * имя починено, а из списка не убрано — проверка тоже краснеет, и список
  *     может только убывать.
  *
- * Так долг не превращается в норму: он либо тает, либо о нём напоминают.
- * Разбор и порядок разбора — PRD, строка A46.
+ * Разбор — PRD, строка A46.
  */
-const KNOWN_ORPHANS: readonly string[] = [
-  "field-editor.ADD_FIELD",
-  "field-editor.ADD_FIELD_LABEL",
-  "field-editor.NO_FIELD_PICKED",
-  "field-editor.LIST_ARIA",
-  "field-editor.COLUMN_ARIA",
-  "field-editor.BEHAVIOR_HEAD",
-  "field-editor.ACTIVE_YES",
-  "field-editor.ACTIVE_NO",
-  "field-editor.ACTIVE_COMMANDS_ONLY",
-  "field-editor.BEHAVIOR_STRICT",
-  "field-editor.BEHAVIOR_INSERT_ONLY",
-  "field-editor.BEHAVIOR_FREE",
-  "field-editor.CHILD_YES",
-  "field-editor.CHILD_NO",
-  "field-editor.PREREQ_YES",
-  "field-editor.PREREQ_NO",
-  "field-editor.VALUES_EMPTY",
-  "field-editor.SHOWN_CUSTOM",
-  "field-editor.VALUE_PREFIX_NO",
-  "field-editor.VALUE_PREFIX_HINT",
-  "field-editor.VALUE_CUSTOM_PLACEHOLDER",
-  "field-editor.VALUE_FILL_COLOR",
-  "field-editor.NEW_VALUE_LINK_HINT",
-  "field-editor.NEW_VALUE_TAG_HINT",
-  "field-editor.ELEMENT_EMOJI_HINT",
-  "field-editor.ELEMENT_STEP_NAME",
-  "field-editor.STEP_FIXED",
-  "field-editor.STEP_COMMAND",
-  "field-editor.STEP_CUSTOM",
-  "field-editor.ELEMENT_AMOUNT_NAME",
-  "field-editor.ELEMENT_COMMAND_NAME",
-  "field-editor.COMMAND_NOW",
-  "field-editor.COMMAND_RANDOM_NUMBERS",
-  "field-editor.COMMAND_RANDOM_CHARS",
-  "field-editor.ELEMENT_STEPS_NAME",
-  "field-editor.NEW_FIELD_TITLE",
-  "field-editor.NEW_FIELD_NAME_LABEL",
-  "field-editor.NEW_FIELD_NAME_HINT",
-  "field-editor.NEW_FIELD_NAME_ARIA",
-  "field-editor.NEW_FIELD_TYPE_LABEL",
-  "field-editor.NEW_FIELD_TYPE_ARIA",
-  "field-editor.NEW_FIELD_TYPE_TAG",
-  "field-editor.NEW_FIELD_TYPE_LINK",
-  "field-editor.NEW_FIELD_TYPE_ELEMENT",
-  "field-editor.NEW_FIELD_ADD",
-  "field-editor.NEW_FIELD_FAILED",
-  "field-editor.DELETE_CONFIRM",
-  "field-editor.RENAME_TITLE",
-  "field-editor.RENAME_LABEL",
-  "field-editor.RENAME_HINT",
-  "field-editor.RENAME_WARNING",
-  "field-editor.RENAME_WARNING_NOTES",
-  "field-editor.RENAME_WARNING_HOTKEY",
-  "field-editor.RENAME_CONFIRM",
-  "field-editor.ERR_PREFIX_TOKEN",
-  "smart-rules-list.NO_FIELDS_YET",
-  "smart-rules-list.VALUES_EMPTY",
-  "smart-rules-list.CONDITION_TIP",
-  "binder-table.ROW_HOTKEY_ARIA",
-  "frame.TAB_STRIP",
-  "frame.PREVIOUSLY_CALLED",
-  "frame.CONTRAST_WARNING",
-  "frame.EXAMPLE_STATUS",
-  "frame.EXAMPLE_PRIORITY",
-];
+const KNOWN_ORPHANS: readonly string[] = [];
 
 /* ---- сама проверка ------------------------------------------------------- */
 
@@ -264,6 +200,116 @@ const KNOWN_ORPHANS: readonly string[] = [
       "подсказку колонки " + name + " спрашивает не таблица Values, а " + (where || "никто"));
   }
   ok("положительный контроль: выдуманное имя проверка называет, живое находит");
+}
+
+/* ---- вторая половина: перевод доезжает до нарисованного ----------------- */
+
+{
+  /*
+   * **Чего статический обход не видит.** Он спрашивает «зовёт ли это имя хоть
+   * один файл» — и имя, которое зовёт **другой** блок, считает живым. Имена у
+   * блоков и правда повторяются: `VALUES_EMPTY`, `ROW_ARIA`, `REMOVE` есть у
+   * нескольких владельцев. Значит литерал в одном блоке может прятаться за
+   * честным вызовом в другом.
+   *
+   * Поэтому вторая половина — поведенческая, и вопрос у неё другой: панель
+   * рисуется целиком с подстановкой, которая **на всё** отвечает одним редким
+   * словом, и в нарисованном не должно остаться ни одной длинной английской
+   * строки из каталога. Длинных, потому что `Yes`, `No` и `default` встречаются
+   * в разметке и по другим поводам.
+   *
+   * Это и есть проверка на симптом: не «имя названо», а «человек увидел
+   * перевод» (У-96).
+   */
+  const { makeNode } = await import("../harness/dom_stub.ts");
+  const { setupGlobals, Setting, Modal, Notice: StubNotice } = await import("../harness/obsidian_stub.ts");
+  const { MemoryStore } = await import("../../src/ui/settings/store.ts");
+  const { SettingsPane } = await import("../../src/ui/settings/settings_tab.ts");
+  const { SCHEMA, TABS } = await import("../../src/ui/settings/schema/index.ts");
+  const { loadPluginInternals } = await import("../harness/plugin_internals.ts");
+
+  setupGlobals();
+  const internals: Any = loadPluginInternals();
+  const cfg: Any = internals.migrateConfig(JSON.parse(
+    fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1_full.json"), "utf8")));
+
+  const plugin: Any = {
+    app: { workspace: {}, vault: {} },
+    manifest: { id: "inline-overhaul", version: "test", dir: ".obsidian/plugins/inline-overhaul" },
+    getConfig: () => cfg,
+    setConfigPatch: () => {},
+    listOwnCommands: () => internals.buildOwnCommandList(plugin),
+  };
+  const platform: Any = {
+    Setting, Notice: StubNotice, Modal, setIcon: () => {}, plugin,
+    getConfig: () => cfg, normalizePkmOrder: internals.normalizePkmOrder, pkmOrderFields: [],
+  };
+
+  const MARK = "\u2039translated\u203a";
+  /*
+   * Каталог, в котором **каждый** ключ переведён одним редким словом. Он
+   * собирается из `panelCatalog` — из того же списка, который панель кладёт
+   * человеку в `default.js`, — а не пишется здесь: второй список ключей
+   * разошёлся бы с первым молча (У-32), и часть строк осталась бы
+   * непереведённой не потому, что дефект, а потому, что забыли ключ.
+   */
+  const { panelCatalog } = await import("../../src/ui/settings/texts_panel.ts");
+  const allMarked: Record<string, string> = {};
+  for (const entry of panelCatalog(SCHEMA, TABS) as ReadonlyArray<{ key: string }>) {
+    allMarked[entry.key] = MARK;
+  }
+  assert.ok(Object.keys(allMarked).length > 900,
+    "ключей в каталоге " + Object.keys(allMarked).length + " — список собрался не весь");
+
+  const store = new MemoryStore(JSON.parse(JSON.stringify(cfg)));
+  await store.set("general.help.showTips", true);
+  for (const tab of TABS as Any[]) if (tab.module) await store.set(tab.module, true);
+  const pane = new SettingsPane({
+    schema: SCHEMA, tabs: TABS, store, actions: {},
+    fragments: { createFragment: () => makeNode("fragment") }, platform,
+    texts: () => ({ en: allMarked }),
+  } as Any);
+
+  const drawn: string[] = [];
+  for (const tab of TABS as Any[]) {
+    pane.setActiveTab(tab.id);
+    const defs = pane.getSettingDefinitions() as Any[];
+    const rows: Any[] = [];
+    for (const def of defs) { if (Array.isArray(def.items)) rows.push(...def.items); else rows.push(def); }
+    for (const row of rows) {
+      if (typeof row.render !== "function") continue;
+      const host = makeNode("div");
+      const setting = new Setting(host);
+      let close: Any;
+      /*
+       * Второй аргумент платформа не передаёт: контекст свой блок получает от
+       * панели, замыканием. Значит подстановка обязана приехать **через
+       * панель** — то есть каталогом, а не подделкой контекста здесь (У-1).
+       */
+      try { close = row.render(setting, {}); } catch { continue; }
+      drawn.push(String(setting.settingEl.textContent || ""));
+      if (typeof close === "function") close();
+    }
+  }
+  const text = drawn.join("\n");
+  assert.ok(text.length > 500, "своих блоков нарисовано на " + text.length + " знаков — рисовать не удалось");
+  assert.ok(text.includes(MARK),
+    "подстановка не доехала ни до одной строки: проверка ниже мерила бы пустоту");
+
+  /* Английское из каталога, что длиннее двенадцати знаков и не с подстановкой. */
+  const leaked: string[] = [];
+  for (const [owner, table] of Object.entries(BLOCK_TEXTS)) {
+    for (const [name, value] of Object.entries(table as Record<string, string>)) {
+      const plain = String(value).replace(/<[^>]+>/g, "").split("{")[0]?.trim() || "";
+      if (plain.length < 13) continue;
+      if (text.includes(plain)) leaked.push(owner + "." + name + ": " + JSON.stringify(plain.slice(0, 40)));
+    }
+  }
+  assert.deepEqual(leaked, [],
+    "нарисовано английское при переведённом каталоге — значит место рисует литерал,\n"
+    + "а не спрашивает строку (У-82):\n  " + leaked.join("\n  "));
+  ok("перевод доезжает до нарисованного: своих блоков на " + text.length
+     + " знаков, английского из каталога в них нет");
 }
 
 console.log("\n" + passed + " проверок пройдено");

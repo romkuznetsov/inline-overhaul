@@ -69,6 +69,8 @@ export interface TabDeps {
     tabs: readonly TabDef[];
     active: TabId;
     pick: (id: TabId) => void;
+    /** Подпись полосы для программы чтения с экрана: слово из каталога. */
+    label?: string;
   }) => unknown;
   /**
    * Платформа для перенесённых блоков (3b). Панель её не использует — только
@@ -718,7 +720,17 @@ export class SettingsPane {
       ctx,
       run: (action: ActionId) => { void this.run(action); },
       busy: (action: ActionId) => this.busy.has(action),
-      describe: it => this.describer.describe(it, { showTips, showIds }),
+      /*
+       * Строка «Previously called …» приходит швом, а слово — из каталога.
+       * До 2026-09-08 шов никто не кормил: строка `frame.previously-called`
+       * лежала в файле языка, человек её переводил, и на экране не менялось
+       * ничего, потому что `describe.ts` отдавал своё английское (долг A46).
+       */
+      describe: it => this.describer.describe(it, {
+        showTips,
+        showIds,
+        previouslyCalled: names => fill(this.frame("PREVIOUSLY_CALLED"), names.join(", ")),
+      }),
       groupFold: group => this.groupFoldButtonFor(group),
       groupCallout: group => this.groupCalloutButtonFor(group, showCallouts),
       showIds,
@@ -739,6 +751,9 @@ export class SettingsPane {
         tabs: this.tabsWithGroups(),
         active: this.active,
         pick: (id: TabId) => this.setActiveTab(id),
+        /* Полосу читает вслух программа чтения с экрана, и слово берётся из
+           каталога: до 2026-09-08 шов подписи никто не кормил (долг A46). */
+        label: this.frame("TAB_STRIP"),
       }) as ReturnType<NonNullable<Wiring["tabStrip"]>>);
     }
     return wiring;

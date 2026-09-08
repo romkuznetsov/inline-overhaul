@@ -32,7 +32,7 @@
 import type { CustomRender, SettingsCtx, ValueVisibility } from "../types.ts";
 import { el, btn, textInput, selectInput, tipBelow, cssVarValue, type El, type ElInput } from "./dom.ts";
 import { keepView } from "./keepview.ts";
-import { applyTagVars, bubble } from "./previews.ts";
+import { applyTagVars, bubble, frame } from "./previews.ts";
 import { contrastRatio, contrastWarning, CONTRAST_FLOOR, toHexColor } from "./contrast.ts";
 import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
@@ -365,7 +365,7 @@ export function renderUserTags(host: El, o: UserTagsViewOpts): void {
       if (ratio < CONTRAST_FLOOR) {
         const warn = el(cell, "span", "io-warn", "\u26A0");
         /* Одна подсказка на узел — и только `aria-label`. */
-        warn.setAttribute("aria-label", contrastWarning(ratio));
+        warn.setAttribute("aria-label", contrastWarning(ratio, frame(o.ctx, "CONTRAST_WARNING")));
       }
     }
 

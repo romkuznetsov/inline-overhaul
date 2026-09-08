@@ -18,6 +18,7 @@
 
 import type { SettingsCtx } from "../types.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
+import { frame } from "./previews.ts";
 
 /* Помощники состояния дерева значений — тот же модуль, что берут редактор
    Fields и блок свойств заметки. Разбор снятия шва — в `fields_editor.ts`. */
@@ -66,7 +67,9 @@ export interface PreviewField {
 export const EXAMPLE_FIELDS: readonly PreviewField[] = [
   {
     id: "status",
-    name: "Status",
+    /* Имя — **адрес строки каталога**, а не слово: подставляет его
+       `previewFields` (долг A46). Литерал здесь был вторым объявлением. */
+    name: "EXAMPLE_STATUS",
     kind: "tag",
     side: "left",
     values: [
@@ -78,7 +81,7 @@ export const EXAMPLE_FIELDS: readonly PreviewField[] = [
   },
   {
     id: "priority",
-    name: "Priority",
+    name: "EXAMPLE_PRIORITY",
     kind: "tag",
     side: "left",
     values: [
@@ -182,7 +185,13 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
 export function previewFields(ctx: SettingsCtx): PreviewFields {
   const real = realFields(ctx);
   if (real.length) return { fields: real, example: false };
-  return { fields: EXAMPLE_FIELDS, example: true };
+  /*
+   * У примерных Fields имя лежит в каталоге, и подставляется оно здесь —
+   * ровно там, где пример уходит наружу. Держать слово в самой таблице
+   * значило бы объявить его дважды: одно в каталоге, другое рядом (У-32).
+   */
+  const named = EXAMPLE_FIELDS.map(f => ({ ...f, name: frame(ctx, f.name) }));
+  return { fields: named, example: true };
 }
 
 /**

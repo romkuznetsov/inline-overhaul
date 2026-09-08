@@ -66,6 +66,7 @@ function askNewFieldModal(
   Modal: ModalCtor,
   app: unknown,
   done: (answer: NewField | null) => void,
+  say: Say,
 ): void {
   let answered = false;
   const finish = (answer: NewField | null): void => {
@@ -79,40 +80,41 @@ function askNewFieldModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", undefined, "Add a Field");
+      el(box, "h4", undefined, say("NEW_FIELD_TITLE"));
 
       const nameRow = el(box, "div", "io-item");
       const nameInfo = el(nameRow, "div", "io-item__info");
-      el(nameInfo, "div", "io-item__name", "Name");
-      el(nameInfo, "div", "io-item__desc", "What this Field is called here and in the config note");
+      el(nameInfo, "div", "io-item__name", say("NEW_FIELD_NAME"));
+      el(nameInfo, "div", "io-item__desc", say("NEW_FIELD_NAME_LABEL"));
       const name = el(nameRow, "div", "io-item__control").createEl("input", {
         cls: "io-text",
         type: "text",
-        placeholder: "Priority",
-        attr: { "aria-label": "Name of the new Field" },
+        placeholder: say("NEW_FIELD_NAME_HINT"),
+        attr: { "aria-label": say("NEW_FIELD_NAME_ARIA") },
       }) as El & { value: string };
 
       const typeRow = el(box, "div", "io-item");
       const typeInfo = el(typeRow, "div", "io-item__info");
-      el(typeInfo, "div", "io-item__name", "Type");
-      el(typeInfo, "div", "io-item__desc", "What the Field writes into the line");
+      el(typeInfo, "div", "io-item__name", say("NEW_FIELD_TYPE"));
+      el(typeInfo, "div", "io-item__desc", say("NEW_FIELD_TYPE_LABEL"));
       const type = el(typeRow, "div", "io-item__control").createEl("select", {
         cls: "io-select",
-        attr: { "aria-label": "Type of the new Field" },
+        attr: { "aria-label": say("NEW_FIELD_TYPE_ARIA") },
       }) as El & { value: string };
       for (const opt of [
-        { value: "tag", label: "Tag" },
-        { value: "wikilink", label: "Link" },
-        { value: "element", label: "Element" },
-      ]) type.createEl("option", { text: opt.label, value: opt.value });
+        { value: "tag", name: "NEW_FIELD_TYPE_TAG" },
+        { value: "wikilink", name: "NEW_FIELD_TYPE_LINK" },
+        { value: "element", name: "NEW_FIELD_TYPE_ELEMENT" },
+      ]) type.createEl("option", { text: say(opt.name), value: opt.value });
       type.value = "tag";
 
       const foot = el(box, "div", "io-dlg__foot");
-      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      const cancel = foot.createEl("button",
+        { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
       cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
       const add = foot.createEl("button", {
         cls: "io-btn io-btn--cta",
-        text: "Add",
+        text: say("NEW_FIELD_ADD"),
         attr: { type: "button" },
       }) as El & { disabled: boolean };
       add.disabled = true;
@@ -164,9 +166,11 @@ function confirmDeleteModal(
       el(box, "h4", undefined, say("DELETE_TITLE"));
       el(box, "p", "io-item__desc", say("DELETE_BODY", fieldName));
       const foot = el(box, "div", "io-dlg__foot");
-      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      const cancel = foot.createEl("button",
+        { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
       cancel.addEventListener("click", (() => { finish(false); this.close(); }) as never);
-      const del = foot.createEl("button", { cls: "io-danger", text: "Delete", attr: { type: "button" } });
+      const del = foot.createEl("button",
+        { cls: "io-danger", text: say("DELETE_CONFIRM"), attr: { type: "button" } });
       del.addEventListener("click", (() => { finish(true); this.close(); }) as never);
     }
 
@@ -209,13 +213,12 @@ function askRenameModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", undefined, "Rename Field");
+      el(box, "h4", undefined, say("RENAME_TITLE"));
 
       const row = el(box, "div", "io-item");
       const info = el(row, "div", "io-item__info");
-      el(info, "div", "io-item__name", "New name");
-      el(info, "div", "io-item__desc",
-        "Lowercase letters, digits, spaces, hyphens and underscores");
+      el(info, "div", "io-item__name", say("RENAME_LABEL"));
+      el(info, "div", "io-item__desc", say("RENAME_HINT"));
       const input = el(row, "div", "io-item__control").createEl("input", {
         cls: "io-text io-text--mono",
         type: "text",
@@ -225,20 +228,18 @@ function askRenameModal(
 
       /* Цена названа до нажатия, а не после (З8 наоборот: это человеку). */
       const warn = el(box, "div", "io-dlg__warn");
-      el(warn, "p", "io-item__desc",
-        "Two things will not follow the new name:");
+      el(warn, "p", "io-item__desc", say("RENAME_WARNING"));
       const list = el(warn, "ul", "io-dlg__list");
-      el(list, "li", "io-item__desc",
-        "lines you have already written keep the old tag \u2014 the plugin does not edit your notes");
-      el(list, "li", "io-item__desc",
-        "a hotkey given to this Field\u2019s commands comes loose: Obsidian keeps hotkeys by command id, and the id is built from the name");
+      el(list, "li", "io-item__desc", say("RENAME_WARNING_NOTES"));
+      el(list, "li", "io-item__desc", say("RENAME_WARNING_HOTKEY"));
 
       const foot = el(box, "div", "io-dlg__foot");
-      const cancel = foot.createEl("button", { cls: "io-btn", text: "Cancel", attr: { type: "button" } });
+      const cancel = foot.createEl("button",
+        { cls: "io-btn", text: say("CANCEL"), attr: { type: "button" } });
       cancel.addEventListener("click", (() => { finish(null); this.close(); }) as never);
       const go = foot.createEl("button", {
         cls: "io-btn io-btn--cta",
-        text: "Rename",
+        text: say("RENAME_CONFIRM"),
         attr: { type: "button" },
       }) as El & { disabled: boolean };
       const same = (): boolean =>
@@ -324,7 +325,7 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         showIds: Boolean(ctx.get("advanced.showSettingIds")),
         redraw: () => { draw(); },
         notice,
-        askNewField: done => askNewFieldModal(Modal, app, done),
+        askNewField: done => askNewFieldModal(Modal, app, done, say),
         confirmDeleteField: (name, done) => confirmDeleteModal(Modal, app, name, done, say),
         askRename: (name, done) => askRenameModal(Modal, app, name, done, say),
       });

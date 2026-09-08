@@ -128,7 +128,13 @@ export const BLOCK_TEXTS = {
     VALUE_MAKE_CHILD: "Make {0} a child Value",
     VALUE_PREFIX_NO: "no",
     VALUE_PREFIX_FOR: "Prefix for {0}",
-    VALUE_PREFIX_HINT: "A Prefix checkbox looks like [ ] or [I]",
+    /*
+     * `VALUE_PREFIX_HINT` снята 2026-09-08 при разборе долга A46. Слово в
+     * слово то же, что `ERR_PREFIX_TOKEN` ниже, — и на экране показывается
+     * именно `ERR_PREFIX_TOKEN`, сообщением при негодном вводе. У этой строки
+     * места на экране не было ни одного дня: она попадала в файл языка, и
+     * человек переводил то, чего не увидит (У-71).
+     */
     VALUE_SHOWN_FOR: "Show, for {0}",
     VALUE_CUSTOM_PLACEHOLDER: "printed instead",
     VALUE_CUSTOM_FOR: "Custom text for {0}",
@@ -196,8 +202,18 @@ export const BLOCK_TEXTS = {
     YAML_PREVIEW_NAME: "Preview",
     YAML_PREVIEW_DESC: "How this Value will look like in YAML",
     YAML_PREVIEW_TIP: "It follows the three choices above and updates as you change them, and it shows what <b>this</b> Field writes. Two Fields can share one property name — then the note gets both of them in the same list, while each Field shows only its own part here",
-    /* Окна редактора. */
+    /*
+     * Окна редактора.
+     *
+     * Три строки заведены 2026-09-08, при разборе долга A46: подписи `Name` и
+     * `Type` и кнопка `Cancel` стояли в окнах литералами, а в каталоге их не
+     * было вовсе. То есть человек не мог их перевести даже теоретически — не
+     * «перевод не доезжает», а «строки нет».
+     */
     NEW_FIELD_TITLE: "Add a Field",
+    NEW_FIELD_NAME: "Name",
+    NEW_FIELD_TYPE: "Type",
+    CANCEL: "Cancel",
     NEW_FIELD_NAME_LABEL: "What this Field is called here and in the config note",
     NEW_FIELD_NAME_HINT: "Priority",
     NEW_FIELD_NAME_ARIA: "Name of the new Field",
@@ -246,6 +262,9 @@ export const BLOCK_TEXTS = {
     RULE_FALLBACK_NAME: "Rule {0}",
     RULES_EMPTY: "no rules yet — the default template is used for every line",
     ADD_RULE: "Add rule",
+    /* Кнопка отказа в окне выбора условия. Заведена 2026-09-08: стояла
+       литералом, и в каталоге её не было вовсе (долг A46). */
+    CANCEL: "Cancel",
     MATCH_ANY: "any",
     MATCH_OR: "or",
     MATCH_AND: "and",
@@ -310,7 +329,13 @@ export const BLOCK_TEXTS = {
     ROW_ARIA: "this row",
     ROW_DRAG: "{0} to reorder it",
     ROW_DESC_ARIA: "Description for {0}",
-    ROW_HOTKEY_ARIA: "{0} the hotkey for {1}",
+    /*
+     * `ROW_HOTKEY_ARIA` снята 2026-09-08 при разборе долга A46. Она собирала
+     * подпись кнопки хоткея из двух половин — «{0} the hotkey for {1}», — а
+     * подпись давно приходит целой строкой: `HOTKEY_CHANGE` или
+     * `HOTKEY_ASSIGN`. Строка пережила свой предмет и попадала в файл языка,
+     * где человек переводил то, чего на экране нет (У-71).
+     */
     ROW_REMOVE: "Remove {0}",
     ERR_TEXT_TAKEN: "A row with this text to insert already exists",
     ERR_NAME_TAKEN: "A row with this command name already exists",

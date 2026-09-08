@@ -19,7 +19,7 @@ import { el, btn, cssVar, cssVarValue, rich, selectInput, textInput, tipBelow } 
 import type { FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
-import { applyTagVars, bubble, bubbleLabel } from "./previews.ts";
+import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { TYPE_COLOR, typeColor } from "./preview_data.ts";
 import {
@@ -41,10 +41,10 @@ import {
  * слово `Element` вместе со стрелками съедал имя Field в узкой левой колонке,
  * и «444» показывалось как «4...».
  */
-export const TYPE_LABEL: Record<FieldKind, string> = {
-  tag: "Tag",
-  wikilink: "Link",
-  element: "Emoji",
+export const TYPE_NAME: Record<FieldKind, string> = {
+  tag: "TYPE_TAG",
+  wikilink: "TYPE_LINK",
+  element: "TYPE_ELEMENT",
 };
 
 /**
@@ -76,9 +76,9 @@ const SIDE_LABEL = { left: "SIDE_LEFT", right: "SIDE_RIGHT" } as const;
  * конфиге и `Behavior` в панели.
  */
 const BEHAVIOR_OPTIONS = [
-  { value: "off", label: "Strict" },
-  { value: "minimal", label: "Insert only" },
-  { value: "full", label: "Free" },
+  { value: "off", name: "BEHAVIOR_STRICT" },
+  { value: "minimal", name: "BEHAVIOR_INSERT_ONLY" },
+  { value: "full", name: "BEHAVIOR_FREE" },
 ] as const;
 
 /** Ф10: порядок Values и есть порядок цикла. Сказано один раз, в шапке таблицы. */
@@ -94,9 +94,9 @@ const BEHAVIOR_OPTIONS = [
 
 /** Ф9: как Value показывается в строке. Значения конфига прежние (З1). */
 const SHOWN_OPTIONS = [
-  { value: "default", label: "default" },
-  { value: "empty", label: "empty" },
-  { value: "custom", label: "custom" },
+  { value: "default", name: "SHOWN_DEFAULT" },
+  { value: "empty", name: "SHOWN_EMPTY" },
+  { value: "custom", name: "SHOWN_CUSTOM" },
 ] as const;
 
 
@@ -111,9 +111,9 @@ const SHOWN_OPTIONS = [
  * переживёт переезд и останется без единого способа её задать.
  */
 const ACTIVE_OPTIONS = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
-  { value: "hotkey_only", label: "Commands only" },
+  { value: "yes", name: "ACTIVE_YES" },
+  { value: "no", name: "ACTIVE_NO" },
+  { value: "hotkey_only", name: "ACTIVE_COMMANDS_ONLY" },
 ] as const;
 
 /**
@@ -127,8 +127,8 @@ const ACTIVE_OPTIONS = [
  * записи и важен их порядок, и собирать их заново вёрстке нельзя.
  */
 const CHILD_OPTIONS = [
-  { value: "yes", label: "Yes" },
-  { value: "no", label: "No" },
+  { value: "yes", name: "CHILD_YES" },
+  { value: "no", name: "CHILD_NO" },
 ] as const;
 
 /**
@@ -141,8 +141,8 @@ const CHILD_OPTIONS = [
  * Fields в нём короче, чем весь список, — в подсказках ниже и в 10.13.
  */
 const PREREQ_OPTIONS = [
-  { value: "no", label: "No" },
-  { value: "yes", label: "Yes" },
+  { value: "no", name: "PREREQ_NO" },
+  { value: "yes", name: "PREREQ_YES" },
 ] as const;
 
 /** Пока Field не выбран, писать нечего: пустое значение ничего не пишет. */
@@ -209,6 +209,22 @@ function columnTips(isLink: boolean): Record<string, string> {
     Text: "VALUE_TEXT_TIP",
     Preview: "VALUE_PREVIEW_TIP",
   };
+}
+
+/**
+ * Подписи вариантов — **имена каталога**, и слово берётся у него (10.13.47).
+ *
+ * До 2026-09-08 таблицы держали сами слова, а те же слова лежали в каталоге и
+ * никем не спрашивались: человек переводил `Strict` или `Commands only` в
+ * своём файле языка, и на экране не менялось ничего (дефект A46, У-82).
+ * Один помощник на все семь таблиц — второе объявление этого правила
+ * разошлось бы с первым молча.
+ */
+function labelled(
+  say: Say,
+  options: readonly { readonly value: string; readonly name: string }[],
+): Array<{ value: string; label: string }> {
+  return options.map(o => ({ value: o.value, label: say(o.name) }));
 }
 
 /**
@@ -384,7 +400,7 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
       const pick = btn(item, "io-fields__pick", { label: say("SHOW_FIELD", row.label) });
       el(pick, "span", "io-fields__name", row.label);
       cssVar(
-        el(pick, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
+        el(pick, "span", "io-chip io-chip--typed", say(TYPE_NAME[row.kind])),
         "--io-chip-bg",
         typeColor(row.kind),
       );
@@ -422,7 +438,8 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
   const addWrap = el(list, "div", "io-fields__add");
   /* Акцентная: заказчик просил, чтобы добавление было видно (замечание
      2026-08-27, отменяет прежнее «нейтральная» из Ф5). */
-  const add = btn(addWrap, "io-btn io-btn--sm io-btn--cta", { text: "Add Field", label: "Add a Field" });
+  const add = btn(addWrap, "io-btn io-btn--sm io-btn--cta",
+    { text: say("ADD_FIELD"), label: say("ADD_FIELD_LABEL") });
   add.disabled = !o.enabled;
   addFieldAction(add, o);
 }
@@ -476,13 +493,14 @@ function parentLabel(rows: readonly FieldRow[], key: string): string {
  * Field пишет в строку, — а угадать его за человека нельзя.
  */
 function addFieldAction(button: ElButton, o: FieldsViewOpts): void {
+  const say = words(o);
   button.addEventListener("click", (() => {
     if (!o.enabled) return;
     o.askNewField(answer => {
       if (!answer) return;
       const res = o.model.addField(answer.name, answer.kind);
       if (!res.ok) {
-        o.notice(res.error || "The Field was not added");
+        o.notice(res.error || say("NEW_FIELD_FAILED"));
         return;
       }
       /* Новый Field выбирается сразу: за добавлением идёт настройка. */
@@ -560,7 +578,7 @@ function prerequisiteRows(detail: El, row: FieldRow, o: FieldsViewOpts): Array<(
   });
   closers.push(on.closeTip);
   const onPick = selectInput(on.control, "io-select", {
-    options: PREREQ_OPTIONS,
+    options: labelled(say, PREREQ_OPTIONS),
     value: opened ? "yes" : "no",
     label: say("PREREQ_NAME") + " for " + row.strictName,
   });
@@ -653,7 +671,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   const title = el(detail, "div", "io-fields__title");
   el(title, "h4", undefined, row.strictName);
   cssVar(
-    el(title, "span", "io-chip io-chip--typed", TYPE_LABEL[row.kind]),
+    el(title, "span", "io-chip io-chip--typed", say(TYPE_NAME[row.kind])),
     "--io-chip-bg",
     typeColor(row.kind),
   );
@@ -756,12 +774,12 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
      Child Field (замечание заказчика 2026-08-27). «?» у него появился по
      замечанию 1.4.1.2.5: заголовок был единственным без объяснения. */
   const behaviorHead = el(detail, "div", "io-sub io-item__namerow");
-  el(behaviorHead, "span", undefined, "Behavior");
+  el(behaviorHead, "span", undefined, say("BEHAVIOR_HEAD"));
   closers.push(tipBelow({
     head: behaviorHead,
     host: el(detail, "div", "io-tiphost"),
     text: say("BEHAVIOR_HEAD_TIP"),
-    label: "Behavior",
+    label: say("BEHAVIOR_HEAD"),
     id: "io-field-behavior-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
@@ -782,7 +800,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     });
     closers.push(active.closeTip);
     const mode = selectInput(active.control, "io-select", {
-      options: ACTIVE_OPTIONS,
+      options: labelled(say, ACTIVE_OPTIONS),
       value: row.active,
       label: say("ACTIVE_FOR", row.strictName),
     });
@@ -803,7 +821,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   });
   closers.push(behavior.closeTip);
   const mode = selectInput(behavior.control, "io-select", {
-    options: BEHAVIOR_OPTIONS,
+    options: labelled(say, BEHAVIOR_OPTIONS),
     value: row.freeRoam,
     label: say("BEHAVIOR_FOR", row.strictName),
   });
@@ -840,7 +858,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     });
     closers.push(child.closeTip);
     const pick = selectInput(child.control, "io-select", {
-      options: CHILD_OPTIONS,
+      options: labelled(say, CHILD_OPTIONS),
       value: on ? "yes" : "no",
       label: say("CHILD_OF", row.strictName),
     });
@@ -1105,7 +1123,9 @@ function previewCell(host: El, o: FieldsViewOpts, theme: ThemePair, v: {
   if (ratio >= CONTRAST_FLOOR) return drawn;
   const warn = el(cell, "span", "io-warn", "\u26A0");
   /* Одна подсказка на узел — и только `aria-label`: `title` рисует вторую. */
-  const note = contrastWarning(ratio);
+  /* Слова предупреждения — из каталога: шаблон приходит сюда, а числа
+     подставляет `contrastWarning` (долг A46). */
+  const note = contrastWarning(ratio, frame(o.ctx, "CONTRAST_WARNING"));
   warn.setAttribute("aria-label", note);
   return drawn;
 }
@@ -1174,7 +1194,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
   const rows = flatten(ve.tree);
   if (!rows.length) {
     /* Пустая таблица говорит, что нажать (ПЗ2, ПЗ3). */
-    el(box, "div", "io-side__empty", "no Values yet — add the first one below");
+    el(box, "div", "io-side__empty", say("VALUES_EMPTY"));
   }
 
   /* Что тянут: адрес строки переживает перерисовку, узел — нет. */
@@ -1264,7 +1284,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
      */
     const prefix = textInput(line, "io-text io-text--mono", {
       value: String(v.prefixMode === "checkbox" ? v.checkboxToken || "" : ""),
-      placeholder: "no",
+      placeholder: say("VALUE_PREFIX_NO"),
       label: say("VALUE_PREFIX_FOR", v.token),
     });
     prefix.disabled = !o.enabled;
@@ -1279,7 +1299,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       }
       const cb = ve.normalizeCheckbox(raw);
       if (!cb) {
-        o.notice("A Prefix checkbox looks like [ ] or [I]");
+        o.notice(say("ERR_PREFIX_TOKEN"));
         prefix.value = String(v.checkboxToken || "");
         return;
       }
@@ -1301,7 +1321,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
 
       const shownCell = el(line, "div", "io-showncell");
       const shown = selectInput(shownCell, "io-select", {
-        options: SHOWN_OPTIONS,
+        options: labelled(say, SHOWN_OPTIONS),
         value: visual.visibility,
         label: say("VALUE_SHOWN_FOR", v.token),
       });
@@ -1320,7 +1340,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       if (visual.visibility === "custom") {
         const custom = textInput(shownCell, "io-text io-text--mono", {
           value: visual.customText,
-          placeholder: "printed instead",
+          placeholder: say("VALUE_CUSTOM_PLACEHOLDER"),
           label: say("VALUE_CUSTOM_FOR", v.token),
         });
         custom.disabled = !o.enabled;
@@ -1385,7 +1405,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
           o.redraw();
         }) as never);
       };
-      color("fillColor", "Fill color", "pkm:visuals:tag:fill");
+      color("fillColor", say("VALUE_FILL_COLOR"), "pkm:visuals:tag:fill");
       color("textColor", "Text color", "pkm:visuals:tag:text");
 
       previewBubble = previewCell(line, o, theme, {
@@ -1439,7 +1459,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
      ними и без них (замечание заказчика 2026-08-27). */
   const add = textInput(foot, "io-text io-text--mono", {
     value: "",
-    placeholder: isLink ? "[[wikilink]] / wikilink" : "#tag / tag",
+    placeholder: say(isLink ? "NEW_VALUE_LINK_HINT" : "NEW_VALUE_TAG_HINT"),
     label: say("NEW_VALUE_FOR", row.strictName),
   });
   add.disabled = !o.enabled;
@@ -1472,9 +1492,9 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
  * как ответ на другой вопрос.
  */
 const STEP_OPTIONS = [
-  { value: "increment", label: "Fixed step" },
-  { value: "command", label: "Command" },
-  { value: "custom", label: "Custom step" },
+  { value: "increment", name: "STEP_FIXED" },
+  { value: "command", name: "STEP_COMMAND" },
+  { value: "custom", name: "STEP_CUSTOM" },
 ] as const;
 
 /*
@@ -1531,12 +1551,12 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   };
 
   line(say("ELEMENT_EMOJI_NAME"), say("ELEMENT_EMOJI_DESC"), say("ELEMENT_EMOJI_TIP"), "io-element-marker-tip", ed.emoji,
-    "one character or emoji", v => ed.setEmoji(v));
+    say("ELEMENT_EMOJI_HINT"), v => ed.setEmoji(v));
   line(say("ELEMENT_FORMAT_NAME"), say("ELEMENT_FORMAT_DESC"), say("ELEMENT_FORMAT_TIP"), "io-element-format-tip", ed.format,
     say("ELEMENT_FORMAT_HINT"), v => ed.setFormat(v));
 
   const steps = itemRow(host, {
-    name: "Steps by",
+    name: say("ELEMENT_STEP_NAME"),
     desc: say("ELEMENT_STEP_DESC"),
     tip: say("ELEMENT_STEP_TIP"),
     tipId: "io-element-step-tip",
@@ -1544,7 +1564,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   });
   closers.push(steps.closeTip);
   const mode = selectInput(steps.control, "io-select", {
-    options: STEP_OPTIONS,
+    options: labelled(say, STEP_OPTIONS),
     value: ed.mode,
     label: say("ELEMENT_STEP_FOR", row.strictName),
   });
@@ -1558,7 +1578,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
   /* Показывается только то, чем этот режим шагает: три поля разом сбивают с толку. */
   if (ed.mode === "increment") {
     const by = itemRow(host, {
-      name: "Amount",
+      name: say("ELEMENT_AMOUNT_NAME"),
       desc: say("ELEMENT_AMOUNT_DESC"),
       tip: say("ELEMENT_AMOUNT_TIP"),
       tipId: "io-element-amount-tip",
@@ -1576,7 +1596,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     }) as never);
   } else if (ed.mode === "command") {
     const cmd = itemRow(host, {
-      name: "Command",
+      name: say("ELEMENT_COMMAND_NAME"),
       desc: say("ELEMENT_COMMAND_DESC"),
       tip: say("ELEMENT_COMMAND_TIP"),
       tipId: "io-element-command-tip",
@@ -1585,9 +1605,9 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     closers.push(cmd.closeTip);
     const pick = selectInput(cmd.control, "io-select", {
       options: [
-        { value: "now", label: "The current date and time" },
-        { value: "randomN", label: "Random numbers" },
-        { value: "randomE", label: "Random characters" },
+        { value: "now", label: say("COMMAND_NOW") },
+        { value: "randomN", label: say("COMMAND_RANDOM_NUMBERS") },
+        { value: "randomE", label: say("COMMAND_RANDOM_CHARS") },
       ],
       value: ed.command,
       label: say("ELEMENT_COMMAND_FOR", row.strictName),
@@ -1599,7 +1619,7 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
     }) as never);
   } else {
     const own = itemRow(host, {
-      name: "Steps",
+      name: say("ELEMENT_STEPS_NAME"),
       desc: say("ELEMENT_STEPS_DESC"),
       tip: say("ELEMENT_STEPS_TIP"),
       tipId: "io-element-steps-tip",
@@ -1641,7 +1661,7 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
     head: listHead,
     host: el(listCol, "div", "io-tiphost"),
     text: say("LIST_TIP"),
-    label: "the Fields list",
+    label: say("LIST_ARIA"),
     id: "io-fields-list-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
@@ -1657,7 +1677,7 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   const detailHead = el(detailCol, "div", "io-fields__colhead");
   /* У Field типа `element` значений нет: у него один маркер и один формат.
      Колонка названа так же, как чип типа, — одним словом. */
-  const detailName = row && row.kind === "element" ? TYPE_LABEL.element : "Values";
+  const detailName = row && row.kind === "element" ? say(TYPE_NAME.element) : "Values";
   el(detailHead, "span", undefined, detailName);
   /*
    * «?» у шапки правой колонки. У левой он был с самого начала, у правой не
@@ -1667,14 +1687,14 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
     head: detailHead,
     host: el(detailCol, "div", "io-tiphost"),
     text: say("DETAIL_TIP"),
-    label: "this column",
+    label: say("COLUMN_ARIA"),
     id: "io-fields-detail-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
   const detail = el(detailCol, "div", "io-fields__detail");
   /* Ни одного Field — не ошибка, а приглашение (ПЗ2, ПЗ3). */
   if (row) closers.push(renderFieldDetail(detail, row, o));
-  else el(detail, "div", "io-fields__hint", "add a Field on the left to set it up here");
+  else el(detail, "div", "io-fields__hint", say("NO_FIELD_PICKED"));
 
   return () => {
     closers.forEach(fn => fn());
