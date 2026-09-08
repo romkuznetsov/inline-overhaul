@@ -6,10 +6,11 @@
  */
 
 import type { SettingsGroup } from "../types.ts";
-import { on, not, neither } from "../types.ts";
+import { on, not, eq, neither } from "../types.ts";
 import { binderTable } from "../custom/binder.ts";
 import { callout } from "../custom/callouts.ts";
 import { commandReference } from "../custom/command_reference.ts";
+import { selectAllCustom } from "../custom/select_all_custom.ts";
 
 export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
 { id: "keyboard-intro",  tab: "keyboard",   order: 50, heading: "Before you start",
@@ -19,8 +20,8 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
   visible: on("general.help.showCallouts") },
 {
   id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A' ('⌘+A')",
-  intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
-  tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder — the line you are on, then more of the note with each press — so you can grab one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide how many rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. The key itself is Obsidian’s, and nothing here rebinds it",
+  intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection",
+  tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it",
   items: [
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
       name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
@@ -32,9 +33,17 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
       options:[
         { value:"line-note", label:"Line, then note" },
         { value:"line-tree-note", label:"Line, tree, then note" },
-        { value:"line-tree-header-note", label:"Line, tree, heading, then note" }
+        { value:"line-tree-header-note", label:"Line, tree, heading, then note" },
+        { value:"word-line-tree-header-note", label:"Word, line, tree, heading, then note" },
+        { value:"custom", label:"Custom" }
       ],
-      tip:"<b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note" },
+      tip:"<b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note" },
+    { kind:"note", id:"select-all-custom-head",
+      name:"Steps to cycle through", desc:"Which of the five a press stops at",
+      tip:"The order is fixed — word, line, tree, heading, note — and the ticks decide which of them a press stops at. Tick <b>word</b>, <b>line</b> and <b>note</b>, and the key goes from the word under the cursor to the whole line to the whole note, skipping the two in between. Tick nothing and the key stays Obsidian’s own: one press, the whole note",
+      visible: eq("editor.selectAll.mode","custom") },
+    { kind:"custom", id:"select-all-custom", render: selectAllCustom,
+      visible: eq("editor.selectAll.mode","custom") },
     { kind:"toggle", id:"select-all-timer", path:"editor.selectAll.useDelay", default:false,
       name:"Count presses by timer", desc:"Decide the next step by how quickly you press, rather than by what is selected",
       searchTerms:["Use multi-press delay"], disabled: not("editor.selectAll.enabled"),

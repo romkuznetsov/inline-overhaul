@@ -61,7 +61,7 @@ const NARROW_OK = {
     const tabs = await page.$$eval(".io-tabs .io-tab", (els) => els.length);
     if (tabs < 7) bad("вкладок в прототипе " + tabs + ", а их семь: страница не отрисовалась");
 
-    const totals = { tips: 0, heads: 0, values: 0, narrowAllowed: 0 };
+    const totals = { tips: 0, heads: 0, values: 0, narrowAllowed: 0, unlocked: 0, steps: 0 };
 
     for (let i = 0; i < tabs; i++) {
       const found = await page.evaluate((idx) => {
@@ -127,7 +127,26 @@ const NARROW_OK = {
         const tabName = tab ? (tab.textContent || "").trim().replace(/\d+$/, "") : "?";
         if (tab) tab.click();
 
-        const out = { tab: tabName, tips: [], heads: [], values: [] };
+        const out = { tab: tabName, tips: [], heads: [], values: [], unlocked: 0, steps: 0 };
+
+        /*
+         * Строка, которая появляется только в одном состоянии, под браузер не
+         * попадала вовсе: гейт открывает панель с умолчаниями. Список ступеней
+         * `Ctrl+A` виден только при `Custom` (З-3) — значит режим переключается
+         * до замеров, и всё, что открылось, меряется наравне с остальным.
+         *
+         * Отбор — по значению, которого больше нет ни у одного списка. Что
+         * переключение состоялось, говорит `steps` ниже: подмена, которая
+         * ничего не сдвинула, читается как «проверка слепа» (У-110).
+         */
+        for (const sel of Array.from(document.querySelectorAll("select"))) {
+          const values = Array.from(sel.options || []).map(function (o) { return o.value; });
+          if (values.indexOf("word-line-tree-header-note") < 0) continue;
+          sel.value = "custom";
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+          out.unlocked++;
+        }
+        if (out.unlocked) out.steps = document.querySelectorAll(".io-keepfields__row").length;
 
         /* ---- 1. Подсказки: видны и во всю ширину своего блока ---- */
         const helps = Array.from(document.querySelectorAll(".io-help"));
@@ -183,6 +202,8 @@ const NARROW_OK = {
         return out;
       }, i);
 
+      totals.unlocked += found.unlocked;
+      if (found.unlocked) totals.steps = found.steps;
       for (const t of found.tips) {
         totals.tips++;
         if (t.missing) { bad(found.tab + ": «?» нажат, а подсказки в блоке нет — «" + t.aria + "»"); continue; }
@@ -221,6 +242,20 @@ const NARROW_OK = {
     if (totals.tips < 40) bad("положительный контроль: подсказок проверено " + totals.tips + ", а их десятки");
     if (totals.heads < 5) bad("положительный контроль: шапок таблиц проверено " + totals.heads);
     if (totals.values < 5) bad("положительный контроль: подписей слайдеров проверено " + totals.values);
+    /*
+     * И контроль на переключение режима: список ступеней ровно один, и в нём
+     * пять строк. Ноль тут значит не «нечего проверять», а «переключение не
+     * состоялось» — тогда подсказка нового блока не открывалась ни разу, и
+     * зелёный цвет выше получен от отсутствия предмета.
+     */
+    if (totals.unlocked !== 1) {
+      bad("положительный контроль: списков режимов `Ctrl+A` найдено " + totals.unlocked
+        + ", а он один — переключить на `Custom` не удалось");
+    }
+    if (totals.steps !== 5) {
+      bad("положительный контроль: ступеней `Ctrl+A` открылось " + totals.steps
+        + ", а их пять — блок не отрисовался, и мерить было нечего");
+    }
     /* И контроль на само исключение: перестало быть нужным — снимите его. */
     if (!injection && totals.narrowAllowed !== 1) {
       bad("объявленных узких подсказок " + totals.narrowAllowed + ", а объявлена одна (В-92): "
@@ -232,6 +267,7 @@ const NARROW_OK = {
     console.log("  подсказок " + totals.tips + ", шапок " + totals.heads
       + ", подписей слайдеров " + totals.values
       + ", объявленных узких " + totals.narrowAllowed
+      + ", ступеней `Ctrl+A` " + totals.steps
       + (injection ? " | подмена: " + injection : ""));
   } finally {
     await browser.close();

@@ -103,8 +103,9 @@ command palette and the reference table disagreeing.
 
 ### Keyboard
 
-- [Expanded Ctrl+A](showcase.md#enhanced-ctrla): grow the selection from the line to its
-  indentation tree, then to the whole note.
+- [Expanded Ctrl+A](showcase.md#enhanced-ctrla): grow the selection from the word under
+  the cursor to the line, to its indentation tree, then to the whole note. `Custom` lets
+  you tick which of those five steps a press stops at.
 - **Smart Delete**: **Keyboard → Smart Delete\Backspace** changes what `Del` does at the
   end of a line. It joins the line below without its indent and without its bullet,
   checkbox or quote mark, so you get the words and not the punctuation. A line that

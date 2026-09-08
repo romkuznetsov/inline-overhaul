@@ -371,6 +371,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("editor.selectAll.useDelay"),
   keepV2("editor.selectAll.delayMs"),
   keepV2("editor.selectAll.clearOnLast"),
+  /* Галочки режима `Custom` (З-3): ветка новая, пары в версии 1 у неё нет.
+     Целиком — форму ветки держит нормализация, а не карта маршрутов; без
+     маршрута она уехала бы в `_unmigrated` (МГ3). */
+  keepV2("editor.selectAll.customSteps", true),
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),
   /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание

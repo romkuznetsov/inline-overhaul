@@ -27,6 +27,7 @@ const __priorityStripEngine = require("./priority_strip_engine.js");
 const __commandIds = require("../features/command_ids.js");
 const __editorVisualsConfig = require("./editor_visuals_config.js");
 const __pkmOrderConfig = require("./pkm_order_config.js");
+const __selectAllSteps = require("./select_all_steps.js");
 
 /* Те же однострочные обёртки, что были в `main.js`. */
 function cloneJson(x) { return __sharedUtils.cloneJson(x); }
@@ -919,7 +920,14 @@ function normalizeConfigV2(cfg) {
 
   /* --- «выделить всё» и Binder ------------------------------------------ */
   bool("editor.selectAll.enabled");
-  oneOf("editor.selectAll.mode", ["line-note", "line-tree-note", "line-tree-header-note"]);
+  /* Список режимов и список ступеней объявлены один раз — в
+     `select_all_steps.js`; второй перечень здесь разошёлся бы с движком
+     молча (У-32). */
+  oneOf("editor.selectAll.mode", __selectAllSteps.SELECT_ALL_MODE_IDS);
+  /* Галочки режима `Custom` (З-3). Умолчания у схемы нет: строку рисует свой
+     блок, а у записи `kind: "custom"` ни пути, ни умолчания не бывает. */
+  writeCfgPath(cfg, "editor.selectAll.customSteps",
+    __selectAllSteps.normalizeCustomSteps(readCfgPath(cfg, "editor.selectAll.customSteps")));
   bool("editor.selectAll.useDelay");
   int("editor.selectAll.delayMs", 250, 2000);
   bool("editor.selectAll.clearOnLast");

@@ -534,6 +534,24 @@ function linePrefixLength(text, dropPrefix) {
   return at;
 }
 
+/*
+ * Где кончается слово.
+ *
+ * **Правило одно и живёт здесь.** Объявлено оно было в
+ * `navigation_runtime.js` — перенос выделенного текста спрашивает у него, куда
+ * можно шагнуть, — а 2026-09-08 то же самое понадобилось ступени `word`
+ * расширенного `Ctrl+A` (З-3). Второе объявление разошлось бы с первым молча
+ * (У-32): у соседнего правила, форм начала строки, две копии успели разойтись
+ * трижды. Поэтому движок навигации читает его отсюда, а движок `Ctrl+A` —
+ * тоже отсюда, и обоим оно одно.
+ *
+ * Буквы латиницы и кириллицы, цифры и подчёркивание. Знак препинания, дефис и
+ * пробел словом не считаются, поэтому `foo-bar` — два слова, а `foo_bar` одно.
+ */
+function isWordChar(ch) {
+  return /[0-9A-Za-zА-Яа-яЁё_]/.test(ch || "");
+}
+
 /** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
 function isListItemLine(text) {
   const rest = String(nz(text, "")).replace(LINE_INDENT_RE, "");
@@ -550,6 +568,7 @@ module.exports = {
   lineIndentLength,
   linePrefixLength,
   isListItemLine,
+  isWordChar,
   normalizeFormatMask,
   buildFormatValueRegexSource,
   hasFormatTokens,

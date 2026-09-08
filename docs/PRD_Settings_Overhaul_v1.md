@@ -186,7 +186,7 @@ Inline Overhaul — desktop-плагин Obsidian: навигация по ст�
   **Исключение двадцать второе, сделанное 2026-09-06 по заказу «добавь такую же опцию»** (разбор — 10.13.37): `navigation_runtime.js`, место на экране после перехода по заголовкам. Две строки: `pickJumpCfg` называет `viewPosition`, `centerOnCursorOnce` зовёт ту же `revealLineAt`, что и перемещение строки, вместо обёртки Obsidian с `center = true`. Прокрутка у перехода была и раньше — добавился выбор положения. Закреплено пятью утверждениями в `navigation_jumps_tests.js`, две мутации.
   Сделано **без спроса**, тем же порядком, каким сделаны шестнадцатое и семнадцатое (У-9, В-34), и **принято словом заказчика в тот же день** (В-61).
 
-  **Двадцать третье исключение спрашивается у заказчика.**
+  **Дальше список рос, и ведётся он в `CLAUDE.md`** — там все тридцать пять с датой, файлом и тем, чем каждое закреплено; разбор каждого — в 10.13.*. Здесь остаются первые двадцать два, потому что на них ссылаются разделы 4 и 11. Правило не менялось: **следующее исключение спрашивается у заказчика**, и не раньше полного разбора (У-9).
 
 ---
 
@@ -2934,6 +2934,121 @@ RulesSync` → `ensureGeneratedRulesNow`, плюс `ensureGeneratedRulesNow("onl
 было, тумблер ничего не меняет, — плюс два пина по исходнику и умолчание
 сборщика. Три мутации краснеют.
 
+#### 10.13.55 `Ctrl+A`: ступень `word` и режим `Custom` (З-3)
+
+Третья задача из семи, оставленных заказчиком 2026-09-08. Описано по Р13
+правкой того же захода: разбор лежал готовым с прошлой сессии, спрашивать было
+нечего — форму он описал сам.
+
+**Его слова.** «Хочу, чтобы был добавлен 4 режим в select-all-steps —
+`word, line, tree, heading, note` (word — выделяет ближайшее к каретке курсора
+слово). Также я хочу, чтобы был добавлен 5 режим `Custom`, при активации
+которого под опцией select-all-steps открывался бы список с чекбоксами
+`word, line, tree, heading, note` (визуально это должно выглядеть аналогично
+табличке source-fields-head) — активные поля определяли бы последовательность
+цикла ctrl+a».
+
+##### 10.13.55.1 Что сделано
+
+**Ступень `word`** — слово у каретки. Каретка стоит между знаками, поэтому
+вопроса два. Стоит ли она внутри слова или вплотную к нему — тогда берётся это
+слово, и неважно, с какой стороны оно оказалось. Если вокруг пусто — какое
+слово ближе; при равном расстоянии берётся левое, то, от которого человек
+только что ушёл. Слова в строке нет вовсе (пустая строка, одни пробелы, одна
+пунктуация) — ступень не встаёт в цикл, а не выделяет пустоту.
+
+**Четвёртый режим** `Word, line, tree, heading, then note` — пятое значение
+`select-all-steps`.
+
+**Пятый режим** `Custom` и под ним список из пяти галочек видом как
+`source-fields-head` — он сам назвал этот образец. Ключ —
+`editor.selectAll.customSteps`, пять флагов. Строка-заголовок
+`Steps to cycle through` и сам список видны только при `Custom`; панель
+просыпается от хранилища сама, без перехода между вкладками.
+
+**Порядок ступеней задают не галочки.** Он один: `word`, `line`, `tree`,
+`heading`, `note`. Галочки выбирают **ступени**, а не их последовательность —
+так и в его примере (`word`, `line`, `note`), и иначе пришлось бы заводить
+перетаскивание там, где он просил чекбоксы.
+
+**Ни одной галочки — законное состояние.** `Ctrl/Cmd + A` остаётся клавишей
+Obsidian: одно нажатие, вся заметка. Это сказано словами в самом блоке, а не
+оставлено пустым местом (ПЗ2).
+
+**Умолчание `Custom`** — `line` и `note`, то же самое, что делает умолчание
+списка режимов. Человек переключился на `Custom`, чтобы что-то добавить, и до
+первой галочки клавиша обязана вести себя так же, как вела.
+
+##### 10.13.55.2 Где что живёт и почему именно там
+
+**Ступени и их порядок — один модуль,** `src/core/select_all_steps.js`. Список
+спрашивают трое: движок (что выделять), нормализация конфига (какие значения
+законны и что стоит в галочках по умолчанию) и панель (какие строки
+нарисовать). Три объявления одного правила расходятся молча (У-32), и в
+соседнем движке это уже стоило трёх расхождений подряд.
+
+**Правило «где кончается слово» — тоже одно,** `isWordChar` в
+`src/core/shared_utils.js`. Объявлено оно было в `navigation_runtime.js` — там
+его спрашивает перенос выделенного текста, — и второе объявление разошлось бы с
+первым молча. **Тридцать пятое исключение к З3:** движок навигации берёт
+правило литеральным `require`, а не швом с запасной веткой. Запасная ветка и
+была бы вторым объявлением, а проверки, которые шов не ставят, мерили бы именно
+её.
+
+**Про `command id` и `default.js`.** Команды у `Ctrl+A` нет вовсе: клавиша
+принадлежит Obsidian, а плагин перехватывает её раскладкой редактора, поэтому
+id получают **строки панели**, а не команда. В `default.js` новые строки
+приезжают сами: каталог выводится из схемы, а файл пишет плагин.
+
+**Тексты.** Подсказка раздела `Expanded 'Ctrl+A'`, его вводная фраза и
+подсказка `Selection steps` переписаны: все три говорили «строка → шире →
+заметка» и про слово не знали. Слова списка живут в каталоге
+(`block.select-all-custom.*`), и спрашиваются они у него, а не берутся из
+константы: литерал на месте нарисованной строки не переводится (У-108).
+
+##### 10.13.55.3 Чем закреплено
+
+**Поведение** — `select_all_tests.js`, на одной заметке, где все пять ступеней
+дают **разные** отрезки. Совпади две, `pushUnique` выбросил бы одну, а проверка
+объявила бы это правильным ответом (У-47). Проверено: последовательности всех
+четырёх именованных режимов; `Custom` с тремя галочками (его пример), с одной и
+без единой; порядок не зависит от порядка ключей в конфиге; слово у каретки на
+обоих краях строки, внутри слова, вплотную к знаку препинания и при равном
+расстоянии в обе стороны; строка без слов; тот же режим на пути с задержкой.
+
+**Конфиг** — `settings_paths_v2_tests.ts`: умолчание пятёрки, галочки человека
+переживают миграцию, ветка не уезжает в `_unmigrated`. Фикстура там **версии
+1**, и это не мелочь: на форме версии 2 ветка переживает миграцию и без
+маршрута, то есть проверка была бы зелёной от отсутствия предмета.
+
+**Одно объявление правила слова** — пин в `bootstrap_loader_tests.js`: класса
+знаков нет ни в движке навигации, ни в движке `Ctrl+A`, и он обязан найтись в
+`shared_utils.js`. Запрет без этого положительного контроля зелен именно тогда,
+когда правила не стало нигде (У-71).
+
+**Вид** — браузерный гейт. Строка, которая появляется только в одном состоянии,
+под браузер не попадала вовсе: гейт открывает панель с умолчаниями. Теперь он
+сначала переключает режим на `Custom`, а потом меряет всё, что открылось;
+контроль на само переключение — ровно пять строк списка, ноль значит «не
+состоялось».
+
+**Мутаций девять, и краснеют все девять:** ступень `word` снята из пятого
+режима; галочки перестали отбирать ступени; при равном расстоянии берётся
+правое слово; галочки не доехали до движка на пути с задержкой; правило слова
+сломано в общем модуле (краснеют и `Ctrl+A`, и навигация — то есть правило
+действительно одно); маршрут миграции снят; нормализация снята; `Custom` не
+значится законным значением; у списка вернулось верхнее поле. Плюс десятая, на
+браузерном гейте: блок спрятан — гейт краснеет.
+
+##### 10.13.55.4 Найдено рядом (A48)
+
+**Гейт прототипа подделывал рисовалки по рукописному списку имён**, и первая же
+новая рисовалка уронила его `ReferenceError`-ом. Это тот же класс, что У-85:
+предмет заводится в прототипе, а перепись о нём не знает. Список заменён
+сплошным обходом с положительным контролем на число найденных. Падал он громко,
+поэтому дефектом на экране это не стало, — но следующая рисовалка стоила бы
+того же захода.
+
 ### 10.14 Что осталось за границами
 
 Эти находки аудита разобраны и **сознательно не включены**. Записано, чтобы исполнитель не добавил их по своей инициативе и чтобы разговор не повторялся.
@@ -4892,7 +5007,7 @@ python tests/prototype/update_prd.py
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 8 | 1 |
-| 2 | Keyboard | — | 5 | 9 | 3 |
+| 2 | Keyboard | — | 5 | 10 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 6 | 35 | 6 |
@@ -4916,7 +5031,7 @@ python tests/prototype/update_prd.py
 | order | id | Заголовок | Intro | Tip | Видимость зависит от |
 |-------|----|-----------|-------|-----|----------------------|
 | 50 | `keyboard-intro` | Before you start | — | — | `general.help.showCallouts` |
-| 100 | `select-all` | Expanded 'Ctrl+A' ('⌘+A') | <code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection | да | — |
+| 100 | `select-all` | Expanded 'Ctrl+A' ('⌘+A') | <code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection | да | — |
 | 150 | `smart-delete` | Smart Delete\Backspace | <code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind | да | — |
 | 200 | `binder` | Binder (custom insert commands) | For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is | да | — |
 | 300 | `command-reference` | Commands & Hotkeys | Everything this plugin can do, in one list. None of it has a key until you give it one — click in the <code>Hotkey</code> column to do that | да | — |
@@ -5090,9 +5205,9 @@ _Tip:_ Turning an area off is not the same as leaving it alone. Its commands dis
 
 #### Expanded 'Ctrl+A' ('⌘+A') — `select-all` (вкладка `keyboard`)
 
-_Intro:_ <code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection
+_Intro:_ <code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection
 
-_Tip:_ Obsidian gives that key one step: the whole note. Here it becomes a ladder — the line you are on, then more of the note with each press — so you can grab one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide how many rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. The key itself is Obsidian’s, and nothing here rebinds it
+_Tip:_ Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it
 
 - **Expanded 'Ctrl+A'** — `select-all-enabled`, `toggle`, path `editor.selectAll.enabled`, default `false`
   - desc: Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen
@@ -5100,10 +5215,15 @@ _Tip:_ Obsidian gives that key one step: the whole note. Here it becomes a ladde
   - старые названия для поиска: «Enhanced Mod+A», «Expanded select all»
 - **Selection steps** — `select-all-steps`, `dropdown`, path `editor.selectAll.mode`, default `line-note`
   - desc: How much more gets picked up on each press
-  - tip: <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note
-  - варианты: `line-note` Line, then note · `line-tree-note` Line, tree, then note · `line-tree-header-note` Line, tree, heading, then note
+  - tip: <b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note
+  - варианты: `line-note` Line, then note · `line-tree-note` Line, tree, then note · `line-tree-header-note` Line, tree, heading, then note · `word-line-tree-header-note` Word, line, tree, heading, then note · `custom` Custom
   - выключена если: `editor.selectAll.enabled`
   - старые названия для поиска: «Select-all mode»
+- **Steps to cycle through** — `select-all-custom-head`, `note`
+  - desc: Which of the five a press stops at
+  - tip: The order is fixed — word, line, tree, heading, note — and the ticks decide which of them a press stops at. Tick <b>word</b>, <b>line</b> and <b>note</b>, and the key goes from the word under the cursor to the whole line to the whole note, skipping the two in between. Tick nothing and the key stays Obsidian’s own: one press, the whole note
+  - видна если: `editor.selectAll.mode`
+- **`select-all-custom`** — свой блок, рендерер `renderSelectAllCustom`
 - **Count presses by timer** — `select-all-timer`, `toggle`, path `editor.selectAll.useDelay`, default `false`
   - desc: Decide the next step by how quickly you press, rather than by what is selected
   - tip: Off is the forgiving setting: pause as long as you like, and the next press still widens the selection. On, pausing longer than the time below means you start again from the line — handy if you often select something, walk away, and come back

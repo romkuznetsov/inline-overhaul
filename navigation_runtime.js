@@ -1,5 +1,14 @@
 "use strict";
 
+/*
+ * Общие помощники приезжают литеральным `require` — так же, как у всякого
+ * другого модуля рантайма (У-89). Шов `__inlineOverhaulSharedUtils` ниже
+ * остаётся: им пользуются `isObj` и `nz`, у которых есть своя запасная
+ * ветка. У правила «где кончается слово» запасной ветки быть не должно —
+ * она и была бы вторым объявлением (У-32), — поэтому оно берётся отсюда.
+ */
+const __sharedUtils = require("./src/core/shared_utils.js");
+
 function getSharedUtils() {
   try {
     const su = globalThis && globalThis.__inlineOverhaulSharedUtils;
@@ -860,7 +869,8 @@ function cycleLineType(editor, lineNo, direction, rules) { const line = editor.g
 function detectLineType(line) { const indent = (line.match(/^(\s*)/) || ["", ""])[1]; const trimmed = line.slice(indent.length); let m; if (/^#{1,5}\s/.test(trimmed)) { m = trimmed.match(/^(#{1,5})\s(.*)$/); return { type: "header", level: m[1].length, prefix: m[1] + " ", content: m[2], indent }; } if (/^\d+\.\s/.test(trimmed)) { m = trimmed.match(/^(\d+)\.\s(.*)$/); return { type: "numbered", number: parseInt(m[1], 10), prefix: m[1] + ". ", content: m[2], indent }; } if (/^[-*]\s\[[ x]\]\s/.test(trimmed)) { m = trimmed.match(/^([-*])\s(\[[ x]\])\s(.*)$/); return { type: "checkbox", prefix: m[1] + " " + m[2] + " ", content: m[3], indent }; } if (/^[-*]\s/.test(trimmed)) { m = trimmed.match(/^([-*])\s(.*)$/); return { type: "bullet", prefix: m[1] + " ", content: m[2], indent }; } return { type: "plain", prefix: "", content: trimmed, indent }; }
 function getPrefixFromInfo(info) { if (info.type === "header") return info.prefix.trim(); if (info.type === "numbered") return info.number + ". "; if (info.type === "bullet" || info.type === "checkbox") return info.prefix; return ""; }
 function getNextNumber(editor, currentLineNo) { for (let i = currentLineNo - 1; i >= 0; i--) { const line = editor.getLine(i); const m = line.match(/^(\d+)\.\s/); if (m) return parseInt(m[1], 10) + 1; if (line.replace(/^\s*/, "").length > 0) break; } return 1; }
-function isWordChar(ch) { return /[0-9A-Za-zА-Яа-яЁё_]/.test(ch || ""); }
+/* Правило одно на весь плагин и живёт в `shared_utils.js` (У-32, З-3). */
+function isWordChar(ch) { return __sharedUtils.isWordChar(ch); }
 function isHorizSpace(ch) { return ch === " " || ch === "\t"; }
 function isHighSurrogate(code) { return code >= 0xd800 && code <= 0xdbff; }
 function isLowSurrogate(code) { return code >= 0xdc00 && code <= 0xdfff; }

@@ -832,6 +832,33 @@ async function run() {
     assertTrue(/rightCycles: typeof c\.rightCycles === "boolean"/.test(navSrc), "navigation runtime reads the both-directions toggle");
     assertTrue(/const rightMayCycle = rules\.prefixCyclerEnabled && rules\.rightCycles;/.test(navSrc), "navigation runtime decides the right-hand cycle from the toggle");
     assertFalse(/if \(currentIndent > 0 \|\| isBullet\(line\)\) \{/.test(navSrc), "a list item no longer goes straight to indenting");
+
+    /*
+     * Правило «где кончается слово» объявлено **один раз** — в
+     * `src/core/shared_utils.js` (З-3, У-32). До 2026-09-08 оно жило здесь, а
+     * ступени `word` расширенного `Ctrl+A` понадобилось то же самое: вторая
+     * копия разошлась бы с первой молча, как это уже трижды случилось с
+     * формами начала строки.
+     *
+     * Запрет идёт с положительным контролем: класс знаков обязан найтись в
+     * `shared_utils.js`. Без него запрет зелен именно тогда, когда правила не
+     * стало нигде (У-71).
+     */
+    const sharedSrc = fs.readFileSync(
+      path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"), "utf8");
+    const selectAllSrc = fs.readFileSync(
+      path.join(__dirname, "..", "..", "src", "features", "enhanced_select_all_engine.js"), "utf8");
+    const WORD_CLASS = /\[0-9A-Za-zА-Яа-яЁё_\]/;
+    assertTrue(WORD_CLASS.test(sharedSrc), "правило «где кончается слово» живёт в shared_utils.js");
+    assertTrue(/function isWordChar/.test(sharedSrc), "и объявлено там функцией isWordChar");
+    assertFalse(WORD_CLASS.test(navSrc),
+      "у движка навигации снова своя копия правила «где кончается слово» (У-32)");
+    assertTrue(/__sharedUtils\.isWordChar\(/.test(navSrc),
+      "движок навигации спрашивает правило у общего модуля");
+    assertFalse(WORD_CLASS.test(selectAllSrc),
+      "у движка `Ctrl+A` своя копия правила «где кончается слово» (У-32)");
+    assertTrue(/__sharedUtils\.isWordChar/.test(selectAllSrc),
+      "и он тоже спрашивает её у общего модуля");
   }
   /* И-4: карта токенов читает обе корзины, иначе Field типа link не участвует
      в перестановке по Order и уезжает в конец блока. Пин на исходник, потому

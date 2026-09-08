@@ -206,7 +206,13 @@ Under **Keyboard → Expanded 'Ctrl+A'**, this setting replaces ordinary selecti
 
 - line → whole note;
 - line → indentation tree → whole note;
-- line → indentation tree → current header section → whole note.
+- line → indentation tree → current header section → whole note;
+- word → line → indentation tree → current header section → whole note;
+- `Custom`: the steps you tick, in the order above.
+
+**Word** is the word nearest the cursor: the one it stands in or beside, and otherwise the closest, with the left one taken when both are equally far. A line with no word in it skips the step rather than selecting nothing.
+
+Picking `Custom` opens a list of five tick boxes — `word`, `line`, `tree`, `heading`, `note` — under the sequence. The ticks choose which steps a press stops at; the order is always the one shown above. Tick nothing and the key belongs to Obsidian again: one press, the whole note.
 
 It can infer the next scope from the current selection or use a 250–2000 ms multi-press timer. Optional final press clears the selection and restores the cycle-origin cursor.
 

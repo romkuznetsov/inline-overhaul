@@ -206,4 +206,49 @@ const KNOWN_DEFAULT_GAPS: Record<string, unknown> = {};
   ok("H8: умолчание `Cursor on arrival` — `End of your text`");
 }
 
+{
+  /*
+   * Галочки режима `Custom` у `Ctrl+A` (З-3). Ветка новая, и у неё два шва,
+   * каждый из которых молчит, когда рвётся:
+   *
+   *   1. **маршрут миграции.** Ключа версии 1 у ветки нет, поэтому без строки
+   *      `keepV2` она целиком уезжает в `_unmigrated` (МГ3) — конфиг при этом
+   *      законный, панель рисуется, а галочки человека пропадают при первой же
+   *      записи любой другой настройки;
+   *   2. **умолчания.** У записи `kind: "custom"` нет ни пути, ни умолчания,
+   *      поэтому схема о ветке не знает: досыпает её нормализация. Забудь она
+   *      — и `Custom` у нового человека не делал бы ничего.
+   *
+   * Умолчание выписано словом, отдельно от того, из чего считается (У-5):
+   * `Custom` без единой правки обязан вести себя как `Line, then note`.
+   */
+  const fresh = internals.migrateConfig(null) as Any;
+  assert.deepEqual(getIn(fresh, "editor.selectAll.customSteps"),
+    { word: false, line: true, tree: false, heading: false, note: true },
+    "у нового человека в `Custom` отмечены line и note — то же, что делает умолчание списка режимов");
+
+  /*
+   * Форма **версии 1** с уже записанной веткой версии 2 — это и есть тот файл,
+   * на котором рвётся маршрут: у человека `data.json` остаётся версии 1 до
+   * первой записи, и без строки `keepV2` пять галочек уезжают в `_unmigrated`
+   * поимённо, а на их место встаёт умолчание. На форме версии 2 ветка
+   * переживает миграцию и без маршрута — проверка на ней была бы зелёной от
+   * отсутствия предмета.
+   */
+  const mine = internals.migrateConfig({
+    schemaVersion: 1,
+    editor: { selectAll: { mode: "custom", customSteps: { word: true, line: false, tree: false, heading: false, note: true } } },
+  }) as Any;
+  assert.equal(getIn(mine, "editor.selectAll.mode"), "custom",
+    "режим `Custom` переживает миграцию: его нет в списке законных значений");
+  assert.deepEqual(getIn(mine, "editor.selectAll.customSteps"),
+    { word: true, line: false, tree: false, heading: false, note: true },
+    "галочки человека переживают миграцию");
+
+  const unmigrated = JSON.stringify((mine._unmigrated || {}) as Any);
+  assert.ok(unmigrated.indexOf("customSteps") < 0,
+    "ветка галочек уехала в `_unmigrated`: маршрута для неё в карте нет");
+  ok("галочки `Custom` у `Ctrl+A` доезжают до конфига и не теряются миграцией");
+}
+
 console.log("\n" + passed + " проверок пройдено");

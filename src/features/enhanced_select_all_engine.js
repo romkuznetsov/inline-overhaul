@@ -9,6 +9,12 @@
  */
 const __sharedUtils = require("../core/shared_utils.js");
 
+/*
+ * Какие ступени бывают и какие из них берёт режим — одним объявлением на
+ * движок, нормализацию конфига и панель (У-32).
+ */
+const __selectAllSteps = require("../core/select_all_steps.js");
+
 function isHeaderLineText(text) {
   return /^(#{1,6})\s/.test(String(text || ""));
 }
@@ -145,7 +151,68 @@ function treeScopeRange(editor, curLine) {
   return makeLineRange(editor, top, end);
 }
 
-function buildSelectAllSequence(editor, mode, contextLine) {
+/**
+ * Слово у каретки (ступень `word`, задача заказчика З-3).
+ *
+ * Каретка стоит **между** знаками, поэтому вопросов два. Первый — стоит ли она
+ * внутри слова или вплотную к нему: тогда берётся это слово, и неважно, с
+ * какой стороны оно оказалось. Второй — если вокруг пусто, какое слово ближе:
+ * считается, сколько знаков до него, и при равенстве берётся левое — то, от
+ * которого человек только что ушёл.
+ *
+ * `null` значит «слова в строке нет»: пустая строка, одни пробелы, одна
+ * пунктуация. Ступень тогда просто не встаёт в цикл, а не выделяет пустоту.
+ */
+function wordRangeAt(editor, pos) {
+  const isWordChar = __sharedUtils.isWordChar;
+  const line = Math.max(0, Math.min(Number(pos && pos.line) || 0, editor.lastLine()));
+  const text = String(editor.getLine(line) || "");
+  const len = text.length;
+  const ch = Math.max(0, Math.min(Number(pos && pos.ch) || 0, len));
+
+  const expand = (at) => {
+    let start = at;
+    let end = at + 1;
+    while (start > 0 && isWordChar(text[start - 1])) start--;
+    while (end < len && isWordChar(text[end])) end++;
+    return normPos({ line, ch: start }, { line, ch: end });
+  };
+
+  if (isWordChar(text[ch])) return expand(ch);
+  if (ch > 0 && isWordChar(text[ch - 1])) return expand(ch - 1);
+
+  let left = -1;
+  for (let i = ch - 1; i >= 0; i--) {
+    if (isWordChar(text[i])) { left = i; break; }
+  }
+  let right = -1;
+  for (let i = ch; i < len; i++) {
+    if (isWordChar(text[i])) { right = i; break; }
+  }
+  if (left === -1 && right === -1) return null;
+  if (left === -1) return expand(right);
+  if (right === -1) return expand(left);
+  return (ch - left) <= (right - ch + 1) ? expand(left) : expand(right);
+}
+
+/** Отрезок одной ступени. Каждая ступень — одна строка этой таблицы. */
+function rangeForStep(editor, step, origin) {
+  if (step === "word") return wordRangeAt(editor, origin);
+  if (step === "line") return currentLineRange(editor, origin.line);
+  if (step === "tree") return treeScopeRange(editor, origin.line);
+  if (step === "heading") return headerSectionRange(editor, origin.line);
+  if (step === "note") return wholeNoteRange(editor);
+  return null;
+}
+
+/**
+ * Последовательность нажатий: ступени режима по порядку, без повторов подряд.
+ *
+ * Ступени и их порядок решает `src/core/select_all_steps.js`, здесь — только
+ * отрезки. У режима `Custom` список бывает пустым: человек снял все галочки, и
+ * тогда движок не делает ничего, а клавиша остаётся клавишей Obsidian.
+ */
+function buildSelectAllSequence(editor, mode, origin, customSteps) {
   const seq = [];
   const pushUnique = (r) => {
     if (!r) return;
@@ -153,15 +220,9 @@ function buildSelectAllSequence(editor, mode, contextLine) {
     seq.push(r);
   };
 
-  const line = currentLineRange(editor, contextLine);
-  const tree = treeScopeRange(editor, contextLine);
-  const header = headerSectionRange(editor, contextLine);
-  const note = wholeNoteRange(editor);
-
-  pushUnique(line);
-  if (mode === "line-tree-note" || mode === "line-tree-header-note") pushUnique(tree);
-  if (mode === "line-tree-header-note") pushUnique(header);
-  pushUnique(note);
+  for (const step of __selectAllSteps.stepsForMode(mode, customSteps)) {
+    pushUnique(rangeForStep(editor, step, origin));
+  }
 
   return seq;
 }
@@ -186,7 +247,7 @@ function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
 
   if (!valid) {
     const origin = editor.getCursor("from");
-    const seq = buildSelectAllSequence(editor, mode, origin.line);
+    const seq = buildSelectAllSequence(editor, mode, origin, gf.customSteps);
     if (!seq.length) return false;
     selectRange(editor, seq[0]);
     plugin._enhancedSelectAllCycle = {
@@ -201,7 +262,7 @@ function handleEnhancedSelectAllWithDelay(plugin, editor, mode, gf) {
     return true;
   }
 
-  const seq = buildSelectAllSequence(editor, mode, st.origin.line);
+  const seq = buildSelectAllSequence(editor, mode, st.origin, gf.customSteps);
   if (!seq.length) return false;
   const clampedIdx = Math.max(0, Math.min(st.idx, seq.length - 1));
   if (gf.clearOnLast && clampedIdx === seq.length - 1) {
@@ -234,7 +295,7 @@ function handleEnhancedSelectAllByContext(plugin, editor, mode, gf) {
     origin = { line: p.line, ch: p.ch };
   }
 
-  const seq = buildSelectAllSequence(editor, mode, origin.line);
+  const seq = buildSelectAllSequence(editor, mode, origin, gf.customSteps);
   if (!seq.length) return false;
 
   let idx = -1;

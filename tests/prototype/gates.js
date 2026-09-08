@@ -9,14 +9,19 @@ const css = /<style>([\s\S]*?)<\/style>/.exec(src)[1];
 
 // evaluate the schema half only: stub the renderers, cut before State
 const cut = js.indexOf("/* ============================================================ State */");
-const stubs = [
-  "renderLinePreview", "renderFieldEditor", "renderTagPreview", "renderBarsPreview",
-  "renderWheelPreview", "renderBinder", "renderSmartRules", "renderCommandReference",
-  "renderNavCallout", "renderLeftRightOrder", "renderFieldOrderList", "renderPrefixOrderList",
-  "renderCycleOrder", "renderYamlMapping", "renderFloatingButton", "renderTabCallout",
-  "renderUserTagColors", "renderSourceFields", "renderSourcePreview", "renderSubheader",
-  "renderCaretPreview"
-].map(n => "function " + n + "(){}").join("\n");
+/*
+ * Рисовалки подделываются **сплошным обходом**, а не по списку имён (У-85).
+ * Список был рукописным, и первая же новая рисовалка (`renderSelectAllCustom`,
+ * З-3) уронила гейт `ReferenceError`-ом: предмет заводится в прототипе, а
+ * перепись о нём не знала.
+ */
+const stubNames = Array.from(new Set(
+  Array.from(js.matchAll(/function (render[A-Za-z0-9_$]*)\s*\(/g), m => m[1])));
+if (stubNames.length < 15) {
+  console.log("  FAIL обход нашёл рисовалок " + stubNames.length + " — подделывать нечего");
+  process.exit(1);
+}
+const stubs = stubNames.map(n => "function " + n + "(){}").join("\n");
 
 const tmp = path.resolve(path.dirname(path.resolve(target)), "_gate_mod.js");
 fs.writeFileSync(tmp,

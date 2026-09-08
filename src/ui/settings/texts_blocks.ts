@@ -416,6 +416,26 @@ export const BLOCK_TEXTS = {
     KEEP_NONE_DESC: "Let every Value leave the line",
   },
 
+  /* ---- ступени расширенного `Ctrl+A`: режим `Custom` (З-3) ------------- */
+  "select-all-custom": {
+    /* Имена ступеней — слова Obsidian и обычного языка, поэтому со
+       строчной (Р9). Заказчик и просил их именно так: `word, line, tree,
+       heading, note`. */
+    STEP_WORD: "word",
+    STEP_WORD_ABOUT: "the word nearest the cursor",
+    STEP_LINE: "line",
+    STEP_LINE_ABOUT: "the line you are on",
+    STEP_TREE: "tree",
+    STEP_TREE_ABOUT: "the line and everything indented under it",
+    STEP_HEADING: "heading",
+    STEP_HEADING_ABOUT: "everything under the nearest heading",
+    STEP_NOTE: "note",
+    STEP_NOTE_ABOUT: "the whole note",
+    /* Пустой список объясняет себя, а не молчит (ПЗ2). */
+    NOTHING_TICKED: "nothing ticked: Ctrl/Cmd + A stays Obsidian’s own",
+    STOP_AT: "Stop at the {0} while cycling",
+  },
+
   /* ---- справочник команд ------------------------------------------------ */
   "command-list": {
     COL_COMMAND: "Command",

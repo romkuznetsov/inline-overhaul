@@ -518,6 +518,8 @@ async function main(): Promise<void> {
       "line-note": "Line, then note",
       "line-tree-note": "Line, tree, then note",
       "line-tree-header-note": "Line, tree, heading, then note",
+      "word-line-tree-header-note": "Word, line, tree, heading, then note",
+      "custom": "Custom",
     });
 
     const delay = byName("Time between presses");
@@ -2033,10 +2035,28 @@ async function main(): Promise<void> {
         "правило отбирает строку по id `" + String(m[1]) + "`, а такого блока "
         + "в схеме нет — правило не найдёт никого");
     }
-    assert.ok(/data-io-item="source-fields"\]\s*\{[^}]*padding-top:\s*0/.test(css),
-      "у списка Fields вернулось верхнее поле — между ним и его строкой снова пусто");
-    assert.ok(/:has\(\+ \.setting-item\[data-io-item="source-fields"\]\)\s*\{[^}]*padding-bottom:\s*0/.test(css),
-      "у строки над списком Fields вернулось нижнее поле — половина пустоты осталась");
+    /*
+     * Блоков, стоящих содержимым своей строки-заголовка, стало два: список
+     * Fields и список ступеней `Ctrl+A` (З-3). Правило у них общее — один
+     * селектор через запятую, — поэтому утверждение спрашивает не форму
+     * записи, а объявление: есть ли у этого блока правило, снимающее поле.
+     * Проверка «текст стоит подряд» покраснела бы от запятой и промолчала бы
+     * о снятом объявлении (У-94).
+     */
+    const blocks = Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g))
+      .map(m => ({ sel: String(m[1] || ""), body: String(m[2] || "") }));
+    assert.ok(blocks.length > 100, "правил в styles.css разобрано " + blocks.length
+      + " — разбор не удался, и всё ниже мерило бы пустоту");
+
+    for (const id of ["source-fields", "select-all-custom"]) {
+      const own = '.setting-item[data-io-item="' + id + '"]';
+      const above = ':has(+ .setting-item[data-io-item="' + id + '"])';
+      assert.ok(blocks.some(b => b.sel.includes(own) && !b.sel.includes(":has(")
+        && /padding-top:\s*0/.test(b.body)),
+        "у блока `" + id + "` вернулось верхнее поле — между ним и его строкой снова пусто");
+      assert.ok(blocks.some(b => b.sel.includes(above) && /padding-bottom:\s*0/.test(b.body)),
+        "у строки над блоком `" + id + "` вернулось нижнее поле — половина пустоты осталась");
+    }
   });
 
   await test("цвет панели TagWheel есть кому прочитать", () => {

@@ -94,6 +94,11 @@ const CUSTOM_IMPL = {
     named: "sourceFields",
     expr: () => "sourceFields",
   },
+  renderSelectAllCustom: {
+    module: "select_all_custom.ts",
+    named: "selectAllCustom",
+    expr: () => "selectAllCustom",
+  },
   renderSourcePreview: {
     module: "previews.ts",
     named: "sourcePreview",

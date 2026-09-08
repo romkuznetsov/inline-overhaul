@@ -1437,8 +1437,12 @@
  *
  * Отбор — по пометке строки своего блока (`data-io-item`), а не по всем своим
  * блокам сразу: у остальных черта сверху на месте и разделяет их с соседями.
+ *
+ * Второй такой блок — список ступеней `Ctrl+A` (З-3): он тоже стоит под своей
+ * строкой-заголовком и тоже является её содержимым, а не соседней настройкой.
  */
-[class*="io-group-"] .setting-item[data-io-item="source-fields"]::before {
+[class*="io-group-"] .setting-item[data-io-item="source-fields"]::before,
+[class*="io-group-"] .setting-item[data-io-item="select-all-custom"]::before {
   content: none;
 }
 /*
@@ -1455,10 +1459,12 @@
  * `data-io-item` панель ставит только своим блокам. Поэтому она ищется по
  * соседству — «строка, за которой идёт этот блок».
  */
-[class*="io-group-"] .setting-item:has(+ .setting-item[data-io-item="source-fields"]) {
+[class*="io-group-"] .setting-item:has(+ .setting-item[data-io-item="source-fields"]),
+[class*="io-group-"] .setting-item:has(+ .setting-item[data-io-item="select-all-custom"]) {
   padding-bottom: 0;
 }
-[class*="io-group-"] .setting-item[data-io-item="source-fields"] {
+[class*="io-group-"] .setting-item[data-io-item="source-fields"],
+[class*="io-group-"] .setting-item[data-io-item="select-all-custom"] {
   padding-top: 0;
 }
 

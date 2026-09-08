@@ -1624,8 +1624,8 @@ const SCHEMA = [
 /* ============================================================ KEYBOARD */
 {
   id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A' ('⌘+A')",
-  intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press selects the line you are on, and every further press widens the selection",
-  tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder — the line you are on, then more of the note with each press — so you can grab one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide how many rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. The key itself is Obsidian’s, and nothing here rebinds it",
+  intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection",
+  tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it",
   items: [
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
       name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
@@ -1637,9 +1637,21 @@ const SCHEMA = [
       options:[
         { value:"line-note", label:"Line, then note" },
         { value:"line-tree-note", label:"Line, tree, then note" },
-        { value:"line-tree-header-note", label:"Line, tree, heading, then note" }
+        { value:"line-tree-header-note", label:"Line, tree, heading, then note" },
+        { value:"word-line-tree-header-note", label:"Word, line, tree, heading, then note" },
+        { value:"custom", label:"Custom" }
       ],
-      tip:"<b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note" },
+      tip:"<b>Word</b> is the word nearest the cursor, so the first press takes one word instead of the whole line. <b>Tree</b> means the line plus everything indented under it. <b>Heading</b> means everything under the nearest heading. <b>Custom</b> opens the list of all five steps below and cycles through the ones you tick, in the order they are shown. Pick the shortest sequence you will actually use — every extra step is one more press before you reach the whole note" },
+    /* Заказчик 2026-09-08 (З-3): «при активации Custom под опцией
+       select-all-steps открывался бы список с чекбоксами word, line, tree,
+       heading, note (визуально это должно выглядеть аналогично табличке
+       source-fields-head)». Строка без контрола: сам список ниже. */
+    { kind:"note", id:"select-all-custom-head",
+      name:"Steps to cycle through", desc:"Which of the five a press stops at",
+      tip:"The order is fixed — word, line, tree, heading, note — and the ticks decide which of them a press stops at. Tick <b>word</b>, <b>line</b> and <b>note</b>, and the key goes from the word under the cursor to the whole line to the whole note, skipping the two in between. Tick nothing and the key stays Obsidian’s own: one press, the whole note",
+      visible: eq("editor.selectAll.mode","custom") },
+    { kind:"custom", id:"select-all-custom", render: renderSelectAllCustom,
+      visible: eq("editor.selectAll.mode","custom") },
     { kind:"toggle", id:"select-all-timer", path:"editor.selectAll.useDelay", default:false,
       name:"Count presses by timer", desc:"Decide the next step by how quickly you press, rather than by what is selected",
       searchTerms:["Use multi-press delay"], disabled: not("editor.selectAll.enabled"),
@@ -2597,6 +2609,20 @@ const BINDER_ROWS = [
 /* Какие Fields остаются на исходной строке после inline2note. Пусто —
    умолчание: со строки уходят все Values (замечание заказчика 1.6.5.1). */
 const SOURCE_KEEP = [];
+
+/*
+ * Ступени расширенного `Ctrl+A` (З-3). Порядок здесь и есть порядок цикла:
+ * галочки выбирают ступени, а не их последовательность.
+ */
+const SELECT_ALL_STEPS = [
+  { id:"word",    name:"word",    about:"the word nearest the cursor" },
+  { id:"line",    name:"line",    about:"the line you are on" },
+  { id:"tree",    name:"tree",    about:"the line and everything indented under it" },
+  { id:"heading", name:"heading", about:"everything under the nearest heading" },
+  { id:"note",    name:"note",    about:"the whole note" }
+];
+
+const SELECT_ALL_CUSTOM = { word:false, line:true, tree:false, heading:false, note:true };
 
 const USER_TAGS = [
   { token:"urgent", color:"#b3261e", textColor:"#ffffff", shown:"value" },
@@ -5194,6 +5220,36 @@ function renderSourceFields(host) {
     none.type = "button";
     none.disabled = !SOURCE_KEEP.length;
     none.addEventListener("click", () => { SOURCE_KEEP.length = 0; draw(); });
+  };
+  draw();
+}
+
+/*
+ * Список ступеней режима `Custom`. Вид взят у таблички `source-fields-head`:
+ * заказчик сам о нём и попросил (З-3).
+ */
+function renderSelectAllCustom(host) {
+  const box = el("div", "io-keepfields", host);
+
+  const draw = () => {
+    box.textContent = "";
+    const list = el("div", "io-keepfields__list", box);
+    SELECT_ALL_STEPS.forEach(s => {
+      const row = el("label", "io-keepfields__row", list);
+      const input = el("input", "io-toggle io-toggle--check", row);
+      input.type = "checkbox";
+      input.checked = SELECT_ALL_CUSTOM[s.id] === true;
+      input.setAttribute("aria-label", "Stop at the " + s.name + " while cycling");
+      input.addEventListener("change", () => {
+        SELECT_ALL_CUSTOM[s.id] = input.checked;
+        draw();
+      });
+      el("span", "io-keepfields__name", row, s.name);
+      el("span", "io-keepfields__kind", row, s.about);
+    });
+    if (!SELECT_ALL_STEPS.some(s => SELECT_ALL_CUSTOM[s.id] === true)) {
+      el("p", "io-preview__note", box, "nothing ticked: Ctrl/Cmd + A stays Obsidian’s own");
+    }
   };
   draw();
 }

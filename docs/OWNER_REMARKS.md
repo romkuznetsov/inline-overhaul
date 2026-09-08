@@ -58,7 +58,7 @@
 |---|---|---|---|---|
 | З-1 | `Del` на пустой строке съедает Prefix следующей | `smart_delete_engine.js`, `planSmartDelete` | нет | одно условие отказа |
 | З-2 | перенос текста не выходит за пределы слова | `navigation_runtime.js`, `decideMoveMode` | **да** | тумблер + два шва |
-| З-3 | `Ctrl+A`: режим `word` и режим `Custom` | `enhanced_select_all_engine.js` | нет | новый отрезок, новый блок панели |
+| З-3 | `Ctrl+A`: режим `word` и режим `Custom` | `enhanced_select_all_engine.js` | нет | новый отрезок, новый блок панели — **сделано** |
 | З-4 | Transform: вставка под заданный заголовок | `transform_feature.js`, `composeBodyWithPlacement` | нет | значение + две строки схемы |
 | З-5 | Smart Rules: `Advanced settings` у правила | `smart_rules_{model,view}.ts` + движок | нет | пять листов в правиле |
 | З-6 | Smart Rules: сворачивание правил | `smart_rules_view.ts` | нет | флаг + шапка карточки |
@@ -171,7 +171,15 @@ io-tip-sub-move-text дополнительную опцию с разрешен
 command id, добавить в текстовый файл default.js, уточни комментарий и tipbox
 для раздела select-all где эта новая опция должна учитываться и т.д.)».
 
-**Статус: разобрано.** `src/features/enhanced_select_all_engine.js` — не под З3.
+**Статус: сделано 2026-09-08, поздний вечер.**
+`src/features/enhanced_select_all_engine.js` — не под З3; ступени и их порядок
+вынесены в новый `src/core/select_all_steps.js`, список галочек рисует
+`src/ui/settings/custom/select_all_custom.ts`. Разбор сделанного — PRD 10.13.55,
+отчёт заказчику — раздел 41у реестра, строка листа `S3`.
+
+**Одна строка ушла в файл под З3** — `navigation_runtime.js` читает правило
+«где кончается слово» из `shared_utils.js` (тридцать пятое исключение,
+вопрос В-93).
 
 **Как это устроено сейчас.** `buildSelectAllSequence` собирает ступени из
 четырёх отрезков — строка, дерево, секция заголовка, вся заметка — и режим
