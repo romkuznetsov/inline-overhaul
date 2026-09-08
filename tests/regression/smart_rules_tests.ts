@@ -1016,10 +1016,32 @@ function baseConfig(rules?: Any[]): Any {
   assert.equal(all(p.host, "io-rule__conds").length, 0, "условий в свёрнутом виде не рисуется");
   assert.equal(all(p.host, "io-rule__out").length, 0, "и строк шаблона с папкой тоже");
 
-  /* Ключевая информация — одной строкой, и вся, что он назвал. */
+  /*
+   * Ключевая информация — одной строкой, и вся, что он назвал. **Каждая часть
+   * подписана** (замечание 2026-09-09): без подписи `Clients/A` ничем не
+   * отличалось от имени шаблона, и понять, что из них папка, можно было только
+   * развернув карточку.
+   */
   const summary = all(p.host, "io-rule__sumpart").map(n => n.textContent);
-  assert.deepEqual(summary, ["#todo", "Templates/task.md", "Clients/A"],
-    "в сводке условия, шаблон и папка");
+  assert.deepEqual(summary, [
+    "Use when: #todo",
+    "Template: Templates/task.md",
+    "Folder: Clients/A",
+  ], "в сводке подписанные условия, шаблон и папка");
+  /*
+   * Пробел между подписью и значением спрашивается у **текста**, а не у
+   * стилей: заглушка стилей не читает, а человек копирует строку и слушает её
+   * программой чтения с экрана. Отступ, заданный `gap`, дал бы здесь
+   * `Use when:#todo` — и проверка была бы зелёной, если бы читала узлы врозь.
+   */
+  for (const part of summary) {
+    assert.ok(/: \S/.test(String(part)),
+      "подпись отделена от значения настоящим пробелом: " + part);
+  }
+  assert.deepEqual(all(p.host, "io-rule__sumlabel").map(n => n.textContent),
+    ["Use when:", "Template:", "Folder:"], "подписи стоят своими узлами: их гасят стили");
+  assert.deepEqual(all(p.host, "io-rule__sep").map(n => n.textContent), ["|", "|"],
+    "части разделены чертой, как он и написал");
   const nameInput = all(p.host, "io-rule__name")[0];
   assert.equal(nameInput?.value, "Tasks", "имя правила видно в шапке");
 
@@ -1050,8 +1072,9 @@ function baseConfig(rules?: Any[]): Any {
   /* Условий нет вовсе — сводка говорит это словами, а не пустым местом. */
   const p = makePanel(baseConfig([{ id: "r1", enabled: true }]), { expanded: new Set<string>() });
   const summary = all(p.host, "io-rule__sumpart").map(n => n.textContent);
-  assert.equal(summary[0], "any line", "правило без условий смотрит на любую строку");
-  assert.equal(summary[2], "Default", "папка по умолчанию названа словом");
+  assert.equal(summary[0], "Use when: any line", "правило без условий смотрит на любую строку");
+  assert.equal(summary[1], "Template: None", "шаблона нет — и это сказано словом, а не пустотой");
+  assert.equal(summary[2], "Folder: Default", "папка по умолчанию названа словом");
   ok("сводка свёрнутого правила объясняет пустоту, а не молчит");
 }
 

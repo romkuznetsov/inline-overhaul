@@ -131,30 +131,64 @@ function conditionItems(
 }
 
 /**
- * Свёрнутая карточка: одна строка с тем, ради чего человек её открыл бы (З-6).
+ * Что стоит в сводке свёрнутой карточки: у каждой части подпись и значение.
  *
  * Заказчик назвал состав сам: «название, что выбрано в `when the line has`,
  * используемый template, папка назначения» — плюс управление, а оно и так
  * стоит в шапке и никуда не девается. Имя здесь не повторяется: оно в шапке,
  * строкой выше.
  *
- * Считать нечего — всё это у правила уже есть; собирается строка, и только.
+ * **Подписи появились по его замечанию 2026-09-09:** «мне не нравится, что в
+ * свёрнутом состоянии во второй строке сжатая информация даётся слишком
+ * скудно… сделай, чтобы было `Use when: #todo` | `Template: template1.md` |
+ * `Folder: 333`». Прежде три значения стояли подряд через точку, и `333` ничем
+ * не отличалось от имени шаблона: догадаться, что из них папка, можно было
+ * только развернув карточку — то есть ровно тем действием, ради экономии
+ * которого сводка и заведена.
+ *
+ * Состав собран отдельно от отрисовки нарочно: **что** сказано — решение, и
+ * его проверяет набор; **как** оно разложено по узлам — вёрстка.
+ */
+function summaryParts(row: RuleRow, o: RulesViewOpts): Array<{ label: string; value: string }> {
+  const say = o.say || PLAIN;
+  const shown = ROW_KINDS.flatMap(kind => conditionItems(row, kind, o).map(x => x.shown));
+  return [
+    {
+      label: say("SUMMARY_WHEN"),
+      value: shown.length ? shown.join(", ") : say("SUMMARY_ANY_LINE"),
+    },
+    {
+      label: say("SUMMARY_TEMPLATE"),
+      value: row.targetTemplate || say("TEMPLATE_NONE"),
+    },
+    {
+      label: say("SUMMARY_FOLDER"),
+      value: row.folderMode === "folder"
+        ? (row.folder || say("FOLDER_OTHER"))
+        : say(row.folderMode === "near" ? "FOLDER_NEAR_NOTE" : "FOLDER_DEFAULT"),
+    },
+  ];
+}
+
+/**
+ * \u0421\u0432\u0451\u0440\u043d\u0443\u0442\u0430\u044f \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430: \u043e\u0434\u043d\u0430 \u0441\u0442\u0440\u043e\u043a\u0430 \u0441 \u0442\u0435\u043c, \u0440\u0430\u0434\u0438 \u0447\u0435\u0433\u043e \u0447\u0435\u043b\u043e\u0432\u0435\u043a \u0435\u0451 \u043e\u0442\u043a\u0440\u044b\u043b \u0431\u044b (\u0417-6).
+ *
+ * \u0421\u0447\u0438\u0442\u0430\u0442\u044c \u043d\u0435\u0447\u0435\u0433\u043e \u2014 \u0432\u0441\u0451 \u044d\u0442\u043e \u0443 \u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u0443\u0436\u0435 \u0435\u0441\u0442\u044c; \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u0441\u0442\u0440\u043e\u043a\u0430, \u0438 \u0442\u043e\u043b\u044c\u043a\u043e.
  */
 function summaryLine(host: El, row: RuleRow, o: RulesViewOpts): void {
-  const say = o.say || PLAIN;
   const box = el(host, "div", "io-rule__summary");
-
-  const shown = ROW_KINDS.flatMap(kind => conditionItems(row, kind, o).map(x => x.shown));
-  const parts: string[] = [
-    shown.length ? shown.join(", ") : say("SUMMARY_ANY_LINE"),
-    row.targetTemplate || say("TEMPLATE_NONE"),
-    row.folderMode === "folder"
-      ? (row.folder || say("FOLDER_OTHER"))
-      : say(row.folderMode === "near" ? "FOLDER_NEAR_NOTE" : "FOLDER_DEFAULT"),
-  ];
-  parts.forEach((text, i) => {
-    if (i) el(box, "span", "io-rule__sep", "\u00b7");
-    el(box, "span", "io-rule__sumpart", text);
+  summaryParts(row, o).forEach((part, i) => {
+    /* \u0427\u0435\u0440\u0442\u0430, \u0430 \u043d\u0435 \u0442\u043e\u0447\u043a\u0430: \u0447\u0430\u0441\u0442\u0438 \u0442\u0435\u043f\u0435\u0440\u044c \u043f\u043e\u0434\u043f\u0438\u0441\u0430\u043d\u044b, \u043f\u043e\u0434\u043f\u0438\u0441\u044c \u0441\u043e \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435\u043c \u0447\u0438\u0442\u0430\u044e\u0442\u0441\u044f
+       \u0432\u043c\u0435\u0441\u0442\u0435, \u0438 \u0440\u0430\u0437\u0434\u0435\u043b\u044f\u0442\u044c \u0438\u0445 \u043d\u0430\u0434\u043e \u0437\u0430\u043c\u0435\u0442\u043d\u0435\u0435, \u0447\u0435\u043c \u0441\u043b\u043e\u0432\u0430 \u0432\u043d\u0443\u0442\u0440\u0438 \u043e\u0434\u043d\u043e\u0439 \u0447\u0430\u0441\u0442\u0438. */
+    if (i) el(box, "span", "io-rule__sep", "|");
+    const cell = el(box, "span", "io-rule__sumpart");
+    el(cell, "span", "io-rule__sumlabel", part.label);
+    /*
+     * Пробел стоит **в тексте значения**, а не отступом в стилях. Отступ виден
+     * глазами и не виден больше никому: в скопированной строке и у программы
+     * чтения с экрана подпись слиплась бы со значением — `Use when:#todo`.
+     */
+    el(cell, "span", "io-rule__sumvalue", " " + part.value);
   });
 }
 

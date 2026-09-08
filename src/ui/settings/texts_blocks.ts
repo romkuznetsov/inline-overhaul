@@ -301,6 +301,12 @@ export const BLOCK_TEXTS = {
     RULE_EXPAND: "Expand {0}",
     /* Условий нет вовсе: правило смотрит на любую строку. */
     SUMMARY_ANY_LINE: "any line",
+    /* Подписи частей сводки. Двоеточие внутри строки нарочно: видимая подпись
+       переводится целиком, а где в языке стоит двоеточие и стоит ли перед ним
+       пробел — решает тот, кто переводит, а не наша склейка. */
+    SUMMARY_WHEN: "Use when:",
+    SUMMARY_TEMPLATE: "Template:",
+    SUMMARY_FOLDER: "Folder:",
     RULE_ADVANCED: "Advanced settings",
     RULE_ADVANCED_ARIA: "Advanced settings for {0}",
     RULE_ADVANCED_DEFAULT: "Default",

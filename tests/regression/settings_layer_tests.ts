@@ -2011,6 +2011,27 @@ async function main(): Promise<void> {
      * переписано: общее правило нажатого знака делает то же самое, и второе
      * его объявление разошлось бы с первым молча (У-32).
      */
+    /*
+     * **Сводка свёрнутого правила: подпись гасится, значение — нет** (замечание
+     * заказчика 2026-09-09, строка листа `S6`).
+     *
+     * Вписано сюда по тому же правилу У-67, а не проверено поиском: обе части
+     * лежат внутри `.io-rule__summary`, а он задаёт `color` целиком, — то есть
+     * у обоих правил есть сосед той же специфичности, объявленный **выше**.
+     * Молча проиграв ему, строка стала бы ровно тем, на что он жаловался:
+     * подпись и значение одного цвета и вдвое длиннее прежней.
+     */
+    const sumLabel = winner(["io-rule__sumlabel"], "color");
+    assert.ok(sumLabel && String(sumLabel.value).includes("--text-faint"),
+      "подпись в сводке правила не приглушена: победил `"
+      + (sumLabel ? sumLabel.selector + " { color: " + sumLabel.value + " }" : "никто") + "`");
+    const sumValue = winner(["io-rule__sumvalue"], "color");
+    assert.ok(sumValue && String(sumValue.value).includes("--text-normal"),
+      "значение в сводке правила не обычного цвета: победил `"
+      + (sumValue ? sumValue.selector + " { color: " + sumValue.value + " }" : "никто") + "`");
+    assert.notEqual(String(sumLabel.value), String(sumValue.value),
+      "подпись и значение одного цвета — разница между ними не видна");
+
     const markInk = winner(["io-help"], "color");
     assert.ok(markInk, "у знака «?» никто не задаёт цвет");
     const pressed = rules.filter(r => r.selector.includes("aria-expanded")

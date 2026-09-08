@@ -795,13 +795,17 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-rule__arrow { color: var(--text-accent); font-size: 13px; }
 /* Свёрнутая карточка правила (З-6): шапка и одна строка сводки. Части
-   разделены точкой, а не рамками: сводка читается одной фразой. */
+   разделены чертой, а не рамками: сводка читается одной фразой из трёх
+   подписанных полей. Подпись гасится, значение — нет: читают значения
+   (замечание заказчика 2026-09-09). */
 .io-rule__summary {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px;
   padding: 2px 0 0 18px;
   font-size: var(--font-ui-smaller); color: var(--text-muted);
 }
 .io-rule__sumpart { min-width: 0; }
+.io-rule__sumlabel { color: var(--text-faint); }
+.io-rule__sumvalue { color: var(--text-normal); }
 .io-rule__sep { color: var(--text-faint); }
 /* Своя ветка `Note content` у правила (З-5): строки под `Advanced settings`
    стоят лесенкой, чтобы читались как содержимое строки, а не как соседи. */
@@ -5384,10 +5388,19 @@ function renderSmartRules(host) {
       const folder = r.folderMode === "folder"
         ? (r.folder || "Another folder\u2026")
         : (r.folderMode === "near" ? "Near current note" : "Default");
-      [shown.length ? shown.join(", ") : "any line", r.template || "None", folder]
-        .forEach((text, pi) => {
-          if (pi) el("span", "io-rule__sep", sum, "\u00b7");
-          el("span", "io-rule__sumpart", sum, text);
+      /* \u0417\u0430\u043a\u0430\u0437\u0447\u0438\u043a 2026-09-09: \u00ab\u0441\u0436\u0430\u0442\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u0434\u0430\u0451\u0442\u0441\u044f \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0441\u043a\u0443\u0434\u043d\u043e\u2026 \u0441\u0434\u0435\u043b\u0430\u0439,
+         \u0447\u0442\u043e\u0431\u044b \u0431\u044b\u043b\u043e `Use when: #todo` | `Template: template1.md` |
+         `Folder: 333`\u00bb. \u041f\u0440\u043e\u0431\u0435\u043b \u043c\u0435\u0436\u0434\u0443 \u043f\u043e\u0434\u043f\u0438\u0441\u044c\u044e \u0438 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435\u043c \u0441\u0442\u043e\u0438\u0442 \u0432 \u0442\u0435\u043a\u0441\u0442\u0435
+         \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f, \u0430 \u043d\u0435 \u043e\u0442\u0441\u0442\u0443\u043f\u043e\u043c \u0432 \u0441\u0442\u0438\u043b\u044f\u0445: \u0438\u043d\u0430\u0447\u0435 \u043e\u043d \u043d\u0435 \u043f\u043e\u043f\u0430\u0434\u0451\u0442 \u043d\u0438 \u0432
+         \u0441\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0443\u044e \u0441\u0442\u0440\u043e\u043a\u0443, \u043d\u0438 \u043a \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0447\u0442\u0435\u043d\u0438\u044f \u0441 \u044d\u043a\u0440\u0430\u043d\u0430. */
+      [["Use when:", shown.length ? shown.join(", ") : "any line"],
+        ["Template:", r.template || "None"],
+        ["Folder:", folder]]
+        .forEach((part, pi) => {
+          if (pi) el("span", "io-rule__sep", sum, "|");
+          const cell = el("span", "io-rule__sumpart", sum);
+          el("span", "io-rule__sumlabel", cell, part[0]);
+          el("span", "io-rule__sumvalue", cell, " " + part[1]);
         });
       if (r.conflict) {
         const foldedWarn = el("div", "io-rule__warn", main);
