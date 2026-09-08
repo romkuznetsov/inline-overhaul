@@ -978,7 +978,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (37)
+### Пути, которых не было в описи v1.0 (39)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -1010,6 +1010,8 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.caret.blinkSpeed` | Blink speed (`caret-blink`) | Text cursor |
 | `transform.inline2note.floatingButton` | Floating button (`i2n-floating`) | Inline to note |
 | `transform.inline2note.floatingButtonGap` | Distance from the text (`i2n-floating-gap`) | Inline to note |
+| `transform.inline2note.placement.targetHeader` | Type name of header (`content-target-header`) | Note content |
+| `transform.inline2note.placement.fallback` | If header not found (`content-header-missing`) | Note content |
 | `transform.inline2note.placement.headerLevel` | Line above is header (`content-header-level`) | Note content |
 | `transform.inline2note.sourceProcessing.text` | What happens with current line (`source-text`) | Source line |
 | `transform.inline2note.sourceProcessing.keepWords` | Words to keep (`source-keep-words`) | Source line |
@@ -3049,6 +3051,80 @@ id получают **строки панели**, а не команда. В `d
 поэтому дефектом на экране это не стало, — но следующая рисовалка стоила бы
 того же захода.
 
+#### 10.13.56 Transform: `At custom header` (З-4)
+
+Четвёртая задача из семи. Разбор лежал готовым с прошлой сессии; спорное место
+заказчик решил тогда же: запись ложится **в конец секции** названного
+заголовка, а не сразу под его строкой — «записи копятся в том порядке, в
+котором он их писал».
+
+##### 10.13.56.1 Что сделано
+
+Третье значение `Where to put the text` — **`At custom header`**, и под ним две
+строки, видимые только при нём:
+
+- **`Type name of header`**, плейсхолдер `# Header name`. Имя пишется так, как
+  заголовок стоит в заметке. Решётки в этой строке **не украшение, а часть
+  запроса**: `## Log` найдёт заголовок ровно второго уровня, `Log` — любого.
+  Регистр не важен: имя набирают в одном месте, а заголовок в другом.
+- **`If header not found`** — `at the beginning` или `at the end`. Дословно то
+  же, что верхняя строка минус заголовок: новая заметка из шаблона, где такой
+  секции нет, всё равно должна куда-то лечь.
+
+**`Line above the text` не отменяется.** При `Fixed text` и `Date and time`
+строка над записью создаётся по-прежнему — просто внутри найденной секции. Это
+буквально его условие.
+
+**Блок отделяется пустой строкой** — так же, как при `At the end`. Иначе наш
+заголовок слипся бы с чужим абзацем в один, и Obsidian нарисовал бы их одной
+строкой.
+
+**Из двух одноимённых заголовков берётся первый.** Второй адресовать нечем: в
+настройке лежит имя, а не место.
+
+##### 10.13.56.2 Два места, а не одно
+
+Место вставки решает одна чистая функция — `composeBodyWithPlacement`, и это
+было главным в разборе. Но рядом стоит второй путь: **дописывание в
+существующую заметку** (`If the name already taken` = `Add to the existing
+one`). Он собирал блок отдельно и всегда клал его в конец файла. Положение,
+доехавшее только до новых заметок, — это ровно тот дефект, который человек
+увидит первым: он выбирает его один раз, а работает оно через раз.
+
+Поэтому правило укладки объявлено **один раз** — `placeBlockUnderHeader`, — и
+зовут его оба пути. Второе объявление в этом файле расходилось молча уже трижды
+(У-32, У-74).
+
+**Остальные два положения при дописывании работают как работали.** Дописывание
+всегда шло в конец, и менять это заказчик не просил; новое только
+`At custom header`. У него есть и запасное положение `at the beginning`, и там
+оно считается **от тела**, а не от файла: `---` frontmatter отрезается до
+поиска, иначе вставка выше него испортила бы свойства заметки. Решётки внутри
+frontmatter заголовками при этом не считаются.
+
+##### 10.13.56.3 Чем закреплено
+
+`transform_runtime_tests.js`, двенадцать проверок на настоящих функциях
+движка: заголовок найден; имя без решёток и с решётками; заголовок последней
+строкой заметки (секция пуста); два одноимённых; заголовка нет при каждом из
+двух запасных положений; имя не задано вовсе; `Line above the text` внутри
+найденной секции; тот же путь у дописывания; решётка внутри frontmatter;
+нормализация значения и обеих новых строк.
+
+**И проверка на сам шов.** `writeInline2Note` зовётся с поддельным vault, и
+она отвечает на вопрос, которого чистые функции не слышат: доехала ли настройка
+от конфига до заметки. Без неё «положение до записи не доехало» не краснело бы
+нигде (У-56) — тот же разрыв, что восемь заходов держал режим
+`End of your text`.
+
+**Одиннадцать мутаций, краснеют все:** запись под строкой заголовка вместо
+конца секции; уровень перестал что-либо значить; сравнение стало
+чувствительным к регистру; берётся последний одноимённый вместо первого;
+запасное положение всегда конец; дописывание не знает нового положения;
+frontmatter не отрезается; настройка не доехала до записи; `custom-header` не
+значится законным значением; имя теряет решётки при нормализации; маршрут
+миграции снят.
+
 ### 10.14 Что осталось за границами
 
 Эти находки аудита разобраны и **сознательно не включены**. Записано, чтобы исполнитель не добавил их по своей инициативе и чтобы разговор не повторялся.
@@ -5011,7 +5087,7 @@ python tests/prototype/update_prd.py
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 6 | 35 | 6 |
-| 6 | Transform | `features.transform.enabled` | 6 | 26 | 5 |
+| 6 | Transform | `features.transform.enabled` | 6 | 28 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
 ### Группы по порядку
@@ -5630,13 +5706,22 @@ _Tip:_ Three ways of finding one are tried in turn, and the first that works win
 
 _Intro:_ What the note looks like inside: where your text goes, and what sits above it
 
-_Tip:_ Two decisions live here. The first is where in the note your line lands — at the top, or after whatever is already there, which is what you want when one note collects many entries. The second is what goes on the line above it, so entries in a collecting note do not run together: a date, a fixed word of your own, or nothing at all. The rest of the note comes from the template, and the template is chosen further up
+_Tip:_ Two decisions live here. The first is where in the note your line lands — at the top, after whatever is already there, or at the end of a section you name, which is what you want when one note collects many entries. The second is what goes on the line above it, so entries in a collecting note do not run together: a date, a fixed word of your own, or nothing at all. The rest of the note comes from the template, and the template is chosen further up
 
 - **Where to put the text** — `content-position`, `dropdown`, path `transform.inline2note.placement.position`, default `end`
   - desc: At the top of the note, or after whatever is already there
-  - tip: If you are adding to a note over and over — a diary, a log of calls — pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference
-  - варианты: `beginning` At the beginning · `end` At the end
+  - tip: If you are adding to a note over and over — a diary, a log of calls — pick <b>at the end</b> so the entries stay in the order you wrote them. For a brand new note it makes no difference. <b>At custom header</b> is for a note laid out in sections: name the heading below and every entry lands at the end of that section, whatever else the note gains over time
+  - варианты: `beginning` At the beginning · `end` At the end · `custom-header` At custom header
   - старые названия для поиска: «Where to place inline text?»
+- **Type name of header** — `content-target-header`, `text`, path `transform.inline2note.placement.targetHeader`, default `""`
+  - desc: The heading your text is filed under
+  - tip: Write the heading as it stands in the note. Put the hashes in — <code>## Log</code> — and only a heading of that depth counts; leave them out and a heading of any depth with those words will do. Upper and lower case do not matter. Two headings with the same name: the first one wins, because this box holds a name and not a place
+  - видна если: `transform.inline2note.placement.position`
+- **If header not found** — `content-header-missing`, `dropdown`, path `transform.inline2note.placement.fallback`, default `end`
+  - desc: Where the text goes when the note has no such heading
+  - tip: A brand new note made from a template that has no such heading, or a note you have not laid out yet — the text still has to land somewhere. This is that somewhere, and it is the same choice as the row above minus the heading
+  - варианты: `beginning` At the beginning · `end` At the end
+  - видна если: `transform.inline2note.placement.position`
 - **Line above the text** — `content-header-mode`, `dropdown`, path `transform.inline2note.placement.headerMode`, default `datetime`
   - desc: Something to put above your text so entries stay apart
   - tip: Useful when a note collects many entries: a date, or a word of your own, keeps them from running together. Whether that line is a heading is a separate question, and the row below answers it
@@ -6024,9 +6109,11 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `transform.inline2note.outputFolder` | folder | `""` |
 | `transform.inline2note.placement.customHeader` | text | `Captured` |
 | `transform.inline2note.placement.datetimeFormat` | text | `YYYY-MM-DD HH:mm` |
+| `transform.inline2note.placement.fallback` | dropdown | `end` |
 | `transform.inline2note.placement.headerLevel` | dropdown | `3` |
 | `transform.inline2note.placement.headerMode` | dropdown | `datetime` |
 | `transform.inline2note.placement.position` | dropdown | `end` |
+| `transform.inline2note.placement.targetHeader` | text | `""` |
 | `transform.inline2note.sourceProcessing.keepWords` | number | `3` |
 | `transform.inline2note.sourceProcessing.panel` | dropdown | `right` |
 | `transform.inline2note.sourceProcessing.replaceWithLink` | toggle | `true` |

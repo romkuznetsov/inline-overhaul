@@ -202,7 +202,9 @@ rewrites the line you are standing on.
   `Templates folder` and `Default template` under **Inline to note**, the rules under
   **Smart Rules**, and the name under **New note naming**.
 - [Collision, body and header policies](showcase.md#collisionbodyheader-policies): **Note
-  content**, plus `If the name already taken` under **New note naming**.
+  content**, plus `If the name already taken` under **New note naming**. `Where to put the
+  text` can also file the entry at the end of a heading you name, and says what to do when
+  the note has no such heading.
 - [YAML Raw and Clean mapping](showcase.md#yaml-rawclean-mapping): each Field carries the
   rule, set once for the Field in **Tags & PKM → Fields**.
 - [What happens to the source

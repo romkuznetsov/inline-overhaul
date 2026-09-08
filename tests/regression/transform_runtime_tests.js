@@ -412,6 +412,198 @@ async function testRollbackRestoresWhatProcessSaw() {
   assertEq(plugin.files.get("Notes/Откат.md"), "исходное", "и на диске снова исходное");
 }
 
+/* ====================================================================== */
+/* Положение `At custom header` (задача заказчика З-4)                     */
+/* ====================================================================== */
+
+/*
+ * Проверки зовут **те же функции**, что и движок (У-4): `composeBodyWithPlacement`
+ * для новой заметки и `appendBlockIntoNote` для дописывания в существующую.
+ * Правило укладки одно на оба пути, и проверяются оба: положение, доехавшее
+ * только до новых заметок, — это ровно тот дефект, ради которого разбор
+ * назвал второе место.
+ */
+
+function i2nAtHeader(targetHeader, fallback) {
+  return {
+    placement: {
+      position: "custom-header",
+      headerMode: "none",
+      customHeader: "",
+      datetimeFormat: "YYYY-MM-DD",
+      headerLevel: "0",
+      targetHeader: String(targetHeader || ""),
+      fallback: String(fallback || "end"),
+    },
+  };
+}
+
+const NOTE_WITH_SECTIONS = [
+  "intro line",
+  "",
+  "## Log",
+  "- first entry",
+  "- second entry",
+  "",
+  "## Other",
+  "- not mine",
+].join("\n");
+
+function runCustomHeaderPlacementSuite() {
+  /* 1. Заголовок найден: блок ложится в конец его секции, а не под строку. */
+  {
+    const out = transform.composeBodyWithPlacement(NOTE_WITH_SECTIONS, "- new entry", i2nAtHeader("## Log"), "\n");
+    assertEq(out, [
+      "intro line",
+      "",
+      "## Log",
+      "- first entry",
+      "- second entry",
+      "",
+      "- new entry",
+      "",
+      "## Other",
+      "- not mine",
+    ].join("\n"), "запись ложится в конец секции названного заголовка");
+  }
+
+  /* 2. Без решёток годится заголовок любого уровня. */
+  {
+    const out = transform.composeBodyWithPlacement(NOTE_WITH_SECTIONS, "- new entry", i2nAtHeader("log"), "\n");
+    assertTrue(out.indexOf("- second entry\n\n- new entry") >= 0,
+      "имя без решёток находит заголовок любого уровня, и регистр не важен");
+  }
+
+  /* 3. С решётками — только заголовок этой глубины. */
+  {
+    const out = transform.composeBodyWithPlacement(NOTE_WITH_SECTIONS, "- new entry", i2nAtHeader("### Log", "end"), "\n");
+    assertTrue(out.trimEnd().endsWith("- new entry"),
+      "`### Log` не находит заголовок второго уровня и уходит в запасное положение");
+  }
+
+  /* 4. Заголовок последней строкой заметки: секция пуста, блок встаёт под ним. */
+  {
+    const out = transform.composeBodyWithPlacement("intro\n\n## Log", "- new entry", i2nAtHeader("## Log"), "\n");
+    assertEq(out, "intro\n\n## Log\n\n- new entry", "секция без содержимого получает запись сразу под заголовком");
+  }
+
+  /* 5. Два одноимённых заголовка — берётся первый. */
+  {
+    const twice = ["## Log", "- one", "", "## Log", "- two"].join("\n");
+    const out = transform.composeBodyWithPlacement(twice, "- new entry", i2nAtHeader("## Log"), "\n");
+    assertEq(out, ["## Log", "- one", "", "- new entry", "", "## Log", "- two"].join("\n"),
+      "из двух одноимённых заголовков берётся первый");
+  }
+
+  /* 6. Заголовка нет: оба запасных положения. */
+  {
+    const noHeader = "intro line\n\n- something";
+    const atEnd = transform.composeBodyWithPlacement(noHeader, "- new entry", i2nAtHeader("## Log", "end"), "\n");
+    assertEq(atEnd, "intro line\n\n- something\n\n- new entry", "заголовка нет, запасное положение — конец");
+    const atStart = transform.composeBodyWithPlacement(noHeader, "- new entry", i2nAtHeader("## Log", "beginning"), "\n");
+    assertEq(atStart, "- new entry\n\nintro line\n\n- something", "заголовка нет, запасное положение — начало");
+  }
+
+  /* 7. Имя не задано вовсе — то же, что «не найден». */
+  {
+    const out = transform.composeBodyWithPlacement(NOTE_WITH_SECTIONS, "- new entry", i2nAtHeader("", "beginning"), "\n");
+    assertTrue(out.startsWith("- new entry"), "пустое имя заголовка работает как запасное положение");
+  }
+
+  /* 8. Строка над текстом не отменяется: заголовок блока ложится внутрь секции. */
+  {
+    const withHead = {
+      placement: {
+        ...i2nAtHeader("## Log").placement,
+        headerMode: "custom",
+        customHeader: "Captured",
+        headerLevel: "3",
+      },
+    };
+    const out = transform.composeBodyWithPlacement(NOTE_WITH_SECTIONS, "- new entry", withHead, "\n");
+    assertTrue(out.indexOf("- second entry\n\n### Captured\n- new entry") >= 0,
+      "`Line above the text` продолжает работать и внутри найденной секции");
+  }
+
+  /* ---- дописывание в существующую заметку ---- */
+
+  /* 9. Тот же путь у `Add to the existing one`. */
+  {
+    const before = "---\ntags: [a]\n---\n" + NOTE_WITH_SECTIONS + "\n";
+    const out = transform.appendBlockIntoNote(before, "- new entry", i2nAtHeader("## Log"), "\n");
+    assertTrue(out.startsWith("---\ntags: [a]\n---\n"), "frontmatter существующей заметки не тронут");
+    assertTrue(out.indexOf("- second entry\n\n- new entry") >= 0,
+      "дописывание в существующую заметку тоже ложится в конец секции");
+  }
+
+  /* 10. Решётки внутри frontmatter заголовками не считаются. */
+  {
+    const before = "---\nnote: '## Log'\n---\n\n- plain text\n";
+    const out = transform.appendBlockIntoNote(before, "- new entry", i2nAtHeader("## Log", "beginning"), "\n");
+    assertTrue(out.startsWith("---\nnote: '## Log'\n---\n"),
+      "строка внутри frontmatter не принимается за заголовок");
+    assertTrue(out.indexOf("---\n\n- new entry") >= 0 || out.indexOf("---\n- new entry") >= 0,
+      "запасное положение `начало` считается от тела, а не от файла");
+  }
+
+  /* 11. Остальные два положения при дописывании работают как работали. */
+  {
+    const before = "## Log\n- first entry\n";
+    const asBefore = transform.appendBlockIntoNote(before, "- new entry", { placement: { position: "beginning" } }, "\n");
+    assertEq(asBefore, "## Log\n- first entry\n\n- new entry\n",
+      "дописывание всегда шло в конец, и `At the beginning` этого не менял");
+  }
+
+  /* 12. Нормализация знает новое значение и обе новые строки. */
+  {
+    const normalized = transform.normalizeInline2Note({
+      placement: { position: "custom-header", targetHeader: "  ## Log  ", fallback: "beginning" },
+    });
+    assertEq(normalized.placement.position, "custom-header",
+      "`custom-header` — законное значение положения");
+    assertEq(normalized.placement.targetHeader, "## Log",
+      "имя заголовка чистится от пробелов, но решётки остаются: ими задан уровень");
+    assertEq(normalized.placement.fallback, "beginning",
+      "запасное положение переживает нормализацию");
+    const empty = transform.normalizeInline2Note({});
+    assertEq(empty.placement.targetHeader, "", "имя заголовка по умолчанию пусто");
+    assertEq(empty.placement.fallback, "end", "запасное положение по умолчанию — конец");
+  }
+
+  console.log("  ok  положение `At custom header` (З-4)");
+}
+
+/*
+ * Шов: настройка доезжает от конфига до самой заметки.
+ *
+ * Проверка зовёт **настоящую** запись `writeInline2Note` с поддельным vault:
+ * подделан только он, потому что другого способа позвать запись вне Obsidian
+ * нет (У-1). Без этой проверки «положение до записи не доехало» не краснело
+ * бы нигде: чистые функции выше о том, кто их зовёт, не знают (У-56).
+ */
+async function testCustomHeaderReachesTheWrittenNote() {
+  const before = ["## Log", "- first entry", "", "## Other", "- not mine"].join("\n") + "\n";
+  let written = "";
+  const file = { path: "Notes/Log.md" };
+  const plugin = {
+    app: {
+      vault: {
+        getAbstractFileByPath: (p) => (p === file.path ? file : null),
+        process: async (af, fn) => { written = fn(written || before); return written; },
+      },
+    },
+  };
+  const i2n = i2nAtHeader("## Log");
+  await transform.writeInline2Note(
+    plugin,
+    { mode: "add_to_note", path: file.path, exists: true },
+    "не используется на этом пути",
+    "- new entry",
+    i2n);
+  assertEq(written, ["## Log", "- first entry", "", "- new entry", "", "## Other", "- not mine"].join("\n") + "\n",
+    "положение доезжает до записи в существующую заметку");
+}
+
 async function run() {
   await testNewNoteRaceUsesActualPathLink();
   await testReplacePayloadFalse();
@@ -428,6 +620,8 @@ async function run() {
   await testLeaveNamedKeepsRestAndSwapsName();
   await testCleanedLeftSegmentKeepsTextAndTailApart();
   await testProcessedTokenLeftPanelAfterCleanedLeftSegment();
+  runCustomHeaderPlacementSuite();
+  await testCustomHeaderReachesTheWrittenNote();
   console.log("Transform runtime regression tests: OK");
 }
 

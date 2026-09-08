@@ -70,6 +70,13 @@ const DEFAULT_INLINE2NOTE = {
        поведения: `###` стоял в коде `formatHeaderByMode`. */
     headerLevel: "3",
     datetimeFormat: "YYYY-MM-DD HH:mm",
+    /*
+     * `At custom header` (З-4, заказчик 2026-09-08). Пусто — не ошибка, а
+     * состояние «заголовок ещё не назван»: положение тогда ведёт себя как
+     * запасное. Умолчание запасного — `end`, то же, что у самого положения.
+     */
+    targetHeader: "",
+    fallback: "end",
   },
   yamlNoteFormat: "raw",
   sourceProcessing: {
@@ -351,7 +358,15 @@ function normalizeInline2Note(raw) {
   out.nameCollision.mode = normalizeMode(nameCollision.mode, ["new_note", "add_to_note", "overwrite"], DEFAULT_INLINE2NOTE.nameCollision.mode);
 
   const placement = isObj(src.placement) ? src.placement : {};
-  out.placement.position = normalizeMode(placement.position, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.position);
+  out.placement.position = normalizeMode(placement.position, ["beginning", "end", "custom-header"], DEFAULT_INLINE2NOTE.placement.position);
+  /*
+   * Имя заголовка человек пишет как хочет: `Log`, `## Log`, с пробелами по
+   * краям. Решётки здесь **сохраняются**, а не срезаются, и это не небрежность:
+   * ими он задаёт уровень искомого заголовка. Написал без них — ищется
+   * заголовок любого уровня.
+   */
+  out.placement.targetHeader = String(placement.targetHeader == null ? DEFAULT_INLINE2NOTE.placement.targetHeader : placement.targetHeader).trim();
+  out.placement.fallback = normalizeMode(placement.fallback, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.fallback);
   out.placement.headerMode = normalizeMode(placement.headerMode, ["custom", "datetime", "none"], DEFAULT_INLINE2NOTE.placement.headerMode);
   /*
    * Решётки живут в `headerLevel`, и только там. С текстбоксов они снимаются
@@ -2493,6 +2508,95 @@ async function readTemplateContent(plugin, templatePath) {
   }
 }
 
+/**
+ * Строка `Type name of header`, разобранная на уровень и текст (З-4).
+ *
+ * `null` — имя не задано, и положение `At custom header` тогда ничем не
+ * отличается от своего запасного: искать нечего.
+ */
+function parseTargetHeaderSpec(raw) {
+  const parts = splitLeadingHashes(raw);
+  const text = String(parts.text || "").trim();
+  if (!text) return null;
+  return { level: Number(parts.level) || 0, text };
+}
+
+/** Заголовок в строке: уровень и текст. `null` — строка не заголовок. */
+function readHeadingLine(line) {
+  const m = String(line || "").match(/^(#{1,6})[ \t]+(.*)$/);
+  if (!m) return null;
+  return { level: String(m[1]).length, text: String(m[2] || "").trim() };
+}
+
+/**
+ * Номер строки, ПЕРЕД которой ложится блок: конец секции найденного заголовка.
+ * `-1` — заголовка в теле нет.
+ *
+ * Три решения, каждое из которых видно человеку:
+ *
+ *   * **два одноимённых заголовка — берётся первый.** Второй адресовать нечем:
+ *     в настройке лежит имя, а не номер;
+ *   * **регистр не важен.** Имя набирает человек в одном месте и заголовок — в
+ *     другом, и `## Log` против `## log` не должно значить «не нашёл»;
+ *   * **уровень важен ровно тогда, когда его написали.** `## Log` ищет
+ *     заголовок второго уровня, `Log` — любого.
+ *
+ * Пустые строки в конце секции — отступ перед следующим заголовком, а не её
+ * содержимое: блок встаёт до них.
+ */
+function findCustomHeaderInsertAt(lines, spec) {
+  if (!spec) return -1;
+  const wanted = String(spec.text || "").toLowerCase();
+  let at = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const h = readHeadingLine(lines[i]);
+    if (!h) continue;
+    if (spec.level && h.level !== spec.level) continue;
+    if (h.text.toLowerCase() !== wanted) continue;
+    at = i;
+    break;
+  }
+  if (at === -1) return -1;
+  const own = readHeadingLine(lines[at]).level;
+  let end = lines.length;
+  for (let i = at + 1; i < lines.length; i++) {
+    const h = readHeadingLine(lines[i]);
+    if (h && h.level <= own) { end = i; break; }
+  }
+  while (end > at + 1 && !String(lines[end - 1] || "").trim()) end--;
+  return end;
+}
+
+/**
+ * Тело заметки с положенным в него блоком (З-4).
+ *
+ * **Одна функция на оба пути** — новая заметка и дописывание в существующую.
+ * Второе объявление правила «куда ложится текст» разошлось бы с первым молча
+ * (У-32), а в этом файле это уже случалось трижды.
+ *
+ * `null` значит «заголовок не найден»: решение, что делать дальше, принимает
+ * вызывающий, потому что запасные положения у двух путей разные.
+ */
+function placeBlockUnderHeader(baseBody, block, spec, nl) {
+  const lines = String(baseBody || "").replace(/\r?\n/g, nl).split(nl);
+  const at = findCustomHeaderInsertAt(lines, spec);
+  if (at === -1) return null;
+  const head = lines.slice(0, at);
+  const tail = lines.slice(at);
+  const blockLines = String(block || "").split(nl);
+  const out = head.slice();
+  /*
+   * Пустая строка с обеих сторон, и это то же самое, что делает `At the end`:
+   * запись отделяется от соседей. Без неё наш заголовок слипся бы с чужим
+   * абзацем в один, а Obsidian нарисовал бы их одной строкой.
+   */
+  if (out.length && String(out[out.length - 1] || "").trim()) out.push("");
+  for (const line of blockLines) out.push(line);
+  if (tail.length && String(tail[0] || "").trim()) out.push("");
+  for (const line of tail) out.push(line);
+  return out.join(nl);
+}
+
 function composeAppendBlock(inlineText, i2n) {
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const header = formatHeaderByMode({ placement: { ...placement, headerMode: "datetime" } });
@@ -2520,10 +2624,54 @@ function composeBodyWithPlacement(templateBody, inlineLine, i2n, newline) {
   const source = normalizeInlineBlockForBody(inlineLine, nl);
   const header = formatHeaderByMode(i2n);
   const block = [header, source].filter(Boolean).join(nl);
-  const pos = String(i2n && i2n.placement && i2n.placement.position || "end").trim().toLowerCase();
+  const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
+  const pos = String(placement.position || "end").trim().toLowerCase();
   if (!base.trim()) return block + nl;
+  /*
+   * `At custom header` (З-4): блок ложится **в конец секции** названного
+   * заголовка — решение заказчика. Заголовка в шаблоне нет — работает запасное
+   * положение, и оно спрашивается отдельной строкой панели.
+   */
+  if (pos === "custom-header") {
+    const placed = placeBlockUnderHeader(base, block, parseTargetHeaderSpec(placement.targetHeader), nl);
+    if (placed !== null) return placed;
+    const fallback = String(placement.fallback || "end").trim().toLowerCase();
+    if (fallback === "beginning") return `${block}${nl}${nl}${base}`;
+    return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${block}`;
+  }
   if (pos === "beginning") return `${block}${nl}${nl}${base}`;
   return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${block}`;
+}
+
+/**
+ * Дописывание в существующую заметку (`Add to the existing one`).
+ *
+ * **Дописывание всегда шло в конец, и это не меняется:** положения
+ * `At the beginning` и `At the end` тут работают так же, как работали. Новое —
+ * `At custom header`: без него положение действовало бы только на новых
+ * заметках, а человек выбирает его один раз на обе дороги.
+ *
+ * Frontmatter отрезается до поиска: решётки внутри YAML заголовками не
+ * являются, и вставка выше `---` испортила бы свойства заметки.
+ */
+function appendBlockIntoNote(previous, block, i2n, nl) {
+  const before = String(previous == null ? "" : previous);
+  const text = String(block || "").trim().replace(/\r?\n/g, nl);
+  if (!text) return before;
+  const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
+  const pos = String(placement.position || "end").trim().toLowerCase();
+  if (pos !== "custom-header") return `${before.trimEnd()}${nl}${nl}${text}${nl}`;
+
+  const parsed = parseFrontmatter(before);
+  const head = before.slice(0, before.length - parsed.body.length);
+  const placed = placeBlockUnderHeader(parsed.body, text, parseTargetHeaderSpec(placement.targetHeader), nl);
+  if (placed !== null) return `${head}${placed}`;
+  const fallback = String(placement.fallback || "end").trim().toLowerCase();
+  if (fallback === "beginning") {
+    const body = parsed.body.replace(/\r?\n/g, nl);
+    return body.trim() ? `${head}${text}${nl}${nl}${body}` : `${head}${text}${nl}`;
+  }
+  return `${before.trimEnd()}${nl}${nl}${text}${nl}`;
 }
 
 function pathWithNumericSuffix(basePath, index) {
@@ -2532,7 +2680,7 @@ function pathWithNumericSuffix(basePath, index) {
   return src.replace(/\.md$/i, `-${suffix}.md`);
 }
 
-async function writeInline2Note(plugin, target, content, appendBlock) {
+async function writeInline2Note(plugin, target, content, appendBlock, i2n) {
   const vault = plugin.app.vault;
   let af = vault.getAbstractFileByPath(target.path);
   if (target.mode === "new_note") {
@@ -2609,8 +2757,7 @@ async function writeInline2Note(plugin, target, content, appendBlock) {
       previous = String(data == null ? "" : data);
       /* Перевод строки берётся у самой заметки: у человека может быть CRLF. */
       const nl = previous.includes("\r\n") ? "\r\n" : "\n";
-      const block = String(appendBlock || "").trim().replace(/\r?\n/g, nl);
-      return `${previous.trimEnd()}${nl}${nl}${block}${nl}`;
+      return appendBlockIntoNote(previous, appendBlock, i2n, nl);
     });
     return { target, rollback: async () => { await vault.process(af, () => previous); } };
   }
@@ -3385,7 +3532,7 @@ async function runInline2Note(plugin, runtimeOptions) {
   const noteContent = `${yamlBlock}${bodyOut}`;
   const appendBlock = composeAppendBlock(noteBlockText, i2n);
   assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
-  const mutation = await writeInline2Note(plugin, target, noteContent, appendBlock);
+  const mutation = await writeInline2Note(plugin, target, noteContent, appendBlock, i2n);
   const actualTarget = mutation.target;
   try {
     assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
@@ -3479,6 +3626,17 @@ module.exports = {
   buildPreviewBaseLine,
   deriveSelectionRangeFromEditor,
   normalizeInlineBlockForBody,
+  /* Положение `At custom header` (З-4): проверка зовёт те же функции, что и
+     движок, а не повторяет то, что они делают (У-4). */
+  parseTargetHeaderSpec,
+  findCustomHeaderInsertAt,
+  placeBlockUnderHeader,
+  composeBodyWithPlacement,
+  composeAppendBlock,
+  appendBlockIntoNote,
+  /* Шов между конфигом и заметкой. Отдан наружу ради одной проверки: без
+     неё «настройка не доехала до записи» не краснеет нигде (У-56). */
+  writeInline2Note,
   deriveSourceWikilinkFromTargetPath,
   renderTransformSettings,
   runInline2Note,

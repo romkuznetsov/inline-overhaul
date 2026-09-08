@@ -536,7 +536,7 @@ Before first use, review these initial defaults:
 - **Sublines behavior:** Stay
 - **Name collision:** `new_note` (create a new note, adding a suffix when needed)
 - **Value YAML rule:** Raw
-- **Template body placement:** end
+- **Template body placement:** end (`At custom header` is off until you pick it)
 - **Inserted block header:** current datetime
 - **Open transformed note:** off; target does not auto-open
 
@@ -569,7 +569,11 @@ status: inbox
 ## Context
 ```
 
-For new/overwrite operations, transformed source content is inserted at the beginning or end of the template body. The inserted block header can be:
+For new/overwrite operations, transformed source content is inserted at the beginning of the template body, at its end, or at the end of a section you name.
+
+**At custom header** asks for two more things. **Type name of header** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If header not found** is where the text goes when the note has no such heading: at the beginning, or at the end. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
+
+The inserted block header can be:
 
 - custom text;
 - current datetime formatted with `YYYY`, `MM`, `DD`, `HH`, `mm`, and `ss`;

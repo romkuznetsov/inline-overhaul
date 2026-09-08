@@ -306,6 +306,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("transform.inline2note.yamlNoteFormat"),
   keep("transform.inline2note.smartRules", true),
   keepV2("transform.inline2note.placement.headerLevel"),
+  /* `At custom header` (З-4): обе строки новые, пары в версии 1 у них нет.
+     Без маршрута форма v2 уехала бы в `_unmigrated` (МГ3). */
+  keepV2("transform.inline2note.placement.targetHeader"),
+  keepV2("transform.inline2note.placement.fallback"),
   keep("transform.inline2note.noteName.mode"),
   keep("transform.inline2note.noteName.preferHeaderTitle"),
   keep("transform.inline2note.nameCollision.mode"),
