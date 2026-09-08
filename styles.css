@@ -991,8 +991,10 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-on-accent);
-  background: var(--interactive-accent);
+  /* Приглушённый акцент, текст обычного цвета — В-85, вариант 2. Разбор
+     стоит у `.io-vals__head`, и второй раз не пишется. */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-fields__list { background: var(--background-secondary); padding: 6px; flex: 1 1 auto; }
@@ -1555,8 +1557,24 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-on-accent);
-  background: var(--interactive-accent);
+  /*
+   * **В-85, вариант 2 заказчика** (решено 2026-09-08): тот же акцентный цвет,
+   * но приглушённый, а текст обычного цвета.
+   *
+   * Сплошным акцентом шапки залиты 2026-09-07 — по его же замечанию, что
+   * серым по серому их не видно. Вопрос был задан сразу: акцент в теме бывает
+   * насыщенным, и четыре залитые полосы на одном экране читаются крикливо,
+   * особенно в узкой таблице Values, где в шапке стоят ещё и знаки «?».
+   * Он выбрал приглушить.
+   *
+   * Приглушение сделано **прозрачностью самого акцента**, а не подмешиванием
+   * фона: шапка лежит то на `--background-primary`, то на карточке
+   * `--background-primary-alt`, и подмешанный один фон на второй карточке
+   * дал бы пятно другого оттенка. С прозрачностью цвет складывается с тем,
+   * что под ним, каким бы он ни был.
+   */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
@@ -1751,11 +1769,20 @@
 }
 
 /*
- * «?» в шапке таблицы. Шапка с 2026-09-07 залита акцентом (замечание
- * заказчика про нечитаемые шапки), и оба прежних вида знака на ней пропадали:
- * серая буква сливалась с заливкой, а нажатая — акцент на акценте, то есть
- * ровно та же беда, что двумя правилами выше (У-67). На заливке знак
- * переворачивается: буква цветом текста-на-акценте, нажатый — наоборот.
+ * «?» в шапке таблицы.
+ *
+ * **Что здесь было и почему изменилось.** Пока шапка была залита сплошным
+ * акцентом (2026-09-07, по его замечанию про нечитаемые шапки), знак
+ * приходилось переворачивать: серая буква сливалась с заливкой, а нажатая
+ * давала акцент на акценте — та же беда, что двумя правилами выше (У-67).
+ * С 2026-09-08 заливка приглушена (В-85, вариант 2), и переворачивать больше
+ * нечего: знак берёт цвет текста шапки, а нажатый остаётся тем, каким его
+ * рисует общее правило `.io-help[aria-expanded="true"]` — акцент под белой
+ * буквой хорошо читается и на приглушённой заливке.
+ *
+ * **Правило нажатого знака поэтому снято, а не переписано.** Оставить его
+ * значило бы держать объявление, которое повторяет общее: два объявления
+ * одного правила расходятся молча (У-32).
  *
  * Вес удвоен так же, как у правил размера: иначе выигрывает объявление ниже
  * по файлу.
@@ -1764,16 +1791,8 @@
 .io-vals__head .io-help.io-help,
 .io-tablehead .io-help.io-help,
 .io-cmd__head .io-help.io-help {
-  color: var(--text-on-accent);
-  border-color: var(--text-on-accent);
-}
-.io-fields__colhead .io-help.io-help[aria-expanded="true"],
-.io-vals__head .io-help.io-help[aria-expanded="true"],
-.io-tablehead .io-help.io-help[aria-expanded="true"],
-.io-cmd__head .io-help.io-help[aria-expanded="true"] {
-  background: var(--text-on-accent);
-  border-color: transparent;
-  color: var(--interactive-accent);
+  color: var(--text-normal);
+  border-color: var(--text-muted);
 }
 
 /*
@@ -2340,8 +2359,10 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-on-accent);
-  background: var(--interactive-accent);
+  /* Приглушённый акцент, текст обычного цвета — В-85, вариант 2. Разбор
+     стоит у `.io-vals__head`, и второй раз не пишется. */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-tablerow + .io-tablerow { border-top: 1px solid var(--background-modifier-border); }
@@ -2638,8 +2659,10 @@
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--text-on-accent);
-  background: var(--interactive-accent);
+  /* Приглушённый акцент, текст обычного цвета — В-85, вариант 2. Разбор
+     стоит у `.io-vals__head`, и второй раз не пишется. */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 /*

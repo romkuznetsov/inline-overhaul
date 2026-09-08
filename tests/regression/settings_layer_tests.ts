@@ -1964,6 +1964,49 @@ async function main(): Promise<void> {
           ? "победил `" + bg.selector + " { background-color: " + bg.value + " }`"
           : "не красит никто"));
     }
+
+    /*
+     * **Шапки таблиц: приглушённый акцент, текст обычного цвета** (В-85,
+     * вариант 2, решение заказчика 2026-09-08).
+     *
+     * Впи́сано сюда, а не проверено поиском по файлу, ровно по правилу У-67:
+     * «завели правило, решающее вид, — впишите его набор». Мёртвое правило в
+     * файле тоже бывает, а побеждает всегда одно, и вид решает победитель.
+     *
+     * Ходов до этого места было два — серым по серому (до 2026-09-07) и
+     * сплошным акцентом (после), — и оба заказчик забраковал глазами. Третий
+     * закреплён здесь: заливка обязана быть **прозрачной долей** акцента, а
+     * не самим акцентом, а текст — обычным, а не текстом-на-акценте.
+     */
+    for (const head of ["io-vals__head", "io-tablehead", "io-cmd__head", "io-fields__colhead"]) {
+      const fill = winner([head], "background");
+      assert.ok(fill, "шапку `" + head + "` не красит никто");
+      assert.ok(/color-mix\(/.test(String(fill.value)) && /--interactive-accent/.test(String(fill.value)),
+        "заливка шапки `" + head + "` не приглушённый акцент: победил `"
+        + fill.selector + " { background: " + fill.value + " }`");
+      assert.ok(/transparent/.test(String(fill.value)),
+        "заливка шапки `" + head + "` подмешана к фону, а не прозрачна: на карточке "
+        + "`--background-primary-alt` это даст пятно другого оттенка — `" + fill.value + "`");
+
+      const ink = winner([head], "color");
+      assert.ok(ink && String(ink.value).includes("--text-normal"),
+        "текст шапки `" + head + "` не обычного цвета: победил `"
+        + (ink ? ink.selector + " { color: " + ink.value + " }" : "никто") + "`");
+    }
+
+    /*
+     * И знак «?» на этой шапке: он больше не переворачивается. Пока заливка
+     * была сплошной, нажатый знак красился текстом-на-акценте на фоне
+     * текста-на-акценте — и правило про это стояло рядом. Оно снято, а не
+     * переписано: общее правило нажатого знака делает то же самое, и второе
+     * его объявление разошлось бы с первым молча (У-32).
+     */
+    const markInk = winner(["io-help"], "color");
+    assert.ok(markInk, "у знака «?» никто не задаёт цвет");
+    const pressed = rules.filter(r => r.selector.includes("aria-expanded")
+      && /io-vals__head|io-tablehead|io-cmd__head|io-fields__colhead/.test(r.selector));
+    assert.deepEqual(pressed.map(r => r.selector + " { " + r.prop + " }"), [],
+      "у нажатого «?» на шапке снова своё правило — оно повторяет общее (У-32)");
   });
 
   await test("список Fields стоит вплотную к своей строке", () => {

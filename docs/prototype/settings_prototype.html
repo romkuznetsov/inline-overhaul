@@ -579,7 +579,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-tablehead, .io-tablerow { display: grid; gap: 10px; align-items: center; padding: 8px 12px; }
 .io-tablehead {
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-on-accent); background: var(--interactive-accent);
+  /* В-85, вариант 2 заказчика: тот же акцентный цвет, но приглушённый, а
+     текст обычного цвета. Сплошной акцент на четырёх шапках одного экрана
+     читался крикливо, особенно в узкой таблице Values со знаками «?». */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-tablerow + .io-tablerow { border-top: 1px solid var(--background-modifier-border); }
@@ -641,7 +645,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-vals__inner { min-width: 620px; }
 .io-vals__head {
   font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-on-accent); background: var(--interactive-accent);
+  /* В-85, вариант 2 заказчика: тот же акцентный цвет, но приглушённый, а
+     текст обычного цвета. Сплошной акцент на четырёх шапках одного экрана
+     читался крикливо, особенно в узкой таблице Values со знаками «?». */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-vals__row + .io-vals__row { border-top: 1px solid var(--background-modifier-border); }
@@ -881,7 +889,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* command reference as a real table */
 .io-cmd__head {
   font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-on-accent); background: var(--interactive-accent);
+  /* В-85, вариант 2 заказчика: тот же акцентный цвет, но приглушённый, а
+     текст обычного цвета. Сплошной акцент на четырёх шапках одного экрана
+     читался крикливо, особенно в узкой таблице Values со знаками «?». */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-cmd__name { font-size: var(--font-ui-small); color: var(--text-normal); }
@@ -1393,18 +1405,24 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   display: flex; align-items: center; gap: 6px;
   padding: 7px 12px;
   font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--text-on-accent); background: var(--interactive-accent);
+  /* В-85, вариант 2 заказчика: тот же акцентный цвет, но приглушённый, а
+     текст обычного цвета. Сплошной акцент на четырёх шапках одного экрана
+     читался крикливо, особенно в узкой таблице Values со знаками «?». */
+  color: var(--text-normal);
+  background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
 .io-fields__colhead .io-tip { text-transform: none; letter-spacing: 0; font-weight: 400; }
-/* «?» стоит на заливке акцентом: серая буква на ней сливалась. */
+/*
+ * «?» на шапке таблицы. Пока заливка была сплошным акцентом, знак приходилось
+ * переворачивать: серая буква на ней сливалась, а нажатая давала акцент на
+ * акценте (У-67). С приглушённой заливкой (В-85, вариант 2) переворачивать
+ * нечего — знак берёт цвет текста шапки, а нажатый остаётся тем же, каким его
+ * рисует общее правило.
+ */
 .io-tablehead .io-help, .io-vals__head .io-help,
 .io-cmd__head .io-help, .io-fields__colhead .io-help {
-  color: var(--text-on-accent); border-color: var(--text-on-accent);
-}
-.io-tablehead .io-help[aria-expanded="true"], .io-vals__head .io-help[aria-expanded="true"],
-.io-cmd__head .io-help[aria-expanded="true"], .io-fields__colhead .io-help[aria-expanded="true"] {
-  background: var(--text-on-accent); border-color: transparent; color: var(--interactive-accent);
+  color: var(--text-normal); border-color: var(--text-muted);
 }
 /*
  * Подсказки у всех подписанных элементов (заказ заказчика 2026-09-08).
