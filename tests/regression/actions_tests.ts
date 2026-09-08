@@ -26,7 +26,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ACTION_TEXTS, READY_ACTIONS, buildActions, type ConfirmRequest } from "../../src/ui/settings/actions.ts";
+import { ACTION_TEXTS, READY_ACTIONS, buildActions } from "../../src/ui/settings/actions.ts";
 import { HOWTO_LEGACY_PATH, HOWTO_PATH, howtoMarkdown } from "../../src/ui/settings/howto.ts";
 import { STARTER_LEFT_BLOCK, STARTER_RIGHT_BLOCK } from "../../src/core/starter_config.ts";
 import { SCHEMA, TABS } from "../../src/ui/settings/schema/index.ts";

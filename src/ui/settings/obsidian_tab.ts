@@ -15,10 +15,9 @@ import {
   Setting as SettingCtor,
   setIcon,
 } from "obsidian";
-import type { App, Setting, SettingDefinitionItem } from "obsidian";
+import type { App, SettingDefinitionItem } from "obsidian";
 
 import { SCHEMA, TABS } from "./schema/index.ts";
-import type { TabDef, TabId } from "./types.ts";
 import { SettingsPane } from "./settings_tab.ts";
 import { ConfigStoreAdapter, type ConfigStoreLike } from "./store.ts";
 import {
@@ -441,7 +440,8 @@ function vaultSeam(app: App): VaultSeam {
         try {
           const stat = await app.vault.adapter.stat(file);
           mtime = stat && typeof stat.mtime === "number" ? stat.mtime : 0;
-        } catch (e) {
+        } catch (_) {
+          /* проба: у адаптера может не быть `stat`, и тогда времени просто нет */
           mtime = 0;
         }
         out.push({ path: file, mtime });

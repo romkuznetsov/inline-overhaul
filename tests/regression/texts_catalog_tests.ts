@@ -27,7 +27,6 @@ import { COMMAND_TEXTS, PREVIEW_TEXTS, TAB_CALLOUTS } from "../../src/ui/setting
 import {
   BASE_LANG,
   LANGUAGE_NAME_KEY,
-  catalogEntries,
   catalogFile,
   groupKey,
   itemKey,

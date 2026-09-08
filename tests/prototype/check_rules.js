@@ -3,7 +3,6 @@
    that the code reads as if it works. */
 const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
 
 const target = process.argv[2];
 const smoke = fs.readFileSync(path.join(__dirname, "smoke.js"), "utf8");

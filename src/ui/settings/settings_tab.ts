@@ -7,7 +7,7 @@
  * через render и сборка описаний.
  */
 
-import type { ExtraButtonComponent, Setting, SettingDefinitionItem } from "obsidian";
+import type { ExtraButtonComponent, SettingDefinitionItem } from "obsidian";
 
 import type { ActionId, PlatformBits, SetOpts, SettingDef, SettingsCtx, SettingsGroup, SettingsStore, TabDef, TabId } from "./types.ts";
 import { buildDefaultConfig, getIn, isBound } from "./types.ts";
@@ -720,17 +720,7 @@ export class SettingsPane {
       ctx,
       run: (action: ActionId) => { void this.run(action); },
       busy: (action: ActionId) => this.busy.has(action),
-      /*
-       * Строка «Previously called …» приходит швом, а слово — из каталога.
-       * До 2026-09-08 шов никто не кормил: строка `frame.previously-called`
-       * лежала в файле языка, человек её переводил, и на экране не менялось
-       * ничего, потому что `describe.ts` отдавал своё английское (долг A46).
-       */
-      describe: it => this.describer.describe(it, {
-        showTips,
-        showIds,
-        previouslyCalled: names => fill(this.frame("PREVIOUSLY_CALLED"), names.join(", ")),
-      }),
+      describe: it => this.describer.describe(it, { showTips, showIds }),
       groupFold: group => this.groupFoldButtonFor(group),
       groupCallout: group => this.groupCalloutButtonFor(group, showCallouts),
       showIds,

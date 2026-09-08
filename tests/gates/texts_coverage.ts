@@ -118,11 +118,6 @@ const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> =
     left: 1,
     why: "имя английского языка в запасном пути кнопки `Read`, когда шва руководства нет (10.13.51)",
   },
-  {
-    file: "src/ui/settings/describe.ts",
-    left: 1,
-    why: "прежние имена настройки: шов `previouslyCalled` есть, панель его пока не кормит",
-  },
 ];
 
 export interface CoverageResult {

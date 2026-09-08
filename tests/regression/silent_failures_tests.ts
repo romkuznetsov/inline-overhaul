@@ -91,7 +91,6 @@ function emptyCatches(body: string, rel: string): Found[] {
     const line = body.slice(0, m.index).split("\n").length;
     /* Объяснение — комментарий внутри блока или в остатке той же строки. */
     const tail = String(body.slice(m.index + m[0].length).split("\n")[0] || "");
-    const near = inside + " " + tail;
     /*
      * Объяснением идёт **любой** комментарий на месте молчания: и внутри
      * блока, и в остатке той же строки. Требовать определённое слово значило

@@ -774,10 +774,6 @@ function normalizeFolderPath(raw) {
     .normalize("NFC");
 }
 
-function escapeRegExp(s) {
-  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function parseInlineLine(rawLine, cfg) {
   const line = String(rawLine || "");
   const separators = resolveIoSeparators(cfg);
@@ -918,7 +914,6 @@ function buildTransformContext(parsed, cfg) {
   const propertiesByField = isObj(order.propertiesByField) ? order.propertiesByField : {};
   const orderTypes = isObj(order.types) ? order.types : {};
   const fields = getModeFields(cfg);
-  const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
   /*
    * В каком Block Field пишется — говорит Order, а не список определений, в
    * котором Field объявлен.
@@ -2175,7 +2170,6 @@ function getActiveOrderedFieldIds(cfg) {
 }
 
 function sampleValueForField(field, fType, elementFormat) {
-  const values = Array.isArray(field && field.values) ? field.values : [];
   if (fType === "element") {
     const marker = resolveFieldMarker(field);
     if (!marker) return "";
