@@ -882,6 +882,50 @@ async function run() {
       "положительный контроль: require в рантайме есть, и их много (" + total + ")");
     assertEq(dynamicRequires.join(" | "), "",
       "каждый require в рантайме — литерал, ни одного по переменной (A33, У-89)");
+
+    /*
+     * **И ни одной заглушки на месте модуля** — последний пункт фазы 6,
+     * 2026-09-08. Пункт 1 фазы требовал снять все `hasValidX`, `loadXSafe`,
+     * `createXFallback` и файлы `*_fallback.js`; из точки входа они ушли
+     * 2026-09-07, а в слое настроек прожили ещё сутки — `fields_editor_legacy.js`
+     * держал `hasValidOrderDeepEditorState` и
+     * `createOrderDeepEditorStateUnavailable` при живом литеральном `require`.
+     *
+     * **Запрет по семье имён, а не по имени файла.** Файл можно переименовать,
+     * а заглушку — завести заново под другим именем; ловится она тем, что
+     * такой код всегда выглядит одинаково. Ищется по живому коду: комментарий
+     * умеет процитировать снятое, и запрещать объяснения значило бы вычистить
+     * ровно ту память, ради которой они написаны.
+     *
+     * Что означает заглушка на месте модуля, записано правилом: не «переживём
+     * отказ», а «работаем наполовину и молчим» (У-90).
+     */
+    const STUB_NAME = /\b(hasValid[A-Z]\w*|load\w*Safe|create\w*(?:Fallback|Unavailable))\b/g;
+    const stubs = [];
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      const lines = text.split("\n");
+      const code = lines.filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line)).join("\n");
+      for (const m of code.matchAll(STUB_NAME)) {
+        stubs.push(path.relative(repoRoot, abs) + ": " + m[1]);
+      }
+    }
+    assertEq(stubs.join(" | "), "",
+      "заглушка на месте модуля вернулась. Она означает не «переживём отказ», а "
+      + "«работаем наполовину и молчим» (У-90): модуль лежит в бандле, не приехал — "
+      + "плагин обязан упасть громко");
+    /*
+     * Положительный контроль: сам образец умеет находить. Без него запрет
+     * зелен и от опечатки в регулярном выражении — на пустом множестве
+     * «ни одного» выполняется само (У-88).
+     */
+    const probe = "function hasValidThing(m) { return !!m } "
+      + "function loadThingSafe() {} "
+      + "function createThingUnavailable() {}";
+    STUB_NAME.lastIndex = 0;
+    const probeHits = Array.from(probe.matchAll(STUB_NAME), (m) => m[1]);
+    assertEq(probeHits.join(","), "hasValidThing,loadThingSafe,createThingUnavailable",
+      "образец заглушки не находит собственный пример — запрет выше мерит пустоту");
   }
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exposes debug-gated loader fallback reporter");
   assertFalse(/function cycleStatusTags\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusTags runtime path");

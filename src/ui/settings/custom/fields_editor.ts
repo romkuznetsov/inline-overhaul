@@ -23,18 +23,21 @@ import {
 } from "./fields_editor_view.ts";
 
 /*
- * Помощники состояния дерева значений. Берутся у перенесённой доски, а не
- * ищутся заново: у поиска есть откат на заглушку, и два таких отката
- * разошлись бы молча.
+ * Помощники состояния дерева значений — **напрямую из модуля** (последний
+ * пункт фазы 6, 2026-09-08).
+ *
+ * До этого их брал шов `fields_editor_legacy.js`: `globalThis`, `require` по
+ * относительному пути и заглушка на случай отказа. Довод у шва был честный —
+ * «у поиска есть откат на заглушку, и двух таких откатов быть не должно», —
+ * но откат оказался лишним целиком: `globalThis.__inlineOrderDeepEditorState`
+ * не ставил **никто**, а `require` стоял литералом и в бандле разрешался
+ * всегда. То есть заглушка была недостижима, и её единственным делом было
+ * прятать отказ загрузки, если бы он случился (У-90).
  */
-import legacy from "./fields_editor_legacy.js";
+import deepStateModule from "../../../core/order_deep_editor_state.js";
 import { sayIn } from "../texts_blocks.ts";
 
-interface LegacyModule {
-  getOrderDeepEditorState: () => DeepState;
-}
-
-const helpers = legacy as unknown as LegacyModule;
+const deepState = deepStateModule as unknown as DeepState;
 
 /** Как окно спрашивает свой текст (10.13.47). */
 type Say = (name: string, ...args: readonly (string | number)[]) => string;
@@ -309,7 +312,7 @@ export const fieldsEditor: CustomRender = (host: El, ctx: SettingsCtx) => {
         normalizePkmOrder: p.normalizePkmOrder as never,
         pkmOrderFields: p.pkmOrderFields,
         cfg: p.getConfig() as never,
-        deepState: helpers.getOrderDeepEditorState(),
+        deepState,
       });
       const say = sayIn("field-editor", ctx);
       close = renderFieldsEditor(next, {

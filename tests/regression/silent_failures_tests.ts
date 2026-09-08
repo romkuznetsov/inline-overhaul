@@ -107,7 +107,7 @@ function emptyCatches(body: string, rel: string): Found[] {
 /* ---- долг: пустые `catch` без объяснения, по файлам --------------------- */
 
 /**
- * **Сто одиннадцать мест, где плагин молчит без объяснения.**
+ * **Сто десять мест, где плагин молчит без объяснения.**
  *
  * Это долг Д-4, а не разрешение. Каждое число — сколько таких мест в файле
  * сейчас; станет больше — проверка назовёт файл, станет меньше — заставит
@@ -139,7 +139,6 @@ const DEBT: Readonly<Record<string, number>> = {
   "src/features/plugin_commands.js": 1,
   "src/features/rules_sync_orchestrator.js": 1,
   "src/features/strip_debug_api.js": 1,
-  "src/ui/settings/custom/fields_editor_legacy.js": 1,
 };
 
 {

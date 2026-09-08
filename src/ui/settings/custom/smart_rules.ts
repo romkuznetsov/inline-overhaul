@@ -24,19 +24,14 @@ import {
   renderSmartRules,
 } from "./smart_rules_view.ts";
 
-/* Помощники состояния дерева значений — оттуда же, откуда их берут редактор
-   Fields и раздел свойств заметки: у поиска есть откат на заглушку, и двух
-   таких откатов быть не должно. */
-import legacy from "./fields_editor_legacy.js";
+/* Помощники состояния дерева значений — тот же модуль, что берут редактор
+   Fields и раздел свойств заметки. Разбор снятия шва — в `fields_editor.ts`. */
+import deepStateModule from "../../../core/order_deep_editor_state.js";
 
 /* Движок Transform: тот же модуль, что грузит плагин. */
 import transformFeature from "../../../features/transform_feature.js";
 
-interface LegacyModule {
-  getOrderDeepEditorState: () => DeepState;
-}
-
-const helpers = legacy as unknown as LegacyModule;
+const deepState = deepStateModule as unknown as DeepState;
 
 /** Только то, что нужно блоку. Остального движка он не касается. */
 interface TransformRulesApi {
@@ -226,7 +221,7 @@ export const smartRules: CustomRender = (host: El, ctx: SettingsCtx) => {
           normalizePkmOrder: p.normalizePkmOrder as never,
           pkmOrderFields: p.pkmOrderFields,
           cfg: p.getConfig() as never,
-          deepState: helpers.getOrderDeepEditorState(),
+          deepState,
         }).listFieldTokens(),
       });
       renderSmartRules(next, {

@@ -26,15 +26,12 @@ import { el, btn, textInput, type DragEv, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 
-/* Помощники состояния — оттуда же, откуда их берут остальные блоки. */
-import legacy from "./fields_editor_legacy.js";
+/* Помощники состояния — тот же модуль, что берут остальные блоки. Разбор
+   снятия шва стоит в `fields_editor.ts` и второй раз не пишется. */
+import deepStateModule from "../../../core/order_deep_editor_state.js";
 import { sayIn } from "../texts_blocks.ts";
 
-interface LegacyModule {
-  getOrderDeepEditorState: () => DeepState;
-}
-
-const helpers = legacy as unknown as LegacyModule;
+const deepState = deepStateModule as unknown as DeepState;
 
 /* ---- тексты ------------------------------------------------------------ */
 
@@ -343,7 +340,7 @@ export const fieldOrderList: CustomRender = (host: El, ctx: SettingsCtx) =>
         normalizePkmOrder: p.normalizePkmOrder as never,
         pkmOrderFields: p.pkmOrderFields,
         cfg: cfg as never,
-        deepState: helpers.getOrderDeepEditorState(),
+        deepState,
       });
       const fields = model.listFields().filter(row => !row.parent);
       const byKey = new Map(fields.map(row => [row.key, row.label]));

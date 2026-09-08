@@ -24,7 +24,7 @@ import { setupGlobals, Setting, Notice, Modal } from "../harness/obsidian_stub.t
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import { loadConfig, type VaultFiles } from "../../src/core/config_migration_v2.ts";
 import { createFieldsModel } from "../../src/ui/settings/custom/fields_model.ts";
-import legacy from "../../src/ui/settings/custom/fields_editor_legacy.js";
+import deepStateModule from "../../src/core/order_deep_editor_state.js";
 import { previewFields } from "../../src/ui/settings/custom/preview_data.ts";
 import { contrastRatio, CONTRAST_FLOOR } from "../../src/ui/settings/custom/contrast.ts";
 import { SCHEMA } from "../../src/ui/settings/schema/index.ts";
@@ -37,7 +37,7 @@ type Any = ReturnType<typeof JSON.parse>;
 
 const internals = loadPluginInternals();
 const DEFAULTS = buildDefaultConfig(SCHEMA);
-const helpers = legacy as unknown as { getOrderDeepEditorState: () => Any };
+const deepState = deepStateModule as unknown as Any;
 
 let passed = 0;
 function ok(label: string): void {
@@ -76,7 +76,7 @@ function fieldsOf(cfg: Any): ReturnType<typeof createFieldsModel> {
     normalizePkmOrder: internals.normalizePkmOrder as never,
     pkmOrderFields: [] as string[],
     cfg: cfg as never,
-    deepState: helpers.getOrderDeepEditorState(),
+    deepState,
   });
 }
 

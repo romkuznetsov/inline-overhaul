@@ -19,18 +19,11 @@
 import type { SettingsCtx } from "../types.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 
-/*
- * Помощники состояния дерева значений — оттуда же, откуда их берут редактор
- * Fields и блок свойств заметки: у поиска есть откат на заглушку, и двух
- * таких откатов быть не должно.
- */
-import legacy from "./fields_editor_legacy.js";
+/* Помощники состояния дерева значений — тот же модуль, что берут редактор
+   Fields и блок свойств заметки. Разбор снятия шва — в `fields_editor.ts`. */
+import deepStateModule from "../../../core/order_deep_editor_state.js";
 
-interface LegacyModule {
-  getOrderDeepEditorState: () => DeepState;
-}
-
-const helpers = legacy as unknown as LegacyModule;
+const deepState = deepStateModule as unknown as DeepState;
 
 /** Как Value показывается на строке: значением, ничем или своим текстом. */
 export type ValueShown = "value" | "empty" | "custom";
@@ -121,7 +114,7 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
       normalizePkmOrder: p.normalizePkmOrder as never,
       pkmOrderFields: p.pkmOrderFields,
       cfg: p.getConfig() as never,
-      deepState: helpers.getOrderDeepEditorState(),
+      deepState,
     });
     const out: PreviewField[] = [];
     for (const row of model.listFields()) {
