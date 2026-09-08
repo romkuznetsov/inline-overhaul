@@ -115,6 +115,9 @@ async function syncNow(plugin, reason) {
     getConfig: () => plugin.getConfig(),
     defaultGeneratedRulesPath: DEFAULT_CONFIG.pkm.generatedRulesPath,
     buildRulesMarkdown: (cfg) => getRulesMarkdownBuilder().buildTagWheelRulesMarkdownFromConfig(cfg),
+    /* Чтение перед записью: файл не переписывается, если в нём уже то же
+       самое (Д-1). Отказ чтения записи не отменяет — разбор там же. */
+    readText: (p) => plugin.app.vault.adapter.read(p),
     writeText: (p, md) => plugin.app.vault.adapter.write(p, md),
     notice: (msg) => new Notice(msg),
   }, reason);

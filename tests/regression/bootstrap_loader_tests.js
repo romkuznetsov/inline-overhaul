@@ -1997,6 +1997,40 @@ async function run() {
       "в TagWheel строка пишется через setLineOutsideHistory: прямой setLine оставляет ступень отмены");
   }
 
+  /*
+   * **Выгрузка плагина закрывает открытую панель** (Д-2 разбора готовности,
+   * 2026-09-08).
+   *
+   * Поведение закреплено на сборке — `bundle_onload_tests.ts` открывает
+   * настоящую сессию и зовёт настоящий `onunload`. Здесь спрашивается то, чего
+   * оттуда не видно: **чем именно** сессия закрывается. Своё закрытие
+   * («снять обработчик и вернуть строку») было бы вторым ответом на вопрос
+   * «как закрывается панель», и он разошёлся бы с `Esc` молча (У-32).
+   */
+  {
+    const twPath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js");
+    const tw = fs.readFileSync(twPath, "utf8");
+    assertTrue(/state\.cancel = function\(\) \{/.test(tw),
+      "у сессии TagWheel нет шва закрытия: выгрузка плагина не сможет её закрыть");
+    const seam = tw.slice(tw.indexOf("state.cancel = function()"), tw.indexOf("window.__tagWheelState = state"));
+    assertTrue(/cancelSelection\(state\)/.test(seam),
+      "шов закрытия зовёт не cancelSelection: у «как закрывается панель» появился второй ответ");
+    assertTrue(/cleanupTagWheelState\(state\)/.test(seam),
+      "при отказе записи шов не снимает перехват клавиш — а снятие важнее возврата строки");
+
+    const mainSrc = fs.readFileSync(path.join(__dirname, "..", "..", "main.js"), "utf8");
+    const unload = mainSrc.slice(mainSrc.indexOf("onunload()"), mainSrc.indexOf("async ensureGeneratedRulesNow"));
+    assertTrue(/closeTagWheelSession\(\)/.test(unload),
+      "onunload не закрывает сессию TagWheel: перехват клавиш переживёт выключение плагина");
+
+    const cmdSrc = fs.readFileSync(
+      path.join(__dirname, "..", "..", "src", "features", "plugin_commands.js"), "utf8");
+    assertTrue(/state\.active !== true\) return false/.test(cmdSrc),
+      "живость сессии спрашивается не у флага: шов __tagWheelState остаётся на месте и после закрытия");
+    assertTrue(/typeof state\.cancel !== "function"\) return false/.test(cmdSrc),
+      "закрытие не проверяет наличие шва: у старой сборки его нет, и выгрузка упадёт");
+  }
+
   console.log("Bootstrap loader regression tests: OK");
 }
 

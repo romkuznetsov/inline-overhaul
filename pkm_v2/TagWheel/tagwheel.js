@@ -2077,6 +2077,25 @@ async function runTagWheel(input, quickAddSettings) {
       }
     }
 
+    /*
+     * Закрыть сессию снаружи (Д-2 разбора готовности, 2026-09-08).
+     *
+     * Панель вешает `keydown` на этап перехвата, и обработчик снимает только
+     * `cleanupTagWheelState`. Выгрузка плагина его не звала: человек выключал
+     * плагин с открытой панелью, и перехват продолжал съедать стрелки и Enter
+     * до перезагрузки окна, а строка оставалась с видом панели в тексте
+     * заметки.
+     *
+     * Шов — одна функция на самом состоянии, и она зовёт **тот же**
+     * `cancelSelection`, которым сессию закрывает `Esc`: второе объявление
+     * «как закрывается панель» разошлось бы с первым молча (У-32). Снятие
+     * перехвата важнее возврата строки, поэтому при отказе записи
+     * `cleanupTagWheelState` зовётся всё равно — редактора при выгрузке может
+     * уже не быть.
+     */
+    state.cancel = function() {
+      try { cancelSelection(state) } catch (_) { cleanupTagWheelState(state) }
+    }
     window.__tagWheelState = state
     ensureActiveFieldId(state)
     window.addEventListener('keydown', state.keyHandler, true)

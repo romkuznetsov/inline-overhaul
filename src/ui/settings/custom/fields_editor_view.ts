@@ -1190,7 +1190,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
     grip.addEventListener("dragstart", ((ev: DragEv) => {
       dragged = at;
       line.classList.add("io-dragging");
-      try { ev.dataTransfer?.setData("text/plain", at.token); } catch { /* десктоп всегда даёт dataTransfer */ }
+      try { ev.dataTransfer?.setData("text/plain", at.token); } catch { /* проба: десктоп всегда даёт dataTransfer */ }
     }) as never);
     grip.addEventListener("dragend", (() => {
       line.classList.remove("io-dragging");

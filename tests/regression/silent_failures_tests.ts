@@ -1,0 +1,220 @@
+/**
+ * Тихий отказ неотличим от дефекта (Д-4 разбора готовности, У-41).
+ *
+ * **Что здесь стережётся.** Не «нельзя глотать исключения» — глотать иногда
+ * можно и нужно, — а то, что каждое проглоченное **объяснено на месте**. Пустой `catch`
+ * без объяснения нельзя отличить от забытого: и то и другое выглядит
+ * как `catch (_) {}`, и разница видна только автору в день правки.
+ *
+ * **Правило, принятое 2026-09-08** (полностью — `CLAUDE.md`, раздел «Отказы»,
+ * разбор — PRD 15.2 Д-4). У отказа три вида, и у каждого своё место:
+ *
+ *   1. **человеку сказать** — `Notice`: он сам позвал, и у него не вышло;
+ *   2. **в журнал разработчика** — `devLog` или `console.error`: сломалось
+ *      невидимое, и человек придёт со словами «перестало работать»;
+ *   3. **молча, и вот почему** — три семьи, и рядом пишется, какая: `проба`
+ *      (спросили платформу о том, чего может не быть), `уборка` (снимаем то,
+ *      чего может уже не быть), `украшение` (рисование, которое не имеет
+ *      права уронить текст человека).
+ *
+ * **Машина проверяет наличие объяснения, а не его слова.** Требовать
+ * определённое слово — значит объявить негодным всё, что написано своими
+ * словами: первая версия этой проверки так и сделала и назвала молчанием
+ * шестнадцать честных объяснений. Что именно написано — предмет чтения
+ * человеком, и семьи выше нужны тому, кто пишет, а не тому, кто ищет по слову.
+ *
+ * **Как это проверяется.** Сплошным обходом рантайма: пустой `catch` без
+ * объяснения — это долг, и число таких мест закреплено **по файлам**. Новое
+ * место роняет проверку в том файле, где его завели; починенное обязано уйти
+ * из списка тем же коммитом, то есть список умеет только убывать.
+ *
+ * Числа по файлам, а не одно общее: общее число прячет переезд долга из файла
+ * в файл, а разбирается он именно пофайлово.
+ */
+
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(here, "..", "..");
+
+let passed = 0;
+const ok = (label: string): void => { passed++; console.log("  ok   " + label); };
+
+/** Рантайм: то, что уезжает к человеку. Проверки и инструменты — не он. */
+const RUNTIME = [
+  "main.js", "navigation_runtime.js", "pkm_runtime_v2.js",
+  "src", "pkm_v2",
+];
+
+/**
+ * Семьи молчания — руководство для того, кто пишет объяснение, а не слова для
+ * поиска. Первая версия проверки требовала одно из этих слов буквально, и
+ * тогда каждое честное объяснение, написанное своими словами, считалось
+ * молчанием: правило требовало того, чего в коде нет ни разу. Машине проверять
+ * надо **наличие объяснения**, а его содержание — предмет чтения человеком.
+ */
+const FAMILIES = ["проба", "уборка", "украшение"];
+
+interface Found { rel: string; line: number; explained: boolean }
+
+function files(): string[] {
+  const out: string[] = [];
+  const walk = (p: string): void => {
+    const st = fs.statSync(p);
+    if (st.isDirectory()) { for (const n of fs.readdirSync(p)) walk(path.join(p, n)); return; }
+    if (/\.(ts|js)$/.test(p)) out.push(p);
+  };
+  for (const entry of RUNTIME) walk(path.join(root, entry));
+  return out;
+}
+
+/**
+ * Пустые `catch` файла: номер строки и есть ли объяснение.
+ *
+ * Объяснением считается комментарий **внутри** скобок или в той же строке —
+ * то есть там, где его увидит тот, кто читает это место. Комментарий абзацем
+ * выше объясняет обычно всю функцию, а не молчание, и за объяснение не идёт.
+ */
+function emptyCatches(body: string, rel: string): Found[] {
+  const out: Found[] = [];
+  /* `catch (_) { … }` и `catch { … }`, где внутри нет ни одного оператора. */
+  const re = /catch\s*(?:\(\s*[A-Za-z_$][\w$]*\s*\)\s*)?\{([^{}]*)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const inside = String(m[1] || "");
+    /* Комментарии снимаются: то, что осталось, и есть работа блока. */
+    const work = inside.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "").trim();
+    if (work) continue;
+    const line = body.slice(0, m.index).split("\n").length;
+    /* Объяснение — комментарий внутри блока или в остатке той же строки. */
+    const tail = String(body.slice(m.index + m[0].length).split("\n")[0] || "");
+    const near = inside + " " + tail;
+    /*
+     * Объяснением идёт **любой** комментарий на месте молчания: и внутри
+     * блока, и в остатке той же строки. Требовать определённое слово значило
+     * бы объявить негодным всё, что написано своими словами.
+     */
+    const explained = /\/\*[\s\S]*?\*\//.test(inside) || /\/\//.test(inside)
+      || /\/\*|\/\//.test(tail);
+    out.push({ rel, line, explained });
+  }
+  return out;
+}
+
+/* ---- долг: пустые `catch` без объяснения, по файлам --------------------- */
+
+/**
+ * **Сто одиннадцать мест, где плагин молчит без объяснения.**
+ *
+ * Это долг Д-4, а не разрешение. Каждое число — сколько таких мест в файле
+ * сейчас; станет больше — проверка назовёт файл, станет меньше — заставит
+ * поправить число. Разбирается пофайлово, и порядок разбора там же, где
+ * разбор: PRD 15.2 Д-4.
+ */
+const DEBT: Readonly<Record<string, number>> = {
+  "pkm_v2/status_tags.js": 26,
+  "pkm_v2/status_date.js": 18,
+  "pkm_v2/TagWheel/tagwheel.js": 11,
+  "src/ui/editor/decorations.js": 9,
+  "navigation_runtime.js": 7,
+  "src/core/dev_log.js": 5,
+  "src/ui/editor/styles.js": 5,
+  "src/core/pkm_rules_runtime_helpers.js": 3,
+  "src/features/command_registry.js": 3,
+  "src/features/transform_feature.js": 3,
+  "src/ui/editor/mount.js": 3,
+  "src/ui/tagwheel_scroller_overlay.js": 3,
+  "main.js": 2,
+  "src/features/store_events_orchestrator.js": 2,
+  "pkm_runtime_v2.js": 1,
+  "pkm_v2/field_model.js": 1,
+  "src/core/config_store.js": 1,
+  "src/core/config_write.js": 1,
+  "src/core/pkm_runtime_bootstrap.js": 1,
+  "src/core/status_runtime_common.js": 1,
+  "src/core/tagwheel_rules_normalizer.js": 1,
+  "src/features/plugin_commands.js": 1,
+  "src/features/rules_sync_orchestrator.js": 1,
+  "src/features/strip_debug_api.js": 1,
+  "src/ui/settings/custom/fields_editor_legacy.js": 1,
+};
+
+{
+  const all: Found[] = [];
+  for (const file of files()) {
+    const rel = path.relative(root, file).split(path.sep).join("/");
+    all.push(...emptyCatches(fs.readFileSync(file, "utf8"), rel));
+  }
+
+  assert.ok(all.length > 50,
+    "пустых catch нашлось " + all.length + " — обход смотрит не туда, и запрет ниже мерит пустоту");
+
+  const silent = all.filter(f => !f.explained);
+  const byFile = new Map<string, number>();
+  for (const f of silent) byFile.set(f.rel, (byFile.get(f.rel) || 0) + 1);
+
+  const grown: string[] = [];
+  const shrunk: string[] = [];
+  for (const [rel, count] of byFile) {
+    const allowed = DEBT[rel] || 0;
+    if (count > allowed) grown.push(rel + ": было " + allowed + ", стало " + count);
+  }
+  for (const [rel, allowed] of Object.entries(DEBT)) {
+    const count = byFile.get(rel) || 0;
+    if (count < allowed) shrunk.push(rel + ": в долге " + allowed + ", осталось " + count);
+  }
+
+  assert.deepEqual(grown, [],
+    "новое молчание без объяснения. У отказа три вида (Notice, журнал, «молча и вот почему»),\n"
+    + "и у третьего слово семьи пишется рядом — `проба`, `уборка` или `украшение`:\n  "
+    + grown.join("\n  "));
+  assert.deepEqual(shrunk, [],
+    "молчания стало меньше — поправьте число в DEBT тем же коммитом, иначе долг\n"
+    + "однажды станет описанием состояния, которого нет (У-71):\n  " + shrunk.join("\n  "));
+
+  const total = silent.length;
+  const explained = all.length - total;
+  ok("молчание без объяснения не выросло: всего пустых catch " + all.length
+     + ", объяснено " + explained + ", в долге Д-4 осталось " + total);
+}
+
+/* ---- положительный контроль -------------------------------------------- */
+
+{
+  /*
+   * Запрет «нового молчания нет» зелен и тогда, когда искать нечем: сломанный
+   * образец, пустой список файлов, слово семьи, которого никто не пишет.
+   * Поэтому спрашивается обратное — на выдуманном тексте.
+   */
+  const sample = [
+    "try { a() } catch (_) {}",
+    "try { b() } catch (_) { /* проба: платформа могла не дать этого метода */ }",
+    "try { c() } catch (e) { report(e) }",
+    "try { d() } catch { /* уборка: узла может уже не быть */ }",
+  ].join("\n");
+  const found = emptyCatches(sample, "образец");
+  assert.equal(found.length, 3, "обход нашёл " + found.length + " пустых catch из трёх");
+  assert.deepEqual(found.map(f => f.explained), [false, true, true],
+    "объяснение опознаётся по слову семьи, и его отсутствие — тоже");
+  ok("положительный контроль: обход отличает объяснённое молчание от безымянного");
+}
+
+{
+  /*
+   * И второй контроль, про сами слова: хотя бы одно место в рантайме обязано
+   * пользоваться каждым из трёх слов. Слово, которым никто не пользуется, —
+   * это правило, которого нет: проверка была бы зелёной оттого, что весь код
+   * попадает в долг.
+   */
+  let body = "";
+  for (const file of files()) body += fs.readFileSync(file, "utf8");
+  const named = FAMILIES.filter(word => body.includes(word));
+  assert.ok(named.length > 0,
+    "ни одна семья молчания не названа в коде ни разу — правило объявлено и не применено");
+  ok("семьи молчания названы в коде: " + named.join(", "));
+}
+
+console.log("\n" + passed + " проверок пройдено");

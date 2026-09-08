@@ -42,6 +42,9 @@ class InlineOverhaulPlugin extends Plugin {
 
   onunload() {
     try { this.closeDevLogSession(this.getConfig()); } catch (_) {}
+    /* Открытая панель TagWheel держит перехват `keydown` на всём окне, и без
+       этой строки он живёт до перезагрузки окна (Д-2). */
+    try { __pluginCommands.closeTagWheelSession(); } catch (_) {}
     __editorStyles.removeAll(this);
     if (this.store) this.store.unload();
   }

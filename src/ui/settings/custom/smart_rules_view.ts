@@ -184,7 +184,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   grip.addEventListener("dragstart", ((ev: DragEv) => {
     drag.taken.index = index;
     card.classList.add("io-dragging");
-    try { ev.dataTransfer?.setData("text/plain", row.id); } catch { /* десктоп всегда даёт dataTransfer */ }
+    try { ev.dataTransfer?.setData("text/plain", row.id); } catch { /* проба: десктоп всегда даёт dataTransfer */ }
   }) as never);
   grip.addEventListener("dragend", (() => {
     drag.taken.index = null;

@@ -135,7 +135,7 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
     grip.addEventListener("dragstart", ((ev: DragEv) => {
       taken = i;
       line.classList.add("io-dragging");
-      try { ev.dataTransfer?.setData("text/plain", String(i)); } catch { /* десктоп всегда даёт dataTransfer */ }
+      try { ev.dataTransfer?.setData("text/plain", String(i)); } catch { /* проба: десктоп всегда даёт dataTransfer */ }
     }) as never);
     grip.addEventListener("dragend", (() => {
       taken = null;

@@ -424,8 +424,41 @@ async function runPkmRuntime(plugin, command, cfg, extraSettings) {
   }));
 }
 
+/**
+ * Закрыть открытую сессию TagWheel — при выгрузке плагина (Д-2 разбора
+ * готовности, 2026-09-08).
+ *
+ * **Зачем это здесь.** Панель TagWheel вешает `keydown` на этап перехвата, а
+ * снимает обработчик только её собственное закрытие. `onunload` про сессию не
+ * знал ничего: человек выключал плагин с открытой панелью — и перехват
+ * продолжал съедать стрелки и Enter до перезагрузки окна. Строка при этом
+ * оставалась с видом панели в тексте заметки.
+ *
+ * **Своего правила закрытия здесь нет.** Функция спрашивает у самой сессии её
+ * `cancel` — тот же ход, которым панель закрывает `Esc`. Написать закрытие
+ * вторым объявлением («снять обработчик и вернуть строку») значило бы завести
+ * второй ответ на вопрос «как закрывается панель», и он разошёлся бы с первым
+ * молча (У-32).
+ *
+ * **Живость спрашивается у флага сессии**, а не у наличия объекта: шов
+ * `window.__tagWheelState` живёт с первого открытия панели и после закрытия
+ * остаётся на месте с `active: false` — так его и читает сама панель, решая,
+ * открыта она уже или нет.
+ *
+ * Отвечает `true`, если сессию закрыли: по этому и проверяется.
+ */
+function closeTagWheelSession() {
+  const holder = typeof window !== "undefined" ? window : globalThis;
+  const state = holder && holder.__tagWheelState ? holder.__tagWheelState : null;
+  if (!state || state.active !== true) return false;
+  if (typeof state.cancel !== "function") return false;
+  state.cancel();
+  return true;
+}
+
 module.exports = {
   activeRulesPath,
+  closeTagWheelSession,
   navigationRuntime,
   pkmRuntime,
   buildOwnCommandList,

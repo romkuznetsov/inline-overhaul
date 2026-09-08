@@ -696,6 +696,61 @@ async function run(): Promise<void> {
       ok("вся сессия TagWheel из сборки — одна ступень истории отмен");
     }
 
+    {
+      /*
+       * **Выгрузка плагина закрывает открытую панель** (Д-2 разбора
+       * готовности, 2026-09-08).
+       *
+       * Что было. Панель вешает `keydown` на этап перехвата, а снимает его
+       * только своё закрытие. `onunload` делал три вещи, и сессии среди них не
+       * было: человек выключал плагин с открытой панелью — и перехват жил до
+       * перезагрузки окна, продолжая съедать стрелки и Enter. Строка при этом
+       * оставалась с видом панели в тексте заметки.
+       *
+       * Спрашивается **у сборки** и по симптому, который видит человек: стоит
+       * ли ещё обработчик на окне и вернулась ли строка. Обработчик берётся
+       * оттуда же, куда его вешает движок, — `window.listeners.keydown`.
+       */
+      const editor = makeHistoryEditorStub("- [ ] #todo :: моя строка", 8);
+      const settings = { "Date runtime config": dateRuntimeAll };
+      /*
+       * Слушатели спрашиваются **каждый раз заново**, а не запоминаются
+       * массивом: снятие в заглушке `removeEventListener` заменяет список
+       * новым (`filter`), и прежняя ссылка остаётся полной навсегда. Первая
+       * версия этой проверки была красной именно от этого — код снимал
+       * обработчик, а проверка смотрела в старый массив.
+       */
+      const keydowns = (): Any[] => (((globalThis as Any).window.listeners.keydown || []) as Any[]);
+      const before = keydowns().length;
+      await run(editor, "tagWheel", settings);
+      assert.strictEqual(keydowns().length, before + 1,
+        "положительный контроль: панель открылась и повесила обработчик на окно");
+      const opened = editor.snapshot();
+      assert.notStrictEqual(opened, "- [ ] #todo :: моя строка",
+        "положительный контроль: вид панели нарисован на строке");
+      const session = (globalThis as Any).window.__tagWheelState as Any;
+      assert.strictEqual(session && session.active, true, "сессия жива — есть что закрывать");
+
+      plugin.onunload();
+
+      assert.strictEqual(keydowns().length, before,
+        "выгрузка не снял обработчик с окна: перехват клавиш переживёт выключение плагина");
+      assert.strictEqual(session.active, false, "и сессия помечена закрытой");
+      assert.strictEqual(editor.snapshot(), "- [ ] #todo :: моя строка",
+        "строка вернулась к исходной, а не осталась с видом панели: " + editor.snapshot());
+      /*
+       * Закрытие идёт **тем же** ходом, что и `Esc`, — то есть возврат строки
+       * послан мимо истории. Значит новой ступени отмены выгрузка не завела.
+       */
+      assert.strictEqual(editor.plainWrites.length, 0,
+        "выгрузка завела ступень отмены: " + editor.plainWrites.join(" | "));
+
+      /* Повторная выгрузка не падает и ничего не делает: закрывать нечего. */
+      plugin.onunload();
+      assert.strictEqual(keydowns().length, before, "вторая выгрузка ничего не сняла заново");
+      ok("выгрузка плагина закрывает открытую панель TagWheel и снимает перехват клавиш");
+    }
+
   }
 
   /*
