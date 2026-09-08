@@ -544,7 +544,22 @@ async function run() {
    */
   assertTrue(/__commandIds\.pkmFieldCommandId\(strict, dir, usedIds\)/.test(commandRegistrySrc), "command registry asks the shared module for field command IDs");
   assertFalse(/inlineOverhaul_/.test(commandRegistrySrc), "command registry has no legacy command ID of its own");
-  assertTrue(/"inlineOverhaul_Hotkey_" \+ String\(strictName \|\| ""\)\.trim\(\) \+ "_" \+ dir/.test(commandIdsSrc), "shared module remembers the legacy field command ID for the rename map");
+  /*
+   * **Старую форму идентификатора помнит карта, а не функция** (ревизия
+   * 2026-09-09). Пин стоял на теле `legacyPkmFieldCommandId`, и это был пин не
+   * на своём предмете (У-56): карту переименования читают двое — уведомление
+   * о смене хоткеев (`plugin_bootstrap.js`) и документ
+   * `docs/command_ids_v1_v2.md`, — и оба берут `RENAME_RULES`, а функцию не
+   * звал никто. Она была третьим объявлением того же правила, мёртвым, с
+   * комментарием «нужен карте переименования» — то есть утверждением о
+   * состоянии, которое врало (У-64). Функция снята, пин переехал на предмет.
+   */
+  assertTrue(/\["inlineOverhaul_Hotkey_<field>_increase", "<field>-next"\]/.test(commandIdsSrc),
+    "карта переименования помнит старую форму идентификатора команды поля");
+  assertTrue(/\["inlineOverhaul_Binder_<name>", "<name>"\]/.test(commandIdsSrc),
+    "и старую форму идентификатора строки Binder");
+  assertFalse(/function legacyPkmFieldCommandId\(/.test(commandIdsSrc),
+    "третье объявление старой формы не вернулось: её помнит только RENAME_RULES");
   assertTrue(/\["inlineOverhaul_Navigation_MoveUp", "move-line-up"\]/.test(commandIdsSrc), "rename map carries the fixed commands");
   assertFalse(/inlineOverhaul_PKM_/.test(commandRegistrySrc), "command registry has no legacy PKM command IDs");
   assertTrue(/cycle_field:importance|cycle_field:\$\{key\}/.test(commandRegistrySrc), "importance hotkeys route through generic cycle_field action");

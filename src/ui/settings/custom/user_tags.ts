@@ -61,7 +61,6 @@ const COLUMN_TIPS: Readonly<Record<string, string>> = {
  * проверки, а панель спрашивает по ключу. Второго объявления нет (У-32).
  */
 export const ADD_TAG = BLOCK_TEXTS["user-tag-list"].ADD_TAG;
-export const ADD_PLACEHOLDER = BLOCK_TEXTS["user-tag-list"].NEW_TAG_HINT;
 export const ADD_LABEL = BLOCK_TEXTS["user-tag-list"].NEW_TAG_ARIA;
 /** Список пуст: приглашение, а не пустое место (ПЗ2). */
 export const EMPTY_LIST = BLOCK_TEXTS["user-tag-list"].EMPTY;

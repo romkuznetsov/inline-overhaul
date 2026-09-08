@@ -160,11 +160,6 @@ function pkmFieldCommandId(strictName, direction, used) {
   return candidate;
 }
 
-/** Старый идентификатор команды поля PKM: нужен карте переименования. */
-function legacyPkmFieldCommandId(strictName, direction) {
-  const dir = String(direction || "").trim() === "decrease" ? "decrease" : "increase";
-  return "inlineOverhaul_Hotkey_" + String(strictName || "").trim() + "_" + dir;
-}
 
 /**
  * Идентификатор строки Binder.
@@ -226,7 +221,6 @@ module.exports = {
   reservedCommandIds,
   directionLabel,
   pkmFieldCommandId,
-  legacyPkmFieldCommandId,
   binderCommandId,
   isLegacyCommandId,
   renameCommandId,

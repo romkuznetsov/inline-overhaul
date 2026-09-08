@@ -31,20 +31,11 @@ export const HEAD = ["", T.COL_INSERTS, T.COL_COMMAND_NAME, T.COL_DESCRIPTION, T
 export const ADD_COMMAND = T.ADD_COMMAND;
 export const HOTKEY_NONE = T.HOTKEY_NOT_SET;
 export { HOTKEY_TITLE } from "./hotkeys.ts";
-export const SYSTEM_TITLE = T.BUILT_IN;
 /** Имя команды в списке хоткеев начинается с этого — в таблице оно лишнее. */
 export const LABEL_PREFIX = T.COMMAND_PREFIX.replace("{0}", "");
 
 /* Окно «завести строку». Прототип держит на этом месте кнопку-заглушку, и
    текстов у окна не даёт: они написаны по правилам раздела 7. */
-export const ADD_TITLE = T.NEW_TITLE;
-export const ADD_NOTE = T.NEW_NOTE;
-export const INSERT_NAME = T.NEW_INSERTS_LABEL;
-export const INSERT_DESC = T.NEW_INSERTS_DESC;
-export const CMD_NAME = T.NEW_NAME_LABEL;
-export const CMD_DESC = T.NEW_NAME_DESC;
-export const DESC_NAME = T.NEW_DESC_LABEL;
-export const DESC_DESC = T.NEW_DESC_DESC;
 
 /** Как блок спрашивает свой текст. Нет ctx — ответом идёт английское. */
 export type Say = (name: string, ...args: readonly (string | number)[]) => string;

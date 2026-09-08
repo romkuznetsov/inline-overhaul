@@ -64,13 +64,14 @@ Values. Идентификатор собирается из **строгого 
 |---|---|
 | `inlineOverhaul_Hotkey_<field>_increase` | `<field>-next` |
 | `inlineOverhaul_Hotkey_<field>_decrease` | `<field>-previous` |
+| `inlineOverhaul_Binder_<name>` | `<name>` |
 
 Строгое имя приводится к kebab-case: `date_due` даёт `date-due-next` и
 `date-due-previous`. Имя команды в списке — `<Field> next` и
 `<Field> previous`.
 
-**Строки Binder.** Идентификатор собирается из имени строки:
-`inlineOverhaul_Binder_<Name>` → `<name>` в kebab-case. Идентификатор строки
+**Строки Binder.** Идентификатор собирается из имени строки по последнему
+правилу таблицы выше, в kebab-case. Идентификатор строки
 хранится в конфиге (`editor.binder.rows[].commandId`), и старая форма там
 считается отсутствующей: она пересобирается из имени строки на первой же
 загрузке.

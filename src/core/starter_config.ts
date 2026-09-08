@@ -73,11 +73,6 @@ const PROJECT_VALUES: readonly string[] = ["Project A", "Project B"];
 export const STARTER_LEFT_BLOCK: readonly string[] = ["Status", "Priority"];
 export const STARTER_RIGHT_BLOCK: readonly string[] = ["Due", "Project"];
 
-/** Все ключи набора, включая дочерние Field тегов. */
-export const STARTER_KEYS: readonly string[] = [
-  "Status", "Status_sub", "Priority", "Priority_sub", "Due", "Project",
-];
-
 /** Определение Field-тега: три значения плюс пустой список подзначений. */
 function tagField(id: string, values: readonly StarterTagValue[]): Dict {
   return {

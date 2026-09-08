@@ -19,6 +19,23 @@ const ROOT = path.resolve(__dirname, "..");
 const DEST = path.join(ROOT, "docs", "command_ids_v1_v2.md");
 const ids = require(path.join(ROOT, "src", "features", "command_ids.js"));
 
+/*
+ * Правила для команд, собираемых из данных человека, **берутся у модуля**
+ * (`RENAME_RULES`), а не переписываются здесь.
+ *
+ * Ревизия 2026-09-09: две строки этой таблицы были набраны в инструменте
+ * литералами — то есть вторым объявлением того же правила (У-32), и это ровно
+ * то, что запрещает шапка этого файла двумя абзацами выше. Разойтись им было
+ * на чём: те же строки печатает человеку уведомление о смене хоткеев
+ * (`plugin_bootstrap.js`), и печатает уже из модуля. Документ и печать
+ * разошлись бы молча, а увидеть это человек может один раз в жизни — при
+ * обновлении.
+ */
+const TICK = String.fromCharCode(96);
+const RULE_ROWS = ids.RENAME_RULES
+  .map(([was, now]) => "| " + TICK + was + TICK + " | " + TICK + now + TICK + " |")
+  .join("\n");
+
 const HEAD = `# Карта ID команд: версия 1 → версия 2
 
 **Файл сгенерирован** \`node tools/command_ids_doc.js --write\` из
@@ -73,15 +90,14 @@ Values. Идентификатор собирается из **строгого 
 
 | Было | Стало |
 |---|---|
-| \`inlineOverhaul_Hotkey_<field>_increase\` | \`<field>-next\` |
-| \`inlineOverhaul_Hotkey_<field>_decrease\` | \`<field>-previous\` |
+${RULE_ROWS}
 
 Строгое имя приводится к kebab-case: \`date_due\` даёт \`date-due-next\` и
 \`date-due-previous\`. Имя команды в списке — \`<Field> next\` и
 \`<Field> previous\`.
 
-**Строки Binder.** Идентификатор собирается из имени строки:
-\`inlineOverhaul_Binder_<Name>\` → \`<name>\` в kebab-case. Идентификатор строки
+**Строки Binder.** Идентификатор собирается из имени строки по последнему
+правилу таблицы выше, в kebab-case. Идентификатор строки
 хранится в конфиге (\`editor.binder.rows[].commandId\`), и старая форма там
 считается отсутствующей: она пересобирается из имени строки на первой же
 загрузке.

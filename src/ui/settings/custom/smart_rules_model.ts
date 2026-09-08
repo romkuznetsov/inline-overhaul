@@ -52,8 +52,18 @@ export type RowKind = Exclude<RuleKind, "fields">;
  * просил он обратное: «вместо того, чтобы накликивать отдельные values `#/1`,
  * `#/2`». Ветка конфига при этом не менялась: условие по-прежнему лежит в
  * `conditions.fields` и хранит id Field (З1).
+ *
+ * **Список выводится из `RULE_KINDS`, а не пишется рядом** (ревизия
+ * 2026-09-09). Раньше это были два рукописных перечисления одного и того же,
+ * и второе из них — `RULE_KINDS` — не употреблялось нигде: то есть держать их
+ * в согласии было нечем. Появись пятый вид условия, он попал бы в тип, в
+ * движок и в конфиг, а своей строки в карточке не получил бы — и никто бы об
+ * этом не сказал (У-111). Теперь строка заводится сама, а `KIND_OF_FIELD`
+ * ниже требует её описать: `Record<RowKind, …>` без нового ключа не
+ * соберётся.
  */
-export const ROW_KINDS: readonly RowKind[] = ["tags", "emojiFields", "wikilinks"];
+export const ROW_KINDS: readonly RowKind[] =
+  RULE_KINDS.filter((kind): kind is RowKind => kind !== "fields");
 
 /** Какой тип Field даёт значения этому виду условия. */
 const KIND_OF_FIELD: Record<RowKind, FieldKind> = {
