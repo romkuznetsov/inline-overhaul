@@ -180,7 +180,20 @@ function createTagWheelScrollerOverlay(options) {
    * (`visual.tagWheel.activeTextColor`).
    */
   function renderRows(target, rows) {
-    target.list.innerHTML = "";
+    /*
+     * Чистка списка — **не через `innerHTML`** (правило каталога Obsidian, Р1
+     * списка расхождений, 2026-09-08). Здесь строка и правда пустая, то есть
+     * разметку никто не вставляет, — но правило каталога про само свойство, а
+     * не про его значение: место, где однажды написали `innerHTML = ""`,
+     * рано или поздно получает `innerHTML = что-то`.
+     *
+     * Правило называет `el.empty()` — помощник, которым Obsidian надстраивает
+     * `HTMLElement`. Здесь снятие детей написано вручную, и это не упрямство:
+     * коробка создаётся через `document.createElement`, а её проверка гоняется
+     * на заглушке DOM, у которой надстройки платформы нет. Заглушка добрее
+     * браузера не бывает — но и требовать от неё чужих методов незачем (У-45).
+     */
+    while (target.list.firstChild) target.list.removeChild(target.list.firstChild);
     var colors = target.colors || {};
     var i;
     for (i = 0; i < rows.length; i++) {

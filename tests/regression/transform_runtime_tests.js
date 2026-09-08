@@ -89,6 +89,8 @@ function makePlugin(config, editor, vaultOptions) {
   const files = new Map();
   const opts = vaultOptions || {};
   let createCalls = 0;
+  /* Ходы `process`: по ним видно, что правка собрана из прочитанного. */
+  const processCalls = [];
   const vault = {
     getAbstractFileByPath(filePath) { return files.has(filePath) ? { path: filePath } : null; },
     async createFolder(folderPath) { files.set(folderPath, { folder: true }); },
@@ -103,6 +105,22 @@ function makePlugin(config, editor, vaultOptions) {
     },
     async read(file) { return String(files.get(file.path) || ""); },
     async modify(file, content) { files.set(file.path, String(content)); },
+    /*
+     * `Vault.process` — то же, что у платформы: читает, отдаёт функции и
+     * пишет её ответ **одним ходом** (правило каталога Obsidian, Р8).
+     *
+     * Заглушка обязана вести себя так же, а не проще: если бы она просто
+     * писала то, что ей передали, ветка «правка собирается из прочитанного»
+     * осталась бы непроверенной, а именно она и отличает `process` от
+     * `modify`. Заглушка не бывает добрее браузера (У-45).
+     */
+    async process(file, fn) {
+      const before = String(files.get(file.path) || "");
+      const after = String(fn(before));
+      files.set(file.path, after);
+      processCalls.push({ path: file.path, before, after });
+      return after;
+    },
     async delete(file) { files.delete(file.path); },
   };
   if (opts.initialFiles) for (const [key, value] of Object.entries(opts.initialFiles)) files.set(key, value);
@@ -121,6 +139,7 @@ function makePlugin(config, editor, vaultOptions) {
     notice(message) { notices.push(String(message)); },
     files,
     notices,
+    processCalls,
   };
 }
 
@@ -331,6 +350,68 @@ async function testProcessedTokenLeftPanelAfterCleanedLeftSegment() {
     "метка встала в левый слот, а не в текст");
 }
 
+/**
+ * Р8 правил каталога: правка чужой заметки идёт **одним ходом** `Vault.process`,
+ * и текст собирается из прочитанного, а не приходит готовым.
+ *
+ * **Зачем это отдельной проверкой.** Прежний ход был `read`, потом `modify`, и
+ * поведение у него на первый взгляд то же: заметка получает нужный текст. Что
+ * изменилось, видно только в двух местах, и оба здесь.
+ *
+ *   1. **Дописывание собирается внутри хода.** `process` отдаёт функции то, что
+ *      лежит в файле сейчас; если бы правка приходила готовой строкой, чужая
+ *      правка между чтением и записью пропала бы.
+ *   2. **Откат возвращает то, что мы перезаписали.** Прежнее содержимое
+ *      запоминается внутри того же хода, а не читается заранее.
+ *
+ * Спрашивается у заглушки, которая ведёт себя как платформа: она записывает
+ * каждый ход вместе с тем, что было до него.
+ */
+async function testForeignNoteWrittenByProcessFromWhatWasRead() {
+  const editor = makeEditor("- [ ] :: Дописать");
+  const config = makeConfig({
+    nameCollision: { mode: "add_to_note" },
+    placement: { position: "end", headerMode: "none", customHeader: "", datetimeFormat: "YYYY" },
+  });
+  const plugin = makePlugin(config, editor, {
+    initialFiles: { "Notes/Дописать.md": "старое тело заметки" },
+  });
+  await transform.runInline2Note(plugin, { lineFinalize });
+
+  const calls = plugin.processCalls;
+  assertEq(calls.length, 1, "правка чужой заметки прошла одним ходом process");
+  assertEq(calls[0].path, "Notes/Дописать.md", "и по тому пути, который выбран");
+  assertEq(calls[0].before, "старое тело заметки", "ходу отдано то, что лежало в файле");
+  assertTrue(calls[0].after.indexOf("старое тело заметки") === 0,
+    "новое содержимое собрано из прочитанного, а не пришло готовым: " + calls[0].after);
+  assertTrue(calls[0].after.length > calls[0].before.length,
+    "дописанное и правда дописалось");
+  assertEq(plugin.files.get("Notes/Дописать.md"), calls[0].after,
+    "на диске то же, что вернул ход");
+}
+
+/**
+ * И откат: он возвращает содержимое, запомненное **внутри** хода записи.
+ *
+ * Тот же приём, что у соседней проверки отката перезаписи, но спрашивается
+ * другое: сколько ходов было и что каждый из них увидел. Прежний порядок
+ * (`read` до записи) дал бы то же итоговое содержимое — и не отличался бы.
+ */
+async function testRollbackRestoresWhatProcessSaw() {
+  const editor = makeEditor("- [ ] :: Откат", { failReplace: true });
+  const config = makeConfig({ nameCollision: { mode: "overwrite" } });
+  const plugin = makePlugin(config, editor, {
+    initialFiles: { "Notes/Откат.md": "исходное" },
+  });
+  try { await transform.runInline2Note(plugin, { lineFinalize }); } catch (_) { /* уборка: отказ строки нас тут не интересует */ }
+
+  const calls = plugin.processCalls;
+  assertEq(calls.length, 2, "ходов было два: запись и откат");
+  assertEq(calls[0].before, "исходное", "первый ход увидел то, что лежало в файле");
+  assertEq(calls[1].after, "исходное", "второй вернул ровно это");
+  assertEq(plugin.files.get("Notes/Откат.md"), "исходное", "и на диске снова исходное");
+}
+
 async function run() {
   await testNewNoteRaceUsesActualPathLink();
   await testReplacePayloadFalse();
@@ -338,6 +419,8 @@ async function run() {
   await testSourceFailureRestoresOverwrittenTarget();
   await testStaleEditorStopsBeforeTargetMutation();
   await testAddToNoteDoesNotDuplicateTemplateOrHeader();
+  await testForeignNoteWrittenByProcessFromWhatWasRead();
+  await testRollbackRestoresWhatProcessSaw();
   await testTemplateErrorSurfacesBeforeMutation();
   await testManualCancelDoesNotMutate();
   await testTitleWordsReplacedByLink();

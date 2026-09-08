@@ -432,11 +432,18 @@ function normalizeTransformConfig(cfg) {
 function collectTemplateOptions(app, folder) {
   if (!app || !app.vault || typeof app.vault.getMarkdownFiles !== "function") return [];
   const all = app.vault.getMarkdownFiles();
-  const normalizedFolder = String(folder || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
+  /*
+   * Путь приводится к виду vault **одной функцией на весь файл**. Здесь стояла
+   * её копия из четырёх `replace` — то есть второе объявление одного правила
+   * (У-32), и разошлись они ровно в тот день, когда правило дополнили
+   * неразрывным пробелом и `NFC` (Р3 списка расхождений, 2026-09-08): папку
+   * плагин создавал по одному пути, а шаблоны в ней искал по другому.
+   */
+  const normalizedFolder = normalizeFolderPath(folder);
   return all
     .filter((f) => {
       if (!normalizedFolder) return true;
-      const path = String(f.path || "").replace(/\\/g, "/");
+      const path = normalizeFolderPath(f.path);
       return path === normalizedFolder || path.startsWith(normalizedFolder + "/");
     })
     .map((f) => String(f.path || "").trim())
@@ -733,8 +740,38 @@ function normalizeRuleFolderMode(raw) {
   return v === "near" || v === "folder" ? v : "default";
 }
 
+/**
+ * Путь папки в том виде, в каком его понимает vault.
+ *
+ * **Правило платформы, и оно спрошено у платформы** (У-44, Р3 списка
+ * расхождений с правилами каталога). `normalizePath` в `app.js` 1.13.7 — это
+ * `Dl(Bl(e)).normalize("NFC")`, где
+ *
+ *     Bl(e) = e.replace(/([\\/])+/g, "/").replace(/(^\/+|\/+$)/g, "")   // пусто → "/"
+ *     Dl(e) = e.replace(/\u00A0|\u202F/g, " ")
+ *
+ * Наша функция знала половину: слэши и края. Двух шагов не было, и оба бьют по
+ * живому пути от человека.
+ *
+ *   * **Неразрывный пробел.** Путь папки человек часто вставляет из документа,
+ *     а там пробел бывает неразрывным (`U+00A0`). Для vault это другое имя, и папка
+ *     создавалась рядом с той, в которую он целился.
+ *   * **`NFC`.** `й` и `Проект` набираются двумя способами — одним символом и
+ *     буквой с комбинирующим знаком. На macOS файловая система отдаёт
+ *     разложенную форму, и путь, набранный руками, с путём из vault не
+ *     совпадал.
+ *
+ * **Одно отличие оставлено намеренно:** пустой путь у нас остаётся пустым, а не
+ * становится `"/"`. Пустота здесь — это «корень vault», и на неё ветвится и
+ * выбор папки, и создание: `"/"` пришлось бы разбирать обратно.
+ */
 function normalizeFolderPath(raw) {
-  return String(raw || "").trim().replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/+|\/+$/g, "");
+  return String(raw || "")
+    .replace(/\u00A0|\u202F/g, " ")
+    .trim()
+    .replace(/[\\/]+/g, "/")
+    .replace(/^\/+|\/+$/g, "")
+    .normalize("NFC");
 }
 
 function escapeRegExp(s) {
@@ -2545,17 +2582,43 @@ async function writeInline2Note(plugin, target, content, appendBlock) {
       },
     };
   }
-  const previous = await vault.read(af);
+  /*
+   * **Правка чужой заметки идёт через `Vault.process`** — правило каталога
+   * Obsidian, Р8 списка расхождений (2026-09-08).
+   *
+   * Было: `vault.read`, потом `vault.modify`. Между двумя вызовами заметка
+   * может измениться — её правит сам человек в соседней вкладке, — и `modify`
+   * записал бы поверх его правки то, что прочитал секунду назад.
+   * `process` делает то же одним ходом: читает, отдаёт функции и пишет
+   * результат, не давая двум записям наступить друг на друга.
+   *
+   * **И это заодно починило откат.** Прежнее содержимое читалось ДО записи, и
+   * при чужой правке между чтением и записью откат вернул бы заметку не к
+   * тому, что в ней было, а к тому, что мы успели прочитать. Теперь оно
+   * запоминается внутри самого хода — то есть ровно то, что мы перезаписали.
+   *
+   * `process` объявлен в `obsidian.d.ts` и есть у всех, кто поставит плагин:
+   * `minAppVersion` — `1.13.0`. Запасного пути на `modify` поэтому нет —
+   * ветка, которую никто не выполнит, хуже её отсутствия (У-90).
+   */
   if (target.mode === "overwrite") {
-    await vault.modify(af, content);
-    return { target, rollback: async () => vault.modify(af, previous) };
+    let previous = "";
+    await vault.process(af, (data) => {
+      previous = String(data == null ? "" : data);
+      return content;
+    });
+    return { target, rollback: async () => { await vault.process(af, () => previous); } };
   }
   if (target.mode === "add_to_note") {
-    const nl = String(previous || "").includes("\r\n") ? "\r\n" : "\n";
-    const block = String(appendBlock || "").trim().replace(/\r?\n/g, nl);
-    const next = `${String(previous || "").trimEnd()}${nl}${nl}${block}${nl}`;
-    await vault.modify(af, next);
-    return { target, rollback: async () => vault.modify(af, previous) };
+    let previous = "";
+    await vault.process(af, (data) => {
+      previous = String(data == null ? "" : data);
+      /* Перевод строки берётся у самой заметки: у человека может быть CRLF. */
+      const nl = previous.includes("\r\n") ? "\r\n" : "\n";
+      const block = String(appendBlock || "").trim().replace(/\r?\n/g, nl);
+      return `${previous.trimEnd()}${nl}${nl}${block}${nl}`;
+    });
+    return { target, rollback: async () => { await vault.process(af, () => previous); } };
   }
   throw new Error(`unsupported collision mode ${target.mode}`);
 }

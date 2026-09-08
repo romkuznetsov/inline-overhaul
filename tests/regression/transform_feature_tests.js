@@ -568,6 +568,72 @@ function makeConfig() {
   assertEq(transform.normalizeFolderPath("333//444"), "333/444", "двойной слэш внутри схлопывается");
 })();
 
+/*
+ * Р3 правил каталога: путь папки приводится к виду vault **тем же правилом,
+ * что у платформы**, а не половиной его.
+ *
+ * Правило снято с `app.js` 1.13.7, а не вспомнено: `normalizePath` там —
+ * `Dl(Bl(e)).normalize("NFC")`, где `Bl` склеивает слэши и обрезает края, а
+ * `Dl` заменяет неразрывные пробелы обычным. Наша функция знала только слэши,
+ * и оба недостающих шага бьют по живому пути от человека: путь папки часто
+ * вставляют из документа, а там пробел неразрывный, и одно и то же имя с
+ * буквой `й` набирается двумя разными последовательностями символов.
+ *
+ * Невидимые символы в проверке собираются через `String.fromCharCode`: в
+ * исходнике их не видно ни глазами, ни в диффе.
+ */
+(function testFolderPathFollowsPlatformRule() {
+  const nbsp = String.fromCharCode(0x00A0);
+  const nnbsp = String.fromCharCode(0x202F);
+
+  assertEq(transform.normalizeFolderPath("Мои" + nbsp + "заметки"), "Мои заметки",
+    "неразрывный пробел становится обычным");
+  assertEq(transform.normalizeFolderPath("Мои" + nnbsp + "заметки"), "Мои заметки",
+    "узкий неразрывный — тоже");
+
+  /* Одно имя, две записи: `й` одним символом и `и` с комбинирующей краткой. */
+  const precomposed = "Проекты/Мой";
+  const decomposed = "Проекты/Мо" + "и" + String.fromCharCode(0x0306);
+  assertTrue(precomposed !== decomposed, "положительный контроль: записи и правда разные");
+  assertEq(transform.normalizeFolderPath(decomposed), precomposed,
+    "разложенная форма приводится к той же, что даёт vault");
+  assertEq(transform.normalizeFolderPath(precomposed), precomposed,
+    "а собранная остаётся собой");
+
+  /* Обратный слэш — то же, что прямой: путь мог прийти из проводника. */
+  assertEq(transform.normalizeFolderPath("Notes\\Daily"), "Notes/Daily",
+    "обратный слэш становится прямым");
+  assertEq(transform.normalizeFolderPath("Notes\\\\/Daily"), "Notes/Daily",
+    "смесь слэшей схлопывается в один");
+})();
+
+/*
+ * И то, ради чего правило одно: список шаблонов ищет в **той же** папке,
+ * которую плагин создаст. Здесь стояла копия правила из четырёх `replace`, и
+ * разошлась бы она ровно на этих двух шагах: папку создали бы по одному пути,
+ * а шаблоны в ней искали по другому (У-32).
+ */
+(function testTemplateListUsesTheSameFolderRule() {
+  const nbsp = String.fromCharCode(0x00A0);
+  const app = {
+    vault: {
+      getMarkdownFiles() {
+        return [
+          { path: "Шаблоны заметок/День.md" },
+          { path: "Шаблоны заметок/Неделя.md" },
+          { path: "Другое/Мимо.md" },
+        ];
+      },
+    },
+  };
+  const asTyped = "/Шаблоны" + nbsp + "заметок/";
+  assertEq(transform.normalizeFolderPath(asTyped), "Шаблоны заметок",
+    "путь, как его напечатал человек, приводится к пути vault");
+  const found = transform.collectTemplateOptions(app, asTyped);
+  assertEq(found.join(" | "), "Шаблоны заметок/День.md | Шаблоны заметок/Неделя.md",
+    "шаблоны найдены в той же папке: получилось " + JSON.stringify(found));
+})();
+
 
 /*
  * B21: свойства заметки не ссорятся с типом, объявленным в хранилище.
