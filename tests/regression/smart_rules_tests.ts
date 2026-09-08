@@ -96,7 +96,14 @@ interface Panel {
 
 function makePanel(
   base: Any,
-  o?: { enabled?: boolean; templates?: readonly string[]; templatesFolder?: string },
+  o?: {
+    enabled?: boolean;
+    templates?: readonly string[];
+    templatesFolder?: string;
+    /* Состояние вида блока (З-6): развёрнутые карточки. Передаётся снаружи,
+       потому что живёт оно в блоке, а не в конфиге. */
+    expanded?: Set<string>;
+  },
 ): Panel {
   const host = makeNode("div");
   const store = new ConfigStore(
@@ -140,6 +147,7 @@ function makePanel(
     lastModel = model;
     renderSmartRules(host as unknown as El, {
       model,
+      expanded: o && o.expanded ? o.expanded : undefined,
       enabled: !(o && o.enabled === false),
       templates: o && o.templates ? o.templates : ["Templates/task.md", "Templates/meeting.md"],
       templatesFolder: o && o.templatesFolder !== undefined ? o.templatesFolder : "Templates",
@@ -977,6 +985,100 @@ function baseConfig(rules?: Any[]): Any {
   assert.ok(adv, "строка на месте и при выключенном модуле");
   assert.equal((adv as StubNode).disabled, true, "но она не нажимается");
   ok("при выключенном модуле Advanced settings ничего не меняет");
+}
+
+/* ---- свёрнутая карточка правила (З-6) ----------------------------------- */
+
+{
+  /*
+   * Заказчик 2026-09-08: «rules достаточно объёмные… хочу, чтобы была
+   * возможность сворачивать их, чтобы в свёрнутом состоянии они занимали мало
+   * места (1-2 строки с ключевой информацией… и управлением (stop using,
+   * remove)). После создания и настройки smart rule оно должно по умолчанию
+   * быть в свёрнутом состоянии».
+   *
+   * Состояние вида приходит блоку снаружи и в конфиг не пишется (О0): здесь
+   * это тот же набор, который держит у себя `smart_rules.ts`.
+   */
+  const expanded = new Set<string>();
+  const p = makePanel(baseConfig([{
+    id: "r1",
+    enabled: true,
+    name: "Tasks",
+    targetTemplate: "Templates/task.md",
+    targetFolderMode: "folder",
+    targetFolder: "Clients/A",
+    conditions: { tags: ["#todo"] },
+  }]), { expanded });
+
+  /* Свёрнуто по умолчанию: набор пуст. */
+  assert.equal(all(p.host, "io-rule--folded").length, 1, "карточка свёрнута");
+  assert.equal(all(p.host, "io-rule__conds").length, 0, "условий в свёрнутом виде не рисуется");
+  assert.equal(all(p.host, "io-rule__out").length, 0, "и строк шаблона с папкой тоже");
+
+  /* Ключевая информация — одной строкой, и вся, что он назвал. */
+  const summary = all(p.host, "io-rule__sumpart").map(n => n.textContent);
+  assert.deepEqual(summary, ["#todo", "Templates/task.md", "Clients/A"],
+    "в сводке условия, шаблон и папка");
+  const nameInput = all(p.host, "io-rule__name")[0];
+  assert.equal(nameInput?.value, "Tasks", "имя правила видно в шапке");
+
+  /* Управление на месте: остановить и удалить. */
+  assert.ok(byLabel(p.host, "Stop using"), "`stop using` есть у свёрнутой карточки");
+  assert.ok(byLabel(p.host, "Remove"), "и `remove` тоже");
+
+  /* Нажатие разворачивает. */
+  const openBtn = byLabel(p.host, "Expand");
+  assert.ok(openBtn, "у свёрнутой карточки есть кнопка развернуть");
+  (openBtn as StubNode).dispatch("click");
+  assert.equal(all(p.host, "io-rule--folded").length, 0, "карточка развернулась");
+  assert.ok(all(p.host, "io-rule__conds").length > 0, "и условия вернулись");
+  assert.equal(expanded.has("r1"), true, "состояние вида запомнилось в наборе блока");
+  assert.equal(p.rules()[0].collapsed, undefined,
+    "и в конфиг оно не поехало: вид панели не настройка человека");
+
+  /* И сворачивает обратно. */
+  const closeBtn = byLabel(p.host, "Collapse");
+  assert.ok(closeBtn, "а у развёрнутой — свернуть");
+  (closeBtn as StubNode).dispatch("click");
+  assert.equal(all(p.host, "io-rule--folded").length, 1, "карточка свернулась обратно");
+  assert.equal(expanded.has("r1"), false, "и набор это запомнил");
+  ok("З-6: карточка правила сворачивается, и вид в конфиг не пишется");
+}
+
+{
+  /* Условий нет вовсе — сводка говорит это словами, а не пустым местом. */
+  const p = makePanel(baseConfig([{ id: "r1", enabled: true }]), { expanded: new Set<string>() });
+  const summary = all(p.host, "io-rule__sumpart").map(n => n.textContent);
+  assert.equal(summary[0], "any line", "правило без условий смотрит на любую строку");
+  assert.equal(summary[2], "Default", "папка по умолчанию названа словом");
+  ok("сводка свёрнутого правила объясняет пустоту, а не молчит");
+}
+
+{
+  /* Новое правило рождается развёрнутым: его надо настроить. */
+  const expanded = new Set<string>();
+  const p = makePanel(baseConfig([]), { expanded });
+  const add = byLabel(p.host, "Add rule");
+  assert.ok(add, "кнопка добавления есть");
+  (add as StubNode).dispatch("click");
+  assert.equal(p.rules().length, 1, "правило заведено");
+  assert.equal(expanded.has(String(p.rules()[0].id)), true, "и оно развёрнуто");
+  assert.equal(all(p.host, "io-rule--folded").length, 0, "на экране тоже");
+  ok("новое правило рождается развёрнутым");
+}
+
+{
+  /* Свернуть можно и при выключенном модуле: это про вид, а не про правило. */
+  const expanded = new Set<string>(["r1"]);
+  const p = makePanel(baseConfig([{ id: "r1", enabled: true }]), { enabled: false, expanded });
+  const closeBtn = byLabel(p.host, "Collapse");
+  assert.ok(closeBtn, "кнопка есть");
+  assert.equal((closeBtn as StubNode).disabled, false, "и она живая");
+  (closeBtn as StubNode).dispatch("click");
+  assert.equal(all(p.host, "io-rule--folded").length, 1, "карточка свернулась");
+  assert.deepEqual(p.writes, [], "и в конфиг при этом ничего не записано");
+  ok("сворачивание работает и при выключенном модуле, ничего не записывая");
 }
 
 console.log("\n" + passed + " проверок пройдено");

@@ -588,6 +588,7 @@ A smart rule routes a source line to a template based on tags, element markers, 
 - Values within one condition group use OR matching.
 - Non-empty groups on the same rule all must match.
 - **Advanced settings** on a rule decides where the text lands for that rule alone. `Default` follows **Note content**; `Set for this rule` opens the same rows and keeps them with the rule. Switching back to `Default` does not erase what you set.
+- Rules fold. The mark in the card header collapses a rule to two lines — its name and one summary line with the conditions, the template and the folder — and the controls stay in the header. The panel opens with rules folded; a rule you have just added stays open until you fold it. Folding is a view, not a setting: it is not written into your configuration.
 - Rules are checked in order; first matching enabled rule with a target template wins.
 - If no rule matches, the default template is used.
 - A rule with no conditions is disabled.

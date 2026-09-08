@@ -2116,6 +2116,24 @@
 }
 .io-rule__arrow { color: var(--text-accent); font-size: 13px; }
 /*
+ * Свёрнутая карточка правила (З-6): шапка и одна строка сводки.
+ *
+ * Части сводки разделены точкой, а не рамками: она читается слева направо
+ * одной фразой — условия, шаблон, папка, — и рамки резали бы её на куски.
+ */
+.io-rule__summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0 0 18px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.io-rule__sumpart { min-width: 0; }
+.io-rule__sep { color: var(--text-faint); }
+
+/*
  * Своя ветка `Note content` у правила (З-5). Строки стоят лесенкой и с
  * чертой слева: так они читаются как содержимое строки `Advanced settings`,
  * а не как соседние настройки правила. Тот же приём, что у списка Fields

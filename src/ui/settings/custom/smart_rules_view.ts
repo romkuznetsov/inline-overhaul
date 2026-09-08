@@ -89,11 +89,73 @@ export interface RulesViewOpts {
   folderSuggest?: (input: ElInput, write: (value: string) => void) => void;
   /** Видимый текст по имени из каталога (10.13.47). */
   say?: Say;
+  /**
+   * Развёрнутые карточки (З-6). **Состояние вида, и в конфиг оно не пишется**
+   * (О0): хранить в настройках человека, открыта ли карточка, значило бы
+   * записывать туда вид панели. Живёт оно в замыкании блока — так же, как
+   * выбранный Field у редактора Fields, — и переживает перерисовку, которой
+   * отвечает на каждое нажатие сам блок.
+   *
+   * Нет набора — карточки развёрнуты все: так вёрстка ведёт себя на заглушке
+   * и в старых проверках, где ей никакого состояния не передают.
+   */
+  expanded?: Set<string>;
 }
 
 /** Номер правила и его имя: по имени человек его и зовёт. */
 function ruleTitle(row: RuleRow, index: number): string {
   return row.name || RULE_FALLBACK + (index + 1);
+}
+
+/**
+ * Что стоит в строке условий этого типа: значения и Fields целиком.
+ *
+ * Одно объявление на два места — саму строку и сводку свёрнутой карточки
+ * (З-6). Второй такой же сбор разошёлся бы с первым молча (У-32): человек
+ * увидел бы в свёрнутом виде не то, что развернул бы нажатием.
+ */
+function conditionItems(
+  row: RuleRow,
+  kind: RowKind,
+  o: RulesViewOpts,
+): Array<{ shown: string; kind: RuleKind; value: string }> {
+  const values = row.conditions[kind];
+  const fields = row.conditions.fields.filter(id => o.model.fieldRowKind(id) === kind);
+  return values
+    .map(value => ({ shown: value, kind: kind as RuleKind, value }))
+    .concat(fields.map(id => ({
+      shown: o.model.fieldLabel(id) + ANY_VALUE,
+      kind: "fields" as RuleKind,
+      value: id,
+    })));
+}
+
+/**
+ * Свёрнутая карточка: одна строка с тем, ради чего человек её открыл бы (З-6).
+ *
+ * Заказчик назвал состав сам: «название, что выбрано в `when the line has`,
+ * используемый template, папка назначения» — плюс управление, а оно и так
+ * стоит в шапке и никуда не девается. Имя здесь не повторяется: оно в шапке,
+ * строкой выше.
+ *
+ * Считать нечего — всё это у правила уже есть; собирается строка, и только.
+ */
+function summaryLine(host: El, row: RuleRow, o: RulesViewOpts): void {
+  const say = o.say || PLAIN;
+  const box = el(host, "div", "io-rule__summary");
+
+  const shown = ROW_KINDS.flatMap(kind => conditionItems(row, kind, o).map(x => x.shown));
+  const parts: string[] = [
+    shown.length ? shown.join(", ") : say("SUMMARY_ANY_LINE"),
+    row.targetTemplate || say("TEMPLATE_NONE"),
+    row.folderMode === "folder"
+      ? (row.folder || say("FOLDER_OTHER"))
+      : say(row.folderMode === "near" ? "FOLDER_NEAR_NOTE" : "FOLDER_DEFAULT"),
+  ];
+  parts.forEach((text, i) => {
+    if (i) el(box, "span", "io-rule__sep", "\u00b7");
+    el(box, "span", "io-rule__sumpart", text);
+  });
 }
 
 /**
@@ -112,15 +174,7 @@ function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void 
    * Field, тип которого неизвестен (его удалили из конфига), не попадает ни в
    * одну строку — и правило он тоже не блокирует, см. `selectSmartRule`.
    */
-  const values = row.conditions[kind];
-  const fields = row.conditions.fields.filter(id => o.model.fieldRowKind(id) === kind);
-  const items: Array<{ shown: string; kind: RuleKind; value: string }> = values
-    .map(value => ({ shown: value, kind: kind as RuleKind, value }))
-    .concat(fields.map(id => ({
-      shown: o.model.fieldLabel(id) + ANY_VALUE,
-      kind: "fields" as RuleKind,
-      value: id,
-    })));
+  const items = conditionItems(row, kind, o);
 
   const box = el(host, "div", "io-kind" + (items.length ? "" : " io-kind--empty"));
   el(box, "div", "io-kind__label", KIND_LABEL[kind]);
@@ -266,8 +320,15 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
   taken: { index: number | null };
 }): void {
   const say = o.say || PLAIN;
+  /*
+   * Свёрнутая карточка занимает две строки: шапку с именем и управлением и
+   * одну строку сводки. Нет набора развёрнутых — развёрнуты все: так вёрстка
+   * ведёт себя без состояния.
+   */
+  const open = !o.expanded || o.expanded.has(row.id);
   const card = el(host, "div", "io-rule"
     + (row.enabled ? "" : " io-rule--off")
+    + (open ? "" : " io-rule--folded")
     + (row.conflict ? " io-rule--clash" : ""));
   el(card, "div", "io-rule__rail");
   const main = el(card, "div", "io-rule__main");
@@ -317,6 +378,22 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
 
   const tools = el(head, "div", "io-rule__tools");
   /*
+   * Сворачивание (З-6). Кнопка стоит первой в шапке: она про саму карточку, а
+   * не про правило, — и остаётся живой при выключенном модуле. Свернуть
+   * список правил можно и тогда, когда менять их нельзя.
+   */
+  const fold = btn(tools, "io-icon", {
+    text: open ? "\u25be" : "\u25b8",
+    label: say(open ? "RULE_COLLAPSE" : "RULE_EXPAND", ruleTitle(row, index)),
+  });
+  fold.addEventListener("click", (() => {
+    if (!o.expanded) return;
+    if (open) o.expanded.delete(row.id);
+    else o.expanded.add(row.id);
+    o.redraw();
+  }) as never);
+
+  /*
    * Выключенное правило остаётся на месте и остаётся видимым: человек его
    * выключил, а не удалил, и порядок остальных от этого не меняется.
    */
@@ -341,6 +418,17 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
     o.model.removeRule(row.id);
     o.redraw();
   }) as never);
+
+  if (!open) {
+    summaryLine(main, row, o);
+    /* Спор с соседом виден и свёрнутым: он про правило, а не про его вид. */
+    if (row.conflict) {
+      const folded = el(main, "div", "io-rule__warn");
+      el(folded, "span", undefined, "\u26a0");
+      el(folded, "span", undefined, row.conflict);
+    }
+    return;
+  }
 
   const conds = el(main, "div", "io-rule__conds");
   el(conds, "div", "io-rule__lead", say("WHEN_THE_LINE_HAS"));
@@ -468,7 +556,9 @@ export function renderSmartRules(host: El, o: RulesViewOpts): void {
   add.disabled = !o.enabled;
   add.addEventListener("click", (() => {
     if (!o.enabled) return;
-    o.model.addRule();
+    /* Новое правило рождается развёрнутым: его надо настроить (З-6). */
+    const id = o.model.addRule();
+    if (o.expanded && id) o.expanded.add(id);
     o.redraw();
   }) as never);
 }

@@ -779,6 +779,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   font-size: var(--font-ui-smaller); color: var(--text-muted);
 }
 .io-rule__arrow { color: var(--text-accent); font-size: 13px; }
+/* Свёрнутая карточка правила (З-6): шапка и одна строка сводки. Части
+   разделены точкой, а не рамками: сводка читается одной фразой. */
+.io-rule__summary {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px;
+  padding: 2px 0 0 18px;
+  font-size: var(--font-ui-smaller); color: var(--text-muted);
+}
+.io-rule__sumpart { min-width: 0; }
+.io-rule__sep { color: var(--text-faint); }
 /* Своя ветка `Note content` у правила (З-5): строки под `Advanced settings`
    стоят лесенкой, чтобы читались как содержимое строки, а не как соседи. */
 .io-rule__placement {
@@ -2648,6 +2657,12 @@ const SELECT_ALL_STEPS = [
 ];
 
 const SELECT_ALL_CUSTOM = { word:false, line:true, tree:false, heading:false, note:true };
+
+/*
+ * Развёрнутые карточки Smart Rules (З-6). Состояние вида: панель держит его
+ * у себя и в конфиг не пишет — «открыта ли карточка» не настройка человека.
+ */
+const SMART_RULES_OPEN = new Set();
 
 const USER_TAGS = [
   { token:"urgent", color:"#b3261e", textColor:"#ffffff", shown:"value" },
@@ -5283,7 +5298,13 @@ function renderSmartRules(host) {
   const list = el("div", "io-rules", host);
 
   RULES.forEach((r, i) => {
-    const card = el("div", "io-rule" + (r.enabled ? "" : " io-rule--off") + (r.conflict ? " io-rule--clash" : ""), list);
+    /* Свёрнутая карточка (З-6, заказчик 2026-09-08): шапка и одна строка
+       сводки. Состояние вида, а не настройка: панель хранит его у себя
+       и в конфиг не пишет. */
+    const open = SMART_RULES_OPEN.has(r.id);
+    const card = el("div", "io-rule" + (r.enabled ? "" : " io-rule--off")
+      + (open ? "" : " io-rule--folded")
+      + (r.conflict ? " io-rule--clash" : ""), list);
     el("div", "io-rule__rail", card);
     const main = el("div", "io-rule__main", card);
 
@@ -5297,6 +5318,13 @@ function renderSmartRules(host) {
     name.addEventListener("input", () => { r.name = name.value; });
 
     const tools = el("div", "io-rule__tools", head);
+    const fold = iconBtn(tools, open ? "\u25be" : "\u25b8",
+      (open ? "Collapse rule " : "Expand rule ") + (i + 1),
+      open ? "Collapse this rule" : "Expand this rule");
+    fold.addEventListener("click", () => {
+      if (open) SMART_RULES_OPEN.delete(r.id); else SMART_RULES_OPEN.add(r.id);
+      renderContent();
+    });
     const on = el("input", "io-toggle", tools);
     on.type = "checkbox"; on.checked = r.enabled;
     on.setAttribute("aria-label", "Use rule " + (i + 1));
@@ -5304,6 +5332,25 @@ function renderSmartRules(host) {
     on.addEventListener("change", () => { r.enabled = on.checked; renderContent(); });
     const rm = iconBtn(tools, "✕", "Remove rule " + (i + 1), "Remove this rule");
     rm.addEventListener("click", () => { RULES.splice(i, 1); renderContent(); });
+
+    if (!open) {
+      const sum = el("div", "io-rule__summary", main);
+      const shown = r.conditions.map(c => c.field ? c.field + " \u2014 any Value" : (c.value || "(empty)"));
+      const folder = r.folderMode === "folder"
+        ? (r.folder || "Another folder\u2026")
+        : (r.folderMode === "near" ? "Near current note" : "Default");
+      [shown.length ? shown.join(", ") : "any line", r.template || "None", folder]
+        .forEach((text, pi) => {
+          if (pi) el("span", "io-rule__sep", sum, "\u00b7");
+          el("span", "io-rule__sumpart", sum, text);
+        });
+      if (r.conflict) {
+        const foldedWarn = el("div", "io-rule__warn", main);
+        el("span", null, foldedWarn, "\u26a0");
+        el("span", null, foldedWarn, r.conflict);
+      }
+      return;
+    }
 
     const conds = el("div", "io-rule__conds", main);
     KINDS.forEach(k => {
@@ -5447,8 +5494,11 @@ function renderSmartRules(host) {
   const add = el("button", "io-btn io-btn--sm io-btn--cta", actions, "Add rule");
   add.type = "button";
   add.addEventListener("click", () => {
-    RULES.push({ id:"r" + (RULES.length + 1), name:"", enabled:true, template:"None", conflict:"",
-      folderMode:"default", folder:"", placementMode:"default", conditions:[] });
+    const fresh = { id:"r" + (RULES.length + 1), name:"", enabled:true, template:"None", conflict:"",
+      folderMode:"default", folder:"", placementMode:"default", conditions:[] };
+    RULES.push(fresh);
+    /* Новое правило рождается развёрнутым: его надо настроить (З-6). */
+    SMART_RULES_OPEN.add(fresh.id);
     renderContent();
   });
 

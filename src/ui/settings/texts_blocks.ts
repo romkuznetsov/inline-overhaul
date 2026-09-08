@@ -296,6 +296,11 @@ export const BLOCK_TEXTS = {
        Слова повторяют `Note content`, и это не копия текста, а вторая его
        точка на экране: у правила свои строки и свои ключи каталога, а
        переводятся они врозь. Читаются они здесь и нигде больше. */
+    /* ---- свёрнутая карточка правила (З-6) ---------------------------- */
+    RULE_COLLAPSE: "Collapse {0}",
+    RULE_EXPAND: "Expand {0}",
+    /* Условий нет вовсе: правило смотрит на любую строку. */
+    SUMMARY_ANY_LINE: "any line",
     RULE_ADVANCED: "Advanced settings",
     RULE_ADVANCED_ARIA: "Advanced settings for {0}",
     RULE_ADVANCED_DEFAULT: "Default",

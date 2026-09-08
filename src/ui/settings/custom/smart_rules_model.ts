@@ -308,10 +308,12 @@ export function createRulesModel(deps: RulesModelDeps) {
     return "rule-" + n;
   };
 
-  const addRule = (): void => {
+  /** Отдаёт id заведённого правила: вёрстка разворачивает именно его (З-6). */
+  const addRule = (): string => {
     const rules = listRules();
+    const id = nextId(rules);
     rules.push({
-      id: nextId(rules),
+      id,
       name: "",
       enabled: true,
       targetTemplate: "",
@@ -324,6 +326,7 @@ export function createRulesModel(deps: RulesModelDeps) {
       conflict: "",
     });
     save(rules, "transform:smart-rules:add");
+    return id;
   };
 
   const removeRule = (id: string): void => {
