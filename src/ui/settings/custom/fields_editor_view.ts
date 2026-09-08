@@ -1654,44 +1654,52 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   const wrap = el(host, "div", "io-fields");
   const closers: Array<() => void> = [];
 
-  const listCol = el(wrap, "div", "io-fields__col");
-  const listHead = el(listCol, "div", "io-fields__colhead");
+  const rows = o.model.listFields();
+  const key = selectedKey(rows, o.state);
+  const row = rows.find(r => r.key === key) || null;
+
+  /*
+   * **Обе шапки стоят в одной строке сетки, подсказки — под ними во всю
+   * ширину** (решение заказчика по В-92, 2026-09-08). До этого у каждой
+   * колонки была своя шапка со своей подсказкой, и подсказка списка
+   * раскрывалась внутри колонки шириной 188 точек: текст вставал столбиком по
+   * два-три слова. Порядок узлов и есть порядок ячеек: две шапки, две строки
+   * подсказок на всю ширину, два тела.
+   */
+  const listHead = el(wrap, "div", "io-fields__colhead");
   el(listHead, "span", undefined, "Fields");
+
+  const detailHead = el(wrap, "div", "io-fields__colhead io-fields__colhead--detail");
+  /* У Field типа `element` значений нет: у него один маркер и один формат.
+     Колонка названа так же, как чип типа, — одним словом. */
+  const detailName = row && row.kind === "element" ? say(TYPE_NAME.element) : "Values";
+  el(detailHead, "span", undefined, detailName);
+
   closers.push(tipBelow({
     head: listHead,
-    host: el(listCol, "div", "io-tiphost"),
+    host: el(wrap, "div", "io-tiphost io-fields__tiprow"),
     text: say("LIST_TIP"),
     label: say("LIST_ARIA"),
     id: "io-fields-list-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
-
-  const list = el(listCol, "div", "io-fields__list");
-  renderFieldList(list, o);
-
-  const rows = o.model.listFields();
-  const key = selectedKey(rows, o.state);
-  const row = rows.find(r => r.key === key) || null;
-
-  const detailCol = el(wrap, "div", "io-fields__col");
-  const detailHead = el(detailCol, "div", "io-fields__colhead");
-  /* У Field типа `element` значений нет: у него один маркер и один формат.
-     Колонка названа так же, как чип типа, — одним словом. */
-  const detailName = row && row.kind === "element" ? say(TYPE_NAME.element) : "Values";
-  el(detailHead, "span", undefined, detailName);
   /*
    * «?» у шапки правой колонки. У левой он был с самого начала, у правой не
    * было вовсе, и заказчик заметил именно эту разницу (замечание 1.4.1.2.1).
    */
   closers.push(tipBelow({
     head: detailHead,
-    host: el(detailCol, "div", "io-tiphost"),
+    host: el(wrap, "div", "io-tiphost io-fields__tiprow"),
     text: say("DETAIL_TIP"),
     label: say("COLUMN_ARIA"),
     id: "io-fields-detail-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
-  const detail = el(detailCol, "div", "io-fields__detail");
+
+  const list = el(wrap, "div", "io-fields__list");
+  renderFieldList(list, o);
+
+  const detail = el(wrap, "div", "io-fields__detail");
   /* Ни одного Field — не ошибка, а приглашение (ПЗ2, ПЗ3). */
   if (row) closers.push(renderFieldDetail(detail, row, o));
   else el(detail, "div", "io-fields__hint", say("NO_FIELD_PICKED"));

@@ -622,7 +622,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    asked: the detail column takes what is left and may shrink, and the values
    table scrolls inside itself if that gets tight. */
 .io-fields {
-  display: flex; flex-wrap: nowrap; align-items: stretch;
+  /* Сетка, а не флекс (В-92): у колонок появилась общая строка шапки, и
+     подсказка шапки списка раскрывается во всю ширину редактора, а не в
+     колонку шириной 188 точек. Дорожек ровно две, переносить нечего;
+     правая берёт остаток и умеет сжаться до нуля. */
+  display: grid; grid-template-columns: 188px minmax(0, 1fr); align-items: stretch;
   border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m);
   overflow: hidden; background: var(--background-primary);
 }
@@ -1421,15 +1425,16 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-fields__item .io-chip { margin-left: 4px; }
 .io-fields__item[aria-current="true"] .io-chip { margin-left: 4px; }
 
-/* two columns, each with its own head, so the panes read as a pair */
-.io-fields__col { min-width: 0; display: flex; flex-direction: column; }
-.io-fields__col:first-child { flex: 0 0 188px; }
-/* The detail column takes what is left and may shrink to nothing: without
-   min-width its content would push the list column off instead. */
-.io-fields__col + .io-fields__col {
-  flex: 1 1 0; min-width: 0;
-  border-left: 1px solid var(--background-modifier-border);
-}
+/* Две колонки с общей строкой шапки: решение заказчика по В-92, 2026-09-08.
+   Обёрток-колонок нет — ячейки лежат в сетке сами; черта между колонками
+   на ячейках правой, а строка подсказки идёт во всю ширину. */
+.io-fields__colhead--detail,
+.io-fields__detail { border-left: 1px solid var(--background-modifier-border); }
+/* Подсказка — ячейка на обе колонки, где бы она ни оказалась: прототип
+   вставляет её соседом шапки, панель кладёт в свой узел. */
+.io-fields > .io-tiphost,
+.io-fields > .io-tip,
+.io-fields__tiprow { grid-column: 1 / -1; }
 .io-fields__colhead {
   display: flex; align-items: center; gap: 6px;
   padding: 7px 12px;
@@ -4223,31 +4228,32 @@ function renderFieldList(list) {
 function renderFieldEditor(host) {
   const wrap = el("div", "io-fields", host);
 
-  const listCol = el("div", "io-fields__col", wrap);
-  const listHead = el("div", "io-fields__colhead", listCol);
-  el("span", null, listHead, "Fields");
-  /*
-   * Подписи `Left Block` и `Right Block` внутри списка «?» не получают, и это
-   * объявленное исключение, а не забывчивость (заказ заказчика 2026-09-08).
-   * Колонка списка шириной 188 точек: тело подсказки встанет в неё столбиком
-   * по два слова, и это ровно тот дефект, за который заказчик присылал
-   * скриншот (У-105). Смысл двух подписей уехал сюда, в подсказку шапки —
-   * она во всю ширину, — а у самих подписей стоит родная подсказка Obsidian.
-   */
-  attachTip(listHead, "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
-    "the Fields list", listCol);
-  const list = el("div", "io-fields__list", listCol);
-  renderFieldList(list);
-
   const f = field(selectedFieldId) || FIELDS[0];
-  const detailCol = el("div", "io-fields__col", wrap);
-  const detailHead = el("div", "io-fields__colhead", detailCol);
+
+  /*
+   * Обе шапки — в одной строке сетки, подсказки под ними во всю ширину
+   * (решение заказчика по В-92, 2026-09-08). До этого подсказка шапки списка
+   * раскрывалась внутри колонки шириной 188 точек, и её тело вставало
+   * столбиком по два-три слова — тот самый дефект со скриншота (У-105).
+   * Теперь `Left Block` и `Right Block` объясняются в подсказке шириной со
+   * весь редактор, а знак «?» остаётся у обеих шапок.
+   */
+  const listHead = el("div", "io-fields__colhead", wrap);
+  el("span", null, listHead, "Fields");
+  const detailHead = el("div", "io-fields__colhead io-fields__colhead--detail", wrap);
   el("span", null, detailHead, f.type === "element" ? TYPE_LABEL.element : "Values");
+
+  attachTip(listHead, "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
+    "the Fields list", null, detailHead);
   /* «?» у шапки правой колонки: у левой он был, у правой нет, и заказчик
      заметил именно эту разницу (замечание 1.4.1.2.1). */
   attachTip(detailHead, "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes",
-    "this column", detailCol);
-  const detail = el("div", "io-fields__detail", detailCol);
+    "this column", null, detailHead);
+
+  const list = el("div", "io-fields__list", wrap);
+  renderFieldList(list);
+
+  const detail = el("div", "io-fields__detail", wrap);
 
   /*
    * The title row carries the identity of the Field and nothing else: name,

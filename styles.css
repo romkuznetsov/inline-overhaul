@@ -981,8 +981,19 @@
    * Теперь не спрашиваем ничего: правая колонка берёт остаток и умеет сжаться,
    * а таблица Values прокручивается внутри себя, если станет совсем тесно.
    */
-  display: flex;
-  flex-wrap: nowrap;
+  /*
+   * **Сетка, а не флекс** — решение заказчика по В-92, 2026-09-08. Флекс держал
+   * колонки рядом, но у каждой была своя шапка, и подсказка шапки списка
+   * раскрывалась **внутри колонки** шириной 188 точек: текст вставал столбиком
+   * по два-три слова. Сеткой у колонок появилась общая строка шапки, и
+   * подсказка ложится под ней во всю ширину редактора.
+   *
+   * Колонки в сетке не переносятся вовсе: дорожек ровно две, и перенести
+   * вторую вниз нечему. Правая берёт остаток и умеет сжаться до нуля —
+   * `minmax(0, 1fr)`; без нуля её содержимое вытолкнуло бы список Fields.
+   */
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
   align-items: stretch;
   /*
    * Текст редактора того же размера, что и у остальных настроек панели
@@ -996,15 +1007,28 @@
   overflow: hidden;
   background: var(--background-primary);
 }
-.io-fields__col { min-width: 0; display: flex; flex-direction: column; }
-.io-fields__col:first-child { flex: 0 0 188px; }
-/* Правая колонка берёт остаток и умеет сжаться до нуля: без min-width её
-   содержимое вытолкнуло бы список Fields, а не сжалось само. */
-.io-fields__col + .io-fields__col {
-  flex: 1 1 0;
-  min-width: 0;
+/*
+ * Обёрток-колонок больше нет: ячейки лежат в сетке сами (В-92). Черта между
+ * колонками переехала на ячейки правой — шапку и тело; в строке подсказки её
+ * нет, и это верно: подсказка идёт во всю ширину и колонкам не принадлежит.
+ */
+.io-fields__colhead--detail,
+.io-fields__detail {
   border-left: 1px solid var(--background-modifier-border);
 }
+/*
+ * Строка подсказки: одна ячейка на обе колонки. Пустая она ничего не занимает,
+ * поэтому черта между колонками читается непрерывной, пока подсказка закрыта.
+ *
+ * Правило берёт **и сам узел подсказки**, а не только её место: прототип
+ * вставляет подсказку соседом шапки (`insertAdjacentElement`), панель кладёт
+ * её в свой узел, и без второй половины правила подсказка прототипа встала бы
+ * обычной ячейкой — 188 точек вместо 596, то есть ровно тот дефект, ради
+ * которого сетку и заводили.
+ */
+.io-fields > .io-tiphost,
+.io-fields > .io-tip,
+.io-fields__tiprow { grid-column: 1 / -1; }
 .io-fields__colhead {
   display: flex;
   align-items: center;
@@ -1020,7 +1044,7 @@
   background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.io-fields__list { background: var(--background-secondary); padding: 6px; flex: 1 1 auto; }
+.io-fields__list { background: var(--background-secondary); padding: 6px; }
 .io-fields__item {
   display: flex;
   align-items: center;

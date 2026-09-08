@@ -2020,7 +2020,8 @@ const linkSubField = (cfg: Any): Any =>
    */
   const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
   const declared = Number((/\.io-vals__inner \{ min-width: (\d+)px/.exec(css) || [])[1]);
-  const listCol = Number((/\.io-fields__col:first-child \{ flex: 0 0 (\d+)px/.exec(css) || [])[1]);
+  /* Ширина колонки списка живёт в дорожках сетки с 2026-09-08 (В-92). */
+  const listCol = Number((/grid-template-columns:\s*(\d+)px minmax/.exec(css) || [])[1]);
   const detailPad = Number((/\.io-fields__detail \{ padding: \d+px (\d+)px/.exec(css) || [])[1]);
   assert.ok(Number.isFinite(declared) && Number.isFinite(listCol) && Number.isFinite(detailPad),
     "ширина таблицы, колонки списка и поля правой колонки объявлены числами");
