@@ -5987,11 +5987,11 @@ _Tip:_ Two decisions live here. The first is where in the note your line lands �
   - старые названия для поиска: «Where to place inline text?»
 - **Type name of header** — `content-target-header`, `text`, path `transform.inline2note.placement.targetHeader`, default `""`
   - desc: The heading your text is filed under
-  - tip: Write the heading as it stands in the note. Put the hashes in — <code>## Log</code> — and only a heading of that depth counts; leave them out and a heading of any depth with those words will do. Upper and lower case do not matter. Two headings with the same name: the first one wins, because this box holds a name and not a place
+  - tip: Write the heading as it stands in the note. Put the hashes in — <code>## Log</code> — and only a heading of that depth counts; leave them out and a heading of any depth with those words will do. Upper and lower case do not matter. Two headings with the same name: the first one wins, because this box holds a name and not a place. When a note has no such heading it gets written for you, at the depth you put here — no hashes means one
   - видна если: `transform.inline2note.placement.position`
 - **If header not found** — `content-header-missing`, `dropdown`, path `transform.inline2note.placement.fallback`, default `end`
-  - desc: Where the text goes when the note has no such heading
-  - tip: A brand new note made from a template that has no such heading, or a note you have not laid out yet — the text still has to land somewhere. This is that somewhere, and it is the same choice as the row above minus the heading
+  - desc: Where the heading is added when the note has none
+  - tip: A brand new note, or one you have not laid out yet, has no such heading — so the heading is <b>written for you</b> here, and your text goes under it. It is written exactly as you named it above, hashes and all, so the next entry finds it and joins the same section instead of starting a second one
   - варианты: `beginning` At the beginning · `end` At the end
   - видна если: `transform.inline2note.placement.position`
 - **Line above the text** — `content-header-mode`, `dropdown`, path `transform.inline2note.placement.headerMode`, default `datetime`

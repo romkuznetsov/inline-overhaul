@@ -477,8 +477,10 @@ function runCustomHeaderPlacementSuite() {
   /* 3. С решётками — только заголовок этой глубины. */
   {
     const out = transform.composeBodyWithPlacement(NOTE_WITH_SECTIONS, "- new entry", i2nAtHeader("### Log", "end"), "\n");
-    assertTrue(out.trimEnd().endsWith("- new entry"),
-      "`### Log` не находит заголовок второго уровня и уходит в запасное положение");
+    assertTrue(out.trimEnd().endsWith("### Log\n- new entry"),
+      "`### Log` не находит заголовок второго уровня, заводит свой и кладёт запись под него: " + out);
+    assertTrue(out.indexOf("## Log\n- first entry\n- second entry") >= 0,
+      "и чужую секцию второго уровня при этом не трогает");
   }
 
   /* 4. Заголовок последней строкой заметки: секция пуста, блок встаёт под ним. */
@@ -495,19 +497,66 @@ function runCustomHeaderPlacementSuite() {
       "из двух одноимённых заголовков берётся первый");
   }
 
-  /* 6. Заголовка нет: оба запасных положения. */
+  /*
+   * 6. Заголовка нет — он **заводится сам**, и запасное положение говорит, где
+   * (замечание заказчика по S4, 2026-09-08: «если `At custom header` не
+   * найден, то тогда он должен сам добавиться в заметке в зависимости от
+   * варианта `If header not found`»).
+   */
   {
     const noHeader = "intro line\n\n- something";
     const atEnd = transform.composeBodyWithPlacement(noHeader, "- new entry", i2nAtHeader("## Log", "end"), "\n");
-    assertEq(atEnd, "intro line\n\n- something\n\n- new entry", "заголовка нет, запасное положение — конец");
+    assertEq(atEnd, "intro line\n\n- something\n\n## Log\n- new entry",
+      "заголовка нет: он заведён в конце, и запись стоит под ним");
     const atStart = transform.composeBodyWithPlacement(noHeader, "- new entry", i2nAtHeader("## Log", "beginning"), "\n");
-    assertEq(atStart, "- new entry\n\nintro line\n\n- something", "заголовка нет, запасное положение — начало");
+    assertEq(atStart, "## Log\n- new entry\n\nintro line\n\n- something",
+      "то же в начале заметки");
   }
 
-  /* 7. Имя не задано вовсе — то же, что «не найден». */
+  /*
+   * 6а. Уровень заведённого заголовка берётся из имени, а не выдумывается.
+   *
+   * Это и есть **положительный контроль** к правилу «заведённый заголовок
+   * находится следующим запуском»: заведи мы всегда первый уровень, `## Log`
+   * во второй раз не нашёлся бы и заметка получила бы второй заголовок.
+   */
+  {
+    const first = transform.composeBodyWithPlacement("intro", "- one", i2nAtHeader("### Log", "end"), "\n");
+    assertTrue(first.indexOf("### Log") >= 0, "решётки имени задают уровень заведённого заголовка: " + first);
+    const second = transform.composeBodyWithPlacement(first, "- two", i2nAtHeader("### Log", "end"), "\n");
+    assertEq(second.match(/### Log/g).length, 1,
+      "второй запуск находит свой же заголовок, а не заводит второй: " + second);
+    assertTrue(second.indexOf("- one\n\n- two") >= 0,
+      "и вторая запись ложится в конец той же секции: " + second);
+  }
+
+  /* 6б. Решёток в имени нет — уровень первый, ровно как в плейсхолдере. */
+  {
+    const out = transform.composeBodyWithPlacement("intro", "- one", i2nAtHeader("Log", "end"), "\n");
+    assertEq(out, "intro\n\n# Log\n- one",
+      "имя без решёток заводит заголовок первого уровня");
+    const again = transform.composeBodyWithPlacement(out, "- two", i2nAtHeader("Log", "end"), "\n");
+    assertEq(again.match(/# Log/g).length, 1, "и он же находится в следующий раз: " + again);
+  }
+
+  /*
+   * 6в. Новая заметка без шаблона: тело пустое, заголовка в нём нет — значит
+   * это тот же случай «не нашёл», а не исключение из него. Раньше ветка пустого
+   * тела стояла выше и до заведения заголовка дело не доходило вовсе.
+   */
+  {
+    const out = transform.composeBodyWithPlacement("", "- new entry", i2nAtHeader("## Log", "end"), "\n");
+    assertEq(out, "## Log\n- new entry\n", "у новой заметки без шаблона заголовок тоже заводится");
+    const atStart = transform.composeBodyWithPlacement("", "- new entry", i2nAtHeader("## Log", "beginning"), "\n");
+    assertEq(atStart, "## Log\n- new entry\n", "положение в пустом теле одно и то же с любой стороны");
+  }
+
+  /* 7. Имя не задано вовсе — заводить нечего, работает запасное положение. */
   {
     const out = transform.composeBodyWithPlacement(NOTE_WITH_SECTIONS, "- new entry", i2nAtHeader("", "beginning"), "\n");
     assertTrue(out.startsWith("- new entry"), "пустое имя заголовка работает как запасное положение");
+    assertTrue(out.indexOf("#") === out.indexOf("## Log"),
+      "и своего заголовка при пустом имени не появляется: " + out);
   }
 
   /* 8. Строка над текстом не отменяется: заголовок блока ложится внутрь секции. */
@@ -542,8 +591,21 @@ function runCustomHeaderPlacementSuite() {
     const out = transform.appendBlockIntoNote(before, "- new entry", i2nAtHeader("## Log", "beginning"), "\n");
     assertTrue(out.startsWith("---\nnote: '## Log'\n---\n"),
       "строка внутри frontmatter не принимается за заголовок");
-    assertTrue(out.indexOf("---\n\n- new entry") >= 0 || out.indexOf("---\n- new entry") >= 0,
-      "запасное положение `начало` считается от тела, а не от файла");
+    assertTrue(out.indexOf("---\n## Log\n- new entry") >= 0,
+      "заголовок заводится в начале **тела**, а не файла: " + out);
+  }
+
+  /* 10а. Дописывание с заведением заголовка в конце заметки. */
+  {
+    const before = "---\ntags: [a]\n---\nplain body\n";
+    const out = transform.appendBlockIntoNote(before, "- new entry", i2nAtHeader("## Log", "end"), "\n");
+    assertEq(out, "---\ntags: [a]\n---\nplain body\n\n## Log\n- new entry\n",
+      "дописывание тоже заводит заголовок, и в том же виде");
+    const again = transform.appendBlockIntoNote(out, "- second", i2nAtHeader("## Log", "end"), "\n");
+    assertEq(again.match(/## Log/g).length, 1,
+      "и второй раз находит свой же заголовок: " + again);
+    assertTrue(again.indexOf("- new entry\n\n- second") >= 0,
+      "вторая запись ложится в конец той же секции: " + again);
   }
 
   /* 11. Остальные два положения при дописывании работают как работали. */

@@ -2633,6 +2633,45 @@ function placeBlockUnderHeader(baseBody, block, spec, nl) {
   return out.join(nl);
 }
 
+/**
+ * Заголовок, который мы заводим сами, когда названного в заметке нет (S4).
+ *
+ * **Замечание заказчика 2026-09-08:** «хочу изменить логику — если
+ * `At custom header` не найден, то тогда он должен сам добавиться в заметке в
+ * зависимости от варианта `If header not found`». Прежде запись ложилась в то
+ * же место, но **без** заголовка: человек выбирал положение ради секции, а
+ * получал запись вне всякой секции.
+ *
+ * **Уровень берётся из имени, а не выдумывается.** `## Log` в настройке значит
+ * «второй уровень», и заведённый заголовок обязан быть ровно таким: иначе
+ * следующий запуск своего же заголовка не найдёт и завёл бы второй. Решёток
+ * человек не написал — уровень ему безразличен, и ставится первый, ровно то,
+ * что показывает плейсхолдер строки (`# Header name`).
+ *
+ * Имени нет вовсе — заводить нечего, и положение работает как работало: пустая
+ * строка `Type name of header` ошибкой не считается.
+ */
+function headerLineForSpec(spec) {
+  if (!spec) return "";
+  const text = String(spec.text || "").trim();
+  if (!text) return "";
+  const level = Math.max(1, Math.min(6, Number(spec.level) || 1));
+  return `${"#".repeat(level)} ${text}`;
+}
+
+/**
+ * Блок вместе с заведённым для него заголовком (S4).
+ *
+ * Одно объявление на оба пути — новая заметка и дописывание, — по той же
+ * причине, по какой одна на двоих `placeBlockUnderHeader`: в этом файле два
+ * объявления правила укладки расходились трижды (У-32).
+ */
+function blockWithOwnHeader(block, spec, nl) {
+  const body = String(block || "");
+  const header = headerLineForSpec(spec);
+  return header ? `${header}${nl}${body}` : body;
+}
+
 function composeAppendBlock(inlineText, i2n) {
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const header = formatHeaderByMode({ placement: { ...placement, headerMode: "datetime" } });
@@ -2662,19 +2701,26 @@ function composeBodyWithPlacement(templateBody, inlineLine, i2n, newline) {
   const block = [header, source].filter(Boolean).join(nl);
   const placement = isObj(i2n && i2n.placement) ? i2n.placement : {};
   const pos = String(placement.position || "end").trim().toLowerCase();
-  if (!base.trim()) return block + nl;
   /*
    * `At custom header` (З-4): блок ложится **в конец секции** названного
-   * заголовка — решение заказчика. Заголовка в шаблоне нет — работает запасное
-   * положение, и оно спрашивается отдельной строкой панели.
+   * заголовка — решение заказчика. Заголовка в заметке нет — заголовок
+   * **заводится сам**, и запасное положение говорит, где именно (S4).
+   *
+   * Ветка стоит **до** проверки на пустое тело нарочно: у новой заметки без
+   * шаблона тело и есть пустое, и заголовка в нём тоже нет — то есть это самый
+   * частый случай «не нашёл», а не исключение из него.
    */
   if (pos === "custom-header") {
-    const placed = placeBlockUnderHeader(base, block, parseTargetHeaderSpec(placement.targetHeader), nl);
+    const spec = parseTargetHeaderSpec(placement.targetHeader);
+    const placed = placeBlockUnderHeader(base, block, spec, nl);
     if (placed !== null) return placed;
+    const own = blockWithOwnHeader(block, spec, nl);
+    if (!base.trim()) return own + nl;
     const fallback = String(placement.fallback || "end").trim().toLowerCase();
-    if (fallback === "beginning") return `${block}${nl}${nl}${base}`;
-    return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${block}`;
+    if (fallback === "beginning") return `${own}${nl}${nl}${base}`;
+    return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${own}`;
   }
+  if (!base.trim()) return block + nl;
   if (pos === "beginning") return `${block}${nl}${nl}${base}`;
   return `${base.replace(/\r?\n/g, nl)}${nl}${nl}${block}`;
 }
@@ -2700,14 +2746,19 @@ function appendBlockIntoNote(previous, block, i2n, nl) {
 
   const parsed = parseFrontmatter(before);
   const head = before.slice(0, before.length - parsed.body.length);
-  const placed = placeBlockUnderHeader(parsed.body, text, parseTargetHeaderSpec(placement.targetHeader), nl);
+  const spec = parseTargetHeaderSpec(placement.targetHeader);
+  const placed = placeBlockUnderHeader(parsed.body, text, spec, nl);
   if (placed !== null) return `${head}${placed}`;
+  /* Заголовка в заметке нет — заводится сам, тем же правилом, что и у новой
+     заметки (S4). Второе правило «как выглядит заведённый заголовок»
+     разошлось бы с первым молча (У-32). */
+  const own = blockWithOwnHeader(text, spec, nl);
   const fallback = String(placement.fallback || "end").trim().toLowerCase();
   if (fallback === "beginning") {
     const body = parsed.body.replace(/\r?\n/g, nl);
-    return body.trim() ? `${head}${text}${nl}${nl}${body}` : `${head}${text}${nl}`;
+    return body.trim() ? `${head}${own}${nl}${nl}${body}` : `${head}${own}${nl}`;
   }
-  return `${before.trimEnd()}${nl}${nl}${text}${nl}`;
+  return `${before.trimEnd()}${nl}${nl}${own}${nl}`;
 }
 
 function pathWithNumericSuffix(basePath, index) {
@@ -3675,6 +3726,8 @@ module.exports = {
   parseTargetHeaderSpec,
   findCustomHeaderInsertAt,
   placeBlockUnderHeader,
+  headerLineForSpec,
+  blockWithOwnHeader,
   composeBodyWithPlacement,
   composeAppendBlock,
   appendBlockIntoNote,

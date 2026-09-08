@@ -572,7 +572,7 @@ status: inbox
 
 For new/overwrite operations, transformed source content is inserted at the beginning of the template body, at its end, or at the end of a section you name.
 
-**At custom header** asks for two more things. **Type name of header** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If header not found** is where the text goes when the note has no such heading: at the beginning, or at the end. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
+**At custom header** asks for two more things. **Type name of header** is the heading the text is filed under, written as it stands in the note: put the hashes in (`## Log`) and only a heading of that depth counts, leave them out and a heading of any depth with those words will do. Case does not matter, and two headings with the same name mean the first one. **If header not found** is where the heading gets written when the note has none, at the beginning or at the end: the plugin adds the heading for you, at the depth you typed (no hashes means one), and files the text under it, so the next entry finds that heading and joins the same section. The block lands at the *end* of the section, so entries stay in the order you wrote them, and the same rule applies when the note already exists and you chose to add to it.
 
 The inserted block header can be:
 
