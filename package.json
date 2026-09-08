@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "gate": "node tests/gates/settings_layer_gates.ts",
     "gate:prototype": "node tests/prototype/run_all.js",
+    "gate:browser": "node tests/browser/run_all.js",
     "gen:schema": "node build/gen_schema.js",
     "install:test": "node build/install_test_vault.js"
   },
@@ -21,6 +22,7 @@
     "esbuild": "0.27.2",
     "eslint": "^9.37.0",
     "obsidian": "^1.13.1",
+    "playwright": "^1.63.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.46.0"
   },
