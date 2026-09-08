@@ -951,6 +951,12 @@ function normalizeConfigV2(cfg) {
   bool("visual.tags.blockFill.enabled");
   hex("visual.tags.blockFill.color");
   int("visual.tags.blockFill.opacity", 0, 100);
+  /* На сколько подложка выходит за написанное (замечание по S7). Высота — в
+     точках, ширина — в долях расстояния до разделителя. Границы держит
+     нормализация, а не панель: рукописный `data.json` иначе уехал бы за шкалу
+     и слой получил бы прямоугольник в пол-экрана. */
+  int("visual.tags.blockFill.heightPx", 0, 10);
+  int("visual.tags.blockFill.widthPct", 0, 100);
   normalizeTagVisualMapsV2(cfg);
 
   /* --- каретка: цвет, толщина, мерцание (10.13.33) ---------------------- */

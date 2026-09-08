@@ -317,14 +317,32 @@ function buildTagTokenSetForField(cfg, selectedFieldId) {
   return out;
 }
 
-function resolveTagVisualZone(lineText, tokenStart, sep1, sep2) {
+/**
+ * Где на строке стоят разделители: первый — слева, последний — справа.
+ *
+ * Одно объявление на всех, кто про них спрашивает: зона токена и промежуток от
+ * блока до разделителя (S7). Второй такой же поиск разошёлся бы с этим молча
+ * (У-32) — а разойтись тут есть на чём: слева берётся **первое** вхождение, а
+ * справа **последнее**, и при одинаковых разделителях это разные места.
+ */
+function lineSeparatorBounds(lineText, sep1, sep2) {
   const text = String(lineText || "");
   const s1 = String(sep1 || "").trim();
   const s2 = String(sep2 || "").trim();
   const i1 = s1 ? text.indexOf(s1) : -1;
   const i2 = s2 ? text.lastIndexOf(s2) : -1;
-  if (i1 >= 0 && tokenStart < i1) return "left";
-  if (i2 >= 0 && tokenStart > i2) return "right";
+  return {
+    first: i1,
+    firstEnd: i1 >= 0 ? i1 + s1.length : -1,
+    last: i2,
+    lastEnd: i2 >= 0 ? i2 + s2.length : -1,
+  };
+}
+
+function resolveTagVisualZone(lineText, tokenStart, sep1, sep2) {
+  const at = lineSeparatorBounds(lineText, sep1, sep2);
+  if (at.first >= 0 && tokenStart < at.first) return "left";
+  if (at.last >= 0 && tokenStart > at.last) return "right";
   return "middle";
 }
 
@@ -771,7 +789,38 @@ const BLOCK_FILL_MARKER_CLASS = "io-blockfill-marker";
 /** Умолчание прозрачности подложки: видно, но текст читается поверх. */
 const BLOCK_FILL_DEFAULT_OPACITY_PCT = 12;
 
-/** Что о заливке говорит конфиг: включена ли, каким цветом и насколько густо. */
+/**
+ * Умолчания того, на сколько подложка выходит за написанное.
+ *
+ * **Оба больше нуля нарочно** (замечание заказчика по S7, 2026-09-09).
+ * Подложка ровно по написанному лежит под пузырём тега, а у пузыря свой
+ * непрозрачный цвет — то есть блок из одного тега подложки не показывает
+ * вовсе: «если символов в block мало (например, стоит 1 тег), то полоска не
+ * появляется». Умолчание, при котором функция невидима, — это не умолчание.
+ */
+const BLOCK_FILL_DEFAULT_HEIGHT_PX = 3;
+const BLOCK_FILL_DEFAULT_WIDTH_PCT = 60;
+
+/**
+ * Целое из конфига в границах шкалы; мусор и пустота дают умолчание.
+ *
+ * `null` и пустая строка отсекаются до `Number`: он превращает и то и другое в
+ * ноль, а ноль здесь — законное значение настройки. То есть ключ, выставленный
+ * в `null` рукой, читался бы как «человек попросил ноль» — и функция тихо
+ * становилась бы невидимой, ровно тем дефектом, который этими величинами и
+ * лечится.
+ */
+function blockFillIntOr(raw, min, max, fallback) {
+  if (raw === null || raw === undefined || raw === "") return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.trunc(n)));
+}
+
+/**
+ * Что о заливке говорит конфиг: включена ли, каким цветом, насколько густо и
+ * насколько больше написанного.
+ */
 function blockFillLookFromConfig(cfg) {
   const src = isObj(readCfgPath(cfg, "visual.tags.blockFill"))
     ? readCfgPath(cfg, "visual.tags.blockFill")
@@ -785,7 +834,86 @@ function blockFillLookFromConfig(cfg) {
     opacity: Number.isFinite(pct)
       ? Math.max(0, Math.min(100, Math.trunc(pct))) / 100
       : BLOCK_FILL_DEFAULT_OPACITY_PCT / 100,
+    /* Высота — в точках: своей границы снаружи у неё нет. */
+    heightPx: blockFillIntOr(src.heightPx, 0, 10, BLOCK_FILL_DEFAULT_HEIGHT_PX),
+    /* Ширина — в долях расстояния до разделителя: границу назвал заказчик, и
+       она зависит от строки, а не от шкалы. */
+    widthPct: blockFillIntOr(src.widthPct, 0, 100, BLOCK_FILL_DEFAULT_WIDTH_PCT),
   };
+}
+
+/**
+ * На сколько подложка выходит за написанное по горизонтали, в точках.
+ *
+ * **Заказчик назвал границу сам:** «в крайнем правом положении она должна
+ * границей достигать начала сепаратора (и быть зеркальной с обратной стороны
+ * этого block)». Отсюда доля, а не точки: расстояние до разделителя — это
+ * ширина одного пробела на его шрифте, и шкала в точках была бы почти вся
+ * мёртвой.
+ *
+ * Промежутка нет или его нечем измерить — нет и выхода за написанное:
+ * подложка кончается на последнем значении, как кончалась. Придумать
+ * расстояние вместо измеренного значило бы заехать на разделитель.
+ */
+function blockFillPadXPx(look, gapPx) {
+  const pct = Number(look && look.widthPct);
+  const gap = Number(gapPx);
+  if (!Number.isFinite(pct) || pct <= 0) return 0;
+  if (!Number.isFinite(gap) || gap <= 0) return 0;
+  return (gap * Math.min(100, Math.max(0, pct))) / 100;
+}
+
+/**
+ * Части отрезка, сгруппированные по зрительной строке, на которой они стоят.
+ *
+ * **Замечание заказчика по S7, 2026-09-09:** «если right block переносится на
+ * другую строку, то выглядит некрасиво — на первой строке эта полоска идёт до
+ * границы экрана вправо, а на следующей строке начинается от левой границы
+ * экрана до конца элемента. Я хочу, чтобы… полоска на этой строке
+ * заканчивалась на последнем элементе right panel на этой строке, а на
+ * следующей строке начиналась от начала первого перенесённого элемента до
+ * конца последнего».
+ *
+ * **Причина ровно та, что он описал, и она в коде платформы** (У-44).
+ * `RectangleMarker.forRange` рисует **выделение**: у отрезка, начавшегося на
+ * одной зрительной строке и кончившегося на другой, первый кусок идёт до
+ * правого края содержимого (`toOpen` → `rightSide`), а последний начинается от
+ * левого (`fromOpen` → `leftSide`). Для выделения это верно, для подложки —
+ * нет: подложка обязана лежать на написанном.
+ *
+ * Поэтому отрезок отдаётся платформе **по куску на зрительную строку**, и
+ * тогда каждый кусок целиком на одной строке — то есть открытых краёв у него
+ * не бывает вовсе.
+ *
+ * Здесь **только группировка**, и она чистая: `tops[i]` — измеренная
+ * платформой вертикаль начала `parts[i]`, и меряет её тот, кто умеет, — сам
+ * CodeMirror. Часть, вертикаль которой измерить не удалось (`null`), встаёт
+ * своей группой: догадка о том, где она, хуже лишнего прямоугольника.
+ */
+function blockFillGroupPartsByLine(parts, tops) {
+  const list = Array.isArray(parts) ? parts : [];
+  const at = Array.isArray(tops) ? tops : [];
+  const out = [];
+  for (let i = 0; i < list.length; i++) {
+    const part = list[i];
+    if (!part || !(Number(part.to) > Number(part.from))) continue;
+    /* Нуль — законная вертикаль (самый верх содержимого), а `Number(null)`
+       равен нулю: неизмеренное надо отсечь **до** приведения к числу, иначе
+       часть без измерения склеится с той, что и правда стоит наверху. */
+    const raw = at[i];
+    const top = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+    const prev = out.length ? out[out.length - 1] : null;
+    /* Полточки допуска: подстрочные и надстрочные знаки внутри одной строки
+       дают вертикали, различающиеся на доли точки. */
+    const sameLine = prev !== null && prev.top !== null && top !== null
+      && Math.abs(top - prev.top) < 0.5;
+    if (sameLine) {
+      prev.to = Math.max(Number(prev.to), Number(part.to));
+      continue;
+    }
+    out.push({ from: Number(part.from), to: Number(part.to), top });
+  }
+  return out;
 }
 
 /**
@@ -802,17 +930,43 @@ function blockFillLookFromConfig(cfg) {
  * появляться».
  */
 function blockFillSpansInLine(text, sep1, sep2, elementMarkers) {
-  const tokens = scanLineVisualTokens(text, sep1, sep2, elementMarkers);
+  const src = String(text || "");
+  const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers);
+  const at = lineSeparatorBounds(src, sep1, sep2);
   const out = [];
   for (const zone of ["left", "right"]) {
+    const parts = [];
     let start = -1;
     let end = -1;
     for (const hit of tokens) {
       if (hit.zone !== zone) continue;
+      parts.push({ from: hit.index, to: hit.end });
       if (start < 0 || hit.index < start) start = hit.index;
       if (hit.end > end) end = hit.end;
     }
-    if (start >= 0 && end > start) out.push({ zone, start, end });
+    if (start < 0 || end <= start) continue;
+    /*
+     * Промежуток до разделителя — та мера, которой измеряется `Band width`
+     * (S7): сотня на ползунке значит «вплотную к разделителю». Слева он лежит
+     * за блоком, справа — перед ним, и по обе стороны это одна и та же пара
+     * «откуда — докуда», поэтому дальше её читают одним правилом.
+     *
+     * Зона существует только при своём разделителе (`resolveTagVisualZone`),
+     * так что промежуток тут есть всегда; пустым он выходит, когда пробела
+     * между блоком и разделителем нет вовсе, и это законно.
+     */
+    const gapFrom = zone === "left" ? end : at.lastEnd;
+    const gapTo = zone === "left" ? at.first : start;
+    out.push({
+      zone,
+      start,
+      end,
+      /* Части нужны переносу строки: подложка режется по зрительным строкам, а
+         резать её можно только по границам того, что нарисовано. */
+      parts,
+      gapFrom: gapTo > gapFrom ? gapFrom : -1,
+      gapTo: gapTo > gapFrom ? gapTo : -1,
+    });
   }
   return out;
 }
@@ -1244,6 +1398,7 @@ module.exports = {
   resolveEffectiveTagVisualMode,
   buildTagTokenSetForField,
   resolveTagVisualZone,
+  lineSeparatorBounds,
   normalizeVisualTokenKey,
   rangeIntersects,
   escapeRegExp,
@@ -1258,8 +1413,12 @@ module.exports = {
   BLOCK_FILL_LAYER_CLASS,
   BLOCK_FILL_MARKER_CLASS,
   BLOCK_FILL_DEFAULT_OPACITY_PCT,
+  BLOCK_FILL_DEFAULT_HEIGHT_PX,
+  BLOCK_FILL_DEFAULT_WIDTH_PCT,
   blockFillLookFromConfig,
   blockFillSpansInLine,
+  blockFillPadXPx,
+  blockFillGroupPartsByLine,
   buildBlockFillStyleCss,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,

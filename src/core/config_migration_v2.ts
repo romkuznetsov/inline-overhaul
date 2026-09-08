@@ -383,6 +383,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tags.blockFill.enabled"),
   keepV2("visual.tags.blockFill.color"),
   keepV2("visual.tags.blockFill.opacity"),
+  /* На сколько подложка больше написанного (замечание по S7, 2026-09-09):
+     тоже новые, и пары в версии 1 у них нет. */
+  keepV2("visual.tags.blockFill.heightPx"),
+  keepV2("visual.tags.blockFill.widthPct"),
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),
   /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание

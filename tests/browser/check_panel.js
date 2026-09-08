@@ -195,12 +195,62 @@ const NARROW_OK = {};
             return bg && bg.a > 0.001 ? 1 : 0;
           };
 
+          /*
+           * **На сколько подложка выходит за написанное** (замечание по S7).
+           * Спрашивается у браузера то, чего не видит ни заглушка, ни глаз на
+           * скриншоте: расстояние от края подложки до первого написанного в
+           * ней знака. Ноль здесь и есть тот дефект, с которым он пришёл:
+           * подложка ровно по пузырю тега, а у пузыря свой непрозрачный цвет.
+           */
+          const reach = () => {
+            const side = document.querySelector(
+              ".io-line--blockfill .io-line__side--left");
+            const kid = side ? side.firstElementChild : null;
+            if (!side || !kid) return null;
+            const a = side.getBoundingClientRect();
+            const b = kid.getBoundingClientRect();
+            return {
+              x: Math.round((b.left - a.left) * 100) / 100,
+              y: Math.round((b.top - a.top) * 100) / 100,
+            };
+          };
+          /*
+           * И вторая половина того же: подложка обязана вырасти, **не**
+           * раздвинув строку. В заметке её рисует слой, вёрстки он не
+           * касается вовсе, — значит и здесь высота строки от включения
+           * меняться не должна. Иначе предпросмотр обещал бы то, чего в
+           * заметке нет: ровно так уже разошлись эти два места.
+           */
+          const lineHeights = () => Array.from(document.querySelectorAll(".io-line"))
+            .map((el) => Math.round(el.getBoundingClientRect().height * 100) / 100);
+
+          out.lineHeightsOff = lineHeights();
           out.bandBefore = painted();
           if (!bandToggle.checked) bandToggle.click();
           const bandOnNode = findBandToggle();
           out.bandOn = !!bandOnNode && bandOnNode.checked === true;
           out.bandAfter = painted();
           out.bandOnEmpty = emptyPainted();
+          out.bandReach = reach();
+          out.lineHeightsOn = lineHeights();
+          /*
+           * И положительный контроль к самому измерению: ползунок ширины
+           * ставится в ноль, и подложка обязана **сжаться** до написанного.
+           * Величина, не изменившаяся от подмены, читается как «проверка
+           * слепа» — а слепа при ней бывает и сама подмена (У-110).
+           */
+          const widthSlider = Array.from(document.querySelectorAll("input[type=range]"))
+            .find((el) => {
+              const item = el.closest(".io-item");
+              const name = item ? item.querySelector(".io-item__name") : null;
+              return !!name && (name.textContent || "").trim() === "Band width";
+            });
+          if (widthSlider) {
+            widthSlider.value = "0";
+            widthSlider.dispatchEvent(new Event("input", { bubbles: true }));
+            widthSlider.dispatchEvent(new Event("change", { bubbles: true }));
+            out.bandReachAtZero = reach();
+          }
           if (bandOnNode && bandOnNode.checked) bandOnNode.click();
           out.bandBack = painted();
         }
@@ -334,6 +384,48 @@ const NARROW_OK = {};
       }
       if (b.bandOnEmpty < 0) {
         bad("пустую сторону некуда было положить: строки с подложкой на панели нет");
+      }
+      /*
+       * **Подложка обязана выходить за написанное** (замечание по S7). Тот
+       * самый дефект, с которым он пришёл: она ложилась ровно по пузырю тега,
+       * а у пузыря свой непрозрачный цвет — блок из одного тега подложки не
+       * показывал вовсе.
+       */
+      if (!b.bandReach) {
+        bad("подложку не с чем сравнить: строки с подложкой и написанным в ней нет");
+      } else {
+        if (!(b.bandReach.y > 0)) {
+          bad("подложка не выходит за написанное по вертикали (" + b.bandReach.y
+            + " точек) — под пузырём тега её не видно вовсе");
+        }
+        if (!(b.bandReach.x > 0)) {
+          bad("подложка не выходит за написанное по горизонтали (" + b.bandReach.x
+            + " точек)");
+        }
+      }
+      /* Положительный контроль: на нуле ползунка та же величина обязана стать
+         нулём. Не изменилась — измерение ничего не мерит (У-110). */
+      if (!b.bandReachAtZero) {
+        bad("ползунок `Band width` не найден — положительный контроль не поставлен");
+      } else if (b.bandReach && !(b.bandReachAtZero.x < b.bandReach.x)) {
+        bad("на нуле ползунка ширины подложка не сжалась: было "
+          + b.bandReach.x + ", стало " + b.bandReachAtZero.x
+          + " — измерение не зависит от настройки");
+      }
+      /*
+       * И она обязана вырасти, **не** раздвинув строку: в заметке её рисует
+       * слой, вёрстки он не касается вовсе. Разошлись эти два места ровно
+       * здесь — в панели подложка была больше написанного, в заметке ровно по
+       * нему, и заказчик увидел разницу.
+       */
+      if (String(b.lineHeightsOff) !== String(b.lineHeightsOn)) {
+        bad("включение подложки изменило высоту строк предпросмотра: было "
+          + b.lineHeightsOff + ", стало " + b.lineHeightsOn
+          + " — в заметке слой вёрстку не двигает, и панель не должна");
+      }
+      if (!Array.isArray(b.lineHeightsOff) || b.lineHeightsOff.length < 3) {
+        bad("строк предпросмотра для сверки высоты найдено "
+          + (Array.isArray(b.lineHeightsOff) ? b.lineHeightsOff.length : "ни одной"));
       }
       if (b.bandOnEmpty !== 0) {
         bad("подложку получила пустая сторона (" + b.bandOnEmpty

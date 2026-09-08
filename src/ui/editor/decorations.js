@@ -36,6 +36,8 @@ const {
   BLOCK_FILL_MARKER_CLASS,
   blockFillLookFromConfig,
   blockFillSpansInLine,
+  blockFillPadXPx,
+  blockFillGroupPartsByLine,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
   TAGWHEEL_SPAN_RANK,
@@ -658,7 +660,17 @@ function blockFillDocRanges(view, plugin) {
         const from = line.from + span.start;
         const to = line.from + span.end;
         if (to <= from) continue;
-        out.push({ zone: span.zone, from, to });
+        out.push({
+          zone: span.zone,
+          from,
+          to,
+          /* Части и промежуток до разделителя переводятся в положения
+             документа здесь же: дальше о строке никто не знает (S7). */
+          parts: (Array.isArray(span.parts) ? span.parts : []).map(
+            (p) => ({ from: line.from + p.from, to: line.from + p.to })),
+          gapFrom: span.gapFrom >= 0 ? line.from + span.gapFrom : -1,
+          gapTo: span.gapTo >= 0 ? line.from + span.gapTo : -1,
+        });
       }
       lineNo += 1;
     }
@@ -673,21 +685,147 @@ function blockFillDocRanges(view, plugin) {
  * проверяет набор; **платформенная** — где эти отрезки на экране, и её
  * проверять нечем и незачем, это код самого CodeMirror.
  */
+/**
+ * Вертикаль положения, измеренная платформой, или `null`.
+ *
+ * Сторона нужна: `coordsAtPos` меряет с одной из них, и по умолчанию справа
+ * (У-76). Начало части спрашивается справа от положения — там сама часть,
+ * конец слева — там её последний знак.
+ */
+function blockFillTopAt(view, pos, side) {
+  try {
+    const at = view.coordsAtPos(pos, side);
+    return at && Number.isFinite(at.top) ? at.top : null;
+  } catch (_) {
+    /* Проба: спросили платформу о положении, которого она может не знать
+       (снятый узел, положение вне отрисованного). Ответ «нет» — это ответ. */
+    return null;
+  }
+}
+
+/**
+ * Промежуток от блока до разделителя в точках, измеренный платформой.
+ *
+ * Он и есть мера `Band width` (S7): сотня на ползунке значит «вплотную к
+ * разделителю». Разница двух измерений от начала прокрутки не зависит, поэтому
+ * приводить их к чему-либо не нужно.
+ *
+ * Разделитель, уехавший на другую зрительную строку, промежутка не задаёт:
+ * разница координат там бессмысленна и бывает отрицательной.
+ */
+function blockFillGapPx(view, span) {
+  if (!(span.gapTo > span.gapFrom) || span.gapFrom < 0) return 0;
+  let a = null;
+  let b = null;
+  try {
+    a = view.coordsAtPos(span.gapFrom, -1);
+    b = view.coordsAtPos(span.gapTo, 1);
+  } catch (_) {
+    /* Проба, как и в `blockFillTopAt`: положение может быть не отрисовано. */
+    return 0;
+  }
+  if (!a || !b) return 0;
+  if (!Number.isFinite(a.top) || !Number.isFinite(b.top)) return 0;
+  if (Math.abs(Number(a.top) - Number(b.top)) >= 0.5) return 0;
+  const gap = Number(b.left) - Number(a.right);
+  return Number.isFinite(gap) && gap > 0 ? gap : 0;
+}
+
+/**
+ * Отрезок, разрезанный по зрительным строкам (S7).
+ *
+ * Целиком на одной строке — один кусок, и мерить по частям незачем: это
+ * обычный случай, и лишние измерения в нём стоили бы на каждой отрисовке.
+ * Началось и кончилось на разных — режем по границам нарисованного, потому что
+ * `forRange` на таком отрезке рисует **выделение**, то есть до края экрана
+ * (разбор — `blockFillGroupPartsByLine`).
+ */
+function blockFillPiecesOf(view, span) {
+  const whole = [{ from: span.from, to: span.to }];
+  const head = blockFillTopAt(view, span.from, 1);
+  const tail = blockFillTopAt(view, span.to, -1);
+  if (head !== null && tail !== null && Math.abs(head - tail) < 0.5) return whole;
+  const parts = Array.isArray(span.parts) ? span.parts : [];
+  if (parts.length < 2) return whole;
+  const tops = parts.map((p) => blockFillTopAt(view, p.from, 1));
+  const groups = blockFillGroupPartsByLine(parts, tops);
+  return groups.length ? groups : whole;
+}
+
+/**
+ * Те же отрезки, но прямоугольниками платформы.
+ *
+ * Разделено надвое нарочно: **наша половина** — какие отрезки красить и на
+ * сколько подложка больше написанного, и её проверяет набор; **платформенная**
+ * — где эти отрезки на экране, и её проверять нечем и незачем, это код самого
+ * CodeMirror.
+ */
 function blockFillMarkersFor(view, plugin) {
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  const look = blockFillLookFromConfig(cfg);
+  const padY = Math.max(0, Number(look.heightPx) || 0);
   const out = [];
   for (const span of blockFillDocRanges(view, plugin)) {
-    /*
-     * Отрезок отдаётся `forRange` теми же полями, какими его читает платформа.
-     * Объявлять здесь `EditorSelection` нечем: он живёт в копии состояния,
-     * отданной плагинам, а меряет копия, на которой собран редактор заметки
-     * (тот же разбор, что у каретки).
-     */
-    const range = { empty: false, from: span.from, to: span.to, anchor: span.from, head: span.to, assoc: 0 };
-    for (const marker of cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range)) {
-      out.push(marker);
+    const padX = blockFillPadXPx(look, blockFillGapPx(view, span));
+    for (const piece of blockFillPiecesOf(view, span)) {
+      /*
+       * Отрезок отдаётся `forRange` теми же полями, какими его читает
+       * платформа. Объявлять здесь `EditorSelection` нечем: он живёт в копии
+       * состояния, отданной плагинам, а меряет копия, на которой собран
+       * редактор заметки (тот же разбор, что у каретки).
+       */
+      const range = {
+        empty: false,
+        from: piece.from,
+        to: piece.to,
+        anchor: piece.from,
+        head: piece.to,
+        assoc: 0,
+      };
+      for (const marker of cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range)) {
+        if (!padX && !padY) { out.push(marker); continue; }
+        /*
+         * Прямоугольник **пересоздаётся**, а не правится на месте: поля его
+         * читает потом и `eq`, и отрисовка, и правка чужого объекта была бы
+         * договором, которого платформа не давала. Ширины может не быть вовсе
+         * (`null` значит «не задавать») — такому расти нечем.
+         */
+        const width = marker.width == null ? null : Number(marker.width) + padX * 2;
+        out.push(new cmView.RectangleMarker(
+          BLOCK_FILL_MARKER_CLASS,
+          Number(marker.left) - padX,
+          Number(marker.top) - padY,
+          width,
+          Number(marker.height) + padY * 2,
+        ));
+      }
     }
   }
   return out;
+}
+
+/**
+ * Надо ли перерисовать слой подложки.
+ *
+ * Вынесено из тела слоя нарочно: это **решение**, и его можно спросить без
+ * окна, а `layer(...)` прячет свой config в фасете платформы.
+ *
+ * Сравнивается **подпись**, а не один тумблер (S7). Цвет и густота живут в
+ * стилях, и слою до них дела нет; а высота и ширина подложки — геометрия
+ * прямоугольников, и пересчитать её может только перерисовка. Правка настройки
+ * сама по себе состояния редактора не меняет: пересборка присылает пустую
+ * правку выделения (`refreshOpenEditors`), и ни `docChanged`, ни
+ * `viewportChanged`, ни `geometryChanged` на ней не взводятся — то есть без
+ * подписи новые ползунки доезжали бы до заметки только после первой её правки
+ * (тот же класс, что У-56).
+ */
+function blockFillLayerNeedsRedraw(plugin, update, dom) {
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  const look = blockFillLookFromConfig(cfg);
+  const sig = look.enabled ? look.heightPx + ":" + look.widthPct : "off";
+  const flipped = dom.__ioBlockFillSig !== sig;
+  dom.__ioBlockFillSig = sig;
+  return !!(flipped || update.docChanged || update.viewportChanged || update.geometryChanged);
 }
 
 function createBlockFillLayerExtension(plugin) {
@@ -710,11 +848,7 @@ function createBlockFillLayerExtension(plugin) {
       }
     },
     update(update, dom) {
-      const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
-      const now = !!(cfg && blockFillLookFromConfig(cfg).enabled);
-      const flipped = dom.__ioBlockFillActive !== now;
-      dom.__ioBlockFillActive = now;
-      return flipped || update.docChanged || update.viewportChanged || update.geometryChanged;
+      return blockFillLayerNeedsRedraw(plugin, update, dom);
     },
   });
 }
@@ -941,6 +1075,7 @@ module.exports = {
   createCaretLayerExtension,
   blockFillDocRanges,
   blockFillMarkersFor,
+  blockFillLayerNeedsRedraw,
   createBlockFillLayerExtension,
   TagwheelTokenWidget,
   buildTagwheelHeaderDecorations,

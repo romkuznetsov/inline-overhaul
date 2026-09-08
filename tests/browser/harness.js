@@ -106,6 +106,21 @@ const INJECTIONS = {
     + " { background-color: rgba(255, 0, 0, 0.5) !important; }",
   "band-none": ".io-line--blockfill .io-line__side--left,"
     + " .io-line--blockfill .io-line__side--right { background-color: transparent !important; }",
+  /*
+   * Подложка ровно по написанному — тот дефект, с которым заказчик пришёл по
+   * S7: под пузырём тега её не видно вовсе, потому что у пузыря свой
+   * непрозрачный цвет.
+   */
+  "band-flat": ".io-line--blockfill .io-line__side--left,"
+    + " .io-line--blockfill .io-line__side--right"
+    + " { padding: 0 !important; margin: 0 !important; }",
+  /*
+   * Подложка выросла и **раздвинула строку**: поля без парных отрицательных
+   * отступов. Так и было в прототипе до 2026-09-09 — и именно поэтому в панели
+   * подложка выглядела больше написанного, а в заметке лежала ровно по нему.
+   */
+  "band-pushes": ".io-line--blockfill .io-line__side--left,"
+    + " .io-line--blockfill .io-line__side--right { margin: 0 !important; }",
 };
 
 function injectionCss(name) {

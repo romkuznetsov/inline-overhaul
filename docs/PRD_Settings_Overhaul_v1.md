@@ -978,7 +978,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (42)
+### Пути, которых не было в описи v1.0 (44)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -998,6 +998,8 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tags.blockFill.enabled` | Color the Blocks (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.color` | Block color (`tags-block-fill-color`) | Inline appearance |
 | `visual.tags.blockFill.opacity` | Block color strength (`tags-block-fill-opacity`) | Inline appearance |
+| `visual.tags.blockFill.heightPx` | Band height (`tags-block-fill-height`) | Inline appearance |
+| `visual.tags.blockFill.widthPct` | Band width (`tags-block-fill-width`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -5358,7 +5360,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 5 | 10 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 6 | 38 | 6 |
+| 5 | Visual | `features.visual.enabled` | 6 | 40 | 6 |
 | 6 | Transform | `features.transform.enabled` | 6 | 28 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -6106,7 +6108,7 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Opacity Right»
 - **Color the Blocks** — `tags-block-fill`, `toggle`, path `visual.tags.blockFill.enabled`, default `false`
   - desc: A band behind the Left Block and the Right Block, so the two stand out from your text
-  - tip: The band runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no band. The band sits <b>behind</b> the writing, so everything on the line stays selectable and clickable, and it follows the size and shape you set below — it is drawn on the same characters
+  - tip: The band runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no band. The band sits <b>behind</b> the writing, so everything on the line stays selectable and clickable. Tag bubbles carry their own color, so a Block of one tag would hide the band completely — the two rows at the bottom are how far it reaches past the writing, and that is what makes it show at all
   - старые названия для поиска: «Block background», «Color the Blocks»
 - **Block color** — `tags-block-fill-color`, `color`, path `visual.tags.blockFill.color`, default `""`
   - desc: Leave it unset and the band follows your theme
@@ -6116,6 +6118,16 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - desc: How strongly the band shows through
   - tip: Low numbers are the point: the band is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it
   - диапазон: 0–100, шаг 1, ед. %
+  - видна если: `visual.tags.blockFill.enabled`
+- **Band height** — `tags-block-fill-height`, `slider`, path `visual.tags.blockFill.heightPx`, default `3`
+  - desc: How far the band reaches above and below the writing
+  - tip: At <code>0</code> the band is exactly as tall as what it sits behind — and a tag bubble has its own color, so it would hide the band entirely. A few points are enough to see it around the bubbles. High numbers make the bands of neighbouring lines touch
+  - диапазон: 0–10, шаг 1, ед. px
+  - видна если: `visual.tags.blockFill.enabled`
+- **Band width** — `tags-block-fill-width`, `slider`, path `visual.tags.blockFill.widthPct`, default `60`
+  - desc: How far the band reaches to either side, towards the Separator
+  - tip: Measured against the gap between the last Value of the Block and the Separator: at <code>100</code> the band stops exactly where the Separator starts, and never covers it. The same amount is added on the other side of the Block, so the band stays even. At <code>0</code> it ends on the writing
+  - диапазон: 0–100, шаг 5, ед. %
   - видна если: `visual.tags.blockFill.enabled`
 - **Text size** — `tags-text-size`, `slider`, path `visual.tags.textSizePct`, default `100`
   - desc: How big everything in the two Blocks is written, next to the rest of your note
@@ -6428,7 +6440,9 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `visual.tagBars.thickness` | slider | `2` |
 | `visual.tags.blockFill.color` | color | `""` |
 | `visual.tags.blockFill.enabled` | toggle | `false` |
+| `visual.tags.blockFill.heightPx` | slider | `3` |
 | `visual.tags.blockFill.opacity` | slider | `12` |
+| `visual.tags.blockFill.widthPct` | slider | `60` |
 | `visual.tags.bubbleHeightPct` | slider | `100` |
 | `visual.tags.bubbleWidthPct` | slider | `100` |
 | `visual.tags.cornersPct` | slider | `0` |
