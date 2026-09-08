@@ -581,6 +581,76 @@ function runCustomHeaderPlacementSuite() {
  * нет (У-1). Без этой проверки «положение до записи не доехало» не краснело
  * бы нигде: чистые функции выше о том, кто их зовёт, не знают (У-56).
  */
+/* ====================================================================== */
+/* Своя ветка `Note content` у правила Smart Rules (З-5)                    */
+/* ====================================================================== */
+
+function runRulePlacementSuite() {
+  const common = {
+    placement: {
+      position: "end", headerMode: "none", headerLevel: "0",
+      customHeader: "", datetimeFormat: "YYYY-MM-DD",
+      targetHeader: "", fallback: "end",
+    },
+  };
+
+  /* 1. Правило молчит — работает общая настройка. */
+  {
+    assertEq(transform.resolvePlacementSource(common, null), common, "правила нет — конфиг тот же");
+    const quiet = { placementMode: "default", placement: { position: "beginning" } };
+    assertEq(transform.resolvePlacementSource(common, quiet), common,
+      "правило со своей веткой, но в режиме `default`, общую настройку не трогает");
+  }
+
+  /* 2. Правило говорит — работает его ветка, и остальное в ней нормализовано. */
+  {
+    const own = { placementMode: "custom", placement: { position: "beginning", headerMode: "none" } };
+    const used = transform.resolvePlacementSource(common, own);
+    assertEq(used.placement.position, "beginning", "положение берётся у правила");
+    assertEq(used.placement.headerMode, "none", "и остальное тоже");
+    assertEq(common.placement.position, "end", "а общая настройка не тронута");
+  }
+
+  /* 3. Два правила на одной строке дают разные заметки — это и есть смысл. */
+  {
+    const body = "intro";
+    const quiet = transform.composeBodyWithPlacement(
+      body, "- entry", transform.resolvePlacementSource(common, { placementMode: "default" }), "\n");
+    const own = transform.composeBodyWithPlacement(
+      body, "- entry", transform.resolvePlacementSource(common, {
+        placementMode: "custom",
+        placement: { position: "beginning", headerMode: "none", headerLevel: "0" },
+      }), "\n");
+    assertEq(quiet, "intro\n\n- entry", "правило без своей ветки кладёт запись в конец");
+    assertEq(own, "- entry\n\nintro", "правило со своей веткой — в начало");
+  }
+
+  /* 4. Через настоящую нормализацию конфига: ключи правила переживают патч. */
+  {
+    const cfg = transform.normalizeTransformConfig({
+      transform: {
+        inline2note: {
+          enabled: true,
+          smartRules: [{ id: "r1", enabled: true, placementMode: "custom",
+            placement: { position: "custom-header", targetHeader: "## Log" },
+            conditions: { tags: ["#todo"] } }],
+        },
+      },
+    });
+    const rule = cfg.transform.inline2note.smartRules[0];
+    assertEq(rule.placementMode, "custom", "режим ветки переживает нормализацию конфига");
+    assertEq(rule.placement.position, "custom-header", "и её значения тоже");
+    assertEq(rule.placement.targetHeader, "## Log", "имя заголовка не теряет решёток");
+    const quiet = transform.normalizeTransformConfig({
+      transform: { inline2note: { enabled: true, smartRules: [{ id: "r2", enabled: true, conditions: { tags: ["#x"] } }] } },
+    }).transform.inline2note.smartRules[0];
+    assertEq(quiet.placementMode, "default", "правило без ветки получает `default`");
+    assertEq(quiet.placement.position, "end", "а сама ветка досыпается умолчаниями движка");
+  }
+
+  console.log("  ok  своя ветка `Note content` у правила (З-5)");
+}
+
 async function testCustomHeaderReachesTheWrittenNote() {
   const before = ["## Log", "- first entry", "", "## Other", "- not mine"].join("\n") + "\n";
   let written = "";
@@ -622,6 +692,7 @@ async function run() {
   await testProcessedTokenLeftPanelAfterCleanedLeftSegment();
   runCustomHeaderPlacementSuite();
   await testCustomHeaderReachesTheWrittenNote();
+  runRulePlacementSuite();
   console.log("Transform runtime regression tests: OK");
 }
 

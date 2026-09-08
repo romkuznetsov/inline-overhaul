@@ -2115,6 +2115,23 @@
   color: var(--text-muted);
 }
 .io-rule__arrow { color: var(--text-accent); font-size: 13px; }
+/*
+ * Своя ветка `Note content` у правила (З-5). Строки стоят лесенкой и с
+ * чертой слева: так они читаются как содержимое строки `Advanced settings`,
+ * а не как соседние настройки правила. Тот же приём, что у списка Fields
+ * под своей строкой-заголовком.
+ */
+.io-rule__placement {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0 18px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--background-modifier-border);
+}
+.io-rule__plrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.io-rule__pllabel { flex: 0 0 auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+
 .io-rule__warn {
   display: flex;
   align-items: flex-start;

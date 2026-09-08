@@ -913,4 +913,70 @@ function baseConfig(rules?: Any[]): Any {
   ok("без обработчика имя Field остаётся подписью");
 }
 
+/* ---- `Advanced settings` у правила (З-5) -------------------------------- */
+
+{
+  /*
+   * Заказчик 2026-09-08: «под `move to folder` появилась новая строка
+   * `Advanced settings`… по умолчанию должно стоять `default`».
+   *
+   * Проверяется настоящий путь записи: нажатие в карточке идёт через модель и
+   * `ConfigStore`, то есть через `migrateConfig` и нормализацию движка.
+   */
+  const p = makePanel(baseConfig([{ id: "r1", enabled: true, targetTemplate: "Templates/task.md" }]));
+  const advOf = (): StubNode => {
+    const hit = all(p.host, "io-select").find(n =>
+      String(n.getAttribute("aria-label") || "").startsWith("Advanced settings"));
+    assert.ok(hit, "строка Advanced settings есть в карточке правила");
+    return hit as StubNode;
+  };
+
+  assert.equal(advOf().value, "default", "по умолчанию стоит `default` — как в Note content");
+  assert.equal(all(p.host, "io-rule__plrow").length, 0,
+    "и никаких дополнительных строк при этом не показано");
+
+  advOf().value = "custom";
+  advOf().dispatch("change");
+  assert.equal(p.rules()[0].placementMode, "custom", "режим ветки записался");
+  const rows = all(p.host, "io-rule__plrow");
+  assert.ok(rows.length >= 3, "открылись строки ветки, их " + rows.length);
+
+  const rowOf = (prefix: string): StubNode | undefined =>
+    all(p.host, "io-select").concat(all(p.host, "io-text"))
+      .find(n => String(n.getAttribute("aria-label") || "").startsWith(prefix));
+
+  const position = rowOf("Where to put the text");
+  assert.ok(position, "строка `Where to put the text` есть");
+  (position as StubNode).value = "custom-header";
+  (position as StubNode).dispatch("change");
+  assert.equal(p.rules()[0].placement.position, "custom-header", "положение записалось в ветку правила");
+
+  const target = rowOf("Type name of header");
+  assert.ok(target, "при `At custom header` появилось поле имени заголовка");
+  (target as StubNode).value = "## Log";
+  (target as StubNode).dispatch("change");
+  assert.equal(p.rules()[0].placement.targetHeader, "## Log", "имя заголовка записалось");
+  assert.ok(rowOf("If header not found"), "и строка запасного положения тоже на месте");
+
+  /* Переключение обратно на `Default` не стирает настроенное. */
+  advOf().value = "default";
+  advOf().dispatch("change");
+  assert.equal(p.rules()[0].placementMode, "default", "режим вернулся");
+  assert.equal(p.rules()[0].placement.targetHeader, "## Log",
+    "а настроенное осталось: переключение туда и обратно не стоит человеку ветки");
+  assert.equal(all(p.host, "io-rule__plrow").length, 0, "строки при этом снова скрыты");
+  ok("Advanced settings у правила пишет свою ветку на настоящем пути записи");
+}
+
+{
+  /* Модуль выключен — строка видна и ничего не меняет (тот же приём, что у
+     остальных контролов карточки). */
+  const p = makePanel(baseConfig([{ id: "r1", enabled: true }]), { enabled: false });
+  const adv = all(p.host, "io-select").find(n =>
+    String(n.getAttribute("aria-label") || "").startsWith("Advanced settings"));
+  assert.ok(adv, "строка на месте и при выключенном модуле");
+  assert.equal((adv as StubNode).disabled, true, "но она не нажимается");
+  ok("при выключенном модуле Advanced settings ничего не меняет");
+}
+
 console.log("\n" + passed + " проверок пройдено");

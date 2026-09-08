@@ -860,6 +860,27 @@ async function run() {
     assertTrue(/__sharedUtils\.isWordChar/.test(selectAllSrc),
       "и он тоже спрашивает её у общего модуля");
   }
+  {
+    /*
+     * Чей `placement` едет дальше (З-5). Ответ считается **один раз** —
+     * `resolvePlacementSource`, — и дальше его обязаны взять все три места:
+     * тело новой заметки, блок дописывания и сама запись. Место, оставшееся
+     * с общей настройкой, молча игнорировало бы `Advanced settings` у
+     * правила: поведение видно только на конкретном правиле, а тут его
+     * ловит один взгляд в исходник (У-56).
+     */
+    const transformSrc = fs.readFileSync(
+      path.join(__dirname, "..", "..", "src", "features", "transform_feature.js"), "utf8");
+    assertTrue(/const placementSource = resolvePlacementSource\(i2n, smartRule\);/.test(transformSrc),
+      "чей placement работает, решается один раз");
+    assertTrue(/composeBodyWithPlacement\(body, noteBlockText, placementSource, newline\)/.test(transformSrc),
+      "тело новой заметки собирается по этому ответу");
+    assertTrue(/composeAppendBlock\(noteBlockText, placementSource\)/.test(transformSrc),
+      "блок дописывания — по нему же");
+    assertTrue(/writeInline2Note\(plugin, target, noteContent, appendBlock, placementSource\)/.test(transformSrc),
+      "и сама запись получает его же");
+  }
+
   /* И-4: карта токенов читает обе корзины, иначе Field типа link не участвует
      в перестановке по Order и уезжает в конец блока. Пин на исходник, потому
      что чтение правой корзины легко потерять при следующей правке функции. */

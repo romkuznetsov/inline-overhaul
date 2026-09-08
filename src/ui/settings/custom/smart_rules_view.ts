@@ -21,7 +21,7 @@
 
 import type { El, ElInput, DragEv } from "./dom.ts";
 import { el, btn, selectInput, textInput } from "./dom.ts";
-import type { RowKind, RuleKind, RuleRow, RulesModel } from "./smart_rules_model.ts";
+import type { RowKind, RuleKind, RulePlacement, RuleRow, RulesModel } from "./smart_rules_model.ts";
 import { ROW_KINDS } from "./smart_rules_model.ts";
 import { templatesEmptyChoice } from "../templates.ts";
 import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
@@ -162,6 +162,102 @@ function kindRow(host: El, row: RuleRow, kind: RowKind, o: RulesViewOpts): void 
       o.redraw();
     });
   }) as never);
+}
+
+/**
+ * Своя ветка `Note content` у правила (З-5, заказчик 2026-09-08).
+ *
+ * Заказчик: «под `move to folder` появилась новая строка `Advanced settings`,
+ * при нажатии на которую бы открывались дополнительные опции, по сути
+ * дублирующие note-content… По умолчанию должно стоять `default` — т.е.
+ * поведение как у note-content».
+ *
+ * **Открывает опции сам выбор, а не отдельная кнопка.** Строка `Advanced
+ * settings` несёт список из двух значений; `Default` — «как в `Note content`»,
+ * и это умолчание. Второе состояние (открыто/закрыто) пришлось бы где-то
+ * хранить, а хранить его негде: панель перерисовывает блок от любого
+ * изменения хранилища, и в памяти вёрстки оно терялось бы на каждом шаге.
+ *
+ * **Строки те же, что в `Note content`, и появляются они по тем же условиям:**
+ * имя заголовка и запасное положение — только при `At custom header`, уровень
+ * — когда строка над текстом вообще есть, а текст и формат даты — каждый при
+ * своём режиме. Иначе у правила стояли бы контролы, которым нечего решать (З8).
+ */
+function placementRows(host: El, row: RuleRow, index: number, o: RulesViewOpts): void {
+  const say = o.say || PLAIN;
+  const p: RulePlacement = row.placement;
+  const box = el(host, "div", "io-rule__placement");
+
+  const aria = (name: string): string => say("PL_ROW_ARIA", name, ruleTitle(row, index));
+
+  const line = (label: string): El => {
+    const wrap = el(box, "div", "io-rule__plrow");
+    el(wrap, "span", "io-rule__pllabel", label);
+    return wrap;
+  };
+
+  const pick = (
+    label: string,
+    value: string,
+    options: ReadonlyArray<{ value: string; label: string }>,
+    write: (next: string) => void,
+  ): void => {
+    const wrap = line(label);
+    const input = selectInput(wrap, "io-select", { options: options.slice(), value, label: aria(label) });
+    input.disabled = !o.enabled;
+    input.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      write(input.value);
+      o.redraw();
+    }) as never);
+  };
+
+  const type = (label: string, value: string, hint: string, write: (next: string) => void): void => {
+    const wrap = line(label);
+    const input = textInput(wrap, "io-text io-text--mono", { value, placeholder: hint, label: aria(label) });
+    input.disabled = !o.enabled;
+    input.addEventListener("change", (() => {
+      if (!o.enabled) return;
+      write(input.value);
+      o.redraw();
+    }) as never);
+  };
+
+  pick(say("PL_POSITION"), p.position, [
+    { value: "beginning", label: say("PL_POSITION_BEGINNING") },
+    { value: "end", label: say("PL_POSITION_END") },
+    { value: "custom-header", label: say("PL_POSITION_HEADER") },
+  ], next => o.model.setPlacement(row.id, { position: next }));
+
+  if (p.position === "custom-header") {
+    type(say("PL_TARGET_HEADER"), p.targetHeader, say("PL_TARGET_HEADER_HINT"),
+      next => o.model.setPlacement(row.id, { targetHeader: next }));
+    pick(say("PL_FALLBACK"), p.fallback, [
+      { value: "beginning", label: say("PL_POSITION_BEGINNING") },
+      { value: "end", label: say("PL_POSITION_END") },
+    ], next => o.model.setPlacement(row.id, { fallback: next }));
+  }
+
+  pick(say("PL_HEADER_MODE"), p.headerMode, [
+    { value: "custom", label: say("PL_HEADER_MODE_CUSTOM") },
+    { value: "datetime", label: say("PL_HEADER_MODE_DATETIME") },
+    { value: "none", label: say("PL_HEADER_MODE_NONE") },
+  ], next => o.model.setPlacement(row.id, { headerMode: next }));
+
+  if (p.headerMode !== "none") {
+    pick(say("PL_HEADER_LEVEL"), p.headerLevel, [{ value: "0", label: say("PL_HEADER_LEVEL_PLAIN") }]
+      .concat(["1", "2", "3", "4", "5", "6"].map(n => ({ value: n, label: n }))),
+      next => o.model.setPlacement(row.id, { headerLevel: next }));
+  }
+
+  if (p.headerMode === "custom") {
+    type(say("PL_HEADER_TEXT"), p.customHeader, "",
+      next => o.model.setPlacement(row.id, { customHeader: next }));
+  }
+  if (p.headerMode === "datetime") {
+    type(say("PL_DATETIME"), p.datetimeFormat, "",
+      next => o.model.setPlacement(row.id, { datetimeFormat: next }));
+  }
 }
 
 /** Одна карточка правила. */
@@ -318,6 +414,30 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
     if (o.folderSuggest) o.folderSuggest(path, writeFolder);
     path.addEventListener("change", (() => { writeFolder(path.value); }) as never);
   }
+
+  /*
+   * `Advanced settings` (З-5): своя ветка `Note content` у правила. Стоит под
+   * `Move to folder` — там, где её и просил заказчик.
+   */
+  const adv = el(main, "div", "io-rule__out io-rule__advanced");
+  el(adv, "span", "io-rule__arrow", "\u2192");
+  el(adv, "span", undefined, say("RULE_ADVANCED"));
+  const advPick = selectInput(adv, "io-select", {
+    options: [
+      { value: "default", label: say("RULE_ADVANCED_DEFAULT") },
+      { value: "custom", label: say("RULE_ADVANCED_CUSTOM") },
+    ],
+    value: row.placementMode,
+    label: say("RULE_ADVANCED_ARIA", ruleTitle(row, index)),
+  });
+  advPick.disabled = !o.enabled;
+  advPick.addEventListener("change", (() => {
+    if (!o.enabled) return;
+    o.model.setPlacementMode(row.id, advPick.value === "custom" ? "custom" : "default");
+    o.redraw();
+  }) as never);
+
+  if (row.placementMode === "custom") placementRows(main, row, index, o);
 
   /* Спор с другим правилом считает движок, а не карточка. */
   if (row.conflict) {

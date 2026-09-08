@@ -779,6 +779,15 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   font-size: var(--font-ui-smaller); color: var(--text-muted);
 }
 .io-rule__arrow { color: var(--text-accent); font-size: 13px; }
+/* Своя ветка `Note content` у правила (З-5): строки под `Advanced settings`
+   стоят лесенкой, чтобы читались как содержимое строки, а не как соседи. */
+.io-rule__placement {
+  display: flex; flex-direction: column; gap: 4px;
+  margin: 4px 0 0 18px; padding: 6px 8px;
+  border-left: 2px solid var(--background-modifier-border);
+}
+.io-rule__plrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.io-rule__pllabel { flex: 0 0 auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .io-rule__warn {
   display: flex; align-items: flex-start; gap: 7px; padding: 7px 12px;
   border-top: 1px solid var(--background-modifier-border);
@@ -5359,6 +5368,74 @@ function renderSmartRules(host) {
       path.addEventListener("change", () => { r.folder = path.value; renderContent(); });
     }
 
+    /* `Advanced settings` у правила (З-5, заказчик 2026-09-08): своя ветка
+       `Note content`. Открывает опции сам выбор, а не отдельная кнопка:
+       второе состояние (открыто/закрыто) пришлось бы где-то хранить, а
+       панель перерисовывает блок от любого изменения хранилища. */
+    const adv = el("div", "io-rule__out io-rule__advanced", main);
+    el("span", "io-rule__arrow", adv, "→");
+    el("span", null, adv, "Advanced settings");
+    const advMode = selectEl(adv, [
+      { value:"default", label:"Default" },
+      { value:"custom",  label:"Set for this rule" }
+    ], r.placementMode || "default", "Advanced settings for rule " + (i + 1));
+    advMode.addEventListener("change", () => {
+      r.placementMode = advMode.value;
+      renderContent();
+    });
+
+    if ((r.placementMode || "default") === "custom") {
+      const p = r.placement || (r.placement = {
+        position:"end", targetHeader:"", fallback:"end",
+        headerMode:"datetime", headerLevel:"3", customHeader:"Captured",
+        datetimeFormat:"YYYY-MM-DD HH:mm"
+      });
+      const plBox = el("div", "io-rule__placement", main);
+      const plLine = (label) => {
+        const wrap = el("div", "io-rule__plrow", plBox);
+        el("span", "io-rule__pllabel", wrap, label);
+        return wrap;
+      };
+      const plPick = (label, key, options) => {
+        const wrap = plLine(label);
+        const sel = selectEl(wrap, options, p[key], label + " for rule " + (i + 1));
+        sel.addEventListener("change", () => { p[key] = sel.value; renderContent(); });
+      };
+      const plType = (label, key, hint) => {
+        const wrap = plLine(label);
+        const input = el("input", "io-text io-text--mono", wrap);
+        input.type = "text";
+        input.value = p[key] || "";
+        if (hint) input.placeholder = hint;
+        input.setAttribute("aria-label", label + " for rule " + (i + 1));
+        input.addEventListener("change", () => { p[key] = input.value; renderContent(); });
+      };
+
+      plPick("Where to put the text", "position", [
+        { value:"beginning",     label:"At the beginning" },
+        { value:"end",           label:"At the end" },
+        { value:"custom-header", label:"At custom header" }
+      ]);
+      if (p.position === "custom-header") {
+        plType("Type name of header", "targetHeader", "# Header name");
+        plPick("If header not found", "fallback", [
+          { value:"beginning", label:"At the beginning" },
+          { value:"end",       label:"At the end" }
+        ]);
+      }
+      plPick("Line above the text", "headerMode", [
+        { value:"custom",   label:"Fixed text" },
+        { value:"datetime", label:"Date and time" },
+        { value:"none",     label:"Nothing" }
+      ]);
+      if (p.headerMode !== "none") {
+        plPick("Line above is header", "headerLevel", [{ value:"0", label:"No (plain text)" }]
+          .concat(["1","2","3","4","5","6"].map(n => ({ value:n, label:n }))));
+      }
+      if (p.headerMode === "custom") plType("Text of the line above", "customHeader", "");
+      if (p.headerMode === "datetime") plType("Date format", "datetimeFormat", "");
+    }
+
     if (r.conflict) {
       const warn = el("div", "io-rule__warn", main);
       el("span", null, warn, "⚠");
@@ -5371,7 +5448,7 @@ function renderSmartRules(host) {
   add.type = "button";
   add.addEventListener("click", () => {
     RULES.push({ id:"r" + (RULES.length + 1), name:"", enabled:true, template:"None", conflict:"",
-      folderMode:"default", folder:"", conditions:[] });
+      folderMode:"default", folder:"", placementMode:"default", conditions:[] });
     renderContent();
   });
 

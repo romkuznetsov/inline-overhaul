@@ -69,6 +69,40 @@ const ROW_OF_FIELD_KIND: Record<string, RowKind> = {
   wikilink: "wikilinks",
 };
 
+/**
+ * Своя ветка `Note content` у правила (З-5, заказчик 2026-09-08).
+ *
+ * `default` — «как в `Note content`»; ветка при этом всё равно хранится, и
+ * значения не теряются от переключения режима туда и обратно.
+ *
+ * **Умолчаний здесь нет намеренно.** Их знает движок
+ * (`DEFAULT_INLINE2NOTE.placement`), и `normalizeSmartRules` идёт внутри
+ * `migrateConfig`, то есть на каждом патче: вёрстка читает уже нормализованное.
+ * Второй список умолчаний разошёлся бы с первым молча (У-32).
+ */
+export type RulePlacementMode = "default" | "custom";
+
+/** Значения ветки. Все строками: список схемы хранит строки, и уровень тоже. */
+export interface RulePlacement {
+  position: string;
+  targetHeader: string;
+  fallback: string;
+  headerMode: string;
+  headerLevel: string;
+  customHeader: string;
+  datetimeFormat: string;
+}
+
+export const EMPTY_PLACEMENT: RulePlacement = {
+  position: "",
+  targetHeader: "",
+  fallback: "",
+  headerMode: "",
+  headerLevel: "",
+  customHeader: "",
+  datetimeFormat: "",
+};
+
 /** Как выбирается папка новой заметки у правила (10.13.8). */
 export type RuleFolderMode = "default" | "near" | "folder";
 
@@ -84,6 +118,10 @@ export interface RuleRow {
   folderMode: RuleFolderMode;
   /** Путь своей папки; значим только при `folder`. */
   folder: string;
+  /** Своя ветка `Note content` или общая (З-5). */
+  placementMode: RulePlacementMode;
+  /** Значения своей ветки; значимы только при `custom`. */
+  placement: RulePlacement;
   conditions: Record<RuleKind, string[]>;
   /** Разбор движка: правило спорит с другим или осталось без условий. */
   conflict: string;
@@ -126,6 +164,21 @@ function normalizeFolderMode(raw: unknown): RuleFolderMode {
   return v === "near" || v === "folder" ? v : "default";
 }
 
+/** Ветка правила как есть: пустое поле значит «движок ещё не нормализовал». */
+function readPlacement(raw: unknown): RulePlacement {
+  const p = asObject(raw);
+  const text = (key: string): string => String(p[key] == null ? "" : p[key]).trim();
+  return {
+    position: text("position"),
+    targetHeader: text("targetHeader"),
+    fallback: text("fallback"),
+    headerMode: text("headerMode"),
+    headerLevel: text("headerLevel"),
+    customHeader: text("customHeader"),
+    datetimeFormat: text("datetimeFormat"),
+  };
+}
+
 function inline2note(cfg: unknown): Record<string, unknown> {
   return asObject(asObject(asObject(cfg)["transform"])["inline2note"]);
 }
@@ -163,6 +216,8 @@ export function createRulesModel(deps: RulesModelDeps) {
         targetTemplate: String(r["targetTemplate"] || "").trim(),
         folderMode: normalizeFolderMode(r["targetFolderMode"]),
         folder: String(r["targetFolder"] || "").trim(),
+        placementMode: String(r["placementMode"] || "").trim().toLowerCase() === "custom" ? "custom" : "default",
+        placement: readPlacement(r["placement"]),
         conditions: {
           tags: strings(conditions["tags"]),
           emojiFields: strings(conditions["emojiFields"]),
@@ -233,6 +288,8 @@ export function createRulesModel(deps: RulesModelDeps) {
       targetTemplate: r.targetTemplate,
       targetFolderMode: r.folderMode,
       targetFolder: r.folder,
+      placementMode: r.placementMode,
+      placement: { ...r.placement },
       conditions: {
         tags: r.conditions.tags.slice(),
         emojiFields: r.conditions.emojiFields.slice(),
@@ -260,6 +317,9 @@ export function createRulesModel(deps: RulesModelDeps) {
       targetTemplate: "",
       folderMode: "default",
       folder: "",
+      /* Новое правило ведёт себя как `Note content` — решение заказчика. */
+      placementMode: "default",
+      placement: { ...EMPTY_PLACEMENT },
       conditions: { tags: [], emojiFields: [], wikilinks: [], fields: [] },
       conflict: "",
     });
@@ -328,6 +388,24 @@ export function createRulesModel(deps: RulesModelDeps) {
   };
 
   /**
+   * Своя ветка `Note content` у правила (З-5).
+   *
+   * Режим и значения пишутся врозь: переключение на `Default` не стирает то,
+   * что человек уже настроил, — иначе случайное переключение туда и обратно
+   * стоило бы ему всей ветки.
+   */
+  const setPlacementMode = (id: string, mode: RulePlacementMode): void => {
+    patchRule(id, { placementMode: mode }, "transform:smart-rules:placement-mode:" + id);
+  };
+
+  const setPlacement = (id: string, patch: Partial<RulePlacement>): void => {
+    const rules = listRules().map(r => (r.id === id
+      ? { ...r, placement: { ...r.placement, ...patch } }
+      : r));
+    save(rules, "transform:smart-rules:placement:" + id);
+  };
+
+  /**
    * Перенос правила. Порядок значим — правила читаются сверху вниз, и
    * срабатывает первое подходящее (С-6), — поэтому это настройка, а не вид.
    */
@@ -349,6 +427,8 @@ export function createRulesModel(deps: RulesModelDeps) {
     setEnabled,
     setTemplate,
     setFolder,
+    setPlacementMode,
+    setPlacement,
     fieldLabel,
     fieldRowKind,
     addCondition,

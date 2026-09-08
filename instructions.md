@@ -587,6 +587,7 @@ A smart rule routes a source line to a template based on tags, element markers, 
 
 - Values within one condition group use OR matching.
 - Non-empty groups on the same rule all must match.
+- **Advanced settings** on a rule decides where the text lands for that rule alone. `Default` follows **Note content**; `Set for this rule` opens the same rows and keeps them with the rule. Switching back to `Default` does not erase what you set.
 - Rules are checked in order; first matching enabled rule with a target template wins.
 - If no rule matches, the default template is used.
 - A rule with no conditions is disabled.

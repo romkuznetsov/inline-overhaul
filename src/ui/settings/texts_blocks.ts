@@ -292,6 +292,30 @@ export const BLOCK_TEXTS = {
     RULE_STOP: "Stop using {0}",
     RULE_REMOVE: "Remove {0}",
     CONDITION_REMOVE: "Remove {0}",
+    /* ---- `Advanced settings` у правила (З-5) ------------------------------
+       Слова повторяют `Note content`, и это не копия текста, а вторая его
+       точка на экране: у правила свои строки и свои ключи каталога, а
+       переводятся они врозь. Читаются они здесь и нигде больше. */
+    RULE_ADVANCED: "Advanced settings",
+    RULE_ADVANCED_ARIA: "Advanced settings for {0}",
+    RULE_ADVANCED_DEFAULT: "Default",
+    RULE_ADVANCED_CUSTOM: "Set for this rule",
+    PL_ROW_ARIA: "{0} for {1}",
+    PL_POSITION: "Where to put the text",
+    PL_POSITION_BEGINNING: "At the beginning",
+    PL_POSITION_END: "At the end",
+    PL_POSITION_HEADER: "At custom header",
+    PL_TARGET_HEADER: "Type name of header",
+    PL_TARGET_HEADER_HINT: "# Header name",
+    PL_FALLBACK: "If header not found",
+    PL_HEADER_MODE: "Line above the text",
+    PL_HEADER_MODE_CUSTOM: "Fixed text",
+    PL_HEADER_MODE_DATETIME: "Date and time",
+    PL_HEADER_MODE_NONE: "Nothing",
+    PL_HEADER_LEVEL: "Line above is header",
+    PL_HEADER_LEVEL_PLAIN: "No (plain text)",
+    PL_HEADER_TEXT: "Text of the line above",
+    PL_DATETIME: "Date format",
   },
 
   /* ---- Binder ---------------------------------------------------------- */

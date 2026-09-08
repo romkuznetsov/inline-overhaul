@@ -60,7 +60,7 @@
 | З-2 | перенос текста не выходит за пределы слова | `navigation_runtime.js`, `decideMoveMode` | **да** | тумблер + два шва |
 | З-3 | `Ctrl+A`: режим `word` и режим `Custom` | `enhanced_select_all_engine.js` | нет | новый отрезок, новый блок панели — **сделано** |
 | З-4 | Transform: вставка под заданный заголовок | `transform_feature.js`, `composeBodyWithPlacement` | нет | значение + две строки схемы — **сделано** |
-| З-5 | Smart Rules: `Advanced settings` у правила | `smart_rules_{model,view}.ts` + движок | нет | пять листов в правиле |
+| З-5 | Smart Rules: `Advanced settings` у правила | `smart_rules_{model,view}.ts` + движок | нет | пять листов в правиле — **сделано** |
 | З-6 | Smart Rules: сворачивание правил | `smart_rules_view.ts` | нет | флаг + шапка карточки |
 | З-7 | заливка Left и Right Block | `ui/editor/decorations.js` | нет | зависит от способа |
 
@@ -271,9 +271,10 @@ command id, добавить в текстовый файл default.js, уточ
 content-header-text\content-datetime). По умолчанию должно стоять `default` —
 т.е. поведение как у note-content».
 
-**Статус: разобрано.** Вёрстка — `src/ui/settings/custom/smart_rules_view.ts` и
-`smart_rules_model.ts`, поведение — `transform_feature.js`
-(`normalizeSmartRules` и место, где собирается тело заметки). Ничего под З3.
+**Статус: сделано 2026-09-08, поздний вечер.** Вёрстка —
+`src/ui/settings/custom/smart_rules_view.ts` и `smart_rules_model.ts`,
+поведение — `transform_feature.js`. Ничего под З3. Разбор сделанного — PRD
+10.13.57, отчёт заказчику — раздел 43у реестра, строка листа `S5`.
 
 **Что будет.** У правила необязательная ветка `placement` того же состава, что
 `Note content`, и ключ `placementMode`: `default` значит «как в Note content».

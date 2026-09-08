@@ -293,6 +293,14 @@ function normalizeSmartRules(rawRules) {
          `near current note` иначе не отличить от самого выбора. */
       targetFolderMode: normalizeRuleFolderMode(r.targetFolderMode),
       targetFolder: normalizeFolderPath(r.targetFolder),
+      /*
+       * `Advanced settings` у правила (З-5). `default` значит «как в
+       * `Note content`», и ветка при этом всё равно нормализуется: у неё есть
+       * значения, которые человек мог задать и снова выключить, и терять их
+       * при переключении режима туда-обратно неоткуда.
+       */
+      placementMode: normalizeMode(r.placementMode, ["default", "custom"], "default"),
+      placement: normalizePlacement(r.placement),
       validation: {
         isConflict: !!(r.validation && r.validation.isConflict),
         message: String(r.validation && r.validation.message ? r.validation.message : "").trim(),
@@ -333,6 +341,63 @@ function normalizeFloatingButtonGap(raw) {
   return Math.max(0, Math.min(40, Math.round(n)));
 }
 
+/**
+ * Ветка `placement`: куда ложится текст и что стоит над ним.
+ *
+ * **Одна функция на два места.** Так нормализуется и общая настройка
+ * `Note content`, и своя ветка у правила Smart Rules (З-5, заказчик
+ * 2026-09-08). Второе объявление разошлось бы с первым молча (У-32), а в этом
+ * файле это уже случалось трижды.
+ */
+function normalizePlacement(raw) {
+  const placement = isObj(raw) ? raw : {};
+  const out = {};
+  out.position = normalizeMode(placement.position, ["beginning", "end", "custom-header"], DEFAULT_INLINE2NOTE.placement.position);
+  /*
+   * Имя заголовка человек пишет как хочет: `Log`, `## Log`, с пробелами по
+   * краям. Решётки здесь **сохраняются**, а не срезаются, и это не небрежность:
+   * ими он задаёт уровень искомого заголовка. Написал без них — ищется
+   * заголовок любого уровня.
+   */
+  out.targetHeader = String(placement.targetHeader == null ? DEFAULT_INLINE2NOTE.placement.targetHeader : placement.targetHeader).trim();
+  out.fallback = normalizeMode(placement.fallback, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.fallback);
+  out.headerMode = normalizeMode(placement.headerMode, ["custom", "datetime", "none"], DEFAULT_INLINE2NOTE.placement.headerMode);
+  /*
+   * Решётки живут в `headerLevel`, и только там. С текстбоксов они снимаются
+   * на каждой записи: два источника решёток однажды дали бы двойные, а какой
+   * из них главный — по строке в заметке не понять (10.13.9 Н3).
+   */
+  const customParts = splitLeadingHashes(placement.customHeader || DEFAULT_INLINE2NOTE.placement.customHeader);
+  const formatParts = splitLeadingHashes(placement.datetimeFormat || DEFAULT_INLINE2NOTE.placement.datetimeFormat);
+  out.customHeader = customParts.text || DEFAULT_INLINE2NOTE.placement.customHeader;
+  out.datetimeFormat = formatParts.text || DEFAULT_INLINE2NOTE.placement.datetimeFormat;
+  /*
+   * Ключа `headerLevel` в старом файле нет, и умолчание схемы тут не годится:
+   * у человека, писавшего `## Captured`, заголовок молча стал бы мельче.
+   * Поэтому уровень **выводится** — из его же решёток, а при `Date and time`
+   * из того, что делал код (`###`). Тот же приём, что у `sourceProcessing.text`
+   * (У-17), и по той же причине (10.13.9 Н5).
+   */
+  out.headerLevel = String(Object.prototype.hasOwnProperty.call(placement, "headerLevel")
+    ? normalizeHeaderLevel(placement.headerLevel)
+    : (customParts.level || (out.headerMode === "datetime" ? 3 : 0)));
+  return out;
+}
+
+/**
+ * Чей `placement` работает на этой строке (З-5).
+ *
+ * **Подстановка «правило молчит — берём общее» стоит здесь, и только здесь.**
+ * Её спрашивают три места — тело новой заметки, блок дописывания и сама
+ * запись, — и три ответа на один вопрос разошлись бы молча (У-32).
+ */
+function resolvePlacementSource(i2n, smartRule) {
+  const rule = isObj(smartRule) ? smartRule : null;
+  if (!rule) return i2n;
+  if (String(rule.placementMode || "default").trim().toLowerCase() !== "custom") return i2n;
+  return { ...i2n, placement: normalizePlacement(rule.placement) };
+}
+
 function normalizeInline2Note(raw) {
   const src = isObj(raw) ? raw : {};
   const out = {
@@ -357,36 +422,7 @@ function normalizeInline2Note(raw) {
   const nameCollision = isObj(src.nameCollision) ? src.nameCollision : {};
   out.nameCollision.mode = normalizeMode(nameCollision.mode, ["new_note", "add_to_note", "overwrite"], DEFAULT_INLINE2NOTE.nameCollision.mode);
 
-  const placement = isObj(src.placement) ? src.placement : {};
-  out.placement.position = normalizeMode(placement.position, ["beginning", "end", "custom-header"], DEFAULT_INLINE2NOTE.placement.position);
-  /*
-   * Имя заголовка человек пишет как хочет: `Log`, `## Log`, с пробелами по
-   * краям. Решётки здесь **сохраняются**, а не срезаются, и это не небрежность:
-   * ими он задаёт уровень искомого заголовка. Написал без них — ищется
-   * заголовок любого уровня.
-   */
-  out.placement.targetHeader = String(placement.targetHeader == null ? DEFAULT_INLINE2NOTE.placement.targetHeader : placement.targetHeader).trim();
-  out.placement.fallback = normalizeMode(placement.fallback, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.fallback);
-  out.placement.headerMode = normalizeMode(placement.headerMode, ["custom", "datetime", "none"], DEFAULT_INLINE2NOTE.placement.headerMode);
-  /*
-   * Решётки живут в `headerLevel`, и только там. С текстбоксов они снимаются
-   * на каждой записи: два источника решёток однажды дали бы двойные, а какой
-   * из них главный — по строке в заметке не понять (10.13.9 Н3).
-   */
-  const customParts = splitLeadingHashes(placement.customHeader || DEFAULT_INLINE2NOTE.placement.customHeader);
-  const formatParts = splitLeadingHashes(placement.datetimeFormat || DEFAULT_INLINE2NOTE.placement.datetimeFormat);
-  out.placement.customHeader = customParts.text || DEFAULT_INLINE2NOTE.placement.customHeader;
-  out.placement.datetimeFormat = formatParts.text || DEFAULT_INLINE2NOTE.placement.datetimeFormat;
-  /*
-   * Ключа `headerLevel` в старом файле нет, и умолчание схемы тут не годится:
-   * у человека, писавшего `## Captured`, заголовок молча стал бы мельче.
-   * Поэтому уровень **выводится** — из его же решёток, а при `Date and time`
-   * из того, что делал код (`###`). Тот же приём, что у `sourceProcessing.text`
-   * (У-17), и по той же причине (10.13.9 Н5).
-   */
-  out.placement.headerLevel = String(Object.prototype.hasOwnProperty.call(placement, "headerLevel")
-    ? normalizeHeaderLevel(placement.headerLevel)
-    : (customParts.level || (out.placement.headerMode === "datetime" ? 3 : 0)));
+  out.placement = normalizePlacement(src.placement);
   out.yamlNoteFormat = normalizeMode(src.yamlNoteFormat, ["raw", "clean"], DEFAULT_INLINE2NOTE.yamlNoteFormat);
 
   const sp = isObj(src.sourceProcessing) ? src.sourceProcessing : {};
@@ -3527,12 +3563,18 @@ async function runInline2Note(plugin, runtimeOptions) {
     : await readTemplateContent(plugin, templatePath);
   const { yamlLines, body, newline } = parseFrontmatter(templateContent);
   const mergedYaml = renderYamlBlockWithOrder(yamlLines, yamlMap, cfg);
-  const bodyOut = composeBodyWithPlacement(body, noteBlockText, i2n, newline);
+  /*
+   * Чей `placement` работает — общий или правила (З-5). Спрашивается **один
+   * раз**, и дальше едет с этим ответом: три места, каждое со своим
+   * «а если правило молчит», разошлись бы молча (У-32).
+   */
+  const placementSource = resolvePlacementSource(i2n, smartRule);
+  const bodyOut = composeBodyWithPlacement(body, noteBlockText, placementSource, newline);
   const yamlBlock = mergedYaml.length ? `---${newline}${mergedYaml.join(newline)}${newline}---${newline}` : "";
   const noteContent = `${yamlBlock}${bodyOut}`;
-  const appendBlock = composeAppendBlock(noteBlockText, i2n);
+  const appendBlock = composeAppendBlock(noteBlockText, placementSource);
   assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
-  const mutation = await writeInline2Note(plugin, target, noteContent, appendBlock, i2n);
+  const mutation = await writeInline2Note(plugin, target, noteContent, appendBlock, placementSource);
   const actualTarget = mutation.target;
   try {
     assertEditorSnapshot(plugin, ed, selectionInfo, sourceSnapshot);
@@ -3628,6 +3670,8 @@ module.exports = {
   normalizeInlineBlockForBody,
   /* Положение `At custom header` (З-4): проверка зовёт те же функции, что и
      движок, а не повторяет то, что они делают (У-4). */
+  normalizePlacement,
+  resolvePlacementSource,
   parseTargetHeaderSpec,
   findCustomHeaderInsertAt,
   placeBlockUnderHeader,
