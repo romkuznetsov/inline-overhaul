@@ -978,7 +978,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (36)
+### Пути, которых не было в описи v1.0 (37)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -991,6 +991,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `editor.smartDelete.joinWithSpace` | Join with a space (`smart-delete-space`) | Smart Delete\Backspace |
 | `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Moving lines (up and down) |
 | `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Moving lines (up and down) |
+| `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move left and move right |
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
@@ -2861,6 +2862,77 @@ RulesSync` → `ensureGeneratedRulesNow`, плюс `ensureGeneratedRulesNow("onl
 расхождение в один символ на третьем `Ctrl+Z`, или панель переезжает на
 украшение. Сделанного различия хватает на его случай целиком — он нажимал
 дважды.
+
+#### 10.13.54 `Del` на пустой строке и часть слова за пределами слова (З-1, З-2)
+
+Две первые задачи из семи, которые заказчик оставил в листе 2026-09-08. Обе
+описаны здесь по Р13 — правкой того же дня, потому что разбор и правка шли
+одним заходом при заказчике.
+
+##### 10.13.54.1 `Del` на пустой строке отдаёт клавишу платформе
+
+**Его пример.** Три строки: `1. text`, пустая, `2. text`. Курсор на пустой,
+`Del` даёт `text` — а он ждал `2. text`.
+
+**Почему так было.** `planSmartDelete` снимала Prefix у приезжающей строки
+**всегда**. Это верно ровно тогда, когда на своей строке что-то есть: тогда её
+слова и слова снизу становятся одной строкой, и номер списка снизу в середине
+строки не нужен. На пустой строке склеивать нечего — и снимать номер незачем.
+
+**Что сделано.** Пятое условие тихого отказа: строка, на которой стоит курсор,
+пуста. Клавиша уходит Obsidian, и та приклеивает следующую строку такой, какая
+она написана. Судьбу отступа решил заказчик: «строка целиком, как написана» —
+то есть вложенность сохраняется.
+
+**Дефект, найденный рядом (A47).** Движок знал только три знака чекбокса —
+`[ ]`, `[x]`, `[X]`, — а Obsidian считает задачей **любой один знак**
+(У-91). В конфиге заказчика есть `[I]`, и на строке `- [I] низ` клавиша
+`Del` приклеивала `[I]` к словам. Тем же чтением нашлось ещё два расхождения:
+у номера списка чекбокс не снимался вовсе (`1. [ ] текст`), а номер со скобкой
+(`1) текст`) один движок считал списком, другой нет.
+
+**Правило начала строки стало одним на весь плагин** — `src/core/shared_utils.js`.
+Две копии, в `smart_delete_engine.js` и в `enhanced_select_all_engine.js`,
+успели разойтись трижды (У-32). Сторож A34 этого не видел и был прав по-своему:
+он запрещает написание **шире** одного знака, а здесь оно было уже — у запрета
+не было положительного контроля на этот случай (У-88).
+
+**Чем закреплено:** четырнадцать проверок в `smart_delete_tests.js`, среди них
+пример заказчика дословно, знаки `[I]`, `[/]`, `1. [ ]`, `1)`, обратная
+сторона правила (`- [test] x` остаётся текстом человека) и сверка обоих движков
+на тех строках, где копии расходились. Три мутации краснеют. Подсказка группы
+дополнена: она описывала склейку и молчала про пустую строку.
+
+##### 10.13.54.2 `Step out of the word` — часть слова за пределами своего слова
+
+**Его слова.** «При выборе части слова выделенный текст двигается только в
+пределах слова, в котором он был. Я хочу, чтобы он не был ограничен».
+
+**Это был не шаг, а запрет.** `decideMoveMode` при `auto` смотрит: выделение
+целиком из букв и хотя бы один сосед буква — шаг посимвольный; но если сосед
+**по направлению нажатия** не буква, возвращается `noop`, то есть клавиша не
+делает ничего. Отсюда «двигается только в пределах слова».
+
+**Почему не хватило существующего режима.** `Movement step = One character`
+такого отказа не имеет и двигает посимвольно куда угодно — но тогда и целое
+выделенное слово поедет посимвольно, а прыжок словами он терять не хотел.
+
+**Что сделано.** Тумблер `Step out of the word` (`move-text-word-escape`,
+путь `navigation.moveSelection.inlineWordEscape`). Умолчание **выключено** —
+его решение: тумблер даёт разрешение, а не меняет поведение всем. Строка видна
+только при `Automatic`: у двух других режимов решать нечего, а контрол,
+которому нечего решать, в панели не показывается (З8).
+
+**Тридцать четвёртое исключение к З3.** Имя ключа обязано стоять в
+`pickMoveSelectionCfg`: сборщик перечисляет поля по одному, и настройка,
+которую он не назвал, до движка не доезжает молча (У-56). В карте миграции ключ
+стоит как `keepV2` — пары в версии 1 нет, и без этого он уехал бы в
+`_unmigrated` (МГ3); нашла это не вычитка, а проверка второго прогона.
+
+**Чем закреплено:** поведение в `navigation_jumps_tests.js` — оба направления,
+оба положения тумблера, положительный контроль на то, что там, где отказа не
+было, тумблер ничего не меняет, — плюс два пина по исходнику и умолчание
+сборщика. Три мутации краснеют.
 
 ### 10.14 Что осталось за границами
 
@@ -4821,7 +4893,7 @@ python tests/prototype/update_prd.py
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 8 | 1 |
 | 2 | Keyboard | — | 5 | 9 | 3 |
-| 3 | Navigation | `features.navigation.enabled` | 5 | 24 | 5 |
+| 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 6 | 35 | 6 |
 | 6 | Transform | `features.transform.enabled` | 6 | 26 | 5 |
@@ -5158,6 +5230,12 @@ _Tip:_ Two keys, three jobs, and the line decides which one you get. Highlight s
   - варианты: `auto` Automatic · `char` One character · `word` Whole word · `disabled` Off
   - выключена если: `navigation.moveSelection.inlineEnabled`
   - старые названия для поиска: «Inline move mode»
+- **Step out of the word** — `move-text-word-escape`, `toggle`, path `navigation.moveSelection.inlineWordEscape`, default `false`
+  - desc: Let a highlighted part of a word carry on past the word it came from
+  - tip: Only <code>Automatic</code> has anything to decide here, which is why this row shows up for that step alone. Highlight two letters inside a word and <code>Automatic</code> moves them letter by letter — but at the edge of the word it stops, because the next press would carry the letters into the word next door. On, it carries them: <b>te|xt more</b> becomes <b>te xtmore</b>, and that is the point — the highlighted piece goes wherever you press. Off is the way it has always worked
+  - видна если: `navigation.moveSelection.inlineMoveMode`
+  - выключена если: `navigation.moveSelection.inlineEnabled`
+  - старые названия для поиска: «Leave the word», «Word escape»
 - **Continue past a Separator** — `move-text-cross`, `toggle`, path `navigation.moveSelection.inlineBoundaryJump`, default `true`
   - desc: Let the highlighted text leave your text and move into the tags at either end
   - tip: Off, a highlighted phrase stays between the Separators: it will not slide back into the tags at the start of the line, nor forward into the dates at the end. Turn it on when you do want to shuffle a tag and a phrase past each other
@@ -5794,6 +5872,7 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `navigation.moveSelection.inlineBoundaryJump` | toggle | `true` |
 | `navigation.moveSelection.inlineEnabled` | toggle | `true` |
 | `navigation.moveSelection.inlineMoveMode` | dropdown | `auto` |
+| `navigation.moveSelection.inlineWordEscape` | toggle | `false` |
 | `navigation.moveSelection.onCycleEnd` | dropdown | `indent` |
 | `navigation.moveSelection.prefixCyclerEnabled` | toggle | `true` |
 | `navigation.moveSelection.rightCycles` | toggle | `true` |

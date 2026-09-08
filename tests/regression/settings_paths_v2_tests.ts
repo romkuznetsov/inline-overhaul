@@ -68,6 +68,7 @@ const V2_ONLY: Record<string, string> = {
   "advanced.backups.beforeRestore": "копия перед восстановлением — заказ C56, 2026-09-04; читает backupBeforeRestore в settings_backup.js",
   "navigation.moveSelection.rightCycles": "симметричный цикл — оживлён 2026-09-01 (В-12, 10.13.11)",
   "navigation.moveSelection.inlineBoundaryJump": "перенос текста через Separator — заказ 2026-09-04, парная опция к navigateInline.boundaryJump; читает moveTextBounds в navigation_runtime.js",
+  "navigation.moveSelection.inlineWordEscape": "часть слова уезжает за пределы своего слова — замечание 2026-09-08, умолчание выключено; читает decideMoveMode в navigation_runtime.js",
   "visual.tagWheel.activeTextColor": "цвет активного Field в TagWheel — заказ D6, 2026-09-02 (10.13.15)",
   "visual.tagWheel.scroller.fillColor": "фон коробки скроллера — заказ D6, 2026-09-02 (10.13.15)",
   "visual.tagWheel.scroller.textColor": "цвет текста в коробке скроллера — заказ D6, 2026-09-02 (10.13.15)",

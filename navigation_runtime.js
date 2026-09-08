@@ -85,6 +85,13 @@ function pickMoveSelectionCfg(cfg, lineFormat) {
     leftToRight: cycle,
     rightToLeft: cycle.slice().reverse(),
     inlineMoveMode: typeof c.inlineMoveMode === "string" ? c.inlineMoveMode : "auto",
+    /*
+     * `Step out of the word` (замечание заказчика 2026-09-08, тридцать
+     * четвёртое исключение к З3). Имя обязано стоять здесь: сборщик
+     * перечисляет поля по одному, и настройка, которую он не назвал, до
+     * движка не доезжает молча — этим уже куплен У-56.
+     */
+    inlineWordEscape: typeof c.inlineWordEscape === "boolean" ? c.inlineWordEscape : false,
   };
 }
 
@@ -590,7 +597,7 @@ function moveSelection(editor, direction, rawCfg, lineFormat) {
   const doc = editor.getValue();
   const a = editor.posToOffset(from);
   const b = editor.posToOffset(to);
-  const mode = decideMoveMode(doc, a, b, direction, rules.inlineMoveMode);
+  const mode = decideMoveMode(doc, a, b, direction, rules.inlineMoveMode, rules.inlineWordEscape);
   if (mode === "noop") return;
   /*
    * Границы считаются по строке курсора: перенос текста живёт в одной строке,
@@ -622,7 +629,22 @@ function getEditorTabSize(editor) {
 }
 
 function getIndentStr(rules) { return " ".repeat(rules.indentWidth || 4); }
-function decideMoveMode(doc, a, b, direction, inlineMoveMode) {
+/*
+ * Каким шагом поедет выделенное: посимвольно, словами или никак.
+ *
+ * Режимы `char` и `word` решают всё сами; выбирать есть что только у
+ * `auto`, и правило у него такое: выделена часть слова — шаг посимвольный,
+ * выделено что-то ещё — шаг словами.
+ *
+ * **Отказ на краю слова — не ограничение шага, а запрет.** Он стоял здесь с
+ * самого начала и молча: выделенная часть слова доезжала до края и
+ * останавливалась, потому что следующее нажатие унесло бы буквы в соседнее
+ * слово. Заказчик 2026-09-08 попросил разрешить именно это, и теперь запрет
+ * снимается тумблером `Step out of the word` (умолчание — выключен, его
+ * решение). Переключением режима на `char` та же цель не достигается: тогда
+ * и целое выделенное слово поедет посимвольно.
+ */
+function decideMoveMode(doc, a, b, direction, inlineMoveMode, wordEscape) {
   const forced = inlineMoveMode === "char" || inlineMoveMode === "word" ? inlineMoveMode : "";
   if (forced) return forced;
   const inside = doc.slice(a, b);
@@ -632,7 +654,7 @@ function decideMoveMode(doc, a, b, direction, inlineMoveMode) {
   const rightIsWord = isWordChar(doc[b]);
   if (insideAllWord && (leftIsWord || rightIsWord)) {
     const neighborInDirection = direction === "left" ? leftIsWord : rightIsWord;
-    if (!neighborInDirection) return "noop";
+    if (!neighborInDirection) return wordEscape === true ? "char" : "noop";
     return "char";
   }
   return "word";

@@ -145,6 +145,9 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   /* Заведена вместе с новой панелью 2026-09-04: пары в версии 1 нет, поэтому
      `keepV2`, иначе ключ уезжает в `_unmigrated` (МГ3). */
   keepV2("navigation.moveSelection.inlineBoundaryJump"),
+  /* `Step out of the word` заведена 2026-09-08 по замечанию заказчика: пары в
+     версии 1 нет, поэтому `keepV2` (МГ3). */
+  keepV2("navigation.moveSelection.inlineWordEscape"),
   keep("navigation.jumpToHeader.enabled"),
   keep("navigation.jumpToHeader.centerCursor"),
   /* Место на экране после перехода заведено 2026-09-06 вместе с 10.13.37:

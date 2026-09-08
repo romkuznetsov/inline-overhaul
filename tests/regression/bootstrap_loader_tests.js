@@ -612,6 +612,20 @@ async function run() {
      Separator` без разделителей ничего не ограничил бы. */
   assertTrue(/rt\.moveSelection\(ed, "left", nav\.moveSelection, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "move-left hands the line format to the runtime");
   assertTrue(/rt\.moveSelection\(ed, "right", nav\.moveSelection, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "move-right hands the line format to the runtime");
+  /*
+   * Тридцать четвёртое исключение к З3 (замечание заказчика 2026-09-08): часть
+   * слова уезжает за пределы своего слова, если это разрешено тумблером.
+   *
+   * Поведение закреплено в `navigation_jumps_tests.js` — оба направления, оба
+   * положения тумблера, — и это главный пин. Здесь спрашивается то, чего с
+   * поведения не видно: **что именно** изменилось в файле под запретом, то
+   * есть один аргумент решения о шаге и одно имя в сборщике правил. Без имени
+   * в сборщике настройка до движка не доезжает молча (У-56).
+   */
+  assertTrue(/if \(!neighborInDirection\) return wordEscape === true \? "char" : "noop";/.test(navigationRuntimeSrc),
+    "отказ на краю слова снимается тумблером, а не убран совсем");
+  assertTrue(/inlineWordEscape: typeof c\.inlineWordEscape === "boolean" \? c\.inlineWordEscape : false,/.test(navigationRuntimeSrc),
+    "сборщик правил переноса называет ключ тумблера и держит выключенное умолчание");
   assertTrue(/if \(!isObj\(cfg\.pkm\.behavior\.freeRoam\)\) cfg\.pkm\.behavior\.freeRoam = cloneJson\(DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\);/.test(cfgSrc), "migrateConfig initializes freeRoam behavior block");
   assertTrue(/if \(typeof fr\.minimalSeparator !== "boolean"\) fr\.minimalSeparator = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalSeparator;/.test(cfgSrc), "migrateConfig normalizes minimalSeparator toggle");
   assertTrue(/if \(typeof fr\.minimalPrefix !== "boolean"\) fr\.minimalPrefix = DEFAULT_CONFIG\.pkm\.behavior\.freeRoam\.minimalPrefix;/.test(cfgSrc), "migrateConfig normalizes minimalPrefix toggle");
