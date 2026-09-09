@@ -739,6 +739,34 @@ function getEngineDefaultsV2() {
  * Живут в третьей ступени, а не в первой, потому что панель правит их на
  * каждом патче, а первая ступень идёт только для файла версии ниже второй.
  */
+/**
+ * Высота подложки блоков: точки → доля свободного места (`heightPx` →
+ * `heightPct`, 2026-09-09, третий заход по S7).
+ *
+ * **Переименование в форме версии 2, и потому оно здесь**, а не в карте
+ * `ROUTES`: файл, у которого `schemaVersion` уже два, карту маршрутов не
+ * проходит вовсе — `migrate` его только клонирует и досыпает умолчания. То же
+ * место, где живёт такое же переименование у плавающей кнопки Transform.
+ *
+ * **Условие — наличие старого ключа, а не пустота нового.** Новый к этому
+ * моменту всегда заполнен: умолчание схемы досыпает вторая ступень, и ветка
+ * «если нового нет» была бы недостижима (У-55). Старый ключ снимается, поэтому
+ * перевод случается ровно один раз, и следующая правка ползунка человеком его
+ * не отменяет.
+ *
+ * Множитель — двадцать: прежняя шкала имела пять делений, новая сотню, и то,
+ * что стояло у человека, остаётся тем же на экране.
+ */
+function renameBlockFillHeightToPercent(cfg) {
+  const fill = readCfgPath(cfg, "visual.tags.blockFill");
+  if (!isObj(fill) || fill.heightPx === undefined) return;
+  const px = Number(fill.heightPx);
+  delete fill.heightPx;
+  if (!Number.isFinite(px)) return;
+  const pct = Math.max(0, Math.min(100, Math.round(px) * 20));
+  writeCfgPath(cfg, "visual.tags.blockFill.heightPct", pct);
+}
+
 function normalizeTagVisualMapsV2(cfg) {
   const tags = isObj(readCfgPath(cfg, "visual.tags")) ? readCfgPath(cfg, "visual.tags") : {};
   writeCfgPath(cfg, "visual.tags", tags);
@@ -951,11 +979,13 @@ function normalizeConfigV2(cfg) {
   bool("visual.tags.blockFill.enabled");
   hex("visual.tags.blockFill.color");
   int("visual.tags.blockFill.opacity", 0, 100);
-  /* На сколько подложка выходит за написанное (замечание по S7). Высота — в
-     точках, ширина — в долях расстояния до разделителя. Границы держит
-     нормализация, а не панель: рукописный `data.json` иначе уехал бы за шкалу
-     и слой получил бы прямоугольник в пол-экрана. */
-  int("visual.tags.blockFill.heightPx", 0, 5);
+  /* На сколько подложка выходит за написанное (замечание по S7). Обе шкалы — в
+     долях измеренного: высота — свободного места до краёв зрительной строки,
+     ширина — расстояния до разделителя. Границы держит нормализация, а не
+     панель: рукописный `data.json` иначе уехал бы за шкалу и слой получил бы
+     прямоугольник в пол-экрана. */
+  renameBlockFillHeightToPercent(cfg);
+  int("visual.tags.blockFill.heightPct", 0, 100);
   int("visual.tags.blockFill.widthPct", 0, 100);
   normalizeTagVisualMapsV2(cfg);
 

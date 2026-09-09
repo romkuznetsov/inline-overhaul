@@ -875,6 +875,64 @@ function blockFillRoomBeforePrefixPx(view, span) {
 }
 
 /**
+ * Строка, на которой стоит плавающая кнопка `→`, или `-1`, если её нет вовсе.
+ *
+ * **Правило объявлено здесь один раз** (У-32) и зовётся дважды: отсюда кнопка
+ * рисуется, и отсюда же подложка правого блока узнаёт, что впереди у неё
+ * кнопка. Второе объявление разошлось бы с первым молча — и разошлось бы
+ * ровно в ту сторону, в которую заказчику видно: подложка прижималась бы к
+ * кнопке на строках, где кнопки нет.
+ */
+function floatingButtonLineNumber(view, plugin) {
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  const marks = getSourceMarksFromConfig(cfg);
+  if (!marks.button) return -1;
+  const main = view.state.selection && view.state.selection.main ? view.state.selection.main : null;
+  if (!main) return -1;
+  const line = view.state.doc.lineAt(main.head);
+  return String(line.text || "").trim() ? line.number : -1;
+}
+
+/**
+ * Сколько точек есть у правого блока до плавающей кнопки `→`.
+ *
+ * **Пара к прижиму левого блока** (решение заказчика 2026-09-09 по вопросу о
+ * полосе и кнопке: «прижать к кнопке, как прижата к чекбоксу слева»). Наружу
+ * правый блок растёт не дальше начала кнопки; на строках без кнопки
+ * зеркальность остаётся полной, и мера тогда — бесконечность, а не ноль.
+ *
+ * **Кнопки на этой строке нет — мерить нечего**, и это не то же самое, что
+ * «расстояние ноль»: у конца строки без виджета обе стороны измерения дают
+ * одну и ту же точку (У-76), и «ноль» отменил бы весь наружный рост на каждой
+ * строке. Поэтому сначала спрашивается, есть ли кнопка, и спрашивается это у
+ * того же правила, которым она рисуется.
+ */
+function blockFillRoomBeforeFlyButtonPx(view, span, buttonLine) {
+  if (!(buttonLine > 0)) return Infinity;
+  /* Кнопка стоит за концом строки: блок, кончающийся раньше, её не касается. */
+  if (span.to !== span.lineTo) return Infinity;
+  let line = null;
+  try {
+    line = view.state.doc.lineAt(span.lineFrom);
+  } catch (_) {
+    /* Проба: положение может быть уже не в документе. */
+    return Infinity;
+  }
+  if (!line || line.number !== buttonLine) return Infinity;
+  try {
+    const widget = view.coordsAtPos(span.lineTo, 1);
+    const text = view.coordsAtPos(span.lineTo, -1);
+    if (!widget || !text) return Infinity;
+    const room = Number(widget.left) - Number(text.right);
+    return Number.isFinite(room) && room > 0 ? room : 0;
+  } catch (_) {
+    /* Проба: положение может быть не отрисовано. Ответ «нет» — это ответ, и
+       подложка тогда растёт наружу, как росла до этого решения. */
+    return Infinity;
+  }
+}
+
+/**
  * Отрезок, разрезанный по зрительным строкам (S7).
  *
  * Зачем резать: `forRange` на отрезке, начавшемся на одной зрительной строке и
@@ -959,7 +1017,7 @@ function blockFillPiecesOf(view, span) {
  * (высота из самого прямоугольника). Это хуже, чем поправленная вертикаль, но
  * не хуже отсутствия подложки.
  */
-function blockFillRowGeometry(view, span, bandHeightAsk) {
+function blockFillRowGeometry(view, span, rows, bandHeightAsk) {
   if (typeof view.lineBlockAt !== "function") return null;
   const lineH = Number(view.defaultLineHeight);
   if (!Number.isFinite(lineH) || lineH <= 0) return null;
@@ -987,28 +1045,63 @@ function blockFillRowGeometry(view, span, bandHeightAsk) {
   const oracle = view.viewState && view.viewState.heightOracle
     ? Number(view.viewState.heightOracle.textHeight) : NaN;
   const textH = Number.isFinite(oracle) && oracle > 0 && oracle <= lineH ? oracle : NaN;
+  /*
+   * **Два вопроса, и мера у них разная.**
+   *
+   *   * «Какой высоты подложка» — одна на все строки, и потому считается от
+   *     умолчания редактора: «она должна быть одинаковая во всех строках» —
+   *     его условие, и строка со ссылкой не имеет права делать полосу выше;
+   *   * «где её середина» — у **этой** строки, потому что строка со ссылкой,
+   *     эмодзи или высоким пузырём выше умолчания, и подложка, поставленная по
+   *     середине умолчания, уезжает вверх на половину разницы. Ровно это и
+   *     принёс заказчик третьим заходом.
+   *
+   * Смешать их было первой версией этой правки, и гейт покраснел сразу:
+   * высоты разошлись на четыре точки между строкой со ссылкой и без неё.
+   */
+  const rowCount = Math.max(1, Number(rows) || 1);
+  const rowH = blockHeight > 0 ? blockHeight / rowCount : lineH;
   const height = bandHeightAsk(lineH, textH);
   if (!Number.isFinite(height) || height <= 0) return null;
-  return { docTop, toLayer, blockTop, blockHeight, lineH, height };
+  return { docTop, toLayer, blockTop, blockHeight, lineH, rowH, height };
 }
 
 /**
  * Вертикаль подложки на куске: середина его зрительной строки.
  *
- * **И она не выходит за блок своей строки документа.** Высота зрительной
- * строки внутри переноса берётся делением: платформа отдаёт высоту строки
- * целиком, а не по строкам. Пока зрительные строки одной высоты — а так и есть,
- * пока в них нет ничего выше написанного, — деление точно. Когда одна из них
- * выше (крупный пузырь, ссылка), деление даёт среднее, и без прижима подложка
- * могла бы уехать в соседнюю строку документа. Прижим этого не даёт: «полоски
- * на разных строках наезжают друг на друга» — про **разные строки**.
+ * **Середина считается от высоты самой строки, а не от умолчания** (замечание
+ * по S7, 2026-09-09: «полоска выглядит нецентрированной — она смещена выше,
+ * сверху строки она выглядит больше, чем снизу»). Здесь стояло
+ * `rows > 1 ? blockHeight / rows : lineH`, то есть у строки **без переноса**
+ * серединой считалась середина `defaultLineHeight`. А `defaultLineHeight` —
+ * это высота строки, измеренная платформой на пробной строке из одних букв
+ * (`measureTextSize` в `@codemirror/view`); строка, в которой стоит ссылка,
+ * эмодзи или высокий пузырь, **выше** этого умолчания. Подложка вставала по
+ * середине верхней части такой строки и уезжала вверх ровно на половину
+ * разницы: обмерено браузером — 5 точек из 42 на строке со ссылкой при
+ * точной середине на трёх строках без неё.
+ *
+ * Высота зрительной строки внутри переноса берётся делением: платформа отдаёт
+ * высоту строки целиком, а не по строкам. Пока зрительные строки одной высоты
+ * — а так и есть, пока в них нет ничего выше написанного, — деление точно.
+ * Когда одна из них выше, деление даёт среднее, и без прижима подложка могла
+ * бы уехать в соседнюю строку документа. Прижим этого не даёт: «полоски на
+ * разных строках наезжают друг на друга» — про **разные строки**.
  */
 function blockFillPieceBox(geom, piece) {
   const rows = Math.max(1, Number(piece.rows) || 1);
-  const rowH = rows > 1 && geom.blockHeight > 0 ? geom.blockHeight / rows : geom.lineH;
+  const rowH = geom.rowH;
   const blockTop = geom.docTop + geom.blockTop + geom.toLayer;
   const rowTop = blockTop + rowH * (Number(piece.row) || 0);
-  const height = Math.min(geom.height, geom.blockHeight > 0 ? geom.blockHeight : geom.height);
+  /*
+   * **Прижим высоты объявлен один раз** — в самом правиле
+   * (`blockFillBandHeightPx`), и здесь его копии быть не должно: второй прижим
+   * делал первый недостижимым, и подмена, снимавшая правило, оставляла гейт
+   * зелёным (У-32, и ровно тот признак, что назван в У-92). Здесь остаётся
+   * только то, чего правило знать не может: подложка не выходит за блок своей
+   * строки документа — этим кончается функция.
+   */
+  const height = geom.height;
   const top = rowTop + (rowH - height) / 2;
   const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : rowH * rows);
   return { top: Math.max(blockTop, Math.min(top, blockBottom - height)), height };
@@ -1025,10 +1118,11 @@ function blockFillPieceBox(geom, piece) {
 function blockFillMarkersFor(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const look = blockFillLookFromConfig(cfg);
-  const padY = Math.max(0, Number(look.heightPx) || 0);
   /* Высота пузыря — от настроек, не от строки: одно слагаемое из трёх. */
   const bubbleH = blockFillBubbleHeightPx(getTagVisualsFromConfig(cfg));
-  const askHeight = (lineH, textH) => blockFillBandHeightPx(look, lineH, textH, bubbleH);
+  const askHeight = (rowH, textH) => blockFillBandHeightPx(look, rowH, textH, bubbleH);
+  /* Спрашивается один раз на отрисовку: правило одно на весь документ. */
+  const flyLine = floatingButtonLineNumber(view, plugin);
   const out = [];
   for (const span of blockFillDocRanges(view, plugin)) {
     const reach = blockFillGapPx(view, span);
@@ -1042,14 +1136,23 @@ function blockFillMarkersFor(view, plugin) {
      * которое он этим замечанием уточнил: зеркальность оказалась двумя краями
      * **одного** блока.
      *
-     * Единственное исключение — знак начала строки: «полоска в left block не
-     * должна наезжать на префикс (буллит, чекбокс)». Поэтому наружный рост
-     * левого блока прижимается к измеренному расстоянию до него.
+     * Исключений два, и оба его. Слева: «полоска в left block не должна
+     * наезжать на префикс (буллит, чекбокс)». Справа: «прижать к кнопке, как
+     * прижата к чекбоксу слева» — решение 2026-09-09 по вопросу о полосе,
+     * заходившей за спину плавающей кнопке `→`. Оба прижима — измеренное
+     * расстояние, а не число.
      */
-    const room = span.zone === "left" ? blockFillRoomBeforePrefixPx(view, span) : Infinity;
+    const room = span.zone === "left"
+      ? blockFillRoomBeforePrefixPx(view, span)
+      : blockFillRoomBeforeFlyButtonPx(view, span, flyLine);
     const outward = Math.min(padX, room);
     const pieces = blockFillPiecesOf(view, span);
-    const geom = blockFillRowGeometry(view, span, askHeight);
+    /*
+     * Строк у **строки**, а не у отрезка: левый блок кончается на первой
+     * зрительной строке, и `pieces.length` у него единица при двух строках
+     * (У-129). Число несёт сам кусок — его считает обход до конца строки.
+     */
+    const geom = blockFillRowGeometry(view, span, pieces[0].rows, askHeight);
     for (let i = 0; i < pieces.length; i++) {
       const piece = pieces[i];
       /*
@@ -1078,7 +1181,13 @@ function blockFillMarkersFor(view, plugin) {
       };
       const box = geom ? blockFillPieceBox(geom, piece) : null;
       for (const marker of cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range)) {
-        if (!box && !growLeft && !growRight && !padY) { out.push(marker); continue; }
+        /*
+         * Мерить не удалось и расти некуда — прямоугольник платформы уходит
+         * как есть. Вертикаль подложки теперь целиком от зрительной строки, и
+         * своей прибавки в точках у неё больше нет: шкала высоты — доля
+         * свободного места, а долю от неизмеренного не взять.
+         */
+        if (!box && !growLeft && !growRight) { out.push(marker); continue; }
         /*
          * Прямоугольник **пересоздаётся**, а не правится на месте: поля его
          * читает потом и `eq`, и отрисовка, и правка чужого объекта была бы
@@ -1091,9 +1200,9 @@ function blockFillMarkersFor(view, plugin) {
           Number(marker.left) - growLeft,
           /* Вертикаль — от зрительной строки, а не от измеренного отрезка;
              измерение не удалось — остаётся прежняя мера. */
-          box ? box.top : Number(marker.top) - padY,
+          box ? box.top : Number(marker.top),
           width,
-          box ? box.height : Number(marker.height) + padY * 2,
+          box ? box.height : Number(marker.height),
         ));
       }
     }
@@ -1127,7 +1236,7 @@ function blockFillLayerNeedsRedraw(plugin, update, dom) {
    */
   const v = getTagVisualsFromConfig(cfg);
   const sig = look.enabled
-    ? [look.heightPx, look.widthPct, v.tagTextSizePct, v.tagBubbleHeightPct].join(":")
+    ? [look.heightPct, look.widthPct, v.tagTextSizePct, v.tagBubbleHeightPct].join(":")
     : "off";
   const flipped = dom.__ioBlockFillSig !== sig;
   dom.__ioBlockFillSig = sig;
@@ -1294,9 +1403,9 @@ function buildSourceMarkDecorations(view, plugin) {
   const marks = getSourceMarksFromConfig(cfg);
   if (!marks.highlight && !marks.button) return cmView.Decoration.none;
 
-  const cursorLine = marks.button && view.state.selection && view.state.selection.main
-    ? view.state.doc.lineAt(view.state.selection.main.head).number
-    : -1;
+  /* На какой строке стоит кнопка — одно правило на два места (У-32): её же
+     спрашивает подложка правого блока, чтобы не заехать кнопке за спину. */
+  const cursorLine = floatingButtonLineNumber(view, plugin);
   const style = [
     "opacity: " + marks.opacity + ";",
     marks.color ? "color: " + marks.color + ";" : "",
@@ -1313,7 +1422,8 @@ function buildSourceMarkDecorations(view, plugin) {
       if (marks.highlight && lineHasProcessedToken(text, marks.token)) {
         ranges.push({ from: line.from, to: line.from, deco: lineDeco, side: -1 });
       }
-      if (lineNo === cursorLine && text.trim()) {
+      /* Пустую строку и выключенный тумблер отсеяло само правило выше. */
+      if (lineNo === cursorLine) {
         ranges.push({
           from: line.to,
           to: line.to,
@@ -1373,6 +1483,7 @@ module.exports = {
   createCaretLayerExtension,
   blockFillDocRanges,
   blockFillMarkersFor,
+  floatingButtonLineNumber,
   blockFillLayerNeedsRedraw,
   createBlockFillLayerExtension,
   TagwheelTokenWidget,

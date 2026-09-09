@@ -40,13 +40,13 @@ async function main() {
     taken = await page.evaluate(() => {
       const out = { default: window.__ioFingerprint() };
       window.__ioSetTags({ textSizePct: 140, bubbleWidthPct: 140, bubbleHeightPct: 140, cornersPct: 100 });
-      window.__ioSetBand({ heightPx: 5, widthPct: 100, opacity: 40, color: "#123456" });
+      window.__ioSetBand({ heightPct: 100, widthPct: 100, opacity: 40, color: "#123456" });
       out.loud = window.__ioFingerprint();
       window.__ioSetTags({ textSizePct: 50, bubbleWidthPct: 20, bubbleHeightPct: 20, cornersPct: 0 });
-      window.__ioSetBand({ heightPx: 0, widthPct: 0, opacity: 75, color: "#908e8e" });
+      window.__ioSetBand({ heightPct: 0, widthPct: 0, opacity: 75, color: "#908e8e" });
       out.tight = window.__ioFingerprint();
       window.__ioSetTags({ textSizePct: 80, bubbleWidthPct: 80, bubbleHeightPct: 80, cornersPct: 0 });
-      window.__ioSetBand({ heightPx: 2, widthPct: 50 });
+      window.__ioSetBand({ heightPct: 40, widthPct: 50 });
       /*
        * Оверлей скроллера TagWheel: два состояния, и второе — с его цветами.
        * Пустые цвета значат «взять у темы», и это обратная сторона, которая

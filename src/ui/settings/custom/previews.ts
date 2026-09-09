@@ -135,7 +135,14 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
    * расходящимся объявлением правила (У-32). Ровно этим он и был до
    * 2026-09-09, и заказчик увидел разницу между панелью и заметкой.
    */
-  cssVar(node, "--io-blockfill-pady", String(num(ctx, "visual.tags.blockFill.heightPx")) + "px");
+  /*
+   * Высота — доля свободного места. У строки предпросмотра это её собственное
+   * поле сверху и снизу (`padding: 3px 0` у `.io-line`), у строки заметки —
+   * остаток зрительной строки за написанным; сотня заполняет и то и другое.
+   */
+  const bandRoomPx = 3;
+  cssVar(node, "--io-blockfill-pady",
+    String(Math.round(bandRoomPx * num(ctx, "visual.tags.blockFill.heightPct")) / 100) + "px");
   const bandPct = Math.max(0, Math.min(100, num(ctx, "visual.tags.blockFill.widthPct")));
   const bandNear = Math.min(1, bandPct / 50);
   const bandFar = Math.max(0, (bandPct - 50) / 50);

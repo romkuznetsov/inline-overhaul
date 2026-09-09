@@ -65,13 +65,65 @@ const EDITOR_INJECTIONS = {
     replace: "    const outward = padX;",
   },
   /*
+   * Середина подложки обратно от **умолчания** редактора, а не от высоты своей
+   * строки. Ровно это и было до третьего захода по S7: «полоска выглядит
+   * нецентрированной — она смещена выше (сверху строки она выглядит больше,
+   * чем снизу строки)». Видно только на строке, которая выше умолчания, —
+   * такая на странице есть, и её высоту гейт проверяет отдельно.
+   */
+  "row-height-default": {
+    file: "src/ui/editor/decorations.js",
+    find: "  const rowH = geom.rowH;",
+    replace: "  const rowH = rows > 1 && geom.blockHeight > 0 ? geom.blockHeight / rows : geom.lineH;",
+  },
+  /*
+   * Шкала высоты обратно упирается в потолок на середине: «tags-block-fill-height
+   * изменяются только при значениях ползунка от 0 до 2 px, а при значениях от 3
+   * до 5 высота как при 2px».
+   */
+  "height-scale-capped": {
+    file: "src/core/editor_visuals_config.js",
+    find: "  const pct = Math.max(0, Math.min(BLOCK_FILL_MAX_HEIGHT_PCT, Number(look && look.heightPct) || 0));",
+    replace: "  const pct = Math.max(0, Math.min(40, Number(look && look.heightPct) || 0));",
+  },
+  /*
+   * Прижим к плавающей кнопке снят: подложка правого блока снова заходит ей за
+   * спину — то, о чём он написал вторым заходом («полоска захватывает
+   * i2n-floating») и что решил третьим («прижать к кнопке, как прижата к
+   * чекбоксу слева»).
+   */
+  "no-fly-clamp": {
+    file: "src/ui/editor/decorations.js",
+    find: "  if (!(buttonLine > 0)) return Infinity;\n  /* Кнопка стоит за концом строки: блок, кончающийся раньше, её не касается. */",
+    replace: "  if (buttonLine >= 0) return Infinity;\n  /* Кнопка стоит за концом строки: блок, кончающийся раньше, её не касается. */",
+  },
+  /*
+   * И обратная ошибка того же прижима: мера «ноль» вместо «мерить нечего».
+   * Тогда наружный рост правого блока пропадает на **каждой** строке, а
+   * зеркальность — его условие.
+   */
+  "fly-clamp-everywhere": {
+    file: "src/ui/editor/decorations.js",
+    find: "  if (span.to !== span.lineTo) return Infinity;",
+    replace: "  if (span.to !== span.lineTo) return 0;\n  return 0;",
+  },
+  /*
+   * Поле пузыря обратно целым числом точек: «tags-bubble-height при значении
+   * ниже 40 % не меняется (т.е. при 20 % высота такая же как при 40 %)».
+   */
+  "bubble-pad-rounded": {
+    file: "src/core/editor_visuals_config.js",
+    find: "    verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY * 100) / 100),",
+    replace: "    verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY)),",
+  },
+  /*
    * Прижим высоты к зрительной строке снят: «после высоты в 3px полоски на
    * разных строках начинают наезжать друг на друга».
    */
   "no-row-clamp": {
     file: "src/core/editor_visuals_config.js",
-    find: "  return Math.max(1, Math.min(lineH, written + grow * 2));",
-    replace: "  return Math.max(1, written + grow * 2);",
+    find: "  return Math.max(1, Math.min(lineH, written + (room * pct) / 100));",
+    replace: "  return Math.max(1, written + (room * pct) / 100);",
   },
   /* Шкала ширины обратно без перелома на середине: разделитель в подложку не
      входит ни при каком положении ползунка. */

@@ -281,6 +281,33 @@ const NARROW_OK = {};
             const sep = document.querySelector(".io-line--blockfill .io-line__sep");
             return sep ? Math.round(sep.getBoundingClientRect().width * 100) / 100 : -1;
           })();
+          /*
+           * **Высоты двух сторон** (замечание по S7, 2026-09-09, третий заход:
+           * «в io-tip-tag-preview высота полоски различается для left и right
+           * blocks»). Мерится сама подложка и **самое высокое, что в ней
+           * лежит**: без второго числа «высоты равны» выполнялось бы и на
+           * строке, где слева и справа лежит одно и то же, — то есть
+           * отсутствием предмета (У-113).
+           */
+          out.bandSides = (() => {
+            const line = document.querySelector(".io-line--blockfill");
+            if (!line) return null;
+            const left = line.querySelector(".io-line__side--left");
+            const right = line.querySelector(".io-line__side--right");
+            if (!left || !right) return null;
+            const tallest = (side) => Array.from(side.children).reduce(
+              (h, el) => Math.max(h, el.getBoundingClientRect().height), 0);
+            const round = (n) => Math.round(n * 100) / 100;
+            return {
+              align: getComputedStyle(left).alignSelf + "/" + getComputedStyle(right).alignSelf,
+              leftPad: getComputedStyle(left).paddingTop + "+" + getComputedStyle(left).paddingBottom,
+              rightPad: getComputedStyle(right).paddingTop + "+" + getComputedStyle(right).paddingBottom,
+              left: round(left.getBoundingClientRect().height),
+              right: round(right.getBoundingClientRect().height),
+              leftInside: round(tallest(left)),
+              rightInside: round(tallest(right)),
+            };
+          })();
           out.bandReachAt = {};
           for (const pct of [0, 50, 100]) {
             if (setWidth(pct)) out.bandReachAt[pct] = reach();
@@ -441,6 +468,23 @@ const NARROW_OK = {};
        * до сепаратора (и зеркально с другой стороны), а при максимальном
        * — включала separator».
        */
+      /* Обе стороны — одной высоты, и в них лежит разное. */
+      if (!b.bandSides) {
+        bad("строку предпросмотра с подложкой нечем обмерить по высоте сторон");
+      } else {
+        const s = b.bandSides;
+        if (Math.abs(s.left - s.right) >= 0.6) {
+          bad("высота подложки слева и справа разошлась: " + s.left + " и " + s.right
+            + " (внутри " + s.leftInside + " и " + s.rightInside + ", align " + s.align
+            + ", поля " + s.leftPad + "/" + s.rightPad + ")"
+            + " — в заметке высоту решают настройки, а не содержимое");
+        }
+        if (Math.abs(s.leftInside - s.rightInside) < 0.6) {
+          bad("положительный контроль: в левом и правом блоке предпросмотра лежит"
+            + " одинаково высокое (" + s.leftInside + " и " + s.rightInside
+            + ") — «высоты равны» выполняется отсутствием предмета");
+        }
+      }
       const at = b.bandReachAt || {};
       const gap = Number(b.bandGap);
       if (!at["0"] || !at["50"] || !at["100"]) {

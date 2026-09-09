@@ -275,30 +275,30 @@ function fakePlugin(blockFill) {
   const look = visuals.blockFillLookFromConfig({
     visual: { tags: { blockFill: { enabled: true } } },
   });
-  assertTrue(look.heightPx > 0, "высота по умолчанию больше нуля: иначе подложку закроет пузырь");
+  assertTrue(look.heightPct > 0, "высота по умолчанию больше нуля: иначе подложку закроет пузырь");
   assertTrue(look.widthPct > 0, "и ширина тоже");
-  assertEq(look.heightPx, visuals.BLOCK_FILL_DEFAULT_HEIGHT_PX, "и это умолчание из схемы");
+  assertEq(look.heightPct, visuals.BLOCK_FILL_DEFAULT_HEIGHT_PCT, "и это умолчание из схемы");
   assertEq(look.widthPct, visuals.BLOCK_FILL_DEFAULT_WIDTH_PCT, "и это тоже");
 })();
 
 (function testGrowthReadFromConfig() {
   const look = visuals.blockFillLookFromConfig({
-    visual: { tags: { blockFill: { enabled: true, heightPx: 4, widthPct: 25 } } },
+    visual: { tags: { blockFill: { enabled: true, heightPct: 40, widthPct: 25 } } },
   });
-  assertEq(look.heightPx, 4, "высота читается");
+  assertEq(look.heightPct, 40, "высота читается");
   assertEq(look.widthPct, 25, "ширина читается");
 
   const junk = visuals.blockFillLookFromConfig({
-    visual: { tags: { blockFill: { enabled: true, heightPx: 900, widthPct: -3 } } },
+    visual: { tags: { blockFill: { enabled: true, heightPct: 900, widthPct: -3 } } },
   });
-  assertEq(junk.heightPx, visuals.BLOCK_FILL_MAX_HEIGHT_PX,
+  assertEq(junk.heightPct, visuals.BLOCK_FILL_MAX_HEIGHT_PCT,
     "высота выше шкалы прижимается к её верху");
   assertEq(junk.widthPct, 0, "ширина ниже нуля прижимается к нулю");
 
   const words = visuals.blockFillLookFromConfig({
-    visual: { tags: { blockFill: { enabled: true, heightPx: "три", widthPct: null } } },
+    visual: { tags: { blockFill: { enabled: true, heightPct: "три", widthPct: null } } },
   });
-  assertEq(words.heightPx, visuals.BLOCK_FILL_DEFAULT_HEIGHT_PX,
+  assertEq(words.heightPct, visuals.BLOCK_FILL_DEFAULT_HEIGHT_PCT,
     "не число — значит умолчание, а не NaN в стилях");
   assertEq(words.widthPct, visuals.BLOCK_FILL_DEFAULT_WIDTH_PCT, "то же и у ширины");
 })();
@@ -478,10 +478,20 @@ function fakePlugin(blockFill) {
  */
 const LAYER_OFFSET_PX = 3;
 const ROW_H = 40;
-const TEXT_H = 28;
+const TEXT_H = 30;
 const DOC_TOP = 7;
 /* Ссылка в замечании выше написанного ровно на столько — обмерено по 18.png. */
 const TALL_BUMP_PX = 5;
+/*
+ * **На сколько строка бывает выше умолчания редактора.** `defaultLineHeight`
+ * платформа мерит на пробной строке из одних букв (`measureTextSize` в
+ * `@codemirror/view`), а строка со ссылкой, эмодзи или высоким пузырём выше
+ * его. Прежняя фикстура отдавала высоту блока ровно `rows * ROW_H`, то есть
+ * предмета этого замечания в ней не было вовсе (У-113), и подложка, встававшая
+ * по середине **умолчания**, уезжала вверх на половину разницы при зелёном
+ * наборе. Обмерено браузером: 5 точек из 42 на строке со ссылкой.
+ */
+const TALL_ROW_BUMP_PX = 10;
 
 function withFakeRectangleMarker(body) {
   const cmView = require("@codemirror/view");
@@ -553,15 +563,30 @@ function withFakeRectangleMarker(body) {
  * `lineBlockAt`, `documentTop`, `defaultLineHeight` и
  * `viewState.heightOracle.textHeight`, какие спрашивает слой.
  */
-function fakeViewWithCoords(lines, wraps, bubbles, talls) {
+function fakeViewWithCoords(lines, wraps, bubbles, talls, tallLines) {
   const view = fakeView(lines);
   const cuts = (Array.isArray(wraps) ? wraps : (wraps == null ? [] : [wraps]))
     .map(Number).filter(Number.isFinite).sort((a, b) => a - b);
   const bumps = Array.isArray(bubbles) ? bubbles : [];
   const highs = Array.isArray(talls) ? talls : [];
   const docEnd = lines.reduce((at, text) => at + text.length + 1, 0) - 1;
-  const rowOf = (pos) => cuts.filter((c) => c <= pos).length;
   const inList = (list, pos) => list.some((b) => pos >= b.from && pos < b.to);
+  /* Номера строк, которые выше умолчания редактора: так ведёт себя строка со
+     ссылкой или эмодзи. Лишняя высота у такой строки висит **под**
+     написанным — это подделка, и она названа: где именно окажется текст
+     внутри выросшей строки, решает начертание, а подложке важна строка. */
+  const tallSet = new Set((Array.isArray(tallLines) ? tallLines : []).map(Number));
+  const rowHeightOfLine = (n) => ROW_H + (tallSet.has(Number(n)) ? TALL_ROW_BUMP_PX : 0);
+  const rowsOfLine = (line) =>
+    1 + cuts.filter((c) => c > line.from && c < line.from + line.text.length).length;
+  const blockTopOfLine = (line) => {
+    let top = 0;
+    for (let n = 1; n < line.number; n++) {
+      const prev = view.state.doc.line(n);
+      top += rowsOfLine(prev) * rowHeightOfLine(n);
+    }
+    return top;
+  };
   /*
    * **Сторона обязательна** (У-76): платформа меряет либо знак ПЕРЕД
    * положением (сторона меньше нуля), либо знак НА нём. Фикстура, мерившая
@@ -570,7 +595,9 @@ function fakeViewWithCoords(lines, wraps, bubbles, talls) {
    */
   view.coordsAtPos = (pos, side) => {
     const at = Number(side) < 0 ? Math.max(0, pos - 1) : pos;
-    const rowTop = DOC_TOP + rowOf(at) * ROW_H;
+    const line = view.state.doc.lineAt(at);
+    const rowInLine = cuts.filter((c) => c > line.from && c <= at).length;
+    const rowTop = DOC_TOP + blockTopOfLine(line) + rowInLine * rowHeightOfLine(line.number);
     let top = rowTop + (ROW_H - TEXT_H) / 2;
     let bottom = top + TEXT_H;
     /* Пузырь тега ниже написанного и стоит внутри его ящика. */
@@ -590,16 +617,14 @@ function fakeViewWithCoords(lines, wraps, bubbles, talls) {
   view.viewState = { heightOracle: { textHeight: TEXT_H } };
   view.lineBlockAt = (pos) => {
     const line = view.state.doc.lineAt(pos);
-    const rows = 1 + cuts.filter((c) => c > line.from && c < line.from + line.text.length).length;
-    /* Строки выше считаются так же, как их считает платформа: по числу
-       зрительных строк каждой. */
-    let top = 0;
-    for (let n = 1; n < line.number; n++) {
-      const prev = view.state.doc.line(n);
-      const prevRows = 1 + cuts.filter((c) => c > prev.from && c < prev.from + prev.text.length).length;
-      top += prevRows * ROW_H;
-    }
-    return { top, height: rows * ROW_H, from: line.from, to: line.from + line.text.length };
+    /* Высота блока — своя высота строки, а не умолчание: именно этим строка со
+       ссылкой отличается от строки без неё. */
+    return {
+      top: blockTopOfLine(line),
+      height: rowsOfLine(line) * rowHeightOfLine(line.number),
+      from: line.from,
+      to: line.from + line.text.length,
+    };
   };
   return view;
 }
@@ -612,7 +637,7 @@ function rowBoxOf(row) {
 
 (function testWholeSpanGoesToThePlatformAsOnePiece() {
   const view = fakeViewWithCoords([LINE], null, null, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 0 });
   withFakeRectangleMarker(({ asked, made }) => {
     const markers = decorations.blockFillMarkersFor(view, plugin);
     assertEq(asked.length, 2, "переноса нет — по одному отрезку на сторону");
@@ -649,7 +674,7 @@ function rowBoxOf(row) {
      нужны ВНУТРИ одной зрительной строки, иначе предмета нет. */
   const bubbles = [{ from: left.start, to: LINE.indexOf(" ", left.start) }];
   const view = fakeViewWithCoords([LINE], null, bubbles, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 0 });
   withFakeRectangleMarker(({ asked }) => {
     decorations.blockFillMarkersFor(view, plugin);
     assertEq(asked[0], { from: left.start, to: left.end },
@@ -680,7 +705,7 @@ function rowBoxOf(row) {
   const left = spans[0];
   /* Ссылка — на последнем значении блока: именно край отрезка и решает. */
   const talls = [{ from: LINE.lastIndexOf("#todo"), to: left.end }];
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 2, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 40, widthPct: 0 });
 
   const run = (list) => withFakeRectangleMarker(({ made, returned }) => {
     decorations.blockFillMarkersFor(fakeViewWithCoords([LINE], null, null, list), plugin);
@@ -712,13 +737,14 @@ function rowBoxOf(row) {
    * высота её — написанное плюс заданные точки вверх и вниз. Числа выписаны
    * отдельно от того, из чего слой их считает (У-5).
    */
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 2, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 40, widthPct: 0 });
   const view = fakeViewWithCoords([LINE], null, null, null);
   withFakeRectangleMarker(({ made }) => {
     decorations.blockFillMarkersFor(view, plugin);
     const row = rowBoxOf(0);
-    const height = TEXT_H + 2 * 2;
-    assertEq(made[0].height, height, "высота — написанное плюс по две точки вверх и вниз");
+    const height = 34;
+    assertEq(made[0].height, height,
+      "высота — написанное плюс две пятых того, что осталось от строки");
     assertEq(made[0].top, row.top + (row.height - height) / 2,
       "и стоит она по середине своей зрительной строки");
   });
@@ -732,33 +758,105 @@ function rowBoxOf(row) {
    * шкалы.
    */
   const view = fakeViewWithCoords([LINE], null, null, null);
-  const top = visuals.BLOCK_FILL_MAX_HEIGHT_PX;
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: top, widthPct: 0 });
+  const top = visuals.BLOCK_FILL_MAX_HEIGHT_PCT;
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: top, widthPct: 0 });
   withFakeRectangleMarker(({ made }) => {
     decorations.blockFillMarkersFor(view, plugin);
-    assertTrue(made[0].height <= ROW_H,
-      "на верху шкалы подложка не выше зрительной строки (" + made[0].height + " при " + ROW_H + ")");
+    assertEq(made[0].height, ROW_H,
+      "верх шкалы — ровно зрительная строка: и не выше её, и не ниже");
     /* И положительный контроль: она и правда выросла, а не осталась прежней. */
     assertTrue(made[0].height > TEXT_H, "и выросла: иначе шкала ничего не делает");
   });
 })();
 
+(function testBandCentreFollowsItsOwnRowNotTheDefault() {
+  /*
+   * **Замечание третьего захода по S7 дословно:** «полоска выглядит
+   * нецентрированной — она смещена выше (сверху строки она выглядит больше,
+   * чем снизу строки)». Причина не в счёте высоты, а в том, от чего считалась
+   * середина: у строки **без переноса** ею была середина `defaultLineHeight`,
+   * а строка со ссылкой, эмодзи или высоким пузырём выше этого умолчания.
+   *
+   * Здесь эти строки стоят рядом: вторая выше умолчания на `TALL_ROW_BUMP_PX`.
+   * Подложка обязана встать по середине **своей** строки на обеих.
+   */
+  const view = fakeViewWithCoords([LINE, LINE], null, null, null, [2]);
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 0 });
+  withFakeRectangleMarker(({ made }) => {
+    decorations.blockFillMarkersFor(view, plugin);
+    assertEq(made.length, 4, "по две стороны на каждой из двух строк");
+    /* Обычная строка: середина умолчания и середина строки совпадают. */
+    const plainRow = { top: DOC_TOP - LAYER_OFFSET_PX, height: ROW_H };
+    assertEq(made[0].top + made[0].height / 2, plainRow.top + plainRow.height / 2,
+      "на обычной строке подложка по её середине");
+    /* Высокая строка: её собственная высота больше умолчания. */
+    const tallTop = DOC_TOP + ROW_H - LAYER_OFFSET_PX;
+    const tallHeight = ROW_H + TALL_ROW_BUMP_PX;
+    assertEq(made[2].top + made[2].height / 2, tallTop + tallHeight / 2,
+      "и на высокой — по середине высокой, а не по середине умолчания");
+    /* Положительный контроль: строка и правда выше, иначе сверять нечего. */
+    assertTrue(tallHeight > ROW_H, "высокая строка выше умолчания: предмет замечания на месте");
+    assertEq(made[2].height, made[0].height,
+      "а высота у обеих одна: «одинаковая во всех строках» — его же условие");
+  });
+
+  /*
+   * И верх шкалы: высота считается от **умолчания** редактора, а не от высоты
+   * этой строки, — иначе на строке со ссылкой полоса стала бы выше, а «она
+   * должна быть одинаковая во всех строках» его же условие. Первая версия
+   * правки смешала два вопроса, и браузерный гейт покраснел сразу: 24.19
+   * против 28.19. Середина при этом по-прежнему у своей строки.
+   */
+  const fullPlugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 100, widthPct: 0 });
+  withFakeRectangleMarker(({ made }) => {
+    decorations.blockFillMarkersFor(view, fullPlugin);
+    assertEq(made[0].height, ROW_H, "на обычной строке верх шкалы — её высота");
+    assertEq(made[2].height, ROW_H, "на высокой — та же: высота одна на все строки");
+    const tallTop = DOC_TOP + ROW_H - LAYER_OFFSET_PX;
+    assertEq(made[2].top + made[2].height / 2,
+      tallTop + (ROW_H + TALL_ROW_BUMP_PX) / 2,
+      "а середина — по середине высокой строки");
+  });
+})();
+
+(function testEveryStepOfTheHeightScaleMovesTheBand() {
+  /*
+   * Его слово: «tags-block-fill-height изменяются только при значениях
+   * ползунка от 0 до 2 px, а при значениях от 3 до 5 высота как при 2px».
+   * Шкала в точках упиралась в высоту строки, и сколько её делений останется
+   * живым, решало начертание темы. Доля свободного места живёт вся и на тесной
+   * строке, и на просторной — обе тут и проверяются.
+   */
+  const look = (heightPct) => ({ heightPct });
+  for (const [rowH, textH] of [[32, 30], [60, 30]]) {
+    let prev = -1;
+    for (const pct of [0, 20, 40, 60, 80, 100]) {
+      const h = visuals.blockFillBandHeightPx(look(pct), rowH, textH, 0);
+      assertTrue(h > prev,
+        "на строке высотой " + rowH + " деление " + pct + " двигает высоту (" + h + " после " + prev + ")");
+      prev = h;
+    }
+    assertEq(prev, rowH, "и верх шкалы заполняет строку целиком");
+  }
+})();
+
 (function testBandHeightRule() {
   /* Само правило — без окна и без слоя. */
-  const look = (heightPx) => ({ heightPx });
-  assertEq(visuals.blockFillBandHeightPx(look(0), 40, 28, 20), 28,
+  const look = (heightPct) => ({ heightPct });
+  assertEq(visuals.blockFillBandHeightPx(look(0), 40, 30, 20), 30,
     "на нуле подложка ровно по написанному");
-  assertEq(visuals.blockFillBandHeightPx(look(3), 40, 28, 20), 34,
-    "каждая точка добавляет по одной вверх и вниз");
-  assertEq(visuals.blockFillBandHeightPx(look(5), 40, 28, 20), 38, "и так до верха шкалы");
-  assertEq(visuals.blockFillBandHeightPx(look(5), 30, 28, 20), 30,
+  assertEq(visuals.blockFillBandHeightPx(look(50), 40, 30, 20), 35,
+    "половина шкалы — половина того, что осталось от строки");
+  assertEq(visuals.blockFillBandHeightPx(look(100), 40, 30, 20), 40,
+    "сотня — строка целиком, ни точкой больше");
+  assertEq(visuals.blockFillBandHeightPx(look(100), 30, 40, 20), 30,
     "выше своей зрительной строки не растёт: соседние подложки не пересекаются");
   assertEq(visuals.blockFillBandHeightPx(look(0), 40, 20, 30), 30,
     "пузырь выше написанного — подложка берёт его: цветные края наружу не торчат");
   assertEq(visuals.blockFillBandHeightPx(look(0), 40, NaN, 0),
     40 * visuals.BLOCK_FILL_TEXT_HEIGHT_SHARE,
     "меры написанного нет — берётся доля строки, и она названа");
-  assertEq(visuals.blockFillBandHeightPx(look(3), NaN, 28, 20), 0,
+  assertEq(visuals.blockFillBandHeightPx(look(60), NaN, 28, 20), 0,
     "высоты строки нет — считать нечего, и это не NaN в стилях");
 })();
 
@@ -791,7 +889,7 @@ function rowBoxOf(row) {
   const right = spans[1];
   const wrap = line.indexOf("#three");
   const view = fakeViewWithCoords([line], [wrap], null, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 0 });
 
   withFakeRectangleMarker(({ asked }) => {
     decorations.blockFillMarkersFor(view, plugin);
@@ -822,7 +920,7 @@ function rowBoxOf(row) {
   /* Ссылка стоит на первом куске: под прежним правилом он уехал бы вверх. */
   const talls = [{ from: right.start, to: right.start + 4 }];
   const view = fakeViewWithCoords([line], [wrap], null, talls);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 1, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 20, widthPct: 0 });
   withFakeRectangleMarker(({ made }) => {
     decorations.blockFillMarkersFor(view, plugin);
     assertEq(made.length, 3, "три куска: левая сторона и две зрительные строки правой");
@@ -868,7 +966,7 @@ function rowBoxOf(row) {
     const b = realBlockAt(pos);
     return { top: b.top, height: b.height + 8, from: b.from, to: b.to };
   };
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 1, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 20, widthPct: 0 });
   withFakeRectangleMarker(({ made }) => {
     decorations.blockFillMarkersFor(view, plugin);
     assertEq(made.length, 3, "три куска: левый блок и две зрительные строки правого");
@@ -895,7 +993,7 @@ function rowBoxOf(row) {
     const b = realBlockAt(pos);
     return { top: b.top, height: b.height - 12, from: b.from, to: b.to };
   };
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 5, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 100, widthPct: 0 });
   withFakeRectangleMarker(({ made }) => {
     decorations.blockFillMarkersFor(view, plugin);
     const block = view.lineBlockAt(0);
@@ -931,7 +1029,7 @@ function rowBoxOf(row) {
   assertTrue(wrap > right.start && wrap < right.end,
     "перенос стоит внутри единственного значения блока: предмет есть");
   const view = fakeViewWithCoords([line], [wrap], null, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 0 });
   withFakeRectangleMarker(({ asked }) => {
     decorations.blockFillMarkersFor(view, plugin);
     assertEq(asked.slice(1), [
@@ -955,7 +1053,7 @@ function rowBoxOf(row) {
    * прежнее слово, которое он этим замечанием уточнил.
    */
   const view = fakeViewWithCoords([LINE], null, null, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 50 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 50 });
   withFakeRectangleMarker(({ made, returned }) => {
     decorations.blockFillMarkersFor(view, plugin);
     assertEq(made.length, 2, "по прямоугольнику на сторону");
@@ -1000,7 +1098,7 @@ function rowBoxOf(row) {
   assertEq(line.slice(0, left.prefixEnd), "- [ ]",
     "знак начала строки — буллит с чекбоксом, и пробел за ним в него не входит");
   const view = fakeViewWithCoords([line], null, null, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 100 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 100 });
   withFakeRectangleMarker(({ made, returned }) => {
     decorations.blockFillMarkersFor(view, plugin);
     const roomPx = view.coordsAtPos(left.start, 1).left
@@ -1032,7 +1130,7 @@ function rowBoxOf(row) {
   const cut1 = line.indexOf("#two");
   const cut2 = line.indexOf("#three");
   const view = fakeViewWithCoords([line], [cut1, cut2], null, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 50 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 50 });
   withFakeRectangleMarker(({ asked, made, returned }) => {
     decorations.blockFillMarkersFor(view, plugin);
     assertEq(asked, [
@@ -1058,7 +1156,7 @@ function rowBoxOf(row) {
    * выполнялось бы и ростом, которого человек не просил.
    */
   const view = fakeViewWithCoords([LINE], null, null, null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 0 });
   withFakeRectangleMarker(({ made, returned }) => {
     decorations.blockFillMarkersFor(view, plugin);
     for (let i = 0; i < made.length; i++) {
@@ -1079,7 +1177,7 @@ function rowBoxOf(row) {
   const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
   const left = spans[0];
   const view = fakeViewWithCoords([LINE], null, [{ from: left.start, to: left.end }], null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 50 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 50 });
   withFakeRectangleMarker(({ made, returned }) => {
     decorations.blockFillMarkersFor(view, plugin);
     const gapPx = view.coordsAtPos(left.gapTo, 1).left
@@ -1103,7 +1201,7 @@ function rowBoxOf(row) {
    */
   const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
   const left = spans[0];
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 50 });
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 50 });
 
   const grown = (wraps) => withFakeRectangleMarker(({ made, returned }) => {
     decorations.blockFillMarkersFor(fakeViewWithCoords([LINE], wraps, null, null), plugin);
@@ -1131,7 +1229,7 @@ function rowBoxOf(row) {
    */
   const quiet = { docChanged: false, viewportChanged: false, geometryChanged: false };
   const dom = {};
-  let band = { enabled: true, opacity: 12, heightPx: 3, widthPct: 60 };
+  let band = { enabled: true, opacity: 12, heightPct: 60, widthPct: 60 };
   let tags = {};
   const plugin = {
     getConfig: () => ({
@@ -1144,11 +1242,11 @@ function rowBoxOf(row) {
   assertEq(ask(quiet, dom), true, "первый вопрос — перерисовать: подписи ещё не было");
   assertEq(ask(quiet, dom), false, "ничего не поменялось — перерисовывать нечего");
 
-  band = { enabled: true, opacity: 12, heightPx: 5, widthPct: 60 };
+  band = { enabled: true, opacity: 12, heightPct: 100, widthPct: 60 };
   assertEq(ask(quiet, dom), true, "сдвинули высоту — слой перерисовывается");
   assertEq(ask(quiet, dom), false, "и успокаивается");
 
-  band = { enabled: true, opacity: 12, heightPx: 5, widthPct: 20 };
+  band = { enabled: true, opacity: 12, heightPct: 100, widthPct: 20 };
   assertEq(ask(quiet, dom), true, "сдвинули ширину — тоже");
 
   /*
@@ -1162,11 +1260,11 @@ function rowBoxOf(row) {
   assertEq(ask(quiet, dom), true, "и высоту пузыря — тоже");
 
   /* А густота живёт в стилях, и слою до неё дела нет: перерисовки не будет. */
-  band = { enabled: true, opacity: 90, heightPx: 5, widthPct: 20 };
+  band = { enabled: true, opacity: 90, heightPct: 100, widthPct: 20 };
   assertEq(ask(quiet, dom), false,
     "густота меняется правилом стилей, а не геометрией: слой не трогается");
 
-  band = { enabled: false, opacity: 90, heightPx: 5, widthPct: 20 };
+  band = { enabled: false, opacity: 90, heightPct: 100, widthPct: 20 };
   assertEq(ask(quiet, dom), true, "выключили тумблер — слой убирает прямоугольники");
 })();
 
@@ -1174,16 +1272,40 @@ function rowBoxOf(row) {
   const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
   const out = normalize.migrateConfig({
     schemaVersion: 2,
-    visual: { tags: { blockFill: { enabled: true, heightPx: 900, widthPct: -20 } } },
+    visual: { tags: { blockFill: { enabled: true, heightPct: 900, widthPct: -20 } } },
   }).visual.tags.blockFill;
-  assertEq(out.heightPx, visuals.BLOCK_FILL_MAX_HEIGHT_PX,
+  assertEq(out.heightPct, visuals.BLOCK_FILL_MAX_HEIGHT_PCT,
     "высота выше шкалы прижимается к её верху");
   assertEq(out.widthPct, 0, "ширина ниже нуля прижимается к нулю");
 
   const fresh = normalize.migrateConfig({ schemaVersion: 2 }).visual.tags.blockFill;
-  assertEq(fresh.heightPx, visuals.BLOCK_FILL_DEFAULT_HEIGHT_PX,
+  assertEq(fresh.heightPct, visuals.BLOCK_FILL_DEFAULT_HEIGHT_PCT,
     "умолчание высоты досыпается схемой, а не выдумывается слоем");
   assertEq(fresh.widthPct, visuals.BLOCK_FILL_DEFAULT_WIDTH_PCT, "и умолчание ширины тоже");
+})();
+
+(function testOldHeightInPointsBecomesShareOfTheRoom() {
+  /*
+   * Переезд ключа `heightPx` → `heightPct` на файле **версии 2**: карту
+   * маршрутов такой файл не проходит вовсе, перевод делает третья ступень.
+   * У заказчика в `data.json` стояла единица из пяти — она обязана стать
+   * двадцатью процентами, то есть тем же видом на экране.
+   */
+  const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+  const moved = normalize.migrateConfig({
+    schemaVersion: 2,
+    visual: { tags: { blockFill: { enabled: true, heightPx: 1, widthPct: 100 } } },
+  }).visual.tags.blockFill;
+  assertEq(moved.heightPct, 20, "единица из пяти точек стала пятой частью шкалы");
+  assertEq(moved.heightPx, undefined, "а старый ключ снят: иначе перевод случался бы каждый раз");
+  assertEq(moved.widthPct, 100, "и соседнюю шкалу переезд не тронул");
+
+  /* И то, что человек уже выставил в новой шкале, переезд не отменяет. */
+  const kept = normalize.migrateConfig({
+    schemaVersion: 2,
+    visual: { tags: { blockFill: { enabled: true, heightPct: 40 } } },
+  }).visual.tags.blockFill;
+  assertEq(kept.heightPct, 40, "без старого ключа новое значение остаётся своим");
 })();
 
 console.log("Block fill regression tests: OK");

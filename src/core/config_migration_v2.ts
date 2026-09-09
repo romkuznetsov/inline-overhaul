@@ -384,8 +384,12 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tags.blockFill.color"),
   keepV2("visual.tags.blockFill.opacity"),
   /* На сколько подложка больше написанного (замечание по S7, 2026-09-09):
-     тоже новые, и пары в версии 1 у них нет. */
+     тоже новые, и пары в версии 1 у них нет. Высота стала долей свободного
+     места и переименована в `heightPct`; сам перевод делает третья ступень —
+     файл версии 2 эту карту не проходит. Маршрут прежнего имени остаётся,
+     чтобы файл версии 1 с этим ключом не уехал в `_unmigrated`. */
   keepV2("visual.tags.blockFill.heightPx"),
+  keepV2("visual.tags.blockFill.heightPct"),
   keepV2("visual.tags.blockFill.widthPct"),
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),

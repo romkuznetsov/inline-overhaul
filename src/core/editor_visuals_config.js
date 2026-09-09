@@ -166,8 +166,18 @@ function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, sha
      * вовсе. Умолчания при этом не двинулись ни на точку — при сотне числа те
      * же, что были.
      */
-    horizontalPaddingPx: Math.max(0, Math.round(6 * bubbleScaleX)),
-    verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY)),
+    /*
+     * **Поле считается дробным, а не целым числом точек** (замечание по V1,
+     * 2026-09-09: «tags-bubble-height при значении ниже 40 % не меняется, при
+     * 20 % высота такая же как при 40 %»). Округление до точки и было той
+     * причиной: `round(3 * 0.2)` и `round(3 * 0.4)` — это одна и та же
+     * единица, и нижняя треть шкалы стояла на месте. Ограничение платформы тут
+     * ни при чём — обмерено браузером: 13.44 против 13.88 точки при
+     * округлении, то есть шкала двигала вид на четыре сотых точки за десять
+     * процентов. Умолчания не двинулись: при сотне это по-прежнему ровно 6 и 3.
+     */
+    horizontalPaddingPx: Math.max(0, Math.round(6 * bubbleScaleX * 100) / 100),
+    verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY * 100) / 100),
     fontSizePx: Math.max(6, Math.round(14 * textScale)),
     /*
      * Междустрочие пузыря идёт за его высотой, и только вниз от сотни:
@@ -824,7 +834,7 @@ const BLOCK_FILL_DEFAULT_OPACITY_PCT = 12;
  * вовсе: «если символов в block мало (например, стоит 1 тег), то полоска не
  * появляется». Умолчание, при котором функция невидима, — это не умолчание.
  */
-const BLOCK_FILL_DEFAULT_HEIGHT_PX = 3;
+const BLOCK_FILL_DEFAULT_HEIGHT_PCT = 60;
 /**
  * Умолчание ширины — **середина шкалы**, и это её же ориентир.
  *
@@ -836,16 +846,23 @@ const BLOCK_FILL_DEFAULT_HEIGHT_PX = 3;
 const BLOCK_FILL_DEFAULT_WIDTH_PCT = 50;
 
 /**
- * Верх шкалы высоты — пять точек, и это слово заказчика (2026-09-09):
- * «после высоты в 3px полоски на разных строках начинают наезжать друг на
- * друга, сделай максимальное значение 5px».
+ * Шкала высоты — **доля свободного места до краёв строки**, а не точки.
  *
- * **Наезжать они больше не могут вовсе**, и не из-за шкалы: высота подложки
- * прижимается к высоте зрительной строки (`blockFillBandHeightPx`). Пять
- * точек — то место шкалы, где на его начертании подложка ровно заполняет
- * строку; на более плотном начертании прижим случится раньше, и это верно.
+ * Точками она была до 2026-09-09, и верхняя её половина у заказчика была
+ * мёртвой: «tags-block-fill-height изменяются только при значениях ползунка от
+ * 0 до 2 px, а при значениях от 3 до 5 высота как при 2px». Причина не в шкале
+ * и не в дефекте счёта — подложка **упирается в высоту строки**, иначе полосы
+ * соседних строк наедут друг на друга, а этого он просил не допускать. Сколько
+ * места остаётся между написанным и краем строки, решает начертание темы: у
+ * него между ними две с половиной точки, и три верхних деления шкалы в точках
+ * назвать было нечем.
+ *
+ * Поэтому у шкалы теперь два ориентира, и оба выполняются на любой теме:
+ * **ноль** — подложка ровно по написанному, **сотня** — подложка заполняет
+ * зрительную строку целиком. Между ними — доля этого расстояния, и каждое
+ * деление двигает вид, потому что делится измеренное, а не выдуманное.
  */
-const BLOCK_FILL_MAX_HEIGHT_PX = 5;
+const BLOCK_FILL_MAX_HEIGHT_PCT = 100;
 
 /**
  * Доля, которую занимает написанное в зрительной строке, — на случай, когда
@@ -890,9 +907,9 @@ function blockFillLookFromConfig(cfg) {
     opacity: Number.isFinite(pct)
       ? Math.max(0, Math.min(100, Math.trunc(pct))) / 100
       : BLOCK_FILL_DEFAULT_OPACITY_PCT / 100,
-    /* Высота — в точках, на сколько подложка выходит за написанное вверх и
-       вниз. Верх шкалы — там, где она заполняет зрительную строку целиком. */
-    heightPx: blockFillIntOr(src.heightPx, 0, BLOCK_FILL_MAX_HEIGHT_PX, BLOCK_FILL_DEFAULT_HEIGHT_PX),
+    /* Высота — в долях свободного места между написанным и краями зрительной
+       строки. Ноль: ровно по написанному. Сотня: строка заполнена целиком. */
+    heightPct: blockFillIntOr(src.heightPct, 0, BLOCK_FILL_MAX_HEIGHT_PCT, BLOCK_FILL_DEFAULT_HEIGHT_PCT),
     /* Ширина — в долях расстояния до разделителя: границу назвал заказчик, и
        она зависит от строки, а не от шкалы. */
     widthPct: blockFillIntOr(src.widthPct, 0, 100, BLOCK_FILL_DEFAULT_WIDTH_PCT),
@@ -954,13 +971,19 @@ function blockFillPadXPx(look, nearPx, farPx) {
  *   2. `bubbleHeightPx` — высота пузыря тега по нынешним настройкам. Пузырь
  *      бывает выше написанного (крупный кегль, высокий пузырь), и подложка
  *      ниже него значила бы цветные края, торчащие наружу;
- *   3. `heightPx` — сколько точек человек попросил сверх этого, вверх и вниз.
+ *   3. `heightPct` — какую долю оставшегося до краёв строки места человек
+ *      попросил отдать подложке, поровну вверх и вниз.
  *
  * И прижим к высоте зрительной строки: подложки соседних строк не
  * пересекаются никогда, чем бы ни был выставлен ползунок.
+ *
+ * **Высота строки приходит своя у каждой строки, а не умолчанием редактора**
+ * (замечание по S7, 2026-09-09, третий заход). Строка со ссылкой, эмодзи или
+ * высоким пузырём выше `defaultLineHeight`, и прижим по умолчанию отнимал у
+ * такой строки то место, которое на ней есть.
  */
-function blockFillBandHeightPx(look, lineHeightPx, textHeightPx, bubbleHeightPx) {
-  const lineH = Number(lineHeightPx);
+function blockFillBandHeightPx(look, rowHeightPx, textHeightPx, bubbleHeightPx) {
+  const lineH = Number(rowHeightPx);
   if (!Number.isFinite(lineH) || lineH <= 0) return 0;
   const textH = Number(textHeightPx);
   const bubbleH = Number(bubbleHeightPx);
@@ -968,8 +991,15 @@ function blockFillBandHeightPx(look, lineHeightPx, textHeightPx, bubbleHeightPx)
     Number.isFinite(textH) && textH > 0 ? textH : lineH * BLOCK_FILL_TEXT_HEIGHT_SHARE,
     Number.isFinite(bubbleH) && bubbleH > 0 ? bubbleH : 0,
   );
-  const grow = Math.max(0, Math.min(BLOCK_FILL_MAX_HEIGHT_PX, Number(look && look.heightPx) || 0));
-  return Math.max(1, Math.min(lineH, written + grow * 2));
+  /*
+   * Свободное место — то, что осталось от строки за написанным, и оно же вся
+   * шкала. Ноль процентов: подложка ровно по написанному. Сто: заполняет
+   * строку. Прижим остаётся последней строкой, а не единственной: он ловит и
+   * случай, когда написанное само выше строки (крупный пузырь).
+   */
+  const pct = Math.max(0, Math.min(BLOCK_FILL_MAX_HEIGHT_PCT, Number(look && look.heightPct) || 0));
+  const room = Math.max(0, lineH - written);
+  return Math.max(1, Math.min(lineH, written + (room * pct) / 100));
 }
 
 /**
@@ -1517,9 +1547,9 @@ module.exports = {
   BLOCK_FILL_LAYER_CLASS,
   BLOCK_FILL_MARKER_CLASS,
   BLOCK_FILL_DEFAULT_OPACITY_PCT,
-  BLOCK_FILL_DEFAULT_HEIGHT_PX,
+  BLOCK_FILL_DEFAULT_HEIGHT_PCT,
   BLOCK_FILL_DEFAULT_WIDTH_PCT,
-  BLOCK_FILL_MAX_HEIGHT_PX,
+  BLOCK_FILL_MAX_HEIGHT_PCT,
   BLOCK_FILL_TEXT_HEIGHT_SHARE,
   blockFillLookFromConfig,
   blockFillSpansInLine,

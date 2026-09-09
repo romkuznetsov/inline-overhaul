@@ -500,6 +500,17 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    расходящийся ответ на вопрос «на сколько подложка больше написанного»: в
    панели она была больше, а в заметке — ровно по написанному, то есть под
    пузырём тега невидима. Заказчик увидел именно это. */
+/* **Обе стороны — одной высоты** (замечание по S7, 2026-09-09, третий заход:
+   «в io-tip-tag-preview высота полоски различается для left и right blocks»).
+   Высотой стороны было её содержимое, а справа стоят дата и ссылка: по его
+   скриншоту 20.png 24 точки справа против 19 слева. В заметке высоту подложки
+   содержимое не решает вовсе — там она считается от настроек и от высоты
+   строки, — и здесь тоже не должно: строка растягивает обе стороны по себе.
+
+   **Специфичность двойная нарочно** (У-67): `.io-line` объявлен в этом файле
+   дважды, и второе объявление стоит ниже — одиночный класс он отменял молча,
+   и обе стороны оставались разной высоты при зелёном гейте. */
+.io-line.io-line--blockfill { align-items: stretch; }
 .io-line--blockfill .io-line__side--left:not(:empty),
 .io-line--blockfill .io-line__side--right:not(:empty) {
   background-color: color-mix(in srgb,
@@ -2149,14 +2160,19 @@ const SCHEMA = [
        ОДНОГО блока. Исключение одно и тоже его: «полоска в left block не
        должна наезжать на префикс (буллит, чекбокс)».
 
-       Высота — в точках, и верх шкалы тоже его: «после высоты в 3px
-       полоски на разных строках начинают наезжать друг на друга, сделай
-       максимальное значение 5px». Наезжать они больше не могут вовсе:
-       высота подложки прижата к высоте зрительной строки. */
-    { kind:"slider", id:"tags-block-fill-height", path:"visual.tags.blockFill.heightPx", default:3,
-      min:0, max:5, step:1, unit:"px",
+       Высота — в долях свободного места до краёв зрительной строки, и это
+       третий заход: «tags-block-fill-height изменяются только при значениях
+       ползунка от 0 до 2 px, а при значениях от 3 до 5 высота как при 2px».
+       Причина не в счёте — подложка упирается в высоту строки, иначе полосы
+       соседних строк наедут друг на друга. Сколько места остаётся между
+       написанным и краем строки, решает начертание темы: у него две с
+       половиной точки, и три верхних деления шкалы в точках назвать было
+       нечем. Ориентиров у шкалы два, и оба выполняются на любой теме: ноль —
+       ровно по написанному, сотня — строка заполнена целиком. */
+    { kind:"slider", id:"tags-block-fill-height", path:"visual.tags.blockFill.heightPct", default:60,
+      min:0, max:100, step:20, unit:"%",
       name:"Band height", desc:"How far the band reaches above and below the writing",
-      tip:"At <code>0</code> the band is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. Each point adds one above and one below. The band never grows past the line it belongs to, so the bands of two neighbouring lines can meet but never overlap",
+      tip:"The scale has two landmarks. At <code>0</code> the band is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. At <code>100</code> it fills the line it belongs to, so the bands of two neighbouring lines meet and never overlap. In between it takes that much of the room the line has left, which is why every step moves the band on any theme, whatever its line spacing",
       visible: on("visual.tags.blockFill.enabled") },
     { kind:"slider", id:"tags-block-fill-width", path:"visual.tags.blockFill.widthPct", default:50,
       min:0, max:100, step:5, unit:"%",
@@ -3561,7 +3577,11 @@ function applyTagVars(node) {
   /*
    * Насколько подложка выходит за написанное (замечания по S7, 2026-09-09).
    *
-   * Высота — в точках. Ширина — шкала с переломом на середине, и три её
+   * Высота — доля свободного места. У строки предпросмотра это её
+   * собственное поле сверху и снизу, у строки заметки — остаток зрительной
+   * строки за написанным; сотня заполняет и то и другое.
+   *
+   * Ширина — шкала с переломом на середине, и три её
    * ориентира назвал он сам: ноль — по написанному, пятьдесят — до
    * разделителя, сотня — включая разделитель. Первая половина шкалы тратится
    * на промежуток — здесь это промежуток флекса, `--io-line-gap`, — вторая на
@@ -3572,7 +3592,9 @@ function applyTagVars(node) {
    * нечего. В заметке та же величина именно измеряется; здесь она показывает
    * поведение шкалы, а не точные точки.
    */
-  cssVar(node, "--io-blockfill-pady", String(val("visual.tags.blockFill.heightPx")) + "px");
+  const bandRoomPx = 3;
+  cssVar(node, "--io-blockfill-pady",
+    String(Math.round(bandRoomPx * (Number(val("visual.tags.blockFill.heightPct")) || 0)) / 100) + "px");
   const bandPct = Math.max(0, Math.min(100, Number(val("visual.tags.blockFill.widthPct")) || 0));
   const bandNear = Math.min(1, bandPct / 50);
   const bandFar = Math.max(0, (bandPct - 50) / 50);

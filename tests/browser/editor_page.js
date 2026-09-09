@@ -48,6 +48,14 @@ const CFG = {
       elements: { byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" } } },
     },
   },
+  /*
+   * Плавающая кнопка `→` включена нарочно: с 2026-09-09 подложка правого блока
+   * прижимается к ней так же, как левая прижата к чекбоксу (решение заказчика
+   * по вопросу о полосе за спиной кнопки). Без кнопки на странице этот прижим
+   * проверялся бы отсутствием предмета (У-113).
+   */
+  features: { transform: { enabled: true } },
+  transform: { inline2note: { enabled: true, floatingButton: true, floatingButtonGap: 12 } },
   visual: {
     tags: {
       textSizePct: 80,
@@ -63,7 +71,7 @@ const CFG = {
         Importance: { "#/1": { fillColor: "#ff0000", textColor: "#ffffff", visibility: "empty" } },
       },
       userTags: { "#processed": { fillColor: "#ff0000", textColor: "", visibility: "default" } },
-      blockFill: { enabled: true, color: "#908e8e", opacity: 75, heightPx: 2, widthPct: 50 },
+      blockFill: { enabled: true, color: "#908e8e", opacity: 75, heightPct: 40, widthPct: 50 },
     },
   },
 };
@@ -123,6 +131,8 @@ const view = new EditorView({
       EditorView.lineWrapping,
       decorations.createTagVisualDecorationExtension(plugin),
       linkStandIn,
+      /* Кнопка `→` — наш же виджет, и здесь он настоящий. */
+      decorations.createSourceMarkDecorationExtension(plugin),
       decorations.createBlockFillLayerExtension(plugin),
     ],
   }),
@@ -141,15 +151,40 @@ document.head.appendChild(bandStyle);
  * присылает её же, и решает подпись слоя (`blockFillLayerNeedsRedraw`). То
  * есть проверка ходит тем самым путём, каким до слоя доезжает ползунок.
  */
+/**
+ * Слой перерисовывается **не сразу**, и это не мелочь.
+ *
+ * `layer` ставит свои прямоугольники в фазе измерения CodeMirror, а её
+ * платформа откладывает до кадра отрисовки. Проба, снятая сразу за
+ * `dispatch`, читает **прежнее** состояние слоя: 2026-09-09 из-за этого гейт
+ * мерил вчерашнюю высоту подложки и был зелёный при шкале, которая ничего не
+ * делала. Поэтому обе рисовалки возвращают обещание и ждут двух кадров: в
+ * первом платформа мерит, во втором ставит.
+ */
+function settled() {
+  return new Promise((done) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => done(true)));
+  });
+}
+
 window.__ioSetBand = function (patch) {
   Object.assign(CFG.visual.tags.blockFill, patch || {});
   bandStyle.textContent = visuals.buildBlockFillStyleCss(visuals.blockFillLookFromConfig(CFG));
   view.dispatch({ selection: view.state.selection });
+  return settled();
 };
 
 window.__ioSetTags = function (patch) {
   Object.assign(CFG.visual.tags, patch || {});
   view.dispatch({ selection: view.state.selection });
+  return settled();
+};
+
+/** Каретка на строке: от неё зависит, где стоит кнопка `→`. */
+window.__ioPutCaret = function (lineNumber) {
+  const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Number(lineNumber) || 1)));
+  view.dispatch({ selection: { anchor: line.to } });
+  return settled();
 };
 
 function round(n) { return Math.round(Number(n) * 100) / 100; }
@@ -183,9 +218,18 @@ window.__ioEditorProbe = function () {
       const c = view.coordsAtPos(pos, side);
       return c ? { left: round(c.left), right: round(c.right), top: round(c.top), bottom: round(c.bottom) } : null;
     };
+    /*
+     * Ящик зрительной строки — от него считается середина подложки, и он же
+     * отличает строку со ссылкой от строки без неё: она **выше** умолчания
+     * редактора. Берётся у платформы (`lineBlockAt`), а не у узла `.cm-line`:
+     * подложка считается от той же меры.
+     */
+    const block = view.lineBlockAt(line.from);
     rows.push({
       line: n,
       hasLink: line.text.indexOf("[[") >= 0,
+      rowTop: round(Number(view.documentTop) + Number(block.top)),
+      rowHeight: round(Number(block.height)),
       /* Первое значение левого блока и правый край знака начала строки. */
       blockStart: left ? at(line.from + left.start, 1) : null,
       prefixGlyphEnd: left ? at(line.from + left.prefixEnd, -1) : null,
@@ -210,11 +254,23 @@ window.__ioEditorProbe = function () {
     const r = range.getBoundingClientRect();
     return round(r.height);
   })();
+  /* Пузырь тега: его высота — вторая половина замечания по V1, и мерит её
+     браузер, а не наша формула. */
+  const bubbleEl = document.querySelector("[data-io-tag-token]");
+  const bubbleHeight = bubbleEl ? round(bubbleEl.getBoundingClientRect().height) : -1;
+  /* Кнопка `→`: до неё прижимается подложка правого блока. */
+  const flyEl = document.querySelector(".io-flybtn");
+  const fly = flyEl ? (() => {
+    const r = flyEl.getBoundingClientRect();
+    return { left: round(r.left), right: round(r.right), top: round(r.top) };
+  })() : null;
   return {
     bands: bands(),
     rows,
     linkBoxHeight: linkBox,
     textBoxHeight: textBox,
+    bubbleHeight,
+    fly,
     lineHeight: round(view.defaultLineHeight),
     markerClass: visuals.BLOCK_FILL_MARKER_CLASS,
   };

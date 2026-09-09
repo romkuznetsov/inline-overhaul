@@ -16,7 +16,16 @@
  *      же расстояние, как у правой границы этого block»;
  *   4. и одно исключение зеркальности: «полоска в left block не должна
  *      наезжать на префикс (буллит, чекбокс)»;
- *   5. перенесённый блок режется по зрительным строкам, а не идёт до края.
+ *   5. перенесённый блок режется по зрительным строкам, а не идёт до края;
+ *   6. подложка стоит по середине **своей** зрительной строки — в том числе на
+ *      строке, которая выше умолчания редактора: «полоска выглядит
+ *      нецентрированной — она смещена выше»;
+ *   7. каждое деление шкалы высоты двигает подложку, а верх шкалы заполняет
+ *      строку: «изменяются только при значениях ползунка от 0 до 2 px»;
+ *   8. подложка правого блока не заезжает за спину кнопке `→`, а на строке без
+ *      кнопки растёт наружу по-прежнему;
+ *   9. высота пузыря тега двигается и в нижней трети своей шкалы: «при 20 %
+ *      высота такая же как при 40 %».
  *
  * Запускается `npm run gate:browser` дважды: на нынешнем коде обязан пройти,
  * на каждой подмене — упасть.
@@ -66,8 +75,8 @@ async function main() {
     }
 
     /* ---- 2. Соседние подложки не пересекаются ------------------------- */
-    const top = await page.evaluate(() => {
-      window.__ioSetBand({ heightPx: 5 });
+    const top = await page.evaluate(async () => {
+      await window.__ioSetBand({ heightPct: 100 });
       return window.__ioEditorProbe();
     });
     const sorted = top.bands.slice().sort((a, b) => a.top - b.top);
@@ -94,9 +103,9 @@ async function main() {
      * зелёной у дефекта. Пузырь ставится на верх обеих своих шкал: тогда он
      * сам выше строки, и без прижима подложки соседних строк наезжают.
      */
-    const fat = await page.evaluate(() => {
-      window.__ioSetTags({ textSizePct: 140, bubbleHeightPct: 140 });
-      window.__ioSetBand({ heightPx: 5 });
+    const fat = await page.evaluate(async () => {
+      await window.__ioSetTags({ textSizePct: 140, bubbleHeightPct: 140 });
+      await window.__ioSetBand({ heightPct: 100 });
       return window.__ioEditorProbe();
     });
     const fatSorted = fat.bands.slice().sort((a, b) => a.top - b.top);
@@ -115,14 +124,25 @@ async function main() {
       bad("положительный контроль: на крупном пузыре подложка (" + fat.bands[0].height
         + ") до высоты строки (" + fat.lineHeight + ") не дошла — прижим не при чём, и проверка слепа");
     }
-    await page.evaluate(() => {
-      window.__ioSetTags({ textSizePct: 80, bubbleHeightPct: 80 });
-      window.__ioSetBand({ heightPx: 2 });
+    /*
+     * И сам прижим, а не только его следствие. Пузырь на верху обеих своих
+     * шкал **выше** зрительной строки, то есть без прижима подложка вылезает
+     * за неё — но всего на несколько десятых точки, и «наехали друг на друга»
+     * этого не замечает: допуск проверки больше самого перелива. Поэтому
+     * правило спрашивается прямо (У-110: у контроля есть свой контроль).
+     */
+    if (!(fat.bands[0].height <= fat.lineHeight + 0.05)) {
+      bad("на крупном пузыре подложка выше зрительной строки: " + fat.bands[0].height
+        + " при строке " + fat.lineHeight + " — прижим снят");
+    }
+    await page.evaluate(async () => {
+      await window.__ioSetTags({ textSizePct: 80, bubbleHeightPct: 80 });
+      await window.__ioSetBand({ heightPct: 40 });
     });
 
     /* ---- 3. Рост зеркальный, и 4. прижат к знаку начала строки -------- */
-    const mid = await page.evaluate(() => {
-      window.__ioSetBand({ heightPx: 2, widthPct: 50 });
+    const mid = await page.evaluate(async () => {
+      await window.__ioSetBand({ heightPct: 40, widthPct: 50 });
       return window.__ioEditorProbe();
     });
     /* Берётся строка без ссылки и без переноса: второй ряд, левый блок. */
@@ -166,8 +186,8 @@ async function main() {
     }
 
     /* Верх шкалы ширины: разделитель входит в подложку, а прижим держится. */
-    const full = await page.evaluate(() => {
-      window.__ioSetBand({ heightPx: 2, widthPct: 100 });
+    const full = await page.evaluate(async () => {
+      await window.__ioSetBand({ heightPct: 40, widthPct: 100 });
       return window.__ioEditorProbe();
     });
     const fullRow = rowOf(full, 2);
@@ -186,8 +206,8 @@ async function main() {
     }
 
     /* ---- 5. Перенесённый блок режется по зрительным строкам ----------- */
-    const wrapped = await page.evaluate(() => {
-      window.__ioSetBand({ heightPx: 2, widthPct: 50 });
+    const wrapped = await page.evaluate(async () => {
+      await window.__ioSetBand({ heightPct: 40, widthPct: 50 });
       const probe = window.__ioEditorProbe();
       const w = document.querySelector(".cm-content").getBoundingClientRect();
       return { probe, contentRight: Math.round(w.right * 100) / 100 };
@@ -198,7 +218,153 @@ async function main() {
         + " раз(а) — перенесённый блок нарисован выделением, а не по строкам");
     }
 
-    /* ---- 6. Оверлей скроллера TagWheel -------------------------------- */
+    /* ---- 6. Подложка по середине СВОЕЙ зрительной строки -------------- */
+    /*
+     * Замечание третьего захода дословно: «полоска выглядит нецентрированной —
+     * она смещена выше (сверху строки она выглядит больше, чем снизу строки)».
+     * Серединой была середина `defaultLineHeight`, а строка со ссылкой или
+     * эмодзи **выше** этого умолчания — подложка уезжала вверх на половину
+     * разницы. Здесь спрашивается ящик каждой строки у платформы и середина
+     * каждой подложки у браузера.
+     */
+    const centred = await page.evaluate(async () => {
+      await window.__ioSetBand({ heightPct: 0, widthPct: 0 });
+      return window.__ioEditorProbe();
+    });
+    const singleRows = centred.rows.filter((r) => r.rowHeight < centred.lineHeight * 1.9);
+    /* Положительный контроль (У-110): среди них есть строка ВЫШЕ умолчания,
+       иначе «середина совпала» выполняется отсутствием предмета. */
+    const tallRows = singleRows.filter((r) => r.rowHeight > centred.lineHeight + 0.6);
+    if (!tallRows.length) {
+      bad("ни одна строка страницы не выше умолчания редактора (" + centred.lineHeight
+        + ") — предмета замечания про смещённую вверх подложку нет");
+    }
+    for (const row of singleRows) {
+      const onRow = centred.bands.filter((b) => b.top >= row.rowTop - 1
+        && b.bottom <= row.rowTop + row.rowHeight + 1);
+      if (!onRow.length) {
+        bad("на строке " + row.line + " подложки не нашлось вовсе");
+        continue;
+      }
+      const rowMid = row.rowTop + row.rowHeight / 2;
+      for (const b of onRow) {
+        const mid = (b.top + b.bottom) / 2;
+        if (!near(mid, rowMid, 0.6)) {
+          bad("подложка строки " + row.line + " не по её середине: середина подложки "
+            + mid + ", середина строки " + rowMid + " (высота строки " + row.rowHeight
+            + " при умолчании " + centred.lineHeight + ")");
+        }
+      }
+    }
+
+    /* ---- 7. Каждое деление шкалы высоты двигает подложку --------------- */
+    const steps = [];
+    for (const pct of [0, 20, 40, 60, 80, 100]) {
+      const probe = await page.evaluate(async (p) => {
+        await window.__ioSetBand({ heightPct: p });
+        return window.__ioEditorProbe();
+      }, pct);
+      steps.push({ pct, height: probe.bands[0].height, rowHeight: probe.rows[0].rowHeight });
+    }
+    for (let i = 1; i < steps.length; i++) {
+      if (!(steps[i].height > steps[i - 1].height + 0.05)) {
+        bad("деление шкалы высоты " + steps[i].pct + " не двигает подложку: "
+          + steps[i].height + " после " + steps[i - 1].height
+          + " — это и есть «от 3 до 5 высота как при 2px»");
+      }
+    }
+    const last = steps[steps.length - 1];
+    if (!near(last.height, last.rowHeight, 0.6)) {
+      bad("верх шкалы высоты не заполняет строку: подложка " + last.height
+        + " при строке " + last.rowHeight);
+    }
+
+    /* ---- 8. Подложка правого блока и кнопка `→` ----------------------- */
+    /*
+     * Решение заказчика 2026-09-09: «прижать к кнопке, как прижата к чекбоксу
+     * слева». На строке с кнопкой наружный рост кончается на её левом краю; на
+     * строке без кнопки он остаётся полным — иначе прижим отменил бы
+     * зеркальность всюду.
+     */
+    const rightBandOf = (probe, line) => {
+      const row = probe.rows.find((r) => r.line === line);
+      if (!row) return null;
+      const onRow = probe.bands.filter((b) => b.top >= row.rowTop - 1
+        && b.bottom <= row.rowTop + row.rowHeight + 1);
+      return onRow.length ? onRow.slice().sort((a, b) => b.left - a.left)[0] : null;
+    };
+    const withButton = await page.evaluate(async () => {
+      await window.__ioPutCaret(1);
+      await window.__ioSetBand({ heightPct: 40, widthPct: 100 });
+      return window.__ioEditorProbe();
+    });
+    if (!withButton.fly) {
+      bad("кнопки `→` на странице нет — прижим к ней проверялся бы отсутствием предмета");
+    } else {
+      const band = rightBandOf(withButton, 1);
+      if (!band) {
+        bad("подложки правого блока на строке с кнопкой не нашлось");
+      } else if (band.right > withButton.fly.left + 0.6) {
+        bad("подложка правого блока заехала кнопке `→` за спину: её правый край "
+          + band.right + ", кнопка начинается на " + withButton.fly.left);
+      }
+    }
+    /* И вторая половина: на строке без кнопки рост наружу остался. */
+    const noButtonTight = await page.evaluate(async () => {
+      await window.__ioSetBand({ heightPct: 40, widthPct: 0 });
+      return window.__ioEditorProbe();
+    });
+    const noButtonWide = await page.evaluate(async () => {
+      await window.__ioSetBand({ heightPct: 40, widthPct: 100 });
+      return window.__ioEditorProbe();
+    });
+    const tightRight = rightBandOf(noButtonTight, 2);
+    const wideRight = rightBandOf(noButtonWide, 2);
+    if (!tightRight || !wideRight) {
+      bad("подложку правого блока на строке без кнопки нечем обмерить");
+    } else if (!(wideRight.right > tightRight.right + 0.5)) {
+      bad("на строке без кнопки подложка правого блока наружу не выросла ("
+        + wideRight.right + " против " + tightRight.right
+        + ") — прижим к кнопке отменил зеркальность всюду");
+    }
+
+    /* ---- 9. Нижняя треть шкалы высоты пузыря ------------------------- */
+    /*
+     * Замечание по V1: «tags-bubble-height при значении ниже 40 % не меняется
+     * (т.е. при 20 % высота такая же как при 40 %)». Ограничение платформы тут
+     * ни при чём — поле пузыря считалось целым числом точек, и `round(3 * 0.2)`
+     * равно `round(3 * 0.4)`. Мерит браузер, а не наша формула.
+     */
+    const bubbleAt = async (pct) => {
+      const probe = await page.evaluate(async (p) => {
+        await window.__ioSetTags({ bubbleHeightPct: p });
+        return window.__ioEditorProbe();
+      }, pct);
+      return probe.bubbleHeight;
+    };
+    const b20 = await bubbleAt(20);
+    const b40 = await bubbleAt(40);
+    const b100 = await bubbleAt(100);
+    /*
+     * **Целая точка, а не любое число.** Округление поля до точки оставляло
+     * между двадцатью и сорока процентами четыре сотых точки: формально шкала
+     * «двигалась», а на экране это то самое «высота такая же». Порог назван по
+     * тому, что видно: разница меньше точки на экране не видна.
+     */
+    if (!(b40 >= b20 + 1)) {
+      bad("пузырь на 40 % выше, чем на 20 %, меньше чем на точку (" + b40
+        + " против " + b20 + ") — это и есть «высота такая же»");
+    }
+    if (!(b100 >= b40 + 1)) {
+      bad("положительный контроль: пузырь на сотне выше, чем на 40 %, меньше чем на точку ("
+        + b100 + " против " + b40 + ") — шкала не работает вовсе");
+    }
+    await page.evaluate(async () => {
+      await window.__ioSetTags({ bubbleHeightPct: 80 });
+      await window.__ioSetBand({ heightPct: 40, widthPct: 50 });
+    });
+
+    /* ---- 10. Оверлей скроллера TagWheel ------------------------------- */
     /*
      * **Он тоже поднят в браузер** (Р7). Про него в самом правиле каталога
      * написано: «перенос 32 его объявлений в классы вида не меняет, если сделан
