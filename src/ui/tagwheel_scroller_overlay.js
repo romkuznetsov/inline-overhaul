@@ -1,5 +1,25 @@
 "use strict";
 
+/*
+ * Имена классов коробки — **одно объявление на код и стили** (правило
+ * каталога Р7, 2026-09-09). Правила лежат в `styles.css`, разделом
+ * «Оверлей скроллера TagWheel».
+ *
+ * **Показ и сокрытие — тоже класс**, а не свойство узла: `display` стоял
+ * в восьми местах, и каждое было своим объявлением одного и того же
+ * правила «коробка видна» (У-32).
+ *
+ * Вычисленное — цвета из настроек, ширина и положение — в класс не
+ * переносится вовсе: значение известно только на отрисовке. Цвета едут
+ * переменными `--io-twscroller-*` — тот же канал, что у полос тегов
+ * (У-68), и умолчание «взять у темы» живёт в самом правиле.
+ */
+var SCROLLER_BOX_CLASS = "io-twscroller";
+var SCROLLER_SHOWN_CLASS = "io-twscroller--shown";
+var SCROLLER_LIST_CLASS = "io-twscroller__list";
+var SCROLLER_ROW_CLASS = "io-twscroller__row";
+var SCROLLER_PROBE_CLASS = "io-twscroller__probe";
+
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
@@ -107,29 +127,23 @@ function pickColor(value) {
 function createRoot(colors) {
   var c = colors && typeof colors === "object" ? colors : {};
   var root = document.createElement("div");
-  root.style.position = "fixed";
-  root.style.zIndex = "60";
-  root.style.pointerEvents = "none";
-  root.style.display = "none";
-  root.style.border = "1px solid var(--background-modifier-border)";
-  root.style.borderRadius = "8px";
-  /* Свой фон, если он задан; иначе — фон поповера темы, как было. */
-  root.style.background = c.fill || "var(--background-primary)";
-  root.style.boxShadow = "var(--shadow-s)";
-  root.style.padding = "4px 0";
-  root.style.fontSize = "12px";
-  root.style.lineHeight = "1.3";
-  root.style.whiteSpace = "nowrap";
-  root.style.overflow = "hidden";
-  root.style.fontFamily = "var(--font-text)";
+  root.className = SCROLLER_BOX_CLASS;
+  /* Свой фон, если он задан; иначе — фон поповера темы, как было.
+     Умолчание живёт в правиле, а не здесь: так его может перебить тема. */
+  if (c.fill) root.style.setProperty("--io-twscroller-fill", c.fill);
 
   var list = document.createElement("div");
-  list.style.display = "flex";
-  list.style.flexDirection = "column";
-  list.style.gap = "0";
+  list.className = SCROLLER_LIST_CLASS;
   root.appendChild(list);
   document.body.appendChild(root);
   return { root: root, list: list, colors: { fill: c.fill || "", text: c.text || "" } };
+}
+
+/** Коробка видна или нет — одно место на все восемь прежних (У-32). */
+function setBoxShown(target, shown) {
+  if (!target || !target.root || !target.root.classList) return;
+  if (shown) target.root.classList.add(SCROLLER_SHOWN_CLASS);
+  else target.root.classList.remove(SCROLLER_SHOWN_CLASS);
 }
 
 function createTagWheelScrollerOverlay(options) {
@@ -146,19 +160,20 @@ function createTagWheelScrollerOverlay(options) {
   var boxSecondary = createRoot(colors);
 
   function hide() {
-    boxPrimary.root.style.display = "none";
-    boxSecondary.root.style.display = "none";
+    setBoxShown(boxPrimary, false);
+    setBoxShown(boxSecondary, false);
   }
 
   function measureLongest(rows) {
+    /*
+     * Мерка длины строки обязана быть того же начертания, что сама
+     * коробка, иначе ширина считается не по тому, что человек увидит.
+     * Прежде кегль и шрифт списывались с свойств узла коробки; теперь
+     * начертание объявлено **одним правилом на два селектора** — коробку и
+     * мерку, — и разошесться им не на чем (У-32).
+     */
     var probe = document.createElement("span");
-    probe.style.position = "fixed";
-    probe.style.left = "-99999px";
-    probe.style.top = "0";
-    probe.style.visibility = "hidden";
-    probe.style.fontSize = boxPrimary.root.style.fontSize;
-    probe.style.fontFamily = boxPrimary.root.style.fontFamily;
-    probe.style.fontWeight = "500";
+    probe.className = SCROLLER_PROBE_CLASS;
     document.body.appendChild(probe);
     var maxW = 0;
     var i;
@@ -198,12 +213,9 @@ function createTagWheelScrollerOverlay(options) {
     var i;
     for (i = 0; i < rows.length; i++) {
       var item = document.createElement("div");
+      item.className = SCROLLER_ROW_CLASS;
       item.textContent = String(rows[i] || "-");
-      item.style.padding = "2px 8px";
-      item.style.overflow = "hidden";
-      item.style.textOverflow = "ellipsis";
-      item.style.opacity = "0.95";
-      if (colors.text) item.style.color = colors.text;
+      if (colors.text) item.style.setProperty("--io-twscroller-text", colors.text);
       target.list.appendChild(item);
     }
   }
@@ -231,7 +243,7 @@ function createTagWheelScrollerOverlay(options) {
     top = clamp(top, 4, Math.max(4, vh - h - 4));
     target.root.style.left = String(Math.round(left)) + "px";
     target.root.style.top = String(Math.round(top)) + "px";
-    target.root.style.display = "block";
+    setBoxShown(target, true);
   }
 
   function update(payload) {
@@ -263,7 +275,7 @@ function createTagWheelScrollerOverlay(options) {
       var upDisplayRows = upRows.slice().reverse();
       renderRows(boxPrimary, upDisplayRows);
       applyWidth(boxPrimary, anchor.width, upDisplayRows);
-      boxPrimary.root.style.display = "block";
+      setBoxShown(boxPrimary, true);
       placeBox(boxPrimary, anchor, "up");
       return;
     }
@@ -272,7 +284,7 @@ function createTagWheelScrollerOverlay(options) {
       if (!downRows.length) return;
       renderRows(boxPrimary, downRows);
       applyWidth(boxPrimary, anchor.width, downRows);
-      boxPrimary.root.style.display = "block";
+      setBoxShown(boxPrimary, true);
       placeBox(boxPrimary, anchor, "down");
       return;
     }
@@ -282,13 +294,13 @@ function createTagWheelScrollerOverlay(options) {
       var upDisplayRowsFull = upRows.slice().reverse();
       renderRows(boxPrimary, upDisplayRowsFull);
       applyWidth(boxPrimary, anchor.width, upDisplayRowsFull);
-      boxPrimary.root.style.display = "block";
+      setBoxShown(boxPrimary, true);
       placeBox(boxPrimary, anchor, "up");
     }
     if (downRows.length) {
       renderRows(boxSecondary, downRows);
       applyWidth(boxSecondary, anchor.width, downRows);
-      boxSecondary.root.style.display = "block";
+      setBoxShown(boxSecondary, true);
       placeBox(boxSecondary, anchor, "down");
     }
   }

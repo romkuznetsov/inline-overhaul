@@ -32,6 +32,7 @@ const { EditorState } = require("@codemirror/state");
 const { EditorView, Decoration, ViewPlugin } = require("@codemirror/view");
 const decorations = require("../../src/ui/editor/decorations.js");
 const visuals = require("../../src/core/editor_visuals_config.js");
+const scroller = require("../../src/ui/tagwheel_scroller_overlay.js");
 
 const SEP = "::";
 
@@ -232,6 +233,90 @@ const FINGERPRINT_PROPS = [
   "padding-bottom", "padding-left", "border-radius", "background-color",
   "color", "opacity", "width", "min-width", "height", "margin-left",
   "margin-right", "vertical-align", "overflow", "border-top-width",
+];
+
+/**
+ * Оверлей скроллера TagWheel — тот самый, про который в Р7 написано «проверить
+ * это можно только глазами заказчика».
+ *
+ * Он поднимается здесь целиком и по-настоящему: модуль не знает ни об Obsidian,
+ * ни о плагине, ему нужны `document`, `window` и редактор, у которого есть
+ * `posToOffset` и `cm.coordsAtPos`. Второе — настоящий `EditorView` этой
+ * страницы, то есть положение коробки считает настоящий CodeMirror.
+ *
+ * **Подделан ровно `Editor` Obsidian** (У-1): `posToOffset` — это его API, а не
+ * CodeMirror'а, и здесь он переводит строку и столбец в смещение по настоящему
+ * документу.
+ */
+let scrollerHandle = null;
+
+window.__ioShowScroller = function (opts) {
+  if (scrollerHandle) { scrollerHandle.destroy(); scrollerHandle = null; }
+  const o = opts && typeof opts === "object" ? opts : {};
+  scrollerHandle = scroller.createTagWheelScrollerOverlay({
+    direction: o.direction || "full",
+    size: o.size || 3,
+    fillColor: o.fillColor || "",
+    textColor: o.textColor || "",
+  });
+  const editorStandIn = {
+    posToOffset: (at) => {
+      const line = view.state.doc.line(Math.max(1, Number(at && at.line) + 1));
+      return line.from + Math.max(0, Number(at && at.ch) || 0);
+    },
+    cm: view,
+  };
+  /*
+   * Строка панели того же вида, что рисует TagWheel: активное значение в ней
+   * обособлено `**[…]**`, и по нему оверлей находит, к чему прицепиться. Без
+   * этой пометки он прячется, и снимок вышел бы из двух пустых коробок —
+   * то есть проверял бы отсутствие предмета (У-113).
+   */
+  scrollerHandle.update({
+    editor: editorStandIn,
+    lineNumber: 1,
+    controlLine: "==`#todo` **[work]**==",
+    upItems: [{ label: "#todo" }, { label: "#doing" }],
+    downItems: [{ label: "#work" }, { label: "#home" }, { label: "#health" }],
+  });
+  /* У-110: коробка обязана появиться, иначе снимок пуст и сверять нечего. */
+  const rows = document.querySelectorAll("body > div:not(.markdown-source-view) > div > div");
+  if (!rows.length) throw new Error("оверлей скроллера не нарисовал ни одной строки");
+  return document.querySelectorAll("body > div:not(.markdown-source-view)").length;
+};
+
+window.__ioHideScroller = function () {
+  if (scrollerHandle) { scrollerHandle.destroy(); scrollerHandle = null; }
+};
+
+/** Отпечаток коробок оверлея: сами коробки и всё, что в них. */
+window.__ioFingerprintScroller = function () {
+  const out = [];
+  const roots = document.querySelectorAll("body > div:not(.markdown-source-view)");
+  for (const root of roots) {
+    const nodes = [root].concat(Array.from(root.querySelectorAll("*")));
+    for (const el of nodes) {
+      const cs = getComputedStyle(el);
+      const row = { tag: el.tagName.toLowerCase(), cls: el.className || "" };
+      const text = el.textContent || "";
+      row.text = text.length > 24 ? text.slice(0, 24) : text;
+      for (const p of SCROLLER_PROPS) row[p] = cs.getPropertyValue(p);
+      const r = el.getBoundingClientRect();
+      row.box = round(r.width) + "x" + round(r.height)
+        + "@" + round(r.left) + "," + round(r.top);
+      out.push(row);
+    }
+  }
+  return out;
+};
+
+const SCROLLER_PROPS = [
+  "position", "z-index", "pointer-events", "display", "border-top-width",
+  "border-top-style", "border-top-color", "border-radius", "background-color",
+  "box-shadow", "padding-top", "padding-right", "padding-bottom", "padding-left",
+  "font-size", "line-height", "white-space", "overflow", "font-family",
+  "flex-direction", "gap", "text-overflow", "opacity", "color", "font-weight",
+  "visibility", "left", "top", "width", "min-width",
 ];
 
 window.__ioFingerprint = function () {

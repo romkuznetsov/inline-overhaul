@@ -45,6 +45,19 @@ async function main() {
       window.__ioSetTags({ textSizePct: 50, bubbleWidthPct: 20, bubbleHeightPct: 20, cornersPct: 0 });
       window.__ioSetBand({ heightPx: 0, widthPct: 0, opacity: 75, color: "#908e8e" });
       out.tight = window.__ioFingerprint();
+      window.__ioSetTags({ textSizePct: 80, bubbleWidthPct: 80, bubbleHeightPct: 80, cornersPct: 0 });
+      window.__ioSetBand({ heightPx: 2, widthPct: 50 });
+      /*
+       * Оверлей скроллера TagWheel: два состояния, и второе — с его цветами.
+       * Пустые цвета значат «взять у темы», и это обратная сторона, которая
+       * важнее прямой: пока человек цвета не задал, коробка обязана выглядеть
+       * как раньше.
+       */
+      window.__ioShowScroller({ direction: "full" });
+      out.scrollerTheme = window.__ioFingerprintScroller();
+      window.__ioShowScroller({ direction: "full", fillColor: "#988925", textColor: "#a5a0d4" });
+      out.scrollerColored = window.__ioFingerprintScroller();
+      window.__ioHideScroller();
       return out;
     });
   } finally {

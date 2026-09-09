@@ -172,8 +172,20 @@ const RULES: readonly Rule[] = [
  * Планка у оформления затем и стоит, чтобы **опускаться**: 48 мест названы
  * пофайлово в `docs/OBSIDIAN_CATALOG_RULES.md`, Р7.
  */
-const STYLE_LOOK_CEILING = 32;
-const STYLE_VALUE_CEILING = 8;
+const STYLE_LOOK_CEILING = 0;
+const STYLE_VALUE_CEILING = 4;
+
+/**
+ * Строки, на которых разбор **обязан** сработать: контроль на известном примере.
+ *
+ * Он понадобился, как только планка оформления дошла до нуля. Прежде контролем
+ * служило «в рантайме есть хотя бы одно оформление и хотя бы одна величина», и
+ * это верно ровно до тех пор, пока перенос не закончен: с нулём такое
+ * утверждение стало бы требовать нарушения, чтобы проверка себе верила
+ * (У-88, У-119 — контроль ставится на примере, ответ на который известен).
+ */
+const STYLE_LOOK_CONTROL = 'root.style.padding = "4px 0";';
+const STYLE_VALUE_CONTROL = "target.root.style.left = String(Math.round(left)) + \"px\";";
 
 function main(): void {
   const files = runtimeFiles();
@@ -228,30 +240,39 @@ function main(): void {
 
   /* ---- Р7: оформление и величина ---------------------------------------- */
 
+  /** Что стоит справа от знака равенства: литерал целиком — оформление. */
+  const classify = (line: string): "look" | "value" | null => {
+    const m = line.match(/\.style\.([A-Za-z][\w]*)\s*=\s*(.+?);?\s*$/);
+    if (!m) return null;
+    return /^(["'])(?:(?!\1)[^\\]|\\.)*\1$/.test(String(m[2]).trim()) ? "look" : "value";
+  };
+
+  /* Контроль **до первого вывода** (У-119): разбор обязан узнавать оба вида на
+     примере, ответ на который известен. */
+  assert.equal(classify(STYLE_LOOK_CONTROL), "look",
+    "разбор Р7 не узнаёт оформление даже в своём примере — сломан он, а не рантайм");
+  assert.equal(classify(STYLE_VALUE_CONTROL), "value",
+    "разбор Р7 не узнаёт вычисленную величину в своём примере — то же самое");
+
   let look = 0;
   let value = 0;
   const lookWhere: string[] = [];
   for (const body of bodies) {
     body.code.split("\n").forEach(line => {
-      const m = line.match(/\.style\.([A-Za-z][\w]*)\s*=\s*(.+?);?\s*$/);
-      if (!m) return;
-      const rhs = String(m[2]).trim();
-      /* Литерал целиком, без подстановки внутри: оформление. */
-      if (/^(["'])(?:(?!\1)[^\\]|\\.)*\1$/.test(rhs)) {
+      const kind = classify(line);
+      if (kind === "look") {
         look += 1;
-        lookWhere.push(body.rel + " " + m[1]);
-      } else {
+        lookWhere.push(body.rel + ": " + line.trim());
+      } else if (kind === "value") {
         value += 1;
       }
     });
   }
 
-  assert.ok(look > 0 && value > 0,
-    "разбор Р7 не нашёл ни оформления (" + look + "), ни величин (" + value
-    + ") — разбор сломан, и обе планки ниже мерят пустоту");
   assert.equal(look, STYLE_LOOK_CEILING,
     "инлайнового оформления стало " + look + " при планке " + STYLE_LOOK_CEILING
-    + ": новое роняет проверку, перенесённое в класс обязано уронить планку");
+    + ": новое роняет проверку, перенесённое в класс обязано уронить планку\n  "
+    + lookWhere.join("\n  "));
   assert.ok(value <= STYLE_VALUE_CEILING,
     "вычисленных величин в стилях " + value + ", а планка " + STYLE_VALUE_CEILING
     + " — новая величина обязана быть названа в Р7");

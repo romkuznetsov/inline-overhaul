@@ -80,6 +80,32 @@ const EDITOR_INJECTIONS = {
     find: "  if (pct <= 50) return (nearOk * pct) / 50;",
     replace: "  return (nearOk * pct) / 100;\n  if (pct <= 50) return (nearOk * pct) / 50;",
   },
+  /*
+   * Оверлей скроллера: правило показа сломано. Перенос `display` из свойств
+   * узла в класс (Р7) тем и опасен, что правило теперь живёт в другом файле, и
+   * набор на заглушке DOM стилей не читает вовсе — эту половину видит только
+   * браузер.
+   */
+  /*
+   * Подменяется **имя класса в правиле**, а не его значение, и это не
+   * придирка: коробка закреплена на экране (`position: fixed`), а браузер у
+   * закреплённого узла приводит `display` к блоку сам. Первая версия этой
+   * подмены ставила `display: inline` — применилась и не сдвинула измеряемое,
+   * то есть была сломана сама (У-110). Опечатка в имени класса правило
+   * отключает по-настоящему, и коробка остаётся спрятанной.
+   */
+  "scroller-shown-broken": {
+    file: "styles.css",
+    find: ".io-twscroller--shown { display: block; }",
+    replace: ".io-twscroller--shows { display: block; }",
+  },
+  /* И вторая половина того же переноса: умолчание «взять у темы» уехало из
+     кода в правило, и там его можно потерять. */
+  "scroller-fill-lost": {
+    file: "styles.css",
+    find: "  background: var(--io-twscroller-fill, var(--background-primary));",
+    replace: "  background: transparent;",
+  },
 };
 
 function requireEsbuild() {
@@ -104,14 +130,31 @@ function requirePlaywright() {
   return null;
 }
 
-/** Плагин сборки, который правит текст модуля по имени подмены. */
-function injectionPlugin(name) {
+/** Подмена по имени, с проверкой, что она ещё адресует предмет. */
+function injectionSpec(name) {
   if (!name) return null;
   if (!Object.prototype.hasOwnProperty.call(EDITOR_INJECTIONS, name)) {
     throw new Error("нет подмены с именем " + name
       + "; есть: " + Object.keys(EDITOR_INJECTIONS).join(", "));
   }
-  const spec = EDITOR_INJECTIONS[name];
+  return EDITOR_INJECTIONS[name];
+}
+
+/** Один и тот же текстовый обмен, откуда бы файл ни читался. */
+function applyInjection(name, spec, src) {
+  const hits = src.split(spec.find).length - 1;
+  if (hits !== 1) {
+    throw new Error("подмена " + name + ": вхождений " + hits
+      + ", а нужно ровно одно — она больше не адресует предмет");
+  }
+  return src.replace(spec.find, spec.replace);
+}
+
+/** Плагин сборки, который правит текст модуля по имени подмены. */
+function injectionPlugin(name) {
+  const spec = injectionSpec(name);
+  /* Лист стилей в сборку не идёт: его читает страница, и подменяется он там. */
+  if (!spec || spec.file === "styles.css") return null;
   const target = path.join(root, spec.file);
   return {
     name: "io-injection",
@@ -119,12 +162,7 @@ function injectionPlugin(name) {
       build.onLoad({ filter: /\.js$/ }, (args) => {
         if (path.resolve(args.path) !== path.resolve(target)) return null;
         const src = fs.readFileSync(args.path, "utf8");
-        const hits = src.split(spec.find).length - 1;
-        if (hits !== 1) {
-          throw new Error("подмена " + name + ": вхождений " + hits
-            + ", а нужно ровно одно — она больше не адресует предмет");
-        }
-        return { contents: src.replace(spec.find, spec.replace), loader: "js" };
+        return { contents: applyInjection(name, spec, src), loader: "js" };
       });
     },
   };
@@ -132,6 +170,28 @@ function injectionPlugin(name) {
 
 const PAGE_CSS = [
   "html, body { margin: 0; padding: 0; background: #ffffff; }",
+  /*
+   * **Переменные темы объявлены здесь числами.** В Obsidian их задаёт тема, и
+   * без них каждое наше `var(--background-primary)` вычисляется в ничто: фон
+   * коробки оверлея выходил прозрачным, и проверка «пустой цвет значит взять у
+   * темы» оказалась бы зелёной от отсутствия предмета (У-88). Значения взяты
+   * из `app.css` Obsidian 1.13.7, светлая тема.
+   */
+  ":root {"
+    + " --background-primary: #ffffff;"
+    + " --background-modifier-border: #e0e0e0;"
+    + " --background-modifier-hover: #f2f2f2;"
+    + " --text-normal: #222222;"
+    + " --text-muted: #6e6e6e;"
+    + " --text-faint: #999999;"
+    + " --text-accent: #705dcf;"
+    + " --text-on-accent: #ffffff;"
+    + " --interactive-accent: #705dcf;"
+    + " --font-text: sans-serif;"
+    + " --font-monospace: monospace;"
+    + " --radius-s: 4px;"
+    + " --shadow-s: 0 1px 2px rgba(0,0,0,0.1);"
+    + " }",
   /*
    * Ящик, который снаружи выглядит редактором заметки: правила плагина
    * адресуют именно эти два класса, и без них ни одно из них не применится.
@@ -192,7 +252,11 @@ async function buildPage(injection) {
   const extra = String(process.env.IO_GATE_EXTRA_CSS || "").trim();
   const extraCss = extra && fs.existsSync(extra) ? fs.readFileSync(extra, "utf8") : "";
   if (extra && !extraCss) throw new Error("IO_GATE_EXTRA_CSS указывает на файл, которого нет: " + extra);
-  const pluginCss = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const cssSpec = injectionSpec(injection);
+  let pluginCss = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  if (cssSpec && cssSpec.file === "styles.css") {
+    pluginCss = applyInjection(injection, cssSpec, pluginCss);
+  }
   const html = [
     "<!doctype html><meta charset=utf-8>",
     extraCss ? "<style>" + extraCss + "</style>" : "",

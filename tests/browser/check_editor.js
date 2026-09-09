@@ -198,6 +198,67 @@ async function main() {
         + " раз(а) — перенесённый блок нарисован выделением, а не по строкам");
     }
 
+    /* ---- 6. Оверлей скроллера TagWheel -------------------------------- */
+    /*
+     * **Он тоже поднят в браузер** (Р7). Про него в самом правиле каталога
+     * написано: «перенос 32 его объявлений в классы вида не меняет, если сделан
+     * верно, — но проверить это можно только глазами заказчика». После переноса
+     * его вид живёт в `styles.css`, а набор на заглушке DOM стилей не читает
+     * вовсе: эту половину видит только браузер.
+     */
+    const overlay = await page.evaluate(() => {
+      window.__ioShowScroller({ direction: "full" });
+      const themed = window.__ioFingerprintScroller();
+      window.__ioShowScroller({ direction: "full", fillColor: "#988925", textColor: "#a5a0d4" });
+      const colored = window.__ioFingerprintScroller();
+      return { themed, colored };
+    });
+    const boxes = overlay.themed.filter((n) => /\bio-twscroller\b/.test(String(n.cls)));
+    const rows = overlay.themed.filter((n) => /\bio-twscroller__row\b/.test(String(n.cls)));
+    if (boxes.length !== 2) {
+      bad("коробок оверлея " + boxes.length + ", а их две: вверх и вниз");
+    } else {
+      for (const b of boxes) {
+        if (b.display !== "block") {
+          bad("показанная коробка оверлея нарисована как «" + b.display
+            + "», а не блоком — правило показа не сработало");
+        }
+        if (b.position !== "fixed") bad("коробка оверлея не закреплена на экране: " + b.position);
+        if (b["padding-top"] !== "4px") bad("поле коробки сверху " + b["padding-top"] + ", а было 4px");
+        if (b["font-size"] !== "12px") bad("кегль коробки " + b["font-size"] + ", а был 12px");
+        /*
+         * Пустой цвет значит «взять у темы», а не «прозрачный»: это его
+         * условие (Н2), и после переноса умолчание живёт в правиле.
+         */
+        if (/rgba\(0, 0, 0, 0\)|transparent/.test(String(b["background-color"]))) {
+          bad("без своего цвета коробка оверлея прозрачна («" + b["background-color"]
+            + "») — умолчание «взять у темы» потеряно");
+        }
+      }
+    }
+    if (rows.length !== 5) {
+      bad("строк в коробках оверлея " + rows.length + ", а их пять: две вверх и три вниз");
+    } else {
+      for (const r of rows) {
+        if (r["padding-left"] !== "8px") bad("поле строки оверлея " + r["padding-left"] + ", а было 8px");
+        if (r["text-overflow"] !== "ellipsis") bad("длинная строка оверлея больше не обрезается многоточием");
+        if (r.opacity !== "0.95") bad("густота строки оверлея " + r.opacity + ", а была 0.95");
+      }
+    }
+    /* И положительный контроль: заданный цвет доезжает до вычисленного стиля. */
+    const coloredBox = overlay.colored.find((n) => /\bio-twscroller\b/.test(String(n.cls)));
+    const coloredRow = overlay.colored.find((n) => /\bio-twscroller__row\b/.test(String(n.cls)));
+    if (!coloredBox || !coloredRow) {
+      bad("оверлей со своими цветами не нарисовался — контроль не поставлен");
+    } else {
+      if (coloredBox["background-color"] !== "rgb(152, 137, 37)") {
+        bad("заданный фон коробки не доехал: " + coloredBox["background-color"]);
+      }
+      if (coloredRow.color !== "rgb(165, 160, 212)") {
+        bad("заданный цвет строки не доехал: " + coloredRow.color);
+      }
+    }
+
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 
     if (problems.length) {
