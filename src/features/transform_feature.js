@@ -1653,13 +1653,14 @@ function promptNoteTitleWithModal(plugin, ModalClass) {
     class NoteTitleModal extends ModalClass {
       onOpen() {
         this.titleEl.setText("Inline2Note: note title");
-        const input = this.contentEl.createEl("input", { type: "text" });
-        input.style.width = "100%";
+        /*
+         * Вид — классами, а не свойствами узла (правило каталога Р7). Правила
+         * лежат в `styles.css`, разделом «Окна плагина вне панели»: у
+         * оформления один дом, и `styles.css` Obsidian читает сам.
+         */
+        const input = this.contentEl.createEl("input", { type: "text", cls: "io-i2n-title__input" });
         input.setAttribute("aria-label", "Note title");
-        const buttons = this.contentEl.createDiv();
-        buttons.style.display = "flex";
-        buttons.style.justifyContent = "flex-end";
-        buttons.style.gap = "8px";
+        const buttons = this.contentEl.createDiv({ cls: "io-i2n-title__actions" });
         const cancel = buttons.createEl("button", { text: "Cancel" });
         const submit = buttons.createEl("button", { text: "Create" });
         submit.classList.add("mod-cta");

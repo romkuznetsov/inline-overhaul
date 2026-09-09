@@ -172,8 +172,8 @@ const RULES: readonly Rule[] = [
  * Планка у оформления затем и стоит, чтобы **опускаться**: 48 мест названы
  * пофайлово в `docs/OBSIDIAN_CATALOG_RULES.md`, Р7.
  */
-const STYLE_LOOK_CEILING = 48;
-const STYLE_VALUE_CEILING = 17;
+const STYLE_LOOK_CEILING = 32;
+const STYLE_VALUE_CEILING = 8;
 
 function main(): void {
   const files = runtimeFiles();

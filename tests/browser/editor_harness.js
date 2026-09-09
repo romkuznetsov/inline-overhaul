@@ -177,8 +177,27 @@ async function buildPage(injection) {
     logLevel: "silent",
     plugins,
   });
+  /*
+   * **Чужие правила по требованию.** `IO_GATE_EXTRA_CSS` — путь к файлу стилей,
+   * который вкладывается в страницу ПЕРЕД нашими: так проверяется каскад
+   * против настоящего `app.css` Obsidian при переносе оформления из свойств
+   * узла в классы (правило каталога Р7). Перенос **опускает** специфичность,
+   * и правило, которое прежде проигрывало инлайну, после переноса может
+   * выиграть — вопрос не теоретический, и отвечает на него только каскад.
+   *
+   * В самом гейте этой переменной нет: `app.css` лежит в установке Obsidian на
+   * машине человека, и гейт, зависящий от файла вне репозитория, зелен по
+   * случайности (У-78).
+   */
+  const extra = String(process.env.IO_GATE_EXTRA_CSS || "").trim();
+  const extraCss = extra && fs.existsSync(extra) ? fs.readFileSync(extra, "utf8") : "";
+  if (extra && !extraCss) throw new Error("IO_GATE_EXTRA_CSS указывает на файл, которого нет: " + extra);
+  const pluginCss = fs.readFileSync(path.join(root, "styles.css"), "utf8");
   const html = [
     "<!doctype html><meta charset=utf-8>",
+    extraCss ? "<style>" + extraCss + "</style>" : "",
+    /* Свой лист плагина — тот самый файл, что Obsidian читает у человека. */
+    "<style>", pluginCss, "</style>",
     "<style>", PAGE_CSS, "</style>",
     "<div class='markdown-source-view mod-cm6'><div id=host></div></div>",
     "<script src='editor_page.bundle.js'></script>",

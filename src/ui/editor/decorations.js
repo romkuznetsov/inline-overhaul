@@ -43,6 +43,9 @@ const {
   CARET_MARKER_CLASS,
   TAGWHEEL_SPAN_RANK,
   TAG_EMPTY_BUBBLE_BASE_PX,
+  TAG_BUBBLE_CLASS,
+  TAG_BUBBLE_EMPTY_CLASS,
+  TAG_BUBBLE_FILLED_CLASS,
   buildBlockStyleCss,
   buildElementMarkersFromConfig,
   buildFieldTagVisualMap,
@@ -98,6 +101,22 @@ class TagVisualTokenWidget extends cmView.WidgetType {
       && other.shapePct === this.shapePct
       && other.displayTextOverride === this.displayTextOverride;
   }
+  /**
+   * **Вид — классами, величины — переменными** (правило каталога Р7).
+   *
+   * Разделение механическое и оно же было признаком разбора: то, что известно
+   * заранее (`display`, снятые поля пустого пузыря, цвет текста на подложке),
+   * уехало в `styles.css`; то, что считается на отрисовке (кегль, поля,
+   * скругление, ширина пустого пузыря, цвета из настроек), приезжает
+   * свойствами `--io-*`. Второе в класс не переносится вовсе: значение
+   * известно только здесь.
+   *
+   * **Почему величины теперь тоже не свойствами узла.** Инлайновый стиль
+   * сильнее любого класса, и `padding` шорткатом отменял бы снятые поля
+   * пустого пузыря, объявленные классом. Переменная этого не делает: её
+   * читает то самое правило, которое класс и задаёт (У-67 — объявить
+   * свойство мало, надо посмотреть, кто выигрывает каскад).
+   */
   toDOM() {
     const el = document.createElement("span");
     const st = computeTagVisualStyle(this.sizePct, this.bubbleWidthPct, this.bubbleHeightPct, this.shapePct);
@@ -106,11 +125,22 @@ class TagVisualTokenWidget extends cmView.WidgetType {
     el.textContent = renderedText;
     el.setAttribute("data-io-tag-token", this.tokenText);
     el.setAttribute("data-io-tag-render", renderedText);
-    el.style.display = "inline-block";
-    el.style.borderRadius = `${st.borderRadiusPx}px`;
-    el.style.padding = `${st.verticalPaddingPx}px ${st.horizontalPaddingPx}px`;
-    el.style.fontSize = `${st.fontSizePx}px`;
-    el.style.lineHeight = String(st.lineHeight);
+    /*
+     * Заливка — не только цвет, но и **условие**: цвет текста на подложке
+     * подставляется ровно тогда, когда подложка есть. Условие выражено
+     * классом, потому что в одном объявлении цвета его не выразить — а два
+     * объявления одного правила расходятся молча (У-32).
+     */
+    el.className = [
+      TAG_BUBBLE_CLASS,
+      this.emptyMode ? TAG_BUBBLE_EMPTY_CLASS : "",
+      this.fillColor ? TAG_BUBBLE_FILLED_CLASS : "",
+    ].filter(Boolean).join(" ");
+    el.style.setProperty("--io-tagbubble-radius", `${st.borderRadiusPx}px`);
+    el.style.setProperty("--io-tagbubble-pad-y", `${st.verticalPaddingPx}px`);
+    el.style.setProperty("--io-tagbubble-pad-x", `${st.horizontalPaddingPx}px`);
+    el.style.setProperty("--io-tagbubble-font", `${st.fontSizePx}px`);
+    el.style.setProperty("--io-tagbubble-line", String(st.lineHeight));
     if (this.emptyMode) {
       /*
        * Ширина пустого пузыря считается так же, как в панели:
@@ -123,13 +153,10 @@ class TagVisualTokenWidget extends cmView.WidgetType {
        * работала, но увидеть её было нельзя (замечание И-2.3). Панель по Р8
        * нормативна, поэтому равняется заметка.
        */
-      el.style.width = `${Math.round(TAG_EMPTY_BUBBLE_BASE_PX * emptyScale)}px`;
-      el.style.minWidth = el.style.width;
-      el.style.paddingLeft = "0px";
-      el.style.paddingRight = "0px";
-      el.style.lineHeight = "1";
+      el.style.setProperty("--io-tagbubble-width",
+        `${Math.round(TAG_EMPTY_BUBBLE_BASE_PX * emptyScale)}px`);
     }
-    if (this.fillColor) el.style.backgroundColor = this.fillColor;
+    if (this.fillColor) el.style.setProperty("--io-tagbubble-bg", this.fillColor);
     /*
      * Цвет текста не задан — берётся тот же, каким рисует пузырь Value в
      * панели: `--text-on-accent`, «текст на цветной подложке»
@@ -139,12 +166,12 @@ class TagVisualTokenWidget extends cmView.WidgetType {
      *
      * Только при заданной заливке, и это не осторожность ради осторожности:
      * без подложки светлый текст лёг бы на светлый фон заметки и пропал.
-     * Переменная, а не литерал: в тёмной теме белое пятно было бы не лучше
-     * чёрного (З6).
+     * Переменная темы, а не литерал: в тёмной теме белое пятно было бы не
+     * лучше чёрного (З6). Умолчание переменной стоит в самом правиле, поэтому
+     * второй ветки здесь больше нет.
      */
-    if (this.textColor) el.style.color = this.textColor;
-    else if (this.fillColor) el.style.color = "var(--text-on-accent)";
-    if (Number.isFinite(this.opacity)) el.style.opacity = String(this.opacity);
+    if (this.textColor) el.style.setProperty("--io-tagbubble-fg", this.textColor);
+    if (Number.isFinite(this.opacity)) el.style.setProperty("--io-tagbubble-opacity", String(this.opacity));
     return el;
   }
 }
@@ -152,15 +179,10 @@ class TagVisualTokenWidget extends cmView.WidgetType {
 class ZeroWidthInlineWidget extends cmView.WidgetType {
   eq() { return true; }
   toDOM() {
+    /* Весь вид — в классе (Р7): у этого узла нет ни одной вычисленной
+       величины, и свойствам узла тут делать нечего. */
     const el = document.createElement("span");
     el.className = "io-zero-width-inline";
-    el.style.display = "inline-block";
-    el.style.width = "0";
-    el.style.margin = "0";
-    el.style.padding = "0";
-    el.style.border = "0";
-    el.style.overflow = "hidden";
-    el.style.verticalAlign = "baseline";
     return el;
   }
 }

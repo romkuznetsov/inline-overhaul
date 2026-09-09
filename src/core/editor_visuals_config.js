@@ -110,6 +110,21 @@ function getTagVisualsFromConfig(cfg) {
   };
 }
 
+/*
+ * Имена классов пузыря тега в заметке — **одно объявление на код и стили**.
+ *
+ * `io-bubble` тут занят: так называется пузырь Value в панели, и у него своя
+ * геометрия. Класс — это тоже объявление правила, и одно имя на два дела уже
+ * стоило шести неоткрывавшихся подсказок (У-103).
+ *
+ * Заведены переносом инлайновых объявлений оформления в классы (правило
+ * каталога Р7, 2026-09-09). Правила лежат в `styles.css`, разделом «Оформление
+ * заметки».
+ */
+const TAG_BUBBLE_CLASS = "io-tagbubble";
+const TAG_BUBBLE_EMPTY_CLASS = "io-tagbubble--empty";
+const TAG_BUBBLE_FILLED_CLASS = "io-tagbubble--filled";
+
 /**
  * Ширина пустого пузыря при 100 %.
  *
@@ -1473,6 +1488,9 @@ module.exports = {
   buildTagwheelPlaceholderSetFromConfig,
   getTagVisualsFromConfig,
   TAG_EMPTY_BUBBLE_BASE_PX,
+  TAG_BUBBLE_CLASS,
+  TAG_BUBBLE_EMPTY_CLASS,
+  TAG_BUBBLE_FILLED_CLASS,
   computeTagVisualStyle,
   formatFieldTokenForVisual,
   buildFieldTagVisualMap,

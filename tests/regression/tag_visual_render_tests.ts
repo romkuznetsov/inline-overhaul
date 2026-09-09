@@ -36,17 +36,35 @@ function paint(fill: string, text: string): Any {
   return w.toDOM();
 }
 
+/*
+ * **Утверждения переехали вместе со своим предметом** (У-94, 2026-09-09). Вид
+ * пузыря ушёл из свойств узла в классы и переменные (правило каталога Р7), и
+ * `el.style.color` теперь пуст всегда. Самое опасное тут было
+ * утверждение `assert.ok(!el.style.color)`: оно осталось бы зелёным именно
+ * потому, что искать стало нечего, — запрет молчит.
+ *
+ * Спрашивается то же самое, тем же швом, каким его задаёт отрисовка:
+ * переменная цвета и класс «есть заливка». Условие «без заливки цвет
+ * не подставлять» выражено именно классом: в одном объявлении цвета
+ * его не выразить.
+ */
+const fg = (el: Any): string => el.style.getPropertyValue("--io-tagbubble-fg");
+const bg = (el: Any): string => el.style.getPropertyValue("--io-tagbubble-bg");
+const filled = (el: Any): boolean =>
+  String(el.className || "").split(/\s+/).includes(I.TAG_BUBBLE_FILLED_CLASS);
+
 {
   const el = paint("#0008f0", "#f0eaea");
-  assert.equal(el.style.color, "#f0eaea", "заданный цвет текста берётся как есть");
-  assert.equal(el.style.backgroundColor, "#0008f0", "и заливка тоже");
+  assert.equal(fg(el), "#f0eaea", "заданный цвет текста берётся как есть");
+  assert.equal(bg(el), "#0008f0", "и заливка тоже");
   ok("цвет текста задан — рисуется он");
 }
 
 {
   const el = paint("#0008f0", "");
-  assert.equal(el.style.color, "var(--text-on-accent)",
-    "цвет не задан, но заливка есть — берётся цвет темы для текста на подложке");
+  assert.equal(fg(el), "", "своего цвета текста нет");
+  assert.ok(filled(el),
+    "но заливка есть — и именно она включает цвет текста на подложке");
   ok("цвет не задан, заливка есть — текст на подложке, как в панели");
 }
 
@@ -55,9 +73,17 @@ function paint(fill: string, text: string): Any {
    * Без заливки цвет не подставляется, и это не осторожность ради
    * осторожности: `--text-on-accent` в светлой теме белый, и на белом фоне
    * заметки такой текст пропал бы совсем.
+   *
+   * Утверждение положительное, а не «ничего не найдено»: класса
+   * «есть заливка» нет, а базовый — есть. Запрет без положительной
+   * половины зелен и у узла, которого нет вовсе (У-71).
    */
   const el = paint("", "");
-  assert.ok(!el.style.color, "заливки нет — цвет текста остаётся темы");
+  assert.equal(fg(el), "", "своего цвета текста нет");
+  assert.equal(bg(el), "", "и заливки тоже");
+  assert.ok(!filled(el), "заливки нет — цвет текста остаётся темы");
+  assert.ok(String(el.className || "").split(/\s+/).includes(I.TAG_BUBBLE_CLASS),
+    "но сам пузырь на месте: утверждение выше не об отсутствии узла");
   ok("ни цвета, ни заливки — ничего не подставляется");
 }
 
@@ -66,8 +92,33 @@ function paint(fill: string, text: string): Any {
      одно на все режимы, и подстановка не должна от режима зависеть. */
   const w = new I.TagVisualTokenWidget("#todo", "#0008f0", "", 1, true, 100, 100, 100, 100, 0, "");
   const el = w.toDOM();
-  assert.equal(el.style.color, "var(--text-on-accent)", "правило одно на все режимы показа");
+  assert.ok(filled(el), "правило одно на все режимы показа");
+  assert.ok(String(el.className || "").split(/\s+/).includes(I.TAG_BUBBLE_EMPTY_CLASS),
+    "и режим «пусто» назван своим классом");
   ok("режим показа на подстановку не влияет");
+}
+
+{
+  /*
+   * И шов переноса целиком: свойств узла у пузыря больше нет ни
+   * одного, и каждое правило его вида читает свою переменную из `styles.css`.
+   * Без этого утверждения «перенесено в классы» было бы только в
+   * планке бюджета, а планка не знает, что именно уехало.
+   */
+  const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
+  const el = paint("#0008f0", "#f0eaea");
+  const need = ["radius", "pad-y", "pad-x", "font", "line"];
+  for (const key of need) {
+    assert.ok(el.style.getPropertyValue("--io-tagbubble-" + key),
+      "величина `" + key + "` приезжает переменной");
+    assert.ok(css.indexOf("var(--io-tagbubble-" + key) >= 0,
+      "и правило в `styles.css` её читает: иначе величина едет в пустоту");
+  }
+  assert.ok(css.indexOf("." + I.TAG_BUBBLE_CLASS + " {") >= 0,
+    "у пузыря есть своё правило, а не один класс без правил");
+  assert.ok(css.indexOf("." + I.TAG_BUBBLE_EMPTY_CLASS + " {") >= 0, "и у пустого");
+  assert.ok(css.indexOf("." + I.TAG_BUBBLE_FILLED_CLASS + " {") >= 0, "и у залитого");
+  ok("вид пузыря живёт в классах, а величины — в переменных (Р7)");
 }
 
 
@@ -214,7 +265,9 @@ function paint(fill: string, text: string): Any {
 
   const widthAt = (pct: number): string => {
     const w = new I.TagVisualTokenWidget("#todo", "#0008f0", "", 1, true, 100, 80, 80, pct, 0, "");
-    return w.toDOM().style.width;
+    /* Ширина — вычисленная величина, и после переноса Р7 она приезжает
+       переменной: тот же шов, что у цвета выше (У-94). */
+    return w.toDOM().style.getPropertyValue("--io-tagbubble-width");
   };
   assert.equal(widthAt(50), Math.round(basePx * 0.5) + "px", "50 % — половина базовой ширины");
   assert.equal(widthAt(100), basePx + "px", "100 % — базовая ширина");

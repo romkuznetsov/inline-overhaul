@@ -78,6 +78,11 @@ export interface PluginInternals {
   buildBlockStyleCss: (entry: Any, visuals: Any) => string;
   computeTagVisualStyle: (textSizePct: number, bubbleWidthPct: number, bubbleHeightPct: number, shapePct: number) => Any;
   TAG_EMPTY_BUBBLE_BASE_PX: number;
+  /* Имена классов пузыря тега в заметке: объявлены один раз, на код и стили
+     (правило каталога Р7, У-103). */
+  TAG_BUBBLE_CLASS: string;
+  TAG_BUBBLE_EMPTY_CLASS: string;
+  TAG_BUBBLE_FILLED_CLASS: string;
   /* Имя Field, каким его увидит заметка конфигурации (1.3.1). */
   getOrderStrictName: (cfg: Any, orderKey: string) => string;
   /* Отметки на строке: подсветка обработанной и `Floating button` (10.13.12). */
