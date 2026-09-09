@@ -680,7 +680,7 @@ After a successful transform, an optional token is inserted in the configured Le
 #processed
 ```
 
-Token insertion is implemented. Special visual styling for processed source lines is not implemented in this beta; the token remains ordinary markdown and may still receive normal tag visuals.
+Token insertion is implemented, and so is the fading of a line that carries the token: `Dim transformed line` under it, with `Opacity of transformed line` deciding how far it fades. Both rows appear only once a token is set, because without a mark there is nothing to fade. The token itself stays ordinary markdown and still receives normal tag visuals.
 
 ### Selection and parent/child behavior
 
@@ -870,8 +870,8 @@ Transform stops before target mutation when a selected template cannot be read o
   a clean vault, the move of an older config to the new form, and the notice about
   renamed commands.
 - Transform performs real note mutations; behavior is automated-tested but still requires user verification with each vault's templates, YAML, and field taxonomy.
-- General Visual features are implemented: tag bubbles, Tag Bars, Separator colors, and the TagWheel panel and scroller appearance. They are not the disabled Processed-marker styling feature.
-- The language file covers the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens, the Fields editor with its neighbours, and the messages the plugin shows while you type: 1212 lines in all. Command names stay English whatever you pick: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing.
+- General Visual features are implemented: tag bubbles, the band behind each Block, Tag Bars, Separator colors, and the TagWheel panel and scroller appearance. Nothing here is disabled, including the fading of a transformed line under `Transform`.
+- The language file covers the whole settings panel — its tips, the tab callouts, the live previews, the command reference, the windows it opens, the Fields editor with its neighbours, and the messages the plugin shows while you type — over a thousand lines, and the number grows with every row the panel gains. Command names stay English whatever you pick: Obsidian takes those from its own registry, and translating them here would leave the command palette and the reference table disagreeing.
 - **No translation ships with the plugin, and that is deliberate.** The `texts` folder holds one file, `default.js`, and it belongs to the plugin: it is rewritten whenever the panel gains a line or a line is reworded, so what you copy is never out of date. To add a language, copy it under a name of your own, change the first line `"$language"` to the name you want to see in the list, and translate the right-hand side. Anything you leave alone keeps its English wording, so a half-finished translation is worth using. English is always in the list and has no file at all: it lives in the code, which is the only way it stays current.
 - **This guide note has a translation mechanism of its own.** The `guide` folder holds `default.md` — this same guide, with a small property block at the top. Copy it under a language name, change `language:` in that block, translate the prose, and the `Read` button writes your version into the vault instead of the English one. Two things are worth knowing. Your copy is yours from the moment it appears: the plugin never rewrites it and never reads it back, because there is no way to tell a translated paragraph from an untranslated one. And each language gets its own note — `inlineOverhaul Guide (Русский).md` sits beside the English one rather than replacing it, so switching language never costs you the notes you wrote in the margins.
 

@@ -247,8 +247,9 @@ build bundles it into `dist/main.js`.
   own templates, properties and Fields, and those need your eyes.
 - The language file covers the whole settings panel — its tips, the tab callouts, the live
   previews, the command reference, the windows it opens, the Fields editor with its
-  neighbours, and the messages the plugin shows while you type: 1212 lines. The guide note
-  has a file of its own, in `guide/`. Command names stay English whatever you pick:
+  neighbours, and the messages the plugin shows while you type — over a thousand lines, and
+  the number grows with every row the panel gains. The guide note has a file of its own, in
+  `guide/`. Command names stay English whatever you pick:
   Obsidian takes those from its own registry, and translating them here would leave the
   command palette and the reference table disagreeing.
 - **No translation ships with the plugin.** The folder holds one file, `default.js`, and
