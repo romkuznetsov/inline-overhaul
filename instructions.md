@@ -497,9 +497,11 @@ General Visual functionality is implemented and separate from Transform's disabl
 ### Tags
 
 - Independent left/right panel opacity
-- A colored band behind each Block (`Color the Blocks`), with its own color, strength, height and width. It runs from the first Value of a Block to its last one, never touches your text between the Separators, and does not appear for a Block with nothing in it. The band is drawn behind the writing, so everything on the line stays selectable and clickable. `Band height` is how far it reaches above and below the writing, in points; `Band width` is how far it reaches to either side, measured against the gap up to the Separator, so at 100 it stops exactly where the Separator starts and never covers it. Both matter more than they sound: a tag bubble carries its own color, so at zero reach a Block of one tag would hide the band completely. When a Block wraps onto the next line the band wraps with it, ending on the last Value of each line rather than running to the edge of the window.
+- A colored band behind each Block (`Color the Blocks`), with its own color, strength, height and width. It runs from the first Value of a Block to its last one, never touches your text between the Separators, and does not appear for a Block with nothing in it. The band is drawn behind the writing, so everything on the line stays selectable and clickable.
+- `Band height` is how far the band reaches above and below the writing, in points. It matters more than it sounds: a tag bubble carries its own color, so at zero a Block of one tag would hide the band completely. The band never grows past the line it belongs to, so the bands of two neighbouring lines can meet but never overlap, and its height is the same on every line whatever the Block holds.
+- `Band width` is how far the band reaches past the Block, and it reaches equally on both sides. The scale has three landmarks: at 0 the band starts on the first Value and ends on the last one; at 50 it touches the Separator on the inner side and steps out by the same distance on the other; at 100 it takes the Separator in as well. The Left Block is the one exception — it never reaches onto the bullet or the checkbox, whatever the number says. When a Block wraps onto the next line the band wraps with it, ending on the last Value of each line rather than running to the edge of the window.
 - Tag text size
-- Tags bubble width and size
+- Tags bubble width and `Tag bubble height`
 - Empty-bubble size
 - Rounded-to-square shape
 - Per-Field and per-Value fill color, text color, visibility, and optional custom display text in the right column of the Fields editor

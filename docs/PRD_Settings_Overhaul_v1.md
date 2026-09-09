@@ -928,7 +928,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:814 | `Opacity Right` | `visual.tags.opacityRight` | Opacity of the Right Block (`tags-opacity-right`, Inline appearance) |
 | перенесено | R:875 | `Tag text size` | `visual.tags.textSizePct` | Text size (`tags-text-size`, Inline appearance) |
 | перенесено | R:941 | `Tag bubble size - width` | `visual.tags.bubbleWidthPct` | Tags bubble width (`tags-bubble-width`, Inline appearance) |
-| перенесено | R:1007 | `Tag bubble size - height` | `visual.tags.bubbleHeightPct` | Tags bubble size (`tags-bubble-height`, Inline appearance) |
+| перенесено | R:1007 | `Tag bubble size - height` | `visual.tags.bubbleHeightPct` | Tag bubble height (`tags-bubble-height`, Inline appearance) |
 | перенесено | R:1073 | `Empty bubble size` | `visual.tags.emptyBubblePct` | Empty tags bubble width (`tags-empty-bubble`, Inline appearance) |
 | перенесено | R:1136 | `Tag shape` / `Round <-> Square` | `visual.tags.cornersPct` | Tags bubble corners (`tags-corners`, Inline appearance) |
 | перенесено | R:1206 | `Activate strip` | `visual.tagBars.active` | Tag Bars (`bars-active`, Tag Bars) |
@@ -6430,33 +6430,33 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - видна если: `visual.tags.blockFill.enabled`
 - **Band height** — `tags-block-fill-height`, `slider`, path `visual.tags.blockFill.heightPx`, default `3`
   - desc: How far the band reaches above and below the writing
-  - tip: At <code>0</code> the band is exactly as tall as what it sits behind — and a tag bubble has its own color, so it would hide the band entirely. A few points are enough to see it around the bubbles. High numbers make the bands of neighbouring lines touch
-  - диапазон: 0–10, шаг 1, ед. px
+  - tip: At <code>0</code> the band is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. Each point adds one above and one below. The band never grows past the line it belongs to, so the bands of two neighbouring lines can meet but never overlap
+  - диапазон: 0–5, шаг 1, ед. px
   - видна если: `visual.tags.blockFill.enabled`
-- **Band width** — `tags-block-fill-width`, `slider`, path `visual.tags.blockFill.widthPct`, default `60`
-  - desc: How far the band reaches towards the Separator
-  - tip: Measured against the gap between the Block and the Separator: at <code>100</code> the band stops exactly where the Separator starts, and never covers it. The far side of the Block is not touched — the band ends on its outermost Value, so it never runs onto the text of your note or onto the button at the end of the line. At <code>0</code> it ends on the writing on both sides
+- **Band width** — `tags-block-fill-width`, `slider`, path `visual.tags.blockFill.widthPct`, default `50`
+  - desc: How far the band reaches past the Block on both of its sides
+  - tip: The scale has three landmarks. At <code>0</code> the band starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says
   - диапазон: 0–100, шаг 5, ед. %
   - видна если: `visual.tags.blockFill.enabled`
 - **Text size** — `tags-text-size`, `slider`, path `visual.tags.textSizePct`, default `100`
   - desc: How big everything in the two Blocks is written, next to the rest of your note
   - tip: This reaches the whole of both Blocks, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Blocks step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100
-  - диапазон: 80–140, шаг 5, ед. %
+  - диапазон: 50–140, шаг 5, ед. %
   - старые названия для поиска: «Tag text size»
 - **Tags bubble width** — `tags-bubble-width`, `slider`, path `visual.tags.bubbleWidthPct`, default `100`
   - desc: How much breathing room there is either side of the word
-  - tip: This is the padding either side of the word, not the word itself: the writing keeps its size, the bubble around it grows. Below 100 the bubbles tighten and a long line fits; above 100 they read as separate chips even in a crowded Block
-  - диапазон: 80–140, шаг 5, ед. %
+  - tip: This is the padding either side of the word, not the word itself: the writing keeps its size, the bubble around it grows. At the bottom of the scale the word starts almost at the edge of the bubble; above 100 the bubbles read as separate chips even in a crowded Block
+  - диапазон: 20–140, шаг 5, ед. %
   - старые названия для поиска: «Tag bubble size - width», «Bubble width»
-- **Tags bubble size** — `tags-bubble-height`, `slider`, path `visual.tags.bubbleHeightPct`, default `100`
+- **Tag bubble height** — `tags-bubble-height`, `slider`, path `visual.tags.bubbleHeightPct`, default `100`
   - desc: How tall the bubble is around the word
-  - tip: Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read
-  - диапазон: 80–140, шаг 5, ед. %
+  - tip: Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read. At the bottom of the scale the bubble closes in on the word from above and below
+  - диапазон: 20–140, шаг 5, ед. %
   - старые названия для поиска: «Tag bubble size - height», «Bubble height»
 - **Empty tags bubble width** — `tags-empty-bubble`, `slider`, path `visual.tags.emptyBubblePct`, default `100`
   - desc: Width of a bubble whose <code>Show</code> is set to <code>empty</code>
   - tip: Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets
-  - диапазон: 50–180, шаг 5, ед. %
+  - диапазон: 10–180, шаг 5, ед. %
   - см. также: `field-editor` — Set a Value to empty under Fields
   - старые названия для поиска: «Empty bubble size», «Empty bubble width»
 - **Tags bubble corners** — `tags-corners`, `slider`, path `visual.tags.cornersPct`, default `0`
@@ -6751,7 +6751,7 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `visual.tags.blockFill.enabled` | toggle | `false` |
 | `visual.tags.blockFill.heightPx` | slider | `3` |
 | `visual.tags.blockFill.opacity` | slider | `12` |
-| `visual.tags.blockFill.widthPct` | slider | `60` |
+| `visual.tags.blockFill.widthPct` | slider | `50` |
 | `visual.tags.bubbleHeightPct` | slider | `100` |
 | `visual.tags.bubbleWidthPct` | slider | `100` |
 | `visual.tags.cornersPct` | slider | `0` |

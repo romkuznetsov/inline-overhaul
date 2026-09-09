@@ -37,6 +37,8 @@ const {
   blockFillLookFromConfig,
   blockFillSpansInLine,
   blockFillPadXPx,
+  blockFillBandHeightPx,
+  blockFillBubbleHeightPx,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
   TAGWHEEL_SPAN_RANK,
@@ -99,7 +101,7 @@ class TagVisualTokenWidget extends cmView.WidgetType {
   toDOM() {
     const el = document.createElement("span");
     const st = computeTagVisualStyle(this.sizePct, this.bubbleWidthPct, this.bubbleHeightPct, this.shapePct);
-    const emptyScale = Number.isFinite(this.emptyBubbleSizePct) ? Math.max(50, Math.min(180, Math.trunc(this.emptyBubbleSizePct))) / 100 : 1;
+    const emptyScale = Number.isFinite(this.emptyBubbleSizePct) ? Math.max(10, Math.min(180, Math.trunc(this.emptyBubbleSizePct))) / 100 : 1;
     const renderedText = this.emptyMode ? " " : (this.displayTextOverride || this.tokenText);
     el.textContent = renderedText;
     el.setAttribute("data-io-tag-token", this.tokenText);
@@ -667,6 +669,14 @@ function blockFillDocRanges(view, plugin) {
              здесь же: дальше о строке никто не знает (S7). */
           gapFrom: span.gapFrom >= 0 ? line.from + span.gapFrom : -1,
           gapTo: span.gapTo >= 0 ? line.from + span.gapTo : -1,
+          /* Дальняя граница разделителя и конец знака префикса — тем же
+             переводом: обе меры нужны в точках, а мерит их слой. */
+          sepFar: span.sepFar >= 0 ? line.from + span.sepFar : -1,
+          prefixEnd: line.from + span.prefixEnd,
+          lineFrom: line.from,
+          /* Конец строки нужен обходу зрительных строк: число их у **строки**,
+             а не у отрезка (см. `blockFillPiecesOf`). */
+          lineTo: line.from + text.length,
         });
       }
       lineNo += 1;
@@ -715,17 +725,20 @@ function blockFillVisualLineEnd(view, pos) {
 }
 
 /**
- * Промежуток от блока до разделителя в точках, измеренный платформой.
+ * Две меры от края блока до разделителя, в точках, измеренные платформой:
+ * до его ближней границы и до дальней.
  *
- * Он и есть мера `Band width` (S7): сотня на ползунке значит «вплотную к
- * разделителю». Разница двух измерений от начала прокрутки не зависит, поэтому
- * приводить их к чему-либо не нужно.
+ * Они и есть шкала `Band width` (S7): половина шкалы тратится на промежуток,
+ * вторая — на сам разделитель, и на сотне подложка его включает. Разница двух
+ * измерений от начала прокрутки не зависит, поэтому приводить их к чему-либо
+ * не нужно.
  *
- * Разделитель, уехавший на другую зрительную строку, промежутка не задаёт:
- * разница координат там бессмысленна и бывает отрицательной.
+ * Разделитель, уехавший на другую зрительную строку, шкалы не задаёт: разница
+ * координат там бессмысленна и бывает отрицательной.
  */
 function blockFillGapPx(view, span) {
-  if (!(span.gapTo > span.gapFrom) || span.gapFrom < 0) return 0;
+  const none = { near: 0, far: 0 };
+  if (!(span.gapTo > span.gapFrom) || span.gapFrom < 0) return none;
   /*
    * Разделитель, уехавший на другую зрительную строку, промежутка не задаёт:
    * разница координат там бессмысленна и бывает отрицательной. **Спрашивается
@@ -735,19 +748,60 @@ function blockFillGapPx(view, span) {
    * разделителя молча (тот же разбор, что в `blockFillVisualLineEnd`).
    */
   const rowEnd = blockFillVisualLineEnd(view, span.gapFrom);
-  if (rowEnd !== null && rowEnd <= span.gapTo) return 0;
+  if (rowEnd !== null && rowEnd <= span.gapTo) return none;
   let a = null;
   let b = null;
+  let far = null;
   try {
     a = view.coordsAtPos(span.gapFrom, -1);
     b = view.coordsAtPos(span.gapTo, 1);
+    /*
+     * Сторона у дальней границы — та, с которой стоит **разделитель**: слева
+     * `sepFar` это его конец, и мерить надо знак перед ним; справа это его
+     * начало, и мерить надо знак на нём (У-76).
+     */
+    if (span.sepFar >= 0) {
+      far = span.zone === "left"
+        ? view.coordsAtPos(span.sepFar, -1)
+        : view.coordsAtPos(span.sepFar, 1);
+    }
   } catch (_) {
     /* Проба, как и в `blockFillVisualLineEnd`: положение может быть не отрисовано. */
+    return none;
+  }
+  if (!a || !b) return none;
+  const edge = span.zone === "left" ? Number(a.right) : Number(b.left);
+  const nearRaw = span.zone === "left" ? Number(b.left) - edge : edge - Number(a.right);
+  const near = Number.isFinite(nearRaw) && nearRaw > 0 ? nearRaw : 0;
+  if (!far) return { near, far: near };
+  const farRaw = span.zone === "left" ? Number(far.right) - edge : edge - Number(far.left);
+  return { near, far: Number.isFinite(farRaw) && farRaw > near ? farRaw : near };
+}
+
+/**
+ * Сколько точек есть у левого блока до знака начала строки.
+ *
+ * Его условие: «даже в максимальном положении ползунка полоска должна
+ * начинаться после префикса не включая его». Мера — расстояние от первого
+ * значения блока до правого края буллита или чекбокса; пробел между ними
+ * префиксом не является, и расти в него подложке можно.
+ *
+ * Знака начала строки нет вовсе (строка начинается прямо со значения) — расти
+ * наружу некуда: за первым значением там начало области текста.
+ */
+function blockFillRoomBeforePrefixPx(view, span) {
+  if (!(span.prefixEnd > span.lineFrom) || span.prefixEnd > span.from) return 0;
+  try {
+    const glyph = view.coordsAtPos(span.prefixEnd, -1);
+    const block = view.coordsAtPos(span.from, 1);
+    if (!glyph || !block) return 0;
+    const room = Number(block.left) - Number(glyph.right);
+    return Number.isFinite(room) && room > 0 ? room : 0;
+  } catch (_) {
+    /* Проба: положение может быть не отрисовано. Ответ «нет» — это ответ, и
+       подложка тогда просто не растёт наружу. */
     return 0;
   }
-  if (!a || !b) return 0;
-  const gap = Number(b.left) - Number(a.right);
-  return Number.isFinite(gap) && gap > 0 ? gap : 0;
 }
 
 /**
@@ -772,22 +826,122 @@ function blockFillGapPx(view, span) {
  * подложки, но не хуже её отсутствия.
  */
 function blockFillPiecesOf(view, span) {
-  const whole = [{ from: span.from, to: span.to }];
-  const out = [];
-  let from = span.from;
-  /* Кусков не бывает больше, чем зрительных строк под отрезком; граница нужна
-     не от их числа, а от неподвижного измерения — оно дало бы вечный цикл. */
-  for (let guard = 0; guard < 64 && from < span.to; guard += 1) {
-    const end = blockFillVisualLineEnd(view, from);
-    const to = end === null ? span.to : Math.min(span.to, end);
-    if (!(to > from)) break;
-    out.push({ from, to });
-    from = to;
+  const whole = [{ from: span.from, to: span.to, row: 0, rows: 1 }];
+  /*
+   * Обход идёт **от начала строки**, а не от начала отрезка, и это не
+   * лишняя работа: номер зрительной строки нужен вертикали подложки, а
+   * получить его из координат нельзя — ровно они и врут (S7, второе
+   * замечание). Здесь он получается счётом границ, без единого измерения.
+   */
+  const rows = [];
+  let at = Number.isFinite(Number(span.lineFrom)) ? Number(span.lineFrom) : span.from;
+  /*
+   * Обход идёт до конца **строки**, а не до конца отрезка, и это не лишняя
+   * работа: `rows` — число зрительных строк строки, и делить на него высоту её
+   * блока имеет смысл только так. Левый блок кончается на первой зрительной
+   * строке, и обход, останавливавшийся на нём, объявлял перенесённую строку
+   * однострочной: подложка левого блока и правого вставали на одной строке на
+   * разную вертикаль. Найдено браузерным гейтом, а не глазами.
+   */
+  const stop = Math.max(Number(span.lineTo) || 0, span.to, at);
+  for (let guard = 0; guard < 64; guard += 1) {
+    const end = blockFillVisualLineEnd(view, at);
+    if (end === null || !(end > at)) break;
+    rows.push({ from: at, to: end });
+    at = end;
+    if (at >= stop) break;
   }
-  if (!out.length) return whole;
-  /* Обход кончился раньше отрезка — остаток отдаётся как есть, а не теряется. */
-  if (from < span.to) out.push({ from, to: span.to });
-  return out;
+  if (!rows.length) return whole;
+  /* Обход кончился раньше отрезка — остаток строки считается последней
+     зрительной строкой, а не теряется. */
+  if (at < span.to) rows.push({ from: at, to: span.to });
+  const out = [];
+  for (let i = 0; i < rows.length; i += 1) {
+    const from = Math.max(span.from, rows[i].from);
+    const to = Math.min(span.to, rows[i].to);
+    if (to > from) out.push({ from, to, row: i, rows: rows.length });
+  }
+  return out.length ? out : whole;
+}
+
+/**
+ * Вертикаль зрительной строки и высота подложки на ней — **величины, не
+ * зависящие от того, что в блоке лежит** (S7, замечание 2026-09-09 про
+ * ссылку).
+ *
+ * Все три слагаемых спрошены у платформы:
+ *
+ *   * `view.lineBlockAt` — где строка стоит в документе и какой она высоты;
+ *   * `view.defaultLineHeight` — высота одной зрительной строки;
+ *   * `viewState.heightOracle.textHeight` — высота написанного. Ею же
+ *     CodeMirror считает сам (`(defaultLineHeight - textHeight) / 2` стоит в
+ *     его `posAtCoords`), и в сборке Obsidian 1.13.7 это поле есть — прочитано
+ *     в её `app.js`, а не выведено из типов (У-44).
+ *
+ * **Смещение слоя спрашивается двумя измерениями одного положения**, а не
+ * повторением платформенной формулы: `RectangleMarker` считает свои координаты
+ * от начала прокручиваемого содержимого (`getBase`), а `coordsAtPos` — от
+ * экрана. Пустой отрезок даёт и то и другое сразу, и разница между ними и есть
+ * смещение. Своя копия `getBase` была бы вторым объявлением платформенного
+ * правила (У-32) и разошлась бы с ним молча.
+ *
+ * Чего-то не отдали — возвращается `null`, и слой остаётся на прежней мере
+ * (высота из самого прямоугольника). Это хуже, чем поправленная вертикаль, но
+ * не хуже отсутствия подложки.
+ */
+function blockFillRowGeometry(view, span, bandHeightAsk) {
+  if (typeof view.lineBlockAt !== "function") return null;
+  const lineH = Number(view.defaultLineHeight);
+  if (!Number.isFinite(lineH) || lineH <= 0) return null;
+  let block = null;
+  let screen = null;
+  let probe = null;
+  try {
+    block = view.lineBlockAt(span.lineFrom);
+    screen = view.coordsAtPos(span.lineFrom, 1);
+    probe = cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, {
+      empty: true, head: span.lineFrom, anchor: span.lineFrom,
+      from: span.lineFrom, to: span.lineFrom, assoc: 1,
+    });
+  } catch (_) {
+    /* Проба: платформу спросили о положении, которого она может не знать. */
+    return null;
+  }
+  if (!block || !screen || !probe || !probe.length) return null;
+  const docTop = Number(view.documentTop);
+  const toLayer = Number(probe[0].top) - Number(screen.top);
+  const blockTop = Number(block.top);
+  const blockHeight = Number(block.height);
+  if (!Number.isFinite(docTop) || !Number.isFinite(toLayer)
+    || !Number.isFinite(blockTop) || !Number.isFinite(blockHeight)) return null;
+  const oracle = view.viewState && view.viewState.heightOracle
+    ? Number(view.viewState.heightOracle.textHeight) : NaN;
+  const textH = Number.isFinite(oracle) && oracle > 0 && oracle <= lineH ? oracle : NaN;
+  const height = bandHeightAsk(lineH, textH);
+  if (!Number.isFinite(height) || height <= 0) return null;
+  return { docTop, toLayer, blockTop, blockHeight, lineH, height };
+}
+
+/**
+ * Вертикаль подложки на куске: середина его зрительной строки.
+ *
+ * **И она не выходит за блок своей строки документа.** Высота зрительной
+ * строки внутри переноса берётся делением: платформа отдаёт высоту строки
+ * целиком, а не по строкам. Пока зрительные строки одной высоты — а так и есть,
+ * пока в них нет ничего выше написанного, — деление точно. Когда одна из них
+ * выше (крупный пузырь, ссылка), деление даёт среднее, и без прижима подложка
+ * могла бы уехать в соседнюю строку документа. Прижим этого не даёт: «полоски
+ * на разных строках наезжают друг на друга» — про **разные строки**.
+ */
+function blockFillPieceBox(geom, piece) {
+  const rows = Math.max(1, Number(piece.rows) || 1);
+  const rowH = rows > 1 && geom.blockHeight > 0 ? geom.blockHeight / rows : geom.lineH;
+  const blockTop = geom.docTop + geom.blockTop + geom.toLayer;
+  const rowTop = blockTop + rowH * (Number(piece.row) || 0);
+  const height = Math.min(geom.height, geom.blockHeight > 0 ? geom.blockHeight : geom.height);
+  const top = rowTop + (rowH - height) / 2;
+  const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : rowH * rows);
+  return { top: Math.max(blockTop, Math.min(top, blockBottom - height)), height };
 }
 
 /**
@@ -802,27 +956,42 @@ function blockFillMarkersFor(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const look = blockFillLookFromConfig(cfg);
   const padY = Math.max(0, Number(look.heightPx) || 0);
+  /* Высота пузыря — от настроек, не от строки: одно слагаемое из трёх. */
+  const bubbleH = blockFillBubbleHeightPx(getTagVisualsFromConfig(cfg));
+  const askHeight = (lineH, textH) => blockFillBandHeightPx(look, lineH, textH, bubbleH);
   const out = [];
   for (const span of blockFillDocRanges(view, plugin)) {
-    const padX = blockFillPadXPx(look, blockFillGapPx(view, span));
+    const reach = blockFillGapPx(view, span);
+    const padX = blockFillPadXPx(look, reach.near, reach.far);
+    /*
+     * **Наружу подложка растёт зеркально** (замечание по S7, 2026-09-09: «а
+     * слева… должна отступать от первого элемента на такое же расстояние, как
+     * у правой границы этого block»… «а должен быть такой же дополнительный
+     * выход вправо, как от separator2 до первого элемента»). Прежде рост был
+     * односторонним — только к разделителю, — и это его же прежнее слово,
+     * которое он этим замечанием уточнил: зеркальность оказалась двумя краями
+     * **одного** блока.
+     *
+     * Единственное исключение — знак начала строки: «полоска в left block не
+     * должна наезжать на префикс (буллит, чекбокс)». Поэтому наружный рост
+     * левого блока прижимается к измеренному расстоянию до него.
+     */
+    const room = span.zone === "left" ? blockFillRoomBeforePrefixPx(view, span) : Infinity;
+    const outward = Math.min(padX, room);
     const pieces = blockFillPiecesOf(view, span);
+    const geom = blockFillRowGeometry(view, span, askHeight);
     for (let i = 0; i < pieces.length; i++) {
       const piece = pieces[i];
       /*
-       * **Растёт подложка в сторону разделителя, и только в неё** (замечание по
-       * S7, 2026-09-09: «полоска захватывает i2n-floating — а не должна, она
-       * должна заканчиваться на последнем value right block»). У левого блока
-       * разделитель справа, у правого слева; наружная сторона блока кончается
-       * на его последнем значении, потому что с той стороны граница не
-       * названа — там начало строки или её конец, а за концом строки стоит
-       * плавающая кнопка. Зеркальность, о которой он говорил раньше, — это
-       * зеркальность **двух блоков**, а не двух краёв одного.
-       *
-       * И только у того куска, который разделителя касается: у перенесённого
-       * блока это первый кусок справа и последний слева.
+       * Рост достаётся тому краю, который у него есть: к разделителю — куску,
+       * который разделителя касается (справа первый, слева последний), наружу
+       * — куску на внешнем конце блока. У перенесённого блока это разные
+       * куски, и середина не растёт ни в одну сторону.
        */
-      const growLeft = span.zone === "right" && i === 0 ? padX : 0;
-      const growRight = span.zone === "left" && i === pieces.length - 1 ? padX : 0;
+      const first = i === 0;
+      const last = i === pieces.length - 1;
+      const growLeft = span.zone === "right" ? (first ? padX : 0) : (first ? outward : 0);
+      const growRight = span.zone === "left" ? (last ? padX : 0) : (last ? outward : 0);
       /*
        * Отрезок отдаётся `forRange` теми же полями, какими его читает
        * платформа. Объявлять здесь `EditorSelection` нечем: он живёт в копии
@@ -837,8 +1006,9 @@ function blockFillMarkersFor(view, plugin) {
         head: piece.to,
         assoc: 0,
       };
+      const box = geom ? blockFillPieceBox(geom, piece) : null;
       for (const marker of cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range)) {
-        if (!growLeft && !growRight && !padY) { out.push(marker); continue; }
+        if (!box && !growLeft && !growRight && !padY) { out.push(marker); continue; }
         /*
          * Прямоугольник **пересоздаётся**, а не правится на месте: поля его
          * читает потом и `eq`, и отрисовка, и правка чужого объекта была бы
@@ -849,9 +1019,11 @@ function blockFillMarkersFor(view, plugin) {
         out.push(new cmView.RectangleMarker(
           BLOCK_FILL_MARKER_CLASS,
           Number(marker.left) - growLeft,
-          Number(marker.top) - padY,
+          /* Вертикаль — от зрительной строки, а не от измеренного отрезка;
+             измерение не удалось — остаётся прежняя мера. */
+          box ? box.top : Number(marker.top) - padY,
           width,
-          Number(marker.height) + padY * 2,
+          box ? box.height : Number(marker.height) + padY * 2,
         ));
       }
     }
@@ -877,7 +1049,16 @@ function blockFillMarkersFor(view, plugin) {
 function blockFillLayerNeedsRedraw(plugin, update, dom) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const look = blockFillLookFromConfig(cfg);
-  const sig = look.enabled ? look.heightPx + ":" + look.widthPct : "off";
+  /*
+   * В подписи стоит и размер пузыря: высота подложки берёт его слагаемым
+   * (`blockFillBubbleHeightPx`), и без этого сдвиг `Text size` или
+   * `Tag bubble height` доезжал бы до подложки только после первой правки
+   * заметки — тот же класс, что У-56.
+   */
+  const v = getTagVisualsFromConfig(cfg);
+  const sig = look.enabled
+    ? [look.heightPx, look.widthPct, v.tagTextSizePct, v.tagBubbleHeightPct].join(":")
+    : "off";
   const flipped = dom.__ioBlockFillSig !== sig;
   dom.__ioBlockFillSig = sig;
   return !!(flipped || update.docChanged || update.viewportChanged || update.geometryChanged);

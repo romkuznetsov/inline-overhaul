@@ -121,18 +121,27 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
   cssVar(node, "--io-blockfill-opacity", String(num(ctx, "visual.tags.blockFill.opacity") / 100));
   /*
    * На сколько подложка выходит за написанное (S7). Высота — в точках. Ширина
-   * — в долях расстояния до разделителя, а это расстояние здесь и есть
-   * промежуток флекса `--io-line-gap`: сотня значит «вплотную к разделителю»,
-   * ровно как в заметке.
+   * — шкала с переломом на середине, и три её ориентира назвал заказчик
+   * (2026-09-09): ноль — по написанному, пятьдесят — до разделителя, сотня —
+   * включая разделитель. Первая половина шкалы тратится на промежуток —
+   * здесь это промежуток флекса `--io-line-gap`, — вторая на сам разделитель.
    *
-   * Без этих двух строк предпросмотр показывал бы подложку **постоянного**
+   * Ширина разделителя взята его длиной в знаках (`ch`), а не измерена:
+   * предпросмотр собирается до того, как попадёт в документ, и мерить в нём
+   * нечего. В заметке та же величина именно измеряется.
+   *
+   * Без этих строк предпросмотр показывал бы подложку **постоянного**
    * размера при любом положении ползунков — то есть был бы вторым,
    * расходящимся объявлением правила (У-32). Ровно этим он и был до
    * 2026-09-09, и заказчик увидел разницу между панелью и заметкой.
    */
   cssVar(node, "--io-blockfill-pady", String(num(ctx, "visual.tags.blockFill.heightPx")) + "px");
+  const bandPct = Math.max(0, Math.min(100, num(ctx, "visual.tags.blockFill.widthPct")));
+  const bandNear = Math.min(1, bandPct / 50);
+  const bandFar = Math.max(0, (bandPct - 50) / 50);
+  const bandSepCh = String(ctx.get("pkm.lineFormat.separator1") || "||").length;
   cssVar(node, "--io-blockfill-padx",
-    "calc(var(--io-line-gap) * " + String(num(ctx, "visual.tags.blockFill.widthPct") / 100) + ")");
+    "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
   if (ctx.get("visual.tags.blockFill.enabled") === true) node.addClass("io-line--blockfill");
 }
 

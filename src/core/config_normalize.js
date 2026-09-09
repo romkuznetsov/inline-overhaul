@@ -941,10 +941,10 @@ function normalizeConfigV2(cfg) {
   /* --- вид тегов -------------------------------------------------------- */
   int("visual.tags.opacityLeft", 0, 100);
   int("visual.tags.opacityRight", 0, 100);
-  int("visual.tags.textSizePct", 80, 140);
-  int("visual.tags.bubbleWidthPct", 80, 140);
-  int("visual.tags.bubbleHeightPct", 80, 140);
-  int("visual.tags.emptyBubblePct", 50, 180);
+  int("visual.tags.textSizePct", 50, 140);
+  int("visual.tags.bubbleWidthPct", 20, 140);
+  int("visual.tags.bubbleHeightPct", 20, 140);
+  int("visual.tags.emptyBubblePct", 10, 180);
   int("visual.tags.cornersPct", 0, 100);
   /* Заливка Left и Right Block (З-7). Цвет пустой значит «взять у темы»,
      и `hex` возвращает пустую строку для чего угодно непохожего. */
@@ -955,7 +955,7 @@ function normalizeConfigV2(cfg) {
      точках, ширина — в долях расстояния до разделителя. Границы держит
      нормализация, а не панель: рукописный `data.json` иначе уехал бы за шкалу
      и слой получил бы прямоугольник в пол-экрана. */
-  int("visual.tags.blockFill.heightPx", 0, 10);
+  int("visual.tags.blockFill.heightPx", 0, 5);
   int("visual.tags.blockFill.widthPct", 0, 100);
   normalizeTagVisualMapsV2(cfg);
 

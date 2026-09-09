@@ -87,16 +87,16 @@ function getTagVisualsFromConfig(cfg) {
     opacityLeft: pctToShare(tags.opacityLeft, 1),
     opacityRight: pctToShare(tags.opacityRight, 1),
     tagTextSizePct: Number.isFinite(Math.trunc(Number(tags.textSizePct)))
-      ? Math.max(80, Math.min(140, Math.trunc(Number(tags.textSizePct))))
+      ? Math.max(50, Math.min(140, Math.trunc(Number(tags.textSizePct))))
       : 100,
     tagBubbleWidthPct: Number.isFinite(Math.trunc(Number(tags.bubbleWidthPct)))
-      ? Math.max(80, Math.min(140, Math.trunc(Number(tags.bubbleWidthPct))))
+      ? Math.max(20, Math.min(140, Math.trunc(Number(tags.bubbleWidthPct))))
       : 100,
     tagBubbleHeightPct: Number.isFinite(Math.trunc(Number(tags.bubbleHeightPct)))
-      ? Math.max(80, Math.min(140, Math.trunc(Number(tags.bubbleHeightPct))))
+      ? Math.max(20, Math.min(140, Math.trunc(Number(tags.bubbleHeightPct))))
       : 100,
     emptyBubbleSizePct: Number.isFinite(Math.trunc(Number(tags.emptyBubblePct)))
-      ? Math.max(50, Math.min(180, Math.trunc(Number(tags.emptyBubblePct))))
+      ? Math.max(10, Math.min(180, Math.trunc(Number(tags.emptyBubblePct))))
       : 100,
     tagShapePct: Number.isFinite(Math.trunc(Number(tags.cornersPct)))
       ? Math.max(0, Math.min(100, Math.trunc(Number(tags.cornersPct))))
@@ -121,9 +121,9 @@ function getTagVisualsFromConfig(cfg) {
 const TAG_EMPTY_BUBBLE_BASE_PX = 30;
 
 function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, shapePct) {
-  const textSize = Number.isFinite(Math.trunc(Number(textSizePct))) ? Math.max(80, Math.min(140, Math.trunc(Number(textSizePct)))) : 100;
-  const bubbleWidth = Number.isFinite(Math.trunc(Number(bubbleWidthPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(bubbleWidthPct)))) : 100;
-  const bubbleHeight = Number.isFinite(Math.trunc(Number(bubbleHeightPct))) ? Math.max(80, Math.min(140, Math.trunc(Number(bubbleHeightPct)))) : 100;
+  const textSize = Number.isFinite(Math.trunc(Number(textSizePct))) ? Math.max(50, Math.min(140, Math.trunc(Number(textSizePct)))) : 100;
+  const bubbleWidth = Number.isFinite(Math.trunc(Number(bubbleWidthPct))) ? Math.max(20, Math.min(140, Math.trunc(Number(bubbleWidthPct)))) : 100;
+  const bubbleHeight = Number.isFinite(Math.trunc(Number(bubbleHeightPct))) ? Math.max(20, Math.min(140, Math.trunc(Number(bubbleHeightPct)))) : 100;
   const shape = Number.isFinite(Math.trunc(Number(shapePct))) ? Math.max(0, Math.min(100, Math.trunc(Number(shapePct)))) : 0;
   const textScale = textSize / 100;
   const bubbleScaleX = bubbleWidth / 100;
@@ -139,10 +139,29 @@ function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, sha
     bubbleHeight,
     shape,
     borderRadiusPx: radiusPx,
-    horizontalPaddingPx: Math.max(2, Math.round(6 * bubbleScaleX)),
-    verticalPaddingPx: Math.max(1, Math.round(3 * bubbleScaleY)),
-    fontSizePx: Math.max(10, Math.round(14 * textScale)),
-    lineHeight: 1.2,
+    /*
+     * **Нижние границы опущены по его словам** (замечания 2026-09-09):
+     * «tags-bubble-width при минимальном значении… я хочу, чтобы текст в
+     * пузырьке начинался практически сразу после начала tag bubble», «то же
+     * самое с tags-bubble-height», «tags-text-size — хочу, чтобы минимальное
+     * значение могло быть меньше 80%».
+     *
+     * Прежние границы (`2`, `1`, `10`) съедали нижнюю часть каждой шкалы: на
+     * восьмидесяти процентах поле было ещё 5 и 2 точки, а ниже шкала не шла
+     * вовсе. Умолчания при этом не двинулись ни на точку — при сотне числа те
+     * же, что были.
+     */
+    horizontalPaddingPx: Math.max(0, Math.round(6 * bubbleScaleX)),
+    verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY)),
+    fontSizePx: Math.max(6, Math.round(14 * textScale)),
+    /*
+     * Междустрочие пузыря идёт за его высотой, и только вниз от сотни:
+     * поджать поля до нуля мало — на низком пузыре остаётся собственное
+     * междустрочие, и текст всё равно не упирается в границу. Выше сотни оно
+     * прежнее: там он просил только более высокий пузырь, а не более
+     * разреженный текст.
+     */
+    lineHeight: 1 + 0.2 * Math.min(1, bubbleScaleY),
   };
 }
 
@@ -791,7 +810,37 @@ const BLOCK_FILL_DEFAULT_OPACITY_PCT = 12;
  * появляется». Умолчание, при котором функция невидима, — это не умолчание.
  */
 const BLOCK_FILL_DEFAULT_HEIGHT_PX = 3;
-const BLOCK_FILL_DEFAULT_WIDTH_PCT = 60;
+/**
+ * Умолчание ширины — **середина шкалы**, и это её же ориентир.
+ *
+ * Заказчик назвал три положения ползунка (замечание по S7, 2026-09-09):
+ * начало шкалы — подложка от первого значения до последнего, середина — до
+ * разделителя, верх — включая разделитель. Умолчанием стоит середина: это
+ * единственное положение, у которого есть имя.
+ */
+const BLOCK_FILL_DEFAULT_WIDTH_PCT = 50;
+
+/**
+ * Верх шкалы высоты — пять точек, и это слово заказчика (2026-09-09):
+ * «после высоты в 3px полоски на разных строках начинают наезжать друг на
+ * друга, сделай максимальное значение 5px».
+ *
+ * **Наезжать они больше не могут вовсе**, и не из-за шкалы: высота подложки
+ * прижимается к высоте зрительной строки (`blockFillBandHeightPx`). Пять
+ * точек — то место шкалы, где на его начертании подложка ровно заполняет
+ * строку; на более плотном начертании прижим случится раньше, и это верно.
+ */
+const BLOCK_FILL_MAX_HEIGHT_PX = 5;
+
+/**
+ * Доля, которую занимает написанное в зрительной строке, — на случай, когда
+ * платформа своей меры не отдала.
+ *
+ * Своя мера у неё есть (`heightOracle.textHeight`, ею же считает и сам
+ * CodeMirror), и берётся она первой. Это — только запас, и он назван: без
+ * него подложка при отказе измерения стала бы толщиной в строку целиком.
+ */
+const BLOCK_FILL_TEXT_HEIGHT_SHARE = 0.7;
 
 /**
  * Целое из конфига в границах шкалы; мусор и пустота дают умолчание.
@@ -826,8 +875,9 @@ function blockFillLookFromConfig(cfg) {
     opacity: Number.isFinite(pct)
       ? Math.max(0, Math.min(100, Math.trunc(pct))) / 100
       : BLOCK_FILL_DEFAULT_OPACITY_PCT / 100,
-    /* Высота — в точках: своей границы снаружи у неё нет. */
-    heightPx: blockFillIntOr(src.heightPx, 0, 10, BLOCK_FILL_DEFAULT_HEIGHT_PX),
+    /* Высота — в точках, на сколько подложка выходит за написанное вверх и
+       вниз. Верх шкалы — там, где она заполняет зрительную строку целиком. */
+    heightPx: blockFillIntOr(src.heightPx, 0, BLOCK_FILL_MAX_HEIGHT_PX, BLOCK_FILL_DEFAULT_HEIGHT_PX),
     /* Ширина — в долях расстояния до разделителя: границу назвал заказчик, и
        она зависит от строки, а не от шкалы. */
     widthPct: blockFillIntOr(src.widthPct, 0, 100, BLOCK_FILL_DEFAULT_WIDTH_PCT),
@@ -837,24 +887,106 @@ function blockFillLookFromConfig(cfg) {
 /**
  * На сколько подложка выходит за написанное по горизонтали, в точках.
  *
- * **Заказчик назвал границу сам:** «в крайнем правом положении она должна
- * границей достигать начала сепаратора (и быть зеркальной с обратной стороны
- * этого block)». Отсюда доля, а не точки: расстояние до разделителя — это
- * ширина одного пробела на его шрифте, и шкала в точках была бы почти вся
- * мёртвой.
+ * **Шкалу заказчик откалибровал сам** (замечание по S7, 2026-09-09): «при
+ * минимальном значении полоска в block начиналась от начала первого элемента
+ * до конца последнего, при среднем положении — была до сепаратора (и
+ * зеркально с другой стороны), а при максимальном — включала separator».
  *
- * Промежутка нет или его нечем измерить — нет и выхода за написанное:
- * подложка кончается на последнем значении, как кончалась. Придумать
- * расстояние вместо измеренного значило бы заехать на разделитель.
+ * Отсюда две меры вместо одной и **перелом на середине**:
+ *
+ *   * `nearPx` — от края блока до ближней границы разделителя (пробел между
+ *     ними). Половина шкалы тратится на него, и на пятидесяти подложка стоит
+ *     ровно у разделителя;
+ *   * `farPx` — до дальней его границы. Вторая половина шкалы тратится на сам
+ *     разделитель, и на сотне подложка его включает.
+ *
+ * Обе — доли измеренного, а не точки: расстояние до разделителя зависит от
+ * начертания, и шкала в точках была бы почти вся мёртвой.
+ *
+ * Мера не измерена или отрицательна — своей части шкалы нет: подложка
+ * кончается там, где кончилась предыдущая часть. Придумать расстояние вместо
+ * измеренного значило бы заехать за разделитель.
  */
-function blockFillPadXPx(look, gapPx) {
-  const pct = Number(look && look.widthPct);
-  const gap = Number(gapPx);
+function blockFillPadXPx(look, nearPx, farPx) {
+  const pct = Math.min(100, Math.max(0, Number(look && look.widthPct)));
   if (!Number.isFinite(pct) || pct <= 0) return 0;
-  if (!Number.isFinite(gap) || gap <= 0) return 0;
-  return (gap * Math.min(100, Math.max(0, pct))) / 100;
+  const near = Number(nearPx);
+  const nearOk = Number.isFinite(near) && near > 0 ? near : 0;
+  if (pct <= 50) return (nearOk * pct) / 50;
+  const far = Number(farPx);
+  /* Разделитель шире промежутка всегда; обратное значит, что измерить его не
+     удалось, и второй половины шкалы тогда нет. */
+  const sep = Number.isFinite(far) && far > nearOk ? far - nearOk : 0;
+  return nearOk + (sep * (pct - 50)) / 50;
 }
 
+/**
+ * Высота подложки в точках — **одна на все строки** (замечание по S7,
+ * 2026-09-09: «если в block встречается wikilink, то полоска становится выше,
+ * чем в строке, в которой нет wikilink… она должна быть одинаковая во всех
+ * строках»).
+ *
+ * **Почему это считается, а не мерится.** `RectangleMarker.forRange` берёт
+ * вертикаль как объединение строчных ящиков **краёв** отрезка
+ * (`rectanglesForRange` в `@codemirror/view`), а у ссылки, которую рисует
+ * Obsidian, ящик выше ящика соседнего текста: по скриншоту заказчика подложка
+ * такой строки на пять точек выше, и выше **только сверху**. То есть высота
+ * подложки зависела от того, что в блоке лежит, — а этого он и не хочет.
+ *
+ * Слагаемых поэтому три, и ни одно не зависит от содержимого строки:
+ *
+ *   1. `textHeightPx` — высота написанного, мера самой платформы;
+ *   2. `bubbleHeightPx` — высота пузыря тега по нынешним настройкам. Пузырь
+ *      бывает выше написанного (крупный кегль, высокий пузырь), и подложка
+ *      ниже него значила бы цветные края, торчащие наружу;
+ *   3. `heightPx` — сколько точек человек попросил сверх этого, вверх и вниз.
+ *
+ * И прижим к высоте зрительной строки: подложки соседних строк не
+ * пересекаются никогда, чем бы ни был выставлен ползунок.
+ */
+function blockFillBandHeightPx(look, lineHeightPx, textHeightPx, bubbleHeightPx) {
+  const lineH = Number(lineHeightPx);
+  if (!Number.isFinite(lineH) || lineH <= 0) return 0;
+  const textH = Number(textHeightPx);
+  const bubbleH = Number(bubbleHeightPx);
+  const written = Math.max(
+    Number.isFinite(textH) && textH > 0 ? textH : lineH * BLOCK_FILL_TEXT_HEIGHT_SHARE,
+    Number.isFinite(bubbleH) && bubbleH > 0 ? bubbleH : 0,
+  );
+  const grow = Math.max(0, Math.min(BLOCK_FILL_MAX_HEIGHT_PX, Number(look && look.heightPx) || 0));
+  return Math.max(1, Math.min(lineH, written + grow * 2));
+}
+
+/**
+ * Высота пузыря тега по нынешним настройкам, в точках.
+ *
+ * Считается **той же функцией**, что задаёт пузырю стиль: второе объявление
+ * его размера разошлось бы с первым молча (У-32), а разошедшись — оставило бы
+ * подложку ниже пузыря ровно на разницу.
+ */
+function blockFillBubbleHeightPx(visuals) {
+  const v = isObj(visuals) ? visuals : {};
+  const st = computeTagVisualStyle(v.tagTextSizePct, v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0);
+  return st.fontSizePx * st.lineHeight + st.verticalPaddingPx * 2;
+}
+
+
+/**
+ * Где кончается **знак** начала строки: отступ, цитата, маркер списка,
+ * чекбокс, решётки заголовка — и ни один пробел за ними.
+ *
+ * `linePrefixLength` досыпает к оформлению и пробелы, которые за ним стоят, —
+ * это верно для тех, кто ищет начало текста, и неверно здесь: подложке в этот
+ * пробел расти можно, а на чекбокс нельзя. Поэтому пробел снимается обратно, а
+ * само правило по-прежнему одно и лежит в `shared_utils`.
+ */
+function blockFillPrefixGlyphEnd(text) {
+  const src = String(text || "");
+  const at = __sharedUtils.linePrefixLength(src, true);
+  let end = Math.max(0, Math.min(src.length, at));
+  while (end > 0 && (src[end - 1] === " " || src[end - 1] === "\t")) end -= 1;
+  return end;
+}
 
 /**
  * Отрезки строки, под которыми лежит подложка (З-7).
@@ -895,12 +1027,31 @@ function blockFillSpansInLine(text, sep1, sep2, elementMarkers) {
      */
     const gapFrom = zone === "left" ? end : at.lastEnd;
     const gapTo = zone === "left" ? at.first : start;
+    /*
+     * Дальняя граница разделителя — вторая половина шкалы `Band width`: на
+     * сотне подложка разделитель включает. Слева это конец первого
+     * разделителя, справа — начало последнего; ближняя граница у обоих та, что
+     * уже названа в `gapFrom`/`gapTo`.
+     */
+    const sepFar = zone === "left" ? at.firstEnd : at.last;
     out.push({
       zone,
       start,
       end,
       gapFrom: gapTo > gapFrom ? gapFrom : -1,
       gapTo: gapTo > gapFrom ? gapTo : -1,
+      sepFar: gapTo > gapFrom && sepFar >= 0 ? sepFar : -1,
+      /*
+       * Где кончается оформление начала строки. Его условие: «даже в
+       * максимальном положении ползунка полоска должна начинаться после
+       * префикса не включая его». Берётся **знак** префикса, без пробелов за
+       * ним: пробел между чекбоксом и первым значением — не префикс, и
+       * подложке в него расти можно.
+       *
+       * Правило одно и живёт в `shared_utils`: второе объявление форм начала
+       * строки здесь разошлось бы с движками молча (У-32).
+       */
+      prefixEnd: blockFillPrefixGlyphEnd(src),
     });
   }
   return out;
@@ -1350,9 +1501,14 @@ module.exports = {
   BLOCK_FILL_DEFAULT_OPACITY_PCT,
   BLOCK_FILL_DEFAULT_HEIGHT_PX,
   BLOCK_FILL_DEFAULT_WIDTH_PCT,
+  BLOCK_FILL_MAX_HEIGHT_PX,
+  BLOCK_FILL_TEXT_HEIGHT_SHARE,
   blockFillLookFromConfig,
   blockFillSpansInLine,
   blockFillPadXPx,
+  blockFillBandHeightPx,
+  blockFillBubbleHeightPx,
+  blockFillPrefixGlyphEnd,
   buildBlockFillStyleCss,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,

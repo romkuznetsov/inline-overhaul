@@ -707,23 +707,26 @@
    * пузырю тега, то есть невидима. Заказчик увидел ровно эту разницу.
    */
   /*
-   * **По горизонтали подложка растёт только в сторону разделителя**
-   * (замечание по S7, 2026-09-09: «полоска захватывает i2n-floating — а не
-   * должна, она должна заканчиваться на последнем value right block»). У
-   * левого блока разделитель справа, у правого слева; наружный край блока
-   * кончается на его крайнем значении. Ниже это по правилу на сторону:
-   * специфичность у них та же, и решает порядок (У-67).
+   * **По горизонтали подложка растёт в обе стороны, зеркально**
+   * (замечание по S7, 2026-09-09: «слева… должна отступать от первого
+   * элемента на такое же расстояние, как у правой границы этого block»). Прежде
+   * рост был односторонним — и это было его же прежнее слово, которое он
+   * уточнил: зеркальность — два края ОДНОГО блока.
    */
-  padding: var(--io-blockfill-pady, 3px) 0;
-  margin: calc(-1 * var(--io-blockfill-pady, 3px)) 0;
+  padding: var(--io-blockfill-pady, 3px) var(--io-blockfill-padx, 3px);
+  margin: calc(-1 * var(--io-blockfill-pady, 3px)) calc(-1 * var(--io-blockfill-padx, 3px));
 }
+/*
+ * Исключение одно, и оно его: «полоска в left block не должна наезжать
+ * на префикс (буллит, чекбокс)». Наружу левый блок растёт не дальше
+ * промежутка до знака начала строки: здесь это промежуток флекса, в
+ * заметке — измеренное расстояние до правого края чекбокса.
+ *
+ * Специфичность та же, что у правила выше, и решает порядок (У-67).
+ */
 .io-line--blockfill .io-line__side--left:not(:empty) {
-  padding-right: var(--io-blockfill-padx, 3px);
-  margin-right: calc(-1 * var(--io-blockfill-padx, 3px));
-}
-.io-line--blockfill .io-line__side--right:not(:empty) {
-  padding-left: var(--io-blockfill-padx, 3px);
-  margin-left: calc(-1 * var(--io-blockfill-padx, 3px));
+  padding-left: min(var(--io-blockfill-padx, 3px), var(--io-line-gap));
+  margin-left: calc(-1 * min(var(--io-blockfill-padx, 3px), var(--io-line-gap)));
 }
 
 /*
@@ -753,7 +756,11 @@
   padding: calc(2.5px * var(--io-bubble-y)) calc(9px * var(--io-bubble-x));
   border-radius: calc(11px * var(--io-corners) + 2px);
   font-size: calc(11.5px * var(--io-text-scale));
-  line-height: 1.35;
+  /* Междустрочие идёт за высотой пузыря, и только вниз от сотни: без этого на
+     низком пузыре остаётся его собственное междустрочие, и текст в границу не
+     упирается (замечание заказчика 2026-09-09). Правило то же, что у заметки в
+     `computeTagVisualStyle`, со своим основанием — 1.35 против 1.2. */
+  line-height: calc(1 + 0.35 * min(1, var(--io-bubble-y)));
   background: var(--io-bubble-bg, var(--interactive-accent));
   color: var(--io-bubble-fg, var(--text-on-accent));
 }

@@ -245,24 +245,50 @@ const NARROW_OK = {};
           out.bandReach = reach();
           out.lineHeightsOn = lineHeights();
           /*
-           * И положительный контроль к самому измерению: ползунок ширины
-           * ставится в ноль, и подложка обязана **сжаться** до написанного.
-           * Величина, не изменившаяся от подмены, читается как «проверка
-           * слепа» — а слепа при ней бывает и сама подмена (У-110).
+           * **Три ориентира шкалы, измеренные браузером** (его слова
+           * 2026-09-09): ноль — по написанному, середина — до разделителя и
+           * зеркально с другой стороны, сотня — включая разделитель. Одного
+           * положения тут мало: проверка, смотревшая в одну точку, была
+           * зелёной и при одностороннем росте (У-110).
+           *
+           * Ползунок ищется заново перед каждым положением: панель
+           * перерисовывает содержимое целиком, и узел, найденный до неё, к
+           * странице больше не относится (У-114).
            */
-          const widthSlider = Array.from(document.querySelectorAll("input[type=range]"))
+          const findWidthSlider = () => Array.from(document.querySelectorAll("input[type=range]"))
             .find((el) => {
               const item = el.closest(".io-item");
               const name = item ? item.querySelector(".io-item__name") : null;
               return !!name && (name.textContent || "").trim() === "Band width";
             });
-          if (widthSlider) {
-            widthSlider.value = "0";
-            widthSlider.dispatchEvent(new Event("input", { bubbles: true }));
-            widthSlider.dispatchEvent(new Event("change", { bubbles: true }));
-            out.bandReachAtZero = reach();
+          const setWidth = (pct) => {
+            const s = findWidthSlider();
+            if (!s) return false;
+            s.value = String(pct);
+            s.dispatchEvent(new Event("input", { bubbles: true }));
+            s.dispatchEvent(new Event("change", { bubbles: true }));
+            return true;
+          };
+          /* Меры, от которых считается шкала: промежуток строки и ширина
+             разделителя — спрашиваются у браузера, а не пишутся числом. */
+          out.bandGap = (() => {
+            const line = document.querySelector(".io-line--blockfill");
+            if (!line) return -1;
+            const v = parseFloat(getComputedStyle(line).getPropertyValue("--io-line-gap"));
+            return Number.isFinite(v) ? v : -1;
+          })();
+          out.bandSepWidth = (() => {
+            const sep = document.querySelector(".io-line--blockfill .io-line__sep");
+            return sep ? Math.round(sep.getBoundingClientRect().width * 100) / 100 : -1;
+          })();
+          out.bandReachAt = {};
+          for (const pct of [0, 50, 100]) {
+            if (setWidth(pct)) out.bandReachAt[pct] = reach();
           }
-          if (bandOnNode && bandOnNode.checked) bandOnNode.click();
+          if (bandOnNode && bandOnNode.checked) {
+            const back = findBandToggle();
+            if (back && back.checked) back.click();
+          }
           out.bandBack = painted();
         }
 
@@ -404,35 +430,59 @@ const NARROW_OK = {};
        */
       if (!b.bandReach) {
         bad("подложку не с чем сравнить: строки с подложкой и написанным в ней нет");
+      } else if (!(b.bandReach.y > 0)) {
+        bad("подложка не выходит за написанное по вертикали (" + b.bandReach.y
+          + " точек) — под пузырём тега её не видно вовсе");
+      }
+      /*
+       * **Три ориентира шкалы `Band width`**, и каждый — его словами
+       * (2026-09-09): «при минимальном значении полоска … от начала
+       * первого элемента до конца последнего, при среднем положении —
+       * до сепаратора (и зеркально с другой стороны), а при максимальном
+       * — включала separator».
+       */
+      const at = b.bandReachAt || {};
+      const gap = Number(b.bandGap);
+      if (!at["0"] || !at["50"] || !at["100"]) {
+        bad("ползунок `Band width` не найден — три ориентира шкалы не измерены");
+      } else if (!(gap > 0)) {
+        bad("промежуток строки предпросмотра не измерен (" + b.bandGap
+          + ") — шкалу не с чем сравнивать");
       } else {
-        if (!(b.bandReach.y > 0)) {
-          bad("подложка не выходит за написанное по вертикали (" + b.bandReach.y
-            + " точек) — под пузырём тега её не видно вовсе");
+        const zero = at["0"];
+        const mid = at["50"];
+        const full = at["100"];
+        if (Math.abs(zero.x) >= 0.6 || Math.abs(zero.outer) >= 0.6) {
+          bad("на нуле подложка не лежит по написанному: к разделителю "
+            + zero.x + ", наружу " + zero.outer);
         }
-        if (!(b.bandReach.x > 0)) {
-          bad("подложка не растёт в сторону разделителя (" + b.bandReach.x
-            + " точек)");
+        if (Math.abs(mid.x - gap) >= 1) {
+          bad("в середине шкалы подложка не доходит до разделителя: " + mid.x
+            + " точек при промежутке " + gap);
+        }
+        /* Зеркальность: два края ОДНОГО блока, а не два блока. */
+        if (Math.abs(mid.outer - mid.x) >= 1) {
+          bad("в середине шкалы рост не зеркален: к разделителю " + mid.x
+            + ", наружу " + mid.outer);
+        }
+        if (!(full.x > mid.x + 0.5)) {
+          bad("вторая половина шкалы ничего не делает: на середине " + mid.x
+            + ", на сотне " + full.x + " — разделитель в подложку не вошёл");
         }
         /*
-         * И наружу она не растёт вовсе — его замечание по S7: «полоска
-         * захватывает i2n-floating, а не должна, она должна заканчиваться на
-         * последнем value right block». У левого блока наружная сторона —
-         * начало строки, и подложка обязана начинаться ровно на его первом
-         * значении.
+         * И единственное исключение его же словами: «полоска в left block не
+         * должна наезжать на префикс (буллит, чекбокс)» — то есть на
+         * сотне наружный рост прижат к промежутку, а рост к разделителю
+         * нет.
          */
-        if (Math.abs(b.bandReach.outer) >= 0.5) {
-          bad("подложка выходит за блок наружу (" + b.bandReach.outer
-            + " точек) — она обязана кончаться на крайнем значении блока");
+        if (full.outer >= gap + 0.6) {
+          bad("на сотне подложка левого блока заезжает на знак начала строки: наружу "
+            + full.outer + " точек при промежутке " + gap);
         }
-      }
-      /* Положительный контроль: на нуле ползунка та же величина обязана стать
-         нулём. Не изменилась — измерение ничего не мерит (У-110). */
-      if (!b.bandReachAtZero) {
-        bad("ползунок `Band width` не найден — положительный контроль не поставлен");
-      } else if (b.bandReach && !(b.bandReachAtZero.x < b.bandReach.x)) {
-        bad("на нуле ползунка ширины подложка не сжалась: было "
-          + b.bandReach.x + ", стало " + b.bandReachAtZero.x
-          + " — измерение не зависит от настройки");
+        if (!(full.outer < full.x - 0.5)) {
+          bad("на сотне наружный рост не прижат вовсе: наружу " + full.outer
+            + ", к разделителю " + full.x + " — прижим к префиксу не сработал");
+        }
       }
       /*
        * И она обязана вырасти, **не** раздвинув строку: в заметке её рисует

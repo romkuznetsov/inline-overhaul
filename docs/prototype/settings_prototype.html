@@ -506,30 +506,38 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
     var(--io-blockfill-color) calc(var(--io-blockfill-opacity, 0.12) * 100%), transparent);
   border-radius: var(--radius-s);
   /*
-   * **По горизонтали подложка растёт только в сторону разделителя**
-   * (замечание по S7, 2026-09-09: «полоска захватывает i2n-floating — а не
-   * должна, она должна заканчиваться на последнем value right block»). У
-   * левого блока разделитель справа, у правого слева; наружный край блока
-   * кончается на его крайнем значении. Ниже это по правилу на сторону:
-   * специфичность у них та же, и решает порядок (У-67).
+   * **По горизонтали подложка растёт в обе стороны, зеркально**
+   * (замечание по S7, 2026-09-09: «слева… должна отступать от первого
+   * элемента на такое же расстояние, как у правой границы этого block»).
+   * Прежде рост был односторонним — только к разделителю, — и это было его
+   * же прежнее слово, которое он уточнил: зеркальность — два края ОДНОГО
+   * блока.
    */
-  padding: var(--io-blockfill-pady, 3px) 0;
-  margin: calc(-1 * var(--io-blockfill-pady, 3px)) 0;
+  padding: var(--io-blockfill-pady, 3px) var(--io-blockfill-padx, 3px);
+  margin: calc(-1 * var(--io-blockfill-pady, 3px)) calc(-1 * var(--io-blockfill-padx, 3px));
 }
+/*
+ * Исключение одно, и оно его: «полоска в left block не должна наезжать
+ * на префикс (буллит, чекбокс)». Наружу левый блок растёт не дальше
+ * промежутка до знака начала строки — здесь это промежуток флекса, в
+ * заметке — измеренное расстояние до правого края чекбокса.
+ *
+ * Специфичность та же, что у правила выше, и решает порядок (У-67).
+ */
 .io-line--blockfill .io-line__side--left:not(:empty) {
-  padding-right: var(--io-blockfill-padx, 3px);
-  margin-right: calc(-1 * var(--io-blockfill-padx, 3px));
-}
-.io-line--blockfill .io-line__side--right:not(:empty) {
-  padding-left: var(--io-blockfill-padx, 3px);
-  margin-left: calc(-1 * var(--io-blockfill-padx, 3px));
+  padding-left: min(var(--io-blockfill-padx, 3px), var(--io-line-gap));
+  margin-left: calc(-1 * min(var(--io-blockfill-padx, 3px), var(--io-line-gap)));
 }
 .io-line__hint { font-size: 11px; color: var(--text-faint); font-style: italic; }
 
 /* Only tags get bubbles. Links and elements stay plain text. */
 .io-bubble {
   display: inline-block; white-space: nowrap;
-  font-size: calc(11.5px * var(--io-text-scale)); line-height: 1.35;
+  font-size: calc(11.5px * var(--io-text-scale));
+  /* Междустрочие идёт за высотой пузыря, и только вниз от сотни: без
+     этого на низком пузыре остаётся его собственное междустрочие, и текст
+     в границу не упирается (замечание заказчика 2026-09-09). */
+  line-height: calc(1 + 0.35 * min(1, var(--io-bubble-y)));
   padding: calc(2.5px * var(--io-bubble-y)) calc(9px * var(--io-bubble-x));
   border-radius: calc(11px * var(--io-corners) + 2px);
   background: var(--io-bubble-bg, var(--interactive-accent));
@@ -2130,51 +2138,48 @@ const SCHEMA = [
       tip:"Low numbers are the point: the band is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it",
       visible: on("visual.tags.blockFill.enabled") },
     /* Заказчик 2026-09-09, замечание по S7: «хочу, чтобы была настройка высоты
-       и ширины этой полосы (сейчас она находится прямо на уровне границ
-       пузырька тега)… чтобы мог управлять ползунком… в крайнем правом
-       положении она должна границей достигать начала сепаратора (и быть
-       зеркальной с обратной стороны этого block)».
+       и ширины этой полосы». Отсюда две шкалы, и обе он откалибровал сам
+       вторым заходом, по скриншоту 18.png.
 
-       Отсюда две разные шкалы, и это не небрежность. У высоты своей границы
-       снаружи нет — она в точках. У ширины граница названа им самим:
-       разделитель. Она в долях этого расстояния, и сотня значит «вплотную к
-       разделителю» — в точках та же сотня была бы мёртвым ходом ползунка,
-       потому что между последним значением и разделителем стоит один пробел.
+       Ширина — три ориентира его словами: «при минимальном значении
+       полоска в block начиналась от начала первого элемента до конца
+       последнего, при среднем положении — была до сепаратора (и зеркально с
+       другой стороны), а при максимальном — включала separator». Значит
+       рост зеркальный, а не односторонний, как был: зеркальность — два края
+       ОДНОГО блока. Исключение одно и тоже его: «полоска в left block не
+       должна наезжать на префикс (буллит, чекбокс)».
 
-       И второе его слово, тем же днём: «полоска захватывает i2n-floating — а
-       не должна, она должна заканчиваться на последнем value right block».
-       Значит рост **односторонний**: в сторону разделителя, и только в неё. С
-       наружной стороны блока границы не названо — там начало строки или её
-       конец, а за концом строки стоит плавающая кнопка. Зеркальность, о
-       которой он говорил, — это зеркальность двух блоков, а не двух краёв
-       одного. */
+       Высота — в точках, и верх шкалы тоже его: «после высоты в 3px
+       полоски на разных строках начинают наезжать друг на друга, сделай
+       максимальное значение 5px». Наезжать они больше не могут вовсе:
+       высота подложки прижата к высоте зрительной строки. */
     { kind:"slider", id:"tags-block-fill-height", path:"visual.tags.blockFill.heightPx", default:3,
-      min:0, max:10, step:1, unit:"px",
+      min:0, max:5, step:1, unit:"px",
       name:"Band height", desc:"How far the band reaches above and below the writing",
-      tip:"At <code>0</code> the band is exactly as tall as what it sits behind — and a tag bubble has its own color, so it would hide the band entirely. A few points are enough to see it around the bubbles. High numbers make the bands of neighbouring lines touch",
+      tip:"At <code>0</code> the band is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. Each point adds one above and one below. The band never grows past the line it belongs to, so the bands of two neighbouring lines can meet but never overlap",
       visible: on("visual.tags.blockFill.enabled") },
-    { kind:"slider", id:"tags-block-fill-width", path:"visual.tags.blockFill.widthPct", default:60,
+    { kind:"slider", id:"tags-block-fill-width", path:"visual.tags.blockFill.widthPct", default:50,
       min:0, max:100, step:5, unit:"%",
-      name:"Band width", desc:"How far the band reaches towards the Separator",
-      tip:"Measured against the gap between the Block and the Separator: at <code>100</code> the band stops exactly where the Separator starts, and never covers it. The far side of the Block is not touched — the band ends on its outermost Value, so it never runs onto the text of your note or onto the button at the end of the line. At <code>0</code> it ends on the writing on both sides",
+      name:"Band width", desc:"How far the band reaches past the Block on both of its sides",
+      tip:"The scale has three landmarks. At <code>0</code> the band starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says",
       visible: on("visual.tags.blockFill.enabled") },
     { kind:"slider", id:"tags-text-size", path:"visual.tags.textSizePct", default:100,
-      min:80, max:140, step:5, unit:"%",
+      min:50, max:140, step:5, unit:"%",
       name:"Text size", desc:"How big everything in the two Blocks is written, next to the rest of your note",
       tip:"This reaches the whole of both Blocks, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Blocks step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100",
       searchTerms:["Tag text size"] },
     { kind:"slider", id:"tags-bubble-width", path:"visual.tags.bubbleWidthPct", default:100,
-      min:80, max:140, step:5, unit:"%",
+      min:20, max:140, step:5, unit:"%",
       name:"Tags bubble width", desc:"How much breathing room there is either side of the word",
-      tip:"This is the padding either side of the word, not the word itself: the writing keeps its size, the bubble around it grows. Below 100 the bubbles tighten and a long line fits; above 100 they read as separate chips even in a crowded Block",
+      tip:"This is the padding either side of the word, not the word itself: the writing keeps its size, the bubble around it grows. At the bottom of the scale the word starts almost at the edge of the bubble; above 100 the bubbles read as separate chips even in a crowded Block",
       searchTerms:["Tag bubble size - width", "Bubble width"] },
     { kind:"slider", id:"tags-bubble-height", path:"visual.tags.bubbleHeightPct", default:100,
-      min:80, max:140, step:5, unit:"%",
-      name:"Tags bubble size", desc:"How tall the bubble is around the word",
-      tip:"Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read",
+      min:20, max:140, step:5, unit:"%",
+      name:"Tag bubble height", desc:"How tall the bubble is around the word",
+      tip:"Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read. At the bottom of the scale the bubble closes in on the word from above and below",
       searchTerms:["Tag bubble size - height", "Bubble height"] },
     { kind:"slider", id:"tags-empty-bubble", path:"visual.tags.emptyBubblePct", default:100,
-      min:50, max:180, step:5, unit:"%",
+      min:10, max:180, step:5, unit:"%",
       name:"Empty tags bubble width", desc:"Width of a bubble whose <code>Show</code> is set to <code>empty</code>",
       searchTerms:["Empty bubble size", "Empty bubble width"],
       tip:"Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets",
@@ -3554,14 +3559,26 @@ function applyTagVars(node) {
     String(val("visual.tags.blockFill.color") || "").trim() || "var(--text-accent)");
   cssVar(node, "--io-blockfill-opacity", String(val("visual.tags.blockFill.opacity") / 100));
   /*
-   * Насколько подложка выходит за написанное (замечание по S7, 2026-09-09).
-   * Высота — в точках. Ширина — в долях расстояния до разделителя, а само это
-   * расстояние здесь и есть промежуток флекса, `--io-line-gap`: сотня значит
-   * «вплотную к разделителю», ровно как в заметке.
+   * Насколько подложка выходит за написанное (замечания по S7, 2026-09-09).
+   *
+   * Высота — в точках. Ширина — шкала с переломом на середине, и три её
+   * ориентира назвал он сам: ноль — по написанному, пятьдесят — до
+   * разделителя, сотня — включая разделитель. Первая половина шкалы тратится
+   * на промежуток — здесь это промежуток флекса, `--io-line-gap`, — вторая на
+   * сам разделитель.
+   *
+   * Ширина разделителя взята его длиной в знаках (`ch`), а не измерена:
+   * предпросмотр собирается до того, как попадёт в документ, и мерить в нём
+   * нечего. В заметке та же величина именно измеряется; здесь она показывает
+   * поведение шкалы, а не точные точки.
    */
   cssVar(node, "--io-blockfill-pady", String(val("visual.tags.blockFill.heightPx")) + "px");
+  const bandPct = Math.max(0, Math.min(100, Number(val("visual.tags.blockFill.widthPct")) || 0));
+  const bandNear = Math.min(1, bandPct / 50);
+  const bandFar = Math.max(0, (bandPct - 50) / 50);
+  const bandSepCh = String(val("pkm.lineFormat.separator1") || "||").length;
   cssVar(node, "--io-blockfill-padx",
-    "calc(var(--io-line-gap) * " + String(val("visual.tags.blockFill.widthPct") / 100) + ")");
+    "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
   if (val("visual.tags.blockFill.enabled") === true) node.classList.add("io-line--blockfill");
 }
 /* A bubble with no text keeps a normal bubble's height: the non-breaking
