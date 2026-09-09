@@ -505,8 +505,24 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   background-color: color-mix(in srgb,
     var(--io-blockfill-color) calc(var(--io-blockfill-opacity, 0.12) * 100%), transparent);
   border-radius: var(--radius-s);
-  padding: var(--io-blockfill-pady, 3px) var(--io-blockfill-padx, 3px);
-  margin: calc(-1 * var(--io-blockfill-pady, 3px)) calc(-1 * var(--io-blockfill-padx, 3px));
+  /*
+   * **По горизонтали подложка растёт только в сторону разделителя**
+   * (замечание по S7, 2026-09-09: «полоска захватывает i2n-floating — а не
+   * должна, она должна заканчиваться на последнем value right block»). У
+   * левого блока разделитель справа, у правого слева; наружный край блока
+   * кончается на его крайнем значении. Ниже это по правилу на сторону:
+   * специфичность у них та же, и решает порядок (У-67).
+   */
+  padding: var(--io-blockfill-pady, 3px) 0;
+  margin: calc(-1 * var(--io-blockfill-pady, 3px)) 0;
+}
+.io-line--blockfill .io-line__side--left:not(:empty) {
+  padding-right: var(--io-blockfill-padx, 3px);
+  margin-right: calc(-1 * var(--io-blockfill-padx, 3px));
+}
+.io-line--blockfill .io-line__side--right:not(:empty) {
+  padding-left: var(--io-blockfill-padx, 3px);
+  margin-left: calc(-1 * var(--io-blockfill-padx, 3px));
 }
 .io-line__hint { font-size: 11px; color: var(--text-faint); font-style: italic; }
 
@@ -2123,7 +2139,15 @@ const SCHEMA = [
        снаружи нет — она в точках. У ширины граница названа им самим:
        разделитель. Она в долях этого расстояния, и сотня значит «вплотную к
        разделителю» — в точках та же сотня была бы мёртвым ходом ползунка,
-       потому что между последним значением и разделителем стоит один пробел. */
+       потому что между последним значением и разделителем стоит один пробел.
+
+       И второе его слово, тем же днём: «полоска захватывает i2n-floating — а
+       не должна, она должна заканчиваться на последнем value right block».
+       Значит рост **односторонний**: в сторону разделителя, и только в неё. С
+       наружной стороны блока границы не названо — там начало строки или её
+       конец, а за концом строки стоит плавающая кнопка. Зеркальность, о
+       которой он говорил, — это зеркальность двух блоков, а не двух краёв
+       одного. */
     { kind:"slider", id:"tags-block-fill-height", path:"visual.tags.blockFill.heightPx", default:3,
       min:0, max:10, step:1, unit:"px",
       name:"Band height", desc:"How far the band reaches above and below the writing",
@@ -2131,8 +2155,8 @@ const SCHEMA = [
       visible: on("visual.tags.blockFill.enabled") },
     { kind:"slider", id:"tags-block-fill-width", path:"visual.tags.blockFill.widthPct", default:60,
       min:0, max:100, step:5, unit:"%",
-      name:"Band width", desc:"How far the band reaches to either side, towards the Separator",
-      tip:"Measured against the gap between the last Value of the Block and the Separator: at <code>100</code> the band stops exactly where the Separator starts, and never covers it. The same amount is added on the other side of the Block, so the band stays even. At <code>0</code> it ends on the writing",
+      name:"Band width", desc:"How far the band reaches towards the Separator",
+      tip:"Measured against the gap between the Block and the Separator: at <code>100</code> the band stops exactly where the Separator starts, and never covers it. The far side of the Block is not touched — the band ends on its outermost Value, so it never runs onto the text of your note or onto the button at the end of the line. At <code>0</code> it ends on the writing on both sides",
       visible: on("visual.tags.blockFill.enabled") },
     { kind:"slider", id:"tags-text-size", path:"visual.tags.textSizePct", default:100,
       min:80, max:140, step:5, unit:"%",
@@ -2760,16 +2784,16 @@ const KINDS = [
   { id:"link",    label:"Link",    ph:"[[ClientA]]" }
 ];
 const RULES = [
-  { id:"r1", name:"Dated tasks", enabled:true, template:"task.md", conflict:"",
+  { id:"r1", name:"Dated tasks", enabled:true, template:"Templates/task.md", conflict:"",
     conditions:[ {kind:"tag", value:"#task", op:"or"}, {kind:"tag", value:"#todo", op:"or"},
                  {kind:"element", value:"\u{1F4C5}", op:"or"} ] },
-  { id:"r2", name:"Client meetings", enabled:true, template:"meeting.md", conflict:"",
+  { id:"r2", name:"Client meetings", enabled:true, template:"Templates/meeting.md", conflict:"",
     folderMode:"folder", folder:"Clients",
     conditions:[ {kind:"tag", value:"#meeting", op:"or"}, {kind:"link", value:"[[ClientA]]", op:"or"} ] },
-  { id:"r4", name:"Anything urgent", enabled:true, template:"task.md", conflict:"",
+  { id:"r4", name:"Anything urgent", enabled:true, template:"Templates/task.md", conflict:"",
     folderMode:"near", folder:"",
     conditions:[ {kind:"tag", field:"Importance", value:"", op:"or"} ] },
-  { id:"r3", name:"", enabled:false, template:"person.md",
+  { id:"r3", name:"", enabled:false, template:"Templates/person.md",
     conflict:"Every line this would match is already caught by rule 2, so it never runs",
     conditions:[ {kind:"tag", value:"#meeting", op:"or"} ] }
 ];
@@ -3343,7 +3367,20 @@ function templateOptions(folder, notes) {
   const inside = notes.filter(p => p.startsWith(prefix));
   if (!inside.length) return [{ value:"", label:"No templates in " + folder }];
   return [{ value:"", label:"None" }].concat(
-    inside.map(p => ({ value:p, label:p.slice(prefix.length) })));
+    inside.map(p => ({ value:p, label:templateLabel(folder, p) })));
+}
+
+/* Имя шаблона на экране: путь внутри назначенной папки, а не путь целиком.
+   Одно правило на все три места, где шаблон назван: `Default template`,
+   `Use template` и сводка свёрнутого правила — первое считало имя так, два
+   других писали путь, и заказчик увидел расхождение (замечание по S6,
+   2026-09-09). */
+function templateLabel(folder, path) {
+  const root = String(folder || "").trim().replace(/\/+$/, "");
+  const p = String(path || "").trim();
+  if (!root || !p) return p;
+  const prefix = root + "/";
+  return p.startsWith(prefix) ? p.slice(prefix.length) : p;
 }
 
 function dropdownOptions(item) {
@@ -5442,7 +5479,9 @@ function renderSmartRules(host) {
          \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f, \u0430 \u043d\u0435 \u043e\u0442\u0441\u0442\u0443\u043f\u043e\u043c \u0432 \u0441\u0442\u0438\u043b\u044f\u0445: \u0438\u043d\u0430\u0447\u0435 \u043e\u043d \u043d\u0435 \u043f\u043e\u043f\u0430\u0434\u0451\u0442 \u043d\u0438 \u0432
          \u0441\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u0443\u044e \u0441\u0442\u0440\u043e\u043a\u0443, \u043d\u0438 \u043a \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0435 \u0447\u0442\u0435\u043d\u0438\u044f \u0441 \u044d\u043a\u0440\u0430\u043d\u0430. */
       [["Use when:", shown.length ? shown.join(", ") : "any line"],
-        ["Template:", r.template || "None"],
+        ["Template:", r.template
+          ? templateLabel(String(val("transform.inline2note.templatesFolder") || ""), r.template)
+          : "None"],
         ["Folder:", folder]]
         .forEach((part, pi) => {
           if (pi) el("span", "io-rule__sep", sum, "|");

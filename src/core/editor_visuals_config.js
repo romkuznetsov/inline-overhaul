@@ -399,29 +399,18 @@ function isHardLineBlockBoundary(text) {
  * только дата, а `hh:mm` оставалось без прозрачности блока и без размера
  * текста (замечание заказчика C35, 2026-09-02).
  *
- * Формат разбирается буквами: подряд идущие буквы образца (`YYYY`, `MM`, `hh`)
- * становятся столькими же цифрами, пробел — пробелом, остальное — собой. Так
- * хвост знает свою длину и не съедает следующий токен: жадное «до пробела»
- * съело бы и `#work`, если бы тот стоял без пробела.
+ * **Разбор формата тут не свой, и это починка** (замечание по S7,
+ * 2026-09-09). Здесь стоял второй разбор того же формата — «подряд идущие
+ * буквы образца становятся столькими же цифрами», — и он разошёлся с тем, кто
+ * значение **пишет**: у поля с командой `Random characters` формат `111111`,
+ * букв в нём нет вовсе, и разбор давал литерал `111111`, а движок пишет туда
+ * шесть случайных знаков. Токен вида «🤣XIInR_» сканер не находил, и элемент
+ * оставался без прозрачности блока, без размера текста и без подложки. Теперь
+ * образец спрашивается у `shared_utils`, там же, где живёт запись значения
+ * (У-32).
  */
-function elementTailPatternFromFormat(format) {
-  const src = String(format || "").trim();
-  if (!src) return "";
-  let out = "";
-  let i = 0;
-  while (i < src.length) {
-    const ch = src[i];
-    if (/[A-Za-z]/.test(ch)) {
-      let n = 0;
-      while (i < src.length && /[A-Za-z]/.test(src[i])) { i += 1; n += 1; }
-      out += "\\d{" + n + "}";
-      continue;
-    }
-    if (ch === " ") { out += "[ ]"; i += 1; continue; }
-    out += escapeRegExp(ch);
-    i += 1;
-  }
-  return out;
+function elementTailPatternFromFormat(format, commandRaw) {
+  return __sharedUtils.buildElementTailRegexSource(format, commandRaw);
 }
 
 /**
@@ -444,7 +433,10 @@ function buildElementMarkersFromConfig(cfg) {
     const marker = String(row.emoji || "").trim();
     if (!marker || seen.has(marker)) continue;
     seen.add(marker);
-    out.push({ marker, tail: elementTailPatternFromFormat(row.format) });
+    /* Команда поля решает, чем заполнены слоты образца: цифрой или знаком из
+       набора. Без неё значение `Random characters` образцом не описывается. */
+    const inc = isObj(row.increment) ? row.increment : {};
+    out.push({ marker, tail: elementTailPatternFromFormat(row.format, inc.command) });
   }
   /* Длинные метки первыми: короткая не должна откусывать начало длинной. */
   out.sort((a, b) => b.marker.length - a.marker.length);
@@ -863,58 +855,6 @@ function blockFillPadXPx(look, gapPx) {
   return (gap * Math.min(100, Math.max(0, pct))) / 100;
 }
 
-/**
- * Части отрезка, сгруппированные по зрительной строке, на которой они стоят.
- *
- * **Замечание заказчика по S7, 2026-09-09:** «если right block переносится на
- * другую строку, то выглядит некрасиво — на первой строке эта полоска идёт до
- * границы экрана вправо, а на следующей строке начинается от левой границы
- * экрана до конца элемента. Я хочу, чтобы… полоска на этой строке
- * заканчивалась на последнем элементе right panel на этой строке, а на
- * следующей строке начиналась от начала первого перенесённого элемента до
- * конца последнего».
- *
- * **Причина ровно та, что он описал, и она в коде платформы** (У-44).
- * `RectangleMarker.forRange` рисует **выделение**: у отрезка, начавшегося на
- * одной зрительной строке и кончившегося на другой, первый кусок идёт до
- * правого края содержимого (`toOpen` → `rightSide`), а последний начинается от
- * левого (`fromOpen` → `leftSide`). Для выделения это верно, для подложки —
- * нет: подложка обязана лежать на написанном.
- *
- * Поэтому отрезок отдаётся платформе **по куску на зрительную строку**, и
- * тогда каждый кусок целиком на одной строке — то есть открытых краёв у него
- * не бывает вовсе.
- *
- * Здесь **только группировка**, и она чистая: `tops[i]` — измеренная
- * платформой вертикаль начала `parts[i]`, и меряет её тот, кто умеет, — сам
- * CodeMirror. Часть, вертикаль которой измерить не удалось (`null`), встаёт
- * своей группой: догадка о том, где она, хуже лишнего прямоугольника.
- */
-function blockFillGroupPartsByLine(parts, tops) {
-  const list = Array.isArray(parts) ? parts : [];
-  const at = Array.isArray(tops) ? tops : [];
-  const out = [];
-  for (let i = 0; i < list.length; i++) {
-    const part = list[i];
-    if (!part || !(Number(part.to) > Number(part.from))) continue;
-    /* Нуль — законная вертикаль (самый верх содержимого), а `Number(null)`
-       равен нулю: неизмеренное надо отсечь **до** приведения к числу, иначе
-       часть без измерения склеится с той, что и правда стоит наверху. */
-    const raw = at[i];
-    const top = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
-    const prev = out.length ? out[out.length - 1] : null;
-    /* Полточки допуска: подстрочные и надстрочные знаки внутри одной строки
-       дают вертикали, различающиеся на доли точки. */
-    const sameLine = prev !== null && prev.top !== null && top !== null
-      && Math.abs(top - prev.top) < 0.5;
-    if (sameLine) {
-      prev.to = Math.max(Number(prev.to), Number(part.to));
-      continue;
-    }
-    out.push({ from: Number(part.from), to: Number(part.to), top });
-  }
-  return out;
-}
 
 /**
  * Отрезки строки, под которыми лежит подложка (З-7).
@@ -935,12 +875,10 @@ function blockFillSpansInLine(text, sep1, sep2, elementMarkers) {
   const at = lineSeparatorBounds(src, sep1, sep2);
   const out = [];
   for (const zone of ["left", "right"]) {
-    const parts = [];
     let start = -1;
     let end = -1;
     for (const hit of tokens) {
       if (hit.zone !== zone) continue;
-      parts.push({ from: hit.index, to: hit.end });
       if (start < 0 || hit.index < start) start = hit.index;
       if (hit.end > end) end = hit.end;
     }
@@ -961,9 +899,6 @@ function blockFillSpansInLine(text, sep1, sep2, elementMarkers) {
       zone,
       start,
       end,
-      /* Части нужны переносу строки: подложка режется по зрительным строкам, а
-         резать её можно только по границам того, что нарисовано. */
-      parts,
       gapFrom: gapTo > gapFrom ? gapFrom : -1,
       gapTo: gapTo > gapFrom ? gapTo : -1,
     });
@@ -1418,7 +1353,6 @@ module.exports = {
   blockFillLookFromConfig,
   blockFillSpansInLine,
   blockFillPadXPx,
-  blockFillGroupPartsByLine,
   buildBlockFillStyleCss,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,

@@ -255,12 +255,21 @@ function renderCommandValueByFormat(format, commandRaw, nowDate) {
   if (!isRandomN && !isRandomE && !isNow) return "";
 
   const digitsPool = "0123456789".split("");
-  const elementPool = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#><-_".split("");
+  const elementPool = ELEMENT_VALUE_CHARS.split("");
   const pool = isRandomN ? digitsPool : elementPool;
 
   if (hasFormatTokens(fmt)) {
     if (isNow) return formatNowByMask(fmt);
-    return fmt.replace(/YYYY|MM|DD|HH|mm|ss/g, (tk) => {
+    /*
+     * Образец приводится к одному написанию — тем же `normalizeFormatMask`,
+     * которым его приводит `formatNowByMask`. Прежде здесь стоял **сырой**
+     * формат, а решение «есть ли в нём токены» принималось по приведённому: у
+     * `YYYY-MM-DD hh:mm` строчное `hh` токеном не считалось и оставалось в
+     * значении буквами — `3859-84-26 hh:77`. Найдено сверкой записи с
+     * образцом, которым это значение потом ищут на строке (S7, 2026-09-09).
+     */
+    const mask = normalizeFormatMask(fmt) || fmt;
+    return mask.replace(/YYYY|MM|DD|HH|mm|ss/g, (tk) => {
       const size = tk === "YYYY" ? 4 : 2;
       let out = "";
       for (let i = 0; i < size; i++) out += pickRandom(pool);
@@ -314,6 +323,104 @@ function renderCommandValueByFormat(format, commandRaw, nowDate) {
   return out;
 }
 
+/**
+ * Знаки, из которых команда `Random characters` набирает значение элемента.
+ *
+ * Объявлено здесь, а не литералом внутри записи: тот же набор нужен образцу,
+ * которым это значение потом ищут на строке, и две копии набора разошлись бы
+ * молча (У-32).
+ */
+const ELEMENT_VALUE_CHARS =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#><-_";
+
+/** Тот же набор классом знаков регулярного выражения. */
+function elementValueCharClass() {
+  return "[" + ELEMENT_VALUE_CHARS.replace(/[\\^\]-]/g, "\\$&") + "]";
+}
+
+/**
+ * Как выглядит на строке значение эмодзи-элемента этого формата — образцом.
+ *
+ * **Зачем это здесь, рядом с записью значения.** Значение элемента пишет
+ * `renderCommandValueByFormat`, а ищет его на строке сканер оформления
+ * (`scanLineVisualTokens`): ему надо знать, где токен кончается. Это один
+ * вопрос, заданный с двух сторон, и разбор формата у него обязан быть один
+ * (У-32).
+ *
+ * **Что было.** У сканера был свой разбор — «подряд идущие буквы образца
+ * становятся столькими же цифрами», — и он разошёлся с записью на первом же
+ * формате без букв: у поля с командой `Random characters` формат `111111`,
+ * разбор сканера давал литерал `111111`, а движок пишет туда шесть случайных
+ * знаков. Токен вида «🤣XIInR_» сканер не находил вовсе — и элемент не
+ * получал ни прозрачности блока, ни размера текста, ни подложки (замечание
+ * заказчика по S7, 2026-09-09: «в right block с только одним value из
+ * field=emoji Random полоска вообще не нарисовалась»).
+ *
+ * **Ветки и их порядок — те же, что у записи**, и это не совпадение: разойдись
+ * порядок, и образец описывал бы не то значение, которое пишется. Токены
+ * формата, потом формат с буквами без токенов, потом числовой образец,
+ * числовой литерал и длина формата в знаках.
+ *
+ * **Чем заполнен слот, решает команда** — тем же выбором, каким его заполняет
+ * запись: цифрой у `now` и `Random numbers`, знаком из набора у `Random
+ * characters`. Команды нет — цифра: так стоит у поля-даты, и так это правило
+ * читалось раньше.
+ *
+ * Формата нет — образца нет, и это ответ, а не пустота: правило «до пробела»
+ * остаётся у того, кто спрашивает.
+ *
+ * **Где он расходится с третьим объявлением того же правила** (`pkm_rules_
+ * runtime_helpers.js`, оно под З3 и его читают движки): на форматах, где буквы
+ * стоят и в токене, и рядом с ним (`abcYYYY`). Там третье объявление считает
+ * цифрами весь пробег букв, а запись оставляет `abc` собой — то есть право
+ * здесь это, выведенное из записи. Разойтись им на форматах, которые человек
+ * пишет, не на чем: пин `Т-14` сверяет обе функции на семи формах, и все семь
+ * совпадают побайтово. Тронуть тот файл ради `abcYYYY` дороже, чем оставить
+ * его: движки режут блок по пробелам, а значение без пробела им и так достаётся
+ * целиком.
+ */
+function buildElementTailRegexSource(format, commandRaw) {
+  const fmt = String(format || "").trim();
+  if (!fmt) return "";
+  const cmd = String(commandRaw || "now").trim().toLowerCase();
+  const slot = cmd === "randome" ? elementValueCharClass() : "\\d";
+  const times = (n) => slot + "{" + n + "}";
+
+  if (hasFormatTokens(fmt)) {
+    const mask = normalizeFormatMask(fmt);
+    const tokenRe = /(YYYY|MM|DD|HH|mm|ss)/g;
+    /* Пробел записывается классом из одного знака — так же, как в третьем
+       объявлении: пин сверяет строки, а не поведение выражений. */
+    const between = (text) => String(text || "").split(" ").map(escapeRe).join("[ ]");
+    let out = "";
+    let last = 0;
+    let hit;
+    while ((hit = tokenRe.exec(mask)) !== null) {
+      out += between(mask.slice(last, hit.index));
+      out += times(hit[1] === "YYYY" ? 4 : 2);
+      last = hit.index + hit[1].length;
+    }
+    out += between(mask.slice(last));
+    return out;
+  }
+
+  /* Буквы без токенов: запись идёт общей ветвью и пишет столько знаков, сколько
+     их в формате. */
+  if (/[A-Za-z]/.test(fmt)) return times(Array.from(fmt).length);
+
+  const pattern = parseNumericPatternSpec(fmt);
+  if (pattern) {
+    const chars = Array.from(String(pattern.format || ""));
+    let out = "";
+    for (let i = 0; i < chars.length; i++) out += pattern.slots[i] ? slot : escapeRe(chars[i]);
+    return out;
+  }
+
+  const literal = parseNumericLiteralSpec(fmt);
+  if (literal) return times(literal.width);
+
+  return times(Math.max(1, Array.from(fmt).length));
+}
 function shouldHydrateGenericElementRaw(format, commandRaw, rawValue) {
   const fmt = String(format || "").trim() || "1";
   const cmd = String(commandRaw || "").trim().toLowerCase();
@@ -584,6 +691,8 @@ module.exports = {
   addMinutesHhmm,
   formatNowByMask,
   renderCommandValueByFormat,
+  buildElementTailRegexSource,
+  ELEMENT_VALUE_CHARS,
   shouldHydrateGenericElementRaw,
   buildCustomPlanFromIncrement,
   forwardStepByCurrent,

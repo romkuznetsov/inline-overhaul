@@ -706,8 +706,24 @@
    * написанного»: в предпросмотре панели она была больше, в заметке — ровно по
    * пузырю тега, то есть невидима. Заказчик увидел ровно эту разницу.
    */
-  padding: var(--io-blockfill-pady, 3px) var(--io-blockfill-padx, 3px);
-  margin: calc(-1 * var(--io-blockfill-pady, 3px)) calc(-1 * var(--io-blockfill-padx, 3px));
+  /*
+   * **По горизонтали подложка растёт только в сторону разделителя**
+   * (замечание по S7, 2026-09-09: «полоска захватывает i2n-floating — а не
+   * должна, она должна заканчиваться на последнем value right block»). У
+   * левого блока разделитель справа, у правого слева; наружный край блока
+   * кончается на его крайнем значении. Ниже это по правилу на сторону:
+   * специфичность у них та же, и решает порядок (У-67).
+   */
+  padding: var(--io-blockfill-pady, 3px) 0;
+  margin: calc(-1 * var(--io-blockfill-pady, 3px)) 0;
+}
+.io-line--blockfill .io-line__side--left:not(:empty) {
+  padding-right: var(--io-blockfill-padx, 3px);
+  margin-right: calc(-1 * var(--io-blockfill-padx, 3px));
+}
+.io-line--blockfill .io-line__side--right:not(:empty) {
+  padding-left: var(--io-blockfill-padx, 3px);
+  margin-left: calc(-1 * var(--io-blockfill-padx, 3px));
 }
 
 /*

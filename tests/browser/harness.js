@@ -121,6 +121,18 @@ const INJECTIONS = {
    */
   "band-pushes": ".io-line--blockfill .io-line__side--left,"
     + " .io-line--blockfill .io-line__side--right { margin: 0 !important; }",
+  /*
+   * Подложка растёт **наружу** блока, а не только к разделителю. Так и было в
+   * прототипе до 2026-09-09, и в заметке из-за этого полоса заезжала на
+   * плавающую кнопку inline2note: «полоска захватывает i2n-floating — а не
+   * должна, она должна заканчиваться на последнем value right block».
+   */
+  "band-outer": ".io-line--blockfill .io-line__side--left:not(:empty),"
+    + " .io-line--blockfill .io-line__side--right:not(:empty)"
+    + " { padding-left: var(--io-blockfill-padx, 3px) !important;"
+    + " padding-right: var(--io-blockfill-padx, 3px) !important;"
+    + " margin-left: calc(-1 * var(--io-blockfill-padx, 3px)) !important;"
+    + " margin-right: calc(-1 * var(--io-blockfill-padx, 3px)) !important; }",
 };
 
 function injectionCss(name) {

@@ -205,13 +205,24 @@ const NARROW_OK = {};
           const reach = () => {
             const side = document.querySelector(
               ".io-line--blockfill .io-line__side--left");
-            const kid = side ? side.firstElementChild : null;
-            if (!side || !kid) return null;
+            const first = side ? side.firstElementChild : null;
+            const last = side ? side.lastElementChild : null;
+            if (!side || !first || !last) return null;
             const a = side.getBoundingClientRect();
-            const b = kid.getBoundingClientRect();
+            const f = first.getBoundingClientRect();
+            const l = last.getBoundingClientRect();
             return {
-              x: Math.round((b.left - a.left) * 100) / 100,
-              y: Math.round((b.top - a.top) * 100) / 100,
+              /*
+               * `x` — в сторону разделителя, `outer` — наружу. У левого блока
+               * разделитель справа: спрашивается расстояние от правого края
+               * подложки до правого края её последнего значения. Прежде тут
+               * мерилось расстояние слева, и с односторонним ростом эта
+               * величина обязана стать нулём — она и есть его замечание
+               * «полоска захватывает i2n-floating».
+               */
+              x: Math.round((a.right - l.right) * 100) / 100,
+              outer: Math.round((f.left - a.left) * 100) / 100,
+              y: Math.round((f.top - a.top) * 100) / 100,
             };
           };
           /*
@@ -399,8 +410,19 @@ const NARROW_OK = {};
             + " точек) — под пузырём тега её не видно вовсе");
         }
         if (!(b.bandReach.x > 0)) {
-          bad("подложка не выходит за написанное по горизонтали (" + b.bandReach.x
+          bad("подложка не растёт в сторону разделителя (" + b.bandReach.x
             + " точек)");
+        }
+        /*
+         * И наружу она не растёт вовсе — его замечание по S7: «полоска
+         * захватывает i2n-floating, а не должна, она должна заканчиваться на
+         * последнем value right block». У левого блока наружная сторона —
+         * начало строки, и подложка обязана начинаться ровно на его первом
+         * значении.
+         */
+        if (Math.abs(b.bandReach.outer) >= 0.5) {
+          bad("подложка выходит за блок наружу (" + b.bandReach.outer
+            + " точек) — она обязана кончаться на крайнем значении блока");
         }
       }
       /* Положительный контроль: на нуле ползунка та же величина обязана стать

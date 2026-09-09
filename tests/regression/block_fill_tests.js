@@ -40,7 +40,21 @@ function assertTrue(value, name) {
  */
 const SEP = "||";
 const LINE = "- #/1 #todo || my text || \u{1F4C5}2026-09-01 [[Project]]";
-const MARKERS = [{ marker: "\u{1F4C5}", tail: "\\d{4}-\\d{2}-\\d{2}" }];
+/*
+ * Метки элементов собираются **функцией плагина**, а не литералом: образец
+ * хвоста — это правило, и рукописная копия его тут разошлась бы с продуктом
+ * молча (У-4, У-32). Ровно на таком расхождении и стоял дефект, с которым
+ * заказчик пришёл во второй раз по S7.
+ */
+const ELEMENT_FIELDS = {
+  due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD" },
+  /* Поле заказчика дословно: метка, формат из шести единиц и команда
+     `Random characters` — именно она решает, чем заполнены слоты. */
+  rnd: { emoji: "\u{1F923}", format: "111111", increment: { command: "randomE" } },
+};
+const MARKERS = visuals.buildElementMarkersFromConfig({
+  pkm: { fields: { elements: { byField: ELEMENT_FIELDS } } },
+});
 
 (function testBandRunsFromFirstValueToLast() {
   const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
@@ -159,10 +173,19 @@ function fakeView(lines) {
   return { state: { doc }, visibleRanges: [{ from: 0, to: at }] };
 }
 
+/*
+ * Конфиг подделки и метки элементов — **одно объявление**: `blockFillDocRanges`
+ * собирает метки сам, из конфига, и фикстура, называвшая поля элементов только
+ * в `MARKERS`, слепа к элементам вовсе (У-47). Проверки при этом были зелёные:
+ * в правом блоке примера стоит ещё и ссылка, а её сканер находит без меток.
+ */
 function fakePlugin(blockFill) {
   return {
     getConfig: () => ({
-      pkm: { lineFormat: { separator1: SEP, separator2: SEP } },
+      pkm: {
+        lineFormat: { separator1: SEP, separator2: SEP },
+        fields: { elements: { byField: ELEMENT_FIELDS } },
+      },
       visual: { tags: { blockFill } },
     }),
   };
@@ -245,7 +268,6 @@ function fakePlugin(blockFill) {
   const spans = visuals.blockFillSpansInLine(one, SEP, SEP, MARKERS);
   assertEq(spans.map(s => one.slice(s.start, s.end)), ["#todo", "#done"],
     "блок из одного значения отрезок получает: невидим он был, а не отсутствовал");
-  assertEq(spans[0].parts.length, 1, "и часть у него одна");
 })();
 
 (function testDefaultsMakeTheBandVisible() {
@@ -355,39 +377,52 @@ function fakePlugin(blockFill) {
 
 /* ---- перенос строки: по куску на зрительную строку --------------------- */
 
-(function testPartsGroupByVisualLine() {
-  const parts = [
-    { from: 10, to: 15 },
-    { from: 16, to: 22 },
-    { from: 23, to: 30 },
-  ];
-
-  /* Всё на одной строке — одна группа от первого значения до последнего. */
-  assertEq(visuals.blockFillGroupPartsByLine(parts, [100, 100, 100]),
-    [{ from: 10, to: 30, top: 100 }],
-    "части на одной зрительной строке дают один прямоугольник");
-
+(function testElementValueIsFoundWhateverTheFormatShape() {
   /*
-   * Перенос: третья часть уехала. Его слова — «на следующей строке начиналась
-   * от начала первого перенесённого элемента до конца последнего».
+   * **Сверка двух ходов на одних входах, а не пример** (У-92): значение
+   * элемента пишет `renderCommandValueByFormat`, а находит его на строке
+   * сканер. Разошлись они молча и стоили заказчику второго захода по S7: у
+   * поля с командой `Random characters` формат `111111`, и прежний разбор
+   * сканера искал на строке литерал `111111`, а движок пишет туда шесть
+   * случайных знаков — «в right block с только одним value из field=emoji
+   * Random полоска вообще не нарисовалась».
+   *
+   * Гоняются все четыре формы формата и все три команды: форма решает разбор,
+   * команда решает, чем заполнены слоты.
    */
-  assertEq(visuals.blockFillGroupPartsByLine(parts, [100, 100, 120]),
-    [{ from: 10, to: 22, top: 100 }, { from: 23, to: 30, top: 120 }],
-    "перенесённое встаёт своим прямоугольником от своего начала до своего конца");
+  const shared = require(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"));
+  const shapes = ["YYYY-MM-DD hh:mm", "1111", "12:34", "abc"];
+  const commands = ["now", "randomN", "randomE"];
+  let checked = 0;
+  for (const format of shapes) {
+    for (const command of commands) {
+      /* Метки собираются **из того же поля**, каким пишется значение: команда
+         решает, чем заполнены слоты, и фикстура, её не назвавшая, проверяла бы
+         другое поле (У-2). */
+      const markers = visuals.buildElementMarkersFromConfig({
+        pkm: { fields: { elements: { byField: {
+          f: { emoji: "\u{1F923}", format, increment: { command } },
+        } } } },
+      });
+      const value = shared.renderCommandValueByFormat(format, command);
+      const line = "- #a " + SEP + " text " + SEP + " \u{1F923}" + value;
+      const hits = visuals.scanLineVisualTokens(line, SEP, SEP, markers)
+        .filter(h => h.zone === "right");
+      assertEq(hits.map(h => h.token), ["\u{1F923}" + value],
+        "формат " + JSON.stringify(format) + ", команда " + command
+          + ": значение найдено целиком, одним токеном");
+      checked += 1;
+    }
+  }
+  /* У-110: сверка обязана что-то сверить, а не пройти по пустому списку. */
+  assertTrue(checked === shapes.length * commands.length,
+    "сверены все формы формата и все команды, а не часть");
 
-  /* Доли точки — та же строка: надстрочные знаки дают разницу в дробях. */
-  assertEq(visuals.blockFillGroupPartsByLine(parts, [100, 100.2, 100.1]),
-    [{ from: 10, to: 30, top: 100 }],
-    "разница в доли точки — это по-прежнему одна строка");
-
-  /* Неизмеренное встаёт своей группой: догадка хуже лишнего прямоугольника. */
-  assertEq(visuals.blockFillGroupPartsByLine(parts, [100, null, 100]),
-    [{ from: 10, to: 15, top: 100 }, { from: 16, to: 22, top: null }, { from: 23, to: 30, top: 100 }],
-    "часть без измерения не приклеивается к соседям");
-
-  /* Пустая часть в группировку не попадает вовсе. */
-  assertEq(visuals.blockFillGroupPartsByLine([{ from: 5, to: 5 }], [100]), [],
-    "часть нулевой длины прямоугольника не образует");
+  /* И его собственный случай целиком: блок из одного такого значения. */
+  const rnd = visuals.blockFillSpansInLine(
+    "- #a " + SEP + " text " + SEP + " \u{1F923}XIInR_", SEP, SEP, MARKERS);
+  assertEq(rnd.map(s => s.zone), ["left", "right"],
+    "блок из одного значения `Random characters` подложку получает");
 })();
 
 /* ---- прямоугольники: что уходит платформе и что возвращается ----------- */
@@ -442,25 +477,54 @@ function withFakeRectangleMarker(body) {
   }
 }
 
-/** Тот же поддельный документ, плюс измерения, которые спрашивает слой. */
-function fakeViewWithCoords(lines, wrapAt) {
+/**
+ * Тот же поддельный документ, плюс измерения, которые спрашивает слой.
+ *
+ * `wraps` — положения, с которых начинается новая **зрительная** строка.
+ * `bubbles` — отрезки, у которых своя высота: так рисуется пузырь тега, и
+ * вертикаль его положений отличается от вертикали обычного текста **на той же**
+ * зрительной строке.
+ *
+ * **Пузыри тут — не украшение фикстуры, а починка** (У-47). Прежняя фикстура
+ * отдавала одну вертикаль на всю зрительную строку, то есть ровно то, чего в
+ * редакторе не бывает: слой сравнивал вертикали, читал разницу пузыря как
+ * перенос и рвал блок на кусок под каждым значением. Проверки при этом были
+ * зелёные, а заказчик написал «полоска идёт с разрывами… для values=tags и
+ * values=wikilink она рисуется на разной высоте».
+ *
+ * Границы зрительных строк фикстура отдаёт **тем же швом, каким их отдаёт
+ * платформа** — `moveToLineBoundary`.
+ */
+function fakeViewWithCoords(lines, wraps, bubbles) {
   const view = fakeView(lines);
+  const cuts = (Array.isArray(wraps) ? wraps : (wraps == null ? [] : [wraps]))
+    .map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  const bumps = Array.isArray(bubbles) ? bubbles : [];
+  const docEnd = lines.reduce((at, text) => at + text.length + 1, 0) - 1;
+  const rowOf = (pos) => cuts.filter((c) => c <= pos).length;
+  const inBubble = (pos) => bumps.some((b) => pos >= b.from && pos < b.to);
   /*
-   * `wrapAt` — положение в документе, с которого начинается вторая зрительная
-   * строка. Ниже него вертикаль одна, от него и дальше — другая. Так
-   * переносится строка на экране, и больше слою ничего знать не нужно.
+   * **Сторона обязательна** (У-76): платформа меряет либо знак ПЕРЕД
+   * положением (сторона меньше нуля), либо знак НА нём. Фикстура, мерившая
+   * одинаково, слепа к вертикали края блока — а именно на ней и терялся рост
+   * подложки в сторону разделителя.
    */
-  view.coordsAtPos = (pos) => ({
-    left: pos * 10,
-    right: pos * 10 + 8,
-    top: wrapAt != null && pos >= wrapAt ? 120 : 100,
-    bottom: wrapAt != null && pos >= wrapAt ? 140 : 120,
-  });
+  view.coordsAtPos = (pos, side) => {
+    const at = Number(side) < 0 ? Math.max(0, pos - 1) : pos;
+    const top = 100 + rowOf(at) * 20 + (inBubble(at) ? 2 : 0);
+    return { left: at * 10, right: at * 10 + 8, top, bottom: top + 20 };
+  };
+  view.moveToLineBoundary = (at, forward, includeWrap) => {
+    if (forward !== true || includeWrap !== true) throw new Error("слой спрашивает конец строки вперёд и с переносом");
+    const head = Number(at && at.head);
+    const next = cuts.find((c) => c > head);
+    return { head: next === undefined ? docEnd : next };
+  };
   return view;
 }
 
 (function testWholeSpanGoesToThePlatformAsOnePiece() {
-  const view = fakeViewWithCoords([LINE], null);
+  const view = fakeViewWithCoords([LINE], null, null);
   const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
   withFakeRectangleMarker(({ asked, made }) => {
     const markers = decorations.blockFillMarkersFor(view, plugin);
@@ -475,32 +539,35 @@ function fakeViewWithCoords(lines, wrapAt) {
   });
 })();
 
-(function testRectangleGrowsByTheSetAmounts() {
-  const view = fakeViewWithCoords([LINE], null);
-  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 4, widthPct: 100 });
-  withFakeRectangleMarker(({ made }) => {
+(function testBubbleHeightIsNotAWrap() {
+  /*
+   * **Его слова дословно:** «сейчас полоска для block идёт с разрывами — я
+   * хочу, чтобы для block она была единой для всех values и одинаковой по
+   * размеру и без смещений… для values=tags и values=wikilink эта полоска
+   * рисуется на разной высоте — у wikilink она смещена выше».
+   *
+   * Причина была в способе: куски отрезка группировались по **измеренной
+   * вертикали**, а у пузыря тега она своя. Здесь оба тега левого блока —
+   * пузыри, ссылка рядом с ними — нет, и всё это на одной зрительной строке.
+   * Отрезок обязан уйти платформе одним куском: два куска — это две отрисовки
+   * `forRange`, то есть две разные высоты и разрыв между ними.
+   */
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const left = spans[0];
+  /* Пузырь — на первом значении блока, а не на всём блоке: разные вертикали
+     нужны ВНУТРИ одной зрительной строки, иначе предмета нет. */
+  const bubbles = [{ from: left.start, to: LINE.indexOf(" ", left.start) }];
+  const view = fakeViewWithCoords([LINE], null, bubbles);
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
+  withFakeRectangleMarker(({ asked }) => {
     decorations.blockFillMarkersFor(view, plugin);
-    assertEq(made.length, 2, "по прямоугольнику на сторону");
-
-    const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
-    /*
-     * Промежуток на этой подделке: правый край последнего знака блока стоит на
-     * `gapFrom * 10 + 8`, левый край разделителя — на `gapTo * 10`. Между ними
-     * один пробел, то есть две точки. Сотня процентов берёт их целиком.
-     */
-    const gapPx = spans[0].gapTo * 10 - (spans[0].gapFrom * 10 + 8);
-    assertEq(gapPx, 2, "промежуток на подделке равен двум точкам");
-
-    const bareLeft = spans[0].start * 10;
-    const bareWidth = (spans[0].end - spans[0].start) * 10;
-    assertEq(made[0].left, bareLeft - gapPx, "влево подложка выросла на промежуток");
-    assertEq(made[0].width, bareWidth + gapPx * 2, "и в ширину — на него с обеих сторон");
-    assertEq(made[0].top, 100 - 4, "вверх — на заданные точки");
-    assertEq(made[0].height, 20 + 4 * 2, "и в высоту на них же с обеих сторон");
-
-    /* У-110: величина обязана измениться, иначе проверка мерит пустоту. */
-    assertTrue(made[0].width > bareWidth, "ширина и правда стала больше");
-    assertTrue(made[0].height > 20, "и высота тоже");
+    assertEq(asked[0], { from: left.start, to: left.end },
+      "блок с пузырём и обычным значением на одной строке — один кусок, а не кусок на значение");
+    assertEq(asked.length, 2, "и всего кусков по-прежнему два: по одному на сторону");
+    /* У-110: вертикали внутри блока и правда разошлись, иначе проверка мерит
+       пустоту. */
+    assertTrue(view.coordsAtPos(left.start).top !== view.coordsAtPos(left.end - 1).top,
+      "вертикали двух значений блока в фикстуре различаются: предмет есть");
   });
 })();
 
@@ -513,11 +580,8 @@ function fakeViewWithCoords(lines, wrapAt) {
   const line = "- #a " + SEP + " text " + SEP + " #one #two #three";
   const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
   const right = spans[1];
-  assertEq(right.parts.length, 3, "справа три значения");
-
-  /* Перенос ставим ровно перед третьим значением. */
-  const wrapAt = right.parts[2].from;
-  const view = fakeViewWithCoords([line], wrapAt);
+  const wrap = line.indexOf("#three");
+  const view = fakeViewWithCoords([line], [wrap], null);
   const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
 
   withFakeRectangleMarker(({ asked }) => {
@@ -527,41 +591,187 @@ function fakeViewWithCoords(lines, wrapAt) {
     assertEq(asked[0], { from: spans[0].start, to: spans[0].end },
       "нетронутая сторона отдана одним куском");
 
-    /* Справа — два куска, и границы у них его: до последнего элемента на этой
-       строке, и от первого перенесённого до последнего. */
+    /* Справа — два куска, и границы у них его: до конца первой зрительной
+       строки, и от начала второй до конца блока. */
     assertEq(asked.slice(1), [
-      { from: right.parts[0].from, to: right.parts[1].to },
-      { from: right.parts[2].from, to: right.parts[2].to },
+      { from: right.start, to: wrap },
+      { from: wrap, to: right.end },
     ], "перенесённая сторона отдана по куску на зрительную строку");
-
-    /*
-     * И главное утверждение, ради которого всё: **ни один** отрезок, отданный
-     * платформе, не лежит на двух зрительных строках. Именно такой отрезок она
-     * и рисует до края экрана.
-     */
-    for (const range of asked) {
-      assertEq(view.coordsAtPos(range.from).top, view.coordsAtPos(range.to - 1).top,
-        "отрезок " + JSON.stringify(range) + " лежит на одной зрительной строке");
-    }
   });
 })();
 
-(function testWrapCutIsNotDoneWhenThereIsNothingToCut() {
+(function testWrapInsideOneValueIsCutToo() {
   /*
-   * Положительный контроль к предыдущей: **та же** подделка с тем же
-   * переносом, но сторона из одного значения. Резать её нечем, и отрезок
-   * уходит целиком — то есть проверка выше поймала перенос, а не «всегда режем
-   * на части».
+   * **Второй заход по тому же:** «по-прежнему при переносе на другую строку
+   * полоска отображается плохо — идёт до конца экрана первой строки и
+   * начинается от левой границы второй».
+   *
+   * Причина: резали по границам **наших значений**, а перенос случился внутри
+   * одного значения — `\u{1F4C5}2026-09-09 11:14` рвётся по своему же пробелу.
+   * Резать было нечем, отрезок уходил целиком, и платформа рисовала его
+   * выделением. Прежняя проверка это самое и утверждала — «одно значение
+   * резать нечем» — то есть охраняла дефект (У-58).
    */
-  const line = "- #a " + SEP + " text " + SEP + " #one";
+  const line = "- #a " + SEP + " text " + SEP + " \u{1F4C5}2026-09-09";
   const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
-  const view = fakeViewWithCoords([line], spans[1].start + 1);
+  const right = spans[1];
+  const wrap = line.indexOf("2026") + 5;
+  assertTrue(wrap > right.start && wrap < right.end,
+    "перенос стоит внутри единственного значения блока: предмет есть");
+  const view = fakeViewWithCoords([line], [wrap], null);
   const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
   withFakeRectangleMarker(({ asked }) => {
     decorations.blockFillMarkersFor(view, plugin);
-    assertEq(asked[1], { from: spans[1].start, to: spans[1].end },
-      "одно значение резать нечем, и отрезок уходит целиком");
+    assertEq(asked.slice(1), [
+      { from: right.start, to: wrap },
+      { from: wrap, to: right.end },
+    ], "значение, перенесённое само, тоже режется по зрительной строке");
   });
+})();
+
+(function testGrowthGoesOnlyTowardsTheSeparator() {
+  /*
+   * **Его слова:** «полоска захватывает i2n-floating — а не должна, она должна
+   * заканчиваться на последнем value right block». Рост односторонний: у
+   * левого блока вправо, к разделителю, у правого влево, к нему же. Наружный
+   * край блока стоит на его крайнем значении.
+   */
+  const view = fakeViewWithCoords([LINE], null, null);
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 4, widthPct: 100 });
+  withFakeRectangleMarker(({ made }) => {
+    decorations.blockFillMarkersFor(view, plugin);
+    assertEq(made.length, 2, "по прямоугольнику на сторону");
+
+    const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+    /*
+     * Промежуток **спрашивается у той же фикстуры**, что меряет его слою:
+     * пересчитать его тут значило бы объявить второе правило (У-32) — и
+     * разошлось бы оно на первой же поправке к подделке.
+     */
+    const gapPx = view.coordsAtPos(spans[0].gapTo, 1).left
+      - view.coordsAtPos(spans[0].gapFrom, -1).right;
+    assertTrue(gapPx > 0, "промежуток на подделке больше нуля");
+
+    const bare = (i) => ({
+      left: spans[i].start * 10,
+      width: (spans[i].end - spans[i].start) * 10,
+    });
+
+    /* Левый блок: наружный край на месте, к разделителю выросло. */
+    assertEq(made[0].left, bare(0).left,
+      "левый блок начинается там же, где его первое значение: наружу подложка не растёт");
+    assertEq(made[0].width, bare(0).width + gapPx,
+      "и вырос он ровно на промежуток, и только в сторону разделителя");
+
+    /* Правый блок — зеркально: влево выросло, правый край на месте. */
+    assertEq(made[1].left, bare(1).left - gapPx,
+      "правый блок вырос влево, к разделителю");
+    assertEq(made[1].width, bare(1).width + gapPx,
+      "и наружу не вырос: подложка кончается на последнем значении");
+
+    /* Высота растёт в обе стороны: у неё границы снаружи нет. */
+    assertEq(made[0].top, 100 - 4, "вверх — на заданные точки");
+    assertEq(made[0].height, 20 + 4 * 2, "и в высоту на них же с обеих сторон");
+
+    /* У-110: величины и правда изменились, иначе проверка мерит пустоту. */
+    assertTrue(made[0].width > bare(0).width, "ширина и правда стала больше");
+    assertTrue(made[0].height > 20, "и высота тоже");
+  });
+})();
+
+(function testGrowthTouchesOnlyThePieceNextToTheSeparator() {
+  /*
+   * Положительный контроль к односторонности на перенесённом блоке: рост
+   * достаётся тому куску, который разделителя касается, а не каждому. Иначе
+   * подложка выросла бы посреди строки, в месте переноса.
+   */
+  const line = "- #a " + SEP + " text " + SEP + " #one #two";
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
+  const right = spans[1];
+  const wrap = line.indexOf("#two");
+  const view = fakeViewWithCoords([line], [wrap], null);
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 100 });
+  withFakeRectangleMarker(({ asked, made }) => {
+    decorations.blockFillMarkersFor(view, plugin);
+    assertEq(asked, [
+      { from: spans[0].start, to: spans[0].end },
+      { from: right.start, to: wrap },
+      { from: wrap, to: right.end },
+    ], "три куска: левая сторона и две зрительные строки правой");
+    /*
+     * Пересобраны **два** прямоугольника из трёх: левая сторона и первый кусок
+     * правой. Перенесённый кусок платформа вернула, и слой его не тронул — то
+     * есть рост и правда достался только тем краям, что смотрят на
+     * разделитель.
+     */
+    assertEq(made.length, 2, "рост достался двум кускам из трёх");
+    const gapPx = view.coordsAtPos(right.start, 1).left
+      - view.coordsAtPos(right.gapFrom, -1).right;
+    assertTrue(gapPx > 0, "промежуток измерен: предмет есть");
+    assertEq(made[1].left, right.start * 10 - gapPx,
+      "первый кусок правого блока вырос влево, к разделителю");
+  });
+})();
+
+(function testGrowthIsZeroWhenTheSliderIsZero() {
+  /*
+   * Тот же случай при нулевой ширине: прямоугольник обязан остаться тем, что
+   * вернула платформа. Без этого «вырос на промежуток» выполнялось бы и
+   * ростом, которого человек не просил.
+   */
+  const view = fakeViewWithCoords([LINE], null, null);
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 0 });
+  withFakeRectangleMarker(({ made }) => {
+    decorations.blockFillMarkersFor(view, plugin);
+    assertEq(made.length, 0, "ширина ноль и высота ноль — расти нечему");
+  });
+})();
+
+(function testBubbleAtTheBlockEndKeepsTheGap() {
+  /*
+   * И четвёртое место того же приёма: промежуток до разделителя мерился со
+   * сверкой вертикалей, а у блока, кончающегося пузырём тега, вертикали
+   * последнего знака и разделителя разные — на одной и той же строке. Рост в
+   * сторону разделителя пропадал молча, то есть ползунок `Band width` ничего
+   * не делал.
+   */
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const left = spans[0];
+  const view = fakeViewWithCoords([LINE], null, [{ from: left.start, to: left.end }]);
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 100 });
+  withFakeRectangleMarker(({ made }) => {
+    decorations.blockFillMarkersFor(view, plugin);
+    const gapPx = view.coordsAtPos(left.gapTo, 1).left
+      - view.coordsAtPos(left.gapFrom, -1).right;
+    assertTrue(gapPx > 0, "промежуток на подделке больше нуля: предмет есть");
+    assertEq(made[0].width, (left.end - left.start) * 10 + gapPx,
+      "блок, кончающийся пузырём, рост в сторону разделителя не теряет");
+  });
+})();
+
+(function testGapIsDroppedWhenTheSeparatorWrappedAway() {
+  /*
+   * Обратная сторона предыдущей: разделитель, уехавший на другую зрительную
+   * строку, промежутка не задаёт. Без этого условия расстояние считалось бы
+   * между точками разных строк — величина бессмысленная и часто
+   * отрицательная.
+   *
+   * Утверждение — **разница двух прогонов на одной фикстуре**: перенос ставится
+   * ровно на первый разделитель, и вырасти после этого должен только правый
+   * блок. Одного числа тут мало: «вырос один» бывает и от слепой проверки.
+   */
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const left = spans[0];
+  const plugin = fakePlugin({ enabled: true, opacity: 12, heightPx: 0, widthPct: 100 });
+
+  const grown = (wraps) => withFakeRectangleMarker(({ made }) => {
+    decorations.blockFillMarkersFor(fakeViewWithCoords([LINE], wraps, null), plugin);
+    return made.length;
+  });
+
+  assertEq(grown(null), 2, "переноса нет — выросли оба блока");
+  assertEq(grown([left.gapTo]), 1,
+    "разделитель уехал на другую строку — левый блок роста не получил");
 })();
 
 /* ---- шов: новые ползунки доезжают до перерисовки слоя ------------------ */

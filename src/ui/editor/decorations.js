@@ -37,7 +37,6 @@ const {
   blockFillLookFromConfig,
   blockFillSpansInLine,
   blockFillPadXPx,
-  blockFillGroupPartsByLine,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
   TAGWHEEL_SPAN_RANK,
@@ -664,10 +663,8 @@ function blockFillDocRanges(view, plugin) {
           zone: span.zone,
           from,
           to,
-          /* Части и промежуток до разделителя переводятся в положения
-             документа здесь же: дальше о строке никто не знает (S7). */
-          parts: (Array.isArray(span.parts) ? span.parts : []).map(
-            (p) => ({ from: line.from + p.from, to: line.from + p.to })),
+          /* Промежуток до разделителя переводится в положения документа
+             здесь же: дальше о строке никто не знает (S7). */
           gapFrom: span.gapFrom >= 0 ? line.from + span.gapFrom : -1,
           gapTo: span.gapTo >= 0 ? line.from + span.gapTo : -1,
         });
@@ -686,16 +683,30 @@ function blockFillDocRanges(view, plugin) {
  * проверять нечем и незачем, это код самого CodeMirror.
  */
 /**
- * Вертикаль положения, измеренная платформой, или `null`.
+ * Конец зрительной строки, на которой стоит это положение, — измерением
+ * платформы.
  *
- * Сторона нужна: `coordsAtPos` меряет с одной из них, и по умолчанию справа
- * (У-76). Начало части спрашивается справа от положения — там сама часть,
- * конец слева — там её последний знак.
+ * **Спрошено у того, кто это знает** (У-44). Вертикали положений для того же
+ * вопроса не годятся, и это стоило второго захода по S7: у пузыря тега своя
+ * высота, и `coordsAtPos` на пузыре и на обычном тексте **одной и той же**
+ * зрительной строки отдаёт разный `top`. Сравнение вертикалей читало это как
+ * перенос, отрезок распадался на кусок под каждым значением, и заказчик
+ * увидел ровно это: «полоска идёт с разрывами… для values=tags и
+ * values=wikilink она рисуется на разной высоте».
+ *
+ * `moveToLineBoundary` отвечает на нужный вопрос прямо, и отвечает тем же
+ * приёмом, каким сам CodeMirror ищет границы зрительной строки при отрисовке
+ * выделения: положение под правым краем содержимого на высоте этой строки.
+ * Сторона нужна и здесь — `assoc: 1` значит «строка, которая после этого
+ * положения начинается», иначе в точке переноса мы получили бы конец
+ * предыдущей.
  */
-function blockFillTopAt(view, pos, side) {
+function blockFillVisualLineEnd(view, pos) {
+  if (typeof view.moveToLineBoundary !== "function") return null;
   try {
-    const at = view.coordsAtPos(pos, side);
-    return at && Number.isFinite(at.top) ? at.top : null;
+    const at = view.moveToLineBoundary({ head: pos, assoc: 1 }, true, true);
+    const head = at ? Number(at.head) : NaN;
+    return Number.isFinite(head) ? head : null;
   } catch (_) {
     /* Проба: спросили платформу о положении, которого она может не знать
        (снятый узел, положение вне отрисованного). Ответ «нет» — это ответ. */
@@ -715,18 +726,26 @@ function blockFillTopAt(view, pos, side) {
  */
 function blockFillGapPx(view, span) {
   if (!(span.gapTo > span.gapFrom) || span.gapFrom < 0) return 0;
+  /*
+   * Разделитель, уехавший на другую зрительную строку, промежутка не задаёт:
+   * разница координат там бессмысленна и бывает отрицательной. **Спрашивается
+   * это у платформы**, а не сравнением вертикалей двух положений: у пузыря
+   * тега своя высота, и вертикали двух положений ОДНОЙ строки различаются —
+   * блок, кончающийся пузырём, терял из-за этого весь рост в сторону
+   * разделителя молча (тот же разбор, что в `blockFillVisualLineEnd`).
+   */
+  const rowEnd = blockFillVisualLineEnd(view, span.gapFrom);
+  if (rowEnd !== null && rowEnd <= span.gapTo) return 0;
   let a = null;
   let b = null;
   try {
     a = view.coordsAtPos(span.gapFrom, -1);
     b = view.coordsAtPos(span.gapTo, 1);
   } catch (_) {
-    /* Проба, как и в `blockFillTopAt`: положение может быть не отрисовано. */
+    /* Проба, как и в `blockFillVisualLineEnd`: положение может быть не отрисовано. */
     return 0;
   }
   if (!a || !b) return 0;
-  if (!Number.isFinite(a.top) || !Number.isFinite(b.top)) return 0;
-  if (Math.abs(Number(a.top) - Number(b.top)) >= 0.5) return 0;
   const gap = Number(b.left) - Number(a.right);
   return Number.isFinite(gap) && gap > 0 ? gap : 0;
 }
@@ -734,22 +753,41 @@ function blockFillGapPx(view, span) {
 /**
  * Отрезок, разрезанный по зрительным строкам (S7).
  *
- * Целиком на одной строке — один кусок, и мерить по частям незачем: это
- * обычный случай, и лишние измерения в нём стоили бы на каждой отрисовке.
- * Началось и кончилось на разных — режем по границам нарисованного, потому что
- * `forRange` на таком отрезке рисует **выделение**, то есть до края экрана
- * (разбор — `blockFillGroupPartsByLine`).
+ * Зачем резать: `forRange` на отрезке, начавшемся на одной зрительной строке и
+ * кончившемся на другой, рисует **выделение** — первый кусок до правого края
+ * содержимого, последний от левого. Для выделения это верно, для подложки нет.
+ *
+ * **Режется по границам, которые называет платформа, а не по нашим значениям**
+ * (починка второго захода по S7). Прежде куски набирались из токенов блока, и
+ * у этого две дыры, обе заказчик увидел: значение, которое переносится **само**
+ * (`📅2026-09-09 11:14` разрывается по пробелу внутри себя), разрезать было
+ * нечем — «по-прежнему при переносе полоска идёт до конца экрана первой строки
+ * и начинается от левой границы второй»; а группировка кусков по измеренной
+ * вертикали путала пузырь тега с переносом и рвала блок, лежащий на одной
+ * строке.
+ *
+ * Обход идёт от начала отрезка к концу и на каждом шаге спрашивает, где
+ * кончается зрительная строка. Не сдвинулись или измерить не удалось — остаток
+ * уходит одним куском: это ровно прежнее поведение, то есть отказ здесь хуже
+ * подложки, но не хуже её отсутствия.
  */
 function blockFillPiecesOf(view, span) {
   const whole = [{ from: span.from, to: span.to }];
-  const head = blockFillTopAt(view, span.from, 1);
-  const tail = blockFillTopAt(view, span.to, -1);
-  if (head !== null && tail !== null && Math.abs(head - tail) < 0.5) return whole;
-  const parts = Array.isArray(span.parts) ? span.parts : [];
-  if (parts.length < 2) return whole;
-  const tops = parts.map((p) => blockFillTopAt(view, p.from, 1));
-  const groups = blockFillGroupPartsByLine(parts, tops);
-  return groups.length ? groups : whole;
+  const out = [];
+  let from = span.from;
+  /* Кусков не бывает больше, чем зрительных строк под отрезком; граница нужна
+     не от их числа, а от неподвижного измерения — оно дало бы вечный цикл. */
+  for (let guard = 0; guard < 64 && from < span.to; guard += 1) {
+    const end = blockFillVisualLineEnd(view, from);
+    const to = end === null ? span.to : Math.min(span.to, end);
+    if (!(to > from)) break;
+    out.push({ from, to });
+    from = to;
+  }
+  if (!out.length) return whole;
+  /* Обход кончился раньше отрезка — остаток отдаётся как есть, а не теряется. */
+  if (from < span.to) out.push({ from, to: span.to });
+  return out;
 }
 
 /**
@@ -767,7 +805,24 @@ function blockFillMarkersFor(view, plugin) {
   const out = [];
   for (const span of blockFillDocRanges(view, plugin)) {
     const padX = blockFillPadXPx(look, blockFillGapPx(view, span));
-    for (const piece of blockFillPiecesOf(view, span)) {
+    const pieces = blockFillPiecesOf(view, span);
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i];
+      /*
+       * **Растёт подложка в сторону разделителя, и только в неё** (замечание по
+       * S7, 2026-09-09: «полоска захватывает i2n-floating — а не должна, она
+       * должна заканчиваться на последнем value right block»). У левого блока
+       * разделитель справа, у правого слева; наружная сторона блока кончается
+       * на его последнем значении, потому что с той стороны граница не
+       * названа — там начало строки или её конец, а за концом строки стоит
+       * плавающая кнопка. Зеркальность, о которой он говорил раньше, — это
+       * зеркальность **двух блоков**, а не двух краёв одного.
+       *
+       * И только у того куска, который разделителя касается: у перенесённого
+       * блока это первый кусок справа и последний слева.
+       */
+      const growLeft = span.zone === "right" && i === 0 ? padX : 0;
+      const growRight = span.zone === "left" && i === pieces.length - 1 ? padX : 0;
       /*
        * Отрезок отдаётся `forRange` теми же полями, какими его читает
        * платформа. Объявлять здесь `EditorSelection` нечем: он живёт в копии
@@ -783,17 +838,17 @@ function blockFillMarkersFor(view, plugin) {
         assoc: 0,
       };
       for (const marker of cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range)) {
-        if (!padX && !padY) { out.push(marker); continue; }
+        if (!growLeft && !growRight && !padY) { out.push(marker); continue; }
         /*
          * Прямоугольник **пересоздаётся**, а не правится на месте: поля его
          * читает потом и `eq`, и отрисовка, и правка чужого объекта была бы
          * договором, которого платформа не давала. Ширины может не быть вовсе
          * (`null` значит «не задавать») — такому расти нечем.
          */
-        const width = marker.width == null ? null : Number(marker.width) + padX * 2;
+        const width = marker.width == null ? null : Number(marker.width) + growLeft + growRight;
         out.push(new cmView.RectangleMarker(
           BLOCK_FILL_MARKER_CLASS,
-          Number(marker.left) - padX,
+          Number(marker.left) - growLeft,
           Number(marker.top) - padY,
           width,
           Number(marker.height) + padY * 2,
