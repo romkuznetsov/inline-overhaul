@@ -72,6 +72,71 @@ const {
   tagwheelPanelSpans,
 } = __editorVisualsConfig;
 
+/**
+ * Запись в журнал разработчика — **одно место на весь слой оформления**
+ * (Д-4, 2026-09-09).
+ *
+ * Таких записей в слое было пять, и каждая несла свой `try` с пустым `catch`:
+ * то есть правило «что делать, если журнал не записался» было объявлено пять
+ * раз (У-32). Теперь оно одно.
+ *
+ * Проверка «журнал есть» тоже жила пять раз, и с разными условиями: одна
+ * запись спрашивала `plugin`, другая — `plugin.devLogEvent`. Здесь спрашивается
+ * то, что действительно нужно, — сама функция.
+ */
+function traceEvent(plugin, cfg, name, payload) {
+  if (!plugin || typeof plugin.devLogEvent !== "function") return;
+  try {
+    plugin.devLogEvent(name, payload, "trace", cfg);
+  } catch (_) {
+    /* Украшение: журнал стоит последним в цепочке, и уронить отрисовку ему
+       нечем и незачем. Записи не стало — заметка цела. */
+  }
+}
+
+/**
+ * Отрезки оформления → набор платформы, **с отчётом об отказах** (Д-4).
+ *
+ * `RangeSetBuilder.add` бросает, когда отрезки приходят не по порядку или
+ * пересекаются недопустимо. До 2026-09-09 отказ здесь глотался молча в
+ * **четырёх** местах: декорация просто не рисовалась, и узнать об этом было
+ * нельзя — ни человеку, ни мне. Тихий отказ неотличим от дефекта (У-41).
+ *
+ * Это второй вид отказа по правилу отказов — «сломалось невидимое»: человек
+ * придёт со словами «перестало красить», и журнал разработчика единственное,
+ * из чего можно будет узнать, почему. Ронять отрисовку по-прежнему нельзя:
+ * заметка дороже картинки.
+ *
+ * **Отчёт один на проход, а не на отрезок.** Сбитый порядок роняет каждый
+ * следующий `add`, и запись на каждый залила бы консоль целиком — то есть
+ * спрятала бы ровно то, ради чего её читают.
+ */
+function buildDecorationSet(ranges, where) {
+  const list = Array.isArray(ranges) ? ranges : [];
+  const builder = new cmState.RangeSetBuilder();
+  let refused = 0;
+  let firstMessage = "";
+  let firstRange = null;
+  for (let i = 0; i < list.length; i++) {
+    const r = list[i] || {};
+    try {
+      builder.add(r.from, r.to, r.deco);
+    } catch (e) {
+      refused += 1;
+      if (!firstRange) {
+        firstRange = { from: r.from, to: r.to };
+        firstMessage = String((e && e.message) || e || "");
+      }
+    }
+  }
+  if (refused) {
+    console.error("[inline-overhaul][" + String(where || "decorations") + "]"
+      + " отрезков оформления отвергнуто " + refused + " из " + list.length
+      + ", первый " + JSON.stringify(firstRange) + ": " + firstMessage);
+  }
+  return builder.finish();
+}
+
 class TagVisualTokenWidget extends cmView.WidgetType {
   constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride) {
     super();
@@ -297,21 +362,19 @@ function buildTagVisualDecorations(view, plugin) {
         const from = Number(entry.from || 0);
         const to = Number(entry.to || 0);
         if (!token || to <= from) continue;
-        if (debugLine && token === "#/1" && plugin && typeof plugin.devLogEvent === "function") {
-          try {
-            plugin.devLogEvent("tagVisual.resolve.token", {
-              traceTxId,
-              lineNo,
-              lineText: text,
-              token,
-              from,
-              to,
-              row: entry.row || null,
-              zone: entry.zone,
-              inStripField: !!entry.inStripField,
-              zoneOpacity: entry.zoneOpacity,
-            }, "trace", cfg);
-          } catch (_) {}
+        if (debugLine && token === "#/1") {
+          traceEvent(plugin, cfg, "tagVisual.resolve.token", {
+            traceTxId,
+            lineNo,
+            lineText: text,
+            token,
+            from,
+            to,
+            row: entry.row || null,
+            zone: entry.zone,
+            inStripField: !!entry.inStripField,
+            zoneOpacity: entry.zoneOpacity,
+          });
         }
         if (hideStripFieldTags && entry.inStripField) {
           hiddenTokens.push(token);
@@ -382,22 +445,20 @@ function buildTagVisualDecorations(view, plugin) {
         }
         if (to <= from) continue;
         const effectiveMode = resolveEffectiveTagVisualMode(row);
-        if (debugLine && token === "#/1" && plugin && typeof plugin.devLogEvent === "function") {
-          try {
-            plugin.devLogEvent("tagVisual.apply.token", {
-              traceTxId,
-              lineNo,
-              lineText: text,
-              token,
-              from,
-              to,
-              effectiveMode,
-              fillColor: String(row.fillColor || ""),
-              textColor: String(row.textColor || ""),
-              customText: String(row.customText || ""),
-              displayTextOverride: effectiveMode === "custom" ? String(row.customText || "").trim() : "",
-            }, "trace", cfg);
-          } catch (_) {}
+        if (debugLine && token === "#/1") {
+          traceEvent(plugin, cfg, "tagVisual.apply.token", {
+            traceTxId,
+            lineNo,
+            lineText: text,
+            token,
+            from,
+            to,
+            effectiveMode,
+            fillColor: String(row.fillColor || ""),
+            textColor: String(row.textColor || ""),
+            customText: String(row.customText || ""),
+            displayTextOverride: effectiveMode === "custom" ? String(row.customText || "").trim() : "",
+          });
         }
         ranges.push({
           from,
@@ -408,21 +469,19 @@ function buildTagVisualDecorations(view, plugin) {
           }),
         });
       }
-      if (debugLine && hideStripFieldTags && hiddenTokens.length && plugin && typeof plugin.devLogEvent === "function") {
-        try {
-          plugin.devLogEvent("strip.token.hide", {
-            traceTxId,
-            lineNo,
-            stripFieldId,
-            hiddenTokens,
-            tokenSetSize: stripFieldTokenSet.size,
-            tokenSetSample: Array.from(stripFieldTokenSet).slice(0, 10),
-            tokenSetNormSample: Array.from(stripFieldTokenSetNorm).slice(0, 10),
-            suppressedVisualDecorationsCount: suppressedRanges.length,
-            tagVisibilityNormalized: stripCfg.tagVisibility,
-            tagVisibilityRaw: rawStripTagVisibility,
-          }, "trace", cfg);
-        } catch (_) {}
+      if (debugLine && hideStripFieldTags && hiddenTokens.length) {
+        traceEvent(plugin, cfg, "strip.token.hide", {
+          traceTxId,
+          lineNo,
+          stripFieldId,
+          hiddenTokens,
+          tokenSetSize: stripFieldTokenSet.size,
+          tokenSetSample: Array.from(stripFieldTokenSet).slice(0, 10),
+          tokenSetNormSample: Array.from(stripFieldTokenSetNorm).slice(0, 10),
+          suppressedVisualDecorationsCount: suppressedRanges.length,
+          tagVisibilityNormalized: stripCfg.tagVisibility,
+          tagVisibilityRaw: rawStripTagVisibility,
+        });
       }
       lineNo += 1;
     }
@@ -435,11 +494,7 @@ function buildTagVisualDecorations(view, plugin) {
     const bt = Number(b && b.to || 0);
     return at - bt;
   });
-  const builder = new cmState.RangeSetBuilder();
-  for (const r of ranges) {
-    try { builder.add(r.from, r.to, r.deco); } catch (_) {}
-  }
-  return builder.finish();
+  return buildDecorationSet(ranges, "tag-visual");
 }
 
 function buildStripDecorations(view, plugin) {
@@ -531,36 +586,39 @@ function buildStripDecorations(view, plugin) {
         rows,
       };
     }
-  } catch (_) {}
-
-  if (debugLine && plugin && typeof plugin.devLogEvent === "function") {
-    try {
-      plugin.devLogEvent("strip.apply.batch", {
-        traceTxId,
-        stripFieldId,
-        tokenSetSize: fieldTokenSet.size,
-        sourceLineCount: stripInputRows.length,
-        paintedLineCount: stripSpecs.length,
-        decorationCount: stripRanges.length,
-        paintedLines: stripSpecs.map((s) => s.lineNo).slice(0, 100),
-      }, "trace", cfg);
-      plugin.devLogEvent("strip.debug.snapshot", {
-        traceTxId,
-        stripFieldId,
-        decorationCount: stripRanges.length,
-        rows: (plugin && plugin._lastStripDebugBatch && Array.isArray(plugin._lastStripDebugBatch.rows))
-          ? plugin._lastStripDebugBatch.rows.slice(0, 12)
-          : [],
-      }, "trace", cfg);
-    } catch (_) {}
+  } catch (e) {
+    /*
+     * Снимок для окна отладки полос (`__ioStripDebug`) — второй вид отказа
+     * по правилу: сломалось невидимое. Окно читает его по требованию и
+     * без тумблера журнала, то есть пропажа снимка видна только тогда,
+     * когда человек уже ищет причину другого дефекта. Отрисовку ронять
+     * нельзя — заметка дороже отладочного снимка.
+     */
+    console.error("[inline-overhaul][strip-debug] снимок пакета полос не собрался: "
+      + String((e && e.message) || e || ""));
   }
 
-  const builder = new cmState.RangeSetBuilder();
-  for (let i = 0; i < stripRanges.length; i++) {
-    const r = stripRanges[i] || {};
-    try { builder.add(r.from, r.to, r.deco); } catch (_) {}
+  if (debugLine) {
+    traceEvent(plugin, cfg, "strip.apply.batch", {
+      traceTxId,
+      stripFieldId,
+      tokenSetSize: fieldTokenSet.size,
+      sourceLineCount: stripInputRows.length,
+      paintedLineCount: stripSpecs.length,
+      decorationCount: stripRanges.length,
+      paintedLines: stripSpecs.map((s) => s.lineNo).slice(0, 100),
+    });
+    traceEvent(plugin, cfg, "strip.debug.snapshot", {
+      traceTxId,
+      stripFieldId,
+      decorationCount: stripRanges.length,
+      rows: (plugin && plugin._lastStripDebugBatch && Array.isArray(plugin._lastStripDebugBatch.rows))
+        ? plugin._lastStripDebugBatch.rows.slice(0, 12)
+        : [],
+    });
   }
-  return builder.finish();
+
+  return buildDecorationSet(stripRanges, "strip");
 }
 
 function createTagVisualDecorationExtension(plugin) {
@@ -1193,13 +1251,7 @@ function buildTagwheelHeaderDecorations(view, plugin) {
     return a.rank - b.rank;
   });
 
-  const builder = new cmState.RangeSetBuilder();
-  for (const r of ranges) {
-    try {
-      builder.add(r.from, r.to, r.deco);
-    } catch (_) {}
-  }
-  return builder.finish();
+  return buildDecorationSet(ranges, "tagwheel-header");
 }
 
 /** Кнопка `Inline to note` в конце строки. Только на экране (Н8). */
@@ -1287,11 +1339,7 @@ function buildSourceMarkDecorations(view, plugin) {
   }
 
   ranges.sort((a, b) => (a.from !== b.from ? a.from - b.from : a.side - b.side));
-  const builder = new cmState.RangeSetBuilder();
-  for (const r of ranges) {
-    try { builder.add(r.from, r.to, r.deco); } catch (_) {}
-  }
-  return builder.finish();
+  return buildDecorationSet(ranges, "source-marks");
 }
 
 function createSourceMarkDecorationExtension(plugin) {
@@ -1323,6 +1371,8 @@ function createTagwheelHeaderDecorationExtension(plugin) {
 }
 
 module.exports = {
+  traceEvent,
+  buildDecorationSet,
   TagVisualTokenWidget,
   ZeroWidthInlineWidget,
   buildBlockStyleDecoration,
