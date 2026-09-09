@@ -49,6 +49,32 @@ export function templatesEmptyChoice(folder: string, say?: SayTemplate): Templat
     : { value: "", label: t("NO_TEMPLATE_FOLDER", "Set a Templates folder first") };
 }
 
+/**
+ * Как шаблон назван на экране: путь внутри назначенной папки.
+ *
+ * **Одно объявление на всю панель.** Имя шаблона показывают три места:
+ * выпадающий список `Default template`, список `Use template` внутри Smart
+ * Rules и сводка свёрнутой карточки правила. Первое считало имя этим
+ * правилом, второе и третье писали путь целиком — и заказчик увидел ровно
+ * расхождение: «в свёрнутом состоянии используемый шаблон отображается как
+ * `Template: 111/template.md` — показывай только название заметки»
+ * (замечание по S6, 2026-09-09).
+ *
+ * Путь **внутри** папки, а не одно имя файла: два `task.md` в разных
+ * подпапках шаблонной папки иначе выглядели бы одинаково. У заказчика
+ * шаблоны лежат в самой папке, и для него это и есть имя заметки.
+ *
+ * Шаблон вне назначенной папки остаётся со своим путём целиком — и это не
+ * оплошность, а ответ: значит, он лежит не там, откуда панель их предлагает.
+ */
+export function templateLabel(folder: string, path: string): string {
+  const root = String(folder || "").trim().replace(/\/+$/, "");
+  const p = String(path || "").trim();
+  if (!root || !p) return p;
+  const prefix = root + "/";
+  return p.startsWith(prefix) ? p.slice(prefix.length) : p;
+}
+
 export function templateOptions(
   folder: string,
   notes: readonly string[],
@@ -68,6 +94,6 @@ export function templateOptions(
     .sort((a, b) => a.localeCompare(b));
   if (!inside.length) return [templatesEmptyChoice(root, say)];
   return [{ value: "", label: (say || PLAIN)("WORD_NONE", "None") } as TemplateOption].concat(
-    inside.map(p => ({ value: p, label: p.slice(prefix.length) })),
+    inside.map(p => ({ value: p, label: templateLabel(root, p) })),
   );
 }

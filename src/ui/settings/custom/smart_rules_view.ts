@@ -23,7 +23,7 @@ import type { El, ElInput, DragEv } from "./dom.ts";
 import { el, btn, selectInput, textInput } from "./dom.ts";
 import type { RowKind, RuleKind, RulePlacement, RuleRow, RulesModel } from "./smart_rules_model.ts";
 import { ROW_KINDS } from "./smart_rules_model.ts";
-import { templatesEmptyChoice } from "../templates.ts";
+import { templateLabel, templatesEmptyChoice } from "../templates.ts";
 import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
 /* ---- тексты: сняты с прототипа (Приложение B, 10.8) -------------------- */
@@ -149,6 +149,18 @@ function conditionItems(
  * Состав собран отдельно от отрисовки нарочно: **что** сказано — решение, и
  * его проверяет набор; **как** оно разложено по узлам — вёрстка.
  */
+/**
+ * Имя шаблона на экране. Правило одно и живёт в `templates.ts`: и список
+ * `Use template`, и сводка свёрнутой карточки называют шаблон так же, как его
+ * называет `Default template` (замечание по S6, 2026-09-09).
+ *
+ * В конфиге при этом остаётся путь целиком: имя — то, что человек читает, а не
+ * то, что записано.
+ */
+function templateName(path: string, o: RulesViewOpts): string {
+  return templateLabel(String(o.templatesFolder || ""), path);
+}
+
 function summaryParts(row: RuleRow, o: RulesViewOpts): Array<{ label: string; value: string }> {
   const say = o.say || PLAIN;
   const shown = ROW_KINDS.flatMap(kind => conditionItems(row, kind, o).map(x => x.shown));
@@ -159,7 +171,7 @@ function summaryParts(row: RuleRow, o: RulesViewOpts): Array<{ label: string; va
     },
     {
       label: say("SUMMARY_TEMPLATE"),
-      value: row.targetTemplate || say("TEMPLATE_NONE"),
+      value: row.targetTemplate ? templateName(row.targetTemplate, o) : say("TEMPLATE_NONE"),
     },
     {
       label: say("SUMMARY_FOLDER"),
@@ -482,7 +494,7 @@ function ruleCard(host: El, row: RuleRow, index: number, o: RulesViewOpts, drag:
    */
   const choices = o.templates.length
     ? [{ value: "", label: say("TEMPLATE_NONE") }]
-      .concat(o.templates.map(t => ({ value: t, label: t })))
+      .concat(o.templates.map(t => ({ value: t, label: templateName(t, o) })))
     : [templatesEmptyChoice(String(o.templatesFolder || ""))];
   const template = selectInput(out, "io-select", {
     options: choices,
