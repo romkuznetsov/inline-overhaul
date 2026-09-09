@@ -991,6 +991,91 @@ async function run() {
       "заглушка на месте модуля вернулась. Она означает не «переживём отказ», а "
       + "«работаем наполовину и молчим» (У-90): модуль лежит в бандле, не приехал — "
       + "плагин обязан упасть громко");
+
+    /*
+     * **И тот же запрет по форме, а не по имени** (Д-4, 2026-09-09).
+     *
+     * Запрет выше ищет по семье имён, и 2026-09-09 выяснилось, что этого мало:
+     * шесть заглушек на месте модулей были **безымянными** — `const __x = (()
+     * => { try { require(…) } catch (_) {} return {…копия правила…}; })()`. Имён
+     * из семьи в них нет ни одного, и запрет их не видел ни дня. Тот самый
+     * грех, о котором У-111: список имён проверяет список, а не предмет.
+     *
+     * Форма же у такого кода всегда одна: **свой `require` внутри `try`**.
+     * Ищется она, а не имя.
+     *
+     * Три места остаются, и у каждого причина названа здесь же. Молчаливый
+     * список исключений и есть тот способ, каким «проверено автоматически»
+     * превращается в «проверено ничего»; список с причинами — это разбор.
+     */
+    const TRY_REQUIRE_ALLOWED = {
+      "src/features/plugin_bootstrap.js":
+        "вкладка настроек на TypeScript. Из исходников без esbuild файл не "
+        + "разрешается, и набор берёт `main.js` именно так. Отказ не молчит: "
+        + "он идёт в консоль с приставкой плагина",
+      "src/core/pkm_rules_runtime_helpers.js":
+        "файл под З3, и заглушка там та же, что снята 2026-09-09 вне З3. "
+        + "Снятие требует его слова после разбора (PRD 15.2, второй отчёт Д-4)",
+      "pkm_v2/field_model.js":
+        "то же самое: файл под З3, заглушка та же",
+    };
+    const tryRequires = [];
+    for (const abs of walked) {
+      const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+      const text = fs.readFileSync(abs, "utf8");
+      const lines = text.replace(/\/\*[\s\S]*?\*\//g, "").split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (!/^\s*try\s*\{\s*$/.test(lines[i])) continue;
+        /* Окно в шесть строк: дальше это уже не обёртка вокруг загрузки. */
+        const window = lines.slice(i + 1, i + 7).join("\n");
+        if (!/\brequire\((["'])\.{1,2}\//.test(window)) continue;
+        if (Object.prototype.hasOwnProperty.call(TRY_REQUIRE_ALLOWED, rel)) continue;
+        tryRequires.push(rel + ":" + (i + 1));
+      }
+    }
+    assertEq(tryRequires.join(" | "), "",
+      "свой `require` внутри `try` — это заглушка на месте модуля, даже "
+      + "безымянная (У-90, Д-4). Модуль лежит в бандле; не приехал — плагин "
+      + "обязан упасть громко. Если место законно, назовите его причину в "
+      + "`TRY_REQUIRE_ALLOWED`");
+    /*
+     * Положительный контроль на форму: без него «ни одного» выполняется само,
+     * и первым же ложным успехом стало бы окно не той длины (У-88).
+     */
+    const shapeProbe = [
+      "const __x = (() => {",
+      "  try {",
+      "    const mod = require(\"../core/say.js\");",
+      "    if (mod) return mod;",
+      "  } catch (_) {}",
+      "  return null;",
+      "})();",
+    ].join("\n");
+    const probeLines = shapeProbe.split("\n");
+    let shapeHits = 0;
+    for (let i = 0; i < probeLines.length; i++) {
+      if (!/^\s*try\s*\{\s*$/.test(probeLines[i])) continue;
+      if (/\brequire\((["'])\.{1,2}\//.test(probeLines.slice(i + 1, i + 7).join("\n"))) shapeHits += 1;
+    }
+    assertEq(shapeHits, 1, "образец формы не находит собственный пример — запрет выше мерит пустоту");
+    /*
+     * И контроль на сам список причин: он обязан быть занят. Опустел — значит
+     * места разобраны, и список надо снять тем же коммитом, иначе он разрешает
+     * вернуть то, чего уже нет.
+     */
+    let allowedSeen = 0;
+    for (const abs of walked) {
+      const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+      if (!Object.prototype.hasOwnProperty.call(TRY_REQUIRE_ALLOWED, rel)) continue;
+      const lines = fs.readFileSync(abs, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (!/^\s*try\s*\{\s*$/.test(lines[i])) continue;
+        if (/\brequire\((["'])\.{1,2}\//.test(lines.slice(i + 1, i + 7).join("\n"))) { allowedSeen += 1; break; }
+      }
+    }
+    assertEq(allowedSeen, Object.keys(TRY_REQUIRE_ALLOWED).length,
+      "в списке причин " + Object.keys(TRY_REQUIRE_ALLOWED).length + " файлов, а форма "
+      + "нашлась в " + allowedSeen + ": разобранное обязано уйти из списка тем же коммитом");
     /*
      * Положительный контроль: сам образец умеет находить. Без него запрет
      * зелен и от опечатки в регулярном выражении — на пустом множестве
