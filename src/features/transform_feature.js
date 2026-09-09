@@ -5,17 +5,13 @@
  *
  * Модуль спрашивает `globalThis.__inlineSay` через общий помощник: своей копии
  * этого правила заводить нельзя, из тройки таких копий уже вырос дефект Б-11.
+ *
+ * **Литеральный `require` без запасного пути** — правило модулей (У-89,
+ * У-90, A33). До 2026-09-09 здесь стояла заглушка, и она **повторяла правило
+ * подстановки `{0}`** — то есть была ещё одной той самой копией, о которой
+ * предупреждает абзац выше. Таких копий было четыре, в четырёх файлах.
  */
-const __say = (() => {
-  try {
-    const mod = require("../core/say.js");
-    if (mod && typeof mod.say === "function") return mod.say;
-  } catch (_) {}
-  return (key, english, ...args) => args.reduce(
-    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
-    String(english == null ? "" : english),
-  );
-})();
+const __say = require("../core/say.js").say;
 
 /** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
 function __noticeKey(area, name) {
@@ -1744,7 +1740,14 @@ async function pickTargetPath(plugin, title, i2n, rule) {
        * (замечание заказчика B21, 2026-09-02).
        */
       folder = normalizeFolderPath(activeFile && activeFile.parent ? activeFile.parent.path : "");
-    } catch (_) {}
+    } catch (_) {
+      /*
+       * Проба: спросили платформу о папке открытой заметки, а её может не
+       * быть вовсе — у заметки в корне хранилища родителя нет. Ответ «нет»
+       * здесь и есть ответ: `folder` остаётся пустым, и заметка ляжет в
+       * корень — ровно туда, откуда её позвали.
+       */
+    }
   }
   const baseTitle = slugSafeTitle(title) || "inline2note";
   const mode = String(i2n && i2n.nameCollision && i2n.nameCollision.mode || "new_note").trim().toLowerCase();
@@ -2930,7 +2933,17 @@ async function runInline2Note(plugin, runtimeOptions) {
         const leaf = plugin.app.workspace.getLeaf(true);
         if (leaf && typeof leaf.openFile === "function") await leaf.openFile(opened);
       }
-    } catch (_) {}
+    } catch (e) {
+      /*
+       * Заметка уже создана, и следующая строка говорит человеку её путь —
+       * то есть первый вид отказа уже случился и без нас. Не открылась она
+       * сама, и почему — видно только из журнала (правило отказов, второй
+       * вид). До 2026-09-09 молчало и это, и человек видел только «заметка
+       * создана» и пустой экран.
+       */
+      console.error("[inline-overhaul][inline2note] заметка создана, но не открылась: "
+        + String((e && e.message) || e || ""));
+    }
   }
   plugin.notice(__say(__noticeKey("transform", "created"), "Note created: {0}", actualTarget.path));
 }

@@ -89,15 +89,13 @@ function refreshOpenEditors(plugin) {
     ? plugin.app.workspace.getLeavesOfType("markdown")
     : [];
   if (debugLine) {
-    try {
-      plugin.devLogEvent("strip.refresh.dispatch", {
+    __editorDecorations.traceEvent(plugin, cfg, "strip.refresh.dispatch", {
         traceTxId: plugin.getLineTraceTxId(),
         reason: "config-patch",
         leaves: Array.isArray(leaves) ? leaves.length : 0,
         stripFieldId: String(readCfgPath(cfg, "visual.tagBars.fieldId") || "").trim(),
-        stripActive: readCfgPath(cfg, "visual.tagBars.active") === true,
-      }, "trace", cfg);
-    } catch (_) {}
+      stripActive: readCfgPath(cfg, "visual.tagBars.active") === true,
+    });
   }
   for (const leaf of leaves) {
     const view = leaf && leaf.view ? leaf.view : null;
@@ -135,10 +133,32 @@ function refreshOpenEditors(plugin) {
               ? cm.state.selection.main.head
               : head;
             cm.dispatch({ effects: cmState.StateEffect.appendConfig.of([]), selection: { anchor: h2, head: h2 } });
-          } catch (_) {}
+          } catch (_) {
+            /*
+             * Уборка: толчок к пересчёту прилетает кадром позже, и за этот
+             * кадр человек успевает закрыть заметку. Отказ здесь значит
+             * «редактора больше нет», а цель — перерисовать его — достигнута
+             * тем, что рисовать нечего. Отчёт тут шёл бы на каждое закрытие
+             * заметки.
+             */
+          }
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      /*
+       * **Самый дорогой отказ в этом файле, и до 2026-09-09 он молчал**
+       * (Д-4). Здесь расширения оформления встают в редактор или
+       * пересобираются в нём; отказ значит, что именно эта заметка не
+       * красится вовсе — ни пузырей, ни полос, ни подложки. Человек
+       * придёт со словами «перестало красить», и журнал — единственное,
+       * из чего можно будет узнать, почему (правило отказов, второй вид).
+       *
+       * Обход при этом продолжается: одна закрывшаяся заметка не должна
+       * лишать оформления все остальные.
+       */
+      console.error("[inline-overhaul][editor-mount] расширения оформления не встали"
+        + " в редактор: " + String((e && e.message) || e || ""));
+    }
   }
 }
 

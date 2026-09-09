@@ -63,7 +63,14 @@ function getAnchorRect(editor, lineNumber, controlLine) {
           var lineFrom = editor.posToOffset({ line: lineNumber, ch: 0 });
           var lineCoords = cm.coordsAtPos(lineFrom);
           if (lineCoords && isFinite(lineCoords.top)) targetY = Number(lineCoords.top);
-        } catch (_) {}
+        } catch (_) {
+          /*
+           * Проба: спросили редактор о координатах положения, которого он
+           * может не знать: строка бывает вне отрисованного. Ответ «не знаю»
+           * здесь и есть ответ: `targetY` остаётся пустым, и коробка выберёт
+           * якорь по порядку, а не по близости к строке.
+           */
+        }
         var best = null;
         var bestScore = Number.POSITIVE_INFINITY;
         var i;
@@ -305,13 +312,26 @@ function createTagWheelScrollerOverlay(options) {
     }
   }
 
+  /**
+   * Снять коробку с страницы — одно место на две коробки (Д-4, У-32).
+   *
+   * Уборка: снимается то, чего может уже не быть — страницу пересобрали,
+   * узел ушёл вместе с ней. Цель достигнута в любом случае: коробки на
+   * экране нет.
+   */
+  function dropBox(target) {
+    try {
+      if (target && target.root && target.root.parentNode) {
+        target.root.parentNode.removeChild(target.root);
+      }
+    } catch (_) {
+      /* См. выше: уборка чего-то, чего может уже не быть. */
+    }
+  }
+
   function destroy() {
-    try {
-      if (boxPrimary.root && boxPrimary.root.parentNode) boxPrimary.root.parentNode.removeChild(boxPrimary.root);
-    } catch (_) {}
-    try {
-      if (boxSecondary.root && boxSecondary.root.parentNode) boxSecondary.root.parentNode.removeChild(boxSecondary.root);
-    } catch (_) {}
+    dropBox(boxPrimary);
+    dropBox(boxSecondary);
   }
 
   return {

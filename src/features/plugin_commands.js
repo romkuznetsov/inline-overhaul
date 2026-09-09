@@ -64,7 +64,14 @@ function reportLoaderFallback(stage, err) {
     if (globalThis.__inlineDebugLoaders !== true) return;
     const msg = err && err.message ? String(err.message) : String(err || "");
     console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Здесь молчать обязательно: это сам отчётчик об отказе загрузки, и
+     * отчёт о его собственном отказе было бы некуда девать — кроме его
+     * же самого. Уронить загрузку движка из-за неудавшегося следа — второй
+     * отказ вместо одного.
+     */
+  }
 }
 
 /** Реестр команд: определения для ядра, навигации, PKM и Binder (PRD 7.2). */

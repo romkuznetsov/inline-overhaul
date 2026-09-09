@@ -1,14 +1,15 @@
 "use strict";
 
-const __pkmDomainRegistry = (() => {
-  try {
-    if (typeof require === "function") {
-      const mod = require("./pkm_domain_registry.js");
-      if (mod && typeof mod === "object") return mod;
-    }
-  } catch (_) {}
-  return null;
-})();
+/*
+ * Здесь стояла заглушка на месте `pkm_domain_registry.js`, и **её результат не
+ * читало ни одно место файла** — мёртвое объявление с тихим отказом внутри
+ * (Д-4, снято 2026-09-09).
+ *
+ * **Почему линтер не сказал.** `no-unused-vars` разрешает неиспользованными
+ * имена, начинающиеся с подчёркивания, а модули в этом проекте как раз так и
+ * называются — `__module`. То есть указатель на мёртвое, о котором говорит
+ * `CLAUDE.md`, к модульным именам слеп по уговору самого проекта.
+ */
 
 function defaultIsObj(x) {
   return x && typeof x === "object" && !Array.isArray(x);

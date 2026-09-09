@@ -33,6 +33,7 @@ const __configNormalize = require("./config_normalize.js");
 const __editorMount = require("../ui/editor/mount.js");
 const __pkmOptionKeys = require("./pkm_option_keys.js");
 const __sharedUtils = require("./shared_utils.js");
+const __devLog = require("./dev_log.js");
 
 const getConfigMigrationV2Module = __configNormalize.getConfigMigrationV2Module;
 
@@ -78,9 +79,8 @@ function applyPatch(plugin, patchObj, reason) {
         console.error("[inline-overhaul][dev-mode-log:reinit]", e);
       });
   }
-  if (debugLine && typeof plugin.devLogEvent === "function") {
-    try {
-      plugin.devLogEvent("strip.config.patch", {
+  if (debugLine) {
+    __devLog.traceQuietly(plugin, after, "strip.config.patch", {
         traceTxId: plugin._lineTraceTxId,
         reason: reasonKey,
         requestedStripFieldId: stripPatchFieldId,
@@ -88,9 +88,8 @@ function applyPatch(plugin, patchObj, reason) {
         afterStripFieldId: String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim(),
         beforeStripActive: readCfgPath(before, "visual.tagBars.active") === true,
         afterStripActive: readCfgPath(after, "visual.tagBars.active") === true,
-        mismatchDetected: !!(stripPatchFieldId && String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim() !== stripPatchFieldId),
-      }, "trace", after);
-    } catch (_) {}
+      mismatchDetected: !!(stripPatchFieldId && String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim() !== stripPatchFieldId),
+    });
   }
   if (!isUiOnlyReason(reasonKey)) {
     __editorMount.refreshOpenEditors(plugin);

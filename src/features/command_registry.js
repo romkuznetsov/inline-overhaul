@@ -5,55 +5,35 @@
  *
  * Модуль спрашивает `globalThis.__inlineSay` через общий помощник: своей копии
  * этого правила заводить нельзя, из тройки таких копий уже вырос дефект Б-11.
+ *
+ * **Литеральный `require` без запасного пути** — правило модулей
+ * (У-89, У-90, A33). До 2026-09-09 здесь стояла заглушка на месте модуля, и
+ * она **повторяла правило подстановки `{0}`** — то есты была третьей копией
+ * того самого, от чего предупреждает комментарий выше. Модуль лежит в
+ * бандле; не приехал — плагин обязан упасть громко, а не работать
+ * наполовину и молчать.
  */
-const __say = (() => {
-  try {
-    const mod = require("../core/say.js");
-    if (mod && typeof mod.say === "function") return mod.say;
-  } catch (_) {}
-  return (key, english, ...args) => args.reduce(
-    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
-    String(english == null ? "" : english),
-  );
-})();
+const __say = require("../core/say.js").say;
 
 /** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
 function __noticeKey(area, name) {
   return "notice." + area + "." + name;
 }
 
-const __pkmOptionKeys = (() => {
-  try {
-    if (typeof require === "function") {
-      const mod = require("../core/pkm_option_keys.js");
-      if (mod && typeof mod === "object" && mod.KEYS && typeof mod.KEYS === "object") return mod;
-    }
-  } catch (_) {}
-  return {
-    KEYS: {
-      RULES_PATH: "Rules path",
-      ACTION_TYPE: "Action type",
-      SUBTAG_FORMAT: "Subtag format",
-      CYCLE_END_BEHAVIOR: "Cycle end behavior",
-      CURSOR_POLICY: "Cursor policy",
-      ORDER_CONFIG: "Order config",
-      DIRECTION: "Direction",
-      DATE_RUNTIME_CONFIG: "Date runtime config",
-    },
-  };
-})();
+/*
+ * И два остальных модуля — так же, литеральным `require`.
+ *
+ * У снятых заглушек была цена дороже молчания, и в обоих случаях они
+ * были **вторым объявлением правила** (У-32):
+ *
+ *   * список `KEYS` был переписан рукой. Переименуй ключ в оригинале — и
+ *     движок читал бы через заглушку чужой параметр;
+ *   * `inferOrderFieldType: () => "tag"` отвечала «всегда тег», то есть молча
+ *     перепутала бы тип каждого Field типа link и element.
+ */
+const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 
-const __pkmDomainRegistry = (() => {
-  try {
-    if (typeof require === "function") {
-      const mod = require("../core/pkm_domain_registry.js");
-      if (mod && typeof mod === "object") return mod;
-    }
-  } catch (_) {}
-  return {
-    inferOrderFieldType: () => "tag",
-  };
-})();
+const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
 
 function getBehaviorValue(cfg, key, dflt) {
   if (cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior[key] != null) return cfg.pkm.behavior[key];

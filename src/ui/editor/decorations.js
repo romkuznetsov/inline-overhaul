@@ -25,6 +25,7 @@ const __priorityStripEngine = require("../../core/priority_strip_engine.js");
 const __priorityStripCm6Adapter = require("../../core/priority_strip_cm6_adapter.js");
 const __commandIds = require("../../features/command_ids.js");
 const __editorVisualsConfig = require("../../core/editor_visuals_config.js");
+const __devLog = require("../../core/dev_log.js");
 
 function isObj(x) { return __sharedUtils.isObj(x); }
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
@@ -72,27 +73,16 @@ const {
   tagwheelPanelSpans,
 } = __editorVisualsConfig;
 
-/**
- * Запись в журнал разработчика — **одно место на весь слой оформления**
- * (Д-4, 2026-09-09).
+/*
+ * Запись следа в журнал разработчика живёт в модуле журнала —
+ * `dev_log.traceQuietly`, и там же объяснено, почему она молчит о своём
+ * собственном отказе. Здесь только короткое имя: тела ниже зовут его без
+ * префикса, и приписывать префикс значило бы править переехавший код (У-11).
  *
- * Таких записей в слое было пять, и каждая несла свой `try` с пустым `catch`:
- * то есть правило «что делать, если журнал не записался» было объявлено пять
- * раз (У-32). Теперь оно одно.
- *
- * Проверка «журнал есть» тоже жила пять раз, и с разными условиями: одна
- * запись спрашивала `plugin`, другая — `plugin.devLogEvent`. Здесь спрашивается
- * то, что действительно нужно, — сама функция.
+ * Сюда её тянуло семь мест по всей программе, и каждое несло свой `try` с
+ * пустым `catch` — то есть правило было объявлено семь раз (У-32, Д-4).
  */
-function traceEvent(plugin, cfg, name, payload) {
-  if (!plugin || typeof plugin.devLogEvent !== "function") return;
-  try {
-    plugin.devLogEvent(name, payload, "trace", cfg);
-  } catch (_) {
-    /* Украшение: журнал стоит последним в цепочке, и уронить отрисовку ему
-       нечем и незачем. Записи не стало — заметка цела. */
-  }
-}
+const traceEvent = __devLog.traceQuietly;
 
 /**
  * Отрезки оформления → набор платформы, **с отчётом об отказах** (Д-4).

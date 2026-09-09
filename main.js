@@ -40,11 +40,32 @@ class InlineOverhaulPlugin extends Plugin {
     return String(this._lineTraceTxId || "");
   }
 
+  /**
+   * Один шаг выгрузки — одно правило на все шаги (Д-4, 2026-09-09).
+   *
+   * Шаги выгрузки независимы, и отказ одного не должен отменять
+   * остальные: иначе одна сломанная уборка оставит висеть остальные.
+   *
+   * **Но молчать об отказе тут нельзя.** Неснятый перехват `keydown`
+   * панели TagWheel — тот самый дефект Д-2, из-за которого человек терял
+   * стрелки и Enter до перезагрузки окна. Тихий отказ здесь возвращал бы
+   * его обратно и невидимо (правило отказов, второй вид: сломалось
+   * невидимое).
+   */
+  __unloadStep(what, step) {
+    try {
+      step();
+    } catch (e) {
+      console.error("[inline-overhaul][unload] шаг выгрузки " + String(what)
+        + " не выполнился: " + String((e && e.message) || e || ""));
+    }
+  }
+
   onunload() {
-    try { this.closeDevLogSession(this.getConfig()); } catch (_) {}
+    this.__unloadStep("dev-log", () => this.closeDevLogSession(this.getConfig()));
     /* Открытая панель TagWheel держит перехват `keydown` на всём окне, и без
        этой строки он живёт до перезагрузки окна (Д-2). */
-    try { __pluginCommands.closeTagWheelSession(); } catch (_) {}
+    this.__unloadStep("tagwheel-session", () => __pluginCommands.closeTagWheelSession());
     __editorStyles.removeAll(this);
     if (this.store) this.store.unload();
   }

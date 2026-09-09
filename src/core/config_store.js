@@ -5,17 +5,13 @@
  *
  * Модуль спрашивает `globalThis.__inlineSay` через общий помощник: своей копии
  * этого правила заводить нельзя, из тройки таких копий уже вырос дефект Б-11.
+ *
+ * **Литеральный `require` без запасного пути** — правило модулей (У-89,
+ * У-90, A33). До 2026-09-09 здесь стояла заглушка, и она **повторяла правило
+ * подстановки `{0}`** — то есть была ещё одной той самой копией, о которой
+ * предупреждает абзац выше. Таких копий было четыре, в четырёх файлах.
  */
-const __say = (() => {
-  try {
-    const mod = require("./say.js");
-    if (mod && typeof mod.say === "function") return mod.say;
-  } catch (_) {}
-  return (key, english, ...args) => args.reduce(
-    (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
-    String(english == null ? "" : english),
-  );
-})();
+const __say = require("./say.js").say;
 
 /** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
 function __noticeKey(area, name) {

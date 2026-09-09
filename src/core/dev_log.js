@@ -106,7 +106,13 @@ async function listLogFiles(adapter, parts) {
       if (!m) continue;
       out.push({ path: p, role: String(m[2] || "").toLowerCase(), ts: String(m[3] || "") });
     }
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Проба: спросили адаптер о папке, которой может не быть — при
+     * первом включении журнала её и нет. Ответ «нет» здесь и есть ответ:
+     * список пуст, старые файлы чистить нечего, новый будет создан.
+     */
+  }
   out.sort((a, b) => String(b.ts).localeCompare(String(a.ts)));
   return out;
 }
@@ -256,12 +262,28 @@ async function startSession(plugin, cfg) {
   const partsAi = logPathParts(dm, "ndjson");
   plugin._devLogSessionId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   plugin._devLogSeq = 0;
+  /**
+   * Снять файл журнала — одно правило на два места (Д-4, У-32).
+   *
+   * Уборка: снимается то, чего может уже не быть — человек чистит папку
+   * сам, или два окна Obsidian вертят журнал одновременно. Цель достигнута
+   * в любом случае: файла нет.
+   */
+  const dropFile = async (path) => {
+    if (typeof adapter.remove !== "function") return;
+    try {
+      await adapter.remove(path);
+    } catch (_) {
+      /* См. выше: уборка того, чего может уже не быть. */
+    }
+  };
+
   const rotateByParts = async (parts) => {
     const existing = await listLogFiles(adapter, parts);
     const prevNew = existing.find((x) => x.role === "new") || null;
     const allOld = existing.filter((x) => x.role === "old");
     for (const o of allOld) {
-      try { if (typeof adapter.remove === "function") await adapter.remove(o.path); } catch (_) {}
+      await dropFile(o.path);
     }
     if (prevNew) {
       let previous = "";
@@ -271,9 +293,20 @@ async function startSession(plugin, cfg) {
         try {
           await ensureDirectoryForFilePath(adapter, oldPath);
           await adapter.write(oldPath, previous);
-        } catch (_) {}
+        } catch (e) {
+          /*
+           * **Здесь теряется предыдущий журнал**, и до 2026-09-09 это молчало
+           * (Д-4). Следующая строка снимает его оригинал в любом случае:
+           * иначе новая сессия дописывала бы в чужой файл.
+           *
+           * Отчёт идёт в консоль, а не в журнал: сам журнал в этот момент
+           * ещё не открыт, и отчёт о его собственном отказе ехать туда не может.
+           */
+          console.error("[inline-overhaul][dev-log] предыдущий журнал не сохранён "
+            + "в " + oldPath + ": " + String((e && e.message) || e || ""));
+        }
       }
-      try { if (typeof adapter.remove === "function") await adapter.remove(prevNew.path); } catch (_) {}
+      await dropFile(prevNew.path);
     }
   };
   await rotateByParts(partsMd);
@@ -299,12 +332,44 @@ async function startSession(plugin, cfg) {
   }, "info", cfg);
 }
 
+/**
+ * Запись следа в журнал — **один дом на всю программу** (Д-4, 2026-09-09).
+ *
+ * Таких записей по коду было семь, и каждая несла свой `try` с пустым
+ * `catch`: правило «что делать, если журнал не записался» было объявлено семь
+ * раз (У-32), и условие «журнал есть» тоже — с разными проверками: одна
+ * запись спрашивала `plugin`, другая `plugin.devLogEvent`.
+ *
+ * Зовётся **шов плагина**, а не `event` напрямую: через шов идёт вся
+ * остальная программа, и второй путь записи разошёлся бы с первым молча.
+ *
+ * Молчит нарочно и только про свой собственный отказ: журнал стоит
+ * последним в цепочке, и уронить то, ради чего его пишут, ему нечем и
+ * незачем.
+ */
+function traceQuietly(plugin, cfg, name, payload) {
+  if (!plugin || typeof plugin.devLogEvent !== "function") return;
+  try {
+    plugin.devLogEvent(name, payload, "trace", cfg);
+  } catch (_) {
+    /* Украшение: записи не стало, а то, ради чего её делали, цело. */
+  }
+}
+
 async function closeSession(plugin, cfg, forceWrite) {
   if (!forceWrite && !shouldWrite(plugin, cfg)) return;
   event(plugin, "session.end", { sessionId: plugin._devLogSessionId }, "info", cfg);
   try {
     await (plugin._devLogWriteQueue || Promise.resolve());
-  } catch (_) {}
+  } catch (e) {
+    /*
+     * Хвост очереди записей не дошёл до диска: конец журнала оборван, и
+     * именно его читают в первую очередь, когда ищут причину отказа. В
+     * сам журнал об этом не напишешь — туда и не пишется.
+     */
+    console.error("[inline-overhaul][dev-log] конец журнала не записан: "
+      + String((e && e.message) || e || ""));
+  }
   plugin._devLogActivePathMd = "";
   plugin._devLogActivePathAi = "";
 }
@@ -343,6 +408,7 @@ module.exports = {
   ensureDirectoryForFilePath,
   buildLine,
   event,
+  traceQuietly,
   startSession,
   closeSession,
   writeLine,
