@@ -72,7 +72,77 @@ function files(): string[] {
 }
 
 /**
+ * Тот же файл, где содержимое комментариев и строковых литералов заменено
+ * пробелами. Длина и переводы строк сохранены, поэтому места в маске и в
+ * исходнике совпадают знак в знак.
+ *
+ * **Зачем маска.** `catch (_) {}`, написанный в объяснении **прозой**, местом
+ * молчания не является, а обход по сырому тексту считал его местом — и долг
+ * тогда растёт от того, что кто-то объяснил соседнее молчание словами. Найдено
+ * 2026-09-10 собственной правкой третьего куска В-97: объяснение к четырём
+ * снятым копиям завело в отчёте пятое, несуществующее место.
+ *
+ * Разбирается ровно то, что нужно: комментарии двух видов и три вида кавычек.
+ *
+ * **Кавычка закрывается не дальше конца строки, и это не небрежность.** Своего
+ * разборщика JS здесь нет и быть не должно: он врёт молча (У-96). Первая
+ * версия этой маски бежала за парной кавычкой до конца файла — и первая же
+ * кавычка внутри регулярного литерала (`/['"]/`) стёрла `settings_backup.js`
+ * целиком, вместе с девятью настоящими местами. Промах был зелёным на вид:
+ * назвал его порог «пустых catch больше пятидесяти», а не сам разбор.
+ * Ограничение строкой держит любую такую ошибку в пределах одной строки.
+ */
+function maskCommentsAndStrings(body: string): string {
+  const out = body.split("");
+  const blank = (from: number, to: number): void => {
+    for (let i = from; i < to && i < out.length; i++) {
+      if (out[i] !== "\n") out[i] = " ";
+    }
+  };
+  const lineEnd = (from: number): number => {
+    const nl = body.indexOf("\n", from);
+    return nl < 0 ? body.length : nl;
+  };
+  let i = 0;
+  while (i < body.length) {
+    const two = body.slice(i, i + 2);
+    if (two === "//") {
+      const end = lineEnd(i);
+      blank(i, end);
+      i = end;
+      continue;
+    }
+    if (two === "/*") {
+      const end = body.indexOf("*/", i + 2);
+      blank(i, end < 0 ? body.length : end + 2);
+      i = end < 0 ? body.length : end + 2;
+      continue;
+    }
+    const ch = body[i];
+    if (ch === '"' || ch === "'" || ch === "`") {
+      const stop = lineEnd(i);
+      let j = i + 1;
+      while (j < stop) {
+        if (body[j] === "\\") { j += 2; continue; }
+        if (body[j] === ch) break;
+        j++;
+      }
+      /* Пары на этой строке нет — значит это не литерал, и стирать нечего. */
+      if (j >= stop) { i += 1; continue; }
+      blank(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    i++;
+  }
+  return out.join("");
+}
+
+/**
  * Пустые `catch` файла: номер строки и есть ли объяснение.
+ *
+ * Ищется по маске (см. выше), а читается — по исходнику: место берётся из
+ * кода, а объяснение как раз и есть комментарий.
  *
  * Объяснением считается комментарий **внутри** скобок или в той же строке —
  * то есть там, где его увидит тот, кто читает это место. Комментарий абзацем
@@ -80,14 +150,16 @@ function files(): string[] {
  */
 function emptyCatches(body: string, rel: string): Found[] {
   const out: Found[] = [];
+  const masked = maskCommentsAndStrings(body);
   /* `catch (_) { … }` и `catch { … }`, где внутри нет ни одного оператора. */
   const re = /catch\s*(?:\(\s*[A-Za-z_$][\w$]*\s*\)\s*)?\{([^{}]*)\}/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(body)) !== null) {
-    const inside = String(m[1] || "");
-    /* Комментарии снимаются: то, что осталось, и есть работа блока. */
-    const work = inside.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "").trim();
-    if (work) continue;
+  while ((m = re.exec(masked)) !== null) {
+    /* Работа блока — по маске: комментарий там уже стёрт до пробелов. */
+    if (String(m[1] || "").trim()) continue;
+    /* А объяснение — по исходнику, на том же месте и той же длины. */
+    const span = body.slice(m.index, m.index + m[0].length);
+    const inside = span.slice(span.indexOf("{") + 1, span.lastIndexOf("}"));
     const line = body.slice(0, m.index).split("\n").length;
     /* Объяснение — комментарий внутри блока или в остатке той же строки. */
     const tail = String(body.slice(m.index + m[0].length).split("\n")[0] || "");
@@ -227,16 +299,7 @@ function emptyCatches(body: string, rel: string): Found[] {
  * «уборка» над пустым блоком. Такое снятие хуже долга: оно тратит проверку,
  * оставляя дефект. Пятёрка выше снята сменой поведения, а не словами.
  */
-const DEBT: Readonly<Record<string, number>> = {
-  "pkm_v2/TagWheel/tagwheel.js": 9,
-  "navigation_runtime.js": 7,
-  "pkm_v2/status_date.js": 5,
-  "pkm_v2/status_tags.js": 2,
-  "pkm_runtime_v2.js": 1,
-  "src/core/pkm_rules_runtime_helpers.js": 1,
-  "src/core/pkm_runtime_bootstrap.js": 1,
-  "src/core/status_runtime_common.js": 1,
-};
+const DEBT: Readonly<Record<string, number>> = {};
 
 {
   const all: Found[] = [];
@@ -245,7 +308,14 @@ const DEBT: Readonly<Record<string, number>> = {
     all.push(...emptyCatches(fs.readFileSync(file, "utf8"), rel));
   }
 
-  assert.ok(all.length > 50,
+  /*
+   * Порог, а не точное число: объяснённые места не убывают, а долг по мере
+   * разбора уходит в ноль, и число тут будет падать. Стережёт он одно — обход,
+   * который перестал находить что-либо: сломанный образец, пустой список
+   * файлов, съеденный маской файл. Именно этот порог и поймал маску, бежавшую
+   * за кавычкой до конца файла (2026-09-10).
+   */
+  assert.ok(all.length > 20,
     "пустых catch нашлось " + all.length + " — обход смотрит не туда, и запрет ниже мерит пустоту");
 
   const silent = all.filter(f => !f.explained);
@@ -290,12 +360,42 @@ const DEBT: Readonly<Record<string, number>> = {
     "try { b() } catch (_) { /* проба: платформа могла не дать этого метода */ }",
     "try { c() } catch (e) { report(e) }",
     "try { d() } catch { /* уборка: узла может уже не быть */ }",
+    /*
+     * И две ловушки маски: то же написание в объяснении прозой и в строковом
+     * литерале. Ни то, ни другое местом молчания не является — иначе долг
+     * растёт от того, что кто-то объяснил соседнее место словами.
+     */
+    "/* было четыре копии catch (_) {} подряд, и все сняты */",
+    'var s = "catch (_) {}"',
   ].join("\n");
   const found = emptyCatches(sample, "образец");
   assert.equal(found.length, 3, "обход нашёл " + found.length + " пустых catch из трёх");
   assert.deepEqual(found.map(f => f.explained), [false, true, true],
     "объяснение опознаётся по слову семьи, и его отсутствие — тоже");
   ok("положительный контроль: обход отличает объяснённое молчание от безымянного");
+
+  /*
+   * Мутация к самой маске, отдельным утверждением: без неё образец выше даёт
+   * пять мест вместо трёх. Контроль на пустоте («ничего не нашлось») здесь
+   * ничего бы не сказал — предмет надо создать (У-113).
+   */
+  const rawFound = emptyCatches(
+    "/* catch (_) {} */\ntry { a() } catch (_) {}", "образец без маски");
+  assert.equal(rawFound.length, 1,
+    "написание в комментарии посчитано местом: маска комментариев не работает");
+  ok("контроль маски: `catch (_) {}` в объяснении и в строке местом не считается");
+
+  /*
+   * И контроль на промах в обратную сторону — тот, которым маска уже
+   * ошиблась. Непарная кавычка внутри регулярного литерала не имеет права
+   * съесть код за ней: первая версия маски бежала за парой до конца файла и
+   * потеряла девять настоящих мест в `settings_backup.js`.
+   */
+  const afterRegex = emptyCatches(
+    "const re = /['\"]/\ntry { a() } catch (_) {}", "образец с литералом");
+  assert.equal(afterRegex.length, 1,
+    "кавычка в регулярном литерале съела код за собой: маска потеряла место молчания");
+  ok("контроль маски: непарная кавычка не стирает код за собой");
 }
 
 {

@@ -1695,8 +1695,64 @@ async function run() {
   await testStatusTagsClientsHydrationUsesLastTokenOccurrence();
   await testStatusTagsClientsRepeatedCycleDoesNotAccumulateDuplicates();
   await testStatusTagsKeepsBracketedTextThatIsNotCheckbox();
+  await testFailedNoticeReachesTheConsole();
   assertTrue(typeof runtime.runCommand === "function", "runtime exports runCommand");
   console.log("Status runtime behavior tests: OK");
+}
+
+/*
+ * Отчёт о сбое, который не удалось показать, обязан уехать в консоль
+ * (третий кусок В-97, 2026-09-10).
+ *
+ * **Что здесь проверяется поведением, а не текстом.** Файла правил нет, и
+ * движок обязан сказать об этом человеку. Показ сообщения при этом отказывает:
+ * `Notice` платформы бросает. Прежде тут стоял пустой `catch`, и человек
+ * оставался без результата **и** без причины — команда молча не делала
+ * ничего. Теперь причина уезжает в журнал разработчика.
+ *
+ * Мутация: вернуть `catch (_) {}` вокруг показа — и эта проверка краснеет,
+ * потому что в консоли не окажется ни строки.
+ */
+async function testFailedNoticeReachesTheConsole() {
+  const editor = makeEditor("- [ ] #todo || text", 5);
+  const app = makeAppForRuntime(editor);
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  const prevError = console.error;
+  const reported = [];
+  if (!global.window) global.window = makeWindowMock();
+  global.Notice = function Notice() { throw new Error("Notice is not available"); };
+  console.error = function () {
+    reported.push(Array.prototype.slice.call(arguments).map(String).join(" "));
+  };
+  try {
+    await runtime.runCommand({
+      app,
+      command: "statusTags",
+      settings: {
+        "Rules path": "no-such-rules-file.md",
+        "Action type": "cycle_field:importance",
+        "Direction": "increase",
+      },
+    });
+  } catch (_) {
+    /*
+     * Проба: до правки эта ветка кончалась `return`, и бросить было нечему.
+     * Если движок однажды начнёт бросать наружу — это тоже громкий отказ, а
+     * не тихий, и утверждения ниже всё равно спросят про консоль.
+     */
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+    console.error = prevError;
+  }
+  const said = reported.join("\n");
+  assertTrue(/\[inline-overhaul\]/.test(said),
+    "отказ показа сообщения не попал в консоль: человек остался без причины,\n"
+    + "  а в журнале нет ни строки. Что записано: " + JSON.stringify(said.slice(0, 200)));
+  assertTrue(/no-such-rules-file|Rules file not found/.test(said),
+    "в консоль уехало что-то другое, а не само сообщение о ненайденном файле правил:\n"
+    + "  " + JSON.stringify(said.slice(0, 200)));
 }
 
 if (require.main === module) {

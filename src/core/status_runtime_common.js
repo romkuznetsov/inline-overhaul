@@ -238,7 +238,13 @@ function createStatusRuntimeCommon(deps) {
         if (cur && Number(cur.line) === nextLine && Number(cur.ch) === nextCh) return;
       }
       editor.setCursor({ line: nextLine, ch: nextCh });
-    } catch (_) {}
+    } catch (_) {
+      /*
+       * Украшение: строка к этому моменту уже перезаписана, а курсор —
+       * последний штрих. Место могло уехать за конец строки или заметку успели
+       * закрыть; отменять из-за этого сделанную запись нельзя.
+       */
+    }
   }
 
   function parseIsoDateSafe(input) {

@@ -90,7 +90,14 @@ async function readRulesMarkdownWithFallback(app_, rawPath, defaultRulesPath) {
       try {
         const md = await adapter.read(p);
         return { markdown: md, path: p };
-      } catch (_) {}
+      } catch (_) {
+        /*
+         * Проба: этого пути в vault может не быть — перебираются кандидаты, и
+         * «нет файла» здесь ответ, а не отказ. Настоящий отказ громкий: не
+         * нашёлся ни один — строкой ниже бросается ошибка, и её текст
+         * человеку показывают вызывающие.
+         */
+      }
     }
   }
   throw new Error("Rules file not found: " + normalized);

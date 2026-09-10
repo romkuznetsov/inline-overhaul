@@ -34,6 +34,7 @@ var __tagwheelScrollerOverlayMod = require('../../src/ui/tagwheel_scroller_overl
 var __tagwheelCoreMod = require('./tagwheel_core.js')
 var __pkmOptionKeysMod = require('../../src/core/pkm_option_keys.js')
 var __pkmDomainRegistryMod = require('../../src/core/pkm_domain_registry.js')
+var __say = require('../../src/core/say.js').say
 /* Пакет даёт сам Obsidian: в сборке он объявлен внешним и в бандл не идёт. */
 var __cmState = require('@codemirror/state')
 
@@ -206,8 +207,9 @@ function setLineOutsideHistory(editor, lineNumber, text) {
  *
  * Форма вызова: `notice(key, english, ...args)`. Английское остаётся здесь же,
  * вторым аргументом: слой настроек может не загрузиться вовсе, и тогда человек
- * обязан увидеть сообщение, а не ключ. Шов — `globalThis.__inlineSay`, тот же
- * способ доставки, каким этот файл получает всё остальное.
+ * обязан увидеть сообщение, а не ключ. Сам шов спрашивает общий код —
+ * `src/core/say.js`, — а не этот файл: с 2026-09-10 своей копии тут нет
+ * (В-100).
  *
  * Ключ собирает `tagWheelNoticeKey`, а не литерал на месте вызова (У-82).
  */
@@ -217,19 +219,18 @@ function tagWheelNoticeKey(name) {
 
 function makeTagWheelNotice(NoticeRef) {
   return function notice(key, english, ...args) {
-    var text = String(english == null ? '' : english)
-    var ask = globalThis.__inlineSay
-    if (typeof ask === 'function') {
-      try {
-        var said = ask(String(key), text)
-        if (typeof said === 'string' && said !== '') text = said
-      } catch (_) {}
-    }
-    /* Подстановка по номеру, а не склейка через `+`: по-русски то, что
-       по-английски стоит в конце фразы, встаёт в начало. */
-    for (var i = 0; i < args.length; i++) {
-      text = text.split('{' + i + '}').join(String(args[i] == null ? '' : args[i]))
-    }
+    /*
+     * Текст спрашивается у общего кода, своей копии здесь нет (В-100,
+     * 2026-09-10, тридцать седьмое исключение к З3). Правило «спросить шов,
+     * при отказе остаться на английском, подставить `{0}` по номеру, а не
+     * склейкой» живёт в `src/core/say.js` и было объявлено четыре раза: там и
+     * в трёх движках.
+     *
+     * Своё у панели остаётся только одно — куда сказанное девать, если
+     * `Notice` платформы не достался: тогда строка уходит в консоль, а не
+     * пропадает.
+     */
+    var text = __say(key, english, ...args)
     if (typeof NoticeRef === 'function') new NoticeRef(text)
     else console.log('[tagwheel] ' + text)
   }
@@ -239,7 +240,16 @@ function reportTagWheelError(err) {
   try {
     if (globalThis.__inlineDebugLoaders !== true) return
     console.error(err)
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Здесь молчать обязательно: это сам отчётчик об отказе панели, и отчёт о
+     * его собственном отказе девать некуда, кроме него же. Сказать ли о
+     * первом отказе человеку — решает место вызова, и решает по-разному: из
+     * четырёх два зовут рядом `notice` (ошибка панели, ошибка запуска), а два
+     * молчат нарочно — там за отказом стоит запасной путь (запись строки
+     * мимо истории) или пропажа украшения (коробка скроллера не собралась).
+     */
+  }
 }
 
 function resolveTagWheelDevLogger(app_) {
@@ -255,7 +265,13 @@ function resolveTagWheelDevLogger(app_) {
       if (!plugin || typeof plugin.devLogEvent !== 'function') continue
       return plugin
     }
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Проба: реестра плагинов у платформы может не быть вовсе — это приватное
+     * API, и оно не обязано существовать. «Нет журнала» — ответ, а не отказ:
+     * ниже возвращается `null`, и записи просто не будет.
+     */
+  }
   return null
 }
 
@@ -265,7 +281,14 @@ function emitTagWheelDevEvent(app_, eventName, payload) {
     if (!plugin || typeof plugin.devLogEvent !== 'function') return
     var cfg = typeof plugin.getConfig === 'function' ? plugin.getConfig() : null
     plugin.devLogEvent(String(eventName || ''), payload || {}, 'info', cfg)
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Украшение: это след в журнале разработчика — и до работы (`run.start`),
+     * и после неё (`run.result`). Не записался — работа от этого не меняется
+     * ни в одну сторону. В сам журнал о его отказе не напишешь, а говорить
+     * человеку про пропавший след — шум вместо дела.
+     */
+  }
 }
 
 function resolveTagWheelApp(x) {
@@ -294,7 +317,14 @@ function getTagWheelEditor(app_) {
       if (mdView && mdView.editor) return mdView.editor
       if (mdView && mdView.currentMode && mdView.currentMode.editor) return mdView.currentMode.editor
     }
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Проба, и она четвёртая по счёту: у платформы спрашивается конструктор
+     * вида заметки через реестр плагинов — приватное API, которого может не
+     * быть. «Нет» здесь ответ: ниже возвращается `null`, а человеку про
+     * отсутствие редактора говорит уже вызывающий, уведомлением.
+     */
+  }
 
   return null
 }
@@ -306,7 +336,16 @@ function cleanupTagWheelState(state) {
     if (state.scrollerOverlay && typeof state.scrollerOverlay.destroy === 'function') {
       state.scrollerOverlay.destroy()
     }
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Уборка: коробки скроллера может уже не быть — заметку закрыли, узел
+     * сняли, сессия кончилась другим путём. Цель достигнута в любом случае.
+     * И порядок здесь не случаен: перехват `keydown` на всё окно снимается
+     * **выше** этого блока, а сессия гасится строкой ниже — ни то, ни другое
+     * не имеет права остаться несделанным из-за неудавшейся уборки картинки
+     * (шов Д-2, В-91).
+     */
+  }
   state.active = false
 }
 
@@ -1727,7 +1766,13 @@ async function runTagWheel(input, quickAddSettings) {
         upItems: snapshot.upItems,
         downItems: snapshot.downItems,
       })
-    } catch (_) {}
+    } catch (_) {
+      /*
+       * Украшение: оверлей скроллера рисуется поверх текста человека и права
+       * его уронить не имеет. Не обновился — на экране останется прежний
+       * кадр коробки, а сама строка и выбор в панели целы.
+       */
+    }
   }
 
   function cancelSelection(state) {
@@ -1918,7 +1963,15 @@ async function runTagWheel(input, quickAddSettings) {
     }
     var rawOrder = runtimeInput ? runtimeInput.orderConfig : undefined
     if (!rawOrder && rules && rules.behavior && rules.behavior.order) {
-      try { rawOrder = JSON.stringify(rules.behavior.order) } catch (_) {}
+      /*
+       * Без охраны, и вот почему (третий кусок В-97). `behavior` целиком
+       * пришёл из JSON-блока заметки правил — `parseJsonBlock` → `JSON.parse`,
+       * — а у разобранного JSON не бывает ни круга, ни `BigInt`, то есть
+       * бросить здесь нечем. Прежний пустой `catch` при отказе оставлял
+       * `rawOrder` пустым, и порядок Fields тихо не применялся бы вовсе:
+       * охрана, которая не может сработать, но, сработав, портит молча.
+       */
+      rawOrder = JSON.stringify(rules.behavior.order)
     }
     var orderCfg
     if (facade && typeof facade.resolveOrderConfig === 'function') {
@@ -2049,7 +2102,15 @@ async function runTagWheel(input, quickAddSettings) {
           handled = true
         }
       } catch (err) {
-        try { cleanupTagWheelState(state) } catch (_) {}
+        try {
+          cleanupTagWheelState(state)
+        } catch (_) {
+          /*
+           * Уборка, и она обязана быть тихой: об отказе, из-за которого мы
+           * сюда попали, человеку говорится следующей строкой, и второй
+           * отказ — самой уборки — не имеет права съесть это сообщение.
+           */
+        }
         notice(tagWheelNoticeKey('error'), 'TagWheel error: {0}',
           (err && err.message) ? err.message : err)
         reportTagWheelError(err)

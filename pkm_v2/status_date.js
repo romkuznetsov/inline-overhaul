@@ -24,6 +24,7 @@ const __tokenGraphUnified = require("../src/core/token_graph_unified.js");
 const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
 const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
+const __say = require("../src/core/say.js").say;
 let __statusRuntimeCommonFns = null;
 
 const DATE_ACTION_OPTIONS = [];
@@ -38,19 +39,46 @@ function statusDateNoticeKey(name) {
   return 'notice.rules.' + name;
 }
 
+/*
+ * Спрашивает общий код и своей копии не держит (В-100, 2026-09-10, тридцать
+ * седьмое исключение к З3).
+ *
+ * **Что было.** Здесь лежала своя реализация того же правила: спросить шов,
+ * при отказе остаться на английском, подставить `{0}`. Дом у правила есть —
+ * `src/core/say.js`, — и объявлено оно было **четыре раза**: там и в трёх
+ * движках. Расходятся такие копии молча, и из ровно такой копии выросло
+ * «31 февраля читается как 3 марта» (первый кусок В-97).
+ *
+ * Отказ шва молчит в общем коде, и объяснение стоит там же.
+ */
 function sayStatusDate(key, english, ...args) {
-  let text = String(english == null ? '' : english);
-  const ask = globalThis.__inlineSay;
-  if (typeof ask === 'function') {
-    try {
-      const said = ask(String(key), text);
-      if (typeof said === 'string' && said !== '') text = said;
-    } catch (_) {}
+  return __say(key, english, ...args);
+}
+
+/*
+ * Показ сообщения человеку — одно место на файл (третий кусок В-97).
+ *
+ * **Что было.** Четыре копии `try { new Notice(…) } catch (_) {}` подряд, и в
+ * каждой отказ показа проглатывался молча — то есть одно правило было
+ * объявлено четыре раза (У-32), и все четыре раза неверно.
+ *
+ * **Почему молчать нельзя.** Два из четырёх сообщений — отчёты о сбое: файл
+ * правил не прочитан и правила не сходятся после применения порядка. После
+ * обоих работа прекращается, и если показать сообщение не удалось, человек
+ * остаётся и без результата, и без причины. Это второй вид отказа, а не
+ * третий: он уезжает в журнал разработчика — `console.error` с приставкой
+ * плагина.
+ *
+ * `Notice` — глобальное имя платформы, поэтому импорта у движка нет: Obsidian
+ * ставит его сам (`window.Notice = …` в `app.js` 1.13.7, спрошено у архива).
+ */
+function showStatusDateNotice(text) {
+  const message = String(text == null ? '' : text);
+  try {
+    new Notice(message);
+  } catch (e) {
+    console.error('[inline-overhaul] сообщение не показано: ' + message, e);
   }
-  for (let i = 0; i < args.length; i++) {
-    text = text.split('{' + i + '}').join(String(args[i] == null ? '' : args[i]));
-  }
-  return text;
 }
 
 function applyPkmOptionKeys(mod) {
@@ -1235,19 +1263,15 @@ module.exports = {
       rulesMd = loaded.markdown;
       usedRulesPath = loaded.path;
     } catch (e) {
-      try {
-        new Notice((e && e.message)
-          ? e.message
-          : sayStatusDate(statusDateNoticeKey('file-missing'),
-            'Rules file not found: {0}', normalizeRulesPath(rulesPathInput)));
-      } catch (_) {}
+      showStatusDateNotice((e && e.message)
+        ? e.message
+        : sayStatusDate(statusDateNoticeKey('file-missing'),
+          'Rules file not found: {0}', normalizeRulesPath(rulesPathInput)));
       return;
     }
     if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
-      try {
-        new Notice(sayStatusDate(statusDateNoticeKey('path-fallback'),
-          'Using the rules file at {0}', usedRulesPath));
-      } catch (_) {}
+      showStatusDateNotice(sayStatusDate(statusDateNoticeKey('path-fallback'),
+        'Using the rules file at {0}', usedRulesPath));
     }
     const rules = core.parseRulesFromMarkdown(rulesMd);
     const statusCommon = getStatusRuntimeCommon();
@@ -1257,20 +1281,16 @@ module.exports = {
     try {
       core.validateRules(rules);
     } catch (e) {
-      try {
-        new Notice(sayStatusDate(statusDateNoticeKey('config-error'),
-          'Rules are not valid after applying the order: {0}',
-          String(e && e.message ? e.message : e || "validateRules failed")));
-      } catch (_) {}
+      showStatusDateNotice(sayStatusDate(statusDateNoticeKey('config-error'),
+        'Rules are not valid after applying the order: {0}',
+        String(e && e.message ? e.message : e || "validateRules failed")));
       return;
     }
     const missingEmojiFields = collectMissingEmojiFields(rules, dateRuntimeCfg);
     if (missingEmojiFields.length) {
-      try {
-        new Notice(sayStatusDate(statusDateNoticeKey('emoji-required'),
-          'These Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields',
-          missingEmojiFields.join(", ")));
-      } catch (_) {}
+      showStatusDateNotice(sayStatusDate(statusDateNoticeKey('emoji-required'),
+        'These Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields',
+        missingEmojiFields.join(", ")));
     }
 
     const actionDefaultField = String(getFirstElementFieldKey(rules) || "").trim();

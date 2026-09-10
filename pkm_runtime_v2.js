@@ -1,12 +1,12 @@
 "use strict";
 
-function reportLoaderFallback(stage, err) {
-  try {
-    if (globalThis.__inlineDebugLoaders !== true) return;
-    const msg = err && err.message ? String(err.message) : String(err || "");
-    console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {}
-}
+/*
+ * Отчётчика об отказе загрузки здесь больше нет: он был объявлен и не позван
+ * ни разу — ни в этом файле, ни где-либо ещё (снят 2026-09-10, третий кусок
+ * В-97). Загрузка по путям внутри vault ушла вместе с мостом модулей
+ * 2026-09-07, а отчёт о её отказе остался стоять — и читался как живой (У-95).
+ * Живая копия того же правила лежит в `src/features/plugin_commands.js`.
+ */
 
 function getSharedUtils() {
   try {

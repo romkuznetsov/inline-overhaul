@@ -402,7 +402,13 @@ function restoreScrollStateSafe(editor, state) {
     if (!dom) return;
     dom.scrollTop = state.top;
     dom.scrollLeft = state.left;
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Украшение: прокрутка не вернулась на прежнее место, а строка, ради
+     * которой её запоминали, уже переставлена. Уронить команду перемещения
+     * из-за вида — обменять сделанную работу на её оформление.
+     */
+  }
 }
 
 /**
@@ -453,7 +459,14 @@ function holdScrollState(editor, state) {
       ? win.requestAnimationFrame.bind(win)
       : null;
     if (raf) raf(() => restoreScrollStateSafe(editor, state));
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Проба и украшение сразу: окна у редактора может не быть вовсе —
+     * `ownerDocument.defaultView` пуст у отсоединённого узла, — и тогда
+     * второй записи не будет. Без неё «не прокручивать» сработает через раз,
+     * а текст от этого не изменится ни на знак.
+     */
+  }
 }
 
 /**
@@ -479,8 +492,22 @@ function revealLineAt(editor, line, position, ch) {
       view.dispatch({ effects: ViewClass.scrollIntoView(editor.posToOffset(pos), { y }) });
       return;
     }
-  } catch (_) {}
-  try { editor.scrollIntoView({ from: pos, to: pos }, position === "center"); } catch (_) {}
+  } catch (_) {
+    /*
+     * Проба: эффекта прокрутки у класса представления может не быть — версия
+     * платформы другая, класс не тот. Это ответ, а не отказ: следующей
+     * строкой стоит обёртка Obsidian, отвечающая на тот же вопрос.
+     */
+  }
+  try {
+    editor.scrollIntoView({ from: pos, to: pos }, position === "center");
+  } catch (_) {
+    /*
+     * Украшение, и это последний из двух путей: место на экране не выбралось
+     * ни одним. Курсор при этом уже стоит там, куда его вёл переход, — видно
+     * будет не то место, а не не то поведение.
+     */
+  }
 }
 
 function restoreMovedSelection(editor, selRestore, oldStart, oldEnd, newStart, newEnd) {
@@ -633,7 +660,13 @@ function getEditorTabSize(editor) {
       const t = Number(editor.cm.state.tabSize);
       if (Number.isFinite(t) && t > 0) return Math.floor(t);
     }
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Проба: состояния CodeMirror у редактора может не быть — «нет» здесь
+     * ответ, а не отказ. Ниже стоит умолчание самой платформы, четыре
+     * пробела на шаг.
+     */
+  }
   return 4;
 }
 
@@ -1017,7 +1050,7 @@ function smartLineStartCh(s) { const t = String(s || ""); let i = 0; while (i < 
  * у перемещения: одно правило живёт в одном месте (У-32). Прежняя строка
  * звала обёртку Obsidian с `center = true`, и это ровно её `center`.
  */
-function centerOnCursorOnce(ed, p, cfg) { if (!cfg.centerCursor) return; if (!globalThis.__jumpCenterState) globalThis.__jumpCenterState = { t: 0, line: -1 }; const st = globalThis.__jumpCenterState; const now = Date.now(); if (now - st.t < cfg.centerThrottleMs && st.line === p.line) return; st.t = now; st.line = p.line; setTimeout(() => { try { revealLineAt(ed, p.line, cfg.viewPosition, p.ch); } catch (_) {} }, cfg.centerDelayMs); }
+function centerOnCursorOnce(ed, p, cfg) { if (!cfg.centerCursor) return; if (!globalThis.__jumpCenterState) globalThis.__jumpCenterState = { t: 0, line: -1 }; const st = globalThis.__jumpCenterState; const now = Date.now(); if (now - st.t < cfg.centerThrottleMs && st.line === p.line) return; st.t = now; st.line = p.line; setTimeout(() => { try { revealLineAt(ed, p.line, cfg.viewPosition, p.ch); } catch (_) { /* Украшение: заметку к этому моменту могли закрыть, и тогда ставить место на экране некуда. Переход уже случился, курсор стоит. */ } }, cfg.centerDelayMs); }
 async function setCursorRobustCentered(ed, p, cfg) { const apply = () => { ed.setCursor(p); if (typeof ed.focus === "function") ed.focus(); }; apply(); await sleep(0); apply(); await sleep(40); apply(); centerOnCursorOnce(ed, p, cfg); }
 function txt(ed, l) { return String(nz(ed.getLine(l), "")); }
 function len(ed, l) { return txt(ed, l).length; }
@@ -1197,7 +1230,14 @@ async function loadNavigateRules(app, rulesPath) {
         md = await adapter.read(cand);
         usedPath = cand;
         break;
-      } catch (_) {}
+      } catch (_) {
+        /*
+         * Проба: этого пути в vault может не быть — перебираются кандидаты,
+         * и «нет файла» здесь ответ, а не отказ. Настоящий отказ громкий:
+         * не нашёлся ни один — ниже бросается ошибка со списком всех
+         * проверенных путей.
+         */
+      }
     }
   }
 

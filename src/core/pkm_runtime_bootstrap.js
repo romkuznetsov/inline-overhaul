@@ -22,7 +22,17 @@ function reportLoaderFallback(stage, err) {
     if (globalThis.__inlineDebugLoaders !== true) return;
     const msg = err && err.message ? String(err.message) : String(err || "");
     console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {}
+  } catch (_) {
+    /*
+     * Здесь молчать обязательно: это сам отчётчик об отказе, и отчёт о его
+     * собственном отказе девать было бы некуда, кроме него же. Уронить
+     * загрузку из-за неудавшегося следа — второй отказ вместо одного.
+     *
+     * Та же четвёрка строк объявлена ещё и в
+     * `src/features/plugin_commands.js`: одно правило в двух местах, и
+     * сводить их — отдельная правка, не эта (третий кусок В-97).
+     */
+  }
 }
 
 /*

@@ -22,6 +22,7 @@ const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js"
 const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
 const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
+const __say = require("../src/core/say.js").say;
 
 let RULES_PATH = "Rules path";
 let ACTION_TYPE = "Action type";
@@ -1218,18 +1219,26 @@ module.exports = {
      */
     const noticeKey = (name) => "notice.rules." + name;
     const notice = (key, english, ...args) => {
-      let text = String(english ?? "");
-      const ask = globalThis.__inlineSay;
-      if (typeof ask === "function") {
-        try {
-          const said = ask(String(key), text);
-          if (typeof said === "string" && said !== "") text = said;
-        } catch (_) {}
+      /*
+       * Текст спрашивается у общего кода, своей копии здесь нет (В-100,
+       * 2026-09-10, тридцать седьмое исключение к З3). Правило «спросить шов,
+       * при отказе остаться на английском, подставить `{0}`» живёт в
+       * `src/core/say.js` и было объявлено четыре раза: там и в трёх движках.
+       */
+      const text = __say(key, english, ...args);
+      /*
+       * Отказ самого показа молчать не имеет права (третий кусок В-97). Через
+       * этот помощник идут и отчёты о сбое — файл правил не прочитан, правила
+       * не сходятся после применения порядка, — и после них работа
+       * прекращается: не показалось, значит человек остался и без результата,
+       * и без причины. Это второй вид отказа, и его место — журнал
+       * разработчика, а не тишина.
+       */
+      try {
+        new Notice(text);
+      } catch (e) {
+        console.error("[inline-overhaul] сообщение не показано: " + text, e);
       }
-      for (let i = 0; i < args.length; i++) {
-        text = text.split("{" + i + "}").join(String(args[i] ?? ""));
-      }
-      try { new Notice(text); } catch (_) {}
     };
     const rulesHelpers = globalThis.__inlinePkmRulesHelpers;
     if (!rulesHelpers || typeof rulesHelpers.normalizeRulesPath !== "function") {
