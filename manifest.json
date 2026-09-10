@@ -1,7 +1,7 @@
 {
   "id": "inline-overhaul",
   "name": "inlineOverhaul",
-  "version": "0.1.0-beta.4",
+  "version": "0.1.0-beta.5",
   "minAppVersion": "1.13.0",
   "description": "Keep tags, emoji-elements and links inside a single line, turn that line into a note from your own template, color your tags, put any snippet on a hotkey with Binder, retrain Ctrl+A, Delete and Backspace, and much more inside.",
   "author": "Kuzne",
