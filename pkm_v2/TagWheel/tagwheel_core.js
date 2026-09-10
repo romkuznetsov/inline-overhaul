@@ -332,14 +332,14 @@ function getKeepUnknownTags(rules) {
   return il.keepUnknownTags !== false
 }
 
+/*
+ * Правило живёт в общем модуле, и здесь его зовут прямо. Прежде за вызовом
+ * лежала своя копия, охраняемая одним `if`: доставалась она, только если
+ * общая реализация бросила, и тогда молча отвечала иначе (У-32). Сторож
+ * долга Д-4 её не видел — он ищет пустой `catch`, а здесь его нет.
+ */
 function getSubtagFormat(rules) {
-  var common = ensureStatusRuntimeCommonFns()
-  if (common && typeof common.resolveSubtagFormat === 'function') {
-    return common.resolveSubtagFormat(null, rules)
-  }
-  var behavior = rules && isObj(rules.behavior) ? rules.behavior : {}
-  var v = String(behavior.subtagFormat || 'separate').trim().toLowerCase()
-  return v === 'combined' ? 'combined' : 'separate'
+  return ensureStatusRuntimeCommonFns().resolveSubtagFormat(null, rules)
 }
 
 function splitCombinedTagToken(tag) {
@@ -1538,17 +1538,14 @@ function getReferenceDateForUnit(state, unit) {
   return getSessionToday(state)
 }
 
+/*
+ * Правило живёт в общем модуле, и здесь его зовут прямо. Прежде за вызовом
+ * лежала своя копия, охраняемая одним `if`: доставалась она, только если
+ * общая реализация бросила, и тогда молча отвечала иначе (У-32). Сторож
+ * долга Д-4 её не видел — он ищет пустой `catch`, а здесь его нет.
+ */
 function getSearchLimitByUnit(unit) {
-  var common = ensureStatusRuntimeCommonFns()
-  if (common && typeof common.getSearchLimitByUnit === 'function') {
-    return common.getSearchLimitByUnit(unit, getSharedUtils())
-  }
-  var su = getSharedUtils()
-  if (su && typeof su.getSearchLimitByUnit === 'function') return su.getSearchLimitByUnit(unit)
-  if (unit === 'second') return 172800
-  if (unit === 'minute') return 10080
-  if (unit === 'hour') return 720
-  return 3660
+  return ensureStatusRuntimeCommonFns().getSearchLimitByUnit(unit, getSharedUtils())
 }
 
 function formatNowByMask(mask) {
@@ -1935,33 +1932,24 @@ function stepByIncrementCfg(cfg, current, direction) {
   return stepByCustom(arr, current, direction)
 }
 
+/*
+ * Правило живёт в общем модуле, и здесь его зовут прямо. Прежде за вызовом
+ * лежала своя копия, охраняемая одним `if`: доставалась она, только если
+ * общая реализация бросила, и тогда молча отвечала иначе (У-32). Сторож
+ * долга Д-4 её не видел — он ищет пустой `catch`, а здесь его нет.
+ */
 function detectDateUnit(format) {
-  var common = ensureStatusRuntimeCommonFns()
-  if (common && typeof common.detectDateUnit === 'function') {
-    return common.detectDateUnit(format, normalizeFormatMask, hasFormatTokens, getSharedUtils())
-  }
-  var su = getSharedUtils()
-  if (su && typeof su.detectDateUnit === 'function') return su.detectDateUnit(format)
-  var f = normalizeFormatMask(String(format == null ? '' : format))
-  if (!hasFormatTokens(f)) return 'tokenless'
-  if (/ss/.test(f)) return 'second'
-  if (/mm/.test(f)) return 'minute'
-  if (/HH/.test(f)) return 'hour'
-  if (/YYYY/.test(f) && !/(MM|DD)/.test(f)) return 'year'
-  if (/MM/.test(f) && !/DD/.test(f)) return 'month'
-  return 'day'
+  return ensureStatusRuntimeCommonFns().detectDateUnit(format, normalizeFormatMask, hasFormatTokens, getSharedUtils())
 }
 
+/*
+ * Правило живёт в общем модуле, и здесь его зовут прямо. Прежде за вызовом
+ * лежала своя копия, охраняемая одним `if`: доставалась она, только если
+ * общая реализация бросила, и тогда молча отвечала иначе (У-32). Сторож
+ * долга Д-4 её не видел — он ищет пустой `catch`, а здесь его нет.
+ */
 function getDateProgressForStep(state, fieldId, format) {
-  var common = ensureStatusRuntimeCommonFns()
-  if (common && typeof common.getDateProgressForStep === 'function') {
-    return common.getDateProgressForStep(state, fieldId, format)
-  }
-  var cur = String(state && state.selected ? (state.selected[fieldId] || '') : '')
-  if (!cur) return ''
-  var off = Number(cur)
-  if (!isFinite(off)) return ''
-  return String(Math.max(0, Math.trunc(off)))
+  return ensureStatusRuntimeCommonFns().getDateProgressForStep(state, fieldId, format)
 }
 
 function mutateDateSelectionByFormat(state, fieldId, format, direction, stepRaw) {

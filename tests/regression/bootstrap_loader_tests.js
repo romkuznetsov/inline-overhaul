@@ -1349,11 +1349,62 @@ async function run() {
     assertEq(probe.swallowing.join(","), "escapeRx", "образец прежней формы не опознан как копия — обход слеп");
     assertEq(probe.thin.join(","), "thinOne", "образец тонкой обёртки не опознан — обход слеп в другую сторону");
   }
+
+  /*
+   * **Копия бывает и без `catch` — за одним `if`** (В-98, 2026-09-10).
+   *
+   * Сторож долга Д-4 меряет пустой `catch` и такую копию не видит вовсе:
+   * в `tagwheel_core.js` четыре правила были объявлены второй раз именно так —
+   * `var common = ensureStatusRuntimeCommonFns()`, затем
+   * `if (common && typeof common.X === 'function')`, а за этим свой ответ.
+   * Мера «молчаливое проглатывание» слепа к условию, и потому здесь стоит
+   * отдельный запрет — **по признаку самой копии**, а не по её последствию.
+   *
+   * Признак один и точный: спрашивать `typeof common.X === "function"` есть
+   * смысл только тогда, когда за отрицательным ответом лежит **свой**. Модуль
+   * приезжает литеральным `require` и отдаёт все свои имена — отрицательного
+   * ответа не бывает.
+   */
+  {
+    /*
+     * Образец объявлен **один раз** и им же проверяется контроль ниже. Первая
+     * версия держала в контроле свою копию образца, и подмена рабочего образца
+     * его не роняла: контроль охранял себя, а не запрет (У-92). Нашлось
+     * мутацией, до объявления правки сделанной.
+     */
+    const ASKS_MODULE = /typeof\s+common\.[A-Za-z_$][\w$]*\s*===\s*["']function["']/g;
+    const findAsks = (src) => src.match(ASKS_MODULE) || [];
+    const asked = [];
+    for (const [name, src] of [
+      ["status_tags.js", statusTagsSrc],
+      ["status_date.js", statusDateSrc],
+      ["tagwheel_core.js", tagwheelCoreSrc],
+    ]) {
+      for (const h of findAsks(src)) asked.push(name + ": " + h);
+    }
+    assertEq(asked.join(" | "), "",
+      "код спрашивает общий модуль, есть ли у него такая функция, — а спрашивать это "
+      + "имеет смысл только когда за ответом «нет» лежит своя копия (У-32). Модуль "
+      + "приезжает литеральным `require` и отдаёт все свои имена: ответа «нет» не бывает");
+
+    /* Положительный контроль — **тем же** образцом, что работает выше. */
+    const sampleIf = "var common = ensureStatusRuntimeCommonFns()\n"
+      + "if (common && typeof common.detectDateUnit === 'function') { return common.detectDateUnit(f) }\n"
+      + "return 'day'";
+    assertEq(findAsks(sampleIf).length, 1,
+      "образец копии за одним `if` не найден — запрет выше мерит пустоту (У-88)");
+  }
   assertTrue(/function ensureStatusRuntimeCommonFns\(/.test(tagwheelCoreSrc), "tagwheel_core bootstraps shared status runtime common helpers");
-  assertTrue(/common\.resolveSubtagFormat\(null, rules\)/.test(tagwheelCoreSrc), "tagwheel_core delegates subtag-format resolution to shared runtime common");
-  assertTrue(/common\.getSearchLimitByUnit\(unit, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates search-limit resolver to shared runtime common");
-  assertTrue(/common\.detectDateUnit\(format, normalizeFormatMask, hasFormatTokens, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-unit detection to shared runtime common");
-  assertTrue(/common\.getDateProgressForStep\(state, fieldId, format\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-progress resolver to shared runtime common");
+  /*
+   * Четыре пина ниже переехали за своим предметом 2026-09-10 (У-94, В-98):
+   * копия за одним `if` снята, и общая реализация зовётся прямо. Прежняя
+   * форма записи `common.X(...)` была признаком **копии**, а не
+   * делегирования, — и запрет на неё стоит выше, сплошным обходом.
+   */
+  assertTrue(/ensureStatusRuntimeCommonFns\(\)\.resolveSubtagFormat\(null, rules\)/.test(tagwheelCoreSrc), "tagwheel_core delegates subtag-format resolution to shared runtime common");
+  assertTrue(/ensureStatusRuntimeCommonFns\(\)\.getSearchLimitByUnit\(unit, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates search-limit resolver to shared runtime common");
+  assertTrue(/ensureStatusRuntimeCommonFns\(\)\.detectDateUnit\(format, normalizeFormatMask, hasFormatTokens, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-unit detection to shared runtime common");
+  assertTrue(/ensureStatusRuntimeCommonFns\(\)\.getDateProgressForStep\(state, fieldId, format\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-progress resolver to shared runtime common");
   assertTrue(/facade\.resolveOrderConfig/.test(tagwheelSrc), "tagwheel order-config resolver is preload-facade backed");
   assertAnyMatch(statusTagsSrc, [/callRuntimeApi\(app_, "loadMacroShared"\)/, /await loadMacroShared\(app_\);/], "status_tags preloads shared macro helpers");
   assertAnyMatch(statusDateSrc, [/callRuntimeApi\(app_, "loadMacroShared"\)/, /await loadMacroShared\(app_\);/], "status_date preloads shared macro helpers");
