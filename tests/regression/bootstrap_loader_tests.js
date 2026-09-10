@@ -1266,48 +1266,89 @@ async function run() {
   assertTrue(/getDateProgressForStep\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared date-progress resolver");
   assertTrue(/normalizeDirection\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared direction normalizer");
   /*
-   * Четыре пина ниже переписаны 2026-09-10 вместе со своим предметом (У-94):
-   * `getField` в обоих файлах и разбор с сборкой даты больше не держат копию
-   * рядом с вызовом, а зовут общую реализацию прямо. Форма записи сменилась с
-   * `common.X(...)` на `getStatusRuntimeCommon().X(...)`, и утверждение,
-   * написанное по прежней форме, обязано было переехать, а не остаться
-   * зелёным на соседнем совпадении.
+   * **Один обход по форме вместо тридцати пяти пинов по именам** — 2026-09-10,
+   * второй кусок В-97 (У-85, У-111, У-126).
+   *
+   * Здесь стояли утверждения вида «`status_tags` делегирует такую-то функцию
+   * общему модулю», каждое — образец с полным списком аргументов. У такого
+   * списка два порока. Он проверяет **список, а не предмет**: новая обёртка в
+   * него не попадает, а переименование параметра красит его без причины. И
+   * держал он форму `common.X(...)` — а это был признак не делегирования, а
+   * **копии за молчаливым `catch`**: у всех тридцати двух за вызовом лежал
+   * собственный ответ на тот же вопрос (У-32).
+   *
+   * Правило спрашивается по форме: функция, которая зовёт общую реализацию, не
+   * имеет права **проглотить её отказ молча** — за таким `catch` и лежала
+   * копия. Предмет здесь именно молчание, а не длина: `panelForTagKey` и
+   * `resolveActionFieldKey` зовут общий модуль внутри настоящей логики, и они
+   * законны. Первая версия этого обхода мерила длину и назвала их нарушением.
+   *
+   * Второе утверждение — про количество тонких обёрток: без него запрет
+   * «ни одной» выполнялся бы сам на пустом множестве (У-88).
    */
-  assertTrue(/getStatusRuntimeCommon\(\)\.getFieldById\(mode, id\)/.test(statusTagsSrc), "status_tags delegates field lookup to shared runtime common");
-  assertTrue(/common\.getActiveValues\(field\)/.test(statusTagsSrc), "status_tags delegates active values lookup to shared runtime common");
-  assertTrue(/common\.getFieldValueById\(field, valueId\)/.test(statusTagsSrc), "status_tags delegates value-by-id lookup to shared runtime common");
-  assertTrue(/common\.getFieldValueByToken\(field, token\)/.test(statusTagsSrc), "status_tags delegates value-by-token lookup to shared runtime common");
-  assertTrue(/common\.getValueId\(v\)/.test(statusTagsSrc), "status_tags delegates value-id lookup to shared runtime common");
-  assertTrue(/common\.resolveSubtagFormat\(settings\?\.\[SUBTAG_FORMAT\], rules\)/.test(statusTagsSrc), "status_tags delegates subtag-format resolution to shared runtime common");
-  assertTrue(/common\.getAllowedSubValues\(subField, parentToken\)/.test(statusTagsSrc), "status_tags delegates allowed-sub-values resolution to shared runtime common");
-  assertTrue(/common\.escapeRx\(s\)/.test(statusTagsSrc), "status_tags delegates regex escaping to shared runtime common");
-  assertTrue(/common\.buildPriorityTokenMapFromLine\(line\)/.test(statusTagsSrc), "status_tags delegates priority token-map build to shared runtime common");
-  assertTrue(/common\.buildPriorityCycleTokens\(tokenMap, normalizePriorityToken\)/.test(statusTagsSrc), "status_tags delegates priority cycle-token build to shared runtime common");
-  assertTrue(/common\.buildPriorityCycleTokensFromRules\(rules, normalizePriorityToken\)/.test(statusTagsSrc), "status_tags delegates priority cycle-from-rules build to shared runtime common");
-  assertTrue(/common\.resolvePriorityCycleTokens\(tokenMap, rules, line, normalizePriorityToken\)/.test(statusTagsSrc), "status_tags delegates priority cycle resolver to shared runtime common");
-  assertTrue(/common\.normalizePriorityToken\(raw\)/.test(statusTagsSrc), "status_tags delegates priority-token normalization to shared runtime common");
-  assertTrue(/common\.countPriorityTokens\(line\)/.test(statusTagsSrc), "status_tags delegates priority-token counting to shared runtime common");
-  assertTrue(/common\.stripPriorityTokens\(line\)/.test(statusTagsSrc), "status_tags delegates priority-token stripping to shared runtime common");
-  assertTrue(/common\.replaceRange\(text, start, end, replacement\)/.test(statusTagsSrc), "status_tags delegates replace-range helper to shared runtime common");
-  assertTrue(/common\.cleanupSpacing\(text\)/.test(statusTagsSrc), "status_tags delegates spacing cleanup helper to shared runtime common");
-  assertTrue(/common\.fieldKeyByAction\(action, fallbackKey\)/.test(statusTagsSrc), "status_tags delegates field-key-by-action resolver to shared runtime common");
-  assertTrue(/common\.isMinimalOffNoSeparatorAction\(action\)/.test(statusTagsSrc), "status_tags delegates minimal-off action detector to shared runtime common");
-  assertTrue(/common\.hasToken\(segText, token\)/.test(statusTagsSrc), "status_tags delegates segment-token detector to shared runtime common");
-  assertTrue(/common\.composeToken\(prefix, rawToken\)/.test(statusTagsSrc), "status_tags delegates token composer to shared runtime common");
-  assertTrue(/common\.normalizeImportanceTokenShape\(tokenRaw\)/.test(statusTagsSrc), "status_tags delegates importance-token normalizer to shared runtime common");
-  assertTrue(/common\.normalizeDirection\(raw\)/.test(statusTagsSrc), "status_tags delegates direction normalizer to shared runtime common");
-  assertTrue(/getStatusRuntimeCommon\(\)\.getFieldById\(mode, id\)/.test(statusDateSrc), "status_date delegates field lookup to shared runtime common");
-  assertTrue(/common\.setCursorIfChanged\(editor, lineNo, ch\)/.test(statusDateSrc), "status_date delegates cursor setter to shared runtime common");
-  assertTrue(/common\.parseIsoDateSafe\(s\)/.test(statusDateSrc), "status_date delegates ISO date parsing to shared runtime common");
-  assertTrue(/common\.getTodayIso\(\)/.test(statusDateSrc), "status_date delegates today-date formatting to shared runtime common");
-  assertTrue(/common\.escapeRx\(s\)/.test(statusDateSrc), "status_date delegates regex escaping to shared runtime common");
-  assertTrue(/common\.getReferenceDateForUnit\(unit\)/.test(statusDateSrc), "status_date delegates reference-date resolution to shared runtime common");
-  assertTrue(/common\.getSearchLimitByUnit\(unit, getSharedUtils\(\)\)/.test(statusDateSrc), "status_date delegates search-limit resolution to shared runtime common");
-  assertTrue(/common\.addByUnitUtc\(base, unit, delta\)/.test(statusDateSrc), "status_date delegates UTC date-step helper to shared runtime common");
-  assertTrue(/getStatusRuntimeCommon\(\)\.parseDateByFormat\(text, format, normalizeFormatMask, escapeRx\)/.test(statusDateSrc), "status_date delegates date parsing-by-format to shared runtime common");
-  assertTrue(/getStatusRuntimeCommon\(\)\.formatDateByFormat\(dt, format, normalizeFormatMask\)/.test(statusDateSrc), "status_date delegates date formatting-by-format to shared runtime common");
-  assertTrue(/common\.detectDateUnit\(format, normalizeFormatMask, hasFormatTokens, getSharedUtils\(\)\)/.test(statusDateSrc), "status_date delegates date-unit detection to shared runtime common");
-  assertTrue(/common\.getDateProgressForStep\(state, fieldId, format\)/.test(statusDateSrc), "status_date delegates date-progress resolver to shared runtime common");
+  const scanWrappers = (src) => {
+    const thin = [];
+    const swallowing = [];
+    const decl = /^function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/gm;
+    let m;
+    while ((m = decl.exec(src)) !== null) {
+      const open = src.indexOf("{", m.index);
+      let depth = 0;
+      let end = -1;
+      for (let j = open; j < src.length; j++) {
+        if (src[j] === "{") depth += 1;
+        else if (src[j] === "}") { depth -= 1; if (depth === 0) { end = j + 1; break; } }
+      }
+      if (end < 0) continue;
+      const text = src.slice(m.index, end);
+      if (!/getStatusRuntimeCommon\(\)/.test(text)) continue;
+      const work = text.slice(text.indexOf("{") + 1, text.length - 1)
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/[^\n]*/g, "")
+        .trim();
+      if (/\}\s*catch\s*\(\s*_\s*\)\s*\{\s*\}/.test(text)) swallowing.push(m[1]);
+      if (/^return getStatusRuntimeCommon\(\)\.[A-Za-z_$][\w$]*\([\s\S]*\);$/.test(work)) thin.push(m[1]);
+    }
+    return { thin, swallowing };
+  };
+
+  {
+    const tags = scanWrappers(statusTagsSrc);
+    const date = scanWrappers(statusDateSrc);
+    const swallowing = tags.swallowing.map((n) => "status_tags::" + n)
+      .concat(date.swallowing.map((n) => "status_date::" + n));
+    assertEq(swallowing.join(" | "), "",
+      "функция зовёт общую реализацию и глотает её отказ молча — за таким `catch` "
+      + "лежит второе объявление того же правила (У-32), и достаётся оно тогда, "
+      + "когда общая реализация бросила");
+    const thinCount = tags.thin.length + date.thin.length;
+    assertTrue(thinCount >= 30,
+      "обход нашёл только " + thinCount + " тонких обёрток — значит он смотрит не туда, "
+      + "и запрет выше мерит пустоту (У-88)");
+
+    /*
+     * Положительный контроль: прежняя форма обязана быть опознана как толстая.
+     * Без него запрет зелен от опечатки в образце — на пустом множестве
+     * «ни одной» выполняется само.
+     */
+    const sample = [
+      "function escapeRx(s) {",
+      "  try {",
+      "    const common = getStatusRuntimeCommon();",
+      "    if (common && typeof common.escapeRx === \"function\") {",
+      "      return common.escapeRx(s);",
+      "    }",
+      "  } catch (_) {}",
+      "  return String(s || \"\");",
+      "}",
+      "function thinOne(x) {",
+      "  return getStatusRuntimeCommon().escapeRx(x);",
+      "}",
+    ].join("\n");
+    const probe = scanWrappers(sample);
+    assertEq(probe.swallowing.join(","), "escapeRx", "образец прежней формы не опознан как копия — обход слеп");
+    assertEq(probe.thin.join(","), "thinOne", "образец тонкой обёртки не опознан — обход слеп в другую сторону");
+  }
   assertTrue(/function ensureStatusRuntimeCommonFns\(/.test(tagwheelCoreSrc), "tagwheel_core bootstraps shared status runtime common helpers");
   assertTrue(/common\.resolveSubtagFormat\(null, rules\)/.test(tagwheelCoreSrc), "tagwheel_core delegates subtag-format resolution to shared runtime common");
   assertTrue(/common\.getSearchLimitByUnit\(unit, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates search-limit resolver to shared runtime common");
@@ -1419,7 +1460,15 @@ async function run() {
   assertFalse(/var offTokens = \[\]/.test(tagwheelSrc), "tagwheel has no local off-right token relocation accumulator");
   assertTrue(/finalLine = enforceDependentAdjacencyForStatusLine\(finalLine, rules, state, core\);/.test(statusTagsSrc), "status_tags applies dependent adjacency stabilization in final runtime path");
   assertFalse(/const fallback = direction === "decrease" \? cycle\[cycle\.length - 1\] : cycle\[0\];/.test(statusTagsSrc), "status_tags custom cycle has no edge fallback wrap");
-  assertTrue(/throw new Error\("pkm_macro_shared unavailable: segmentHasToken"\);/.test(statusTagsSrc), "status_tags token matcher is shared-only");
+  /*
+   * Предмет этого утверждения переехал 2026-09-10 (У-94): «сопоставитель
+   * токена шаблонный, и отказ у него громкий» жило в копии внутри `hasToken`
+   * в `status_tags.js`, а копия снята вторым куском В-97. В общем модуле тот
+   * же бросок стоял всё это время — теперь он там один, и спрашивается там.
+   * Плюс запрет на возврат: своей копии в `status_tags.js` быть не должно.
+   */
+  assertTrue(/throw new Error\("pkm_macro_shared unavailable: segmentHasToken"\);/.test(statusRuntimeCommonSrc), "shared runtime common token matcher fails loudly");
+  assertFalse(/segmentHasToken/.test(statusTagsSrc), "status_tags has no local token matcher of its own");
   assertTrue(/throw new Error\("line_pipeline unavailable: removeExactTokens"\);/.test(statusTagsSrc), "status_tags token remover delegates to shared line-pipeline helper");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: getCursorAtTextEnd"\);/.test(statusTagsSrc), "status_tags text-end helper is shared-only");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: applyKeepBullet"\);/.test(statusTagsSrc), "status_tags keep-bullet helper is shared-only");

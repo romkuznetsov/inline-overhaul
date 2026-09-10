@@ -120,36 +120,12 @@ function getStatusLineRuntimeUnified() {
   return __statusLineRuntimeUnified;
 }
 
-function getTokenGraphUnified() {
-  return __tokenGraphUnified;
-}
-
-function buildTokenFactsFromLineSafe(rawLine, rules) {
-  try {
-    const tokenGraph = getTokenGraphUnified();
-    if (tokenGraph && typeof tokenGraph.buildTokenFactsFromLine === "function") {
-      return tokenGraph.buildTokenFactsFromLine(rawLine, rules);
-    }
-  } catch (_) {}
-  return [];
+function buildTokenFactsFromLine(rawLine, rules) {
+  return __tokenGraphUnified.buildTokenFactsFromLine(rawLine, rules);
 }
 
 function activeValues(field) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getActiveValues === "function") {
-      return common.getActiveValues(field);
-    }
-  } catch (_) {}
-  const vals = Array.isArray(field?.values) ? field.values : [];
-  return vals
-    .filter((v) => isObj(v) && typeof v.token === "string" && v.token && v.active !== false)
-    .slice()
-    .sort((a, b) => {
-      const ao = typeof a.order === "number" ? a.order : 999;
-      const bo = typeof b.order === "number" ? b.order : 999;
-      return ao - bo;
-    });
+  return getStatusRuntimeCommon().getActiveValues(field);
 }
 
 /*
@@ -164,84 +140,23 @@ function getField(mode, id) {
 }
 
 function findValueById(field, valueId) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getFieldValueById === "function") {
-      return common.getFieldValueById(field, valueId);
-    }
-  } catch (_) {}
-  const vals = Array.isArray(field?.values) ? field.values : [];
-  for (const v of vals) {
-    if (!isObj(v)) continue;
-    const id = typeof v.id === "string" ? v.id : (typeof v.token === "string" ? v.token : "");
-    if (id === valueId) return v;
-  }
-  return null;
+  return getStatusRuntimeCommon().getFieldValueById(field, valueId);
 }
 
 function findValueByToken(field, token) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getFieldValueByToken === "function") {
-      return common.getFieldValueByToken(field, token);
-    }
-  } catch (_) {}
-  const vals = Array.isArray(field?.values) ? field.values : [];
-  for (const v of vals) {
-    if (!isObj(v) || typeof v.token !== "string") continue;
-    if (v.token === token) return v;
-  }
-  return null;
+  return getStatusRuntimeCommon().getFieldValueByToken(field, token);
 }
 
 function valueId(v) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getValueId === "function") {
-      return common.getValueId(v);
-    }
-  } catch (_) {}
-  if (!isObj(v)) return "";
-  if (typeof v.id === "string" && v.id) return v.id;
-  if (typeof v.token === "string" && v.token) return v.token;
-  return "";
+  return getStatusRuntimeCommon().getValueId(v);
 }
 
 function getSubtagFormat(rules, settings) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.resolveSubtagFormat === "function") {
-      return common.resolveSubtagFormat(settings?.[SUBTAG_FORMAT], rules);
-    }
-  } catch (_) {}
-  const fromSettings = String(settings?.[SUBTAG_FORMAT] ?? "").trim().toLowerCase();
-  if (fromSettings === "combined" || fromSettings === "separate") return fromSettings;
-  const b = isObj(rules?.behavior) ? rules.behavior : {};
-  const fromRules = String(b.subtagFormat || "separate").trim().toLowerCase();
-  return fromRules === "combined" ? "combined" : "separate";
+  return getStatusRuntimeCommon().resolveSubtagFormat(settings?.[SUBTAG_FORMAT], rules);
 }
 
 function getAllowedSubValues(subField, parentToken) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getAllowedSubValues === "function") {
-      return common.getAllowedSubValues(subField, parentToken);
-    }
-  } catch (_) {}
-  const out = [];
-  const vals = Array.isArray(subField?.values) ? subField.values : [];
-  for (const v of vals) {
-    if (!isObj(v) || typeof v.token !== "string" || !v.token || v.active === false) continue;
-    const allowed = Array.isArray(v.allowedParentValues) ? v.allowedParentValues : [];
-    if (allowed.length && !allowed.includes(parentToken)) continue;
-    out.push(v);
-  }
-  out.sort((a, b) => {
-    const ao = typeof a.order === "number" ? a.order : 999;
-    const bo = typeof b.order === "number" ? b.order : 999;
-    return ao - bo;
-  });
-  return out;
+  return getStatusRuntimeCommon().getAllowedSubValues(subField, parentToken);
 }
 
 function remapCursorStable(oldLine, newLine, oldCh) {
@@ -249,13 +164,7 @@ function remapCursorStable(oldLine, newLine, oldCh) {
 }
 
 function escapeRx(s) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.escapeRx === "function") {
-      return common.escapeRx(s);
-    }
-  } catch (_) {}
-  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return getStatusRuntimeCommon().escapeRx(s);
 }
 
 function removeCombinedByParentTokens(line, rules, parentTokens) {
@@ -280,7 +189,7 @@ function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, 
   if (!runtime || typeof runtime.selectTokenByPanelOrder !== "function") {
     throw new Error("status_line_runtime_unified unavailable: selectTokenByPanelOrder");
   }
-  const tokenFacts = buildTokenFactsFromLineSafe(rawLine, rules);
+  const tokenFacts = buildTokenFactsFromLine(rawLine, rules);
   const parentVals = activeValues(parentField);
   const pp = typeof parentField.prefix === "string" ? parentField.prefix : "#";
   const pairByHitId = {};
@@ -317,45 +226,15 @@ function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, 
 }
 
 function hasToken(segText, token) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.hasToken === "function") {
-      return common.hasToken(segText, token);
-    }
-  } catch (_) {}
-  const shared = globalThis.__inlinePkmMacroShared;
-  if (shared && typeof shared.segmentHasToken === "function") return shared.segmentHasToken(segText, token);
-  throw new Error("pkm_macro_shared unavailable: segmentHasToken");
+  return getStatusRuntimeCommon().hasToken(segText, token);
 }
 
 function composeToken(prefix, rawToken) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.composeToken === "function") {
-      return common.composeToken(prefix, rawToken);
-    }
-  } catch (_) {}
-  const p = typeof prefix === "string" ? prefix : "#";
-  const t = String(rawToken || "");
-  if (!t) return "";
-  if (/^\[\[[^\]]+\]\]$/.test(t)) return t;
-  if (!p && /^\//.test(t)) return `#${t}`;
-  return `${p}${t}`;
+  return getStatusRuntimeCommon().composeToken(prefix, rawToken);
 }
 
 function normalizeImportanceTokenShape(tokenRaw) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.normalizeImportanceTokenShape === "function") {
-      return common.normalizeImportanceTokenShape(tokenRaw);
-    }
-  } catch (_) {}
-  const src = String(tokenRaw || "").trim();
-  if (!src) return "";
-  if (/^#\//.test(src)) return src;
-  if (/^\//.test(src)) return `#${src}`;
-  if (src.charAt(0) === "#") return src;
-  return `#/${src}`;
+  return getStatusRuntimeCommon().normalizeImportanceTokenShape(tokenRaw);
 }
 
 function getFieldModeById(rules, fieldId) {
@@ -564,7 +443,7 @@ function hydrateFieldFromLine(state, rawLine, rules, targetPanel, stateKey, toke
   if (!runtime || typeof runtime.selectTokenByPanelOrder !== "function") {
     throw new Error("status_line_runtime_unified unavailable: selectTokenByPanelOrder");
   }
-  const tokenFacts = buildTokenFactsFromLineSafe(rawLine, rules);
+  const tokenFacts = buildTokenFactsFromLine(rawLine, rules);
   const hit = runtime.selectTokenByPanelOrder({
     line: rawLine,
     rules,
@@ -678,7 +557,7 @@ function selectedTokenFromLineByPanel(line, rules, panel, tokenMap) {
   if (!runtime || typeof runtime.selectTokenByPanelOrder !== "function") {
     throw new Error("status_line_runtime_unified unavailable: selectTokenByPanelOrder");
   }
-  const tokenFacts = buildTokenFactsFromLineSafe(line, rules);
+  const tokenFacts = buildTokenFactsFromLine(line, rules);
   const hit = runtime.selectTokenByPanelOrder({
     line,
     rules,
@@ -749,156 +628,35 @@ function enforceDependentAdjacencyForStatusLine(finalLine, rules, state, core) {
 }
 
 function fieldKeyByAction(action, fallbackKey) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.fieldKeyByAction === "function") {
-      return common.fieldKeyByAction(action, fallbackKey);
-    }
-  } catch (_) {}
-  const actionKey = String(action || "").trim();
-  const m = actionKey.match(/^cycle_field:(.+)$/);
-  if (m) return String(m[1] || "").trim();
-  return String(fallbackKey || "").trim();
+  return getStatusRuntimeCommon().fieldKeyByAction(action, fallbackKey);
 }
 
 function normalizeDirection(raw) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.normalizeDirection === "function") {
-      return common.normalizeDirection(raw);
-    }
-  } catch (_) {}
-  const v = String(raw || "increase").trim().toLowerCase();
-  return v === "decrease" ? "decrease" : "increase";
+  return getStatusRuntimeCommon().normalizeDirection(raw);
 }
 
 function isMinimalOffNoSeparatorAction(action) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.isMinimalOffNoSeparatorAction === "function") {
-      return common.isMinimalOffNoSeparatorAction(action);
-    }
-  } catch (_) {}
-  const v = String(action || "").trim();
-  if (!v) return false;
-  return /^cycle_field:/.test(v);
+  return getStatusRuntimeCommon().isMinimalOffNoSeparatorAction(action);
 }
 
 function normalizePriorityToken(raw) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.normalizePriorityToken === "function") {
-      return common.normalizePriorityToken(raw);
-    }
-  } catch (_) {}
-  const t = String(raw || "").trim();
-  if (!t) return "";
-  if (/^#\/\S+/.test(t)) return t.match(/^#\/\S+/)[0];
-  if (/^\/\S+/.test(t)) return `#${t}`;
-  return t;
+  return getStatusRuntimeCommon().normalizePriorityToken(raw);
 }
 
 function countPriorityTokens(line) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.countPriorityTokens === "function") {
-      return common.countPriorityTokens(line);
-    }
-  } catch (_) {}
-  const m = String(line || "").match(/(^|\s)#\/\S+(?=\s|$)/g);
-  return Array.isArray(m) ? m.length : 0;
+  return getStatusRuntimeCommon().countPriorityTokens(line);
 }
 
 function stripPriorityTokens(line) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.stripPriorityTokens === "function") {
-      return common.stripPriorityTokens(line);
-    }
-  } catch (_) {}
-  return String(line || "")
-    .replace(/(^|\s)#\/\S+(?=\s|$)/g, "$1")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return getStatusRuntimeCommon().stripPriorityTokens(line);
 }
 
 function buildPriorityTokenMapFromLine(line) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.buildPriorityTokenMapFromLine === "function") {
-      return common.buildPriorityTokenMapFromLine(line);
-    }
-  } catch (_) {}
-  const src = String(line || "");
-  const found = new Set();
-  const out = [];
-  const rx = /(^|\s)(#\/\S+)(?=\s|$)/g;
-  let m;
-  while ((m = rx.exec(src)) !== null) {
-    const token = String(m[2] || "").trim();
-    if (!token || found.has(token)) continue;
-    found.add(token);
-    out.push({ id: token, token });
-  }
-  return out;
-}
-
-function buildPriorityCycleTokens(tokenMap) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.buildPriorityCycleTokens === "function") {
-      return common.buildPriorityCycleTokens(tokenMap, normalizePriorityToken);
-    }
-  } catch (_) {}
-  const out = [];
-  const seen = new Set();
-  for (const x of Array.isArray(tokenMap) ? tokenMap : []) {
-    const tok = normalizePriorityToken(x && x.token ? x.token : "");
-    if (!tok || seen.has(tok)) continue;
-    seen.add(tok);
-    out.push(tok);
-  }
-  return out;
-}
-
-function buildPriorityCycleTokensFromRules(rules) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.buildPriorityCycleTokensFromRules === "function") {
-      return common.buildPriorityCycleTokensFromRules(rules, normalizePriorityToken);
-    }
-  } catch (_) {}
-  const order = Array.isArray(rules?.tags?.priority?.order) ? rules.tags.priority.order : [];
-  const out = [];
-  const seen = new Set();
-  for (const raw of order) {
-    const tok = normalizePriorityToken(raw);
-    if (!tok || seen.has(tok)) continue;
-    seen.add(tok);
-    out.push(tok);
-  }
-  return out;
+  return getStatusRuntimeCommon().buildPriorityTokenMapFromLine(line);
 }
 
 function resolvePriorityCycleTokens(tokenMap, rules, line) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.resolvePriorityCycleTokens === "function") {
-      return common.resolvePriorityCycleTokens(tokenMap, rules, line, normalizePriorityToken);
-    }
-  } catch (_) {}
-  const fromMap = buildPriorityCycleTokens(tokenMap);
-  const fromRules = buildPriorityCycleTokensFromRules(rules);
-  const lineTokens = Array.from(new Set((String(line || "").match(/#\/\S+/g) || []).map((t) => String(t || "").trim()).filter(Boolean)));
-  const base = fromMap.length ? fromMap.slice() : fromRules.slice();
-  for (const tok of lineTokens) {
-    if (base.indexOf(tok) === -1) base.push(tok);
-  }
-  const allNumeric = base.length > 0 && base.every((t) => /^#\/\d+$/.test(String(t || "")));
-  if (allNumeric) {
-    base.sort((a, b) => Number(String(a).slice(2)) - Number(String(b).slice(2)));
-  }
-  return base;
+  return getStatusRuntimeCommon().resolvePriorityCycleTokens(tokenMap, rules, line, normalizePriorityToken);
 }
 
 function getPriorityField(rules, leftMode, rightMode) {
@@ -1147,31 +905,11 @@ function pickClosestTokenMatch(matches, cursorCh) {
 }
 
 function replaceRange(text, start, end, replacement) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.replaceRange === "function") {
-      return common.replaceRange(text, start, end, replacement);
-    }
-  } catch (_) {}
-  const src = String(text || "");
-  const s = Math.max(0, Math.min(Number(start) || 0, src.length));
-  const e = Math.max(s, Math.min(Number(end) || 0, src.length));
-  return src.slice(0, s) + String(replacement || "") + src.slice(e);
+  return getStatusRuntimeCommon().replaceRange(text, start, end, replacement);
 }
 
 function cleanupSpacing(text) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.cleanupSpacing === "function") {
-      return common.cleanupSpacing(text);
-    }
-  } catch (_) {}
-  return String(text || "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/\s+\|\|/g, " ||")
-    .replace(/\|\|\s+/g, "|| ")
-    .replace(/^\s+/g, "")
-    .replace(/\s+$/g, "");
+  return getStatusRuntimeCommon().cleanupSpacing(text);
 }
 
 function applyFullTokenAction(line, selectedToken, tokenMap, cursorCh) {

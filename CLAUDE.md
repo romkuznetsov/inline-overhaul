@@ -536,7 +536,7 @@ npm run gate:browser  вид панели настоящим Chromium — выч
   | 33 | 2026-09-08 | `tagwheel.js` | `onunload` закрывает сессию панели тем же `cancelSelection` (Д-2, В-91) |
   | 34 | 2026-09-08 | `navigation_runtime.js` | `Step out of the word`: часть слова уезжает за край своего слова |
   | 35 | 2026-09-08 | `navigation_runtime.js` | «где кончается слово» переехало в `shared_utils.js` и читается оттуда (З-3, В-93) |
-  | 36 | 2026-09-10 | `pkm_rules_runtime_helpers.js`, `field_model.js`, `tagwheel.js`, `status_tags.js`, `status_date.js` | первый кусок долга тихих отказов: 69 → 60 (В-97, PRD 15.2) |
+  | 36 | 2026-09-10 | `pkm_rules_runtime_helpers.js`, `field_model.js`, `tagwheel.js`, `status_tags.js`, `status_date.js` | долг тихих отказов, два куска из трёх: 69 → 27 (В-97, PRD 15.2) |
 
   Файлы в таблице названы своим именем без папки; полные пути — в PRD 3.3 и в
   запрете выше. Пины, которыми каждое закреплено, перечислены там же.

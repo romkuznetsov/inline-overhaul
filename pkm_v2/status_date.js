@@ -151,15 +151,11 @@ function getStatusLineRuntimeUnified() {
   return __statusLineRuntimeUnified;
 }
 
-function getTokenGraphUnified() {
-  return __tokenGraphUnified;
-}
-
 function getDateRuntimeShared() {
   return __dateRuntimeShared;
 }
 
-function buildTokenFactsFromLineSafe(rawLine, rules) {
+function buildTokenFactsFromLine(rawLine, rules) {
   return __tokenGraphUnified.buildTokenFactsFromLine(rawLine, rules);
 }
 
@@ -213,64 +209,11 @@ function isEmptyLikeParsed(parsed) {
 }
 
 function setCursorIfChanged(editor, lineNo, ch) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.setCursorIfChanged === "function") {
-      return common.setCursorIfChanged(editor, lineNo, ch);
-    }
-  } catch (_) {}
-  if (!editor || typeof editor.setCursor !== "function") return;
-  const nextLine = Math.max(0, Number(lineNo || 0));
-  const nextCh = Math.max(0, Number(ch || 0));
-  try {
-    if (typeof editor.getCursor === "function") {
-      const cur = editor.getCursor();
-      if (cur && Number(cur.line) === nextLine && Number(cur.ch) === nextCh) return;
-    }
-    editor.setCursor({ line: nextLine, ch: nextCh });
-  } catch (_) {}
+  return getStatusRuntimeCommon().setCursorIfChanged(editor, lineNo, ch);
 }
 
 function escapeRx(s) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.escapeRx === "function") {
-      return common.escapeRx(s);
-    }
-  } catch (_) {}
-  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function parseIsoDateSafe(s) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.parseIsoDateSafe === "function") {
-      return common.parseIsoDateSafe(s);
-    }
-  } catch (_) {}
-  const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  const y = Number(m[1]);
-  const mo = Number(m[2]);
-  const d = Number(m[3]);
-  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
-  const dt = new Date(Date.UTC(y, mo - 1, d));
-  if (Number.isNaN(dt.getTime())) return null;
-  return dt;
-}
-
-function getTodayIso() {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getTodayIso === "function") {
-      return common.getTodayIso();
-    }
-  } catch (_) {}
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+  return getStatusRuntimeCommon().escapeRx(s);
 }
 
 function normalizeFormatMask(format) {
@@ -290,48 +233,15 @@ function normalizeFormatMask(format) {
 }
 
 function addByUnitUtc(base, unit, delta) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.addByUnitUtc === "function") {
-      return common.addByUnitUtc(base, unit, delta);
-    }
-  } catch (_) {}
-  const dt = new Date(base.getTime());
-  const d = Math.trunc(Number(delta || 0));
-  if (unit === "second") dt.setUTCSeconds(dt.getUTCSeconds() + d);
-  else if (unit === "minute") dt.setUTCMinutes(dt.getUTCMinutes() + d);
-  else if (unit === "hour") dt.setUTCHours(dt.getUTCHours() + d);
-  else if (unit === "month") dt.setUTCMonth(dt.getUTCMonth() + d);
-  else if (unit === "year") dt.setUTCFullYear(dt.getUTCFullYear() + d);
-  else dt.setUTCDate(dt.getUTCDate() + d);
-  return dt;
+  return getStatusRuntimeCommon().addByUnitUtc(base, unit, delta);
 }
 
 function getReferenceDateForUnit(unit) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getReferenceDateForUnit === "function") {
-      return common.getReferenceDateForUnit(unit);
-    }
-  } catch (_) {}
-  if (unit === "second" || unit === "minute" || unit === "hour") return new Date();
-  const d = parseIsoDateSafe(getTodayIso());
-  return d || new Date(Date.UTC(1970, 0, 1));
+  return getStatusRuntimeCommon().getReferenceDateForUnit(unit);
 }
 
 function getSearchLimitByUnit(unit) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getSearchLimitByUnit === "function") {
-      return common.getSearchLimitByUnit(unit, getSharedUtils());
-    }
-  } catch (_) {}
-  const su = getSharedUtils();
-  if (su && typeof su.getSearchLimitByUnit === "function") return su.getSearchLimitByUnit(unit);
-  if (unit === "second") return 172800;
-  if (unit === "minute") return 10080;
-  if (unit === "hour") return 720;
-  return 3660;
+  return getStatusRuntimeCommon().getSearchLimitByUnit(unit, getSharedUtils());
 }
 
 /*
@@ -733,7 +643,7 @@ function hydrateDateOffsetFromRawLine(rawLine, rules, state, field, marker, targ
   if (!runtime || typeof runtime.selectMarkerValueByPanelOrder !== "function") {
     throw new Error("status_line_runtime_unified unavailable: selectMarkerValueByPanelOrder");
   }
-  const tokenFacts = buildTokenFactsFromLineSafe(rawLine, rules);
+  const tokenFacts = buildTokenFactsFromLine(rawLine, rules);
   const valueRxSrc = hasFormatTokens(fmt)
     ? buildFormatValueRegexSource(fmt)
     : buildTokenlessValueRegexSource(fmt);
@@ -1009,7 +919,7 @@ function hydrateTimeFieldFromRawLine(rawLine, rules, state, field, marker, targe
   if (!runtime || typeof runtime.selectMarkerValueByPanelOrder !== "function") {
     throw new Error("status_line_runtime_unified unavailable: selectMarkerValueByPanelOrder");
   }
-  const tokenFacts = buildTokenFactsFromLineSafe(rawLine, rules);
+  const tokenFacts = buildTokenFactsFromLine(rawLine, rules);
   const valueRxSrc = hasFormatTokens(fmt)
     ? buildFormatValueRegexSource(fmt)
     : buildTokenlessValueRegexSource(fmt);
@@ -1054,7 +964,7 @@ function hydrateGenericElementFromRawLine(rawLine, rules, state, field, marker, 
   if (typeof runtime.selectTokenByPanelOrder !== "function") {
     throw new Error("status_line_runtime_unified unavailable: selectTokenByPanelOrder");
   }
-  const tokenFacts = buildTokenFactsFromLineSafe(rawLine, rules);
+  const tokenFacts = buildTokenFactsFromLine(rawLine, rules);
   const valueRxSrc = hasFormatTokens(fmt)
     ? buildFormatValueRegexSource(fmt)
     : buildTokenlessValueRegexSource(fmt);
@@ -1192,36 +1102,11 @@ function buildGenericElementTokenFromState(field, state, marker, format, cycleVa
 }
 
 function detectDateUnit(format) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.detectDateUnit === "function") {
-      return common.detectDateUnit(format, normalizeFormatMask, hasFormatTokens, getSharedUtils());
-    }
-  } catch (_) {}
-  const su = getSharedUtils();
-  if (su && typeof su.detectDateUnit === "function") return su.detectDateUnit(format);
-  const f = normalizeFormatMask(String(format ?? ""));
-  if (!hasFormatTokens(f)) return "tokenless";
-  if (/ss/.test(f)) return "second";
-  if (/mm/.test(f)) return "minute";
-  if (/HH/.test(f)) return "hour";
-  if (/YYYY/.test(f) && !/(MM|DD)/.test(f)) return "year";
-  if (/MM/.test(f) && !/DD/.test(f)) return "month";
-  return "day";
+  return getStatusRuntimeCommon().detectDateUnit(format, normalizeFormatMask, hasFormatTokens, getSharedUtils());
 }
 
 function getDateProgressForStep(state, fieldId, format) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getDateProgressForStep === "function") {
-      return common.getDateProgressForStep(state, fieldId, format);
-    }
-  } catch (_) {}
-  const cur = String(state?.selected?.[fieldId] || "");
-  if (!cur) return "";
-  const off = Number(cur);
-  if (!Number.isFinite(off)) return "";
-  return String(Math.max(0, Math.trunc(off)));
+  return getStatusRuntimeCommon().getDateProgressForStep(state, fieldId, format);
 }
 
 function mutateDateOffsetByFormat(state, fieldId, format, inc, stepRaw) {
@@ -1451,7 +1336,7 @@ module.exports = {
     const cur = editor.getCursor();
     const lineNo = cur.line;
     const rawLine = String(editor.getLine(lineNo) ?? "").replace(/\n$/, "");
-    const tokenFactsRaw = buildTokenFactsFromLineSafe(rawLine, rules);
+    const tokenFactsRaw = buildTokenFactsFromLine(rawLine, rules);
     const parsed = core.parseLine(rawLine, rules);
     const noContentStart = macroShared.isNoContentParsed(parsed, { includeTags: true });
     const cycleEndBehavior = statusCommon.normalizeCycleEndBehavior(settings?.[CYCLE_END_BEHAVIOR]);
