@@ -163,16 +163,15 @@ function buildTokenFactsFromLineSafe(rawLine, rules) {
   return __tokenGraphUnified.buildTokenFactsFromLine(rawLine, rules);
 }
 
+/*
+ * Поиск Field по идентификатору живёт в общем модуле, и здесь его зовут прямо.
+ * Прежде рядом лежала копия, сравнивавшая `f.id === id` без приведения к
+ * строке и без охраны пустого значения: на пустом `id` она отдавала Field, у
+ * которого `id` не задан вовсе. Доставалась копия, только если общая
+ * реализация бросила, — то есть отвечала иначе и молча (У-32).
+ */
 function getField(mode, id) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getFieldById === "function") {
-      return common.getFieldById(mode, id);
-    }
-  } catch (_) {}
-  const fields = Array.isArray(mode?.fields) ? mode.fields : [];
-  for (const f of fields) if (f && f.id === id) return f;
-  return null;
+  return getStatusRuntimeCommon().getFieldById(mode, id);
 }
 
 function rebuildLine(core, rules, parsedLine, state) {
@@ -335,68 +334,23 @@ function getSearchLimitByUnit(unit) {
   return 3660;
 }
 
+/*
+ * Разбор даты по маске живёт в общем модуле, и здесь его зовут прямо.
+ * Копия рядом отличалась по существу: она **не сверяла результат обратно** и
+ * потому принимала несуществующую дату — `2026-02-31` молча становилось третьим
+ * марта, — а год по умолчанию брала нынешний вместо 1970.
+ */
 function parseDateByFormat(text, format) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.parseDateByFormat === "function") {
-      return common.parseDateByFormat(text, format, normalizeFormatMask, escapeRx);
-    }
-  } catch (_) {}
-  const t = String(text || "").trim();
-  const f = normalizeFormatMask(String(format ?? "YYYY-MM-DD"));
-  const tokenRe = /(YYYY|MM|DD|HH|mm|ss)/g;
-  let pattern = "^";
-  const tokens = [];
-  let last = 0;
-  let m;
-  while ((m = tokenRe.exec(f)) !== null) {
-    pattern += escapeRx(f.slice(last, m.index));
-    const tk = String(m[1]);
-    tokens.push(tk);
-    pattern += tk === "YYYY" ? "(\\d{4})" : "(\\d{2})";
-    last = m.index + tk.length;
-  }
-  pattern += escapeRx(f.slice(last)) + "$";
-  const rx = new RegExp(pattern);
-  const hit = t.match(rx);
-  if (!hit) return null;
-  const vals = {};
-  for (let i = 0; i < tokens.length; i++) vals[tokens[i]] = Number(hit[i + 1]);
-  const now = new Date();
-  let y = Number.isFinite(vals.YYYY) ? vals.YYYY : now.getFullYear();
-  let mo = Number.isFinite(vals.MM) ? vals.MM : 1;
-  let d = Number.isFinite(vals.DD) ? vals.DD : 1;
-  const hh = Number.isFinite(vals.HH) ? vals.HH : 0;
-  const mm = Number.isFinite(vals.mm) ? vals.mm : 0;
-  const ss = Number.isFinite(vals.ss) ? vals.ss : 0;
-  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return null;
-  const dt = new Date(Date.UTC(y, mo - 1, d, hh, mm, ss));
-  if (Number.isNaN(dt.getTime())) return null;
-  return dt;
+  return getStatusRuntimeCommon().parseDateByFormat(text, format, normalizeFormatMask, escapeRx);
 }
 
+/*
+ * Сборка даты по маске живёт в общем модуле, и здесь её зовут прямо. Копия
+ * рядом проверяла аргумент утиным способом (`dt.getTime`) и на объекте без
+ * этого метода бросала, тогда как общая отдаёт пустую строку.
+ */
 function formatDateByFormat(dt, format) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.formatDateByFormat === "function") {
-      return common.formatDateByFormat(dt, format, normalizeFormatMask);
-    }
-  } catch (_) {}
-  if (!dt || Number.isNaN(dt.getTime())) return "";
-  const f = normalizeFormatMask(String(format ?? "YYYY-MM-DD"));
-  const y = String(dt.getUTCFullYear());
-  const m = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(dt.getUTCDate()).padStart(2, "0");
-  const HH = String(dt.getUTCHours()).padStart(2, "0");
-  const mm = String(dt.getUTCMinutes()).padStart(2, "0");
-  const ss = String(dt.getUTCSeconds()).padStart(2, "0");
-  return f
-    .replace(/YYYY/g, y)
-    .replace(/MM/g, m)
-    .replace(/DD/g, d)
-    .replace(/HH/g, HH)
-    .replace(/mm/g, mm)
-    .replace(/ss/g, ss);
+  return getStatusRuntimeCommon().formatDateByFormat(dt, format, normalizeFormatMask);
 }
 
 function buildFormatValueRegexSource(format) {

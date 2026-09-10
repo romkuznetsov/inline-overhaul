@@ -152,16 +152,15 @@ function activeValues(field) {
     });
 }
 
+/*
+ * Поиск Field по идентификатору живёт в общем модуле, и здесь его зовут прямо.
+ * Прежде рядом лежала копия, сравнивавшая `f.id === id` без приведения к
+ * строке и без охраны пустого значения: на пустом `id` она отдавала Field, у
+ * которого `id` не задан вовсе. Доставалась копия, только если общая
+ * реализация бросила, — то есть отвечала иначе и молча (У-32).
+ */
 function getField(mode, id) {
-  try {
-    const common = getStatusRuntimeCommon();
-    if (common && typeof common.getFieldById === "function") {
-      return common.getFieldById(mode, id);
-    }
-  } catch (_) {}
-  const fields = Array.isArray(mode?.fields) ? mode.fields : [];
-  for (const f of fields) if (f && f.id === id) return f;
-  return null;
+  return getStatusRuntimeCommon().getFieldById(mode, id);
 }
 
 function findValueById(field, valueId) {

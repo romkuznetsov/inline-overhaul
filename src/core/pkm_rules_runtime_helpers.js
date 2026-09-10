@@ -1,21 +1,14 @@
 "use strict";
 
-const __pkmDomainRegistry = (() => {
-  try {
-    if (typeof require === "function") {
-      const mod = require("./pkm_domain_registry.js");
-      if (mod && typeof mod === "object") return mod;
-    }
-  } catch (_) {}
-  try {
-    const g = globalThis && globalThis.__inlinePkmDomainRegistry;
-    if (g && typeof g === "object") return g;
-  } catch (_) {}
-  return {
-    resolveOrderKeyFromFieldId: (id) => String(id || "").trim(),
-    collapseSubOrderKey: (key) => String(key || "").trim(),
-  };
-})();
+/*
+ * Модуль берётся литеральным `require`, без заглушки за ним: он лежит в
+ * бандле, и «не приехал» — состояние, которого не бывает (У-89, У-90).
+ * Прежние две запасные ветки были не страховкой, а вторым ответом на тот же
+ * вопрос: последняя отвечала «ключ равен самому себе», то есть при отказе
+ * модуля дочерний Field молча терял своё место в Order. А ветка перед ней
+ * читала `globalThis.__inlinePkmDomainRegistry`, которую **никто не пишет**.
+ */
+const __pkmDomainRegistry = require("./pkm_domain_registry.js");
 
 function collapseSubOrderKey(key) {
   const raw = String(key || "").trim();

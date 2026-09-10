@@ -564,9 +564,6 @@ async function runTagWheel(input, quickAddSettings) {
     return domainRegistry
   }
 
-  async function ensureDomainRegistryLoaded() {
-  }
-
   function resolveOrderKeyFromFieldId(fieldId) {
     var reg = getDomainRegistry()
     if (reg && typeof reg.resolveOrderKeyFromFieldId === 'function') {
@@ -614,11 +611,6 @@ async function runTagWheel(input, quickAddSettings) {
     globalThis.__inlineStatusLineRuntimeUnified = __statusLineRuntimeUnifiedMod
     return __statusLineRuntimeUnifiedMod
   }
-
-  async function ensureOptionKeysLoaded() {
-    applyPkmOptionKeys(__pkmOptionKeysMod)
-  }
-
 
   function panelFieldIds(state) {
     var core = state && state.core
@@ -1795,10 +1787,13 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   var preApp = resolveTagWheelApp(input)
-  if (preApp) {
-    try { await ensureOptionKeysLoaded(preApp) } catch (_) {}
-    try { await ensureDomainRegistryLoaded(preApp) } catch (_) {}
-  }
+  /*
+   * Имена ключей настроек берутся у модуля, который лежит в бандле, — работа
+   * синхронная и отказать ей нечем. Прежде здесь стояли два `await` в пустых
+   * `catch`: остатки эпохи загрузчика по пути внутри vault. Второй из них звал
+   * функцию с пустым телом, а оба принимали `preApp`, которого не читали.
+   */
+  applyPkmOptionKeys(__pkmOptionKeysMod)
 
   var runtimeInput = buildTagWheelRuntimeInput(input, quickAddSettings)
   var scrollerCfg = normalizeScrollerConfig(runtimeInput)

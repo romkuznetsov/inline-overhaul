@@ -1,28 +1,26 @@
-const domainRegistry = (() => {
-  try {
-    if (typeof require === "function") {
-      const mod = require("../src/core/pkm_domain_registry.js")
-      if (mod && typeof mod === "object") return mod
-    }
-  } catch (_) {}
-  return null
-})()
-
-function keyKind(key) {
-  if (domainRegistry && typeof domainRegistry.inferOrderFieldType === "function") {
-    return String(domainRegistry.inferOrderFieldType(key) || "tag")
-  }
-  var k = String(key || "").trim().toLowerCase()
-  if (k.indexOf("link") !== -1 || k.indexOf("wiki") !== -1) return "wikilink"
-  if (k.indexOf("time") !== -1 || k.indexOf("date_") === 0) return "element"
-  return "tag"
-}
+/*
+ * Здесь живёт **одна** вещь: нормализация ключа Order. Её берёт
+ * `pkm_runtime_bootstrap.js` и кладёт на шов `__inlineOrderKeyNormalizer`.
+ *
+ * Отсюда снята `keyKind` — 2026-09-10, первый кусок В-97. Она отвечала на
+ * вопрос «какого типа этот ключ Order» и была мертва дважды. Во-первых, её не
+ * звал никто ни в одном коммите с первого релиза. Во-вторых, внутри неё стояла
+ * заглушка на месте модуля — свой `require` внутри `try` (запрещённый класс,
+ * У-90, A33), — и запасная ветка за ней гадала тип по подстроке: `link`/`wiki`
+ * в имени значило wikilink, `time`/`date_` — element, всё остальное тег.
+ *
+ * **Ветка `element` была единственным местом во всём плагине, которое этот тип
+ * возвращало**, и достижима она не была: настоящий `inferOrderFieldType` знает
+ * только `wikilink` и `tag`, а модуль лежит в бандле и приезжает всегда. Пин
+ * `bootstrap_loader_tests.js` держал её строкой исходника — то есть охранял
+ * заплатку внутри мёртвого кода (У-56, У-58, У-71). Пин переписан на то, что
+ * верно: тип ключа решается в одном месте, и это `pkm_domain_registry.js`.
+ */
 
 function normalizeOrderKey(key) {
   return String(key || "").trim()
 }
 
 module.exports = {
-  keyKind: keyKind,
   normalizeOrderKey: normalizeOrderKey,
 }

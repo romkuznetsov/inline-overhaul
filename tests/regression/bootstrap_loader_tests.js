@@ -591,7 +591,29 @@ async function run() {
 
 
   assertTrue(/normalizePkmBehaviorShape\(cfg, \{ cloneJson, isObj \}\)/.test(cfgSrc), "migrateConfig applies behavior shape normalization");
-  assertTrue(/return "element"/.test(fieldModelSrc), "field model normalizes date-like order keys as element kind");
+  /*
+   * Здесь стоял `assertTrue(/return "element"/)` — «модель Fields относит
+   * ключи вида даты к типу element». Утверждение было верно про **текст**
+   * файла и неверно про продукт, и охраняло оно заплатку внутри мёртвого кода
+   * (У-56, У-58, У-71): ветку `element` отдавала запасная копия внутри
+   * `keyKind`, которую не звал никто ни в одном коммите с первого релиза, а
+   * достаться она могла бы только при отказе модуля, лежащего в бандле.
+   * Настоящее правило типа знает `wikilink` и `tag`, а `element` — не знает.
+   *
+   * Пин переписан на то, что верно: **тип ключа Order решается в одном
+   * месте**, и модель Fields своего ответа на этот вопрос не заводит (У-32).
+   */
+  /*
+   * Комментарии снимаются: запрет про **код**, а не про объяснение, почему
+   * кода нет. Первая версия этой строки покраснела на собственном абзаце в
+   * `field_model.js`, где эти слова названы — та же половина вопроса, о
+   * которой У-108.
+   */
+  const fieldModelCode = fieldModelSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  assertFalse(/inferOrderFieldType|wikilink|element/.test(fieldModelCode),
+    "модель Fields не объявляет своего правила о типе ключа Order: правило живёт в pkm_domain_registry.js");
+  assertTrue(/wikilink/.test(pkmDomainRegistrySrc),
+    "положительный контроль: правило о типе ключа действительно лежит в pkm_domain_registry.js");
   assertFalse(/return "date"/.test(fieldModelSrc), "field model has no legacy date kind token");
   assertFalse(/createFieldModelFromOrder/.test(fieldModelSrc), "field model has no dead createFieldModelFromOrder export");
   assertTrue(/const deprecatedRules = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.rules\)/.test(cfgSrc), "migrateConfig resolves deprecated rules keys from shared compat profile module");
@@ -1004,20 +1026,21 @@ async function run() {
      * Форма же у такого кода всегда одна: **свой `require` внутри `try`**.
      * Ищется она, а не имя.
      *
-     * Три места остаются, и у каждого причина названа здесь же. Молчаливый
+     * **Осталось одно место, и причина названа здесь же.** Молчаливый
      * список исключений и есть тот способ, каким «проверено автоматически»
      * превращается в «проверено ничего»; список с причинами — это разбор.
+     *
+     * Два места ушли отсюда 2026-09-10, первым куском В-97:
+     * `pkm_rules_runtime_helpers.js` и `pkm_v2/field_model.js` держали ту же
+     * заглушку, что снята 2026-09-09 вне З3, и заказчик разрешил снять её и
+     * под З3. Держать их в списке дальше значило бы разрешать вернуть то,
+     * чего уже нет.
      */
     const TRY_REQUIRE_ALLOWED = {
       "src/features/plugin_bootstrap.js":
         "вкладка настроек на TypeScript. Из исходников без esbuild файл не "
         + "разрешается, и набор берёт `main.js` именно так. Отказ не молчит: "
         + "он идёт в консоль с приставкой плагина",
-      "src/core/pkm_rules_runtime_helpers.js":
-        "файл под З3, и заглушка там та же, что снята 2026-09-09 вне З3. "
-        + "Снятие требует его слова после разбора (PRD 15.2, второй отчёт Д-4)",
-      "pkm_v2/field_model.js":
-        "то же самое: файл под З3, заглушка та же",
     };
     const tryRequires = [];
     for (const abs of walked) {
@@ -1242,7 +1265,15 @@ async function run() {
   assertTrue(/detectDateUnit\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared date-unit detector");
   assertTrue(/getDateProgressForStep\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared date-progress resolver");
   assertTrue(/normalizeDirection\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared direction normalizer");
-  assertTrue(/common\.getFieldById\(mode, id\)/.test(statusTagsSrc), "status_tags delegates field lookup to shared runtime common");
+  /*
+   * Четыре пина ниже переписаны 2026-09-10 вместе со своим предметом (У-94):
+   * `getField` в обоих файлах и разбор с сборкой даты больше не держат копию
+   * рядом с вызовом, а зовут общую реализацию прямо. Форма записи сменилась с
+   * `common.X(...)` на `getStatusRuntimeCommon().X(...)`, и утверждение,
+   * написанное по прежней форме, обязано было переехать, а не остаться
+   * зелёным на соседнем совпадении.
+   */
+  assertTrue(/getStatusRuntimeCommon\(\)\.getFieldById\(mode, id\)/.test(statusTagsSrc), "status_tags delegates field lookup to shared runtime common");
   assertTrue(/common\.getActiveValues\(field\)/.test(statusTagsSrc), "status_tags delegates active values lookup to shared runtime common");
   assertTrue(/common\.getFieldValueById\(field, valueId\)/.test(statusTagsSrc), "status_tags delegates value-by-id lookup to shared runtime common");
   assertTrue(/common\.getFieldValueByToken\(field, token\)/.test(statusTagsSrc), "status_tags delegates value-by-token lookup to shared runtime common");
@@ -1265,7 +1296,7 @@ async function run() {
   assertTrue(/common\.composeToken\(prefix, rawToken\)/.test(statusTagsSrc), "status_tags delegates token composer to shared runtime common");
   assertTrue(/common\.normalizeImportanceTokenShape\(tokenRaw\)/.test(statusTagsSrc), "status_tags delegates importance-token normalizer to shared runtime common");
   assertTrue(/common\.normalizeDirection\(raw\)/.test(statusTagsSrc), "status_tags delegates direction normalizer to shared runtime common");
-  assertTrue(/common\.getFieldById\(mode, id\)/.test(statusDateSrc), "status_date delegates field lookup to shared runtime common");
+  assertTrue(/getStatusRuntimeCommon\(\)\.getFieldById\(mode, id\)/.test(statusDateSrc), "status_date delegates field lookup to shared runtime common");
   assertTrue(/common\.setCursorIfChanged\(editor, lineNo, ch\)/.test(statusDateSrc), "status_date delegates cursor setter to shared runtime common");
   assertTrue(/common\.parseIsoDateSafe\(s\)/.test(statusDateSrc), "status_date delegates ISO date parsing to shared runtime common");
   assertTrue(/common\.getTodayIso\(\)/.test(statusDateSrc), "status_date delegates today-date formatting to shared runtime common");
@@ -1273,8 +1304,8 @@ async function run() {
   assertTrue(/common\.getReferenceDateForUnit\(unit\)/.test(statusDateSrc), "status_date delegates reference-date resolution to shared runtime common");
   assertTrue(/common\.getSearchLimitByUnit\(unit, getSharedUtils\(\)\)/.test(statusDateSrc), "status_date delegates search-limit resolution to shared runtime common");
   assertTrue(/common\.addByUnitUtc\(base, unit, delta\)/.test(statusDateSrc), "status_date delegates UTC date-step helper to shared runtime common");
-  assertTrue(/common\.parseDateByFormat\(text, format, normalizeFormatMask, escapeRx\)/.test(statusDateSrc), "status_date delegates date parsing-by-format to shared runtime common");
-  assertTrue(/common\.formatDateByFormat\(dt, format, normalizeFormatMask\)/.test(statusDateSrc), "status_date delegates date formatting-by-format to shared runtime common");
+  assertTrue(/getStatusRuntimeCommon\(\)\.parseDateByFormat\(text, format, normalizeFormatMask, escapeRx\)/.test(statusDateSrc), "status_date delegates date parsing-by-format to shared runtime common");
+  assertTrue(/getStatusRuntimeCommon\(\)\.formatDateByFormat\(dt, format, normalizeFormatMask\)/.test(statusDateSrc), "status_date delegates date formatting-by-format to shared runtime common");
   assertTrue(/common\.detectDateUnit\(format, normalizeFormatMask, hasFormatTokens, getSharedUtils\(\)\)/.test(statusDateSrc), "status_date delegates date-unit detection to shared runtime common");
   assertTrue(/common\.getDateProgressForStep\(state, fieldId, format\)/.test(statusDateSrc), "status_date delegates date-progress resolver to shared runtime common");
   assertTrue(/function ensureStatusRuntimeCommonFns\(/.test(tagwheelCoreSrc), "tagwheel_core bootstraps shared status runtime common helpers");
