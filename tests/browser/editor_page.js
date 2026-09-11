@@ -225,9 +225,38 @@ window.__ioEditorProbe = function () {
      * подложка считается от той же меры.
      */
     const block = view.lineBlockAt(line.from);
+    /*
+     * **Зрительные строки строки документа — то, чем меряется перенос.**
+     *
+     * `Range` по содержимому узла `.cm-line` отдаёт по прямоугольнику на
+     * каждую зрительную строку, и это ровно то, докуда на ней **написано**.
+     * Нужно это затем, чтобы вопрос «подложка нарисована выделением?» не
+     * зависел от того, где на этой машине встал перенос: у выделения
+     * прямоугольник доходит до края ящика независимо от написанного, а у
+     * порядной отрисовки — до написанного (У-78).
+     */
+    const lineEl = document.querySelectorAll(".cm-line")[n - 1] || null;
+    const visualRows = (() => {
+      if (!lineEl) return [];
+      const range = document.createRange();
+      range.selectNodeContents(lineEl);
+      const out = [];
+      for (const r of Array.from(range.getClientRects())) {
+        if (!(r.width > 0) && !(r.height > 0)) continue;
+        const prev = out[out.length - 1];
+        if (prev && Math.abs(prev.top - r.top) < 1) {
+          prev.right = Math.max(prev.right, round(r.right));
+          prev.bottom = Math.max(prev.bottom, round(r.bottom));
+          continue;
+        }
+        out.push({ top: round(r.top), bottom: round(r.bottom), right: round(r.right) });
+      }
+      return out;
+    })();
     rows.push({
       line: n,
       hasLink: line.text.indexOf("[[") >= 0,
+      visualRows,
       rowTop: round(Number(view.documentTop) + Number(block.top)),
       rowHeight: round(Number(block.height)),
       /* Первое значение левого блока и правый край знака начала строки. */
