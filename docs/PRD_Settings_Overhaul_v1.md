@@ -7841,7 +7841,7 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: Show the hash and emoji in the picker, or just the words
   - tip: A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way
   - старые названия для поиска: «Show Prefix»
-- **Highlight the TagWheel line** — `panel-highlight`, `toggle`, path `visual.tagWheel.highlightLine`, default `false`
+- **Highlight the TagWheel line** — `panel-highlight`, `toggle`, path `visual.tagWheel.highlightLine`, default `true`
   - desc: Mark the line while the picker is open, so it stands out from the page
   - tip: TagWheel draws itself over the line you are on, and on a busy page it is not always clear where the picker ends and your note begins. On, the line is wrapped in <code>==</code> for as long as the picker is open, and that is what paints it: <code>Background color</code> below gives the color, and without one Obsidian uses its own highlight. The marks belong to the picker, not to your line — they leave with it, and nothing stays behind in the note
   - старые названия для поиска: «Highlight the line»
@@ -8044,7 +8044,7 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `visual.tagWheel.activeTextColor` | color | `""` |
 | `visual.tagWheel.edgeMode` | dropdown | `stay` |
 | `visual.tagWheel.fillColor` | color | `""` |
-| `visual.tagWheel.highlightLine` | toggle | `false` |
+| `visual.tagWheel.highlightLine` | toggle | `true` |
 | `visual.tagWheel.scroller.direction` | dropdown | `full` |
 | `visual.tagWheel.scroller.enabled` | toggle | `false` |
 | `visual.tagWheel.scroller.fillColor` | color | `""` |

@@ -353,6 +353,42 @@ const GUIDES = ["README.md", "instructions.md"];
 }
 
 {
+  /*
+   * Ссылка из `README.md` в `showcase.md` ведёт к живому заголовку.
+   *
+   * **Зачем.** Заголовки showcase — цели ссылок, и это сказано в нём самом.
+   * 2026-09-11 из него убраны 17 записей, чьи гифки показывали снятую панель;
+   * шестнадцать ссылок README пришлось развязать тем же коммитом. Без этой
+   * проверки следующая такая уборка оставит битые якоря, и заметит их
+   * человек, а не прогон: битая ссылка на GitHub просто ведёт в начало файла.
+   */
+  const anchorOf = (title: string): string =>
+    title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+
+  const show = fs.readFileSync(path.join(root, "showcase.md"), "utf8");
+  const targets = new Set(
+    (show.match(/^#{2,3}\s+.*$/gm) || []).map(h => anchorOf(h.replace(/^#+\s+/, "").trim())),
+  );
+  assert.ok(targets.size >= 10,
+    "положительный контроль: заголовков в showcase найдено " + targets.size + " — разбор сломан");
+
+  const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
+  const links = Array.from(readme.matchAll(/showcase\.md#([a-z0-9-]+)/g), m => String(m[1]));
+  assert.ok(links.length >= 5,
+    "положительный контроль: ссылок README в showcase найдено " + links.length + " — сверять нечего");
+
+  /* Образец, на котором запрет обязан краснеть (У-127). */
+  assert.ok(!targets.has("zagolovka-takogo-net"),
+    "положительный контроль: выдуманный якорь считается живым");
+
+  const dangling = links.filter(a => !targets.has(a));
+  assert.deepEqual(dangling, [],
+    "ссылка README ведёт к заголовку, которого в showcase.md нет — на GitHub она\n"
+    + "молча откроет начало файла:\n  " + dangling.join("\n  "));
+  ok("каждая ссылка README в showcase ведёт к живому заголовку");
+}
+
+{
   /* Разрыв хоткеев назван в обоих руководствах: человек обязан о нём прочитать. */
   for (const doc of GUIDES) {
     const text = fs.readFileSync(path.join(root, doc), "utf8");

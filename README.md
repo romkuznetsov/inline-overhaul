@@ -92,13 +92,13 @@ simply keeps the English the plugin ships with. Command names stay in English: O
 takes those from its own command registry, and translating them here would leave the
 command palette and the reference table disagreeing.
 
-- [Module toggles](showcase.md#open-settings-and-module-toggles): enable or disable each
+- **Module toggles**: enable or disable each
   feature module from **General**. Open the pane the normal Obsidian way — there is no
   command for it, and there is no longer one to remove.
-- [Settings undo](showcase.md#settings-undoflush): **Undo last settings change** rolls back
+- **Settings undo**: **Undo last settings change** rolls back
   the most recent change. It is a command, not a button. Saving is automatic and there is
   no manual flush.
-- [Diagnostics and developer logs](showcase.md#diagnosticsdeveloper-logs): **Advanced →
+- **Diagnostics and developer logs**: **Advanced →
   Diagnostics**. The log is a note in your vault and it records the lines you were working
   on, so read it before you share it.
 
@@ -115,7 +115,7 @@ command palette and the reference table disagreeing.
   this without the other. Both off by default.
 - **Commands & Hotkeys**: every command, the key it has now, and a click through to
   Obsidian's Hotkeys screen.
-- [Custom insertion commands](showcase.md#custom-insertion-commands): **Binder (custom
+- **Custom insertion commands**: **Binder (custom
   insert commands)** turns a row of text into a command of its own.
 - [Smart bracket](showcase.md#smart-bracket): the one Binder row that ships with the
   plugin. It cycles `text`, `[text]`, `[[text]]` and back.
@@ -138,19 +138,19 @@ command palette and the reference table disagreeing.
 
 ### Tags & PKM
 
-- [Fields, Blocks and order](showcase.md#field-schemaorderpanels): **Tags & PKM → Fields**.
+- **Fields, Blocks and order**: **Tags & PKM → Fields**.
   One list holds every Field; drag a Field across the line in it to move it between the
   `Left Block` and the `Right Block`.
-- [Value hierarchy](showcase.md#deep-editor-hierarchy): the `Values` table in the right
+- **Value hierarchy**: the `Values` table in the right
   column of the same editor. A Value can hold a child Value.
-- [Per-Value Prefixes and prerequisites](showcase.md#per-value-prefixesdependencies): the
+- **Per-Value Prefixes and prerequisites**: the
   `Behavior` block of a Field, where `Prerequisite Field` makes one Field wait for another.
-- [Emoji elements, dates and numbers](showcase.md#generic-elementsdatetimenumber): a Field
+- **Emoji elements, dates and numbers**: a Field
   of type element carries a marker and a format instead of a list of Values.
-- [YAML property mapping](showcase.md#yaml-field-mapping): the `YAML property` row of a
+- **YAML property mapping**: the `YAML property` row of a
   Field decides which property of a transformed note it becomes.
-- [Separators, Prefix priority, cursor and placement
-  modes](showcase.md#separatorsprefix-resolvercursorfree-roam-policies): **Tags & PKM →
+- **Separators, Prefix priority, cursor and placement
+  modes**: **Tags & PKM →
   Separators**, **Prefix priority**, **Writing rules** and **Placement modes**.
 - [Cycle a Field from the keyboard](showcase.md#direct-taglink-field-cycle-increasedecrease):
   every Field gets a pair of commands, `<Field> next` and `<Field> previous`, created for
@@ -163,13 +163,13 @@ command palette and the reference table disagreeing.
 
 ### Visual
 
-- [Tag bubbles and per-Value styles](showcase.md#tag-bubblesper-value-stylesseparator-colors):
+- **Tag bubbles and per-Value styles**:
   **Visual → Inline appearance** for size, opacity, corners and a colored band behind each
   Block; **Color your Tags** for tags of your own that no Field owns.
 - [TagWheel panel and scroller](showcase.md#tagwheel-panelscroller): **Visual → TagWheel**,
   where `Scroller` adds a list of neighbouring Values and `Highlight the TagWheel line`
   fills the line you are editing.
-- [Tag Bars](showcase.md#hierarchy-striptoken-hiding): **Visual → Tag Bars** draws a
+- **Tag Bars**: **Visual → Tag Bars** draws a
   coloured stripe in the margin down a line and everything nested under it. One tag Field
   draws them, chosen in `Which Field draws Bars`, and the colours come from that Field's
   Values. Off by default.
@@ -196,20 +196,20 @@ command palette and the reference table disagreeing.
 **Transform inline to note**, and read [the guide](instructions.md) first: this command
 rewrites the line you are standing on.
 
-- [Preview before you enable it](showcase.md#synthetic-previewopt-in): the group shows what
+- **Preview before you enable it**: the group shows what
   it would do to an example line, without touching a note.
 - [Current root or selected tree](showcase.md#current-root-or-selected-tree).
-- [Templates, Smart Rules and naming](showcase.md#templatessmart-rulesauto-manual-naming):
+- **Templates, Smart Rules and naming**:
   `Templates folder` and `Default template` under **Inline to note**, the rules under
   **Smart Rules**, and the name under **New note naming**.
-- [Collision, body and header policies](showcase.md#collisionbodyheader-policies): **Note
+- **Collision, body and header policies**: **Note
   content**, plus `If the name already taken` under **New note naming**. `Where to put the
   text` can also file the entry at the end of a heading you name, and says what to do when
   the note has no such heading.
 - [YAML Raw and Clean mapping](showcase.md#yaml-rawclean-mapping): each Field carries the
   rule, set once for the Field in **Tags & PKM → Fields**.
-- [What happens to the source
-  line](showcase.md#source-cleanuplinkprocessed-tokensublinesopen-target): **Transform →
+- **What happens to the source
+  line**: **Transform →
   Source line**.
 
 ### Advanced

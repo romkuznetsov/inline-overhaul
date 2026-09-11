@@ -1039,9 +1039,19 @@ async function main(): Promise<void> {
     assert.equal(readWheel(host).activeColor, "#00ff00",
       "цвет активного Field доехал без перехода по вкладкам");
 
-    assert.equal(readWheel(host).lit, false, "подсветка выключена");
-    await store.set("visual.tagWheel.highlightLine", true);
-    assert.equal(readWheel(host).lit, true, "и тумблер подсветки тоже будит блок");
+    /*
+     * Предмет здесь — **пробуждение**, а не умолчание тумблера: умолчание
+     * поменялось 2026-09-11 с выключенного на включённое, и утверждение
+     * «подсветка выключена» стало описанием схемы, а не поведения (У-5).
+     * Поэтому состояние читается, а потом переключается в **обе** стороны.
+     */
+    const litAtStart = readWheel(host).lit;
+    await store.set("visual.tagWheel.highlightLine", !litAtStart);
+    assert.equal(readWheel(host).lit, !litAtStart,
+      "тумблер подсветки не разбудил блок при переключении от умолчания");
+    await store.set("visual.tagWheel.highlightLine", litAtStart);
+    assert.equal(readWheel(host).lit, litAtStart,
+      "и обратное переключение тоже будит блок");
   });
 
   await test("коробка скроллера красится своими цветами, а не цветами панели", () => {
