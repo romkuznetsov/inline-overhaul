@@ -226,10 +226,6 @@ function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, 
   state.selected[subField.id] = String(pair.subId || "");
 }
 
-function hasToken(segText, token) {
-  return getStatusRuntimeCommon().hasToken(segText, token);
-}
-
 function composeToken(prefix, rawToken) {
   return getStatusRuntimeCommon().composeToken(prefix, rawToken);
 }
@@ -1778,7 +1774,6 @@ module.exports = {
       skipNormalization: skipTrailingSeparatorNormalization,
       ensureTrailingSeparatorSpace: (line, runtimeRules, parsedFinal) => macroShared.ensureTrailingSeparatorSpace(line, runtimeRules, parsedFinal),
     });
-    let finalParsed = core.parseLine(finalLine, rules);
     const cyclePost = lineFinalize.applyCycleEndAndInvariants({
       rawLine,
       finalLine,
@@ -1803,7 +1798,6 @@ module.exports = {
       shouldKeepBulletLine: (line) => /^\s*(?:-|\d+\.)\s*$/.test(String(line || "")),
     });
     finalLine = String(cyclePost?.finalLine ?? finalLine);
-    finalParsed = core.parseLine(finalLine, rules);
     if (!String(finalLine || "").trim()) {
       editor.replaceRange("", { line: lineNo, ch: 0 }, { line: lineNo, ch: rawLine.length });
       editor.setCursor({ line: lineNo, ch: 0 });

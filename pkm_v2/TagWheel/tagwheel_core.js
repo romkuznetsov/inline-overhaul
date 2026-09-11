@@ -42,14 +42,6 @@ function getRulesRuntimeHelpers() {
   return __rulesRuntimeHelpers
 }
 
-function getMarkdownJsonBlockParser() {
-  return __markdownJsonBlockParser
-}
-
-function getTagwheelRulesNormalizer() {
-  return __tagwheelRulesNormalizer
-}
-
 function getTokenGraphUnified() {
   return __tokenGraphUnified
 }
@@ -203,40 +195,30 @@ function isDateLikeToken(token, rules) {
 }
 
 /*
- * Копии логики этих шести функций сняты 2026-09-07 вместе с мостом модулей.
+ * Разбор правил и JSON-блоков живёт в общих модулях; здесь только вызов.
  *
- * Они не были страховкой: в установленном плагине работали именно они, а
- * вынесенные модули были мертвы — путь к ним стоял в переменной, и сборщик
- * его не разрешал (У-89). В проверках было наоборот, потому что в дереве
- * исходников путь разрешается всегда. То есть у одного правила было два
+ * Копии этих правил лежали прямо тут и были сняты 2026-09-07 вместе с мостом
+ * модулей. Страховкой они не были: в установленном плагине работали именно
+ * они, а вынесенные модули были мертвы — путь к ним стоял в переменной, и
+ * сборщик его не разрешал (У-89). В проверках было наоборот, потому что в
+ * дереве исходников путь разрешается всегда. То есть у одного правила было два
  * объявления, и продукт с набором проверок читали разные (У-32).
  *
  * Держала их вместе сверка в `rules_document_roundtrip_tests.ts`. Она
  * ломала резолв модуля вокруг ВЫЗОВА — и это работало, пока `require` стоял
  * внутри геттера. С переездом `require` на загрузку файла сверка стала
  * сверять модуль сам с собой: мутация в вынесенном модуле её не роняла.
- * Поэтому копии снимаются здесь, а сверка — там.
+ * Поэтому копии сняты здесь, а сверка — там.
+ *
+ * Вызовов осталось два. Четыре соседних — `cleanJsonText`, `normalizeValue`,
+ * `normalizeImportanceValueToken`, `normalizeField` — той же правкой остались
+ * без единого звавшего: их тела уехали в модуль, и модуль зовёт свои
+ * внутренности сам. Сняты 2026-09-11 (В-102).
  */
-function cleanJsonText(s) {
-  return __markdownJsonBlockParser.cleanJsonText(s)
-}
-
 function parseJsonBlock(content, blockName, required) {
   return __markdownJsonBlockParser.parseJsonBlock(content, blockName, required, function(message) {
     err(message)
   })
-}
-
-function normalizeValue(v) {
-  return __tagwheelRulesNormalizer.normalizeValue(v, { isObj: isObj, err: err })
-}
-
-function normalizeImportanceValueToken(raw) {
-  return __tagwheelRulesNormalizer.normalizeImportanceValueToken(raw)
-}
-
-function normalizeField(field, modeName, idx) {
-  return __tagwheelRulesNormalizer.normalizeField(field, modeName, idx, { isObj: isObj, err: err })
 }
 
 function normalizeMode(mode, modeName) {
@@ -1020,36 +1002,6 @@ function getFieldModeById(rules, state, fieldId) {
   return null
 }
 
-function getPrefixRules(rules, state, deps) {
-  var shared = resolvePrefixBehaviorShared(rules, state, deps)
-  if (!shared || typeof shared.getPrefixRulesUnified !== 'function') {
-    err('pkm_line_finalize_unified unavailable: getPrefixRulesUnified required')
-  }
-  return shared.getPrefixRulesUnified(rules, { isObj: isObj })
-}
-
-function selectedTokenByFieldId(rules, state, fieldId, deps) {
-  var shared = resolvePrefixBehaviorShared(rules, state, deps)
-  if (!shared || typeof shared.selectedTokenByFieldIdUnified !== 'function') {
-    err('pkm_line_finalize_unified unavailable: selectedTokenByFieldIdUnified required')
-  }
-  return shared.selectedTokenByFieldIdUnified(rules, state, fieldId, {
-    isObj: isObj,
-    getFieldById: getFieldById,
-  })
-}
-
-function resolvePrefixCheckbox(rules, state, deps) {
-  var shared = resolvePrefixBehaviorShared(rules, state, deps)
-  if (!shared || typeof shared.resolvePrefixCheckboxUnified !== 'function') {
-    err('pkm_line_finalize_unified unavailable: resolvePrefixCheckboxUnified required')
-  }
-  return shared.resolvePrefixCheckboxUnified(rules, state, {
-    isObj: isObj,
-    getFieldById: getFieldById,
-  })
-}
-
 function buildPrefix(parsedLine, rules, state, deps) {
   var shared = resolvePrefixBehaviorShared(rules, state, deps)
   if (!shared || typeof shared.buildPrefixUnified !== 'function') {
@@ -1677,18 +1629,6 @@ function parseNumericPatternSpec(format) {
   return { format: f, slots: slots, width: baseDigits.length, base: base }
 }
 
-function buildNumericPatternRegexSource(spec) {
-  var su = getSharedUtils()
-  if (su && typeof su.buildNumericPatternRegexSource === 'function') return su.buildNumericPatternRegexSource(spec)
-  if (!spec || !Array.isArray(spec.slots)) return ''
-  var chars = Array.from(String(spec.format || ''))
-  var esc = function (x) { return String(x || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
-  var out = ''
-  var i
-  for (i = 0; i < chars.length; i++) out += spec.slots[i] ? '\\d' : esc(chars[i])
-  return out
-}
-
 function renderNumericPatternValue(spec, progressRaw) {
   var su = getSharedUtils()
   if (su && typeof su.renderNumericPatternValue === 'function') return su.renderNumericPatternValue(spec, progressRaw)
@@ -1707,22 +1647,6 @@ function renderNumericPatternValue(spec, progressRaw) {
     else out += chars[i]
   }
   return out
-}
-
-function parseNumericPatternProgress(value, spec) {
-  var su = getSharedUtils()
-  if (su && typeof su.parseNumericPatternProgress === 'function') return su.parseNumericPatternProgress(value, spec)
-  if (!spec) return null
-  var raw = String(value || '').trim()
-  var rxSrc = buildNumericPatternRegexSource(spec)
-  if (!rxSrc) return null
-  var re = new RegExp('^' + rxSrc + '$', 'u')
-  if (!re.test(raw)) return null
-  var digits = Array.from(raw).filter(function (ch) { return /\d/.test(ch) }).join('')
-  if (!/^\d+$/.test(digits)) return null
-  var got = Number(digits)
-  if (!isFinite(got) || got < spec.base) return null
-  return Math.max(0, Math.trunc(got - spec.base))
 }
 
 function buildTokenlessValueRegexSource(format) {
@@ -2066,8 +1990,6 @@ function cycleValue(rules, state, direction) {
   if (field.kind === 'dateOffset') {
     var cfgDate = getDateRuntimeCfg(rules, field)
     if (cfgDate.activeMode === 'no' || cfgDate.activeMode === 'hotkey_only') return
-    var cur = state.selected[field.id] || ''
-    var val = cur === '' ? null : Number(cur)
     if (cfgDate.increment && String(cfgDate.increment.mode || '').toLowerCase() === 'command') {
       if (direction > 0 && String(cfgDate.increment.command || '').toLowerCase() === 'now') {
         state.selected[field.id] = '0'

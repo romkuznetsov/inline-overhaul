@@ -1312,12 +1312,6 @@ async function loadNavigateRules(app, rulesPath) {
   };
 }
 
-function rootOf(tag) {
-  const s = String(tag || "");
-  const i = s.indexOf("/#");
-  return i === -1 ? s : s.slice(0, i);
-}
-
 function navigateInline(editor, direction, navRules, rawCfg) {
   const cfg = pickNavigateInlineCfg(rawCfg);
   const delim = navRules && typeof navRules.delim === "string" && navRules.delim ? navRules.delim : "||";

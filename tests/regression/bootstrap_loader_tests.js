@@ -1652,7 +1652,15 @@ async function run() {
   assertTrue(/function buildGenericElementTokenFromState\(/.test(statusDateSrc), "status_date builds generic element token from format state");
   assertTrue(/shared\.relocateMarkerTokenByPanel\(\{/.test(statusDateSrc), "status_date marker relocation delegates to shared line-pipeline helper");
   assertTrue(/shared\.clearMarkerFromLine\(\{/.test(statusDateSrc), "status_date marker clear delegates to shared line-pipeline helper");
-  assertTrue(/shared\.clearMarkersFromLine\(\{/.test(statusDateSrc), "status_date marker-multi-clear delegates to shared line-pipeline helper");
+  /*
+   * Здесь стоял пин на `shared.clearMarkersFromLine({` — снятие НЕСКОЛЬКИХ
+   * маркеров сразу. Обёртка под него в `status_date.js` не звалась ни разу с
+   * первого коммита и снята 2026-09-11 (В-102), а пин был зелен именно
+   * потому, что читал её текст: утверждал о живом то, что верно про мёртвое
+   * (У-94). Живое снятие — по одному маркеру, пин на него строкой выше.
+   * Общий помощник `line_pipeline.clearMarkersFromLine` остался без
+   * звавшего; снимать его — файл под З3, нужно слово заказчика.
+   */
   assertTrue(/if \(!inc && curNum <= 0\)/.test(statusDateSrc), "status_date date-offset decrement clears only from zero-progress state");
   assertTrue(/applyGenericElementIncrementByFormat\(state, actionField\.id, runtimeCfg\.increment, actionFormat, actionMeta\.increase, actionCycleValues\)/.test(statusDateSrc), "status_date applies generic element increment logic via unified action field executor");
   assertTrue(/if \(idx >= arr\.length - 1\) return "";/.test(statusDateSrc), "status_date generic increase exits cycle to null at upper bound");
@@ -1679,7 +1687,13 @@ async function run() {
   assertTrue(/resolveEffectiveSelectionPolicy\(\{[\s\S]*selectedEntries:[\s\S]*freeRoamBehavior:[\s\S]*activeMode:/.test(tagwheelSrc) || /resolveMixedSelectionPolicy\(selectedEntries, freeRoamBehavior\)/.test(tagwheelSrc), "tagwheel resolves mixed selection policy via shared finalizer effective-policy helper");
   assertTrue(/applyUnifiedPostFinalize\(\{/.test(tagwheelSrc) || /applyMixedPostPolicies\(state\.originalLine, finalLine, state\.rules, policy\)/.test(tagwheelSrc), "tagwheel delegates minimal prefix\/separator post-processing through shared finalizer path");
   assertTrue(/__prefixIgnoreFieldIds/.test(tagwheelSrc), "tagwheel computes prefix-ignore map for minimal fields when minimalPrefix is off");
-  assertTrue(/shared\.resolvePrefixCheckboxUnified\(/.test(tagwheelCoreSrc), "tagwheel_core resolvePrefixCheckbox delegates to shared prefix behavior");
+  /*
+   * Здесь стоял пин на `shared.resolvePrefixCheckboxUnified(` в
+   * `tagwheel_core.js`. Обёртка под него не звалась ни разу с первого
+   * коммита и снята 2026-09-11 (В-102). То же правило — «поведение префикса
+   * спрашивается у общего модуля» — живым путём держит пин на
+   * `shared.buildPrefixUnified(` выше.
+   */
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules'\)/.test(tagwheelSrc), "tagwheel date-marker resolver is shared-only");
   assertTrue(/async function callRuntimeApi\(app_, method\)/.test(tagwheelSrc), "tagwheel defines runtime api dispatcher helper");
   assertFalse(/loadVaultModule/.test(tagwheelSrc), "tagwheel does not load modules by a vault path at all any more (У-89)");
@@ -1755,8 +1769,13 @@ async function run() {
    * недоступен он был всегда (У-89). Теперь недоступным ему быть негде.
    */
   assertTrue(/__tagwheelRulesNormalizer\.normalizeMode\(mode, modeName, \{ isObj: isObj, err: err \}\)/.test(tagwheelCoreSrc), "tagwheel_core normalizeMode delegates to the shared rules normalizer, with no local copy");
-  assertTrue(/__tagwheelRulesNormalizer\.normalizeField\(/.test(tagwheelCoreSrc), "and so does normalizeField");
-  assertTrue(/__tagwheelRulesNormalizer\.normalizeValue\(/.test(tagwheelCoreSrc), "and normalizeValue");
+  /*
+   * Пины на `normalizeField` и `normalizeValue` стояли здесь же и снялись
+   * вместе со своими обёртками 2026-09-11 (В-102): тела этих правил уехали в
+   * общий модуль 2026-09-07, модуль зовёт их сам, и в `tagwheel_core.js`
+   * остался только текст, который пин и читал. Что своей копии там нет,
+   * держат два запрета ниже и обход по форме.
+   */
   assertTrue(/__markdownJsonBlockParser\.parseJsonBlock\(/.test(tagwheelCoreSrc), "and the JSON block parser");
   assertFalse(/if \(normalizer && typeof normalizer\./.test(tagwheelCoreSrc), "tagwheel_core keeps no fallback branch around the shared rules normalizer");
   assertFalse(/if \(parser && typeof parser\./.test(tagwheelCoreSrc), "and none around the shared JSON block parser");

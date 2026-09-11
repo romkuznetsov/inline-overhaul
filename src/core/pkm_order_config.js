@@ -107,8 +107,6 @@ function ensureBehaviorModesFromOrder(cfg) {
 
   const leftFields = fields.tags.fields;
   const rightFields = fields.links.fields;
-  const leftById = new Set(leftFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
-  const rightById = new Set(rightFields.map((f) => String(f && f.id || "").trim()).filter(Boolean));
 
   const keys = [];
   const push = (k) => {

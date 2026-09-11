@@ -16,10 +16,6 @@
  */
 const __rulesRuntimeHelpers = require("./pkm_rules_runtime_helpers.js");
 
-function escapeRegex(text) {
-  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function getSeparators(rules) {
   var io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
   var sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";

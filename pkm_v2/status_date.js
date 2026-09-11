@@ -171,10 +171,6 @@ function getStatusRuntimeCommon() {
   return __statusRuntimeCommonFns;
 }
 
-function getLineFinalizeUnified() {
-  return __lineFinalizeUnified;
-}
-
 function getStatusLineRuntimeUnified() {
   return __statusLineRuntimeUnified;
 }
@@ -196,26 +192,6 @@ function buildTokenFactsFromLine(rawLine, rules) {
  */
 function getField(mode, id) {
   return getStatusRuntimeCommon().getFieldById(mode, id);
-}
-
-function rebuildLine(core, rules, parsedLine, state) {
-  core.sanitizeState(rules, state);
-  const tags = core.buildTags(rules.leftMode, state, rules, parsedLine);
-  const lineFinalize = getLineFinalizeUnified();
-  const prefix = core.buildPrefix(parsedLine, rules, state, { prefixShared: lineFinalize });
-  const rightDates = core.buildRightDates(rules, state);
-  const dates = Array.isArray(rightDates) ? rightDates.join(" ") : "";
-  return core.assembleFinalLine(
-    {
-      indent: parsedLine.indent,
-      prefix: prefix,
-      text: parsedLine.text,
-      dates: dates,
-    },
-    tags,
-    rules,
-    { forceSeparatorWhenTags: !!(rules.behavior && rules.behavior.forceSeparatorWhenTags === true) }
-  );
 }
 
 function remapCursorStable(oldLine, newLine, oldCh) {
@@ -345,17 +321,6 @@ function parseNumericPatternSpec(format) {
   return { format: f, slots, width: baseDigits.length, base };
 }
 
-function buildNumericPatternRegexSource(spec) {
-  const su = getSharedUtils();
-  if (su && typeof su.buildNumericPatternRegexSource === "function") return su.buildNumericPatternRegexSource(spec);
-  if (!spec || !Array.isArray(spec.slots)) return "";
-  const chars = Array.from(String(spec.format || ""));
-  const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  let out = "";
-  for (let i = 0; i < chars.length; i++) out += spec.slots[i] ? "\\d" : esc(chars[i]);
-  return out;
-}
-
 function renderNumericPatternValue(spec, progressRaw) {
   const su = getSharedUtils();
   if (su && typeof su.renderNumericPatternValue === "function") return su.renderNumericPatternValue(spec, progressRaw);
@@ -373,22 +338,6 @@ function renderNumericPatternValue(spec, progressRaw) {
     else out += chars[i];
   }
   return out;
-}
-
-function parseNumericPatternProgress(value, spec) {
-  const su = getSharedUtils();
-  if (su && typeof su.parseNumericPatternProgress === "function") return su.parseNumericPatternProgress(value, spec);
-  if (!spec) return null;
-  const raw = String(value || "").trim();
-  const rxSrc = buildNumericPatternRegexSource(spec);
-  if (!rxSrc) return null;
-  const re = new RegExp(`^${rxSrc}$`, "u");
-  if (!re.test(raw)) return null;
-  const digits = Array.from(raw).filter((ch) => /\d/.test(ch)).join("");
-  if (!/^\d+$/.test(digits)) return null;
-  const got = Number(digits);
-  if (!Number.isFinite(got) || got < spec.base) return null;
-  return Math.max(0, Math.trunc(got - spec.base));
 }
 
 function buildTokenlessValueRegexSource(format) {
@@ -802,19 +751,6 @@ function clearDateMarkerFromLine(finalLine, rules, marker, format) {
   });
 }
 
-function clearDateMarkersFromLine(finalLine, rules, markers, format) {
-  const shared = globalThis.__inlineLinePipeline;
-  if (!shared || typeof shared.clearMarkersFromLine !== "function") {
-    throw new Error("line_pipeline unavailable: clearMarkersFromLine");
-  }
-  return shared.clearMarkersFromLine({
-    line: finalLine,
-    rules,
-    markers,
-    removeMarkerTokens: (segment, mk) => removeDateMarkerTokens(segment, mk, format),
-  });
-}
-
 function parseDateActionMeta(action) {
   const raw = String(action || "").trim();
   const m = raw.match(/^field_(inc|dec):(.+)$/);
@@ -967,14 +903,6 @@ function hydrateTimeFieldFromRawLine(rawLine, rules, state, field, marker, targe
     state.selected[field.id] = String(hit.value || "");
     return;
   }
-}
-
-function hasToken(segText, token) {
-  const src = String(segText || "");
-  const tok = String(token || "").trim();
-  if (!tok) return false;
-  const rx = new RegExp(`(^|\\s)${escapeRx(tok)}(?=\\s|$)`, "u");
-  return rx.test(src);
 }
 
 function hydrateGenericElementFromRawLine(rawLine, rules, state, field, marker, targetPanel, format, cycleVals) {

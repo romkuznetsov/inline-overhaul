@@ -87,10 +87,6 @@ function lineDiffChange(from, oldText, newText) {
   }
 }
 
-function isHighSurrogate(code) {
-  return code >= 0xd800 && code <= 0xdbff
-}
-
 /**
  * Начало строки, которое панель переписывать не имеет права: отступ, знак
  * списка или заголовка и чекбокс — ровно в том написании, в каком их набрал
@@ -1170,7 +1166,6 @@ async function runTagWheel(input, quickAddSettings) {
       throw new Error('pkm_rules_runtime_helpers unavailable: getDateValuePatterns')
     }
     var patterns = rulesHelpers.getDateValuePatterns()
-    var dateIso = String(patterns && patterns.dateIso ? patterns.dateIso : '\\d{4}-\\d{2}-\\d{2}')
     var timeHm = String(patterns && patterns.timeHm ? patterns.timeHm : '\\d{2}:\\d{2}')
     var shared = linePipeline
     var all = []
