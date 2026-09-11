@@ -24,6 +24,7 @@
  */
 
 const __sharedUtils = require("./shared_utils.js");
+const __rulesNormalizer = require("./tagwheel_rules_normalizer.js");
 
 function isObj(x) {
   return __sharedUtils.isObj(x);
@@ -130,6 +131,43 @@ function buildRulesShapeFromConfig(cfg) {
   };
 }
 
+/**
+ * Правила в том виде, в каком их ждут движки PKM.
+ *
+ * **Это второй ход из двух** (PRD 10.13.52, П-5). Первый — сегодняшний: конфиг
+ * → заметка `generated_rules.md` → `parseRulesFromMarkdown` → правила. Второй
+ * — этот: конфиг → форма → `normalizeMode` на двух блоках → правила. Что ходы
+ * равны, держит сверка на фикстурах (`rules_document_roundtrip_tests.ts` по
+ * блокам, `rules_from_settings_tests.ts` целиком и по поведению движка).
+ *
+ * **Блока дат здесь нет, и это не забывчивость.** `parseRulesFromMarkdown` его
+ * не читает, значит и второй ход не должен: лишний ключ сделал бы формы
+ * разными, а разница обязана быть нулевой.
+ *
+ * `normalizeMode` — единственное, что ход через диск добавлял к записанному:
+ * досыпка формы списка Fields. Она вынесена в свой модуль и зовётся отсюда,
+ * а не переписывается (У-32).
+ */
+function buildRulesForEngines(cfg) {
+  const shape = buildRulesShapeFromConfig(cfg);
+  const deps = {
+    isObj: isObj,
+    err: function(message) { throw new Error(String(message || "normalizeMode failed")); },
+  };
+  return {
+    meta: shape.meta,
+    io: shape.io,
+    inlineLayout: shape.inlineLayout,
+    behavior: shape.behavior,
+    ui: shape.ui,
+    leftMode: __rulesNormalizer.normalizeMode(cloneJson(shape.leftMode), "leftMode", deps),
+    rightMode: __rulesNormalizer.normalizeMode(cloneJson(shape.rightMode), "rightMode", deps),
+    projects: shape.projects,
+    colors: shape.colors,
+  };
+}
+
 module.exports = {
   buildRulesShapeFromConfig,
+  buildRulesForEngines,
 };

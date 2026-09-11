@@ -1,4 +1,5 @@
 let RULES_PATH = "Rules path";
+let RULES_DATA = "Rules data";
 let ACTION_TYPE = "Action type";
 let CYCLE_END_BEHAVIOR = "Cycle end behavior";
 let CURSOR_POLICY = "Cursor policy";
@@ -88,6 +89,7 @@ function applyPkmOptionKeys(mod) {
   const keys = mod && mod.KEYS && typeof mod.KEYS === "object" ? mod.KEYS : null;
   if (!keys) return;
   RULES_PATH = String(keys.RULES_PATH || RULES_PATH);
+  RULES_DATA = String(keys.RULES_DATA || RULES_DATA);
   ACTION_TYPE = String(keys.ACTION_TYPE || ACTION_TYPE);
   CYCLE_END_BEHAVIOR = String(keys.CYCLE_END_BEHAVIOR || CYCLE_END_BEHAVIOR);
   CURSOR_POLICY = String(keys.CURSOR_POLICY || CURSOR_POLICY);
@@ -1044,34 +1046,47 @@ module.exports = {
 
     const core = __tagwheelCore;
 
-    const rulesPathInput = String(settings?.[RULES_PATH] ?? "").trim();
-    const rulesHelpers = globalThis.__inlinePkmRulesHelpers;
-    if (!rulesHelpers || typeof rulesHelpers.normalizeRulesPath !== "function") {
-      throw new Error("pkm_rules_runtime_helpers unavailable: normalizeRulesPath");
-    }
-    if (typeof rulesHelpers.readRulesMarkdownWithFallback !== "function") {
-      throw new Error("pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback");
-    }
-    const normalizeRulesPath = (raw) => rulesHelpers.normalizeRulesPath(raw, DEFAULT_RULES_PATH);
-    let rulesMd = "";
-    let usedRulesPath = "";
-    try {
-      const loaded = await rulesHelpers.readRulesMarkdownWithFallback(app_, rulesPathInput, DEFAULT_RULES_PATH);
-      rulesMd = loaded.markdown;
-      usedRulesPath = loaded.path;
-    } catch (e) {
-      showStatusDateNotice((e && e.message)
-        ? e.message
-        : sayStatusDate(statusDateNoticeKey('file-missing'),
-          'Rules file not found: {0}', normalizeRulesPath(rulesPathInput)));
-      return;
-    }
-    if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
-      showStatusDateNotice(sayStatusDate(statusDateNoticeKey('path-fallback'),
-        'Using the rules file at {0}', usedRulesPath));
-    }
-    const rules = core.parseRulesFromMarkdown(rulesMd);
     const statusCommon = getStatusRuntimeCommon();
+    /*
+     * **Правила приезжают из настроек** (PRD 10.13.52, П-8, шаг второй;
+     * 2026-09-11). Пока ключа нет — читается служебный файл, как читался: на
+     * шагах 2–3 он ещё живёт, его разбирает TagWheel. Ветка чтения уйдёт
+     * вместе с файлом шагом четвёртым.
+     *
+     * Что оба хода дают одно и то же, доказано не словами: формы сверены на
+     * фикстурах, а поведение движка — на одной строке обоими ходами
+     * (`rules_from_settings_tests.ts`).
+     */
+    let rules = statusCommon.rulesFromSettings(settings, RULES_DATA);
+    if (!rules) {
+      const rulesPathInput = String(settings?.[RULES_PATH] ?? "").trim();
+      const rulesHelpers = globalThis.__inlinePkmRulesHelpers;
+      if (!rulesHelpers || typeof rulesHelpers.normalizeRulesPath !== "function") {
+        throw new Error("pkm_rules_runtime_helpers unavailable: normalizeRulesPath");
+      }
+      if (typeof rulesHelpers.readRulesMarkdownWithFallback !== "function") {
+        throw new Error("pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback");
+      }
+      const normalizeRulesPath = (raw) => rulesHelpers.normalizeRulesPath(raw, DEFAULT_RULES_PATH);
+      let rulesMd = "";
+      let usedRulesPath = "";
+      try {
+        const loaded = await rulesHelpers.readRulesMarkdownWithFallback(app_, rulesPathInput, DEFAULT_RULES_PATH);
+        rulesMd = loaded.markdown;
+        usedRulesPath = loaded.path;
+      } catch (e) {
+        showStatusDateNotice((e && e.message)
+          ? e.message
+          : sayStatusDate(statusDateNoticeKey('file-missing'),
+            'Rules file not found: {0}', normalizeRulesPath(rulesPathInput)));
+        return;
+      }
+      if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
+        showStatusDateNotice(sayStatusDate(statusDateNoticeKey('path-fallback'),
+          'Using the rules file at {0}', usedRulesPath));
+      }
+      rules = core.parseRulesFromMarkdown(rulesMd);
+    }
     const dateRuntimeCfg = await statusCommon.resolveAndApplyDateRuntimeConfig(app_, settings, rules);
     const orderCfg = await statusCommon.resolveOrderConfig(app_, settings);
     statusCommon.applyOrderToRules(rules, orderCfg);

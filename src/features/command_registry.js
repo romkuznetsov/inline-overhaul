@@ -33,6 +33,10 @@ const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 
 const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
 
+/* Правила для движков собираются из настроек — тем же модулем, из которого
+   собирается и служебная заметка (PRD 10.13.52, П-8, шаг второй). */
+const __rulesShape = require("../core/pkm_rules_shape.js");
+
 function getBehaviorValue(cfg, key, dflt) {
   if (cfg && cfg.pkm && cfg.pkm.behavior && cfg.pkm.behavior[key] != null) return cfg.pkm.behavior[key];
   return dflt;
@@ -263,6 +267,12 @@ function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMac
 
   const makeBase = (cfgInner) => ({
     [O.RULES_PATH]: getActiveTagWheelRulesPath(cfgInner),
+    /*
+     * Правила едут к движку **из настроек**, а не через файл на диске
+     * (PRD 10.13.52, П-8, шаг второй). Путь рядом остаётся: его ещё читает
+     * TagWheel, и он же нужен восстановлению копии настроек.
+     */
+    [O.RULES_DATA]: __rulesShape.buildRulesForEngines(cfgInner),
     [O.CYCLE_END_BEHAVIOR]: getBehaviorValue(cfgInner, "cycleEndBehavior", "keep-bullet"),
     [O.CURSOR_POLICY]: getBehaviorValue(cfgInner, "cursorPolicy", "text_end"),
     [O.ORDER_CONFIG]: serializePkmOrderForMacro(cfgInner),

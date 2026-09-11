@@ -21,6 +21,13 @@ const LEGACY_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
 
 const KEYS = {
   RULES_PATH: "Rules path",
+  /*
+   * Правила, собранные из настроек, — второй шаг снятия служебного файла
+   * (PRD 10.13.52, П-8; 2026-09-11). Движки, получившие этот ключ, файла не
+   * читают вовсе. Пока ключа нет, читается файл: на шагах 2–3 он ещё живёт,
+   * его разбирает TagWheel. Ключ уйдёт вместе с файлом на шаге 4.
+   */
+  RULES_DATA: "Rules data",
   ACTION_TYPE: "Action type",
   SUBTAG_FORMAT: "Subtag format",
   CYCLE_END_BEHAVIOR: "Cycle end behavior",

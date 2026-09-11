@@ -27,6 +27,7 @@ const __say = __sayModule.say;
 const __activeEditorMod = require("../src/core/active_editor.js");
 
 let RULES_PATH = "Rules path";
+let RULES_DATA = "Rules data";
 let ACTION_TYPE = "Action type";
 let SUBTAG_FORMAT = "Subtag format";
 let CYCLE_END_BEHAVIOR = "Cycle end behavior";
@@ -41,6 +42,7 @@ function applyPkmOptionKeys(mod) {
   const keys = mod && mod.KEYS && typeof mod.KEYS === "object" ? mod.KEYS : null;
   if (!keys) return;
   RULES_PATH = String(keys.RULES_PATH || RULES_PATH);
+  RULES_DATA = String(keys.RULES_DATA || RULES_DATA);
   ACTION_TYPE = String(keys.ACTION_TYPE || ACTION_TYPE);
   SUBTAG_FORMAT = String(keys.SUBTAG_FORMAT || SUBTAG_FORMAT);
   CYCLE_END_BEHAVIOR = String(keys.CYCLE_END_BEHAVIOR || CYCLE_END_BEHAVIOR);
@@ -1272,27 +1274,40 @@ module.exports = {
     }
     const normalizeRulesPath = (raw) => rulesHelpers.normalizeRulesPath(raw, DEFAULT_RULES_PATH);
 
-    const rulesPathInput = String(settings?.[RULES_PATH] ?? "").trim();
-    let rulesMd = "";
-    let usedRulesPath = "";
-    try {
-      const loaded = await rulesHelpers.readRulesMarkdownWithFallback(app_, rulesPathInput, DEFAULT_RULES_PATH);
-      rulesMd = loaded.markdown;
-      usedRulesPath = loaded.path;
-    } catch (e) {
-      if (e && e.message) notice("", e.message);
-      else notice(noticeKey('file-missing'),
-        'Rules file not found: {0}', normalizeRulesPath(rulesPathInput));
-      return;
+    const statusCommon = getStatusRuntimeCommon();
+    /*
+     * **Правила приезжают из настроек** (PRD 10.13.52, П-8, шаг второй;
+     * 2026-09-11). Пока ключа нет — читается служебный файл, как читался: на
+     * шагах 2–3 он ещё живёт, его разбирает TagWheel. Ветка чтения уйдёт
+     * вместе с файлом шагом четвёртым.
+     *
+     * Что оба хода дают одно и то же, доказано не словами: формы сверены на
+     * фикстурах, а поведение движка — на одной строке обоими ходами
+     * (`rules_from_settings_tests.ts`).
+     */
+    let rules = statusCommon.rulesFromSettings(settings, RULES_DATA);
+    if (!rules) {
+      const rulesPathInput = String(settings?.[RULES_PATH] ?? "").trim();
+      let rulesMd = "";
+      let usedRulesPath = "";
+      try {
+        const loaded = await rulesHelpers.readRulesMarkdownWithFallback(app_, rulesPathInput, DEFAULT_RULES_PATH);
+        rulesMd = loaded.markdown;
+        usedRulesPath = loaded.path;
+      } catch (e) {
+        if (e && e.message) notice("", e.message);
+        else notice(noticeKey('file-missing'),
+          'Rules file not found: {0}', normalizeRulesPath(rulesPathInput));
+        return;
+      }
+      if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
+        notice(noticeKey('path-fallback'), 'Using the rules file at {0}', usedRulesPath);
+      }
+      rules = core.parseRulesFromMarkdown(rulesMd);
     }
-    if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
-      notice(noticeKey('path-fallback'), 'Using the rules file at {0}', usedRulesPath);
-    }
-    const rules = core.parseRulesFromMarkdown(rulesMd);
     const subtagFormat = getSubtagFormat(rules, settings);
     if (!isObj(rules.behavior)) rules.behavior = {};
     rules.behavior.subtagFormat = subtagFormat;
-    const statusCommon = getStatusRuntimeCommon();
     await statusCommon.resolveAndApplyDateRuntimeConfig(app_, settings, rules);
     const orderCfg = await statusCommon.resolveOrderConfig(app_, settings);
     statusCommon.applyOrderToRules(rules, orderCfg);
