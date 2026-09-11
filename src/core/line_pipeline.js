@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("./shared_utils.js");
+
 function resolveSeparatorsOrThrow(rules) {
   var io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
   var sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";
@@ -156,11 +158,12 @@ function startsWithAnyMarker(token, markers) {
   return false;
 }
 
+/* Как выглядит голое значение даты — объявлено один раз, в общем модуле
+   (PRD 10.13.71). Здесь стояла копия того же образца. */
 function isDateLikeBareToken(token) {
   const t = String(token || "");
   if (!t) return false;
-  return /^\d{4}-\d{2}(?:-\d{2})?(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/.test(t)
-    || /^\d{2}:\d{2}(?::\d{2})?$/.test(t);
+  return new RegExp("^(?:" + __sharedUtils.DATE_LIKE_VALUE_SRC + ")$", "u").test(t);
 }
 
 function isLikelyRightPayloadToken(token, markers) {
@@ -563,11 +566,18 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
     const mWiki = left.match(/^(\[\[[^\]]+\]\])\s*/);
     if (mWiki) { left = left.slice(mWiki[0].length).trim(); continue; }
     let consumedMarker = false;
+    /* Значение берётся целиком, а не «до пробела»: у элемента с пробелом в
+       формате второе слово иначе оставалось и объявлялось текстом
+       человека (PRD 10.13.71). */
     for (const mk of markers) {
-      const rx = new RegExp("^(" + escapeRx(mk) + "\\S+)\\s*");
-      const mDate = left.match(rx);
-      if (!mDate) continue;
-      left = left.slice(mDate[0].length).trim();
+      if (!left.startsWith(mk)) continue;
+      const valueLen = __sharedUtils.longestValueLengthAt(
+        left,
+        mk.length,
+        __sharedUtils.elementValueSources("", mk)
+      );
+      if (valueLen === null) continue;
+      left = left.slice(mk.length + valueLen).trim();
       consumedMarker = true;
       break;
     }
@@ -706,19 +716,30 @@ function getPanelSearchText(options) {
     .join(" ");
 }
 
+/**
+ * Снять из текста значения перечисленных меток.
+ *
+ * **Образец значения больше не написан здесь руками.** Стояли три
+ * альтернативы — дата, время, слово до пробела, — и каждая в одно слово.
+ * Значение формата `YYYY-MM-DD hh:mm` занимает два, и хвост `21:32`
+ * оставался в тексте: дальше он объявлялся текстом человека и возвращался
+ * в строку (PRD 10.13.71, ряд заказчика от 2026-09-12). Теперь хвост
+ * каждой метки приезжает из её формата — `tailByMarker`, — а где кончается
+ * значение, решает общий обход.
+ */
 function removeDateTimeMarkers(options) {
   var opts = options && typeof options === "object" ? options : {};
   var text = String(opts.text || "");
   var markers = Array.isArray(opts.markers) ? opts.markers : [];
-  var dateIso = String(opts.dateIso || "\\d{4}-\\d{2}-\\d{2}");
-  var timeHm = String(opts.timeHm || "\\d{2}:\\d{2}");
+  var tails = opts.tailByMarker && typeof opts.tailByMarker === "object" && !Array.isArray(opts.tailByMarker)
+    ? opts.tailByMarker
+    : {};
   var out = text;
   var i;
   for (i = 0; i < markers.length; i++) {
     var mk = String(markers[i] || "").trim();
     if (!mk) continue;
-    var rx = new RegExp("(^|\\s)" + escapeRx(mk) + "(?:" + dateIso + "|" + timeHm + "|[^\\s]+)(?=\\s|$)", "g");
-    out = out.replace(rx, " ");
+    out = __sharedUtils.removeMarkerValueTokens(out, mk, __sharedUtils.elementValueSources(tails[mk], mk));
   }
   return out.replace(/\s+/g, " ").trim();
 }
@@ -818,13 +839,10 @@ function cleanOriginalTextForLeftDate(options) {
   var parsedText = String(opts.parsedText || "");
   var isDateLikeToken = typeof opts.isDateLikeToken === "function"
     ? opts.isDateLikeToken
-    : function defaultIsDateLikeToken(token) {
-      var t = String(token || "");
-      return /^\d{4}-\d{2}(?:-\d{2})?(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/.test(t)
-        || /^\d{2}:\d{2}(?::\d{2})?$/.test(t);
-    };
-  var dateIso = String(opts.dateIso || "\\d{4}-\\d{2}-\\d{2}");
-  var timeHm = String(opts.timeHm || "\\d{2}:\\d{2}");
+    : isDateLikeBareToken;
+  var tailByMarker = opts.tailByMarker && typeof opts.tailByMarker === "object" && !Array.isArray(opts.tailByMarker)
+    ? opts.tailByMarker
+    : {};
   var kinds = Array.isArray(opts.kinds) ? opts.kinds : ["dateOffset", "nowTime", "estimatedCycle", "genericElement"];
   var defaultMarkers = Array.isArray(opts.defaultMarkers) ? opts.defaultMarkers : [];
 
@@ -858,8 +876,7 @@ function cleanOriginalTextForLeftDate(options) {
   out = removeDateTimeMarkers({
     text: out,
     markers: markers,
-    dateIso: dateIso,
-    timeHm: timeHm,
+    tailByMarker: tailByMarker,
   });
   if (!parsedText) return out;
   return out;
@@ -941,8 +958,16 @@ function relocateMarkerSetByFieldOrder(options) {
     var dedup = key + "::" + marker;
     if (seen[dedup]) continue;
     seen[dedup] = true;
-    var valueRx = String(getValueRx(field) || "").trim();
-    if (!valueRx) continue;
+    /*
+     * Два разных вопроса, и прежде они были склеены в один. `null` значит
+     * «это не элемент, не трогаем его вовсе»; пустая строка — «элемент, но
+     * своего образца у него нет», и тогда где кончается значение, решает
+     * общий обход. Пока признаком служило «образец непустой», поле без
+     * формата молча не переносилось вовсе (PRD 10.13.71).
+     */
+    var valueRxRaw = getValueRx(field);
+    if (valueRxRaw === null || valueRxRaw === undefined) continue;
+    var valueRx = String(valueRxRaw || "").trim();
     var panel = String(getPanelForKey(key) || "right").trim().toLowerCase() === "left" ? "left" : "right";
     out = relocateMarkerTokenByPanel({
       line: out,

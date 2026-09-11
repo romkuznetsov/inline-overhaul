@@ -1153,11 +1153,11 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   function relocateDateLikeByOrder(finalLine, rules, orderCfg) {
-    if (typeof rulesHelpers.getDateValuePatterns !== 'function') {
-      throw new Error('pkm_rules_runtime_helpers unavailable: getDateValuePatterns')
+    if (typeof rulesHelpers.getDateMarkersFromRules !== 'function') {
+      throw new Error('pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules')
     }
-    var patterns = rulesHelpers.getDateValuePatterns()
-    var timeHm = String(patterns && patterns.timeHm ? patterns.timeHm : '\\d{2}:\\d{2}')
+    /* Хвост значения — из формата поля, одной картой на все метки. */
+    var tailByMarker = rulesHelpers.getDateMarkersFromRules(rules).tailByMarker || {}
     var shared = linePipeline
     var all = []
     if (rules && rules.leftMode && Array.isArray(rules.leftMode.fields)) all = all.concat(rules.leftMode.fields)
@@ -1180,11 +1180,17 @@ async function runTagWheel(input, quickAddSettings) {
       getValueRx: function(field) {
         var kind = String(field && field.kind || '')
         if (kind !== 'dateOffset' && kind !== 'nowTime' && kind !== 'estimatedCycle' && kind !== 'genericElement') {
-          return ''
+          /* Не элемент — переносу тут делать нечего. */
+          return null
         }
-        return (kind === 'nowTime' || kind === 'estimatedCycle')
-          ? timeHm
-          : ('[^\\s]+' + '(?:\\s+' + timeHm + ')?')
+        /*
+         * Образец значения выводится из формата поля, а не угадывается.
+         * Стояла догадка «слово, а за ним, может быть, время»: она верна
+         * ровно на `YYYY-MM-DD hh:mm` и неверна на любом другом формате с
+         * пробелом (PRD 10.13.71). Формата у поля нет — образца нет, и это
+         * ответ: где кончается значение, дальше решает общий обход.
+         */
+        return String(tailByMarker[String(field && field.marker || '').trim()] || '')
       },
       removeMarkerTokens: function(segLine, mk, valueRx) {
         if (typeof rulesHelpers.removeMarkerTokensFromSegment !== 'function') {

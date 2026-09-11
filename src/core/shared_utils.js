@@ -421,6 +421,145 @@ function buildElementTailRegexSource(format, commandRaw) {
 
   return times(Math.max(1, Array.from(fmt).length));
 }
+/**
+ * Общий вид значения даты со временем — на случай, когда нынешний формат
+ * поля значение не узнал.
+ *
+ * **Зачем он нужен.** Значение ищут на строке, чтобы убрать старое и
+ * поставить новое. Образец для поиска выводится из формата поля
+ * (`buildElementTailRegexSource`), и пока формат не менялся, этого хватает.
+ * Но человек формат меняет, а строки остаются написанными прежним: при
+ * формате `YYYY-MM-DD` строка держит `📅2026-09-11 21:32`, образец узнаёт
+ * только первое слово, и хвост `21:32` остаётся в строке навсегда
+ * (PRD 10.13.71, Ч-5).
+ *
+ * **Чем он НЕ является.** Это не второе объявление формата: формат
+ * спрашивается первым и всегда. Это запасной вопрос «а не выглядит ли
+ * оставшееся датой» — и задаётся он только там, где мы и так убираем токен
+ * своей метки.
+ *
+ * **Его слабость названа здесь же:** он знает даты в форме ISO и время
+ * `чч:мм`. Значение прежнего формата вида `31.12.2026 21:32` он не узнает, и
+ * хвост от него останется. Шире делать нечего: «что угодно до конца блока»
+ * съело бы текст человека.
+ */
+const DATE_LIKE_VALUE_SRC =
+  "\\d{4}-\\d{2}(?:-\\d{2})?(?:[ T]\\d{2}:\\d{2}(?::\\d{2})?)?"
+  + "|\\d{2}:\\d{2}(?::\\d{2})?";
+
+/**
+ * Сколько знаков занимает значение, стоящее в тексте с позиции `index`.
+ *
+ * Берётся **самое длинное** из того, что узнают поданные образцы, а не
+ * первое совпавшее. Это не придирка: у одного значения образцов несколько —
+ * формат поля, общий вид даты, «слово до пробела», — и первый по списку
+ * бывает короче правильного. `📅2026-09-11 21:32` при формате `YYYY-MM-DD`
+ * образцом формата покрывается наполовину, и ровно эта половина оставляла
+ * хвост в строке заказчика.
+ *
+ * Значение обязано кончаться границей токена — пробелом или концом текста.
+ * Ноль — законный ответ: метка без значения (`📅` на строке) это тоже наш
+ * токен. Если не подошёл ни один образец, ответ `null`, и это значит «это не
+ * наш токен, не трогайте его».
+ */
+function longestValueLengthAt(text, index, sources) {
+  const src = String(text == null ? "" : text);
+  const from = Number(index || 0);
+  const list = Array.isArray(sources) ? sources : [];
+  let best = null;
+  for (let i = 0; i < list.length; i++) {
+    const one = String(list[i] == null ? "" : list[i]).trim();
+    if (!one) continue;
+    const rx = new RegExp("(?:" + one + ")(?=\\s|$)", "yu");
+    rx.lastIndex = from;
+    const hit = rx.exec(src);
+    if (!hit) continue;
+    const len = String(hit[0] || "").length;
+    if (best === null || len > best) best = len;
+  }
+  return best;
+}
+
+/**
+ * Образцы, которыми на строке узнаётся значение этой метки.
+ *
+ * Список, а не один образец, и спрашиваются они разом — выигрывает тот, кто
+ * узнал больше (`longestValueLengthAt`). Порядок здесь ничего не решает.
+ *
+ * - образец формата поля — главный и точный;
+ * - общий вид даты со временем — для значений прежнего формата;
+ * - подряд идущие метки — метка без значения тоже наш токен;
+ * - слово до пробела — последний ответ, им жили все прежние объявления.
+ */
+function elementValueSources(ownValueRx, marker) {
+  const own = String(ownValueRx == null ? "" : ownValueRx).trim();
+  const mk = String(marker == null ? "" : marker);
+  const out = [];
+  if (own) out.push(own);
+  out.push(DATE_LIKE_VALUE_SRC);
+  if (mk) out.push("(?:" + escapeRe(mk) + ")*");
+  out.push("[^\\s]+");
+  return out;
+}
+
+/**
+ * Снять из текста все токены этой метки вместе с их значениями.
+ *
+ * **Это единственное объявление правила** «где кончается значение элемента».
+ * Прежде их было несколько: уборка блока в правилах рантайма резала по
+ * первому пробелу, уборка меток в тексте — по рукописному образцу даты, у
+ * TagWheel стояла своя догадка. Значение формата `YYYY-MM-DD hh:mm` занимает
+ * два слова и ни в одно из них не помещалось (PRD 10.13.71).
+ *
+ * Метка, стоящая не с начала токена (`abc📅2026-09-11`), не наша и не
+ * трогается.
+ */
+function removeMarkerValueTokens(text, marker, sources) {
+  const src = String(text == null ? "" : text);
+  const mk = String(marker == null ? "" : marker);
+  if (!mk) return src;
+  let out = "";
+  let i = 0;
+  while (i < src.length) {
+    const atTokenStart = i === 0 || /\s/.test(src[i - 1]);
+    if (atTokenStart && src.startsWith(mk, i)) {
+      const len = longestValueLengthAt(src, i + mk.length, sources);
+      if (len !== null) {
+        i += mk.length + len;
+        continue;
+      }
+    }
+    out += src[i];
+    i += 1;
+  }
+  return out.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Первый на строке токен этой метки — вместе со значением целиком.
+ *
+ * Тот же вопрос, что у уборки, и потому тот же ответ: где кончается
+ * значение, решает `longestValueLengthAt`. Прежде эти два вопроса задавались
+ * порознь — уборка резала по образцу формата, а взятие токена собирало своё
+ * выражение из метки и образца, — и на пустом образце оно возвращало **одну
+ * метку**: элемент переезжал без значения.
+ *
+ * Метка без значения токеном не считается: брать нечего.
+ */
+function firstMarkerValueToken(text, marker, sources) {
+  const src = String(text == null ? "" : text);
+  const mk = String(marker == null ? "" : marker);
+  if (!mk) return "";
+  for (let i = 0; i < src.length; i++) {
+    if (!src.startsWith(mk, i)) continue;
+    if (i !== 0 && !/\s/.test(src[i - 1])) continue;
+    const valueLen = longestValueLengthAt(src, i + mk.length, sources);
+    if (valueLen === null || valueLen === 0) continue;
+    return src.slice(i, i + mk.length + valueLen);
+  }
+  return "";
+}
+
 function shouldHydrateGenericElementRaw(format, commandRaw, rawValue) {
   const fmt = String(format || "").trim() || "1";
   const cmd = String(commandRaw || "").trim().toLowerCase();
@@ -677,6 +816,11 @@ module.exports = {
   formatNowByMask,
   renderCommandValueByFormat,
   buildElementTailRegexSource,
+  DATE_LIKE_VALUE_SRC,
+  longestValueLengthAt,
+  elementValueSources,
+  removeMarkerValueTokens,
+  firstMarkerValueToken,
   ELEMENT_VALUE_CHARS,
   shouldHydrateGenericElementRaw,
   buildCustomPlanFromIncrement,

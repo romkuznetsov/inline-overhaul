@@ -9,6 +9,7 @@
  * читала `globalThis.__inlinePkmDomainRegistry`, которую **никто не пишет**.
  */
 const __pkmDomainRegistry = require("./pkm_domain_registry.js");
+const __sharedUtils = require("./shared_utils.js");
 
 function collapseSubOrderKey(key) {
   const raw = String(key || "").trim();
@@ -441,13 +442,6 @@ function getDateFieldsFromRules(rules, options) {
   return { due, start, timeNow };
 }
 
-function getDateValuePatterns() {
-  return {
-    dateIso: "\\d{4}-\\d{2}-\\d{2}",
-    timeHm: "\\d{2}:\\d{2}",
-  };
-}
-
 function getDefaultDateLikeMarkers() {
   return [];
 }
@@ -480,21 +474,33 @@ function hasDateLikeMarkerInText(text, options) {
   return false;
 }
 
+/**
+ * Снять с блока все токены этой метки.
+ *
+ * **Три образца вместо одного, и берётся самый длинный.** Прежде тут стояли
+ * три прохода подряд: образец формата, потом «метка плюс одно слово», потом
+ * «метка без значения». Второй проход и терял вторую половину: значение
+ * формата `YYYY-MM-DD hh:mm` занимает два слова, и всё, что не совпало с
+ * нынешним форматом, обрезалось по первому пробелу. Хвост `21:32` оставался
+ * в строке и дальше объявлялся текстом человека — ряд, который заказчик
+ * прислал 2026-09-12 (PRD 10.13.71).
+ *
+ * Теперь образцы спрашиваются **разом**, и выигрывает тот, кто узнал больше:
+ * формат поля, общий вид даты со временем, метка без значения, слово до
+ * пробела. Порядок в списке ничего не решает — это и есть смысл правки
+ * (`longestValueLengthAt`).
+ *
+ * Метка, стоящая не с начала токена (`abc📅2026-09-11`), не наша и не
+ * трогается — как и раньше.
+ */
 function removeMarkerTokensFromSegment(segText, marker, valueRx) {
-  const src = String(segText || "");
   const mk = String(marker || "");
-  if (!mk) return src;
-  let out = src;
-  const value = String(valueRx || "").trim();
-  if (value) {
-    const rxValue = new RegExp(`(^|\\s)${escapeRegex(mk)}${value}(?=\\s|$)`, "gu");
-    out = out.replace(rxValue, "$1");
-  }
-  const rxFallback = new RegExp(`(^|\\s)${escapeRegex(mk)}[^\\s]+(?=\\s|$)`, "g");
-  out = out.replace(rxFallback, "$1");
-  const rxEmpty = new RegExp(`(^|\\s)${escapeRegex(mk)}(?:${escapeRegex(mk)})*(?=\\s|$)`, "gu");
-  out = out.replace(rxEmpty, "$1");
-  return out.replace(/\s+/g, " ").trim();
+  if (!mk) return String(segText || "");
+  return __sharedUtils.removeMarkerValueTokens(
+    segText,
+    mk,
+    __sharedUtils.elementValueSources(valueRx, mk)
+  );
 }
 
 function escapeRegex(text) {
@@ -677,14 +683,28 @@ function getDateMarkersFromRules(rules, options) {
   const elementsByField = elements && typeof elements.byField === "object" && !Array.isArray(elements.byField)
     ? elements.byField
     : {};
+  /*
+   * **Формат спрашивается там же, откуда его берёт движок.** Карта строилась
+   * только по `behavior.elements`, а движок дат читает формат из
+   * `behavior.dateRuntimeConfig` — того, что приезжает ключом настроек. У
+   * заказчика обе ветки совпадают, и расхождения не видно; там, где ветка
+   * `elements` пуста, хвост не доезжал вовсе, и уборка снова резала значение
+   * по первому пробелу (У-147: две согласные стороны не показывают, какую из
+   * них читают). Поэтому сначала рантайм, потом `elements` — на те метки,
+   * которых в рантайме нет.
+   */
   out.tailByMarker = {};
-  for (const key of Object.keys(elementsByField)) {
-    const row = elementsByField[key] && typeof elementsByField[key] === "object" ? elementsByField[key] : {};
-    const marker = String(row.emoji || row.marker || "").trim();
-    const tail = elementTailPatternFromFormat(row.format);
-    if (!marker || !tail) continue;
-    if (!out.tailByMarker[marker]) out.tailByMarker[marker] = tail;
-  }
+  const addTails = (rows) => {
+    for (const key of Object.keys(rows || {})) {
+      const row = rows[key] && typeof rows[key] === "object" ? rows[key] : {};
+      const marker = String(row.emoji || row.marker || "").trim();
+      const tail = elementTailPatternFromFormat(row.format);
+      if (!marker || !tail) continue;
+      if (!out.tailByMarker[marker]) out.tailByMarker[marker] = tail;
+    }
+  };
+  addTails(byField);
+  addTails(elementsByField);
   return out;
 }
 
@@ -1398,7 +1418,6 @@ module.exports = {
   buildPanelOrderKeys,
   buildDateMarkers,
   getDateFieldsFromRules,
-  getDateValuePatterns,
   getDefaultDateLikeMarkers,
   isDateLikeToken,
   hasDateLikeMarkerInText,

@@ -584,12 +584,18 @@ function reorderRightDateTokensByOrder(line, rules, orderCfg, markers) {
   return linePipeline.buildFromSegments(seg, rules);
 }
 
+/*
+ * Формат значение не узнал — спрашиваем тем же общим образцом, каким его
+ * узнаёт уборка. Прежде тут стоял рукописный ISO в одно слово, и значение
+ * `YYYY-MM-DD hh:mm` бралось наполовину: переносилась дата, время
+ * оставалось в прежнем сегменте (PRD 10.13.71).
+ */
 function takeFirstDateToken(text, marker, format) {
   const byFmt = firstDateByMarkerAndFormat(text, marker, format);
   if (byFmt) return String(marker || "") + byFmt;
-  const rx = new RegExp(`${escapeRx(marker)}\\d{4}-\\d{2}-\\d{2}`);
-  const m = String(text || "").match(rx);
-  return m ? String(m[0]) : "";
+  const su = getSharedUtils();
+  const mk = String(marker || "");
+  return su.firstMarkerValueToken(text, mk, su.elementValueSources("", mk));
 }
 
 function relocateDateTokenByPanel(finalLine, rules, marker, targetPanel, tokenOverride, useFallbackFromLine, format) {
@@ -1241,9 +1247,6 @@ module.exports = {
     if (!rulesHelpersForDates || typeof rulesHelpersForDates.getDateMarkersFromRules !== "function") {
       throw new Error("pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules");
     }
-    if (typeof rulesHelpersForDates.getDateValuePatterns !== "function") {
-      throw new Error("pkm_rules_runtime_helpers unavailable: getDateValuePatterns");
-    }
     if (typeof rulesHelpersForDates.isDateLikeToken !== "function") {
       throw new Error("pkm_rules_runtime_helpers unavailable: isDateLikeToken");
     }
@@ -1440,14 +1443,17 @@ module.exports = {
       if (typeof linePipeline.enforceTextSegmentForLeftTag !== "function") {
         throw new Error("line_pipeline unavailable: enforceTextSegmentForLeftTag");
       }
-      const dateValuePatterns = rulesHelpersForDates.getDateValuePatterns();
+      /*
+       * Хвост каждой метки приезжает из формата её поля. Здесь стояла
+       * рукописная пара «дата» и «время» — она и теряла вторую половину
+       * значения, объявляя её текстом человека (PRD 10.13.71).
+       */
       const originalTextClean = linePipeline.cleanOriginalTextForLeftDate({
         rawLine,
         parsedText: parsed.text,
         rules,
         isDateLikeToken: (token) => rulesHelpersForDates.isDateLikeToken(token),
-        dateIso: String(dateValuePatterns && dateValuePatterns.dateIso ? dateValuePatterns.dateIso : "\\d{4}-\\d{2}-\\d{2}"),
-        timeHm: String(dateValuePatterns && dateValuePatterns.timeHm ? dateValuePatterns.timeHm : "\\d{2}:\\d{2}"),
+        tailByMarker: dateMarkers.tailByMarker,
         kinds: ["dateOffset", "nowTime", "estimatedCycle", "genericElement"],
       });
       finalLine = linePipeline.enforceTextSegmentForLeftTag(finalLine, rules, originalTextClean);

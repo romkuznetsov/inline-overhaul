@@ -1716,6 +1716,134 @@ async function testStatusDateRepeatedStepKeepsOneValue() {
     "строка растёт с каждым шагом — значит старое значение не вычищается:\n  " + seen.join("\n  "));
 }
 
+/**
+ * Значение элемента из двух слов убирается целиком — и когда оно записано
+ * нынешним форматом, и когда прежним.
+ *
+ * **Куплено разбором Т7** (PRD 10.13.71). Заказчик прислал растущий ряд, и
+ * сторож рядом его не видел: он начинает с пустой строки, а дефект живёт на
+ * строке, где элемент **уже стоит слева**. Терял половину не перенос, а
+ * уборка «исходного текста»: она узнавала метку плюс одно слово, а формат
+ * `YYYY-MM-DD hh:mm` занимает два. Хвост `21:32` объявлялся текстом человека
+ * и возвращался в строку.
+ *
+ * Здесь три случая, и у каждого своя причина стоять:
+ *
+ * 1. нынешний формат из двух слов, элемент слева, слот текста пуст — ряд
+ *    заказчика символ в символ;
+ * 2. формат в настройках из **одного** слова, а в строке лежит значение,
+ *    записанное прежним форматом из двух: условия шире первого случая —
+ *    ни левый Block, ни пустой текст тут не нужны;
+ * 3. парное: у кого формат из одного слова и значение тоже, строка меняется
+ *    **только** значением. Правка не имеет права трогать их текст.
+ */
+async function testStatusDateKeepsWholeValueOfTwoWordFormat() {
+  const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+  const rulesShape = require(path.join(__dirname, "..", "..", "src", "core", "pkm_rules_shape.js"));
+
+  /*
+   * Обе стороны разведены нарочно (У-147): разделители разные, элемент уведён
+   * в ЛЕВЫЙ Block, формат задан со счётчиком «сейчас». На фикстуре набора
+   * разделители совпадают, элемент стоит справа, а ветка элементов пуста —
+   * там этому дефекту неоткуда взяться.
+   */
+  const buildSettings = (format) => {
+    const cfg = normalize.migrateConfig(JSON.parse(
+      fs.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_realistic.json"), "utf8")));
+    cfg.pkm.lineFormat.separator1 = "||";
+    cfg.pkm.lineFormat.separator2 = "::";
+    return {
+      "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+      "Rules data": JSON.stringify(rulesShape.buildRulesForEngines(cfg)),
+      "Action type": "field_inc:date_due",
+      "Order config": JSON.stringify({
+        left: ["date_due", "Importance", "type"],
+        right: ["Project"],
+        active: { date_due: "yes", Importance: "yes", type: "yes", Project: "yes" },
+        enabled: { date_due: true, Importance: true, type: true, Project: true },
+        labels: {}, strictNames: {}, types: { date_due: "element", Project: "wikilink" }, lead: {},
+      }),
+      "Date runtime config": JSON.stringify({
+        fields: ["date_due"],
+        byField: {
+          date_due: {
+            emoji: "\u{1F4C5}",
+            format,
+            increment: { mode: "standard", incrementBy: 1, command: "now", customRaw: [], custom: [] },
+          },
+        },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    };
+  };
+
+  const runSteps = async (startLine, format, times) => {
+    const editor = makeEditor(startLine, startLine.length);
+    const settings = buildSettings(format);
+    const seen = [];
+    for (let i = 0; i < times; i++) {
+      await runPkmCommandWithEditor("statusDate", editor, settings);
+      seen.push(editor.snapshot().line);
+    }
+    return seen;
+  };
+
+  const orphanTimes = (line, valueCount) => {
+    const times = String(line || "").match(/\b\d{2}:\d{2}\b/g) || [];
+    return times.length - valueCount;
+  };
+
+  /* 1. Ряд заказчика: элемент уже стоит слева, текста нет. */
+  const own = await runSteps("- \u{1F4C5}2026-09-11 21:32 || ", "YYYY-MM-DD hh:mm", 4);
+  const ownLast = own[own.length - 1];
+  assertTrue(/\d{4}-\d{2}-\d{2}/.test(ownLast),
+    "положительный контроль: после шагов в строке нет даты вовсе: " + ownLast);
+  assertEq((ownLast.match(/\d{4}-\d{2}-\d{2}/g) || []).length, 1,
+    "элемент слева, нынешний формат: дат в строке должно остаться одна:\n  " + own.join("\n  "));
+  assertEq(orphanTimes(ownLast, 1), 0,
+    "элемент слева, нынешний формат: вторая половина значения осталась в строке:\n  " + own.join("\n  "));
+
+  /* 2. Значение прежнего формата: в настройках одно слово, в строке два. */
+  const legacy = await runSteps("-  :: \u{1F4C5}2026-09-11 21:32", "YYYY-MM-DD", 3);
+  const legacyLast = legacy[legacy.length - 1];
+  assertTrue(/\d{4}-\d{2}-\d{2}/.test(legacyLast),
+    "положительный контроль: после шагов прежнего формата в строке нет даты вовсе: " + legacyLast);
+  assertEq(orphanTimes(legacyLast, 0), 0,
+    "значение прежнего формата: хвост времени не убран:\n  " + legacy.join("\n  "));
+
+  /*
+   * 3. Формат, которого общий вид даты не знает: `DD.MM.YYYY hh:mm`.
+   *
+   * **Куплено мутацией, а не соображением.** Первые два случая оставались
+   * зелёными, когда формат поля переставали спрашивать вовсе: значение
+   * заказчика записано в ISO, и его узнавал общий образец. То есть сторож
+   * проверял запасной ответ вместо главного. Здесь ISO нет, и ответить может
+   * только формат.
+   */
+  const dotted = await runSteps("- \u{1F4C5}11.09.2026 21:32 || ", "DD.MM.YYYY hh:mm", 3);
+  const dottedLast = dotted[dotted.length - 1];
+  assertTrue(/\d{2}\.\d{2}\.\d{4}/.test(dottedLast),
+    "положительный контроль: после шагов в строке нет значения этого формата вовсе: " + dottedLast);
+  assertEq((dottedLast.match(/\d{2}\.\d{2}\.\d{4}/g) || []).length, 1,
+    "формат без ISO: значений в строке должно остаться одно:\n  " + dotted.join("\n  "));
+  assertEq(orphanTimes(dottedLast, 1), 0,
+    "формат без ISO: вторая половина значения осталась в строке:\n  " + dotted.join("\n  "));
+
+  /*
+   * 4. Парное утверждение: у кого формат из одного слова и значение тоже,
+   * правка не имеет права трогать ни его текст, ни размещение.
+   */
+  const plain = await runSteps("- \u{1F4C5}2026-09-11 || купить молоко", "YYYY-MM-DD", 2);
+  const plainLast = plain[plain.length - 1];
+  assertTrue(/купить молоко/.test(plainLast),
+    "формат из одного слова: текст человека пропал из строки: " + plainLast);
+  assertEq(orphanTimes(plainLast, 0), 0,
+    "формат из одного слова: в строке появилось время, которого не было: " + plainLast);
+  assertEq((plainLast.match(/\d{4}-\d{2}-\d{2}/g) || []).length, 1,
+    "формат из одного слова: дат в строке должно остаться одна: " + plainLast);
+}
+
 async function run() {
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();
   await testStatusTagsRunCommandPathCyclesType();
@@ -1783,6 +1911,7 @@ async function run() {
   await testStatusTagsClientsRepeatedCycleDoesNotAccumulateDuplicates();
   await testStatusTagsKeepsBracketedTextThatIsNotCheckbox();
   await testStatusDateRepeatedStepKeepsOneValue();
+  await testStatusDateKeepsWholeValueOfTwoWordFormat();
   await testFailedNoticeReachesTheConsole();
   assertTrue(typeof runtime.runCommand === "function", "runtime exports runCommand");
   console.log("Status runtime behavior tests: OK");

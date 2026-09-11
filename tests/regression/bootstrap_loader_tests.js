@@ -843,7 +843,12 @@ async function run() {
   assertTrue(/function buildPanelOrderKeys\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export panel order builder");
   assertTrue(/function buildDateMarkers\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export date-markers builder");
   assertTrue(/function getDateFieldsFromRules\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export date-fields resolver");
-  assertTrue(/function getDateValuePatterns\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export date value-patterns helper");
+  /* Рукописный образец значения снят: где кончается значение элемента,
+     решает один обход в общем модуле (PRD 10.13.71). Пин переехал на
+     делегирование, а не на имя снятой функции (У-94). */
+  assertTrue(/__sharedUtils\.removeMarkerValueTokens\(/.test(pkmRulesHelpersSrc), "pkm rules helpers delegate marker-token removal to the shared single declaration");
+  assertTrue(/__sharedUtils\.elementValueSources\(/.test(pkmRulesHelpersSrc), "pkm rules helpers build value patterns via the shared single declaration");
+  assertFalse(/dateIso/.test(pkmRulesHelpersSrc), "pkm rules helpers no longer declare a hand-written element value pattern");
   assertTrue(/function getDefaultDateLikeMarkers\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export date-like markers helper");
   assertTrue(/function isDateLikeToken\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export date-like token classifier");
   assertTrue(/function hasDateLikeMarkerInText\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export date-like marker text classifier");
@@ -1556,13 +1561,13 @@ async function run() {
   assertTrue(/shared\.getStatusMixedReorderOptions\(markers\)/.test(statusDateSrc), "status_date mixed reorder options come from shared helper");
   assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: buildTagTokenKeyMap"\);/.test(statusDateSrc), "status_date token-key map helper is shared-only");
   assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: buildDateMarkers"\);/.test(statusDateSrc) || /throw new Error\("pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules"\);/.test(statusDateSrc), "status_date date-markers helper is shared-only");
-  assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: getDateValuePatterns"\);/.test(statusDateSrc), "status_date date value-patterns helper is shared-only");
   assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: isDateLikeToken"\);/.test(statusDateSrc), "status_date date-like token classifier is shared-only");
   assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: hasDateLikeMarkerInText"\);/.test(statusDateSrc), "status_date date-like marker text classifier is shared-only");
   assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: removeMarkerTokensFromSegment"\);/.test(statusDateSrc), "status_date marker-token remover helper is shared-only");
   assertTrue(/buildDateMarkers\(timeMarker, startMarker, dueMarker\)/.test(statusDateSrc) || /rulesHelpersForDates\.getDateMarkersFromRules\(rules\)/.test(statusDateSrc), "status_date runtime markers are resolved via shared helper");
   assertTrue(/\.\.\.dateMarkers,\s*generic:\s*actionMarker/.test(statusDateSrc), "status_date extends shared date-markers map with active generic marker for reorder");
-  assertTrue(/rulesHelpersForDates\.getDateValuePatterns\(\)/.test(statusDateSrc), "status_date text cleanup uses shared date value-patterns helper");
+  assertTrue(/tailByMarker: dateMarkers\.tailByMarker/.test(statusDateSrc), "status_date text cleanup asks the field format for the value tail, not a hand-written pattern");
+  assertFalse(/dateIso/.test(statusDateSrc), "status_date no longer passes a hand-written element value pattern to the text cleanup");
   assertFalse(/\[📅🛫\]/.test(statusDateSrc), "status_date has no hardcoded date emoji regex class in marker cleanup");
   assertFalse(/\)🕒/.test(statusDateSrc), "status_date has no hardcoded time emoji token in marker cleanup");
   assertTrue(/offPrefix: false/.test(cfgSrc), "main default config includes offPrefix toggle with OFF default");
@@ -1745,7 +1750,7 @@ async function run() {
   assertTrue(/createTagVisualDecorationExtension\(plugin\)/.test(mountSrc), "main registers tag visual CM6 extension");
   assertFalse(/rt\.loadPkmOptionKeys\(\)/.test(tagwheelSrc), "tagwheel option key preload avoids direct runtime object method calls");
   assertFalse(/getDateFieldsFromRules/.test(tagwheelSrc), "tagwheel has no local getDateFieldsFromRules wrapper");
-  assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: getDateValuePatterns'\)/.test(tagwheelSrc), "tagwheel date value-patterns helper is shared-only");
+  assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules'\)/.test(tagwheelSrc), "tagwheel date-markers helper is shared-only");
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: removeMarkerTokensFromSegment'\)/.test(tagwheelSrc), "tagwheel marker-token remover helper is shared-only");
   assertTrue(/core\.getNavigableFieldSequence\(rules, session\)/.test(tagwheelSrc), "tagwheel virtual field navigation uses core navigable sequence");
   assertTrue(/function getNavigableFieldSequence\(/.test(tagwheelCoreSrc), "tagwheel_core exports navigable field sequence helper");
@@ -1760,7 +1765,8 @@ async function run() {
   assertTrue(/if \(!hasVisibleField\) \{\s*return \{ hidden: true, active: false, text: '' \}/.test(tagwheelCoreSrc), "tagwheel_core hides group when no visible fields remain");
   assertTrue(/getDateMarkersFromRules\(rules\)/.test(tagwheelSrc), "tagwheel order flow uses shared date-marker resolver");
   assertFalse(/getDateFieldsFromRules\(rules\)/.test(tagwheelSrc), "tagwheel relocate-date flow does not depend on date-fields helper wrapper");
-  assertTrue(/getDateValuePatterns\(\)/.test(tagwheelSrc), "tagwheel relocate-date flow uses shared date value-patterns helper");
+  assertTrue(/tailByMarker\[String\(field && field\.marker/.test(tagwheelSrc), "tagwheel relocate-date flow takes the value tail from the field format, not from a guess");
+  assertFalse(/timeHm/.test(tagwheelSrc), "tagwheel no longer guesses the element value as a word plus an optional time");
   assertTrue(/shared\.relocateMarkerSetByFieldOrder\(\{/.test(tagwheelSrc), "tagwheel relocate-date flow delegates marker-set relocation to shared line-pipeline helper");
   assertTrue(/throw new Error\('line_pipeline unavailable: relocateMarkerSetByFieldOrder'\)/.test(tagwheelSrc), "tagwheel relocate-date flow requires shared line-pipeline marker-set relocation helper");
   assertTrue(/shared\.relocateTokenSetByPanel\(\{/.test(tagwheelSrc), "tagwheel tag-field relocation delegates to shared line-pipeline helper");

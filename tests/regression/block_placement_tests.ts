@@ -46,15 +46,24 @@ const rules: Any = {
     fields: [
       { id: "Project", orderKey: "Project", source: "wikilinks:Project", values: [] },
       { id: "date_due", orderKey: "date_due", kind: "genericElement", marker: "@", values: [] },
+      /* Поле, у которого значение занимает два слова: до 2026-09-12 перенос
+         брал у него только первое (PRD 10.13.71). */
+      { id: "when", orderKey: "when", kind: "dateOffset", marker: "📅", values: [] },
     ],
   },
 };
 
+/* Формат живёт там же, откуда его берёт движок, — в ветке рантайма. */
+rules.behavior.dateRuntimeConfig = {
+  fields: ["when"],
+  byField: { when: { emoji: "📅", format: "YYYY-MM-DD hh:mm" } },
+};
+
 const order = (left: string[], right: string[]): Any => ({
   left, right, labels: {}, strictNames: {}, lead: {}, freeRoam: {},
-  types: { Importance: "tag", Project: "wikilink", date_due: "element" },
-  active: { Importance: "yes", Project: "yes", date_due: "yes" },
-  enabled: { Importance: true, Project: true, date_due: true },
+  types: { Importance: "tag", Project: "wikilink", date_due: "element", when: "element" },
+  active: { Importance: "yes", Project: "yes", date_due: "yes", when: "yes" },
+  enabled: { Importance: true, Project: true, date_due: true, when: true },
 });
 
 /** Сегменты строки по настоящему разбору: что слева от текста, что справа. */
@@ -71,7 +80,9 @@ function segments(line: string): { left: string; text: string; dates: string } {
  * Элементы: Block читается, и это работало до Н-3.
  * ====================================================================== */
 
-const timeHm = String(helpers.getDateValuePatterns()?.timeHm || "\\d{2}:\\d{2}");
+/* Образец значения берётся у продукта — из формата поля, — а не пишется
+   здесь заново: своя копия догадки проверяла бы саму себя (У-4). */
+const tailByMarker: Any = helpers.getDateMarkersFromRules(rules).tailByMarker || {};
 
 function relocateElements(line: string, orderCfg: Any): string {
   return pipeline.relocateMarkerSetByFieldOrder({
@@ -82,8 +93,8 @@ function relocateElements(line: string, orderCfg: Any): string {
     getPanelForKey: (key: string) => helpers.resolvePanelForField(orderCfg, key, { defaultPanel: "right" }),
     getValueRx: (f: Any) => {
       const kind = String(f && f.kind || "");
-      if (kind !== "dateOffset" && kind !== "nowTime" && kind !== "estimatedCycle" && kind !== "genericElement") return "";
-      return (kind === "nowTime" || kind === "estimatedCycle") ? timeHm : ("[^\\s]+" + "(?:\\s+" + timeHm + ")?");
+      if (kind !== "dateOffset" && kind !== "nowTime" && kind !== "estimatedCycle" && kind !== "genericElement") return null;
+      return String(tailByMarker[String(f && f.marker || "").trim()] || "");
     },
     removeMarkerTokens: (segLine: string, mk: string, rx: string) => helpers.removeMarkerTokensFromSegment(segLine, mk, rx),
     takeFirstToken: (segLine: string, mk: string, rx: string) => macroShared.firstTokenByPattern(segLine, mk, rx),
@@ -104,6 +115,36 @@ function relocateElements(line: string, orderCfg: Any): string {
   assert.match(out.dates, /@30\.08/, "элемент в Right Block встал справа");
   assert.doesNotMatch(out.left, /@30\.08/, "и слева его не осталось");
   ok("элемент: Right Block уводит токен вправо");
+}
+
+/*
+ * Значение из двух слов переносится целиком.
+ *
+ * **Куплено мутацией, а не чтением.** Сторож ряда в движке дат остаётся
+ * зелёным, когда «взять первый токен» снова режет по первому пробелу: до
+ * этого места тот путь не доходит. А у человека доходит — этим переносом
+ * работает TagWheel.
+ */
+{
+  const line = "#/1 || купить молоко || 📅2026-09-11 21:32";
+  const out = segments(relocateElements(line, order(["Importance", "when"], [])));
+  assert.match(out.left, /📅2026-09-11 21:32/, "значение из двух слов уехало влево целиком");
+  assert.doesNotMatch(out.dates, /21:32/, "и второй половины справа не осталось");
+  assert.match(out.text, /купить молоко/, "текст человека на месте");
+  ok("элемент из двух слов: Left Block уводит значение целиком");
+}
+
+/*
+ * И сосед по блоку переносом не задет: значение кончается там, где кончается,
+ * а не «до конца блока».
+ */
+{
+  const line = "📅2026-09-11 21:32 #/1 || купить молоко";
+  const out = segments(relocateElements(line, order(["Importance"], ["when"])));
+  assert.match(out.dates, /📅2026-09-11 21:32/, "значение из двух слов уехало вправо целиком");
+  assert.match(out.left, /#\/1/, "сосед по блоку остался слева");
+  assert.doesNotMatch(out.left, /21:32/, "и половины значения слева не осталось");
+  ok("элемент из двух слов: сосед по блоку переносом не съеден");
 }
 
 /* ======================================================================

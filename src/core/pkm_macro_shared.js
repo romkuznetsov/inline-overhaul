@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("./shared_utils.js");
+
 function resolveSeparatorsOrThrow(rules) {
   const io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
   const sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";
@@ -55,10 +57,19 @@ function removePatternFromSegment(segText, marker, valueRx) {
   return String(segText || "").replace(rx, " ").replace(/\s+/g, " ").trim();
 }
 
+/*
+ * Где кончается значение элемента — один вопрос и один ответ, общий с
+ * уборкой (PRD 10.13.71). Прежде выражение собиралось здесь: при пустом
+ * образце оно совпадало с одной меткой, и перенос уносил метку без
+ * значения.
+ */
 function firstTokenByPattern(segText, marker, valueRx) {
-  const rx = new RegExp(`${escapeRegex(marker)}${String(valueRx || "")}`);
-  const hit = String(segText || "").match(rx);
-  return hit ? String(hit[0]) : "";
+  const mk = String(marker || "");
+  return __sharedUtils.firstMarkerValueToken(
+    segText,
+    mk,
+    __sharedUtils.elementValueSources(valueRx, mk)
+  );
 }
 
 function remapCursorByLineDiff(oldLine, newLine, oldCh) {
