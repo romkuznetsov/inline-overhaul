@@ -11,7 +11,8 @@ cycle and edit all of it from the keyboard.
 Everything above is ordinary markdown in the file. The tags are searchable, the link is a
 real link, and nothing is hidden from your other plugins.
 
-See the [visual showcase](showcase.md) for animated examples and the
+See the [feature list](FEATURES.md) for what the plugin can do, the
+[visual showcase](showcase.md) for animated examples and the
 [setup and user guide](instructions.md) for installation, configuration, Transform safety
 and troubleshooting.
 
