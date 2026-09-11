@@ -1629,6 +1629,93 @@ async function testStatusTagsKeepsBracketedTextThatIsNotCheckbox() {
 }
 
 
+
+/**
+ * Повторный шаг по элементу-дате не копит хвостов и не двигает его между Block.
+ *
+ * **Куплено дефектом, которого набор не видел.** 2026-09-12 заказчик прислал
+ * ряд: он жал шаг по дате раз за разом, и строка росла — с каждым нажатием в
+ * ней оставался хвост предыдущего значения, а сам элемент прыгал слева
+ * направо и обратно:
+ *
+ *   1. `- 📅…21:32 || `
+ *   2. `-  :: 📅…21:33 21:32`
+ *   3. `- 📅…21:34 ||  :: 21:32`
+ *   4. `- 📅…21:35 || 21:34 :: 21:32`
+ *
+ * Причина была в моей же правке того дня, и найдена она перебором по истории
+ * коммитов, а не чтением. Правка снята; здесь стоит сторож, которого тогда не
+ * было: **четыре шага подряд обязаны оставить ровно одно значение**.
+ */
+async function testStatusDateRepeatedStepKeepsOneValue() {
+  /*
+   * **Условия те же, что у заказчика, и обе стороны разведены нарочно.**
+   * Первая версия этого сторожа гоняла фикстуру набора — там оба разделителя
+   * `::`, а элемент стоит справа, — и мутация «снять уборку» её не роняла:
+   * сторож был слеп к тому самому дефекту, ради которого заведён (У-146).
+   * Правила приезжают ключом `Rules data`, разделители `||` и `::`.
+   */
+  const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+  const rulesShape = require(path.join(__dirname, "..", "..", "src", "core", "pkm_rules_shape.js"));
+  const cfgRepeat = normalize.migrateConfig(JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_realistic.json"), "utf8")));
+  cfgRepeat.pkm.lineFormat.separator1 = "||";
+  cfgRepeat.pkm.lineFormat.separator2 = "::";
+  const rulesRepeat = rulesShape.buildRulesForEngines(cfgRepeat);
+
+  const editor = makeEditor("- ", 2);
+  const settings = {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": JSON.stringify(rulesRepeat),
+    "Action type": "field_inc:date_due",
+    /* Элемент уведён в ЛЕВЫЙ Block — ровно как у него. */
+    "Order config": JSON.stringify({
+      left: ["date_due", "Importance", "type"],
+      right: ["Project"],
+      active: { date_due: "yes", Importance: "yes", type: "yes", Project: "yes" },
+      enabled: { date_due: true, Importance: true, type: true, Project: true },
+      labels: {}, strictNames: {}, types: { date_due: "element", Project: "wikilink" }, lead: {},
+    }),
+    /*
+     * **Формат даты задан, и это часть условий.** У фикстуры конфига ветка
+     * элементов пуста, а у заказчика — `YYYY-MM-DD hh:mm` со счётчиком
+     * «сейчас»: без формата шаг не собирает значение, и дефект не
+     * проявляется вовсе. Первая версия этого сторожа это и пропустила —
+     * мутация её не роняла (У-146).
+     */
+    "Date runtime config": JSON.stringify({
+      fields: ["date_due"],
+      byField: {
+        date_due: {
+          emoji: "\u{1F4C5}",
+          format: "YYYY-MM-DD hh:mm",
+          increment: { mode: "standard", incrementBy: 1, command: "now", customRaw: [], custom: [] },
+        },
+      },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  };
+  const seen = [];
+  for (let i = 0; i < 4; i++) {
+    await runPkmCommandWithEditor("statusDate", editor, settings);
+    seen.push(editor.snapshot().line);
+  }
+  const last = seen[seen.length - 1];
+
+  /* Контроль: движок и правда что-то писал, иначе сторож мерит пустоту. */
+  assertTrue(/\d{4}-\d{2}-\d{2}/.test(last), "положительный контроль: после шагов в строке нет даты вовсе: " + last);
+
+  const dates = last.match(/\d{4}-\d{2}-\d{2}/g) || [];
+  assertEq(dates.length, 1, "после четырёх шагов дат в строке должно остаться одна, а их " + dates.length + ": " + last);
+  const times = last.match(/\b\d{2}:\d{2}\b/g) || [];
+  assertTrue(times.length <= 1, "после четырёх шагов в строке накопились хвосты времени: " + last);
+
+  /* И длина не растёт от нажатия к нажатию: накопление видно ею раньше всего. */
+  assertTrue(seen[3].length <= seen[1].length + 2,
+    "строка растёт с каждым шагом — значит старое значение не вычищается:\n  " + seen.join("\n  "));
+}
+
 async function run() {
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();
   await testStatusTagsRunCommandPathCyclesType();
@@ -1695,6 +1782,7 @@ async function run() {
   await testStatusTagsClientsHydrationUsesLastTokenOccurrence();
   await testStatusTagsClientsRepeatedCycleDoesNotAccumulateDuplicates();
   await testStatusTagsKeepsBracketedTextThatIsNotCheckbox();
+  await testStatusDateRepeatedStepKeepsOneValue();
   await testFailedNoticeReachesTheConsole();
   assertTrue(typeof runtime.runCommand === "function", "runtime exports runCommand");
   console.log("Status runtime behavior tests: OK");

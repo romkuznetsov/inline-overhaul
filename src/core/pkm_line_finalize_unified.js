@@ -879,7 +879,6 @@ function applyUnifiedPostFinalize(options) {
     line,
     rules,
     mode,
-    leftMarkers: opts.leftMarkers,
   });
   return line;
 }
@@ -911,7 +910,6 @@ function applyCycleEndAndInvariants(options) {
     line: lineAfterCycle,
     rules,
     mode,
-    leftMarkers: opts.leftMarkers,
   });
   return {
     finalLine,
@@ -1475,23 +1473,9 @@ function startsWithAnyDateMarker(token, rules) {
   return false;
 }
 
-/** Начинается ли токен с одной из меток, стоящих по Order слева. */
-function startsWithLeftMarker(token, leftMarkers) {
-  const t = String(token || "").trim();
-  if (!t) return false;
-  const list = Array.isArray(leftMarkers) ? leftMarkers : [];
-  for (const mk of list) {
-    const marker = String(mk || "").trim();
-    if (!marker) continue;
-    if (t.startsWith(marker) && t.length > marker.length) return true;
-  }
-  return false;
-}
-
 function enforceRightPayloadSeparatorInvariant(options) {
   const opts = options && typeof options === "object" ? options : {};
   const rules = opts.rules;
-  const leftMarkers = Array.isArray(opts.leftMarkers) ? opts.leftMarkers : [];
   const rawLine = String(opts.rawLine || "");
   const line = String(opts.line || "");
   const sep = resolveSeparatorsOrThrow(rules);
@@ -1546,12 +1530,20 @@ function enforceRightPayloadSeparatorInvariant(options) {
     if (leftBody) {
       const extractedLeft = extractTrailingMarkerPayloadFromText(leftBody, rules);
       /*
-       * **Метка, стоящая по Order слева, слева и остаётся** (замечание
-       * заказчика 2026-09-11). Прежде здесь уезжал вправо любой токен с
-       * меткой: списки правил Order не отражают, и «правым» считался каждый,
-       * чья метка объявлена в `rightMode`.
+       * **Здесь был запрет уносить вправо метку, стоящую по Order слева, и он
+       * снят 2026-09-12.** Правка отвечала на верное замечание — элемент,
+       * уведённый в левый Block, уезжал вправо, — но цена оказалась дороже
+       * дефекта: перенос сюда входит в уборку, и без него старое значение
+       * элемента переставало вычищаться. Заказчик прислал ряд: с каждым шагом
+       * в строке оставался хвост предыдущего значения, а сам элемент прыгал
+       * между Block. Воспроизведено на его конфиге и разложено по коммитам:
+       * до этой правки ряд чистый, после — с мусором (PRD 10.13.70).
+       *
+       * Правильное место — там, где движок **ищет старое значение**: он ищет
+       * его в правом сегменте, а Order увёл элемент влево. Пока это не
+       * разобрано, поведение возвращено прежнее.
        */
-      if (extractedLeft.payload && !startsWithLeftMarker(extractedLeft.payload, leftMarkers)) {
+      if (extractedLeft.payload) {
         dates = extractedLeft.payload;
         left = joinLeftPrefix(leftParts.prefix, extractedLeft.text || "");
       }
@@ -1593,7 +1585,7 @@ function applyFinalLineInvariants(options) {
   let out = String(opts.line || "");
   out = enforceSourcePrefixInvariant(rawLine, out);
   out = normalizeLeftTextSpill({ line: out, rules });
-  out = enforceRightPayloadSeparatorInvariant({ rawLine, line: out, rules, leftMarkers: opts.leftMarkers });
+  out = enforceRightPayloadSeparatorInvariant({ rawLine, line: out, rules });
   out = normalizeStructuredSlots({ rawLine, line: out, rules, mode });
   out = normalizeSeparatorTopology(out, rules);
   out = enforceSourcePrefixInvariant(rawLine, out);

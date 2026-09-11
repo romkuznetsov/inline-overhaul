@@ -375,62 +375,21 @@ function relocateLink(line: string, targetPanel: "left" | "right"): string {
   ok("слот под текст находится и в строке, где первого разделителя нет");
 
   /*
-   * **Метка, уведённая по Order в левый Block, слева и остаётся** —
-   * замечание заказчика 2026-09-11: «я перенёс due в left block самым первым
-   * значением в order… при активации в строке он появился в right block».
+   * **Здесь стояли пять утверждений про Order в доводке строки, и они сняты
+   * вместе с правкой 2026-09-12.**
    *
-   * Причина найдена трассировкой, а не чтением: доводка строки решала «этот
-   * токен правый» по тому, в каком списке правил объявлена метка, — а списки
-   * правил Order **не отражают**. `applyOrderToRules` правит порядок и
-   * имена, но поля между `leftMode` и `rightMode` не переносит: в момент
-   * доводки левых меток было ноль, а все четыре лежали справа.
+   * Правка отвечала на верное замечание — элемент, уведённый в левый Block,
+   * уезжал вправо, — но сломала уборку: перенос вправо входит в неё, и без
+   * него старое значение элемента переставало вычищаться. Заказчик прислал
+   * ряд, где с каждым шагом в строке оставался хвост предыдущего значения.
+   * Виновный коммит найден перебором по истории, а не чтением: до него ряд
+   * чистый, после — с мусором.
    *
-   * Теперь Order спрашивается прямо и приезжает в доводку списком меток.
+   * Утверждения сняты, а не переписаны под новое поведение: их предмета в
+   * продукте больше нет (У-94). Вернутся они вместе с правильной правкой —
+   * той, что научит движок искать старое значение там, куда Order увёл
+   * элемент. Разбор — PRD 10.13.70.
    */
-  const fin: Any = requireCjs(path.join(root, "src", "core", "pkm_line_finalize_unified.js"));
-  const withOrder = (line: string, leftMarkers: string[]): string => fin.applyFinalLineInvariants({
-    rawLine: line, line, rules: split, mode: "off", leftMarkers,
-  });
-
-  const LEFT_ELEM = "- [ ] @30.08 ||";
-  assert.equal(withOrder(LEFT_ELEM, ["@"]), LEFT_ELEM,
-    "метка, стоящая по Order слева, вправо не уезжает");
-  /*
-   * Контроль (У-88): без Order та же строка уезжает вправо — значит
-   * утверждение выше держится на переданном списке, а не на пустоте.
-   */
-  assert.notEqual(withOrder(LEFT_ELEM, []), LEFT_ELEM,
-    "положительный контроль: без Order метка обязана уехать вправо, иначе сверять нечего");
-  ok("Order доезжает до доводки строки: левая метка остаётся слева");
-
-  /*
-   * **И сам список левых меток спрашивается у Order**, а не пишется руками.
-   * Без этого утверждение выше держалось бы на списке, который составила
-   * проверка: подмена «список приходит пустым» её не роняла (У-4).
-   */
-  /* Разрешение панели по Order берётся у настоящего модуля плагина (У-1). */
-  (globalThis as Any).__inlinePkmRulesHelpers = helpers;
-  const common: Any = requireCjs(path.join(root, "src", "core", "status_runtime_common.js"))
-    .createStatusRuntimeCommon({
-      defaultPanel: "left",
-      /* Две зависимости модуль требует всегда; сборке списка меток они не
-         нужны, и подделаны они названо (У-1). */
-      loadOrderKeyNormalizer: async () => ((k: string) => String(k || "").trim()),
-      loadRuntimePreloadFacade: async () => null,
-    });
-  const elemRules: Any = {
-    ...split,
-    leftMode: { fields: [{ id: "Imp", orderKey: "Imp", prefix: "#", values: [] }] },
-    rightMode: { fields: [{ id: "date_due", orderKey: "date_due", kind: "genericElement", marker: "@", values: [] }] },
-  };
-  const orderLeft: Any = { left: ["date_due", "Imp"], right: [], panels: { date_due: "left" } };
-  const orderRight: Any = { left: ["Imp"], right: ["date_due"], panels: { date_due: "right" } };
-
-  assert.deepEqual(common.leftMarkersFromOrder(elemRules, orderLeft), ["@"],
-    "метка Field, уведённого Order влево, попадает в список левых");
-  assert.deepEqual(common.leftMarkersFromOrder(elemRules, orderRight), [],
-    "контроль: у Field, стоящего справа, метка в список не попадает");
-  ok("список левых меток строится из Order, а не пишется руками");
 
   /*
    * И разбор той же строки: первого разделителя в ней нет, второй есть.
