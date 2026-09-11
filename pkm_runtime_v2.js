@@ -43,12 +43,7 @@ function hashShort(text) {
 }
 
 function getActiveEditor(app) {
-  const ws = app && app.workspace ? app.workspace : null;
-  const leaf = ws && ws.activeLeaf && ws.activeLeaf.view ? ws.activeLeaf.view : null;
-  const fromLeaf = leaf && leaf.editor ? leaf.editor : null;
-  if (fromLeaf) return fromLeaf;
-  const active = ws && ws.activeEditor ? ws.activeEditor : null;
-  return active && active.editor ? active.editor : null;
+  return __activeEditorMod.activeEditorFrom(app);
 }
 
 /*
@@ -67,6 +62,7 @@ const MACRO_MODULES = {
 };
 
 const macroRuntimeEntry = require("./src/core/pkm_macro_runtime_entry.js");
+const __activeEditorMod = require("./src/core/active_editor.js");
 
 function macroModuleForCommand(command) {
   return Object.prototype.hasOwnProperty.call(MACRO_MODULES, command)

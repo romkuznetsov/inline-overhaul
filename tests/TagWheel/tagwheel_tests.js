@@ -1913,7 +1913,14 @@ async function runUndoOneStepSuite() {
     assertEq(lines[0], panelView, 'панель нарисована на строке')
     var drawn = dispatched.length
 
-    await tagwheel.entry({}, {})
+    /*
+     * Контекст передаётся так же, как его передаёт рантайм:
+     * `runCommand` зовёт `entry({ app: app }, settings)`. Прежде здесь
+     * стоял пустой объект, и приложение движок доставал из
+     * `globalThis.app` — путь, который каталог Obsidian запрещает (П1)
+     * и которого с 2026-09-11 нет.
+     */
+    await tagwheel.entry({ app: globalThis.app }, {})
 
     /* Положительный контроль: применение и правда произошло. */
     assertTrue(lines[0] !== original, 'строка изменилась — применение отработало: ' + lines[0])

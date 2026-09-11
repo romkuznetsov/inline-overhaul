@@ -35,6 +35,7 @@ var __tagwheelCoreMod = require('./tagwheel_core.js')
 var __pkmOptionKeysMod = require('../../src/core/pkm_option_keys.js')
 var __pkmDomainRegistryMod = require('../../src/core/pkm_domain_registry.js')
 var __say = require('../../src/core/say.js').say
+var __activeEditorMod = require('../../src/core/active_editor.js')
 /* Пакет даёт сам Obsidian: в сборке он объявлен внешним и в бандл не идёт. */
 var __cmState = require('@codemirror/state')
 
@@ -287,42 +288,31 @@ function emitTagWheelDevEvent(app_, eventName, payload) {
   }
 }
 
+/*
+ * Приложение приходит вызовом: либо само (`x`), либо на объекте вызывающего
+ * (`x.app` — так его передают и макро-рантайм, и QuickAdd). Третьим путём
+ * здесь стояло `globalThis.app` — прямое обращение к глобальному приложению,
+ * которое каталог Obsidian запрещает (П1). Снято 2026-09-11: ни один живой
+ * вызов до него не доходил, а если приложение и правда не передали, человек
+ * теперь видит названную причину — «TagWheel: no app context», — а не тихую
+ * работу с чужим приложением.
+ */
 function resolveTagWheelApp(x) {
   if (x && x.vault && x.workspace) return x
   if (x && x.app && x.app.vault && x.app.workspace) return x.app
-  if (globalThis.app && globalThis.app.vault && globalThis.app.workspace) return globalThis.app
   return null
 }
 
+/*
+ * Где взять редактор — одно объявление на весь плагин, `src/core/active_editor.js`.
+ *
+ * Здесь лежала четвёртая копия этого правила, и она спрашивала
+ * `workspace.activeLeaf` первым, а `getActiveViewOfType` — последним, через
+ * приватный реестр плагинов. Каталог Obsidian требует обратного порядка (П8);
+ * проба у реестра переехала в общий модуль и осталась там последней.
+ */
 function getTagWheelEditor(app_) {
-  var leaf = app_ && app_.workspace ? app_.workspace.activeLeaf : null
-  var view = leaf && leaf.view ? leaf.view : null
-
-  if (view && view.editor) return view.editor
-  if (view && view.currentMode && view.currentMode.editor) return view.currentMode.editor
-
-  if (app_ && app_.workspace && app_.workspace.activeEditor && app_.workspace.activeEditor.editor) {
-    return app_.workspace.activeEditor.editor
-  }
-
-  try {
-    var mdPlugin = app_ && app_.plugins && app_.plugins.plugins ? app_.plugins.plugins.markdown : null
-    var MdCtor = mdPlugin && mdPlugin.constructor ? mdPlugin.constructor : null
-    if (MdCtor && app_.workspace && typeof app_.workspace.getActiveViewOfType === 'function') {
-      var mdView = app_.workspace.getActiveViewOfType(MdCtor)
-      if (mdView && mdView.editor) return mdView.editor
-      if (mdView && mdView.currentMode && mdView.currentMode.editor) return mdView.currentMode.editor
-    }
-  } catch (_) {
-    /*
-     * Проба, и она четвёртая по счёту: у платформы спрашивается конструктор
-     * вида заметки через реестр плагинов — приватное API, которого может не
-     * быть. «Нет» здесь ответ: ниже возвращается `null`, а человеку про
-     * отсутствие редактора говорит уже вызывающий, уведомлением.
-     */
-  }
-
-  return null
+  return __activeEditorMod.activeEditorFrom(app_)
 }
 
 function cleanupTagWheelState(state) {

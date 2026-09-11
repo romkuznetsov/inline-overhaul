@@ -1,9 +1,10 @@
 "use strict";
 
-const { Plugin, Notice } = require("obsidian");
+const { Plugin, Notice, MarkdownView } = require("obsidian");
 
 
 const __sharedUtils = require("./src/core/shared_utils.js");
+const __activeEditor = require("./src/core/active_editor.js");
 globalThis.__inlineOverhaulSharedUtils = __sharedUtils;
 
 
@@ -101,7 +102,7 @@ class InlineOverhaulPlugin extends Plugin {
   }
 
   getActiveEditor() {
-    return this.app.workspace.getActiveViewOfType(require("obsidian").MarkdownView)?.editor ?? this.app.workspace.activeEditor?.editor;
+    return __activeEditor.activeEditorFrom(this.app, MarkdownView);
   }
 
   notice(message) {

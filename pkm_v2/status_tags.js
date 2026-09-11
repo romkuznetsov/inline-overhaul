@@ -23,6 +23,7 @@ const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js")
 const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
 const __say = require("../src/core/say.js").say;
+const __activeEditorMod = require("../src/core/active_editor.js");
 
 let RULES_PATH = "Rules path";
 let ACTION_TYPE = "Action type";
@@ -1191,7 +1192,7 @@ module.exports = {
 
   entry: async (QuickAdd, settings) => {
     const app_ = QuickAdd?.app ?? app;
-    const editor = app_?.workspace?.activeLeaf?.view?.editor ?? app_?.workspace?.activeEditor?.editor;
+    const editor = __activeEditorMod.activeEditorFrom(app_);
     if (!editor) return;
 
     /*

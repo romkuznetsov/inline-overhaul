@@ -17,6 +17,7 @@ let DEFAULT_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
  * тот модуль», а из графа сборки приехать не тот не может.
  */
 const __sharedUtils = require("../src/core/shared_utils.js");
+const __activeEditorMod = require("../src/core/active_editor.js");
 const __pkmDomainRegistry = require("../src/core/pkm_domain_registry.js");
 const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js");
 const __statusLineRuntimeUnified = require("../src/core/status_line_runtime_unified.js");
@@ -999,7 +1000,7 @@ module.exports = {
 
   entry: async (QuickAdd, settings) => {
     const app_ = QuickAdd?.app ?? app;
-    const editor = app_?.workspace?.activeLeaf?.view?.editor ?? app_?.workspace?.activeEditor?.editor;
+    const editor = __activeEditorMod.activeEditorFrom(app_);
     if (!editor) return;
 
     await callRuntimeApi(app_, "loadRulesRuntimeHelpers");

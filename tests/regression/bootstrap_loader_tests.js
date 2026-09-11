@@ -447,6 +447,7 @@ async function run() {
       .map((arg) => arg.replace(/^"|"$/g, ""))
       .filter((p) => p.startsWith("./")))).sort();
     const expected = [
+      "./src/core/active_editor.js",
       "./src/core/config_write.js",
       "./src/core/dev_log.js",
       "./src/core/shared_utils.js",
