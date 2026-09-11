@@ -742,6 +742,51 @@ function runSuite(core, rules, finalize) {
     s.selected.type = 'note'
     var seq = core.getNavigableFieldSequence(localRules, s)
     assertTrue(seq.indexOf('type') !== -1, 'right panel sequence includes parent type when moved right')
+
+    /*
+     * **Активное поле берётся из того, что человек видит** (замечание
+     * заказчика 2026-09-11, воспроизведено на его конфиге 2026-09-12).
+     *
+     * Панель показывает поля по Order, а активное выбиралось индексом в
+     * списке по типу — два разных множества. На его настройках панель
+     * слева начиналась элементом-датой, а активной вставала важность; в
+     * правом Block индекс уходил за край отрисованного списка.
+     *
+     * Спрашивается имя поля, а не место: место годится, пока список один.
+     */
+    /*
+     * Правила без единого явного указания: ни ведущего поля, ни поля по
+     * умолчанию. Ровно так настроено у заказчика — `lead` у него пуст, — и
+     * ровно здесь прежде и возникал дефект.
+     */
+    var noHint = JSON.parse(JSON.stringify(localRules))
+    if (noHint.ui) delete noHint.ui.activationFocus
+    if (noHint.behavior && noHint.behavior.order) noHint.behavior.order.lead = {}
+
+    var sLeft = core.makeInitialState(noHint, 'left')
+    sLeft.mode = 'left'
+    var panelLeft = core.getNavigableFieldSequence(noHint, sLeft)
+    assertTrue(panelLeft.length > 1, 'контроль: в левой панели больше одного поля, иначе сверять нечего')
+    core.resolveInitialActiveField(noHint, sLeft, 'left')
+    assertEq(sLeft.activeFieldId, panelLeft[0], 'активным становится первое поле панели, а не списка по типу')
+
+    var sRight = core.makeInitialState(noHint, 'right')
+    sRight.mode = 'right'
+    var panelRight = core.getNavigableFieldSequence(noHint, sRight)
+    var idxRight = core.resolveInitialActiveField(noHint, sRight, 'right')
+    assertTrue(panelRight.length > 0, 'контроль: правая панель не пуста')
+    assertEq(sRight.activeFieldId, panelRight[0], 'и в правом Block тоже первое поле панели')
+    assertTrue(idxRight >= 0, 'индекс активного поля не отрицателен')
+
+    /*
+     * И обратная сторона: явный выбор настройка сохраняет за собой, даже если
+     * панель это поле сейчас не рисует. Догадка спрашивает панель, явный выбор
+     * — нет (У-33).
+     */
+    var sNamed = core.makeInitialState(localRules, 'right')
+    sNamed.mode = 'right'
+    core.resolveInitialActiveField(localRules, sNamed, 'right')
+    assertEq(sNamed.activeFieldId, 'timeNow', 'названное настройкой поле остаётся активным')
     assertTrue(seq.indexOf('modal') !== -1, 'right panel sequence includes dependent modal when parent selected')
   })()
 

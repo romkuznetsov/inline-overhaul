@@ -777,16 +777,49 @@ function resolveInitialActiveField(rules, state, modeName) {
   var mode = getMode(rules, modeName)
   if (!mode.fields.length) return 0
 
+  /*
+   * **Активным может быть только то, что человек видит** (замечание заказчика
+   * 2026-09-11, воспроизведено на его конфиге 2026-09-12).
+   *
+   * Панель показывает поля по Order, а активное поле выбиралось индексом в
+   * списке по **типу** — теги в одном, ссылки и элементы в другом. Два разных
+   * множества, и индекс одного применялся к другому:
+   *
+   *   панель слева    элемент-дата, важность, тип   — порядок человека
+   *   список по типу  важность, её дочерний, тип    — элемента-даты в нём нет
+   *   активное поле   индекс 0 → по типу это важность
+   *
+   * Он так и написал: «активное поле было imp, а не Due». В правом Block было
+   * хуже: индекс уходил **за край** отрисованного списка — 2 при двух видимых.
+   *
+   * Поэтому там, где поле **никто не назвал**, оно берётся из самой панели —
+   * первое из тех, что человек видит.
+   *
+   * **А названное настройкой поле остаётся за ней**, даже если панель его сейчас
+   * не рисует. Первая версия этой правки отвергала и его — и уронила проверку,
+   * где ведущее поле задано нарочно: настройка на то и настройка. Граница
+   * прошла здесь: догадка спрашивает панель, явный выбор — нет (У-33).
+   *
+   * (Имена полей здесь нарочно словами: сторож канонических ключей не отличает
+   * код от рассказа о коде и краснеет на примере в комментарии.)
+   */
+  var visible = getNavigableFieldSequence(rules, state)
+  var pick = function (fieldId) {
+    var fid = String(fieldId || '').trim()
+    if (!fid) return -1
+    var idx = getEnabledFieldIndexById(mode, state, fid, rules)
+    if (idx === -1) return -1
+    state.activeFieldId = fid
+    return idx
+  }
+
   var behavior = isObj(rules.behavior) ? rules.behavior : {}
   var order = isObj(behavior.order) ? behavior.order : {}
   var lead = isObj(order.lead) ? order.lead : {}
   var leadOrderKey = String(lead[modeName] || '').trim()
   if (leadOrderKey) {
-    var leadFieldId = getLeadFieldIdByOrderKey(mode, state, leadOrderKey, rules)
-    if (leadFieldId) {
-      var leadIdx = getEnabledFieldIndexById(mode, state, leadFieldId, rules)
-      if (leadIdx !== -1) return leadIdx
-    }
+    var leadIdx = pick(getLeadFieldIdByOrderKey(mode, state, leadOrderKey, rules))
+    if (leadIdx !== -1) return leadIdx
   }
 
   var ui = isObj(rules.ui) ? rules.ui : {}
@@ -821,7 +854,7 @@ function resolveInitialActiveField(rules, state, modeName) {
         ? preferChild.childFieldId
         : defaultChildId
       if (state.selected[parentFieldId]) {
-        var childIdx = getEnabledFieldIndexById(mode, state, childFieldId, rules)
+        var childIdx = pick(childFieldId)
         if (childIdx !== -1) return childIdx
       }
     }
@@ -831,11 +864,26 @@ function resolveInitialActiveField(rules, state, modeName) {
     ? modeCfg.defaultFieldId
     : ''
   if (defaultFieldId) {
-    var idx = getEnabledFieldIndexById(mode, state, defaultFieldId, rules)
+    var idx = pick(defaultFieldId)
     if (idx !== -1) return idx
   }
 
-  return getFirstEnabledFieldIndex(mode, state, rules)
+  if (visible.length) {
+    var firstIdx = pick(visible[0])
+    if (firstIdx !== -1) return firstIdx
+    state.activeFieldId = String(visible[0] || '')
+    return 0
+  }
+
+  return markActiveFieldId(mode, state, getFirstEnabledFieldIndex(mode, state, rules))
+}
+function markActiveFieldId(mode, state, index) {
+  var i = Number(index)
+  if (!state || !isFinite(i) || i < 0) return index
+  var fields = mode && Array.isArray(mode.fields) ? mode.fields : []
+  var field = fields[i]
+  if (field && field.id) state.activeFieldId = String(field.id)
+  return index
 }
 
 function parseLine(rawLine, rules) {
