@@ -114,7 +114,13 @@ function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
   return defs;
 }
 
-function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
+/*
+ * Путь служебного файла правил сюда больше не приезжает (PRD 10.13.52, П-8,
+ * шаг первый; 2026-09-11). Курсор внутри строки берёт правила из настроек —
+ * `rt.buildNavigateRules(fullCfg)`, — и второй аргумент этой сборки стал не
+ * нужен: путь остался у команд PKM, которым файл ещё нужен.
+ */
+function buildNavigationCommandDefs(plugin) {
   return [
     {
       id: "move-line-up",
@@ -171,25 +177,23 @@ function buildNavigationCommandDefs(plugin, getActiveTagWheelRulesPath) {
     {
       id: "move-cursor-left-in-line",
       name: __commandIds.commandName("move-cursor-left-in-line"),
-      run: async (ed, nav, fullCfg, rt) => {
+      run: (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
-        if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
+        if (!rt || typeof rt.buildNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
           return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         }
-        const rules = await rt.loadNavigateRules(plugin.app, getActiveTagWheelRulesPath(fullCfg));
-        rt.navigateInline(ed, "left", rules, nav.navigateInline);
+        rt.navigateInline(ed, "left", rt.buildNavigateRules(fullCfg), nav.navigateInline);
       },
     },
     {
       id: "move-cursor-right-in-line",
       name: __commandIds.commandName("move-cursor-right-in-line"),
-      run: async (ed, nav, fullCfg, rt) => {
+      run: (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
-        if (!rt || typeof rt.loadNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
+        if (!rt || typeof rt.buildNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
           return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         }
-        const rules = await rt.loadNavigateRules(plugin.app, getActiveTagWheelRulesPath(fullCfg));
-        rt.navigateInline(ed, "right", rules, nav.navigateInline);
+        rt.navigateInline(ed, "right", rt.buildNavigateRules(fullCfg), nav.navigateInline);
       },
     },
   ];

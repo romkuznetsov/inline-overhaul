@@ -12,6 +12,15 @@
  */
 const __sharedUtils = require("./src/core/shared_utils.js");
 
+/*
+ * Правила PKM для навигации собираются из настроек, а не из служебного файла
+ * `generated_rules.md` (PRD 10.13.52, П-8, шаг первый; решение заказчика
+ * 2026-09-11). Форму отдаёт общий модуль — тот самый, из которого собирается
+ * и сама заметка: одно объявление на оба хода (У-32). Разбор — у
+ * `buildNavigateRules` ниже.
+ */
+const __rulesShape = require("./src/core/pkm_rules_shape.js");
+
 function isObj(x) {
   return __sharedUtils.isObj(x);
 }
@@ -1158,142 +1167,78 @@ function trimRightBeforeIndex(s, endExclusive) {
 }
 
 // ---- navigate-inline ----
-function parseJsonFence(md, fenceName) {
-  const m = String(md || "").match(new RegExp("```" + fenceName + "\\s*([\\s\\S]*?)```"));
-  if (!m) return null;
-  return JSON.parse(String(m[1] || "").trim());
-}
-
-function tokenOf(v) {
-  if (typeof v === "string") return v;
-  if (v && typeof v === "object" && typeof v.token === "string") return v.token;
-  return "";
-}
-
-async function loadNavigateRules(app, rulesPath) {
-  const src = String(rulesPath || "").trim();
-  const candidates = [];
-  const pushCandidate = (p) => {
-    const v = String(p || "").trim();
-    if (!v) return;
-    if (candidates.indexOf(v) !== -1) return;
-    candidates.push(v);
-  };
-
-  pushCandidate(src);
-  if (src.startsWith("./")) pushCandidate(src.slice(2));
-  if (src.indexOf("/") !== -1) pushCandidate(src.slice(src.lastIndexOf("/") + 1));
-  pushCandidate("RULES_TagWheel.md");
-  /*
-   * Прежнее место служебного файла — корень vault. Остаётся последним
-   * кандидатом, а не новым умолчанием: новый путь приходит сюда первым
-   * аргументом из конфига, и объявить его здесь во второй раз значило бы
-   * развести два объявления одного пути (У-32). Эта строка нужна тому, у
-   * кого файл ещё лежит в корне (переезд 2026-09-04, решение В-39).
-   */
-  pushCandidate("InlineOverhaul_Generated_RULES_TagWheel.md");
-
-  let md = null;
-  let usedPath = "";
-  const adapter = app && app.vault ? app.vault.adapter : null;
-  for (let i = 0; i < candidates.length; i++) {
-    const cand = candidates[i];
-    const af = app.vault.getAbstractFileByPath(cand);
-    if (af) {
-      md = await app.vault.read(af);
-      usedPath = cand;
-      break;
-    }
-    /*
-     * Запасной путь через адаптер — единственный работающий для файла в папке
-     * плагина: `.obsidian/**` vault не индексирует, и `getAbstractFileByPath`
-     * такой путь не находит вовсе. У общего чтения правил
-     * (`readRulesMarkdownWithFallback`) эта ветка есть с самого начала, у
-     * навигации её не было — и переезд файла погасил бы обе команды курсора
-     * внутри строки целиком (решение В-39 от 2026-09-04).
-     */
-    if (adapter && typeof adapter.read === "function") {
-      try {
-        md = await adapter.read(cand);
-        usedPath = cand;
-        break;
-      } catch (_) {
-        /*
-         * Проба: этого пути в vault может не быть — перебираются кандидаты,
-         * и «нет файла» здесь ответ, а не отказ. Настоящий отказ громкий:
-         * не нашёлся ни один — ниже бросается ошибка со списком всех
-         * проверенных путей.
-         */
-      }
-    }
-  }
-
-  if (md === null) {
-    throw new Error("Rules file not found: " + src + " (checked: " + candidates.join(", ") + ")");
-  }
-
-  const io = parseJsonFence(md, "tagwheel-io") || {};
-  const leftMode = parseJsonFence(md, "tagwheel-left-mode") || {};
-  const rightMode = parseJsonFence(md, "tagwheel-right-mode") || {};
-  const dateRules = parseJsonFence(md, "tagwheel-date-rules") || {};
-
-  const fields = Array.isArray(leftMode.fields) ? leftMode.fields : [];
-  const byId = new Map();
-  for (const f2 of fields) if (f2 && f2.id) byId.set(f2.id, f2);
-  const typeRoots = [];
-  const ctxRoots = new Set();
-  const typeField = byId.get("type");
-  const ctxField = byId.get("context");
-  if (typeField && Array.isArray(typeField.values)) {
-    const prefix = typeof typeField.prefix === "string" ? typeField.prefix : "#";
-    for (const v of typeField.values) {
-      const t = tokenOf(v);
-      if (!t) continue;
-      typeRoots.push(prefix + t);
-    }
-  }
-  if (ctxField && Array.isArray(ctxField.values)) {
-    const prefix = typeof ctxField.prefix === "string" ? ctxField.prefix : "#";
-    for (const v of ctxField.values) {
-      const t = tokenOf(v);
-      if (!t) continue;
-      ctxRoots.add(prefix + t);
-    }
-  }
+/*
+ * Правила навигации собираются **из настроек**, а не из служебного файла
+ * (PRD 10.13.52, П-8, шаг первый; решение заказчика 2026-09-11).
+ *
+ * **Что было.** `loadNavigateRules` читала `generated_rules.md`: перебирала
+ * четыре кандидата пути, спрашивала индекс vault, потом адаптер, разбирала
+ * четыре блока JSON и выводила из них правила. То есть настройка доезжала до
+ * курсора внутри строки через файл на диске, который плагин сам же и пишет.
+ *
+ * **Что стало.** Форму правил отдаёт общий модуль `pkm_rules_shape.js` — тот
+ * самый, из которого собирается и сама заметка. Одно объявление на оба хода
+ * (У-32), а равенство ходов на одних входах держат два пина:
+ * `rules_document_roundtrip_tests.ts` — форма целиком,
+ * `navigate_rules_direct_tests.ts` — четыре блока, которые нужны навигации, и
+ * выведенные из них правила.
+ *
+ * **Три следствия, и каждое надо назвать вслух.**
+ *   - файла может не быть, он может отстать от настроек или быть правлен
+ *     руками — курсора внутри строки это больше не касается. Прежде такой
+ *     случай кончался уведомлением `Rules file not found`;
+ *   - правка настроек действует сразу, а не после отложенной перезаписи
+ *     заметки;
+ *   - работы стало меньше, а не больше: чтение файла с диска и разбор всей
+ *     заметки на каждое нажатие заменились сборкой формы в памяти.
+ */
+function buildNavigateRules(cfg) {
+  const shape = __rulesShape.buildRulesShapeFromConfig(cfg);
+  const io = isObj(shape.io) ? shape.io : {};
+  const dateRules = isObj(shape.dateRules) ? shape.dateRules : {};
 
   const markers = [];
   for (const key of ["due", "done", "cancelled", "start"]) {
-    const rule = dateRules && dateRules[key];
+    const rule = dateRules[key];
     if (!rule) continue;
     if (typeof rule.preferredMarker === "string" && rule.preferredMarker) markers.push(rule.preferredMarker);
     if (Array.isArray(rule.markers)) for (const m of rule.markers) if (typeof m === "string" && m) markers.push(m);
   }
+
   /*
    * Метки берутся ещё и у самих Field (замечание заказчика 2026-09-06).
    *
-   * Блок `tagwheel-date-rules` описывает четыре именованных правила дат, и у
-   * заказчика он пуст: его поле-дата называется `date_due` и приезжает не
-   * оттуда, а из списка Field — со своим `marker`, тем же эмодзи. Навигация
-   * про эту метку не знала вовсе, и единственный `::` на строке читался как
-   * первый разделитель, а не как второй: зоной текста становился сам хвост с
-   * датой, и курсор вставал **после** разделителя. Признак был ровно такой,
-   * как в У-56: значение до функции не доезжает, а пин на неё зелёный.
+   * Четыре именованных правила дат у заказчика пусты: его поле-дата
+   * называется `date_due` и приезжает не оттуда, а из списка Field — со своим
+   * `marker`, тем же эмодзи. Навигация про эту метку не знала вовсе, и
+   * единственный `::` на строке читался как первый разделитель, а не как
+   * второй: зоной текста становился сам хвост с датой, и курсор вставал
+   * **после** разделителя. Признак был ровно такой, как в У-56: значение до
+   * функции не доезжает, а пин на неё зелёный.
    *
    * Field с меткой бывает в обоих блоках — элемент можно поставить и слева, —
    * поэтому читаются оба, а `Set` ниже снимает повторы.
    */
-  for (const block of [leftMode, rightMode]) {
+  for (const block of [shape.leftMode, shape.rightMode]) {
     const list = block && Array.isArray(block.fields) ? block.fields : [];
-    for (const f3 of list) {
-      if (f3 && typeof f3.marker === "string" && f3.marker) markers.push(f3.marker);
+    for (const f of list) {
+      if (f && typeof f.marker === "string" && f.marker) markers.push(f.marker);
     }
   }
 
+  /*
+   * Ключей в ответе три, и это всё, что спрашивает `navigateInline`.
+   *
+   * Прежний ответ нёс ещё `typeRoots`, `ctxRoots` и `rulesPathUsed`. Первые
+   * два собирались из Field с именами `type` и `context` — именами версии 1,
+   * зашитыми здесь литералами, — и **их не читал никто**: сплошной поиск по
+   * репозиторию давал только это объявление и сборку. Третий называл путь, по
+   * которому файл прочли, и спрашивала его одна проверка. Перенести мёртвое в
+   * новый ход значило бы написать код, чей единственный потребитель — чтение
+   * его же (У-95).
+   */
   return {
-    rulesPathUsed: usedPath,
     delim: typeof io.separator1 === "string" && io.separator1 ? io.separator1 : "||",
-    typeRoots,
-    ctxRoots,
     trailingMarkers: Array.from(new Set(markers)),
     dateRegexSrc: "\\d{4}-\\d{2}-\\d{2}",
   };
@@ -1639,6 +1584,6 @@ module.exports = {
   moveLine,
   moveSelection,
   jumpToHeader,
-  loadNavigateRules,
+  buildNavigateRules,
   navigateInline,
 };

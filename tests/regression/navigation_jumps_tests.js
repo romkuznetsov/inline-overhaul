@@ -605,64 +605,46 @@ async function jump(text, line, direction, over) {
     ok("H7: решение В-20 про свойства заметки не тронуто");
   }
 
-  /* ---- H6: правила читаются через адаптер, когда vault их не видит ------ */
+  /* ---- правила навигации приезжают из настроек, а не из файла ----------- */
 
   /*
-   * Служебный файл правил уехал в папку плагина (решение В-39). Vault не
-   * индексирует `.obsidian/**`, значит `getAbstractFileByPath` его не найдёт
-   * **никогда**, и работать может только чтение через адаптер. У общего чтения
-   * правил эта ветка была с самого начала, у навигации её не было вовсе — и
-   * переезд погасил бы обе команды курсора внутри строки целиком.
+   * Служебного файла правил навигация больше не касается (PRD 10.13.52, П-8,
+   * шаг первый; 2026-09-11).
    *
-   * Спрашивается результат: пришли ли разделители из документа. Подделан
-   * только `app` — сам разбор документа настоящий.
+   * **Что здесь стояло.** Два утверждения про чтение этого файла: что правила
+   * в папке плагина берутся запасным путём через адаптер — `.obsidian/**`
+   * vault не индексирует, и `getAbstractFileByPath` такой путь не находит
+   * никогда, — и что при отсутствии файла ошибка громкая. Предмета у них не
+   * стало, и пойти за предметом они не могут: чтения файла в навигации нет
+   * вовсе (У-94). Оба случая, от которых они стерегли, теперь невозможны по
+   * устройству, а не по проверке.
+   *
+   * **Что спрашивается вместо них** — то же самое по существу: доехал ли
+   * разделитель до навигации. Источником стал конфиг, и берётся он из
+   * фикстуры через настоящую миграцию плагина (правило 2 раздела
+   * «Проверки»), а не пишется здесь руками.
    */
   {
-    const RULES = [
-      "```tagwheel-io",
-      JSON.stringify({ separator1: "::", separator2: "::" }),
-      "```",
-      "```tagwheel-left-mode",
-      JSON.stringify({ fields: [] }),
-      "```",
-    ].join("\n");
+    const fs = require("fs");
+    const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+    const cfg = normalize.migrateConfig(
+      JSON.parse(fs.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_full.json"), "utf8")));
 
-    const PLUGIN_PATH = ".obsidian/plugins/inline-overhaul/generated_rules.md";
-    const asked = [];
-    const appAdapterOnly = {
-      vault: {
-        /* Ровно то, что делает Obsidian с путём внутри своей папки настроек. */
-        getAbstractFileByPath: () => null,
-        read: () => { throw new Error("vault.read не должен зваться: файла в индексе нет"); },
-        adapter: {
-          read: async (p) => {
-            asked.push(p);
-            if (p === PLUGIN_PATH) return RULES;
-            throw new Error("нет такого файла: " + p);
-          },
-        },
-      },
-    };
+    const rules = nav.buildNavigateRules(cfg);
+    /*
+     * Положительный контроль (У-88, У-147): у фикстуры разделитель `//`, а
+     * умолчание навигации — `||`. Сверка «приехало то, что записано» на
+     * значении, равном умолчанию, прошла бы и при не приехавшем вовсе.
+     */
+    assertEq(cfg.pkm.lineFormat.separator1, "//", "в фикстуре разделитель отличается от умолчания навигации");
+    assertEq(rules.delim, "//", "разделитель приехал из настроек");
+    ok("правила навигации собираются из настроек");
 
-    const rules = await nav.loadNavigateRules(appAdapterOnly, PLUGIN_PATH);
-    assertEq(rules.delim, "::", "разделитель приехал из документа в папке плагина");
-    assertEq(rules.rulesPathUsed, PLUGIN_PATH, "и путь назван тот, по которому прочли");
-    assertEq(asked[0], PLUGIN_PATH, "первым спрошен настоящий путь, а не запасной");
-    ok("H6: правила в папке плагина читаются запасным путём через адаптер");
-
-    /* Файла нет ни в индексе, ни у адаптера — прежняя ошибка, а не тишина. */
-    let failed = "";
-    try {
-      await nav.loadNavigateRules({
-        vault: { getAbstractFileByPath: () => null, adapter: { read: async () => { throw new Error("нет"); } } },
-      }, "Нет такого файла.md");
-    } catch (e) {
-      failed = String(e && e.message ? e.message : e);
-    }
-    if (failed.indexOf("Rules file not found") !== 0) {
-      throw new Error("ожидалась прежняя ошибка чтения правил, получено: " + failed);
-    }
-    ok("H6: когда файла нет нигде, ошибка та же, что была");
+    /* Ни vault, ни файла здесь нет вовсе — и это устройство, а не везение. */
+    const bare = normalize.migrateConfig({ schemaVersion: 2 });
+    assertEq(nav.buildNavigateRules(bare).delim, bare.pkm.lineFormat.separator1,
+      "у конфига без правок разделитель тоже свой, а не зашитый в навигацию");
+    ok("файла правил на этом пути нет ни одного");
   }
 
   /* ---- прокрутка при перемещении строки (10.13.36) --------------------- */
@@ -847,49 +829,41 @@ async function jump(text, line, direction, over) {
   /* ---- метка Field доезжает до навигации ---- */
 
   /*
-   * У заказчика блок `tagwheel-date-rules` пуст: поле-дата у него не одно из
-   * четырёх именованных правил, а свой Field со своей меткой. Без метки
-   * навигация считает единственный `::` первым разделителем и уводит курсор
-   * в хвост с датой. Спрашивается результат чтения, а не факт разбора блока.
+   * У заказчика четыре именованных правила дат пусты: поле-дата у него не одно
+   * из них, а свой Field со своей меткой. Без метки навигация считает
+   * единственный разделитель первым и уводит курсор в хвост с датой.
+   * Спрашивается результат чтения, а не факт разбора.
+   *
+   * **Источником стали настройки** (PRD 10.13.52, П-8, шаг первый,
+   * 2026-09-11): раньше здесь подавалась рукописная заметка правил. Конфиг
+   * берётся из фикстуры через настоящую миграцию плагина — и та же фикстура
+   * даёт положительный контроль, без которого утверждение ниже ничего не
+   * значит: именованные правила дат в ней пусты, и метке взяться больше
+   * неоткуда, кроме списка Field.
    */
   {
+    const fs = require("fs");
+    const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+    const cfg = normalize.migrateConfig(
+      JSON.parse(fs.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_realistic.json"), "utf8")));
     const MARKER = String.fromCodePoint(0x1F4C5);
-    const RULES_MD = [
-      "```tagwheel-io",
-      JSON.stringify({ separator1: "::", separator2: "::" }),
-      "```",
-      "```tagwheel-date-rules",
-      "{}",
-      "```",
-      "```tagwheel-left-mode",
-      JSON.stringify({ fields: [{ id: "type", prefix: "#", values: ["todo"] }] }),
-      "```",
-      "```tagwheel-right-mode",
-      JSON.stringify({ fields: [{ id: "date_due", kind: "genericElement", marker: MARKER }] }),
-      "```",
-    ].join("\n");
 
-    const PATH = ".obsidian/plugins/inline-overhaul/generated_rules.md";
-    const app = {
-      vault: {
-        getAbstractFileByPath: () => null,
-        adapter: { read: async (p) => { if (p === PATH) return RULES_MD; throw new Error("нет: " + p); } },
-      },
-    };
+    const named = (cfg.pkm.behavior && cfg.pkm.behavior.dateRules) || {};
+    assertEq(Object.keys(named).length, 0, "в фикстуре именованные правила дат пусты — метке взяться больше неоткуда");
 
-    const rules = await nav.loadNavigateRules(app, PATH);
+    const rules = nav.buildNavigateRules(cfg);
     if (rules.trailingMarkers.indexOf(MARKER) === -1) {
       throw new Error("метка Field не доехала до навигации: " + JSON.stringify(rules.trailingMarkers));
     }
     ok("метка своего Field берётся из списка Field, а не только из четырёх правил дат");
 
     /* И она впрямь решает, куда встанет курсор: те же правила через прыжок. */
-    const LINE = "-  :: " + MARKER + "2026-09-06 10:21";
+    const LINE = "-  " + rules.delim + " " + MARKER + "2026-09-06 10:21";
     const ed = fakeEditor(LINE, { line: 0, ch: LINE.length });
     nav.navigateInline(ed, "left", rules, { stepMode: "word", boundaryJump: false, onBoundary: "stay" });
     await settle();
-    assertEq(ed.at().ch, 2, "с правилами из документа курсор всё равно встаёт в слот текста");
-    ok("путь целиком: документ правил → метка → положение каретки");
+    assertEq(ed.at().ch, 2, "с правилами из настроек курсор всё равно встаёт в слот текста");
+    ok("путь целиком: настройки → метка → положение каретки");
   }
 
   console.log("\n" + passed + " проверок пройдено");

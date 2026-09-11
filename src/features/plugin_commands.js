@@ -167,7 +167,7 @@ function buildOwnCommandList(plugin) {
   };
 
   try {
-    push(registry.buildNavigationCommandDefs(plugin, activeRulesPath), "Navigation", "");
+    push(registry.buildNavigationCommandDefs(plugin), "Navigation", "");
     push(
       registry.buildPkmCommandDefs(
         activeRulesPath,
@@ -232,7 +232,7 @@ function registerAll(plugin) {
 
 function registerNavigation(plugin) {
   const registry = getCommandRegistry();
-  const defs = registry.buildNavigationCommandDefs(plugin, activeRulesPath);
+  const defs = registry.buildNavigationCommandDefs(plugin);
   if (!Array.isArray(defs) || !defs.length) {
     console.warn("[inline-overhaul] command registry unavailable: navigation commands skipped");
     return;

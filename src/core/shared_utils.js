@@ -532,21 +532,6 @@ function deepMerge(base, patch) {
   return out;
 }
 
-function parseJsonFence(md, fenceName, required) {
-  const src = String(md || "");
-  const re = new RegExp("```" + fenceName + "\\s*([\\s\\S]*?)```");
-  const m = src.match(re);
-  if (!m) {
-    if (required) throw new Error("Fence not found: " + fenceName);
-    return null;
-  }
-  try {
-    return JSON.parse(String(m[1] || "").trim());
-  } catch (e) {
-    throw new Error("Invalid JSON in fence `" + fenceName + "`: " + e.message);
-  }
-}
-
 function toPrettyJson(x) {
   return JSON.stringify(x, null, 2);
 }
@@ -701,6 +686,5 @@ module.exports = {
   detectDateUnit,
   isObj,
   deepMerge,
-  parseJsonFence,
   toPrettyJson,
 };

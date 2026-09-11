@@ -227,6 +227,8 @@ async function run() {
   const statusLineRuntimeUnifiedSrc = fs.readFileSync(statusLineRuntimeUnifiedPath, "utf8");
   const pkmRuntimeV2Src = fs.readFileSync(pkmRuntimeV2Path, "utf8");
   const rulesMarkdownBuilderSrc = fs.readFileSync(rulesMarkdownBuilderPath, "utf8");
+  const rulesShapeSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "pkm_rules_shape.js"), "utf8");
   const commandIdsSrc = fs.readFileSync(commandIdsPath, "utf8");
   const commandRegistrySrc = fs.readFileSync(commandRegistryPath, "utf8");
   /*
@@ -716,12 +718,22 @@ async function run() {
    * держать в двух экземплярах.
    */
   assertFalse(/buildTagWheelRulesMarkdownFromConfig\(cfg\) \{[\s\S]*tagwheel-behavior/.test(src), "main has no second copy of the rules note builder");
-  assertTrue(/behavior\.defaultMode = String\(fields\.defaultBlock \|\| ""\)\.trim\(\)\.toLowerCase\(\) === "right" \? "right" : "left";/.test(rulesMarkdownBuilderSrc), "rules builder maps pkm.fields.defaultBlock into the rules document");
-  assertTrue(/behavior\.subtagFormat = behaviorCfg\.childTagFormat === "combined"/.test(rulesMarkdownBuilderSrc), "rules builder maps pkm.behavior.childTagFormat into the rules document");
+  /*
+   * **Перекладка значений переехала в `src/core/pkm_rules_shape.js`**
+   * 2026-09-11 (PRD 10.13.52, П-8, шаг первый): у неё стало два
+   * потребителя — печать заметки и навигация, читающая правила прямо из
+   * настроек, а движки подключают только `src/core/**`. Утверждения
+   * уехали за предметом (У-94), и рядом с каждым стоит запрет на прежнем
+   * месте: копия в печати — это ровно то, чем перекладка была опасна
+   * (У-32).
+   */
+  assertTrue(/behavior\.defaultMode = String\(fields\.defaultBlock \|\| ""\)\.trim\(\)\.toLowerCase\(\) === "right" \? "right" : "left";/.test(rulesShapeSrc), "rules shape maps pkm.fields.defaultBlock into the rules for engines");
+  assertTrue(/behavior\.subtagFormat = behaviorCfg\.childTagFormat === "combined"/.test(rulesShapeSrc), "rules shape maps pkm.behavior.childTagFormat into the rules for engines");
+  assertFalse(/behavior\.defaultMode = String\(/.test(rulesMarkdownBuilderSrc), "печать заметки снова держит свою копию перекладки значений (У-32)");
   /* 10.13.6: подсветка строки приходит настройкой, а ветка `ui` больше не
      отдаётся пустой. `showMarkers` внутри `activePanel` — обёртки `{TW}`, а не
      тумблер списка, и записи ему здесь быть не должно (Н4). */
-  assertTrue(/activePanel\.useHighlight = wheel\.highlightLine === true;/.test(rulesMarkdownBuilderSrc), "rules builder maps visual.tagWheel.highlightLine into the rules document");
+  assertTrue(/activePanel\.useHighlight = wheel\.highlightLine === true;/.test(rulesShapeSrc), "rules shape maps visual.tagWheel.highlightLine into the rules for engines");
   /*
    * 1.3.1: правило имени Field объявлено в двух файлах, и они обязаны
    * совпадать буквой в букву. Разошлись — переименование молча откатывается,
@@ -737,7 +749,12 @@ async function run() {
     assertEq(inMain[1], inPanel[1], "panel and config agree letter for letter on what a Field may be called");
     assertFalse(/\/\^\[a-z0-9_-\]\+\$\//.test(orderSrc), "the stricter second rule that silently reverted renames is gone");
   }
-  assertFalse(/activePanel\.showMarkers\s*=/.test(rulesMarkdownBuilderSrc), "rules builder never writes the text wrappers of the active panel");
+  /*
+   * Запрет переехал туда же, и без порога он был бы зелен от того, что
+   * искать стало нечего (У-94, У-71): порог — соседнее утверждение выше,
+   * которое обязано найти в этом же исходнике живую запись `activePanel`.
+   */
+  assertFalse(/activePanel\.showMarkers\s*=/.test(rulesShapeSrc), "rules shape never writes the text wrappers of the active panel");
   assertFalse(/for \(const k of orderFields\) \{[\s\S]*if \(!rightSet\.has\(k\)\) continue;[\s\S]*out\.right = out\.right\.filter\(\(x\) => x !== k\);[\s\S]*out\.left\.push\(k\);[\s\S]*\}/.test(orderSrc), "normalizePkmOrder does not force right fields back to left by sub presence");
 
   assertTrue(/handleEnhancedSelectAllKeymap\(\) \{\s*return getEnhancedSelectAllEngine\(\)\.handleEnhancedSelectAllKeymap\(this\);\s*\}/.test(src), "enhanced select-all delegated to extracted engine");
