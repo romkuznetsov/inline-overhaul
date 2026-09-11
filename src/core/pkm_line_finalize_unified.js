@@ -1,5 +1,19 @@
 "use strict";
 
+/*
+ * Чем разделены зоны строки — объявлено **один раз**, в `line_pipeline.js`.
+ *
+ * До 2026-09-11 здесь стояла копия, и комментарий над ней сам признавал:
+ * «одно правило разошлось в двух объявлениях третий раз (У-32)». Копию тогда
+ * не свели, а выровняли по образцу — и она разошлась снова, на первой же
+ * паре разведённых разделителей. Я починил одно объявление из трёх и объявил
+ * работу сделанной; заказчик получил строку, собранную другим путём.
+ *
+ * Зовётся именно `joinLineParts`, а не сборка строки целиком: та ещё и
+ * нормализует знак списка, и на заголовке `## heading` дописала бы `- `.
+ */
+const __linePipeline = require("./line_pipeline.js");
+
 function resolveSeparatorsOrThrow(rules) {
   const io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
   const sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";
@@ -1534,44 +1548,17 @@ function enforceRightPayloadSeparatorInvariant(options) {
 
   const indent = String(seg.indent || "");
   const baseLeft = String(left || "").trim() || "-";
-  if (text && dates) {
-    if (sep1 === sep2) return `${indent}${baseLeft} ${sep1} ${text} ${sep2} ${dates}`;
-    return `${indent}${baseLeft} ${sep1} ${text} ${sep2} ${dates}`;
-  }
-  if (dates) {
+  if (text || dates) {
     /*
-     * Текста нет, а справа что-то есть. Тогда пустое место между
-     * разделителями — это слот под текст, и заводить его надо (10.13.34,
-     * заказ заказчика 2026-09-05).
-     *
-     * Правило то же, по которому его заводит `line_pipeline.buildFromSegments`:
-     * два разделителя ставятся, когда слева **тег, ссылка или элемент**, и не
-     * ставятся, когда слева обычный текст — там писать уже написано. До этой
-     * правки здесь стояло второе объявление того же правила, и разошлись они
-     * молча ровно на паре одинаковых разделителей (У-32).
-     *
-     * При одинаковых разделителях между ними два пробела: так их различает
-     * разбор строки, и так же делает `buildFromSegments`.
-     *
-     * **И третий случай, тем же правилом** (замечание заказчика 2026-09-06).
-     * Слева нет ничего, кроме списочного знака: Field активировали на пустой
-     * строке. Тогда слот под текст всё равно есть — он просто пуст, — и
-     * отмечается он вторым пробелом перед разделителем. `buildFromSegments`
-     * так делает с самого начала (две строки про `- ` и про чекбокс), здесь
-     * этой ветки не было, и заведённая правильно строка схлопывалась обратно:
-     * `-  :: 📅…` уходило отсюда как `- :: 📅…`. Одно правило разошлось в двух
-     * объявлениях третий раз (У-32) — предикат взят у `buildFromSegments`
-     * буквально, а совпадение обоих ходов держит пин parity.
+     * Признак «слева значения Field или текст человека» тоже общий: своей
+     * копии здесь больше нет. Пустой слот под текст и выбор разделителя —
+     * внутри `joinLineParts` (10.13.34, 10.13.68).
      */
-    const leftTech = /(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(baseLeft)
-      || baseLeft.split(/\s+/).some(function(t) { return startsWithAnyDateMarker(t, rules); });
-    if (!leftTech) {
-      if (/^[-*+]\s+\[[^\]]\]$/.test(baseLeft)) return `${indent}${baseLeft}  ${sep1} ${dates}`;
-      if (baseLeft === "-") return `${indent}${baseLeft}  ${sep1} ${dates}`;
-      return `${indent}${baseLeft} ${sep1} ${dates}`;
-    }
-    if (sep1 === sep2) return `${indent}${baseLeft} ${sep1}  ${sep2} ${dates}`;
-    return `${indent}${baseLeft} ${sep1} ${sep2} ${dates}`;
+    return __linePipeline.joinLineParts({ indent, left: baseLeft, text, dates }, {
+      sep1,
+      sep2,
+      hasLeftTokens: __linePipeline.hasFieldTokens(baseLeft, __linePipeline.fieldsShape(rules)),
+    });
   }
   return line;
 }

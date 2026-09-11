@@ -171,7 +171,28 @@ function getTextSlotBounds(lineInput, rules) {
   const sep1 = sep.sep1;
   const sep2 = sep.sep2;
   const i1 = line.indexOf(sep1);
-  if (i1 === -1) return null;
+  if (i1 === -1) {
+    /*
+     * **Первого разделителя в строке нет, а второй есть.**
+     *
+     * Зоны значений Field в такой строке нет вовсе, и слот под текст начинается
+     * сразу за знаком списка. Прежде эта ветка возвращала «границ нет», и
+     * курсор уезжал в конец строки, за дату: замечание заказчика 2026-09-11,
+     * «при активации в пустой строке value из right block курсор прыгает в
+     * конец строки, а должен быть до сепаратора 2».
+     *
+     * У кого оба разделителя одинаковы, случая не бывает: `indexOf` находит
+     * тот же знак первым.
+     */
+    if (!sep2 || sep2 === sep1) return null;
+    const only = line.indexOf(sep2);
+    if (only === -1) return null;
+    const prefix = line.match(/^(\s*(?:[-*+]|\d+\.)(?:\s+\[[^\]]\])?\s)/);
+    const from = prefix ? prefix[1].length : 0;
+    let to = only;
+    while (to > from && line.charAt(to - 1) === " ") to -= 1;
+    return { start: from, end: Math.max(from, to) };
+  }
   let start = i1 + sep1.length;
   if (line.charAt(start) === " ") start += 1;
   let end = line.length;

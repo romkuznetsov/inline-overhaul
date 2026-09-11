@@ -420,41 +420,58 @@ function buildFromSegments(seg, rules) {
    * обоих случаях стоял `sep1`, и на разведённых разделителях это было видно
    * глазом: `- [ ] 1244 || 📅…` вместо `- [ ] 1244 :: 📅…`.
    */
-  if (dates && text) {
-    if (hasLeftTech) return indent + left + " " + sep1 + " " + text + " " + sep2 + " " + dates;
-    return indent + left + " " + text + " " + sep2 + " " + dates;
-  }
-  if (dates) {
-    /*
-     * **Текста в строке нет, и слот под него виден пробелом** (исключение 20 к
-     * З3, 10.13.34). Пустой слот отмечается **двумя** пробелами между
-     * разделителями — так человек видит, куда встанет слово.
-     *
-     * Здесь стояло `if (sep1 === sep2)`: двойной пробел ставился только при
-     * совпадающих разделителях, а при разных строка получалась `#todo || ::`
-     * вместо `#todo ||  ::`. Замечание заказчика 2026-09-11, и это тот же
-     * класс, что два предыдущих: правило написано так, что на совпадающих
-     * разделителях оно верно, а на разведённых — нет (У-147).
-     */
-    if (hasLeftTech) return indent + left + " " + sep1 + "  " + sep2 + " " + dates;
-    /*
-     * Зоны тегов в строке нет вовсе — ни значений Field, ни текста: остался
-     * знак списка. Правый Block отделяется **вторым** разделителем, как и
-     * всюду, где левого Block нет. Прежде здесь стоял первый, и на
-     * совпадающих разделителях разницы не было видно: заказчик получил
-     * `- [ ]  || 📅…` вместо `- [ ]  :: 📅…` (2026-09-11).
-     */
-    if (/^[-*+]\s+\[[^\]]\]$/.test(left)) return indent + left + "  " + sep2 + " " + dates;
-    if (left === "-") return indent + left + "  " + sep2 + " " + dates;
-    /* Слева текст, а не значения Field: тот же второй разделитель. */
-    return indent + left + " " + sep2 + " " + dates;
-  }
-  if (text) {
-    if (hasLeftTech) return indent + left + " " + sep1 + " " + text;
-    return indent + left + " " + text;
+  if (dates || text) {
+    return joinLineParts({ indent: indent, left: left, text: text, dates: dates },
+      { sep1: sep1, sep2: sep2, hasLeftTokens: hasLeftTech });
   }
   return hasLeftTech ? (indent + left + " " + sep1 + " ") : (indent + left);
 }
+
+/**
+ * **Чем разделены зоны строки — объявлено здесь, и только здесь.**
+ *
+ * Правило простое, и вся его сложность в том, что зон может не быть:
+ *
+ *   - зона значений Field слева есть — за ней идёт первый разделитель;
+ *   - зона текста пуста, а справа что-то есть — между разделителями остаётся
+ *     **пустой слот**, два пробела: так человек видит, куда встанет слово
+ *     (10.13.34);
+ *   - зоны значений слева нет вовсе — первому разделителю взяться неоткуда, и
+ *     правый Block отделяется **вторым** (10.13.68).
+ *
+ * **Почему функция отдельная.** Правило было объявлено трижды: здесь, в
+ * `pkm_line_finalize_unified.js` и своим способом в `assembleFinalLine`
+ * TagWheel. 2026-09-11 я починил одно из трёх и объявил работу сделанной —
+ * заказчик получил строку, собранную другим путём, и написал «результат
+ * становится всё хуже». Он был прав. Сборка строки делает и другое —
+ * нормализует знак списка, — поэтому вынесено **только само правило**, и оба
+ * места зовут его.
+ */
+function joinLineParts(parts, opts) {
+  const indent = String(parts && parts.indent ? parts.indent : "");
+  const left = String(parts && parts.left ? parts.left : "").trim();
+  const text = String(parts && parts.text ? parts.text : "").trim();
+  const dates = String(parts && parts.dates ? parts.dates : "").trim();
+  const sep1 = String(opts && opts.sep1 ? opts.sep1 : "");
+  const sep2 = String(opts && opts.sep2 ? opts.sep2 : sep1);
+  const hasLeft = !!(opts && opts.hasLeftTokens);
+
+  if (dates && text) {
+    if (hasLeft) return indent + left + " " + sep1 + " " + text + " " + sep2 + " " + dates;
+    return indent + left + " " + text + " " + sep2 + " " + dates;
+  }
+  if (dates) {
+    if (hasLeft) return indent + left + " " + sep1 + "  " + sep2 + " " + dates;
+    if (/^[-*+]\s+\[[^\]]\]$/.test(left) || left === "-") return indent + left + "  " + sep2 + " " + dates;
+    return indent + left + " " + sep2 + " " + dates;
+  }
+  if (text) {
+    if (hasLeft) return indent + left + " " + sep1 + " " + text;
+    return indent + left + " " + text;
+  }
+  return indent + left;
+}
+
 
 function splitLeftPrefix(raw) {
   var src = String(raw || "").trim();
@@ -976,6 +993,9 @@ function removeCombinedByParentTokens(options) {
 module.exports = {
   splitSegments,
   buildFromSegments,
+  joinLineParts,
+  fieldsShape,
+  hasFieldTokens,
   splitLeftPrefix,
   joinLeftPrefix,
   stripPrefixKeepIndent,
