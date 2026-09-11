@@ -289,9 +289,50 @@ function main(): void {
     "вычисленных величин в стилях " + value + ", а планка " + STYLE_VALUE_CEILING
     + " — новая величина обязана быть названа в Р7");
 
+  /*
+   * Перепись записей в консоль — П2 «не логировать без нужды». Планки тут нет
+   * и быть не может: `console.error` — это громкий отказ, и его число растёт
+   * ровно тогда, когда молчание заменяют словами. А вот **в документе** этому
+   * числу не место: оно расходится с прогоном за неделю (У-135). Поэтому его
+   * печатает сторож, а `docs/OBSIDIAN_CATALOG_RULES.md` на него ссылается.
+   */
+  let errors = 0;
+  let warns = 0;
+  let logs = 0;
+  for (const body of bodies) {
+    errors += (body.code.match(/console\.error\s*\(/g) || []).length;
+    warns += (body.code.match(/console\.warn\s*\(/g) || []).length;
+    logs += (body.code.match(/console\.(?:log|info|table)\s*\(/g) || []).length;
+  }
+  /* Положительный контроль переписи: громкий отказ в рантайме есть всегда. */
+  assert.ok(errors > 0,
+    "положительный контроль: `console.error` в рантайме не найден ни разу —"
+    + " перепись смотрит не туда");
+
   console.log("  ok  правил каталога проверено " + RULES.length
     + ", файлов рантайма " + files.length
     + ", инлайнового оформления " + look + ", вычисленных величин " + value);
+  console.log("  ok  записей в консоль (П2): console.error " + errors
+    + ", console.warn " + warns + ", console.log/info/table " + logs);
+
+  /*
+   * Ещё три числа, которые документ держал у себя и которые стареют от любой
+   * правки: `var` под З3 (П18 — это решение заказчика, а не долг), длина
+   * `styles.css` и число шестнадцатеричных цветов в нём (П17).
+   */
+  const varsByFile: Array<[string, number]> = [];
+  for (const body of bodies) {
+    const n = (body.code.match(/(?:^|[^\w.$])var\s+[A-Za-z_$]/g) || []).length;
+    if (n) varsByFile.push([body.rel, n]);
+  }
+  varsByFile.sort((a, b) => b[1] - a[1]);
+  const varsTotal = varsByFile.reduce((a, b) => a + b[1], 0);
+  const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
+  const hexes = (css.match(/#[0-9a-fA-F]{3,8}\b/g) || []).length;
+  console.log("  ok  `var` под З3 (П18): всего " + varsTotal + " — "
+    + varsByFile.map(([rel, n]) => rel + " " + n).join(", "));
+  console.log("  ok  styles.css (П17): строк " + css.split("\n").length
+    + ", шестнадцатеричных цветов " + hexes);
 }
 
 main();

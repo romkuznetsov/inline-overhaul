@@ -47,6 +47,7 @@ function run(script, injection) {
 }
 
 let failed = 0;
+let injections = 0;
 
 for (const suite of SUITES) {
   /* 1. Нынешний вид. */
@@ -63,6 +64,7 @@ for (const suite of SUITES) {
   }
 
   /* 2. Подмены: каждая обязана уронить проверку. */
+  injections += Object.keys(suite.injections).length;
   for (const name of Object.keys(suite.injections)) {
     const r = run(suite.script, name);
     if (r.status === 1) {
@@ -82,5 +84,6 @@ for (const suite of SUITES) {
 
 console.log(failed
   ? "\n" + failed + " problem(s)"
-  : "\nпанель и подложка в заметке проверены браузером, и проверки умеют краснеть");
+  : "\nпанель и подложка в заметке проверены браузером, и проверки умеют краснеть"
+    + " (подмен " + injections + ")");
 process.exit(failed ? 1 : 0);
