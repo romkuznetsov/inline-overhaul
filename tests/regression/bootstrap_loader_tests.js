@@ -1659,7 +1659,9 @@ async function run() {
    * потому, что читал её текст: утверждал о живом то, что верно про мёртвое
    * (У-94). Живое снятие — по одному маркеру, пин на него строкой выше.
    * Общий помощник `line_pipeline.clearMarkersFromLine` остался без
-   * звавшего; снимать его — файл под З3, нужно слово заказчика.
+   * звавшего и снят следом, по слову заказчика того же дня: линтер его
+   * не показал бы никогда — имя экспортировано, — и он читался бы как
+   * живой.
    */
   assertTrue(/if \(!inc && curNum <= 0\)/.test(statusDateSrc), "status_date date-offset decrement clears only from zero-progress state");
   assertTrue(/applyGenericElementIncrementByFormat\(state, actionField\.id, runtimeCfg\.increment, actionFormat, actionMeta\.increase, actionCycleValues\)/.test(statusDateSrc), "status_date applies generic element increment logic via unified action field executor");

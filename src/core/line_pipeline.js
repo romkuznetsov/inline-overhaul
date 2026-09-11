@@ -506,31 +506,6 @@ function clearMarkerFromLine(options) {
   }, rules);
 }
 
-function clearMarkersFromLine(options) {
-  var opts = options && typeof options === "object" ? options : {};
-  var line = String(opts.line || "");
-  var markers = Array.isArray(opts.markers) ? opts.markers : [];
-  var out = line;
-  var uniq = [];
-  var seen = {};
-  var i;
-  for (i = 0; i < markers.length; i++) {
-    var mk = String(markers[i] || "").trim();
-    if (!mk || seen[mk]) continue;
-    seen[mk] = true;
-    uniq.push(mk);
-  }
-  for (i = 0; i < uniq.length; i++) {
-    out = clearMarkerFromLine({
-      line: out,
-      rules: opts.rules,
-      marker: uniq[i],
-      removeMarkerTokens: opts.removeMarkerTokens,
-    });
-  }
-  return out;
-}
-
 function removeExactTokens(text, tokens) {
   var out = String(text || "");
   var list = Array.isArray(tokens) ? tokens : [];
@@ -876,7 +851,6 @@ module.exports = {
   extractOriginalTextFromRawLine,
   relocateMarkerTokenByPanel,
   clearMarkerFromLine,
-  clearMarkersFromLine,
   removeExactTokens,
   detectMarkerPanel,
   resolvePanelByMarkerPresence,
