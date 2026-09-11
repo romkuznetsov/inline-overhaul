@@ -161,16 +161,28 @@ assert.ok(
 
 const fileRe = /`([\w./-]+\.(?:js|ts|mjs))`/g;
 const wrong = [];
+let namesSeen = 0;
 rows.forEach((row) => {
   const body = blockOf.get(row.n);
   const names = new Set();
   for (let m = fileRe.exec(row.files); m; m = fileRe.exec(row.files)) {
     names.add(m[1].split("/").pop());
   }
+  namesSeen += names.size;
   for (const name of names) {
     if (!body.includes(name)) wrong.push(row.n + ": " + name);
   }
 });
+/*
+ * Порог до вывода: запрет ниже зелен и тогда, когда имён файлов не извлеклось
+ * ни одного — например, от смены написания таблицы. Имя у каждой строки есть
+ * хотя бы одно, значит их не меньше, чем строк (У-88).
+ */
+assert.ok(
+  namesSeen >= rows.length,
+  "положительный контроль: имён файлов извлечено " + namesSeen + " при " + rows.length +
+    " строках таблицы — запрет ниже мерит пустоту"
+);
 assert.deepStrictEqual(
   wrong,
   [],

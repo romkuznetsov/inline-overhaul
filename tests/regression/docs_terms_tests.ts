@@ -125,16 +125,38 @@ const GUIDES = ["README.md", "instructions.md"];
    * свой список, и он успел устареть: он запрещал называть плавающую кнопку
    * через четверо суток после того, как она заработала.
    */
-  const found: string[] = [];
+  const hitsIn = (src: Array<[string, string]>): string[] => {
+    const out: string[] = [];
+    for (const [doc, text] of src) {
+      for (const [name, why] of REMOVED) {
+        if (text.includes(name)) out.push(doc + ": «" + name + "» — " + why);
+      }
+    }
+    return out;
+  };
   const sources: Array<[string, string]> = DOCS.map(
     doc => [doc, readDoc(doc)] as [string, string],
   );
   sources.push(["заметка-руководство", howtoMarkdown()]);
+
+  /*
+   * Контроль до вывода (У-127, У-88). Запрет зелен двумя способами: снятых
+   * контролов в документах нет — это работа, — и искать было нечем: список
+   * опустел или документ прочитался пустым. Второе отличается от первого
+   * только образцом, на котором запрет обязан краснеть.
+   */
+  assert.ok(REMOVED.length >= 10,
+    "положительный контроль: список снятых контролов опустел, запрещать нечего");
+  assert.strictEqual(hitsIn([["образец", "строка про " + String(REMOVED[0] && REMOVED[0][0]) + " внутри"]]).length, 1,
+    "положительный контроль: запрет не видит снятый контрол в образце");
+  assert.strictEqual(sources.length, DOCS.length + 1,
+    "положительный контроль: прочитаны не все документы");
   for (const [doc, text] of sources) {
-    for (const [name, why] of REMOVED) {
-      if (text.includes(name)) found.push(doc + ": «" + name + "» — " + why);
-    }
+    assert.ok(text.length > 500,
+      "положительный контроль: документ прочитан пустым, искать в нём нечего: " + doc);
   }
+
+  const found = hitsIn(sources);
   assert.deepEqual(found, [],
     "документ называет контрол, которого в панели нет:\n  " + found.join("\n  "));
   ok("удалённых контролов в документах и в руководстве не осталось");
@@ -171,16 +193,34 @@ const GUIDES = ["README.md", "instructions.md"];
     "Enhanced Mod+A",
     "Enhanced Ctrl+A",
   ];
-  const found: string[] = [];
-  for (const doc of DOCS) {
-    const lines = readDoc(doc).split(/\r?\n/);
-    for (let i = 0; i < lines.length; i++) {
-      const line = String(lines[i] || "");
-      for (const name of OLD_NAMES) {
-        if (line.includes(name)) found.push(doc + ":" + (i + 1) + " «" + name + "»");
+  const hitsIn = (src: Array<[string, string]>): string[] => {
+    const out: string[] = [];
+    for (const [doc, text] of src) {
+      const lines = text.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const line = String(lines[i] || "");
+        for (const name of OLD_NAMES) {
+          if (line.includes(name)) out.push(doc + ":" + (i + 1) + " «" + name + "»");
+        }
       }
     }
+    return out;
+  };
+  const sources: Array<[string, string]> = DOCS.map(
+    doc => [doc, readDoc(doc)] as [string, string],
+  );
+
+  /* Образец, на котором запрет обязан краснеть (У-127). */
+  assert.ok(OLD_NAMES.length >= 10,
+    "положительный контроль: список старых имён опустел, запрещать нечего");
+  assert.strictEqual(hitsIn([["образец", "команда " + OLD_NAMES[0] + " в строке"]]).length, 1,
+    "положительный контроль: запрет не видит старое имя команды в образце");
+  for (const [doc, text] of sources) {
+    assert.ok(text.length > 500,
+      "положительный контроль: документ прочитан пустым: " + doc);
   }
+
+  const found = hitsIn(sources);
   assert.deepEqual(found, [],
     "документ называет команду её старым именем (T6, фаза 2 пункты 8–9):\n  " + found.join("\n  "));
   ok("старых имён команд в документах не осталось");
@@ -188,9 +228,14 @@ const GUIDES = ["README.md", "instructions.md"];
 
 {
   /* И старой формы идентификатора тоже: в UI и в документах её быть не должно. */
+  const LEGACY_ID = /inlineOverhaul_/;
+  assert.ok(LEGACY_ID.test("id: inlineOverhaul_PKM_next"),
+    "положительный контроль: образец со старой формой идентификатора не опознан");
   const found: string[] = [];
   for (const doc of DOCS) {
-    if (/inlineOverhaul_/.test(readDoc(doc))) found.push(doc);
+    const text = readDoc(doc);
+    assert.ok(text.length > 500, "положительный контроль: документ прочитан пустым: " + doc);
+    if (LEGACY_ID.test(text)) found.push(doc);
   }
   assert.deepEqual(found, [], "документ называет старый идентификатор команды: " + found.join(", "));
   ok("старой формы идентификатора команды в документах нет");
@@ -205,6 +250,13 @@ const GUIDES = ["README.md", "instructions.md"];
   /* Исключений здесь нет: `Open settings` снята 2026-09-06 (T8, фаза 6 пункт
      5), и вместе с ней снято исключение. Каждая живая команда обязана быть
      названа в руководстве своим нынешним именем. */
+  /*
+   * Порог до сравнения: спрашивать надо у непустого списка. Пустой `NAMES`
+   * даёт пустой `missing`, и «каждая команда названа» становится правдой,
+   * которую никто не проверял (У-88).
+   */
+  assert.ok(names.length >= 10,
+    "положительный контроль: команд в реестре " + names.length + " — спрашивать не у чего");
   const missing = names.filter(name => !DOCS.some(doc => readDoc(doc).includes(name)));
   assert.deepEqual(missing, [],
     "эти команды существуют, а руководство о них молчит:\n  " + missing.join("\n  "));
@@ -216,16 +268,23 @@ const GUIDES = ["README.md", "instructions.md"];
 {
   /* Имена областей — из схемы, а не из памяти. */
   const titles = (TABS as Any[]).map(t => String(t.label));
+  assert.ok(titles.length >= 7,
+    "положительный контроль: областей в схеме " + titles.length + " — спрашивать не у чего");
   const missing = titles.filter(title => !readDoc("instructions.md").includes(title));
   assert.deepEqual(missing, [],
     "руководство не называет область панели: " + missing.join(", "));
 
   const STALE_TABS = ["Tag & PKM", "→ Main", "→ Global", "→ Behavior", "Hotkeys → Binder"];
-  const found: string[] = [];
-  for (const doc of DOCS) {
-    const text = readDoc(doc);
-    for (const stale of STALE_TABS) if (text.includes(stale)) found.push(doc + ": «" + stale + "»");
-  }
+  const staleIn = (src: Array<[string, string]>): string[] => {
+    const out: string[] = [];
+    for (const [doc, text] of src) {
+      for (const stale of STALE_TABS) if (text.includes(stale)) out.push(doc + ": «" + stale + "»");
+    }
+    return out;
+  };
+  assert.strictEqual(staleIn([["образец", "вкладка " + STALE_TABS[0] + " здесь"]]).length, 1,
+    "положительный контроль: запрет не видит снятую вкладку в образце");
+  const found = staleIn(DOCS.map(doc => [doc, readDoc(doc)] as [string, string]));
   assert.deepEqual(found, [],
     "документ называет вкладку или подвкладку, которых нет (Р5, 6.1):\n  " + found.join("\n  "));
   ok("области названы так же, как в панели, и подвкладок в документах нет");
@@ -242,13 +301,18 @@ const GUIDES = ["README.md", "instructions.md"];
     ["free roam", "placement modes"],
     ["Inline2Note", "Transform inline to note"],
   ];
-  const found: string[] = [];
-  for (const doc of DOCS) {
-    const text = readDoc(doc);
-    for (const [stale, now] of RENAMED) {
-      if (text.includes(stale)) found.push(doc + ": «" + stale + "» → " + now);
+  const renamedIn = (src: Array<[string, string]>): string[] => {
+    const out: string[] = [];
+    for (const [doc, text] of src) {
+      for (const [stale, now] of RENAMED) {
+        if (text.includes(stale)) out.push(doc + ": «" + stale + "» → " + now);
+      }
     }
-  }
+    return out;
+  };
+  assert.strictEqual(renamedIn([["образец", "термин " + String(RENAMED[0] && RENAMED[0][0]) + " здесь"]]).length, 1,
+    "положительный контроль: запрет не видит внутренний термин в образце");
+  const found = renamedIn(DOCS.map(doc => [doc, readDoc(doc)] as [string, string]));
   assert.deepEqual(found, [],
     "документ пользуется внутренним термином вместо имени из 7.3:\n  " + found.join("\n  "));
   ok("внутренних терминов 7.3 в документах не осталось");
@@ -322,12 +386,21 @@ const GUIDES = ["README.md", "instructions.md"];
   assert.ok(!text.includes("Move line sideways"),
     "положительный контроль: поиск по листу отличает несуществующее имя");
 
+  /*
+   * Контроль был только на стороне документа, а спрашивают обе: пустой реестр
+   * команд или пустой список вкладок делает обе сверки зелёными, ничего не
+   * сверив. Порог стоит на той стороне, которая **спрашивает** (У-88).
+   */
   const names = Object.keys(ids.NAMES).map(id => String(ids.commandName(id)));
+  assert.ok(names.length >= 10,
+    "положительный контроль: команд в реестре " + names.length + " — сверять не с чем");
   const missingCommands = names.filter(name => !text.includes(name));
   assert.deepEqual(missingCommands, [],
     "лист возможностей молчит о команде, которая есть:\n  " + missingCommands.join("\n  "));
 
   const titles = (TABS as Any[]).map(t => String(t.label));
+  assert.ok(titles.length >= 7,
+    "положительный контроль: областей в схеме " + titles.length + " — сверять не с чем");
   const missingTabs = titles.filter(title => !text.includes(title));
   assert.deepEqual(missingTabs, [],
     "лист возможностей не называет область панели: " + missingTabs.join(", "));

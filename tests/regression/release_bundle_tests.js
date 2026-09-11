@@ -101,6 +101,13 @@ async function run() {
   assert.ok(!/require\(["']\.\.?\//.test(bundledSource), "bundle has no local runtime require calls");
   const allowedExternals = new Set(["obsidian", "@codemirror/view", "@codemirror/state"]);
   const bundledRequires = Array.from(bundledSource.matchAll(/require\(["']([^"']+)["']\)/g), (match) => match[1]);
+  /*
+   * Порог до вывода: запрет зелен и тогда, когда `require` в сборке не нашлось
+   * ни одного — сменилась форма вызова, и искать стало нечего (У-88). `obsidian`
+   * плагин требует всегда, значит хотя бы один быть обязан.
+   */
+  assert.ok(bundledRequires.includes("obsidian"),
+    `positive control: bundle has no require("obsidian") at all, the ban below measures nothing`);
   const unexpectedRequires = Array.from(new Set(bundledRequires.filter((item) => !allowedExternals.has(item)))).sort();
   assert.deepStrictEqual(unexpectedRequires, [], `bundle has unexpected external requires: ${unexpectedRequires.join(", ")}`);
 

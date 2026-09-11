@@ -556,6 +556,46 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.equal((arrowsOf(row)[0] as StubNode).disabled, true, "стрелки выключены вместе с модулем");
   (arrowsOf(row)[0] as StubNode).click();
   assert.deepEqual(writes, [], "выключенный модуль ничего не пишет");
+
+  /*
+   * Образец, на котором запрет обязан краснеть (У-113, У-127). «Ничего не
+   * пишет» — утверждение об отсутствии, и зелено оно и тогда, когда нажатие
+   * вообще ни до чего не доходит: другая стрелка, другой ряд, сломанный шов
+   * записи. Поэтому рядом стоит тот же ряд и та же стрелка при включённом
+   * модуле: там запись обязана быть.
+   */
+  const liveWrites: Write[] = [];
+  const liveCfg = makeConfig();
+  const liveModel = createFieldsModel({
+    plugin: {
+      getConfig: () => liveCfg,
+      setConfigPatch: (patch: Any, reason: string) => { liveWrites.push({ reason, patch }); },
+    } as never,
+    normalizePkmOrder,
+    pkmOrderFields: [],
+    cfg: liveCfg,
+    deepState: deepState as never,
+  });
+  const liveHost = makeNode("div");
+  renderFieldsEditor(liveHost as unknown as El, {
+    model: liveModel,
+    ctx: { get: () => 100, set: async () => {}, run: async () => {}, watch: () => () => {} } as never,
+    state: { selected: "" },
+    enabled: true,
+    showTips: true,
+    redraw: () => {},
+    notice: () => {},
+    askNewField: done => done(null),
+    confirmDeleteField: (_name, done) => done(false),
+  });
+  const liveRow = rowsOf(liveHost)[0] as StubNode;
+  assert.equal((arrowsOf(liveRow)[0] as StubNode).disabled, false,
+    "положительный контроль: у включённого модуля та же стрелка обязана быть живой");
+  (arrowsOf(liveRow)[0] as StubNode).click();
+  assert.ok(liveWrites.length > 0,
+    "положительный контроль: у включённого модуля то же нажатие не написало ничего —"
+    + " значит запрет выше зелен от того, что нажатие никуда не доходит");
+
   ok("выключенный модуль показывает список и ничего не меняет");
 }
 

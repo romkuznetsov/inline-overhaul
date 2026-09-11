@@ -162,6 +162,12 @@ function allDefs(cfg: Any): Any[] {
    * команд 10.5 показывает ровно эти строки.
    */
   const proto = fs.readFileSync(path.join(root, "docs", "prototype", "settings_prototype.html"), "utf8");
+  /*
+   * Порог до вывода: спрашивает здесь реестр имён, и пустей он — «имена
+   * совпадают с прототипом» стало бы правдой, которую никто не проверял (У-88).
+   */
+  assert.ok(Object.keys(ids.NAMES).length >= 10,
+    "положительный контроль: имён в реестре " + Object.keys(ids.NAMES).length + " — сверять не с чем");
   const missing: string[] = [];
   for (const id of Object.keys(ids.NAMES)) {
     const name = ids.NAMES[id];
@@ -186,9 +192,11 @@ function allDefs(cfg: Any): Any[] {
     "src/features/transform_feature.js",
   ];
   const strays: string[] = [];
+  let linesRead = 0;
   for (const rel of files) {
     const src = fs.readFileSync(path.join(root, rel), "utf8");
     const lines = src.split(/\r?\n/);
+    linesRead += lines.length;
     for (let i = 0; i < lines.length; i++) {
       const line = String(lines[i] || "");
       if (!/inlineOverhaul_/.test(line)) continue;
@@ -198,6 +206,13 @@ function allDefs(cfg: Any): Any[] {
       strays.push(rel + ":" + (i + 1) + " " + line.trim().slice(0, 100));
     }
   }
+  /*
+   * Порог до вывода: список файлов рукописный, и пустей он или укоротись —
+   * запрет остался бы зелёным от того, что читать стало нечего (У-88, У-111).
+   */
+  assert.ok(files.length >= 3 && linesRead > 500,
+    "положительный контроль: прочитано " + files.length + " файлов и " + linesRead
+    + " строк — запрет ниже мерит пустоту");
   assert.deepEqual(strays, [],
     "старый идентификатор остался в живом коде:\n  " + strays.join("\n  "));
   ok("старых идентификаторов в живом коде нет");

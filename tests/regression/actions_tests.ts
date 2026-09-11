@@ -278,6 +278,14 @@ function makeVault(has: boolean): {
     return out;
   };
 
+  /*
+   * Порог до вывода: путей в руководстве много, и запрет ниже зелен и тогда,
+   * когда извлеклось ноль — сменилось написание стрелки или обрамление, и
+   * сверять стало нечего (У-88).
+   */
+  assert.ok(paths.size >= 5,
+    "положительный контроль: путей к настройкам найдено " + paths.size + " — сверять нечего");
+
   const broken: string[] = [];
   for (const raw of paths) {
     const steps = raw.split("→").map(s => s.trim()).filter(Boolean);

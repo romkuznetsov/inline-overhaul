@@ -307,6 +307,14 @@ function firstFieldKey(cfg: Any): string {
     ["visual", "Tag Bars", "value"],
     ["visual", "TagWheel", "label"],
   ];
+  /*
+   * Порог до вывода: запрет ниже — «список глухих пуст», и пуст он и тогда,
+   * когда обходить было нечего. Четыре предпросмотра читают Fields; станет их
+   * меньше — это решение, а не молчаливое сокращение проверки (У-88).
+   */
+  assert.ok(places.length >= 4,
+    "положительный контроль: предпросмотров в обходе " + places.length + " — проверять нечего");
+
   const deaf: string[] = [];
   for (const [tab, heading, probe] of places) {
     const p = makePanel();

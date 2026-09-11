@@ -90,11 +90,20 @@ const KEYS = new Set(ENTRIES.map(e => e.key));
    * имя строки `tip`? Такой строки нет, и завестись она не должна молча.
    */
   const clash: string[] = [];
+  let seenItems = 0;
   for (const g of SCHEMA) {
     for (const it of g.items) {
+      seenItems += 1;
       if (["heading", "intro", "tip"].indexOf(it.id) >= 0) clash.push(g.id + "." + it.id);
     }
   }
+  /*
+   * Порог до вывода: оба запрета ниже зелены и тогда, когда обходить было
+   * нечего — пустая схема, сломанный импорт (У-88). Число не точное, а нижняя
+   * граница: строк в схеме сотни, и растёт их число само.
+   */
+  assert.ok(seenItems > 100,
+    "положительный контроль: строк схемы обойдено " + seenItems + " — запреты ниже мерят пустоту");
   assert.deepEqual(clash, [], "id строки совпал со слотом группы: " + clash.join(", "));
 
   /* Пустое значение выпадающего списка называется знаком `-`, и настоящего
@@ -345,6 +354,13 @@ function paneWith(catalogs: Any, config?: Any): SettingsPane {
     area.list.forEach((_cmd, k) => asked.push(commandKey(i, "list." + k + ".does")));
   });
 
+  /*
+   * Порог до сравнения: спрашивает здесь **левая** сторона, и собрана она из
+   * таблиц своих блоков. Опустей любая из них — и «каждый ключ на месте»
+   * станет правдой, которую никто не проверял (У-88).
+   */
+  assert.ok(asked.length > 50,
+    "положительный контроль: ключей собрано " + asked.length + " — сверять не с чем");
   const missing = asked.filter(key => !KEYS.has(key));
   assert.deepEqual(missing, [], "свой блок спрашивает ключ, которого в каталоге нет: " + missing.join(", "));
   ok("каждый ключ, который спрашивает свой блок, в каталоге есть");
@@ -723,12 +739,21 @@ const FOLDER = ".obsidian/plugins/inline-overhaul";
    */
   const keys = new Set(ENTRIES.map(e => e.key));
   const missing: string[] = [];
+  let askedCount = 0;
   for (const [area, messages] of Object.entries(RUNTIME_TEXTS)) {
     for (const name of Object.keys(messages)) {
+      askedCount += 1;
       const key = noticeKey(area, name);
       if (!keys.has(key)) missing.push(key);
     }
   }
+  /*
+   * Мутация «убрать слагаемое из хвоста» ловится списком ниже, а вот пустая
+   * таблица сообщений — нет: цикл не сделает ни шага, и запрет окажется
+   * зелёным от того, что спрашивать было нечего (У-88).
+   */
+  assert.ok(askedCount >= 20,
+    "положительный контроль: сообщений редактора спрошено " + askedCount + " — сверять не с чем");
   assert.deepEqual(missing, [],
     "сообщение редактора не доехало до каталога — человеку негде его перевести:\n  "
     + missing.join("\n  "));

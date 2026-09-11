@@ -96,6 +96,17 @@ const V2_ONLY: Record<string, string> = {
   const targets = new Set<string>();
   for (const [, route] of ROUTES) if (route.to) targets.add(route.to);
 
+  /*
+   * Порог до вывода. Все запреты этого файла — «список расхождений пуст», и
+   * пусты они двумя способами: расхождений нет (работа) и сравнивать было
+   * нечего — пустая схема или пустая карта маршрутов (У-88). Обе стороны
+   * приезжают импортом, то есть опустеть могут молча.
+   */
+  assert.ok(boundItems().length > 100,
+    "положительный контроль: привязанных настроек " + boundItems().length + " — сверять не с чем");
+  assert.ok(targets.size > 50,
+    "положительный контроль: целей в карте маршрутов " + targets.size + " — сверять не с чем");
+
   const orphans: string[] = [];
   for (const it of boundItems()) {
     if (targets.has(it.path)) continue;
@@ -128,12 +139,20 @@ const V2_ONLY: Record<string, string> = {
     "pkm.behavior.order", "pkm.behavior.elements", "pkm.taxonomy", "pkm.tagWheelConfig",
     "pkm.configExportMode", "pkm.generatedRulesPath", "pkm.behavior.prefixRules"];
   const stale: string[] = [];
+  let checked = 0;
   for (const [from, route] of ROUTES) {
     if (!route.to || route.drop) continue;
+    checked += 1;
     for (const root of legacyRoots) {
       if (route.to.startsWith(root)) stale.push(from + " -> " + route.to);
     }
   }
+  /* Порог: маршрутов с целью обязано быть много, иначе запрет мерит пустоту. */
+  assert.ok(checked > 50,
+    "положительный контроль: маршрутов с целью " + checked + " — проверять нечего");
+  assert.ok(legacyRoots.some(root => root.length > 0)
+    && legacyRoots.filter(root => "globalFunctions.x".startsWith(root)).length === 1,
+    "положительный контроль: образец пути версии 1 списком корней не опознан");
   assert.deepEqual(stale, [],
     "маршрут ведёт в ветку версии 1: " + stale.join(", "));
   ok("все цели маршрутов — пути версии 2");
@@ -161,9 +180,11 @@ const KNOWN_DEFAULT_GAPS: Record<string, unknown> = {};
   const stale: string[] = [];
   const wrongValue: string[] = [];
 
+  let compared = 0;
   for (const it of boundItems()) {
     const shown = getIn(engine, it.path);
     if (shown === undefined) continue;
+    compared += 1;
     const known = Object.prototype.hasOwnProperty.call(KNOWN_DEFAULT_GAPS, it.path);
     const def = (SCHEMA.flatMap(g => g.items).find(x => isBound(x) && x.path === it.path) as Any).default;
     const same = JSON.stringify(shown) === JSON.stringify(def);
@@ -178,6 +199,13 @@ const KNOWN_DEFAULT_GAPS: Record<string, unknown> = {};
       + ", схема " + JSON.stringify(def));
   }
 
+  /*
+   * Порог на **сравнённое**, а не на обойдённое: путь, которого в конфиге
+   * движка нет, пропускается молча, и пустой конфиг прошёл бы весь список без
+   * единого сравнения при трёх зелёных запретах ниже.
+   */
+  assert.ok(compared > 100,
+    "положительный контроль: сравнено умолчаний " + compared + " — запреты ниже мерят пустоту");
   assert.deepEqual(fresh, [],
     "у этих настроек панель считает умолчанием не то, что кладёт движок, и"
     + " кнопка сброса вернёт человеку не то, с чего он начинал:\n  "
