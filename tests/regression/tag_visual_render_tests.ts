@@ -349,7 +349,60 @@ const filled = (el: Any): boolean =>
  */
 {
   const LINE = "- [ ] ==**[#/1]** [[test1]] #todo== || тест";
-  const known = new Set(["Imp", "Importance", "Project", "type"]);
+
+  /*
+   * **Набор имён строится настоящей функцией, а не пишется здесь руками**
+   * (У-55, заход 6 ревизии 2026-09-11). Прежде тут стоял
+   * `new Set(["Imp", "Importance", "Project", "type"])`, и это значило две
+   * вещи сразу:
+   *
+   *   * `buildTagwheelPlaceholderSetFromConfig` — та функция, которая набор и
+   *     собирает в продукте, — **не выполнялась ни одним прогоном**; проба
+   *     `throw` в её теле оставляла все 66 файлов зелёными;
+   *   * разницы между **подписью** Field и его **ключом** набор не видел:
+   *     подставь продукту ключ вместо подписи, и ни одна проверка не покраснеет.
+   *
+   * Поэтому конфиг здесь такой, в каком подпись и ключ **различаются**:
+   * `imp → "Imp"`, `project → "Project"`, а у `type` подписи нет вовсе — и
+   * тогда по правилу нормализации именем становится сам ключ.
+   */
+  const ORDER_CFG = I.migrateConfig({
+    schemaVersion: 1,
+    pkm: { behavior: { order: {
+      left: ["imp", "type"],
+      right: ["project"],
+      labels: { imp: "Imp", project: "Project" },
+      types: { imp: "tag", type: "tag", project: "link" },
+      active: { imp: "yes", type: "yes", project: "yes" },
+      enabled: { imp: true, type: true, project: true },
+    } } },
+  });
+  const known = I.buildTagwheelPlaceholderSetFromConfig(ORDER_CFG) as Set<string>;
+
+  /*
+   * Контроль до вывода (У-88). Первая версия этой фикстуры подавала конфиг
+   * **мимо** `migrateConfig` — и тут же выяснилось, что Field без подписи в
+   * набор не попадает вовсе: подписи досыпает нормализация, а сырую форму
+   * продукт не видит никогда. То есть фикстура, минующая нормализацию,
+   * проверяет функцию, которой в продукте нет (У-55) — ровно то, что этот
+   * заход ревизии и ищет.
+   */
+  assert.ok(known.has("Imp") && known.has("Project"),
+    "подписи Fields не доехали до набора имён панели — панель перестанет узнавать"
+    + " себя, как только человек переименует Field: " + JSON.stringify(Array.from(known)));
+  /*
+   * Ключи в наборе тоже есть, и это **не** замена подписи, а союз: имя Field
+   * приезжает и как `id`, и как `placeholder`, потому что в строке может
+   * стоять любое из двух. Утверждение «ключа быть не должно» было моей
+   * догадкой о замысле, а не чтением продукта, и первая версия этой правки
+   * на нём и покраснела.
+   */
+  assert.ok(known.has("imp") && known.has("project"),
+    "ключи Fields из набора пропали — панель перестанет узнавать себя там, где"
+    + " в строке стоит ключ: " + JSON.stringify(Array.from(known)));
+  assert.ok(known.has("type"),
+    "Field без подписи обязан войти в набор своим ключом — его имя и есть ключ: "
+    + JSON.stringify(Array.from(known)));
 
   const spans = (wheel: Any, line: string = LINE): Any[] =>
     I.tagwheelPanelSpans(line, I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: wheel } }), known);

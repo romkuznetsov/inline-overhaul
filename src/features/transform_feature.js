@@ -2261,7 +2261,6 @@ function buildPreviewBaseLine(cfg) {
   const separators = resolveIoSeparators(cfg);
   const behavior = isObj(cfg && cfg.pkm && cfg.pkm.fields) ? cfg.pkm.fields : {};
   const order = isObj(behavior.order) ? behavior.order : {};
-  const labels = isObj(order.labels) ? order.labels : {};
   const orderTypes = isObj(order.types) ? order.types : {};
   const fields = getModeFields(cfg);
   const byId = {};
@@ -2284,13 +2283,11 @@ function buildPreviewBaseLine(cfg) {
     const token = sampleValueForField(field, type,
       isObj(elementsByField[fid]) ? elementsByField[fid].format : "");
     if (!token) continue;
-    const label = String(labels[fid] || fid).trim();
     const composed = `${token}`;
     const parentId = String(field && field.dependsOn || "").trim();
     if (rightOrder.has(fid) || parentId && rightOrder.has(parentId)) rightTokens.push(composed);
     else if (leftOrder.has(fid) || parentId && leftOrder.has(parentId)) leftTokens.push(composed);
     else leftTokens.push(composed);
-    void label;
   }
   const left = leftTokens.join(" ").trim();
   const right = rightTokens.join(" ").trim();
