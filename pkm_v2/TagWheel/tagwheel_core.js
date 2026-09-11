@@ -1460,17 +1460,7 @@ function getFieldMarkerByRuntimeCfg(rules, field) {
 function normalizeFormatMask(format) {
   var su = getSharedUtils()
   if (su && typeof su.normalizeFormatMask === 'function') return su.normalizeFormatMask(format)
-  var f = String(format == null ? '' : format).trim()
-  if (!f) return ''
-  f = f.replace(/yyyy/gi, 'YYYY')
-  f = f.replace(/dd/gi, 'DD')
-  f = f.replace(/hh/gi, 'HH')
-  f = f.replace(/ss/gi, 'ss')
-  f = f.replace(/mm/gi, 'MM')
-  f = f.replace(/HHMMSS/g, 'HHmmss')
-  f = f.replace(/HHMM/g, 'HHmm')
-  f = f.replace(/HH([^A-Za-z0-9]?)(MM)/g, 'HH$1mm')
-  return f
+  throw new Error('shared_utils unavailable: normalizeFormatMask')
 }
 
 function addByUnit(base, unit, delta) {
@@ -1523,26 +1513,7 @@ function shouldHydrateGenericElementRaw(format, commandRaw, rawValue) {
 function buildCustomPlan(cfg) {
   var su = getSharedUtils()
   if (su && typeof su.buildCustomPlanFromIncrement === 'function') return su.buildCustomPlanFromIncrement(cfg)
-  var c = isObj(cfg) ? cfg : {}
-  var raw = Array.isArray(c.customRaw) ? c.customRaw : []
-  var steps = []
-  var hasEnd = false
-  var i
-  for (i = 0; i < raw.length; i++) {
-    var t = String(raw[i] || '').trim()
-    if (!t) continue
-    if (/^END$/i.test(t)) { hasEnd = true; break }
-    var m = t.match(/^(-?\d+)(?:\s*\(\s*(\d+)\s*\))?$/)
-    if (!m) continue
-    var s = Math.max(0, Math.trunc(Number(m[1] || 0)))
-    var rep = Math.max(1, Math.trunc(Number(m[2] || 1)))
-    var r
-    for (r = 0; r < rep; r++) steps.push(s)
-  }
-  if (!steps.length && Array.isArray(c.custom)) {
-    for (i = 0; i < c.custom.length; i++) steps.push(Math.max(0, Math.trunc(Number(c.custom[i] || 0))))
-  }
-  return { steps: steps, hasEnd: hasEnd }
+  throw new Error('shared_utils unavailable: buildCustomPlanFromIncrement')
 }
 
 function endTotal(cfg) {
@@ -1578,75 +1549,13 @@ function fmtDateByFormat(d, format) {
 function buildFormatValueRegexSource(format) {
   var su = getSharedUtils()
   if (su && typeof su.buildFormatValueRegexSource === 'function') return su.buildFormatValueRegexSource(format)
-  var f = normalizeFormatMask(String(format == null ? '' : format))
-  if (!f) return ''
-  var esc = function (x) { return String(x || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
-  var tokenRe = /(YYYY|MM|DD|HH|mm|ss)/g
-  var src = ''
-  var last = 0
-  var hit
-  var hasToken = false
-  while ((hit = tokenRe.exec(f)) !== null) {
-    hasToken = true
-    src += esc(f.slice(last, hit.index))
-    var tk = String(hit[1] || '')
-    src += tk === 'YYYY' ? '\\d{4}' : '\\d{2}'
-    last = hit.index + tk.length
-  }
-  src += esc(f.slice(last))
-  return hasToken ? src : ''
+  throw new Error('shared_utils unavailable: buildFormatValueRegexSource')
 }
 
 function hasFormatTokens(format) {
   var su = getSharedUtils()
   if (su && typeof su.hasFormatTokens === 'function') return su.hasFormatTokens(format)
-  return /(YYYY|MM|DD|HH|mm|ss)/.test(normalizeFormatMask(String(format == null ? '' : format)))
-}
-
-function parseNumericLiteralSpec(format) {
-  var su = getSharedUtils()
-  if (su && typeof su.parseNumericLiteralSpec === 'function') return su.parseNumericLiteralSpec(format)
-  var f = String(format || '').trim()
-  if (!/^\d+$/.test(f)) return null
-  var base = Number(f)
-  if (!isFinite(base)) return null
-  return { base: base, width: f.length }
-}
-
-function parseNumericPatternSpec(format) {
-  var su = getSharedUtils()
-  if (su && typeof su.parseNumericPatternSpec === 'function') return su.parseNumericPatternSpec(format)
-  var f = String(format || '').trim()
-  if (!f) return null
-  if (/[A-Za-z]/.test(f)) return null
-  var chars = Array.from(f)
-  var slots = chars.map(function (ch) { return /\d/.test(ch) })
-  if (!slots.some(function (x) { return !!x })) return null
-  var baseDigits = chars.filter(function (ch) { return /\d/.test(ch) }).join('')
-  if (!/^\d+$/.test(baseDigits)) return null
-  var base = Number(baseDigits)
-  if (!isFinite(base)) return null
-  return { format: f, slots: slots, width: baseDigits.length, base: base }
-}
-
-function renderNumericPatternValue(spec, progressRaw) {
-  var su = getSharedUtils()
-  if (su && typeof su.renderNumericPatternValue === 'function') return su.renderNumericPatternValue(spec, progressRaw)
-  if (!spec) return ''
-  var p = Math.max(0, Math.trunc(Number(progressRaw || 0)))
-  var value = spec.base + p
-  var digits = String(value)
-  if (digits.length < spec.width) digits = digits.padStart(spec.width, '0')
-  if (digits.length > spec.width) digits = digits.slice(-spec.width)
-  var chars = Array.from(String(spec.format || ''))
-  var di = 0
-  var out = ''
-  var i
-  for (i = 0; i < chars.length; i++) {
-    if (spec.slots[i]) out += digits.charAt(di++) || '0'
-    else out += chars[i]
-  }
-  return out
+  throw new Error('shared_utils unavailable: hasFormatTokens')
 }
 
 function buildTokenlessValueRegexSource(format) {
@@ -1658,21 +1567,7 @@ function buildTokenlessValueRegexSource(format) {
 function renderTokenlessValueByProgress(format, progressRaw) {
   var su = getSharedUtils()
   if (su && typeof su.renderTokenlessValueByProgress === 'function') return su.renderTokenlessValueByProgress(format, progressRaw)
-  var f = String(format || '').trim()
-  if (!f) return ''
-  var numPattern = parseNumericPatternSpec(f)
-  if (numPattern) return renderNumericPatternValue(numPattern, progressRaw)
-  var num = parseNumericLiteralSpec(f)
-  if (num) {
-    var p = Math.max(0, Math.trunc(Number(progressRaw || 0)))
-    var v = num.base + p
-    var s = String(v)
-    return s.length >= num.width ? s : s.padStart(num.width, '0')
-  }
-  var chars = Array.from(f)
-  var last = chars[chars.length - 1] || ''
-  var extra = Math.max(0, Math.trunc(Number(progressRaw || 0)))
-  return f + (last ? last.repeat(extra) : '')
+  throw new Error('shared_utils unavailable: renderTokenlessValueByProgress')
 }
 
 function parseTokenlessProgress(value, format) {
@@ -1797,41 +1692,13 @@ function stepByCustom(custom, current, direction) {
   }
   var su = getSharedUtils()
   if (su && typeof su.backwardStepByCurrent === 'function') return su.backwardStepByCurrent(arr, current)
-  var c = Number(current)
-  if (!isFinite(c) || c <= 0) return 1
-  var front = [0]
-  var i
-  for (i = 0; i < arr.length; i++) {
-    var s = Math.max(0, Math.trunc(Number(arr[i] || 0)))
-    front.push(front[front.length - 1] + s)
-  }
-  for (i = 1; i < front.length; i++) {
-    if (c <= front[i]) return Math.max(1, c - front[i - 1])
-  }
-  var tail = Math.max(0, Math.trunc(Number(arr[arr.length - 1] || 0)))
-  return Math.max(1, tail || 1)
+  throw new Error('shared_utils unavailable: backwardStepByCurrent')
 }
 
 function stepByCustomForward(custom, current) {
   var su = getSharedUtils()
   if (su && typeof su.forwardStepByCurrent === 'function') return su.forwardStepByCurrent(custom, current)
-  var arr = Array.isArray(custom) ? custom : []
-  if (!arr.length) return 1
-  var cur = Number(current)
-  var safeCur = isFinite(cur) ? Math.max(0, Math.trunc(cur)) : 0
-  var front = []
-  var i
-  var acc = 0
-  for (i = 0; i < arr.length; i++) {
-    var s = Math.max(0, Math.trunc(Number(arr[i] || 0)))
-    acc += s
-    front.push(acc)
-  }
-  for (i = 0; i < front.length; i++) {
-    if (safeCur < front[i]) return Math.max(1, front[i] - safeCur)
-  }
-  var tail = Math.max(0, Math.trunc(Number(arr[arr.length - 1] || 0)))
-  return Math.max(1, tail || 1)
+  throw new Error('shared_utils unavailable: forwardStepByCurrent')
 }
 
 function stepByIncrementCfg(cfg, current, direction) {
@@ -1863,7 +1730,7 @@ function stepByIncrementCfg(cfg, current, direction) {
  * долга Д-4 её не видел — он ищет пустой `catch`, а здесь его нет.
  */
 function detectDateUnit(format) {
-  return ensureStatusRuntimeCommonFns().detectDateUnit(format, normalizeFormatMask, hasFormatTokens, getSharedUtils())
+  return ensureStatusRuntimeCommonFns().detectDateUnit(format, getSharedUtils())
 }
 
 /*

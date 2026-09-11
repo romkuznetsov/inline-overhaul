@@ -1403,7 +1403,7 @@ async function run() {
    */
   assertTrue(/ensureStatusRuntimeCommonFns\(\)\.resolveSubtagFormat\(null, rules\)/.test(tagwheelCoreSrc), "tagwheel_core delegates subtag-format resolution to shared runtime common");
   assertTrue(/ensureStatusRuntimeCommonFns\(\)\.getSearchLimitByUnit\(unit, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates search-limit resolver to shared runtime common");
-  assertTrue(/ensureStatusRuntimeCommonFns\(\)\.detectDateUnit\(format, normalizeFormatMask, hasFormatTokens, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-unit detection to shared runtime common");
+  assertTrue(/ensureStatusRuntimeCommonFns\(\)\.detectDateUnit\(format, getSharedUtils\(\)\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-unit detection to shared runtime common");
   assertTrue(/ensureStatusRuntimeCommonFns\(\)\.getDateProgressForStep\(state, fieldId, format\)/.test(tagwheelCoreSrc), "tagwheel_core delegates date-progress resolver to shared runtime common");
   assertTrue(/facade\.resolveOrderConfig/.test(tagwheelSrc), "tagwheel order-config resolver is preload-facade backed");
   assertAnyMatch(statusTagsSrc, [/callRuntimeApi\(app_, "loadMacroShared"\)/, /await loadMacroShared\(app_\);/], "status_tags preloads shared macro helpers");
@@ -1777,8 +1777,120 @@ async function run() {
    * держат два запрета ниже и обход по форме.
    */
   assertTrue(/__markdownJsonBlockParser\.parseJsonBlock\(/.test(tagwheelCoreSrc), "and the JSON block parser");
-  assertFalse(/if \(normalizer && typeof normalizer\./.test(tagwheelCoreSrc), "tagwheel_core keeps no fallback branch around the shared rules normalizer");
-  assertFalse(/if \(parser && typeof parser\./.test(tagwheelCoreSrc), "and none around the shared JSON block parser");
+  /*
+   * **Запрет по устройству, а не по имени переменной** (У-126, В-103).
+   *
+   * Здесь стояли два `assertFalse` на `if (normalizer && typeof normalizer.` и
+   * `if (parser && typeof parser.`. Они закрывали ровно те две копии, которые
+   * нашлись поимённо 2026-09-07, и были зелены при **двадцати шести** живых
+   * копиях того же устройства в тех же движках: те держали модуль в переменной
+   * `su`, и для запрета по имени их не существовало.
+   *
+   * Само устройство: функция спрашивает общий модуль, а сразу за вопросом
+   * лежит своё тело. Пока модуль на месте, до тела не доходит; в тот день,
+   * когда он не приедет, плагин ничего не скажет и начнёт отвечать иначе.
+   * Поэтому за делегирующим `if` разрешён ровно один `throw` — громкий отказ.
+   *
+   * Обход сплошной (У-85, У-111): корень репозитория, `src/**` и `pkm_v2/**`.
+   * Конец функции ищется по отступу: закрывающая скобка на два пробела левее
+   * самого `if`, — так видны и вложенные объявления, а их в
+   * `status_runtime_common.js` было две.
+   */
+  {
+    const repoRoot = path.join(__dirname, "..", "..");
+    const walked = fs.readdirSync(repoRoot)
+      .filter((name) => /\.js$/.test(name))
+      .map((name) => path.join(repoRoot, name));
+    for (const dir of ["src", "pkm_v2"]) {
+      (function walk(target) {
+        for (const name of fs.readdirSync(target)) {
+          const abs = path.join(target, name);
+          if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+          if (/\.(?:js|ts)$/.test(name)) walked.push(abs);
+        }
+      })(path.join(repoRoot, dir));
+    }
+
+    const DELEGATION = /^(\s*)if \([A-Za-z_$]+ && typeof [A-Za-z_$]+\.[A-Za-z0-9_$]+ === ["']function["']\) return /;
+    /*
+     * Одно исключение, и оно названо вслух: делегирующий `if` **внутри `try`**
+     * — это загрузка модуля, а не копия правила. Такой путь один
+     * (`getDeclarativeSettingTabCtor`), он сообщает об отказе в консоль и
+     * отдаёт `null`, и без вкладки настроек плагин всё же запускается.
+     *
+     * Что этим пропускается: копия, написанная внутри `try`. Область ошибки
+     * ограничена намеренно (У-139) — полным был бы только разбор языка, — и
+     * стоит она одной строки: вынести `try` из функции.
+     */
+    const findCopies = (text) => {
+      const lines = text.split("\n");
+      const found = [];
+      let start = -1;
+      let inTry = false;
+      for (let i = 0; i < lines.length; i += 1) {
+        if (/^function [A-Za-z0-9_$]+\(/.test(lines[i]) || /^\s+function [A-Za-z0-9_$]+\(/.test(lines[i])) {
+          start = i;
+          inTry = false;
+        }
+        if (/\btry \{\s*$/.test(lines[i]) && start !== -1) inTry = true;
+        const hit = DELEGATION.exec(lines[i]);
+        if (!hit || inTry) continue;
+        const closing = " ".repeat(Math.max(0, hit[1].length - 2)) + "}";
+        let j = i + 1;
+        const tail = [];
+        while (j < lines.length && lines[j] !== closing) { tail.push(lines[j].trim()); j += 1; }
+        const body = tail.filter((s) => s && !/^(\*|\/\/|\/\*)/.test(s)).join(" ");
+        if (!/^throw new Error\(.*\);?$/.test(body)) found.push(i + 1);
+      }
+      return found;
+    };
+
+    /*
+     * Контроль **до** первого вывода (У-119, У-127): обход обязан находить
+     * копию в образце и не находить её в громком отказе. Образец свой, а не
+     * «в продукте нарушение ещё есть», — иначе контроль умрёт вместе с долгом.
+     */
+    const sampleBad = [
+      "function withCopy(x) {",
+      "  var su = getSharedUtils()",
+      "  if (su && typeof su.withCopy === 'function') return su.withCopy(x)",
+      "  return String(x || '').trim()",
+      "}",
+    ].join("\n");
+    const sampleGood = [
+      "function loudOnly(x) {",
+      "  var su = getSharedUtils()",
+      "  if (su && typeof su.loudOnly === 'function') return su.loudOnly(x)",
+      "  throw new Error('shared_utils unavailable: loudOnly')",
+      "}",
+    ].join("\n");
+    const sampleInTry = [
+      "function loadIt(x) {",
+      "  try {",
+      "    const mod = require('./somewhere.js')",
+      "    if (mod && typeof mod.loadIt === 'function') return mod.loadIt(x)",
+      "  } catch (e) {",
+      "    console.error('[inline-overhaul] failed', e && e.message)",
+      "  }",
+      "  return null",
+      "}",
+    ].join("\n");
+    assertEq(findCopies(sampleBad).length, 1, "положительный контроль: обход видит копию за делегирующим if");
+    assertEq(findCopies(sampleGood).length, 0, "положительный контроль: громкий отказ копией не считается");
+    assertEq(findCopies(sampleInTry).length, 0, "положительный контроль: загрузка модуля через try копией не считается");
+
+    let delegations = 0;
+    const copies = [];
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      delegations += (text.match(new RegExp(DELEGATION.source, "gm")) || []).length;
+      for (const line of findCopies(text)) copies.push(path.relative(repoRoot, abs) + ":" + line);
+    }
+    assertTrue(delegations > 5,
+      "положительный контроль: делегирующие вызовы в рантайме есть и их находит обход (" + delegations + ")");
+    assertEq(copies.join(" | "), "",
+      "за делегирующим if стоит только громкий отказ: своей копии правила в рантайме нет ни одной (В-103)");
+  }
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: applyOrderToRules'\)/.test(tagwheelSrc), "tagwheel order apply helper is shared-only");
   assertTrue(/if \(\/_sub\$\/\.test\(raw\) && collapsed === raw\) return raw\.slice\(0, -4\);/.test(pkmRulesHelpersSrc), "rules helpers collapseSubOrderKey force-collapses _sub when registry fallback returns unchanged key");
   assertTrue(/const seen = visited instanceof Set \? visited : new Set\(\);/.test(pkmRulesHelpersSrc) && /if \(seen\.has\(k\)\) return "";/.test(pkmRulesHelpersSrc), "rules helpers resolveIdByOrderKey guards against recursive key resolution loops");

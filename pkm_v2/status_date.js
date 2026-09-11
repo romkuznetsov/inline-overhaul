@@ -16,6 +16,7 @@ let DEFAULT_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
  * Проверки годности сняты вместе с загрузкой: они отвечали на «приехал не
  * тот модуль», а из графа сборки приехать не тот не может.
  */
+const __sharedUtils = require("../src/core/shared_utils.js");
 const __pkmDomainRegistry = require("../src/core/pkm_domain_registry.js");
 const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js");
 const __statusLineRuntimeUnified = require("../src/core/status_line_runtime_unified.js");
@@ -144,13 +145,18 @@ function isObj(x) {
   return x && typeof x === "object" && !Array.isArray(x);
 }
 
+/*
+ * Общие помощники приезжают литеральным `require`, как и все остальные модули
+ * (У-89), а не со шва `globalThis.__inlineOverhaulSharedUtils`.
+ *
+ * Шов держался порядком загрузки: его ставит `main.js` на уровне модуля, и
+ * пока движок зовут через него, шов на месте. Но проверка поведения зовёт
+ * движок напрямую — и там шва не было ни дня, то есть выполнялась своя копия
+ * правила, а не общий модуль. Копии сняты 2026-09-11 (В-103), и разойтись
+ * двум ответам больше не на чем: ответ один и тот же в обоих случаях.
+ */
 function getSharedUtils() {
-  try {
-    const su = globalThis && globalThis.__inlineOverhaulSharedUtils;
-    return su && typeof su === "object" ? su : null;
-  } catch (_) {
-    return null;
-  }
+  return __sharedUtils;
 }
 
 function ensureStatusRuntimeCommonLoaded() {
@@ -223,17 +229,7 @@ function escapeRx(s) {
 function normalizeFormatMask(format) {
   const su = getSharedUtils();
   if (su && typeof su.normalizeFormatMask === "function") return su.normalizeFormatMask(format);
-  let f = String(format ?? "").trim();
-  if (!f) return "";
-  f = f.replace(/yyyy/gi, "YYYY");
-  f = f.replace(/dd/gi, "DD");
-  f = f.replace(/hh/gi, "HH");
-  f = f.replace(/ss/gi, "ss");
-  f = f.replace(/mm/gi, "MM");
-  f = f.replace(/HHMMSS/g, "HHmmss");
-  f = f.replace(/HHMM/g, "HHmm");
-  f = f.replace(/HH([^A-Za-z0-9]?)(MM)/g, "HH$1mm");
-  return f;
+  throw new Error("shared_utils unavailable: normalizeFormatMask");
 }
 
 function addByUnitUtc(base, unit, delta) {
@@ -270,74 +266,13 @@ function formatDateByFormat(dt, format) {
 function buildFormatValueRegexSource(format) {
   const su = getSharedUtils();
   if (su && typeof su.buildFormatValueRegexSource === "function") return su.buildFormatValueRegexSource(format);
-  const f = normalizeFormatMask(String(format ?? ""));
-  if (!f) return "";
-  const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const tokenRe = /(YYYY|MM|DD|HH|mm|ss)/g;
-  let src = "";
-  let last = 0;
-  let hit;
-  let hasToken = false;
-  while ((hit = tokenRe.exec(f)) !== null) {
-    hasToken = true;
-    src += esc(f.slice(last, hit.index));
-    const tk = String(hit[1] || "");
-    src += tk === "YYYY" ? "\\d{4}" : "\\d{2}";
-    last = hit.index + tk.length;
-  }
-  src += esc(f.slice(last));
-  return hasToken ? src : "";
+  throw new Error("shared_utils unavailable: buildFormatValueRegexSource");
 }
 
 function hasFormatTokens(format) {
   const su = getSharedUtils();
   if (su && typeof su.hasFormatTokens === "function") return su.hasFormatTokens(format);
-  return /(YYYY|MM|DD|HH|mm|ss)/.test(normalizeFormatMask(String(format ?? "")));
-}
-
-function parseNumericLiteralSpec(format) {
-  const su = getSharedUtils();
-  if (su && typeof su.parseNumericLiteralSpec === "function") return su.parseNumericLiteralSpec(format);
-  const f = String(format || "").trim();
-  if (!/^\d+$/.test(f)) return null;
-  const base = Number(f);
-  if (!Number.isFinite(base)) return null;
-  return { base, width: f.length };
-}
-
-function parseNumericPatternSpec(format) {
-  const su = getSharedUtils();
-  if (su && typeof su.parseNumericPatternSpec === "function") return su.parseNumericPatternSpec(format);
-  const f = String(format || "").trim();
-  if (!f) return null;
-  if (/[A-Za-z]/.test(f)) return null;
-  const chars = Array.from(f);
-  const slots = chars.map((ch) => /\d/.test(ch));
-  if (!slots.some(Boolean)) return null;
-  const baseDigits = chars.filter((ch) => /\d/.test(ch)).join("");
-  if (!/^\d+$/.test(baseDigits)) return null;
-  const base = Number(baseDigits);
-  if (!Number.isFinite(base)) return null;
-  return { format: f, slots, width: baseDigits.length, base };
-}
-
-function renderNumericPatternValue(spec, progressRaw) {
-  const su = getSharedUtils();
-  if (su && typeof su.renderNumericPatternValue === "function") return su.renderNumericPatternValue(spec, progressRaw);
-  if (!spec) return "";
-  const p = Math.max(0, Math.trunc(Number(progressRaw || 0)));
-  const value = spec.base + p;
-  let digits = String(value);
-  if (digits.length < spec.width) digits = digits.padStart(spec.width, "0");
-  if (digits.length > spec.width) digits = digits.slice(-spec.width);
-  const chars = Array.from(String(spec.format || ""));
-  let di = 0;
-  let out = "";
-  for (let i = 0; i < chars.length; i++) {
-    if (spec.slots[i]) out += digits.charAt(di++) || "0";
-    else out += chars[i];
-  }
-  return out;
+  throw new Error("shared_utils unavailable: hasFormatTokens");
 }
 
 function buildTokenlessValueRegexSource(format) {
@@ -349,21 +284,7 @@ function buildTokenlessValueRegexSource(format) {
 function renderTokenlessValueByProgress(format, progressRaw) {
   const su = getSharedUtils();
   if (su && typeof su.renderTokenlessValueByProgress === "function") return su.renderTokenlessValueByProgress(format, progressRaw);
-  const f = String(format || "").trim();
-  if (!f) return "";
-  const numPattern = parseNumericPatternSpec(f);
-  if (numPattern) return renderNumericPatternValue(numPattern, progressRaw);
-  const num = parseNumericLiteralSpec(f);
-  if (num) {
-    const p = Math.max(0, Math.trunc(Number(progressRaw || 0)));
-    const v = num.base + p;
-    const s = String(v);
-    return s.length >= num.width ? s : s.padStart(num.width, "0");
-  }
-  const chars = Array.from(f);
-  const last = chars[chars.length - 1] || "";
-  const extra = Math.max(0, Math.trunc(Number(progressRaw || 0)));
-  return f + (last ? last.repeat(extra) : "");
+  throw new Error("shared_utils unavailable: renderTokenlessValueByProgress");
 }
 
 function parseTokenlessProgress(value, format) {
@@ -473,73 +394,19 @@ function stepByPress(incrementCfg, currentValue, inc) {
 function forwardStepByCurrent(customSteps, currentValue) {
   const su = getSharedUtils();
   if (su && typeof su.forwardStepByCurrent === "function") return su.forwardStepByCurrent(customSteps, currentValue);
-  const arr = Array.isArray(customSteps) ? customSteps : [];
-  if (!arr.length) return 1;
-  const cur = Number(currentValue);
-  const safeCur = Number.isFinite(cur) ? Math.max(0, Math.trunc(cur)) : 0;
-  const frontiers = [];
-  let acc = 0;
-  for (let i = 0; i < arr.length; i++) {
-    const step = Math.max(0, Math.trunc(Number(arr[i] || 0)));
-    acc += step;
-    frontiers.push(acc);
-  }
-  for (let i = 0; i < frontiers.length; i++) {
-    if (safeCur < frontiers[i]) {
-      return Math.max(1, frontiers[i] - safeCur);
-    }
-  }
-  const tail = Math.max(0, Math.trunc(Number(arr[arr.length - 1] || 0)));
-  return Math.max(1, tail || 1);
+  throw new Error("shared_utils unavailable: forwardStepByCurrent");
 }
 
 function buildCustomPlan(incrementCfg) {
   const su = getSharedUtils();
   if (su && typeof su.buildCustomPlanFromIncrement === "function") return su.buildCustomPlanFromIncrement(incrementCfg);
-  const cfg = isObj(incrementCfg) ? incrementCfg : {};
-  const raw = Array.isArray(cfg.customRaw) ? cfg.customRaw.map((x) => String(x || "").trim()).filter(Boolean) : [];
-  const fromRaw = [];
-  let hasEnd = false;
-  for (let i = 0; i < raw.length; i++) {
-    const t = raw[i];
-    if (/^END$/i.test(t)) { hasEnd = true; break; }
-    const m = t.match(/^(-?\d+)(?:\s*\(\s*(\d+)\s*\))?$/);
-    if (!m) continue;
-    const step = Math.max(0, Math.trunc(Number(m[1] || 0)));
-    const repeat = Math.max(1, Math.trunc(Number(m[2] || 1)));
-    for (let r = 0; r < repeat; r++) fromRaw.push(step);
-  }
-  if (fromRaw.length) return { steps: fromRaw, hasEnd };
-  const arr = Array.isArray(cfg.custom) ? cfg.custom.map((x) => Math.max(0, Math.trunc(Number(x || 0)))).filter((x) => Number.isFinite(x)) : [];
-  return { steps: arr, hasEnd: false };
+  throw new Error("shared_utils unavailable: buildCustomPlanFromIncrement");
 }
 
 function backwardStepByCurrent(customSteps, currentValue) {
   const su = getSharedUtils();
   if (su && typeof su.backwardStepByCurrent === "function") return su.backwardStepByCurrent(customSteps, currentValue);
-  const arr = Array.isArray(customSteps) ? customSteps : [];
-  if (!arr.length) return 1;
-  const cur = Number(currentValue);
-  if (!Number.isFinite(cur) || cur <= 0) return 1;
-  const frontiers = [0];
-  for (let i = 0; i < arr.length; i++) {
-    const step = Math.max(0, Math.trunc(Number(arr[i] || 0)));
-    frontiers.push(frontiers[frontiers.length - 1] + step);
-  }
-  let prev = 0;
-  for (let i = 1; i < frontiers.length; i++) {
-    const v = frontiers[i];
-    if (cur === v) {
-      prev = frontiers[i - 1];
-      return Math.max(1, cur - prev);
-    }
-    if (cur < v) {
-      prev = frontiers[i - 1];
-      return Math.max(1, cur - prev);
-    }
-  }
-  const tail = Math.max(0, Math.trunc(Number(arr[arr.length - 1] || 0)));
-  return Math.max(1, tail || 1);
+  throw new Error("shared_utils unavailable: backwardStepByCurrent");
 }
 
 function parseHhmm(text) {
@@ -1058,7 +925,7 @@ function buildGenericElementTokenFromState(field, state, marker, format, cycleVa
 }
 
 function detectDateUnit(format) {
-  return getStatusRuntimeCommon().detectDateUnit(format, normalizeFormatMask, hasFormatTokens, getSharedUtils());
+  return getStatusRuntimeCommon().detectDateUnit(format, getSharedUtils());
 }
 
 function getDateProgressForStep(state, fieldId, format) {

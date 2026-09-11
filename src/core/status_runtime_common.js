@@ -280,10 +280,7 @@ function createStatusRuntimeCommon(deps) {
   function getSearchLimitByUnit(unit, sharedUtils) {
     const su = sharedUtils && typeof sharedUtils === "object" ? sharedUtils : null;
     if (su && typeof su.getSearchLimitByUnit === "function") return su.getSearchLimitByUnit(unit);
-    if (unit === "second") return 172800;
-    if (unit === "minute") return 10080;
-    if (unit === "hour") return 720;
-    return 3660;
+    throw new Error("shared_utils unavailable: getSearchLimitByUnit");
   }
 
   function addByUnitUtc(base, unit, delta) {
@@ -530,23 +527,16 @@ function createStatusRuntimeCommon(deps) {
     return `#/${src}`;
   }
 
-  function detectDateUnit(format, normalizeFormatMaskFn, hasFormatTokensFn, sharedUtils) {
+  /*
+   * Двух функций-помощников в подписи больше нет: они кормили свою копию
+   * правила, а копия снята 2026-09-11 (В-103). Единица времени по формату
+   * объявлена один раз — в `shared_utils.js`, и нормализацию маски делает там
+   * же она сама.
+   */
+  function detectDateUnit(format, sharedUtils) {
     const su = sharedUtils && typeof sharedUtils === "object" ? sharedUtils : null;
     if (su && typeof su.detectDateUnit === "function") return su.detectDateUnit(format);
-    const normalizeMask = typeof normalizeFormatMaskFn === "function"
-      ? normalizeFormatMaskFn
-      : (x) => String(x == null ? "" : x).trim();
-    const hasTokens = typeof hasFormatTokensFn === "function"
-      ? hasFormatTokensFn
-      : ((x) => /YYYY|MM|DD|HH|mm|ss/.test(String(x || "")));
-    const f = normalizeMask(String(format ?? ""));
-    if (!hasTokens(f)) return "tokenless";
-    if (/ss/.test(f)) return "second";
-    if (/mm/.test(f)) return "minute";
-    if (/HH/.test(f)) return "hour";
-    if (/YYYY/.test(f) && !/(MM|DD)/.test(f)) return "year";
-    if (/MM/.test(f) && !/DD/.test(f)) return "month";
-    return "day";
+    throw new Error("shared_utils unavailable: detectDateUnit");
   }
 
   function getDateProgressForStep(state, fieldId) {
