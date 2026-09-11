@@ -8,28 +8,20 @@
  * Живая копия того же правила лежит в `src/features/plugin_commands.js`.
  */
 
-function getSharedUtils() {
-  try {
-    const su = globalThis && globalThis.__inlineOverhaulSharedUtils;
-    if (!su || typeof su !== "object") return null;
-    if (typeof su.isObj !== "function") return null;
-    if (typeof su.nz !== "function") return null;
-    return su;
-  } catch (_) {
-    return null;
-  }
-}
+/*
+ * Общие помощники — литеральным `require`, а не со шва, который ставит точка
+ * входа. За отказом шва здесь стояли живые копии `isObj` и `nz`: у человека
+ * работал общий модуль, а всюду, где этот файл зовут напрямую, выполнялись
+ * копии (У-140). Сняты ревизией 2026-09-11, заход 3.
+ */
+const __sharedUtils = require("./src/core/shared_utils.js");
 
 function isObj(x) {
-  const su = getSharedUtils();
-  if (su) return su.isObj(x);
-  return x && typeof x === "object" && !Array.isArray(x);
+  return __sharedUtils.isObj(x);
 }
 
 function nz(v, d) {
-  const su = getSharedUtils();
-  if (su) return su.nz(v, d);
-  return v == null ? d : v;
+  return __sharedUtils.nz(v, d);
 }
 
 function hashShort(text) {

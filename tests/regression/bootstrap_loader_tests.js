@@ -1559,7 +1559,15 @@ async function run() {
   assertTrue(/writeCfgPath\(cfg, "visual\.tagBars", __priorityStripEngine\.normalizeStripConfig\(/.test(cfgSrc), "third stage normalizes Tag Bars through the shared strip engine");
   assertTrue(/offPrefix: placement\.bulletInStrict === true/.test(orderSrc), "order serializer exports offPrefix behavior flag from pkm.placement");
   assertTrue(/offPrefix/.test(pkmRulesHelpersSrc), "shared rules helper parses and resolves offPrefix behavior");
-  assertTrue(/offPrefix: false/.test(statusRuntimeCommonSrc), "status runtime common fallback includes offPrefix default OFF");
+  /*
+   * Здесь стоял пин на `offPrefix: false` в `status_runtime_common.js` —
+   * то есть на СВОЙ объект умолчаний свободного хода, который стоял за
+   * отказом шва. Объект снят ревизией 2026-09-11: он был вторым
+   * объявлением правила и настройки человека не читал вовсе. Умолчания
+   * живут в `pkm_rules_runtime_helpers.js`, и пин на них — строкой выше.
+   */
+  assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: resolveFreeRoamBehavior"\);/.test(statusRuntimeCommonSrc),
+    "status runtime common refuses loudly when the shared rules helper is missing");
   assertTrue(/function resolveOffPrefixFlagsUnified\(/.test(pkmLineFinalizeUnifiedSrc), "line finalizer exports unified off-prefix resolver");
   assertTrue(/lineFinalize\.resolveOffPrefixFlagsUnified\(\{/.test(statusTagsSrc), "status_tags delegates off-prefix resolution to shared line finalizer");
   assertTrue(/throw new Error\("line_pipeline unavailable: removeCombinedByParentTokens"\);/.test(statusTagsSrc), "status_tags combined-subtag cleanup requires shared line-pipeline helper");
@@ -1814,7 +1822,16 @@ async function run() {
       })(path.join(repoRoot, dir));
     }
 
-    const DELEGATION = /^(\s*)if \([A-Za-z_$]+ && typeof [A-Za-z_$]+\.[A-Za-z0-9_$]+ === ["']function["']\) return /;
+    /*
+     * **Форм у этого устройства две, и первая версия запрета видела одну.**
+     * Полная — `if (su && typeof su.X === 'function') return su.X(…)`; короткая
+     * — `if (su) return su.X(…)`, и за ней 2026-09-11 нашлись живые копии
+     * `isObj` и `nz` в `navigation_runtime.js` и `pkm_runtime_v2.js` и копия
+     * `escapeRe` в `tagwheel_core.js`, расходившаяся с модулем на входах `0`,
+     * `false` и `NaN`. Мера, написанная по одной форме, слепа ко всем
+     * остальным (У-137) — теперь их две, и обе с контролем.
+     */
+    const DELEGATION = /^(\s*)if \(([A-Za-z_$][\w$]*)(?: && typeof \2\.[\w$]+ === ["']function["'])?\) return \2\.[\w$]+\(/;
     /*
      * Одно исключение, и оно названо вслух: делегирующий `if` **внутри `try`**
      * — это загрузка модуля, а не копия правила. Такой путь один
@@ -1878,6 +1895,28 @@ async function run() {
       "  return null",
       "}",
     ].join("\n");
+    /*
+     * Короткая форма — своя строка контроля: без неё расширение запрета
+     * осталось бы непроверенным, а непроверенный запрет ничем не отличается от
+     * его отсутствия.
+     */
+    const sampleShortBad = [
+      "function withShortCopy(x) {",
+      "  const su = getSharedUtils();",
+      "  if (su) return su.withShortCopy(x);",
+      "  return x && typeof x === 'object';",
+      "}",
+    ].join("\n");
+    const sampleNotDelegation = [
+      "function pickTail(parsedLine, tail) {",
+      "  if (tail) return parsedLine.indent + tail;",
+      "  return parsedLine.indent;",
+      "}",
+    ].join("\n");
+    assertEq(findCopies(sampleShortBad).length, 1,
+      "положительный контроль: обход видит копию и за короткой формой делегирования");
+    assertEq(findCopies(sampleNotDelegation).length, 0,
+      "положительный контроль: обычный ранний возврат делегированием не считается");
     assertEq(findCopies(sampleBad).length, 1, "положительный контроль: обход видит копию за делегирующим if");
     assertEq(findCopies(sampleGood).length, 0, "положительный контроль: громкий отказ копией не считается");
     assertEq(findCopies(sampleInTry).length, 0, "положительный контроль: загрузка модуля через try копией не считается");

@@ -2750,10 +2750,17 @@ function sanitizeState(rules, state) {
   }
 }
 
+/*
+ * Экранирование объявлено в общем модуле. Копия, стоявшая здесь, писала
+ * `String(s || '')` вместо `String(nz(s, ''))` — и на входах `0`, `false` и
+ * `NaN` отвечала пустой строкой там, где общий модуль отвечает `"0"`,
+ * `"false"` и `"NaN"`. Ветка была недостижима, модуль приезжает литеральным
+ * `require`; расхождение измерено ревизией 2026-09-11 и показывает цену копий.
+ */
 function escapeRe(s) {
   var su = getSharedUtils()
-  if (su) return su.escapeRe(s)
-  return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  if (su && typeof su.escapeRe === 'function') return su.escapeRe(s)
+  throw new Error('shared_utils unavailable: escapeRe')
 }
 
 function buildRightDates(rules, state) {

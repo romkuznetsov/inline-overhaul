@@ -137,20 +137,33 @@ function createStatusRuntimeCommon(deps) {
     return "yes";
   }
 
+  /*
+   * Отказ здесь громкий, как у соседей. Прежде стояло `return "off"` — то есть
+   * при отсутствии общего модуля движок отвечал «свободного хода у этого Field
+   * нет», не глядя в настройки человека. Ответ выглядел как решение и решением
+   * не был: у того, кто поставил Field режим `full`, он молча становился `off`
+   * (ревизия 2026-09-11, заход 3).
+   */
   function getFieldFreeRoamMode(orderCfg, fieldKey) {
     const shared = globalThis.__inlinePkmRulesHelpers;
     if (shared && typeof shared.resolveFieldFreeRoamMode === "function") {
       return shared.resolveFieldFreeRoamMode(orderCfg, fieldKey);
     }
-    return "off";
+    throw new Error("pkm_rules_runtime_helpers unavailable: resolveFieldFreeRoamMode");
   }
 
+  /*
+   * И здесь тоже. Прежде за отказом стоял целый объект умолчаний — второе
+   * объявление того, что значит «свободный ход по умолчанию» (У-32). Совпадал
+   * он с настоящим ровно до первой правки правил и настройки человека не читал
+   * вовсе.
+   */
   function getFreeRoamBehavior(orderCfg) {
     const shared = globalThis.__inlinePkmRulesHelpers;
     if (shared && typeof shared.resolveFreeRoamBehavior === "function") {
       return shared.resolveFreeRoamBehavior(orderCfg);
     }
-    return { minimalSeparator: true, minimalPrefix: true, offPrefix: false, fullPlacement: "smart" };
+    throw new Error("pkm_rules_runtime_helpers unavailable: resolveFreeRoamBehavior");
   }
 
   function getFieldById(mode, id) {

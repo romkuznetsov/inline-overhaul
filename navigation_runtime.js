@@ -2,35 +2,22 @@
 
 /*
  * Общие помощники приезжают литеральным `require` — так же, как у всякого
- * другого модуля рантайма (У-89). Шов `__inlineOverhaulSharedUtils` ниже
- * остаётся: им пользуются `isObj` и `nz`, у которых есть своя запасная
- * ветка. У правила «где кончается слово» запасной ветки быть не должно —
- * она и была бы вторым объявлением (У-32), — поэтому оно берётся отсюда.
+ * другого модуля рантайма (У-89), и запасных веток у них нет ни одной.
+ *
+ * **До 2026-09-11 половина файла спрашивала их у шва**, который ставит точка
+ * входа, и за отказом шва стояли живые копии `isObj` и `nz` — при том, что
+ * модуль был подключён строкой ниже и просто не спрашивался. У человека
+ * работал общий модуль; всюду, где этот файл зовут напрямую — а так его зовут
+ * проверки, — выполнялись копии (У-140). Шов снят ревизией, заход 3.
  */
 const __sharedUtils = require("./src/core/shared_utils.js");
 
-function getSharedUtils() {
-  try {
-    const su = globalThis && globalThis.__inlineOverhaulSharedUtils;
-    if (!su || typeof su !== "object") return null;
-    if (typeof su.isObj !== "function") return null;
-    if (typeof su.nz !== "function") return null;
-    return su;
-  } catch (_) {
-    return null;
-  }
-}
-
 function isObj(x) {
-  const su = getSharedUtils();
-  if (su) return su.isObj(x);
-  return x && typeof x === "object" && !Array.isArray(x);
+  return __sharedUtils.isObj(x);
 }
 
 function nz(v, dflt) {
-  const su = getSharedUtils();
-  if (su) return su.nz(v, dflt);
-  return v === undefined || v === null ? dflt : v;
+  return __sharedUtils.nz(v, dflt);
 }
 
 function nInt(v, dflt, min) {
