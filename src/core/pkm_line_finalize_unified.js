@@ -1473,6 +1473,46 @@ function startsWithAnyDateMarker(token, rules) {
   return false;
 }
 
+/**
+ * В каком Block стоит поле, которому принадлежит этот токен.
+ *
+ * **Ответ уже записан в самих правилах.** `applyOrderToRules` проставляет
+ * каждому полю `panel` ровно по Order человека: поле остаётся в списке по
+ * типу — элемент лежит среди правых, — но **несёт на себе** свой Block.
+ * Прошлая правка этого места (снята 2026-09-12, PRD 10.13.70) считала, что
+ * правила про Block не знают, и протаскивала список левых меток от движков
+ * через два места. Это было второе объявление того же факта, и оно разъехалось
+ * в первый же день: доводка зовётся дважды, и второй вызов списка не получал.
+ *
+ * Метка выбирается **самая длинная** из подошедших: короткая не должна
+ * откусывать начало длинной — то же правило, что у разбора блока на токены.
+ *
+ * Поля без `panel` (правила, через которые Order не проходил) отвечают пустым,
+ * и это ответ, а не отказ: прежнее поведение остаётся за ними.
+ */
+function panelOfMarkerToken(token, rules) {
+  const t = String(token || "").trim();
+  if (!t) return "";
+  let bestMarker = "";
+  let bestPanel = "";
+  const sides = ["leftMode", "rightMode"];
+  let s;
+  for (s = 0; s < sides.length; s++) {
+    const node = rules && rules[sides[s]];
+    const fields = Array.isArray(node && node.fields) ? node.fields : [];
+    let i;
+    for (i = 0; i < fields.length; i++) {
+      const field = fields[i];
+      const marker = String((field && field.marker) || "").trim();
+      if (!marker || !t.startsWith(marker)) continue;
+      if (marker.length <= bestMarker.length) continue;
+      bestMarker = marker;
+      bestPanel = String((field && field.panel) || "").trim().toLowerCase();
+    }
+  }
+  return bestPanel;
+}
+
 function enforceRightPayloadSeparatorInvariant(options) {
   const opts = options && typeof options === "object" ? options : {};
   const rules = opts.rules;
@@ -1530,6 +1570,21 @@ function enforceRightPayloadSeparatorInvariant(options) {
     if (leftBody) {
       const extractedLeft = extractTrailingMarkerPayloadFromText(leftBody, rules);
       /*
+       * **Значение, которому по Order место слева, вправо не уезжает.**
+       * Замечание заказчика 2026-09-12: «due появляется в right block, хотя в
+       * fields order стоит в левом». Ветка эта работает только на строке, где
+       * нет ни текста, ни правых значений, — отсюда и границы дефекта: со
+       * своим текстом элемент оставался слева, а на пустой строке уезжал.
+       *
+       * **Тот же запрет уже стоял здесь и был снят в тот же день**, потому что
+       * перенос вправо входил в уборку старого значения: движок не находил его
+       * слева и вставлял новое, не убрав прежнее (PRD 10.13.70). Уборка
+       * починена — она ищет значение целиком и во всех трёх сегментах
+       * (10.13.72), — и запрет измерен заново: ряд из четырёх шагов остаётся
+       * чистым, а у кого элемент по Order справа, строка не меняется ни на
+       * знак.
+       */
+      /*
        * **Здесь был запрет уносить вправо метку, стоящую по Order слева, и он
        * снят 2026-09-12.** Правка отвечала на верное замечание — элемент,
        * уведённый в левый Block, уезжал вправо, — но цена оказалась дороже
@@ -1543,7 +1598,7 @@ function enforceRightPayloadSeparatorInvariant(options) {
        * его в правом сегменте, а Order увёл элемент влево. Пока это не
        * разобрано, поведение возвращено прежнее.
        */
-      if (extractedLeft.payload) {
+      if (extractedLeft.payload && panelOfMarkerToken(extractedLeft.payload, rules) !== "left") {
         dates = extractedLeft.payload;
         left = joinLeftPrefix(leftParts.prefix, extractedLeft.text || "");
       }
@@ -1853,6 +1908,7 @@ module.exports = {
   isSimplePlainRaw,
   normalizeStructuredSlots,
   applyFinalLineInvariants,
+  panelOfMarkerToken,
   reflowNoContentPanelLine,
   composeMinimalHeadingLine,
   applyMinimalSelectionNormalization,

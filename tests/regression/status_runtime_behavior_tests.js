@@ -1844,6 +1844,152 @@ async function testStatusDateKeepsWholeValueOfTwoWordFormat() {
     "формат из одного слова: дат в строке должно остаться одна: " + plainLast);
 }
 
+/**
+ * Элемент встаёт в тот Block, куда его поставил человек, — и на пустой строке
+ * тоже.
+ *
+ * **Куплено дважды.** Замечание заказчика 2026-09-12: «due появляется в right
+ * block, хотя в fields order стоит в левом». Уносила его доводка строки, в
+ * ветке «ни текста, ни правых значений» — отсюда и границы: со своим текстом
+ * элемент оставался слева, а на пустой строке уезжал.
+ *
+ * Первый запрет в этом месте пришлось **снять** в тот же день: перенос вправо
+ * входил в уборку старого значения, и строка начинала расти (PRD 10.13.70).
+ * Поэтому здесь два утверждения, а не одно: элемент слева **и** ряд подряд
+ * остаётся чистым. Без второго сторож охранял бы половину правила.
+ *
+ * **И парное утверждение обязательно:** у кого элемент по Order справа,
+ * поведение не меняется. Запрет, поставленный безусловно, ломает их строку, и
+ * увидеть это можно только так.
+ */
+async function testStatusDateKeepsElementInItsOrderBlock() {
+  const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+  const rulesShape = require(path.join(__dirname, "..", "..", "src", "core", "pkm_rules_shape.js"));
+
+  const settingsWithElementIn = (panel) => {
+    const cfg = normalize.migrateConfig(JSON.parse(
+      fs.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_realistic.json"), "utf8")));
+    /* Разделители разведены нарочно: на совпадающих Block не различить (У-147). */
+    cfg.pkm.lineFormat.separator1 = "||";
+    cfg.pkm.lineFormat.separator2 = "::";
+    const left = panel === "left" ? ["date_due", "Importance", "type"] : ["Importance", "type"];
+    const right = panel === "left" ? ["Project"] : ["date_due", "Project"];
+    return {
+      "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+      "Rules data": JSON.stringify(rulesShape.buildRulesForEngines(cfg)),
+      "Action type": "field_inc:date_due",
+      "Order config": JSON.stringify({
+        left,
+        right,
+        active: { date_due: "yes", Importance: "yes", type: "yes", Project: "yes" },
+        enabled: { date_due: true, Importance: true, type: true, Project: true },
+        labels: {}, strictNames: {}, types: { date_due: "element", Project: "wikilink" }, lead: {},
+      }),
+      "Date runtime config": JSON.stringify({
+        fields: ["date_due"],
+        byField: {
+          date_due: {
+            emoji: "\u{1F4C5}",
+            format: "YYYY-MM-DD hh:mm",
+            increment: { mode: "standard", incrementBy: 1, command: "now", customRaw: [], custom: [] },
+          },
+        },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    };
+  };
+
+  const stepsFrom = async (startLine, panel, times) => {
+    const editor = makeEditor(startLine, startLine.length);
+    const settings = settingsWithElementIn(panel);
+    const seen = [];
+    for (let i = 0; i < times; i++) {
+      await runPkmCommandWithEditor("statusDate", editor, settings);
+      seen.push(editor.snapshot().line);
+    }
+    return seen;
+  };
+
+  /* 1. Его случай: Block левый, строка пустая. */
+  const leftSeen = await stepsFrom("- ", "left", 1);
+  const leftLine = leftSeen[0];
+  assertTrue(/\d{4}-\d{2}-\d{2}/.test(leftLine),
+    "положительный контроль: движок не записал значение вовсе: " + leftLine);
+  const leftIdx = leftLine.indexOf("\u{1F4C5}");
+  const sepIdx = leftLine.indexOf("||");
+  assertTrue(leftIdx !== -1 && sepIdx !== -1 && leftIdx < sepIdx,
+    "элемент по Order слева, а встал не слева от разделителя: " + leftLine);
+
+  /*
+   * 2. И ряд подряд остаётся чистым. Без этого утверждения сторож охранял бы
+   * половину правила: первый запрет в этом месте как раз и ломал уборку.
+   */
+  const rowSeen = await stepsFrom("- ", "left", 4);
+  const rowLast = rowSeen[rowSeen.length - 1];
+  assertEq((rowLast.match(/\d{4}-\d{2}-\d{2}/g) || []).length, 1,
+    "элемент слева: после четырёх шагов значений в строке не одно:\n  " + rowSeen.join("\n  "));
+  assertTrue(rowSeen[3].length <= rowSeen[1].length + 2,
+    "элемент слева: строка растёт с каждым шагом:\n  " + rowSeen.join("\n  "));
+
+  /* 3. Парное: у кого элемент по Order справа — он справа и остаётся. */
+  const rightSeen = await stepsFrom("- ", "right", 1);
+  const rightLine = rightSeen[0];
+  const rightIdx = rightLine.indexOf("\u{1F4C5}");
+  const sep2Idx = rightLine.indexOf("::");
+  assertTrue(rightIdx !== -1 && sep2Idx !== -1 && sep2Idx < rightIdx,
+    "элемент по Order справа, а встал не справа от второго разделителя: " + rightLine);
+
+  /*
+   * 4. И то же парное на случае, который **доходит до спорной ветки**.
+   *
+   * Утверждение 3 её не проверяет вовсе: когда значение пишет сам движок дат,
+   * оно уже лежит справа, и ветка «ни текста, ни правых значений» не
+   * выполняется. Нашлось это мутацией: запрет, поставленный **безусловно**,
+   * утверждение 3 не ронял. Ветку доходит другой случай — строку правит
+   * соседняя команда, а метка уже лежит слева: тогда её и уносит вправо
+   * доводка, и делать это она обязана, раз Block у поля правый.
+   */
+  const strandedEditor = makeEditor("- \u{1F4C5}2026-09-11 21:32", 0);
+  await runPkmCommandWithEditor("statusTags", strandedEditor, {
+    ...settingsWithElementIn("right"),
+    "Action type": "cycle_field:type",
+    "Direction": "increase",
+  });
+  const strandedLine = strandedEditor.snapshot().line;
+  const strandedMarker = strandedLine.indexOf("\u{1F4C5}");
+  const strandedSep2 = strandedLine.indexOf("::");
+  assertTrue(strandedMarker !== -1,
+    "положительный контроль: значение пропало из строки вовсе: " + strandedLine);
+  assertTrue(strandedSep2 !== -1 && strandedSep2 < strandedMarker,
+    "метка, чей Block по Order правый, осталась слева: " + strandedLine);
+
+  /*
+   * 5. Метка выбирается **самая длинная** из подошедших.
+   *
+   * Спрошено у функции прямо, а не через строку, и вот почему: в конфиге
+   * заказчика двух меток, где одна — начало другой, нет вовсе, и подмена
+   * «брать первую попавшуюся» ни одну строку не меняла. То есть через
+   * поведение это правило проверить было **не на чем** (У-147), а правило
+   * настоящее: короткая метка не должна откусывать начало длинной — тем же
+   * правилом живёт разбор блока на токены.
+   */
+  const finalizeMod = require(path.join(__dirname, "..", "..", "src", "core", "pkm_line_finalize_unified.js"));
+  /* Короткая метка стоит ПЕРВОЙ в обходе: иначе порядок списков спасал бы
+     неверное правило сам, и подмена ничего бы не показала. */
+  const twoMarkerRules = {
+    io: { separator1: "||", separator2: "::" },
+    leftMode: { fields: [{ id: "short", marker: "\u{1F4C5}", panel: "left" }] },
+    rightMode: { fields: [{ id: "long", marker: "\u{1F4C5}\u{1F4CC}", panel: "right" }] },
+  };
+  assertEq(finalizeMod.panelOfMarkerToken("\u{1F4C5}\u{1F4CC}42", twoMarkerRules), "right",
+    "длинная метка проиграла короткой: Block взят не у того поля");
+  assertEq(finalizeMod.panelOfMarkerToken("\u{1F4C5}2026-09-11", twoMarkerRules), "left",
+    "короткая метка взяла Block длинной");
+  assertEq(finalizeMod.panelOfMarkerToken("#todo", twoMarkerRules), "",
+    "токен без метки обязан отвечать пустым, а не Block-ом наугад");
+}
+
 async function run() {
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();
   await testStatusTagsRunCommandPathCyclesType();
@@ -1912,6 +2058,7 @@ async function run() {
   await testStatusTagsKeepsBracketedTextThatIsNotCheckbox();
   await testStatusDateRepeatedStepKeepsOneValue();
   await testStatusDateKeepsWholeValueOfTwoWordFormat();
+  await testStatusDateKeepsElementInItsOrderBlock();
   await testFailedNoticeReachesTheConsole();
   assertTrue(typeof runtime.runCommand === "function", "runtime exports runCommand");
   console.log("Status runtime behavior tests: OK");
