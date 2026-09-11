@@ -474,6 +474,25 @@ async function jump(text, line, direction, over) {
       "внутри своего текста перенос работает и при выключенном тумблере");
     ok("выключенный Continue past a Separator держит текст между разделителями");
 
+    /*
+     * **Та же граница у строки без зоны тегов** (замечание заказчика
+     * 2026-09-11). Первого разделителя в строке нет, и прежде границ не
+     * возникало вовсе: фраза уезжала за второй, в хвост с датой. Образец
+     * разводит разделители нарочно — на одинаковых случая не бывает (У-147).
+     */
+    const SPLIT = { separator1: "||", separator2: "::" };
+    const NOSEP1 = "- [ ] купить хлеб :: 📅2026-09-04";
+    assertEq(NOSEP1.indexOf("||"), -1, "контроль: первого разделителя в строке нет");
+    assertEq(
+      moveTextIn(NOSEP1, "хлеб", "right", 1, { inlineBoundaryJump: false }, SPLIT),
+      NOSEP1,
+      "текст не уезжает за второй Separator и там, где первого в строке нет");
+    assertEq(
+      moveTextIn(NOSEP1, "хлеб", "left", 1, { inlineBoundaryJump: false }, SPLIT),
+      "- [ ] хлеб купить :: 📅2026-09-04",
+      "а внутри своей зоны перенос работает как обычно");
+    ok("строка без зоны тегов: перенос текста тоже держится второго Separator");
+
     /* Включён: поведение прежнее — текст перепрыгивает разделитель. */
     assertEq(
       moveTextIn(LINE, "купить", "left", 1, { inlineBoundaryJump: true }, SEP),
@@ -543,6 +562,84 @@ async function jump(text, line, direction, over) {
     assertEq(ed2.at().ch, LINE2.indexOf(" :: 📅"),
       "при разных разделителях второй ищется вторым");
     ok("второй Separator ищется вторым Separator, а не первым");
+
+    /*
+     * **Первого разделителя в строке нет, а второй есть** — замечание
+     * заказчика 2026-09-11. У него `||` и `::`, и строка без зоны тегов
+     * первого разделителя не содержит вовсе: прежде ветка искала только его и
+     * уводила курсор в конец строки, за хвост с датой.
+     *
+     * Положительный контроль стоит первым: на одинаковых разделителях этого
+     * случая не бывает — `first` находит тот же знак, — и проверка была бы
+     * зелёной от отсутствия предмета (У-147).
+     */
+    const LINE4 = "- [ ] 1244 :: 📅2026-09-04";
+    const NOTE4 = ["## Раздел один", LINE4, "", "## Раздел два", "хвост"].join("\n");
+    const endOf = async (lineFormat) => {
+      const ed = fakeEditor(NOTE4, { line: 4, ch: 0 });
+      nav.jumpToHeader(ed, "up", Object.assign({}, CFG, {
+        edgeMode: "end", jumpCursorPosition: "section-end",
+      }), lineFormat);
+      await settle();
+      return ed.at().ch;
+    };
+    assertEq(LINE4.indexOf("||"), -1,
+      "контроль: первого разделителя в строке нет — иначе правленая ветка не выполняется (У-56)");
+    assertEq(await endOf({ separator1: "||", separator2: "::" }), "- [ ] 1244".length,
+      "строка без первого разделителя: курсор встаёт перед вторым, а не в конец строки");
+    assertEq(await endOf({ separator1: "::", separator2: "::" }), "- [ ] 1244".length,
+      "на одинаковых разделителях ответ тот же, но приходит он другой веткой");
+    ok("строка без зоны тегов: конец текста — второй Separator");
+
+    /*
+     * Шаг курсора внутри строки на тех же разделителях. До 2026-09-11 правила
+     * навигации несли **один** разделитель, зона текста угадывалась по метке
+     * даты, и при выключенном переходе через разделители курсор уходил в
+     * хвост: «при `Move cursor right in line` курсор прыгает в конец строки».
+     */
+    {
+      const LINE5 = "- [ ] #todo || text123 :: 📅2026-09-04 10:21";
+      /*
+       * **Правила строит функция плагина, а не эта проверка** (У-4). Первая
+       * версия писала их литералом, и мутация «второй разделитель не доезжает
+       * до правил» её не роняла: проверка держала свой ответ вместо ответа
+       * продукта. Конфиг — из фикстуры через настоящую миграцию (правило 2).
+       */
+      const fsMod = require("fs");
+      const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+      const cfg5 = normalize.migrateConfig(JSON.parse(
+        fsMod.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_realistic.json"), "utf8")));
+      cfg5.pkm.lineFormat.separator1 = "||";
+      cfg5.pkm.lineFormat.separator2 = "::";
+      const rules = nav.buildNavigateRules(cfg5);
+      assertEq(rules.delim, "||", "первый разделитель доехал до правил навигации");
+      assertEq(rules.delim2, "::", "и второй доехал тоже");
+      const walk = async (navRules) => {
+        const ed = fakeEditor(LINE5, { line: 0, ch: 0 });
+        const seen = [];
+        for (let i = 0; i < 5; i++) {
+          nav.navigateInline(ed, "right", navRules, { stepMode: "word", boundaryJump: false, onBoundary: "stay" });
+          await settle();
+          const at = ed.at().ch;
+          if (seen.length && at === seen[seen.length - 1]) break;
+          seen.push(at);
+        }
+        return seen;
+      };
+      /* Граница зоны — начало второго разделителя; зазор перед ним в зону
+         входит, и это прежнее поведение, а не предмет правки. */
+      const END_OF_TEXT = LINE5.indexOf("::");
+      const withBoth = await walk(rules);
+      assertEq(withBoth[withBoth.length - 1], END_OF_TEXT,
+        "с двумя разделителями шаг вправо кончается на конце текста");
+      /* Контроль: без второго разделителя предмета нет — курсор уходит дальше. */
+      const onlyFirst = await walk(Object.assign({}, rules, { delim2: "" }));
+      if (!(onlyFirst[onlyFirst.length - 1] > END_OF_TEXT)) {
+        throw new Error("контроль: без второго разделителя курсор обязан уходить за конец текста, а он встал на "
+          + onlyFirst[onlyFirst.length - 1]);
+      }
+      ok("шаг курсора внутри строки кончается на втором Separator, а не в хвосте с датой");
+    }
 
     /* Разделителей в строке нет — конец строки, как и было. */
     const NOTE3 = ["## Раздел один", "просто строка", "", "## Раздел два", "хвост"].join("\n");

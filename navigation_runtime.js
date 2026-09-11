@@ -590,6 +590,14 @@ function moveTextBounds(editor, line, rules) {
     loRel = first + sep1.length;
     const second = s.indexOf(sep2, first + sep1.length);
     if (second !== -1) hiRel = second;
+  } else if (sep2 !== sep1) {
+    /*
+     * Та же строка без зоны тегов, что и у курсора на прибытии: первого
+     * разделителя нет, второй есть — значит текст кончается на нём, и
+     * переносить фразу дальше нельзя (2026-09-11).
+     */
+    const only = s.indexOf(sep2);
+    if (only !== -1) hiRel = only;
   }
   /*
    * Зазор у разделителя в зону не входит. Иначе посимвольный шаг менял текст
@@ -1105,7 +1113,27 @@ function lineEndPos(ed, line, cfg) {
      оба `::` и разницы не видно, но в панели это две разные настройки. */
   const sep2 = typeof (cfg && cfg.separator2) === "string" && cfg.separator2 ? cfg.separator2 : sep;
   const first = s.indexOf(sep);
-  if (first === -1) return { line: line, ch: len(ed, line) };
+  if (first === -1) {
+    /*
+     * **Первого разделителя в строке нет, а второй есть** — замечание
+     * заказчика 2026-09-11: «переход прыгает в конец строки, а не встаёт до
+     * сепаратора». Зоны тегов в такой строке просто нет, и её текст кончается
+     * вторым разделителем ровно так же, как в полной строке. Прежде эта ветка
+     * не искала второй вовсе и уводила курсор за край текста, в хвост с
+     * датой. У кого оба разделителя одинаковы, случая не бывает: `first`
+     * находит тот же знак.
+     */
+    if (sep2 !== sep) {
+      const only = s.indexOf(sep2);
+      if (only !== -1) {
+        const beforeOnly = s.slice(0, only).replace(/[ \t]+$/, "");
+        if (hasTextPartBeforeFirstSeparator(beforeOnly)) {
+          return { line: line, ch: beforeOnly.length };
+        }
+      }
+    }
+    return { line: line, ch: len(ed, line) };
+  }
   const second = s.indexOf(sep2, first + sep.length);
   if (second === -1) {
     const beforeFirst = s.slice(0, first).replace(/[ \t]+$/, "");
@@ -1237,8 +1265,20 @@ function buildNavigateRules(cfg) {
    * новый ход значило бы написать код, чей единственный потребитель — чтение
    * его же (У-95).
    */
+  const sep1 = typeof io.separator1 === "string" && io.separator1 ? io.separator1 : "||";
+  /*
+   * **Второй разделитель доезжает сюда с 2026-09-11, и до этого дня не доезжал
+   * ни одного** (замечание заказчика: «при `Move cursor right in line` курсор
+   * прыгает в конец строки»). Правила навигации несли ровно один разделитель,
+   * и зона текста угадывалась эвристикой по метке даты. У кого оба
+   * разделителя одинаковы — угадывалось верно; у кого `||` и `::` — курсор
+   * уходил за второй разделитель, в хвост с датой. Признак ровно тот, что в
+   * У-56: значение до функции не доезжает, а пин на неё зелёный.
+   */
+  const sep2 = typeof io.separator2 === "string" && io.separator2 ? io.separator2 : sep1;
   return {
-    delim: typeof io.separator1 === "string" && io.separator1 ? io.separator1 : "||",
+    delim: sep1,
+    delim2: sep2,
     trailingMarkers: Array.from(new Set(markers)),
     dateRegexSrc: "\\d{4}-\\d{2}-\\d{2}",
   };
@@ -1247,6 +1287,8 @@ function buildNavigateRules(cfg) {
 function navigateInline(editor, direction, navRules, rawCfg) {
   const cfg = pickNavigateInlineCfg(rawCfg);
   const delim = navRules && typeof navRules.delim === "string" && navRules.delim ? navRules.delim : "||";
+  /* Второй разделитель: не задан — считаем, что он равен первому (прежний ход). */
+  const delim2 = navRules && typeof navRules.delim2 === "string" && navRules.delim2 ? navRules.delim2 : delim;
   const trailingMarkers = navRules && Array.isArray(navRules.trailingMarkers) ? navRules.trailingMarkers : [];
   const dateReSrc = navRules && typeof navRules.dateRegexSrc === "string" && navRules.dateRegexSrc
     ? navRules.dateRegexSrc
@@ -1365,10 +1407,16 @@ function navigateInline(editor, direction, navRules, rawCfg) {
     else textStartRel = textStartNoDelimRel;
 
     const contentEndRel = computeContentEnd(s, textStartRel);
+    /*
+     * Конец зоны текста — **второй** разделитель. Когда он совпадает с первым,
+     * ищется следующее его вхождение, и это прежний ход; когда разведён —
+     * ищется он сам, и угадывать больше нечего.
+     */
     let innerDelimRel = -1;
-    if (delim) {
-      innerDelimRel = s.lastIndexOf(delim, Math.max(0, contentEndRel - 1));
-      if (innerDelimRel === delimIndex) innerDelimRel = -1;
+    const innerSep = delim2 || delim;
+    if (innerSep) {
+      innerDelimRel = s.lastIndexOf(innerSep, Math.max(0, contentEndRel - 1));
+      if (innerSep === delim && innerDelimRel === delimIndex) innerDelimRel = -1;
       if (innerDelimRel !== -1 && innerDelimRel < textStartRel) innerDelimRel = -1;
     }
 

@@ -10,7 +10,21 @@ function resolveSeparatorsOrThrow(rules) {
   return { sep1: sep1, sep2: sep2 };
 }
 
-function getRightMarkers(rules) {
+/** Поля одной стороны Order: левый Block или правый. */
+function sideFields(rules, side) {
+  const node = rules && rules[side === "left" ? "leftMode" : "rightMode"];
+  return Array.isArray(node && node.fields) ? node.fields : [];
+}
+
+/*
+ * Маркеры элементов **названной** стороны.
+ *
+ * Здесь стояло `getRightMarkers`, и сторона была зашита. Она же потом
+ * подавалась в признак «слева токены, а не текст» — то есть левый сегмент
+ * проверялся правыми маркерами (замечание заказчика 2026-09-11: «тут не важны
+ * теги и дата, а field order — любой field type может быть где угодно»).
+ */
+function markersOfSide(rules, side) {
   const out = [];
   const seen = new Set();
   const behavior = rules && typeof rules.behavior === "object" && !Array.isArray(rules.behavior)
@@ -25,9 +39,7 @@ function getRightMarkers(rules) {
   const canonical = dateRuntimeCfg && typeof dateRuntimeCfg.canonical === "object" && !Array.isArray(dateRuntimeCfg.canonical)
     ? dateRuntimeCfg.canonical
     : {};
-  const fields = Array.isArray(rules && rules.rightMode && rules.rightMode.fields)
-    ? rules.rightMode.fields
-    : [];
+  const fields = sideFields(rules, side);
   function pushMarker(raw) {
     const mk = String(raw || "").trim();
     if (!mk || seen.has(mk)) return;
@@ -66,6 +78,72 @@ function getRightMarkers(rules) {
     pushMarker(mk);
   }
   return out;
+}
+
+function getRightMarkers(rules) {
+  return markersOfSide(rules, "right");
+}
+
+/**
+ * Что в этой настройке вообще является значением Field, а что — текстом.
+ *
+ * **Сторона Order здесь ни при чём, и это стоило одной неверной правки.**
+ * Заказчик сказал 2026-09-11: «тут не важны теги и дата, а field order — любой
+ * field type может быть где угодно», и первая моя правка прочла это как «у
+ * левого сегмента спрашивать левую сторону». Проверка поведения покраснела
+ * первым же прогоном: ссылку, которую инструмент **только что** перенёс в
+ * левый Block, левая сторона правил ещё не знает — Order сказал «слева», а
+ * список полей стороны остался прежним. Признак стороне не принадлежит:
+ * вопрос ровно один — значение это Field или текст человека.
+ *
+ * Спрашивается состав **всех** Fields:
+ *   - `markers` — метки элементов, **обеих** сторон. Прежде брались только
+ *     правые, и элемент, уведённый в левый Block, признаком не считался;
+ *   - `values` — записанные значения целиком, для Field без префикса.
+ *
+ * Решётку и двойную скобку форма не описывает: они значения Field при любой
+ * раскладке, и спрашиваются прямо в `hasFieldTokens`. Список значений
+ * **дополняет** признак, а не заменяет его: Field со свободным вводом даёт
+ * значение, которого в списке нет, и оно обязано остаться узнанным по виду.
+ */
+function fieldsShape(rules) {
+  const fields = sideFields(rules, "left").concat(sideFields(rules, "right"));
+  const values = new Set();
+  for (const f of fields) {
+    const prefix = String(f && f.prefix != null ? f.prefix : "").trim();
+    const list = Array.isArray(f && f.values) ? f.values : [];
+    for (const v of list) {
+      const raw = typeof v === "string" ? v : (v && typeof v.token === "string" ? v.token : "");
+      const token = String(raw || "").trim();
+      if (!token) continue;
+      values.add(prefix ? prefix + token : token);
+    }
+  }
+  const markers = markersOfSide(rules, "left").slice();
+  for (const mk of markersOfSide(rules, "right")) {
+    if (markers.indexOf(mk) === -1) markers.push(mk);
+  }
+  return { markers: markers, values: values };
+}
+
+/** Есть ли в теле хоть одно значение Field. */
+function hasFieldTokens(body, shape) {
+  const src = String(body || "").trim();
+  if (!src) return false;
+  /*
+   * Решётка и двойная скобка — значения Field при любой раскладке Order, и
+   * спрашивать у настройки, «принимает ли сторона теги», нельзя: Field,
+   * только что переставленный в другой Block, в её списке ещё не значится.
+   * Это поймала проверка поведения, а не чтение (block_placement_tests).
+   */
+  if (/(^|\s)#\S+/.test(src)) return true;
+  if (/(^|\s)\[\[[^\]]+\]\]/.test(src)) return true;
+  const tokens = src.split(/\s+/).filter(Boolean);
+  for (const t of tokens) {
+    if (startsWithAnyMarker(t, shape.markers)) return true;
+    if (shape.values.has(t)) return true;
+  }
+  return false;
 }
 
 function startsWithAnyMarker(token, markers) {
@@ -176,13 +254,8 @@ function isMarkerAnchoredDatePayloadTokens(tokens, markers) {
  * расходились. `parseLine` в `tagwheel_core.js` про текст отвечал верно, а
  * `splitSegments` — нет.
  */
-function looksLikeLeftTokens(body, markers) {
-  const src = String(body || "").trim();
-  if (!src) return false;
-  if (/(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(src)) return true;
-  return src.split(/\s+/).filter(Boolean).some(function(t) {
-    return startsWithAnyMarker(t, markers);
-  });
+function looksLikeLeftTokens(body, shape) {
+  return hasFieldTokens(body, shape);
 }
 
 /**
@@ -195,10 +268,10 @@ function looksLikeLeftTokens(body, markers) {
  * строка без списка получила бы список, которого в ней не было. Строки
  * плагина — пункты списка, и разбирается ровно тот случай, который сломан.
  */
-function demoteLeftBodyToText(leftRaw, markers) {
+function demoteLeftBodyToText(leftRaw, shape) {
   const parts = splitLeftPrefix(leftRaw);
   if (!parts.prefix || !parts.body) return null;
-  if (looksLikeLeftTokens(parts.body, markers)) return null;
+  if (looksLikeLeftTokens(parts.body, shape)) return null;
   return { left: parts.prefix, text: parts.body };
 }
 
@@ -210,11 +283,12 @@ function splitSegments(rawLine, rules) {
   const indent = (raw.match(/^(\s*)/) || ["", ""])[1];
   const s = raw.trim();
   const markers = getRightMarkers(rules);
+  const shape = fieldsShape(rules);
 
   if (sep1 === sep2) {
     const parts = s.split(sep1).map(function(x) { return String(x || "").trim(); });
     if (parts.length <= 1) {
-      const demoted = demoteLeftBodyToText(s, markers);
+      const demoted = demoteLeftBodyToText(s, shape);
       if (demoted) return { indent: indent, left: demoted.left, text: demoted.text, dates: "" };
       return { indent: indent, left: s, text: "", dates: "" };
     }
@@ -235,7 +309,7 @@ function splitSegments(rawLine, rules) {
       }
       /* Текста нет, а слева — не токены: значит слева и есть текст. */
       if (!textOnly) {
-        const demoted = demoteLeftBodyToText(parts[0] || "", markers);
+        const demoted = demoteLeftBodyToText(parts[0] || "", shape);
         if (demoted) return { indent: indent, left: demoted.left, text: demoted.text, dates: rightOnly };
       }
       return { indent: indent, left: parts[0] || "", text: textOnly, dates: rightOnly };
@@ -248,7 +322,37 @@ function splitSegments(rawLine, rules) {
     };
   }
 
+  /*
+   * **Первого разделителя в строке нет, а второй есть.**
+   *
+   * Прежде разбор в этом случае не искал второй вовсе: весь текст уезжал в
+   * левый сегмент вместе с разделителем, и сборка приклеивала дату **первым**
+   * разделителем — `- [ ] 1244 :: || 📅…` (замечание заказчика 2026-09-11).
+   * Зоны тегов в такой строке просто нет: слева знак списка, дальше текст.
+   *
+   * Развязка делается только у строк со знаком списка — по той же причине,
+   * что и в `demoteLeftBodyToText`: на пустом левом сегменте сборка
+   * подставляет `-`, то есть строка без списка получила бы список.
+   */
   const i1 = s.indexOf(sep1);
+  if (i1 === -1 && sep2 && sep2 !== sep1) {
+    const j = s.indexOf(sep2);
+    if (j !== -1) {
+      const head = String(s.slice(0, j) || "").trim();
+      const tail = String(s.slice(j + sep2.length) || "").trim();
+      /*
+       * Слева значения Field — значит это зона тегов, а текста в строке нет:
+       * первому разделителю взяться неоткуда, раз его в строке нет.
+       */
+      if (looksLikeLeftTokens(head, shape)) {
+        return { indent: indent, left: head, text: "", dates: tail };
+      }
+      const parts = splitLeftPrefix(head);
+      if (parts.prefix) {
+        return { indent: indent, left: parts.prefix, text: parts.body, dates: tail };
+      }
+    }
+  }
   let left = i1 === -1 ? s : s.slice(0, i1).trim();
   const after1 = i1 === -1 ? "" : s.slice(i1 + sep1.length).trim();
   const i2 = after1.indexOf(sep2);
@@ -271,7 +375,7 @@ function splitSegments(rawLine, rules) {
   /* Та же развязка, что и у совпадающих разделителей: текста нет, слева не
      токены — значит слева текст. */
   if (!text) {
-    const demoted = demoteLeftBodyToText(left, markers);
+    const demoted = demoteLeftBodyToText(left, shape);
     if (demoted) {
       left = demoted.left;
       text = demoted.text;
@@ -292,9 +396,12 @@ function buildFromSegments(seg, rules) {
   const markers = getRightMarkers(rules);
 
   if (!left) left = "-";
-  const leftTokens = left.split(/\s+/).filter(Boolean);
-  const hasLeftTech = /(^|\s)(#\S+|\[\[[^\]]+\]\])/.test(left)
-    || leftTokens.some(function(t) { return startsWithAnyMarker(t, markers); });
+  /*
+   * Признак объявлен один раз — `hasSideTokens`. До 2026-09-11 он стоял здесь
+   * второй копией, написанной по виду токена, и расходился с разбором молча
+   * (У-32). Спрашивается одно: есть ли слева хоть одно значение Field.
+   */
+  const hasLeftTech = hasFieldTokens(left, fieldsShape(rules));
   const hasListPrefix = /^(-|\*|\+)(\s|$)|^\d+\.(?:\s|$)/.test(left);
   if (hasLeftTech && !hasListPrefix) {
     left = ("- " + left).trim();
@@ -304,9 +411,18 @@ function buildFromSegments(seg, rules) {
     text = collapseDuplicateTextForRightPayload({ left: left, text: text, dates: dates }, markers);
   }
 
+  /*
+   * **Какой разделитель отделяет правый Block — решает наличие левого.**
+   *
+   * Зона тегов слева есть — строка полная: `теги sep1 текст sep2 правый`.
+   * Зоны тегов нет — первому разделителю в строке взяться неоткуда, и правый
+   * Block отделяется **вторым**: `текст sep2 правый`. До 2026-09-11 здесь в
+   * обоих случаях стоял `sep1`, и на разведённых разделителях это было видно
+   * глазом: `- [ ] 1244 || 📅…` вместо `- [ ] 1244 :: 📅…`.
+   */
   if (dates && text) {
     if (hasLeftTech) return indent + left + " " + sep1 + " " + text + " " + sep2 + " " + dates;
-    return indent + left + " " + text + " " + sep1 + " " + dates;
+    return indent + left + " " + text + " " + sep2 + " " + dates;
   }
   if (dates) {
     if (hasLeftTech) {
@@ -315,7 +431,8 @@ function buildFromSegments(seg, rules) {
     }
     if (/^[-*+]\s+\[[^\]]\]$/.test(left)) return indent + left + "  " + sep1 + " " + dates;
     if (left === "-") return indent + left + "  " + sep1 + " " + dates;
-    return indent + left + " " + sep1 + " " + dates;
+    /* Слева текст, а не теги: правый Block отделяется вторым разделителем. */
+    return indent + left + " " + sep2 + " " + dates;
   }
   if (text) {
     if (hasLeftTech) return indent + left + " " + sep1 + " " + text;

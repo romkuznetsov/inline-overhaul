@@ -2001,7 +2001,15 @@ async function run() {
    * поведении — `block_placement_tests.ts`; здесь закреплено, что развязка
    * делается только у строк с маркером списка, иначе сборка подставит `-`.
    */
-  assertTrue(/function demoteLeftBodyToText\(leftRaw, markers\) \{/.test(linePipelineSrc), "line pipeline tells a text-only left segment from a token one");
+  assertTrue(/function demoteLeftBodyToText\(leftRaw, shape\) \{/.test(linePipelineSrc), "line pipeline tells a text-only left segment from a token one");
+  /*
+   * Признак «значение Field или текст» объявлен **один раз** — 2026-09-11.
+   * Вторая копия стояла в `buildFromSegments` под именем `hasLeftTech`, была
+   * написана по виду токена и молча расходилась с разбором (У-32). Запрет
+   * стоит по форме прежней копии, а порог рядом — что живое объявление есть.
+   */
+  assertTrue(/function hasFieldTokens\(body, shape\) \{/.test(linePipelineSrc), "признак «значение Field или текст» объявлен одной функцией");
+  assertFalse(/const hasLeftTech = \/\(\^\|/.test(linePipelineSrc), "в сборке строки снова своя копия признака «слева токены» (У-32)");
   assertTrue(/if \(!parts\.prefix \|\| !parts\.body\) return null;/.test(linePipelineSrc), "line pipeline demotes the left body only for list lines");
   assertFalse(/category_sub|clients/.test(pkmRulesHelpersSrc.slice(pkmRulesHelpersSrc.indexOf("const runtimeExcludedIds = new Set();"), pkmRulesHelpersSrc.indexOf("for (const f of allFields)"))), "rules helpers dependency reconcile has no hardcoded domain field names");
   /*
