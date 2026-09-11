@@ -573,16 +573,16 @@ function buildBlockStyleCss(entry, visuals) {
 }
 
 function formatTagwheelDisplayToken(token, showPrefix) {
-  var src = String(token || "");
-  var t = src.trim();
+  let src = String(token || "");
+  let t = src.trim();
   if (!t) return src;
-  var m = t.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/);
+  let m = t.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/);
   if (m) return m[1];
   if (showPrefix) return src;
   if (/^#\//.test(t)) return t.replace(/^#\//, "");
   if (/^#\S+/.test(t)) return t.replace(/^#/, "");
   if (/^[^A-Za-zА-Яа-я0-9\[]+/.test(t)) {
-    var stripped = t.replace(/^[^A-Za-zА-Яа-я0-9\[]+/, "");
+    let stripped = t.replace(/^[^A-Za-zА-Яа-я0-9\[]+/, "");
     if (/^(\d{4}-\d{2}-\d{2}|\d{2}:\d{2}|\d)/.test(stripped)) return stripped;
   }
   return t;

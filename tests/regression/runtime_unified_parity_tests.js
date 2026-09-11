@@ -94,7 +94,7 @@ function run() {
     sourceHasPrefix: false,
     stripPrefixWhenSourceHasNoPrefix: true,
     stripPrefixKeepIndent: function(line, removeCheckbox) {
-      var src = String(line || "").replace(/^\s*[-*+]\s+/, "");
+      let src = String(line || "").replace(/^\s*[-*+]\s+/, "");
       return removeCheckbox ? src.replace(/^\[[^\]]\]\s+/, "") : src;
     },
     parseLine: function() { return { tags: [], text: "111", dates: "" }; },
@@ -111,7 +111,7 @@ function run() {
     sourceHasPrefix: false,
     stripPrefixWhenSourceHasNoPrefix: true,
     stripPrefixKeepIndent: function(line, removeCheckbox) {
-      var src = String(line || "").replace(/^\s*[-*+]\s+/, "");
+      let src = String(line || "").replace(/^\s*[-*+]\s+/, "");
       return removeCheckbox ? src.replace(/^\[[^\]]\]\s+/, "") : src;
     },
     parseLine: function() { return { tags: [], text: "1", dates: "" }; },
@@ -126,7 +126,7 @@ function run() {
     cycleEndBehavior: "clear-prefix",
     parsedLine: {},
     parseLine: function(line) {
-      var src = String(line || "").trim();
+      let src = String(line || "").trim();
       if (src === "- [b] 1") return { tags: [], text: "1", dates: "", bulletToken: "-", checkboxToken: "[b]" };
       if (src === "1") return { tags: [], text: "1", dates: "", bulletToken: "-", checkboxToken: "" };
       return { tags: [], text: src, dates: "" };

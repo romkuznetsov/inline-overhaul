@@ -14,32 +14,32 @@
  * переменными `--io-twscroller-*` — тот же канал, что у полос тегов
  * (У-68), и умолчание «взять у темы» живёт в самом правиле.
  */
-var SCROLLER_BOX_CLASS = "io-twscroller";
-var SCROLLER_SHOWN_CLASS = "io-twscroller--shown";
-var SCROLLER_LIST_CLASS = "io-twscroller__list";
-var SCROLLER_ROW_CLASS = "io-twscroller__row";
-var SCROLLER_PROBE_CLASS = "io-twscroller__probe";
+let SCROLLER_BOX_CLASS = "io-twscroller";
+let SCROLLER_SHOWN_CLASS = "io-twscroller--shown";
+let SCROLLER_LIST_CLASS = "io-twscroller__list";
+let SCROLLER_ROW_CLASS = "io-twscroller__row";
+let SCROLLER_PROBE_CLASS = "io-twscroller__probe";
 
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
 function normalizeDirection(raw) {
-  var d = String(raw || "").trim().toLowerCase();
+  let d = String(raw || "").trim().toLowerCase();
   if (d === "up" || d === "down" || d === "full") return d;
   return "full";
 }
 
 function normalizeSize(raw) {
-  var n = Math.trunc(Number(raw));
+  let n = Math.trunc(Number(raw));
   if (!isFinite(n)) return 3;
   return clamp(n, 1, 20);
 }
 
 function findActiveTokenRange(controlLine) {
-  var line = String(controlLine || "");
-  var re = /\*\*\[[\s\S]*?\]\*\*/g;
-  var m = re.exec(line);
+  let line = String(controlLine || "");
+  let re = /\*\*\[[\s\S]*?\]\*\*/g;
+  let m = re.exec(line);
   if (!m) return null;
   return {
     fromCh: Number(m.index || 0),
@@ -50,18 +50,18 @@ function findActiveTokenRange(controlLine) {
 function getAnchorRect(editor, lineNumber, controlLine) {
   try {
     if (!editor || typeof editor.posToOffset !== "function") return null;
-    var cm = editor.cm;
+    let cm = editor.cm;
     if (!cm || typeof cm.coordsAtPos !== "function") return null;
-    var activeTokenMatch = String(controlLine || "").match(/\*\*\[([^\]]+)\]\*\*/);
-    var activeToken = activeTokenMatch ? String(activeTokenMatch[1] || "").trim() : "";
-    var cmDom = cm && cm.dom ? cm.dom : null;
+    let activeTokenMatch = String(controlLine || "").match(/\*\*\[([^\]]+)\]\*\*/);
+    let activeToken = activeTokenMatch ? String(activeTokenMatch[1] || "").trim() : "";
+    let cmDom = cm && cm.dom ? cm.dom : null;
     if (cmDom && typeof cmDom.querySelectorAll === "function") {
-      var nodes = cmDom.querySelectorAll(".inline-overhaul-tw-active-anchor");
+      let nodes = cmDom.querySelectorAll(".inline-overhaul-tw-active-anchor");
       if (nodes && nodes.length) {
-        var targetY = null;
+        let targetY = null;
         try {
-          var lineFrom = editor.posToOffset({ line: lineNumber, ch: 0 });
-          var lineCoords = cm.coordsAtPos(lineFrom);
+          let lineFrom = editor.posToOffset({ line: lineNumber, ch: 0 });
+          let lineCoords = cm.coordsAtPos(lineFrom);
           if (lineCoords && isFinite(lineCoords.top)) targetY = Number(lineCoords.top);
         } catch (_) {
           /*
@@ -71,17 +71,17 @@ function getAnchorRect(editor, lineNumber, controlLine) {
            * якорь по порядку, а не по близости к строке.
            */
         }
-        var best = null;
-        var bestScore = Number.POSITIVE_INFINITY;
-        var i;
+        let best = null;
+        let bestScore = Number.POSITIVE_INFINITY;
+        let i;
         for (i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
+          let el = nodes[i];
           if (!el || typeof el.getBoundingClientRect !== "function") continue;
           if (activeToken && String(el.textContent || "").trim() !== activeToken) continue;
-          var rect = el.getBoundingClientRect();
+          let rect = el.getBoundingClientRect();
           if (!rect || !isFinite(rect.left) || !isFinite(rect.top)) continue;
-          var cy = (Number(rect.top) + Number(rect.bottom || rect.top)) / 2;
-          var score = targetY == null ? i : Math.abs(cy - targetY);
+          let cy = (Number(rect.top) + Number(rect.bottom || rect.top)) / 2;
+          let score = targetY == null ? i : Math.abs(cy - targetY);
           if (score < bestScore) {
             best = rect;
             bestScore = score;
@@ -98,17 +98,17 @@ function getAnchorRect(editor, lineNumber, controlLine) {
         }
       }
     }
-    var range = findActiveTokenRange(controlLine);
+    let range = findActiveTokenRange(controlLine);
     if (!range) return null;
-    var from = editor.posToOffset({ line: lineNumber, ch: range.fromCh });
-    var to = editor.posToOffset({ line: lineNumber, ch: Math.max(range.toCh, range.fromCh + 1) });
-    var a = cm.coordsAtPos(from);
-    var b = cm.coordsAtPos(to);
+    let from = editor.posToOffset({ line: lineNumber, ch: range.fromCh });
+    let to = editor.posToOffset({ line: lineNumber, ch: Math.max(range.toCh, range.fromCh + 1) });
+    let a = cm.coordsAtPos(from);
+    let b = cm.coordsAtPos(to);
     if (!a || !b) return null;
-    var left = Math.min(a.left, b.left);
-    var right = Math.max(a.right || a.left, b.right || b.left);
-    var top = Math.min(a.top, b.top);
-    var bottom = Math.max(a.bottom || a.top, b.bottom || b.top);
+    let left = Math.min(a.left, b.left);
+    let right = Math.max(a.right || a.left, b.right || b.left);
+    let top = Math.min(a.top, b.top);
+    let bottom = Math.max(a.bottom || a.top, b.bottom || b.top);
     return {
       left: left,
       right: right,
@@ -127,19 +127,19 @@ function getAnchorRect(editor, lineNumber, controlLine) {
  * за тему (PRD 10.13.15 Н2, замечание заказчика D6 от 2026-09-02).
  */
 function pickColor(value) {
-  var s = String(value == null ? "" : value).trim().toLowerCase();
+  let s = String(value == null ? "" : value).trim().toLowerCase();
   return /^#[0-9a-f]{6}$/.test(s) ? s : "";
 }
 
 function createRoot(colors) {
-  var c = colors && typeof colors === "object" ? colors : {};
-  var root = document.createElement("div");
+  let c = colors && typeof colors === "object" ? colors : {};
+  let root = document.createElement("div");
   root.className = SCROLLER_BOX_CLASS;
   /* Свой фон, если он задан; иначе — фон поповера темы, как было.
      Умолчание живёт в правиле, а не здесь: так его может перебить тема. */
   if (c.fill) root.style.setProperty("--io-twscroller-fill", c.fill);
 
-  var list = document.createElement("div");
+  let list = document.createElement("div");
   list.className = SCROLLER_LIST_CLASS;
   root.appendChild(list);
   document.body.appendChild(root);
@@ -154,17 +154,17 @@ function setBoxShown(target, shown) {
 }
 
 function createTagWheelScrollerOverlay(options) {
-  var cfg = options && typeof options === "object" ? options : {};
-  var direction = normalizeDirection(cfg.direction);
-  var size = normalizeSize(cfg.size);
+  let cfg = options && typeof options === "object" ? options : {};
+  let direction = normalizeDirection(cfg.direction);
+  let size = normalizeSize(cfg.size);
 
   /* Цвета приходят настройками; пустые означают «как в теме» (10.13.15). */
-  var colors = {
+  let colors = {
     fill: pickColor(cfg.fillColor),
     text: pickColor(cfg.textColor),
   };
-  var boxPrimary = createRoot(colors);
-  var boxSecondary = createRoot(colors);
+  let boxPrimary = createRoot(colors);
+  let boxSecondary = createRoot(colors);
 
   function hide() {
     setBoxShown(boxPrimary, false);
@@ -179,11 +179,11 @@ function createTagWheelScrollerOverlay(options) {
      * начертание объявлено **одним правилом на два селектора** — коробку и
      * мерку, — и разошесться им не на чем (У-32).
      */
-    var probe = document.createElement("span");
+    let probe = document.createElement("span");
     probe.className = SCROLLER_PROBE_CLASS;
     document.body.appendChild(probe);
-    var maxW = 0;
-    var i;
+    let maxW = 0;
+    let i;
     for (i = 0; i < rows.length; i++) {
       probe.textContent = String(rows[i] || "");
       maxW = Math.max(maxW, Math.ceil(probe.getBoundingClientRect().width));
@@ -216,10 +216,10 @@ function createTagWheelScrollerOverlay(options) {
      * браузера не бывает — но и требовать от неё чужих методов незачем (У-45).
      */
     while (target.list.firstChild) target.list.removeChild(target.list.firstChild);
-    var colors = target.colors || {};
-    var i;
+    let colors = target.colors || {};
+    let i;
     for (i = 0; i < rows.length; i++) {
-      var item = document.createElement("div");
+      let item = document.createElement("div");
       item.className = SCROLLER_ROW_CLASS;
       item.textContent = String(rows[i] || "-");
       if (colors.text) item.style.setProperty("--io-twscroller-text", colors.text);
@@ -228,23 +228,23 @@ function createTagWheelScrollerOverlay(options) {
   }
 
   function applyWidth(target, anchorWidth, rows) {
-    var longestW = measureLongest(rows);
-    var minW = Math.max(anchorWidth, longestW + 18);
-    var vw = window.innerWidth || 1;
-    var finalW = clamp(minW, 40, Math.max(40, vw - 8));
+    let longestW = measureLongest(rows);
+    let minW = Math.max(anchorWidth, longestW + 18);
+    let vw = window.innerWidth || 1;
+    let finalW = clamp(minW, 40, Math.max(40, vw - 8));
     target.root.style.minWidth = String(Math.round(finalW)) + "px";
     target.root.style.width = String(Math.round(finalW)) + "px";
   }
 
   function placeBox(target, anchor, mode) {
-    var gap = 4;
-    var vw = window.innerWidth || 1;
-    var vh = window.innerHeight || 1;
-    var rect = target.root.getBoundingClientRect();
-    var w = Math.ceil(rect.width);
-    var h = Math.ceil(rect.height);
-    var left = clamp(anchor.left, 4, Math.max(4, vw - w - 4));
-    var top = mode === "up"
+    let gap = 4;
+    let vw = window.innerWidth || 1;
+    let vh = window.innerHeight || 1;
+    let rect = target.root.getBoundingClientRect();
+    let w = Math.ceil(rect.width);
+    let h = Math.ceil(rect.height);
+    let left = clamp(anchor.left, 4, Math.max(4, vw - w - 4));
+    let top = mode === "up"
       ? (anchor.top - h - gap)
       : (anchor.bottom + gap);
     top = clamp(top, 4, Math.max(4, vh - h - 4));
@@ -254,24 +254,24 @@ function createTagWheelScrollerOverlay(options) {
   }
 
   function update(payload) {
-    var p = payload && typeof payload === "object" ? payload : {};
-    var editor = p.editor;
-    var lineNumber = Number(p.lineNumber);
-    var controlLine = String(p.controlLine || "");
+    let p = payload && typeof payload === "object" ? payload : {};
+    let editor = p.editor;
+    let lineNumber = Number(p.lineNumber);
+    let controlLine = String(p.controlLine || "");
     if (!editor || !isFinite(lineNumber)) {
       hide();
       return;
     }
-    var anchor = getAnchorRect(editor, lineNumber, controlLine);
+    let anchor = getAnchorRect(editor, lineNumber, controlLine);
     if (!anchor) {
       hide();
       return;
     }
 
-    var upRows = Array.isArray(p.upItems)
+    let upRows = Array.isArray(p.upItems)
       ? p.upItems.slice(0, size).map(function(x) { return String(x && x.label || "-"); })
       : [];
-    var downRows = Array.isArray(p.downItems)
+    let downRows = Array.isArray(p.downItems)
       ? p.downItems.slice(0, size).map(function(x) { return String(x && x.label || "-"); })
       : [];
 
@@ -279,7 +279,7 @@ function createTagWheelScrollerOverlay(options) {
 
     if (direction === "up") {
       if (!upRows.length) return;
-      var upDisplayRows = upRows.slice().reverse();
+      let upDisplayRows = upRows.slice().reverse();
       renderRows(boxPrimary, upDisplayRows);
       applyWidth(boxPrimary, anchor.width, upDisplayRows);
       setBoxShown(boxPrimary, true);
@@ -298,7 +298,7 @@ function createTagWheelScrollerOverlay(options) {
 
     if (!upRows.length && !downRows.length) return;
     if (upRows.length) {
-      var upDisplayRowsFull = upRows.slice().reverse();
+      let upDisplayRowsFull = upRows.slice().reverse();
       renderRows(boxPrimary, upDisplayRowsFull);
       applyWidth(boxPrimary, anchor.width, upDisplayRowsFull);
       setBoxShown(boxPrimary, true);
