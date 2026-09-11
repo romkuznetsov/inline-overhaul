@@ -1472,6 +1472,8 @@ module.exports = {
       mixedPolicy,
       preserveOff: freeRoamMode === "off",
       preserveMinimalHeading: freeRoamMode === "minimal",
+      /* Метки, чьи Field по Order стоят слева, доводка вправо не уносит. */
+      leftMarkers: statusCommon.leftMarkersFromOrder(rules, orderCfg),
     });
     finalParsed = core.parseLine(finalLine, rules);
     finalLine = lineFinalize.normalizeSingleSeparatorLayout(finalLine, rules);
@@ -1492,6 +1494,8 @@ module.exports = {
       rawLine,
       finalLine,
       rules,
+      /* Метки, чьи Field по Order стоят слева, доводка вправо не уносит. */
+      leftMarkers: statusCommon.leftMarkersFromOrder(rules, orderCfg),
       mode: freeRoamMode,
       cycleEndBehavior,
       parsedLine: parsedWork,

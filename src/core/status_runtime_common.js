@@ -106,6 +106,37 @@ function createStatusRuntimeCommon(deps) {
     return isObj(parsed) ? parsed : null;
   }
 
+  /**
+   * Метки элементов, чьи Field по Order стоят в **левом** Block.
+   *
+   * **Зачем.** Доводка строки решала «этот токен принадлежит правому Block» по
+   * тому, в каком списке правил объявлена метка, — а списки правил Order **не
+   * отражают**: `applyOrderToRules` правит порядок и имена, но поля между
+   * `leftMode` и `rightMode` не переносит. Отсюда замечание заказчика
+   * 2026-09-11: элемент, переставленный в левый Block, на пустой строке всё
+   * равно уезжал вправо. Измерено трассировкой: в момент доводки левых меток
+   * ноль, а все четыре лежат справа.
+   *
+   * Здесь Order спрашивается прямо, и ответ отдаётся доводке списком меток.
+   */
+  function leftMarkersFromOrder(rules, orderCfg) {
+    const out = [];
+    if (!isObj(rules)) return out;
+    const sides = [rules.leftMode, rules.rightMode];
+    for (const side of sides) {
+      const list = isObj(side) && Array.isArray(side.fields) ? side.fields : [];
+      for (const field of list) {
+        const marker = String(field && field.marker ? field.marker : "").trim();
+        if (!marker || out.indexOf(marker) !== -1) continue;
+        const key = String((field && (field.orderKey || field.id)) || "").trim();
+        if (!key) continue;
+        if (String(getPanelForField(orderCfg, key) || "").trim().toLowerCase() !== "left") continue;
+        out.push(marker);
+      }
+    }
+    return out;
+  }
+
   async function resolveDateRuntimeConfig(app_, settings) {
     const raw = String(settings && settings[dateRuntimeConfigKey] || "").trim();
     return dateRuntimeShared.parseDateRuntimeConfigJson(raw);
@@ -636,6 +667,7 @@ function createStatusRuntimeCommon(deps) {
     detectDateUnit,
     getDateProgressForStep,
     rulesFromSettings,
+    leftMarkersFromOrder,
   };
 }
 

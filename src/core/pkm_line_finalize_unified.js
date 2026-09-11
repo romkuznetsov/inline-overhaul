@@ -879,6 +879,7 @@ function applyUnifiedPostFinalize(options) {
     line,
     rules,
     mode,
+    leftMarkers: opts.leftMarkers,
   });
   return line;
 }
@@ -910,6 +911,7 @@ function applyCycleEndAndInvariants(options) {
     line: lineAfterCycle,
     rules,
     mode,
+    leftMarkers: opts.leftMarkers,
   });
   return {
     finalLine,
@@ -1473,9 +1475,23 @@ function startsWithAnyDateMarker(token, rules) {
   return false;
 }
 
+/** Начинается ли токен с одной из меток, стоящих по Order слева. */
+function startsWithLeftMarker(token, leftMarkers) {
+  const t = String(token || "").trim();
+  if (!t) return false;
+  const list = Array.isArray(leftMarkers) ? leftMarkers : [];
+  for (const mk of list) {
+    const marker = String(mk || "").trim();
+    if (!marker) continue;
+    if (t.startsWith(marker) && t.length > marker.length) return true;
+  }
+  return false;
+}
+
 function enforceRightPayloadSeparatorInvariant(options) {
   const opts = options && typeof options === "object" ? options : {};
   const rules = opts.rules;
+  const leftMarkers = Array.isArray(opts.leftMarkers) ? opts.leftMarkers : [];
   const rawLine = String(opts.rawLine || "");
   const line = String(opts.line || "");
   const sep = resolveSeparatorsOrThrow(rules);
@@ -1529,7 +1545,13 @@ function enforceRightPayloadSeparatorInvariant(options) {
     const leftBody = String(leftParts.body || "").trim();
     if (leftBody) {
       const extractedLeft = extractTrailingMarkerPayloadFromText(leftBody, rules);
-      if (extractedLeft.payload) {
+      /*
+       * **Метка, стоящая по Order слева, слева и остаётся** (замечание
+       * заказчика 2026-09-11). Прежде здесь уезжал вправо любой токен с
+       * меткой: списки правил Order не отражают, и «правым» считался каждый,
+       * чья метка объявлена в `rightMode`.
+       */
+      if (extractedLeft.payload && !startsWithLeftMarker(extractedLeft.payload, leftMarkers)) {
         dates = extractedLeft.payload;
         left = joinLeftPrefix(leftParts.prefix, extractedLeft.text || "");
       }
@@ -1571,7 +1593,7 @@ function applyFinalLineInvariants(options) {
   let out = String(opts.line || "");
   out = enforceSourcePrefixInvariant(rawLine, out);
   out = normalizeLeftTextSpill({ line: out, rules });
-  out = enforceRightPayloadSeparatorInvariant({ rawLine, line: out, rules });
+  out = enforceRightPayloadSeparatorInvariant({ rawLine, line: out, rules, leftMarkers: opts.leftMarkers });
   out = normalizeStructuredSlots({ rawLine, line: out, rules, mode });
   out = normalizeSeparatorTopology(out, rules);
   out = enforceSourcePrefixInvariant(rawLine, out);

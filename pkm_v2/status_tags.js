@@ -1795,6 +1795,8 @@ module.exports = {
       rawLine,
       finalLine,
       rules,
+      /* Метки, чьи Field по Order стоят слева, доводка вправо не уносит. */
+      leftMarkers: statusCommon.leftMarkersFromOrder(rules, orderCfg),
       mode: freeRoamMode,
       cycleEndBehavior,
       parsedLine: parsedWork,
@@ -1938,6 +1940,8 @@ module.exports = {
       mixedPolicy: mixedPostPolicy,
       preserveOff: offFlags.preserveOffImmutability || /^\s*#{1,6}\s+/.test(String(rawLine || "")),
       preserveMinimalHeading: freeRoamMode === "minimal",
+      /* Метки, чьи Field по Order стоят слева, доводка вправо не уносит. */
+      leftMarkers: statusCommon.leftMarkersFromOrder(rules, orderCfg),
     });
     if (String(cycleEndBehavior || "") === "clear-prefix") {
       const parsedAfterUnified = core.parseLine(finalLine, rules);
