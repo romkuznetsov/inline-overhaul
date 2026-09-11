@@ -33,7 +33,10 @@ const __generatedRules = require("./generated_rules.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __pluginCommands = require("./plugin_commands.js");
 const __sharedUtils = require("../core/shared_utils.js");
-const __say = require("../core/say.js").say;
+const __sayModule = require("../core/say.js");
+const __say = __sayModule.say;
+/* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
+const __noticeKey = __sayModule.noticeKey;
 
 const DEFAULT_CONFIG = __configNormalize.DEFAULT_CONFIG;
 const PKM_ORDER_FIELDS = __pkmOrderConfig.PKM_ORDER_FIELDS;
@@ -44,11 +47,6 @@ function cloneJson(x) { return __sharedUtils.cloneJson(x); }
 function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
 function isObj(x) { return __sharedUtils.isObj(x); }
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
-
-/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
-function __noticeKey(area, name) {
-  return "notice." + area + "." + name;
-}
 
 /* Хранилище настроек: единственный путь записи, и через него же идёт каждый
    патч из панели (CS10). */

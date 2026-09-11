@@ -13,12 +13,10 @@
  * бандле; не приехал — плагин обязан упасть громко, а не работать
  * наполовину и молчать.
  */
-const __say = require("../core/say.js").say;
-
-/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
-function __noticeKey(area, name) {
-  return "notice." + area + "." + name;
-}
+const __sayModule = require("../core/say.js");
+const __say = __sayModule.say;
+/* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
+const __noticeKey = __sayModule.noticeKey;
 
 /*
  * И два остальных модуля — так же, литеральным `require`.

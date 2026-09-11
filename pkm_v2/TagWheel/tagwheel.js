@@ -34,7 +34,8 @@ var __tagwheelScrollerOverlayMod = require('../../src/ui/tagwheel_scroller_overl
 var __tagwheelCoreMod = require('./tagwheel_core.js')
 var __pkmOptionKeysMod = require('../../src/core/pkm_option_keys.js')
 var __pkmDomainRegistryMod = require('../../src/core/pkm_domain_registry.js')
-var __say = require('../../src/core/say.js').say
+var __sayModule = require('../../src/core/say.js')
+var __say = __sayModule.say
 var __activeEditorMod = require('../../src/core/active_editor.js')
 /* Пакет даёт сам Obsidian: в сборке он объявлен внешним и в бандл не идёт. */
 var __cmState = require('@codemirror/state')
@@ -211,7 +212,7 @@ function setLineOutsideHistory(editor, lineNumber, text) {
  * Ключ собирает `tagWheelNoticeKey`, а не литерал на месте вызова (У-82).
  */
 function tagWheelNoticeKey(name) {
-  return 'notice.tagwheel.' + name
+  return __sayModule.noticeKey('tagwheel', name)
 }
 
 function makeTagWheelNotice(NoticeRef) {

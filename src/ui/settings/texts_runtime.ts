@@ -32,6 +32,7 @@
  */
 
 import type { TextEntry } from "./texts.ts";
+import sayModule from "../../core/say.js";
 
 /**
  * Ключ сообщения. **Строит его одна функция, и зовут её оба конца** (У-82):
@@ -39,9 +40,7 @@ import type { TextEntry } from "./texts.ts";
  * пином — расходятся такие молча, и заметно это только тем, что перевод не
  * применился.
  */
-export function noticeKey(area: string, name: string): string {
-  return "notice." + area + "." + name;
-}
+export const noticeKey: (area: string, name: string) => string = sayModule.noticeKey;
 
 /**
  * Сообщения по областям. Область названа по тому, **что человек видит**, а не
@@ -127,19 +126,4 @@ export function runtimeEntries(): readonly TextEntry[] {
     }
   }
   return out;
-}
-
-/**
- * Английский по ключу — для той стороны шва, где каталога нет.
- *
- * Нужен ровно одному месту: помощнику `say` в рантайме, когда слой настроек не
- * загрузился. Таблица одна, и второй копии английского не заводится (У-32).
- */
-export function runtimeEnglish(key: string): string {
-  for (const [area, messages] of Object.entries(RUNTIME_TEXTS)) {
-    for (const [name, text] of Object.entries(messages)) {
-      if (noticeKey(area, name) === key) return text;
-    }
-  }
-  return "";
 }

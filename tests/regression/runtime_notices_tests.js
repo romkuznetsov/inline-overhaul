@@ -118,39 +118,67 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
    * появится английский литерал со стороны вызова, и заметить, что перевод не
    * применился, можно только сравнив два языка строка за строкой.
    *
-   * Ключи со стороны кода собираются **разбором исходников**, а не списком
-   * здесь: список пришлось бы править вместе с каждым новым сообщением, и он
-   * бы устарел молча — тем же способом, каким устаёт всякий второй экземпляр
-   * (У-32).
+   * **Список файлов здесь стоял и устарел ровно так, как обещал свой же
+   * комментарий** (2026-09-11). Первым в нём был `main.js`, где вызовов не
+   * осталось ни одного: файл читался, не находил ничего и молча не добавлял в
+   * проверку ничего. И областей было две, зашитых прямо сюда, — то есть сам
+   * сторож объявлял правило ключа третий раз.
+   *
+   * Теперь обход сплошной, а область берётся у помощника, который её
+   * подставляет: `функция(name) → noticeKey('область', name)`. Ключ собирает
+   * общий модуль — тот же самый, что и рантайм.
    */
-  const FILES = [
-    ["main.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
-    ["src/features/plugin_bootstrap.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
-    ["src/features/plugin_commands.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
-    ["src/features/transform_feature.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
-    ["src/features/command_registry.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
-    ["src/features/rules_sync_orchestrator.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
-    ["src/core/config_store.js", /__noticeKey\("([a-z-]+)",\s*"([a-z0-9-]+)"\)/g],
-    ["pkm_v2/TagWheel/tagwheel.js", /tagWheelNoticeKey\('([a-z0-9-]+)'\)/g],
-    ["pkm_v2/status_date.js", /statusDateNoticeKey\('([a-z0-9-]+)'\)/g],
-    ["pkm_v2/status_tags.js", /noticeKey\('([a-z0-9-]+)'\)/g],
-  ];
+  const sayMod = require(path.join(root, "src", "core", "say.js"));
+
+  const runtimeFiles = [];
+  (function walk(dir) {
+    for (const name of fs.readdirSync(dir)) {
+      if (name === "node_modules" || name === ".git" || name === "dist") continue;
+      const abs = path.join(dir, name);
+      if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+      if (/\.(?:js|ts)$/.test(name)) runtimeFiles.push(abs);
+    }
+  })(path.join(root, "src"));
+  for (const name of fs.readdirSync(root)) {
+    if (/\.js$/.test(name)) runtimeFiles.push(path.join(root, name));
+  }
+  (function walk(dir) {
+    for (const name of fs.readdirSync(dir)) {
+      const abs = path.join(dir, name);
+      if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+      if (/\.js$/.test(name)) runtimeFiles.push(abs);
+    }
+  })(path.join(root, "pkm_v2"));
 
   const asked = new Set();
-  for (const [rel, rx] of FILES) {
-    const src = fs.readFileSync(path.join(root, rel), "utf8");
+  for (const abs of runtimeFiles) {
+    const src = fs.readFileSync(abs, "utf8");
+
+    /* Помощники с зашитой областью: имя → область, взятая из самого вызова. */
+    const areaOf = new Map();
+    const helperRx = /(?:function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{[^}]*?|const\s+([A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*)[\w$.]*noticeKey\(\s*['"]([a-z0-9-]+)['"]\s*,/g;
+    let h;
+    while ((h = helperRx.exec(src)) !== null) {
+      const helperName = h[1] || h[2];
+      if (helperName) areaOf.set(helperName, h[3]);
+    }
+
+    /* Двухаргументная форма: область стоит первым аргументом вызова. */
+    const twoRx = /\b[\w$.]*noticeKey\(\s*["']([a-z0-9-]+)["']\s*,\s*["']([a-z0-9-]+)["']\s*\)/g;
     let m;
-    while ((m = rx.exec(src)) !== null) {
-      /* У TagWheel и status_* область зашита в саму функцию ключа: она одна
-         на файл. У `main.js` областей несколько, и она первым аргументом. */
-      if (m.length > 2 && m[2]) asked.add("notice." + m[1] + "." + m[2]);
-      else if (rel.includes("tagwheel")) asked.add("notice.tagwheel." + m[1]);
-      else asked.add("notice.rules." + m[1]);
+    while ((m = twoRx.exec(src)) !== null) asked.add(sayMod.noticeKey(m[1], m[2]));
+
+    /* Односложная: область берётся у помощника, а не пишется здесь. */
+    const oneRx = /\b([A-Za-z_$][\w$]*)\(\s*["']([a-z0-9-]+)["']\s*\)/g;
+    let o;
+    while ((o = oneRx.exec(src)) !== null) {
+      const area = areaOf.get(o[1]);
+      if (area) asked.add(sayMod.noticeKey(area, o[2]));
     }
   }
   assert.ok(asked.size >= 20,
     "сообщений в рантайме нашлось подозрительно мало: " + asked.size
-    + ". Разбор исходника перестал находить вызовы — правьте выражения выше");
+    + ". Обход перестал находить вызовы — правьте выражения выше");
 
   /* Таблица каталога читается как текст: она на TypeScript, а этот файл — на
      CommonJS, и тянуть сюда загрузчик типов ради списка ключей незачем. */
@@ -308,6 +336,77 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
   assert.ok(!OWN_COPY.test(" * Шов — `globalThis.__inlineSay`, ставит его панель"),
     "запрет краснеет на упоминании шва в объяснении, а не на копии");
   ok("контроль запрета: форма копии узнаётся, а рассказ о шве — нет");
+}
+
+
+/* ---- формула ключа объявлена один раз ----------------------------------- */
+
+{
+  /*
+   * **Запрет по форме, а не по имени** (У-126). Ключ сообщения — это склейка
+   * `"notice." + область + "." + имя`, и объявлять её больше одного раза
+   * нельзя: расходятся такие копии молча, а на экране это выглядит как
+   * «перевод не применился вот к этим шести строкам».
+   *
+   * До 2026-09-11 склейка была написана **десять раз**: шесть копий в слое
+   * команд слово в слово, одна в слое настроек, три в движках под З3 с зашитой
+   * областью — и десятой был сам этот файл, собиравший ключ заново, чтобы
+   * сверить. Над шестью из них стояла строка «Строит его одна функция, и её
+   * зовут оба конца»: комментарий утверждал ровно то, чего не было.
+   *
+   * Дом теперь один — `src/core/say.js`, и он назван здесь по пути, а не по
+   * содержимому: поиск идёт по всем файлам плагина, и разрешено ровно одно
+   * место.
+   */
+  const FORMULA = /["']notice\.["']\s*\+/;
+
+  /* Контроль до первого вывода: образец обязан находить свою же форму и не
+     находить чужую. */
+  assert.ok(FORMULA.test('return "notice." + area + "." + name;'),
+    "контроль: образец не находит собственную форму — сломан он, а не рантайм");
+  assert.ok(!FORMULA.test('return sayModule.noticeKey(area, name);'),
+    "контроль: образец находит вызов общего модуля и объявил бы его копией");
+
+  const files = [];
+  (function walk(dir) {
+    for (const name of fs.readdirSync(dir)) {
+      if (name === "node_modules" || name === ".git" || name === "dist") continue;
+      const abs = path.join(dir, name);
+      if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+      if (/\.(?:js|ts)$/.test(name)) files.push(abs);
+    }
+  })(path.join(root, "src"));
+  (function walk(dir) {
+    for (const name of fs.readdirSync(dir)) {
+      const abs = path.join(dir, name);
+      if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+      if (/\.js$/.test(name)) files.push(abs);
+    }
+  })(path.join(root, "pkm_v2"));
+  for (const name of fs.readdirSync(root)) {
+    if (/\.js$/.test(name)) files.push(path.join(root, name));
+  }
+
+  assert.ok(files.length > 50,
+    "положительный контроль: обход нашёл файлы плагина (" + files.length + ")");
+
+  const home = path.join(root, "src", "core", "say.js");
+  const elsewhere = [];
+  let homeFound = false;
+  for (const abs of files) {
+    const code = fs.readFileSync(abs, "utf8")
+      .split("\n")
+      .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
+      .join("\n");
+    if (!FORMULA.test(code)) continue;
+    if (abs === home) { homeFound = true; continue; }
+    elsewhere.push(path.relative(root, abs).replace(/\\/g, "/"));
+  }
+  assert.ok(homeFound,
+    "положительный контроль: в say.js формулы ключа нет — значит ищется не то");
+  assert.deepStrictEqual(elsewhere, [],
+    "формула ключа сообщения объявлена не только в say.js:\n  " + elsewhere.join("\n  "));
+  ok("формула ключа сообщения объявлена ровно один раз, в say.js");
 }
 
 console.log("\n" + passed + " проверок пройдено");

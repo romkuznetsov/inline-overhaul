@@ -26,7 +26,8 @@ const __tokenGraphUnified = require("../src/core/token_graph_unified.js");
 const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
 const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
-const __say = require("../src/core/say.js").say;
+const __sayModule = require("../src/core/say.js");
+const __say = __sayModule.say;
 let __statusRuntimeCommonFns = null;
 
 const DATE_ACTION_OPTIONS = [];
@@ -38,7 +39,7 @@ const DATE_ACTION_OPTIONS = [];
  * Ключ собирает функция, а не литерал (У-82).
  */
 function statusDateNoticeKey(name) {
-  return 'notice.rules.' + name;
+  return __sayModule.noticeKey('rules', name);
 }
 
 /*

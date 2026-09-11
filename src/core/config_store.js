@@ -11,12 +11,10 @@
  * подстановки `{0}`** — то есть была ещё одной той самой копией, о которой
  * предупреждает абзац выше. Таких копий было четыре, в четырёх файлах.
  */
-const __say = require("./say.js").say;
-
-/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
-function __noticeKey(area, name) {
-  return "notice." + area + "." + name;
-}
+const __sayModule = require("./say.js");
+const __say = __sayModule.say;
+/* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
+const __noticeKey = __sayModule.noticeKey;
 
 class ConfigStore {
   constructor(plugin, options) {

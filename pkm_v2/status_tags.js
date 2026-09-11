@@ -22,7 +22,8 @@ const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js"
 const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
 const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
-const __say = require("../src/core/say.js").say;
+const __sayModule = require("../src/core/say.js");
+const __say = __sayModule.say;
 const __activeEditorMod = require("../src/core/active_editor.js");
 
 let RULES_PATH = "Rules path";
@@ -1214,7 +1215,7 @@ module.exports = {
      * Форма: `notice(key, english, ...args)`; английское остаётся здесь, на
      * случай если слой настроек не загрузился. Ключ собирает функция (У-82).
      */
-    const noticeKey = (name) => "notice.rules." + name;
+    const noticeKey = (name) => __sayModule.noticeKey('rules', name);
     const notice = (key, english, ...args) => {
       /*
        * Текст спрашивается у общего кода, своей копии здесь нет (В-100,

@@ -34,7 +34,10 @@ const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __sharedUtils = require("../core/shared_utils.js");
 const __transformLineFinalize = require("../core/pkm_line_finalize_unified.js");
-const __say = require("../core/say.js").say;
+const __sayModule = require("../core/say.js");
+const __say = __sayModule.say;
+/* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
+const __noticeKey = __sayModule.noticeKey;
 
 const BINDER_SMART_BRACKET_COMMAND_ID = __configNormalize.BINDER_SMART_BRACKET_COMMAND_ID;
 const DEFAULT_CONFIG = __configNormalize.DEFAULT_CONFIG;
@@ -46,11 +49,6 @@ const serializePkmOrderForMacro = __pkmOrderConfig.serializePkmOrderForMacro;
 
 function isObj(x) { return __sharedUtils.isObj(x); }
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
-
-/** Ключ сообщения. Строит его одна функция, и её зовут оба конца (У-82). */
-function __noticeKey(area, name) {
-  return "notice." + area + "." + name;
-}
 
 /**
  * Тихий отчёт об отказе загрузки — только при включённом флаге отладки.

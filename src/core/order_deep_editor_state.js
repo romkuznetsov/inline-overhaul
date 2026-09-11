@@ -1,7 +1,5 @@
 "use strict";
 
-const IO_BETA_ORDER_DEEP_EDITOR = "IO_BETA_ORDER_DEEP_EDITOR";
-const IO_BETA_CONFLICT_DIALOG = "IO_BETA_CONFLICT_DIALOG";
 const IO_TEMP_HISTORY_LIMIT = 100;
 
 function isObj(x) {
@@ -233,8 +231,6 @@ function partitionWikilinkRows(rows, validParentTokens, options) {
 }
 
 module.exports = {
-  IO_BETA_ORDER_DEEP_EDITOR,
-  IO_BETA_CONFLICT_DIALOG,
   IO_TEMP_HISTORY_LIMIT,
   normalizeToken,
   normalizeCheckboxToken,
