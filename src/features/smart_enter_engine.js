@@ -1,0 +1,154 @@
+"use strict";
+
+/**
+ * Smart Enter (PRD 10.13.88).
+ *
+ * Заказ заказчика 2026-09-12: «`Enter` в строке, когда курсор находится до
+ * сепаратора 2. Дефолтное поведение — перенос текста на следующую строку. Я
+ * хочу, чтобы при `smart Enter = on` вместо этого вставлялась новая пустая
+ * строка, а предыдущая (из которой был нажат enter) оставалась неизменной».
+ *
+ * То есть его строка — не абзац, а запись: разорвав её пополам, `Enter` уносит
+ * правый Block от левого, и обе половины перестают быть записями. Здесь он не
+ * рвёт, а добавляет следующую.
+ *
+ * **Решение считается отдельно от записи.** `planSmartEnter` — чистая функция:
+ * на входе текст строки, место курсора, границы слота текста и настройки, на
+ * выходе то, что встанет новой строкой. Так проверке не нужен ни Obsidian, ни
+ * редактор, а условия тихого отказа видны списком (У-41): их четыре, и каждое
+ * возвращает `null`, то есть отдаёт клавишу платформе.
+ *
+ * **Где кончается наш случай.** Границы слота текста считает
+ * `getTextSlotBounds` в `src/core/pkm_macro_shared.js` — то же правило, которым
+ * их считает курсор после команды и прыжок по заголовкам. Своего разбора
+ * строки здесь нет и быть не должно (У-32): второе объявление «где второй
+ * разделитель» разошлось бы с первым молча.
+ */
+
+const __sharedUtils = require("../core/shared_utils.js");
+const __macroShared = require("../core/pkm_macro_shared.js");
+
+/**
+ * Знак списка для новой строки.
+ *
+ * **Правило о чужой разметке спрашивается у платформы** (У-91): Obsidian на
+ * `Enter` повторяет маркер, увеличивает номер на единицу и ставит **пустой**
+ * чекбокс — новая строка не может быть сделанной задачей. Здесь то же самое.
+ *
+ * Пусто означает «знака нет»: у строки без списка повторять нечего.
+ */
+function nextMarkerFor(lineText) {
+  const p = __sharedUtils.lineMarkerOf(lineText);
+  if (!p.marker) return "";
+  let marker = p.marker;
+  if (p.ordered) {
+    marker = marker.replace(/^(\d+)/, function (whole) {
+      const n = Number(whole);
+      return Number.isFinite(n) ? String(n + 1) : whole;
+    });
+  }
+  /* Чекбокс уезжает пустым: знак внутри скобок ровно один (A34, У-91). */
+  marker = marker.replace(/\[[^\]]\]/, "[ ]");
+  return marker;
+}
+
+/**
+ * Решение о нажатии `Enter`.
+ *
+ * `null` означает «это не наш случай»: клавиша уходит платформе такой, какой
+ * была. Четыре условия отказа:
+ *
+ *   1. функция выключена;
+ *   2. **у строки нет слота текста** — то есть ни одного разделителя плагина в
+ *      ней не нашлось. Обычная заметка нашей не становится, и `Enter` в ней
+ *      работает так, как работал;
+ *   3. курсор стоит **за** концом слота текста, то есть в правом Block: там
+ *      разрывать нечего, и платформа справляется сама;
+ *   4. курсор не один или что-то выделено (это решается выше, в обработчике:
+ *      сюда такой случай не доходит).
+ */
+function planSmartEnter(opts) {
+  const o = opts && typeof opts === "object" ? opts : {};
+  if (!o.enabled) return null;
+
+  const text = String(o.lineText || "");
+  const bounds = o.textSlot;
+  if (!bounds || typeof bounds.end !== "number") return null;
+
+  const ch = Math.max(0, Math.min(Number(o.ch) || 0, text.length));
+  if (ch > bounds.end) return null;
+
+  const p = __sharedUtils.lineMarkerOf(text);
+  /*
+   * Отступ остаётся всегда, знак списка — по настройке. Отступ Prefix-ом не
+   * зовётся ни в панели, ни в PRD: строка на третьем уровне вложенности не
+   * имеет права прыгнуть к левому краю оттого, что человек выключил знак.
+   */
+  const marker = o.keepPrefix === false ? "" : nextMarkerFor(text);
+  const newLineText = p.indent + p.quote + marker;
+  return { newLineText, cursorCh: newLineText.length };
+}
+
+/**
+ * Обработчик клавиши. Всё, что связано с редактором, живёт здесь; решение —
+ * в чистой функции выше.
+ */
+function handleSmartEnterKeymap(plugin) {
+  const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
+  const se = cfg && cfg.editor && cfg.editor.smartEnter ? cfg.editor.smartEnter : null;
+  if (!se || se.enabled !== true) return false;
+
+  const editor = plugin && typeof plugin.getActiveEditor === "function" ? plugin.getActiveEditor() : null;
+  if (!editor) return false;
+
+  try {
+    if (typeof editor.somethingSelected === "function" && editor.somethingSelected()) return false;
+    if (typeof editor.listSelections === "function") {
+      const sels = editor.listSelections();
+      if (Array.isArray(sels) && sels.length > 1) return false;
+    }
+
+    const cursor = editor.getCursor();
+    const line = Number(cursor && cursor.line);
+    if (!Number.isFinite(line)) return false;
+
+    const lineText = String(editor.getLine(line) || "");
+    /*
+     * Разделители берутся из настроек человека, а не из литерала: у него они
+     * разные (`||` и `::`), и «второй разделитель» без них не найти.
+     */
+    const rules = { io: {
+      separator1: String(cfg.pkm && cfg.pkm.lineFormat ? cfg.pkm.lineFormat.separator1 || "" : ""),
+      separator2: String(cfg.pkm && cfg.pkm.lineFormat ? cfg.pkm.lineFormat.separator2 || "" : ""),
+    } };
+    if (!rules.io.separator1 || !rules.io.separator2) return false;
+
+    const plan = planSmartEnter({
+      enabled: true,
+      lineText,
+      ch: Number(cursor.ch) || 0,
+      textSlot: __macroShared.getTextSlotBounds(lineText, rules),
+      keepPrefix: se.keepPrefix !== false,
+    });
+    if (!plan) return false;
+
+    /*
+     * Новая строка вставляется **за** нынешней, и нынешняя не трогается вовсе:
+     * замена идёт нулевым диапазоном в её конце. Так в истории отмен остаётся
+     * одна ступень — вставка, — а строка человека в неё не попадает.
+     */
+    const end = { line, ch: lineText.length };
+    editor.replaceRange("\n" + plan.newLineText, end, end);
+    editor.setCursor({ line: line + 1, ch: plan.cursorCh });
+    return true;
+  } catch (e) {
+    console.error("[inline-overhaul][smart-enter]", e);
+    return false;
+  }
+}
+
+module.exports = {
+  nextMarkerFor,
+  planSmartEnter,
+  handleSmartEnterKeymap,
+};

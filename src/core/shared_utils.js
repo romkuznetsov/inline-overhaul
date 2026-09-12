@@ -819,6 +819,44 @@ function splitCombinedTagToken(tag) {
   return { parent, child: child.charAt(0) === TAG_PREFIX_CHAR ? child : TAG_PREFIX_CHAR + child };
 }
 
+/**
+ * Начало строки, разобранное на части: отступ, цитата и знак списка.
+ *
+ * **Форма знака объявлена один раз** — теми же `LINE_BULLET_RE` и
+ * `LINE_ORDERED_RE`, которыми её считает `linePrefixLength` выше (У-32). Здесь
+ * не второе правило, а второй читатель того же: одному нужна длина, другому —
+ * сами куски, чтобы повторить знак на новой строке (`Smart Enter`, 10.13.88).
+ * Что оба читателя сходятся, спрашивает проверка в `smart_enter_tests.js`.
+ *
+ * Заголовок знаком списка не считается: `##` на новую строку не переносится
+ * ни в Obsidian, ни здесь.
+ */
+function lineMarkerOf(text) {
+  const src = String(nz(text, ""));
+  const indent = src.match(LINE_INDENT_RE)[0];
+  let at = indent.length;
+  let quote = "";
+  for (;;) {
+    const q = src.slice(at).match(LINE_QUOTE_RE);
+    if (!q) break;
+    quote += q[0];
+    at += q[0].length;
+    const pad = lineIndentLength(src.slice(at));
+    quote += src.slice(at, at + pad);
+    at += pad;
+  }
+  const rest = src.slice(at);
+  const ordered = LINE_ORDERED_RE.test(rest);
+  const mark = rest.match(LINE_BULLET_RE) || rest.match(LINE_ORDERED_RE);
+  return {
+    indent,
+    quote,
+    marker: mark ? mark[0] : "",
+    ordered: ordered && !!mark,
+    at: at + (mark ? mark[0].length : 0),
+  };
+}
+
 /** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
 function isListItemLine(text) {
   const rest = String(nz(text, "")).replace(LINE_INDENT_RE, "");
@@ -834,6 +872,7 @@ module.exports = {
   CHECKBOX_ONE_CHAR_SRC,
   lineIndentLength,
   linePrefixLength,
+  lineMarkerOf,
   isListItemLine,
   isWordChar,
   splitCombinedTagToken,

@@ -61,6 +61,17 @@ function mountExtensions(plugin) {
       key: "Backspace",
       run: () => plugin.handleSmartBackspaceKeymap(),
     },
+    /*
+     * Smart Enter (10.13.88). Тот же уклад: выключенная функция возвращает
+     * `false`, и `Enter` работает так, как работал. Отдаётся он платформе и
+     * во всех случаях, где строка не наша, — у строки без разделителей
+     * плагина слота текста нет вовсе, и движок отказывается первым же
+     * вопросом.
+     */
+    {
+      key: "Enter",
+      run: () => plugin.handleSmartEnterKeymap(),
+    },
   ])));
   plugin._tagwheelHeaderExtension = createTagwheelHeaderDecorationExtension(plugin);
   plugin._tagVisualExtension = createTagVisualDecorationExtension(plugin);

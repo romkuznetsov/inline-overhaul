@@ -458,6 +458,7 @@ async function run() {
       "./src/features/plugin_bootstrap.js",
       "./src/features/plugin_commands.js",
       "./src/features/smart_delete_engine.js",
+      "./src/features/smart_enter_engine.js",
       "./src/ui/editor/styles.js",
     ];
     assertEq(own.join("\n"), expected.join("\n"), "main.js подключает ровно свои модули, и каждый один раз");

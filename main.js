@@ -26,6 +26,11 @@ function getSmartDeleteEngine() {
   return require("./src/features/smart_delete_engine.js");
 }
 
+/** `Enter` до второго разделителя по своим правилам (10.13.88). */
+function getSmartEnterEngine() {
+  return require("./src/features/smart_enter_engine.js");
+}
+
 
 class InlineOverhaulPlugin extends Plugin {
   /**
@@ -99,6 +104,10 @@ class InlineOverhaulPlugin extends Plugin {
     const engine = getSmartDeleteEngine();
     if (typeof engine.handleSmartBackspaceKeymap !== "function") return false;
     return engine.handleSmartBackspaceKeymap(this);
+  }
+
+  handleSmartEnterKeymap() {
+    return getSmartEnterEngine().handleSmartEnterKeymap(this);
   }
 
   getActiveEditor() {

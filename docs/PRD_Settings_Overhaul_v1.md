@@ -843,6 +843,72 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.88 Smart Enter: клавиша добавляет строку, а не рвёт нынешнюю (2026-09-13, ночь)
+
+Заказ заказчика 2026-09-12: «нужно добавить команду smart enter, которая при
+`on` меняет поведение `Enter` в строке, когда курсор находится до сепаратора 2.
+Дефолтное поведение — перенос текста на следующую строку. Я хочу, чтобы вместо
+этого вставлялась новая пустая строка, а предыдущая (из которой был нажат enter)
+оставалась неизменной».
+
+**Почему это не каприз.** Строка с Fields — не абзац, а запись: разорвав её
+пополам, `Enter` уносит правый Block от левого, и ни одна половина записью уже
+не является. Его пример — `- #123 #work #new || 12313| :: [[test1]] 👤111` —
+после `Enter` даёт `- :: [[test1]] 👤111` второй строкой, то есть строку,
+которую сам плагин прочесть не может.
+
+**Где кончается наш случай.** Границы слота текста считает
+`getTextSlotBounds` — то же правило, которым их считает курсор после команды и
+прыжок по заголовкам (`pkm_macro_shared.js`). Своего разбора «где второй
+разделитель» здесь нет и быть не должно (У-32). Условий отказа три, и каждое
+возвращает `null`, то есть отдаёт клавишу платформе: функция выключена; у строки
+нет слота текста (ни одного разделителя плагина — обычная заметка нашей не
+становится); курсор за концом слота, то есть в правом Block.
+
+**Знак списка на новой строке спрашивается у платформы** (У-91): Obsidian на
+`Enter` повторяет маркер, увеличивает номер на единицу и ставит **пустой**
+чекбокс. Здесь то же самое, и это не выдумка — это ответ на вопрос «а что об
+этом думает сам Obsidian». Решётки заголовка знаком списка не считаются и на
+новую строку не едут.
+
+**Отступ остаётся при любом положении тумблера.** Заказчик написал «нет —
+вообще не ставить в новой строке префикс», а отступ в этом плагине Prefix-ом не
+зовётся ни в панели, ни в PRD: Prefix — это маркер, чекбокс, номер. Строка на
+третьем уровне вложенности не имеет права прыгнуть к левому краю оттого, что
+человек выключил знак. Сказано вслух в листе и вынесено вопросом.
+
+**Второе объявление формы начала строки не заводилось.** Знак нужен кусками, а
+`linePrefixLength` отдаёт длину; поэтому рядом с ней встал второй **читатель**
+тех же выражений — `lineMarkerOf`, — а не второе правило. Что оба читателя
+сходятся, спрашивает проверка на четырнадцати формах начала строки.
+
+**Перехват клавиши — тем же укладом, что у `Del` и `Backspace`** (10.13.32):
+одна запись в `keymap` наибольшего приоритета, выключенная функция возвращает
+`false`, и клавиша работает так, как работала. Новая строка вставляется нулевым
+диапазоном в конце нынешней — нынешняя не трогается вовсе, и в истории отмен
+остаётся одна ступень.
+
+**Чем закреплено.** `tests/regression/smart_enter_tests.js`: его строка и его
+курсор, три условия отказа поимённо, восемь форм знака при включённом тумблере
+и три при выключенном, сверка двух читателей начала строки и обработчик на
+поддельном редакторе. Разделители в проверке **разные** (`||` и `::`), как у
+него. Положительный контроль — у строки заказчика обязан быть слот текста, и
+он обязан быть `12313`: без него всё остальное было бы зелёным от того, что
+движок отказывается на каждом вопросе. Восемь подмен краснеют: снятая проверка
+курсора, снятая проверка слота, знак всегда, номер не растёт, чекбокс не
+чистится, потерянный отступ, замена строки вместо вставки и заголовок, ставший
+знаком списка.
+
+**Чего проверка не делает, и это сказано вслух.** Она не поднимает Obsidian, а
+значит не отвечает на вопрос, что случится при открытом окне подсказки ссылок:
+там `Enter` принимает подсказку, и перехватывает его не редактор, а окно. По
+устройству Obsidian окно сильнее, но проверено это его глазом, а не прогоном —
+строка листа приёмки об этом спрашивает прямо.
+
+**Что осталось вопросом.** Исключение про нумерацию он назвал недодуманным сам:
+«нет, но кроме как если префикс нумерация, тогда да (нужно продумать
+получше)». Оно не сделано — вопрос В-111.
+
 #### 10.13.87 Значения противоположного Block: прятать или оставить (2026-09-13, ночь)
 
 Заказ заказчика 2026-09-12: «сейчас при открытии tagwheel из строки визуально
@@ -2101,7 +2167,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (48)
+### Пути, которых не было в описи v1.0 (50)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -2112,6 +2178,8 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `editor.smartDelete.onBackspace` | Smart backspace (`smart-delete-backspace`) | Smart Delete\Backspace |
 | `editor.smartDelete.dropPrefix` | Drop the line Prefix (`smart-delete-prefix`) | Smart Delete\Backspace |
 | `editor.smartDelete.joinWithSpace` | Join with a space (`smart-delete-space`) | Smart Delete\Backspace |
+| `editor.smartEnter.enabled` | Smart Enter (`smart-enter-enabled`) | Smart Enter |
+| `editor.smartEnter.keepPrefix` | Carry the Prefix over (`smart-enter-prefix`) | Smart Enter |
 | `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Moving lines (up and down) |
 | `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Moving lines (up and down) |
 | `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move left and move right |
@@ -9169,7 +9237,7 @@ python tests/prototype/update_prd.py
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 8 | 1 |
-| 2 | Keyboard | — | 5 | 10 | 4 |
+| 2 | Keyboard | — | 6 | 12 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 7 | 44 | 6 |
@@ -9195,6 +9263,7 @@ python tests/prototype/update_prd.py
 | 50 | `keyboard-intro` | Before you start | — | — | `general.help.showCallouts` |
 | 100 | `select-all` | Expanded 'Ctrl+A' ('⌘+A') | <code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection | да | — |
 | 150 | `smart-delete` | Smart Delete\Backspace | <code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind | да | — |
+| 175 | `smart-enter` | Smart Enter | <code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone | да | — |
 | 200 | `binder` | Binder (custom insert commands) | For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is | да | — |
 | 300 | `command-reference` | Commands & Hotkeys | Everything this plugin can do, in one list. None of it has a key until you give it one — click in the <code>Hotkey</code> column to do that | да | — |
 
@@ -9429,6 +9498,22 @@ _Tip:_ Press <code>Del</code> with the cursor at the end of a line and Obsidian 
   - tip: Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above
   - выключена если: `editor.smartDelete.enabled, editor.smartDelete.onBackspace`
   - старые названия для поиска: «Add a space»
+
+#### Smart Enter — `smart-enter` (вкладка `keyboard`)
+
+_Intro:_ <code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone
+
+_Tip:_ A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> pressed anywhere up to the second Separator adds an empty line underneath and leaves the one you are on exactly as it was. Past the second Separator, and in every line that carries no Separator of yours, the key stays Obsidian’s own and behaves as it always has
+
+- **Smart Enter** — `smart-enter-enabled`, `toggle`, path `editor.smartEnter.enabled`, default `false`
+  - desc: Let <code>Enter</code> before the second Separator add a line instead of splitting the one you are on
+  - tip: Nothing here rebinds the key: <code>Enter</code> stays Obsidian’s, and this only changes what happens inside a line of yours. Off, the key behaves as it always has
+  - старые названия для поиска: «Smart Enter», «Do not split the line»
+- **Carry the Prefix over** — `smart-enter-prefix`, `toggle`, path `editor.smartEnter.keepPrefix`, default `true`
+  - desc: Start the new line with the same marker as the line you pressed <code>Enter</code> on
+  - tip: On, a bullet stays a bullet and a numbered item gets the next number, exactly as Obsidian does it on its own; a checkbox arrives empty, because a line you have not written yet is not a task you have done. Off, the new line starts bare. The indent is kept either way — a line three levels deep has no business jumping to the left margin
+  - выключена если: `editor.smartEnter.enabled`
+  - старые названия для поиска: «Keep the bullet», «New line Prefix»
 
 #### Binder (custom insert commands) — `binder` (вкладка `keyboard`)
 
@@ -10192,6 +10277,8 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `editor.smartDelete.enabled` | toggle | `false` |
 | `editor.smartDelete.joinWithSpace` | toggle | `true` |
 | `editor.smartDelete.onBackspace` | toggle | `false` |
+| `editor.smartEnter.enabled` | toggle | `false` |
+| `editor.smartEnter.keepPrefix` | toggle | `true` |
 | `features.navigation.enabled` | toggle | `true` |
 | `features.pkm.enabled` | toggle | `true` |
 | `features.transform.enabled` | toggle | `true` |

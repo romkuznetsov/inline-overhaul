@@ -75,6 +75,8 @@ const V2_ONLY: Record<string, string> = {
   "visual.tagBars.lineGap": "зазор между полосами соседних строк — заказ B22, 2026-09-03 (10.13.16)",
   "visual.tagBars.joinTree": "слитная полоса у дерева — заказ B22, 2026-09-03 (10.13.16)",
   "visual.tagBars.drawWholeTree": "полоса по всему поддереву — заказ H1, 2026-09-04 (10.13.21); читает buildStripSpecs в priority_strip_engine.js",
+  "editor.smartEnter.enabled": "Smart Enter — заказ 2026-09-12 (10.13.88); читает handleSmartEnterKeymap в smart_enter_engine.js",
+  "editor.smartEnter.keepPrefix": "знак списка на новой строке — там же (10.13.88); читает planSmartEnter",
   "editor.smartDelete.enabled": "Smart Delete — заказ 2026-09-05 (10.13.32); читает handleSmartDeleteKeymap в smart_delete_engine.js",
   "editor.smartDelete.dropPrefix": "снимать ли Prefix приехавшей строки — там же (10.13.32 Д7)",
   "editor.smartDelete.joinWithSpace": "пробел на стыке — там же (10.13.32 Д6)",

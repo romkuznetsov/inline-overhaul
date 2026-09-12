@@ -50,6 +50,11 @@ methodology.
   configuration step in between.
 - **Live preview.** The Fields editor shows the line you are building as you
   build it.
+- **Enter that adds instead of splitting.** A line carrying Fields is a record,
+  not a paragraph. With `Smart Enter` on, pressing `Enter` anywhere up to the
+  second Separator starts an empty line below and leaves the one you are on
+  exactly as it was; the new line keeps the marker of the old one, or none, as
+  you choose.
 - **Two heights for the editor.** The chevron at the right edge of the Fields
   header switches between the full height, where every control is on screen at
   once, and a fixed height that scrolls. The scrollbar stays out of sight until

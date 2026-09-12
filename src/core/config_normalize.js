@@ -973,6 +973,10 @@ function normalizeConfigV2(cfg) {
   bool("editor.smartDelete.dropPrefix");
   bool("editor.smartDelete.onBackspace");
   bool("editor.smartDelete.joinWithSpace");
+  /* Smart Enter (10.13.88). Клавиша принадлежит Obsidian, поэтому умолчание
+     выключено — как у обеих соседних. */
+  bool("editor.smartEnter.enabled");
+  bool("editor.smartEnter.keepPrefix");
   writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows")));
 
   /* --- вид тегов -------------------------------------------------------- */

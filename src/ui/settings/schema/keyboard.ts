@@ -84,6 +84,22 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
+  id: "smart-enter", tab: "keyboard", order: 175, heading: "Smart Enter",
+  intro: "<code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone",
+  tip: "A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> pressed anywhere up to the second Separator adds an empty line underneath and leaves the one you are on exactly as it was. Past the second Separator, and in every line that carries no Separator of yours, the key stays Obsidian’s own and behaves as it always has",
+  items: [
+    { kind:"toggle", id:"smart-enter-enabled", path:"editor.smartEnter.enabled", default:false,
+      name:"Smart Enter", desc:"Let <code>Enter</code> before the second Separator add a line instead of splitting the one you are on",
+      searchTerms:["Smart Enter","Do not split the line"],
+      tip:"Nothing here rebinds the key: <code>Enter</code> stays Obsidian’s, and this only changes what happens inside a line of yours. Off, the key behaves as it always has" },
+    { kind:"toggle", id:"smart-enter-prefix", path:"editor.smartEnter.keepPrefix", default:true,
+      name:"Carry the Prefix over", desc:"Start the new line with the same marker as the line you pressed <code>Enter</code> on",
+      searchTerms:["Keep the bullet","New line Prefix"],
+      disabled: not("editor.smartEnter.enabled"),
+      tip:"On, a bullet stays a bullet and a numbered item gets the next number, exactly as Obsidian does it on its own; a checkbox arrives empty, because a line you have not written yet is not a task you have done. Off, the new line starts bare. The indent is kept either way — a line three levels deep has no business jumping to the left margin" }
+  ]
+},
+{
   id: "binder", tab: "keyboard", order: 200, heading: "Binder (custom insert commands)",
   intro: "For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is",
   tip: "Binder turns a snippet into a command of its own. Add a row, type the text you want dropped in, and the plugin registers a command for that row; give the command a key in <code>Settings \u2192 Hotkeys</code>, and from then on one press inserts the text wherever the cursor is. An arrow, a callout opener, a signature, a table skeleton \u2014 anything you retype often is worth a row. The <code>Hotkey</code> column shows the key a row has now, and clicking it takes you to Obsidian\u2019s list to change it. Only the description can be changed afterwards \u2014 to change the text a row inserts, delete the row and add it again, because the command is created from the row and disappears with it",
