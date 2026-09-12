@@ -9120,11 +9120,6 @@ _Tip:_ One keypress does three things in a row: it works out which note to use, 
   - desc: Allow this to create notes and add to notes you already have
   - tip: This is the switch that lets the plugin write to your vault. Everything else on this tab only decides how. Make a backup and try it on a note you do not mind breaking: one keypress can add a note, change a note, and edit the line you were on
   - старые названия для поиска: «Inline2Note enabled»
-- **New notes folder** — `i2n-output-folder`, `folder`, path `transform.inline2note.outputFolder`, default `""`
-  - desc: Where to put the notes this creates. Leave it empty to keep them next to the note you are in
-  - tip: Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time a note goes into it. Left empty, a new note lands beside the note you pressed the key in
-  - видна если: `transform.inline2note.enabled`
-  - старые названия для поиска: «Output folder for new notes»
 - **Templates folder** — `i2n-templates-folder`, `folder`, path `transform.inline2note.templatesFolder`, default `""`
   - desc: The folder your note templates live in
   - tip: A template is an ordinary note that a new note starts out as a copy of. Whatever you keep in this folder shows up in the lists below. Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time it is needed
@@ -9134,6 +9129,11 @@ _Tip:_ One keypress does three things in a row: it works out which note to use, 
   - tip: You can set up rules further down that pick a different template for certain lines. This one is used for everything else. The list holds the notes from the folder above and nothing else — set that folder first, and the list fills itself
   - варианты: 
   - видна если: `transform.inline2note.enabled`
+- **New notes folder** — `i2n-output-folder`, `folder`, path `transform.inline2note.outputFolder`, default `""`
+  - desc: Where to put the notes this creates. Leave it empty to keep them next to the note you are in
+  - tip: Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time a note goes into it. Left empty, a new note lands beside the note you pressed the key in
+  - видна если: `transform.inline2note.enabled`
+  - старые названия для поиска: «Output folder for new notes»
 - **Floating button** — `i2n-floating`, `toggle`, path `transform.inline2note.floatingButton`, default `false`
   - desc: Put a small button at the end of the line you are on
   - tip: Click it and the line turns into a note, the same as pressing the key would. The button is only drawn on screen — it is never saved into your note, so nothing changes if you open the file elsewhere

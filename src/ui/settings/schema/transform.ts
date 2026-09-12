@@ -28,11 +28,6 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       name:"Inline to note", desc:"Allow this to create notes and add to notes you already have",
       searchTerms:["Inline2Note enabled"],
       tip:"This is the switch that lets the plugin write to your vault. Everything else on this tab only decides how. Make a backup and try it on a note you do not mind breaking: one keypress can add a note, change a note, and edit the line you were on" },
-    { kind:"folder", id:"i2n-output-folder", path:"transform.inline2note.outputFolder", default:"",
-      name:"New notes folder", desc:"Where to put the notes this creates. Leave it empty to keep them next to the note you are in",
-      placeholder:"Next to the note you are in",
-      tip:"Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time a note goes into it. Left empty, a new note lands beside the note you pressed the key in",
-      searchTerms:["Output folder for new notes"], visible: on("transform.inline2note.enabled") },
     { kind:"folder", id:"i2n-templates-folder", path:"transform.inline2note.templatesFolder", default:"",
       name:"Templates folder", desc:"The folder your note templates live in",
       placeholder:"Pick or type a folder",
@@ -45,6 +40,11 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
       /* Только заметки из назначенной папки (1.6.2.4). Постоянных строк
          нет: что показать, когда папки нет, решает сам источник. */
       options:[], optionsFrom:"templates" },
+    { kind:"folder", id:"i2n-output-folder", path:"transform.inline2note.outputFolder", default:"",
+      name:"New notes folder", desc:"Where to put the notes this creates. Leave it empty to keep them next to the note you are in",
+      placeholder:"Next to the note you are in",
+      tip:"Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time a note goes into it. Left empty, a new note lands beside the note you pressed the key in",
+      searchTerms:["Output folder for new notes"], visible: on("transform.inline2note.enabled") },
     { kind:"toggle", id:"i2n-floating", path:"transform.inline2note.floatingButton", default:false,
       name:"Floating button", desc:"Put a small button at the end of the line you are on",
       searchTerms:["Flying button"],
