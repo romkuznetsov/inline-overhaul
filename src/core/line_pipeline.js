@@ -836,10 +836,6 @@ function cleanOriginalTextForLeftDate(options) {
   var opts = options && typeof options === "object" ? options : {};
   var rawLine = String(opts.rawLine || "");
   var rules = opts.rules;
-  var parsedText = String(opts.parsedText || "");
-  var isDateLikeToken = typeof opts.isDateLikeToken === "function"
-    ? opts.isDateLikeToken
-    : isDateLikeBareToken;
   var tailByMarker = opts.tailByMarker && typeof opts.tailByMarker === "object" && !Array.isArray(opts.tailByMarker)
     ? opts.tailByMarker
     : {};
@@ -847,24 +843,19 @@ function cleanOriginalTextForLeftDate(options) {
   var defaultMarkers = Array.isArray(opts.defaultMarkers) ? opts.defaultMarkers : [];
 
   var segRaw = splitSegments(rawLine, rules);
-  var out = String(segRaw && segRaw.text ? segRaw.text : "").trim();
-  if (!out) {
-    var left = String(segRaw && segRaw.left ? segRaw.left : "").trim();
-    left = left.replace(/^\s*[-*+](?:\s+|$)/, "");
-    left = left.replace(/^\s*\d+\.\s+/, "");
-    left = left.replace(/^\[[^\]]\](?:\s+|$)/, "");
-    while (true) {
-      var mTag = left.match(/^(#\S+)\s*/);
-      if (mTag) { left = left.slice(mTag[0].length).trim(); continue; }
-      var mWiki = left.match(/^(\[\[[^\]]+\]\])\s*/);
-      if (mWiki) { left = left.slice(mWiki[0].length).trim(); continue; }
-      var firstToken = String(left || "").split(/\s+/).filter(Boolean)[0] || "";
-      if (isDateLikeToken(firstToken)) { left = left.slice(firstToken.length).trim(); continue; }
-      break;
-    }
-    out = left.trim();
-    if (!out || out === "-") return "";
-  }
+  /*
+   * **Что в строке текст человека — правило одно**, и живёт оно в
+   * `extractOriginalTextFromRawLine`. Здесь стояло второе объявление, и оно
+   * было наивнее: свой обход снимал токены только **с начала** тела и
+   * останавливался на первом незнакомом. Всё, что стояло за значением
+   * элемента, объявлялось прозой — шаг по дате уносил теги заказчика за
+   * разделитель, а вторым нажатием и в правый Block (`S12` 2026-09-12, У-150).
+   *
+   * Зрелое объявление снимает объявленные токены **по всему телу** (A18) и
+   * знает, где кончается значение элемента с пробелом в формате (10.13.71).
+   */
+  var out = extractOriginalTextFromRawLine(rawLine, rules);
+  if (!out) return "";
 
   var rightTokens = String(segRaw && segRaw.dates ? segRaw.dates : "").split(/\s+/).filter(Boolean);
   out = removeExactTokens(out, rightTokens);
@@ -878,7 +869,6 @@ function cleanOriginalTextForLeftDate(options) {
     markers: markers,
     tailByMarker: tailByMarker,
   });
-  if (!parsedText) return out;
   return out;
 }
 

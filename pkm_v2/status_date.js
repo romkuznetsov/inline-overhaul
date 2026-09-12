@@ -1450,9 +1450,7 @@ module.exports = {
        */
       const originalTextClean = linePipeline.cleanOriginalTextForLeftDate({
         rawLine,
-        parsedText: parsed.text,
         rules,
-        isDateLikeToken: (token) => rulesHelpersForDates.isDateLikeToken(token),
         tailByMarker: dateMarkers.tailByMarker,
         kinds: ["dateOffset", "nowTime", "estimatedCycle", "genericElement"],
       });
@@ -1508,6 +1506,33 @@ module.exports = {
       shouldKeepBulletLine: (line) => /^\s*(?:[-*+]|\d+\.)\s*$/.test(String(line || "")),
     });
     finalLine = String(cyclePost?.finalLine ?? finalLine);
+    finalParsed = core.parseLine(finalLine, rules);
+    /*
+     * Настройка «Strict: add a bullet» — одна на все способы поставить
+     * значение, и спрашивается она одним объявлением
+     * (`resolveOffPrefixFlagsUnified` внутри). Шаг по тегу и панель спрашивали
+     * её всегда, шаг по элементу — не спрашивал вовсе: на пустой строке буллит
+     * появлялся от одного способа и не появлялся от другого (`S12`
+     * 2026-09-12).
+     *
+     * У элемента своего знака начала строки нет, поэтому `hasOwnCheckbox`
+     * здесь `false`, а готовый префикс не передаётся: его подставит само
+     * правило, если настройка велит.
+     */
+    if (typeof lineFinalize.enforceOffModeFinalPrefixUnified !== "function") {
+      throw new Error("pkm_line_finalize_unified unavailable: enforceOffModeFinalPrefixUnified");
+    }
+    finalLine = lineFinalize.enforceOffModeFinalPrefixUnified({
+      line: finalLine,
+      rawLine,
+      mode: freeRoamMode,
+      freeRoamBehavior,
+      hasOwnCheckbox: false,
+      resolvedPrefix: "",
+      cycleEndBehavior,
+      parseLine: core.parseLine,
+      rules,
+    });
     finalParsed = core.parseLine(finalLine, rules);
     if (targetPanel === "right") {
       const linePipeline = globalThis.__inlineLinePipeline;

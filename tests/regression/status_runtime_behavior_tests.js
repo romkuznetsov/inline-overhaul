@@ -1397,6 +1397,84 @@ async function testTagWheelFirstFieldBeatsRulesDefaultFieldId() {
     "панель открылась на поле из правил, а не на первом поле Order: выбор человека слабее старого ключа");
 }
 
+/*
+ * Замечание заказчика 2026-09-12 (`S12`): шаг по дате уносил его теги за
+ * разделитель, а вторым нажатием — в правый Block.
+ *
+ *   было:  - [N] даты2026-09-12 09:05 #/2 #note || 
+ *   стало: - [N] даты2026-09-12 09:06 || #/2 #note
+ *
+ * Причина: доводка строки спрашивала «что здесь текст человека» у своего
+ * объявления, а оно снимало токены только **с начала** строки и
+ * останавливалось на первом, который не узнало. Всё, что стояло за датой,
+ * объявлялось прозой и уезжало в слот текста.
+ *
+ * Мутация: вернуть в `cleanOriginalTextForLeftDate` свой обход — и эта
+ * проверка краснеет.
+ */
+/*
+ * Настройка `Strict: add a bullet` — одна на все способы поставить значение.
+ *
+ * Замечание заказчика 2026-09-12 (`S12`): «на пустой строке без префикса
+ * активировал command due next и получил строку без буллита, а с учётом
+ * настроек должен был с буллитом». Измерено: шаг по **тегу** настройку
+ * спрашивает и буллит ставит, шаг по **элементу** не спрашивал её вовсе.
+ *
+ * Контроль стоит рядом в самой проверке: сначала шаг по тегу — если и он
+ * перестанет ставить буллит, красным станет контроль, а не предмет.
+ *
+ * Мутация: снять вызов `enforceOffModeFinalPrefixUnified` в `status_date.js` —
+ * и эта проверка краснеет.
+ */
+async function testStatusDateAsksBulletSettingLikeTagStepDoes() {
+  const withBullet = { freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: true, fullPlacement: "smart" } };
+
+  const byTag = makeEditor("", 0);
+  await runPkmCommandWithEditor("statusTags", byTag, {
+    "Rules path": "owner_shape_rules.md",
+    "Action type": "cycle_field:Category",
+    "Direction": "increase",
+    "Order config": ownerShapeOrder(withBullet),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const tagLine = byTag.snapshot().line;
+  assertTrue(/^-\s/.test(tagLine),
+    "контроль: шаг по тегу тоже перестал ставить буллит, сверять не с чем: " + JSON.stringify(tagLine));
+
+  const byDate = makeEditor("", 0);
+  await runPkmCommandWithEditor("statusDate", byDate, {
+    "Rules path": "owner_shape_rules.md",
+    "Action type": "field_inc:date_due",
+    "Order config": ownerShapeOrder(withBullet),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const dateLine = byDate.snapshot().line;
+  assertTrue(/^-\s/.test(dateLine),
+    "шаг по элементу не спросил настройку «Strict: add a bullet»: " + JSON.stringify(dateLine));
+}
+
+async function testStatusDateKeepsManagedTagsInLeftBlock() {
+  const editor = makeEditor("- [N] \uD83D\uDCC52026-09-12 09:05 #/2 #note || ", 5);
+  await runPkmCommandWithEditor("statusDate", editor, {
+    "Rules path": "owner_shape_rules.md",
+    "Action type": "field_inc:date_due",
+    "Order config": ownerShapeOrder(),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  const left = line.split("||")[0];
+  assertTrue(/#\/2/.test(left) && /#note/.test(left),
+    "шаг по дате унёс значения Fields за разделитель: " + JSON.stringify(line));
+  assertTrue(line.indexOf("::") === -1,
+    "шаг по дате завёл правый Block, которого в строке не было: " + JSON.stringify(line));
+}
+
 async function testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement() {
   const editor = makeEditor("- [ ] #todo || 111", 6);
   const seen = await openTagWheelPanel(editor, {
@@ -2251,6 +2329,8 @@ async function run() {
   await testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash();
   await testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement();
   await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
+  await testStatusDateKeepsManagedTagsInLeftBlock();
+  await testStatusDateAsksBulletSettingLikeTagStepDoes();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();
   await testStatusTagsImportanceMinimalOffPreservesListPrefixAndIndent();
