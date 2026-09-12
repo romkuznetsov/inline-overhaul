@@ -49,10 +49,17 @@ function makeWindowMock() {
 function makeAppForRuntime(editor) {
   const vaultRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
   const fixtureRulesPath = path.resolve(__dirname, "..", "fixtures", "InlineOverhaul_Generated_RULES_TagWheel.md");
+  /* Вторая фикстура — формы конфига заказчика: разные разделители, имя поля
+     элемента равно ключу Order, значение важности с косой чертой сразу за
+     приставкой. Зачем она нужна — сказано в ней самой. */
+  const ownerShapeRulesPath = path.resolve(__dirname, "..", "fixtures", "owner_shape_rules.md");
   function toAbs(vaultPath) {
     const src = String(vaultPath || "").trim();
     if (src === "InlineOverhaul_Generated_RULES_TagWheel.md") {
       return fixtureRulesPath;
+    }
+    if (src === "owner_shape_rules.md") {
+      return ownerShapeRulesPath;
     }
     return path.resolve(vaultRoot, src);
   }
@@ -192,6 +199,12 @@ function buildOrderConfig(overrides) {
     if (!key) continue;
     out.strictNames[key] = STRICT_NAMES_BY_KEY[key] || key;
   }
+  /* Имя поля под ключом Order называет сам вызывающий, если оно не совпадает
+     с ключом: у элементов первой фикстуры ключ `date_due`, а поле зовут `due`. */
+  if (src.strictNames && typeof src.strictNames === "object") Object.assign(out.strictNames, src.strictNames);
+  /* Тип поля под ключом: у элемента он «element», и без него порядок считает
+     его тегом. */
+  if (src.types && typeof src.types === "object") out.types = { ...(out.types || {}), ...src.types };
   return JSON.stringify(out);
 }
 
@@ -1287,6 +1300,117 @@ async function testTagWheelPreservesCheckboxPrefix() {
  * Мутация: вернуть в `relocateTokenSetByPanel` признак
  * `selectedToken.indexOf("/") !== -1` — и эта проверка краснеет.
  */
+/**
+ * Открыть панель и вернуть её состояние, ничего не применяя.
+ *
+ * Нужна там, где предмет проверки — сама панель: на каком Field она встала.
+ * Положительный контроль тот же, что у применения: панель, которая не
+ * открылась, отвечает на любой вопрос молчанием.
+ */
+async function openTagWheelPanel(editor, settings) {
+  const app = makeAppForRuntime(editor);
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  const said = [];
+  if (!global.window) global.window = makeWindowMock();
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  const withDates = Object.assign(
+    { "Date runtime config": TAGWHEEL_FIXTURE_DATE_RUNTIME },
+    settings || {}
+  );
+  let snapshot = null;
+  try {
+    await runtime.runCommand({ app, command: "tagWheel", settings: withDates });
+    const st = global.window.__tagWheelState;
+    if (st && st.active === true && st.session) {
+      snapshot = { activeFieldId: String(st.session.activeFieldId || ""), mode: String(st.session.mode || "") };
+    }
+    if (st && typeof st.cancel === "function") st.cancel();
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  if (!snapshot) {
+    throw new Error("TagWheel не открылся: спрашивать не о чем.\n  Что сказал движок: " + JSON.stringify(said));
+  }
+  return snapshot;
+}
+
+/*
+ * Замечание заказчика 2026-09-12 (`S5`): «при `First field` в моём порядке
+ * при открытии в левом Block активным было второе поле, хотя должно было быть
+ * первое».
+ *
+ * Его порядок начинается с элемента-даты. Поле выбиралось по имени верно, а
+ * следом имя бралось заново — номером в списке **по типу**, где элемента нет
+ * вовсе, — и активным вставал первый тег.
+ *
+ * Мутация: вернуть в месте открытия панели строку, берущую имя по номеру, — и
+ * эта проверка краснеет.
+ */
+/* Элемент второй фикстуры: значок и формат из двух слов — как у заказчика. */
+const OWNER_SHAPE_DATE_RUNTIME = JSON.stringify({
+  fields: ["date_due"],
+  byField: { date_due: { emoji: "\uD83D\uDCC5", format: "YYYY-MM-DD hh:mm" } },
+  canonical: { date_due: "date_due" },
+});
+
+/* Порядок заказчика: элемент-дата первым, следом теги. */
+function ownerShapeOrder(extra) {
+  return buildOrderConfig(Object.assign({
+    left: ["date_due", "Category", "Importance", "type"],
+    right: ["Project"],
+    types: { date_due: "element", Category: "tag", Importance: "tag", type: "tag", Project: "wikilink" },
+    panel: { date_due: "left", Category: "left", Importance: "left", type: "left", Project: "right" },
+    freeRoam: { date_due: "off", Category: "off", Importance: "off", type: "off", Project: "off" },
+    active: { date_due: "yes", Category: "yes", Importance: "yes", type: "yes", Project: "yes" },
+    enabled: { date_due: true, Category: true, Importance: true, type: true, Project: true },
+  }, extra || {}));
+}
+
+/*
+ * Вторая половина того же контрола: `First Field of the Block` обязан быть
+ * **ответом**, а не отсутствием ответа.
+ *
+ * В правилах бывает старый ключ «поле по умолчанию» (`activationFocus`), и
+ * пока выбор «первое поле» возвращал пустоту, решал он. Контрол при этом
+ * показывал человеку одно, а панель делала другое.
+ *
+ * Мутация: вернуть в `chooseActiveFieldId` пустой ответ для `first` — и эта
+ * проверка краснеет, потому что победит ключ фикстуры.
+ */
+async function testTagWheelFirstFieldBeatsRulesDefaultFieldId() {
+  const editor = makeEditor("- [ ] #todo :: 111", 6);
+  const seen = await openTagWheelPanel(editor, {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Order config": buildOrderConfig({
+      left: ["category", "context", "importance", "priority", "type"],
+      right: ["clients"],
+      panel: { category: "left", importance: "left", type: "left" },
+      freeRoam: { category: "off", importance: "off", type: "off" },
+    }),
+    "TagWheel active field mode": "first",
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  assertEq(seen.activeFieldId, "context",
+    "панель открылась на поле из правил, а не на первом поле Order: выбор человека слабее старого ключа");
+}
+
+async function testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement() {
+  const editor = makeEditor("- [ ] #todo || 111", 6);
+  const seen = await openTagWheelPanel(editor, {
+    "Rules path": "owner_shape_rules.md",
+    "Order config": ownerShapeOrder(),
+    "TagWheel active field mode": "first",
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  assertEq(seen.activeFieldId, "date_due",
+    "панель открылась не на первом поле его порядка: первым там стоит элемент-дата");
+}
+
 async function testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash() {
   const editor = makeEditor("- [ ] #/1 #area-alpha :: 111", 7);
   await runTagWheelApply(editor, {
@@ -2125,6 +2249,8 @@ async function run() {
   await testTagWheelPreservesCheckboxPrefix();
   await testTagWheelKeepsTagTokensAsTagsOnApply();
   await testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash();
+  await testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement();
+  await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();
   await testStatusTagsImportanceMinimalOffPreservesListPrefixAndIndent();

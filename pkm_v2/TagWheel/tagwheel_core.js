@@ -801,22 +801,33 @@ function applyActiveFieldChoiceToRules(rules, choice) {
  * типу, а человек видит свой Order, и середина у этих двух множеств разная
  * (10.13.69, Т-8).
  */
+function activeFieldChoiceMode(rules) {
+  var ui = isObj(rules && rules.ui) ? rules.ui : {}
+  var choice = isObj(ui.activeField) ? ui.activeField : {}
+  var mode = String(choice.mode || 'first').trim().toLowerCase()
+  return mode === 'middle' || mode === 'custom' ? mode : 'first'
+}
+
 function chooseActiveFieldId(rules, modeName, visible) {
   var list = Array.isArray(visible) ? visible : []
   if (!list.length) return ''
   var ui = isObj(rules && rules.ui) ? rules.ui : {}
   var choice = isObj(ui.activeField) ? ui.activeField : {}
-  var mode = String(choice.mode || 'first').trim().toLowerCase()
+  var mode = activeFieldChoiceMode(rules)
   if (mode === 'custom') {
-    var named = String(choice[modeName === 'right' ? 'right' : 'left'] || '').trim()
-    return named || ''
+    return String(choice[modeName === 'right' ? 'right' : 'left'] || '').trim()
   }
   if (mode === 'middle') {
     var idx = Math.ceil(list.length / 2) - 1
     if (idx < 0) idx = 0
     return String(list[idx] || '')
   }
-  return ''
+  /*
+   * `first` обязан быть **ответом**, а не молчанием. Пока он молчал, решал
+   * первый попавшийся старый ключ правил, и человек видел в настройках
+   * «первое поле Block», а панель открывалась на другом (`S5` 2026-09-12).
+   */
+  return String(list[0] || '')
 }
 
 function resolveInitialActiveField(rules, state, modeName) {
@@ -867,6 +878,23 @@ function resolveInitialActiveField(rules, state, modeName) {
    * контрол, и он сильнее.
    */
   var chosenId = chooseActiveFieldId(rules, modeName, visible)
+  var chosenIsNamed = activeFieldChoiceMode(rules) === 'custom'
+  /*
+   * **Названное поле сильнее посчитанного.** Порядок такой: поле, названное
+   * контролом (`A Field you choose`), потом поле, названное в правилах ключом
+   * `lead`, и только потом посчитанное — первое или среднее. Иначе правило
+   * «взять первое» отменяло бы прямое указание человека (У-33).
+   */
+  if (!chosenIsNamed) {
+    var behaviorEarly = isObj(rules.behavior) ? rules.behavior : {}
+    var orderEarly = isObj(behaviorEarly.order) ? behaviorEarly.order : {}
+    var leadEarly = isObj(orderEarly.lead) ? orderEarly.lead : {}
+    var leadKeyEarly = String(leadEarly[modeName] || '').trim()
+    if (leadKeyEarly) {
+      var leadIdxEarly = pick(getLeadFieldIdByOrderKey(mode, state, leadKeyEarly, rules))
+      if (leadIdxEarly !== -1) return leadIdxEarly
+    }
+  }
   if (chosenId) {
     var chosenIdx = pick(chosenId)
     if (chosenIdx !== -1) return chosenIdx

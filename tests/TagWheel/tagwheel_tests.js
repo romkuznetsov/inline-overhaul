@@ -779,14 +779,22 @@ function runSuite(core, rules, finalize) {
     assertTrue(idxRight >= 0, 'индекс активного поля не отрицателен')
 
     /*
-     * И обратная сторона: явный выбор настройка сохраняет за собой, даже если
-     * панель это поле сейчас не рисует. Догадка спрашивает панель, явный выбор
-     * — нет (У-33).
+     * И обратная сторона: явный выбор человека настройка сохраняет за собой,
+     * даже если панель это поле сейчас не рисует. Догадка спрашивает панель,
+     * явный выбор — нет (У-33).
+     *
+     * **Явный выбор — это контрол `Active Field on opening`**, а не старый
+     * ключ правил `activationFocus`: писать второй некому, панель его не
+     * показывает, и пока он решал за контрол, человек видел в настройках одно,
+     * а в строке другое (замечание `S5` 2026-09-12).
      */
-    var sNamed = core.makeInitialState(localRules, 'right')
+    var named = JSON.parse(JSON.stringify(localRules))
+    if (!named.ui) named.ui = {}
+    named.ui.activeField = { mode: 'custom', left: '', right: 'timeNow' }
+    var sNamed = core.makeInitialState(named, 'right')
     sNamed.mode = 'right'
-    core.resolveInitialActiveField(localRules, sNamed, 'right')
-    assertEq(sNamed.activeFieldId, 'timeNow', 'названное настройкой поле остаётся активным')
+    core.resolveInitialActiveField(named, sNamed, 'right')
+    assertEq(sNamed.activeFieldId, 'timeNow', 'названное контролом поле остаётся активным')
     assertTrue(seq.indexOf('modal') !== -1, 'right panel sequence includes dependent modal when parent selected')
   })()
 

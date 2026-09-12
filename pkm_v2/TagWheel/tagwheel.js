@@ -2040,11 +2040,21 @@ async function runTagWheel(input, quickAddSettings) {
       left: runtimeInput.activeFieldLeft,
       right: runtimeInput.activeFieldRight
     })
+    /*
+     * Ведущее поле выбирает `resolveInitialActiveField`, и **имя** выбранного
+     * поля кладёт он же: у элемента места в списке по типу нет вовсе, и по
+     * индексу его не найти.
+     *
+     * Здесь стояло второе объявление того же правила — имя бралось заново,
+     * индексом в списке по типу, — и оно перетирало верный ответ. При выборе
+     * `First Field of the Block` заказчик получал не первое поле своего
+     * порядка, а первый **тег**: его порядок начинается с элемента-даты, и
+     * активным вставал сосед (замечание `S5` 2026-09-12, У-150).
+     *
+     * Согласование имени с номером и с тем, что панель рисует, делает
+     * `ensureActiveFieldId` ниже — одно место на оба входа.
+     */
     session.activeField = core.resolveInitialActiveField(rules, session, session.mode)
-    var modeNow = session.mode === 'right' ? rules.rightMode : rules.leftMode
-    session.activeFieldId = modeNow && modeNow.fields && modeNow.fields[session.activeField]
-      ? modeNow.fields[session.activeField].id
-      : ''
 
     var state = {
       active: true,
@@ -2105,11 +2115,10 @@ async function runTagWheel(input, quickAddSettings) {
           handled = true
         } else if (e.key === (keymap.switchMode || 'Tab')) {
           state.session.mode = state.session.mode === 'left' ? 'right' : 'left'
+          /* Имя ведущего поля кладёт разрешитель; согласование — за
+             `ensureActiveFieldId`. Второе объявление здесь теряло элемент
+             ровно так же, как на открытии. */
           state.session.activeField = state.core.resolveInitialActiveField(state.rules, state.session, state.session.mode)
-          var switchedMode = state.session.mode === 'right' ? state.rules.rightMode : state.rules.leftMode
-          var switchedFields = switchedMode && Array.isArray(switchedMode.fields) ? switchedMode.fields : []
-          var switchedField = switchedFields[state.session.activeField]
-          state.session.activeFieldId = switchedField && switchedField.id ? String(switchedField.id) : ''
           ensureActiveFieldId(state)
           handled = true
         } else if (e.key === (keymap.apply || 'Enter')) {
