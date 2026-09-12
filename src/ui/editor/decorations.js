@@ -69,6 +69,7 @@ const {
   resolveEffectiveTagVisualMode,
   resolveTagwheelPaintColors,
   scanLineVisualTokens,
+  tagVisualSizingForZone,
   tagwheelPanelSpanInLine,
   tagwheelPanelSpans,
 } = __editorVisualsConfig;
@@ -450,11 +451,18 @@ function buildTagVisualDecorations(view, plugin) {
             displayTextOverride: effectiveMode === "custom" ? String(row.customText || "").trim() : "",
           });
         }
+        /*
+         * Размеры пузыря спрашиваются у того же объявления, что и размер
+         * текста в блоке (`tagVisualSizingForZone`): в вашем тексте между
+         * разделителями пузырь остаётся того размера, каким его пишет тема.
+         * Цвет и форма приезжают к нему везде.
+         */
+        const sizing = tagVisualSizingForZone(entry.zone, visuals);
         ranges.push({
           from,
           to,
           deco: cmView.Decoration.replace({
-            widget: new TagVisualTokenWidget(token, row.fillColor, row.textColor, entry.zoneOpacity, effectiveMode === "empty", visuals.tagTextSizePct, visuals.tagBubbleWidthPct, visuals.tagBubbleHeightPct, visuals.emptyBubbleSizePct, visuals.tagShapePct, effectiveMode === "custom" ? String(row.customText || "").trim() : ""),
+            widget: new TagVisualTokenWidget(token, row.fillColor, row.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(row.customText || "").trim() : ""),
             inclusive: false,
           }),
         });

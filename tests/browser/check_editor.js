@@ -438,7 +438,57 @@ async function main() {
       await window.__ioSetBand({ heightPct: 40, widthPct: 50 });
     });
 
-    /* ---- 10. Оверлей скроллера TagWheel ------------------------------- */
+    /* ---- 10. Размеры `Inline appearance` — про Blocks, а не про ваш текст -- */
+    /*
+     * Его слова 2026-09-12: «tags-text-size меняет высоту не только left и
+     * right blocks, но и тегов между сепараторами… то, что внутри сепараторов,
+     * изменяться от этой опции не должно». Пузырю размеры передавались
+     * безусловно, и правило про зону знала только вторая отрисовка —
+     * `buildBlockStyleCss` (У-159, правило 80).
+     *
+     * Мерит браузер: кегль и ящик каждого пузыря на своей зоне.
+     */
+    const zonesAt = async (patch) => page.evaluate(async (p) => {
+      await window.__ioSetTags(p);
+      return window.__ioBubblesByZone();
+    }, patch);
+    const smallZones = await zonesAt({ textSizePct: 100, bubbleHeightPct: 100, bubbleWidthPct: 100 });
+    const bigZones = await zonesAt({ textSizePct: 140, bubbleHeightPct: 140, bubbleWidthPct: 140 });
+    const pick = (rows, zone) => rows.filter((b) => b.zone === zone);
+    /*
+     * Порог до вывода (У-88): предмет обязан быть на странице. Пузырь в тексте
+     * человека там ровно один — тот, ради которого заведена шестая строка.
+     */
+    if (!pick(smallZones, "middle").length) {
+      bad("на странице нет ни одного пузыря между разделителями — правило"
+        + " «размеры про Blocks» проверялось бы отсутствием предмета");
+    } else if (!pick(smallZones, "left").length && !pick(smallZones, "right").length) {
+      bad("на странице нет ни одного пузыря в Block — сравнивать середину не с чем");
+    } else {
+      const midSmall = pick(smallZones, "middle")[0];
+      const midBig = pick(bigZones, "middle")[0];
+      const blockSmall = pick(smallZones, "left")[0];
+      const blockBig = pick(bigZones, "left")[0];
+      /* Положительный контроль: в Block шкала и правда двигает пузырь. */
+      if (!(blockBig.height >= blockSmall.height + 1)) {
+        bad("положительный контроль: в Block пузырь на верху шкал не вырос ("
+          + blockBig.height + " против " + blockSmall.height + ") — мерить нечего");
+      }
+      if (!near(midBig.height, midSmall.height, 0.05)) {
+        bad("пузырь в вашем тексте между разделителями вырос от настроек Block: "
+          + midBig.height + " против " + midSmall.height
+          + " (в Block " + blockBig.height + " против " + blockSmall.height + ")");
+      }
+      if (midBig.fontSize !== midSmall.fontSize) {
+        bad("кегль пузыря между разделителями сменился с " + midSmall.fontSize
+          + " на " + midBig.fontSize + " — размер из Blocks доехал до вашего текста");
+      }
+    }
+    await page.evaluate(async () => {
+      await window.__ioSetTags({ textSizePct: 80, bubbleHeightPct: 80, bubbleWidthPct: 80 });
+    });
+
+    /* ---- 11. Оверлей скроллера TagWheel ------------------------------- */
     /*
      * **Он тоже поднят в браузер** (Р7). Про него в самом правиле каталога
      * написано: «перенос 32 его объявлений в классы вида не меняет, если сделан

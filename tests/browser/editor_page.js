@@ -97,6 +97,14 @@ const LINES = [
   "- [ ] #todo #work " + SEP + " a line long enough that its right block has to wrap onto"
     + " the next visual row of the very same document line " + SEP
     + " \u{1F4C5}2026-09-08 12:39 #processed",
+  /*
+   * 6. Тег со своим цветом стоит в **тексте человека**, между разделителями:
+   *    «tags-text-size меняет высоту не только left и right blocks, но и тегов
+   *    между сепараторами… то, что внутри сепараторов, изменяться от этой
+   *    опции не должно» (замечание 2026-09-12). Без такой строки правило
+   *    «размеры — про Blocks» проверялось бы отсутствием предмета (У-113).
+   */
+  "- [ ] #todo " + SEP + " your own text #work here " + SEP + " #processed",
 ];
 
 /*
@@ -178,6 +186,42 @@ window.__ioSetTags = function (patch) {
   Object.assign(CFG.visual.tags, patch || {});
   view.dispatch({ selection: view.state.selection });
   return settled();
+};
+
+/**
+ * Пузыри тегов по зонам: что браузер насчитал каждому.
+ *
+ * Зона у каждого спрашивается **у того же объявления, каким её считает
+ * продукт** (`resolveTagVisualZone`), а не выводится из вида строки: своя
+ * копия правила разошлась бы с ним молча (У-32).
+ */
+window.__ioBubblesByZone = function () {
+  const out = [];
+  const doc = view.state.doc;
+  for (const el of document.querySelectorAll("[data-io-tag-token]")) {
+    const token = el.getAttribute("data-io-tag-token");
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    /*
+     * Место узла берётся **у редактора** (`posAtDOM`), а не поиском токена по
+     * тексту: `#work` стоит на странице в четырёх строках, и поиск по первому
+     * вхождению приписал бы всем пузырям одну зону — то есть проверка мерила
+     * бы не то, что нарисовано (У-134).
+     */
+    const pos = view.posAtDOM(el);
+    const line = doc.lineAt(pos);
+    const zone = visuals.resolveTagVisualZone(line.text, pos - line.from, SEP, SEP);
+    out.push({
+      token,
+      zone,
+      fontSize: cs.getPropertyValue("font-size"),
+      padTop: cs.getPropertyValue("padding-top"),
+      padLeft: cs.getPropertyValue("padding-left"),
+      height: round(r.height),
+      width: round(r.width),
+    });
+  }
+  return out;
 };
 
 /** Каретка на строке: от неё зависит, где стоит кнопка `→`. */

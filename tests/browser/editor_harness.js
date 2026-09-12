@@ -133,6 +133,29 @@ const EDITOR_INJECTIONS = {
     replace: "  return (nearOk * pct) / 100;\n  if (pct <= 50) return (nearOk * pct) / 50;",
   },
   /*
+   * Размеры `Inline appearance` обратно едут к пузырю в любой зоне: ровно так
+   * и было до 2026-09-12, и заказчик увидел это так — «tags-text-size меняет
+   * высоту… и тегов между сепараторами».
+   */
+  "middle-takes-sizing": {
+    file: "src/ui/editor/decorations.js",
+    find: "        const sizing = tagVisualSizingForZone(entry.zone, visuals);",
+    replace: "        const sizing = { textSizePct: visuals.tagTextSizePct,"
+      + " bubbleWidthPct: visuals.tagBubbleWidthPct,"
+      + " bubbleHeightPct: visuals.tagBubbleHeightPct,"
+      + " emptyBubblePct: visuals.emptyBubbleSizePct };",
+  },
+  /*
+   * И обратная ошибка того же правила: размеры перестают доезжать **вообще
+   * никуда**. Без этой подмены утверждение «в середине не выросло» было бы
+   * зелёным и у слоя, который не рисует размеров ни в одном блоке.
+   */
+  "block-loses-sizing": {
+    file: "src/core/editor_visuals_config.js",
+    find: "  const inBlock = zone === \"left\" || zone === \"right\";",
+    replace: "  const inBlock = false;",
+  },
+  /*
    * Оверлей скроллера: правило показа сломано. Перенос `display` из свойств
    * узла в класс (Р7) тем и опасен, что правило теперь живёт в другом файле, и
    * набор на заглушке DOM стилей не читает вовсе — эту половину видит только

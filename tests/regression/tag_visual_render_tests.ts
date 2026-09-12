@@ -244,6 +244,46 @@ const filled = (el: Any): boolean =>
   ok("размер текста одинаков у пузыря и у голого токена");
 }
 
+{
+  /*
+   * **Размеры `Inline appearance` — про Blocks, и объявление у правила одно**
+   * (замечание заказчика 2026-09-12, правило 80). Раньше зону спрашивала
+   * только отрисовка отрезком, а пузырю размеры передавались безусловно — и
+   * тег со своим цветом, стоящий в тексте человека между разделителями, рос
+   * от `Text size` наравне с блоками.
+   *
+   * Здесь закреплено само объявление; то, что его спрашивает **отрисовка**,
+   * видит браузер: `tests/browser/check_editor.js`, пункт 10, и подмены
+   * `middle-takes-sizing` и `block-loses-sizing`.
+   */
+  const visuals = {
+    tagTextSizePct: 140, tagBubbleWidthPct: 130,
+    tagBubbleHeightPct: 120, emptyBubbleSizePct: 150, tagShapePct: 100,
+  };
+  for (const zone of ["left", "right"]) {
+    const sizing = I.tagVisualSizingForZone(zone, visuals);
+    assert.equal(sizing.inBlock, true, zone + ": это Block");
+    assert.equal(sizing.textSizePct, 140, zone + ": размер текста приезжает");
+    assert.equal(sizing.bubbleWidthPct, 130, zone + ": ширина пузыря приезжает");
+    assert.equal(sizing.bubbleHeightPct, 120, zone + ": высота пузыря приезжает");
+    assert.equal(sizing.emptyBubblePct, 150, zone + ": ширина пустого пузыря приезжает");
+  }
+  const mid = I.tagVisualSizingForZone("middle", visuals);
+  assert.equal(mid.inBlock, false, "текст между разделителями — не Block");
+  assert.deepEqual(
+    [mid.textSizePct, mid.bubbleWidthPct, mid.bubbleHeightPct, mid.emptyBubblePct],
+    [100, 100, 100, 100],
+    "в вашем тексте пузырь остаётся того размера, каким его пишет тема");
+  /*
+   * И форма сюда не входит: скругление — вид, а не размер, и оно приезжает к
+   * пузырю где угодно. Утверждение положительное: правило не отдаёт формы
+   * вовсе, значит её берут мимо него.
+   */
+  assert.equal(Object.prototype.hasOwnProperty.call(mid, "tagShapePct"), false,
+    "форма пузыря через это правило не ездит — она общая для любой зоны");
+  ok("размеры Inline appearance объявлены один раз и кончаются на границе Block");
+}
+
 /* ---- И-2.3: пустой пузырь в заметке той же ширины, что в панели -------- */
 
 {

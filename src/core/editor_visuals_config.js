@@ -548,6 +548,36 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
 }
 
 /**
+ * Размеры `Inline appearance` — про Left и Right Block, а не про ваш текст.
+ *
+ * **Одно объявление на обе отрисовки, и это починка** (У-159, правило 80,
+ * замечание заказчика 2026-09-12). Правило про зону знала одна половина:
+ * `buildBlockStyleCss` спрашивала её и для середины строки не давала ничего, а
+ * пузырю (`TagVisualTokenWidget`) размеры передавались **безусловно**. Поэтому
+ * тег со своим цветом, стоящий в тексте человека между разделителями, рос от
+ * `Text size` наравне с блоками: «внутри сепараторов изменяться от этой опции
+ * не должно». Теперь обе отрисовки спрашивают здесь.
+ *
+ * **Форма сюда не входит.** Скругление (`Tags bubble corners`) — это вид, а не
+ * размер: пузырь, оставшийся круглым посреди квадратных, читался бы как
+ * дефект. Оно приезжает к пузырю где угодно, как и цвет.
+ */
+function tagVisualSizingForZone(zone, visuals) {
+  const inBlock = zone === "left" || zone === "right";
+  const pick = (value, fallback) => {
+    const n = Math.trunc(Number(value));
+    return inBlock && Number.isFinite(n) ? n : fallback;
+  };
+  return {
+    inBlock,
+    textSizePct: pick(visuals && visuals.tagTextSizePct, 100),
+    bubbleWidthPct: pick(visuals && visuals.tagBubbleWidthPct, 100),
+    bubbleHeightPct: pick(visuals && visuals.tagBubbleHeightPct, 100),
+    emptyBubblePct: pick(visuals && visuals.emptyBubbleSizePct, 100),
+  };
+}
+
+/**
  * Прозрачность блока и размер текста для токена, у которого нет своего цвета.
  *
  * Токен со своим цветом получает и то и другое через пузырь
@@ -558,10 +588,10 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
  * плагина (решение заказчика 2026-09-01).
  */
 function buildBlockStyleCss(entry, visuals) {
-  const zone = String(entry && entry.zone || "");
-  if (zone !== "left" && zone !== "right") return "";
+  const sizing = tagVisualSizingForZone(String(entry && entry.zone || ""), visuals);
+  if (!sizing.inBlock) return "";
   const opacity = Number(entry && entry.zoneOpacity);
-  const sizePct = Number(visuals && visuals.tagTextSizePct);
+  const sizePct = Number(sizing.textSizePct);
   const parts = [];
   if (Number.isFinite(opacity) && opacity < 1) parts.push("opacity: " + opacity + ";");
   if (Number.isFinite(sizePct) && sizePct !== 100) {
@@ -1542,6 +1572,7 @@ module.exports = {
   buildElementMarkersFromConfig,
   scanLineVisualTokens,
   buildBlockStyleCss,
+  tagVisualSizingForZone,
   formatTagwheelDisplayToken,
   TAGWHEEL_FILL_STYLE_CSS,
   BLOCK_FILL_LAYER_CLASS,
