@@ -653,6 +653,19 @@ Inline Overhaul — desktop-плагин Obsidian: навигация по ст�
   «текста нет» разделителя не ставила вовсе. Закреплено проверкой с обеими
   сторонами и счётом разделителей (их обязан быть один); подмена краснеет.
 
+  **Исключение шестьдесят восьмое, сделанное 2026-09-13, ночь, по его заказу
+  «хочу добавить опцию отображения с двумя режимами — первый прятать values
+  противоположного block (текущий), второй не прятать»** (значения
+  противоположного Block): `pkm_v2/TagWheel/tagwheel_core.js` —
+  `renderControlLine` читает `rules.ui.activePanel.keepOppositeBlock` и при
+  `keep` оставляет противоположный Block в строке, на его собственной стороне
+  от текста. Сборка строки полосы при этом сведена к одной, вместо четырёх
+  ветвей: разделитель появляется там, где в его зоне что-то есть, а пустой слот
+  текста между двумя занятыми зонами — два пробела. Умолчание прежнее, его же
+  словом. Закреплено проверкой `runOppositeBlockSuite` на настоящих правилах
+  фикстуры, с контролем «полоса панели непуста» у каждого замера; шесть подмен
+  краснеют. Разбор — 10.13.87.
+
   **Порядок, которым сделаны исключения «без спроса»**, один и тот же с 2026-09-04 и заказчиком не оспорен: полный разбор всех мест, где задаётся поведение, — правка — вопрос «оставить ли сделанное» с указанием, чем откатывается (У-9, В-34, В-35). Он применяется, когда заказчик ушёл со словами «работай автономно» или сам назначил починку, и **не отменяет правила**: разрешение спрашивается до правки, когда заказчика есть о чём спросить.
 
   **Истории всех исключений лежат здесь** — с 2026-09-10, когда список переехал из `CLAUDE.md`: тот файл читается целиком каждую сессию, и истории занимали в нём четверть объёма (У-31). В `CLAUDE.md` осталась таблица «номер, дата, файл, одна строка» и ссылка сюда; разбор каждого — в 10.13.*. На первые двадцать два ссылаются разделы 4 и 11. Правило не менялось: **следующее исключение спрашивается у заказчика**, и не раньше полного разбора (У-9).
@@ -829,6 +842,65 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 **Что увидит заказчик.** У него тумблер выключен, и теперь обе дороги дают строку
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
+
+#### 10.13.87 Значения противоположного Block: прятать или оставить (2026-09-13, ночь)
+
+Заказ заказчика 2026-09-12: «сейчас при открытии tagwheel из строки визуально
+"исчезают" все элементы из противоположного block, даже если они уже были
+выбраны. Хочу добавить опцию отображения с двумя режимами — первый — прятать
+values противоположного block (текущий), второй — не прятать».
+
+**Он описал ровно то, что делает `renderControlLine`.** Полоса панели встаёт на
+место своего Block, а строка собирается из трёх кусков: полоса, разделитель и
+текст человека. Противоположного Block среди этих кусков не было вовсе — ни в
+одной из четырёх прежних ветвей, — поэтому он уходил с экрана на всё время
+выбора и возвращался при закрытии панели.
+
+**Убирался он только с экрана, и это важно для цены.** Строку на экране пишет
+`setLineOutsideHistory`, а итог собирает `applySelection` — из `state.originalLine`
+и выбранного в сессии, а не из того, что нарисовано. Отмена возвращает
+`originalLine` тем же швом. То есть правка здесь касается вида и только вида:
+ни один путь записи её не читает.
+
+**Откуда берётся противоположный Block.** Из `parsedLine`, снятого при открытии
+панели, а не из строки на экране. На экране лежит вид панели, и чтение оттуда
+дописывало бы противоположный Block на каждое нажатие — тот самый рост по
+кругу, которым были пять разделителей заказчика (У-157).
+
+**Сборка строки полосы сведена к одной.** Ветвей было четыре — режим панели на
+два состояния текста, — и каждая объявляла правило о разделителях заново. С
+новым режимом их стало бы восемь. Теперь зоны идут слева направо, полоса стоит
+в зоне своего Block, разделитель появляется там, где в его зоне что-то есть, а
+пустой слот текста между двумя занятыми зонами — два пробела, как и у обычной
+строки. Восемь случаев проверены поимённо.
+
+**Это не `joinLineParts`, и почему — сказано в самом коде.** У полосы своё
+правило, которого общая сборка не знает: разделитель у полосы стоит **всегда**,
+даже когда остальная строка пуста (исключение 67), а знака начала строки в
+полосе нет вовсе — его возвращает `withKeptPrefix`. Общая сборка ждёт знак в
+левой зоне и на пустой стороне разделителя не ставит.
+
+**Чем закреплено.** `runOppositeBlockSuite` в `tests/TagWheel/tagwheel_tests.js`:
+обе стороны панели, оба режима, строка с текстом и без, граница «прятать
+нечего» и неподвижность — собранную строку `splitSegments` читает обратно.
+Разделители в проверке **разные** (`||` и `::`), как у заказчика: при одинаковых
+переворот «слева первый, справа второй» прошёл бы незамеченным (У-147). Шесть
+подмен краснеют: всегда прятать, всегда показывать, переставленные стороны,
+переставленные разделители, снятый пустой слот и пустая полоса.
+
+**Слепая фикстура по соседству, найденная этим же заходом.** Проверка подсветки
+строки собирала правила руками, и панель на них не строилась вовсе: `cells`
+выходил пустым. Её утверждение требует обёртки `==`, а обёртка пустой полосы —
+это `====`, и образец совпадал независимо от того, отрисовалась панель или нет
+(У-152). Нашлось это, когда та же рукописная фикстура понадобилась соседней
+проверке и там сразу дала пустую строку. Обе теперь берут правила из фикстуры,
+и у обеих стоит контроль «полоса непуста»; подмена `head = ''` краснеет первой
+именно в проверке подсветки.
+
+**Что увидит заказчик.** Умолчание прежнее: строка `Values in the other Block`
+стоит на `Hide them while the picker is open`, и не меняется ничего. Переключит
+на `Keep them in sight` — противоположный Block останется написанным на своей
+стороне от текста, пока он выбирает.
 
 #### 10.13.86 Два режима высоты таблицы Fields (2026-09-13, ночь)
 
@@ -2029,7 +2101,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (47)
+### Пути, которых не было в описи v1.0 (48)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -2054,6 +2126,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
+| `visual.tagWheel.oppositeBlock` | Values in the other Block (`wheel-opposite-block`) | TagWheel |
 | `visual.tagWheel.highlightLine` | Highlight the TagWheel line (`panel-highlight`) | TagWheel |
 | `visual.tagWheel.activeTextColor` | Active Field text color (`panel-active-color`) | TagWheel |
 | `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | TagWheel |
@@ -9099,7 +9172,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 5 | 10 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 7 | 43 | 6 |
+| 5 | Visual | `features.visual.enabled` | 7 | 44 | 6 |
 | 6 | Transform | `features.transform.enabled` | 6 | 28 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -9990,6 +10063,11 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: Show the hash and emoji in the picker, or just the words
   - tip: A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way
   - старые названия для поиска: «Show Prefix»
+- **Values in the other Block** — `wheel-opposite-block`, `dropdown`, path `visual.tagWheel.oppositeBlock`, default `hide`
+  - desc: What happens to the Values you are not picking while the picker is open
+  - tip: TagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes
+  - варианты: `hide` Hide them while the picker is open · `keep` Keep them in sight
+  - старые названия для поиска: «Opposite Block», «Other Block», «Hide values»
 - **Highlight the TagWheel line** — `panel-highlight`, `toggle`, path `visual.tagWheel.highlightLine`, default `true`
   - desc: Mark the line while the picker is open, so it stands out from the page
   - tip: TagWheel draws itself over the line you are on, and on a busy page it is not always clear where the picker ends and your note begins. On, the line is wrapped in <code>==</code> for as long as the picker is open, and that is what paints it: <code>Background color</code> below gives the color, and without one Obsidian uses its own highlight. The marks belong to the picker, not to your line — they leave with it, and nothing stays behind in the note
@@ -10221,6 +10299,7 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `visual.tagWheel.edgeMode` | dropdown | `stay` |
 | `visual.tagWheel.fillColor` | color | `""` |
 | `visual.tagWheel.highlightLine` | toggle | `true` |
+| `visual.tagWheel.oppositeBlock` | dropdown | `hide` |
 | `visual.tagWheel.scroller.direction` | dropdown | `full` |
 | `visual.tagWheel.scroller.enabled` | toggle | `false` |
 | `visual.tagWheel.scroller.fillColor` | color | `""` |

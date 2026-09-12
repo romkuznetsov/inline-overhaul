@@ -87,6 +87,18 @@ function buildRulesShapeFromConfig(cfg) {
   const activePanel = isObj(ui.activePanel) ? cloneJson(ui.activePanel) : {};
   activePanel.enabled = true;
   activePanel.useHighlight = wheel.highlightLine === true;
+  /*
+   * **Значения противоположного Block, пока панель открыта** (10.13.87, заказ
+   * заказчика 2026-09-12). Полоса панели встаёт на место своего Block, а
+   * противоположный уходил из строки на всё время выбора — его слова: «визуально
+   * исчезают все элементы из противоположного block, даже если они уже были
+   * выбраны».
+   *
+   * Ключ живёт рядом с `useHighlight`, потому что отвечает на тот же вопрос —
+   * как выглядит строка, пока панель открыта, — а читает его тот же
+   * `renderControlLine`. Умолчание `hide` прежнее: «первый прятать (текущий)».
+   */
+  activePanel.keepOppositeBlock = String(wheel.oppositeBlock || "") === "keep";
   ui.activePanel = activePanel;
 
   const meta = cloneJson(slice(behaviorCfg, "meta"));

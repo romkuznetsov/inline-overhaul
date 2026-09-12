@@ -2535,6 +2535,7 @@ function renderControlLine(rules, state, parsedLine) {
   var tail = parsedLine.text || ''
   var head = cells.join(' ')
   var panelCfg = rules.ui && rules.ui.activePanel ? rules.ui.activePanel : null
+  var keepOpposite = false
   if (panelCfg && panelCfg.enabled !== false) {
     var useHighlight = panelCfg.useHighlight === true
     var showMarkers = panelCfg.showMarkers === true
@@ -2542,24 +2543,51 @@ function renderControlLine(rules, state, parsedLine) {
     var sfx = typeof panelCfg.suffix === 'string' ? panelCfg.suffix : '{/TW}'
     if (showMarkers) head = pfx + ' ' + head + ' ' + sfx
     if (useHighlight) head = '==' + head + '=='
-  }
-
-  if (state.mode === 'right') {
-    if (tail) return parsedLine.indent + tail + ' ' + rules.io.separator2 + ' ' + head
-    return parsedLine.indent + rules.io.separator2 + ' ' + head
+    keepOpposite = panelCfg.keepOppositeBlock === true
   }
 
   /*
-   * **Разделитель у полосы стоит с той стороны, где остальная строка** — и
-   * стоит там всегда, а не только когда остальная строка непуста.
+   * **Противоположный Block: прятать или оставить на виду** (10.13.87, заказ
+   * заказчика 2026-09-12). Полоса встаёт на место своего Block; второй уходил
+   * из строки на всё время выбора, даже если значения в нём уже стояли.
    *
-   * Замечание заказчика 2026-09-12: «при открытии в пустой строке правого
-   * блока слева от него показывает сепаратор, а при открытии левого блока
-   * справа не возникает — хочу, чтобы возникал». У правой панели ветка
-   * «текста нет» разделитель ставила всегда, у левой — не ставила вовсе.
+   * Берётся он из `parsedLine`, снятого при открытии, а не из строки на
+   * экране: на экране лежит вид панели, и чтение оттуда дописывало бы
+   * противоположный Block на каждое нажатие (У-157).
+   *
+   * Текста человека это не касается: он на месте в обоих режимах.
    */
-  if (tail) return parsedLine.indent + head + ' ' + rules.io.separator1 + ' ' + tail
-  return parsedLine.indent + head + ' ' + rules.io.separator1
+  var other = ''
+  if (keepOpposite) {
+    other = state.mode === 'right'
+      ? String((parsedLine.tags || []).join(' ')).trim()
+      : String(parsedLine.dates || '').trim()
+  }
+
+  /*
+   * Сборка строки панели — **одна на все случаи**, и это не `joinLineParts`.
+   * У полосы своё правило, которого общая сборка не знает и знать не должна:
+   *
+   *   - **разделитель у полосы стоит всегда**, даже когда остальная строка
+   *     пуста (замечание заказчика 2026-09-12: «при открытии в пустой строке
+   *     правого блока слева от него показывает сепаратор, а при открытии
+   *     левого блока справа не возникает — хочу, чтобы возникал»);
+   *   - **знака начала строки в полосе нет вовсе** — его возвращает
+   *     `withKeptPrefix` в `tagwheel.js`, а `joinLineParts` ждёт его в левой
+   *     зоне.
+   *
+   * Зоны идут слева направо; полоса стоит в зоне своего Block. Разделитель
+   * появляется ровно там, где в его зоне что-то есть, а пустой слот текста
+   * между двумя занятыми зонами — два пробела, как и у обычной строки.
+   */
+  var leftZone = state.mode === 'right' ? other : head
+  var rightZone = state.mode === 'right' ? head : other
+  var out = parsedLine.indent
+  if (leftZone) out += leftZone + ' ' + rules.io.separator1
+  if (tail) out += (out === parsedLine.indent ? '' : ' ') + tail
+  else if (leftZone && rightZone) out += ' '
+  if (rightZone) out += (out === parsedLine.indent ? '' : ' ') + rules.io.separator2 + ' ' + rightZone
+  return out
 }
 
 function hydrateStateFromParsedLine(rules, state, parsedLine) {

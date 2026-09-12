@@ -2355,6 +2355,17 @@ const SCHEMA = [
       name:"Show tag markers", desc:"Show the hash and emoji in the picker, or just the words",
       searchTerms:["Show Prefix"],
       tip:"A column of words reads faster than a column of words with hashes in front. What actually goes into your note is the same either way" },
+    /* Значения противоположного Block: заказ заказчика 2026-09-12. «Сейчас при
+       открытии tagwheel из строки визуально исчезают все элементы из
+       противоположного block, даже если они уже были выбраны. Хочу добавить
+       опцию отображения с двумя режимами — первый прятать (текущий), второй не
+       прятать». Умолчание — прежнее поведение, его же словом. */
+    { kind:"dropdown", id:"wheel-opposite-block", path:"visual.tagWheel.oppositeBlock", default:"hide",
+      name:"Values in the other Block", desc:"What happens to the Values you are not picking while the picker is open",
+      searchTerms:["Opposite Block","Other Block","Hide values"],
+      options:[ {value:"hide",label:"Hide them while the picker is open"},
+                {value:"keep",label:"Keep them in sight"} ],
+      tip:"TagWheel draws itself over the line, and the Block it is standing in gives up its place to the picker. <code>Hide them while the picker is open</code> is how it has always worked: the other Block leaves the line for as long as you are choosing. <code>Keep them in sight</code> leaves it written where it belongs, so you can see what the line already carries on the other side of your text. Either way nothing is written or removed — what you pick lands on the line when the picker closes" },
     { kind:"toggle", id:"panel-highlight", path:"visual.tagWheel.highlightLine", default:true,
       name:"Highlight the TagWheel line", desc:"Mark the line while the picker is open, so it stands out from the page",
       searchTerms:["Highlight the line"],

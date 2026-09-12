@@ -68,6 +68,9 @@ and on exit the line is written back as plain markdown.
 
 - **Two sides, two commands.** `Open TagWheel on the left` starts on the Fields
   that stand before your text, `Open TagWheel on the right` on those after it.
+- **The other Block, your choice.** While the picker is open it takes the place
+  of the Block it stands in. The other one either leaves the line for as long as
+  you are choosing, or stays written where it belongs — one setting decides.
 - **Only what applies.** Fields whose precondition is not met are not offered, so
   the panel stays as short as the line deserves.
 - **Your text is never retyped.** The panel writes back only what actually

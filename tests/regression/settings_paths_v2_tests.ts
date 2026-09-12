@@ -88,6 +88,7 @@ const V2_ONLY: Record<string, string> = {
   "navigation.moveLine.keepInView": "следовать ли экрану за перемещённой строкой — заказ 2026-09-05, поздний вечер (10.13.36); читает maybeRevealMovedRange в navigation_runtime.js",
   "navigation.moveLine.viewPosition": "куда встаёт перемещённая строка на экране — там же (10.13.36); читает revealLineAt в navigation_runtime.js",
   "navigation.jumpToHeader.viewPosition": "куда встаёт строка на экране после перехода по заголовкам — заказ 2026-09-06 (10.13.37); читает та же revealLineAt в navigation_runtime.js",
+  "visual.tagWheel.oppositeBlock": "прятать ли значения противоположного Block, пока панель открыта — заказ заказчика 2026-09-12 (10.13.87); доезжает через `rules.ui.activePanel.keepOppositeBlock` до renderControlLine в tagwheel_core.js",
   "visual.tagWheel.activeField.mode": "на каком Field открывается TagWheel — решение заказчика 2026-09-11 (10.13.69 Т-5, правка 10.13.76); доезжает ключом настройки до resolveInitialActiveField в tagwheel_core.js",
   "visual.tagWheel.activeField.left": "какое поле ведущее в левом Block при выборе «A Field you choose» — там же (10.13.76)",
   "visual.tagWheel.activeField.right": "то же для правого Block — там же (10.13.76)",

@@ -2029,7 +2029,7 @@ async function runUndoOneStepSuite() {
  * `activePanel` это не тумблер `Show tag markers`, а обёртки `{TW}` вокруг
  * строки, — и она закреплена отдельно.
  */
-function runPanelHighlightSuite(core) {
+function runPanelHighlightSuite(core, baseRules) {
   var path = require('path')
   var builderMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'rules_markdown_builder.js'))
   var builder = builderMod.createRulesMarkdownBuilder({})
@@ -2046,31 +2046,164 @@ function runPanelHighlightSuite(core) {
   assertEq(markersUi.activePanel.showMarkers, undefined,
     'тумблер Show tag markers не превращается в текстовые обёртки вокруг строки')
 
-  /* Правила минимальные: нужен один Field с одним значением и разделители. */
-  var rules = {
-    io: { separator1: '||', separator2: '||' },
-    behavior: { order: { left: ['type'], right: [], active: { type: 'yes' }, enabled: { type: true } } },
-    leftMode: { fields: [{ id: 'type', prefix: '#', placeholder: 'type', values: [
-      { id: '', token: '' },
-      { id: '#todo', token: '#todo', active: true }
-    ] }] },
-    rightMode: { fields: [] }
-  }
+  /*
+   * **Правила настоящие, из фикстуры, и это купленная поправка.** Здесь
+   * стоял минимальный набор, собранный руками, и панель на нём не строилась
+   * вовсе: `cells` выходил пустым. Утверждение ниже требует обёртки `==`, а
+   * обёртка пустой полосы — это `====`, то есть образец совпадал независимо
+   * от того, отрисовалась панель или нет (У-152). Нашлось это, когда та же
+   * фикстура понадобилась соседней проверке и там сразу покраснела.
+   */
+  var rules = JSON.parse(JSON.stringify(baseRules))
+  rules.io = Object.assign({}, rules.io, { separator1: '||', separator2: '||' })
+  /* Ветки `ui` в фикстуре может и не быть, и может быть — а `plain` ниже
+     означает именно «ветки нет». Снимаем её явно. */
+  delete rules.ui
   var state = core.makeInitialState(rules, 'left')
-  state.selected = { type: '#todo' }
   var parsed = { indent: '', text: '111', tags: [], dates: '' }
 
   var plain = core.renderControlLine(rules, state, parsed)
   assertTrue(plain.indexOf('==') === -1, 'без настройки строка панели ничем не обёрнута')
+  /* Контроль: полоса непуста. Без него всё, что ниже, зелено и у панели,
+     которая не отрисовалась. */
+  assertTrue(plain.replace(/\s+/g, '').length > ('111||').length,
+    'полоса панели пуста, мерить нечего: ' + JSON.stringify(plain))
 
   rules.ui = onUi
   var painted = core.renderControlLine(rules, state, parsed)
-  if (painted.indexOf('==') === -1) console.log('  строка панели: ' + painted)
-  assertTrue(/^==.*==\s*\|\|\s*111$/.test(painted), 'с настройкой панель обёрнута в == и текст остаётся за разделителем')
+  assertTrue(/^==.+==\s*\|\|\s*111$/.test(painted),
+    'с настройкой панель обёрнута в == и текст остаётся за разделителем: ' + painted)
+  assertTrue(painted.indexOf('====') !== 0,
+    'обёрнута полоса, а не пустота: ' + painted)
 
   rules.ui = offUi
   assertEq(core.renderControlLine(rules, state, parsed), plain,
     'выключенная настройка возвращает ту же строку, что и отсутствие ветки')
+}
+
+/*
+ * Значения противоположного Block, пока панель открыта (10.13.87).
+ *
+ * Заказ заказчика 2026-09-12: «визуально исчезают все элементы из
+ * противоположного block, даже если они уже были выбраны. Хочу добавить опцию
+ * отображения с двумя режимами — первый прятать (текущий), второй не прятать».
+ *
+ * Спрашиваются обе половины: строитель кладёт значение в правила, движок по
+ * нему рисует. И обе стороны строки — левая панель и правая, — потому что
+ * прячут они разное, а правило одно.
+ */
+/*
+ * Значения противоположного Block, пока панель открыта (10.13.87).
+ *
+ * Заказ заказчика 2026-09-12: «визуально исчезают все элементы из
+ * противоположного block, даже если они уже были выбраны. Хочу добавить опцию
+ * отображения с двумя режимами — первый прятать (текущий), второй не прятать».
+ *
+ * Спрашиваются обе половины: строитель кладёт значение в правила, движок по
+ * нему рисует. И обе стороны строки — левая панель и правая, — потому что
+ * прячут они разное, а правило одно.
+ *
+ * **Правила настоящие, из фикстуры.** Собранный руками минимальный набор
+ * давал пустую полосу панели, и проверка была бы зелёной при не отрисованной
+ * панели (У-152). Поэтому рядом с каждым замером стоит контроль «полоса
+ * непуста».
+ */
+function runOppositeBlockSuite(core, baseRules) {
+  var path = require('path')
+  var builderMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'rules_markdown_builder.js'))
+  var builder = builderMod.createRulesMarkdownBuilder({})
+
+  var hideUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: {} } }).ui
+  var keepUi = builder.buildRulesShapeFromConfig({
+    visual: { tagWheel: { oppositeBlock: 'keep' } }
+  }).ui
+  assertEq(hideUi.activePanel.keepOppositeBlock, false,
+    'умолчание прежнее: противоположный Block прячется')
+  assertEq(keepUi.activePanel.keepOppositeBlock, true,
+    'выбранный режим доезжает до правил')
+
+  var rules = JSON.parse(JSON.stringify(baseRules))
+  /*
+   * Разделители **разные**: при одинаковых правило «слева первый, справа
+   * второй» верно само собой, и переворот прошёл бы незамеченным (У-147). У
+   * заказчика они и есть разные — `||` и `::`.
+   */
+  rules.io = Object.assign({}, rules.io, { separator1: '||', separator2: '::' })
+
+  /* Строка человека: слева тег, посередине текст, справа дата. */
+  var parsed = { indent: '', text: '111', tags: ['#work'], dates: '📅2026-09-12' }
+  var DATE = parsed.dates
+
+  function view(mode, ui, line) {
+    var s = core.makeInitialState(rules, mode)
+    rules.ui = ui
+    var out = core.renderControlLine(rules, s, line || parsed)
+    /*
+     * Контроль на каждый замер: полоса панели обязана быть непустой. Без него
+     * всё, что ниже, было бы зелёным и у панели, которая не отрисовалась
+     * вовсе (У-152) — ровно так и случилось с первой версией этой проверки.
+     */
+    var bare = out.replace(/\s+/g, '')
+    var known = (line || parsed).text + (mode === 'left' ? '' : '') + rules.io.separator1 + rules.io.separator2
+    assertTrue(bare.length > known.length,
+      'полоса панели пуста, мерить нечего (' + mode + '): ' + JSON.stringify(out))
+    return out
+  }
+
+  /* ---- прежнее поведение не меняется ни в одной из строк ---- */
+  var leftHidden = view('left', hideUi)
+  assertTrue(leftHidden.indexOf(DATE) === -1,
+    'в прежнем режиме правый Block из строки уходит: ' + leftHidden)
+  assertTrue(leftHidden.indexOf('::') === -1,
+    'и второго разделителя за ним тоже нет: ' + leftHidden)
+  assertTrue(/\|\|\s111$/.test(leftHidden),
+    'текст остаётся за первым разделителем: ' + leftHidden)
+
+  var rightHidden = view('right', hideUi)
+  assertTrue(rightHidden.indexOf('#work') === -1,
+    'в прежнем режиме левый Block из строки уходит: ' + rightHidden)
+  assertTrue(rightHidden.indexOf('||') === -1,
+    'и первого разделителя за ним тоже нет: ' + rightHidden)
+  assertTrue(/^111\s::\s/.test(rightHidden),
+    'текст остаётся перед вторым разделителем: ' + rightHidden)
+
+  /* ---- новый режим: противоположный Block на месте и на своей стороне ---- */
+  var leftKept = view('left', keepUi)
+  assertTrue(leftKept.indexOf('|| 111 :: ' + DATE) !== -1,
+    'правый Block остаётся справа от текста, за вторым разделителем: ' + leftKept)
+  assertTrue(leftKept.slice(-DATE.length) === DATE,
+    'и стоит в конце строки: ' + leftKept)
+
+  var rightKept = view('right', keepUi)
+  assertTrue(rightKept.indexOf('#work || 111 :: ') === 0,
+    'левый Block остаётся слева от текста, до первого разделителя: ' + rightKept)
+
+  /* ---- пустой слот текста: строку, которую плагин написал, он обязан
+     уметь прочесть (У-157) ---- */
+  var noText = { indent: '', text: '', tags: ['#work'], dates: DATE }
+  var leftNoText = view('left', keepUi, noText)
+  assertTrue(leftNoText.indexOf('||  :: ' + DATE) !== -1,
+    'без текста между разделителями остаётся пустой слот из двух пробелов: ' + leftNoText)
+  var rightNoText = view('right', keepUi, noText)
+  assertTrue(rightNoText.indexOf('#work ||  :: ') === 0,
+    'то же с правой панели: ' + rightNoText)
+
+  /* ---- граница: прятать нечего, когда противоположный Block пуст ---- */
+  var onlyText = { indent: '', text: '111', tags: [], dates: '' }
+  assertEq(view('left', keepUi, onlyText), view('left', hideUi, onlyText),
+    'на строке без второго Block режим ничего не меняет')
+  assertEq(view('right', keepUi, onlyText), view('right', hideUi, onlyText),
+    'и с правой панели тоже')
+
+  /* ---- неподвижность: собранное плагин читает обратно (У-157) ---- */
+  var pipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))
+  var seg = pipeline.splitSegments(leftKept, rules)
+  assertEq(String(seg.text || '').trim(), '111',
+    'собранную строку плагин читает обратно: текст на месте (' + leftKept + ')')
+  assertEq(String(seg.dates || '').trim(), DATE,
+    'и правый Block тоже (' + leftKept + ')')
+
+  rules.ui = hideUi
 }
 
 function runLeadFieldPolicySuite(core) {
@@ -2494,7 +2627,8 @@ function runNode() {
   runSharedOrderAlignmentSuite()
   runLeadFieldPolicySuite(core)
   runLinkFieldOrderSuite()
-  runPanelHighlightSuite(core)
+  runPanelHighlightSuite(core, rules)
+  runOppositeBlockSuite(core, rules)
   runElementTokenSuite()
   runRightPayloadSurvivesSuite()
   runUndoSeamSuite()
