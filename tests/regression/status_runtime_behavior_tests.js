@@ -1372,6 +1372,8 @@ async function openTagWheelPanel(editor, settings) {
       snapshot = {
         activeFieldId: String(st.session.activeFieldId || ""),
         mode: String(st.session.mode || ""),
+        /* Вид панели читается до `Esc`: после него на строке исходная. */
+        control: editor.getLine(0),
         /* Что панель узнала в строке, а не только куда встала. */
         selected: Object.assign({}, st.session.selected || {}),
         parsed: st.parsedLine || null,
@@ -1509,6 +1511,52 @@ async function testTextLineWithoutListMarkerKeepsOneSeparator() {
     + JSON.stringify(cmdOff));
   assertEq((cmdOff.match(/::/g) || []).length, 1,
     "при выключенном `Strict: add a bullet` разделитель снова не один: " + JSON.stringify(cmdOff));
+}
+
+/*
+ * **Разделитель у полосы панели виден с обеих сторон.**
+ *
+ * Замечание заказчика 2026-09-12: «при открытии в пустой строке правого блока
+ * слева от него показывает сепаратор, а при открытии левого блока справа не
+ * возникает сепаратора — хочу, чтобы возникал».
+ *
+ * У правой панели ветка «текста нет» ставила разделитель всегда, у левой —
+ * не ставила вовсе. Правило одно на обе: разделитель стоит с той стороны,
+ * где остальная строка, и стоит там даже когда остальная строка пуста.
+ *
+ * Правая сторона спрашивается рядом и есть положительный контроль: без неё
+ * утверждение было бы зелёным и у плагина, который сыплет разделители где
+ * попало.
+ *
+ * Мутация: вернуть в `renderControlLine` ветку «текста нет — отдать одну полосу»,
+ * и левая половина краснеет.
+ */
+async function testPanelShowsItsSeparatorOnBothSides() {
+  const settings = (side) => ({
+    "Rules path": "owner_shape_rules.md",
+    "Order config": ownerShapeOrder(),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+    "Start setting": side,
+    "Start mode override": side,
+  });
+
+  const left = await openTagWheelPanel(makeEditor("- ", 2), settings("left"));
+  assertTrue(/==\s*\|\|$/.test(String(left.control || "").trim()),
+    "\u043f\u0440\u0438 \u043e\u0442\u043a\u0440\u044b\u0442\u0438\u0438 \u043b\u0435\u0432\u043e\u0433\u043e Block \u0440\u0430\u0437\u0434\u0435\u043b\u0438\u0442\u0435\u043b\u044c \u0441\u043f\u0440\u0430\u0432\u0430 \u043e\u0442 \u043f\u043e\u043b\u043e\u0441\u044b \u043d\u0435 \u043f\u043e\u044f\u0432\u0438\u043b\u0441\u044f: "
+    + JSON.stringify(left.control));
+
+  const right = await openTagWheelPanel(makeEditor("- ", 2), settings("right"));
+  assertTrue(/(^|\s)::\s+==/.test(String(right.control || "")),
+    "\u043a\u043e\u043d\u0442\u0440\u043e\u043b\u044c: \u0443 \u043f\u0440\u0430\u0432\u043e\u0433\u043e Block \u0440\u0430\u0437\u0434\u0435\u043b\u0438\u0442\u0435\u043b\u044f \u0441\u043b\u0435\u0432\u0430 \u0442\u043e\u0436\u0435 \u043d\u0435\u0442, \u0437\u043d\u0430\u0447\u0438\u0442 \u0432\u0435\u0440\u0445\u043d\u0435\u0435\n"
+    + "  \u0443\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u0442 \u043d\u0435 \u0442\u043e: " + JSON.stringify(right.control));
+
+  /* И разделитель один, а не два: полоса растёт, если их копить. */
+  assertEq((String(left.control || "").match(/\|\|/g) || []).length, 1,
+    "\u0443 \u043b\u0435\u0432\u043e\u0439 \u043f\u0430\u043d\u0435\u043b\u0438 \u0440\u0430\u0437\u0434\u0435\u043b\u0438\u0442\u0435\u043b\u0435\u0439 \u043d\u0435 \u043e\u0434\u0438\u043d: " + JSON.stringify(left.control));
+  assertEq((String(right.control || "").match(/::/g) || []).length, 1,
+    "\u0443 \u043f\u0440\u0430\u0432\u043e\u0439 \u043f\u0430\u043d\u0435\u043b\u0438 \u0440\u0430\u0437\u0434\u0435\u043b\u0438\u0442\u0435\u043b\u0435\u0439 \u043d\u0435 \u043e\u0434\u0438\u043d: " + JSON.stringify(right.control));
 }
 
 /*
@@ -2881,6 +2929,7 @@ async function run() {
   await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
   await testPanelRecognizesTheLineThePluginWroteItself();
   await testTextLineWithoutListMarkerKeepsOneSeparator();
+  await testPanelShowsItsSeparatorOnBothSides();
   await testStatusDateKeepsManagedTagsInLeftBlock();
   testBuiltLineSurvivesParseAndBuild();
   await testFieldCommandAsksPrerequisiteLikePanelDoes();

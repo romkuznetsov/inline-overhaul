@@ -2549,8 +2549,17 @@ function renderControlLine(rules, state, parsedLine) {
     return parsedLine.indent + rules.io.separator2 + ' ' + head
   }
 
+  /*
+   * **Разделитель у полосы стоит с той стороны, где остальная строка** — и
+   * стоит там всегда, а не только когда остальная строка непуста.
+   *
+   * Замечание заказчика 2026-09-12: «при открытии в пустой строке правого
+   * блока слева от него показывает сепаратор, а при открытии левого блока
+   * справа не возникает — хочу, чтобы возникал». У правой панели ветка
+   * «текста нет» разделитель ставила всегда, у левой — не ставила вовсе.
+   */
   if (tail) return parsedLine.indent + head + ' ' + rules.io.separator1 + ' ' + tail
-  return parsedLine.indent + head
+  return parsedLine.indent + head + ' ' + rules.io.separator1
 }
 
 function hydrateStateFromParsedLine(rules, state, parsedLine) {
