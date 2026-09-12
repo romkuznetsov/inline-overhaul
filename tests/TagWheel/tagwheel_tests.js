@@ -2259,6 +2259,107 @@ function runChildFieldShortNameSuite() {
   assertEq(echoed.byId.category_sub.placeholder, 'sub', 'an echoed parent label leaves the child with the rules placeholder')
 }
 
+/**
+ * Левый блок строки не объявляется текстом человека.
+ *
+ * **Куплено двумя замечаниями одного вечера** (2026-09-12, строки S5 и S7
+ * листа). Разбор строки брал признак «слева тегов нет» у цикла, который
+ * снимает теги с **начала** строки; элемент, стоящий слева по Order, этот цикл
+ * останавливал, и весь левый кусок уезжал в текст. Человек видел повтор после
+ * разделителя при открытой панели, не мог убрать значение панелью, а на строке
+ * вовсе без тегов его текст **удваивался** — и уезжал в заметку: применение
+ * берёт текст из разбора как есть.
+ *
+ * **Рядом уже стояла проверка с именем про удвоение текста**
+ * (`testParseLineNoTextDuplicationForRightPayload`), и она была зелёной всё
+ * это время: её строка уходит в соседнюю ветку — ту, где справа опознан
+ * элемент. Имя охраняло не тот случай, что обещало (У-58).
+ *
+ * **Правила здесь собираются так же, как их собирает плагин** — из конфига
+ * через `buildRulesForEngines` плюс порядок и конфигурация элементов. На
+ * фикстуре правил в markdown этот случай проверить нельзя вовсе: у её полей
+ * пустой `orderKey`, метка элемента не разрешается, и разбор не видит ни
+ * одного значения (правило 7 — фикстура обязана быть законной для
+ * проверяемого).
+ */
+function runLeftBlockParseSuite(core, finalize) {
+  var path = require('path')
+  var fs = require('fs')
+  var normalize = require(path.join(__dirname, '..', '..', 'src', 'core', 'config_normalize.js'))
+  var shape = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_shape.js'))
+  var orderMod = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_order_config.js'))
+  var helpers = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+  var MARK = '\u{1F4C5}'
+
+  function buildRules() {
+    var cfgPath = path.join(__dirname, '..', 'fixtures', 'config_v1_realistic.json')
+    var cfg = normalize.migrateConfig(JSON.parse(fs.readFileSync(cfgPath, 'utf8')))
+    /* Разделители разведены нарочно: на совпадающих этот случай неразличим (У-147). */
+    cfg.pkm.lineFormat.separator1 = '||'
+    cfg.pkm.lineFormat.separator2 = '::'
+    var local = shape.buildRulesForEngines(cfg)
+    local.behavior = local.behavior || {}
+    local.behavior.dateRuntimeConfig = {
+      fields: ['date_due'],
+      byField: { date_due: { emoji: MARK, format: 'YYYY-MM-DD' } }
+    }
+    helpers.applyOrderToRules(local, JSON.parse(orderMod.serializePkmOrderForMacro(cfg)))
+    return local
+  }
+
+  var rules = buildRules()
+
+  ;(function testPlainLeftTextIsNotDoubled() {
+    var p = core.parseLine('- моя строка || ещё текст', rules)
+    assertEq(p.text, 'моя строка ещё текст', 'текст человека удвоился при разборе')
+  })()
+
+  ;(function testLeftBlockValuesDoNotLeakIntoText() {
+    var p = core.parseLine('- [ ] ' + MARK + '2026-03-12 #/1 || мой текст', rules)
+    assertEq(p.text, 'мой текст', 'значения левого блока уехали в текст человека')
+    assertTrue(p.dates.indexOf(MARK + '2026-03-12') !== -1, 'значение элемента не опознано: ' + p.dates)
+    assertTrue(p.tags.indexOf('#/1') !== -1, 'тег левого блока не опознан: ' + p.tags.join(' '))
+  })()
+
+  ;(function testPanelCanRemoveValueFromSuchLine() {
+    /*
+     * Поведение, а не разбор: панель обязана уметь **убрать** значение. Пока
+     * копия значения оставалась в тексте, снятие в панели ничего не меняло —
+     * ровно это заказчик и описал словами «не могу его убрать через tagwheel».
+     */
+    var line = '- [ ] ' + MARK + '2026-03-12 #/1 || мой текст'
+    var parsed = core.parseLine(line, rules)
+    var session = core.makeInitialState(rules, 'right')
+    session.mode = 'right'
+    core.hydrateStateFromParsedLine(rules, session, parsed)
+    core.sanitizeState(rules, session)
+    assertTrue(String(session.selected.date_due || '') !== '',
+      'положительный контроль: значение не подхвачено панелью вовсе')
+    session.selected.date_due = ''
+    var prefixState = { mode: 'right', session: session, rules: rules, parsedLine: parsed }
+    var out = core.assembleFinalLine(
+      {
+        indent: parsed.indent,
+        prefix: core.buildPrefix(parsed, rules, prefixState, { prefixShared: finalize }),
+        text: parsed.text,
+        dates: core.buildRightDates(rules, session).join(' ').trim()
+      },
+      core.buildTags(rules.leftMode, session, rules, parsed),
+      rules,
+      { forceSeparatorWhenTags: rules.behavior.forceSeparatorWhenTags !== false }
+    )
+    assertTrue(out.indexOf(MARK) === -1, 'значение не убралось панелью: ' + out)
+    assertTrue(out.indexOf('мой текст') !== -1, 'текст человека пропал вместе со значением: ' + out)
+  })()
+
+  ;(function testRightPayloadCaseUnchanged() {
+    /* Парное: случай, который работал, обязан работать так же. */
+    var p = core.parseLine('- [ ] #todo || Task text :: ' + MARK + '2026-03-12', rules)
+    assertEq(p.text, 'Task text', 'разбор строки с правым значением изменился')
+    assertEq(p.dates, MARK + '2026-03-12', 'правое значение перестало опознаваться')
+  })()
+}
+
 function runNode() {
   var fs = require('fs')
   var path = require('path')
@@ -2290,6 +2391,7 @@ function runNode() {
   }
   core.validateRules(rules)
   runSuite(core, rules, finalize)
+  runLeftBlockParseSuite(core, finalize)
   runSharedOrderAlignmentSuite()
   runLeadFieldPolicySuite(core)
   runLinkFieldOrderSuite()
