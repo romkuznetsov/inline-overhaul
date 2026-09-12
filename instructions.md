@@ -226,6 +226,24 @@ Two more toggles belong to both keys. `Drop the line Prefix` off leaves the Pref
 
 Both keys are **off** by default: `Del` and `Backspace` belong to Obsidian, and until you turn one on the key does exactly what it always did. Everywhere except the end of a line for `Del` and the start of one for `Backspace` — with a selection, or with more than one cursor — the keys are untouched.
 
+### Smart Enter
+
+Under **Keyboard → Smart Enter**, `Enter` stops cutting one of your lines in two. A line
+carrying Fields is a record, not a paragraph: split it in half and the Block after your
+text is torn away from the Block before it, and neither half is a record any more. With
+the toggle on, `Enter` pressed anywhere up to the second Separator adds an empty line
+underneath and leaves the line you are on exactly as it was.
+
+`Carry the Prefix over` decides what the new line starts with. On, it repeats the marker
+of the line you pressed `Enter` on, exactly as Obsidian does it on its own: a bullet
+stays a bullet, a numbered item gets the next number, and a checkbox arrives empty,
+because a line you have not written yet is not a task you have done. Off, the new line
+starts bare. The indent is kept either way.
+
+The key is **off** by default and stays Obsidian's own everywhere else: past the second
+Separator, in any line that carries no Separator of yours, with a selection, or with more
+than one cursor.
+
 ### Where the view goes when a line moves
 
 Under **Navigation → Moving lines**, `Follow the moved line` decides whether the note scrolls after a move at all, and `Where the line lands` decides where the line ends up: the center, the top or the bottom of the screen. Before this the note scrolled by whatever the editor thought was nearest, so one press centered the line and the next threw it to the top. Turn the toggle off and the view does not move at all, which also means a line pushed past the edge goes on moving out of sight.
@@ -237,6 +255,17 @@ Under **Navigation → Moving cursor inside a note**, `Follow the jump target` d
 ### The edge of a Block in TagWheel
 
 Under **Visual → TagWheel**, `TagWheel navigation behavior` decides what the arrow keys do when there is no next Field on the side you are on. `Stay in the same Block` is the way it has always worked: past the last Field you land back on the first. `Move to the next Block` makes the two Blocks into one ring, so stepping off the end of one takes you to the near end of the other. `Tab` switches Blocks either way.
+
+### The other Block while TagWheel is open
+
+The picker takes the place of the Block it is standing in, and what happens to the other
+one is set under **Visual → TagWheel**, `Values in the other Block`. `Hide them while the
+picker is open` is how it has always worked: the other Block leaves the line for as long
+as you are choosing. `Keep them in sight` leaves it written where it belongs, on its own
+side of your text, so you can see what the line already carries.
+
+Either way nothing is written or removed: what you pick lands on the line when the picker
+closes, and `Escape` puts the line back exactly as it was.
 
 ### The shape of the text cursor
 
@@ -260,6 +289,15 @@ PKM lines can contain a left panel, text payload, and right panel:
 - Order determines token placement and sorting inside each panel.
 
 When a panel is empty, runtime normalization may omit its separator. Use the live preview in settings to check the exact shape produced by current configuration.
+
+### Two heights for the Fields editor
+
+The Fields editor grows until every control is on screen, and on a long Field that makes
+the panel scroll a long way. The chevron at the right edge of the `Fields` header, past
+the `Values` heading, switches to a fixed height with a scrollbar instead. The column
+headings stay put while the rest scrolls, so the chevron is always within reach, and the
+scrollbar itself stays out of sight until you scroll or bring the pointer to the right
+edge of the table. Which height you picked is remembered.
 
 ### Order and panels
 

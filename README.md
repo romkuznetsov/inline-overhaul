@@ -113,6 +113,12 @@ command palette and the reference table disagreeing.
   holds nothing but a Prefix goes whole. `Smart backspace` puts the same behaviour on
   `Backspace` at the start of a line, and switches on separately: either key can do
   this without the other. Both off by default.
+- **Smart Enter**: **Keyboard → Smart Enter** stops `Enter` from splitting one of your
+  lines in half. Pressed anywhere up to the second Separator it starts an empty line
+  below and leaves the line you are on exactly as it was; past the second Separator, and
+  in any line without a Separator of yours, the key stays Obsidian's own.
+  `Carry the Prefix over` decides whether the new line repeats the marker of the old one.
+  Off by default.
 - **Commands & Hotkeys**: every command, the key it has now, and a click through to
   Obsidian's Hotkeys screen.
 - **Custom insertion commands**: **Binder (custom
@@ -185,6 +191,14 @@ command palette and the reference table disagreeing.
   screen — the same place every time.
 - **TagWheel edges**: **Visual → TagWheel**, `TagWheel navigation behavior` decides what
   the arrows do at the end of a Block: stay in it, or step across into the other one.
+- **The other Block while TagWheel is open**: **Visual → TagWheel**,
+  `Values in the other Block` decides what happens to the Block the picker is not
+  standing in. It either leaves the line for as long as you are choosing, which is how it
+  has always worked, or stays written where it belongs.
+- **Two heights for the Fields editor**: the chevron at the right edge of the
+  **Tags & PKM → Fields** header switches between the full height, where every control is
+  on screen at once, and a fixed height that scrolls. The scrollbar stays out of sight
+  until you scroll or reach for the right edge of the table.
 - **Heading jumps**: **Navigation → Moving cursor inside a note** now has the same pair.
   `Follow the jump target` decides whether the note scrolls after a jump, and
   `Where the target lands` puts the line you jumped to at the center, the top or the
