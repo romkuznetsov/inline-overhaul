@@ -29,6 +29,7 @@ var __tagwheelRulesNormalizer = require('../../src/core/tagwheel_rules_normalize
 var __tokenGraphUnified = require('../../src/core/token_graph_unified.js')
 var __pkmDomainRegistry = require('../../src/core/pkm_domain_registry.js')
 var __statusRuntimeCommonMod = require('../../src/core/status_runtime_common.js')
+var __linePipeline = require('../../src/core/line_pipeline.js')
 
 function getSharedUtils() {
   return __sharedUtils
@@ -615,17 +616,6 @@ function getFieldById(mode, fieldId) {
   return null
 }
 
-function getRightFieldByMarker(rules, marker) {
-  var right = rules && rules.rightMode ? rules.rightMode : null
-  var fields = right && Array.isArray(right.fields) ? right.fields : []
-  var i
-  for (i = 0; i < fields.length; i++) {
-    var f = fields[i]
-    if (f && typeof f.marker === 'string' && f.marker === marker) return f
-  }
-  return null
-}
-
 function getDateOffsetFallbackMarker(rules, field) {
   if (field && typeof field.marker === 'string' && field.marker) return field.marker
   var right = rules && rules.rightMode ? rules.rightMode : null
@@ -639,94 +629,15 @@ function getDateOffsetFallbackMarker(rules, field) {
   return ''
 }
 
-function isLikelyDatesSegment(segment, rules) {
-  var s = String(segment || '').trim()
-  if (!s) return false
-
-  var tokens = s.split(/\s+/)
-  if (!tokens.length) return false
-
-  var right = rules && rules.rightMode ? rules.rightMode : null
-  var fields = right && Array.isArray(right.fields) ? right.fields : []
-  var markers = []
-  var markerToField = {}
-  var i
-  for (i = 0; i < fields.length; i++) {
-    var f = fields[i]
-    var mk = getFieldMarkerByRuntimeCfg(rules, f)
-    if (!mk) continue
-    markers.push(mk)
-    if (!Object.prototype.hasOwnProperty.call(markerToField, mk)) markerToField[mk] = f
-  }
-  if (!markers.length) return false
-
-  for (i = 0; i < tokens.length; i++) {
-    var t = tokens[i]
-    var j
-    var found = ''
-    for (j = 0; j < markers.length; j++) {
-      if (t.indexOf(markers[j]) === 0) {
-        found = markers[j]
-        break
-      }
-    }
-    if (!found) return false
-
-    var field = markerToField[found] || getRightFieldByMarker(rules, found)
-    var raw = t.slice(found.length)
-    if (!raw) return false
-    if (field && field.kind === 'dateOffset') {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return false
-    } else if (field && (field.kind === 'nowTime' || field.kind === 'estimatedCycle')) {
-      if (!/^\d{2}:\d{2}$/.test(raw)) return false
-    }
-  }
-
-  return true
-}
-
-function isLikelyRightPayloadSegment(segment, rules) {
-  var s = String(segment || '').trim()
-  if (!s) return false
-  var tokens = s.split(/\s+/)
-  if (!tokens.length) return false
-  function isContinuationToken(tok) {
-    var v = String(tok || '').trim()
-    if (!v) return false
-    if (/^\d{2}$/.test(v)) return true
-    if (/^\d{2}[-:]\d{2}(?:[-:]\d{2})?$/.test(v)) return true
-    return false
-  }
-  var markers = getDateLikeMarkers(rules)
-  var markerAnchored = false
-  var i
-  for (i = 0; i < tokens.length; i++) {
-    var t = tokens[i]
-    if (/^#\S+$/.test(t)) continue
-    if (/^\[\[[^\]]+\]\]$/.test(t)) continue
-    if (i === 0) {
-      var mi
-      for (mi = 0; mi < markers.length; mi++) {
-        var mk = String(markers[mi] || '')
-        if (!mk) continue
-        if (String(t || '').indexOf(mk) === 0 && String(t || '').length > mk.length) {
-          markerAnchored = true
-          break
-        }
-      }
-      if (!markerAnchored) {
-        var t0 = String(t || '')
-        if (/^[^A-Za-z0-9#\[]/.test(t0) && /\d/.test(t0)) markerAnchored = true
-      }
-    } else if (markerAnchored && isContinuationToken(t)) {
-      continue
-    }
-    if (isDateLikeToken(t, rules)) continue
-    return false
-  }
-  return true
-}
-
+/*
+ * Здесь лежали `isLikelyDatesSegment` и `isLikelyRightPayloadSegment` — две
+ * копии правила «что в этом куске строки правый груз, а что текст».
+ * Объявлено оно в `line_pipeline.js` (`isLikelyRightPayloadToken` и
+ * `isMarkerAnchoredDatePayloadTokens`), и звал копии только разбор строки.
+ * Разбор спрашивает границы зон у общего объявления с 2026-09-12, и копии
+ * стали недостижимы: недостижимая заплатка, похожая на страховку, — это
+ * У-90.
+ */
 function getFieldIndexById(mode, fieldId) {
   var i
   for (i = 0; i < mode.fields.length; i++) {
@@ -984,139 +895,102 @@ function markActiveFieldId(mode, state, index) {
   return index
 }
 
+/**
+ * Разбор строки: где проходят границы зон, спрашивается у `line_pipeline`.
+ *
+ * **Здесь стояло второе объявление того же правила** — свой поиск первого
+ * разделителя, за ним второго, и свои ветки «что считать правым грузом». Общее
+ * объявление за это время научилось строке, у которой заполнен **только**
+ * правый Block (`-  :: 👤111`): первого разделителя в ней нет, и правый Block
+ * отделяется вторым (исключения 45 и 62 к З3). Копия этого не знала и объявляла
+ * текстом человека всё вместе с разделителем.
+ *
+ * Что это давало заказчику (замечание 2026-09-12): панель, открытая на строке,
+ * которую плагин **сам только что написал**, не узнавала в ней ни одного
+ * значения и показывала их текстом. Причём «написал сам» тут буквально: команда
+ * поля правого Block на пустой строке пишет ровно такую строку.
+ *
+ * Это У-150 ещё раз: правило чинилось в одном объявлении из двух, и пути
+ * разошлись **по-разному** — команда значение узнавала, панель нет.
+ *
+ * Своего у разбора остаётся то, чего в общем правиле нет и быть не должно:
+ * знак заголовка, знак списка, чекбокс и раскладка левого сегмента на теги,
+ * значения элементов и текст.
+ */
 function parseLine(rawLine, rules) {
   var line = String(rawLine || '')
-  var indent = (line.match(/^(\s*)/) || ['', ''])[1]
-  var body = line.slice(indent.length)
+  var seg = __linePipeline.splitSegments(line, rules)
+  var indent = String(seg && seg.indent || '')
+  var leftBody = String(seg && seg.left || '').trim()
 
   var headingToken = ''
-  var mh = body.match(/^(#{1,6})\s+(.*)$/)
+  var mh = leftBody.match(/^(#{1,6})\s+(.*)$/)
   if (mh) {
     headingToken = mh[1]
-    body = String(mh[2] || '')
+    leftBody = String(mh[2] || '')
   }
 
   var bulletToken = ''
   var checkboxToken = ''
 
-  var mb = body.match(/^([-*+])\s+/)
+  /*
+   * Хвостовой пробел у знака здесь не обязателен: левый сегмент приходит
+   * обрезанным, и у строки `-  :: 👤111` он равен одному дефису. Прежние
+   * образцы требовали пробел после знака, потому что читали строку целиком.
+   */
+  var mb = leftBody.match(/^([-*+])(?:\s+|$)/)
   if (mb) {
     bulletToken = mb[1]
-    body = body.slice(mb[0].length)
+    leftBody = leftBody.slice(mb[0].length)
   } else {
-    var mn = body.match(/^(\d+\.)(?:\s+|$)/)
+    var mn = leftBody.match(/^(\d+\.)(?:\s+|$)/)
     if (mn) {
       bulletToken = mn[1]
-      body = body.slice(mn[0].length)
+      leftBody = leftBody.slice(mn[0].length)
     }
   }
 
-  var mcb = body.match(/^(\[[^\]]\])\s+/)
+  var mcb = leftBody.match(/^(\[[^\]]\])(?:\s+|$)/)
   if (mcb) {
     checkboxToken = mcb[1]
-    body = body.slice(mcb[0].length)
+    leftBody = leftBody.slice(mcb[0].length)
   }
 
-  var tags = []
-  while (true) {
-    var mt = body.match(/^#\S+\s*/)
-    if (mt) {
-      tags.push(mt[0].trim())
-      body = body.slice(mt[0].length)
-      continue
+  /* Что в левом сегменте тег, что значение элемента, а что текст человека. */
+  function classifyLeftPartTokens(raw) {
+    var src = String(raw || '').trim()
+    var out = { tags: [], dates: [], text: [] }
+    if (!src) return out
+    var parts = src.split(/\s+/)
+    var i
+    for (i = 0; i < parts.length; i++) {
+      var t = String(parts[i] || '').trim()
+      if (!t) continue
+      if (/^#\S+$/.test(t) || /^\[\[[^\]]+\]\]$/.test(t)) {
+        out.tags.push(t)
+        continue
+      }
+      if (isDateLikeToken(t, rules)) {
+        out.dates.push(t)
+        continue
+      }
+      out.text.push(t)
     }
-    var mw = body.match(/^\[\[[^\]]+\]\]\s*/)
-    if (mw) {
-      tags.push(mw[0].trim())
-      body = body.slice(mw[0].length)
-      continue
-    }
-    break
+    return out
   }
 
-  var text = ''
-  var dates = ''
-  var sep1 = rules.io.separator1
-  var sep2 = rules.io.separator2
-  var rest = body.trim()
+  var leftClassified = classifyLeftPartTokens(leftBody)
+  var tags = leftClassified.tags.slice()
+  var text = String(seg && seg.text || '').trim()
+  var dates = String(seg && seg.dates || '').trim()
 
-  if (rest) {
-    function classifyLeftPartTokens(raw) {
-      var src = String(raw || '').trim()
-      var out = { tags: [], dates: [], text: [] }
-      if (!src) return out
-      var parts = src.split(/\s+/)
-      var i
-      for (i = 0; i < parts.length; i++) {
-        var t = String(parts[i] || '').trim()
-        if (!t) continue
-        if (/^#\S+$/.test(t) || /^\[\[[^\]]+\]\]$/.test(t)) {
-          out.tags.push(t)
-          continue
-        }
-        if (isDateLikeToken(t, rules)) {
-          out.dates.push(t)
-          continue
-        }
-        out.text.push(t)
-      }
-      return out
-    }
-
-    var idx1 = rest.indexOf(sep1)
-    if (idx1 !== -1) {
-      var leftPart = rest.slice(0, idx1).trim()
-      var after1 = rest.slice(idx1 + sep1.length).trim()
-      var idx2 = after1.indexOf(sep2)
-      var leftClassified = classifyLeftPartTokens(leftPart)
-      if (idx2 !== -1) {
-        text = after1.slice(0, idx2).trim()
-        dates = after1.slice(idx2 + sep2.length).trim()
-      } else {
-        if (isLikelyDatesSegment(after1, rules) || isLikelyRightPayloadSegment(after1, rules)) {
-          dates = after1
-        } else {
-          /*
-           * **Левый блок текстом человека не объявляется.** Здесь стояла ветка
-           * «если слева не нашлось ни одного тега — считаем весь левый кусок
-           * текстом и приклеиваем его к правому». Признак она брала у цикла,
-           * который снимает теги **с начала** строки, а тот останавливается на
-           * первом же не-теге: элемент, стоящий слева по Order, его и
-           * останавливал. В результате значения из левого блока уезжали в
-           * `text` — и ниже приклеивались к нему второй раз разбором
-           * `classifyLeftPartTokens`.
-           *
-           * Что это давало человеку (замечания 2026-09-12, строки S5 и S7):
-           *   - при открытой панели после разделителя повторялось то, что
-           *     панель уже показывает;
-           *   - значение **не убиралось панелью**: она снимала его из своего
-           *     состояния, а копия оставалась в тексте;
-           *   - на строке вовсе без тегов (`- моя строка :: ещё текст`) текст
-           *     человека **удваивался** — и это уезжало в заметку, потому что
-           *     применение берёт `text` из разбора как есть.
-           *
-           * Левый кусок разбирает `classifyLeftPartTokens` ниже: теги идут в
-           * теги, значения элементов в даты, остальное в текст. Отдельная
-           * ветка была не нужна и делала ровно то, чего разбор не должен.
-           */
-          text = after1
-        }
-      }
-      var li
-      for (li = 0; li < leftClassified.tags.length; li++) {
-        if (tags.indexOf(leftClassified.tags[li]) === -1) tags.push(leftClassified.tags[li])
-      }
-      if (leftClassified.text.length) {
-        var leftText = leftClassified.text.join(' ').trim()
-        if (leftText) text = (leftText + ' ' + text).trim()
-      }
-      if (leftClassified.dates.length) {
-        var leftDates = leftClassified.dates.join(' ').trim()
-        if (leftDates) dates = (leftDates + ' ' + dates).trim()
-      }
-    } else {
-      text = rest
-    }
+  if (leftClassified.text.length) {
+    var leftText = leftClassified.text.join(' ').trim()
+    if (leftText) text = (leftText + ' ' + text).trim()
+  }
+  if (leftClassified.dates.length) {
+    var leftDates = leftClassified.dates.join(' ').trim()
+    if (leftDates) dates = (leftDates + ' ' + dates).trim()
   }
 
   return {

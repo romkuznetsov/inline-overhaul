@@ -19,6 +19,7 @@
  *   node tools/line_bench.js cmd date-due-next ""
  *   node tools/line_bench.js cmd date-due-previous "📅2026-09-12 17:05 || "
  *   node tools/line_bench.js panel left "" ArrowRight ArrowRight ArrowUp
+ *   node tools/line_bench.js open right "-  :: 👤111"   — что панель узнала в строке
  *   node tools/line_bench.js list                      — какие команды есть
  *
  * Конфиг по умолчанию — `../test-vault/.obsidian/plugins/inline-overhaul/data.json`
@@ -212,6 +213,44 @@ async function fieldWalk(cfg, side, line, ch, steps) {
   return seen;
 }
 
+/**
+ * Открыть панель на готовой строке и спросить, **что она в ней узнала**.
+ *
+ * Отдельно от `runTagWheel`, потому что вопрос другой. `runTagWheel` спрашивает
+ * «что панель напишет»; замечание заказчика 2026-09-12 («в right block были
+ * выбраны элементы, но при активации TagWheel right они не распознались как
+ * выбранные values, а отображались как текст») — про то, что панель **читает**.
+ * Строку она при этом не портит: `Esc` возвращает исходную, и обход,
+ * смотрящий только на строку, такого дефекта не видит вовсе.
+ *
+ * Отдаётся разбор строки, состав выбранного и вид панели — до `Esc`.
+ */
+async function openSession(cfg, side, line, ch) {
+  const def = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
+  const editor = makeEditor(line, ch);
+  const said = [];
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  global.window = makeWindowMock();
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  const settings = Object.assign(paneSettings(cfg), def.makeSettings(cfg));
+  let out = { opened: false, parsed: null, selected: {}, control: "", said };
+  try {
+    await runtime.runCommand({ app: makeApp(editor), command: "tagWheel", settings });
+    const st = global.window.__tagWheelState;
+    out.opened = !!(st && st.active === true);
+    out.control = editor.getLine();
+    out.parsed = st && st.parsedLine ? st.parsedLine : null;
+    out.selected = st && st.session && st.session.selected ? st.session.selected : {};
+    if (st && typeof st.cancel === "function") st.cancel();
+    out.afterCancel = editor.getLine();
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  return out;
+}
+
 async function runTagWheel(cfg, side, line, ch, keys) {
   const def = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
   const editor = makeEditor(line, ch);
@@ -268,6 +307,23 @@ async function main() {
       + JSON.stringify(await fieldWalk(cfg, side, line || "", 0, steps || 8)));
     return;
   }
+  if (mode === "open") {
+    const [side, line] = rest;
+    const out = await openSession(cfg, side, line || "", String(line || "").length);
+    console.log("открытие панели " + (side || "left") + " на " + JSON.stringify(line || ""));
+    console.log("  открылась : " + out.opened);
+    console.log("  вид       : " + JSON.stringify(out.control));
+    console.log("  после Esc : " + JSON.stringify(out.afterCancel));
+    if (out.parsed) {
+      console.log("  разбор    : tags=" + JSON.stringify(out.parsed.tags)
+        + " text=" + JSON.stringify(out.parsed.text)
+        + " dates=" + JSON.stringify(out.parsed.dates));
+    }
+    console.log("  узнано    : " + JSON.stringify(Object.keys(out.selected)
+      .filter((k) => out.selected[k]).map((k) => k + "=" + out.selected[k])));
+    if (out.said.length) console.log("  сказал    : " + JSON.stringify(out.said));
+    return;
+  }
   if (mode === "panel") {
     const [side, line, ...keys] = rest;
     report("панель " + (side || "left") + ", клавиши " + JSON.stringify(keys),
@@ -279,7 +335,7 @@ async function main() {
 
 /* Стенд — и команда, и модуль: обход всех Fields разом собирается поверх него
    (`tools/line_matrix.js`), и своей копии дороги настроек у обхода нет. */
-module.exports = { loadCfg, defsFor, findDef, runCommandById, runTagWheel, fieldWalk, makeEditor, DATA, VAULT };
+module.exports = { loadCfg, defsFor, findDef, runCommandById, runTagWheel, openSession, fieldWalk, makeEditor, DATA, VAULT };
 
 if (require.main === module) {
   main().catch((e) => {

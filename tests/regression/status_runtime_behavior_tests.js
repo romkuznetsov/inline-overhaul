@@ -1369,7 +1369,13 @@ async function openTagWheelPanel(editor, settings) {
     await runtime.runCommand({ app, command: "tagWheel", settings: withDates });
     const st = global.window.__tagWheelState;
     if (st && st.active === true && st.session) {
-      snapshot = { activeFieldId: String(st.session.activeFieldId || ""), mode: String(st.session.mode || "") };
+      snapshot = {
+        activeFieldId: String(st.session.activeFieldId || ""),
+        mode: String(st.session.mode || ""),
+        /* Что панель узнала в строке, а не только куда встала. */
+        selected: Object.assign({}, st.session.selected || {}),
+        parsed: st.parsedLine || null,
+      };
     }
     if (st && typeof st.cancel === "function") st.cancel();
   } finally {
@@ -1412,6 +1418,85 @@ function ownerShapeOrder(extra) {
     active: { date_due: "yes", Category: "yes", Importance: "yes", type: "yes", Project: "yes" },
     enabled: { date_due: true, Category: true, Importance: true, type: true, Project: true },
   }, extra || {}));
+}
+
+/*
+ * **Панель обязана узнавать то, что плагин написал сам.**
+ *
+ * Замечание заказчика 2026-09-12: «был баг, когда в right block были выбраны
+ * элементы, но при активации TagWheel right они не распознались как выбранные
+ * values, а отображались как текст».
+ *
+ * Строка, у которой заполнен **только** правый Block, отделяется **вторым**
+ * разделителем: первого в ней взяться неоткуда (исключения 45 и 62 к З3). Это
+ * ровно та строка, которую пишет команда поля правого Block на пустой строке, —
+ * то есть плагин сам её и создаёт. Разбор строки был объявлен дважды: общий в
+ * `line_pipeline.splitSegments` и своя копия в `parseLine` TagWheel. Копию
+ * правило обошло стороной, и она объявляла текстом человека всё вместе с
+ * разделителем: панель показывала значения текстом, а убрать их не давала.
+ *
+ * Набор этого не видел ни дня, и видеть не мог: строку панель не портит — `Esc`
+ * возвращает исходную, — а все проверки спрашивали **строку**. Спрашивать надо
+ * состав выбранного.
+ *
+ * Контроль стоит первой половиной: если команда ничего не написала, узнавать
+ * нечего, и утверждение ниже было бы красным не по делу.
+ *
+ * Мутация: вернуть в `parseLine` свой поиск разделителей — и обе половины
+ * краснеют.
+ */
+async function testPanelRecognizesTheLineThePluginWroteItself() {
+  /* Элемент уезжает в правый Block: там и живёт случай заказчика. */
+  const rightElement = {
+    left: ["Category", "Importance", "type"],
+    right: ["date_due", "Project"],
+    panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
+  };
+  const settings = () => ({
+    "Rules path": "owner_shape_rules.md",
+    "Order config": ownerShapeOrder(rightElement),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+
+  const written = makeEditor("", 0);
+  await runPkmCommandWithEditor("statusDate", written, Object.assign(settings(), {
+    "Action type": "field_inc:date_due",
+  }));
+  const line = written.snapshot().line;
+  assertTrue(line.indexOf("📅") !== -1,
+    "контроль: команда правого Block ничего не написала, и узнавать нечего: " + JSON.stringify(line));
+
+  const seen = await openTagWheelPanel(makeEditor(line, 2), Object.assign(settings(), {
+    "Start setting": "right",
+    "Start mode override": "right",
+  }));
+  assertTrue(String(seen.selected && seen.selected.date_due || "") !== "",
+    "панель не узнала значение, которое плагин написал сам, и показывает его текстом:\n"
+    + "  строка: " + JSON.stringify(line) + "\n"
+    + "  разбор: " + JSON.stringify(seen.parsed && seen.parsed.text) + " / "
+    + JSON.stringify(seen.parsed && seen.parsed.dates));
+
+  /*
+   * Та же строка с текстом человека: первого разделителя в ней тоже нет, и
+   * прежде текстом объявлялось всё вместе со значением.
+   */
+  const withText = makeEditor("- \u0442\u0435\u043a\u0441\u0442", 7);
+  await runPkmCommandWithEditor("statusDate", withText, Object.assign(settings(), {
+    "Action type": "field_inc:date_due",
+  }));
+  const textLine = withText.snapshot().line;
+  const seenText = await openTagWheelPanel(makeEditor(textLine, 2), Object.assign(settings(), {
+    "Start setting": "right",
+    "Start mode override": "right",
+  }));
+  assertTrue(String(seenText.selected && seenText.selected.date_due || "") !== "",
+    "на строке с текстом человека панель значение правого Block тоже не узнала: "
+    + JSON.stringify(textLine));
+  assertTrue(String(seenText.parsed && seenText.parsed.text || "").indexOf("📅") === -1,
+    "значение правого Block уехало в текст человека: "
+    + JSON.stringify(seenText.parsed && seenText.parsed.text));
 }
 
 /*
@@ -2703,6 +2788,7 @@ async function run() {
   await testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash();
   await testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement();
   await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
+  await testPanelRecognizesTheLineThePluginWroteItself();
   await testStatusDateKeepsManagedTagsInLeftBlock();
   testBuiltLineSurvivesParseAndBuild();
   await testFieldCommandAsksPrerequisiteLikePanelDoes();
