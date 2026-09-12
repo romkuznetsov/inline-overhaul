@@ -345,6 +345,42 @@ export function renderFieldList(list: El, o: FieldsViewOpts): void {
     }) as never);
 
     const mine = rows.filter(r => r.side === value);
+
+    /*
+     * Подпись стороны — это место «перед первой строкой».
+     *
+     * Замечание заказчика 2026-09-12: «в левый Block не могу перетащить поле
+     * на верхнее значение — при наведении выше первого поля выделяется сразу
+     * вся таблица, и при отжатии поле уезжает в конец». Так и было: выше
+     * первой строки лежит только подпись стороны, своего броска у неё не было,
+     * и событие доставалось стороне целиком — а сторона значит «в конец».
+     * Места, которое значит «в начало», не существовало вовсе: стрелка вверх у
+     * первой строки уводит Field на другую сторону, а не поднимает его.
+     *
+     * Бросок сюда ставит Field перед первой строкой стороны, а подсветка —
+     * своя: черта под подписью, то есть ровно там, куда он встанет.
+     */
+    cap.addEventListener("dragover", ((ev: DragEv) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      cap.classList.add("io-side__cap--over");
+    }) as never);
+    cap.addEventListener("dragleave", (() => cap.classList.remove("io-side__cap--over")) as never);
+    cap.addEventListener("drop", ((ev: DragEv) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      cap.classList.remove("io-side__cap--over");
+      if (!dragged || !o.enabled) return;
+      const head = mine[0];
+      const first = head ? ownerOf(head) : "";
+      /* Первую строку бросок на подпись не двигает: она уже первая. */
+      if (first === dragged) return;
+      /* Пустая сторона: вставать не перед чем, и бросок значит «сюда». */
+      if (first) o.model.moveKey(value, dragged, first);
+      else o.model.moveKey(value, dragged);
+      o.redraw();
+    }) as never);
+
     if (!mine.length) {
       el(sec, "div", "io-side__empty", say("EMPTY_SIDE"));
       return;

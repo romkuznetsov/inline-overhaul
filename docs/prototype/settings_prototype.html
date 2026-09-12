@@ -1453,6 +1453,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 .io-side { display: flex; flex-direction: column; gap: 2px; padding: 4px 2px; border-radius: var(--radius-s); }
 .io-side--over { background: var(--background-modifier-hover); box-shadow: inset 0 0 0 1px var(--interactive-accent); }
 .io-side__cap { display: flex; flex-direction: column; padding: 2px 8px 4px; }
+.io-side__cap--over { box-shadow: inset 0 -2px 0 var(--interactive-accent); }
 .io-side__label {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
 }
@@ -4329,6 +4330,26 @@ function renderFieldList(list) {
     });
 
     const rows = FIELDS.filter(f => f.position === value);
+
+    /* Подпись стороны — место «перед первой строкой» (замечание заказчика
+       2026-09-12: выше первой строки лежит только подпись, своего броска у
+       неё не было, и поле уезжало в конец). Подсветка своя: черта под
+       подписью, ровно там, куда поле встанет. */
+    cap.addEventListener("dragover", e => {
+      e.preventDefault(); e.stopPropagation();
+      cap.classList.add("io-side__cap--over");
+    });
+    cap.addEventListener("dragleave", () => cap.classList.remove("io-side__cap--over"));
+    cap.addEventListener("drop", e => {
+      e.preventDefault(); e.stopPropagation();
+      cap.classList.remove("io-side__cap--over");
+      if (!dragged) return;
+      const first = rows[0] ? (rows[0].parent ? field(rows[0].parent) : rows[0]) : null;
+      if (first && first.id === dragged.id) return;
+      if (first) moveFieldBefore(dragged, first);
+      else moveFieldToSideEnd(dragged, value);
+    });
+
     if (!rows.length) el("div", "io-side__empty", sec, "nothing on this side");
 
     rows.forEach(f => {
