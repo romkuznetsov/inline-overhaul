@@ -1426,6 +1426,36 @@ async function testTagWheelFirstFieldBeatsRulesDefaultFieldId() {
  * Мутация: снять вызов `enforceOffModeFinalPrefixUnified` в `status_date.js` —
  * и эта проверка краснеет.
  */
+/*
+ * Замечание заказчика 2026-09-12 (`S12`): «на пустой строке активировал
+ * tagwheel и выбрал due — получил значение в правом Block, а должен был в
+ * левом, поскольку Due находится в left block». Командой то же самое встаёт
+ * слева.
+ *
+ * Правая доводка строки решала, что хвост из значений элементов принадлежит
+ * правому Block, **по записи правил**: метки берутся у полей правого списка,
+ * а Order при этом говорит «слева». Значение, только что поставленное на своё
+ * место, эта доводка уносила обратно.
+ *
+ * Мутация: вернуть в `normalizeRightPayloadTailToDates` метки по стороне
+ * списка — и эта проверка краснеет.
+ */
+async function testTagWheelKeepsElementInLeftBlockByOrder() {
+  const editor = makeEditor("- \uD83D\uDCC52026-01-02 03:04 || ", 2);
+  await runTagWheelApply(editor, {
+    "Rules path": "owner_shape_rules.md",
+    "Order config": ownerShapeOrder(),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  assertTrue(line.indexOf("::") === -1,
+    "панель увела значение элемента в правый Block, хотя по Order его место слева: " + JSON.stringify(line));
+  assertTrue(/^-\s\uD83D\uDCC5/.test(line),
+    "значение элемента не осталось в левом Block: " + JSON.stringify(line));
+}
+
 async function testStatusDateAsksBulletSettingLikeTagStepDoes() {
   const withBullet = { freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: true, fullPlacement: "smart" } };
 
@@ -2331,6 +2361,7 @@ async function run() {
   await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
   await testStatusDateKeepsManagedTagsInLeftBlock();
   await testStatusDateAsksBulletSettingLikeTagStepDoes();
+  await testTagWheelKeepsElementInLeftBlockByOrder();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();
   await testStatusTagsImportanceMinimalOffPreservesListPrefixAndIndent();

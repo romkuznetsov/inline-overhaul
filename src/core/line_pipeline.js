@@ -86,6 +86,46 @@ function getRightMarkers(rules) {
   return markersOfSide(rules, "right");
 }
 
+/*
+ * Метки элементов, которым место в **правом** Block — по Order, а не по тому,
+ * в каком списке правил поле объявлено.
+ *
+ * Разница не теоретическая: элемент, уведённый человеком в левый Block,
+ * объявлен всё в том же правом списке, и `getRightMarkers` его метку отдаёт.
+ * Правая доводка строки на этом уносила значение обратно вправо сразу после
+ * того, как его поставили слева (замечание `S12` 2026-09-12; тот же класс, что
+ * 10.13.73 — «Block элемента спрашивается у правил»).
+ *
+ * Поле без пометки Block остаётся на стороне своего списка: Order про него
+ * ничего не сказал.
+ */
+function markersPlacedInRightBlock(rules) {
+  const out = [];
+  const seen = new Set();
+  const sides = [["left", sideFields(rules, "left")], ["right", sideFields(rules, "right")]];
+  for (const [side, fields] of sides) {
+    for (const f of fields) {
+      const panel = String(f && f.panel ? f.panel : "").trim().toLowerCase();
+      const placed = panel === "left" || panel === "right" ? panel : side;
+      if (placed !== "right") continue;
+      const marker = String(f && f.marker ? f.marker : "").trim();
+      if (!marker || seen.has(marker)) continue;
+      seen.add(marker);
+      out.push(marker);
+    }
+  }
+  /* Метка может приезжать не полем, а конфигом элементов: тогда её знает
+     общий сборщик меток стороны. */
+  for (const mk of markersOfSide(rules, "right")) {
+    const owner = sideFields(rules, "right").filter((f) => String(f && f.marker ? f.marker : "").trim() === mk)[0];
+    if (owner) continue;
+    if (seen.has(mk)) continue;
+    seen.add(mk);
+    out.push(mk);
+  }
+  return out;
+}
+
 /**
  * Что в этой настройке вообще является значением Field, а что — текстом.
  *
@@ -804,21 +844,57 @@ function normalizeRightPayloadTailToDates(options) {
   var leftParts = splitLeftPrefix(seg.left);
   var body = String(leftParts.body || "").trim();
   if (!body) return line;
-  var tokens = body.split(/\s+/).filter(Boolean);
-  if (!tokens.length) return line;
-  var markers = getRightMarkers(rules);
-  var cut = tokens.length;
-  while (cut > 0) {
-    var tok = String(tokens[cut - 1] || "").trim();
-    var isDateTail = startsWithAnyMarker(tok, markers) || isDateLikeBareToken(tok);
-    if (!isDateTail) break;
-    cut -= 1;
+  /*
+   * Тело разбирается **значениями**, а не словами: значение элемента с
+   * пробелом в формате (`YYYY-MM-DD hh:mm`) занимает два слова, и второе из
+   * них само похоже на время. Пока разбор шёл по словам, хвост значения
+   * левого элемента уезжал вправо один, без своей метки (10.13.71, `S12`
+   * 2026-09-12).
+   *
+   * Где кончается значение — спрашивается у общего объявления
+   * (`longestValueLengthAt`), а не у образца, написанного здесь.
+   */
+  var rightMarkers = markersPlacedInRightBlock(rules);
+  var allMarkers = markersOfSide(rules, "left").concat(markersOfSide(rules, "right"));
+  var parts = [];
+  var pos = 0;
+  while (pos < body.length) {
+    if (/\s/.test(body.charAt(pos))) { pos += 1; continue; }
+    var takenMarker = "";
+    var takenLen = 0;
+    for (var mi = 0; mi < allMarkers.length; mi++) {
+      var mk = String(allMarkers[mi] || "");
+      if (!mk || body.indexOf(mk, pos) !== pos) continue;
+      var valueLen = __sharedUtils.longestValueLengthAt(
+        body,
+        pos + mk.length,
+        __sharedUtils.elementValueSources("", mk)
+      );
+      if (valueLen === null) continue;
+      if (mk.length + valueLen > takenLen) {
+        takenMarker = mk;
+        takenLen = mk.length + valueLen;
+      }
+    }
+    if (takenLen > 0) {
+      parts.push({ text: body.slice(pos, pos + takenLen), rightPlaced: rightMarkers.indexOf(takenMarker) !== -1 });
+      pos += takenLen;
+      continue;
+    }
+    var wordEnd = body.indexOf(" ", pos);
+    if (wordEnd === -1) wordEnd = body.length;
+    var word = body.slice(pos, wordEnd);
+    parts.push({ text: word, rightPlaced: isDateLikeBareToken(word) });
+    pos = wordEnd;
   }
-  if (cut === tokens.length) return line;
+  if (!parts.length) return line;
+  var cut = parts.length;
+  while (cut > 0 && parts[cut - 1].rightPlaced) cut -= 1;
+  if (cut === parts.length) return line;
   if (cut === 0 && !String(leftParts.prefix || "").trim()) return line;
 
-  var leftKeep = tokens.slice(0, cut).join(" ").trim();
-  var tail = tokens.slice(cut).join(" ").trim();
+  var leftKeep = parts.slice(0, cut).map(function (p) { return p.text; }).join(" ").trim();
+  var tail = parts.slice(cut).map(function (p) { return p.text; }).join(" ").trim();
   if (!tail) return line;
 
   var nextLeft = joinLeftPrefix(leftParts.prefix, leftKeep);
