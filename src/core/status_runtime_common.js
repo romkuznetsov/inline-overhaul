@@ -309,8 +309,34 @@ function createStatusRuntimeCommon(deps) {
     return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
+  /**
+   * «Сейчас» — часами человека, а не часами Гринвича.
+   *
+   * **Договор этого модуля:** значение элемента разбирается `Date.UTC(...)`, а
+   * пишется `getUTC*`, то есть `Date` здесь несёт не момент времени, а
+   * настенные часы, разложенные по полям UTC. Ветка «единица — день и крупнее»
+   * так и устроена: `getTodayIso()` берёт **местную** дату, а
+   * `parseIsoDateSafe` кладёт её в поля UTC.
+   *
+   * **Ветка времени этот договор нарушала:** она отдавала `new Date()` — момент,
+   * — и `getUTC*` печатали его гринвичскими. На часовом поясе `+03:00` шаг по
+   * элементу писал время на три часа назад, а панель TagWheel в то же
+   * мгновение писала местное: у неё свой разбор форматов, и он весь на местных
+   * геттерах. Заказчик увидел это с другой стороны: «при `command due previous`
+   * время не исчезло, когда оно стало ниже текущего» — значение, записанное
+   * панелью, стояло на три часа выше той точки, от которой команда считает
+   * ноль, и до неё шаг не доходил (замечание `S15` 2026-09-12, У-150).
+   */
+  function getNowAsWallClock() {
+    const d = new Date();
+    return new Date(Date.UTC(
+      d.getFullYear(), d.getMonth(), d.getDate(),
+      d.getHours(), d.getMinutes(), d.getSeconds()
+    ));
+  }
+
   function getReferenceDateForUnit(unit) {
-    if (unit === "second" || unit === "minute" || unit === "hour") return new Date();
+    if (unit === "second" || unit === "minute" || unit === "hour") return getNowAsWallClock();
     const d = parseIsoDateSafe(getTodayIso());
     return d || new Date(Date.UTC(1970, 0, 1));
   }

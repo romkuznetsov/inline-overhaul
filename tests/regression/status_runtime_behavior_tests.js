@@ -279,6 +279,52 @@ async function runTagWheelApply(editor, settings) {
   }
 }
 
+/*
+ * То же, что `runTagWheelApply`, но с нажатиями между открытием и применением:
+ * стрелка вправо ведёт по полям, стрелка вверх крутит значение. Нужна там, где
+ * спрашивают **значение**, которое панель ставит, а не только префикс строки.
+ *
+ * Своё окно здесь заводится всегда: обработчик клавиш панель вешает на него, и
+ * чужое окно из прошлой проверки нажатий не услышит. Контроль «панель
+ * открылась» тот же (У-152).
+ */
+async function runTagWheelKeys(editor, settings, keys) {
+  const app = makeAppForRuntime(editor);
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  const said = [];
+  global.window = makeWindowMock();
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  const withDates = Object.assign(
+    { "Date runtime config": TAGWHEEL_FIXTURE_DATE_RUNTIME },
+    settings || {}
+  );
+  let opened = false;
+  try {
+    await runtime.runCommand({ app, command: "tagWheel", settings: withDates });
+    opened = !!(global.window.__tagWheelState && global.window.__tagWheelState.active === true);
+    for (const key of (keys || [])) {
+      global.window.fire("keydown", {
+        key,
+        code: key,
+        preventDefault() {},
+        stopPropagation() {},
+        stopImmediatePropagation() {},
+      });
+    }
+    await runtime.runCommand({ app, command: "tagWheel", settings: withDates });
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  if (!opened) {
+    throw new Error(
+      "TagWheel не открылся, и проверка ниже спрашивала бы неизменённую строку.\n"
+      + "  Что сказал движок: " + JSON.stringify(said)
+    );
+  }
+}
+
 async function testImportanceRespectsCustomSeparatorsAndCursorClamp() {
   const editor = makeEditor("- [ ] #/1 #todo :: text ~~ 📅2026-04-08", 9);
   await runPkmCommandWithEditor("statusTags", editor, {
@@ -1562,6 +1608,85 @@ async function testBulletSettingAnswersTheSameForPanelAndCommand() {
     + "  панель:  " + JSON.stringify(panOn));
 }
 
+/*
+ * «Сейчас» у элемента — часы человека, и одни и те же у панели и у команды.
+ *
+ * Замечание заказчика 2026-09-12 (`S15`, вторая половина): «при `command due
+ * previous` время не исчезло, когда оно стало ниже текущего — в tagwheel, когда
+ * делаешь previous относительно первого значения, field становится пустым».
+ *
+ * Причина не в шаге вниз. Панель писала **местное** время, а шаг по элементу
+ * печатал тот же момент гринвичскими: в общем модуле значение разбирается
+ * `Date.UTC(...)` и пишется `getUTC*`, то есть `Date` там несёт настенные часы,
+ * а ветка времени отдавала в него настоящий момент. На `+03:00` значение,
+ * поставленное панелью, стояло на три часа выше нуля, от которого команда
+ * считает, и шаг вниз до него не доходил никогда.
+ *
+ * **Часовой пояс проверка задаёт сама, и без этого она слепа**: на машине с
+ * `UTC` обе стороны совпадают, и «совпали» получается само (У-147). CI как раз
+ * такая машина. Взят `Asia/Tokyo` — у него нет перехода на летнее время, и
+ * смещение постоянно круглый год.
+ *
+ * Мутация: вернуть `new Date()` в `getReferenceDateForUnit` — и проверка
+ * краснеет на девять часов.
+ */
+async function testElementNowSpeaksTheHumanClockOnBothPaths() {
+  const prevTz = process.env.TZ;
+  process.env.TZ = "Asia/Tokyo";
+  try {
+    /* Контроль: пояс и правда сменился, иначе спрашивать нечего. */
+    assertEq(new Date().getTimezoneOffset(), -540,
+      "часовой пояс проверки не сменился, и она спрашивала бы про совпадение с самой собой");
+
+    const stampNow = () => {
+      const d = new Date();
+      const two = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())} `
+        + `${two(d.getHours())}:${two(d.getMinutes())}`;
+    };
+
+    const byCommand = makeEditor("", 0);
+    const beforeCmd = stampNow();
+    await runPkmCommandWithEditor("statusDate", byCommand, {
+      "Rules path": "owner_shape_rules.md",
+      "Action type": "field_inc:date_due",
+      "Order config": ownerShapeOrder(),
+      "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    const afterCmd = stampNow();
+    const cmdLine = byCommand.snapshot().line;
+    assertTrue(cmdLine.indexOf(beforeCmd) !== -1 || cmdLine.indexOf(afterCmd) !== -1,
+      "шаг по элементу написал не то время, которое человек видит на часах:\n"
+      + "  строка: " + JSON.stringify(cmdLine) + "\n"
+      + "  часы:   " + JSON.stringify(beforeCmd) + " … " + JSON.stringify(afterCmd));
+
+    /* Панель: дойти стрелкой до элемента и поставить его первое значение. */
+    const byPanel = makeEditor("", 0);
+    const beforePanel = stampNow();
+    await runTagWheelKeys(byPanel, {
+      "Rules path": "owner_shape_rules.md",
+      "Order config": ownerShapeOrder(),
+      "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    }, ["ArrowUp"]);
+    const afterPanel = stampNow();
+    const panelLine = byPanel.snapshot().line;
+    assertTrue(panelLine.indexOf("📅") !== -1,
+      "контроль: панель не поставила значение элемента, и сверять время не с чем: "
+      + JSON.stringify(panelLine));
+    assertTrue(panelLine.indexOf(beforePanel) !== -1 || panelLine.indexOf(afterPanel) !== -1,
+      "панель написала не то время, которое человек видит на часах:\n"
+      + "  строка: " + JSON.stringify(panelLine) + "\n"
+      + "  часы:   " + JSON.stringify(beforePanel) + " … " + JSON.stringify(afterPanel));
+  } finally {
+    if (prevTz === undefined) delete process.env.TZ;
+    else process.env.TZ = prevTz;
+  }
+}
+
 async function testStatusDateKeepsManagedTagsInLeftBlock() {
   const editor = makeEditor("- [N] \uD83D\uDCC52026-09-12 09:05 #/2 #note || ", 5);
   await runPkmCommandWithEditor("statusDate", editor, {
@@ -2437,6 +2562,7 @@ async function run() {
   await testStatusDateKeepsManagedTagsInLeftBlock();
   await testStatusDateAsksBulletSettingLikeTagStepDoes();
   await testBulletSettingAnswersTheSameForPanelAndCommand();
+  await testElementNowSpeaksTheHumanClockOnBothPaths();
   await testTagWheelKeepsElementInLeftBlockByOrder();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();
