@@ -165,6 +165,14 @@ const OPTION_SOURCE_DEPS: Record<string, readonly string[]> = {
    * предпросмотры.
    */
   "tag-fields": ["pkm.fields"],
+  /*
+   * Ведущее поле выбирается среди полей своего Block, а Block у Field
+   * меняется перетаскиванием в редакторе Fields — то есть внутри той же
+   * ветки. Зависимость та же, что у `tag-fields`, и по той же причине:
+   * перечислять листья значит однажды отстать.
+   */
+  "left-block-fields": ["pkm.fields"],
+  "right-block-fields": ["pkm.fields"],
 };
 
 /**
@@ -760,6 +768,13 @@ export class SettingsPane {
   ): ReadonlyArray<{ value: string; label: string }> {
     /* Полосы красятся цветом Value, а он есть только у тега (З8). */
     if (source === "tag-fields") return fieldOptions(ctx, f => f.kind === "tag");
+    /*
+     * Ведущее поле панели: предлагаются только те Fields, что стоят в этом
+     * Block. Сторона спрашивается у самого Field, а не у списков правил —
+     * те разложены по типу, и Block в них не читается (10.13.69, Т-1).
+     */
+    if (source === "left-block-fields") return fieldOptions(ctx, f => f.side === "left");
+    if (source === "right-block-fields") return fieldOptions(ctx, f => f.side === "right");
     /*
      * Языки: английский плюс всё, что нашлось в папке плагина. Имя языка
      * берётся из самого файла — список в коде пришлось бы править ради

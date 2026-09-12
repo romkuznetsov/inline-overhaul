@@ -1020,6 +1020,12 @@ function normalizeConfigV2(cfg) {
   /* Что делает стрелка на краю Block (10.13.35). Умолчание прежнее
      поведение: менять его всем без спроса нельзя. */
   oneOf("visual.tagWheel.edgeMode", ["stay", "next-block"]);
+  /* На каком Field открывается панель (10.13.76). Имя поля — текст: его
+     проверяет сам движок, и Field человек может переименовать или увести
+     в другой Block. */
+  oneOf("visual.tagWheel.activeField.mode", ["first", "middle", "custom"]);
+  text("visual.tagWheel.activeField.left");
+  text("visual.tagWheel.activeField.right");
   /* Цвет активного Field: он на строке, а не в коробке скроллера (10.13.15). */
   hex("visual.tagWheel.activeTextColor");
 

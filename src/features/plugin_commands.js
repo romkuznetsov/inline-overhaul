@@ -418,6 +418,10 @@ async function runPkmRuntime(plugin, command, cfg, extraSettings) {
     [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
     /* Край Block: остаться в своём или перейти в соседний (10.13.35). */
     [__pkmOptionKeys.KEYS.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
+    /* На каком Field открывается панель (10.13.76). */
+    [__pkmOptionKeys.KEYS.TAGWHEEL_ACTIVE_FIELD_MODE]: readCfgPath(cfg, "visual.tagWheel.activeField.mode") || "first",
+    [__pkmOptionKeys.KEYS.TAGWHEEL_ACTIVE_FIELD_LEFT]: readCfgPath(cfg, "visual.tagWheel.activeField.left") || "",
+    [__pkmOptionKeys.KEYS.TAGWHEEL_ACTIVE_FIELD_RIGHT]: readCfgPath(cfg, "visual.tagWheel.activeField.right") || "",
     ...(isObj(extraSettings) ? extraSettings : {}),
   };
   return await Promise.resolve(rt.runCommand({

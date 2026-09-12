@@ -16,6 +16,9 @@ var TAGWHEEL_SCROLLER_TEXT_OPTION = 'TagWheel scroller text color'
 /* Что делает стрелка на краю панели: двадцать первое исключение к З3,
    разрешение заказчика 2026-09-05 (PRD 10.13.35). */
 var TAGWHEEL_EDGE_MODE_OPTION = 'TagWheel edge mode'
+var TAGWHEEL_ACTIVE_FIELD_MODE_OPTION = 'TagWheel active field mode'
+var TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION = 'TagWheel active field left'
+var TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = 'TagWheel active field right'
 var DEFAULT_RULES_PATH = 'InlineOverhaul_Generated_RULES_TagWheel.md'
 /*
  * Свои модули — литеральным `require`, по одному на модуль (У-89).
@@ -431,6 +434,16 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   if (!out.edgeMode && typeof qa[TAGWHEEL_EDGE_MODE_OPTION] === 'string') {
     out.edgeMode = qa[TAGWHEEL_EDGE_MODE_OPTION]
   }
+  /* На каком Field открывается панель (10.13.76). */
+  if (!out.activeFieldMode && typeof qa[TAGWHEEL_ACTIVE_FIELD_MODE_OPTION] === 'string') {
+    out.activeFieldMode = qa[TAGWHEEL_ACTIVE_FIELD_MODE_OPTION]
+  }
+  if (out.activeFieldLeft == null && typeof qa[TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION] === 'string') {
+    out.activeFieldLeft = qa[TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION]
+  }
+  if (out.activeFieldRight == null && typeof qa[TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION] === 'string') {
+    out.activeFieldRight = qa[TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION]
+  }
   return out
 }
 
@@ -583,6 +596,9 @@ async function runTagWheel(input, quickAddSettings) {
     TAGWHEEL_SCROLLER_FILL_OPTION = String(keys.TAGWHEEL_SCROLLER_FILL || TAGWHEEL_SCROLLER_FILL_OPTION)
     TAGWHEEL_SCROLLER_TEXT_OPTION = String(keys.TAGWHEEL_SCROLLER_TEXT || TAGWHEEL_SCROLLER_TEXT_OPTION)
     TAGWHEEL_EDGE_MODE_OPTION = String(keys.TAGWHEEL_EDGE_MODE || TAGWHEEL_EDGE_MODE_OPTION)
+    TAGWHEEL_ACTIVE_FIELD_MODE_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_MODE || TAGWHEEL_ACTIVE_FIELD_MODE_OPTION)
+    TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_LEFT || TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION)
+    TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_RIGHT || TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION)
     DEFAULT_RULES_PATH = String(mod.DEFAULT_RULES_PATH || DEFAULT_RULES_PATH)
   }
 
@@ -2014,6 +2030,16 @@ async function runTagWheel(input, quickAddSettings) {
     session.__todayIso = y + '-' + m + '-' + d
     core.hydrateStateFromParsedLine(rules, session, parsedLine)
     core.sanitizeState(rules, session)
+    /*
+     * Настройка «на каком Field открывать» кладётся в правила тем же
+     * приёмом, каким туда кладётся порядок: движок читает правила, а не
+     * настройки (10.13.76).
+     */
+    core.applyActiveFieldChoiceToRules(rules, {
+      mode: runtimeInput.activeFieldMode,
+      left: runtimeInput.activeFieldLeft,
+      right: runtimeInput.activeFieldRight
+    })
     session.activeField = core.resolveInitialActiveField(rules, session, session.mode)
     var modeNow = session.mode === 'right' ? rules.rightMode : rules.leftMode
     session.activeFieldId = modeNow && modeNow.fields && modeNow.fields[session.activeField]

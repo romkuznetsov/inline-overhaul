@@ -45,6 +45,16 @@ const KEYS = {
   /* Что делает стрелка на краю Block: остаться в своём или перейти в
      соседний (10.13.35, заказ заказчика 2026-09-05). */
   TAGWHEEL_EDGE_MODE: "TagWheel edge mode",
+  /*
+   * На каком Field панель открывается (решение заказчика 2026-09-11,
+   * 10.13.69 Т-5; правка 10.13.76). Ключ в модели правил был и раньше —
+   * `behavior.order.lead`, — но писать его было некому: функция записи не
+   * звалась ниоткуда. Настройка едет к движку тем же путём, что край
+   * Block: ключом, а не через служебный файл правил.
+   */
+  TAGWHEEL_ACTIVE_FIELD_MODE: "TagWheel active field mode",
+  TAGWHEEL_ACTIVE_FIELD_LEFT: "TagWheel active field left",
+  TAGWHEEL_ACTIVE_FIELD_RIGHT: "TagWheel active field right",
 };
 
 module.exports = {

@@ -2360,6 +2360,96 @@ function runLeftBlockParseSuite(core, finalize) {
   })()
 }
 
+/**
+ * На каком Field панель открывается: выбор человека (10.13.76).
+ *
+ * Решение заказчика 2026-09-11: три значения — первое поле Block, среднее со
+ * смещением влево и названное им поле. Формула середины его же словами:
+ * индекс `ceil(n / 2) - 1`.
+ *
+ * **Формула спрошена у функции прямо, а поведение — у панели.** Середина
+ * зависит от того, сколько полей человек ВИДИТ, а видимых столько, сколько
+ * их в его Order; собрать в фикстуре Block из двух, трёх, четырёх и пяти
+ * полей дороже, чем спросить саму формулу, и она же и есть предмет.
+ */
+function runActiveFieldChoiceSuite(core) {
+  var path = require('path')
+  var fs = require('fs')
+  var normalize = require(path.join(__dirname, '..', '..', 'src', 'core', 'config_normalize.js'))
+  var shape = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_shape.js'))
+  var orderMod = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_order_config.js'))
+  var helpers = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
+
+  function buildRules() {
+    var cfgPath = path.join(__dirname, '..', 'fixtures', 'config_v1_realistic.json')
+    var cfg = normalize.migrateConfig(JSON.parse(fs.readFileSync(cfgPath, 'utf8')))
+    cfg.pkm.lineFormat.separator1 = '||'
+    cfg.pkm.lineFormat.separator2 = '::'
+    var local = shape.buildRulesForEngines(cfg)
+    helpers.applyOrderToRules(local, JSON.parse(orderMod.serializePkmOrderForMacro(cfg)))
+    return local
+  }
+
+  function openOn(choice, panel) {
+    var rules = buildRules()
+    if (choice) core.applyActiveFieldChoiceToRules(rules, choice)
+    var parsed = core.parseLine('- ', rules)
+    var session = core.makeInitialState(rules, panel)
+    session.mode = panel
+    core.hydrateStateFromParsedLine(rules, session, parsed)
+    core.sanitizeState(rules, session)
+    var visible = core.getNavigableFieldSequence(rules, session)
+    session.activeField = core.resolveInitialActiveField(rules, session, panel)
+    return { visible: visible, activeId: String(session.activeFieldId || '') }
+  }
+
+  ;(function testFirstIsTheDefaultAndUnchanged() {
+    var was = openOn(null, 'left')
+    var now = openOn({ mode: 'first' }, 'left')
+    assertTrue(was.visible.length > 1, 'положительный контроль: в левом Block меньше двух видимых полей')
+    assertEq(now.activeId, was.visible[0], 'при выборе «первое поле» панель открылась не на первом')
+    assertEq(was.activeId, was.visible[0], 'без настройки поведение изменилось')
+  })()
+
+  ;(function testMiddleFormulaIsHisWords() {
+    /* Два поля дают первое, три — второе, четыре — второе, пять — третье. */
+    var rules = buildRules()
+    core.applyActiveFieldChoiceToRules(rules, { mode: 'middle' })
+    assertEq(core.chooseActiveFieldId(rules, 'left', ['a', 'b']), 'a', 'два поля: середина не первая')
+    assertEq(core.chooseActiveFieldId(rules, 'left', ['a', 'b', 'c']), 'b', 'три поля: середина не вторая')
+    assertEq(core.chooseActiveFieldId(rules, 'left', ['a', 'b', 'c', 'd']), 'b', 'четыре поля: середина не вторая')
+    assertEq(core.chooseActiveFieldId(rules, 'left', ['a', 'b', 'c', 'd', 'e']), 'c', 'пять полей: середина не третья')
+    assertEq(core.chooseActiveFieldId(rules, 'left', ['a']), 'a', 'одно поле: выбрано не оно')
+  })()
+
+  ;(function testMiddleOnTheRealPanel() {
+    var out = openOn({ mode: 'middle' }, 'left')
+    var want = out.visible[Math.ceil(out.visible.length / 2) - 1]
+    assertEq(out.activeId, want, 'на настоящей панели середина посчитана не по видимым полям')
+  })()
+
+  ;(function testCustomTakesTheNamedField() {
+    var visible = openOn(null, 'left').visible
+    var named = visible[visible.length - 1]
+    var out = openOn({ mode: 'custom', left: named }, 'left')
+    assertEq(out.activeId, named, 'названное поле не стало ведущим')
+    assertTrue(named !== visible[0], 'положительный контроль: названо то же поле, что и первое — проверять нечего')
+  })()
+
+  ;(function testCustomWithoutAName() {
+    /* Поле не названо — панель ведёт себя как при «первое поле Block». */
+    var out = openOn({ mode: 'custom', left: '' }, 'left')
+    assertEq(out.activeId, out.visible[0], 'без названного поля панель открылась не на первом')
+  })()
+
+  ;(function testNamedFieldOfTheOtherBlockIsNotTaken() {
+    /* Поле левого Block не может вести правый: это выбор своей стороны. */
+    var left = openOn(null, 'left').visible
+    var out = openOn({ mode: 'custom', left: left[left.length - 1], right: '' }, 'right')
+    assertEq(out.activeId, out.visible[0], 'правый Block взял ведущее поле левого')
+  })()
+}
+
 function runNode() {
   var fs = require('fs')
   var path = require('path')
@@ -2392,6 +2482,7 @@ function runNode() {
   core.validateRules(rules)
   runSuite(core, rules, finalize)
   runLeftBlockParseSuite(core, finalize)
+  runActiveFieldChoiceSuite(core)
   runSharedOrderAlignmentSuite()
   runLeadFieldPolicySuite(core)
   runLinkFieldOrderSuite()

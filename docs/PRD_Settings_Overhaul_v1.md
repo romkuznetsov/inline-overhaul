@@ -507,6 +507,18 @@ Inline Overhaul — desktop-плагин Obsidian: навигация по ст�
   разбора как есть. Разбор — 10.13.74. Закреплено четырьмя утверждениями в
   `tagwheel_tests.js`; четыре подмены краснеют.
 
+  **Исключение пятьдесят второе, сделанное 2026-09-12 по его слову «работай
+  автономно»** (контрол `Active Field on opening`):
+  `pkm_v2/TagWheel/tagwheel_core.js` и `pkm_v2/TagWheel/tagwheel.js` —
+  панель открывается на том Field, который человек выбрал: первом поле
+  Block, среднем со смещением влево (`ceil(n/2)-1`) или названном им. Ключ
+  `behavior.order.lead` в модели был, а контрола не было, и писать его было
+  некому (10.13.69, Т-5). Настройка едет к движку ключами, как край Block, а
+  не через служебный файл правил: тот снимается. Середина считается по
+  ВИДИМЫМ полям, а не по списку правил — списки разложены по типу, и
+  середина у двух множеств разная. Разбор — 10.13.76. Закреплено шестью
+  утверждениями в `tagwheel_tests.js`; семь подмен краснеют.
+
   **Порядок, которым сделаны исключения «без спроса»**, один и тот же с 2026-09-04 и заказчиком не оспорен: полный разбор всех мест, где задаётся поведение, — правка — вопрос «оставить ли сделанное» с указанием, чем откатывается (У-9, В-34, В-35). Он применяется, когда заказчик ушёл со словами «работай автономно» или сам назначил починку, и **не отменяет правила**: разрешение спрашивается до правки, когда заказчика есть о чём спросить.
 
   **Истории всех исключений лежат здесь** — с 2026-09-10, когда список переехал из `CLAUDE.md`: тот файл читается целиком каждую сессию, и истории занимали в нём четверть объёма (У-31). В `CLAUDE.md` осталась таблица «номер, дата, файл, одна строка» и ссылка сюда; разбор каждого — в 10.13.*. На первые двадцать два ссылаются разделы 4 и 11. Правило не менялось: **следующее исключение спрашивается у заказчика**, и не раньше полного разбора (У-9).
@@ -1301,7 +1313,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (44)
+### Пути, которых не было в описи v1.0 (47)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -1331,6 +1343,9 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | TagWheel |
 | `visual.tagWheel.scroller.textColor` | Scroller text color (`scroller-text`) | TagWheel |
 | `visual.tagWheel.edgeMode` | TagWheel navigation behavior (`wheel-edge`) | TagWheel |
+| `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | TagWheel opening |
+| `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | TagWheel opening |
+| `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | TagWheel opening |
 | `visual.caret.enabled` | Color the text cursor (`caret-enabled`) | Text cursor |
 | `visual.caret.color` | Cursor color (`caret-color`) | Text cursor |
 | `visual.caret.shapeEnabled` | Shape the text cursor (`caret-shape`) | Text cursor |
@@ -4019,6 +4034,70 @@ order — importance (tag), type (tag), project (link)», с примером о
 Работы по `Т9` не видно: обе половины его слова выполнены и измерены. Строка
 уходит из списка **не этим разбором, а его словом** — зелёная проверка приёмкой
 не является. Строка листа — `S10`.
+
+#### 10.13.76 Контрол «Active Field on opening» (Т8, сделано 2026-09-12)
+
+Решение заказчика 2026-09-11 (10.13.69, Т-5): три значения — первое поле Block,
+среднее со смещением влево и названное им поле, отдельно для каждого Block.
+Формула середины его словами: индекс `ceil(n / 2) - 1`. Сделано автономно по его
+слову «работай автономно»; порядок В-34, вопрос «оставить ли сделанное» — строка
+`S11` листа. Пятьдесят второе исключение к З3.
+
+##### Э-1. Что было до
+
+Ключ в модели был — `behavior.order.lead`, — и `resolveInitialActiveField` читал
+его **первым**. Писать его было некому: `setLead` не звалась ниоткуда, и сплошной
+поиск давал два вхождения — объявление и строку экспорта. То есть контрол был
+задуман и не заведён (У-16: «нет контрола» — это не «нет функции»).
+
+##### Э-2. Где живёт настройка
+
+| что | где |
+|---|---|
+| контрол | прототип, вкладка `Visual`, своя группа `TagWheel opening` |
+| путь в конфиге | `visual.tagWheel.activeField.mode` плюс `.left` и `.right` |
+| дорога к движку | ключи настроек, как у края Block: `TagWheel active field mode` и пара к ним |
+| чтение | `tagwheel.js` кладёт выбор в правила, `tagwheel_core.chooseActiveFieldId` его применяет |
+
+**Через служебный файл правил настройка не идёт нарочно.** TagWheel пока читает
+правила из `generated_rules.md` (шаг 3 снятия файла не начат), и класть туда
+новый ключ значило бы дописывать сборщик и разборщик ради того, что скоро
+снимается. Край Block ездит ключом настройки с 2026-09-05, и здесь та же дорога.
+
+##### Э-3. Почему своя группа, а не строки в TagWheel
+
+В группе `TagWheel` было одиннадцать настроек, а гейт не пускает больше
+двенадцати: три новые туда не помещаются. Двигать чужие строки ради места я не
+стал — они согласованы (Р8). Место контрола заказчик не называл; выбран вариант,
+который легче всего переиграть, и вопрос задан строкой листа.
+
+##### Э-4. Середина считается по видимым полям, а не по списку правил
+
+Списки правил разложены по типу, а человек видит свой Order, и середина у этих
+двух множеств разная (10.13.69, Т-8). Поэтому `chooseActiveFieldId` получает
+именно последовательность обхода панели.
+
+Формула проверена на числах: два поля дают первое, три — второе, четыре —
+второе, пять — третье. Совпадает с его словами.
+
+##### Э-5. Сторож нашёл дыру в этой же правке
+
+Первая версия искала названное поле функцией `pick`, а та резолвит индекс в
+списке **по типу**. Элемент, стоящий по Order слева, в левом списке не лежит — и
+выбор «названное поле» молча не срабатывал ровно на элементах. Это тот же
+случай, что Т-8, и ответ тот же: решает имя, а не место в списке.
+
+##### Э-6. Чем закреплено
+
+`tests/TagWheel/tagwheel_tests.js`, `runActiveFieldChoiceSuite` — шесть
+утверждений: умолчание не меняет поведения; формула середины на числах; середина
+на настоящей панели; названное поле; названного поля нет — ведёт первое; поле
+чужого Block не ведёт этот.
+
+**Семь подмен, и все семь краснеют.** Одна из них сперва оказалась
+**не-подменой**: `ui.activeField || {…}` при незаполненном поле даёт тот же
+объект, поведение не менялось, и сторож честно не краснел. Правило 73 сработало
+второй раз за день.
 
 #### 10.13.53 Панель TagWheel и история отмен: почему остаток дефекта не снимается дешёво (В-80)
 
@@ -8294,7 +8373,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 5 | 10 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 6 | 40 | 6 |
+| 5 | Visual | `features.visual.enabled` | 7 | 43 | 6 |
 | 6 | Transform | `features.transform.enabled` | 6 | 28 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -8350,6 +8429,7 @@ python tests/prototype/update_prd.py
 | 150 | `user-tag-colors` | Color your Tags | Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like | да | — |
 | 200 | `tag-bars` | Tag Bars | A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it | да | — |
 | 300 | `tagwheel` | TagWheel | TagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down | да | — |
+| 350 | `tagwheel-opening` | TagWheel opening | Which Field the picker is standing on the moment it opens, before you touch an arrow key | да | — |
 | 400 | `text-cursor` | Text cursor | The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page | да | — |
 
 **Transform** (`transform`)
@@ -9232,6 +9312,30 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
   - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
 
+#### TagWheel opening — `tagwheel-opening` (вкладка `visual`)
+
+_Intro:_ Which Field the picker is standing on the moment it opens, before you touch an arrow key
+
+_Tip:_ TagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it
+
+- **Active Field on opening** — `wheel-active-field`, `dropdown`, path `visual.tagWheel.activeField.mode`, default `first`
+  - desc: Which Field the picker lands on when it opens
+  - tip: TagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block
+  - варианты: `first` First Field of the Block · `middle` Middle Field of the Block · `custom` A Field you choose
+  - старые названия для поиска: «Lead Field», «Starting Field», «Active Field»
+- **Left Block active Field** — `wheel-active-left`, `dropdown`, path `visual.tagWheel.activeField.left`, default `""`
+  - desc: The Field TagWheel lands on when it opens on the left
+  - tip: Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first
+  - варианты: `` First Field of the Block
+  - видна если: `visual.tagWheel.activeField.mode`
+  - старые названия для поиска: «Lead Field left»
+- **Right Block active Field** — `wheel-active-right`, `dropdown`, path `visual.tagWheel.activeField.right`, default `""`
+  - desc: The Field TagWheel lands on when it opens on the right
+  - tip: Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did
+  - варианты: `` First Field of the Block
+  - видна если: `visual.tagWheel.activeField.mode`
+  - старые названия для поиска: «Lead Field right»
+
 #### Text cursor — `text-cursor` (вкладка `visual`)
 
 _Intro:_ The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page
@@ -9384,6 +9488,9 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `visual.tags.opacityLeft` | slider | `100` |
 | `visual.tags.opacityRight` | slider | `100` |
 | `visual.tags.textSizePct` | slider | `100` |
+| `visual.tagWheel.activeField.left` | dropdown | `""` |
+| `visual.tagWheel.activeField.mode` | dropdown | `first` |
+| `visual.tagWheel.activeField.right` | dropdown | `""` |
 | `visual.tagWheel.activeTextColor` | color | `""` |
 | `visual.tagWheel.edgeMode` | dropdown | `stay` |
 | `visual.tagWheel.fillColor` | color | `""` |

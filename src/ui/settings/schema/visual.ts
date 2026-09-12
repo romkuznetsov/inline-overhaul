@@ -6,7 +6,7 @@
  */
 
 import type { SettingsGroup } from "../types.ts";
-import { on } from "../types.ts";
+import { on, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { barsPreview, caretPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
 import { userTagColors } from "../custom/user_tags.ts";
@@ -227,6 +227,32 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"stay",label:"Stay in the same Block"},
                 {value:"next-block",label:"Move to the next Block"} ],
       tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+  ]
+},
+{
+  id: "tagwheel-opening", tab: "visual", order: 350, heading: "TagWheel opening",
+  intro: "Which Field the picker is standing on the moment it opens, before you touch an arrow key",
+  tip: "TagWheel opens on one Field of the Block, and that Field decides what the up and down keys walk through first. On a Block of two or three it hardly matters; on a Block of six the wrong starting point costs a keypress every time. Set it once here and the picker opens where your hand already expects it",
+  items: [
+    { kind:"dropdown", id:"wheel-active-field", path:"visual.tagWheel.activeField.mode", default:"first",
+      name:"Active Field on opening", desc:"Which Field the picker lands on when it opens",
+      searchTerms:["Lead Field","Starting Field","Active Field"],
+      options:[ {value:"first",label:"First Field of the Block"},
+                {value:"middle",label:"Middle Field of the Block"},
+                {value:"custom",label:"A Field you choose"} ],
+      tip:"TagWheel opens on one of the Fields of the Block, and the up and down keys start moving through that Field’s Values. <code>First Field of the Block</code> lands on the one standing first in your order. <code>Middle Field of the Block</code> lands nearer the middle, so neither end is far: with two Fields it is the first, with three the second, with four the second, with five the third. <code>A Field you choose</code> opens two more settings, one per Block" },
+    { kind:"dropdown", id:"wheel-active-left", path:"visual.tagWheel.activeField.left", default:"",
+      name:"Left Block active Field", desc:"The Field TagWheel lands on when it opens on the left",
+      searchTerms:["Lead Field left"],
+      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"left-block-fields",
+      visible: eq("visual.tagWheel.activeField.mode","custom"),
+      tip:"Only Fields standing in the left Block are offered. A Field you later move to the other Block stops being the one it lands on, and the left Block falls back to its first" },
+    { kind:"dropdown", id:"wheel-active-right", path:"visual.tagWheel.activeField.right", default:"",
+      name:"Right Block active Field", desc:"The Field TagWheel lands on when it opens on the right",
+      searchTerms:["Lead Field right"],
+      options:[ {value:"",label:"First Field of the Block"} ], optionsFrom:"right-block-fields",
+      visible: eq("visual.tagWheel.activeField.mode","custom"),
+      tip:"Only Fields standing in the right Block are offered. Leave it on <code>First Field of the Block</code> and the right side behaves as it did" }
   ]
 },
 {

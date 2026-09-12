@@ -773,6 +773,59 @@ function getLeadFieldIdByOrderKey(mode, state, orderKey, rules) {
   return ''
 }
 
+/**
+ * Положить в правила выбор человека «на каком Field открывать панель».
+ *
+ * Настройка едет к движку ключами (10.13.76), а движок читает **правила** —
+ * тем же приёмом, каким в них кладётся порядок Fields. Пустое значение ничего
+ * не портит: режим по умолчанию `first`, то есть прежнее поведение.
+ */
+function applyActiveFieldChoiceToRules(rules, choice) {
+  if (!rules || typeof rules !== 'object') return rules
+  var src = isObj(choice) ? choice : {}
+  var mode = String(src.mode || '').trim().toLowerCase()
+  if (mode !== 'middle' && mode !== 'custom') mode = 'first'
+  var ui = isObj(rules.ui) ? rules.ui : {}
+  ui.activeField = {
+    mode: mode,
+    left: String(src.left || '').trim(),
+    right: String(src.right || '').trim()
+  }
+  rules.ui = ui
+  return rules
+}
+
+/**
+ * Какое поле панели ведущее при её открытии — по выбору человека.
+ *
+ * `first` — первое из видимых, прежнее поведение и умолчание.
+ * `middle` — ближе к середине, со смещением влево: формула его же словами,
+ * индекс `ceil(n / 2) - 1`. Два поля дают первое, три — второе, четыре —
+ * второе, пять — третье.
+ * `custom` — названное им поле своего Block.
+ *
+ * Считается по **видимым** полям, а не по списку правил: список разложен по
+ * типу, а человек видит свой Order, и середина у этих двух множеств разная
+ * (10.13.69, Т-8).
+ */
+function chooseActiveFieldId(rules, modeName, visible) {
+  var list = Array.isArray(visible) ? visible : []
+  if (!list.length) return ''
+  var ui = isObj(rules && rules.ui) ? rules.ui : {}
+  var choice = isObj(ui.activeField) ? ui.activeField : {}
+  var mode = String(choice.mode || 'first').trim().toLowerCase()
+  if (mode === 'custom') {
+    var named = String(choice[modeName === 'right' ? 'right' : 'left'] || '').trim()
+    return named || ''
+  }
+  if (mode === 'middle') {
+    var idx = Math.ceil(list.length / 2) - 1
+    if (idx < 0) idx = 0
+    return String(list[idx] || '')
+  }
+  return ''
+}
+
 function resolveInitialActiveField(rules, state, modeName) {
   var mode = getMode(rules, modeName)
   if (!mode.fields.length) return 0
@@ -811,6 +864,30 @@ function resolveInitialActiveField(rules, state, modeName) {
     if (idx === -1) return -1
     state.activeFieldId = fid
     return idx
+  }
+
+  /*
+   * **Выбор человека спрашивается первым** (10.13.76). До 2026-09-12 первым
+   * стоял ключ `behavior.order.lead`, и писать его было некому: функция
+   * записи не звалась ниоткуда (10.13.69, Т-5). Ключ остаётся ниже — у кого
+   * он проставлен руками, тот его и получит, — но теперь у настройки есть
+   * контрол, и он сильнее.
+   */
+  var chosenId = chooseActiveFieldId(rules, modeName, visible)
+  if (chosenId) {
+    var chosenIdx = pick(chosenId)
+    if (chosenIdx !== -1) return chosenIdx
+    /*
+     * Поле человек видит, а в списке по типу его нет: элемент лежит среди
+     * правых, даже когда по Order он слева. Тот же случай, что у первого
+     * видимого ниже, и ответ тот же — решает имя, а не место в списке
+     * (10.13.69, Т-8). Без этого выбор «названное поле» молча не
+     * срабатывал бы ровно на элементах.
+     */
+    if (visible.indexOf(chosenId) !== -1) {
+      state.activeFieldId = chosenId
+      return 0
+    }
   }
 
   var behavior = isObj(rules.behavior) ? rules.behavior : {}
@@ -2861,6 +2938,8 @@ module.exports = {
   parseLine: parseLine,
   makeInitialState: makeInitialState,
   resolveInitialActiveField: resolveInitialActiveField,
+  applyActiveFieldChoiceToRules: applyActiveFieldChoiceToRules,
+  chooseActiveFieldId: chooseActiveFieldId,
   hydrateStateFromParsedLine: hydrateStateFromParsedLine,
   sanitizeState: sanitizeState,
   buildPrefix: buildPrefix,
