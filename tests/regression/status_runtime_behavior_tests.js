@@ -1421,6 +1421,97 @@ function ownerShapeOrder(extra) {
 }
 
 /*
+ * **Строка без знака списка: текст человека остаётся текстом.**
+ *
+ * Замечание заказчика 2026-09-12: он печатал слово на пустой строке и жал
+ * команду поля правого Block, а получал `- 1231 :: :: 📅…` — два разделителя
+ * подряд; панелью — пять. Он назвал это артефактами и сказал: «мне надоело,
+ * что постоянно ломается».
+ *
+ * Причина не в записи, а в разборе. Развязка «слева нет значений Field, значит
+ * слева текст» делалась **только у строк со знаком списка**: опасались, что у
+ * строки без знака левый сегмент станет пустым, а сборка подставит `-`. На
+ * строке `1231` развязки не было, слово человека считалось зоной значений, и
+ * правый Block приклеивался к ней вторым разделителем поверх уже стоявшего.
+ *
+ * **Обход этого не видел, потому что все три его исходные строки начинались с
+ * `- `.** Это У-147 в чистом виде: пример, у которого одна и та же сторона
+ * везде, слеп к правилу, которое эту сторону и решает.
+ *
+ * Вторая половина — положительный контроль и он же ответ на прежнее опасение:
+ * при выключенном `Strict: add a bullet` знак списка не появляется. Без него
+ * проверка не отличила бы починку от плагина, который ставит буллит всегда.
+ *
+ * Мутация: вернуть в `demoteLeftBodyToText` требование знака списка — и первая
+ * половина краснеет на втором разделителе.
+ */
+async function testTextLineWithoutListMarkerKeepsOneSeparator() {
+  const rightElement = {
+    left: ["Category", "Importance", "type"],
+    right: ["date_due", "Project"],
+    panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
+  };
+  const bulletOn = Object.assign({
+    freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: true, fullPlacement: "smart" },
+  }, rightElement);
+  const bulletOff = Object.assign({
+    freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: false, fullPlacement: "smart" },
+  }, rightElement);
+
+  const settings = (extra) => ({
+    "Rules path": "owner_shape_rules.md",
+    "Order config": ownerShapeOrder(extra),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+
+  async function byCommand(extra) {
+    const editor = makeEditor("1231", 4);
+    await runPkmCommandWithEditor("statusDate", editor, Object.assign(settings(extra), {
+      "Action type": "field_inc:date_due",
+    }));
+    return editor.snapshot().line;
+  }
+
+  async function byPanel(extra) {
+    const editor = makeEditor("1231", 4);
+    await runTagWheelKeys(editor, Object.assign(settings(extra), {
+      "Start setting": "right",
+      "Start mode override": "right",
+    }), ["ArrowUp"]);
+    return editor.snapshot().line;
+  }
+
+  const cmdOn = await byCommand(bulletOn);
+  const panOn = await byPanel(bulletOn);
+  assertTrue(cmdOn.indexOf("📅") !== -1 && panOn.indexOf("📅") !== -1,
+    "контроль: значение элемента не встало ни одной дорогой, и считать разделители не на чем:\n"
+    + "  команда: " + JSON.stringify(cmdOn) + "\n  панель:  " + JSON.stringify(panOn));
+  assertEq((cmdOn.match(/::/g) || []).length, 1,
+    "команда поставила не один разделитель на строке без знака списка: " + JSON.stringify(cmdOn));
+  assertEq((panOn.match(/::/g) || []).length, 1,
+    "панель поставила не один разделитель на строке без знака списка: " + JSON.stringify(panOn));
+  assertTrue(cmdOn.indexOf("1231") !== -1 && panOn.indexOf("1231") !== -1,
+    "текст человека пропал со строки:\n"
+    + "  команда: " + JSON.stringify(cmdOn) + "\n  панель:  " + JSON.stringify(panOn));
+  assertEq(cmdOn, panOn,
+    "обе дороги обязаны дать одну строку:\n"
+    + "  команда: " + JSON.stringify(cmdOn) + "\n  панель:  " + JSON.stringify(panOn));
+
+  /*
+   * Прежнее опасение проверяется прямо: знак списка решает настройка, и при
+   * выключенной он на строке человека не появляется.
+   */
+  const cmdOff = await byCommand(bulletOff);
+  assertTrue(!/^\s*-\s/.test(cmdOff),
+    "при выключенном `Strict: add a bullet` строка человека получила знак списка: "
+    + JSON.stringify(cmdOff));
+  assertEq((cmdOff.match(/::/g) || []).length, 1,
+    "при выключенном `Strict: add a bullet` разделитель снова не один: " + JSON.stringify(cmdOff));
+}
+
+/*
  * **Панель обязана узнавать то, что плагин написал сам.**
  *
  * Замечание заказчика 2026-09-12: «был баг, когда в right block были выбраны
@@ -2789,6 +2880,7 @@ async function run() {
   await testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement();
   await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
   await testPanelRecognizesTheLineThePluginWroteItself();
+  await testTextLineWithoutListMarkerKeepsOneSeparator();
   await testStatusDateKeepsManagedTagsInLeftBlock();
   testBuiltLineSurvivesParseAndBuild();
   await testFieldCommandAsksPrerequisiteLikePanelDoes();
