@@ -585,9 +585,12 @@ async function jump(text, line, direction, over) {
     };
     assertEq(LINE4.indexOf("||"), -1,
       "контроль: первого разделителя в строке нет — иначе правленая ветка не выполняется (У-56)");
-    assertEq(await endOf({ separator1: "||", separator2: "::" }), "- [ ] 1244".length,
+    /* Метки подаются так же, как их подаёт команда: по ним хвост значений
+       отличается от текста человека. */
+    const MK4 = [String.fromCodePoint(0x1F4C5)];
+    assertEq(await endOf({ separator1: "||", separator2: "::", markers: MK4 }), "- [ ] 1244".length,
       "строка без первого разделителя: курсор встаёт перед вторым, а не в конец строки");
-    assertEq(await endOf({ separator1: "::", separator2: "::" }), "- [ ] 1244".length,
+    assertEq(await endOf({ separator1: "::", separator2: "::", markers: MK4 }), "- [ ] 1244".length,
       "на одинаковых разделителях ответ тот же, но приходит он другой веткой");
     ok("строка без зоны тегов: конец текста — второй Separator");
 
@@ -626,9 +629,15 @@ async function jump(text, line, direction, over) {
         }
         return seen;
       };
-      /* Граница зоны — начало второго разделителя; зазор перед ним в зону
-         входит, и это прежнее поведение, а не предмет правки. */
-      const END_OF_TEXT = LINE5.indexOf("::");
+      /*
+       * Конец текста — **сразу за последней буквой**, а не на зазоре перед
+       * вторым разделителем. Так отвечает общее правило, которым ставят курсор
+       * все движки PKM, и так его ждёт заказчик: «должен был `|| ывааы|`»
+       * (`S4` 2026-09-12). Прежде здесь стоял индекс самого разделителя — то
+       * есть зазор считался частью текста, — и это было второе объявление того
+       * же правила.
+       */
+      const END_OF_TEXT = LINE5.indexOf(" ::");
       const withBoth = await walk(rules);
       assertEq(withBoth[withBoth.length - 1], END_OF_TEXT,
         "с двумя разделителями шаг вправо кончается на конце текста");
@@ -921,6 +930,91 @@ async function jump(text, line, direction, over) {
       "и конец зоны прежний — перед разделителем");
 
     ok("пустой слот текста: курсор встаёт туда, где начнётся слово");
+  }
+
+  /* ---- курсор при разных разделителях: шесть случаев заказчика ---- */
+
+  /*
+   * Замечание 2026-09-12, строка `S4`: «при прыжках курсор часто встаёт в
+   * неправильное место строки». Шесть примеров, снятых с его экрана, и у
+   * каждого он написал, где курсор оказался и где должен был.
+   *
+   * **Почему этого не видели прежние проверки.** У них один разделитель на
+   * обе роли (`delim: "::"`), а у заказчика `||` и `::` — и правило, верное
+   * при совпадающих, при разных промахивается (У-147). Здесь разделители
+   * разведены нарочно.
+   *
+   * Где кончается текст человека, знает **одно** объявление —
+   * `getCursorAtTextEnd` в `pkm_macro_shared.js`, — и оно на всех шести
+   * случаях отвечает ровно то, что написал заказчик. Проверка спрашивает
+   * поведение команд, а не его.
+   */
+  {
+    const MARKER = String.fromCodePoint(0x1F4C5);
+    const LF = { separator1: "||", separator2: "::" };
+    const RULES = { delim: "||", delim2: "::", trailingMarkers: [MARKER], dateRegexSrc: "\\d{4}-\\d{2}-\\d{2}" };
+    const JUMP = {
+      centerCursor: false, jumpMode: "line", edgeMode: "start",
+      jumpCursorPosition: "section-end", centerDelayMs: 0, centerThrottleMs: 0,
+    };
+
+    const jumpDown = async (lines, fromLine) => {
+      const ed = fakeEditor(lines.join("\n"), { line: fromLine, ch: 0 });
+      nav.jumpToHeader(ed, "down", JUMP, LF);
+      await settle();
+      return ed.at();
+    };
+
+    const step = async (line, from, direction, stepMode) => {
+      const ed = fakeEditor(line, { line: 0, ch: from });
+      nav.navigateInline(ed, direction, RULES,
+        { stepMode: stepMode || "sentence", boundaryJump: false, onBoundary: "stay" });
+      await settle();
+      return ed.at().ch;
+    };
+
+    /* 1. Пустой слот в конце строки: курсор за первым разделителем, а не до него. */
+    const L1 = MARKER + "2026-09-12 09:10 || ";
+    const p1 = await jumpDown(["первая строка", L1], 0);
+    assertEq(p1.ch, L1.length, "прыжок: пустой слот текста в конце строки");
+
+    /* 2. Строка без первого разделителя: курсор в слоте, а не вплотную к знаку списка. */
+    const L2 = "-  :: " + MARKER + "2026-09-12 12:06";
+    const p2 = await jumpDown(["первая строка", L2], 0);
+    assertEq(p2.ch, 2, "прыжок: пустой слот текста между знаком списка и вторым разделителем");
+
+    /* 3. Оба разделителя: курсор в слоте между ними, а не вплотную к первому. */
+    const L3 = "- [N] " + MARKER + "2026-09-12 09:07 ||  :: #/2 #note";
+    const p3 = await jumpDown(["первая строка", L3], 0);
+    assertEq(p3.ch, L3.indexOf("||") + 3, "прыжок: пустой слот текста между двумя разделителями");
+
+    /*
+     * 4. Шаг вправо из зоны значений уходит **в текст**: сначала на его
+     * начало, потом на конец. Останавливаться внутри зоны значений шаг не
+     * должен — там у человека не текст, а значения Fields.
+     */
+    const L4 = "- [ ] " + MARKER + "2026-09-11 23:46 #/1 || ывааы";
+    const L4_TEXT_START = L4.indexOf("ывааы");
+    const from4 = L4.indexOf("#/1") + 3;
+    assertEq(await step(L4, from4, "right"), L4_TEXT_START,
+      "шаг вправо из зоны значений: начало текста человека, а не конец зоны значений");
+    assertEq(await step(L4, L4_TEXT_START, "right"), L4.length,
+      "следующий шаг вправо: конец текста человека");
+
+    /* 5. То же от начала значения. */
+    const L5 = "- [ ] " + MARKER + "2026-09-12 09:02 #/1 || 123";
+    const L5_TEXT_START = L5.indexOf("123");
+    assertEq(await step(L5, 6, "right"), L5_TEXT_START,
+      "шаг вправо от значения: начало текста человека");
+    assertEq(await step(L5, L5_TEXT_START, "right"), L5.length,
+      "и следующий — его конец");
+
+    /* 6. Шаг влево у строки без первого разделителя: слот, а не место у знака. */
+    const L6 = "-  :: " + MARKER + "2026-09-12 12:05";
+    assertEq(await step(L6, 3, "left"), 2,
+      "шаг влево: пустой слот текста, а не место вплотную ко второму разделителю");
+
+    ok("курсор при разных разделителях: шесть случаев заказчика");
   }
 
   /* ---- метка Field доезжает до навигации ---- */

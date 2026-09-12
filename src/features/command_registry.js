@@ -56,6 +56,24 @@ function getLineFormat(cfg) {
   return null;
 }
 
+/*
+ * Форма строки для прыжков: разделители **и метки элементов**.
+ *
+ * Метки нужны затем же, зачем шагу внутри строки: по ним общее правило
+ * отличает хвост значений от текста человека. Без них прыжок «в конец вашего
+ * текста» уезжал за дату (замечание `S4` 2026-09-12). Собирает их та же
+ * функция, что и для шага, — второго объявления тут нет.
+ */
+function getJumpLineShape(cfg, rt) {
+  const lf = getLineFormat(cfg);
+  const base = lf && typeof lf === "object" ? { ...lf } : {};
+  if (rt && typeof rt.buildNavigateRules === "function") {
+    const rules = rt.buildNavigateRules(cfg);
+    if (rules && Array.isArray(rules.trailingMarkers)) base.markers = rules.trailingMarkers.slice();
+  }
+  return base;
+}
+
 /**
  * Имена макросов рантайма — контракт (`pkm_option_keys.js`), а ключ настройки
  * в конфиге версии 2 у формата дочернего тега другой: `childTagFormat` вместо
@@ -166,7 +184,7 @@ function buildNavigationCommandDefs(plugin) {
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
         if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
-        rt.jumpToHeader(ed, "up", nav.jumpToHeader, getLineFormat(fullCfg));
+        rt.jumpToHeader(ed, "up", nav.jumpToHeader, getJumpLineShape(fullCfg, rt));
       },
     },
     {
@@ -175,7 +193,7 @@ function buildNavigationCommandDefs(plugin) {
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
         if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
-        rt.jumpToHeader(ed, "down", nav.jumpToHeader, getLineFormat(fullCfg));
+        rt.jumpToHeader(ed, "down", nav.jumpToHeader, getJumpLineShape(fullCfg, rt));
       },
     },
     {

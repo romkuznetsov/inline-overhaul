@@ -646,8 +646,12 @@ async function run() {
   assertTrue(/function pickJumpCfg\(cfg, lineFormat\)/.test(navigationRuntimeSrc), "jump cfg accepts the line format alongside the jump branch");
   assertTrue(/separator2: sep\(lf\.separator2, sep\(c\.separator2, separator1\)\),/.test(navigationRuntimeSrc), "jump cfg carries both separators, second defaulting to the first");
   assertTrue(/const second = s\.indexOf\(sep2, first \+ sep\.length\);/.test(navigationRuntimeSrc), "section-end cursor looks for the second separator with the second separator");
-  assertTrue(/rt\.jumpToHeader\(ed, "up", nav\.jumpToHeader, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "jump-back hands the line format to the runtime");
-  assertTrue(/rt\.jumpToHeader\(ed, "down", nav\.jumpToHeader, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "jump-next hands the line format to the runtime");
+  /* Прыжку приезжают разделители **и метки элементов**: по ним общее правило
+     отличает хвост значений от текста человека (`S4` 2026-09-12). Собирает их
+     `getJumpLineShape`, и она же зовёт сборку правил навигации. */
+  assertTrue(/rt\.jumpToHeader\(ed, "up", nav\.jumpToHeader, getJumpLineShape\(fullCfg, rt\)\);/.test(commandRegistrySrc), "jump-back hands the line shape to the runtime");
+  assertTrue(/rt\.jumpToHeader\(ed, "down", nav\.jumpToHeader, getJumpLineShape\(fullCfg, rt\)\);/.test(commandRegistrySrc), "jump-next hands the line shape to the runtime");
+  assertTrue(/base\.markers = rules\.trailingMarkers\.slice\(\);/.test(commandRegistrySrc), "jump line shape carries element markers, not only separators");
   /* Тот же шов у переноса выделенного текста: тумблер `Continue past a
      Separator` без разделителей ничего не ограничил бы. */
   assertTrue(/rt\.moveSelection\(ed, "left", nav\.moveSelection, getLineFormat\(fullCfg\)\);/.test(commandRegistrySrc), "move-left hands the line format to the runtime");

@@ -21,6 +21,18 @@ const __sharedUtils = require("./src/core/shared_utils.js");
  */
 const __rulesShape = require("./src/core/pkm_rules_shape.js");
 
+/*
+ * Где на строке кончается текст человека — правило **одно**, и живёт оно в
+ * `pkm_macro_shared.js` (`getTextSlotBounds` и `getCursorAtTextEnd`). Им же
+ * ставят курсор все движки PKM.
+ *
+ * Здесь было своё объявление того же правила, и оно промахивалось ровно там,
+ * где разделители разные: значение элемента считало текстом человека, а
+ * пустой слот под текст — местом вплотную к разделителю (замечание `S4`
+ * 2026-09-12, шесть случаев с его экрана).
+ */
+const __macroShared = require("./src/core/pkm_macro_shared.js");
+
 function isObj(x) {
   return __sharedUtils.isObj(x);
 }
@@ -132,6 +144,9 @@ function pickJumpCfg(cfg, lineFormat) {
     /* Второй разделитель по умолчанию равен первому: у заказчика оба `::`, и
        в панели это обычная настройка. */
     separator2: sep(lf.separator2, sep(c.separator2, separator1)),
+    /* Метки элементов: по ним общее правило отличает хвост значений от текста
+       человека. Приезжают тем же путём, что и разделители. */
+    markers: Array.isArray(lf.markers) ? lf.markers.slice() : (Array.isArray(c.markers) ? c.markers.slice() : []),
   };
 }
 
@@ -1108,6 +1123,13 @@ function sectionAnchorsAvoidTables(ed, headerLine, cfg) {
 function lineEndPos(ed, line, cfg) {
   const s = txt(ed, line);
   if (!cfg || cfg.jumpCursorPosition !== "section-end") return { line: line, ch: len(ed, line) };
+  /*
+   * «Конец вашего текста» спрашивается у общего правила: оно знает и пустой
+   * слот между разделителями, и строку без первого разделителя, и значение
+   * элемента, которое текстом человека не является.
+   */
+  const shared = sharedTextEndCh(s, cfg);
+  if (shared !== null) return { line: line, ch: shared };
   const sep = typeof (cfg && cfg.separator1) === "string" && cfg.separator1 ? cfg.separator1 : "||";
   /* Второй разделитель ищется вторым разделителем, а не первым: у заказчика
      оба `::` и разницы не видно, но в панели это две разные настройки. */
@@ -1142,6 +1164,23 @@ function lineEndPos(ed, line, cfg) {
   }
   const beforeSecond = s.slice(0, second).replace(/[ \t]+$/, "");
   return { line: line, ch: beforeSecond.length };
+}
+
+/*
+ * Ответ общего правила про конец текста, или `null`, если спросить нечем.
+ *
+ * Разделители у навигации свои (`separator1`/`separator2` из формата строки),
+ * метки элементов приезжают тем же путём, что и в шаг внутри строки. Форма
+ * `rules` здесь — ровно то, что читает общий модуль.
+ */
+function sharedTextEndCh(lineText, cfg) {
+  const sep1 = typeof (cfg && cfg.separator1) === "string" && cfg.separator1 ? cfg.separator1 : "";
+  if (!sep1) return null;
+  const sep2 = typeof (cfg && cfg.separator2) === "string" && cfg.separator2 ? cfg.separator2 : sep1;
+  const markers = Array.isArray(cfg && cfg.markers) ? cfg.markers.filter((m) => typeof m === "string" && m) : [];
+  const rules = { io: { separator1: sep1, separator2: sep2 }, dates: { markers } };
+  const ch = __macroShared.getCursorAtTextEnd(String(lineText || ""), rules);
+  return Number.isFinite(ch) ? ch : null;
 }
 
 function hasTextPartBeforeFirstSeparator(before) {
@@ -1427,13 +1466,59 @@ function navigateInline(editor, direction, navRules, rawCfg) {
     let scopeEndAbs = indentAbs + (innerDelimRel !== -1 ? innerDelimRel : contentEndRel);
 
     const isSingleDelim = delimIndex !== -1 && innerDelimRel === -1;
-    const singleSepLooksLikeSep2 = isSingleDelim && (
+    /*
+     * Догадка «единственный знак на строке — на самом деле второй
+     * разделитель» нужна только там, где **оба записаны одинаково**: тогда их
+     * не различить ничем. Когда они разные, вопрос решён самим знаком, и
+     * догадка только мешала: значение элемента перед `||` она читала как текст
+     * человека и объявляла зоной текста левую часть строки (`S4` 2026-09-12).
+     */
+    const singleSepLooksLikeSep2 = isSingleDelim && delim2 === delim && (
       hasInlineTextBeforeSingleSeparator(s, prefixEnd, delimIndex) ||
       hasDateTailAfterSingleSeparator(s, delimIndex)
     );
     if (singleSepLooksLikeSep2) {
       scopeStartAbs = indentAbs + textStartNoDelimRel;
       scopeEndAbs = indentAbs + trimRightBeforeIndex(s, delimIndex);
+    }
+
+    /*
+     * **Зона текста спрашивается у общего правила** — того же, которым ставят
+     * курсор движки PKM. Своё объявление выше оставлено запасным: оно
+     * отвечает там, где разделителей в строке нет вовсе и спрашивать общее
+     * правило не о чем.
+     *
+     * Чем это куплено: шесть случаев заказчика 2026-09-12 (`S4`). Свой ход
+     * останавливал шаг на конце зоны значений, объявляя её текстом человека, а
+     * пустой слот считал местом вплотную к разделителю. Общее правило знает и
+     * то и другое.
+     */
+    /*
+     * Когда оба разделителя записаны одинаково, отличить первый от второго
+     * нельзя ни одним правилом — за это отвечает догадка выше, и она остаётся
+     * сильнее: общее правило в таком случае читает единственный знак как
+     * первый разделитель (У-147).
+     */
+    const sharedEnd = singleSepLooksLikeSep2 ? null : sharedTextEndCh(rawLine, {
+      separator1: delim,
+      separator2: delim2,
+      markers: trailingMarkers,
+    });
+    if (sharedEnd !== null) {
+      const sharedBounds = __macroShared.getTextSlotBounds(rawLine, {
+        io: { separator1: delim, separator2: delim2 },
+        dates: { markers: trailingMarkers },
+      });
+      if (sharedBounds && sharedEnd >= sharedBounds.start) {
+        scopeStartAbs = sharedBounds.start;
+        scopeEndAbs = Math.max(sharedBounds.start, sharedEnd);
+      } else {
+        /* Конец текста оказался **до** первого разделителя: значит текст
+           человека стоит в левой части строки, а хвост за разделителем — это
+           значения. Начало берётся там же, где оно у такой строки и было. */
+        scopeStartAbs = indentAbs + textStartNoDelimRel;
+        scopeEndAbs = Math.max(scopeStartAbs, sharedEnd);
+      }
     }
     let zoneStart = cfg.boundaryJump ? hardStartAbs : scopeStartAbs;
     let zoneEnd = cfg.boundaryJump ? hardEndAbs : scopeEndAbs;
