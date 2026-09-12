@@ -35,17 +35,32 @@ const __macroShared = require("../core/pkm_macro_shared.js");
  * `Enter` повторяет маркер, увеличивает номер на единицу и ставит **пустой**
  * чекбокс — новая строка не может быть сделанной задачей. Здесь то же самое.
  *
+ * Положений три — решение заказчика 2026-09-13:
+ *
+ *   - `same` — повторить знак целиком (умолчание);
+ *   - `none` — знака нет вовсе;
+ *   - `number-only` — знака нет, **кроме** номера: нумерованный список не
+ *     теряет счёт. Чекбокс при этом уходит вместе с маркером: «нет» относится
+ *     ко всему, кроме нумерации, и это его же слово.
+ *
  * Пусто означает «знака нет»: у строки без списка повторять нечего.
  */
-function nextMarkerFor(lineText) {
+function nextMarkerFor(lineText, mode) {
+  const how = String(mode == null ? "same" : mode);
+  if (how === "none") return "";
   const p = __sharedUtils.lineMarkerOf(lineText);
   if (!p.marker) return "";
+  if (how === "number-only" && !p.ordered) return "";
   let marker = p.marker;
   if (p.ordered) {
     marker = marker.replace(/^(\d+)/, function (whole) {
       const n = Number(whole);
       return Number.isFinite(n) ? String(n + 1) : whole;
     });
+  }
+  if (how === "number-only") {
+    /* Остаётся только счёт: чекбокс уходит вместе с остальным знаком. */
+    return marker.replace(/\s*\[[^\]]\]\s*/, " ");
   }
   /* Чекбокс уезжает пустым: знак внутри скобок ровно один (A34, У-91). */
   marker = marker.replace(/\[[^\]]\]/, "[ ]");
@@ -80,11 +95,12 @@ function planSmartEnter(opts) {
 
   const p = __sharedUtils.lineMarkerOf(text);
   /*
-   * Отступ остаётся всегда, знак списка — по настройке. Отступ Prefix-ом не
-   * зовётся ни в панели, ни в PRD: строка на третьем уровне вложенности не
-   * имеет права прыгнуть к левому краю оттого, что человек выключил знак.
+   * Отступ остаётся при **любом** положении, знак списка — по настройке.
+   * Отступ Prefix-ом не зовётся ни в панели, ни в PRD: строка на третьем
+   * уровне вложенности не имеет права прыгнуть к левому краю оттого, что
+   * человек выбрал «без знака».
    */
-  const marker = o.keepPrefix === false ? "" : nextMarkerFor(text);
+  const marker = nextMarkerFor(text, o.newLinePrefix);
   const newLineText = p.indent + p.quote + marker;
   return { newLineText, cursorCh: newLineText.length };
 }
@@ -128,7 +144,7 @@ function handleSmartEnterKeymap(plugin) {
       lineText,
       ch: Number(cursor.ch) || 0,
       textSlot: __macroShared.getTextSlotBounds(lineText, rules),
-      keepPrefix: se.keepPrefix !== false,
+      newLinePrefix: se.newLinePrefix,
     });
     if (!plan) return false;
 

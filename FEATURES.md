@@ -53,8 +53,9 @@ methodology.
 - **Enter that adds instead of splitting.** A line carrying Fields is a record,
   not a paragraph. With `Smart Enter` on, pressing `Enter` anywhere up to the
   second Separator starts an empty line below and leaves the one you are on
-  exactly as it was; the new line keeps the marker of the old one, or none, as
-  you choose.
+  exactly as it was. The new line starts with the same marker as the old one,
+  with nothing, or with nothing unless the line is numbered — a numbered list
+  keeps its count either way you look at it.
 - **Two heights for the editor.** The chevron at the right edge of the Fields
   header switches between the full height, where every control is on screen at
   once, and a fixed height that scrolls. The scrollbar stays out of sight until
@@ -79,9 +80,16 @@ and on exit the line is written back as plain markdown.
 - **Only what applies.** Fields whose precondition is not met are not offered, so
   the panel stays as short as the line deserves.
 - **Your text is never retyped.** The panel writes back only what actually
-  changed, so `Ctrl+Z` after using it behaves exactly as it does without it — this
-  is checked by running Obsidian's own undo history in the test suite, keystroke
-  by keystroke.
+  changed, and what it changes is checked against Obsidian's own undo history in
+  the test suite, keystroke by keystroke.
+- **One known limit, and it is measured rather than guessed.** While the panel is
+  open it holds its strip in the text of the note, which means it takes the
+  Values it stands on out of the line for that moment. Undo steps that wrote
+  those Values collapse across that gap, so a run of `Ctrl+Z` after a session can
+  land on a line that never existed. Keeping the other Block in sight removes the
+  case where only that Block was filled; the case where the Block under the panel
+  was filled too is still open. The fix is structural — the strip has to stop
+  being text — and it is the next piece of work on this feature.
 - **Its own look**: colours, an optional scroller box, and a highlight for the
   line being edited.
 

@@ -117,8 +117,9 @@ command palette and the reference table disagreeing.
   lines in half. Pressed anywhere up to the second Separator it starts an empty line
   below and leaves the line you are on exactly as it was; past the second Separator, and
   in any line without a Separator of yours, the key stays Obsidian's own.
-  `Carry the Prefix over` decides whether the new line repeats the marker of the old one.
-  Off by default.
+  `Prefix on the new line` decides what the new line starts with: the same marker as the
+  line above, nothing at all, or nothing unless the line is numbered, so a numbered list
+  keeps its count. Off by default.
 - **Commands & Hotkeys**: every command, the key it has now, and a click through to
   Obsidian's Hotkeys screen.
 - **Custom insertion commands**: **Binder (custom

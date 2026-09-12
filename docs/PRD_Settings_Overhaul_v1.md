@@ -965,9 +965,23 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 устройству Obsidian окно сильнее, но проверено это его глазом, а не прогоном —
 строка листа приёмки об этом спрашивает прямо.
 
-**Что осталось вопросом.** Исключение про нумерацию он назвал недодуманным сам:
-«нет, но кроме как если префикс нумерация, тогда да (нужно продумать
-получше)». Оно не сделано — вопрос В-111.
+**Исключение про нумерацию он выбрал третьим положением** (ответ на В-111 той
+же ночью). Его слова были «нет, но кроме как если префикс нумерация, тогда да», и
+третьим положением это правильнее, чем правилом внутри второго: тумблер, который
+у нумерованного списка не работает, был бы контролом, который двигается и ничего
+не меняет. Список `Prefix on the new line` поэтому имеет три положения —
+`Same as the line above`, `None` и `None, unless the line is numbered`. У
+третьего чекбокс уходит вместе с остальным знаком: «нет» относится ко всему,
+кроме нумерации.
+
+**Третье положение закреплено разницей, а не наличием.** Пять строк проверяются
+всеми тремя положениями сразу, и рядом стоит контроль: третье обязано
+отличаться и от первого, и от второго не менее чем на двух случаях. Иначе это
+не третий режим, а второе имя одного из двух, и проверка была бы зелёной у
+настройки, которая ничего не делает (У-110). Шесть подмен краснеют, и шестая —
+«обработчик просит у движка всегда `same`»: без случая с нумерацией в обходе
+клавиши она проходила незамеченной, потому что все остальные случаи гоняют
+ровно `same` (У-15).
 
 #### 10.13.87 Значения противоположного Block: прятать или оставить (2026-09-13, ночь)
 
@@ -2239,7 +2253,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `editor.smartDelete.dropPrefix` | Drop the line Prefix (`smart-delete-prefix`) | Smart Delete\Backspace |
 | `editor.smartDelete.joinWithSpace` | Join with a space (`smart-delete-space`) | Smart Delete\Backspace |
 | `editor.smartEnter.enabled` | Smart Enter (`smart-enter-enabled`) | Smart Enter |
-| `editor.smartEnter.keepPrefix` | Carry the Prefix over (`smart-enter-prefix`) | Smart Enter |
+| `editor.smartEnter.newLinePrefix` | Prefix on the new line (`smart-enter-prefix`) | Smart Enter |
 | `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Moving lines (up and down) |
 | `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Moving lines (up and down) |
 | `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move left and move right |
@@ -9569,11 +9583,12 @@ _Tip:_ A line carrying Fields is a record, not a paragraph: split it in half and
   - desc: Let <code>Enter</code> before the second Separator add a line instead of splitting the one you are on
   - tip: Nothing here rebinds the key: <code>Enter</code> stays Obsidian’s, and this only changes what happens inside a line of yours. Off, the key behaves as it always has
   - старые названия для поиска: «Smart Enter», «Do not split the line»
-- **Carry the Prefix over** — `smart-enter-prefix`, `toggle`, path `editor.smartEnter.keepPrefix`, default `true`
-  - desc: Start the new line with the same marker as the line you pressed <code>Enter</code> on
-  - tip: On, a bullet stays a bullet and a numbered item gets the next number, exactly as Obsidian does it on its own; a checkbox arrives empty, because a line you have not written yet is not a task you have done. Off, the new line starts bare. The indent is kept either way — a line three levels deep has no business jumping to the left margin
+- **Prefix on the new line** — `smart-enter-prefix`, `dropdown`, path `editor.smartEnter.newLinePrefix`, default `same`
+  - desc: What the line <code>Smart Enter</code> adds starts with
+  - tip: <b>Same as the line above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>None, unless the line is numbered</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin
+  - варианты: `same` Same as the line above · `none` None · `number-only` None, unless the line is numbered
   - выключена если: `editor.smartEnter.enabled`
-  - старые названия для поиска: «Keep the bullet», «New line Prefix»
+  - старые названия для поиска: «Keep the bullet», «New line Prefix», «Carry the Prefix over»
 
 #### Binder (custom insert commands) — `binder` (вкладка `keyboard`)
 
@@ -10338,7 +10353,7 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `editor.smartDelete.joinWithSpace` | toggle | `true` |
 | `editor.smartDelete.onBackspace` | toggle | `false` |
 | `editor.smartEnter.enabled` | toggle | `false` |
-| `editor.smartEnter.keepPrefix` | toggle | `true` |
+| `editor.smartEnter.newLinePrefix` | dropdown | `same` |
 | `features.navigation.enabled` | toggle | `true` |
 | `features.pkm.enabled` | toggle | `true` |
 | `features.transform.enabled` | toggle | `true` |

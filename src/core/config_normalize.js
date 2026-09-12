@@ -976,7 +976,10 @@ function normalizeConfigV2(cfg) {
   /* Smart Enter (10.13.88). Клавиша принадлежит Obsidian, поэтому умолчание
      выключено — как у обеих соседних. */
   bool("editor.smartEnter.enabled");
-  bool("editor.smartEnter.keepPrefix");
+  /* Три положения знака на новой строке — решение заказчика 2026-09-13
+     (10.13.88). Умолчание `same`: новая строка повторяет знак, как это делает
+     сам Obsidian. */
+  oneOf("editor.smartEnter.newLinePrefix", ["same", "none", "number-only"]);
   writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows")));
 
   /* --- вид тегов -------------------------------------------------------- */

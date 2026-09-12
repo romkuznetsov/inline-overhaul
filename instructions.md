@@ -234,11 +234,14 @@ text is torn away from the Block before it, and neither half is a record any mor
 the toggle on, `Enter` pressed anywhere up to the second Separator adds an empty line
 underneath and leaves the line you are on exactly as it was.
 
-`Carry the Prefix over` decides what the new line starts with. On, it repeats the marker
-of the line you pressed `Enter` on, exactly as Obsidian does it on its own: a bullet
-stays a bullet, a numbered item gets the next number, and a checkbox arrives empty,
-because a line you have not written yet is not a task you have done. Off, the new line
-starts bare. The indent is kept either way.
+`Prefix on the new line` decides what the new line starts with, and it has three
+settings. `Same as the line above` repeats the marker exactly as Obsidian does it on its
+own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox
+arrives empty, because a line you have not written yet is not a task you have done.
+`None` starts the new line bare. `None, unless the line is numbered` does the same but
+keeps the count going, so a numbered list does not lose its place; a checkbox still goes,
+because there the answer is no to everything except the numbering. The indent is kept by
+all three.
 
 The key is **off** by default and stays Obsidian's own everywhere else: past the second
 Separator, in any line that carries no Separator of yours, with a selection, or with more
@@ -425,6 +428,8 @@ Run **Open TagWheel on the left** or **Open TagWheel on the right** to start in 
 TagWheel and direct increase/decrease commands use the same field, ordering, prefix, separator, subtag, cycle-end, and cursor rules.
 
 Optional **Visual → TagWheel → TagWheel Scroller** shows nearby values above editor text. Set direction to `up`, `down`, or `full`, and visible size from 1 to 20 items per side.
+
+One known limit, measured rather than guessed: while the panel is open it holds its strip in the text of the note, which takes the Values it stands on out of the line for that moment. Undo steps that wrote those Values collapse across that gap, so a run of `Ctrl+Z` after a session can land on a line that never existed. Setting `Values in the other Block` to `Keep them in sight` removes the case where only that Block was filled; the case where the Block under the panel was filled too is still open, and the fix for it is structural.
 
 ### Prefix priority
 

@@ -44,7 +44,7 @@ function plan(line, ch, opts) {
     lineText: line,
     ch,
     textSlot: bounds(line),
-    keepPrefix: true,
+    newLinePrefix: "same",
   }, opts || {}));
 }
 
@@ -131,19 +131,63 @@ function apply(line, result) {
 }
 
 {
-  /* Выключенный тумблер знака: остаётся только отступ. */
+  /* Положение `none`: остаётся только отступ. */
   const cases = [
     ["- #a || текст :: 👤1", ""],
     ["\t\t3. #a || текст :: 👤1", "\t\t"],
     ["  - [x] #a || текст :: 👤1", "  "],
   ];
   for (const [line, want] of cases) {
-    const p = plan(line, line.indexOf(" :: "), { keepPrefix: false });
+    const p = plan(line, line.indexOf(" :: "), { newLinePrefix: "none" });
     assert.ok(p, "нет плана для " + JSON.stringify(line));
     assert.strictEqual(p.newLineText, want,
       "без знака для " + JSON.stringify(line) + ": " + JSON.stringify(p.newLineText));
   }
-  ok("выключенный тумблер знака оставляет отступ и снимает маркер");
+  ok("положение `none` оставляет отступ и снимает знак");
+}
+
+{
+  /*
+   * Третье положение — решение заказчика 2026-09-13. Его слова: «нет, но
+   * кроме как если префикс нумерация, тогда да». Значит нумерованный список
+   * не теряет счёт, а всё остальное — включая чекбокс — уходит.
+   *
+   * Случаи подобраны так, чтобы третье положение **отличалось** от обоих
+   * соседних: маркер (отличается от `same`), номер (отличается от `none`) и
+   * номер с чекбоксом (отличается от обоих).
+   */
+  const cases = [
+    /* [строка, `same`, `none`, `number-only`] */
+    ["- #a || текст :: 👤1", "- ", "", ""],
+    ["3. #a || текст :: 👤1", "4. ", "", "4. "],
+    ["\t3. [x] #a || текст :: 👤1", "\t4. [ ] ", "\t", "\t4. "],
+    ["- [x] #a || текст :: 👤1", "- [ ] ", "", ""],
+    ["#a || текст :: 👤1", "", "", ""],
+  ];
+  let differsFromSame = 0;
+  let differsFromNone = 0;
+  for (const [line, same, none, only] of cases) {
+    const at = line.indexOf(" :: ");
+    assert.strictEqual(plan(line, at, { newLinePrefix: "same" }).newLineText, same,
+      "`same` для " + JSON.stringify(line));
+    assert.strictEqual(plan(line, at, { newLinePrefix: "none" }).newLineText, none,
+      "`none` для " + JSON.stringify(line));
+    assert.strictEqual(plan(line, at, { newLinePrefix: "number-only" }).newLineText, only,
+      "`number-only` для " + JSON.stringify(line));
+    if (only !== same) differsFromSame++;
+    if (only !== none) differsFromNone++;
+  }
+  /*
+   * Положительный контроль: третье положение обязано отличаться от каждого из
+   * двух соседних хотя бы на одном случае. Иначе это не третий режим, а второе
+   * имя одного из двух, и проверка выше была бы зелёной у настройки, которая
+   * ничего не делает (У-110).
+   */
+  assert.ok(differsFromSame >= 2,
+    "`number-only` совпал с `same` почти везде (" + differsFromSame + ") — это не третий режим");
+  assert.ok(differsFromNone >= 2,
+    "`number-only` совпал с `none` почти везде (" + differsFromNone + ") — это не третий режим");
+  ok("третье положение: счёт нумерованного списка остаётся, всё остальное уходит");
 }
 
 /* ---- два читателя одного правила о начале строки ------------------------ */
@@ -207,8 +251,8 @@ function apply(line, result) {
   });
 
   const seps = { pkm: { lineFormat: { separator1: "||", separator2: "::" } } };
-  const on = Object.assign({ editor: { smartEnter: { enabled: true, keepPrefix: true } } }, seps);
-  const off = Object.assign({ editor: { smartEnter: { enabled: false, keepPrefix: true } } }, seps);
+  const on = Object.assign({ editor: { smartEnter: { enabled: true, newLinePrefix: "same" } } }, seps);
+  const off = Object.assign({ editor: { smartEnter: { enabled: false, newLinePrefix: "same" } } }, seps);
 
   const line = "- #123 #work #new || 12313 :: [[test1]] 👤111";
   const ch = line.indexOf(" :: ");
@@ -218,6 +262,28 @@ function apply(line, result) {
   assert.deepStrictEqual(ed.lines, [line, "- ", "соседняя"],
     "новая строка встала не туда: " + ed.lines.join(" | "));
   assert.deepStrictEqual(ed.cursor, { line: 1, ch: 2 }, "курсор не переехал на новую строку");
+
+  /*
+   * Настройка обязана доезжать до движка, а не подставляться обработчиком.
+   * Без этого случая подмена «обработчик всегда просит `same`» проходит
+   * незамеченной: остальные проверки гоняют ровно `same` (У-15).
+   */
+  const numbered = "3. #123 || 12313 :: 👤111";
+  const numberedCh = numbered.indexOf(" :: ");
+  const onlyNum = Object.assign(
+    { editor: { smartEnter: { enabled: true, newLinePrefix: "number-only" } } }, seps);
+  const edNum = makeEditor([numbered], { line: 0, ch: numberedCh });
+  assert.strictEqual(handleSmartEnterKeymap(plugin(onlyNum, edNum)), true,
+    "обработчик обязан взять клавишу и на нумерованной строке");
+  assert.deepStrictEqual(edNum.lines, [numbered, "4. "],
+    "положение из настроек до движка не доехало: " + edNum.lines.join(" | "));
+
+  const bare = Object.assign(
+    { editor: { smartEnter: { enabled: true, newLinePrefix: "none" } } }, seps);
+  const edBare = makeEditor([numbered], { line: 0, ch: numberedCh });
+  assert.strictEqual(handleSmartEnterKeymap(plugin(bare, edBare)), true, "то же с `none`");
+  assert.deepStrictEqual(edBare.lines, [numbered, ""],
+    "положение `none` до движка не доехало: " + edBare.lines.join(" | "));
 
   const ed2 = makeEditor([line], { line: 0, ch });
   assert.strictEqual(handleSmartEnterKeymap(plugin(off, ed2)), false, "выключенная функция взяла клавишу");
@@ -237,7 +303,7 @@ function apply(line, result) {
   assert.deepStrictEqual(ed5.lines, ["обычная строка заметки"], "обычная заметка тронута");
 
   /* Разделителей в настройках нет — движок обязан молчать, а не гадать. */
-  const noSeps = { editor: { smartEnter: { enabled: true, keepPrefix: true } }, pkm: { lineFormat: {} } };
+  const noSeps = { editor: { smartEnter: { enabled: true, newLinePrefix: "same" } }, pkm: { lineFormat: {} } };
   const ed6 = makeEditor([line], { line: 0, ch });
   assert.strictEqual(handleSmartEnterKeymap(plugin(noSeps, ed6)), false,
     "без разделителей в настройках клавиша не наша");
@@ -253,6 +319,10 @@ function apply(line, result) {
   assert.strictEqual(nextMarkerFor("9. пункт"), "10. ", "номер растёт через десяток");
   assert.strictEqual(nextMarkerFor("- [X] задача"), "- [ ] ", "чекбокс с любой буквой приходит пустым");
   assert.strictEqual(nextMarkerFor("текст"), "", "у строки без знака повторять нечего");
+  /* Умолчание режима — `same`: вызов без него обязан вести себя как раньше. */
+  assert.strictEqual(nextMarkerFor("9. пункт", undefined), "10. ", "без режима работает как `same`");
+  assert.strictEqual(nextMarkerFor("9. пункт", "number-only"), "10. ", "счёт остаётся");
+  assert.strictEqual(nextMarkerFor("- пункт", "number-only"), "", "маркер уходит");
   assert.strictEqual(nextMarkerFor("### заголовок"), "", "решётки заголовка на новую строку не едут");
   assert.strictEqual(sharedUtils.lineMarkerOf("### заголовок").marker, "",
     "заголовок знаком списка не считается");

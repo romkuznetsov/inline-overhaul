@@ -92,11 +92,14 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
       name:"Smart Enter", desc:"Let <code>Enter</code> before the second Separator add a line instead of splitting the one you are on",
       searchTerms:["Smart Enter","Do not split the line"],
       tip:"Nothing here rebinds the key: <code>Enter</code> stays Obsidian’s, and this only changes what happens inside a line of yours. Off, the key behaves as it always has" },
-    { kind:"toggle", id:"smart-enter-prefix", path:"editor.smartEnter.keepPrefix", default:true,
-      name:"Carry the Prefix over", desc:"Start the new line with the same marker as the line you pressed <code>Enter</code> on",
-      searchTerms:["Keep the bullet","New line Prefix"],
+    { kind:"dropdown", id:"smart-enter-prefix", path:"editor.smartEnter.newLinePrefix", default:"same",
+      name:"Prefix on the new line", desc:"What the line <code>Smart Enter</code> adds starts with",
+      searchTerms:["Keep the bullet","New line Prefix","Carry the Prefix over"],
       disabled: not("editor.smartEnter.enabled"),
-      tip:"On, a bullet stays a bullet and a numbered item gets the next number, exactly as Obsidian does it on its own; a checkbox arrives empty, because a line you have not written yet is not a task you have done. Off, the new line starts bare. The indent is kept either way — a line three levels deep has no business jumping to the left margin" }
+      options:[ {value:"same",label:"Same as the line above"},
+                {value:"none",label:"None"},
+                {value:"number-only",label:"None, unless the line is numbered"} ],
+      tip:"<b>Same as the line above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>None, unless the line is numbered</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin" }
   ]
 },
 {
