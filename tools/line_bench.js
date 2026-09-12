@@ -1,0 +1,240 @@
+"use strict";
+
+/**
+ * Стенд воспроизведения: строка заказчика на его настоящих настройках.
+ *
+ * **Зачем отдельно от набора.** Замечание заказчика всегда звучит как «команда и
+ * панель дают разное», и проверить это чтением нельзя: настройки едут к движкам
+ * длинной дорогой, и половина расхождений живёт именно в ней. Стенд проезжает ту
+ * же дорогу целиком — `migrateConfig` → `buildPkmCommandDefs` → `runCommand`, —
+ * то есть зовёт **те же определения команд**, которыми плагин их регистрирует, и
+ * досыпает те же ключи, что досыпает `runPkmRuntime`. Своих правил здесь нет ни
+ * одного: всё, что стенд умеет, умеет плагин.
+ *
+ * **Почему он лежит в репозитории.** Его собирали заново дважды — 11 и 12
+ * сентября, — и оба раза он находил причину за один заход (10.13.77, 10.13.78).
+ * Третий раз собирать не надо.
+ *
+ * Запуск (из `repo/`):
+ *   node tools/line_bench.js cmd date-due-next ""
+ *   node tools/line_bench.js cmd date-due-previous "📅2026-09-12 17:05 || "
+ *   node tools/line_bench.js panel left "" ArrowRight ArrowRight ArrowUp
+ *   node tools/line_bench.js list                      — какие команды есть
+ *
+ * Конфиг по умолчанию — `../test-vault/.obsidian/plugins/inline-overhaul/data.json`
+ * (заказчик разрешил их брать 2026-09-11); другой задаётся `IO_DATA=<путь>`.
+ * Значения настроек в вывод не идут — печатается только строка и курсор.
+ */
+
+const fs = require("fs");
+const path = require("path");
+
+const ROOT = path.resolve(__dirname, "..");
+const VAULT = process.env.IO_VAULT
+  ? path.resolve(process.env.IO_VAULT)
+  : path.resolve(ROOT, "..", "test-vault");
+const DATA = process.env.IO_DATA
+  ? path.resolve(process.env.IO_DATA)
+  : path.join(VAULT, ".obsidian", "plugins", "inline-overhaul", "data.json");
+
+const runtime = require(path.join(ROOT, "pkm_runtime_v2.js"));
+const normalize = require(path.join(ROOT, "src", "core", "config_normalize.js"));
+const orderCfg = require(path.join(ROOT, "src", "core", "pkm_order_config.js"));
+const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
+const optionKeys = require(path.join(ROOT, "src", "core", "pkm_option_keys.js"));
+const registry = require(path.join(ROOT, "src", "features", "command_registry.js"));
+
+const K = optionKeys.KEYS;
+const readCfgPath = shared.readCfgPath;
+
+function loadCfg() {
+  return normalize.migrateConfig(JSON.parse(fs.readFileSync(DATA, "utf8")));
+}
+
+/* Тот же выбор пути, что делает `activeRulesPath` в слое команд. */
+function activeRulesPath(cfg) {
+  const generated = String(readCfgPath(cfg, "advanced.generatedRulesPath") || "").trim();
+  return generated || String(normalize.DEFAULT_CONFIG.pkm.generatedRulesPath);
+}
+
+function defsFor(cfg) {
+  return registry.buildPkmCommandDefs(
+    activeRulesPath,
+    orderCfg.serializePkmOrderForMacro,
+    orderCfg.serializeDateRuntimeConfigForMacro,
+    orderCfg.normalizePkmOrder,
+    cfg,
+    ["navigation", "editor", "pkm", "visual", "transform", "advanced"]
+  );
+}
+
+function findDef(cfg, id) {
+  const hit = defsFor(cfg).filter((d) => d.id === id);
+  if (!hit.length) {
+    throw new Error("нет команды " + JSON.stringify(id) + "; список — `node tools/line_bench.js list`");
+  }
+  return hit[0];
+}
+
+/* Ключи, которые досыпает `runPkmRuntime` поверх определения команды. */
+function paneSettings(cfg) {
+  return {
+    [K.RULES_PATH]: activeRulesPath(cfg),
+    [K.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
+    [K.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
+    [K.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
+    [K.ORDER_CONFIG]: orderCfg.serializePkmOrderForMacro(cfg),
+    [K.DATE_RUNTIME_CONFIG]: orderCfg.serializeDateRuntimeConfigForMacro(cfg),
+    [K.TAGWHEEL_SCROLLER_ENABLED]: readCfgPath(cfg, "visual.tagWheel.scroller.enabled") === true,
+    [K.TAGWHEEL_SCROLLER_DIRECTION]: readCfgPath(cfg, "visual.tagWheel.scroller.direction") || "full",
+    [K.TAGWHEEL_SCROLLER_SIZE]: readCfgPath(cfg, "visual.tagWheel.scroller.size") || 3,
+    [K.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
+    [K.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
+    [K.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
+    [K.TAGWHEEL_ACTIVE_FIELD_MODE]: readCfgPath(cfg, "visual.tagWheel.activeField.mode") || "first",
+    [K.TAGWHEEL_ACTIVE_FIELD_LEFT]: readCfgPath(cfg, "visual.tagWheel.activeField.left") || "",
+    [K.TAGWHEEL_ACTIVE_FIELD_RIGHT]: readCfgPath(cfg, "visual.tagWheel.activeField.right") || "",
+  };
+}
+
+/*
+ * Правка отрезком, а не строкой целиком.
+ *
+ * Вид панели пишется **различием** (исключение 30 к З3, У-97): `replaceRange`
+ * получает только изменившийся кусок и его границы. Подделка, которая границы
+ * игнорирует и кладёт кусок вместо всей строки, отвечает мусором — и мусор
+ * читается как дефект продукта. Строка здесь одна, поэтому из `from`/`to` нужны
+ * только столбцы; их отсутствие значит «вся строка», как у `setLine`.
+ */
+function makeEditor(line, ch) {
+  let cur = { line: 0, ch: Number(ch || 0) };
+  let text = String(line || "");
+  const clamp = (n) => Math.max(0, Math.min(text.length, Math.trunc(Number(n))));
+  return {
+    getCursor() { return { line: cur.line, ch: cur.ch }; },
+    getLine() { return text; },
+    lastLine() { return 0; },
+    setLine(_n, v) { text = String(v || ""); },
+    replaceRange(v, from, to) {
+      const value = String(v == null ? "" : v);
+      if (!from || !Number.isFinite(Number(from.ch))) { text = value; return; }
+      const a = clamp(from.ch);
+      const b = to && Number.isFinite(Number(to.ch)) ? clamp(to.ch) : a;
+      text = text.slice(0, a) + value + text.slice(Math.max(a, b));
+    },
+    setCursor(next) { cur = { line: Number(next.line || 0), ch: Number(next.ch || 0) }; },
+    snapshot() { return { line: text, cursor: { line: cur.line, ch: cur.ch } }; },
+  };
+}
+
+function makeWindowMock() {
+  const listeners = {};
+  return {
+    __tagWheelState: { active: false },
+    addEventListener(t, h) { (listeners[t] = listeners[t] || []).push(h); },
+    removeEventListener(t, h) { listeners[t] = (listeners[t] || []).filter((x) => x !== h); },
+    fire(t, e) { (listeners[t] || []).slice().forEach((h) => h(e)); },
+  };
+}
+
+function makeApp(editor) {
+  const toAbs = (p) => path.resolve(VAULT, String(p || ""));
+  return {
+    workspace: { activeLeaf: { view: { editor } }, activeEditor: { editor } },
+    vault: {
+      getAbstractFileByPath(p) { return fs.existsSync(toAbs(p)) ? { path: p } : null; },
+      async read(f) { return fs.promises.readFile(toAbs(f && f.path ? f.path : f), "utf8"); },
+      adapter: { async read(p) { return fs.promises.readFile(toAbs(p), "utf8"); } },
+    },
+  };
+}
+
+async function runCommandById(cfg, id, line, ch) {
+  const def = findDef(cfg, id);
+  const editor = makeEditor(line, ch);
+  const said = [];
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  if (!global.window) global.window = makeWindowMock();
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  try {
+    await runtime.runCommand({
+      app: makeApp(editor),
+      command: def.v2Command,
+      settings: Object.assign(paneSettings(cfg), def.makeSettings(cfg)),
+    });
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  return Object.assign(editor.snapshot(), { said });
+}
+
+/*
+ * Панель: открыть, нажать клавиши, применить. Контроль «панель открылась» стоит
+ * здесь же и печатается всегда: пока она не открылась, движок возвращает строку
+ * нетронутой, и вывод стенда читался бы как «ничего не сломано» (У-152).
+ */
+async function runTagWheel(cfg, side, line, ch, keys) {
+  const def = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
+  const editor = makeEditor(line, ch);
+  const said = [];
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  global.window = makeWindowMock();
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  const settings = Object.assign(paneSettings(cfg), def.makeSettings(cfg));
+  const app = makeApp(editor);
+  let opened = false;
+  try {
+    await runtime.runCommand({ app, command: "tagWheel", settings });
+    opened = global.window.__tagWheelState && global.window.__tagWheelState.active === true;
+    for (const key of (keys || [])) {
+      global.window.fire("keydown", {
+        key, code: key,
+        preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+      });
+    }
+    await runtime.runCommand({ app, command: "tagWheel", settings });
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  return Object.assign(editor.snapshot(), { said, opened: !!opened });
+}
+
+function report(title, out) {
+  console.log(title);
+  console.log("  строка : " + JSON.stringify(out.line));
+  console.log("  курсор : " + out.cursor.ch);
+  if (out.opened !== undefined) console.log("  панель открылась: " + out.opened);
+  if (out.said && out.said.length) console.log("  сказал : " + JSON.stringify(out.said));
+}
+
+async function main() {
+  const [mode, ...rest] = process.argv.slice(2);
+  const cfg = loadCfg();
+
+  if (!mode || mode === "list") {
+    console.log("конфиг: " + DATA);
+    console.log("команды: " + defsFor(cfg).map((d) => d.id).join(", "));
+    return;
+  }
+  if (mode === "cmd") {
+    const [id, line, ch] = rest;
+    report("команда " + id, await runCommandById(cfg, id, line || "", ch || 0));
+    return;
+  }
+  if (mode === "panel") {
+    const [side, line, ...keys] = rest;
+    report("панель " + (side || "left") + ", клавиши " + JSON.stringify(keys),
+      await runTagWheel(cfg, side, line || "", 0, keys));
+    return;
+  }
+  throw new Error("режимы: list | cmd <id> <строка> [курсор] | panel <left|right> <строка> [клавиши…]");
+}
+
+main().catch((e) => {
+  console.error(e && e.stack ? e.stack : e);
+  process.exit(1);
+});
