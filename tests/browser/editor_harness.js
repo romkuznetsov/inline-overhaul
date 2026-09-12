@@ -175,10 +175,14 @@ const EDITOR_INJECTIONS = {
     find: "          || (entry.kind === \"tag\" && tagVisualSizingForZone(entry.zone, visuals).inBlock);",
     replace: "          || entry.kind === \"tag\";",
   },
-  /* Цвет темы у пузыря без своей заливки потерян: тег пропадает с глаз. */
+  /*
+   * Заливка у пузыря без своего цвета потеряна: тег пропадает с глаз. Ровно
+   * это и вышло у заказчика на первой версии правки, где заливка бралась из
+   * `--tag-background`, а его тема объявляет её прозрачной.
+   */
   "plain-tag-colorless": {
     file: "styles.css",
-    find: "  background-color: var(--tag-background);",
+    find: "  background-color: var(--interactive-accent);",
     replace: "  background-color: transparent;",
   },
   /*

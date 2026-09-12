@@ -47,7 +47,7 @@ const {
   TAG_BUBBLE_CLASS,
   TAG_BUBBLE_EMPTY_CLASS,
   TAG_BUBBLE_FILLED_CLASS,
-  TAG_BUBBLE_THEMED_CLASS,
+  TAG_BUBBLE_ACCENT_CLASS,
   TAG_BUBBLE_CLICKABLE_CLASS,
   buildBlockStyleCss,
   buildElementMarkersFromConfig,
@@ -221,17 +221,18 @@ class TagVisualTokenWidget extends cmView.WidgetType {
      * объявления одного правила расходятся молча (У-32).
      */
     /*
-     * Тег без своей заливки берёт цвет у темы — тот же, каким тема рисует
-     * `.cm-hashtag`. Иначе пузырь, заведённый ради размеров, оказался бы
-     * бесцветным на месте цветного тега.
+     * Тег без своей заливки берёт **акцентный цвет темы** — то есть выглядит
+     * как тег, которому цвет задали. Первая версия брала `--tag-background`,
+     * и в теме Minimal это `transparent`: пузырь вышел невидимым, и заказчик
+     * ответил «хочу, чтобы они были одинаковые» (2026-09-12, второй заход).
      */
     const isTag = this.tokenText.charAt(0) === "#";
-    const themed = isTag && !this.fillColor;
+    const accent = isTag && !this.fillColor;
     el.className = [
       TAG_BUBBLE_CLASS,
       this.emptyMode ? TAG_BUBBLE_EMPTY_CLASS : "",
       this.fillColor ? TAG_BUBBLE_FILLED_CLASS : "",
-      themed ? TAG_BUBBLE_THEMED_CLASS : "",
+      accent ? TAG_BUBBLE_ACCENT_CLASS : "",
       isTag ? TAG_BUBBLE_CLICKABLE_CLASS : "",
     ].filter(Boolean).join(" ");
     if (isTag) {

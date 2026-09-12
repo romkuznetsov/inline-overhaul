@@ -507,7 +507,28 @@ async function main() {
       }
       if (/rgba\(0, 0, 0, 0\)|transparent/.test(String(plainSmall.background))) {
         bad("пузырь тега без цвета прозрачен («" + plainSmall.background
-          + "») — цвет темы до него не доехал, и тег на странице пропал");
+          + "») — акцентная заливка до него не доехала, и тег на странице пропал");
+      }
+      /*
+       * **И главное его требование: «хочу, чтобы они были одинаковые».**
+       * Пузырь без своего цвета и пузырь со своим стоят в одном Block, и
+       * отличаться им можно только цветом: высота и поля обязаны совпасть.
+       * Первая версия правки брала фон у переменной тега темы, и на его теме
+       * (Minimal) она `transparent` — пузырь вышел невидимым.
+       */
+      const colouredSmall = pick(smallZones, "left").find((b) => b.token === "#todo");
+      if (!colouredSmall) {
+        bad("на странице нет пузыря со своим цветом в Block — сравнивать не с чем");
+      } else {
+        if (!near(plainSmall.height, colouredSmall.height, 0.05)) {
+          bad("пузырь без своего цвета и пузырь со своим разной высоты: "
+            + plainSmall.height + " против " + colouredSmall.height);
+        }
+        if (plainSmall.padTop !== colouredSmall.padTop
+          || plainSmall.padLeft !== colouredSmall.padLeft) {
+          bad("поля у двух пузырей разошлись: " + plainSmall.padTop + "/" + plainSmall.padLeft
+            + " против " + colouredSmall.padTop + "/" + colouredSmall.padLeft);
+        }
       }
       if (plainSmall.cursor !== "pointer") {
         bad("у пузыря тега указатель «" + plainSmall.cursor

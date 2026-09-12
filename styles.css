@@ -2933,15 +2933,18 @@
 }
 /*
  * Тег, которому человек цвета не задавал. Пузырь рисуем мы — иначе настройки
- * размера до него не доезжают вовсе (замечание заказчика 2026-09-12), — а вид
- * берём у темы: те самые переменные, которыми Obsidian рисует `.cm-hashtag`.
- * Значит на любой теме тег остаётся похожим на себя, а величины приезжают
- * наши.
+ * размера до него не доезжают вовсе, — а заливка берётся **акцентная**, и
+ * текст на ней тот же, что у пузыря со своим цветом: решение заказчика
+ * 2026-09-12, «хочу, чтобы они были одинаковые».
+ *
+ * **Почему не `--tag-background`.** Так было в первой версии, и на его теме
+ * (Minimal) фон тега объявлен `transparent`: пузырь честно взял цвет темы и
+ * пропал с глаз. Переменная темы тут годится ровно одна — та, которой тема
+ * красит **выделенное**, а не та, которой она красит тег (У-161).
  */
-.io-tagbubble--theme {
-  background-color: var(--tag-background);
-  color: var(--io-tagbubble-fg, var(--tag-color));
-  font-weight: var(--tag-weight, inherit);
+.io-tagbubble--accent {
+  background-color: var(--interactive-accent);
+  color: var(--io-tagbubble-fg, var(--text-on-accent));
 }
 /*
  * Щелчок по тегу открывает поиск — за это отвечает `openTagSearch`, а здесь
@@ -2952,9 +2955,8 @@
 .io-tagbubble--clickable {
   cursor: var(--cursor-link, pointer);
 }
-.io-tagbubble--theme.io-tagbubble--clickable:hover {
-  background-color: var(--tag-background-hover, var(--tag-background));
-  color: var(--io-tagbubble-fg, var(--tag-color-hover, var(--tag-color)));
+.io-tagbubble--accent.io-tagbubble--clickable:hover {
+  background-color: var(--interactive-accent-hover, var(--interactive-accent));
 }
 
 /*

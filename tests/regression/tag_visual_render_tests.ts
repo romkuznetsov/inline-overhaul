@@ -277,7 +277,7 @@ const filled = (el: Any): boolean =>
    */
   const { el, calls } = paintWithApp("#todo", "");
   const cls = String(el.className || "").split(/\s+/);
-  assert.ok(cls.includes(I.TAG_BUBBLE_THEMED_CLASS),
+  assert.ok(cls.includes(I.TAG_BUBBLE_ACCENT_CLASS),
     "у пузыря без своей заливки обязан быть класс темы, иначе он выйдет бесцветным: " + el.className);
   assert.ok(!cls.includes(I.TAG_BUBBLE_FILLED_CLASS), "заливки своей у него нет");
   assert.ok(cls.includes(I.TAG_BUBBLE_CLICKABLE_CLASS), "и класс «по мне можно щёлкнуть»");
@@ -299,7 +299,7 @@ const filled = (el: Any): boolean =>
   const cls = String(el.className || "").split(/\s+/);
   assert.ok(!cls.includes(I.TAG_BUBBLE_CLICKABLE_CLASS),
     "ссылке щелчок по тегу не приделывается: " + el.className);
-  assert.ok(!cls.includes(I.TAG_BUBBLE_THEMED_CLASS), "и цвет тега ей не достаётся");
+  assert.ok(!cls.includes(I.TAG_BUBBLE_ACCENT_CLASS), "и цвет тега ей не достаётся");
   el.dispatch("mousedown", { button: 0, preventDefault() {}, stopPropagation() {} });
   assert.deepEqual(calls, [], "и поиска по ней не открывается");
   ok("ссылке пузырь тега не приделывается");
