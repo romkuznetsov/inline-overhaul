@@ -156,6 +156,32 @@ const EDITOR_INJECTIONS = {
     replace: "  const inBlock = false;",
   },
   /*
+   * Тег без своего цвета обратно остаётся тегом темы: пузыря ему не рисуется,
+   * и настройки размера до него не доезжают — ровно то, с чего началось
+   * замечание 2026-09-12.
+   */
+  "plain-tag-no-bubble": {
+    file: "src/ui/editor/decorations.js",
+    find: "        const drawsOwnBubble = hasVisualOverride\n"
+      + "          || (entry.kind === \"tag\" && tagVisualSizingForZone(entry.zone, visuals).inBlock);",
+    replace: "        const drawsOwnBubble = hasVisualOverride;",
+  },
+  /*
+   * И та же правка, хватившая лишнего: пузырь рисуется тегу **в любой** зоне,
+   * то есть и в тексте человека между разделителями.
+   */
+  "plain-tag-everywhere": {
+    file: "src/ui/editor/decorations.js",
+    find: "          || (entry.kind === \"tag\" && tagVisualSizingForZone(entry.zone, visuals).inBlock);",
+    replace: "          || entry.kind === \"tag\";",
+  },
+  /* Цвет темы у пузыря без своей заливки потерян: тег пропадает с глаз. */
+  "plain-tag-colorless": {
+    file: "styles.css",
+    find: "  background-color: var(--tag-background);",
+    replace: "  background-color: transparent;",
+  },
+  /*
    * Оверлей скроллера: правило показа сломано. Перенос `display` из свойств
    * узла в класс (Р7) тем и опасен, что правило теперь живёт в другом файле, и
    * набор на заглушке DOM стилей не читает вовсе — эту половину видит только
@@ -266,6 +292,17 @@ const PAGE_CSS = [
     + " --font-monospace: monospace;"
     + " --radius-s: 4px;"
     + " --shadow-s: 0 1px 2px rgba(0,0,0,0.1);"
+    /*
+     * Переменные тега — те самые, которыми Obsidian рисует `.cm-hashtag`
+     * (`app.css` 1.13.7, строка 2800). Наш пузырь берёт их у тега без своего
+     * цвета, и без них «фон взят у темы» проверялось бы отсутствием предмета
+     * (У-88): пустая переменная вычисляется в прозрачность.
+     */
+    + " --tag-background: rgba(112, 93, 207, 0.1);"
+    + " --tag-background-hover: rgba(112, 93, 207, 0.2);"
+    + " --tag-color: #705dcf;"
+    + " --tag-weight: inherit;"
+    + " --cursor-link: pointer;"
     + " }",
   /*
    * Ящик, который снаружи выглядит редактором заметки: правила плагина

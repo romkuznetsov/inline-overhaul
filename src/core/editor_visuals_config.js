@@ -124,6 +124,16 @@ function getTagVisualsFromConfig(cfg) {
 const TAG_BUBBLE_CLASS = "io-tagbubble";
 const TAG_BUBBLE_EMPTY_CLASS = "io-tagbubble--empty";
 const TAG_BUBBLE_FILLED_CLASS = "io-tagbubble--filled";
+/*
+ * Пузырь тега, которому человек своего цвета не задавал: и фон, и цвет текста
+ * берутся у темы — те самые переменные, которыми Obsidian рисует `.cm-hashtag`
+ * (`app.css` 1.13.7). Отдельный класс, а не «просто без заливки»: без цвета
+ * пузырь раньше не рисовался вовсе, и настройки размера до тега не доезжали
+ * (замечание заказчика 2026-09-12).
+ */
+const TAG_BUBBLE_THEMED_CLASS = "io-tagbubble--theme";
+/* Пузырь, по которому можно щёлкнуть: это тег, и у него есть поиск. */
+const TAG_BUBBLE_CLICKABLE_CLASS = "io-tagbubble--clickable";
 
 /**
  * Ширина пустого пузыря при 100 %.
@@ -1551,6 +1561,8 @@ module.exports = {
   TAG_BUBBLE_CLASS,
   TAG_BUBBLE_EMPTY_CLASS,
   TAG_BUBBLE_FILLED_CLASS,
+  TAG_BUBBLE_THEMED_CLASS,
+  TAG_BUBBLE_CLICKABLE_CLASS,
   computeTagVisualStyle,
   formatFieldTokenForVisual,
   buildFieldTagVisualMap,

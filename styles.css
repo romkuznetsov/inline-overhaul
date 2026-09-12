@@ -2931,6 +2931,31 @@
   background-color: var(--io-tagbubble-bg);
   color: var(--io-tagbubble-fg, var(--text-on-accent));
 }
+/*
+ * Тег, которому человек цвета не задавал. Пузырь рисуем мы — иначе настройки
+ * размера до него не доезжают вовсе (замечание заказчика 2026-09-12), — а вид
+ * берём у темы: те самые переменные, которыми Obsidian рисует `.cm-hashtag`.
+ * Значит на любой теме тег остаётся похожим на себя, а величины приезжают
+ * наши.
+ */
+.io-tagbubble--theme {
+  background-color: var(--tag-background);
+  color: var(--io-tagbubble-fg, var(--tag-color));
+  font-weight: var(--tag-weight, inherit);
+}
+/*
+ * Щелчок по тегу открывает поиск — за это отвечает `openTagSearch`, а здесь
+ * только то, что человек видит: указатель ссылки и подсветка темы при
+ * наведении. Правило стоит ПОСЛЕ базового: специфичность одна, решает порядок
+ * (У-67).
+ */
+.io-tagbubble--clickable {
+  cursor: var(--cursor-link, pointer);
+}
+.io-tagbubble--theme.io-tagbubble--clickable:hover {
+  background-color: var(--tag-background-hover, var(--tag-background));
+  color: var(--io-tagbubble-fg, var(--tag-color-hover, var(--tag-color)));
+}
 
 /*
  * Пустая вставка нулевой ширины: ею слой полос прячет тег Field, не убирая

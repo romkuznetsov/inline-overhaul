@@ -47,6 +47,8 @@ const {
   TAG_BUBBLE_CLASS,
   TAG_BUBBLE_EMPTY_CLASS,
   TAG_BUBBLE_FILLED_CLASS,
+  TAG_BUBBLE_THEMED_CLASS,
+  TAG_BUBBLE_CLICKABLE_CLASS,
   buildBlockStyleCss,
   buildElementMarkersFromConfig,
   buildFieldTagVisualMap,
@@ -128,9 +130,40 @@ function buildDecorationSet(ranges, where) {
   return builder.finish();
 }
 
+/**
+ * Открыть поиск по тегу — ровно тем же вызовом, каким это делает Obsidian.
+ *
+ * **Правило взято у платформы, а не придумано** (правило 10, У-44). По клику
+ * Obsidian берёт токен из синтаксического дерева и для типа `tag` зовёт
+ * `internalPlugins.getEnabledPluginById("global-search").openGlobalSearch("tag:" + текст)`
+ * (`app.js` 1.13.7). Пузырь Value — наш узел, и клик по нему платформа
+ * разбирать не обязана, поэтому тот же вызов делается здесь.
+ *
+ * Отказ молчит и это проба: поиск — встроенный плагин, человек вправе его
+ * выключить, и «нет» тут ответ платформы, а не поломка.
+ */
+function openTagSearch(plugin, token) {
+  const tag = String(token || "").trim();
+  if (!tag || tag.charAt(0) !== "#") return false;
+  const app = plugin && plugin.app ? plugin.app : null;
+  const internal = app && app.internalPlugins ? app.internalPlugins : null;
+  if (!internal || typeof internal.getEnabledPluginById !== "function") return false;
+  let search = null;
+  try {
+    search = internal.getEnabledPluginById("global-search");
+  } catch (_) {
+    /* проба: у платформы этого реестра может не быть вовсе */
+    search = null;
+  }
+  if (!search || typeof search.openGlobalSearch !== "function") return false;
+  search.openGlobalSearch("tag:" + tag);
+  return true;
+}
+
 class TagVisualTokenWidget extends cmView.WidgetType {
-  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride) {
+  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride, plugin) {
     super();
+    this.plugin = plugin || null;
     this.tokenText = String(tokenText || "");
     this.fillColor = String(fillColor || "");
     this.textColor = String(textColor || "");
@@ -187,11 +220,36 @@ class TagVisualTokenWidget extends cmView.WidgetType {
      * классом, потому что в одном объявлении цвета его не выразить — а два
      * объявления одного правила расходятся молча (У-32).
      */
+    /*
+     * Тег без своей заливки берёт цвет у темы — тот же, каким тема рисует
+     * `.cm-hashtag`. Иначе пузырь, заведённый ради размеров, оказался бы
+     * бесцветным на месте цветного тега.
+     */
+    const isTag = this.tokenText.charAt(0) === "#";
+    const themed = isTag && !this.fillColor;
     el.className = [
       TAG_BUBBLE_CLASS,
       this.emptyMode ? TAG_BUBBLE_EMPTY_CLASS : "",
       this.fillColor ? TAG_BUBBLE_FILLED_CLASS : "",
+      themed ? TAG_BUBBLE_THEMED_CLASS : "",
+      isTag ? TAG_BUBBLE_CLICKABLE_CLASS : "",
     ].filter(Boolean).join(" ");
+    if (isTag) {
+      /*
+       * Клик по тегу открывает поиск — так ведёт себя тег в заметке, и наш
+       * пузырь обязан вести себя так же: «по такому тегу нельзя кликнуть — это
+       * недопустимо» (его слово 2026-09-12).
+       *
+       * Обработчик живёт на узле, который принадлежит нам (У-46), а не в
+       * описании, которое платформа клонирует.
+       */
+      el.addEventListener("mousedown", (ev) => {
+        if (ev && ev.button !== 0) return;
+        if (!openTagSearch(this.plugin, this.tokenText)) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+      });
+    }
     el.style.setProperty("--io-tagbubble-radius", `${st.borderRadiusPx}px`);
     el.style.setProperty("--io-tagbubble-pad-y", `${st.verticalPaddingPx}px`);
     el.style.setProperty("--io-tagbubble-pad-x", `${st.horizontalPaddingPx}px`);
@@ -424,18 +482,38 @@ function buildTagVisualDecorations(view, plugin) {
           || !!normalizeHexColorInput(row.textColor)
           || resolveEffectiveTagVisualMode(row) !== "default");
         /*
-         * Свой цвет — свой пузырь; всем остальным токенам блока достаётся
-         * прозрачность и размер стилем, без подмены узла (И-2.2). Ссылка,
-         * элемент и тег без цвета до этого не получали ничего.
+         * **Кому рисуется пузырь.** Своему цвету — везде; тегу в Block —
+         * всегда, даже если цвета у него нет.
+         *
+         * Вторая половина — правка 2026-09-12 по его замечанию: «теги, у
+         * которых стоит дефолтный fill и text, не подчиняются настройкам
+         * tag-appearance». Пузырь такому тегу рисовала тема, и наши размеры
+         * до него не доезжали вовсе: они живут в нашем узле. Решение выбрал
+         * заказчик — «пусть его рисует плагин, цвет из темы», с условием, что
+         * щелчок по тегу работает; за это отвечает `openTagSearch`.
+         *
+         * **Ссылке и эмодзи-элементу пузырь по-прежнему не рисуется**:
+         * заменить `[[Note]]` своим узлом значит забрать у ссылки клик,
+         * наведение и перетаскивание — а вернуть их нечем, поиск тут не
+         * замена (И-2.2). Им достаётся прозрачность и размер стилем.
          */
-        if (!hasVisualOverride) {
+        const drawsOwnBubble = hasVisualOverride
+          || (entry.kind === "tag" && tagVisualSizingForZone(entry.zone, visuals).inBlock);
+        if (!drawsOwnBubble) {
           if (to <= from) continue;
           const styleDeco = buildBlockStyleDecoration(entry, visuals);
           if (styleDeco) ranges.push({ from, to, deco: styleDeco });
           continue;
         }
         if (to <= from) continue;
-        const effectiveMode = resolveEffectiveTagVisualMode(row);
+        /*
+         * У тега без своего цвета строки правил нет вовсе, и читается она
+         * тут как пустая: режим `default`, цвета пустые. Своей ветки для
+         * этого не заводится — два объявления одного правила расходятся
+         * молча (У-32).
+         */
+        const look = row || {};
+        const effectiveMode = resolveEffectiveTagVisualMode(look);
         if (debugLine && token === "#/1") {
           traceEvent(plugin, cfg, "tagVisual.apply.token", {
             traceTxId,
@@ -445,10 +523,10 @@ function buildTagVisualDecorations(view, plugin) {
             from,
             to,
             effectiveMode,
-            fillColor: String(row.fillColor || ""),
-            textColor: String(row.textColor || ""),
-            customText: String(row.customText || ""),
-            displayTextOverride: effectiveMode === "custom" ? String(row.customText || "").trim() : "",
+            fillColor: String(look.fillColor || ""),
+            textColor: String(look.textColor || ""),
+            customText: String(look.customText || ""),
+            displayTextOverride: effectiveMode === "custom" ? String(look.customText || "").trim() : "",
           });
         }
         /*
@@ -462,7 +540,7 @@ function buildTagVisualDecorations(view, plugin) {
           from,
           to,
           deco: cmView.Decoration.replace({
-            widget: new TagVisualTokenWidget(token, row.fillColor, row.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(row.customText || "").trim() : ""),
+            widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin),
             inclusive: false,
           }),
         });

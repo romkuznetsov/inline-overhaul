@@ -104,7 +104,7 @@ const LINES = [
    *    опции не должно» (замечание 2026-09-12). Без такой строки правило
    *    «размеры — про Blocks» проверялось бы отсутствием предмета (У-113).
    */
-  "- [ ] #todo " + SEP + " your own text #work here " + SEP + " #processed",
+  "- [ ] #todo #plain " + SEP + " your own text #work and #bare here " + SEP + " #processed",
 ];
 
 /*
@@ -214,9 +214,12 @@ window.__ioBubblesByZone = function () {
     out.push({
       token,
       zone,
+      cls: String(el.className || ""),
       fontSize: cs.getPropertyValue("font-size"),
       padTop: cs.getPropertyValue("padding-top"),
       padLeft: cs.getPropertyValue("padding-left"),
+      background: cs.getPropertyValue("background-color"),
+      cursor: cs.getPropertyValue("cursor"),
       height: round(r.height),
       width: round(r.width),
     });

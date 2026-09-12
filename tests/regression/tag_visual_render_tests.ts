@@ -36,6 +36,28 @@ function paint(fill: string, text: string): Any {
   return w.toDOM();
 }
 
+/**
+ * Тот же узел, но с плагином: без него пузырю неоткуда взять поиск по тегу.
+ *
+ * Подделан **Obsidian** (У-1): `internalPlugins` — его реестр, и здесь он
+ * запоминает, с чем позвали поиск. Сам вызов взят из `app.js` 1.13.7, где
+ * платформа открывает поиск по клику на тег.
+ */
+function paintWithApp(token: string, fill: string): Any {
+  const calls: string[] = [];
+  const plugin = {
+    app: {
+      internalPlugins: {
+        getEnabledPluginById: (id: string) => (id === "global-search"
+          ? { openGlobalSearch: (q: string) => { calls.push(q); } }
+          : null),
+      },
+    },
+  };
+  const w = new I.TagVisualTokenWidget(token, fill, "", 1, false, 100, 100, 100, 100, 0, "", plugin);
+  return { el: w.toDOM(), calls };
+}
+
 /*
  * **Утверждения переехали вместе со своим предметом** (У-94, 2026-09-09). Вид
  * пузыря ушёл из свойств узла в классы и переменные (правило каталога Р7), и
@@ -242,6 +264,45 @@ const filled = (el: Any): boolean =>
   assert.equal(css, "font-size: " + bubble.fontSizePx + "px;",
     "размер текста берётся тем же расчётом, что у пузыря");
   ok("размер текста одинаков у пузыря и у голого токена");
+}
+
+{
+  /*
+   * **Тег без своего цвета: пузырь наш, вид темы, щелчок работает.**
+   *
+   * Его слово 2026-09-12: «теги, у которых стоит дефолтный fill и text, не
+   * подчиняются настройкам tag-appearance», и выбор он сделал сам — «пусть его
+   * рисует плагин, цвет из темы», с условием: «меня не устраивает, что по
+   * такому тегу нельзя кликнуть, это недопустимо».
+   */
+  const { el, calls } = paintWithApp("#todo", "");
+  const cls = String(el.className || "").split(/\s+/);
+  assert.ok(cls.includes(I.TAG_BUBBLE_THEMED_CLASS),
+    "у пузыря без своей заливки обязан быть класс темы, иначе он выйдет бесцветным: " + el.className);
+  assert.ok(!cls.includes(I.TAG_BUBBLE_FILLED_CLASS), "заливки своей у него нет");
+  assert.ok(cls.includes(I.TAG_BUBBLE_CLICKABLE_CLASS), "и класс «по мне можно щёлкнуть»");
+  el.dispatch("mousedown", { button: 0, preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual(calls, ["tag:#todo"],
+    "щелчок обязан открыть поиск по тегу тем же запросом, каким его открывает Obsidian: "
+    + JSON.stringify(calls));
+  ok("тег без цвета: пузырь наш, вид темы, щелчок открывает поиск");
+}
+
+{
+  /*
+   * И вторая половина того же правила: **ссылка и эмодзи-элемент пузыря не
+   * получают**. Заменить `[[Note]]` своим узлом значит забрать у ссылки клик,
+   * и поиск по тегу тут не замена. Утверждение положительное: класс щелчка
+   * ставится по признаку «это тег», а не «это наш узел».
+   */
+  const { el, calls } = paintWithApp("[[test1]]", "#0008f0");
+  const cls = String(el.className || "").split(/\s+/);
+  assert.ok(!cls.includes(I.TAG_BUBBLE_CLICKABLE_CLASS),
+    "ссылке щелчок по тегу не приделывается: " + el.className);
+  assert.ok(!cls.includes(I.TAG_BUBBLE_THEMED_CLASS), "и цвет тега ей не достаётся");
+  el.dispatch("mousedown", { button: 0, preventDefault() {}, stopPropagation() {} });
+  assert.deepEqual(calls, [], "и поиска по ней не открывается");
+  ok("ссылке пузырь тега не приделывается");
 }
 
 {

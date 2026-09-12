@@ -77,6 +77,8 @@ export interface PluginInternals {
   getTagwheelHeaderColorsFromConfig: (cfg: Any) => Any;
   buildBlockStyleCss: (entry: Any, visuals: Any) => string;
   tagVisualSizingForZone: (zone: string, visuals: Any) => Any;
+  TAG_BUBBLE_THEMED_CLASS: string;
+  TAG_BUBBLE_CLICKABLE_CLASS: string;
   computeTagVisualStyle: (textSizePct: number, bubbleWidthPct: number, bubbleHeightPct: number, shapePct: number) => Any;
   TAG_EMPTY_BUBBLE_BASE_PX: number;
   /* Имена классов пузыря тега в заметке: объявлены один раз, на код и стили
