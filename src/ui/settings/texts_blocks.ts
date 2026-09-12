@@ -50,6 +50,11 @@ export const BLOCK_TEXTS = {
     NO_FIELD_PICKED: "add a Field on the left to set it up here",
     LIST_ARIA: "the Fields list",
     COLUMN_ARIA: "this column",
+    /* Переключатель высоты таблицы. Подпись называет то, что случится по
+       нажатию, а не то, что стоит сейчас: кнопка одна, и её знак уже
+       показывает нынешний режим. */
+    HEIGHT_EXPAND: "Expand the Fields table to its full height",
+    HEIGHT_COLLAPSE: "Collapse the Fields table to a fixed height",
     /* Подписи строк, собранные вокруг имени Field. */
     SHOW_FIELD: "Show the Field {0}",
     RENAME_FIELD: "Rename the Field {0}",

@@ -50,6 +50,10 @@ methodology.
   configuration step in between.
 - **Live preview.** The Fields editor shows the line you are building as you
   build it.
+- **Two heights for the editor.** The chevron at the right edge of the Fields
+  header switches between the full height, where every control is on screen at
+  once, and a fixed height that scrolls. The scrollbar stays out of sight until
+  you scroll or reach for the right edge of the table.
 
 *Where:* `Tags & PKM → Fields`, `Separators`, `Writing rules`, `Placement modes`,
 `Prefix priority`.

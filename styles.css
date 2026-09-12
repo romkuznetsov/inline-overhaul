@@ -1095,6 +1095,65 @@
   background: color-mix(in srgb, var(--interactive-accent) 20%, transparent);
   border-bottom: 1px solid var(--background-modifier-border);
 }
+/*
+ * Переключатель высоты таблицы — в шапке, по правой границе, справа от
+ * заголовка `Values` (заказ заказчика 2026-09-12, дословно про место).
+ * `margin-left: auto` прижимает его к краю шапки, а шапка правой колонки и
+ * есть правый край таблицы.
+ */
+.io-fields__height { margin-left: auto; flex: 0 0 auto; }
+
+/*
+ * Обычный режим: заданная высота и прокрутка.
+ *
+ * Прокручивается вся таблица целиком, а не каждая колонка своей полосой:
+ * скроллер он описал один и у правого края — «при наведении мышки на правую
+ * часть правого столбца values». Правый край правой колонки и есть правый
+ * край таблицы, поэтому контейнером прокрутки стала сама сетка.
+ *
+ * Шапки при этом остаются на виду: в правой стоит сам переключатель, и уехав
+ * вверх он стал бы недосягаем ровно в том режиме, который включает.
+ */
+.io-fields--fixed {
+  max-height: var(--io-fields-height, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Место под полосу занято всегда: иначе её появление сдвигало бы вёрстку
+     под курсором в тот самый миг, когда человек до полосы дотянулся. */
+  scrollbar-gutter: stable;
+}
+.io-fields--fixed > .io-fields__colhead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /*
+   * Заливка шапки — приглушённый акцент (В-85), то есть полупрозрачный: над
+   * прокручиваемым содержимым сквозь неё просвечивал бы текст. Поэтому под ту
+   * же заливку подкладывается непрозрачный фон панели, а сама заливка уходит в
+   * `background-image` — цвет на экране остаётся прежним.
+   */
+  background-color: var(--background-primary);
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--interactive-accent) 20%, transparent),
+    color-mix(in srgb, var(--interactive-accent) 20%, transparent));
+}
+/*
+ * Полоса прокрутки видна только во время прокрутки либо при наведении на
+ * правую часть таблицы — его слово. Показывается она сменой цвета, а не
+ * шириной: ширина двигала бы содержимое.
+ */
+.io-fields--fixed::-webkit-scrollbar { width: 10px; }
+.io-fields--fixed::-webkit-scrollbar-track { background: transparent; }
+.io-fields--fixed::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.io-fields--fixed.io-fields--scrollon::-webkit-scrollbar-thumb {
+  background-color: var(--background-modifier-border-hover, rgba(128, 128, 128, 0.55));
+}
+
 .io-fields__list { background: var(--background-secondary); padding: 6px; }
 .io-fields__item {
   display: flex;

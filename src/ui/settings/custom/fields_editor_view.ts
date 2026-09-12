@@ -1680,6 +1680,80 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
 /* ---- обе колонки ------------------------------------------------------- */
 
 /**
+ * Путь, на котором лежит высота таблицы Fields. Объявлен один раз: его
+ * спрашивает вёрстка и его же пишет переключатель (У-32).
+ */
+export const FIELDS_HEIGHT_PATH = "ui.fieldsTableFixedHeight";
+
+/*
+ * Полоса прокрутки показывается двумя поводами — его слово 2026-09-12: «сам
+ * скроллер отображается только во время скроллинга либо при наведении мышки
+ * на правую часть правого столбца values». Поводы независимы, поэтому их два
+ * флага, а не один: уехавшая мышь не имеет права погасить полосу, пока идёт
+ * прокрутка.
+ */
+const SCROLLER_ZONE_PX = 28;
+const SCROLLER_FADE_MS = 900;
+
+/** Геометрия узла: у заглушки DOM её нет вовсе, и это ответ, а не отказ. */
+interface Measured {
+  getBoundingClientRect?: () => { right: number };
+}
+
+/**
+ * Показать полосу прокрутки во время прокрутки и при наведении на правый край
+ * таблицы. Возвращает уборку: таймер обязан умереть вместе с блоком, иначе он
+ * тронет узел, которого на странице уже нет.
+ *
+ * Сами слушатели не снимаются: редактор перерисовывается **подменой узла**
+ * (`fields_editor.ts`), и вместе со снятым узлом уходят и они.
+ */
+function revealScrollerOnDemand(wrap: El): () => void {
+  let scrolling = false;
+  let near = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let right = 0;
+
+  const sync = (): void => {
+    if (scrolling || near) wrap.classList.add("io-fields--scrollon");
+    else wrap.classList.remove("io-fields--scrollon");
+  };
+  const measure = (): boolean => {
+    const box = wrap as unknown as Measured;
+    if (typeof box.getBoundingClientRect !== "function") return false;
+    right = Number(box.getBoundingClientRect().right);
+    return Number.isFinite(right);
+  };
+
+  wrap.addEventListener("scroll", (() => {
+    scrolling = true;
+    sync();
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => { scrolling = false; sync(); }, SCROLLER_FADE_MS);
+  }) as never);
+
+  /* Ширина таблицы меряется на входе мыши, а не на каждом её движении:
+     запрос прямоугольника — чтение вёрстки, и в движении оно лишнее. */
+  wrap.addEventListener("mouseenter", (() => { measure(); }) as never);
+  wrap.addEventListener("mousemove", ((ev: { clientX?: number }) => {
+    if (!right && !measure()) return;
+    const x = Number(ev && ev.clientX);
+    if (!Number.isFinite(x)) return;
+    const next = x >= right - SCROLLER_ZONE_PX;
+    if (next === near) return;
+    near = next;
+    sync();
+  }) as never);
+  wrap.addEventListener("mouseleave", (() => {
+    if (!near) return;
+    near = false;
+    sync();
+  }) as never);
+
+  return () => { if (timer) clearTimeout(timer); timer = null; };
+}
+
+/**
  * Редактор целиком. Таблица Values и строки `element` приезжают следующим
  * куском; до тех пор блок к панели не подключён, и полуготовый редактор
  * человек не видит: редактор без таблицы Values — это потеря доступа к
@@ -1687,7 +1761,13 @@ export function renderElementRows(host: El, row: FieldRow, o: FieldsViewOpts): (
  */
 export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   const say = words(o);
-  const wrap = el(host, "div", "io-fields");
+  /*
+   * Высота таблицы: развёрнутая (как было всегда) или заданная со скроллингом
+   * — заказ заказчика 2026-09-12. Спрашивается строго `=== true`: умолчание
+   * развёрнутое, и всё, что не «да», означает прежний вид.
+   */
+  const fixedHeight = o.ctx.get(FIELDS_HEIGHT_PATH) === true;
+  const wrap = el(host, "div", "io-fields" + (fixedHeight ? " io-fields--fixed" : ""));
   const closers: Array<() => void> = [];
 
   const rows = o.model.listFields();
@@ -1731,6 +1811,27 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
     id: "io-fields-detail-tip",
     showTips: o.showTips, showIds: o.showIds,
   }));
+
+  /*
+   * Переключатель высоты — последним в шапке, после знака «?»: он прижат к
+   * правому краю `margin-left: auto`, и всё, что встало бы после него,
+   * уехало бы правее него самого.
+   *
+   * Выключенным он не бывает: модуль PKM решает, что делают контролы Fields,
+   * а этот меняет только высоту того, что человек и так видит.
+   */
+  const height = btn(detailHead, "io-icon io-fields__height", {
+    text: fixedHeight ? "▸" : "▾",
+    label: say(fixedHeight ? "HEIGHT_EXPAND" : "HEIGHT_COLLAPSE"),
+  });
+  height.setAttribute("aria-pressed", fixedHeight ? "true" : "false");
+  /* Перерисовка приходит от хранилища, а не зовётся здесь (У-22): запись
+     асинхронная, и позванный сразу `redraw` прочёл бы прежнее значение. */
+  height.addEventListener("click", (() => {
+    void o.ctx.set(FIELDS_HEIGHT_PATH, !fixedHeight);
+  }) as never);
+
+  if (fixedHeight) closers.push(revealScrollerOnDemand(wrap));
 
   const list = el(wrap, "div", "io-fields__list");
   renderFieldList(list, o);

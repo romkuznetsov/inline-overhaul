@@ -201,6 +201,8 @@ const KEPT: readonly string[] = [
   "ui.orderShowDeepEditor",
   "ui.orderShowColorSettings",
   "ui.orderActiveCommandsCollapsed",
+  /* Состояние новой панели: высота таблицы Fields (2026-09-12). */
+  "ui.fieldsTableFixedHeight",
   /* Уже написано новой панелью в форме v2: спорные проверяются отдельно. */
   "editor",
   "visual.tags",
@@ -615,6 +617,34 @@ const DIR = ".obsidian/plugins/inline-overhaul";
   assert.ok(Number(src["keepWords"]) <= 32,
     "число слов зажато: " + JSON.stringify(src["keepWords"]));
   ok("файл версии 2: клампы ветки Transform тоже работают");
+}
+
+{
+  /*
+   * Высота таблицы Fields (2026-09-12). Переключатель в шапке пишет патч из
+   * панели, а патч первую ступень не проходит вовсе — значит нормализация
+   * обязана стоять в третьей (У-13, У-40). Три вопроса: умолчание, запись
+   * человека и мусор.
+   */
+  const fresh = internals.migrateConfig({});
+  assert.equal(getIn(fresh, "ui.fieldsTableFixedHeight"), false,
+    "умолчание — развёрнутая таблица, как было всегда");
+
+  const chosen = internals.migrateConfig({
+    schemaVersion: SCHEMA_VERSION_V2,
+    ui: { fieldsTableFixedHeight: true },
+  });
+  assert.equal(getIn(chosen, "ui.fieldsTableFixedHeight"), true,
+    "выбранный человеком обычный режим переживает запись");
+
+  const junk = internals.migrateConfig({
+    schemaVersion: SCHEMA_VERSION_V2,
+    ui: { fieldsTableFixedHeight: "да" },
+  });
+  assert.equal(getIn(junk, "ui.fieldsTableFixedHeight"), false,
+    "мусор уступает умолчанию, а не включает режим: "
+    + JSON.stringify(getIn(junk, "ui.fieldsTableFixedHeight")));
+  ok("высота таблицы Fields переживает миграцию и нормализуется на файле версии 2");
 }
 
 /* ---- H6: служебный файл правил уезжает в папку плагина (В-39) ---------- */

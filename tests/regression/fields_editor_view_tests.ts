@@ -132,9 +132,15 @@ interface Write { reason: string; patch: Any }
 
 type NewFieldAnswer = { name: string; kind: "tag" | "wikilink" | "element" } | null;
 
-function makeView(opts?: { t?: (key: string, fallback: string) => string }): {
+function makeView(opts?: {
+  t?: (key: string, fallback: string) => string;
+  /** Настройки панели вне ветки `visual.tags.*`: их редактор читает через `ctx`. */
+  panel?: Record<string, unknown>;
+}): {
   host: StubNode;
   writes: Write[];
+  /** Записи через шов панели: не патч модели, а `ctx.set` (10.13.86). */
+  sets: Array<{ path: string; value: unknown }>;
   notices: string[];
   state: FieldsViewState;
   draw: () => void;
@@ -187,9 +193,16 @@ function makeView(opts?: { t?: (key: string, fallback: string) => string }): {
    * что и живые предпросмотры, и тому нужны размеры тега; в проверке они
    * стоят по сотне, то есть «как в теме».
    */
+  const panel: Record<string, unknown> = { ...(opts && opts.panel ? opts.panel : {}) };
+  const sets: Array<{ path: string; value: unknown }> = [];
   const ctx = {
-    get: (path: string) => (path.startsWith("visual.tags.") ? 100 : undefined),
-    set: async () => {},
+    get: (path: string) => (path.startsWith("visual.tags.")
+      ? 100
+      : (Object.prototype.hasOwnProperty.call(panel, path) ? panel[path] : undefined)),
+    set: async (path: string, value: unknown) => {
+      sets.push({ path, value });
+      panel[path] = value;
+    },
     run: async () => {},
     watch: () => () => {},
     /* Подстановка текста, когда проверка её задала: так спрашивается, доезжает
@@ -226,7 +239,7 @@ function makeView(opts?: { t?: (key: string, fallback: string) => string }): {
   };
   draw();
   return {
-    host, writes, notices, state, draw, model, asked, asksDelete, renames, asksRename,
+    host, writes, sets, notices, state, draw, model, asked, asksDelete, renames, asksRename,
     reply: (v: NewFieldAnswer) => { answer = v; },
     confirm: (v: boolean) => { confirms = v; },
     renameTo: (v: string | null) => { renameAnswer = v; },
@@ -716,8 +729,10 @@ function dragToSide(from: StubNode, side: StubNode): void {
 /* ---- шапка правой колонки следует типу Field --------------------------- */
 {
   const v = makeView();
+  /* Подпись шапки лежит первым узлом: за ней стоят «?» и переключатель
+     высоты таблицы, и `textContent` ячейки читался бы вместе с ними. */
   const headText = () => all(v.host, "io-fields__colhead")
-    .map(n => String(n.textContent || "").replace("?", "").trim());
+    .map(n => String((n.children[0] as StubNode | undefined)?.textContent || "").trim());
   assert.deepEqual(headText(), ["Fields", "Values"],
     "у Field с Values правая колонка называется Values");
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
@@ -725,6 +740,81 @@ function dragToSide(from: StubNode, side: StubNode): void {
   assert.deepEqual(headText(), ["Fields", "Emoji"],
     "у Field типа element значений нет, и колонка называется так же, как чип типа");
   ok("Ф6: имя правой колонки следует типу выбранного Field");
+}
+
+/* ---- два режима высоты таблицы Fields ---------------------------------- */
+
+/*
+ * Заказ заказчика 2026-09-12: «у этой таблицы было 2 режима — развернутый
+ * (как сейчас) и обычный (заданная высота таблицы fields со скроллингом) …
+ * переключатель … в шапке fields справа, справа от хедера values».
+ *
+ * Карта записей редактора этот контрол **не видит**: он пишет через шов
+ * панели (`ctx.set`), а не патчем модели, и в карте стоит «без записи».
+ * Значит спрашивать про него надо здесь — иначе он не закреплён ничем.
+ */
+const HEIGHT_PATH = "ui.fieldsTableFixedHeight";
+
+function heightBtn(host: StubNode): StubNode {
+  const head = one(host, "io-fields__colhead--detail");
+  const found = all(head, "io-fields__height");
+  assert.equal(found.length, 1, "переключатель высоты стоит в шапке правой колонки, и он один");
+  /* Место названо заказчиком дословно: по правой границе шапки, то есть
+     последним в ней. Знак «?» стоит до него. */
+  assert.equal(head.children[head.children.length - 1], found[0],
+    "переключатель высоты стоит последним в шапке — по её правой границе");
+  return found[0] as StubNode;
+}
+
+{
+  const v = makeView();
+  assert.equal(one(v.host, "io-fields").classList.contains("io-fields--fixed"), false,
+    "по умолчанию таблица развёрнута — как было всегда");
+  const b = heightBtn(v.host);
+  assert.equal(String(b.textContent || "").trim(), "▾", "знак показывает развёрнутый режим");
+  assert.equal(b.getAttribute("aria-pressed"), "false", "и о том же говорит aria-pressed");
+  assert.equal(String(b.getAttribute("aria-label") || ""),
+    "Collapse the Fields table to a fixed height",
+    "подпись называет то, что случится по нажатию");
+
+  b.click();
+  assert.deepEqual(v.sets, [{ path: HEIGHT_PATH, value: true }],
+    "нажатие пишет высоту в настройки панели, и больше ничего");
+  assert.deepEqual(v.writes, [],
+    "и не трогает конфиг Fields: высота таблицы к Fields отношения не имеет");
+  ok("высота таблицы Fields: по умолчанию развёрнута, переключатель пишет режим");
+}
+
+{
+  /* Отрисовка с включённым режимом: класс, знак и подпись — обратные. */
+  const v = makeView({ panel: { [HEIGHT_PATH]: true } });
+  assert.equal(one(v.host, "io-fields").classList.contains("io-fields--fixed"), true,
+    "с записанным режимом таблица получает заданную высоту");
+  const b = heightBtn(v.host);
+  assert.equal(String(b.textContent || "").trim(), "▸", "знак показывает обычный режим");
+  assert.equal(b.getAttribute("aria-pressed"), "true", "и о том же говорит aria-pressed");
+  assert.equal(String(b.getAttribute("aria-label") || ""),
+    "Expand the Fields table to its full height",
+    "подпись зовёт обратно в развёрнутый режим");
+
+  b.click();
+  assert.deepEqual(v.sets, [{ path: HEIGHT_PATH, value: false }],
+    "второе нажатие возвращает развёрнутый режим");
+  ok("высота таблицы Fields: обычный режим читается из настроек и снимается тем же знаком");
+}
+
+{
+  /*
+   * Значение не булево — прежний вид. Проверка на само чтение: `=== true`
+   * против правдоподобного `Boolean(...)`. У человека, открывшего панель до
+   * этой правки, ключа нет вовсе, и он обязан увидеть то же, что видел вчера.
+   */
+  for (const wrong of [1, "true", {}, "", 0, null]) {
+    const v = makeView({ panel: { [HEIGHT_PATH]: wrong } });
+    assert.equal(one(v.host, "io-fields").classList.contains("io-fields--fixed"), false,
+      "режим включается только записанным `true`, а не «чем-то похожим на да»: " + JSON.stringify(wrong));
+  }
+  ok("высота таблицы Fields: включает её только записанное `true`");
 }
 
 /* ---- пустое состояние правой колонки ----------------------------------- */

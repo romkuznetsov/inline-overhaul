@@ -317,6 +317,14 @@ const DEFAULT_CONFIG = {
     orderShowDeepEditor: true,
     orderShowColorSettings: true,
     orderActiveCommandsCollapsed: true,
+    /*
+     * Высота таблицы Fields в панели: `false` — развёрнутая, как было всегда,
+     * `true` — заданная со скроллингом (заказ заказчика 2026-09-12).
+     * Состояние взгляда, но запомненное: переключатель стоит в шапке таблицы,
+     * и человек, выбравший обычный режим, не должен выбирать его заново при
+     * каждом открытии панели.
+     */
+    fieldsTableFixedHeight: false,
     binderRows: [
       {
         rowId: "binder-system-smart-bracket",
@@ -428,6 +436,7 @@ function normalizeConfigV1(raw) {
   if (typeof cfg.ui.orderShowDeepEditor !== "boolean") cfg.ui.orderShowDeepEditor = true;
   if (typeof cfg.ui.orderShowColorSettings !== "boolean") cfg.ui.orderShowColorSettings = true;
   if (typeof cfg.ui.orderActiveCommandsCollapsed !== "boolean") cfg.ui.orderActiveCommandsCollapsed = true;
+  if (typeof cfg.ui.fieldsTableFixedHeight !== "boolean") cfg.ui.fieldsTableFixedHeight = false;
 
   if (!isObj(cfg.rules)) cfg.rules = cloneJson(DEFAULT_CONFIG.rules);
   {
@@ -1028,6 +1037,11 @@ function normalizeConfigV2(cfg) {
   text("visual.tagWheel.activeField.right");
   /* Цвет активного Field: он на строке, а не в коробке скроллера (10.13.15). */
   hex("visual.tagWheel.activeTextColor");
+
+  /* --- запомненное состояние панели -------------------------------------- */
+  /* Высота таблицы Fields. Ступень третья, а не первая: переключатель пишет
+     патч из панели, а патч первую ступень не проходит вовсе (У-13, У-40). */
+  bool("ui.fieldsTableFixedHeight");
 
   /* --- режим разработчика ------------------------------------------------ */
   bool("advanced.devMode.enabled");

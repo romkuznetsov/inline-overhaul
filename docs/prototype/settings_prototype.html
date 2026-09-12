@@ -1501,6 +1501,61 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-fields__colhead .io-tip { text-transform: none; letter-spacing: 0; font-weight: 400; }
 /*
+ * Переключатель высоты таблицы — в шапке, по правой границе, справа от
+ * заголовка `Values` (заказ заказчика 2026-09-12, дословно про место).
+ * `margin-left: auto` прижимает его к краю шапки, а шапка правой колонки и
+ * есть правый край таблицы.
+ */
+.io-fields__height { margin-left: auto; flex: 0 0 auto; }
+
+/*
+ * Обычный режим: заданная высота и прокрутка.
+ *
+ * Прокручивается вся таблица целиком, а не каждая колонка своей полосой:
+ * скроллер заказчик описал один и у правого края — «при наведении мышки на
+ * правую часть правого столбца values». Правый край правой колонки и есть
+ * правый край таблицы, поэтому контейнер прокрутки — сама сетка.
+ *
+ * Шапки при этом обязаны остаться на виду: в правой из них стоит сам
+ * переключатель, и уехав вверх он стал бы недосягаем ровно в том режиме,
+ * который включает. Отсюда `sticky`.
+ */
+.io-fields--fixed {
+  max-height: var(--io-fields-height, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Место под полосу занято всегда: иначе её появление сдвигало бы вёрстку
+     под курсором ровно в тот миг, когда человек до полосы дотянулся. */
+  scrollbar-gutter: stable;
+}
+.io-fields--fixed > .io-fields__colhead {
+  position: sticky; top: 0; z-index: 2;
+  /*
+   * Заливка шапки — приглушённый акцент (В-85), то есть полупрозрачный: над
+   * прокручиваемым содержимым сквозь неё просвечивал бы текст. Поэтому под
+   * ту же заливку подкладывается непрозрачный фон панели, а сама заливка
+   * уходит в `background-image` — цвет на экране остаётся прежним.
+   */
+  background-color: var(--background-primary);
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--interactive-accent) 20%, transparent),
+    color-mix(in srgb, var(--interactive-accent) 20%, transparent));
+}
+/*
+ * Полоса прокрутки видна только во время прокрутки либо при наведении на
+ * правую часть таблицы — его слово. Показывается она сменой цвета, а не
+ * шириной: ширина двигала бы содержимое.
+ */
+.io-fields--fixed::-webkit-scrollbar { width: 10px; }
+.io-fields--fixed::-webkit-scrollbar-track { background: transparent; }
+.io-fields--fixed::-webkit-scrollbar-thumb {
+  background-color: transparent; border-radius: 5px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+.io-fields--fixed.io-fields--scrollon::-webkit-scrollbar-thumb {
+  background-color: var(--background-modifier-border-hover, rgba(128, 128, 128, 0.55));
+}
+/*
  * «?» на шапке таблицы. Пока заливка была сплошным акцентом, знак приходилось
  * переворачивать: серая буква на ней сливалась, а нажатая давала акцент на
  * акценте (У-67). С приглушённой заливкой (В-85, вариант 2) переворачивать
@@ -2921,6 +2976,14 @@ let activeTab = "general";
    минимум в рамках текущей сессии». */
 const FOLDED = new Set();
 let selectedFieldId = "status";
+/*
+ * Высота таблицы Fields: развёрнутая (как было всегда) или заданная со
+ * скроллингом. Заказ заказчика 2026-09-12: «у этой таблицы было 2 режима —
+ * развернутый (как сейчас) и обычный (заданная высота таблицы fields со
+ * скроллингом)». Умолчание — развёрнутая: у того, кто переключателя не
+ * трогал, ничего не меняется.
+ */
+let fieldsTableFixed = false;
 let showAll = false;
 let wheelField = 0, wheelValue = 2;
 let dialog = null;
@@ -4419,8 +4482,37 @@ function renderFieldList(list) {
   });
 }
 
+/*
+ * Полоса прокрутки показывается двумя поводами — его слово: «сам скроллер
+ * отображается только во время скроллинга либо при наведении мышки на правую
+ * часть правого столбца values». Поводы независимы, поэтому их два флага, а
+ * не один: уехавшая мышь не имеет права погасить полосу, пока идёт прокрутка.
+ */
+const SCROLLER_ZONE_PX = 28;
+const SCROLLER_FADE_MS = 900;
+
+function revealScrollerOnDemand(wrap) {
+  let scrolling = false, near = false, timer = 0;
+  const sync = () => { wrap.classList.toggle("io-fields--scrollon", scrolling || near); };
+  const onScroll = () => {
+    scrolling = true; sync();
+    clearTimeout(timer);
+    timer = setTimeout(() => { scrolling = false; sync(); }, SCROLLER_FADE_MS);
+  };
+  const onMove = e => {
+    const r = wrap.getBoundingClientRect();
+    const next = e.clientX >= r.right - SCROLLER_ZONE_PX;
+    if (next === near) return;
+    near = next; sync();
+  };
+  const onLeave = () => { if (near) { near = false; sync(); } };
+  wrap.addEventListener("scroll", onScroll);
+  wrap.addEventListener("mousemove", onMove);
+  wrap.addEventListener("mouseleave", onLeave);
+}
+
 function renderFieldEditor(host) {
-  const wrap = el("div", "io-fields", host);
+  const wrap = el("div", "io-fields" + (fieldsTableFixed ? " io-fields--fixed" : ""), host);
 
   const f = field(selectedFieldId) || FIELDS[0];
 
@@ -4443,6 +4535,24 @@ function renderFieldEditor(host) {
      заметил именно эту разницу (замечание 1.4.1.2.1). */
   attachTip(detailHead, "Everything about the Field picked on the left. Its name in TagWheel, the Values it offers, how it behaves on a line, and which note property it goes into. Nothing here touches the other Fields \u2014 pick another one on the left and the whole column changes",
     "this column", null, detailHead);
+
+  /*
+   * \u041f\u0435\u0440\u0435\u043a\u043b\u044e\u0447\u0430\u0442\u0435\u043b\u044c \u0432\u044b\u0441\u043e\u0442\u044b \u2014 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u043c \u0432 \u0448\u0430\u043f\u043a\u0435, \u043f\u043e\u0441\u043b\u0435 \u0437\u043d\u0430\u043a\u0430 \u00ab?\u00bb: \u043e\u043d \u043f\u0440\u0438\u0436\u0430\u0442 \u043a
+   * \u043f\u0440\u0430\u0432\u043e\u043c\u0443 \u043a\u0440\u0430\u044e `margin-left: auto`, \u0438 \u0441\u0442\u043e\u044f\u0449\u0435\u0435 \u043f\u043e\u0441\u043b\u0435 \u043d\u0435\u0433\u043e \u0443\u0435\u0445\u0430\u043b\u043e \u0431\u044b \u043f\u0440\u0430\u0432\u0435\u0435
+   * \u043d\u0435\u0433\u043e \u0441\u0430\u043c\u043e\u0433\u043e.
+   */
+  const height = iconBtn(detailHead, fieldsTableFixed ? "\u25b8" : "\u25be",
+    fieldsTableFixed
+      ? "Expand the Fields table to its full height"
+      : "Collapse the Fields table to a fixed height");
+  height.classList.add("io-fields__height");
+  height.setAttribute("aria-pressed", fieldsTableFixed ? "true" : "false");
+  height.addEventListener("click", () => {
+    fieldsTableFixed = !fieldsTableFixed;
+    renderContent();
+  });
+
+  if (fieldsTableFixed) revealScrollerOnDemand(wrap);
 
   const list = el("div", "io-fields__list", wrap);
   renderFieldList(list);

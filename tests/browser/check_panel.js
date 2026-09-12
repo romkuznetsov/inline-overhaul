@@ -49,6 +49,106 @@ const MIN_SHARE_OF_CONTAINER = 0.9;
 const MIN_CONTAINER_WIDTH = 300;
 const NARROW_OK = {};
 
+/** Доля непрозрачности в том виде, в каком браузер отдаёт цвет. */
+function alphaOf(color) {
+  const s = String(color || "").trim();
+  const m = s.match(/^rgba?\(([^)]+)\)$/i);
+  if (!m) return s === "transparent" ? 0 : 1;
+  const parts = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+  return parts.length > 3 ? parts[3] : 1;
+}
+
+const pause = (page, ms) => page.evaluate((n) => new Promise((r) => setTimeout(r, n)), ms);
+const frame = (page) => page.evaluate(
+  () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+
+/**
+ * Таблица Fields в двух режимах высоты (заказ заказчика 2026-09-12).
+ *
+ * Меряется вычисленное: высота ящика, есть ли что прокручивать, остаётся ли
+ * шапка на экране после прокрутки и непрозрачна ли под ней заливка.
+ *
+ * Саму полосу прокрутки браузер узлом не отдаёт — `::-webkit-scrollbar` не
+ * элемент, и `getComputedStyle` по нему не спросишь. Поэтому спрашивается то,
+ * **чем** она показывается: класс `io-fields--scrollon`. И спрашивается он
+ * обеими сторонами — в покое его нет, у правого края есть, у левого снова
+ * нет: «класс нашёлся» бывает правдой и у класса, который стоит всегда.
+ */
+async function fieldsHeight(page) {
+  const out = { found: false, toggled: false };
+  /* Редактор Fields живёт на вкладке Tags & PKM и только там. */
+  await page.evaluate(() => {
+    const hit = Array.from(document.querySelectorAll(".io-tabs .io-tab"))
+      .find((t) => /Tags/i.test(t.textContent || ""));
+    if (hit) hit.click();
+  });
+  if (!(await page.$(".io-fields"))) return out;
+  out.found = true;
+
+  const snap = () => page.evaluate(() => {
+    const n = document.querySelector(".io-fields");
+    const head = n.querySelector(".io-fields__colhead--detail");
+    const cs = getComputedStyle(n);
+    const hs = head ? getComputedStyle(head) : null;
+    return {
+      client: Math.round(n.clientHeight),
+      scroll: Math.round(n.scrollHeight),
+      cap: Math.round(parseFloat(cs.maxHeight) || 0),
+      fixed: n.classList.contains("io-fields--fixed"),
+      scrollon: n.classList.contains("io-fields--scrollon"),
+      sticky: hs ? hs.position : "нет шапки",
+      headBg: hs ? hs.backgroundColor : "",
+    };
+  });
+
+  out.open = await snap();
+  out.toggled = await page.evaluate(() => {
+    const b = document.querySelector(".io-fields__height");
+    if (!b) return false;
+    b.click();
+    return true;
+  });
+  if (!out.toggled) return out;
+  await frame(page);
+  out.fixed = await snap();
+
+  /* Прокрутка: шапка обязана остаться на месте, полоса — показаться. */
+  await page.evaluate(() => { document.querySelector(".io-fields").scrollTop = 200; });
+  await frame(page);
+  out.scrolled = await page.evaluate(() => {
+    const n = document.querySelector(".io-fields");
+    const head = n.querySelector(".io-fields__colhead--detail");
+    return {
+      top: Math.round(n.scrollTop),
+      headTop: Math.round(head.getBoundingClientRect().top),
+      boxTop: Math.round(n.getBoundingClientRect().top),
+      scrollon: n.classList.contains("io-fields--scrollon"),
+    };
+  });
+
+  /* Наведение. Сначала пережидаем угасание после прокрутки: иначе «показана
+     от наведения» выполнялось бы остатком предыдущего повода. */
+  await pause(page, 1300);
+  const rect = await page.evaluate(() => {
+    const n = document.querySelector(".io-fields");
+    n.scrollIntoView({ block: "center" });
+    const r = n.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  });
+  const y = Math.min(Math.max(rect.top + 24, 6), Math.max(rect.bottom - 6, 6));
+  const readClass = () => page.evaluate(
+    () => document.querySelector(".io-fields").classList.contains("io-fields--scrollon"));
+
+  out.atRest = await readClass();
+  await page.mouse.move(rect.left + 40, y);
+  await frame(page);
+  out.hoverLeft = await readClass();
+  await page.mouse.move(rect.right - 4, y);
+  await frame(page);
+  out.hoverRight = await readClass();
+  return out;
+}
+
 (async () => {
   const { browser, page, pageErrors } = await openPrototype();
   try {
@@ -436,6 +536,60 @@ const NARROW_OK = {};
       }
     }
 
+    /* ---- 4. Два режима высоты таблицы Fields (2026-09-12) ---- */
+    const fh = await fieldsHeight(page);
+    if (!fh.found) {
+      bad("таблицы Fields на вкладке Tags & PKM нет — два режима высоты проверять не на чем");
+    } else if (!fh.toggled) {
+      bad("переключателя высоты в шапке таблицы Fields нет — нажать нечего");
+    } else {
+      if (fh.open.fixed) {
+        bad("таблица Fields открылась в обычном режиме, а умолчание — развёрнутый");
+      }
+      if (fh.open.scroll > fh.open.client + 1) {
+        bad("в развёрнутом режиме таблица Fields прокручивается (" + fh.open.scroll
+          + " при ящике " + fh.open.client + ") — она обязана показывать все контролы");
+      }
+      if (!fh.fixed.fixed) bad("нажатие переключателя не включило обычный режим");
+      if (!(fh.fixed.cap > 0)) {
+        bad("у обычного режима нет заданной высоты (max-height " + fh.fixed.cap + ")");
+      } else if (fh.fixed.client > fh.fixed.cap + 1) {
+        bad("в обычном режиме таблица высотой " + fh.fixed.client
+          + " при заданной " + fh.fixed.cap);
+      }
+      /*
+       * Положительный контроль (У-88): «влезает в заданную высоту» лучше всех
+       * выполняет таблица, которой нечего прокручивать. Значит спрашивается и
+       * обратное — содержимое выше ящика.
+       */
+      if (!(fh.fixed.scroll > fh.fixed.client + 20)) {
+        bad("в обычном режиме прокручивать нечего: содержимое " + fh.fixed.scroll
+          + " при ящике " + fh.fixed.client + " — высота проверена отсутствием предмета");
+      }
+      if (fh.fixed.sticky !== "sticky") {
+        bad("шапка правой колонки не закреплена (" + fh.fixed.sticky
+          + ") — переключатель уедет вверх вместе с содержимым");
+      }
+      if (alphaOf(fh.fixed.headBg) < 1) {
+        bad("заливка закреплённой шапки полупрозрачна (" + fh.fixed.headBg
+          + ") — сквозь неё будет видно прокручиваемый текст");
+      }
+      if (fh.fixed.scrollon) bad("полоса прокрутки показана до того, как её позвали");
+      if (!(fh.scrolled.top > 0)) {
+        bad("прокрутить таблицу не удалось (scrollTop " + fh.scrolled.top + ")");
+      }
+      if (Math.abs(fh.scrolled.headTop - fh.scrolled.boxTop) > 1) {
+        bad("после прокрутки шапка уехала: её верх " + fh.scrolled.headTop
+          + ", верх таблицы " + fh.scrolled.boxTop);
+      }
+      if (!fh.scrolled.scrollon) bad("во время прокрутки полоса не показана");
+      if (fh.atRest) bad("после угасания полоса осталась показанной");
+      if (fh.hoverLeft) {
+        bad("полоса показана при наведении на левую часть таблицы — его условие про правую");
+      }
+      if (!fh.hoverRight) bad("при наведении на правый край таблицы полоса не показана");
+    }
+
     /*
      * Положительный контроль (У-88): пусто выполняет любое «не больше чем»
      * лучше всех. Числа тут — не «должно быть столько», а «предмет найден».
@@ -611,6 +765,9 @@ const NARROW_OK = {};
       + ", ступеней `Ctrl+A` " + totals.steps
       + ", строк выбора ведущего поля " + totals.leadRows
       + ", закрашенных блоков " + (totals.band ? totals.band.bandAfter : "-")
+      + ", таблица Fields " + (fh.toggled
+        ? fh.open.client + " → " + fh.fixed.client + " из " + fh.fixed.scroll
+        : "не переключилась")
       + (injection ? " | подмена: " + injection : ""));
   } finally {
     await browser.close();

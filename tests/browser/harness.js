@@ -144,6 +144,17 @@ const INJECTIONS = {
   "band-onto-prefix": ".io-line--blockfill .io-line__side--left:not(:empty)"
     + " { padding-left: var(--io-blockfill-padx, 3px) !important;"
     + " margin-left: calc(-1 * var(--io-blockfill-padx, 3px)) !important; }",
+  /*
+   * Два режима высоты таблицы Fields (заказ заказчика 2026-09-12). Четыре
+   * подмены на четыре половины правила: высота не задана вовсе; шапка уезжает
+   * вместе с содержимым; шапка закреплена, но сквозь неё видно текст; таблица
+   * не слышит мышь, и полоса прокрутки не появляется от наведения.
+   */
+  "fields-no-cap": ".io-fields--fixed { max-height: none !important; }",
+  "fields-head-scrolls": ".io-fields--fixed > .io-fields__colhead { position: static !important; }",
+  "fields-head-seethrough":
+    ".io-fields--fixed > .io-fields__colhead { background-color: transparent !important; }",
+  "fields-scroller-deaf": ".io-fields--fixed { pointer-events: none !important; }",
 };
 
 function injectionCss(name) {

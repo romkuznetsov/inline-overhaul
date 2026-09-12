@@ -182,6 +182,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("ui.orderShowDeepEditor"),
   keep("ui.orderShowColorSettings"),
   keep("ui.orderActiveCommandsCollapsed"),
+  /* Высота таблицы Fields в новой панели. Ветка `ui` осталась и в версии 2,
+     а сама настройка в файлах версии 1 не встречалась ни разу — она заведена
+     2026-09-12, поэтому `keepV2`, а не `keep`. */
+  keepV2("ui.fieldsTableFixedHeight"),
 
   /* --- PKM: определения Fields (В9) ------------------------------------ */
   move("pkm.behavior.order", "pkm.fields.order", { whole: true }),

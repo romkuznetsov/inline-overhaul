@@ -18,6 +18,7 @@ import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 import {
   renderFieldsEditor,
+  FIELDS_HEIGHT_PATH,
   type FieldsViewState,
   type NewField,
 } from "./fields_editor_view.ts";
@@ -43,7 +44,15 @@ const deepState = deepStateModule as unknown as DeepState;
 type Say = (name: string, ...args: readonly (string | number)[]) => string;
 
 /** Пути, на которых редактор перерисовывается целиком. */
-const EDITOR_PATHS = ["features.pkm.enabled", "general.help.showTips", "advanced.showSettingIds"] as const;
+const EDITOR_PATHS = [
+  "features.pkm.enabled",
+  "general.help.showTips",
+  "advanced.showSettingIds",
+  /* Высота таблицы: переключатель в шапке пишет её и ждёт пробуждения
+     отсюда, а не зовёт перерисовку сам (У-22). Через тот же путь редактор
+     узнаёт о восстановлении копии настроек. */
+  FIELDS_HEIGHT_PATH,
+] as const;
 
 /* ---- окна платформы ---------------------------------------------------- */
 
