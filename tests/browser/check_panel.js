@@ -59,6 +59,7 @@ const NARROW_OK = {};
     if (tabs < 7) bad("вкладок в прототипе " + tabs + ", а их семь: страница не отрисовалась");
 
     const totals = { tips: 0, heads: 0, values: 0, narrowAllowed: 0, unlocked: 0, steps: 0,
+      leadUnlocked: 0, leadRows: -1, leadRowsBefore: -1,
       band: null };
 
     for (let i = 0; i < tabs; i++) {
@@ -126,6 +127,7 @@ const NARROW_OK = {};
         if (tab) tab.click();
 
         const out = { tab: tabName, tips: [], heads: [], values: [], unlocked: 0, steps: 0,
+          leadUnlocked: 0, leadRowsBefore: -1, leadRows: 0,
           bandBefore: -1, bandOn: false, bandAfter: -1, bandOnEmpty: -1, bandBack: -1 };
 
         /*
@@ -146,6 +148,28 @@ const NARROW_OK = {};
           out.unlocked++;
         }
         if (out.unlocked) out.steps = document.querySelectorAll(".io-keepfields__row").length;
+
+        /*
+         * То же самое для ведущего поля панели (10.13.76): две строки видны
+         * только при выборе `A Field you choose`, и с умолчаниями браузер их
+         * не видел бы вовсе (У-112).
+         *
+         * Отбор — по значению `middle`, которого нет ни у одного другого
+         * списка. Сколько строк было ДО переключения, снимается отдельно:
+         * без этого «строки появились» нечем отличить от «строки были всегда»
+         * (У-110).
+         */
+        const leadRowCount = () => Array.from(document.querySelectorAll(".io-item__name"))
+          .filter((el) => /Block active Field$/.test((el.textContent || "").trim())).length;
+        for (const sel of Array.from(document.querySelectorAll("select"))) {
+          const values = Array.from(sel.options || []).map(function (o) { return o.value; });
+          if (values.indexOf("middle") < 0 || values.indexOf("custom") < 0) continue;
+          if (out.leadRowsBefore < 0) out.leadRowsBefore = leadRowCount();
+          sel.value = "custom";
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+          out.leadUnlocked++;
+        }
+        if (out.leadUnlocked) out.leadRows = leadRowCount();
 
         /*
          * Заливка Left и Right Block (З-7). Тумблер выключен по умолчанию, то
@@ -374,6 +398,11 @@ const NARROW_OK = {};
       }, i);
 
       totals.unlocked += found.unlocked;
+      totals.leadUnlocked += found.leadUnlocked;
+      if (found.leadUnlocked) {
+        totals.leadRows = found.leadRows;
+        totals.leadRowsBefore = found.leadRowsBefore;
+      }
       if (found.bandBefore >= 0) totals.band = found;
       if (found.unlocked) totals.steps = found.steps;
       for (const t of found.tips) {
@@ -427,6 +456,23 @@ const NARROW_OK = {};
     if (totals.steps !== 5) {
       bad("положительный контроль: ступеней `Ctrl+A` открылось " + totals.steps
         + ", а их пять — блок не отрисовался, и мерить было нечего");
+    }
+    /*
+     * Ведущее поле панели (10.13.76). Список ровно один, строк у него две, и
+     * до переключения их ноль: три вопроса вместо одного, потому что «две
+     * строки нашлись» бывает правдой и у строк, которые видны всегда.
+     */
+    if (totals.leadUnlocked !== 1) {
+      bad("положительный контроль: списков `Active Field on opening` найдено " + totals.leadUnlocked
+        + ", а он один — переключить на `A Field you choose` не удалось");
+    }
+    if (totals.leadRowsBefore !== 0) {
+      bad("положительный контроль: до переключения строк выбора поля было " + totals.leadRowsBefore
+        + ", а их не должно быть ни одной — значит они видны всегда, и проверка ниже ничего не говорит");
+    }
+    if (totals.leadRows !== 2) {
+      bad("положительный контроль: строк выбора ведущего поля открылось " + totals.leadRows
+        + ", а их две — по одной на Block");
     }
     /*
      * Заливка блоков (З-7). Три вопроса, и все три — про вычисленный фон:
@@ -563,6 +609,7 @@ const NARROW_OK = {};
       + ", подписей слайдеров " + totals.values
       + ", объявленных узких " + totals.narrowAllowed
       + ", ступеней `Ctrl+A` " + totals.steps
+      + ", строк выбора ведущего поля " + totals.leadRows
       + ", закрашенных блоков " + (totals.band ? totals.band.bandAfter : "-")
       + (injection ? " | подмена: " + injection : ""));
   } finally {
