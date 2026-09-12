@@ -1487,6 +1487,81 @@ async function testStatusDateAsksBulletSettingLikeTagStepDoes() {
     "шаг по элементу не спросил настройку «Strict: add a bullet»: " + JSON.stringify(dateLine));
 }
 
+/*
+ * Настройку `Strict: add a bullet` спрашивают **обе** дороги, и отвечают они
+ * одинаково.
+ *
+ * Замечание заказчика 2026-09-12 (`S15`): «при активации в пустой строке
+ * command due next я получил `📅… || `, а должен был `- 📅… || `. При активации
+ * через tagwheel буллит появился. Мне не нравится, что расходится поведение
+ * строки у tagwheel и commands field next/previous — оно должно быть
+ * идентичным и определяться settings».
+ *
+ * Настройку спрашивали обе, но у панели рядом стояло второе объявление того же
+ * правила, из двух литералов: `preserveSyntheticPrefix: true` уводило в ветку
+ * «префикс сохранить» до того, как настройка спрошена, а запасное `'-'`
+ * подставляло буллит там, где общее правило подставляет пустоту (У-150).
+ *
+ * Проверка спрашивает **обе** стороны тумблера, и вторая сторона и есть
+ * положительный контроль: при выключенном обе дороги дают строку без буллита,
+ * и одного этого мало — так же выглядел бы плагин, который буллит не ставит
+ * никогда.
+ *
+ * Мутация: вернуть в `tagwheel.js` любой из двух литералов — и эта проверка
+ * краснеет на выключенном тумблере.
+ */
+async function testBulletSettingAnswersTheSameForPanelAndCommand() {
+  const bulletOn = { freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: true, fullPlacement: "smart" } };
+  const bulletOff = { freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: false, fullPlacement: "smart" } };
+
+  async function byCommand(extra) {
+    const editor = makeEditor("", 0);
+    await runPkmCommandWithEditor("statusDate", editor, {
+      "Rules path": "owner_shape_rules.md",
+      "Action type": "field_inc:date_due",
+      "Order config": ownerShapeOrder(extra),
+      "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    return editor.snapshot().line;
+  }
+
+  /*
+   * Панель берётся на строке, где значение элемента уже стоит: применение без
+   * выбора отдаёт ту же строку, и спрашиваем мы ровно префикс. Контроль
+   * «панель открылась» стоит внутри `runTagWheelApply` (У-152).
+   */
+  async function byPanel(extra) {
+    const editor = makeEditor("📅2026-01-02 03:04 || ", 2);
+    await runTagWheelApply(editor, {
+      "Rules path": "owner_shape_rules.md",
+      "Order config": ownerShapeOrder(extra),
+      "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    return editor.snapshot().line;
+  }
+
+  const hasBullet = (line) => /^\s*-\s/.test(String(line || ""));
+
+  const cmdOff = await byCommand(bulletOff);
+  const panOff = await byPanel(bulletOff);
+  assertTrue(!hasBullet(cmdOff) && !hasBullet(panOff),
+    "при выключенном `Strict: add a bullet` буллит поставила одна из дорог:\n"
+    + "  команда: " + JSON.stringify(cmdOff) + "\n"
+    + "  панель:  " + JSON.stringify(panOff));
+
+  const cmdOn = await byCommand(bulletOn);
+  const panOn = await byPanel(bulletOn);
+  assertTrue(hasBullet(cmdOn) && hasBullet(panOn),
+    "контроль: при включённом `Strict: add a bullet` буллита нет у одной из дорог,\n"
+    + "  значит верхнее утверждение зелено оттого, что буллита не бывает вовсе:\n"
+    + "  команда: " + JSON.stringify(cmdOn) + "\n"
+    + "  панель:  " + JSON.stringify(panOn));
+}
+
 async function testStatusDateKeepsManagedTagsInLeftBlock() {
   const editor = makeEditor("- [N] \uD83D\uDCC52026-09-12 09:05 #/2 #note || ", 5);
   await runPkmCommandWithEditor("statusDate", editor, {
@@ -2361,6 +2436,7 @@ async function run() {
   await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
   await testStatusDateKeepsManagedTagsInLeftBlock();
   await testStatusDateAsksBulletSettingLikeTagStepDoes();
+  await testBulletSettingAnswersTheSameForPanelAndCommand();
   await testTagWheelKeepsElementInLeftBlockByOrder();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();

@@ -1568,17 +1568,35 @@ async function runTagWheel(input, quickAddSettings) {
     var finalPrefixOwnCheckbox = finalPrefixFieldId ? fieldHasOwnCheckbox(state.rules, state.session, finalPrefixFieldId) : false
     var finalPrefixParsed = core.parseLine(String(finalLine || ''), state.rules)
     var finalPrefixResolved = String(core.buildPrefix(finalPrefixParsed, state.rules, state.prefixState || state.session, { prefixShared: finalize }) || '').trim()
+    /*
+     * Префикс строки в режиме `Strict` решает настройка `Strict: add a bullet`,
+     * и решает она его **один раз** — внутри `enforceOffModeFinalPrefixUnified`.
+     *
+     * Здесь стояло второе объявление того же правила: `preserveSyntheticPrefix`
+     * литеральным `true` уводило вычисление в ветку «префикс сохранить любой
+     * ценой» ещё до того, как спрашивалась настройка. Панель ставила буллит на
+     * пустой строке при выключенном тумблере, команда поля — не ставила, и
+     * заказчик получал разный результат от одинакового действия (замечание
+     * `S15` 2026-09-12, У-150). Теперь признак считается так же, как у шага по
+     * тегу (`status_tags.js`): сохранять синтетический префикс просят только
+     * выбранные поля режима `minimal`.
+     *
+     * Запасное `'-'` рядом снято тем же заходом, но дефектом оно не было:
+     * подмена, вернувшая его одно, набор не покраснела — до этой строки
+     * вычисление доходит только там, где буллит и так назначен настройкой.
+     * Снято оно как вторая запись того же ответа, а не как причина.
+     */
     finalLine = finalize.enforceOffModeFinalPrefixUnified({
       line: finalLine,
       rawLine: state.originalLine,
       mode: selectedMode,
       freeRoamBehavior: freeRoamBehavior,
       hasOwnCheckbox: finalPrefixOwnCheckbox,
-      resolvedPrefix: finalPrefixResolved || (finalPrefixOwnCheckbox ? '- [ ]' : '-'),
+      resolvedPrefix: finalPrefixResolved,
       cycleEndBehavior: macroShared.normalizeCycleEndBehavior(state.cycleEndBehavior),
       parseLine: core.parseLine,
       rules: state.rules,
-      preserveSyntheticPrefix: true,
+      preserveSyntheticPrefix: hasMinimalSelected,
     })
 
     /*
