@@ -779,8 +779,44 @@ function linePrefixLength(text, dropPrefix) {
  * Буквы латиницы и кириллицы, цифры и подчёркивание. Знак препинания, дефис и
  * пробел словом не считаются, поэтому `foo-bar` — два слова, а `foo_bar` одно.
  */
+const SLASH_CHAR = String.fromCharCode(47);
+const TAG_PREFIX_CHAR = String.fromCharCode(35);
+
 function isWordChar(ch) {
   return /[0-9A-Za-zА-Яа-яЁё_]/.test(ch || "");
+}
+
+/**
+ * Родительско-дочерний токен: `#parent/child`.
+ *
+ * **Правило одно и живёт здесь.** Объявлено оно было трижды — разбором панели
+ * (`tagwheel_core`), гидратацией строки (`status_line_runtime_unified`) и
+ * переносом значения по Block (`line_pipeline`), — и третье объявление было
+ * наивнее двух первых: родительско-дочерним оно считало **любой** токен, в
+ * котором есть косая черта (У-150).
+ *
+ * Чем это стоило заказчику: значения его Field важности записаны `#/1`,
+ * `#/2` — решётка, а сразу за ней косая черта. Родителем получалась одна
+ * решётка, и уборка «снять из строки всё, что начинается с родителя»
+ * выносила **каждый** тег: применение панели стирало соседние значения
+ * (замечание `S12` 2026-09-12).
+ *
+ * Поэтому родитель обязан быть токеном, а не одним знаком приставки: косая
+ * черта сразу за приставкой означает, что это **значение**, а не пара
+ * «родитель и ребёнок».
+ *
+ * Отвечает `null`, если токен парой не является.
+ */
+function splitCombinedTagToken(tag) {
+  const t = String(nz(tag, "")).trim();
+  const i = t.indexOf(SLASH_CHAR);
+  /* `i <= 1` — косая черта в начале токена или сразу за приставкой. */
+  if (i <= 1) return null;
+  const parent = t.slice(0, i);
+  const child = t.slice(i + 1);
+  if (!parent || !child) return null;
+  if (parent.charAt(0) !== TAG_PREFIX_CHAR) return null;
+  return { parent, child: child.charAt(0) === TAG_PREFIX_CHAR ? child : TAG_PREFIX_CHAR + child };
 }
 
 /** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
@@ -800,6 +836,7 @@ module.exports = {
   linePrefixLength,
   isListItemLine,
   isWordChar,
+  splitCombinedTagToken,
   normalizeFormatMask,
   buildFormatValueRegexSource,
   hasFormatTokens,

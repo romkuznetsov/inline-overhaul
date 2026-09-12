@@ -904,8 +904,17 @@ function relocateTokenSetByPanel(options) {
   var text = stripTokens(seg.text, allTokens);
   var dates = stripTokens(seg.dates, allTokens);
 
-  if (selectedToken && selectedToken.indexOf("/") !== -1 && removeCombinedByParentToken) {
-    var parentTok = String(selectedToken).split("/")[0];
+  /*
+   * Уборка родительско-дочерних записей нужна только тогда, когда выбранное
+   * значение и правда пара «родитель и ребёнок». Признак спрашивается у
+   * общего объявления: здесь стояло своё, и оно считало парой любой токен с
+   * косой чертой (У-150). У заказчика значения важности записаны решёткой и
+   * косой чертой сразу за ней — родителем получалась одна решётка, и уборка
+   * выносила из строки все теги разом.
+   */
+  var combined = __sharedUtils.splitCombinedTagToken(selectedToken);
+  if (combined && removeCombinedByParentToken) {
+    var parentTok = combined.parent;
     leftBody = removeCombinedByParentToken(leftBody, parentTok);
     text = removeCombinedByParentToken(text, parentTok);
     dates = removeCombinedByParentToken(dates, parentTok);

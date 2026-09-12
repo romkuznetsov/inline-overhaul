@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("./shared_utils.js");
+
 function buildCombinedSelectionSet(options) {
   const opts = options && typeof options === "object" ? options : {};
   const deps = opts.deps && typeof opts.deps === "object" ? opts.deps : {};
@@ -152,12 +154,11 @@ function hydrateSelectionFromCombinedTokens(options) {
   for (let ti = 0; ti < tags.length; ti++) {
     const token = String(tags[ti] || "").trim();
     if (!token) continue;
-    const slash = token.indexOf("/");
-    if (slash <= 0) continue;
-    const parentToken = token.slice(0, slash).trim();
-    const childRaw = token.slice(slash + 1).trim();
-    if (!parentToken || !childRaw || parentToken.charAt(0) !== "#") continue;
-    const childToken = childRaw.charAt(0) === "#" ? childRaw : ("#" + childRaw);
+    /* Пара «родитель и ребёнок» — одно объявление на весь рантайм. */
+    const combined = __sharedUtils.splitCombinedTagToken(token);
+    if (!combined) continue;
+    const parentToken = combined.parent;
+    const childToken = combined.child;
 
     for (let fi = 0; fi < fields.length; fi++) {
       const childField = fields[fi];

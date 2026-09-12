@@ -211,18 +211,58 @@ async function runPkmCommandWithEditor(command, editor, settings) {
   }
 }
 
+/*
+ * Элементам фикстуры нужен значок, иначе панель **не открывается вовсе**.
+ *
+ * Это стоило целой семьи проверок: двенадцать утверждений о применении
+ * TagWheel были зелёными, потому что панель отказывалась открыться со
+ * словами «these Fields need an emoji», строка оставалась прежней — а
+ * утверждения спрашивали ровно её (У-146). Дефект, который заказчик принёс
+ * 2026-09-12 («через tagwheel изменил Imp, получил другое значение»), прошёл
+ * мимо всех.
+ *
+ * Значки здесь — данные фикстуры, а не подделка поведения: у заказчика они
+ * приезжают тем же ключом из настроек.
+ */
+const TAGWHEEL_FIXTURE_DATE_RUNTIME = JSON.stringify({
+  byField: {
+    due: { emoji: "\uD83D\uDCC5", format: "YYYY-MM-DD" },
+    start: { emoji: "\uD83D\uDEEB", format: "YYYY-MM-DD" },
+    timeNow: { emoji: "\u23F0", format: "HH:mm" },
+    estimated: { emoji: "\u26CF\uFE0F", format: "000" },
+  },
+  canonical: {},
+});
+
 async function runTagWheelApply(editor, settings) {
   const app = makeAppForRuntime(editor);
   const prevWindow = global.window;
   const prevNotice = global.Notice;
+  const said = [];
   if (!global.window) global.window = makeWindowMock();
-  if (typeof global.Notice !== "function") global.Notice = function Notice() {};
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  const withDates = Object.assign(
+    { "Date runtime config": TAGWHEEL_FIXTURE_DATE_RUNTIME },
+    settings || {}
+  );
+  let opened = false;
   try {
-    await runtime.runCommand({ app, command: "tagWheel", settings: settings || {} });
-    await runtime.runCommand({ app, command: "tagWheel", settings: settings || {} });
+    await runtime.runCommand({ app, command: "tagWheel", settings: withDates });
+    opened = !!(global.window && global.window.__tagWheelState && global.window.__tagWheelState.active === true);
+    await runtime.runCommand({ app, command: "tagWheel", settings: withDates });
   } finally {
     global.window = prevWindow;
     global.Notice = prevNotice;
+  }
+  /*
+   * Положительный контроль: пока панель не открылась, любое утверждение ниже
+   * проверяет неизменённую строку и зелено само по себе.
+   */
+  if (!opened) {
+    throw new Error(
+      "TagWheel не открылся, и проверка ниже спрашивала бы неизменённую строку.\n"
+      + "  Что сказал движок: " + JSON.stringify(said)
+    );
   }
 }
 
@@ -1231,6 +1271,49 @@ async function testTagWheelPreservesCheckboxPrefix() {
   assertTrue(/^\s*-\s+\[[^\]]\]\s+/.test(line), "tagwheel apply should preserve checkbox prefix on list source");
 }
 
+/*
+ * Замечание заказчика 2026-09-12 (лист приёмки, `S12`): «в строке `- #work || `
+ * через tagwheel изменил Imp, получил `- #/1 || `» — значение соседнего Field
+ * исчезло. И обратное: «изменил value у field Cat, но ничего не произошло» —
+ * там пропадало только что выбранное.
+ *
+ * **Что здесь проверяется.** Значение важности в его настройках записано как
+ * `#/1` — решётка, а сразу за ней косая черта. Перенос значения по Block
+ * считал такой токен **родительско-дочерним** («родитель/ребёнок») по одному
+ * признаку «в строке есть косая черта» — и родителем получалась одна решётка.
+ * Дальше уборка «снять всё, что начинается с родителя» выносила из строки
+ * **каждый** тег.
+ *
+ * Мутация: вернуть в `relocateTokenSetByPanel` признак
+ * `selectedToken.indexOf("/") !== -1` — и эта проверка краснеет.
+ */
+async function testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash() {
+  const editor = makeEditor("- [ ] #/1 #area-alpha :: 111", 7);
+  await runTagWheelApply(editor, {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    /*
+     * Порядок здесь важен: Field со значением через косую черту стоит
+     * **вторым**. Уборка выносит из строки всё, а каждый следующий Field
+     * возвращает своё значение — поэтому теряет только тот, кто прошёл
+     * раньше. В порядке по умолчанию важность идёт первой, и та же поломка
+     * не видна ни одним утверждением (У-47).
+     */
+    "Order config": buildOrderConfig({
+      left: ["category", "context", "importance", "priority", "type"],
+      right: ["date_due"],
+      panel: { importance: "left", category: "left" },
+      freeRoam: { importance: "off", category: "off" },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  assertTrue(/#\/1/.test(line),
+    "значение важности пропало из строки после применения панели: " + JSON.stringify(line));
+  assertTrue(/#area-alpha/.test(line),
+    "значение соседнего Field стёрто переносом по Block: " + JSON.stringify(line));
+}
+
 async function testTagWheelKeepsTagTokensAsTagsOnApply() {
   const editor = makeEditor("- [ ] #todo #area-alpha :: 111", 8);
   await runTagWheelApply(editor, {
@@ -2041,6 +2124,7 @@ async function run() {
   await testStatusTagsForeignTagStaysInTextSlot();
   await testTagWheelPreservesCheckboxPrefix();
   await testTagWheelKeepsTagTokensAsTagsOnApply();
+  await testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();
   await testStatusTagsImportanceMinimalOffPreservesListPrefixAndIndent();

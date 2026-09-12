@@ -324,16 +324,9 @@ function getSubtagFormat(rules) {
   return ensureStatusRuntimeCommonFns().resolveSubtagFormat(null, rules)
 }
 
+/* Пара «родитель и ребёнок» объявлена один раз — в общем модуле (У-150). */
 function splitCombinedTagToken(tag) {
-  var t = String(tag || '').trim()
-  var i = t.indexOf('/')
-  if (i <= 0) return null
-  var parent = t.slice(0, i)
-  var child = t.slice(i + 1)
-  if (!parent || !child) return null
-  if (parent[0] !== '#') return null
-  var childTag = child[0] === '#' ? child : ('#' + child)
-  return { parent: parent, child: childTag }
+  return __sharedUtils.splitCombinedTagToken(tag)
 }
 
 function buildPanelGroupsFromTechOrder(rules, mode, panelName) {
