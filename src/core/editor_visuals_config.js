@@ -579,17 +579,38 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
  */
 function tagVisualSizingForZone(zone, visuals) {
   const inBlock = zone === "left" || zone === "right";
-  const pick = (value, fallback) => {
+  const num = (value, fallback) => {
     const n = Math.trunc(Number(value));
-    return inBlock && Number.isFinite(n) ? n : fallback;
+    return Number.isFinite(n) ? n : fallback;
   };
   return {
     inBlock,
-    textSizePct: pick(visuals && visuals.tagTextSizePct, 100),
-    bubbleWidthPct: pick(visuals && visuals.tagBubbleWidthPct, 100),
-    bubbleHeightPct: pick(visuals && visuals.tagBubbleHeightPct, 100),
-    emptyBubblePct: pick(visuals && visuals.emptyBubbleSizePct, 100),
+    /*
+     * **Кегль — единственное, что кончается на границе Block**, и границу эту
+     * провёл заказчик дважды. Сначала: «то, что внутри сепараторов, изменяться
+     * от этой опции не должно» — про `Text size`. Потом, когда разнобой в его
+     * тексте стал виден: «да, должны. Не должен действовать только
+     * tags-text-size» — про остальные ползунки.
+     */
+    textSizePct: inBlock ? num(visuals && visuals.tagTextSizePct, 100) : 100,
+    bubbleWidthPct: num(visuals && visuals.tagBubbleWidthPct, 100),
+    bubbleHeightPct: num(visuals && visuals.tagBubbleHeightPct, 100),
+    emptyBubblePct: num(visuals && visuals.emptyBubbleSizePct, 100),
   };
+}
+
+/**
+ * Строка, которой плагин распоряжается: в ней есть хотя бы один его
+ * разделитель.
+ *
+ * **Одно объявление, и появилось оно по его слову** (2026-09-12): «все теги
+ * такой строки рисует плагин… обычные заметки без разделителей плагин не
+ * трогает вовсе». Без этой границы правило «тегу — наш пузырь» перекрасило бы
+ * теги во всём хранилище, включая заметки, к плагину отношения не имеющие.
+ */
+function lineBelongsToPlugin(lineText, sep1, sep2) {
+  const at = lineSeparatorBounds(lineText, sep1, sep2);
+  return at.first >= 0 || at.last >= 0;
 }
 
 /**
@@ -1590,6 +1611,7 @@ module.exports = {
   scanLineVisualTokens,
   buildBlockStyleCss,
   tagVisualSizingForZone,
+  lineBelongsToPlugin,
   formatTagwheelDisplayToken,
   TAGWHEEL_FILL_STYLE_CSS,
   BLOCK_FILL_LAYER_CLASS,

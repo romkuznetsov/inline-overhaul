@@ -162,18 +162,28 @@ const EDITOR_INJECTIONS = {
    */
   "plain-tag-no-bubble": {
     file: "src/ui/editor/decorations.js",
-    find: "        const drawsOwnBubble = hasVisualOverride\n"
-      + "          || (entry.kind === \"tag\" && tagVisualSizingForZone(entry.zone, visuals).inBlock);",
+    find: "        const drawsOwnBubble = hasVisualOverride || (entry.kind === \"tag\" && ourLine);",
     replace: "        const drawsOwnBubble = hasVisualOverride;",
   },
   /*
-   * И та же правка, хватившая лишнего: пузырь рисуется тегу **в любой** зоне,
-   * то есть и в тексте человека между разделителями.
+   * И та же правка, хватившая лишнего: пузырь рисуется тегу в **любой** строке,
+   * в том числе в обычной заметке без разделителей. Ровно эту границу заказчик
+   * назвал сам: «обычные заметки без разделителей плагин не трогает вовсе».
    */
-  "plain-tag-everywhere": {
+  "plain-tag-any-line": {
     file: "src/ui/editor/decorations.js",
-    find: "          || (entry.kind === \"tag\" && tagVisualSizingForZone(entry.zone, visuals).inBlock);",
-    replace: "          || entry.kind === \"tag\";",
+    find: "        const drawsOwnBubble = hasVisualOverride || (entry.kind === \"tag\" && ourLine);",
+    replace: "        const drawsOwnBubble = hasVisualOverride || entry.kind === \"tag\";",
+  },
+  /*
+   * Обратная ошибка того же правила: строкой плагина считается только та, где
+   * есть **оба** разделителя. Тогда его собственная строка со скриншотом — с
+   * одним `||` — снова остаётся без пузырей.
+   */
+  "our-line-needs-both": {
+    file: "src/core/editor_visuals_config.js",
+    find: "  return at.first >= 0 || at.last >= 0;",
+    replace: "  return at.first >= 0 && at.last >= 0 && at.first !== at.last;",
   },
   /*
    * Заливка у пузыря без своего цвета потеряна: тег пропадает с глаз. Ровно

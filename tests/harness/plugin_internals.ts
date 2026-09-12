@@ -77,6 +77,7 @@ export interface PluginInternals {
   getTagwheelHeaderColorsFromConfig: (cfg: Any) => Any;
   buildBlockStyleCss: (entry: Any, visuals: Any) => string;
   tagVisualSizingForZone: (zone: string, visuals: Any) => Any;
+  lineBelongsToPlugin: (lineText: string, sep1: string, sep2: string) => boolean;
   TAG_BUBBLE_ACCENT_CLASS: string;
   TAG_BUBBLE_CLICKABLE_CLASS: string;
   computeTagVisualStyle: (textSizePct: number, bubbleWidthPct: number, bubbleHeightPct: number, shapePct: number) => Any;

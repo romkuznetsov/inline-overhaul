@@ -70,6 +70,7 @@ const {
   readTagVisualRowByTokenMaps,
   resolveEffectiveTagVisualMode,
   resolveTagwheelPaintColors,
+  lineBelongsToPlugin,
   scanLineVisualTokens,
   tagVisualSizingForZone,
   tagwheelPanelSpanInLine,
@@ -358,6 +359,8 @@ function buildTagVisualDecorations(view, plugin) {
        * Правило про отрезок объявлено один раз, в `tagwheelPanelSpanInLine`.
        */
       const wheelSpan = tagwheelPanelSpanInLine(text, tagwheelColors);
+      /* Наша ли это строка вообще: спрашивается один раз на строку. */
+      const ourLine = lineBelongsToPlugin(text, sep1, sep2);
       for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers)) {
         const token = hit.token;
         if (wheelSpan && hit.index >= wheelSpan.start && hit.index < wheelSpan.end) continue;
@@ -483,23 +486,23 @@ function buildTagVisualDecorations(view, plugin) {
           || !!normalizeHexColorInput(row.textColor)
           || resolveEffectiveTagVisualMode(row) !== "default");
         /*
-         * **Кому рисуется пузырь.** Своему цвету — везде; тегу в Block —
-         * всегда, даже если цвета у него нет.
+         * **Кому рисуется пузырь.** Своему цвету — везде; тегу — в любой
+         * строке, которой распоряжается плагин, то есть там, где стоит хотя бы
+         * один его разделитель.
          *
-         * Вторая половина — правка 2026-09-12 по его замечанию: «теги, у
-         * которых стоит дефолтный fill и text, не подчиняются настройкам
-         * tag-appearance». Пузырь такому тегу рисовала тема, и наши размеры
-         * до него не доезжали вовсе: они живут в нашем узле. Решение выбрал
-         * заказчик — «пусть его рисует плагин, цвет из темы», с условием, что
-         * щелчок по тегу работает; за это отвечает `openTagSearch`.
+         * Правило дважды уточнял заказчик. Сперва: «теги, у которых стоит
+         * дефолтный fill и text, не подчиняются настройкам tag-appearance» —
+         * пузырь такому тегу рисовала тема, и наши величины до него не
+         * доезжали. Потом, увидев свой текст между разделителями: «все теги
+         * такой строки рисует плагин», и там же граница — «обычные заметки без
+         * разделителей плагин не трогает вовсе».
          *
          * **Ссылке и эмодзи-элементу пузырь по-прежнему не рисуется**:
          * заменить `[[Note]]` своим узлом значит забрать у ссылки клик,
          * наведение и перетаскивание — а вернуть их нечем, поиск тут не
          * замена (И-2.2). Им достаётся прозрачность и размер стилем.
          */
-        const drawsOwnBubble = hasVisualOverride
-          || (entry.kind === "tag" && tagVisualSizingForZone(entry.zone, visuals).inBlock);
+        const drawsOwnBubble = hasVisualOverride || (entry.kind === "tag" && ourLine);
         if (!drawsOwnBubble) {
           if (to <= from) continue;
           const styleDeco = buildBlockStyleDecoration(entry, visuals);
