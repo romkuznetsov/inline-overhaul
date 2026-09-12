@@ -524,9 +524,9 @@ function normalizeConfigV1(raw) {
   {
     const ownCursor = fromFile("navigation.jumpToHeader.jumpCursorPosition");
     const legacyAnchor = fromFile("navigation.jumpToHeader.endAnchorMode");
-    if (!["start", "end", "section-end"].includes(ownCursor) && legacyAnchor === "active-text-end") {
+    if (!["start", "end", "section-start", "section-end"].includes(ownCursor) && legacyAnchor === "active-text-end") {
       cfg.navigation.jumpToHeader.jumpCursorPosition = "section-end";
-    } else if (!["start", "end", "section-end"].includes(cfg.navigation.jumpToHeader.jumpCursorPosition)) {
+    } else if (!["start", "end", "section-start", "section-end"].includes(cfg.navigation.jumpToHeader.jumpCursorPosition)) {
       cfg.navigation.jumpToHeader.jumpCursorPosition = "start";
     }
   }
@@ -935,7 +935,7 @@ function normalizeConfigV2(cfg) {
   list("navigation.moveSelection.cycleOrder");
   oneOf("navigation.jumpToHeader.jumpMode", ["edge", "line"]);
   oneOf("navigation.jumpToHeader.edgeMode", ["start-end", "start", "end"]);
-  oneOf("navigation.jumpToHeader.jumpCursorPosition", ["start", "end", "section-end"]);
+  oneOf("navigation.jumpToHeader.jumpCursorPosition", ["start", "end", "section-start", "section-end"]);
   bool("navigation.jumpToHeader.centerCursor");
   /* Место на экране после перехода по заголовкам (10.13.37): те же три
      положения, что у перемещения строки. */

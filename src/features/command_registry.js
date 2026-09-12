@@ -94,6 +94,22 @@ function normalizeLabelPart(value, dflt) {
   return s || dflt;
 }
 
+/**
+ * Шагу внутри строки нужна строка из соседней группы — `Cursor position after
+ * jumping`.
+ *
+ * Так решил заказчик 2026-09-12: одна строка панели говорит, в начало или в
+ * конец его текста садится курсор, и действует она на оба хода — на прыжок по
+ * заголовкам и на шаг, входящий в текст из зоны значений. Значение здесь только
+ * **передаётся**; что оно значит, решает `textEntryAnchor` в самом движке —
+ * иначе ответ был бы объявлен дважды (У-32).
+ */
+function withTextEntry(nav) {
+  const inline = nav && typeof nav.navigateInline === "object" ? nav.navigateInline : {};
+  const jump = nav && typeof nav.jumpToHeader === "object" ? nav.jumpToHeader : {};
+  return { ...inline, jumpCursorPosition: jump.jumpCursorPosition };
+}
+
 function buildCoreCommandDefs(plugin, featureOrder, featureMeta) {
   /*
    * Команды `Open settings` здесь больше нет: снята 2026-09-06 вместе с
@@ -204,7 +220,7 @@ function buildNavigationCommandDefs(plugin) {
         if (!rt || typeof rt.buildNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
           return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         }
-        rt.navigateInline(ed, "left", rt.buildNavigateRules(fullCfg), nav.navigateInline);
+        rt.navigateInline(ed, "left", rt.buildNavigateRules(fullCfg), withTextEntry(nav));
       },
     },
     {
@@ -215,7 +231,7 @@ function buildNavigationCommandDefs(plugin) {
         if (!rt || typeof rt.buildNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
           return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
         }
-        rt.navigateInline(ed, "right", rt.buildNavigateRules(fullCfg), nav.navigateInline);
+        rt.navigateInline(ed, "right", rt.buildNavigateRules(fullCfg), withTextEntry(nav));
       },
     },
   ];

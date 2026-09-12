@@ -965,6 +965,13 @@ async function jump(text, line, direction, over) {
       return ed.at();
     };
 
+    const jumpDownWith = async (lines, fromLine, cursorMode) => {
+      const ed = fakeEditor(lines.join("\n"), { line: fromLine, ch: 0 });
+      nav.jumpToHeader(ed, "down", { ...JUMP, jumpCursorPosition: cursorMode }, LF);
+      await settle();
+      return ed.at();
+    };
+
     const step = async (line, from, direction, stepMode) => {
       const ed = fakeEditor(line, { line: 0, ch: from });
       nav.navigateInline(ed, direction, RULES,
@@ -989,25 +996,69 @@ async function jump(text, line, direction, over) {
     assertEq(p3.ch, L3.indexOf("||") + 3, "прыжок: пустой слот текста между двумя разделителями");
 
     /*
-     * 4. Шаг вправо из зоны значений уходит **в текст**: сначала на его
-     * начало, потом на конец. Останавливаться внутри зоны значений шаг не
-     * должен — там у человека не текст, а значения Fields.
+     * 3а. `Start of your text` — четвёртое положение той же строки панели,
+     * заказанное 2026-09-12. Прыжок обязан встать в начало текста человека, то
+     * есть сразу за значениями, а не в начало строки и не в её конец.
+     *
+     * Рядом стоит `End of your text` на той же строке: без него утверждение
+     * было бы зелёным и у плагина, который нового положения не знает и
+     * откатывается на начало строки — на этой строке начало текста и начало
+     * строки разные места, но проверку это не спасает, если сравнивать не с
+     * чем.
      */
+    const L3a = "- [ ] " + MARKER + "2026-09-12 09:07 #/1 || мой текст :: #note";
+    const p3aStart = await jumpDownWith(["первая строка", L3a], 0, "section-start");
+    assertEq(p3aStart.ch, L3a.indexOf("мой текст"),
+      "прыжок при `Start of your text`: начало текста человека, сразу за значениями");
+    const p3aEnd = await jumpDownWith(["первая строка", L3a], 0, "section-end");
+    assertEq(p3aEnd.ch, L3a.indexOf(" :: #note"),
+      "контроль: `End of your text` на той же строке ведёт в другое место — в конец текста");
+
+    /*
+     * 4. Шаг вправо из зоны значений уходит **в текст**, и куда именно —
+     * говорит настройка `Cursor position after jumping`.
+     *
+     * Решение заказчика 2026-09-12 (В-107): «два режима будут определять, в
+     * начало или конец моего текста курсор должен попадать», и действует этот
+     * выбор на оба хода — на прыжок и на шаг. До него шаг всегда вставал в
+     * начало, а заказчик в своём примере ждал конец сразу.
+     *
+     * Обе стороны спрашиваются подряд, и вторая — положительный контроль:
+     * утверждение «курсор в конце» было бы зелёным и у плагина, который
+     * настройку не читает вовсе, потому что конец — умолчание.
+     */
+    const stepWith = async (line, from, direction, cursorMode) => {
+      const ed = fakeEditor(line, { line: 0, ch: from });
+      nav.navigateInline(ed, direction, RULES,
+        { stepMode: "sentence", boundaryJump: false, onBoundary: "stay", jumpCursorPosition: cursorMode });
+      await settle();
+      return ed.at().ch;
+    };
+
     const L4 = "- [ ] " + MARKER + "2026-09-11 23:46 #/1 || ывааы";
     const L4_TEXT_START = L4.indexOf("ывааы");
     const from4 = L4.indexOf("#/1") + 3;
-    assertEq(await step(L4, from4, "right"), L4_TEXT_START,
-      "шаг вправо из зоны значений: начало текста человека, а не конец зоны значений");
-    assertEq(await step(L4, L4_TEXT_START, "right"), L4.length,
-      "следующий шаг вправо: конец текста человека");
+    assertEq(await stepWith(L4, from4, "right", "section-end"), L4.length,
+      "при `End of your text` шаг вправо из зоны значений обязан вести в конец текста");
+    assertEq(await stepWith(L4, from4, "right", "section-start"), L4_TEXT_START,
+      "контроль: при `Start of your text` тот же шаг обязан вести в его начало");
 
-    /* 5. То же от начала значения. */
+    /* 5. То же от начала значения, и обе стороны настройки. */
     const L5 = "- [ ] " + MARKER + "2026-09-12 09:02 #/1 || 123";
     const L5_TEXT_START = L5.indexOf("123");
-    assertEq(await step(L5, 6, "right"), L5_TEXT_START,
-      "шаг вправо от значения: начало текста человека");
-    assertEq(await step(L5, L5_TEXT_START, "right"), L5.length,
-      "и следующий — его конец");
+    assertEq(await stepWith(L5, 6, "right", "section-end"), L5.length,
+      "шаг вправо от значения при `End of your text`: конец текста");
+    assertEq(await stepWith(L5, 6, "right", "section-start"), L5_TEXT_START,
+      "контроль: при `Start of your text` — его начало");
+    assertEq(await stepWith(L5, L5_TEXT_START, "right", "section-start"), L5.length,
+      "шаг изнутри зоны настройкой не трогается: следующая остановка — конец текста");
+
+    /*
+     * И ход по словам настройка не отменяет: там остановки — сами слова, и
+     * первое из них и есть место, куда человек шагает.
+     */
+    assertEq(await step(L5, 6, "right", "word"), L5_TEXT_START,
+      "в режиме `Word` шаг вправо по-прежнему встаёт на первое слово текста");
 
     /* 6. Шаг влево у строки без первого разделителя: слот, а не место у знака. */
     const L6 = "-  :: " + MARKER + "2026-09-12 12:05";

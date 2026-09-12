@@ -158,6 +158,12 @@ function pickNavigateInlineCfg(cfg) {
     stepMode: stepMode === "sentence" || stepMode === "begin-end" || stepMode === "word" ? stepMode : "word",
     boundaryJump: typeof c.boundaryJump === "boolean" ? c.boundaryJump : false,
     onBoundary: onBoundary === "stay" || onBoundary === "next-line" || onBoundary === "wrap" ? onBoundary : "wrap",
+    /*
+     * Где курсор оказывается, входя в текст снаружи. Настройка чужой группы —
+     * `Cursor position after jumping`, — и это выбор заказчика: одна строка на
+     * оба хода. Правило её читает одно, `textEntryAnchor`.
+     */
+    textEntry: textEntryAnchor(c),
   };
 }
 
@@ -1051,11 +1057,57 @@ function jumpToAdjacentSection(editor, curH, direction, cfg, yamlEnd, targetKind
   return setCursorRobustCentered(editor, target, cfg);
 }
 
+/**
+ * Куда настройка `Cursor position after jumping` сажает курсор в тексте
+ * человека — в начало или в конец.
+ *
+ * **Одно правило на два хода**, и это решение заказчика 2026-09-12: «два режима
+ * будут определять, в начало или конец моего текста курсор должен попадать», и
+ * на вопрос «где этот выбор действует» он ответил «на оба места, одной
+ * строкой». Ходов действительно два: прыжок по заголовкам ставит курсор сам, а
+ * шаг вправо внутри строки входит в зону текста снаружи — из зоны значений.
+ * Написать ответ дважды значило бы завести два места, которые разойдутся молча
+ * (У-32).
+ *
+ * `Line start` и `Line end` тоже отвечают: строка называет конец, к которому
+ * человек тянется, и зона текста у него та же.
+ */
+function textEntryAnchor(cfg) {
+  /* Значения нет — берётся умолчание схемы (`section-end`), а не умолчание
+     соседней функции: у настройки один дом, и он в панели. */
+  const mode = String((cfg && cfg.jumpCursorPosition) || "section-end");
+  return (mode === "start" || mode === "section-start") ? "start" : "end";
+}
+
 function targetPosForLine(ed, line, cfg) {
   const mode = cfg.jumpCursorPosition || "start";
   if (mode === "end") return { line: line, ch: len(ed, line) };
   if (mode === "section-end") return lineEndPos(ed, line, cfg);
+  if (mode === "section-start") return lineTextStartPos(ed, line, cfg);
   return { line: line, ch: smartLineStartCh(txt(ed, line)) };
+}
+
+/**
+ * «Начало вашего текста» — то же общее правило, что знает и его конец.
+ *
+ * Своего разбора здесь нет нарочно: начало слота под текст знает
+ * `getTextSlotBounds`, и оно же учитывает пустой слот между разделителями. Без
+ * разделителей спрашивать нечего, и тогда остаётся обычное начало строки —
+ * после списочного знака и чекбокса.
+ */
+function lineTextStartPos(ed, line, cfg) {
+  const s = txt(ed, line);
+  const sep1 = typeof (cfg && cfg.separator1) === "string" && cfg.separator1 ? cfg.separator1 : "";
+  if (sep1) {
+    const sep2 = typeof (cfg && cfg.separator2) === "string" && cfg.separator2 ? cfg.separator2 : sep1;
+    const markers = Array.isArray(cfg && cfg.markers) ? cfg.markers.filter((m) => typeof m === "string" && m) : [];
+    const bounds = __macroShared.getTextSlotBounds(s, {
+      io: { separator1: sep1, separator2: sep2 },
+      dates: { markers },
+    });
+    if (bounds && Number.isFinite(bounds.start)) return { line: line, ch: bounds.start };
+  }
+  return { line: line, ch: smartLineStartCh(s) };
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
@@ -1704,6 +1756,33 @@ function navigateInline(editor, direction, navRules, rawCfg) {
       if (nextAbs === null) target = getBoundaryFallback("right");
       else target = { line: lineNo, ch: nextAbs };
     }
+  }
+  /*
+   * Шаг, входящий в зону текста снаружи, слушается настройки.
+   *
+   * Замечание заказчика `S4` 2026-09-12: стоя среди значений, он нажал шаг
+   * вправо и ждал, что курсор окажется **в конце** его текста, а тот вставал в
+   * начало — вторым нажатием доходил до конца. Правило режима `sentence` тут ни
+   * при чём: остановки у него начало и конец зоны, а человек начинал шаг вне
+   * зоны, и ближайшей остановкой оказывалось её начало.
+   *
+   * Теперь у этого случая есть ответ, и даёт его та самая строка панели,
+   * которой человек уже сказал, где он любит курсор (В-107, решение заказчика
+   * 2026-09-12). Условие узкое: курсор **снаружи** зоны, и шаг привёл ровно на
+   * её край. Шаг внутри зоны и остановки по словам не трогаются.
+   */
+  /*
+   * **Почему только `sentence`.** В режиме `word` остановки — сами слова, и
+   * первое из них и есть то место, куда человек шагает: увести его сразу в
+   * конец значило бы отменить ход по словам. В `begin-end` конец называет само
+   * направление шага. Остаётся `sentence`, где остановками служат ровно края
+   * зоны, — и замечание пришло именно оттуда: у заказчика выбран он.
+   */
+  if (cfg.stepMode === "sentence" && target && target.line === lineNo && zoneEnd > zoneStart) {
+    const wants = cfg.textEntry === "start" ? zoneStart : zoneEnd;
+    const enteringRight = direction === "right" && posAbs < zoneStart && target.ch === zoneStart;
+    const enteringLeft = direction === "left" && posAbs > zoneEnd && target.ch === zoneEnd;
+    if (enteringRight || enteringLeft) target = { line: lineNo, ch: wants };
   }
   if (!target) return;
   window.setTimeout(() => editor.setCursor(target), 0);
