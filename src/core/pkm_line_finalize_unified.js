@@ -1840,6 +1840,32 @@ function resolveOffPrefixFlagsUnified(options) {
   return { preserveCheckboxPrefix: true, forceBulletPrefix: false, preserveOffImmutability: true };
 }
 
+/**
+ * Вернуть пустой слот текста, если склейка префикса его схлопнула.
+ *
+ * **Слот — это структура, а хранится он пробелами**, и знает о нём единственный
+ * сборщик строки: между разделителями остаётся два пробела, чтобы человек
+ * видел, куда встанет слово (10.13.34). Склейка «префикс + пробел + тело» этого
+ * правила не знает и знать не должна — она работает со строкой, а не с зонами.
+ *
+ * Отсюда и дефект, который заказчик принёс 2026-09-12: строку `-  :: 👤111`
+ * собирали верно, потом снимали синтетический знак списка вместе с **всеми**
+ * пробелами за ним, а в конце приклеивали его обратно одним пробелом — и
+ * получалось `- :: 👤111`. Слот исчезал, и следующий разбор читал строку иначе.
+ *
+ * Поэтому строка, у которой слот текста пуст, а правый Block не пуст,
+ * пересобирается **тем же сборщиком**. Ни одна другая строка не трогается: у
+ * неё либо есть текст, либо нечему стоять справа.
+ */
+function restoreEmptyTextSlot(line, rules) {
+  const io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
+  if (!io) return line;
+  const seg = __linePipeline.splitSegments(line, rules);
+  if (!String(seg && seg.dates ? seg.dates : "").trim()) return line;
+  if (String(seg && seg.text ? seg.text : "").trim()) return line;
+  return __linePipeline.buildFromSegments(seg, rules);
+}
+
 function enforceOffModeFinalPrefixUnified(options) {
   const opts = options && typeof options === "object" ? options : {};
   const mode = String(opts.mode || "off").trim().toLowerCase();
@@ -1860,7 +1886,7 @@ function enforceOffModeFinalPrefixUnified(options) {
     if (!prefix) return line;
     const indent = (line.match(/^(\s*)/) || ["", ""])[1];
     const body = line.trimStart();
-    return `${indent}${prefix}${body ? " " + body : ""}`;
+    return restoreEmptyTextSlot(`${indent}${prefix}${body ? " " + body : ""}`, opts.rules);
   }
   if (flags.preserveOffImmutability && !hasListPrefix(rawLine)) {
     return removeSyntheticLeadingPrefix(line);
@@ -1871,7 +1897,7 @@ function enforceOffModeFinalPrefixUnified(options) {
   if (!fallbackPrefix) return line;
   const indent = (line.match(/^(\s*)/) || ["", ""])[1];
   const body = line.trimStart();
-  return `${indent}${fallbackPrefix}${body ? " " + body : ""}`;
+  return restoreEmptyTextSlot(`${indent}${fallbackPrefix}${body ? " " + body : ""}`, opts.rules);
 }
 
 module.exports = {

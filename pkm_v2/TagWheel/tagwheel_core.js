@@ -1193,16 +1193,11 @@ function isFieldEnabled(mode, state, field, rules) {
     var cfg = getDateRuntimeCfg(rules, field)
     if (cfg.activeMode === 'no' || cfg.activeMode === 'hotkey_only') return false
   }
-  if (!field.dependsOn) return true
-  var parentValue = state.selected[field.dependsOn] || ''
-  if (!parentValue) return false
-  if (Array.isArray(field.enabledForParentValues) && field.enabledForParentValues.length) {
-    if (field.enabledForParentValues.indexOf(parentValue) === -1) return false
-  }
-  if (Array.isArray(field.disabledForParentValues) && field.disabledForParentValues.length) {
-    if (field.disabledForParentValues.indexOf(parentValue) !== -1) return false
-  }
-  return true
+  /* Предусловие объявлено один раз — в `pkm_rules_runtime_helpers.js`, — и
+     его же спрашивают команды поля. Здесь стояла копия, и командам она была
+     недоступна: на пустой строке панель поле прятала, а команда писала
+     значение (обход строки 2026-09-12). */
+  return __rulesRuntimeHelpers.isFieldPrerequisiteMet(field, state && state.selected)
 }
 
 function projectMatches(item, state) {

@@ -51,6 +51,37 @@ function isSourceDrivenField(fieldOrSource) {
   return kind === "projects" || kind === "wikilinks";
 }
 
+/**
+ * Выполнено ли предусловие Field — **одно объявление на все три дороги**.
+ *
+ * Правило записано в PRD 10.13.4, Н21, и слово там сказано прямо: «Field с
+ * предусловием не показывается ни в TagWheel, **ни в своих командах**, ни в
+ * строке, пока у Field-предусловия нет значения». Панель его спрашивала —
+ * внутри `isFieldEnabled` в `tagwheel_core.js`, — а команды поля не
+ * спрашивали вовсе: на пустой строке `Project next` писал значение, хотя
+ * панель этого Field в том же месте не показывает (обход строки 2026-09-12).
+ *
+ * `selected` — то, что уже стоит на строке: у панели это её сессия, у команд —
+ * их состояние, собранное разбором строки. Больше предусловию ничего не нужно,
+ * поэтому и объявление одно, а спрашивать его может кто угодно.
+ *
+ * Отвечает `true`, когда предусловия нет вовсе: Field без `dependsOn` работает
+ * всегда.
+ */
+function isFieldPrerequisiteMet(field, selected) {
+  if (!field || typeof field !== "object") return true;
+  const parentKey = String(field.dependsOn || "").trim();
+  if (!parentKey) return true;
+  const bag = selected && typeof selected === "object" ? selected : {};
+  const parentValue = String(bag[parentKey] || "").trim();
+  if (!parentValue) return false;
+  const only = Array.isArray(field.enabledForParentValues) ? field.enabledForParentValues : null;
+  if (only && only.length && only.indexOf(parentValue) === -1) return false;
+  const never = Array.isArray(field.disabledForParentValues) ? field.disabledForParentValues : null;
+  if (never && never.length && never.indexOf(parentValue) !== -1) return false;
+  return true;
+}
+
 function buildPathCandidates(pathLike) {
   const src = String(pathLike || "").trim();
   const out = [];
@@ -1437,4 +1468,5 @@ module.exports = {
   isProjectsSourceField,
   isWikilinkSourceField,
   isSourceDrivenField,
+  isFieldPrerequisiteMet,
 };

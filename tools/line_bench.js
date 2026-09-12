@@ -175,6 +175,43 @@ async function runCommandById(cfg, id, line, ch) {
  * здесь же и печатается всегда: пока она не открылась, движок возвращает строку
  * нетронутой, и вывод стенда читался бы как «ничего не сломано» (У-152).
  */
+/**
+ * Какие поля панель показывает в этом Block и в каком порядке она по ним ходит.
+ *
+ * Нужна тому, кто обходит все Fields разом: **порядок панели — это не порядок
+ * Order**, и «дойти до нужного поля N нажатиями вправо» есть догадка. Здесь
+ * спрашивается сама сессия: после каждого нажатия читается `activeFieldId`.
+ */
+async function fieldWalk(cfg, side, line, ch, steps) {
+  const def = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
+  const editor = makeEditor(line, ch);
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  global.window = makeWindowMock();
+  global.Notice = function Notice() {};
+  const settings = Object.assign(paneSettings(cfg), def.makeSettings(cfg));
+  const seen = [];
+  try {
+    await runtime.runCommand({ app: makeApp(editor), command: "tagWheel", settings });
+    const st = global.window.__tagWheelState;
+    if (!st || st.active !== true || !st.session) return [];
+    const idNow = () => String(st.session.activeFieldId || st.session.activeField || "");
+    seen.push(idNow());
+    for (let i = 0; i < Math.max(0, Number(steps || 0)); i++) {
+      global.window.fire("keydown", {
+        key: "ArrowRight", code: "ArrowRight",
+        preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+      });
+      seen.push(idNow());
+    }
+    if (typeof st.cancel === "function") st.cancel();
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  return seen;
+}
+
 async function runTagWheel(cfg, side, line, ch, keys) {
   const def = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
   const editor = makeEditor(line, ch);
@@ -225,6 +262,12 @@ async function main() {
     report("команда " + id, await runCommandById(cfg, id, line || "", ch || 0));
     return;
   }
+  if (mode === "walk") {
+    const [side, line, steps] = rest;
+    console.log("порядок панели (" + (side || "left") + "): "
+      + JSON.stringify(await fieldWalk(cfg, side, line || "", 0, steps || 8)));
+    return;
+  }
   if (mode === "panel") {
     const [side, line, ...keys] = rest;
     report("панель " + (side || "left") + ", клавиши " + JSON.stringify(keys),
@@ -234,7 +277,13 @@ async function main() {
   throw new Error("режимы: list | cmd <id> <строка> [курсор] | panel <left|right> <строка> [клавиши…]");
 }
 
-main().catch((e) => {
-  console.error(e && e.stack ? e.stack : e);
-  process.exit(1);
-});
+/* Стенд — и команда, и модуль: обход всех Fields разом собирается поверх него
+   (`tools/line_matrix.js`), и своей копии дороги настроек у обхода нет. */
+module.exports = { loadCfg, defsFor, findDef, runCommandById, runTagWheel, fieldWalk, makeEditor, DATA, VAULT };
+
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(e && e.stack ? e.stack : e);
+    process.exit(1);
+  });
+}

@@ -390,6 +390,21 @@ function splitSegments(rawLine, rules) {
       if (looksLikeLeftTokens(head, shape)) {
         return { indent: indent, left: head, text: "", dates: tail };
       }
+      /*
+       * **Перед вторым разделителем нет ничего.** Так выглядит строка, у
+       * которой заполнен только правый Block, а знак списка ещё не поставлен:
+       * `:: 👤111`. Прежде эта ветка кончалась ничем, и разбор ниже объявлял
+       * левым сегментом **всю строку вместе с разделителем**. Сборка добавляла
+       * к такому «левому» ещё один разделитель, и каждый круг «разобрать —
+       * собрать» дописывал по одному: заказчик получал
+       * `- :: :: :: :: :: 👤111` (замечание 2026-09-12).
+       *
+       * Пустой левый сегмент здесь законен: знак списка подставит сборка, как
+       * подставляет его всем таким строкам.
+       */
+      if (!head) {
+        return { indent: indent, left: "", text: "", dates: tail };
+      }
       const parts = splitLeftPrefix(head);
       if (parts.prefix) {
         return { indent: indent, left: parts.prefix, text: parts.body, dates: tail };

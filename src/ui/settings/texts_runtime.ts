@@ -106,6 +106,9 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "path-fallback": "Using the rules file at {0}",
     "config-error": "Rules are not valid after applying the order: {0}",
     "emoji-required": "These Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
+    /* Field ждёт своего предусловия (10.13.4, Н21). Отказ громкий: команду
+       позвал человек, и молчание он прочтёт как поломку. */
+    "prerequisite-unmet": "{0} waits for {1}: set it on this line first",
   },
 };
 

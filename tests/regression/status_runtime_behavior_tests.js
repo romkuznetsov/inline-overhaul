@@ -1502,6 +1502,150 @@ async function testTagWheelKeepsElementInLeftBlockByOrder() {
     "значение элемента не осталось в левом Block: " + JSON.stringify(line));
 }
 
+/*
+ * **Строка, собранная плагином, обязана быть неподвижной**: разобрать её и
+ * собрать заново обязано дать её же.
+ *
+ * Замечание заказчика 2026-09-12: «в пустой строке активировал Random, получил
+ * `:: :: :: :: :: 🤣ZdK1x-` — это что вообще за артефакты? Полностью
+ * проанализируй поведение строки». Артефакт был ровно этим: строка `-  :: 👤111`
+ * собиралась верно, а разбор читал её иначе — для строки, у которой заполнен
+ * только правый Block, ветки не было вовсе, и весь текст вместе с разделителем
+ * уезжал в левый сегмент. Доводки строки устроены как «разобрать — поправить —
+ * собрать» и зовутся по нескольку раз подряд: каждый круг дописывал по
+ * разделителю.
+ *
+ * Проверка спрашивает **свойство**, а не случай: у каждой строки из списка
+ * разбор и сборка обязаны сойтись. Список закрывает все три зоны — только
+ * правый Block, только левый, обе с текстом.
+ *
+ * Мутация: снять в `splitSegments` ветку «перед вторым разделителем ничего
+ * нет» — и проверка краснеет на первых двух строках.
+ */
+function testBuiltLineSurvivesParseAndBuild() {
+  const linePipeline = require(path.join(__dirname, "..", "..", "src", "core", "line_pipeline.js"));
+  const rules = {
+    io: { separator1: "||", separator2: "::" },
+    dates: { markers: ["📅", "👤"] },
+    leftMode: { fields: [] },
+    rightMode: { fields: [] },
+  };
+  const lines = [
+    "-  :: 👤111",
+    "-  :: 📅2026-01-02 03:04",
+    "- #work || ",
+    "- #work || текст",
+    "- #work || текст :: 📅2026-01-02 03:04",
+    "- текст :: 👤111",
+  ];
+  const moved = [];
+  for (const line of lines) {
+    const seg = linePipeline.splitSegments(line, rules);
+    const again = linePipeline.buildFromSegments(seg, rules);
+    if (again !== line) moved.push(JSON.stringify(line) + " -> " + JSON.stringify(again));
+  }
+  assertTrue(moved.length === 0,
+    "строка, собранная плагином, разбором и сборкой меняется — каждый круг доводки будет её растить:\n  "
+    + moved.join("\n  "));
+}
+
+/*
+ * Пустая строка и значение **правого** Block: обе дороги дают одну строку, и в
+ * ней остаётся пустой слот текста — два пробела.
+ *
+ * Его случай: `- :: :: :: :: :: 🤣…` панелью и `- :: 🤣…` командой, при том что
+ * ждал он `-  :: 🤣…`. Два пробела здесь не косметика: слот — это место, куда
+ * встанет слово, и по нему же строку читает разбор.
+ *
+ * Мутация: снять вызов `restoreEmptyTextSlot` в доводке префикса — и проверка
+ * краснеет на одном пробеле.
+ */
+async function testRightBlockOnEmptyLineKeepsTextSlotOnBothPaths() {
+  const withBullet = { freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: true, fullPlacement: "smart" } };
+  /* Элемент переезжает в правый Block: там и живёт его случай. */
+  const rightElement = Object.assign({
+    left: ["Category", "Importance", "type"],
+    right: ["date_due", "Project"],
+    panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
+  }, withBullet);
+
+  const byCmd = makeEditor("", 0);
+  await runPkmCommandWithEditor("statusDate", byCmd, {
+    "Rules path": "owner_shape_rules.md",
+    "Action type": "field_inc:date_due",
+    "Order config": ownerShapeOrder(rightElement),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const cmdLine = byCmd.snapshot().line;
+
+  const byPanel = makeEditor("", 0);
+  await runTagWheelKeys(byPanel, {
+    "Rules path": "owner_shape_rules.md",
+    "Order config": ownerShapeOrder(rightElement),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+    "Start setting": "right",
+    "Start mode override": "right",
+  }, ["ArrowUp"]);
+  const panelLine = byPanel.snapshot().line;
+
+  assertTrue(panelLine.indexOf("📅") !== -1,
+    "контроль: панель не поставила значение элемента, и сверять не с чем: " + JSON.stringify(panelLine));
+  assertTrue((cmdLine.match(/::/g) || []).length === 1,
+    "команда поставила не один разделитель: " + JSON.stringify(cmdLine));
+  assertTrue((panelLine.match(/::/g) || []).length === 1,
+    "панель поставила не один разделитель — строка растёт от круга к кругу: " + JSON.stringify(panelLine));
+  assertTrue(/^-\s\s::\s/.test(cmdLine),
+    "команда схлопнула пустой слот текста: " + JSON.stringify(cmdLine));
+  assertTrue(/^-\s\s::\s/.test(panelLine),
+    "панель схлопнула пустой слот текста: " + JSON.stringify(panelLine));
+}
+
+/*
+ * **Предусловие Field спрашивает и команда, а не только панель.**
+ *
+ * Правило записано в PRD 10.13.4, Н21, слово в слово: Field с предусловием не
+ * показывается «ни в TagWheel, ни в своих командах», пока у Field-предусловия
+ * нет значения. Панель его спрашивала — и только она: обход строки 2026-09-12
+ * показал, что на пустой строке команда пишет значение поля, которого панель в
+ * том же месте не показывает вовсе. Правило было объявлено в документе и на
+ * живом пути команд не спрошено ни разу (У-141).
+ *
+ * Контроль стоит второй половиной проверки: как только значение предусловия
+ * появляется на строке, та же команда обязана сработать. Без него утверждение
+ * «строка не изменилась» было бы зелёным и у команды, сломанной насовсем.
+ *
+ * Мутация: снять вызов `isFieldPrerequisiteMet` в `status_tags.js` — и
+ * проверка краснеет на первой половине.
+ */
+async function testFieldCommandAsksPrerequisiteLikePanelDoes() {
+  const settings = () => ({
+    "Rules path": "owner_shape_rules.md",
+    "Action type": "cycle_field:Project",
+    "Direction": "increase",
+    "Order config": ownerShapeOrder(),
+    "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+
+  const withoutParent = makeEditor("", 0);
+  await runPkmCommandWithEditor("statusTags", withoutParent, settings());
+  assertEq(withoutParent.snapshot().line, "",
+    "команда Field с предусловием сработала, хотя у Field-предусловия значения нет:"
+    + " панель этого Field в том же месте не показывает вовсе (Н21)");
+
+  const withParent = makeEditor("- #work || ", 2);
+  await runPkmCommandWithEditor("statusTags", withParent, settings());
+  const done = withParent.snapshot().line;
+  assertTrue(done.indexOf("alpha") !== -1,
+    "контроль: со значением предусловия на строке команда тоже ничего не поставила — значит верхнее утверждение зелено\n"
+    + "  оттого, что команда сломана насовсем: " + JSON.stringify(done));
+}
+
 async function testStatusDateAsksBulletSettingLikeTagStepDoes() {
   const withBullet = { freeRoamBehavior: { minimalSeparator: true, minimalPrefix: true, offPrefix: true, fullPlacement: "smart" } };
 
@@ -2560,6 +2704,9 @@ async function run() {
   await testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement();
   await testTagWheelFirstFieldBeatsRulesDefaultFieldId();
   await testStatusDateKeepsManagedTagsInLeftBlock();
+  testBuiltLineSurvivesParseAndBuild();
+  await testFieldCommandAsksPrerequisiteLikePanelDoes();
+  await testRightBlockOnEmptyLineKeepsTextSlotOnBothPaths();
   await testStatusDateAsksBulletSettingLikeTagStepDoes();
   await testBulletSettingAnswersTheSameForPanelAndCommand();
   await testElementNowSpeaksTheHumanClockOnBothPaths();

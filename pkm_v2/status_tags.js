@@ -546,6 +546,10 @@ function enforceOffModeFinalPrefix(line, rawLine, freeRoamMode, rules, state, fi
     resolvedPrefix,
     cycleEndBehavior,
     preserveSyntheticPrefix,
+    /* Правила нужны последнему шагу: он возвращает пустой слот текста, а знает
+       о слоте единственный сборщик строки. Без них шаг по тегу отдавал
+       `- :: [[test1]]` там, где шаг по элементу отдаёт `-  :: [[test1]]`. */
+    rules,
   });
 }
 
@@ -1360,6 +1364,30 @@ module.exports = {
     state.mode = "left";
     core.hydrateStateFromParsedLine(rules, state, parsedWork);
     core.sanitizeState(rules, state);
+
+    /*
+     * **Предусловие Field спрашивают все три дороги.** Правило записано в PRD
+     * 10.13.4, Н21, и слово там сказано прямо: Field с предусловием не
+     * показывается «ни в TagWheel, ни в своих командах». Панель его
+     * спрашивала, команды — нет: на пустой строке `Project next` писал
+     * значение, хотя панель в том же месте этого Field не показывает вовсе
+     * (обход строки 2026-09-12). Объявление одно —
+     * `isFieldPrerequisiteMet` в `pkm_rules_runtime_helpers.js`.
+     *
+     * Отказ громкий: человек сам позвал команду, и молчание он прочтёт как
+     * поломку (правило отказов, PRD 15.2).
+     */
+    if (resolvedActionFieldId && typeof rulesHelpers.isFieldPrerequisiteMet === "function") {
+      const actionFieldAny = getField(rules.leftMode, resolvedActionFieldId)
+        || getField(rules.rightMode, resolvedActionFieldId);
+      if (actionFieldAny && !rulesHelpers.isFieldPrerequisiteMet(actionFieldAny, state.selected)) {
+        notice(noticeKey("prerequisite-unmet"),
+          "{0} waits for {1}: set it on this line first",
+          String(actionFieldAny.placeholder || actionFieldAny.id || ""),
+          String(actionFieldAny.dependsOn || ""));
+        return;
+      }
+    }
     if (
       !lineFinalize
       || typeof lineFinalize.resolveEffectiveSelectionPolicy !== "function"
