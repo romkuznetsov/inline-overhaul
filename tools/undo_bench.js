@@ -209,38 +209,130 @@ async function runSteps(cfg, steps, word, withPlugin) {
   return { seen, undone };
 }
 
+/**
+ * Правила, которые прочтёт панель, с подменённым режимом противоположного
+ * Block. Настоящий `generated_rules.md` при этом не трогается: сборка кладётся
+ * во временный файл рядом с ним, и он же убирается за собой.
+ *
+ * Нужно это затем, что **режим решает, что панель удаляет из документа**, а
+ * удаление и есть причина схлопывания чужих ступеней (У-160). Мерить формы
+ * записи, не умея переключить режим, значит мерить одну из них.
+ */
+const PROBE_RULES_PATH = ".obsidian/plugins/inline-overhaul/_undo_bench_rules.md";
+
+function withOppositeMode(cfg, mode) {
+  const next = JSON.parse(JSON.stringify(cfg));
+  shared.writeCfgPath(next, "visual.tagWheel.oppositeBlock", String(mode || "hide"));
+  const builder = require(path.join(ROOT, "src", "features", "rules_markdown_builder.js"))
+    .createRulesMarkdownBuilder({});
+  const abs = path.join(bench.VAULT, PROBE_RULES_PATH);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, builder.buildTagWheelRulesMarkdownFromConfig(next), "utf8");
+  shared.writeCfgPath(next, "advanced.generatedRulesPath", PROBE_RULES_PATH);
+  return { cfg: next, cleanup() { try { fs.unlinkSync(abs); } catch (_) { /* файла может уже не быть */ } } };
+}
+
+/**
+ * Два случая, и второй важнее первого.
+ *
+ * Первый — тот, что принёс заказчик: значения стоят **только** в
+ * противоположном Block. Второй — те же шаги, но значение есть и в том Block,
+ * на котором панель открывается.
+ *
+ * Разница между ними и есть мера годности формы записи: форма, которая
+ * перестаёт удалять **чужой** Block, первый случай чинит, а второй нет — полосу
+ * она по-прежнему ставит на место своих значений. Стенд, знавший один случай,
+ * объявил бы такую форму починкой (У-137).
+ */
+const SCENARIOS = [
+  { id: "right-only", about: "значения только в противоположном Block",
+    steps: ["test3-next", "random-next", "panel-left"] },
+  { id: "both-blocks", about: "значения есть и в том Block, где открылась панель",
+    steps: ["category-next", "test3-next", "random-next", "panel-left"] },
+];
+
+const MODES = ["hide", "keep"];
+
+async function measure(cfg, steps, word) {
+  const r = await runSteps(cfg, steps, word, true);
+  const past = new Set(r.seen);
+  let bad = 0;
+  const rows = r.undone.map((d, i) => {
+    const known = past.has(d);
+    if (!known) bad++;
+    return "    " + (i + 1) + " " + (known ? "ok       " : "НЕ БЫЛО  ") + JSON.stringify(d);
+  });
+  return { bad, rows, seen: r.seen };
+}
+
 async function main() {
   const cfg = bench.loadCfg();
-  const steps = process.argv.slice(2);
-  const plan = steps.length ? steps : ["test3-next", "random-next", "panel-left"];
   const word = "1231";
+  const custom = process.argv.slice(2);
 
-  const withPlugin = await runSteps(cfg, plan, word, true);
-
-  console.log("шаги: " + plan.join(" → "));
-  console.log("что было на строке:");
-  withPlugin.seen.forEach((d, i) => console.log("  " + i + " " + JSON.stringify(d)));
+  if (custom.length) {
+    const r = await measure(cfg, custom, word);
+    console.log("шаги: " + custom.join(" → "));
+    console.log("что было на строке:");
+    r.seen.forEach((d, i) => console.log("  " + i + " " + JSON.stringify(d)));
+    console.log("Ctrl+Z:");
+    r.rows.forEach((l) => console.log(l.slice(2)));
+    console.log("");
+    console.log("состояний, которых на строке никогда не было: " + r.bad);
+    if (r.bad) process.exitCode = 1;
+    return;
+  }
 
   /*
    * Мера: каждое состояние после Ctrl+Z обязано быть тем, которое на строке
    * когда-то стояло. Состояние, которого не было, и есть дефект — «плагин
    * вернул то, чего человек не набирал».
    */
-  const past = new Set(withPlugin.seen);
-  let bad = 0;
-  console.log("Ctrl+Z:");
-  withPlugin.undone.forEach((d, i) => {
-    const known = past.has(d);
-    if (!known) bad++;
-    console.log("  " + (i + 1) + " " + (known ? "ok       " : "НЕ БЫЛО  ") + JSON.stringify(d));
-  });
+  const table = [];
+  for (const s of SCENARIOS) {
+    console.log("");
+    console.log(s.id + " — " + s.about);
+    console.log("  шаги: " + s.steps.join(" → "));
+    for (const mode of MODES) {
+      const probe = withOppositeMode(cfg, mode);
+      try {
+        const r = await measure(probe.cfg, s.steps, word);
+        table.push({ scenario: s.id, mode, bad: r.bad });
+        console.log("  режим `" + mode + "`: состояний, которых не было — " + r.bad);
+        console.log("    строка перед панелью: " + JSON.stringify(r.seen[r.seen.length - 2]));
+        r.rows.forEach((l) => console.log(l));
+      } finally {
+        probe.cleanup();
+      }
+    }
+  }
 
   console.log("");
-  console.log("состояний, которых на строке никогда не было: " + bad);
-  if (bad) process.exitCode = 1;
+  console.log("итог:");
+  for (const row of table) {
+    console.log("  " + (row.scenario + "/" + row.mode + "        ").slice(0, 20)
+      + " " + row.bad);
+  }
+
+  /*
+   * Положительный контроль: если бы дефекта не было ни в одном случае, стенд
+   * измерял бы не то. Прежний режим на обоих случаях обязан быть красным —
+   * иначе шаги перестали воспроизводить замечание, и молчать об этом нельзя.
+   */
+  const hideBad = table.filter((r) => r.mode === "hide" && r.bad > 0).length;
+  if (hideBad !== SCENARIOS.length) {
+    console.log("");
+    console.log("ВНИМАНИЕ: прежний режим дал чистую историю в " +
+      (SCENARIOS.length - hideBad) + " случае(ях) — шаги перестали воспроизводить замечание");
+    process.exitCode = 2;
+    return;
+  }
+
+  const worst = table.reduce((a, r) => Math.max(a, r.bad), 0);
+  if (worst) process.exitCode = 1;
 }
 
-module.exports = { makeCmEditor, runSteps, paneSettings };
+module.exports = { makeCmEditor, runSteps, paneSettings, withOppositeMode, SCENARIOS };
 
 if (require.main === module) {
   main().catch((e) => {
