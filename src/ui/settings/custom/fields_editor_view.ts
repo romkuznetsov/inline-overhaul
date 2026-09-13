@@ -1786,10 +1786,17 @@ export function renderFieldsEditor(host: El, o: FieldsViewOpts): () => void {
   el(listHead, "span", undefined, "Fields");
 
   const detailHead = el(wrap, "div", "io-fields__colhead io-fields__colhead--detail");
-  /* У Field типа `element` значений нет: у него один маркер и один формат.
-     Колонка названа так же, как чип типа, — одним словом. */
-  const detailName = row && row.kind === "element" ? say(TYPE_NAME.element) : "Values";
-  el(detailHead, "span", undefined, detailName);
+  /*
+   * **Шапка правой колонки одна на все типы Field — `Values`** (его слово
+   * 2026-09-13, `Скриншоты`: «при field=emoji в шапке стоит emoji — сделай,
+   * чтобы у всех был хедер Values»).
+   *
+   * Прежде у Field типа `element` она звалась именем типа: у него и правда нет
+   * списка значений, только знак и формат. Но шапка называет **колонку**, а не
+   * содержимое: колонка одна и та же, и от смены Field в списке её имя прыгало.
+   * Тип Field при этом никуда не делся — он стоит чипом рядом с именем.
+   */
+  el(detailHead, "span", undefined, "Values");
 
   closers.push(tipBelow({
     head: listHead,

@@ -4603,7 +4603,11 @@ function renderFieldEditor(host) {
   const listHead = el("div", "io-fields__colhead", wrap);
   el("span", null, listHead, "Fields");
   const detailHead = el("div", "io-fields__colhead io-fields__colhead--detail", wrap);
-  el("span", null, detailHead, f.type === "element" ? TYPE_LABEL.element : "Values");
+  /* Шапка правой колонки одна на все типы Field — его слово 2026-09-13:
+     «при field=emoji в шапке стоит emoji — сделай, чтобы у всех был хедер
+     Values». Шапка называет колонку, а не содержимое, и от смены Field в
+     списке её имя прыгать не должно; тип Field стоит чипом рядом с именем. */
+  el("span", null, detailHead, "Values");
 
   attachTip(listHead, "The two halves are the Blocks of a line: everything in <b>Left Block</b> is written before your text, everything in <b>Right Block</b> after it. Drag a Field across the line to change which Block it is written in, or step it with the arrows on the right — at the edge of a Block they cross the line too",
     "the Fields list", null, detailHead);
