@@ -1104,6 +1104,12 @@ function blockFillBandHeightPx(look, rowHeightPx, textHeightPx, bubbleHeightPx) 
  * или больше — можно: ряд бывает выше умолчания (У-133), и тогда верен счёт, а
  * не деление.
  *
+ * **Рядов считается по нижней границе, а не по округлению.** Ряд бывает выше
+ * умолчания в полтора раза и больше: на верху шкал пузыря строка из двух рядов
+ * выходит в 2.56 умолчания, и округление объявляло её трёхрядной — то есть
+ * верный счёт признавался негодным. Нижняя граница отвечает «сколько рядов там
+ * точно есть», а это и спрашивается.
+ *
  * Мер нет (платформа промолчала) — верим счёту: прежнее поведение.
  */
 function blockFillRowCountTrusted(counted, blockHeight, lineHeight) {
@@ -1113,7 +1119,7 @@ function blockFillRowCountTrusted(counted, blockHeight, lineHeight) {
   if (!(rows > 0)) return false;
   if (!Number.isFinite(height) || height <= 0) return true;
   if (!Number.isFinite(lineH) || lineH <= 0) return true;
-  return rows >= Math.round(height / lineH);
+  return rows >= Math.floor(height / lineH);
 }
 
 function blockFillBubbleHeightPx(visuals) {
