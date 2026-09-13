@@ -373,11 +373,35 @@ async function main() {
       }
       return null;
     };
-    const runaway = wrapped.probe.bands.filter((b) => {
-      if (!(b.right > wrapped.contentRight - 0.5)) return false;
+    /*
+     * **Два разных ответа, и раньше они были одним** (У-173, правка
+     * 2026-09-13). «Подложка убежала» и «зрительная строка под подложкой не
+     * нашлась» — это находка и невозможность померить, а `visualRowAt`
+     * отдавал `null` в обоих случаях, и `null` засчитывался нарушением.
+     * Разойтись им есть на чём: строку он ищет попаданием середины подложки в
+     * её вертикаль с допуском в полточки, а вертикаль считает машина. То есть
+     * на чужом железе проверка могла назвать дефектом собственную слепоту — и
+     * ровно это она сделала бы в CI, где до сих пор непонятно, что упало
+     * (строка `Т5`).
+     *
+     * Теперь у каждого ответа своё сообщение. Оба роняют гейт: неизмеримое —
+     * это не «сошлось».
+     */
+    const atEdge = wrapped.probe.bands.filter((b) => b.right > wrapped.contentRight - 0.5);
+    const unmeasured = atEdge.filter((b) => !visualRowAt(wrapped.probe, b));
+    const runaway = atEdge.filter((b) => {
       const vr = visualRowAt(wrapped.probe, b);
-      return !(vr && vr.right > wrapped.contentRight - 0.5);
+      return vr && !(vr.right > wrapped.contentRight - 0.5);
     });
+    if (unmeasured.length) {
+      bad("под подложкой не нашлось зрительной строки " + unmeasured.length
+        + " раз(а): померить, дошло ли до края написанное, нечем — вертикали"
+        + " строк и подложек разошлись."
+        + " Подложки " + unmeasured.slice(0, 4).map((b) => "[" + b.left + "…" + b.right
+          + " по вертикали " + b.top + "…" + b.bottom + "]").join(" ")
+        + "; вертикали строк " + wrapped.probe.rows.map((r) => (r.visualRows || [])
+          .map((v) => v.top + "…" + v.bottom).join(",")).join(" | "));
+    }
     if (runaway.length) {
       /*
        * Числа при падении — не украшение. Прошлый прогон в CI сказал только
