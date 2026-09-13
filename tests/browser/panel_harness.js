@@ -76,8 +76,8 @@ const PANEL_INJECTIONS = {
    */
   "panel-draws-nothing": {
     file: "pkm_v2/TagWheel/tagwheel.js",
-    find: "function setLineOutsideHistory(editor, lineNumber, text) {",
-    replace: "function setLineOutsideHistory(editor, lineNumber, text) {\n  if (editor) return true",
+    find: "  function drawPanelLine(state, controlLine) {",
+    replace: "  function drawPanelLine(state, controlLine) {\n    if (state) return",
   },
   /*
    * `Esc` перестаёт возвращать строку человека: сессия закрывается, а в
@@ -86,9 +86,30 @@ const PANEL_INJECTIONS = {
    */
   "cancel-keeps-panel": {
     file: "pkm_v2/TagWheel/tagwheel.js",
-    find: "    setLineOutsideHistory(state.editor, state.lineNumber, state.originalLine)\n"
+    find: "    clearPanelMask(state)\n    unwritePanelLine(state)\n"
       + "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
     replace: "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
+  },
+  /*
+   * Полоса обратно встаёт **на место** значений, а не рядом: план записи не
+   * складывается, и панель уходит на свой запасной путь — тот самый, каким она
+   * писала до 2026-09-13. Это и есть состояние, из которого пришло замечание
+   * «нажимал ctrl+z — получил строку, которой не было».
+   */
+  "panel-writes-over-values": {
+    file: "src/core/panel_line_write.js",
+    find: "function planPanelLineWrite(originalLine, controlLine) {",
+    replace: "function planPanelLineWrite(originalLine, controlLine) {\n  if (originalLine !== null) return null;",
+  },
+  /*
+   * План есть, а маски нет: в заметке всё цело, но человек видит и полосу, и
+   * значения, которые она закрывает. Половина правки, и видна она только
+   * глазами — то есть ровно то, ради чего эта страница заведена.
+   */
+  "panel-mask-never-hides": {
+    file: "src/ui/editor/panel_mask.js",
+    find: "  const ranges = maskRanges(state);",
+    replace: "  const ranges = [];",
   },
   /*
    * Нажатие до панели не доезжает: перехват у окна не поставлен. Сессия при

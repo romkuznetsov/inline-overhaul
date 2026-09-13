@@ -788,7 +788,15 @@ async function run() {
   assertTrue(/linePipeline\.splitSegments\(line, rules\)|linePipeline\.splitSegments\(lineInput, runtimeRules\)|linePipeline\.splitSegments\(segLine, rules\)/.test(tagwheelSrc), "tagwheel split delegates to shared line pipeline");
   assertTrue(/linePipeline\.buildFromSegments\(seg, rules\)|linePipeline\.buildFromSegments\(seg, runtimeRules\)/.test(tagwheelSrc), "tagwheel render delegates to shared line pipeline");
   assertTrue(/function getControlCursorCh\(state, controlLine\)/.test(tagwheelSrc), "tagwheel control cursor uses cursorPolicy-aware helper");
-  assertTrue(/state\.editor\.setCursor\(\{ line: state\.lineNumber, ch: getControlCursorCh\(state, control\) \}\)/.test(tagwheelSrc), "tagwheel updates cursor using cursorPolicy in active control mode");
+  /*
+   * Предмет переехал 2026-09-13: строку панель теперь пишет **вставкой**, а
+   * курсор ставит по видимому столбцу — спрятанное маской места на экране не
+   * занимает, но в строке стоит. Утверждение переписано на новое место, а не
+   * снято: правило то же — курсор считает `getControlCursorCh`, то есть
+   * настройка `Cursor behavior after apply` (У-94).
+   */
+  assertTrue(/ch: visibleChToTextCh\(text, plan \? plan\.hidden : \[\], getControlCursorCh\(state, control\)\)/.test(tagwheelSrc), "tagwheel updates cursor using cursorPolicy in active control mode");
+  assertTrue(/function visibleChToTextCh\(text, hidden, visibleCh\)/.test(tagwheelSrc), "tagwheel maps the visible column onto the written line");
   assertTrue(/linePipeline\.splitSegments\(rawLine, rules\)|linePipeline\.splitSegments\(line, rules\)|linePipeline\.splitSegments\(out, rules\)/.test(statusTagsSrc), "status_tags split delegates to shared line pipeline");
   assertTrue(/linePipeline\.splitSegments\(rawLine, rules\)|linePipeline\.splitSegments\(line, rules\)/.test(statusDateSrc), "status_date split delegates to shared line pipeline");
   assertTrue(/throw new Error\("line_pipeline unavailable: splitSegments"\);/.test(statusTagsSrc), "status_tags split fallback removed in favor of shared line pipeline");
@@ -1651,7 +1659,9 @@ async function run() {
    * почему ничего не произошло.
    */
   const openTail = (() => {
-    const from = tagwheelSrc.indexOf("var initialControl = withKeptPrefix(originalLine,");
+    /* Предмет переехал 2026-09-13: отрисовка открытия зовётся одной строкой
+       (`drawPanelLine`), и участок считается от неё (У-94). */
+    const from = tagwheelSrc.indexOf("    drawPanelLine(state, withKeptPrefix(originalLine,");
     assertTrue(from > 0, "tagwheel open path still renders the initial control line");
     const to = tagwheelSrc.indexOf("} catch (e) {", from);
     assertTrue(to > from, "tagwheel open path still has its catch branch");
@@ -2542,10 +2552,21 @@ async function run() {
     }
     assertEq(allowedSeen, ALLOWED.length,
       "положительный контроль: обе разрешённые записи на месте, значит ищется предмет, а не пустота");
-    assertTrue(/setLineOutsideHistory\(state\.editor, state\.lineNumber, control\)/.test(src),
+    /*
+     * **Предмет переехал 2026-09-13** (У-94). Оба вида панели рисует одна
+     * функция, и пишет она не строку целиком, а вставку: полоса встаёт рядом
+     * со значениями, а не вместо них, и всё, что она закрывает, прячется
+     * оформлением. Мимо истории при этом идёт по-прежнему всё — и вставка, и
+     * её снятие.
+     */
+    assertTrue(/setLineOutsideHistory\(state\.editor, state\.lineNumber, text\)/.test(src),
       "вид панели при нажатии пишется мимо истории");
-    assertTrue(/setLineOutsideHistory\(editor, lineNumber, initialControl\)/.test(src),
+    assertTrue(/annotations: Transaction\.addToHistory\.of\(false\)/.test(src),
       "первый вид панели тоже пишется мимо истории");
+    assertTrue(/function insertPanelPlan\(state, plan\)/.test(src),
+      "вид панели ставится вставками в строку человека, а не заменой её");
+    assertTrue(/function unwritePanelLine\(state\)/.test(src),
+      "вставка панели снимается теми же отрезками, какими поставлена");
     /*
      * И оба вида собираются с сохранённым началом строки (A43). Пометки
      * «мимо истории» и записи различием для целой истории мало: знака списка
@@ -2555,8 +2576,8 @@ async function run() {
      * **кто зовёт** эту функцию в плагине, видно только отсюда (У-56).
      */
     for (const call of [
-      "var control = withKeptPrefix(state.originalLine,",
-      "var initialControl = withKeptPrefix(originalLine,",
+      "          drawPanelLine(state, withKeptPrefix(state.originalLine,",
+      "    drawPanelLine(state, withKeptPrefix(originalLine,",
     ]) {
       assertTrue(src.includes(call),
         "вид панели собирается без сохранённого начала строки: нет `" + call + "`");

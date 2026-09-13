@@ -33,6 +33,7 @@ const { EditorState } = require("@codemirror/state");
 const { EditorView } = require("@codemirror/view");
 const { history } = require("@codemirror/commands");
 const decorations = require("../../src/ui/editor/decorations.js");
+const panelMask = require("../../src/ui/editor/panel_mask.js");
 const runtime = require("../../pkm_runtime_v2.js");
 const panelBench = require("../harness/panel_bench.js");
 
@@ -51,6 +52,12 @@ const view = new EditorView({
       history(),
       decorations.createTagVisualDecorationExtension(plugin),
       decorations.createBlockFillLayerExtension(plugin),
+      /*
+       * Маска панели: что её полоса закрывает собой, прячется оформлением.
+       * Ставится тем же вызовом, каким её ставит плагин (`mount.js`) — иначе
+       * страница проверяла бы редактор, которого у человека нет.
+       */
+      panelMask.createPanelMaskExtension(),
     ],
   }),
   parent: document.getElementById("host"),
@@ -129,22 +136,29 @@ window.__ioPanelKey = async function (key) {
   return window.__ioPanelProbe();
 };
 
-/** `Ctrl+Z` на настоящей истории CodeMirror. */
+/**
+ * `Ctrl+Z` на настоящей истории CodeMirror — то самое нажатие заказчика.
+ *
+ * Стенд `tools/undo_bench.js` меряет это же в Node и на большем числе случаев;
+ * здесь оно спрашивается ещё раз, потому что здесь редактор **нарисован**: до
+ * 2026-09-13 запись панели шла мимо экрана, и разойтись этим двум дорогам было
+ * на чём.
+ */
 window.__ioPanelUndo = async function () {
   const ok = editor.undo();
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-  return { ok, doc: view.state.doc.toString() };
+  return { ok, doc: view.state.doc.toString(), unchanged: view.state.doc.toString() === START_DOC };
 };
 
 /**
  * Измерения, и все они — вопрос к браузеру.
  *
  * `lineText` — текст строки в документе, `lineDrawn` — то, что на этой строке
- * **нарисовано**. Сегодня это одно и то же, и это сказано вслух: пока полоса
- * панели есть разметка в тексте заметки, «нарисовано» не может разойтись с
- * «написано». После переезда на накладку они разойдутся — и разойдутся именно
- * так, как задуман переезд: документ останется прежним, а нарисованное
- * сменится. То есть эта пара и есть мера переезда.
+ * **нарисовано**. С 2026-09-13 это разные вещи, и в этом вся правка: полоса
+ * панели встаёт **рядом** со значениями, а не вместо них, и документ получает
+ * только вставку; всё, что полоса закрывает собой, прячется оформлением. То
+ * есть написанное содержит строку человека целиком, а нарисованное равно тому
+ * виду, который панель рисовала и прежде.
  */
 window.__ioPanelProbe = function () {
   const st = window.__tagWheelState || null;
@@ -161,8 +175,8 @@ window.__ioPanelProbe = function () {
     lineText: line.text,
     lineDrawn: el ? String(el.textContent || "") : null,
     lineBox: boxOf(el),
-    /* Полоса панели узлом: сегодня её нет, после переезда обязана появиться. */
-    barBox: boxOf(document.querySelector("[data-io-tagwheel-bar]")),
+    /* Спрятанное маской: сколько знаков строки человек не видит. */
+    hiddenChars: Math.max(0, line.text.length - String(el ? el.textContent || "" : "").length),
     overlayBox: boxOf(overlay),
     overlayRows: overlay ? overlay.querySelectorAll(".io-twscroller__row").length : 0,
     doc: view.state.doc.toString(),

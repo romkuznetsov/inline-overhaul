@@ -42,6 +42,8 @@ var __say = __sayModule.say
 var __activeEditorMod = require('../../src/core/active_editor.js')
 /* Пакет даёт сам Obsidian: в сборке он объявлен внешним и в бандл не идёт. */
 var __cmState = require('@codemirror/state')
+var __panelLineWriteMod = require('../../src/core/panel_line_write.js')
+var __panelMaskMod = require('../../src/ui/editor/panel_mask.js')
 
 /**
  * Что именно переписать, чтобы строка стала другой: **только различие**.
@@ -1608,7 +1610,8 @@ async function runTagWheel(input, quickAddSettings) {
      * потом итог пишется обычным путём. История получает «исходная → итог»,
      * и первое же нажатие возвращает то, с чего человек начал.
      */
-    setLineOutsideHistory(state.editor, state.lineNumber, state.originalLine)
+    clearPanelMask(state)
+    unwritePanelLine(state)
     if (cyclePost && cyclePost.applyKeepBullet) {
       macroShared.applyKeepBullet(state.editor, state.lineNumber, state.parsedLine, { keepParsedPrefix: true, keepCheckbox: false })
       emitTagWheelDevEvent(state && state.app ? state.app : null, 'pkm.run.result', {
@@ -1801,10 +1804,176 @@ async function runTagWheel(input, quickAddSettings) {
     }
   }
 
+  /**
+   * Нарисовать панель на строке: полоса **рядом** со значениями, а не вместо.
+   *
+   * Решение заказчика 2026-09-13. Прежде вид панели писался в строку целиком, и
+   * значения, на место которых встаёт полоса, из документа на время выбора
+   * исчезали; ступень истории, которая их когда-то написала, переносилась через
+   * их удаление и схлопывалась (У-160). Теперь документ получает только
+   * вставку, а всё, что полоса собой закрывает, прячется оформлением.
+   *
+   * **Что панель показывает, здесь не решается.** Вид считает
+   * `renderControlLine`, он не тронут; здесь только превращение «показать вот
+   * это» в запись без удаления — одним объявлением, `planPanelLineWrite`.
+   *
+   * **Плана может не быть**, и тогда пишем по-старому: свойства плана не
+   * сошлись — значит на экране получилось бы не то, что нарисовал движок, а вид
+   * человек видит сейчас, история же понадобится ему потом. Это проба, и ответ
+   * «нет» здесь ответ, а не отказ.
+   */
+  function drawPanelLine(state, controlLine) {
+    var control = String(controlLine == null ? '' : controlLine)
+    var plan = null
+    try {
+      plan = __panelLineWriteMod.planPanelLineWrite(state.originalLine, control)
+    } catch (e) {
+      reportTagWheelError(e)
+    }
+    var text = plan ? plan.text : control
+    /*
+     * **Прежний вид снимается точными отрезками, новый ставится точными
+     * вставками.** Написать различие двух своих видов было бы проще и
+     * неверно: между кусками полосы стоит значение, которое человек написал
+     * сам, и различие уносит его вместе с прежним видом — ступень истории,
+     * которая это значение написала, схлопывается. Стенд считает это пятью
+     * лишними состояниями ровно там, где значение есть и в своём Block.
+     */
+    if (plan) unwritePanelLine(state)
+    state.panelPlan = plan
+    if (!plan || !insertPanelPlan(state, plan)) {
+      state.panelPlan = plan
+      setLineOutsideHistory(state.editor, state.lineNumber, text)
+    }
+    /*
+     * Маска ставится **после** записи: отрезки считаны по новой строке, и
+     * прижимаются они к её длине. Порядок наоборот дал бы маску по прежней
+     * строке на один кадр.
+     */
+    __panelMaskMod.applyPanelMask(state.editor ? state.editor.cm : null,
+      state.lineNumber, plan ? plan.hidden : [])
+    state.editor.setCursor({
+      line: state.lineNumber,
+      ch: visibleChToTextCh(text, plan ? plan.hidden : [], getControlCursorCh(state, control)),
+    })
+    /*
+     * Оверлею отдаётся **записанная** строка, а не вид: место своей коробки он
+     * считает столбцами документа, и по виду они разошлись бы ровно на длину
+     * вставки.
+     */
+    updateScrollerOverlay(state, text)
+  }
+
+  /**
+   * Столбец в записанной строке по столбцу в том, что человек видит.
+   *
+   * Спрятанное места на экране не занимает, но в строке стоит: курсор,
+   * поставленный по видимому столбцу без пересчёта, уехал бы внутрь
+   * спрятанного — то есть встал бы там, где его не видно.
+   */
+  function visibleChToTextCh(text, hidden, visibleCh) {
+    var want = Math.max(0, Number(visibleCh) || 0)
+    var ranges = Array.isArray(hidden) ? hidden : []
+    var seen = 0
+    var at = 0
+    var i
+    for (i = 0; i < ranges.length; i++) {
+      var from = Number(ranges[i][0]) || 0
+      var to = Number(ranges[i][1]) || 0
+      var visible = from - at
+      if (seen + visible >= want) return at + (want - seen)
+      seen += visible
+      at = to
+    }
+    return Math.min(String(text || '').length, at + (want - seen))
+  }
+
+  /**
+   * Поставить вид панели **точными вставками** в строку человека.
+   *
+   * Зовётся сразу за снятием прежнего вида, то есть на строке, равной
+   * исходной. Не равна — значит человек правил её сам или прежний вид снять не
+   * вышло; тогда `false`, и зовущий пишет строку целиком, как писал до
+   * 2026-09-13. Это проба, и ответ «нет» здесь ответ, а не отказ.
+   */
+  function insertPanelPlan(state, plan) {
+    if (!plan || !Array.isArray(plan.insertAt) || !plan.insertAt.length) return false
+    var view = state && state.editor ? state.editor.cm : null
+    var Transaction = __cmState ? __cmState.Transaction : null
+    if (!view || !view.state || typeof view.dispatch !== 'function'
+      || !Transaction || !Transaction.addToHistory || typeof Transaction.addToHistory.of !== 'function') return false
+    try {
+      var docLine = view.state.doc.line(Number(state.lineNumber) + 1)
+      if (String(docLine.text) !== String(state.originalLine)) return false
+      var changes = []
+      var i
+      for (i = 0; i < plan.insertAt.length; i++) {
+        changes.push({
+          from: docLine.from + Number(plan.insertAt[i][0]),
+          insert: String(plan.insertAt[i][1]),
+        })
+      }
+      view.dispatch({ changes: changes, annotations: Transaction.addToHistory.of(false) })
+      return true
+    } catch (e) {
+      reportTagWheelError(e)
+      return false
+    }
+  }
+
+  function clearPanelMask(state) {
+    __panelMaskMod.applyPanelMask(state && state.editor ? state.editor.cm : null,
+      state ? state.lineNumber : 0, [])
+  }
+
+  /**
+   * Снять вставку панели — **ровно теми отрезками, какими она вставлена**.
+   *
+   * Общее различие двух строк (`lineDiffChange`) для этого не годится: оно
+   * бережёт общее начало и конец и режет всё остальное одним куском. А между
+   * кусками вставки стоит то, что панель показала **чужим** токеном — значение,
+   * которое человек написал сам. Один кусок уносит и его, и ступень истории,
+   * которая его написала, схлопывается. На стенде это стоило пяти лишних
+   * состояний в случае «значения есть и в том Block, где открылась панель», при
+   * нуле в соседнем: разница между случаями и есть эта середина (У-164).
+   *
+   * Плана нет или строка на экране не та, что план обещал, — возвращаемся
+   * по-старому, целой строкой. Это проба: человек мог править строку сам.
+   */
+  function unwritePanelLine(state) {
+    var plan = state ? state.panelPlan : null
+    state.panelPlan = null
+    var view = state && state.editor ? state.editor.cm : null
+    var Transaction = __cmState ? __cmState.Transaction : null
+    if (plan && Array.isArray(plan.inserted) && plan.inserted.length
+      && view && view.state && typeof view.dispatch === 'function'
+      && Transaction && Transaction.addToHistory && typeof Transaction.addToHistory.of === 'function') {
+      try {
+        var docLine = view.state.doc.line(Number(state.lineNumber) + 1)
+        if (String(docLine.text) === String(plan.text)) {
+          var changes = []
+          var i
+          for (i = 0; i < plan.inserted.length; i++) {
+            changes.push({
+              from: docLine.from + Number(plan.inserted[i][0]),
+              to: docLine.from + Number(plan.inserted[i][1]),
+            })
+          }
+          view.dispatch({ changes: changes, annotations: Transaction.addToHistory.of(false) })
+          return
+        }
+      } catch (e) {
+        reportTagWheelError(e)
+      }
+    }
+    setLineOutsideHistory(state.editor, state.lineNumber, state.originalLine)
+  }
+
   function cancelSelection(state) {
     /* Отмена возвращает строку как была — и следа в истории не оставляет:
        отменять после неё нечего. */
-    setLineOutsideHistory(state.editor, state.lineNumber, state.originalLine)
+    clearPanelMask(state)
+    unwritePanelLine(state)
     state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })
     cleanupTagWheelState(state)
   }
@@ -2166,12 +2335,9 @@ async function runTagWheel(input, quickAddSettings) {
         state.core.sanitizeState(state.rules, state.session)
         ensureActiveFieldId(state)
         if (state.active) {
-          var control = withKeptPrefix(state.originalLine,
-            state.core.renderControlLine(state.rules, state.session, state.parsedLine))
           /* Вид панели — не правка человека, и в историю отмен он не идёт. */
-          setLineOutsideHistory(state.editor, state.lineNumber, control)
-          state.editor.setCursor({ line: state.lineNumber, ch: getControlCursorCh(state, control) })
-          updateScrollerOverlay(state, control)
+          drawPanelLine(state, withKeptPrefix(state.originalLine,
+            state.core.renderControlLine(state.rules, state.session, state.parsedLine)))
         }
         e.preventDefault()
         e.stopPropagation()
@@ -2201,11 +2367,8 @@ async function runTagWheel(input, quickAddSettings) {
     ensureActiveFieldId(state)
     window.addEventListener('keydown', state.keyHandler, true)
 
-    var initialControl = withKeptPrefix(originalLine,
-      core.renderControlLine(rules, session, parsedLine))
-    setLineOutsideHistory(editor, lineNumber, initialControl)
-    editor.setCursor({ line: lineNumber, ch: getControlCursorCh(state, initialControl) })
-    updateScrollerOverlay(state, initialControl)
+    drawPanelLine(state, withKeptPrefix(originalLine,
+      core.renderControlLine(rules, session, parsedLine)))
     /*
      * Успешное открытие молчит.
      *

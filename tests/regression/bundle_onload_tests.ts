@@ -269,9 +269,22 @@ function makeHistoryEditorStub(line: string, ch: number): Any {
     dispatch: (spec: Any) => {
       dispatched.push(spec);
       dispatchedBefore.push(text);
-      const from = Number(spec.changes.from || 0);
-      const to = Number(spec.changes.to || 0);
-      text = text.slice(0, from) + String(spec.changes.insert == null ? "" : spec.changes.insert) + text.slice(to);
+      /*
+       * Транзакция **без изменений** законна, и настоящий редактор её
+       * принимает: так панель ставит маску, которой прячет закрытое полосой.
+       * И отрезков в одной транзакции бывает **несколько** — так панель ставит
+       * свой вид вставками, не трогая ни знака человека. Заглушка, знавшая
+       * только один отрезок, молча делала вид, что панель ничего не
+       * нарисовала: обратная сторона У-45 — заглушка строже браузера.
+       */
+      if (!spec || !spec.changes) return;
+      const list: Any[] = Array.isArray(spec.changes) ? spec.changes.slice() : [spec.changes];
+      list.sort((a: Any, b: Any) => Number(b.from) - Number(a.from));
+      for (const change of list) {
+        const from = Number(change.from || 0);
+        const to = Number(change.to === undefined ? change.from : change.to) || 0;
+        text = text.slice(0, from) + String(change.insert == null ? "" : change.insert) + text.slice(to);
+      }
     },
   };
   return {
@@ -641,7 +654,9 @@ async function run(): Promise<void> {
       press("ArrowUp");
       press("ArrowUp");
       press("ArrowRight");
-      const drawsAfterKeys = editor.dispatched.length;
+      const withChanges = (list: Any[]): number =>
+        list.filter((spec: Any) => !!(spec && spec.changes)).length;
+      const drawsAfterKeys = withChanges(editor.dispatched as Any[]);
       /*
        * Записей столько, сколько нажатий **что-то изменили**: с 2026-09-07
        * строка, уже равная тому, что просят, не пишется вовсе — пустое
@@ -662,10 +677,21 @@ async function run(): Promise<void> {
        * человека она бы и снесла. Спрашивается у сборки: правка живёт в
        * `tagwheel.js`, а у человека стоит бандл (У-89).
        */
-      const shapes = (editor.dispatched as Any[]).map((spec: Any, i: number) => ({
-        from: Number(spec.changes.from), to: Number(spec.changes.to),
-        was: String((editor.dispatchedBefore as string[])[i] || "").length,
-      }));
+      /*
+       * Считаются транзакции **с изменениями**: ступень маски изменений не
+       * несёт ни одного, и место в строке у неё не спрашивается.
+       */
+      const changing = (editor.dispatched as Any[])
+        .map((spec: Any, i: number) => ({ spec, was: String((editor.dispatchedBefore as string[])[i] || "").length }))
+        .filter((row: Any) => !!(row.spec && row.spec.changes));
+      const shapes = changing.map((row: Any) => {
+        const list: Any[] = Array.isArray(row.spec.changes) ? row.spec.changes : [row.spec.changes];
+        return {
+          from: Math.min(...list.map((c: Any) => Number(c.from))),
+          to: Math.max(...list.map((c: Any) => Number(c.to === undefined ? c.from : c.to))),
+          was: row.was,
+        };
+      });
       const wholeLineDraws = shapes.filter((sh) => sh.from === 0 && sh.to === sh.was);
       assert.strictEqual(wholeLineDraws.length, 0,
         "ни одна запись панели из сборки не покрывает строку целиком: " + JSON.stringify(shapes));
@@ -691,7 +717,7 @@ async function run(): Promise<void> {
         "история получила ровно одну запись на всю сессию: " + editor.plainWrites.join(" | "));
       assert.strictEqual(editor.plainWrites[0], after,
         "и это итоговая строка, а не вид панели");
-      assert.ok(editor.dispatched.length > drawsAfterKeys,
+      assert.ok(withChanges(editor.dispatched as Any[]) > drawsAfterKeys,
         "перед итогом строка возвращена к исходной мимо истории");
       ok("вся сессия TagWheel из сборки — одна ступень истории отмен");
     }

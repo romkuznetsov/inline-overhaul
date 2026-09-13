@@ -232,15 +232,47 @@ async function main() {
   }
 
   /*
-   * Положительный контроль: если бы дефекта не было ни в одном случае, стенд
-   * измерял бы не то. Прежний режим на обоих случаях обязан быть красным —
-   * иначе шаги перестали воспроизводить замечание, и молчать об этом нельзя.
+   * **Положительный контроль: прежняя форма записи обязана быть красной.**
+   *
+   * Ноль у всех случаев читается двояко: «форма чинит» и «шаги перестали
+   * воспроизводить замечание». Разводит их прогон на прежней форме — той, где
+   * полоса вставала **на место** значений. Форма эта из продукта не ушла: она
+   * и есть запасной путь, на который панель сходит, когда план записи не
+   * сложился. Подмена возвращает `null` из планировщика — то есть гоняет
+   * настоящий запасной путь продукта, а не выдуманное состояние (У-146).
+   *
+   * Контроль обязателен: без него зелёный стенд ничего не стоит (У-88).
    */
-  const hideBad = table.filter((r) => r.mode === "hide" && r.bad > 0).length;
-  if (hideBad !== SCENARIOS.length) {
+  const planner = require(path.join(ROOT, "src", "core", "panel_line_write.js"));
+  const realPlan = planner.planPanelLineWrite;
+  planner.planPanelLineWrite = () => null;
+  const oldTable = [];
+  try {
+    for (const s of SCENARIOS) {
+      for (const mode of MODES) {
+        const probe = withOppositeMode(cfg, mode);
+        try {
+          const r = await measure(probe.cfg, s.steps, word);
+          oldTable.push({ scenario: s.id, mode, bad: r.bad });
+        } finally {
+          probe.cleanup();
+        }
+      }
+    }
+  } finally {
+    planner.planPanelLineWrite = realPlan;
+  }
+  console.log("");
+  console.log("контроль — прежняя форма записи (полоса на месте значений):");
+  for (const row of oldTable) {
+    console.log("  " + (row.scenario + "/" + row.mode + "        ").slice(0, 20)
+      + " " + row.bad);
+  }
+  const oldClean = oldTable.filter((r) => r.bad === 0).length;
+  if (oldClean > 1) {
     console.log("");
-    console.log("ВНИМАНИЕ: прежний режим дал чистую историю в " +
-      (SCENARIOS.length - hideBad) + " случае(ях) — шаги перестали воспроизводить замечание");
+    console.log("ВНИМАНИЕ: прежняя форма дала чистую историю в " + oldClean
+      + " случаях из " + oldTable.length + " — шаги перестали воспроизводить замечание");
     process.exitCode = 2;
     return;
   }

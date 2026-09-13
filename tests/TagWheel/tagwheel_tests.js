@@ -1918,11 +1918,29 @@ async function runUndoOneStepSuite() {
       state: { doc: cmState.Text.of(lines.slice()) },
       dispatch: function (spec) {
         dispatched.push(spec)
+        /*
+         * Ступень **без изменений** — это законная транзакция, и настоящий
+         * редактор её принимает: так панель ставит маску, которой прячет
+         * закрытое полосой. Заглушка, падавшая на ней, была **строже**
+         * браузера — обратная сторона У-45, и ловится тем же вопросом: а что
+         * об этом думает сам CodeMirror.
+         */
+        if (!spec || !spec.changes) return
+        var list = Array.isArray(spec.changes) ? spec.changes.slice() : [spec.changes]
         var l = view.state.doc.line(1)
-        var text = lines[0]
-        lines[0] = text.slice(0, spec.changes.from - l.from)
-          + String(spec.changes.insert == null ? '' : spec.changes.insert)
-          + text.slice(spec.changes.to - l.from)
+        /* Отрезки применяются справа налево: слева направо каждый следующий
+           уезжал бы на длину предыдущей правки. */
+        list.sort(function (a, b) { return Number(b.from) - Number(a.from) })
+        var i
+        for (i = 0; i < list.length; i++) {
+          var change = list[i]
+          var from = Number(change.from) - l.from
+          var to = Number(change.to === undefined ? change.from : change.to) - l.from
+          var text = lines[0]
+          lines[0] = text.slice(0, from)
+            + String(change.insert == null ? '' : change.insert)
+            + text.slice(to)
+        }
         view.state = { doc: cmState.Text.of(lines.slice()) }
       }
     }
@@ -1982,8 +2000,16 @@ async function runUndoOneStepSuite() {
     /*
      * В истории ступень одна. Мимо истории ушёл только возврат к исходной
      * строке; итог записан обычным путём, и он в истории один.
+     *
+     * Считаются **изменения**, а не транзакции: с 2026-09-13 панель шлёт ещё
+     * и ступень маски — ту, которой прячет закрытое полосой, — и изменений
+     * она не несёт ни одного. Счёт транзакций поймал бы её и назвал лишней
+     * записью в заметку, которой нет.
      */
-    assertEq(dispatched.length, drawn + 1, 'мимо истории послано ровно одно изменение')
+    var changing = dispatched.filter(function (spec) { return !!(spec && spec.changes) })
+    assertEq(changing.length, drawn + 1, 'мимо истории послано ровно одно изменение')
+    /* И контроль к самой мерке: ступень маски в списке есть, но без изменений. */
+    assertTrue(dispatched.length >= changing.length, 'транзакций не меньше, чем изменений')
     var restore = dispatched[dispatched.length - 1]
     assertEq(restore.annotations.value, false, 'и он помечен «не запоминать»')
     /*

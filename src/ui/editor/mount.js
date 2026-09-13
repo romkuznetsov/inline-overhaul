@@ -32,6 +32,7 @@ const cmView = require("@codemirror/view");
 const __sharedUtils = require("../../core/shared_utils.js");
 const __editorDecorations = require("./decorations.js");
 const __stripDebugApi = require("../../features/strip_debug_api.js");
+const __panelMask = require("./panel_mask.js");
 
 const createBlockFillLayerExtension = __editorDecorations.createBlockFillLayerExtension;
 const createCaretLayerExtension = __editorDecorations.createCaretLayerExtension;
@@ -90,6 +91,13 @@ function mountExtensions(plugin) {
      отрисовке, а вид правит блок стилей, который переписывается сразу за
      правкой настройки. */
   plugin.registerEditorExtension(createBlockFillLayerExtension(plugin));
+  /*
+   * Маска панели TagWheel: что её полоса закрывает собой, прячется
+   * оформлением, а не удаляется из заметки (решение заказчика 2026-09-13,
+   * разбор — `src/core/panel_line_write.js`). Компартмента у неё нет и не
+   * нужно: отрезки приезжают ступенью состояния, а не настройкой.
+   */
+  plugin.registerEditorExtension(__panelMask.createPanelMaskExtension());
   __stripDebugApi.publish(plugin);
 }
 

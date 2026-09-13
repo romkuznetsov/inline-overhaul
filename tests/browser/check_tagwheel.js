@@ -10,22 +10,36 @@
  * нечем. TagWheel — самая используемая часть плагина, и недоделанная накладка
  * дороже нынешнего дефекта.
  *
- * **Что проверяется сегодня.** Что сессия живёт и доезжает до экрана: панель
+ * **Что проверяется.** Что сессия живёт и доезжает до экрана: панель
  * открывается, человек её видит, стрелка меняет показанное, оверлей скроллера
  * нарисован и стоит у своей строки, `Esc` возвращает документ в исходное.
  *
- * **Что из этого переживёт переезд, а что сменится.** Переживёт всё, кроме
- * одной строки: сегодня нарисованное равно написанному, потому что полоса есть
- * разметка в тексте заметки. После переезда написанное перестанет меняться
- * вовсе — и вот это здесь названо отдельным измерением (`docUnchanged`), чтобы
- * в день переезда поменялось одно утверждение, а не вся проверка.
+ * **И то, ради чего страница заведена** (переезд сделан 2026-09-13): полоса
+ * встаёт **рядом** со значениями, а не вместо них. Отсюда четыре утверждения,
+ * которых прежде не было и которые прежней панели были бы красными: строка
+ * человека во время сессии цела и только выросла; часть её спрятана
+ * оформлением, то есть на экране прежняя картинка; значение противоположного
+ * Block с экрана ушло; `Ctrl+Z` после применения возвращает ровно то, с чего
+ * человек начал.
  */
 
 const { openPanel, PANEL_INJECTIONS } = require("./panel_harness.js");
 
+/* Значение, которое панель закрывает собой на строке страницы: оно стоит в
+   противоположном Block и на экране появиться не должно. Берётся из той же
+   фикстуры, что и строки, — литерал здесь разошёлся бы с ней молча. */
+const HIDDEN_VALUE = "👤111";
+
 const injection = process.argv[2] || "";
 const problems = [];
 function bad(message) { problems.push(message); }
+
+/** Строка `a` встречается в `b` в том же порядке: то есть `b` — это `a` со вставками. */
+function isSubsequence(a, b) {
+  let i = 0;
+  for (let j = 0; j < b.length && i < a.length; j++) if (b[j] === a[i]) i += 1;
+  return i === a.length;
+}
 
 async function main() {
   if (injection && !Object.prototype.hasOwnProperty.call(PANEL_INJECTIONS, injection)) {
@@ -92,12 +106,47 @@ async function main() {
         + String(stepped.lineText || "").length);
     }
 
-    /* ---- 6. `Esc` возвращает документ человека ------------------------- */
+    /* ---- 6. Строка человека цела, и только выросла --------------------- */
+    if (!(stepped.lineText.length > before.lineText.length)) {
+      bad("строка во время сессии не выросла: «" + stepped.lineText
+        + "» — полоса всё ещё встаёт на место значений, а не рядом");
+    }
+    if (!isSubsequence(before.lineText, stepped.lineText)) {
+      bad("строка человека во время сессии порвана: из «" + before.lineText
+        + "» получилось «" + stepped.lineText + "» — это не одна вставка");
+    }
+
+    /* ---- 7. Лишнее спрятано, то есть на экране прежняя картинка -------- */
+    if (!(stepped.hiddenChars > 0)) {
+      bad("маска ничего не спрятала: человек видит и полосу, и значения, которые она закрывает");
+    }
+    if (String(stepped.lineDrawn || "").indexOf(HIDDEN_VALUE) >= 0) {
+      bad("значение противоположного Block видно на экране: «" + stepped.lineDrawn + "»");
+    }
+
+    /* ---- 8. `Esc` возвращает документ человека ------------------------- */
     const done = await page.evaluate(() => window.__ioPanelKey("Escape"));
     if (done.active) bad("после `Esc` сессия осталась открытой");
     if (!done.docUnchanged) {
       bad("после `Esc` документ не вернулся к исходному: «" + done.doc
         + "» вместо «" + done.startDoc + "»");
+    }
+
+    /* ---- 9. `Ctrl+Z` после применения — то самое нажатие заказчика ----- */
+    const applied = await page.evaluate(async () => {
+      await window.__ioPanelOpen("left", 0);
+      await window.__ioPanelKey("ArrowUp");
+      await window.__ioPanelKey("Enter");
+      return window.__ioPanelProbe();
+    });
+    if (applied.active) bad("после `Enter` сессия осталась открытой");
+    if (applied.docUnchanged) {
+      bad("после применения документ не изменился — применять было нечего, и `Ctrl+Z` проверять не на чем");
+    }
+    const undone = await page.evaluate(() => window.__ioPanelUndo());
+    if (!undone.unchanged) {
+      bad("`Ctrl+Z` после панели вернул не то, с чего человек начал: «" + undone.doc
+        + "» вместо «" + applied.startDoc + "»");
     }
 
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
@@ -107,9 +156,9 @@ async function main() {
       process.exit(1);
     }
     console.log("  сессия открылась, нарисовано «" + open.lineDrawn
-      + "», оверлей " + (stepped.overlayBox ? stepped.overlayBox.width + "×"
-        + stepped.overlayBox.height : "нет") + " на " + stepped.overlayRows
-      + " строк, документ во время сессии " + (open.docUnchanged ? "не менялся" : "менялся"));
+      + "», спрятано знаков " + stepped.hiddenChars + ", оверлей "
+      + (stepped.overlayBox ? stepped.overlayBox.width + "×" + stepped.overlayBox.height : "нет")
+      + " на " + stepped.overlayRows + " строк, Ctrl+Z вернул исходное");
   } finally {
     await browser.close();
   }
