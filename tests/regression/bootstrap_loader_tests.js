@@ -2663,6 +2663,64 @@ async function run() {
       "a checkbox is one character: brackets with a wider body are the human's text, not ours");
   }
   /*
+   * Экранирование регулярного выражения объявлено **один раз** — `escapeRe` в
+   * `src/core/shared_utils.js`.
+   *
+   * Ревизия 2026-09-14 нашла его в **десяти** местах под пятью именами:
+   * `escapeRegExp`, `escapeRx`, `escapeRegex`, `escapeRe`, `escapeRegexLiteral`,
+   * плюс одно место без имени. Поиск копии по имени не находил их ни разу —
+   * ровно У-126: запрет, написанный по имени, слеп к безымянному. Поэтому
+   * запрет здесь написан **по форме**: набор экранируемых знаков.
+   *
+   * И копии не были безобидны: девять писали `String(s || "")`, а общий —
+   * `String(nz(s, ""))`. На `0` и `false` копия отдавала пустую строку, то есть
+   * **пустую альтернативу** регулярного выражения, а та совпадает со всем.
+   *
+   * Положительный контроль обязателен (У-88): обход должен найти сам дом
+   * правила — иначе «копий нет» было бы правдой от того, что искать нечем.
+   *
+   * Что должно случиться, чтобы запрет сняли (У-71): у правила появится второй
+   * законный дом — например, экранирование для другого синтаксиса. Тогда
+   * законное место называется здесь списком, а не снимается обход.
+   */
+  {
+    const BS = String.fromCharCode(92);
+    /* Набор знаков собирается по частям: литералом он был бы предметом
+       собственного запрета и нашёлся бы в этом файле (У-138). */
+    const FORM = "[.*+?^${}()|[" + BS + "]" + BS + BS + "]";
+    const HOME = "src/core/shared_utils.js";
+    const repoRoot2 = path.join(__dirname, "..", "..");
+    const files2 = fs.readdirSync(repoRoot2)
+      .filter((name) => /\.(?:js|ts)$/.test(name))
+      .map((name) => path.join(repoRoot2, name));
+    for (const r of [path.join(repoRoot2, "src"), path.join(repoRoot2, "pkm_v2")]) {
+      (function walk(dir) {
+        for (const name of fs.readdirSync(dir)) {
+          const abs = path.join(dir, name);
+          if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+          if (/\.(?:js|ts)$/.test(name)) files2.push(abs);
+        }
+      })(r);
+    }
+    let atHome = 0;
+    const elsewhere = [];
+    for (const abs of files2) {
+      const rel = path.relative(repoRoot2, abs).replace(/\\/g, "/");
+      const text = fs.readFileSync(abs, "utf8");
+      let n = 0;
+      for (let i = text.indexOf(FORM); i >= 0; i = text.indexOf(FORM, i + 1)) n += 1;
+      if (!n) continue;
+      if (rel === HOME) { atHome += n; continue; }
+      elsewhere.push(rel + " x" + n);
+    }
+    assertTrue(files2.length > 50,
+      "положительный контроль: обход нашёл исходники, а не пустоту (" + files2.length + ")");
+    assertEq(atHome, 1,
+      "положительный контроль: правило объявлено в своём доме ровно раз (" + atHome + ")");
+    assertEq(elsewhere.join("; "), "",
+      "regexp escaping is declared once, in shared_utils.escapeRe");
+  }
+  /*
    * Вид панели TagWheel пишется мимо истории отмен — и пишется так ВЕЗДЕ.
    *
    * **Что теперь проверено поведением, а что держит только этот сторож.**

@@ -5,6 +5,7 @@
  * через мост модулей по пути внутри vault, и путь этот вместе с самой
  * зависимостью `loadVaultModule` передавал сюда каждый движок.
  */
+const __sharedUtils = require("./shared_utils.js");
 const dateRuntimeShared = require("./date_runtime_shared.js");
 const optionKeys = require("./pkm_option_keys.js");
 
@@ -293,7 +294,8 @@ function createStatusRuntimeCommon(deps) {
   }
 
   function escapeRx(value) {
-    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    /* Правило объявлено один раз — `escapeRe` в `shared_utils.js` (У-32). */
+    return __sharedUtils.escapeRe(value);
   }
 
   /**

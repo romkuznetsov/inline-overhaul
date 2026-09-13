@@ -34,6 +34,7 @@ const bench = require(path.join(__dirname, "line_bench.js"));
 const ROOT = path.resolve(__dirname, "..");
 const linePipeline = require(path.join(ROOT, "src", "core", "line_pipeline.js"));
 const rulesShape = require(path.join(ROOT, "src", "core", "pkm_rules_shape.js"));
+const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
 
 const SHOW_ALL = process.argv.includes("--all");
 
@@ -124,13 +125,26 @@ function fixpointOf(line, rules) {
  * который считает не он, — и объявила сломанными все сочетания, включая
  * здоровые. Вторая собирала правила сама и соврала на элементах.
  */
-function selfCheck(rules) {
+function selfCheck(rules, cfg) {
+  /*
+   * **Разделители берутся из его конфига, а не пишутся рядом литералом.**
+   *
+   * Здесь стояли `||` и `::` прямо в строках, и 2026-09-13 заказчик сменил
+   * первый разделитель на `::` — стенд умер целиком: собственный контроль
+   * объявил сломанными все пять заведомо здоровых строк, и обход не доходил до
+   * первого сочетания. То есть стенд, названный в промпте сессии как один из
+   * тех, без которых будешь угадывать, молча перестал работать от **настройки
+   * человека** (У-147: совпадающей стороной было моё предположение о его
+   * конфиге).
+   */
+  const sep1 = String(shared.readCfgPath(cfg, "pkm.lineFormat.separator1") || "::");
+  const sep2 = String(shared.readCfgPath(cfg, "pkm.lineFormat.separator2") || "::");
   const known = [
-    "- #work || текст",
-    "- [ ] #todo || ",
+    "- #work " + sep1 + " текст",
+    "- [ ] #todo " + sep1 + " ",
     "- текст",
-    "- " + MARK_DUE + "2026-01-02 03:04 || ",
-    "- #work || текст :: " + MARK_DUE + "2026-01-02 03:04",
+    "- " + MARK_DUE + "2026-01-02 03:04 " + sep1 + " ",
+    "- #work " + sep1 + " текст " + sep2 + " " + MARK_DUE + "2026-01-02 03:04",
   ];
   const bad = known.filter((line) => !fixpointOf(line, rules).stable);
   if (bad.length) {
@@ -144,7 +158,7 @@ function selfCheck(rules) {
 async function main() {
   const cfg = bench.loadCfg();
   const rules = rulesOf(cfg);
-  selfCheck(rules);
+  selfCheck(rules, cfg);
 
   const order = cfg.pkm.fields.order;
   const defs = bench.defsFor(cfg);

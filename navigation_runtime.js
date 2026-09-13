@@ -1386,7 +1386,9 @@ function navigateInline(editor, direction, navRules, rawCfg) {
     : "\\d{4}-\\d{2}-\\d{2}";
   const isWs = (c) => c === " " || c === "\t";
   const isTagToken = (s, idx) => s[idx] === "#" && idx + 1 < s.length && !isWs(s[idx + 1]);
-  const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  /* Правило объявлено один раз — `escapeRe` в `shared_utils.js` (У-32). Своя
+     копия стояла здесь и расходилась с ним на `0` и `false`. */
+  const escapeRe = (s) => __sharedUtils.escapeRe(s);
 
   /*
    * Конец списочного знака. Пробел после знака **один**, и это не мелочь

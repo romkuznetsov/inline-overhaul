@@ -33,7 +33,11 @@ function normalizeCursorPolicy(v) {
 }
 
 function escapeRegex(text) {
-  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  /* Правило объявлено один раз — `escapeRe` в `shared_utils.js` (У-32).
+     Своя копия стояла здесь и расходилась с ним на `0` и `false`:
+     `String(s || "")` отдавала пустую строку, то есть пустую
+     альтернативу регулярного выражения, а та совпадает со всем. */
+  return __sharedUtils.escapeRe(text);
 }
 
 function segmentHasToken(segText, token) {
@@ -240,7 +244,7 @@ function getCursorAtTextEnd(finalLine, rules) {
         const markerList = Array.isArray(rules && rules.dates && rules.dates.markers)
           ? rules.dates.markers.map((x) => String(x || "").trim()).filter(Boolean)
           : [];
-        const markerAlt = markerList.length ? markerList.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") : "(?!)";
+        const markerAlt = markerList.length ? markerList.map(escapeRegex).join("|") : "(?!)";
         const markerRe = new RegExp("^(?:" + markerAlt + ")");
         const tokens = tail.split(/\s+/).filter(Boolean);
         const isRightPayload = tokens.length > 0 && tokens.every((t) => (

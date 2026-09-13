@@ -375,7 +375,11 @@ function applyResolvedPrefixToLine(options) {
 }
 
 function escapeRx(s) {
-  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  /* Правило объявлено один раз — `escapeRe` в `shared_utils.js` (У-32).
+     Своя копия стояла здесь и расходилась с ним на `0` и `false`:
+     `String(s || "")` отдавала пустую строку, то есть пустую
+     альтернативу регулярного выражения, а та совпадает со всем. */
+  return __sharedUtils.escapeRe(s);
 }
 
 function getRightMarkersUnified(rules) {

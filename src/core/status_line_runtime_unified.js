@@ -464,7 +464,11 @@ function clearDependentSelections(options) {
 }
 
 function escapeRegex(text) {
-  return String(text || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  /* Правило объявлено один раз — `escapeRe` в `shared_utils.js` (У-32).
+     Своя копия стояла здесь и расходилась с ним на `0` и `false`:
+     `String(s || "")` отдавала пустую строку, то есть пустую
+     альтернативу регулярного выражения, а та совпадает со всем. */
+  return __sharedUtils.escapeRe(text);
 }
 
 function getLastTokenMatchIndex(segText, token) {
