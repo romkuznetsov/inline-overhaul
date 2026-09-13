@@ -184,7 +184,6 @@ async function run() {
   const statusRuntimeCommonPath = path.join(__dirname, "..", "..", "src", "core", "status_runtime_common.js");
   const statusLineRuntimeUnifiedPath = path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js");
   const pkmRuntimeV2Path = path.join(__dirname, "..", "..", "pkm_runtime_v2.js");
-  const rulesMarkdownBuilderPath = path.join(__dirname, "..", "..", "src", "features", "rules_markdown_builder.js");
   const commandIdsPath = path.join(__dirname, "..", "..", "src", "features", "command_ids.js");
   const commandRegistryPath = path.join(__dirname, "..", "..", "src", "features", "command_registry.js");
   const priorityStripEnginePath = path.join(__dirname, "..", "..", "src", "core", "priority_strip_engine.js");
@@ -220,8 +219,6 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "ui", "editor", "mount.js"), "utf8");
   const commandsSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "features", "plugin_commands.js"), "utf8");
-  const rulesSrc = fs.readFileSync(
-    path.join(__dirname, "..", "..", "src", "features", "generated_rules.js"), "utf8");
   const configWriteSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "core", "config_write.js"), "utf8");
   const bootstrapSrc = fs.readFileSync(
@@ -241,7 +238,6 @@ async function run() {
   const statusRuntimeCommonSrc = fs.readFileSync(statusRuntimeCommonPath, "utf8");
   const statusLineRuntimeUnifiedSrc = fs.readFileSync(statusLineRuntimeUnifiedPath, "utf8");
   const pkmRuntimeV2Src = fs.readFileSync(pkmRuntimeV2Path, "utf8");
-  const rulesMarkdownBuilderSrc = fs.readFileSync(rulesMarkdownBuilderPath, "utf8");
   const rulesShapeSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "core", "pkm_rules_shape.js"), "utf8");
   const commandIdsSrc = fs.readFileSync(commandIdsPath, "utf8");
@@ -352,15 +348,22 @@ async function run() {
   assertTrue(/left:\s*\[\]/.test(orderSrc), "default order config starts empty left");
   assertTrue(/right:\s*\[\]/.test(orderSrc), "default order config starts empty right");
   assertTrue(/hotkey_only/.test(orderSrc), "order active mode supports hotkey_only");
-  assertTrue(/function getRulesSyncOrchestrator\(\)/.test(rulesSrc), "rules sync orchestrator getter exists");
   /*
    * Служебный файл правил и запись конфига уехали в свои модули (кусок
    * четвёртый разбора `main.js`, 2026-09-07). В точке входа остались швы:
    * подписка на хранилище и единственный путь записи настроек.
    */
-  assertTrue(/__generatedRules\.registerStoreEvents\(plugin\);/.test(bootstrapSrc), "загрузка подписывается на хранилище через модуль");
+  /*
+   * **Служебного файла правил плагин больше не пишет** (PRD 10.13.52, П-8,
+   * шаг четвёртый). Подписка на хранилище осталась, и дело у неё одно —
+   * перерисовать вкладку; шов переехал в саму загрузку, к единственному, кто
+   * его зовёт. Запреты ниже держат то, что сборка файла не вернулась ни одним
+   * из прежних имён (У-94: утверждение переезжает за предметом).
+   */
+  assertTrue(/function registerStoreEvents\(plugin\) \{/.test(bootstrapSrc), "загрузка подписывается на хранилище сама");
+  assertFalse(/ensureGeneratedRulesNow|scheduleGeneratedRulesSync|buildTagWheelRulesMarkdownFromConfig/.test(bootstrapSrc + src),
+    "сборка служебного файла правил вернулась в загрузку или в точку входа");
   assertTrue(/return __configWrite\.applyPatch\(this, patchObj, reason\);/.test(src), "запись настроек идёт одним швом в модуль");
-  assertTrue(/function getStoreEventsOrchestrator\(\)/.test(rulesSrc), "store events orchestrator getter exists");
 
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(commandsSrc), "main exposes debug-gated loader fallback reporter");
   /*
@@ -469,7 +472,6 @@ async function run() {
       "./src/core/dev_log.js",
       "./src/core/shared_utils.js",
       "./src/features/enhanced_select_all_engine.js",
-      "./src/features/generated_rules.js",
       "./src/features/plugin_bootstrap.js",
       "./src/features/plugin_commands.js",
       "./src/features/smart_delete_engine.js",
@@ -514,7 +516,6 @@ async function run() {
    */
   assertTrue(/getConfigMigrationV2Module/.test(cfgSrc), "config migration getter exists");
   assertTrue(/function getEnhancedSelectAllEngine\(\)/.test(src), "enhanced select-all getter exists");
-  assertTrue(/function getRulesMarkdownBuilder\(\)/.test(rulesSrc), "rules markdown builder getter exists");
   assertTrue(/publishPkmMacroRuntimeEntry\(\);/.test(bootstrapSrc), "onload публикует шов макро-рантайма PKM");
   /*
    * Загрузка уехала в `src/features/plugin_bootstrap.js` (кусок четвёртый
@@ -594,7 +595,6 @@ async function run() {
   assertTrue(/target\.splice\(idx, 0, \.\.\.moveKeys\);/.test(rendererPairSrc), "модель Fields: родитель и дочерний встают вместе");
 
 
-  assertTrue(/buildRulesMarkdown: \(cfg\) => getRulesMarkdownBuilder\(\)\.buildTagWheelRulesMarkdownFromConfig\(cfg\)/.test(rulesSrc), "rules sync uses extracted rules markdown builder");
   /*
    * Здесь стояли три запрета на написание внутри разбора текста для
    * правил — «не режет ведущую косую», «нет догадки про project», «разбор
@@ -749,7 +749,10 @@ async function run() {
    */
   assertTrue(/behavior\.defaultMode = String\(fields\.defaultBlock \|\| ""\)\.trim\(\)\.toLowerCase\(\) === "right" \? "right" : "left";/.test(rulesShapeSrc), "rules shape maps pkm.fields.defaultBlock into the rules for engines");
   assertTrue(/behavior\.subtagFormat = behaviorCfg\.childTagFormat === "combined"/.test(rulesShapeSrc), "rules shape maps pkm.behavior.childTagFormat into the rules for engines");
-  assertFalse(/behavior\.defaultMode = String\(/.test(rulesMarkdownBuilderSrc), "печать заметки снова держит свою копию перекладки значений (У-32)");
+  /* Запрет «у печати заметки нет своей копии» снят вместе с самой печатью
+     (PRD 10.13.52, П-8, шаг четвёртый): предмета у него не осталось, а
+     зелёный запрет без предмета не стережёт ничего (У-141). Один дом
+     перекладки держат утверждения выше. */
   /* 10.13.6: подсветка строки приходит настройкой, а ветка `ui` больше не
      отдаётся пустой. `showMarkers` внутри `activePanel` — обёртки `{TW}`, а не
      тумблер списка, и записи ему здесь быть не должно (Н4). */
@@ -2534,32 +2537,27 @@ async function run() {
       "положительный контроль: путь объявлен в модуле");
   }
   /*
-   * Шов после восстановления копии (10.13.40). Закрепляется два факта,
-   * которые поведением вне Obsidian не спросить: что шов делает обе вещи,
-   * и что место служебного файла решает **та же** функция миграции, что и при
-   * загрузке, а не второе объявление того же правила (У-32).
+   * Шов после восстановления копии (10.13.40). Закрепляется то, что
+   * поведением вне Obsidian не спросить: после восстановления набор команд
+   * заводится заново (У-79).
    */
   {
     /*
-     * Шов уехал в `src/features/generated_rules.js` (кусок четвёртый разбора
-     * `main.js`): в точке входа осталась обёртка, потому что зовёт его
-     * восстановление копии через объект плагина. Утверждения спрашивают то же
-     * самое там, где предмет теперь (У-94).
+     * Шов зовёт восстановление копии через объект плагина, поэтому живёт он в
+     * точке входа. Прежде он стоял в `src/features/generated_rules.js` вместе
+     * со сборкой служебного файла; модуля больше нет, и утверждение
+     * спрашивает предмет там, где он теперь (У-94).
      */
-    assertTrue(/return __generatedRules\.rebuildFromConfig\(this\);/.test(src),
+    assertTrue(/async rebuildFromConfig\(\) \{[\s\S]{0,200}this\.registerCommands\(\);/.test(src),
       "main.js keeps the rebuildFromConfig seam used after a backup restore");
-    const seam = /async function rebuildFromConfig\(plugin\)\s*\{[\s\S]*?\n\}/.exec(rulesSrc);
-    assertTrue(!!seam, "модуль служебного файла держит сам шов");
-    assertTrue(seam[0].indexOf("plugin.registerCommands()") !== -1,
-      "rebuildFromConfig re-registers commands");
-    assertTrue(seam[0].indexOf("reapplyLocation(plugin)") !== -1,
-      "rebuildFromConfig re-applies the generated rules location");
-    const move = /async function reapplyLocation\(plugin\)\s*\{[\s\S]*?\n\}/.exec(rulesSrc);
-    assertTrue(!!move, "и держит переезд служебного файла");
-    assertTrue(move[0].indexOf("await migration.moveGeneratedRulesIntoPluginFolder(") !== -1,
-      "the rules location is decided by the migration function, not by a second copy of the rule");
-    assertTrue(move[0].indexOf("plugin.pluginFolderPath()") !== -1,
-      "and the plugin folder is computed, not spelled out");
+    /*
+     * **У шва осталось одно дело — команды** (PRD 10.13.52, П-8, шаг
+     * четвёртый). Второе, место служебного файла, ушло вместе с файлом, и
+     * утверждения о нём сняты, а не оставлены зелёными: сторожить стало нечего
+     * (У-141). Запрет ниже держит, что переезд файла не вернулся в точку входа.
+     */
+    assertFalse(/moveGeneratedRulesIntoPluginFolder/.test(src),
+      "переезд служебного файла вернулся в точку входа");
   }
   /*
    * Знак чекбокса — ровно один, и это правило платформы (У-91):

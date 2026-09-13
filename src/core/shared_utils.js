@@ -671,10 +671,6 @@ function deepMerge(base, patch) {
   return out;
 }
 
-function toPrettyJson(x) {
-  return JSON.stringify(x, null, 2);
-}
-
 /**
  * Прочитать значение по точечному пути.
  *
@@ -947,5 +943,4 @@ module.exports = {
   detectDateUnit,
   isObj,
   deepMerge,
-  toPrettyJson,
 };

@@ -49,7 +49,6 @@ function registerStoreEvents(ctx) {
 
   const renderNow = () => {
     ctx.renderSettingsTab();
-    ctx.scheduleGeneratedRulesSync();
   };
 
   const flushPendingOnBlur = () => {
@@ -73,11 +72,6 @@ function registerStoreEvents(ctx) {
   ctx.registerCleanup(() => {
     const unsubscribe = ctx.getUnsubscribe();
     if (unsubscribe) unsubscribe();
-    const timer = ctx.getRulesTimer();
-    if (timer) {
-      clearTimeout(timer);
-      ctx.setRulesTimer(null);
-    }
   });
 }
 

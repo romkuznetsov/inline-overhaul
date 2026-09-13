@@ -11,7 +11,6 @@ globalThis.__inlineOverhaulSharedUtils = __sharedUtils;
 const __devLog = require("./src/core/dev_log.js");
 const __configWrite = require("./src/core/config_write.js");
 const __bootstrap = require("./src/features/plugin_bootstrap.js");
-const __generatedRules = require("./src/features/generated_rules.js");
 const __pluginCommands = require("./src/features/plugin_commands.js");
 const __editorStyles = require("./src/ui/editor/styles.js");
 
@@ -76,16 +75,28 @@ class InlineOverhaulPlugin extends Plugin {
     if (this.store) this.store.unload();
   }
 
-  async ensureGeneratedRulesNow(reason) {
-    return __generatedRules.syncNow(this, reason);
-  }
-
   listOwnCommands() {
     return __pluginCommands.ownCommandList(this);
   }
 
+  /**
+   * Заново собрать то, что плагин строит из конфига один раз — при загрузке.
+   *
+   * Зовётся одним местом — восстановлением копии настроек (10.13.40), потому
+   * что только там конфиг меняется целиком и разом. Дело осталось одно: набор
+   * команд PKM строится из Fields конфига (У-79), и без этого вызова новый
+   * набор Fields получает команды только после перезапуска, а хоткей из копии
+   * ложится на команду, которой ещё нет. Второе дело — место служебного файла
+   * правил — ушло вместе с самим файлом (PRD 10.13.52, П-8, шаг четвёртый).
+   *
+   * Отказ не отменяет восстановления: настройки уже записаны.
+   */
   async rebuildFromConfig() {
-    return __generatedRules.rebuildFromConfig(this);
+    try {
+      this.registerCommands();
+    } catch (e) {
+      console.error("[inline-overhaul] команды не перезавелись", e);
+    }
   }
 
   registerCommands() {

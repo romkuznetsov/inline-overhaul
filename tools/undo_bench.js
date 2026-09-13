@@ -28,7 +28,6 @@
  * `panel-left` / `panel-right` — открыть панель, крутнуть значение, применить.
  */
 
-const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
@@ -133,26 +132,21 @@ async function runSteps(cfg, steps, word, withPlugin) {
 }
 
 /**
- * Правила, которые прочтёт панель, с подменённым режимом противоположного
- * Block. Настоящий `generated_rules.md` при этом не трогается: сборка кладётся
- * во временный файл рядом с ним, и он же убирается за собой.
+ * Конфиг с подменённым режимом противоположного Block.
  *
  * Нужно это затем, что **режим решает, что панель удаляет из документа**, а
  * удаление и есть причина схлопывания чужих ступеней (У-160). Мерить формы
  * записи, не умея переключить режим, значит мерить одну из них.
+ *
+ * **Прежде здесь собиралась заметка правил** и клалась во временный файл рядом
+ * с настоящей: панель читала режим оттуда. Файла больше нет — правила приезжают
+ * ключом `Rules data`, который стенд строит из этого же конфига (PRD 10.13.52,
+ * П-8, шаг четвёртый), — и подменять осталось только сам конфиг.
  */
-const PROBE_RULES_PATH = ".obsidian/plugins/inline-overhaul/_undo_bench_rules.md";
-
 function withOppositeMode(cfg, mode) {
   const next = JSON.parse(JSON.stringify(cfg));
   shared.writeCfgPath(next, "visual.tagWheel.oppositeBlock", String(mode || "hide"));
-  const builder = require(path.join(ROOT, "src", "features", "rules_markdown_builder.js"))
-    .createRulesMarkdownBuilder({});
-  const abs = path.join(bench.VAULT, PROBE_RULES_PATH);
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  fs.writeFileSync(abs, builder.buildTagWheelRulesMarkdownFromConfig(next), "utf8");
-  shared.writeCfgPath(next, "advanced.generatedRulesPath", PROBE_RULES_PATH);
-  return { cfg: next, cleanup() { try { fs.unlinkSync(abs); } catch (_) { /* файла может уже не быть */ } } };
+  return { cfg: next, cleanup() {} };
 }
 
 /**

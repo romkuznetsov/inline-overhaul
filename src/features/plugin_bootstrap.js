@@ -29,9 +29,9 @@ const __configWrite = require("../core/config_write.js");
 const __devLog = require("../core/dev_log.js");
 const __editorMount = require("../ui/editor/mount.js");
 const __editorStyles = require("../ui/editor/styles.js");
-const __generatedRules = require("./generated_rules.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __pluginCommands = require("./plugin_commands.js");
+const __storeEventsOrchestrator = require("./store_events_orchestrator.js");
 const __sharedUtils = require("../core/shared_utils.js");
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
@@ -47,6 +47,36 @@ function cloneJson(x) { return __sharedUtils.cloneJson(x); }
 function deepMerge(base, patch) { return __sharedUtils.deepMerge(base, patch); }
 function isObj(x) { return __sharedUtils.isObj(x); }
 function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
+
+/**
+ * Подписка на хранилище: панель перерисовывается, когда настройки поменялись.
+ *
+ * **Жила в `generated_rules.js`**, потому что тем же событием пересобирался
+ * служебный файл правил. Файла больше нет (PRD 10.13.52, П-8, шаг четвёртый),
+ * и от подписки осталось одно дело — перерисовать вкладку. Шов переехал сюда, к
+ * единственному, кто его зовёт; само решение «когда рисовать» по-прежнему живёт
+ * в `store_events_orchestrator`: там оно про фокус в поле ввода, а не про нас.
+ */
+function registerStoreEvents(plugin) {
+  return __storeEventsOrchestrator.registerStoreEvents({
+    subscribeStore: (listener) => plugin.store.subscribe(listener),
+    setUnsubscribe: (fn) => {
+      plugin._unsubscribeStore = fn;
+    },
+    getUnsubscribe: () => plugin._unsubscribeStore,
+    renderSettingsTab: () => {
+      const tab = plugin._settingsTab;
+      if (!tab) return;
+      /*
+       * Декларативная панель пересобирает определения методом `update`;
+       * `display` у неё — объяснение для Obsidian старше 1.13.
+       */
+      if (typeof tab.update === "function") tab.update();
+      else if (typeof tab.display === "function") tab.display();
+    },
+    registerCleanup: (fn) => plugin.register(fn),
+  });
+}
 
 /* Хранилище настроек: единственный путь записи, и через него же идёт каждый
    патч из панели (CS10). */
@@ -154,9 +184,7 @@ async function load(plugin) {
   /* Заливка Left и Right Block (З-7): свой блок правил, своя подписка. */
   __editorStyles.ensureBlockFill(plugin);
   __editorMount.mountExtensions(plugin);
-  __generatedRules.registerStoreEvents(plugin);
-
-  await plugin.ensureGeneratedRulesNow("onload");
+  registerStoreEvents(plugin);
 
   const devEnabled = !!(readCfgPath(plugin.getConfig && plugin.getConfig(), "advanced.devMode.enabled") === true);
   if (devEnabled) {

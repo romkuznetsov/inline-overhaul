@@ -1029,8 +1029,8 @@ function runSharedOrderAlignmentSuite() {
     return !!x && typeof x === 'object' && !Array.isArray(x)
   }
 
-  /* Это объект ПРАВИЛ, а не конфиг: форма документа правил TagWheel вместе с
-     конфигом не менялась (см. `rules_markdown_builder.js`). */
+  /* Это объект ПРАВИЛ, а не конфиг: форма правил TagWheel вместе с конфигом
+     не менялась (см. `src/core/pkm_rules_shape.js`). */
   var rules = {
     behavior: {
       order: {
@@ -1132,7 +1132,7 @@ function runSharedOrderAlignmentSuite() {
  * И-4: Field типа link встаёт на своё место в Order.
  *
  * Форма правил взята с конфига заказчика, и в ней всё дело. Field `Project` —
- * ссылка, поэтому `rules_markdown_builder` кладёт его в корзину `rightMode`
+ * ссылка, поэтому `pkm_rules_shape` кладёт его в корзину `rightMode`
  * (это корзина `pkm.fields.links`, а вовсе не «правая панель»), а сторону
  * решает Order, и там ссылка стоит **второй слева**.
  *
@@ -2057,8 +2057,10 @@ async function runUndoOneStepSuite() {
  */
 function runPanelHighlightSuite(core, baseRules) {
   var path = require('path')
-  var builderMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'rules_markdown_builder.js'))
-  var builder = builderMod.createRulesMarkdownBuilder({})
+  /* Форма правил выводится из конфига одним модулем — `pkm_rules_shape`.
+     Сборщик служебной заметки, у которого эта функция жила раньше, снят
+     вместе с самой заметкой (PRD 10.13.52, П-8, шаг четвёртый). */
+  var builder = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_shape.js'))
 
   var offUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: {} } }).ui
   var onUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: { highlightLine: true } } }).ui
@@ -2145,8 +2147,10 @@ function runPanelHighlightSuite(core, baseRules) {
  */
 function runOppositeBlockSuite(core, baseRules) {
   var path = require('path')
-  var builderMod = require(path.join(__dirname, '..', '..', 'src', 'features', 'rules_markdown_builder.js'))
-  var builder = builderMod.createRulesMarkdownBuilder({})
+  /* Форма правил выводится из конфига одним модулем — `pkm_rules_shape`.
+     Сборщик служебной заметки, у которого эта функция жила раньше, снят
+     вместе с самой заметкой (PRD 10.13.52, П-8, шаг четвёртый). */
+  var builder = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_shape.js'))
 
   var hideUi = builder.buildRulesShapeFromConfig({ visual: { tagWheel: {} } }).ui
   var keepUi = builder.buildRulesShapeFromConfig({
@@ -2334,8 +2338,8 @@ function runOppositeBlockSuite(core, baseRules) {
 }
 
 function runLeadFieldPolicySuite(core) {
-  /* Это объект ПРАВИЛ, а не конфиг: форма документа правил TagWheel вместе с
-     конфигом не менялась (см. `rules_markdown_builder.js`). */
+  /* Это объект ПРАВИЛ, а не конфиг: форма правил TagWheel вместе с конфигом
+     не менялась (см. `src/core/pkm_rules_shape.js`). */
   var rules = {
     behavior: {
       order: {

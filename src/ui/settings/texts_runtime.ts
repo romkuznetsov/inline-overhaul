@@ -60,7 +60,6 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
   plugin: {
     "save-failed": "Could not save settings",
     "needs-obsidian": "inlineOverhaul settings need Obsidian 1.13 or newer",
-    "rules-updated": "Rules file updated",
     "nothing-to-undo": "Nothing to undo",
   },
 
