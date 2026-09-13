@@ -22,7 +22,7 @@
  *
  * Запуск (из `repo/`):
  *   node tools/undo_bench.js                       — набор по умолчанию
- *   node tools/undo_bench.js test3-next panel-left — свой порядок шагов
+ *   node tools/undo_bench.js date-due-next panel-left — свой порядок шагов
  *
  * Шаги: идентификатор команды (`node tools/line_bench.js list`) либо
  * `panel-left` / `panel-right` — открыть панель, крутнуть значение, применить.
@@ -161,12 +161,36 @@ function withOppositeMode(cfg, mode) {
  * она по-прежнему ставит на место своих значений. Стенд, знавший один случай,
  * объявил бы такую форму починкой (У-137).
  */
-const SCENARIOS = [
-  { id: "right-only", about: "значения только в противоположном Block",
-    steps: ["test3-next", "random-next", "panel-left"] },
-  { id: "both-blocks", about: "значения есть и в том Block, где открылась панель",
-    steps: ["category-next", "test3-next", "random-next", "panel-left"] },
-];
+/*
+ * **Шаги собираются из его Order, а не пишутся именами команд.**
+ *
+ * Здесь стояли литералы `test3-next` и `category-next`. 2026-09-13 заказчик
+ * переименовал поле `test3`, и стенд умер целиком: `нет команды "test3-next"`
+ * на первом же сценарии. Ровно У-147, только совпадающей стороной было моё
+ * предположение о его именах полей — пока он их не трогал, литерал и конфиг
+ * сходились сами собой.
+ *
+ * Сценарию нужны не имена, а **стороны**: два поля правого Block (их значения
+ * встанут в Block, противоположный панели) и одно левого. Берутся они у самого
+ * Order; помощник один на все стенды (`line_bench.fieldCommandId`).
+ */
+function scenariosFor(cfg) {
+  const right = bench.fieldKeysBySide(cfg, "right");
+  const left = bench.fieldKeysBySide(cfg, "left");
+  if (right.length < 2 || left.length < 1) {
+    throw new Error("стенду нечего гонять: в Order нужно хотя бы два поля справа и одно слева,"
+      + " а есть " + right.length + " и " + left.length);
+  }
+  const r1 = bench.fieldCommandId(cfg, right[0], "next");
+  const r2 = bench.fieldCommandId(cfg, right[1], "next");
+  const l1 = bench.fieldCommandId(cfg, left[0], "next");
+  return [
+    { id: "right-only", about: "значения только в противоположном Block",
+      steps: [r1, r2, "panel-left"] },
+    { id: "both-blocks", about: "значения есть и в том Block, где открылась панель",
+      steps: [l1, r1, r2, "panel-left"] },
+  ];
+}
 
 const MODES = ["hide", "keep"];
 
@@ -205,8 +229,9 @@ async function main() {
    * когда-то стояло. Состояние, которого не было, и есть дефект — «плагин
    * вернул то, чего человек не набирал».
    */
+  const scenarios = scenariosFor(cfg);
   const table = [];
-  for (const s of SCENARIOS) {
+  for (const s of scenarios) {
     console.log("");
     console.log(s.id + " — " + s.about);
     console.log("  шаги: " + s.steps.join(" → "));
@@ -248,7 +273,7 @@ async function main() {
   planner.planPanelLineWrite = () => null;
   const oldTable = [];
   try {
-    for (const s of SCENARIOS) {
+    for (const s of scenarios) {
       for (const mode of MODES) {
         const probe = withOppositeMode(cfg, mode);
         try {
@@ -281,7 +306,7 @@ async function main() {
   if (worst) process.exitCode = 1;
 }
 
-module.exports = { makeCmEditor, runSteps, paneSettings, withOppositeMode, SCENARIOS };
+module.exports = { makeCmEditor, runSteps, paneSettings, withOppositeMode, scenariosFor };
 
 if (require.main === module) {
   main().catch((e) => {

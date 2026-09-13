@@ -65,6 +65,36 @@ function defsFor(cfg) {
   );
 }
 
+/**
+ * Команда поля по его ключу в Order — **одно объявление на все стенды**.
+ *
+ * **Зачем это здесь, а не у каждого стенда.** Стенды гоняются на настоящем
+ * `data.json` заказчика, и имена полей в нём принадлежат ему: 2026-09-13 он
+ * переименовал `test3`, и `tools/undo_bench.js` умер целиком — в нём стоял
+ * литеральный `test3-next`. Стенд, названный в промпте сессии как один из тех,
+ * без которых будешь угадывать, молча перестал работать от **переименования
+ * поля**. Своя копия этого правила в каждом стенде разошлась бы точно так же.
+ *
+ * Ключ переводится в идентификатор тем же порядком, каким его строит реестр
+ * команд: строгое имя поля, kebab-case, направление.
+ */
+function fieldCommandId(cfg, key, direction) {
+  const order = cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields.order : null;
+  const strict = String((order && order.strictNames ? order.strictNames[key] : "") || key);
+  const slug = strict.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return slug + "-" + String(direction || "next");
+}
+
+/**
+ * Ключи полей его Order по стороне Block. Пусто — стенду нечего гонять, и он
+ * обязан сказать это вслух, а не молча пройти нулём случаев.
+ */
+function fieldKeysBySide(cfg, side) {
+  const order = cfg && cfg.pkm && cfg.pkm.fields ? cfg.pkm.fields.order : null;
+  const list = order && Array.isArray(order[side]) ? order[side] : [];
+  return list.slice();
+}
+
 function findDef(cfg, id) {
   const hit = defsFor(cfg).filter((d) => d.id === id);
   if (!hit.length) {
@@ -318,7 +348,7 @@ async function main() {
 
 /* Стенд — и команда, и модуль: обход всех Fields разом собирается поверх него
    (`tools/line_matrix.js`), и своей копии дороги настроек у обхода нет. */
-module.exports = { loadCfg, defsFor, findDef, runCommandById, runTagWheel, openSession, fieldWalk, makeEditor, DATA, VAULT };
+module.exports = { loadCfg, defsFor, findDef, fieldCommandId, fieldKeysBySide, runCommandById, runTagWheel, openSession, fieldWalk, makeEditor, DATA, VAULT };
 
 if (require.main === module) {
   main().catch((e) => {

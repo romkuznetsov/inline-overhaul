@@ -2315,6 +2315,61 @@ async function run() {
     "line pipeline moves right-like tail tokens from left body into right segment"
   );
 
+  /*
+   * **Знак заголовка — не значение Field, и спрашивается это в одном месте.**
+   *
+   * Вопрос «есть ли слева значения» задавали двое: сборка строки — о теле
+   * левого сегмента, доводка — обо всём сегменте вместе со знаком начала
+   * строки. Образец «что такое тег» (решётка плюс непробел) ложится на `##`
+   * целиком, и доводка объявляла зону значений непустой там, где в ней пусто:
+   * команда писала `## :: текст :: 📅…`, а разбор той же строки первый
+   * разделитель убирал. То есть плагин не мог прочесть написанное им самим
+   * (У-157), и на экране заказчика между заголовком и его словом стоял лишний
+   * разделитель.
+   *
+   * Проверяется **симптом**, а не место правки: на строке-заголовке вопрос
+   * обязан отвечать «нет», а сборка — не ставить первый разделитель.
+   * Положительный контроль обязателен (У-88): на том же теле с настоящим тегом
+   * ответ обязан быть «да», иначе «нет» было бы правдой от того, что вопрос
+   * сломан целиком. И `# текст` в контроле не годится: одна решётка под
+   * образец не подходит, и дефекта на ней не было (У-147).
+   */
+  {
+    const shape = linePipeline.fieldsShape(runtimeMarkerRules);
+    /* Правила берутся те же, у которых есть элементы: без них дата в строке
+       значением не считается, и неподвижность проверялась бы не на том
+       предмете. Разделители у них одинаковы — такие же, как у заказчика с
+       13 сентября, и именно на них стенд строки нашёл расхождение. */
+    const headRules = runtimeMarkerRules;
+    assertFalse(linePipeline.hasFieldTokens("##", shape),
+      "знак заголовка считается значением Field");
+    assertFalse(linePipeline.hasFieldTokens("###### текст", shape),
+      "знак заголовка с текстом человека считается значением Field");
+    assertTrue(linePipeline.hasFieldTokens("#work", shape),
+      "положительный контроль: настоящий тег значением считается");
+    assertTrue(linePipeline.hasFieldTokens("## #work", shape),
+      "положительный контроль: тег за знаком заголовка значением считается");
+
+    for (const head of ["#", "##", "######"]) {
+      const built = linePipeline.joinLineParts(
+        { indent: "", left: head, text: "текст", dates: "📅2026-01-02 03:04" },
+        {
+          sep1: "::",
+          sep2: "::",
+          hasLeftTokens: linePipeline.hasFieldTokens(head, shape),
+        }
+      );
+      assertEq(built, head + " текст :: 📅2026-01-02 03:04",
+        "строка-заголовок получила разделитель при пустой зоне значений");
+      /* И написанное обязано пережить собственный разбор (У-157). */
+      const again = linePipeline.buildFromSegments(
+        linePipeline.splitSegments(built, headRules), headRules
+      );
+      assertEq(again, built, "строку-заголовок плагин не читает так, как написал");
+    }
+  }
+
+
   const cursorRules = { io: { separator1: "||", separator2: "||" }, dates: { markers: ["📅"] } };
   const cursorLine = "1111 || 📅2026-04-08";
   assertEq(pkmMacroShared.getCursorAtTextEnd(cursorLine, cursorRules), 4, "text_end cursor stays on text slot when tail is date payload");

@@ -205,9 +205,11 @@ async function main() {
   };
 
   const nameOf = (key) => String((order.labels || {})[key] || key);
+  /* Ключ поля в идентификатор команды переводит общий помощник: своя копия
+     этого правила стояла и здесь, и в стенде отмены, и вторая из них умерла от
+     переименования поля (У-32). */
   const defFor = (key) => {
-    const strict = String((order.strictNames || {})[key] || key);
-    const want = strict.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") + "-next";
+    const want = bench.fieldCommandId(cfg, key, "next");
     return defs.filter((d) => d.id === want)[0] || null;
   };
 
