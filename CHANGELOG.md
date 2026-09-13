@@ -2,9 +2,75 @@
 
 ## Unreleased
 
-Not published yet: `0.1.0-beta.4` is the newest release and it is broken — the
-plugin loads without its commands. Everything below is fixed in the working
-copy and waiting for a release.
+Work since `0.1.0-beta.6`. Not published yet.
+
+### Your line keeps what you typed
+
+- **A task stays a task.** A line that starts with `- [ ] ` keeps its checkbox
+  when you step a Field, even when there is no text on it yet: `- [ ] ` used to
+  come back as `-  :: #/1`. The same holds when a step empties the last value
+  and the line folds back to its start. A checkbox that *is* a Field value
+  (`[N]` for `#note`, say) still goes when that value does.
+- **Any list marker survives, not only the hyphen.** `* text`, `+ text`,
+  `1. text` and `1) text` keep their marker when you step an element Field; the
+  marker used to be replaced by a hyphen and pushed into the line as if it were
+  a value. `1) text` is now read as a list at all — Obsidian reads it as one.
+- **The empty text slot is there for every marker.** Two spaces between the
+  start of the line and the separator are the place your word will go; lines
+  starting with `*`, `+` or a number had no such place.
+- **Your text of two digits stays text.** `- 12` after `Due` no longer moves the
+  number into the value zone.
+- **A heading line is a heading.** `##` is no longer read as a tag, the strip
+  sits on the written text rather than on the indent, and no list marker is put
+  in front of the hashes.
+
+### TagWheel
+
+- **One `Ctrl+Z` after the panel brings back the line you started from.** The
+  panel puts its bar *beside* your values instead of over them, so the document
+  only ever gets an insertion, and what the bar covers is hidden by styling.
+- **Values in the other Block can stay visible** while the panel is open —
+  `Values in the other Block`.
+- **The panel opens on the Field you choose**: the first, the middle or one you
+  name — `Active Field on opening`.
+- **The separator next to the bar shows on the side the rest of the line is on**,
+  and on an empty line too.
+
+### Appearance
+
+- **Every tag bubble is drawn by the plugin**, so size and colour settings reach
+  the tags that have no colour of their own instead of stopping at the ones that
+  do.
+- **The strip under a wrapped line stands on its own row** and no longer runs to
+  the edge of the window.
+- **Controls sit on one line with their description** — the description column
+  gives way instead of pushing the control onto the next row.
+- **The Fields table has two heights**, switched in its header.
+
+### Keyboard
+
+- **`Smart Enter` adds a line instead of tearing the current one**, and where
+  the new line starts is a setting with three positions.
+
+### Under the hood, and you may notice one thing
+
+- **The plugin no longer writes `generated_rules.md` into its own folder.** The
+  engines take their rules straight from your settings, so the file had no
+  readers left; it used to be rewritten on every start of Obsidian on every
+  device, which made your plugin folder sync for no reason. The file left from
+  older versions is removed on the next start — but only if it is the plugin's
+  own: a note of yours at the same path is left alone.
+
+## 0.1.0-beta.6
+
+- **`FEATURES.md`** — a list of what the plugin can do, in words, kept honest by
+  a guard that fails when a command or a panel area is missing from it.
+- Otherwise internal: the same rule stopped being declared in two or three
+  places at once (where a value ends, where the active editor comes from, how a
+  message is built), 23 dead declarations went, and every silent failure in the
+  engines either speaks now or says in place why it is silent.
+
+## 0.1.0-beta.5
 
 - **The commands are back, and so are five engines.** In the released build the
   only working path to the plugin's own modules used a variable, and the bundler
