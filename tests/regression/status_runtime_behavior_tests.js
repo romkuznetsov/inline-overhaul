@@ -2329,26 +2329,69 @@ async function testStatusTagsOffPrefixTogglePreservesCheckboxWhenDisabled() {
   assertTrue(/^\s*-\s+\[[^\]]\]\s+#topic-alpha\s+::\s+Task A\s*$/.test(line), "offPrefix=OFF preserves original checkbox prefix for off-mode tag without own checkbox");
 }
 
-async function testStatusTagsOffPrefixToggleForcesBulletWhenEnabled() {
-  const editor = makeEditor("- [ ] Task A", 6);
-  await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
-    "Action type": "cycle_field:topic",
-    "Direction": "increase",
-    "Order config": buildOrderConfig({
-      active: { topic: "yes" },
-      panel: { topic: "left" },
-      left: ["topic"],
-      enabled: { topic: true },
-      freeRoam: { topic: "off" },
-      freeRoamBehavior: { offPrefix: true },
-    }),
-    "Cycle end behavior": "keep-bullet",
-    "Cursor policy": "text_end",
-  });
-  const line = editor.snapshot().line;
-  assertTrue(/^\s*-\s+#topic-alpha\s+::\s+Task A\s*$/.test(line), "offPrefix=ON rewrites prefix to bullet for off-mode tag without own checkbox");
-  assertTrue(!/^\s*-\s+\[[^\]]\]/.test(line), "offPrefix=ON removes preserved checkbox prefix for tag without own checkbox");
+/**
+ * `Strict: add a bullet` — «добавить, когда нечего», а не «заменить то, что
+ * стоит» (замечание заказчика 2026-09-13, 10.13.92).
+ *
+ * **Прежняя версия этой проверки охраняла дефект** (У-58): она требовала, чтобы
+ * включённая настройка переписывала начало строки дефисом, и была зелёной,
+ * когда `- [ ] Task A` теряла чекбокс, а `1. test` превращалась в `- test`.
+ * Написана она была по поведению кода, а не по тому, что говорит сама
+ * настройка: «Start the line with a bullet **when the Field has nothing of its
+ * own to put there**».
+ *
+ * Поэтому мерится не одна строка, а **четыре формы начала** обоими положениями
+ * тумблера: разница между положениями обязана быть ровно в строке, у которой
+ * начала нет вовсе. Рядом положительный контроль: положения обязаны разойтись
+ * хоть на одной строке — иначе тумблер не делает ничего и всё это зелено само
+ * собой (У-88).
+ */
+async function testStatusTagsOffPrefixToggleAddsBulletOnlyWhenThereIsNone() {
+  async function run(source, offPrefix) {
+    const editor = makeEditor(source, Math.max(0, source.length));
+    await runPkmCommandWithEditor("statusTags", editor, {
+      "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+      "Action type": "cycle_field:topic",
+      "Direction": "increase",
+      "Order config": buildOrderConfig({
+        active: { topic: "yes" },
+        panel: { topic: "left" },
+        left: ["topic"],
+        enabled: { topic: true },
+        freeRoam: { topic: "off" },
+        freeRoamBehavior: { offPrefix },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    return editor.snapshot().line;
+  }
+
+  /* [строка человека, начало при ON, начало при OFF] */
+  const cases = [
+    ["- [ ] Task A", "- [ ] ", "- [ ] "],
+    ["1. Task A", "1. ", "1. "],
+    ["* Task A", "* ", "* "],
+    ["Task A", "- ", ""],
+  ];
+
+  let differ = 0;
+  for (const [source, onPrefix, offPrefix] of cases) {
+    const on = await run(source, true);
+    const off = await run(source, false);
+    assertTrue(/#topic-alpha/.test(on),
+      "контроль: команда и правда сработала при ON — " + JSON.stringify(on));
+    assertTrue(/#topic-alpha/.test(off),
+      "контроль: команда и правда сработала при OFF — " + JSON.stringify(off));
+    assertTrue(on.indexOf(onPrefix) === 0,
+      "`Strict: add a bullet` ON: начало строки " + JSON.stringify(source)
+        + " обязано быть " + JSON.stringify(onPrefix) + ", а вышло " + JSON.stringify(on));
+    assertTrue(off.indexOf(offPrefix) === 0,
+      "`Strict: add a bullet` OFF: начало строки " + JSON.stringify(source)
+        + " обязано быть " + JSON.stringify(offPrefix) + ", а вышло " + JSON.stringify(off));
+    if (on !== off) differ += 1;
+  }
+  assertTrue(differ > 0, "оба положения тумблера дают одно и то же — мерить нечего");
 }
 
 async function testStatusTagsCycleFieldClientsRendersWikilinkToken() {
@@ -2946,7 +2989,7 @@ async function run() {
   await testStatusTagsImportanceKeepsDependentAdjacencyAfterTagWheelApply();
   await testStatusTagsParentCycleClearsDependentSubtagSelection();
   await testStatusTagsOffPrefixTogglePreservesCheckboxWhenDisabled();
-  await testStatusTagsOffPrefixToggleForcesBulletWhenEnabled();
+  await testStatusTagsOffPrefixToggleAddsBulletOnlyWhenThereIsNone();
   await testStatusTagsCycleFieldClientsRendersWikilinkToken();
   await testStatusTagsOffCycleEndClearsOwnCheckboxPrefix();
   await testStatusTagsImportanceHydrationUsesLastTokenOccurrence();

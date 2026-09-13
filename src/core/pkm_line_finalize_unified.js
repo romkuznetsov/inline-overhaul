@@ -193,6 +193,27 @@ function resolvePrefixCheckboxUnified(rules, state, deps) {
   return "";
 }
 
+/**
+ * Начало строки после действия: знак списка и чекбокс.
+ *
+ * **Знак списка человека переживает действие, каким бы он ни был** — замечание
+ * заказчика 2026-09-13 (10.13.92): «при `io-field-behavior=strict` и
+ * `placement-bullet-strict=on` буллит должен добавляться только при отсутствии
+ * в строке префикса, в противном случае должен оставаться исходный префикс».
+ * Его пример: `1. test` после `Imp` давал `- test`, то есть нумерованный
+ * список превращался в маркированный.
+ *
+ * Прежде дефис вставали три ветки подряд: «поставить буллит», «у значения свой
+ * чекбокс» и «сохранить чекбокс строки». Все три отвечали на вопрос «нужен ли
+ * здесь знак списка» — и все три отвечали на него **одним** знаком, хотя знаков
+ * у платформы пять: `-`, `*`, `+`, `1.` и `1)`. Теперь знак берётся у самой
+ * строки, а перечисленные ветки решают только то, о чём они и есть: быть ли
+ * чекбоксу.
+ *
+ * Где знака нет вовсе, `parsedLine.bulletToken` и так равен дефису, и
+ * «поставить буллит» получается само; снимает его обратно
+ * `enforceOffModeFinalPrefixUnified` — там, где настройка выключена.
+ */
 function buildPrefixUnified(parsedLine, rules, state, deps) {
   if (parsedLine && parsedLine.headingToken) {
     return `${parsedLine.headingToken} `;
@@ -201,9 +222,7 @@ function buildPrefixUnified(parsedLine, rules, state, deps) {
   const keepCb = (!nextCb && state && state.__preserveCheckboxPrefix === true && parsedLine && parsedLine.checkboxToken)
     ? normalizeCheckboxToken(parsedLine.checkboxToken)
     : "";
-  const forceBullet = !!(state && state.__forceBulletPrefix === true);
-  let bullet = forceBullet ? "-" : (nextCb ? "-" : (parsedLine.bulletToken || "-"));
-  if (!nextCb && keepCb) bullet = "-";
+  const bullet = String((parsedLine && parsedLine.bulletToken) || "-");
   let out = `${bullet} `;
   if (nextCb) out += `${nextCb} `;
   else if (keepCb) out += `${keepCb} `;
@@ -1833,9 +1852,21 @@ function resolveOffPrefixFlagsUnified(options) {
   if (clearedOwnCheckbox) {
     return { preserveCheckboxPrefix: false, forceBulletPrefix: true, preserveOffImmutability: false };
   }
+  /*
+   * **`Strict: add a bullet` — это «добавить, когда нечего», а не «заменить
+   * то, что стоит»** (замечание заказчика 2026-09-13, 10.13.92). Так написана и
+   * сама настройка: «Start the line with a bullet **when the Field has nothing
+   * of its own to put there**», и подсказка к ней говорит о «plain line».
+   * Включённой она забирала у строки чекбокс: `- [ ] test` после шага по полю
+   * становилась `- test`.
+   *
+   * Разница между включённым и выключенным положением теперь ровно одна:
+   * включённое ставит знак списка строке, у которой начала не было вовсе.
+   * Строку, у которой начало есть, оба положения оставляют как есть.
+   */
   const offPrefixOn = !!(freeRoamBehavior && freeRoamBehavior.offPrefix === true);
   if (offPrefixOn) {
-    return { preserveCheckboxPrefix: false, forceBulletPrefix: true, preserveOffImmutability: false };
+    return { preserveCheckboxPrefix: true, forceBulletPrefix: true, preserveOffImmutability: false };
   }
   return { preserveCheckboxPrefix: true, forceBulletPrefix: false, preserveOffImmutability: true };
 }
