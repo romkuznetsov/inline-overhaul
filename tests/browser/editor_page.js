@@ -128,6 +128,16 @@ const LINES = [
    *    совпадающей стороной было бы отсутствие отступа (У-147).
    */
   "## 123 " + SEP + " #/1",
+  /*
+   * 10. **Длинная строка, которая переносится, и на ней плавающая кнопка.**
+   *     Его замечание 2026-09-13: «если строка становится длинной, то
+   *     полоска tags-block-fill начинает вести себя неадекватно… полоска в
+   *     left block съезжает вниз». Предмет проверяется только здесь: у
+   *     однострочной строки зрительная строка одна, и вертикаль у неё
+   *     совпадает с вертикалью всей строки — то есть правило про перенос
+   *     проверялось бы совпадением сторон (У-147).
+   */
+  "- [ ] #todo " + SEP + " a long line of the owner that wraps and leaves the button alone here ok " + SEP + " #processed #dnef",
 ];
 
 /*
@@ -225,6 +235,17 @@ window.__ioSetBand = function (patch) {
   Object.assign(CFG.visual.tags.blockFill, patch || {});
   bandStyle.textContent = visuals.buildBlockFillStyleCss(visuals.blockFillLookFromConfig(CFG));
   view.dispatch({ selection: view.state.selection });
+  return settled();
+};
+
+/**
+ * Поставить курсор на строку: плавающая кнопка `→` рисуется **на активной
+ * строке**, и без этого её на нужной строке нет вовсе — то есть правило про
+ * неё проверялось бы отсутствием предмета (У-113).
+ */
+window.__ioSetCursor = function (lineNumber) {
+  const line = view.state.doc.line(Number(lineNumber) || 1);
+  view.dispatch({ selection: { anchor: line.to, head: line.to } });
   return settled();
 };
 
@@ -351,17 +372,27 @@ window.__ioEditorProbe = function () {
       if (!lineEl) return [];
       const range = document.createRange();
       range.selectNodeContents(lineEl);
+      /*
+       * **Группируются они по пересечению вертикалей, а не по равенству
+       * верхов.** У пузыря тега свой верх, и равенство рвало одну зрительную
+       * строку на десять — то есть число зрительных строк, которое отдавала
+       * страница, было числом строчных ящиков (У-120: «одинаковая вертикаль»
+       * не отвечает на вопрос «одна ли это зрительная строка»).
+       */
       const out = [];
       for (const r of Array.from(range.getClientRects())) {
         if (!(r.width > 0) && !(r.height > 0)) continue;
-        const prev = out[out.length - 1];
-        if (prev && Math.abs(prev.top - r.top) < 1) {
-          prev.right = Math.max(prev.right, round(r.right));
-          prev.bottom = Math.max(prev.bottom, round(r.bottom));
+        const hit = out.find((g) => r.top < g.bottom - 1 && r.bottom > g.top + 1);
+        if (hit) {
+          hit.top = Math.min(hit.top, round(r.top));
+          hit.bottom = Math.max(hit.bottom, round(r.bottom));
+          hit.left = Math.min(hit.left, round(r.left));
+          hit.right = Math.max(hit.right, round(r.right));
           continue;
         }
-        out.push({ top: round(r.top), bottom: round(r.bottom), right: round(r.right) });
+        out.push({ top: round(r.top), bottom: round(r.bottom), left: round(r.left), right: round(r.right) });
       }
+      out.sort((a, b) => a.top - b.top);
       return out;
     })();
     rows.push({

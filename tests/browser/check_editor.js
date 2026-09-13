@@ -372,11 +372,56 @@ async function main() {
       bad("ни одна строка страницы не переносится — предмета проверки про"
         + " перенесённый блок нет вовсе");
     } else {
-      const secondRow = wrappedRows[0].visualRows[1];
-      const onSecond = wrapped.probe.bands.filter(
-        (b) => (b.top + b.bottom) / 2 >= secondRow.top - 0.5 && (b.top + b.bottom) / 2 <= secondRow.bottom + 0.5);
-      if (!onSecond.length) {
-        bad("на перенесённой части строки подложки нет вовсе — сверять нечего");
+      /*
+       * **Подложки перенесённой строки стоят не на одной её зрительной
+       * строке.** Прежде спрашивалось «на второй зрительной строке подложка
+       * есть», и это было неверно дважды: на второй строке может лежать один
+       * текст человека — подложке там взяться неоткуда, — а сама «вторая
+       * строка» считалась по сломанной группировке рядов, где рядом объявлялся
+       * каждый строчный ящик. Обещано другое: левый Block на своей строке,
+       * правый на своей.
+       */
+      const rowsWithBands = wrappedRows.map((row) => {
+        const rowBands = wrapped.probe.bands.filter((b) => b.top < row.rowTop + row.rowHeight - 1
+          && b.bottom > row.rowTop + 1);
+        const hosts = new Set();
+        for (const b of rowBands) {
+          const mid = (b.top + b.bottom) / 2;
+          row.visualRows.forEach((v, i) => { if (mid > v.top - 2 && mid < v.bottom + 2) hosts.add(i); });
+        }
+        return { line: row.line, hosts: hosts.size, bands: rowBands.length };
+      });
+      const spread = rowsWithBands.filter((r) => r.hosts > 1);
+      if (!spread.length) {
+        bad("подложки каждой перенесённой строки собрались на одной её зрительной строке: "
+          + rowsWithBands.map((r) => "строка " + r.line + " — рядов " + r.hosts
+            + " при " + r.bands + " подложках").join("; "));
+      }
+      /*
+       * **И каждая подложка перенесённой строки лежит на своей зрительной
+       * строке, а не где придётся.** Его слова 2026-09-13: «полоска в left
+       * block съезжает вниз». Прежде спрашивалось только «на второй строке
+       * подложка есть»; это выполняется и тогда, когда **все** подложки строки
+       * съехали на неё же.
+       */
+      for (const row of wrappedRows) {
+        const rowBands = wrapped.probe.bands.filter((b) => b.top < row.rowTop + row.rowHeight - 1
+          && b.bottom > row.rowTop + 1);
+        for (const b of rowBands) {
+          const mid = (b.top + b.bottom) / 2;
+          const host = row.visualRows.filter((v) => mid > v.top - 2 && mid < v.bottom + 2);
+          if (host.length !== 1) {
+            bad("подложка перенесённой строки " + row.line + " не лежит ни на одной её"
+              + " зрительной строке: " + b.top + "…" + b.bottom + " при рядах "
+              + row.visualRows.map((v) => v.top + "…" + v.bottom).join(", "));
+            continue;
+          }
+          const rowMid = (host[0].top + host[0].bottom) / 2;
+          if (!near(mid, rowMid, 2.5)) {
+            bad("подложка перенесённой строки " + row.line + " не по середине своего ряда: "
+              + mid + " против " + rowMid);
+          }
+        }
       }
     }
 

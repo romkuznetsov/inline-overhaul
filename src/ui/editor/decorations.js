@@ -1044,7 +1044,19 @@ function blockFillRoomBeforeFlyButtonPx(view, span, buttonLine) {
  * подложки, но не хуже её отсутствия.
  */
 function blockFillPiecesOf(view, span) {
-  const whole = [{ from: span.from, to: span.to, row: 0, rows: 1 }];
+  /*
+   * **Запасной кусок называет себя неизмеренным, и это не мелочь.**
+   *
+   * Он говорил «зрительная строка одна» там, где обход не смог их сосчитать, —
+   * а дальше это число делило высоту строки. На перенесённой строке высота
+   * делилась на единицу, и подложка левого Block вставала по середине **всей
+   * строки**, то есть уезжала вниз; а кусок, пересекающий зрительные строки,
+   * платформа рисует выделением — первый прямоугольник до правого края, — и
+   * все они получали одну вертикаль. Его слова 2026-09-13: «если строка
+   * становится длинной, то полоска tags-block-fill начинает вести себя
+   * неадекватно… полоска в left block съезжает вниз».
+   */
+  const whole = [{ from: span.from, to: span.to, row: 0, rows: 1, measured: false }];
   /*
    * Обход идёт **от начала строки**, а не от начала отрезка, и это не
    * лишняя работа: номер зрительной строки нужен вертикали подложки, а
@@ -1077,7 +1089,7 @@ function blockFillPiecesOf(view, span) {
   for (let i = 0; i < rows.length; i += 1) {
     const from = Math.max(span.from, rows[i].from);
     const to = Math.min(span.to, rows[i].to);
-    if (to > from) out.push({ from, to, row: i, rows: rows.length });
+    if (to > from) out.push({ from, to, row: i, rows: rows.length, measured: true });
   }
   return out.length ? out : whole;
 }
@@ -1107,7 +1119,7 @@ function blockFillPiecesOf(view, span) {
  * (высота из самого прямоугольника). Это хуже, чем поправленная вертикаль, но
  * не хуже отсутствия подложки.
  */
-function blockFillRowGeometry(view, span, rows, bandHeightAsk) {
+function blockFillRowGeometry(view, span, rows, bandHeightAsk, measured) {
   if (typeof view.lineBlockAt !== "function") return null;
   const lineH = Number(view.defaultLineHeight);
   if (!Number.isFinite(lineH) || lineH <= 0) return null;
@@ -1180,6 +1192,7 @@ function blockFillRowGeometry(view, span, rows, bandHeightAsk) {
    * мера по блоку. Это проба, и ответ «нет» здесь ответ, а не отказ.
    */
   const rowCount = Math.max(1, Number(rows) || 1);
+  const rowsMeasured = measured !== false;
   const blockTopLayer = docTop + blockTop + toLayer;
   let rowsTop = blockTopLayer;
   let rowsHeight = blockHeight;
@@ -1206,7 +1219,15 @@ function blockFillRowGeometry(view, span, rows, bandHeightAsk) {
   } catch (_) {
     /* Проба: узел строки может быть не отрисован — тогда мера остаётся по блоку. */
   }
-  const rowH = rowsHeight > 0 ? rowsHeight / rowCount : lineH;
+  /*
+   * Делить высоту строки на число зрительных строк можно только тогда, когда
+   * это число **сосчитано**. Не сосчитано — берётся высота одной зрительной
+   * строки по умолчанию: она может быть меньше настоящей, и подложка тогда
+   * чуть ниже своего места, но она хотя бы на **своей** строке.
+   */
+  const rowH = !rowsMeasured
+    ? Math.min(rowsHeight > 0 ? rowsHeight : lineH, lineH)
+    : (rowsHeight > 0 ? rowsHeight / rowCount : lineH);
   const height = bandHeightAsk(lineH, textH);
   if (!Number.isFinite(height) || height <= 0) return null;
   return { docTop, toLayer, blockTop, blockHeight, rowsTop, rowsHeight, lineH, rowH, height };
@@ -1318,7 +1339,7 @@ function blockFillMarkersFor(view, plugin) {
      * зрительной строке, и `pieces.length` у него единица при двух строках
      * (У-129). Число несёт сам кусок — его считает обход до конца строки.
      */
-    const geom = blockFillRowGeometry(view, span, pieces[0].rows, askHeight);
+    const geom = blockFillRowGeometry(view, span, pieces[0].rows, askHeight, pieces[0].measured);
     for (let i = 0; i < pieces.length; i++) {
       const piece = pieces[i];
       /*
@@ -1346,7 +1367,23 @@ function blockFillMarkersFor(view, plugin) {
         assoc: 0,
       };
       const box = geom ? blockFillPieceBox(geom, piece) : null;
-      for (const marker of cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range)) {
+      const markers = cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range);
+      /*
+       * **Кусок, растянутый на несколько зрительных строк, не рисуется вовсе.**
+       *
+       * Платформа рисует такой отрезок **выделением**: первый прямоугольник до
+       * правого края содержимого, последний от левого. Для выделения это
+       * верно, для подложки — нет, и до 2026-09-13 все эти прямоугольники
+       * получали ещё и одну вертикаль: на экране выходила полоса во всю ширину
+       * строки. Заказчик назвал это «полоска ведёт себя неадекватно».
+       *
+       * Дойти сюда можно только запасным путём: обход зрительных строк
+       * кусок не разрезал. Тогда честный ответ — не рисовать: «полоска должна
+       * быть только там, где есть написанное этого Block» — его слово того же
+       * дня.
+       */
+      if (piece.measured === false && markers.length > 1) continue;
+      for (const marker of markers) {
         /*
          * Мерить не удалось и расти некуда — прямоугольник платформы уходит
          * как есть. Вертикаль подложки теперь целиком от зрительной строки, и
@@ -1361,12 +1398,26 @@ function blockFillMarkersFor(view, plugin) {
          * (`null` значит «не задавать») — такому расти нечем.
          */
         const width = marker.width == null ? null : Number(marker.width) + growLeft + growRight;
+        /*
+         * **Где зрительная строка этого куска, когда мы её не считали.**
+         *
+         * Обход зрительных строк не удался — номер строки у куска выдуман, и
+         * ставить подложку по нему значит рисовать её на чужой строке: правый
+         * Block перенесённой строки уезжал на первую. Но кусок у платформы
+         * **один прямоугольник**, то есть она сама знает, где он лежит. Тогда
+         * берём её вертикаль, а свою высоту ставим по её середине: высота
+         * подложки одна на все строки — его условие, и от запасного пути она
+         * не меняется.
+         */
+        const unmeasuredTop = box && piece.measured === false
+          ? Number(marker.top) + (Number(marker.height) - box.height) / 2
+          : null;
         out.push(new cmView.RectangleMarker(
           BLOCK_FILL_MARKER_CLASS,
           Number(marker.left) - growLeft,
           /* Вертикаль — от зрительной строки, а не от измеренного отрезка;
              измерение не удалось — остаётся прежняя мера. */
-          box ? box.top : Number(marker.top),
+          unmeasuredTop !== null ? unmeasuredTop : (box ? box.top : Number(marker.top)),
           width,
           box ? box.height : Number(marker.height),
         ));
