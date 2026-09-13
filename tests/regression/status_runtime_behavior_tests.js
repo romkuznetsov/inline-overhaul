@@ -426,6 +426,44 @@ async function testStatusDateRunCommandPathIncrementsDue() {
  * Дефис в списке стоит положительным контролем: на нём проверка была зелёной и
  * до правки, и если однажды покраснеет — сломано что-то другое.
  */
+/*
+ * **Пустой слот текста держится при любом знаке списка** (2026-09-13,
+ * 10.13.107).
+ *
+ * Слот — это структура, и хранится он двумя пробелами: так человек видит, куда
+ * встанет слово (10.13.34). Правило «слева только начало строки» было написано
+ * своим образцом, который знал `[-*+]` с чекбоксом и голый дефис, — и на
+ * строках `* `, `1. `, `1. [ ] ` слот схлопывался в один пробел.
+ *
+ * Дефис здесь положительный контроль: на нём слот держался и до правки.
+ */
+async function testEmptyTextSlotSurvivesAnyListMarker() {
+  const rightElement = {
+    left: ["Category", "Importance", "type"],
+    right: ["date_due", "Project"],
+    panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
+  };
+  for (const mark of ["-", "*", "+", "1.", "- [ ]", "* [ ]", "1. [ ]"]) {
+    const before = mark + " ";
+    const editor = makeEditor(before, before.length);
+    await runPkmCommandWithEditor("statusDate", editor, {
+      "Rules data": OWNER_SHAPE_RULES,
+      "Action type": "field_inc:date_due",
+      "Order config": ownerShapeOrder(rightElement),
+      "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    const line = editor.snapshot().line;
+    assertTrue(/📅/.test(line),
+      "контроль: значение элемента не встало, и слот мерить не в чем: " + JSON.stringify(line));
+    assertTrue(line.indexOf(mark + "  ") === 0,
+      "слот под текст схлопнулся: у строки " + JSON.stringify(before)
+      + " вышло " + JSON.stringify(line) + " — между началом строки и разделителем"
+      + " обязаны остаться два пробела");
+  }
+}
+
 async function testStatusDateKeepsAnyListMarker() {
   for (const mark of ["-", "*", "+", "1.", "1)"]) {
     const before = mark + " текст";
@@ -3217,6 +3255,7 @@ async function run() {
   await testStatusTagsRunCommandPathCyclesTypeGenericAction();
   await testStatusTagsTypeHydrationUsesLastTokenOccurrence();
   await testStatusDateRunCommandPathIncrementsDue();
+  await testEmptyTextSlotSurvivesAnyListMarker();
   await testStatusDateKeepsAnyListMarker();
   await testStatusDateHydrationUsesLastDueOccurrence();
   await testStatusDateRunCommandPathIncrementsDueGenericAction();

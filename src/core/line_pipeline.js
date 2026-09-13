@@ -514,6 +514,20 @@ function buildFromSegments(seg, rules) {
 }
 
 /**
+ * В левом сегменте стоит только начало строки — и ничего больше.
+ *
+ * Спрашивается у общего разборщика начала (`splitLeftPrefix`), а не образцом:
+ * знаков списка пять, чекбокс бывает за каждым, и своя копия правила знала
+ * два (10.13.106, 10.13.107).
+ */
+function isBareLinePrefix(left) {
+  const src = String(left || "").trim();
+  if (!src) return false;
+  const parts = splitLeftPrefix(src);
+  return !!parts.prefix && !String(parts.body || "").trim();
+}
+
+/**
  * **Чем разделены зоны строки — объявлено здесь, и только здесь.**
  *
  * Правило простое, и вся его сложность в том, что зон может не быть:
@@ -548,7 +562,12 @@ function joinLineParts(parts, opts) {
   }
   if (dates) {
     if (hasLeft) return indent + left + " " + sep1 + "  " + sep2 + " " + dates;
-    if (/^[-*+]\s+\[[^\]]\]$/.test(left) || left === "-") return indent + left + "  " + sep2 + " " + dates;
+    /* Слот держится там, где слева **только начало строки** — знак списка,
+       номер, чекбокс за ними. Здесь стоял свой образец, знавший `[-*+]` и
+       голый дефис: у строки `* ` и `1. [ ] ` слот схлопывался, и человек не
+       видел, куда встанет слово (10.13.107). Вопрос задаётся общим
+       `splitLeftPrefix`, у которого форма знака одна на весь плагин. */
+    if (isBareLinePrefix(left)) return indent + left + "  " + sep2 + " " + dates;
     return indent + left + " " + sep2 + " " + dates;
   }
   if (text) {
