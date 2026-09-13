@@ -188,6 +188,47 @@ async function main() {
         + base.bands.length + " против " + fallback.bands.length + "): " + diff.slice(0, 3).join(" "));
     }
 
+    /*
+     * ---- 0г. Обход рядов, не дошедший до конца строки -------------------
+     *
+     * Второй отказ платформы, зеркальный первому: граница ряда названа
+     * **раньше** конца ряда. Ссылку `[[…]]` Live Preview рисует своим узлом, и
+     * `moveToLineBoundary` на нём возвращает положение, с которого сам же не
+     * сдвигается. Остаток строки уходил тогда **новой** зрительной строкой:
+     * на однорядной строке рядов становилось два, высота строки делилась
+     * надвое, и у конца полосы вставала вторая — той же высоты, но на полряда
+     * ниже. Заказчик: «заметил артефакты right block в конце полоски
+     * tags-block-fill (особенно, если последнее value — wikilink)»
+     * (2026-09-13).
+     *
+     * Сверяется **число прямоугольников и их вертикали**. Горизонталь не
+     * сверяется нарочно, и это названо: на сломанной границе разделитель
+     * выглядит уехавшим на другой ряд, шкалы не задаёт, и подложка наружу не
+     * растёт — она становится уже на свой прирост, но остаётся одной и на
+     * своём месте.
+     */
+    const shortRow = await page.evaluate(async () => {
+      await window.__ioShortRowBoundary(true);
+      const probe = window.__ioEditorProbe();
+      await window.__ioShortRowBoundary(false);
+      return probe;
+    });
+    if (shortRow.bands.length !== base.bands.length) {
+      bad("обход рядов, не дошедший до конца строки, добавил подложек: было "
+        + base.bands.length + ", стало " + shortRow.bands.length
+        + " — остаток строки посчитан новой зрительной строкой");
+    } else {
+      const moved = shortRow.bands
+        .map((band, i) => (near(band.top, base.bands[i].top, 0.6)
+          ? null
+          : base.bands[i].top + " → " + band.top))
+        .filter(Boolean);
+      if (moved.length) {
+        bad("на не дошедшем до конца обходе подложки уехали по вертикали: "
+          + moved.slice(0, 3).join(", "));
+      }
+    }
+
     /* ---- 1. Высота подложки одна на все строки ------------------------ */
     const heights = Array.from(new Set(base.bands.map((b) => b.height)));
     if (heights.length !== 1) {

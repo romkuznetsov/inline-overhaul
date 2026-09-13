@@ -147,6 +147,15 @@ const LINES = [
    */
   "- [ ] #todo " + SEP + " short text here" + SEP
     + " #processed #aVeryLongTagThatCannotFitOnTheFirstRow",
+  /*
+   * 12. **Ссылка последним значением правого Block.** Его замечание
+   *     2026-09-13: «артефакты right block в конце полоски tags-block-fill
+   *     (особенно, если последнее value — wikilink)». У строки 3 ссылка
+   *     стоит **внутри** левого Block, а здесь она на самом краю правого:
+   *     строчный ящик у ссылки свой и выше соседнего текста.
+   */
+  "- [ ] \u{1F4C5}2026-09-13 23:18 #123 #work #new " + SEP + " 11 " + SEP
+    + " #todo [[test1]]",
 ];
 
 /*
@@ -282,6 +291,36 @@ window.__ioBreakRowBoundary = async function (on) {
    * сравнивала бы состояние само с собой (У-92). Поэтому подпись двигается
    * туда и обратно: ширина на деление в сторону и назад.
    */
+  const was = Number(CFG.visual.tags.blockFill.widthPct);
+  await window.__ioSetBand({ widthPct: was >= 100 ? was - 1 : was + 1 });
+  return window.__ioSetBand({ widthPct: was });
+};
+
+/**
+ * Второй отказ платформы: граница ряда названа **раньше** конца ряда.
+ *
+ * Первый (`__ioBreakRowBoundary`) — «граница = конец строки документа»; он у
+ * заказчика был, и его разбор в 10.13.102. Этот — зеркальный: обход рядов
+ * останавливается на середине строки и до её конца не доходит. В браузере сам
+ * он не случается, а у заказчика случился: у ссылки `[[…]]` в Live Preview
+ * свой узел, и на нём `moveToLineBoundary` вернуло положение, с которого само
+ * же и не сдвинулось.
+
+ * Подделка называет ровно это и ничего больше: граница обрезается семью
+ * десятыми строки. Возврат обязателен — на сломанной границе идут все
+ * следующие измерения.
+ */
+window.__ioShortRowBoundary = async function (on) {
+  view.moveToLineBoundary = on
+    ? (range, forward, includeWrap) => {
+      const head = Number(range && range.head) || 0;
+      const line = view.state.doc.lineAt(head);
+      const stop = line.from + Math.floor(line.length * 0.7);
+      const real = realMoveToLineBoundary(range, forward, includeWrap);
+      const realHead = real && Number.isFinite(Number(real.head)) ? Number(real.head) : line.to;
+      return { head: Math.min(realHead, Math.max(stop, line.from)) };
+    }
+    : realMoveToLineBoundary;
   const was = Number(CFG.visual.tags.blockFill.widthPct);
   await window.__ioSetBand({ widthPct: was >= 100 ? was - 1 : was + 1 });
   return window.__ioSetBand({ widthPct: was });
@@ -435,6 +474,7 @@ window.__ioEditorProbe = function () {
     })();
     rows.push({
       line: n,
+      text: line.text,
       hasLink: line.text.indexOf("[[") >= 0,
       visualRows,
       rowTop: round(Number(view.documentTop) + Number(block.top)),

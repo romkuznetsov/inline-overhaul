@@ -115,6 +115,21 @@ const EDITOR_INJECTIONS = {
       + "  return { top: Math.max(rowsTop, Math.min(top, rowsBottom - height)), height };",
   },
   /*
+   * Остаток строки снова становится **новой** зрительной строкой — состояние
+   * до 2026-09-14. На однорядной строке рядов делается два, высота строки
+   * делится надвое, и у конца полосы встаёт вторая, на полряда ниже. Ровно
+   * это заказчик назвал «артефактами right block в конце полоски
+   * tags-block-fill (особенно, если последнее value — wikilink)».
+   */
+  "tail-row-invented": {
+    file: "src/ui/editor/decorations.js",
+    find: "  if (at < span.to) {\n"
+      + "    const tail = rows[rows.length - 1];\n"
+      + "    tail.to = Math.max(Number(tail.to) || 0, span.to);\n"
+      + "  }",
+    replace: "  if (at < span.to) rows.push({ from: at, to: span.to });",
+  },
+  /*
    * Номер зрительной строки у куска перестаёт учитываться: подложки всех
    * кусков перенесённой строки встают на её первую строку. Это половина того,
    * на что он пожаловался 2026-09-13 («если строка становится длинной, то
