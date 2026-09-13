@@ -834,9 +834,17 @@ async function run() {
    * `buildFromSegments`: тот свой образец снят, и утверждение переехало за
    * своим предметом (У-94).
    */
-  assertTrue(/function splitLeftPrefix\(raw\) \{[\s\S]{0,200}#\{1,6\}/.test(linePipelineSrc),
-    "line pipeline line-prefix rule knows the heading marker");
-  assertTrue(/function splitLeftPrefix\(raw\) \{[\s\S]{0,200}\\d\+\\\./.test(linePipelineSrc),
+  const sharedUtilsSrcHere = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"), "utf8");
+  const visualsSrcHere = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "editor_visuals_config.js"), "utf8");
+  assertTrue(/HEADING_PREFIX_SRC = "#\{1,6\}/.test(sharedUtilsSrcHere),
+    "shared utils declares the heading-marker rule once");
+  assertTrue(/__sharedUtils\.HEADING_PREFIX_SRC/.test(linePipelineSrc),
+    "line pipeline line-prefix rule asks the shared heading-marker rule");
+  assertTrue(/__sharedUtils\.headingPrefixLength\(src\)/.test(visualsSrcHere),
+    "editor visuals ask the shared heading-marker rule before painting tags");
+  assertTrue(/var LEFT_PREFIX_RE = new RegExp\([\s\S]{0,260}d\+/.test(linePipelineSrc),
     "line pipeline line-prefix rule knows the numbered marker");
   assertFalse(/const hasListPrefix = \//.test(linePipelineSrc),
     "line pipeline builds have their own line-prefix pattern again");

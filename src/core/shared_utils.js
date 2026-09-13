@@ -724,6 +724,29 @@ function writeCfgPath(root, path, value) {
  * положительного контроля на этот случай).
  */
 const CHECKBOX_ONE_CHAR_SRC = "\\[[^\\]]\\]";
+
+/**
+ * Знак заголовка — разметка Obsidian, и правило спрошено у него, а не выдумано
+ * (У-91). В `app.js` 1.13.7 заголовок это `/^(#+)(?: |$)/`, а режется он
+ * `/^#{1,6} (.*)/m`: решёток не больше шести, и за ними обязан стоять пробел
+ * или конец строки. Отсюда и главное следствие — **тег с решёток начаться не
+ * может**, потому что за ними стоит пробел.
+ *
+ * Объявлено здесь, потому что спрашивают его двое и по разным поводам: разбор
+ * строки (`line_pipeline.splitLeftPrefix`) и слой оформления заметки
+ * (`editor_visuals_config.scanLineVisualTokens`). Пока правило знал только
+ * разбор, `##` получал на экране пузырь тега — заказчик прислал это скриншотом
+ * 2026-09-13, тем же днём, что и починку разбора.
+ */
+const HEADING_PREFIX_SRC = "#{1,6}(?=[ \\t]|$)";
+const HEADING_PREFIX_RE = new RegExp("^[ \\t]*" + HEADING_PREFIX_SRC);
+
+/** Сколько знаков в начале строки занимает знак заголовка; ноль — его нет. */
+function headingPrefixLength(text) {
+  const m = String(nz(text, "")).match(HEADING_PREFIX_RE);
+  return m ? m[0].length : 0;
+}
+
 const LINE_INDENT_RE = /^[ \t]*/;
 const LINE_QUOTE_RE = /^>[ \t]?/;
 const LINE_BULLET_RE = new RegExp("^[-*+][ \\t]+(?:" + CHECKBOX_ONE_CHAR_SRC + "[ \\t]+)?");
@@ -870,6 +893,8 @@ module.exports = {
   nz,
   escapeRe,
   CHECKBOX_ONE_CHAR_SRC,
+  HEADING_PREFIX_SRC,
+  headingPrefixLength,
   lineIndentLength,
   linePrefixLength,
   lineMarkerOf,

@@ -119,6 +119,15 @@ const LINES = [
    *    подмена «нужны оба» осталась бы незамеченной (У-147).
    */
   "- [ ] #todo #single " + SEP + " 1231 #bare3",
+  /*
+   * 9. Строка-ЗАГОЛОВОК — его замечание 2026-09-13: «в строке хедера полоска
+   *    tags-block-fill смещена наверх — выглядит отвратительно», и рядом «`##`
+   *    стал пузырьком». Обе половины здесь: решётки в начале и правый Block с
+   *    цветным тегом. Без такой строки правило «подложка стоит по написанному»
+   *    проверялось бы только там, где ящик строки равен написанному, — то есть
+   *    совпадающей стороной было бы отсутствие отступа (У-147).
+   */
+  "## 123 " + SEP + " #/1",
 ];
 
 /*
@@ -132,6 +141,28 @@ const linkStandIn = ViewPlugin.fromClass(class {
   constructor(view) { this.decorations = buildLinkMarks(view); }
   update(u) { this.decorations = buildLinkMarks(u.view); }
 }, { decorations: (v) => v.decorations });
+
+/*
+ * ПОДДЕЛКА OBSIDIAN, И ОНА НАЗВАНА (У-1). Строку, начинающуюся со знака
+ * заголовка, Obsidian рисует крупнее и с отступом сверху; markdown-разбора на
+ * этой странице нет. Пометка ставится на строку целиком и несёт класс, у
+ * которого в стилях страницы задано ровно то, что решает вертикаль подложки:
+ * кегль и верхний отступ.
+ */
+const headingStandIn = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = buildHeadingLines(view); }
+  update(u) { this.decorations = buildHeadingLines(u.view); }
+}, { decorations: (v) => v.decorations });
+
+function buildHeadingLines(view) {
+  const out = [];
+  for (let n = 1; n <= view.state.doc.lines; n++) {
+    const line = view.state.doc.line(n);
+    if (!/^#{1,6}(?:\s|$)/.test(line.text)) continue;
+    out.push(Decoration.line({ attributes: { class: "io-probe-heading" } }).range(line.from));
+  }
+  return Decoration.set(out, true);
+}
 
 function buildLinkMarks(view) {
   const out = [];
@@ -153,6 +184,7 @@ const view = new EditorView({
       EditorView.lineWrapping,
       decorations.createTagVisualDecorationExtension(plugin),
       linkStandIn,
+      headingStandIn,
       /* Кнопка `→` — наш же виджет, и здесь он настоящий. */
       decorations.createSourceMarkDecorationExtension(plugin),
       decorations.createBlockFillLayerExtension(plugin),
@@ -266,6 +298,24 @@ function bands() {
  * Каждое — вопрос к браузеру, а не к нашему коду: положение прямоугольника,
  * положение первого написанного знака блока, правый край знака начала строки.
  */
+window.__ioGeomProbe = function (lineNumber) {
+  const line = view.state.doc.line(Number(lineNumber));
+  const block = view.lineBlockAt(line.from);
+  const at = view.domAtPos(line.from);
+  const node = at && at.node ? (at.node.nodeType === 1 ? at.node : at.node.parentElement) : null;
+  const el = node && node.closest ? node.closest(".cm-line") : null;
+  const box = el ? el.getBoundingClientRect() : null;
+  return {
+    text: line.text,
+    blockTop: block.top, blockHeight: block.height,
+    defaultLineHeight: view.defaultLineHeight,
+    documentTop: view.documentTop,
+    boxTop: box ? box.top : null, boxHeight: box ? box.height : null,
+    textHeight: view.viewState && view.viewState.heightOracle
+      ? view.viewState.heightOracle.textHeight : null,
+  };
+};
+
 window.__ioEditorProbe = function () {
   const doc = view.state.doc;
   const rows = [];
@@ -354,6 +404,38 @@ window.__ioEditorProbe = function () {
     const r = flyEl.getBoundingClientRect();
     return { left: round(r.left), right: round(r.right), top: round(r.top) };
   })() : null;
+  /*
+   * Строка-заголовок: подложка против того, что на ней написано.
+   *
+   * Мерится **пузырь на той же строке**, а не ящик строки: ящик у заголовка
+   * выше написанного, и лишнее место лежит над буквами — если сверять с ним,
+   * «подложка по середине» выполнится и у подложки, уехавшей вверх (это и был
+   * дефект). Пузырь стоит там же, где буквы, и потому отвечает на нужный
+   * вопрос.
+   */
+  const headingEl = document.querySelector(".io-probe-heading");
+  const heading = headingEl ? (() => {
+    const lineRect = headingEl.getBoundingClientRect();
+    const tokenEl = headingEl.querySelector("[data-io-tag-token]");
+    /*
+     * Отбор **по пересечению**, а не по вложенности: подложка, уехавшая вверх,
+     * выходит за ящик своей строки — и отбор «внутри ящика» не нашёл бы ровно
+     * тот прямоугольник, ради которого всё это меряется.
+     */
+    const inRow = bands().filter((b) => b.bottom > lineRect.top + 1 && b.top < lineRect.bottom - 1);
+    return {
+      line: { top: round(lineRect.top), bottom: round(lineRect.bottom), height: round(lineRect.height) },
+      token: tokenEl ? (() => {
+        const r = tokenEl.getBoundingClientRect();
+        return { top: round(r.top), bottom: round(r.bottom), height: round(r.height) };
+      })() : null,
+      bands: inRow,
+      tagBubblesInPrefix: Array.from(headingEl.querySelectorAll("[data-io-tag-token]"))
+        .filter((el) => String(el.textContent || "").trim().startsWith("#")
+          && /^#+$/.test(String(el.textContent || "").trim()))
+        .length,
+    };
+  })() : null;
   return {
     bands: bands(),
     rows,
@@ -361,6 +443,7 @@ window.__ioEditorProbe = function () {
     textBoxHeight: textBox,
     bubbleHeight,
     fly,
+    heading,
     lineHeight: round(view.defaultLineHeight),
     markerClass: visuals.BLOCK_FILL_MARKER_CLASS,
   };

@@ -516,12 +516,22 @@ function buildElementMarkersFromConfig(cfg) {
 function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
   const src = String(text || "");
   const found = [];
+  /*
+   * **Знак заголовка тегом не становится** (замечание заказчика 2026-09-13,
+   * `Скриншоты`: «`##` (уровень хедера) стал пузырьком — этого не должно
+   * быть»). Наше правило «что такое тег» — решётка плюс непробел, и `##` под
+   * него подходит целиком. В разборе строки это чинилось тем же днём; сюда
+   * правило не доходило, потому что было объявлено в разборе, а не в общем
+   * доме. Теперь дом один — `shared_utils`, и длина знака берётся оттуда.
+   */
+  const headingLen = __sharedUtils.headingPrefixLength(src);
   const pushAll = (rx, kind) => {
     let m;
     while ((m = rx.exec(src)) !== null) {
       const raw = String(m[0] || "");
       const token = raw.trim();
       if (!token) continue;
+      if (m.index < headingLen) continue;
       found.push({ token, kind, index: m.index, end: m.index + token.length });
     }
   };

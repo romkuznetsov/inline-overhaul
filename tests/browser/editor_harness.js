@@ -77,6 +77,35 @@ const EDITOR_INJECTIONS = {
     replace: "  const rowH = rows > 1 && geom.blockHeight > 0 ? geom.blockHeight / rows : geom.lineH;",
   },
   /*
+   * Вертикаль обратно от **блока** строки, а не от её узла. Ровно это он и
+   * увидел 2026-09-13: «в строке хедера полоска tags-block-fill смещена
+   * наверх». Блок у строки с отступом начинается выше написанного, а высоту
+   * отдаёт без отступа — подложка уезжала вверх на весь отступ.
+   */
+  "heading-band-by-block": {
+    file: "src/ui/editor/decorations.js",
+    find: "  const rowsTop = Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop;",
+    replace: "  const rowsTop = blockTop;",
+  },
+  /*
+   * Прижим обратно по блоку: он один, без середины, тянет подложку вверх на
+   * строке с отступом — то есть съедает починку, даже если середина верна.
+   */
+  "heading-clamp-by-block": {
+    file: "src/ui/editor/decorations.js",
+    find: "  const bottom = (Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop) + rowsHeight;",
+    replace: "  const bottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : rowH * rows);",
+  },
+  /*
+   * Знак заголовка обратно становится тегом: «`##` (уровень хедера) стал
+   * пузырьком — этого не должно быть».
+   */
+  "heading-is-a-tag": {
+    file: "src/core/editor_visuals_config.js",
+    find: "  const headingLen = __sharedUtils.headingPrefixLength(src);",
+    replace: "  const headingLen = 0;",
+  },
+  /*
    * Шкала высоты обратно упирается в потолок на середине: «tags-block-fill-height
    * изменяются только при значениях ползунка от 0 до 2 px, а при значениях от 3
    * до 5 высота как при 2px».
@@ -360,6 +389,16 @@ const PAGE_CSS = [
    * ссылка у заказчика: подложка стала выше, а строки остались на месте.
    */
   ".io-probe-link { font-size: 21px; }",
+  /*
+   * ПОДДЕЛКА OBSIDIAN: строка-заголовок. Подделаны два свойства, и оба
+   * обмерены по его скриншоту 2026-09-13 (`Pasted image 20260913134350.png`,
+   * карта прямоугольников по строкам пикселей): кегль крупнее соседнего
+   * текста и **отступ сверху**. Отступ тут не украшение — он и есть предмет:
+   * ящик строки у заголовка выше написанного, и лишнее место лежит **над**
+   * буквами. Подложка, поставленная по середине ящика, от этого уезжает
+   * вверх — на его картинке на десять точек из сорока.
+   */
+  ".io-probe-heading { font-size: 26px; margin-top: 18px; }",
 ].join("\n");
 
 async function buildPage(injection) {

@@ -579,9 +579,13 @@ function joinLineParts(parts, opts) {
  * есть заголовок с текстом `[ ] test`. Общая ветка на оба знака съедала эти
  * скобки вместе с текстом человека — ровно тот класс, что У-91.
  */
+var LEFT_PREFIX_RE = new RegExp(
+  "^(?:(" + __sharedUtils.HEADING_PREFIX_SRC + ")|((?:[-*+]|\\d+\\.)(?:\\s+\\[[^\\]]\\])?))(?:\\s+|$)(.*)$"
+);
+
 function splitLeftPrefix(raw) {
   var src = String(raw || "").trim();
-  var m = src.match(/^(?:(#{1,6})|((?:[-*+]|\d+\.)(?:\s+\[[^\]]\])?))(?:\s+|$)(.*)$/);
+  var m = src.match(LEFT_PREFIX_RE);
   if (!m) return { prefix: "", body: src };
   return { prefix: String(m[1] || m[2] || "").trim(), body: String(m[3] || "").trim() };
 }

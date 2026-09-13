@@ -1149,11 +1149,54 @@ function blockFillRowGeometry(view, span, rows, bandHeightAsk) {
    * Смешать их было первой версией этой правки, и гейт покраснел сразу:
    * высоты разошлись на четыре точки между строкой со ссылкой и без неё.
    */
+  /*
+   * **Ящик строки бывает выше написанного, и лишнее лежит НАД буквами.**
+   *
+   * Замечание заказчика 2026-09-13: «в строке хедера полоска tags-block-fill
+   * смещена наверх — выглядит отвратительно». Обмерено по его скриншоту картой
+   * прямоугольников: подложка занимала `6…35`, буквы и пузыри — `20…43`, то
+   * есть середины разошлись на десять точек из сорока.
+   *
+   * Причина — отступ строки. `lineBlockAt` отдаёт **блок** строки документа, а
+   * у заголовка в него входит верхний отступ, который Obsidian ставит перед
+   * ним. Середина блока при этом выше середины написанного ровно на половину
+   * отступа, и подложка вставала по ней.
+   *
+   * Спрашивается это у узла самой строки, а не у пробы координат. Проба
+   * (`coordsAtPos`) отдаёт ящик **каретки**, то есть высоту написанного, и
+   * между ним и верхом блока лежит не только отступ, но и половина
+   * междустрочия — на обычной строке она есть всегда. Ящик узла `.cm-line`
+   * отступов в себя не включает по устройству блочной модели: они снаружи
+   * границы. Поэтому у строки без отступа он совпадает с блоком до точки, а у
+   * заголовка отличается ровно на отступ.
+   *
+   * Узла может не быть — строка вне отрисованного окна: тогда остаётся прежняя
+   * мера по блоку. Это проба, и ответ «нет» здесь ответ, а не отказ.
+   */
   const rowCount = Math.max(1, Number(rows) || 1);
-  const rowH = blockHeight > 0 ? blockHeight / rowCount : lineH;
+  const blockTopLayer = docTop + blockTop + toLayer;
+  let rowsTop = blockTopLayer;
+  let rowsHeight = blockHeight;
+  try {
+    const at = view.domAtPos(span.lineFrom);
+    const node = at && at.node
+      ? (at.node.nodeType === 1 ? at.node : at.node.parentElement)
+      : null;
+    const lineEl = node && typeof node.closest === "function" ? node.closest(".cm-line") : null;
+    const box = lineEl && typeof lineEl.getBoundingClientRect === "function"
+      ? lineEl.getBoundingClientRect()
+      : null;
+    if (box && Number.isFinite(Number(box.height)) && Number(box.height) > 0) {
+      rowsTop = Number(box.top) + toLayer;
+      rowsHeight = Number(box.height);
+    }
+  } catch (_) {
+    /* Проба: узел строки может быть не отрисован — тогда мера остаётся по блоку. */
+  }
+  const rowH = rowsHeight > 0 ? rowsHeight / rowCount : lineH;
   const height = bandHeightAsk(lineH, textH);
   if (!Number.isFinite(height) || height <= 0) return null;
-  return { docTop, toLayer, blockTop, blockHeight, lineH, rowH, height };
+  return { docTop, toLayer, blockTop, blockHeight, rowsTop, rowsHeight, lineH, rowH, height };
 }
 
 /**
@@ -1182,7 +1225,10 @@ function blockFillPieceBox(geom, piece) {
   const rows = Math.max(1, Number(piece.rows) || 1);
   const rowH = geom.rowH;
   const blockTop = geom.docTop + geom.blockTop + geom.toLayer;
-  const rowTop = blockTop + rowH * (Number(piece.row) || 0);
+  /* Зрительные строки начинаются у верха узла строки, а не у верха её блока:
+     отступ строки лежит снаружи узла и написанному не принадлежит. */
+  const rowsTop = Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop;
+  const rowTop = rowsTop + rowH * (Number(piece.row) || 0);
   /*
    * **Прижим высоты объявлен один раз** — в самом правиле
    * (`blockFillBandHeightPx`), и здесь его копии быть не должно: второй прижим
@@ -1193,8 +1239,19 @@ function blockFillPieceBox(geom, piece) {
    */
   const height = geom.height;
   const top = rowTop + (rowH - height) / 2;
-  const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : rowH * rows);
-  return { top: Math.max(blockTop, Math.min(top, blockBottom - height)), height };
+  /*
+   * **Прижим держит подложку внутри узла строки, а не внутри её блока.**
+   *
+   * Блок и узел — не одно и то же, и обмерено это гейтом: у строки-заголовка
+   * блок отдаёт верх `362` и высоту `52`, а узел стоит на `384` и высок на те
+   * же `52`. То есть высоту блок считает без отступа, а верх — с ним, и низ
+   * блока оказывается на восемнадцать точек выше низа написанного. Прижим по
+   * блоку от этого тянул подложку вверх — и тянул ровно настолько, чтобы
+   * съесть всю починку середины.
+   */
+  const rowsHeight = Number(geom.rowsHeight) > 0 ? Number(geom.rowsHeight) : rowH * rows;
+  const bottom = (Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop) + rowsHeight;
+  return { top: Math.max(rowsTop, Math.min(top, bottom - height)), height };
 }
 
 /**
