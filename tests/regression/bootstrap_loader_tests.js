@@ -867,8 +867,22 @@ async function run() {
     "line pipeline line-prefix rule asks the shared heading-marker rule");
   assertTrue(/__sharedUtils\.headingPrefixLength\(src\)/.test(visualsSrcHere),
     "editor visuals ask the shared heading-marker rule before painting tags");
-  assertTrue(/var LEFT_PREFIX_RE = new RegExp\([\s\S]{0,260}d\+/.test(linePipelineSrc),
-    "line pipeline line-prefix rule knows the numbered marker");
+  /*
+   * Форма знака списка переехала в общий дом (`LIST_PREFIX_SRC`, 10.13.106):
+   * её спрашивают трое, и две копии знали разное — у разбора была точка без
+   * скобки, у перестановки по Order один дефис. Утверждение переехало за
+   * предметом (У-94) и спрашивает теперь и дом, и обоих читателей.
+   */
+  /* Образец читается подстрокой, а не выражением: у выражения про выражение
+     уровней экранирования три, и ошибиться в них проще, чем в предмете. */
+  assertTrue(sharedUtilsSrcHere.indexOf(String.raw`const LIST_PREFIX_SRC = "(?:[-*+]|\\d+[.)])"`) !== -1,
+    "shared utils declares the list-marker rule once, in the platform's own form");
+  assertTrue(/__sharedUtils\.LIST_PREFIX_SRC/.test(linePipelineSrc),
+    "line pipeline line-prefix rule asks the shared list-marker rule");
+  assertTrue(/__sharedUtils\.LIST_PREFIX_SRC/.test(pkmRulesHelpersSrc),
+    "order reordering asks the shared list-marker rule instead of its own hyphen");
+  assertFalse(/match\(\/\^\(-\s\+/.test(pkmRulesHelpersSrc),
+    "order reordering brought back its hyphen-only lead pattern");
   assertFalse(/const hasListPrefix = \//.test(linePipelineSrc),
     "line pipeline builds have their own line-prefix pattern again");
   assertFalse(/function splitLeftPrefix\(raw\) \{\s*const src = String\(raw \|\| ""\)\.trim\(\);\s*const m = src\.match/

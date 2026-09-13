@@ -749,6 +749,21 @@ function headingPrefixLength(text) {
 
 const LINE_INDENT_RE = /^[ \t]*/;
 const LINE_QUOTE_RE = /^>[ \t]?/;
+/**
+ * Знак списка — разметка Obsidian, и форма у него одна на весь плагин.
+ *
+ * Правило спрошено у платформы (У-91): в `app.js` 1.13.7 начало строки списка
+ * это `([*+-] |(\d+)([.)] ))` — дефис, звёздочка, плюс или число с точкой либо
+ * скобкой. Объявлено здесь, потому что спрашивают его трое: разбор строки
+ * (`line_pipeline.splitLeftPrefix`), перестановка значений по Order
+ * (`pkm_rules_runtime_helpers.reorderSegmentTokensByOrder`) и меры длины начала
+ * строки ниже.
+ *
+ * **Копия у перестановки знала один дефис**, и знак человека уезжал в зону
+ * значений: `* текст` после шага по элементу давала `- 📅… * || текст`
+ * (10.13.106). Копия у разбора знала точку и не знала скобки.
+ */
+const LIST_PREFIX_SRC = "(?:[-*+]|\\d+[.)])";
 const LINE_BULLET_RE = new RegExp("^[-*+][ \\t]+(?:" + CHECKBOX_ONE_CHAR_SRC + "[ \\t]+)?");
 const LINE_ORDERED_RE = new RegExp("^\\d+[.)][ \\t]+(?:" + CHECKBOX_ONE_CHAR_SRC + "[ \\t]+)?");
 const LINE_HEADING_RE = /^#{1,6}[ \t]+/;
@@ -893,6 +908,7 @@ module.exports = {
   nz,
   escapeRe,
   CHECKBOX_ONE_CHAR_SRC,
+  LIST_PREFIX_SRC,
   HEADING_PREFIX_SRC,
   headingPrefixLength,
   lineIndentLength,

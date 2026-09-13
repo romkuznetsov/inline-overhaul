@@ -580,7 +580,7 @@ function joinLineParts(parts, opts) {
  * скобки вместе с текстом человека — ровно тот класс, что У-91.
  */
 var LEFT_PREFIX_RE = new RegExp(
-  "^(?:(" + __sharedUtils.HEADING_PREFIX_SRC + ")|((?:[-*+]|\\d+\\.)(?:\\s+\\[[^\\]]\\])?))(?:\\s+|$)(.*)$"
+  "^(?:(" + __sharedUtils.HEADING_PREFIX_SRC + ")|(" + __sharedUtils.LIST_PREFIX_SRC + "(?:\\s+\\[[^\\]]\\])?))(?:\\s+|$)(.*)$"
 );
 
 function splitLeftPrefix(raw) {

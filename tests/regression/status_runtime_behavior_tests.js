@@ -413,6 +413,43 @@ async function testStatusDateRunCommandPathIncrementsDue() {
   assertTrue(shot.cursor.ch >= 0 && shot.cursor.ch <= shot.line.length, "status_date runCommand path keeps valid cursor");
 }
 
+/*
+ * **Знак списка человека переживает шаг по элементу — любой знак, не только
+ * дефис** (2026-09-13, 10.13.106).
+ *
+ * Перестановка значений по Order спрашивала «стоит ли в начале сегмента
+ * дефис», и на строке `* текст` звёздочка отвечала «нет»: она уезжала в зону
+ * значений обычным токеном, а строка получала чужое начало —
+ * `- 📅… * || текст`. Форм у знака списка пять, и все пять — разметка
+ * платформы (`[-*+]`, `1.`, `1)`).
+ *
+ * Дефис в списке стоит положительным контролем: на нём проверка была зелёной и
+ * до правки, и если однажды покраснеет — сломано что-то другое.
+ */
+async function testStatusDateKeepsAnyListMarker() {
+  for (const mark of ["-", "*", "+", "1.", "1)"]) {
+    const before = mark + " текст";
+    const editor = makeEditor(before, before.length);
+    await runPkmCommandWithEditor("statusDate", editor, {
+      "Rules data": OWNER_SHAPE_RULES,
+      "Action type": "field_inc:date_due",
+      "Order config": ownerShapeOrder(),
+      "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "line_end",
+    });
+    const line = editor.snapshot().line;
+    assertTrue(/📅/.test(line),
+      "контроль: значение элемента не встало, и спрашивать про начало строки не о чем: "
+      + JSON.stringify(line));
+    assertTrue(line.indexOf(mark + " ") === 0,
+      "шаг по элементу сменил знак списка человека: " + JSON.stringify(before)
+      + " -> " + JSON.stringify(line));
+    assertTrue(line.indexOf("текст") !== -1,
+      "шаг по элементу потерял текст человека: " + JSON.stringify(line));
+  }
+}
+
 async function testStatusDateHydrationUsesLastDueOccurrence() {
   /* Положительный контроль на саму фикстуру: без Field `due` этой проверке
      нечего мерить, и она зеленела бы от пустоты (У-88). */
@@ -3180,6 +3217,7 @@ async function run() {
   await testStatusTagsRunCommandPathCyclesTypeGenericAction();
   await testStatusTagsTypeHydrationUsesLastTokenOccurrence();
   await testStatusDateRunCommandPathIncrementsDue();
+  await testStatusDateKeepsAnyListMarker();
   await testStatusDateHydrationUsesLastDueOccurrence();
   await testStatusDateRunCommandPathIncrementsDueGenericAction();
   await testStatusDateConfiguredSeparatorTreatsDoublePipeAsPlainText();

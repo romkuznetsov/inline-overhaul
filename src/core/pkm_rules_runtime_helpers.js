@@ -695,10 +695,17 @@ function getDateMarkersFromRules(rules, options) {
   return out;
 }
 
+const LEAD_PREFIX_RE = new RegExp(
+  "^(" + __sharedUtils.LIST_PREFIX_SRC + "\\s+(?:" + __sharedUtils.CHECKBOX_ONE_CHAR_SRC + "\\s+)?)(.*)$"
+);
+
 function reorderSegmentTokensByOrder(segText, orderCfg, panelName, tokenToKey, options) {
   const opts = options && typeof options === "object" ? options : {};
   const source = String(segText || "").trim();
-  const match = source.match(/^(-\s+(?:\[[^\]]\]\s+)?)(.*)$/);
+  /* Начало строки — знак человека, и форма у него общая (`LIST_PREFIX_SRC`).
+     Здесь стоял свой образец из одного дефиса, и звёздочка, плюс или номер
+     уезжали в зону значений как обычный токен (10.13.106). */
+  const match = source.match(LEAD_PREFIX_RE);
   const lead = match ? match[1] : "";
   const body = match ? String(match[2] || "").trim() : source;
   /* Токены, а не куски между пробелами: эмодзи-элемент из двух слов иначе
