@@ -176,6 +176,55 @@ async function testSourceFailureRestoresOverwrittenTarget() {
   assertEq(plugin.files.get("Notes/Restore.md"), "original", "overwrite target restored after source failure");
 }
 
+/**
+ * Откат **дописывания** в существующую заметку.
+ *
+ * Ревизия 2026-09-14 (строка Д4) сняла покрытие настоящим прогоном: из четырёх
+ * замыканий отката набор исполнял **два** — создание новой заметки и
+ * перезапись. Дописывание и создание при `add_to_note` не исполнял ни один
+ * прогон, а цена отказа здесь дороже всего: заметка человека остаётся с
+ * дописанным блоком, которого он не просил, и об этом никто не говорит.
+ *
+ * Мера не «файл цел», а **равенство тому, что в нём лежало**: дописывание
+ * меняет содержимое в середине, и «непусто» было бы правдой и при половине
+ * отката.
+ */
+async function testSourceFailureRestoresAppendedNote() {
+  const editor = makeEditor("- [ ] :: Дописать", { failReplace: true });
+  const config = makeConfig({ nameCollision: { mode: "add_to_note" } });
+  const plugin = makePlugin(config, editor, {
+    initialFiles: { "Notes/Дописать.md": "было до нас\n" },
+  });
+  try { await transform.runInline2Note(plugin, { lineFinalize }); } catch (_) {
+    /* Уборка: отказ правки строки здесь и есть условие проверки. */
+  }
+  const calls = plugin.processCalls;
+  assertEq(calls.length, 2, "ходов было два: дописывание и откат");
+  assertTrue(calls[0].after.length > calls[0].before.length,
+    "положительный контроль: дописывание и правда что-то добавило");
+  assertEq(plugin.files.get("Notes/Дописать.md"), "было до нас\n",
+    "заметка после отката не равна тому, что в ней лежало");
+}
+
+/**
+ * Откат создания заметки, которой ещё не было, при режиме `add_to_note`.
+ *
+ * Дописывать не во что — плагин создаёт заметку, и тогда откат обязан её
+ * убрать. Ветка эта отдельная от `new_note`, и её не исполнял ни один прогон.
+ */
+async function testSourceFailureRemovesNoteCreatedForAppend() {
+  const editor = makeEditor("- [ ] :: Создать", { failReplace: true });
+  const config = makeConfig({ nameCollision: { mode: "add_to_note" } });
+  const plugin = makePlugin(config, editor);
+  let message = "";
+  try { await transform.runInline2Note(plugin, { lineFinalize }); } catch (error) {
+    message = String(error.message || error);
+  }
+  assertTrue(/rolled back/.test(message), "об откате сказано вслух");
+  assertEq(plugin.files.has("Notes/Создать.md"), false,
+    "созданная под дописывание заметка после отказа осталась на диске");
+}
+
 async function testStaleEditorStopsBeforeTargetMutation() {
   const editor = makeEditor("- [ ] :: Stale");
   const plugin = makePlugin(makeConfig(), editor, { staleAfterFirst: true });
@@ -741,6 +790,8 @@ async function run() {
   await testReplacePayloadFalse();
   await testSourceFailureRollsBackCreatedTarget();
   await testSourceFailureRestoresOverwrittenTarget();
+  await testSourceFailureRestoresAppendedNote();
+  await testSourceFailureRemovesNoteCreatedForAppend();
   await testStaleEditorStopsBeforeTargetMutation();
   await testAddToNoteDoesNotDuplicateTemplateOrHeader();
   await testForeignNoteWrittenByProcessFromWhatWasRead();

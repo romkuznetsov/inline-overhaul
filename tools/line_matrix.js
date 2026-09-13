@@ -275,9 +275,47 @@ async function main() {
     if (!fPanel.stable) console.log("    неподвижность панели: пересборка даёт " + JSON.stringify(fPanel.again));
   }
 
+  /*
+   * **Вторая половина обхода: команды дочерних полей.**
+   *
+   * Дочерние Field в `Order` отдельными ключами не стоят — их команды строит
+   * реестр от родителя (`Imp` → `Imp_sub`), и обход по `order.left`/`right` до
+   * них не доходил ни разу. Ревизия 2026-09-14 сняла это мерой покрытия:
+   * `getAllowedSubValues` — правило «какие значения разрешены дочернему при
+   * таком родителе» — не исполнял ни один прогон набора, а у заказчика таких
+   * команд пять.
+   *
+   * Спрашивается здесь **неподвижность**, а не сверка двух дорог: путь панели к
+   * дочернему полю — отдельный разговор, а свойство «написанное плагином он
+   * умеет прочесть» ловится и одной дорогой. Именно оно поймало заголовок
+   * (10.13.114).
+   */
+  const subIds = defs
+    .map((d) => d.id)
+    .filter((id) => /-sub-next$/.test(id));
+  let subBad = 0;
+  for (const id of subIds) {
+    for (const c of CASES) {
+      const r = await bench.runCommandById(cfg, id, c.line, c.ch);
+      const out = r && r.line != null ? r.line : c.line;
+      const wrote = out !== c.line;
+      const f = fixpointOf(out, rules);
+      const ok = !wrote || f.stable;
+      if (ok && !SHOW_ALL) continue;
+      if (!ok) subBad++;
+      console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + id + ", строка " + c.name);
+      console.log("    команда : " + JSON.stringify(out));
+      if (!ok) console.log("    неподвижность: пересборка даёт " + JSON.stringify(f.again));
+    }
+  }
+
   console.log("");
   console.log("сочетаний " + rows.length + ", расходится " + bad);
-  if (bad) process.exitCode = 1;
+  /* Ноль команд дочерних полей — не «всё хорошо», а «мерить нечем» (У-88). */
+  console.log("команд дочерних полей " + subIds.length
+    + " × " + CASES.length + " строк, расходится " + subBad
+    + (subIds.length ? "" : "   <-- в конфиге нет ни одной, обходу нечего гонять"));
+  if (bad || subBad) process.exitCode = 1;
 }
 
 main().catch((e) => {
