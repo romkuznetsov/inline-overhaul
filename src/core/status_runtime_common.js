@@ -6,6 +6,7 @@
  * зависимостью `loadVaultModule` передавал сюда каждый движок.
  */
 const dateRuntimeShared = require("./date_runtime_shared.js");
+const optionKeys = require("./pkm_option_keys.js");
 
 function createStatusRuntimeCommon(deps) {
   const d = deps && typeof deps === "object" ? deps : {};
@@ -82,28 +83,14 @@ function createStatusRuntimeCommon(deps) {
   }
 
   /**
-   * Правила, приехавшие **из настроек**, а не из служебного файла
-   * (PRD 10.13.52, П-8, шаг второй; 2026-09-11).
+   * Правила, приехавшие **из настроек** (PRD 10.13.52, П-8; 2026-09-11).
    *
-   * Объявлено здесь, а не в каждом движке: движков двое, и два одинаковых
-   * условия разошлись бы молча (У-32). Отдаёт `null`, если ключа нет, —
-   * тогда движок читает файл, как читал. Ключа нет ровно в двух случаях:
-   * команду завёл не слой команд (так зовут движок проверки поведения) или
-   * человек стоит на версии, где шаг второй ещё не сделан. Обе ветки уйдут
-   * вместе с файлом на шаге четвёртом.
-   *
-   * Строку разбираем тоже: через макро-слой значение может приехать уже
-   * напечатанным в JSON, как приезжает `Order config`.
+   * Своего разбора здесь нет: правило объявлено один раз, рядом с самим ключом
+   * (`pkm_option_keys.rulesFromSettings`), и панель TagWheel спрашивает его тем
+   * же вызовом. Три копии одного условия разошлись бы молча (У-32).
    */
   function rulesFromSettings(settings, key) {
-    const raw = settings && key ? settings[key] : null;
-    if (!raw) return null;
-    if (isObj(raw)) return raw;
-    if (typeof raw !== "string") return null;
-    const text = raw.trim();
-    if (!text) return null;
-    const parsed = JSON.parse(text);
-    return isObj(parsed) ? parsed : null;
+    return optionKeys.rulesFromSettings(settings, key);
   }
 
   async function resolveDateRuntimeConfig(app_, settings) {

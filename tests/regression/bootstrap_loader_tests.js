@@ -17,6 +17,21 @@ function assertEq(actual, expected, name) {
   }
 }
 
+/**
+ * Код файла без строк комментария.
+ *
+ * Запрет «этого имени в файле быть не должно» ищет в тексте программы, а
+ * рассказ о программе — тоже текст: первое же объяснение снятой правки
+ * называет снятые имена и красит запрет само (У-138). Отсюда и строки: маска
+ * грубая нарочно, её предмет — строка, начинающаяся с комментария.
+ */
+function codeOnly(source) {
+  return String(source || "")
+    .split("\n")
+    .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
+    .join("\n");
+}
+
 function assertAnyMatch(source, patterns, name) {
   const src = String(source || "");
   const list = Array.isArray(patterns) ? patterns : [];
@@ -981,7 +996,15 @@ async function run() {
      что чтение правой корзины легко потерять при следующей правке функции. */
   assertTrue(/const rightFields = rules && rules\.rightMode && Array\.isArray\(rules\.rightMode\.fields\)/.test(pkmRulesHelpersSrc), "tag token-key map reads the links bucket, not only the tags one");
   assertTrue(/addFieldTokens\(key, field, true\);/.test(pkmRulesHelpersSrc), "tag token-key map adds links-bucket tokens without overwriting the tags bucket");
-  assertTrue(/function readRulesMarkdownWithFallback\(/.test(pkmRulesHelpersSrc), "pkm rules helpers export rules reader");
+  /*
+   * **Чтения служебного файла правил в общих помощниках больше нет** (PRD
+   * 10.13.52, П-8, шаг третий, 2026-09-13). Здесь стоял пин «функция чтения на
+   * месте»; предмета у него не стало, и вместо него — запрет: у файла не
+   * должно остаться ни одного читателя (У-94). Сплошной обход рантайма, где
+   * этот запрет и живёт, стоит ниже в этом же файле.
+   */
+  assertFalse(/readRulesMarkdownWithFallback|normalizeRulesPath/.test(codeOnly(pkmRulesHelpersSrc)),
+    "общие помощники больше не читают служебный файл правил");
   /*
    * Прослойка макро-рантайма: один статический `require` на модуль (У-89).
    *
@@ -1039,6 +1062,38 @@ async function run() {
       "положительный контроль: require в рантайме есть, и их много (" + total + ")");
     assertEq(dynamicRequires.join(" | "), "",
       "каждый require в рантайме — литерал, ни одного по переменной (A33, У-89)");
+
+    /*
+     * **У служебного файла правил не осталось ни одного читателя** (PRD
+     * 10.13.52, П-8, шаг третий, 2026-09-13).
+     *
+     * Обход тот же сплошной и по той же причине (У-85): читателя можно завести
+     * в любом файле, а список имён к новому файлу слеп. Ищется по коду с
+     * вычеркнутыми комментариями — объяснение правки цитирует снятые имена, и
+     * по сырому тексту обход нашёл бы себя самого (У-138).
+     *
+     * Запись файла при этом жива и снимается шагом четвёртым: здесь запрещено
+     * **чтение**.
+     */
+    const readerNames = /\b(parseRulesFromMarkdown|readRulesMarkdownWithFallback|normalizeRulesPath)\b/;
+    const readers = [];
+    let fromSettings = 0;
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      const code = codeOnly(text);
+      if (readerNames.test(code)) readers.push(path.relative(repoRoot, abs));
+      fromSettings += (code.match(/\brulesFromSettings\b/g) || []).length;
+    }
+    assertEq(readers.join(" | "), "",
+      "служебный файл правил в рантайме больше никто не читает (PRD 10.13.52, П-8)");
+    /*
+     * Положительный контроль ставится на том же предмете, из которого построен
+     * запрет (У-143): «список пуст» бывает правдой и от того, что обход не
+     * дошёл до движков. Ход, пришедший на смену чтению, обязан в этих же
+     * файлах быть — и его четыре вызова: объявление, два движка и панель.
+     */
+    assertTrue(fromSettings >= 4,
+      "положительный контроль: обход видит нынешний ход — правила из настроек (" + fromSettings + ")");
 
     /*
      * **И ни одной заглушки на месте модуля** — последний пункт фазы 6,
@@ -1834,12 +1889,22 @@ async function run() {
   assertTrue(/throw new Error\('shared_utils unavailable: addMinutesHhmm'\)/.test(tagwheelCoreSrc), "tagwheel_core HH:mm adder is shared-utils-only");
   assertTrue(/throw new Error\('shared_utils unavailable: formatNowByMask'\)/.test(tagwheelCoreSrc), "tagwheel_core now-mask formatter is shared-utils-only");
   /*
-   * Разбор правил у `tagwheel_core` **только** общим модулем: копии сняты
-   * 2026-09-07 вместе с мостом. Слово «when available» в прежней формулировке
-   * и было всей проблемой — «а если недоступен, то своей копией», и в сборке
-   * недоступен он был всегда (У-89). Теперь недоступным ему быть негде.
+   * **Досыпка формы списка Fields — общим модулем, и звавший у неё один.**
+   *
+   * Пин стоял на `tagwheel_core.js`: там эта досыпка делалась ходом через
+   * диск, и важно было, что она не своя копия (копии сняты 2026-09-07 вместе с
+   * мостом). Ход через диск снят 2026-09-13, вместе с ним ушла и досыпка
+   * оттуда; предмет переехал, и утверждение обязано переехать за ним (У-94) —
+   * иначе оно зелено именно потому, что искать стало нечего.
+   *
+   * Спрашивается то же самое, но у нынешнего звавшего: правила для движков
+   * собирает `buildRulesForEngines`, и форму списков он досыпает **тем же**
+   * общим модулем, а не своей копией.
    */
-  assertTrue(/__tagwheelRulesNormalizer\.normalizeMode\(mode, modeName, \{ isObj: isObj, err: err \}\)/.test(tagwheelCoreSrc), "tagwheel_core normalizeMode delegates to the shared rules normalizer, with no local copy");
+  assertTrue(/__rulesNormalizer\.normalizeMode\(cloneJson\(shape\.leftMode\), "leftMode", deps\)/.test(rulesShapeSrc),
+    "правила для движков досыпают форму левого списка общим модулем");
+  assertTrue(/__rulesNormalizer\.normalizeMode\(cloneJson\(shape\.rightMode\), "rightMode", deps\)/.test(rulesShapeSrc),
+    "и правого — им же, без своей копии");
   /*
    * Пины на `normalizeField` и `normalizeValue` стояли здесь же и снялись
    * вместе со своими обёртками 2026-09-11 (В-102): тела этих правил уехали в
@@ -1847,7 +1912,13 @@ async function run() {
    * остался только текст, который пин и читал. Что своей копии там нет,
    * держат два запрета ниже и обход по форме.
    */
-  assertTrue(/__markdownJsonBlockParser\.parseJsonBlock\(/.test(tagwheelCoreSrc), "and the JSON block parser");
+  /*
+   * **Разбора заметки правил в `tagwheel_core.js` больше нет** (шаг третий).
+   * Пин на «разбор делегирован общему модулю» стерёг копию правила; правила
+   * нет вовсе, и вместо пина стоит запрет (У-94, У-141).
+   */
+  assertFalse(/parseRulesFromMarkdown|parseJsonBlock/.test(codeOnly(tagwheelCoreSrc)),
+    "tagwheel_core больше не разбирает служебный файл правил");
   /*
    * **Запрет по устройству, а не по имени переменной** (У-126, В-103).
    *
@@ -2093,7 +2164,17 @@ async function run() {
   assertTrue(/class: CARET_LAYER_CLASS,/.test(decorSrc), "own caret layer names itself from the same constant the stylesheet uses");
   assertTrue(/module\.exports\.planFieldStep = planFieldStep/.test(tagwheelSrc), "tagwheel exports the pure planner so the decision can be checked without Obsidian");
   assertFalse(/isObj\s*:\s*isObj/.test(tagwheelSrc), "tagwheel does not reference removed isObj helper");
-  assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback'\)/.test(tagwheelSrc), "tagwheel rules reader helper is shared-only");
+  /*
+   * **Панель берёт правила из настроек** (шаг третий). Пин на «чтение файла
+   * идёт через общий модуль» держал ход, которого больше нет; на его месте —
+   * два утверждения о нынешнем ходе и запрет на прежний.
+   */
+  assertTrue(/__pkmOptionKeysMod\.rulesFromSettings\(runtimeInput, 'rulesData'\)/.test(tagwheelSrc),
+    "панель берёт правила ключом `Rules data`, общим чтением ключа");
+  assertTrue(/tagWheelNoticeKey\('rules-missing'\)/.test(tagwheelSrc),
+    "и отказывается вслух, когда правил с командой не приехало");
+  assertFalse(/readRulesMarkdownWithFallback|parseRulesFromMarkdown|RULES_PATH_OPTION/.test(codeOnly(tagwheelSrc)),
+    "и не читает служебный файл правил ни одним из прежних ходов");
   /*
    * Здесь стояли три пина «движок прогревает мост модулей» — по одному на
    * status_tags, status_date и TagWheel. Прогревать больше нечего: модули

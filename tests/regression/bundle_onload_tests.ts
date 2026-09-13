@@ -475,20 +475,16 @@ async function run(): Promise<void> {
    * же, что у A33 — набор спрашивал исходное дерево. Строка взята из его
    * замечания 2026-09-07 слово в слово.
    *
-   * Правила берутся из фикстуры репозитория, а не из файла, который плагин
+   * Правила берутся из фикстуры репозитория, а не из настроек, которые плагин
    * только что записал: у свежей установки Field не заведено ни одного, и цикл
    * по Field на ней не тронул бы ничего (У-88 — предмет измерения обязан
-   * существовать).
+   * существовать). Приезжают они ключом `Rules data` — тем же, каким их кладёт
+   * слой команд (PRD 10.13.52, П-8, шаг третий).
    */
   {
-    const rulesFixture = fs.readFileSync(
-      path.join(root, "tests", "fixtures", "InlineOverhaul_Generated_RULES_TagWheel.md"),
-      "utf8",
-    );
-    const rulesPath = "InlineOverhaul_Generated_RULES_TagWheel.md";
-    app.written.set(rulesPath, rulesFixture);
-    app.vault.getAbstractFileByPath = (p: string) => (app.written.has(p) ? { path: p } : null);
-    app.vault.read = async (f: Any) => String(app.written.get(f && f.path ? f.path : f) || "");
+    const rulesFixture = JSON.stringify(
+      Module.createRequire(import.meta.url)(
+        path.join(root, "tests", "fixtures", "rules_synthetic.js")));
 
     const orderConfig = JSON.stringify({
       active: { type: "yes" },
@@ -508,7 +504,7 @@ async function run(): Promise<void> {
         app,
         command,
         settings: {
-          "Rules path": rulesPath,
+          "Rules data": rulesFixture,
           "Order config": orderConfig,
           "Cycle end behavior": "keep-bullet",
           "Cursor policy": "text_end",
@@ -566,7 +562,7 @@ async function run(): Promise<void> {
         app,
         command: "statusDate",
         settings: {
-          "Rules path": rulesPath,
+          "Rules data": rulesFixture,
           "Action type": "field_inc:date_due",
           "Order config": dateOrder,
           "Cycle end behavior": "keep-bullet",
@@ -1012,38 +1008,29 @@ async function run(): Promise<void> {
    * правую часть TagWheel собирает заново из сессии — и она исчезала. Дата с
    * временем нужна ещё и затем, что граф токенов резал её пополам по пробелу.
    *
-   * **Правила берутся не из фикстуры, а те, что плагин пишет сам** из конфига,
-   * заданного выше: у фикстуры репозитория Due объявлен другой формой, и на
-   * ней предмета измерения нет вовсе — проверка была бы зелёной от пустоты
-   * (У-88), что и показали две мутации, её не уронившие.
+   * **Правила берутся не из фикстуры, а те, что плагин собирает сам** из
+   * конфига, заданного выше: у фикстуры репозитория Due объявлен другой
+   * формой, и на ней предмета измерения нет вовсе — проверка была бы зелёной
+   * от пустоты (У-88), что и показали две мутации, её не уронившие.
+   *
+   * **И зовётся здесь сама команда, а не рантайм с выписанными настройками**
+   * (2026-09-13). Прежде проверка собирала настройки руками и подавала путь к
+   * заметке правил; правила приезжают из настроек (PRD 10.13.52, П-8, шаг
+   * третий), а кто и как их туда кладёт — работа слоя команд, и спрашивать её
+   * надо у него (У-56). Вызов хоткея — это и есть `callback` у команды,
+   * зарегистрированной сборкой.
    */
   {
-    const ownRulesPath = ".obsidian/plugins/inline-overhaul/generated_rules.md";
-    await plugin.ensureGeneratedRulesNow("bundle test: правила по своему конфигу");
-    const ownRules = String(app.written.get(ownRulesPath) || "");
-    assert.ok(/```tagwheel-/.test(ownRules), "плагин переписал служебный файл под новый конфиг");
-
-    const vaultRulesPath = "OwnRules.md";
-    app.written.set(vaultRulesPath, ownRules);
-
     const payload = "\u{1F4C5}2000-01-02 03:04";
     const editor = makeTransformEditorStub(`- 11 :: ${payload}`);
     app.workspace.activeEditor = { editor };
     app.workspace.activeLeaf = { view: { editor } };
 
-    const cfgNow = plugin.getConfig();
-    const twSettings = {
-      "Rules path": vaultRulesPath,
-      "Order config": JSON.stringify(cfgNow.pkm.fields.order),
-      "Date runtime config": JSON.stringify({
-        byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm", increment: { mode: "standard", incrementBy: 1 } } },
-        canonical: { date_due: "due" },
-      }),
-      "Cycle end behavior": "keep-bullet",
-      "Cursor policy": "text_end",
-    };
+    const opener = plugin.commands.find((c: Any) => String(c.id) === "open-tagwheel-left");
+    assert.ok(opener && typeof opener.callback === "function",
+      "положительный контроль: сборка зарегистрировала команду открытия TagWheel");
     const wheel = async (): Promise<void> => {
-      await plugin.pkmRuntimeV2.runCommand({ app, command: "tagWheel", settings: twSettings });
+      await opener.callback();
     };
 
     await wheel();

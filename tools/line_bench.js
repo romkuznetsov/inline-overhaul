@@ -116,15 +116,21 @@ function makeWindowMock() {
   };
 }
 
+/**
+ * `app` Obsidian: активный редактор и **ловушка вместо vault**.
+ *
+ * Здесь стояло чтение заметки правил из тестового vault. Правила приезжают к
+ * движкам и к панели ключом `Rules data` (PRD 10.13.52, П-8, шаг третий), и
+ * ловушка — единственное, чем «взял из настроек» отличается от «дочитал с
+ * диска»: пока файл под стендом лежал, обе дороги выглядели одинаково (У-56).
+ */
 function makeApp(editor) {
-  const toAbs = (p) => path.resolve(VAULT, String(p || ""));
+  const trap = (p) => {
+    throw new Error("стенд: обращение в vault за '" + String(p && p.path ? p.path : p) + "'");
+  };
   return {
     workspace: { activeLeaf: { view: { editor } }, activeEditor: { editor } },
-    vault: {
-      getAbstractFileByPath(p) { return fs.existsSync(toAbs(p)) ? { path: p } : null; },
-      async read(f) { return fs.promises.readFile(toAbs(f && f.path ? f.path : f), "utf8"); },
-      adapter: { async read(p) { return fs.promises.readFile(toAbs(p), "utf8"); } },
-    },
+    vault: { getAbstractFileByPath: trap, read: trap, adapter: { read: trap } },
   };
 }
 

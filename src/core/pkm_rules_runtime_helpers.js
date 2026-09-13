@@ -82,58 +82,14 @@ function isFieldPrerequisiteMet(field, selected) {
   return true;
 }
 
-function buildPathCandidates(pathLike) {
-  const src = String(pathLike || "").trim();
-  const out = [];
-  const push = (p) => {
-    const v = String(p || "").trim();
-    if (!v || out.includes(v)) return;
-    out.push(v);
-  };
-  push(src);
-  if (src.startsWith("./")) push(src.slice(2));
-  else push("./" + src);
-  if (src.includes("/")) push(src.slice(src.lastIndexOf("/") + 1));
-  return out;
-}
-
-function normalizeRulesPath(raw, defaultRulesPath) {
-  const fallback = String(defaultRulesPath || "").trim();
-  if (!fallback) throw new Error("pkm_rules_runtime_helpers: defaultRulesPath is required");
-  const src = String(raw || "").trim() || fallback;
-  return /\.md$/i.test(src) ? src : (src + ".md");
-}
-
-async function readRulesMarkdownWithFallback(app_, rawPath, defaultRulesPath) {
-  const normalized = normalizeRulesPath(rawPath, defaultRulesPath);
-  const candidates = buildPathCandidates(normalized);
-  const fallback = normalizeRulesPath(defaultRulesPath, defaultRulesPath);
-  for (const p of buildPathCandidates(fallback)) {
-    if (!candidates.includes(p)) candidates.push(p);
-  }
-  const adapter = app_ && app_.vault ? app_.vault.adapter : null;
-  for (const p of candidates) {
-    const af = app_.vault.getAbstractFileByPath(p);
-    if (af) {
-      const md = await app_.vault.read(af);
-      return { markdown: md, path: p };
-    }
-    if (adapter && typeof adapter.read === "function") {
-      try {
-        const md = await adapter.read(p);
-        return { markdown: md, path: p };
-      } catch (_) {
-        /*
-         * Проба: этого пути в vault может не быть — перебираются кандидаты, и
-         * «нет файла» здесь ответ, а не отказ. Настоящий отказ громкий: не
-         * нашёлся ни один — строкой ниже бросается ошибка, и её текст
-         * человеку показывают вызывающие.
-         */
-      }
-    }
-  }
-  throw new Error("Rules file not found: " + normalized);
-}
+/*
+ * **Чтения служебного файла правил здесь больше нет** (PRD 10.13.52, П-8, шаг
+ * третий, 2026-09-13). Сняты три объявления: перебор кандидатов пути
+ * (`buildPathCandidates`), приведение пути к `.md` (`normalizeRulesPath`) и
+ * само чтение с запасным путём (`readRulesMarkdownWithFallback`). Правила
+ * приезжают к движкам из настроек ключом `Rules data`, и последний читатель
+ * файла — панель TagWheel — перешёл на него тем же заходом.
+ */
 
 function parseOrderConfig(raw, normalizeKey) {
   let src = raw;
@@ -1438,9 +1394,6 @@ function applyOrderToRules(rules, orderCfg, options) {
 }
 
 module.exports = {
-  buildPathCandidates,
-  normalizeRulesPath,
-  readRulesMarkdownWithFallback,
   parseOrderConfig,
   resolveFieldActiveMode,
   resolveFieldFreeRoamMode,

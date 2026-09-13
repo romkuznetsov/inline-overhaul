@@ -95,15 +95,24 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
      * читает по-русски: всем остальным он показывал бы чужой алфавит.
      */
     "no-editor": "TagWheel: open a note first",
-    "rules-missing": "TagWheel: rules file not found: {0}",
-    "rules-fallback": "TagWheel: using the rules file at {0}",
+    /*
+     * Панель берёт правила из настроек, а не из служебного файла (PRD
+     * 10.13.52, П-8, шаг третий). Пустой ключ значит, что панель позвали не
+     * нашей командой: текст называет не файл, а то, чем открывать.
+     */
+    "rules-missing": "TagWheel: no rules came with the command - open it from the command list or its hotkey",
     "emoji-required": "TagWheel: these Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
     error: "TagWheel error: {0}",
   },
 
   rules: {
-    "file-missing": "Rules file not found: {0}",
-    "path-fallback": "Using the rules file at {0}",
+    /*
+     * Движки тегов и элементов берут правила из настроек, а не из служебного
+     * файла (PRD 10.13.52, П-8, шаг третий). Прежние `file-missing` и
+     * `path-fallback` называли файл и путь — предмета, о котором они говорили,
+     * в продукте больше нет (У-94).
+     */
+    "rules-missing": "No rules came with the command - run it from the command list or its hotkey",
     "config-error": "Rules are not valid after applying the order: {0}",
     "emoji-required": "These Fields need an emoji: {0}. Set it in Settings -> inlineOverhaul -> Tags & PKM -> Fields",
     /* Field ждёт своего предусловия (10.13.4, Н21). Отказ громкий: команду

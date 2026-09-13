@@ -2723,21 +2723,17 @@ function runNode() {
   var path = require('path')
   var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
   var finalize = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_line_finalize_unified.js'))
-  var rulesCandidates = [
-    path.join(__dirname, '..', 'fixtures', 'InlineOverhaul_Generated_RULES_TagWheel.md')
-  ]
-  var rulesPath = ''
-  var i
-  for (i = 0; i < rulesCandidates.length; i++) {
-    if (fs.existsSync(rulesCandidates[i])) {
-      rulesPath = rulesCandidates[i]
-      break
-    }
-  }
-  if (!rulesPath) throw new Error('TagWheel rules file not found in local vault candidates')
-
-  var md = fs.readFileSync(rulesPath, 'utf8')
-  var rules = core.parseRulesFromMarkdown(md)
+  /*
+   * **Правила берутся фикстурой, а не разбором заметки** (PRD 10.13.52, П-8,
+   * шаг третий). Разбора служебного файла в продукте больше нет: правила
+   * приезжают к панели из настроек ключом `Rules data`. Значения фикстуры те
+   * же — это разбор прежней заметки, снятый в день переезда.
+   *
+   * Печать в строку и обратно даёт каждому прогону свою копию: набор
+   * дорабатывает правила на ходу (`applyOrderToRules`), и общий объект уехал
+   * бы в следующую проверку уже доработанным.
+   */
+  var rules = JSON.parse(JSON.stringify(require(path.join(__dirname, '..', 'fixtures', 'rules_synthetic.js'))))
   if (!rules.behavior) rules.behavior = {}
   if (!rules.behavior.prefixRules) rules.behavior.prefixRules = {}
   if (!rules.behavior.prefixRules.checkboxByFieldValue) rules.behavior.prefixRules.checkboxByFieldValue = {}

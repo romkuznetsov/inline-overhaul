@@ -4,6 +4,23 @@ const fs = require("fs");
 const path = require("path");
 const runtime = require(path.join(__dirname, "..", "..", "pkm_runtime_v2.js"));
 
+/*
+ * **Правила приезжают движку ключом `Rules data`** — тем же, каким их кладёт
+ * слой команд (PRD 10.13.52, П-8, шаг третий). Прежде здесь стоял путь к
+ * заметке правил, и движок читал её с диска; служебного файла не читает больше
+ * никто, и фикстуры переехали в ту форму, в какой правила приезжают теперь.
+ * Значения не менялись ни одного: файлы фикстур сняты разбором тех же заметок
+ * в день переезда.
+ *
+ * **Печатаются в строку нарочно.** Движок дорабатывает правила на ходу
+ * (`applyOrderToRules`, `subtagFormat`), и один объект на весь прогон приехал
+ * бы во вторую проверку уже доработанным первой. Строка даёт каждому вызову
+ * свой разбор — ровно как `buildRulesForEngines(cfg)` даёт свою форму каждой
+ * команде.
+ */
+const SYNTHETIC_RULES = JSON.stringify(require(path.join(__dirname, "..", "fixtures", "rules_synthetic.js")));
+const OWNER_SHAPE_RULES = JSON.stringify(require(path.join(__dirname, "..", "fixtures", "rules_owner_shape.js")));
+
 function assertEq(actual, expected, name) {
   if (actual !== expected) {
     throw new Error(name + ": expected '" + expected + "' got '" + actual + "'");
@@ -46,42 +63,32 @@ function makeWindowMock() {
   };
 }
 
+/*
+ * `app` Obsidian, и в нём **ловушка вместо чтения vault**.
+ *
+ * Движки перестали читать служебный файл правил (PRD 10.13.52, П-8, шаг
+ * третий), и это утверждение проверяется не чтением кода, а тем, что читать
+ * стало нечем: любое обращение к vault здесь роняет прогон с именем пути.
+ * Прежде тут лежала подделка, отдававшая заметку правил с диска, и она же
+ * была единственным, что отличало «правила приехали ключом» от «правила
+ * дочитались с диска» (У-56).
+ */
 function makeAppForRuntime(editor) {
-  const vaultRoot = path.resolve(__dirname, "..", "..", "..", "..", "..");
-  const fixtureRulesPath = path.resolve(__dirname, "..", "fixtures", "InlineOverhaul_Generated_RULES_TagWheel.md");
-  /* Вторая фикстура — формы конфига заказчика: разные разделители, имя поля
-     элемента равно ключу Order, значение важности с косой чертой сразу за
-     приставкой. Зачем она нужна — сказано в ней самой. */
-  const ownerShapeRulesPath = path.resolve(__dirname, "..", "fixtures", "owner_shape_rules.md");
-  function toAbs(vaultPath) {
-    const src = String(vaultPath || "").trim();
-    if (src === "InlineOverhaul_Generated_RULES_TagWheel.md") {
-      return fixtureRulesPath;
-    }
-    if (src === "owner_shape_rules.md") {
-      return ownerShapeRulesPath;
-    }
-    return path.resolve(vaultRoot, src);
-  }
+  const trap = (vaultPath) => {
+    const shown = vaultPath && typeof vaultPath === "object" ? vaultPath.path : vaultPath;
+    throw new Error(
+      "движок полез в vault за '" + String(shown) + "', а правила приезжают ключом `Rules data`"
+    );
+  };
   return {
     workspace: {
       activeLeaf: { view: { editor } },
       activeEditor: { editor },
     },
     vault: {
-      getAbstractFileByPath(vaultPath) {
-        const abs = toAbs(vaultPath);
-        return fs.existsSync(abs) ? { path: vaultPath } : null;
-      },
-      async read(fileLike) {
-        const vaultPath = fileLike && typeof fileLike === "object" ? fileLike.path : fileLike;
-        return fs.promises.readFile(toAbs(vaultPath), "utf8");
-      },
-      adapter: {
-        async read(vaultPath) {
-          return fs.promises.readFile(toAbs(vaultPath), "utf8");
-        },
-      },
+      getAbstractFileByPath: trap,
+      read: trap,
+      adapter: { read: trap },
     },
   };
 }
@@ -328,7 +335,7 @@ async function runTagWheelKeys(editor, settings, keys) {
 async function testImportanceRespectsCustomSeparatorsAndCursorClamp() {
   const editor = makeEditor("- [ ] #/1 #todo :: text ~~ 📅2026-04-08", 9);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -346,7 +353,7 @@ async function testImportanceRespectsCustomSeparatorsAndCursorClamp() {
 async function testStatusTagsRunCommandPathCyclesType() {
   const editor = makeEditor("- [ ] #todo || text", 4);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:type",
     "Direction": "increase",
     "Order config": buildOrderConfig({ panel: { type: "left" } }),
@@ -362,7 +369,7 @@ async function testStatusTagsRunCommandPathCyclesType() {
 async function testStatusTagsRunCommandPathCyclesTypeGenericAction() {
   const editor = makeEditor("- [ ] #todo || text", 4);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:type",
     "Direction": "increase",
     "Order config": buildOrderConfig({ panel: { type: "left" } }),
@@ -378,7 +385,7 @@ async function testStatusTagsRunCommandPathCyclesTypeGenericAction() {
 async function testStatusTagsTypeHydrationUsesLastTokenOccurrence() {
   const editor = makeEditor("- [ ] #todo #note || text", 11);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:type",
     "Direction": "increase",
     "Order config": buildOrderConfig({ panel: { type: "left" }, freeRoam: { type: "off" } }),
@@ -395,7 +402,7 @@ async function testStatusDateRunCommandPathIncrementsDue() {
   const before = "- [ ] #todo || text || 📅2026-04-08";
   const editor = makeEditor(before, 2);
   await runPkmCommandWithEditor("statusDate", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "field_inc:date_due",
     "Order config": buildOrderConfig({ panel: { date_due: "right" } }),
     "Cycle end behavior": "keep-bullet",
@@ -407,13 +414,14 @@ async function testStatusDateRunCommandPathIncrementsDue() {
 }
 
 async function testStatusDateHydrationUsesLastDueOccurrence() {
-  const fixtureRules = fs.readFileSync(path.join(__dirname, "..", "fixtures", "InlineOverhaul_Generated_RULES_TagWheel.md"), "utf8");
-  const hasDueField = /"id"\s*:\s*"due"/.test(fixtureRules);
+  /* Положительный контроль на саму фикстуру: без Field `due` этой проверке
+     нечего мерить, и она зеленела бы от пустоты (У-88). */
+  const hasDueField = /"id"\s*:\s*"due"/.test(SYNTHETIC_RULES);
   assertTrue(hasDueField, "status_date duplicate-due regression requires fixture field id=due");
   const before = "- [ ] #todo || text || 📅2026-04-08 📅2026-04-10";
   const editor = makeEditor(before, 2);
   await runPkmCommandWithEditor("statusDate", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "field_inc:date_due",
     "Order config": buildOrderConfig({ panel: { date_due: "right" }, active: { date_due: "yes" }, enabled: { date_due: true } }),
     "Cycle end behavior": "keep-bullet",
@@ -429,7 +437,7 @@ async function testStatusDateRunCommandPathIncrementsDueGenericAction() {
   const before = "- [ ] #todo || text || 📅2026-04-08";
   const editor = makeEditor(before, 2);
   await runPkmCommandWithEditor("statusDate", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "field_inc:date_due",
     "Order config": buildOrderConfig({ panel: { date_due: "right" } }),
     "Cycle end behavior": "keep-bullet",
@@ -444,7 +452,7 @@ async function testStatusDateConfiguredSeparatorTreatsDoublePipeAsPlainText() {
   const before = "- [ ] #todo :: || text || :: 📅2026-04-27";
   const editor = makeEditor(before, 2);
   await runPkmCommandWithEditor("statusDate", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "field_inc:due",
     "Order config": buildOrderConfig({ panel: { due: "right" }, active: { due: "yes" }, enabled: { due: true } }),
     "Cycle end behavior": "keep-bullet",
@@ -457,7 +465,7 @@ async function testStatusDateConfiguredSeparatorTreatsDoublePipeAsPlainText() {
 async function testStatusTagsOffHeadingDoesNotInjectBullet() {
   const editor = makeEditor("## heading", 3);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:type",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -475,7 +483,7 @@ async function testStatusTagsOffHeadingDoesNotInjectBullet() {
 async function testStatusImportanceOffHeadingRewritesWithoutHeadingLeak() {
   const editor = makeEditor("## heading", 3);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -496,7 +504,7 @@ async function testStatusImportanceOffHeadingRewritesWithoutHeadingLeak() {
 async function testStatusImportanceOffHeadingRightPanelKeepsSeparator() {
   const editor = makeEditor("## heading", 3);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -544,7 +552,7 @@ async function testStatusHeadingKeepsBracketsThatAreNotACheckbox() {
   const source = "#### [ ] heading";
   const editor = makeEditor(source, source.length);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -566,7 +574,7 @@ async function testStatusHeadingKeepsBracketsThatAreNotACheckbox() {
 async function testStatusContextMinimalHeadingKeepsTextSlotAfterSeparator() {
   const editor = makeEditor("## 111", 3);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -587,7 +595,7 @@ async function testStatusContextMinimalHeadingKeepsTextSlotAfterSeparator() {
 async function testStatusImportanceOffHeadingCycleEndRemovesDanglingSeparator() {
   const editor = makeEditor("## #/3 :: 111", 5);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -604,7 +612,7 @@ async function testStatusImportanceOffHeadingCycleEndRemovesDanglingSeparator() 
 async function testStatusImportanceFullDoesNotDropAllTokens() {
   const editor = makeEditor("#/3 111 #/2", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -622,7 +630,7 @@ async function testStatusImportanceFullDoesNotDropAllTokens() {
 async function testStatusTagsImportanceOffHeadingNoMarkerLeak() {
   const editor = makeEditor("## heading", 3);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -641,7 +649,7 @@ async function testStatusTagsImportanceOffHeadingNoMarkerLeak() {
 async function testStatusTagsImportanceOffHeadingLeftPanelAddsSeparator() {
   const editor = makeEditor("## heading", 3);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -662,7 +670,7 @@ async function testStatusTagsImportanceOffHeadingLeftPanelAddsSeparator() {
 async function testStatusTagsImportanceMinimalOffNoSeparatorInjection() {
   const editor = makeEditor("111", 1);
   const settings = {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -685,7 +693,7 @@ async function testStatusTagsImportanceMinimalOffNoSeparatorInjection() {
 async function testStatusTagsContextMinimalOffNoSeparatorInjection() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -703,7 +711,7 @@ async function testStatusTagsContextMinimalOffNoSeparatorInjection() {
 async function testStatusTagsContextMinimalOffNoSeparatorInjectionWithIndent() {
   const editor = makeEditor("    111", 6);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -721,7 +729,7 @@ async function testStatusTagsContextMinimalOffNoSeparatorInjectionWithIndent() {
 async function testStatusTagsContextMinimalOffNoSeparatorRewritesCustomCheckboxPrefix() {
   const editor = makeEditor("    - [x] 111", 9);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -739,7 +747,7 @@ async function testStatusTagsContextMinimalOffNoSeparatorRewritesCustomCheckboxP
 async function testStatusTagsContextMinimalOffUpdatesCheckboxPrefix() {
   const editor = makeEditor("- [a] #area-alpha 111", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -757,7 +765,7 @@ async function testStatusTagsContextMinimalOffUpdatesCheckboxPrefix() {
 async function testStatusTagsContextMinimalOffCycleEndResetsToDefaultBullet() {
   const editor = makeEditor("- [c] #area-gamma 111", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -775,7 +783,7 @@ async function testStatusTagsContextMinimalOffCycleEndResetsToDefaultBullet() {
 async function testStatusTagsContextMinimalOffCycleEndResetsToDefaultBulletWithIndent() {
   const editor = makeEditor("\t- [c] #area-gamma 111", 9);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -793,7 +801,7 @@ async function testStatusTagsContextMinimalOffCycleEndResetsToDefaultBulletWithI
 async function testStatusTagsContextMinimalPrefixOffDoesNotCreatePrefix() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -812,7 +820,7 @@ async function testStatusTagsContextMinimalPrefixOffDoesNotCreatePrefix() {
 async function testStatusTagsContextMinimalPrefixOffPreservesExistingPrefix() {
   const editor = makeEditor("- [ ] 111", 4);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -830,7 +838,7 @@ async function testStatusTagsContextMinimalPrefixOffPreservesExistingPrefix() {
 async function testTagWheelMinimalPrefixOffDoesNotCreatePrefix() {
   const editor = makeEditor("111", 1);
   await runTagWheelApply(editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Order config": buildOrderConfig({
       freeRoam: { category: "minimal" },
       panel: { category: "left" },
@@ -849,7 +857,7 @@ async function testTagWheelMinimalPrefixOffDoesNotCreatePrefix() {
 async function testStatusTagsImportanceMinimalOffPreservesExistingSeparators() {
   const editor = makeEditor("- [ ] #todo || 111 || tail", 11);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -877,7 +885,7 @@ async function testStatusTagsCycleMixedOffAndMinimalKeepsBulletNoCheckboxNoSepar
     freeRoamBehavior: { minimalSeparator: false, minimalPrefix: false },
   });
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:type",
     "Direction": "increase",
     "Order config": orderConfig,
@@ -885,7 +893,7 @@ async function testStatusTagsCycleMixedOffAndMinimalKeepsBulletNoCheckboxNoSepar
     "Cursor policy": "text_end",
   });
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": orderConfig,
@@ -907,7 +915,7 @@ async function testStatusTagsCycleMixedMinimalOrderParityTypeBeforeImportance() 
     freeRoamBehavior: { minimalSeparator: false, minimalPrefix: false },
   });
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:type",
     "Direction": "increase",
     "Order config": orderConfig,
@@ -915,7 +923,7 @@ async function testStatusTagsCycleMixedMinimalOrderParityTypeBeforeImportance() 
     "Cursor policy": "text_end",
   });
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": orderConfig,
@@ -930,7 +938,7 @@ async function testStatusTagsCycleMixedMinimalOrderParityTypeBeforeImportance() 
 async function testStatusImportanceMinimalOffRespectsLeftOrderPanel() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -950,7 +958,7 @@ async function testStatusImportanceMinimalOffRespectsLeftOrderPanel() {
 async function testStatusTagsImportanceFullKeepsFocusedTokenSet() {
   const editor = makeEditor("#/3 111 #/2", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -968,7 +976,7 @@ async function testStatusTagsImportanceFullKeepsFocusedTokenSet() {
 async function testStatusTagsImportanceFullRepeatSingleKeepsExistingAndAddsNext() {
   const editor = makeEditor("#/3 111", 7);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -987,7 +995,7 @@ async function testStatusTagsImportanceFullSmartTextCursorInsertDoesNotReplaceEx
   const src = "#/2 111 222";
   const editor = makeEditor(src, src.indexOf("222"));
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1006,7 +1014,7 @@ async function testStatusTagsImportanceFullSmartCursorAtEndAppendsSeedToken() {
   const src = "#/2 111 #/1 222";
   const editor = makeEditor(src, src.length);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1024,7 +1032,7 @@ async function testStatusTagsImportanceFullSmartCursorAtEndAppendsSeedToken() {
 async function testStatusTagsImportanceFullSmartCursorLeftPrefersLeftInsert() {
   const editor = makeEditor("111 #/2", 0);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1042,7 +1050,7 @@ async function testStatusTagsImportanceFullSmartCursorLeftPrefersLeftInsert() {
 async function testStatusTagsImportanceFullSmartNoTokenInsertLeft() {
   const editor = makeEditor("111 222", 0);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1060,7 +1068,7 @@ async function testStatusTagsImportanceFullSmartNoTokenInsertLeft() {
 async function testStatusImportanceFullSmartNoTokenInsertLeftEvenWhenMinimalSeparatorOff() {
   const editor = makeEditor("111 222", 0);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1079,7 +1087,7 @@ async function testStatusImportanceFullSmartTextCursorWithTwoTokensRepositionsDe
   const src = "#/2 #/1 111 222";
   const editor = makeEditor(src, src.indexOf("222"));
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1097,7 +1105,7 @@ async function testStatusImportanceFullSmartTextCursorWithTwoTokensRepositionsDe
 async function testStatusTagsCycleFieldClientOffRespectsRightPanelSeparator() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:client",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1115,7 +1123,7 @@ async function testStatusTagsCycleFieldClientOffRespectsRightPanelSeparator() {
 async function testStatusTagsCycleFieldClientMinimalOffRespectsLeftPanel() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:client",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1133,7 +1141,7 @@ async function testStatusTagsCycleFieldClientMinimalOffRespectsLeftPanel() {
 async function testStatusTagsCycleFieldClientOffRightReapplyDoesNotDuplicate() {
   const editor = makeEditor("111", 1);
   const settings = {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:client",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1156,7 +1164,7 @@ async function testStatusTagsCycleFieldClientOffRightReapplyDoesNotDuplicate() {
 async function testTagWheelMinimalOffNoDuplicatePriorityOnReapply() {
   const editor = makeEditor("#tenant-alpha plain #/1", 6);
   await runTagWheelApply(editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Order config": buildOrderConfig({
       freeRoam: { importance: "minimal", client: "off" },
       panel: { importance: "right", client: "left" },
@@ -1180,7 +1188,7 @@ async function testTagWheelMinimalOffNoDuplicatePriorityOnReapply() {
 async function testStatusTagsManagedTokenAfterTextDoesNotDuplicateText() {
   const editor = makeEditor("- 111 111 || #/2", 2);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1200,7 +1208,7 @@ async function testStatusTagsManagedTokenAfterTextDoesNotDuplicateText() {
 async function testStatusTagsManagedTokenInsideTextKeepsTail() {
   const editor = makeEditor("- 111 #/2 tail", 2);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1226,7 +1234,7 @@ async function testStatusTagsManagedTokenInsideTextKeepsTail() {
 async function testStatusTagsForeignTagInTextIsPreserved() {
   const editor = makeEditor("- text #myownhashtag [[SomeNote]] more", 2);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1258,7 +1266,7 @@ async function testStatusTagsForeignTagInTextIsPreserved() {
 async function testStatusTagsForeignTagStaysInTextSlot() {
   const editor = makeEditor("- 111 #myownhashtag", 2);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1295,7 +1303,7 @@ async function testStatusTagsForeignTagStaysInTextSlot() {
 async function testStatusTagsMinimalContextKeepsTextAfterSeparator() {
   const editor = makeEditor("- 111 111 || #/2", 2);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -1331,7 +1339,7 @@ async function testStatusTagsMinimalContextKeepsTextAfterSeparator() {
  */
 async function testStatusTagsOrderKeyResolvesRenamedFieldNotNeighbour() {
   const settings = (panelOverride) => ({
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     /*
@@ -1367,7 +1375,7 @@ async function testStatusTagsOrderKeyResolvesRenamedFieldNotNeighbour() {
 async function testTagWheelPreservesCheckboxPrefix() {
   const editor = makeEditor("- [ ] checkbox", 6);
   await runTagWheelApply(editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Order config": buildOrderConfig({
       freeRoam: { client: "minimal" },
       panel: { client: "left" },
@@ -1511,7 +1519,7 @@ async function testTextLineWithoutListMarkerKeepsOneSeparator() {
   }, rightElement);
 
   const settings = (extra) => ({
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Order config": ownerShapeOrder(extra),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
     "Cycle end behavior": "keep-bullet",
@@ -1583,7 +1591,7 @@ async function testTextLineWithoutListMarkerKeepsOneSeparator() {
  */
 async function testPanelShowsItsSeparatorOnBothSides() {
   const settings = (side) => ({
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Order config": ownerShapeOrder(),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
     "Cycle end behavior": "keep-bullet",
@@ -1642,7 +1650,7 @@ async function testPanelRecognizesTheLineThePluginWroteItself() {
     panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
   };
   const settings = () => ({
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Order config": ownerShapeOrder(rightElement),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
     "Cycle end behavior": "keep-bullet",
@@ -1702,7 +1710,7 @@ async function testPanelRecognizesTheLineThePluginWroteItself() {
 async function testTagWheelFirstFieldBeatsRulesDefaultFieldId() {
   const editor = makeEditor("- [ ] #todo :: 111", 6);
   const seen = await openTagWheelPanel(editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Order config": buildOrderConfig({
       left: ["category", "context", "importance", "priority", "type"],
       right: ["clients"],
@@ -1763,7 +1771,7 @@ async function testTagWheelFirstFieldBeatsRulesDefaultFieldId() {
 async function testTagWheelKeepsElementInLeftBlockByOrder() {
   const editor = makeEditor("- \uD83D\uDCC52026-01-02 03:04 || ", 2);
   await runTagWheelApply(editor, {
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Order config": ownerShapeOrder(),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
     "Cycle end behavior": "keep-bullet",
@@ -1915,7 +1923,7 @@ async function testRightBlockOnEmptyLineKeepsTextSlotOnBothPaths() {
 
   const byCmd = makeEditor("", 0);
   await runPkmCommandWithEditor("statusDate", byCmd, {
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Action type": "field_inc:date_due",
     "Order config": ownerShapeOrder(rightElement),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
@@ -1926,7 +1934,7 @@ async function testRightBlockOnEmptyLineKeepsTextSlotOnBothPaths() {
 
   const byPanel = makeEditor("", 0);
   await runTagWheelKeys(byPanel, {
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Order config": ownerShapeOrder(rightElement),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
     "Cycle end behavior": "keep-bullet",
@@ -1967,7 +1975,7 @@ async function testRightBlockOnEmptyLineKeepsTextSlotOnBothPaths() {
  */
 async function testFieldCommandAsksPrerequisiteLikePanelDoes() {
   const settings = () => ({
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Action type": "cycle_field:Project",
     "Direction": "increase",
     "Order config": ownerShapeOrder(),
@@ -1995,7 +2003,7 @@ async function testStatusDateAsksBulletSettingLikeTagStepDoes() {
 
   const byTag = makeEditor("", 0);
   await runPkmCommandWithEditor("statusTags", byTag, {
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Action type": "cycle_field:Category",
     "Direction": "increase",
     "Order config": ownerShapeOrder(withBullet),
@@ -2009,7 +2017,7 @@ async function testStatusDateAsksBulletSettingLikeTagStepDoes() {
 
   const byDate = makeEditor("", 0);
   await runPkmCommandWithEditor("statusDate", byDate, {
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Action type": "field_inc:date_due",
     "Order config": ownerShapeOrder(withBullet),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
@@ -2051,7 +2059,7 @@ async function testBulletSettingAnswersTheSameForPanelAndCommand() {
   async function byCommand(extra) {
     const editor = makeEditor("", 0);
     await runPkmCommandWithEditor("statusDate", editor, {
-      "Rules path": "owner_shape_rules.md",
+      "Rules data": OWNER_SHAPE_RULES,
       "Action type": "field_inc:date_due",
       "Order config": ownerShapeOrder(extra),
       "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
@@ -2069,7 +2077,7 @@ async function testBulletSettingAnswersTheSameForPanelAndCommand() {
   async function byPanel(extra) {
     const editor = makeEditor("📅2026-01-02 03:04 || ", 2);
     await runTagWheelApply(editor, {
-      "Rules path": "owner_shape_rules.md",
+      "Rules data": OWNER_SHAPE_RULES,
       "Order config": ownerShapeOrder(extra),
       "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
       "Cycle end behavior": "keep-bullet",
@@ -2136,7 +2144,7 @@ async function testElementNowSpeaksTheHumanClockOnBothPaths() {
     const byCommand = makeEditor("", 0);
     const beforeCmd = stampNow();
     await runPkmCommandWithEditor("statusDate", byCommand, {
-      "Rules path": "owner_shape_rules.md",
+      "Rules data": OWNER_SHAPE_RULES,
       "Action type": "field_inc:date_due",
       "Order config": ownerShapeOrder(),
       "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
@@ -2154,7 +2162,7 @@ async function testElementNowSpeaksTheHumanClockOnBothPaths() {
     const byPanel = makeEditor("", 0);
     const beforePanel = stampNow();
     await runTagWheelKeys(byPanel, {
-      "Rules path": "owner_shape_rules.md",
+      "Rules data": OWNER_SHAPE_RULES,
       "Order config": ownerShapeOrder(),
       "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
       "Cycle end behavior": "keep-bullet",
@@ -2178,7 +2186,7 @@ async function testElementNowSpeaksTheHumanClockOnBothPaths() {
 async function testStatusDateKeepsManagedTagsInLeftBlock() {
   const editor = makeEditor("- [N] \uD83D\uDCC52026-09-12 09:05 #/2 #note || ", 5);
   await runPkmCommandWithEditor("statusDate", editor, {
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Action type": "field_inc:date_due",
     "Order config": ownerShapeOrder(),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
@@ -2196,7 +2204,7 @@ async function testStatusDateKeepsManagedTagsInLeftBlock() {
 async function testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement() {
   const editor = makeEditor("- [ ] #todo || 111", 6);
   const seen = await openTagWheelPanel(editor, {
-    "Rules path": "owner_shape_rules.md",
+    "Rules data": OWNER_SHAPE_RULES,
     "Order config": ownerShapeOrder(),
     "TagWheel active field mode": "first",
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
@@ -2210,7 +2218,7 @@ async function testTagWheelOpensOnFirstFieldOfOrderEvenWhenItIsElement() {
 async function testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash() {
   const editor = makeEditor("- [ ] #/1 #area-alpha :: 111", 7);
   await runTagWheelApply(editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     /*
      * Порядок здесь важен: Field со значением через косую черту стоит
      * **вторым**. Уборка выносит из строки всё, а каждый следующий Field
@@ -2237,7 +2245,7 @@ async function testTagWheelApplyKeepsNeighbourTagWhenValueHasSlash() {
 async function testTagWheelKeepsTagTokensAsTagsOnApply() {
   const editor = makeEditor("- [ ] #todo #area-alpha :: 111", 8);
   await runTagWheelApply(editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Order config": buildOrderConfig({
       freeRoam: { type: "off", category: "off", project: "off" },
       panel: { type: "left", category: "left", project: "left" },
@@ -2253,7 +2261,7 @@ async function testTagWheelKeepsTagTokensAsTagsOnApply() {
 async function testStatusTagsRightOrderUsesRuntimeDateMarkerConfig() {
   const editor = makeEditor("- [ ] #/1 #todo #area-beta [[EntityThree]] #topic-alpha #topic-alpha-child :: 1 :: [[EntityAlpha]] ⛏️001 📅2026-04-27", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:clients",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2317,7 +2325,7 @@ async function testStatusTagsRightOrderUsesRuntimeDateMarkerConfig() {
 async function testStatusTagsImportanceMinimalOffNoTrailingSeparator() {
   const editor = makeEditor("- [ ] #/2 Synthetic text", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2336,7 +2344,7 @@ async function testStatusTagsImportanceMinimalOffNoTrailingSeparator() {
 async function testStatusTagsImportanceMinimalOffPreservesListPrefixAndIndent() {
   const editor = makeEditor("    - [ ] Synthetic line", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2355,7 +2363,7 @@ async function testStatusTagsImportanceMinimalOffPreservesListPrefixAndIndent() 
 async function testStatusTagsImportanceMinimalSeparatorOnPreservesCheckboxPrefix() {
   const editor = makeEditor("    - [ ] Synthetic line", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2373,7 +2381,7 @@ async function testStatusTagsImportanceMinimalSeparatorOnPreservesCheckboxPrefix
 async function testStatusTagsMinimalOffRemovesSeparatorsForPrefixedSource() {
   const editor = makeEditor("#/1 Synthetic line", 4);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:client1",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2392,7 +2400,7 @@ async function testStatusTagsMinimalOffRemovesSeparatorsForPrefixedSource() {
 async function testStatusTagsImportanceKeepsDependentAdjacencyAfterTagWheelApply() {
   const editor = makeEditor("- [ ] #todo #/1 #account-alpha #tenant-alpha #tenant-alpha-child 11", 20);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2410,7 +2418,7 @@ async function testStatusTagsImportanceKeepsDependentAdjacencyAfterTagWheelApply
 async function testStatusTagsParentCycleClearsDependentSubtagSelection() {
   const editor = makeEditor("- [ ] #topic-alpha #topic-alpha-child :: Task A", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:topic",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2431,7 +2439,7 @@ async function testStatusTagsParentCycleClearsDependentSubtagSelection() {
 async function testStatusTagsOffPrefixTogglePreservesCheckboxWhenDisabled() {
   const editor = makeEditor("- [ ] Task A", 6);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:topic",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2470,7 +2478,7 @@ async function testStatusTagsOffPrefixToggleAddsBulletOnlyWhenThereIsNone() {
   async function run(source, offPrefix) {
     const editor = makeEditor(source, Math.max(0, source.length));
     await runPkmCommandWithEditor("statusTags", editor, {
-      "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+      "Rules data": SYNTHETIC_RULES,
       "Action type": "cycle_field:topic",
       "Direction": "increase",
       "Order config": buildOrderConfig({
@@ -2517,7 +2525,7 @@ async function testStatusTagsOffPrefixToggleAddsBulletOnlyWhenThereIsNone() {
 async function testStatusTagsCycleFieldClientsRendersWikilinkToken() {
   const editor = makeEditor("- [ ] Task B", 6);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:clients",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2539,7 +2547,7 @@ async function testStatusTagsCycleFieldClientsRendersWikilinkToken() {
 async function testStatusTagsOffCycleEndClearsOwnCheckboxPrefix() {
   const editor = makeEditor("- [c] #area-gamma :: 111", 8);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:category",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2556,7 +2564,7 @@ async function testStatusTagsOffCycleEndClearsOwnCheckboxPrefix() {
 async function testStatusTagsImportanceHydrationUsesLastTokenOccurrence() {
   const editor = makeEditor("- [ ] #/3 #todo #/1 :: 111", 20);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:importance",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2575,7 +2583,7 @@ async function testStatusTagsImportanceHydrationUsesLastTokenOccurrence() {
 async function testStatusTagsClientsHydrationUsesLastTokenOccurrence() {
   const editor = makeEditor("- [ ] #todo :: [[EntityAlpha]] [[EntityBeta]]", 18);
   await runPkmCommandWithEditor("statusTags", editor, {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:clients",
     "Direction": "decrease",
     "Order config": buildOrderConfig({
@@ -2596,7 +2604,7 @@ async function testStatusTagsClientsHydrationUsesLastTokenOccurrence() {
 async function testStatusTagsClientsRepeatedCycleDoesNotAccumulateDuplicates() {
   const editor = makeEditor("- [ ] #todo :: [[EntityAlpha]]", 14);
   const settingsInc = {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:clients",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2634,7 +2642,7 @@ async function testStatusTagsClientsRepeatedCycleDoesNotAccumulateDuplicates() {
  */
 async function testStatusTagsKeepsBracketedTextThatIsNotCheckbox() {
   const settings = {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Action type": "cycle_field:type",
     "Direction": "increase",
     "Order config": buildOrderConfig({
@@ -2711,7 +2719,7 @@ async function testStatusDateRepeatedStepKeepsOneValue() {
 
   const editor = makeEditor("- ", 2);
   const settings = {
-    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Rules data": SYNTHETIC_RULES,
     "Rules data": JSON.stringify(rulesRepeat),
     "Action type": "field_inc:date_due",
     /* Элемент уведён в ЛЕВЫЙ Block — ровно как у него. */
@@ -2799,7 +2807,7 @@ async function testStatusDateKeepsWholeValueOfTwoWordFormat() {
     cfg.pkm.lineFormat.separator1 = "||";
     cfg.pkm.lineFormat.separator2 = "::";
     return {
-      "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+      "Rules data": SYNTHETIC_RULES,
       "Rules data": JSON.stringify(rulesShape.buildRulesForEngines(cfg)),
       "Action type": "field_inc:date_due",
       "Order config": JSON.stringify({
@@ -2921,7 +2929,7 @@ async function testStatusDateKeepsElementInItsOrderBlock() {
     const left = panel === "left" ? ["date_due", "Importance", "type"] : ["Importance", "type"];
     const right = panel === "left" ? ["Project"] : ["date_due", "Project"];
     return {
-      "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+      "Rules data": SYNTHETIC_RULES,
       "Rules data": JSON.stringify(rulesShape.buildRulesForEngines(cfg)),
       "Action type": "field_inc:date_due",
       "Order config": JSON.stringify({
@@ -3130,11 +3138,16 @@ async function run() {
  * Отчёт о сбое, который не удалось показать, обязан уехать в консоль
  * (третий кусок В-97, 2026-09-10).
  *
- * **Что здесь проверяется поведением, а не текстом.** Файла правил нет, и
- * движок обязан сказать об этом человеку. Показ сообщения при этом отказывает:
- * `Notice` платформы бросает. Прежде тут стоял пустой `catch`, и человек
- * оставался без результата **и** без причины — команда молча не делала
+ * **Что здесь проверяется поведением, а не текстом.** Правил с командой не
+ * приехало, и движок обязан сказать об этом человеку. Показ сообщения при этом
+ * отказывает: `Notice` платформы бросает. Прежде тут стоял пустой `catch`, и
+ * человек оставался без результата **и** без причины — команда молча не делала
  * ничего. Теперь причина уезжает в журнал разработчика.
+ *
+ * **Отказ тот же, а повод другой** (2026-09-13): прежде поводом был
+ * ненайденный файл правил, теперь — пустой ключ `Rules data`. Служебного файла
+ * движки не читают вовсе, и «файла нет» перестало быть случаем, который
+ * возможен (У-94).
  *
  * Мутация: вернуть `catch (_) {}` вокруг показа — и эта проверка краснеет,
  * потому что в консоли не окажется ни строки.
@@ -3155,8 +3168,8 @@ async function testFailedNoticeReachesTheConsole() {
     await runtime.runCommand({
       app,
       command: "statusTags",
+      /* Ключа `Rules data` здесь нет нарочно: это и есть отказ. */
       settings: {
-        "Rules path": "no-such-rules-file.md",
         "Action type": "cycle_field:importance",
         "Direction": "increase",
       },
@@ -3176,8 +3189,8 @@ async function testFailedNoticeReachesTheConsole() {
   assertTrue(/\[inline-overhaul\]/.test(said),
     "отказ показа сообщения не попал в консоль: человек остался без причины,\n"
     + "  а в журнале нет ни строки. Что записано: " + JSON.stringify(said.slice(0, 200)));
-  assertTrue(/no-such-rules-file|Rules file not found/.test(said),
-    "в консоль уехало что-то другое, а не само сообщение о ненайденном файле правил:\n"
+  assertTrue(/No rules came with the command/.test(said),
+    "в консоль уехало что-то другое, а не само сообщение об отсутствии правил:\n"
     + "  " + JSON.stringify(said.slice(0, 200)));
 }
 

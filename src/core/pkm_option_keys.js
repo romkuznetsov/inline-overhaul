@@ -22,10 +22,11 @@ const LEGACY_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
 const KEYS = {
   RULES_PATH: "Rules path",
   /*
-   * Правила, собранные из настроек, — второй шаг снятия служебного файла
+   * Правила, собранные из настроек, — снятие служебного файла
    * (PRD 10.13.52, П-8; 2026-09-11). Движки, получившие этот ключ, файла не
-   * читают вовсе. Пока ключа нет, читается файл: на шагах 2–3 он ещё живёт,
-   * его разбирает TagWheel. Ключ уйдёт вместе с файлом на шаге 4.
+   * читают вовсе. **С 2026-09-13 (шаг третий) других ходов нет ни у одного
+   * движка:** ключа нет — движок отказывается вслух, а не читает файл.
+   * Сам ключ `Rules path` остаётся до шага четвёртого: по нему пишется файл.
    */
   RULES_DATA: "Rules data",
   ACTION_TYPE: "Action type",
@@ -57,8 +58,41 @@ const KEYS = {
   TAGWHEEL_ACTIVE_FIELD_RIGHT: "TagWheel active field right",
 };
 
+/**
+ * Правила, приехавшие ключом `Rules data`.
+ *
+ * **Объявлено здесь, а не у каждого движка.** Движков трое — теги, элементы и
+ * панель, — и три одинаковых условия разошлись бы молча (У-32). Дом выбран по
+ * предмету: ключ объявлен в этом файле, значит и чтение значения живёт рядом с
+ * ним.
+ *
+ * Отдаёт `null`, когда ключа нет или в нём лежит не объект. Для движка это
+ * **отказ**, а не запасной путь: с шага третьего (PRD 10.13.52, П-8) служебный
+ * файл не читает никто, и тихо продолжить работу означало бы работать по
+ * правилам, которых человек не задавал.
+ *
+ * Строку разбираем тоже: через макро-слой значение приезжает уже напечатанным
+ * в JSON, как приезжает `Order config`.
+ */
+function rulesFromSettings(settings, key) {
+  const name = String(key || KEYS.RULES_DATA);
+  const raw = settings && typeof settings === "object" ? settings[name] : null;
+  if (!raw) return null;
+  if (isObj(raw)) return raw;
+  if (typeof raw !== "string") return null;
+  const text = raw.trim();
+  if (!text) return null;
+  const parsed = JSON.parse(text);
+  return isObj(parsed) ? parsed : null;
+}
+
+function isObj(x) {
+  return !!x && typeof x === "object" && !Array.isArray(x);
+}
+
 module.exports = {
   DEFAULT_RULES_PATH,
   LEGACY_RULES_PATH,
   KEYS,
+  rulesFromSettings,
 };

@@ -67,17 +67,21 @@ const view = new EditorView({
 const editor = panelBench.makeCmEditor(null, view);
 
 /*
- * ПОДДЕЛКА OBSIDIAN, И ОНА НАЗВАНА (У-1). Панель спрашивает у `app` две вещи:
- * где активный редактор и что написано в файле правил. Первое — наш редактор,
- * второе — текст, собранный тем же строителем, каким его пишет плагин.
+ * ПОДДЕЛКА OBSIDIAN, И ОНА НАЗВАНА (У-1). Панель спрашивает у `app` одно: где
+ * активный редактор. Это наш редактор.
+ *
+ * **Vault под панелью — ловушка** (2026-09-13). Здесь лежала заметка правил, и
+ * панель читала её с диска; правила приезжают ключом `Rules data`, который
+ * кладёт слой команд (PRD 10.13.52, П-8, шаг третий). Ловушка и есть проверка:
+ * пока страница отдавала текст правил, «панель взяла правила из настроек» и
+ * «панель дочитала их с диска» выглядели одинаково (У-56).
  */
+const vaultTrap = (p) => {
+  throw new Error("панель полезла в vault за '" + String(p && p.path ? p.path : p) + "'");
+};
 const app = {
   workspace: { activeLeaf: { view: { editor } }, activeEditor: { editor } },
-  vault: {
-    getAbstractFileByPath(p) { return String(p) === FIXTURE.rulesPath ? { path: p } : null; },
-    async read() { return FIXTURE.rulesMd; },
-    adapter: { async read() { return FIXTURE.rulesMd; } },
-  },
+  vault: { getAbstractFileByPath: vaultTrap, read: vaultTrap, adapter: { read: vaultTrap } },
 };
 
 /* Панель говорит с человеком `Notice`-ами, и на странице их некому показать.

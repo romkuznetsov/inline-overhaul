@@ -4,7 +4,9 @@ var SUBTAG_FORMAT_OPTION = 'Subtag format'
 var CYCLE_END_BEHAVIOR_OPTION = 'Cycle end behavior'
 var CURSOR_POLICY_OPTION = 'Cursor policy'
 var ORDER_CONFIG_OPTION = 'Order config'
-var RULES_PATH_OPTION = 'Rules path'
+/* Правила для панели: ключ кладёт слой команд, файла панель не читает
+   (PRD 10.13.52, П-8, шаг третий). */
+var RULES_DATA_OPTION = 'Rules data'
 var DATE_RUNTIME_CONFIG_OPTION = 'Date runtime config'
 var TAGWHEEL_SCROLLER_ENABLED_OPTION = 'TagWheel scroller enabled'
 var TAGWHEEL_SCROLLER_DIRECTION_OPTION = 'TagWheel scroller direction'
@@ -19,7 +21,6 @@ var TAGWHEEL_EDGE_MODE_OPTION = 'TagWheel edge mode'
 var TAGWHEEL_ACTIVE_FIELD_MODE_OPTION = 'TagWheel active field mode'
 var TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION = 'TagWheel active field left'
 var TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = 'TagWheel active field right'
-var DEFAULT_RULES_PATH = 'InlineOverhaul_Generated_RULES_TagWheel.md'
 /*
  * Свои модули — литеральным `require`, по одному на модуль (У-89).
  *
@@ -412,8 +413,8 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   if (!out.targetFieldKey && typeof qa['Target field key'] === 'string') {
     out.targetFieldKey = qa['Target field key']
   }
-  if (!out.rulesPath && typeof qa[RULES_PATH_OPTION] === 'string') {
-    out.rulesPath = qa[RULES_PATH_OPTION]
+  if (out.rulesData == null && qa[RULES_DATA_OPTION] != null) {
+    out.rulesData = qa[RULES_DATA_OPTION]
   }
   if (!out.dateRuntimeConfig && typeof qa[DATE_RUNTIME_CONFIG_OPTION] === 'string') {
     out.dateRuntimeConfig = qa[DATE_RUNTIME_CONFIG_OPTION]
@@ -590,7 +591,7 @@ async function runTagWheel(input, quickAddSettings) {
     CYCLE_END_BEHAVIOR_OPTION = String(keys.CYCLE_END_BEHAVIOR || CYCLE_END_BEHAVIOR_OPTION)
     CURSOR_POLICY_OPTION = String(keys.CURSOR_POLICY || CURSOR_POLICY_OPTION)
     ORDER_CONFIG_OPTION = String(keys.ORDER_CONFIG || ORDER_CONFIG_OPTION)
-    RULES_PATH_OPTION = String(keys.RULES_PATH || RULES_PATH_OPTION)
+    RULES_DATA_OPTION = String(keys.RULES_DATA || RULES_DATA_OPTION)
     DATE_RUNTIME_CONFIG_OPTION = String(keys.DATE_RUNTIME_CONFIG || DATE_RUNTIME_CONFIG_OPTION)
     TAGWHEEL_SCROLLER_ENABLED_OPTION = String(keys.TAGWHEEL_SCROLLER_ENABLED || TAGWHEEL_SCROLLER_ENABLED_OPTION)
     TAGWHEEL_SCROLLER_DIRECTION_OPTION = String(keys.TAGWHEEL_SCROLLER_DIRECTION || TAGWHEEL_SCROLLER_DIRECTION_OPTION)
@@ -601,7 +602,6 @@ async function runTagWheel(input, quickAddSettings) {
     TAGWHEEL_ACTIVE_FIELD_MODE_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_MODE || TAGWHEEL_ACTIVE_FIELD_MODE_OPTION)
     TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_LEFT || TAGWHEEL_ACTIVE_FIELD_LEFT_OPTION)
     TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = String(keys.TAGWHEEL_ACTIVE_FIELD_RIGHT || TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION)
-    DEFAULT_RULES_PATH = String(mod.DEFAULT_RULES_PATH || DEFAULT_RULES_PATH)
   }
 
   function getDomainRegistry() {
@@ -2101,9 +2101,6 @@ async function runTagWheel(input, quickAddSettings) {
     if (typeof rulesHelpers.resolveFreeRoamBehavior !== 'function') throw new Error('pkm_rules_runtime_helpers unavailable: resolveFreeRoamBehavior')
     if (typeof rulesHelpers.parseOrderConfig !== 'function') throw new Error('pkm_rules_runtime_helpers unavailable: parseOrderConfig')
     if (typeof rulesHelpers.applyOrderToRules !== 'function') throw new Error('pkm_rules_runtime_helpers unavailable: applyOrderToRules')
-    if (typeof rulesHelpers.normalizeRulesPath !== 'function') throw new Error('pkm_rules_runtime_helpers unavailable: normalizeRulesPath')
-    if (typeof rulesHelpers.readRulesMarkdownWithFallback !== 'function') throw new Error('pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback')
-    var normalizeRulesPathFn = function(raw) { return rulesHelpers.normalizeRulesPath(raw, DEFAULT_RULES_PATH) }
     await callRuntimeApi(app_, 'loadMacroShared')
     macroShared = globalThis.__inlinePkmMacroShared
     if (!macroShared || typeof macroShared.isNoContentParsed !== 'function') throw new Error('pkm_macro_shared unavailable: isNoContentParsed')
@@ -2128,22 +2125,24 @@ async function runTagWheel(input, quickAddSettings) {
     var lineFinalize = await loadLineFinalizeUnified(app_)
     statusLineRuntime = await loadStatusLineRuntimeUnified(app_)
     var core = __tagwheelCoreMod
-    var rp = String(runtimeInput && runtimeInput.rulesPath ? runtimeInput.rulesPath : DEFAULT_RULES_PATH).trim()
-    var loadedRules
-    try {
-      loadedRules = await rulesHelpers.readRulesMarkdownWithFallback(app_, rp, DEFAULT_RULES_PATH)
-    } catch (e) {
-      if (e && e.message) notice('', e.message)
-      else notice(tagWheelNoticeKey('rules-missing'),
-        'TagWheel: rules file not found: {0}', normalizeRulesPathFn(rp))
+    /*
+     * **Правила приезжают из настроек** (PRD 10.13.52, П-8, шаг третий;
+     * 2026-09-13). Служебного файла панель не читает вовсе: ни пути, ни
+     * разбора, ни запасных кандидатов. Ключ кладёт слой команд —
+     * `buildRulesForEngines(cfg)` в `command_registry.js`, — и он же кормит
+     * движки тегов и элементов с шага второго.
+     *
+     * **Ключа нет — отказ громкий, а не тихий переход на файл.** Панель
+     * открывает человек, и работать по правилам, которых он не задавал, хуже,
+     * чем не открыться (Д-4 разбора готовности). Случай этот один: панель
+     * позвали не нашей командой.
+     */
+    var rules = __pkmOptionKeysMod.rulesFromSettings(runtimeInput, 'rulesData')
+    if (!rules) {
+      notice(tagWheelNoticeKey('rules-missing'),
+        'TagWheel: no rules came with the command - open it from the command list or its hotkey')
       return
     }
-    if (loadedRules && loadedRules.path && loadedRules.path !== normalizeRulesPathFn(rp)) {
-      notice(tagWheelNoticeKey('rules-fallback'),
-        'TagWheel: using the rules file at {0}', loadedRules.path)
-    }
-    var rulesMd = loadedRules.markdown
-    var rules = core.parseRulesFromMarkdown(rulesMd)
     var dateRuntimeShared = await loadDateRuntimeShared()
     var dateRuntimeCfg = dateRuntimeShared.parseDateRuntimeConfigJson(runtimeInput.dateRuntimeConfig)
     if (!rules.behavior || typeof rules.behavior !== 'object') rules.behavior = {}

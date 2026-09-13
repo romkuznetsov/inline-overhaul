@@ -26,7 +26,6 @@ const __sayModule = require("../src/core/say.js");
 const __say = __sayModule.say;
 const __activeEditorMod = require("../src/core/active_editor.js");
 
-let RULES_PATH = "Rules path";
 let RULES_DATA = "Rules data";
 let ACTION_TYPE = "Action type";
 let SUBTAG_FORMAT = "Subtag format";
@@ -35,13 +34,11 @@ let CURSOR_POLICY = "Cursor policy";
 let ORDER_CONFIG = "Order config";
 let DATE_RUNTIME_CONFIG = "Date runtime config";
 let DIRECTION = "Direction";
-let DEFAULT_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
 let __statusRuntimeCommonFns = null;
 
 function applyPkmOptionKeys(mod) {
   const keys = mod && mod.KEYS && typeof mod.KEYS === "object" ? mod.KEYS : null;
   if (!keys) return;
-  RULES_PATH = String(keys.RULES_PATH || RULES_PATH);
   RULES_DATA = String(keys.RULES_DATA || RULES_DATA);
   ACTION_TYPE = String(keys.ACTION_TYPE || ACTION_TYPE);
   SUBTAG_FORMAT = String(keys.SUBTAG_FORMAT || SUBTAG_FORMAT);
@@ -50,7 +47,6 @@ function applyPkmOptionKeys(mod) {
   ORDER_CONFIG = String(keys.ORDER_CONFIG || ORDER_CONFIG);
   DATE_RUNTIME_CONFIG = String(keys.DATE_RUNTIME_CONFIG || DATE_RUNTIME_CONFIG);
   DIRECTION = String(keys.DIRECTION || DIRECTION);
-  DEFAULT_RULES_PATH = String(mod.DEFAULT_RULES_PATH || DEFAULT_RULES_PATH);
 }
 
 applyPkmOptionKeys(__pkmOptionKeys);
@@ -1149,11 +1145,6 @@ module.exports = {
     name: "Status: Tags & Context logic",
     author: "you",
     options: {
-      [RULES_PATH]: {
-        type: "text",
-        defaultValue: "InlineOverhaul_Generated_RULES_TagWheel.md",
-        description: "Path from vault root to rules markdown",
-      },
       [ACTION_TYPE]: {
         type: "dropdown",
         defaultValue: "cycle_field:type",
@@ -1244,12 +1235,11 @@ module.exports = {
         console.error("[inline-overhaul] сообщение не показано: " + text, e);
       }
     };
+    /* Предусловие Field спрашивается у общего объявления (Н21): движок и
+       панель отвечают на этот вопрос одинаково. */
     const rulesHelpers = globalThis.__inlinePkmRulesHelpers;
-    if (!rulesHelpers || typeof rulesHelpers.normalizeRulesPath !== "function") {
-      throw new Error("pkm_rules_runtime_helpers unavailable: normalizeRulesPath");
-    }
-    if (typeof rulesHelpers.readRulesMarkdownWithFallback !== "function") {
-      throw new Error("pkm_rules_runtime_helpers unavailable: readRulesMarkdownWithFallback");
+    if (!rulesHelpers || typeof rulesHelpers.isFieldPrerequisiteMet !== "function") {
+      throw new Error("pkm_rules_runtime_helpers unavailable: isFieldPrerequisiteMet");
     }
     const macroShared = globalThis.__inlinePkmMacroShared;
     if (!macroShared || typeof macroShared.isNoContentParsed !== "function") {
@@ -1276,38 +1266,21 @@ module.exports = {
     if (typeof macroShared.isBulletLikeEmptyResult !== "function") {
       throw new Error("pkm_macro_shared unavailable: isBulletLikeEmptyResult");
     }
-    const normalizeRulesPath = (raw) => rulesHelpers.normalizeRulesPath(raw, DEFAULT_RULES_PATH);
 
     const statusCommon = getStatusRuntimeCommon();
     /*
-     * **Правила приезжают из настроек** (PRD 10.13.52, П-8, шаг второй;
-     * 2026-09-11). Пока ключа нет — читается служебный файл, как читался: на
-     * шагах 2–3 он ещё живёт, его разбирает TagWheel. Ветка чтения уйдёт
-     * вместе с файлом шагом четвёртым.
+     * **Правила приезжают из настроек** (PRD 10.13.52, П-8; 2026-09-11).
      *
-     * Что оба хода дают одно и то же, доказано не словами: формы сверены на
-     * фикстурах, а поведение движка — на одной строке обоими ходами
-     * (`rules_from_settings_tests.ts`).
+     * **Запасного хода через служебный файл больше нет** (шаг третий,
+     * 2026-09-13): файла не читает ни один движок, и разбора заметки в
+     * продукте не осталось. Ключа нет — движок отказывается вслух: работать по
+     * правилам, которых человек не задавал, хуже, чем не сработать (Д-4).
      */
-    let rules = statusCommon.rulesFromSettings(settings, RULES_DATA);
+    const rules = statusCommon.rulesFromSettings(settings, RULES_DATA);
     if (!rules) {
-      const rulesPathInput = String(settings?.[RULES_PATH] ?? "").trim();
-      let rulesMd = "";
-      let usedRulesPath = "";
-      try {
-        const loaded = await rulesHelpers.readRulesMarkdownWithFallback(app_, rulesPathInput, DEFAULT_RULES_PATH);
-        rulesMd = loaded.markdown;
-        usedRulesPath = loaded.path;
-      } catch (e) {
-        if (e && e.message) notice("", e.message);
-        else notice(noticeKey('file-missing'),
-          'Rules file not found: {0}', normalizeRulesPath(rulesPathInput));
-        return;
-      }
-      if (usedRulesPath && usedRulesPath !== normalizeRulesPath(rulesPathInput)) {
-        notice(noticeKey('path-fallback'), 'Using the rules file at {0}', usedRulesPath);
-      }
-      rules = core.parseRulesFromMarkdown(rulesMd);
+      notice(noticeKey('rules-missing'),
+        'No rules came with the command - run it from the command list or its hotkey');
+      return;
     }
     const subtagFormat = getSubtagFormat(rules, settings);
     if (!isObj(rules.behavior)) rules.behavior = {};
@@ -1377,7 +1350,7 @@ module.exports = {
      * Отказ громкий: человек сам позвал команду, и молчание он прочтёт как
      * поломку (правило отказов, PRD 15.2).
      */
-    if (resolvedActionFieldId && typeof rulesHelpers.isFieldPrerequisiteMet === "function") {
+    if (resolvedActionFieldId) {
       const actionFieldAny = getField(rules.leftMode, resolvedActionFieldId)
         || getField(rules.rightMode, resolvedActionFieldId);
       if (actionFieldAny && !rulesHelpers.isFieldPrerequisiteMet(actionFieldAny, state.selected)) {

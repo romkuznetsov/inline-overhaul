@@ -24,8 +24,6 @@ function err(msg) {
 var __sharedUtils = require('../../src/core/shared_utils.js')
 var __statusLineRuntimeUnified = require('../../src/core/status_line_runtime_unified.js')
 var __rulesRuntimeHelpers = require('../../src/core/pkm_rules_runtime_helpers.js')
-var __markdownJsonBlockParser = require('../../src/core/markdown_json_block_parser.js')
-var __tagwheelRulesNormalizer = require('../../src/core/tagwheel_rules_normalizer.js')
 var __tokenGraphUnified = require('../../src/core/token_graph_unified.js')
 var __pkmDomainRegistry = require('../../src/core/pkm_domain_registry.js')
 var __statusRuntimeCommonMod = require('../../src/core/status_runtime_common.js')
@@ -196,59 +194,18 @@ function isDateLikeToken(token, rules) {
 }
 
 /*
- * Разбор правил и JSON-блоков живёт в общих модулях; здесь только вызов.
+ * Разбора служебного файла правил здесь больше нет (PRD 10.13.52, П-8, шаг
+ * третий, 2026-09-13). Правила приезжают к панели из настроек — ключом
+ * `Rules data`, который кладёт слой команд, — и вместе с
+ * `parseRulesFromMarkdown` отсюда ушли разбор JSON-блоков и досыпка формы
+ * списка Fields: у файла не осталось ни одного читателя в продукте.
  *
- * Копии этих правил лежали прямо тут и были сняты 2026-09-07 вместе с мостом
- * модулей. Страховкой они не были: в установленном плагине работали именно
- * они, а вынесенные модули были мертвы — путь к ним стоял в переменной, и
- * сборщик его не разрешал (У-89). В проверках было наоборот, потому что в
- * дереве исходников путь разрешается всегда. То есть у одного правила было два
- * объявления, и продукт с набором проверок читали разные (У-32).
- *
- * Держала их вместе сверка в `rules_document_roundtrip_tests.ts`. Она
- * ломала резолв модуля вокруг ВЫЗОВА — и это работало, пока `require` стоял
- * внутри геттера. С переездом `require` на загрузку файла сверка стала
- * сверять модуль сам с собой: мутация в вынесенном модуле её не роняла.
- * Поэтому копии сняты здесь, а сверка — там.
- *
- * Вызовов осталось два. Четыре соседних — `cleanJsonText`, `normalizeValue`,
- * `normalizeImportanceValueToken`, `normalizeField` — той же правкой остались
- * без единого звавшего: их тела уехали в модуль, и модуль зовёт свои
- * внутренности сам. Сняты 2026-09-11 (В-102).
+ * **Досыпка формы при этом жива** — `normalizeMode` в
+ * `src/core/tagwheel_rules_normalizer.js`, — но зовёт её теперь один
+ * `buildRulesForEngines` (`src/core/pkm_rules_shape.js`): то есть ход через
+ * диск был единственным, кто добавлял её здесь. Второй копии не завелось
+ * (У-32).
  */
-function parseJsonBlock(content, blockName, required) {
-  return __markdownJsonBlockParser.parseJsonBlock(content, blockName, required, function(message) {
-    err(message)
-  })
-}
-
-function normalizeMode(mode, modeName) {
-  return __tagwheelRulesNormalizer.normalizeMode(mode, modeName, { isObj: isObj, err: err })
-}
-
-function parseRulesFromMarkdown(content) {
-  var io = parseJsonBlock(content, 'tagwheel-io', true)
-  var inlineLayout = parseJsonBlock(content, 'tagwheel-inline-layout', false)
-  var behavior = parseJsonBlock(content, 'tagwheel-behavior', true)
-  var ui = parseJsonBlock(content, 'tagwheel-ui', true)
-  var leftMode = parseJsonBlock(content, 'tagwheel-left-mode', true)
-  var rightMode = parseJsonBlock(content, 'tagwheel-right-mode', true)
-  var projects = parseJsonBlock(content, 'tagwheel-projects', true)
-  var colors = parseJsonBlock(content, 'tagwheel-colors', false)
-  var meta = parseJsonBlock(content, 'tagwheel-meta', false)
-
-  return {
-    meta: isObj(meta) ? meta : {},
-    io: isObj(io) ? io : {},
-    inlineLayout: isObj(inlineLayout) ? inlineLayout : {},
-    behavior: isObj(behavior) ? behavior : {},
-    ui: isObj(ui) ? ui : {},
-    leftMode: normalizeMode(leftMode, 'leftMode'),
-    rightMode: normalizeMode(rightMode, 'rightMode'),
-    projects: isObj(projects) ? projects : { items: [] },
-    colors: isObj(colors) ? colors : {}
-  }
-}
 
 function validateRules(rules) {
   if (!isObj(rules)) err('Rules must be object')
@@ -2923,7 +2880,6 @@ function buildRightDates(rules, state) {
 }
 
 module.exports = {
-  parseRulesFromMarkdown: parseRulesFromMarkdown,
   validateRules: validateRules,
   parseLine: parseLine,
   makeInitialState: makeInitialState,

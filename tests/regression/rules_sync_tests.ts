@@ -10,9 +10,11 @@
  *
  * **Починка из двух половин, и по отдельности ни одна не работает.** Снять
  * отметку времени — чтобы у одного конфига был один и тот же текст; читать
- * файл перед записью — чтобы этот текст не писался второй раз. Первую половину
- * стережёт `rules_document_roundtrip_tests.ts` (две сборки одного конфига
- * равны посимвольно), вторую — этот файл.
+ * файл перед записью — чтобы этот текст не писался второй раз. Обе половины
+ * стережёт этот файл: первая переехала сюда 2026-09-13 из
+ * `rules_document_roundtrip_tests.ts` вместе с его снятием — та проверка
+ * сверяла ход через диск с прямым чтением, а ходов через диск больше нет ни
+ * одного (PRD 10.13.52, П-8, шаг третий).
  *
  * **Проверяется поведение оркестратора, а не плагина.** Ему отдаются швы:
  * конфиг, сборка текста, чтение и запись. Это тот же способ, каким его зовёт
@@ -30,6 +32,22 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 const nodeRequire = Module.createRequire(import.meta.url);
 const orch = nodeRequire(path.join(root, "src", "features", "rules_sync_orchestrator.js"));
+const builderMod = nodeRequire(path.join(root, "src", "features", "rules_markdown_builder.js"));
+const shared = nodeRequire(path.join(root, "src", "core", "shared_utils.js"));
+const { loadPluginInternals } = await import("../harness/plugin_internals.ts");
+const internals = loadPluginInternals();
+const builder = builderMod.createRulesMarkdownBuilder({
+  isObj: shared.isObj,
+  cloneJson: shared.cloneJson,
+  toPrettyJson: shared.toPrettyJson,
+});
+const fs = await import("node:fs");
+
+/** Конфиг фикстуры, прогнанный настоящей миграцией плагина (правило 2). */
+function fixtureConfig(name: string): Any {
+  return internals.migrateConfig(
+    JSON.parse(fs.default.readFileSync(path.join(root, "tests", "fixtures", name), "utf8")));
+}
 
 let passed = 0;
 const ok = (label: string): void => { passed++; console.log("  ok   " + label); };
@@ -178,6 +196,42 @@ function ctxFor(d: ReturnType<typeof disk>, text: string, extra?: Any) {
   assert.match(threw, /Generated rules path is empty/, "пустой путь обязан падать громко");
   assert.deepEqual(d.reads, [], "и падать до чтения, а не после");
   ok("пустой путь: падение осталось на месте");
+}
+
+{
+  /*
+   * **Первая половина Д-1: у одного конфига один и тот же текст.**
+   *
+   * Служебный блок `meta` не несёт ничего, кроме служебного. Пока в нём стояла
+   * отметка времени, содержимое файла было новым при каждой сборке, и «не
+   * писать без нужды» было невозможно в принципе: проверка ниже — про текст,
+   * эта — про то, из чего он собран. Утверждение здесь стояло обратное («кем и
+   * когда собран») и переписано вместе с предметом (У-94).
+   */
+  const meta = builder.buildRulesShapeFromConfig(fixtureConfig("config_v1_full.json")).meta as Any;
+  assert.deepEqual(Object.keys(meta).sort(), ["generatedBy"],
+    "в служебном блоке только служебное, и отметки времени среди него нет");
+  ok("служебный блок не несёт ничего, что менялось бы само");
+}
+
+{
+  /*
+   * И сам текст: две сборки одного конфига подряд равны посимвольно.
+   *
+   * Сверяются два прогона, а не одна строка: отметка времени была в секундах, и
+   * проверка из одного прогона прошла бы просто потому, что уложилась в
+   * секунду. Ожидание между прогонами стоит не про скорость, а про то, что у
+   * измерения есть предмет (У-88).
+   */
+  const cfg = fixtureConfig("config_v1_full.json");
+  const first = builder.buildTagWheelRulesMarkdownFromConfig(cfg);
+  await new Promise(done => setTimeout(done, 1100));
+  const second = builder.buildTagWheelRulesMarkdownFromConfig(cfg);
+  assert.equal(first, second,
+    "две сборки одного конфига дали разный текст — в документе осталось что-то, что меняется само");
+  assert.ok(!/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(first),
+    "в документе осталась отметка времени в формате ISO");
+  ok("Д-1: один конфиг даёт один и тот же документ, отметки времени в нём нет");
 }
 
 console.log("\n" + passed + " проверок пройдено");

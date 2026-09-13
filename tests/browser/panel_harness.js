@@ -24,7 +24,6 @@ const { root, openEditor } = require("./editor_harness.js");
 const normalize = require(path.join(root, "src", "core", "config_normalize.js"));
 const orderCfg = require(path.join(root, "src", "core", "pkm_order_config.js"));
 const registry = require(path.join(root, "src", "features", "command_registry.js"));
-const rulesBuilder = require(path.join(root, "src", "features", "rules_markdown_builder.js"));
 const shared = require(path.join(root, "src", "core", "shared_utils.js"));
 const panelBench = require(path.join(root, "tests", "harness", "panel_bench.js"));
 
@@ -150,17 +149,21 @@ function buildFixture() {
     return hit;
   };
   const pane = panelBench.paneSettings(cfg);
-  const rulesMd = rulesBuilder.createRulesMarkdownBuilder({})
-    .buildTagWheelRulesMarkdownFromConfig(cfg);
-  if (!rulesMd || rulesMd.length < 100) {
-    throw new Error("правила фикстуры пусты — панели нечего было бы показать");
+  const settingsLeft = Object.assign({}, pane, defById("open-tagwheel-left").makeSettings(cfg));
+  /*
+   * Положительный контроль на саму фикстуру: правила приезжают панели ключом
+   * `Rules data` (PRD 10.13.52, П-8, шаг третий), и если слой команд их не
+   * положил, панель не откроется вовсе — а страница показала бы это как «нет
+   * подсветки» и увела бы разбор в сторону (У-152).
+   */
+  const rules = settingsLeft["Rules data"];
+  if (!rules || !rules.io || !rules.behavior) {
+    throw new Error("в настройках команды нет правил — панели нечего было бы показать");
   }
   return {
     cfg,
     lines: linesFor(cfg),
-    rulesPath: panelBench.activeRulesPath(cfg),
-    rulesMd,
-    settingsLeft: Object.assign({}, pane, defById("open-tagwheel-left").makeSettings(cfg)),
+    settingsLeft,
     settingsRight: Object.assign({}, pane, defById("open-tagwheel-right").makeSettings(cfg)),
   };
 }

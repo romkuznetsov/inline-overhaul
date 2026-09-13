@@ -1,28 +1,34 @@
 /**
- * Правила для движков приезжают из настроек: сверка двух ходов
- * (PRD 10.13.52, П-8, шаг второй; решение заказчика 2026-09-11).
+ * Правила для движков приезжают **только** из настроек (PRD 10.13.52, П-8;
+ * решение заказчика 2026-09-11, шаг третий — 2026-09-13).
  *
- * **Что сверяется.** Один конфиг, два хода:
+ * **Что здесь стояло раньше и почему этого больше нет.** До 2026-09-13 файл
+ * сверял два хода на одних входах: конфиг → заметка `generated_rules.md` →
+ * `parseRulesFromMarkdown` → правила против конфиг → `buildRulesForEngines` →
+ * правила. Сверка была первым пунктом порядка снятия файла и своё отработала:
+ * по ней переведены навигация, движок тегов и движок элементов. Шагом третьим
+ * на неё перешла панель TagWheel, разбор заметки снят из продукта целиком — и
+ * сверять стало нечего. Пин, у которого не осталось предмета, зелен именно
+ * потому, что искать нечего (У-141), поэтому он не оставлен, а **заменён**.
  *
- *   1. сегодняшний: конфиг → заметка `generated_rules.md` →
- *      `parseRulesFromMarkdown` → правила;
- *   2. завтрашний: конфиг → `buildRulesForEngines` → правила.
+ * **Что спрашивается вместо него.** То же, что и было предметом, но с другой
+ * стороны: движок обязан взять правила из ключа `Rules data` и **не иметь
+ * другого хода**.
  *
- * Сверка идёт на **двух уровнях**, и второй важнее первого: сначала формы
- * целиком, потом — что делает движок на настоящей строке, заведённый обоими
- * ходами. Равенство форм говорит «перекладка та же»; равенство строки говорит
- * «человек не заметит разницы», а это и есть предмет (У-4).
+ *   1. строка, которую движок написал, собрана по правилам из ключа;
+ *   2. другой ключ — другая строка (иначе равенство выполнялось бы и тогда,
+ *      когда ключ не смотрят вовсе, У-56);
+ *   3. vault под движком — ловушка: любое обращение к диску роняет прогон;
+ *   4. ключа нет — движок отказывается вслух и строки не трогает;
+ *   5. и ключ доезжает от слоя команд, а не только из этой проверки.
  *
- * **Чего эта сверка не доказывает.** Обе стороны первого уровня растут из
- * одного места: заметка печатается из той же формы. Ошибка в самой перекладке
- * уедет в обе стороны сразу и останется незамеченной (У-92) — ровно как в
- * `navigate_rules_direct_tests.ts`. Ловит такую поведение движка, и оно здесь
- * второй половиной.
+ * Движка спрашивается два: теги и элементы. Первый прогон мутаций 2026-09-11
+ * показал, что движок тегов не покрыт вовсе, — движков двое, и спросить надо
+ * обоих (У-134).
  */
 
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import Module from "node:module";
 import { fileURLToPath } from "node:url";
@@ -35,10 +41,7 @@ const root = path.resolve(here, "..", "..");
 const nodeRequire = Module.createRequire(import.meta.url);
 
 const internals = loadPluginInternals();
-const builder = nodeRequire(path.join(root, "src", "features", "rules_markdown_builder.js"))
-  .createRulesMarkdownBuilder({});
 const shape = nodeRequire(path.join(root, "src", "core", "pkm_rules_shape.js"));
-const core = nodeRequire(path.join(root, "pkm_v2", "TagWheel", "tagwheel_core.js"));
 const runtime = nodeRequire(path.join(root, "pkm_runtime_v2.js"));
 const keys = nodeRequire(path.join(root, "src", "core", "pkm_option_keys.js")).KEYS;
 
@@ -47,40 +50,6 @@ function ok(label: string): void {
   passed++;
   console.log("  ok " + label);
 }
-
-const FIXTURES = ["config_v1_full.json", "config_v1_realistic.json"];
-
-/* ---- 1. формы обоих ходов совпадают ------------------------------------ */
-
-for (const name of FIXTURES) {
-  const cfg = internals.migrateConfig(
-    JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", name), "utf8")));
-  const viaDisk = core.parseRulesFromMarkdown(builder.buildTagWheelRulesMarkdownFromConfig(cfg));
-  const direct = shape.buildRulesForEngines(cfg);
-
-  /*
-   * Положительный контроль (У-88): сверка пустых форм проходит сама собой.
-   * У обеих сторон обязан быть хотя бы порядок Fields и разделители строки.
-   */
-  assert.ok(Object.keys((viaDisk.behavior && viaDisk.behavior.order) || {}).length > 0,
-    `${name}: в правилах есть порядок Fields — сверять есть что`);
-  assert.ok(Object.keys(viaDisk.io || {}).length > 0, `${name}: в правилах есть разделители строки`);
-
-  assert.deepStrictEqual(Object.keys(direct).sort(), Object.keys(viaDisk).sort(),
-    `${name}: у прямого чтения другой набор блоков, чем у хода через документ`);
-  assert.deepStrictEqual(direct, viaDisk,
-    `${name}: правила из настроек разошлись с правилами из документа`);
-  ok(`${name}: правила из настроек равны правилам из документа`);
-}
-
-/* ---- 2. движок на настоящей строке: оба хода дают одно и то же ---------- */
-
-/**
- * Заметка правил кладётся во временный файл, и путь к ней движку подаётся —
- * это и есть «сегодняшний ход». Второй ход тот же движок получает тем же
- * вызовом, только правила приезжают ключом `Rules data`.
- */
-const tmpRules = path.join(os.tmpdir(), "io-rules-from-settings.md");
 
 function makeEditor(line: string, ch: number): Any {
   let cur = { line: 0, ch };
@@ -95,15 +64,22 @@ function makeEditor(line: string, ch: number): Any {
   };
 }
 
+/**
+ * `app` Obsidian, у которого vault — **ловушка**.
+ *
+ * Это и есть проверка «другого хода нет»: пока подделка отдавала заметку
+ * правил, равенство строк было зелёным и при движке, который ключ не смотрит
+ * (обе стороны шли через диск и равнялись сами себе). Теперь диска под
+ * движком нет вовсе.
+ */
 function makeApp(editor: Any): Any {
-  const read = async (): Promise<string> => fs.readFileSync(tmpRules, "utf8");
+  const trap = (p: Any): never => {
+    const shown = p && typeof p === "object" ? p.path : p;
+    throw new Error("движок полез в vault за '" + String(shown) + "', а правила приезжают ключом");
+  };
   return {
     workspace: { activeLeaf: { view: { editor } }, activeEditor: { editor } },
-    vault: {
-      getAbstractFileByPath: (p: string) => ({ path: p }),
-      read,
-      adapter: { read },
-    },
+    vault: { getAbstractFileByPath: trap, read: trap, adapter: { read: trap } },
   };
 }
 
@@ -116,17 +92,19 @@ const ORDER = JSON.stringify({
   types: {},
 });
 
+const said: string[] = [];
+
 async function runEngine(before: string, extra: Any, command?: string): Promise<string> {
   const editor = makeEditor(before, before.length);
   const app = makeApp(editor);
   const g = globalThis as Any;
   if (!g.window) g.window = { __tagWheelState: { active: false }, addEventListener() {}, removeEventListener() {} };
-  if (typeof g.Notice !== "function") g.Notice = function Notice() {};
+  said.length = 0;
+  g.Notice = function Notice(message: Any) { said.push(String(message)); };
   await runtime.runCommand({
     app,
     command: command || "statusDate",
     settings: Object.assign({
-      [keys.RULES_PATH]: "InlineOverhaul_Generated_RULES_TagWheel.md",
       [keys.ACTION_TYPE]: "field_inc:date_due",
       [keys.ORDER_CONFIG]: ORDER,
       [keys.CYCLE_END_BEHAVIOR]: "keep-bullet",
@@ -136,68 +114,85 @@ async function runEngine(before: string, extra: Any, command?: string): Promise<
   return editor.snapshot().line;
 }
 
-{
-  /*
-   * Конфиг заказчика в той части, которую он назвал: разделители разведены
-   * (`||` и `::`). На одинаковых разделителях половина правил неразличима
-   * (У-147), и сверка двух ходов прошла бы, не увидев подмены.
-   */
+/** Конфиг заказчика в той части, которую он назвал, с разведёнными разделителями. */
+function configWithSeparators(second: string): Any {
   const cfg = internals.migrateConfig(
     JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1_realistic.json"), "utf8")));
   cfg.pkm.lineFormat.separator1 = "||";
-  cfg.pkm.lineFormat.separator2 = "::";
-  fs.writeFileSync(tmpRules, builder.buildTagWheelRulesMarkdownFromConfig(cfg));
+  cfg.pkm.lineFormat.separator2 = second;
+  return cfg;
+}
 
-  const LINE = "- [ ] #todo || 1244";
-  const viaDisk = await runEngine(LINE, {});
-  const viaSettings = await runEngine(LINE, { [keys.RULES_DATA]: JSON.stringify(shape.buildRulesForEngines(cfg)) });
+const LINE = "- [ ] #todo || 1244";
 
-  /* Положительный контроль: движок и правда что-то сделал со строкой. */
-  assert.notEqual(viaDisk, LINE, "положительный контроль: ход через документ строку не изменил — сверять нечего");
-  assert.match(viaDisk, /\|\| 1244 :: /, "ход через документ отделил правый Block вторым разделителем");
-  assert.equal(viaSettings, viaDisk, "движок на правилах из настроек дал другую строку, чем на правилах из документа");
-  ok("движок: правила из настроек дают ту же строку, что правила из документа");
+/* ---- 1. движок пишет строку по правилам из ключа ------------------------ */
 
-  /*
-   * **И пин на то, какой источник читают** (У-56, У-92). Равенство выше
-   * выполняется и тогда, когда ключ `Rules data` движок не смотрит вовсе: оба
-   * хода идут через файл, и обе стороны равны сами себе. Поэтому здесь
-   * источники **разведены нарочно**: в настройках второй разделитель другой,
-   * чем в заметке на диске, и в строке обязан оказаться он.
-   */
-  const other = internals.migrateConfig(
-    JSON.parse(fs.readFileSync(path.join(root, "tests", "fixtures", "config_v1_realistic.json"), "utf8")));
-  other.pkm.lineFormat.separator1 = "||";
-  other.pkm.lineFormat.separator2 = "~~";
-  const viaOther = await runEngine(LINE, { [keys.RULES_DATA]: JSON.stringify(shape.buildRulesForEngines(other)) });
-  assert.match(viaOther, /\|\| 1244 ~~ /,
-    "движок взял разделитель из файла, а не из настроек: " + viaOther);
-  assert.notEqual(viaOther, viaDisk, "контроль: разведённые источники обязаны давать разные строки");
-  ok("движок читает правила из настроек, а не из файла");
+{
+  const cfg = configWithSeparators("::");
+  const rules = shape.buildRulesForEngines(cfg);
 
   /*
-   * **И то же самое у второго движка.** Первый прогон мутаций показал, что
-   * движок тегов не покрыт вовсе: подмена «игнорировать правила из настроек»
-   * его не роняла ни здесь, ни в проверке поведения. Движка два, и спросить
-   * надо оба (У-134).
+   * Положительный контроль (У-88): у правил есть чему доезжать — порядок
+   * Fields и разделители строки. На пустой форме утверждения ниже прошли бы
+   * сами собой.
    */
+  assert.ok(Object.keys((rules.behavior && rules.behavior.order) || {}).length > 0,
+    "в правилах из настроек есть порядок Fields");
+  assert.ok(Object.keys(rules.io || {}).length > 0, "и разделители строки");
+
+  const written = await runEngine(LINE, { [keys.RULES_DATA]: JSON.stringify(rules) });
+  assert.notEqual(written, LINE, "положительный контроль: движок строку не тронул — мерить нечего");
+  assert.match(written, /\|\| 1244 :: /, "движок отделил правый Block вторым разделителем из настроек");
+  ok("движок пишет строку по правилам, приехавшим ключом `Rules data`");
+}
+
+/* ---- 2. другой ключ — другая строка ------------------------------------- */
+
+{
+  /*
+   * Пин на то, **какой источник читают** (У-56, У-92). Равенство «строка та
+   * же» выполняется и у движка, который ключ игнорирует; различение —
+   * единственное, что на это отвечает. Второй разделитель здесь другой, и в
+   * строке обязан оказаться он.
+   */
+  const other = configWithSeparators("~~");
+  const written = await runEngine(LINE, { [keys.RULES_DATA]: JSON.stringify(shape.buildRulesForEngines(other)) });
+  assert.match(written, /\|\| 1244 ~~ /, "движок взял разделитель не из ключа: " + written);
+  ok("движок элементов читает именно тот ключ, который ему дали");
+
   const TAGGED = "- [ ] #todo || 1244 :: \u{1F4C5}2026-09-04";
   const cycled = await runEngine(TAGGED, {
     [keys.ACTION_TYPE]: "cycle_field:type",
     [keys.DIRECTION]: "increase",
     [keys.RULES_DATA]: JSON.stringify(shape.buildRulesForEngines(other)),
   }, "statusTags");
-  assert.match(cycled, /~~/, "движок тегов взял разделители из файла, а не из настроек: " + cycled);
-  ok("движок тегов тоже читает правила из настроек");
+  assert.match(cycled, /~~/, "движок тегов взял разделитель не из ключа: " + cycled);
+  ok("движок тегов — тоже");
 }
 
-/* ---- 3. ключ доезжает от слоя команд, а не только из проверки ----------- */
+/* ---- 3. ключа нет — отказ вслух, строка цела ---------------------------- */
+
+{
+  /*
+   * **Запасного хода через файл больше нет** (шаг третий). Прежде движок в
+   * этом случае читал заметку правил с диска; теперь диска под ним нет, и
+   * тихо продолжить означало бы работать по правилам, которых человек не
+   * задавал. Отказ громкий: команду позвал человек (PRD 15.2).
+   */
+  const written = await runEngine(LINE, {});
+  assert.equal(written, LINE, "без правил движок строку трогать не должен");
+  assert.ok(said.some((m) => /No rules came with the command/.test(m)),
+    "и обязан сказать, почему ничего не произошло: " + JSON.stringify(said));
+  ok("ключа нет — движок отказывается вслух и строку не трогает");
+}
+
+/* ---- 4. ключ доезжает от слоя команд, а не только из проверки ----------- */
 
 {
   /*
    * Пин на подачу (У-56): правила можно сколько угодно уметь читать из
-   * настроек, но если слой команд их туда не кладёт, движок продолжит читать
-   * файл, и все проверки выше останутся зелёными.
+   * настроек, но если слой команд их туда не кладёт, у человека не сработает
+   * ни одна команда, а все проверки выше останутся зелёными.
    */
   const registry = nodeRequire(path.join(root, "src", "features", "command_registry.js"));
   const cfg = internals.migrateConfig(
@@ -224,6 +219,20 @@ async function runEngine(before: string, extra: Any, command?: string): Promise<
   assert.ok(parsed && parsed.io && parsed.behavior,
     "в ключе `Rules data` лежат не правила: нет ни разделителей, ни поведения");
   ok("слой команд кладёт правила в каждую команду PKM");
+
+  /*
+   * И панель TagWheel — тоже команда PKM, но собирается она отдельными
+   * определениями (`open-tagwheel-left` / `-right`), а `defs.length` выше
+   * посчитал бы их и не заметил, если бы ключ у них пропал вместе с обоими.
+   * Спрашиваются они поимённо (У-134).
+   */
+  for (const id of ["open-tagwheel-left", "open-tagwheel-right"]) {
+    const def: Any = defs.find((d: Any) => String(d.id) === id);
+    assert.ok(def, `команда ${id} собрана`);
+    const st = settingsOf(def);
+    assert.ok(st && st[keys.RULES_DATA], `команде ${id} правила из настроек не приезжают`);
+  }
+  ok("обе команды TagWheel получают правила тем же ключом");
 }
 
 console.log(`Rules from settings tests: OK (${passed} checks)`);
