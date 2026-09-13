@@ -2107,6 +2107,15 @@ function runPanelHighlightSuite(core, baseRules) {
  * давал пустую полосу панели, и проверка была бы зелёной при не отрисованной
  * панели (У-152). Поэтому рядом с каждым замером стоит контроль «полоса
  * непуста».
+ *
+ * **И разбор строки тоже настоящий — это вторая половина того же урока.**
+ * Первая версия собирала `parsed` руками: `{ text, tags, dates }`. Такой объект
+ * не знает, в каком Block значение **стояло**, — а именно это здесь и
+ * проверяется. Отсюда все три дефекта, которые заказчик увидел глазами
+ * 2026-09-13 (замечание к строке `S27`): значение-элемент из левого Block
+ * приезжало на экран справа, при открытии панели справа пропадало из строки
+ * совсем, а на строке без правого Block панель его себе выдумывала. Теперь
+ * каждая строка проезжает `core.parseLine`, как в продукте (У-2, У-47).
  */
 function runOppositeBlockSuite(core, baseRules) {
   var path = require('path')
@@ -2130,12 +2139,26 @@ function runOppositeBlockSuite(core, baseRules) {
    */
   rules.io = Object.assign({}, rules.io, { separator1: '||', separator2: '::' })
 
-  /* Строка человека: слева тег, посередине текст, справа дата. */
-  var parsed = { indent: '', text: '111', tags: ['#work'], dates: '📅2026-09-12' }
-  var DATE = parsed.dates
+  /*
+   * Знак элемента берётся **тот, который эта фикстура и правда узнаёт**, и это
+   * проверено рядом: `🕒` у поля `timeNow`. Знак `📅` в ней объявлен у поля
+   * `due`, но до перечня знаков не доезжает — в фикстуре нет ветки
+   * `dateRuntimeConfig`, которую в продукте всегда пишет сборщик правил. Взяв
+   * `📅`, проверка получила бы строку, где значение-элемент разобрано текстом
+   * человека, и была бы зелёной при любом поведении движка (У-47).
+   */
+  var DATE = '🕒10:30'
 
-  function view(mode, ui, line) {
-    var s = core.makeInitialState(rules, mode)
+  /* Строка человека: слева тег, посередине текст, справа дата. Разбирает её
+     сам движок — рукописный `parsed` о Block не знает (см. шапку). */
+  var parsed = core.parseLine('#work || 111 :: ' + DATE, rules)
+  assertEq(parsed.text, '111', 'разбор: текст человека между разделителями')
+  assertEq(parsed.left, '#work', 'разбор: левый Block — это левый Block')
+  assertEq(parsed.right, DATE, 'разбор: правый Block — это правый Block')
+
+  function view(mode, ui, line, state) {
+    var s = state || core.makeInitialState(rules, mode)
+    s.mode = mode
     rules.ui = ui
     var out = core.renderControlLine(rules, s, line || parsed)
     /*
@@ -2180,7 +2203,7 @@ function runOppositeBlockSuite(core, baseRules) {
 
   /* ---- пустой слот текста: строку, которую плагин написал, он обязан
      уметь прочесть (У-157) ---- */
-  var noText = { indent: '', text: '', tags: ['#work'], dates: DATE }
+  var noText = core.parseLine('#work ||  :: ' + DATE, rules)
   var leftNoText = view('left', keepUi, noText)
   assertTrue(leftNoText.indexOf('||  :: ' + DATE) !== -1,
     'без текста между разделителями остаётся пустой слот из двух пробелов: ' + leftNoText)
@@ -2189,11 +2212,89 @@ function runOppositeBlockSuite(core, baseRules) {
     'то же с правой панели: ' + rightNoText)
 
   /* ---- граница: прятать нечего, когда противоположный Block пуст ---- */
-  var onlyText = { indent: '', text: '111', tags: [], dates: '' }
+  var onlyText = core.parseLine('111', rules)
   assertEq(view('left', keepUi, onlyText), view('left', hideUi, onlyText),
     'на строке без второго Block режим ничего не меняет')
   assertEq(view('right', keepUi, onlyText), view('right', hideUi, onlyText),
     'и с правой панели тоже')
+
+  /*
+   * ---- замечание заказчика 2026-09-13: значение-элемент стоит СЛЕВА ----
+   *
+   * Его строка: `- [ ] 📅2026-09-13 10:45 #todo || 13123 :: #/1`. Дата стоит в
+   * левом Block, а корзина разбора у неё общая с правым грузом — по ней Block
+   * не восстановить. Пока `renderControlLine` читал корзину, дата уезжала
+   * направо («значение due отобразилось in right block — такого быть не
+   * должно»), с правой панели пропадала из строки, а на строке без правого
+   * Block панель дописывала разделитель и выдумывала Block целиком.
+   */
+  var leftElem = core.parseLine(DATE + ' #work || 111', rules)
+  assertEq(leftElem.left, DATE + ' #work',
+    'разбор: значение-элемент слева остаётся в левом Block и в своём порядке')
+  assertEq(leftElem.right, '', 'разбор: правого Block в этой строке нет вовсе')
+
+  var leftElemFromLeft = view('left', keepUi, leftElem)
+  assertTrue(leftElemFromLeft.indexOf('::') === -1,
+    'правый Block не выдумывается на строке, где его нет: ' + leftElemFromLeft)
+  assertTrue(leftElemFromLeft.indexOf('|| 111') !== -1,
+    'и текст человека остаётся за первым разделителем: ' + leftElemFromLeft)
+
+  var leftElemFromRight = view('right', keepUi, leftElem)
+  assertTrue(leftElemFromRight.indexOf(DATE + ' #work || 111 :: ') === 0,
+    'с правой панели левый Block остаётся целиком, вместе со значением-элементом: '
+      + leftElemFromRight)
+
+  /*
+   * ---- и вторая половина того же вопроса: взятое полосой не двоится ----
+   *
+   * Место значения в строке и Block его Field — разные вещи: значение поля,
+   * которое рисует **эта** полоса, человек мог написать в противоположном
+   * Block. Полоса показывает его своей ячейкой, и если Block отдать как есть,
+   * человек увидит одно значение дважды.
+   *
+   * **Состояние тут наполняется разбором, и это не украшение.** У пустого
+   * состояния полоса показывает одни подписи, показывать ей нечего — и на нём
+   * проверка была бы зелёной при любом поведении движка. Поэтому берётся
+   * значение, которое фикстура и правда узнаёт (`#/1` у поля `priority`), и
+   * рядом стоит контроль «полоса его и правда показывает».
+   */
+  function keptWithHydration(mode, line) {
+    var s = core.makeInitialState(rules, mode)
+    s.mode = mode
+    core.hydrateStateFromParsedLine(rules, s, line)
+    core.sanitizeState(rules, s)
+    return view(mode, keepUi, line, s)
+  }
+
+  var TOKEN = '#/1'
+  var rightOwn = core.parseLine('#work || 111 :: ' + TOKEN, rules)
+  assertEq(rightOwn.right, TOKEN, 'разбор: значение стоит в правом Block')
+  var keptLeft = keptWithHydration('left', rightOwn)
+  assertTrue(keptLeft.indexOf('**[' + TOKEN + ']**') !== -1,
+    'контроль: полоса и правда показывает это значение своей ячейкой: ' + keptLeft)
+  assertEq(keptLeft.split(TOKEN).length - 1, 1,
+    'значение, которое полоса взяла себе, вторым экземпляром в строке не стоит: ' + keptLeft)
+
+  /*
+   * И зеркально: то же значение, написанное слева, при открытой правой панели.
+   * Разница между этими двумя случаями и есть граница правила: убирается не
+   * «всё из противоположного Block», а ровно то, что полоса уже показала.
+   */
+  var leftOwn = core.parseLine(TOKEN + ' #work || 111 :: ' + DATE, rules)
+  assertEq(leftOwn.left, TOKEN + ' #work', 'разбор: значение стоит в левом Block')
+  var keptRight = keptWithHydration('right', leftOwn)
+  assertTrue(keptRight.indexOf(TOKEN) !== -1,
+    'контроль: значение с экрана не пропало — полоса показывает его сама: ' + keptRight)
+  assertEq(keptRight.split(TOKEN).length - 1, 1,
+    'и слева вторым экземпляром не остаётся: ' + keptRight)
+  /*
+   * Граница правила, и она же его положительный контроль: `#work` стоит в том
+   * же противоположном Block, полоса его **не** показывает — и он обязан
+   * остаться. Убирается ровно показанное, а не «всё из противоположного
+   * Block»: без этой строки правило «убрать всё» было бы зелёным.
+   */
+  assertTrue(keptRight.indexOf('#work || 111 :: ') === 0,
+    'то, чего полоса не показывает, из противоположного Block не убирается: ' + keptRight)
 
   /* ---- неподвижность: собранное плагин читает обратно (У-157) ---- */
   var pipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))

@@ -956,10 +956,17 @@ function parseLine(rawLine, rules) {
     leftBody = leftBody.slice(mcb[0].length)
   }
 
-  /* Что в левом сегменте тег, что значение элемента, а что текст человека. */
+  /*
+   * Что в левом сегменте тег, что значение элемента, а что текст человека.
+   *
+   * `values` — те же токены, что попали в `tags` и `dates`, но **в том порядке,
+   * в каком они стоят в строке**. Это левый Block как он есть; корзины `tags` и
+   * `dates` отвечают на другой вопрос — «что за значение», а не «где оно
+   * стоит», — и по Block их разложить уже нельзя (см. возврат `parseLine`).
+   */
   function classifyLeftPartTokens(raw) {
     var src = String(raw || '').trim()
-    var out = { tags: [], dates: [], text: [] }
+    var out = { tags: [], dates: [], text: [], values: [] }
     if (!src) return out
     var parts = src.split(/\s+/)
     var i
@@ -968,10 +975,12 @@ function parseLine(rawLine, rules) {
       if (!t) continue
       if (/^#\S+$/.test(t) || /^\[\[[^\]]+\]\]$/.test(t)) {
         out.tags.push(t)
+        out.values.push(t)
         continue
       }
       if (isDateLikeToken(t, rules)) {
         out.dates.push(t)
+        out.values.push(t)
         continue
       }
       out.text.push(t)
@@ -993,13 +1002,29 @@ function parseLine(rawLine, rules) {
     if (leftDates) dates = (leftDates + ' ' + dates).trim()
   }
 
+  /*
+   * **Две пары полей, и вопросы у них разные.**
+   *
+   * `tags` и `dates` — корзины **узнавания**: что из строки вообще является
+   * значением и какого рода. Значение-элемент, стоящее слева (`📅…`, `👤111`),
+   * ложится в `dates` вместе с правым грузом — иначе панель его не узнает
+   * вовсе. То есть по Block эти две корзины не разложены и разложены быть не
+   * могут.
+   *
+   * `left` и `right` — сами Block, как они стоят в строке. Прежде здесь лежали
+   * `tags.slice()` и `dates`, то есть имена обещали Block, а значение несли от
+   * корзин, и читателя у них не было ни одного. Читатель появился с режимом
+   * «не прятать противоположный Block» (10.13.87) — и получил ровно эту ложь:
+   * дата из левого Block приезжала на экран справа, а при открытии панели
+   * справа пропадала совсем (замечание заказчика 2026-09-13 к строке `S27`).
+   */
   return {
     indent: indent,
     headingToken: headingToken,
     bulletToken: headingToken ? '' : (bulletToken || '-'),
     checkboxToken: checkboxToken,
-    left: tags.slice(),
-    right: dates,
+    left: leftClassified.values.join(' ').trim(),
+    right: String(seg && seg.dates || '').trim(),
     tags: tags,
     text: text,
     dates: dates
@@ -2450,7 +2475,7 @@ function buildGroupDisplay(group, mode, state, rules) {
   }
 
   if (!hasVisibleField) {
-    return { hidden: true, active: false, text: '' }
+    return { hidden: true, active: false, text: '', tokens: [] }
   }
 
   var text = ''
@@ -2469,7 +2494,13 @@ function buildGroupDisplay(group, mode, state, rules) {
   return {
     hidden: false,
     active: hasActive,
-    text: text
+    text: text,
+    /*
+     * Сами значения, которые ячейка показывает, — не склеенная подпись.
+     * Нужны тому, кто рисует **противоположный** Block: значение, взятое
+     * полосой себе, не должно вторым экземпляром стоять в строке рядом.
+     */
+    tokens: tokens.slice()
   }
 }
 
@@ -2523,6 +2554,7 @@ function renderControlLine(rules, state, parsedLine) {
   var groups = getRenderedGroupsForMode(rules, state, mode)
 
   var cells = []
+  var shownTokens = []
   var gi
   for (gi = 0; gi < groups.length; gi++) {
     var g = groups[gi]
@@ -2530,6 +2562,7 @@ function renderControlLine(rules, state, parsedLine) {
     if (disp.hidden) continue
     if (disp.active) cells.push('**[' + disp.text + ']**')
     else cells.push(disp.text)
+    if (Array.isArray(disp.tokens)) shownTokens = shownTokens.concat(disp.tokens)
   }
 
   var tail = parsedLine.text || ''
@@ -2555,13 +2588,33 @@ function renderControlLine(rules, state, parsedLine) {
    * экране: на экране лежит вид панели, и чтение оттуда дописывало бы
    * противоположный Block на каждое нажатие (У-157).
    *
+   * **И берётся он из полей `left`/`right`, а не из корзин `tags`/`dates`.**
+   * Корзины отвечают на «что это за значение», Block они не знают: первая
+   * версия читала их, и значение-элемент из левого Block приезжало на экран
+   * справа, а при открытии панели справа пропадало из строки совсем. Разбор
+   * этого — в шапке возврата `parseLine`.
+   *
    * Текста человека это не касается: он на месте в обоих режимах.
    */
   var other = ''
   if (keepOpposite) {
     other = state.mode === 'right'
-      ? String((parsedLine.tags || []).join(' ')).trim()
-      : String(parsedLine.dates || '').trim()
+      ? String(parsedLine.left || '').trim()
+      : String(parsedLine.right || '').trim()
+    /*
+     * **Взятое полосой в строке вторым экземпляром не остаётся.** Место
+     * значения в строке и Block его Field — разные вещи: значение поля правой
+     * панели человек мог написать слева, и наоборот. Полоса показывает такое
+     * значение своей ячейкой, а Block, из которого оно взято, — это
+     * противоположный Block, и без уборки человек видит его дважды.
+     *
+     * Убирается точным токеном, тем же помощником, что и у команд
+     * (`removeExactTokens`): своего правила «как снять значение из зоны» здесь
+     * заводить нельзя (У-32).
+     */
+    if (other && shownTokens.length && __linePipeline && typeof __linePipeline.removeExactTokens === 'function') {
+      other = String(__linePipeline.removeExactTokens(other, shownTokens) || '').trim()
+    }
   }
 
   /*
@@ -2597,7 +2650,14 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
   // - panel affects UI grouping/navigation only; hydration is position-based on the unified token stream
   var allModes = [rules.leftMode, rules.rightMode]
   var tags = Array.isArray(parsedLine.tags) ? parsedLine.tags.slice() : []
-  var rightRaw = String(parsedLine.right || parsedLine.dates || '')
+  /*
+   * Здесь нужна корзина узнавания, а не правый Block: в неё сложены **все**
+   * значения-элементы строки, в том числе стоящие слева. Прежде стояло
+   * `parsedLine.right || parsedLine.dates`, и это работало только потому, что
+   * `right` был копией `dates`; с тех пор `right` стал правым Block, и порядок
+   * пришлось назвать явно.
+   */
+  var rightRaw = String(parsedLine.dates || parsedLine.right || '')
   var graphLine = tags.join(' ') + (rightRaw ? (' ' + String(rules && rules.io && rules.io.separator2 || '||') + ' ' + rightRaw) : '')
   var rightTags = extractTagLikeTokens(rightRaw)
   var statusLineRuntime = getStatusLineRuntimeUnified()

@@ -1767,7 +1767,7 @@ async function run() {
   assertFalse(/state\.mode === 'right' && Array\.isArray\(rules\.ui\.rightGroups\)/.test(tagwheelCoreSrc), "tagwheel_core does not use static rightGroups-only branch");
   assertFalse(/rules\.ui\.rightGroups\s*=/.test(pkmRulesHelpersSrc), "runtime rules helper does not emit legacy ui.rightGroups runtime source");
   assertFalse(/!isFieldEnabled\(fieldMode, state, field, rules\) && field\.dependsOn/.test(tagwheelCoreSrc), "tagwheel_core group rendering does not leak disabled fields into placeholders");
-  assertTrue(/if \(!hasVisibleField\) \{\s*return \{ hidden: true, active: false, text: '' \}/.test(tagwheelCoreSrc), "tagwheel_core hides group when no visible fields remain");
+  assertTrue(/if \(!hasVisibleField\) \{\s*return \{ hidden: true, active: false, text: '', tokens: \[\] \}/.test(tagwheelCoreSrc), "tagwheel_core hides group when no visible fields remain");
   assertTrue(/getDateMarkersFromRules\(rules\)/.test(tagwheelSrc), "tagwheel order flow uses shared date-marker resolver");
   assertFalse(/getDateFieldsFromRules\(rules\)/.test(tagwheelSrc), "tagwheel relocate-date flow does not depend on date-fields helper wrapper");
   assertTrue(/tailByMarker\[String\(field && field\.marker/.test(tagwheelSrc), "tagwheel relocate-date flow takes the value tail from the field format, not from a guess");
