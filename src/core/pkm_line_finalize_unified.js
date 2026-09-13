@@ -13,6 +13,8 @@
  * нормализует знак списка, и на заголовке `## heading` дописала бы `- `.
  */
 const __linePipeline = require("./line_pipeline.js");
+const __sharedUtils = require("./shared_utils.js");
+const __rulesHelpers = require("./pkm_rules_runtime_helpers.js");
 
 function resolveSeparatorsOrThrow(rules) {
   const io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
@@ -1448,23 +1450,59 @@ function normalizeLeftTextSpill(options) {
   return out.trimEnd();
 }
 
+/**
+ * Сколько знаков с начала занимает **один элемент со своим значением**.
+ *
+ * Длину решает **формат поля**, а не догадка о том, чем бывает хвост.
+ * Здесь стоял рукописный образец: «после метки идут слова вида `12:34`,
+ * `12-34` или `12`». Это было второе объявление правила «где кончается
+ * значение элемента» (У-150), и `12` под него подходило — то есть текст
+ * человека `- 12` становился частью значения даты. Его слова 2026-09-13:
+ * «была строка `- 12`, после активации Due получил `-  :: 📅… 12`».
+ *
+ * Формат приезжает оттуда же, откуда его берут движки, — `tailByMarker`
+ * (`getDateMarkersFromRules`). Формата нет — отвечаем по метке и одному
+ * слову: это прежнее поведение для полей, у которых формат не задан.
+ *
+ * Ноль и меньше значит «это не наш элемент».
+ */
+/* Общий вид значения там, где формат поля неизвестен: слово, за которым может
+   стоять время через `:`, `-` или `.`. Смотри объяснение внутри функции. */
+const LEGACY_ELEMENT_TAIL_SRC = "\\S+(?:[ ]\\d{2}[-:.]\\d{2}(?:[-:.]\\d{2})?)*";
+
+function markerAnchoredPayloadLength(raw, rules) {
+  const payload = String(raw || "").trim();
+  if (!payload) return -1;
+  const markers = getRightMarkersUnified(rules);
+  const tails = (__rulesHelpers.getDateMarkersFromRules(rules) || {}).tailByMarker || {};
+  let best = -1;
+  let i;
+  for (i = 0; i < markers.length; i++) {
+    const mk = String(markers[i] || "");
+    if (!mk || !payload.startsWith(mk) || payload.length <= mk.length) continue;
+    const tail = String(tails[mk] || "").trim();
+    /*
+     * **Формат поля — главный ответ, и он точный.** Нет его только там, где
+     * правила пришли без полей вовсе: тогда остаётся общий вид — слово, за
+     * которым может стоять время, записанное через `:`, `-` или `.`. Бывшая
+     * здесь альтернатива «просто две цифры» снята вместе с дефектом: под неё
+     * подходил текст человека `12`, и он уезжал в значение.
+     */
+    const sources = __sharedUtils.elementValueSources(tail, mk)
+      .concat(tail ? [] : [LEGACY_ELEMENT_TAIL_SRC]);
+    const len = __sharedUtils.longestValueLengthAt(payload, mk.length, sources);
+    if (len === null) continue;
+    const total = mk.length + len;
+    if (total > best) best = total;
+  }
+  return best;
+}
+
+/** Весь кусок целиком — один элемент со значением. */
 function hasMarkerAnchoredRightPayload(raw, rules) {
   const payload = String(raw || "").trim();
   if (!payload) return false;
-  const parts = payload.split(/\s+/).filter(Boolean);
-  if (!parts.length) return false;
-  const markers = getRightMarkersUnified(rules);
-  const first = String(parts[0] || "");
-  const hasMarkerStart = markers.some((m) => m && first.startsWith(m) && first.length > m.length);
-  if (!hasMarkerStart) return false;
-  if (parts.length === 1) return true;
-  let i;
-  for (i = 1; i < parts.length; i++) {
-    const t = String(parts[i] || "").trim();
-    if (!t) return false;
-    if (!/^\d{2}[-:]\d{2}(?:[-:]\d{2})?$/.test(t) && !/^\d{2}$/.test(t)) return false;
-  }
-  return true;
+  return markerAnchoredPayloadLength(payload, rules) === payload.length;
 }
 
 function stripListDecoratorsForPlainText(raw) {
@@ -1588,10 +1626,24 @@ function enforceRightPayloadSeparatorInvariant(options) {
       }
     }
     if (markerIdx >= 0) {
+      /*
+       * **Склеивается только значение, которое и правда разорвано
+       * разделителем.** Значение формата `YYYY-MM-DD hh:mm` занимает два
+       * слова, и второе может оказаться за разделителем — тогда его надо
+       * вернуть к первому (PRD 10.13.71). А если значение слева **уже
+       * целое**, то за разделителем стоит текст человека, и трогать его
+       * нельзя: ровно это и случилось со строкой `- 12`, где `12` уехало в
+       * зону значений (его слова 2026-09-13).
+       *
+       * Разводит эти два случая длина: склеиваем, только если значение по
+       * формату поля дотягивается **дальше** того, что лежит слева.
+       */
+      const leftTail = leftTokens.slice(markerIdx).join(" ").trim();
       const candidate = leftTokens.slice(markerIdx).concat(textTokens).join(" ").trim();
-      if (hasMarkerAnchoredRightPayload(candidate, rules)) {
-        dates = candidate;
-        text = "";
+      const reach = markerAnchoredPayloadLength(candidate, rules);
+      if (reach > leftTail.length) {
+        dates = candidate.slice(0, reach).trim();
+        text = candidate.slice(reach).trim();
         left = joinLeftPrefix(leftParts.prefix, leftTokens.slice(0, markerIdx).join(" ").trim());
       }
     }

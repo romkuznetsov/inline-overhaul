@@ -334,6 +334,62 @@ function run() {
     "## 111",
     "final-line invariants helper guarantees heading residue cleanup"
   );
+  /*
+   * **Текст человека остаётся текстом человека, даже если он из двух цифр.**
+   *
+   * Его слова 2026-09-13: «была строка `- 12`, после активации Due получил
+   * `-  :: 📅2026-09-13 16:38 12`». Значение Due стояло слева целиком, а
+   * ветка «значение разорвано разделителем» всё равно приклеивала к нему
+   * текст: «чем бывает хвост значения» было написано рукописным образцом, и
+   * `12` под него подходило (У-150 — правило, объявленное второй раз).
+   *
+   * Правила здесь с форматом поля, как у него: длину значения решает формат,
+   * а не догадка.
+   */
+  const dueRules = {
+    io: { separator1: "||", separator2: "::" },
+    dates: { markers: ["\u{1F4C5}"] },
+    behavior: {
+      dateRuntimeConfig: { byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" } } },
+    },
+    leftMode: { fields: [] },
+    rightMode: { fields: [] },
+  };
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "- 12",
+      line: "- \u{1F4C5}2026-09-13 16:38 || 12",
+      rules: dueRules,
+      mode: "off",
+    }),
+    "- \u{1F4C5}2026-09-13 16:38 || 12",
+    "final-line invariants keep a two-digit human text out of the element value"
+  );
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "- 16:38",
+      line: "- \u{1F4C5}2026-09-13 16:55 || 16:38",
+      rules: dueRules,
+      mode: "off",
+    }),
+    "- \u{1F4C5}2026-09-13 16:55 || 16:38",
+    "final-line invariants keep a time-looking human text out of a complete element value"
+  );
+  /*
+   * И **положительный контроль к обоим**: значение, которое разделитель и
+   * правда разорвал, склеивается обратно. Без него оба утверждения выполнялись
+   * бы кодом, который не склеивает ничего и никогда (У-88).
+   */
+  assertEq(
+    unified.applyFinalLineInvariants({
+      rawLine: "- \u{1F4C5}2026-09-13",
+      line: "- \u{1F4C5}2026-09-13 || 16:57",
+      rules: dueRules,
+      mode: "off",
+    }),
+    "-  :: \u{1F4C5}2026-09-13 16:57",
+    "positive control: a value really torn by the separator is glued back"
+  );
   assertEq(
     unified.applyFinalLineInvariants({
       rawLine: "- 11",
