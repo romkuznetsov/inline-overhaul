@@ -155,6 +155,15 @@ const INJECTIONS = {
   "fields-head-seethrough":
     ".io-fields--fixed > .io-fields__colhead { background-color: transparent !important; }",
   "fields-scroller-deaf": ".io-fields--fixed { pointer-events: none !important; }",
+  /*
+   * Контрол, уехавший под описание (замечание заказчика 2026-09-13,
+   * `Скриншоты`). Две подмены на две половины правила, и они не заменяют друг
+   * друга: первая возвращает прежнюю основу колонки — то самое, чем дефект и
+   * был, — а вторая ломает перенос вообще, вместе с подсказкой. Проверка
+   * обязана краснеть на обеих, но по разным утверждениям.
+   */
+  "row-info-grows": ".io-item__info { flex: 1 1 auto !important; }",
+  "row-no-wrap": ".io-item { flex-wrap: nowrap !important; }",
 };
 
 function injectionCss(name) {

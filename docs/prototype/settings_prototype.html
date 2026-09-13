@@ -296,7 +296,13 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    во всю её ширину (замечание заказчика 2026-09-07, 15.png). */
 .io-item { flex-wrap: wrap; }
 .io-item > .io-tip { flex: 1 0 100%; margin-top: 0; }
-.io-item__info { min-width: 0; flex: 1 1 auto; }
+/* Колонка описания сжимается, а не выталкивает контрол на свою строчку
+   (замечание заказчика 2026-09-13, `Скриншоты`). Перенос строки флексбокс
+   решает по ЖЕЛАЕМОЙ ширине детей, и при `flex-basis: auto` она равна ширине
+   содержимого: длинное описание не ужималось, а отправляло поле вниз. С нулевой
+   основой желаемая ширина колонки нулевая, переносить нечего, и остаток места
+   она забирает ростом. Контрол при этом занимает ровно себя, как и раньше. */
+.io-item__info { min-width: 0; flex: 1 1 0; }
 .io-item__namerow { display: flex; align-items: center; gap: 6px; }
 .io-item__name { color: var(--text-normal); }
 .io-item__desc { margin-top: 2px; max-width: 60ch; font-size: var(--font-ui-smaller); color: var(--text-muted); }
@@ -934,8 +940,10 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   .obsidian { grid-template-columns: minmax(0, 1fr); }
   .rail { display: none; }
   .io-tabs, .io-content { padding-left: 16px; padding-right: 16px; }
+  /* Строка контрола на свою строчку тут больше не уходит: его слово 2026-09-13
+     «чтобы контролы были в одну строку» — про всю панель, а у панели плагина
+     этого порога нет вовсе, и правило разводило две отрисовки (У-116). */
   .io-item { flex-wrap: wrap; }
-  .io-item__control { width: 100%; justify-content: flex-start; }
   .io-dlg .io-select, .io-dlg .io-text { width: 100%; }
 }
 /* new in round three */
@@ -3349,7 +3357,20 @@ function attachTip(anchorRow, text, label, fallbackHost, insertAfter) {
     if (shown) { if (tipEl) { tipEl.remove(); tipEl = null; } return; }
     tipEl = rich(el("div", "io-tip"), text);
     const anchor = insertAfter || anchorRow;
-    if (typeof anchor.insertAdjacentElement === "function") {
+    /*
+     * **Подсказка строки настройки принадлежит самой строке.** Колонка
+     * описания кончается там, где начинается контрол, и вставка «сразу за
+     * подписью» оставляла подсказку внутри колонки — в редакторе Field она
+     * раскрывалась в 181 точку при строке в 373. В панели то же самое устроено
+     * правильно с 2026-09-07 (`tipBelow` берёт хостом строку), и две отрисовки
+     * разошлись молча (У-116).
+     *
+     * Отбор по классу, а не по имени вызывающего: хост бывает и блоком — у
+     * шапок разделов, — и там вставка за подписью верна.
+     */
+    if (fallbackHost && fallbackHost.classList && fallbackHost.classList.contains("io-item")) {
+      fallbackHost.appendChild(tipEl);
+    } else if (typeof anchor.insertAdjacentElement === "function") {
       anchor.insertAdjacentElement("afterend", tipEl);
     } else if (fallbackHost) {
       fallbackHost.appendChild(tipEl);
@@ -4850,7 +4871,11 @@ function elementRows(host, f) {
     const info = el("div", "io-item__info", item);
     const nrow = el("div", "io-item__namerow", info);
     el("div", "io-item__name", nrow, r.name);
-    if (r.tip) attachTipItem(nrow, info, r);
+    /* Подсказка принадлежит строке, а не колонке описания: колонка кончается
+       там, где начинается контрол. Так это устроено и в панели
+       (`fields_editor_view.ts`), и во всех остальных строках прототипа; здесь
+       стояла колонка, и подсказка раскрывалась в 181 точку (У-116). */
+    if (r.tip) attachTipItem(nrow, item, r);
     subComment(nrow, info, "element/" + r.key);
     rich(el("div", "io-item__desc", info), r.desc);
     const ctl = el("div", "io-item__control", item);
@@ -4936,7 +4961,7 @@ function nameInWheelRow(host, f) {
   el("div", "io-item__name", nrow, "Name in TagWheel");
   /* «?» стоит до поля ввода, а не после: подпись, знак вопроса, потом правка
      — так это читается слева направо (замечание заказчика 2026-08-27). */
-  attachTipItem(nrow, info, { name:"Name in TagWheel",
+  attachTipItem(nrow, row, { name:"Name in TagWheel",
     tip:"TagWheel puts every Field side by side, so a long name crowds its neighbours. Writing <b>Status</b> as <b>Stat</b> keeps that row readable. Your notes keep the full name" });
   subComment(nrow, info, "field-editor/short-name");
   el("div", "io-item__desc", info, "A shorter name for the TagWheel row, where there is little room");
@@ -4966,7 +4991,9 @@ function propertyRow(host, f) {
     const info = el("div", "io-item__info", item);
     const nrow = el("div", "io-item__namerow", info);
     el("div", "io-item__name", nrow, r.name);
-    helpButton(nrow, info, r);
+    /* Хостом подсказки идёт строка, а не колонка описания: колонка
+       кончается у контрола, и подсказка выходила её шириной (У-116). */
+    helpButton(nrow, info, r, item);
     subComment(nrow, info, "field-editor/" + r.key);
     rich(el("div", "io-item__desc", info), r.desc);
     fill(el("div", "io-item__control", item));
@@ -5024,7 +5051,9 @@ function placementRows(host, f) {
     const info = el("div", "io-item__info", item);
     const nrow = el("div", "io-item__namerow", info);
     el("div", "io-item__name", nrow, r.name);
-    helpButton(nrow, info, r);
+    /* Хостом подсказки идёт строка, а не колонка описания: колонка
+       кончается у контрола, и подсказка выходила её шириной (У-116). */
+    helpButton(nrow, info, r, item);
     subComment(nrow, info, "placement/" + r.key);
     rich(el("div", "io-item__desc", info), r.desc);
     const ctl = el("div", "io-item__control", item);

@@ -149,6 +149,82 @@ async function fieldsHeight(page) {
   return out;
 }
 
+/**
+ * Контрол строки настройки стоит справа от описания, а не под ним.
+ *
+ * **Замечание заказчика 2026-09-13** (`test-vault/Скриншоты.md`): «контролы
+ * должны быть в одну строку, без переноса панели выбора/текстбокса на следующую
+ * строку». Завёл этот перенос я сам 2026-09-07, чтобы подсказка раскрывалась во
+ * всю ширину строки (A45), — и не спросил, чем он платит.
+ *
+ * **Меряется на его ширине, а не на удобной.** Строка настройки — флекс с
+ * переносом, и переносится он по **желаемой** ширине детей: на широком окне
+ * всё влезает и правило зелено само собой (У-147, только совпадающей стороной
+ * стала ширина окна). Поэтому страница открывается своя, узкая.
+ *
+ * Рядом обе половины: контрол не уехал вниз **и** подсказка по-прежнему встаёт
+ * под строкой во всю её ширину. Без второй половины «починкой» сошло бы
+ * снятие переноса совсем.
+ */
+async function rowsOnOneLine(width) {
+  const { browser, page } = await openPrototype({ width, height: 1000 });
+  try {
+    const css = injectionCss(injection);
+    if (css) await page.addStyleTag({ content: css });
+    const tabs = await page.$$eval(".io-tabs .io-tab", (els) => els.length);
+    const out = { width, rows: 0, wrapped: [], tip: null };
+    for (let i = 0; i < tabs; i++) {
+      const found = await page.evaluate((idx) => {
+        const tab = document.querySelectorAll(".io-tabs .io-tab")[idx];
+        const name = tab ? (tab.textContent || "").trim().replace(/\d+$/, "") : "?";
+        if (tab) tab.click();
+        const rows = [];
+        for (const row of document.querySelectorAll(".io-item")) {
+          const info = row.querySelector(".io-item__info");
+          const ctl = row.querySelector(".io-item__control");
+          if (!info || !ctl) continue;
+          const a = info.getBoundingClientRect();
+          const b = ctl.getBoundingClientRect();
+          if (!a.width && !a.height) continue;
+          if (!b.width && !b.height) continue;
+          rows.push({
+            tab: name,
+            name: ((row.querySelector(".io-item__name") || {}).textContent || "?").trim(),
+            wrapped: b.top > a.bottom - 1,
+          });
+        }
+        return rows;
+      }, i);
+      out.rows += found.length;
+      for (const r of found) if (r.wrapped) out.wrapped.push(r.tab + " / " + r.name);
+    }
+    /* Вторая половина: подсказка, ради которой перенос у строки и стоит. */
+    out.tip = await page.evaluate(() => {
+      const btn = document.querySelector(".io-item .io-help");
+      if (!btn) return null;
+      btn.click();
+      const row = btn.closest(".io-item");
+      const t = row.querySelector(".io-tip");
+      const info = row.querySelector(".io-item__info");
+      if (!t || !info) return null;
+      const r = row.getBoundingClientRect();
+      const q = t.getBoundingClientRect();
+      const a = info.getBoundingClientRect();
+      /*
+       * «Под строкой» меряется от **низа колонки описания**, а не от верха
+       * строки. От верха оно выполняется и у подсказки, втиснутой в ту же
+       * зрительную строку: у строки есть верхний отступ, и его хватает, чтобы
+       * «ниже верха» стало правдой. Снятие переноса при таком замере проходило
+       * незамеченным.
+       */
+      return { share: r.width ? q.width / r.width : 0, below: q.top >= a.bottom - 1 };
+    });
+    return out;
+  } finally {
+    await browser.close();
+  }
+}
+
 (async () => {
   const { browser, page, pageErrors } = await openPrototype();
   try {
@@ -772,6 +848,34 @@ async function fieldsHeight(page) {
   } finally {
     await browser.close();
   }
+
+  /*
+   * Узкая страница открывается **после** того, как закрылась первая: два
+   * Chromium одновременно — это лишняя память и лишний повод для гонки.
+   */
+  const narrow = await rowsOnOneLine(573);
+  if (!(narrow.rows > 50)) {
+    bad("на узкой ширине строк с контролом нашлось " + narrow.rows
+      + " — правило проверено отсутствием предмета");
+  }
+  if (narrow.wrapped.length) {
+    bad("на ширине " + narrow.width + " контрол уехал под описание у "
+      + narrow.wrapped.length + " строк: " + narrow.wrapped.slice(0, 4).join("; "));
+  }
+  if (!narrow.tip) {
+    bad("на узкой ширине не нашлось ни одной подсказки строки — вторую половину правила проверять не на чем");
+  } else {
+    if (!narrow.tip.below) {
+      bad("подсказка встала не под строкой, а внутри неё: перенос у строки снят вместе с дефектом");
+    }
+    if (narrow.tip.share < MIN_SHARE_OF_CONTAINER) {
+      bad("подсказка на узкой ширине занимает " + Math.round(narrow.tip.share * 100)
+        + "% строки, а обязана занимать её целиком");
+    }
+  }
+  console.log("  строк настроек на ширине " + narrow.width + ": " + narrow.rows
+    + ", контрол под описанием у " + narrow.wrapped.length
+    + ", подсказка " + (narrow.tip ? Math.round(narrow.tip.share * 100) + "% строки" : "не найдена"));
 
   process.exit(failed ? 1 : 0);
 })();
