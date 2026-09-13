@@ -1162,13 +1162,19 @@ function blockFillRowGeometry(view, span, rows, bandHeightAsk) {
    * ним. Середина блока при этом выше середины написанного ровно на половину
    * отступа, и подложка вставала по ней.
    *
-   * Спрашивается это у узла самой строки, а не у пробы координат. Проба
-   * (`coordsAtPos`) отдаёт ящик **каретки**, то есть высоту написанного, и
-   * между ним и верхом блока лежит не только отступ, но и половина
-   * междустрочия — на обычной строке она есть всегда. Ящик узла `.cm-line`
-   * отступов в себя не включает по устройству блочной модели: они снаружи
-   * границы. Поэтому у строки без отступа он совпадает с блоком до точки, а у
-   * заголовка отличается ровно на отступ.
+   * **Отступ этот — `padding`, и он лежит ВНУТРИ ящика узла.** Правило
+   * Obsidian: `.cm-s-obsidian .cm-line.HyperMD-header { padding-top:
+   * var(--p-spacing) }` (`app.css` 1.13.7), а тема Minimal у заказчика
+   * переписывает его на половину той же величины — 14 точек. То есть
+   * «спросить ящик узла вместо блока» дефекта не лечит: `getBoundingClientRect`
+   * отдаёт ящик **границы**, и у строки с `padding` он совпадает с блоком.
+   * Первая версия этой правки так и сделала — и заказчик ответил «полоса по
+   * прежнему выше». Спрашивать надо **содержимое** ящика: ящик границы минус
+   * отступы.
+   *
+   * Проба координат (`coordsAtPos`) в эталон не годится: она отдаёт ящик
+   * **каретки**, а между ним и верхом строки лежит ещё половина междустрочия —
+   * на обычной строке она есть всегда.
    *
    * Узла может не быть — строка вне отрисованного окна: тогда остаётся прежняя
    * мера по блоку. Это проба, и ответ «нет» здесь ответ, а не отказ.
@@ -1186,9 +1192,16 @@ function blockFillRowGeometry(view, span, rows, bandHeightAsk) {
     const box = lineEl && typeof lineEl.getBoundingClientRect === "function"
       ? lineEl.getBoundingClientRect()
       : null;
-    if (box && Number.isFinite(Number(box.height)) && Number(box.height) > 0) {
-      rowsTop = Number(box.top) + toLayer;
-      rowsHeight = Number(box.height);
+    const win = lineEl && lineEl.ownerDocument ? lineEl.ownerDocument.defaultView : null;
+    const style = win && typeof win.getComputedStyle === "function"
+      ? win.getComputedStyle(lineEl)
+      : null;
+    const padTop = style ? Number.parseFloat(style.paddingTop) || 0 : 0;
+    const padBottom = style ? Number.parseFloat(style.paddingBottom) || 0 : 0;
+    const inner = box ? Number(box.height) - padTop - padBottom : NaN;
+    if (box && Number.isFinite(inner) && inner > 0) {
+      rowsTop = Number(box.top) + padTop + toLayer;
+      rowsHeight = inner;
     }
   } catch (_) {
     /* Проба: узел строки может быть не отрисован — тогда мера остаётся по блоку. */
@@ -1225,8 +1238,9 @@ function blockFillPieceBox(geom, piece) {
   const rows = Math.max(1, Number(piece.rows) || 1);
   const rowH = geom.rowH;
   const blockTop = geom.docTop + geom.blockTop + geom.toLayer;
-  /* Зрительные строки начинаются у верха узла строки, а не у верха её блока:
-     отступ строки лежит снаружи узла и написанному не принадлежит. */
+  /* Зрительные строки начинаются у верха **содержимого** узла строки, а не у
+     верха её блока: отступ строки написанному не принадлежит, где бы он ни
+     лежал — снаружи границы (`margin`) или внутри неё (`padding`). */
   const rowsTop = Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop;
   const rowTop = rowsTop + rowH * (Number(piece.row) || 0);
   /*
@@ -1240,18 +1254,23 @@ function blockFillPieceBox(geom, piece) {
   const height = geom.height;
   const top = rowTop + (rowH - height) / 2;
   /*
-   * **Прижим держит подложку внутри узла строки, а не внутри её блока.**
+   * **У середины и у прижима меры разные, и это не описка** (У-131).
    *
-   * Блок и узел — не одно и то же, и обмерено это гейтом: у строки-заголовка
-   * блок отдаёт верх `362` и высоту `52`, а узел стоит на `384` и высок на те
-   * же `52`. То есть высоту блок считает без отступа, а верх — с ним, и низ
-   * блока оказывается на восемнадцать точек выше низа написанного. Прижим по
-   * блоку от этого тянул подложку вверх — и тянул ровно настолько, чтобы
-   * съесть всю починку середины.
+   * Середину задаёт **написанное**: содержимое узла строки. Прижим — **блок**
+   * строки документа, потому что отвечает он на другой вопрос: «полоски на
+   * разных строках наезжают друг на друга» — это про соседей, а соседняя
+   * строка начинается там, где кончается блок этой. Отступ заголовка блоку
+   * принадлежит, и подложка имеет полное право в него заходить: он пуст.
+   *
+   * Разойтись они могут: у заказчика написанное в строке-заголовке **ниже**
+   * обычной строки (20.16 против 24 при теме Minimal), а высота подложки одна
+   * на все строки — его условие. Тогда подложка выше своей строки, целиком её
+   * накрывает и прижимается к низу блока. Цена названа вслух: при такой строке
+   * середина подложки стоит выше середины написанного на половину разницы —
+   * две точки из двадцати четырёх вместо прежних семи.
    */
-  const rowsHeight = Number(geom.rowsHeight) > 0 ? Number(geom.rowsHeight) : rowH * rows;
-  const bottom = (Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop) + rowsHeight;
-  return { top: Math.max(rowsTop, Math.min(top, bottom - height)), height };
+  const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : rowH * rows);
+  return { top: Math.max(blockTop, Math.min(top, blockBottom - height)), height };
 }
 
 /**

@@ -407,15 +407,22 @@ window.__ioEditorProbe = function () {
   /*
    * Строка-заголовок: подложка против того, что на ней написано.
    *
-   * Мерится **пузырь на той же строке**, а не ящик строки: ящик у заголовка
-   * выше написанного, и лишнее место лежит над буквами — если сверять с ним,
-   * «подложка по середине» выполнится и у подложки, уехавшей вверх (это и был
-   * дефект). Пузырь стоит там же, где буквы, и потому отвечает на нужный
-   * вопрос.
+   * **Эталон спрашивается у браузера, а не считается по нашей формуле.**
+   * `Range` по содержимому строки отдаёт объединение строчных ящиков — то
+   * есть ровно то место, где стоит написанное, — и оно не зависит ни от
+   * одного нашего числа. Ящик самого узла в эталон не годится: отступ
+   * заголовка Obsidian задаёт `padding`, а тот лежит **внутри** границы, и
+   * середина ящика узла выше середины написанного. Сверяя с ней, гейт
+   * объявлял бы верной подложку, уехавшую вверх, — это и была его слепота
+   * 2026-09-13 (У-147).
    */
   const headingEl = document.querySelector(".io-probe-heading");
   const heading = headingEl ? (() => {
     const lineRect = headingEl.getBoundingClientRect();
+    const inkRange = document.createRange();
+    inkRange.selectNodeContents(headingEl);
+    const inkRect = inkRange.getBoundingClientRect();
+    const cs = window.getComputedStyle(headingEl);
     const tokenEl = headingEl.querySelector("[data-io-tag-token]");
     /*
      * Отбор **по пересечению**, а не по вложенности: подложка, уехавшая вверх,
@@ -425,6 +432,9 @@ window.__ioEditorProbe = function () {
     const inRow = bands().filter((b) => b.bottom > lineRect.top + 1 && b.top < lineRect.bottom - 1);
     return {
       line: { top: round(lineRect.top), bottom: round(lineRect.bottom), height: round(lineRect.height) },
+      ink: { top: round(inkRect.top), bottom: round(inkRect.bottom), height: round(inkRect.height) },
+      padTop: round(parseFloat(cs.paddingTop) || 0),
+      padBottom: round(parseFloat(cs.paddingBottom) || 0),
       token: tokenEl ? (() => {
         const r = tokenEl.getBoundingClientRect();
         return { top: round(r.top), bottom: round(r.bottom), height: round(r.height) };
