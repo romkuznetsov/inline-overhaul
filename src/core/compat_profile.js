@@ -1,9 +1,13 @@
 "use strict";
 
-const COMPAT_FLAGS = {
-  ENABLE_CONFIG_MIGRATION_SHIMS: true,
-};
-
+/**
+ * Ключи прежних версий, которые уходят из конфига молча.
+ *
+ * **Флага совместимости здесь больше нет.** `COMPAT_FLAGS` и `isCompatEnabled`
+ * держали одно место — переходник `rules.tagWheelPath` → путь служебного файла
+ * правил, — и ушли вместе с ним (PRD 10.13.52, П-8, шаг четвёртый). Флаг,
+ * который никто не спрашивает, обещает выбор, которого нет (У-141).
+ */
 const DEPRECATED_CONFIG_KEYS = {
   rules: ["tagWheelPath"],
   pkm: ["sourceOfTruth", "autoGenerateRules"],
@@ -11,14 +15,6 @@ const DEPRECATED_CONFIG_KEYS = {
   navigation: ["topRevealOffsetLines"],
 };
 
-function isCompatEnabled(flag) {
-  const key = String(flag || "").trim();
-  if (!key) return false;
-  return COMPAT_FLAGS[key] === true;
-}
-
 module.exports = {
-  COMPAT_FLAGS,
   DEPRECATED_CONFIG_KEYS,
-  isCompatEnabled,
 };

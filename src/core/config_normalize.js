@@ -242,7 +242,6 @@ const DEFAULT_CONFIG = {
   pkm: {
     taxonomy: {},
     executionBackend: PKM_BACKENDS.internalV2,
-    generatedRulesPath: __pkmOptionKeys.DEFAULT_RULES_PATH,
     behavior: {
       subtagFormat: "separate",
       cycleEndBehavior: "keep-bullet",
@@ -346,16 +345,10 @@ const DEFAULT_CONFIG = {
 function normalizePkmTopLevelConfig(cfg) {
   if (!isObj(cfg.pkm)) cfg.pkm = cloneJson(DEFAULT_CONFIG.pkm);
   cfg.pkm.executionBackend = PKM_BACKENDS.internalV2;
-  if (typeof cfg.pkm.generatedRulesPath !== "string" || !cfg.pkm.generatedRulesPath.trim()) {
-    const allowShim = typeof __compatProfile.isCompatEnabled === "function"
-      ? __compatProfile.isCompatEnabled("ENABLE_CONFIG_MIGRATION_SHIMS")
-      : true;
-    if (allowShim && isObj(cfg.rules) && typeof cfg.rules.tagWheelPath === "string" && cfg.rules.tagWheelPath.trim()) {
-      cfg.pkm.generatedRulesPath = String(cfg.rules.tagWheelPath).trim();
-    } else {
-      cfg.pkm.generatedRulesPath = DEFAULT_CONFIG.pkm.generatedRulesPath;
-    }
-  }
+  /* Путь служебного файла правил снят вместе с файлом (PRD 10.13.52, П-8,
+     шаг четвёртый): здесь стояла досыпка умолчания и переходник со старой
+     ветки `rules.tagWheelPath`. Досыпать стало нечего. */
+  delete cfg.pkm.generatedRulesPath;
   const deprecatedPkm = Array.isArray(__compatProfile.DEPRECATED_CONFIG_KEYS?.pkm)
     ? __compatProfile.DEPRECATED_CONFIG_KEYS.pkm
     : ["sourceOfTruth", "autoGenerateRules"];
@@ -921,9 +914,6 @@ function normalizeConfigV2(cfg) {
   text("pkm.lineFormat.separator1");
   text("pkm.lineFormat.separator2");
 
-  /* --- заметки PKM ------------------------------------------------------ */
-  text("advanced.generatedRulesPath");
-
   /* --- навигация -------------------------------------------------------- */
   oneOf("navigation.moveLine.noSelectionMode", ["line-only", "with-children"]);
   oneOf("navigation.moveLine.headerMode", ["move-as-line", "move-with-section"]);
@@ -1057,6 +1047,17 @@ function normalizeConfigV2(cfg) {
   /* Высота таблицы Fields. Ступень третья, а не первая: переключатель пишет
      патч из панели, а патч первую ступень не проходит вовсе (У-13, У-40). */
   bool("ui.fieldsTableFixedHeight");
+
+  /*
+   * Снятый ключ уходит из файла человека на первом же патче.
+   *
+   * Путь служебного файла правил (`advanced.generatedRulesPath`) снят вместе с
+   * файлом (PRD 10.13.52, П-8, шаг четвёртый). Маршрут миграции его выбрасывает
+   * только у файлов версии 1: файл версии 2 переносится как есть, и без этой
+   * строки ключ жил бы в `data.json` вечно — настройкой, которой никто не
+   * читает.
+   */
+  if (isObj(cfg.advanced)) delete cfg.advanced.generatedRulesPath;
 
   /* --- режим разработчика ------------------------------------------------ */
   bool("advanced.devMode.enabled");

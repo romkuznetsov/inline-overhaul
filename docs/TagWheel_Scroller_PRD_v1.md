@@ -145,7 +145,6 @@ Use least-surprising strategy:
 - `node --check` for all touched runtime/UI/core files.
 - `node tests/regression/bootstrap_loader_tests.js`.
 - `node tests/TagWheel/tagwheel_tests.js`.
-- `node tests/TriggerWheel/triggerwheel_tests.js`.
 
 ### Manual matrix (Obsidian)
 - OFF parity baseline.

@@ -636,7 +636,14 @@ async function run() {
   assertFalse(/return "date"/.test(fieldModelSrc), "field model has no legacy date kind token");
   assertFalse(/createFieldModelFromOrder/.test(fieldModelSrc), "field model has no dead createFieldModelFromOrder export");
   assertTrue(/const deprecatedRules = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.rules\)/.test(cfgSrc), "migrateConfig resolves deprecated rules keys from shared compat profile module");
-  assertTrue(/__compatProfile\.isCompatEnabled\("ENABLE_CONFIG_MIGRATION_SHIMS"\)/.test(cfgSrc) && /cfg\.pkm\.generatedRulesPath = String\(cfg\.rules\.tagWheelPath\)\.trim\(\);/.test(cfgSrc), "migrateConfig keeps migration-only shim for rules.tagWheelPath when compat flag enabled");
+  /*
+   * Переходник `rules.tagWheelPath` → путь служебного файла снят вместе с
+   * самим путём (PRD 10.13.52, П-8, шаг четвёртый), а с ним — и флаг
+   * совместимости, который держал одно это место. Запрет на возврат: ключа
+   * пути в нормализации быть не должно ни в одной ветке.
+   */
+  assertFalse(/generatedRulesPath\s*=/.test(cfgSrc), "путь служебного файла снова пишется нормализацией");
+  assertFalse(/isCompatEnabled/.test(cfgSrc), "флаг совместимости вернулся в нормализацию конфига");
   assertFalse(/cfg\.pkm\.sourceOfTruth\s*=/.test(cfgSrc), "migrateConfig no longer writes dead pkm.sourceOfTruth field");
   assertFalse(/cfg\.pkm\.autoGenerateRules\s*=/.test(cfgSrc), "migrateConfig no longer writes dead pkm.autoGenerateRules field");
   /* Снято 2026-09-06 вместе с предметом: общий загрузчик `main.js` мостом
@@ -2521,20 +2528,17 @@ async function run() {
   }
 
   /*
-   * Запасного пути служебного файла в `main.js` больше нет, и это запрет.
-   *
-   * Копия была вторым объявлением одного значения (У-32) и разошлась молча:
-   * переезд файла в папку плагина (В-39) правил модуль и не тронул запаску, и
-   * та двое суток указывала в корень vault. Теперь путь один — в
-   * `pkm_option_keys`, — и разойтись ему не с чем. Снять этот запрет можно
-   * только тем, что модуль снова может не доехать.
+   * Адреса служебного файла правил в коде больше нет — ни запаской, ни
+   * умолчанием (PRD 10.13.52, П-8, шаг четвёртый). Имена файла и прежнего
+   * места остались в одном месте — модуле миграции, — и нужны они уборке.
    */
   {
-    assertFalse(/DEFAULT_RULES_PATH:\s*"/.test(src + cfgSrc), "в main.js нет второго объявления пути служебного файла");
-    assertFalse(/LEGACY_RULES_PATH:\s*"/.test(src + cfgSrc), "в main.js нет второго объявления прежнего пути");
-    const optionKeys = require(path.join(__dirname, "..", "..", "src", "core", "pkm_option_keys.js"));
-    assertTrue(typeof optionKeys.DEFAULT_RULES_PATH === "string" && optionKeys.DEFAULT_RULES_PATH.length > 0,
-      "положительный контроль: путь объявлен в модуле");
+    assertFalse(/DEFAULT_RULES_PATH|LEGACY_RULES_PATH/.test(src + cfgSrc + commandsSrc),
+      "адрес служебного файла правил вернулся в рантайм");
+    const migrationSrc = fs.readFileSync(
+      path.join(__dirname, "..", "..", "src", "core", "config_migration_v2.ts"), "utf8");
+    assertTrue(/export const RULES_FILE = "generated_rules\.md";/.test(migrationSrc),
+      "положительный контроль: имя файла объявлено в модуле миграции — по нему его и убирают");
   }
   /*
    * Шов после восстановления копии (10.13.40). Закрепляется то, что

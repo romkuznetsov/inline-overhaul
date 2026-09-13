@@ -38,9 +38,9 @@ export const CONFIG_FILE = "data.json";
 export const BACKUP_V1_FILE = "data.backup.v1.json";
 export const BROKEN_FILE = "data.broken.json";
 /**
- * Служебный файл правил — с 2026-09-04 он тоже живёт здесь, рядом с
- * `data.json` (решение заказчика В-39). Имя объявлено один раз: литерал
- * полного пути в `pkm_option_keys.DEFAULT_RULES_PATH` сверяется с ним пином.
+ * Служебный файл правил. **Плагин его больше не пишет** (PRD 10.13.52, П-8,
+ * шаг четвёртый); имена остались затем, чтобы прибрать за собой у тех, у кого
+ * он лежит с прошлых версий.
  */
 export const RULES_FILE = "generated_rules.md";
 /** Прежнее место того же файла — корень vault. */
@@ -233,7 +233,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   drop("pkm.tagWheelConfigPath"),
   drop("pkm.tagWheelConfigTemplatePath"),
   drop("pkm.configExportMode"),
-  move("pkm.generatedRulesPath", "advanced.generatedRulesPath"),
+  /* Путь служебного файла правил снят вместе с файлом (PRD 10.13.52, П-8,
+     шаг четвёртый): читать по нему нечего, а настройка, которой никто не
+     читает, — это обещание функции, которой нет (З8). */
+  drop("pkm.generatedRulesPath"),
 
   /* --- PKM: удаляемое ---------------------------------------------------- */
   drop("pkm.executionBackend"),
@@ -414,7 +417,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   /* Копия перед восстановлением — тумблер с 2026-09-04 (замечание C56).
      Тоже путь версии 2, пары в версии 1 нет. */
   keepV2("advanced.backups.beforeRestore"),
-  keepV2("advanced.generatedRulesPath"),
+  drop("advanced.generatedRulesPath"),
   keepV2("advanced.devMode.enabled"),
   keepV2("advanced.devMode.aiLog"),
   keepV2("advanced.devMode.logPath"),
@@ -479,7 +482,6 @@ const V2_SKELETON: Dict = {
   "visual.tags.byTag": {},
   "visual.tags.userTags": {},
   "editor.binder.rows": [],
-  "advanced.generatedRulesPath": ".obsidian/plugins/inline-overhaul/generated_rules.md",
   "viewState.activeTab": "general",
   "viewState.fieldOrder.expanded": {},
   "viewState.fieldOrder.showColors": true,
@@ -567,32 +569,13 @@ function collect(node: unknown, path: string, walk: Walk): void {
 function migrateV1(raw: Dict, report: MigrateReport): Dict {
   const walk: Walk = { landings: new Map<string, Landing>(), losers: [], unknown: [] };
 
-  /* Переходник со старых версий: `rules.tagWheelPath` → путь сгенерированных
-     правил. Ветка `rules` удаляется, переходник остаётся (8.1) — иначе
-     обновление со старой версии потеряет путь. Считается до обхода, потому
-     что обход ветку `rules` выбрасывает целиком. */
-  const rulesBranch = isPlainObject(raw.rules) ? raw.rules : {};
-  const legacyRulesPath = typeof rulesBranch.tagWheelPath === "string" ? rulesBranch.tagWheelPath.trim() : "";
-  const ownRulesPath = typeof getIn(raw, "pkm.generatedRulesPath") === "string"
-    ? String(getIn(raw, "pkm.generatedRulesPath")).trim()
-    : "";
+  /* Переходник `rules.tagWheelPath` → путь служебного файла снят вместе с
+     самим путём (PRD 10.13.52, П-8, шаг четвёртый): переносить стало нечего и
+     некуда. Ветка `rules` по-прежнему выбрасывается целиком. */
 
   for (const key of Object.keys(raw)) {
     if (key === "schemaVersion") continue;
     collect(raw[key], key, walk);
-  }
-
-  /* Обход уже приземлил `pkm.generatedRulesPath` своим маршрутом. Переходник
-     вступает только там, где своего пути нет: пустая строка или её отсутствие. */
-  const prevRulesPath = walk.landings.get("advanced.generatedRulesPath");
-  if (!ownRulesPath && legacyRulesPath && (!prevRulesPath || prevRulesPath.fromV1)) {
-    if (prevRulesPath) walk.losers.push({ path: prevRulesPath.source, value: prevRulesPath.raw });
-    walk.landings.set("advanced.generatedRulesPath", {
-      value: legacyRulesPath,
-      raw: legacyRulesPath,
-      fromV1: true,
-      source: "rules.tagWheelPath",
-    });
   }
 
   const out: Dict = {};
@@ -644,12 +627,37 @@ export interface MigrateOptions {
   log?: (message: string) => void;
   /** Отчёт заполняется на месте: тесту нужны имена, а не только конфиг. */
   report?: MigrateReport;
-  /**
-   * Литеральные умолчания пути служебного файла правил — признак «человек
-   * путь не менял» при переезде в папку плагина (В-39). Приходит швом, а не
-   * читается из `pkm_option_keys`: у модуля миграции обращений к движку нет.
-   */
-  legacyRulesDefaults?: readonly string[];
+}
+
+/**
+ * Ключи, снятые вместе со своей функцией, уходят из файла человека.
+ *
+ * **Маршрута мало.** Маршруты читает только переезд с версии 1; файл версии 2
+ * переносится как есть, и снятый ключ жил бы в `data.json` вечно — настройкой,
+ * которую никто не читает (З8). Здесь он снимается на каждом проходе, каким бы
+ * ни была версия файла.
+ *
+ * Список короткий нарочно: это не свалка, а место для ключей, у которых
+ * **снята сама функция**. Сейчас там один — путь служебного файла правил
+ * (PRD 10.13.52, П-8, шаг четвёртый).
+ */
+const REMOVED_V2_KEYS: readonly string[] = [
+  "advanced.generatedRulesPath",
+  "pkm.generatedRulesPath",
+];
+
+function dropRemovedKeys(cfg: Dict): void {
+  for (const path of REMOVED_V2_KEYS) {
+    const parts = path.split(".").filter((p) => p.length > 0);
+    if (!parts.length) continue;
+    const leaf = parts[parts.length - 1] as string;
+    let node: unknown = cfg;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!isPlainObject(node)) break;
+      node = (node as Dict)[parts[i] as string];
+    }
+    if (isPlainObject(node)) delete (node as Dict)[leaf];
+  }
 }
 
 /**
@@ -678,6 +686,7 @@ export function migrate(raw: unknown, opts?: MigrateOptions): Dict {
     report.migrated = true;
   }
 
+  dropRemovedKeys(out);
   fillDefaults(out);
   out.schemaVersion = SCHEMA_VERSION_V2;
 
@@ -733,43 +742,52 @@ export async function backupV1Once(files: VaultFiles, dir: string, originalText:
 }
 
 /**
- * Переезд служебного файла правил из корня vault в папку плагина
- * (решение заказчика В-39 от 2026-09-04).
+ * Прибрать служебный файл правил (PRD 10.13.52, П-8, шаг четвёртый).
  *
- * **Путь считается, а не берётся литералом:** папка плагина зависит от
- * `vault.configDir`, и у того, кто держит настройки Obsidian не в `.obsidian`,
- * литерал был бы неверен. Литерал в `pkm_option_keys.DEFAULT_RULES_PATH`
- * остаётся только на случай, когда конфига нет вовсе.
+ * **Почему убирает плагин, а не человек.** Файл писал плагин, читал плагин и
+ * переписывал его целиком при каждом запуске; с этого шага его не пишет и не
+ * читает никто. Заметка, которую никто не ведёт, но которая лежит в папке
+ * плагина, — это мусор, оставленный обновлением, и убрать его — работа того,
+ * кто его положил.
  *
- * Свой путь человека не трогается. «Свой» — это любой, кроме прежнего места и
- * литеральных умолчаний: только по ним видно, что человек путь не менял.
+ * **Адреса считаются, а не берутся литералом:** папка плагина зависит от
+ * `vault.configDir`, а человек мог увести файл в свою папку — тогда адрес
+ * приходит из его же конфига, прочитанного **до** миграции: маршрута у этого
+ * ключа больше нет, и после миграции его в конфиге не будет.
  *
- * Файл в корне удаляется, а не остаётся сиротой: он читается как «правила»
- * последним запасным кандидатом, и заметка, которую никто не пишет, но все
- * читают, — худшее из двух состояний.
+ * **Чужого не трогаем.** Перед удалением файл читается, и убирается он только
+ * если внутри стоит блок, который писал сборщик (` ```tagwheel- `). Человек мог
+ * положить по этому адресу свою заметку — например, вернуть путь к корню vault
+ * и забыть.
  */
-export async function moveGeneratedRulesIntoPluginFolder(
+export async function removeGeneratedRulesFile(
   files: VaultFiles,
   dir: string,
-  cfg: Dict,
-  legacyDefaults: readonly string[],
-): Promise<{ path: string; moved: boolean; orphanRemoved: boolean }> {
-  const target = join(dir, RULES_FILE);
-  const current = String(getIn(cfg, "advanced.generatedRulesPath") || "").trim();
-  const untouched = !current || current === LEGACY_RULES_FILE
-    || legacyDefaults.indexOf(current) !== -1 || current === target;
-  if (!untouched) return { path: current, moved: false, orphanRemoved: false };
-  setIn(cfg, "advanced.generatedRulesPath", target);
-  let orphanRemoved = false;
-  if (typeof files.remove === "function") {
-    try {
-      if (await files.exists(LEGACY_RULES_FILE)) {
-        await files.remove(LEGACY_RULES_FILE);
-        orphanRemoved = true;
-      }
-    } catch (_err) { /* сирота не удалилась — это не повод не стартовать */ }
+  rawCfg: unknown,
+): Promise<string[]> {
+  if (typeof files.remove !== "function") return [];
+  const raw = isPlainObject(rawCfg) ? (rawCfg as Dict) : {};
+  const candidates: string[] = [join(dir, RULES_FILE), LEGACY_RULES_FILE];
+  for (const path of ["advanced.generatedRulesPath", "pkm.generatedRulesPath", "rules.tagWheelPath"]) {
+    const value = getIn(raw, path);
+    const text = typeof value === "string" ? value.trim() : "";
+    if (text && candidates.indexOf(text) === -1) candidates.push(text);
   }
-  return { path: target, moved: current !== target, orphanRemoved };
+  const removed: string[] = [];
+  for (const path of candidates) {
+    try {
+      if (!(await files.exists(path))) continue;
+      const body = await files.read(path);
+      if (String(body || "").indexOf("```tagwheel-") === -1) continue;
+      await files.remove(path);
+      removed.push(path);
+    } catch (_err) {
+      /* Уборка: файла может уже не быть, или его держит синхронизация. Цель —
+         чтобы его не осталось; не вышло сейчас — выйдет следующим запуском, и
+         ронять из-за этого загрузку плагина нельзя. */
+    }
+  }
+  return removed;
 }
 
 export interface LoadResult {
@@ -780,10 +798,8 @@ export interface LoadResult {
   brokenSavedAs?: string;
   /** Куда положена копия v1 до переезда (МГ4). */
   backupSavedAs?: string;
-  /** Куда уехал служебный файл правил, если путь был прежним (В-39). */
-  rulesPathMovedTo?: string;
-  /** Сирота в корне vault, если она была и удалилась (В-39). */
-  legacyRulesRemoved?: string;
+  /** Что убрано от снятого служебного файла правил (10.13.52, шаг четвёртый). */
+  generatedRulesRemoved?: string[];
   /** Положен ли стартовый набор Fields первой установке (ПЗ1). */
   starterSet?: boolean;
   report: MigrateReport;
@@ -807,18 +823,16 @@ export async function loadConfig(
   const report: MigrateReport = { unknown: [], contested: [], migrated: false };
   const merged: MigrateOptions = { ...(opts || {}), report };
   const configPath = join(dir, CONFIG_FILE);
-  const legacyDefaults = (opts && opts.legacyRulesDefaults) || [];
 
   /*
-   * Переезд служебного файла правил делается **на каждом из трёх выходов**, а
-   * не на одном: конфига может не быть вовсе, он может не разобраться, и в
-   * обоих случаях путь всё равно приходит из умолчаний — то есть прежний.
+   * Уборка снятого служебного файла делается **на каждом из трёх выходов**, а
+   * не на одном: конфига может не быть вовсе, он может не разобраться, а файл
+   * с прошлой версии при этом лежит.
    */
+  let rawForCleanup: unknown = null;
   const withRulesPath = async (result: LoadResult): Promise<LoadResult> => {
-    const move = await moveGeneratedRulesIntoPluginFolder(
-      files, dir, result.config, legacyDefaults);
-    if (move.moved) result.rulesPathMovedTo = move.path;
-    if (move.orphanRemoved) result.legacyRulesRemoved = LEGACY_RULES_FILE;
+    const removed = await removeGeneratedRulesFile(files, dir, rawForCleanup);
+    if (removed.length) result.generatedRulesRemoved = removed;
     return result;
   };
 
@@ -840,6 +854,9 @@ export async function loadConfig(
   let raw: unknown;
   try {
     raw = JSON.parse(text);
+    /* Адрес файла берётся из **прочитанного** конфига: маршрута у этого ключа
+       больше нет, и после миграции его в конфиге не будет. */
+    rawForCleanup = raw;
   } catch (_err) {
     const target = join(dir, BROKEN_FILE);
     if (!(await files.exists(target))) await files.write(target, text);

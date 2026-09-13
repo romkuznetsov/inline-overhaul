@@ -135,17 +135,6 @@ async function prepareFileForV2(plugin) {
       files,
       plugin.pluginFolderPath(),
       (message) => { new Notice(message); },
-      {
-        /*
-         * Признак «человек путь служебного файла не менял»: оба литеральных
-         * умолчания — нынешнее и прежнее. Приходят швом, потому что у модуля
-         * миграции обращений к движку нет и быть не должно.
-         */
-        legacyRulesDefaults: [
-          __pkmOptionKeys.DEFAULT_RULES_PATH,
-          __pkmOptionKeys.LEGACY_RULES_PATH,
-        ],
-      },
     );
     /*
      * Конфиг записывается на диск сразу: при нечитаемом файле (МГ6) `loadData`
@@ -156,13 +145,9 @@ async function prepareFileForV2(plugin) {
     if (result.backupSavedAs) {
       console.info("[inline-overhaul] копия конфига версии 1: " + result.backupSavedAs);
     }
-    if (result.rulesPathMovedTo) {
-      console.info("[inline-overhaul] служебный файл правил уехал в папку плагина: "
-        + result.rulesPathMovedTo);
-    }
-    if (result.legacyRulesRemoved) {
-      console.info("[inline-overhaul] прежний служебный файл в корне vault удалён: "
-        + result.legacyRulesRemoved);
+    if (result.generatedRulesRemoved && result.generatedRulesRemoved.length) {
+      console.info("[inline-overhaul] служебный файл правил снят и прибран: "
+        + result.generatedRulesRemoved.join(", "));
     }
     return result;
   } catch (e) {

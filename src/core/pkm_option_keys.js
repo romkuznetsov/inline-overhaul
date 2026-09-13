@@ -1,23 +1,11 @@
 "use strict";
 
 /*
- * Служебный файл правил. С 2026-09-04 он живёт в папке плагина, а не в
- * корне vault (решение заказчика В-39): в vault его правили руками,
- * удаляли и синхронизировали как обычную заметку, а он — чистая проекция
- * `data.json`.
- *
- * Путь **приходит из конфига** (`advanced.generatedRulesPath`), куда его
- * кладёт `moveGeneratedRulesIntoPluginFolder` — она считает папку плагина
- * по `vault.configDir` и потому верна и при нестандартной папке настроек.
- * Здесь только литерал на случай, когда конфига ещё нет; имя самого файла
- * объявлено один раз, в `config_migration_v2.RULES_FILE`, и совпадение
- * держит пин (У-32).
+ * Служебного файла правил больше нет (PRD 10.13.52, П-8, шаг четвёртый), и
+ * литералов его адреса здесь тоже: убирает его за собой сама миграция, а имена
+ * файла и прежнего места объявлены один раз — `config_migration_v2.RULES_FILE`
+ * и `LEGACY_RULES_FILE`.
  */
-const DEFAULT_RULES_PATH = ".obsidian/plugins/inline-overhaul/generated_rules.md";
-
-/* Прежнее место — корень vault. Нужно двум вещам: признаку «человек путь
-   не менял» при переезде и последнему запасному кандидату чтения. */
-const LEGACY_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
 
 const KEYS = {
   /*
@@ -92,8 +80,6 @@ function isObj(x) {
 }
 
 module.exports = {
-  DEFAULT_RULES_PATH,
-  LEGACY_RULES_PATH,
   KEYS,
   rulesFromSettings,
 };

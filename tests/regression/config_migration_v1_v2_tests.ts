@@ -25,13 +25,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import {
   BACKUP_V1_FILE,
   BROKEN_FILE,
-  LEGACY_RULES_FILE,
-  RULES_FILE,
   SCHEMA_VERSION_V2,
   backupV1Once,
   loadConfig,
@@ -45,9 +42,6 @@ type Any = ReturnType<typeof JSON.parse>;
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 const internals = loadPluginInternals();
-/* Литерал пути живёт в модуле движка — читается настоящим `require` (У-32). */
-const optionKeys = createRequire(import.meta.url)(
-  path.join(root, "src", "core", "pkm_option_keys.js")) as Any;
 
 let passed = 0;
 function ok(label: string): void {
@@ -121,8 +115,6 @@ const MOVED: ReadonlyArray<readonly [string, string]> = [
   ["pkm.behavior.prefixRules.priorityTargets", "pkm.prefixRules.priorityTargets"],
   ["pkm.behavior.prefixRules.priorityCheckboxes", "pkm.prefixRules.priorityCheckboxes"],
   ["pkm.behavior.prefixRules.checkboxByFieldValue", "pkm.prefixRules.checkboxByFieldValue"],
-
-  ["pkm.generatedRulesPath", "advanced.generatedRulesPath"],
 
   ["pkm.behavior.tagVisuals.opacity.left", "visual.tags.opacityLeft"],
   ["pkm.behavior.tagVisuals.opacity.right", "visual.tags.opacityRight"],
@@ -215,6 +207,9 @@ const KEPT: readonly string[] = [
 
 /** Удаляются (8.1, «Удаляются»). */
 const DROPPED: readonly string[] = [
+  /* Служебный файл правил снят 2026-09-13 (PRD 10.13.52, П-8, шаг четвёртый):
+     путь к нему не переезжает, потому что читать по нему нечего. */
+  "pkm.generatedRulesPath",
   /* Конфиг-заметка снята 2026-09-03 (PRD 10.12): её ключи не переезжают. */
   "pkm.tagWheelConfigPath",
   "pkm.tagWheelConfigTemplatePath",
@@ -345,10 +340,10 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
     accounted.unmigrated++;
   }
 
-  /* Сотня переездов — признак того, что фикстура богата, а не пуста. Три
-     маршрута конфиг-заметки сняты 2026-09-03 вместе с ней (PRD 10.12), и
-     порог опущен ровно на них. */
-  assert.ok(accounted.moved >= 100, "переездов проверено меньше сотни: " + accounted.moved);
+  /* Порог — признак того, что фикстура богата, а не пуста, и опускается он
+     ровно на снятые маршруты: три у конфиг-заметки (2026-09-03, PRD 10.12) и
+     один у служебного файла правил (2026-09-13, 10.13.52). */
+  assert.ok(accounted.moved >= 99, "переездов проверено меньше порога: " + accounted.moved);
   ok("каждый лист конфига v1 нашёл место в v2: переехал " + accounted.moved
     + ", остался " + accounted.kept + ", удалён " + accounted.dropped
     + ", в _unmigrated " + accounted.unmigrated + ", уступил новой панели " + accounted.contested);
@@ -465,23 +460,25 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
   ok("прозрачность переехала с пересчётом доли в проценты");
 }
 
-/* ---- переходник rules.tagWheelPath ------------------------------------- */
+/* ---- путь служебного файла снят целиком -------------------------------- */
 
 {
   /*
-   * Настоящий `migrateConfig` до этой ветки не доходит: `deepMerge` с
-   * `DEFAULT_CONFIG` всегда кладёт непустой `pkm.generatedRulesPath`, и шим
-   * внутри него не срабатывает. Поэтому переходник проверяется на конфиге,
-   * который через него не проходил, — на обновлении со старой версии.
+   * Переходник `rules.tagWheelPath` → `advanced.generatedRulesPath` жил ради
+   * пути служебного файла. Файла нет, пути нет — и переносить стало нечего
+   * (PRD 10.13.52, П-8, шаг четвёртый). Проверяется то же место, но с другой
+   * стороны: ни одна из трёх старых форм пути никуда не приземляется, а ветка
+   * `rules` по-прежнему удаляется целиком.
    */
   const old = migrate({ schemaVersion: 1, rules: { tagWheelPath: "Rules/Legacy.md" } });
-  assert.equal(getIn(old, "advanced.generatedRulesPath"), "Rules/Legacy.md",
-    "путь со старой версии не потерян");
+  assert.equal(getIn(old, "advanced.generatedRulesPath"), undefined,
+    "путь со старой версии никуда не переезжает");
   assert.equal(getIn(old, "rules"), undefined, "а сама ветка rules удалена");
 
-  const own = migrate({ schemaVersion: 1, rules: { tagWheelPath: "Rules/Legacy.md" }, pkm: { generatedRulesPath: "Rules/Own.md" } });
-  assert.equal(getIn(own, "advanced.generatedRulesPath"), "Rules/Own.md", "свой путь сильнее переходника");
-  ok("переходник rules.tagWheelPath → advanced.generatedRulesPath жив");
+  const own = migrate({ schemaVersion: 1, pkm: { generatedRulesPath: "Rules/Own.md" } });
+  assert.equal(getIn(own, "advanced.generatedRulesPath"), undefined, "и свой путь тоже");
+  assert.equal(getIn(own, "pkm.generatedRulesPath"), undefined, "и в своей ветке его нет");
+  ok("путь служебного файла снят: ни одна старая форма не приземляется");
 }
 
 /* ---- МГ4 и МГ6: границы с vault ---------------------------------------- */
@@ -647,103 +644,107 @@ const DIR = ".obsidian/plugins/inline-overhaul";
   ok("высота таблицы Fields переживает миграцию и нормализуется на файле версии 2");
 }
 
-/* ---- H6: служебный файл правил уезжает в папку плагина (В-39) ---------- */
+/* ---- H6: служебный файл правил снят, и плагин прибирает за собой ------- */
 
 /*
- * Что закреплено. Путь **считается** по папке плагина, а не берётся литералом:
- * папка зависит от `vault.configDir`. Свой путь человека не трогается, а
- * прежний файл в корне vault удаляется — иначе он остаётся сиротой, которую
- * никто не пишет, но читают запасным кандидатом.
+ * **Что закреплено теперь** (PRD 10.13.52, П-8, шаг четвёртый). Прежде здесь
+ * проверялся переезд файла из корня vault в папку плагина: путь считается по
+ * папке плагина, свой путь человека не трогается, сирота в корне удаляется.
+ * Файла больше нет — его не пишет и не читает никто, — и утверждения переехали
+ * за предметом (У-94):
  *
- * Спрашивается результат: что оказалось в конфиге и что осталось на диске.
+ *   1. ключа `advanced.generatedRulesPath` в конфиге не остаётся, откуда бы он
+ *      ни пришёл — из формы версии 2, из `pkm.generatedRulesPath` или из
+ *      старой ветки `rules.tagWheelPath`;
+ *   2. файл убирается со **всех** адресов, по которым он мог лежать: папка
+ *      плагина, корень vault и свой путь человека;
+ *   3. чужая заметка по тому же адресу не трогается — признак «наша» это блок
+ *      сборщика внутри.
+ *
+ * Третий пункт — не украшение: без него проверка была бы зелёной и у уборки,
+ * которая сносит по адресу что угодно.
  */
 {
   const LEGACY = "InlineOverhaul_Generated_RULES_TagWheel.md";
-  const TARGET = DIR + "/" + RULES_FILE;
-  const legacyDefaults = [LEGACY, ".obsidian/plugins/inline-overhaul/generated_rules.md"];
+  const OURS = "```tagwheel-io\n{}\n```";
 
-  /* 1. Чистый vault: путь сразу новый, удалять нечего. */
+  /* 1. Чистый vault: убирать нечего, ключа нет. */
   {
     const vault = memoryVault({});
-    const result = await loadConfig(vault, DIR, undefined,
-      { log: () => {}, legacyRulesDefaults: legacyDefaults });
-    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), TARGET,
-      "на чистом vault путь сразу в папке плагина");
+    const result = await loadConfig(vault, DIR, undefined, { log: () => {} });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), undefined,
+      "на чистом vault ключа пути нет вовсе");
     assert.deepEqual(vault.removed, [], "удалять в чистом vault нечего");
   }
 
-  /* 2. Прежний путь и прежний файл: путь переехал, сирота удалена. */
+  /* 2. Прежний путь и прежний файл: ключ снят, файл убран. */
   {
     const vault = memoryVault({
       [DIR + "/data.json"]: JSON.stringify({
         schemaVersion: SCHEMA_VERSION_V2,
         advanced: { generatedRulesPath: LEGACY },
       }),
-      [LEGACY]: "```tagwheel-io\n{}\n```",
+      [LEGACY]: OURS,
     });
-    const result = await loadConfig(vault, DIR, undefined,
-      { log: () => {}, legacyRulesDefaults: legacyDefaults });
-    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), TARGET,
-      "прежний путь заменён на путь в папке плагина");
-    assert.equal(result.rulesPathMovedTo, TARGET, "и переезд назван");
-    assert.deepEqual(vault.removed, [LEGACY], "прежний файл в корне удалён");
-    assert.equal(result.legacyRulesRemoved, LEGACY, "и это тоже названо");
-    assert.equal(vault.files[LEGACY], undefined, "сироты в корне не осталось");
+    const result = await loadConfig(vault, DIR, undefined, { log: () => {} });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), undefined,
+      "путь снят из конфига");
+    assert.deepEqual(vault.removed, [LEGACY], "прежний файл в корне убран");
+    assert.deepEqual(result.generatedRulesRemoved, [LEGACY], "и уборка названа");
+    assert.equal(vault.files[LEGACY], undefined, "файла в корне не осталось");
   }
 
-  /* 3. Свой путь человека сильнее переезда: его не трогают и файл не удаляют. */
+  /* 3. Свой путь человека: файл убирается и оттуда. */
   {
+    const MINE = "Служебное/Мои правила.md";
     const vault = memoryVault({
       [DIR + "/data.json"]: JSON.stringify({
         schemaVersion: SCHEMA_VERSION_V2,
-        advanced: { generatedRulesPath: "Служебное/Мои правила.md" },
+        advanced: { generatedRulesPath: MINE },
       }),
-      [LEGACY]: "```tagwheel-io\n{}\n```",
+      [MINE]: OURS,
     });
-    const result = await loadConfig(vault, DIR, undefined,
-      { log: () => {}, legacyRulesDefaults: legacyDefaults });
-    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), "Служебное/Мои правила.md",
-      "свой путь человека остался своим");
-    assert.equal(result.rulesPathMovedTo, undefined, "переезда не было");
-    assert.deepEqual(vault.removed, [], "и чужой файл никто не удалял");
+    const result = await loadConfig(vault, DIR, undefined, { log: () => {} });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), undefined,
+      "и свой путь человека снят вместе с ключом");
+    assert.deepEqual(vault.removed, [MINE], "файл убран и со своего пути");
+    assert.deepEqual(result.generatedRulesRemoved, [MINE], "и это названо");
   }
 
-  /* 4. Папка настроек Obsidian не `.obsidian`: путь считается, а не литерал. */
+  /* 4. Чужая заметка по тому же адресу не трогается. */
   {
-    const OTHER = ".myconfig/plugins/inline-overhaul";
-    const vault = memoryVault({});
-    const result = await loadConfig(vault, OTHER, undefined,
-      { log: () => {}, legacyRulesDefaults: legacyDefaults });
-    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), OTHER + "/" + RULES_FILE,
-      "путь взят у папки плагина, а не из литерала");
+    const MINE = "Служебное/Моя заметка.md";
+    const vault = memoryVault({
+      [DIR + "/data.json"]: JSON.stringify({
+        schemaVersion: SCHEMA_VERSION_V2,
+        advanced: { generatedRulesPath: MINE },
+      }),
+      [MINE]: "# Мои заметки\n\nтекст человека",
+    });
+    const result = await loadConfig(vault, DIR, undefined, { log: () => {} });
+    assert.deepEqual(vault.removed, [], "чужую заметку уборка не тронула");
+    assert.equal(result.generatedRulesRemoved, undefined, "и убирать было нечего");
+    assert.equal(vault.files[MINE], "# Мои заметки\n\nтекст человека", "текст человека цел");
   }
 
-  /* 5. Литерал умолчания и имя файла — одно и то же (У-32). */
-  assert.equal(
-    optionKeys.DEFAULT_RULES_PATH,
-    ".obsidian/plugins/inline-overhaul/" + RULES_FILE,
-    "литерал в pkm_option_keys собран из того же имени файла",
-  );
-  assert.equal(optionKeys.LEGACY_RULES_PATH, LEGACY_RULES_FILE,
-    "и прежнее место объявлено один раз");
-
-  /*
-   * 6. И главное про границу этого переезда (замечание заказчика 2026-09-06).
-   * Обычный патч конфига прежний путь **не чинит** и чинить не должен:
-   * миграция не знает папки плагина и не ходит в файловую систему. Именно
-   * поэтому восстановлению копии нужен шов: копия, снятая до переезда,
-   * приносит корень vault обратно — и плагин до конца сеанса пишет туда.
-   */
+  /* 5. Путь из формы версии 1 тоже не доезжает до конфига. */
   {
-    const patched = migrate({
-      schemaVersion: SCHEMA_VERSION_V2,
-      advanced: { generatedRulesPath: LEGACY },
-    }) as Any;
-    assert.equal(getIn(patched, "advanced.generatedRulesPath"), LEGACY,
-      "миграция патча починила путь сама — значит, правило объявлено дважды");
-    ok("обычный патч прежний путь не чинит — поэтому восстановлению нужен шов");
+    const vault = memoryVault({
+      [DIR + "/data.json"]: JSON.stringify({
+        pkm: { generatedRulesPath: LEGACY },
+        rules: { tagWheelPath: LEGACY },
+      }),
+      [LEGACY]: OURS,
+    });
+    const result = await loadConfig(vault, DIR, undefined, { log: () => {} });
+    assert.equal(getIn(result.config, "advanced.generatedRulesPath"), undefined,
+      "путь из версии 1 никуда не приземляется");
+    assert.equal(getIn(result.config, "pkm.generatedRulesPath"), undefined,
+      "и в своей ветке его тоже нет");
+    assert.deepEqual(vault.removed, [LEGACY], "а файл убран");
   }
-  ok("H6: служебный файл правил живёт в папке плагина, сирота в корне удалена");
+
+  ok("H6: служебный файл правил снят, ключ пути ушёл, файл прибран, чужое цело");
 }
 
 console.log("\n" + passed + " проверок пройдено");
