@@ -231,8 +231,15 @@ Both keys are **off** by default: `Del` and `Backspace` belong to Obsidian, and 
 Under **Keyboard → Smart Enter**, `Enter` stops cutting one of your lines in two. A line
 carrying Fields is a record, not a paragraph: split it in half and the Block after your
 text is torn away from the Block before it, and neither half is a record any more. With
-the toggle on, `Enter` pressed anywhere up to the second Separator adds an empty line
-underneath and leaves the line you are on exactly as it was.
+the toggle on, `Enter` adds an empty line underneath and leaves the line you are on
+exactly as it was.
+
+`Where it works` decides how much of the line counts as one record. `Anywhere in the
+line` keeps the whole line together: wherever the cursor stands — in a Block, on a
+Separator or in your text — the key adds a line below. `Only in your text` narrows it to
+the text slot, the part between your Separators, so `Enter` inside a Block goes back to
+being Obsidian's own. If a line carries only one Separator, the text slot is whatever
+lies after the first or before the second.
 
 `Prefix on the new line` decides what the new line starts with, and it has three
 settings. `Same as the line above` repeats the marker exactly as Obsidian does it on its
@@ -243,9 +250,9 @@ keeps the count going, so a numbered list does not lose its place; a checkbox st
 because there the answer is no to everything except the numbering. The indent is kept by
 all three.
 
-The key is **off** by default and stays Obsidian's own everywhere else: past the second
-Separator, in any line that carries no Separator of yours, with a selection, or with more
-than one cursor.
+The key is **off** by default and stays Obsidian's own everywhere else: in any line that
+carries no Separator of yours, outside your text when `Where it works` says so, with a
+selection, or with more than one cursor.
 
 ### Where the view goes when a line moves
 

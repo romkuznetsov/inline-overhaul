@@ -114,9 +114,10 @@ command palette and the reference table disagreeing.
   `Backspace` at the start of a line, and switches on separately: either key can do
   this without the other. Both off by default.
 - **Smart Enter**: **Keyboard → Smart Enter** stops `Enter` from splitting one of your
-  lines in half. Pressed anywhere up to the second Separator it starts an empty line
-  below and leaves the line you are on exactly as it was; past the second Separator, and
-  in any line without a Separator of yours, the key stays Obsidian's own.
+  lines in half. It starts an empty line below and leaves the line you are on exactly as
+  it was; in any line without a Separator of yours the key stays Obsidian's own.
+  `Where it works` decides how much of the line counts as one record: anywhere in the
+  line, or only inside your own text between the Separators.
   `Prefix on the new line` decides what the new line starts with: the same marker as the
   line above, nothing at all, or nothing unless the line is numbered, so a numbered list
   keeps its count. Off by default.

@@ -857,6 +857,49 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.91 Smart Enter: где работает клавиша (2026-09-13)
+
+**Замечание заказчика к строке `S28`, дословно:** «работает не очень стабильно —
+я нажимал enter из разных частей строки
+`- [ ] 📅2026-09-13 10:45 #todo || 13123 :: #/1 👤111`: курсор до сепаратора1 —
+ок; на сепараторе1 — ок; в тексте между сепараторами — ок; на сепараторе 2, а
+также в right block — не ок (поведение обычного enter)». И следом заказ:
+«добавь дополнительный контрол в smart-enter, про режим работы — универсально
+(текущее поведение — за исключением бага выше) и только для текста между
+сепараторами».
+
+**Дефект был написан мной нарочно, и объяснение к нему оказалось неверным.** В
+`planSmartEnter` стояло `if (ch > bounds.end) return null` с комментарием «там
+рвать нечего». Рвать там есть что: строка — запись целиком, и `Enter` за вторым
+разделителем уносит правый Block на следующую строку ровно так же, как уносил бы
+левый. Разница только в том, что у правого Block не остаётся ни первого
+разделителя, ни текста, — то есть результат ещё хуже.
+
+**И нашёл это не разбор, а обход зон.** Заказчик прошёл строку курсором по всем
+зонам подряд и назвал каждую отдельно; проверка гоняла один выбранный случай и
+была зелёной. Теперь она гоняет **шесть мест курсора на одной строке** — по
+одному на зону, — и оба положения на каждом.
+
+**Что стало.** Строка `Where it works` в группе `Smart Enter`, два положения его
+же словами: `Anywhere in the line` — вся строка есть одна запись, место курсора
+не важно; `Only in your text` — только слот текста, а в зонах значений клавиша
+снова принадлежит Obsidian. Умолчание `line`: это поведение, которое у него уже
+стоит, плюс починка правого Block.
+
+**Слот текста считает то же правило, что и раньше** — `getTextSlotBounds` в
+`pkm_macro_shared.js`. Его случай «в строке только один сепаратор» отдельной
+ветки не потребовал: функция это уже умеет, и проверка спрашивает обе формы —
+строку с одним первым разделителем и с одним вторым.
+
+**Файл под З3 не тронут:** `smart_enter_engine.js` написан этой неделей и в
+запрет не входит.
+
+**Чем закреплено.** Семь шагов зелёные, 70 проверок из 70. Четыре подмены
+краснеют: возврат прежнего отказа, выключение нового условия, обработчик,
+подставляющий положение сам, и потеря начала слота. Рядом положительный
+контроль: между положениями обязано быть расхождение хотя бы на одном месте
+курсора — иначе оба вели бы себя одинаково и всё остальное было бы зелёным.
+
 #### 10.13.90 Block значения: разбор строки его не знал вовсе (2026-09-13)
 
 **Замечание заказчика к строке `S27`, дословно:** «в строке
@@ -2321,7 +2364,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (50)
+### Пути, которых не было в описи v1.0 (51)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -2333,6 +2376,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `editor.smartDelete.dropPrefix` | Drop the line Prefix (`smart-delete-prefix`) | Smart Delete\Backspace |
 | `editor.smartDelete.joinWithSpace` | Join with a space (`smart-delete-space`) | Smart Delete\Backspace |
 | `editor.smartEnter.enabled` | Smart Enter (`smart-enter-enabled`) | Smart Enter |
+| `editor.smartEnter.scope` | Where it works (`smart-enter-scope`) | Smart Enter |
 | `editor.smartEnter.newLinePrefix` | Prefix on the new line (`smart-enter-prefix`) | Smart Enter |
 | `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Moving lines (up and down) |
 | `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Moving lines (up and down) |
@@ -9391,7 +9435,7 @@ python tests/prototype/update_prd.py
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 8 | 1 |
-| 2 | Keyboard | — | 6 | 12 | 4 |
+| 2 | Keyboard | — | 6 | 13 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 7 | 44 | 6 |
@@ -9657,12 +9701,18 @@ _Tip:_ Press <code>Del</code> with the cursor at the end of a line and Obsidian 
 
 _Intro:_ <code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone
 
-_Tip:_ A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> pressed anywhere up to the second Separator adds an empty line underneath and leaves the one you are on exactly as it was. Past the second Separator, and in every line that carries no Separator of yours, the key stays Obsidian’s own and behaves as it always has
+_Tip:_ A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. In every line that carries no Separator of yours the key stays Obsidian’s own and behaves as it always has
 
 - **Smart Enter** — `smart-enter-enabled`, `toggle`, path `editor.smartEnter.enabled`, default `false`
-  - desc: Let <code>Enter</code> before the second Separator add a line instead of splitting the one you are on
+  - desc: Let <code>Enter</code> add a line instead of splitting the one you are on
   - tip: Nothing here rebinds the key: <code>Enter</code> stays Obsidian’s, and this only changes what happens inside a line of yours. Off, the key behaves as it always has
   - старые названия для поиска: «Smart Enter», «Do not split the line»
+- **Where it works** — `smart-enter-scope`, `dropdown`, path `editor.smartEnter.scope`, default `line`
+  - desc: How much of the line the key treats as one record
+  - tip: <b>Anywhere in the line</b> keeps the whole line together: wherever the cursor stands — in a Block, on a Separator or in your text — the key adds a line below. <b>Only in your text</b> narrows it to the text slot, the part between your Separators, so <code>Enter</code> inside a Block goes back to being Obsidian’s own. If a line carries only one Separator, the text slot is whatever lies after the first or before the second
+  - варианты: `line` Anywhere in the line · `text` Only in your text
+  - выключена если: `editor.smartEnter.enabled`
+  - старые названия для поиска: «Smart Enter scope», «Only in your text»
 - **Prefix on the new line** — `smart-enter-prefix`, `dropdown`, path `editor.smartEnter.newLinePrefix`, default `same`
   - desc: What the line <code>Smart Enter</code> adds starts with
   - tip: <b>Same as the line above</b> repeats the marker exactly as Obsidian does it on its own: a bullet stays a bullet, a numbered item gets the next number, and a checkbox arrives empty, because a line you have not written yet is not a task you have done. <b>None</b> starts the new line bare. <b>None, unless the line is numbered</b> does the same but keeps the count going, so a numbered list does not lose its place — a checkbox still goes. The indent is kept by all three: a line three levels deep has no business jumping to the left margin
@@ -10434,6 +10484,7 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `editor.smartDelete.onBackspace` | toggle | `false` |
 | `editor.smartEnter.enabled` | toggle | `false` |
 | `editor.smartEnter.newLinePrefix` | dropdown | `same` |
+| `editor.smartEnter.scope` | dropdown | `line` |
 | `features.navigation.enabled` | toggle | `true` |
 | `features.pkm.enabled` | toggle | `true` |
 | `features.transform.enabled` | toggle | `true` |

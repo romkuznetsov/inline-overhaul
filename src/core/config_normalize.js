@@ -980,6 +980,10 @@ function normalizeConfigV2(cfg) {
      (10.13.88). Умолчание `same`: новая строка повторяет знак, как это делает
      сам Obsidian. */
   oneOf("editor.smartEnter.newLinePrefix", ["same", "none", "number-only"]);
+  /* Где работает клавиша — заказ заказчика 2026-09-13 (10.13.91). Умолчание
+     `line`: это поведение, которое у него уже стоит, плюс починка правого
+     Block. */
+  oneOf("editor.smartEnter.scope", ["line", "text"]);
   writeCfgPath(cfg, "editor.binder.rows", normalizeBinderRows(readCfgPath(cfg, "editor.binder.rows")));
 
   /* --- вид тегов -------------------------------------------------------- */

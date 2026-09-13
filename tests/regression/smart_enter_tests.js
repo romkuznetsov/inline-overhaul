@@ -78,7 +78,7 @@ function apply(line, result) {
   ok("Enter до второго разделителя добавляет строку, а не рвёт нынешнюю");
 }
 
-/* ---- три условия тихого отказа ------------------------------------------ */
+/* ---- два условия тихого отказа ------------------------------------------- */
 
 {
   const line = "- #123 || 12313 :: 👤111";
@@ -89,13 +89,90 @@ function apply(line, result) {
   const plain = "просто строка без наших разделителей";
   assert.strictEqual(bounds(plain), null, "у обычной строки не должно быть слота текста");
   assert.strictEqual(plan(plain, 5), null, "в обычной заметке клавиша не наша");
+  ok("два условия тихого отказа: выключено и не наша строка");
+}
 
-  /* Курсор в правом Block — за концом слота текста. */
-  const afterSep = line.indexOf("👤");
-  assert.ok(afterSep > bounds(line).end, "курсор для проверки выбран не за слотом");
-  assert.strictEqual(plan(line, afterSep), null,
-    "за вторым разделителем клавиша остаётся платформенной");
-  ok("три условия тихого отказа: выключено, не наша строка, курсор за вторым разделителем");
+/*
+ * ---- где клавиша работает: вся строка или только слот текста -------------
+ *
+ * **Третьего условия отказа здесь больше нет, и это починка.** Стояло «курсор
+ * за вторым разделителем — клавиша платформенная», с объяснением «там рвать
+ * нечего». Заказчик прошёл строку курсором по всем зонам и назвал это
+ * неверным: «курсор находился на сепараторе 2, а также в right block — не ок
+ * (поведение обычного enter)». Рвать там есть что — саму запись.
+ *
+ * Поэтому мерится **вся строка, по одному месту курсора на зону**, а не один
+ * выбранный случай: именно обход зон и нашёл дефект, которого проверка не
+ * видела. Оба положения гоняются на одних и тех же местах, и разница между
+ * ними обязана быть ровно в зонах значений.
+ */
+{
+  const line = "- [ ] 📅2026-09-13 10:45 #todo || 13123 :: #/1 👤111";
+  const b = bounds(line);
+  assert.ok(b, "у строки заказчика нет слота текста — мерить нечего");
+  assert.strictEqual(line.slice(b.start, b.end), "13123",
+    "слот текста найден не там: " + JSON.stringify(line.slice(b.start, b.end)));
+
+  const spots = [
+    ["в левом Block, до первого разделителя", line.indexOf("#todo"), false],
+    ["на первом разделителе", line.indexOf("||"), false],
+    ["в тексте между разделителями", b.start + 2, true],
+    ["на втором разделителе", line.indexOf("::"), false],
+    ["в правом Block", line.indexOf("👤"), false],
+    ["в самом конце строки", line.length, false],
+  ];
+
+  for (const [where, ch, insideText] of spots) {
+    assert.ok(ch >= 0, "место курсора не нашлось: " + where);
+    assert.strictEqual(
+      (ch >= b.start && ch <= b.end), insideText,
+      "случай выбран не тот: " + where + " — слот текста " + b.start + "…" + b.end + ", курсор " + ch
+    );
+    assert.ok(plan(line, ch, { scope: "line" }),
+      "`Anywhere in the line`: клавиша обязана работать — " + where);
+    assert.strictEqual(!!plan(line, ch, { scope: "text" }), insideText,
+      "`Only in your text`: клавиша работает ровно в тексте человека — " + where);
+  }
+
+  /*
+   * Положительный контроль разницы: между положениями обязано быть расхождение
+   * хотя бы на одном месте. Без него оба положения могли бы вести себя
+   * одинаково, и всё выше было бы зелёным (У-88).
+   */
+  const differ = spots.filter(([, ch]) =>
+    !!plan(line, ch, { scope: "line" }) !== !!plan(line, ch, { scope: "text" }));
+  assert.ok(differ.length > 0, "положения `Where it works` не расходятся ни на одном месте курсора");
+
+  /* Умолчание — «вся строка»: это поведение, которое у заказчика уже стоит. */
+  assert.ok(plan(line, line.indexOf("👤")),
+    "без указания положения клавиша работает во всей строке");
+  ok("Where it works: вся строка против слота текста, шесть мест курсора");
+}
+
+/*
+ * Слот текста бывает и у строки с одним разделителем, и его границы считает то
+ * же правило. Его слова: «либо если в строке только один сепаратор — после
+ * сепаратора1 или до сепаратора2».
+ */
+{
+  const only2 = "- 13123 :: #/1";
+  const b2 = bounds(only2);
+  assert.ok(b2, "у строки с одним вторым разделителем обязан быть слот текста");
+  assert.strictEqual(only2.slice(b2.start, b2.end), "13123", "слот найден не там: " + only2);
+  assert.ok(plan(only2, b2.start + 1, { scope: "text" }),
+    "в тексте строки с одним разделителем клавиша наша");
+  assert.strictEqual(plan(only2, only2.indexOf("#/1"), { scope: "text" }), null,
+    "а в правом Block той же строки — нет");
+
+  const only1 = "- #todo || 13123";
+  const b1 = bounds(only1);
+  assert.ok(b1, "у строки с одним первым разделителем обязан быть слот текста");
+  assert.strictEqual(only1.slice(b1.start, b1.end), "13123", "слот найден не там: " + only1);
+  assert.ok(plan(only1, b1.start + 1, { scope: "text" }),
+    "после первого разделителя клавиша наша");
+  assert.strictEqual(plan(only1, only1.indexOf("#todo"), { scope: "text" }), null,
+    "а до него — нет");
+  ok("строка с одним разделителем: слот текста с той стороны, где текст");
 }
 
 /* ---- знак списка на новой строке ---------------------------------------- */
@@ -284,6 +361,28 @@ function apply(line, result) {
   assert.strictEqual(handleSmartEnterKeymap(plugin(bare, edBare)), true, "то же с `none`");
   assert.deepStrictEqual(edBare.lines, [numbered, ""],
     "положение `none` до движка не доехало: " + edBare.lines.join(" | "));
+
+  /*
+   * `Where it works` — такая же настройка, и доезжать до движка она обязана
+   * тем же способом. Без этого случая подмена «обработчик всегда просит
+   * `line`» проходит незамеченной (У-15). Курсор стоит в правом Block: это
+   * единственное место, где положения расходятся видимо.
+   */
+  const inRight = line.indexOf("👤");
+  const scopeText = Object.assign(
+    { editor: { smartEnter: { enabled: true, newLinePrefix: "same", scope: "text" } } }, seps);
+  const edScope = makeEditor([line], { line: 0, ch: inRight });
+  assert.strictEqual(handleSmartEnterKeymap(plugin(scopeText, edScope)), false,
+    "`Only in your text` до движка не доехало: клавиша взята в правом Block");
+  assert.deepStrictEqual(edScope.lines, [line], "при отказе строка обязана остаться прежней");
+
+  const scopeLine = Object.assign(
+    { editor: { smartEnter: { enabled: true, newLinePrefix: "same", scope: "line" } } }, seps);
+  const edScope2 = makeEditor([line], { line: 0, ch: inRight });
+  assert.strictEqual(handleSmartEnterKeymap(plugin(scopeLine, edScope2)), true,
+    "`Anywhere in the line`: в правом Block клавиша наша — это и было замечание заказчика");
+  assert.deepStrictEqual(edScope2.lines, [line, "- "],
+    "новая строка встала не туда: " + edScope2.lines.join(" | "));
 
   const ed2 = makeEditor([line], { line: 0, ch });
   assert.strictEqual(handleSmartEnterKeymap(plugin(off, ed2)), false, "выключенная функция взяла клавишу");
