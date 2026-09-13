@@ -293,13 +293,14 @@ function requirePlaywright() {
 }
 
 /** Подмена по имени, с проверкой, что она ещё адресует предмет. */
-function injectionSpec(name) {
+function injectionSpec(name, list) {
   if (!name) return null;
-  if (!Object.prototype.hasOwnProperty.call(EDITOR_INJECTIONS, name)) {
+  const from = list || EDITOR_INJECTIONS;
+  if (!Object.prototype.hasOwnProperty.call(from, name)) {
     throw new Error("нет подмены с именем " + name
-      + "; есть: " + Object.keys(EDITOR_INJECTIONS).join(", "));
+      + "; есть: " + Object.keys(from).join(", "));
   }
-  return EDITOR_INJECTIONS[name];
+  return from[name];
 }
 
 /** Один и тот же текстовый обмен, откуда бы файл ни читался. */
@@ -312,9 +313,40 @@ function applyInjection(name, spec, src) {
   return src.replace(spec.find, spec.replace);
 }
 
+/**
+ * Плагин сборки, отдающий страницам то, что посчитано в Node.
+ *
+ * Нужен он одному: конфиг для проверки берётся из фикстуры **через
+ * `migrateConfig`** (правило 2), а `migrateConfig` тянет за собой пол-ядра и
+ * чтение файла. Считается он здесь, в Node, а страница получает готовый ответ
+ * по имени `virtual:<что>`. Своей копии правил у страницы при этом нет: и
+ * конфиг, и текст правил, и ключи рантайма сделаны теми же функциями, какими
+ * их делает плагин.
+ */
+function virtualPlugin(modules) {
+  if (!modules) return null;
+  const names = Object.keys(modules);
+  if (!names.length) return null;
+  return {
+    name: "io-virtual",
+    setup(build) {
+      build.onResolve({ filter: /^virtual:/ }, (args) => {
+        if (!Object.prototype.hasOwnProperty.call(modules, args.path)) {
+          throw new Error("страница просит " + args.path + ", а его никто не посчитал");
+        }
+        return { path: args.path, namespace: "io-virtual" };
+      });
+      build.onLoad({ filter: /.*/, namespace: "io-virtual" }, (args) => ({
+        contents: "module.exports = " + JSON.stringify(modules[args.path]) + ";",
+        loader: "js",
+      }));
+    },
+  };
+}
+
 /** Плагин сборки, который правит текст модуля по имени подмены. */
-function injectionPlugin(name) {
-  const spec = injectionSpec(name);
+function injectionPlugin(name, list) {
+  const spec = injectionSpec(name, list);
   /* Лист стилей в сборку не идёт: его читает страница, и подменяется он там. */
   if (!spec || spec.file === "styles.css") return null;
   const target = path.join(root, spec.file);
@@ -322,6 +354,7 @@ function injectionPlugin(name) {
     name: "io-injection",
     setup(build) {
       build.onLoad({ filter: /\.js$/ }, (args) => {
+        if (args.namespace && args.namespace !== "file") return null;
         if (path.resolve(args.path) !== path.resolve(target)) return null;
         const src = fs.readFileSync(args.path, "utf8");
         return { contents: applyInjection(name, spec, src), loader: "js" };
@@ -451,17 +484,21 @@ const PAGE_CSS = [
     + " font-weight: 600; padding-top: 14px; }",
 ].join("\n");
 
-async function buildPage(injection) {
+async function buildPage(injection, opts) {
+  const entry = (opts && opts.entry) || "editor_page.js";
+  const base = entry.replace(/\.js$/, "");
   const esbuild = requireEsbuild();
   fs.mkdirSync(outDir, { recursive: true });
   const plugins = [];
-  const p = injectionPlugin(injection);
+  const p = injectionPlugin(injection, opts && opts.injections);
   if (p) plugins.push(p);
+  const v = virtualPlugin(opts && opts.virtual);
+  if (v) plugins.push(v);
   await esbuild.build({
-    entryPoints: [path.join(__dirname, "editor_page.js")],
+    entryPoints: [path.join(__dirname, entry)],
     bundle: true,
     format: "iife",
-    outfile: path.join(outDir, "editor_page.bundle.js"),
+    outfile: path.join(outDir, base + ".bundle.js"),
     platform: "browser",
     absWorkingDir: root,
     logLevel: "silent",
@@ -482,7 +519,7 @@ async function buildPage(injection) {
   const extra = String(process.env.IO_GATE_EXTRA_CSS || "").trim();
   const extraCss = extra && fs.existsSync(extra) ? fs.readFileSync(extra, "utf8") : "";
   if (extra && !extraCss) throw new Error("IO_GATE_EXTRA_CSS указывает на файл, которого нет: " + extra);
-  const cssSpec = injectionSpec(injection);
+  const cssSpec = injectionSpec(injection, opts && opts.injections);
   let pluginCss = fs.readFileSync(path.join(root, "styles.css"), "utf8");
   if (cssSpec && cssSpec.file === "styles.css") {
     pluginCss = applyInjection(injection, cssSpec, pluginCss);
@@ -494,15 +531,15 @@ async function buildPage(injection) {
     "<style>", pluginCss, "</style>",
     "<style>", PAGE_CSS, "</style>",
     "<div class='markdown-source-view mod-cm6'><div id=host></div></div>",
-    "<script src='editor_page.bundle.js'></script>",
+    "<script src='" + base + ".bundle.js'></script>",
   ].join("\n");
-  const page = path.join(outDir, "editor_page.html");
+  const page = path.join(outDir, base + ".html");
   fs.writeFileSync(page, html);
   return "file:///" + page.replace(/\\/g, "/");
 }
 
-async function openEditor(injection) {
-  const url = await buildPage(injection);
+async function openEditor(injection, opts) {
+  const url = await buildPage(injection, opts);
   const { chromium } = requirePlaywright();
   let browser;
   try {
@@ -519,8 +556,17 @@ async function openEditor(injection) {
   page.on("console", (m) => { if (m.type() === "error") pageErrors.push("console.error: " + m.text()); });
   await page.goto(url);
   await page.waitForSelector(".cm-content");
-  await page.waitForFunction(() => typeof window.__ioEditorProbe === "function");
+  /*
+   * Ждём **имя, которое ставит сама страница**, а не срок. Страница панели
+   * поднимает рантайм и читает правила, и «подожди столько-то» здесь было бы
+   * тем же, чем оно всегда бывает: зелёным на быстрой машине и красным на
+   * чужой (У-78).
+   */
+  const ready = (opts && opts.ready) || "__ioEditorProbe";
+  await page.waitForFunction((n) => typeof window[n] === "function", ready);
   return { browser, page, pageErrors };
 }
 
-module.exports = { root, outDir, EDITOR_INJECTIONS, buildPage, openEditor };
+module.exports = {
+  root, outDir, EDITOR_INJECTIONS, buildPage, openEditor, injectionSpec, applyInjection,
+};

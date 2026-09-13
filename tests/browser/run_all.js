@@ -21,7 +21,12 @@
  *   * `check_editor.js` — **редактор**: слой оформления заметки это чистый
  *     CodeMirror, и он в браузер поднимается. Строка «как это выглядит в самой
  *     заметке — решает ваш глаз» кончала лист приёмки дважды; с 2026-09-09
- *     она неверна (У-98: «проверить нечем» — это оценка, а не факт).
+ *     она неверна (У-98: «проверить нечем» — это оценка, а не факт);
+ *   * `check_tagwheel.js` — **сессия панели**: тот же настоящий CodeMirror, но
+ *     поверх него поднят рантайм и открыта настоящая сессия TagWheel. Заведена
+ *     она под переезд панели на накладку (В-108): вид панели не меряет ни один
+ *     из семи шагов, и пока это так, недоделанная накладка дороже нынешнего
+ *     дефекта `Ctrl+Z`.
  *
  * В CI шаг не включён: Chromium — 115 МБ на машину, и это решение заказчика
  * 2026-09-08. Но и пропуска здесь нет: без браузера шаг падает и говорит, чем
@@ -32,13 +37,15 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 const { INJECTIONS } = require("./harness.js");
 const { EDITOR_INJECTIONS } = require("./editor_harness.js");
+const { PANEL_INJECTIONS } = require("./panel_harness.js");
 
 const root = path.resolve(__dirname, "..", "..");
 
-/** Две проверки, у каждой свой список подмен. */
+/** Три проверки, у каждой свой список подмен. */
 const SUITES = [
   { name: "вид панели", script: path.join(__dirname, "check_panel.js"), injections: INJECTIONS },
   { name: "подложка в редакторе", script: path.join(__dirname, "check_editor.js"), injections: EDITOR_INJECTIONS },
+  { name: "сессия TagWheel", script: path.join(__dirname, "check_tagwheel.js"), injections: PANEL_INJECTIONS },
 ];
 
 function run(script, injection) {
@@ -54,8 +61,12 @@ for (const suite of SUITES) {
   {
     const r = run(suite.script, "");
     const tail = ((r.stdout || "") + (r.stderr || "")).trim().split("\n");
+    /* Итог берётся из **своего** вывода проверки, а не из вороха: Node пишет в
+       stderr предупреждения о чужих модулях, и последней строкой вороха
+       оказывались они — вместо чисел стояла просьба поправить `package.json`. */
+    const out = (r.stdout || "").trim().split("\n").filter((l) => l.trim());
     if (r.status === 0) {
-      console.log("ok    " + suite.name.padEnd(22) + (tail[tail.length - 1] || "").trim());
+      console.log("ok    " + suite.name.padEnd(22) + (out[out.length - 1] || "").trim());
     } else {
       failed++;
       console.log("FAIL  " + suite.name);
@@ -84,6 +95,6 @@ for (const suite of SUITES) {
 
 console.log(failed
   ? "\n" + failed + " problem(s)"
-  : "\nпанель и подложка в заметке проверены браузером, и проверки умеют краснеть"
+  : "\nпанель, подложка в заметке и сессия TagWheel проверены браузером, и проверки умеют краснеть"
     + " (подмен " + injections + ")");
 process.exit(failed ? 1 : 0);

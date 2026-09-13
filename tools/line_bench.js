@@ -41,22 +41,19 @@ const DATA = process.env.IO_DATA
 const runtime = require(path.join(ROOT, "pkm_runtime_v2.js"));
 const normalize = require(path.join(ROOT, "src", "core", "config_normalize.js"));
 const orderCfg = require(path.join(ROOT, "src", "core", "pkm_order_config.js"));
-const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
-const optionKeys = require(path.join(ROOT, "src", "core", "pkm_option_keys.js"));
 const registry = require(path.join(ROOT, "src", "features", "command_registry.js"));
 
-const K = optionKeys.KEYS;
-const readCfgPath = shared.readCfgPath;
+const panelBench = require(path.join(ROOT, "tests", "harness", "panel_bench.js"));
+
 
 function loadCfg() {
   return normalize.migrateConfig(JSON.parse(fs.readFileSync(DATA, "utf8")));
 }
 
-/* Тот же выбор пути, что делает `activeRulesPath` в слое команд. */
-function activeRulesPath(cfg) {
-  const generated = String(readCfgPath(cfg, "advanced.generatedRulesPath") || "").trim();
-  return generated || String(normalize.DEFAULT_CONFIG.pkm.generatedRulesPath);
-}
+/* Выбор пути к правилам и ключи рантайма — общие у трёх стендов, и объявлены
+   они один раз (`tests/harness/panel_bench.js`). Две копии здесь уже
+   расходились (У-32). */
+const activeRulesPath = panelBench.activeRulesPath;
 
 function defsFor(cfg) {
   return registry.buildPkmCommandDefs(
@@ -77,26 +74,7 @@ function findDef(cfg, id) {
   return hit[0];
 }
 
-/* Ключи, которые досыпает `runPkmRuntime` поверх определения команды. */
-function paneSettings(cfg) {
-  return {
-    [K.RULES_PATH]: activeRulesPath(cfg),
-    [K.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
-    [K.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
-    [K.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
-    [K.ORDER_CONFIG]: orderCfg.serializePkmOrderForMacro(cfg),
-    [K.DATE_RUNTIME_CONFIG]: orderCfg.serializeDateRuntimeConfigForMacro(cfg),
-    [K.TAGWHEEL_SCROLLER_ENABLED]: readCfgPath(cfg, "visual.tagWheel.scroller.enabled") === true,
-    [K.TAGWHEEL_SCROLLER_DIRECTION]: readCfgPath(cfg, "visual.tagWheel.scroller.direction") || "full",
-    [K.TAGWHEEL_SCROLLER_SIZE]: readCfgPath(cfg, "visual.tagWheel.scroller.size") || 3,
-    [K.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
-    [K.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
-    [K.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
-    [K.TAGWHEEL_ACTIVE_FIELD_MODE]: readCfgPath(cfg, "visual.tagWheel.activeField.mode") || "first",
-    [K.TAGWHEEL_ACTIVE_FIELD_LEFT]: readCfgPath(cfg, "visual.tagWheel.activeField.left") || "",
-    [K.TAGWHEEL_ACTIVE_FIELD_RIGHT]: readCfgPath(cfg, "visual.tagWheel.activeField.right") || "",
-  };
-}
+const paneSettings = panelBench.paneSettings;
 
 /*
  * Правка отрезком, а не строкой целиком.

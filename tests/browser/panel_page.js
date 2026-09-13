@@ -1,0 +1,173 @@
+"use strict";
+
+/**
+ * Страница гейта: **настоящая сессия TagWheel в настоящем CodeMirror**.
+ *
+ * **Зачем она заведена.** Заказчик выбрал переезд панели с текста заметки на
+ * накладку поверх строки (В-108), и порядок работ задал сам: сперва путь
+ * измерения, потом переезд. Причина порядка названа в 114у и повторяется
+ * здесь, потому что она и есть смысл этого файла: **вид панели не меряет ни
+ * один из семи шагов**. Её рисует Obsidian из текста строки, и как только
+ * полоса станет узлом, мерить её будет нечем — а TagWheel самая используемая
+ * часть плагина. Недоделанная накладка дороже нынешнего дефекта.
+ *
+ * **Что здесь настоящее** (У-1): документ, история отмен
+ * (`@codemirror/commands` — та же реализация, что в сборке Obsidian), слой
+ * оформления заметки, рантайм `pkm_runtime_v2`, сама панель, разбор правил,
+ * оверлей скроллера. Конфиг берётся из фикстуры репозитория **через
+ * `migrateConfig`** (правило 2), правила собирает тот же строитель, что и
+ * плагин, ключи рантайма досыпает общий `tests/harness/panel_bench.js`.
+ *
+ * **Что подделано и почему это ровно одна вещь.** Подделан `app` Obsidian:
+ * `workspace` с активным редактором и `vault`, отдающий текст правил. Всё
+ * остальное, что панель трогает, — настоящее. Прослойка `editor`, которой
+ * Obsidian отдаёт плагину строки и курсор, взята из того же общего модуля,
+ * что у стенда отмены, и лежит **поверх настоящего `EditorView`**: то есть
+ * запись панели доезжает до экрана, а не до переменной.
+ *
+ * Числа наружу не выводятся: страница отдаёт измерения, утверждения о них
+ * живут в `check_tagwheel.js`.
+ */
+
+const { EditorState } = require("@codemirror/state");
+const { EditorView } = require("@codemirror/view");
+const { history } = require("@codemirror/commands");
+const decorations = require("../../src/ui/editor/decorations.js");
+const runtime = require("../../pkm_runtime_v2.js");
+const panelBench = require("../harness/panel_bench.js");
+
+/* Посчитано в Node сборкой страницы: конфиг фикстуры после `migrateConfig`,
+   текст правил и ключи рантайма. Своей копии этих правил у страницы нет. */
+const FIXTURE = require("virtual:panel-fixture");
+
+const CFG = FIXTURE.cfg;
+const plugin = { getConfig: () => CFG };
+
+const view = new EditorView({
+  state: EditorState.create({
+    doc: FIXTURE.lines.join("\n"),
+    extensions: [
+      EditorView.lineWrapping,
+      history(),
+      decorations.createTagVisualDecorationExtension(plugin),
+      decorations.createBlockFillLayerExtension(plugin),
+    ],
+  }),
+  parent: document.getElementById("host"),
+});
+
+/* Прослойка Obsidian поверх настоящего редактора — общая со стендом отмены. */
+const editor = panelBench.makeCmEditor(null, view);
+
+/*
+ * ПОДДЕЛКА OBSIDIAN, И ОНА НАЗВАНА (У-1). Панель спрашивает у `app` две вещи:
+ * где активный редактор и что написано в файле правил. Первое — наш редактор,
+ * второе — текст, собранный тем же строителем, каким его пишет плагин.
+ */
+const app = {
+  workspace: { activeLeaf: { view: { editor } }, activeEditor: { editor } },
+  vault: {
+    getAbstractFileByPath(p) { return String(p) === FIXTURE.rulesPath ? { path: p } : null; },
+    async read() { return FIXTURE.rulesMd; },
+    adapter: { async read() { return FIXTURE.rulesMd; } },
+  },
+};
+
+/* Панель говорит с человеком `Notice`-ами, и на странице их некому показать.
+   Они не выбрасываются, а собираются: «панель промолчала» и «панель сказала,
+   почему не открылась» — разные ответы (У-152). */
+const said = [];
+window.Notice = function Notice(message) { said.push(String(message)); };
+globalThis.Notice = window.Notice;
+
+const round = (n) => Math.round(Number(n) * 100) / 100;
+const boxOf = (el) => {
+  if (!el || typeof el.getBoundingClientRect !== "function") return null;
+  const r = el.getBoundingClientRect();
+  return {
+    top: round(r.top), bottom: round(r.bottom), left: round(r.left),
+    right: round(r.right), height: round(r.height), width: round(r.width),
+  };
+};
+
+/** Узел строки документа по её номеру (с нуля). */
+function lineEl(n) {
+  const line = view.state.doc.line(Number(n) + 1);
+  const at = view.domAtPos(line.from);
+  const node = at && at.node ? (at.node.nodeType === 1 ? at.node : at.node.parentElement) : null;
+  return node && node.closest ? node.closest(".cm-line") : null;
+}
+
+const START_DOC = view.state.doc.toString();
+
+/** Открыть панель на строке: то же, что делает хоткей. */
+window.__ioPanelOpen = async function (side, lineNumber) {
+  const n = Number(lineNumber || 0);
+  editor.setCursor({ line: n, ch: editor.getLine(n).length });
+  said.length = 0;
+  await runtime.runCommand({
+    app,
+    command: "tagWheel",
+    settings: side === "right" ? FIXTURE.settingsRight : FIXTURE.settingsLeft,
+  });
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return window.__ioPanelProbe();
+};
+
+/**
+ * Нажатие человека — **настоящее событие окна**, а не вызов обработчика.
+ *
+ * Панель вешает `keydown` на этап перехвата у `window`, и путь от клавиши до
+ * неё есть часть предмета: подделка, зовущая обработчик напрямую, проверяла бы
+ * половину дороги.
+ */
+window.__ioPanelKey = async function (key) {
+  window.dispatchEvent(new KeyboardEvent("keydown", {
+    key: String(key), code: String(key), bubbles: true, cancelable: true,
+  }));
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return window.__ioPanelProbe();
+};
+
+/** `Ctrl+Z` на настоящей истории CodeMirror. */
+window.__ioPanelUndo = async function () {
+  const ok = editor.undo();
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return { ok, doc: view.state.doc.toString() };
+};
+
+/**
+ * Измерения, и все они — вопрос к браузеру.
+ *
+ * `lineText` — текст строки в документе, `lineDrawn` — то, что на этой строке
+ * **нарисовано**. Сегодня это одно и то же, и это сказано вслух: пока полоса
+ * панели есть разметка в тексте заметки, «нарисовано» не может разойтись с
+ * «написано». После переезда на накладку они разойдутся — и разойдутся именно
+ * так, как задуман переезд: документ останется прежним, а нарисованное
+ * сменится. То есть эта пара и есть мера переезда.
+ */
+window.__ioPanelProbe = function () {
+  const st = window.__tagWheelState || null;
+  const active = !!(st && st.active === true);
+  const n = st && Number.isFinite(Number(st.lineNumber)) ? Number(st.lineNumber) : 0;
+  const el = lineEl(n);
+  const overlay = document.querySelector(".io-twscroller");
+  const sel = view.state.selection.main;
+  const line = view.state.doc.line(n + 1);
+  return {
+    active,
+    said: said.slice(),
+    lineNumber: n,
+    lineText: line.text,
+    lineDrawn: el ? String(el.textContent || "") : null,
+    lineBox: boxOf(el),
+    /* Полоса панели узлом: сегодня её нет, после переезда обязана появиться. */
+    barBox: boxOf(document.querySelector("[data-io-tagwheel-bar]")),
+    overlayBox: boxOf(overlay),
+    overlayRows: overlay ? overlay.querySelectorAll(".io-twscroller__row").length : 0,
+    doc: view.state.doc.toString(),
+    docUnchanged: view.state.doc.toString() === START_DOC,
+    cursor: { head: sel.head, ch: sel.head - line.from },
+    startDoc: START_DOC,
+  };
+};

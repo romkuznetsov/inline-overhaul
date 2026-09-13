@@ -1,0 +1,156 @@
+"use strict";
+
+/**
+ * Сборка страницы с настоящей сессией TagWheel и её подмены.
+ *
+ * **Фикстура считается здесь, в Node, а не на странице.** Конфиг для проверки
+ * берётся из фикстуры репозитория через `migrateConfig` (правило 2), а тот
+ * тянет за собой пол-ядра и чтение файла. Страница получает готовый ответ
+ * модулем `virtual:panel-fixture`; своих правил у неё нет ни одного.
+ *
+ * **Фикстура — та, что лежит в репозитории** (`config_v1_realistic.json`).
+ * Первая версия этого файла взяла соседний снимок настроек заказчика, и
+ * `repo_completeness_tests.js` уронил набор той же минутой: имя того снимка —
+ * маска **приватного**, его нет ни в репозитории, ни у CI, ни на свежем клоне.
+ * Это ровно тот класс, ради которого сторож заведён (У-78), и он сработал
+ * раньше, чем я успел объявить работу сохранённой.
+ */
+
+const fs = require("fs");
+const path = require("path");
+
+const { root, openEditor } = require("./editor_harness.js");
+
+const normalize = require(path.join(root, "src", "core", "config_normalize.js"));
+const orderCfg = require(path.join(root, "src", "core", "pkm_order_config.js"));
+const registry = require(path.join(root, "src", "features", "command_registry.js"));
+const rulesBuilder = require(path.join(root, "src", "features", "rules_markdown_builder.js"));
+const shared = require(path.join(root, "src", "core", "shared_utils.js"));
+const panelBench = require(path.join(root, "tests", "harness", "panel_bench.js"));
+
+const FIXTURE_PATH = path.join(root, "tests", "fixtures", "config_v1_realistic.json");
+
+/**
+ * Строки страницы — те же, на которых он приносил замечание про `Ctrl+Z`:
+ * значения стоят **в противоположном Block**. Второй строкой стоит та, где
+ * значения есть и в том Block, на котором панель открывается, — разница между
+ * ними и есть граница дефекта (У-164), и стенд отмены уже знает обе.
+ *
+ * **Разделители берутся из самой фикстуры.** Написанные рядом литералом, они
+ * разошлись бы с её настройками молча: панель тогда считает всю строку текстом
+ * человека, и страница проверяла бы случай, которого у него нет.
+ */
+function linesFor(cfg) {
+  const sep1 = String(shared.readCfgPath(cfg, "pkm.lineFormat.separator1") || "::");
+  const sep2 = String(shared.readCfgPath(cfg, "pkm.lineFormat.separator2") || "::");
+  return [
+    "- " + sep1 + " 1231 " + sep2 + " \u{1F464}111",
+    "- #work " + sep1 + " 1231 " + sep2 + " \u{1F464}111",
+  ];
+}
+
+/**
+ * Подмены страницы панели.
+ *
+ * Пока полоса панели есть разметка в тексте заметки, проверять на ней нечего,
+ * кроме того, что сессия вообще живёт и доезжает до экрана. Поэтому подмены
+ * здесь ломают **дорогу**, а не вид: сессию, запись на экран и оверлей. Каждая
+ * обязана уронить проверку — иначе проверка не смотрит на то, что подменили.
+ */
+const PANEL_INJECTIONS = {
+  /*
+   * Панель не открывается вовсе: `runTagWheel` уходит на ветку отказа. Ровно
+   * это состояние двенадцать проверок применения считали зелёным (У-152) —
+   * движок возвращал строку нетронутой, и «ничего не сломано» читалось как
+   * «работает».
+   */
+  "panel-never-opens": {
+    file: "pkm_v2/TagWheel/tagwheel.js",
+    find: "    window.__tagWheelState = state",
+    replace: "    window.__tagWheelState = state\n    if (state) { state.active = false; return }",
+  },
+  /*
+   * Запись вида панели до экрана не доезжает: сессия жива, строка прежняя.
+   * Это то состояние, в которое переезд на накладку легко превратить
+   * наполовину — панель есть, а человек её не видит.
+   */
+  "panel-draws-nothing": {
+    file: "pkm_v2/TagWheel/tagwheel.js",
+    find: "function setLineOutsideHistory(editor, lineNumber, text) {",
+    replace: "function setLineOutsideHistory(editor, lineNumber, text) {\n  if (editor) return true",
+  },
+  /*
+   * `Esc` перестаёт возвращать строку человека: сессия закрывается, а в
+   * заметке остаётся вид панели. Так она и оставалась при выгрузке плагина до
+   * Д-2, и человек находил это уже в файле.
+   */
+  "cancel-keeps-panel": {
+    file: "pkm_v2/TagWheel/tagwheel.js",
+    find: "    setLineOutsideHistory(state.editor, state.lineNumber, state.originalLine)\n"
+      + "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
+    replace: "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
+  },
+  /*
+   * Нажатие до панели не доезжает: перехват у окна не поставлен. Сессия при
+   * этом жива и нарисована — то есть проверка, спрашивающая только «панель
+   * открылась», осталась бы зелёной.
+   */
+  "keys-never-arrive": {
+    file: "pkm_v2/TagWheel/tagwheel.js",
+    find: "    window.addEventListener('keydown', state.keyHandler, true)",
+    replace: "    if (!state) window.addEventListener('keydown', state.keyHandler, true)",
+  },
+  /*
+   * Оверлей скроллера не рисуется: якоря нет, коробке негде встать. Он стоит
+   * поверх редактора и переезжает вместе с панелью — правка, которая забудет
+   * его, оставит человека без подсказки о том, какие значения есть у поля.
+   */
+  "scroller-silent": {
+    file: "src/ui/tagwheel_scroller_overlay.js",
+    find: "function getAnchorRect(editor, lineNumber, controlLine) {\n  try {",
+    replace: "function getAnchorRect(editor, lineNumber, controlLine) {\n  if (editor) return null;\n  try {",
+  },
+};
+
+/** Конфиг фикстуры, правила и ключи — всё теми же функциями, что у плагина. */
+function buildFixture() {
+  const cfg = normalize.migrateConfig(JSON.parse(fs.readFileSync(FIXTURE_PATH, "utf8")));
+  const defs = registry.buildPkmCommandDefs(
+    panelBench.activeRulesPath,
+    orderCfg.serializePkmOrderForMacro,
+    orderCfg.serializeDateRuntimeConfigForMacro,
+    orderCfg.normalizePkmOrder,
+    cfg,
+    ["navigation", "editor", "pkm", "visual", "transform", "advanced"]
+  );
+  const defById = (id) => {
+    const hit = defs.filter((d) => d.id === id)[0];
+    if (!hit) throw new Error("в фикстуре нет команды " + id + " — панель этой страницей не открыть");
+    return hit;
+  };
+  const pane = panelBench.paneSettings(cfg);
+  const rulesMd = rulesBuilder.createRulesMarkdownBuilder({})
+    .buildTagWheelRulesMarkdownFromConfig(cfg);
+  if (!rulesMd || rulesMd.length < 100) {
+    throw new Error("правила фикстуры пусты — панели нечего было бы показать");
+  }
+  return {
+    cfg,
+    lines: linesFor(cfg),
+    rulesPath: panelBench.activeRulesPath(cfg),
+    rulesMd,
+    settingsLeft: Object.assign({}, pane, defById("open-tagwheel-left").makeSettings(cfg)),
+    settingsRight: Object.assign({}, pane, defById("open-tagwheel-right").makeSettings(cfg)),
+  };
+}
+
+async function openPanel(injection) {
+  return openEditor(injection, {
+    entry: "panel_page.js",
+    injections: PANEL_INJECTIONS,
+    ready: "__ioPanelProbe",
+    virtual: { "virtual:panel-fixture": buildFixture() },
+  });
+}
+
+module.exports = { PANEL_INJECTIONS, openPanel, buildFixture };
