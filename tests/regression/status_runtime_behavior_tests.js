@@ -798,6 +798,136 @@ async function testStatusTagsContextMinimalOffCycleEndResetsToDefaultBulletWithI
   assertEq(line, "\t- 111", "status_tags context minimal-off cycle end with indent should drop field-owned checkbox and keep indent");
 }
 
+/*
+ * **Знак задачи человека переживает команду поля — и на строке без текста.**
+ *
+ * Замечание заказчика 2026-09-13: `- [ ] ` после `importance next` давала
+ * `-  :: #/1`. Прежняя починка того же правила (10.13.92) закрыла случай со
+ * строкой, у которой текст есть, и на ней чекбокс и правда переживал весь цикл
+ * — а на пустой пропадал: разбор отдавал построителю префикса строку **без**
+ * знака, и флаг `preserveCheckboxPrefix` решал судьбу того, чего уже не было
+ * (У-164).
+ *
+ * Случаев здесь два, и второй — граница: `[x]` не значение ни одного Field, а
+ * `[ ]` в этой фикстуре — вид значения `type`. Ни тот, ни другой полю
+ * `priority` не принадлежат, и уносить их оно не вправе.
+ */
+async function testStatusTagsKeepsUserCheckboxOnEmptyLine() {
+  for (const token of ["[ ]", "[x]"]) {
+    const editor = makeEditor("- " + token + " ", 6);
+    await runPkmCommandWithEditor("statusTags", editor, {
+      "Rules data": SYNTHETIC_RULES,
+      "Action type": "cycle_field:priority",
+      "Direction": "increase",
+      "Order config": buildOrderConfig({
+        freeRoam: { priority: "off" },
+        panel: { priority: "left" },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    const line = editor.snapshot().line;
+    assertTrue(line.indexOf("- " + token + " ") === 0,
+      "знак задачи человека пропал со строки без текста: " + JSON.stringify(line)
+      + " (ожидалось начало " + JSON.stringify("- " + token + " ") + ")");
+  }
+}
+
+/*
+ * **Конец цикла уносит знак значения и не трогает чужой.**
+ *
+ * Пара, и вторая половина — контроль: у одной и той же команды на одной и той
+ * же строке знак либо принадлежит полю `type` (`[ ]` — вид значения `#todo`),
+ * либо не принадлежит (`[x]` человека). Снятое значение уносит только первый.
+ * Без пары «уносить всегда» и «уносить своё» выглядят одинаково (У-164).
+ *
+ * Режим здесь `off` — тот самый `io-field-behavior=strict`, о котором говорил
+ * заказчик. В режиме `minimal` слот знака принадлежит самому Field: он рисует
+ * им своё значение и переписывает чужой знак на первом же шаге, — и там на
+ * выходе из цикла знак уходит по-прежнему. Обе дороги в этом сходятся, и
+ * трогать это правило замечание не просило.
+ */
+async function testStatusTagsCycleEndKeepsForeignCheckbox() {
+  /* Четыре случая, а не два: строка с текстом идёт одной дорогой, а строка без
+     текста сворачивается до «знак списка и знак задачи» — другой, и знак там
+     ставит отдельная сборка (`buildBulletOnlyLine`). Без второй пары половина
+     правки остаётся без проверки (У-164). */
+  const cases = [
+    { line: "- [x] #todo || 111", keeps: "[x]", why: "знак человека" },
+    { line: "- [ ] #todo || 111", keeps: "", why: "знак значения #todo" },
+    { line: "- [x] #todo", keeps: "[x]", why: "знак человека на строке без текста" },
+    { line: "- [ ] #todo", keeps: "", why: "знак значения #todo на строке без текста" },
+  ];
+  for (const c of cases) {
+    const editor = makeEditor(c.line, c.line.length);
+    await runPkmCommandWithEditor("statusTags", editor, {
+      "Rules data": SYNTHETIC_RULES,
+      "Action type": "cycle_field:type",
+      "Direction": "decrease",
+      "Order config": buildOrderConfig({
+        freeRoam: { type: "off" },
+        panel: { type: "left" },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    const line = editor.snapshot().line;
+    assertTrue(!/#todo/.test(line),
+      "контроль: значение поля не снялось, и спрашивать про знак не о чем: " + JSON.stringify(line));
+    if (c.keeps) {
+      assertTrue(line.indexOf(c.keeps) !== -1,
+        "конец цикла унёс " + c.why + ": " + JSON.stringify(line));
+    } else {
+      assertTrue(!/\[[^\]]\]/.test(line),
+        "конец цикла оставил на строке " + c.why + ": " + JSON.stringify(line));
+    }
+  }
+}
+
+/*
+ * **Панель отвечает на тот же вопрос тем же ответом.**
+ *
+ * Та же пара строк и тот же выход из цикла, что у команды поля выше, только
+ * ход другой: стрелка вправо ведёт на `type`, стрелка вниз доводит его
+ * значение до конца. Ровно здесь два хода уже расходились однажды — в панели
+ * стоял литерал `false` (И-3), — и расхождение стоило заказчику захода; вторая
+ * половина пары сторожит, что знак значения панель по-прежнему уносит.
+ */
+async function testTagWheelCycleEndKeepsForeignCheckbox() {
+  /* Четыре случая, а не два: строка с текстом идёт одной дорогой, а строка без
+     текста сворачивается до «знак списка и знак задачи» — другой, и знак там
+     ставит отдельная сборка (`buildBulletOnlyLine`). Без второй пары половина
+     правки остаётся без проверки (У-164). */
+  const cases = [
+    { line: "- [x] #todo || 111", keeps: "[x]", why: "знак человека" },
+    { line: "- [ ] #todo || 111", keeps: "", why: "знак значения #todo" },
+    { line: "- [x] #todo", keeps: "[x]", why: "знак человека на строке без текста" },
+    { line: "- [ ] #todo", keeps: "", why: "знак значения #todo на строке без текста" },
+  ];
+  for (const c of cases) {
+    const editor = makeEditor(c.line, c.line.length);
+    await runTagWheelKeys(editor, {
+      "Rules data": SYNTHETIC_RULES,
+      "Order config": buildOrderConfig({
+        freeRoam: { type: "off" },
+        panel: { type: "left" },
+      }),
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    }, ["ArrowRight", "ArrowDown"]);
+    const line = editor.snapshot().line;
+    assertTrue(!/#todo/.test(line),
+      "контроль: панель не сняла значение поля, и спрашивать про знак не о чем: " + JSON.stringify(line));
+    if (c.keeps) {
+      assertTrue(line.indexOf(c.keeps) !== -1,
+        "панель унесла " + c.why + ": " + JSON.stringify(line));
+    } else {
+      assertTrue(!/\[[^\]]\]/.test(line),
+        "панель оставила на строке " + c.why + ": " + JSON.stringify(line));
+    }
+  }
+}
+
 async function testStatusTagsContextMinimalPrefixOffDoesNotCreatePrefix() {
   const editor = makeEditor("111", 1);
   await runPkmCommandWithEditor("statusTags", editor, {
@@ -3071,6 +3201,9 @@ async function run() {
   await testStatusTagsContextMinimalOffCycleEndResetsToDefaultBulletWithIndent();
   await testStatusTagsContextMinimalPrefixOffDoesNotCreatePrefix();
   await testStatusTagsContextMinimalPrefixOffPreservesExistingPrefix();
+  await testStatusTagsKeepsUserCheckboxOnEmptyLine();
+  await testStatusTagsCycleEndKeepsForeignCheckbox();
+  await testTagWheelCycleEndKeepsForeignCheckbox();
   await testTagWheelMinimalPrefixOffDoesNotCreatePrefix();
   await testStatusTagsImportanceMinimalOffPreservesExistingSeparators();
   await testStatusTagsCycleMixedOffAndMinimalKeepsBulletNoCheckboxNoSeparator();

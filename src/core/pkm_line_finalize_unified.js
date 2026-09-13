@@ -106,6 +106,56 @@ function getPrefixRulesUnified(rules, deps) {
   return out;
 }
 
+/**
+ * Этот ли знак задачи — вид значения именно этого Field.
+ *
+ * Вопрос о **знаке**, а не о поле, и в этом вся разница. «У поля знаки бывают»
+ * отвечает на «каким станет префикс»; «этот знак поставили мы» отвечает на
+ * «что мы вправе унести из строки». `[x]` на строке, где поле `type` умеет
+ * ставить `[ ]`, `[N]`, `[!]`, знаком значения не является — его поставил
+ * человек, и действие он переживает: его слово 2026-09-13 (10.13.92,
+ * 10.13.105).
+ *
+ * Дом один на оба хода нарочно. Копия этого правила в панели и в командах уже
+ * расходилась литералом — панель писала `clearedOwnCheckbox: false` и
+ * сохраняла чекбокс там, где команда его снимала (И-3), — и разводить её
+ * второй раз не на чем (У-150).
+ */
+function checkboxBelongsToFieldUnified(rules, fieldId, token) {
+  const want = normalizeCheckboxToken(token);
+  if (!want) return false;
+  const fid = String(fieldId || "").trim();
+  if (!fid) return false;
+  const row = getPrefixRulesUnified(rules).checkboxByFieldValue[fid];
+  if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+  const keys = Object.keys(row);
+  for (let i = 0; i < keys.length; i++) {
+    if (normalizeCheckboxToken(row[keys[i]]) === want) return true;
+  }
+  return false;
+}
+
+/**
+ * Бывают ли у этого Field знаки задачи — хоть у одного значения.
+ *
+ * Второй вопрос той же пары, и путать их нельзя: этот отвечает «мог ли Field
+ * занимать слот знака», а `checkboxBelongsToFieldUnified` — «этот знак его».
+ * В режиме `minimal` слот знака принадлежит самому Field (он рисует им своё
+ * значение), и на выходе из цикла спрашивается первый вопрос; в `off` знак
+ * принадлежит человеку, и спрашивается второй (10.13.105).
+ */
+function fieldHasAnyCheckboxRuleUnified(rules, fieldId) {
+  const fid = String(fieldId || "").trim();
+  if (!fid) return false;
+  const row = getPrefixRulesUnified(rules).checkboxByFieldValue[fid];
+  if (!row || typeof row !== "object" || Array.isArray(row)) return false;
+  const keys = Object.keys(row);
+  for (let i = 0; i < keys.length; i++) {
+    if (normalizeCheckboxToken(row[keys[i]])) return true;
+  }
+  return false;
+}
+
 function selectedTokenByFieldIdUnified(rules, state, fieldId, deps) {
   const getFieldById = deps && typeof deps.getFieldById === "function"
     ? deps.getFieldById
@@ -2001,6 +2051,8 @@ module.exports = {
   normalizeCheckboxToken,
   getPrefixRulesUnified,
   selectedTokenByFieldIdUnified,
+  checkboxBelongsToFieldUnified,
+  fieldHasAnyCheckboxRuleUnified,
   resolvePrefixCheckboxUnified,
   buildPrefixUnified,
   hasListPrefix,

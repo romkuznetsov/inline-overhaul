@@ -1310,29 +1310,22 @@ async function runTagWheel(input, quickAddSettings) {
   }
 
   /**
-   * У Field вообще есть правило чекбокса — хоть у одного значения.
+   * Наш ли знак задачи, стоящий на строке, — вид значения этого Field.
    *
    * Отличается от `fieldHasOwnCheckbox` тем, что не смотрит на выбранное:
-   * вопрос не «даёт ли выбранное значение чекбокс», а «мог ли этот Field его
-   * давать». Ровно это и нужно на выходе из цикла, когда значения уже нет.
+   * значения на выходе из цикла уже нет, а знак на строке ещё стоит, и вопрос
+   * к нему — чей он.
    *
-   * Форма повторяет `fieldHasAnyCheckboxRule` из `status_tags.js` намеренно:
-   * два хода обязаны отвечать на один вопрос одинаково (И-3).
+   * Правило живёт в общем доме (`pkm_line_finalize_unified`), и оба хода
+   * спрашивают его одной функцией: своя копия здесь уже расходилась с
+   * командами литералом (И-3), а прежний вопрос «у поля знаки бывают» уносил
+   * со строки знак человека (10.13.105).
    */
-  function fieldHasAnyCheckboxRule(rules, fieldId) {
-    var fid = String(fieldId || '').trim()
-    if (!fid) return false
-    var byField = rules && rules.behavior && rules.behavior.prefixRules && rules.behavior.prefixRules.checkboxByFieldValue
-      ? rules.behavior.prefixRules.checkboxByFieldValue
-      : {}
-    var row = byField && typeof byField === 'object' ? byField[fid] : null
-    if (!row || typeof row !== 'object') return false
-    var keys = Object.keys(row)
-    var i
-    for (i = 0; i < keys.length; i++) {
-      if (String(row[keys[i]] || '').trim()) return true
+  function checkboxBelongsToField(rules, fieldId, token, finalize) {
+    if (!finalize || typeof finalize.checkboxBelongsToFieldUnified !== 'function') {
+      throw new Error('pkm_line_finalize_unified unavailable: checkboxBelongsToFieldUnified')
     }
-    return false
+    return finalize.checkboxBelongsToFieldUnified(rules, fieldId, token)
   }
 
   function applySelection(state, core) {
@@ -1400,21 +1393,26 @@ async function runTagWheel(input, quickAddSettings) {
       var mode = fieldKey ? rulesHelpers.resolveFieldFreeRoamMode(state.orderCfg, fieldKey) : 'off'
       var hasOwnCheckbox = activeFieldId ? fieldHasOwnCheckbox(state.rules, state.session, activeFieldId) : false
       /*
-       * Выход из цикла: значение у Field снято, а правило чекбокса у него
-       * есть. Тогда чекбокс уходит вместе со значением, и префикс собирается
-       * по настройкам — остаётся буллит.
+       * Выход из цикла: значение у Field снято, а знак, стоящий на строке, —
+       * вид значения этого самого Field. Тогда знак уходит вместе со
+       * значением, и префикс собирается по настройкам — остаётся буллит.
        *
        * Здесь стоял литерал `false`, и это была вся разница между двумя
        * ходами: хоткей (`status_tags.js`) считает то же самое выражение и
        * поэтому оставлял `- text`, а TagWheel сохранял исходный `- [ ]`
        * (замечание И-3, исключение № 6 из З3, разрешено 2026-09-01).
        *
+       * А спрошено было «бывают ли у поля знаки вообще», и на строке
+       * `- [x] #area-gamma` этого хватало, чтобы унести `[x]` человека
+       * (10.13.105). Вопрос теперь о самом знаке.
+       *
        * Значения нет — значит и своего чекбокса нет: `hasOwnCheckbox` в этот
        * момент уже `false`, и два флага не спорят.
        */
       var clearedOwnCheckbox = !!activeFieldId
         && !selectedTokenForField(state.rules, state.session, activeField)
-        && fieldHasAnyCheckboxRule(state.rules, activeFieldId)
+        && checkboxBelongsToField(state.rules, activeFieldId,
+          state.parsedLine && state.parsedLine.checkboxToken, finalize)
       offPrefixFlags = finalize.resolveOffPrefixFlagsUnified({
         mode: mode,
         freeRoamBehavior: freeRoamBehavior,
@@ -1532,6 +1530,11 @@ async function runTagWheel(input, quickAddSettings) {
       finalLine = reorderLineByOrder(finalLine, state.rules, state.orderCfg)
     }
 
+    /* Знак задачи человека переживает и конец цикла: уносится только знак
+       значения того Field, который сейчас крутят (10.13.105). */
+    var keepForeignCheckbox = !checkboxBelongsToField(state.rules, activeFieldId,
+      state.parsedLine && state.parsedLine.checkboxToken, finalize)
+
     var cyclePost = finalize.applyCycleEndAndInvariants({
       rawLine: state.originalLine,
       finalLine: finalLine,
@@ -1541,11 +1544,14 @@ async function runTagWheel(input, quickAddSettings) {
       parsedLine: state.parsedLine,
       parseLine: core.parseLine,
       isBulletLikeEmptyResult: macroShared.isBulletLikeEmptyResult,
-      buildBulletOnlyLine: function(parsed) { return macroShared.buildBulletOnlyLine(parsed, { keepParsedPrefix: true, keepCheckbox: false }) },
+      buildBulletOnlyLine: function(parsed) { return macroShared.buildBulletOnlyLine(parsed, { keepParsedPrefix: true, keepCheckbox: keepForeignCheckbox }) },
       enforceNoContentFinalization: macroShared.isNoContentParsed(state.parsedLine, { includeTags: true }),
       isNoContentParsed: function(parsed) { return macroShared.isNoContentParsed(parsed, { includeTags: true }) },
+      /* Свёрнутая строка — это «знак списка и, если он человека, знак задачи»:
+         оба вида пишутся одной записью, иначе пробел за `[x]` теряется по
+         дороге и Obsidian перестаёт считать строку задачей (10.13.105). */
       shouldKeepBulletLine: function(line) {
-        return /^\s*-\s*$/.test(String(line || ''))
+        return /^\s*-\s*(?:\[[^\]]\]\s*)?$/.test(String(line || ''))
       },
     })
     finalLine = String(cyclePost && cyclePost.finalLine != null ? cyclePost.finalLine : finalLine)
@@ -1613,7 +1619,7 @@ async function runTagWheel(input, quickAddSettings) {
     clearPanelMask(state)
     unwritePanelLine(state)
     if (cyclePost && cyclePost.applyKeepBullet) {
-      macroShared.applyKeepBullet(state.editor, state.lineNumber, state.parsedLine, { keepParsedPrefix: true, keepCheckbox: false })
+      macroShared.applyKeepBullet(state.editor, state.lineNumber, state.parsedLine, { keepParsedPrefix: true, keepCheckbox: keepForeignCheckbox })
       emitTagWheelDevEvent(state && state.app ? state.app : null, 'pkm.run.result', {
         command: 'tagWheel',
         lineNo: state ? state.lineNumber : -1,

@@ -513,18 +513,25 @@ function hasOwnCheckboxForField(rules, state, field, core) {
   return !!String(row[selectedToken] || "").trim();
 }
 
+/**
+ * Наш ли это знак задачи — то есть вид значения именно этого Field.
+ *
+ * Наш знак стоит в `checkboxByFieldValue` у самого Field (у `type` это `[ ]`,
+ * `[N]`, `[!]`): убирая значение, мы обязаны убрать и знак. Любой другой знак
+ * задачи принадлежит человеку и действие переживает — его слово 2026-09-13
+ * (10.13.92): «буллит должен добавляться только при отсутствии в строке
+ * префикса, в противном случае должен оставаться исходный префикс».
+ *
+ * Вопрос именно о знаке, а не о поле: `fieldHasAnyCheckboxRule` отвечает «у
+ * этого Field знаки бывают», и на строке `- [x] ` с полем `type` этого мало —
+ * `[x]` не значение `type`, а задача человека.
+ */
+function checkboxBelongsToField(rules, fieldId, token) {
+  return __lineFinalizeUnified.checkboxBelongsToFieldUnified(rules, fieldId, token);
+}
+
 function fieldHasAnyCheckboxRule(rules, fieldId) {
-  const fid = String(fieldId || "").trim();
-  if (!fid) return false;
-  const byField = isObj(rules?.behavior?.prefixRules?.checkboxByFieldValue)
-    ? rules.behavior.prefixRules.checkboxByFieldValue
-    : {};
-  const row = isObj(byField[fid]) ? byField[fid] : null;
-  if (!row) return false;
-  for (const k of Object.keys(row)) {
-    if (String(row[k] || "").trim()) return true;
-  }
-  return false;
+  return __lineFinalizeUnified.fieldHasAnyCheckboxRuleUnified(rules, fieldId);
 }
 
 function enforceOffModeFinalPrefix(line, rawLine, freeRoamMode, rules, state, fieldForPrefix, core, lineFinalize, cycleEndBehavior, freeRoamBehavior, preserveSyntheticPrefix) {
@@ -1242,10 +1249,7 @@ module.exports = {
       throw new Error("pkm_rules_runtime_helpers unavailable: isFieldPrerequisiteMet");
     }
     const macroShared = globalThis.__inlinePkmMacroShared;
-    if (!macroShared || typeof macroShared.isNoContentParsed !== "function") {
-      throw new Error("pkm_macro_shared unavailable: isNoContentParsed");
-    }
-    if (typeof macroShared.isOrphanCheckboxBulletLine !== "function") {
+    if (!macroShared || typeof macroShared.isOrphanCheckboxBulletLine !== "function") {
       throw new Error("pkm_macro_shared unavailable: isOrphanCheckboxBulletLine");
     }
     if (typeof macroShared.buildBulletOnlyLine !== "function") {
@@ -1325,13 +1329,23 @@ module.exports = {
     const lineNo = cur.line;
     const rawLine = String(editor.getLine(lineNo) ?? "").replace(/\n$/, "");
     const parsed = core.parseLine(rawLine, rules);
-    const noContentStart = macroShared.isNoContentParsed(parsed, { includeTags: true });
     const cycleEndBehavior = statusCommon.normalizeCycleEndBehavior(settings?.[CYCLE_END_BEHAVIOR]);
     const cursorPolicy = statusCommon.normalizeCursorPolicy(settings?.[CURSOR_POLICY]);
-    const clearCheckboxOnNoContent = !fieldHasAnyCheckboxRule(rules, resolvedActionFieldId);
-    let parsedWork = (noContentStart && clearCheckboxOnNoContent)
-      ? { ...parsed, checkboxToken: "" }
-      : parsed;
+    /*
+     * **Строка идёт дальше со своим знаком задачи.**
+     *
+     * Здесь стояло стирание: на строке без содержимого чекбокс снимался, если у
+     * поля действия своих знаков нет. Гидратация знака не читает вовсе (она
+     * работает корзинами `tags` и `dates`), и единственным читателем стёртого
+     * был построитель префикса — то есть всё, что стирание делало, это
+     * отнимало у строки знак задачи. Замечание заказчика 2026-09-13: `- [ ] `
+     * после `importance next` давала `-  :: #/1`.
+     *
+     * Прошлая починка того же правила (10.13.92) закрыла случай со строкой, у
+     * которой есть текст, и не могла закрыть этот: до флагов `preserve` предмет
+     * уже не доезжал (У-164).
+     */
+    let parsedWork = parsed;
 
     const state = core.makeInitialState(rules, "left");
     state.mode = "left";
@@ -1437,7 +1451,10 @@ module.exports = {
         targetSelectionClearedByAction = true;
       }
       state.selected[parentSelectedKey] = nextVal ? valueId(nextVal) : "";
-      if (!state.selected[parentSelectedKey]) {
+      /* Значение ушло — уходит и его знак, но только его: чужой знак задачи
+         на этой же строке человек ставил сам (10.13.92). */
+      if (!state.selected[parentSelectedKey]
+        && checkboxBelongsToField(rules, parentSelectedKey, parsed.checkboxToken)) {
         parsedWork = { ...parsedWork, checkboxToken: "" };
       }
     } else if (actionIsCycleField || /_sub$/.test(actionFieldKey)) {
@@ -1690,7 +1707,7 @@ module.exports = {
         mode: freeRoamMode,
         freeRoamBehavior,
         hasOwnCheckbox: targetHasOwnCheckbox,
-        clearedOwnCheckbox: targetSelectionClearedByAction && fieldHasAnyCheckboxRule(rules, targetFieldIdForPrefix),
+        clearedOwnCheckbox: targetSelectionClearedByAction && checkboxBelongsToField(rules, targetFieldIdForPrefix, parsed.checkboxToken),
       });
       prefixState = {
         ...prefixState,
@@ -1812,7 +1829,12 @@ module.exports = {
         return linePipeline.stripPrefixKeepIndent(line, removeCheckbox);
       },
       shouldClearToEmptyLine: (line) => /^\s*\[[^\]]\]\s*$/.test(String(line || "")),
-      buildBulletOnlyLine: (p) => macroShared.buildBulletOnlyLine(p, { keepParsedPrefix: true, keepCheckbox: false }),
+      /* `keepCheckbox` считается, а не стоит литералом: строка, свёрнутая
+         концом цикла, теряет знак значения и сохраняет знак человека. */
+      buildBulletOnlyLine: (p) => macroShared.buildBulletOnlyLine(p, {
+        keepParsedPrefix: true,
+        keepCheckbox: !checkboxBelongsToField(rules, String(targetFieldForPrefix?.id || ""), parsed.checkboxToken),
+      }),
       shouldKeepBulletLine: (line) => /^\s*(?:-|\d+\.)\s*$/.test(String(line || "")),
     });
     finalLine = String(cyclePost?.finalLine ?? finalLine);
@@ -2148,7 +2170,10 @@ module.exports = {
       editor.replaceRange(finalLine, { line: lineNo, ch: 0 }, { line: lineNo, ch: rawLine.length });
     }
     if (cyclePost?.applyKeepBullet && !skipKeepBulletForHeadingPriorityCleanup) {
-      macroShared.applyKeepBullet(editor, lineNo, parsedWork, { keepParsedPrefix: true, keepCheckbox: false });
+      macroShared.applyKeepBullet(editor, lineNo, parsedWork, {
+        keepParsedPrefix: true,
+        keepCheckbox: !checkboxBelongsToField(rules, String(targetFieldForPrefix?.id || ""), parsed.checkboxToken),
+      });
       return;
     }
     let nextCh;

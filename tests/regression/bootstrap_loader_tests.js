@@ -1568,7 +1568,16 @@ async function run() {
   assertTrue(/function resolveInsertIndexByPlacement\(src, cursorAt, placement\)/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer exports shared resolveInsertIndexByPlacement primitive");
   assertTrue(/function isSimplePlainRaw\(rawLine, rules, options\)/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer exports shared plain-raw guard helper");
   assertTrue(/function resolveCursorByPolicy\(options\)/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer exports cursor policy resolver");
-  assertTrue(/macroShared\.applyKeepBullet\(editor, lineNo, parsedWork, \{ keepParsedPrefix: true, keepCheckbox: false \}\)/.test(statusTagsSrc), "status_tags keep-bullet preserves parsed bullet prefix without stale checkbox");
+  /*
+   * **`keepCheckbox` считается, а не стоит литералом.** Пин требовал здесь
+   * ровно `keepCheckbox: false` — то есть был написан по поведению кода, а не
+   * по обещанию продукта, и охранял ту самую половину дефекта: строка,
+   * свёрнутая концом цикла, теряла знак задачи человека вместе со знаком
+   * значения (замечание 2026-09-13, 10.13.105). Тот же приём и тем же словом
+   * уже сделан в TagWheel — см. пин про `clearedOwnCheckbox` ниже.
+   */
+  assertFalse(/keepCheckbox: false/.test(statusTagsSrc), "status_tags no longer hard-codes the keep-checkbox flag");
+  assertTrue(/keepCheckbox: !checkboxBelongsToField\(/.test(statusTagsSrc), "status_tags asks whether the line checkbox belongs to the acting field");
   assertTrue(/linePipeline\.splitLeftPrefix\(seg\.left\)/.test(statusTagsSrc), "status_tags relocation uses shared left-prefix splitter");
   assertTrue(/linePipeline\.joinLeftPrefix\(leftParts\.prefix, orderedLeftBody\)/.test(statusTagsSrc), "status_tags relocation uses shared left-prefix joiner");
   assertTrue(/linePipeline\.buildFromSegments\(seg, rules\)/.test(statusTagsSrc), "status_tags render path uses shared buildFromSegments helper");
@@ -1637,7 +1646,13 @@ async function run() {
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: getCursorAtTextEnd"\);/.test(statusTagsSrc), "status_tags text-end helper is shared-only");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: applyKeepBullet"\);/.test(statusTagsSrc), "status_tags keep-bullet helper is shared-only");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: isOrphanCheckboxBulletLine"\);/.test(statusDateSrc), "status_date orphan-checkbox helper is shared-only");
-  assertTrue(/throw new Error\("pkm_macro_shared unavailable: isNoContentParsed"\);/.test(statusTagsSrc), "status_tags no-content helper is shared-only");
+  /*
+   * В `status_tags` у помощника «на строке нет содержимого» читателя не
+   * осталось: единственным было стирание знака задачи, снятое 2026-09-13
+   * (10.13.105). Требование к нему сменилось требованием «своей копии нет»:
+   * первое стерегло бы вызов, которого нет, и было бы зелёным всегда (У-141).
+   */
+  assertFalse(/function isNoContentParsed\(/.test(statusTagsSrc), "status_tags has no local no-content helper of its own");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: isNoContentParsed"\);/.test(statusDateSrc), "status_date no-content helper is shared-only");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: getCursorAtTextEnd"\);/.test(statusDateSrc), "status_date text-end helper is shared-only");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: buildBulletOnlyLine"\);/.test(statusDateSrc), "status_date bullet-only helper is shared-only");
@@ -1762,10 +1777,27 @@ async function run() {
    * а то, что аргумент считается на обоих ходах, — этот пин.
    */
   assertFalse(/clearedOwnCheckbox:\s*false/.test(tagwheelSrc), "tagwheel no longer hard-codes the cleared-checkbox flag");
-  assertTrue(/function fieldHasAnyCheckboxRule\(/.test(tagwheelSrc), "tagwheel knows whether a field has any checkbox rule at all");
-  assertTrue(/function fieldHasAnyCheckboxRule\(/.test(statusTagsSrc), "status_tags knows whether a field has any checkbox rule at all");
+  /*
+   * **Правило одно, и дом у него один** (2026-09-13, 10.13.105). Прежде пин
+   * требовал, чтобы `fieldHasAnyCheckboxRule` был объявлен **в каждом** из
+   * двух движков, — то есть требовал копии, и копии расходились. Обе сняты:
+   * вопрос задаётся `checkboxBelongsToFieldUnified` из общего финализатора, и
+   * запрет ниже держит то, что своих копий не завели заново.
+   */
+  assertFalse(/function fieldHasAnyCheckboxRule\(/.test(tagwheelSrc), "tagwheel keeps no local copy of the checkbox-rule question");
+  assertTrue(/__lineFinalizeUnified\.fieldHasAnyCheckboxRuleUnified\(rules, fieldId\)/.test(statusTagsSrc), "status_tags asks the shared finalizer whether the field has checkbox rules at all");
+  assertFalse(/checkboxByFieldValue\[fid\]/.test(statusTagsSrc), "status_tags no longer walks the checkbox map on its own");
+  assertTrue(/function checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer owns the question whose checkbox this is");
+  assertTrue(/finalize\.checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(tagwheelSrc), "tagwheel asks the shared finalizer whose checkbox this is");
+  assertTrue(/__lineFinalizeUnified\.checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(statusTagsSrc), "status_tags asks the shared finalizer whose checkbox this is");
   assertTrue(/clearedOwnCheckbox:\s*clearedOwnCheckbox/.test(tagwheelSrc), "tagwheel passes the computed cleared-checkbox flag");
-  assertTrue(/clearedOwnCheckbox:\s*targetSelectionClearedByAction && fieldHasAnyCheckboxRule\(/.test(statusTagsSrc), "status_tags passes the computed cleared-checkbox flag");
+  assertTrue(/clearedOwnCheckbox:\s*targetSelectionClearedByAction && checkboxBelongsToField\(/.test(statusTagsSrc), "status_tags passes the computed cleared-checkbox flag");
+  /*
+   * Вопрос о **знаке**, а не о поле. `fieldHasAnyCheckboxRule` отвечает «у
+   * этого Field знаки бывают» — и на строке `- [x] #area-gamma 111` этого
+   * хватало, чтобы конец цикла унёс `[x]`, который полю не принадлежит.
+   */
+  assertTrue(/checkboxBelongsToField\(state\.rules, activeFieldId,/.test(tagwheelSrc), "tagwheel asks about the checkbox standing on the line, not about the field");
   assertTrue(/hasDateLikeMarkerInText\(textOnly\)/.test(statusDateSrc), "status_date due-left guard uses shared marker text classifier");
   assertTrue(/removeMarkerTokensFromSegment\(src, marker, valueRxSrc \|\| ""\)/.test(statusDateSrc), "status_date date marker cleanup uses shared marker-token remover helper");
   assertTrue(/function resolveFieldIdByOrderKey\(/.test(statusDateSrc), "status_date resolves generic order-key fields");
@@ -1796,7 +1828,14 @@ async function run() {
   assertTrue(/throw new Error\("shared_utils unavailable: parseHhmm"\);/.test(statusDateSrc), "status_date HH:mm parser is shared-utils-only");
   assertTrue(/throw new Error\("shared_utils unavailable: addMinutesHhmm"\);/.test(statusDateSrc), "status_date HH:mm adder is shared-utils-only");
   assertTrue(/throw new Error\("shared_utils unavailable: formatNowByMask"\);/.test(statusDateSrc), "status_date now-mask formatter is shared-utils-only");
-  assertTrue(/buildBulletOnlyLine\(parsed, \{ keepParsedPrefix: true, keepCheckbox: false \}\)/.test(tagwheelSrc), "tagwheel keep-bullet line preserves parsed bullet prefix without stale checkbox");
+  /*
+   * Тот же переезд, что и у команд: литерал `false` сменился вопросом «чей на
+   * строке знак задачи» (10.13.105). Запрет держит, чтобы литерал не вернулся
+   * ни в одно из двух мест панели — сборку свёрнутой строки и её запись.
+   */
+  assertFalse(/keepCheckbox: false/.test(tagwheelSrc), "tagwheel no longer hard-codes the keep-checkbox flag");
+  assertTrue(/keepCheckbox: keepForeignCheckbox/.test(tagwheelSrc), "tagwheel keeps a checkbox that is not the acting field's own");
+  assertTrue(/var keepForeignCheckbox = !checkboxBelongsToField\(state\.rules, activeFieldId,/.test(tagwheelSrc), "tagwheel asks whose checkbox stands on the line before folding it away");
   assertTrue(/linePipeline\.splitLeftPrefix\(seg\.left\)/.test(tagwheelSrc), "tagwheel reorder\/relocate uses shared left-prefix splitter");
   assertTrue(/linePipeline\.joinLeftPrefix\(leftParts\.prefix, orderedLeft\)/.test(tagwheelSrc), "tagwheel reorder\/relocate uses shared left-prefix joiner");
   assertTrue(/state\.session\.activeField = state\.core\.resolveInitialActiveField\(state\.rules, state\.session, state\.session\.mode\)/.test(tagwheelSrc), "tagwheel reapplies lead/default field resolver on Tab mode switch");
