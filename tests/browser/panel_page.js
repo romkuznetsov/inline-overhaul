@@ -33,6 +33,7 @@ const { EditorState } = require("@codemirror/state");
 const { EditorView } = require("@codemirror/view");
 const { history } = require("@codemirror/commands");
 const decorations = require("../../src/ui/editor/decorations.js");
+const visuals = require("../../src/core/editor_visuals_config.js");
 const panelMask = require("../../src/ui/editor/panel_mask.js");
 const runtime = require("../../pkm_runtime_v2.js");
 const panelBench = require("../harness/panel_bench.js");
@@ -42,7 +43,9 @@ const panelBench = require("../harness/panel_bench.js");
 const FIXTURE = require("virtual:panel-fixture");
 
 const CFG = FIXTURE.cfg;
-const plugin = { getConfig: () => CFG };
+/* `runInlineToNote` кнопка `→` зовёт по нажатию; на этой странице по ней не
+   нажимают, но виджет спрашивает имя команды у реестра при отрисовке. */
+const plugin = { getConfig: () => CFG, runInlineToNote: () => {} };
 
 const view = new EditorView({
   state: EditorState.create({
@@ -51,6 +54,14 @@ const view = new EditorView({
       EditorView.lineWrapping,
       history(),
       decorations.createTagVisualDecorationExtension(plugin),
+      /*
+       * Отметки строки, и среди них плавающая кнопка `→`. Слой этот к панели
+       * отношения не имеет — и потому здесь он и нужен: окно отрисовки рвёт
+       * надвое **маска панели**, а платит за это сосед, который рисует по
+       * строкам. Пока страница его не ставила, две кнопки заказчика ни один
+       * из семи шагов увидеть не мог.
+       */
+      decorations.createSourceMarkDecorationExtension(plugin),
       decorations.createBlockFillLayerExtension(plugin),
       /*
        * Маска панели: что её полоса закрывает собой, прячется оформлением.
@@ -181,6 +192,35 @@ window.__ioPanelProbe = function () {
     lineBox: boxOf(el),
     /* Спрятанное маской: сколько знаков строки человек не видит. */
     hiddenChars: Math.max(0, line.text.length - String(el ? el.textContent || "" : "").length),
+    /*
+     * **Сколько кусков у отрисованного окна** — условие, при котором живёт
+     * дефект двух кнопок. Спрашивается у платформы, а не выводится из длины
+     * спрятанного: порог `minPointSize` принадлежит CodeMirror, и своя копия
+     * этого числа разошлась бы с ним молча (У-32).
+     */
+    viewportPieces: view.visibleRanges.length,
+    /* Плавающих кнопок `→` на этой строке — вопрос к браузеру. */
+    flyOnLine: el ? el.querySelectorAll(".io-flybtn").length : -1,
+    flyTotal: document.querySelectorAll(".io-flybtn").length,
+    /*
+     * **Сколько подложек Blocks стоит ровно на своей копии.** Кнопка — не
+     * единственный слой, который ходит по строкам; у подложки второй проход
+     * даёт прямоугольник, совпадающий с первым до точки, и на экране его не
+     * видно. Считается он здесь, чтобы правило держалось за **все** слои, а не
+     * за тот, которым дефект нашли (У-159).
+     */
+    bandTotal: document.querySelectorAll("." + visuals.BLOCK_FILL_MARKER_CLASS).length,
+    bandTwins: (() => {
+      const seen = Object.create(null);
+      let twins = 0;
+      for (const node of document.querySelectorAll("." + visuals.BLOCK_FILL_MARKER_CLASS)) {
+        const r = node.getBoundingClientRect();
+        const key = [round(r.top), round(r.left), round(r.width), round(r.height)].join("/");
+        if (seen[key]) twins += 1;
+        seen[key] = true;
+      }
+      return twins;
+    })(),
     overlayBox: boxOf(overlay),
     overlayRows: overlay ? overlay.querySelectorAll(".io-twscroller__row").length : 0,
     doc: view.state.doc.toString(),

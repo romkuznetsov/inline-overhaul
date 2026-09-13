@@ -448,7 +448,14 @@
       "bubbleWidthPct": 100,
       "bubbleHeightPct": 100,
       "emptyBubblePct": 100,
-      "cornersPct": 0
+      "cornersPct": 0,
+      "blockFill": {
+        "enabled": true,
+        "color": "#908e8e",
+        "opacity": 30,
+        "widthPct": 100,
+        "heightPct": 100
+      }
     },
     "tagBars": {
       "stripesToShow": 2,
@@ -475,6 +482,8 @@
       "templateFolder": "",
       "outputFolder": "",
       "defaultTemplate": "",
+      "floatingButton": true,
+      "floatingButtonGap": 12,
       "smartRules": [],
       "noteName": {
         "mode": "auto",

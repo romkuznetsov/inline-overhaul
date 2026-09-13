@@ -75,6 +75,7 @@ const {
   scanLineVisualTokens,
   tagVisualSizingForZone,
   tagwheelPanelSpanInLine,
+  tagwheelPanelSegmentInLine,
   tagwheelPanelSpans,
 } = __editorVisualsConfig;
 
@@ -130,6 +131,46 @@ function buildDecorationSet(ranges, where) {
       + ", первый " + JSON.stringify(firstRange) + ": " + firstMessage);
   }
   return builder.finish();
+}
+
+/**
+ * Номера строк документа, попавших в отрисованное окно, — **каждая по разу**.
+ *
+ * **Правило объявлено здесь один раз** (У-32, У-150), и зовут его все, кто
+ * рисует по строкам: пузыри тегов, подложка Blocks, вид панели TagWheel и
+ * отметки строки с плавающей кнопкой. До 2026-09-14 каждый из четырёх писал
+ * этот обход сам, и все четыре писали его одинаково неверно.
+ *
+ * **Чем неверно.** Отрисованное окно — это не один отрезок. CodeMirror
+ * считает его `RangeSet.spans` по декорациям **состояния** и разрывает на
+ * куски там, где стоит замена длиной от двадцати знаков
+ * (`computeVisibleRanges` в `@codemirror/view`, порог `minPointSize`). Такая
+ * замена у нас одна — маска панели TagWheel, которая прячет значения,
+ * закрытые полосой. То есть у строки, где в противоположном Block значений
+ * набралось на два десятка знаков, отрезка становится два, оба кончаются и
+ * начинаются **внутри одной строки**, и обход по отрезкам проходит эту строку
+ * дважды.
+ *
+ * Заказчик увидел это так: «при наличии values в left block при открытии
+ * tagwheel right я вижу две кнопки i2n-floating» (2026-09-13). Кнопка стоит
+ * виджетом в конце строки, и второй проход ставит второй такой же виджет
+ * рядом.
+ *
+ * **Отрезки платформа отдаёт по возрастанию**, поэтому «уже пройдено» — одно
+ * число, а не множество.
+ */
+function visibleLineNumbers(view) {
+  const doc = view.state.doc;
+  const ranges = Array.isArray(view.visibleRanges) ? view.visibleRanges : [];
+  const out = [];
+  let done = 0;
+  for (const vr of ranges) {
+    const from = doc.lineAt(vr.from).number;
+    const to = doc.lineAt(vr.to).number;
+    for (let n = Math.max(from, done + 1); n <= to; n += 1) out.push(n);
+    if (to > done) done = to;
+  }
+  return out;
 }
 
 /**
@@ -341,10 +382,8 @@ function buildTagVisualDecorations(view, plugin) {
   const tagwheelColors = getTagwheelHeaderColorsFromConfig(cfg);
 
   const readRowForToken = (token) => readTagVisualRowByTokenMaps(token, fieldMap, userTags, globalMap);
-  for (const vr of view.visibleRanges) {
-    let lineNo = view.state.doc.lineAt(vr.from).number;
-    const endLineNo = view.state.doc.lineAt(vr.to).number;
-    while (lineNo <= endLineNo) {
+  for (const lineNo of visibleLineNumbers(view)) {
+    {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
       const scannedTokens = [];
@@ -564,7 +603,6 @@ function buildTagVisualDecorations(view, plugin) {
           tagVisibilityRaw: rawStripTagVisibility,
         });
       }
-      lineNo += 1;
     }
   }
   ranges.sort((a, b) => {
@@ -812,10 +850,8 @@ function blockFillDocRanges(view, plugin) {
   const sep2 = String(io.separator2 || "").trim();
   const elementMarkers = buildElementMarkersFromConfig(cfg);
   const out = [];
-  for (const vr of view.visibleRanges) {
-    let lineNo = view.state.doc.lineAt(vr.from).number;
-    const endLineNo = view.state.doc.lineAt(vr.to).number;
-    while (lineNo <= endLineNo) {
+  for (const lineNo of visibleLineNumbers(view)) {
+    {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
       for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers)) {
@@ -840,7 +876,6 @@ function blockFillDocRanges(view, plugin) {
           lineTo: line.from + text.length,
         });
       }
-      lineNo += 1;
     }
   }
   return out;
@@ -981,7 +1016,28 @@ function floatingButtonLineNumber(view, plugin) {
   const main = view.state.selection && view.state.selection.main ? view.state.selection.main : null;
   if (!main) return -1;
   const line = view.state.doc.lineAt(main.head);
-  return String(line.text || "").trim() ? line.number : -1;
+  const text = String(line.text || "");
+  if (!text.trim()) return -1;
+  /*
+   * **Пока на строке открыта панель TagWheel, кнопки на ней нет** (его слово
+   * 2026-09-13: «вообще я думаю, что при открытии tagwheel кнопка i2n-floating
+   * не должна отображаться»).
+   *
+   * Причина не только в виде. Кнопка зовёт `Inline to note` на **той строке,
+   * где стоит курсор**, а во время сессии в строке лежит ещё и полоса панели —
+   * то есть нажатие унесло бы в новую заметку её разметку вместе с текстом
+   * человека. Отдельного вопроса «а что делать с полосой» у переноса нет и
+   * заводить его не надо: у строки, которую человек сейчас правит панелью,
+   * переносить нечего.
+   *
+   * Признак спрашивается у **того же объявления**, которым панель узнаёт себя
+   * на строке (`tagwheelPanelSegmentInLine`), а не у состояния окна: своя
+   * копия правила разошлась бы с ним молча (У-32), а состояние устаревает —
+   * заметка бывает открыта во второй панели, отрисовка случается позже
+   * закрытия сессии.
+   */
+  if (tagwheelPanelSegmentInLine(text)) return -1;
+  return line.number;
 }
 
 /**
@@ -1616,10 +1672,8 @@ function buildTagwheelHeaderDecorations(view, plugin) {
   const placeholders = buildTagwheelPlaceholderSetFromConfig(cfg);
   const ranges = [];
 
-  for (const vr of view.visibleRanges) {
-    let lineNo = view.state.doc.lineAt(vr.from).number;
-    const endLineNo = view.state.doc.lineAt(vr.to).number;
-    while (lineNo <= endLineNo) {
+  for (const lineNo of visibleLineNumbers(view)) {
+    {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
       for (const span of tagwheelPanelSpans(text, colors, placeholders)) {
@@ -1650,7 +1704,6 @@ function buildTagwheelHeaderDecorations(view, plugin) {
           : cmView.Decoration.mark({ attributes: { style: span.style } });
         ranges.push({ from, to, rank: TAGWHEEL_SPAN_RANK[span.kind] || 0, deco });
       }
-      lineNo += 1;
     }
   }
 
@@ -1723,10 +1776,8 @@ function buildSourceMarkDecorations(view, plugin) {
   const lineDeco = cmView.Decoration.line({ attributes: { style, class: "io-done-line" } });
 
   const ranges = [];
-  for (const vr of view.visibleRanges) {
-    let lineNo = view.state.doc.lineAt(vr.from).number;
-    const endLineNo = view.state.doc.lineAt(vr.to).number;
-    while (lineNo <= endLineNo) {
+  for (const lineNo of visibleLineNumbers(view)) {
+    {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
       if (marks.highlight && lineHasProcessedToken(text, marks.token)) {
@@ -1744,7 +1795,6 @@ function buildSourceMarkDecorations(view, plugin) {
           }),
         });
       }
-      lineNo += 1;
     }
   }
 
@@ -1783,6 +1833,7 @@ function createTagwheelHeaderDecorationExtension(plugin) {
 module.exports = {
   traceEvent,
   buildDecorationSet,
+  visibleLineNumbers,
   TagVisualTokenWidget,
   ZeroWidthInlineWidget,
   buildBlockStyleDecoration,
