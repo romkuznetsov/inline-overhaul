@@ -1024,6 +1024,60 @@ function blockFillRoomBeforeFlyButtonPx(view, span, buttonLine) {
 }
 
 /**
+ * Где кончаются зрительные строки — **измерением**, а не вопросом к платформе.
+ *
+ * Запасной путь к `moveToLineBoundary`. Тот отвечает не всегда: у заказчика
+ * строка из двух рядов приходила однорядной, и подложка опускалась на половину
+ * лишней высоты (10.13.102). Рисовать такой кусок прямоугольниками платформы
+ * тоже нельзя: отрезок, пересекающий ряды, она рисует **выделением** — первый
+ * прямоугольник до правого края содержимого, последний от левого, — и на его
+ * экране вышла полоса во всю ширину окна (10.13.103).
+ *
+ * Поэтому границу ряда находим сами: положение, на котором вертикаль каретки
+ * прыгает больше чем на половину высоты ряда, и есть начало следующего.
+ * Ищется двоичным делением — семь вопросов к координатам на ряд вместо сотни.
+ *
+ * Половина высоты ряда — не украшение, а мера: у пузыря тега своя вертикаль, и
+ * она отличается на единицы точек (У-120), а ряд отстоит на десятки.
+ *
+ * Ответ `null` значит «измерить не вышло», и это ответ, а не отказ.
+ */
+function blockFillVisualRowsByMeasure(view, from, to) {
+  const lineH = Number(view.defaultLineHeight);
+  if (!Number.isFinite(lineH) || lineH <= 0 || !(to > from)) return null;
+  const topAt = (pos) => {
+    try {
+      const c = view.coordsAtPos(pos, 1);
+      return c && Number.isFinite(Number(c.top)) ? Number(c.top) : null;
+    } catch (_) {
+      /* Проба: платформа может не знать положения, которого не отрисовала. */
+      return null;
+    }
+  };
+  const sameRow = (a, b) => Math.abs(a - b) <= lineH / 2;
+  const rows = [];
+  let start = from;
+  for (let guard = 0; guard < 64 && start < to; guard += 1) {
+    const base = topAt(start);
+    const last = topAt(to);
+    if (base === null || last === null) return null;
+    if (sameRow(last, base)) { rows.push({ from: start, to }); start = to; break; }
+    let lo = start;
+    let hi = to;
+    while (lo + 1 < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const t = topAt(mid);
+      if (t === null) return null;
+      if (sameRow(t, base)) lo = mid; else hi = mid;
+    }
+    if (!(hi > start)) return null;
+    rows.push({ from: start, to: hi });
+    start = hi;
+  }
+  return rows.length ? rows : null;
+}
+
+/**
  * Отрезок, разрезанный по зрительным строкам (S7).
  *
  * Зачем резать: `forRange` на отрезке, начавшемся на одной зрительной строке и
@@ -1065,7 +1119,8 @@ function blockFillPiecesOf(view, span) {
    * замечание). Здесь он получается счётом границ, без единого измерения.
    */
   const rows = [];
-  let at = Number.isFinite(Number(span.lineFrom)) ? Number(span.lineFrom) : span.from;
+  const at0 = Number.isFinite(Number(span.lineFrom)) ? Number(span.lineFrom) : span.from;
+  let at = at0;
   /*
    * Обход идёт до конца **строки**, а не до конца отрезка, и это не лишняя
    * работа: `rows` — число зрительных строк строки, и делить на него высоту её
@@ -1088,17 +1143,30 @@ function blockFillPiecesOf(view, span) {
    * цена живут в `blockFillRowCountTrusted`. Не верим — кусок уходит на
    * названный запасной путь, где вертикаль берётся у платформы.
    */
-  const trusted = (() => {
+  const blockHeight = (() => {
     try {
       const block = view.lineBlockAt(span.lineFrom);
-      return blockFillRowCountTrusted(rows.length,
-        block ? block.height : NaN, view.defaultLineHeight);
+      return block ? Number(block.height) : NaN;
     } catch (_) {
       /* Проба: платформу спросили о строке, которой она может не знать. */
-      return true;
+      return NaN;
     }
   })();
-  if (!trusted) return whole;
+  if (!blockFillRowCountTrusted(rows.length, blockHeight, view.defaultLineHeight)) {
+    /*
+     * Счёт не годится — режем сами, измерением. Только так кусок остаётся
+     * **внутри одного ряда**: прямоугольники платформы на отрезке, который
+     * ряды пересекает, нарисованы выделением, и горизонталь у них не наша.
+     */
+    const measured = blockFillVisualRowsByMeasure(view, at0, stop);
+    if (measured && blockFillRowCountTrusted(measured.length, blockHeight, view.defaultLineHeight)) {
+      rows.length = 0;
+      for (const row of measured) rows.push(row);
+      at = measured[measured.length - 1].to;
+    } else {
+      return whole;
+    }
+  }
   /* Обход кончился раньше отрезка — остаток строки считается последней
      зрительной строкой, а не теряется. */
   if (at < span.to) rows.push({ from: at, to: span.to });

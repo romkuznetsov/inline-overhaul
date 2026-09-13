@@ -138,6 +138,15 @@ const LINES = [
    *     проверялось бы совпадением сторон (У-147).
    */
   "- [ ] #todo " + SEP + " a long line of the owner that wraps and leaves the button alone here ok " + SEP + " #processed #dnef",
+  /*
+   * 11. **Block, который сам пересекает зрительные строки.** У заказчика
+   *     правый Block начинается в конце первой строки (пузырь `#/1`) и
+   *     продолжается на второй. Без такой строки правило «кусок остаётся
+   *     внутри ряда» проверять не на чем: у всех прежних строк каждый
+   *     Block умещался в один ряд целиком (У-113).
+   */
+  "- [ ] #todo " + SEP + " short text here" + SEP
+    + " #processed #aVeryLongTagThatCannotFitOnTheFirstRow",
 ];
 
 /*
@@ -247,6 +256,35 @@ window.__ioSetCursor = function (lineNumber) {
   const line = view.state.doc.line(Number(lineNumber) || 1);
   view.dispatch({ selection: { anchor: line.to, head: line.to } });
   return settled();
+};
+
+/**
+ * Отнять у платформы ответ «где кончается зрительная строка».
+ *
+ * Не украшение стенда, а единственный способ прогнать **запасной путь**: у
+ * заказчика `moveToLineBoundary` отвечал концом строки документа, и подложка
+ * от этого опускалась на половину лишней высоты (10.13.102), а нарисованная
+ * прямоугольниками платформы — растягивалась во всю ширину окна (10.13.103).
+ * В браузере этот отказ сам не случается ни разу; значит его надо устроить.
+ *
+ * Возврат обязателен: на сломанной границе идут все следующие измерения, и
+ * молча оставить её значило бы проверять другой редактор.
+ */
+const realMoveToLineBoundary = view.moveToLineBoundary.bind(view);
+window.__ioBreakRowBoundary = async function (on) {
+  view.moveToLineBoundary = on
+    ? (range) => ({ head: view.state.doc.lineAt(Number(range && range.head) || 0).to })
+    : realMoveToLineBoundary;
+  /*
+   * Слой перерисовывается **по подписи**, а не по каждой правке: пустая правка
+   * выделения его не будит, и первая версия этого выключателя честно ломала
+   * границу, а на экране оставались прежние прямоугольники — то есть сверка
+   * сравнивала бы состояние само с собой (У-92). Поэтому подпись двигается
+   * туда и обратно: ширина на деление в сторону и назад.
+   */
+  const was = Number(CFG.visual.tags.blockFill.widthPct);
+  await window.__ioSetBand({ widthPct: was >= 100 ? was - 1 : was + 1 });
+  return window.__ioSetBand({ widthPct: was });
 };
 
 window.__ioSetTags = function (patch) {

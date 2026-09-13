@@ -127,6 +127,17 @@ const EDITOR_INJECTIONS = {
     replace: "  const rowTop = rowsTop;",
   },
   /*
+   * Своё измерение рядов отключено: когда платформа не отвечает, где кончается
+   * зрительная строка, резать становится нечем. Тогда кусок уходит одним, а
+   * платформа рисует его выделением — во всю ширину окна. Ровно это заказчик
+   * и увидел 2026-09-13 (10.13.103).
+   */
+  "row-measure-off": {
+    file: "src/ui/editor/decorations.js",
+    find: "function blockFillVisualRowsByMeasure(view, from, to) {",
+    replace: "function blockFillVisualRowsByMeasure(view, from, to) {\n  if (view) return null;",
+  },
+  /*
    * Знак заголовка обратно становится тегом: «`##` (уровень хедера) стал
    * пузырьком — этого не должно быть».
    */

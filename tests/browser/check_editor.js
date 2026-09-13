@@ -154,6 +154,40 @@ async function main() {
       }
     }
 
+    /*
+     * ---- 0в. Запасной путь даёт то же, что основной --------------------
+     *
+     * Платформа отвечает «где кончается зрительная строка» не всегда: у
+     * заказчика она отдавала конец строки документа, и подложка съезжала вниз
+     * (10.13.102), а нарисованная прямоугольниками платформы растягивалась во
+     * всю ширину окна (10.13.103). В браузере этот отказ сам не случается —
+     * значит его надо устроить, иначе запасной путь не проверяет никто.
+     *
+     * Сверяются **прямоугольники**: на сломанной границе они обязаны встать
+     * там же, где стояли. Возврат границы — тут же, иначе все следующие
+     * измерения пойдут по другому редактору.
+     */
+    const fallback = await page.evaluate(async () => {
+      await window.__ioBreakRowBoundary(true);
+      const probe = window.__ioEditorProbe();
+      await window.__ioBreakRowBoundary(false);
+      return probe;
+    });
+    const sameBands = (a, b) => a.length === b.length && a.every((band, i) => near(band.top, b[i].top, 0.6)
+      && near(band.bottom, b[i].bottom, 0.6) && near(band.left, b[i].left, 0.6)
+      && near(band.right, b[i].right, 0.6));
+    if (!sameBands(base.bands, fallback.bands)) {
+      const diff = fallback.bands.map((band, i) => {
+        const was = base.bands[i];
+        return was && near(band.top, was.top, 0.6) && near(band.left, was.left, 0.6)
+          ? null
+          : "[" + (was ? was.top + "…" + was.bottom + " x " + was.left + "…" + was.right : "нет")
+            + " → " + band.top + "…" + band.bottom + " x " + band.left + "…" + band.right + "]";
+      }).filter(Boolean);
+      bad("без ответа платформы о конце зрительной строки подложки встали иначе ("
+        + base.bands.length + " против " + fallback.bands.length + "): " + diff.slice(0, 3).join(" "));
+    }
+
     /* ---- 1. Высота подложки одна на все строки ------------------------ */
     const heights = Array.from(new Set(base.bands.map((b) => b.height)));
     if (heights.length !== 1) {
