@@ -827,7 +827,21 @@ async function run() {
   assertTrue(/function collectDateLikeMarkersFromRules\(/.test(linePipelineSrc), "line pipeline exports date-like marker collection helper");
   assertTrue(/function removeTokensAcrossSegments\(/.test(linePipelineSrc), "line pipeline exports segment-wide token stripping helper");
   assertTrue(/function cleanOriginalTextForLeftDate\(/.test(linePipelineSrc), "line pipeline exports left-date original-text cleaner helper");
-  assertTrue(/\^\\d\+\\\.\(\?:\\s\|\$\)/.test(linePipelineSrc), "line pipeline treats numbered prefixes with optional trailing space");
+  /*
+   * Знак начала строки объявлен **один раз** — в `splitLeftPrefix`, и знает он
+   * все четыре формы: список, номер, чекбокс за ними и знак заголовка
+   * (2026-09-13, 10.13.94). Прежде здесь стоял образец `^\d+\.(?:\s|$)` из
+   * `buildFromSegments`: тот свой образец снят, и утверждение переехало за
+   * своим предметом (У-94).
+   */
+  assertTrue(/function splitLeftPrefix\(raw\) \{[\s\S]{0,200}#\{1,6\}/.test(linePipelineSrc),
+    "line pipeline line-prefix rule knows the heading marker");
+  assertTrue(/function splitLeftPrefix\(raw\) \{[\s\S]{0,200}\\d\+\\\./.test(linePipelineSrc),
+    "line pipeline line-prefix rule knows the numbered marker");
+  assertFalse(/const hasListPrefix = \//.test(linePipelineSrc),
+    "line pipeline builds have their own line-prefix pattern again");
+  assertFalse(/function splitLeftPrefix\(raw\) \{\s*const src = String\(raw \|\| ""\)\.trim\(\);\s*const m = src\.match/
+    .test(pkmLineFinalizeUnifiedSrc), "pkm_line_finalize declares its own copy of the line-prefix splitter again");
   assertTrue(/linePipeline\.enforceTextSegmentForLeftTag\(finalLine, rules, originalText\)/.test(statusTagsSrc), "status_tags text enforcement delegates to shared line-pipeline helper");
   assertTrue(/function normalizeCycleEndBehavior\(/.test(pkmMacroSharedSrc), "pkm macro shared exports cycle behavior normalizer");
   assertTrue(/function escapeRegex\(/.test(pkmMacroSharedSrc), "pkm macro shared exports regex escaper");

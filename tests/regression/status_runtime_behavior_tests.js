@@ -510,7 +510,57 @@ async function testStatusImportanceOffHeadingRightPanelKeepsSeparator() {
   assertTrue(/^\s*##\s+/.test(line), "status_tags importance off heading right should keep heading prefix");
   assertTrue(/#\/1/.test(line), "status_tags importance off heading right should still apply priority token");
   assertTrue(!/^\s*[-*+]\s+/.test(line), "status_tags importance off heading right should not convert to list prefix");
-  assertTrue(/^\s*##\s+\S+\s+heading\s+\S+\s+#\/1\s*$/.test(line), "status_tags importance off heading right should keep heading text before token and retain separator structure");
+  /*
+   * **Первого разделителя в этой строке быть не должно, и прежде он тут
+   * требовался** (2026-09-13, 10.13.94). Утверждение было написано по
+   * поведению кода: знак заголовка подходил под наше правило «что такое тег»,
+   * зона значений считалась непустой, и строка получала разделитель, за
+   * которым слева ничего не стоит. Заказчик принёс это словом «чини»:
+   * `## test` после `Imp` давало `## || test :: #/1`.
+   *
+   * Правило то же, что у строки без знака заголовка: значений слева нет —
+   * правый Block отделяется **вторым** разделителем, и только им.
+   */
+  assertTrue(/^\s*##\s+heading\s+\S+\s+#\/1\s*$/.test(line),
+    "у строки-заголовка без значений слева первого разделителя быть не должно: " + JSON.stringify(line));
+  assertTrue(line.indexOf("||") === -1,
+    "первый разделитель в строке-заголовке без значений слева: " + JSON.stringify(line));
+}
+
+/*
+ * **Скобки за знаком заголовка — текст человека, и он их не теряет**
+ * (2026-09-13, 10.13.94).
+ *
+ * Задача у Obsidian — это скобки за знаком **списка**; у заголовка знака
+ * списка нет, и `#### [ ] heading` есть заголовок с текстом `[ ] heading`.
+ * Возврат знака заголовка снимал их безусловно, и текст человека пропадал из
+ * строки — тот же класс, что У-91.
+ *
+ * Нашлось это **обходом по симптому**: каждый экспорт модулей доводки обёрнут
+ * и спрошен «вход нёс скобки, выход не несёт». Чтением трёх дорог сборки
+ * место не находилось.
+ */
+async function testStatusHeadingKeepsBracketsThatAreNotACheckbox() {
+  const source = "#### [ ] heading";
+  const editor = makeEditor(source, source.length);
+  await runPkmCommandWithEditor("statusTags", editor, {
+    "Rules path": "InlineOverhaul_Generated_RULES_TagWheel.md",
+    "Action type": "cycle_field:importance",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      freeRoam: { importance: "off" },
+      panel: { importance: "right" },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  const line = editor.snapshot().line;
+  assertTrue(/#\/1/.test(line),
+    "контроль: команда не сработала, мерить нечего — " + JSON.stringify(line));
+  assertTrue(line.indexOf("[ ]") !== -1,
+    "скобки за знаком заголовка — текст человека, и они обязаны остаться: " + JSON.stringify(line));
+  assertTrue(/^\s*####\s+\[ \]\s+heading\s/.test(line),
+    "текст человека за знаком заголовка обязан остаться на своём месте: " + JSON.stringify(line));
 }
 
 async function testStatusContextMinimalHeadingKeepsTextSlotAfterSeparator() {
@@ -1754,6 +1804,18 @@ function testBuiltLineSurvivesParseAndBuild() {
     leftMode: { fields: [] },
     rightMode: { fields: [] },
   };
+  /*
+   * **Заголовки куплены его словом «чини» 2026-09-13** (10.13.94). Список был
+   * из одних строк со знаком списка, и целого класса не видел: знак заголовка
+   * — чужая разметка, а наше правило «что такое тег» (решётка плюс непробел)
+   * ложится на `##` целиком. Одна решётка под него не подходит, две и больше —
+   * подходят, поэтому `# текст` вела себя верно, а `## текст` получала
+   * разделитель при пустой зоне значений и знак списка впереди заголовка.
+   *
+   * Скобки за знаком заголовка — отдельная строка списка: задача у Obsidian
+   * это скобки за знаком **списка**, и `#### [ ] текст` есть заголовок с
+   * текстом `[ ] текст`.
+   */
   const lines = [
     "-  :: 👤111",
     "-  :: 📅2026-01-02 03:04",
@@ -1761,6 +1823,14 @@ function testBuiltLineSurvivesParseAndBuild() {
     "- #work || текст",
     "- #work || текст :: 📅2026-01-02 03:04",
     "- текст :: 👤111",
+    "# текст",
+    "## текст",
+    "###### текст",
+    "## текст :: 👤111",
+    "## #work || текст",
+    "## #work || текст :: 📅2026-01-02 03:04",
+    "#### [ ] текст",
+    "#### [ ] текст :: 👤111",
   ];
   const moved = [];
   for (const line of lines) {
@@ -1771,6 +1841,56 @@ function testBuiltLineSurvivesParseAndBuild() {
   assertTrue(moved.length === 0,
     "строка, собранная плагином, разбором и сборкой меняется — каждый круг доводки будет её растить:\n  "
     + moved.join("\n  "));
+}
+
+/*
+ * **Знак заголовка — начало строки, а не зона значений** (2026-09-13,
+ * 10.13.94).
+ *
+ * Неподвижности на этот класс не хватает: строка `#### [ ] текст :: 👤111`
+ * собирается обратно одинаково и тогда, когда текст человека объявлен зоной
+ * значений. Разница видна только в самом разборе — и видна она заказчику
+ * позже, когда панель показывает его слова ячейками.
+ *
+ * Спрашивается **равенство двум дорогам**: у строки со знаком заголовка зоны
+ * обязаны лечь так же, как у строки со знаком списка. Рядом положительный
+ * контроль: у строки со знаком списка они и правда ложатся так.
+ */
+function testHeadingPrefixIsNotAValueZone() {
+  const linePipeline = require(path.join(__dirname, "..", "..", "src", "core", "line_pipeline.js"));
+  const rules = {
+    io: { separator1: "||", separator2: "::" },
+    dates: { markers: ["📅", "👤"] },
+    leftMode: { fields: [] },
+    rightMode: { fields: [] },
+  };
+  /*
+   * Пара «заголовок — список» с ожидаемыми зонами у каждой. Третья пара
+   * разводит формы нарочно: скобки за знаком **списка** это задача, а за
+   * знаком заголовка — текст человека, и совпадать эти две строки не обязаны
+   * (иначе проверка требовала бы ровно того дефекта, который чинится).
+   */
+  const pairs = [
+    { head: "## текст :: 👤111", list: "- текст :: 👤111",
+      headLeft: "##", listLeft: "-", headText: "текст", listText: "текст" },
+    { head: "## текст", list: "- текст",
+      headLeft: "##", listLeft: "-", headText: "текст", listText: "текст" },
+    { head: "#### [ ] текст :: 👤111", list: "- [ ] текст :: 👤111",
+      headLeft: "####", listLeft: "- [ ]", headText: "[ ] текст", listText: "текст" },
+  ];
+  for (const row of pairs) {
+    const head = linePipeline.splitSegments(row.head, rules);
+    const list = linePipeline.splitSegments(row.list, rules);
+    assertTrue(String(list.left || "") === row.listLeft && String(list.text || "") === row.listText,
+      "контроль: у строки со знаком списка зоны легли не так, как ожидалось — "
+        + JSON.stringify(row.list) + " -> " + JSON.stringify(list));
+    assertTrue(String(head.left || "") === row.headLeft,
+      "знак заголовка обязан быть началом строки, а не зоной значений: "
+        + JSON.stringify(row.head) + " -> " + JSON.stringify(head));
+    assertTrue(String(head.text || "") === row.headText,
+      "текст человека у заголовка лёг не в слот текста: "
+        + JSON.stringify(row.head) + " -> " + JSON.stringify(head));
+  }
 }
 
 /*
@@ -2928,6 +3048,7 @@ async function run() {
   await testStatusTagsOffHeadingDoesNotInjectBullet();
   await testStatusImportanceOffHeadingRewritesWithoutHeadingLeak();
   await testStatusImportanceOffHeadingRightPanelKeepsSeparator();
+  await testStatusHeadingKeepsBracketsThatAreNotACheckbox();
   await testStatusImportanceFullDoesNotDropAllTokens();
   await testStatusTagsImportanceOffHeadingNoMarkerLeak();
   await testStatusTagsImportanceOffHeadingLeftPanelAddsSeparator();
@@ -2975,6 +3096,7 @@ async function run() {
   await testPanelShowsItsSeparatorOnBothSides();
   await testStatusDateKeepsManagedTagsInLeftBlock();
   testBuiltLineSurvivesParseAndBuild();
+  testHeadingPrefixIsNotAValueZone();
   await testFieldCommandAsksPrerequisiteLikePanelDoes();
   await testRightBlockOnEmptyLineKeepsTextSlotOnBothPaths();
   await testStatusDateAsksBulletSettingLikeTagStepDoes();

@@ -923,37 +923,40 @@ function parseLine(rawLine, rules) {
   var indent = String(seg && seg.indent || '')
   var leftBody = String(seg && seg.left || '').trim()
 
+  /*
+   * **Знак начала строки спрашивается у общего правила, а не у своих образцов**
+   * (2026-09-13, 10.13.94). Здесь стояло третье объявление того же: свой поиск
+   * заголовка, за ним свой знак списка, за ним свои скобки чекбокса. Каждое
+   * расходилось с общим по-своему:
+   *
+   *   - заголовок требовал пробела за решётками, а левый сегмент приходит
+   *     обрезанным — у строки `#### [ ] test` он равен `####`, и заголовок не
+   *     узнавался вовсе;
+   *   - скобки снимались как чекбокс и за знаком заголовка — а у Obsidian
+   *     задача это скобки за знаком **списка**, и `#### [ ] test` есть
+   *     заголовок с текстом `[ ] test`. Скобки человека из строки пропадали
+   *     (тот же класс, что У-91).
+   *
+   * Общее правило — `splitLeftPrefix` в `line_pipeline.js`, и оно же отвечает
+   * на этот вопрос всем остальным.
+   */
   var headingToken = ''
-  var mh = leftBody.match(/^(#{1,6})\s+(.*)$/)
-  if (mh) {
-    headingToken = mh[1]
-    leftBody = String(mh[2] || '')
-  }
-
   var bulletToken = ''
   var checkboxToken = ''
-
-  /*
-   * Хвостовой пробел у знака здесь не обязателен: левый сегмент приходит
-   * обрезанным, и у строки `-  :: 👤111` он равен одному дефису. Прежние
-   * образцы требовали пробел после знака, потому что читали строку целиком.
-   */
-  var mb = leftBody.match(/^([-*+])(?:\s+|$)/)
-  if (mb) {
-    bulletToken = mb[1]
-    leftBody = leftBody.slice(mb[0].length)
-  } else {
-    var mn = leftBody.match(/^(\d+\.)(?:\s+|$)/)
-    if (mn) {
-      bulletToken = mn[1]
-      leftBody = leftBody.slice(mn[0].length)
+  var prefixParts = __linePipeline.splitLeftPrefix(leftBody)
+  if (prefixParts.prefix) {
+    var pfx = String(prefixParts.prefix)
+    var mHead = pfx.match(/^#{1,6}$/)
+    if (mHead) {
+      headingToken = pfx
+    } else {
+      var mList = pfx.match(/^([-*+]|\d+\.)(?:\s+(\[[^\]]\]))?$/)
+      if (mList) {
+        bulletToken = mList[1]
+        checkboxToken = String(mList[2] || '')
+      }
     }
-  }
-
-  var mcb = leftBody.match(/^(\[[^\]]\])(?:\s+|$)/)
-  if (mcb) {
-    checkboxToken = mcb[1]
-    leftBody = leftBody.slice(mcb[0].length)
+    if (headingToken || bulletToken) leftBody = String(prefixParts.body || '')
   }
 
   /*

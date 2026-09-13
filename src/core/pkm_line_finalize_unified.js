@@ -403,8 +403,18 @@ function reapplyHeadingPrefix(rawLine, nextLine) {
   const indent = (String(rawLine || "").match(/^(\s*)/) || ["", ""])[1];
   let body = src.replace(/^\s*/, "");
   while (/^#{1,6}(?:\s+|$)/.test(body)) body = body.replace(/^#{1,6}(?:\s+|$)/, "");
-  body = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^\[[^\]]\]\s+/, "");
+  /*
+   * **Чекбокс снимается только вместе со знаком списка, при котором он стоял.**
+   * Задача у Obsidian — это скобки за знаком **списка**; у заголовка знака
+   * списка нет, и `#### [ ] test` есть заголовок с текстом `[ ] test`. Безусловное
+   * снятие уносило эти скобки из строки человека — тот же класс, что У-91, и
+   * найден он обходом по симптому «вход нёс скобки, выход не несёт», а не
+   * чтением (2026-09-13, 10.13.94).
+   */
+  const withoutList = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
+  if (withoutList !== body) {
+    body = withoutList.replace(/^\[[^\]]\]\s+/, "");
+  }
   body = body.replace(/(^|\s)#{1,6}(?=\s|$)/g, "$1");
   body = body.replace(/\s{2,}/g, " ").trim();
   return body ? `${indent}${headingPrefix.trim()} ${body}` : `${indent}${headingPrefix.trim()} `;
@@ -615,11 +625,15 @@ function hasCheckboxListPrefix(line) {
   return /^([-*+]|\d+[\.)])\s+\[[^\]]\](\s|$)/.test(body);
 }
 
+/*
+ * **Второе объявление «что в начале строки принадлежит платформе» снято**
+ * (2026-09-13, 10.13.94). Здесь стояла копия `splitLeftPrefix` из
+ * `line_pipeline.js`, слово в слово; знак заголовка добавили в одну из них, и
+ * пути разошлись бы по-разному — это У-150 в чистом виде. Правило живёт там,
+ * где живут все остальные правила разбора строки.
+ */
 function splitLeftPrefix(raw) {
-  const src = String(raw || "").trim();
-  const m = src.match(/^((?:[-*+]|\d+\.)(?:\s+\[[^\]]\])?)(?:\s+|$)(.*)$/);
-  if (!m) return { prefix: "", body: src };
-  return { prefix: String(m[1] || "").trim(), body: String(m[2] || "").trim() };
+  return __linePipeline.splitLeftPrefix(raw);
 }
 
 function joinLeftPrefix(prefix, body) {
