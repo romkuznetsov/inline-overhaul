@@ -136,7 +136,6 @@ const PANEL_INJECTIONS = {
 function buildFixture() {
   const cfg = normalize.migrateConfig(JSON.parse(fs.readFileSync(FIXTURE_PATH, "utf8")));
   const defs = registry.buildPkmCommandDefs(
-    panelBench.activeRulesPath,
     orderCfg.serializePkmOrderForMacro,
     orderCfg.serializeDateRuntimeConfigForMacro,
     orderCfg.normalizePkmOrder,

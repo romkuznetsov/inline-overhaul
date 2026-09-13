@@ -237,7 +237,7 @@ function buildNavigationCommandDefs(plugin) {
   ];
 }
 
-function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfgNow, featureOrder) {
+function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConfigForMacro, normalizePkmOrder, cfgNow, featureOrder) {
   const O = __pkmOptionKeys.KEYS;
   const cfg = cfgNow && typeof cfgNow === "object" ? cfgNow : {};
   const order = typeof normalizePkmOrder === "function"
@@ -300,11 +300,11 @@ function buildPkmCommandDefs(getActiveTagWheelRulesPath, serializePkmOrderForMac
   };
 
   const makeBase = (cfgInner) => ({
-    [O.RULES_PATH]: getActiveTagWheelRulesPath(cfgInner),
     /*
      * Правила едут к движку **из настроек**, а не через файл на диске
-     * (PRD 10.13.52, П-8, шаг второй). Путь рядом остаётся: его ещё читает
-     * TagWheel, и он же нужен восстановлению копии настроек.
+     * (PRD 10.13.52, П-8). Пути рядом больше нет: файла не существует, и
+     * возить его адрес значило бы оставлять движку ход, которого нет
+     * (шаг четвёртый).
      */
     [O.RULES_DATA]: __rulesShape.buildRulesForEngines(cfgInner),
     [O.CYCLE_END_BEHAVIOR]: getBehaviorValue(cfgInner, "cycleEndBehavior", "keep-bullet"),

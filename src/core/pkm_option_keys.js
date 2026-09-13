@@ -20,13 +20,14 @@ const DEFAULT_RULES_PATH = ".obsidian/plugins/inline-overhaul/generated_rules.md
 const LEGACY_RULES_PATH = "InlineOverhaul_Generated_RULES_TagWheel.md";
 
 const KEYS = {
-  RULES_PATH: "Rules path",
   /*
    * Правила, собранные из настроек, — снятие служебного файла
    * (PRD 10.13.52, П-8; 2026-09-11). Движки, получившие этот ключ, файла не
    * читают вовсе. **С 2026-09-13 (шаг третий) других ходов нет ни у одного
    * движка:** ключа нет — движок отказывается вслух, а не читает файл.
-   * Сам ключ `Rules path` остаётся до шага четвёртого: по нему пишется файл.
+   * Ключ `Rules path` снят шагом четвёртым вместе с самим файлом: возить
+   * адрес того, чего нет, значит обещать движку ход, которого у него больше
+   * не бывает.
    */
   RULES_DATA: "Rules data",
   ACTION_TYPE: "Action type",

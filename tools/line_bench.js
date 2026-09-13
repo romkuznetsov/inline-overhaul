@@ -50,14 +50,13 @@ function loadCfg() {
   return normalize.migrateConfig(JSON.parse(fs.readFileSync(DATA, "utf8")));
 }
 
-/* Выбор пути к правилам и ключи рантайма — общие у трёх стендов, и объявлены
-   они один раз (`tests/harness/panel_bench.js`). Две копии здесь уже
-   расходились (У-32). */
-const activeRulesPath = panelBench.activeRulesPath;
+/* Ключи рантайма — общие у трёх стендов, и объявлены они один раз
+   (`tests/harness/panel_bench.js`). Две копии здесь уже расходились (У-32).
+   Путь к служебному файлу правил отсюда ушёл вместе с самим файлом
+   (PRD 10.13.52, П-8, шаг четвёртый). */
 
 function defsFor(cfg) {
   return registry.buildPkmCommandDefs(
-    activeRulesPath,
     orderCfg.serializePkmOrderForMacro,
     orderCfg.serializeDateRuntimeConfigForMacro,
     orderCfg.normalizePkmOrder,

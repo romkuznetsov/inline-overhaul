@@ -19,18 +19,11 @@
 const optionKeys = require("../../src/core/pkm_option_keys.js");
 const shared = require("../../src/core/shared_utils.js");
 const orderCfg = require("../../src/core/pkm_order_config.js");
-const normalize = require("../../src/core/config_normalize.js");
 const cmState = require("@codemirror/state");
 const cmCommands = require("@codemirror/commands");
 
 const K = optionKeys.KEYS;
 const readCfgPath = shared.readCfgPath;
-
-/** Тот же выбор пути, что делает `activeRulesPath` в слое команд. */
-function activeRulesPath(cfg) {
-  const generated = String(readCfgPath(cfg, "advanced.generatedRulesPath") || "").trim();
-  return generated || String(normalize.DEFAULT_CONFIG.pkm.generatedRulesPath);
-}
 
 /**
  * Ключи, которые досыпает `runPkmRuntime` поверх определения команды.
@@ -41,7 +34,6 @@ function activeRulesPath(cfg) {
  */
 function paneSettings(cfg) {
   return {
-    [K.RULES_PATH]: activeRulesPath(cfg),
     [K.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
     [K.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
     [K.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
@@ -167,4 +159,4 @@ function makeCmEditor(initial, existingView) {
   };
 }
 
-module.exports = { activeRulesPath, paneSettings, makeCmEditor };
+module.exports = { paneSettings, makeCmEditor };

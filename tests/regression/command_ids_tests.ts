@@ -103,7 +103,6 @@ function allDefs(cfg: Any): Any[] {
   out.push(...registry.buildCoreCommandDefs(plugin, FEATURE_ORDER, FEATURE_META));
   out.push(...registry.buildNavigationCommandDefs(plugin, () => "rules.md"));
   out.push(...registry.buildPkmCommandDefs(
-    () => "rules.md",
     () => "{}",
     () => "{}",
     internals.normalizePkmOrder,
@@ -294,7 +293,7 @@ function allDefs(cfg: Any): Any[] {
   }) as Any;
 
   const defs = registry.buildPkmCommandDefs(
-    () => "rules.md", () => "{}", () => "{}", internals.normalizePkmOrder, cfg, FEATURE_ORDER,
+    () => "{}", () => "{}", internals.normalizePkmOrder, cfg, FEATURE_ORDER,
   ) as Any[];
   const forFields = defs.filter(d => ["a", "b"].includes(String(d.orderKey || "")));
   assert.equal(forFields.length, 4,
@@ -313,7 +312,7 @@ function allDefs(cfg: Any): Any[] {
 {
   const cfg = makeConfig();
   const defs = registry.buildPkmCommandDefs(
-    () => "rules.md", () => "{}", () => "{}", internals.normalizePkmOrder, cfg, FEATURE_ORDER,
+    () => "{}", () => "{}", internals.normalizePkmOrder, cfg, FEATURE_ORDER,
   ) as Any[];
   const due = defs.filter(d => String(d.orderKey || "") === "date_due");
   assert.equal(due.length, 2, "у поля-даты должно быть две команды, найдено " + due.length);

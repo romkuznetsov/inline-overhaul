@@ -40,7 +40,6 @@ const __say = __sayModule.say;
 const __noticeKey = __sayModule.noticeKey;
 
 const BINDER_SMART_BRACKET_COMMAND_ID = __configNormalize.BINDER_SMART_BRACKET_COMMAND_ID;
-const DEFAULT_CONFIG = __configNormalize.DEFAULT_CONFIG;
 const FEATURE_META = __configNormalize.FEATURE_META;
 const FEATURE_ORDER = __configNormalize.FEATURE_ORDER;
 const normalizePkmOrder = __pkmOrderConfig.normalizePkmOrder;
@@ -102,19 +101,6 @@ function pkmRuntime() {
 }
 
 /**
- * Путь служебного файла правил, каким его видит движок **сейчас**.
- *
- * Человек может увести файл в свою папку (`advanced.generatedRulesPath`);
- * пусто — умолчание из схемы. Спрашивается это в одном месте, потому что
- * ответ нужен и командам, и справочнику, и восстановлению копии (У-32).
- */
-function activeRulesPath(cfg) {
-  const generated = String(readCfgPath(cfg, "advanced.generatedRulesPath") || "").trim();
-  if (generated) return generated;
-  return String(DEFAULT_CONFIG.pkm.generatedRulesPath);
-}
-
-/**
  * Все команды плагина одним списком — для справочника 10.5.
  *
  * Собирается из **того же реестра**, которым команды регистрируются. Выписать
@@ -170,7 +156,6 @@ function buildOwnCommandList(plugin) {
     push(registry.buildNavigationCommandDefs(plugin), "Navigation", "");
     push(
       registry.buildPkmCommandDefs(
-        activeRulesPath,
         serializePkmOrderForMacro,
         serializeDateRuntimeConfigForMacro,
         normalizePkmOrder,
@@ -253,7 +238,6 @@ function registerPkm(plugin) {
   const registry = getCommandRegistry();
   const cfgNow = plugin.getConfig();
   const defs = registry.buildPkmCommandDefs(
-    activeRulesPath,
     serializePkmOrderForMacro,
     serializeDateRuntimeConfigForMacro,
     normalizePkmOrder,
@@ -404,7 +388,6 @@ async function runPkmRuntime(plugin, command, cfg, extraSettings) {
   if (typeof rt.runCommand !== "function") throw new Error("PKM runtime v2 has no runCommand");
 
   const settings = {
-    [__pkmOptionKeys.KEYS.RULES_PATH]: activeRulesPath(cfg),
     [__pkmOptionKeys.KEYS.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
     [__pkmOptionKeys.KEYS.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
     [__pkmOptionKeys.KEYS.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
@@ -466,7 +449,6 @@ function closeTagWheelSession() {
 }
 
 module.exports = {
-  activeRulesPath,
   closeTagWheelSession,
   navigationRuntime,
   pkmRuntime,
