@@ -39,6 +39,7 @@ const {
   blockFillSpansInLine,
   blockFillPadXPx,
   blockFillBandHeightPx,
+  blockFillRowCountTrusted,
   blockFillBubbleHeightPx,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
@@ -1082,6 +1083,22 @@ function blockFillPiecesOf(view, span) {
     if (at >= stop) break;
   }
   if (!rows.length) return whole;
+  /*
+   * **Насчитанному числу зрительных строк верят не на слово** — правило и его
+   * цена живут в `blockFillRowCountTrusted`. Не верим — кусок уходит на
+   * названный запасной путь, где вертикаль берётся у платформы.
+   */
+  const trusted = (() => {
+    try {
+      const block = view.lineBlockAt(span.lineFrom);
+      return blockFillRowCountTrusted(rows.length,
+        block ? block.height : NaN, view.defaultLineHeight);
+    } catch (_) {
+      /* Проба: платформу спросили о строке, которой она может не знать. */
+      return true;
+    }
+  })();
+  if (!trusted) return whole;
   /* Обход кончился раньше отрезка — остаток строки считается последней
      зрительной строкой, а не теряется. */
   if (at < span.to) rows.push({ from: at, to: span.to });

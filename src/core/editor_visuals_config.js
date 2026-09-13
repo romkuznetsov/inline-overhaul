@@ -1085,6 +1085,37 @@ function blockFillBandHeightPx(look, rowHeightPx, textHeightPx, bubbleHeightPx) 
  * его размера разошлось бы с первым молча (У-32), а разошедшись — оставило бы
  * подложку ниже пузыря ровно на разницу.
  */
+/**
+ * Можно ли верить насчитанному числу зрительных строк.
+ *
+ * **У счёта есть вторая мера, и она обязательна.** Число зрительных строк
+ * считается обходом по ответам платформы, а тем числом потом **делится высота
+ * строки**. Обход может насчитать меньше, чем их на самом деле, и тихо это не
+ * проходит: однострочный ответ на двухрядной строке опускает подложку ровно на
+ * половину лишней высоты.
+ *
+ * Обмерено по разметке и картинке заказчика 2026-09-13: пузыри строки стоят на
+ * `77…100`, подложка — на `88…117`, то есть ниже на четырнадцать точек при
+ * высоте ряда `31.5` и высоте подложки `30`. Это в точности
+ * `(высота строки − высота подложки) / 2` для строки, посчитанной однорядной.
+ *
+ * Вторая мера — высота: сколько рядов умещается в строке по умолчанию
+ * редактора. Насчитали **меньше** — счёту верить нельзя. Насчитали столько же
+ * или больше — можно: ряд бывает выше умолчания (У-133), и тогда верен счёт, а
+ * не деление.
+ *
+ * Мер нет (платформа промолчала) — верим счёту: прежнее поведение.
+ */
+function blockFillRowCountTrusted(counted, blockHeight, lineHeight) {
+  const rows = Math.trunc(Number(counted) || 0);
+  const height = Number(blockHeight);
+  const lineH = Number(lineHeight);
+  if (!(rows > 0)) return false;
+  if (!Number.isFinite(height) || height <= 0) return true;
+  if (!Number.isFinite(lineH) || lineH <= 0) return true;
+  return rows >= Math.round(height / lineH);
+}
+
 function blockFillBubbleHeightPx(visuals) {
   const v = isObj(visuals) ? visuals : {};
   const st = computeTagVisualStyle(v.tagTextSizePct, v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0);
@@ -1635,6 +1666,7 @@ module.exports = {
   blockFillSpansInLine,
   blockFillPadXPx,
   blockFillBandHeightPx,
+  blockFillRowCountTrusted,
   blockFillBubbleHeightPx,
   blockFillPrefixGlyphEnd,
   buildBlockFillStyleCss,
