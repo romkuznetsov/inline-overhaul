@@ -954,7 +954,23 @@ async function run() {
    * примонтировано **везде**, где монтируются два соседних (У-94).
    */
   assertTrue(/plugin\._sourceMarksExtension = createSourceMarkDecorationExtension\(plugin\);/.test(mountSrc), "and builds the extension on load");
-  assertEq((mountSrc.match(/_sourceMarksCompartment\.(of|reconfigure)\(/g) || []).length, 3, "and mounts it everywhere the other two are mounted");
+  /*
+   * **Спрашивается равенство соседям, а не число.** Здесь стояло «ровно три
+   * места», и число это описывало не правило, а тогдашнюю форму постановки:
+   * 2026-09-14 из пересборки ушла досылка `appendConfig` — она дублировала
+   * компартмент, который платформа уже поставила, — и верным стало два.
+   * Правило же всё это время было одно: отметки строки живут ровно там же,
+   * где два соседних расширения, и забытое в одном из мест работало бы через
+   * раз (У-145: число в проверке стареет, правило — нет).
+   */
+  {
+    const sites = (name) => (mountSrc.match(new RegExp(name + "\\.(of|reconfigure)\\(", "g")) || []).length;
+    const marks = sites("_sourceMarksCompartment");
+    assertTrue(marks > 0, "отметки строки не ставятся вовсе");
+    assertEq(marks, sites("_tagVisualCompartment"), "and mounts it everywhere the tag visuals are mounted");
+    assertEq(marks, sites("_stripCompartment"), "and mounts it everywhere the strips are mounted");
+    assertEq(marks, sites("_tagwheelHeaderCompartment"), "and mounts it everywhere the tagwheel colours are mounted");
+  }
   assertTrue(/__editorMount\.mountExtensions\(plugin\);/.test(bootstrapSrc), "и загрузка зовёт постановку один раз");
   assertTrue(/__editorMount\.refreshOpenEditors\(plugin\);/.test(configWriteSrc), "а пересборку — из записи патча конфига");
   /* Кнопка и команда ходят одним путём (Н9): у команды своего тела нет. */

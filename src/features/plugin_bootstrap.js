@@ -143,7 +143,6 @@ async function load(plugin) {
   /* Отметки на строке (10.13.12): подсветка обработанной и `Floating button`. */
   plugin._sourceMarksExtension = null;
   plugin._sourceMarksCompartment = new cmState.Compartment();
-  plugin._inlineExtensionMountedEditors = typeof WeakSet !== "undefined" ? new WeakSet() : null;
 
   const ConfigStoreCtor = getConfigStoreCtor();
   plugin.store = new ConfigStoreCtor(plugin, {

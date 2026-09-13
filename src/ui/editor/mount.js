@@ -10,16 +10,15 @@
  * **пересобрать**, когда человек правит настройку, и не перезагружать при этом
  * заметку.
  *
- * **Почему пересборка ходит по открытым заметкам сама.** Obsidian ставит
- * расширения плагина только тем редакторам, что откроются **после** загрузки;
- * уже открытым их надо досылать своим `dispatch`. Отсюда обход
- * `getLeavesOfType("markdown")` и `WeakSet` уже обслуженных редакторов —
- * второй `appendConfig` тому же редактору положил бы расширение дважды.
+ * **Почему пересборка ходит по открытым заметкам сама.** Расширения ставит
+ * платформа, а вот **пересобрать** их после правки настройки она не обязана:
+ * компартмент — наш, и `reconfigure` зовём мы. Отсюда обход
+ * `getLeavesOfType("markdown")`. Досылать расширения при этом не надо и
+ * нельзя: разбор — в теле `refreshOpenEditors`.
  *
- * **Компартменты и признак «уже стоит» висят на плагине**
- * (`_tagVisualCompartment`, `_inlineExtensionMountedEditors` и рядом): их
+ * **Компартменты висят на плагине** (`_tagVisualCompartment` и рядом): их
  * время жизни — время жизни плагина, и второе место для них значило бы второе
- * объявление того, кому досылать (У-32).
+ * объявление того, кого пересобирать (У-32).
  *
  * **Строка курсора трогается нарочно.** После пересборки CodeMirror перерисует
  * то, что считает изменившимся; пустая правка выделения — самый дешёвый способ
@@ -122,18 +121,31 @@ function refreshOpenEditors(plugin) {
     const cm = editor && editor.cm ? editor.cm : null;
     if (!cm || typeof cm.dispatch !== "function") continue;
     try {
-      const shouldMount = plugin._inlineExtensionMountedEditors instanceof WeakSet
-        ? !plugin._inlineExtensionMountedEditors.has(cm)
-        : false;
-      if (shouldMount && plugin._tagVisualExtension && plugin._stripExtension && plugin._tagwheelHeaderExtension) {
-        cm.dispatch({ effects: cmState.StateEffect.appendConfig.of([
-          plugin._tagwheelHeaderCompartment.of(plugin._tagwheelHeaderExtension),
-          plugin._tagVisualCompartment.of(cmState.Prec.highest(plugin._tagVisualExtension)),
-          plugin._stripCompartment.of(plugin._stripExtension),
-          plugin._sourceMarksCompartment.of(plugin._sourceMarksExtension),
-        ]) });
-        if (plugin._inlineExtensionMountedEditors instanceof WeakSet) plugin._inlineExtensionMountedEditors.add(cm);
-      } else if (plugin._tagVisualExtension && plugin._stripExtension && plugin._tagwheelHeaderExtension) {
+      /*
+       * **Досылать расширения редактору не надо: их ставит сама платформа.**
+       *
+       * Здесь стояла ветка «этот редактор мы ещё не обслуживали — дошлём
+       * `appendConfig`», и написана она была по предположению, что Obsidian
+       * ставит расширения плагина только тем редакторам, которые откроются
+       * **после** загрузки. Предположение неверно, и спрошено это у её кода
+       * (У-44): `registerEditorExtension` кладёт расширение в
+       * `workspace.editorExtensions` и зовёт `updateOptions()`, а тот обходит
+       * **все** листы и пересобирает свой компартмент
+       * (`NJ.reconfigure(getDynamicExtensions())`, `app.js` 1.13.7); список
+       * плагинных расширений входит в `getDynamicExtensions` целиком. Редактор,
+       * созданный позже, берёт его там же при своей сборке.
+       *
+       * Цена ошибки была не в лишней работе. Наши компартменты лежат внутри
+       * компартмента платформы, и второй `Compartment.of` того же компартмента
+       * — это `RangeError: Duplicate use of compartment in extensions`:
+       * `dispatch` падал, до `reconfigure` и до толчка к перерисовке дело не
+       * доходило **ни разу**, а в журнал на каждый патч настроек летела
+       * ошибка по строке на каждую открытую заметку.
+       *
+       * `reconfigure` на компартменте, которого в сборке нет, — пустая
+       * операция, поэтому запасной ветки тут не нужно.
+       */
+      if (plugin._tagVisualExtension && plugin._stripExtension && plugin._tagwheelHeaderExtension) {
         cm.dispatch({ effects: [
           plugin._tagwheelHeaderCompartment.reconfigure(plugin._tagwheelHeaderExtension),
           plugin._tagVisualCompartment.reconfigure(cmState.Prec.highest(plugin._tagVisualExtension)),
