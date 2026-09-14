@@ -349,6 +349,58 @@ async function runTagWheelKeys(editor, settings, keys) {
  * строка прогоняется **дважды**: начало, которое растёт от повтора, видно
  * только вторым шагом (У-157).
  */
+/*
+ * **Строка-заголовок держит значение так же, как всякая другая.**
+ *
+ * Найдено обходом форм начала строки 2026-09-14: `## #/1 :: текст` после
+ * второго шага по Importance давало `## текст`, а строка с двумя зонами
+ * схлопывалась целиком — `## #/1 #todo :: текст :: 📅…` в
+ * `## #todo текст 📅…`. Уносила их пересборка строки-заголовка в
+ * `status_tags.js`, срабатывавшая на **каждом** шаге (10.13.119).
+ *
+ * Спрашивается здесь не «значение осталось», а **оба** признака: значение
+ * сменилось на следующее и зоны строки целы. Первого мало: строка могла бы
+ * сохранить значение и потерять разделители.
+ */
+async function testHeadingLineKeepsItsFieldValue() {
+  const settingsFor = () => ({
+    "Rules data": SYNTHETIC_RULES,
+    "Action type": "cycle_field:importance",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      panel: { importance: "left", type: "left" },
+      freeRoam: { importance: "off", type: "off" },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "current_position",
+  });
+  const step = async (line) => {
+    const editor = makeEditor(line, 0);
+    await runPkmCommandWithEditor("statusTags", editor, settingsFor());
+    return editor.snapshot().line;
+  };
+
+  /* Контроль: на строке списка то же поле и правда циклится — иначе «на
+     заголовке циклится» выполнялось бы бездействием команды (У-88). */
+  const onList = await step("- #/1 || text");
+  assertTrue(/#\/2/.test(onList), "контроль: на строке списка значение сменилось, вышло: " + onList);
+
+  const once = await step("## text");
+  assertTrue(/^##\s/.test(once) && /#\/1/.test(once),
+    "на заголовке значение появилось, вышло: " + once);
+  const twice = await step(once);
+  assertTrue(/^##\s/.test(twice), "строка осталась заголовком, вышло: " + twice);
+  assertTrue(/#\/2/.test(twice),
+    "и второй шаг сменил значение, а не унёс его, вышло: " + twice);
+
+  /* И зоны строки целы: разделители на месте, чужое значение не пропало. */
+  const rich = await step("## #/1 #todo || text");
+  assertTrue(/#\/2/.test(rich) && /#todo/.test(rich),
+    "на заголовке с двумя значениями сменилось своё, чужое осталось, вышло: " + rich);
+  assertTrue(/\|\|/.test(rich),
+    "и разделитель строки не пропал, вышло: " + rich);
+}
+
 async function testLineStartBelongsToThePlatform() {
   const settingsFor = () => ({
     "Rules data": SYNTHETIC_RULES,
@@ -3335,6 +3387,7 @@ async function testStatusDateKeepsElementInItsOrderBlock() {
 }
 
 async function run() {
+  await testHeadingLineKeepsItsFieldValue();
   await testLineStartBelongsToThePlatform();
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();
   await testStatusTagsRunCommandPathCyclesType();
