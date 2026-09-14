@@ -19,6 +19,7 @@
  * проверках на заглушке.
  */
 
+import { asObject, asArray } from "../types.ts";
 import type { OrderState, PkmFieldsConfig, FieldKind, ValueVisibility } from "../types.ts";
 import { BLOCK_TEXTS } from "../texts_blocks.ts";
 /*
@@ -301,15 +302,7 @@ export interface OrderSnapshot {
 const STRICT_NAME_RE = /^[a-z0-9_\- ]+$/i;
 const SUB_SUFFIX_RE = /_sub$/;
 
-function asObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value.slice() : [];
-}
 
 /**
  * Ветка определений Fields: `pkm.fields` (PRD 8.1, 8.1а). Имя функции осталось

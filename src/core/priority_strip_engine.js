@@ -304,4 +304,7 @@ function normalizeStripConfig(strip) {
 module.exports = {
   buildStripSpecs,
   normalizeStripConfig,
+  /* Целое в границах — одно объявление на движок полос и его адаптер к CM6:
+     копия была побайтно той же (сверено 2026-09-15, PRD 10.13.133). */
+  clampInt,
 };

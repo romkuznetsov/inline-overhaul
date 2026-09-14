@@ -29,6 +29,7 @@
  * предмет, врёт тише всего (У-71).
  */
 
+import { asObject } from "../types.ts";
 import type { CustomRender, SettingsCtx, ValueVisibility } from "../types.ts";
 import { el, btn, textInput, selectInput, tipBelow, cssVarValue, type El, type ElInput } from "./dom.ts";
 import { keepView } from "./keepview.ts";
@@ -89,11 +90,6 @@ interface TagPlugin {
   setConfigPatch: (patch: unknown, reason: string) => void;
 }
 
-function asObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 function normalizeHex(value: unknown): string {
   const s = String(value || "").trim().toLowerCase();

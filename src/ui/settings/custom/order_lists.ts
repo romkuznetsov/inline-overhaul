@@ -21,6 +21,7 @@
  * не выключен. Ц3: оба переупорядочиваются перетаскиванием и стрелками.
  */
 
+import { asObject } from "../types.ts";
 import type { CustomRender, SettingsCtx } from "../types.ts";
 import { el, btn, textInput, type DragEv, type El } from "./dom.ts";
 import { keepView } from "./keepview.ts";
@@ -47,11 +48,6 @@ const words = (ctx: SettingsCtx): Say => sayIn("field-order-list", ctx);
 
 /* ---- общее: чтение и запись -------------------------------------------- */
 
-function asObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map(x => String(x ?? "")) : [];

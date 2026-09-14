@@ -1,9 +1,11 @@
 "use strict";
 
+/* Правило объявлено один раз — в движке полос (10.13.133). Здесь стояла
+   побайтно та же копия. */
+const __stripEngine = require("./priority_strip_engine.js");
+
 function clampInt(value, fallback, min, max) {
-  const n = Math.trunc(Number(value));
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, n));
+  return __stripEngine.clampInt(value, fallback, min, max);
 }
 
 function modeClass(mode) {

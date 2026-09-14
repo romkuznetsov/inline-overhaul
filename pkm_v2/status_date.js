@@ -185,6 +185,7 @@ let __fieldRelocationFns = null;
 function __relocation() {
   if (!__fieldRelocationFns) {
     __fieldRelocationFns = __fieldRelocationMod.createFieldRelocation({
+      owner: "status_date",
       getStatusRuntimeCommon,
       getStatusLineRuntime: getStatusLineRuntimeUnified,
       getDomainRegistry,

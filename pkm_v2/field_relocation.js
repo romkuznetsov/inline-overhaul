@@ -41,8 +41,12 @@
  */
 function createFieldRelocation(deps) {
   const d = deps && typeof deps === "object" ? deps : {};
+  /* Имя звавшего приезжает аргументом: экземпляров два, и человеку в журнале
+     нужен тот, который отказал. Тем же различаются и два коротких построителя
+     в движках — иначе это был бы один текст с двумя смыслами. */
+  const owner = String(d.owner || "").trim() || "field_relocation";
   const need = (name, fn) => {
-    if (typeof fn !== "function") throw new Error(`field_relocation: missing dependency ${name}`);
+    if (typeof fn !== "function") throw new Error(`${owner}: field_relocation missing dependency ${name}`);
     return fn;
   };
   const getStatusRuntimeCommon = need("getStatusRuntimeCommon", d.getStatusRuntimeCommon);
@@ -51,11 +55,11 @@ function createFieldRelocation(deps) {
   const isObj = need("isObj", d.isObj);
   const tokenGraph = d.tokenGraph;
   if (!tokenGraph || typeof tokenGraph.buildTokenFactsFromLine !== "function") {
-    throw new Error("field_relocation: missing dependency tokenGraph");
+    throw new Error(`${owner}: field_relocation missing dependency tokenGraph`);
   }
   const core = d.core;
   if (!core || typeof core.buildOutputToken !== "function") {
-    throw new Error("field_relocation: missing dependency core.buildOutputToken");
+    throw new Error(`${owner}: field_relocation missing dependency core.buildOutputToken`);
   }
 
   function getField(mode, id) {
@@ -251,6 +255,29 @@ function createFieldRelocation(deps) {
     return String(f.id || "").trim();
   }
 
+  /**
+   * **Поле, которым дорога сейчас не управляет, она и не переставляет.**
+   *
+   * Тот же вопрос, что задаёт панель при сборке строки (10.13.129): у поля с
+   * невыполненным предусловием, выключенного или спрятанного, значение на
+   * строке — текст человека, и трогать его нельзя. Команды спрашивали это не
+   * везде: значение дочернего поля при пустом родителе они переставляли по
+   * Order, а панель оставляла на месте, и две дороги давали разное.
+   *
+   * Заметно это стало ровно тогда, когда заказчик перетащил `Category` из
+   * левого Block в правый: пока Block совпадал, обе дороги давали одну строку
+   * по совпадению (У-147).
+   */
+  function managedFields(rules, state, fields) {
+    const list = Array.isArray(fields) ? fields : [];
+    if (typeof core.isFieldEnabled !== "function") return list;
+    return list.filter((f) => {
+      if (!f || !f.id) return false;
+      const mode = getFieldModeById(rules, f.id);
+      return core.isFieldEnabled(mode, state || { selected: {} }, f, rules);
+    });
+  }
+
   function relocateCoreTagsByOrder(line, rules, orderCfg, state, fields, activeKey, activeFieldId) {
     const runtime = getStatusLineRuntime();
     return runtime.relocateCoreTagsByOrder({
@@ -258,7 +285,7 @@ function createFieldRelocation(deps) {
       rules,
       orderCfg,
       state,
-      fields,
+      fields: managedFields(rules, state, fields),
       activeKey,
       activeFieldId,
       deps: {

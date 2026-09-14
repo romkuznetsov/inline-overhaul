@@ -453,6 +453,54 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   assert.ok(tags.includes("#a"),
     "значение спрятанного поля переживает сборку строки: " + JSON.stringify(tags));
   ok("значение поля, которого панель не показывает, переживает сборку строки");
+
+  /*
+   * **И у команд тот же ответ.** Правило перестановки значений по Order
+   * получает только те поля, которыми дорога сейчас управляет: у спрятанного
+   * его значение — текст человека. Прежде команды переставляли его по Order, а
+   * панель оставляла на месте, и две дороги давали разное (10.13.134).
+   *
+   * Видно это стало, когда заказчик перетащил родителя в другой Block: пока
+   * Block совпадал, обе дороги давали одну строку по совпадению (У-147).
+   */
+  /* Швы ставятся так же, как их ставит загрузка плагина: общие помощники
+     движки берут через `globalThis`, и без них правило отказывает вслух. */
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.__inlineLinePipeline = requireCjs(path.join(root, "src", "core", "line_pipeline.js"));
+  g.__inlinePkmRulesHelpers = requireCjs(path.join(root, "src", "core", "pkm_rules_runtime_helpers.js"));
+  g.__inlinePkmMacroShared = requireCjs(path.join(root, "src", "core", "pkm_macro_shared.js"));
+  const relocation = requireCjs(path.join(root, "pkm_v2", "field_relocation.js")) as {
+    createFieldRelocation: (deps: Any) => Any;
+  };
+  const statusCommonMod = requireCjs(path.join(root, "src", "core", "status_runtime_common.js")) as Any;
+  const statusCommon = statusCommonMod.createStatusRuntimeCommon({
+    isObj: (x: Any) => !!x && typeof x === "object" && !Array.isArray(x),
+    defaultPanel: "left",
+    loadOrderKeyNormalizer: async () => ((k: Any) => String(k || "").trim()),
+    loadRuntimePreloadFacade: async () => ({}),
+  });
+  const rel = relocation.createFieldRelocation({
+    owner: "проверка",
+    getStatusRuntimeCommon: () => statusCommon,
+    getStatusLineRuntime: () => requireCjs(path.join(root, "src", "core", "status_line_runtime_unified.js")),
+    getDomainRegistry: () => requireCjs(path.join(root, "src", "core", "pkm_domain_registry.js")),
+    tokenGraph: requireCjs(path.join(root, "src", "core", "token_graph_unified.js")),
+    core,
+    isObj: (x: Any) => !!x && typeof x === "object" && !Array.isArray(x),
+  });
+  const orderCfg: Any = {
+    left: ["status"], right: ["second"], labels: {}, strictNames: {}, lead: {}, freeRoam: {},
+    types: { status: "tag", second: "tag" },
+    active: { status: "yes", second: "yes" },
+    enabled: { status: true, second: true },
+  };
+  const kept = String(rel.relocateCoreTagsByOrder(
+    "- #a | текст", b.rules, orderCfg, session,
+    b.rules.leftMode.fields, "", ""
+  ) || "");
+  assert.ok(kept.indexOf("#a") < kept.indexOf("|"),
+    "команда не переставляет значение поля, которого не показывает: " + kept);
+  ok("команда не трогает значение спрятанного поля — тот же ответ, что у панели");
 }
 
 {

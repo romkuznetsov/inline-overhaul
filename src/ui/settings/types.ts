@@ -254,6 +254,26 @@ export function getIn(obj: unknown, path: string): unknown {
   }, obj);
 }
 
+/**
+ * **Приведение к объекту и к списку — одно объявление на слой настроек.**
+ *
+ * `asObject` лежала побайтно одинаковой в пяти моделях блоков, `asArray` — в
+ * двух (сверено 2026-09-15, PRD 10.13.133). Обе отвечают на один вопрос:
+ * «пришло ли из конфига то, чем это должно быть», и обе возвращают пустое
+ * вместо отказа — конфиг правит человек, и он бывает сломан.
+ *
+ * `asArray` отдаёт **копию**: вызывающий её правит на месте.
+ */
+export function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+export function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value.slice() : [];
+}
+
 export function setIn(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split(".");
   let cur: Record<string, unknown> = obj;

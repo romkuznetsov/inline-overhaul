@@ -64,6 +64,7 @@ export interface BinderWriteResult {
  * Тексты отказов. Видимые строки, поэтому без точки в конце (Р10) и поэтому
  * же живут в каталоге (10.13.47) — здесь только имя.
  */
+import { asObject } from "../types.ts";
 import { BLOCK_TEXTS } from "../texts_blocks.ts";
 
 export const DUPLICATE_INSERT = BLOCK_TEXTS["binder-table"].ERR_TEXT_TAKEN;
@@ -109,11 +110,6 @@ export interface BinderModelDeps {
   commandDefs: (cfg: unknown) => ReadonlyArray<{ id: string; name: string }>;
 }
 
-function asObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
 function str(value: unknown): string {
   return typeof value === "string" ? value : value === undefined || value === null ? "" : String(value);

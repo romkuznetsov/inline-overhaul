@@ -19,6 +19,7 @@
  * подпись, а не контрол (С-7). Выбор соединения внутри типа — работа фазы 5.
  */
 
+import { asObject, asArray } from "../types.ts";
 import type { FieldKind } from "../types.ts";
 import type { FieldTokens } from "./fields_model.ts";
 
@@ -149,15 +150,7 @@ export interface RulesModelDeps {
   fieldTokens: () => readonly FieldTokens[];
 }
 
-function asObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
 
-function asArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value.slice() : [];
-}
 
 function strings(value: unknown): string[] {
   const out: string[] = [];
