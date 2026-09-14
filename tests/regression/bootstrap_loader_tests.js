@@ -1840,6 +1840,28 @@ async function run() {
   assertTrue(/keepCheckbox: !checkboxBelongsToField\(/.test(statusTagsSrc), "status_tags asks whether the line checkbox belongs to the acting field");
   assertTrue(/linePipeline\.splitLeftPrefix\(seg\.left\)/.test(statusTagsSrc), "status_tags relocation uses shared left-prefix splitter");
   assertTrue(/linePipeline\.joinLeftPrefix\(leftParts\.prefix, orderedLeftBody\)/.test(statusTagsSrc), "status_tags relocation uses shared left-prefix joiner");
+
+  /*
+   * **Доводка строки спрашивает дом, а не считает сама** (10.13.145).
+   *
+   * До 2026-09-15 в `pkm_line_finalize_unified.js` лежала приватная копия
+   * `joinLeftPrefix`, слово в слово равная дому в `line_pipeline.js`; сверены
+   * на 113 490 парах, расхождений ноль, копия снята.
+   *
+   * **Почему проверка на форму, а не на поведение.** Ожидания ответа стоят
+   * рядом, в `runtime_unified_parity_tests.js`, и они ловят поломку **дома**.
+   * Возврат приватной копии они не ловят вовсе: зовут дом напрямую и внутрь
+   * доводки не заходят. Это выяснила мутация — возвращённая копия с хвостовым
+   * пробелом прошла мимо всех 70 проверок, — а не чтение. Здесь закрепляется
+   * то, что поведением недостижимо: у доводки нет своего тела этого правила.
+   */
+  {
+    const joinDecl = /function joinLeftPrefix\(prefix, body\) \{\s*return __linePipeline\.joinLeftPrefix\(prefix, body\);\s*\}/;
+    assertTrue(joinDecl.test(pkmLineFinalizeUnifiedSrc),
+      "доводка строки спрашивает joinLeftPrefix у дома, а не считает сама");
+    assertFalse(/function joinLeftPrefix\([^)]*\) \{[^}]*String\(prefix/.test(pkmLineFinalizeUnifiedSrc),
+      "у доводки строки не завелось своего тела joinLeftPrefix");
+  }
   assertTrue(/linePipeline\.buildFromSegments\(seg, rules\)/.test(statusTagsSrc), "status_tags render path uses shared buildFromSegments helper");
   assertTrue(/customRelocation = \{/.test(statusTagsSrc), "status_tags stores relocation plan for cycle_field custom fields");
   assertTrue(/selectedTokenFromState\(customRelocation\.field, state, rules\)/.test(statusTagsSrc), "status_tags applies relocated custom field token from state");

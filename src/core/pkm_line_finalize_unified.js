@@ -755,12 +755,18 @@ function splitLeftPrefix(raw) {
   return __linePipeline.splitLeftPrefix(raw);
 }
 
+/*
+ * «Как начало строки склеивается с её телом» — общий дом в `line_pipeline.js`,
+ * и туда же ходят статусные движки и сборка строки в `status_line_runtime`.
+ *
+ * Здесь стояла приватная копия, слово в слово равная дому. Сверены на 113 490
+ * парах «начало × тело» — все начала и тела строк его заметок, все строковые
+ * значения его конфига и тринадцать краёв, — расхождений **ноль**; у меры был
+ * контроль чувствительности. Нового ребра между модулями сведение не завело:
+ * `line_pipeline` здесь и так подключён (10.13.145).
+ */
 function joinLeftPrefix(prefix, body) {
-  const p = String(prefix || "").trim();
-  const b = String(body || "").trim();
-  if (p && b) return `${p} ${b}`;
-  if (p) return p;
-  return b;
+  return __linePipeline.joinLeftPrefix(prefix, body);
 }
 
 function normalizeMinimalOffFinalLine(rawLine, finalLine, rules, options) {
