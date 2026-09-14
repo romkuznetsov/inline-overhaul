@@ -292,7 +292,18 @@ function buildPrefixUnified(parsedLine, rules, state, deps) {
     ? normalizeCheckboxToken(parsedLine.checkboxToken)
     : "";
   const bullet = String((parsedLine && parsedLine.bulletToken) || (quote ? "" : "-"));
-  let out = bullet ? `${bullet} ` : "";
+  /*
+   * **Задача бывает только за знаком списка** — это правило платформы, и оно
+   * объявлено один раз (`lineStartOf`, В-114). Здесь оно нарушалось: внутри
+   * цитаты знака нет, а чекбокс значения строился — и уезжал в зону значений,
+   * накапливаясь там по одному на шаг. Его слово по `S41`: «если в коллауте
+   * активировать value, у которого есть свой префикс, префикс каллаута
+   * меняется на префикс value — это больше не каллаут… поведение в коллауте
+   * должно быть по аналогии с хедером». У заголовка чекбокса нет по той же
+   * причине: за знаком заголовка знака списка не бывает.
+   */
+  if (!bullet) return "";
+  let out = `${bullet} `;
   if (nextCb) out += `${nextCb} `;
   else if (keepCb) out += `${keepCb} `;
   return out;

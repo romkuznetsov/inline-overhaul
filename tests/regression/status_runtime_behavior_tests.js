@@ -362,6 +362,100 @@ async function runTagWheelKeys(editor, settings, keys) {
  * сменилось на следующее и зоны строки целы. Первого мало: строка могла бы
  * сохранить значение и потерять разделители.
  */
+/*
+ * **Внутри цитаты строка ведёт себя как заголовок: ни знака списка, ни
+ * задачи.**
+ *
+ * Два его замечания по строке `S41`, 2026-09-14, дословно:
+ *
+ *   * «если в коллауте активировать value, у которого есть свой префикс, то
+ *     префикс коллаута `>` меняется на префикс value — это больше не
+ *     коллаут… поведение в коллауте должно быть по аналогии с хедером»;
+ *   * «после выхода из цикла активации value в коллауте вместо value остаётся
+ *     префикс `> -`, а должно быть `>`».
+ *
+ * Оба — одно правило платформы, уже объявленное разбором начала строки:
+ * **задача бывает только за знаком списка**, а знака списка внутри цитаты мы
+ * не ставим. Стенд показал больше, чем письмо: чекбокс значения не просто
+ * вставал не туда, он **накапливался** — `#source [!] [ ]`, потом
+ * `#note [N] [!] [ ]`. Поэтому здесь проходится весь круг значений, а не один
+ * шаг (У-157): по одному шагу видно только первое из двух.
+ */
+async function testQuotedLineBehavesLikeHeading() {
+  const settingsFor = () => ({
+    "Rules data": SYNTHETIC_RULES,
+    "Action type": "cycle_field:type",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      panel: { type: "left" },
+      freeRoam: { type: "off" },
+      freeRoamBehavior: { offPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "current_position",
+  });
+  const step = async (line) => {
+    const editor = makeEditor(line, 0);
+    await runPkmCommandWithEditor("statusTags", editor, settingsFor());
+    return editor.snapshot().line;
+  };
+  /* Круг проходится до возврата к исходной строке, а не заданное число раз:
+     значений у поля столько, сколько их в фикстуре, и число тут состарилось
+     бы от первого нового (У-145). */
+  const circle = async (line) => {
+    const out = [];
+    let cur = line;
+    for (let i = 0; i < 12; i += 1) {
+      cur = await step(cur);
+      out.push(cur);
+      if (cur === line) break;
+    }
+    return out;
+  };
+
+  /*
+   * Контроль первым: у значения и правда есть свой чекбокс, и на строке
+   * списка он и правда ставится. Без него «внутри цитаты чекбокса нет»
+   * выполнялось бы тем, что чекбокса нет нигде (У-88).
+   */
+  const onList = await step("- text");
+  assertTrue(/^-\s+\[[^\]]\]\s/.test(onList),
+    "контроль: на строке списка чекбокс значения и правда ставится, вышло: " + onList);
+
+  /* Заголовок — эталон поведения, его он и назвал: чекбокса нет. */
+  const onHeading = await circle("## text");
+  assertTrue(!onHeading.some((l) => /\[[^\]]\]/.test(l)),
+    "на заголовке чекбокса значения нет ни на одном шаге, вышло: " + JSON.stringify(onHeading));
+  assertEq(onHeading[onHeading.length - 1], "## text",
+    "и круг на заголовке возвращает строку к исходной");
+
+  /* Цитата — то же самое, и на каждом шаге круга. */
+  const onQuote = await circle("> text");
+  for (const line of onQuote) {
+    assertTrue(/^>\s/.test(line), "строка осталась цитатой, вышло: " + line);
+    assertTrue(!/\[[^\]]\]/.test(line),
+      "внутри цитаты чекбокса значения нет, вышло: " + line);
+    assertTrue(!/^>\s+-(\s|$)/.test(line),
+      "и нашего знака списка внутри цитаты нет, вышло: " + line);
+  }
+  assertEq(onQuote[onQuote.length - 1], "> text",
+    "выход из круга возвращает цитату к исходной строке");
+
+  /* Каллаут — то же, и имя каллаута стоит сразу за знаком цитаты. */
+  const onCallout = await circle("> [!note] text");
+  for (const line of onCallout) {
+    assertTrue(/^>\s+\[!note\]\s/.test(line), "каллаут пережил шаг, вышло: " + line);
+  }
+  assertEq(onCallout[onCallout.length - 1], "> [!note] text",
+    "выход из круга возвращает каллаут к исходной строке");
+
+  /* А знак списка, поставленный человеком внутри цитаты, чекбокс получает:
+     правило платформы — задача за знаком списка, где бы он ни стоял. */
+  const quotedList = await step("> - text");
+  assertTrue(/^>\s+-\s+\[[^\]]\]\s/.test(quotedList),
+    "за знаком списка внутри цитаты чекбокс значения ставится, вышло: " + quotedList);
+}
+
 async function testHeadingLineKeepsItsFieldValue() {
   const settingsFor = () => ({
     "Rules data": SYNTHETIC_RULES,
@@ -3387,6 +3481,7 @@ async function testStatusDateKeepsElementInItsOrderBlock() {
 }
 
 async function run() {
+  await testQuotedLineBehavesLikeHeading();
   await testHeadingLineKeepsItsFieldValue();
   await testLineStartBelongsToThePlatform();
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();

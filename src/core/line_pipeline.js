@@ -497,8 +497,20 @@ function buildFromSegments(seg, rules) {
   let text = String(seg && seg.text ? seg.text : "").trim();
   const dates = String(seg && seg.dates ? seg.dates : "").trim();
   const markers = getRightMarkers(rules);
+  /* Внутри цитаты нашего знака списка нет — его слово по В-115. Цитату строка
+     несёт отступом, и разбирает его то же одно объявление. */
+  const outerQuote = String(__sharedUtils.lineStartOf(indent).quote || "");
 
-  if (!left) left = "-";
+  /*
+   * **Пустой левой зоне знак списка подставляется не всегда.**
+   *
+   * Внутри цитаты его быть не должно: на выходе из цикла значений строка
+   * `> [!note] #note :: важное` давала `> [!note] - важное` — знак появлялся
+   * там, где человек его не ставил. Его слово по `S41`: «вместо value остаётся
+   * префикс `> -`, а должно быть `>`». У заголовка этого не случалось только
+   * потому, что его знак стоит в самой левой зоне и она не пуста.
+   */
+  if (!left && !outerQuote) left = "-";
   /*
    * Признак объявлен один раз — `hasSideTokens`. До 2026-09-11 он стоял здесь
    * второй копией, написанной по виду токена, и расходился с разбором молча
@@ -514,9 +526,6 @@ function buildFromSegments(seg, rules) {
    */
   const leftParts = splitLeftPrefix(left);
   const hasLeftTech = hasFieldTokens(leftParts.body, fieldsShape(rules));
-  /* Внутри цитаты нашего знака списка нет — его слово по В-115. Цитату строка
-     несёт отступом, и разбирает его то же одно объявление. */
-  const outerQuote = String(__sharedUtils.lineStartOf(indent).quote || "");
   if (hasLeftTech && !leftParts.prefix && !outerQuote) {
     left = ("- " + left).trim();
   }
@@ -583,10 +592,19 @@ function joinLineParts(parts, opts) {
   const sep1 = String(opts && opts.sep1 ? opts.sep1 : "");
   const sep2 = String(opts && opts.sep2 ? opts.sep2 : sep1);
   const hasLeft = !!(opts && opts.hasLeftTokens);
+  /*
+   * **Рядом с пустой левой зоной пробела не ставится.**
+   *
+   * Пустой она бывает ровно внутри цитаты: наш знак списка туда не
+   * подставляется (В-115), и склейка `indent + left + " " + text` оставляла
+   * два пробела за знаком цитаты — `> [!note]   важное`. Во всех остальных
+   * случаях левая зона непуста, и склейка прежняя.
+   */
+  const head = left ? left + " " : "";
 
   if (dates && text) {
     if (hasLeft) return indent + left + " " + sep1 + " " + text + " " + sep2 + " " + dates;
-    return indent + left + " " + text + " " + sep2 + " " + dates;
+    return indent + head + text + " " + sep2 + " " + dates;
   }
   if (dates) {
     if (hasLeft) return indent + left + " " + sep1 + "  " + sep2 + " " + dates;
@@ -596,11 +614,11 @@ function joinLineParts(parts, opts) {
        видел, куда встанет слово (10.13.107). Вопрос задаётся общим
        `splitLeftPrefix`, у которого форма знака одна на весь плагин. */
     if (isBareLinePrefix(left)) return indent + left + "  " + sep2 + " " + dates;
-    return indent + left + " " + sep2 + " " + dates;
+    return indent + head + sep2 + " " + dates;
   }
   if (text) {
     if (hasLeft) return indent + left + " " + sep1 + " " + text;
-    return indent + left + " " + text;
+    return indent + head + text;
   }
   return indent + left;
 }
