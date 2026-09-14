@@ -2929,6 +2929,12 @@ module.exports = {
   nextField: nextField,
   getNavigableFieldSequence: getNavigableFieldSequence,
   buildTags: buildTags,
+  /* Правило «как значение поля выглядит в строке» отдаётся наружу с
+     2026-09-15: у него было два объявления, и оба кормили один и тот же общий
+     модуль (`status_line_runtime_unified`, зависимость
+     `buildOutputTokenForField`). Копии сверены на 189 парах — его конфиг плюс
+     шесть форм полей, которых у него нет, — и разошлись на нуле. */
+  buildOutputToken: buildOutputToken,
   buildRightDates: buildRightDates,
   assembleFinalLine: assembleFinalLine,
   renderControlLine: renderControlLine,

@@ -327,6 +327,18 @@ async function run() {
      вместе с ней: разбирать больше нечего (PRD 10.12). */
 
 
+
+  /*
+   * **Правило «как значение выглядит в строке» объявлено один раз** (сведено
+   * 2026-09-15 после сверки на 189 парах). В `status_tags.js` осталось
+   * обращение к дому; собственная ветвь по источнику поля — признак того, что
+   * копия вернулась.
+   */
+  assertTrue(/__tagwheelCore\.buildOutputToken\(/.test(statusTagsSrc),
+    "status_tags asks the single home for the field value token shape");
+  assertFalse(/sourceKind === "wikilinks"/.test(statusTagsSrc),
+    "status_tags has no second declaration of the value token shape");
+
   /*
    * **Пин сменил вопрос вместе с переездом предмета** (У-94, У-186). Умолчание
    * разделителей объявлено теперь один раз — `DEFAULT_SEPARATORS` в

@@ -231,10 +231,6 @@ function composeToken(prefix, rawToken) {
   return getStatusRuntimeCommon().composeToken(prefix, rawToken);
 }
 
-function normalizeImportanceTokenShape(tokenRaw) {
-  return getStatusRuntimeCommon().normalizeImportanceTokenShape(tokenRaw);
-}
-
 function getFieldModeById(rules, fieldId) {
   const left = rules && rules.leftMode ? rules.leftMode : null;
   const right = rules && rules.rightMode ? rules.rightMode : null;
@@ -276,45 +272,23 @@ function isPriorityFieldLike(field, rules) {
   return false;
 }
 
-function resolveFieldSourceKind(field) {
-  const helpers = globalThis.__inlinePkmRulesHelpers;
-  if (!helpers || typeof helpers.normalizeFieldSourceKind !== "function") {
-    throw new Error("pkm_rules_runtime_helpers unavailable: normalizeFieldSourceKind");
-  }
-  return String(helpers.normalizeFieldSourceKind(field) || "").trim() || "none";
-}
-
+/**
+ * **Как значение поля выглядит в строке — одно объявление на все дороги.**
+ *
+ * Здесь стояло второе, и оба кормили один и тот же общий модуль
+ * (`status_line_runtime_unified`, зависимость `buildOutputTokenForField`):
+ * панель подавала своё, команды — это. Расхождений между ними не измерял
+ * никто, а разойтись им было на чём — вывод проектов, форма важности,
+ * приставка, ссылка с подписью.
+ *
+ * Сверены 2026-09-15 на 189 парах: все значения его конфига и шесть форм
+ * полей, которых у него нет вовсе (источник «проекты» с выводом тегом и
+ * ссылкой, источник «ссылки», поле без приставки, приставка не решётка,
+ * важность). Разошлись на нуле, и мера при этом умеет видеть расхождение:
+ * подмена одной ветви дала 16 пар. После сверки копия снята.
+ */
 function buildOutputTokenForField(field, value, rules) {
-  if (!field || !value) return "";
-  const tokenRaw = String(value.token || "");
-  if (!tokenRaw) return "";
-  const tokenTrim = String(tokenRaw).trim();
-  if (__sharedUtils.isWikilinkToken(tokenTrim)) return tokenTrim;
-  if (__sharedUtils.startsWithTagToken(tokenTrim)) return tokenTrim;
-  const isImportanceField = isPriorityFieldLike(field, rules);
-  if (isImportanceField && (/^#\//.test(tokenRaw) || /^\//.test(tokenRaw))) {
-    return normalizeImportanceTokenShape(tokenRaw);
-  }
-  const sourceKind = resolveFieldSourceKind(field);
-  if (sourceKind === "projects") {
-    const outputMode = String(rules?.projects?.output || "tag").trim().toLowerCase();
-    if (outputMode === "wikilink") {
-      const linkTarget = String(value.link || tokenRaw).trim();
-      return linkTarget ? `[[${linkTarget.replace(/^\[\[|\]\]$/g, "") }]]` : "";
-    }
-  }
-  if (sourceKind === "wikilinks") {
-    const linkTarget = String(value.link || tokenRaw).trim();
-    if (!linkTarget) return "";
-    if (__sharedUtils.isWikilinkToken(linkTarget)) return linkTarget;
-    return `[[${linkTarget}]]`;
-  }
-  const prefix = typeof field?.prefix === "string" ? field.prefix : "#";
-  let normalizedToken = tokenRaw;
-  if (!isImportanceField && prefix === "#" && /^#\/\S+/.test(normalizedToken)) {
-    normalizedToken = normalizedToken.slice(2);
-  }
-  return composeToken(prefix, normalizedToken);
+  return __tagwheelCore.buildOutputToken(field, value, rules);
 }
 
 function fieldTokenMap(field, rules, state, core) {

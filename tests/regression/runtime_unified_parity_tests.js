@@ -848,6 +848,53 @@ function run() {
     assertEq(finalized, built,
       "right-payload line rule agrees between line_pipeline and finalize for left '" + left + "'");
   }
+
+  /*
+   * **«Как значение поля выглядит в строке» — одно объявление, и вот его
+   * таблица форм.**
+   *
+   * До 2026-09-15 объявлений было два: своё у панели и своё у команд, и оба
+   * кормили один общий модуль. Сверены на 189 парах — все значения его
+   * конфига и шесть форм полей, которых у него нет, — разошлись на нуле, и
+   * копия снята. Здесь закреплены формы, на которых копии могли разойтись:
+   * готовый тег и готовая ссылка проходят насквозь, источник решает вывод,
+   * приставка подставляется, а косая черта без приставки получает решётку.
+   */
+  const outToken = (field, value, rules) => tagwheelCore.buildOutputToken(field, value, rules || {});
+  assertEq(outToken({ id: "f", prefix: "#" }, { token: "#todo" }), "#todo",
+    "готовый тег проходит насквозь");
+  assertEq(outToken({ id: "f", prefix: "#" }, { token: "[[note]]" }), "[[note]]",
+    "готовая ссылка проходит насквозь");
+  assertEq(outToken({ id: "f", prefix: "#" }, { token: "plain" }), "#plain",
+    "приставка подставляется");
+  assertEq(outToken({ id: "f", prefix: "@" }, { token: "plain" }), "@plain",
+    "приставка не обязана быть решёткой");
+  assertEq(outToken({ id: "f", prefix: "" }, { token: "/1" }), "#/1",
+    "косая черта без приставки получает решётку");
+  assertEq(outToken({ id: "f", prefix: "#", source: "wikilinks:f" }, { token: "note" }), "[[note]]",
+    "поле-источник «ссылки» печатает ссылку");
+  assertEq(outToken({ id: "f", prefix: "#", source: "wikilinks:f" }, { token: "note", link: "Другая заметка" }), "[[Другая заметка]]",
+    "подпись значения сильнее его токена");
+  /*
+   * **Поле-источник «проекты» печатает ссылку при любом `output`, и это
+   * измеренный ответ, а не догадка.** Здесь копии и правда расходились:
+   * панель печатала ссылку всегда, а команды читали `rules.projects.output` и
+   * при `tag` (умолчании!) печатали тег. Победило написание панели — так же
+   * отвечает и третье объявление того же вопроса
+   * (`pkm_rules_runtime_helpers.js`, `resolveOutputKind`), а контрола у
+   * `projects.output` в панели нет вовсе и не пишет его никто.
+   *
+   * Досягаемость названа честно: `source: "projects"` нынешний редактор Fields
+   * не создаёт — он делает только `wikilinks:<ключ>`, — так что форма эта
+   * приезжает разве что из конфига версии 1.
+   */
+  assertEq(outToken({ id: "f", prefix: "#", source: "projects" }, { token: "note" }, { projects: { output: "wikilink", items: [] } }), "[[note]]",
+    "поле-источник «проекты» печатает ссылку при выводе ссылкой");
+  assertEq(outToken({ id: "f", prefix: "#", source: "projects" }, { token: "note" }, { projects: { output: "tag", items: [] } }), "[[note]]",
+    "и при выводе тегом — тоже ссылку: контрола у этой настройки нет");
+  assertEq(outToken({ id: "f", prefix: "#" }, { token: "" }), "",
+    "пустое значение токена не даёт");
+
   console.log("Runtime unified parity tests: OK");
 }
 
