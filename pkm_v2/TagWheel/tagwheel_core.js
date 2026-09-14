@@ -182,16 +182,29 @@ function isDateLikeToken(token, rules) {
       if (markers.indexOf(mk0) === -1) markers.push(mk0)
     }
   }
+  /*
+   * **Запасной ветки здесь больше нет, и её снятие — не уборка байтов.**
+   *
+   * В ней лежала вторая копия правила «токен начинается с метки даты», и
+   * читалась она как живая: комментарии и проверки рядом говорили о ней как о
+   * запасном ходе. Ход был **недостижим**: помощники приезжают литеральным
+   * `require` на уровне модуля (строка 26), то есть пустыми не бывают — не
+   * приехали бы, не загрузился бы и сам файл.
+   *
+   * Недостижимость снята пробоем, а не рассуждением (У-146): отказ в запасной
+   * ветке не уронил ни одной из 70 проверок и ни одного сочетания обхода
+   * строки, а тот же отказ в рабочей ветке уронил три — то есть функция
+   * исполняется, и зелёный первого пробоя значил именно «сюда не доходят», а
+   * не «здесь ничего не исполняется» (У-56).
+   *
+   * Молчаливого запасного хода на месте модуля здесь быть не должно: не
+   * приехал — падаем громко (A33, У-90).
+   */
   var helpers = getRulesRuntimeHelpers()
-  if (helpers && typeof helpers.isDateLikeToken === 'function') {
-    if (helpers.isDateLikeToken(src, { markers: markers })) return true
-  } else {
-    var i
-    for (i = 0; i < markers.length; i++) {
-      var mk = markers[i]
-      if (mk && src.indexOf(mk) === 0 && src.length > mk.length) return true
-    }
+  if (!helpers || typeof helpers.isDateLikeToken !== 'function') {
+    throw new Error('pkm_rules_runtime_helpers unavailable: isDateLikeToken')
   }
+  if (helpers.isDateLikeToken(src, { markers: markers })) return true
   return /^\d{4}-\d{2}-\d{2}$/.test(src) || /^\d{2}:\d{2}$/.test(src)
 }
 
