@@ -1786,22 +1786,25 @@ function mutateDateSelectionByFormat(state, fieldId, format, direction, stepRaw)
   state.selected[fieldId] = String(Math.max(0, next))
 }
 
-function collectChildren(mode, parentId) {
-  var out = []
-  var i
-  for (i = 0; i < mode.fields.length; i++) {
-    if (mode.fields[i].dependsOn === parentId) out.push(mode.fields[i].id)
+/**
+ * **«Сменил значение родителя — очисти зависимых» объявлено один раз.**
+ *
+ * Здесь стояло второе объявление — `clearChildrenRecursive`, — и оно обходило
+ * поля **одного списка**: того, на котором панель сейчас стоит. У заказчика
+ * `Project` (список ссылок) ждёт `Category` (список тегов), и смена Category
+ * панелью его значение не трогала, а той же командой — уносила. Результат
+ * зависел от того, какой кнопкой человек это сделал.
+ *
+ * Его слово 2026-09-15 (В-116): «уносить всегда, как сейчас делает команда».
+ * Дом правила — `clearDependentSelections` в `status_line_runtime_unified.js`:
+ * он обходит оба списка и спускается по дереву зависимостей.
+ */
+function clearDependentSelectionsShared(rules, state, parentFieldId) {
+  var runtime = getStatusLineRuntimeUnified()
+  if (!runtime || typeof runtime.clearDependentSelections !== 'function') {
+    throw new Error('status_line_runtime_unified unavailable: clearDependentSelections')
   }
-  return out
-}
-
-function clearChildrenRecursive(mode, state, parentId) {
-  var children = collectChildren(mode, parentId)
-  var i
-  for (i = 0; i < children.length; i++) {
-    state.selected[children[i]] = ''
-    clearChildrenRecursive(mode, state, children[i])
-  }
+  return runtime.clearDependentSelections({ rules: rules, state: state, parentFieldId: parentFieldId })
 }
 
 function cycleValue(rules, state, direction) {
@@ -1940,8 +1943,11 @@ function cycleValue(rules, state, direction) {
   var nextId = values[nextIdx].id || ''
   state.selected[field.id] = nextId
 
-  if (nextId !== currentId || nextId === '') {
-    clearChildrenRecursive(mode, state, field.id)
+  /* Условие то же, что у команды, и это нарочно: у двух дорог один ответ на
+     один вопрос. Прежнее `|| nextId === ''` уносило значения зависимых полей
+     и тогда, когда у родителя значений нет вовсе и ничего не менялось. */
+  if (nextId !== currentId) {
+    clearDependentSelectionsShared(rules, state, field.id)
   }
 }
 

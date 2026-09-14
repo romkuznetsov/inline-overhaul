@@ -67,6 +67,7 @@ const core = requireCjs(path.join(root, "pkm_v2", "TagWheel", "tagwheel_core.js"
   makeInitialState: (rules: Any, modeName: string) => Any;
   renderControlLine: (rules: Any, state: Any, parsedLine: Any) => string;
   buildTags: (mode: Any, state: Any, rules: Any, parsedLine: Any) => string[];
+  cycleValue: (rules: Any, state: Any, direction: number) => void;
   getNavigableFieldSequence: (rules: Any, state: Any) => string[];
   hydrateStateFromParsedLine: (rules: Any, state: Any, parsedLine: Any) => void;
   sanitizeState: (rules: Any, state: Any) => void;
@@ -472,6 +473,62 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   assert.equal(String(session.selected.second || ""), "",
     "значение, которого у поля нет, из состояния уходит");
   ok("контроль: недопустимое значение по-прежнему стирается");
+}
+
+/* ======================================================================
+ * Сменилось значение родителя — значение зависимого поля уходит со строки,
+ * и у панели так же, как у команды.
+ *
+ * **Его решение 2026-09-15 (В-116):** «уносить всегда, как сейчас делает
+ * команда». До него панель зависимое поле не трогала, и результат зависел от
+ * того, какой кнопкой человек это сделал: у панели правило было объявлено
+ * второй раз и обходило поля **одного списка** — того, на котором она стоит.
+ * У заказчика `Project` лежит в списке ссылок, а ждёт тег, и смена тега
+ * панелью его не задевала.
+ * ====================================================================== */
+
+{
+  const b = build({ where: "right", dependsOn: "status" });
+  const withIdsPair = (list: Any[]): void => { list.forEach((v: Any) => { v.id = String(v.token || ""); }); };
+  withIdsPair(b.field.values as Any[]);
+  withIdsPair((b.rules.leftMode.fields as Any[]).find((f: Any) => f.id === "status").values as Any[]);
+
+  const session = core.makeInitialState(b.rules, "left");
+  session.mode = "left";
+  session.activeFieldId = "status";
+  session.selected.second = "B";
+
+  /* Контроль первым: пока родитель без значения, зависимое поле спрятано, но
+     его значение в состоянии есть — иначе «ушло» получилось бы само. */
+  assert.equal(String(session.selected.second || ""), "B", "значение зависимого поля на месте до действия");
+
+  core.cycleValue(b.rules, session, 1);
+  assert.notEqual(String(session.selected.status || ""), "", "значение родителя и правда сменилось");
+  assert.equal(String(session.selected.second || ""), "",
+    "родитель сменился — значение зависимого поля из другого списка ушло");
+  ok("панель очищает зависимое поле так же, как команда (В-116)");
+}
+
+{
+  /* И контроль к нему: шаг по **чужому** полю зависимое не трогает. Без него
+     «уносить всегда» было бы зелёным и у кода, который уносит на любое
+     нажатие — а это ровно тот дефект, что починен в 10.13.127. */
+  const b = build({ where: "right", dependsOn: "status" });
+  const withIdsPair = (list: Any[]): void => { list.forEach((v: Any) => { v.id = String(v.token || ""); }); };
+  withIdsPair(b.field.values as Any[]);
+  withIdsPair((b.rules.leftMode.fields as Any[]).find((f: Any) => f.id === "status").values as Any[]);
+  withIdsPair((b.rules.rightMode.fields as Any[]).find((f: Any) => f.id === "projects").values as Any[]);
+
+  const session = core.makeInitialState(b.rules, "right");
+  session.mode = "right";
+  session.activeFieldId = "projects";
+  session.selected.status = "#work";
+  session.selected.second = "B";
+
+  core.cycleValue(b.rules, session, 1);
+  assert.equal(String(session.selected.second || ""), "B",
+    "шаг по чужому полю значение зависимого не трогает");
+  ok("контроль: чужое поле зависимое не очищает");
 }
 
 console.log("\n" + passed + " проверок пройдено");
