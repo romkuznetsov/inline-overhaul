@@ -25,6 +25,7 @@ const __tokenGraphUnified = require("../src/core/token_graph_unified.js");
 const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
 const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
+const __fieldRelocationMod = require("./field_relocation.js");
 const __sayModule = require("../src/core/say.js");
 const __say = __sayModule.say;
 let __statusRuntimeCommonFns = null;
@@ -170,6 +171,29 @@ function ensureStatusRuntimeCommonLoaded() {
     loadOrderKeyNormalizer: async (ctxApp) => callRuntimeApi(ctxApp, "loadOrderKeyNormalizer"),
     loadRuntimePreloadFacade: async (ctxApp) => callRuntimeApi(ctxApp, "loadRuntimePreloadFacade"),
   });
+}
+
+/**
+ * **Перестановка значений по Order — то же правило, что у команд тегов и у
+ * панели** (`field_relocation.js`, PRD 10.13.131).
+ *
+ * Экземпляр свой: общий рантайм у этого движка отвечает «справа» там, где у
+ * команд тегов «слева», и подставить чужой значило бы сменить поведение
+ * молча.
+ */
+let __fieldRelocationFns = null;
+function __relocation() {
+  if (!__fieldRelocationFns) {
+    __fieldRelocationFns = __fieldRelocationMod.createFieldRelocation({
+      getStatusRuntimeCommon,
+      getStatusLineRuntime: getStatusLineRuntimeUnified,
+      getDomainRegistry,
+      tokenGraph: __tokenGraphUnified,
+      core: __tagwheelCore,
+      isObj,
+    });
+  }
+  return __fieldRelocationFns;
 }
 
 function getStatusRuntimeCommon() {
@@ -1351,7 +1375,30 @@ module.exports = {
       if (!String(state?.selected?.[actionField.id] || "").trim()) forceClear = true;
     }
 
-    let finalLine = rawLine;
+    /**
+     * **Значение чужого поля встаёт в свой Block — так же, как у команд тегов
+     * и у панели** (PRD 10.13.125, найдено обходом строки 2026-09-15).
+     *
+     * До этого места правило звали двое из трёх движков, и оттого у человека
+     * на строке `- [ ] текст :: #work` значение `#work` после команды
+     * элемента оставалось в чужой зоне, а после любой другой команды или
+     * панели уезжало в свой Block. Окажется ли значение на своём месте,
+     * зависело от того, какой кнопкой человек это сделал.
+     *
+     * Поля берутся те же, что у команд тегов: переставляются значения-теги,
+     * а свою метку элемент переносит сам — `relocateDateTokenByPanel` ниже.
+     * Имя поля действия передаётся, чтобы правило не искало его значение в
+     * строке: его только что выбрал человек.
+     */
+    let finalLine = __relocation().relocateCoreTagsByOrder(
+      rawLine,
+      rules,
+      orderCfg,
+      state,
+      Array.isArray(rules?.leftMode?.fields) ? rules.leftMode.fields : [],
+      actionFieldKey,
+      String(actionField?.id || "").trim()
+    );
     const finalParsed0 = core.parseLine(finalLine, rules);
     finalLine = lineFinalize.applyTrailingSeparatorPolicy({
       line: finalLine,

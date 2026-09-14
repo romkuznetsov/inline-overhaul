@@ -3738,6 +3738,7 @@ async function run() {
   await testStatusDateKeepsWholeValueOfTwoWordFormat();
   await testStatusDateKeepsElementInItsOrderBlock();
   await testFailedNoticeReachesTheConsole();
+  await testStatusDateMovesForeignValueToItsBlock();
   await testStatusImportanceMinimalNoSeparatorUsesOwnSeparator();
   assertTrue(typeof runtime.runCommand === "function", "runtime exports runCommand");
   console.log("Status runtime behavior tests: OK");
@@ -3778,6 +3779,47 @@ async function testStatusImportanceMinimalNoSeparatorUsesOwnSeparator() {
     "minimal no-separator: значение встаёт слева от разделителя");
   assertTrue(/text\s*$/.test(line),
     "minimal no-separator: текст человека остаётся справа");
+}
+
+
+/*
+ * **Значение чужого поля встаёт в свой Block и у команды элемента**
+ * (PRD 10.13.132, найдено обходом строки 2026-09-15).
+ *
+ * Правило перестановки по Order звали двое движков из трёх. Третий — команды
+ * элементов — не звал, и на строке, где значение стоит не в своей зоне,
+ * результат зависел от того, какой кнопкой человек это сделал: команда тега
+ * или панель значение переносили, команда даты оставляла на месте.
+ *
+ * Фикстура синтетическая: `category` лежит в левом Block, `date_due` — в
+ * правом, а значение категории написано **справа** от разделителя.
+ *
+ * Мутация: снять вызов `relocateCoreTagsByOrder` в `status_date.js` — и первое
+ * утверждение краснеет.
+ */
+async function testStatusDateMovesForeignValueToItsBlock() {
+  /* Значение берётся из самой фикстуры: `#area-alpha` — значение поля
+     `category` (в фикстуре оно названо `context`). Литерал не из неё
+     проверял бы, что правило молчит на чужом токене (У-47). */
+  const editor = makeEditor("- [ ] текст :: #area-alpha", 8);
+  await runPkmCommandWithEditor("statusDate", editor, {
+    "Rules data": SYNTHETIC_RULES,
+    "Action type": "cycle_field:date_due",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      panel: { category: "left", date_due: "right" },
+      freeRoam: { category: "off", date_due: "off" },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "current_position",
+  });
+  const line = editor.snapshot().line;
+  const work = line.indexOf("#area-alpha");
+  const sep = line.indexOf("::");
+  assertTrue(work !== -1, "значение чужого поля осталось на строке: " + line);
+  assertTrue(work < sep,
+    "значение левого Block встало слева от разделителя: " + line);
+  assertTrue(/текст/.test(line), "текст человека на месте: " + line);
 }
 
 /*
