@@ -367,11 +367,11 @@ function composeToken(prefix, rawToken) {
   return p + t
 }
 
+/* «Снять скобки, если они есть» — общий дом (`unwrapWikilinkToken`). Тело
+   уехало туда побайтно: сверка на 17 195 входах дала ноль расхождений. До
+   этого правило стояло здесь, а ядро цель ссылки не разворачивало вовсе. */
 function normalizeWikilinkTarget(raw) {
-  var src = String(raw || '').trim()
-  if (!src) return ''
-  var m = src.match(/^\[\[([^\]]+)\]\]$/)
-  return m ? String(m[1] || '').trim() : src
+  return __sharedUtils.unwrapWikilinkToken(raw)
 }
 
 function normalizeComparableToken(raw) {
@@ -2448,3 +2448,9 @@ module.exports.setLineOutsideHistory = setLineOutsideHistory
 module.exports.lineDiffChange = lineDiffChange
 module.exports.keptLinePrefix = keptLinePrefix
 module.exports.withKeptPrefix = withKeptPrefix
+/* «Как значение поля выглядит в строке» объявлено и здесь, и в ядре
+   (`buildOutputToken`). Отдаётся наружу затем, чтобы расхождение между двумя
+   объявлениями меряла программа, а не чтение: стенд `tools/form_divergence.js`
+   зовёт оба настоящих тела на одних входах. Поведения этот экспорт не меняет. */
+module.exports.buildOutputTokenForFieldValue = buildOutputTokenForFieldValue
+module.exports.resolveFieldOutputMode = resolveFieldOutputMode

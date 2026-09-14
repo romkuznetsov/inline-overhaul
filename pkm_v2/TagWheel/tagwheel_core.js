@@ -2348,7 +2348,12 @@ function buildOutputToken(field, value, rules) {
   if (__sharedUtils.isWikilinkToken(tokenRaw)) return tokenRaw
   if (__sharedUtils.startsWithTagToken(tokenRaw)) return tokenRaw
   if (outputMode === 'wikilink') {
-    var linkTarget = value.link || value.token || value.id || ''
+    /* Цель разворачивается тем же общим домом, что и у панели. До 2026-09-15
+       она бралась здесь **как есть**, и на `link` со скобками ядро собирало
+       `[[[[X]]]]` там, где панель собирала `[[X]]`: одно правило, два
+       объявления, и человек получал разное в зависимости от того, какой
+       кнопкой нажал (У-150). */
+    var linkTarget = __sharedUtils.unwrapWikilinkToken(value.link || value.token || value.id || '')
     if (!linkTarget) return ''
     return '[[' + linkTarget + ']]'
   }

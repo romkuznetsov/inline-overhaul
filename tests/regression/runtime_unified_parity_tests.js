@@ -7,6 +7,8 @@ const tokenGraph = require(path.join(__dirname, "..", "..", "src", "core", "toke
 const statusLineRuntime = require(path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js"));
 const runtimeHelpers = require(path.join(__dirname, "..", "..", "src", "core", "pkm_rules_runtime_helpers.js"));
 const tagwheelCore = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js"));
+const tagwheelPanel = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js"));
+const preloadFacade = require(path.join(__dirname, "..", "..", "src", "core", "pkm_runtime_preload_facade.js"));
 const linePipeline = require(path.join(__dirname, "..", "..", "src", "core", "line_pipeline.js"));
 
 function assertEq(actual, expected, name) {
@@ -894,6 +896,56 @@ function run() {
     "и при выводе тегом — тоже ссылку: контрола у этой настройки нет");
   assertEq(outToken({ id: "f", prefix: "#" }, { token: "" }), "",
     "пустое значение токена не даёт");
+
+  /*
+   * **Третье объявление того же правила — у самой панели**, и до 2026-09-15
+   * его не считал никто: запись выше говорила «объявлений было два».
+   * `tagwheel.js` держит `buildOutputTokenForFieldValue`, и ветвь ссылки у
+   * него разворачивала цель (`normalizeWikilinkTarget`), а здесь, в ядре,
+   * цель бралась **как есть**. На `link` со скобками ядро собирало
+   * `[[[[X]]]]`, панель — `[[X]]`: один вопрос, два ответа, и какой человек
+   * получит, решала кнопка (У-150, У-159).
+   *
+   * **Сторожей здесь два, и второй не лишний** (У-92). Сверка «панель равна
+   * ядру» после сведения зеленеет сама: обе стороны спрашивают один дом, и
+   * поломка дома ломает их одинаково. Поэтому рядом стоит ожидание,
+   * написанное **числом, а не сравнением**: цель разворачивается ровно один
+   * раз. Первый сторож ловит новое расхождение, второй — общую поломку.
+   *
+   * Формы взяты те, на которых расхождение было измерено настоящими телами
+   * обоих движков: скобки в `link`, пробелы вокруг цели и подпись после
+   * вертикальной черты.
+   */
+  /*
+   * Панель спрашивает «какого рода этот источник» через шов
+   * `__inlinePkmRulesHelpers`, и ставит его сам плагин — прослойкой
+   * предзагрузки. Зовём её, а не пишем присваивание своей рукой: своя копия
+   * установки шва разошлась бы с продуктом ровно так же, как разошлось
+   * правило, ради которого этот сторож заведён (У-42).
+   *
+   * Загрузчик объявлен асинхронным, но `await` в его теле нет, поэтому шов
+   * встаёт синхронно. Это утверждение о чужом коде, и оно проверяется строкой
+   * ниже, а не принимается на веру: появится там `await` — сторож покраснеет
+   * здесь, а не там, где панель молча не найдёт помощников.
+   */
+  preloadFacade.loadRulesRuntimeHelpers();
+  assertEq(typeof (globalThis.__inlinePkmRulesHelpers || {}).normalizeFieldSourceKind, "function",
+    "шов помощников встал синхронно — иначе панель звать нечем");
+
+  const panelToken = (field, value, rules) =>
+    tagwheelPanel.buildOutputTokenForFieldValue(field, value, rules || {});
+  const LINK_FIELD = { id: "f", prefix: "#", source: "wikilinks:f" };
+  const UNWRAP_CASES = [
+    [{ token: "X", link: "[[X]]" }, "[[X]]", "скобки в подписи значения не удваиваются"],
+    [{ token: "X " }, "[[X]]", "пробел у токена в цель ссылки не уезжает"],
+    [{ token: "X", link: " X " }, "[[X]]", "пробелы вокруг цели снимаются"],
+    [{ token: "X", link: "[[X|подпись]]" }, "[[X|подпись]]", "подпись ссылки переживает разворот"],
+    [{ id: "Y" }, "[[Y]]", "цель берётся у идентификатора, когда токена и подписи нет"],
+  ];
+  for (const [value, expected, name] of UNWRAP_CASES) {
+    assertEq(outToken(LINK_FIELD, value), expected, "ядро: " + name);
+    assertEq(panelToken(LINK_FIELD, value), expected, "панель: " + name);
+  }
 
   console.log("Runtime unified parity tests: OK");
 }
