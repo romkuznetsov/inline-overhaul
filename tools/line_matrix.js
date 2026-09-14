@@ -229,6 +229,34 @@ function selfCheck(rules, cfg) {
 }
 
 /**
+ * **Известное расхождение: названо, а не спрятано.**
+ *
+ * Тихо пропущенный случай — это случай, которого в обходе нет. Поэтому запись
+ * здесь стоит с признаком, адресом разбора и датой, печатается вслух и **умеет
+ * стареть**: если расхождение перестало случаться, обход падает и требует
+ * снять запись. Признак пишется формой, а не именем поля из его конфига: имя
+ * он вправе сменить в любой день (У-182).
+ */
+const KNOWN = [
+  {
+    when: (r) => r.source === "значение по ту сторону разделителя" && r.element,
+    why: "команда поля-элемента не переносит чужое значение в его Block, а панель и команды полей-тегов переносят",
+    where: "PRD 10.13.125, строка очереди в docs/REMAINING_WORK.md",
+    since: "2026-09-15",
+    seen: 0,
+  },
+];
+
+function knownFor(row) {
+  for (const k of KNOWN) {
+    if (!k.when(row)) continue;
+    k.seen += 1;
+    return k;
+  }
+  return null;
+}
+
+/**
  * Разделители человека — один раз и без запасного значения: своё умолчание
  * рядом с чужой настройкой и есть тот литерал, от которого стенд умирает
  * молча (У-182).
@@ -319,6 +347,7 @@ async function main() {
         side: sideOf(key),
         source: c.name,
         random: isRandom(key),
+        element: !!elementCfg[key],
         cmdShown: byCmd ? maskFrom(byCmd.line, key) : "",
         panelShown: byPanel ? maskFrom(byPanel.line, key) : "",
         source_line: c.line,
@@ -352,9 +381,12 @@ async function main() {
       ? true
       : (same && (!wrote || fCmd.stable) && fPanel.stable && r.opened && r.inPanel
          && !addedCmd && !addedPanel);
+    const known = ok ? null : knownFor(r);
     if (ok && !SHOW_ALL) continue;
-    if (!ok) bad++;
-    console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + r.field + " (" + r.side + "), строка " + r.source);
+    if (!ok && !known) bad++;
+    console.log((ok ? "ok  " : (known ? "известное расхождение " : "РАЗОШЛОСЬ "))
+      + r.field + " (" + r.side + "), строка " + r.source);
+    if (known) console.log("    " + known.why + " (с " + known.since + ", разбор: " + known.where + ")");
     console.log("    команда : " + JSON.stringify(r.cmd)
       + (r.random ? "   (значение случайное, сверяется форма: " + JSON.stringify(r.cmdShown) + ")" : ""));
     console.log("    панель  : " + JSON.stringify(r.panel)
@@ -404,8 +436,17 @@ async function main() {
     }
   }
 
+  /* Запись, которой больше нечего описывать, снимается — иначе список
+     перестаёт быть адресом и становится оправданием (У-127). */
+  const stale = KNOWN.filter((k) => k.seen === 0);
   console.log("");
-  console.log("сочетаний " + rows.length + ", расходится " + bad);
+  console.log("сочетаний " + rows.length + ", расходится " + bad
+    + (KNOWN.length ? ", известных расхождений " + KNOWN.filter((k) => k.seen > 0).length : ""));
+  if (stale.length) {
+    console.log("известное расхождение больше не случается — снимите запись: "
+      + stale.map((k) => k.why).join("; "));
+    process.exitCode = 1;
+  }
   /* Ноль команд дочерних полей — не «всё хорошо», а «мерить нечем» (У-88). */
   console.log("команд дочерних полей " + subIds.length
     + " × " + CASES.length + " строк, расходится " + subBad
