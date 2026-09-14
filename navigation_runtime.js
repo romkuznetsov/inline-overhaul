@@ -1265,7 +1265,9 @@ function hasInlineTextBeforeSingleSeparator(s, prefixEnd, delimIndex) {
   }
 
   while (true) {
-    const wl = left.match(/^\[\[[^\]]+\]\]\s*/);
+    /* Форма ссылки — общий дом; текст образца совпадает с прежним до знака
+       (10.13.141). */
+    const wl = left.match(new RegExp("^" + __sharedUtils.WIKILINK_TOKEN_SRC + "\\s*"));
     if (!wl) break;
     left = left.slice(wl[0].length);
   }
@@ -1651,7 +1653,8 @@ function navigateInline(editor, direction, navRules, rawCfg) {
       }
       if (matched) continue;
 
-      const wl = line.slice(i, endAbs).match(/^\[\[[^\]]+\]\]/);
+      /* Форма ссылки — общий дом (10.13.141). */
+      const wl = line.slice(i, endAbs).match(new RegExp("^" + __sharedUtils.WIKILINK_TOKEN_SRC));
       if (wl) {
         res.push(i);
         i += wl[0].length;

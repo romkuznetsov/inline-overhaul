@@ -1247,6 +1247,44 @@ async function run() {
       "каждый require в рантайме — литерал, ни одного по переменной (A33, У-89)");
 
     /*
+     * **Форма ссылки объявляется в общем доме, а не по месту** (У-91, У-168).
+     *
+     * 2026-09-15 рукописных образцов ссылки в рантайме было девять в пяти
+     * файлах. Шесть из них совпадали с домом **до знака**, и подстановка
+     * `WIKILINK_TOKEN_SRC` / `TAG_TOKEN_SRC` поведения не изменила по
+     * построению (10.13.141). Остаток — `editor_visuals_config.js`, чей
+     * образец у́же дома **нарочно**: он не считает ссылкой `[[a[b]]`.
+     * Расхождение измерено (2 строки из 77), не сведено, и адрес назван здесь
+     * поимённо.
+     *
+     * **Почему запрет живёт здесь, а не только в стенде** (У-182): стендов нет
+     * в семи шагах, и два из них уже умирали на сутки, ничего никому не сказав.
+     *
+     * Форма записывается двумя способами, и ищутся обе: регулярным литералом и
+     * строкой с удвоенным слэшем, как в самом доме. Первая версия обхода
+     * искала только первую — и положительный контроль поймал это раньше, чем
+     * число успело соврать (У-142).
+     */
+    const linkFormNeedles = ["\\[\\[[^", "\\\\[\\\\[[^"];
+    const allowedLinkForm = new Set([
+      "src/core/shared_utils.js",
+      "src/core/editor_visuals_config.js",
+    ]);
+    const handwrittenLinkForm = [];
+    let sawLinkFormHome = false;
+    for (const abs of walked) {
+      const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+      const text = fs.readFileSync(abs, "utf8");
+      if (!linkFormNeedles.some((n) => text.indexOf(n) >= 0)) continue;
+      if (rel === "src/core/shared_utils.js") sawLinkFormHome = true;
+      if (!allowedLinkForm.has(rel)) handwrittenLinkForm.push(rel);
+    }
+    assertTrue(sawLinkFormHome,
+      "положительный контроль: обход нашёл форму ссылки в самом доме — иначе образец промахнулся");
+    assertEq(handwrittenLinkForm.join(" | "), "",
+      "форма ссылки объявляется в общем доме; рукописный образец завёлся в: " + handwrittenLinkForm.join(" | "));
+
+    /*
      * **У служебного файла правил не осталось ни одного читателя** (PRD
      * 10.13.52, П-8, шаг третий, 2026-09-13).
      *

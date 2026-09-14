@@ -191,8 +191,10 @@ function hasFieldTokens(body, shape) {
    * только что переставленный в другой Block, в её списке ещё не значится.
    * Это поймала проверка поведения, а не чтение (block_placement_tests).
    */
-  if (/(^|\s)#\S+/.test(src)) return true;
-  if (/(^|\s)\[\[[^\]]+\]\]/.test(src)) return true;
+  /* Формы тега и ссылки — общий дом; текст обоих образцов совпадает с
+     прежним до знака (10.13.141). */
+  if (new RegExp("(^|\\s)" + __sharedUtils.TAG_TOKEN_SRC).test(src)) return true;
+  if (new RegExp("(^|\\s)" + __sharedUtils.WIKILINK_TOKEN_SRC).test(src)) return true;
   const tokens = src.split(/\s+/).filter(Boolean);
   for (const t of tokens) {
     if (startsWithAnyMarker(t, shape.markers)) return true;
@@ -728,9 +730,10 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
   left = String(__sharedUtils.lineStartOf(left).body || "").trim();
   const markers = getRightMarkers(rules);
   while (true) {
-    const mTag = left.match(/^(#\S+)\s*/);
+    /* Формы тега и ссылки — общий дом (10.13.141). */
+    const mTag = left.match(new RegExp("^(" + __sharedUtils.TAG_TOKEN_SRC + ")\\s*"));
     if (mTag) { left = left.slice(mTag[0].length).trim(); continue; }
-    const mWiki = left.match(/^(\[\[[^\]]+\]\])\s*/);
+    const mWiki = left.match(new RegExp("^(" + __sharedUtils.WIKILINK_TOKEN_SRC + ")\\s*"));
     if (mWiki) { left = left.slice(mWiki[0].length).trim(); continue; }
     let consumedMarker = false;
     /* Значение берётся целиком, а не «до пробела»: у элемента с пробелом в

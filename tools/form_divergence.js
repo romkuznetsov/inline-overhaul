@@ -279,6 +279,122 @@ function reportOutputMode() {
   return diverging.length;
 }
 
+/* ------------------------------------------ «найти ссылки в тексте строки» */
+
+/**
+ * Четвёртое место остатка: **обход ссылок в тексте**. Здесь у каждого читателя
+ * свой образец, и вопрос у всех один — «где в этой строке ссылки».
+ *
+ * Дом рантайма держит форму ссылки как строку — `WIKILINK_TOKEN_SRC`, — и
+ * образцы мест сверяются **с ней**, а не друг с другом: сравнивать двух
+ * читателей между собой значит не увидеть расхождения обоих с тем, кто
+ * предмет пишет (У-122).
+ *
+ * Вход — целая строка, а не токен, поэтому мера своя.
+ */
+function scanSites() {
+  const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
+  const homeSrc = shared.WIKILINK_TOKEN_SRC;
+  const all = (re, text) => {
+    const out = [];
+    const rx = new RegExp(re.source, re.flags.indexOf("g") >= 0 ? re.flags : re.flags + "g");
+    let m;
+    while ((m = rx.exec(String(text))) !== null) {
+      out.push(m[0]);
+      if (m.index === rx.lastIndex) rx.lastIndex++;
+    }
+    return JSON.stringify(out);
+  };
+  return [
+    {
+      id: "дом (WIKILINK_TOKEN_SRC)",
+      file: "src/core/shared_utils.js",
+      anchor: null,
+      fn: (text) => all(new RegExp(homeSrc, "g"), text),
+    },
+    {
+      id: "editor_visuals_config.pushAll",
+      file: "src/core/editor_visuals_config.js",
+      anchor: 'pushAll(/\\[\\[[^\\][\\n]+\\]\\]/g, "link");',
+      fn: (text) => all(/\[\[[^\][\n]+\]\]/g, text),
+    },
+  ];
+}
+
+/** Строки берутся у него целиком: обход ищет в строке, а не в токене. */
+function lineCorpus() {
+  const out = [];
+  const seen = new Set();
+  for (const name of fs.readdirSync(VAULT).filter((n) => /\.md$/i.test(n))) {
+    let text = "";
+    try { text = fs.readFileSync(path.join(VAULT, name), "utf8"); } catch (_) { continue; }
+    for (const line of String(text).split("\n")) {
+      if (line.indexOf("[[") < 0) continue;
+      if (seen.has(line)) continue;
+      seen.add(line);
+      out.push({ value: line, from: "его заметки" });
+    }
+  }
+  const edges = [
+    "[[a]]",
+    "текст [[a]] и [[b]] хвост",
+    "[[a[b]]",
+    "[[a|подпись]] текст",
+    "[[#heading]]",
+    "[[a]] [[b]]",
+    "[[",
+    "]]",
+    "[[]]",
+    "- [ ] [[a]] :: [[b]]",
+    "[[a\nb]]",
+    "[[a]]]]",
+    "[[кириллица с пробелом]]",
+  ];
+  for (const e of edges) out.push({ value: e, from: "край (синтетика)" });
+  return out;
+}
+
+function reportScan() {
+  const sites = scanSites();
+  const lines = lineCorpus();
+  console.log("== вопрос «где в этой строке ссылки»: " + sites.length + " образцов");
+  for (const s of sites) console.log("   - " + s.id + "  (" + s.file + ")");
+
+  for (const s of sites) {
+    if (!s.anchor) continue;
+    const text = fs.readFileSync(path.join(ROOT, s.file), "utf8");
+    if (text.indexOf(s.anchor) < 0) {
+      console.log("   ! " + s.id + ": строки исходника в файле больше нет — числам ниже верить нельзя");
+    }
+  }
+
+  /* Сверяется каждый с домом, а не все со всеми (У-122). */
+  const home = sites[0];
+  let diverging = 0;
+  for (const s of sites.slice(1)) {
+    const bad = [];
+    for (const l of lines) {
+      if (s.fn(l.value) !== home.fn(l.value)) bad.push(l);
+    }
+    diverging += bad.length;
+    console.log("   " + s.id.padEnd(34) + " против дома: расхождений " + bad.length + " из " + lines.length);
+    for (const b of bad.slice(0, 4)) {
+      console.log("      на " + JSON.stringify(b.value).slice(0, 70) + "  [" + b.from + "]");
+      console.log("         дом  -> " + home.fn(b.value));
+      console.log("         оно  -> " + s.fn(b.value));
+    }
+  }
+
+  /* Контроль чувствительности: нарочно суженный образец обязан разойтись. */
+  const narrow = (text) => JSON.stringify([]);
+  let seen = 0;
+  for (const l of lines) if (narrow(l.value) !== home.fn(l.value)) seen++;
+  console.log("   контроль чувствительности: пустой образец расходится с домом на " +
+    seen + " строках из " + lines.length + (seen ? "" : "  <= МЕРА СЛЕПА"));
+  console.log("");
+  return diverging;
+}
+
 /* --------------------------------------------------------------- контроли */
 
 function controlTranscription() {
@@ -342,6 +458,58 @@ function controlSitesComplete() {
     }
   }
   return bad;
+}
+
+/**
+ * **Контроль на полноту: рукописный образец ссылки заводится тихо.**
+ *
+ * Сведя три места в `transform_feature.js`, я спросил не «нет ли ещё копии», а
+ * что помешает завести её завтра (У-159). Ответ был «ничего» — поэтому здесь
+ * сплошной обход рантайма по **форме** образца, а не по списку файлов (У-111,
+ * У-126).
+ *
+ * Разрешены ровно два адреса: общий дом, где форма объявлена, и
+ * `editor_visuals_config.js`, чей образец **у́же дома нарочно** — он не считает
+ * ссылкой `[[a[b]]`. Расхождение измерено (2 строки из 77) и не сведено: что
+ * об этом думает сам Obsidian, не спрошено, а гадать про чужую разметку здесь
+ * запрещено (У-91).
+ */
+function controlNoHandwrittenLinkForm() {
+  /* Форма записывается двумя способами, и искать надо обе: регулярным
+     литералом и строкой с удвоенным слэшем, как в самом доме. Первая
+     версия искала только первую — и положительный контроль ниже поймал
+     это раньше, чем я успел прочесть «рукописных форм нет» (У-142). */
+  const needles = ["\\[\\[[^", "\\\\[\\\\[[^"];
+  const allowed = new Set([
+    "src/core/shared_utils.js",
+    "src/core/editor_visuals_config.js",
+    "tools/form_divergence.js",
+  ]);
+  const found = [];
+  const skipDir = new Set(["node_modules", "dist", ".git", "tests", "docs"]);
+  const walk = (d) => {
+    for (const name of fs.readdirSync(d)) {
+      if (skipDir.has(name)) continue;
+      const full = path.join(d, name);
+      const st = fs.statSync(full);
+      if (st.isDirectory()) { walk(full); continue; }
+      if (!/\.(js|ts)$/.test(name)) continue;
+      const rel = path.relative(ROOT, full).split(path.sep).join("/");
+      const text = fs.readFileSync(full, "utf8");
+      if (needles.some((n) => text.indexOf(n) >= 0)) found.push(rel);
+    }
+  };
+  walk(ROOT);
+
+  /* Положительный контроль: обход обязан находить хотя бы дом. Ноль означал бы
+     промах образца, а не отсутствие рукописных форм (У-119, У-127). */
+  if (!found.includes("src/core/shared_utils.js")) {
+    return ["обход не нашёл даже общий дом — образец промахнулся"];
+  }
+  return found
+    .filter((rel) => !allowed.has(rel))
+    .map((rel) => "рукописный образец ссылки в " + rel +
+      ": форма ссылки объявляется в общем доме, а не по месту (У-91)");
 }
 
 function controlCorpus(corpus) {
@@ -408,6 +576,7 @@ function main() {
   const problems = []
     .concat(controlTranscription())
     .concat(controlSitesComplete())
+    .concat(controlNoHandwrittenLinkForm())
     .concat(controlCorpus(corpus))
     .concat(controlMeasureSeesDivergence(corpus));
 
@@ -422,7 +591,7 @@ function main() {
     for (const p of problems) console.log("  ! " + p);
     console.log("");
   } else {
-    console.log("Контроли пройдены: переписывание, полнота списка мест, корпус, чувствительность меры");
+    console.log("Контроли пройдены: переписывание, полнота списка мест, отсутствие рукописных форм, корпус, чувствительность меры");
     console.log("");
   }
 
@@ -471,6 +640,7 @@ function main() {
   }
 
   totalDiverging += reportOutputMode();
+  totalDiverging += reportScan();
 
   console.log("Итого расхождений: " + totalDiverging);
   console.log("Сводить можно только группу с нулём — и только после мутации в обе стороны (У-92).");

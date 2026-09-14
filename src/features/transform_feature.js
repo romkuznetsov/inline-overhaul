@@ -844,9 +844,13 @@ function parseInlineLine(rawLine, cfg) {
     return "payload";
   };
   let m;
-  const wlRe = /\[\[([^\]]+)\]\]/g;
+  /* Форма ссылки — общий дом (`WIKILINK_TOKEN_SRC`). Свой образец сверен с
+     ним на 77 строках его заметок и тринадцати краях: расхождений ноль
+     (`node tools/form_divergence.js`, 10.13.141). Цель достаётся тем же
+     домом, что и везде, вместо своей скобки захвата. */
+  const wlRe = new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g");
   while ((m = wlRe.exec(line)) !== null) {
-    const v = String(m[1] || "").trim();
+    const v = __sharedUtils.unwrapWikilinkToken(m[0]);
     if (v) wikilinks.push(v);
     const span = { start: m.index, end: m.index + String(m[0] || "").length };
     wikilinkSpans.push(span);
@@ -884,8 +888,9 @@ function parseInlineLine(rawLine, cfg) {
       .join("|")
     : null;
   const payloadTextRaw = extractPrimaryPayloadText(line, separators);
+  /* Форма ссылки — общий дом; сверено с ним, расхождений ноль (10.13.141). */
   let textCore = line
-    .replace(/\[\[[^\]]+\]\]/g, " ")
+    .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ")
     .replace(/(^|\s)(#[^\s#]+)/g, " ")
     .replace(markerPattern ? new RegExp(markerPattern, "g") : /$^/, " ")
     .replace(/\s+/g, " ")
@@ -1499,7 +1504,8 @@ function explicitTitleRegExp(i2n, flags) {
 function explicitTitleOf(line, i2n) {
   const re = explicitTitleRegExp(i2n, "g");
   const lineWithoutWikilinks = String(line || "")
-    .replace(/\[\[[^\]]+\]\]/g, " ")
+    /* Форма ссылки — общий дом; сверено, расхождений ноль (10.13.141). */
+    .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ")
     .replace(/^(\s*[-*+]\s+)\[[^\]]\](\s*)/, "$1$2");
   let m;
   while ((m = re.exec(lineWithoutWikilinks)) !== null) {
