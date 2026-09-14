@@ -27,8 +27,9 @@ function resolveSeparatorsOrThrow(rules) {
 }
 
 function hasListPrefix(line) {
-  const body = String(line || "").replace(/^\s*/, "");
-  return /^([-*+]|\d+[\.)])(\s|$)/.test(body);
+  /* Свой образец снят: знак списка называет одно объявление, и оно же знает,
+     что за цитатой знак списка тоже знак списка (10.13.118). */
+  return !!__sharedUtils.lineStartOf(line).marker;
 }
 
 /*
@@ -245,6 +246,12 @@ function resolvePrefixCheckboxUnified(rules, state, deps) {
   return "";
 }
 
+/** Цитата и каллаут, снятые со строки отступом, — одним объявлением. */
+function lineQuoteOfIndent(indent) {
+  const start = __sharedUtils.lineStartOf(indent);
+  return String(start.quote || "") + String(start.callout || "");
+}
+
 /**
  * Начало строки после действия: знак списка и чекбокс.
  *
@@ -267,6 +274,16 @@ function resolvePrefixCheckboxUnified(rules, state, deps) {
  * `enforceOffModeFinalPrefixUnified` — там, где настройка выключена.
  */
 function buildPrefixUnified(parsedLine, rules, state, deps) {
+  /*
+   * **Цитата и каллаут идут впереди всего, и нашего знака за ними нет** — его
+   * слово по В-115: «наш знак списка внутри цитаты не появляется, как не
+   * появляется за знаком заголовка». Знак человека внутри цитаты (`> - текст`)
+   * при этом остаётся: его ставил он.
+   */
+  /* Цитату строка несёт отступом: её снял `splitSegments` вместе с ним, а
+     разобрать отступ обратно на части умеет то же одно объявление. */
+  const quote = String((parsedLine && parsedLine.quoteToken) || "")
+    || lineQuoteOfIndent(parsedLine && parsedLine.indent);
   if (parsedLine && parsedLine.headingToken) {
     return `${parsedLine.headingToken} `;
   }
@@ -274,8 +291,8 @@ function buildPrefixUnified(parsedLine, rules, state, deps) {
   const keepCb = (!nextCb && state && state.__preserveCheckboxPrefix === true && parsedLine && parsedLine.checkboxToken)
     ? normalizeCheckboxToken(parsedLine.checkboxToken)
     : "";
-  const bullet = String((parsedLine && parsedLine.bulletToken) || "-");
-  let out = `${bullet} `;
+  const bullet = String((parsedLine && parsedLine.bulletToken) || (quote ? "" : "-"));
+  let out = bullet ? `${bullet} ` : "";
   if (nextCb) out += `${nextCb} `;
   else if (keepCb) out += `${keepCb} `;
   return out;
@@ -358,16 +375,26 @@ function applyResolvedPrefixToLine(options) {
   const nextPrefix = String(buildPrefix(parsedLine, rules, prefixState) || "").trim();
   if (!nextPrefix) return line;
 
-  const indent = (line.match(/^(\s*)/) || ["", ""])[1];
+  /*
+   * **Впереди строки остаётся то, что принадлежит платформе целиком**: отступ,
+   * цитата и каллаут. Наш знак встаёт за ними, а не перед ними — иначе `- `
+   * приезжал перед `>` и цитата переставала быть цитатой (В-115).
+   */
+  const outerStart = __sharedUtils.lineStartOf(line);
+  const indent = outerStart.indent + outerStart.quote + outerStart.callout;
   let body = line.slice(indent.length);
   if (allowHeadingRewrite) {
     while (/^#{1,6}(?:\s+|$)/.test(body)) body = body.replace(/^#{1,6}(?:\s+|$)/, "");
     body = body.replace(/(^|\s)#{1,6}(?=\s|$)/g, "$1");
   }
-  body = body.replace(/^([-*+]|\d+\.)(?:\s+|$)/, "");
-  body = body.replace(/^(\[[^\]]\])(?:\s+|$)/, "");
+  /* Знак списка и задача за ним снимаются одним объявлением: свои два образца
+     знали только точку и снимали скобки без знака списка (В-114). */
+  const innerStart = __sharedUtils.lineStartOf(body);
+  if (innerStart.marker) {
+    body = body.slice(innerStart.marker.length + innerStart.checkbox.length);
+  }
   body = body.trim();
-  let out = `${indent}${nextPrefix}${body ? (" " + body) : ""}`;
+  let out = `${indent}${nextPrefix}${nextPrefix && body ? " " : ""}${body}`;
 
   out = out.replace(/^(\s*[-*+]\s+\[[^\]]\])\s+\|\|/, "$1  ||");
   out = out.replace(/^(\s*\d+\.\s+\[[^\]]\])\s+\|\|/, "$1  ||");
@@ -801,17 +828,16 @@ function alignMinimalNoSeparatorPrefix(options) {
     : "";
   const finalIndent = ((finalLine.match(/^(\s*)/) || ["", ""])[1] || "");
   if (currentCheckbox === desiredCheckbox) {
-    if (opts.preserveIndent === true && indent !== finalIndent && /^\s*(?:[-*+]|\d+\.)(?:\s+|$)/.test(finalLine)) {
+    if (opts.preserveIndent === true && indent !== finalIndent && hasListPrefix(finalLine)) {
       return indent + finalLine.replace(/^\s*/, "");
     }
     return finalLine;
   }
 
-  const body = finalLine
-    .replace(/^\s*/, "")
-    .replace(/^([-*+]|\d+\.)(?:\s+|$)/, "")
-    .replace(/^(\[[^\]]\])(?:\s+|$)/, "")
-    .trim();
+  /* Начало строки снимается общим объявлением: свой образец знал номер только
+     с точкой, и `1) текст` списком не считался вовсе (Д2 ревизии). */
+  const bodyStart = __sharedUtils.lineStartOf(finalLine);
+  const body = String(bodyStart.body || "").trim();
   return `${indent}- ${desiredCheckbox}${body ? " " + body : ""}`;
 }
 
@@ -1380,37 +1406,16 @@ function normalizeStructuredSlots(options) {
 }
 
 function splitLeftDecorators(rawLeft) {
-  const src = String(rawLeft || "");
-  const indent = (src.match(/^(\s*)/) || ["", ""])[1];
-  let body = src.slice(indent.length);
-  let headingToken = "";
-  let listToken = "";
-  let checkboxToken = "";
-
-  const mh = body.match(/^(#{1,6})\s+/);
-  if (mh) {
-    headingToken = String(mh[1] || "").trim();
-    body = body.slice(mh[0].length);
-  }
-
-  const ml = body.match(/^([-*+]|\d+[\.)])\s+/);
-  if (ml) {
-    listToken = String(ml[1] || "").trim();
-    body = body.slice(ml[0].length);
-  }
-
-  const mc = body.match(/^(\[[^\]]\])\s+/);
-  if (mc) {
-    checkboxToken = String(mc[1] || "").trim();
-    body = body.slice(mc[0].length);
-  }
-
+  /* Три своих образца сняты: части начала строки называет одно объявление
+     (`lineStartOf`), и цитату с каллаутом оно тоже знает (10.13.118). */
+  const start = __sharedUtils.lineStartOf(rawLeft);
   return {
-    indent,
-    headingToken,
-    listToken,
-    checkboxToken,
-    body: String(body || "").trim(),
+    indent: start.indent,
+    quoteToken: String(start.quote || "") + String(start.callout || ""),
+    headingToken: String(start.heading || "").trim(),
+    listToken: String(start.marker || "").trim(),
+    checkboxToken: String(start.checkbox || "").trim(),
+    body: String(start.body || "").trim(),
   };
 }
 
@@ -2035,8 +2040,10 @@ function enforceOffModeFinalPrefixUnified(options) {
     if (hasListPrefix(line)) return line;
     const prefix = String(opts.resolvedPrefix || "").trim();
     if (!prefix) return line;
-    const indent = (line.match(/^(\s*)/) || ["", ""])[1];
-    const body = line.trimStart();
+    const outer = __sharedUtils.lineStartOf(line);
+    if (outer.quote) return line;
+    const indent = outer.indent;
+    const body = line.slice(indent.length).trimStart();
     return restoreEmptyTextSlot(`${indent}${prefix}${body ? " " + body : ""}`, opts.rules);
   }
   if (flags.preserveOffImmutability && !hasListPrefix(rawLine)) {
@@ -2046,8 +2053,12 @@ function enforceOffModeFinalPrefixUnified(options) {
   const resolvedPrefix = String(opts.resolvedPrefix || "").trim();
   const fallbackPrefix = resolvedPrefix || (opts.hasOwnCheckbox === true ? "- [ ]" : (flags.forceBulletPrefix ? "-" : ""));
   if (!fallbackPrefix) return line;
-  const indent = (line.match(/^(\s*)/) || ["", ""])[1];
-  const body = line.trimStart();
+  /* Впереди остаётся то, что принадлежит платформе: отступ, цитата, каллаут.
+     Наш знак встаёт за ними — и внутри цитаты не встаёт вовсе (В-115). */
+  const outer = __sharedUtils.lineStartOf(line);
+  if (outer.quote) return line;
+  const indent = outer.indent;
+  const body = line.slice(indent.length).trimStart();
   return restoreEmptyTextSlot(`${indent}${fallbackPrefix}${body ? " " + body : ""}`, opts.rules);
 }
 

@@ -242,10 +242,9 @@ function isLikelyDatePayloadContinuationToken(token) {
 }
 
 function stripListPrefixForBody(rawLeft) {
-  var left = String(rawLeft || "").trim();
-  left = left.replace(/^\s*(?:[-*+]|\d+[\.)])(?:\s+|$)/, "");
-  left = left.replace(/^\s*\[[^\]]\](?:\s+|$)/, "");
-  return left.trim();
+  /* Начало строки спрашивается у общего объявления: свои две строки знали
+     скобки **без** знака списка и снимали текст человека (В-114). */
+  return String(__sharedUtils.lineStartOf(String(rawLeft || "").trim()).body || "").trim();
 }
 
 function isPlainTextSegmentToken(token) {
@@ -340,8 +339,17 @@ function splitSegments(rawLine, rules) {
   const sep1 = sep.sep1;
   const sep2 = sep.sep2;
   const raw = String(rawLine || "");
-  const indent = (raw.match(/^(\s*)/) || ["", ""])[1];
-  const s = raw.trim();
+  /*
+   * **Цитата и каллаут снимаются со строки вместе с отступом** (10.13.118).
+   * Они — внешнее оформление строки, а не часть зоны значений: место у них
+   * впереди всего, и трогать их нам нельзя. Сняв их сюда, весь разбор ниже
+   * работает с внутренней строкой, а собирает их обратно `buildFromSegments`
+   * тем же `indent`. Пока они оставались в левом сегменте, `> текст` после шага
+   * по полю переставала быть цитатой, а каллаут разваливался (В-115).
+   */
+  const outer = __sharedUtils.lineStartOf(raw);
+  const indent = outer.indent + outer.quote + outer.callout;
+  const s = raw.slice(indent.length).trim();
   const markers = getRightMarkers(rules);
   const shape = fieldsShape(rules);
 
@@ -506,7 +514,10 @@ function buildFromSegments(seg, rules) {
    */
   const leftParts = splitLeftPrefix(left);
   const hasLeftTech = hasFieldTokens(leftParts.body, fieldsShape(rules));
-  if (hasLeftTech && !leftParts.prefix) {
+  /* Внутри цитаты нашего знака списка нет — его слово по В-115. Цитату строка
+     несёт отступом, и разбирает его то же одно объявление. */
+  const outerQuote = String(__sharedUtils.lineStartOf(indent).quote || "");
+  if (hasLeftTech && !leftParts.prefix && !outerQuote) {
     left = ("- " + left).trim();
   }
 
@@ -598,32 +609,17 @@ function joinLineParts(parts, opts) {
 /**
  * Что в начале левого сегмента принадлежит **платформе**, а что нам.
  *
- * Знак списка, номер и чекбокс были здесь с самого начала. **Знак заголовка
- * добавлен 2026-09-13 по его слову «чини»** (10.13.94): без него `##` попадал в
- * зону значений, потому что наше правило «что такое тег» — решётка плюс
- * непробел — ложится на две решётки целиком. Одна под него не подходит, и
- * оттого `# текст` вела себя верно, а `## текст` получала разделитель при
- * пустой зоне значений и знак списка впереди заголовка.
- *
- * Правило спрошено у платформы, а не выдумано (У-91): Obsidian 1.13.7 считает
- * заголовком `/^(#+)(?: |$)/` и режет его `/^#{1,6} (.*)/m` — то есть решётки
- * до пробела или до конца строки, не больше шести. Тег с решёток начинаться не
- * может: за ними обязан стоять пробел.
- *
- * **Чекбокс к знаку заголовка не относится, и это тоже платформа.** Задача у
- * Obsidian — скобки за знаком **списка**; у заголовка их нет, и `#### [ ] test`
- * есть заголовок с текстом `[ ] test`. Общая ветка на оба знака съедала эти
- * скобки вместе с текстом человека — ровно тот класс, что У-91.
+ * **Своего образца здесь больше нет** (10.13.118): вопрос задаётся общему
+ * объявлению — `lineStartOf` в `shared_utils.js`. Оно и есть ответ на «что
+ * принадлежит платформе»: отступ, цитата, каллаут, заголовок, знак списка и
+ * задача за ним. Раньше образец стоял тут, и о цитате он не знал вовсе, а
+ * скобки без знака списка считал задачей — оба его замечания, В-114 и В-115,
+ * пришли отсюда.
  */
-var LEFT_PREFIX_RE = new RegExp(
-  "^(?:(" + __sharedUtils.HEADING_PREFIX_SRC + ")|(" + __sharedUtils.LIST_PREFIX_SRC + "(?:\\s+\\[[^\\]]\\])?))(?:\\s+|$)(.*)$"
-);
-
 function splitLeftPrefix(raw) {
   var src = String(raw || "").trim();
-  var m = src.match(LEFT_PREFIX_RE);
-  if (!m) return { prefix: "", body: src };
-  return { prefix: String(m[1] || m[2] || "").trim(), body: String(m[3] || "").trim() };
+  var start = __sharedUtils.lineStartOf(src);
+  return { prefix: String(start.prefix || "").trim(), body: String(start.body || "").trim() };
 }
 
 function joinLeftPrefix(prefix, body) {
@@ -635,13 +631,11 @@ function joinLeftPrefix(prefix, body) {
 }
 
 function stripPrefixKeepIndent(line, removeCheckbox) {
-  const s = String(line || "");
-  const indent = (s.match(/^(\s*)/) || ["", ""])[1];
-  let body = s.slice(indent.length);
-  body = body.replace(/^[-*+](?:\s+|$)/, "");
-  body = body.replace(/^\d+\.(?:\s+|$)/, "");
-  if (removeCheckbox) body = body.replace(/^\[[^\]]\]\s+/, "");
-  return indent + body;
+  /* Части начала берутся у общего объявления; здесь остаётся только выбор,
+     снимать ли задачу вместе со знаком списка. */
+  const start = __sharedUtils.lineStartOf(line);
+  const kept = removeCheckbox ? "" : start.checkbox;
+  return start.indent + start.quote + start.callout + start.heading + kept + start.body;
 }
 
 function escapeRx(s) {
@@ -703,9 +697,9 @@ function extractOriginalTextFromRawLine(rawLine, rules) {
   const seg = splitSegments(rawLine, rules);
   if (String(seg.text || "").trim()) return String(seg.text || "").trim();
   let left = String(seg.left || "").trim();
-  left = left.replace(/^\s*[-*+](?:\s+|$)/, "");
-  left = left.replace(/^\s*\d+\.(?:\s+|$)/, "");
-  left = left.replace(/^\[[^\]]\](?:\s+|$)/, "");
+  /* Начало строки снимается общим объявлением: три своих образца знали
+     только дефис, только точку и скобки без знака списка. */
+  left = String(__sharedUtils.lineStartOf(left).body || "").trim();
   const markers = getRightMarkers(rules);
   while (true) {
     const mTag = left.match(/^(#\S+)\s*/);

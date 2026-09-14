@@ -115,11 +115,17 @@ function buildBulletOnlyLine(parsed, options) {
   const indent = String(parsed && parsed.indent ? parsed.indent : "");
   const keepParsedPrefix = !!opts.keepParsedPrefix;
   const keepCheckbox = opts.keepCheckbox === true;
-  if (!keepParsedPrefix) return indent + "- ";
-  const bullet = String(parsed && parsed.bulletToken ? parsed.bulletToken : "-").trim() || "-";
+  /* Цитата приезжает отступом (её снимает `splitSegments`), а наш знак списка
+     за ней не появляется — его слово по В-115. */
+  const quoteStart = __sharedUtils.lineStartOf(indent);
+  const quote = String(parsed && parsed.quoteToken ? parsed.quoteToken : "")
+    || (String(quoteStart.quote || "") + String(quoteStart.callout || ""));
+  if (!keepParsedPrefix) return indent + (quote ? "" : "- ");
+  const bullet = String(parsed && parsed.bulletToken ? parsed.bulletToken : (quote ? "" : "-")).trim();
+  const head = indent + (bullet ? bullet + " " : "");
   const checkbox = String(parsed && parsed.checkboxToken ? parsed.checkboxToken : "").trim();
-  if (!keepCheckbox) return `${indent}${bullet} `;
-  return checkbox ? `${indent}${bullet} ${checkbox} ` : `${indent}${bullet} `;
+  if (!keepCheckbox) return head;
+  return checkbox ? `${head}${checkbox} ` : head;
 }
 
 function applyKeepBullet(editor, lineNo, parsed, options) {
@@ -202,8 +208,9 @@ function getTextSlotBounds(lineInput, rules) {
     if (!sep2 || sep2 === sep1) return null;
     const only = line.indexOf(sep2);
     if (only === -1) return null;
-    const prefix = line.match(/^(\s*(?:[-*+]|\d+\.)(?:\s+\[[^\]]\])?\s)/);
-    const from = prefix ? prefix[1].length : 0;
+    /* Длина начала строки — у общего объявления: свой образец знал номер
+       только с точкой и не знал ни цитаты, ни каллаута (Д2 ревизии). */
+    const from = __sharedUtils.lineStartOf(line).at;
     let to = only;
     while (to > from && line.charAt(to - 1) === " ") to -= 1;
     return { start: from, end: Math.max(from, to) };
@@ -325,8 +332,9 @@ function isNoContentParsed(parsed, options) {
 }
 
 function hasListPrefix(line) {
-  const body = String(line || "").replace(/^\s*/, "");
-  return /^([-*+]|\d+[\.)])(\s|$)/.test(body);
+  /* Свой образец снят: знак списка называет одно объявление, и оно же знает,
+     что за цитатой знак списка тоже знак списка (10.13.118). */
+  return !!__sharedUtils.lineStartOf(line).marker;
 }
 
 function hasStandaloneCheckboxPrefix(line) {

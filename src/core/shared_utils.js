@@ -750,19 +750,98 @@ const LINE_QUOTE_RE = /^>[ \t]?/;
  *
  * Правило спрошено у платформы (У-91): в `app.js` 1.13.7 начало строки списка
  * это `([*+-] |(\d+)([.)] ))` — дефис, звёздочка, плюс или число с точкой либо
- * скобкой. Объявлено здесь, потому что спрашивают его трое: разбор строки
- * (`line_pipeline.splitLeftPrefix`), перестановка значений по Order
- * (`pkm_rules_runtime_helpers.reorderSegmentTokensByOrder`) и меры длины начала
- * строки ниже.
+ * скобкой. Объявлено здесь, потому что спрашивает его `lineStartOf` ниже — а
+ * через него и все остальные: разбор строки, доводка, макро-прослойка,
+ * перестановка значений по Order и слой оформления.
  *
  * **Копия у перестановки знала один дефис**, и знак человека уезжал в зону
  * значений: `* текст` после шага по элементу давала `- 📅… * || текст`
  * (10.13.106). Копия у разбора знала точку и не знала скобки.
  */
 const LIST_PREFIX_SRC = "(?:[-*+]|\\d+[.)])";
-const LINE_BULLET_RE = new RegExp("^[-*+][ \\t]+(?:" + CHECKBOX_ONE_CHAR_SRC + "[ \\t]+)?");
-const LINE_ORDERED_RE = new RegExp("^\\d+[.)][ \\t]+(?:" + CHECKBOX_ONE_CHAR_SRC + "[ \\t]+)?");
-const LINE_HEADING_RE = /^#{1,6}[ \t]+/;
+
+/**
+ * **Начало строки — одно объявление на весь плагин.**
+ *
+ * Вопрос его, и задан он трижды за две недели: что на строке принадлежит
+ * платформе, а что человеку. Ответов на него было пять — здесь, в разборе
+ * строки, в доводке, в макро-прослойке и в слое оформления, — и расходились
+ * они молча (У-150). Теперь ответ один, а остальные его читают.
+ *
+ * **Правила спрошены у Obsidian, а не выдуманы** (У-91). В `app.js` 1.13.7:
+ *
+ *   * знак списка — `([*+-] |(\d+)([.)] ))`;
+ *   * задача — скобки **ровно с одним знаком** и **за знаком списка**. Скобки
+ *     без знака списка задачей не являются: `[ ] текст` Obsidian рисует как
+ *     обычный текст, и это ответ заказчика на В-114 — «как в Obsidian: это ваш
+ *     текст»;
+ *   * заголовок — `#{1,6}` до пробела или конца строки;
+ *   * цитата — `>` в начале, столько раз, сколько её поставили;
+ *   * каллаут — `/^\[!([^\]]+)\]([+\-]?)(?:\s|$)/`, и только внутри цитаты
+ *     (в `app.js` образец спрашивается под условием `o.quote > h`). Он часть
+ *     начала строки: наше значение, вставленное между `>` и `[!note]`, каллаут
+ *     разваливает — а заказчик просил, чтобы каллаут действие пережил (В-115).
+ *
+ * Порядок частей задан платформой: отступ, цитата (сколько угодно раз),
+ * каллаут, затем **либо** заголовок, **либо** знак списка с задачей за ним.
+ *
+ * **Пробел за знаком берётся ровно один**, и это тоже правило платформы: в её
+ * образцах он один. Второй пробел принадлежит уже написанному — пустой слот
+ * под текст у нас и есть два пробела, и жадный захват его съедал.
+ *
+ * Возвращается разбор, а не длина: длина нужна одним читателям, куски —
+ * другим, и второе объявление ради кусков было бы тем же грехом.
+ */
+const LINE_CALLOUT_RE = /^\[![^\]]+\][+-]?(?:[ \t]+|$)/;
+const LINE_ORDERED_ONLY_RE = /^\d+[.)]/;
+const LINE_MARK_RE = new RegExp("^" + LIST_PREFIX_SRC + "(?:[ \\t]|$)");
+const LINE_CHECKBOX_RE = new RegExp("^" + CHECKBOX_ONE_CHAR_SRC + "(?:[ \\t]|$)");
+const LINE_HEADING_MARK_RE = new RegExp("^" + HEADING_PREFIX_SRC + "(?:[ \\t]|$)");
+
+function lineStartOf(text) {
+  const src = String(nz(text, ""));
+  const take = (re, at) => {
+    const m = src.slice(at).match(re);
+    return m ? m[0] : "";
+  };
+  let at = 0;
+  const indent = take(LINE_INDENT_RE, at);
+  at += indent.length;
+  let quote = "";
+  for (;;) {
+    const q = take(LINE_QUOTE_RE, at);
+    if (!q) break;
+    quote += q;
+    at += q.length;
+    const pad = take(LINE_INDENT_RE, at);
+    quote += pad;
+    at += pad.length;
+  }
+  const callout = quote ? take(LINE_CALLOUT_RE, at) : "";
+  at += callout.length;
+  const heading = take(LINE_HEADING_MARK_RE, at);
+  at += heading.length;
+  /* Заголовок и знак списка на одной строке не сходятся: `## - текст` для
+     Obsidian заголовок с текстом `- текст`. */
+  const marker = heading ? "" : take(LINE_MARK_RE, at);
+  at += marker.length;
+  /* Задача — только за знаком списка. Это и есть ответ на В-114. */
+  const checkbox = marker ? take(LINE_CHECKBOX_RE, at) : "";
+  at += checkbox.length;
+  return {
+    indent,
+    quote,
+    callout,
+    heading,
+    marker,
+    checkbox,
+    prefix: src.slice(0, at),
+    at,
+    body: src.slice(at),
+    /* Номерованный список нужен `Smart Enter`: он считает следующий номер. */
+    ordered: !!marker && LINE_ORDERED_ONLY_RE.test(marker),
+  };
+}
 
 /** Длина отступа: ведущие пробелы и табуляции. */
 function lineIndentLength(text) {
@@ -780,20 +859,7 @@ function lineIndentLength(text) {
  */
 function linePrefixLength(text, dropPrefix) {
   const src = String(nz(text, ""));
-  let at = lineIndentLength(src);
-
-  if (dropPrefix) {
-    for (;;) {
-      const quote = src.slice(at).match(LINE_QUOTE_RE);
-      if (!quote) break;
-      at += quote[0].length;
-      at += lineIndentLength(src.slice(at));
-    }
-    const rest = src.slice(at);
-    const mark = rest.match(LINE_BULLET_RE) || rest.match(LINE_ORDERED_RE) || rest.match(LINE_HEADING_RE);
-    if (mark) at += mark[0].length;
-  }
-
+  let at = dropPrefix ? lineStartOf(src).at : lineIndentLength(src);
   /* Что бы ни сняли, пробелы за снятым тоже оформление. */
   at += lineIndentLength(src.slice(at));
   return at;
@@ -854,47 +920,33 @@ function splitCombinedTagToken(tag) {
 }
 
 /**
- * Начало строки, разобранное на части: отступ, цитата и знак списка.
+ * Начало строки в том виде, в каком его повторяют на новой строке.
  *
- * **Форма знака объявлена один раз** — теми же `LINE_BULLET_RE` и
- * `LINE_ORDERED_RE`, которыми её считает `linePrefixLength` выше (У-32). Здесь
- * не второе правило, а второй читатель того же: одному нужна длина, другому —
- * сами куски, чтобы повторить знак на новой строке (`Smart Enter`, 10.13.88).
- * Что оба читателя сходятся, спрашивает проверка в `smart_enter_tests.js`.
+ * **Своего правила здесь нет ни одного** — всё берётся у `lineStartOf` (У-32):
+ * одному читателю нужна длина, другому куски, чтобы повторить знак на новой
+ * строке (`Smart Enter`, 10.13.88). Что оба сходятся, спрашивает проверка в
+ * `smart_enter_tests.js`.
  *
- * Заголовок знаком списка не считается: `##` на новую строку не переносится
- * ни в Obsidian, ни здесь.
+ * Каллаут приписан к цитате, а задача к знаку списка: на новой строке цитата
+ * повторяется, а имя каллаута нет — второй `[!note]` подряд Obsidian каллаутом
+ * уже не считает. Заголовок знаком списка не считается: `##` на новую строку не
+ * переносится ни в Obsidian, ни здесь.
  */
 function lineMarkerOf(text) {
-  const src = String(nz(text, ""));
-  const indent = src.match(LINE_INDENT_RE)[0];
-  let at = indent.length;
-  let quote = "";
-  for (;;) {
-    const q = src.slice(at).match(LINE_QUOTE_RE);
-    if (!q) break;
-    quote += q[0];
-    at += q[0].length;
-    const pad = lineIndentLength(src.slice(at));
-    quote += src.slice(at, at + pad);
-    at += pad;
-  }
-  const rest = src.slice(at);
-  const ordered = LINE_ORDERED_RE.test(rest);
-  const mark = rest.match(LINE_BULLET_RE) || rest.match(LINE_ORDERED_RE);
+  const start = lineStartOf(text);
   return {
-    indent,
-    quote,
-    marker: mark ? mark[0] : "",
-    ordered: ordered && !!mark,
-    at: at + (mark ? mark[0].length : 0),
+    indent: start.indent,
+    quote: start.quote + start.callout,
+    marker: start.marker + start.checkbox,
+    ordered: start.ordered,
+    at: start.indent.length + start.quote.length + start.callout.length
+      + start.marker.length + start.checkbox.length,
   };
 }
 
 /** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
 function isListItemLine(text) {
-  const rest = String(nz(text, "")).replace(LINE_INDENT_RE, "");
-  return LINE_BULLET_RE.test(rest) || LINE_ORDERED_RE.test(rest);
+  return !!lineStartOf(text).marker;
 }
 
 module.exports = {
@@ -907,6 +959,7 @@ module.exports = {
   LIST_PREFIX_SRC,
   HEADING_PREFIX_SRC,
   headingPrefixLength,
+  lineStartOf,
   lineIndentLength,
   linePrefixLength,
   lineMarkerOf,

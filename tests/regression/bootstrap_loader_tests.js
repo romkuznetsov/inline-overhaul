@@ -861,11 +861,11 @@ async function run() {
   assertTrue(/function removeTokensAcrossSegments\(/.test(linePipelineSrc), "line pipeline exports segment-wide token stripping helper");
   assertTrue(/function cleanOriginalTextForLeftDate\(/.test(linePipelineSrc), "line pipeline exports left-date original-text cleaner helper");
   /*
-   * Знак начала строки объявлен **один раз** — в `splitLeftPrefix`, и знает он
-   * все четыре формы: список, номер, чекбокс за ними и знак заголовка
-   * (2026-09-13, 10.13.94). Прежде здесь стоял образец `^\d+\.(?:\s|$)` из
-   * `buildFromSegments`: тот свой образец снят, и утверждение переехало за
-   * своим предметом (У-94).
+   * Начало строки объявлено **один раз** — `lineStartOf` в `shared_utils.js`, и
+   * знает оно все формы платформы: отступ, цитату, каллаут, заголовок, знак
+   * списка и задачу за ним (10.13.118). Утверждение переезжало за предметом
+   * дважды (У-94): сперва из `buildFromSegments` в `splitLeftPrefix`, потом из
+   * `splitLeftPrefix` сюда — своего образца у разбора строки больше нет.
    */
   const sharedUtilsSrcHere = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"), "utf8");
@@ -873,8 +873,16 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "core", "editor_visuals_config.js"), "utf8");
   assertTrue(/HEADING_PREFIX_SRC = "#\{1,6\}/.test(sharedUtilsSrcHere),
     "shared utils declares the heading-marker rule once");
-  assertTrue(/__sharedUtils\.HEADING_PREFIX_SRC/.test(linePipelineSrc),
-    "line pipeline line-prefix rule asks the shared heading-marker rule");
+  assertTrue(/__sharedUtils\.lineStartOf\(/.test(linePipelineSrc),
+    "line pipeline asks the shared line-start rule");
+  assertTrue(/function lineStartOf\(text\)/.test(sharedUtilsSrcHere),
+    "shared utils declares the line-start rule once");
+  /* Задача — только за знаком списка: это правило платформы и ответ на В-114. */
+  assertTrue(/const checkbox = marker \? take\(LINE_CHECKBOX_RE, at\) : "";/.test(sharedUtilsSrcHere),
+    "shared line-start rule takes the task box only after a list marker");
+  /* Цитата и каллаут — часть начала строки: ответ на В-115. */
+  assertTrue(/const callout = quote \? take\(LINE_CALLOUT_RE, at\) : "";/.test(sharedUtilsSrcHere),
+    "shared line-start rule knows the callout, and only inside a quote");
   assertTrue(/__sharedUtils\.headingPrefixLength\(src\)/.test(visualsSrcHere),
     "editor visuals ask the shared heading-marker rule before painting tags");
   /*
@@ -887,8 +895,14 @@ async function run() {
      уровней экранирования три, и ошибиться в них проще, чем в предмете. */
   assertTrue(sharedUtilsSrcHere.indexOf(String.raw`const LIST_PREFIX_SRC = "(?:[-*+]|\\d+[.)])"`) !== -1,
     "shared utils declares the list-marker rule once, in the platform's own form");
-  assertTrue(/__sharedUtils\.LIST_PREFIX_SRC/.test(linePipelineSrc),
-    "line pipeline line-prefix rule asks the shared list-marker rule");
+  /* Разбор строки и доводка спрашивают начало строки у общего объявления, а
+     не считают его сами: своих образцов там было больше двадцати. */
+  assertTrue(/__sharedUtils\.lineStartOf\(/.test(pkmLineFinalizeUnifiedSrc),
+    "line finalizer asks the shared line-start rule");
+  assertTrue(/__sharedUtils\.lineStartOf\(/.test(pkmMacroSharedSrc),
+    "macro layer asks the shared line-start rule");
+  assertFalse(/const body = String\(line \|\| ""\)\.replace\(\/\^\s\*\/, ""\);\s*return \/\^\(\[-\*\+\]/
+    .test(pkmLineFinalizeUnifiedSrc), "line finalizer brought back its own list-marker pattern");
   assertTrue(/__sharedUtils\.LIST_PREFIX_SRC/.test(pkmRulesHelpersSrc),
     "order reordering asks the shared list-marker rule instead of its own hyphen");
   assertFalse(/match\(\/\^\(-\s\+/.test(pkmRulesHelpersSrc),

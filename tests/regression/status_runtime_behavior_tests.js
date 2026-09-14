@@ -332,6 +332,91 @@ async function runTagWheelKeys(editor, settings, keys) {
   }
 }
 
+/*
+ * **Начало строки принадлежит платформе, и действие поля его не трогает.**
+ *
+ * Два его вопроса, отвеченных 2026-09-14, и оба про одно:
+ *
+ *   * В-114 — `[ ] текст` без знака списка. Его слово: «как в Obsidian: это
+ *     ваш текст». Скобки без знака списка задачей не являются, и уносить их со
+ *     строки нельзя;
+ *   * В-115 — строка-цитата. Его слово: «считать цитату началом строки»,
+ *     каллаут действие переживает, наш знак списка внутри цитаты не
+ *     появляется.
+ *
+ * Спрашивается **поведение движка**, а не форма образца: настройка «ставить
+ * буллит» включена нарочно — именно она ставила знак впереди цитаты. И каждая
+ * строка прогоняется **дважды**: начало, которое растёт от повтора, видно
+ * только вторым шагом (У-157).
+ */
+async function testLineStartBelongsToThePlatform() {
+  const settingsFor = () => ({
+    "Rules data": SYNTHETIC_RULES,
+    "Action type": "cycle_field:importance",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      panel: { importance: "left" },
+      freeRoam: { importance: "off" },
+      freeRoamBehavior: { offPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "current_position",
+  });
+  const step = async (line) => {
+    const editor = makeEditor(line, 0);
+    await runPkmCommandWithEditor("statusTags", editor, settingsFor());
+    return editor.snapshot().line;
+  };
+  const twice = async (line) => {
+    const one = await step(line);
+    return { one, two: await step(one) };
+  };
+
+  /* Положительный контроль: на обычной строке настройка и правда ставит знак,
+     иначе «внутри цитаты знака нет» выполнялось бы её бездействием (У-88). */
+  const plain = await twice("текст");
+  assertTrue(/^-\s/.test(plain.one),
+    "контроль: на строке без начала настройка ставит знак списка — иначе проверять нечего, вышло: " + plain.one);
+
+  /* В-114: скобки без знака списка — текст человека, и он остаётся текстом. */
+  const brackets = await twice("[ ] текст");
+  assertTrue(brackets.one.indexOf("[ ] текст") >= 0,
+    "скобки без знака списка остались словом человека, вышло: " + brackets.one);
+  assertTrue(!/^\s*-\s+\[/.test(brackets.one),
+    "и задачей строка не стала, вышло: " + brackets.one);
+  assertTrue(brackets.two.indexOf("[ ] текст") >= 0,
+    "и второй шаг их не уносит, вышло: " + brackets.two);
+
+  /* И скобки за знаком списка задачей быть не перестали. */
+  const task = await twice("- [ ] текст");
+  assertTrue(/^-\s+\[\s?\]\s/.test(task.one),
+    "задача со знаком списка осталась задачей, вышло: " + task.one);
+  assertTrue(/^-\s+\[\s?\]\s/.test(task.two),
+    "и остаётся ею на втором шаге, вышло: " + task.two);
+
+  /* В-115: цитата — начало строки, и наш знак за ней не появляется. */
+  const quote = await twice("> текст");
+  assertTrue(/^>\s/.test(quote.one), "строка осталась цитатой, вышло: " + quote.one);
+  assertTrue(!/^>\s+-\s/.test(quote.one),
+    "и нашего знака списка внутри цитаты нет, вышло: " + quote.one);
+  assertTrue(/^>\s/.test(quote.two) && !/^>\s*>\s*>/.test(quote.two),
+    "второй шаг цитату не умножает, вышло: " + quote.two);
+
+  /* Каллаут переживает действие: имя стоит сразу за знаком цитаты. */
+  const callout = await twice("> [!note] важное");
+  assertTrue(/^>\s+\[!note\]\s/.test(callout.one),
+    "каллаут пережил действие, вышло: " + callout.one);
+  assertTrue(/^>\s+\[!note\]\s/.test(callout.two),
+    "и переживает второй шаг, вышло: " + callout.two);
+
+  /* А знак списка, поставленный человеком внутри цитаты, остаётся его. */
+  const quotedList = await twice("> - текст");
+  assertTrue(/^>\s+-\s/.test(quotedList.one),
+    "знак списка человека внутри цитаты остался, вышло: " + quotedList.one);
+  assertTrue(/^>\s+-\s/.test(quotedList.two),
+    "и остаётся на втором шаге, вышло: " + quotedList.two);
+}
+
 async function testImportanceRespectsCustomSeparatorsAndCursorClamp() {
   const editor = makeEditor("- [ ] #/1 #todo :: text ~~ 📅2026-04-08", 9);
   await runPkmCommandWithEditor("statusTags", editor, {
@@ -3250,6 +3335,7 @@ async function testStatusDateKeepsElementInItsOrderBlock() {
 }
 
 async function run() {
+  await testLineStartBelongsToThePlatform();
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();
   await testStatusTagsRunCommandPathCyclesType();
   await testStatusTagsRunCommandPathCyclesTypeGenericAction();

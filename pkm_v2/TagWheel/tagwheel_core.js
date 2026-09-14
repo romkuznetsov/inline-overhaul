@@ -897,24 +897,22 @@ function parseLine(rawLine, rules) {
    * Общее правило — `splitLeftPrefix` в `line_pipeline.js`, и оно же отвечает
    * на этот вопрос всем остальным.
    */
-  var headingToken = ''
-  var bulletToken = ''
-  var checkboxToken = ''
-  var prefixParts = __linePipeline.splitLeftPrefix(leftBody)
-  if (prefixParts.prefix) {
-    var pfx = String(prefixParts.prefix)
-    var mHead = pfx.match(/^#{1,6}$/)
-    if (mHead) {
-      headingToken = pfx
-    } else {
-      var mList = pfx.match(/^([-*+]|\d+\.)(?:\s+(\[[^\]]\]))?$/)
-      if (mList) {
-        bulletToken = mList[1]
-        checkboxToken = String(mList[2] || '')
-      }
-    }
-    if (headingToken || bulletToken) leftBody = String(prefixParts.body || '')
-  }
+  /*
+   * **Части начала строки берутся у общего объявления, а не разбираются
+   * заново** (10.13.118). Здесь стоял свой образец: он не знал ни цитаты, ни
+   * номера со скобкой, и всё, чего он не узнал, уезжало в зону значений —
+   * `> текст` после шага по полю переставала быть цитатой (В-115).
+   */
+  var lineStart = __sharedUtils.lineStartOf(leftBody)
+  var headingToken = String(lineStart.heading || '').trim()
+  var bulletToken = String(lineStart.marker || '').trim()
+  var checkboxToken = String(lineStart.checkbox || '').trim()
+  /* Цитату `splitSegments` уже сняла отступом — оттуда её и берём, тем же
+     одним объявлением: в левом сегменте её больше нет. */
+  var indentStart = __sharedUtils.lineStartOf(indent)
+  var quoteToken = String(lineStart.quote || '') + String(lineStart.callout || '')
+    || (String(indentStart.quote || '') + String(indentStart.callout || ''))
+  if (lineStart.at > 0) leftBody = String(lineStart.body || '')
 
   /*
    * Что в левом сегменте тег, что значение элемента, а что текст человека.
@@ -981,7 +979,10 @@ function parseLine(rawLine, rules) {
   return {
     indent: indent,
     headingToken: headingToken,
-    bulletToken: headingToken ? '' : (bulletToken || '-'),
+    /* Цитата и каллаут — тоже начало строки, и их место **впереди** нашего
+       знака: значение между `>` и `[!note]` каллаут разваливает (В-115). */
+    quoteToken: quoteToken,
+    bulletToken: (headingToken || quoteToken) ? bulletToken : (bulletToken || '-'),
     checkboxToken: checkboxToken,
     left: leftClassified.values.join(' ').trim(),
     right: String(seg && seg.dates || '').trim(),
