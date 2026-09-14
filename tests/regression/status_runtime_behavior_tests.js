@@ -695,6 +695,117 @@ async function testEmptyTextSlotSurvivesAnyListMarker() {
   }
 }
 
+/*
+ * **Цитата и каллаут — такое же начало строки, как заголовок: знака списка мы
+ * туда не ставим, а пустой слот текста держим.**
+ *
+ * Его замечание к строке `S41`, 2026-09-14, дословно: «в пустом коллауте
+ * активировал значение из right block — `> -  :: 📅2026-09-14 14:08`, ожидал
+ * `>  :: 📅2026-09-14 14:08`». То есть два разных обещания в одной строке, и
+ * оба проверяются здесь:
+ *
+ *   * **знака списка внутри цитаты не появляется.** Правило было объявлено
+ *     дважды: в сборке строки — с вопросом про цитату, и в перестановке
+ *     значения по Block — без него. Починка одного объявления из двух и есть
+ *     У-150: круг значений по полю слева вёл себя верно, а по элементу
+ *     справа — нет;
+ *   * **слот под текст остаётся двумя пробелами.** Вопрос «слева только
+ *     начало строки» задавался одной левой зоне, а цитата и каллаут живут в
+ *     отступе: заголовок слот держал, цитата схлопывала.
+ *
+ * Заголовок и знак списка стоят здесь положительным контролем: на них обе
+ * величины были верны и до правки, и покраснеть они могут только от поломки
+ * чего-то другого (У-127).
+ */
+async function testEmptyTextSlotSurvivesQuoteAndCallout() {
+  const rightElement = {
+    left: ["Category", "Importance", "type"],
+    right: ["date_due", "Project"],
+    panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
+  };
+  const cases = [
+    { start: "> ", head: ">", ours: false, why: "цитата" },
+    { start: "> [!note] ", head: "> [!note]", ours: false, why: "каллаут" },
+    { start: "## ", head: "##", ours: false, why: "заголовок (контроль)" },
+    { start: "- ", head: "-", ours: true, why: "знак списка (контроль)" },
+  ];
+  for (const c of cases) {
+    const editor = makeEditor(c.start, c.start.length);
+    await runPkmCommandWithEditor("statusDate", editor, {
+      "Rules data": OWNER_SHAPE_RULES,
+      "Action type": "field_inc:date_due",
+      "Order config": ownerShapeOrder(rightElement),
+      "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
+      "Cycle end behavior": "keep-bullet",
+      "Cursor policy": "text_end",
+    });
+    const line = editor.snapshot().line;
+    assertTrue(/\uD83D\uDCC5/.test(line),
+      "контроль: значение элемента не встало, и мерить нечего (" + c.why + "): "
+      + JSON.stringify(line));
+    /* Про знак спрашивается первым: это то, что он увидел, и подмена, вернувшая
+       копию правила, обязана краснеть именно здесь (У-174). */
+    if (!c.ours) {
+      assertTrue(!/^\s*(?:>[^\S\n]*)*(?:#{1,6}\s+)?[-*+](\s|$)/.test(line),
+        "наш знак списка встал внутрь чужого начала строки (" + c.why + "): "
+        + JSON.stringify(line));
+    }
+    assertEq(line.indexOf(c.head + "  "), 0,
+      "слот под текст схлопнулся у " + c.why + ": из " + JSON.stringify(c.start)
+      + " вышло " + JSON.stringify(line) + " — между началом строки и разделителем"
+      + " обязаны остаться два пробела");
+  }
+}
+
+/*
+ * **Цитата и каллаут переживают перестановку слова человека в слот текста.**
+ *
+ * Вторая половина его замечания к `S41`, дожившая на дороге панели: «если в
+ * коллауте активировать value, у которого есть свой префикс, то префикс
+ * коллаута `>` меняется на префикс value — это больше не коллаут». У команды
+ * поля этого не случалось, и потому починка 2026-09-14 закрыла её одну.
+ *
+ * Причина — У-184 ровно в лоб: разбор снимал внешнее оформление строки
+ * (`splitLeftDecorators` кладёт цитату и каллаут в `quoteToken`), а сборка
+ * возвращала из снятого только заголовок, знак списка и задачу. Место одно —
+ * доводка `normalizeLeftTextSpill`: она работает там, где слово человека
+ * осталось в зоне значений, а слот текста пуст. У Field типа link значение
+ * встаёт **слева** от слова, и перестановка случается; у тега слева не
+ * переставлялось ничего, поэтому четырнадцать строк обхода дефекта не видели.
+ *
+ * **Вход сюда подаётся тот, который эта функция получает на дороге панели** —
+ * он снят с неё на `data.json` заказчика и воспроизводится обходом
+ * `node tools/line_matrix.js`, строка «цитата с текстом». Подделать панель
+ * фикстурой набора не вышло: ссылка в ней значений не отдаёт, панель строку не
+ * трогает вовсе, и сторож был бы зелен от отсутствия предмета (У-152).
+ *
+ * Знак списка и заголовок стоят контролем: у них снятое возвращалось и до
+ * правки, и покраснеть они могут только от поломки чего-то другого.
+ */
+async function testQuotedLineSurvivesTextSpillRebuild() {
+  const finalize = require(path.join(__dirname, "..", "..", "src", "core", "pkm_line_finalize_unified.js"));
+  const rules = require(path.join(__dirname, "..", "fixtures", "rules_synthetic.js"));
+  const sep1 = rules.io.separator1;
+  const cases = [
+    { raw: "> текст", value: "> [[test]] текст", keeps: "> ", why: "цитата" },
+    { raw: "> [!note] важное", value: "> [!note] [[test]] важное", keeps: "> [!note] ", why: "каллаут" },
+    { raw: "- текст", value: "- [[test]] текст", keeps: "- ", why: "знак списка (контроль)" },
+    { raw: "## текст", value: "## [[test]] текст", keeps: "## ", why: "заголовок (контроль)" },
+  ];
+  for (const c of cases) {
+    const line = c.value + " " + sep1 + " ";
+    const out = finalize.applyUnifiedPostFinalize({ rawLine: c.raw, line, rules, mode: "off" });
+    /* Контроль: перестановка и правда случилась. Без него утверждение ниже
+       выполняется и той строкой, которой доводка не коснулась (У-152). */
+    assertTrue(out !== line && out.indexOf(sep1 + " ") !== -1 && !/\s$/.test(out),
+      "контроль: слово человека не переехало в слот текста (" + c.why + "): из "
+      + JSON.stringify(line) + " вышло " + JSON.stringify(out));
+    assertEq(out.indexOf(c.keeps), 0,
+      "начало строки не пережило перестановку (" + c.why + "): из "
+      + JSON.stringify(line) + " вышло " + JSON.stringify(out));
+  }
+}
+
 async function testStatusDateKeepsAnyListMarker() {
   for (const mark of ["-", "*", "+", "1.", "1)"]) {
     const before = mark + " текст";
@@ -3482,6 +3593,8 @@ async function testStatusDateKeepsElementInItsOrderBlock() {
 
 async function run() {
   await testQuotedLineBehavesLikeHeading();
+  await testEmptyTextSlotSurvivesQuoteAndCallout();
+  await testQuotedLineSurvivesTextSpillRebuild();
   await testHeadingLineKeepsItsFieldValue();
   await testLineStartBelongsToThePlatform();
   await testImportanceRespectsCustomSeparatorsAndCursorClamp();

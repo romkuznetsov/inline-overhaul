@@ -496,7 +496,21 @@ function reapplyHeadingPrefix(rawLine, nextLine) {
   const src = String(nextLine || "");
   const indent = (String(rawLine || "").match(/^(\s*)/) || ["", ""])[1];
   let body = src.replace(/^\s*/, "");
-  while (/^#{1,6}(?:\s+|$)/.test(body)) body = body.replace(/^#{1,6}(?:\s+|$)/, "");
+  /*
+   * **Знак заголовка кончается одним пробелом, а не всеми подряд.**
+   *
+   * Столько его меряет платформа и столько же — общее объявление начала
+   * строки. Здесь стоял `\s+`, и пересборка съедала вместе со знаком **пустой
+   * слот под текст**: `##  :: 📅…` становилось `## :: 📅…`, то есть человек
+   * переставал видеть, куда встанет слово (10.13.34). На конфиге заказчика
+   * этого не видно — у него оба разделителя записаны одинаково, и слот
+   * восстанавливала другая доводка (У-147); видно только при разных.
+   */
+  while (/^#{1,6}(?:[ \t]|$)/.test(body)) body = body.replace(/^#{1,6}(?:[ \t]|$)/, "");
+  /* Слот — это пробелы, оставшиеся за знаком: они принадлежат строке, а не
+     знаку, и в уборку ниже не идут. */
+  const slot = (body.match(/^[ \t]*/) || [""])[0];
+  body = body.slice(slot.length);
   /*
    * **Чекбокс снимается только вместе со знаком списка, при котором он стоял.**
    * Задача у Obsidian — это скобки за знаком **списка**; у заголовка знака
@@ -511,7 +525,9 @@ function reapplyHeadingPrefix(rawLine, nextLine) {
   }
   body = body.replace(/(^|\s)#{1,6}(?=\s|$)/g, "$1");
   body = body.replace(/\s{2,}/g, " ").trim();
-  return body ? `${indent}${headingPrefix.trim()} ${body}` : `${indent}${headingPrefix.trim()} `;
+  return body
+    ? `${indent}${headingPrefix.trim()} ${slot}${body}`
+    : `${indent}${headingPrefix.trim()} `;
 }
 
 function applyModePrefixImmutability(rawLine, builtLine, options) {
@@ -1433,13 +1449,29 @@ function splitLeftDecorators(rawLeft) {
 function joinLeftDecorators(parts, body) {
   const p = parts && typeof parts === "object" ? parts : {};
   const indent = String(p.indent || "");
+  /*
+   * **Снятое на входе возвращается на выходе — и цитата тоже** (У-184).
+   * Разбор её отделял (`quoteToken`), а сборка не возвращала: строка
+   * `> [[test]] текст` собиралась как `[[test]] :: текст`, и каллаут
+   * переставал быть каллаутом. Это первая половина его замечания к `S41`,
+   * дожившая на дороге панели: у команды перестановки текста не случалось, и
+   * потому виден дефект был только там, где значение встаёт слева от слова
+   * человека — у Field типа link.
+   *
+   * Свой пробел цитата несёт сама (`> `, `> [!note] `), но у строки, где за
+   * знаком цитаты ничего не стояло, его нет — тогда он ставится здесь.
+   */
+  const quote = String(p.quoteToken || "");
   const tokens = [];
   if (p.headingToken) tokens.push(String(p.headingToken));
   if (p.listToken) tokens.push(String(p.listToken));
   if (p.checkboxToken) tokens.push(String(p.checkboxToken));
   const tail = String(body || "").trim();
   if (tail) tokens.push(tail);
-  return indent + tokens.join(" ").trim();
+  const rest = tokens.join(" ").trim();
+  if (!quote) return indent + rest;
+  if (!rest) return indent + quote;
+  return indent + (/[^\S\n]$/.test(quote) ? quote : quote + " ") + rest;
 }
 
 function enforceSourcePrefixInvariant(rawLine, line) {

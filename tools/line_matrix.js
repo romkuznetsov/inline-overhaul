@@ -93,6 +93,27 @@ const CASES = [
    * спрашивала именно его (У-147: примеры совпадали в том, что не проверялось).
    */
   { name: "звёздочка вместо дефиса", line: "* текст", ch: 7 },
+  /*
+   * **Десятая…тринадцатая — цитата и каллаут, и куплены они его замечанием
+   * 2026-09-14:** «в пустом коллауте активировал значение из right block —
+   * `> -  :: 📅…`, ожидал `>  :: 📅…`». Все девять прежних строк начинались
+   * либо со знака списка, либо с заголовка, либо ни с чего — то есть предмета
+   * правила «внутри цитаты нашего знака списка нет» в обходе не было вовсе
+   * (У-113). Пустая и с текстом обе: с текстом дефект не виден, потому что
+   * левая зона непуста, и знак туда не подставляется в любом случае; разница
+   * между случаями и есть граница (У-164).
+   */
+  { name: "цитата пустая", line: "> ", ch: 2 },
+  { name: "цитата с текстом", line: "> текст", ch: 7 },
+  { name: "каллаут пустой", line: "> [!note] ", ch: 10 },
+  { name: "каллаут с текстом", line: "> [!note] важное", ch: 16 },
+  /*
+   * **Четырнадцатая — контроль к ним:** знак списка внутри цитаты поставил
+   * человек, и он обязан пережить действие вместе со своим чекбоксом. Без неё
+   * запрет «наш знак внутрь чужого начала не встаёт» выполнялся бы и кодом,
+   * который знак списка не ставит вовсе (У-127).
+   */
+  { name: "цитата со знаком списка", line: "> - текст", ch: 9 },
 ];
 
 /*
@@ -116,6 +137,28 @@ function fixpointOf(line, rules) {
   const seg = linePipeline.splitSegments(line, rules);
   const again = linePipeline.buildFromSegments(seg, rules);
   return { stable: again === line, again, seg };
+}
+
+/**
+ * Наш знак списка не встаёт внутрь начала, которое принадлежит платформе.
+ *
+ * **Мера пишется по признаку дефекта, а не по его последствию** (У-137).
+ * Сверка двух дорог и неподвижность оба его не видят: строку `> -  :: 📅…`
+ * обе дороги писали одинаково, и разобрать-собрать её даёт её же. Видно
+ * только вопросом «что в начале строки принадлежит платформе»: у цитаты,
+ * каллаута и заголовка знак списка ставит человек, и если его там не было, то
+ * и появиться ему неоткуда. Спрашивается это у того же одного объявления,
+ * которым начало строки разбирает продукт (`lineStartOf`), — своей копии
+ * правила здесь нет.
+ */
+function ourStartAdded(src, out) {
+  const was = shared.lineStartOf(String(src || ""));
+  const now = shared.lineStartOf(String(out || ""));
+  /* Начала от платформы не было — знак списка ставит сама настройка
+     `Strict: add a bullet`, и это законно (исключение 70 к З3). */
+  if (!was.quote && !was.callout && !was.heading) return false;
+  if (was.marker) return false;
+  return !!(now.marker || now.checkbox);
 }
 
 /*
@@ -258,9 +301,12 @@ async function main() {
        которой он не дотронулся, — это текст человека, и переписывать его он не
        обязан. */
     const wrote = r.cmd !== r.source_line;
+    const addedCmd = ourStartAdded(r.source_line, r.cmd);
+    const addedPanel = r.inPanel && ourStartAdded(r.source_line, r.panel);
     const ok = bothRefused
       ? true
-      : (same && (!wrote || fCmd.stable) && fPanel.stable && r.opened && r.inPanel);
+      : (same && (!wrote || fCmd.stable) && fPanel.stable && r.opened && r.inPanel
+         && !addedCmd && !addedPanel);
     if (ok && !SHOW_ALL) continue;
     if (!ok) bad++;
     console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + r.field + " (" + r.side + "), строка " + r.source);
@@ -271,6 +317,8 @@ async function main() {
     if (!r.inPanel) console.log("    этого Field панель не показывает вовсе"
       + (r.cmd === r.source_line ? ", и команда отказалась так же" : ", а команда его всё равно поставила"));
     else if (!r.opened) console.log("    панель не открылась — сверять не с чем");
+    if (addedCmd) console.log("    команда поставила наш знак внутрь чужого начала строки");
+    if (addedPanel) console.log("    панель поставила наш знак внутрь чужого начала строки");
     if (wrote && !fCmd.stable) console.log("    неподвижность команды: пересборка даёт " + JSON.stringify(fCmd.again));
     if (!fPanel.stable) console.log("    неподвижность панели: пересборка даёт " + JSON.stringify(fPanel.again));
   }
@@ -300,12 +348,14 @@ async function main() {
       const out = r && r.line != null ? r.line : c.line;
       const wrote = out !== c.line;
       const f = fixpointOf(out, rules);
-      const ok = !wrote || f.stable;
+      const added = ourStartAdded(c.line, out);
+      const ok = (!wrote || f.stable) && !added;
       if (ok && !SHOW_ALL) continue;
       if (!ok) subBad++;
       console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + id + ", строка " + c.name);
       console.log("    команда : " + JSON.stringify(out));
-      if (!ok) console.log("    неподвижность: пересборка даёт " + JSON.stringify(f.again));
+      if (added) console.log("    наш знак встал внутрь чужого начала строки");
+      if (wrote && !f.stable) console.log("    неподвижность: пересборка даёт " + JSON.stringify(f.again));
     }
   }
 
