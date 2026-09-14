@@ -1309,6 +1309,38 @@ async function run() {
       "форма ссылки объявляется в общем доме; рукописный образец завёлся в: " + handwrittenLinkForm.join(" | "));
 
     /*
+     * **«Как нормализуется ключ Order» объявляется в общем доме** (10.13.146).
+     *
+     * Тело стояло шесть раз под тремя именами — `normalizeOrderKey`,
+     * `normalizeOrderKeyDefault`, `normalizeOrderKeyLocal`, — и все шесть
+     * совпадали. Опасность была не в копиях самих по себе: нормализатор
+     * передаётся через пять слоёв, на каждом стоит «дали — бери данное», а
+     * `pkm_runtime_bootstrap` кладёт его на шов `globalThis` — то есть
+     * побеждает загрузившийся первым. Разойдись одно тело, и поведение стало
+     * бы зависеть от **порядка загрузки**: расхождение, которое не
+     * воспроизводится.
+     *
+     * Ищется **форма**, а не имена из списка (У-111, У-126): функция, в имени
+     * которой есть `OrderKey`, а тело начинается с `return String(`. Новая
+     * копия под новым именем попадётся так же.
+     */
+    const ownOrderKeyBody = /function\s+\w*OrderKey\w*\s*\([^)]*\)\s*\{\s*return String\(/;
+    const allowedOrderKeyHome = "src/core/shared_utils.js";
+    const ownOrderKeyBodies = [];
+    let sawOrderKeyHome = false;
+    for (const abs of walked) {
+      const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+      const text = fs.readFileSync(abs, "utf8");
+      if (!ownOrderKeyBody.test(text)) continue;
+      if (rel === allowedOrderKeyHome) { sawOrderKeyHome = true; continue; }
+      ownOrderKeyBodies.push(rel);
+    }
+    assertTrue(sawOrderKeyHome,
+      "положительный контроль: обход нашёл тело нормализации ключа Order в самом доме");
+    assertEq(ownOrderKeyBodies.join(" | "), "",
+      "нормализация ключа Order объявляется в общем доме; своё тело завелось в: " + ownOrderKeyBodies.join(" | "));
+
+    /*
      * **У служебного файла правил не осталось ни одного читателя** (PRD
      * 10.13.52, П-8, шаг третий, 2026-09-13).
      *

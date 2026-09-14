@@ -10,6 +10,7 @@ const tagwheelCore = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWhee
 const tagwheelPanel = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js"));
 const preloadFacade = require(path.join(__dirname, "..", "..", "src", "core", "pkm_runtime_preload_facade.js"));
 const linePipeline = require(path.join(__dirname, "..", "..", "src", "core", "line_pipeline.js"));
+const runtimeHelpersShared = require(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"));
 
 function assertEq(actual, expected, name) {
   if (actual !== expected) throw new Error(name + ": expected '" + expected + "' got '" + actual + "'");
@@ -1009,6 +1010,24 @@ function run() {
     assertEq(join("", ""), "", "пусто с пустым даёт пусто");
     assertEq(join("  -  ", "  text  "), "- text", "пробелы по краям обеих частей снимаются");
     assertEq(join(null, undefined), "", "отсутствующие части не превращаются в слово");
+  }
+
+  /*
+   * **«Как нормализуется ключ Order» — одно объявление** (10.13.146). До
+   * 2026-09-15 то же тело стояло шесть раз под тремя именами; сверены текстом,
+   * совпали все шесть.
+   *
+   * Ожидание написано ответом, а не равенством шести сторон (У-194): после
+   * сведения они один код.
+   */
+  {
+    const normKey = runtimeHelpersShared.normalizeOrderKey;
+    assertEq(normKey("  imp  "), "imp", "пробелы по краям ключа снимаются");
+    assertEq(normKey("Imp"), "Imp", "регистр ключа не трогается: он значим");
+    assertEq(normKey("imp_sub"), "imp_sub", "подпись дочернего ключа остаётся частью ключа");
+    assertEq(normKey(""), "", "пустой ключ остаётся пустым");
+    assertEq(normKey(null), "", "отсутствующий ключ не превращается в слово");
+    assertEq(normKey(0), "", "ноль ключом не становится");
   }
 
   console.log("Runtime unified parity tests: OK");

@@ -53,8 +53,10 @@ function applyPkmOptionKeys(mod) {
 
 applyPkmOptionKeys(__pkmOptionKeys);
 
+/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
+   (10.13.146). */
 function normalizeOrderKeyLocal(key) {
-  return String(key || "").trim();
+  return __sharedUtils.normalizeOrderKey(key);
 }
 
 /*

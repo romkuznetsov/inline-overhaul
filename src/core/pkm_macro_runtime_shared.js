@@ -16,6 +16,7 @@
  */
 
 const facade = require("./pkm_runtime_preload_facade.js");
+const __sharedUtils = require("./shared_utils.js");
 const optionKeys = require("./pkm_option_keys.js");
 
 async function loadRuntimePreloadFacade() {
@@ -23,8 +24,10 @@ async function loadRuntimePreloadFacade() {
   return facade;
 }
 
+/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
+   (10.13.146). */
 function normalizeOrderKeyLocal(key) {
-  return String(key || "").trim();
+  return __sharedUtils.normalizeOrderKey(key);
 }
 
 async function loadOrderKeyNormalizer(app_, fallbackNormalize) {

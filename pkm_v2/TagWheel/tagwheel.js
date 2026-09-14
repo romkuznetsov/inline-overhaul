@@ -344,8 +344,10 @@ function cleanupTagWheelState(state) {
   state.active = false
 }
 
+/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
+   (10.13.146). */
 function normalizeOrderKeyLocal(key) {
-  return String(key || '').trim()
+  return __sharedUtils.normalizeOrderKey(key)
 }
 
 function makeFieldById(fields) {

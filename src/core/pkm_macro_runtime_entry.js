@@ -15,9 +15,12 @@
  */
 
 const shared = require("./pkm_macro_runtime_shared.js");
+const __sharedUtils = require("./shared_utils.js");
 
+/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
+   (10.13.146). Здесь было одно из шести совпадавших тел. */
 function normalizeOrderKeyDefault(key) {
-  return String(key || "").trim();
+  return __sharedUtils.normalizeOrderKey(key);
 }
 
 async function loadMacroRuntimeShared() {

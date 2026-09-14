@@ -17,8 +17,13 @@
  * верно: тип ключа решается в одном месте, и это `pkm_domain_registry.js`.
  */
 
+const __sharedUtils = require("../src/core/shared_utils.js")
+
+/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
+   (10.13.146). Этот модуль остаётся адресом, который знает
+   `pkm_runtime_bootstrap.js`, но своего тела у него больше нет. */
 function normalizeOrderKey(key) {
-  return String(key || "").trim()
+  return __sharedUtils.normalizeOrderKey(key)
 }
 
 module.exports = {

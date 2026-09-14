@@ -991,6 +991,27 @@ function wikilinkTargetOf(text) {
 }
 
 /**
+ * Как нормализуется ключ Order. **Одно объявление на весь плагин.**
+ *
+ * До 2026-09-15 то же тело стояло **шесть раз под тремя именами**:
+ * `normalizeOrderKey` (`pkm_v2/field_model.js`), `normalizeOrderKeyDefault`
+ * (`pkm_macro_runtime_entry.js`) и `normalizeOrderKeyLocal` в четырёх местах —
+ * прослойке макро-рантайма и трёх движках. Тела сверены **текстом**,
+ * приведённым к общему виду, и совпали все шесть; у меры был контроль —
+ * соседнее правило `normalizeOrderFieldKey` она называет другим.
+ *
+ * **Сведение здесь снимает не только копии.** Нормализатор передаётся через
+ * пять слоёв, и на каждом стоит «дали — бери данное, иначе моё»; в
+ * `pkm_runtime_bootstrap.js` он вдобавок кладётся на шов `globalThis`, то есть
+ * побеждает тот, кто загрузился первым. Пока тела совпадают, выбор ни на что
+ * не влияет; разойдись одно — и поведение начало бы зависеть от порядка
+ * загрузки, а это худший род расхождения: он не воспроизводится (10.13.146).
+ */
+function normalizeOrderKey(key) {
+  return String(key || "").trim();
+}
+
+/**
  * Снять скобки с того, что целиком ссылка; всё остальное отдать как есть.
  *
  * **Это не `wikilinkTargetOf`, и путать их нельзя** — вопросы разные, и на
@@ -1223,6 +1244,7 @@ module.exports = {
   startsWithTagToken,
   wikilinkTargetOf,
   unwrapWikilinkToken,
+  normalizeOrderKey,
   tagTokenScanner,
   startsWithBracketPair,
   lineStartPrefixOf,
