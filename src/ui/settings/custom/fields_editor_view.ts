@@ -21,7 +21,7 @@ import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
-import { TYPE_COLOR, typeColor } from "./preview_data.ts";
+import { TYPE_COLOR, bareToken, typeColor } from "./preview_data.ts";
 import {
   CARDINALITY_OPTIONS,
   NOT_WRITTEN,
@@ -1119,10 +1119,10 @@ function themePair(node: El): ThemePair {
   };
 }
 
-/** Значение без решётки: её ставит отрисовка пузыря. */
-function plain(token: string): string {
-  return String(token || "").trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "");
-}
+/* «Значение без оформления» — одно объявление на слой настроек, в
+   `preview_data.ts`. Здесь стояла вторая копия; тела сверены на 94 входах и
+   разошлись на нуле (10.13.140). */
+const plain = bareToken;
 
 /**
  * Колонка `Preview`: Value так, как он встанет в строку, плюс тихий значок,

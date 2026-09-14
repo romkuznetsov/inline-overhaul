@@ -133,7 +133,7 @@ export function realFields(ctx: SettingsCtx): readonly PreviewField[] {
           if (!tok) return;
           const visual = model.getValueVisual(fieldId, tok);
           values.push({
-            token: tok.replace(/^#/, "").replace(/^\[\[|\]\]$/g, ""),
+            token: bareToken(tok),
             fill: visual.fillColor,
             text: visual.textColor,
             shown: visual.visibility === "default" ? "value" : visual.visibility,
@@ -277,6 +277,28 @@ export function fieldsOn(fields: readonly PreviewField[], side: "left" | "right"
  * Ключи покрывают оба написания: схема зовёт ссылку `wikilink`,
  * предпросмотр — `link`, и это шов, а не расхождение.
  */
+/**
+ * Значение так, как его показывают человеку: без решётки и без скобок
+ * ссылки. Оформление ставит отрисовка пузыря, а не сам текст.
+ *
+ * **Это не «цель ссылки» и не «снять скобки».** Общий дом рантайма
+ * (`shared_utils.js`) держит два соседних вопроса — `wikilinkTargetOf`
+ * отбрасывает подпись и на не-ссылке отдаёт пусто, `unwrapWikilinkToken`
+ * разворачивает только целый токен. Здесь вопрос третий и чисто зрительный:
+ * снять ведущее оформление, что бы за ним ни стояло. Смешать их — У-103.
+ *
+ * **Порядок шагов важен и взят у существующего тела, а не выбран заново.**
+ * Решётка снимается **до** скобок: на `#[[a]]` этот порядок даёт `a`, а
+ * обратный — `[[a`. Два места слоя настроек делали это одинаково и сверены
+ * на 94 входах (весь его `data.json`, токены его заметок и восемнадцать
+ * краёв) — расхождений ноль, `node tools/form_divergence.js`. Остальные три
+ * места, где скобки снимают, сведены сюда **не были**: они отвечают иначе, и
+ * числа названы там же.
+ */
+export function bareToken(token: string): string {
+  return String(token || "").trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, "");
+}
+
 export const TYPE_COLOR: Record<string, string> = {
   tag: "var(--io-type-tag)",
   wikilink: "var(--io-type-link)",

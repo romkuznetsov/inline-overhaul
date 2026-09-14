@@ -22,7 +22,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
-import { previewFields, fieldOptions, resolveSlots, EXAMPLE_FIELDS } from "../../src/ui/settings/custom/preview_data.ts";
+import { bareToken, previewFields, fieldOptions, resolveSlots, EXAMPLE_FIELDS } from "../../src/ui/settings/custom/preview_data.ts";
 import {
   barsPreview,
   floatingButton,
@@ -912,6 +912,37 @@ function realConfig(): Any {
     "значение не доехало — предпросмотр не рисует разделитель из кода: " + seps.join(" | "));
   close();
   ok("разбор строки: без значения предпросмотр не выдумывает разделитель");
+}
+
+/*
+ * **«Значение без оформления» — одно объявление на слой настроек.** До
+ * 2026-09-15 то же тело стояло вторым в `fields_editor_view.ts`; тела сверены
+ * на 94 входах (весь его `data.json`, токены его заметок и восемнадцать краёв)
+ * и разошлись на нуле, поэтому сведение поведения не изменило (10.13.140).
+ *
+ * **Ожидания написаны ответом, а не равенством двух мест** (У-194): после
+ * сведения оба места спрашивают один дом и ломаются одинаково, так что любая
+ * сверка их между собой зеленела бы сама.
+ *
+ * Главное здесь — **порядок шагов**. Решётка снимается до скобок, и на
+ * `#[[a]]` это даёт `a`; обратный порядок дал бы `[[a`. Три оставшихся места
+ * слоя настроек отвечают иначе и сведены сюда не были — их расхождения
+ * измерены и названы числом стендом `node tools/form_divergence.js`.
+ */
+{
+  const bareCases: Array<[string, string, string]> = [
+    ["#todo", "todo", "решётка снимается"],
+    ["[[note]]", "note", "скобки ссылки снимаются"],
+    ["#[[a]]", "a", "решётка снимается до скобок: обратный порядок дал бы «[[a»"],
+    ["  #tag  ", "tag", "пробелы по краям снимаются до всего остального"],
+    ["[[a|подпись]]", "a|подпись", "подпись ссылки остаётся: она видна человеку"],
+    ["plain", "plain", "значение без оформления не трогается"],
+    ["", "", "пустое остаётся пустым"],
+  ];
+  for (const [input, expected, name] of bareCases) {
+    assert.equal(bareToken(input), expected, name + " (вход " + JSON.stringify(input) + ")");
+  }
+  ok("значение без оформления: одно объявление, и порядок шагов закреплён");
 }
 
 console.log("\n" + passed + " проверок пройдено");

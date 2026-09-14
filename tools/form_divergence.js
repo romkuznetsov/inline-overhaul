@@ -19,10 +19,15 @@
  * исходника, из которой тело снято, ищется в самом файле. Уехала строка —
  * стенд краснеет и говорит, какое место он больше не описывает.
  *
- * Контролей три, и каждый на свой шаг обхода (У-142):
+ * Контролей четыре, и каждый на свой шаг обхода (У-142):
  *   1. переписывание   — тело и правда стоит в названном файле;
- *   2. корпус          — в нём есть каждая форма, ради которой он собран;
- *   3. сама мера       — нарочно разведённая пара обязана попасть в расхождения.
+ *   2. полнота списка  — сплошной обход слоя настроек, и каждое найденное
+ *                        место обязано быть в списке ниже (У-111);
+ *   3. корпус          — в нём есть каждая форма, ради которой он собран;
+ *   4. сама мера       — нарочно разведённая пара обязана попасть в расхождения.
+ *
+ * Второй куплен мутацией: возврат снятой копии в другой файл прошёл мимо
+ * стенда незамеченным, потому что список мест был написан рукой.
  *
  * Запуск (из `repo/`):
  *   node tools/form_divergence.js          — сводка по группам
@@ -125,18 +130,13 @@ const SYNTHETIC_EDGES = [
  */
 const SITES = [
   {
+    /* Дом слоя настроек. До 2026-09-15 то же тело стояло здесь и в
+       `fields_editor_view.ts`; сверены на всём корпусе, разошлись на нуле, и
+       вторая копия снята (10.13.140). Переписывать больше нечего. */
     group: "bare-token",
-    id: "fields_editor_view.plain",
-    file: "src/ui/settings/custom/fields_editor_view.ts",
-    anchor: 'return String(token || "").trim().replace(/^#/, "").replace(/^\\[\\[|\\]\\]$/g, "");',
-    fn: (token) => String(token || "").trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, ""),
-  },
-  {
-    group: "bare-token",
-    id: "preview_data.push",
+    id: "preview_data.bareToken (дом)",
     file: "src/ui/settings/custom/preview_data.ts",
-    anchor: 'token: tok.replace(/^#/, "").replace(/^\\[\\[|\\]\\]$/g, ""),',
-    /* `tok` на месте вызова уже обрезан: `String(token || "").trim()` строкой выше. */
+    anchor: "export function bareToken(token: string): string {",
     fn: (token) => String(token || "").trim().replace(/^#/, "").replace(/^\[\[|\]\]$/g, ""),
   },
   {
@@ -297,6 +297,53 @@ function controlTranscription() {
   return bad;
 }
 
+/**
+ * **Контроль на полноту списка мест** (У-111). `SITES` — список, написанный
+ * рукой, и он слеп к месту, которое заведут завтра: первая же мутация «вернуть
+ * копию в другой файл» прошла мимо стенда незамеченной. Поэтому слой настроек
+ * обходится сплошь, и каждое место, снимающее скобки ссылки, обязано быть либо
+ * в списке, либо здесь названо.
+ *
+ * Образец узкий нарочно: снятие обёртки `[[…]]` у **целого** токена. Обход
+ * ищет его в тексте как есть — маску комментариев тут заводить не за чем: то,
+ * что мы ищем, в комментариях этого слоя не пишут, а ложная находка дешевле
+ * пропущенной (направление ошибки выбрано, У-192).
+ */
+function controlSitesComplete() {
+  const dir = path.join(ROOT, "src", "ui", "settings");
+  const needle = "replace(/^\\[\\[|\\]\\]$/g";
+  const known = new Set(SITES.map((s) => s.file));
+  const found = [];
+  const walk = (d) => {
+    for (const name of fs.readdirSync(d)) {
+      const full = path.join(d, name);
+      const st = fs.statSync(full);
+      if (st.isDirectory()) { walk(full); continue; }
+      if (!/\.(ts|js)$/.test(name)) continue;
+      const text = fs.readFileSync(full, "utf8");
+      let at = text.indexOf(needle);
+      while (at >= 0) {
+        found.push({ rel: path.relative(ROOT, full).split(path.sep).join("/"), at });
+        at = text.indexOf(needle, at + 1);
+      }
+    }
+  };
+  walk(dir);
+
+  /* Положительный контроль обхода: он обязан хоть что-то находить. Ноль
+     означал бы, что образец промахнулся, а не что мест не осталось (У-119). */
+  if (!found.length) return ["обход слоя настроек не нашёл ни одного места — образец промахнулся"];
+
+  const bad = [];
+  for (const hit of found) {
+    if (!known.has(hit.rel)) {
+      bad.push("место снятия скобок в " + hit.rel + " не значится в списке стенда — " +
+        "либо впишите его, либо оно и есть возвращённая копия");
+    }
+  }
+  return bad;
+}
+
 function controlCorpus(corpus) {
   const need = [
     ["ссылка в скобках", (s) => /^\[\[[^\]]+\]\]$/.test(s)],
@@ -360,6 +407,7 @@ function main() {
 
   const problems = []
     .concat(controlTranscription())
+    .concat(controlSitesComplete())
     .concat(controlCorpus(corpus))
     .concat(controlMeasureSeesDivergence(corpus));
 
@@ -374,7 +422,7 @@ function main() {
     for (const p of problems) console.log("  ! " + p);
     console.log("");
   } else {
-    console.log("Контроли пройдены: переписывание, корпус, чувствительность меры");
+    console.log("Контроли пройдены: переписывание, полнота списка мест, корпус, чувствительность меры");
     console.log("");
   }
 
