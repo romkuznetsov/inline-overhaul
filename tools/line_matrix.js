@@ -37,6 +37,7 @@ const rulesShape = require(path.join(ROOT, "src", "core", "pkm_rules_shape.js"))
 const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
 
 const SHOW_ALL = process.argv.includes("--all");
+const SPLIT = process.argv.includes("--split");
 
 const MARK_DUE = "📅";
 
@@ -300,8 +301,32 @@ function separatorsOf(cfg) {
   }, "line_matrix");
 }
 
+/**
+ * **Второй конфиг собирается из его нынешнего файла, а не хранится копией.**
+ *
+ * Прогон на разведённых разделителях (У-147) гонялся с копии его настроек,
+ * собранной один раз. Копия осталась при его **старом** Order, и второй прогон
+ * проверял вчерашний день, пока он менял Block в панели (У-190). Теперь
+ * разделитель разводится на лету: `node tools/line_matrix.js --split`.
+ *
+ * Второй разделитель берётся заведомо отличным от первого — иначе прогон
+ * повторил бы первый и сказал бы «всё сходится» о том, чего не проверял.
+ */
+function splitSeparators(cfg) {
+  const next = JSON.parse(JSON.stringify(cfg));
+  const sep1 = String(shared.readCfgPath(next, "pkm.lineFormat.separator1") || "").trim();
+  const other = sep1 === "~~" ? "%%" : "~~";
+  shared.writeCfgPath(next, "pkm.lineFormat.separator2", other);
+  return next;
+}
+
 async function main() {
-  const cfg = bench.loadCfg();
+  const cfg = SPLIT ? splitSeparators(bench.loadCfg()) : bench.loadCfg();
+  if (SPLIT) {
+    console.log("разделители разведены: "
+      + JSON.stringify(shared.readCfgPath(cfg, "pkm.lineFormat.separator1"))
+      + " и " + JSON.stringify(shared.readCfgPath(cfg, "pkm.lineFormat.separator2")));
+  }
   const rules = rulesOf(cfg);
   selfCheck(rules, cfg);
   const CASES = casesFor(separatorsOf(cfg).sep1);
