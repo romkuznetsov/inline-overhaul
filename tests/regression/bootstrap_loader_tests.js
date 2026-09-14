@@ -323,6 +323,30 @@ async function run() {
   assertEq(lineFinalizerUnified.normalizeCheckboxToken("[   ]"), "[ ]", "shared checkbox normalizer trims blank checkbox token");
   assertEq(lineFinalizerUnified.normalizeCheckboxToken("[I]"), "[I]", "shared checkbox normalizer preserves non-empty token");
 
+  /*
+   * **Одно имя, два объявления, и они расходятся** — `normalizeCheckboxToken`
+   * есть и в `order_deep_editor_state.js`. Расхождение измерено 2026-09-15:
+   * восемь входов из 31, и шесть из восьми — начала строк его собственных
+   * заметок. Слой настроек снимает знак списка перед разбором, сборка строки
+   * нет.
+   *
+   * **Закрепляется не «равны», а то, что каждое делает сегодня.** Вопрос
+   * «какой ответ верен» отдан заказчику (В-118): снятие знака стоит с первой
+   * беты и ничем не объяснено. Пока он не ответил, свести их вслепую — правка
+   * поведения, о которой никто не просил; эти утверждения делают такое
+   * сведение **осознанным**, а не тихим (10.13.144).
+   */
+  {
+    const deepState = require(path.join(__dirname, "..", "..", "src", "core", "order_deep_editor_state.js"));
+    assertEq(deepState.normalizeCheckboxToken("- [x]"), "[x]",
+      "слой настроек снимает знак списка перед разбором чекбокса");
+    assertEq(lineFinalizerUnified.normalizeCheckboxToken("- [x]"), "",
+      "сборка строки знак списка не снимает — вход сюда приезжает уже разобранным");
+    assertEq(deepState.normalizeCheckboxToken("[x]"),
+      lineFinalizerUnified.normalizeCheckboxToken("[x]"),
+      "на разобранном токене оба объявления отвечают одинаково");
+  }
+
   /* Фикстуры разборщика и помощников конфиг-заметки сняты 2026-09-03
      вместе с ней: разбирать больше нечего (PRD 10.12). */
 
