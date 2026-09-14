@@ -146,6 +146,31 @@ function main() {
     );
     if (guardedDelegate.test(inner)) return true;
 
+    /*
+     * **Пятая форма: охрана возвращает делегата, отказ стоит после неё.**
+     *
+     *   const su = getSharedUtils();
+     *   if (su && typeof su.parseHhmm === "function") return su.parseHhmm(text);
+     *   throw new Error("shared_utils unavailable: parseHhmm");
+     *
+     * Так устроена вся семья разбора форматов даты и числа — исключение к З3
+     * № 39 свело её в общий дом ещё 2026-09-11, — и мера всё это время считала
+     * пятнадцать честных делегатов настоящими телами.
+     *
+     * Это У-193 в лоб, и на себе: признак чинился накануне по **одной**
+     * найденной форме, и работа на этом не кончилась. Известный ответ, на
+     * котором мера проверяется, лежал в самом отчёте о сведении.
+     */
+    const guardReturnDelegate = new RegExp(
+      "^\\s*(?:var|const|let)\\s+([A-Za-z0-9_$]+)\\s*=\\s*[^;\\n]+[;\\n]" +
+      /* Возврат делегата разрешено обернуть в фигурные скобки: это форма
+         записи, а не смысл. Обёртка вроде `!!` — уже своя работа, и
+         делегатом такое тело не считается. */
+      "\\s*if\\s*\\([^)]*\\)\\s*\\{?\\s*return\\s+\\1\\s*\\.\\s*[A-Za-z0-9_$]+\\s*\\([^;\\n]*\\)\\s*;?\\s*\\}?" +
+      "\\s*throw\\s[^;]*;?\\s*$"
+    );
+    if (guardReturnDelegate.test(inner)) return true;
+
     const stmts = inner.split(";").map((x) => x.trim()).filter(Boolean);
     if (stmts.length !== 1) return false;
     /* И вызов должен быть **к другому модулю**: `return String(s).replace(...)`
