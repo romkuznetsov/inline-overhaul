@@ -67,6 +67,8 @@ const core = requireCjs(path.join(root, "pkm_v2", "TagWheel", "tagwheel_core.js"
   makeInitialState: (rules: Any, modeName: string) => Any;
   renderControlLine: (rules: Any, state: Any, parsedLine: Any) => string;
   getNavigableFieldSequence: (rules: Any, state: Any) => string[];
+  hydrateStateFromParsedLine: (rules: Any, state: Any, parsedLine: Any) => void;
+  sanitizeState: (rules: Any, state: Any) => void;
 };
 
 let passed = 0;
@@ -375,6 +377,68 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   const shown = panel(rules, "left", { status: "#work" });
   assert.ok(shown.seq.includes("status_sub"), "дочерний Field идёт за родителем и остаётся в его панели");
   ok("отрисовка: дочерний Field по-прежнему наследует Block родителя");
+}
+
+/* ======================================================================
+ * Значение поля с невыполненным предусловием переживает панель.
+ *
+ * **Дефект, купивший эту проверку** (найден обходом строки 2026-09-15):
+ * `Project` у заказчика ждёт `Category`, и на строке, где Category нет,
+ * ссылка `[[test1]]` пропадала с первого же применения TagWheel. Команда того
+ * же поля строку не трогала — то есть результат зависел от того, какой
+ * кнопкой человек это сделал.
+ *
+ * Цепочка была такая: разбор строки значение **узнаёт** и кладёт в состояние;
+ * `sanitizeState` стирал выбор у спрятанного поля; пустой выбор у поля,
+ * ведомого источником, значит «человек вышел из цикла» (Н-5), и
+ * перекладывание вычищало набор его токенов из строки.
+ *
+ * Предусловие решает, можно ли поле **менять** панелью, а не выживет ли
+ * написанное человеком.
+ * ====================================================================== */
+
+{
+  const b = build({ where: "right", dependsOn: "status" });
+  /* У значения обязан быть `id`: состояние панели хранит выбор именно им, и
+     фикстура без него проверяла бы, что «ничего не узнано» (У-47). В конфиге
+     человека `id` пишет редактор Fields. */
+  (b.field.values as Any[]).forEach((v: Any) => { v.id = String(v.token || ""); });
+  const line = "- [[B]] | текст";
+  const parsed = core.parseLine(line, b.rules);
+  const session = core.makeInitialState(b.rules, "left");
+  core.hydrateStateFromParsedLine(b.rules, session, parsed);
+
+  /* Контроль первым: без узнанного значения проверять нечего, и «выжило»
+     получилось бы само (У-163). */
+  const hydrated = String(session.selected.second || "");
+  assert.notEqual(hydrated, "", "разбор строки узнал значение ссылки: " + JSON.stringify(session.selected));
+  assert.equal(core.isFieldEnabled(b.mode, session, b.field, b.rules), false,
+    "предусловие не выполнено — панель это поле прячет");
+
+  core.sanitizeState(b.rules, session);
+  assert.equal(String(session.selected.second || ""), hydrated,
+    "значение спрятанного поля остаётся в состоянии, и панель не уносит его со строки");
+  ok("предусловие прячет поле, но не стирает написанное человеком");
+}
+
+{
+  /* И вторая половина того же правила: выбор, ставший недопустимым **по
+     значению**, стирается по-прежнему. Без этой проверки починка вида
+     «ничего никогда не стирать» была бы зелёной. */
+  const b = build({ where: "right", dependsOn: "status" });
+  /* Идентификаторы нужны обоим полям: состояние хранит выбор именно ими, и
+     без `id` у родителя `sanitizeState` стёр бы сначала его, а следом
+     предусловие перестало бы выполняться — проверка мерила бы не тот случай. */
+  const withIds = (list: Any[]): void => { list.forEach((v: Any) => { v.id = String(v.token || ""); }); };
+  withIds(b.field.values as Any[]);
+  withIds((b.rules.leftMode.fields as Any[]).find((f: Any) => f.id === "status").values as Any[]);
+  const session = core.makeInitialState(b.rules, "left");
+  session.selected.status = "#work";
+  session.selected.second = "такого-значения-нет";
+  core.sanitizeState(b.rules, session);
+  assert.equal(String(session.selected.second || ""), "",
+    "значение, которого у поля нет, из состояния уходит");
+  ok("контроль: недопустимое значение по-прежнему стирается");
 }
 
 console.log("\n" + passed + " проверок пройдено");
