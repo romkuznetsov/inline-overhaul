@@ -124,9 +124,17 @@ function main() {
     const stmts = inner.split(";").map((x) => x.trim()).filter(Boolean);
     if (stmts.length !== 1) return false;
     /* И вызов должен быть **к другому модулю**: `return String(s).replace(...)`
-       это своя работа, а не делегирование. Модульные имена здесь одни —
-       с двух подчёркиваний (`__sharedUtils` и подобные). */
-    return /^return\s/.test(stmts[0]) && /(^|[^A-Za-z0-9_$])__[A-Za-z0-9_$]*\./.test(stmts[0]);
+       это своя работа, а не делегирование.
+       Форм у обращения к дому две, и вторую признак не видел (У-137): модуль
+       приезжает либо именем с двух подчёркиваний (`__sharedUtils.…`), либо
+       **геттером** (`getStatusRuntimeCommon().…`) — так устроены оба статусных
+       движка, и три честных делегата числились копиями. */
+    if (!/^return\s/.test(stmts[0])) return false;
+    const byModuleName = /(^|[^A-Za-z0-9_$])__[A-Za-z0-9_$]*\./.test(stmts[0]);
+    /* И после геттера обязан стоять **вызов**, а не чтение поля:
+       `return getCfg().left;` — это своя работа, а не обращение к дому. */
+    const byGetter = /(^|[^A-Za-z0-9_$])(get|ensure)[A-Z][A-Za-z0-9_$]*\(\)\s*\.[A-Za-z0-9_$]+\s*\(/.test(stmts[0]);
+    return byModuleName || byGetter;
   };
 
   const broken = [];
