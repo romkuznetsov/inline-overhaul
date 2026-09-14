@@ -23,6 +23,7 @@ const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js"
 const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
 const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
+const __fieldRelocationMod = require("./field_relocation.js");
 const __sayModule = require("../src/core/say.js");
 const __say = __sayModule.say;
 const __activeEditorMod = require("../src/core/active_editor.js");
@@ -82,6 +83,81 @@ async function callRuntimeApi(app_, method, ...args) {
   return fn.apply(rt, args);
 }
 
+/**
+ * **Зависимости правила переноса значений по Order живут в общем доме.**
+ *
+ * Пятнадцать имён ниже — обращения в `field_relocation.js`; тела переехали
+ * туда как есть 2026-09-15 (PRD 10.13.131). Экземпляр строится лениво и
+ * получает **этот** движок: общий рантайм у команд тегов свой, с
+ * `defaultPanel: "left"`, и склеивать его с чужим нельзя.
+ */
+let __fieldRelocationFns = null;
+function __relocation() {
+  if (!__fieldRelocationFns) {
+    __fieldRelocationFns = __fieldRelocationMod.createFieldRelocation({
+      getStatusRuntimeCommon,
+      getStatusLineRuntime: getStatusLineRuntimeUnified,
+      getDomainRegistry,
+      tokenGraph: __tokenGraphUnified,
+      core: __tagwheelCore,
+      isObj,
+    });
+  }
+  return __fieldRelocationFns;
+}
+
+function getField(mode, id) {
+  return __relocation().getField(mode, id);
+}
+
+function valueId(v) {
+  return __relocation().valueId(v);
+}
+
+function composeToken(prefix, rawToken) {
+  return __relocation().composeToken(prefix, rawToken);
+}
+
+function buildTokenFactsFromLine(rawLine, rules) {
+  return __relocation().buildTokenFactsFromLine(rawLine, rules);
+}
+
+function buildOutputTokenForField(field, value, rules) {
+  return __relocation().buildOutputTokenForField(field, value, rules);
+}
+
+function activeValuesForField(core, rules, state, field) {
+  return __relocation().activeValuesForField(core, rules, state, field);
+}
+
+function panelForTagKey(orderCfg, key) {
+  return __relocation().panelForTagKey(orderCfg, key);
+}
+
+function fieldTokenMap(field, rules, state, core) {
+  return __relocation().fieldTokenMap(field, rules, state, core);
+}
+
+function selectedTokenFromState(field, state, rules, core) {
+  return __relocation().selectedTokenFromState(field, state, rules, core);
+}
+
+function selectedTokenFromLineByPanel(line, rules, panel, tokenMap) {
+  return __relocation().selectedTokenFromLineByPanel(line, rules, panel, tokenMap);
+}
+
+function relocateFieldByPanel(line, rules, orderCfg, targetPanel, selectedToken, tokenMap) {
+  return __relocation().relocateFieldByPanel(line, rules, orderCfg, targetPanel, selectedToken, tokenMap);
+}
+
+function resolveOrderKeyForField(rules, field) {
+  return __relocation().resolveOrderKeyForField(rules, field);
+}
+
+function relocateCoreTagsByOrder(line, rules, orderCfg, state, fields, activeKey, activeFieldId) {
+  return __relocation().relocateCoreTagsByOrder(line, rules, orderCfg, state, fields, activeKey, activeFieldId);
+}
+
 function getDomainRegistry() {
   return __pkmDomainRegistry;
 }
@@ -122,9 +198,6 @@ function getStatusLineRuntimeUnified() {
   return __statusLineRuntimeUnified;
 }
 
-function buildTokenFactsFromLine(rawLine, rules) {
-  return __tokenGraphUnified.buildTokenFactsFromLine(rawLine, rules);
-}
 
 function activeValues(field) {
   return getStatusRuntimeCommon().getActiveValues(field);
@@ -137,9 +210,6 @@ function activeValues(field) {
  * которого `id` не задан вовсе. Доставалась копия, только если общая
  * реализация бросила, — то есть отвечала иначе и молча (У-32).
  */
-function getField(mode, id) {
-  return getStatusRuntimeCommon().getFieldById(mode, id);
-}
 
 function findValueById(field, valueId) {
   return getStatusRuntimeCommon().getFieldValueById(field, valueId);
@@ -149,9 +219,6 @@ function findValueByToken(field, token) {
   return getStatusRuntimeCommon().getFieldValueByToken(field, token);
 }
 
-function valueId(v) {
-  return getStatusRuntimeCommon().getValueId(v);
-}
 
 function getSubtagFormat(rules, settings) {
   return getStatusRuntimeCommon().resolveSubtagFormat(settings?.[SUBTAG_FORMAT], rules);
@@ -169,17 +236,6 @@ function escapeRx(s) {
   return getStatusRuntimeCommon().escapeRx(s);
 }
 
-function removeCombinedByParentTokens(line, rules, parentTokens) {
-  const shared = globalThis.__inlineLinePipeline;
-  if (!shared || typeof shared.removeCombinedByParentTokens !== "function") {
-    throw new Error("line_pipeline unavailable: removeCombinedByParentTokens");
-  }
-  return shared.removeCombinedByParentTokens({
-    line,
-    rules,
-    parentTokens,
-  });
-}
 
 function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, subField) {
   if (!parentField || !subField) return;
@@ -227,40 +283,8 @@ function hydrateCombinedPairFromLine(state, rawLine, rules, panel, parentField, 
   state.selected[subField.id] = String(pair.subId || "");
 }
 
-function composeToken(prefix, rawToken) {
-  return getStatusRuntimeCommon().composeToken(prefix, rawToken);
-}
 
-function getFieldModeById(rules, fieldId) {
-  const left = rules && rules.leftMode ? rules.leftMode : null;
-  const right = rules && rules.rightMode ? rules.rightMode : null;
-  if (getField(left, fieldId)) return left;
-  if (getField(right, fieldId)) return right;
-  return left || right || { fields: [] };
-}
 
-function activeValuesForField(core, rules, state, field) {
-  if (!field) return [];
-  let vals = [];
-  if (core && typeof core.getAllowedValues === "function") {
-    const mode = getFieldModeById(rules, field.id);
-    try {
-      vals = core.getAllowedValues(mode, state || { selected: {} }, field, rules);
-    } catch (_) {
-      vals = Array.isArray(field.values) ? field.values : [];
-    }
-  } else {
-    vals = Array.isArray(field.values) ? field.values : [];
-  }
-  return vals
-    .filter((v) => isObj(v) && typeof v.token === "string" && v.token && v.active !== false)
-    .slice()
-    .sort((a, b) => {
-      const ao = typeof a.order === "number" ? a.order : 999;
-      const bo = typeof b.order === "number" ? b.order : 999;
-      return ao - bo;
-    });
-}
 
 function isPriorityFieldLike(field, rules) {
   if (!field || !Array.isArray(field.values)) return false;
@@ -287,21 +311,7 @@ function isPriorityFieldLike(field, rules) {
  * важность). Разошлись на нуле, и мера при этом умеет видеть расхождение:
  * подмена одной ветви дала 16 пар. После сверки копия снята.
  */
-function buildOutputTokenForField(field, value, rules) {
-  return __tagwheelCore.buildOutputToken(field, value, rules);
-}
 
-function fieldTokenMap(field, rules, state, core) {
-  const vals = activeValuesForField(core, rules, state, field);
-  const prefix = typeof field?.prefix === "string" ? field.prefix : "#";
-  const out = [];
-  for (const v of vals) {
-    const id = valueId(v);
-    const token = buildOutputTokenForField(field, v, rules) || composeToken(prefix, String(v?.token || ""));
-    if (id && token) out.push({ id, token });
-  }
-  return out;
-}
 
 function allFieldTokens(field, rules) {
   const vals = Array.isArray(field?.values) ? field.values : [];
@@ -432,49 +442,7 @@ function hydrateFieldFromLine(state, rawLine, rules, targetPanel, stateKey, toke
   }
 }
 
-function relocateFieldByPanel(line, rules, orderCfg, targetPanel, selectedToken, tokenMap) {
-  const shared = globalThis.__inlineLinePipeline;
-  if (!shared || typeof shared.relocateTokenSetByPanel !== "function") {
-    throw new Error("line_pipeline unavailable: relocateTokenSetByPanel");
-  }
-  if (typeof shared.removeExactTokens !== "function") {
-    throw new Error("line_pipeline unavailable: removeExactTokens");
-  }
-  const rulesHelpers = globalThis.__inlinePkmRulesHelpers;
-  if (!rulesHelpers || typeof rulesHelpers.buildTagTokenKeyMap !== "function" || typeof rulesHelpers.getDefaultTagTokenKeyMapOptions !== "function") {
-    throw new Error("pkm_rules_runtime_helpers unavailable: buildTagTokenKeyMap");
-  }
-  if (typeof rulesHelpers.reorderSegmentTokensByOrder !== "function" || typeof rulesHelpers.getStatusTagReorderOptions !== "function") {
-    throw new Error("pkm_rules_runtime_helpers unavailable: reorderSegmentTokensByOrder");
-  }
-  const tokenToKey = rulesHelpers.buildTagTokenKeyMap(rules, rulesHelpers.getDefaultTagTokenKeyMapOptions());
-  const all = tokenMap.map((x) => x.token);
-  return shared.relocateTokenSetByPanel({
-    line,
-    rules,
-    targetPanel,
-    selectedToken,
-    allTokens: all,
-    stripTokens: (segment, tokens) => shared.removeExactTokens(segment, tokens),
-    reorderLeft: (leftBody) => rulesHelpers.reorderSegmentTokensByOrder(leftBody, orderCfg, "left", tokenToKey, rulesHelpers.getStatusTagReorderOptions()),
-    reorderRight: (dates) => rulesHelpers.reorderSegmentTokensByOrder(dates, orderCfg, "right", tokenToKey, rulesHelpers.getStatusTagReorderOptions()),
-  });
-}
 
-function selectedTokenFromState(field, state, rules, core) {
-  if (!field || !state || !state.selected) return "";
-  const id = String(state.selected[field.id] || "");
-  if (!id) return "";
-  const vals = activeValuesForField(core, rules, state, field);
-  let hit = null;
-  for (const v of vals) {
-    if (!isObj(v)) continue;
-    const vid = valueId(v);
-    if (vid === id) { hit = v; break; }
-  }
-  if (!hit || typeof hit.token !== "string" || !hit.token) return "";
-  return buildOutputTokenForField(field, hit, rules) || composeToken(typeof field.prefix === "string" ? field.prefix : "#", String(hit.token));
-}
 
 function hasOwnCheckboxForField(rules, state, field, core) {
   if (!field || !isObj(state)) return false;
@@ -531,51 +499,7 @@ function enforceOffModeFinalPrefix(line, rawLine, freeRoamMode, rules, state, fi
   });
 }
 
-function selectedTokenFromLineByPanel(line, rules, panel, tokenMap) {
-  const linePipeline = globalThis.__inlineLinePipeline;
-  if (!linePipeline || typeof linePipeline.splitSegments !== "function") {
-    throw new Error("line_pipeline unavailable: splitSegments");
-  }
-  const runtime = getStatusLineRuntimeUnified();
-  if (!runtime || typeof runtime.selectTokenByPanelOrder !== "function") {
-    throw new Error("status_line_runtime_unified unavailable: selectTokenByPanelOrder");
-  }
-  const tokenFacts = buildTokenFactsFromLine(line, rules);
-  const hit = runtime.selectTokenByPanelOrder({
-    line,
-    rules,
-    panel,
-    tokenMap,
-    tokenFacts,
-    deps: {
-      splitSegments: linePipeline.splitSegments,
-    },
-  });
-  if (hit && hit.token) return hit.token;
-  return "";
-}
 
-function relocateCoreTagsByOrder(line, rules, orderCfg, state, fields, activeKey, activeFieldId) {
-  const runtime = getStatusLineRuntimeUnified();
-  return runtime.relocateCoreTagsByOrder({
-    line,
-    rules,
-    orderCfg,
-    state,
-    fields,
-    activeKey,
-    activeFieldId,
-    deps: {
-      panelForTagKey,
-      fieldTokenMap,
-      selectedTokenFromState,
-      selectedTokenFromLineByPanel,
-      relocateFieldByPanel,
-      removeCombinedByParentTokens,
-      resolveFieldOrderKey: (field, runtimeRules) => resolveOrderKeyForField(runtimeRules || rules, field),
-    },
-  });
-}
 
 function enforceDependentAdjacencyForStatusLine(finalLine, rules, state, core) {
   const runtime = getStatusLineRuntimeUnified();
@@ -1048,39 +972,6 @@ function resolveFieldIdByOrderKey(rules, orderKey) {
   return "";
 }
 
-function resolveOrderKeyForField(rules, field) {
-  const f = field && typeof field === "object" ? field : null;
-  if (!f || !f.id) return "";
-  const explicit = String(f.orderKey || "").trim();
-  if (explicit) return explicit;
-  const left = Array.isArray(rules?.leftMode?.fields) ? rules.leftMode.fields : [];
-  const right = Array.isArray(rules?.rightMode?.fields) ? rules.rightMode.fields : [];
-  const fields = left.concat(right);
-  for (let i = 0; i < fields.length; i++) {
-    const cur = fields[i];
-    if (!cur || String(cur.id || "").trim() !== String(f.id || "").trim()) continue;
-    const curOrderKey = String(cur.orderKey || "").trim();
-    if (curOrderKey) return curOrderKey;
-  }
-  const reg = getDomainRegistry();
-  if (reg && typeof reg.resolveOrderKeyFromFieldId === "function") {
-    const mapped = String(reg.resolveOrderKeyFromFieldId(String(f.id || "").trim()) || "").trim();
-    if (mapped) return mapped;
-  }
-  const leftOrder = Array.isArray(rules?.behavior?.order?.left) ? rules.behavior.order.left : [];
-  const rightOrder = Array.isArray(rules?.behavior?.order?.right) ? rules.behavior.order.right : [];
-  const leftIdx = left.findIndex((x) => x && String(x.id || "").trim() === String(f.id || "").trim());
-  if (leftIdx >= 0) {
-    const k = String(leftOrder[leftIdx] || "").trim();
-    if (k) return k;
-  }
-  const rightIdx = right.findIndex((x) => x && String(x.id || "").trim() === String(f.id || "").trim());
-  if (rightIdx >= 0) {
-    const k = String(rightOrder[rightIdx] || "").trim();
-    if (k) return k;
-  }
-  return String(f.id || "").trim();
-}
 
 function resolveParentFieldForSubAction(rules, orderKey, targetField) {
   const key = String(orderKey || "").trim();
@@ -1098,12 +989,6 @@ function resolveParentFieldForSubAction(rules, orderKey, targetField) {
   return { parentOrderKey, parentField };
 }
 
-function panelForTagKey(orderCfg, key) {
-  const k = String(key || "");
-  const statusCommon = getStatusRuntimeCommon();
-  if (/_sub$/.test(k)) return statusCommon.getPanelForField(orderCfg, k.slice(0, -4));
-  return statusCommon.getPanelForField(orderCfg, k);
-}
 
 function collectSelectedEntriesForPolicy(rules, state, orderCfg) {
   const out = [];

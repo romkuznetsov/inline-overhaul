@@ -334,8 +334,19 @@ async function run() {
    * обращение к дому; собственная ветвь по источнику поля — признак того, что
    * копия вернулась.
    */
-  assertTrue(/__tagwheelCore\.buildOutputToken\(/.test(statusTagsSrc),
-    "status_tags asks the single home for the field value token shape");
+  /*
+   * **Пин переехал за предметом** (У-94): 2026-09-15 зависимости правила
+   * переноса ушли из `status_tags.js` в `field_relocation.js`, и обращение к
+   * дому правила о виде значения теперь спрашивается **там**. Прежний образец
+   * искал его в `status_tags.js` и покраснел в тот же прогон — как и должен
+   * был: `assertTrue` о переехавшем краснеет, а запрет молчал бы вечно.
+   */
+  const fieldRelocationSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "pkm_v2", "field_relocation.js"), "utf8");
+  assertTrue(/core\.buildOutputToken\(/.test(fieldRelocationSrc),
+    "field_relocation asks the single home for the field value token shape");
+  assertFalse(/sourceKind === "wikilinks"/.test(fieldRelocationSrc),
+    "field_relocation has no second declaration of the value token shape");
   assertFalse(/sourceKind === "wikilinks"/.test(statusTagsSrc),
     "status_tags has no second declaration of the value token shape");
 
@@ -1574,7 +1585,10 @@ async function run() {
   const scanWrappers = (src) => {
     const thin = [];
     const swallowing = [];
-    const decl = /^function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/gm;
+    /* Объявление ищется и с отступом: в `field_relocation.js` обёртки лежат
+       внутри фабрики, и образец «функция от начала строки» не находил там ни
+       одной — порог сказал об этом сам (У-88). */
+    const decl = /^[ \t]*function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/gm;
     let m;
     while ((m = decl.exec(src)) !== null) {
       const open = src.indexOf("{", m.index);
@@ -1590,6 +1604,7 @@ async function run() {
       const work = text.slice(text.indexOf("{") + 1, text.length - 1)
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/\/\/[^\n]*/g, "")
+        .replace(/\n[ \t]+/g, "\n")
         .trim();
       if (/\}\s*catch\s*\(\s*_\s*\)\s*\{\s*\}/.test(text)) swallowing.push(m[1]);
       if (/^return getStatusRuntimeCommon\(\)\.[A-Za-z_$][\w$]*\([\s\S]*\);$/.test(work)) thin.push(m[1]);
@@ -1598,15 +1613,24 @@ async function run() {
   };
 
   {
+    /* **Обход идёт за предметом.** 2026-09-15 часть обёрток уехала из
+       `status_tags.js` в `field_relocation.js`, и порог ниже тут же сказал,
+       что смотрит не туда: 28 вместо тридцати. Это и есть его работа —
+       запрет на молчащий `catch` обязан накрывать тот файл, где обёртки
+       теперь живут (У-88, У-94). */
+    const relocationSrc = fs.readFileSync(
+      path.join(__dirname, "..", "..", "pkm_v2", "field_relocation.js"), "utf8");
     const tags = scanWrappers(statusTagsSrc);
     const date = scanWrappers(statusDateSrc);
+    const relocation = scanWrappers(relocationSrc);
     const swallowing = tags.swallowing.map((n) => "status_tags::" + n)
-      .concat(date.swallowing.map((n) => "status_date::" + n));
+      .concat(date.swallowing.map((n) => "status_date::" + n))
+      .concat(relocation.swallowing.map((n) => "field_relocation::" + n));
     assertEq(swallowing.join(" | "), "",
       "функция зовёт общую реализацию и глотает её отказ молча — за таким `catch` "
       + "лежит второе объявление того же правила (У-32), и достаётся оно тогда, "
       + "когда общая реализация бросила");
-    const thinCount = tags.thin.length + date.thin.length;
+    const thinCount = tags.thin.length + date.thin.length + relocation.thin.length;
     assertTrue(thinCount >= 30,
       "обход нашёл только " + thinCount + " тонких обёрток — значит он смотрит не туда, "
       + "и запрет выше мерит пустоту (У-88)");
@@ -1702,12 +1726,14 @@ async function run() {
   assertTrue(/macroShared\.getCursorAtTextEnd\(line, runtimeRules\)/.test(statusTagsSrc), "status_tags text-end cursor delegates to shared helper");
   assertTrue(/macroShared\.getCursorAtTextEnd\(line, runtimeRules\)/.test(statusDateSrc), "status_date text-end cursor delegates to shared helper");
   assertTrue(/getStatusRuntimeCommon\(\)\.applyOrderToRules\(rules, orderCfg\)|statusCommon\.applyOrderToRules\(rules, orderCfg\)/.test(statusTagsSrc), "status_tags order-apply helper is shared runtime-common backed");
-  assertTrue(/getStatusRuntimeCommon\(\)\.getPanelForField\(orderCfg, fieldKey\)|statusCommon\.getPanelForField\(orderCfg, "type"\)|statusCommon\.getPanelForField\(orderCfg, k\.slice\(0, -4\)\)/.test(statusTagsSrc), "status_tags panel resolver is shared runtime-common backed");
+  /* Предмет переехал в `field_relocation.js` вместе с `panelForTagKey`
+     (10.13.131): вопрос тот же, файл другой (У-94). */
+  assertTrue(/statusCommon\.getPanelForField\(orderCfg, k\.slice\(0, -4\)\)/.test(fieldRelocationSrc), "panel resolver is shared runtime-common backed");
   assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: reorderSegmentTokensByOrder"\);/.test(statusTagsSrc), "status_tags segment reorder helper is shared-only");
-  assertTrue(/rulesHelpers\.getStatusTagReorderOptions\(\)/.test(statusTagsSrc), "status_tags tag-only reorder options come from shared helper");
+  assertTrue(/rulesHelpers\.getStatusTagReorderOptions\(\)/.test(fieldRelocationSrc), "tag-only reorder options come from shared helper");
   assertTrue(/rulesHelpers\.getStatusMixedReorderOptions\(markers\)/.test(statusTagsSrc), "status_tags mixed reorder options come from shared helper");
   assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules"\);/.test(statusTagsSrc), "status_tags date marker helper is shared-only");
-  assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: buildTagTokenKeyMap"\);/.test(statusTagsSrc), "status_tags token-key map helper is shared-only");
+  assertTrue(/throw new Error\("pkm_rules_runtime_helpers unavailable: buildTagTokenKeyMap"\);/.test(fieldRelocationSrc), "token-key map helper is shared-only");
   assertTrue(/rulesHelpers\.getDefaultTagTokenKeyMapOptions\(\)/.test(statusTagsSrc), "status_tags token-key map options come from shared helper");
   assertTrue(/function buildOutputTokenForField\(/.test(statusTagsSrc), "status_tags has unified output-token builder for tag\/link fields");
   assertTrue(/lineFinalize\.normalizeMinimalOffFinalLine\(rawLine, finalLine, rules, \{/.test(statusTagsSrc), "status_tags minimal-off normalization is delegated to unified line finalizer");
@@ -1758,7 +1784,7 @@ async function run() {
   assertTrue(/selectedTokenFromState\(customParentRelocation\.field, state, rules\)/.test(statusTagsSrc), "status_tags applies relocated custom parent token for sub-actions");
   assertTrue(/function enforceDependentAdjacencyForStatusLine\(/.test(statusTagsSrc), "status_tags has dedicated dependent-adjacency stabilization for cycle runtime");
   assertTrue(/const __statusLineRuntimeUnified = require\(/.test(statusTagsSrc), "status_tags gets the shared status-line runtime by a literal require");
-  assertTrue(/runtime\.relocateCoreTagsByOrder\(\{/.test(statusTagsSrc), "status_tags core tag relocation delegates to shared status-line runtime module");
+  assertTrue(/runtime\.relocateCoreTagsByOrder\(\{/.test(fieldRelocationSrc), "core tag relocation delegates to shared status-line runtime module");
   assertTrue(/runtime\.enforceDependentAdjacencyForStatusLine\(\{/.test(statusTagsSrc), "status_tags dependent adjacency delegates to shared status-line runtime module");
   /*
    * Здесь стояли четырнадцать пинов вида «загрузчик требует помощника X».
@@ -1814,7 +1840,7 @@ async function run() {
    */
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: segmentHasToken"\);/.test(statusRuntimeCommonSrc), "shared runtime common token matcher fails loudly");
   assertFalse(/segmentHasToken/.test(statusTagsSrc), "status_tags has no local token matcher of its own");
-  assertTrue(/throw new Error\("line_pipeline unavailable: removeExactTokens"\);/.test(statusTagsSrc), "status_tags token remover delegates to shared line-pipeline helper");
+  assertTrue(/throw new Error\("line_pipeline unavailable: removeExactTokens"\);/.test(fieldRelocationSrc), "token remover delegates to shared line-pipeline helper");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: getCursorAtTextEnd"\);/.test(statusTagsSrc), "status_tags text-end helper is shared-only");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: applyKeepBullet"\);/.test(statusTagsSrc), "status_tags keep-bullet helper is shared-only");
   assertTrue(/throw new Error\("pkm_macro_shared unavailable: isOrphanCheckboxBulletLine"\);/.test(statusDateSrc), "status_date orphan-checkbox helper is shared-only");
@@ -1869,8 +1895,8 @@ async function run() {
     "status runtime common refuses loudly when the shared rules helper is missing");
   assertTrue(/function resolveOffPrefixFlagsUnified\(/.test(pkmLineFinalizeUnifiedSrc), "line finalizer exports unified off-prefix resolver");
   assertTrue(/lineFinalize\.resolveOffPrefixFlagsUnified\(\{/.test(statusTagsSrc), "status_tags delegates off-prefix resolution to shared line finalizer");
-  assertTrue(/throw new Error\("line_pipeline unavailable: removeCombinedByParentTokens"\);/.test(statusTagsSrc), "status_tags combined-subtag cleanup requires shared line-pipeline helper");
-  assertTrue(/shared\.removeCombinedByParentTokens\(\{/.test(statusTagsSrc), "status_tags combined-subtag cleanup delegates to shared line-pipeline helper");
+  assertTrue(/throw new Error\("line_pipeline unavailable: removeCombinedByParentTokens"\);/.test(fieldRelocationSrc), "combined-subtag cleanup requires shared line-pipeline helper");
+  assertTrue(/shared\.removeCombinedByParentTokens\(\{/.test(fieldRelocationSrc), "combined-subtag cleanup delegates to shared line-pipeline helper");
   assertTrue(/throw new Error\("line_pipeline unavailable: removeTokensAcrossSegments"\);/.test(statusTagsSrc), "status_tags field-token stripping requires shared line-pipeline helper");
   assertTrue(/shared\.removeTokensAcrossSegments\(\{/.test(statusTagsSrc), "status_tags field-token stripping delegates to shared line-pipeline helper");
   assertTrue(/const hasAnySeparatorFn = lineFinalize\.hasAnySeparator;/.test(statusTagsSrc), "status_tags separator-presence checks strictly use shared finalizer helper");
