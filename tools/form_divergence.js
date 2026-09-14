@@ -162,6 +162,123 @@ const SITES = [
   },
 ];
 
+/* ------------------------------------ «каким выводом печатается это поле» */
+
+/**
+ * Тот же вопрос объявлен в трёх местах, и два из них — настоящие функции
+ * движков, третье — замыкание внутри функции помощников. Первые два зовутся
+ * настоящими, третье переписано под контролем на переписывание.
+ *
+ * Мера здесь своя: вход — не строка, а пара «поле и правила», поэтому она
+ * стоит отдельным прогоном, а не в общей сводке групп.
+ */
+function outputModeSites() {
+  const preload = require(path.join(ROOT, "src", "core", "pkm_runtime_preload_facade.js"));
+  /* Шов ставится прослойкой плагина, а не присваиванием своей рукой (У-42). */
+  preload.loadRulesRuntimeHelpers();
+  const panel = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel.js"));
+  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  return [
+    {
+      id: "tagwheel.resolveFieldOutputMode",
+      file: "pkm_v2/TagWheel/tagwheel.js",
+      anchor: null,
+      fn: (field, rules) => panel.resolveFieldOutputMode(field, rules),
+    },
+    {
+      id: "tagwheel_core.resolveFieldOutputMode",
+      file: "pkm_v2/TagWheel/tagwheel_core.js",
+      anchor: null,
+      fn: (field, rules) => core.resolveFieldOutputMode(field, rules),
+    },
+    {
+      /* Дом. До 2026-09-15 здесь стояло замыкание внутри `buildTagTokenKeyMap`,
+         и его тело было переписано в стенд под контролем на переписывание.
+         Теперь это настоящая экспортированная функция, и переписывать нечего. */
+      id: "helpers.resolveFieldOutputMode (дом)",
+      file: "src/core/pkm_rules_runtime_helpers.js",
+      anchor: null,
+      fn: (field, rules) => globalThis.__inlinePkmRulesHelpers.resolveFieldOutputMode(field, rules),
+    },
+  ];
+}
+
+/** Поля берутся у него; края названы отдельно и помечены. */
+function fieldCorpus() {
+  const out = [];
+  const raw = JSON.parse(fs.readFileSync(DATA, "utf8"));
+  (function walk(o) {
+    if (!o) return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (typeof o !== "object") return;
+    if (typeof o.id === "string" && ("source" in o || "prefix" in o || "kind" in o)) {
+      out.push({ field: o, from: "его конфиг" });
+    }
+    for (const k of Object.keys(o)) walk(o[k]);
+  })(raw);
+  const edges = [
+    {}, { source: "projects" }, { source: "wikilinks:X" }, { source: "tagsrc" },
+    { outputMode: "WIKILINK" }, { outputMode: "  tag  " }, { outputMode: "" },
+    { source: "" }, { source: "wikilinks:" }, { source: "  projects  " },
+  ];
+  for (const e of edges) out.push({ field: Object.assign({ id: "край" }, e), from: "край (синтетика)" });
+  return out;
+}
+
+const RULE_SETS = [
+  {},
+  { projects: { output: "wikilink" } },
+  { projects: { output: "tag" } },
+  { tagsrc: { output: "wikilink" } },
+  { tagsrc: { output: "TAG" } },
+  { tagsrc: { output: "" } },
+];
+
+function reportOutputMode() {
+  const sites = outputModeSites();
+  const fields = fieldCorpus();
+  console.log("== вопрос «каким выводом печатается это поле»: " + sites.length + " объявлений");
+  for (const s of sites) console.log("   - " + s.id + "  (" + s.file + ")");
+
+  /* Контроль на переписывание — у того места, чьё тело переписано. */
+  for (const s of sites) {
+    if (!s.anchor) continue;
+    const text = fs.readFileSync(path.join(ROOT, s.file), "utf8");
+    if (text.indexOf(s.anchor) < 0) {
+      console.log("   ! " + s.id + ": строки исходника в файле больше нет — числам ниже верить нельзя");
+    }
+  }
+
+  let pairs = 0;
+  const diverging = [];
+  for (const f of fields) {
+    for (const r of RULE_SETS) {
+      pairs++;
+      const answers = sites.map((s) => {
+        try { return String(s.fn(f.field, r)); } catch (e) { return "БРОСИЛО: " + String(e && e.message); }
+      });
+      if (new Set(answers).size > 1) diverging.push({ f, r, answers });
+    }
+  }
+  console.log("   пар «поле × правила»: " + pairs + ", расхождений: " + diverging.length);
+  for (const d of diverging.slice(0, 12)) {
+    console.log("     " + JSON.stringify(d.f.field).slice(0, 64) + " + " + JSON.stringify(d.r));
+    sites.forEach((s, i) => console.log("        " + s.id.padEnd(34) + " -> " + d.answers[i]));
+  }
+
+  /* Контроль самой меры: нарочно разведённая сторона обязана попасть в счёт. */
+  let seen = 0;
+  for (const f of fields) {
+    for (const r of RULE_SETS) {
+      if (String(sites[0].fn(f.field, r)) !== String(sites[1].fn(f.field, r)).toUpperCase()) seen++;
+    }
+  }
+  console.log("   контроль чувствительности: нарочно испорченная сторона расходится на " +
+    seen + " парах из " + pairs + (seen ? "" : "  <= МЕРА СЛЕПА"));
+  console.log("");
+  return diverging.length;
+}
+
 /* --------------------------------------------------------------- контроли */
 
 function controlTranscription() {
@@ -304,6 +421,8 @@ function main() {
     }
     console.log("");
   }
+
+  totalDiverging += reportOutputMode();
 
   console.log("Итого расхождений: " + totalDiverging);
   console.log("Сводить можно только группу с нулём — и только после мутации в обе стороны (У-92).");

@@ -539,18 +539,15 @@ async function loadTagWheelScrollerOverlay() {
   return __tagwheelScrollerOverlayMod
 }
 
+/* «Каким выводом печатается это поле» — общий дом у помощников. Правило было
+   объявлено трижды: здесь, в ядре и замыканием у самих помощников. Три тела
+   сверены на 150 парах «поле × правила» и разошлись на нуле (10.13.139). */
 function resolveFieldOutputMode(field, rules) {
-  if (field && typeof field.outputMode === 'string') {
-    var local = String(field.outputMode).trim().toLowerCase()
-    if (local) return local
+  var helpers = globalThis.__inlinePkmRulesHelpers
+  if (!helpers || typeof helpers.resolveFieldOutputMode !== 'function') {
+    throw new Error('pkm_rules_runtime_helpers unavailable: resolveFieldOutputMode')
   }
-  var source = String(field && field.source ? field.source : '').trim()
-  var sourceKind = resolveFieldSourceKind(field)
-  if (sourceKind === 'projects' || sourceKind === 'wikilinks') return 'wikilink'
-  if (source && rules && rules[source] && typeof rules[source].output === 'string') {
-    return String(rules[source].output).trim().toLowerCase() || 'tag'
-  }
-  return 'tag'
+  return helpers.resolveFieldOutputMode(field, rules)
 }
 
 function buildOutputTokenForFieldValue(field, value, rules) {

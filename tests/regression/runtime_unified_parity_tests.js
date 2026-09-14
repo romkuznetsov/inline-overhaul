@@ -881,10 +881,15 @@ function run() {
    * **Поле-источник «проекты» печатает ссылку при любом `output`, и это
    * измеренный ответ, а не догадка.** Здесь копии и правда расходились:
    * панель печатала ссылку всегда, а команды читали `rules.projects.output` и
-   * при `tag` (умолчании!) печатали тег. Победило написание панели — так же
-   * отвечает и третье объявление того же вопроса
-   * (`pkm_rules_runtime_helpers.js`, `resolveOutputKind`), а контрола у
-   * `projects.output` в панели нет вовсе и не пишет его никто.
+   * при `tag` (умолчании!) печатали тег. Победило написание панели, а контрола
+   * у `projects.output` в панели нет вовсе и не пишет его никто.
+   *
+   * **Имя третьего объявления здесь было неверным.** Строка звала
+   * `resolveOutputKind` в `pkm_rules_runtime_helpers.js` — функции с таким
+   * именем в репозитории нет ни одной, и объяснение стояло над пустотой.
+   * На деле третьим было замыкание `resolveFieldOutputMode` внутри
+   * `buildTagTokenKeyMap`. С 2026-09-15 объявление одно: все три дороги
+   * спрашивают `helpers.resolveFieldOutputMode` (10.13.139).
    *
    * Досягаемость названа честно: `source: "projects"` нынешний редактор Fields
    * не создаёт — он делает только `wikilinks:<ключ>`, — так что форма эта
@@ -945,6 +950,38 @@ function run() {
   for (const [value, expected, name] of UNWRAP_CASES) {
     assertEq(outToken(LINK_FIELD, value), expected, "ядро: " + name);
     assertEq(panelToken(LINK_FIELD, value), expected, "панель: " + name);
+  }
+
+  /*
+   * **«Каким выводом печатается это поле» — одно объявление на три дороги**
+   * (10.13.139). Было три: панель, ядро и замыкание внутри
+   * `buildTagTokenKeyMap` у самих помощников. Сверены на 150 парах
+   * «поле × правила» — все поля его `data.json` и десять форм, которых у него
+   * нет, на шести наборах правил — и разошлись на нуле, поэтому сведение
+   * поведения не изменило.
+   *
+   * **Сравнение трёх сторон после сведения ничего не доказывает** — они
+   * спрашивают один дом и ломаются одинаково (У-92). Вес несут ожидания,
+   * написанные ответом, а не равенством; сравнение оставлено рядом затем,
+   * чтобы поймать возврат своего тела в один из движков.
+   */
+  const OUT_MODE_CASES = [
+    [{ id: "f", source: "wikilinks:X" }, {}, "wikilink", "источник-ссылка печатает ссылку"],
+    [{ id: "f", source: "projects" }, {}, "wikilink", "источник-проекты печатает ссылку"],
+    [{ id: "f" }, {}, "tag", "поле без источника печатает тег"],
+    [{ id: "f", source: "s" }, { s: { output: "wikilink" } }, "wikilink", "источник решает вывод по правилам"],
+    [{ id: "f", source: "s" }, { s: { output: "" } }, "tag", "пустой вывод источника читается как тег"],
+    [{ id: "f", outputMode: "  WIKILINK  " }, {}, "wikilink", "свой вывод поля сильнее источника и не боится регистра"],
+  ];
+  const outModeSides = [
+    ["панель", (f, r) => tagwheelPanel.resolveFieldOutputMode(f, r)],
+    ["ядро", (f, r) => tagwheelCore.resolveFieldOutputMode(f, r)],
+    ["дом", (f, r) => runtimeHelpers.resolveFieldOutputMode(f, r)],
+  ];
+  for (const [field, rules, expected, name] of OUT_MODE_CASES) {
+    for (const [side, fn] of outModeSides) {
+      assertEq(String(fn(field, rules)), expected, side + ": " + name);
+    }
   }
 
   console.log("Runtime unified parity tests: OK");

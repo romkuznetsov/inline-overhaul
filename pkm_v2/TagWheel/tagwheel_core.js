@@ -2328,17 +2328,14 @@ function buildTags(mode, state, rules, parsedLine) {
   return tags
 }
 
+/* «Каким выводом печатается это поле» — общий дом у помощников; сюда же
+   ходят панель и сами помощники. Разбор — 10.13.139. */
 function resolveFieldOutputMode(field, rules) {
-  if (field && typeof field.outputMode === 'string') {
-    var local = String(field.outputMode).trim().toLowerCase()
-    if (local) return local
+  var helpers = getRulesRuntimeHelpers()
+  if (!helpers || typeof helpers.resolveFieldOutputMode !== 'function') {
+    throw new Error('pkm_rules_runtime_helpers unavailable: resolveFieldOutputMode')
   }
-  var source = String(field && field.source ? field.source : '').trim()
-  if (isWikilinkSourceField(field)) return 'wikilink'
-  if (source && rules && rules[source] && typeof rules[source].output === 'string') {
-    return String(rules[source].output).toLowerCase().trim() || 'tag'
-  }
-  return 'tag'
+  return helpers.resolveFieldOutputMode(field, rules)
 }
 
 function buildOutputToken(field, value, rules) {
@@ -2942,6 +2939,10 @@ module.exports = {
      `buildOutputTokenForField`). Копии сверены на 189 парах — его конфиг плюс
      шесть форм полей, которых у него нет, — и разошлись на нуле. */
   buildOutputToken: buildOutputToken,
+  /* «Каким выводом печатается это поле» объявлено и здесь, и у панели.
+     Отдаётся наружу затем, чтобы расхождение между объявлениями меряла
+     программа, а не чтение. Поведения экспорт не меняет. */
+  resolveFieldOutputMode: resolveFieldOutputMode,
   buildRightDates: buildRightDates,
   assembleFinalLine: assembleFinalLine,
   renderControlLine: renderControlLine,

@@ -37,6 +37,35 @@ function normalizeFieldSourceKind(fieldOrSource) {
   return "tag";
 }
 
+/**
+ * Каким выводом печатается это поле — тег или ссылка. **Одно объявление на
+ * все три дороги.**
+ *
+ * До 2026-09-15 вопрос был объявлен трижды: у панели (`tagwheel.js`), у ядра
+ * (`tagwheel_core.js`) и замыканием внутри `buildTagTokenKeyMap` здесь же.
+ * Три тела сверены на 150 парах «поле × правила» — все поля его `data.json`
+ * плюс десять форм, которых у него нет, на шести наборах правил — и разошлись
+ * на нуле; у меры при этом был контроль чувствительности. Поэтому сведение
+ * поведения не меняет, и это измеренное утверждение, а не обещание.
+ *
+ * Тело взято у замыкания побайтно. Проверка источника оставлена **в той же
+ * форме**, в какой она участвовала в мере, а не переписана через
+ * `normalizeFieldSourceKind`: переписанное было бы четвёртым телом, которого
+ * никто не мерил (У-92).
+ */
+function resolveFieldOutputMode(field, rules) {
+  if (field && typeof field.outputMode === "string") {
+    const local = String(field.outputMode).trim().toLowerCase();
+    if (local) return local;
+  }
+  const source = String(field && field.source ? field.source : "").trim();
+  if (source === "projects" || source.indexOf("wikilinks:") === 0) return "wikilink";
+  if (source && rules && rules[source] && typeof rules[source].output === "string") {
+    return String(rules[source].output).trim().toLowerCase() || "tag";
+  }
+  return "tag";
+}
+
 function isProjectsSourceField(fieldOrSource) {
   return normalizeFieldSourceKind(fieldOrSource) === "projects";
 }
@@ -979,23 +1008,15 @@ function buildTagTokenKeyMap(rules, options) {
     return source;
   };
 
-  const resolveFieldOutputMode = (field) => {
-    if (field && typeof field.outputMode === "string") {
-      const local = String(field.outputMode).trim().toLowerCase();
-      if (local) return local;
-    }
-    const source = String(field && field.source ? field.source : "").trim();
-    if (source === "projects" || source.indexOf("wikilinks:") === 0) return "wikilink";
-    if (source && rules && rules[source] && typeof rules[source].output === "string") {
-      return String(rules[source].output).trim().toLowerCase() || "tag";
-    }
-    return "tag";
-  };
+  /* Вопрос «каким выводом печатается это поле» объявлен один раз — выше, на
+     уровне модуля. Здесь остаётся подстановка правил, которые лежат в
+     замыкании. */
+  const fieldOutputMode = (field) => resolveFieldOutputMode(field, rules);
 
   const addFieldTokens = (key, field, keepExisting) => {
     if (!field) return;
     const vals = activeValues(field);
-    const outputMode = resolveFieldOutputMode(field);
+    const outputMode = fieldOutputMode(field);
     const put = (token) => {
       if (!token) return;
       if (keepExisting === true && Object.prototype.hasOwnProperty.call(out, token)) return;
@@ -1429,6 +1450,7 @@ module.exports = {
   buildTagTokenKeyMap,
   applyOrderToRules,
   normalizeFieldSourceKind,
+  resolveFieldOutputMode,
   isProjectsSourceField,
   isWikilinkSourceField,
   isSourceDrivenField,
