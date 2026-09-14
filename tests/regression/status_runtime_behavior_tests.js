@@ -806,6 +806,56 @@ async function testQuotedLineSurvivesTextSpillRebuild() {
   }
 }
 
+/*
+ * **Пустой слот за знаком задачи держится при любом разделителе.**
+ *
+ * Правило было написано двумя образцами с литеральным `||` в доводке строки и
+ * третьим в `status_tags.js` — то есть работало ровно у тех, чей первый
+ * разделитель совпал с написанным в коде. У заказчика он `::`, и у него эти
+ * три места не срабатывали **ни разу** (найдено 2026-09-14 пробоем: место
+ * бросало исключение, если что-то меняло, и на его конфиге не бросило).
+ *
+ * Это У-182 в коде продукта, а не в стенде, и видно его только тем, что
+ * разделители **разведены**: на фикстуре с `||` правило работало и выглядело
+ * здоровым (У-147).
+ *
+ * Спрашивается функция продукта, а правила собираются из фикстуры тем же
+ * путём, каким их собирает плагин (У-2).
+ */
+async function testEmptyTextSlotHoldsAtAnySeparator() {
+  const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+  const rulesShape = require(path.join(__dirname, "..", "fixtures", "..", "..", "src", "core", "pkm_rules_shape.js"));
+  const lineFinalize = require(path.join(__dirname, "..", "..", "src", "core", "pkm_line_finalize_unified.js"));
+
+  const rulesWith = (sep1) => {
+    const cfg = normalize.migrateConfig(JSON.parse(
+      fs.readFileSync(path.join(__dirname, "..", "fixtures", "config_v1_realistic.json"), "utf8")));
+    cfg.pkm.lineFormat.separator1 = sep1;
+    cfg.pkm.lineFormat.separator2 = "::";
+    return rulesShape.buildRulesForEngines(cfg);
+  };
+
+  /* Первый разделитель написан по-разному нарочно: на совпавшем с кодом
+     правило было верно и до починки. */
+  for (const sep1 of ["||", "::", "~~"]) {
+    const rules = rulesWith(sep1);
+    const line = "- [x] " + sep1 + " 111";
+    const out = lineFinalize.restoreEmptyTextSlotAfterPrefix(line, rules);
+    assertEq(out, "- [x]  " + sep1 + " 111",
+      "слот под текст не восстановлен при разделителе " + JSON.stringify(sep1)
+      + ": из " + JSON.stringify(line) + " вышло " + JSON.stringify(out));
+  }
+
+  /* И обратная сторона: где слота не было, там ничего не дописывается. */
+  const rules = rulesWith("::");
+  for (const line of ["- [x] 111", "- 111", "текст :: 111", "- [x]  :: 111"]) {
+    const out = lineFinalize.restoreEmptyTextSlotAfterPrefix(line, rules);
+    assertEq(out, line,
+      "строка, которой слот не нужен, изменилась: из " + JSON.stringify(line)
+      + " вышло " + JSON.stringify(out));
+  }
+}
+
 async function testStatusDateKeepsAnyListMarker() {
   for (const mark of ["-", "*", "+", "1.", "1)"]) {
     const before = mark + " текст";
@@ -3594,6 +3644,7 @@ async function testStatusDateKeepsElementInItsOrderBlock() {
 async function run() {
   await testQuotedLineBehavesLikeHeading();
   await testEmptyTextSlotSurvivesQuoteAndCallout();
+  await testEmptyTextSlotHoldsAtAnySeparator();
   await testQuotedLineSurvivesTextSpillRebuild();
   await testHeadingLineKeepsItsFieldValue();
   await testLineStartBelongsToThePlatform();

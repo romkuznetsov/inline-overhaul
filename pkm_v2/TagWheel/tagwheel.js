@@ -30,6 +30,7 @@ var TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = 'TagWheel active field right'
  * ничего не значило: реестр забандленных модулей отдаёт один и тот же
  * объект независимо от флага.
  */
+var __sharedUtils = require('../../src/core/shared_utils.js')
 var __lineFinalizeUnifiedMod = require('../../src/core/pkm_line_finalize_unified.js')
 var __statusLineRuntimeUnifiedMod = require('../../src/core/status_line_runtime_unified.js')
 var __dateRuntimeSharedMod = require('../../src/core/date_runtime_shared.js')
@@ -555,8 +556,8 @@ function buildOutputTokenForFieldValue(field, value, rules) {
   if (!field || !value) return ''
   var outputMode = resolveFieldOutputMode(field, rules)
   var tokenRaw = String(value.token || '').trim()
-  if (/^\[\[[^\]]+\]\]$/.test(tokenRaw)) return tokenRaw
-  if (/^#\S+/.test(tokenRaw)) return tokenRaw
+  if (__sharedUtils.isWikilinkToken(tokenRaw)) return tokenRaw
+  if (__sharedUtils.startsWithTagToken(tokenRaw)) return tokenRaw
   if (outputMode === 'wikilink') {
     var target = normalizeWikilinkTarget(value.link || value.token || value.id || '')
     if (!target) return ''
@@ -1712,11 +1713,12 @@ async function runTagWheel(input, quickAddSettings) {
       }
       var t = src.trim()
       if (!t) return src
-      var m = t.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/)
-      if (m) return m[1]
+      /* Цель ссылки называет общий дом. */
+      var linkTarget = __sharedUtils.wikilinkTargetOf(t)
+      if (linkTarget) return linkTarget
       if (showPrefix) return src
       if (/^#\//.test(t)) return t.replace(/^#\//, '')
-      if (/^#\S+/.test(t)) return t.replace(/^#/, '')
+      if (__sharedUtils.startsWithTagToken(t)) return t.replace(/^#/, '')
       if (/^[^A-Za-zА-Яа-я0-9\[]+/.test(t)) {
         var stripped = t.replace(/^[^A-Za-zА-Яа-я0-9\[]+/, '')
         if (/^(\d{4}-\d{2}-\d{2}|\d{2}:\d{2}|\d)/.test(stripped)) return stripped

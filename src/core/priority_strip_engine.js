@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("./shared_utils.js");
+
 function clampInt(value, fallback, min, max) {
   const n = Math.trunc(Number(value));
   if (!Number.isFinite(n)) return fallback;
@@ -15,7 +17,7 @@ function readListMeta(text) {
 
 function detectOwnMatch(text, tokenSet, readRowForToken) {
   const src = String(text || "");
-  const rx = /#\S+/g;
+  const rx = __sharedUtils.tagTokenScanner();
   let m;
   while ((m = rx.exec(src)) !== null) {
     const token = String(m[0] || "").trim();

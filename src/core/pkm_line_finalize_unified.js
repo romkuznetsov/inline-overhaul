@@ -346,6 +346,34 @@ function applyPrefixPolicy(rawLine, builtLine, options) {
   return String(builtLine || "");
 }
 
+/**
+ * **Пустой слот под текст переживает склейку начала строки.**
+ *
+ * Слот — это структура: два пробела между началом строки и первым
+ * разделителем, чтобы человек видел, куда встанет слово (10.13.34). Склейка
+ * префикса оставляет один, и слот надо вернуть.
+ *
+ * **Разделитель спрашивается у настроек.** Здесь стояли два образца с
+ * литеральным `||` — и у заказчика, у которого разделитель `::`, они не
+ * срабатывали **ни разу**: правило работало ровно у тех, чей разделитель
+ * совпал с написанным в коде (У-182, найдено 2026-09-14). Третья копия того же
+ * образца жила в `status_tags.js` и звала его для правого Block.
+ *
+ * Знак списка и задача спрашиваются у общего объявления начала строки, а не
+ * своими образцами: форм у знака пять, и своя копия знала две.
+ */
+function restoreEmptyTextSlotAfterPrefix(line, rules) {
+  const sep = resolveSeparatorsOrThrow(rules);
+  const src = String(line || "");
+  const start = __sharedUtils.lineStartOf(src);
+  /* Слот возвращается только там, где за знаком списка стоит задача: без неё
+     начало строки склейка не разрывала, и возвращать нечего. */
+  if (!start.marker || !start.checkbox) return src;
+  const rest = src.slice(start.at);
+  if (rest.indexOf(sep.sep1) !== 0) return src;
+  return src.slice(0, start.at).replace(/[ \t]+$/, "") + "  " + rest;
+}
+
 function applyResolvedPrefixToLine(options) {
   const opts = options && typeof options === "object" ? options : {};
   const line = String(opts.line || "");
@@ -383,8 +411,7 @@ function applyResolvedPrefixToLine(options) {
   body = body.trim();
   let out = `${indent}${nextPrefix}${nextPrefix && body ? " " : ""}${body}`;
 
-  out = out.replace(/^(\s*[-*+]\s+\[[^\]]\])\s+\|\|/, "$1  ||");
-  out = out.replace(/^(\s*\d+\.\s+\[[^\]]\])\s+\|\|/, "$1  ||");
+  out = restoreEmptyTextSlotAfterPrefix(out, rules);
   return out;
 }
 
@@ -2099,6 +2126,7 @@ module.exports = {
   removeStandaloneHeadingMarkers,
   applyPrefixPolicy,
   applyResolvedPrefixToLine,
+  restoreEmptyTextSlotAfterPrefix,
   applyModePrefixImmutability,
   applyMixedPostPolicies,
   normalizeSeparatorTopology,

@@ -15,6 +15,7 @@
  * Функции `get*Unified` и `getStatusRuntimeCommon` оставлены: их зовут больше
  * сорока мест, и подпись у них прежняя.
  */
+const __sharedUtils = require("../src/core/shared_utils.js");
 const __pkmDomainRegistry = require("../src/core/pkm_domain_registry.js");
 const __statusLineRuntimeUnified = require("../src/core/status_line_runtime_unified.js");
 const __tokenGraphUnified = require("../src/core/token_graph_unified.js");
@@ -288,8 +289,8 @@ function buildOutputTokenForField(field, value, rules) {
   const tokenRaw = String(value.token || "");
   if (!tokenRaw) return "";
   const tokenTrim = String(tokenRaw).trim();
-  if (/^\[\[[^\]]+\]\]$/.test(tokenTrim)) return tokenTrim;
-  if (/^#\S+/.test(tokenTrim)) return tokenTrim;
+  if (__sharedUtils.isWikilinkToken(tokenTrim)) return tokenTrim;
+  if (__sharedUtils.startsWithTagToken(tokenTrim)) return tokenTrim;
   const isImportanceField = isPriorityFieldLike(field, rules);
   if (isImportanceField && (/^#\//.test(tokenRaw) || /^\//.test(tokenRaw))) {
     return normalizeImportanceTokenShape(tokenRaw);
@@ -305,7 +306,7 @@ function buildOutputTokenForField(field, value, rules) {
   if (sourceKind === "wikilinks") {
     const linkTarget = String(value.link || tokenRaw).trim();
     if (!linkTarget) return "";
-    if (/^\[\[[^\]]+\]\]$/.test(linkTarget)) return linkTarget;
+    if (__sharedUtils.isWikilinkToken(linkTarget)) return linkTarget;
     return `[[${linkTarget}]]`;
   }
   const prefix = typeof field?.prefix === "string" ? field.prefix : "#";
@@ -1844,7 +1845,9 @@ module.exports = {
       return;
     }
     if (targetPanel === "right") {
-      finalLine = String(finalLine || "").replace(/^(\s*[-*+]\s+\[[^\]]\])\s+\|\|/, "$1  ||");
+      /* Слот под текст возвращает одно объявление, и разделитель оно
+         спрашивает у настроек: здесь стоял литеральный `||`. */
+      finalLine = lineFinalize.restoreEmptyTextSlotAfterPrefix(finalLine, rules);
     }
     if (priorityLikeAction && freeRoamMode === "minimal" && !rawHasSeparator) {
       if (simplePlainRawNoSep) {
@@ -2091,7 +2094,7 @@ module.exports = {
         let leadingTagCount = 0;
         while (leadingTagCount < bodyTokens.length) {
           const tok = String(bodyTokens[leadingTagCount] || "");
-          if (!/^#\S+/.test(tok) && !/^\[\[[^\]]+\]\]$/.test(tok)) break;
+          if (!__sharedUtils.startsWithTagToken(tok) && !__sharedUtils.isWikilinkToken(tok)) break;
           leadingTagCount += 1;
         }
         const insertAt = leadingTagCount > 0

@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("./shared_utils.js");
+
 const IO_TEMP_HISTORY_LIMIT = 100;
 
 function isObj(x) {
@@ -14,7 +16,7 @@ function normalizeToken(raw, kind) {
   const src = String(raw || "").trim();
   if (!src) return "";
   if (kind === "wikilink") {
-    if (/^\[\[[^\]]+\]\]$/.test(src)) return src;
+    if (__sharedUtils.isWikilinkToken(src)) return src;
     return `[[${src.replace(/^\[\[/, "").replace(/\]\]$/, "")}]]`;
   }
   if (/^#/.test(src)) return src;

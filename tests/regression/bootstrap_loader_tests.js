@@ -977,12 +977,20 @@ async function run() {
     "shared utils declares the wikilink form once");
   assertTrue(/const TAG_TOKEN_SRC = TAG_PREFIX_CHAR \+ /.test(sharedUtilsSrcHere),
     "shared utils declares the tag form once, from its own prefix character");
+  const readCore = (rel) => fs.readFileSync(path.join(__dirname, "..", "..", rel), "utf8");
   const convertedByD3 = [
     ["line pipeline", linePipelineSrc],
     ["line finalizer", pkmLineFinalizeUnifiedSrc],
     ["macro layer", pkmMacroSharedSrc],
     ["rules helpers", pkmRulesHelpersSrc],
     ["token graph", tokenGraphSrcHere],
+    ["status tags", statusTagsSrc],
+    ["tag wheel", readCore("pkm_v2/TagWheel/tagwheel.js")],
+    ["tag wheel core", readCore("pkm_v2/TagWheel/tagwheel_core.js")],
+    ["order deep editor", readCore("src/core/order_deep_editor_state.js")],
+    ["priority strip", readCore("src/core/priority_strip_engine.js")],
+    ["editor visuals", visualsSrcHere],
+    ["transform feature", readCore("src/features/transform_feature.js")],
   ];
   for (const [who, src] of convertedByD3) {
     assertFalse(src.indexOf(String.raw`/^\[\[[^\]]+\]\]$/`) !== -1,
