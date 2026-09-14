@@ -991,6 +991,29 @@ function wikilinkTargetOf(text) {
 }
 
 /**
+ * След о том, что загрузка пошла запасным ходом. Пишется **только** при
+ * включённом `__inlineDebugLoaders`, и молчит, если сам сломался.
+ *
+ * **Почему молчание здесь обязательно.** Это сам отчётчик об отказе, и отчёт о
+ * его собственном отказе девать некуда, кроме него же. Уронить загрузку из-за
+ * неудавшегося следа значило бы получить два отказа вместо одного.
+ *
+ * Объявлений было два — в `pkm_runtime_bootstrap.js` и `plugin_commands.js`, —
+ * и комментарий в первом из них это признавал словами «сводить их — отдельная
+ * правка, не эта» (третий кусок В-97, 2026-09-10). Это она и есть: тела были
+ * побайтно равны (10.13.150).
+ */
+function reportLoaderFallback(stage, err) {
+  try {
+    if (globalThis.__inlineDebugLoaders !== true) return;
+    const msg = err && err.message ? String(err.message) : String(err || "");
+    console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
+  } catch (_) {
+    /* Молчание — предмет объяснения выше, а не недосмотр. */
+  }
+}
+
+/**
  * Как нормализуется ключ Order. **Одно объявление на весь плагин.**
  *
  * До 2026-09-15 то же тело стояло **шесть раз под тремя именами**:
@@ -1245,6 +1268,7 @@ module.exports = {
   wikilinkTargetOf,
   unwrapWikilinkToken,
   normalizeOrderKey,
+  reportLoaderFallback,
   tagTokenScanner,
   startsWithBracketPair,
   lineStartPrefixOf,

@@ -56,19 +56,10 @@ function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path);
  * человек — увидит плагин без части команд. Молчать об этом совсем нельзя,
  * кричать в консоль каждому — тоже.
  */
+/* След запасного хода загрузки объявлен один раз — `reportLoaderFallback` в
+   `shared_utils.js` (10.13.150). */
 function reportLoaderFallback(stage, err) {
-  try {
-    if (globalThis.__inlineDebugLoaders !== true) return;
-    const msg = err && err.message ? String(err.message) : String(err || "");
-    console.warn(`[inline-overhaul][loader] ${stage}: ${msg}`);
-  } catch (_) {
-    /*
-     * Здесь молчать обязательно: это сам отчётчик об отказе загрузки, и
-     * отчёт о его собственном отказе было бы некуда девать — кроме его
-     * же самого. Уронить загрузку движка из-за неудавшегося следа — второй
-     * отказ вместо одного.
-     */
-  }
+  return __sharedUtils.reportLoaderFallback(stage, err);
 }
 
 /** Реестр команд: определения для ядра, навигации, PKM и Binder (PRD 7.2). */

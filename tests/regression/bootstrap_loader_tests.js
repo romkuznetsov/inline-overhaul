@@ -1503,6 +1503,51 @@ async function run() {
       "образец заглушки не находит собственный пример — запрет выше мерит пустоту");
   }
   assertTrue(/function reportLoaderFallback\(stage, err\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exposes debug-gated loader fallback reporter");
+
+  /*
+   * **След запасного хода загрузки объявлен один раз** (10.13.150). Тела в
+   * `pkm_runtime_bootstrap.js` и `plugin_commands.js` были побайтно равны, и
+   * комментарий в первом сам это признавал словами «сводить их — отдельная
+   * правка, не эта» (В-97, третий кусок). Правка сделана 2026-09-15.
+   *
+   * **Проверок две, и они про разное** (У-195). Дом проверяется **поведением**
+   * — он вызывается напрямую, и его молчаливость при выключенном флаге как раз
+   * и есть предмет. Делегаты проверяются **формой**: поведением до них не
+   * дотянуться, потому что набор их не исполняет (мутация «сломать дом» не
+   * уронила ни одной из 70 проверок).
+   */
+  {
+    const sharedHome = require(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"));
+    const savedFlag = globalThis.__inlineDebugLoaders;
+    const savedWarn = console.warn;
+    const said = [];
+    console.warn = (...args) => said.push(args.join(" "));
+    try {
+      globalThis.__inlineDebugLoaders = false;
+      sharedHome.reportLoaderFallback("проба", new Error("нечто"));
+      assertEq(said.length, 0, "при выключенном флаге след не пишется вовсе");
+
+      globalThis.__inlineDebugLoaders = true;
+      sharedHome.reportLoaderFallback("проба", new Error("нечто"));
+      assertEq(said.length, 1, "при включённом флаге след пишется один раз");
+      assertTrue(/\[inline-overhaul\]\[loader\] проба: нечто/.test(said[0]),
+        "в следе названы и место, и причина: " + said[0]);
+
+      said.length = 0;
+      sharedHome.reportLoaderFallback("проба", null);
+      assertEq(said.length, 1, "отсутствие причины следу не мешает");
+    } finally {
+      console.warn = savedWarn;
+      if (savedFlag === undefined) delete globalThis.__inlineDebugLoaders;
+      else globalThis.__inlineDebugLoaders = savedFlag;
+    }
+
+    const delegates = /return __sharedUtils\.reportLoaderFallback\(stage, err\);/;
+    assertTrue(delegates.test(pkmRuntimeBootstrapSrc),
+      "загрузчик спрашивает след у общего дома, а не пишет его сам");
+    assertTrue(delegates.test(commandsSrc),
+      "слой команд спрашивает след у общего дома, а не пишет его сам");
+  }
   assertFalse(/function cycleStatusTags\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusTags runtime path");
   assertFalse(/function cycleStatusDate\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusDate runtime path");
   assertEq(typeof pkmRuntimeV2.runCommand, "function", "pkm_runtime_v2 exports runCommand entry");
