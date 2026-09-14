@@ -697,7 +697,7 @@ function findPriorityMatchesInLine(line, cycleTokens) {
   return out;
 }
 
-function insertTokenAtCursor(line, cursorCh, token) {
+function insertTokenAtCursor(line, cursorCh, token, rules) {
   const src = String(line || "");
   const cursor = Math.max(0, Math.min(Number(cursorCh) || 0, src.length));
   const t = String(token || "").trim();
@@ -707,7 +707,7 @@ function insertTokenAtCursor(line, cursorCh, token) {
   const needLeftSpace = left.length > 0 && !/\s$/.test(left);
   const needRightSpace = right.length > 0 && !/^\s/.test(right);
   const inserted = `${left}${needLeftSpace ? " " : ""}${t}${needRightSpace ? " " : ""}${right}`;
-  const cleaned = cleanupSpacing(inserted);
+  const cleaned = cleanupSpacing(inserted, rules);
   const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(inserted, cleaned, cursor + t.length)));
   return { line: cleaned, cursorCh: next, selectedToken: t };
 }
@@ -728,7 +728,7 @@ function findActiveWordBounds(line, cursorCh) {
   return prev;
 }
 
-function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fullPlacement) {
+function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fullPlacement, rules) {
   const src = String(line || "");
   const cursor = Math.max(0, Math.min(Number(cursorCh) || 0, src.length));
   const ordered = Array.isArray(cycleTokens) ? cycleTokens.filter(Boolean) : [];
@@ -742,7 +742,7 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
     if (seed && hasTokenBeforeWord) {
       const insertAt = activeWord.end;
       const injected = `${src.slice(0, insertAt)}${insertAt > 0 && !/\s$/.test(src.slice(0, insertAt)) ? " " : ""}${seed}${src.slice(insertAt)}`;
-      const cleaned = cleanupSpacing(injected);
+      const cleaned = cleanupSpacing(injected, rules);
       const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(injected, cleaned, cursor + seed.length + 1)));
       return { line: cleaned, cursorCh: next, selectedToken: seed };
     }
@@ -765,7 +765,7 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
       if (activeNow) {
         const insertAt = activeNow.start;
         const injected = `${work.slice(0, insertAt)}${insertAt > 0 && !/\s$/.test(work.slice(0, insertAt)) ? " " : ""}${secToken} ${work.slice(insertAt)}`;
-        const cleaned = cleanupSpacing(injected);
+        const cleaned = cleanupSpacing(injected, rules);
         const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(injected, cleaned, cursor + secToken.length + 1)));
         return { line: cleaned, cursorCh: next, selectedToken: nextPrimary };
       }
@@ -773,7 +773,7 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
   }
   if (!focused && smartPlacement && matches.length > 0 && cursor < matches[0].start) {
     const seed = direction === "decrease" ? (ordered[ordered.length - 1] || "") : (ordered[0] || "");
-    return insertTokenAtCursor(src, cursor, seed);
+    return insertTokenAtCursor(src, cursor, seed, rules);
   }
   if (!focused && smartPlacement && activeWord && matches.length === 1) {
     const single = matches[0];
@@ -781,7 +781,7 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
     if (seed && activeWord.start >= single.end) {
       const insertAt = cursor >= activeWord.end ? activeWord.end : activeWord.start;
       const injected = `${src.slice(0, insertAt)}${insertAt > 0 && !/\s$/.test(src.slice(0, insertAt)) ? " " : ""}${seed} ${src.slice(insertAt)}`;
-      const cleaned = cleanupSpacing(injected);
+      const cleaned = cleanupSpacing(injected, rules);
       const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(injected, cleaned, cursor + seed.length + 1)));
       return { line: cleaned, cursorCh: next, selectedToken: seed };
     }
@@ -797,7 +797,7 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
         const needLeftSpace = left.length > 0 && !/\s$/.test(left);
         const needRightSpace = right.length > 0 && !/^\s/.test(right);
         const inserted = `${left}${needLeftSpace ? " " : ""}${wrapToken}${needRightSpace ? " " : ""}${right}`;
-        const cleaned = cleanupSpacing(inserted);
+        const cleaned = cleanupSpacing(inserted, rules);
         const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(inserted, cleaned, cursor + wrapToken.length)));
         return { line: cleaned, cursorCh: next, selectedToken: wrapToken };
       }
@@ -813,7 +813,7 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
       else nextToken = ordered[idx + 1] || "";
     }
     const replaced = replaceRange(src, focus.start, focus.end, nextToken);
-    const cleaned = cleanupSpacing(replaced);
+    const cleaned = cleanupSpacing(replaced, rules);
     const rel = Math.max(0, Math.min(cursor - focus.start, focus.end - focus.start));
     const desired = focus.start + Math.min(rel, String(nextToken || "").length);
     const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(replaced, cleaned, desired)));
@@ -821,7 +821,7 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
   }
   const seed = direction === "decrease" ? (ordered[ordered.length - 1] || "") : (ordered[0] || "");
   if (!seed) return { line: src, cursorCh: cursor, selectedToken: "" };
-  return applyFullTokenAction(src, seed, ordered.map((t) => ({ id: t, token: t })), cursor);
+  return applyFullTokenAction(src, seed, ordered.map((t) => ({ id: t, token: t })), cursor, rules);
 }
 
 function nextCycleTokenByDirection(tokens, currentToken, direction) {
@@ -917,11 +917,11 @@ function replaceRange(text, start, end, replacement) {
   return getStatusRuntimeCommon().replaceRange(text, start, end, replacement);
 }
 
-function cleanupSpacing(text) {
-  return getStatusRuntimeCommon().cleanupSpacing(text);
+function cleanupSpacing(text, rules) {
+  return getStatusRuntimeCommon().cleanupSpacing(text, rules);
 }
 
-function applyFullTokenAction(line, selectedToken, tokenMap, cursorCh) {
+function applyFullTokenAction(line, selectedToken, tokenMap, cursorCh, rules) {
   const src = String(line || "");
   const cursor = Math.max(0, Math.min(Number(cursorCh) || 0, src.length));
   const matches = findTokenMatches(src, tokenMap);
@@ -933,7 +933,7 @@ function applyFullTokenAction(line, selectedToken, tokenMap, cursorCh) {
   }
   if (focus) {
     const replaced = replaceRange(src, focus.start, focus.end, selectedToken || "");
-    const cleaned = cleanupSpacing(replaced);
+    const cleaned = cleanupSpacing(replaced, rules);
     const rel = Math.max(0, Math.min(cursor - focus.start, focus.end - focus.start));
     const desired = focus.start + Math.min(rel, String(selectedToken || "").length);
     const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(replaced, cleaned, desired)));
@@ -945,7 +945,7 @@ function applyFullTokenAction(line, selectedToken, tokenMap, cursorCh) {
   const needLeftSpace = left.length > 0 && !/\s$/.test(left);
   const needRightSpace = right.length > 0 && !/^\s/.test(right);
   const inserted = `${left}${needLeftSpace ? " " : ""}${selectedToken}${needRightSpace ? " " : ""}${right}`;
-  const cleaned = cleanupSpacing(inserted);
+  const cleaned = cleanupSpacing(inserted, rules);
   const next = Math.max(0, Math.min(cleaned.length, remapCursorStable(inserted, cleaned, cursor + String(selectedToken).length)));
   return { line: cleaned, cursorCh: next };
 }
@@ -1534,7 +1534,7 @@ module.exports = {
       const selectedToken = selectedTokenFromState(targetField, state, rules);
       if (isPriorityFull) {
         const priorityCycleTokens = resolvePriorityCycleTokens(map, rules, rawLine);
-        const fullResult = cyclePriorityTokenInFullMode(rawLine, cur.ch, direction, priorityCycleTokens, freeRoamBehavior.fullPlacement);
+        const fullResult = cyclePriorityTokenInFullMode(rawLine, cur.ch, direction, priorityCycleTokens, freeRoamBehavior.fullPlacement, rules);
         directImportanceFullResult = {
           line: String(fullResult.line || ""),
           cursorCh: Number(fullResult.cursorCh) || 0,
@@ -1748,7 +1748,7 @@ module.exports = {
       }
       if (rawPriorityCount > 0 && outPriorityCount > rawPriorityCount && selectedImportanceToken) {
         const priorityMap = buildPriorityTokenMapFromLine(rawLine);
-        const corrected = applyFullTokenAction(rawLine, selectedImportanceToken, priorityMap.length ? priorityMap : importanceMap, cur.ch);
+        const corrected = applyFullTokenAction(rawLine, selectedImportanceToken, priorityMap.length ? priorityMap : importanceMap, cur.ch, rules);
         finalLine = String(corrected.line || "");
         if (Number.isFinite(corrected.cursorCh)) {
           priorityCursorOverride = Math.max(0, Number(corrected.cursorCh) || 0);
@@ -1818,7 +1818,7 @@ module.exports = {
       cycleEndBehavior,
       parsedLine: parsedWork,
       parseLine: core.parseLine,
-      isBulletLikeEmptyResult: (line, parsedLine) => macroShared.isBulletLikeEmptyResult(line, parsedLine),
+      isBulletLikeEmptyResult: (line, parsedLine, rulesArg) => macroShared.isBulletLikeEmptyResult(line, parsedLine, rulesArg),
       isOrphanCheckboxBulletLine: (line) => macroShared.isOrphanCheckboxBulletLine(line),
       sourceHasPrefix: !!String(parsed?.bulletToken || "").trim() || !!String(parsed?.checkboxToken || "").trim(),
       stripPrefixWhenSourceHasNoPrefix: freeRoamMode !== "off",
@@ -1869,7 +1869,7 @@ module.exports = {
         const importanceField = getPriorityField(rules, left, rules.rightMode);
       const importanceMap = importanceField ? fieldTokenMap(importanceField, rules, state, core) : [];
       const priorityCycleTokens = resolvePriorityCycleTokens(importanceMap, rules, rawLine);
-      const forcedFull = cyclePriorityTokenInFullMode(rawLine, cur.ch, direction, priorityCycleTokens, freeRoamBehavior.fullPlacement);
+      const forcedFull = cyclePriorityTokenInFullMode(rawLine, cur.ch, direction, priorityCycleTokens, freeRoamBehavior.fullPlacement, rules);
       finalLine = String(forcedFull.line || "");
       if (Number.isFinite(forcedFull.cursorCh)) {
         priorityCursorOverride = Math.max(0, Number(forcedFull.cursorCh) || 0);
@@ -2048,7 +2048,7 @@ module.exports = {
       priorityLikeAction
       && freeRoamMode === "minimal"
       && freeRoamBehavior.minimalSeparator === false
-      && /\|\|/.test(String(rawLine || ""))
+      && rawHasSeparator
     ) {
       let selectedImportanceToken = "";
       const mFinal = String(finalLine || "").match(/#\/\S+/);
@@ -2059,10 +2059,13 @@ module.exports = {
       const rawBase = String(stripPriorityTokens(rawLine) || "");
       const indent = (rawBase.match(/^(\s*)/) || ["", ""])[1];
       const body = rawBase.slice(indent.length);
-      const pipeIdx = body.indexOf("||");
-      if (pipeIdx >= 0) {
-        const leftBody = body.slice(0, pipeIdx).replace(/\s+$/g, "");
-        const rightBody = body.slice(pipeIdx).replace(/^\s+/g, "");
+      /* Граница зон — первый разделитель человека, любой из двух: `indexOf`
+         одного литерального `||` отвечал верно только у того, кто его и
+         выбрал (У-186). */
+      const sepIdx = __sharedUtils.firstSeparatorIndex(body, rules, "status_tags");
+      if (sepIdx >= 0) {
+        const leftBody = body.slice(0, sepIdx).replace(/\s+$/g, "");
+        const rightBody = body.slice(sepIdx).replace(/^\s+/g, "");
         const withPriority = selectedImportanceToken
           ? `${leftBody} ${selectedImportanceToken} ${rightBody}`
           : `${leftBody} ${rightBody}`;

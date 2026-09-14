@@ -301,13 +301,24 @@ function keepOneSpaceBeforeSecondSeparator(line, ch, sep2) {
   return keep > ch && s[keep] === " " ? keep : ch;
 }
 
-function isBulletLikeEmptyResult(line, parsed) {
+/**
+ * Правила берут разделитель из настроек **третьим аргументом**.
+ *
+ * До 2026-09-15 он стоял здесь литеральным `||`, и у человека со своим
+ * разделителем строка, от которой остался один знак списка и разделители, не
+ * узнавалась вовсе: круг кончался не пустой строкой, а `- :: ::` (У-186).
+ * Аргумент обязателен: зовут эту функцию четыре места, и у всех четырёх
+ * правила под рукой. Тихо отвечать «нет» без них значило бы вернуть ровно тот
+ * дефект, ради которого правило переписано.
+ */
+function isBulletLikeEmptyResult(line, parsed, rules) {
   const s = String(line || "").trim();
   if (/^[-*+]\s*$/.test(s)) return true;
   if (/^\d+\.\s*$/.test(s)) return true;
   if (/^[-*+]\s+\[[^\]]\]\s*$/.test(s)) return true;
-  if (/^[-*+]\s*(\|\|\s*)*$/.test(s)) return true;
-  if (/^\d+\.\s*(\|\|\s*)*$/.test(s)) return true;
+  const sepAlt = __sharedUtils.separatorAltSrc(rules, "pkm_macro_shared");
+  if (new RegExp("^[-*+]\\s*(?:" + sepAlt + "\\s*)*$").test(s)) return true;
+  if (new RegExp("^\\d+\\.\\s*(?:" + sepAlt + "\\s*)*$").test(s)) return true;
   if (!parsed || parsed.headingToken) return false;
   const tags = Array.isArray(parsed.tags) ? parsed.tags : [];
   if (tags.length) return false;

@@ -1465,7 +1465,7 @@ module.exports = {
       cycleEndBehavior,
       parsedLine: parsedWork,
       parseLine: core.parseLine,
-      isBulletLikeEmptyResult: (line, parsedLine) => macroShared.isBulletLikeEmptyResult(line, parsedLine),
+      isBulletLikeEmptyResult: (line, parsedLine, rulesArg) => macroShared.isBulletLikeEmptyResult(line, parsedLine, rulesArg),
       isOrphanCheckboxBulletLine: (line) => macroShared.isOrphanCheckboxBulletLine(line),
       buildBulletOnlyLine: (p) => macroShared.buildBulletOnlyLine(p, { keepParsedPrefix: true, keepCheckbox: false }),
       shouldKeepBulletLine: (line) => /^\s*(?:[-*+]|\d+\.)\s*$/.test(String(line || "")),

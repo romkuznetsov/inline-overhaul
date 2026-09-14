@@ -1023,6 +1023,42 @@ function resolveSeparatorsOrThrow(rules, who) {
   return { sep1, sep2 };
 }
 
+/**
+ * **«Любой из двух разделителей» — образцом, а не литералом.**
+ *
+ * Правил вида «дальше стоят только разделители» в рантайме несколько, и все
+ * они были написаны с `||` внутри регулярного выражения: у человека с другим
+ * разделителем такое правило не срабатывает **ни разу** (У-186, его слово
+ * 2026-09-14). Источник у образца один — настройки; экранирование берётся у
+ * `escapeRe`, потому что разделителем человек вправе выбрать `|`, `.` или `*`.
+ *
+ * Одинаковые разделители не удваиваются: альтернатива из двух равных ветвей
+ * работает так же, но читается как ошибка.
+ */
+function separatorAltSrc(rules, who) {
+  const sep = resolveSeparatorsOrThrow(rules, who);
+  const parts = sep.sep1 === sep.sep2 ? [sep.sep1] : [sep.sep1, sep.sep2];
+  return "(?:" + parts.map(escapeRe).join("|") + ")";
+}
+
+/**
+ * Первый разделитель в строке — любой из двух, тот, что стоит левее.
+ *
+ * `indexOf` одного разделителя отвечает на этот вопрос верно только у того, у
+ * кого оба одинаковы (У-147).
+ */
+function firstSeparatorIndex(text, rules, who) {
+  const s = String(text || "");
+  const sep = resolveSeparatorsOrThrow(rules, who);
+  const list = sep.sep1 === sep.sep2 ? [sep.sep1] : [sep.sep1, sep.sep2];
+  let best = -1;
+  for (const one of list) {
+    const at = s.indexOf(one);
+    if (at !== -1 && (best === -1 || at < best)) best = at;
+  }
+  return best;
+}
+
 /** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
 function isListItemLine(text) {
   return !!lineStartOf(text).marker;
@@ -1115,6 +1151,8 @@ module.exports = {
   lineMarkerOf,
   isListItemLine,
   resolveSeparatorsOrThrow,
+  separatorAltSrc,
+  firstSeparatorIndex,
   WIKILINK_TOKEN_SRC,
   TAG_TOKEN_SRC,
   isWikilinkToken,

@@ -1887,7 +1887,15 @@ function applyCycleEndPostProcessing(options) {
   let finalLine = String(opts.finalLine || "");
   let parsedAfter = parseLine(finalLine, rules);
 
-  if (cycleEndBehavior === "clear-prefix" && /^-\s*(\|\|\s*)*$/.test(String(finalLine || "").trim())) {
+  /* Разделитель спрашивается у настроек: с литеральным `||` это правило не
+     срабатывало ни разу у того, кто выбрал свой (У-186). Образец строится
+     внутри ветки, а не над ней: без разделителей в правилах общий дом
+     отказывает вслух, и путь «конец круга не трогаем» этого отказа не
+     заслуживает. */
+  const onlyBulletAndSeparators = () => new RegExp(
+    "^-\\s*(?:" + __sharedUtils.separatorAltSrc(rules, "pkm_line_finalize_unified") + "\\s*)*$"
+  );
+  if (cycleEndBehavior === "clear-prefix" && onlyBulletAndSeparators().test(String(finalLine || "").trim())) {
     finalLine = "";
     parsedAfter = parseLine(finalLine, rules);
   }
@@ -1933,7 +1941,7 @@ function applyCycleEndPostProcessing(options) {
     parsedAfter = parseLine(finalLine, rules);
   }
 
-  if (isBulletLike(finalLine, parsedAfter) || isOrphanCheckbox(finalLine)) {
+  if (isBulletLike(finalLine, parsedAfter, rules) || isOrphanCheckbox(finalLine)) {
     finalLine = cycleEndBehavior === "clear-prefix" ? "" : buildBullet(parsedLine);
     parsedAfter = parseLine(finalLine, rules);
   }

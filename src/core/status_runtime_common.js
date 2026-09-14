@@ -519,11 +519,22 @@ function createStatusRuntimeCommon(deps) {
     return src.slice(0, s) + rep + src.slice(e);
   }
 
-  function cleanupSpacing(text) {
+  /**
+   * Пробелы вокруг разделителя — по разделителю **человека**.
+   *
+   * Обе строки про разделитель стояли здесь с литеральным `||` (У-186): у
+   * того, кто выбрал свой, пробелы вокруг разделителя не приводились в
+   * порядок вовсе, а у выбравшего `||` приводились. Правил два, и они разные:
+   * первое сводит любой пробельный знак перед разделителем к одному пробелу
+   * (таб и перевод строки сюда приезжают вместе с вставленным значением),
+   * второе — то же после него.
+   */
+  function cleanupSpacing(text, rules) {
+    const sepAlt = __sharedUtils.separatorAltSrc(rules, "status_runtime_common");
     return String(text || "")
       .replace(/[ \t]{2,}/g, " ")
-      .replace(/\s+\|\|/g, " ||")
-      .replace(/\|\|\s+/g, "|| ")
+      .replace(new RegExp("\\s+(" + sepAlt + ")", "g"), " $1")
+      .replace(new RegExp("(" + sepAlt + ")\\s+", "g"), "$1 ")
       .replace(/^\s+/g, "")
       .replace(/\s+$/g, "");
   }

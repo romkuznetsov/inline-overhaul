@@ -2616,7 +2616,11 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
    * пришлось назвать явно.
    */
   var rightRaw = String(parsedLine.dates || parsedLine.right || '')
-  var graphLine = tags.join(' ') + (rightRaw ? (' ' + String(rules && rules.io && rules.io.separator2 || '||') + ' ' + rightRaw) : '')
+  /* Разделитель берётся у настроек и только у них: запасное `||` собирало
+     строку для графа токенов чужим знаком, и у человека со своим разделителем
+     граф получал строку, которой на экране нет (У-186). */
+  var graphSep2 = __sharedUtils.resolveSeparatorsOrThrow(rules, 'tagwheel_core').sep2
+  var graphLine = tags.join(' ') + (rightRaw ? (' ' + graphSep2 + ' ' + rightRaw) : '')
   var rightTags = extractTagLikeTokens(rightRaw)
   var statusLineRuntime = getStatusLineRuntimeUnified()
   var linePipeline = globalThis.__inlineLinePipeline

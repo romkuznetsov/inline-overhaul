@@ -43,20 +43,19 @@ const root = path.resolve(__dirname, "..", "..");
 const RUNTIME = ["main.js", "navigation_runtime.js", "pkm_runtime_v2.js", "src", "pkm_v2"];
 
 /**
- * Долг на 2026-09-14, по файлам. Число — сколько строк с готовым разделителем
- * в файле осталось. Меньше — можно и нужно, больше — проверка краснеет.
+ * Долг по файлам. Число — сколько строк с готовым разделителем в файле
+ * осталось. Меньше — можно и нужно, больше — проверка краснеет.
+ *
+ * **Первый род снят 2026-09-15 целиком:** пять файлов, восемь мест, где
+ * правило читало разделитель готовым. Осталось второе — запасное умолчание,
+ * повторённое по месту вызова, — и текст руководства.
  */
 const DEBT = {
   "navigation_runtime.js": 6,
   "src/core/config_normalize.js": 2,
-  "src/core/pkm_line_finalize_unified.js": 1,
-  "src/core/pkm_macro_shared.js": 2,
-  "src/core/status_runtime_common.js": 2,
   "src/ui/settings/custom/previews.ts": 10,
   "src/ui/settings/howto.ts": 2,
   "src/ui/settings/schema/pkm.ts": 2,
-  "pkm_v2/status_tags.js": 2,
-  "pkm_v2/TagWheel/tagwheel_core.js": 1,
 };
 
 function files() {
@@ -192,7 +191,7 @@ function run() {
   for (const r of rows) byFile[r.rel] = (byFile[r.rel] || 0) + 1;
 
   console.log("  разделитель записан готовым: мест " + rows.length
-    + " в " + Object.keys(byFile).length + " файлах; долг на 2026-09-14 — "
+    + " в " + Object.keys(byFile).length + " файлах; долг списком — "
     + Object.keys(DEBT).reduce((a, k) => a + DEBT[k], 0));
 
   const grew = [];

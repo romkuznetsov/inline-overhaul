@@ -3738,8 +3738,46 @@ async function run() {
   await testStatusDateKeepsWholeValueOfTwoWordFormat();
   await testStatusDateKeepsElementInItsOrderBlock();
   await testFailedNoticeReachesTheConsole();
+  await testStatusImportanceMinimalNoSeparatorUsesOwnSeparator();
   assertTrue(typeof runtime.runCommand === "function", "runtime exports runCommand");
   console.log("Status runtime behavior tests: OK");
+}
+
+
+/*
+ * **Ветка «minimal без разделителя» спрашивала разделитель литералом** (У-186).
+ * Условие входа было написано как «в строке есть `||`», и у человека с любым
+ * другим разделителем эта ветка не выполнялась ни разу: значение важности
+ * оставалось там, куда его положил общий ход, вместо места у границы зон.
+ * Фикстура синтетических правил разделена `::` — на ней прежнее написание
+ * молчит.
+ *
+ * Мутация: вернуть `/\|\|/.test(rawLine)` вместо `rawHasSeparator` — и
+ * утверждение о месте значения краснеет.
+ */
+async function testStatusImportanceMinimalNoSeparatorUsesOwnSeparator() {
+  const editor = makeEditor("- [ ] left :: #/3 text", 8);
+  await runPkmCommandWithEditor("statusTags", editor, {
+    "Rules data": SYNTHETIC_RULES,
+    "Action type": "cycle_field:importance",
+    "Direction": "increase",
+    "Order config": buildOrderConfig({
+      freeRoam: { importance: "minimal" },
+      panel: { importance: "left" },
+      freeRoamBehavior: { minimalSeparator: false, minimalPrefix: true },
+    }),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "current_position",
+  });
+  const line = editor.snapshot().line;
+  assertTrue(line.indexOf("::") !== -1,
+    "minimal no-separator: разделитель человека остаётся на строке");
+  assertTrue(/#\/\d/.test(line),
+    "minimal no-separator: значение важности остаётся на строке");
+  assertTrue(line.indexOf("#/") < line.indexOf("::"),
+    "minimal no-separator: значение встаёт слева от разделителя");
+  assertTrue(/text\s*$/.test(line),
+    "minimal no-separator: текст человека остаётся справа");
 }
 
 /*
