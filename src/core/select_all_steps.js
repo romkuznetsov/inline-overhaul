@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("./shared_utils.js");
+
 /*
  * Ступени расширенного `Ctrl+A`: какие бывают, в каком порядке идут и какие
  * из них берёт каждый режим.
@@ -58,7 +60,8 @@ const SELECT_ALL_CUSTOM_DEFAULTS = {
 };
 
 function isPlainObject(x) {
-  return !!x && typeof x === "object" && !Array.isArray(x);
+  /* Это тот же вопрос, что `isObj`, и дом у него один (10.13.137). */
+  return !!__sharedUtils.isObj(x);
 }
 
 /**

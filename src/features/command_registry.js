@@ -416,7 +416,18 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   return defs;
 }
 
-function normalizeBinderRows(rawRows) {
+/**
+ * **Строки Binder, готовые стать командами.** Это не нормализация: она
+ * живёт в `config_normalize.js` под тем же именем и делает **другое** —
+ * выдумывает недостающие идентификаторы и заводит системную строку.
+ * Здесь строки только отбираются: без `rowId` или `commandId` команду
+ * заводить не из чего.
+ *
+ * Разница измерена 2026-09-15 на одном наборе строк: из четырёх на входе
+ * нормализация отдаёт четыре (идентификаторы выдуманы), отбор — две.
+ * Одно имя на два вопроса читается копией и ею не является (10.13.137).
+ */
+function binderRowsReadyForCommands(rawRows) {
   const src = Array.isArray(rawRows) ? rawRows : [];
   const out = [];
   for (const row of src) {
@@ -497,7 +508,7 @@ function runInsertBracketsCommand(plugin) {
 
 function buildBinderCommandDefs(cfgNow) {
   const cfg = cfgNow && typeof cfgNow === "object" ? cfgNow : {};
-  const rows = normalizeBinderRows(cfg && cfg.editor && cfg.editor.binder ? cfg.editor.binder.rows : null);
+  const rows = binderRowsReadyForCommands(cfg && cfg.editor && cfg.editor.binder ? cfg.editor.binder.rows : null);
   const defs = [];
   for (const row of rows) {
     const commandId = String(row.commandId || "").trim();

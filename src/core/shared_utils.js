@@ -1075,6 +1075,19 @@ function firstSeparatorIndex(text, rules, who) {
   return best;
 }
 
+/**
+ * **Пара суррогатов UTF-16.** Символ внеосновной плоскости записан двумя кодовыми
+ * единицами, и шаг курсора по кодовым единицам рвал бы его пополам. Правило
+ * было объявлено дважды — в навигации и в панели, — и тела совпадали.
+ */
+function isHighSurrogate(code) {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code) {
+  return code >= 0xdc00 && code <= 0xdfff;
+}
+
 /** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
 function isListItemLine(text) {
   return !!lineStartOf(text).marker;
@@ -1165,6 +1178,8 @@ module.exports = {
   lineIndentLength,
   linePrefixLength,
   lineMarkerOf,
+  isHighSurrogate,
+  isLowSurrogate,
   isListItemLine,
   resolveSeparatorsOrThrow,
   DEFAULT_SEPARATORS,

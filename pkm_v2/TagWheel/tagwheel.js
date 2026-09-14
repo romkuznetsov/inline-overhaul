@@ -139,7 +139,8 @@ function withKeptPrefix(originalLine, control) {
 }
 
 function isLowSurrogate(code) {
-  return code >= 0xdc00 && code <= 0xdfff
+  /* Правило объявлено один раз — `shared_utils.js` (10.13.137). */
+  return __sharedUtils.isLowSurrogate(code)
 }
 
 /**

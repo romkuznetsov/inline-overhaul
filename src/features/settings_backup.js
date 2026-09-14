@@ -219,7 +219,9 @@ function isObj(v) {
 }
 
 function cloneJson(v) {
-  return JSON.parse(JSON.stringify(v));
+  /* Правило объявлено один раз — `cloneJson` в `shared_utils.js`
+     (10.13.137); здесь стояло то же тело слово в слово. */
+  return __sharedUtils.cloneJson(v);
 }
 
 /** Путь папки копий из конфига: без ведущих и хвостовых косых (Б2). */

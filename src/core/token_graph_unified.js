@@ -27,7 +27,16 @@ function getSeparators(rules) {
   };
 }
 
-function splitSegments(rawLine, rules) {
+/**
+ * **Деление строки по разделителям — и только по ним.** Это не разбор зон:
+ * тот живёт в `line_pipeline.js` под тем же именем и отвечает иначе.
+ * Сверено 2026-09-15 на 23 строках: ответы разошлись на 13. У строки без
+ * разделителя разбор зон отделяет начало строки и текст человека, а здесь
+ * всё остаётся слева — графу токенов нужен ровно этот ответ.
+ *
+ * Имя разведено, чтобы два разных вопроса не читались копией (10.13.137).
+ */
+function splitBySeparators(rawLine, rules) {
   var line = String(rawLine || "").trim();
   var sep = getSeparators(rules);
   var sep1 = sep.separator1;
@@ -166,7 +175,7 @@ function extractFactsFromSegment(segText, panel, rightMarkers, startPosition, in
 function buildTokenFactsFromLine(rawLine, rules, options) {
   var opts = options && typeof options === "object" ? options : {};
   var includeUnknown = opts.includeUnknown === true;
-  var seg = splitSegments(rawLine, rules);
+  var seg = splitBySeparators(rawLine, rules);
   var rightMarkers = collectRightMarkers(rules);
   var position = 0;
   var out = [];
@@ -187,5 +196,5 @@ function buildTokenFactsFromLine(rawLine, rules, options) {
 
 module.exports = {
   buildTokenFactsFromLine: buildTokenFactsFromLine,
-  splitSegments: splitSegments,
+  splitBySeparators: splitBySeparators,
 };

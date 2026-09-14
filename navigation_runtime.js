@@ -932,8 +932,8 @@ function getNextNumber(editor, currentLineNo) { for (let i = currentLineNo - 1; 
 /* Правило одно на весь плагин и живёт в `shared_utils.js` (У-32, З-3). */
 function isWordChar(ch) { return __sharedUtils.isWordChar(ch); }
 function isHorizSpace(ch) { return ch === " " || ch === "\t"; }
-function isHighSurrogate(code) { return code >= 0xd800 && code <= 0xdbff; }
-function isLowSurrogate(code) { return code >= 0xdc00 && code <= 0xdfff; }
+function isHighSurrogate(code) { return __sharedUtils.isHighSurrogate(code); }
+function isLowSurrogate(code) { return __sharedUtils.isLowSurrogate(code); }
 function prevCodePointStart(str, index) { if (index <= 0) return null; let j = index - 1; const c = str.charCodeAt(j); if (isLowSurrogate(c) && j - 1 >= 0) { const p = str.charCodeAt(j - 1); if (isHighSurrogate(p)) j -= 1; } return j; }
 function nextCodePointEnd(str, index) { if (index >= str.length) return null; const c = str.charCodeAt(index); if (isHighSurrogate(c) && index + 1 < str.length) { const n = str.charCodeAt(index + 1); if (isLowSurrogate(n)) return index + 2; } return index + 1; }
 

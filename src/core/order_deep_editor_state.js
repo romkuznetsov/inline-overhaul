@@ -11,7 +11,9 @@ function isObj(x) {
 }
 
 function cloneJson(x) {
-  return JSON.parse(JSON.stringify(x));
+  /* Правило объявлено один раз — `cloneJson` в `shared_utils.js`
+     (10.13.137); здесь стояло то же тело слово в слово. */
+  return __sharedUtils.cloneJson(x);
 }
 
 function normalizeToken(raw, kind) {
