@@ -72,7 +72,8 @@ function pickMoveSelectionCfg(cfg, lineFormat) {
   const c = isObj(cfg) ? cfg : {};
   const lf = isObj(lineFormat) ? lineFormat : {};
   const sep = (v, fallback) => (typeof v === "string" && v ? v : fallback);
-  const separator1 = sep(lf.separator1, sep(c.separator1, "||"));
+  /* Умолчание — из общего дома, а не рядом с чтением (У-186). */
+  const separator1 = sep(lf.separator1, sep(c.separator1, __sharedUtils.DEFAULT_SEPARATORS.separator1));
   const cycle = Array.isArray(c.cycleOrder) && c.cycleOrder.length
     ? c.cycleOrder.slice()
     : (Array.isArray(c.leftToRight) && c.leftToRight.length ? c.leftToRight.slice() : ["#", "##", "###", "####", "#####", "1. ", "", "- "]);
@@ -129,7 +130,8 @@ function pickJumpCfg(cfg, lineFormat) {
   const c = isObj(cfg) ? cfg : {};
   const lf = isObj(lineFormat) ? lineFormat : {};
   const sep = (v, fallback) => (typeof v === "string" && v ? v : fallback);
-  const separator1 = sep(lf.separator1, sep(c.separator1, "||"));
+  /* Умолчание — из общего дома, а не рядом с чтением (У-186). */
+  const separator1 = sep(lf.separator1, sep(c.separator1, __sharedUtils.DEFAULT_SEPARATORS.separator1));
   return {
     centerCursor: typeof c.centerCursor === "boolean" ? c.centerCursor : true,
     /* Место на экране после перехода (10.13.37). Разбор один и тот же, что у
@@ -602,7 +604,7 @@ function moveTextBounds(editor, line, rules) {
   if (!rules || rules.inlineBoundaryJump === true) return null;
   const s = txt(editor, line);
   const lineStart = editor.posToOffset({ line: line, ch: 0 });
-  const sep1 = typeof rules.separator1 === "string" && rules.separator1 ? rules.separator1 : "||";
+  const sep1 = typeof rules.separator1 === "string" && rules.separator1 ? rules.separator1 : __sharedUtils.DEFAULT_SEPARATORS.separator1;
   const sep2 = typeof rules.separator2 === "string" && rules.separator2 ? rules.separator2 : sep1;
   let loRel = 0;
   let hiRel = s.length;
@@ -1182,7 +1184,7 @@ function lineEndPos(ed, line, cfg) {
    */
   const shared = sharedTextEndCh(s, cfg);
   if (shared !== null) return { line: line, ch: shared };
-  const sep = typeof (cfg && cfg.separator1) === "string" && cfg.separator1 ? cfg.separator1 : "||";
+  const sep = typeof (cfg && cfg.separator1) === "string" && cfg.separator1 ? cfg.separator1 : __sharedUtils.DEFAULT_SEPARATORS.separator1;
   /* Второй разделитель ищется вторым разделителем, а не первым: у заказчика
      оба `::` и разницы не видно, но в панели это две разные настройки. */
   const sep2 = typeof (cfg && cfg.separator2) === "string" && cfg.separator2 ? cfg.separator2 : sep;
@@ -1356,7 +1358,7 @@ function buildNavigateRules(cfg) {
    * новый ход значило бы написать код, чей единственный потребитель — чтение
    * его же (У-95).
    */
-  const sep1 = typeof io.separator1 === "string" && io.separator1 ? io.separator1 : "||";
+  const sep1 = typeof io.separator1 === "string" && io.separator1 ? io.separator1 : __sharedUtils.DEFAULT_SEPARATORS.separator1;
   /*
    * **Второй разделитель доезжает сюда с 2026-09-11, и до этого дня не доезжал
    * ни одного** (замечание заказчика: «при `Move cursor right in line` курсор
@@ -1377,7 +1379,7 @@ function buildNavigateRules(cfg) {
 
 function navigateInline(editor, direction, navRules, rawCfg) {
   const cfg = pickNavigateInlineCfg(rawCfg);
-  const delim = navRules && typeof navRules.delim === "string" && navRules.delim ? navRules.delim : "||";
+  const delim = navRules && typeof navRules.delim === "string" && navRules.delim ? navRules.delim : __sharedUtils.DEFAULT_SEPARATORS.separator1;
   /* Второй разделитель: не задан — считаем, что он равен первому (прежний ход). */
   const delim2 = navRules && typeof navRules.delim2 === "string" && navRules.delim2 ? navRules.delim2 : delim;
   const trailingMarkers = navRules && Array.isArray(navRules.trailingMarkers) ? navRules.trailingMarkers : [];

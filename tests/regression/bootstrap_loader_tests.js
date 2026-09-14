@@ -327,10 +327,28 @@ async function run() {
      вместе с ней: разбирать больше нечего (PRD 10.12). */
 
 
-  assertTrue(/separator1:\s*"\|\|"/.test(cfgSrc), "default config contains separator1");
+  /*
+   * **Пин сменил вопрос вместе с переездом предмета** (У-94, У-186). Умолчание
+   * разделителей объявлено теперь один раз — `DEFAULT_SEPARATORS` в
+   * `shared_utils.js`, — и спрашивать его текстом `config_normalize.js` не на
+   * чем: `assertTrue` на исчезнувший образец покраснел бы, а `assertFalse`
+   * молчал бы навсегда. Спрашивается то, ради чего умолчание есть: доезжает
+   * ли оно до конфига, в котором разделителей нет вовсе.
+   */
+  {
+    const sharedUtilsMod = require(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"));
+    const configNormalizeMod = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+    const home = sharedUtilsMod.DEFAULT_SEPARATORS;
+    assertTrue(!!(home && home.separator1 && home.separator2),
+      "у умолчания разделителей есть значение");
+    const fresh = configNormalizeMod.migrateConfig({});
+    assertEq(fresh.pkm.lineFormat.separator1, home.separator1,
+      "умолчание первого разделителя доезжает до конфига из общего дома");
+    assertEq(fresh.pkm.lineFormat.separator2, home.separator2,
+      "умолчание второго разделителя доезжает до конфига из общего дома");
+  }
   assertFalse(/`📅DATE\/🕑TIME ➕ELEMENTS`/.test(orderSrc), "main has no hardcoded emoji section title for date\/time elements");
   assertFalse(/isTimeLike \? "🕒" : \(isDateLike \? "📅" : ""\)/.test(orderSrc), "main infer-element defaults have no hardcoded emoji markers");
-  assertTrue(/separator2:\s*"\|\|"/.test(cfgSrc), "default config contains separator2");
   /*
    * Пин переехал за предметом (У-94): нормализатор ключа Order живёт в
    * `pkm_order_config.js` с куска третьего, а спрашивал этот пин **весь

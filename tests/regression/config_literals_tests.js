@@ -46,17 +46,40 @@ const RUNTIME = ["main.js", "navigation_runtime.js", "pkm_runtime_v2.js", "src",
  * Долг по файлам. Число — сколько строк с готовым разделителем в файле
  * осталось. Меньше — можно и нужно, больше — проверка краснеет.
  *
- * **Первый род снят 2026-09-15 целиком:** пять файлов, восемь мест, где
- * правило читало разделитель готовым. Осталось второе — запасное умолчание,
- * повторённое по месту вызова, — и текст руководства.
+ * **Список пуст с 2026-09-15, и пустым обязан остаться.** Все три рода сняты
+ * за один заход: правило, читавшее разделитель готовым (восемь мест в шести
+ * файлах движков); запасное умолчание, повторённое по месту вызова
+ * (шестнадцать мест в навигации и предпросмотрах); и текст руководства, где
+ * разделитель назывался знаком, которого у человека может не быть. Теперь
+ * роняет проверку **любое** новое место, а не только сверх долга.
  */
-const DEBT = {
-  "navigation_runtime.js": 6,
-  "src/core/config_normalize.js": 2,
-  "src/ui/settings/custom/previews.ts": 10,
-  "src/ui/settings/howto.ts": 2,
-  "src/ui/settings/schema/pkm.ts": 2,
-};
+const DEBT = {};
+
+/**
+ * **Дом умолчания — не долг, и он назван поимённо.**
+ *
+ * У умолчания разделителя ровно два объявления, и оба законны:
+ *
+ *   - `DEFAULT_SEPARATORS` в `src/core/shared_utils.js` — умолчание движка,
+ *     которым живёт `DEFAULT_CONFIG` нормализации и запасной ответ навигации;
+ *   - `separator-1` и `separator-2` в `src/ui/settings/schema/pkm.ts` —
+ *     умолчание панели. Файл **выводится из прототипа** (Р8) и руками не
+ *     правится вовсе, а расхождения умолчаний схемы и движка — продуктовый
+ *     вопрос заказчика (В-7), а не ошибка кода.
+ *
+ * Исключение называется **местом**, а не образцом, и печатается вслух: пока
+ * оно видно, его можно оспорить. Новое место такой пометки не получает —
+ * список правится руками и одним заходом с правкой.
+ */
+const DEFAULT_HOMES = [
+  { rel: "src/core/shared_utils.js", needle: "DEFAULT_SEPARATORS" },
+  { rel: "src/ui/settings/schema/pkm.ts", needle: 'path:"pkm.lineFormat.separator1"' },
+  { rel: "src/ui/settings/schema/pkm.ts", needle: 'path:"pkm.lineFormat.separator2"' },
+];
+
+function isDefaultHome(rel, text) {
+  return DEFAULT_HOMES.some((x) => x.rel === rel && text.indexOf(x.needle) !== -1);
+}
 
 function files() {
   const out = [];
@@ -169,7 +192,7 @@ function found() {
       if (!hit) continue;
       const text = lines[n].trim();
       if (isExcused(rel, text)) continue;
-      rows.push({ rel, line: n + 1, text });
+      rows.push({ rel, line: n + 1, text, home: isDefaultHome(rel, text) });
     }
   }
   return rows;
@@ -186,13 +209,28 @@ function run() {
   assert.ok(probe[1].indexOf('"||"') !== -1,
     "контроль: литерал стёрт вместе с комментарием, и обход не найдёт ничего");
 
-  const rows = found();
+  const all = found();
+  const homes = all.filter((r) => r.home);
+  const rows = all.filter((r) => !r.home);
   const byFile = {};
   for (const r of rows) byFile[r.rel] = (byFile[r.rel] || 0) + 1;
 
+  /* Дом печатается вслух и вместе с адресом: молчаливое исключение — это тот
+     способ, каким «проверено автоматически» превращается в «проверено
+     ничего». */
+  console.log("  умолчание разделителя объявлено в " + homes.length + " местах: "
+    + homes.map((r) => r.rel + ":" + r.line).join(", "));
   console.log("  разделитель записан готовым: мест " + rows.length
     + " в " + Object.keys(byFile).length + " файлах; долг списком — "
     + Object.keys(DEBT).reduce((a, k) => a + DEBT[k], 0));
+
+  /* И дом обязан существовать: исчез — значит умолчание переехало, и список
+     домов стал рассказом о прошлом (У-127). */
+  const lostHomes = DEFAULT_HOMES.filter(
+    (h) => !homes.some((r) => r.rel === h.rel && r.text.indexOf(h.needle) !== -1)
+  );
+  assert.deepStrictEqual(lostHomes.map((h) => h.rel + " / " + h.needle), [],
+    "дом умолчания в этом месте больше не объявлен — поправьте список тем же коммитом");
 
   const grew = [];
   for (const rel of Object.keys(byFile)) {
@@ -220,7 +258,9 @@ if (require.main === module) {
   /* Список печатается по просьбе, а не всегда: в общем прогоне он был бы шумом,
      а адрес нужен тому, кто сел разбирать долг. */
   if (process.argv.includes("--list")) {
-    for (const r of found()) console.log(r.rel + ":" + r.line + "   " + r.text.slice(0, 120));
+    for (const r of found()) {
+      console.log((r.home ? "дом  " : "долг ") + r.rel + ":" + r.line + "   " + r.text.slice(0, 120));
+    }
   }
   run();
 }

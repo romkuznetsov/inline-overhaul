@@ -290,10 +290,9 @@ const DEFAULT_CONFIG = {
         offPrefix: false,
         fullPlacement: "smart",
       },
-      io: {
-        separator1: "||",
-        separator2: "||",
-      },
+      /* Умолчание разделителей объявлено один раз — `DEFAULT_SEPARATORS` в
+         `shared_utils.js` (У-186). */
+      io: Object.assign({}, __sharedUtils.DEFAULT_SEPARATORS),
       order: makeDefaultPkmOrder(),
     },
   },

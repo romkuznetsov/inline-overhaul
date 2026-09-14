@@ -69,6 +69,28 @@ function str(ctx: SettingsCtx, path: string, fallback: string): string {
 }
 
 /**
+ * **Разделители: из настроек, и запасного значения у них нет** (У-186).
+ *
+ * Десять мест писали рядом с чтением `"||"` — то самое умолчание, которое уже
+ * объявлено дважды: в схеме (`separator-1`, `separator-2`) и у движка
+ * (`DEFAULT_CONFIG` в `config_normalize.js`). Третья копия у места вызова —
+ * это не запас, а ложь на экране: у человека с `::` предпросмотр рисовал бы
+ * `||`, если бы значение до него не доехало.
+ *
+ * Пустым оно быть не может: `normalizeConfigV2` прогоняет `separator1` и
+ * `separator2` через `text(...)` на **каждом** патче, а через неё проходит
+ * любая запись в хранилище. Если значение всё же пусто — рисуется пусто, и
+ * это честнее, чем показать разделитель, которого у человека нет.
+ */
+const SEP1_PATH = "pkm.lineFormat.separator1";
+const SEP2_PATH = "pkm.lineFormat.separator2";
+
+function sep(ctx: SettingsCtx, path: string): string {
+  const v = ctx.get(path);
+  return v === undefined || v === null ? "" : String(v);
+}
+
+/**
  * Рамка предпросмотра: подпись, «?» с подсказкой и фраза о том, что это не
  * редактор. Возвращает и рамку, и снятие подсказки — очистка блока обязана
  * убрать за собой всё (С5).
@@ -146,7 +168,7 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
   const bandPct = Math.max(0, Math.min(100, num(ctx, "visual.tags.blockFill.widthPct")));
   const bandNear = Math.min(1, bandPct / 50);
   const bandFar = Math.max(0, (bandPct - 50) / 50);
-  const bandSepCh = String(ctx.get("pkm.lineFormat.separator1") || "||").length;
+  const bandSepCh = sep(ctx, SEP1_PATH).length;
   cssVar(node, "--io-blockfill-padx",
     "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
   if (ctx.get("visual.tags.blockFill.enabled") === true) node.addClass("io-line--blockfill");
@@ -254,9 +276,9 @@ function structuralLine(
 
   const left = fieldsOn(fields, "left");
   if (left.length) put(el(line, "span", "io-line__side io-line__side--left"), left);
-  el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+  el(line, "span", "io-line__sep", sep(ctx, SEP1_PATH));
   el(line, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT));
-  el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+  el(line, "span", "io-line__sep", sep(ctx, SEP2_PATH));
 
   const right = fieldsOn(fields, "right");
   if (right.length) put(el(line, "span", "io-line__side io-line__side--right"), right);
@@ -582,7 +604,7 @@ export const barsPreview: CustomRender = (host, ctx) => {
     const replaced = hideChosen && ids.includes(chosen);
     const sepHidden = !shown.length &&
       (!replaced || Boolean(ctx.get("visual.tagBars.hideSeparatorWhenOnlyStripToken")));
-    if (!sepHidden) el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+    if (!sepHidden) el(line, "span", "io-line__sep", sep(ctx, SEP1_PATH));
     el(line, "span", "io-line__text", node.text);
   };
 
@@ -742,11 +764,11 @@ export const linePreview: CustomRender = (host, ctx) => {
       for (const f of fieldsOn(fields, "left")) fieldChip(c, f);
     });
     cell("io-struct__sep", c => {
-      el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+      el(c, "span", "io-line__sep", sep(ctx, SEP1_PATH));
     });
     cell("io-struct__text", c => { el(c, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT)); });
     cell("io-struct__sep", c => {
-      el(c, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+      el(c, "span", "io-line__sep", sep(ctx, SEP2_PATH));
     });
     cell("io-struct__side io-line__side--right", c => {
       const right = fieldsOn(fields, "right");
@@ -823,9 +845,9 @@ export const tagPreview: CustomRender = (host, ctx) => {
       if (f) tagField(left, f, ctx);
     }
 
-    el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator1", "||"));
+    el(line, "span", "io-line__sep", sep(ctx, SEP1_PATH));
     el(line, "span", "io-line__text", text ? say(ctx, previewKey("tag-preview", "line"), text.line || "") : "");
-    el(line, "span", "io-line__sep", str(ctx, "pkm.lineFormat.separator2", "||"));
+    el(line, "span", "io-line__sep", sep(ctx, SEP2_PATH));
 
     const right = el(line, "span", "io-line__side io-line__side--right");
     if (text && text.element) el(right, "span", "io-elem", say(ctx, previewKey("tag-preview", "element"), text.element));
@@ -956,8 +978,8 @@ function drawSourceLine(
   known: Map<string, { value: PreviewValue; kind: string }>,
 ): void {
   applyTagVars(row, ctx);
-  const sep1 = str(ctx, "pkm.lineFormat.separator1", "||");
-  const sep2 = str(ctx, "pkm.lineFormat.separator2", "||");
+  const sep1 = sep(ctx, SEP1_PATH);
+  const sep2 = sep(ctx, SEP2_PATH);
 
   /* Префикс — то, что стоит до первого значащего символа: буллит, номер,
      чекбокс. Он рисуется своим узлом, иначе в половинах «до» и «после» не

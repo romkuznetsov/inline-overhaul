@@ -128,8 +128,8 @@ function firstSteps(): string {
     "   TagWheel key a second time, closes the panel and keeps what you picked. `Esc`",
     "   closes it and keeps nothing.",
     "4. **Look at the result.** The line has changed: your text `buy milk` is now fenced",
-    "   off from the tags by `||`. Those are the Separators, and you can change them later",
-    "   in `Tags & PKM → Separators`. Each tag stands where its Field stands, and that",
+    "   off from the tags by two marks. Those are the Separators, and you can change them",
+    "   later in `Tags & PKM → Separators`. Each tag stands where its Field stands, and that",
     "   order is the left column of `Tags & PKM → Fields`: drag a Field there, or use the",
     "   arrow buttons if you prefer, and the line follows. The colours come from the",
     "   `Fill` and `Text` columns of that Field `Values` table.",
@@ -201,8 +201,9 @@ function theLine(): string {
     "* the **Prefix** is what the line starts with: a bullet, a checkbox, a heading mark;",
     "* the **Left Block** and the **Right Block** hold Fields, and each Field sits in one",
     "  of them. Drag it across the line in `Tags & PKM → Fields` to move it;",
-    "* the two `||` are the **Separators**. They are what tells the plugin where your text",
-    "  ends and the Fields begin, so pick something you would never type by accident. They",
+    "* the two marks around your text are the **Separators**. They are what tells the",
+    "  plugin where your text ends and the Fields begin, so pick something you would never",
+    "  type by accident. The line above shows the ones a fresh install starts with; yours",
     "  live in `Tags & PKM → Separators`.",
   ].join("\n");
 }
