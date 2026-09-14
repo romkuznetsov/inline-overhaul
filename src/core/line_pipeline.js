@@ -3,13 +3,9 @@
 const __sharedUtils = require("./shared_utils.js");
 
 function resolveSeparatorsOrThrow(rules) {
-  var io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
-  var sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";
-  var sep2 = io && io.separator2 != null ? String(io.separator2).trim() : "";
-  if (!sep1 || !sep2) {
-    throw new Error("line_pipeline: rules.io.separator1 and rules.io.separator2 are required");
-  }
-  return { sep1: sep1, sep2: sep2 };
+  /* Правило одно, и живёт оно в общем доме; сюда приезжает только имя
+     звавшего — его человек увидит в тексте отказа. */
+  return __sharedUtils.resolveSeparatorsOrThrow(rules, "line_pipeline");
 }
 
 /** Поля одной стороны Order: левый Block или правый. */
@@ -226,8 +222,8 @@ function isDateLikeBareToken(token) {
 function isLikelyRightPayloadToken(token, markers) {
   const t = String(token || "");
   if (!t) return false;
-  if (/^#\S+$/.test(t)) return true;
-  if (/^\[\[[^\]]+\]\]$/.test(t)) return true;
+  if (__sharedUtils.isTagToken(t)) return true;
+  if (__sharedUtils.isWikilinkToken(t)) return true;
   if (startsWithAnyMarker(t, markers)) return true;
   if (isDateLikeBareToken(t)) return true;
   return false;
@@ -250,8 +246,8 @@ function stripListPrefixForBody(rawLeft) {
 function isPlainTextSegmentToken(token) {
   var t = String(token || "").trim();
   if (!t) return false;
-  if (/^#\S+$/.test(t)) return false;
-  if (/^\[\[[^\]]+\]\]$/.test(t)) return false;
+  if (__sharedUtils.isTagToken(t)) return false;
+  if (__sharedUtils.isWikilinkToken(t)) return false;
   return true;
 }
 

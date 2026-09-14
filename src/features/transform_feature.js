@@ -671,8 +671,9 @@ function formatHeaderByMode(i2n, now) {
 
 function normalizeRuleWikilink(raw) {
   const src = String(raw || "").trim();
-  const match = src.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/);
-  return match ? String(match[1] || "").trim() : src;
+  /* Не ссылка — остаётся как есть: правило Smart Rules человек пишет и просто
+     именем заметки. */
+  return __sharedUtils.wikilinkTargetOf(src) || src;
 }
 
 /**

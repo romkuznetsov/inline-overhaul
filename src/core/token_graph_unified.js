@@ -15,17 +15,15 @@
  * Тогда его применили в одном месте из четырёх.
  */
 const __rulesRuntimeHelpers = require("./pkm_rules_runtime_helpers.js");
+const __sharedUtils = require("./shared_utils.js");
 
 function getSeparators(rules) {
-  var io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
-  var sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";
-  var sep2 = io && io.separator2 != null ? String(io.separator2).trim() : "";
-  if (!sep1 || !sep2) {
-    throw new Error("token_graph_unified: rules.io.separator1 and rules.io.separator2 are required");
-  }
+  /* Четвёртая копия того же правила; своё здесь только имя полей на выходе, и
+     менять его не надо — его читают внутри этого файла. */
+  const sep = __sharedUtils.resolveSeparatorsOrThrow(rules, "token_graph_unified");
   return {
-    separator1: sep1,
-    separator2: sep2,
+    separator1: sep.sep1,
+    separator2: sep.sep2,
   };
 }
 
@@ -124,8 +122,8 @@ function tailByMarkerOf(rightMarkers) {
 function classifyToken(raw, rightMarkers) {
   var token = String(raw || "").trim();
   if (!token) return { sourceKind: "unknown", markerKind: "" };
-  if (/^#\S+$/.test(token)) return { sourceKind: "tag", markerKind: "" };
-  if (/^\[\[[^\]]+\]\]$/.test(token)) return { sourceKind: "wikilink", markerKind: "" };
+  if (__sharedUtils.isTagToken(token)) return { sourceKind: "tag", markerKind: "" };
+  if (__sharedUtils.isWikilinkToken(token)) return { sourceKind: "wikilink", markerKind: "" };
   var i;
   for (i = 0; i < rightMarkers.length; i++) {
     var marker = String(rightMarkers[i] && rightMarkers[i].marker || "").trim();

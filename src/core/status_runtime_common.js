@@ -566,7 +566,7 @@ function createStatusRuntimeCommon(deps) {
     const p = typeof prefix === "string" ? prefix : "#";
     const t = String(rawToken || "");
     if (!t) return "";
-    if (/^\[\[[^\]]+\]\]$/.test(t)) return t;
+    if (__sharedUtils.isWikilinkToken(t)) return t;
     if (!p && /^\//.test(t)) return `#${t}`;
     return `${p}${t}`;
   }

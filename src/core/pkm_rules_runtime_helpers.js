@@ -831,12 +831,12 @@ function collectSourceCatalogValues(sourceConfig) {
     if (!text) return;
     let token = text;
     let link = text;
-    if (/^\[\[[^\]]+\]\]$/.test(text)) {
+    if (__sharedUtils.isWikilinkToken(text)) {
       const body = text.slice(2, -2).trim();
       if (!body) return;
       token = body;
       link = body;
-    } else if (/^#\S+/.test(text)) {
+    } else if (__sharedUtils.startsWithTagToken(text)) {
       token = text.replace(/^#/, "");
       link = token;
     }
@@ -852,8 +852,8 @@ function collectSourceCatalogValues(sourceConfig) {
     if (!tokenRaw) return;
     let token = tokenRaw;
     let link = String(obj.link || tokenRaw).trim();
-    if (/^\[\[[^\]]+\]\]$/.test(token)) token = token.slice(2, -2).trim();
-    if (/^\[\[[^\]]+\]\]$/.test(link)) link = link.slice(2, -2).trim();
+    if (__sharedUtils.isWikilinkToken(token)) token = token.slice(2, -2).trim();
+    if (__sharedUtils.isWikilinkToken(link)) link = link.slice(2, -2).trim();
     token = token.replace(/^#/, "").trim();
     if (!token) return;
     if (!link) link = token;
@@ -934,8 +934,8 @@ function buildTagTokenKeyMap(rules, options) {
     const p = typeof prefix === "string" ? prefix : "#";
     const t = String(rawToken || "").trim();
     if (!t) return "";
-    if (/^\[\[[^\]]+\]\]$/.test(t)) return t;
-    if (/^#\S+/.test(t)) return t;
+    if (__sharedUtils.isWikilinkToken(t)) return t;
+    if (__sharedUtils.startsWithTagToken(t)) return t;
     if (p && t.startsWith(p)) return t;
     if (!p && /^\/\S+/.test(t)) return `#${t}`;
     return `${p}${t}`;

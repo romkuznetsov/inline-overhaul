@@ -208,7 +208,7 @@ function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, sha
 function formatFieldTokenForVisual(field, rawToken) {
   const tok = String(rawToken || "").trim();
   if (!tok) return "";
-  if (/^#\S+/.test(tok)) return tok;
+  if (__sharedUtils.startsWithTagToken(tok)) return tok;
   const pref = typeof field?.prefix === "string" ? field.prefix : "#";
   if (!pref && /^\/\S+/.test(tok)) return `#${tok}`;
   return `${pref}${tok}`;
@@ -227,7 +227,7 @@ function buildFieldTagVisualMap(cfg) {
     for (const row of values) {
       const raw = typeof row === "string" ? row : String(row && row.token || "");
       const token = formatFieldTokenForVisual(field, raw);
-      if (!/^#\S+/.test(token)) continue;
+      if (!__sharedUtils.startsWithTagToken(token)) continue;
       const visual = isObj(map[token]) ? map[token] : null;
       if (!visual) continue;
       const nextRow = normalizeRuntimeTagVisualRow(visual);
@@ -436,7 +436,7 @@ function isRenderableStripContext(text, sep1, sep2, tokenSet) {
   if (listLineRx.test(src)) return true;
   const set = tokenSet instanceof Set ? tokenSet : new Set();
   if (!set.size) return false;
-  const rx = /#\S+/g;
+  const rx = __sharedUtils.tagTokenScanner();
   let m;
   while ((m = rx.exec(src)) !== null) {
     const token = String(m[0] || "").trim();
@@ -553,7 +553,7 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
      */
     pushAll(new RegExp(escapeRegExp(marker) + (tail || "\\S+"), "g"), "element");
   }
-  pushAll(/#\S+/g, "tag");
+  pushAll(__sharedUtils.tagTokenScanner(), "tag");
 
   found.sort((a, b) => {
     if (a.index !== b.index) return a.index - b.index;
@@ -656,11 +656,13 @@ function formatTagwheelDisplayToken(token, showPrefix) {
   let src = String(token || "");
   let t = src.trim();
   if (!t) return src;
-  let m = t.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/);
-  if (m) return m[1];
+  /* Цель ссылки называет общий дом: свой образец стоял здесь одним из
+     четырёх, и подпись после черты все четверо отбрасывали по-своему. */
+  const linkTarget = __sharedUtils.wikilinkTargetOf(t);
+  if (linkTarget) return linkTarget;
   if (showPrefix) return src;
   if (/^#\//.test(t)) return t.replace(/^#\//, "");
-  if (/^#\S+/.test(t)) return t.replace(/^#/, "");
+  if (__sharedUtils.startsWithTagToken(t)) return t.replace(/^#/, "");
   if (/^[^A-Za-zА-Яа-я0-9\[]+/.test(t)) {
     let stripped = t.replace(/^[^A-Za-zА-Яа-я0-9\[]+/, "");
     if (/^(\d{4}-\d{2}-\d{2}|\d{2}:\d{2}|\d)/.test(stripped)) return stripped;

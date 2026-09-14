@@ -931,7 +931,7 @@ function parseLine(rawLine, rules) {
     for (i = 0; i < parts.length; i++) {
       var t = String(parts[i] || '').trim()
       if (!t) continue
-      if (/^#\S+$/.test(t) || /^\[\[[^\]]+\]\]$/.test(t)) {
+      if (__sharedUtils.isTagToken(t) || __sharedUtils.isWikilinkToken(t)) {
         out.tags.push(t)
         out.values.push(t)
         continue
@@ -1000,7 +1000,7 @@ function extractTagLikeTokens(text) {
   var i
   for (i = 0; i < parts.length; i++) {
     var t = parts[i]
-    if (/^#\S+$/.test(t) || /^\[\[[^\]]+\]\]$/.test(t)) out.push(t)
+    if (__sharedUtils.isTagToken(t) || __sharedUtils.isWikilinkToken(t)) out.push(t)
   }
   return out
 }
@@ -1076,10 +1076,7 @@ function projectMatches(item, state) {
 }
 
 function parseWikilink(raw) {
-  var s = String(raw || '').trim()
-  var m = s.match(/^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/)
-  if (!m) return ''
-  return String(m[1] || '').trim()
+  return __sharedUtils.wikilinkTargetOf(raw)
 }
 
 function normalizeProjectEntry(item, fallbackId) {
@@ -2330,8 +2327,8 @@ function buildOutputToken(field, value, rules) {
   if (!field || !value) return ''
   var outputMode = resolveFieldOutputMode(field, rules)
   var tokenRaw = String(value.token || '').trim()
-  if (/^\[\[[^\]]+\]\]$/.test(tokenRaw)) return tokenRaw
-  if (/^#\S+/.test(tokenRaw)) return tokenRaw
+  if (__sharedUtils.isWikilinkToken(tokenRaw)) return tokenRaw
+  if (__sharedUtils.startsWithTagToken(tokenRaw)) return tokenRaw
   if (outputMode === 'wikilink') {
     var linkTarget = value.link || value.token || value.id || ''
     if (!linkTarget) return ''

@@ -3,13 +3,9 @@
 const __sharedUtils = require("./shared_utils.js");
 
 function resolveSeparatorsOrThrow(rules) {
-  const io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
-  const sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";
-  const sep2 = io && io.separator2 != null ? String(io.separator2).trim() : "";
-  if (!sep1 || !sep2) {
-    throw new Error("pkm_macro_shared: rules.io.separator1 and rules.io.separator2 are required");
-  }
-  return { sep1, sep2 };
+  /* Правило одно, и живёт оно в общем доме; сюда приезжает только имя
+     звавшего — его человек увидит в тексте отказа. */
+  return __sharedUtils.resolveSeparatorsOrThrow(rules, "pkm_macro_shared");
 }
 
 function normalizeCycleEndBehavior(v) {
@@ -255,8 +251,8 @@ function getCursorAtTextEnd(finalLine, rules) {
         const markerRe = new RegExp("^(?:" + markerAlt + ")");
         const tokens = tail.split(/\s+/).filter(Boolean);
         const isRightPayload = tokens.length > 0 && tokens.every((t) => (
-          /^#\S+$/.test(t)
-          || /^\[\[[^\]]+\]\]$/.test(t)
+          __sharedUtils.isTagToken(t)
+          || __sharedUtils.isWikilinkToken(t)
           || markerRe.test(t)
           || /^\d{4}-\d{2}-\d{2}$/.test(t)
           || /^\d{2}:\d{2}$/.test(t)
@@ -338,42 +334,21 @@ function hasListPrefix(line) {
 }
 
 function hasStandaloneCheckboxPrefix(line) {
-  const body = String(line || "").replace(/^\s*/, "");
-  return /^\[[^\]]\](\s|$)/.test(body);
+  /* Скобки без знака списка задачей не являются (В-114), но началом, которое
+     написал человек, — да. Форма у вопроса одна, и живёт она в общем доме. */
+  return __sharedUtils.startsWithBracketPair(line);
 }
 
 function extractOriginalPrefix(line) {
-  const src = String(line || "");
-  const listMatch = src.match(/^(\s*(?:[-*+]|\d+[\.)])\s+(?:\[[^\]]\]\s+)*)/);
-  if (listMatch && String(listMatch[1] || "").trim()) {
-    return String(listMatch[1] || "").replace(/\s+$/g, "");
-  }
-  const checkboxMatch = src.match(/^(\s*\[[^\]]\]\s+)/);
-  if (checkboxMatch) return String(checkboxMatch[1] || "").replace(/\s+$/g, "");
-  return "";
+  return __sharedUtils.lineStartPrefixOf(line);
 }
 
 function reapplyOriginalPrefix(rawLine, nextLine) {
-  const prefix = extractOriginalPrefix(rawLine);
-  if (!prefix) return String(nextLine || "");
-  let body = String(nextLine || "");
-  body = body.replace(/^\s*(?:[-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^\[[^\]]\]\s+/, "");
-  body = body.trimStart();
-  return body ? `${prefix} ${body}` : prefix;
+  return __sharedUtils.reapplyLineStart(rawLine, nextLine);
 }
 
 function preserveOriginalPrefixShape(rawLine, nextLine) {
-  const raw = String(rawLine || "");
-  const next = String(nextLine || "");
-  if (hasListPrefix(raw) || hasStandaloneCheckboxPrefix(raw)) {
-    return reapplyOriginalPrefix(raw, next);
-  }
-  const rawIndent = (raw.match(/^(\s*)/) || ["", ""])[1];
-  let body = String(next || "").replace(/^\s*/, "");
-  body = body.replace(/^([-*+]|\d+[\.)])\s+/, "");
-  body = body.replace(/^(\[[^\]]\])\s+/, "");
-  return rawIndent + body.trimStart();
+  return __sharedUtils.preserveLineStartShape(rawLine, nextLine);
 }
 
 module.exports = {

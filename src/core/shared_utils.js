@@ -944,9 +944,159 @@ function lineMarkerOf(text) {
   };
 }
 
+/*
+ * **Ссылка и тег: чем они написаны — объявлено здесь, и только здесь.**
+ *
+ * До 2026-09-14 общего дома не было ни у того, ни у другого: форма ссылки
+ * стояла рукописной в девятнадцати местах восьми файлов, форма тега — в
+ * восьми местах пяти (Д3 ревизии). Расхождений между ними не нашлось ни
+ * одного, и это не оправдание, а отсрочка: у знака списка копии тоже сперва
+ * совпадали, а потом разошлись трижды и стоили заказчику текста (У-150).
+ *
+ * Вопросов здесь три, и они разные: «весь ли токен — ссылка», «чем он
+ * начинается» и «что внутри скобок». Смешивать их нельзя — на этом уже
+ * обожглись: `^#\S+` без якоря конца отвечает «да» и на `#work=text`.
+ */
+const WIKILINK_TOKEN_SRC = "\\[\\[[^\\]]+\\]\\]";
+const TAG_TOKEN_SRC = TAG_PREFIX_CHAR + "\\S+";
+const WIKILINK_TOKEN_RE = new RegExp("^" + WIKILINK_TOKEN_SRC + "$");
+const WIKILINK_TARGET_RE = /^\[\[([^\]|]+)(?:\|[^\]]+)?\]\]$/;
+const TAG_TOKEN_RE = new RegExp("^" + TAG_TOKEN_SRC + "$");
+const TAG_TOKEN_LEAD_RE = new RegExp("^" + TAG_TOKEN_SRC);
+
+/** Весь токен целиком — ссылка вида `[[имя]]`. */
+function isWikilinkToken(text) {
+  return WIKILINK_TOKEN_RE.test(String(nz(text, "")).trim());
+}
+
+/** Весь токен целиком — тег вида `#имя`. */
+function isTagToken(text) {
+  return TAG_TOKEN_RE.test(String(nz(text, "")).trim());
+}
+
+/** Токен начинается с тега — но чем он кончается, вопрос другой. */
+function startsWithTagToken(text) {
+  return TAG_TOKEN_LEAD_RE.test(String(nz(text, "")).trim());
+}
+
+/**
+ * Цель ссылки: `[[имя|подпись]]` → `имя`. Не ссылка — пустая строка.
+ *
+ * Подпись после вертикальной черты в цель не входит: её человек пишет для
+ * глаз, а адресом заметки она не является.
+ */
+function wikilinkTargetOf(text) {
+  const m = String(nz(text, "")).trim().match(WIKILINK_TARGET_RE);
+  return m ? String(m[1] || "").trim() : "";
+}
+
+/**
+ * Обход тегов в тексте: свой образец был у каждого читателя.
+ *
+ * Отдаётся новое выражение на каждый вызов, а не одно на всех: у глобального
+ * `lastIndex` живёт между вызовами, и общий экземпляр пропускал бы каждое
+ * второе совпадение.
+ */
+function tagTokenScanner() {
+  return new RegExp(TAG_TOKEN_SRC, "g");
+}
+
+/**
+ * **Разделители зон строки: откуда они берутся и что значит их отсутствие.**
+ *
+ * Объявление было четвёртым по счёту одинаковым: разбор строки, доводка,
+ * макро-прослойка и граф токенов писали одни и те же шесть строк, отличаясь
+ * только именем в тексте исключения и именами полей на выходе (Д2 ревизии,
+ * 2026-09-14). Имя звавшего приезжает теперь аргументом: человеку в журнале
+ * нужен тот, кто спрашивал, а правило одно на всех.
+ *
+ * Отсутствие разделителя — не «возьмём умолчание», а отказ вслух: без них
+ * строка не разбирается вовсе, и тихий ответ был бы неотличим от дефекта.
+ */
+function resolveSeparatorsOrThrow(rules, who) {
+  const io = rules && typeof rules.io === "object" && !Array.isArray(rules.io) ? rules.io : null;
+  const sep1 = io && io.separator1 != null ? String(io.separator1).trim() : "";
+  const sep2 = io && io.separator2 != null ? String(io.separator2).trim() : "";
+  if (!sep1 || !sep2) {
+    throw new Error(String(nz(who, "rules")) + ": rules.io.separator1 and rules.io.separator2 are required");
+  }
+  return { sep1, sep2 };
+}
+
 /** Строка списка: маркер или номер. Заголовок и цитата списком не считаются. */
 function isListItemLine(text) {
   return !!lineStartOf(text).marker;
+}
+
+/**
+ * **Пара скобок в начале строки — это не задача, но это начало, которое
+ * написал человек.**
+ *
+ * Задачей Obsidian считает скобки только за знаком списка (В-114), и
+ * `lineStartOf` так и отвечает. Но у доводки строки есть свой вопрос: чем
+ * строка **была** начата, чтобы вернуть это после перестановки. Скобки без
+ * знака списка — текст человека, и сохранять его надо тем более.
+ *
+ * Имя здесь говорит о форме, а не о смысле: прежнее звалось
+ * `hasStandaloneCheckboxPrefix` и обещало задачу там, где её нет (У-103).
+ */
+function startsWithBracketPair(text) {
+  const src = String(nz(text, ""));
+  const body = src.slice(lineIndentLength(src));
+  return new RegExp("^" + CHECKBOX_ONE_CHAR_SRC + "(?:[ \\t]|$)").test(body);
+}
+
+/**
+ * Чем строка начата — куском, который можно приписать обратно.
+ *
+ * **Объявление одно на обе дороги** (Д2 ревизии, 2026-09-14). Копий было две,
+ * знак в знак: в доводке строки и в макро-прослойке, — и обе писали своё
+ * правило о знаке списка руками. Расходились они с общим объявлением уже
+ * сейчас: своё видело `\s` там, где платформа видит пробел и табуляцию, и не
+ * знало про цитату вовсе — на строке `> - текст` одна и та же пара функций
+ * отвечала «знак списка есть» и «начала нет».
+ */
+function lineStartPrefixOf(text) {
+  const src = String(nz(text, ""));
+  const start = lineStartOf(src);
+  if (start.marker) return src.slice(0, start.at).replace(/[ \t]+$/, "");
+  const head = start.indent + start.quote + start.callout;
+  const rest = src.slice(head.length);
+  const m = rest.match(new RegExp("^" + CHECKBOX_ONE_CHAR_SRC + "(?:[ \\t]+|$)"));
+  if (m) return (head + m[0]).replace(/[ \t]+$/, "");
+  return "";
+}
+
+/** Та же строка без своего начала: отступа, цитаты, знака списка и задачи. */
+function stripLineStart(text) {
+  const src = String(nz(text, ""));
+  const start = lineStartOf(src);
+  const head = start.indent + start.quote + start.callout;
+  const rest = src.slice(head.length);
+  if (start.marker) return rest.slice(start.marker.length + start.checkbox.length);
+  const m = rest.match(new RegExp("^" + CHECKBOX_ONE_CHAR_SRC + "(?:[ \\t]+|$)"));
+  return m ? rest.slice(m[0].length) : rest;
+}
+
+/** Начало исходной строки, приписанное к телу новой. */
+function reapplyLineStart(rawLine, nextLine) {
+  const prefix = lineStartPrefixOf(rawLine);
+  if (!prefix) return String(nz(nextLine, ""));
+  const body = stripLineStart(nextLine).trim();
+  return body ? prefix + " " + body : prefix;
+}
+
+/**
+ * Форма начала исходной строки переживает действие.
+ *
+ * Было начало — возвращается оно; не было — у новой строки снимается то, что
+ * приписал плагин, и остаётся отступ человека.
+ */
+function preserveLineStartShape(rawLine, nextLine) {
+  const raw = String(nz(rawLine, ""));
+  if (isListItemLine(raw) || startsWithBracketPair(raw)) return reapplyLineStart(raw, nextLine);
+  const rawIndent = String(raw.match(LINE_INDENT_RE)[0] || "");
+  return rawIndent + stripLineStart(nextLine).trimStart();
 }
 
 module.exports = {
@@ -964,6 +1114,19 @@ module.exports = {
   linePrefixLength,
   lineMarkerOf,
   isListItemLine,
+  resolveSeparatorsOrThrow,
+  WIKILINK_TOKEN_SRC,
+  TAG_TOKEN_SRC,
+  isWikilinkToken,
+  isTagToken,
+  startsWithTagToken,
+  wikilinkTargetOf,
+  tagTokenScanner,
+  startsWithBracketPair,
+  lineStartPrefixOf,
+  stripLineStart,
+  reapplyLineStart,
+  preserveLineStartShape,
   isWordChar,
   splitCombinedTagToken,
   normalizeFormatMask,

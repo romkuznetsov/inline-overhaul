@@ -911,6 +911,86 @@ async function run() {
     "line pipeline builds have their own line-prefix pattern again");
   assertFalse(/function splitLeftPrefix\(raw\) \{\s*const src = String\(raw \|\| ""\)\.trim\(\);\s*const m = src\.match/
     .test(pkmLineFinalizeUnifiedSrc), "pkm_line_finalize declares its own copy of the line-prefix splitter again");
+  /*
+   * **Начало строки, снятое и возвращённое — одно объявление на обе дороги**
+   * (Д2 ревизии, 2026-09-14). Пять функций стояли в доводке строки и в
+   * макро-прослойке знак в знак, и каждая писала форму знака списка руками.
+   * Расходились они с общим объявлением уже тогда: своя копия видела `\s`
+   * там, где платформа видит пробел и табуляцию, и о цитате не знала вовсе —
+   * на строке `> - текст` одна и та же пара отвечала «знак списка есть» и
+   * «начала нет».
+   *
+   * Спрашивается и дом, и оба читателя (У-122: сверять надо с тем, кто
+   * правило пишет, а не двух читателей между собой).
+   */
+  assertTrue(/function lineStartPrefixOf\(text\)/.test(sharedUtilsSrcHere),
+    "shared utils declares the line-start prefix rule once");
+  assertTrue(/function reapplyLineStart\(rawLine, nextLine\)/.test(sharedUtilsSrcHere),
+    "shared utils declares re-applying the original line start once");
+  assertTrue(/function preserveLineStartShape\(rawLine, nextLine\)/.test(sharedUtilsSrcHere),
+    "shared utils declares preserving the original line-start shape once");
+  for (const [who, src] of [["line finalizer", pkmLineFinalizeUnifiedSrc],
+    ["macro layer", pkmMacroSharedSrc]]) {
+    assertTrue(/__sharedUtils\.lineStartPrefixOf\(/.test(src),
+      who + " asks the shared line-start prefix rule");
+    assertTrue(/__sharedUtils\.reapplyLineStart\(/.test(src),
+      who + " asks the shared rule to re-apply the original line start");
+    assertTrue(/__sharedUtils\.preserveLineStartShape\(/.test(src),
+      who + " asks the shared rule to preserve the original line-start shape");
+    assertFalse(/const listMatch = src\.match\(/.test(src),
+      who + " brought back its own copy of the original-prefix extractor");
+  }
+
+  /*
+   * **Разделители зон строки: одно объявление, четыре читателя.** Шесть
+   * одинаковых строк стояли в разборе строки, доводке, макро-прослойке и графе
+   * токенов, отличаясь только именем в тексте отказа. Имя приезжает теперь
+   * аргументом.
+   */
+  const tokenGraphSrcHere = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "token_graph_unified.js"), "utf8");
+  assertTrue(/function resolveSeparatorsOrThrow\(rules, who\)/.test(sharedUtilsSrcHere),
+    "shared utils declares the separator rule once, and takes the caller name");
+  for (const [who, src] of [["line pipeline", linePipelineSrc],
+    ["line finalizer", pkmLineFinalizeUnifiedSrc],
+    ["macro layer", pkmMacroSharedSrc],
+    ["token graph", tokenGraphSrcHere]]) {
+    assertTrue(/__sharedUtils\.resolveSeparatorsOrThrow\(rules, "/.test(src),
+      who + " asks the shared separator rule");
+    assertFalse(/io\.separator1 != null \? String\(io\.separator1\)/.test(src),
+      who + " brought back its own copy of the separator resolver");
+  }
+
+  /*
+   * **Ссылка и тег: у формы появился дом** (Д3 ревизии, 2026-09-14). Прежде
+   * форма ссылки стояла рукописной в девятнадцати местах восьми файлов, форма
+   * тега — в восьми местах пяти, и общего дома не было ни у той, ни у другой.
+   * Расхождений между копиями не нашлось ни одного — и это не оправдание, а
+   * отсрочка: у знака списка копии тоже сперва совпадали (У-150).
+   *
+   * Запрет написан по **форме**, и проверяется он у тех файлов, которые
+   * сведены. Остальные названы в очереди `docs/REMAINING_WORK.md`: молчаливый
+   * список исключений и есть тот способ, каким «сведено» превращается в
+   * «сведено наполовину».
+   */
+  assertTrue(/const WIKILINK_TOKEN_SRC = /.test(sharedUtilsSrcHere),
+    "shared utils declares the wikilink form once");
+  assertTrue(/const TAG_TOKEN_SRC = TAG_PREFIX_CHAR \+ /.test(sharedUtilsSrcHere),
+    "shared utils declares the tag form once, from its own prefix character");
+  const convertedByD3 = [
+    ["line pipeline", linePipelineSrc],
+    ["line finalizer", pkmLineFinalizeUnifiedSrc],
+    ["macro layer", pkmMacroSharedSrc],
+    ["rules helpers", pkmRulesHelpersSrc],
+    ["token graph", tokenGraphSrcHere],
+  ];
+  for (const [who, src] of convertedByD3) {
+    assertFalse(src.indexOf(String.raw`/^\[\[[^\]]+\]\]$/`) !== -1,
+      who + " brought back its own wikilink pattern");
+    assertFalse(src.indexOf(String.raw`/^#\S+$/`) !== -1,
+      who + " brought back its own tag pattern");
+  }
+
   assertTrue(/linePipeline\.enforceTextSegmentForLeftTag\(finalLine, rules, originalText\)/.test(statusTagsSrc), "status_tags text enforcement delegates to shared line-pipeline helper");
   assertTrue(/function normalizeCycleEndBehavior\(/.test(pkmMacroSharedSrc), "pkm macro shared exports cycle behavior normalizer");
   assertTrue(/function escapeRegex\(/.test(pkmMacroSharedSrc), "pkm macro shared exports regex escaper");
