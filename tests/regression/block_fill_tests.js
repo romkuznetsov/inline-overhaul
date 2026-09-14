@@ -162,12 +162,26 @@ function fakeView(lines) {
     starts.push(at);
     at += text.length + 1;
   }
+  /*
+   * **Строка подделки несёт то же, что строка платформы** (У-172): у `Line`
+   * CodeMirror есть `from`, `to`, `length` и `text`, и слой спрашивает `to`
+   * ровно так же, как `from`. Подделка, знавшая только `from`, отвечала на
+   * `line.to` пустотой, и обход рядов молча получал `undefined` вместо конца
+   * строки — при зелёном наборе.
+   */
+  const lineOf = (n) => ({
+    number: n,
+    from: starts[n - 1],
+    to: starts[n - 1] + lines[n - 1].length,
+    length: lines[n - 1].length,
+    text: lines[n - 1],
+  });
   const doc = {
-    line: (n) => ({ number: n, from: starts[n - 1], text: lines[n - 1] }),
+    line: lineOf,
     lineAt: (pos) => {
       let n = 1;
       for (let i = 0; i < starts.length; i++) if (starts[i] <= pos) n = i + 1;
-      return { number: n, from: starts[n - 1], text: lines[n - 1] };
+      return lineOf(n);
     },
   };
   return { state: { doc }, visibleRanges: [{ from: 0, to: at }] };
@@ -634,6 +648,22 @@ function rowBoxOf(row) {
   const top = DOC_TOP + row * ROW_H - LAYER_OFFSET_PX;
   return { top, height: ROW_H };
 }
+
+/*
+ * **Подделка строки не беднее платформенной** (У-172).
+ *
+ * `Line` у CodeMirror несёт `from`, `to`, `length` и `text`, и слой спрашивает
+ * `to` наравне с `from`. Подделка знала только `from`, отвечала на `line.to`
+ * пустотой, и обход рядов читал это как «рядов нет»: подложка тихо уходила на
+ * запасной путь при зелёном наборе. Спрашивается здесь не имя, а значение.
+ */
+(function testFakeLineCarriesWhatThePlatformCarries() {
+  const view = fakeView([LINE, "второй"]);
+  for (const line of [view.state.doc.line(1), view.state.doc.lineAt(3)]) {
+    assertEq(line.to, line.from + line.text.length, "конец строки — число, и он на своём месте");
+    assertEq(line.length, line.text.length, "длина строки названа");
+  }
+})();
 
 (function testWholeSpanGoesToThePlatformAsOnePiece() {
   const view = fakeViewWithCoords([LINE], null, null, null);

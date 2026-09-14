@@ -889,35 +889,102 @@ function blockFillDocRanges(view, plugin) {
  * проверять нечем и незачем, это код самого CodeMirror.
  */
 /**
- * Конец зрительной строки, на которой стоит это положение, — измерением
- * платформы.
+ * Вертикаль положения — так, как её видит **отрисовка** прямоугольников.
  *
- * **Спрошено у того, кто это знает** (У-44). Вертикали положений для того же
- * вопроса не годятся, и это стоило второго захода по S7: у пузыря тега своя
- * высота, и `coordsAtPos` на пузыре и на обычном тексте **одной и той же**
- * зрительной строки отдаёт разный `top`. Сравнение вертикалей читало это как
- * перенос, отрезок распадался на кусок под каждым значением, и заказчик
- * увидел ровно это: «полоска идёт с разрывами… для values=tags и
- * values=wikilink она рисуется на разной высоте».
+ * Сторона здесь не украшение: `rectanglesForRange` платформы спрашивает начало
+ * отрезка с `coordsAtPos(pos, 2)`, а конец с `coordsAtPos(pos, -2)`, и эта
+ * «двойка» у неё названа в комментарии затем, чтобы координата пришла с нужной
+ * стороны виджета. Спрашивать иначе — значит спрашивать о другом.
+ */
+function blockFillRowTopAt(view, pos, side) {
+  try {
+    const c = view.coordsAtPos(pos, side);
+    return c && Number.isFinite(Number(c.top)) ? Number(c.top) : null;
+  } catch (_) {
+    /* Проба: платформа может не знать положения, которого не отрисовала. */
+    return null;
+  }
+}
+
+/**
+ * Конец зрительной строки, на которой стоит это положение.
  *
- * `moveToLineBoundary` отвечает на нужный вопрос прямо, и отвечает тем же
- * приёмом, каким сам CodeMirror ищет границы зрительной строки при отрисовке
- * выделения: положение под правым краем содержимого на высоте этой строки.
- * Сторона нужна и здесь — `assoc: 1` значит «строка, которая после этого
- * положения начинается», иначе в точке переноса мы получили бы конец
- * предыдущей.
+ * **Вопрос один, и он тот самый, который задаёт отрисовка** (10.13.116). Их
+ * было два, и это и был дефект. `moveToLineBoundary` ищет границу под правым
+ * краем редактора через `posAtCoords`; `rectanglesForRange` — тот, кто подложку
+ * рисует, — спрашивает другое: на одном ли ряду стоят `coordsAtPos(начало, 2)`
+ * и `coordsAtPos(конец, -2)`. Ответы расходятся на **один знак**, и этого
+ * хватает: кусок, кончающийся знаком дальше начала ряда, платформа считает
+ * пересекающим ряды и рисует **выделением** — первый прямоугольник до правого
+ * края содержимого, последний от левого. Ровно это заказчик увидел 2026-09-14:
+ * «иногда полоска по прежнему рисуется до границ экрана» и «на перенесённой
+ * строке полоска не подкрашивает последнее value».
+ *
+ * Поэтому ответ платформы берётся **подсказкой**, а признаётся он по вопросу
+ * отрисовки: на границе ряд обязан меняться — слева от неё тот же, справа
+ * другой. Не сошлось — граница ищется двоичным делением по тому же признаку,
+ * семь вопросов к координатам вместо сотни.
+ *
+ * Вертикали для этого годятся, а для **разбора блока на куски** не годились
+ * (второй заход по S7): у пузыря тега своя высота, и `coordsAtPos` на пузыре и
+ * на тексте одной строки отдаёт разный `top`. Разница эта — единицы точек, а
+ * ряд отстоит на десятки, и мера здесь — половина высоты ряда, не равенство.
  */
 function blockFillVisualLineEnd(view, pos) {
   if (typeof view.moveToLineBoundary !== "function") return null;
+  let head = NaN;
   try {
     const at = view.moveToLineBoundary({ head: pos, assoc: 1 }, true, true);
-    const head = at ? Number(at.head) : NaN;
-    return Number.isFinite(head) ? head : null;
+    head = at ? Number(at.head) : NaN;
   } catch (_) {
     /* Проба: спросили платформу о положении, которого она может не знать
        (снятый узел, положение вне отрисованного). Ответ «нет» — это ответ. */
-    return null;
+    head = NaN;
   }
+  const lineH = Number(view.defaultLineHeight);
+  let line = null;
+  try {
+    line = view.state.doc.lineAt(pos);
+  } catch (_) {
+    /* Проба: положение может быть вне документа. */
+    line = null;
+  }
+  /*
+   * Конец строки обязан быть числом: без него сверять нечего, и ответом
+   * остаётся то, что сказала платформа. Молча уйти отсюда с `undefined`
+   * нельзя — обход рядов прочитал бы это как «рядов нет» (У-172).
+   */
+  if (!line || !Number.isFinite(Number(line.to))
+    || !Number.isFinite(lineH) || lineH <= 0) {
+    return Number.isFinite(head) ? head : null;
+  }
+  const base = blockFillRowTopAt(view, pos, 2);
+  if (base === null) return Number.isFinite(head) ? head : null;
+  const sameRow = (t) => t !== null && Math.abs(t - base) <= lineH / 2;
+  /*
+   * Подсказка платформы принимается, только если она и есть граница: слева от
+   * неё ряд прежний, справа — уже другой. Оба вопроса задаются теми же
+   * сторонами, какими их задаёт отрисовка.
+   */
+  if (Number.isFinite(head) && head > pos && head <= line.to
+    && sameRow(blockFillRowTopAt(view, head, -2))
+    && !sameRow(blockFillRowTopAt(view, head, 2))) {
+    return head;
+  }
+  /*
+   * Не сошлось. Если до конца строки ряд не меняется — переноса на ней нет, и
+   * концом ряда служит конец строки: это тот же ответ, что давала платформа.
+   */
+  if (sameRow(blockFillRowTopAt(view, line.to, 2))) return line.to;
+  let lo = pos;
+  let hi = line.to;
+  while (lo + 1 < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const t = blockFillRowTopAt(view, mid, 2);
+    if (t === null) return Number.isFinite(head) ? head : null;
+    if (sameRow(t)) lo = mid; else hi = mid;
+  }
+  return hi > pos ? hi : null;
 }
 
 /**
@@ -1080,60 +1147,6 @@ function blockFillRoomBeforeFlyButtonPx(view, span, buttonLine) {
 }
 
 /**
- * Где кончаются зрительные строки — **измерением**, а не вопросом к платформе.
- *
- * Запасной путь к `moveToLineBoundary`. Тот отвечает не всегда: у заказчика
- * строка из двух рядов приходила однорядной, и подложка опускалась на половину
- * лишней высоты (10.13.102). Рисовать такой кусок прямоугольниками платформы
- * тоже нельзя: отрезок, пересекающий ряды, она рисует **выделением** — первый
- * прямоугольник до правого края содержимого, последний от левого, — и на его
- * экране вышла полоса во всю ширину окна (10.13.103).
- *
- * Поэтому границу ряда находим сами: положение, на котором вертикаль каретки
- * прыгает больше чем на половину высоты ряда, и есть начало следующего.
- * Ищется двоичным делением — семь вопросов к координатам на ряд вместо сотни.
- *
- * Половина высоты ряда — не украшение, а мера: у пузыря тега своя вертикаль, и
- * она отличается на единицы точек (У-120), а ряд отстоит на десятки.
- *
- * Ответ `null` значит «измерить не вышло», и это ответ, а не отказ.
- */
-function blockFillVisualRowsByMeasure(view, from, to) {
-  const lineH = Number(view.defaultLineHeight);
-  if (!Number.isFinite(lineH) || lineH <= 0 || !(to > from)) return null;
-  const topAt = (pos) => {
-    try {
-      const c = view.coordsAtPos(pos, 1);
-      return c && Number.isFinite(Number(c.top)) ? Number(c.top) : null;
-    } catch (_) {
-      /* Проба: платформа может не знать положения, которого не отрисовала. */
-      return null;
-    }
-  };
-  const sameRow = (a, b) => Math.abs(a - b) <= lineH / 2;
-  const rows = [];
-  let start = from;
-  for (let guard = 0; guard < 64 && start < to; guard += 1) {
-    const base = topAt(start);
-    const last = topAt(to);
-    if (base === null || last === null) return null;
-    if (sameRow(last, base)) { rows.push({ from: start, to }); start = to; break; }
-    let lo = start;
-    let hi = to;
-    while (lo + 1 < hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      const t = topAt(mid);
-      if (t === null) return null;
-      if (sameRow(t, base)) lo = mid; else hi = mid;
-    }
-    if (!(hi > start)) return null;
-    rows.push({ from: start, to: hi });
-    start = hi;
-  }
-  return rows.length ? rows : null;
-}
-
-/**
  * Отрезок, разрезанный по зрительным строкам (S7).
  *
  * Зачем резать: `forRange` на отрезке, начавшемся на одной зрительной строке и
@@ -1154,25 +1167,13 @@ function blockFillVisualRowsByMeasure(view, from, to) {
  * уходит одним куском: это ровно прежнее поведение, то есть отказ здесь хуже
  * подложки, но не хуже её отсутствия.
  */
-function blockFillPiecesOf(view, span) {
+function blockFillLineRows(view, span) {
   /*
-   * **Запасной кусок называет себя неизмеренным, и это не мелочь.**
-   *
-   * Он говорил «зрительная строка одна» там, где обход не смог их сосчитать, —
-   * а дальше это число делило высоту строки. На перенесённой строке высота
-   * делилась на единицу, и подложка левого Block вставала по середине **всей
-   * строки**, то есть уезжала вниз; а кусок, пересекающий зрительные строки,
-   * платформа рисует выделением — первый прямоугольник до правого края, — и
-   * все они получали одну вертикаль. Его слова 2026-09-13: «если строка
-   * становится длинной, то полоска tags-block-fill начинает вести себя
-   * неадекватно… полоска в left block съезжает вниз».
-   */
-  const whole = [{ from: span.from, to: span.to, row: 0, rows: 1, measured: false }];
-  /*
-   * Обход идёт **от начала строки**, а не от начала отрезка, и это не
-   * лишняя работа: номер зрительной строки нужен вертикали подложки, а
-   * получить его из координат нельзя — ровно они и врут (S7, второе
-   * замечание). Здесь он получается счётом границ, без единого измерения.
+   * Обход идёт **от начала строки**, а не от начала отрезка, и это не лишняя
+   * работа: номер зрительной строки нужен вертикали подложки, а взять его
+   * можно только счётом границ от начала — у отрезка своего номера нет.
+   * Границу каждого ряда называет `blockFillVisualLineEnd`, и называет её тем
+   * вопросом, каким её задаёт отрисовка (10.13.116).
    */
   const rows = [];
   const at0 = Number.isFinite(Number(span.lineFrom)) ? Number(span.lineFrom) : span.from;
@@ -1193,11 +1194,18 @@ function blockFillPiecesOf(view, span) {
     at = end;
     if (at >= stop) break;
   }
-  if (!rows.length) return whole;
+  if (!rows.length) return null;
   /*
    * **Насчитанному числу зрительных строк верят не на слово** — правило и его
-   * цена живут в `blockFillRowCountTrusted`. Не верим — кусок уходит на
-   * названный запасной путь, где вертикаль берётся у платформы.
+   * цена живут в `blockFillRowCountTrusted`.
+   *
+   * **Второго способа посчитать ряды здесь больше нет** (10.13.116). Он стоял
+   * запасным путём к `moveToLineBoundary` и мерил границу сам — то есть был
+   * вторым объявлением того же правила (У-150). Теперь граница ряда объявлена
+   * один раз, в `blockFillVisualLineEnd`, и объявлена тем вопросом, который
+   * задаёт отрисовка; мерить её второй раз нечем и незачем. Счёт не годится —
+   * кусок уходит целым, и это прежнее поведение: хуже подложки, но не хуже её
+   * отсутствия.
    */
   const blockHeight = (() => {
     try {
@@ -1208,42 +1216,37 @@ function blockFillPiecesOf(view, span) {
       return NaN;
     }
   })();
-  if (!blockFillRowCountTrusted(rows.length, blockHeight, view.defaultLineHeight)) {
-    /*
-     * Счёт не годится — режем сами, измерением. Только так кусок остаётся
-     * **внутри одного ряда**: прямоугольники платформы на отрезке, который
-     * ряды пересекает, нарисованы выделением, и горизонталь у них не наша.
-     */
-    const measured = blockFillVisualRowsByMeasure(view, at0, stop);
-    if (measured && blockFillRowCountTrusted(measured.length, blockHeight, view.defaultLineHeight)) {
-      rows.length = 0;
-      for (const row of measured) rows.push(row);
-      at = measured[measured.length - 1].to;
-    } else {
-      return whole;
-    }
-  }
+  if (!blockFillRowCountTrusted(rows.length, blockHeight, view.defaultLineHeight)) return null;
   /*
-   * **Остаток дописывается последней зрительной строке, а не становится
-   * новой.**
+   * **Правила «остаток дописать последнему ряду» здесь больше нет, и его
+   * предмет ушёл вместе с ним** (10.13.116, У-141).
    *
-   * Здесь стояло `rows.push({ from: at, to: span.to })`, и это была выдумка:
-   * обход рядов остановился, а мы объявляли остаток **ещё одним рядом**. На
-   * однорядной строке рядов делалось два, и дальше это число делит высоту
-   * строки — первый кусок прижимался к верху блока, второй вставал на полряда
-   * ниже. Заказчик видел у конца полосы вторую, сдвинутую: «заметил артефакты
-   * right block в конце полоски tags-block-fill (особенно, если последнее
-   * value — wikilink)» (2026-09-13).
-   *
-   * Ссылку `[[…]]` Live Preview рисует своим узлом, и `moveToLineBoundary` на
-   * нём возвращает положение, с которого сам же не сдвигается, — отсюда и
-   * «особенно, если последнее value wikilink». Сколько рядов у строки, решает
-   * счёт выше; остаток — это конец последнего ряда, а не новый ряд.
+   * Оно стояло против выдумки: обход останавливался раньше конца строки, а
+   * остаток объявлялся **ещё одним рядом**, и дальше это число делило высоту
+   * строки (У-180). Останавливаться раньше конца обход больше не умеет:
+   * границу ряда называет один вопрос, и на последнем ряду он отвечает концом
+   * строки. А если координат не дали вовсе — ряды неполны, и их число тут же
+   * бракует счёт выше, то есть кусок всё равно уходит целым. Место, где
+   * дописывание что-то меняло, не осталось ни одного.
    */
-  if (at < span.to) {
-    const tail = rows[rows.length - 1];
-    tail.to = Math.max(Number(tail.to) || 0, span.to);
-  }
+  return rows;
+}
+
+function blockFillPiecesOf(span, rows) {
+  /*
+   * **Запасной кусок называет себя неизмеренным, и это не мелочь.**
+   *
+   * Он говорил «зрительная строка одна» там, где обход не смог их сосчитать, —
+   * а дальше это число делило высоту строки. На перенесённой строке высота
+   * делилась на единицу, и подложка левого Block вставала по середине **всей
+   * строки**, то есть уезжала вниз; а кусок, пересекающий зрительные строки,
+   * платформа рисует выделением — первый прямоугольник до правого края, — и
+   * все они получали одну вертикаль. Его слова 2026-09-13: «если строка
+   * становится длинной, то полоска tags-block-fill начинает вести себя
+   * неадекватно… полоска в left block съезжает вниз».
+   */
+  const whole = [{ from: span.from, to: span.to, row: 0, rows: 1, measured: false }];
+  if (!rows || !rows.length) return whole;
   const out = [];
   for (let i = 0; i < rows.length; i += 1) {
     const from = Math.max(span.from, rows[i].from);
@@ -1251,6 +1254,54 @@ function blockFillPiecesOf(view, span) {
     if (to > from) out.push({ from, to, row: i, rows: rows.length, measured: true });
   }
   return out.length ? out : whole;
+}
+
+/**
+ * Ящик **написанного** на каждом ряду перенесённой строки.
+ *
+ * Зачем: высота ряда внутри строки бралась делением её блока на число рядов, и
+ * это верно ровно пока ряды одной высоты. У заказчика ряды разной высоты —
+ * ссылка `[[…]]` и высокий пузырь стоят на первом ряду, а на втором одно
+ * короткое значение, — и деление даёт среднее: 74 точки на два ряда это 37 и
+ * 37 при настоящих 42 и 32. Подложка обоих рядов уезжает вверх на половину
+ * разницы (обмерено гейтом — 3.09 точки из 25), и это та же жалоба, что и на
+ * строке-заголовке: «полоска смещена наверх».
+ *
+ * Мера — та же, что у заголовка (У-169): **написанное**, а не ящик строки.
+ * Спрашивается оно отрезком документа по ряду: `domAtPos` даёт узлы, а
+ * объединение строчных ящиков между ними отдаёт браузер. Своей формулы высоты
+ * ряда тут нет, и появиться ей неоткуда.
+ *
+ * Меряется **только перенесённая** строка: у однорядной ряд один, и ящик
+ * написанного у неё уже посчитан выше (ящик узла минус отступы). Это не
+ * экономия, а граница правки: на строке-заголовке мера остаётся прежней, и
+ * его условие по ней не трогается.
+ *
+ * Чего-то не отдали — `null`, и высота ряда остаётся делением. Это проба, и
+ * ответ «нет» здесь ответ, а не отказ.
+ */
+function blockFillRowInkBoxes(view, rows, toLayer) {
+  if (!rows || rows.length < 2 || typeof view.domAtPos !== "function") return null;
+  const out = [];
+  for (const row of rows) {
+    let box = null;
+    try {
+      const a = view.domAtPos(row.from);
+      const b = view.domAtPos(row.to);
+      const doc = a && a.node ? a.node.ownerDocument : null;
+      if (!a || !b || !a.node || !b.node || !doc || typeof doc.createRange !== "function") return null;
+      const range = doc.createRange();
+      range.setStart(a.node, a.offset);
+      range.setEnd(b.node, b.offset);
+      box = range.getBoundingClientRect();
+    } catch (_) {
+      /* Проба: узла может не быть — строка вне отрисованного окна. */
+      return null;
+    }
+    if (!box || !(Number(box.height) > 0)) return null;
+    out.push({ top: Number(box.top) + toLayer, height: Number(box.height) });
+  }
+  return out;
 }
 
 /**
@@ -1278,7 +1329,8 @@ function blockFillPiecesOf(view, span) {
  * (высота из самого прямоугольника). Это хуже, чем поправленная вертикаль, но
  * не хуже отсутствия подложки.
  */
-function blockFillRowGeometry(view, span, rows, bandHeightAsk, measured) {
+function blockFillRowGeometry(view, span, rowList, bandHeightAsk, measured) {
+  const rows = rowList && rowList.length ? rowList.length : 1;
   if (typeof view.lineBlockAt !== "function") return null;
   const lineH = Number(view.defaultLineHeight);
   if (!Number.isFinite(lineH) || lineH <= 0) return null;
@@ -1389,7 +1441,15 @@ function blockFillRowGeometry(view, span, rows, bandHeightAsk, measured) {
     : (rowsHeight > 0 ? rowsHeight / rowCount : lineH);
   const height = bandHeightAsk(lineH, textH);
   if (!Number.isFinite(height) || height <= 0) return null;
-  return { docTop, toLayer, blockTop, blockHeight, rowsTop, rowsHeight, lineH, rowH, height };
+  /*
+   * Ящики написанного по рядам — только у перенесённой строки и только когда
+   * ряды сосчитаны: делить высоту на равные части там нельзя (ряды разной
+   * высоты), а мерить нечего, если рядов нет.
+   */
+  const rowBoxes = rowsMeasured ? blockFillRowInkBoxes(view, rowList, toLayer) : null;
+  return {
+    docTop, toLayer, blockTop, blockHeight, rowsTop, rowsHeight, lineH, rowH, height, rowBoxes,
+  };
 }
 
 /**
@@ -1416,13 +1476,22 @@ function blockFillRowGeometry(view, span, rows, bandHeightAsk, measured) {
  */
 function blockFillPieceBox(geom, piece) {
   const rows = Math.max(1, Number(piece.rows) || 1);
-  const rowH = geom.rowH;
   const blockTop = geom.docTop + geom.blockTop + geom.toLayer;
   /* Зрительные строки начинаются у верха **содержимого** узла строки, а не у
      верха её блока: отступ строки написанному не принадлежит, где бы он ни
      лежал — снаружи границы (`margin`) или внутри неё (`padding`). */
   const rowsTop = Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop;
-  const rowTop = rowsTop + rowH * (Number(piece.row) || 0);
+  /*
+   * **У перенесённой строки ряд меряется, а не делится** (10.13.117). Деление
+   * высоты строки на число рядов верно, пока ряды одной высоты; у заказчика
+   * ссылка и высокий пузырь стоят на первом ряду, а на втором одно короткое
+   * значение — 42 и 32 точки, а деление давало 37 и 37, и подложка обоих рядов
+   * уезжала вверх на 3.09. Ящик написанного по рядам отдаёт браузер
+   * (`blockFillRowInkBoxes`); не отдал — остаётся деление.
+   */
+  const ink = geom.rowBoxes ? geom.rowBoxes[Number(piece.row) || 0] : null;
+  const rowH = ink ? ink.height : geom.rowH;
+  const rowTop = ink ? ink.top : rowsTop + geom.rowH * (Number(piece.row) || 0);
   /*
    * **Прижим высоты объявлен один раз** — в самом правиле
    * (`blockFillBandHeightPx`), и здесь его копии быть не должно: второй прижим
@@ -1469,6 +1538,8 @@ function blockFillMarkersFor(view, plugin) {
   const askHeight = (rowH, textH) => blockFillBandHeightPx(look, rowH, textH, bubbleH);
   /* Спрашивается один раз на отрисовку: правило одно на весь документ. */
   const flyLine = floatingButtonLineNumber(view, plugin);
+  /* Ряды строки — один ответ на оба её Block (см. ниже). */
+  const rowsByLine = new Map();
   const out = [];
   for (const span of blockFillDocRanges(view, plugin)) {
     const reach = blockFillGapPx(view, span);
@@ -1492,13 +1563,20 @@ function blockFillMarkersFor(view, plugin) {
       ? blockFillRoomBeforePrefixPx(view, span)
       : blockFillRoomBeforeFlyButtonPx(view, span, flyLine);
     const outward = Math.min(padX, room);
-    const pieces = blockFillPiecesOf(view, span);
+    /*
+     * Ряды считаются **один раз на строку документа**, а не на каждый Block:
+     * вопрос у них общий, а платформу он спрашивает по два-три раза на ряд.
+     */
+    const lineRows = rowsByLine.has(span.lineFrom)
+      ? rowsByLine.get(span.lineFrom)
+      : (() => { const r = blockFillLineRows(view, span); rowsByLine.set(span.lineFrom, r); return r; })();
+    const pieces = blockFillPiecesOf(span, lineRows);
     /*
      * Строк у **строки**, а не у отрезка: левый блок кончается на первой
      * зрительной строке, и `pieces.length` у него единица при двух строках
      * (У-129). Число несёт сам кусок — его считает обход до конца строки.
      */
-    const geom = blockFillRowGeometry(view, span, pieces[0].rows, askHeight, pieces[0].measured);
+    const geom = blockFillRowGeometry(view, span, lineRows, askHeight, pieces[0].measured);
     for (let i = 0; i < pieces.length; i++) {
       const piece = pieces[i];
       /*

@@ -156,6 +156,17 @@ const LINES = [
    */
   "- [ ] \u{1F4C5}2026-09-13 23:18 #123 #work #new " + SEP + " 11 " + SEP
     + " #todo [[test1]]",
+  /*
+   * 13. **Его строка со скриншота `Pasted image 20260914102759.png`**, слово
+   *     в слово из `test-vault/test1.md`. Здесь сошлось то, чего нет ни на
+   *     одной строке выше: левый Block с **двумя** ссылками, правый Block,
+   *     который переносится так, что на втором ряду остаётся одно последнее
+   *     значение, и плавающая кнопка на том же ряду. Его слова 2026-09-14:
+   *     «иногда полоска по прежнему рисуется до границ экрана» и «на
+   *     перенесенной строке полоска не подкрашивает последнее value».
+   */
+  "- [ ] #/1 #work #new [[test1]] #todo [[test]] " + SEP + " 11111112 " + SEP
+    + " #123 \u{1F4C5}2026-09-14 10:27 \u{1F923}PJeZs4 #aaa",
 ];
 
 /*
@@ -192,15 +203,32 @@ function buildHeadingLines(view) {
   return Decoration.set(out, true);
 }
 
+/*
+ * **Форма подделки списана у оригинала, а не выведена из слова «ссылка»**
+ * (У-170). В `app.js` Obsidian 1.13.7 обе пары скобок сняты со строки
+ * `Decoration.replace({})` без виджета (`c3`, `u3`, `h3` рядом с
+ * `p3=mark({class:"cm-underline"})`), а видимый текст ссылки несёт пометку
+ * `cm-underline`. То есть на строке стоят **три** объявления, а не одно:
+ * спрятанные скобки и пометка между ними. Разница не украшение — спрятанный
+ * отрезок платформа считает атомарным, и именно на нём `moveToLineBoundary`
+ * у заказчика возвращало положение, с которого само же не сдвигалось.
+ */
 function buildLinkMarks(view) {
   const out = [];
   for (let n = 1; n <= view.state.doc.lines; n++) {
     const line = view.state.doc.line(n);
-    const i = line.text.indexOf("[[");
-    if (i < 0) continue;
-    const j = line.text.indexOf("]]", i);
-    if (j < 0) continue;
-    out.push(Decoration.mark({ class: "io-probe-link" }).range(line.from + i, line.from + j + 2));
+    let at = 0;
+    for (let guard = 0; guard < 8; guard += 1) {
+      const i = line.text.indexOf("[[", at);
+      if (i < 0) break;
+      const j = line.text.indexOf("]]", i);
+      if (j < 0) break;
+      out.push(Decoration.replace({}).range(line.from + i, line.from + i + 2));
+      out.push(Decoration.mark({ class: "io-probe-link cm-underline" })
+        .range(line.from + i + 2, line.from + j));
+      out.push(Decoration.replace({}).range(line.from + j, line.from + j + 2));
+      at = j + 2;
+    }
   }
   return Decoration.set(out, true);
 }
@@ -325,6 +353,43 @@ window.__ioShortRowBoundary = async function (on) {
   await window.__ioSetBand({ widthPct: was >= 100 ? was - 1 : was + 1 });
   return window.__ioSetBand({ widthPct: was });
 };
+
+/**
+ * Третий отказ платформы: граница ряда названа **на знак мимо**.
+ *
+ * Первые два крупные — «граница = конец строки документа» и «граница раньше
+ * конца ряда». Этот мельче на порядок, и ровно поэтому он и жил: сдвига на
+ * один знак хватает, чтобы `rectanglesForRange` увидела кусок пересекающим
+ * ряды и нарисовала его **выделением** — прямоугольник до правого края
+ * содержимого и второй от левого. Ровно это заказчик и прислал 2026-09-14:
+ * «иногда полоска по прежнему рисуется до границ экрана» и «на перенесённой
+ * строке полоска не подкрашивает последнее value».
+ *
+ * **У подделки свой контроль** (У-110): она считает, сколько раз её ответ и
+ * правда разошёлся с платформенным. Ноль означает, что подделка ничего не
+ * подделала, и «подложки не сдвинулись» выполнялось бы её отсутствием.
+ */
+let wrongRowBoundaryHits = 0;
+window.__ioWrongRowBoundary = async function (on, shift) {
+  const by = Number.isFinite(Number(shift)) ? Number(shift) : 1;
+  wrongRowBoundaryHits = 0;
+  view.moveToLineBoundary = on
+    ? (range, forward, includeWrap) => {
+      const real = realMoveToLineBoundary(range, forward, includeWrap);
+      const realHead = real && Number.isFinite(Number(real.head)) ? Number(real.head) : null;
+      if (realHead === null) return real;
+      const line = view.state.doc.lineAt(realHead);
+      const moved = Math.max(line.from, Math.min(line.to, realHead + by));
+      if (moved !== realHead) wrongRowBoundaryHits += 1;
+      return { head: moved };
+    }
+    : realMoveToLineBoundary;
+  const was = Number(CFG.visual.tags.blockFill.widthPct);
+  await window.__ioSetBand({ widthPct: was >= 100 ? was - 1 : was + 1 });
+  return window.__ioSetBand({ widthPct: was });
+};
+
+window.__ioWrongRowBoundaryHits = function () { return wrongRowBoundaryHits; };
 
 window.__ioSetTags = function (patch) {
   Object.assign(CFG.visual.tags, patch || {});
@@ -555,9 +620,38 @@ window.__ioEditorProbe = function () {
         .length,
     };
   })() : null;
+  /*
+   * Пузыри, лежащие **в Block**, и их место на экране.
+   *
+   * Нужны они одному вопросу — «подложка накрывает значение или стоит рядом с
+   * ним»: его слово 2026-09-14 «на перенесённой строке полоска не подкрашивает
+   * последнее value». Зона спрашивается у того же объявления, каким её считает
+   * продукт (`resolveTagVisualZone`), а не выводится из вида строки (У-32), а
+   * место — у браузера.
+   */
+  const blockBubbles = Array.from(document.querySelectorAll("[data-io-tag-token]"))
+    .map((el) => {
+      const pos = view.posAtDOM(el);
+      const line = doc.lineAt(pos);
+      const zone = visuals.resolveTagVisualZone(line.text, pos - line.from, SEP, SEP);
+      if (zone !== "left" && zone !== "right") return null;
+      const r = el.getBoundingClientRect();
+      if (!(r.width > 0)) return null;
+      return {
+        token: el.getAttribute("data-io-tag-token"),
+        zone,
+        line: line.number,
+        left: round(r.left),
+        right: round(r.right),
+        top: round(r.top),
+        bottom: round(r.bottom),
+      };
+    })
+    .filter(Boolean);
   return {
     bands: bands(),
     rows,
+    blockBubbles,
     linkBoxHeight: linkBox,
     textBoxHeight: textBox,
     bubbleHeight,

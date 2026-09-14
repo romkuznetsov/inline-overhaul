@@ -73,7 +73,7 @@ const EDITOR_INJECTIONS = {
    */
   "row-height-default": {
     file: "src/ui/editor/decorations.js",
-    find: "  const rowH = geom.rowH;",
+    find: "  const rowH = ink ? ink.height : geom.rowH;",
     replace: "  const rowH = rows > 1 && geom.blockHeight > 0 ? geom.blockHeight / rows : geom.lineH;",
   },
   /*
@@ -115,20 +115,15 @@ const EDITOR_INJECTIONS = {
       + "  return { top: Math.max(rowsTop, Math.min(top, rowsBottom - height)), height };",
   },
   /*
-   * Остаток строки снова становится **новой** зрительной строкой — состояние
-   * до 2026-09-14. На однорядной строке рядов делается два, высота строки
-   * делится надвое, и у конца полосы встаёт вторая, на полряда ниже. Ровно
-   * это заказчик назвал «артефактами right block в конце полоски
-   * tags-block-fill (особенно, если последнее value — wikilink)».
+   * **Подмены `tail-row-invented` здесь больше нет, и это не потеря.**
+   *
+   * Она возвращала остаток строки **новой** зрительной строкой — состояние до
+   * 2026-09-14, «артефакты right block в конце полоски». Предмет её ушёл
+   * вместе с правилом (У-94, У-141): обход рядов останавливаться раньше конца
+   * строки больше не умеет, потому что границу ряда называет один вопрос — тот
+   * самый, каким её задаёт отрисовка, — и на последнем ряду он отвечает концом
+   * строки. Дописывать стало нечего, и правила дописывания в продукте нет.
    */
-  "tail-row-invented": {
-    file: "src/ui/editor/decorations.js",
-    find: "  if (at < span.to) {\n"
-      + "    const tail = rows[rows.length - 1];\n"
-      + "    tail.to = Math.max(Number(tail.to) || 0, span.to);\n"
-      + "  }",
-    replace: "  if (at < span.to) rows.push({ from: at, to: span.to });",
-  },
   /*
    * Номер зрительной строки у куска перестаёт учитываться: подложки всех
    * кусков перенесённой строки встают на её первую строку. Это половина того,
@@ -138,7 +133,7 @@ const EDITOR_INJECTIONS = {
    */
   "piece-row-ignored": {
     file: "src/ui/editor/decorations.js",
-    find: "  const rowTop = rowsTop + rowH * (Number(piece.row) || 0);",
+    find: "  const rowTop = ink ? ink.top : rowsTop + geom.rowH * (Number(piece.row) || 0);",
     replace: "  const rowTop = rowsTop;",
   },
   /*
@@ -166,12 +161,29 @@ const EDITOR_INJECTIONS = {
   "rows-never-cut": {
     file: "src/ui/editor/decorations.js",
     find: "  const rows = [];\n  const at0 = Number.isFinite(Number(span.lineFrom))",
-    replace: "  if (view) return whole;\n  const rows = [];\n  const at0 = Number.isFinite(Number(span.lineFrom))",
+    replace: "  if (view) return null;\n  const rows = [];\n  const at0 = Number.isFinite(Number(span.lineFrom))",
   },
-  "row-measure-off": {
+  /*
+   * **Ответ платформы о границе ряда принимается на слово** — состояние до
+   * 2026-09-14, вечер. Граница, названная платформой, и граница, по которой
+   * платформа же рисует, расходятся на знак, и этого хватает: кусок становится
+   * пересекающим ряды, и рисуется он выделением. Видно это только тогда, когда
+   * платформа и правда промахнулась, — поэтому подмена работает в паре с
+   * подделкой `__ioWrongRowBoundary` на странице.
+   *
+   * Прежняя подмена на этом месте — `row-measure-off` — отключала запасной
+   * путь измерения рядов. Пути этого больше нет: он был вторым объявлением
+   * того же правила и снят вместе с правкой (У-150), а вместе с ним ушёл и его
+   * предмет (У-94).
+   */
+  "row-boundary-unchecked": {
     file: "src/ui/editor/decorations.js",
-    find: "function blockFillVisualRowsByMeasure(view, from, to) {",
-    replace: "function blockFillVisualRowsByMeasure(view, from, to) {\n  if (view) return null;",
+    find: "  if (Number.isFinite(head) && head > pos && head <= line.to\n"
+      + "    && sameRow(blockFillRowTopAt(view, head, -2))\n"
+      + "    && !sameRow(blockFillRowTopAt(view, head, 2))) {\n"
+      + "    return head;\n"
+      + "  }",
+    replace: "  if (Number.isFinite(head) && head > pos && head <= line.to) return head;",
   },
   /*
    * Знак заголовка обратно становится тегом: «`##` (уровень хедера) стал
