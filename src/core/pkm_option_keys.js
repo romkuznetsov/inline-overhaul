@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("./shared_utils.js");
+
 /*
  * Служебного файла правил больше нет (PRD 10.13.52, П-8, шаг четвёртый), и
  * литералов его адреса здесь тоже: убирает его за собой сама миграция, а имена
@@ -76,7 +78,9 @@ function rulesFromSettings(settings, key) {
 }
 
 function isObj(x) {
-  return !!x && typeof x === "object" && !Array.isArray(x);
+  /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
+     возвращала «да/нет» (10.13.135). */
+  return __sharedUtils.isObj(x);
 }
 
 module.exports = {

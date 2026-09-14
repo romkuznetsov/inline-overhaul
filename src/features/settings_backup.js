@@ -1,5 +1,7 @@
 "use strict";
 
+const __sharedUtils = require("../core/shared_utils.js");
+
 /**
  * Копия настроек: заметка vault, а не служебный файл (PRD 10.13.2).
  *
@@ -211,7 +213,9 @@ const NO_SETTINGS = "That note does not hold plugin settings";
 const BROKEN = "The settings in that note could not be read";
 
 function isObj(v) {
-  return !!v && typeof v === "object" && !Array.isArray(v);
+  /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
+     возвращала «да/нет» (10.13.135). */
+  return __sharedUtils.isObj(v);
 }
 
 function cloneJson(v) {

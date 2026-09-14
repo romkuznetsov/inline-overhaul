@@ -5,7 +5,9 @@ const __sharedUtils = require("./shared_utils.js");
 const IO_TEMP_HISTORY_LIMIT = 100;
 
 function isObj(x) {
-  return !!x && typeof x === "object" && !Array.isArray(x);
+  /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
+     возвращала «да/нет» (10.13.135). */
+  return __sharedUtils.isObj(x);
 }
 
 function cloneJson(x) {

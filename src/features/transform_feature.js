@@ -33,7 +33,9 @@ const __noticeKey = __sayModule.noticeKey;
 const __rulesRuntimeHelpers = require("../core/pkm_rules_runtime_helpers.js");
 
 function isObj(v) {
-  return !!v && typeof v === "object" && !Array.isArray(v);
+  /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
+     возвращала «да/нет» (10.13.135). */
+  return __sharedUtils.isObj(v);
 }
 
 const DEFAULT_INLINE2NOTE = {

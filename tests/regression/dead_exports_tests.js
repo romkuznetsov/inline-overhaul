@@ -222,4 +222,56 @@ function usesInside(name, file) {
     + overExported + " — но внутри своего файла их зовут");
 }
 
+/* ---- «что такое объект» объявлено один раз ------------------------------- */
+{
+  /*
+   * **Копий было девять в четырёх формах, и расхождение между ними измерено**
+   * (10.13.135, 2026-09-15): часть возвращала **сам аргумент**, а не «да/нет».
+   * Увидеть это не мог никто — все вызовы спрашивают результат условием, — но
+   * разойтись формам было на чём, и они сведены к дому в `shared_utils.js`.
+   *
+   * Запрет написан по **форме** (У-126): своё объявление узнаётся по `typeof`
+   * в теле, обращение к дому его не содержит. Имена файлов тут не при чём —
+   * копия может завестись в любом.
+   */
+  /*
+   * Тело берётся **счётом скобок**, а не образцом «до строки с одной
+   * закрывающей»: однострочное объявление образец проглатывал вместе с
+   * соседним кодом и находил в нём чужой `typeof` (У-142 — контроль на
+   * каждый шаг обхода, а не на его вывод).
+   */
+  const bodyAfter = (src, at) => {
+    const open = src.indexOf("{", at);
+    if (open === -1) return "";
+    let depth = 0;
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === "{") depth += 1;
+      else if (src[i] === "}") {
+        depth -= 1;
+        if (depth === 0) return src.slice(open + 1, i);
+      }
+    }
+    return "";
+  };
+
+  const own = [];
+  let seen = 0;
+  for (const abs of runtime) {
+    const rel = path.relative(root, abs).replace(/\\/g, "/");
+    const src = fs.readFileSync(abs, "utf8");
+    const re = /function\s+isObj\s*\(/g;
+    let m;
+    while ((m = re.exec(src)) !== null) {
+      seen += 1;
+      if (rel === "src/core/shared_utils.js") continue;
+      if (/typeof/.test(bodyAfter(src, m.index))) own.push(rel);
+    }
+  }
+  assert.ok(seen > 5,
+    "положительный контроль: обход нашёл объявления `isObj` (" + seen + ")");
+  assert.deepStrictEqual(own, [],
+    "своё объявление `isObj` вне общего дома:" + String.fromCharCode(10) + "  " + own.join(String.fromCharCode(10) + "  "));
+  ok("`isObj` объявлен один раз: обращений " + (seen - 1) + ", дом один");
+}
+
 console.log("\n" + passed + " проверок пройдено");

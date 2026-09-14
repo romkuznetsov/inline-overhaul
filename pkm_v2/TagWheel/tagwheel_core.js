@@ -109,7 +109,9 @@ function resolvePrefixBehaviorShared(rules, state, deps) {
 }
 
 function isObj(x) {
-  return x && typeof x === 'object' && !Array.isArray(x)
+  /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
+     возвращала сам аргумент (10.13.135). */
+  return __sharedUtils.isObj(x);
 }
 
 function ensureStatusRuntimeCommonFns() {
