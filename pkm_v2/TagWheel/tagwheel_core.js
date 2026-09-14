@@ -1970,7 +1970,16 @@ function findValueById(values, id) {
   return null
 }
 
-function buildManagedTokenSet(mode, rules) {
+/**
+ * **Токены полей, которыми панель сейчас управляет.**
+ *
+ * Состояние здесь не для красоты: поле, которого панель сейчас не показывает
+ * (предусловие не выполнено, родителя нет, Field выключен), своими токенами
+ * не распоряжается — и написанное человеком обязано пережить действие как
+ * чужое (10.13.129). Без состояния множество считается как прежде, «по
+ * конфигу».
+ */
+function buildManagedTokenSet(mode, rules, state) {
   var set = {}
   function pushToken(tok) {
     var t = String(tok || '').trim()
@@ -2069,6 +2078,7 @@ function buildManagedTokenSet(mode, rules) {
   for (i = 0; i < mode.fields.length; i++) {
     var field = mode.fields[i]
     if (!field) continue
+    if (state && !isFieldEnabled(mode, state, field, rules)) continue
     if (isProjectsSourceField(field)) {
       var projectTokens = collectProjectCatalogTokens(rules && rules.projects)
       var pt
@@ -2092,9 +2102,9 @@ function buildManagedTokenSet(mode, rules) {
   return set
 }
 
-function getUnmanagedTailTokens(parsedLine, mode, rules) {
+function getUnmanagedTailTokens(parsedLine, mode, rules, state) {
   var tags = parsedLine && Array.isArray(parsedLine.tags) ? parsedLine.tags : []
-  var known = buildManagedTokenSet(mode, rules)
+  var known = buildManagedTokenSet(mode, rules, state)
   var out = []
   var i
   for (i = 0; i < tags.length; i++) {
@@ -2245,7 +2255,7 @@ function buildTags(mode, state, rules, parsedLine) {
     }
   }
 
-  var tail = getUnmanagedTailTokens(parsedLine, mode, rules)
+  var tail = getUnmanagedTailTokens(parsedLine, mode, rules, state)
   var techOrder = getTechOrder(rules)
   var keepUnknown = getKeepUnknownTags(rules)
   var subtagFormat = getSubtagFormat(rules)

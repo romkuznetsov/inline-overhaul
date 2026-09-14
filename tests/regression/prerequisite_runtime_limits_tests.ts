@@ -66,6 +66,7 @@ const core = requireCjs(path.join(root, "pkm_v2", "TagWheel", "tagwheel_core.js"
   parseLine: (line: string, rules: Any) => Any;
   makeInitialState: (rules: Any, modeName: string) => Any;
   renderControlLine: (rules: Any, state: Any, parsedLine: Any) => string;
+  buildTags: (mode: Any, state: Any, rules: Any, parsedLine: Any) => string[];
   getNavigableFieldSequence: (rules: Any, state: Any) => string[];
   hydrateStateFromParsedLine: (rules: Any, state: Any, parsedLine: Any) => void;
   sanitizeState: (rules: Any, state: Any) => void;
@@ -419,6 +420,38 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   assert.equal(String(session.selected.second || ""), hydrated,
     "значение спрятанного поля остаётся в состоянии, и панель не уносит его со строки");
   ok("предусловие прячет поле, но не стирает написанное человеком");
+}
+
+{
+  /*
+   * **Вторая форма того же правила: значение дочернего поля без родителя.**
+   *
+   * Дочернее поле панель показывает только при выбранном родителе, и его
+   * значения при пустом родителе не предлагаются вовсе — то есть узнать
+   * написанное человеком панель не может. Прежде такой токен считался
+   * «нашим» и при сборке строки исчезал; теперь поле, которым панель не
+   * управляет, своими токенами не распоряжается, и токен переживает действие
+   * как чужой (10.13.129).
+   *
+   * Мутация: снять `state` у `buildManagedTokenSet` — и утверждение краснеет.
+   */
+  const b = build({ where: "left", dependsOn: "status" });
+  const withIdsChild = (list: Any[]): void => { list.forEach((v: Any) => { v.id = String(v.token || ""); }); };
+  withIdsChild(b.field.values as Any[]);
+  withIdsChild((b.rules.leftMode.fields as Any[]).find((f: Any) => f.id === "status").values as Any[]);
+  const line = "- #a | текст";
+  const parsed = core.parseLine(line, b.rules);
+  const session = core.makeInitialState(b.rules, "left");
+  core.hydrateStateFromParsedLine(b.rules, session, parsed);
+  core.sanitizeState(b.rules, session);
+
+  /* Контроль первым: панель это поле и правда прячет, иначе проверять нечего. */
+  assert.equal(core.isFieldEnabled(b.mode, session, b.field, b.rules), false,
+    "родителя на строке нет — зависимое поле спрятано");
+  const tags = core.buildTags(b.mode, session, b.rules, parsed) as string[];
+  assert.ok(tags.includes("#a"),
+    "значение спрятанного поля переживает сборку строки: " + JSON.stringify(tags));
+  ok("значение поля, которого панель не показывает, переживает сборку строки");
 }
 
 {
