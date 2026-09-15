@@ -60,17 +60,49 @@ export interface FieldsPlugin {
 /**
  * Помощники состояния из `src/core/order_deep_editor_state.js`: дерево
  * значений, применение дерева к Fields, нормализация значений. Модель их не
- * ищет сама — их отдаёт тот, кто её создаёт, потому что искать их надо в
- * одном месте: доска умеет откатиться на заглушку, если модуля нет, и двух
- * таких поисков быть не должно.
+ * ищет сама — их отдаёт тот, кто её создаёт.
+ *
+ * **Все четыре обязательны, и отказ здесь громкий** (10.13.166). Прежде они
+ * стояли необязательными, а каждое место спрашивало `typeof deep.X ===
+ * "function"` и держало за этим свой ответ: пустое дерево, «ничего не
+ * записали», своя нормализация. Отдаёт помощников один импорт
+ * (`fields_editor.ts`, `order_lists.ts`, `preview_data.ts`, `smart_rules.ts`),
+ * литеральный и разрешаемый всегда, — то есть ни один из этих ответов не
+ * исполнялся ни разу, а обещание «без модуля мы переживём» было ложным:
+ * человек получил бы редактор, который молча не сохраняет.
+ *
+ * Прежний довод «доска умеет откатиться на заглушку» перестал быть правдой
+ * 2026-09-14, когда шов `fields_editor_legacy.js` сняли вместе с заглушкой.
+ * Утверждение о состоянии живёт дольше состояния (У-64), и держало оно ровно
+ * эти пять запасных ходов.
  */
 export interface DeepState {
-  __unavailable?: boolean;
-  normalizeToken?: (raw: unknown, kind?: string) => string;
-  normalizeCheckboxInput?: (raw: unknown) => string;
-  buildTagTree?: (parentField: Loose, subField: Loose, kind: string, options?: Loose) => Loose[];
-  applyTagTreeToFields?: (tree: Loose[], parentField: Loose, subField: Loose, kind: string) => Loose;
-  denormToken?: (raw: unknown) => string;
+  normalizeToken: (raw: unknown, kind?: string) => string;
+  normalizeCheckboxInput: (raw: unknown) => string;
+  buildTagTree: (parentField: Loose, subField: Loose, kind: string, options?: Loose) => Loose[];
+  applyTagTreeToFields: (tree: Loose[], parentField: Loose, subField: Loose, kind: string) => Loose;
+}
+
+/**
+ * Требования модели к помощникам — одним списком и вслух.
+ *
+ * Тот же приём, что у `need(...)` в `pkm_v2/field_relocation.js`: имя, которого
+ * не хватает, называется в самом отказе, и спрашивается оно **один раз**, а не
+ * в каждом месте вызова.
+ */
+function ensureDeepState(raw: DeepState | undefined): DeepState {
+  const need: readonly (keyof DeepState)[] = [
+    "normalizeToken",
+    "normalizeCheckboxInput",
+    "buildTagTree",
+    "applyTagTreeToFields",
+  ];
+  for (const name of need) {
+    if (!raw || typeof raw[name] !== "function") {
+      throw new Error("order_deep_editor_state unavailable: " + String(name));
+    }
+  }
+  return raw as DeepState;
 }
 
 export interface FieldsModelDeps {
@@ -244,7 +276,6 @@ export interface LinkParentChoice {
  * патчи, которые уходят в конфиг.
  */
 export interface ValuesEditor {
-  available: boolean;
   kind: FieldKind;
   parentFieldId: string;
   subFieldId: string;
@@ -1495,19 +1526,19 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
   /* ---- значения Field и element --------------------------------------- */
 
-  const deep: DeepState = deps.deepState || {};
-  const normToken = (raw: unknown, kind: string): string =>
-    (typeof deep.normalizeToken === "function"
-      ? deep.normalizeToken(raw, kind)
-      : String(raw || "").trim());
-  const normCheckbox = (raw: unknown): string =>
-    (typeof deep.normalizeCheckboxInput === "function"
-      ? deep.normalizeCheckboxInput(raw)
-      : String(raw || "").trim());
-  const denorm = (raw: unknown): string =>
-    (typeof deep.denormToken === "function"
-      ? deep.denormToken(raw)
-      : String(raw || "").trim().replace(/^#/, ""));
+  const deep: DeepState = ensureDeepState(deps.deepState);
+  const normToken = (raw: unknown, kind: string): string => deep.normalizeToken(raw, kind);
+  const normCheckbox = (raw: unknown): string => deep.normalizeCheckboxInput(raw);
+  /*
+   * **`denorm` — не запасной ход, а единственное объявление правила.**
+   *
+   * Стояло оно за вопросом `typeof deep.denormToken === "function"`, и вопрос
+   * этот отвечает «нет» **всегда**: `denormToken` модуль не экспортировал ни
+   * дня. То есть работала ровно эта строка, а охрана обещала дом, которого
+   * нет. Пробой это и показал: из шести запасных ходов вокруг `deep` красным
+   * стал один — этот (10.13.166).
+   */
+  const denorm = (raw: unknown): string => String(raw || "").trim().replace(/^#/, "");
 
   /**
    * Найти Field по ключу Order. Ищет и по системному имени: в конфиге Field
@@ -1666,9 +1697,12 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       if (t && cb) fieldCheckboxByToken[t] = cb;
     }
 
-    const tree: Loose[] = typeof deep.buildTagTree === "function"
-      ? deep.buildTagTree(parentField, subField, kind, { checkboxByToken: fieldCheckboxByToken })
-      : [];
+    const tree: Loose[] = deep.buildTagTree(
+      parentField,
+      subField,
+      kind,
+      { checkboxByToken: fieldCheckboxByToken },
+    );
     if (kind === "wikilink") {
       const vals: Loose[] = parentField && Array.isArray(parentField.values) ? parentField.values : [];
       const byTok: Loose = {};
@@ -1894,7 +1928,6 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     };
 
     const saveTree = (nextTree: Loose[], reason: string): WriteResult => {
-      if (typeof deep.applyTagTreeToFields !== "function") return { ok: false, changed: false };
       if (kind === "wikilink") {
         /*
          * Сохранение дерева значений ссылки.
@@ -2176,7 +2209,6 @@ export function createFieldsModel(deps: FieldsModelDeps) {
 
       const nextTree = cloneTree();
       nextTree.push({ token, prefix: "#", children: [] });
-      if (typeof deep.applyTagTreeToFields !== "function") return { ok: false, changed: false };
       const merged: Loose = deep.applyTagTreeToFields(
         nextTree,
         parentField || { id: strictName, orderKey: k, prefix: "#", values: [] },
@@ -2200,7 +2232,6 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     };
 
     return {
-      available: deep.__unavailable !== true && typeof deep.applyTagTreeToFields === "function",
       kind,
       parentFieldId,
       subFieldId,

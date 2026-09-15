@@ -83,8 +83,8 @@ const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> =
   },
   {
     file: "src/ui/settings/custom/fields_model.ts",
-    left: 3,
-    why: "суффикс `sub` дочернего Field и шаблон строки выбора: часть формата, а не текст",
+    left: 4,
+    why: "суффикс `sub` дочернего Field и шаблон строки выбора — часть формата, а не текст; четвёртая с 2026-09-16 — текст исключения, которым модель отказывает без помощников состояния (10.13.166): его читает журнал разработчика, а не человек",
   },
   {
     file: "src/ui/settings/obsidian_tab.ts",
