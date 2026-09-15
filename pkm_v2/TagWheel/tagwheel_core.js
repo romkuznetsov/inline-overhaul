@@ -2328,9 +2328,11 @@ function buildTags(mode, state, rules, parsedLine) {
             return findValueById(values, selectedId)
           },
           buildOutputTokenForField: buildOutputToken,
+          /* «Приставка плюс значение» — общий дом (10.13.152). Здесь стояло
+             голое склеивание без единой охраны: на пустом значении оно
+             отдавало одну приставку, а на готовом теге — удвоенную. */
           composeToken: function (prefix, rawToken) {
-            var p = typeof prefix === 'string' ? prefix : '#'
-            return p + String(rawToken || '')
+            return __sharedUtils.composeToken(prefix, rawToken)
           }
         }
       })

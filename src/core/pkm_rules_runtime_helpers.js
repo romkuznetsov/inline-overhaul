@@ -959,16 +959,10 @@ function buildTagTokenKeyMap(rules, options) {
 
     return out.filter(isActiveValue);
   };
-  const composeToken = (prefix, rawToken) => {
-    const p = typeof prefix === "string" ? prefix : "#";
-    const t = String(rawToken || "").trim();
-    if (!t) return "";
-    if (__sharedUtils.isWikilinkToken(t)) return t;
-    if (__sharedUtils.startsWithTagToken(t)) return t;
-    if (p && t.startsWith(p)) return t;
-    if (!p && /^\/\S+/.test(t)) return `#${t}`;
-    return `${p}${t}`;
-  };
+  /* «Приставка плюс значение» — общий дом (10.13.152). Это тело было самым
+     полным из четырёх, и от него дом отличается одним: пропуск насквозь
+     любого готового тега снят. Он молча терял приставку, не равную решётке. */
+  const composeToken = (prefix, rawToken) => __sharedUtils.composeToken(prefix, rawToken);
 
   const leftFields = rules && rules.leftMode && Array.isArray(rules.leftMode.fields) ? rules.leftMode.fields : [];
   /*

@@ -279,6 +279,212 @@ function reportOutputMode() {
   return diverging.length;
 }
 
+/* ------------------------------ «приставка поля + значение» (composeToken) */
+
+/**
+ * Правило «как приставка поля склеивается со значением» — то, что решает,
+ * каким значение встанет в строку.
+ *
+ * **Объявлений было четыре, стало одно** (2026-09-15, его слово «убирать
+ * лишнее в самом правиле»). До сведения: 73 расхождения из 136 пар, и три
+ * тела из четырёх на паре «приставка `#` + значение `#todo`» давали
+ * `##todo` — на 17 парах каждое. Прежние тела здесь **не хранятся**: копия
+ * снятого тела — это ещё одно объявление правила, и стареет она молча.
+ *
+ * Что стережёт стенд теперь — две вещи, и они разные (У-194, У-195):
+ *   - **ответ дома**: удвоенной приставки на выходе не бывает ни на одной
+ *     паре, и её число печатается вслух. Это ловит поломку самого дома;
+ *   - **форма**: сплошным обходом рантайма — что своего тела не завёл никто.
+ *     Это ловит возврат копии, до которого ответом не дотянуться.
+ *
+ * Мера здесь своя: вход — **пара** «приставка и значение», а не один токен.
+ */
+function composeSites() {
+  const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
+  return [
+    {
+      id: "shared_utils (дом)",
+      file: "src/core/shared_utils.js",
+      anchor: null,
+      fn: (prefix, rawToken) => shared.composeToken(prefix, rawToken),
+    },
+  ];
+}
+
+/** Приставки берутся у него, а не пишутся здесь литералами (У-182). */
+function prefixCorpus() {
+  const out = [];
+  const seen = new Set();
+  const add = (v, from) => {
+    const s = String(v == null ? "" : v);
+    if (seen.has(s)) return;
+    seen.add(s);
+    out.push({ value: s, from });
+  };
+  const raw = JSON.parse(fs.readFileSync(DATA, "utf8"));
+  (function walk(o) {
+    if (!o) return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (typeof o !== "object") return;
+    for (const k of Object.keys(o)) {
+      if (k === "prefix" && typeof o[k] === "string") add(o[k], "его конфиг");
+      walk(o[k]);
+    }
+  })(raw);
+  /*
+   * Края. У заказчика приставка сегодня одна — решётка, — и на ней вопрос «а
+   * что, если приставка не решётка» не задаётся вовсе. Он же и есть тот край,
+   * на котором тела расходятся сильнее всего: одно из четырёх пропускает
+   * **любой готовый тег** насквозь, то есть приставку не применяет.
+   */
+  add("", "край (синтетика)");
+  add("#", "край (синтетика)");
+  add("@", "край (синтетика)");
+  add("📅", "край (синтетика)");
+  return out;
+}
+
+/**
+ * Полнота списка мест — сплошным обходом рантайма, а не рукой (У-111).
+ * Делегат от объявления отличается **формой**: в теле стоит вызов
+ * `.composeToken(` у кого-то другого.
+ *
+ * Контроль двусторонний: каждое найденное обязано быть в списке, и каждое
+ * место списка обязано найтись обходом — иначе образец промахнулся (У-142).
+ */
+function composeSitesComplete(sites) {
+  const listed = new Set(sites.map((s) => s.file));
+  const found = new Set();
+  const bad = [];
+  const skipDir = new Set(["node_modules", "dist", ".git", "tests", "docs", "tools"]);
+  const isDecl = (line) =>
+    /function\s+composeToken\s*\(/.test(line) ||
+    /composeToken\s*[:=]\s*(?:function\s*)?\(/.test(line) ||
+    /composeToken\s*[:=]\s*(?:async\s*)?\([^)]*\)\s*=>/.test(line);
+  const walk = (d) => {
+    for (const name of fs.readdirSync(d)) {
+      if (skipDir.has(name)) continue;
+      const full = path.join(d, name);
+      const st = fs.statSync(full);
+      if (st.isDirectory()) { walk(full); continue; }
+      if (!/\.js$/.test(name)) continue;
+      const rel = path.relative(ROOT, full).split(path.sep).join("/");
+      const lines = fs.readFileSync(full, "utf8").split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (!isDecl(lines[i])) continue;
+        /* Делегат: тело зовёт чужой `composeToken`. Десяти строк хватает —
+           все тела здесь короче, и длиннее им быть незачем. */
+        if (/\.composeToken\(/.test(lines.slice(i, i + 10).join("\n"))) continue;
+        found.add(rel);
+        if (!listed.has(rel)) {
+          bad.push("объявление composeToken в " + rel + ":" + (i + 1) + " не значится в списке мест");
+        }
+      }
+    }
+  };
+  walk(ROOT);
+  for (const f of listed) {
+    if (!found.has(f)) bad.push("обход не нашёл объявления в " + f + " — образец промахнулся, числам верить нельзя");
+  }
+  return bad;
+}
+
+function reportCompose() {
+  const sites = composeSites();
+  const prefixes = prefixCorpus();
+  const tokens = []
+    .concat(corpusFromHisConfig().map((v) => ({ value: v, from: "его конфиг" })))
+    .concat(SYNTHETIC_EDGES.map((v) => ({ value: v, from: "край (синтетика)" })));
+
+  console.log("== вопрос «как приставка поля склеивается со значением»: " + sites.length + " объявлений");
+  for (const s of sites) console.log("   - " + s.id + "  (" + s.file + ")");
+
+  const problems = [];
+  for (const s of sites) {
+    if (!s.anchor) continue;
+    const text = fs.readFileSync(path.join(ROOT, s.file), "utf8");
+    if (text.indexOf(s.anchor) < 0) {
+      problems.push(s.id + ": строки исходника, из которой тело переписано, в файле больше нет");
+    }
+  }
+  for (const p of composeSitesComplete(sites)) problems.push(p);
+
+  const answerOf = (s, pf, tk) => {
+    try { return String(s.fn(pf, tk)); }
+    catch (e) { return "БРОСИЛО: " + String(e && e.message); }
+  };
+  const ask = (s, pf, tk) => JSON.stringify(answerOf(s, pf, tk));
+
+  let pairs = 0;
+  const diverging = [];
+  const doubled = new Map(sites.map((s) => [s.id, 0]));
+  for (const pf of prefixes) {
+    for (const tk of tokens) {
+      pairs++;
+      const answers = sites.map((s) => ask(s, pf.value, tk.value));
+      if (new Set(answers).size > 1) diverging.push({ pf, tk, answers });
+      /* Удвоенная приставка — тот самый `##todo`, ради которого всё это.
+         Считается только **добавленная** приставка: значение, у которого
+         приставка стояла дважды с самого начала, правило не удваивало. */
+      if (pf.value && !String(tk.value).trim().startsWith(pf.value + pf.value)) {
+        for (const s of sites) {
+          const out = answerOf(s, pf.value, tk.value);
+          if (out.startsWith(pf.value + pf.value)) doubled.set(s.id, doubled.get(s.id) + 1);
+        }
+      }
+    }
+  }
+
+  console.log("   пар «приставка × значение»: " + pairs +
+    " (приставок " + prefixes.length + ", значений " + tokens.length + "), расхождений: " + diverging.length);
+  console.log("   удвоенная приставка на выходе (его решение 2026-09-15 — ни одной):");
+  for (const s of sites) {
+    const n = doubled.get(s.id);
+    console.log("      " + s.id.padEnd(30) + " " + String(n).padStart(4) + " пар" + (n ? "   <= УДВАИВАЕТ" : ""));
+    if (n) problems.push(s.id + ": приставка удваивается на " + n + " парах");
+  }
+
+  if (sites.length > 1) {
+    console.log("   попарно (0 значит «на всех парах отвечают одинаково»):");
+    for (let i = 0; i < sites.length; i++) {
+      for (let j = i + 1; j < sites.length; j++) {
+        let n = 0;
+        for (const pf of prefixes) {
+          for (const tk of tokens) {
+            if (ask(sites[i], pf.value, tk.value) !== ask(sites[j], pf.value, tk.value)) n++;
+          }
+        }
+        console.log("     " + sites[i].id.padEnd(30) + " x " + sites[j].id.padEnd(30) +
+          " " + String(n).padStart(4) + (n === 0 ? "  <= сводимо" : ""));
+      }
+    }
+  }
+
+  if (SHOW_ALL) {
+    for (const d of diverging) {
+      console.log("     приставка " + JSON.stringify(d.pf.value) + " + значение " + JSON.stringify(d.tk.value));
+      sites.forEach((s, i) => console.log("        " + s.id.padEnd(30) + " -> " + d.answers[i]));
+    }
+  }
+
+  /* Контроль самой меры: нарочно разведённая сторона обязана попасть в счёт.
+     Портится **копия** первого места, а не соседнее — иначе контроль отвечал
+     бы на «расходятся ли эти двое», а не на «видит ли мера расхождение». */
+  const spoiled = { id: "control", fn: (pf, tk) => answerOf(sites[0], pf, tk) + "x" };
+  let seen = 0;
+  for (const pf of prefixes) {
+    for (const tk of tokens) {
+      if (ask(sites[0], pf.value, tk.value) !== ask(spoiled, pf.value, tk.value)) seen++;
+    }
+  }
+  console.log("   контроль чувствительности: нарочно испорченная сторона расходится на " +
+    seen + " парах из " + pairs + (seen ? "" : "  <= МЕРА СЛЕПА"));
+  if (!seen) problems.push("мера не увидела нарочно разведённой пары — она слепа");
+  for (const p of problems) console.log("   ! " + p);
+  console.log("");
+  return diverging.length + problems.length;
+}
+
 /* ------------------------------------------ «найти ссылки в тексте строки» */
 
 /**
@@ -640,6 +846,7 @@ function main() {
   }
 
   totalDiverging += reportOutputMode();
+  totalDiverging += reportCompose();
   totalDiverging += reportScan();
 
   console.log("Итого расхождений: " + totalDiverging);

@@ -573,13 +573,11 @@ function createStatusRuntimeCommon(deps) {
     throw new Error("pkm_macro_shared unavailable: segmentHasToken");
   }
 
+  /* «Приставка плюс значение» — общий дом (10.13.152). Здесь тело не
+     удваивало уже стоящую приставку только потому, что звавшие возвращались
+     раньше; теперь не удваивает само правило. */
   function composeToken(prefix, rawToken) {
-    const p = typeof prefix === "string" ? prefix : "#";
-    const t = String(rawToken || "");
-    if (!t) return "";
-    if (__sharedUtils.isWikilinkToken(t)) return t;
-    if (!p && /^\//.test(t)) return `#${t}`;
-    return `${p}${t}`;
+    return __sharedUtils.composeToken(prefix, rawToken);
   }
 
   function normalizeImportanceTokenShape(tokenRaw) {

@@ -1342,6 +1342,46 @@ async function run() {
       "нормализация ключа Order объявляется в общем доме; своё тело завелось в: " + ownOrderKeyBodies.join(" | "));
 
     /*
+     * **«Как приставка склеивается со значением» объявляется в общем доме**
+     * (10.13.152, его слово 2026-09-15 «убирать лишнее в самом правиле»).
+     *
+     * Тел было четыре, и ни одна пара не отвечала одинаково: 73 расхождения
+     * из 136 пар, и три тела на его собственной паре «`#` + `#todo`» давали
+     * `##todo`. От экрана это берегли **ранние возвраты у звавших**, а не само
+     * правило: седьмое место вызова сломало бы его молча (10.13.147).
+     *
+     * Сведение делает сверку четырёх дорог слабой — они спрашивают один дом
+     * и ломаются одинаково, — поэтому вес несёт не она, а два разных сторожа
+     * (У-194, У-195): ожидания **ответа** в `runtime_unified_parity_tests.js`
+     * ловят поломку дома, а этот обход — возврат своей копии, до которого
+     * поведением не дотянуться.
+     *
+     * Ищется **форма**, а не имена: объявление `composeToken`, в теле которого
+     * нет обращения к чужому `composeToken`. Делегат такую проверку проходит,
+     * новая копия под тем же именем — нет.
+     */
+    const composeDecl = /(?:function\s+composeToken\s*\(|composeToken\s*[:=]\s*(?:function\s*)?\()/g;
+    const allowedComposeHome = "src/core/shared_utils.js";
+    const ownComposeBodies = [];
+    let sawComposeHome = false;
+    for (const abs of walked) {
+      const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+      const code = codeOnly(fs.readFileSync(abs, "utf8"));
+      composeDecl.lastIndex = 0;
+      let m;
+      while ((m = composeDecl.exec(code)) !== null) {
+        /* Тела здесь короткие; четырёхсот знаков хватает на любое из них. */
+        if (/\.composeToken\(/.test(code.slice(m.index, m.index + 400))) continue;
+        if (rel === allowedComposeHome) { sawComposeHome = true; continue; }
+        if (!ownComposeBodies.includes(rel)) ownComposeBodies.push(rel);
+      }
+    }
+    assertTrue(sawComposeHome,
+      "положительный контроль: обход нашёл тело склейки приставки в самом доме");
+    assertEq(ownComposeBodies.join(" | "), "",
+      "склейка приставки со значением объявляется в общем доме; своё тело завелось в: " + ownComposeBodies.join(" | "));
+
+    /*
      * **У служебного файла правил не осталось ни одного читателя** (PRD
      * 10.13.52, П-8, шаг третий, 2026-09-13).
      *

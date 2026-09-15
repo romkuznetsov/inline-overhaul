@@ -361,12 +361,11 @@ function makeFieldById(fields) {
   }
 }
 
+/* «Приставка плюс значение» — общий дом (10.13.152). Тело панели не
+   пропускало насквозь даже готовую ссылку и удваивало приставку; от `##todo`
+   на экране берегли ранние возвраты у звавших, а не оно. */
 function composeToken(prefix, rawToken) {
-  var p = (typeof prefix === 'string') ? prefix : '#'
-  var t = String(rawToken || '')
-  if (!t) return ''
-  if (!p && /^\//.test(t)) return '#' + t
-  return p + t
+  return __sharedUtils.composeToken(prefix, rawToken)
 }
 
 /* «Снять скобки, если они есть» — общий дом (`unwrapWikilinkToken`). Тело
