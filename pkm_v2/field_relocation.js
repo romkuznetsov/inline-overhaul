@@ -61,6 +61,18 @@ function createFieldRelocation(deps) {
   if (!core || typeof core.buildOutputToken !== "function") {
     throw new Error(`${owner}: field_relocation missing dependency core.buildOutputToken`);
   }
+  /*
+   * **Второе имя того же дома спрашивается здесь же, а не в месте вызова**
+   * (10.13.166). Раньше `managedFields` спрашивала `typeof core.isFieldEnabled`
+   * сама и на «нет» отдавала список **без отбора** — то есть переставляла бы по
+   * Order значения полей, которыми дорога не управляет: ровно то, что чинило
+   * исключение № 96. Пробой внутри той ветки не покрасил ни одной проверки, а
+   * бросок на входе в саму `managedFields` — четыре: ветка была недостижима, и
+   * молчала она о поломке загрузки, а не о поле.
+   */
+  if (typeof core.isFieldEnabled !== "function") {
+    throw new Error(`${owner}: field_relocation missing dependency core.isFieldEnabled`);
+  }
 
   function getField(mode, id) {
     return getStatusRuntimeCommon().getFieldById(mode, id);
@@ -270,7 +282,6 @@ function createFieldRelocation(deps) {
    */
   function managedFields(rules, state, fields) {
     const list = Array.isArray(fields) ? fields : [];
-    if (typeof core.isFieldEnabled !== "function") return list;
     return list.filter((f) => {
       if (!f || !f.id) return false;
       const mode = getFieldModeById(rules, f.id);

@@ -531,8 +531,18 @@ function enforceDependentAdjacencyForStatusLine(finalLine, rules, state, core) {
       buildOutputTokenForField,
       composeToken,
       selectedTokenFromState,
+      /*
+       * **Отказ здесь громкий, а не пустой список** (10.13.166). Пустой список
+       * допустимых значений неотличим от честного ответа «у этого поля значений
+       * нет», и правило соседства дочернего поля на нём молча перестаёт
+       * работать. Ядро панели приезжает сюда тем же литеральным `require`, что
+       * и остальные модули: пробой внутри этой ветки не покрасил ни одной
+       * проверки, бросок на входе в саму функцию — три.
+       */
       getAllowedValues: (runtimeCore, runtimeRules, runtimeState, field) => {
-        if (!runtimeCore || typeof runtimeCore.getAllowedValues !== "function") return [];
+        if (!runtimeCore || typeof runtimeCore.getAllowedValues !== "function") {
+          throw new Error("tagwheel_core unavailable: getAllowedValues");
+        }
         return runtimeCore.getAllowedValues(runtimeRules.leftMode, runtimeState, field, runtimeRules);
       },
     },

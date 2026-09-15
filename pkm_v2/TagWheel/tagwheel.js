@@ -1232,8 +1232,12 @@ async function runTagWheel(input, quickAddSettings) {
     if (!statusRt && globalThis && globalThis.__inlineStatusLineRuntimeUnified) {
       statusRt = globalThis.__inlineStatusLineRuntimeUnified
     }
+    /* Сосед по той же переменной — `relocateTagLikeByOrder` — отказывает здесь
+       громко, а это место отдавало строку нетронутой: правило соседства
+       дочернего поля молча переставало работать, и отличить это от «нечего
+       менять» нельзя было ничем (10.13.166). */
     if (!statusRt || typeof statusRt.enforceDependentAdjacencyForStatusLine !== 'function') {
-      return String(finalLine || '')
+      throw new Error('status_line_runtime_unified unavailable: enforceDependentAdjacencyForStatusLine')
     }
     return statusRt.enforceDependentAdjacencyForStatusLine({
       finalLine: String(finalLine || ''),
@@ -1256,8 +1260,11 @@ async function runTagWheel(input, quickAddSettings) {
         },
         getAllowedValues: function(runtimeCore, runtimeRules, runtimeState, field) {
           var mode = runtimeRules && runtimeRules.leftMode ? runtimeRules.leftMode : { fields: [] }
+          /* Тот же отказ, что у команд тегов (10.13.166): молчаливый ответ
+             здесь был **копией правила** — «значения поля это то, что у него
+             записано», — а дом спрашивает ещё и предусловие и активность. */
           if (!runtimeCore || typeof runtimeCore.getAllowedValues !== 'function') {
-            return field && Array.isArray(field.values) ? field.values : []
+            throw new Error('tagwheel_core unavailable: getAllowedValues')
           }
           return runtimeCore.getAllowedValues(mode, { selected: runtimeState && runtimeState.selected ? runtimeState.selected : {} }, field, runtimeRules)
         },

@@ -501,6 +501,36 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   assert.ok(kept.indexOf("#a") < kept.indexOf("|"),
     "команда не переставляет значение поля, которого не показывает: " + kept);
   ok("команда не трогает значение спрятанного поля — тот же ответ, что у панели");
+
+  /*
+   * **А без `isFieldEnabled` правило обязано отказать вслух** (10.13.166).
+   *
+   * Отбор полей стоял за охраной наоборот: `typeof core.isFieldEnabled !==
+   * "function"` — и на «нет» правило получало список **без отбора**, то есть
+   * переставляло бы по Order ровно те значения, которые проверка выше бережёт.
+   * Пробой внутри той ветки не покрасил ни одной проверки из семидесяти одной,
+   * а бросок на входе в саму `managedFields` — четыре: ветка была недостижима.
+   * Теперь имя спрашивается там же, где остальные зависимости, и человек
+   * читает, чего не хватило.
+   */
+  const deps = {
+    owner: "проверка",
+    getStatusRuntimeCommon: () => statusCommon,
+    getStatusLineRuntime: () => requireCjs(path.join(root, "src", "core", "status_line_runtime_unified.js")),
+    getDomainRegistry: () => requireCjs(path.join(root, "src", "core", "pkm_domain_registry.js")),
+    tokenGraph: requireCjs(path.join(root, "src", "core", "token_graph_unified.js")),
+    core,
+    isObj: (x: Any) => !!x && typeof x === "object" && !Array.isArray(x),
+  };
+  assert.throws(
+    () => relocation.createFieldRelocation({ ...deps, core: { ...core, isFieldEnabled: undefined } }),
+    /isFieldEnabled/,
+    "без отбора полей правило перестановки собралось молча",
+  );
+  /* Контроль: с целым ядром сборка проходит — иначе краснело бы на чём угодно. */
+  assert.ok(relocation.createFieldRelocation(deps),
+    "положительный контроль: с целым ядром правило перестановки собирается");
+  ok("правило перестановки отказывает вслух, когда ядро не отдало отбор полей");
 }
 
 {

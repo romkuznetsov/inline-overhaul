@@ -139,7 +139,12 @@ function isObj(x) {
 function ensureStatusRuntimeCommonFns() {
   if (globalThis.__inlineStatusRuntimeCommonFns && typeof globalThis.__inlineStatusRuntimeCommonFns === 'object') return globalThis.__inlineStatusRuntimeCommonFns
   var mod = getStatusRuntimeCommon()
-  if (!mod || typeof mod.createStatusRuntimeCommon !== 'function') return null
+  /* Отказ громкий (10.13.166): `null` отсюда уезжал четырём звавшим, и каждый
+     звал у него метод — то есть человек всё равно получал отказ, только без
+     имени модуля в нём. Модуль приезжает литеральным `require`. */
+  if (!mod || typeof mod.createStatusRuntimeCommon !== 'function') {
+    throw new Error('status_runtime_common unavailable: createStatusRuntimeCommon')
+  }
   /* Нормализатор ключа Order объявлен один раз — `normalizeOrderKey` в
      `shared_utils.js` (10.13.146). Здесь стояли два последних литерала того же
      тела: и как довод `normalizeOrderKey`, и внутри `loadOrderKeyNormalizer`.
