@@ -1427,6 +1427,13 @@ function normalizeStructuredSlots(options) {
     .replace(/\s{2,}/g, " ")
     .trim();
 
+  /* Список меток и признак «это наш токен» объявлены здесь, а не ниже: их
+     спрашивает и правило о заголовке выше по тексту, и деление зоны значений
+     ниже. Один вопрос — одно объявление. */
+  const markers = getRightMarkersUnified(rules);
+  const markerAlt = markers.length ? markers.map(escapeRx).join("|") : "(?!)";
+  const markerRe = new RegExp("^(?:" + markerAlt + ")");
+
   /*
    * **Слово человека приклеивается к знаку заголовка, а значения полей — нет**
    * (10.13.156).
@@ -1445,12 +1452,39 @@ function normalizeStructuredSlots(options) {
    * разделителях её нет ни на одной паре, то есть прячет её именно совпадение
    * (У-147).
    *
-   * Спрашивается признак **у общего объявления** — того же, которым сборка
-   * строки отличает зону значений от текста (`hasLeftTech` в
-   * `buildFromSegments`), а не своим образцом.
+   * **Вопрос здесь «всё ли это значения», а не «есть ли среди них значение».**
+   * Первая версия спрашивала второе — `hasFieldTokens`, — и была шире сборки:
+   * на `#  :: слово #важное` сборка приклеивает к заголовку всё (`#важное` —
+   * тег внутри слова человека), а доводка оставляла разделитель. То есть две
+   * половины плагина расходились, и написанное им самим он снова не мог
+   * прочесть (У-157). Признак сужен до «каждый токен — наш», и спрашивается
+   * он тем же `isControlToken`, которым ниже делится зона значений и текст.
+   *
+   * Правило заведено по его слову 2026-09-15: «в основном разделители будут
+   * одинаковые у всех пользователей, нужно, чтобы в этом случае проблем не
+   * было». То есть совпадение разделителей — **основной** случай, а не край,
+   * и цена вида «а вы разведите разделители» здесь не ответ.
    */
-  const textIsFieldValues = __linePipeline.hasFieldTokens(text, __linePipeline.fieldsShape(rules));
-  if (text && !leftBody && !dates && !textIsFieldValues) {
+  /*
+   * **Признак — местный `isControlToken`, и это выбор, а не недосмотр.**
+   *
+   * Сперва здесь стояло обращение к признаку сборки (`hasFieldTokens`), чтобы
+   * две половины согласовать по построению, — и обход строки тут же покраснел
+   * на его собственных данных: значение-дата у него **два токена**
+   * (`📅2026-09-15` и `13:16`), а признак сборки спрашивается о токене и
+   * второй половины значения не узнаёт. `isControlToken` её знает.
+   *
+   * Обратная сторона названа и не спрятана: списки «что такое наша метка» эти
+   * двое читают из **разных мест конфига** — здесь `rules.dates.markers`, у
+   * сборки стороны Order. На его настройках оба видят `📅`, и расхождения
+   * нет; на фикстуре, где метка объявлена только одним способом, они
+   * расходятся. Сведение этих двух списков — отдельная работа с отдельной
+   * мерой, и она записана строкой очереди; оба сегодняшних ответа закреплены
+   * проверками, чтобы сведение было осознанным, а не тихим.
+   */
+  const textTokensAll = text ? text.split(/\s+/).filter(Boolean) : [];
+  const textIsAllFieldValues = textTokensAll.length > 0 && textTokensAll.every(isControlToken);
+  if (text && !leftBody && !dates && !textIsAllFieldValues) {
     return `${headingPrefix} ${text}`.replace(/\s{2,}/g, " ").trimEnd();
   }
 
@@ -1458,10 +1492,6 @@ function normalizeStructuredSlots(options) {
 
   const tokens = leftBody ? leftBody.split(/\s+/).filter(Boolean) : [];
   if (!tokens.length) return line;
-
-  const markers = getRightMarkersUnified(rules);
-  const markerAlt = markers.length ? markers.map(escapeRx).join("|") : "(?!)";
-  const markerRe = new RegExp("^(?:" + markerAlt + ")");
 
   function isControlToken(token) {
     const t = String(token || "").trim();
