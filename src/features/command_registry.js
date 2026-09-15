@@ -67,10 +67,19 @@ function getLineFormat(cfg) {
 function getJumpLineShape(cfg, rt) {
   const lf = getLineFormat(cfg);
   const base = lf && typeof lf === "object" ? { ...lf } : {};
-  if (rt && typeof rt.buildNavigateRules === "function") {
-    const rules = rt.buildNavigateRules(cfg);
-    if (rules && Array.isArray(rules.trailingMarkers)) base.markers = rules.trailingMarkers.slice();
+  /*
+   * **Без меток прыжок молча становится другим прыжком** (10.13.167). Тихий
+   * пропуск этого куска возвращал форму строки без меток элементов — то есть
+   * ровно то поведение, которым был замечен `S4`: «в конец вашего текста»
+   * уезжало за дату. Отличить это от честной работы человек не мог никак.
+   * Движок сюда доезжает — обе команды прыжка спрашивают его тем же вопросом
+   * и говорят человеку `Notice`, если не доехал.
+   */
+  if (!rt || typeof rt.buildNavigateRules !== "function") {
+    throw new Error("navigation_runtime unavailable: buildNavigateRules");
   }
+  const rules = rt.buildNavigateRules(cfg);
+  if (rules && Array.isArray(rules.trailingMarkers)) base.markers = rules.trailingMarkers.slice();
   return base;
 }
 
@@ -199,7 +208,9 @@ function buildNavigationCommandDefs(plugin) {
       name: __commandIds.commandName("jump-back"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
-        if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
+        if (!rt || typeof rt.jumpToHeader !== "function" || typeof rt.buildNavigateRules !== "function") {
+          return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
+        }
         rt.jumpToHeader(ed, "up", nav.jumpToHeader, getJumpLineShape(fullCfg, rt));
       },
     },
@@ -208,7 +219,9 @@ function buildNavigationCommandDefs(plugin) {
       name: __commandIds.commandName("jump-next"),
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
-        if (!rt || typeof rt.jumpToHeader !== "function") return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
+        if (!rt || typeof rt.jumpToHeader !== "function" || typeof rt.buildNavigateRules !== "function") {
+          return plugin.notice(__say(__noticeKey("navigation", "runtime-unavailable"), "Navigation could not be loaded"));
+        }
         rt.jumpToHeader(ed, "down", nav.jumpToHeader, getJumpLineShape(fullCfg, rt));
       },
     },

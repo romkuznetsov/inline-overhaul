@@ -2854,6 +2854,118 @@ async function run() {
       "за охраной наоборот над своим модулем стоит громкий отказ, а не тихий ответ (10.13.166)");
 
     /*
+     * **Пятая форма: положительная охрана без иначе** (10.13.167).
+     *
+     *   if (mod && typeof mod.X === "function") {
+     *     …работа…
+     *   }
+     *   …дальше как ни в чём не бывало…
+     *
+     * Ответа на «нет» тут нет вовсе: работа просто не делается, и функция
+     * считает результат другим правилом. Человеку это видно как «работает, но
+     * не так»: ни сообщения, ни записи в журнале. По его слову 2026-09-16 сняты
+     * все одиннадцать; цена каждого названа в 10.13.167.
+     *
+     * Предмет сужен тем же свойством, что и у формы выше: спрашиваемое имя
+     * обязано экспортировать какой-то наш модуль. И `else` тут — законный
+     * ответ: это выбор из двух, а не молчание.
+     */
+    const POSITIVE_OPEN =
+      /^(\s*)if \((?:([A-Za-z_$][\w$]*) && )?typeof ([A-Za-z_$][\w$]*)\.([\w$]+) === ["']function["']\)\s*\{\s*$/;
+
+    const findSilentSkips = (text) => {
+      const lines = text.split("\n");
+      const found = [];
+      for (let i = 0; i < lines.length; i += 1) {
+        const hit = POSITIVE_OPEN.exec(lines[i]);
+        if (!hit) continue;
+        if (hit[2] && hit[2] !== hit[3]) continue;
+        if (!OURS_EXPORTED.has(hit[4])) continue;
+        /*
+         * Конец блока ищется по отступу, а закрывающая скобка бывает не одна:
+         * `}`, `} else {`, `} else if (…) {`. Сверка строки **целиком** на
+         * `} else {` убегала до следующей одинокой скобки — то есть считала
+         * выбор тихим пропуском, и три места из четырнадцати были выдуманы
+         * ровно так (У-142: контроль на каждый шаг обхода).
+         */
+        const closeRe = new RegExp("^" + hit[1] + "\\}(\\s*else\\b)?");
+        let j = i + 1;
+        const inside = [];
+        while (j < lines.length && !closeRe.test(lines[j])) { inside.push(lines[j]); j += 1; }
+        if (j >= lines.length) continue;
+        if (/^\s*\}\s*else\b/.test(lines[j])) continue;
+        /* Возврат дома внутри — предмет блочного запрета выше, не этого. */
+        const callsHome = new RegExp("^\\s*return " + hit[3] + "\\.[\\w$]+\\(");
+        if (inside.some((l) => callsHome.test(l))) continue;
+        found.push(i + 1);
+      }
+      return found;
+    };
+
+    /*
+     * Контроли в обе стороны и на каждый шаг: тихий пропуск виден, выбор через
+     * `else` — нет, проба платформы — нет, возврат дома оставлен блочному
+     * запрету.
+     */
+    const skipBad = [
+      "function markers(helpers, rules) {",
+      "  var out = [];",
+      "  if (helpers && typeof helpers.getDateMarkersFromRules === \"function\") {",
+      "    out = helpers.getDateMarkersFromRules(rules);",
+      "  }",
+      "  return out;",
+      "}",
+    ].join("\n");
+    const skipElse = [
+      "function markers(helpers, rules) {",
+      "  if (helpers && typeof helpers.getDateMarkersFromRules === \"function\") {",
+      "    return helpers.getDateMarkersFromRules(rules);",
+      "  } else {",
+      "    throw new Error(\"pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules\");",
+      "  }",
+      "}",
+    ].join("\n");
+    const skipProbe = [
+      "function widthOf(box) {",
+      "  var w = 0;",
+      "  if (box && typeof box.getBoundingClientRect === \"function\") {",
+      "    w = box.getBoundingClientRect().width;",
+      "  }",
+      "  return w;",
+      "}",
+    ].join("\n");
+    const skipReturnsHome = [
+      "function markers(helpers, rules) {",
+      "  if (helpers && typeof helpers.getDateMarkersFromRules === \"function\") {",
+      "    return helpers.getDateMarkersFromRules(rules);",
+      "  }",
+      "  throw new Error(\"pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules\");",
+      "}",
+    ].join("\n");
+    assertEq(findSilentSkips(skipBad).length, 1,
+      "положительный контроль: обход видит тихий пропуск за положительной охраной");
+    assertEq(findSilentSkips(skipElse).length, 0,
+      "положительный контроль: выбор через else тихим пропуском не считается");
+    assertEq(findSilentSkips(skipProbe).length, 0,
+      "положительный контроль: проба платформы под этот запрет не попадает");
+    assertEq(findSilentSkips(skipReturnsHome).length, 0,
+      "положительный контроль: возврат дома оставлен блочному запрету");
+
+    let positiveGuards = 0;
+    const silentSkips = [];
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      positiveGuards += (text.match(new RegExp(POSITIVE_OPEN.source, "gm")) || []).length;
+      for (const line of findSilentSkips(text)) {
+        silentSkips.push(path.relative(repoRoot, abs) + ":" + line);
+      }
+    }
+    assertTrue(positiveGuards > 20,
+      "положительный контроль: положительные охраны блоком в рантайме есть и их находит обход (" + positiveGuards + ")");
+    assertEq(silentSkips.join(" | "), "",
+      "работа над своим модулем не пропускается молча: у охраны есть ответ на «нет» (10.13.167)");
+
+    /*
      * **«Есть ли у строки знак списка» — вопрос с одним домом** (10.13.162).
      * Обе половины плагина считали ответ сами, одной и той же строкой
      * `!!lineStartOf(line).marker`; тела совпадали побайтно, и увидеть это

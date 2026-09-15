@@ -1142,5 +1142,60 @@ async function jump(text, line, direction, over) {
     ok("путь целиком: настройки → метка → положение каретки");
   }
 
+  /*
+   * **Форма строки для прыжков: метки приезжают от движка, а не «если вдруг»**
+   * (10.13.167).
+   *
+   * Вопрос здесь не к движку, а к **слою команд**: `getJumpLineShape` спрашивала
+   * `typeof rt.buildNavigateRules === "function"` и на «нет» отдавала форму
+   * строки **без меток элементов** — то есть ровно то поведение, которым был
+   * замечен `S4`: прыжок «в конец вашего текста» уезжал за дату. Молча.
+   *
+   * Исполнял эту функцию **ни один прогон**: счётчик на её охране за весь
+   * набор показал ноль. Поэтому водитель написан вместе с починкой (правило
+   * 124): команда прыжка зовётся так же, как её зовёт Obsidian, — с движком
+   * аргументом.
+   */
+  {
+    const registry = require(path.join(__dirname, "..", "..", "src", "features", "command_registry.js"));
+    const notices = [];
+    const plugin = {
+      app: { setting: { open: () => {}, openTabById: () => {} } },
+      manifest: { id: "inline-overhaul" },
+      notice: (m) => { notices.push(String(m || "")); },
+      getConfig: () => ({}),
+    };
+    const defs = registry.buildNavigationCommandDefs(plugin);
+    const jump = defs.find((d) => d && d.id === "jump-next");
+    if (!jump) throw new Error("команда прыжка вперёд не собралась вовсе");
+
+    const cfg = { pkm: { lineFormat: { separator1: "||", separator2: "::" } } };
+    const navCfg = { jumpToHeader: { enabled: true, mode: "sections" } };
+
+    /* Движок целиком: форма обязана донести метки до самого прыжка. */
+    const seen = [];
+    const rtFull = {
+      jumpToHeader: (_ed, _dir, _opts, shape) => { seen.push(shape); },
+      buildNavigateRules: () => ({ trailingMarkers: ["\u{1F4C5}", "\u{1F464}"] }),
+    };
+    jump.run({}, navCfg, cfg, rtFull);
+    assertEq(seen.length, 1, "прыжок не позвал движок");
+    assertArrayEq(seen[0].markers, ["\u{1F4C5}", "\u{1F464}"],
+      "метки элементов не доехали до формы строки прыжка");
+    assertEq(seen[0].separator1, "||", "разделитель человека до формы прыжка не доехал");
+
+    /*
+     * А без сборки правил команда обязана сказать человеку, а не молча прыгнуть
+     * по другой форме строки. Это положительный контроль в другую сторону: без
+     * него зелёное значило бы «метки есть всегда».
+     */
+    const rtHalf = { jumpToHeader: () => { seen.push(null); } };
+    const before = seen.length;
+    jump.run({}, navCfg, cfg, rtHalf);
+    assertEq(seen.length, before, "без сборки правил прыжок всё равно состоялся");
+    assertEq(notices.length, 1, "человеку не сказано, что движок навигации не доехал");
+    ok("прыжок: метки доезжают до формы строки, а без движка человек читает отказ");
+  }
+
   console.log("\n" + passed + " проверок пройдено");
 })().catch((e) => { console.error(e); process.exit(1); });

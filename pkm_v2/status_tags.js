@@ -903,12 +903,13 @@ function resolveTagFieldIdByOrderKey(rules, orderKey) {
   };
   const byOrderKey = fields.find((x) => x && String(x.orderKey || "").trim() === key);
   if (byOrderKey && byOrderKey.id) return String(byOrderKey.id);
-  if (reg && typeof reg.resolveLeftFieldIdByOrderKey === "function") {
-    const resolved = String(reg.resolveLeftFieldIdByOrderKey(key) || "").trim();
-    if (resolved) {
-      const byResolved = fields.find((x) => x && String(x.id || "").trim() === resolved);
-      if (byResolved && byResolved.id) return String(byResolved.id || "").trim();
-    }
+  if (!reg || typeof reg.resolveLeftFieldIdByOrderKey !== "function") {
+    throw new Error("pkm_domain_registry unavailable: resolveLeftFieldIdByOrderKey");
+  }
+  const resolved = String(reg.resolveLeftFieldIdByOrderKey(key) || "").trim();
+  if (resolved) {
+    const byResolved = fields.find((x) => x && String(x.id || "").trim() === resolved);
+    if (byResolved && byResolved.id) return String(byResolved.id || "").trim();
   }
   /*
    * Переименование Field меняет его имя, а ключ Order остаётся прежним:

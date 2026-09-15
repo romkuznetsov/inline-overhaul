@@ -1000,10 +1000,11 @@ function buildTagTokenKeyMap(rules, options) {
     if (!field) return "";
     const explicit = String(field.orderKey || "").trim();
     if (explicit) return explicit;
-    if (typeof __pkmDomainRegistry.resolveOrderKeyFromFieldId === "function") {
-      const mapped = String(__pkmDomainRegistry.resolveOrderKeyFromFieldId(field.id || "") || "").trim();
-      if (mapped) return mapped;
+    if (typeof __pkmDomainRegistry.resolveOrderKeyFromFieldId !== "function") {
+      throw new Error("pkm_domain_registry unavailable: resolveOrderKeyFromFieldId");
     }
+    const mapped = String(__pkmDomainRegistry.resolveOrderKeyFromFieldId(field.id || "") || "").trim();
+    if (mapped) return mapped;
     const source = String(field.source || "").trim();
     const id = String(field.id || "").trim();
     if (id) return id;

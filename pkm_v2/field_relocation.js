@@ -248,10 +248,11 @@ function createFieldRelocation(deps) {
       if (curOrderKey) return curOrderKey;
     }
     const reg = getDomainRegistry();
-    if (reg && typeof reg.resolveOrderKeyFromFieldId === "function") {
-      const mapped = String(reg.resolveOrderKeyFromFieldId(String(f.id || "").trim()) || "").trim();
-      if (mapped) return mapped;
+    if (!reg || typeof reg.resolveOrderKeyFromFieldId !== "function") {
+      throw new Error("pkm_domain_registry unavailable: resolveOrderKeyFromFieldId");
     }
+    const mapped = String(reg.resolveOrderKeyFromFieldId(String(f.id || "").trim()) || "").trim();
+    if (mapped) return mapped;
     const leftOrder = Array.isArray(rules?.behavior?.order?.left) ? rules.behavior.order.left : [];
     const rightOrder = Array.isArray(rules?.behavior?.order?.right) ? rules.behavior.order.right : [];
     const leftIdx = left.findIndex((x) => x && String(x.id || "").trim() === String(f.id || "").trim());

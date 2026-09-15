@@ -141,10 +141,13 @@ function resolveOrderKeyFromFieldId(fieldId) {
 
 function resolveDateFieldIdFromOrderKey(orderKey) {
   const reg = getDomainRegistry();
-  if (reg && typeof reg.resolveRightFieldIdByOrderKey === "function") {
-    return String(reg.resolveRightFieldIdByOrderKey(orderKey) || "").trim();
+  /* Сосед выше отказывает громко, а здесь стоял тихий пропуск: ключ Order
+     уходил дальше как идентификатор поля, и на паре ключей это разные вещи
+     (10.13.167). */
+  if (!reg || typeof reg.resolveRightFieldIdByOrderKey !== "function") {
+    throw new Error("pkm_domain_registry unavailable: resolveRightFieldIdByOrderKey");
   }
-  return String(orderKey || "").trim();
+  return String(reg.resolveRightFieldIdByOrderKey(orderKey) || "").trim();
 }
 
 function isObj(x) {

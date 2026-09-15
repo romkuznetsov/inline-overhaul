@@ -610,10 +610,12 @@ async function runTagWheel(input, quickAddSettings) {
 
   function resolveOrderKeyFromFieldId(fieldId) {
     var reg = getDomainRegistry()
-    if (reg && typeof reg.resolveOrderKeyFromFieldId === 'function') {
-      return String(reg.resolveOrderKeyFromFieldId(fieldId) || '').trim()
+    /* Идентификатор поля вместо ключа Order — не «почти то же»: на паре ключей
+       это разные значения, и разница видна только в строке (10.13.167). */
+    if (!reg || typeof reg.resolveOrderKeyFromFieldId !== 'function') {
+      throw new Error('pkm_domain_registry unavailable: resolveOrderKeyFromFieldId')
     }
-    return String(fieldId || '').trim()
+    return String(reg.resolveOrderKeyFromFieldId(fieldId) || '').trim()
   }
 
   async function loadMacroRuntime(app_) {
@@ -861,10 +863,11 @@ async function runTagWheel(input, quickAddSettings) {
   function normalizePanelKey(orderKey) {
     var key = String(orderKey || '').trim()
     var reg = getDomainRegistry()
-    if (reg && typeof reg.collapseSubOrderKey === 'function') {
-      var collapsed = String(reg.collapseSubOrderKey(key) || '').trim()
-      if (collapsed) return collapsed
+    if (!reg || typeof reg.collapseSubOrderKey !== 'function') {
+      throw new Error('pkm_domain_registry unavailable: collapseSubOrderKey')
     }
+    var collapsed = String(reg.collapseSubOrderKey(key) || '').trim()
+    if (collapsed) return collapsed
     return key
   }
 

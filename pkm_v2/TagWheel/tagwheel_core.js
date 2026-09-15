@@ -165,22 +165,25 @@ function getDateLikeMarkers(rules) {
   var seen = {}
   var helpers = getRulesRuntimeHelpers()
   var i
-  if (helpers && typeof helpers.getDateMarkersFromRules === 'function') {
-    var markers = helpers.getDateMarkersFromRules(rules)
-    var buckets = [
-      markers && markers.due,
-      markers && markers.start,
-      markers && markers.time,
-    ]
-    var j
-    for (i = 0; i < buckets.length; i++) {
-      var arr = Array.isArray(buckets[i]) ? buckets[i] : []
-      for (j = 0; j < arr.length; j++) {
-        var mkShared = String(arr[j] || '').trim()
-        if (!mkShared || seen[mkShared]) continue
-        seen[mkShared] = true
-        out.push(mkShared)
-      }
+  /* Пустой список меток — это «на строке нет ни одной даты», и отличить его от
+     «дом не приехал» было нельзя ничем (10.13.167). */
+  if (!helpers || typeof helpers.getDateMarkersFromRules !== 'function') {
+    throw new Error('pkm_rules_runtime_helpers unavailable: getDateMarkersFromRules')
+  }
+  var markers = helpers.getDateMarkersFromRules(rules)
+  var buckets = [
+    markers && markers.due,
+    markers && markers.start,
+    markers && markers.time,
+  ]
+  var j
+  for (i = 0; i < buckets.length; i++) {
+    var arr = Array.isArray(buckets[i]) ? buckets[i] : []
+    for (j = 0; j < arr.length; j++) {
+      var mkShared = String(arr[j] || '').trim()
+      if (!mkShared || seen[mkShared]) continue
+      seen[mkShared] = true
+      out.push(mkShared)
     }
   }
 
@@ -2244,10 +2247,11 @@ function buildTags(mode, state, rules, parsedLine) {
     var direct = String(field.orderKey || '').trim()
     if (direct) return direct
     var regLocal = getDomainRegistry()
-    if (regLocal && typeof regLocal.resolveOrderKeyFromFieldId === 'function') {
-      var mapped = String(regLocal.resolveOrderKeyFromFieldId(String(field.id || '').trim()) || '').trim()
-      if (mapped) return mapped
+    if (!regLocal || typeof regLocal.resolveOrderKeyFromFieldId !== 'function') {
+      throw new Error('pkm_domain_registry unavailable: resolveOrderKeyFromFieldId')
     }
+    var mapped = String(regLocal.resolveOrderKeyFromFieldId(String(field.id || '').trim()) || '').trim()
+    if (mapped) return mapped
     return String(field.id || '').trim()
   }
   var removeSubtagAfterProject = getBehaviorBool(rules, 'delete_subtag_after_project', 'deleteSubtagAfterProject')
@@ -2705,17 +2709,20 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
     && typeof statusLineRuntime.selectTokenByPanelOrder === 'function'
     && linePipeline
     && typeof linePipeline.splitSegments === 'function')
-  if (tokenGraph && typeof tokenGraph.buildTokenFactsFromLine === 'function') {
-    var facts = tokenGraph.buildTokenFactsFromLine(graphLine, rules)
-    tokenFacts = Array.isArray(facts) ? facts : []
-    if (!canUseSharedTokenSelect) {
-      var fi
-      for (fi = 0; fi < tokenFacts.length; fi++) {
-        var fact = tokenFacts[fi]
-        var rawToken = String(fact && fact.raw || '').trim()
-        if (!rawToken) continue
-        lastIndexByToken[rawToken] = Number(fact && fact.position || 0)
-      }
+  /* Пустой список фактов о токенах читается ниже как «на строке ничего нашего
+     нет», и от «граф токенов не приехал» он неотличим (10.13.167). */
+  if (!tokenGraph || typeof tokenGraph.buildTokenFactsFromLine !== 'function') {
+    throw new Error('token_graph_unified unavailable: buildTokenFactsFromLine')
+  }
+  var facts = tokenGraph.buildTokenFactsFromLine(graphLine, rules)
+  tokenFacts = Array.isArray(facts) ? facts : []
+  if (!canUseSharedTokenSelect) {
+    var fi
+    for (fi = 0; fi < tokenFacts.length; fi++) {
+      var fact = tokenFacts[fi]
+      var rawToken = String(fact && fact.raw || '').trim()
+      if (!rawToken) continue
+      lastIndexByToken[rawToken] = Number(fact && fact.position || 0)
     }
   }
   if (!canUseSharedTokenSelect && !tokenFacts.length) {
@@ -2785,20 +2792,24 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
   // Backward/forward compatibility: parse combined subtag tokens (#parent/#child)
   // for any dependsOn pair from active left field set.
   var left = rules.leftMode
-  if (statusLineRuntime && typeof statusLineRuntime.hydrateSelectionFromCombinedTokens === 'function') {
-    statusLineRuntime.hydrateSelectionFromCombinedTokens({
-      fields: left && Array.isArray(left.fields) ? left.fields : [],
-      state: state,
-      tags: tags,
-      rules: rules,
-      deps: {
-        getAllowedValues: function (fieldsList, runtimeState, runtimeField, runtimeRules) {
-          return getAllowedValues({ fields: fieldsList }, runtimeState, runtimeField, runtimeRules)
-        },
-        buildOutputTokenForField: buildOutputToken,
-      }
-    })
+  /* Пропуск этого шага человек видит как «панель открылась пустой на строке, где
+     значения есть»: слитый токен `#parent/#child` остался бы неразобранным
+     (10.13.167). */
+  if (!statusLineRuntime || typeof statusLineRuntime.hydrateSelectionFromCombinedTokens !== 'function') {
+    throw new Error('status_line_runtime_unified unavailable: hydrateSelectionFromCombinedTokens')
   }
+  statusLineRuntime.hydrateSelectionFromCombinedTokens({
+    fields: left && Array.isArray(left.fields) ? left.fields : [],
+    state: state,
+    tags: tags,
+    rules: rules,
+    deps: {
+      getAllowedValues: function (fieldsList, runtimeState, runtimeField, runtimeRules) {
+        return getAllowedValues({ fields: fieldsList }, runtimeState, runtimeField, runtimeRules)
+      },
+      buildOutputTokenForField: buildOutputToken,
+    }
+  })
 
   var datesText = String(parsedLine.dates || '')
   if (!datesText) return
