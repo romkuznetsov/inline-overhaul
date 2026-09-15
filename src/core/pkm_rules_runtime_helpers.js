@@ -11,17 +11,28 @@
 const __pkmDomainRegistry = require("./pkm_domain_registry.js");
 const __sharedUtils = require("./shared_utils.js");
 
+/*
+ * **Ключ дочернего поля сворачивает реестр доменов, и только он** (10.13.161).
+ *
+ * Здесь стояло своё тело за запасным ходом: спросить реестр, а если его нет —
+ * свернуть `_sub` самому. Плюс поправка «реестр ответил тем же ключом — значит
+ * не свернул, свернём мы». Ни то, ни другое не исполняется: реестр приезжает
+ * литеральным `require` на уровне модуля, а свой ответ он всегда сворачивает.
+ * Проверено пробоем: отказ в обеих ветках не уронил ни одной проверки и ни
+ * одного сочетания обхода строки (У-146), при том что сама функция
+ * исполняется.
+ *
+ * Держал их **пин по тексту** — `assertTrue(/…/.test(src))`, — а он не
+ * спрашивает, доходит ли до строки исполнение (У-141). Заменён ожиданием
+ * ответа.
+ */
 function collapseSubOrderKey(key) {
   const raw = String(key || "").trim();
   if (!raw) return "";
-  if (typeof __pkmDomainRegistry.collapseSubOrderKey === "function") {
-    const collapsed = String(__pkmDomainRegistry.collapseSubOrderKey(raw) || "").trim();
-    if (collapsed) {
-      if (/_sub$/.test(raw) && collapsed === raw) return raw.slice(0, -4);
-      return collapsed;
-    }
+  if (typeof __pkmDomainRegistry.collapseSubOrderKey !== "function") {
+    throw new Error("pkm_domain_registry unavailable: collapseSubOrderKey");
   }
-  return /_sub$/.test(raw) ? raw.slice(0, -4) : raw;
+  return String(__pkmDomainRegistry.collapseSubOrderKey(raw) || "").trim();
 }
 
 function getFieldSourceValue(fieldOrSource) {
@@ -1443,6 +1454,9 @@ module.exports = {
   getTagWheelMixedReorderOptions,
   buildTagTokenKeyMap,
   applyOrderToRules,
+  /* Отдаётся наружу ради ожидания ответа: своё тело за запасным ходом
+     снято, и вместо пина по тексту спрашивается сам ответ (10.13.161). */
+  collapseSubOrderKey,
   normalizeFieldSourceKind,
   resolveFieldOutputMode,
   isProjectsSourceField,

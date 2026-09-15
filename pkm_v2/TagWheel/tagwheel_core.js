@@ -61,18 +61,40 @@ function resolveSourceKind(field) {
   return String(helpers.normalizeFieldSourceKind(field) || '').trim() || 'none'
 }
 
+/*
+ * **Какие виды источника считаются ссылочными — не здешнее решение.**
+ *
+ * Вид источника эти трое и так спрашивали у общего дома (`resolveSourceKind`
+ * выше), а вот **сам разбор видов** — «projects» и «projects или wikilinks» —
+ * стоял здесь своей копией. Разойдись список видов в доме, и ядро панели
+ * осталось бы со вчерашним: у дома добавился бы вид, а здесь нет. Поэтому
+ * спрашивается готовый ответ, а не вид (10.13.161).
+ */
 function isProjectsSourceField(field) {
-  return resolveSourceKind(field) === 'projects'
+  return getRulesHelpersOrThrow().isProjectsSourceField(field)
 }
 
 function isWikilinkSourceField(field) {
-  var kind = resolveSourceKind(field)
-  return kind === 'projects' || kind === 'wikilinks'
+  return getRulesHelpersOrThrow().isWikilinkSourceField(field)
 }
 
 function isSourceDrivenField(field) {
-  var kind = resolveSourceKind(field)
-  return kind === 'projects' || kind === 'wikilinks'
+  return getRulesHelpersOrThrow().isSourceDrivenField(field)
+}
+
+/* Помощники приезжают литеральным `require` на уровне модуля; не приехали —
+   падаем громко, а не работаем наполовину (A33, У-90).
+
+   Имя начинается с `get` не для красоты: так в этом рантайме называются
+   доставалки модуля, и по этому имени их узнаёт мера копий
+   (`node tools/rule_copies.js`). Назови иначе — и три честных делегата ниже
+   она сочтёт настоящими телами (У-191). */
+function getRulesHelpersOrThrow() {
+  var helpers = getRulesRuntimeHelpers()
+  if (!helpers || typeof helpers.isProjectsSourceField !== 'function') {
+    throw new Error('pkm_rules_runtime_helpers unavailable: isProjectsSourceField')
+  }
+  return helpers
 }
 
 function getPrimaryFieldIds(mode) {
@@ -1535,12 +1557,26 @@ function renderCommandValueByFormat(format, commandRaw) {
   throw new Error('shared_utils unavailable: renderCommandValueByFormat')
 }
 
+/*
+ * **Запасного «нет» здесь больше нет.**
+ *
+ * Стояло так: спросить общий дом, а если модуля нет — ответить `false`. Это
+ * молчаливый запасной ход на месте модуля, который в этом рантайме запрещён
+ * (A33, У-90): модуль приезжает литеральным `require`, пустым не бывает, а
+ * ответ `false` на его отсутствие значил бы «сырое значение не оживляем» —
+ * то есть значение человека молча исчезало бы со строки. Сосед ниже
+ * (`buildCustomPlan`) всё это время падал громко; здесь форма была другая, и
+ * сторож молчаливых отказов её не видел — он ищет пустой `catch` (У-137).
+ *
+ * `!!` тоже снято: дом и так отвечает «да/нет», а обёртка делала из делегата
+ * своё тело — и мера копий числила его настоящим объявлением.
+ */
 function shouldHydrateGenericElementRaw(format, commandRaw, rawValue) {
   var su = getSharedUtils()
   if (su && typeof su.shouldHydrateGenericElementRaw === 'function') {
-    return !!su.shouldHydrateGenericElementRaw(format, commandRaw, rawValue)
+    return su.shouldHydrateGenericElementRaw(format, commandRaw, rawValue)
   }
-  return false
+  throw new Error('shared_utils unavailable: shouldHydrateGenericElementRaw')
 }
 
 function buildCustomPlan(cfg) {

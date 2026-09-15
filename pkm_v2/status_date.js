@@ -128,12 +128,15 @@ function getDomainRegistry() {
   return __pkmDomainRegistry;
 }
 
+/* Ответ даёт реестр доменов, и только он: запасной ход «ответим сами» был
+   второй копией правила на молчаливом ходу, и не исполнялся ни разу — реестр
+   приезжает литеральным `require` (A33, У-90, разбор — 10.13.161). */
 function resolveOrderKeyFromFieldId(fieldId) {
   const reg = getDomainRegistry();
-  if (reg && typeof reg.resolveOrderKeyFromFieldId === "function") {
-    return String(reg.resolveOrderKeyFromFieldId(fieldId) || "").trim();
+  if (!reg || typeof reg.resolveOrderKeyFromFieldId !== "function") {
+    throw new Error("pkm_domain_registry unavailable: resolveOrderKeyFromFieldId");
   }
-  return String(fieldId || "").trim();
+  return String(reg.resolveOrderKeyFromFieldId(fieldId) || "").trim();
 }
 
 function resolveDateFieldIdFromOrderKey(orderKey) {

@@ -2583,7 +2583,19 @@ async function run() {
       "за делегирующим if стоит только громкий отказ: своей копии правила в рантайме нет ни одной (В-103)");
   }
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: applyOrderToRules'\)/.test(tagwheelSrc), "tagwheel order apply helper is shared-only");
-  assertTrue(/if \(\/_sub\$\/\.test\(raw\) && collapsed === raw\) return raw\.slice\(0, -4\);/.test(pkmRulesHelpersSrc), "rules helpers collapseSubOrderKey force-collapses _sub when registry fallback returns unchanged key");
+  /*
+   * **Ожидание ответа вместо пина по тексту** (У-141, 10.13.161).
+   *
+   * Здесь стояло `assertTrue(/…/.test(исходник))` на строку-поправку внутри
+   * `collapseSubOrderKey`. Такой пин не спрашивает, доходит ли до строки
+   * исполнение: сама строка была недостижима — реестр всегда сворачивает
+   * `_sub` сам, — и пин охранял мёртвую ветку. Ветка снята, а спрашивается
+   * теперь **ответ**.
+   */
+  assertEq(pkmRulesHelpers.collapseSubOrderKey("Imp_sub"), "Imp", "ключ дочернего поля сворачивается к родителю");
+  assertEq(pkmRulesHelpers.collapseSubOrderKey("Imp"), "Imp", "ключ родителя остаётся собой");
+  assertEq(pkmRulesHelpers.collapseSubOrderKey("  Imp_sub  "), "Imp", "пробелы вокруг ключа не мешают");
+  assertEq(pkmRulesHelpers.collapseSubOrderKey(""), "", "пустой ключ остаётся пустым");
   assertTrue(/const seen = visited instanceof Set \? visited : new Set\(\);/.test(pkmRulesHelpersSrc) && /if \(seen\.has\(k\)\) return "";/.test(pkmRulesHelpersSrc), "rules helpers resolveIdByOrderKey guards against recursive key resolution loops");
   assertTrue(/const runtimeExcludedIds = new Set\(\);/.test(pkmRulesHelpersSrc) && /const reconcileModeDependencies = \(mode, scopeFields\) => \{/.test(pkmRulesHelpersSrc), "rules helpers define mode dependency reconcile pass with runtime exclusion tracking");
   assertTrue(/if \(!parentExists \|\| !runtimeEligible\.has\(fid\)\) \{[\s\S]*?f\.enabled = false;[\s\S]*?runtimeExcludedIds\.add\(fid\);/.test(pkmRulesHelpersSrc), "rules helpers disable and runtime-exclude children with invalid dependency placement");
