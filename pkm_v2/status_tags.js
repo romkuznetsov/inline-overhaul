@@ -727,6 +727,15 @@ function cyclePriorityTokenInFullMode(line, cursorCh, direction, cycleTokens, fu
   return applyFullTokenAction(src, seed, ordered.map((t) => ({ id: t, token: t })), cursor, rules);
 }
 
+/*
+ * **Следующий токен цикла, и вход здесь — готовые токены**, а направление —
+ * слово. Одноимённого объявления в `status_date.js` больше нет: там вопрос
+ * другой (вход — значения поля, направление булево), и 2026-09-15 имена
+ * разведены — `nextCycleTokenFromValues` (10.13.154). Расхождение измерено,
+ * 24 пары из 156, и ни одна в продукте не достижима: обе сборки цикла
+ * отбрасывают пустое, а текущий токен приезжает совпадением в строке, то есть
+ * уже обрезанным.
+ */
 function nextCycleTokenByDirection(tokens, currentToken, direction) {
   const arr = Array.isArray(tokens) ? tokens.filter(Boolean) : [];
   if (!arr.length) return "";

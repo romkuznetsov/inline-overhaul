@@ -878,7 +878,33 @@ function hydrateGenericElementFromRawLine(rawLine, rules, state, field, marker, 
   }
 }
 
-function nextCycleTokenByDirection(cycleVals, currentToken, increase) {
+/*
+ * **Следующий токен цикла, и вход здесь — значения поля**, а не готовые
+ * токены. Это не копия одноимённого прежде `nextCycleTokenByDirection` в
+ * `status_tags.js`: имена разведены 2026-09-15, потому что вопросы разные
+ * (10.13.154).
+ *
+ * Расхождение измерено до разведения — **24 пары из 156**, — и **ни одна из
+ * них в продукте не достижима**: все 24 стоят на входах, которых ни одна
+ * дорога не производит. Их два рода, и оба от формы входа, а не от смысла:
+ *
+ *   - **текущий токен с пробелами по краям.** Здесь он обрезается, там нет.
+ *     В `status_tags.js` он приезжает из совпадения в строке
+ *     (`extractCurrentPriorityToken`), то есть обрезанным всегда;
+ *   - **пустая запись в самом цикле.** Здесь она считается значением с пустым
+ *     токеном, там отбрасывается. Пустые записи в его конфиге **есть** — у
+ *     полей `date_due`, `Random` и `test2` значением стоит голая пустая
+ *     строка, — но до `status_tags.js` они не доезжают: обе его сборки цикла
+ *     (`buildPriorityCycleTokens` и `buildPriorityCycleTokensFromRules`)
+ *     пустое отбрасывают сами.
+ *
+ * Сводить их нельзя не потому, что рискованно, а потому, что предмета для
+ * сведения нет: у одной вход — список значений и булево «вперёд», у другой —
+ * список токенов и слово. Лечится это именем (У-159, правило 117), и
+ * единственный звавший здесь один — запасной ход по циклу, когда шаг по
+ * формату ничего не дал.
+ */
+function nextCycleTokenFromValues(cycleVals, currentToken, increase) {
   const arr = Array.isArray(cycleVals) ? cycleVals : [];
   if (!arr.length) return "";
   const cur = String(currentToken || "").trim();
@@ -926,7 +952,7 @@ function applyGenericElementIncrementByFormat(state, fieldId, incrementCfg, form
   if (String(state?.selected?.[id] || "").trim()) return;
   const cycle = Array.isArray(cycleVals) ? cycleVals : [];
   if (!cycle.length) return;
-  const fallback = nextCycleTokenByDirection(cycle, "", increase);
+  const fallback = nextCycleTokenFromValues(cycle, "", increase);
   if (!fallback) return;
   const parsed = parseTokenlessProgress(fallback, fmt);
   if (parsed === null || !Number.isFinite(parsed)) return;
