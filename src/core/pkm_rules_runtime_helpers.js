@@ -27,12 +27,10 @@ const __sharedUtils = require("./shared_utils.js");
  * ответа.
  */
 function collapseSubOrderKey(key) {
-  const raw = String(key || "").trim();
-  if (!raw) return "";
-  if (typeof __pkmDomainRegistry.collapseSubOrderKey !== "function") {
+  if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.collapseSubOrderKey !== "function") {
     throw new Error("pkm_domain_registry unavailable: collapseSubOrderKey");
   }
-  return String(__pkmDomainRegistry.collapseSubOrderKey(raw) || "").trim();
+  return __pkmDomainRegistry.collapseSubOrderKey(key);
 }
 
 function getFieldSourceValue(fieldOrSource) {

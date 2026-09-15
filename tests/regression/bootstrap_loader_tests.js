@@ -2581,6 +2581,119 @@ async function run() {
       "положительный контроль: делегирующие вызовы в рантайме есть и их находит обход (" + delegations + ")");
     assertEq(copies.join(" | "), "",
       "за делегирующим if стоит только громкий отказ: своей копии правила в рантайме нет ни одной (В-103)");
+ 
+    /*
+     * **Третья форма того же устройства: блочный `if`.**
+     *
+     *   if (mod && typeof mod.X === "function") {
+     *     return mod.X(arg);
+     *   }
+     *   …своё тело…
+     *
+     * Запрет выше требует `return` на **той же строке**, что и `if`, и к этой
+     * форме слеп был с первого дня. В ней 2026-09-16 нашлись четыре живые
+     * копии: `inferOrderFieldType` и `inferSubFieldKey` в `pkm_order_config.js`
+     * (первая знала тип `element`, которого дом не возвращает вовсе),
+     * `panelFieldIds` и `panelFieldIdsFor` в `tagwheel.js` — обе выдавали все
+     * `id` стороны подряд, не спрашивая ни групп, ни спрятанных полей. Мера
+     * копий видела из них две, и обе числились «разобранными» со слов прежних
+     * сессий.
+     *
+     * Это У-193 в третий раз: признак, починенный по одной найденной форме,
+     * работы не кончает. Поэтому вместе с починкой заведена и форма (У-185).
+     *
+     * Возврат не обязан стоять первой строкой блока: между охраной и вызовом
+     * дома бывает подготовка довода — так собирает копию сессии
+     * `panelFieldIdsFor`.
+     */
+    const BLOCK_OPEN = /^(\s*)if \(!?([A-Za-z_$][\w$]*)(?: (?:&&|\|\|) (?:!?\2|typeof \2\.[\w$]+ [!=]== ["']function["']))*\) \{\s*$/;
+    const findBlockCopies = (text) => {
+      const lines = text.split("\n");
+      const found = [];
+      for (let i = 0; i < lines.length; i += 1) {
+        const hit = BLOCK_OPEN.exec(lines[i]);
+        if (!hit) continue;
+        const closing = hit[1] + "}";
+        let j = i + 1;
+        const inside = [];
+        while (j < lines.length && lines[j] !== closing) { inside.push(lines[j]); j += 1; }
+        if (j >= lines.length) continue;
+        const callsHome = new RegExp("^\\s*return " + hit[2] + "\\.[\\w$]+\\(");
+        if (!inside.some((l) => callsHome.test(l))) continue;
+        /* Хвост функции за блоком; её конец — закрывающая скобка левее `if`. */
+        const tail = [];
+        for (let k = j + 1; k < lines.length; k += 1) {
+          const ind = lines[k].length - lines[k].replace(/^\s+/, "").length;
+          if (lines[k].trim() === "}" && ind < hit[1].length) break;
+          const t = lines[k].trim();
+          if (!t || /^(\*|\/\/|\/\*)/.test(t)) continue;
+          tail.push(t);
+        }
+        const body = tail.join(" ");
+        if (!body) continue;
+        if (/^throw new Error\(.*\);?$/.test(body)) continue;
+        found.push(i + 1);
+      }
+      return found;
+    };
+
+    /*
+     * Контроль до первого вывода и в обе стороны (У-92, У-119): копия обязана
+     * найтись, громкий отказ — нет, подготовка довода внутри блока обхода не
+     * сбивает, а обычный ранний возврат делегированием не считается.
+     */
+    const blockBad = [
+      "function withCopy(x) {",
+      "  if (mod && typeof mod.withCopy === \"function\") {",
+      "    return mod.withCopy(x);",
+      "  }",
+      "  return String(x || \"\").trim();",
+      "}",
+    ].join("\n");
+    const blockGood = [
+      "function loud(x) {",
+      "  if (mod && typeof mod.loud === \"function\") {",
+      "    return mod.loud(x);",
+      "  }",
+      "  throw new Error(\"mod unavailable: loud\");",
+      "}",
+    ].join("\n");
+    const blockPrepared = [
+      "function prepared(x) {",
+      "  if (mod && typeof mod.prepared === \"function\") {",
+      "    var probe = {};",
+      "    probe.x = x;",
+      "    return mod.prepared(probe);",
+      "  }",
+      "  return [];",
+      "}",
+    ].join("\n");
+    const blockNotDelegation = [
+      "function pickTail(parsed, tail) {",
+      "  if (tail && typeof tail.trim === \"function\") {",
+      "    return parsed.indent + tail;",
+      "  }",
+      "  return parsed.indent;",
+      "}",
+    ].join("\n");
+    assertEq(findBlockCopies(blockBad).length, 1,
+      "положительный контроль: обход видит копию за блочным делегированием");
+    assertEq(findBlockCopies(blockGood).length, 0,
+      "положительный контроль: громкий отказ блочной копией не считается");
+    assertEq(findBlockCopies(blockPrepared).length, 1,
+      "положительный контроль: возврат не первой строкой блока обход не сбивает");
+    assertEq(findBlockCopies(blockNotDelegation).length, 0,
+      "положительный контроль: обычный ранний возврат блочным делегированием не считается");
+
+    const blockCopies = [];
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      for (const line of findBlockCopies(text)) {
+        blockCopies.push(path.relative(repoRoot, abs) + ":" + line);
+      }
+    }
+    assertEq(blockCopies.join(" | "), "",
+      "за блочным делегирующим if стоит только громкий отказ: своей копии правила в рантайме нет ни одной");
   }
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: applyOrderToRules'\)/.test(tagwheelSrc), "tagwheel order apply helper is shared-only");
   /*
@@ -2596,6 +2709,27 @@ async function run() {
   assertEq(pkmRulesHelpers.collapseSubOrderKey("Imp"), "Imp", "ключ родителя остаётся собой");
   assertEq(pkmRulesHelpers.collapseSubOrderKey("  Imp_sub  "), "Imp", "пробелы вокруг ключа не мешают");
   assertEq(pkmRulesHelpers.collapseSubOrderKey(""), "", "пустой ключ остаётся пустым");
+
+  /*
+   * **Ожидание ответа у второй пары — `pkm_order_config.js`** (У-195,
+   * правило 115). Проверка формы объявления выше ловит возврат копии, но
+   * слепа к поломке дома; ожидание ответа — наоборот. Поэтому стоят обе.
+   *
+   * Третья строка ниже — та самая, ради которой это заведено: снятый запасной
+   * ход отвечал на `date_due` типом `element`, которого реестр доменов не
+   * возвращает вовсе. Пока дом отвечает `tag`, копии здесь нет.
+   */
+  {
+    const pkmOrderConfig = require(path.join(__dirname, "..", "..", "src", "core", "pkm_order_config.js"));
+    assertEq(pkmOrderConfig.inferOrderFieldType("Imp"), "tag", "обычный ключ Order — тег");
+    assertEq(pkmOrderConfig.inferOrderFieldType("my_wikilink"), "wikilink", "ключ со словом wikilink — ссылка");
+    assertEq(pkmOrderConfig.inferOrderFieldType("date_due"), "tag",
+      "тип `element` по имени ключа не выводится: реестр доменов такого ответа не даёт");
+    assertEq(pkmOrderConfig.inferOrderFieldType(""), "tag", "пустой ключ — тег");
+    assertEq(pkmOrderConfig.inferSubFieldKey("Imp"), "Imp_sub", "ключ дочернего поля выводится из родителя");
+    assertEq(pkmOrderConfig.inferSubFieldKey("  Imp  "), "Imp_sub", "пробелы вокруг родителя не мешают");
+    assertEq(pkmOrderConfig.inferSubFieldKey(""), "", "у пустого родителя дочернего ключа нет");
+  }
   assertTrue(/const seen = visited instanceof Set \? visited : new Set\(\);/.test(pkmRulesHelpersSrc) && /if \(seen\.has\(k\)\) return "";/.test(pkmRulesHelpersSrc), "rules helpers resolveIdByOrderKey guards against recursive key resolution loops");
   assertTrue(/const runtimeExcludedIds = new Set\(\);/.test(pkmRulesHelpersSrc) && /const reconcileModeDependencies = \(mode, scopeFields\) => \{/.test(pkmRulesHelpersSrc), "rules helpers define mode dependency reconcile pass with runtime exclusion tracking");
   assertTrue(/if \(!parentExists \|\| !runtimeEligible\.has\(fid\)\) \{[\s\S]*?f\.enabled = false;[\s\S]*?runtimeExcludedIds\.add\(fid\);/.test(pkmRulesHelpersSrc), "rules helpers disable and runtime-exclude children with invalid dependency placement");

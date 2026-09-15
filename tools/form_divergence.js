@@ -1344,6 +1344,128 @@ async function reportFieldByKey() {
   return diverging.length + problems.length;
 }
 
+/* ------ «меняет ли обёртка вокруг ответа реестра доменов сам ответ» (1 очереди) */
+
+/**
+ * Четыре имени очереди — делегаты к `pkm_domain_registry.js`, у которых вокруг
+ * ответа дома стоит `String(… || "").trim()`. Обёртка делает из делегата
+ * объявление: мера копий видит тело, а не пересказ, и имя числится долгом.
+ *
+ * Снять её можно только измерив: реестр и так отдаёт приведённую строку —
+ * но это **утверждение о чужом теле**, а такие проверяются прогоном, а не
+ * чтением (У-136). Здесь обе стороны спрашиваются на его ключах Order и его
+ * именах полей.
+ *
+ * Контролей три, и каждый на свой шаг:
+ *   1. корпус непуст и ответы непустые — иначе «ноль расхождений» получился бы
+ *      от того, что сравнивать было нечего (У-127);
+ *   2. обёртка **умеет** менять ответ: на строке-образце с пробелами по краям
+ *      она обязана дать другое, иначе сравнение слепо к самому предмету;
+ *   3. нарочно испорченная сторона обязана попасть в счёт.
+ */
+function registryWrapperSites() {
+  const reg = require(path.join(ROOT, "src", "core", "pkm_domain_registry.js"));
+  const wrap = (v) => String(v || "").trim();
+  return [
+    { name: "inferOrderFieldType", home: (k) => reg.inferOrderFieldType(k) },
+    { name: "inferSubFieldKey", home: (k) => reg.inferSubFieldKey(k) },
+    { name: "collapseSubOrderKey", home: (k) => reg.collapseSubOrderKey(k) },
+    { name: "resolveOrderKeyFromFieldId", home: (k) => reg.resolveOrderKeyFromFieldId(k) },
+  ].map((q) => Object.assign({ wrapped: (k) => wrap(q.home(k)) }, q));
+}
+
+/* Ключи и имена полей берутся у него, а не пишутся здесь литералами (У-182);
+   края названы отдельно и помечены. */
+function registryKeyCorpus() {
+  const out = [];
+  const seen = new Set();
+  const add = (v, from) => {
+    const s = String(v == null ? "" : v);
+    if (seen.has(s)) return;
+    seen.add(s);
+    out.push({ value: s, from });
+  };
+  try {
+    const bench = require(path.join(ROOT, "tools", "line_bench.js"));
+    const cfg = bench.loadCfg();
+    for (const side of ["left", "right"]) {
+      for (const k of bench.fieldKeysBySide(cfg, side)) add(k, "его Order");
+    }
+    const walk = (node) => {
+      if (!node || typeof node !== "object") return;
+      if (Array.isArray(node)) { for (const x of node) walk(x); return; }
+      for (const [k, v] of Object.entries(node)) {
+        if (k === "id" || k === "orderKey") add(v, "его конфиг");
+        else walk(v);
+      }
+    };
+    walk(cfg);
+  } catch (e) {
+    add("!корпус не собрался: " + String(e && e.message), "край (синтетика)");
+  }
+  add("", "край (синтетика)");
+  add("   ", "край (синтетика)");
+  add("  Importance  ", "край (синтетика)");
+  add("date_due_sub", "край (синтетика)");
+  add("wikilink_thing", "край (синтетика)");
+  add("_sub", "край (синтетика)");
+  return out;
+}
+
+function reportRegistryWrapper() {
+  const sites = registryWrapperSites();
+  const keys = registryKeyCorpus();
+  const problems = [];
+  console.log("== вопрос «меняет ли обёртка вокруг ответа реестра сам ответ»: " + sites.length + " имён");
+  console.log("   ключей: " + keys.length + " (его Order " + keys.filter((k) => k.from === "его Order").length +
+    ", из его конфига " + keys.filter((k) => k.from === "его конфиг").length +
+    ", края " + keys.filter((k) => k.from === "край (синтетика)").length + ")");
+
+  const ask = (fn, k) => {
+    try { return JSON.stringify(fn(k.value)); }
+    catch (e) { return "БРОСИЛО: " + String(e && e.message); }
+  };
+
+  /* Контроль 2: обёртка обязана уметь менять ответ — иначе сравнение слепо к
+     своему предмету (У-127, контроль на строке-образце, а не на продукте). */
+  const wrapSample = (v) => String(v || "").trim();
+  if (wrapSample("  x  ") === "  x  ") problems.push("обёртка не меняет даже строку с пробелами — сравнение слепо");
+
+  let totalDiff = 0;
+  let answered = 0;
+  for (const q of sites) {
+    const diff = [];
+    for (const k of keys) {
+      const a = ask(q.home, k);
+      const b = ask(q.wrapped, k);
+      if (a !== '""' && a.indexOf("БРОСИЛО") !== 0) answered++;
+      if (a !== b) diff.push({ k, a, b });
+    }
+    totalDiff += diff.length;
+    console.log("   " + q.name.padEnd(28) + " расхождений " + String(diff.length).padStart(3) +
+      " из " + keys.length + (diff.length ? "" : "   <= обёртка снимается"));
+    for (const d of diff.slice(0, 6)) {
+      console.log("      ключ " + JSON.stringify(d.k.value).padEnd(24) + " [" + d.k.from + "]  дом " + d.a + "  vs  в обёртке " + d.b);
+    }
+  }
+
+  /* Контроль 1: непустых ответов больше нуля. */
+  console.log("   непустых ответов дома: " + answered + (answered ? "" : "   <= СРАВНИВАТЬ БЫЛО НЕЧЕГО"));
+  if (!answered) problems.push("дом отвечает пустотой на весь корпус — сравнивать было нечего");
+
+  /* Контроль 3: нарочно испорченная сторона обязана попасть в счёт. */
+  const spoiled = (k) => String(sites[0].home(k) || "") + "x";
+  let seen = 0;
+  for (const k of keys) if (ask(sites[0].home, k) !== ask(spoiled, k)) seen++;
+  console.log("   контроль чувствительности: нарочно испорченная сторона расходится на " +
+    seen + " ключах из " + keys.length + (seen ? "" : "  <= МЕРА СЛЕПА"));
+  if (!seen) problems.push("мера не увидела нарочно испорченной стороны — она слепа");
+
+  for (const p of problems) console.log("   ! " + p);
+  console.log("");
+  return totalDiff + problems.length;
+}
+
 /* --------------------------------------------------------------- контроли */
 
 function controlTranscription() {
@@ -1594,6 +1716,7 @@ async function main() {
   totalDiverging += await reportMarkers();
   totalDiverging += await reportDateOffset();
   totalDiverging += await reportFieldByKey();
+  totalDiverging += reportRegistryWrapper();
 
   console.log("Итого расхождений: " + totalDiverging);
   console.log("Сводить можно только группу с нулём — и только после мутации в обе стороны (У-92).");

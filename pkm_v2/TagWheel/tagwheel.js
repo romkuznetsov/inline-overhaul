@@ -656,22 +656,27 @@ async function runTagWheel(input, quickAddSettings) {
     return __statusLineRuntimeUnifiedMod
   }
 
+  /*
+   * Какие Field панель считает проходимыми, решает ядро, и только оно.
+   *
+   * Здесь стоял запасной ход, и правило у него было **у́же дома**: он выдавал
+   * подряд все `id` из списка стороны, не спрашивая ни групп, ни спрятанных,
+   * ни активного Field. Исполнись он хоть раз — человек ходил бы стрелкой по
+   * полям, которых на экране нет.
+   *
+   * Недостижимость снята пробоем (У-146): бросок внутри запасной ветки не
+   * уронил ни одной проверки, ни одного сочетания обхода строки и ни одного
+   * шага браузерного стенда, а положительный контроль — бросок на входе —
+   * уронил их сразу. Ядро приезжает литеральным `require` (A33, У-90).
+   */
   function panelFieldIds(state) {
     var core = state && state.core
     var rules = state && state.rules
     var session = state && state.session
-    if (core && typeof core.getNavigableFieldSequence === 'function') {
-      return core.getNavigableFieldSequence(rules, session)
+    if (!core || typeof core.getNavigableFieldSequence !== 'function') {
+      throw new Error('tagwheel_core unavailable: getNavigableFieldSequence')
     }
-    var mode = session && session.mode === 'right' ? rules.rightMode : rules.leftMode
-    var arr = mode && Array.isArray(mode.fields) ? mode.fields : []
-    var out = []
-    var i
-    for (i = 0; i < arr.length; i++) {
-      if (!arr[i] || !arr[i].id) continue
-      out.push(arr[i].id)
-    }
-    return out
+    return core.getNavigableFieldSequence(rules, session)
   }
 
   function ensureActiveFieldId(state) {
@@ -712,26 +717,22 @@ async function runTagWheel(input, quickAddSettings) {
 
     var core = state.core
     var rules = state.rules
-    if (core && typeof core.getNavigableFieldSequence === 'function') {
-      var probe = {}
-      var key
-      for (key in session) {
-        if (Object.prototype.hasOwnProperty.call(session, key)) probe[key] = session[key]
-      }
-      probe.mode = mode
-      probe.activeFieldId = ''
-      return core.getNavigableFieldSequence(rules, probe)
+    /* Тот же запасной ход и та же цена, что у своего списка выше; пробой
+       сделан тем же стендом — `node tools/line_bench.js panel left … шесть
+       раз ArrowRight`, на его настройке `Move to the next Block`. Набор эту
+       функцию не исполняет вовсе, и зелёный прогон по ней ничего не значил бы
+       (У-56). */
+    if (!core || typeof core.getNavigableFieldSequence !== 'function') {
+      throw new Error('tagwheel_core unavailable: getNavigableFieldSequence')
     }
-
-    var alt = mode === 'right' ? rules.rightMode : rules.leftMode
-    var arr = alt && Array.isArray(alt.fields) ? alt.fields : []
-    var out = []
-    var i
-    for (i = 0; i < arr.length; i++) {
-      if (!arr[i] || !arr[i].id) continue
-      out.push(arr[i].id)
+    var probe = {}
+    var key
+    for (key in session) {
+      if (Object.prototype.hasOwnProperty.call(session, key)) probe[key] = session[key]
     }
-    return out
+    probe.mode = mode
+    probe.activeFieldId = ''
+    return core.getNavigableFieldSequence(rules, probe)
   }
 
   function nextVirtualField(state, dir) {

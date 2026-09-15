@@ -35,15 +35,26 @@ function normalizeOrderFieldKey(key) {
   return /^[a-z0-9_\- ]+$/i.test(k) ? k : "";
 }
 
+/*
+ * Тип ключа Order решает реестр доменов, и только он.
+ *
+ * Здесь стоял **молчаливый запасной ход** — вторая копия правила за `if`,
+ * — и знала она больше дома: ветку `element` реестр не возвращает вовсе.
+ * Исполнись она хоть раз, половина плагина считала бы типом элемента то, что
+ * другая половина зовёт тегом; снаружи это неотличимо от чтения настройки.
+ *
+ * Недостижимость снята **пробоем**, а не рассуждением (У-146): отказ внутри
+ * запасной ветки не уронил ни одной из 70 проверок и ни одного из 189
+ * сочетаний обхода строки, при том что положительный контроль — отказ на
+ * входе в функцию — уронил 18 проверок, то есть функция исполняется. Модуль
+ * приезжает литеральным `require`, заглушек на месте модулей в рантайме нет
+ * (A33, У-90).
+ */
 function inferOrderFieldType(key) {
-  if (__pkmDomainRegistry && typeof __pkmDomainRegistry.inferOrderFieldType === "function") {
-    return __pkmDomainRegistry.inferOrderFieldType(key);
+  if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferOrderFieldType !== "function") {
+    throw new Error("pkm_domain_registry unavailable: inferOrderFieldType");
   }
-  const k = String(key || "").trim().toLowerCase();
-  if (!k) return "tag";
-  if (/wikilink|link/i.test(k)) return "wikilink";
-  if (/date|time|deadline|due|start/i.test(k)) return "element";
-  return "tag";
+  return __pkmDomainRegistry.inferOrderFieldType(key);
 }
 
 function inferElementDefaultsByKey(key) {
@@ -55,13 +66,19 @@ function inferElementDefaultsByKey(key) {
   return { marker, format };
 }
 
+/*
+ * То же и с ключом дочернего Field: ответ даёт реестр. Запасной ход повторял
+ * его тело слово в слово, а обёртка `String(… || "").trim()` вокруг ответа
+ * делала из делегата объявление — мера копий видела тело, а не пересказ.
+ * Обёртка снята после измерения: `node tools/form_divergence.js`, вопрос
+ * «меняет ли обёртка вокруг ответа реестра сам ответ» — ноль расхождений на
+ * 22 ключах, при живом контроле «обёртка умеет менять ответ».
+ */
 function inferSubFieldKey(parentKey) {
-  if (__pkmDomainRegistry && typeof __pkmDomainRegistry.inferSubFieldKey === "function") {
-    const inferred = String(__pkmDomainRegistry.inferSubFieldKey(parentKey) || "").trim();
-    if (inferred) return inferred;
+  if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferSubFieldKey !== "function") {
+    throw new Error("pkm_domain_registry unavailable: inferSubFieldKey");
   }
-  const p = String(parentKey || "").trim();
-  return p ? `${p}_sub` : "";
+  return __pkmDomainRegistry.inferSubFieldKey(parentKey);
 }
 
 function buildLeftFieldDefinition(key, kind) {

@@ -238,6 +238,32 @@ function main() {
     );
     if (guardReturnDelegate.test(inner)) return true;
 
+    /*
+     * **Шестая форма: охрана отказом прямо у модуля, затем возврат его
+     * вызова.**
+     *
+     *   if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferSubFieldKey !== "function") {
+     *     throw new Error("pkm_domain_registry unavailable: inferSubFieldKey");
+     *   }
+     *   return __pkmDomainRegistry.inferSubFieldKey(parentKey);
+     *
+     * От четвёртой формы отличается одним: дом не связан локальным именем, а
+     * назван прямо. Смысл тот же — спросить дом и громко отказать, если его
+     * нет, — а признак этого не видел, и три честных делегата числились бы
+     * настоящими телами (У-191, У-193: признак чинится по одной найденной
+     * форме и работу этим не кончает).
+     *
+     * Условие узкое нарочно: охрана обязана называть **ту самую** функцию,
+     * которую тело возвращает. Своя работа между охраной и возвратом делает
+     * тело настоящим, и оно им и останется.
+     */
+    const guardThrowThenCall = inner.match(new RegExp(
+      "^\\s*if\\s*\\(([^)]*)\\)\\s*\\{[^{}]*throw[^{}]*\\}" +
+      "\\s*return\\s+(__[A-Za-z0-9_$]*|(?:get|ensure)[A-Za-z0-9_$]*\\(\\))" +
+      "\\s*\\.\\s*([A-Za-z0-9_$]+)\\s*\\([^;]*\\)\\s*;?\\s*$"
+    ));
+    if (guardThrowThenCall && guardThrowThenCall[1].indexOf(guardThrowThenCall[3]) >= 0) return true;
+
     const stmts = inner.split(";").map((x) => x.trim()).filter(Boolean);
     if (stmts.length !== 1) return false;
     /* И вызов должен быть **к другому модулю**: `return String(s).replace(...)`
@@ -273,9 +299,14 @@ function main() {
     console.log("!!! скобки не сошлись, эти места решает человек: " + broken.join(", "));
   }
   const SHOW_ALL = process.argv.includes("--all");
-  const copies = twins.filter((t) => SHOW_ALL || t.real > 1);
+  const real = twins.filter((t) => t.real > 1);
+  const copies = SHOW_ALL ? twins : real;
+  /* Число настоящих копий считается по предмету, а не по тому, что сейчас
+     печатается: под `--all` в списке лежат и делегаты, и шапка называла
+     долгом все 81 имя (У-145 — число живёт в прогоне, и врать оно тоже умеет
+     в прогоне). */
   console.log("имён, объявленных больше одного раза: " + twins.length
-    + "; из них с двумя и более настоящими объявлениями: " + copies.length
+    + "; из них с двумя и более настоящими объявлениями: " + real.length
     + " (остальные — делегаты к общему дому)");
   console.log("Видны только объявления верхнего уровня: " + seen + " из " + (seen + unseen) +
     ". Вне поля зрения меры: " + unseen +

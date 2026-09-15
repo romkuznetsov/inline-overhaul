@@ -274,10 +274,14 @@ function buildPkmCommandDefs(serializePkmOrderForMacro, serializeDateRuntimeConf
   const typeForKey = (key) => {
     const raw = String(order && order.types ? order.types[key] || "" : "").trim().toLowerCase();
     if (raw === "tag" || raw === "wikilink" || raw === "element") return raw;
-    if (__pkmDomainRegistry && typeof __pkmDomainRegistry.inferOrderFieldType === "function") {
-      return String(__pkmDomainRegistry.inferOrderFieldType(key) || "tag").trim() || "tag";
+    /* Тот же вопрос, что у `pkm_order_config.js`, и отвечать на него сама
+       регистрация команд не должна: запасное «всегда тег» молча перепутало бы
+       тип каждого Field типа link (У-159 — кто ещё отвечает на тот же
+       вопрос). */
+    if (!__pkmDomainRegistry || typeof __pkmDomainRegistry.inferOrderFieldType !== "function") {
+      throw new Error("pkm_domain_registry unavailable: inferOrderFieldType");
     }
-    return "tag";
+    return __pkmDomainRegistry.inferOrderFieldType(key);
   };
 
   const buildActionSpec = (key, kind, dir) => {

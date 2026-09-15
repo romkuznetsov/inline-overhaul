@@ -37,12 +37,16 @@ function createStatusRuntimeCommon(deps) {
     throw new Error("pkm_macro_shared unavailable: remapCursorByLineDiff");
   }
 
+  /* Запасной ход подменял правило **соседним**: не «устойчивый» пересчёт
+     курсора, а пересчёт по различию строк. Отказ здесь громкий, как и у
+     соседа; недостижимость снята пробоем при живом положительном контроле
+     «функция исполняется». */
   function remapCursorStable(oldLine, newLine, oldCh) {
     const shared = globalThis.__inlinePkmMacroShared;
-    if (shared && typeof shared.remapCursorStable === "function") {
-      return shared.remapCursorStable(oldLine, newLine, oldCh);
+    if (!shared || typeof shared.remapCursorStable !== "function") {
+      throw new Error("pkm_macro_shared unavailable: remapCursorStable");
     }
-    return remapCursorByLineDiff(oldLine, newLine, oldCh);
+    return shared.remapCursorStable(oldLine, newLine, oldCh);
   }
 
   function normalizeCycleEndBehavior(v) {

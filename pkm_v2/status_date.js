@@ -136,7 +136,7 @@ function resolveOrderKeyFromFieldId(fieldId) {
   if (!reg || typeof reg.resolveOrderKeyFromFieldId !== "function") {
     throw new Error("pkm_domain_registry unavailable: resolveOrderKeyFromFieldId");
   }
-  return String(reg.resolveOrderKeyFromFieldId(fieldId) || "").trim();
+  return reg.resolveOrderKeyFromFieldId(fieldId);
 }
 
 function resolveDateFieldIdFromOrderKey(orderKey) {
