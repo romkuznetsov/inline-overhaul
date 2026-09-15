@@ -1396,6 +1396,31 @@ async function run() {
       "нормализация ключа Order объявляется в общем доме; своё тело завелось в: " + ownOrderKeyBodies.join(" | "));
 
     /*
+     * **И то же тело без имени** (У-126, 10.13.160). Образец выше знает
+     * предмет по имени функции, а два последних литерала стояли **безымянными**
+     * — доводом `normalizeOrderKey:` и внутри `loadOrderKeyNormalizer:` у
+     * стенки движка панели, — и сторож не видел их ни дня. Здесь предмет
+     * узнаётся по **имени довода**, а тело может быть любым выражением.
+     *
+     * Положительный контроль стоит на строке-образце, а не на том, что
+     * нарушение в продукте ещё есть (У-127).
+     */
+    const anonOrderKeyBody = /\w*[Oo]rderKey\w*\s*:\s*(?:async\s*)?(?:function\s*)?\([^)]*\)\s*(?:=>\s*)?\{?\s*return\s+(?:function\s*\([^)]*\)\s*\{\s*return\s+)?String\(/;
+    assertTrue(
+      anonOrderKeyBody.test("normalizeOrderKey: function (k) { return String(k || '').trim() },"),
+      "положительный контроль: образец безымянного тела не ловит даже строку-пример"
+    );
+    const anonOrderKeyBodies = [];
+    for (const abs of walked) {
+      const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+      if (rel === allowedOrderKeyHome) continue;
+      if (!anonOrderKeyBody.test(fs.readFileSync(abs, "utf8"))) continue;
+      anonOrderKeyBodies.push(rel);
+    }
+    assertEq(anonOrderKeyBodies.join(" | "), "",
+      "нормализация ключа Order завелась безымянным телом в: " + anonOrderKeyBodies.join(" | "));
+
+    /*
      * **«Как приставка склеивается со значением» объявляется в общем доме**
      * (10.13.152, его слово 2026-09-15 «убирать лишнее в самом правиле»).
      *

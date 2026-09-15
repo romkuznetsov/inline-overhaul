@@ -118,11 +118,15 @@ function ensureStatusRuntimeCommonFns() {
   if (globalThis.__inlineStatusRuntimeCommonFns && typeof globalThis.__inlineStatusRuntimeCommonFns === 'object') return globalThis.__inlineStatusRuntimeCommonFns
   var mod = getStatusRuntimeCommon()
   if (!mod || typeof mod.createStatusRuntimeCommon !== 'function') return null
+  /* Нормализатор ключа Order объявлен один раз — `normalizeOrderKey` в
+     `shared_utils.js` (10.13.146). Здесь стояли два последних литерала того же
+     тела: и как довод `normalizeOrderKey`, и внутри `loadOrderKeyNormalizer`.
+     Тела совпадали до знака, и общий дом отвечает то же (10.13.160). */
   var fns = mod.createStatusRuntimeCommon({
     isObj: isObj,
-    normalizeOrderKey: function (k) { return String(k || '').trim() },
+    normalizeOrderKey: function (k) { return __sharedUtils.normalizeOrderKey(k) },
     defaultPanel: 'left',
-    loadOrderKeyNormalizer: async function () { return function (k) { return String(k || '').trim() } },
+    loadOrderKeyNormalizer: async function () { return __sharedUtils.normalizeOrderKey },
     loadRuntimePreloadFacade: async function () { return null }
   })
   globalThis.__inlineStatusRuntimeCommonFns = fns
