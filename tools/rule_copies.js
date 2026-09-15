@@ -122,11 +122,87 @@ function declarations(src) {
   return out;
 }
 
+/*
+ * **Не всякое второе тело — второе объявление правила.**
+ *
+ * Два рода тел правила не объявляют вовсе, и род выводится **из формы**:
+ *
+ * 1. **доставалка модуля** — тело возвращает модуль и ничего не решает:
+ *    `return __mod;`, `return require("литерал");`, либо подготовка своим
+ *    `ensure…()` и такой же возврат. У каждого файла свой `require`, и свести
+ *    их не во что: доставалка есть адрес, а не правило;
+ * 2. **ленивая сборка своего экземпляра** — тело один раз строит себе
+ *    экземпляр общего дома фабрикой модуля (`__mod.createX({…})`). Общее лежит
+ *    в доме, а различаются **доводы**, и это данные, а не правило.
+ *
+ * Оба образца узкие нарочно: всё, что в них не легло, остаётся копией и идёт
+ * мерить расхождением. Промах в эту сторону стоит прогона, промах в
+ * обратную — неверного вердикта «не правило» (У-192, про направление ошибки).
+ *
+ * Дом у признака один — здесь; `tools/rule_copy_shapes.js` спрашивает его же и
+ * печатает форму каждого тела, чтобы вердикт можно было прочесть, а не принять
+ * на слово (У-32).
+ */
+function innerCode(body) {
+  return mask(String(body || ""))
+    .replace(/^[^{]*\{/, "")
+    .replace(/\}\s*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const RETURNS_MODULE = /return (?:[A-Za-z0-9_$]+|require\( *\)) ?;?/.source;
+const PREPARE = /(?:[A-Za-z0-9_$]+\( *\) ?;? ?)*/.source;
+
+const SHAPES = [
+  {
+    id: "доставалка модуля",
+    why: "тело возвращает модуль и ничего не решает",
+    test: (inner) => new RegExp("^" + PREPARE + RETURNS_MODULE + "$").test(inner),
+  },
+  {
+    id: "ленивая сборка своего экземпляра",
+    why: "тело один раз строит себе экземпляр общего дома фабрикой модуля",
+    test: (inner) =>
+      /^if \([^()]*\) return ?; ?[A-Za-z0-9_$]+ = __[A-Za-z0-9_$]*\.[A-Za-z0-9_$]+\(\{.*\}\) ?;?$/.test(inner)
+      || /^if \([^()]*\) \{ ?[A-Za-z0-9_$]+ = __[A-Za-z0-9_$]*\.[A-Za-z0-9_$]+\(\{.*\}\) ?;? ?\} return [A-Za-z0-9_$]+ ?;?$/.test(inner),
+  },
+];
+
+function shapeOf(body) {
+  const inner = innerCode(body);
+  for (const sh of SHAPES) if (sh.test(inner)) return sh;
+  return null;
+}
+
+/* Контроль признака — на строках-образцах и в обе стороны (У-92, У-119). */
+function checkShapes() {
+  const cases = [
+    ["function g() {\n  return __mod;\n}", "доставалка модуля"],
+    ["function g() {\n  return require(\"../features/x.js\");\n}", "доставалка модуля"],
+    ["function g() {\n  ensureLoaded();\n  return __fns;\n}", "доставалка модуля"],
+    ["function g() {\n  if (__f) return;\n  __f = __mod.createX({ a: 1, b: \"left\" });\n}", "ленивая сборка своего экземпляра"],
+    ["function g() {\n  if (!__f) {\n    __f = __mod.createX({ a: 1 });\n  }\n  return __f;\n}", "ленивая сборка своего экземпляра"],
+    ["function g(k) {\n  const s = String(k || \"\").trim();\n  return s ? s : \"tag\";\n}", null],
+    ["function g() {\n  return __mod.value;\n}", null],
+    ["function g() {\n  return __mod.createX({ a: 1 });\n}", null],
+    ["function g() {\n  const s = \"}\";\n  return s;\n}", null],
+  ];
+  for (const [src, want] of cases) {
+    const got = shapeOf(declarations(src).g);
+    const id = got ? got.id : null;
+    if (id !== want) {
+      throw new Error("контроль рода: на образце ждали " + (want || "ничего")
+        + ", обход сказал " + (id || "ничего") + "\n" + src);
+    }
+  }
+}
+
 function norm(s) {
   return String(s || "").replace(/\s+/g, " ").trim();
 }
 
-function main() {
+function measure() {
   /* Контроль до первого вывода (У-119): на известном куске разборщик обязан
      отдать тело целиком, а не до первой скобки внутри строки. */
   const probe = "function f(a) {\n  const s = \"}\";\n  return s;\n}\n";
@@ -426,6 +502,8 @@ function main() {
     }
   }
 
+  checkShapes();
+
   const broken = [];
   const twins = [];
   for (const name of Object.keys(byName)) {
@@ -434,14 +512,30 @@ function main() {
     if (rows.length < 2) continue;
     const real = rows.filter((r) => !isDelegate(name, r.body));
     const same = rows.every((r) => norm(r.body) === norm(rows[0].body));
-    twins.push({ name, rows, same, real: real.length, delegates: rows.length - real.length });
+    /* Имя, у которого **все** тела правила не объявляют, — не долг: сводить в
+       нём нечего. Оно печатается отдельным списком, а не прячется. */
+    const shapes = rows.map((r) => shapeOf(r.body));
+    const notARule = shapes[0] && shapes.every((sh) => sh && sh.id === shapes[0].id) ? shapes[0].id : null;
+    twins.push({ name, rows, same, real: real.length, delegates: rows.length - real.length, notARule });
   }
 
+  const notRules = twins.filter((t) => t.notARule && t.real > 1);
+  const real = twins.filter((t) => t.real > 1 && !t.notARule);
+  return { twins, real, notRules, broken, seen, unseen };
+}
+
+/*
+ * Измерение отдаётся наружу: его спрашивает сторож
+ * `tests/regression/rule_copies_debt_tests.js`. Разбирать текст вывода он бы
+ * не смог — свой разборщик чужого вывода есть то же второе объявление правила
+ * (У-96).
+ */
+function main() {
+  const { twins, real, notRules, broken, seen, unseen } = measure();
   if (broken.length) {
     console.log("!!! скобки не сошлись, эти места решает человек: " + broken.join(", "));
   }
   const SHOW_ALL = process.argv.includes("--all");
-  const real = twins.filter((t) => t.real > 1);
   const copies = SHOW_ALL ? twins : real;
   /* Число настоящих копий считается по предмету, а не по тому, что сейчас
      печатается: под `--all` в списке лежат и делегаты, и шапка называла
@@ -450,6 +544,8 @@ function main() {
   console.log("имён, объявленных больше одного раза: " + twins.length
     + "; из них с двумя и более настоящими объявлениями: " + real.length
     + " (остальные — делегаты к общему дому)");
+  console.log("Правила не объявляют вовсе (вердикт по форме, см. node tools/rule_copy_shapes.js): "
+    + notRules.length + " — " + (notRules.map((t) => t.name).join(", ") || "нет"));
   console.log("Видны только объявления верхнего уровня: " + seen + " из " + (seen + unseen) +
     ". Вне поля зрения меры: " + unseen +
     " вложенных и стрелочных" + (unseen ? "" : "  <= НОЛЬ: образец промахнулся, вложенные функции в проекте есть") +
@@ -465,6 +561,6 @@ function main() {
 
 /* Маска «где код, а где рассказ о коде» отдаётся наружу: её спрашивает
    `tools/form_divergence.js`, и второй копии заводить не надо (У-138, У-32). */
-module.exports = { mask, declarations };
+module.exports = { mask, declarations, shapeOf, innerCode, measure };
 
 if (require.main === module) main();

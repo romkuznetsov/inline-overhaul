@@ -682,7 +682,7 @@ function getFirstElementFieldKey(rules) {
   return "";
 }
 
-function resolveFieldIdByOrderKey(rules, orderKey) {
+function resolveDateFieldIdByOrderKey(rules, orderKey) {
   const key = String(orderKey || "").trim();
   if (!key) return "";
   const right = Array.isArray(rules?.rightMode?.fields) ? rules.rightMode.fields : [];
@@ -1019,7 +1019,7 @@ function mutateDateOffsetByFormat(state, fieldId, format, inc, stepRaw) {
 module.exports = {
   /* «Какое поле отвечает этому ключу Order» отдаётся наружу ради меры: у
      имени два объявления, и расхождение между ними считает программа. */
-  resolveFieldIdByOrderKey,
+  resolveDateFieldIdByOrderKey,
   /* «Во сколько единиц смещения это значение» отдаётся наружу затем, чтобы
      расхождение с одноимённым объявлением у ядра панели меряла программа,
      а не чтение (`node tools/form_divergence.js`). Поведения не меняет. */
@@ -1144,7 +1144,7 @@ module.exports = {
     const requestedFieldKey = String(actionMeta.fieldKey || getFirstElementFieldKey(rules) || "").trim();
     if (!requestedFieldKey) return;
     const actionFieldKey = resolveActionFieldKey(rules, orderCfg, dateRuntimeCfg, requestedFieldKey);
-    const actionFieldId = resolveFieldIdByOrderKey(rules, actionFieldKey);
+    const actionFieldId = resolveDateFieldIdByOrderKey(rules, actionFieldKey);
     const rightFieldsAll = Array.isArray(rules?.rightMode?.fields) ? rules.rightMode.fields : [];
     const leftFieldsAll = Array.isArray(rules?.leftMode?.fields) ? rules.leftMode.fields : [];
     const resolveFieldOrderKeyLocal = (field) => String(field?.orderKey || resolveOrderKeyFromFieldId(field?.id) || field?.id || "").trim();

@@ -182,11 +182,11 @@ function getDateLikeMarkers(rules) {
   /* Запасного списка из `rules.dates.markers` здесь больше нет: этот ключ в
      продукте не пишет никто — три читателя, ноль писателей, и так с первого
      релиза (10.13.158). На его настройках список и без него пуст, а метку в
-     `isDateLikeToken` кладёт ход ниже. */
+     `isDateLikeOrBareDateToken` кладёт ход ниже. */
   return out
 }
 
-function isDateLikeToken(token, rules) {
+function isDateLikeOrBareDateToken(token, rules) {
   var src = String(token || '').trim()
   if (!src) return false
   var markers = getDateLikeMarkers(rules)
@@ -972,7 +972,7 @@ function parseLine(rawLine, rules) {
         out.values.push(t)
         continue
       }
-      if (isDateLikeToken(t, rules)) {
+      if (isDateLikeOrBareDateToken(t, rules)) {
         out.dates.push(t)
         out.values.push(t)
         continue
@@ -2973,7 +2973,7 @@ module.exports = {
   resolveDateOffsetByFormatValue: resolveDateOffsetByFormatValue,
   /* И действующий ответ этого места — он же: первый ход бывает пустым, и
      тогда метку узнаёт запасной. Мерить надо тот, которым узнают (У-151). */
-  isDateLikeToken: isDateLikeToken,
+  isDateLikeOrBareDateToken: isDateLikeOrBareDateToken,
   parseLine: parseLine,
   makeInitialState: makeInitialState,
   resolveInitialActiveField: resolveInitialActiveField,

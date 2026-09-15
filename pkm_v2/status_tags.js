@@ -876,7 +876,7 @@ function nextCycleIdByDirection(cycle, currentId, direction) {
   return valueId(arr[idx + 1]);
 }
 
-function resolveFieldIdByOrderKey(rules, orderKey) {
+function resolveTagFieldIdByOrderKey(rules, orderKey) {
   const key = String(orderKey || "").trim();
   if (!key) return "";
   const left = Array.isArray(rules?.leftMode?.fields) ? rules.leftMode.fields : [];
@@ -991,7 +991,7 @@ function resolveParentFieldForSubAction(rules, orderKey, targetField) {
   const key = String(orderKey || "").trim();
   if (!/_sub$/.test(key)) return null;
   const parentOrderKey = key.slice(0, -4);
-  const parentFieldId = resolveFieldIdByOrderKey(rules, parentOrderKey);
+  const parentFieldId = resolveTagFieldIdByOrderKey(rules, parentOrderKey);
   if (!parentFieldId) return null;
   const left = rules && rules.leftMode ? rules.leftMode : null;
   const right = rules && rules.rightMode ? rules.rightMode : null;
@@ -1023,7 +1023,7 @@ function collectSelectedEntriesForPolicy(rules, state, orderCfg) {
 
 module.exports = {
   /* То же и здесь: имя одно, объявления два, меряет их программа. */
-  resolveFieldIdByOrderKey,
+  resolveTagFieldIdByOrderKey,
   settings: {
     name: "Status: Tags & Context logic",
     author: "you",
@@ -1186,7 +1186,7 @@ module.exports = {
         const k = String(key || "").trim();
         if (!k) continue;
         if (!statusCommon.isFieldKeyEnabled(orderCfg, k)) continue;
-        const fid = String(resolveFieldIdByOrderKey(rules, k) || "").trim();
+        const fid = String(resolveTagFieldIdByOrderKey(rules, k) || "").trim();
         if (fid) return k;
       }
       const leftFields = Array.isArray(rules?.leftMode?.fields) ? rules.leftMode.fields : [];
@@ -1194,7 +1194,7 @@ module.exports = {
       return String(first && (first.orderKey || first.id) || "").trim();
     })();
     const actionFieldKey = fieldKeyByAction(action, fallbackActionFieldKey);
-    const resolvedActionFieldId = String(resolveFieldIdByOrderKey(rules, actionFieldKey) || "").trim();
+    const resolvedActionFieldId = String(resolveTagFieldIdByOrderKey(rules, actionFieldKey) || "").trim();
     const actionIsCycleField = /^cycle_field:/.test(action);
     if (!statusCommon.isFieldKeyEnabled(orderCfg, actionFieldKey)) return;
     const targetPanel = panelForTagKey(orderCfg, actionFieldKey);
@@ -1334,7 +1334,7 @@ module.exports = {
         parsedWork = { ...parsedWork, checkboxToken: "" };
       }
     } else if (actionIsCycleField || /_sub$/.test(actionFieldKey)) {
-      const targetFieldId = resolveFieldIdByOrderKey(rules, actionFieldKey);
+      const targetFieldId = resolveTagFieldIdByOrderKey(rules, actionFieldKey);
       const targetField = getField(left, targetFieldId) || getField(rules.rightMode, targetFieldId);
       if (!targetField) return;
       targetFieldForPrefix = targetField;

@@ -2279,7 +2279,7 @@ async function run() {
   assertTrue(/checkboxBelongsToField\(state\.rules, activeFieldId,/.test(tagwheelSrc), "tagwheel asks about the checkbox standing on the line, not about the field");
   assertTrue(/hasDateLikeMarkerInText\(textOnly\)/.test(statusDateSrc), "status_date due-left guard uses shared marker text classifier");
   assertTrue(/removeMarkerTokensFromSegment\(src, marker, valueRxSrc \|\| ""\)/.test(statusDateSrc), "status_date date marker cleanup uses shared marker-token remover helper");
-  assertTrue(/function resolveFieldIdByOrderKey\(/.test(statusDateSrc), "status_date resolves generic order-key fields");
+  assertTrue(/function resolveDateFieldIdByOrderKey\(/.test(statusDateSrc), "status_date resolves generic order-key fields");
   assertTrue(/function getRuntimeFieldConfigRow\(/.test(statusDateSrc) && /function getElementRuntimeCfg\(/.test(statusDateSrc), "status_date resolves element runtime config via generic runtime-field lookup");
   assertTrue(/function hydrateGenericElementFromRawLine\(/.test(statusDateSrc), "status_date hydrates generic element values from line");
   assertTrue(/function applyGenericElementIncrementByFormat\(/.test(statusDateSrc), "status_date mutates generic elements via increment behavior config");

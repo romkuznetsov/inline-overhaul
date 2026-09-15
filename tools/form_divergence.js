@@ -688,11 +688,11 @@ function markerSites() {
        * снимается **вопросом к самой функции**: у каждой метки-кандидата
        * спрашивается токен с ней, и в список идут те, о которых сказано «да».
        */
-      id: "tagwheel_core.isDateLikeToken",
+      id: "tagwheel_core.isDateLikeOrBareDateToken",
       file: "pkm_v2/TagWheel/tagwheel_core.js",
       anchor: null,
       fn: (rules) => uniqSorted(MARKER_CANDIDATES.filter(
-        (mk) => core.isDateLikeToken(mk + "2026-09-15", rules)
+        (mk) => core.isDateLikeOrBareDateToken(mk + "2026-09-15", rules)
       )),
     },
     {
@@ -911,7 +911,7 @@ async function reportMarkers() {
    * нём есть: без неё вопрос «узнаёт ли место объявленное одним способом» не
    * задаётся вовсе (У-113).
    */
-  const listSites = sites.filter((s) => s.id.indexOf("isDateLikeToken") < 0);
+  const listSites = sites.filter((s) => s.id.indexOf("isDateLike") < 0);
   const union = new Set([FRESH_MARKER]);
   for (const c of corpus) {
     for (const s of listSites) {
@@ -1235,7 +1235,7 @@ async function reportDateOffset() {
 /* ------------------- «какое поле отвечает этому ключу Order» (1е очереди) */
 
 /**
- * `resolveFieldIdByOrderKey` объявлен дважды — у движка дат и у движка тегов,
+ * `resolveFieldIdByOrderKey` был объявлен дважды — у движка дат и у движка тегов;
  * — и очередь числила его кандидатом на сведение.
  *
  * Меряется он на **его** правилах и **его** ключах Order: ключи берутся из
@@ -1251,12 +1251,12 @@ function fieldByKeySites() {
     {
       id: "status_date (поля-элементы)",
       file: "pkm_v2/status_date.js",
-      fn: (rules, key) => statusDate.resolveFieldIdByOrderKey(rules, key),
+      fn: (rules, key) => statusDate.resolveDateFieldIdByOrderKey(rules, key),
     },
     {
       id: "status_tags (поля-теги)",
       file: "pkm_v2/status_tags.js",
-      fn: (rules, key) => statusTags.resolveFieldIdByOrderKey(rules, key),
+      fn: (rules, key) => statusTags.resolveTagFieldIdByOrderKey(rules, key),
     },
   ];
 }
