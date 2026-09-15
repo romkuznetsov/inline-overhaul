@@ -208,6 +208,27 @@ export function cssVarValue(node: El, name: string): string {
   }
 }
 
+/**
+ * Пара цветов темы для пузыря Value: заливка и текст на ней.
+ *
+ * Дом один, и он здесь — рядом с чтением переменной, из которой оба берутся.
+ * Объявлений было два, в редакторе Fields и в таблице своих тегов, и тела
+ * совпадали до знака. Мера копий их не видела: у объявления на TypeScript
+ * открывающих скобок две, и разборщик тел брал за тело **возвращаемый тип**
+ * (10.13.162).
+ */
+export interface ThemePair {
+  fill: string;
+  text: string;
+}
+
+export function themePair(node: El): ThemePair {
+  return {
+    fill: cssVarValue(node, "--interactive-accent"),
+    text: cssVarValue(node, "--text-on-accent"),
+  };
+}
+
 /** Значение CSS-переменной. Другие свойства свой блок не задаёт (Г1). */
 export function cssVar(node: El, name: string, value: string): void {
   if (!name.startsWith("--io-")) throw new Error("свой блок задаёт только --io-*: " + name);

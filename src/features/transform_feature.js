@@ -106,7 +106,7 @@ const DEFAULT_INLINE2NOTE = {
   },
 };
 
-function normalizeMode(raw, allowed, dflt) {
+function oneOfOrDefault(raw, allowed, dflt) {
   const s = String(raw || "").trim().toLowerCase();
   return allowed.includes(s) ? s : dflt;
 }
@@ -290,7 +290,7 @@ function normalizeSmartRules(rawRules) {
        * значения, которые человек мог задать и снова выключить, и терять их
        * при переключении режима туда-обратно неоткуда.
        */
-      placementMode: normalizeMode(r.placementMode, ["default", "custom"], "default"),
+      placementMode: oneOfOrDefault(r.placementMode, ["default", "custom"], "default"),
       placement: normalizePlacement(r.placement),
       validation: {
         isConflict: !!(r.validation && r.validation.isConflict),
@@ -343,7 +343,7 @@ function normalizeFloatingButtonGap(raw) {
 function normalizePlacement(raw) {
   const placement = isObj(raw) ? raw : {};
   const out = {};
-  out.position = normalizeMode(placement.position, ["beginning", "end", "custom-header"], DEFAULT_INLINE2NOTE.placement.position);
+  out.position = oneOfOrDefault(placement.position, ["beginning", "end", "custom-header"], DEFAULT_INLINE2NOTE.placement.position);
   /*
    * Имя заголовка человек пишет как хочет: `Log`, `## Log`, с пробелами по
    * краям. Решётки здесь **сохраняются**, а не срезаются, и это не небрежность:
@@ -351,8 +351,8 @@ function normalizePlacement(raw) {
    * заголовок любого уровня.
    */
   out.targetHeader = String(placement.targetHeader == null ? DEFAULT_INLINE2NOTE.placement.targetHeader : placement.targetHeader).trim();
-  out.fallback = normalizeMode(placement.fallback, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.fallback);
-  out.headerMode = normalizeMode(placement.headerMode, ["custom", "datetime", "none"], DEFAULT_INLINE2NOTE.placement.headerMode);
+  out.fallback = oneOfOrDefault(placement.fallback, ["beginning", "end"], DEFAULT_INLINE2NOTE.placement.fallback);
+  out.headerMode = oneOfOrDefault(placement.headerMode, ["custom", "datetime", "none"], DEFAULT_INLINE2NOTE.placement.headerMode);
   /*
    * Решётки живут в `headerLevel`, и только там. С текстбоксов они снимаются
    * на каждой записи: два источника решёток однажды дали бы двойные, а какой
@@ -405,23 +405,23 @@ function normalizeInline2Note(raw) {
   };
 
   const noteName = isObj(src.noteName) ? src.noteName : {};
-  out.noteName.mode = normalizeMode(noteName.mode, ["auto", "manual"], DEFAULT_INLINE2NOTE.noteName.mode);
+  out.noteName.mode = oneOfOrDefault(noteName.mode, ["auto", "manual"], DEFAULT_INLINE2NOTE.noteName.mode);
   out.noteName.delimiters = String(noteName.delimiters || DEFAULT_INLINE2NOTE.noteName.delimiters).trim() || "[]";
   out.noteName.wordCount = Math.max(1, Math.min(32, Math.trunc(Number(noteName.wordCount) || DEFAULT_INLINE2NOTE.noteName.wordCount)));
   out.noteName.preferHeaderTitle = noteName.preferHeaderTitle !== false;
 
   const nameCollision = isObj(src.nameCollision) ? src.nameCollision : {};
-  out.nameCollision.mode = normalizeMode(nameCollision.mode, ["new_note", "add_to_note", "overwrite"], DEFAULT_INLINE2NOTE.nameCollision.mode);
+  out.nameCollision.mode = oneOfOrDefault(nameCollision.mode, ["new_note", "add_to_note", "overwrite"], DEFAULT_INLINE2NOTE.nameCollision.mode);
 
   out.placement = normalizePlacement(src.placement);
-  out.yamlNoteFormat = normalizeMode(src.yamlNoteFormat, ["raw", "clean"], DEFAULT_INLINE2NOTE.yamlNoteFormat);
+  out.yamlNoteFormat = oneOfOrDefault(src.yamlNoteFormat, ["raw", "clean"], DEFAULT_INLINE2NOTE.yamlNoteFormat);
 
   const sp = isObj(src.sourceProcessing) ? src.sourceProcessing : {};
   out.sourceProcessing.cleanupFieldIds = Array.isArray(sp.cleanupFieldIds) ? sp.cleanupFieldIds.map((x) => String(x || "").trim()).filter(Boolean) : [];
   out.sourceProcessing.token = Object.prototype.hasOwnProperty.call(sp, "token")
     ? String(sp.token || "").trim()
     : DEFAULT_INLINE2NOTE.sourceProcessing.token;
-  out.sourceProcessing.panel = normalizeMode(sp.panel, ["left", "right"], DEFAULT_INLINE2NOTE.sourceProcessing.panel);
+  out.sourceProcessing.panel = oneOfOrDefault(sp.panel, ["left", "right"], DEFAULT_INLINE2NOTE.sourceProcessing.panel);
   out.sourceProcessing.replaceWithLink = sp.replaceWithLink !== false;
   /*
    * Ключа `text` в старых настройках нет, и умолчание схемы тут не годится:
@@ -430,7 +430,7 @@ function normalizeInline2Note(raw) {
    * выключившего ссылку, текст начал бы исчезать после обновления.
    */
   out.sourceProcessing.text = Object.prototype.hasOwnProperty.call(sp, "text")
-    ? normalizeMode(sp.text, ["leave", "remove", "words", "leave_named"], DEFAULT_INLINE2NOTE.sourceProcessing.text)
+    ? oneOfOrDefault(sp.text, ["leave", "remove", "words", "leave_named"], DEFAULT_INLINE2NOTE.sourceProcessing.text)
     : (out.sourceProcessing.replaceWithLink ? "remove" : "leave");
   out.sourceProcessing.keepWords = Number.isFinite(Number(sp.keepWords))
     ? Math.max(1, Math.min(20, Math.trunc(Number(sp.keepWords))))
@@ -443,7 +443,7 @@ function normalizeInline2Note(raw) {
   };
 
   out.openTarget = src.openTarget === true;
-  out.sublines = normalizeMode(src.sublines, ["stay", "remove"], DEFAULT_INLINE2NOTE.sublines);
+  out.sublines = oneOfOrDefault(src.sublines, ["stay", "remove"], DEFAULT_INLINE2NOTE.sublines);
 
   /* Тумблер, а не ветка: `flyingButton.enabled` переехал в `floatingButton`
      одним значением (PRD 8.1б, Р12). Форму версии 1 сюда уже не приносят —
@@ -1928,7 +1928,7 @@ function applySourcePayloadReplace(line, noteTitle, separators) {
  */
 function applySourceTextFate(line, noteTitle, separators, opts) {
   const src = String(line || "");
-  const fate = normalizeMode(opts && opts.text, ["leave", "remove", "words", "leave_named"], "remove");
+  const fate = oneOfOrDefault(opts && opts.text, ["leave", "remove", "words", "leave_named"], "remove");
   const link = !!(opts && opts.link);
   const title = String(noteTitle || "").trim();
   const linkText = link && title ? ("[[" + title + "]]") : "";

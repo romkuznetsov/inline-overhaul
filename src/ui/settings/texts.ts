@@ -368,7 +368,7 @@ export function languageOptions(catalogs: Catalogs): ReadonlyArray<{ value: stri
 
 /* ---- перевод схемы ----------------------------------------------------- */
 
-function say(t: Resolve, key: string, value: unknown): string | undefined {
+function translateIfSet(t: Resolve, key: string, value: unknown): string | undefined {
   if (typeof value !== "string" || value === "") return undefined;
   return t(key, value);
 }
@@ -386,7 +386,7 @@ function localizeItem(group: string, it: SettingDef, t: Resolve): SettingDef {
   const out: Record<string, unknown> = { ...any };
   const id = it.id;
   const put = (slot: string, value: unknown): void => {
-    const next = say(t, itemKey(group, id, slot), value);
+    const next = translateIfSet(t, itemKey(group, id, slot), value);
     if (next !== undefined) out[slot] = next;
   };
   put("name", any.name);
@@ -430,9 +430,9 @@ export function localizeSchema(
       heading: t(groupKey(g.id, "heading"), g.heading),
       items: g.items.map(it => localizeItem(g.id, it, t)),
     };
-    const intro = say(t, groupKey(g.id, "intro"), g.intro);
+    const intro = translateIfSet(t, groupKey(g.id, "intro"), g.intro);
     if (intro !== undefined) out.intro = intro;
-    const tip = say(t, groupKey(g.id, "tip"), g.tip);
+    const tip = translateIfSet(t, groupKey(g.id, "tip"), g.tip);
     if (tip !== undefined) out.tip = tip;
     return out;
   });
@@ -442,7 +442,7 @@ export function localizeSchema(
 export function localizeTabs(tabs: readonly TabDef[], t: Resolve): readonly TabDef[] {
   return tabs.map(tab => {
     const out: TabDef = { ...tab, label: t(tabKey(tab.id, "label"), tab.label) };
-    const desc = say(t, tabKey(tab.id, "desc"), tab.desc);
+    const desc = translateIfSet(t, tabKey(tab.id, "desc"), tab.desc);
     if (desc !== undefined) out.desc = desc;
     return out;
   });

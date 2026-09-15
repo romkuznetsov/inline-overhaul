@@ -152,7 +152,7 @@ export interface RulesModelDeps {
 
 
 
-function strings(value: unknown): string[] {
+function uniqueStrings(value: unknown): string[] {
   const out: string[] = [];
   for (const raw of asArray(value)) {
     const v = String(raw || "").trim();
@@ -222,10 +222,10 @@ export function createRulesModel(deps: RulesModelDeps) {
         placementMode: String(r["placementMode"] || "").trim().toLowerCase() === "custom" ? "custom" : "default",
         placement: readPlacement(r["placement"]),
         conditions: {
-          tags: strings(conditions["tags"]),
-          emojiFields: strings(conditions["emojiFields"]),
-          wikilinks: strings(conditions["wikilinks"]),
-          fields: strings(conditions["fields"]),
+          tags: uniqueStrings(conditions["tags"]),
+          emojiFields: uniqueStrings(conditions["emojiFields"]),
+          wikilinks: uniqueStrings(conditions["wikilinks"]),
+          fields: uniqueStrings(conditions["fields"]),
         },
         conflict: validation["isConflict"] ? String(validation["message"] || "").trim() : "",
       };

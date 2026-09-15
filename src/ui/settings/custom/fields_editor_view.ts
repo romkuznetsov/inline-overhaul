@@ -15,7 +15,7 @@
  */
 
 import type { El, ElButton, ElInput, DragEv } from "./dom.ts";
-import { el, btn, cssVar, cssVarValue, rich, selectInput, textInput, tipBelow } from "./dom.ts";
+import { el, btn, cssVar, rich, selectInput, textInput, themePair, tipBelow, type ThemePair } from "./dom.ts";
 import type { FieldsModel, FieldRow, ValueAt, ValuesEditor, ValueTreeRow } from "./fields_model.ts";
 import type { FieldKind, SettingsCtx, ValueVisibility } from "../types.ts";
 import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./contrast.ts";
@@ -1107,18 +1107,6 @@ function flatten(tree: readonly ValueTreeRow[]): Array<{ row: ValueTreeRow; at: 
  *
  * Пусто — прочитать тему нечем (заглушка DOM), и тогда контраст не считается.
  */
-interface ThemePair {
-  fill: string;
-  text: string;
-}
-
-function themePair(node: El): ThemePair {
-  return {
-    fill: cssVarValue(node, "--interactive-accent"),
-    text: cssVarValue(node, "--text-on-accent"),
-  };
-}
-
 /* «Значение без оформления» — одно объявление на слой настроек, в
    `preview_data.ts`. Здесь стояла вторая копия; тела сверены на 94 входах и
    разошлись на нуле (10.13.140). */

@@ -49,7 +49,7 @@ function num(ctx: SettingsCtx, path: string): number {
  * по схеме, до её текстов не достаёт. Второй аргумент — то, что написано в
  * выгрузке из прототипа: он же и ответ, когда перевода нет (Я4).
  */
-function say(ctx: SettingsCtx, key: string, fallback: string): string {
+function askText(ctx: SettingsCtx, key: string, fallback: string): string {
   return ctx.t ? ctx.t(key, fallback) : fallback;
 }
 
@@ -58,11 +58,11 @@ function say(ctx: SettingsCtx, key: string, fallback: string): string {
  * разбора строки. Ключ строит `frameKey` — литерала на его месте нет (У-82).
  */
 export function frame(ctx: SettingsCtx, name: string): string {
-  return say(ctx, frameKey(name), FRAME_BY_NAME[name] || "");
+  return askText(ctx, frameKey(name), FRAME_BY_NAME[name] || "");
 }
 
 /** Значение настройки строкой, с запасным вариантом на пустое место. */
-function str(ctx: SettingsCtx, path: string, fallback: string): string {
+function readText(ctx: SettingsCtx, path: string, fallback: string): string {
   const v = ctx.get(path);
   const s = v === undefined || v === null ? "" : String(v);
   return s || fallback;
@@ -97,14 +97,14 @@ function sep(ctx: SettingsCtx, path: string): string {
  */
 function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close: () => void } {
   const text = PREVIEW_TEXTS[id];
-  const cap0 = text ? say(ctx, previewKey(id, "cap"), text.cap) : "";
+  const cap0 = text ? askText(ctx, previewKey(id, "cap"), text.cap) : "";
   const box = el(host, "div", "io-preview");
   const cap = el(box, "div", "io-preview__cap");
   el(cap, "span", undefined, cap0);
   const close = tipBelow({
     head: cap,
     host: box,
-    text: text ? say(ctx, previewKey(id, "tip"), text.tip) : "",
+    text: text ? askText(ctx, previewKey(id, "tip"), text.tip) : "",
     label: cap0 || id,
     id: "io-tip-" + id,
     showTips: Boolean(ctx.get("general.help.showTips")),
@@ -232,7 +232,7 @@ export function bubble(parent: El, v: PreviewValue, override?: string): El {
  * Value с подзначением: одним пузырём `#parent/child` или двумя рядом —
  * так, как решает `Child tag format`.
  */
-function tagField(parent: El, f: PreviewField, ctx: SettingsCtx): void {
+function drawTagField(parent: El, f: PreviewField, ctx: SettingsCtx): void {
   const { parent: p, child } = valuePair(f);
   if (!p) return;
   if (!child) { bubble(parent, p); return; }
@@ -277,12 +277,12 @@ function structuralLine(
   const left = fieldsOn(fields, "left");
   if (left.length) put(el(line, "span", "io-line__side io-line__side--left"), left);
   el(line, "span", "io-line__sep", sep(ctx, SEP1_PATH));
-  el(line, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT));
+  el(line, "span", "io-line__text", askText(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT));
   el(line, "span", "io-line__sep", sep(ctx, SEP2_PATH));
 
   const right = fieldsOn(fields, "right");
   if (right.length) put(el(line, "span", "io-line__side io-line__side--right"), right);
-  else el(line, "span", "io-line__hint", say(ctx, SINGLE_KEYS.previewEmptyRight, PREVIEW_EMPTY_RIGHT));
+  else el(line, "span", "io-line__hint", askText(ctx, SINGLE_KEYS.previewEmptyRight, PREVIEW_EMPTY_RIGHT));
   return line;
 }
 
@@ -356,7 +356,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
 
     const scroller = Boolean(ctx.get("visual.tagWheel.scroller.enabled"));
     const perSide = scroller ? num(ctx, "visual.tagWheel.scroller.size") : 0;
-    const direction = str(ctx, "visual.tagWheel.scroller.direction", "full");
+    const direction = readText(ctx, "visual.tagWheel.scroller.direction", "full");
     const markers = Boolean(ctx.get("visual.tagWheel.showMarkers"));
 
     const left = fieldsOn(fields, "left");
@@ -396,9 +396,9 @@ export const wheelPreview: CustomRender = (host, ctx) => {
      * могу проверить в нем как работают настройки panel-active-color и
      * panel-text-color» (замечание H2).
      */
-    const fill = str(ctx, "visual.tagWheel.fillColor", "");
-    const text = str(ctx, "visual.tagWheel.textColor", "");
-    const activeText = str(ctx, "visual.tagWheel.activeTextColor", "") || text;
+    const fill = readText(ctx, "visual.tagWheel.fillColor", "");
+    const text = readText(ctx, "visual.tagWheel.textColor", "");
+    const activeText = readText(ctx, "visual.tagWheel.activeTextColor", "") || text;
     const lit = Boolean(ctx.get("visual.tagWheel.highlightLine"));
 
     /*
@@ -415,8 +415,8 @@ export const wheelPreview: CustomRender = (host, ctx) => {
      * Пусто — цвета темы: их подставляет запасное значение переменной в
      * стилях, `var(--io-wheel-bg, var(--background-primary))`.
      */
-    const scrollFill = str(ctx, "visual.tagWheel.scroller.fillColor", "");
-    const scrollText = str(ctx, "visual.tagWheel.scroller.textColor", "");
+    const scrollFill = readText(ctx, "visual.tagWheel.scroller.fillColor", "");
+    const scrollText = readText(ctx, "visual.tagWheel.scroller.textColor", "");
 
     const scrollerBox = (col: El, idx: readonly number[], where: string): void => {
       if (!idx.length) return;
@@ -474,7 +474,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
      */
     }, "io-line--wheel");
 
-    if (example) rich(el(foot, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
+    if (example) rich(el(foot, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -541,7 +541,7 @@ export const barsPreview: CustomRender = (host, ctx) => {
    * почему — не было сказано (замечание заказчика 1.5.3.2). Движок ведёт себя
    * так же: пустой `fieldId` даёт пустой набор токенов и ни одной полосы.
    */
-  const chosenField = (): string => str(ctx, "visual.tagBars.fieldId", "");
+  const chosenField = (): string => readText(ctx, "visual.tagBars.fieldId", "");
 
   /**
    * Места, которые называет выдуманное дерево, — в порядке первого появления.
@@ -695,7 +695,7 @@ export const barsPreview: CustomRender = (host, ctx) => {
         ? frame(ctx, "BARS_NO_TAG_FIELD")
         : frame(ctx, chosen ? "BARS_FIELD_GONE" : "BARS_NEED_FIELD"));
     }
-    if (example) rich(el(tree, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
+    if (example) rich(el(tree, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -766,7 +766,7 @@ export const linePreview: CustomRender = (host, ctx) => {
     cell("io-struct__sep", c => {
       el(c, "span", "io-line__sep", sep(ctx, SEP1_PATH));
     });
-    cell("io-struct__text", c => { el(c, "span", "io-line__text", say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT)); });
+    cell("io-struct__text", c => { el(c, "span", "io-line__text", askText(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT)); });
     cell("io-struct__sep", c => {
       el(c, "span", "io-line__sep", sep(ctx, SEP2_PATH));
     });
@@ -801,7 +801,7 @@ export const linePreview: CustomRender = (host, ctx) => {
     el(holder, "div");
 
     /* Пример помечается: иначе человек решит, что видит свои Fields (ПЗ2). */
-    if (example) rich(el(foot, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
+    if (example) rich(el(foot, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -842,20 +842,20 @@ export const tagPreview: CustomRender = (host, ctx) => {
     const slots = resolveSlots(fields, TAG_SLOTS);
     for (const slot of TAG_SLOTS) {
       const f = slots.get(slot);
-      if (f) tagField(left, f, ctx);
+      if (f) drawTagField(left, f, ctx);
     }
 
     el(line, "span", "io-line__sep", sep(ctx, SEP1_PATH));
-    el(line, "span", "io-line__text", text ? say(ctx, previewKey("tag-preview", "line"), text.line || "") : "");
+    el(line, "span", "io-line__text", text ? askText(ctx, previewKey("tag-preview", "line"), text.line || "") : "");
     el(line, "span", "io-line__sep", sep(ctx, SEP2_PATH));
 
     const right = el(line, "span", "io-line__side io-line__side--right");
-    if (text && text.element) el(right, "span", "io-elem", say(ctx, previewKey("tag-preview", "element"), text.element));
-    if (text && text.link) el(right, "span", "io-link", say(ctx, previewKey("tag-preview", "link"), text.link));
+    if (text && text.element) el(right, "span", "io-elem", askText(ctx, previewKey("tag-preview", "element"), text.element));
+    if (text && text.link) el(right, "span", "io-link", askText(ctx, previewKey("tag-preview", "link"), text.link));
 
     /* Пример помечается, иначе человек с настроенными Fields решит, что
        панель показывает его собственные (ПЗ2). */
-    if (example) rich(el(holder, "p", "io-preview__note"), say(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
+    if (example) rich(el(holder, "p", "io-preview__note"), askText(ctx, SINGLE_KEYS.previewExample, PREVIEW_EXAMPLE));
   };
 
   draw();
@@ -922,7 +922,7 @@ export const floatingButton: CustomRender = (host, ctx) => {
     /* Отступ — из слайдера, той же переменной, которой его ставит декорация
        строки в заметке: одно правило, одно место (У-32). */
     cssVar(button, "--io-flybtn-gap", num(ctx, "transform.inline2note.floatingButtonGap") + "px");
-    el(holder, "p", "io-preview__note", text ? say(ctx, previewKey("i2n-button-preview", "note"), text.note || "") : "");
+    el(holder, "p", "io-preview__note", text ? askText(ctx, previewKey("i2n-button-preview", "note"), text.note || "") : "");
   };
 
   draw();
@@ -1168,7 +1168,7 @@ export const caretPreview: CustomRender = (host, ctx) => {
   const draw = (): void => {
     holder.empty();
     const row = el(holder, "div", "io-caretline");
-    el(row, "span", undefined, say(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT) + " ");
+    el(row, "span", undefined, askText(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT) + " ");
     el(row, "span", "io-caret");
 
     const shaped = ctx.get("visual.caret.shapeEnabled") === true;
@@ -1177,7 +1177,7 @@ export const caretPreview: CustomRender = (host, ctx) => {
     /* Цвет берётся только у включённого тумблера цвета: эти две половины
        группы друг другу не подчинены. */
     const color = ctx.get("visual.caret.enabled") === true
-      ? str(ctx, "visual.caret.color", "")
+      ? readText(ctx, "visual.caret.color", "")
       : "";
 
     cssVar(row, "--io-caret-width", width + "px");
@@ -1189,7 +1189,7 @@ export const caretPreview: CustomRender = (host, ctx) => {
     if (shaped && speed <= 0) row.classList.add("io-caretline--still");
     else row.classList.remove("io-caretline--still");
 
-    el(holder, "p", "io-preview__note", text ? say(ctx, previewKey("caret-preview", "note"), text.note || "") : "");
+    el(holder, "p", "io-preview__note", text ? askText(ctx, previewKey("caret-preview", "note"), text.note || "") : "");
   };
 
   draw();

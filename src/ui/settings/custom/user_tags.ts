@@ -31,7 +31,7 @@
 
 import { asObject } from "../types.ts";
 import type { CustomRender, SettingsCtx, ValueVisibility } from "../types.ts";
-import { el, btn, textInput, selectInput, tipBelow, cssVarValue, type El, type ElInput } from "./dom.ts";
+import { el, btn, textInput, selectInput, tipBelow, themePair, type El, type ElInput } from "./dom.ts";
 import { keepView } from "./keepview.ts";
 import { applyTagVars, bubble, frame } from "./previews.ts";
 import { contrastRatio, contrastWarning, CONTRAST_FLOOR, toHexColor } from "./contrast.ts";
@@ -238,14 +238,6 @@ export interface UserTagsViewOpts {
   showIds?: boolean;
   /** Куда складывать снятие подсказок: их обязан убрать за собой блок (С5). */
   closers: Array<() => void>;
-}
-
-/** Цвета темы: незаданный цвет — это цвет темы, а не отсутствие цвета. */
-function themePair(node: El): { fill: string; text: string } {
-  return {
-    fill: cssVarValue(node, "--interactive-accent"),
-    text: cssVarValue(node, "--text-on-accent"),
-  };
 }
 
 /**
