@@ -36,22 +36,22 @@ function normalizeToken(raw, kind) {
  * было шире платформенного (У-91).
  */
 /*
- * **Это объявление НЕ равно одноимённому в `pkm_line_finalize_unified.js`**, и
- * расхождение измерено 2026-09-15: на восьми входах из 31, и шесть из восьми —
- * начала строк его собственных заметок (`- [x]`, `- [ ]`, `- [!]`, `- [N]`,
- * `- [s]`, `- [n]`). Здесь знак списка снимается перед разбором, там нет:
- * `- [x]` даёт `[x]` здесь и пустоту там.
+ * **Нормализатор ввода человека**, и это не то же самое, что разбор готового
+ * токена в `pkm_line_finalize_unified.js`. Сюда приезжает то, что напечатали
+ * в колонке `Prefix` редактора Fields, поэтому знак списка снимается:
+ * `- [x]` даёт `[x]`.
  *
- * **Какой ответ верен — вопрос к заказчику, а не мой** (В-118): снятие знака
- * стоит с первой беты, ничем не объяснено, а вход сюда приходит из
- * сохранённого конфига, а не из свободного ввода. Сводить вслепую нельзя —
- * это правка поведения, о которой никто не просил.
+ * **Имя у него своё с 2026-09-15**, и это исполнение ответа заказчика на
+ * В-118: «пользователь может вводить как угодно (`- [x]` / `[x]`), а плагин
+ * сам нормализует ввод» (правило 117, разбор 10.13.153). До того дня оба
+ * вопроса носили одно имя `normalizeCheckboxToken` и расходились на восьми
+ * входах из 31 — шесть из восьми были началами строк его собственных заметок.
+ * Одно имя на два вопроса и есть та ошибка, из-за которой я счёл их копией.
  *
- * Оба поведения закреплены проверками (`bootstrap_loader_tests.js`), чтобы
- * сведение стало осознанным действием, а не тихим: пока вопрос открыт, любая
- * попытка «привести к одному» покраснеет.
+ * Оба ответа закреплены в `bootstrap_loader_tests.js`, и там же стоит запрет
+ * на возврат прежнего имени сюда.
  */
-function normalizeCheckboxToken(raw) {
+function normalizeCheckboxInput(raw) {
   let src = String(raw || "").trim();
   src = src.replace(/^[-*+]\s+/, "").trim();
   if (!src) return "";
@@ -84,7 +84,7 @@ function buildTagTree(parentField, subField, kind, options) {
   for (const row of pValues) {
     const token = normalizeToken(isObj(row) ? row.token : row, kind);
     if (!token) continue;
-    const checkboxToken = normalizeCheckboxToken(checkboxByToken[token]);
+    const checkboxToken = normalizeCheckboxInput(checkboxByToken[token]);
     out.push({
       token,
       prefix: String(parentField && parentField.prefix ? parentField.prefix : "#"),
@@ -99,7 +99,7 @@ function buildTagTree(parentField, subField, kind, options) {
     for (let j = 0; j < children.length; j++) {
       const child = children[j];
       const childToken = normalizeToken(child && child.token, kind);
-      const checkboxToken = normalizeCheckboxToken(checkboxByToken[childToken]);
+      const checkboxToken = normalizeCheckboxInput(checkboxByToken[childToken]);
       children[j] = {
         ...child,
         prefixMode: checkboxToken ? "checkbox" : "bullet",
@@ -119,7 +119,7 @@ function applyTagTreeToFields(tree, parentField, subField, kind) {
     const token = normalizeToken(item && item.token, kind);
     if (!token) continue;
     const mode = String(item && item.prefixMode || "").trim().toLowerCase();
-    const parentCheckbox = mode === "checkbox" ? normalizeCheckboxToken(item && item.checkboxToken) : "";
+    const parentCheckbox = mode === "checkbox" ? normalizeCheckboxInput(item && item.checkboxToken) : "";
     if (parentCheckbox) checkboxByToken[token] = parentCheckbox;
     const children = Array.isArray(item && item.children) ? item.children : [];
     const subTokens = [];
@@ -127,7 +127,7 @@ function applyTagTreeToFields(tree, parentField, subField, kind) {
       const ct = normalizeToken(c && c.token, kind);
       if (!ct) continue;
       const childMode = String(c && c.prefixMode || "").trim().toLowerCase();
-      const childCheckbox = childMode === "checkbox" ? normalizeCheckboxToken(c && c.checkboxToken) : "";
+      const childCheckbox = childMode === "checkbox" ? normalizeCheckboxInput(c && c.checkboxToken) : "";
       if (childCheckbox) checkboxByToken[ct] = childCheckbox;
       subTokens.push(ct);
       if (!sMap.has(ct)) sMap.set(ct, new Set());
@@ -255,7 +255,7 @@ function partitionWikilinkRows(rows, validParentTokens, options) {
 module.exports = {
   IO_TEMP_HISTORY_LIMIT,
   normalizeToken,
-  normalizeCheckboxToken,
+  normalizeCheckboxInput,
   buildTagTree,
   applyTagTreeToFields,
   validateDraft,

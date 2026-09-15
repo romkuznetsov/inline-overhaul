@@ -45,12 +45,12 @@ function assertTrue(v, name) {
   assertEq(mod.normalizeToken("[[abc", "wikilink"), "[[abc]]", "недописанные скобки дописываются");
   assertEq(mod.normalizeToken("Entity Beta", "wikilink"), "[[Entity Beta]]", "пробел внутри wikilink сохраняется");
 
-  assertEq(mod.normalizeCheckboxToken("- [I]"), "[I]", "маркер списка перед чекбоксом снимается");
-  assertEq(mod.normalizeCheckboxToken("* [x]"), "[x]", "звёздочка тоже снимается");
-  assertEq(mod.normalizeCheckboxToken("[]"), "[ ]", "пустой чекбокс приводится к пробелу");
-  assertEq(mod.normalizeCheckboxToken("[ ]"), "[ ]", "чекбокс с пробелом остаётся собой");
-  assertEq(mod.normalizeCheckboxToken("plain"), "", "не чекбокс — не токен");
-  assertEq(mod.normalizeCheckboxToken(""), "", "пусто остаётся пустым");
+  assertEq(mod.normalizeCheckboxInput("- [I]"), "[I]", "маркер списка перед чекбоксом снимается");
+  assertEq(mod.normalizeCheckboxInput("* [x]"), "[x]", "звёздочка тоже снимается");
+  assertEq(mod.normalizeCheckboxInput("[]"), "[ ]", "пустой чекбокс приводится к пробелу");
+  assertEq(mod.normalizeCheckboxInput("[ ]"), "[ ]", "чекбокс с пробелом остаётся собой");
+  assertEq(mod.normalizeCheckboxInput("plain"), "", "не чекбокс — не токен");
+  assertEq(mod.normalizeCheckboxInput(""), "", "пусто остаётся пустым");
 }
 
 /* ---- дерево значений -------------------------------------------------- */
@@ -229,12 +229,12 @@ const checkboxByToken = { "#p1": "- [I]", "#s2": "[x]" };
    * панель заведёт чекбокс, которого движок уже не узнает: он приставит
    * к нему второй, а текст человека уедет в текст.
    */
-  assertEq(mod.normalizeCheckboxToken("[x]"), "[x]", "один знак — законный чекбокс");
-  assertEq(mod.normalizeCheckboxToken("[]"), "[ ]", "пустые скобки означают пустой чекбокс");
-  assertEq(mod.normalizeCheckboxToken("- [n]"), "[n]", "буллит перед скобками снимается");
-  assertEq(mod.normalizeCheckboxToken("[todo]"), "",
+  assertEq(mod.normalizeCheckboxInput("[x]"), "[x]", "один знак — законный чекбокс");
+  assertEq(mod.normalizeCheckboxInput("[]"), "[ ]", "пустые скобки означают пустой чекбокс");
+  assertEq(mod.normalizeCheckboxInput("- [n]"), "[n]", "буллит перед скобками снимается");
+  assertEq(mod.normalizeCheckboxInput("[todo]"), "",
     "знак длиннее одного чекбоксом не бывает — панель обещает «[ ] или [I]»");
-  assertEq(mod.normalizeCheckboxToken("[test-transform]"), "",
+  assertEq(mod.normalizeCheckboxInput("[test-transform]"), "",
     "и текст человека в скобках чекбоксом её не сделать");
 }
 

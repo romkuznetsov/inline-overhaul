@@ -67,7 +67,7 @@ export interface FieldsPlugin {
 export interface DeepState {
   __unavailable?: boolean;
   normalizeToken?: (raw: unknown, kind?: string) => string;
-  normalizeCheckboxToken?: (raw: unknown) => string;
+  normalizeCheckboxInput?: (raw: unknown) => string;
   buildTagTree?: (parentField: Loose, subField: Loose, kind: string, options?: Loose) => Loose[];
   applyTagTreeToFields?: (tree: Loose[], parentField: Loose, subField: Loose, kind: string) => Loose;
   denormToken?: (raw: unknown) => string;
@@ -1501,8 +1501,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       ? deep.normalizeToken(raw, kind)
       : String(raw || "").trim());
   const normCheckbox = (raw: unknown): string =>
-    (typeof deep.normalizeCheckboxToken === "function"
-      ? deep.normalizeCheckboxToken(raw)
+    (typeof deep.normalizeCheckboxInput === "function"
+      ? deep.normalizeCheckboxInput(raw)
       : String(raw || "").trim());
   const denorm = (raw: unknown): string =>
     (typeof deep.denormToken === "function"
