@@ -488,11 +488,49 @@ function getRightMarkersUnified(rules) {
     }
   }
 
+  /*
+   * **Четвёртый источник — шов навигации, и он живой** (10.13.158).
+   *
+   * `rules.dates.markers` не пишет ни одна дорога, которая ведёт к движкам:
+   * у них метка приезжает полем Order или строкой `dateRuntimeConfig`. Пишут
+   * его ровно три вызова, и все три в `navigation_runtime.js` — у навигации
+   * свой формат строки (`trailingMarkers`), и через этот ключ она подаёт
+   * метки общим помощникам. Убрать чтение значит ослепить прыжки и шаг
+   * внутри строки: проверено снятием, покраснели шесть случаев `S4`.
+   */
   const datesMarkers = Array.isArray(rules && rules.dates && rules.dates.markers)
     ? rules.dates.markers
     : [];
   for (i = 0; i < datesMarkers.length; i++) pushMarker(datesMarkers[i]);
   return out;
+}
+
+/**
+ * «Этот токен — наше значение, а не слово человека» — **одно объявление**.
+ *
+ * Пять признаков: тег, ссылка, метка элемента, голая дата, время. Тело стояло
+ * в этом файле дважды и третий раз — в `pkm_macro_shared.js`, и там оно
+ * спрашивало метки у ключа, которого не пишет никто (10.13.158). Здешние два
+ * брали метки у одного и того же `getRightMarkersUnified`, то есть
+ * расхождение между ними было нулевым **по построению**; у третьего оно
+ * измерено и названо.
+ *
+ * Список меток собирается один раз на вызов, а не на токен: он не зависит от
+ * токена, а `getRightMarkersUnified` обходит все поля.
+ */
+function makeFieldValueTokenTest(rules) {
+  const markers = getRightMarkersUnified(rules);
+  const markerAlt = markers.length ? markers.map(escapeRx).join("|") : "(?!)";
+  const markerRe = new RegExp("^(?:" + markerAlt + ")");
+  return function isFieldValueToken(token) {
+    const t = String(token || "").trim();
+    if (!t) return false;
+    return __sharedUtils.isTagToken(t)
+      || __sharedUtils.isWikilinkToken(t)
+      || markerRe.test(t)
+      || /^\d{4}-\d{2}-\d{2}$/.test(t)
+      || /^\d{2}:\d{2}$/.test(t);
+  };
 }
 
 function extractHeadingPrefix(line) {
@@ -1427,12 +1465,11 @@ function normalizeStructuredSlots(options) {
     .replace(/\s{2,}/g, " ")
     .trim();
 
-  /* Список меток и признак «это наш токен» объявлены здесь, а не ниже: их
-     спрашивает и правило о заголовке выше по тексту, и деление зоны значений
-     ниже. Один вопрос — одно объявление. */
-  const markers = getRightMarkersUnified(rules);
-  const markerAlt = markers.length ? markers.map(escapeRx).join("|") : "(?!)";
-  const markerRe = new RegExp("^(?:" + markerAlt + ")");
+  /* Признак «это наш токен» спрашивается у общего объявления: его хочет знать
+     и правило о заголовке выше по тексту, и деление зоны значений ниже, и
+     постановка курсора в `pkm_macro_shared.js`. Один вопрос — одно
+     объявление. */
+  const isControlToken = makeFieldValueTokenTest(rules);
 
   /*
    * **Слово человека приклеивается к знаку заголовка, а значения полей — нет**
@@ -1492,16 +1529,6 @@ function normalizeStructuredSlots(options) {
 
   const tokens = leftBody ? leftBody.split(/\s+/).filter(Boolean) : [];
   if (!tokens.length) return line;
-
-  function isControlToken(token) {
-    const t = String(token || "").trim();
-    if (!t) return false;
-    return __sharedUtils.isTagToken(t)
-      || __sharedUtils.isWikilinkToken(t)
-      || markerRe.test(t)
-      || /^\d{4}-\d{2}-\d{2}$/.test(t)
-      || /^\d{2}:\d{2}$/.test(t);
-  }
 
   let splitAt = tokens.length;
   while (splitAt > 0 && !isControlToken(tokens[splitAt - 1])) splitAt -= 1;
@@ -1604,18 +1631,7 @@ function normalizeLeftTextSpill(options) {
   const tokens = body.split(/\s+/).filter(Boolean);
   if (tokens.length < 2) return line;
 
-  const markers = getRightMarkersUnified(rules);
-  const markerAlt = markers.length ? markers.map(escapeRx).join("|") : "(?!)";
-  const markerRe = new RegExp("^(?:" + markerAlt + ")");
-  function isControlToken(token) {
-    const t = String(token || "").trim();
-    if (!t) return false;
-    return __sharedUtils.isTagToken(t)
-      || __sharedUtils.isWikilinkToken(t)
-      || markerRe.test(t)
-      || /^\d{4}-\d{2}-\d{2}$/.test(t)
-      || /^\d{2}:\d{2}$/.test(t);
-  }
+  const isControlToken = makeFieldValueTokenTest(rules);
 
   let lastControlIdx = -1;
   let i;
@@ -2202,6 +2218,14 @@ function enforceOffModeFinalPrefixUnified(options) {
 
 module.exports = {
   normalizeCheckboxToken,
+  /* «Этот токен — наше значение, а не слово человека»: дом на весь
+     рантайм. Спрашивает и постановка курсора в `pkm_macro_shared.js`. */
+  makeFieldValueTokenTest,
+  /* «Какие метки элементов бывают» объявлено здесь, у разбора строки и у
+     панели. Отдаётся наружу затем, чтобы расхождение между объявлениями
+     меряла программа, а не чтение (`node tools/form_divergence.js`).
+     Поведения экспорт не меняет. */
+  getRightMarkersUnified,
   getPrefixRulesUnified,
   selectedTokenByFieldIdUnified,
   checkboxBelongsToFieldUnified,

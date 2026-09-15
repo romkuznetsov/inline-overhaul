@@ -153,15 +153,10 @@ function getDateLikeMarkers(rules) {
     }
   }
 
-  var fallback = Array.isArray(rules && rules.dates && rules.dates.markers)
-    ? rules.dates.markers
-    : []
-  for (i = 0; i < fallback.length; i++) {
-    var mk = String(fallback[i] || '').trim()
-    if (!mk || seen[mk]) continue
-    seen[mk] = true
-    out.push(mk)
-  }
+  /* Запасного списка из `rules.dates.markers` здесь больше нет: этот ключ в
+     продукте не пишет никто — три читателя, ноль писателей, и так с первого
+     релиза (10.13.158). На его настройках список и без него пуст, а метку в
+     `isDateLikeToken` кладёт ход ниже. */
   return out
 }
 
@@ -2934,6 +2929,14 @@ function buildRightDates(rules, state) {
 
 module.exports = {
   validateRules: validateRules,
+  /* «Какие метки элементов бывают» объявлено и здесь, и у доводки строки, и у
+     разбора. Отдаётся наружу затем, чтобы расхождение между объявлениями
+     меряла программа, а не чтение (`node tools/form_divergence.js`).
+     Поведения экспорт не меняет. */
+  getDateLikeMarkers: getDateLikeMarkers,
+  /* И действующий ответ этого места — он же: первый ход бывает пустым, и
+     тогда метку узнаёт запасной. Мерить надо тот, которым узнают (У-151). */
+  isDateLikeToken: isDateLikeToken,
   parseLine: parseLine,
   makeInitialState: makeInitialState,
   resolveInitialActiveField: resolveInitialActiveField,

@@ -18,6 +18,27 @@ function assertEq(actual, expected, name) {
 }
 
 /**
+ * Правила с метками, объявленными **так, как их объявляет плагин** (У-2, У-55).
+ *
+ * До 2026-09-15 фикстуры подавали `rules.dates.markers` — ключ, который в
+ * рантайме читали трое и не писал никто, и так с первого релиза. То есть
+ * проверялась функция, которой в продукте нет: на любых настоящих правилах
+ * список меток оттуда пуст (10.13.158). Метка приезжает полем правой стороны
+ * — тем же способом, каким её кладёт `buildRulesForEngines`.
+ */
+function markerFields(markers) {
+  return (Array.isArray(markers) ? markers : [])
+    .map((mk) => String(mk || "").trim())
+    .filter(Boolean)
+    .map((mk, i) => ({
+      id: "marked" + (i + 1),
+      orderKey: "marked" + (i + 1),
+      kind: "genericElement",
+      marker: mk,
+    }));
+}
+
+/**
  * Код файла без строк комментария.
  *
  * Запрет «этого имени в файле быть не должно» ищет в тексте программы, а
@@ -2763,7 +2784,12 @@ async function run() {
   }
 
 
-  const cursorRules = { io: { separator1: "||", separator2: "||" }, dates: { markers: ["📅"] } };
+  /* Метка объявлена полем правой стороны — так её кладёт продукт; ключ
+     `dates.markers`, который здесь стоял, не пишет никто (10.13.158). */
+  const cursorRules = {
+    io: { separator1: "||", separator2: "||" },
+    rightMode: { fields: markerFields(["📅"]) },
+  };
   const cursorLine = "1111 || 📅2026-04-08";
   assertEq(pkmMacroShared.getCursorAtTextEnd(cursorLine, cursorRules), 4, "text_end cursor stays on text slot when tail is date payload");
   const cursorLineWithTextAndDate = "[ ] #todo || 1111 || 📅2026-04-08";

@@ -1,6 +1,10 @@
 "use strict";
 
 const __sharedUtils = require("./shared_utils.js");
+/* Признак «этот токен — наше значение» объявлен один раз, у доводки строки
+   (`makeFieldValueTokenTest`). Своя копия стояла здесь и спрашивала метки у
+   `rules.dates.markers` — ключа, которого не пишет никто (10.13.158). */
+const __lineFinalize = require("./pkm_line_finalize_unified.js");
 
 function resolveSeparatorsOrThrow(rules) {
   /* Правило одно, и живёт оно в общем доме; сюда приезжает только имя
@@ -244,19 +248,21 @@ function getCursorAtTextEnd(finalLine, rules) {
     if (i2 === -1) {
       const tail = String(line.slice(textStart) || "").trim();
       if (tail) {
-        const markerList = Array.isArray(rules && rules.dates && rules.dates.markers)
-          ? rules.dates.markers.map((x) => String(x || "").trim()).filter(Boolean)
-          : [];
-        const markerAlt = markerList.length ? markerList.map(escapeRegex).join("|") : "(?!)";
-        const markerRe = new RegExp("^(?:" + markerAlt + ")");
+        /*
+         * **Метки спрашиваются у того, кто их собирает** (10.13.158).
+         *
+         * Здесь стоял тот же пятичленный признак, что у доводки строки, и
+         * отличался он одним: список меток брался из `rules.dates.markers`.
+         * Этот ключ в продукте не пишет **никто** — три читателя и ноль
+         * писателей, — то есть на любых настройках список был пуст, и хвост
+         * из значений правого Block признавался словом человека. Курсор
+         * уезжал в конец строки — ровно то, на что он приходил 2026-09-11.
+         * Видно это только при **совпадающих** разделителях: при разных зону
+         * текста закрывает второй разделитель, и сюда не доходит (У-147).
+         */
+        const isFieldValueToken = __lineFinalize.makeFieldValueTokenTest(rules);
         const tokens = tail.split(/\s+/).filter(Boolean);
-        const isRightPayload = tokens.length > 0 && tokens.every((t) => (
-          __sharedUtils.isTagToken(t)
-          || __sharedUtils.isWikilinkToken(t)
-          || markerRe.test(t)
-          || /^\d{4}-\d{2}-\d{2}$/.test(t)
-          || /^\d{2}:\d{2}$/.test(t)
-        ));
+        const isRightPayload = tokens.length > 0 && tokens.every(isFieldValueToken);
         if (isRightPayload) {
           let leftEnd = i1;
           while (leftEnd > 0 && line[leftEnd - 1] === " ") leftEnd -= 1;

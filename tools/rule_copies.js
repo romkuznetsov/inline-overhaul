@@ -256,4 +256,8 @@ function main() {
   }
 }
 
-main();
+/* Маска «где код, а где рассказ о коде» отдаётся наружу: её спрашивает
+   `tools/form_divergence.js`, и второй копии заводить не надо (У-138, У-32). */
+module.exports = { mask };
+
+if (require.main === module) main();

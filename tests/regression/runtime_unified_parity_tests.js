@@ -16,11 +16,32 @@ function assertEq(actual, expected, name) {
   if (actual !== expected) throw new Error(name + ": expected '" + expected + "' got '" + actual + "'");
 }
 
+/**
+ * Правила с метками, объявленными **так, как их объявляет плагин** (У-2, У-55).
+ *
+ * До 2026-09-15 фикстуры подавали `rules.dates.markers` — ключ, который в
+ * рантайме читали трое и не писал никто, и так с первого релиза. То есть
+ * проверялась функция, которой в продукте нет: на любых настоящих правилах
+ * список меток оттуда пуст (10.13.158). Метка приезжает полем правой стороны
+ * — тем же способом, каким её кладёт `buildRulesForEngines`.
+ */
+function markerFields(markers) {
+  return (Array.isArray(markers) ? markers : [])
+    .map((mk) => String(mk || "").trim())
+    .filter(Boolean)
+    .map((mk, i) => ({
+      id: "marked" + (i + 1),
+      orderKey: "marked" + (i + 1),
+      kind: "genericElement",
+      marker: mk,
+    }));
+}
+
 /* Общие данные для проверок правой части строки. */
 const DATE_PAYLOAD = String.fromCodePoint(0x1F4C5) + "2026-09-06 10:21";
 const SEP_RULES = {
   io: { separator1: "::", separator2: "::" },
-  dates: { markers: [String.fromCodePoint(0x1F4C5)] },
+  rightMode: { fields: markerFields([String.fromCodePoint(0x1F4C5)]) },
 };
 function run() {
   assertEq(shared.normalizeCycleEndBehavior("OFF"), "clear-prefix", "cycle-end normalizer maps OFF alias to clear-prefix");
@@ -271,7 +292,7 @@ function run() {
     unified.normalizeStructuredSlots({
       rawLine: "## 111",
       line: "## #/1 111 ::",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "## #/1 :: 111",
@@ -281,7 +302,7 @@ function run() {
     unified.normalizeStructuredSlots({
       rawLine: "## #/3 :: 111",
       line: "## :: 111",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "## 111",
@@ -317,7 +338,7 @@ function run() {
    */
   const linePipelineForSlots = require(path.join(__dirname, "..", "..", "src", "core", "line_pipeline.js"));
   for (const [sep2, name] of [["::", "одинаковые разделители"], ["~~", "разные разделители"]]) {
-    const rules = { io: { separator1: "::", separator2: sep2 }, dates: { markers: ["📅"] } };
+    const rules = { io: { separator1: "::", separator2: sep2 }, rightMode: { fields: markerFields(["📅"]) } };
     const HEADING_SLOT_CASES = [
       ["#  :: #work #aaa", "#  :: #work #aaa", "одни значения — структура держится"],
       ["#  :: слово", "# слово", "слово человека приклеивается к заголовку"],
@@ -352,30 +373,58 @@ function run() {
     }
 
     /*
-     * **Известное расхождение, закреплённое нарочно** (10.13.157).
+     * **Чем оказалось расхождение 10.13.157** (разбор — 10.13.158).
      *
-     * «Что такое наша метка» читается из двух мест конфига: доводка берёт
-     * `rules.dates.markers`, сборка — стороны Order. На конфиге заказчика оба
-     * списка совпадают, и увидеть это нельзя; здесь метка объявлена **только**
-     * для доводки, и ответы расходятся.
+     * Записано оно было так: «доводка берёт метки из `rules.dates.markers`,
+     * сборка — из сторон Order, и ответы расходятся». Расхождение держала
+     * **форма фикстуры**: `dates.markers` — шов, которым метки подаёт
+     * `navigation_runtime.js`, и дорогам движков он не принадлежит вовсе. У
+     * них метка приезжает полем Order или строкой `dateRuntimeConfig`, и
+     * объявленную **так** её узнают обе стороны. Ниже это и закреплено.
      *
-     * Сводить вслепую нельзя: признак сборки спрашивается о токене, а значение
-     * элемента у заказчика занимает **два** (`📅2026-09-15` и `13:16`) — то
-     * есть у сведения есть цена, и мерить её надо отдельно. Пока обе стороны
-     * записаны здесь: попытка привести их к одному покраснеет и потребует
-     * решения, а не пройдёт тихо.
+     * Настоящий остаток расхождения назван и измерен отдельно —
+     * `node tools/form_divergence.js`, группа «что такое наша метка»: метка
+     * шва навигации сборке неизвестна, а метка поля **левой** стороны
+     * неизвестна доводке. Ни одна из двух форм не встречается на дороге, где
+     * спрашивают обе.
      */
+    /*
+     * Сверка идёт на **совпадающих** разделителях: у разных сборка ставит на
+     * выходе свой второй знак (`#  ~~ 📅…`), и пара отвечала бы о форме
+     * строки, а не о метке. Совпадающие — его случай (слово 2026-09-15).
+     */
+    if (sep2 === "::") {
     assertEq(
       unified.normalizeStructuredSlots({ rawLine: "#  :: 📅2026-01-02", line: "#  :: 📅2026-01-02", rules, mode: "minimal" }),
       "#  :: 📅2026-01-02",
-      "доводка узнаёт метку по rules.dates.markers (" + name + ")"
+      "доводка узнаёт метку, объявленную полем Order (" + name + ")"
     );
     assertEq(
       linePipelineForSlots.buildFromSegments(
         linePipelineForSlots.splitSegments("#  :: 📅2026-01-02", rules), rules),
-      "# 📅2026-01-02",
-      "сборка ту же метку по сторонам Order не узнаёт — расхождение измерено и не сведено (" + name + ")"
+      "#  :: 📅2026-01-02",
+      "и сборка отвечает то же самое: расхождения между ними на этой форме нет (" + name + ")"
     );
+    /*
+     * Обратная сторона, и она держит остаток: та же метка, объявленная
+     * **швом навигации**, сборке неизвестна — значит эти два места и правда
+     * читают разное, и зелёная пара выше не от слепоты (У-147).
+     */
+    {
+      const seamRules = { io: rules.io, dates: { markers: ["📅"] } };
+      assertEq(
+        unified.normalizeStructuredSlots({ rawLine: "#  :: 📅2026-01-02", line: "#  :: 📅2026-01-02", rules: seamRules, mode: "minimal" }),
+        "#  :: 📅2026-01-02",
+        "доводка читает шов навигации (" + name + ")"
+      );
+      assertEq(
+        linePipelineForSlots.buildFromSegments(
+          linePipelineForSlots.splitSegments("#  :: 📅2026-01-02", seamRules), seamRules),
+        "# 📅2026-01-02",
+        "а сборка его не читает — остаток расхождения, измеренный стендом (" + name + ")"
+      );
+    }
+    }
   }
 
   /*
@@ -387,7 +436,7 @@ function run() {
    * Ниже — по строке на каждую форму начала, плюс контроль обратной стороны:
    * там, где слева стоит **значение**, а не начало, слот не удваивается.
    */
-  const SLOT_RULES = { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } };
+  const SLOT_RULES = { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } };
   const SLOT_CASES = [
     ["- :: 📅2026-01-02", "-  :: 📅2026-01-02", "знак списка"],
     ["# :: 📅2026-01-02", "#  :: 📅2026-01-02", "заголовок"],
@@ -404,7 +453,7 @@ function run() {
     unified.normalizeStructuredSlots({
       rawLine: "## #/3 :: 111",
       line: "- ## :: 111",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "## 111",
@@ -414,7 +463,7 @@ function run() {
     unified.normalizeStructuredSlots({
       rawLine: "## #/3 :: 111",
       line: "## :: 111",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "full",
     }),
     "## 111",
@@ -424,7 +473,7 @@ function run() {
     unified.normalizeStructuredSlots({
       rawLine: "==`тип` `категория` `проект` `client1` **[/3]**== :: 111",
       line: "## :: 111",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "full",
     }),
     "## 111",
@@ -434,7 +483,7 @@ function run() {
     unified.normalizeStructuredSlots({
       rawLine: "==`тип` `категория` `проект` `client1` **[/3]**== :: 111",
       line: "- ## :: 111",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "full",
     }),
     "## 111",
@@ -444,7 +493,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "==`тип` `категория` `проект` `client1` **[/3]**== :: 111",
       line: "- ## :: 111",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "full",
     }),
     "## 111",
@@ -464,12 +513,14 @@ function run() {
    */
   const dueRules = {
     io: { separator1: "||", separator2: "::" },
-    dates: { markers: ["\u{1F4C5}"] },
     behavior: {
       dateRuntimeConfig: { byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" } } },
     },
     leftMode: { fields: [] },
-    rightMode: { fields: [] },
+    /* Метка приезжает строкой `byField`, а находят её **по полю** правой
+       стороны: без поля список меток пуст, как он и пуст в продукте у тех,
+       кто это поле не объявил. */
+    rightMode: { fields: [{ id: "due", orderKey: "due", kind: "genericElement" }] },
   };
   assertEq(
     unified.applyFinalLineInvariants({
@@ -510,7 +561,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "- 11",
       line: "- 11 11 :: ➕2026-05-04 13-21-17",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["➕"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["➕"]) } },
       mode: "off",
     }),
     "- 11 :: ➕2026-05-04 13-21-17",
@@ -520,7 +571,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "11",
       line: "11 11 ➕2026-05-04 15-02-34 ::",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["➕"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["➕"]) } },
       mode: "off",
     }),
     "11 :: ➕2026-05-04 15-02-34",
@@ -530,7 +581,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "  - 11",
       line: "  - 11 11 ➕2026-05-04 17-04-35 :: ",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["➕"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["➕"]) } },
       mode: "off",
     }),
     "  - 11 :: ➕2026-05-04 17-04-35",
@@ -542,7 +593,6 @@ function run() {
       line: "11 11 ➕2026-05-04 15-02-34 ::",
       rules: {
         io: { separator1: "::", separator2: "::" },
-        dates: { markers: [] },
         behavior: {
           dateRuntimeConfig: {
             byField: {
@@ -566,7 +616,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "- [ ] 111",
       line: "111 :: 📅2026-04-24",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "- [ ] 111 :: 📅2026-04-24",
@@ -576,7 +626,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "- [ ] 111",
       line: "111 :: :: ",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "- [ ] 111 :: ",
@@ -586,7 +636,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "- [ ] 111",
       line: "- [ ] #topic-alpha 111 :: ",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "minimal",
     }),
     "- [ ] #topic-alpha :: 111",
@@ -607,7 +657,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "",
       line: "- #/1 :: 📅2026-09-05 21:19",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "#/1 ::  :: 📅2026-09-05 21:19",
@@ -617,7 +667,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "",
       line: "- #/1 ::  :: 📅2026-09-05 21:19",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "#/1 ::  :: 📅2026-09-05 21:19",
@@ -627,7 +677,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "",
       line: "- #/1 :: 📅2026-09-05 21:19",
-      rules: { io: { separator1: "::", separator2: "||" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "||" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     /*
@@ -649,7 +699,7 @@ function run() {
     unified.applyFinalLineInvariants({
       rawLine: "- 11",
       line: "- 11 :: 📅2026-09-05 21:19",
-      rules: { io: { separator1: "::", separator2: "::" }, dates: { markers: ["📅"] } },
+      rules: { io: { separator1: "::", separator2: "::" }, rightMode: { fields: markerFields(["📅"]) } },
       mode: "off",
     }),
     "- 11 :: 📅2026-09-05 21:19",

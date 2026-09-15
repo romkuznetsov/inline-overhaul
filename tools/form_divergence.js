@@ -47,6 +47,9 @@ const DATA = process.env.IO_DATA
 
 const SHOW_ALL = process.argv.includes("--all");
 
+/* Маска «где код, а где рассказ о коде» — общая с `tools/rule_copies.js`. */
+const maskCode = require("./rule_copies.js").mask;
+
 /* ------------------------------------------------------------------ корпус */
 
 /**
@@ -601,6 +604,406 @@ function reportScan() {
   return diverging;
 }
 
+/* --------------------------------------- «что такое наша метка» (1и очереди) */
+
+/**
+ * Вопрос «какие метки элементов у нас бывают» объявлен в рантайме **пять**
+ * раз, и очередь (`REMAINING_WORK.md`, раздел 1и) знала о двух.
+ *
+ * **Почему меру нельзя было снять обходом.** На его настройках все списки
+ * совпадают до знака — у него одна метка на поле и записана она одним
+ * способом, — и `node tools/line_matrix.js` показать расхождение не может в
+ * принципе (У-147). Разводится это не глазами, а корпусом: его живые правила
+ * плюс их же мутации, каждая из которых объявляет метку **ровно одним**
+ * способом.
+ *
+ * **И первый вывод этой меры был неверен.** Она сказала «`dates.markers` не
+ * пишет никто», потому что писателя искали образцом с отступом в начале
+ * строки, а он записан инлайном — три вызова в `navigation_runtime.js`, и
+ * это её шов, а не мёртвый ключ (У-119: контроль ставится до первого вывода).
+ * Поэтому обход полноты ниже ищет и читателей, и писателей.
+ *
+ * **Правила берутся живыми, а не собранными здесь** (У-2, У-182). Форму,
+ * которую видят движки, целиком не строит ни один модуль: `buildRulesForEngines`
+ * даёт её без `behavior.dateRuntimeConfig`, а тот приезжает движку ключом
+ * команды и приклеивается уже внутри. Поэтому корпус снимается **перехватом**
+ * на настоящем прогоне через `tools/line_bench.js` — третьего стенда здесь не
+ * заводится (У-197).
+ */
+/**
+ * Метки-кандидаты, которыми спрашивают места-предикаты. Список **выводится**
+ * из ответов остальных мест на том же корпусе, а не пишется здесь литералом
+ * (У-182): метка принадлежит его настройкам, а не этому файлу.
+ */
+const MARKER_CANDIDATES = [];
+
+/* Метка, которой нет ни в его настройках, ни где-либо ещё: по ней видно, кто
+   узнал объявленное одним способом, а кто нет. */
+const FRESH_MARKER = "\u{1F9ED}";
+
+function markerSites() {
+  const preload = require(path.join(ROOT, "src", "core", "pkm_runtime_preload_facade.js"));
+  /* Шов ставится прослойкой плагина, а не присваиванием своей рукой (У-42). */
+  preload.loadRulesRuntimeHelpers();
+  const linePipeline = require(path.join(ROOT, "src", "core", "line_pipeline.js"));
+  const finalize = require(path.join(ROOT, "src", "core", "pkm_line_finalize_unified.js"));
+  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  const uniqSorted = (list) => Array.from(new Set(
+    (Array.isArray(list) ? list : []).map((x) => String(x == null ? "" : x).trim()).filter(Boolean)
+  )).sort();
+  return [
+    {
+      /* Дом: тот, у кого метку спрашивают движки перемещения. */
+      id: "дом (getDateMarkersFromRules)",
+      file: "src/core/pkm_rules_runtime_helpers.js",
+      anchor: null,
+      fn: (rules) => {
+        const m = globalThis.__inlinePkmRulesHelpers.getDateMarkersFromRules(rules) || {};
+        return uniqSorted([].concat(m.due || [], m.start || [], m.time || [], m.all || []));
+      },
+    },
+    {
+      id: "line_pipeline.fieldsShape",
+      file: "src/core/line_pipeline.js",
+      anchor: null,
+      fn: (rules) => uniqSorted(linePipeline.fieldsShape(rules).markers),
+    },
+    {
+      id: "finalize.getRightMarkersUnified",
+      file: "src/core/pkm_line_finalize_unified.js",
+      anchor: null,
+      fn: (rules) => uniqSorted(finalize.getRightMarkersUnified(rules)),
+    },
+    {
+      id: "tagwheel_core.getDateLikeMarkers",
+      file: "pkm_v2/TagWheel/tagwheel_core.js",
+      anchor: null,
+      fn: (rules) => uniqSorted(core.getDateLikeMarkers(rules)),
+    },
+    {
+      /*
+       * **Действующий ответ этого места, а не первый его ход** (У-151).
+       * `getDateLikeMarkers` бывает пустым, и тогда метку узнаёт запасной
+       * список внутри `isDateLikeToken` — на его настройках именно так. Ответ
+       * снимается **вопросом к самой функции**: у каждой метки-кандидата
+       * спрашивается токен с ней, и в список идут те, о которых сказано «да».
+       */
+      id: "tagwheel_core.isDateLikeToken",
+      file: "pkm_v2/TagWheel/tagwheel_core.js",
+      anchor: null,
+      fn: (rules) => uniqSorted(MARKER_CANDIDATES.filter(
+        (mk) => core.isDateLikeToken(mk + "2026-09-15", rules)
+      )),
+    },
+    {
+      /*
+       * **Шов навигации — отдельный вход того же вопроса.**
+       *
+       * `rules.dates.markers` пишут ровно три вызова, и все три в
+       * `navigation_runtime.js`: у навигации свой формат строки, и метки она
+       * подаёт общим помощникам этим ключом. Дорогам движков он не
+       * принадлежит — там метка приезжает полем Order или строкой
+       * `dateRuntimeConfig`. Место стоит здесь затем, чтобы видеть, кто этот
+       * вход читает, а кто нет.
+       */
+      id: "шов навигации (dates.markers)",
+      file: "navigation_runtime.js",
+      anchor: "const rules = { io: { separator1: sep1, separator2: sep2 }, dates: { markers } };",
+      fn: (rules) => uniqSorted(
+        Array.isArray(rules && rules.dates && rules.dates.markers) ? rules.dates.markers : []
+      ),
+    },
+  ];
+}
+
+/**
+ * Живые правила заказчика — те самые, что видит движок на настоящем прогоне.
+ *
+ * Перехват стоит на `splitSegments`: её зовут обе дороги и зовут с правилами.
+ * Контролей два — поймано хоть что-то, и поймано **его**: у его настроек в
+ * `dateRuntimeConfig` лежит непустой `byField`.
+ */
+async function liveRulesOfHisConfig() {
+  const bench = require(path.join(ROOT, "tools", "line_bench.js"));
+  const linePipeline = require(path.join(ROOT, "src", "core", "line_pipeline.js"));
+  const caught = [];
+  const orig = linePipeline.splitSegments;
+  linePipeline.splitSegments = function (line, rules) {
+    caught.push(rules);
+    return orig.apply(this, arguments);
+  };
+  const problems = [];
+  try {
+    const cfg = bench.loadCfg();
+    const keys = bench.fieldKeysBySide(cfg, "right");
+    if (!keys.length) problems.push("в его Order нет ни одного правого поля — корпус меток не на чем строить");
+    for (const key of keys) {
+      try {
+        await bench.runCommandById(cfg, bench.fieldCommandId(cfg, key, "next"), "- [ ] #todo :: текст", 0);
+      } catch (_) { /* команда этого поля могла не завестись — корпус соберут остальные */ }
+    }
+  } finally {
+    linePipeline.splitSegments = orig;
+  }
+  if (!caught.length) problems.push("перехват правил не поймал ни одного вызова — корпус пуст, числам верить нельзя");
+  const withCfg = caught.filter((r) => {
+    const rt = r && r.behavior && r.behavior.dateRuntimeConfig;
+    return rt && rt.byField && Object.keys(rt.byField).length > 0;
+  });
+  if (caught.length && !withCfg.length) {
+    problems.push("пойманные правила без `dateRuntimeConfig` — это не его настройки, а огрызок");
+  }
+  return { rules: (withCfg[0] || caught[0] || null), problems };
+}
+
+/**
+ * Корпус: его живые правила и их мутации, объявляющие метку **ровно одним**
+ * способом. Каждая мутация названа и проверена на то, что она и правда
+ * сделала то, что обещает именем (У-189): форма, которой не признаёт никто,
+ * отвечала бы нулём расхождений от собственной негодности.
+ */
+function ruleCorpus(live) {
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const fieldsOf = (rules, side) => {
+    const node = rules && rules[side];
+    return node && Array.isArray(node.fields) ? node.fields : [];
+  };
+  const markedField = (rules) => {
+    for (const side of ["rightMode", "leftMode"]) {
+      for (const f of fieldsOf(rules, side)) {
+        if (f && String(f.marker || "").trim()) return { side, id: String(f.id || "") };
+      }
+    }
+    return null;
+  };
+
+  const out = [{ name: "его живые правила", rules: live, from: "его конфиг", check: null }];
+  const home = markedField(live);
+  if (!home) {
+    return { corpus: out, problems: ["в его правилах нет ни одного поля с меткой — мутации строить не из чего"] };
+  }
+  const takeField = (rules, side, id) => fieldsOf(rules, side).filter((f) => String(f && f.id || "") === id)[0] || null;
+  const problems = [];
+  const add = (name, build, check) => {
+    const r = clone(live);
+    build(r);
+    const bad = check(r);
+    if (bad) problems.push("мутация «" + name + "»: " + bad);
+    out.push({ name, rules: r, from: "мутация его правил", check: null });
+  };
+
+  const FRESH = FRESH_MARKER;
+
+  add("метка только швом навигации (dates.markers)", (r) => {
+    r.dates = { markers: [FRESH] };
+  }, (r) => (Array.isArray(r.dates && r.dates.markers) && r.dates.markers[0] === FRESH
+    ? "" : "ключ dates.markers не выставился"));
+
+  add("поле с меткой уехало в левый Block", (r) => {
+    const f = takeField(r, home.side, home.id);
+    const other = home.side === "rightMode" ? "leftMode" : "rightMode";
+    r[home.side].fields = fieldsOf(r, home.side).filter((x) => x !== f);
+    if (!r[other] || !Array.isArray(r[other].fields)) r[other] = { fields: [] };
+    r[other].fields.push(f);
+  }, (r) => {
+    const other = home.side === "rightMode" ? "leftMode" : "rightMode";
+    return takeField(r, other, home.id) && !takeField(r, home.side, home.id)
+      ? "" : "поле не переехало";
+  });
+
+  add("метка снята с поля и осталась только в dateRuntimeConfig", (r) => {
+    const f = takeField(r, home.side, home.id);
+    if (f) f.marker = "";
+  }, (r) => {
+    const f = takeField(r, home.side, home.id);
+    const rt = r.behavior && r.behavior.dateRuntimeConfig;
+    const byField = rt && rt.byField ? rt.byField : {};
+    const row = byField[home.id] || null;
+    if (f && String(f.marker || "").trim()) return "метка с поля не снялась";
+    if (!row || !String((row.emoji || row.marker) || "").trim()) {
+      return "в dateRuntimeConfig у этого поля метки нет — мутация объявляет метку ноль раз, а не один";
+    }
+    return "";
+  });
+
+  add("в dateRuntimeConfig метка записана ключом marker, а не emoji", (r) => {
+    const f = takeField(r, home.side, home.id);
+    if (f) f.marker = "";
+    const rt = r.behavior && r.behavior.dateRuntimeConfig;
+    const row = rt && rt.byField ? rt.byField[home.id] : null;
+    if (row) {
+      const mk = String(row.emoji || row.marker || "").trim();
+      delete row.emoji;
+      row.marker = mk;
+    }
+  }, (r) => {
+    const rt = r.behavior && r.behavior.dateRuntimeConfig;
+    const row = rt && rt.byField ? rt.byField[home.id] : null;
+    if (!row) return "строки поля в dateRuntimeConfig нет";
+    return !row.emoji && String(row.marker || "").trim() ? "" : "ключ emoji не сменился на marker";
+  });
+
+  add("у поля с меткой нет orderKey", (r) => {
+    const f = takeField(r, home.side, home.id);
+    if (f) f.orderKey = "";
+  }, (r) => {
+    const f = takeField(r, home.side, home.id);
+    return f && !String(f.orderKey || "").trim() ? "" : "orderKey не снялся";
+  });
+
+  add("у поля с меткой пустой kind", (r) => {
+    const f = takeField(r, home.side, home.id);
+    if (f) f.kind = "";
+  }, (r) => {
+    const f = takeField(r, home.side, home.id);
+    return f && !String(f.kind || "").trim() ? "" : "kind не снялся";
+  });
+
+  add("меток нет вовсе", (r) => {
+    for (const side of ["rightMode", "leftMode"]) {
+      for (const f of fieldsOf(r, side)) f.marker = "";
+    }
+    if (r.behavior) delete r.behavior.dateRuntimeConfig;
+    delete r.dates;
+  }, (r) => {
+    const any = ["rightMode", "leftMode"].some((s) => fieldsOf(r, s).some((f) => String(f.marker || "").trim()));
+    return !any && !(r.behavior && r.behavior.dateRuntimeConfig) ? "" : "метки остались";
+  });
+
+  return { corpus: out, problems };
+}
+
+async function reportMarkers() {
+  const sites = markerSites();
+  const live = await liveRulesOfHisConfig();
+  const problems = live.problems.slice();
+  if (!live.rules) {
+    console.log("== вопрос «что такое наша метка»: корпус не собран");
+    for (const p of problems) console.log("   ! " + p);
+    console.log("");
+    return problems.length;
+  }
+  const built = ruleCorpus(live.rules);
+  const corpus = built.corpus;
+  for (const p of built.problems) problems.push(p);
+
+  console.log("== вопрос «что такое наша метка»: " + sites.length + " объявлений");
+  for (const s of sites) console.log("   - " + s.id + "  (" + s.file + ")");
+
+  /* Контроль на переписывание — у того места, чьё тело переписано. */
+  for (const s of sites) {
+    if (!s.anchor) continue;
+    const text = fs.readFileSync(path.join(ROOT, s.file), "utf8");
+    if (text.indexOf(s.anchor) < 0) {
+      problems.push(s.id + ": строки исходника, из которой тело переписано, в файле больше нет");
+    }
+  }
+  for (const p of markerSitesComplete(sites)) problems.push(p);
+
+  const ask = (s, rules) => {
+    try { return JSON.stringify(s.fn(rules)); }
+    catch (e) { return "БРОСИЛО: " + String(e && e.message); }
+  };
+
+  /*
+   * Кандидаты для мест-предикатов: всё, что назвали меткой места-списки, плюс
+   * свежая метка мутации. Контроль — в списке больше одной метки и свежая в
+   * нём есть: без неё вопрос «узнаёт ли место объявленное одним способом» не
+   * задаётся вовсе (У-113).
+   */
+  const listSites = sites.filter((s) => s.id.indexOf("isDateLikeToken") < 0);
+  const union = new Set([FRESH_MARKER]);
+  for (const c of corpus) {
+    for (const s of listSites) {
+      let list = [];
+      try { list = s.fn(c.rules); } catch (_) { list = []; }
+      for (const mk of list) union.add(mk);
+    }
+  }
+  MARKER_CANDIDATES.length = 0;
+  for (const mk of Array.from(union).sort()) MARKER_CANDIDATES.push(mk);
+  if (MARKER_CANDIDATES.length < 2 || MARKER_CANDIDATES.indexOf(FRESH_MARKER) < 0) {
+    problems.push("список меток-кандидатов негоден — местам-предикатам нечего предъявить");
+  }
+  console.log("   метки-кандидаты (выведены из ответов мест-списков): " + JSON.stringify(MARKER_CANDIDATES));
+
+  let diverging = 0;
+  for (const c of corpus) {
+    const answers = sites.map((s) => ask(s, c.rules));
+    const differ = new Set(answers).size > 1;
+    if (differ) diverging++;
+    console.log("   вход «" + c.name + "»  [" + c.from + "]" + (differ ? "   <= расходятся" : "   ответы совпадают"));
+    sites.forEach((s, i) => console.log("      " + s.id.padEnd(36) + " -> " + answers[i]));
+  }
+  console.log("   входов: " + corpus.length + ", расхождений: " + diverging);
+
+  console.log("   попарно (0 значит «на всех входах отвечают одинаково» — только такую пару можно сводить):");
+  for (let i = 0; i < sites.length; i++) {
+    for (let j = i + 1; j < sites.length; j++) {
+      let n = 0;
+      for (const c of corpus) if (ask(sites[i], c.rules) !== ask(sites[j], c.rules)) n++;
+      console.log("     " + sites[i].id.padEnd(36) + " x " + sites[j].id.padEnd(36) +
+        " " + String(n).padStart(3) + (n === 0 ? "  <= сводимо" : ""));
+    }
+  }
+
+  /* Контроль самой меры: нарочно разведённая сторона обязана попасть в счёт.
+     Портится копия первого места, а не соседнее (У-92). */
+  const spoiled = { id: "control", fn: (rules) => sites[0].fn(rules).concat("x") };
+  let seen = 0;
+  for (const c of corpus) if (ask(sites[0], c.rules) !== ask(spoiled, c.rules)) seen++;
+  console.log("   контроль чувствительности: нарочно испорченная сторона расходится на " +
+    seen + " входах из " + corpus.length + (seen ? "" : "  <= МЕРА СЛЕПА"));
+  if (!seen) problems.push("мера меток не увидела нарочно разведённой стороны — она слепа");
+
+  for (const p of problems) console.log("   ! " + p);
+  console.log("");
+  return diverging + problems.length;
+}
+
+/**
+ * Полнота списка мест — сплошным обходом рантайма, а не рукой (У-111), и
+ * **обеими сторонами**: кто ключ читает и кто его пишет.
+ *
+ * Вторая сторона куплена ошибкой этой же меры: писателя искали образцом
+ * «`dates:` с начала строки», а он записан инлайном — и мера объявила ключ
+ * мёртвым, каким он не был.
+ */
+function markerSitesComplete(sites) {
+  const listed = new Set(sites.map((s) => s.file));
+  const readers = new Set();
+  const writers = new Set();
+  const bad = [];
+  const skipDir = new Set(["node_modules", "dist", ".git", "tests", "docs", "tools"]);
+  const walk = (d) => {
+    for (const name of fs.readdirSync(d)) {
+      if (skipDir.has(name)) continue;
+      const full = path.join(d, name);
+      const st = fs.statSync(full);
+      if (st.isDirectory()) { walk(full); continue; }
+      if (!/\.js$/.test(name)) continue;
+      const rel = path.relative(ROOT, full).split(path.sep).join("/");
+      /* Читается **маска**, а не сырой текст: своё же объяснение иначе
+         считается местом (У-138). Маска — общая, из `tools/rule_copies.js`. */
+      const text = maskCode(fs.readFileSync(full, "utf8"));
+      if (text.indexOf(".dates.markers") >= 0) readers.add(rel);
+      if (/dates:\s*\{\s*markers/.test(text)) writers.add(rel);
+    }
+  };
+  walk(ROOT);
+  /* Положительный контроль обхода: обе стороны обязаны находить хоть что-то.
+     Ноль означал бы промах образца, а не отсутствие мест (У-119, У-127). */
+  if (!readers.size) return ["обход рантайма не нашёл ни одного чтения `dates.markers` — образец промахнулся"];
+  if (!writers.size) return ["обход рантайма не нашёл ни одного писателя `dates.markers` — образец промахнулся"];
+  for (const rel of readers) {
+    if (!listed.has(rel)) bad.push("чтение `dates.markers` в " + rel + " не значится в списке мест меры");
+  }
+  for (const rel of writers) {
+    if (!listed.has(rel)) bad.push("запись `dates.markers` в " + rel + " не значится в списке мест меры");
+  }
+  return bad;
+}
+
 /* --------------------------------------------------------------- контроли */
 
 function controlTranscription() {
@@ -773,7 +1176,7 @@ function groupsOf(sites) {
 
 /* ------------------------------------------------------------------ прогон */
 
-function main() {
+async function main() {
   const corpus = []
     .concat(corpusFromHisConfig().map((v) => ({ value: v, from: "его конфиг" })))
     .concat(corpusFromHisNotes().map((v) => ({ value: v, from: "его заметки" })))
@@ -848,10 +1251,14 @@ function main() {
   totalDiverging += reportOutputMode();
   totalDiverging += reportCompose();
   totalDiverging += reportScan();
+  totalDiverging += await reportMarkers();
 
   console.log("Итого расхождений: " + totalDiverging);
   console.log("Сводить можно только группу с нулём — и только после мутации в обе стороны (У-92).");
   process.exitCode = problems.length ? 1 : 0;
 }
 
-main();
+main().catch((e) => {
+  console.error(e && e.stack ? e.stack : e);
+  process.exit(1);
+});
