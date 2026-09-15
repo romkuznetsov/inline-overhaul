@@ -2696,6 +2696,164 @@ async function run() {
       "за блочным делегирующим if стоит только громкий отказ: своей копии правила в рантайме нет ни одной");
 
     /*
+     * **Четвёртая форма того же устройства: охрана наоборот** (10.13.166).
+     *
+     *   if (!mod || typeof mod.X !== "function") return [];
+     *   return mod.X(...)
+     *
+     * Оба запрета выше написаны по **положительной** охране и к этой форме
+     * слепы с первого дня. В ней 2026-09-16 нашлись семь молчаливых мест, и
+     * пять из них назвал заказчик отдельной строкой очереди.
+     *
+     * **Чем своё отделено от платформы.** Эта форма — ещё и законная проба
+     * (`getComputedStyle`, `getBoundingClientRect`, `createDiv`, чтение файла
+     * через адаптер vault): «ответ „нет“ — это ответ, а не отказ», раздел
+     * «Отказы» в `CLAUDE.md`. Сплошной обход по одной только форме даёт 178
+     * мест, и долгом из них не является почти ни одно. Поэтому предмет сужен
+     * **свойством, а не списком имён** (У-201): спрашиваемое имя обязано быть
+     * тем, что **экспортирует какой-то наш модуль**. Ответ на это даёт сам
+     * репозиторий, а не память: `getBoundingClientRect` не экспортирует никто,
+     * `getAllowedValues` и `enforceDependentAdjacencyForStatusLine` — да.
+     *
+     * **Что этим пропускается, названо вслух** (У-139). Метод, который наш, но
+     * наружу не отдан, — поле объекта плагина (`plugin.devLogEvent`), сессии
+     * панели (`state.cancel`), зависимости окна (`deps.askBackupOptions`) —
+     * этому запрету не виден: его имени нет ни в одном `module.exports`.
+     * Область ошибки выбрана нарочно в эту сторону: пропустить своё дешевле,
+     * чем объявить долгом чужую пробу и научиться её обходить.
+     *
+     * **И громкий отказ здесь не один.** У отказа три вида (раздел «Отказы»), и
+     * два из них громкие: бросок — когда сломалось невидимое, и `Notice` —
+     * когда человек сам позвал команду. Шесть мест в `command_registry.js`
+     * отвечают вторым: движок навигации не доехал, и человек читает об этом
+     * сообщение. Требовать там бросок значило бы уронить окно вместо ответа.
+     */
+    const OURS_EXPORTED = (() => {
+      const names = new Set();
+      for (const abs of walked) {
+        const text = fs.readFileSync(abs, "utf8");
+        const block = /module\.exports\s*=\s*\{([\s\S]*?)\n\}/m.exec(text);
+        if (block) {
+          for (const m of block[1].matchAll(/^\s*([A-Za-z_$][\w$]*)\s*[,:]/gm)) names.add(m[1]);
+        }
+        for (const m of text.matchAll(/module\.exports\.([A-Za-z_$][\w$]*)\s*=/g)) names.add(m[1]);
+        for (const m of text.matchAll(/^export function ([A-Za-z_$][\w$]*)/gm)) names.add(m[1]);
+        for (const m of text.matchAll(/^export const ([A-Za-z_$][\w$]*)/gm)) names.add(m[1]);
+      }
+      return names;
+    })();
+
+    /*
+     * Контроль на **первый** шаг обхода (У-142): перепись экспортов. Имя,
+     * которое модуль отдаёт, обязано найтись, а имя платформы — нет. Без этой
+     * пары пустая перепись сделала бы весь запрет зелёным от тишины.
+     */
+    assertTrue(OURS_EXPORTED.has("getAllowedValues"),
+      "положительный контроль: перепись экспортов видит имя, отданное ядром панели");
+    assertTrue(OURS_EXPORTED.has("enforceDependentAdjacencyForStatusLine"),
+      "положительный контроль: перепись экспортов видит имя общего рантайма строки");
+    assertFalse(OURS_EXPORTED.has("getBoundingClientRect"),
+      "положительный контроль: имя платформы своим не считается");
+
+    const INVERTED_GUARD =
+      /^(\s*)if \((?:!([A-Za-z_$][\w$]*) \|\| )?typeof ([A-Za-z_$][\w$]*)\.([\w$]+) !== ["']function["']\)(.*)$/;
+    /* Громко — это бросок, здешний помощник `err(…)` или сообщение человеку. */
+    const LOUD_ANSWER = /^(?:throw new Error\(|err\(|return plugin\.notice\(|plugin\.notice\()/;
+
+    const findInvertedSilence = (text) => {
+      const lines = text.split("\n");
+      const found = [];
+      for (let i = 0; i < lines.length; i += 1) {
+        const hit = INVERTED_GUARD.exec(lines[i]);
+        if (!hit) continue;
+        /* `if (!a || typeof b.X !== …)` — охрана про двоих, а не эта форма. */
+        if (hit[2] && hit[2] !== hit[3]) continue;
+        if (!OURS_EXPORTED.has(hit[4])) continue;
+        let body = String(hit[5] || "").trim();
+        if (body === "{") {
+          const closing = hit[1] + "}";
+          let j = i + 1;
+          const inside = [];
+          while (j < lines.length && lines[j] !== closing) { inside.push(lines[j].trim()); j += 1; }
+          if (j >= lines.length) continue;
+          body = inside.filter((s) => s && !/^(\*|\/\/|\/\*)/.test(s)).join(" ");
+        }
+        if (!body) continue;
+        if (LOUD_ANSWER.test(body)) continue;
+        found.push(i + 1);
+      }
+      return found;
+    };
+
+    /*
+     * Контроль на **второй** шаг и в обе стороны (У-92, У-119): молчание над
+     * своим именем обязано найтись, три законных ответа — нет. Образцы свои, а
+     * не «в продукте нарушение ещё есть» (У-127).
+     */
+    const invertedBad = [
+      "function values(core) {",
+      "  if (!core || typeof core.getAllowedValues !== \"function\") return [];",
+      "  return core.getAllowedValues();",
+      "}",
+    ].join("\n");
+    const invertedBadBlock = [
+      "function values(core) {",
+      "  if (!core || typeof core.getAllowedValues !== \"function\") {",
+      "    return [];",
+      "  }",
+      "  return core.getAllowedValues();",
+      "}",
+    ].join("\n");
+    const invertedLoud = [
+      "function values(core) {",
+      "  if (!core || typeof core.getAllowedValues !== \"function\") {",
+      "    throw new Error(\"tagwheel_core unavailable: getAllowedValues\");",
+      "  }",
+      "  return core.getAllowedValues();",
+      "}",
+    ].join("\n");
+    const invertedNotice = [
+      "function move(rt, plugin) {",
+      "  if (!rt || typeof rt.moveLine !== \"function\") return plugin.notice(\"Navigation unavailable\");",
+      "  return rt.moveLine();",
+      "}",
+    ].join("\n");
+    const invertedProbe = [
+      "function widthOf(box) {",
+      "  if (!box || typeof box.getBoundingClientRect !== \"function\") return 0;",
+      "  return box.getBoundingClientRect().width;",
+      "}",
+    ].join("\n");
+    assertEq(findInvertedSilence(invertedBad).length, 1,
+      "положительный контроль: обход видит молчание за охраной наоборот");
+    assertEq(findInvertedSilence(invertedBadBlock).length, 1,
+      "положительный контроль: та же охрана блоком тоже видна");
+    assertEq(findInvertedSilence(invertedLoud).length, 0,
+      "положительный контроль: громкий отказ молчанием не считается");
+    assertEq(findInvertedSilence(invertedNotice).length, 0,
+      "положительный контроль: сообщение человеку молчанием не считается");
+    assertEq(findInvertedSilence(invertedProbe).length, 0,
+      "положительный контроль: проба платформы под этот запрет не попадает");
+
+    /*
+     * Контроль на **третий** шаг: форма в рантайме и правда есть, и обход её
+     * находит. Ноль здесь значил бы, что запрет меряет пустоту (У-88).
+     */
+    let invertedGuards = 0;
+    const invertedSilence = [];
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      invertedGuards += (text.match(new RegExp(INVERTED_GUARD.source, "gm")) || []).length;
+      for (const line of findInvertedSilence(text)) {
+        invertedSilence.push(path.relative(repoRoot, abs) + ":" + line);
+      }
+    }
+    assertTrue(invertedGuards > 20,
+      "положительный контроль: охраны наоборот в рантайме есть и их находит обход (" + invertedGuards + ")");
+    assertEq(invertedSilence.join(" | "), "",
+      "за охраной наоборот над своим модулем стоит громкий отказ, а не тихий ответ (10.13.166)");
+
+    /*
      * **«Есть ли у строки знак списка» — вопрос с одним домом** (10.13.162).
      * Обе половины плагина считали ответ сами, одной и той же строкой
      * `!!lineStartOf(line).marker`; тела совпадали побайтно, и увидеть это
