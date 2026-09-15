@@ -59,19 +59,40 @@ function mask(body) {
   return out.join("");
 }
 
-/* Тело объявления: от его открывающей скобки до парной, считая по маске. */
+/*
+ * Тело объявления: от его открывающей скобки до парной, считая по маске.
+ *
+ * **У объявления на TypeScript открывающих скобок бывает две**, и первая —
+ * не тело: `function themePair(node: El): { fill: string; text: string } {`.
+ * Первая версия брала объектный тип за тело, и `themePair` числился
+ * расходящейся копией при тождественных телах — свой разборщик врёт молча
+ * (У-96), и ловится это проверкой **на симптом**, а не чтением.
+ *
+ * Симптом узкий нарочно: за телом функции никогда не стоит ещё одна
+ * открывающая скобка на той же строке, а за возвращаемым типом стоит всегда.
+ * Промах в эту сторону стоит лишнего круга поиска, промах в обратную —
+ * молчаливо обрезанного тела (У-192, про направление ошибки).
+ */
+const TYPE_THEN_BODY = /^[ \t]*[>|&\]\)]*[ \t]*\{/;
+
 function bodyOf(src, masked, at) {
-  const open = masked.indexOf("{", at);
-  if (open === -1) return null;
-  let depth = 0;
-  for (let i = open; i < masked.length; i++) {
-    if (masked[i] === "{") depth++;
-    else if (masked[i] === "}") {
-      depth--;
-      if (!depth) return src.slice(at, i + 1);
+  let from = at;
+  for (;;) {
+    const open = masked.indexOf("{", from);
+    if (open === -1) return null;
+    let depth = 0;
+    let close = -1;
+    for (let i = open; i < masked.length; i++) {
+      if (masked[i] === "{") depth++;
+      else if (masked[i] === "}") {
+        depth--;
+        if (!depth) { close = i; break; }
+      }
     }
+    if (close === -1) return null;
+    if (TYPE_THEN_BODY.test(masked.slice(close + 1))) { from = close + 1; continue; }
+    return src.slice(at, close + 1);
   }
-  return null;
 }
 
 function declarations(src) {
@@ -109,6 +130,19 @@ function main() {
   /* Контроль до первого вывода (У-119): на известном куске разборщик обязан
      отдать тело целиком, а не до первой скобки внутри строки. */
   const probe = "function f(a) {\n  const s = \"}\";\n  return s;\n}\n";
+
+  /* И вторая сторона того же контроля: объектный тип перед телом не смеет
+     стать телом, а тело без типа не смеет уехать дальше (У-92, в обе
+     стороны). */
+  const typed = "function g(n) : { fill: string; text: string } {\n  return n;\n}\n";
+  const gotTyped = declarations(typed).g;
+  if (!gotTyped || gotTyped.indexOf("return n;") === -1) {
+    throw new Error("контроль: возвращаемый тип принят за тело");
+  }
+  const plain = "function h() {\n  return 1;\n}\n\nfunction i() {\n  return 2;\n}\n";
+  if (declarations(plain).h.indexOf("return 2;") !== -1) {
+    throw new Error("контроль: тело уехало за пределы своего объявления");
+  }
   const got = declarations(probe).f;
   if (!got || got.indexOf("return s;") === -1) throw new Error("контроль: разборщик обрезал тело");
 
@@ -258,6 +292,6 @@ function main() {
 
 /* Маска «где код, а где рассказ о коде» отдаётся наружу: её спрашивает
    `tools/form_divergence.js`, и второй копии заводить не надо (У-138, У-32). */
-module.exports = { mask };
+module.exports = { mask, declarations };
 
 if (require.main === module) main();
