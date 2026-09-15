@@ -1062,6 +1062,76 @@ async function run(): Promise<void> {
     ok("TagWheel из сборки не съедает правую часть строки");
   }
 
+  /*
+   * **Швы клавиатуры: их не исполнял ни один прогон** (10.13.166, У-200).
+   *
+   * `handleSmartDeleteKeymap` и три его соседа зовёт единственное место —
+   * раскладка редактора (`src/ui/editor/mount.js`), то есть нажатие клавиши у
+   * человека. Движок проверен своими проверками, раскладка — своими на
+   * подставном плагине, а **сам шов** не исполнялся: бросок на входе в
+   * `handleSmartBackspaceKeymap` не покрасил **ни одной** проверки из
+   * семидесяти одной. Ровно из-за этой тишины в нём годами стояла охрана
+   * `typeof engine.handleSmartBackspaceKeymap !== "function"` с тихим `false`:
+   * «клавиша не наша» — и человек получил бы обычный `Backspace`, не узнав,
+   * что функция отвалилась.
+   *
+   * Спрашивается тут не движок (он свой предмет закрывает сам), а то, что шаг
+   * от плагина к движку сделан: строки склеились. Положительный контроль —
+   * тот же шов при выключенном тумблере: он обязан отдать `false` и не
+   * тронуть текст, иначе зелёное значило бы «склеивает всегда».
+   */
+  {
+    const makeKeyEditor = (lines: readonly string[], cursor: Any): Any => ({
+      lines: lines.slice(),
+      cursor: { ...cursor },
+      getLine(n: number): string { return String(this.lines[n] ?? ""); },
+      lastLine(): number { return this.lines.length - 1; },
+      getCursor(): Any { return { ...this.cursor }; },
+      setCursor(pos: Any): void { this.cursor = { ...pos }; },
+      somethingSelected(): boolean { return false; },
+      listSelections(): Any[] { return [{}]; },
+      replaceRange(text: string, from: Any, to: Any): void {
+        const left = String(this.lines[from.line] ?? "").slice(0, from.ch);
+        const right = String(this.lines[to.line] ?? "").slice(to.ch);
+        this.lines.splice(from.line, to.line - from.line + 1, left + text + right);
+      },
+    });
+
+    const withSmartDelete = async (enabled: boolean, onBackspace: boolean): Promise<void> => {
+      await plugin.setConfigPatch(
+        { editor: { smartDelete: { enabled, onBackspace, dropPrefix: true, joinWithSpace: true } } },
+        "test:smart-delete",
+      );
+    };
+
+    const press = async (editor: Any, seam: string): Promise<boolean> => {
+      app.workspace.activeEditor = { editor };
+      app.workspace.activeLeaf = { view: { editor } };
+      return plugin[seam]();
+    };
+
+    await withSmartDelete(true, true);
+    const back = makeKeyEditor(["верх", "\t- [ ] низ"], { line: 1, ch: 0 });
+    assert.strictEqual(await press(back, "handleSmartBackspaceKeymap"), true,
+      "шов Backspace не дошёл до движка: клавиша осталась платформе");
+    assert.deepStrictEqual(back.lines, ["верх низ"],
+      "шов Backspace дошёл, а строки склеились не так: " + back.lines.join(" | "));
+
+    const del = makeKeyEditor(["- задача", "\t- [ ] подзадача"], { line: 0, ch: 8 });
+    assert.strictEqual(await press(del, "handleSmartDeleteKeymap"), true,
+      "шов Del не дошёл до движка");
+    assert.deepStrictEqual(del.lines, ["- задача подзадача"],
+      "шов Del дошёл, а строки склеились не так: " + del.lines.join(" | "));
+
+    await withSmartDelete(false, false);
+    const offBack = makeKeyEditor(["верх", "\t- [ ] низ"], { line: 1, ch: 0 });
+    assert.strictEqual(await press(offBack, "handleSmartBackspaceKeymap"), false,
+      "положительный контроль: выключенный тумблер всё равно забрал клавишу");
+    assert.deepStrictEqual(offBack.lines, ["верх", "\t- [ ] низ"],
+      "положительный контроль: выключенная функция тронула текст");
+    ok("швы клавиатуры доходят от плагина до движка и молчат при выключенном тумблере");
+  }
+
   console.log(`Bundle onload tests: OK (${passed} checks)`);
 }
 

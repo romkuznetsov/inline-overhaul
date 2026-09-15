@@ -111,10 +111,14 @@ class InlineOverhaulPlugin extends Plugin {
     return getSmartDeleteEngine().handleSmartDeleteKeymap(this);
   }
 
+  /*
+   * Тот же шов, что у двух соседей выше, и охраны у него быть не должно
+   * (10.13.166): `false` отсюда значит «клавиша не наша», то есть
+   * `Backspace` просто не срабатывал бы по своим правилам и молча. Модуль
+   * приезжает литеральным `require`, и запасного пути у загрузки нет.
+   */
   handleSmartBackspaceKeymap() {
-    const engine = getSmartDeleteEngine();
-    if (typeof engine.handleSmartBackspaceKeymap !== "function") return false;
-    return engine.handleSmartBackspaceKeymap(this);
+    return getSmartDeleteEngine().handleSmartBackspaceKeymap(this);
   }
 
   handleSmartEnterKeymap() {
