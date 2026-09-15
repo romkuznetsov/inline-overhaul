@@ -375,6 +375,39 @@ async function main() {
     return at === -1 ? line : String(line).slice(0, at + marker.length) + "…";
   };
 
+  /*
+   * **Маска для второго нажатия: время суток скрыть, день оставить.**
+   *
+   * `maskFrom` режет всё после метки — для первого нажатия это верно (значение
+   * там пишется впервые и зависит от часов целиком), а для второго губительно:
+   * оно прячет ровно то, что второе нажатие и проверяет. Сдвиг шага по дате на
+   * **сутки** под такой маской невидим, и мутация это показала.
+   *
+   * Формат берётся из его конфига, а не пишется здесь литералом (У-182). Где в
+   * формате начинается время, решают знаки формата самого плагина — `H`, `h`,
+   * `m`, `s`; это наше правило, а не догадка о его настройке.
+   *
+   * **Что эта маска НЕ ловит и почему так:** разницу внутри одних суток. Две
+   * дороги считают «сейчас» в разные мгновения, и требовать от них одной минуты
+   * значило бы получить красное от часов, а не от кода (У-155). Цена названа:
+   * шаг, ошибающийся меньше чем на день, второй проход пропустит.
+   */
+  const dayMaskFrom = (line, key) => {
+    const row = elementCfg[key] || {};
+    const marker = String(row.emoji || "").trim();
+    if (!marker) return line;
+    const src = String(line);
+    const at = src.indexOf(marker);
+    if (at === -1) return src;
+    const fmt = String(row.format || "");
+    const timeAt = fmt.search(/[Hhms]/);
+    if (timeAt < 0) return src;
+    /* Значение начинается сразу за меткой; время внутри него — с той же
+       позиции, с какой оно стоит в формате. */
+    const valueStart = at + marker.length;
+    return src.slice(0, valueStart + timeAt) + "…";
+  };
+
   const nameOf = (key) => String((order.labels || {})[key] || key);
   /* Ключ поля в идентификатор команды переводит общий помощник: своя копия
      этого правила стояла и здесь, и в стенде отмены, и вторая из них умерла от
@@ -398,6 +431,7 @@ async function main() {
         byPanel = await bench.runTagWheel(cfg, sideOf(key), c.line, c.ch, keys);
       }
       rows.push({
+        key,
         field: nameOf(key),
         side: sideOf(key),
         source: c.name,
@@ -454,6 +488,63 @@ async function main() {
     if (wrote && !fCmd.stable) console.log("    неподвижность команды: пересборка даёт " + JSON.stringify(fCmd.again));
     if (!fPanel.stable) console.log("    неподвижность панели: пересборка даёт " + JSON.stringify(fPanel.again));
   }
+
+  /*
+   * **Повторное нажатие: то же поле по уже стоящему значению.**
+   *
+   * Обход делал **одно** нажатие, а человек нажимает подряд (У-104). Разница не
+   * в количестве: с пустого значения дорога пишет «сейчас» и ничего не
+   * разбирает, а со стоящего — сперва **узнаёт** его и ищет смещение перебором.
+   * Это другой код, и до 2026-09-15 его не исполнял ни один прогон обхода.
+   *
+   * **Цену слепоты назвала мутация:** сдвиг местной арифметики дат панели на
+   * целые сутки не уронил ни одной из 70 проверок и не развёл обход ни на одном
+   * из 171 сочетания. То есть шаг по уже стоящей дате в панели не был покрыт
+   * ничем (10.13.151).
+   *
+   * Каждая дорога нажимает **по своей** строке — так же, как человек: он не
+   * переносит результат панели в команду. Сверяется второй результат со вторым.
+   */
+  let badTwice = 0;
+  let twicePairs = 0;
+  for (const r of rows) {
+    if (!r.inPanel || !r.opened) continue;
+    if (r.cmd === "(команды нет)" || r.panel === "(этого Field в панели нет)") continue;
+    const key = r.key;
+    const def = defFor(key);
+    if (!def) continue;
+    twicePairs++;
+    const cmd2 = await bench.runCommandById(cfg, def.id, r.cmd, r.cmd.length);
+    const steps = await stepsTo(key, sideOf(key), r.panel, r.panel.length);
+    let panel2 = null;
+    if (steps !== null) {
+      const keys = [];
+      for (let i = 0; i < steps; i++) keys.push("ArrowRight");
+      keys.push("ArrowUp");
+      panel2 = await bench.runTagWheel(cfg, sideOf(key), r.panel, r.panel.length, keys);
+    }
+    if (!cmd2 || !panel2) continue;
+    /*
+     * Сверяется **форма**, а не текст: у случайного значения второе нажатие
+     * даёт другое значение, а у даты — другое время суток. Но день у даты
+     * сверяется (`dayMaskFrom`): именно там живёт разница между гринвичской
+     * арифметикой команды и местной у панели (У-155).
+     */
+    const a = r.random ? maskFrom(cmd2.line, key) : dayMaskFrom(cmd2.line, key);
+    const b = r.random ? maskFrom(panel2.line, key) : dayMaskFrom(panel2.line, key);
+    const fA = fixpointOf(cmd2.line, rules);
+    const fB = fixpointOf(panel2.line, rules);
+    const ok = a === b && fA.stable && fB.stable;
+    if (ok && !SHOW_ALL) continue;
+    if (!ok) badTwice++;
+    console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + "второе нажатие: " + r.field + " (" + r.side + "), строка " + r.source);
+    console.log("    после первого, команда : " + JSON.stringify(r.cmd));
+    console.log("    после второго, команда : " + JSON.stringify(cmd2.line) + "   форма " + JSON.stringify(a));
+    console.log("    после второго, панель  : " + JSON.stringify(panel2.line) + "   форма " + JSON.stringify(b));
+    if (!fA.stable) console.log("    неподвижность команды: пересборка даёт " + JSON.stringify(fA.again));
+    if (!fB.stable) console.log("    неподвижность панели: пересборка даёт " + JSON.stringify(fB.again));
+  }
+  console.log("второе нажатие: пар " + twicePairs + ", расходится " + badTwice);
 
   /*
    * **Вторая половина обхода: команды дочерних полей.**
