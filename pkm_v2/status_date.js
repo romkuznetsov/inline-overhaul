@@ -269,9 +269,8 @@ function getReferenceDateForUnit(unit) {
   return getStatusRuntimeCommon().getReferenceDateForUnit(unit);
 }
 
-function getSearchLimitByUnit(unit) {
-  return getStatusRuntimeCommon().getSearchLimitByUnit(unit, getSharedUtils());
-}
+/* Предел перебора спрашивает сам дом смещения (10.13.159): здешний
+   переходник остался бы мёртвым. */
 
 /*
  * Разбор даты по маске живёт в общем модуле, и здесь его зовут прямо.
@@ -322,18 +321,15 @@ function parseTokenlessProgress(value, format) {
   throw new Error("shared_utils unavailable: parseTokenlessProgress");
 }
 
+/* Алгоритм объявлен один раз — `resolveOffsetByFormatValue` в
+   `shared_utils.js` (10.13.159). Здесь остаётся календарное основание этой
+   дороги: опора, сложение и печать по Гринвичу. */
 function resolveDateOffsetByFormatValue(rawValue, format, maxDays) {
-  const raw = String(rawValue || "").trim();
-  const fmt = normalizeFormatMask(String(format ?? "YYYY-MM-DD"));
-  if (!raw || !fmt || !hasFormatTokens(fmt)) return null;
-  const unit = detectDateUnit(fmt);
-  const ref = getReferenceDateForUnit(unit);
-  const limit = Math.max(0, Math.trunc(Number(maxDays || getSearchLimitByUnit(unit))));
-  for (let d = 0; d <= limit; d++) {
-    const dt = addByUnitUtc(ref, unit, d);
-    if (formatDateByFormat(dt, fmt) === raw) return d;
-  }
-  return null;
+  return getSharedUtils().resolveOffsetByFormatValue(rawValue, format, maxDays, {
+    reference: (unit) => getReferenceDateForUnit(unit),
+    add: (base, unit, delta) => addByUnitUtc(base, unit, delta),
+    format: (dt, mask) => formatDateByFormat(dt, mask),
+  });
 }
 
 function getRuntimeFieldKeyCandidates(rtCfg, fieldKey, field) {
@@ -1018,6 +1014,13 @@ function mutateDateOffsetByFormat(state, fieldId, format, inc, stepRaw) {
 }
 
 module.exports = {
+  /* «Какое поле отвечает этому ключу Order» отдаётся наружу ради меры: у
+     имени два объявления, и расхождение между ними считает программа. */
+  resolveFieldIdByOrderKey,
+  /* «Во сколько единиц смещения это значение» отдаётся наружу затем, чтобы
+     расхождение с одноимённым объявлением у ядра панели меряла программа,
+     а не чтение (`node tools/form_divergence.js`). Поведения не меняет. */
+  resolveDateOffsetByFormatValue,
   settings: {
     name: "Status: date & time field logic",
     author: "you",

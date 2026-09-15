@@ -2760,6 +2760,58 @@ async function testBulletSettingAnswersTheSameForPanelAndCommand() {
  * Мутация: вернуть `new Date()` в `getReferenceDateForUnit` — и проверка
  * краснеет на девять часов.
  */
+/**
+ * **Смещение значения: ожидание правильного ответа, а не равенства дорог**
+ * (У-194, У-195, 10.13.159).
+ *
+ * Алгоритм «во сколько единиц смещения это значение» сведён к одному
+ * объявлению — `resolveOffsetByFormatValue` в `shared_utils.js`, — и с этого
+ * дня сверка двух дорог на него слепа: сломанный дом ломает обе одинаково, и
+ * обход строки остаётся нулевым. Поэтому здесь спрашивается **ответ**: у
+ * значения сегодняшнего дня смещение ноль, у завтрашнего — единица, у того,
+ * чего в ряду нет, — «не выражается».
+ *
+ * **Часовой пояс задаёт сама проверка, и рядом контроль** (У-155): основания
+ * у двух дорог разные — гринвичское и местное, — и на машине с `UTC` они
+ * совпадают сами собой. Взят `Asia/Tokyo`: у него нет перехода на летнее
+ * время.
+ *
+ * Мутация: обнулить цикл в доме — краснеют оба утверждения о нуле и единице.
+ */
+async function testDateOffsetAnswersAreRight() {
+  const prevTz = process.env.TZ;
+  process.env.TZ = "Asia/Tokyo";
+  try {
+    assertEq(new Date().getTimezoneOffset(), -540,
+      "часовой пояс проверки не сменился — она спрашивала бы про совпадение с самой собой");
+
+    const statusDate = require(path.join(__dirname, "..", "..", "pkm_v2", "status_date.js"));
+    const core = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js"));
+    const two = (n) => String(n).padStart(2, "0");
+    const dayValue = (shift) => {
+      const d = new Date();
+      d.setDate(d.getDate() + shift);
+      return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+    };
+
+    for (const [name, ask] of [
+      ["движок дат", (v) => statusDate.resolveDateOffsetByFormatValue(v, "YYYY-MM-DD", 3660)],
+      ["ядро панели", (v) => core.resolveDateOffsetByFormatValue({}, v, "YYYY-MM-DD", 3660)],
+    ]) {
+      assertEq(ask(dayValue(0)), 0, `${name}: сегодняшнее значение — смещение ноль`);
+      assertEq(ask(dayValue(1)), 1, `${name}: завтрашнее значение — смещение единица`);
+      /* Обратная сторона: значение из прошлого рядом смещений не выражается,
+         и ответ «не выражается» — это ответ, а не отказ. */
+      assertEq(ask(dayValue(-3)), null, `${name}: вчерашнее значение смещением не выражается`);
+      assertEq(ask("не дата", "YYYY-MM-DD"), null, `${name}: не дата — не смещение`);
+    }
+  } finally {
+    if (prevTz === undefined) delete process.env.TZ;
+    else process.env.TZ = prevTz;
+  }
+}
+
+
 async function testElementNowSpeaksTheHumanClockOnBothPaths() {
   const prevTz = process.env.TZ;
   process.env.TZ = "Asia/Tokyo";
@@ -3755,6 +3807,7 @@ async function run() {
   await testStatusDateAsksBulletSettingLikeTagStepDoes();
   await testBulletSettingAnswersTheSameForPanelAndCommand();
   await testElementNowSpeaksTheHumanClockOnBothPaths();
+  await testDateOffsetAnswersAreRight();
   await testTagWheelKeepsElementInLeftBlockByOrder();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();

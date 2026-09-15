@@ -1022,6 +1022,8 @@ function collectSelectedEntriesForPolicy(rules, state, orderCfg) {
 }
 
 module.exports = {
+  /* То же и здесь: имя одно, объявления два, меряет их программа. */
+  resolveFieldIdByOrderKey,
   settings: {
     name: "Status: Tags & Context logic",
     author: "you",

@@ -1605,20 +1605,15 @@ function parseTokenlessProgress(value, format) {
   throw new Error('shared_utils unavailable: parseTokenlessProgress')
 }
 
+/* Алгоритм объявлен один раз — `resolveOffsetByFormatValue` в
+   `shared_utils.js` (10.13.159). Здесь остаётся календарное основание этой
+   дороги: опора из сессии, сложение и печать по часам машины. */
 function resolveDateOffsetByFormatValue(state, rawValue, format, maxDays) {
-  var raw = String(rawValue || '').trim()
-  var fmt = normalizeFormatMask(String(format == null ? 'YYYY-MM-DD' : format))
-  if (!raw || !fmt || !hasFormatTokens(fmt)) return null
-  var unit = detectDateUnit(fmt)
-  var ref = getReferenceDateForUnit(state, unit)
-  if (!ref || isNaN(ref.getTime())) return null
-  var limit = Math.max(0, Math.trunc(Number(maxDays || getSearchLimitByUnit(unit))))
-  var d
-  for (d = 0; d <= limit; d++) {
-    var dt = addByUnit(ref, unit, d)
-    if (fmtDateByFormat(dt, fmt) === raw) return d
-  }
-  return null
+  return getSharedUtils().resolveOffsetByFormatValue(rawValue, format, maxDays, {
+    reference: function (unit) { return getReferenceDateForUnit(state, unit) },
+    add: function (base, unit, delta) { return addByUnit(base, unit, delta) },
+    format: function (dt, mask) { return fmtDateByFormat(dt, mask) },
+  })
 }
 
 /**
@@ -2934,6 +2929,8 @@ module.exports = {
      меряла программа, а не чтение (`node tools/form_divergence.js`).
      Поведения экспорт не меняет. */
   getDateLikeMarkers: getDateLikeMarkers,
+  /* То же и здесь: у имени два объявления, и меряет их программа. */
+  resolveDateOffsetByFormatValue: resolveDateOffsetByFormatValue,
   /* И действующий ответ этого места — он же: первый ход бывает пустым, и
      тогда метку узнаёт запасной. Мерить надо тот, которым узнают (У-151). */
   isDateLikeToken: isDateLikeToken,

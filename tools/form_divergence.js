@@ -1004,6 +1004,346 @@ function markerSitesComplete(sites) {
   return bad;
 }
 
+/* ------------------------- «во сколько смещения это значение» (1е очереди) */
+
+/**
+ * `resolveDateOffsetByFormatValue` объявлен дважды — у движка дат и у ядра
+ * панели, — и очередь числила его кандидатом на сведение.
+ *
+ * **Алгоритм у обоих один:** перебрать смещения от опорной даты и найти то,
+ * при котором значение, напечатанное по формату поля, совпадёт с тем, что
+ * стоит в строке. Разошлись они **основанием времени**: движок дат считает и
+ * печатает по Гринвичу (`addByUnitUtc`), ядро панели — по часам машины
+ * (`addByUnit`). Пара «прибавить» и «напечатать» внутри каждой дороги
+ * согласована сама с собой, поэтому расхождение гасится (У-196) — и увидеть
+ * его можно только на входе, где основания расходятся: значение, записанное у
+ * границы суток.
+ *
+ * Поэтому корпус здесь не из его конфига одного: к его форматам и его же
+ * значениям из заметок добавлены **края суток** — значения, напечатанные по
+ * его формату для моментов около полуночи по обоим основаниям.
+ */
+function dateOffsetSites() {
+  const preload = require(path.join(ROOT, "src", "core", "pkm_runtime_preload_facade.js"));
+  preload.loadRulesRuntimeHelpers();
+  const statusDate = require(path.join(ROOT, "pkm_v2", "status_date.js"));
+  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  return [
+    {
+      id: "status_date (по Гринвичу)",
+      file: "pkm_v2/status_date.js",
+      fn: (raw, fmt, limit) => statusDate.resolveDateOffsetByFormatValue(raw, fmt, limit),
+    },
+    {
+      id: "tagwheel_core (по часам машины)",
+      file: "pkm_v2/TagWheel/tagwheel_core.js",
+      /* Состояние сессии пустое: тогда опорная дата — «сегодня» по часам
+         машины, то есть ровно то, с чем панель и работает у человека. */
+      fn: (raw, fmt, limit) => core.resolveDateOffsetByFormatValue({}, raw, fmt, limit),
+    },
+  ];
+}
+
+/** Форматы — из его конфига, а не отсюда (У-182). */
+function formatCorpus() {
+  const out = [];
+  const seen = new Set();
+  const add = (v, from) => {
+    const s = String(v == null ? "" : v).trim();
+    if (!s || seen.has(s)) return;
+    seen.add(s);
+    out.push({ value: s, from });
+  };
+  const raw = JSON.parse(fs.readFileSync(DATA, "utf8"));
+  (function walk(o) {
+    if (!o) return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (typeof o !== "object") return;
+    for (const k of Object.keys(o)) {
+      if (k === "format" && typeof o[k] === "string") add(o[k], "его конфиг");
+      walk(o[k]);
+    }
+  })(raw);
+  add("YYYY-MM-DD", "край (синтетика)");
+  add("YYYY-MM-DD hh:mm", "край (синтетика)");
+  add("YYYY-MM", "край (синтетика)");
+  add("YYYY", "край (синтетика)");
+  return out;
+}
+
+/**
+ * Значения: его собственные из заметок плюс напечатанные **общим** модулем для
+ * моментов у границы суток. Печатает их тот, кто печатает у движка дат, — так
+ * значение законно по построению (У-189), а вопрос задаётся тому, кто его
+ * читает.
+ */
+function dateValueCorpus(formats) {
+  const out = [];
+  const seen = new Set();
+  const add = (value, fmt, from) => {
+    const key = fmt + " " + value;
+    if (!value || seen.has(key)) return;
+    seen.add(key);
+    out.push({ value, fmt, from });
+  };
+  /*
+   * Значения — его собственные, из его же заметок: то, что и правда стоит в
+   * строке. Своего печатника здесь не заводится — это было бы ещё одно
+   * объявление правила «как выглядит значение» (У-96).
+   */
+  const own = [];
+  for (const name of fs.readdirSync(VAULT).filter((n) => /\.md$/i.test(n))) {
+    let text = "";
+    try { text = fs.readFileSync(path.join(VAULT, name), "utf8"); } catch (_) { continue; }
+    for (const v of String(text).match(/\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?/g) || []) {
+      if (own.indexOf(v) === -1) own.push(v);
+    }
+  }
+  for (const v of own) for (const f of formats) add(v, f.value, "его заметки");
+  /*
+   * Края суток. Основания времени у двух объявлений разные — Гринвич и часы
+   * машины, — и расходятся они ровно там, где местная дата и гринвичская не
+   * совпадают. Такие значения получаются из **его же** заменой времени: это
+   * по-прежнему его данные, а не выдуманная форма.
+   */
+  for (const v of own) {
+    if (!/ \d{2}:\d{2}$/.test(v)) continue;
+    for (const hhmm of ["00:10", "23:50", "02:30", "21:30"]) {
+      for (const f of formats) add(v.replace(/ \d{2}:\d{2}$/, " " + hhmm), f.value, "край суток");
+    }
+  }
+  return out;
+}
+
+/**
+ * Значения, которые плагин пишет **сегодня**: команда поля-даты, нажатая
+ * несколько раз подряд, даёт ряд смещений от «сейчас». Только на них вопрос
+ * «во сколько единиц смещения это значение» и имеет непустой ответ: ряд идёт
+ * вперёд, и всё, что записано в прошлом, оба объявления зовут `null`.
+ */
+async function writtenByPluginToday(formats) {
+  const bench = require(path.join(ROOT, "tools", "line_bench.js"));
+  const out = [];
+  const seen = new Set();
+  try {
+    const cfg = bench.loadCfg();
+    let line = "- [ ] ";
+    for (const key of bench.fieldKeysBySide(cfg, "right")) {
+      const id = bench.fieldCommandId(cfg, key, "next");
+      for (let i = 0; i < 4; i++) {
+        let res = null;
+        try { res = await bench.runCommandById(cfg, id, line, 0); } catch (_) { break; }
+        if (!res || !res.line) break;
+        line = res.line;
+        for (const v of String(res.line).match(/\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?/g) || []) {
+          if (!seen.has(v)) { seen.add(v); out.push(v); }
+        }
+      }
+      line = "- [ ] ";
+    }
+  } catch (_) { /* стенд не завёлся — корпус соберут остальные источники */ }
+  /*
+   * Ряд смещений идёт вперёд, поэтому к написанному сегодня добавляются
+   * **завтра и послезавтра**: без них непустых ответов единицы, и ноль
+   * расхождений держится на них одних (У-127). Сдвиг даты здесь — построение
+   * входа, а не ответ на вопрос меры: правило «как выглядит значение» по-
+   * прежнему объявляет только плагин, и день прибавляется к тому, что он
+   * написал.
+   */
+  const shifted = [];
+  for (const v of out) {
+    const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+    if (!m) continue;
+    for (const days of [1, 2]) {
+      const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + days));
+      const iso = dt.toISOString().slice(0, 10);
+      const next = iso + m[4];
+      if (!seen.has(next)) { seen.add(next); shifted.push(next); }
+    }
+  }
+  const rows = [];
+  for (const v of out) for (const f of formats) rows.push({ value: v, fmt: f.value, from: "написано плагином сегодня" });
+  for (const v of shifted) for (const f of formats) rows.push({ value: v, fmt: f.value, from: "написанное плагином, сдвинутое на день" });
+  return rows;
+}
+
+async function reportDateOffset() {
+  const sites = dateOffsetSites();
+  const formats = formatCorpus();
+  const values = dateValueCorpus(formats).concat(await writtenByPluginToday(formats));
+  console.log("== вопрос «во сколько единиц смещения это значение»: " + sites.length + " объявлений");
+  for (const s of sites) console.log("   - " + s.id + "  (" + s.file + ")");
+  console.log("   форматов " + formats.length + " (его конфиг " +
+    formats.filter((f) => f.from === "его конфиг").length + "), значений " + values.length +
+    " (его заметки " + values.filter((v) => v.from === "его заметки").length +
+    ", края суток " + values.filter((v) => v.from === "край суток").length +
+    ", написано плагином сегодня " + values.filter((v) => v.from === "написано плагином сегодня").length +
+    ", оно же со сдвигом на день " + values.filter((v) => v.from === "написанное плагином, сдвинутое на день").length + ")");
+  console.log("   часовой пояс прогона: " + Intl.DateTimeFormat().resolvedOptions().timeZone +
+    " (смещение " + (-new Date().getTimezoneOffset() / 60) + " ч); на машине по Гринвичу оба основания совпадают (У-155)");
+
+  const problems = [];
+  if (!values.length) problems.push("корпус значений пуст — мерить нечего");
+  if (!values.some((v) => v.from === "край суток")) {
+    problems.push("в корпусе нет значений у границы суток — именно там основания расходятся");
+  }
+
+  const ask = (s, v) => {
+    try { return JSON.stringify(s.fn(v.value, v.fmt, 3660)); }
+    catch (e) { return "БРОСИЛО: " + String(e && e.message); }
+  };
+
+  const diverging = [];
+  for (const v of values) {
+    const answers = sites.map((s) => ask(s, v));
+    if (new Set(answers).size > 1) diverging.push({ v, answers });
+  }
+  /*
+   * **Положительный контроль: сколько значений смещение вообще нашли.**
+   * Ряд смещений идёт **вперёд** от «сегодня», и значение из прошлого в нём не
+   * выражается никогда — оба объявления отвечают `null`, и «ноль расхождений»
+   * получилось бы от пустоты (У-127, У-143).
+   */
+  const found = values.filter((v) => sites.some((s) => ask(s, v) !== "null")).length;
+  console.log("   смещение найдено у " + found + " значений из " + values.length +
+    (found ? "" : "   <= НОЛЬ РАСХОЖДЕНИЙ ОТ ПУСТОТЫ"));
+  if (!found) problems.push("ни у одного значения смещение не найдено — сравнивать было нечего");
+  console.log("   пар «значение × формат»: " + values.length + ", расхождений: " + diverging.length +
+    (diverging.length ? "" : "   <= сводимо"));
+  for (const d of diverging.slice(0, 10)) {
+    console.log("     " + JSON.stringify(d.v.value) + " по формату " + JSON.stringify(d.v.fmt) +
+      "  [" + d.v.from + "]");
+    sites.forEach((s, i) => console.log("        " + s.id.padEnd(34) + " -> " + d.answers[i]));
+  }
+
+  /* Контроль самой меры: нарочно сдвинутая сторона обязана попасть в счёт. */
+  const spoiled = { id: "control", fn: (raw, fmt, limit) => {
+    const v = sites[0].fn(raw, fmt, limit);
+    return v == null ? 1 : v + 1;
+  } };
+  let seen = 0;
+  for (const v of values) if (ask(sites[0], v) !== ask(spoiled, v)) seen++;
+  console.log("   контроль чувствительности: нарочно сдвинутая сторона расходится на " +
+    seen + " значениях из " + values.length + (seen ? "" : "  <= МЕРА СЛЕПА"));
+  if (!seen) problems.push("мера смещений не увидела сдвинутой стороны — она слепа");
+
+  for (const p of problems) console.log("   ! " + p);
+  console.log("");
+  return diverging.length + problems.length;
+}
+
+/* ------------------- «какое поле отвечает этому ключу Order» (1е очереди) */
+
+/**
+ * `resolveFieldIdByOrderKey` объявлен дважды — у движка дат и у движка тегов,
+ * — и очередь числила его кандидатом на сведение.
+ *
+ * Меряется он на **его** правилах и **его** ключах Order: ключи берутся из
+ * списков сторон его конфига, к ним добавлены края — пустой, неизвестный и
+ * имя поля вместо ключа.
+ */
+function fieldByKeySites() {
+  const preload = require(path.join(ROOT, "src", "core", "pkm_runtime_preload_facade.js"));
+  preload.loadRulesRuntimeHelpers();
+  const statusDate = require(path.join(ROOT, "pkm_v2", "status_date.js"));
+  const statusTags = require(path.join(ROOT, "pkm_v2", "status_tags.js"));
+  return [
+    {
+      id: "status_date (поля-элементы)",
+      file: "pkm_v2/status_date.js",
+      fn: (rules, key) => statusDate.resolveFieldIdByOrderKey(rules, key),
+    },
+    {
+      id: "status_tags (поля-теги)",
+      file: "pkm_v2/status_tags.js",
+      fn: (rules, key) => statusTags.resolveFieldIdByOrderKey(rules, key),
+    },
+  ];
+}
+
+function orderKeyCorpus(rules) {
+  const out = [];
+  const seen = new Set();
+  const add = (v, from) => {
+    const s = String(v == null ? "" : v);
+    if (seen.has(s)) return;
+    seen.add(s);
+    out.push({ value: s, from });
+  };
+  const order = rules && rules.behavior && rules.behavior.order ? rules.behavior.order : {};
+  for (const side of ["left", "right"]) {
+    const list = Array.isArray(order[side]) ? order[side] : [];
+    for (const k of list) add(k, "его Order");
+  }
+  for (const side of ["leftMode", "rightMode"]) {
+    const node = rules && rules[side];
+    const fields = node && Array.isArray(node.fields) ? node.fields : [];
+    for (const f of fields) {
+      add(f && f.id, "имя поля из его конфига");
+      add(f && f.orderKey, "ключ поля из его конфига");
+    }
+  }
+  add("", "край (синтетика)");
+  add("   ", "край (синтетика)");
+  add("такого ключа нет", "край (синтетика)");
+  add("importance", "край (синтетика)");
+  add("date_due", "край (синтетика)");
+  return out;
+}
+
+async function reportFieldByKey() {
+  const sites = fieldByKeySites();
+  const live = await liveRulesOfHisConfig();
+  const problems = live.problems.slice();
+  console.log("== вопрос «какое поле отвечает этому ключу Order»: " + sites.length + " объявлений");
+  for (const s of sites) console.log("   - " + s.id + "  (" + s.file + ")");
+  if (!live.rules) {
+    for (const p of problems) console.log("   ! " + p);
+    console.log("");
+    return problems.length;
+  }
+  const keys = orderKeyCorpus(live.rules);
+  console.log("   ключей: " + keys.length + " (его Order " + keys.filter((k) => k.from === "его Order").length +
+    ", из его конфига " + keys.filter((k) => k.from.indexOf("его конфиг") >= 0).length +
+    ", края " + keys.filter((k) => k.from === "край (синтетика)").length + ")");
+
+  const ask = (s, k) => {
+    try { return JSON.stringify(s.fn(live.rules, k.value)); }
+    catch (e) { return "БРОСИЛО: " + String(e && e.message); }
+  };
+
+  const diverging = [];
+  for (const k of keys) {
+    const answers = sites.map((s) => ask(s, k));
+    if (new Set(answers).size > 1) diverging.push({ k, answers });
+  }
+  console.log("   расхождений: " + diverging.length + " из " + keys.length +
+    (diverging.length ? "" : "   <= сводимо"));
+  for (const d of diverging.slice(0, 12)) {
+    console.log("     ключ " + JSON.stringify(d.k.value).padEnd(22) + " [" + d.k.from + "]");
+    sites.forEach((s, i) => console.log("        " + s.id.padEnd(30) + " -> " + d.answers[i]));
+  }
+
+  /* Положительный контроль: непустых ответов больше нуля — иначе расхождений
+     не было бы и у двух совсем разных правил (У-127). */
+  const answered = keys.filter((k) => sites.some((s) => ask(s, k) !== '""')).length;
+  console.log("   непустых ответов: " + answered + " из " + keys.length +
+    (answered ? "" : "   <= СРАВНИВАТЬ БЫЛО НЕЧЕГО"));
+  if (!answered) problems.push("оба объявления отвечают пустотой — сравнивать было нечего");
+
+  /* Контроль самой меры: нарочно испорченная сторона обязана попасть в счёт. */
+  const spoiled = { id: "control", fn: (rules, key) => String(sites[0].fn(rules, key) || "") + "x" };
+  let seen = 0;
+  for (const k of keys) if (ask(sites[0], k) !== ask(spoiled, k)) seen++;
+  console.log("   контроль чувствительности: нарочно испорченная сторона расходится на " +
+    seen + " ключах из " + keys.length + (seen ? "" : "  <= МЕРА СЛЕПА"));
+  if (!seen) problems.push("мера не увидела нарочно испорченной стороны — она слепа");
+
+  for (const p of problems) console.log("   ! " + p);
+  console.log("");
+  return diverging.length + problems.length;
+}
+
 /* --------------------------------------------------------------- контроли */
 
 function controlTranscription() {
@@ -1252,6 +1592,8 @@ async function main() {
   totalDiverging += reportCompose();
   totalDiverging += reportScan();
   totalDiverging += await reportMarkers();
+  totalDiverging += await reportDateOffset();
+  totalDiverging += await reportFieldByKey();
 
   console.log("Итого расхождений: " + totalDiverging);
   console.log("Сводить можно только группу с нулём — и только после мутации в обе стороны (У-92).");

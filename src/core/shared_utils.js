@@ -643,6 +643,44 @@ function getSearchLimitByUnit(unit) {
   return 3660;
 }
 
+/**
+ * Во сколько единиц смещения от опорной даты выражается это значение.
+ * **Одно объявление на весь плагин.**
+ *
+ * Тело стояло дважды — `resolveDateOffsetByFormatValue` у движка дат и у ядра
+ * панели, — и различались они **календарным основанием**: движок считает и
+ * печатает по Гринвичу, панель — по часам машины. Каждая тройка «опора,
+ * прибавить, напечатать» согласована сама с собой, поэтому ответы совпадают:
+ * сверено на 355 парах «значение × формат» его конфига и его заметок и в пяти
+ * часовых поясах, включая `+14` и `−11`, — расхождений ноль (10.13.159).
+ * Основание поэтому остаётся доводом, а не сводится: это разные представления
+ * одних и тех же настенных часов, и приводить их к одному — смена поведения
+ * там, где расхождения нет (У-196).
+ *
+ * `calendar` — три функции дороги: `reference(unit)`, `add(date, unit, delta)`
+ * и `format(date, mask)`.
+ */
+function resolveOffsetByFormatValue(rawValue, format, maxDays, calendar) {
+  const cal = calendar && typeof calendar === "object" ? calendar : {};
+  if (typeof cal.reference !== "function" || typeof cal.add !== "function" || typeof cal.format !== "function") {
+    throw new Error("shared_utils: resolveOffsetByFormatValue needs calendar {reference, add, format}");
+  }
+  const raw = String(rawValue || "").trim();
+  const fmt = normalizeFormatMask(String(format == null ? "YYYY-MM-DD" : format));
+  if (!raw || !fmt || !hasFormatTokens(fmt)) return null;
+  const unit = detectDateUnit(fmt);
+  const ref = cal.reference(unit);
+  /* Негодная опора — это ответ «не выражается», а не бросок: у панели такая
+     проверка стояла, у движка дат её не было, и опора у него негодной не
+     бывает (разбор — 10.13.159). */
+  if (!ref || typeof ref.getTime !== "function" || isNaN(ref.getTime())) return null;
+  const limit = Math.max(0, Math.trunc(Number(maxDays || getSearchLimitByUnit(unit))));
+  for (let d = 0; d <= limit; d++) {
+    if (cal.format(cal.add(ref, unit, d), fmt) === raw) return d;
+  }
+  return null;
+}
+
 function detectDateUnit(format) {
   const f = normalizeFormatMask(String(format ?? ""));
   if (!hasFormatTokens(f)) return "tokenless";
@@ -1348,6 +1386,7 @@ module.exports = {
   backwardStepByCurrent,
   getSearchLimitByUnit,
   detectDateUnit,
+  resolveOffsetByFormatValue,
   isObj,
   deepMerge,
 };
