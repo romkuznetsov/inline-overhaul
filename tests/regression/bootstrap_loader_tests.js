@@ -2694,6 +2694,60 @@ async function run() {
     }
     assertEq(blockCopies.join(" | "), "",
       "за блочным делегирующим if стоит только громкий отказ: своей копии правила в рантайме нет ни одной");
+
+    /*
+     * **«Есть ли у строки знак списка» — вопрос с одним домом** (10.13.162).
+     * Обе половины плагина считали ответ сами, одной и той же строкой
+     * `!!lineStartOf(line).marker`; тела совпадали побайтно, и увидеть это
+     * мера копий не могла — её признак делегата сверял только начало
+     * возврата.
+     *
+     * Запрет по форме, а не по имени (У-126): выражение «спросить разбор
+     * начала строки и взять у него знак» разрешено ровно в общем доме.
+     * Положительный контроль стоит на строке-образце, а не на том, что
+     * нарушение в продукте ещё есть (У-127).
+     */
+    {
+      const needle = "lineStartOf(";
+      const tail = ").marker";
+      const asks = (text) => {
+        const out = [];
+        let at = text.indexOf(needle);
+        while (at >= 0) {
+          const after = text.slice(at, at + 200);
+          if (after.indexOf(tail) > 0 && after.indexOf(tail) < 60) out.push(at);
+          at = text.indexOf(needle, at + 1);
+        }
+        return out;
+      };
+      assertEq(asks("return !!__sharedUtils.lineStartOf(line).marker;").length, 1,
+        "положительный контроль: обход видит вопрос о знаке списка в образце");
+      assertEq(asks("return __sharedUtils.lineStartOf(line).prefix;").length, 0,
+        "положительный контроль: другой кусок разбора начала находкой не считается");
+
+      const allowed = new Set(["src/core/shared_utils.js"]);
+      const strays = [];
+      for (const abs of walked) {
+        const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+        if (allowed.has(rel)) continue;
+        if (asks(fs.readFileSync(abs, "utf8")).length) strays.push(rel);
+      }
+      assertEq(strays.join(" | "), "",
+        "«есть ли знак списка» спрашивается у общего дома, а не считается по месту");
+    }
+
+    /* И вторая половина той же пары (У-195): ожидание **ответа**. Проверка
+       формы выше слепа к поломке дома, ожидание ответа — к возврату копии. */
+    {
+      const su = require(path.join(repoRoot, "src", "core", "shared_utils.js"));
+      assertEq(su.hasListPrefix("- текст"), true, "знак списка у строки есть");
+      assertEq(su.hasListPrefix("> - текст"), true, "за цитатой знак списка — тоже знак списка");
+      assertEq(su.hasListPrefix("1. текст"), true, "номер списка — тоже знак");
+      assertEq(su.hasListPrefix("текст"), false, "у обычной строки знака списка нет");
+      assertEq(su.hasListPrefix("## - текст"), false,
+        "за знаком заголовка знака списка не бывает: для Obsidian это заголовок с текстом");
+      assertEq(su.hasListPrefix(""), false, "у пустой строки знака списка нет");
+    }
   }
   assertTrue(/throw new Error\('pkm_rules_runtime_helpers unavailable: applyOrderToRules'\)/.test(tagwheelSrc), "tagwheel order apply helper is shared-only");
   /*

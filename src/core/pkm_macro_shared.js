@@ -345,9 +345,7 @@ function isNoContentParsed(parsed, options) {
 }
 
 function hasListPrefix(line) {
-  /* Свой образец снят: знак списка называет одно объявление, и оно же знает,
-     что за цитатой знак списка тоже знак списка (10.13.118). */
-  return !!__sharedUtils.lineStartOf(line).marker;
+  return __sharedUtils.hasListPrefix(line);
 }
 
 function hasStandaloneCheckboxPrefix(line) {

@@ -179,6 +179,29 @@ function main() {
    * обход объявляет расхождением каждую тонкую обёртку — а их здесь
    * большинство (У-142: контроль на каждый шаг обхода, а не на его вывод).
    */
+  /*
+   * Возврат кончается на вызове дома, а не начинается с него: скобка вызова
+   * обязана закрыться в самом конце предложения. Всё, что дописано за ней —
+   * `|| "tag"`, `.trim()`, тернарник, — это своя работа, и тело настоящее.
+   */
+  const endsOnHomeCall = (stmt) => {
+    const body = stmt.replace(/\s*;?\s*$/, "");
+    /* Чтение поля дома правила не объявляет: `return __mod.value;`. */
+    if (/^return\s+__[A-Za-z0-9_$]*\s*\.\s*[A-Za-z0-9_$]+$/.test(body)) return true;
+    /* Иначе предложение обязано **кончаться** закрывающей скобкой вызова, и
+       снаружи скобок не должно остаться ни одного действия: `|| "tag"`,
+       `.trim()`, тернарник — это своя работа, и тело с ней настоящее. */
+    if (!/\)$/.test(body)) return false;
+    let depth = 0;
+    for (let i = 0; i < body.length; i += 1) {
+      const c = body[i];
+      if (c === "(" || c === "[" || c === "{") depth += 1;
+      else if (c === ")" || c === "]" || c === "}") depth -= 1;
+      else if (!depth && (c === "|" || c === "&" || c === "?" || c === "+")) return false;
+    }
+    return true;
+  };
+
   const isDelegate = (name, body) => {
     /*
      * Контроль на этот шаг был неверен и соврал первым же прогоном: делегат
@@ -264,6 +287,81 @@ function main() {
     ));
     if (guardThrowThenCall && guardThrowThenCall[1].indexOf(guardThrowThenCall[3]) >= 0) return true;
 
+    /*
+     * **Седьмая форма, и она не образец, а свойство: из тела нет выхода,
+     * кроме ответа дома и громкого отказа.**
+     *
+     *   function registerStoreEvents(plugin) {
+     *     return __storeEventsOrchestrator.registerStoreEvents({ … })
+     *   }
+     *
+     *   function enforceDependentAdjacencyForStatusLine(line, rules, state, core) {
+     *     const runtime = getStatusLineRuntimeUnified()
+     *     const linePipeline = globalThis.__inlineLinePipeline
+     *     if (!linePipeline || typeof linePipeline.splitLeftPrefix !== "function") {
+     *       throw new Error("line_pipeline unavailable: splitLeftPrefix")
+     *     }
+     *     …ещё две такие охраны…
+     *     return runtime.enforceDependentAdjacencyForStatusLine({ … })
+     *   }
+     *
+     * Прежние шесть форм — образцы, и каждая ловила ровно ту запись, на
+     * которой её писали (У-193, трижды подряд). Эта спрашивает **свойство**:
+     * возврат в теле ровно один, на верхнем уровне, и это вызов дома; всё, что
+     * стоит до него, — связывание дома и охрана, которая **бросает**. Своя
+     * работа до возврата — хоть `String(x).trim()` — делает тело настоящим, и
+     * это нарочно: приведение входа перед вопросом есть объявление правила.
+     *
+     * Возврат считается на верхнем уровне тела: `return []` внутри замыкания,
+     * переданного доводом, телу не принадлежит и в счёт не идёт.
+     */
+    const topLevelReturns = (text) => {
+      let depth = 0;
+      const at = [];
+      for (let i = 0; i < text.length; i += 1) {
+        const c = text[i];
+        if (c === "{" || c === "(" || c === "[") depth += 1;
+        else if (c === "}" || c === ")" || c === "]") depth -= 1;
+        else if (depth === 0 && text.startsWith("return", i)
+          && !/[A-Za-z0-9_$]/.test(text[i - 1] || " ")
+          && !/[A-Za-z0-9_$]/.test(text[i + 6] || " ")) at.push(i);
+      }
+      return at;
+    };
+    {
+      const flat = inner.replace(/\s+/g, " ");
+      const rets = topLevelReturns(flat);
+      if (rets.length === 1) {
+        const ret = flat.slice(rets[0]).trim();
+        const call = ret.match(/^return ([A-Za-z0-9_$]+)\.[A-Za-z0-9_$]+\(/);
+        /*
+         * **И возврат обязан на этом вызове кончаться.** Первая версия
+         * сверяла только начало, и `return __mod.f(x) || "tag"` — вызов дома
+         * со своим умолчанием рядом — числился делегатом. Поймал это контроль
+         * на строке-образце, а не чтение (У-142: контроль на каждый шаг).
+         */
+        if (call && endsOnHomeCall(ret)) {
+          const home = call[1];
+          const head = flat.slice(0, rets[0]);
+          /* Связывания до возврата — только дом: имя с двух подчёркиваний,
+             геттер или шов `globalThis.__…`. */
+          const bindings = head.match(/(?:var|const|let) [A-Za-z0-9_$]+ =[^;]*/g) || [];
+          const onlyHomeBindings = bindings.every((b) =>
+            /=[^;]*(?:__[A-Za-z0-9_$]*|(?:get|ensure)[A-Z][A-Za-z0-9_$]*\(\))/.test(b));
+          /* Охраны до возврата — только бросающие. */
+          const ifs = (head.match(/\bif \(/g) || []).length;
+          const throws = (head.match(/\bthrow \b/g) || []).length;
+          const homeBound = /^__/.test(home) || new RegExp("(?:var|const|let) " + home + " =").test(head);
+          const rest = head
+            .replace(/(?:var|const|let) [A-Za-z0-9_$]+ =[^;]*;?/g, " ")
+            .replace(/if \([^)]*\)\s*\{[^{}]*\}/g, " ")
+            .replace(/if \([^)]*\)\s*throw [^;]*;?/g, " ")
+            .trim();
+          if (onlyHomeBindings && homeBound && throws >= ifs && ifs > -1 && !rest) return true;
+        }
+      }
+    }
+
     const stmts = inner.split(";").map((x) => x.trim()).filter(Boolean);
     if (stmts.length !== 1) return false;
     /* И вызов должен быть **к другому модулю**: `return String(s).replace(...)`
@@ -273,6 +371,15 @@ function main() {
        **геттером** (`getStatusRuntimeCommon().…`) — так устроены оба статусных
        движка, и три честных делегата числились копиями. */
     if (!/^return\s/.test(stmts[0])) return false;
+    /*
+     * **И здесь возврат обязан кончаться на вызове дома.** Признак сверял
+     * только начало, и `return __mod.f(x) || "tag"` — вопрос дому со своим
+     * умолчанием рядом — числился делегатом с первого дня. Своё умолчание есть
+     * объявление правила, и тело с ним настоящее (У-186: настройка человека в
+     * коде не пишется). Дыра нашлась контролем на строке-образце, а не
+     * чтением.
+     */
+    if (!endsOnHomeCall(stmts[0])) return false;
     /* Модуль приезжает и **через вызов**: `__relocation().имя(...)` — так
        статусные движки берут общий дом перестановки. Признак требовал точку
        сразу за именем и эту форму не видел (третий такой случай за ночь,
@@ -283,6 +390,41 @@ function main() {
     const byGetter = /(^|[^A-Za-z0-9_$])(get|ensure)[A-Z][A-Za-z0-9_$]*\(\)\s*\.[A-Za-z0-9_$]+\s*\(/.test(stmts[0]);
     return byModuleName || byGetter;
   };
+
+  /*
+   * **Контроль признака делегата — на строках-образцах и в обе стороны**
+   * (У-92, У-119, У-127). Он стоит здесь, а не на том, что нужная форма ещё
+   * есть в продукте: такой контроль умер бы вместе с долгом.
+   *
+   * Седьмая форма опасна ровно тем, чем сильна: она спрашивает свойство, а не
+   * образец, и потому может признать делегатом тело, которое **приводит вход**
+   * перед вопросом. Приведение входа — объявление правила, и последний образец
+   * ниже требует, чтобы оно телом и осталось.
+   */
+  const control = [
+    ["делегат одной строкой",
+     "function f(x) {\n  return __mod.f(x);\n}", true],
+    ["делегат со связыванием и охраной",
+     "function f(x) {\n  const home = getHome();\n  if (!home || typeof home.f !== \"function\") {\n    throw new Error(\"home unavailable: f\");\n  }\n  return home.f(x);\n}", true],
+    ["возврат внутри довода телу не принадлежит",
+     "function f(x) {\n  return __mod.f({ pick: (v) => { if (!v) return []; return v; } });\n}", true],
+    ["приведение входа перед вопросом делает тело настоящим",
+     "function f(x) {\n  const k = String(x || \"\").trim().toLowerCase();\n  return __mod.f(k);\n}", false],
+    ["свой ответ рядом с вопросом — настоящее тело",
+     "function f(x) {\n  if (!__mod) return \"tag\";\n  return __mod.f(x);\n}", false],
+    ["чтение поля дома правила не объявляет",
+     "function f() {\n  return __mod.value;\n}", true],
+    ["своё умолчание рядом с вызовом дома — настоящее тело",
+     "function f(x) {\n  return __mod.f(x) || \"tag\";\n}", false],
+  ];
+  for (const [why, src, want] of control) {
+    const body = declarations(src).f;
+    if (!body) throw new Error("контроль признака: образец не разобрался — " + why);
+    if (isDelegate("f", body) !== want) {
+      throw new Error("контроль признака делегата: «" + why + "» — ждали "
+        + (want ? "делегат" : "настоящее тело") + ", вышло иначе");
+    }
+  }
 
   const broken = [];
   const twins = [];

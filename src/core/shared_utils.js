@@ -836,6 +836,16 @@ const LINE_MARK_RE = new RegExp("^" + LIST_PREFIX_SRC + "(?:[ \\t]|$)");
 const LINE_CHECKBOX_RE = new RegExp("^" + CHECKBOX_ONE_CHAR_SRC + "(?:[ \\t]|$)");
 const LINE_HEADING_MARK_RE = new RegExp("^" + HEADING_PREFIX_SRC + "(?:[ \\t]|$)");
 
+/*
+ * «Есть ли у этой строки знак списка» — вопрос, а не образец, и дома у него не
+ * было: обе половины плагина считали ответ сами, одной и той же строкой
+ * `!!lineStartOf(line).marker`. Тела совпадали побайтно, и мера копий этого не
+ * видела, потому что признак делегата сверял только **начало** возврата.
+ */
+function hasListPrefix(text) {
+  return !!lineStartOf(text).marker;
+}
+
 function lineStartOf(text) {
   const src = String(nz(text, ""));
   const take = (re, at) => {
@@ -1330,6 +1340,7 @@ module.exports = {
   HEADING_PREFIX_SRC,
   headingPrefixLength,
   lineStartOf,
+  hasListPrefix,
   lineIndentLength,
   linePrefixLength,
   lineMarkerOf,
