@@ -1,8 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
-Work since `0.1.0-beta.6`. Not published yet.
+The first release outside the beta line. It carries everything published as
+`0.1.0-beta.7` plus the work of 2026-09-16; if you ran a beta, install this over
+it.
+
+### Where the caret lands
+
+- **On an empty line the caret goes into the text slot, not into the list
+  marker.** Running a right-Block Field on `- ` gave `-|  :: 📅…`, so the first
+  word you typed landed before the space; it now gives `- | :: 📅…` and you can
+  type straight away. The same holds for a task line (`- [ ] `), a numbered one
+  and a quote.
 
 ### Your line keeps what you typed
 
