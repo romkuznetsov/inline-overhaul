@@ -3780,8 +3780,86 @@ async function testOrderKeyNormalizerComesFromTheHome() {
     "признак объекта у фабрики — не дом из shared_utils.js");
 }
 
+/**
+ * **Пустой слот текста: курсор стоит в слоте, а не в знаке начала строки**
+ * (10.13.171).
+ *
+ * Его слово 2026-09-16: «при активации в пустой строке value в right block
+ * курсор находится не в том месте: `-|  :: 📅2026-09-16 14:22`, ожидалось
+ * `- | :: 📅2026-09-16 14:22`».
+ *
+ * На пустом слоте пробелов ровно два: один принадлежит знаку начала строки,
+ * второй — разделителю. Курсор упирался в знак, и чтобы начать писать, человеку
+ * надо было жать вправо.
+ *
+ * **Гоняется на двух наборах правил, и это не украшение.** Дефект приехал на
+ * его настройках, где **разделители совпадают** (`::` и `::`), и там конец
+ * текста считается отходом назад от разделителя. На разведённых разделителях
+ * дорога другая — через границы слота, — и у неё своя форма того же: начало
+ * строки-цитаты забирает себе **оба** пробела, и курсор упирается в
+ * разделитель с другой стороны (`>  |:: 📅…`). Проверка на одном наборе
+ * краснеет только на одной из двух правок — измерено мутацией, а не выведено.
+ */
+const EQUAL_SEP_DATE_RUNTIME = JSON.stringify({
+  fields: ["due"],
+  byField: { due: { emoji: "\uD83D\uDCC5", format: "YYYY-MM-DD hh:mm" } },
+  canonical: { due: "due" },
+});
+
+async function testEmptyTextSlotKeepsCursorInsideIt() {
+  const rightElement = {
+    left: ["Category", "Importance", "type"],
+    right: ["date_due", "Project"],
+    panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
+  };
+  const roads = [
+    {
+      name: "совпадающие разделители (его случай)",
+      rules: SYNTHETIC_RULES,
+      order: buildOrderConfig({ panel: { due: "right" } }),
+      action: "field_inc:due",
+      dateRuntime: EQUAL_SEP_DATE_RUNTIME,
+    },
+    {
+      name: "разведённые разделители",
+      rules: OWNER_SHAPE_RULES,
+      order: ownerShapeOrder(rightElement),
+      dateRuntime: OWNER_SHAPE_DATE_RUNTIME,
+    },
+  ];
+  for (const road of roads) {
+    for (const mark of ["-", "*", "+", "1.", "- [ ]", "* [ ]", "1. [ ]", ">"]) {
+      const before = mark + " ";
+      const editor = makeEditor(before, before.length);
+      await runPkmCommandWithEditor("statusDate", editor, {
+        "Rules data": road.rules,
+        "Action type": road.action || "field_inc:date_due",
+        "Order config": road.order,
+        "Date runtime config": road.dateRuntime,
+        "Cycle end behavior": "keep-bullet",
+        "Cursor policy": "text_end",
+      });
+      const shot = editor.snapshot();
+      const where = road.name + ", " + JSON.stringify(before) + ": ";
+      assertTrue(/\uD83D\uDCC5/.test(shot.line),
+        where + "значение элемента не встало, и курсор мерить не в чем: " + JSON.stringify(shot.line));
+      assertEq(shot.cursor.ch, before.length,
+        where + "курсор не в пустом слоте текста. Строка " + JSON.stringify(shot.line)
+          + ", курсор " + shot.cursor.ch + ", ожидался " + before.length);
+      /* Контроль на саму меру: слева от курсора начало строки, справа — пробел,
+         который принадлежит разделителю. Иначе «курсор равен длине начала» было
+         бы верно и на строке, где слот схлопнулся. */
+      assertEq(shot.line.slice(0, shot.cursor.ch), before,
+        where + "слева от курсора оказалось не начало строки");
+      assertEq(shot.line.charAt(shot.cursor.ch), " ",
+        where + "справа от курсора не пробел разделителя");
+    }
+  }
+}
+
 async function run() {
   await testOrderKeyNormalizerComesFromTheHome();
+  await testEmptyTextSlotKeepsCursorInsideIt();
   await testQuotedLineBehavesLikeHeading();
   await testEmptyTextSlotSurvivesQuoteAndCallout();
   await testEmptyTextSlotHoldsAtAnySeparator();
