@@ -17,20 +17,6 @@ const __say = __sayModule.say;
 /* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
 const __noticeKey = __sayModule.noticeKey;
 
-/*
- * Хвост эмодзи-элемента выводится из формата поля — тем же правилом, каким его
- * выводят разбор строки и отрисовка (`elementTailPatternFromFormat`, У-32).
- *
- * Здесь стояло своё «от метки до пробела», и это было третье объявление того
- * же правила. У Field с форматом `YYYY-MM-DD hh:mm` пробел внутри значения:
- * снималась только дата, время оставалось на исходной строке текстом человека
- * (`- … :: 11:25 [[…]]`), а в свойства заметки уезжало обрезанным
- * (`date_due: 2026-09-07`). Замечание заказчика по R4, 2026-09-07.
- *
- * Модуль подключается литеральным `require` — по одному на модуль (У-89), без
- * заглушки: не приехал — плагин обязан упасть громко.
- */
-const __rulesRuntimeHelpers = require("../core/pkm_rules_runtime_helpers.js");
 /* Деление строки на зоны спрашивается у дома, а не пишется здесь (У-153), и
    правила для него собирает тот же сборщик, что и для движков. */
 const __linePipeline = require("../core/line_pipeline.js");
@@ -609,9 +595,26 @@ function getElementMarkerRulesFromConfig(cfg) {
     if (!finalMarker || seen.has(finalMarker)) continue;
     seen.add(finalMarker);
     const format = String(f.format || runtime.format || "").trim();
+    /*
+     * **Чем заполнен слот образца, решает команда поля** — и спрашивается это
+     * там же, где значение **пишется** (`buildElementTailRegexSource` в
+     * `shared_utils.js`, У-32). Здесь стояло объявление, которое команду не
+     * спрашивает вовсе: у поля с `Random characters` формат — это **образец
+     * вида** (`111111`), а не описание значений, и сам плагин пишет туда
+     * `lYg8U6`. Образец `🤣111111` не совпадал ни с одним настоящим значением,
+     * элемент не находился вовсе — не уходил со строки по `Fields to keep` и не
+     * попадал в свойства новой заметки. Это его замечание `H1` (2026-09-17) и
+     * правило 130 (У-208).
+     *
+     * **Тот же дефект уже чинился у сканера оформления** (S7, 2026-09-09), и
+     * починка досталась одному читателю из трёх: спрашивать надо не «есть ли
+     * копия», а кто ещё отвечает на этот же вопрос (У-159).
+     */
+    const inc = isObj(runtime.increment) ? runtime.increment : {};
+    const command = String(f.command || inc.command || "").trim();
     out.push({
       marker: finalMarker,
-      tail: format ? String(__rulesRuntimeHelpers.elementTailPatternFromFormat(format) || "") : "",
+      tail: format ? String(__sharedUtils.buildElementTailRegexSource(format, command) || "") : "",
     });
   }
   out.sort((a, b) => b.marker.length - a.marker.length);
@@ -1731,10 +1734,22 @@ function explicitTitleRegExp(i2n, flags) {
  */
 function explicitTitleOf(line, i2n) {
   const re = explicitTitleRegExp(i2n, "g");
-  const lineWithoutWikilinks = String(line || "")
+  /*
+   * **Начало строки принадлежит платформе, и спрашивается оно у общего дома**
+   * (`lineStartOf`, У-91). Свой образец знал знак списка `-`, `*`, `+` и
+   * задачу за ним — и не знал ни номера, ни каллаута: строка
+   * `1. [!] 213 :: …` отдавала под имя новой заметки знак задачи и давала
+   * заметку `[[222/!]]`, а `> [!note] текст` — заметку `[[…/!note]]`. Это его
+   * замечание `H2` (2026-09-17).
+   *
+   * **Тот же вопрос уже был отвечён домом рядом** — у слова человека
+   * (`payloadStart` в `parseInlineLine`, его решение В-133), но имя в скобках
+   * читается **раньше** и до дома не доходило: починка досталась одному из двух
+   * читателей (У-159).
+   */
+  const lineWithoutWikilinks = String(__sharedUtils.lineStartOf(String(line || "")).body || "")
     /* Форма ссылки — общий дом; сверено, расхождений ноль (10.13.141). */
-    .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ")
-    .replace(/^(\s*[-*+]\s+)\[[^\]]\](\s*)/, "$1$2");
+    .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ");
   let m;
   while ((m = re.exec(lineWithoutWikilinks)) !== null) {
     const explicit = String(m[1] || "").trim();

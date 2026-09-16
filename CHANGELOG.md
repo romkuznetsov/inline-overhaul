@@ -7,6 +7,17 @@
 
 ### Inline to note
 
+- **A Field whose values the plugin writes itself is recognised on the line.**
+  A Field with the `Random characters` command carries a sample in its format
+  (`111111`), not a description of its values - so `🤣lYg8U6` was found by
+  nobody: it neither left the line when `Fields to keep` said it should, nor
+  reached the new note's properties. The pattern now comes from the same place
+  the value is written, and it knows the Field's command.
+- **A task marker behind a list number no longer becomes the note's name.**
+  `1. [!] report` used to create a note called `!`; a callout marker did the
+  same (`> [!Guide] …` became `!Guide`). The start of a line is Obsidian's
+  markup, and the plugin now reads it the same way everywhere. A name you write
+  in brackets yourself is still read, behind any of those.
 - **A template you picked no longer outlives the folder it came from.** Change
   `Templates folder` and any template chosen outside the new folder is cleared,
   in the Smart Rules too - a rule used to keep the full path and fail with

@@ -861,4 +861,107 @@ function runExplicitNameAfterBulletSuite() {
 
 runExplicitNameAfterBulletSuite();
 
+/*
+ * **Начало строки перед именем в скобках — правило платформы, а не наш
+ * образец** (У-91, его замечание `H2` 2026-09-17).
+ *
+ * Своё «буллит, звёздочка или плюс, а за ним скобки из одного знака» не знало
+ * ни номера списка, ни каллаута: `1. [!] 213 :: …` давала заметку `[[222/!]]`,
+ * а `> [!note] текст` — заметку `[[…/!note]]`. Теперь начало строки
+ * спрашивается у дома (`lineStartOf`).
+ *
+ * Отрицательные контроли ниже важнее положительных: дом снимает **только**
+ * начало строки, и настоящее имя в скобках обязано читаться при любом его
+ * виде.
+ */
+function runLineStartBeforeExplicitNameSuite() {
+  const i2n = { noteName: { delimiters: "[]", wordCount: 6 } };
+  const explicit = (line) => transform.explicitTitleOf(line, i2n);
+
+  assertEq(explicit("1. [!] 213 :: #source [[test]] #work"), "",
+    "знак задачи за номером списка именем заметки не становится (его строка H2)");
+  assertEq(explicit("1) [!] 213 :: #source"), "",
+    "и за номером со скобкой — тоже");
+  assertEq(explicit("- [x] 213 :: #source"), "",
+    "знак задачи за дефисом именем не был и не стал");
+  assertEq(explicit("> [!note] 213 :: #source"), "",
+    "знак каллаута — разметка Obsidian, а не имя человека");
+  assertEq(explicit("> > [!warning] 213"), "",
+    "и во вложенной цитате тоже");
+
+  assertEq(explicit("1. [имя заметки] хвост"), "имя заметки",
+    "имя в скобках за номером списка читается");
+  assertEq(explicit("1. [!] [имя заметки] хвост"), "имя заметки",
+    "и за знаком задачи, стоящим за номером");
+  assertEq(explicit("> [!note] [имя заметки] хвост"), "имя заметки",
+    "и за знаком каллаута");
+  assertEq(explicit("## [имя заметки] хвост"), "имя заметки",
+    "и за знаком заголовка");
+  assertEq(explicit("[имя заметки] хвост"), "имя заметки",
+    "и на строке без всякого начала");
+  assertEq(explicit("- [[333/ава]] [имя заметки] хвост"), "имя заметки",
+    "ссылка в начале тела строки именем не становится, а скобки за ней — становятся");
+  console.log("  ok H2: начало строки спрашивается у дома, скобки за ним — имя заметки");
+}
+
+runLineStartBeforeExplicitNameSuite();
+
+/*
+ * **Формат поля — образец вида, а не описание значений** (У-208, правило 130;
+ * его замечание `H1` 2026-09-17).
+ *
+ * У поля с командой `Random characters` в формате стоит `111111`, а плагин
+ * пишет туда `lYg8U6`. Пока образец узнавания выводился из одного формата,
+ * Transform не находил элемент вовсе: значение не уходило со строки по
+ * `Fields to keep` и не попадало в свойства новой заметки.
+ *
+ * **Проверка спрашивает обе стороны одной пары** (У-157): значение пишет сам
+ * плагин (`renderCommandValueByFormat`), и он же обязан его прочесть. Литерал
+ * тут был бы слабее — он описывает одну выпавшую строку, а не правило.
+ */
+function runElementValueWrittenByPluginIsFoundSuite() {
+  const shared = require(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"));
+  const cfg = makeConfig();
+  cfg.pkm.fields.order.types.rnd = "element";
+  cfg.pkm.fields.links.fields.push({ id: "rnd", type: "element", marker: "\u{1F923}", values: [] });
+  cfg.pkm.fields.elements = {
+    byField: {
+      rnd: { emoji: "\u{1F923}", format: "111111", increment: { mode: "command", command: "randomE" } },
+      when: { emoji: "@", format: "YYYY-MM-DD hh:mm", increment: { mode: "standard", command: "now" } },
+    },
+  };
+
+  const rules = transform.getElementMarkerRulesFromConfig(cfg);
+  const tailOf = (marker) => String((rules.find((r) => r.marker === marker) || {}).tail || "");
+  assertTrue(!!tailOf("\u{1F923}"), "у метки случайного значения образец есть");
+
+  /* Сто значений, а не одно: набор знаков широкий, и одна выпавшая строка
+     проверяет одну её букву. */
+  for (let i = 0; i < 100; i++) {
+    const value = shared.renderCommandValueByFormat("111111", "randomE");
+    const line = `- #todo :: \u{1F923}${value} :: work`;
+    const parsed = transform.parseInlineLine(line, cfg);
+    const found = parsed.emojis.filter((e) => e.marker === "\u{1F923}").map((e) => e.value);
+    assertDeepEq(found, [value], `значение \u{1F923}${value}, написанное плагином, он же и находит`);
+  }
+
+  /* Отрицательный контроль: образец не шире значения. Своя метка с чужим
+     значением рядом не должна съедать соседний токен. */
+  const wide = transform.parseInlineLine("- #todo :: \u{1F923}Ab3-_> #work :: x", cfg);
+  assertDeepEq(wide.emojis.filter((e) => e.marker === "\u{1F923}").map((e) => e.value), ["Ab3-_>"],
+    "образец кончается там, где кончается значение, и тег рядом не забирает");
+
+  /* Второй отрицательный контроль: у поля с командой `now` слоты остаются
+     цифрами, и буквы значением этого поля не считаются. */
+  const dateOk = transform.parseInlineLine("- #todo :: @2026-09-17 00:34 :: x", cfg);
+  assertDeepEq(dateOk.emojis.filter((e) => e.marker === "@").map((e) => e.value), ["2026-09-17 00:34"],
+    "у поля-даты значение по-прежнему читается форматом");
+  const dateNo = transform.parseInlineLine("- #todo :: @abcd-ef-gh ij:kl :: x", cfg);
+  assertDeepEq(dateNo.emojis.filter((e) => e.marker === "@").map((e) => e.value), [],
+    "и буквы на месте цифр значением поля-даты не становятся");
+  console.log("  ok H1: значение, написанное командой поля, разбор Transform находит");
+}
+
+runElementValueWrittenByPluginIsFoundSuite();
+
 console.log("Transform feature regression tests: OK");
