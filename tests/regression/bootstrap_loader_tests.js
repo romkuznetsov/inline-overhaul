@@ -1861,7 +1861,11 @@ async function run() {
   assertTrue(/getFieldById\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared field resolver");
   assertTrue(/getActiveValues\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared active-values resolver");
   assertTrue(/getFieldValueById\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared value-by-id resolver");
-  assertTrue(/getFieldValueByToken\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared value-by-token resolver");
+  /* `getFieldValueByToken` снят вместе с недостижимым ходом команд тегов
+     (10.13.170): он был в нём единственным звавшим. Запрет на возврат — с
+     положительным контролем на живом соседе строкой выше. */
+  assertFalse(/getFieldValueByToken/.test(statusRuntimeCommonSrc),
+    "помощник снятого хода вернулся в общий рантайм");
   assertTrue(/getValueId\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared value-id resolver");
   assertTrue(/resolveSubtagFormat\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared subtag-format resolver");
   assertTrue(/getAllowedSubValues\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared sub-value resolver");
@@ -1902,7 +1906,7 @@ async function run() {
    */
   assertFalse(/normalizeImportanceTokenShape/.test(statusRuntimeCommonSrc),
     "мёртвый нормализатор знака важности вернулся в общий рантайм");
-  assertTrue(/getFieldValueByToken\(/.test(statusRuntimeCommonSrc),
+  assertTrue(/getFieldValueById\(/.test(statusRuntimeCommonSrc),
     "положительный контроль: живые помощники той же выгрузки на месте");
   assertTrue(/detectDateUnit\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared date-unit detector");
   assertTrue(/getDateProgressForStep\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared date-progress resolver");
@@ -1977,7 +1981,10 @@ async function run() {
       + "лежит второе объявление того же правила (У-32), и достаётся оно тогда, "
       + "когда общая реализация бросила");
     const thinCount = tags.thin.length + date.thin.length + relocation.thin.length;
-    assertTrue(thinCount >= 30,
+    /* Порог опущен 30 -> 29 (10.13.170): снят `findValueByToken`, единственный
+       звавший которого лежал в недостижимом ходе команд тегов. Опуская число,
+       говорим, чем оно опущено (У-118). */
+    assertTrue(thinCount >= 29,
       "обход нашёл только " + thinCount + " тонких обёрток — значит он смотрит не туда, "
       + "и запрет выше мерит пустоту (У-88)");
 
@@ -2353,6 +2360,18 @@ async function run() {
   assertFalse(/function fieldHasAnyCheckboxRule\(/.test(tagwheelSrc), "tagwheel keeps no local copy of the checkbox-rule question");
   assertTrue(/__lineFinalizeUnified\.fieldHasAnyCheckboxRuleUnified\(rules, fieldId\)/.test(statusTagsSrc), "status_tags asks the shared finalizer whether the field has checkbox rules at all");
   assertFalse(/checkboxByFieldValue\[fid\]/.test(statusTagsSrc), "status_tags no longer walks the checkbox map on its own");
+  /*
+   * **Ход «действие не круговое» снят** (10.13.170). Он был недостижим:
+   * реестр команд шлёт этому движку только `cycle_field:<ключ>`. Запрет
+   * держит форму, а не имя, и рядом стоят два положительных контроля —
+   * иначе «этого в файле нет» было бы зелено и при снятой команде.
+   */
+  assertFalse(/!actionIsCycleField && !\/_sub\$\/\.test\(actionFieldKey\) && resolvedActionFieldId/.test(statusTagsSrc),
+    "недостижимый ход команд тегов вернулся");
+  assertTrue(/unsupported-action/.test(statusTagsSrc),
+    "положительный контроль: на месте снятого хода стоит отказ вслух");
+  assertTrue(/actionIsCycleField \|\| \/_sub\$\/\.test\(actionFieldKey\)/.test(statusTagsSrc),
+    "положительный контроль: живой ход круговых действий на месте");
   assertTrue(/function checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(pkmLineFinalizeUnifiedSrc), "unified line finalizer owns the question whose checkbox this is");
   assertTrue(/finalize\.checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(tagwheelSrc), "tagwheel asks the shared finalizer whose checkbox this is");
   assertTrue(/__lineFinalizeUnified\.checkboxBelongsToFieldUnified\(rules, fieldId, token\)/.test(statusTagsSrc), "status_tags asks the shared finalizer whose checkbox this is");

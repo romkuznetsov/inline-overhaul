@@ -221,16 +221,6 @@ function createStatusRuntimeCommon(deps) {
     return null;
   }
 
-  function getFieldValueByToken(field, token) {
-    const targetToken = String(token || "");
-    const values = Array.isArray(field && field.values) ? field.values : [];
-    for (const value of values) {
-      if (!isObj(value) || typeof value.token !== "string") continue;
-      if (value.token === targetToken) return value;
-    }
-    return null;
-  }
-
   function getValueId(value) {
     if (!isObj(value)) return "";
     if (typeof value.id === "string" && value.id) return value.id;
@@ -628,7 +618,6 @@ function createStatusRuntimeCommon(deps) {
     getFieldById,
     getActiveValues,
     getFieldValueById,
-    getFieldValueByToken,
     getValueId,
     resolveSubtagFormat,
     getAllowedSubValues,

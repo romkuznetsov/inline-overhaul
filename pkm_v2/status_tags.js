@@ -217,10 +217,6 @@ function findValueById(field, valueId) {
   return getStatusRuntimeCommon().getFieldValueById(field, valueId);
 }
 
-function findValueByToken(field, token) {
-  return getStatusRuntimeCommon().getFieldValueByToken(field, token);
-}
-
 
 function getSubtagFormat(rules, settings) {
   return getStatusRuntimeCommon().resolveSubtagFormat(settings?.[SUBTAG_FORMAT], rules);
@@ -1289,59 +1285,30 @@ module.exports = {
     let targetFieldForPrefix = null;
     let targetSelectionClearedByAction = false;
 
-    if (!actionIsCycleField && !/_sub$/.test(actionFieldKey) && resolvedActionFieldId) {
-      const parentField = getField(left, resolvedActionFieldId);
-      if (!parentField) return;
-      targetFieldForPrefix = parentField;
-      const parentSelectedKey = String(parentField.id || "");
-      if (!parentSelectedKey) return;
-      const cycle = activeValues(parentField);
-      if (!cycle.length) return;
-      const map = fieldTokenMap(parentField, rules, state, core);
-      if (!state.selected[parentSelectedKey]) hydrateFieldFromLine(state, rawLine, rules, targetPanel, parentSelectedKey, map);
-
-      let currentId = String(state.selected[parentSelectedKey] || "");
-      const hasParentTag = !!currentId;
-      const parentCheckboxMap = isObj(rules?.behavior?.prefixRules?.checkboxByFieldValue?.[parentSelectedKey])
-        ? rules.behavior.prefixRules.checkboxByFieldValue[parentSelectedKey]
-        : {};
-      if (!currentId && parsed.checkboxToken && isObj(parentCheckboxMap)) {
-        const cbMap = parentCheckboxMap;
-        for (const token of Object.keys(cbMap)) {
-          if (cbMap[token] !== parsed.checkboxToken) continue;
-          const vv = findValueByToken(parentField, token);
-          if (vv) currentId = valueId(vv);
-          break;
-        }
-      }
-      if (!state.selected[parentSelectedKey] && currentId) {
-        state.selected[parentSelectedKey] = currentId;
-      }
-      const nextId = nextCycleIdByDirection(cycle, currentId, direction);
-      let nextVal = nextId ? (cycle.find((v) => valueId(v) === nextId) || null) : null;
-      if (parsed.checkboxToken && !hasParentTag) {
-        if (currentId) {
-          nextVal = cycle.find((v) => valueId(v) === currentId) || (direction === "decrease" ? cycle[cycle.length - 1] : cycle[0]) || null;
-        } else {
-          nextVal = direction === "decrease" ? cycle[cycle.length - 1] : cycle[0];
-        }
-      }
-
-      const childField = left?.fields?.find((f) => f && String(f.dependsOn || "").trim() === parentSelectedKey) || null;
-      if ((nextVal ? valueId(nextVal) : "") !== currentId && childField && childField.id) {
-        state.selected[childField.id] = "";
-      }
-      if (currentId && !(nextVal && valueId(nextVal))) {
-        targetSelectionClearedByAction = true;
-      }
-      state.selected[parentSelectedKey] = nextVal ? valueId(nextVal) : "";
-      /* Значение ушло — уходит и его знак, но только его: чужой знак задачи
-         на этой же строке человек ставил сам (10.13.92). */
-      if (!state.selected[parentSelectedKey]
-        && checkboxBelongsToField(rules, parentSelectedKey, parsed.checkboxToken)) {
-        parsedWork = { ...parsedWork, checkboxToken: "" };
-      }
-    } else if (actionIsCycleField || /_sub$/.test(actionFieldKey)) {
+    /*
+     * **Ход «действие не круговое» снят целиком** (10.13.170, его слово
+     * 2026-09-16: «снять и поставить отказ вслух»).
+     *
+     * Что здесь стояло: 52 строки разбора, умевшие узнать значение поля по
+     * знаку задачи человека, когда тега поля на строке нет. Реестр команд
+     * шлёт этому движку **только** `cycle_field:<ключ>`, а `field_inc` и
+     * `field_dec` уходят в движок дат, — то есть весь ход был недостижим.
+     * Измерено счётчиком, а не чтением: за прогон набора, обоих заходов
+     * обхода строки и стенда панели вход в команду отработал 764 раза, а
+     * этот ход — ноль.
+     *
+     * Молчать на его месте нельзя: если движок позовут иначе (чужой макрос
+     * со старым действием), человек увидит команду, которая ничего не
+     * делает, и причины не узнает. Поэтому отказ вслух и с именем действия.
+     */
+    if (!actionIsCycleField && !/_sub$/.test(actionFieldKey)) {
+      notice(noticeKey("unsupported-action"),
+        "This command sent an action this engine no longer handles: {0}",
+        String(action || "(empty)"));
+      console.error("[inline-overhaul] status_tags: unsupported action " + JSON.stringify(action));
+      return;
+    }
+    if (actionIsCycleField || /_sub$/.test(actionFieldKey)) {
       const targetFieldId = resolveTagFieldIdByOrderKey(rules, actionFieldKey);
       const targetField = getField(left, targetFieldId) || getField(rules.rightMode, targetFieldId);
       if (!targetField) return;
