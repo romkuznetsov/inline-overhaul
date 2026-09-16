@@ -1,5 +1,12 @@
 # Changelog
 
+<!-- Сделанное между выпусками копится здесь; в коммите выпуска раздел
+     переименовывается в номер версии. Правило — docs/VERSIONING.md. -->
+
+## Unreleased
+
+Nothing yet.
+
 ## 0.2.0
 
 The first release outside the beta line. It carries everything published as

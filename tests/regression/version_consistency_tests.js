@@ -35,6 +35,28 @@ assert.match(
   "версия в manifest.json не похожа на номер версии: " + JSON.stringify(version)
 );
 
+/*
+ * **У выпущенной версии обязана быть запись о том, что изменилось**
+ * (его решение 2026-09-16, `docs/VERSIONING.md`). Номер двигается только в
+ * коммите выпуска, и тем же коммитом раздел `## Unreleased` переименовывается
+ * в номер. Без этой проверки выпуск собирался бы молча, а будущее окно «что
+ * изменилось» в Obsidian читало бы пустоту.
+ *
+ * Спрашивается заголовок ровно с этим номером, а не «упоминается где-нибудь»:
+ * номер версии встречается в тексте разделов и у соседних выпусков.
+ */
+const changelog = fs.readFileSync(path.join(root, "CHANGELOG.md"), "utf8");
+const sectionRe = new RegExp("^## " + String(version).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*$", "m");
+assert.ok(
+  sectionRe.test(changelog),
+  "в CHANGELOG.md нет раздела `## " + version + "`: выпуск без записи о том, что изменилось"
+);
+/* Положительный контроль на сам образец: он обязан не находить того, чего нет. */
+assert.ok(
+  !new RegExp("^## 0\\.0\\.0\\s*$", "m").test(changelog),
+  "контроль образца: заголовок несуществующей версии нашёлся — образец ищет не то"
+);
+
 assert.strictEqual(pkg.version, version, "package.json разошёлся с manifest.json");
 assert.strictEqual(lock.version, version, "package-lock.json разошёлся с manifest.json");
 assert.strictEqual(
