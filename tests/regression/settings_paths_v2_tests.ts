@@ -286,4 +286,38 @@ const KNOWN_DEFAULT_GAPS: Record<string, unknown> = {};
   ok("галочки `Custom` у `Ctrl+A` доезжают до конфига и не теряются миграцией");
 }
 
+{
+  /*
+   * **Ведущее поле панели, уведённое в другой Block, снимается** — его
+   * решение В-134, 2026-09-16: «очищай».
+   *
+   * Это второй случай того же класса, что шаблон при смене папки шаблонов
+   * (В-127): настройка ссылается на его же данные, а данные он двигает. И то
+   * же самое уже обещал человеку текст настройки — «a Field you later move to
+   * the other Block stops being the one it lands on», — а код этого не делал
+   * (У-64).
+   *
+   * Обе стороны проверяются вместе: без второй запрет выполнялся бы и кодом,
+   * который стирает выбор всегда (У-127).
+   */
+  const moved = internals.migrateConfig({
+    schemaVersion: 2,
+    pkm: { fields: { order: { left: ["Category"], right: ["type"] } } },
+    visual: { tagWheel: { activeField: { mode: "custom", left: "type", right: "type" } } },
+  }) as Any;
+  assert.equal(getIn(moved, "visual.tagWheel.activeField.left"), "",
+    "поле, которого в левом Block больше нет, перестаёт быть ведущим слева");
+  assert.equal(getIn(moved, "visual.tagWheel.activeField.right"), "type",
+    "а в своём Block выбор остаётся: стирать его было бы не по его слову");
+
+  const kept = internals.migrateConfig({
+    schemaVersion: 2,
+    pkm: { fields: { order: { left: ["Category"], right: ["type"] } } },
+    visual: { tagWheel: { activeField: { mode: "custom", left: "Category", right: "" } } },
+  }) as Any;
+  assert.equal(getIn(kept, "visual.tagWheel.activeField.left"), "Category",
+    "выбор, стоящий в своём Block, переживает нормализацию");
+  ok("ведущее поле панели из чужого Block снимается, из своего — остаётся (В-134)");
+}
+
 console.log("\n" + passed + " проверок пройдено");

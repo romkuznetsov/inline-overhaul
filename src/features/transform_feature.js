@@ -948,9 +948,34 @@ function parseInlineLine(rawLine, cfg) {
    * 1443 строках его заметок: **две**, и обе — этот самый случай
    * (`#` и `##`).
    */
-  const payloadText = String(payloadTextRaw || (payloadParts.length ? payloadParts[0] : textCore) || "")
-    .replace(/^\s*(?:[-*+]\s+(?:\[[^\]]\]\s+)?|#{1,6}(?:\s+|$))/, "")
-    .trim();
+  /*
+   * **Что в начале строки принадлежит платформе — спрашивается у общего дома**
+   * (`lineStartOf`, исключение № 81 к З3). Свой образец знал знак списка,
+   * задачу и заголовок, а номера нумерованного списка не знал: строка
+   * `1. текст` уезжала в заметку и в её имя вместе с `1.`, то есть номер
+   * считался словом человека. Его решение (В-133): «да», считать номер
+   * разметкой, как буллит.
+   *
+   * **Мера шире его слова, и это сказано вслух** (правило 127). На 1200
+   * строках его заметок расхождение со старым образцом — 213: 190
+   * нумерованных строк, 22 строки цитаты и каллаута и одна голая `1.`.
+   * Цитата и каллаут — такое же внешнее оформление строки, и дом снимает их
+   * заодно; прежде они уезжали в имя заметки вместе с `> [!note]`.
+   */
+  const payloadStart = __sharedUtils.lineStartOf(
+    String(payloadTextRaw || (payloadParts.length ? payloadParts[0] : textCore) || "")
+  );
+  /*
+   * Знак заголовка, за которым ничего не осталось, текстом не становится.
+   * Прежний образец снимал его и без пробела — иначе строка `# #/1 #todo`
+   * отдавала под имя новой заметки одинокую решётку. Дом про пробел строже
+   * (у Obsidian заголовок — это знак **и** пробел), поэтому случай назван
+   * здесь прямо: текста нет, и движок откажет вслух, как и всякой строке без
+   * слова человека.
+   */
+  const payloadText = /^\s*#{1,6}\s*$/.test(String(payloadStart.body || "").trim()) || !String(payloadStart.body || "").trim()
+    ? ""
+    : String(payloadStart.body || "").trim();
   /* Разделители едут вместе с разбором: тот, кто читает его находки, обязан
      знать, чем они были разделены, — иначе спрашивать конфиг заново, то есть
      заводить второе объявление того же ответа (У-32). */
@@ -1053,6 +1078,33 @@ function buildTransformContext(parsed, cfg) {
   const byFieldId = {};
   const matches = [];
 
+  /*
+   * **Значение узнаётся по тому, что написано; Block решает только спор.**
+   *
+   * Раньше значение считалось значением своего Field, **только** стоя в том
+   * Block, который назначил ему Order. Всё остальное Transform не видел вовсе:
+   * такое значение не уходило со строки по `Fields to keep` и не попадало в
+   * свойства заметки. На его заметках это **110 значений из 337** — он
+   * перенёс Fields в правый Block, а написанные прежде строки держат их
+   * слева.
+   *
+   * Правило теперь такое: значение, стоящее в **любом** Block, принадлежит
+   * своему Field; значение, стоящее в слоте текста, — слово человека, и его
+   * не трогает никто (таких у него 31). Block разводит только спор двух
+   * Fields за один и тот же знак: сперва заявки из своего Block, потом
+   * остальные — занятый знак второй раз не заявляется.
+   *
+   * Его слово (В-132): «должны уходить только те values, которые не отмечены
+   * в source-fields-head». Мера шире слова и названа вслух: та же заявка
+   * решает и судьбу свойств заметки (правило 127).
+   */
+  const claimedOccurrences = new Set();
+  const occurrenceKey = (occurrence) => (occurrence
+    && Number.isInteger(occurrence.start)
+    && Number.isInteger(occurrence.end)
+    ? occurrence.start + ":" + occurrence.end
+    : "");
+
   const pushMatch = (fid, fType, markerOrPrefix, yamlProperty, rawToken, occurrence) => {
     const yp = String(yamlProperty || "").trim();
     const rt = String(rawToken || "").trim();
@@ -1060,6 +1112,8 @@ function buildTransformContext(parsed, cfg) {
     const span = occurrence && Number.isInteger(occurrence.start) && Number.isInteger(occurrence.end)
       ? { start: occurrence.start, end: occurrence.end, panel: occurrence.panel }
       : null;
+    const key = occurrenceKey(occurrence);
+    if (key) claimedOccurrences.add(key);
     byFieldId[fid] = {
       fieldId: fid,
       fieldType: fType,
@@ -1078,6 +1132,10 @@ function buildTransformContext(parsed, cfg) {
     });
   };
 
+  /* Два захода: сперва заявки из своего Block, потом из соседнего. Порядок и
+     есть разведение спора — знак, уже заявленный своим хозяином, вторым
+     заходом не берётся. */
+  for (const pass of ["own", "other"]) {
   for (let i = 0; i < fields.length; i++) {
     const f = fields[i];
     const fid = String(f.id || "").trim();
@@ -1097,7 +1155,21 @@ function buildTransformContext(parsed, cfg) {
     const expectedPanel = leftFieldIds.has(sideKey)
       ? "left"
       : (rightFieldIds.has(sideKey) ? "right" : "any");
-    const isPanelMatch = (occurrence) => occurrence && (occurrence.panel === expectedPanel || occurrence.panel === "any");
+    /*
+     * Слот текста не заявляется никогда: то, что человек написал словом,
+     * значением Field не становится, в каком бы виде оно ни было записано.
+     * Остальное решает заход: свой Block — первым, соседний — вторым, и
+     * только если знак ещё никем не занят.
+     */
+    const isPanelMatch = (occurrence) => {
+      if (!occurrence) return false;
+      const panel = String(occurrence.panel || "");
+      if (panel === expectedPanel || panel === "any") return pass === "own";
+      if (panel !== "left" && panel !== "right") return false;
+      if (pass !== "other") return false;
+      const key = occurrenceKey(occurrence);
+      return !key || !claimedOccurrences.has(key);
+    };
 
     if (fType === "element") {
       const marker = resolveFieldMarker(f);
@@ -1141,6 +1213,7 @@ function buildTransformContext(parsed, cfg) {
         }
       }
     }
+  }
   }
 
   const dependencySafeMatches = matches.filter((row) => {
@@ -1744,6 +1817,39 @@ function resolveAutoTitleInfo(parsed, i2n) {
 
 function resolveAutoTitle(parsed, i2n) {
   return resolveAutoTitleInfo(parsed, i2n).title;
+}
+
+/**
+ * **Какой кусок исходной строки стал названием — один ответ на оба места.**
+ *
+ * Спрашивают его двое: перенос строки и её предпросмотр, — и до 2026-09-17
+ * каждый отвечал сам. Ответы совпадали ровно потому, что были написаны в один
+ * день одной рукой; правило при этом одно, и расходиться им было на чём
+ * (У-150).
+ *
+ * **Заголовок отвечает так же, как слова, и это его замечание `G2`.** Когда
+ * название собиралось из первых слов текста, ссылка вставала **на их место**;
+ * когда из заголовка — слова оставались, и человек получал `dfdf
+ * [[222/dfdf]]` там, где ждал `[[222/dfdf]]`. Причина — в самом объяснении
+ * прежнего ответа: «имя из заголовка на строке его и не было». Это было
+ * правдой ровно до В-128: с той правки названием становится **текст
+ * заголовка**, то есть слово, которое на строке стоит.
+ *
+ * Название, набранное человеком в окне вручную, слов на строке не касается:
+ * его на ней не было. Поэтому спрашивается не только происхождение, но и
+ * совпадение с тем, что и правда стало названием.
+ */
+function resolveTitleSwap(parsed, i2n, resolvedTitle) {
+  const line = String(parsed && parsed.line || "");
+  const titled = resolveAutoTitleInfo(parsed, i2n);
+  const title = String(resolvedTitle == null ? titled.title : resolvedTitle).trim();
+  const explicit = String(explicitTitleOf(line, i2n) || "").trim();
+  if (explicit && title === explicit) return { explicitTitle: title, titleWords: "" };
+  const fromLine = titled.origin === "words" || titled.origin === "header";
+  if (title && fromLine && title === String(titled.title || "").trim()) {
+    return { explicitTitle: "", titleWords: titled.title };
+  }
+  return { explicitTitle: "", titleWords: "" };
 }
 
 function promptNoteTitleWithModal(plugin, ModalClass) {
@@ -2475,14 +2581,15 @@ function buildSourcePreviewLine(i2n, cfg) {
   const shape = { payloadFirst: plan.payloadFirst };
   const cleaned = plan.line;
   /* Предпросмотр спрашивает про название **тем же** ходом, что и движок:
-     иначе он показывал бы ссылку не там, где её поставит перенос (У-32). */
-  const titled = resolveAutoTitleInfo(parsed, i2n);
+     иначе он показывал бы ссылку не там, где её поставит перенос (У-32).
+     Ход — один, и это `resolveTitleSwap`; своего ответа здесь больше нет. */
+  const titleSwap = resolveTitleSwap(parsed, i2n, null);
   const linked = applySourceTextFate(cleaned, "Preview", separators, {
     text: i2n && i2n.sourceProcessing && i2n.sourceProcessing.text,
     keepWords: i2n && i2n.sourceProcessing && i2n.sourceProcessing.keepWords,
     link: !!(i2n && i2n.sourceProcessing && i2n.sourceProcessing.replaceWithLink),
-    explicitTitle: titled.origin === "explicit" ? titled.title : "",
-    titleWords: titled.origin === "words" ? titled.title : "",
+    explicitTitle: titleSwap.explicitTitle,
+    titleWords: titleSwap.titleWords,
     i2n,
     shape,
   });
@@ -3012,17 +3119,15 @@ async function runInline2Note(plugin, runtimeOptions) {
    * то, что и правда стало названием**: имя, набранное в окне вручную, скобок
    * на строке не касается.
    */
-  const explicitTitle = title === explicitTitleOf(sourceLine, i2n) ? title : "";
   /*
    * Слова, из которых название собралось само, — тоже название, и ссылка
-   * встаёт на их место (замечание заказчика по T1, 2026-09-07). Снимается
-   * **только то, что и правда стало названием**: имя из заголовка или
-   * набранное в окне вручную слов на строке не касается.
+   * встаёт на их место (замечание заказчика по T1, 2026-09-07; заголовок — по
+   * `G2`, 2026-09-16). Ответ один на перенос и на предпросмотр —
+   * `resolveTitleSwap`.
    */
-  const titled = resolveAutoTitleInfo(parsed, i2n);
-  const titleWords = !explicitTitle && titled.origin === "words" && title === titled.title
-    ? titled.title
-    : "";
+  const titleSwap = resolveTitleSwap(parsed, i2n, title);
+  const explicitTitle = titleSwap.explicitTitle;
+  const titleWords = titleSwap.titleWords;
   const noteBlockText = stripExplicitTitleFromBlock(sourceBlockText || sourceLine, explicitTitle, i2n);
   /* Правило выбирается **один раз**: и шаблон, и папка берутся у него, иначе
      два прохода однажды разойдутся и заметка уедет не туда (10.13.8 Н5). */
@@ -3128,6 +3233,8 @@ module.exports = {
   /* Откуда название и какой кусок строки им стал: один ответ на оба вида
      имени, и спрашивают его движок, предпросмотр и проверки (У-32). */
   resolveAutoTitleInfo,
+  /* Какой кусок строки стал названием: один ответ на перенос и предпросмотр. */
+  resolveTitleSwap,
   /* Явное имя в скобках: читают его здесь, а снимают со строки в двух местах
      — правило одно, и объявлено оно один раз (У-32). */
   explicitTitleOf,

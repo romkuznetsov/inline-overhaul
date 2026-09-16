@@ -172,6 +172,61 @@ function ok(label: string): void {
 }
 
 {
+  /*
+   * **Значение узнаётся в любом Block, а в слоте текста — не узнаётся** (его
+   * решение В-132, 2026-09-16: «должны уходить только те values, которые не
+   * отмечены в source-fields-head»).
+   *
+   * До этого Transform видел значение, **только** стоя в том Block, который
+   * назначил ему Order: всё остальное не уходило со строки по `Fields to keep`
+   * и не попадало в свойства заметки. На его заметках таких значений 110 из
+   * 337 — он перенёс Fields в правый Block, а строки, написанные прежде,
+   * держат их слева.
+   *
+   * Обе половины правила проверяются вместе: без второй запрет выполнялся бы
+   * и кодом, который тащит в значения слово человека (У-127).
+   */
+  const cfg = {
+    pkm: {
+      lineFormat: { separator1: "::", separator2: "::" },
+      fields: {
+        order: {
+          left: [], right: ["status"],
+          strictNames: { status: "status" }, types: { status: "tag" },
+          active: { status: "yes" }, enabled: { status: true },
+        },
+        tags: { fields: [{ id: "status", orderKey: "status", prefix: "#", values: [{ token: "#todo" }] }] },
+        links: { fields: [] },
+        elements: { fields: [], byField: {} },
+      },
+    },
+  } as Any;
+  const idsOf = (line: string): string[] => transform
+    .buildTransformContext(transform.parseInlineLine(line, cfg), cfg)
+    .matches.map((row: Any) => String(row.fieldId) + "@" + String(row.span && row.span.panel));
+
+  assert.deepEqual(idsOf("- :: текст :: #todo"), ["status@right"],
+    "значение в своём Block узнано");
+  assert.deepEqual(idsOf("- #todo :: текст"), ["status@left"],
+    "значение в соседнем Block узнано тоже: Block назначает Order, а пишет человек");
+  assert.deepEqual(idsOf("- :: слово #todo слово :: "), [],
+    "то же значение внутри слова человека значением не считается");
+
+  /* И поведение, ради которого правило и нужно: неотмеченный Field уходит со
+     строки, где бы он ни стоял, а отмеченный остаётся. */
+  const sweep = (line: string, keep: string[]): string => transform.applySourceCleanupByFieldIds(
+    line, transform.buildTransformContext(transform.parseInlineLine(line, cfg), cfg), keep,
+    { separator1: "::", separator2: "::" });
+  assert.ok(!sweep("- #todo :: текст", []).includes("#todo"),
+    "неотмеченный ушёл и из соседнего Block: " + sweep("- #todo :: текст", []));
+  assert.ok(sweep("- #todo :: текст", ["status"]).includes("#todo"),
+    "отмеченный остался: " + sweep("- #todo :: текст", ["status"]));
+  assert.ok(sweep("- :: слово #todo слово :: ", []).includes("#todo"),
+    "слово человека не трогает никто: " + sweep("- :: слово #todo слово :: ", []));
+  ok("значение узнаётся в любом Block и не узнаётся в слоте текста (В-132)");
+}
+
+{
   /* Отмеченный Field, которого больше нет, молча отбрасывается. */
   const cfg = {
     pkm: {
@@ -296,6 +351,29 @@ const I2N_BRACKETS = { noteName: { mode: "auto", delimiters: "[]" } } as Any;
       },
     },
   } as Any;
+
+  {
+    /*
+     * **Начало строки принадлежит платформе, и номер списка — тоже** (его
+     * решение В-133, 2026-09-16: «да», считать номер разметкой, как буллит).
+     * Прежний образец знал знак списка, задачу и заголовок, а номера не знал:
+     * `1. текст` уезжало в заметку и в её имя вместе с `1.`.
+     *
+     * Здесь же вторая половина, которая шире его слова и названа вслух:
+     * цитата и каллаут — такое же внешнее оформление строки, и дом снимает их
+     * заодно. И третья: знак заголовка, за которым ничего нет, текстом не
+     * становится — иначе именем заметки станет одинокая решётка.
+     */
+    const same = (line: string): string => String(transform.parseInlineLine(line, cfg).payloadText || "");
+    assert.equal(same("1. текст заметки"), "текст заметки", "номер списка — разметка, а не слово");
+    assert.equal(same("1) текст заметки"), "текст заметки", "вторая форма номера — тоже разметка");
+    assert.equal(same("- текст заметки"), "текст заметки", "знак списка как был");
+    assert.equal(same("## текст заметки"), "текст заметки", "знак заголовка как был");
+    assert.equal(same("> [!note] текст заметки"), "текст заметки", "каллаут — внешнее оформление строки");
+    assert.equal(same("#"), "", "одинокая решётка словом человека не становится");
+    assert.equal(same("1."), "", "и одинокий номер тоже");
+    ok("номер списка, цитата и каллаут — разметка строки, а не текст для имени заметки (В-133)");
+  }
 
   const parsed = transform.parseInlineLine("- 11 :: \u{1F4C5}2026-09-07 11:25", cfg);
   assert.deepEqual(parsed.emojis, [{ marker: "\u{1F4C5}", value: "2026-09-07 11:25" }],
@@ -428,25 +506,57 @@ const I2N_WORDS = { noteName: { mode: "auto", delimiters: "[]", wordCount: 6 } }
 
 {
   /*
-   * Почему на месте вызова стоит `origin === "words"`, а не «всё, кроме
-   * скобок». Мутация между этими двумя записями **не краснеет**, и это не
-   * пробел в проверках, а свойство заголовка: название из заголовка — строка
-   * целиком, вместе с Separator, а в тексте между Separator их нет. Слова
-   * такого названия подпоследовательностью текста не бывают, и разрез не
-   * находится ни при какой записи условия.
+   * **Название из заголовка снимается со строки наравне со словами** — его
+   * замечание `G2`, 2026-09-16: «исходное название `## #/1 :: dfdf ::
+   * 📅2026-09-16 20:03`, после трансформации стало `- #/1 :: dfdf
+   * [[222/dfdf]] :: 📅…`, а должно было быть `- #/1 :: [[222/dfdf]] :: 📅…`».
    *
-   * Свойство закреплено здесь затем, что молчащая мутация без объяснения — то
-   * же самое, что зелёная проверка без предмета (У-92).
+   * **Здесь стояло обратное утверждение, и оно было верным до В-128.** Пока
+   * названием из заголовка была строка целиком, вместе с Separator, слова
+   * такого названия подпоследовательностью текста не бывали, и разрез не
+   * находился ни при какой записи условия — то есть мутация между
+   * `origin === "words"` и «всё, кроме скобок» молчала. С В-128 названием
+   * становится **текст** заголовка, и с того дня оно на строке есть: прежнее
+   * утверждение стало охранять дефект (У-193 по смыслу — проверка пережила
+   * свой предмет).
+   *
+   * Ответ теперь один на перенос и на предпросмотр — `resolveTitleSwap`, и
+   * спрашивается он здесь, а не переписывается.
    */
-  const header = transform.resolveAutoTitleInfo(
-    { line: "## one two :: one two three :: tail", payloadText: "one two three" },
-    { noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: true } } as Any);
+  const I2N_HEADER = {
+    noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: true },
+  } as Any;
+  const parsedHeader = {
+    line: "## #/1 :: dfdf :: \u{1F4C5}2026-09-16 20:03",
+    payloadText: "dfdf",
+    separators: { separator1: "::", separator2: "::" },
+    tagOccurrences: [{ start: 3, end: 7 }],
+    emojiOccurrences: [{ start: 15, end: 36 }],
+  } as Any;
+  const header = transform.resolveAutoTitleInfo(parsedHeader, I2N_HEADER);
   assert.equal(header.origin, "header", "заголовок сильнее первых слов текста");
-  assert.ok(header.title.includes("::"),
-    "название из заголовка — строка целиком, вместе с Separator: " + header.title);
-  assert.equal(transform.splitByTitleWords("one two three", header.title).found, false,
-    "слова такого названия в тексте не находятся, поэтому разреза и нет");
-  ok("название из заголовка слов со строки не снимает, и это свойство заголовка");
+  assert.equal(header.title, "dfdf", "названием стал текст заголовка, а не строка целиком");
+
+  const swapHeader = transform.resolveTitleSwap(parsedHeader, I2N_HEADER, header.title);
+  assert.equal(swapHeader.titleWords, "dfdf",
+    "слово, ставшее названием, снимается со строки — на его место встанет ссылка");
+  assert.equal(swapHeader.explicitTitle, "", "скобок на строке не было");
+
+  /* Название, набранное человеком в окне, слов на строке не касается: его на
+     ней не было. Это вторая половина правила, и без неё запрет выполнялся бы
+     и кодом, снимающим что попало (У-127). */
+  assert.equal(transform.resolveTitleSwap(parsedHeader, I2N_HEADER, "имя от руки").titleWords, "",
+    "имя, набранное вручную, со строки ничего не снимает");
+
+  /* И поведение целиком — на той же строке, теми же функциями движка. */
+  const SEP2 = { separator1: "::", separator2: "::" };
+  assert.equal(
+    transform.applySourceTextFate(parsedHeader.line, "222/dfdf", SEP2, {
+      text: "leave_named", link: true, i2n: I2N_HEADER, titleWords: swapHeader.titleWords,
+    }),
+    "## #/1 :: [[222/dfdf]] :: \u{1F4C5}2026-09-16 20:03",
+    "на месте текста заголовка стоит ссылка, остальное на строке цело");
+  ok("название из заголовка снимается со строки, ссылка встаёт на его место (G2)");
 }
 
 {

@@ -1039,6 +1039,28 @@ function normalizeConfigV2(cfg) {
   oneOf("visual.tagWheel.activeField.mode", ["first", "middle", "custom"]);
   text("visual.tagWheel.activeField.left");
   text("visual.tagWheel.activeField.right");
+  /*
+   * **Выбор, указывающий на Field из другого Block, снимается** — его решение
+   * В-134, 2026-09-16: «очищай».
+   *
+   * Это второе попадание того же класса, что и шаблон при смене папки (В-127):
+   * настройка ссылается на его же данные, а данные он меняет. У него
+   * `Left Block active Field` = `type`, а `type` он перетащил в правый Block;
+   * видно этого не было только потому, что режим стоит `First Field`.
+   *
+   * Снимается **в нормализации**, то есть на каждом патче и при загрузке: так
+   * выбор не переживёт перетаскивание Field ни на одной из дорог. И то же
+   * самое обещал человеку текст самой настройки — «a Field you later move to
+   * the other Block stops being the one it lands on», — а код этого не делал
+   * (У-64: пин ловит имена, а не утверждения о состоянии).
+   */
+  for (const side of ["left", "right"]) {
+    const chosen = String(readCfgPath(cfg, "visual.tagWheel.activeField." + side) || "").trim();
+    if (!chosen) continue;
+    const order = readCfgPath(cfg, "pkm.fields.order." + side);
+    const keys = Array.isArray(order) ? order.map((k) => String(k || "").trim()) : [];
+    if (keys.indexOf(chosen) === -1) writeCfgPath(cfg, "visual.tagWheel.activeField." + side, "");
+  }
   /* Цвет активного Field: он на строке, а не в коробке скроллера (10.13.15). */
   hex("visual.tagWheel.activeTextColor");
 
