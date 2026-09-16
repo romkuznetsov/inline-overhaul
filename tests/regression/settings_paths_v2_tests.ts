@@ -95,6 +95,10 @@ const V2_ONLY: Record<string, string> = {
   "visual.tagWheel.activeField.mode": "на каком Field открывается TagWheel — решение заказчика 2026-09-11 (10.13.69 Т-5, правка 10.13.76); доезжает ключом настройки до resolveInitialActiveField в tagwheel_core.js",
   "visual.tagWheel.activeField.left": "какое поле ведущее в левом Block при выборе «A Field you choose» — там же (10.13.76)",
   "visual.tagWheel.activeField.right": "то же для правого Block — там же (10.13.76)",
+  "transform.inline2note.backlink.enabled": "ссылка на новую заметку в тех заметках, на которые ссылается строка — его заказ 2026-09-16, ответы В-135 (10.13.184); читает writeBacklinksIntoReferencedNotes в transform_feature.js",
+  "transform.inline2note.backlink.placement.position": "куда ложится эта ссылка в чужой заметке — там же (10.13.184); читает appendBlockIntoNote",
+  "transform.inline2note.backlink.placement.targetHeader": "под каким заголовком — там же (10.13.184); читает parseTargetHeaderSpec",
+  "transform.inline2note.backlink.placement.fallback": "куда заводится заголовок, которого в заметке нет — там же (10.13.184)",
 };
 
 /* ---- каждая настройка панели имеет пару в конфиге ----------------------- */

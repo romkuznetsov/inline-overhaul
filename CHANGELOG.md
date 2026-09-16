@@ -7,6 +7,16 @@
 
 ### Inline to note
 
+- **New: the notes a line points at can learn about the note it became.** Turn
+  on `Links in the notes you mention` and every note this line links to - by a
+  Field Value, not by a link inside your own sentence - gets a link to the new
+  note. A note that does not exist yet is created empty and gets the link; a
+  note that already links to the new one is left alone. Where the link lands is
+  yours to set: at the top, at the end, or under a heading you name.
+- **A note now gets created in the vault root.** With `New notes folder` empty
+  and the line sitting in a note at the root, `Inline to note` created nothing
+  at all - it tried to make a folder named after the note, tripped over it, and
+  gave up after a thousand tries.
 - **A Field whose values the plugin writes itself is recognised on the line.**
   A Field with the `Random characters` command carries a sample in its format
   (`111111`), not a description of its values - so `🤣lYg8U6` was found by

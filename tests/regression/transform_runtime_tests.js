@@ -154,6 +154,26 @@ function makePlugin(config, editor, vaultOptions) {
     app: {
       vault,
       workspace: { getActiveFile() { return { parent: { path: "" } }; } },
+      /*
+       * Подделка резолвера ссылок. Правило у неё **списано у платформы**, а не
+       * выведено из смысла слова (У-170): Obsidian ищет сперва точный путь, и
+       * только потом файл с таким именем в любой папке. Ответ `null` — это
+       * ответ: заметки с таким именем в vault нет.
+       */
+      metadataCache: {
+        getFirstLinkpathDest(linkpath) {
+          const wanted = String(linkpath || "").trim().replace(/\.md$/i, "");
+          if (!wanted) return null;
+          const notes = [...files.keys()].filter((key) => typeof files.get(key) === "string");
+          for (const key of notes) {
+            if (key.replace(/\.md$/i, "") === wanted) return { path: key };
+          }
+          for (const key of notes) {
+            if (key.replace(/\.md$/i, "").replace(/^.*\//, "") === wanted) return { path: key };
+          }
+          return null;
+        },
+      },
     },
     getConfig() { return config; },
     getActiveEditor() {
@@ -914,6 +934,136 @@ async function testCustomHeaderReachesTheWrittenNote() {
     "положение доезжает до записи в существующую заметку");
 }
 
+/*
+ * **Ссылка на новую заметку в тех заметках, на которые ссылается строка** —
+ * его заказ Н4 (2026-09-16) и его ответы В-135: путь полный, заметки-цели нет
+ * — создать пустой и дописать, искать только там, где ссылка есть значение
+ * поля типа link.
+ *
+ * Проверка гоняет **весь путь**, а не одну функцию: конфиг едет через
+ * нормализацию, строку читает настоящий разбор, запись идёт настоящим
+ * `Vault.process`. Отдельные куски спрашиваются ниже поимённо — по одному
+ * ответу на вопрос, который может сломаться сам.
+ */
+function backlinkConfig(extra) {
+  return makeConfig({
+    backlink: { enabled: true, placement: { position: "end", ...(extra || {}) } },
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true },
+  }, makeFieldsConfig());
+}
+
+async function testBacklinkWrittenIntoEveryReferencedNote() {
+  const editor = makeEditor("- #todo [[test1]] :: Отчёт");
+  const plugin = makePlugin(backlinkConfig(), editor, { initialFiles: { "test1.md": "# test1\n" } });
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertTrue(plugin.files.has("Notes/Отчёт.md"), "новая заметка создана");
+  assertTrue(String(plugin.files.get("test1.md")).includes("- [[Notes/Отчёт]]"),
+    "в заметку, на которую ссылалась строка, дописана ссылка полным путём");
+  assertTrue(String(plugin.files.get("test1.md")).startsWith("# test1"),
+    "и её прежнее содержимое цело");
+}
+
+async function testBacklinkCreatesMissingNote() {
+  const editor = makeEditor("- #todo [[test1]] :: Отчёт");
+  const plugin = makePlugin(backlinkConfig(), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertTrue(plugin.files.has("test1.md"), "заметки-цели не было — создана (его ответ В-135)");
+  assertTrue(String(plugin.files.get("test1.md")).includes("- [[Notes/Отчёт]]"),
+    "и ссылка в неё дописана");
+}
+
+async function testBacklinkDoesNotDuplicate() {
+  const editor = makeEditor("- #todo [[test1]] :: Отчёт");
+  const plugin = makePlugin(backlinkConfig(), editor,
+    { initialFiles: { "test1.md": "уже есть: [[Notes/Отчёт]]\n" } });
+  await transform.runInline2Note(plugin, { lineFinalize });
+  const body = String(plugin.files.get("test1.md"));
+  assertEq((body.match(/Notes\/Отчёт/g) || []).length, 1, "ссылка не дублируется (его условие)");
+}
+
+async function testBacklinkOffWritesNothing() {
+  const editor = makeEditor("- #todo [[test1]] :: Отчёт");
+  const plugin = makePlugin(makeConfig({
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true },
+  }, makeFieldsConfig()), editor, { initialFiles: { "test1.md": "# test1\n" } });
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertEq(String(plugin.files.get("test1.md")), "# test1\n",
+    "выключенная настройка не трогает чужую заметку ни одним знаком");
+}
+
+function runBacklinkPiecesSuite() {
+  /*
+   * **Ссылка внутри слова человека — не значение поля**, и это его уточнение
+   * В-135. Отрицательный контроль здесь важнее положительного: без него
+   * правило «пишем в каждую ссылку строки» выглядело бы работающим.
+   */
+  const cfg = makeConfig({}, makeFieldsConfig());
+  const inBlock = transform.buildTransformContext(
+    transform.parseInlineLine("- #todo [[test1]] :: Отчёт", cfg), cfg);
+  assertEq(JSON.stringify(transform.backlinkTargetsFromContext(inBlock)), JSON.stringify(["test1"]),
+    "ссылка-значение поля в Block называется целью");
+
+  const inText = transform.buildTransformContext(
+    transform.parseInlineLine("- #todo :: Отчёт про [[test1]]", cfg), cfg);
+  assertEq(JSON.stringify(transform.backlinkTargetsFromContext(inText)), JSON.stringify([]),
+    "ссылка внутри слова человека целью не становится");
+
+  /* Повтор одного значения на строке — одна заметка, а не две записи. */
+  const twice = transform.buildTransformContext(
+    transform.parseInlineLine("- #todo [[test1]] [[test1]] :: Отчёт", cfg), cfg);
+  assertEq(JSON.stringify(transform.backlinkTargetsFromContext(twice)), JSON.stringify(["test1"]),
+    "одно значение дважды на строке — одна цель");
+
+  /* «Ссылка уже есть» сверяется целью, а не текстом строки. */
+  assertTrue(transform.noteAlreadyLinksTo("хвост [[Notes/Отчёт]] хвост", "Notes/Отчёт.md"),
+    "полный путь узнаётся");
+  assertTrue(transform.noteAlreadyLinksTo("[[Отчёт]]", "Notes/Отчёт.md"),
+    "короткое имя без папки — та же заметка");
+  assertTrue(!transform.noteAlreadyLinksTo("[[Архив/Отчёт]]", "Notes/Отчёт.md"),
+    "а имя из другой папки — другая заметка");
+  assertTrue(!transform.noteAlreadyLinksTo("Notes/Отчёт", "Notes/Отчёт.md"),
+    "путь без скобок ссылкой не считается");
+  assertEq(transform.backlinkLineFor("Notes/Отчёт.md"), "- [[Notes/Отчёт]]",
+    "строка ссылки — знак списка и полный путь");
+  console.log("  ok Н4: цели, повторы и «ссылка уже есть» — по одному ответу на вопрос");
+}
+
+/*
+ * **Заметка в корне vault.** Найдено при работе над Н4: правило «какая у пути
+ * папка» отвечало именем самой заметки, когда косой черты в пути нет вовсе, —
+ * плагин заводил папку с именем заметки и на ней же спотыкался. Место было
+ * одно и то же в двух записях (У-32), и проверок на корень не было ни одной:
+ * во всех фикстурах стоит `outputFolder: "Notes"` (У-113).
+ */
+async function testNoteAtVaultRootIsCreated() {
+  const editor = makeEditor("- [ ] :: Отчёт");
+  const plugin = makePlugin(makeConfig({ outputFolder: "" }), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertTrue(plugin.files.has("Отчёт.md"), "заметка в корне vault создана");
+  assertTrue(!plugin.files.has("Отчёт.md") || typeof plugin.files.get("Отчёт.md") === "string",
+    "и это заметка, а не папка с её именем");
+  assertEq(editor.text(), "- [ ] :: [[Отчёт]]", "ссылка на неё встала в строку");
+}
+
+async function testBacklinkNoteAtVaultRoot() {
+  const editor = makeEditor("- #todo [[test1]] :: Отчёт");
+  const plugin = makePlugin(backlinkConfig(), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  assertEq(typeof plugin.files.get("test1.md"), "string",
+    "заметка-цель в корне vault заведена заметкой, а не папкой");
+}
+
+async function runBacklinkSuite() {
+  await testNoteAtVaultRootIsCreated();
+  await testBacklinkNoteAtVaultRoot();
+  await testBacklinkWrittenIntoEveryReferencedNote();
+  await testBacklinkCreatesMissingNote();
+  await testBacklinkDoesNotDuplicate();
+  await testBacklinkOffWritesNothing();
+  runBacklinkPiecesSuite();
+  console.log("  ok Н4: ссылка на новую заметку уезжает в заметки, на которые ссылалась строка");
+}
+
 async function run() {
   await testNewNoteRaceUsesActualPathLink();
   await testReplacePayloadFalse();
@@ -937,6 +1087,7 @@ async function run() {
   runCustomHeaderPlacementSuite();
   await testCustomHeaderReachesTheWrittenNote();
   runRulePlacementSuite();
+  await runBacklinkSuite();
   console.log("Transform runtime regression tests: OK");
 }
 

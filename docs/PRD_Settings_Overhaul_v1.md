@@ -1670,6 +1670,97 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.185 Заметка в корне vault не создавалась вовсе (2026-09-17, найдено работой над Н4)
+
+**Найдено не чтением, а первой же проверкой новой работы**: заметка-цель
+ссылки лежит в корне, и запись в неё не проходила. Спрошенный тем же прогоном
+старый путь ответил так же.
+
+**Что было.** «Какая у этого пути папка» плагин считал своим образцом —
+`path.replace(/\/[^/]*$/, "")`. Косой черты в пути нет — образец не совпадает,
+и `replace` отдаёт **весь путь**, то есть имя заметки в роли имени папки.
+Дальше плагин заводил папку с этим именем и на ней же спотыкался: `vault.create`
+отказывал, отказ читался как «файл уже есть», и цикл уникального имени
+перебирал тысячу кандидатов, заводя тысячу папок, а потом бросал
+`unique note allocation exhausted`.
+
+**Кого это задевало.** Того, у кого `New notes folder` пуст **и** строка стоит
+в заметке из корня vault: папка тогда берётся у соседней заметки, то есть
+пустая. Ни одна фикстура такой не была — во всех стоит `outputFolder: "Notes"`
+(У-113), и правило про корень проверялось на том, у чего корня нет.
+
+**Что стало.** Вопрос объявлен один раз — `folderOfNotePath`, и пустой ответ в
+нём это ответ («создавать нечего, корень уже есть»), а не пропуск. Мест записи
+три, и все три спрашивают его.
+
+**Чем закреплено.** `testNoteAtVaultRootIsCreated` и
+`testBacklinkNoteAtVaultRoot` в `transform_runtime_tests.js`. Мутация «вернуть
+прежний образец» роняет оба тем же отказом, каким дефект и находился.
+
+#### 10.13.184 Ссылка на новую заметку в тех заметках, на которые ссылается строка (2026-09-17, Н4)
+
+**Его заказ 2026-09-16:** «Сделать отдельный блок настроек в Transform —
+`Create wikilink to transformed note in reference notes`. Контрол = on/off,
+чтобы при On если в строке в left/right block есть value=wikilink, то чтобы
+после transform этой строки в этот wikilink добавлялась ссылка на эту
+transformed заметку… Если в таких values в строке несколько — то wikilink
+должна появляться в каждой из них». Его ответы В-135: путь ссылки **полный**,
+заметки-цели нет — **создать пустой и дописать**, искать — **только в Block**,
+и «это должно быть value field=link».
+
+**Что появилось в панели.** Группа `Links in the notes you mention` на вкладке
+Transform, четыре строки: тумблер и три о том, куда ссылка ложится в чужой
+заметке — `Where to put the link`, `Type name of header`,
+`If header not found`. Умолчание тумблера — **выключено**: настройка пишет в
+чужие заметки, и включать такое за человека нельзя.
+
+**Строк четыре, а не семь, как обещал разбор.** Его «возможно, дублировать
+контролы как у note-content» — это «возможно», а не заказ, и строки «что стоит
+над текстом» (дата, свой текст, уровень заголовка) здесь были бы шумом: в чужую
+заметку уезжает **одна** строка со ссылкой, и дата над каждой такой строкой
+мешает читать список. Вопрос «куда вставлять» настоящий, и на него отвечают три
+строки — ровно те же, что у `Note content`, и тем же объявлением.
+
+**Чего не пришлось писать заново.** Укладка блока в чужую заметку у нас уже
+есть и работает — её зовёт режим `Add to note`: `appendBlockIntoNote`,
+`placeBlockUnderHeader`, `parseTargetHeaderSpec`, `headerLineForSpec`. Ни одно
+из этих правил не объявлено здесь второй раз.
+
+**Что новое, тремя кусками.**
+
+  1. *Кого править.* `backlinkTargetsFromContext` берёт из разбора строки
+     только те ссылки, которые оказались **значением поля** — то есть прошли
+     через `buildTransformContext`, где слот текста не заявляется никогда. Это
+     и есть его уточнение «это должно быть value field=link»: ссылка внутри
+     собственного предложения остаётся словом человека.
+  2. *Куда писать.* `resolveBacklinkNotePath` спрашивает **платформу** —
+     `metadataCache.getFirstLinkpathDest`, тот самый резолвер, которым Obsidian
+     открывает ссылку по щелчку. Ответ «нет такой заметки» — это ответ: тогда
+     путь строится из самого значения, и заметка заводится пустой.
+  3. *Не дублировать.* `noteAlreadyLinksTo` сверяет **цель**, а не текст
+     строки: одну и ту же заметку он пишет и полным путём, и коротким именем.
+     Короткое имя считается той же заметкой ровно тогда, когда пути в нём нет.
+
+**Где это стоит в порядке работы и почему.** После уборки исходной строки. До
+этого места правка умеет откатиться целиком, а запись в третьи заметки
+откатывать нечем — и не надо: заметка уже создана, строка уже переписана.
+Отказ здесь **громкий, но не роняющий**: у каждой цели свой заход, неудача
+одной не отменяет остальных, и в журнал уходит имя заметки, в которую не
+получилось записать.
+
+**Чем закреплено.** `runBacklinkSuite` в `transform_runtime_tests.js`: четыре
+прогона всего пути (запись в существующую, создание отсутствующей, отказ от
+дубля, выключенная настройка не трогает чужую заметку ни одним знаком) и шесть
+ответов по кускам, из которых три — **отрицательные** контроли: ссылка внутри
+слова человека целью не становится, одно значение дважды на строке даёт одну
+цель, а имя из другой папки — другая заметка. Четыре мутации краснеют, каждая
+на своём утверждении.
+
+**Чего здесь нет и что надо спросить.** Строка ссылки пишется знаком списка —
+`- [[путь]]`. Заметка, собирающая ссылки, и есть список, а строка без знака
+слипается с соседней в один абзац у самой Obsidian. Контрола на это нет: он его
+не просил, и вопрос задан в `docs/OPEN_QUESTIONS.md`.
+
 #### 10.13.183 Знак задачи за номером списка перестал быть именем заметки (2026-09-17, `H2`)
 
 **Его замечание.** Строка `1. [!] 213 :: #source [[test]] #work 📅2026-09-17 00:34`
@@ -7693,7 +7784,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (51)
+### Пути, которых не было в описи v1.0 (55)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -7745,6 +7836,10 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `transform.inline2note.sourceProcessing.visual.enabled` | Dim transformed line (`source-dim`) | Source line |
 | `transform.inline2note.sourceProcessing.visual.opacity` | Opacity of transformed line (`source-dim-opacity`) | Source line |
 | `transform.inline2note.sourceProcessing.visual.color` | Color of transformed line (`source-dim-color`) | Source line |
+| `transform.inline2note.backlink.enabled` | Link the notes you mention (`backlink-enabled`) | Links in the notes you mention |
+| `transform.inline2note.backlink.placement.position` | Where to put the link (`backlink-position`) | Links in the notes you mention |
+| `transform.inline2note.backlink.placement.targetHeader` | Type name of header (`backlink-target-header`) | Links in the notes you mention |
+| `transform.inline2note.backlink.placement.fallback` | If header not found (`backlink-header-missing`) | Links in the notes you mention |
 | `advanced.showSettingIds` | Show option IDs in tips (`show-setting-ids`) | Options IDs |
 | `advanced.backups.folder` | Backup folder (`backup-folder`) | Backup |
 | `advanced.backups.beforeRestore` | Save a backup before restoring (`backup-before-restore`) | Backup |
@@ -14967,7 +15062,7 @@ python tests/prototype/update_prd.py
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 7 | 44 | 6 |
-| 6 | Transform | `features.transform.enabled` | 6 | 28 | 5 |
+| 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
 ### Группы по порядку
@@ -15035,6 +15130,7 @@ python tests/prototype/update_prd.py
 | 200 | `naming` | New note naming | The new note needs a name. This block defines how to choose a name of a new note | да | `transform.inline2note.enabled` |
 | 300 | `note-content` | Note content | What the note looks like inside: where your text goes, and what sits above it | да | `transform.inline2note.enabled` |
 | 400 | `source-line` | Source line | What happens to the line you pressed on, once the note is safely written | да | `transform.inline2note.enabled` |
+| 450 | `backlinks` | Links in the notes you mention | A line that points at other notes can leave a pointer back in each of them | да | `transform.inline2note.enabled` |
 | 500 | `smart-rules` | Smart Rules | Different kinds of line deserve different notes. A rule spots a kind of line and picks the template for it | да | `transform.inline2note.enabled` |
 
 **Advanced** (`advanced`)
@@ -15707,6 +15803,32 @@ _Tip:_ The note is written first, and only then is your line touched, so nothing
   - видна если: `transform.inline2note.sourceProcessing.token, transform.inline2note.sourceProcessing.visual.enabled`
   - старые названия для поиска: «Color of a filed line»
 
+#### Links in the notes you mention — `backlinks` (вкладка `transform`)
+
+_Intro:_ A line that points at other notes can leave a pointer back in each of them
+
+_Tip:_ A line often names the notes it belongs to — a project, a person, a place. Turn it into a note and those notes learn nothing about it. With this on, each of them gets a link to the new note, so the project note slowly becomes a list of everything filed under it without you keeping that list by hand. Only a link that is a Value of a Field counts: a link you typed inside your own sentence is your word, and nothing is written into it
+
+- **Link the notes you mention** — `backlink-enabled`, `toggle`, path `transform.inline2note.backlink.enabled`, default `false`
+  - desc: Write a link to the new note into every note this line points at
+  - tip: The link is written with the full path, so it points at the right note even when two notes share a name. A note that does not exist yet is created empty and gets the link. Nothing is written twice: a note that already links to the new one is left alone
+  - старые названия для поиска: «Create wikilink to transformed note in reference notes», «Backlinks into the notes you mention», «Automatic MOC»
+- **Where to put the link** — `backlink-position`, `dropdown`, path `transform.inline2note.backlink.placement.position`, default `end`
+  - desc: At the top of that note, or after whatever is already there
+  - tip: <b>At the end</b> keeps the links in the order you filed them, which is what a growing list wants. <b>At custom header</b> is for a note laid out in sections: name the heading below and every link lands at the end of that section
+  - варианты: `beginning` At the beginning · `end` At the end · `custom-header` At custom header
+  - видна если: `transform.inline2note.backlink.enabled`
+  - старые названия для поиска: «Where the backlink goes»
+- **Type name of header** — `backlink-target-header`, `text`, path `transform.inline2note.backlink.placement.targetHeader`, default `""`
+  - desc: The heading the link is filed under
+  - tip: Write the heading as it stands in the note. Put the hashes in — <code>## Log</code> — and only a heading of that depth counts; leave them out and a heading of any depth with those words will do. Upper and lower case do not matter. When a note has no such heading it gets written for you, at the depth you put here — no hashes means one
+  - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.placement.position`
+- **If header not found** — `backlink-header-missing`, `dropdown`, path `transform.inline2note.backlink.placement.fallback`, default `end`
+  - desc: Where the heading is added when that note has none
+  - tip: A note that has not been laid out yet has no such heading — so the heading is written for you here, and the link goes under it. It is written exactly as you named it above, hashes and all, so the next link finds it and joins the same section
+  - варианты: `beginning` At the beginning · `end` At the end
+  - видна если: `transform.inline2note.backlink.enabled, transform.inline2note.backlink.placement.position`
+
 #### Smart Rules — `smart-rules` (вкладка `transform`)
 
 _Intro:_ Different kinds of line deserve different notes. A rule spots a kind of line and picks the template for it
@@ -16057,6 +16179,10 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `pkm.prefixPriority.decideBy` | dropdown | `by-section` |
 | `pkm.prefixPriority.fieldOrderSource` | dropdown | `manual` |
 | `pkm.prefixPriority.parentOrChild` | dropdown | `subtag-over-tag` |
+| `transform.inline2note.backlink.enabled` | toggle | `false` |
+| `transform.inline2note.backlink.placement.fallback` | dropdown | `end` |
+| `transform.inline2note.backlink.placement.position` | dropdown | `end` |
+| `transform.inline2note.backlink.placement.targetHeader` | text | `""` |
 | `transform.inline2note.defaultTemplate` | dropdown | `""` |
 | `transform.inline2note.enabled` | toggle | `false` |
 | `transform.inline2note.floatingButton` | toggle | `false` |

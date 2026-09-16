@@ -68,6 +68,24 @@ const DEFAULT_INLINE2NOTE = {
     fallback: "end",
   },
   yamlNoteFormat: "raw",
+  /*
+   * Ссылка на новую заметку в тех заметках, на которые ссылается строка — его
+   * заказ 2026-09-16 (Н4), ответы В-135.
+   *
+   * Умолчание **выключено**: настройка пишет в чужие заметки, и включать такое
+   * за человека нельзя. Форма `placement` та же, что у `Note content`, и
+   * нормализует её то же объявление — второе расходилось бы с первым молча
+   * (У-32). Строк над ссылкой здесь нет: в чужую заметку уезжает одна строка,
+   * и `headerMode` у неё всегда `none`.
+   */
+  backlink: {
+    enabled: false,
+    placement: {
+      position: "end",
+      targetHeader: "",
+      fallback: "end",
+    },
+  },
   sourceProcessing: {
     cleanupFieldIds: [],
     /*
@@ -406,6 +424,29 @@ function normalizeInline2Note(raw) {
   out.nameCollision.mode = oneOfOrDefault(nameCollision.mode, ["new_note", "add_to_note", "overwrite"], DEFAULT_INLINE2NOTE.nameCollision.mode);
 
   out.placement = normalizePlacement(src.placement);
+  /*
+   * Куда ложится ссылка в чужой заметке — тот же вопрос, что «куда ложится
+   * текст в новой», и отвечает на него **то же объявление** (У-32). Строка
+   * над ссылкой не показывается и не пишется: `headerMode` здесь всегда
+   * `none`, и это сказано значением, а не отсутствием ключа — иначе
+   * нормализатор подставил бы своё умолчание `datetime`, и в чужой заметке
+   * над каждой ссылкой встала бы дата.
+   */
+  const backlink = isObj(src.backlink) ? src.backlink : {};
+  const backlinkPlacement = normalizePlacement(isObj(backlink.placement) ? backlink.placement : {});
+  out.backlink = {
+    enabled: backlink.enabled === true,
+    /*
+     * Оставляются ровно три ключа — те, у которых есть контрол. Остальное, что
+     * умеет `placement`, здесь было бы ключом, который движок нормализует и
+     * никто не читает, то есть функцией без контрола (У-16, З8).
+     */
+    placement: {
+      position: backlinkPlacement.position,
+      targetHeader: backlinkPlacement.targetHeader,
+      fallback: backlinkPlacement.fallback,
+    },
+  };
   out.yamlNoteFormat = oneOfOrDefault(src.yamlNoteFormat, ["raw", "clean"], DEFAULT_INLINE2NOTE.yamlNoteFormat);
 
   const sp = isObj(src.sourceProcessing) ? src.sourceProcessing : {};
@@ -2058,6 +2099,171 @@ function deriveSourceWikilinkFromTargetPath(targetPath) {
 }
 
 /**
+ * Папка, в которой лежит заметка, — пусто, если она в корне vault.
+ *
+ * **Своё «отрезать последний кусок пути» отвечало неверно ровно в корне**:
+ * `"Отчёт.md".replace(/\/[^/]*$/, "")` не находит косой черты и отдаёт **весь
+ * путь**, то есть имя заметки в роли имени папки. Дальше плагин заводил папку
+ * с именем заметки и на ней же спотыкался — заметка в корень не создавалась
+ * вовсе. Правило одно на оба места записи (У-32), и пустая папка здесь —
+ * ответ, а не пропуск: «создавать нечего, корень уже есть».
+ */
+function folderOfNotePath(notePath) {
+  const src = String(notePath || "").trim().replace(/\\/g, "/");
+  const at = src.lastIndexOf("/");
+  return at < 0 ? "" : src.slice(0, at);
+}
+
+/**
+ * Куда ссылается строка — **значениями полей типа link, а не всякой ссылкой**.
+ *
+ * Его уточнение (В-135): «это должно быть value field=link». Ссылка, набранная
+ * внутри собственного предложения, — слово человека, и в неё не пишет никто;
+ * разводит их тот же разбор, которым Transform читает строку
+ * (`buildTransformContext`: слот текста не заявляется никогда).
+ *
+ * Отдаются цели **в порядке строки и без повторов**: два одинаковых значения
+ * на одной строке — одна заметка, и писать в неё дважды незачем.
+ */
+function backlinkTargetsFromContext(context) {
+  const rows = Array.isArray(context && context.matches) ? context.matches : [];
+  const out = [];
+  const seen = new Set();
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || String(row.fieldType || "") !== "wikilink") continue;
+    const target = String(__sharedUtils.unwrapWikilinkToken(String(row.rawToken || "")) || "").trim();
+    if (!target || seen.has(target)) continue;
+    seen.add(target);
+    out.push(target);
+  }
+  return out;
+}
+
+/**
+ * Путь заметки, на которую показывает значение поля.
+ *
+ * **Спрашивается у платформы, а не выводится образцом** (У-91):
+ * `metadataCache.getFirstLinkpathDest` и есть то, что делает сама Obsidian,
+ * когда человек щёлкает по ссылке, — она знает и короткое имя, и путь, и
+ * псевдоним папки. Ответ «нет такой заметки» — это ответ, а не отказ: тогда
+ * путь строится из самого значения, потому что её надо завести (его ответ
+ * В-135: «создать пустой и дописать»).
+ */
+function resolveBacklinkNotePath(app, target) {
+  const linkpath = String(target || "").trim();
+  if (!linkpath) return "";
+  const cache = app && app.metadataCache;
+  if (cache && typeof cache.getFirstLinkpathDest === "function") {
+    const dest = cache.getFirstLinkpathDest(linkpath, "");
+    const path = String(dest && dest.path || "").trim();
+    if (path) return path;
+  }
+  return /\.md$/i.test(linkpath) ? linkpath : `${linkpath}.md`;
+}
+
+/**
+ * Есть ли в этой заметке ссылка на нашу — **вопрос один, и задаётся он здесь**.
+ *
+ * Его условие: «но не дублировалась, если ссылка уже есть». Сравнивается цель,
+ * а не текст строки: одну и ту же заметку он записывает и полным путём, и
+ * коротким именем, и с подписью через `|`. Цель разворачивает общий дом
+ * (`unwrapWikilinkToken`), а короткое имя сверяется с именем файла.
+ */
+function noteAlreadyLinksTo(body, targetPath) {
+  const wanted = deriveSourceWikilinkFromTargetPath(targetPath);
+  if (!wanted) return false;
+  const wantedShort = wanted.replace(/^.*\//, "");
+  const re = new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g");
+  const src = String(body == null ? "" : body);
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    const found = String(__sharedUtils.unwrapWikilinkToken(m[0]) || "").trim().replace(/\.md$/i, "");
+    if (!found) continue;
+    if (found === wanted) return true;
+    /* Короткое имя — та же заметка ровно тогда, когда пути в нём нет: `[[ава]]`
+       и `333/ава` это одно, а `111/ава` и `333/ава` — разное. */
+    if (!found.includes("/") && found === wantedShort) return true;
+  }
+  return false;
+}
+
+/**
+ * Строка, которая уезжает в чужую заметку.
+ *
+ * Знак списка стоит нарочно: заметка, собирающая ссылки, и есть список, а
+ * строка без знака слипается с соседней в один абзац у самой Obsidian. Путь
+ * **полный** — его ответ В-135: два одноимённых файла иначе неразличимы.
+ */
+function backlinkLineFor(targetPath) {
+  const link = deriveSourceWikilinkFromTargetPath(targetPath);
+  return link ? `- [[${link}]]` : "";
+}
+
+/**
+ * Ссылка на новую заметку — в каждую заметку, на которую ссылалась строка (Н4).
+ *
+ * Запись идёт через `Vault.process` тем же правилом каталога, что и всякая
+ * правка чужой заметки (Р8): между чтением и записью заметку правит человек в
+ * соседней вкладке, и `modify` записал бы поверх его правки прочитанное
+ * секундой раньше.
+ *
+ * Отказ здесь **громкий и не роняющий**: новая заметка уже создана, исходная
+ * строка уже переписана, и откатывать это ради чужой заметки было бы хуже, чем
+ * сказать вслух. Поэтому у каждой цели свой заход, и неудача одной не отменяет
+ * остальных.
+ */
+async function writeBacklinksIntoReferencedNotes(plugin, context, targetPath, i2n) {
+  const cfg = isObj(i2n && i2n.backlink) ? i2n.backlink : {};
+  if (cfg.enabled !== true) return { written: [], skipped: [], failed: [] };
+  const line = backlinkLineFor(targetPath);
+  const written = [];
+  const skipped = [];
+  const failed = [];
+  if (!line) return { written, skipped, failed };
+  const app = plugin && plugin.app;
+  const vault = app && app.vault;
+  if (!vault) throw new Error("vault unavailable for backlink write");
+  const selfPath = String(targetPath || "").trim();
+  for (const target of backlinkTargetsFromContext(context)) {
+    const path = resolveBacklinkNotePath(app, target);
+    /* Ссылка на самоё себя не пишется: строка может ссылаться на заметку с тем
+       же именем, которое ей же и достаётся. */
+    if (!path || path === selfPath) { skipped.push(target); continue; }
+    try {
+      let af = vault.getAbstractFileByPath(path);
+      if (!af) {
+        const folderPath = folderOfNotePath(path);
+        if (folderPath && !vault.getAbstractFileByPath(folderPath)) await vault.createFolder(folderPath);
+        /* Его ответ В-135: заметки-цели нет — создать пустой и дописать. */
+        await vault.create(path, "");
+        af = vault.getAbstractFileByPath(path);
+      }
+      if (!af) throw new Error(`note not found after create: ${path}`);
+      let touched = false;
+      await vault.process(af, (data) => {
+        const previous = String(data == null ? "" : data);
+        if (noteAlreadyLinksTo(previous, targetPath)) return previous;
+        touched = true;
+        return appendBlockIntoNote(previous, line, cfg, previous.includes("\r\n") ? "\r\n" : "\n");
+      });
+      if (touched) written.push(path);
+      else skipped.push(path);
+    } catch (error) {
+      failed.push(path);
+      /*
+       * Второй вид отказа: сломалось невидимое — чужая заметка недоступна на
+       * запись. Человек увидит, что ссылки в ней нет, и журнал — единственное
+       * место, где написано почему.
+       */
+      console.error("[inline-overhaul][inline2note] ссылка не дописана в заметку "
+        + path + ": " + String((error && error.message) || error || ""));
+    }
+  }
+  return { written, skipped, failed };
+}
+
+/**
  * Разбор исходной строки на «до текста», сам текст и «после текста».
  *
  * Раньше эта раскладка жила внутри замены текста ссылкой и была ей не нужна:
@@ -3084,7 +3290,9 @@ async function writeInline2Note(plugin, target, content, appendBlock, i2n) {
     for (let index = 0; index < 1000; index++) {
       if (index > 0) candidate = pathWithNumericSuffix(basePath, index);
       if (vault.getAbstractFileByPath(candidate)) continue;
-      const folderPath = candidate.replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+      /* Папка пути — одно объявление на все три записи (У-32): своё правило в
+         корне vault отдавало имя заметки в роли имени папки. */
+      const folderPath = folderOfNotePath(candidate);
       if (folderPath && !vault.getAbstractFileByPath(folderPath)) await vault.createFolder(folderPath);
       try {
         await vault.create(candidate, content);
@@ -3105,7 +3313,7 @@ async function writeInline2Note(plugin, target, content, appendBlock, i2n) {
     throw new Error(`unique note allocation exhausted for ${basePath}`);
   }
   if (!af) {
-    const folderPath = String(target.path || "").replace(/\\/g, "/").replace(/\/[^/]*$/, "");
+    const folderPath = folderOfNotePath(target.path);
     if (folderPath && !plugin.app.vault.getAbstractFileByPath(folderPath)) {
       await plugin.app.vault.createFolder(folderPath);
     }
@@ -3269,6 +3477,16 @@ async function runInline2Note(plugin, runtimeOptions) {
     }
     throw new Error(`source edit failed; target mutation rolled back: ${sourceError && sourceError.message ? sourceError.message : sourceError}`);
   }
+  /*
+   * Ссылка на новую заметку в тех заметках, на которые ссылается строка (Н4).
+   *
+   * Стоит **после** уборки исходной строки нарочно: до этого места правка
+   * умеет откатиться целиком, а запись в третьи заметки откатывать нечем — и
+   * не надо: заметка уже создана, строка уже переписана, и человек об этом уже
+   * знает. Отказ здесь громкий, но не роняющий: он говорит, в какую заметку не
+   * получилось записать, и остальные получают своё.
+   */
+  await writeBacklinksIntoReferencedNotes(plugin, transformContext, actualTarget.path, i2n);
   if (i2n.openTarget) {
     try {
       const opened = plugin.app.vault.getAbstractFileByPath(actualTarget.path);
@@ -3364,5 +3582,13 @@ module.exports = {
      неё «настройка не доехала до записи» не краснеет нигде (У-56). */
   writeInline2Note,
   deriveSourceWikilinkFromTargetPath,
+  /* Ссылка на новую заметку в заметках, на которые ссылается строка (Н4).
+     Наружу отданы все четыре куска: их спрашивают проверки по одному, а
+     проверка, которая зовёт только целое, не скажет, какой из них сломался. */
+  backlinkTargetsFromContext,
+  resolveBacklinkNotePath,
+  noteAlreadyLinksTo,
+  backlinkLineFor,
+  writeBacklinksIntoReferencedNotes,
   runInline2Note,
 };

@@ -214,6 +214,42 @@ export const TRANSFORM_GROUPS: readonly SettingsGroup[] = [
   ]
 },
 {
+  id: "backlinks", tab: "transform", order: 450, heading: "Links in the notes you mention",
+  intro: "A line that points at other notes can leave a pointer back in each of them",
+  tip: "A line often names the notes it belongs to — a project, a person, a place. Turn it into a note and those notes learn nothing about it. With this on, each of them gets a link to the new note, so the project note slowly becomes a list of everything filed under it without you keeping that list by hand. Only a link that is a Value of a Field counts: a link you typed inside your own sentence is your word, and nothing is written into it",
+  visible: on("transform.inline2note.enabled"),
+  items: [
+    { kind:"toggle", id:"backlink-enabled", path:"transform.inline2note.backlink.enabled", default:false,
+      name:"Link the notes you mention",
+      desc:"Write a link to the new note into every note this line points at",
+      searchTerms:["Create wikilink to transformed note in reference notes","Backlinks into the notes you mention","Automatic MOC"],
+      tip:"The link is written with the full path, so it points at the right note even when two notes share a name. A note that does not exist yet is created empty and gets the link. Nothing is written twice: a note that already links to the new one is left alone" },
+    { kind:"dropdown", id:"backlink-position", path:"transform.inline2note.backlink.placement.position", default:"end",
+      name:"Where to put the link", desc:"At the top of that note, or after whatever is already there",
+      searchTerms:["Where the backlink goes"],
+      options:[ {value:"beginning",label:"At the beginning"}, {value:"end",label:"At the end"},
+                {value:"custom-header",label:"At custom header"} ],
+      tip:"<b>At the end</b> keeps the links in the order you filed them, which is what a growing list wants. <b>At custom header</b> is for a note laid out in sections: name the heading below and every link lands at the end of that section",
+      visible: on("transform.inline2note.backlink.enabled") },
+    { kind:"text", id:"backlink-target-header", clearable:true,
+      path:"transform.inline2note.backlink.placement.targetHeader", default:"", mono:true,
+      placeholder:"# Header name",
+      name:"Type name of header", desc:"The heading the link is filed under",
+      tip:"Write the heading as it stands in the note. Put the hashes in — <code>## Log</code> — and only a heading of that depth counts; leave them out and a heading of any depth with those words will do. Upper and lower case do not matter. When a note has no such heading it gets written for you, at the depth you put here — no hashes means one",
+      visible:{ deps:["transform.inline2note.backlink.enabled","transform.inline2note.backlink.placement.position"],
+                test: c => Boolean(c.get("transform.inline2note.backlink.enabled"))
+                  && String(c.get("transform.inline2note.backlink.placement.position") || "") === "custom-header" } },
+    { kind:"dropdown", id:"backlink-header-missing", path:"transform.inline2note.backlink.placement.fallback",
+      default:"end",
+      name:"If header not found", desc:"Where the heading is added when that note has none",
+      options:[ {value:"beginning",label:"At the beginning"}, {value:"end",label:"At the end"} ],
+      tip:"A note that has not been laid out yet has no such heading — so the heading is written for you here, and the link goes under it. It is written exactly as you named it above, hashes and all, so the next link finds it and joins the same section",
+      visible:{ deps:["transform.inline2note.backlink.enabled","transform.inline2note.backlink.placement.position"],
+                test: c => Boolean(c.get("transform.inline2note.backlink.enabled"))
+                  && String(c.get("transform.inline2note.backlink.placement.position") || "") === "custom-header" } }
+  ]
+},
+{
   id: "smart-rules", tab: "transform", order: 500, heading: "Smart Rules",
   intro: "Different kinds of line deserve different notes. A rule spots a kind of line and picks the template for it",
   tip: "Rules are read from the top, the first one that fits is used, and anything that fits none of them gets the default template. So put your narrow rules above your broad ones, or the broad one will answer first. Drag a rule by its handle to change which one is tried first",

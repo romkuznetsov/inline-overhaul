@@ -317,6 +317,13 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
      Без маршрута форма v2 уехала бы в `_unmigrated` (МГ3). */
   keepV2("transform.inline2note.placement.targetHeader"),
   keepV2("transform.inline2note.placement.fallback"),
+  /* Ссылка на новую заметку в заметках, на которые ссылается строка (Н4, его
+     заказ 2026-09-16). Ветка целиком новая — пары в версии 1 у неё нет, и без
+     маршрута форма v2 уехала бы в `_unmigrated` (МГ3). */
+  keepV2("transform.inline2note.backlink.enabled"),
+  keepV2("transform.inline2note.backlink.placement.position"),
+  keepV2("transform.inline2note.backlink.placement.targetHeader"),
+  keepV2("transform.inline2note.backlink.placement.fallback"),
   keep("transform.inline2note.noteName.mode"),
   keep("transform.inline2note.noteName.preferHeaderTitle"),
   keep("transform.inline2note.nameCollision.mode"),
