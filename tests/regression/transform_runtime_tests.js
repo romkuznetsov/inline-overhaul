@@ -16,6 +16,14 @@ function makeConfig(overrides, pkmExtra) {
   const i2n = {
     enabled: true,
     outputFolder: "Notes",
+    /*
+     * Папка шаблонов названа, и без неё фикстура незаконна (У-38): с 2026-09-16
+     * выбранный шаблон, не лежащий в назначенной папке, снимается нормализацией
+     * (В-127), и `defaultTemplate: "Templates/Missing.md"` при пустой папке
+     * означал бы «шаблон не выбран» — то есть проверка отказа при ненайденном
+     * шаблоне проверяла бы отсутствие предмета.
+     */
+    templatesFolder: "Templates",
     defaultTemplate: "",
     smartRules: [],
     noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: true },
@@ -76,10 +84,26 @@ function makeEditor(initial, options) {
     somethingSelected() { return false; },
     getLine(n) { return lines[n] || ""; },
     lineCount() { return lines.length; },
+    /*
+     * Замена считается **по смещениям в тексте**, а не строками.
+     *
+     * Прежняя заглушка на многострочной замене выбрасывала строки от `from.line`
+     * по `to.line` включительно и `to.ch` не смотрела вовсе — то есть съедала
+     * на строку больше, чем платформа: у CodeMirror конец `{line: N, ch: 0}`
+     * означает **начало** строки `N`, и сама она уцелеет. Видно это стало на
+     * первой же проверке, где за снятым блоком стоит ещё текст (У-45: заглушка
+     * не бывает ни добрее, ни строже настоящего редактора).
+     */
     replaceRange(value, from, to) {
       if (opts.failReplace) throw new Error("editor write failed");
-      if (from.line === to.line) lines[from.line] = lines[from.line].slice(0, from.ch) + value + lines[to.line].slice(to.ch);
-      else lines.splice(from.line, to.line - from.line + 1, ...String(value).split("\n"));
+      const text = lines.join("\n");
+      const offsetOf = (pos) => {
+        const line = Math.max(0, Math.min(lines.length - 1, Number(pos && pos.line || 0)));
+        let at = 0;
+        for (let i = 0; i < line; i++) at += lines[i].length + 1;
+        return at + Math.max(0, Math.min(lines[line].length, Number(pos && pos.ch || 0)));
+      };
+      lines = (text.slice(0, offsetOf(from)) + String(value) + text.slice(offsetOf(to))).split("\n");
     },
     text() { return lines.join("\n"); },
   };
@@ -313,6 +337,111 @@ async function testTitleWordsReplacedByLink() {
  * `leave` не тронут: слова названия — это текст, и человек попросил его
  * оставить. Обратное молча отменило бы смысл настройки.
  */
+/**
+ * Строка-заголовок целиком, от имени заметки до того, что осталось в исходной
+ * (замечание заказчика 2026-09-16, решения В-128 и В-129).
+ *
+ * Его слова: «при активации inline2note из хедера получилась ерунда — название
+ * заметки стало полностью содержание исходной инлайн записи, включая
+ * технические блоки; содержание исходного хедера не переместилось в новую
+ * заметку». Ответ на второе он дал сам: «весь раздел под заголовком», и тем же
+ * словом — «исходная строка-хедер должна преобразовываться в строку-буллит».
+ *
+ * Проверка **сквозная** нарочно: имя считает один код, границу блока второй,
+ * знак начала третий, и по отдельности каждый зелен на своей фикстуре (У-56).
+ */
+async function testHeaderLineTakesItsSectionAndBecomesBullet() {
+  const editor = makeEditor([
+    "## #/1 #todo :: Отчёт за неделю :: \u{1F4C5}2026-09-16 17:58",
+    "Первая строка раздела",
+    "\tвложенная строка",
+    "",
+    "### Внутренний заголовок",
+    "и его строка",
+    "## Следующий раздел",
+    "чужая строка",
+  ].join("\n"));
+  /*
+   * Поле-элемент с меткой `📅` объявлено нарочно: без него метка даты для
+   * разбора не значение, а обычный текст, и утверждение «технические блоки не
+   * попали в имя» проверяло бы отсутствие предмета (У-88). У заказчика такое
+   * поле есть — `date_due` с этой самой меткой и этим форматом.
+   */
+  const plugin = makePlugin(makeConfig({
+    sublines: "remove",
+    noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: true },
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "remove" },
+  }, {
+    fields: {
+      order: {
+        left: [], right: ["date_due"], active: {}, enabled: {},
+        types: { date_due: "element" }, propertiesByField: {},
+      },
+      elements: { byField: { date_due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" } } },
+      tags: { fields: [] },
+      /* Поле-элемент объявляется там же, где его объявил заказчик: метки
+         движок собирает обходом самих Fields, а не ветки `elements`. */
+      links: { fields: [{ id: "date_due", kind: "genericElement", marker: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" }] },
+    },
+  }), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+
+  /* Имя — текст заголовка, без значений полей и без метки даты. */
+  assertTrue(plugin.files.has("Notes/Отчёт за неделю.md"),
+    "заметка названа текстом заголовка: " + Array.from(plugin.files.keys()).join(", "));
+  const note = String(plugin.files.get("Notes/Отчёт за неделю.md") || "");
+  assertTrue(/Первая строка раздела/.test(note), "первая строка раздела уехала в заметку");
+  assertTrue(/Внутренний заголовок/.test(note), "младший заголовок — часть того же раздела");
+  /*
+   * Граница раздела: заголовок того же уровня и всё за ним остаются на месте.
+   * Без этого утверждения правило выполнял бы и обход «до конца заметки», а
+   * тогда одно нажатие уносило бы всю заметку целиком.
+   */
+  assertTrue(!/Следующий раздел/.test(note), "следующий раздел в заметку не уехал");
+  assertTrue(!/чужая строка/.test(note), "и его строки тоже");
+
+  const left = editor.text().split("\n");
+  /*
+   * Утверждения про **знак начала и ссылку**, а не про строку целиком.
+   * Строка целиком сюда не годится: значения полей с неё уносит отдельный
+   * давний дефект (`📅…` пропадает и с обычной строки при пустом списке
+   * `cleanupFieldIds`; воспроизведено на коммите `73beb1d`, то есть он старше
+   * этой сессии). Записать его ожиданием значило бы охранять дефект, а чинить
+   * его здесь — чинить не то, о чём эта проверка.
+   */
+  assertTrue(left[0].startsWith("- "), "на месте заголовка знак списка: " + JSON.stringify(left[0]));
+  assertTrue(!/^#/.test(left[0]), "знака заголовка на строке не осталось");
+  assertTrue(left[0].includes("[[Notes/Отчёт за неделю]]"), "и ссылка на новую заметку");
+  assertEq(left[1], "## Следующий раздел", "следующий раздел остался в заметке нетронутым");
+  assertEq(left[2], "чужая строка", "и его содержимое");
+  assertEq(left.length, 3, "раздел уехал целиком: " + JSON.stringify(editor.text()));
+}
+
+/**
+ * Отрицательный контроль к правилу раздела: у обычной строки своим остаётся
+ * записанное **с отступом**, а соседняя строка без отступа — чужая. Без него
+ * утверждения выше выполнял бы и обход, забирающий всё до конца заметки у
+ * любой строки (У-127: контроль ставится на предмете, который есть всегда).
+ */
+async function testPlainLineStillTakesOnlyIndentedLines() {
+  const editor = makeEditor([
+    "- :: Отчёт :: tail",
+    "\tвложенная",
+    "соседняя без отступа",
+  ].join("\n"));
+  const plugin = makePlugin(makeConfig({
+    sublines: "remove",
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "remove" },
+  }), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+  const note = String(plugin.files.get("Notes/Отчёт.md") || "");
+  assertTrue(/вложенная/.test(note), "вложенная строка уехала");
+  assertTrue(!/соседняя без отступа/.test(note), "строка без отступа осталась");
+  const left = editor.text().split("\n");
+  assertEq(left[left.length - 1], "соседняя без отступа", "и стоит на месте");
+  assertTrue(!/^#/.test(left[0]), "знак списка у обычной строки не менялся");
+}
+
 async function testTitleWordsSurviveLeave() {
   const editor = makeEditor("- :: one two three :: tail");
   const plugin = makePlugin(makeConfig({
@@ -799,6 +928,8 @@ async function run() {
   await testTemplateErrorSurfacesBeforeMutation();
   await testManualCancelDoesNotMutate();
   await testTitleWordsReplacedByLink();
+  await testHeaderLineTakesItsSectionAndBecomesBullet();
+  await testPlainLineStillTakesOnlyIndentedLines();
   await testTitleWordsSurviveLeave();
   await testLeaveNamedKeepsRestAndSwapsName();
   await testCleanedLeftSegmentKeepsTextAndTailApart();

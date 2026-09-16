@@ -13,6 +13,13 @@
  * следует (требование заказчика 1.6.2.4).
  */
 
+/*
+ * Движок `Inline to note` подключает свои модули литеральным `require` и в
+ * граф сборки попадает вместе с ними (У-89). Импорт здесь берёт тот же модуль,
+ * а не второй его экземпляр, — и нужен он ради одного правила: чей это шаблон.
+ */
+import transformFeature from "../../features/transform_feature.js";
+
 /** Строка выпадающего списка: что запишется и что человек читает. */
 export interface TemplateOption {
   value: string;
@@ -82,15 +89,20 @@ export function templateOptions(
 ): readonly TemplateOption[] {
   const root = String(folder || "").trim().replace(/\/+$/, "");
   if (!root) return [templatesEmptyChoice(root, say)];
-  const prefix = root + "/";
   /*
    * Вложенные папки внутри шаблонной тоже считаются: человек, разложивший
    * шаблоны по подпапкам, не ждёт, что половина исчезнет. Подпись при этом —
    * путь внутри папки, чтобы два `task.md` в разных подпапках различались.
+   *
+   * **Чей это шаблон, решает движок, а не приставка, посчитанная здесь.** Своя
+   * приставка была вторым объявлением правила и сверяла **сырую** строку: папку
+   * человек пишет как ему удобно — с косой чертой впереди, с неразрывным
+   * пробелом, — и такой список оказывался пустым при назначенной папке. Дом
+   * правила — `templateBelongsToFolder` в `transform_feature.js` (В-127).
    */
   const inside = notes
     .map(p => String(p || ""))
-    .filter(p => p.startsWith(prefix))
+    .filter(p => transformFeature.templateBelongsToFolder(p, root))
     .sort((a, b) => a.localeCompare(b));
   if (!inside.length) return [templatesEmptyChoice(root, say)];
   return [{ value: "", label: (say || PLAIN)("WORD_NONE", "None") } as TemplateOption].concat(

@@ -692,6 +692,74 @@ function makeConfig() {
   const found = transform.collectTemplateOptions(app, asTyped);
   assertEq(found.join(" | "), "Шаблоны заметок/День.md | Шаблоны заметок/Неделя.md",
     "шаблоны найдены в той же папке: получилось " + JSON.stringify(found));
+  /*
+   * Папки нет — шаблонов нет. До 2026-09-16 рантайм отдавал здесь **все**
+   * заметки vault, то есть Smart Rule мог взять шаблоном что угодно, пока
+   * `Default template` писал «Set a Templates folder first». Оба списка обязаны
+   * говорить одно и то же — требование заказчика 1.6.6.2 (В-127).
+   */
+  assertEq(transform.collectTemplateOptions(app, "").length, 0,
+    "папка не назначена — предлагать нечего");
+})();
+
+
+/*
+ * В-127: выбранный шаблон не переживает смену папки шаблонов.
+ *
+ * Его замечание 2026-09-16: «я изменил папку 111 на другую папку (Templates),
+ * но при активации transform в строке получил ошибку „template not found:
+ * 111/template 1.md“ — т.е. по прежнему осталась старая папка». Пример здесь —
+ * его: полный путь лежал в `targetTemplate` Smart Rule, а не в общей строке.
+ */
+(function testTemplateChoiceDoesNotSurviveFolderChange() {
+  const before = {
+    transform: {
+      inline2note: {
+        enabled: true,
+        templatesFolder: "templates",
+        defaultTemplate: "111/template.md",
+        smartRules: [
+          { id: "rule-1", name: "test", enabled: true, targetTemplate: "111/template 1.md",
+            conditions: { tags: ["#todo"] } },
+          { id: "rule-2", name: "свой", enabled: true, targetTemplate: "templates/template 1.md",
+            conditions: { tags: ["#note"] } },
+        ],
+      },
+    },
+  };
+  const after = transform.normalizeTransformConfig(JSON.parse(JSON.stringify(before)));
+  const i2n = after.transform.inline2note;
+  assertEq(i2n.defaultTemplate, "", "шаблон из прежней папки снят у общей строки");
+  assertEq(i2n.smartRules[0].targetTemplate, "", "и у правила, на котором он споткнулся");
+  /*
+   * Отрицательный контроль, и он же ответ на «а не снимает ли правило всё
+   * подряд»: шаблон **из** назначенной папки остаётся на месте. Без него
+   * утверждения выше выполняло бы и `targetTemplate: ""` в любом случае.
+   */
+  assertEq(i2n.smartRules[1].targetTemplate, "templates/template 1.md",
+    "шаблон из назначенной папки не тронут");
+  assertEq(i2n.smartRules[0].name, "test", "имя правила при этом уцелело");
+  /*
+   * Папку сняли совсем — не остаётся ни одного выбора: предлагать больше
+   * нечего, значит и выбранного быть не может.
+   */
+  const noFolder = transform.normalizeTransformConfig(JSON.parse(JSON.stringify({
+    transform: { inline2note: { enabled: true, templatesFolder: "",
+      defaultTemplate: "templates/template 1.md", smartRules: [] } },
+  })));
+  assertEq(noFolder.transform.inline2note.defaultTemplate, "",
+    "папки нет — выбранного шаблона тоже нет");
+  /*
+   * И то, как папку пишет человек, значения не имеет: косая черта впереди и
+   * неразрывный пробел приводятся тем же `normalizeFolderPath`, каким плагин
+   * эту папку создаёт. Иначе смена вида записи снимала бы выбор молча.
+   */
+  const asTyped = transform.normalizeTransformConfig(JSON.parse(JSON.stringify({
+    transform: { inline2note: { enabled: true, templatesFolder: "/templates/",
+      defaultTemplate: "templates/template 1.md", smartRules: [] } },
+  })));
+  assertEq(asTyped.transform.inline2note.defaultTemplate, "templates/template 1.md",
+    "папка, записанная с косыми чертами, — та же папка");
 })();
 
 

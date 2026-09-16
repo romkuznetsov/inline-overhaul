@@ -253,13 +253,13 @@ function validateSmartRules(rules) {
   return out;
 }
 
-function normalizeSmartRules(rawRules) {
+function normalizeSmartRules(rawRules, templatesFolder) {
   const src = Array.isArray(rawRules) ? rawRules : [];
   const out = [];
   for (let i = 0; i < src.length; i++) {
     const r = isObj(src[i]) ? src[i] : {};
     const id = String(r.id || `rule-${i + 1}`).trim() || `rule-${i + 1}`;
-    const targetTemplate = String(r.targetTemplate || "").trim();
+    const targetTemplate = keptTemplateChoice(r.targetTemplate, templatesFolder);
     const conditions = isObj(r.conditions) ? r.conditions : {};
     const tags = Array.isArray(conditions.tags) ? conditions.tags.map((x) => String(x || "").trim()).filter(Boolean) : [];
     const emojiFields = Array.isArray(conditions.emojiFields) ? conditions.emojiFields.map((x) => String(x || "").trim()).filter(Boolean) : [];
@@ -395,8 +395,8 @@ function normalizeInline2Note(raw) {
     enabled: src.enabled === true,
     templatesFolder: String(src.templatesFolder || "").trim(),
     outputFolder: String(src.outputFolder || "").trim(),
-    defaultTemplate: String(src.defaultTemplate || "").trim(),
-    smartRules: normalizeSmartRules(src.smartRules),
+    defaultTemplate: keptTemplateChoice(src.defaultTemplate, src.templatesFolder),
+    smartRules: normalizeSmartRules(src.smartRules, src.templatesFolder),
     noteName: {},
     nameCollision: {},
     placement: {},
@@ -471,23 +471,65 @@ function normalizeTransformConfig(cfg) {
   return root;
 }
 
+/**
+ * Лежит ли этот шаблон в назначенной папке.
+ *
+ * **Один дом на три вопроса**, и до 2026-09-16 их было три ответа: какие
+ * шаблоны предложить в Smart Rules (`collectTemplateOptions` здесь), какие
+ * предложить в `Default template` (`templateOptions` в
+ * `src/ui/settings/templates.ts`) и — с этого дня — остался ли сделанный выбор
+ * законным. Расхождение первых двух измерено до сведения: **17 пар из 126**,
+ * и обе разницы чинятся тем же сведением.
+ *
+ * Первая: при неназначенной папке рантайм считал своими **все** заметки vault,
+ * а панель — ни одной, и Smart Rule мог взять шаблоном любую заметку, пока
+ * `Default template` писал «Set a Templates folder first». Заказчик требовал
+ * обратного ещё замечанием 1.6.6.2: оба списка говорят одно и то же. Ответ
+ * теперь один — папки нет, значит шаблонов нет.
+ *
+ * Вторая: панель сверяла приставку **сырой** строкой, а человек пишет папку
+ * как ему удобно — с косой чертой впереди, с неразрывным пробелом. Приведение
+ * пути живёт в `normalizeFolderPath`, и спрашивают его теперь обе стороны.
+ *
+ * Путь, **равный** папке, своим больше не считается: у заметки путь кончается
+ * на `.md`, и совпасть с папкой он может только если папкой назвали файл.
+ */
+function templateBelongsToFolder(templatePath, templatesFolder) {
+  const folder = normalizeFolderPath(templatesFolder);
+  if (!folder) return false;
+  const path = normalizeFolderPath(templatePath);
+  if (!path) return false;
+  return path.startsWith(folder + "/");
+}
+
+/**
+ * Что остаётся от выбранного шаблона, когда папку шаблонов сменили.
+ *
+ * **Решение заказчика 2026-09-16 (В-127): всегда очищать.** Его замечание:
+ * «я изменил папку 111 на другую папку (Templates), но при активации transform
+ * получил ошибку „template not found: 111/template 1.md“ — т.е. по прежнему
+ * осталась старая папка». Причина была не в папке: полный путь шаблона лежит в
+ * настройке Smart Rule, и смена папки его не касалась. Правило про такое у него
+ * общее — «изменение контрола должно менять поведение».
+ *
+ * Выбор снимается **в нормализации**, то есть на каждом патче и при загрузке:
+ * так он не может пережить смену папки ни на одной из дорог. Цена названа
+ * вслух: поле папки пишет настройку на каждую набранную букву, поэтому выбор
+ * снимается уже на первой из них — вернуть прежнее имя папки не вернёт
+ * прежнего шаблона, его придётся назначить заново. Заказчик выбрал это,
+ * зная, что назначать придётся заново.
+ */
+function keptTemplateChoice(templatePath, templatesFolder) {
+  const chosen = String(templatePath || "").trim();
+  if (!chosen) return "";
+  return templateBelongsToFolder(chosen, templatesFolder) ? chosen : "";
+}
+
 function collectTemplateOptions(app, folder) {
   if (!app || !app.vault || typeof app.vault.getMarkdownFiles !== "function") return [];
   const all = app.vault.getMarkdownFiles();
-  /*
-   * Путь приводится к виду vault **одной функцией на весь файл**. Здесь стояла
-   * её копия из четырёх `replace` — то есть второе объявление одного правила
-   * (У-32), и разошлись они ровно в тот день, когда правило дополнили
-   * неразрывным пробелом и `NFC` (Р3 списка расхождений, 2026-09-08): папку
-   * плагин создавал по одному пути, а шаблоны в ней искал по другому.
-   */
-  const normalizedFolder = normalizeFolderPath(folder);
   return all
-    .filter((f) => {
-      if (!normalizedFolder) return true;
-      const path = normalizeFolderPath(f.path);
-      return path === normalizedFolder || path.startsWith(normalizedFolder + "/");
-    })
+    .filter((f) => templateBelongsToFolder(f && f.path, folder))
     .map((f) => String(f.path || "").trim())
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
@@ -896,10 +938,23 @@ function parseInlineLine(rawLine, cfg) {
     .replace(/\s+/g, " ")
     .trim();
   const payloadParts = textCore.split(String(separators.separator1 || "")).map((s) => String(s || "").trim()).filter(Boolean);
+  /*
+   * Знак заголовка снимается и тогда, когда за ним ничего не осталось.
+   * Прежний образец требовал пробела **после** знака, и на строке
+   * `# #/1 #todo` — заголовок, в котором одни значения полей, — от неё
+   * оставалась одинокая решётка: она проходила проверку «текста нет» и
+   * становилась именем новой заметки. Теперь такая строка отвечает отказом
+   * вслух, как и всякая строка без текста человека. Расхождение измерено на
+   * 1443 строках его заметок: **две**, и обе — этот самый случай
+   * (`#` и `##`).
+   */
   const payloadText = String(payloadTextRaw || (payloadParts.length ? payloadParts[0] : textCore) || "")
-    .replace(/^\s*(?:[-*+]\s+(?:\[[^\]]\]\s+)?|#{1,6}\s+)/, "")
+    .replace(/^\s*(?:[-*+]\s+(?:\[[^\]]\]\s+)?|#{1,6}(?:\s+|$))/, "")
     .trim();
-  return { line, tags: uniq(tags), wikilinks: uniq(wikilinks), emojis, payloadText, tagOccurrences, wikilinkOccurrences, emojiOccurrences };
+  /* Разделители едут вместе с разбором: тот, кто читает его находки, обязан
+     знать, чем они были разделены, — иначе спрашивать конфиг заново, то есть
+     заводить второе объявление того же ответа (У-32). */
+  return { line, tags: uniq(tags), wikilinks: uniq(wikilinks), emojis, payloadText, tagOccurrences, wikilinkOccurrences, emojiOccurrences, separators };
 }
 
 function getModeFields(cfg) {
@@ -1465,10 +1520,54 @@ function renderYamlBlockWithOrder(existingYamlLines, yamlPatch, cfg) {
   return lines;
 }
 
-function extractHeaderTitle(line) {
-  const t = String(line || "").trim();
-  const m = t.match(/^#{1,6}\s+(.+)$/);
-  return m ? String(m[1] || "").trim() : "";
+/**
+ * Название заметки, взятое у строки-заголовка, — это его **текст**.
+ *
+ * Замечание заказчика 2026-09-16: «при активации inline2note из хедера
+ * получилась ерунда — название заметки стало полностью содержание исходной
+ * инлайн записи, включая технические блоки». Воспроизведено на его конфиге:
+ * строка `# #/1 #todo :: 23423 :: 📅2026-09-16 17:58` давала имя файла
+ * `# 1 #todo 23423 📅2026-09-16 17 58` — косая черта в имени запрещена, отсюда
+ * `#/1` → `# 1`.
+ *
+ * Причин было две, и обе здесь. Первая: заголовок отдавался **сырым телом**
+ * строки, а не тем, что в ней написал человек; текст берётся у разбора —
+ * `payloadText` уже без значений полей, меток и разделителей. Вторая: сам
+ * признак «это заголовок» стоял своим образцом `#{1,6}\s+`, то есть третьим
+ * объявлением начала строки (У-32); спрашивается он теперь у общего дома
+ * `lineStartOf`, который знает и про цитату, и про каллаут — `> # Заголовок`
+ * прежний образец не признавал вовсе.
+ */
+function headerTitleOf(parsed) {
+  const line = String(parsed && parsed.line || "");
+  const start = __sharedUtils.lineStartOf(line);
+  if (!start.heading) return "";
+  /*
+   * Что в заголовке наше, уже сказал сам разбор: он нашёл каждый тег, ссылку и
+   * элемент с их местами в строке. Берётся то, что осталось между ними, — так
+   * не заводится второго ответа на «что тут значение поля», а слот текста тут
+   * и не при чём: на `## ва :: #/1` в слоте стоит значение, а имя заголовка —
+   * слово человека слева от него.
+   */
+  const spans = []
+    .concat(Array.isArray(parsed.tagOccurrences) ? parsed.tagOccurrences : [])
+    .concat(Array.isArray(parsed.wikilinkOccurrences) ? parsed.wikilinkOccurrences : [])
+    .concat(Array.isArray(parsed.emojiOccurrences) ? parsed.emojiOccurrences : [])
+    .filter((s) => Number(s && s.end) > start.at)
+    .sort((a, b) => Number(a.start) - Number(b.start));
+  let out = "";
+  let at = start.at;
+  for (const span of spans) {
+    const from = Math.max(at, Number(span.start) || 0);
+    if (from > at) out += line.slice(at, from);
+    at = Math.max(at, Number(span.end) || 0);
+  }
+  out += line.slice(at);
+  const separators = isObj(parsed && parsed.separators) ? parsed.separators : {};
+  for (const sep of [separators.separator1, separators.separator2]) {
+    if (sep) out = out.split(sep).join(" ");
+  }
+  return out.replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -1633,7 +1732,7 @@ function resolveAutoTitleInfo(parsed, i2n) {
   const explicit = explicitTitleOf(line, i2n);
   if (explicit) return { title: explicit, origin: "explicit" };
   if (i2n && i2n.noteName && i2n.noteName.preferHeaderTitle) {
-    const hh = extractHeaderTitle(line);
+    const hh = headerTitleOf(parsed);
     if (hh) return { title: hh, origin: "header" };
   }
   const base = payload && payload !== "-" ? payload : "";
@@ -2408,24 +2507,78 @@ function indentSize(line) {
   return n;
 }
 
+/**
+ * Какого уровня этот заголовок; ноль — строка заголовком не является.
+ *
+ * Признак спрашивается у общего дома `lineStartOf`: там он знает и про цитату,
+ * и про каллаут, а свой образец `#{1,6}` этого не знает (У-32).
+ */
+function headingLevelOf(line) {
+  const heading = String(__sharedUtils.lineStartOf(String(line || "")).heading || "").trim();
+  return heading ? heading.length : 0;
+}
+
+/**
+ * Где кончается то, что относится к этой строке.
+ *
+ * **Объявлено здесь и только здесь.** Правило стояло двумя копиями — у разбора
+ * строки под курсором и у разбора выделения, — и обе знали один ответ: своим
+ * считается записанное **с отступом** под строкой. У заголовка отступа нет ни
+ * у одной строки его раздела, поэтому блок кончался на самом заголовке:
+ * заказчик 2026-09-16 получил новую заметку, в которую содержимое заголовка не
+ * переехало вовсе.
+ *
+ * **Решение заказчика (В-129): у заголовка своё — весь раздел под ним**, то
+ * есть всё до следующего заголовка того же или старшего уровня. У строки без
+ * знака заголовка правило прежнее, отступом.
+ */
+function blockEndFor(ed, rootLine, fromLine, total) {
+  const level = headingLevelOf(rootLine);
+  const baseIndent = indentSize(rootLine);
+  let end = fromLine;
+  for (let i = fromLine + 1; i < total; i++) {
+    const cur = String(ed.getLine(i) || "");
+    if (!cur.trim()) { end = i; continue; }
+    if (level) {
+      const curLevel = headingLevelOf(cur);
+      if (curLevel && curLevel <= level) break;
+      end = i;
+      continue;
+    }
+    if (indentSize(cur) > baseIndent) { end = i; continue; }
+    break;
+  }
+  return end;
+}
+
+/**
+ * Строка-заголовок после переноса становится строкой списка.
+ *
+ * **Решение заказчика 2026-09-16 (В-129), его словами:** «после трансформации
+ * исходная строка-хедер должна преобразовываться в строку-буллит (т.е.
+ * `- text`)». Смысл понятен из того, что с ней случилось: раздел уехал в новую
+ * заметку, и заголовок, у которого больше нет содержимого, заголовком быть
+ * перестал — на его месте осталась одна ссылка.
+ *
+ * Меняется **только знак начала**: отступ, цитата и каллаут принадлежат строке
+ * целиком и остаются (У-184). Знак списка — разметка Obsidian, и пишется он
+ * тем же `"- "`, что и в двух других местах плагина, где знак приходится
+ * ставить самим.
+ */
+function headingSourceBecomesBullet(nextLine, sourceLine) {
+  if (!headingLevelOf(sourceLine)) return nextLine;
+  const start = __sharedUtils.lineStartOf(String(nextLine || ""));
+  if (!start.heading) return nextLine;
+  return `${start.indent}${start.quote}${start.callout}- ${start.body}`;
+}
+
 function deriveRootBlockFromEditor(ed, lineNo) {
   if (!ed || typeof ed.getLine !== "function") {
     return { rootIndex: 0, rootLine: "", blockStart: 0, blockEnd: 0, blockLines: [""], allLines: [""] };
   }
   const rootLine = String(ed.getLine(lineNo) || "");
-  const baseIndent = indentSize(rootLine);
   const total = typeof ed.lineCount === "function" ? Number(ed.lineCount() || 0) : (lineNo + 1);
-  let end = lineNo;
-  for (let i = lineNo + 1; i < total; i++) {
-    const cur = String(ed.getLine(i) || "");
-    if (!cur.trim()) { end = i; continue; }
-    const curIndent = indentSize(cur);
-    if (curIndent > baseIndent) {
-      end = i;
-      continue;
-    }
-    break;
-  }
+  const end = blockEndFor(ed, rootLine, lineNo, total);
   const lines = [];
   for (let i = lineNo; i <= end; i++) lines.push(String(ed.getLine(i) || ""));
   return {
@@ -2448,17 +2601,9 @@ function deriveSelectionRangeFromEditor(ed, from, to) {
   while (start <= selectedEnd && !String(ed.getLine(start) || "").trim()) start += 1;
   if (start > selectedEnd) throw new Error("selection contains no transformable line");
   const rootLine = String(ed.getLine(start) || "");
-  const baseIndent = indentSize(rootLine);
-  let end = selectedEnd;
-  for (let i = selectedEnd + 1; i < total; i++) {
-    const line = String(ed.getLine(i) || "");
-    if (!line.trim()) {
-      end = i;
-      continue;
-    }
-    if (indentSize(line) <= baseIndent) break;
-    end = i;
-  }
+  /* Хвост за выделением считается тем же правилом, что и блок под курсором:
+     двумя копиями оно уже разошлось бы на заголовке (У-32, В-129). */
+  const end = blockEndFor(ed, rootLine, selectedEnd, total);
   const blockLines = [];
   for (let i = start; i <= end; i++) blockLines.push(String(ed.getLine(i) || ""));
   return {
@@ -2926,6 +3071,9 @@ async function runInline2Note(plugin, runtimeOptions) {
       shape,
     });
     nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators, shape);
+    /* Знак заголовка меняется на знак списка последним: до этого шага строка
+       собирается теми же правилами, что и любая другая (В-129). */
+    nextRoot = headingSourceBecomesBullet(nextRoot, sourceLine);
     replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines);
   } catch (sourceError) {
     try {
@@ -2963,6 +3111,10 @@ module.exports = {
      показывает те же шаблоны, что выбирает сам движок, и второй такой же
      фильтр по папке разошёлся бы с ним на первой правке (П9 по смыслу). */
   collectTemplateOptions,
+  /* Один дом на «этот шаблон из назначенной папки»: его спрашивают оба списка
+     панели и нормализация, снимающая выбор из прежней папки (В-127). */
+  templateBelongsToFolder,
+  keptTemplateChoice,
   normalizeInline2Note,
   normalizeTransformConfig,
   validateSmartRules,
