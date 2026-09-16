@@ -34,3 +34,4 @@ tests/fixtures/data_owner_*
 # Карта чтений собирается инструментом и не хранится: замороженный текст через
 # неделю разойдётся с кодом. Пересобрать — `node tools/read_map_v1.js . read_map.md`.
 read_map.md
+src/generated/

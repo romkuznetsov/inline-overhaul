@@ -21,6 +21,13 @@
   from indentation, and a section has none.
 - **The heading you pressed on becomes a list line** once its section has moved
   out.
+- **The words that became the note name now leave the line**, and the link takes
+  their place - a heading used to keep its own text and grow a link beside it.
+- **A value standing in the other Block is seen at last.** `Fields to keep`
+  decides its fate, and it reaches the new note's properties; until now only a
+  value standing in the Block its Field belongs to was noticed at all.
+- **A numbered list keeps its number out of the note.** `1. ` is markup, like a
+  bullet; the same goes for a quote and a callout.
 
 ### TagWheel
 
@@ -39,6 +46,24 @@
 
 - **A smaller `Tags text size` no longer sinks the tag to the bottom of the
   line.** The bubble now sits on the middle of the line instead of its baseline.
+- **And so does everything else standing in a Block** - a link, an
+  emoji-element: they keep the same distance to the top and the bottom of the
+  `tags-block-fill` stripe as the bubble does.
+
+### Line behaviour
+
+- **Values of the right Block no longer spill into your own words.** With both
+  separators written the same way, a line carrying one separator was read as
+  "left Block, then text" by one half of the plugin and as "text, then right
+  Block" by the other; pressing an element command tore the Block apart.
+- **A Field of type link now moves into its Block** when you press its command,
+  the way a tag always did.
+
+### On update
+
+- **A window tells you what changed.** After the plugin updates, the section of
+  this file for the new version opens once, and only once per version. A fresh
+  install shows nothing: there is no previous version to compare with.
 
 ## 0.2.0
 

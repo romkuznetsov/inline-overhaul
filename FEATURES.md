@@ -193,6 +193,10 @@ appends it to one that already exists.
   useful when you are asking for help or reporting something.
 - **Diagnostics.** A developer log you can switch on, and `Undo last settings
   change`, which rolls back the most recent change you made in the panel.
+- **What changed, after an update.** The first time you open a vault on a new
+  version, a window shows that version's section of the changelog — once per
+  version, and never on a fresh install, where there is no previous version to
+  compare with.
 
 *Where:* `General` (four groups), `Advanced` (four groups).
 

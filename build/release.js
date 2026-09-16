@@ -7,6 +7,14 @@ const esbuild = require("esbuild");
 const root = path.resolve(__dirname, "..");
 const dist = path.join(root, "dist");
 
+/*
+ * Заметки выпуска — **до** сборки: окно «что изменилось» читает их литеральным
+ * `require`, и в бандл они попадают только отсюда. Разбор — в
+ * `build/gen_release_notes.js`, там же сказано, почему текст не читается на
+ * ходу.
+ */
+require("./gen_release_notes.js").writeReleaseNotes(root);
+
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 

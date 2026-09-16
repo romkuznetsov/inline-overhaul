@@ -20,7 +20,7 @@
  * важнее вкладки.
  */
 
-const { Notice } = require("obsidian");
+const { Modal, Notice } = require("obsidian");
 const cmState = require("@codemirror/state");
 
 const __commandIds = require("./command_ids.js");
@@ -31,6 +31,7 @@ const __editorMount = require("../ui/editor/mount.js");
 const __editorStyles = require("../ui/editor/styles.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __pluginCommands = require("./plugin_commands.js");
+const __releaseNotes = require("./release_notes.js");
 const __storeEventsOrchestrator = require("./store_events_orchestrator.js");
 const __sharedUtils = require("../core/shared_utils.js");
 const __sayModule = require("../core/say.js");
@@ -175,6 +176,18 @@ async function load(plugin) {
 
   plugin.registerCommands();
   noticeCommandIdsChanged(plugin);
+  /*
+   * Окно «что изменилось» — его заказ Р14. Стоит после вкладки настроек и
+   * команд нарочно: плагин к этому мгновению уже работает целиком, и окно
+   * ничего не задерживает. Свежая установка узнаётся по состоянию, с которым
+   * конфиг приехал: `absent` значит «файла не было», то есть рассказывать о
+   * том, что изменилось с прошлой версии, нечего.
+   */
+  await __releaseNotes.showReleaseNotesOnUpdate(plugin, {
+    version: String((plugin.manifest && plugin.manifest.version) || ""),
+    freshInstall: String((prepared && prepared.state) || "") === "absent",
+    Modal,
+  });
   __editorStyles.ensureTagwheelFill(plugin);
   __editorStyles.ensureStripLine(plugin);
   __editorStyles.ensureCaret(plugin);
