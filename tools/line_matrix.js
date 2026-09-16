@@ -69,7 +69,8 @@ const MARK_DUE = "📅";
  * обычный текст (У-182). Стенд, который пишет чужую настройку сам, слеп ровно
  * к тому, ради чего заведён.
  */
-function casesFor(sep1, marker) {
+function casesFor(sep1, marker, material) {
+  const stuff = material && typeof material === "object" ? material : {};
   const out = [
   { name: "пустая", line: "", ch: 0 },
   { name: "с текстом", line: "- текст", ch: 7 },
@@ -202,7 +203,74 @@ function casesFor(sep1, marker) {
   } else {
     console.log("в его настройках нет ни одной метки элемента — формы «правый Block за единственным разделителем» в обходе нет");
   }
+  /*
+   * **Двадцать первая — слово человека, а за единственным разделителем
+   * несколько значений правого Block.** Куплена его замечанием `G3`
+   * 2026-09-16: он перенёс все Fields в правый Block и нажал все значения
+   * подряд на строке `11`. Двадцать прежних форм либо несли второй
+   * разделитель, либо держали в хвосте **одно** значение, и на них деление
+   * строки не ошибалось: доводка считала единственный разделитель первым,
+   * то есть весь правый Block — словом человека, и следующее нажатие
+   * растаскивало значения по строке. Значения берутся из его конфига, а не
+   * пишутся здесь (У-182); нет двух — стенд говорит это вслух.
+   */
+  const tags = Array.isArray(stuff.tags) ? stuff.tags : [];
+  if (tags.length >= 2) {
+    const line = "- [ ] текст " + sep1 + " " + tags[0] + " " + tags[1];
+    out.push({ name: "несколько значений за единственным разделителем", line: line, ch: line.length });
+  } else {
+    console.log("в его настройках меньше двух полей со значением-тегом — формы «несколько значений за единственным разделителем» в обходе нет");
+  }
+  /*
+   * **Двадцать вторая — ссылка поля, у которого предусловия нет.** Форма
+   * «ссылка в зоне значений» в обходе была, и всё это время она спрашивала
+   * поле с **невыполненным** предусловием: значение такого поля обе дороги
+   * трогать не должны, и правило перестановки ссылки по Order на ней не
+   * исполнялось ни разу (У-113). Его замечание `G3` — ровно про это правило:
+   * «field=links отображаются в left block, несмотря на то, что я перенёс их
+   * в right block». Вид значения спрашивается у дома, который его печатает.
+   */
+  if (stuff.link) {
+    const line = "- " + stuff.link + " " + sep1 + " текст";
+    out.push({ name: "ссылка поля без предусловия в зоне значений", line: line, ch: line.length });
+  } else {
+    console.log("в его настройках нет поля-ссылки без предусловия со значением — формы «ссылка поля без предусловия в зоне значений» в обходе нет");
+  }
   return out;
+}
+
+/**
+ * Материал для форм строки — **из его конфига и домами продукта**.
+ *
+ * Тег и ссылка выглядят в строке по-разному, и как именно — знает то же
+ * объявление, которым их печатают движки (`buildOutputToken`, 10.13.130).
+ * Своё «приставка плюс значение» здесь было бы третьим объявлением правила.
+ */
+function materialFor(rules) {
+  const helpers = require(path.join(ROOT, "src", "core", "pkm_rules_runtime_helpers.js"));
+  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  const fields = [].concat(
+    Array.isArray(rules && rules.leftMode && rules.leftMode.fields) ? rules.leftMode.fields : [],
+    Array.isArray(rules && rules.rightMode && rules.rightMode.fields) ? rules.rightMode.fields : []
+  );
+  const firstValue = (f) => (Array.isArray(f && f.values) ? f.values : []).filter((v) => v && v.token)[0] || null;
+  const tags = [];
+  let link = "";
+  for (const f of fields) {
+    if (!f || f.enabled === false) continue;
+    if (String(f.dependsOn || "").trim()) continue;
+    const v = firstValue(f);
+    if (!v) continue;
+    const token = String(core.buildOutputToken(f, v, rules) || "").trim();
+    if (!token) continue;
+    if (helpers.isWikilinkSourceField(f)) {
+      if (!link) link = token;
+      continue;
+    }
+    if (String(f.marker || "").trim()) continue;
+    if (tags.length < 2) tags.push(token);
+  }
+  return { tags: tags, link: link };
 }
 
 /*
@@ -357,7 +425,11 @@ async function main() {
   const rules = rulesOf(cfg);
   selfCheck(rules, cfg);
   /* Метка — из его правил, тем же объявлением, каким её берёт доводка. */
-  const CASES = casesFor(separatorsOf(cfg).sep1, (linePipeline.fieldsShape(rules).markers || [])[0] || "");
+  const CASES = casesFor(
+    separatorsOf(cfg).sep1,
+    (linePipeline.fieldsShape(rules).markers || [])[0] || "",
+    materialFor(rules)
+  );
 
   const order = cfg.pkm.fields.order;
   const defs = bench.defsFor(cfg);

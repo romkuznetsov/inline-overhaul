@@ -290,6 +290,49 @@ function createFieldRelocation(deps) {
     });
   }
 
+  /**
+   * **Поле типа link переставляется по Order наравне с тегом.**
+   *
+   * Списки правил делят поля не по Block, а по роду: теги лежат в `leftMode`,
+   * ссылки и элементы — в `rightMode`, и Block каждое поле несёт на себе
+   * (`panel`). Обе дороги команд подавали сюда **только** список тегов, и
+   * значение поля типа link не переставлял никто: у заказчика `[[test]]`
+   * оставался в левой зоне, хотя поле он перетащил в правый Block, — его
+   * замечание `G3` 2026-09-16 («по какой-то причине field=links отображаются
+   * в left block, несмотря на то, что я перенёс их в right block»).
+   *
+   * Панель этого дефекта не знала: она строку **собирает** заново и каждое
+   * значение кладёт в Block его поля. Отсюда и вид замечания — «панель и
+   * команда дают разное»; обход строки печатал это семью парами.
+   *
+   * Элементы сюда не добавляются: свою метку элемент переносит сам
+   * (`relocateDateTokenByPanel` в `status_date.js`), и второй переносчик на
+   * тот же токен означал бы два объявления одного правила.
+   *
+   * Отбор — общий признак, а не список имён: `isWikilinkSourceField` в
+   * `pkm_rules_runtime_helpers.js` (У-201).
+   */
+  function withLinkFields(rules, fields) {
+    const list = Array.isArray(fields) ? fields.slice() : [];
+    const rulesHelpers = globalThis.__inlinePkmRulesHelpers;
+    if (!rulesHelpers || typeof rulesHelpers.isWikilinkSourceField !== "function") {
+      throw new Error(`${owner}: pkm_rules_runtime_helpers unavailable: isWikilinkSourceField`);
+    }
+    const seen = new Set(list.map((f) => String(f && f.id || "").trim()).filter(Boolean));
+    const sides = [rules && rules.leftMode, rules && rules.rightMode];
+    for (const side of sides) {
+      const sideFields = Array.isArray(side && side.fields) ? side.fields : [];
+      for (const f of sideFields) {
+        const id = String(f && f.id || "").trim();
+        if (!id || seen.has(id)) continue;
+        if (!rulesHelpers.isWikilinkSourceField(f)) continue;
+        seen.add(id);
+        list.push(f);
+      }
+    }
+    return list;
+  }
+
   function relocateCoreTagsByOrder(line, rules, orderCfg, state, fields, activeKey, activeFieldId) {
     const runtime = getStatusLineRuntime();
     return runtime.relocateCoreTagsByOrder({
@@ -297,7 +340,7 @@ function createFieldRelocation(deps) {
       rules,
       orderCfg,
       state,
-      fields: managedFields(rules, state, fields),
+      fields: managedFields(rules, state, withLinkFields(rules, fields)),
       activeKey,
       activeFieldId,
       deps: {
