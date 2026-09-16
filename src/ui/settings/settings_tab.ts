@@ -16,6 +16,8 @@ import { toDefinitions, type Wiring } from "./to_definitions.ts";
 import { fieldOptions } from "./custom/preview_data.ts";
 import { themeVarFor } from "./custom/theme_colors.ts";
 import { templateOptions } from "./templates.ts";
+/* Подсказчик папок и список папок vault — общий дом с блоком Smart Rules. */
+import { attachFolderSuggest } from "./custom/smart_rules.ts";
 import { dialogKey, fill } from "./texts_dialogs.ts";
 import { FRAME_BY_NAME, SINGLE_KEYS, frameKey } from "./texts_custom.ts";
 import { Describer, paintRich, type DocLike, type FragmentHost } from "./describe.ts";
@@ -132,6 +134,34 @@ interface ClassListLike {
   add?: (...cls: string[]) => void;
   remove?: (...cls: string[]) => void;
   contains?: (cls: string) => boolean;
+}
+
+/**
+ * Поле ввода и коробка контрола — ровно то, что нужно строке с крестиком.
+ *
+ * Своими типами, а не платформенными, по той же причине, что и у кнопки «?»:
+ * панель собирается и проверяется **без браузера**, а в гейтах и `Setting`, и
+ * узел приходят заглушкой. Каждое поле необязательно и проверяется перед
+ * вызовом.
+ */
+interface ClearableInput {
+  value?: string;
+  addClass?: (cls: string) => void;
+  addEventListener?: (type: string, fn: () => void) => void;
+}
+
+interface ClearableText {
+  inputEl: ClearableInput;
+  setValue: (v: string) => ClearableText;
+  onChange: (fn: (v: string) => void) => ClearableText;
+  setPlaceholder?: (v: string) => ClearableText;
+}
+
+interface ClearableSetting {
+  addText: (fn: (text: ClearableText) => unknown) => unknown;
+  controlEl?: {
+    createEl?: (tag: string, o: { cls?: string; text?: string; attr?: Record<string, string> }) => El;
+  };
 }
 
 /**
@@ -692,6 +722,92 @@ export class SettingsPane {
   }
 
   /**
+   * Поле ввода с крестиком «стереть написанное» (его слово 2026-09-16, В-131:
+   * «добавь в контрол выбора папки крестик для удаления текущей выбранной
+   * папки… также добавь такой крестик во все остальные подобные контролы»).
+   *
+   * **Строку приходится рисовать самим, и это ответ платформы, а не выбор.**
+   * У `SettingDefinitionControl` слота под кнопку нет; `extraButtons` есть
+   * только у группы (`obsidian.d.ts`, 1.13). Зато `render` отдаёт саму
+   * `Setting` — значит поле ставится её же `addText`, а кнопка живёт в
+   * `controlEl`, то есть в нашем узле: своё правило вида мы имеем право
+   * писать только там, где узел наш (У-161).
+   *
+   * Крестик — тот же `.io-clear`, что у свойства Yaml в редакторе Fields, и
+   * тот же, что рисует прототип: одно имя класса и один вид на оба места
+   * (У-116). Прячется он атрибутом `hidden`: стирать нечего — кнопки нет
+   * (З8).
+   *
+   * Значение пишется на `change`, а не на каждую букву: Р-7, и так же ведёт
+   * себя платформенное поле.
+   */
+  private clearableControl(it: SettingDef): ((setting: unknown) => void) | null {
+    if (!isBound(it)) return null;
+    if (it.kind !== "text" && it.kind !== "folder") return null;
+    const path = it.path;
+    const placeholder = String((it as unknown as { placeholder?: string }).placeholder || "");
+    const mono = (it as unknown as { mono?: boolean }).mono === true;
+    const isFolder = it.kind === "folder";
+    const label = it.name;
+    return (settingRaw: unknown) => {
+      const setting = settingRaw as ClearableSetting;
+      let input: ClearableInput | null = null;
+      let cross: El | null = null;
+      const sync = (): void => {
+        if (!cross) return;
+        cross.hidden = !String((input && input.value) || "").trim();
+      };
+      setting.addText((text) => {
+        input = text.inputEl;
+        if (placeholder && typeof text.setPlaceholder === "function") text.setPlaceholder(placeholder);
+        if (mono && text.inputEl && text.inputEl.addClass) text.inputEl.addClass("io-text--mono");
+        text.setValue(String(this.storedValue(path) ?? ""));
+        text.onChange((value: string) => {
+          void this.setControlValue(path, value);
+          sync();
+        });
+        /* Подсказчик папок — родной, тот же, что у папки в Smart Rules.
+           Нет его — поле работает обычным полем ввода, без подсказок. */
+        if (isFolder) {
+          /* Список папок и сам подсказчик — общий дом с карточкой правила
+             Smart Rules: два таких списка разошлись бы молча (У-32). */
+          const bits = this.deps.platform;
+          const app = bits && (bits.plugin as { app?: unknown } | undefined)?.app;
+          attachFolderSuggest(bits && bits.AbstractInputSuggest, app,
+            text.inputEl as never, (value: string) => {
+              if (text.inputEl) text.inputEl.value = value;
+              void this.setControlValue(path, value);
+              sync();
+            });
+        }
+        if (text.inputEl && text.inputEl.addEventListener) {
+          text.inputEl.addEventListener("input", sync);
+        }
+        return text;
+      });
+      const node = setting.controlEl;
+      if (node && typeof node.createEl === "function") {
+        cross = node.createEl("button", {
+          cls: "io-clear",
+          text: "✕",
+          attr: {
+            type: "button",
+            "aria-label": this.textFor(SINGLE_KEYS.clearField, "Clear") + " " + label,
+          },
+        });
+        if (cross && typeof cross.addEventListener === "function") {
+          cross.addEventListener("click", () => {
+            if (input) input.value = "";
+            void this.setControlValue(path, "");
+            sync();
+          });
+        }
+      }
+      sync();
+    };
+  }
+
+  /**
    * Действия, которые сейчас выполняются. Пока действие идёт, его кнопка
    * неактивна (5.6): второе нажатие по «Применить» запускало бы применение
    * заметки поверх незаконченного первого.
@@ -733,6 +849,8 @@ export class SettingsPane {
       groupCallout: group => this.groupCalloutButtonFor(group, showCallouts),
       showIds,
       renderCustom: it => this.renderCustom(it) as ReturnType<NonNullable<Wiring["renderCustom"]>>,
+      clearableControl: it =>
+        this.clearableControl(it) as ReturnType<NonNullable<Wiring["clearableControl"]>>,
       resetGroup: group => this.resetButtonFor(group),
       groupTip: group => this.groupTipButtonFor(group, showTips, showIds),
       /*

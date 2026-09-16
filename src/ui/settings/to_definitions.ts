@@ -75,6 +75,18 @@ export interface Wiring {
   /** Своя вёрстка для kind: 'custom'. */
   renderCustom?: (it: SettingDef) => SettingDefinition | null;
   /**
+   * Поле ввода с крестиком «стереть написанное» (В-131).
+   *
+   * Платформа такого не умеет: `SettingDefinitionControl` слота под кнопку не
+   * имеет вовсе, а `extraButtons` есть только у **группы**. Поэтому строка
+   * рисуется своим `render` — им платформа отдаёт саму `Setting`, и поле, и
+   * кнопка встают тем же способом, каким их ставит она.
+   *
+   * Здесь только шов: рисование живёт в слое, знающем про платформу, — этому
+   * модулю про DOM знать нечем и не надо.
+   */
+  clearableControl?: (it: SettingDef) => ((setting: Setting) => void) | null;
+  /**
    * Кнопка сброса группы к значениям по умолчанию (10.13.1). Отдаётся сразу
    * функцией: платформа ждёт в `extraButtons` именно функции, а состояние
    * кнопки — неактивность и подсказку — панель меняет на самой кнопке, не
@@ -270,6 +282,20 @@ function itemToDefinition(it: SettingDef, w: Wiring): SettingDefinition | null {
       }
     };
     return common as unknown as SettingDefinition;
+  }
+
+  /*
+   * Поле, у которого пусто — законное значение, рисуется своим `render`:
+   * иначе крестик поставить некуда (В-131). Всё остальное у строки остаётся
+   * платформенным — имя, описание, старые имена для поиска и предикат
+   * видимости уже собраны выше, а `SettingDefinitionRender` их наследует.
+   */
+  if (isBound(it) && (it as unknown as { clearable?: boolean }).clearable === true) {
+    const draw = w.clearableControl ? w.clearableControl(it) : null;
+    if (draw) {
+      common["render"] = draw;
+      return common as unknown as SettingDefinition;
+    }
   }
 
   const control = controlFor(it, w);

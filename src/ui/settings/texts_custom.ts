@@ -57,6 +57,7 @@ export const SINGLE_KEYS = {
   moduleOff: "text.module-off",
   calloutTipLabel: "text.callout-tip-label",
   groupReset: "text.group-reset",
+  clearField: "text.clear-field",
 } as const;
 
 /**
@@ -65,6 +66,8 @@ export const SINGLE_KEYS = {
  * `calloutTipLabel` — подпись «?» у вводного коллаута: она читается вслух
  * экранным диктором и потому видима (`Show tip about this tab`).
  * `groupReset` — подпись кнопки сброса группы: кнопка одна на все группы.
+ * `clearField` — подпись крестика, стирающего написанное в поле: он тоже
+ * один на все такие поля, и читает его вслух экранный диктор (В-131).
  */
 export const SHARED_TEXTS: Readonly<Record<string, string>> = {
   [SINGLE_KEYS.previewExample]: PREVIEW_EXAMPLE,
@@ -73,6 +76,7 @@ export const SHARED_TEXTS: Readonly<Record<string, string>> = {
   [SINGLE_KEYS.moduleOff]: MODULE_OFF_NOTE,
   [SINGLE_KEYS.calloutTipLabel]: "this tab",
   [SINGLE_KEYS.groupReset]: "Reset the group",
+  [SINGLE_KEYS.clearField]: "Clear",
 };
 
 /**

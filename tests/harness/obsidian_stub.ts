@@ -120,8 +120,19 @@ export class ToggleComponent extends BaseComponent {
 
 export class TextComponent extends BaseComponent {
   value = "";
+  /*
+   * **У поля ввода платформы узел зовётся `inputEl`**, и зовут его так те, кто
+   * ставит на поле подсказчик или читает набранное (`obsidian.d.ts`, 1.13).
+   * Заглушка знала только `el` — то есть была **строже** платформы, и код,
+   * честно спрашивавший `inputEl`, получал пустоту (У-172).
+   */
+  inputEl: StubNode;
   private handler: ((v: string) => any) | null = null;
-  constructor(parent: StubNode) { super(parent, "input"); this.el.type = "text"; }
+  constructor(parent: StubNode) {
+    super(parent, "input");
+    this.el.type = "text";
+    this.inputEl = this.el;
+  }
   setValue(v: string): this { this.value = v; this.el.value = v; return this; }
   getValue(): string { return this.value; }
   setPlaceholder(p: string): this { this.el.placeholder = p; return this; }

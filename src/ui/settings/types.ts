@@ -165,7 +165,7 @@ export type SettingDef =
    * подсказчиком папок и свободным вводом — ровно то, что просил заказчик
    * (1.6.2.3). Своего списка папок панель не собирает.
    */
-  | (Bound & { kind: "folder"; default: string; placeholder?: string; wide?: true })
+  | (Bound & { kind: "folder"; default: string; placeholder?: string; wide?: true; clearable?: true })
   | (Bound & {
     kind: "dropdown";
     options: ReadonlyArray<{ value: string; label: string }>;
@@ -187,7 +187,7 @@ export type SettingDef =
    */
   | (Bound & { kind: "slider"; min: number; max: number; step: number; unit?: string; invert?: number; default: number })
   | (Bound & { kind: "number"; min?: number; max?: number; default: number })
-  | (Bound & { kind: "text"; placeholder?: string; wide?: true; mono?: true; validate?: (v: string) => string | undefined; default: string })
+  | (Bound & { kind: "text"; placeholder?: string; wide?: true; mono?: true; validate?: (v: string) => string | undefined; default: string; clearable?: true })
   | (Bound & { kind: "textarea"; placeholder?: string; rows?: number; default: string })
   | (Bound & { kind: "color"; allowReset?: true; default: string })
   /**

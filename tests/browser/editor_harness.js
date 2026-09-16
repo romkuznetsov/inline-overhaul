@@ -229,6 +229,15 @@ const EDITOR_INJECTIONS = {
    * Поле пузыря обратно целым числом точек: «tags-bubble-height при значении
    * ниже 40 % не меняется (т.е. при 20 % высота такая же как при 40 %)».
    */
+  /*
+   * Пузырь снова равняется базовой линией: «текст уменьшается, но остаётся
+   * выровненным по нижней границе строки» (2026-09-16).
+   */
+  "bubble-baseline": {
+    file: "styles.css",
+    find: "  vertical-align: middle;",
+    replace: "  vertical-align: baseline;",
+  },
   "bubble-pad-rounded": {
     file: "src/core/editor_visuals_config.js",
     find: "    verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY * 100) / 100),",
@@ -625,7 +634,17 @@ async function openEditor(injection, opts) {
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(String((e && e.message) || e)));
   page.on("console", (m) => { if (m.type() === "error") pageErrors.push("console.error: " + m.text()); });
-  await page.goto(url);
+  /*
+   * **Настройка, от которой зависит вопрос, приезжает строкой запроса.**
+   *
+   * Нужна она одному: «пузырь стоит серединой строки» видно только при
+   * сравнении двух размеров текста, а размер в странице один на весь документ.
+   * Подменой это не сделать: подмены гейт перебирает сам и ждёт от каждой
+   * красного, а смена размера — не поломка. Собранный файл при этом один и
+   * тот же, меняется только то, что страница у него спрашивает.
+   */
+  const query = String((opts && opts.query) || "").trim();
+  await page.goto(query ? url + "?" + query : url);
   await page.waitForSelector(".cm-content");
   /*
    * Ждём **имя, которое ставит сама страница**, а не срок. Страница панели

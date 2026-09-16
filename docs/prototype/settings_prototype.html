@@ -1354,6 +1354,9 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   border: 1px solid var(--background-modifier-border); border-radius: var(--radius-s);
 }
 .io-clear:hover { border-color: var(--text-error); }
+/* Стирать нечего — кнопки нет. Правило нужно своё: у класса выше `display:
+   grid`, и умолчание браузера для `hidden` он перебивает (У-67). */
+.io-clear[hidden] { display: none; }
 .io-pick2__list {
   display: none; position: absolute; left: 0; top: calc(100% + 3px); z-index: 6;
   min-width: 168px; max-height: 176px; overflow-y: auto;
@@ -2565,7 +2568,7 @@ const SCHEMA = [
       name:"Inline to note", desc:"Allow this to create notes and add to notes you already have",
       searchTerms:["Inline2Note enabled"],
       tip:"This is the switch that lets the plugin write to your vault. Everything else on this tab only decides how. Make a backup and try it on a note you do not mind breaking: one keypress can add a note, change a note, and edit the line you were on" },
-    { kind:"folder", id:"i2n-templates-folder", path:"transform.inline2note.templatesFolder", default:"",
+    { kind:"folder", id:"i2n-templates-folder", clearable:true, path:"transform.inline2note.templatesFolder", default:"",
       name:"Templates folder", desc:"The folder your note templates live in",
       placeholder:"Pick or type a folder",
       tip:"A template is an ordinary note that a new note starts out as a copy of. Whatever you keep in this folder shows up in the lists below. Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time it is needed",
@@ -2580,7 +2583,7 @@ const SCHEMA = [
       /* Только заметки из назначенной папки (1.6.2.4). Постоянных строк
          нет: что показать, когда папки нет, решает сам источник. */
       options:[], optionsFrom:"templates" },
-    { kind:"folder", id:"i2n-output-folder", path:"transform.inline2note.outputFolder", default:"",
+    { kind:"folder", id:"i2n-output-folder", clearable:true, path:"transform.inline2note.outputFolder", default:"",
       name:"New notes folder", desc:"Where to put the notes this creates. Leave it empty to keep them next to the note you are in",
       placeholder:"Next to the note you are in",
       tip:"Start typing and Obsidian suggests the folders you already have; a name it does not know is kept as it is, and the folder is made the first time a note goes into it. Left empty, a new note lands beside the note you pressed the key in",
@@ -2660,7 +2663,7 @@ const SCHEMA = [
        header` — выбор конкретного хедера, под которым должен вставляться
        исходная инлайн запись». Его решение по спорному месту: запись ложится
        в конец секции этого заголовка, а не сразу под его строкой. */
-    { kind:"text", id:"content-target-header", path:"transform.inline2note.placement.targetHeader",
+    { kind:"text", id:"content-target-header", clearable:true, path:"transform.inline2note.placement.targetHeader",
       default:"", mono:true, placeholder:"# Header name",
       name:"Type name of header", desc:"The heading your text is filed under",
       tip:"Write the heading as it stands in the note. Put the hashes in — <code>## Log</code> — and only a heading of that depth counts; leave them out and a heading of any depth with those words will do. Upper and lower case do not matter. Two headings with the same name: the first one wins, because this box holds a name and not a place. When a note has no such heading it gets written for you, at the depth you put here — no hashes means one",
@@ -2684,11 +2687,11 @@ const SCHEMA = [
                 test: c => String(c.get("transform.inline2note.placement.headerMode") || "") !== "none" },
       options:[ {value:"0",label:"No (plain text)"}, {value:"1",label:"1"}, {value:"2",label:"2"},
                 {value:"3",label:"3"}, {value:"4",label:"4"}, {value:"5",label:"5"}, {value:"6",label:"6"} ] },
-    { kind:"text", id:"content-header-text", path:"transform.inline2note.placement.customHeader", default:"Captured", mono:true,
+    { kind:"text", id:"content-header-text", clearable:true, path:"transform.inline2note.placement.customHeader", default:"Captured", mono:true,
       name:"Text of the line above", desc:"Typed into the note exactly as you write it here",
       tip:"Just the words \u2014 hashes are added by <code>Line above is header</code> above, and any you type here are taken back out",
       visible: eq("transform.inline2note.placement.headerMode","custom") },
-    { kind:"text", id:"content-datetime", path:"transform.inline2note.placement.datetimeFormat", default:"YYYY-MM-DD HH:mm", mono:true,
+    { kind:"text", id:"content-datetime", clearable:true, path:"transform.inline2note.placement.datetimeFormat", default:"YYYY-MM-DD HH:mm", mono:true,
       name:"Date format", desc:"Today\u2019s date, written the way you set out here",
       searchTerms:["Datetime header format"],
       visible: eq("transform.inline2note.placement.headerMode","datetime"),
@@ -2740,7 +2743,7 @@ const SCHEMA = [
       name:"Insert wikilink in current line", desc:"Put a link to the new note on the line you pressed on",
       searchTerms:["Replace payload with note link", "Leave a link behind"],
       tip:"On, the line keeps a pointer: click the link and you are in the note. Off with the text taken away, nothing on the line says where it went \u2014 and you can press again by mistake and get a second note. The marker below is the usual way to guard against that" },
-    { kind:"text", id:"source-marker", path:"transform.inline2note.sourceProcessing.token", default:"#processed", mono:true,
+    { kind:"text", id:"source-marker", clearable:true, path:"transform.inline2note.sourceProcessing.token", default:"#processed", mono:true,
       name:"Mark transformed line", desc:"A word or tag added to the line so you can see it has been handled",
       searchTerms:["Processed token", "Mark the line as done"],
       tip:"Type something like <code>#moved</code>. Afterwards you can search for it to find everything you have filed, or hide those lines from a list of things still to do. Leave the box empty and nothing is added" },
@@ -2808,7 +2811,7 @@ const SCHEMA = [
   intro: "A backup is an ordinary note in your vault. It holds everything you have set up here, so you can come back to it later or carry your setup to another vault",
   tip: "Saving writes a new note every time and never overwrites an earlier one, so the folder fills up and it is on you to delete what you no longer want. Restoring replaces <b>everything</b> on every tab and asks you to restart afterwards; whether the plugin saves what you have now before it writes is the toggle below. Because a backup is an ordinary note, syncing your vault carries it to your other machine, and restoring it there is how a setup travels",
   items: [
-    { kind:"text", id:"backup-folder", path:"advanced.backups.folder", default:"inlineOverhaul/Backups", wide:true,
+    { kind:"text", id:"backup-folder", clearable:true, path:"advanced.backups.folder", default:"inlineOverhaul/Backups", wide:true,
       name:"Backup folder", desc:"Where in your vault the backups are kept",
       tip:"Any folder you like. It is made when you save the first backup, not before. Backups are ordinary notes, so they travel with the vault and sync along with the rest of it" },
     { kind:"toggle", id:"backup-before-restore", path:"advanced.backups.beforeRestore", default:true,
@@ -2838,7 +2841,7 @@ const SCHEMA = [
       name:"Machine-readable log", desc:"Also keep a second, denser log meant for tools rather than people",
       tip:"Only worth turning on if someone has asked you for it. The plain log is the one you can read yourself",
       searchTerms:["Generate log for AI?"], visible: on("advanced.devMode.enabled") },
-    { kind:"text", id:"dev-log-path", path:"advanced.devMode.logPath", default:"InlineOverhaul_DevLog", wide:true,
+    { kind:"text", id:"dev-log-path", clearable:true, path:"advanced.devMode.logPath", default:"InlineOverhaul_DevLog", wide:true,
       name:"Log file", desc:"Where in your vault the logs are put",
       tip:"They are ordinary notes, so they show up in search and in your graph. Keep them in a folder you exclude if that bothers you",
       searchTerms:["Log Path"], visible: on("advanced.devMode.enabled") }
@@ -3595,6 +3598,37 @@ function dropdownOptions(item) {
   return src ? fixed.concat(src()) : fixed;
 }
 
+/*
+ * Крестик «стереть написанное» — у полей, где пусто есть законное значение
+ * (замечание заказчика 2026-09-16: «добавь в контрол выбора папки крестик
+ * для удаления текущей выбранной папки… также добавь такой крестик во все
+ * остальные подобные контролы, где пользователь вводит текст руками»).
+ *
+ * Его решение В-131: ставить там, где пустое значение законно. У
+ * разделителей и скобок имени пустоты быть не может — там кнопка портила бы,
+ * а не помогала, и её нет.
+ *
+ * Кнопки нет и тогда, когда стирать нечего: кнопка, которая ничего не
+ * делает, хуже её отсутствия (З8). Прячется она атрибутом `hidden`, а
+ * правило для него стоит рядом с `.io-clear` — у самого класса `display:
+ * grid`, и он сильнее умолчания браузера.
+ */
+function clearButton(host, item, input) {
+  if (!item.clearable) return;
+  const btn = el("button", "io-clear", host, "✕");
+  btn.type = "button";
+  btn.setAttribute("aria-label", "Clear " + item.name);
+  const sync = () => { btn.hidden = !String(input.value || "").trim(); };
+  btn.addEventListener("click", () => {
+    input.value = "";
+    ctx.set(item.path, "");
+    sync();
+  });
+  input.addEventListener("input", sync);
+  bind(item.path, sync);
+  sync();
+}
+
 const CONTROLS = {
   /*
      Строка-подпись: имя, описание и подсказка, а контрола нет.
@@ -3628,6 +3662,7 @@ const CONTROLS = {
     VAULT_FOLDERS.filter(Boolean).forEach(f => { el("option", null, list).value = f; });
     input.addEventListener("change", () => ctx.set(item.path, input.value));
     bind(item.path, () => { input.value = String(ctx.get(item.path) || ""); });
+    clearButton(host, item, input);
   },
   dropdown(host, item) {
     const s = selectEl(host, dropdownOptions(item), String(ctx.get(item.path)), item.name);
@@ -3692,6 +3727,7 @@ const CONTROLS = {
     input.addEventListener("blur", () => ctx.set(item.path, input.value));
     input.addEventListener("keydown", e => { if (e.key === "Enter") input.blur(); });
     bind(item.path, () => { if (document.activeElement !== input) input.value = ctx.get(item.path) ?? ""; });
+    clearButton(host, item, input);
   },
   textarea(host, item) {
     const ta = el("textarea", "io-textarea", host);

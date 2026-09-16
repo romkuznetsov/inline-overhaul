@@ -68,6 +68,10 @@ export default [
         Notice: "readonly",
         MutationObserver: "readonly",
         Event: "readonly",
+        /* Страницы браузерных гейтов: настройку, от которой зависит
+           вопрос, они спрашивают у строки запроса. */
+        URLSearchParams: "readonly",
+        location: "readonly",
         KeyboardEvent: "readonly",
         MouseEvent: "readonly",
         DragEvent: "readonly",

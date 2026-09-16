@@ -5,7 +5,40 @@
 
 ## Unreleased
 
-Nothing yet.
+### Inline to note
+
+- **A template you picked no longer outlives the folder it came from.** Change
+  `Templates folder` and any template chosen outside the new folder is cleared,
+  in the Smart Rules too - a rule used to keep the full path and fail with
+  `template not found: old-folder/template.md`. Pick it again in the new folder.
+- **With no `Templates folder` set, a Smart Rule no longer offers every note in
+  the vault** as a template. Both lists now say the same thing.
+- **A heading line gives the note its own words for a name**, not the whole
+  line: Field values, element markers and separators stay out of the file name.
+- **A heading takes its section along** - everything down to the next heading of
+  the same or higher level - when `Sub-lines (tree) behavior` is set to take
+  them along. It used to take nothing: what belongs to a line was worked out
+  from indentation, and a section has none.
+- **The heading you pressed on becomes a list line** once its section has moved
+  out.
+
+### TagWheel
+
+- **Asking for an empty Block opens the other one.** Moving every Field into the
+  right Block and pressing `Open TagWheel on the left` used to draw an empty bar
+  over your line - and show your own text twice while the panel was open.
+
+### Settings
+
+- **A cross clears what you typed** in eight places: both Transform folders,
+  `Type name of header`, `Text of the line above`, `Date format`, `Mark
+  transformed line`, `Backup folder` and `Log file`. Separators and the naming
+  brackets have none: empty is not a value they can take.
+
+### Tag appearance
+
+- **A smaller `Tags text size` no longer sinks the tag to the bottom of the
+  line.** The bubble now sits on the middle of the line instead of its baseline.
 
 ## 0.2.0
 

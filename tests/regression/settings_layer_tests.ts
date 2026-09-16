@@ -404,15 +404,24 @@ async function main(): Promise<void> {
      * кнопки с подписями (C9), и гаснет та кнопка, чьё действие идёт, — а
      * подпись заодно проверяется здесь же: безымянная кнопка и была дефектом.
      */
+    /*
+     * Кнопка ищется **по тому, что она делает**, а не по месту в списке
+     * (У-5). Строк с `render` в группе стало больше одной: с 2026-09-16 своим
+     * `render` рисуется и поле папки копий — ему нужен крестик (В-131), а
+     * слота под кнопку у платформенного контрола нет. Прежний поиск брал
+     * первую попавшуюся и находил поле вместо кнопок.
+     */
     const saveButton = (): { label: string; disabled: boolean } => {
-      const row = rowsOf(pane, "advanced", "Backup").find((it: Def) => typeof it.render === "function");
-      assert.ok(row, "строка кнопок копии настроек нашлась");
-      const setting = new Setting(makeNode("div"));
-      (row as Def).render(setting, {});
-      const found = setting.components.find((c: Any) => String(c.label || "") === "Save a backup");
-      assert.ok(found, "кнопка `Save a backup` нарисована со своей подписью: "
-        + JSON.stringify(setting.components.map((c: Any) => c.label)));
-      return found as { label: string; disabled: boolean };
+      const drawn: unknown[] = [];
+      for (const row of rowsOf(pane, "advanced", "Backup")) {
+        if (typeof row.render !== "function") continue;
+        const setting = new Setting(makeNode("div"));
+        row.render(setting, {});
+        for (const c of setting.components) drawn.push((c as Any).label);
+        const found = setting.components.find((c: Any) => String(c.label || "") === "Save a backup");
+        if (found) return found as { label: string; disabled: boolean };
+      }
+      assert.fail("кнопка `Save a backup` нарисована со своей подписью: " + JSON.stringify(drawn));
     };
 
     assert.equal(saveButton().disabled, false, "до нажатия кнопка активна");

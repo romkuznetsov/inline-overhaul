@@ -135,7 +135,13 @@ interface SuggestInstance {
 type SuggestCtor = new (app: unknown, input: unknown) => SuggestInstance;
 
 /** Папки vault. Приватного API тут нет: `getAllFolders` — публичный. */
-function vaultFolders(app: unknown): string[] {
+/*
+ * Список папок и подсказчик на поле — **один дом на панель**. С 2026-09-16
+ * их спрашивает не только карточка правила, но и строки `Templates folder`
+ * и `New notes folder`: там поле рисуем мы сами, ради крестика (В-131), и
+ * своя копия подсказчика разошлась бы с этой на первой же правке (У-32).
+ */
+export function vaultFolders(app: unknown): string[] {
   try {
     const vault = (app as { vault?: { getAllFolders?: (root?: boolean) => Array<{ path?: unknown }> } }).vault;
     if (!vault || typeof vault.getAllFolders !== "function") return [];
@@ -158,7 +164,7 @@ function vaultFolders(app: unknown): string[] {
  * его нет), и тогда поле остаётся обычным полем ввода — папку вписывают
  * руками, и она создаётся при первом срабатывании правила.
  */
-function attachFolderSuggest(ctor: unknown, app: unknown, input: ElInput, write: (value: string) => void): void {
+export function attachFolderSuggest(ctor: unknown, app: unknown, input: ElInput, write: (value: string) => void): void {
   if (typeof ctor !== "function") return;
   try {
     const Base = ctor as SuggestCtor;

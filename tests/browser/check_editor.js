@@ -1057,6 +1057,83 @@ async function main() {
       }
     }
 
+    /*
+     * ---- 10. Пузырь стоит серединой строки, а не её низом ---------------
+     *
+     * Его замечание 2026-09-16: «когда я уменьшаю размер текста
+     * tags-text-size, то текст уменьшается, но остаётся выровненным по нижней
+     * границе строки. Можно ли сделать, чтобы он выравнивался по центру
+     * строки?»
+     *
+     * **Спрашивается ровно то, на что он жалуется: сдвигает ли пузырь вниз
+     * сам по себе размер текста.** Одна страница на этот вопрос ответить не
+     * может, и «насколько пузырь ниже середины написанного» — тоже не ответ:
+     * на строке со ссылкой написанное выше обычного, и пузырь стоит ниже его
+     * середины на три точки **при любом** размере текста. Это устройство
+     * строки, а не дефект (У-173: своя карта отвечает на свой вопрос).
+     *
+     * Поэтому мера — **разность двух измерений одной и той же строки** на
+     * мелком и на полном кегле. Ни одного числа, принадлежащего машине, в ней
+     * нет (У-176). До правки она была 2,7…3,6 точки, после — 0,8…1,3.
+     */
+    const shiftsAt = async (size) => {
+      const other = await openEditor(injection, { query: "size=" + size });
+      try {
+        const probe = await other.page.evaluate(() => window.__ioEditorProbe());
+        const out = new Map();
+        for (const b of probe.blockBubbles || []) {
+          const row = (probe.rows || []).find((r) => r.line === b.line);
+          if (!row || (row.visualRows || []).length !== 1) continue;
+          const written = row.visualRows[0];
+          if (!(written.bottom - written.top > 0)) continue;
+          out.set(b.line + ":" + b.token + ":" + b.left, {
+            token: b.token,
+            shift: (b.top + b.bottom) / 2 - (written.top + written.bottom) / 2,
+            bubbleHeight: b.bottom - b.top,
+          });
+        }
+        return out;
+      } finally {
+        await other.browser.close();
+      }
+    };
+    /*
+     * **Две лишние страницы открываются не на каждой подмене.** Гейт гоняет
+     * себя полсотни раз, и три страницы вместо одной стоили бы втрое
+     * дольше — цену правки назначаю я, и здесь она лишняя (У-166): подмен,
+     * которым этот вопрос вообще адресован, ровно одна. Все остальные
+     * краснеют на своих проверках.
+     */
+    const asksAboutBubbleAlign = !injection || injection === "bubble-baseline";
+    const small = asksAboutBubbleAlign ? await shiftsAt(50) : new Map();
+    const whole = asksAboutBubbleAlign ? await shiftsAt(100) : new Map();
+    const shared = asksAboutBubbleAlign
+      ? [...small.keys()].filter((k) => whole.has(k))
+      : ["пропущено"];
+    /*
+     * Контроли на каждый шаг (У-142): предмет на обеих страницах есть, и кегль
+     * до него доехал — иначе «пузырь не падает» выполнялось бы двумя
+     * одинаковыми страницами (У-110).
+     */
+    if (!asksAboutBubbleAlign) {
+      /* вопрос этой подмене не задаётся — см. выше */
+    } else if (shared.length < 3) {
+      bad("пузырей, найденных на обеих страницах, " + shared.length + " — мерить нечем");
+    } else if (!(small.get(shared[0]).bubbleHeight < whole.get(shared[0]).bubbleHeight - 1)) {
+      bad("размер текста до страницы не доехал: пузырь на мелком кегле "
+        + small.get(shared[0]).bubbleHeight + " точек, на полном "
+        + whole.get(shared[0]).bubbleHeight);
+    } else {
+      for (const key of shared) {
+        const drop = small.get(key).shift - whole.get(key).shift;
+        if (drop > 2) {
+          bad("пузырь " + JSON.stringify(small.get(key).token) + " уезжает вниз от одного лишь"
+            + " размера текста: на мелком кегле он ниже на " + Math.round(drop * 100) / 100
+            + " точки, чем на полном — человек это и называет «выровнен по нижней границе»");
+        }
+      }
+    }
+
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 
     if (problems.length) {

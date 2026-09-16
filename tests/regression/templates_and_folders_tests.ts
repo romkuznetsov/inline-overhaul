@@ -17,7 +17,7 @@
 
 import assert from "node:assert/strict";
 import { makeNode, type StubNode } from "../harness/dom_stub.ts";
-import { setupGlobals } from "../harness/obsidian_stub.ts";
+import { Setting, setupGlobals } from "../harness/obsidian_stub.ts";
 import { SCHEMA, TABS } from "../../src/ui/settings/schema/index.ts";
 import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
 import { MemoryStore } from "../../src/ui/settings/store.ts";
@@ -65,6 +65,34 @@ function itemFor(pane: SettingsPane, tab: string, key: string): Any {
   assert.fail("строки с ключом " + key + " в панели нет");
 }
 
+/**
+ * Строка, которую панель рисует **сама**, и то, что в ней нарисовано.
+ *
+ * У такой строки нет `control`, значит и ключа в нём: она ищется по имени
+ * настройки из схемы, а рисуется настоящей `Setting` — той же заглушкой, что
+ * стоит в остальных проверках слоя. Отдаётся поле ввода и крестик: спрашивать
+ * их надо у нарисованного, а не у определения (У-108).
+ */
+function renderRowFor(pane: SettingsPane, tab: string, path: string, allowMissing?: boolean): Any {
+  const item = SCHEMA.flatMap(g => g.items as Any[])
+    .find((it: Any) => it && it.path === path);
+  assert.ok(item, "настройки с путём " + path + " нет в схеме");
+  pane.setActiveTab(tab as never);
+  for (const group of pane.getSettingDefinitions() as unknown as Any[]) {
+    for (const it of (group.items || []) as Any[]) {
+      if (!it || typeof it.render !== "function" || it.name !== (item as Any).name) continue;
+      const setting = new Setting(makeNode("div"));
+      it.render(setting, {});
+      const text = setting.components.find((c: Any) => c && typeof c.setPlaceholder === "function");
+      const cross = setting.controlEl.querySelectorAll("button")
+        .find((n: Any) => String(n.className || "").includes("io-clear")) || null;
+      return { setting, text: text ? (text as Any).el : null, cross };
+    }
+  }
+  if (allowMissing) return null;
+  assert.fail("строки, которую панель рисует сама, для " + path + " нет");
+}
+
 /* ---- 1: правило «только из назначенной папки» -------------------------- */
 
 {
@@ -107,21 +135,63 @@ function itemFor(pane: SettingsPane, tab: string, key: string): Any {
   ok("шаблоны берутся только из назначенной папки, и пустота объяснена");
 }
 
-/* ---- 2: папка выбирается контролом платформы, а не печатается ---------- */
+/* ---- 2: папку не печатают наизусть, и написанное стирается крестиком --- */
 
+/*
+ * **Предмет тот же, а устройство сменилось 2026-09-16 (В-131).** Обе строки
+ * рисуются своим `render`: платформа слота под кнопку у контрола не даёт
+ * вовсе, а заказчик попросил крестик — «добавь в контрол выбора папки крестик
+ * для удаления текущей выбранной папки». Поэтому спрашивается не тип контрола,
+ * а то, что человек получает: поле с подсказкой, подсказчик папок vault и
+ * крестик, который это поле стирает.
+ */
 {
-  const { pane } = makePane({ transform: { inline2note: { enabled: true } } }, []);
+  const { pane } = makePane(
+    { transform: { inline2note: { enabled: true, templatesFolder: "Templates" } } },
+    ["Templates/task.md"],
+  );
   for (const key of [
     "transform.inline2note.templatesFolder",
     "transform.inline2note.outputFolder",
   ]) {
-    const it = itemFor(pane, "transform", key);
-    assert.equal(it.control.type, "folder",
-      key + ": контрол остался текстовым полем — папку опять приходится печатать наизусть");
-    assert.ok(String(it.control.placeholder || "").length,
+    const row = renderRowFor(pane, "transform", key);
+    assert.ok(row.text, key + ": поля ввода в строке нет вовсе");
+    assert.ok(String(row.text.placeholder || "").length,
       key + ": у поля нет подсказки, что в нём ждут");
+    assert.ok(row.cross, key + ": крестика в строке нет — стирать написанное опять руками");
+    assert.equal(String(row.cross.attrs["aria-label"] || "").startsWith("Clear"), true,
+      key + ": крестик не назвал себя для программы чтения с экрана");
   }
-  ok("обе папки просят у платформы контрол с подсказчиком vault");
+  ok("обе папки — поле с подсказкой и крестик, стирающий написанное");
+}
+
+/* ---- 2б: крестик и правда стирает, и прячется, когда стирать нечего ---- */
+
+{
+  const { pane, store } = makePane(
+    { transform: { inline2note: { enabled: true, templatesFolder: "Templates" } } },
+    ["Templates/task.md"],
+  );
+  const row = renderRowFor(pane, "transform", "transform.inline2note.templatesFolder");
+  assert.equal(row.text.value, "Templates", "поле показывает то, что записано");
+  assert.equal(row.cross.hidden, false, "есть что стирать — крестик виден");
+  row.cross.dispatch("click");
+  /* Запись идёт через хранилище и возвращает обещание: ждём его так же, как
+     ждёт сама панель. */
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(store.get("transform.inline2note.templatesFolder"), "",
+    "нажатие на крестик очистило настройку");
+  assert.equal(row.cross.hidden, true, "стирать больше нечего — крестика нет");
+
+  /*
+   * Отрицательный контроль: у строки, где пусто законным значением не бывает,
+   * крестика нет вовсе. Без него утверждения выше выполняла бы и правка
+   * «крестик всем подряд», а пустой разделитель ломает разбор строки.
+   */
+  const sep = renderRowFor(pane, "pkm", "pkm.lineFormat.separator1", true);
+  assert.equal(sep, null, "у разделителя крестика быть не должно");
+  ok("крестик стирает написанное и исчезает, когда стирать нечего");
 }
 
 /* ---- 3: список шаблонов в панели собирается из папки ------------------- */
