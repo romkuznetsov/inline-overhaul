@@ -473,10 +473,11 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
     createFieldRelocation: (deps: Any) => Any;
   };
   const statusCommonMod = requireCjs(path.join(root, "src", "core", "status_runtime_common.js")) as Any;
+  /* Доводов `isObj` и `loadOrderKeyNormalizer` у фабрики больше нет: оба
+     правила она спрашивает у дома сама (10.13.168), а здесь стояли их
+     рукописные тела. */
   const statusCommon = statusCommonMod.createStatusRuntimeCommon({
-    isObj: (x: Any) => !!x && typeof x === "object" && !Array.isArray(x),
     defaultPanel: "left",
-    loadOrderKeyNormalizer: async () => ((k: Any) => String(k || "").trim()),
     loadRuntimePreloadFacade: async () => ({}),
   });
   const rel = relocation.createFieldRelocation({

@@ -15,30 +15,25 @@
  */
 
 const shared = require("./pkm_macro_runtime_shared.js");
-const __sharedUtils = require("./shared_utils.js");
 
-/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
-   (10.13.146). Здесь было одно из шести совпадавших тел. */
-function normalizeOrderKeyDefault(key) {
-  return __sharedUtils.normalizeOrderKey(key);
-}
-
+/*
+ * Нормализатора ключа Order здесь больше нет — ни доводом, ни методом
+ * рантайма (10.13.168). Довод ехал от движка через пять слоёв, и каждое
+ * «иначе своё» на каждом слое было переходником к одному дому —
+ * `normalizeOrderKey` в `shared_utils.js`. Потребители спрашивают дом сами.
+ */
 async function loadMacroRuntimeShared() {
   globalThis.__inlinePkmMacroRuntimeSharedMod = shared;
   return shared;
 }
 
-async function bootstrapMacroRuntime(app_, normalizeOrderKeyLocal) {
+async function bootstrapMacroRuntime(app_) {
   await loadMacroRuntimeShared();
-  const normalizeKey = typeof normalizeOrderKeyLocal === "function"
-    ? normalizeOrderKeyLocal
-    : normalizeOrderKeyDefault;
   return {
     loadRuntimePreloadFacade: () => shared.loadRuntimePreloadFacade(app_),
     loadMacroShared: () => shared.loadMacroShared(app_),
     loadRulesRuntimeHelpers: () => shared.loadRulesRuntimeHelpers(app_),
     loadLinePipeline: () => shared.loadLinePipeline(app_),
-    loadOrderKeyNormalizer: () => shared.loadOrderKeyNormalizer(app_, normalizeKey),
     loadPkmOptionKeys: () => shared.loadPkmOptionKeys(app_),
   };
 }

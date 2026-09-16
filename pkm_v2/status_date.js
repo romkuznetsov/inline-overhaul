@@ -95,20 +95,19 @@ function applyPkmOptionKeys(mod) {
   DATE_RUNTIME_CONFIG = String(keys.DATE_RUNTIME_CONFIG || DATE_RUNTIME_CONFIG);
 }
 
-/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
-   (10.13.146). */
-function normalizeOrderKeyLocal(key) {
-  return __sharedUtils.normalizeOrderKey(key);
-}
-
+/*
+ * Довода «вот мой нормализатор ключа Order» здесь больше нет (10.13.168):
+ * переходник к дому передавался через пять слоёв, и каждое «иначе своё» на
+ * каждом слое вело в тот же дом — `normalizeOrderKey` в `shared_utils.js`.
+ */
 async function loadMacroRuntime(app_) {
   const globalGetter = globalThis.__inlineGetPkmMacroRuntime;
   if (typeof globalGetter === "function") {
-    return globalGetter(app_, normalizeOrderKeyLocal);
+    return globalGetter(app_);
   }
   const entry = globalThis.__inlinePkmMacroRuntimeEntryMod;
   if (entry && typeof entry.bootstrapMacroRuntime === "function") {
-    return entry.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal);
+    return entry.bootstrapMacroRuntime(app_);
   }
   throw new Error("pkm_macro_runtime_entry unavailable: bootstrapMacroRuntime");
 }
@@ -173,12 +172,9 @@ function getSharedUtils() {
 function ensureStatusRuntimeCommonLoaded() {
   if (__statusRuntimeCommonFns) return;
   __statusRuntimeCommonFns = __statusRuntimeCommonMod.createStatusRuntimeCommon({
-    isObj,
-    normalizeOrderKey: normalizeOrderKeyLocal,
     orderConfigKey: ORDER_CONFIG,
     dateRuntimeConfigKey: DATE_RUNTIME_CONFIG,
     defaultPanel: "right",
-    loadOrderKeyNormalizer: async (ctxApp) => callRuntimeApi(ctxApp, "loadOrderKeyNormalizer"),
     loadRuntimePreloadFacade: async (ctxApp) => callRuntimeApi(ctxApp, "loadRuntimePreloadFacade"),
   });
 }

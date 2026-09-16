@@ -11,12 +11,19 @@ const optionKeys = require("./pkm_option_keys.js");
 
 function createStatusRuntimeCommon(deps) {
   const d = deps && typeof deps === "object" ? deps : {};
-  const isObj = typeof d.isObj === "function"
-    ? d.isObj
-    : (x) => x && typeof x === "object" && !Array.isArray(x);
-  const normalizeOrderKey = typeof d.normalizeOrderKey === "function"
-    ? d.normalizeOrderKey
-    : ((k) => String(k || "").trim());
+  /*
+   * «Что такое объект» и «как нормализуется ключ Order» — правила с одним
+   * домом (10.13.135, 10.13.146), и фабрика спрашивает дом напрямую.
+   *
+   * Доводов `isObj` и `normalizeOrderKey` здесь больше нет, и это не сужение:
+   * все три звавших передавали переходник к тому же дому, а запасные тела за
+   * `?:` были безымянными копиями правила — той формой, к которой сторож
+   * копий слеп (У-126). Счётчик на всех местах цепочки: тело `isObj` не
+   * исполнялось ни разу, тело нормализатора — один раз, и оба только из
+   * проверки, которая довод не передавала (10.13.168).
+   */
+  const isObj = __sharedUtils.isObj;
+  const normalizeOrderKey = __sharedUtils.normalizeOrderKey;
   const orderConfigKey = String(d.orderConfigKey || "Order config");
   const dateRuntimeConfigKey = String(d.dateRuntimeConfigKey || "Date runtime config");
   const defaultPanel = String(d.defaultPanel || "left");
@@ -26,7 +33,6 @@ function createStatusRuntimeCommon(deps) {
     return fn;
   };
 
-  const loadOrderKeyNormalizer = need("loadOrderKeyNormalizer", d.loadOrderKeyNormalizer);
   const loadRuntimePreloadFacade = need("loadRuntimePreloadFacade", d.loadRuntimePreloadFacade);
 
   function remapCursorByLineDiff(oldLine, newLine, oldCh) {
@@ -74,13 +80,12 @@ function createStatusRuntimeCommon(deps) {
   }
 
   async function resolveOrderConfig(app_, settings) {
-    const normalize = await loadOrderKeyNormalizer(app_);
     const facade = await loadRuntimePreloadFacade(app_);
     if (facade && typeof facade.resolveOrderConfig === "function") {
       return facade.resolveOrderConfig(app_, settings, {
         orderConfigKey,
         parseOrderConfig,
-        normalizeKey: normalize,
+        normalizeKey: normalizeOrderKey,
         isObj,
       });
     }

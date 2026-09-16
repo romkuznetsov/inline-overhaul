@@ -43,11 +43,10 @@ function assertEq(actual, expected, name) {
 
 /*
  * Общий рантайм собирается фабрикой, а не подделкой: проверяется та самая
- * функция, которую зовёт движок. Две зависимости фабрика требует вслух, и обе
- * к разделителям отношения не имеют.
+ * функция, которую зовёт движок. Единственную зависимость фабрика требует
+ * вслух, и к разделителям она отношения не имеет.
  */
 const statusCommon = statusRuntimeCommonMod.createStatusRuntimeCommon({
-  loadOrderKeyNormalizer: () => ((k) => String(k || "").trim()),
   loadRuntimePreloadFacade: () => ({}),
 });
 

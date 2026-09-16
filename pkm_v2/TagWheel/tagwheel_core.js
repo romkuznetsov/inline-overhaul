@@ -145,15 +145,12 @@ function ensureStatusRuntimeCommonFns() {
   if (!mod || typeof mod.createStatusRuntimeCommon !== 'function') {
     throw new Error('status_runtime_common unavailable: createStatusRuntimeCommon')
   }
-  /* Нормализатор ключа Order объявлен один раз — `normalizeOrderKey` в
-     `shared_utils.js` (10.13.146). Здесь стояли два последних литерала того же
-     тела: и как довод `normalizeOrderKey`, и внутри `loadOrderKeyNormalizer`.
-     Тела совпадали до знака, и общий дом отвечает то же (10.13.160). */
+  /* Нормализатор ключа Order и признак объекта фабрика спрашивает у дома сама
+     (10.13.168). Здесь стояли три переходника к тем же домам — доводами
+     `isObj`, `normalizeOrderKey` и `loadOrderKeyNormalizer`; последний был
+     последним звавшим пятислойной цепочки, и вся она снята. */
   var fns = mod.createStatusRuntimeCommon({
-    isObj: isObj,
-    normalizeOrderKey: function (k) { return __sharedUtils.normalizeOrderKey(k) },
     defaultPanel: 'left',
-    loadOrderKeyNormalizer: async function () { return __sharedUtils.normalizeOrderKey },
     loadRuntimePreloadFacade: async function () { return null }
   })
   globalThis.__inlineStatusRuntimeCommonFns = fns

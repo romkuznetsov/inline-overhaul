@@ -189,7 +189,6 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "core", "pkm_rules_runtime_helpers.js"),
     path.join(__dirname, "..", "..", "src", "core", "date_runtime_shared.js"),
     path.join(__dirname, "..", "..", "src", "core", "tagwheel_rules_normalizer.js"),
-    path.join(__dirname, "..", "..", "pkm_v2", "field_model.js"),
   ];
   const linePipelinePath = path.join(__dirname, "..", "..", "src", "core", "line_pipeline.js");
   const pkmMacroSharedPath = path.join(__dirname, "..", "..", "src", "core", "pkm_macro_shared.js");
@@ -200,7 +199,6 @@ async function run() {
   const pkmMacroRuntimeSharedPath = path.join(__dirname, "..", "..", "src", "core", "pkm_macro_runtime_shared.js");
   const pkmLineFinalizeUnifiedPath = path.join(__dirname, "..", "..", "src", "core", "pkm_line_finalize_unified.js");
   const pkmDomainRegistryPath = path.join(__dirname, "..", "..", "src", "core", "pkm_domain_registry.js");
-  const fieldModelPath = path.join(__dirname, "..", "..", "pkm_v2", "field_model.js");
   const navigationRuntimePath = path.join(__dirname, "..", "..", "navigation_runtime.js");
   const statusRuntimeCommonPath = path.join(__dirname, "..", "..", "src", "core", "status_runtime_common.js");
   const statusLineRuntimeUnifiedPath = path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js");
@@ -254,7 +252,6 @@ async function run() {
   const pkmMacroRuntimeSharedSrc = fs.readFileSync(pkmMacroRuntimeSharedPath, "utf8");
   const pkmLineFinalizeUnifiedSrc = fs.readFileSync(pkmLineFinalizeUnifiedPath, "utf8");
   const pkmDomainRegistrySrc = fs.readFileSync(pkmDomainRegistryPath, "utf8");
-  const fieldModelSrc = fs.readFileSync(fieldModelPath, "utf8");
   const navigationRuntimeSrc = fs.readFileSync(navigationRuntimePath, "utf8");
   const statusRuntimeCommonSrc = fs.readFileSync(statusRuntimeCommonPath, "utf8");
   const statusLineRuntimeUnifiedSrc = fs.readFileSync(statusLineRuntimeUnifiedPath, "utf8");
@@ -743,18 +740,24 @@ async function run() {
    * месте**, и модель Fields своего ответа на этот вопрос не заводит (У-32).
    */
   /*
-   * Комментарии снимаются: запрет про **код**, а не про объяснение, почему
-   * кода нет. Первая версия этой строки покраснела на собственном абзаце в
-   * `field_model.js`, где эти слова названы — та же половина вопроса, о
-   * которой У-108.
+   * **`pkm_v2/field_model.js` снят целиком** (10.13.168). В нём оставалось
+   * одно тело — переходник к дому нормализации ключа Order, — и единственным
+   * звавшим был слой `loadOrderKeyNormalizer`, ушедший вместе с пятислойной
+   * цепочкой. Прежние утверждения читали текст этого файла; их предмет уехал,
+   * и зелёными они стали бы от того, что искать стало нечего (У-94).
+   *
+   * Вместо них запрет на возврат, и у него два положительных контроля:
+   * правило о типе ключа Order лежит в `pkm_domain_registry.js`, а сама
+   * нормализация ключа — в `shared_utils.js`. Без них «файла нет» было бы
+   * зелено и при потерянном правиле (У-71).
    */
-  const fieldModelCode = fieldModelSrc.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
-  assertFalse(/inferOrderFieldType|wikilink|element/.test(fieldModelCode),
-    "модель Fields не объявляет своего правила о типе ключа Order: правило живёт в pkm_domain_registry.js");
+  assertFalse(fs.existsSync(path.join(__dirname, "..", "..", "pkm_v2", "field_model.js")),
+    "pkm_v2/field_model.js снят вместе с пятислойной цепочкой нормализатора ключа Order");
   assertTrue(/wikilink/.test(pkmDomainRegistrySrc),
     "положительный контроль: правило о типе ключа действительно лежит в pkm_domain_registry.js");
-  assertFalse(/return "date"/.test(fieldModelSrc), "field model has no legacy date kind token");
-  assertFalse(/createFieldModelFromOrder/.test(fieldModelSrc), "field model has no dead createFieldModelFromOrder export");
+  assertTrue(/function normalizeOrderKey\(/.test(
+    fs.readFileSync(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"), "utf8")),
+    "положительный контроль: дом нормализации ключа Order — shared_utils.js");
   assertTrue(/const deprecatedRules = Array\.isArray\(__compatProfile\.DEPRECATED_CONFIG_KEYS\?\.rules\)/.test(cfgSrc), "migrateConfig resolves deprecated rules keys from shared compat profile module");
   /*
    * Переходник `rules.tagWheelPath` → путь служебного файла снят вместе с
@@ -1417,6 +1420,53 @@ async function run() {
       if (!anonOrderKeyBody.test(fs.readFileSync(abs, "utf8"))) continue;
       anonOrderKeyBodies.push(rel);
     }
+
+    /*
+     * **И третья форма того же: присваивание** (10.13.168). Образец выше знает
+     * тело в свойстве (`имя: функция`), а `const normalize = … : (k) =>
+     * String(k || "").trim()` не ловит ни он, ни образец по имени функции.
+     * Эта форма стояла живой в трёх местах — у общего рантайма, у загрузчика и
+     * у помощников правил, — и все три прожили под зелёным сторожем.
+     *
+     * Чинить признак третьим образцом подряд нельзя (У-201, правило 121),
+     * поэтому спрашивается **свойство**: имени про ключ Order присвоено тело,
+     * которое и есть тело дома. Ширину пришлось мерить: признак «где вообще
+     * встречается `String(x || "").trim()`» называет 242 места в рантайме и
+     * почти все чужие, а «имя про ключ Order, а за ним функция с этим телом» —
+     * ноль.
+     *
+     * **Слабость признака названа:** копия, написанная иначе (`?? ""`,
+     * `.trimStart()`, разбитая на две строки шире окна), сюда не попадёт. На
+     * этот случай стоят два образца выше и мера копий по телу
+     * (`node tools/rule_copies.js`).
+     */
+    const assignedOrderKeyBody = /(?:OrderKey|normalizeKey)\w*\s*[:=][\s\S]{0,120}?(?:\([^)]*\)\s*=>|function\s*\([^)]*\)\s*\{\s*return)\s*String\s*\(\s*\w+\s*\|\|\s*(?:""|'')\s*\)\s*\.trim\s*\(\s*\)/;
+    for (const sample of [
+      'const normalizeKey = typeof opts.normalizeKey === "function" ? opts.normalizeKey : ((k) => String(k || "").trim());',
+      "normalizeOrderKey: function (k) { return String(k || '').trim() },",
+      'const normalizeOrderKey = (k) => String(k || "").trim();',
+    ]) {
+      assertTrue(assignedOrderKeyBody.test(sample),
+        "положительный контроль: образец присвоенного тела не ловит строку-пример: " + sample.slice(0, 60));
+    }
+    for (const sample of [
+      'const curOrderKey = String(cur.orderKey || "").trim();',
+      "var leadOrderKey = String(lead[modeName] || '').trim()",
+    ]) {
+      assertFalse(assignedOrderKeyBody.test(sample),
+        "отрицательный контроль: образец считает объявлением обычное использование: " + sample.slice(0, 60));
+    }
+    const assignedOrderKeyBodies = [];
+    for (const abs of walked) {
+      const rel = path.relative(repoRoot, abs).split(path.sep).join("/");
+      if (rel === allowedOrderKeyHome) continue;
+      const code = fs.readFileSync(abs, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+      if (!assignedOrderKeyBody.test(code)) continue;
+      assignedOrderKeyBodies.push(rel);
+    }
+    assertEq(assignedOrderKeyBodies.join(" | "), "",
+      "нормализация ключа Order присвоена своим телом в: " + assignedOrderKeyBodies.join(" | "));
     assertEq(anonOrderKeyBodies.join(" | "), "",
       "нормализация ключа Order завелась безымянным телом в: " + anonOrderKeyBodies.join(" | "));
 
@@ -1679,7 +1729,19 @@ async function run() {
   assertTrue(/function loadMacroShared\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports macro loader");
   assertTrue(/function loadRulesRuntimeHelpers\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports rules helpers loader");
   assertTrue(/function resolveOrderConfig\(/.test(pkmRuntimePreloadFacadeSrc), "runtime preload facade exports order resolver");
-  assertTrue(/function loadOrderKeyNormalizer\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports order-key normalizer loader");
+  /*
+   * Запрет ищется в **коде**, а не в тексте файла: объяснение, почему слоя
+   * больше нет, само называет снятые имена, и первая версия этой строки
+   * покраснела на собственном абзаце (У-138 — мера, растущая от объяснения).
+   */
+  const pkmRuntimeBootstrapCode = pkmRuntimeBootstrapSrc
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  assertTrue(/function resolveOrderConfig\(/.test(pkmRuntimeBootstrapCode),
+    "положительный контроль: маска оставила код загрузчика на месте");
+  assertFalse(/loadOrderKeyNormalizer/.test(pkmRuntimeBootstrapCode),
+    "в загрузчике нет слоя нормализатора ключа Order: потребители спрашивают дом прямо (10.13.168)");
+  assertFalse(/__inlineOrderKeyNormalizer/.test(pkmRuntimeBootstrapCode),
+    "шва порядка загрузки под нормализатор ключа Order больше нет");
   assertTrue(/function loadOrderConfigFromPluginData\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports plugin data order-config loader");
   assertTrue(/function resolveOrderConfig\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports order-config resolver");
   assertTrue(/const hasSettingsOrder = rawSettings !== undefined && rawSettings !== null/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap detects explicit settings order config");
@@ -1730,9 +1792,18 @@ async function run() {
   assertFalse(/function resolveLegacyDateActionToOrderKey\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action resolver");
   assertFalse(/function resolveLegacyDateActionDirection\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action direction resolver");
   assertFalse(/function resolveLegacyDateActionMeta\(/.test(pkmDomainRegistrySrc), "domain registry has no legacy date-action meta resolver");
-  assertTrue(/bootstrapMacroRuntime\(app_, normalizeOrderKeyLocal\)/.test(statusTagsSrc), "status_tags uses reusable macro runtime bootstrap call");
-  assertTrue(/bootstrapMacroRuntime\(app_, normalizeOrderKeyLocal\)/.test(statusDateSrc), "status_date uses reusable macro runtime bootstrap call");
-  assertTrue(/bootstrapMacroRuntime\(app_, normalizeOrderKeyLocal\)/.test(tagwheelSrc), "tagwheel uses reusable macro runtime bootstrap call");
+  assertTrue(/bootstrapMacroRuntime\(app_\)/.test(statusTagsSrc),
+    "status_tags зовёт общий макро-рантайм без довода-нормализатора (10.13.168)");
+  assertFalse(/normalizeOrderKeyLocal/.test(statusTagsSrc),
+    "status_tags не объявляет своего переходника к дому нормализации ключа Order");
+  assertTrue(/bootstrapMacroRuntime\(app_\)/.test(statusDateSrc),
+    "status_date зовёт общий макро-рантайм без довода-нормализатора (10.13.168)");
+  assertFalse(/normalizeOrderKeyLocal/.test(statusDateSrc),
+    "status_date не объявляет своего переходника к дому нормализации ключа Order");
+  assertTrue(/bootstrapMacroRuntime\(app_\)/.test(tagwheelSrc),
+    "tagwheel зовёт общий макро-рантайм без довода-нормализатора (10.13.168)");
+  assertFalse(/normalizeOrderKeyLocal/.test(tagwheelSrc),
+    "tagwheel не объявляет своего переходника к дому нормализации ключа Order");
   assertFalse(/async function loadMacroRuntimeEntry\(/.test(statusTagsSrc), "status_tags no longer defines local loadMacroRuntimeEntry pair function");
   assertFalse(/async function loadMacroRuntimeEntry\(/.test(statusDateSrc), "status_date no longer defines local loadMacroRuntimeEntry pair function");
   assertFalse(/async function loadMacroRuntimeEntry\(/.test(tagwheelSrc), "tagwheel no longer defines local loadMacroRuntimeEntry pair function");

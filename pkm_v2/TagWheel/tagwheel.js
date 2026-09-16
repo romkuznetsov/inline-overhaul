@@ -344,11 +344,11 @@ function cleanupTagWheelState(state) {
   state.active = false
 }
 
-/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
-   (10.13.146). */
-function normalizeOrderKeyLocal(key) {
-  return __sharedUtils.normalizeOrderKey(key)
-}
+/*
+ * Довода «вот мой нормализатор ключа Order» здесь больше нет (10.13.168):
+ * переходник к дому передавался через пять слоёв, и каждое «иначе своё» на
+ * каждом слое вело в тот же дом — `normalizeOrderKey` в `shared_utils.js`.
+ */
 
 function makeFieldById(fields) {
   var list = Array.isArray(fields) ? fields : []
@@ -621,11 +621,11 @@ async function runTagWheel(input, quickAddSettings) {
   async function loadMacroRuntime(app_) {
     var globalGetter = globalThis.__inlineGetPkmMacroRuntime
     if (typeof globalGetter === 'function') {
-      return globalGetter(app_, normalizeOrderKeyLocal)
+      return globalGetter(app_)
     }
     var entry = globalThis.__inlinePkmMacroRuntimeEntryMod
     if (entry && typeof entry.bootstrapMacroRuntime === 'function') {
-      return entry.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal)
+      return entry.bootstrapMacroRuntime(app_)
     }
     throw new Error('pkm_macro_runtime_entry unavailable: bootstrapMacroRuntime')
   }
@@ -2165,7 +2165,9 @@ async function runTagWheel(input, quickAddSettings) {
     var dateRuntimeCfg = dateRuntimeShared.parseDateRuntimeConfigJson(runtimeInput.dateRuntimeConfig)
     if (!rules.behavior || typeof rules.behavior !== 'object') rules.behavior = {}
     rules.behavior.dateRuntimeConfig = dateRuntimeCfg
-    var normalizeOrderKey = await callRuntimeApi(app_, 'loadOrderKeyNormalizer')
+    /* Нормализатор ключа Order спрашивается у дома напрямую (10.13.168):
+       через рантайм он приезжал пятью слоями и был тем же самым. */
+    var normalizeOrderKey = __sharedUtils.normalizeOrderKey
     var facade = await callRuntimeApi(app_, 'loadRuntimePreloadFacade')
     var parseOrderConfigFn = function(raw, normalizeKey) {
       if (!rulesHelpers || typeof rulesHelpers.parseOrderConfig !== 'function') {

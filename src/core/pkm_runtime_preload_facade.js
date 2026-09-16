@@ -35,10 +35,6 @@ async function loadRuntimeBootstrap() {
   return bootstrap;
 }
 
-async function loadOrderKeyNormalizer(fallbackNormalize) {
-  return bootstrap.loadOrderKeyNormalizer(fallbackNormalize);
-}
-
 async function loadLinePipeline() {
   globalThis.__inlineLinePipeline = linePipeline;
   return linePipeline;
@@ -61,7 +57,6 @@ async function resolveOrderConfig(app_, settings, options) {
 
 module.exports = {
   loadRuntimeBootstrap,
-  loadOrderKeyNormalizer,
   loadLinePipeline,
   loadMacroShared,
   loadRulesRuntimeHelpers,

@@ -16,23 +16,11 @@
  */
 
 const facade = require("./pkm_runtime_preload_facade.js");
-const __sharedUtils = require("./shared_utils.js");
 const optionKeys = require("./pkm_option_keys.js");
 
 async function loadRuntimePreloadFacade() {
   globalThis.__inlineRuntimePreloadFacade = facade;
   return facade;
-}
-
-/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
-   (10.13.146). */
-function normalizeOrderKeyLocal(key) {
-  return __sharedUtils.normalizeOrderKey(key);
-}
-
-async function loadOrderKeyNormalizer(app_, fallbackNormalize) {
-  const fallback = typeof fallbackNormalize === "function" ? fallbackNormalize : normalizeOrderKeyLocal;
-  return facade.loadOrderKeyNormalizer(fallback);
 }
 
 async function loadLinePipeline() {
@@ -54,8 +42,6 @@ async function loadPkmOptionKeys() {
 
 module.exports = {
   loadRuntimePreloadFacade,
-  normalizeOrderKeyLocal,
-  loadOrderKeyNormalizer,
   loadLinePipeline,
   loadMacroShared,
   loadRulesRuntimeHelpers,

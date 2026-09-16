@@ -53,25 +53,25 @@ function applyPkmOptionKeys(mod) {
 
 applyPkmOptionKeys(__pkmOptionKeys);
 
-/* Правило объявлено один раз — `normalizeOrderKey` в `shared_utils.js`
-   (10.13.146). */
-function normalizeOrderKeyLocal(key) {
-  return __sharedUtils.normalizeOrderKey(key);
-}
+/*
+ * Довода «вот мой нормализатор ключа Order» здесь больше нет (10.13.168):
+ * переходник к дому передавался через пять слоёв, и каждое «иначе своё» на
+ * каждом слое вело в тот же дом — `normalizeOrderKey` в `shared_utils.js`.
+ */
 
 /*
- * Макро-рантайм остаётся: через него движок берёт нормализатор ключа Order и
- * прослойку предзагрузки, и он же публикует ключи `globalThis`, которые читает
- * `status_runtime_common`. Модули через него больше не ходят.
+ * Макро-рантайм остаётся: через него движок берёт прослойку предзагрузки, и
+ * он же публикует ключи `globalThis`, которые читает `status_runtime_common`.
+ * Модули через него больше не ходят.
  */
 async function loadMacroRuntime(app_) {
   const globalGetter = globalThis.__inlineGetPkmMacroRuntime;
   if (typeof globalGetter === "function") {
-    return globalGetter(app_, normalizeOrderKeyLocal);
+    return globalGetter(app_);
   }
   const entry = globalThis.__inlinePkmMacroRuntimeEntryMod;
   if (entry && typeof entry.bootstrapMacroRuntime === "function") {
-    return entry.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal);
+    return entry.bootstrapMacroRuntime(app_);
   }
   throw new Error("pkm_macro_runtime_entry unavailable: bootstrapMacroRuntime");
 }
@@ -174,12 +174,9 @@ function isObj(x) {
 function ensureStatusRuntimeCommonLoaded() {
   if (__statusRuntimeCommonFns) return;
   __statusRuntimeCommonFns = __statusRuntimeCommonMod.createStatusRuntimeCommon({
-    isObj,
-    normalizeOrderKey: normalizeOrderKeyLocal,
     orderConfigKey: ORDER_CONFIG,
     dateRuntimeConfigKey: DATE_RUNTIME_CONFIG,
     defaultPanel: "left",
-    loadOrderKeyNormalizer: async (ctxApp) => callRuntimeApi(ctxApp, "loadOrderKeyNormalizer"),
     loadRuntimePreloadFacade: async (ctxApp) => callRuntimeApi(ctxApp, "loadRuntimePreloadFacade"),
   });
 }

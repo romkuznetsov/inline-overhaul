@@ -95,9 +95,7 @@ function getConfigStoreCtor() {
 function publishPkmMacroRuntimeEntry() {
   const mod = require("../core/pkm_macro_runtime_entry.js");
   globalThis.__inlinePkmMacroRuntimeEntryMod = mod;
-  globalThis.__inlineGetPkmMacroRuntime = (app_, normalizeOrderKeyLocal) => (
-    mod.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal)
-  );
+  globalThis.__inlineGetPkmMacroRuntime = (app_) => mod.bootstrapMacroRuntime(app_);
   return mod;
 }
 

@@ -15,7 +15,6 @@
  * нормализации ключа (У-32). Модуль лежит в бандле и приезжает всегда.
  */
 
-const fieldModel = require("../../pkm_v2/field_model.js");
 const __sharedUtils = require("./shared_utils.js");
 
 /* След запасного хода загрузки объявлен один раз — `reportLoaderFallback` в
@@ -26,38 +25,16 @@ function reportLoaderFallback(stage, err) {
 }
 
 /*
- * Ключ `globalThis` остаётся швом: `status_runtime_common` и движки под З3
- * спрашивают нормализатор через него.
- *
- * **А про аргумент `fallbackNormalize` здесь было написано неверно.** Строка
- * гласила: «у TagWheel своя нормализация ключа, и она сильнее общей». Своей у
- * него не было: 2026-09-15 все шесть объявлений этого правила сверены текстом и
- * оказались побайтно равны, после чего сведены в `shared_utils.js`
- * (10.13.146). То есть выбор между «данной» и «своей» всё это время был
- * выбором между неразличимым, а звучал как решение.
- *
- * Что здесь правда и сегодня: побеждает тот, кто позвал **первым**, — результат
- * кладётся на шов и больше не пересчитывается. Пока тело одно, это ни на что не
- * влияет; заведись второе — поведение стало бы зависеть от порядка загрузки.
+ * **Нормализатора ключа Order здесь больше нет, и шва под него тоже**
+ * (10.13.168). Было: `loadOrderKeyNormalizer` брал довод, иначе брал
+ * `pkm_v2/field_model.js`, клал результат на `globalThis` и больше не
+ * пересчитывал — то есть побеждал позвавший первым. Довод приезжал сюда через
+ * пять слоёв, и все они, вместе с этим, вели в один дом —
+ * `normalizeOrderKey` в `shared_utils.js`. Потребители спрашивают дом сами,
+ * и порядок загрузки на ответ больше не влияет ничем.
  */
-function loadOrderKeyNormalizer(fallbackNormalize) {
-  if (typeof globalThis.__inlineOrderKeyNormalizer === "function") {
-    return globalThis.__inlineOrderKeyNormalizer;
-  }
-  if (typeof fieldModel.normalizeOrderKey !== "function") {
-    throw new Error("pkm_v2/field_model.js unavailable: normalizeOrderKey");
-  }
-  globalThis.__inlineOrderKeyNormalizer = typeof fallbackNormalize === "function"
-    ? fallbackNormalize
-    : fieldModel.normalizeOrderKey;
-  return globalThis.__inlineOrderKeyNormalizer;
-}
-
-async function loadOrderConfigFromPluginData(app_, options) {
-  const opts = options && typeof options === "object" ? options : {};
-  const isObj = typeof opts.isObj === "function"
-    ? opts.isObj
-    : ((x) => !!x && typeof x === "object" && !Array.isArray(x));
+async function loadOrderConfigFromPluginData(app_) {
+  const isObj = __sharedUtils.isObj;
   try {
     const af = app_ && app_.vault && typeof app_.vault.getAbstractFileByPath === "function"
       ? app_.vault.getAbstractFileByPath(".obsidian/plugins/inline-overhaul/data.json")
@@ -78,7 +55,10 @@ async function resolveOrderConfig(app_, settings, options) {
   const key = String(opts.orderConfigKey || "").trim();
   if (!key) throw new Error("pkm_runtime_bootstrap: orderConfigKey is required");
   const parseOrderConfig = typeof opts.parseOrderConfig === "function" ? opts.parseOrderConfig : null;
-  const normalizeKey = typeof opts.normalizeKey === "function" ? opts.normalizeKey : ((k) => String(k || "").trim());
+  /* Дом один — `normalizeOrderKey` в `shared_utils.js` (10.13.168). Здесь
+     стояло безымянное тело того же правила запасным ходом: довод давали все
+     звавшие, и ни один прогон в него не заходил. */
+  const normalizeKey = typeof opts.normalizeKey === "function" ? opts.normalizeKey : __sharedUtils.normalizeOrderKey;
   if (!parseOrderConfig) throw new Error("pkm_runtime_bootstrap: parseOrderConfig is required");
   const rawSettings = settings && Object.prototype.hasOwnProperty.call(settings, key) ? settings[key] : undefined;
   const hasSettingsOrder = rawSettings !== undefined && rawSettings !== null
@@ -86,13 +66,12 @@ async function resolveOrderConfig(app_, settings, options) {
   if (hasSettingsOrder) {
     return parseOrderConfig(rawSettings, normalizeKey);
   }
-  const fromPlugin = await loadOrderConfigFromPluginData(app_, { isObj: opts.isObj });
+  const fromPlugin = await loadOrderConfigFromPluginData(app_);
   if (fromPlugin) return parseOrderConfig(fromPlugin, normalizeKey);
   return parseOrderConfig(rawSettings, normalizeKey);
 }
 
 module.exports = {
-  loadOrderKeyNormalizer,
   loadOrderConfigFromPluginData,
   resolveOrderConfig,
 };

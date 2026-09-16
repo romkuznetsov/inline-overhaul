@@ -131,7 +131,10 @@ function isFieldPrerequisiteMet(field, selected) {
 
 function parseOrderConfig(raw, normalizeKey) {
   let src = raw;
-  const normalize = typeof normalizeKey === "function" ? normalizeKey : ((k) => String(k || "").trim());
+  /* Дом один — `normalizeOrderKey` в `shared_utils.js` (10.13.168). Здесь
+     стояло безымянное тело того же правила: форма, к которой сторож копий
+     был слеп, потому что знал имя функции и имя довода, а не присваивание. */
+  const normalize = typeof normalizeKey === "function" ? normalizeKey : __sharedUtils.normalizeOrderKey;
   if (typeof src === "string") {
     const s = src.trim();
     if (!s) src = null;
@@ -165,7 +168,7 @@ function parseOrderConfig(raw, normalizeKey) {
   if (!src || typeof src !== "object" || Array.isArray(src)) return out;
   const discover = new Set(Object.keys(activeDefault));
   const collect = (k) => {
-    const key = normalize(String(k || "").trim());
+    const key = normalize(k);
     if (!key) return;
     discover.add(key);
   };
@@ -325,9 +328,12 @@ function resolveFieldActiveMode(orderCfg, fieldKey) {
 function resolvePanelForField(orderCfg, fieldKey, options) {
   const opts = options && typeof options === "object" ? options : {};
   const fallback = String(opts.defaultPanel || "left").trim().toLowerCase() === "right" ? "right" : "left";
+  /* Тот же дом (10.13.168). Этот запасной ход живой: звавшие из панели
+     передают только `defaultPanel`, и до правки они получали копию
+     правила, а остальные — дом. Тела совпадали до знака. */
   const normalize = typeof opts.normalizeKey === "function"
     ? opts.normalizeKey
-    : ((k) => String(k || "").trim());
+    : __sharedUtils.normalizeOrderKey;
   const key = String(normalize(fieldKey) || "").trim();
   if (!key) return fallback;
   const enabled = orderCfg && typeof orderCfg === "object" && !Array.isArray(orderCfg) && orderCfg.enabled && typeof orderCfg.enabled === "object"
@@ -1111,7 +1117,8 @@ function applyOrderToRules(rules, orderCfg, options) {
 
   const dynamicKeys = [];
   const pushDyn = (k) => {
-    const key = String(k || "").trim();
+    /* Ключ Order приводится домом, а не на месте (10.13.168). */
+    const key = __sharedUtils.normalizeOrderKey(k);
     if (!key || dynamicKeys.includes(key)) return;
     dynamicKeys.push(key);
   };

@@ -3730,7 +3730,58 @@ async function testStatusDateKeepsElementInItsOrderBlock() {
     "токен без метки обязан отвечать пустым, а не Block-ом наугад");
 }
 
+/**
+ * **Нормализатор ключа Order у общего рантайма — это дом, а не довод**
+ * (10.13.168).
+ *
+ * До 2026-09-16 фабрика брала его доводом, довод ехал от движка через пять
+ * слоёв, и на каждом стояло «дали — бери данное, иначе моё». Все «иначе»
+ * вели в один дом, и цепочка была тождеством; теперь фабрика спрашивает дом
+ * сама.
+ *
+ * Проверка написана вместе с правкой (правило 124): до неё этот шов не
+ * исполнял ни один прогон — счётчик на месте вызова показал ноль заходов в
+ * тело, а зелёный пробой без водителя ничего не значит. Здесь фабрика
+ * собирается **без единого довода-правила**, и у неё спрашивается то самое,
+ * что она отдаёт разрешению конфига: её ответ на ключ с пробелами по краям.
+ *
+ * Мутация, которой проверка проверена: фабрика отдаёт `(k) => k` вместо дома
+ * — краснеет на первом же утверждении.
+ */
+async function testOrderKeyNormalizerComesFromTheHome() {
+  const commonMod = require(path.join(__dirname, "..", "..", "src", "core", "status_runtime_common.js"));
+  const sharedUtils = require(path.join(__dirname, "..", "..", "src", "core", "shared_utils.js"));
+
+  let seenNormalizeKey = null;
+  let seenIsObj = null;
+  const fns = commonMod.createStatusRuntimeCommon({
+    orderConfigKey: "Order config",
+    defaultPanel: "left",
+    loadRuntimePreloadFacade: async () => ({
+      resolveOrderConfig: async (app_, settings, opts) => {
+        seenNormalizeKey = opts && opts.normalizeKey;
+        seenIsObj = opts && opts.isObj;
+        return { left: [], right: [], labels: {}, types: {} };
+      },
+    }),
+  });
+
+  await fns.resolveOrderConfig({}, { "Order config": '{"left":[],"right":[]}' });
+
+  assertTrue(typeof seenNormalizeKey === "function",
+    "фабрика не передала разрешению конфига нормализатор ключа Order вовсе");
+  assertEq(seenNormalizeKey("  status  "), "status",
+    "нормализатор ключа Order от фабрики не приводит ключ к виду дома");
+  assertEq(seenNormalizeKey(null), "",
+    "нормализатор ключа Order от фабрики иначе отвечает на пустой ключ");
+  assertTrue(seenNormalizeKey === sharedUtils.normalizeOrderKey,
+    "фабрика отдаёт не дом, а своё тело: у правила снова два объявления");
+  assertTrue(typeof seenIsObj === "function" && seenIsObj === sharedUtils.isObj,
+    "признак объекта у фабрики — не дом из shared_utils.js");
+}
+
 async function run() {
+  await testOrderKeyNormalizerComesFromTheHome();
   await testQuotedLineBehavesLikeHeading();
   await testEmptyTextSlotSurvivesQuoteAndCallout();
   await testEmptyTextSlotHoldsAtAnySeparator();

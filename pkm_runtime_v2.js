@@ -65,8 +65,8 @@ function macroModuleForCommand(command) {
 async function ensureMacroRuntimeBootstrap() {
   if (typeof globalThis.__inlineGetPkmMacroRuntime === "function") return;
   globalThis.__inlinePkmMacroRuntimeEntryMod = macroRuntimeEntry;
-  globalThis.__inlineGetPkmMacroRuntime = (app_, normalizeOrderKeyLocal) =>
-    macroRuntimeEntry.bootstrapMacroRuntime(app_, normalizeOrderKeyLocal);
+  globalThis.__inlineGetPkmMacroRuntime = (app_) =>
+    macroRuntimeEntry.bootstrapMacroRuntime(app_);
 }
 
 function normalizeSettingsForCommand(command, settings) {
