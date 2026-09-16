@@ -2044,6 +2044,43 @@ async function runTagWheel(input, quickAddSettings) {
     return 'left'
   }
 
+  /**
+   * На каком Block панель откроется на самом деле.
+   *
+   * **Решение заказчика 2026-09-16 (В-130).** Его слова: «для теста я
+   * перетащил все Field в right block и открыл tagwheel left — он открылся как
+   * `====`… думаю, было бы лучше, чтобы tagwheel был умнее и сразу открывал
+   * другой block, если текущий (который пользователь вызывает командой) пустой».
+   *
+   * **«Пусто» спрашивается тем же вопросом, каким панель рисуется** —
+   * `getNavigableFieldSequence`. Списки `leftMode`/`rightMode` на этот вопрос
+   * не отвечают: сторону Field решает Order, а не то, в каком списке правил он
+   * объявлен, — правка, считавшая по спискам, на его же случае не срабатывала
+   * вовсе. Два ответа на «что покажет панель» разошлись бы молча (У-32).
+   *
+   * Отсюда и ширина: пустым Block считается и тогда, когда все его поля на
+   * этой строке спрятаны предусловием. Это шире слов заказчика («перетащил все
+   * Field в right block»), но ровно по его смыслу: открывать полосу, в которой
+   * нечего выбрать, незачем ни в том, ни в другом случае.
+   *
+   * Сосед проверяется так же: если показывать нечего ни там, ни там,
+   * открывается то, что человек и просил, — уходить некуда, и молчаливая
+   * подмена Block была бы враньём.
+   */
+  function resolvePanelOpeningMode(core_, rules_, session_) {
+    if (core_.getNavigableFieldSequence(rules_, session_).length) return session_.mode
+    var other = session_.mode === 'right' ? 'left' : 'right'
+    var probe = {}
+    var key
+    for (key in session_) {
+      if (Object.prototype.hasOwnProperty.call(session_, key)) probe[key] = session_[key]
+    }
+    probe.mode = other
+    probe.activeFieldId = ''
+    if (!core_.getNavigableFieldSequence(rules_, probe).length) return session_.mode
+    return other
+  }
+
   var preApp = resolveTagWheelApp(input)
   /*
    * Имена ключей настроек берутся у модуля, который лежит в бандле, — работа
@@ -2260,6 +2297,14 @@ async function runTagWheel(input, quickAddSettings) {
      * Согласование имени с номером и с тем, что панель рисует, делает
      * `ensureActiveFieldId` ниже — одно место на оба входа.
      */
+    /* Пустой Block открывается соседним (В-130). Решается до выбора ведущего
+       поля: иначе оно выбиралось бы среди полей той стороны, которую панель в
+       итоге не покажет. */
+    var openingMode = resolvePanelOpeningMode(core, rules, session)
+    if (openingMode !== session.mode) {
+      session.mode = openingMode
+      session.activeFieldId = ''
+    }
     session.activeField = core.resolveInitialActiveField(rules, session, session.mode)
 
     var state = {

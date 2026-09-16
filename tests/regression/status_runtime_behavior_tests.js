@@ -2208,9 +2208,21 @@ async function testTextLineWithoutListMarkerKeepsOneSeparator() {
  * и левая половина краснеет.
  */
 async function testPanelShowsItsSeparatorOnBothSides() {
+  /*
+   * **В правом Block стоит поле, которое видно всегда.** В прежней фикстуре там
+   * жил один `Project`, а он показывается только при своём родительском
+   * значении — то есть на пустой строке правый Block не показывал ничего. С
+   * 2026-09-16 (В-130) пустой Block открывается соседним, и правая половина
+   * этой проверки спрашивала бы **левую** панель, ничего об этом не говоря.
+   * Предмет проверки прежний — разделитель у полосы с обеих сторон.
+   */
   const settings = (side) => ({
     "Rules data": OWNER_SHAPE_RULES,
-    "Order config": ownerShapeOrder(),
+    "Order config": ownerShapeOrder({
+      left: ["Category", "Importance", "type"],
+      right: ["date_due", "Project"],
+      panel: { date_due: "right", Category: "left", Importance: "left", type: "left", Project: "right" },
+    }),
     "Date runtime config": OWNER_SHAPE_DATE_RUNTIME,
     "Cycle end behavior": "keep-bullet",
     "Cursor policy": "text_end",
@@ -2386,6 +2398,86 @@ async function testTagWheelFirstFieldBeatsRulesDefaultFieldId() {
  * Мутация: вернуть в `normalizeRightPayloadTailToDates` метки по стороне
  * списка — и эта проверка краснеет.
  */
+/**
+ * Открыть панель и спросить, **на каком Block она встала**.
+ *
+ * Отдельно от `runTagWheelApply`: тот закрывает сессию вторым вызовом, а
+ * вопрос здесь — про состояние открытой. Контроль «она открылась» тот же
+ * (У-152): без него утверждение о стороне спрашивало бы пустоту.
+ */
+async function openTagWheelOn(editor, settings) {
+  const app = makeAppForRuntime(editor);
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  const said = [];
+  global.window = makeWindowMock();
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  const withDates = Object.assign(
+    { "Date runtime config": TAGWHEEL_FIXTURE_DATE_RUNTIME },
+    settings || {}
+  );
+  const out = { opened: false, mode: "", fields: [], said };
+  try {
+    await runtime.runCommand({ app, command: "tagWheel", settings: withDates });
+    const st = global.window.__tagWheelState;
+    out.opened = !!(st && st.active === true);
+    if (out.opened) {
+      out.mode = String(st.session.mode || "");
+      out.fields = st.core.getNavigableFieldSequence(st.rules, st.session);
+      if (typeof st.cancel === "function") st.cancel();
+    }
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  if (!out.opened) {
+    throw new Error("TagWheel не открылся: " + JSON.stringify(said));
+  }
+  return out;
+}
+
+/**
+ * В-130: команда пустого Block открывает соседний.
+ *
+ * Замечание заказчика 2026-09-16: «для теста я перетащил все Field в right
+ * block и открыл tagwheel left — он открылся как `====`… думаю, было бы лучше,
+ * чтобы tagwheel был умнее и сразу открывал другой block, если текущий
+ * пустой». Его решение — открывать соседний.
+ */
+async function testEmptyBlockOpensTheOtherOne() {
+  const allRight = {
+    importance: "right", type: "right", category: "right", project: "right",
+    client: "right", client1: "right", date_due: "right", date_start: "right",
+    time: "right", effort: "right",
+  };
+  const moved = await openTagWheelOn(makeEditor("- [ ] #todo || text", 4), {
+    "Rules data": SYNTHETIC_RULES,
+    "Order config": buildOrderConfig({ panel: allRight }),
+    "Start setting": "left",
+    "Start mode override": "left",
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  assertEq(moved.mode, "right", "команда левого Block при пустом левом открыла правый");
+  assertTrue(moved.fields.length > 0,
+    "и на нём есть что показать: " + JSON.stringify(moved.fields));
+
+  /*
+   * Отрицательный контроль: пока в своём Block есть хоть одно поле, команда
+   * открывает ровно то, что названо в её имени. Без него утверждение выше
+   * выполняла бы и правка «всегда открывать правый».
+   */
+  const stayed = await openTagWheelOn(makeEditor("- [ ] #todo || text", 4), {
+    "Rules data": SYNTHETIC_RULES,
+    "Order config": buildOrderConfig({ panel: { type: "left", date_due: "right" } }),
+    "Start setting": "left",
+    "Start mode override": "left",
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "text_end",
+  });
+  assertEq(stayed.mode, "left", "непустой Block открывается тот, который просили");
+}
+
 async function testTagWheelKeepsElementInLeftBlockByOrder() {
   const editor = makeEditor("- \uD83D\uDCC52026-01-02 03:04 || ", 2);
   await runTagWheelApply(editor, {
@@ -3937,6 +4029,7 @@ async function run() {
   await testBulletSettingAnswersTheSameForPanelAndCommand();
   await testElementNowSpeaksTheHumanClockOnBothPaths();
   await testDateOffsetAnswersAreRight();
+  await testEmptyBlockOpensTheOtherOne();
   await testTagWheelKeepsElementInLeftBlockByOrder();
   await testStatusTagsRightOrderUsesRuntimeDateMarkerConfig();
   await testStatusTagsImportanceMinimalOffNoTrailingSeparator();
