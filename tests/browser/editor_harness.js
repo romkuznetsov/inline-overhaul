@@ -233,10 +233,26 @@ const EDITOR_INJECTIONS = {
    * Пузырь снова равняется базовой линией: «текст уменьшается, но остаётся
    * выровненным по нижней границе строки» (2026-09-16).
    */
+  /*
+   * Пузырь обратно по базовой линии. **Якорь взят с соседней строкой**: после
+   * `G4` выравнивание по середине объявлено дважды — у пузыря и у значения,
+   * которому пузырь не рисуется, — и короткий якорь перестал адресовать
+   * предмет. Поймал это сам стенд: подмена требует ровно одного вхождения.
+   */
   "bubble-baseline": {
     file: "styles.css",
-    find: "  vertical-align: middle;",
-    replace: "  vertical-align: baseline;",
+    find: "  vertical-align: middle;\n  border-radius: var(--io-tagbubble-radius);",
+    replace: "  vertical-align: baseline;\n  border-radius: var(--io-tagbubble-radius);",
+  },
+  /*
+   * Ссылка и эмодзи-элемент в Block обратно по базовой линии — ровно то
+   * состояние, из которого он принёс `G4`: «я говорил не про текст тега, а про
+   * всё, что находится в технических блоках».
+   */
+  "blockvalue-baseline": {
+    file: "styles.css",
+    find: ".io-blockvalue {\n  display: inline-block;\n  vertical-align: middle;\n}",
+    replace: ".io-blockvalue {\n  display: inline;\n}",
   },
   "bubble-pad-rounded": {
     file: "src/core/editor_visuals_config.js",

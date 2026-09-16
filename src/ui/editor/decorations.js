@@ -51,6 +51,7 @@ const {
   TAG_BUBBLE_ACCENT_CLASS,
   TAG_BUBBLE_CLICKABLE_CLASS,
   buildBlockStyleCss,
+  blockValueClassFor,
   buildElementMarkersFromConfig,
   buildFieldTagVisualMap,
   buildGlobalTagVisualMap,
@@ -347,8 +348,20 @@ class ZeroWidthInlineWidget extends cmView.WidgetType {
 
 function buildBlockStyleDecoration(entry, visuals) {
   const style = buildBlockStyleCss(entry, visuals);
-  if (!style) return null;
-  return cmView.Decoration.mark({ attributes: { style } });
+  /*
+   * **Класс ставится и тогда, когда считать нечего** (его замечание `G4`).
+   * Прежде пометка заводилась только ради вычисленных величин — прозрачности и
+   * кегля, — и на умолчании её не было вовсе. Но выравнивание по середине
+   * строки от величин не зависит: оно нужно ссылке и элементу в Block при
+   * любом размере, иначе правило действует у того, кто двигал ползунки, и не
+   * действует у всех остальных.
+   */
+  const cls = blockValueClassFor(entry, visuals);
+  if (!style && !cls) return null;
+  const spec = {};
+  if (cls) spec.class = cls;
+  if (style) spec.attributes = { style };
+  return cmView.Decoration.mark(spec);
 }
 
 function buildTagVisualDecorations(view, plugin) {

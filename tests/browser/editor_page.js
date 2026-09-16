@@ -482,6 +482,53 @@ window.__ioGeomProbe = function (lineNumber) {
   };
 };
 
+/**
+ * Как стоит написанное в Block относительно полосы `tags-block-fill`.
+ *
+ * **Мера названа его словами** (замечание `G4`, 2026-09-16): «сверху и снизу
+ * от values в технических блоках должно оставаться одинаковое расстояние до
+ * границ полоски tags-block-fill». Прежняя мера сверяла пузырь с **написанным
+ * в строке**, и она отвечает на другой вопрос: написанное меняется от любой
+ * правки вида, и середина уезжает вместе с ним.
+ *
+ * Рода два, и оба — наши узлы, а не догадка по виду: пузырь (`io-tagbubble`) и
+ * значение, которому пузырь не рисуется (`io-blockvalue` — ссылка и
+ * эмодзи-элемент).
+ */
+window.__ioBlockValueAlign = function () {
+  const round = (n) => Math.round(Number(n) * 100) / 100;
+  const bandRects = Array.from(document.querySelectorAll("." + visuals.BLOCK_FILL_MARKER_CLASS))
+    .map((el) => el.getBoundingClientRect())
+    .filter((r) => r.width > 0 && r.height > 0);
+  const nodes = []
+    .concat(Array.from(document.querySelectorAll("." + visuals.TAG_BUBBLE_CLASS))
+      .map((el) => ({ kind: "пузырь", el })))
+    .concat(Array.from(document.querySelectorAll("." + visuals.BLOCK_VALUE_CLASS))
+      .map((el) => ({ kind: "значение", el })));
+  const out = [];
+  for (const band of bandRects) {
+    for (const node of nodes) {
+      const r = node.el.getBoundingClientRect();
+      if (!(r.width > 0 && r.height > 0)) continue;
+      /* Кусок берётся тот, что лежит внутри полосы по горизонтали: полоса
+         накрывает ровно свою зону, и всё, что торчит за её края, — из другой
+         зоны или из другого зрительного ряда. */
+      if (!(r.left >= band.left - 1 && r.right <= band.right + 1)) continue;
+      if (!(Math.min(band.bottom, r.bottom) - Math.max(band.top, r.top) > 1)) continue;
+      out.push({
+        kind: node.kind,
+        text: String(node.el.textContent || "").trim().slice(0, 24),
+        over: round(r.top - band.top),
+        under: round(band.bottom - r.bottom),
+        shift: round((r.top + r.bottom) / 2 - (band.top + band.bottom) / 2),
+        bandHeight: round(band.height),
+        pieceHeight: round(r.height),
+      });
+    }
+  }
+  return out;
+};
+
 window.__ioEditorProbe = function () {
   const doc = view.state.doc;
   const rows = [];

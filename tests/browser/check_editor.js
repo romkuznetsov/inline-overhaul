@@ -1079,18 +1079,20 @@ async function main() {
     const shiftsAt = async (size) => {
       const other = await openEditor(injection, { query: "size=" + size });
       try {
-        const probe = await other.page.evaluate(() => window.__ioEditorProbe());
+        const rows = await other.page.evaluate(() => window.__ioBlockValueAlign());
         const out = new Map();
-        for (const b of probe.blockBubbles || []) {
-          const row = (probe.rows || []).find((r) => r.line === b.line);
-          if (!row || (row.visualRows || []).length !== 1) continue;
-          const written = row.visualRows[0];
-          if (!(written.bottom - written.top > 0)) continue;
-          out.set(b.line + ":" + b.token + ":" + b.left, {
-            token: b.token,
-            shift: (b.top + b.bottom) / 2 - (written.top + written.bottom) / 2,
-            bubbleHeight: b.bottom - b.top,
-          });
+        const seen = new Map();
+        for (const r of rows) {
+          /*
+           * Ключ — род, написанное и его номер среди таких же. Высота полосы в
+           * ключ не идёт: она **меняется от кегля** (24,19 против 25,42), и на
+           * такой ключ две страницы не сходятся ни одним предметом — мера
+           * молчала бы «мерить нечем» (У-143).
+           */
+          const base = r.kind + ":" + r.text;
+          const n = (seen.get(base) || 0) + 1;
+          seen.set(base, n);
+          out.set(base + ":" + n, r);
         }
         return out;
       } finally {
@@ -1104,7 +1106,9 @@ async function main() {
      * которым этот вопрос вообще адресован, ровно одна. Все остальные
      * краснеют на своих проверках.
      */
-    const asksAboutBubbleAlign = !injection || injection === "bubble-baseline";
+    const asksAboutBubbleAlign = !injection
+      || injection === "bubble-baseline"
+      || injection === "blockvalue-baseline";
     const small = asksAboutBubbleAlign ? await shiftsAt(50) : new Map();
     const whole = asksAboutBubbleAlign ? await shiftsAt(100) : new Map();
     const shared = asksAboutBubbleAlign
@@ -1118,18 +1122,44 @@ async function main() {
     if (!asksAboutBubbleAlign) {
       /* вопрос этой подмене не задаётся — см. выше */
     } else if (shared.length < 3) {
-      bad("пузырей, найденных на обеих страницах, " + shared.length + " — мерить нечем");
-    } else if (!(small.get(shared[0]).bubbleHeight < whole.get(shared[0]).bubbleHeight - 1)) {
-      bad("размер текста до страницы не доехал: пузырь на мелком кегле "
-        + small.get(shared[0]).bubbleHeight + " точек, на полном "
-        + whole.get(shared[0]).bubbleHeight);
+      bad("написанного в полосах, найденного на обеих страницах, " + shared.length + " — мерить нечем");
+    } else if (![...small.values()].some((r) => r.kind === "значение")
+      || ![...small.values()].some((r) => r.kind === "пузырь")) {
+      /*
+       * **Оба рода обязаны быть на странице** (У-113). Его замечание `G4`
+       * пришло именно оттого, что прошлая правка починила один род: пузырь. На
+       * странице без ссылки и элемента в Block правило про них проверялось бы
+       * отсутствием предмета.
+       */
+      bad("на страницах нет обоих родов написанного в Block: пузыря "
+        + [...small.values()].filter((r) => r.kind === "пузырь").length + ", значений "
+        + [...small.values()].filter((r) => r.kind === "значение").length);
+    } else if (!(shared.some((key) => small.get(key).pieceHeight < whole.get(key).pieceHeight - 1))) {
+      bad("размер текста до страницы не доехал: на мелком кегле написанное в полосах не ниже,"
+        + " чем на полном — две страницы одинаковы, и мерить нечего (У-110)");
     } else {
+      /*
+       * **Мера — его слова:** «сверху и снизу от values в технических блоках
+       * должно оставаться одинаковое расстояние до границ полоски». То есть
+       * спрашивается сдвиг от середины полосы, а не от написанного в строке:
+       * написанное меняется от любой правки вида, и середина уезжает вместе с
+       * ним — на этом прежняя мера и покраснела, когда ссылка с элементом
+       * получили своё выравнивание.
+       *
+       * **Порог назван числом, которое видно, и он не ноль.** Выравнивание
+       * идёт по середине букв, а не по середине полосы (У-131: у одной
+       * величины два вопроса, и меры у них разные), и остаток — разница между
+       * ними. Обмерено на этой странице: до правки значения уезжали на 5
+       * точек при 50 %, после — пузырь до 3,1, значение до 3,1. Порог стоит
+       * там, где кончается этот остаток; уехавшее на полполосы он ловит.
+       */
       for (const key of shared) {
-        const drop = small.get(key).shift - whole.get(key).shift;
-        if (drop > 2) {
-          bad("пузырь " + JSON.stringify(small.get(key).token) + " уезжает вниз от одного лишь"
-            + " размера текста: на мелком кегле он ниже на " + Math.round(drop * 100) / 100
-            + " точки, чем на полном — человек это и называет «выровнен по нижней границе»");
+        const row = small.get(key);
+        const limit = Math.max(3.2, row.bandHeight / 6);
+        if (Math.abs(row.shift) > limit) {
+          bad("на мелком кегле " + row.kind + " " + JSON.stringify(row.text)
+            + " стоит не по середине полосы: сверху " + row.over + ", снизу " + row.under
+            + " (сдвиг " + row.shift + " при полосе " + row.bandHeight + ")");
         }
       }
     }
