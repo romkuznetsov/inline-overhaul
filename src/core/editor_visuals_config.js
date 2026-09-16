@@ -1063,6 +1063,24 @@ function blockFillPadXPx(look, nearPx, farPx) {
 }
 
 /**
+ * Высота того, что подложка накрывает, — **одно объявление на два вопроса**.
+ *
+ * Спрашивают её двое: высота самой подложки (сколько свободного места отдать)
+ * и её вертикаль (где середина накрытого). Второй вопрос появился с его
+ * замечанием `G4`; до него мера жила внутри правила высоты, и вынесена она
+ * сюда затем, чтобы вертикаль не считала её второй раз по-своему (У-32).
+ */
+function blockFillWrittenHeightPx(rowHeightPx, textHeightPx, bubbleHeightPx) {
+  const lineH = Number(rowHeightPx);
+  const textH = Number(textHeightPx);
+  const bubbleH = Number(bubbleHeightPx);
+  return Math.max(
+    Number.isFinite(textH) && textH > 0 ? textH : lineH * BLOCK_FILL_TEXT_HEIGHT_SHARE,
+    Number.isFinite(bubbleH) && bubbleH > 0 ? bubbleH : 0,
+  );
+}
+
+/**
  * Высота подложки в точках — **одна на все строки** (замечание по S7,
  * 2026-09-09: «если в block встречается wikilink, то полоска становится выше,
  * чем в строке, в которой нет wikilink… она должна быть одинаковая во всех
@@ -1095,12 +1113,11 @@ function blockFillPadXPx(look, nearPx, farPx) {
 function blockFillBandHeightPx(look, rowHeightPx, textHeightPx, bubbleHeightPx) {
   const lineH = Number(rowHeightPx);
   if (!Number.isFinite(lineH) || lineH <= 0) return 0;
-  const textH = Number(textHeightPx);
-  const bubbleH = Number(bubbleHeightPx);
-  const written = Math.max(
-    Number.isFinite(textH) && textH > 0 ? textH : lineH * BLOCK_FILL_TEXT_HEIGHT_SHARE,
-    Number.isFinite(bubbleH) && bubbleH > 0 ? bubbleH : 0,
-  );
+  /* `written` — высота того, что подложка накрывает: значения Block, а не
+     слово человека. Кегль значений приводит звавший
+     (`blockFillWrittenTextHeightPx`); правило «какую долю свободного места
+     отдать» остаётся здесь. */
+  const written = blockFillWrittenHeightPx(lineH, textHeightPx, bubbleHeightPx);
   /*
    * Свободное место — то, что осталось от строки за написанным, и оно же вся
    * шкала. Ноль процентов: подложка ровно по написанному. Сто: заполняет
@@ -1154,6 +1171,33 @@ function blockFillRowCountTrusted(counted, blockHeight, lineHeight) {
   if (!Number.isFinite(height) || height <= 0) return true;
   if (!Number.isFinite(lineH) || lineH <= 0) return true;
   return rows >= Math.floor(height / lineH);
+}
+
+/**
+ * Высота **написанного в Block** — того, что подложка и накрывает.
+ *
+ * **Его замечание `G4`, второй заход, 2026-09-16:** «сверху и снизу от values в
+ * технических блоках должно оставаться одинаковое расстояние до границ полоски
+ * tags-block-fill». Высота подложки считалась от высоты написанного в **строке**
+ * — то есть от слова человека, набранного обычным кеглем. У него `Tags text
+ * size` = 60 %, и значения ровно настолько мельче: подложка выходила выше всего,
+ * что в ней лежит, упиралась в края зрительной строки и прижималась к ним, а
+ * значения оставались внизу. Обмерено на его настройках: полоса 21,6 при
+ * значениях 12,5…16 — свободного места ноль, и середина подложки не могла
+ * совпасть с серединой значений ни при каком ползунке.
+ *
+ * Считается **от настроек, а не от содержимого строки**: это его прежнее
+ * условие («полоска должна быть одинаковая во всех строках», 2026-09-09), и
+ * оно остаётся в силе — обе величины здесь приходят из панели, а не из того,
+ * что человек написал.
+ */
+function blockFillWrittenTextHeightPx(visuals, textHeightPx) {
+  const v = isObj(visuals) ? visuals : {};
+  const textH = Number(textHeightPx);
+  if (!Number.isFinite(textH) || textH <= 0) return textH;
+  const pct = Number(v.tagTextSizePct);
+  const share = Number.isFinite(pct) && pct > 0 ? Math.max(50, Math.min(140, Math.trunc(pct))) : 100;
+  return textH * share / 100;
 }
 
 function blockFillBubbleHeightPx(visuals) {
@@ -1710,6 +1754,7 @@ module.exports = {
   blockFillBandHeightPx,
   blockFillRowCountTrusted,
   blockFillBubbleHeightPx,
+  blockFillWrittenTextHeightPx,
   blockFillPrefixGlyphEnd,
   buildBlockFillStyleCss,
   CARET_LAYER_CLASS,

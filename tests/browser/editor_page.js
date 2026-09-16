@@ -506,7 +506,8 @@ window.__ioBlockValueAlign = function () {
     .concat(Array.from(document.querySelectorAll("." + visuals.BLOCK_VALUE_CLASS))
       .map((el) => ({ kind: "значение", el })));
   const out = [];
-  for (const band of bandRects) {
+  for (let bandIndex = 0; bandIndex < bandRects.length; bandIndex++) {
+    const band = bandRects[bandIndex];
     for (const node of nodes) {
       const r = node.el.getBoundingClientRect();
       if (!(r.width > 0 && r.height > 0)) continue;
@@ -516,6 +517,7 @@ window.__ioBlockValueAlign = function () {
       if (!(r.left >= band.left - 1 && r.right <= band.right + 1)) continue;
       if (!(Math.min(band.bottom, r.bottom) - Math.max(band.top, r.top) > 1)) continue;
       out.push({
+        band: bandIndex,
         kind: node.kind,
         text: String(node.el.textContent || "").trim().slice(0, 24),
         over: round(r.top - band.top),

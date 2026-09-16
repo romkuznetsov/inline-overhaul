@@ -396,16 +396,28 @@ async function main() {
       return window.__ioEditorProbe();
     });
     const fatSorted = fat.bands.slice().sort((a, b) => a.top - b.top);
-    let overlap = 0;
+    const overlaps = [];
     for (let i = 1; i < fatSorted.length; i++) {
       const prev = fatSorted[i - 1];
       const cur = fatSorted[i];
-      if (near(prev.top, cur.top, 0.5)) continue;
-      if (cur.top < prev.bottom - 0.5) overlap += 1;
+      /*
+       * **Своя ли это строка — спрашивается у строки, а не у близости верхов.**
+       * Здесь стояло «верхи совпали с точностью до полуточки», и это было
+       * верно, пока оба Block строки считали вертикаль по её ряду. С правкой
+       * `G4` каждый считает её по своему написанному, и верхи двух Block одной
+       * строки расходятся на точку — проверка объявляла это наездом строк друг
+       * на друга.
+       */
+      if (lineOf(fat, prev) !== null && lineOf(fat, prev) === lineOf(fat, cur)) continue;
+      if (cur.top < prev.bottom - 0.5) {
+        overlaps.push(prev.top + "…" + prev.bottom + " и " + cur.top + "…" + cur.bottom);
+      }
     }
-    if (overlap) {
-      bad("на крупном пузыре и верху шкалы высоты подложки строк наехали друг на друга "
-        + overlap + " раз(а) — прижим к зрительной строке не держит");
+    if (overlaps.length) {
+      /* Список мест, а не только их число (У-109): по числу не понять, какая
+         пара наехала, и следующая сессия начинает разбор с нуля. */
+      bad("на крупном пузыре и верху шкалы высоты подложки строк наехали друг на друга: "
+        + overlaps.join("; ") + " — прижим к зрительной строке не держит");
     }
     if (!(fat.bands[0].height >= fat.lineHeight - 0.6)) {
       bad("положительный контроль: на крупном пузыре подложка (" + fat.bands[0].height
@@ -672,10 +684,16 @@ async function main() {
               + row.visualRows.map((v) => v.top + "…" + v.bottom).join(", "));
             continue;
           }
-          const rowMid = (host[0].top + host[0].bottom) / 2;
-          if (!near(mid, rowMid, 2.5)) {
-            bad("подложка перенесённой строки " + row.line + " не по середине своего ряда: "
-              + mid + " против " + rowMid);
+          /*
+           * Мера та же, что в шестом разделе: подложка стоит **на написанном**
+           * своего ряда, а не ровно по середине его ящика (его второе
+           * замечание `G4`). Ряд перенесённой строки бывает выше написанного,
+           * и требовать середину ящика значило бы требовать того, что он
+           * попросил убрать.
+           */
+          if (mid < host[0].top - 0.6 || mid > host[0].bottom + 0.6) {
+            bad("подложка перенесённой строки " + row.line + " стоит мимо написанного"
+              + " в своём ряду: " + mid + " при ряде " + host[0].top + "…" + host[0].bottom);
           }
         }
       }
@@ -721,13 +739,37 @@ async function main() {
         bad("на строке " + row.line + " подложки не нашлось вовсе");
         continue;
       }
-      const rowMid = row.rowTop + row.rowHeight / 2;
+      /*
+       * **Мера сменилась его вторым замечанием `G4`, 2026-09-16.** Здесь
+       * стояла середина ящика строки, и до тех пор она была верна: вертикаль
+       * подложки от него и считалась. Он написал: «сверху и снизу от values в
+       * технических блоках должно оставаться одинаковое расстояние до границ
+       * полоски», — и вертикаль стала считаться по **написанному**, которое
+       * подложка накрывает. На строке, где слово человека набрано обычным
+       * кеглем, а значения уменьшены ползунком, эти две середины расходятся:
+       * обмерено на его настройках — 3,1 точки при полосе в 16,4.
+       *
+       * Что проверяется теперь: подложка стоит **внутри написанного** своей
+       * строки и не выше его середины. Это и есть то, на что он жаловался
+       * 2026-09-09 («полоска смещена выше»), а насколько точно она села на
+       * значения — мерит десятый раздел, и мерит его же словами.
+       */
+      const written = (row.visualRows || [])[0];
+      if (!written || !(written.bottom - written.top > 0)) {
+        bad("на строке " + row.line + " не измерено написанное — мерить середину не с чем");
+        continue;
+      }
+      const writtenMid = (written.top + written.bottom) / 2;
       for (const b of onRow) {
         const mid = (b.top + b.bottom) / 2;
-        if (!near(mid, rowMid, 0.6)) {
-          bad("подложка строки " + row.line + " не по её середине: середина подложки "
-            + mid + ", середина строки " + rowMid + " (высота строки " + row.rowHeight
-            + " при умолчании " + centred.lineHeight + ")");
+        if (mid < written.top - 0.6 || mid > written.bottom + 0.6) {
+          bad("подложка строки " + row.line + " стоит мимо написанного: середина подложки "
+            + mid + ", написанное " + written.top + "…" + written.bottom
+            + " (высота строки " + row.rowHeight + " при умолчании " + centred.lineHeight + ")");
+        }
+        if (mid < writtenMid - 2.5) {
+          bad("подложка строки " + row.line + " уехала выше середины написанного: "
+            + mid + " против " + writtenMid + " — это и есть «полоска смещена выше»");
         }
       }
     }
@@ -1108,7 +1150,8 @@ async function main() {
      */
     const asksAboutBubbleAlign = !injection
       || injection === "bubble-baseline"
-      || injection === "blockvalue-baseline";
+      || injection === "vertical-measured"
+      || injection === "block-loses-sizing";
     const small = asksAboutBubbleAlign ? await shiftsAt(50) : new Map();
     const whole = asksAboutBubbleAlign ? await shiftsAt(100) : new Map();
     const shared = asksAboutBubbleAlign
@@ -1155,7 +1198,14 @@ async function main() {
        */
       for (const key of shared) {
         const row = small.get(key);
-        const limit = Math.max(3.2, row.bandHeight / 6);
+        /*
+         * **Порог назван измеренным, и оба его конца известны.** Здоровая
+         * страница даёт худший промах 1,2 точки (на его настройках столько же),
+         * подмена «написанное в куске не мерится» — 3,1. Порог стоит между
+         * ними и не ближе половины точки ни к одному: доли точки здесь
+         * принадлежат шрифту машины, а не продукту (У-176).
+         */
+        const limit = 2;
         if (Math.abs(row.shift) > limit) {
           bad("на мелком кегле " + row.kind + " " + JSON.stringify(row.text)
             + " стоит не по середине полосы: сверху " + row.over + ", снизу " + row.under

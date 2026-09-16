@@ -23,6 +23,11 @@
   out.
 - **The words that became the note name now leave the line**, and the link takes
   their place - a heading used to keep its own text and grow a link beside it.
+- **A line carrying one separator is read the way the rest of the plugin reads
+  it**: the words before it are yours, the values after it are the right Block.
+  Until now Transform read it the other way round - the new note got no
+  properties, `Fields to keep` decided nothing, and the values themselves became
+  the note's name.
 - **A value standing in the other Block is seen at last.** `Fields to keep`
   decides its fate, and it reaches the new note's properties; until now only a
   value standing in the Block its Field belongs to was noticed at all.
@@ -49,6 +54,11 @@
 - **And so does everything else standing in a Block** - a link, an
   emoji-element: they keep the same distance to the top and the bottom of the
   `tags-block-fill` stripe as the bubble does.
+- **The stripe itself now measures what it covers.** Its height used to be
+  counted from the text of the line - your own words, in the normal size - so a
+  smaller `Tags text size` left the height slider nothing to divide and the
+  stripe filled the whole line. Its vertical came from the row for the same
+  reason. Both now come from the values the stripe is drawn behind.
 
 ### Line behaviour
 

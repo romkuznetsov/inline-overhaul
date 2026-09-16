@@ -31,6 +31,12 @@ const __noticeKey = __sayModule.noticeKey;
  * заглушки: не приехал — плагин обязан упасть громко.
  */
 const __rulesRuntimeHelpers = require("../core/pkm_rules_runtime_helpers.js");
+/* Деление строки на зоны спрашивается у дома, а не пишется здесь (У-153), и
+   правила для него собирает тот же сборщик, что и для движков. */
+const __linePipeline = require("../core/line_pipeline.js");
+const __rulesShape = require("../core/pkm_rules_shape.js");
+
+function getRulesShapeModule() { return __rulesShape; }
 
 function isObj(v) {
   /* Правило объявлено один раз — `isObj` в `shared_utils.js`. Копия здесь
@@ -879,8 +885,45 @@ function parseInlineLine(rawLine, cfg) {
   const secondSeparator = firstSeparator >= 0
     ? line.indexOf(separators.separator2, firstSeparator + separators.separator1.length)
     : -1;
+  /*
+   * **Единственный разделитель на строке — это второй, и знает это дом**
+   * (У-153, `splitSegments` в `line_pipeline.js`).
+   *
+   * Здесь стояло третье объявление того же правила, и оно было позиционным:
+   * что после первого разделителя — то текст человека. На строке
+   * `## dsf :: #/1 #source 📅…` — а такие он пишет — это значило, что
+   * значения полей Transform не видел **вовсе**: они не уходили со строки по
+   * `Fields to keep`, не попадали в свойства новой заметки и не отдавали ей
+   * имя. Его замечание 2026-09-16, второй заход по `G2`: «в transformed
+   * заметке не заполнились yaml properties», и там же — ссылка, вставшая в
+   * конец вместо места имени.
+   *
+   * Спрашивается дом, а не переписывается его правило: он отвечает тремя
+   * зонами, и по ним видно, чем оказался единственный разделитель. Правила для
+   * движков собираются тем же сборщиком, что у них (`pkm_rules_shape`), —
+   * своей формы правил здесь нет.
+   */
+  const singleSeparator = firstSeparator >= 0 && secondSeparator < 0;
+  let singleIsSecond = false;
+  let homeText = null;
+  if (firstSeparator >= 0) {
+    try {
+      const rules = getRulesShapeModule().buildRulesForEngines(cfg);
+      const seg = __linePipeline.splitSegments(line, rules);
+      homeText = String(seg && seg.text != null ? seg.text : "");
+      singleIsSecond = singleSeparator && !!String(seg && seg.dates || "").trim();
+    } catch (e) {
+      /* Правила могут не собраться на полуготовом конфиге — тогда остаётся
+         позиционный разбор, как было. Это проба, и ответ «нет» — ответ. */
+      homeText = null;
+    }
+  }
   const panelForSpan = (start) => {
     if (firstSeparator < 0) return "any";
+    if (singleIsSecond) {
+      if (start >= firstSeparator + separators.separator1.length) return "right";
+      return String(homeText || "").trim() ? "payload" : "left";
+    }
     if (start < firstSeparator) return "left";
     if (secondSeparator >= 0 && start >= secondSeparator + separators.separator2.length) return "right";
     return "payload";
@@ -929,7 +972,17 @@ function parseInlineLine(rawLine, cfg) {
       .map((r) => `${escapeRegexLiteral(r.marker)}\\s*${elementValuePattern(r)}`)
       .join("|")
     : null;
-  const payloadTextRaw = extractPrimaryPayloadText(line, separators);
+  /*
+   * **Слово человека на строке называет тот же дом, что и зоны.** Свой разбор
+   * брал всё, что стоит после первого разделителя, и на строке с одним
+   * разделителем отдавал под имя новой заметки **значения полей**:
+   * `## dsf :: #/1 #source 📅…` давала имя `#/1 #source 📅…`. Дом отвечает
+   * «dsf», и по нему же считаются зоны выше — один вопрос, один ответ (У-32).
+   * Не ответил (правила не собрались) — остаётся прежний разбор.
+   */
+  const payloadTextRaw = homeText === null
+    ? extractPrimaryPayloadText(line, separators)
+    : homeText;
   /* Форма ссылки — общий дом; сверено с ним, расхождений ноль (10.13.141). */
   let textCore = line
     .replace(new RegExp(__sharedUtils.WIKILINK_TOKEN_SRC, "g"), " ")
@@ -979,7 +1032,7 @@ function parseInlineLine(rawLine, cfg) {
   /* Разделители едут вместе с разбором: тот, кто читает его находки, обязан
      знать, чем они были разделены, — иначе спрашивать конфиг заново, то есть
      заводить второе объявление того же ответа (У-32). */
-  return { line, tags: uniq(tags), wikilinks: uniq(wikilinks), emojis, payloadText, tagOccurrences, wikilinkOccurrences, emojiOccurrences, separators };
+  return { line, tags: uniq(tags), wikilinks: uniq(wikilinks), emojis, payloadText, tagOccurrences, wikilinkOccurrences, emojiOccurrences, separators, singleIsSecond };
 }
 
 function getModeFields(cfg) {
@@ -1230,6 +1283,9 @@ function buildTransformContext(parsed, cfg) {
   return {
     line: String(p.line || ""),
     payloadText: String(p.payloadText || ""),
+    /* Чем оказался единственный разделитель — ответ дома, и он едет с разбором:
+       его спрашивает устройство строки после уборки (У-32). */
+    singleIsSecond: p.singleIsSecond === true,
     tags: Array.isArray(p.tags) ? p.tags.slice() : [],
     wikilinks: wl.slice(),
     emojis: emojis.slice(),
@@ -2268,7 +2324,7 @@ function planSourceCleanup(line, transformContext, cleanupFieldIds, separators) 
     .replace(new RegExp(`\\s+${escapeRegexLiteral(s1)}\\s+`, "g"), ` ${s1} `)
     .replace(/\s{2,}/g, " ")
     .replace(/\s+$/g, "");
-  const plan = planSourceLineAfterCleanup(out, separators);
+  const plan = planSourceLineAfterCleanup(out, separators, transformContext && transformContext.singleIsSecond === true);
   return { line: `${leadingIndent}${plan.line}`, payloadFirst: plan.payloadFirst };
 }
 
@@ -2372,7 +2428,7 @@ function normalizePreviewSeparators(line, separators) {
  * `- :: text :: right` остаётся с двумя Separator — так её и ждёт заказчик
  * (его пример к T4).
  */
-function planSourceLineAfterCleanup(line, separators) {
+function planSourceLineAfterCleanup(line, separators, singleIsSecond) {
   const src = String(line || "").trim();
   const plain = (value) => ({ line: value, payloadFirst: false });
   if (!src) return plain(src);
@@ -2380,6 +2436,16 @@ function planSourceLineAfterCleanup(line, separators) {
   const s2 = String(separators && separators.separator2 || "").trim();
   if (!s1 || !s2) return plain(src);
   const parts = src.split(s1).map((x) => String(x || "").trim());
+  /*
+   * **Один разделитель, и дом сказал, что он второй** — значит слово человека
+   * стоит перед ним, а значения после. Устройство строки тогда то же, что
+   * после уборки левой зоны: `payload`, потом правая часть. Без этого ответа
+   * на строке `## dsf :: #/1 …` слово человека числилось левой зоной, и
+   * ссылка вставала не на его место, а в конец (его второе замечание по `G2`).
+   */
+  if (parts.length === 2 && singleIsSecond === true) {
+    return { line: src.replace(/\s{2,}/g, " ").trim(), payloadFirst: true };
+  }
   if (parts.length < 3) return plain(src.replace(/\s{2,}/g, " ").trim());
   const left = parts[0] || "";
   const payload = parts[1] || "";

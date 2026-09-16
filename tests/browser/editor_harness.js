@@ -37,14 +37,21 @@ const outDir = path.join(os.tmpdir(), "inline-overhaul-editor-gate");
  */
 const EDITOR_INJECTIONS = {
   /*
-   * Вертикаль подложки обратно из измеренного отрезка. Ровно это и было до
-   * 2026-09-09: «если в block встречается wikilink, то полоска становится
-   * выше, чем в строке, в которой нет wikilink».
+   * **Написанное в куске больше не мерится** — подложка возвращается на
+   * вертикаль ряда. Ровно это и было до 2026-09-16, и ровно на это его второе
+   * замечание `G4`: «сверху и снизу от values в технических блоках должно
+   * оставаться одинаковое расстояние до границ полоски».
+   *
+   * Прежде эта подмена снимала вертикаль целиком (`box = null`), и предметом
+   * её была первая половина того же правила — «вертикаль из измеренного, а не
+   * из прямоугольника платформы» (2026-09-09, про ссылку). Обе половины
+   * краснеют здесь: без меры куска подложка съезжает с написанного и на
+   * строке со ссылкой, и на строке с уменьшенным `Tags text size`.
    */
   "vertical-measured": {
     file: "src/ui/editor/decorations.js",
-    find: "      const box = geom ? blockFillPieceBox(geom, piece) : null;",
-    replace: "      const box = null;",
+    find: "  if (!view || typeof view.coordsAtPos !== \"function\") return null;",
+    replace: "  if (view) return null;",
   },
   /*
    * Рост обратно односторонний, только к разделителю: «вне зависимости от
@@ -77,41 +84,22 @@ const EDITOR_INJECTIONS = {
     replace: "  const rowH = rows > 1 && geom.blockHeight > 0 ? geom.blockHeight / rows : geom.lineH;",
   },
   /*
-   * Вертикаль обратно от **блока** строки, а не от её узла. Ровно это он и
-   * увидел 2026-09-13: «в строке хедера полоска tags-block-fill смещена
-   * наверх». Блок у строки с отступом начинается выше написанного, а высоту
-   * отдаёт без отступа — подложка уезжала вверх на весь отступ.
-   */
-  "heading-band-by-block": {
-    file: "src/ui/editor/decorations.js",
-    find: "  const rowsTop = Number.isFinite(Number(geom.rowsTop)) ? Number(geom.rowsTop) : blockTop;",
-    replace: "  const rowsTop = blockTop;",
-  },
-  /*
-   * Вертикаль обратно по **ящику границы** узла, без вычета отступов. Это
-   * состояние 13 сентября, днём: мера переехала с блока на узел, гейт стал
-   * зелёным, а заказчик ответил «полоса по прежнему выше». Отступ заголовка
-   * Obsidian задаёт `padding`, и тот лежит внутри границы — то есть ящик узла
-   * у такой строки равен блоку, и переезд не двигает ничего. Подмена
-   * оставляет ровно ту правку и обязана краснеть.
-   */
-  "heading-band-by-border-box": {
-    file: "src/ui/editor/decorations.js",
-    find: "      rowsTop = Number(box.top) + padTop + toLayer;\n      rowsHeight = inner;",
-    replace: "      rowsTop = Number(box.top) + toLayer;\n      rowsHeight = Number(box.height);",
-  },
-  /*
-   * Прижим переставлен с блока на написанное — то есть тем же промахом, что и
-   * середина, только в другую сторону. У строки-заголовка написанное ниже
-   * подложки, и прижим по нему выталкивает её **вниз**, за конец строки: ровно
-   * то, на что заказчик жаловался словами «полоски на разных строках наезжают
-   * друг на друга».
+   * **Здесь стояли две подмены про вертикаль по ящику строки** —
+   * `heading-band-by-block` и `heading-band-by-border-box`, — и сняты они
+   * правкой `G4` второго захода (2026-09-16). Вертикаль подложки больше не
+   * считается от ящика строки: её задаёт написанное в самом куске, а ящик
+   * строки остался запасным путём, на который гейт не заходит вовсе. Пин на
+   * недостижимом пути зелен и не стережёт ничего (У-141).
+   *
+   * Их предмет стережёт `vertical-measured`: она снимает саму меру куска, и
+   * подложка возвращается на ту вертикаль, из-за которой он и писал «полоска
+   * смещена выше».
    */
   "heading-clamp-by-row": {
     file: "src/ui/editor/decorations.js",
-    find: "  const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : rowH * rows);\n"
+    find: "  const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : clampRowH * rows);\n"
       + "  return { top: Math.max(blockTop, Math.min(top, blockBottom - height)), height };",
-    replace: "  const rowsBottom = rowsTop + (Number(geom.rowsHeight) > 0 ? Number(geom.rowsHeight) : rowH * rows);\n"
+    replace: "  const rowsBottom = rowsTop + (Number(geom.rowsHeight) > 0 ? Number(geom.rowsHeight) : clampRowH * rows);\n"
       + "  return { top: Math.max(rowsTop, Math.min(top, rowsBottom - height)), height };",
   },
   /*
@@ -245,15 +233,18 @@ const EDITOR_INJECTIONS = {
     replace: "  vertical-align: baseline;\n  border-radius: var(--io-tagbubble-radius);",
   },
   /*
-   * Ссылка и эмодзи-элемент в Block обратно по базовой линии — ровно то
-   * состояние, из которого он принёс `G4`: «я говорил не про текст тега, а про
-   * всё, что находится в технических блоках».
+   * **Подмены `blockvalue-baseline` здесь больше нет, и это не потеря.**
+   *
+   * Она возвращала ссылку и эмодзи-элемент в Block на базовую линию — то
+   * состояние, из которого он принёс второе замечание `G4`. Пока вертикаль
+   * подложки считалась по ряду, снятие правила стоило пяти точек. Теперь
+   * подложка следует за самими значениями, и снятие двигает худший промах с
+   * 1,2 до 1,95 на его настройках: порог между этими числами был бы порогом на
+   * доли точки, а такой краснеет от смены шрифта на чужой машине (У-176).
+   *
+   * Само правило остаётся — оно и лучше на треть точки, и ставит значения на
+   * одну линию с пузырями, — а стережёт весь механизм `vertical-measured`.
    */
-  "blockvalue-baseline": {
-    file: "styles.css",
-    find: ".io-blockvalue {\n  display: inline-block;\n  vertical-align: middle;\n}",
-    replace: ".io-blockvalue {\n  display: inline;\n}",
-  },
   "bubble-pad-rounded": {
     file: "src/core/editor_visuals_config.js",
     find: "    verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY * 100) / 100),",

@@ -41,6 +41,7 @@ const {
   blockFillBandHeightPx,
   blockFillRowCountTrusted,
   blockFillBubbleHeightPx,
+  blockFillWrittenTextHeightPx,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
   TAGWHEEL_SPAN_RANK,
@@ -1466,6 +1467,70 @@ function blockFillRowGeometry(view, span, rowList, bandHeightAsk, measured) {
 }
 
 /**
+ * Ящик **написанного в самом куске** — то, что подложка накрывает.
+ *
+ * **Его замечание `G4`, второй заход, 2026-09-16:** «сверху и снизу от values в
+ * технических блоках должно оставаться одинаковое расстояние до границ полоски
+ * tags-block-fill». Полоса до этого вставала по середине **зрительной строки**,
+ * а в строке, кроме значений Block, есть слово человека — и набрано оно
+ * обычным кеглем, тогда как значения он уменьшил до 60 %. Мелкое стоит на той
+ * же базовой линии, что и крупное, поэтому середина строки выше середины
+ * значений: обмерено браузером на его настройках — 3,1 точки при полосе в
+ * 21,6, и ровно столько же он намерил на своём скриншоте (3 из 27).
+ *
+ * Мера спрашивается у браузера тем же приёмом, каким меряются ряды
+ * перенесённой строки, — `Range` по границам куска. Это проба: узла может не
+ * быть (строка вне отрисованного окна), и тогда остаётся прежняя мера.
+ */
+function blockFillPieceInkBox(view, piece, toLayer) {
+  if (!view || typeof view.coordsAtPos !== "function") return null;
+  /*
+   * **Спрашиваются края куска, а не весь его `Range`.**
+   *
+   * `Range` по куску даёт объединение всего, что в нём лежит, — вместе с
+   * пробелами между значениями. А пробел набран **обычным** кеглем, и его
+   * строчный ящик высотой во всю строку: объединение с ним всегда равно
+   * строке, и мерить им середину значений всё равно что мерить её строкой
+   * (У-173 — своя карта отвечает на свой вопрос). Края куска — это первое и
+   * последнее значение Block, и у них ящик свой.
+   */
+  try {
+    const head = view.coordsAtPos(piece.from, 1);
+    const tail = view.coordsAtPos(piece.to, -1);
+    if (!head || !tail) return null;
+    /*
+     * **Берётся тот край, у которого ящик меньше, и это выбор из трёх меренных.**
+     *
+     * Объединять ящики краёв нельзя: у ссылки, которую рисует Obsidian, ящик
+     * выше соседнего при том же кегле — и **только сверху**. Подложка по
+     * объединению на строке со ссылкой уезжала бы вверх, а это ровно его
+     * замечание 2026-09-09 («над block эта полоска уходит сильно выше — так
+     * быть не должно»); проверка, купленная тем замечанием, на объединении и
+     * краснеет.
+     *
+     * Опора на нижний край с высотой из настроек тоже мерена: на пузырях
+     * сходилось до 0,02, а на значении-дате мимо на 2,3 — её ящик выше, чем
+     * выходит по кеглю.
+     *
+     * Меньший ящик — это то, что и правда написано: лишнее у ссылки висит
+     * сверху. Его настройки: худший промах 1,2 точки против 3,1 до правки, и
+     * ссылка подложку не поднимает.
+     */
+    const boxes = [head, tail]
+      .map((c) => ({ top: Number(c.top), height: Number(c.bottom) - Number(c.top) }))
+      .filter((b) => Number.isFinite(b.top) && b.height > 0)
+      .sort((a, b) => a.height - b.height);
+    if (!boxes.length) return null;
+    const box = boxes[0];
+    return { top: box.top + toLayer, height: box.height };
+  } catch (_) {
+    /* Проба: позиции может не быть на экране. Ответ «нет» здесь ответ, а не
+       отказ. */
+    return null;
+  }
+}
+
+/**
  * Вертикаль подложки на куске: середина его зрительной строки.
  *
  * **Середина считается от высоты самой строки, а не от умолчания** (замечание
@@ -1502,9 +1567,27 @@ function blockFillPieceBox(geom, piece) {
    * уезжала вверх на 3.09. Ящик написанного по рядам отдаёт браузер
    * (`blockFillRowInkBoxes`); не отдал — остаётся деление.
    */
-  const ink = geom.rowBoxes ? geom.rowBoxes[Number(piece.row) || 0] : null;
+  /*
+   * **Середина считается по написанному в самом куске, если его удалось
+   * измерить** (его `G4`, второй заход). Ряд строки на этот вопрос отвечает
+   * приблизительно: в нём, кроме значений Block, стоит слово человека обычным
+   * кеглем, и при уменьшенном `Tags text size` середина ряда выше середины
+   * значений. Не измерили — остаётся прежний порядок: ящик ряда, а за ним
+   * деление.
+   */
+  const pieceInk = piece && piece.ink && Number(piece.ink.height) > 0 ? piece.ink : null;
+  const ink = pieceInk || (geom.rowBoxes ? geom.rowBoxes[Number(piece.row) || 0] : null);
   const rowH = ink ? ink.height : geom.rowH;
   const rowTop = ink ? ink.top : rowsTop + geom.rowH * (Number(piece.row) || 0);
+  /*
+   * **Прижим считает ряд строкой, а не написанным в куске.** Середина и прижим
+   * отвечают на разные вопросы (У-131): середина — «где стоят значения»,
+   * прижим — «не налезла ли подложка на соседнюю строку». Написанное в куске
+   * бывает сильно ниже ряда, и подставить его сюда значило бы укоротить блок
+   * строки — у крупного пузыря на верху шкалы подложки соседних строк на этом
+   * и наехали друг на друга.
+   */
+  const clampRowH = geom.rowH;
   /*
    * **Прижим высоты объявлен один раз** — в самом правиле
    * (`blockFillBandHeightPx`), и здесь его копии быть не должно: второй прижим
@@ -1531,7 +1614,7 @@ function blockFillPieceBox(geom, piece) {
    * середина подложки стоит выше середины написанного на половину разницы —
    * две точки из двадцати четырёх вместо прежних семи.
    */
-  const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : rowH * rows);
+  const blockBottom = blockTop + (geom.blockHeight > 0 ? geom.blockHeight : clampRowH * rows);
   return { top: Math.max(blockTop, Math.min(top, blockBottom - height)), height };
 }
 
@@ -1548,7 +1631,15 @@ function blockFillMarkersFor(view, plugin) {
   const look = blockFillLookFromConfig(cfg);
   /* Высота пузыря — от настроек, не от строки: одно слагаемое из трёх. */
   const bubbleH = blockFillBubbleHeightPx(getTagVisualsFromConfig(cfg));
-  const askHeight = (rowH, textH) => blockFillBandHeightPx(look, rowH, textH, bubbleH);
+  /*
+   * Высота написанного берётся **та, что лежит в Block**, а не та, что в
+   * строке: значения человек уменьшил ползунком `Tags text size`, и подложка,
+   * посчитанная от слова человека, оказывалась выше всего, что в ней лежит
+   * (его `G4`, второй заход).
+   */
+  const tagVisuals = getTagVisualsFromConfig(cfg);
+  const askHeight = (rowH, textH) => blockFillBandHeightPx(
+    look, rowH, blockFillWrittenTextHeightPx(tagVisuals, textH), bubbleH);
   /* Спрашивается один раз на отрисовку: правило одно на весь документ. */
   const flyLine = floatingButtonLineNumber(view, plugin);
   /* Ряды строки — один ответ на оба её Block (см. ниже). */
@@ -1616,7 +1707,11 @@ function blockFillMarkersFor(view, plugin) {
         head: piece.to,
         assoc: 0,
       };
-      const box = geom ? blockFillPieceBox(geom, piece) : null;
+      /* Ящик написанного в куске — мера его середины (`G4`, второй заход). */
+      const pieceWithInk = geom
+        ? Object.assign({}, piece, { ink: blockFillPieceInkBox(view, piece, geom.toLayer) })
+        : piece;
+      const box = geom ? blockFillPieceBox(geom, pieceWithInk) : null;
       const markers = cmView.RectangleMarker.forRange(view, BLOCK_FILL_MARKER_CLASS, range);
       /*
        * **Кусок, растянутый на несколько зрительных строк, рисуется по
