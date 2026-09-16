@@ -912,7 +912,7 @@ function parseInlineLine(rawLine, cfg) {
       const seg = __linePipeline.splitSegments(line, rules);
       homeText = String(seg && seg.text != null ? seg.text : "");
       singleIsSecond = singleSeparator && !!String(seg && seg.dates || "").trim();
-    } catch (e) {
+    } catch (_) {
       /* Правила могут не собраться на полуготовом конфиге — тогда остаётся
          позиционный разбор, как было. Это проба, и ответ «нет» — ответ. */
       homeText = null;
