@@ -589,15 +589,6 @@ function createStatusRuntimeCommon(deps) {
     return __sharedUtils.composeToken(prefix, rawToken);
   }
 
-  function normalizeImportanceTokenShape(tokenRaw) {
-    const src = String(tokenRaw || "").trim();
-    if (!src) return "";
-    if (/^#\//.test(src)) return src;
-    if (/^\//.test(src)) return `#${src}`;
-    if (src.charAt(0) === "#") return src;
-    return `#/${src}`;
-  }
-
   /*
    * Двух функций-помощников в подписи больше нет: они кормили свою копию
    * правила, а копия снята 2026-09-11 (В-103). Единица времени по формату
@@ -665,7 +656,6 @@ function createStatusRuntimeCommon(deps) {
     isMinimalOffNoSeparatorAction,
     hasToken,
     composeToken,
-    normalizeImportanceTokenShape,
     detectDateUnit,
     getDateProgressForStep,
     rulesFromSettings,

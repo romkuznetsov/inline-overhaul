@@ -1887,7 +1887,23 @@ async function run() {
   assertTrue(/isMinimalOffNoSeparatorAction\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared minimal-off action detector");
   assertTrue(/hasToken\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared segment-token detector");
   assertTrue(/composeToken\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared token composer");
-  assertTrue(/normalizeImportanceTokenShape\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared importance-token normalizer");
+  /*
+   * **`normalizeImportanceTokenShape` снята** (10.13.169). Пин требовал её
+   * наличия и был зелен, а звать её перестали ещё 2026-09-15, когда правило
+   * «как значение поля выглядит в строке» свели к одному дому (10.13.130):
+   * с того дня имя не упоминалось в репозитории нигде, кроме собственного
+   * объявления, выгрузки фабрики и этой строки — то есть пин стерёг
+   * мёртвое (У-141).
+   *
+   * Мера мёртвых экспортов её не видела и не увидит: она читает
+   * `module.exports`, а это имя — поле объекта, который отдаёт фабрика.
+   * Поэтому здесь стоит запрет на возврат с положительным контролем на
+   * живом соседе из той же выгрузки.
+   */
+  assertFalse(/normalizeImportanceTokenShape/.test(statusRuntimeCommonSrc),
+    "мёртвый нормализатор знака важности вернулся в общий рантайм");
+  assertTrue(/getFieldValueByToken\(/.test(statusRuntimeCommonSrc),
+    "положительный контроль: живые помощники той же выгрузки на месте");
   assertTrue(/detectDateUnit\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared date-unit detector");
   assertTrue(/getDateProgressForStep\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared date-progress resolver");
   assertTrue(/normalizeDirection\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared direction normalizer");
