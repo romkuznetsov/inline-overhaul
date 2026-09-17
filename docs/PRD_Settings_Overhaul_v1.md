@@ -8028,7 +8028,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.jumpFlash.color` | Highlight color (`jump-flash-color`) | Jump highlight |
 | `visual.jumpFlash.radius` | Highlight size (`jump-flash-radius`) | Jump highlight |
 | `visual.jumpFlash.fadeMs` | How long it lasts (`jump-flash-fade`) | Jump highlight |
-| `visual.jumpFlash.quietMs` | Quiet time between jumps (`jump-flash-delay`) | Jump highlight |
+| `visual.jumpFlash.quietMs` | Latency between jumps (`jump-flash-delay`) | Jump highlight |
 | `visual.jumpFlash.inLine` | Use inside current line (`jump-flash-inline`) | Jump highlight |
 | `transform.inline2note.floatingButton` | Floating button (`i2n-floating`) | Inline to note |
 | `transform.inline2note.floatingButtonGap` | Distance from the text (`i2n-floating-gap`) | Inline to note |
@@ -16350,9 +16350,9 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
   - диапазон: 100–1500, шаг 50, ед. ms
   - видна если: `visual.jumpFlash.enabled`
   - старые названия для поиска: «Fade speed of the jump circle»
-- **Quiet time between jumps** — `jump-flash-delay`, `slider`, path `visual.jumpFlash.quietMs`, default `0`
+- **Latency between jumps** — `jump-flash-delay`, `slider`, path `visual.jumpFlash.quietMs`, default `0`
   - desc: Jumps closer together than this get no circle at all
-  - tip: Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle
+  - tip: Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a latency and only the jump you stop on is marked. At <code>0</code> every jump gets its circle
   - диапазон: 0–1000, шаг 50, ед. ms
   - видна если: `visual.jumpFlash.enabled`
   - старые названия для поиска: «Do not flash on every jump», «Quiet time»
