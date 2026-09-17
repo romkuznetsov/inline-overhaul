@@ -198,10 +198,28 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       searchTerms:["Current Field color"],
       tip:"The Field you are standing in is the one the up and down keys move through. Without its own color it differs from the rest only by weight, and on a line with many Fields that is easy to lose. Empty means it takes <code>Non-active Field text color</code> like the others",
       allowReset:true },
+    { kind:"color", id:"panel-chosen-color", path:"visual.tagWheel.chosenValueColor", default:"",
+      name:"Chosen Value text color", desc:"The color of a Field that already carries a Value, while the line is marked",
+      searchTerms:["Chosen value color","Picked value color"],
+      tip:"A Field you are not standing on shows either its own name or the Value you gave it, and until now both were painted the same. Give the Value a color of its own and one glance tells you which Fields on this line are already filled in. Empty means it takes <code>Non-active Field text color</code>, as before. The Field you are standing on has its own row above",
+      allowReset:true },
     { kind:"color", id:"panel-background", path:"visual.tagWheel.fillColor", default:"",
       name:"Background color", desc:"The color behind the picker, while the line is marked",
       searchTerms:["Background"],
       tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the TagWheel line</code> on: the marks are what carries the color", allowReset:true },
+    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
+      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
+      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
+      options:[ {value:"stay",label:"Stay in the same Block"},
+                {value:"next-block",label:"Move to the next Block"} ],
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+  ]
+},
+{
+  id: "tagwheel-scroller", tab: "visual", order: 320, heading: "TagWheel Scroller",
+  intro: "The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming",
+  tip: "Without it TagWheel shows you only the Value you are standing on, and a long list has to be stepped through blind. The box is drawn by the picker over your note and takes its own colors, not the colors of the panel: the preview just above shows both at once",
+  items: [
     { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:false,
       name:"Scroller", desc:"Show the next and previous Values around the current one",
       tip:"Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through",
@@ -226,13 +244,7 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       min:1, max:20, step:1,
       name:"Scroller size", desc:"How many neighboring Values stay visible around the current one",
       tip:"How many neighbours are shown on each side, not in total. A small number keeps the scroller out of the way; a large one lets you see the whole set of a short Field at once. It never shows more than the Field has",
-      searchTerms:["Values per side"], visible: on("visual.tagWheel.scroller.enabled") },
-    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
-      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
-      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
-      options:[ {value:"stay",label:"Stay in the same Block"},
-                {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+      searchTerms:["Values per side"], visible: on("visual.tagWheel.scroller.enabled") }
   ]
 },
 {

@@ -1082,6 +1082,7 @@ function normalizeConfigV2(cfg) {
   }
   /* Цвет активного Field: он на строке, а не в коробке скроллера (10.13.15). */
   hex("visual.tagWheel.activeTextColor");
+  hex("visual.tagWheel.chosenValueColor");
 
   /* --- запомненное состояние панели -------------------------------------- */
   /* Высота таблицы Fields. Ступень третья, а не первая: переключатель пишет

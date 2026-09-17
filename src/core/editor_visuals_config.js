@@ -33,6 +33,9 @@ function getTagwheelHeaderColorsFromConfig(cfg) {
     defaultTextColor: normalizeHexColorInput(wheel.textColor),
     /* Цвет активного Field: пусто — он красится как остальные (10.13.15). */
     activeTextColor: normalizeHexColorInput(wheel.activeTextColor),
+    /* Цвет ячейки с уже выбранным значением: пусто — красится как
+       остальные неактивные (его заказ 2026-09-17). */
+    chosenValueColor: normalizeHexColorInput(wheel.chosenValueColor),
     fillColor: normalizeHexColorInput(wheel.fillColor),
     showPrefix: wheel.showMarkers !== false,
   };
@@ -1553,7 +1556,8 @@ function tagwheelPanelSpanInLine(text, colors) {
 function tagwheelPanelPaints(colors) {
   if (!colors) return false;
   return Boolean(colors.fillColor) || Boolean(colors.defaultTextColor)
-    || Boolean(colors.activeTextColor) || colors.showPrefix === false;
+    || Boolean(colors.activeTextColor) || Boolean(colors.chosenValueColor)
+    || colors.showPrefix === false;
 }
 
 /**
@@ -1602,6 +1606,7 @@ function tagwheelPanelSpans(text, colors, placeholders) {
   const fillColor = String(colors && colors.fillColor || "");
   const textColor = String(colors && colors.defaultTextColor || "");
   const activeColor = String(colors && colors.activeTextColor || "") || textColor;
+  const chosenColor = String(colors && colors.chosenValueColor || "");
   const showPrefix = !(colors && colors.showPrefix === false);
 
   /*
@@ -1661,6 +1666,58 @@ function tagwheelPanelSpans(text, colors, placeholders) {
    * значение обычное — так и просил заказчик. `!important` нужен потому, что
    * полужирным ячейку делает и сам Obsidian, по звёздочкам вокруг неё.
    */
+  /*
+   * **Ячейка, в которой значение уже выбрано** — его заказ 2026-09-17: «сейчас
+   * в tagwheel дефолтное значение field (само название field) визуально не
+   * различается от измененного значения field… при `Type` цвет field должен
+   * определяться panel-text-color, а при `#todo` в зависимости от этого
+   * контрола».
+   *
+   * **Ячейки здесь не режутся, и это нарочно** — резать их значило бы завести
+   * второй разбор панели рядом с движком (У-4). Красится **дополнение**: из
+   * отрезка панели вычитается всё, что рисует не выбранное значение, — имя
+   * поля и активная ячейка, — а остальное и есть выбранные значения. Пробелы
+   * между ячейками попадают в дополнение и знаков не несут, так что цвет на
+   * них не виден.
+   *
+   * **Имя поля узнаётся по обратным кавычкам, и только по ним.** Так его
+   * печатает сам движок (`buildGroupDisplay`), и это единственная пометка,
+   * которую он на имя ставит. Второй способ — искать имена поля из конфига в
+   * тексте панели — здесь стоял и был снят: он признак **по образцу** (У-201)
+   * и красит не тем цветом любое значение, внутри которого случилось имя поля
+   * (`Type` внутри `#Typed`). Имя группы, склеенной из двух полей, он не
+   * находит вовсе — а кавычки находят.
+   */
+  if (chosenColor) {
+    const keep = [];
+    const codeRe = /`[^`]*`/g;
+    let hit;
+    while ((hit = codeRe.exec(segment)) !== null) {
+      keep.push([hit.index, hit.index + String(hit[0] || "").length]);
+    }
+    const activeHit = TAGWHEEL_ACTIVE_CELL_RE.exec(segment);
+    TAGWHEEL_ACTIVE_CELL_RE.lastIndex = 0;
+    if (activeHit) {
+      keep.push([activeHit.index, activeHit.index + String(activeHit[0] || "").length]);
+    }
+    keep.sort((x, y) => x[0] - y[0]);
+    let at = 0;
+    const paint = (from, to) => {
+      if (to <= from) return;
+      out.push({
+        kind: "chosen",
+        start: innerAt + from,
+        end: innerAt + to,
+        style: "color: " + chosenColor + ";",
+      });
+    };
+    for (const range of keep) {
+      if (range[0] > at) paint(at, range[0]);
+      if (range[1] > at) at = range[1];
+    }
+    paint(at, segment.length);
+  }
+
   const active = TAGWHEEL_ACTIVE_CELL_RE.exec(segment);
   if (active) {
     const inner = String(active[1] || "");
@@ -1701,7 +1758,7 @@ function tagwheelPanelSpans(text, colors, placeholders) {
 }
 
 /** Порядок наложения: строка, общий цвет, активная ячейка, подмена токена. */
-const TAGWHEEL_SPAN_RANK = { line: -1, text: 1, active: 2, replace: 3 };
+const TAGWHEEL_SPAN_RANK = { line: -1, text: 1, chosen: 2, active: 3, replace: 4 };
 
 /**
  * Переменные темы, которыми красится панель TagWheel, пока цвет не задан

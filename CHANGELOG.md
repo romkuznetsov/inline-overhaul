@@ -24,6 +24,17 @@
   your text sat in the left zone and was painted as a left Block value - on a
   setup whose left Block holds no Fields at all.
 
+- **New: a Field that already has a Value can be told apart at a glance.** In
+  `TagWheel`, a Field you are not standing on shows either its own name or the
+  Value you gave it, and both were painted the same. `Chosen Value text color`,
+  under `Active Field text color`, gives the Value a color of its own. Empty
+  means it takes `Non-active Field text color`, as before. The preview beside
+  the settings now shows one filled Field, so the control has something to work
+  on.
+- **The scroller settings moved into a group of their own**, `TagWheel
+  Scroller`, directly under `TagWheel`. Nothing changed but where they sit: the
+  `TagWheel` group had grown past the twelve rows a group is allowed.
+
 ### Tags & PKM
 
 - **A Field the line does not currently show still owns its Value.** A Field can

@@ -303,6 +303,10 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tagWheel.showMarkers"),
   keepV2("visual.tagWheel.highlightLine"),
   keepV2("visual.tagWheel.textColor"),
+  /* Цвет ячейки с выбранным значением (его заказ 2026-09-17). Ветка новая —
+     пары в версии 1 у неё нет, и без маршрута форма v2 уехала бы в
+     `_unmigrated` (МГ3). */
+  keepV2("visual.tagWheel.chosenValueColor"),
   keepV2("visual.tagWheel.fillColor"),
   keepV2("visual.tagWheel.scroller.enabled"),
   keepV2("visual.tagWheel.scroller.direction"),

@@ -36,6 +36,7 @@ import { toHexColor } from "./contrast.ts";
 export const THEME_COLOR_VARS: Readonly<Record<string, string>> = {
   "visual.tagWheel.textColor": "--text-muted",
   "visual.tagWheel.activeTextColor": "--text-accent",
+  "visual.tagWheel.chosenValueColor": "--text-muted",
   "visual.tagWheel.fillColor": "--text-highlight-bg",
   "visual.tagWheel.scroller.fillColor": "--background-primary",
   "visual.tagWheel.scroller.textColor": "--text-normal",

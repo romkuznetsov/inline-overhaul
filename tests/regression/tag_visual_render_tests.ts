@@ -737,6 +737,88 @@ const filled = (el: Any): boolean =>
 }
 
 {
+  /*
+   * **Цвет ячейки с уже выбранным значением** — его заказ 2026-09-17: «сейчас
+   * в tagwheel дефолтное значение field (само название field) визуально не
+   * различается от измененного значения field (когда пользователь выбрал
+   * value)… при `Type` цвет field должен определяться panel-text-color, а при
+   * `#todo` в зависимости от этого контрола».
+   *
+   * Ячейки не режутся: красится **дополнение** — из отрезка панели вычитается
+   * всё, что рисует не выбранное значение. Поэтому утверждения написаны про
+   * то, **что попало под цвет**, а не про число отрезков: число зависит от
+   * того, сколько имён полей стоит между значениями, и говорило бы о фикстуре.
+   */
+  const known = new Set(["Imp", "Type", "Cat"]);
+  const wheel = {
+    textColor: "#a5a0d4", activeTextColor: "#ff0000", chosenValueColor: "#00aa55",
+    showMarkers: true,
+  };
+  const colors = I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: wheel } });
+  /* Панель: активная ячейка, выбранное значение и имя поля в обратных
+     кавычках — три состояния разом, иначе правило проверялось бы на одном. */
+  const line = "- ==**[#/1]** #todo `Cat`== || тест";
+  const painted = (I.tagwheelPanelSpans(line, colors, known) as Any[])
+    .filter(x => x.kind === "chosen")
+    .map(x => line.slice(x.start, x.end));
+  const joined = painted.join("");
+
+  assert.ok(joined.includes("#todo"),
+    "выбранное значение красится своим цветом: " + JSON.stringify(painted));
+  assert.ok(!joined.includes("Cat"),
+    "а имя поля — нет, оно остаётся цветом неактивных: " + JSON.stringify(painted));
+  assert.ok(!joined.includes("#/1"),
+    "и активная ячейка не трогается, у неё свой цвет: " + JSON.stringify(painted));
+
+  /*
+   * **Имя поля узнаётся по обратным кавычкам, а не только по набору имён.**
+   * Набор собран из конфига и знает поля поимённо; движок же печатает имя
+   * **группы**, а группа бывает склеена из двух полей (`#parent/#child`), и
+   * такого имени в наборе нет. Без этого утверждения ветка с кавычками была бы
+   * зелёной от того, что её работу делает набор (У-56).
+   */
+  const merged = "- ==**[#/1]** #todo `Type+Cat`== || тест";
+  const mergedPaint = (I.tagwheelPanelSpans(merged, colors, known) as Any[])
+    .filter(x => x.kind === "chosen")
+    .map(x => merged.slice(x.start, x.end))
+    .join("");
+  assert.ok(!mergedPaint.includes("Type+Cat"),
+    "имя склеенной группы — тоже имя поля, и оно не красится как значение: "
+    + JSON.stringify(mergedPaint));
+  assert.ok(mergedPaint.includes("#todo"),
+    "а значение рядом с ним красится по-прежнему: " + JSON.stringify(mergedPaint));
+
+  /*
+   * Отрицательный контроль, и он здесь важнее остальных: без своего цвета
+   * отрезков этого рода быть не должно вовсе — иначе «пусто» красило бы
+   * пустой строкой и гасило текст.
+   */
+  const without = (I.tagwheelPanelSpans(
+    line,
+    I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: { textColor: "#a5a0d4", showMarkers: true } } }),
+    known,
+  ) as Any[]).filter(x => x.kind === "chosen");
+  assert.deepEqual(without, [],
+    "без своего цвета выбранное значение не красится ничем: " + JSON.stringify(without));
+
+  /*
+   * И второй: **один** цвет ячейки без остальных всё равно оформляет панель.
+   * Признак «панель вообще красится» перечислял цвета поимённо, и новый в него
+   * надо было вписать — иначе человек, задавший только его, не увидел бы
+   * ничего (У-32).
+   */
+  const alone = I.tagwheelPanelSpans(
+    line,
+    I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: { chosenValueColor: "#00aa55", showMarkers: true } } }),
+    known,
+  ) as Any[];
+  assert.ok(alone.some(x => x.kind === "chosen"),
+    "заданный один этот цвет оформляет панель сам по себе: " + JSON.stringify(alone.map(x => x.kind)));
+
+  ok("Chosen Value text color: красится значение, а имя поля и активная ячейка — нет");
+}
+
+{
   /* И цвет читается с пути версии 2, а не выдумывается. */
   const colors = I.getTagwheelHeaderColorsFromConfig({
     visual: { tagWheel: { activeTextColor: "#ff0000", textColor: "#a5a0d4" } },

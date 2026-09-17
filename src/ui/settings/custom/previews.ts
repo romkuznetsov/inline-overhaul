@@ -311,6 +311,8 @@ const WHEEL_PATHS = [
    * умел их рисовать (замечание H2, PRD 10.13.22 Пр3; У-24).
    */
   "visual.tagWheel.activeTextColor",
+  /* Цвет ячейки с выбранным значением — его заказ 2026-09-17. */
+  "visual.tagWheel.chosenValueColor",
   "visual.tagWheel.highlightLine",
   "visual.tags.opacityLeft",
   "visual.tags.opacityRight",
@@ -366,11 +368,14 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     /* Скроллер садится на второй Field слева: так обе стороны панели видно,
        и видно, что остальные Fields остаются обычными чипами. */
     const shown = left[1] || left[0] || fields[0] || null;
-    const values = !shown
+    /* Что показывает ячейка этого Field — одно объявление на обе ячейки:
+       активную и ту, у которой значение уже выбрано (У-32). */
+    const cellValues = (f: PreviewField | null): string[] => (!f
       ? []
-      : shown.kind === "element"
-        ? [shown.name]
-        : shown.values.filter(v => v.depth === 0).map(v => (markers ? "#" : "") + v.token);
+      : f.kind === "element"
+        ? [f.name]
+        : f.values.filter(v => v.depth === 0).map(v => (markers ? "#" : "") + v.token));
+    const values = cellValues(shown);
 
     const n = values.length;
     const at = n > 2 ? Math.floor(n / 2) : 0;
@@ -402,6 +407,9 @@ export const wheelPreview: CustomRender = (host, ctx) => {
     const fill = readText(ctx, "visual.tagWheel.fillColor", "");
     const text = readText(ctx, "visual.tagWheel.textColor", "");
     const activeText = readText(ctx, "visual.tagWheel.activeTextColor", "") || text;
+    /* Пусто — ячейка с выбранным значением красится как остальные
+       неактивные: так сказано в самой строке панели. */
+    const chosenText = readText(ctx, "visual.tagWheel.chosenValueColor", "") || text;
     const lit = Boolean(ctx.get("visual.tagWheel.highlightLine"));
 
     /*
@@ -445,6 +453,7 @@ export const wheelPreview: CustomRender = (host, ctx) => {
       if (fill) cssVar(side, "--io-wheel-lit", fill);
     };
 
+    let plainCells = 0;
     structuralLine(stage, ctx, fields, (side, f) => {
       dressSide(side);
       const isShown = f === shown;
@@ -455,10 +464,28 @@ export const wheelPreview: CustomRender = (host, ctx) => {
        * стоит человек (Пр1, Пр5).
        */
       const label = f.short || f.name;
+      /*
+       * **У одной неактивной ячейки значение уже выбрано** — его заказ
+       * 2026-09-17: «в io-tip-wheel-preview сделай одно из значений
+       * non-active field с выбранным value, чтобы было видно как работает
+       * этот контрол». Без такой ячейки новый цвет проверять не на чем
+       * (У-113).
+       *
+       * Ровно одна, и **вторая** по ходу, а не первая: полоса из одних
+       * значений перестала бы показывать разницу между именем поля и
+       * выбранным значением — ради неё контрол и заведён, — а первая
+       * ячейка обязана остаться именем поля: по ней видно, что
+       * переименование Field доезжает до предпросмотра.
+       */
+      if (!isShown) plainCells += 1;
+      const own = !isShown && plainCells === 2 ? cellValues(f) : [];
+      const filled = own.length ? String(own[0] || "") : "";
       const cell = el(col, "span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""),
-        isShown ? "[" + String(values[at] || label) + "]" : label);
+        isShown ? "[" + String(values[at] || label) + "]" : (filled || label));
       if (isShown) {
         if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
+      } else if (filled) {
+        if (chosenText) cssVar(cell, "--io-wheel-cell", chosenText);
       } else if (text) {
         cssVar(cell, "--io-wheel-cell", text);
       }

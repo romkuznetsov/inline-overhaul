@@ -2462,10 +2462,56 @@ const SCHEMA = [
       searchTerms:["Current Field color"],
       tip:"The Field you are standing in is the one the up and down keys move through. Without its own color it differs from the rest only by weight, and on a line with many Fields that is easy to lose. Empty means it takes <code>Non-active Field text color</code> like the others",
       allowReset:true },
+    /* Цвет ячейки с выбранным значением — его заказ 2026-09-17: «сейчас в
+       tagwheel дефолтное значение field (само название field) визуально не
+       различается от измененного значения field (когда пользователь выбрал
+       value)… при `Type` цвет field должен определяться panel-text-color, а при
+       `#todo` в зависимости от этого контрола». Стоит сразу под цветом
+       активного Field — там, где он его и попросил. */
+    { kind:"color", id:"panel-chosen-color", path:"visual.tagWheel.chosenValueColor", default:"",
+      name:"Chosen Value text color", desc:"The color of a Field that already carries a Value, while the line is marked",
+      searchTerms:["Chosen value color","Picked value color"],
+      tip:"A Field you are not standing on shows either its own name or the Value you gave it, and until now both were painted the same. Give the Value a color of its own and one glance tells you which Fields on this line are already filled in. Empty means it takes <code>Non-active Field text color</code>, as before. The Field you are standing on has its own row above",
+      allowReset:true },
     { kind:"color", id:"panel-background", path:"visual.tagWheel.fillColor", default:"",
       name:"Background color", desc:"The color behind the picker, while the line is marked",
       searchTerms:["Background"],
       tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the TagWheel line</code> on: the marks are what carries the color", allowReset:true },
+    /* Край Block: заказ заказчика 2026-09-05, поздний вечер (10.13.35). Место
+       он назвал сам — «под scroller-size». Умолчание прежнее поведение. */
+    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
+      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
+      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
+      options:[ {value:"stay",label:"Stay in the same Block"},
+                {value:"next-block",label:"Move to the next Block"} ],
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
+  ]
+},
+/* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5). Ключ
+   в модели был, а контрола не было — и писать его было некому.
+
+   **Почему своя группа, а не строки в TagWheel.** В той группе одиннадцать
+   настроек, а больше двенадцати гейт не пускает: три новые туда не помещаются.
+   Разносить чужие строки ради места я не стал — они согласованы (Р8), — и
+   выбрал то, что легче всего переиграть. Место контрола заказчик не называл;
+   вопрос задан строкой листа. Разбор — 10.13.76. */
+
+/*
+ * **Скроллер уехал в свою группу 2026-09-17.** Причина не вкус: с новой
+ * строкой `Chosen Value text color` в группе `TagWheel` стало тринадцать
+ * настроек при пределе двенадцать (Г11), а предел куплен читаемостью панели.
+ * Из тринадцати скроллер — единственная связная пятёрка: у него свой тумблер,
+ * свои цвета и своя коробка, и в самих текстах панели про неё сказано
+ * «коробка скроллера — не панель, и цвета у неё свои».
+ *
+ * Стоит сразу под `TagWheel`: предпросмотр панели — первая строка той группы,
+ * и коробку скроллера видно в нём же, строкой выше.
+ */
+{
+  id: "tagwheel-scroller", tab: "visual", order: 320, heading: "TagWheel Scroller",
+  intro: "The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming",
+  tip: "Without it TagWheel shows you only the Value you are standing on, and a long list has to be stepped through blind. The box is drawn by the picker over your note and takes its own colors, not the colors of the panel: the preview just above shows both at once",
+  items: [
     { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:false,
       name:"Scroller", desc:"Show the next and previous Values around the current one",
       tip:"Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through",
@@ -2495,24 +2541,8 @@ const SCHEMA = [
       name:"Scroller size", desc:"How many neighboring Values stay visible around the current one",
       tip:"How many neighbours are shown on each side, not in total. A small number keeps the scroller out of the way; a large one lets you see the whole set of a short Field at once. It never shows more than the Field has",
       searchTerms:["Values per side"], visible: on("visual.tagWheel.scroller.enabled") },
-    /* Край Block: заказ заказчика 2026-09-05, поздний вечер (10.13.35). Место
-       он назвал сам — «под scroller-size». Умолчание прежнее поведение. */
-    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
-      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
-      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
-      options:[ {value:"stay",label:"Stay in the same Block"},
-                {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
   ]
 },
-/* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5). Ключ
-   в модели был, а контрола не было — и писать его было некому.
-
-   **Почему своя группа, а не строки в TagWheel.** В той группе одиннадцать
-   настроек, а больше двенадцати гейт не пускает: три новые туда не помещаются.
-   Разносить чужие строки ради места я не стал — они согласованы (Р8), — и
-   выбрал то, что легче всего переиграть. Место контрола заказчик не называл;
-   вопрос задан строкой листа. Разбор — 10.13.76. */
 {
   id: "tagwheel-opening", tab: "visual", order: 350, heading: "TagWheel opening",
   intro: "Which Field the picker is standing on the moment it opens, before you touch an arrow key",
@@ -4310,8 +4340,12 @@ function renderWheelPreview(host) {
 
     const left = fieldsOn("Left");
     const shown = left[1] || left[0] || FIELDS[0];
-    const values = shown.type === "element" ? [shown.marker + " " + shown.format]
-      : shown.values.map(v => (markers ? "#" : "") + v.token);
+    /* Что показывает ячейка этого Field — одно объявление на обе ячейки:
+       активную и ту, у которой значение уже выбрано (У-32). */
+    const cellValues = (f) => (f.type === "element"
+      ? [f.marker + " " + f.format]
+      : (Array.isArray(f.values) ? f.values : []).map(v => (markers ? "#" : "") + v.token));
+    const values = cellValues(shown);
     const n = values.length;
     const at = n > 2 ? Math.floor(n / 2) : 0;   /* the middle, so both sides read clearly */
 
@@ -4335,6 +4369,9 @@ function renderWheelPreview(host) {
     const fill = val("visual.tagWheel.fillColor");
     const text = val("visual.tagWheel.textColor");
     const activeText = val("visual.tagWheel.activeTextColor") || text;
+    /* Пусто — ячейка с выбранным значением красится как остальные неактивные:
+       «Empty means it takes Non-active Field text color, as before». */
+    const chosenText = val("visual.tagWheel.chosenValueColor") || text;
     const lit = ctx.get("visual.tagWheel.highlightLine");
     /* Коробка скроллера — не панель, и цвета у неё свои: `Scroller background
        color` и `Scroller text color`. Здесь стояли цвета панели, и заказчик
@@ -4365,6 +4402,7 @@ function renderWheelPreview(host) {
       if (fill) cssVar(side, "--io-wheel-lit", fill);
     };
 
+    let plainCells = 0;
     structuralLine(stage, (side, f) => {
       dressSide(side);
       const isShown = f === shown;
@@ -4372,10 +4410,28 @@ function renderWheelPreview(host) {
       /* Ячейка панели — текст, как в заметке: активная в квадратных скобках и
          полужирная, остальные обычным словом. Активная ровно одна (Пр1, Пр5). */
       const label = f.short || f.name;
+      /*
+       * **У одной неактивной ячейки значение уже выбрано** — его заказ
+       * 2026-09-17: «в io-tip-wheel-preview сделай одно из значений
+       * non-active field с выбранным value, чтобы было видно как работает
+       * этот контрол». Без такой ячейки новый цвет проверять не на чем:
+       * все неактивные показывали бы имя поля (У-113).
+       *
+       * Ровно одна, и **вторая** по ходу, а не первая: полоса из одних
+       * значений перестала бы показывать разницу между именем поля и
+       * выбранным значением — ради неё контрол и заведён, — а первая
+       * ячейка обязана остаться именем поля: по ней видно, что
+       * переименование Field доезжает до предпросмотра.
+       */
+      if (!isShown) plainCells += 1;
+      const own = !isShown && plainCells === 2 ? cellValues(f) : [];
+      const filled = own.length ? String(own[0] || "") : "";
       const cell = el("span", "io-wheelcell" + (isShown ? " io-wheelcell--active" : ""), col,
-        isShown ? "[" + String(values[at] || label) + "]" : label);
+        isShown ? "[" + String(values[at] || label) + "]" : (filled || label));
       if (isShown) {
         if (activeText) cssVar(cell, "--io-wheel-cell-active", activeText);
+      } else if (filled) {
+        if (chosenText) cssVar(cell, "--io-wheel-cell", chosenText);
       } else if (text) {
         cssVar(cell, "--io-wheel-cell", text);
       }
@@ -4392,7 +4448,8 @@ function renderWheelPreview(host) {
    "visual.tagWheel.scroller.enabled", "visual.tagWheel.showMarkers",
    "visual.tagWheel.fillColor", "visual.tagWheel.textColor",
    /* Этих двух тут не было, и предпросмотр на них не перерисовывался (Пр3). */
-   "visual.tagWheel.activeTextColor", "visual.tagWheel.highlightLine",
+   "visual.tagWheel.activeTextColor", "visual.tagWheel.chosenValueColor",
+   "visual.tagWheel.highlightLine",
    "pkm.lineFormat.separator1", "pkm.lineFormat.separator2"].forEach(p => bind(p, draw));
 }
 
