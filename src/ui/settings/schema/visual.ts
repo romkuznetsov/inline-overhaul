@@ -8,7 +8,7 @@
 import type { SettingsGroup } from "../types.ts";
 import { on, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
-import { barsPreview, caretPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
+import { barsPreview, caretPreview, jumpFlashPreview, tagPreview, wheelPreview } from "../custom/previews.ts";
 import { userTagColors } from "../custom/user_tags.ts";
 
 export const VISUAL_GROUPS: readonly SettingsGroup[] = [
@@ -289,6 +289,49 @@ export const VISUAL_GROUPS: readonly SettingsGroup[] = [
       searchTerms:["Blink rate","Cursor blinking"], visible: on("visual.caret.shapeEnabled"),
       tip:"At <code>0</code> the caret stops blinking and simply stays where it is, which is the quietest a cursor gets. <code>5</code> is the speed Obsidian uses now, and every step up from there is quicker" },
     { kind:"custom", id:"caret-preview", render: caretPreview }
+  ]
+},
+{
+  id: "jump-highlight", tab: "visual", order: 450, heading: "Jump highlight",
+  intro: "A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own",
+  tip: "Nothing is written into your note: the circle is drawn over it for a moment and leaves nothing behind. It marks jumps only \u2014 typing and the arrow keys are not jumps \u2014 and the last row decides whether the short hops inside one line count as jumps too",
+  commands: ["Jump back", "Jump next"],
+  items: [
+    { kind:"toggle", id:"jump-flash", path:"visual.jumpFlash.enabled", default:false,
+      name:"Highlight where you land", desc:"Draw a fading circle where the cursor lands, so you do not hunt for it",
+      searchTerms:["Flash on jump","Highlight the jump target","Show me where the cursor went"],
+      tip:"A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps" },
+    { kind:"color", id:"jump-flash-color", path:"visual.jumpFlash.color", default:"",
+      allowReset:true,
+      name:"Highlight color", desc:"Leave it unset to use the accent color of your theme",
+      searchTerms:["Color of the jump circle"],
+      tip:"Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"slider", id:"jump-flash-radius", path:"visual.jumpFlash.radius", default:18,
+      min:6, max:40, step:1, unit:"px",
+      name:"Highlight size", desc:"How wide the circle is at the moment it appears",
+      searchTerms:["Size of the jump circle"],
+      tip:"Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"slider", id:"jump-flash-fade", path:"visual.jumpFlash.fadeMs", default:450,
+      min:100, max:1500, step:50, unit:"ms",
+      name:"How long it lasts", desc:"The time the circle takes to shrink and disappear",
+      searchTerms:["Fade speed of the jump circle"],
+      tip:"Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"slider", id:"jump-flash-delay", path:"visual.jumpFlash.quietMs", default:0,
+      min:0, max:1000, step:50, unit:"ms",
+      name:"Quiet time between jumps", desc:"Jumps closer together than this get no circle at all",
+      searchTerms:["Do not flash on every jump","Quiet time"],
+      tip:"Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"toggle", id:"jump-flash-inline", path:"visual.jumpFlash.inLine", default:false,
+      name:"Use inside current line", desc:"Also mark the cursor when it hops between the parts of one line",
+      searchTerms:["Flash on in-line jumps"],
+      tip:"<code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"custom", id:"jump-flash-preview", render: jumpFlashPreview,
+      visible: on("visual.jumpFlash.enabled") }
   ]
 }
 ];

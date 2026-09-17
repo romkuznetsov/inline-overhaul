@@ -7874,12 +7874,6 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
-| `navigation.jumpToHeader.flash.enabled` | Highlight where you land (`jump-flash`) | Moving cursor inside a note |
-| `navigation.jumpToHeader.flash.color` | Highlight color (`jump-flash-color`) | Moving cursor inside a note |
-| `navigation.jumpToHeader.flash.radius` | Highlight size (`jump-flash-radius`) | Moving cursor inside a note |
-| `navigation.jumpToHeader.flash.fadeMs` | How long it lasts (`jump-flash-fade`) | Moving cursor inside a note |
-| `navigation.jumpToHeader.flash.quietMs` | Quiet time between jumps (`jump-flash-delay`) | Moving cursor inside a note |
-| `navigation.jumpToHeader.flash.inLine` | Use inside current line (`jump-flash-inline`) | Moving cursor inside a note |
 | `visual.tags.blockFill.enabled` | Color the Blocks (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.color` | Block color (`tags-block-fill-color`) | Inline appearance |
 | `visual.tags.blockFill.opacity` | Block color strength (`tags-block-fill-opacity`) | Inline appearance |
@@ -7902,6 +7896,12 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.caret.shapeEnabled` | Shape the text cursor (`caret-shape`) | Text cursor |
 | `visual.caret.width` | Cursor width (`caret-width`) | Text cursor |
 | `visual.caret.blinkSpeed` | Blink speed (`caret-blink`) | Text cursor |
+| `visual.jumpFlash.enabled` | Highlight where you land (`jump-flash`) | Jump highlight |
+| `visual.jumpFlash.color` | Highlight color (`jump-flash-color`) | Jump highlight |
+| `visual.jumpFlash.radius` | Highlight size (`jump-flash-radius`) | Jump highlight |
+| `visual.jumpFlash.fadeMs` | How long it lasts (`jump-flash-fade`) | Jump highlight |
+| `visual.jumpFlash.quietMs` | Quiet time between jumps (`jump-flash-delay`) | Jump highlight |
+| `visual.jumpFlash.inLine` | Use inside current line (`jump-flash-inline`) | Jump highlight |
 | `transform.inline2note.floatingButton` | Floating button (`i2n-floating`) | Inline to note |
 | `transform.inline2note.floatingButtonGap` | Distance from the text (`i2n-floating-gap`) | Inline to note |
 | `transform.inline2note.placement.targetHeader` | Type name of header (`content-target-header`) | Note content |
@@ -15135,9 +15135,9 @@ python tests/prototype/update_prd.py
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 8 | 1 |
 | 2 | Keyboard | — | 6 | 13 | 4 |
-| 3 | Navigation | `features.navigation.enabled` | 5 | 31 | 6 |
+| 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 7 | 44 | 6 |
+| 5 | Visual | `features.visual.enabled` | 8 | 50 | 7 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -15196,6 +15196,7 @@ python tests/prototype/update_prd.py
 | 300 | `tagwheel` | TagWheel | TagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down | да | — |
 | 350 | `tagwheel-opening` | TagWheel opening | Which Field the picker is standing on the moment it opens, before you touch an arrow key | да | — |
 | 400 | `text-cursor` | Text cursor | The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page | да | — |
+| 450 | `jump-highlight` | Jump highlight | A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own | да | — |
 
 **Transform** (`transform`)
 
@@ -15605,45 +15606,6 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
   - видна если: `navigation.jumpToHeader.centerCursor`
   - выключена если: `navigation.jumpToHeader.enabled`
   - старые названия для поиска: «Scroll position», «Center on jump»
-- **Highlight where you land** — `jump-flash`, `toggle`, path `navigation.jumpToHeader.flash.enabled`, default `false`
-  - desc: Draw a fading circle where the cursor lands, so you do not hunt for it
-  - tip: A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps
-  - выключена если: `navigation.jumpToHeader.enabled`
-  - старые названия для поиска: «Flash on jump», «Highlight the jump target», «Show me where the cursor went»
-- **Highlight color** — `jump-flash-color`, `color`, path `navigation.jumpToHeader.flash.color`, default `""`
-  - desc: Leave it unset to use the accent color of your theme
-  - tip: Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background
-  - видна если: `navigation.jumpToHeader.flash.enabled`
-  - выключена если: `navigation.jumpToHeader.enabled`
-  - старые названия для поиска: «Color of the jump circle»
-- **Highlight size** — `jump-flash-radius`, `slider`, path `navigation.jumpToHeader.flash.radius`, default `18`
-  - desc: How wide the circle is at the moment it appears
-  - tip: Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts
-  - диапазон: 6–40, шаг 1, ед. px
-  - видна если: `navigation.jumpToHeader.flash.enabled`
-  - выключена если: `navigation.jumpToHeader.enabled`
-  - старые названия для поиска: «Size of the jump circle»
-- **How long it lasts** — `jump-flash-fade`, `slider`, path `navigation.jumpToHeader.flash.fadeMs`, default `450`
-  - desc: The time the circle takes to shrink and disappear
-  - tip: Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly
-  - диапазон: 100–1500, шаг 50, ед. ms
-  - видна если: `navigation.jumpToHeader.flash.enabled`
-  - выключена если: `navigation.jumpToHeader.enabled`
-  - старые названия для поиска: «Fade speed of the jump circle»
-- **Quiet time between jumps** — `jump-flash-delay`, `slider`, path `navigation.jumpToHeader.flash.quietMs`, default `0`
-  - desc: Jumps closer together than this get no circle at all
-  - tip: Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle
-  - диапазон: 0–1000, шаг 50, ед. ms
-  - видна если: `navigation.jumpToHeader.flash.enabled`
-  - выключена если: `navigation.jumpToHeader.enabled`
-  - старые названия для поиска: «Do not flash on every jump», «Quiet time»
-- **Use inside current line** — `jump-flash-inline`, `toggle`, path `navigation.jumpToHeader.flash.inLine`, default `false`
-  - desc: Also mark the cursor when it hops between the parts of one line
-  - tip: <code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too
-  - видна если: `navigation.jumpToHeader.flash.enabled`
-  - выключена если: `navigation.jumpToHeader.enabled`
-  - старые названия для поиска: «Flash on in-line jumps»
-- **`jump-flash-preview`** — свой блок, рендерер `renderJumpFlashPreview`
 
 #### Before you start — `pkm-intro` (вкладка `pkm`)
 
@@ -16228,6 +16190,46 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
   - старые названия для поиска: «Blink rate», «Cursor blinking»
 - **`caret-preview`** — свой блок, рендерер `renderCaretPreview`
 
+#### Jump highlight — `jump-highlight` (вкладка `visual`)
+
+_Intro:_ A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own
+
+_Tip:_ Nothing is written into your note: the circle is drawn over it for a moment and leaves nothing behind. It marks jumps only — typing and the arrow keys are not jumps — and the last row decides whether the short hops inside one line count as jumps too
+
+- **Highlight where you land** — `jump-flash`, `toggle`, path `visual.jumpFlash.enabled`, default `false`
+  - desc: Draw a fading circle where the cursor lands, so you do not hunt for it
+  - tip: A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps
+  - старые названия для поиска: «Flash on jump», «Highlight the jump target», «Show me where the cursor went»
+- **Highlight color** — `jump-flash-color`, `color`, path `visual.jumpFlash.color`, default `""`
+  - desc: Leave it unset to use the accent color of your theme
+  - tip: Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background
+  - видна если: `visual.jumpFlash.enabled`
+  - старые названия для поиска: «Color of the jump circle»
+- **Highlight size** — `jump-flash-radius`, `slider`, path `visual.jumpFlash.radius`, default `18`
+  - desc: How wide the circle is at the moment it appears
+  - tip: Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts
+  - диапазон: 6–40, шаг 1, ед. px
+  - видна если: `visual.jumpFlash.enabled`
+  - старые названия для поиска: «Size of the jump circle»
+- **How long it lasts** — `jump-flash-fade`, `slider`, path `visual.jumpFlash.fadeMs`, default `450`
+  - desc: The time the circle takes to shrink and disappear
+  - tip: Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly
+  - диапазон: 100–1500, шаг 50, ед. ms
+  - видна если: `visual.jumpFlash.enabled`
+  - старые названия для поиска: «Fade speed of the jump circle»
+- **Quiet time between jumps** — `jump-flash-delay`, `slider`, path `visual.jumpFlash.quietMs`, default `0`
+  - desc: Jumps closer together than this get no circle at all
+  - tip: Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle
+  - диапазон: 0–1000, шаг 50, ед. ms
+  - видна если: `visual.jumpFlash.enabled`
+  - старые названия для поиска: «Do not flash on every jump», «Quiet time»
+- **Use inside current line** — `jump-flash-inline`, `toggle`, path `visual.jumpFlash.inLine`, default `false`
+  - desc: Also mark the cursor when it hops between the parts of one line
+  - tip: <code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too
+  - видна если: `visual.jumpFlash.enabled`
+  - старые названия для поиска: «Flash on in-line jumps»
+- **`jump-flash-preview`** — свой блок, рендерер `renderJumpFlashPreview`
+
 ### Все пути состояния
 
 | path | kind | default |
@@ -16260,12 +16262,6 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `navigation.jumpToHeader.centerCursor` | toggle | `true` |
 | `navigation.jumpToHeader.edgeMode` | dropdown | `start-end` |
 | `navigation.jumpToHeader.enabled` | toggle | `true` |
-| `navigation.jumpToHeader.flash.color` | color | `""` |
-| `navigation.jumpToHeader.flash.enabled` | toggle | `false` |
-| `navigation.jumpToHeader.flash.fadeMs` | slider | `450` |
-| `navigation.jumpToHeader.flash.inLine` | toggle | `false` |
-| `navigation.jumpToHeader.flash.quietMs` | slider | `0` |
-| `navigation.jumpToHeader.flash.radius` | slider | `18` |
 | `navigation.jumpToHeader.jumpCursorPosition` | dropdown | `section-end` |
 | `navigation.jumpToHeader.jumpMode` | dropdown | `edge` |
 | `navigation.jumpToHeader.viewPosition` | dropdown | `center` |
@@ -16336,6 +16332,12 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `visual.caret.enabled` | toggle | `false` |
 | `visual.caret.shapeEnabled` | toggle | `false` |
 | `visual.caret.width` | slider | `2` |
+| `visual.jumpFlash.color` | color | `""` |
+| `visual.jumpFlash.enabled` | toggle | `false` |
+| `visual.jumpFlash.fadeMs` | slider | `450` |
+| `visual.jumpFlash.inLine` | toggle | `false` |
+| `visual.jumpFlash.quietMs` | slider | `0` |
+| `visual.jumpFlash.radius` | slider | `18` |
 | `visual.tagBars.active` | toggle | `false` |
 | `visual.tagBars.childOffset` | slider | `12` |
 | `visual.tagBars.drawWholeTree` | toggle | `true` |

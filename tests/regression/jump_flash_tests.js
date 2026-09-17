@@ -40,8 +40,62 @@ function configWith(flash) {
   return normalize.migrateConfig({
     schemaVersion: 2,
     features: { navigation: { enabled: true } },
-    navigation: { jumpToHeader: { enabled: true, flash: flash || {} } },
+    navigation: { jumpToHeader: { enabled: true } },
+    visual: { jumpFlash: flash || {} },
   });
+}
+
+/* ---- 0. Переезд ветки с вкладки Navigation на Visual -------------------- */
+{
+  /*
+   * Его слово 2026-09-17: «перенеси все настройки jump-flash в Visual отдельным
+   * блоком настроек». Вместе с блоком переехала ветка конфига, и у человека в
+   * `data.json` значения лежат по прежнему адресу: маршруты его не читают —
+   * файл версии 2 переносится как есть (У-178).
+   */
+  const moved = normalize.migrateConfig({
+    schemaVersion: 2,
+    navigation: { jumpToHeader: { enabled: true, flash: { enabled: true, color: "#eaa9a9", radius: 17, fadeMs: 800, quietMs: 250, inLine: true } } },
+  });
+  assert.deepEqual(
+    {
+      enabled: moved.visual.jumpFlash.enabled,
+      color: moved.visual.jumpFlash.color,
+      radius: moved.visual.jumpFlash.radius,
+      fadeMs: moved.visual.jumpFlash.fadeMs,
+      quietMs: moved.visual.jumpFlash.quietMs,
+      inLine: moved.visual.jumpFlash.inLine,
+    },
+    { enabled: true, color: "#eaa9a9", radius: 17, fadeMs: 800, quietMs: 250, inLine: true },
+    "всё, что он выбрал на прежнем месте, доехало до нового");
+  assert.equal(moved.navigation.jumpToHeader.flash, undefined,
+    "по прежнему адресу не осталось настройки, которую никто не читает (З8)");
+  assert.equal(moved.navigation.jumpToHeader.enabled, true,
+    "соседи по прежней ветке не тронуты: переезжает лист, а не вся группа");
+
+  /* Новый адрес сильнее старого: если панель уже писала в него, старое — след
+     вчерашнего файла. */
+  const both = normalize.migrateConfig({
+    schemaVersion: 2,
+    navigation: { jumpToHeader: { flash: { radius: 9 } } },
+    visual: { jumpFlash: { radius: 33 } },
+  });
+  assert.equal(both.visual.jumpFlash.radius, 33, "записанное в новый адрес старым не переписывается");
+  assert.equal(both.navigation.jumpToHeader.flash, undefined, "а старое всё равно уходит");
+
+  /*
+   * Отрицательный контроль, и без него зелёное значило бы «переезд трогает всё
+   * подряд»: файл, у которого прежнего адреса не было вовсе, переездом не
+   * меняется, и `jumpToHeader` остаётся объектом со своими ключами.
+   */
+  const clean = normalize.migrateConfig({
+    schemaVersion: 2,
+    navigation: { jumpToHeader: { enabled: false, jumpMode: "line" } },
+    visual: { jumpFlash: { enabled: true, radius: 22 } },
+  });
+  assert.equal(clean.visual.jumpFlash.radius, 22, "новый адрес не трогается");
+  assert.equal(clean.navigation.jumpToHeader.jumpMode, "line", "и соседи по старой ветке целы");
+  ok("Н5: ветка подсветки переехала в visual.jumpFlash, и прежний адрес убран за собой");
 }
 
 /* ---- 1. Что о подсветке говорит конфиг --------------------------------- */
@@ -164,6 +218,46 @@ async function seamSuite() {
     assert.equal(seam.fired.length, 0, "не прыжок — круга нет, как бы курсор ни двигался");
   }
   ok("Н5: круг просят только там, где прыжок и правда переставил курсор");
+
+  /*
+   * **Шаг внутри строки ставит курсор не сразу, и это не мелочь фикстуры, а
+   * форма продукта.** `navigateInline` кончается `setTimeout(… setCursor …, 0)`
+   * — иначе Obsidian возвращает каретку на место после возврата из команды, и
+   * ровно за этим у перехода по заголовкам стоит тройное применение. Обёртка
+   * же спрашивала «переехал ли курсор» **сразу** за вызовом и получала
+   * «нет» — это У-130 в чистом виде, и его замечание 2026-09-17: «jump-flash
+   * inline = on, не посвечивает при прыжках в строке».
+   *
+   * Прежняя подделка двигала курсор синхронно — то есть выбрала ту форму
+   * предмета, при которой шов работает (У-170). Здесь обе формы.
+   */
+  {
+    const seam = makeSeam(configWith({ enabled: true, radius: 20, fadeMs: 300, quietMs: 0, inLine: true }));
+    const ed = makeEditor(0, 0);
+    seam.plugin.getActiveEditor = () => ed;
+    seam.plugin.navRuntime = {};
+    await internals.runNavigationGuard(seam.plugin, "navigation",
+      (editor) => { setTimeout(() => editor.moveTo(0, 12), 0); }, "inline");
+    assert.equal(seam.fired.length, 1,
+      "шаг внутри строки ставит курсор следующим тактом, и круг обязан это дождаться");
+  }
+
+  /*
+   * Отрицательный контроль к нему, и без него ожидание такта читалось бы как
+   * «круг на каждое нажатие»: шаг, упёршийся в край строки, курсор не двигает
+   * ни сразу, ни тактом позже.
+   */
+  {
+    const seam = makeSeam(configWith({ enabled: true, radius: 20, fadeMs: 300, quietMs: 0, inLine: true }));
+    const ed = makeEditor(0, 4);
+    seam.plugin.getActiveEditor = () => ed;
+    seam.plugin.navRuntime = {};
+    await internals.runNavigationGuard(seam.plugin, "navigation",
+      (editor) => { setTimeout(() => editor.moveTo(0, 4), 0); }, "inline");
+    assert.equal(seam.fired.length, 0,
+      "шаг, никуда не переставивший курсор, круга не просит и тактом позже");
+  }
+  ok("Н5: круг дожидается шага, который ставит курсор следующим тактом");
 }
 
 /* ---- 4. Тумблеры решают, доходит ли сигнал до слоя ---------------------- */

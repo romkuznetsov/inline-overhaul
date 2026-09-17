@@ -2103,55 +2103,7 @@ const SCHEMA = [
       options:[ {value:"center",label:"Center of the screen"},
                 {value:"top",label:"Top of the screen"},
                 {value:"bottom",label:"Bottom of the screen"} ],
-      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" },
-    /*
-     * Подсветка места, куда прыгнул курсор — его заказ 2026-09-16 (Н5):
-     * «при прыжке курсор создавал визуальный эффект, сразу привлекающий
-     * внимание, чтобы не искать курсор глазами (например, цветной кружок,
-     * который уменьшается)… Располагаться настройка должна в heading-jumps
-     * снизу».
-     *
-     * Его ответы В-136: только на прыжках, два прыжка подряд гасят прежний
-     * круг, и **третий контрол, которого не было в заказе** — задержка
-     * от 0 до 1 секунды: «если пользователь прыгает сразу много, чтобы не
-     * возникало раздражение».
-     */
-    { kind:"toggle", id:"jump-flash", path:"navigation.jumpToHeader.flash.enabled", default:false,
-      name:"Highlight where you land", desc:"Draw a fading circle where the cursor lands, so you do not hunt for it",
-      searchTerms:["Flash on jump","Highlight the jump target","Show me where the cursor went"],
-      tip:"A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps",
-      disabled: not("navigation.jumpToHeader.enabled") },
-    { kind:"color", id:"jump-flash-color", path:"navigation.jumpToHeader.flash.color", default:"",
-      allowReset:true,
-      name:"Highlight color", desc:"Leave it unset to use the accent color of your theme",
-      searchTerms:["Color of the jump circle"],
-      tip:"Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background",
-      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
-    { kind:"slider", id:"jump-flash-radius", path:"navigation.jumpToHeader.flash.radius", default:18,
-      min:6, max:40, step:1, unit:"px",
-      name:"Highlight size", desc:"How wide the circle is at the moment it appears",
-      searchTerms:["Size of the jump circle"],
-      tip:"Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts",
-      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
-    { kind:"slider", id:"jump-flash-fade", path:"navigation.jumpToHeader.flash.fadeMs", default:450,
-      min:100, max:1500, step:50, unit:"ms",
-      name:"How long it lasts", desc:"The time the circle takes to shrink and disappear",
-      searchTerms:["Fade speed of the jump circle"],
-      tip:"Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly",
-      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
-    { kind:"slider", id:"jump-flash-delay", path:"navigation.jumpToHeader.flash.quietMs", default:0,
-      min:0, max:1000, step:50, unit:"ms",
-      name:"Quiet time between jumps", desc:"Jumps closer together than this get no circle at all",
-      searchTerms:["Do not flash on every jump","Quiet time"],
-      tip:"Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle",
-      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
-    { kind:"toggle", id:"jump-flash-inline", path:"navigation.jumpToHeader.flash.inLine", default:false,
-      name:"Use inside current line", desc:"Also mark the cursor when it hops between the parts of one line",
-      searchTerms:["Flash on in-line jumps"],
-      tip:"<code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
-      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
-    { kind:"custom", id:"jump-flash-preview", render: renderJumpFlashPreview,
-      visible: on("navigation.jumpToHeader.flash.enabled") }
+      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
   ]
 },
 {
@@ -2625,6 +2577,68 @@ const SCHEMA = [
       searchTerms:["Blink rate","Cursor blinking"], visible: on("visual.caret.shapeEnabled"),
       tip:"At <code>0</code> the caret stops blinking and simply stays where it is, which is the quietest a cursor gets. <code>5</code> is the speed Obsidian uses now, and every step up from there is quicker" },
     { kind:"custom", id:"caret-preview", render: renderCaretPreview }
+  ]
+},
+
+/*
+ * Подсветка места, куда прыгнул курсор, переехала сюда его словом
+ * 2026-09-17: "перенеси все настройки jump-flash в Visual отдельным блоком
+ * настроек". Прежде она стояла внизу группы `Moving cursor inside a note`,
+ * и там её попросил он же (Н5, 2026-09-16) — это не спор с собой: тогда
+ * речь шла о прыжках по заголовкам, а у круга поводов два, и второй —
+ * шаг внутри строки.
+ *
+ * **Вместе с группой переехала и ветка конфига**: `visual.jumpFlash.*`
+ * вместо `visual.jumpFlash.*`. Галочки состава копии — это
+ * вкладки, а несут они ветки конфига (10.13.41): оставь ветку на месте, и
+ * человек, восстановивший `Visual`, не получил бы того, что на ней видит,
+ * а `Navigation` принесла бы настройки, которых там больше нет.
+ *
+ * **И `disabled` по тумблеру переходов снят.** Половина круга живёт на
+ * шаге внутри строки, у которого свой тумблер; гасить её чужим значило бы
+ * гасить работающее — и это был бы второй ответ на один вопрос.
+ */
+{
+  id: "jump-highlight", tab: "visual", order: 450, heading: "Jump highlight",
+  intro: "A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own",
+  tip: "Nothing is written into your note: the circle is drawn over it for a moment and leaves nothing behind. It marks jumps only \u2014 typing and the arrow keys are not jumps \u2014 and the last row decides whether the short hops inside one line count as jumps too",
+  commands: ["Jump back", "Jump next"],
+  items: [
+    { kind:"toggle", id:"jump-flash", path:"visual.jumpFlash.enabled", default:false,
+      name:"Highlight where you land", desc:"Draw a fading circle where the cursor lands, so you do not hunt for it",
+      searchTerms:["Flash on jump","Highlight the jump target","Show me where the cursor went"],
+      tip:"A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps" },
+    { kind:"color", id:"jump-flash-color", path:"visual.jumpFlash.color", default:"",
+      allowReset:true,
+      name:"Highlight color", desc:"Leave it unset to use the accent color of your theme",
+      searchTerms:["Color of the jump circle"],
+      tip:"Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"slider", id:"jump-flash-radius", path:"visual.jumpFlash.radius", default:18,
+      min:6, max:40, step:1, unit:"px",
+      name:"Highlight size", desc:"How wide the circle is at the moment it appears",
+      searchTerms:["Size of the jump circle"],
+      tip:"Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"slider", id:"jump-flash-fade", path:"visual.jumpFlash.fadeMs", default:450,
+      min:100, max:1500, step:50, unit:"ms",
+      name:"How long it lasts", desc:"The time the circle takes to shrink and disappear",
+      searchTerms:["Fade speed of the jump circle"],
+      tip:"Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"slider", id:"jump-flash-delay", path:"visual.jumpFlash.quietMs", default:0,
+      min:0, max:1000, step:50, unit:"ms",
+      name:"Quiet time between jumps", desc:"Jumps closer together than this get no circle at all",
+      searchTerms:["Do not flash on every jump","Quiet time"],
+      tip:"Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"toggle", id:"jump-flash-inline", path:"visual.jumpFlash.inLine", default:false,
+      name:"Use inside current line", desc:"Also mark the cursor when it hops between the parts of one line",
+      searchTerms:["Flash on in-line jumps"],
+      tip:"<code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
+      visible: on("visual.jumpFlash.enabled") },
+    { kind:"custom", id:"jump-flash-preview", render: renderJumpFlashPreview,
+      visible: on("visual.jumpFlash.enabled") }
   ]
 },
 
@@ -5438,9 +5452,9 @@ function caretBlinkMs(speed) {
  * предпросмотра прыжок один, а её предмет — второй прыжок следом за первым.
  */
 function jumpFlashVars(node) {
-  const color = String(ctx.get("navigation.jumpToHeader.flash.color") || "");
-  cssVar(node, "--io-jump-radius", (Number(ctx.get("navigation.jumpToHeader.flash.radius")) || 18) + "px");
-  cssVar(node, "--io-jump-fade", (Number(ctx.get("navigation.jumpToHeader.flash.fadeMs")) || 450) + "ms");
+  const color = String(ctx.get("visual.jumpFlash.color") || "");
+  cssVar(node, "--io-jump-radius", (Number(ctx.get("visual.jumpFlash.radius")) || 18) + "px");
+  cssVar(node, "--io-jump-fade", (Number(ctx.get("visual.jumpFlash.fadeMs")) || 450) + "ms");
   cssVar(node, "--io-jump-color", color || "var(--interactive-accent)");
 }
 
@@ -5448,23 +5462,50 @@ function renderJumpFlashPreview(host) {
   const pt = PREVIEW_TEXTS["jump-flash-preview"];
   const box = previewShell(host, pt.cap, pt.tip);
   const holder = el("div", null, box);
+  /*
+   * **Круг мигает сам, и это его слово 2026-09-17:** "не видно как работает
+   * jump-flash-delay… сделай, чтобы оно работало циклично всегда". Прежде
+   * круг возникал по нажатию на строку или на смену настройки, и задержку
+   * между прыжками увидеть было не на чем: её предмет — второй прыжок
+   * следом за первым, а прыжок был один.
+   *
+   * Круг тухнет анимацией, а ждёт — таймером, и оба срока берутся из
+   * настроек: `fadeMs` — сколько он живёт, `quietMs` — сколько тишины
+   * после него. При нуле тишины круг идёт подряд, и это ровно то, что
+   * говорит сама строка: "at 0 every jump gets its circle".
+   *
+   * Таймер снимается перед каждой новой отрисовкой и не заводится заново
+   * на узле, которого нет на странице: иначе каждая перерисовка вкладки
+   * оставляла бы по кругу, тикающему в отцепленном дереве.
+   */
+  let timer = 0;
   const draw = () => {
+    if (timer) { clearTimeout(timer); timer = 0; }
     holder.textContent = "";
     const row = el("div", "io-jumpline", holder);
     el("span", null, row, PREVIEW_LINE_TEXT);
-    const spot = el("span", "io-jumpflash", row);
-    /* Круг встаёт на конец написанного — там же, где после прыжка каретка.
-       Место едет переменной, а не свойством узла: вид живёт в листе стилей
-       (правило каталога Р7), и своё свойство здесь отменило бы правило. */
-    cssVar(spot, "--io-jump-x", "calc(8px + " + PREVIEW_LINE_TEXT.length + "ch)");
     jumpFlashVars(row);
-    row.addEventListener("click", draw);
+    const pulse = () => {
+      if (!row.isConnected) { timer = 0; return; }
+      const old = row.querySelector(".io-jumpflash");
+      if (old) old.remove();
+      const spot = el("span", "io-jumpflash", row);
+      /* Круг встаёт на конец написанного — там же, где после прыжка
+         каретка. Место едет переменной, а не свойством узла: вид живёт в
+         листе стилей (правило каталога Р7). */
+      cssVar(spot, "--io-jump-x", "calc(8px + " + PREVIEW_LINE_TEXT.length + "ch)");
+      const fade = Number(ctx.get("visual.jumpFlash.fadeMs")) || 450;
+      const quiet = Number(ctx.get("visual.jumpFlash.quietMs")) || 0;
+      timer = setTimeout(pulse, fade + quiet);
+    };
+    pulse();
     el("p", "io-preview__note", holder, pt.note);
   };
   draw();
   previewRefreshers.push(draw);
-  ["navigation.jumpToHeader.flash.enabled", "navigation.jumpToHeader.flash.color",
-   "navigation.jumpToHeader.flash.radius", "navigation.jumpToHeader.flash.fadeMs"].forEach(p => bind(p, draw));
+  ["visual.jumpFlash.enabled", "visual.jumpFlash.color",
+   "visual.jumpFlash.radius", "visual.jumpFlash.fadeMs",
+   "visual.jumpFlash.quietMs"].forEach(p => bind(p, draw));
 }
 
 function renderCaretPreview(host) {

@@ -109,6 +109,9 @@ function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close:
     id: "io-tip-" + id,
     showTips: Boolean(ctx.get("general.help.showTips")),
     showIds: Boolean(ctx.get("advanced.showSettingIds")),
+    /* Над картинкой, а не под ней: его замечание 2026-09-17 и то, как это
+       устроено в прототипе. Разбор — у самого `afterHead`. */
+    afterHead: true,
   });
   /*
    * Линии за подписью здесь больше нет: «в настройках в каждом live preview в
@@ -1119,10 +1122,13 @@ export const sourcePreview: CustomRender = (host, ctx) => {
 /* ---- предпросмотр каретки (10.13.33 Ц8) --------------------------------- */
 
 const JUMP_FLASH_PATHS = [
-  "navigation.jumpToHeader.flash.enabled",
-  "navigation.jumpToHeader.flash.color",
-  "navigation.jumpToHeader.flash.radius",
-  "navigation.jumpToHeader.flash.fadeMs",
+  "visual.jumpFlash.enabled",
+  "visual.jumpFlash.color",
+  "visual.jumpFlash.radius",
+  "visual.jumpFlash.fadeMs",
+  /* Задержка попала сюда 2026-09-17 вместе с тем, что круг стал мигать сам:
+     пока прыжок был один, менять от неё было нечего. */
+  "visual.jumpFlash.quietMs",
 ] as const;
 
 /**
@@ -1133,42 +1139,85 @@ const JUMP_FLASH_PATHS = [
  *
  * **Гасит круг анимация, а не таймер** — так же, как в самом слое редактора:
  * таймер пришлось бы снимать при выгрузке панели, а анимация уезжает вместе с
- * узлом. Перерисовка по нажатию на строку — это и есть «показать ещё раз»:
- * узел заводится заново, и анимация начинается сначала.
+ * узлом.
  *
- * **Задержки между прыжками здесь нет, и это сказано словом**: у предпросмотра
- * прыжок один, а предмет задержки — второй прыжок следом за первым. П9 честно
- * и здесь: рисует это панель, а не редактор.
+ * **Круг мигает сам, и это его слово 2026-09-17:** «не видно как работает
+ * `jump-flash-delay`… сейчас само preview работает по клику на preview либо
+ * при изменении настроек — сделай, чтобы оно работало циклично всегда».
+ * Прежде задержку между прыжками было видно не на чем: её предмет — второй
+ * прыжок следом за первым, а прыжок здесь был один.
+ *
+ * Круг живёт `fadeMs`, за ним `quietMs` тишины — оба срока из настроек, и
+ * оба видны глазом. При нулевой тишине круги идут подряд, ровно как говорит
+ * сама строка: «at `0` every jump gets its circle».
+ *
+ * **Таймер снимается при закрытии предпросмотра и перед каждой новой
+ * отрисовкой**, и не заводится заново на узле, которого больше нет на
+ * странице: иначе каждая перерисовка вкладки оставляла бы по кругу, тикающему
+ * в отцепленном дереве.
  */
 export const jumpFlashPreview: CustomRender = (host, ctx) => {
   const shell = previewShell(host, ctx, "jump-flash-preview");
   const text = PREVIEW_TEXTS["jump-flash-preview"];
   const holder = el(shell.box, "div");
+  let timer = 0;
+  const stop = (): void => {
+    if (timer) { clearTimeout(timer); timer = 0; }
+  };
 
   const draw = (): void => {
+    stop();
     holder.empty();
     const row = el(holder, "div", "io-jumpline");
     const line = askText(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT);
     el(row, "span", undefined, line);
-    const spot = el(row, "span", "io-jumpflash");
 
-    const color = readText(ctx, "navigation.jumpToHeader.flash.color", "");
-    cssVar(row, "--io-jump-radius", (num(ctx, "navigation.jumpToHeader.flash.radius") || 18) + "px");
-    cssVar(row, "--io-jump-fade", (num(ctx, "navigation.jumpToHeader.flash.fadeMs") || 450) + "ms");
+    const color = readText(ctx, "visual.jumpFlash.color", "");
+    cssVar(row, "--io-jump-radius", (num(ctx, "visual.jumpFlash.radius") || 18) + "px");
+    cssVar(row, "--io-jump-fade", (num(ctx, "visual.jumpFlash.fadeMs") || 450) + "ms");
     /* Пусто — цвет берётся у темы, и это живёт на шве, а не в значении
        (У-60): в `HexString` пустота не влезает. */
     cssVar(row, "--io-jump-color", color || "var(--interactive-accent)");
-    /* Круг встаёт на конец написанного — там же, где после прыжка каретка.
-       Место едет переменной: вид живёт в листе стилей (правило каталога Р7). */
-    cssVar(spot, "--io-jump-x", "calc(8px + " + line.length + "ch)");
 
-    row.addEventListener("click", draw);
+    let shown: El | null = null;
+    const pulse = (): void => {
+      /*
+       * Узел, снятый со страницы перерисовкой, к ней уже не относится
+       * (У-114): круг ему не нужен, и следующего такта тоже. Свойство
+       * спрашивается у самого узла, а не предполагается: заглушка DOM его не
+       * знает, и «не знаю» читается как «на странице» — там предпросмотр
+       * закрывают вызовом, а не отцеплением.
+       */
+      if ((row as { isConnected?: boolean }).isConnected === false) { timer = 0; return; }
+      /* Прежний круг снимается по ссылке, а не поиском в дереве: искать его
+         классом значило бы завести второе объявление того, что мы сами
+         только что положили. */
+      if (shown) shown.remove();
+      const spot = el(row, "span", "io-jumpflash");
+      shown = spot;
+      /* Круг встаёт на конец написанного — там же, где после прыжка каретка.
+         Место едет переменной: вид живёт в листе стилей (правило каталога Р7). */
+      cssVar(spot, "--io-jump-x", "calc(8px + " + line.length + "ch)");
+      const fade = num(ctx, "visual.jumpFlash.fadeMs") || 450;
+      const quiet = num(ctx, "visual.jumpFlash.quietMs");
+      const next = setTimeout(pulse, fade + quiet) as unknown as { unref?: () => void };
+      /*
+       * В браузере у таймера нет `unref`, а в Node он держит процесс живым:
+       * предпросмотр, отрисованный проверкой и не закрытый ею, подвесил бы
+       * прогон навсегда. Спрашиваем у таймера, умеет ли он это, — не решаем
+       * за него.
+       */
+      if (typeof next.unref === "function") next.unref();
+      timer = next as unknown as number;
+    };
+    pulse();
+
     el(holder, "p", "io-preview__note", text ? askText(ctx, previewKey("jump-flash-preview", "note"), text.note || "") : "");
   };
 
   draw();
   const unwatch = ctx.watch(JUMP_FLASH_PATHS, draw);
-  return () => { unwatch(); shell.close(); };
+  return () => { unwatch(); stop(); shell.close(); };
 };
 
 const CARET_PATHS = [

@@ -221,24 +221,10 @@ const DEFAULT_CONFIG = {
       /* Умолчание `End of your text` — заказ заказчика 2026-09-04, вечер.
          Совпадение с умолчанием схемы сторожит `settings_paths_v2_tests.ts`. */
       jumpCursorPosition: "section-end",
-      /*
-       * Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16, ответы
-       * В-136). Умолчание **выключено**: рисование поверх заметки человек
-       * должен попросить сам.
-       *
-       * `quietMs` — третий контрол, которого в заказе не было: «если
-       * пользователь прыгает сразу много, чтобы не возникало раздражение».
-       * Ноль значит «круг на каждом прыжке», и это то же поведение, какое было
-       * бы без контрола вовсе.
-       */
-      flash: {
-        enabled: false,
-        color: "",
-        radius: 18,
-        fadeMs: 450,
-        quietMs: 0,
-        inLine: false,
-      },
+      /* Подсветка места, куда прыгнул курсор, переехала на вкладку Visual
+         его словом 2026-09-17 и живёт теперь в `visual.jumpFlash.*`.
+         Умолчания ей досыпает схема — так же, как каретке; своей записи
+         здесь у неё быть не должно, иначе у умолчания два дома (У-32). */
     },
     navigateInline: {
       enabled: true,
@@ -958,20 +944,6 @@ function normalizeConfigV2(cfg) {
   oneOf("navigation.jumpToHeader.viewPosition", ["center", "top", "bottom"]);
   int("navigation.jumpToHeader.centerDelayMs", 0, 2000);
   int("navigation.jumpToHeader.centerThrottleMs", 0, 5000);
-  /*
-   * Подсветка места, куда прыгнул курсор (Н5). Границы те же, что у ползунков
-   * в панели: панель их показывает, а движок обязан их же соблюдать — иначе
-   * рукописный `data.json` уедет за шкалу. Стоят они здесь, а не в первой
-   * ступени: та не выполняется ни для файла версии 2, ни для патча из панели
-   * (У-13), и кламп там оказался бы недостижим — нашла это проверка
-   * границ ползунков, а не чтение.
-   */
-  bool("navigation.jumpToHeader.flash.enabled");
-  bool("navigation.jumpToHeader.flash.inLine");
-  hex("navigation.jumpToHeader.flash.color");
-  int("navigation.jumpToHeader.flash.radius", 6, 40);
-  int("navigation.jumpToHeader.flash.fadeMs", 100, 1500);
-  int("navigation.jumpToHeader.flash.quietMs", 0, 1000);
   oneOf("navigation.navigateInline.stepMode", ["word", "sentence", "begin-end"]);
   bool("navigation.navigateInline.boundaryJump");
   oneOf("navigation.navigateInline.onBoundary", ["stay", "wrap", "next-line"]);
@@ -1041,6 +1013,21 @@ function normalizeConfigV2(cfg) {
   /* Ноль — законное значение и значит «не мигает вовсе», поэтому нижняя
      граница здесь 0, а не 1 (Ц7). */
   int("visual.caret.blinkSpeed", 0, 10);
+
+  /*
+   * Подсветка места, куда прыгнул курсор (Н5). Границы те же, что у ползунков
+   * в панели: панель их показывает, а движок обязан их же соблюдать — иначе
+   * рукописный `data.json` уедет за шкалу. Стоят они здесь, а не в первой
+   * ступени: та не выполняется ни для файла версии 2, ни для патча из панели
+   * (У-13), и кламп там оказался бы недостижим — нашла это проверка
+   * границ ползунков, а не чтение.
+   */
+  bool("visual.jumpFlash.enabled");
+  bool("visual.jumpFlash.inLine");
+  hex("visual.jumpFlash.color");
+  int("visual.jumpFlash.radius", 6, 40);
+  int("visual.jumpFlash.fadeMs", 100, 1500);
+  int("visual.jumpFlash.quietMs", 0, 1000);
 
   /* --- Tag Bars: форму задаёт сам движок полосы -------------------------- */
   writeCfgPath(cfg, "visual.tagBars", __priorityStripEngine.normalizeStripConfig(

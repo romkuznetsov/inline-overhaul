@@ -158,15 +158,9 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.jumpToHeader.jumpMode"),
   keep("navigation.jumpToHeader.edgeMode"),
   keep("navigation.jumpToHeader.jumpCursorPosition"),
-  /* Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16). Ветка
-     целиком новая — пары в версии 1 у неё нет, и без маршрута форма v2 уехала
-     бы в `_unmigrated` (МГ3). */
-  keepV2("navigation.jumpToHeader.flash.enabled"),
-  keepV2("navigation.jumpToHeader.flash.color"),
-  keepV2("navigation.jumpToHeader.flash.radius"),
-  keepV2("navigation.jumpToHeader.flash.fadeMs"),
-  keepV2("navigation.jumpToHeader.flash.quietMs"),
-  keepV2("navigation.jumpToHeader.flash.inLine"),
+  /* Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16), с
+     2026-09-17 живёт на вкладке Visual и в ветке `visual.jumpFlash.*` —
+     маршруты её новых листьев стоят рядом с остальной вкладкой Visual. */
   keep("navigation.navigateInline.enabled"),
   keep("navigation.navigateInline.stepMode"),
   keep("navigation.navigateInline.boundaryJump"),
@@ -313,6 +307,15 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tagWheel.scroller.enabled"),
   keepV2("visual.tagWheel.scroller.direction"),
   keepV2("visual.tagWheel.scroller.size"),
+  /* Подсветка места, куда прыгнул курсор. Ветка целиком новая — пары в
+     версии 1 у неё нет, и без маршрута форма v2 уехала бы в `_unmigrated`
+     (МГ3). Её прежний адрес — в `MOVED_V2_KEYS` ниже. */
+  keepV2("visual.jumpFlash.enabled"),
+  keepV2("visual.jumpFlash.color"),
+  keepV2("visual.jumpFlash.radius"),
+  keepV2("visual.jumpFlash.fadeMs"),
+  keepV2("visual.jumpFlash.quietMs"),
+  keepV2("visual.jumpFlash.inLine"),
 
   /* --- Transform -------------------------------------------------------- */
   drop("transform.inline2fleet"),
@@ -662,6 +665,76 @@ const REMOVED_V2_KEYS: readonly string[] = [
   "pkm.generatedRulesPath",
 ];
 
+/**
+ * Ключи, сменившие адрес **внутри** версии 2.
+ *
+ * **Маршрута мало по той же причине, что и у снятых ключей** (У-178):
+ * маршруты читает только переезд с версии 1, а файл версии 2 переносится как
+ * есть. Значение, записанное по прежнему адресу, осталось бы лежать там, где
+ * его больше никто не читает, а человек увидел бы в панели умолчание вместо
+ * того, что он выбрал.
+ *
+ * Здесь один переезд: настройки подсветки прыжка ушли с вкладки Navigation на
+ * Visual его словом 2026-09-17, и вместе с ними ушла ветка — иначе галочка
+ * состава копии `Visual` не несла бы того, что на этой вкладке показано
+ * (10.13.41).
+ *
+ * **Новый адрес сильнее старого.** Если по обоим что-то записано, значит
+ * панель уже писала в новый, и старое — след вчерашнего файла.
+ */
+const MOVED_V2_KEYS: ReadonlyArray<readonly [string, string]> = [
+  ["navigation.jumpToHeader.flash.enabled", "visual.jumpFlash.enabled"],
+  ["navigation.jumpToHeader.flash.color", "visual.jumpFlash.color"],
+  ["navigation.jumpToHeader.flash.radius", "visual.jumpFlash.radius"],
+  ["navigation.jumpToHeader.flash.fadeMs", "visual.jumpFlash.fadeMs"],
+  ["navigation.jumpToHeader.flash.quietMs", "visual.jumpFlash.quietMs"],
+  ["navigation.jumpToHeader.flash.inLine", "visual.jumpFlash.inLine"],
+];
+
+/**
+ * Снять лист по точечному пути и убрать за собой опустевшего родителя.
+ *
+ * **Имя своё, а не общее с копией настроек, и это не копия.** Помощник с
+ * похожим делом живёт в `settings_backup.js`, и у него сказано прямо:
+ * пустые объекты по дороге он не трогает — там путь принадлежит этому
+ * устройству и завтра получит значение обратно. Здесь наоборот: адрес снят
+ * насовсем, и пустой объект на его месте — та же настройка, которую никто
+ * не читает, только без листьев. Два разных ответа на похожий вопрос
+ * разводятся именами, а не сводятся телами (правило 117).
+ */
+function dropMovedLeaf(cfg: Dict, path: string): void {
+  const parts = path.split(".").filter((p) => p.length > 0);
+  if (!parts.length) return;
+  const chain: Dict[] = [];
+  let node: unknown = cfg;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!isPlainObject(node)) return;
+    chain.push(node as Dict);
+    node = (node as Dict)[parts[i] as string];
+  }
+  if (!isPlainObject(node)) return;
+  chain.push(node as Dict);
+  delete (node as Dict)[parts[parts.length - 1] as string];
+  /* Пустой объект на прежнем месте — та же настройка, которую никто не
+     читает, только без листьев: убираем и его. */
+  for (let i = chain.length - 1; i > 0; i--) {
+    const own = chain[i] as Dict;
+    if (Object.keys(own).length) break;
+    delete (chain[i - 1] as Dict)[parts[i - 1] as string];
+  }
+}
+
+function moveRenamedKeys(cfg: Dict): void {
+  for (const pair of MOVED_V2_KEYS) {
+    const from = pair[0];
+    const to = pair[1];
+    const was = getIn(cfg, from);
+    if (was === undefined) continue;
+    if (getIn(cfg, to) === undefined) setIn(cfg, to, cloneJson(was) as never);
+    dropMovedLeaf(cfg, from);
+  }
+}
+
 function dropRemovedKeys(cfg: Dict): void {
   for (const path of REMOVED_V2_KEYS) {
     const parts = path.split(".").filter((p) => p.length > 0);
@@ -702,6 +775,7 @@ export function migrate(raw: unknown, opts?: MigrateOptions): Dict {
     report.migrated = true;
   }
 
+  moveRenamedKeys(out);
   dropRemovedKeys(out);
   fillDefaults(out);
   out.schemaVersion = SCHEMA_VERSION_V2;

@@ -889,8 +889,8 @@ function caretLookFromConfig(cfg) {
  * потому что в значение контрола он не влезает (У-60).
  */
 function jumpFlashLookFromConfig(cfg) {
-  const flash = isObj(readCfgPath(cfg, "navigation.jumpToHeader.flash"))
-    ? readCfgPath(cfg, "navigation.jumpToHeader.flash")
+  const flash = isObj(readCfgPath(cfg, "visual.jumpFlash"))
+    ? readCfgPath(cfg, "visual.jumpFlash")
     : {};
   const num = (raw, dflt) => {
     const n = Math.trunc(Number(raw));

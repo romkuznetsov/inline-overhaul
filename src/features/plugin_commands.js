@@ -339,6 +339,34 @@ function cursorMarkOf(ed) {
 }
 
 /**
+ * Дождаться, пока шаг доедет до курсора, и только тогда просить круг (Н5).
+ *
+ * **Замечание заказчика 2026-09-17:** «`jump-flash-inline` = on, не посвечивает
+ * при прыжках в строке (`move cursor left/right in line`)». Переходы по
+ * заголовкам при этом светились.
+ *
+ * Причина в том, что курсор ставят **двумя разными способами**. Переход по
+ * заголовкам ставит его сразу и повторяет ещё дважды, а шаг внутри строки
+ * кончается отложенным `setCursor` — иначе Obsidian возвращает каретку на
+ * место после возврата из команды. Вопрос «переехал ли курсор», заданный
+ * сразу за вызовом, описывает прежний экран (У-130), и ответ у шага внутри
+ * строки был всегда «нет».
+ *
+ * Поэтому вопрос задаётся дважды: сразу — и, если курсор ещё стоит, ещё раз
+ * следующим тактом. Отложенная постановка курсора заводится **внутри** вызова,
+ * то есть раньше нашего такта, и порядок таймеров с одинаковым сроком задан.
+ * Ждать дольше нечего: шаг, не сдвинувший курсор ни сразу, ни тактом позже,
+ * его не сдвинул — и круга не получает.
+ */
+async function flashWhenCursorMoved(plugin, ed, before, jumpKind) {
+  if (cursorMarkOf(ed) === before) {
+    await new Promise((done) => { setTimeout(done, 0); });
+    if (cursorMarkOf(ed) === before) return false;
+  }
+  return __editorDecorations.fireJumpFlash(plugin, jumpKind);
+}
+
+/**
  * Обёртка **всех** команд навигации, и через неё же проходит подсветка прыжка.
  *
  * `jumpKind` приходит из того же списка, где команды объявлены: `"jump"` у
@@ -370,9 +398,7 @@ async function runNavigationGuard(plugin, moduleKey, action, jumpKind) {
   const before = jumpKind ? cursorMarkOf(ed) : "";
   try {
     const out = await Promise.resolve(action(ed, cfg.navigation || {}, cfg, rt));
-    if (jumpKind && cursorMarkOf(ed) !== before) {
-      __editorDecorations.fireJumpFlash(plugin, jumpKind);
-    }
+    if (jumpKind) await flashWhenCursorMoved(plugin, ed, before, jumpKind);
     return out;
   } catch (e) {
     console.error("[inline-overhaul][navigation]", e);
