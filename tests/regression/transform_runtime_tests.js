@@ -79,8 +79,20 @@ function makeFieldsConfig() {
 function makeEditor(initial, options) {
   let lines = String(initial || "").split("\n");
   const opts = options || {};
+  let cursor = null;
   return {
-    getCursor(which) { return which === "to" ? { line: 0, ch: lines[0].length } : { line: 0, ch: 0 }; },
+    getCursor(which) {
+      if (cursor) return { line: cursor.line, ch: cursor.ch };
+      return which === "to" ? { line: 0, ch: lines[0].length } : { line: 0, ch: 0 };
+    },
+    /*
+     * **Каретка у подделки есть, потому что она есть у платформы** (У-45).
+     * Без неё не видно, куда Transform ставит курсор, — а он его ставит с
+     * 2026-09-18 по его замечанию: «после transform курсор стоит в начале
+     * строки, а должен в конце текста».
+     */
+    setCursor(pos) { cursor = { line: Number(pos && pos.line || 0), ch: Number(pos && pos.ch || 0) }; },
+    cursorNow() { return cursor ? { line: cursor.line, ch: cursor.ch } : null; },
     somethingSelected() { return false; },
     getLine(n) { return lines[n] || ""; },
     lineCount() { return lines.length; },
@@ -390,7 +402,7 @@ async function testHeaderLineTakesItsSectionAndBecomesBullet() {
   const plugin = makePlugin(makeConfig({
     sublines: "remove",
     noteName: { mode: "auto", delimiters: "[]", wordCount: 6, preferHeaderTitle: true },
-    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "remove" },
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "words", keepWords: 2 },
   }, {
     fields: {
       order: {
@@ -451,7 +463,7 @@ async function testPlainLineStillTakesOnlyIndentedLines() {
   ].join("\n"));
   const plugin = makePlugin(makeConfig({
     sublines: "remove",
-    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "remove" },
+    sourceProcessing: { cleanupFieldIds: [], token: "", panel: "right", replaceWithLink: true, text: "words", keepWords: 2 },
   }), editor);
   await transform.runInline2Note(plugin, { lineFinalize });
   const note = String(plugin.files.get("Notes/Отчёт.md") || "");
@@ -546,6 +558,80 @@ async function testProcessedTokenLeftPanelAfterCleanedLeftSegment() {
   await transform.runInline2Note(plugin, { lineFinalize });
   assertEq(editor.text(), "- #processed :: text words :: tail",
     "метка встала в левый слот, а не в текст");
+}
+
+/**
+ * **Метка слева встаёт за началом строки, каким бы оно ни было** — его
+ * замечание 2026-09-18: «в хедере при `source-marker-position = left block`
+ * получилось `#processed ## [[ыва ыфва]]`, ожидалось `- #processed :: [[ыва
+ * ыфва]]`; и при трансформации нумерованной — `#processed 1. [[123111]]`
+ * вместо `1. #processed :: [[123111]]`».
+ *
+ * Прежний образец начала строки знал дефис, звёздочку, плюс и чекбокс за ними
+ * — и не знал ни номера списка, ни знака заголовка, ни цитаты: метка вставала
+ * **перед** ними, то есть внутрь чужой разметки (У-184). И первого разделителя
+ * между меткой и текстом не появлялось вовсе.
+ *
+ * **Спрашивается само правило, а не весь ход `Inline to note`:** судьба текста
+ * и имя новой заметки решаются другими настройками, и проверка через весь ход
+ * говорила бы о них, а не о метке. Формы стоят все пять — на одной дефекта не
+ * видно (У-113).
+ */
+function testProcessedTokenLeftPanelKeepsLineStart() {
+  const separators = { separator1: "::", separator2: "::" };
+  const cfg = makeConfig({}, makeFieldsConfig());
+  const left = (line) => transform.insertProcessedToken(line, "#processed", "left", separators, { payloadFirst: false }, cfg);
+  const right = (line) => transform.insertProcessedToken(line, "#processed", "right", separators, { payloadFirst: false }, cfg);
+
+  assertEq(left("1. [[123111]]"), "1. #processed :: [[123111]]",
+    "номер списка остался началом строки, метка встала за ним");
+  assertEq(left("## [[ыва ыфва]]"), "## #processed :: [[ыва ыфва]]",
+    "знак заголовка остался началом строки (в список его превращает следующий шаг, В-129)");
+  assertEq(left("- [ ] [[123111]]"), "- [ ] #processed :: [[123111]]",
+    "знак задачи пережил метку");
+  assertEq(left("> - [[123111]]"), "> - #processed :: [[123111]]",
+    "цитата пережила метку");
+  assertEq(left("* [[123111]]"), "* #processed :: [[123111]]",
+    "звёздочка — такой же знак списка, как дефис");
+
+  /* Контроль: правый Block собирается по-своему и правкой не тронут (У-164). */
+  assertEq(right("1. [[123111]]"), "1. [[123111]] :: #processed",
+    "метка справа стоит за разделителем, как и стояла");
+}
+
+/**
+ * **Курсор после `Inline to note` стоит в конце текста** — его замечание
+ * 2026-09-18: «после transform на исходной строке курсор стоит `|- [[13]] ::
+ * #/1 #processed`, а должен был `- [[13]]| :: #/1 #processed`».
+ *
+ * Строка переписывается целиком, от нулевого столбца, и платформа оставляет
+ * каретку там же, где кусок начался. Проверка идёт **через весь ход**: ставит
+ * курсор тот, кто пишет строку, и подделка редактора умеет его запомнить (У-45).
+ */
+async function testCursorStandsAtEndOfTextAfterTransform() {
+  const editor = makeEditor("- ывыв ывы :: \u{1F4C5}2026-09-07 18:56");
+  const plugin = makePlugin(makeConfig({
+    sourceProcessing: { cleanupFieldIds: [], token: "#processed", panel: "right", replaceWithLink: true, text: "words", keepWords: 2 },
+  }, makeFieldsConfig()), editor);
+  await transform.runInline2Note(plugin, { lineFinalize });
+
+  const line = editor.text();
+  const at = editor.cursorNow();
+  assertTrue(!!at, "курсор поставлен, а не оставлен там, где был");
+  assertEq(at.line, 0, "и на той же строке");
+  /*
+   * Ожидание выписано текстом, а не вычислено тем же правилом, каким ставится
+   * курсор: иначе проверка сверяла бы правило само с собой (У-5). Строка
+   * выходит `- ывыв ывы :: [[Notes/…]] :: #processed`, и слот текста здесь —
+   * ссылка между разделителями: курсор обязан стоять сразу за ней, а не в
+   * начале строки и не за меткой.
+   */
+  const upToCursor = line.slice(0, at.ch);
+  assertTrue(/\]\]$/.test(upToCursor),
+    "курсор стоит сразу за текстом: " + JSON.stringify(line) + ", до курсора " + JSON.stringify(upToCursor));
+  assertEq(line.slice(at.ch), " :: #processed",
+    "а за курсором остаётся только правый Block: " + JSON.stringify(line.slice(at.ch)));
+  assertTrue(at.ch > 0, "и это не нулевой столбец, с которого начиналась запись");
 }
 
 /**
@@ -1084,6 +1170,8 @@ async function run() {
   await testLeaveNamedKeepsRestAndSwapsName();
   await testCleanedLeftSegmentKeepsTextAndTailApart();
   await testProcessedTokenLeftPanelAfterCleanedLeftSegment();
+  testProcessedTokenLeftPanelKeepsLineStart();
+  await testCursorStandsAtEndOfTextAfterTransform();
   runCustomHeaderPlacementSuite();
   await testCustomHeaderReachesTheWrittenNote();
   runRulePlacementSuite();

@@ -77,6 +77,17 @@
 
 ### Inline to note
 
+- **The `#processed` mark in the left Block no longer jumps in front of your
+  line.** With `Source marker position` set to the left Block, the mark was
+  written before whatever started the line - a list number, a heading mark, a
+  quote - and with no separator between itself and your text: `#processed 1.
+  [[note]]`. It now stands after the line start and behind the first separator:
+  `1. #processed :: [[note]]`.
+- **The cursor lands at the end of your text.** The source line is rewritten
+  whole, and the caret was left at column zero; it now sits right after the
+  text, before the separator.
+
+
 - **New: the notes a line points at can learn about the note it became.** Turn
   on `Links in the notes you mention` and every note this line links to - by a
   Field Value, not by a link inside your own sentence - gets a link to the new

@@ -2455,7 +2455,57 @@ function applySourceTextFate(line, noteTitle, separators, opts) {
   return joinSourcePayload(parts, next);
 }
 
-function insertProcessedToken(line, token, panel, separators, shape) {
+/**
+ * Зоны исходной строки для метки: начало строки, значения, текст, правый Block.
+ *
+ * Спрашивается дом (`splitSegments`) — тот же, что у движков, — и тем же
+ * сборщиком правил, каким они собираются у них. Правила могут не собраться на
+ * полуготовом конфиге: тогда остаётся позиционный ответ, и это **проба**, у
+ * которой «нет» — ответ (тот же приём, что у разбора зон выше по файлу).
+ *
+ * Начало строки снимается **всегда** общим объявлением: знак списка, номер,
+ * чекбокс, цитата, каллаут и заголовок принадлежат строке, а не зоне значений
+ * (У-184).
+ */
+function sourceLineZones(line, separators, cfg) {
+  const src = String(line || "");
+  const s1 = String(separators && separators.separator1 || "").trim();
+  const s2 = String(separators && separators.separator2 || "").trim();
+  let seg = null;
+  if (cfg) {
+    try {
+      seg = __linePipeline.splitSegments(src, getRulesShapeModule().buildRulesForEngines(cfg));
+    } catch (_) {
+      /* Правила не собрались — ниже позиционный ответ. Проба, и «нет» — ответ. */
+      seg = null;
+    }
+  }
+  if (!seg) {
+    const indentOnly = String((src.match(/^[\t ]*/) || [""])[0] || "");
+    const body = src.slice(indentOnly.length);
+    const at = body.indexOf(s1);
+    const atSecond = at >= 0 ? body.indexOf(s2, at + s1.length) : -1;
+    seg = at < 0
+      ? { indent: indentOnly, left: body, text: "", dates: "" }
+      : {
+        indent: indentOnly,
+        left: body.slice(0, at).trim(),
+        text: atSecond >= 0 ? body.slice(at + s1.length, atSecond).trim() : body.slice(at + s1.length).trim(),
+        dates: atSecond >= 0 ? body.slice(atSecond + s2.length).trim() : "",
+      };
+  }
+  const start = __sharedUtils.lineStartOf(String(seg.left || ""));
+  const head = String(start.prefix || "");
+  return {
+    indent: String(seg.indent || ""),
+    start: head,
+    left: String(start.body || ""),
+    text: String(seg.text || ""),
+    dates: String(seg.dates || ""),
+  };
+}
+
+function insertProcessedToken(line, token, panel, separators, shape, cfg) {
   const src = String(line || "");
   const processed = String(token || "").trim();
   if (!processed) return src;
@@ -2486,10 +2536,36 @@ function insertProcessedToken(line, token, panel, separators, shape) {
   const first = body.indexOf(s1);
   const second = first >= 0 ? body.indexOf(s2, first + s1.length) : -1;
   if (String(panel || "right").trim().toLowerCase() === "left") {
-    if (first >= 0) return `${indent}${body.slice(0, first).trimEnd()} ${processed} ${body.slice(first).trimStart()}`;
-    const prefix = body.match(/^([-*+]\s+(?:\[[^\]]\]\s+)?)/);
-    if (prefix) return `${indent}${prefix[1]}${processed} ${body.slice(prefix[1].length)}`.trimEnd();
-    return `${indent}${processed}${body ? " " + body : ""}`;
+    /*
+     * **Метка встаёт в зону значений, а не перед началом строки** (его
+     * замечание 2026-09-18: «в хедере при `source-marker-position = left block`
+     * получилось `#processed ## [[ыва ыфва]]`, ожидалось `- #processed ::
+     * [[ыва ыфва]]`; и при трансформации нумерованной — `#processed 1.
+     * [[123111]]` вместо `1. #processed :: [[123111]]`»).
+     *
+     * Здесь стоял свой образец начала строки — дефис, звёздочка, плюс и
+     * чекбокс за ними, — и он не знал ни номера списка, ни знака заголовка, ни
+     * цитаты: метка приписывалась **перед** ними, то есть внутрь чужой
+     * разметки (У-184, правило 104). Форма начала строки объявлена один раз —
+     * `lineStartOf` в `shared_utils.js`, — и спрашивается здесь она.
+     *
+     * **И зоны склеивает дом, а не конкатенация** (`joinLineParts`): метка в
+     * левом Block означает, что за ней идёт первый разделитель. Прежде его не
+     * было вовсе, и строка выходила слитной — `- #processed [[имя]]`, то есть
+     * метка и текст человека в одной зоне.
+     */
+    const zones = sourceLineZones(src, separators, cfg);
+    /* Знак начала строки, уже стоявшие значения и метка — через пробел: сам
+       знак приезжает из дома как есть, и хвостового пробела у него нет. */
+    const leftZone = [String(zones.start || "").trimEnd(), String(zones.left || "").trim(), processed]
+      .filter((x) => String(x || "").length)
+      .join(" ");
+    return __linePipeline.joinLineParts({
+      indent: zones.indent,
+      left: leftZone,
+      text: zones.text,
+      dates: zones.dates,
+    }, { sep1: s1, sep2: s2, hasLeftTokens: true }).trimEnd();
   }
   if (second >= 0) {
     const right = body.slice(second + s2.length).trim();
@@ -3027,22 +3103,70 @@ function assertEditorSnapshot(plugin, ed, info, expectedBlock) {
   }
 }
 
-function replaceEditorSourceBlock(ed, info, nextRootLine, sublines) {
+/**
+ * Куда встаёт курсор на исходной строке после `Inline to note` — **в конец
+ * текста**.
+ *
+ * Его замечание 2026-09-18: «после transform на исходной строке курсор стоит
+ * `|- [[13]] :: #/1 #processed`, а должен был `- [[13]]| :: #/1 #processed` —
+ * т.е. в конце текста». Строка переписывается целиком, от нулевого столбца, и
+ * платформа оставляет каретку там же, где начался кусок.
+ *
+ * Где кончается текст, спрашивается у дома зон (`splitSegments`), а не считается
+ * заново: при совпадающих разделителях `текст :: правый` и `левый :: текст` —
+ * одна и та же строка по виду, и позиционный ответ был бы неверен ровно на его
+ * настройках (У-153).
+ *
+ * **Текста нет — курсор не трогаем.** Ставить его «куда-нибудь» значит
+ * придумать за него правило, которого он не называл; сегодняшнее поведение в
+ * этом случае остаётся прежним.
+ */
+function sourceTextCursorCh(line, separators, cfg) {
+  const src = String(line || "");
+  const zones = sourceLineZones(src, separators, cfg);
+  const text = String(zones.text || "").trim();
+  if (!text) return -1;
+  const s1 = String(separators && separators.separator1 || "").trim();
+  const leftBody = String(zones.left || "").trim();
+  /* Искать текст надо за его зоной, а не с начала строки: то же слово может
+     стоять и в зоне значений. */
+  let from = String(zones.indent || "").length + String(zones.start || "").length;
+  if (leftBody && s1) {
+    const sepAt = src.indexOf(s1, from);
+    if (sepAt >= 0) from = sepAt + s1.length;
+  }
+  const at = src.indexOf(text, from);
+  if (at < 0) return -1;
+  return at + text.length;
+}
+
+function replaceEditorSourceBlock(ed, info, nextRootLine, sublines, separators, cfg) {
   if (!ed || typeof ed.replaceRange !== "function") throw new Error("editor replace API unavailable");
   const start = Number(info.blockStart || 0);
   const end = Number(info.blockEnd || start);
+  /* Курсор ставится **после** записи: до неё столбец относится к прежней
+     строке. Правило одно и объявлено выше — конец текста. */
+  const putCursor = () => {
+    const ch = sourceTextCursorCh(nextRootLine, separators, cfg);
+    if (ch < 0) return;
+    if (typeof ed.setCursor !== "function") throw new Error("editor cursor API unavailable");
+    ed.setCursor({ line: start, ch });
+  };
   if (String(sublines || "stay").trim().toLowerCase() !== "remove") {
     const oldRoot = String(ed.getLine(start) || "");
     ed.replaceRange(String(nextRootLine || ""), { line: start, ch: 0 }, { line: start, ch: oldRoot.length });
+    putCursor();
     return;
   }
   const total = typeof ed.lineCount === "function" ? Number(ed.lineCount() || 0) : end + 1;
   if (end + 1 < total) {
     ed.replaceRange(`${String(nextRootLine || "")}\n`, { line: start, ch: 0 }, { line: end + 1, ch: 0 });
+    putCursor();
     return;
   }
   const endText = String(ed.getLine(end) || "");
   ed.replaceRange(String(nextRootLine || ""), { line: start, ch: 0 }, { line: end, ch: endText.length });
+  putCursor();
 }
 
 async function readTemplateContent(plugin, templatePath) {
@@ -3464,11 +3588,11 @@ async function runInline2Note(plugin, runtimeOptions) {
       i2n,
       shape,
     });
-    nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators, shape);
+    nextRoot = insertProcessedToken(nextRoot, i2n.sourceProcessing.token, i2n.sourceProcessing.panel, separators, shape, cfg);
     /* Знак заголовка меняется на знак списка последним: до этого шага строка
        собирается теми же правилами, что и любая другая (В-129). */
     nextRoot = headingSourceBecomesBullet(nextRoot, sourceLine);
-    replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines);
+    replaceEditorSourceBlock(ed, selectionInfo, nextRoot, i2n.sublines, separators, cfg);
   } catch (sourceError) {
     try {
       await mutation.rollback();
