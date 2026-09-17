@@ -77,6 +77,12 @@
 
 ### Inline to note
 
+- **The `#processed` mark now carries the Block styling of the Block it sits
+  in.** A Block holds values of the Fields placed in it, and a setup whose left
+  Block holds no Fields left the mark - the one thing standing there - with no
+  band and no Block text size. The mark belongs to the Block your
+  `Source marker position` names, by name rather than by kind: a tag of your own
+  that happens to stand there still does not get it.
 - **The `#processed` mark in the left Block no longer jumps in front of your
   line.** With `Source marker position` set to the left Block, the mark was
   written before whatever started the line - a list number, a heading mark, a

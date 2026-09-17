@@ -1298,6 +1298,15 @@ function blockFillPrefixGlyphEnd(text) {
  *
  * Род значения у порядка и у разбора строки назван разными словами:
  * `wikilink` против `link`. Перевод один и здесь, второго быть не должно.
+ *
+ * **И один токен принадлежит Block не по роду, а по имени** — метка
+ * `Inline to note` (его замечание 2026-09-18: «теперь left block без полоски
+ * `tags-block-fill` и не учитывающий размер текста `tags-text-size`»). Ставит
+ * её туда сам плагин по настройке `Source marker position`, и значением поля
+ * она не является ни у кого: у него в левом Block полей нет вовсе, и без этого
+ * ответа единственное, что там стоит, оформления Block не получало. По имени, а
+ * не по роду — иначе оформление досталось бы и чужому тегу, случайно стоящему
+ * слева.
  */
 function buildBlockKindsFromConfig(cfg) {
   const order = isObj(readCfgPath(cfg, "pkm.fields.order"))
@@ -1321,7 +1330,28 @@ function buildBlockKindsFromConfig(cfg) {
     }
     return out;
   };
-  return { left: kindsOf(order.left), right: kindsOf(order.right) };
+  /*
+   * Метка обработанной строки и её сторона — у того же объявления, которое
+   * читает её слой отметок (`getSourceMarksFromConfig`): второй разбор той же
+   * настройки разошёлся бы с ним молча (У-32).
+   */
+  const marks = getSourceMarksFromConfig(cfg);
+  const own = { left: new Set(), right: new Set() };
+  const markToken = String(marks && marks.token || "").trim();
+  if (marks && marks.moduleOn && markToken) {
+    const side = String(readCfgPath(cfg, "transform.inline2note.sourceProcessing.panel") || "right")
+      .trim().toLowerCase() === "left" ? "left" : "right";
+    own[side].add(markToken);
+  }
+  return { left: kindsOf(order.left), right: kindsOf(order.right), own: own };
+}
+
+/** Стоит ли в этом Block наш собственный токен — тот, что кладёт туда плагин. */
+function blockOwnsToken(blockKinds, zone, token) {
+  const own = isObj(blockKinds) && isObj(blockKinds.own) ? blockKinds.own[zone] : null;
+  const t = String(token || "").trim();
+  if (!t) return false;
+  return own instanceof Set ? own.has(t) : (Array.isArray(own) ? own.indexOf(t) >= 0 : false);
 }
 
 /**
@@ -1361,6 +1391,10 @@ function blockHoldsKind(blockKinds, zone, kind) {
 function blockValueZone(zone, kind, blockKinds, token, isLinkValue) {
   const side = String(zone || "");
   if (side !== "left" && side !== "right") return side;
+  /* Свой токен принадлежит Block по имени: полей такого рода в нём может не
+     быть вовсе, а поставил его туда сам плагин (его замечание про метку
+     `Inline to note` в пустом левом Block). */
+  if (blockOwnsToken(blockKinds, side, token)) return side;
   if (!blockHoldsKind(blockKinds, side, kind)) return "middle";
   /*
    * **Род значения мало, когда род — ссылка** (его уточнение 2026-09-18: «не
@@ -2000,6 +2034,7 @@ module.exports = {
   buildElementMarkersFromConfig,
   scanLineVisualTokens,
   buildBlockKindsFromConfig,
+  blockOwnsToken,
   buildWikilinkValueTestFromConfig,
   blockValueZone,
   buildBlockStyleCss,

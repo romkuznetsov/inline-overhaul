@@ -290,6 +290,57 @@ function fakePlugin(blockFill) {
   };
 }
 
+(function testProcessedMarkBelongsToItsOwnBlock() {
+  /*
+   * **Метка `Inline to note` принадлежит тому Block, в который её кладёт
+   * настройка** — его замечание 2026-09-18: «теперь left block без полоски
+   * `tags-block-fill` и не учитывающий размер текста `tags-text-size`».
+   *
+   * Ставит её туда сам плагин, а значением поля она не является ни у кого: у
+   * него в левом Block полей нет вовсе, и правило «в Block бывают значения тех
+   * полей, что в нём стоят» оставляло единственный токен левого Block без
+   * оформления. Спрашивается **имя**, а не род: иначе полосу получил бы и
+   * чужой тег, случайно вставший слева.
+   */
+  const cfgWithMark = (panel) => ({
+    features: { transform: { enabled: true } },
+    transform: { inline2note: { enabled: true, sourceProcessing: { token: "#processed", panel } } },
+    pkm: { fields: { order: { left: [], right: ["state"], types: { state: "tag" } } } },
+  });
+
+  const leftKinds = visuals.buildBlockKindsFromConfig(cfgWithMark("left"));
+  const line = "1. #processed " + SEP + " [[333/имя]]";
+  const zones = visuals.scanLineVisualTokens(line, SEP, SEP, MARKERS, leftKinds)
+    .map((h) => h.token + ":" + h.zone);
+  assertEq(zones.join(" "), "#processed:left [[333/имя]]:middle",
+    "метка стоит в своём Block, а ссылка `Inline to note` остаётся текстом");
+
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, leftKinds);
+  assertEq(spans.map((x) => x.zone + ":" + line.slice(x.start, x.end)).join(" "), "left:#processed",
+    "и полоса под ней рисуется, хотя полей в левом Block нет ни одного");
+
+  /* Отрицательный контроль первый: чужой тег на том же месте полосы не получает
+     — правило спрашивает имя метки, а не «тег слева». */
+  const foreign = "1. #work " + SEP + " [[333/имя]]";
+  assertEq(visuals.blockFillSpansInLine(foreign, SEP, SEP, MARKERS, leftKinds).length, 0,
+    "чужой тег в пустом левом Block полосы не получает");
+
+  /* Второй: метка принадлежит **названному** Block. Стоит настройке сказать
+     «справа» — и слева она уже ничья. */
+  const rightKinds = visuals.buildBlockKindsFromConfig(cfgWithMark("right"));
+  assertEq(visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, rightKinds).length, 0,
+    "при метке справа левая полоса не появляется");
+
+  /* Третий: модуль выключен — метки не бывает вовсе, и своего токена нет. */
+  const off = visuals.buildBlockKindsFromConfig({
+    features: { transform: { enabled: false } },
+    transform: { inline2note: { enabled: false, sourceProcessing: { token: "#processed", panel: "left" } } },
+    pkm: { fields: { order: { left: [], right: ["state"], types: { state: "tag" } } } },
+  });
+  assertEq(visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, off).length, 0,
+    "выключенный Transform своего токена в Block не имеет");
+})();
+
 (function testForeignLinkIsTextOnBothSidesOfTheSeparator() {
   /*
    * **Ссылка получает оформление Block, только если она названа значением**
