@@ -31,7 +31,6 @@ class ConfigStore {
     this.undoStack = [];
     this.listeners = new Set();
     this.saveTimer = null;
-    this.lastSavedAt = null;
     this.coalesceWindowMs = options.coalesceWindowMs || 400;
     this.lastUndoKey = null;
     this.lastUndoAt = null;
@@ -41,15 +40,10 @@ class ConfigStore {
     const raw = await this.plugin.loadData();
     this.config = this.migrateConfig(raw);
     await this.plugin.saveData(this.config);
-    this.lastSavedAt = Date.now();
   }
 
   getSnapshot() {
     return this.cloneJson(this.config);
-  }
-
-  getLastSavedAt() {
-    return this.lastSavedAt;
   }
 
   subscribe(listener) {
@@ -138,7 +132,6 @@ class ConfigStore {
       this.saveTimer = null;
       try {
         await this.plugin.saveData(this.config);
-        this.lastSavedAt = Date.now();
       } catch (e) {
         console.error("[inline-overhaul] Save failed", e);
         new this.Notice(__say(__noticeKey("plugin", "save-failed"), "Could not save settings"));
@@ -164,7 +157,6 @@ class ConfigStore {
     clearTimeout(this.saveTimer);
     this.saveTimer = null;
     await this.plugin.saveData(this.config);
-    this.lastSavedAt = Date.now();
     return true;
   }
 

@@ -171,7 +171,12 @@ async function load(plugin) {
     /* Панели может не быть (старый Obsidian, не загрузившийся модуль), и
        тогда плагин работает без вкладки настроек, а не падает. */
     const tab = createSettingTab(plugin);
-    if (tab) plugin.addSettingTab(tab);
+    if (tab) {
+      /* Вкладка запоминается ради одного — отпустить подписку панели при
+         выгрузке (`disposeSettingTab` ниже). */
+      plugin._settingTab = tab;
+      plugin.addSettingTab(tab);
+    }
   }
 
   plugin.registerCommands();
@@ -278,8 +283,21 @@ function createSettingTab(plugin) {
   return null;
 }
 
+/**
+ * Отпустить подписку панели настроек на хранилище — шаг выгрузки.
+ *
+ * Вкладки может не быть вовсе (старый Obsidian, не собравшаяся панель), и
+ * тогда отпускать нечего: это уборка, и молчание здесь законно — цель
+ * достигнута в любом случае.
+ */
+function disposeSettingTab(plugin) {
+  const tab = plugin ? plugin._settingTab : null;
+  if (tab && typeof tab.disposePane === "function") tab.disposePane();
+}
+
 module.exports = {
   load,
   noticeCommandIdsChanged,
   createSettingTab,
+  disposeSettingTab,
 };

@@ -669,7 +669,14 @@ async function run() {
    * addSettingTab стоит внутри onload: исключение оттуда роняет загрузку
    * плагина целиком — ни команд, ни рантайма. Панель важна, но не настолько.
    */
-  assertTrue(/const tab = createSettingTab\(plugin\);[\s\S]{0,80}if \(tab\) plugin\.addSettingTab\(tab\);/.test(bootstrapSrc),
+  /*
+   * Образец спрашивает **охрану**, а не написание блока: 2026-09-18 вкладка
+   * стала ещё и запоминаться (`plugin._settingTab`, шаг выгрузки), тело `if`
+   * получило фигурные скобки, и утверждение покраснело на предмете, который
+   * не менялся (У-94). Сторожить надо то, ради чего пин заведён: до
+   * `addSettingTab` стоит проверка, что панель вообще собралась.
+   */
+  assertTrue(/const tab = createSettingTab\(plugin\);[\s\S]{0,120}if \(tab\)[\s\S]{0,300}plugin\.addSettingTab\(tab\);/.test(bootstrapSrc),
     "a settings pane that failed to build does not break onload");
   assertFalse(/throw new Error\("inlineOverhaul: settings pane/.test(src),
     "createSettingTab reports the failure instead of throwing out of onload");

@@ -96,6 +96,9 @@ class InlineOverhaulPlugin extends Plugin {
     /* Открытая панель TagWheel держит перехват `keydown` на всём окне, и без
        этой строки он живёт до перезагрузки окна (Д-2). */
     this.__unloadStep("tagwheel-session", () => __pluginCommands.closeTagWheelSession());
+    /* Подписка панели настроек на хранилище: договор был написан и не
+       исполнялся (`docs/AUDIT_2026-09-18.md`, 4.5). */
+    this.__unloadStep("settings-pane", () => __bootstrap.disposeSettingTab(this));
     __editorStyles.removeAll(this);
     if (this.store) this.store.unload();
   }
@@ -210,23 +213,16 @@ class InlineOverhaulPlugin extends Plugin {
     return __configWrite.applyPatch(this, patchObj, reason);
   }
 
-  setActiveSettingsTab(tabId) {
-    this.setConfigPatch({ ui: { activeSettingsTab: tabId } }, "settings:tab");
-  }
-
-  setVisualSubTab(subTabId) {
-    this.setConfigPatch({ ui: { visualSubTab: subTabId } }, "settings:visual-subtab");
-  }
-
-  setHotkeysSubTab(subTabId) {
-    this.setConfigPatch({ ui: { hotkeysSubTab: subTabId } }, "settings:hotkeys-subtab");
-  }
-
-  isFeatureEnabled(featureKey) {
-    const cfg = this.getConfig();
-    return !!(cfg.features && cfg.features[featureKey] && cfg.features[featureKey].enabled);
-  }
-
+  /*
+   * Здесь стояли четыре метода, которых не звал никто, — три записи открытой
+   * вкладки настроек (`setActiveSettingsTab`, `setVisualSubTab`,
+   * `setHotkeysSubTab`) и `isFeatureEnabled`. Первые три — остаток старой
+   * панели, снятой 2026-08-29: новая держит открытую вкладку в себе и в конфиг
+   * её не пишет. Сами ключи `ui.*` в конфиге остались — их нормализуют и
+   * переносят, и не читает никто; что с ними делать, решает заказчик
+   * (`docs/AUDIT_2026-09-18.md`, Р-4). Возвращаться этому классу не даёт
+   * `tests/regression/dead_methods_tests.js`.
+   */
 }
 
 
