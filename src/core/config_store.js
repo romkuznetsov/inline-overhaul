@@ -146,13 +146,26 @@ class ConfigStore {
     }, this.saveDebounceMs);
   }
 
+  /**
+   * Дописать отложенную запись прямо сейчас (CS7).
+   *
+   * **Зовётся выгрузкой плагина.** `scheduleSave` откладывает запись на
+   * `saveDebounceMs`, а `unload()` тот же таймер снимает — то есть правка,
+   * сделанная в последнюю четверть секунды, пропадала молча. Воспроизведено
+   * 2026-09-18, разбор — `docs/AUDIT_2026-09-18.md`, 4.1.
+   *
+   * **Ничего не отложено — ничего не пишем.** «Дописать» значит «дописать
+   * отложенное», а не «записать ещё раз»: лишняя запись на каждой выгрузке
+   * трогала бы время файла и будила синхронизацию на ровном месте. Отвечает
+   * `false`, чтобы позвавший мог сказать, было ли что дописывать.
+   */
   async flushNow() {
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-    }
+    if (!this.saveTimer) return false;
+    clearTimeout(this.saveTimer);
+    this.saveTimer = null;
     await this.plugin.saveData(this.config);
     this.lastSavedAt = Date.now();
+    return true;
   }
 
   unload() {
