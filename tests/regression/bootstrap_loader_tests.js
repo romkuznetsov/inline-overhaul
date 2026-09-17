@@ -1679,7 +1679,12 @@ async function run() {
     assertEq(probeHits.join(","), "hasValidThing,loadThingSafe,createThingUnavailable",
       "образец заглушки не находит собственный пример — запрет выше мерит пустоту");
   }
-  assertTrue(/function reportLoaderFallback\(stage, err\)/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exposes debug-gated loader fallback reporter");
+  /*
+   * Пин «у загрузчика есть делегат следа» снят вместе с самим делегатом
+   * 2026-09-18: его единственным звавшим был `catch` запасного хода, а ход
+   * снят (`docs/AUDIT_2026-09-18.md`, Р-5). Дом следа на месте, и проверяется
+   * он поведением ниже; делегат в слое команд — тоже.
+   */
 
   /*
    * **След запасного хода загрузки объявлен один раз** (10.13.150). Тела в
@@ -1720,10 +1725,12 @@ async function run() {
     }
 
     const delegates = /return __sharedUtils\.reportLoaderFallback\(stage, err\);/;
-    assertTrue(delegates.test(pkmRuntimeBootstrapSrc),
-      "загрузчик спрашивает след у общего дома, а не пишет его сам");
     assertTrue(delegates.test(commandsSrc),
       "слой команд спрашивает след у общего дома, а не пишет его сам");
+    /* Второй делегат — в загрузчике — снят вместе с ходом, которому он
+       принадлежал. Что он не вернулся своим телом, держит запрет: */
+    assertFalse(/\[inline-overhaul\]\[loader\]/.test(pkmRuntimeBootstrapSrc),
+      "загрузчик не пишет след сам: дома у следа по-прежнему один");
   }
   assertFalse(/function cycleStatusTags\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusTags runtime path");
   assertFalse(/function cycleStatusDate\(/.test(pkmRuntimeV2Src), "pkm_runtime_v2 no longer keeps legacy cycleStatusDate runtime path");
@@ -1749,10 +1756,24 @@ async function run() {
     "в загрузчике нет слоя нормализатора ключа Order: потребители спрашивают дом прямо (10.13.168)");
   assertFalse(/__inlineOrderKeyNormalizer/.test(pkmRuntimeBootstrapCode),
     "шва порядка загрузки под нормализатор ключа Order больше нет");
-  assertTrue(/function loadOrderConfigFromPluginData\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports plugin data order-config loader");
   assertTrue(/function resolveOrderConfig\(/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap exports order-config resolver");
-  assertTrue(/const hasSettingsOrder = rawSettings !== undefined && rawSettings !== null/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap detects explicit settings order config");
-  assertTrue(/if \(hasSettingsOrder\) \{\s*return parseOrderConfig\(rawSettings, normalizeKey\);\s*\}/.test(pkmRuntimeBootstrapSrc), "runtime bootstrap prioritizes settings order config over plugin data fallback");
+  /*
+   * **Здесь стояли три пина на запасной ход «прочитать порядок из
+   * `data.json`», и все три были зелёными ровно потому, что до хода никто не
+   * доходил** (У-63): путь папки настроек стоял литералом, а до `.obsidian/**`
+   * `vault` не достаёт вовсе. Ход снят 2026-09-18 после пробоя со счётчиком —
+   * 2759 вызовов, заходов ноль (`docs/AUDIT_2026-09-18.md`, 4.4 и Р-5).
+   *
+   * На их месте — запрет по **коду**, а не по тексту файла: объяснение выше
+   * само называет снятое имя, и пин по исходнику покраснел бы на собственном
+   * абзаце (У-138). Что функция при этом отвечает правильно, спрашивает
+   * `tests/regression/order_config_resolve_tests.js` — поведением, а не
+   * написанием.
+   */
+  assertFalse(/loadOrderConfigFromPluginData/.test(pkmRuntimeBootstrapCode),
+    "запасного хода «порядок из data.json» нет: он не мог сработать ни при каком условии");
+  assertFalse(/getAbstractFileByPath/.test(pkmRuntimeBootstrapCode),
+    "и путей внутри vault в загрузчике не осталось ни одного");
   /*
    * Пин «мост экспортирует загрузчик» снят вместе с самим мостом: файла
    * `src/core/vault_module_bridge.js` больше нет. Что мост не вернулся,

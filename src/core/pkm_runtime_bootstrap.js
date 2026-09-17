@@ -17,13 +17,6 @@
 
 const __sharedUtils = require("./shared_utils.js");
 
-/* След запасного хода загрузки объявлен один раз — `reportLoaderFallback` в
-   `shared_utils.js` (10.13.150). Здесь и в `plugin_commands.js` стояли две
-   побайтно равные копии; та, что признавала себя копией, — эта. */
-function reportLoaderFallback(stage, err) {
-  return __sharedUtils.reportLoaderFallback(stage, err);
-}
-
 /*
  * **Нормализатора ключа Order здесь больше нет, и шва под него тоже**
  * (10.13.168). Было: `loadOrderKeyNormalizer` брал довод, иначе брал
@@ -32,24 +25,29 @@ function reportLoaderFallback(stage, err) {
  * пять слоёв, и все они, вместе с этим, вели в один дом —
  * `normalizeOrderKey` в `shared_utils.js`. Потребители спрашивают дом сами,
  * и порядок загрузки на ответ больше не влияет ничем.
+ *
+ * **И запасного хода «прочитать порядок из `data.json`» здесь больше нет**
+ * (ревизия 2026-09-18, `docs/AUDIT_2026-09-18.md` 4.4 и Р-5). Он не мог
+ * сработать ни при каком условии, и причин тому было три сразу:
+ *
+ *   - путь `.obsidian/plugins/inline-overhaul/data.json` стоял **литералом**,
+ *     а папку настроек человек вправе увести в свою — её имя знает
+ *     `vault.configDir`, и два других места плагина спрашивают именно его;
+ *   - до этой папки `vault` не достаёт вовсе: `.obsidian/**` Obsidian не
+ *     индексирует, и поэтому каталоги текстов читаются адаптером. То есть
+ *     `getAbstractFileByPath` отвечал `null` всегда, а тело хода за первой
+ *     строкой было недостижимо;
+ *   - пробой со счётчиком: на 2759 вызовах `resolveOrderConfig` (весь набор,
+ *     обе дороги обхода строки, стенд отмены и две сессии панели на его
+ *     `data.json`) в запасной ход не зашло **ни одного**.
+ *
+ * Снятие поэтому ничего не меняет: и раньше, и теперь ответ собирает
+ * `parseOrderConfig(rawSettings, normalizeKey)`. Починить путь было бы, наоборот,
+ * изменением поведения — ход ожил бы там, где его никто не просил.
+ *
+ * Довод «приложение» у `resolveOrderConfig` остался: его передают пять
+ * звавших через прослойку, и менять их подписи — отдельная работа, а не эта.
  */
-async function loadOrderConfigFromPluginData(app_) {
-  const isObj = __sharedUtils.isObj;
-  try {
-    const af = app_ && app_.vault && typeof app_.vault.getAbstractFileByPath === "function"
-      ? app_.vault.getAbstractFileByPath(".obsidian/plugins/inline-overhaul/data.json")
-      : null;
-    if (!af) return null;
-    const txt = await app_.vault.read(af);
-    const json = JSON.parse(String(txt || "{}"));
-    const order = json && json.pkm && json.pkm.fields ? json.pkm.fields.order : null;
-    return isObj(order) ? order : null;
-  } catch (e) {
-    reportLoaderFallback("pkm_runtime_bootstrap.loadOrderConfigFromPluginData", e);
-    return null;
-  }
-}
-
 async function resolveOrderConfig(app_, settings, options) {
   const opts = options && typeof options === "object" ? options : {};
   const key = String(opts.orderConfigKey || "").trim();
@@ -61,17 +59,15 @@ async function resolveOrderConfig(app_, settings, options) {
   const normalizeKey = typeof opts.normalizeKey === "function" ? opts.normalizeKey : __sharedUtils.normalizeOrderKey;
   if (!parseOrderConfig) throw new Error("pkm_runtime_bootstrap: parseOrderConfig is required");
   const rawSettings = settings && Object.prototype.hasOwnProperty.call(settings, key) ? settings[key] : undefined;
-  const hasSettingsOrder = rawSettings !== undefined && rawSettings !== null
-    && !(typeof rawSettings === "string" && String(rawSettings).trim() === "");
-  if (hasSettingsOrder) {
-    return parseOrderConfig(rawSettings, normalizeKey);
-  }
-  const fromPlugin = await loadOrderConfigFromPluginData(app_);
-  if (fromPlugin) return parseOrderConfig(fromPlugin, normalizeKey);
+  /*
+   * Развилки здесь больше нет, и это не упрощение ради красоты: со снятием
+   * запасного хода обе её ветви стали одним и тем же вызовом. Признак
+   * «порядок в настройках есть» разводил их ровно затем, чтобы настройки
+   * побеждали `data.json`, — побеждать стало некого.
+   */
   return parseOrderConfig(rawSettings, normalizeKey);
 }
 
 module.exports = {
-  loadOrderConfigFromPluginData,
   resolveOrderConfig,
 };
