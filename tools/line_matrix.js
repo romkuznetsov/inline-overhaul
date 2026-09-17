@@ -248,6 +248,23 @@ function casesFor(sep1, marker, material) {
     const line = "1. [!] текст " + sep1 + " #work";
     out.push({ name: "знак задачи за номером списка", line: line, ch: line.length });
   }
+  /*
+   * **Двадцать четвёртая и двадцать пятая — строка после `Inline to note`**, и
+   * названы они им самим (В-141, 2026-09-17): `- [[имя]] :: #processed` и
+   * `- [[имя]] текст :: #processed`. Ссылку туда ставит сам плагин **вместо**
+   * его текста, и значением поля она не бывает ни у кого; отрицательный
+   * контроль к ним — форма «ссылка поля в зоне значений» выше, где ссылка
+   * **является** значением и вести себя обязана по-прежнему.
+   *
+   * Цель ссылки собирается, а не пишется: совпади она со значением его поля,
+   * пара проверяла бы противоположное тому, ради чего заведена (У-147).
+   */
+  if (stuff.foreignLink) {
+    const bare = "- " + stuff.foreignLink + " " + sep1 + " #processed";
+    out.push({ name: "ссылка Inline to note без текста", line: bare, ch: bare.length });
+    const withText = "- " + stuff.foreignLink + " текст " + sep1 + " #processed";
+    out.push({ name: "ссылка Inline to note и текст", line: withText, ch: withText.length });
+  }
   return out;
 }
 
@@ -267,6 +284,7 @@ function materialFor(rules) {
   );
   const firstValue = (f) => (Array.isArray(f && f.values) ? f.values : []).filter((v) => v && v.token)[0] || null;
   const tags = [];
+  const known = new Set();
   let link = "";
   for (const f of fields) {
     if (!f || f.enabled === false) continue;
@@ -275,6 +293,10 @@ function materialFor(rules) {
     if (!v) continue;
     const token = String(core.buildOutputToken(f, v, rules) || "").trim();
     if (!token) continue;
+    for (const val of (Array.isArray(f.values) ? f.values : [])) {
+      const t = String(core.buildOutputToken(f, val, rules) || "").trim();
+      if (t) known.add(t);
+    }
     if (helpers.isWikilinkSourceField(f)) {
       if (!link) link = token;
       continue;
@@ -282,7 +304,17 @@ function materialFor(rules) {
     if (String(f.marker || "").trim()) continue;
     if (tags.length < 2) tags.push(token);
   }
-  return { tags: tags, link: link };
+  /*
+   * Ссылка, которой нет ни в одном списке значений, — та самая, что оставляет
+   * `Inline to note`. Имя перебирается до первого свободного: его значения
+   * принадлежат ему и могут называться как угодно.
+   */
+  let foreignLink = "";
+  for (let i = 0; i < 100 && !foreignLink; i++) {
+    const candidate = "[[333/заметка" + i + "]]";
+    if (!known.has(candidate)) foreignLink = candidate;
+  }
+  return { tags: tags, link: link, foreignLink: foreignLink };
 }
 
 /*

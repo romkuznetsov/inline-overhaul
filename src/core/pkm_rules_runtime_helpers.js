@@ -933,6 +933,47 @@ function collectSourceCatalogValues(sourceConfig) {
   return out;
 }
 
+/**
+ * **Эта ссылка — значение поля или слово человека?** Одно объявление на все
+ * дороги (его слово 2026-09-17, В-141).
+ *
+ * До этого дня вопрос задавался **форме**: `[[что угодно]]` считалось значением
+ * поля везде, где спрашивали. Поэтому ссылку, которую `Inline to note` ставит
+ * **вместо его текста**, плагин читал как значение левого Block: слота под текст
+ * на строке не оставалось, и первая же команда поля дописывала его пустым —
+ * `- [[333/имя]] ::  :: #/1 #processed`. Его слово: «она должна считаться
+ * текстом… при любом из вариантов имя преобразованной заметки и текст не должны
+ * подмешиваться в left block», и шире: «в left block строки должны быть только
+ * те values, которые есть в fields left block — то же самое с right block».
+ *
+ * **Чем значение отличается от слова — измерено, а не выведено.** У его полей
+ * типа link значения перечислены (`Project` — `test1`, `test2`, `test444`), и
+ * ссылки Transform нет ни в одном списке. Сомнение разбора («а вдруг у поля со
+ * свободным вводом списка нет вовсе») снято у самого продукта: `Free` в панели —
+ * это `Prefix behavior`, то есть куда вставить значение, а не «любое значение
+ * годится». Списка значений нет только у поля, которому нечего предлагать.
+ *
+ * Спрашивается та же карта «токен → поле», которой значения узнают все
+ * остальные (`buildTagTokenKeyMap`): второй список ссылок разошёлся бы с ней
+ * молча (У-32). Цель ссылки сверяется без подписи после черты — подпись человек
+ * пишет для глаз, адресом заметки она не является.
+ */
+function makeWikilinkValueTest(rules) {
+  const map = buildTagTokenKeyMap(rules) || {};
+  const targets = new Set();
+  for (const token of Object.keys(map)) {
+    if (!__sharedUtils.isWikilinkToken(token)) continue;
+    const target = __sharedUtils.wikilinkTargetOf(token);
+    if (target) targets.add(target);
+  }
+  return function isFieldWikilinkValue(token) {
+    const t = String(token || "").trim();
+    if (!__sharedUtils.isWikilinkToken(t)) return false;
+    const target = __sharedUtils.wikilinkTargetOf(t);
+    return !!target && targets.has(target);
+  };
+}
+
 function buildTagTokenKeyMap(rules, options) {
   const opts = options && typeof options === "object" ? options : {};
   const activeFlagKeys = Array.isArray(opts.activeFlagKeys) && opts.activeFlagKeys.length
@@ -1459,6 +1500,7 @@ module.exports = {
   getUnifiedMixedReorderOptions,
   getTagWheelMixedReorderOptions,
   buildTagTokenKeyMap,
+  makeWikilinkValueTest,
   applyOrderToRules,
   /* Отдаётся наружу ради ожидания ответа: своё тело за запасным ходом
      снято, и вместо пина по тексту спрашивается сам ответ (10.13.161). */

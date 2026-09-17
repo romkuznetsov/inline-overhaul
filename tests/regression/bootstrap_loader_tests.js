@@ -3217,6 +3217,31 @@ async function run() {
    * стоит по форме прежней копии, а порог рядом — что живое объявление есть.
    */
   assertTrue(/function hasFieldTokens\(body, shape\) \{/.test(linePipelineSrc), "признак «значение Field или текст» объявлен одной функцией");
+  /*
+   * **В-141: ссылка — значение поля только тогда, когда она значением
+   * названа.** Дом признака один (`makeWikilinkValueTest`), и спрашивают его
+   * все три дороги: разбор строки, доводка и панель. Поведение проверено
+   * по-настоящему в `block_placement_tests.ts` и в обходе строки; здесь стоит
+   * запрет на возврат прежнего правила «любая ссылка — значение по форме».
+   */
+  assertTrue(/function makeWikilinkValueTest\(rules\) \{/.test(pkmRulesHelpersSrc),
+    "признак «эта ссылка — значение поля» объявлен одной функцией");
+  assertFalse(/\|\| __sharedUtils\.isWikilinkToken\(t\)\s*$/m.test(pkmLineFinalizeUnifiedSrc),
+    "доводка снова считает значением любую ссылку по форме (В-141)");
+  assertTrue(/const isLinkValue = __rulesHelpers\.makeWikilinkValueTest\(rules\);/.test(pkmLineFinalizeUnifiedSrc),
+    "доводка спрашивает про ссылку общий дом");
+  assertTrue(/isLink \? isLink\(t\) : __sharedUtils\.isWikilinkToken\(t\)/.test(linePipelineSrc),
+    "разбор строки спрашивает про ссылку дом, а форму оставляет запасным ответом");
+  /*
+   * И то, чего набор достать не может: панель вне Obsidian не запускается.
+   * Само правило проверено поведением в `tests/TagWheel/tagwheel_tests.js`;
+   * здесь закреплено, что панель его **зовёт** — иначе `#processed` от
+   * `Inline to note` снова пропадёт из строки с первого её шага.
+   */
+  assertTrue(/var keptRight = core\.getUnmanagedRightTokens\(parsedForBuild, state\.rules\)/.test(tagwheelSrc),
+    "панель спрашивает, что в правом Block ей не принадлежит");
+  assertTrue(/if \(keptRight\.length\) datesText = \(datesText \+ ' ' \+ keptRight\.join\(' '\)\)\.trim\(\)/.test(tagwheelSrc),
+    "и дописывает это к правому Block, а не теряет");
   assertFalse(/const hasLeftTech = \/\(\^\|/.test(linePipelineSrc), "в сборке строки снова своя копия признака «слева токены» (У-32)");
   assertTrue(/if \(!parts\.prefix \|\| !parts\.body\) return null;/.test(linePipelineSrc), "line pipeline demotes the left body only for list lines");
   assertFalse(/category_sub|clients/.test(pkmRulesHelpersSrc.slice(pkmRulesHelpersSrc.indexOf("const runtimeExcludedIds = new Set();"), pkmRulesHelpersSrc.indexOf("for (const f of allFields)"))), "rules helpers dependency reconcile has no hardcoded domain field names");
@@ -3314,6 +3339,14 @@ async function run() {
       fields: [
         { id: "date_due", orderKey: "date_due", kind: "genericElement", marker: "" },
         { id: "time", orderKey: "time", kind: "genericElement", marker: "" },
+        /*
+         * **Ссылка объявлена значением, и с 2026-09-18 иначе нельзя** (В-141):
+         * значением поля считается названная ссылка, а не всякая. Прежде поля
+         * тут не было вовсе, и `[[Entity-Alpha]]` числился значением по форме —
+         * то есть фикстура держалась за правило, которое он велел снять.
+         */
+        { id: "entity", orderKey: "entity", source: "wikilinks:entity",
+          values: [{ id: "Entity-Alpha", token: "Entity-Alpha", active: true }] },
       ],
     },
   };
@@ -3328,6 +3361,22 @@ async function run() {
     normalizedRightTail,
     "111 :: 📅2026-04-27 🕒20:16 #account-alpha [[Entity-Alpha]]",
     "line pipeline moves right-like tail tokens from left body into right segment"
+  );
+  /*
+   * Обратная сторона того же правила (В-141), и в паре с утверждением выше
+   * видно ровно его: строки отличаются **одной** ссылкой. Названная делает
+   * хвост значениями правого Block, и он собирается за первым разделителем;
+   * неназванная — слово человека, хвост значениями не становится, и правым
+   * Block остаются те значения, которые в него и ехали.
+   */
+  const foreignTail = linePipeline.normalizeRightPayloadTailToDates({
+    line: "111 📅2026-04-27 🕒20:16 :: #account-alpha [[333/имя]]",
+    rules: runtimeMarkerRules,
+  });
+  assertEq(
+    foreignTail,
+    "111 #account-alpha [[333/имя]] :: 📅2026-04-27 🕒20:16",
+    "неназванная ссылка правым Block не становится и уводит хвост в текст"
   );
 
   /*

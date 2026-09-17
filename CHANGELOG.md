@@ -7,16 +7,28 @@
 
 ### Visual
 
+- **`Chosen Value text color` now reaches the note, not just the preview.** The
+  color you set was shown in the settings preview and never arrived in the
+  editor: the layer that paints the picker over your line listed its colors by
+  name and the new one was not among them.
+- **`Text size` and the Block opacities now apply to Block values only.** After
+  `Inline to note` the link the plugin writes in place of your text was drawn at
+  the Block text size, though it is your text and not a value. A token counts as
+  a Block value only where the Fields order says values of that kind live - the
+  same rule the Block fill already follows.
+- **`Quiet time between jumps` is now called `Latency between jumps`.** The old
+  name still finds the row in settings search.
+
 - **New: a jump can show you where the cursor landed.** Turn on `Highlight
   where you land` in `Visual → Jump highlight` and a coloured circle appears at
   the caret after a jump and shrinks away on its own, so you do not hunt for a
   thin blinking line on a screen you just moved across. Its color, size and how
-  long it lasts are yours to set, and a quiet time stops it firing on every
+  long it lasts are yours to set, and a latency stops it firing on every
   step while you hold the key down - only the jump you stop on is marked.
   `Use inside current line` extends it to `Move cursor left in line` and
   `Move cursor right in line`. Off by default, and it never fires on typing or
   the arrow keys. The preview beside the settings now pulses on its own, so the
-  quiet time is something you can see rather than imagine.
+  latency is something you can see rather than imagine.
 
 - **The Block fill no longer paints a Block you do not have.** A band belongs to
   a Block, and it now asks the Fields order whether values of that kind live
@@ -39,6 +51,18 @@
   as belonging to neither; it now sits close to the rows it heads.
 
 ### Tags & PKM
+
+- **The link `Inline to note` leaves behind is your text, not a Field value.** A
+  link counts as a Field value only when some Field lists it as one; the link
+  the plugin writes in place of the text you moved out is listed nowhere. Before
+  this, the line kept no room for text at all and the next Field command wrote
+  an empty slot into it - `- [[note]] ::  :: #tag`. Commands and TagWheel read
+  such a line the same way.
+- **TagWheel no longer drops what it did not write.** It rebuilds the right
+  Block from what you picked, and anything else standing there - the
+  `#processed` mark from `Inline to note`, a tag of your own - disappeared on
+  the first step through the picker, while the same Field command kept it.
+
 
 - **A Field the line does not currently show still owns its Value.** A Field can
   be set to appear only where the line already carries something else; a Value

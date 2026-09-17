@@ -520,11 +520,17 @@ function makeFieldValueTokenTest(rules) {
   const markers = getRightMarkersUnified(rules);
   const markerAlt = markers.length ? markers.map(escapeRx).join("|") : "(?!)";
   const markerRe = new RegExp("^(?:" + markerAlt + ")");
+  /*
+   * **Ссылка спрашивается по имени, а не по форме** — его слово В-141,
+   * 2026-09-17. Признак живёт в общем доме (`makeWikilinkValueTest`): второй
+   * список ссылок здесь разошёлся бы с разбором строки молча (У-32).
+   */
+  const isLinkValue = __rulesHelpers.makeWikilinkValueTest(rules);
   return function isFieldValueToken(token) {
     const t = String(token || "").trim();
     if (!t) return false;
     return __sharedUtils.isTagToken(t)
-      || __sharedUtils.isWikilinkToken(t)
+      || isLinkValue(t)
       || markerRe.test(t)
       || /^\d{4}-\d{2}-\d{2}$/.test(t)
       || /^\d{2}:\d{2}$/.test(t);

@@ -807,11 +807,19 @@ async function testQuotedLineSurvivesTextSpillRebuild() {
   const finalize = require(path.join(__dirname, "..", "..", "src", "core", "pkm_line_finalize_unified.js"));
   const rules = require(path.join(__dirname, "..", "fixtures", "rules_synthetic.js"));
   const sep1 = rules.io.separator1;
+  /*
+   * **Ссылка взята из самой фикстуры, и с 2026-09-18 иначе нельзя** (В-141):
+   * значением поля считается только названная ссылка, а `[[test]]`, стоявший
+   * здесь прежде, не назван у `clients` ни одним значением — перестановки с ним
+   * больше не случается вовсе, и контроль ниже покраснел бы от **отсутствия
+   * предмета**, а не от поломки (У-2, У-152).
+   */
+  const linkValue = "[[EntityAlpha]]";
   const cases = [
-    { raw: "> текст", value: "> [[test]] текст", keeps: "> ", why: "цитата" },
-    { raw: "> [!note] важное", value: "> [!note] [[test]] важное", keeps: "> [!note] ", why: "каллаут" },
-    { raw: "- текст", value: "- [[test]] текст", keeps: "- ", why: "знак списка (контроль)" },
-    { raw: "## текст", value: "## [[test]] текст", keeps: "## ", why: "заголовок (контроль)" },
+    { raw: "> текст", value: "> " + linkValue + " текст", keeps: "> ", why: "цитата" },
+    { raw: "> [!note] важное", value: "> [!note] " + linkValue + " важное", keeps: "> [!note] ", why: "каллаут" },
+    { raw: "- текст", value: "- " + linkValue + " текст", keeps: "- ", why: "знак списка (контроль)" },
+    { raw: "## текст", value: "## " + linkValue + " текст", keeps: "## ", why: "заголовок (контроль)" },
   ];
   for (const c of cases) {
     const line = c.value + " " + sep1 + " ";
@@ -825,6 +833,18 @@ async function testQuotedLineSurvivesTextSpillRebuild() {
       "начало строки не пережило перестановку (" + c.why + "): из "
       + JSON.stringify(line) + " вышло " + JSON.stringify(out));
   }
+
+  /*
+   * **Обратная сторона правила В-141, и она здесь же:** ссылка, которой нет ни
+   * в одном списке значений, зоной значений строку не делает — переставлять
+   * нечего, и доводка её не трогает. Пара отличается **одной** ссылкой.
+   */
+  const foreignLine = "> [[333/имя]] текст " + sep1 + " ";
+  const foreignOut = finalize.applyUnifiedPostFinalize({
+    rawLine: "> текст", line: foreignLine, rules, mode: "off",
+  });
+  assertEq(foreignOut, foreignLine,
+    "неназванная ссылка перестановку не вызывает: вышло " + JSON.stringify(foreignOut));
 }
 
 /*

@@ -1440,6 +1440,16 @@ async function runTagWheel(input, quickAddSettings) {
     var tags = core.buildTags(state.rules.leftMode, state.session, state.rules, parsedForBuild)
     var rightDates = core.buildRightDates(state.rules, state.session)
     var datesText = rightDates.join(' ').trim()
+    /*
+     * **Чужое в правом Block панель не строит и терять не вправе.** Метка
+     * `#processed` от `Inline to note` пропадала с первого шага панели, а
+     * команда того же поля её сохраняла (обход строки, формы В-141).
+     */
+    if (typeof core.getUnmanagedRightTokens !== 'function') {
+      throw new Error('tagwheel_core unavailable: getUnmanagedRightTokens')
+    }
+    var keptRight = core.getUnmanagedRightTokens(parsedForBuild, state.rules)
+    if (keptRight.length) datesText = (datesText + ' ' + keptRight.join(' ')).trim()
     var nextPrefix = core.buildPrefix(parsedForBuild, state.rules, prefixState, { prefixShared: finalize })
     var finalLine = core.assembleFinalLine(
       {

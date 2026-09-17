@@ -1355,6 +1355,76 @@ function runElementTokenSuite() {
  * Оба пути отбора гоняются по очереди: с поднятой прослойкой строки и без неё.
  * Ветки разные, и до правки половину из них не проходил никто.
  */
+/**
+ * **Чужое в правом Block панель не строит и терять не вправе** (обход строки,
+ * формы `Inline to note`, 2026-09-18).
+ *
+ * Правый Block панель собирает заново — из выбранного, — и всё, чего она не
+ * строила, из строки пропадало: метка `#processed`, которую ставит
+ * `Inline to note`, исчезала с первого шага панели, а команда того же поля её
+ * сохраняла. Дефект старше правки: проверено рабочим деревом на коммите до
+ * сессии (У-187).
+ *
+ * Проверяется само правило (`getUnmanagedRightTokens`), а вызов из панели —
+ * пином по исходнику в `bootstrap_loader_tests.js`: `tagwheel.js` вне Obsidian
+ * не запускается, и это названное ограничение, а не умолчание.
+ */
+function runUnmanagedRightTokensSuite() {
+  var path = require('path')
+  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+
+  var rules = {
+    behavior: {
+      order: {
+        left: [], right: ['type', 'date_due'],
+        active: { type: 'yes', date_due: 'yes' },
+        enabled: { type: true, date_due: true },
+        types: { type: 'tag', date_due: 'element' }
+      },
+      elements: { byField: { date_due: { emoji: '📅', format: 'YYYY-MM-DD' } } },
+      dateRuntimeConfig: {
+        byField: { date_due: { emoji: '📅', format: 'YYYY-MM-DD', increment: { mode: 'standard', incrementBy: 1 } } },
+        canonical: {}
+      },
+      prefixRules: {}
+    },
+    io: { separator1: '::', separator2: '::' },
+    leftMode: {
+      fields: [
+        { id: 'type', prefix: '#', orderKey: 'type', values: [{ id: 'todo', token: 'todo', active: true }] }
+      ]
+    },
+    rightMode: {
+      fields: [
+        { id: 'date_due', orderKey: 'date_due', kind: 'genericElement', marker: '📅', values: [] }
+      ]
+    }
+  }
+
+  ;(function testForeignTagSurvives() {
+    var kept = core.getUnmanagedRightTokens({ dates: '#todo #processed' }, rules)
+    assertArrayEq(kept, ['#processed'],
+      'чужая метка остаётся, а значение поля панель строит сама')
+  })()
+
+  ;(function testFieldValueAndElementAreNotKept() {
+    var kept = core.getUnmanagedRightTokens({ dates: '#todo 📅2026-09-18' }, rules)
+    assertArrayEq(kept, [],
+      'значение поля и значение элемента панель строит сама — дважды их писать нельзя')
+  })()
+
+  ;(function testEmptyRightBlockKeepsNothing() {
+    assertArrayEq(core.getUnmanagedRightTokens({ dates: '' }, rules), [],
+      'пустому правому Block сохранять нечего')
+  })()
+
+  ;(function testForeignLinkSurvives() {
+    var kept = core.getUnmanagedRightTokens({ dates: '[[333/имя]] #todo' }, rules)
+    assertArrayEq(kept, ['[[333/имя]]'],
+      'ссылка, которой нет ни в одном списке значений, тоже принадлежит человеку')
+  })()
+}
+
 function runRightPayloadSurvivesSuite() {
   var path = require('path')
   var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
@@ -2758,6 +2828,7 @@ function runNode() {
   runOppositeBlockSuite(core, rules)
   runElementTokenSuite()
   runRightPayloadSurvivesSuite()
+  runUnmanagedRightTokensSuite()
   runUndoSeamSuite()
   runUndoAfterPanelSuite()
   runChildFieldShortNameSuite()

@@ -1,6 +1,8 @@
 "use strict";
 
 const __sharedUtils = require("./shared_utils.js");
+/* «Эта ссылка — значение поля или слово человека» — общий дом, В-141. */
+const __helpers = require("./pkm_rules_runtime_helpers.js");
 
 function resolveSeparatorsOrThrow(rules) {
   /* Правило одно, и живёт оно в общем доме; сюда приезжает только имя
@@ -139,10 +141,14 @@ function markersPlacedInRightBlock(rules) {
  *     правые, и элемент, уведённый в левый Block, признаком не считался;
  *   - `values` — записанные значения целиком, для Field без префикса.
  *
- * Решётку и двойную скобку форма не описывает: они значения Field при любой
- * раскладке, и спрашиваются прямо в `hasFieldTokens`. Список значений
- * **дополняет** признак, а не заменяет его: Field со свободным вводом даёт
- * значение, которого в списке нет, и оно обязано остаться узнанным по виду.
+ * Решётку форма не описывает: тег — значение Field при любой раскладке Order, и
+ * спрашивается он прямо в `hasFieldTokens`. Список значений **дополняет**
+ * признак, а не заменяет его: Field со свободным вводом даёт значение, которого
+ * в списке нет, и оно обязано остаться узнанным по виду.
+ *
+ * **А двойная скобка описывается — с 2026-09-18** (В-141). Ссылка считается
+ * значением поля, только если она значением названа: `isLink` спрашивает общий
+ * дом, и ссылка, которую поставил `Inline to note`, остаётся словом человека.
  */
 function fieldsShape(rules) {
   const fields = sideFields(rules, "left").concat(sideFields(rules, "right"));
@@ -161,7 +167,9 @@ function fieldsShape(rules) {
   for (const mk of markersOfSide(rules, "right")) {
     if (markers.indexOf(mk) === -1) markers.push(mk);
   }
-  return { markers: markers, values: values };
+  /* Признак собирается один раз на разбор строки, а не на токен: он обходит все
+     поля, а от токена не зависит. */
+  return { markers: markers, values: values, isLink: __helpers.makeWikilinkValueTest(rules) };
 }
 
 /** Есть ли в теле хоть одно значение Field. */
@@ -186,17 +194,23 @@ function hasFieldTokens(body, shape) {
   const src = splitLeftPrefix(String(body || "")).body;
   if (!src) return false;
   /*
-   * Решётка и двойная скобка — значения Field при любой раскладке Order, и
-   * спрашивать у настройки, «принимает ли сторона теги», нельзя: Field,
-   * только что переставленный в другой Block, в её списке ещё не значится.
-   * Это поймала проверка поведения, а не чтение (block_placement_tests).
+   * Решётка — значение Field при любой раскладке Order, и спрашивать у
+   * настройки, «принимает ли сторона теги», нельзя: Field, только что
+   * переставленный в другой Block, в её списке ещё не значится. Это поймала
+   * проверка поведения, а не чтение (block_placement_tests).
    */
-  /* Формы тега и ссылки — общий дом; текст обоих образцов совпадает с
-     прежним до знака (10.13.141). */
+  /* Форма тега — общий дом; текст образца совпадает с прежним до знака
+     (10.13.141). */
   if (new RegExp("(^|\\s)" + __sharedUtils.TAG_TOKEN_SRC).test(src)) return true;
-  if (new RegExp("(^|\\s)" + __sharedUtils.WIKILINK_TOKEN_SRC).test(src)) return true;
   const tokens = src.split(/\s+/).filter(Boolean);
+  const isLink = shape && typeof shape.isLink === "function" ? shape.isLink : null;
   for (const t of tokens) {
+    /*
+     * **Ссылка — значение поля только тогда, когда она значением названа**
+     * (В-141). Прежде здесь стояла форма, и ссылка `Inline to note` объявляла
+     * зону значений непустой: слота под текст на строке не оставалось.
+     */
+    if (isLink && isLink(t)) return true;
     if (startsWithAnyMarker(t, shape.markers)) return true;
     if (shape.values.has(t)) return true;
   }
@@ -221,11 +235,20 @@ function isDateLikeBareToken(token) {
   return new RegExp("^(?:" + __sharedUtils.DATE_LIKE_VALUE_SRC + ")$", "u").test(t);
 }
 
-function isLikelyRightPayloadToken(token, markers) {
+/**
+ * Стоит ли за разделителем значение Block, а не слово человека.
+ *
+ * **Ссылка спрашивается по имени, а не по форме** — его слово В-141: ссылку,
+ * которую `Inline to note` ставит вместо текста, значением не считает никто.
+ * Признак приезжает формой Fields (`shape.isLink`); формы нет — спрашивается
+ * как раньше, по виду.
+ */
+function isLikelyRightPayloadToken(token, markers, shape) {
   const t = String(token || "");
   if (!t) return false;
   if (__sharedUtils.isTagToken(t)) return true;
-  if (__sharedUtils.isWikilinkToken(t)) return true;
+  const isLink = shape && typeof shape.isLink === "function" ? shape.isLink : null;
+  if (isLink ? isLink(t) : __sharedUtils.isWikilinkToken(t)) return true;
   if (startsWithAnyMarker(t, markers)) return true;
   if (isDateLikeBareToken(t)) return true;
   return false;
@@ -365,7 +388,7 @@ function splitSegments(rawLine, rules) {
         const tokens = textOnly.split(/\s+/).filter(Boolean);
         const isRightPayload = (tokens.length > 0
           && tokens.every(function(t) {
-            return isLikelyRightPayloadToken(t, markers);
+            return isLikelyRightPayloadToken(t, markers, shape);
           }))
           || isMarkerAnchoredDatePayloadTokens(tokens, markers);
         if (isRightPayload) {
@@ -464,7 +487,7 @@ function splitSegments(rawLine, rules) {
     const parts = text.split(/\s+/).filter(Boolean);
     const isRightPayload = (parts.length > 0
       && parts.every(function(t) {
-        return isLikelyRightPayloadToken(t, markers);
+        return isLikelyRightPayloadToken(t, markers, shape);
       }))
       || isMarkerAnchoredDatePayloadTokens(parts, markers);
     if (isRightPayload) {

@@ -968,11 +968,19 @@ function parseLine(rawLine, rules) {
     var out = { tags: [], dates: [], text: [], values: [] }
     if (!src) return out
     var parts = src.split(/\s+/)
+    /*
+     * **Ссылка — значение поля только тогда, когда она значением названа**
+     * (его слово В-141, 2026-09-17). Дом признака один — общие помощники, — и
+     * его же спрашивает разбор строки: пока панель спрашивала форму, ссылку
+     * `Inline to note` она уносила в правый Block, а команда того же поля
+     * оставляла её текстом. Починка одной дороги переносит спор (У-164).
+     */
+    var isLinkValue = __rulesRuntimeHelpers.makeWikilinkValueTest(rules)
     var i
     for (i = 0; i < parts.length; i++) {
       var t = String(parts[i] || '').trim()
       if (!t) continue
-      if (__sharedUtils.isTagToken(t) || __sharedUtils.isWikilinkToken(t)) {
+      if (__sharedUtils.isTagToken(t) || isLinkValue(t)) {
         out.tags.push(t)
         out.values.push(t)
         continue
@@ -2997,6 +3005,45 @@ function escapeRe(s) {
   throw new Error('shared_utils unavailable: escapeRe')
 }
 
+/**
+ * **Что в правом Block не принадлежит ни одному полю.**
+ *
+ * Панель собирает правый Block заново — из того, что выбрано (`buildRightDates`),
+ * — и всё, чего она не строила, из строки пропадало: метка `#processed`, которую
+ * ставит `Inline to note`, исчезала с первого же шага панели, а команда того же
+ * поля её сохраняла. Обход строки увидел это сразу, как в него дописали формы
+ * `Inline to note` (У-185); дефект старше правки — проверено рабочим деревом на
+ * коммите до сессии (У-187).
+ *
+ * Слева тот же вопрос решён давно (`getUnmanagedTailTokens`), и здесь спрошено
+ * то же самое: значение поля узнаёт общая карта «токен → поле», значение
+ * элемента — общий признак даты. Остальное принадлежит человеку, и панель не
+ * вправе его терять.
+ */
+function getUnmanagedRightTokens(parsedLine, rules) {
+  var raw = String(parsedLine && parsedLine.dates || '').trim()
+  if (!raw) return []
+  var helpers = __rulesRuntimeHelpers
+  if (!helpers || typeof helpers.buildTagTokenKeyMap !== 'function'
+    || typeof helpers.getDefaultTagTokenKeyMapOptions !== 'function') {
+    throw new Error('pkm_rules_runtime_helpers unavailable: buildTagTokenKeyMap')
+  }
+  var map = helpers.buildTagTokenKeyMap(rules, helpers.getDefaultTagTokenKeyMapOptions()) || {}
+  var parts = raw.split(/\s+/)
+  var out = []
+  var i
+  for (i = 0; i < parts.length; i++) {
+    var t = String(parts[i] || '').trim()
+    if (!t) continue
+    /* Значение поля панель построит сама — и построит его тем, что выбрано. */
+    if (map[t]) continue
+    /* Значение элемента — тоже её работа, и оно бывает из двух слов. */
+    if (isDateLikeOrBareDateToken(t, rules)) continue
+    out.push(t)
+  }
+  return out
+}
+
 function buildRightDates(rules, state) {
   var mode = rules.rightMode
   var out = []
@@ -3058,6 +3105,7 @@ module.exports = {
      программа, а не чтение. Поведения экспорт не меняет. */
   resolveFieldOutputMode: resolveFieldOutputMode,
   buildRightDates: buildRightDates,
+  getUnmanagedRightTokens: getUnmanagedRightTokens,
   assembleFinalLine: assembleFinalLine,
   renderControlLine: renderControlLine,
   getDisplayTokenByFieldId: getDisplayTokenByFieldId
