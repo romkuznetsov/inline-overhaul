@@ -15,7 +15,10 @@
   `Inline to note` the link the plugin writes in place of your text was drawn at
   the Block text size, though it is your text and not a value. A token counts as
   a Block value only where the Fields order says values of that kind live - the
-  same rule the Block fill already follows.
+  same rule the Block fill already follows - and a link counts only when some
+  Field lists it as a Value. That holds on both sides of the separator: with
+  values in the left Block your text slot stands after the first separator, and
+  a link sitting there is still your text.
 - **`Quiet time between jumps` is now called `Latency between jumps`.** The old
   name still finds the row in settings search.
 

@@ -78,6 +78,19 @@ const ORDER = {
 };
 const KINDS = visuals.buildBlockKindsFromConfig(ORDER);
 
+/* Поля тех же имён, что стоят в порядке выше: правила для движков собираются из
+   корзин, а не из порядка, и признак «эта ссылка — значение» строится по ним.
+   `[[Project]]` здесь **названо** значением, и потому подложку получает. */
+const TAG_FIELDS = [
+  { id: "Importance", prefix: "#", values: [{ token: "/1", active: true }] },
+  { id: "type", prefix: "#", values: [{ token: "todo", active: true }] },
+  { id: "state", prefix: "#", values: [{ token: "open", active: true }] },
+];
+const LINK_FIELDS = [
+  { id: "due", kind: "genericElement", marker: ELEMENT_FIELDS.due.emoji, values: [""] },
+  { id: "Project", source: "wikilinks:Project", values: [{ token: "Project", active: true }] },
+];
+
 (function testBandRunsFromFirstValueToLast() {
   const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   assertEq(spans.map(s => s.zone), ["left", "right"], "стороны обе, и в этом порядке");
@@ -261,12 +274,61 @@ function fakePlugin(blockFill) {
              него, какого рода значения бывают в каждом Block, и конфиг без
              порядка означает «Block пуст, красить нечего». */
           order: ORDER.pkm.fields.order,
+          /*
+           * **Списки значений тоже часть фикстуры, и с 2026-09-18 обязательны**
+           * (В-141, его уточнение): ссылка получает оформление Block, только
+           * если она названа значением поля. Конфиг без этих корзин — не тот
+           * конфиг, с которым работает плагин: у человека их заполняет
+           * нормализация (У-38).
+           */
+          tags: { fields: TAG_FIELDS },
+          links: { fields: LINK_FIELDS },
         },
       },
       visual: { tags: { blockFill } },
     }),
   };
 }
+
+(function testForeignLinkIsTextOnBothSidesOfTheSeparator() {
+  /*
+   * **Ссылка получает оформление Block, только если она названа значением**
+   * (В-141 и его уточнение 2026-09-18: «не только слева, но и справа от
+   * разделителя, если есть значения в left block»).
+   *
+   * Обе стороны правила стоят рядом: `[[Project]]` назван значением поля и
+   * подложку получает, `[[333/имя]]` — ссылка, которую оставляет
+   * `Inline to note`, — не назван и остаётся словом человека. Пара отличается
+   * одной ссылкой, и в этом всё правило (У-147).
+   */
+  const cfg = fakePlugin({ enabled: true, opacity: 12 }).getConfig();
+  const isLinkValue = visuals.buildWikilinkValueTestFromConfig(cfg);
+  const zonesOf = (line) => visuals.scanLineVisualTokens(line, SEP, SEP, MARKERS, KINDS, isLinkValue)
+    .map((h) => h.kind + ":" + h.zone);
+
+  assertEq(
+    zonesOf("- #/1 " + SEP + " [[Project]]").join(" "),
+    "tag:left link:right",
+    "названная ссылка за разделителем — значение правого Block",
+  );
+  assertEq(
+    zonesOf("- #/1 " + SEP + " [[333/имя]]").join(" "),
+    "tag:left link:middle",
+    "ссылка `Inline to note` за разделителем — ваш текст, а не значение Block",
+  );
+  assertEq(
+    zonesOf("- [[333/имя]] " + SEP + " #open").join(" "),
+    "link:middle tag:right",
+    "и слева тоже: она не значение, а тег справа значением остаётся",
+  );
+
+  /* Отрицательный контроль: без признака правило молчит, и ссылка снова
+     значение по роду — то есть проверка выше и правда его спрашивает. */
+  const byKindOnly = visuals.scanLineVisualTokens("- #/1 " + SEP + " [[333/имя]]", SEP, SEP, MARKERS, KINDS)
+    .map((h) => h.kind + ":" + h.zone).join(" ");
+  assertEq(byKindOnly, "tag:left link:right",
+    "контроль: без признака ссылка снова считается значением по роду");
+})();
 
 (function testDocRangesCountFromLineStart() {
   const lines = ["первая строка", LINE];

@@ -15,6 +15,10 @@
  */
 const __sharedUtils = require("./shared_utils.js");
 const __priorityStripEngine = require("./priority_strip_engine.js");
+/* «Эта ссылка — значение поля или слово человека» и правила для движков: оба
+   дома общие, своих копий здесь быть не должно (В-141, У-32). */
+const __rulesShape = require("./pkm_rules_shape.js");
+const __rulesHelpers = require("./pkm_rules_runtime_helpers.js");
 
 /* Те же однострочные обёртки, что были в `main.js`: тела переехавших функций
    зовут их этими именами, и переписывать тела ради переезда нельзя (У-11). */
@@ -520,7 +524,7 @@ function buildElementMarkersFromConfig(cfg) {
  * не отдельный тег. Побеждает тот, кто начался раньше, а при равном начале —
  * тот, кто длиннее.
  */
-function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds) {
+function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue) {
   const src = String(text || "");
   const found = [];
   /*
@@ -576,6 +580,8 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds) {
         resolveTagVisualZone(src, entry.index, sep1, sep2),
         entry.kind,
         blockKinds,
+        entry.token,
+        isLinkValue,
       ),
     });
     claimedTo = entry.end;
@@ -1352,10 +1358,57 @@ function blockHoldsKind(blockKinds, zone, kind) {
  * «Не спросили» здесь значит «значений такого рода в Block не бывает»: молчаливое
  * «да» вернуло бы ровно тот дефект, ради которого правило заведено (У-56).
  */
-function blockValueZone(zone, kind, blockKinds) {
+function blockValueZone(zone, kind, blockKinds, token, isLinkValue) {
   const side = String(zone || "");
   if (side !== "left" && side !== "right") return side;
-  return blockHoldsKind(blockKinds, side, kind) ? side : "middle";
+  if (!blockHoldsKind(blockKinds, side, kind)) return "middle";
+  /*
+   * **Род значения мало, когда род — ссылка** (его уточнение 2026-09-18: «не
+   * только слева, но и справа от разделителя, если есть значения в left
+   * block»). У строки с непустым левым Block слот текста стоит **за** первым
+   * разделителем, и по положению он неотличим от правого Block: ссылка
+   * `Inline to note`, стоящая в слоте, получала оформление Block там, где
+   * ссылки в Block бывают. Спрашивается то же, что и у движков: названа ли
+   * эта ссылка значением какого-нибудь поля (В-141). Тег остаётся значением по
+   * роду — его слово по `#processed`: «справа, у `#processed`, подложка
+   * должна» быть.
+   */
+  if (kind === "link" && typeof isLinkValue === "function" && !isLinkValue(token)) return "middle";
+  return side;
+}
+
+/**
+ * Признак «эта ссылка — значение поля» для слоя оформления.
+ *
+ * Дом признака один и живёт у движков; здесь только сборка правил из конфига —
+ * та же, какой их собирает рантайм. Строится **один раз на проход** отрисовки:
+ * 0,2 мс на его конфиге, и от строки он не зависит.
+ */
+let wikilinkTestFailureReported = false;
+
+function buildWikilinkValueTestFromConfig(cfg) {
+  try {
+    return __rulesHelpers.makeWikilinkValueTest(__rulesShape.buildRulesForEngines(cfg));
+  } catch (e) {
+    /*
+     * **Оформление не имеет права уронить заметку** (раздел «Отказы», семья
+     * «украшение»), но и молчать тут нельзя: без признака ссылка снова
+     * становится значением Block по роду. Поэтому отказ уходит в журнал
+     * разработчика — один раз за сеанс, иначе он писался бы на каждый кадр, —
+     * а слой возвращается к прежнему ответу.
+     *
+     * Дойти сюда можно только с конфигом, не прошедшим `migrateConfig`: у
+     * прошедшего корзины полей есть всегда, пусть и пустые.
+     */
+    if (!wikilinkTestFailureReported) {
+      wikilinkTestFailureReported = true;
+      console.error("[inline-overhaul] правила для признака ссылки не собрались: "
+        + (e && e.message ? e.message : e) + "; оформление Block вернулось к роду значения");
+    }
+    return function isFieldWikilinkValueFallback(token) {
+      return __sharedUtils.isWikilinkToken(String(token || "").trim());
+    };
+  }
 }
 
 /**
@@ -1371,14 +1424,14 @@ function blockValueZone(zone, kind, blockKinds) {
  * «если values left\right block отсутствуют, то эта подложка не должна
  * появляться».
  */
-function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds) {
+function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue) {
   const src = String(text || "");
   /* Значение считается значением **этого** Block, только если такие в нём
      бывают. Вопрос задаётся один раз — при разборе строки (`blockValueZone`):
      пока его знала одна подложка, кегль и прозрачность Block доставались тому
      же токену, которому полосы уже не давали. Разбор строки у движков решает
      иначе, и это отдельный вопрос — у него свой ответ и своя цена (10.13.187). */
-  const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers, blockKinds);
+  const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers, blockKinds, isLinkValue);
   const at = lineSeparatorBounds(src, sep1, sep2);
   const out = [];
   for (const zone of ["left", "right"]) {
@@ -1947,6 +2000,7 @@ module.exports = {
   buildElementMarkersFromConfig,
   scanLineVisualTokens,
   buildBlockKindsFromConfig,
+  buildWikilinkValueTestFromConfig,
   blockValueZone,
   buildBlockStyleCss,
   tagVisualSizingForZone,

@@ -41,11 +41,14 @@ const SEP = "::";
  * его густота, его размеры. Взят с его `data.json` — фикстура, придуманная
  * заново, проверяла бы другого человека (У-2).
  */
+/* Метка элемента объявлена один раз: её знают и корзина элементов, и поле. */
+const MARKER_DUE = "\u{1F4C5}";
+
 const CFG = {
   pkm: {
     lineFormat: { separator1: SEP, separator2: SEP },
     fields: {
-      elements: { byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" } } },
+      elements: { byField: { due: { emoji: MARKER_DUE, format: "YYYY-MM-DD hh:mm" } } },
       /*
        * Порядок Fields — часть фикстуры, и без него страница незаконна (У-38):
        * подложка Block спрашивает у него, какого рода значения в этом Block
@@ -59,6 +62,31 @@ const CFG = {
           type: "tag", Category: "tag", Importance: "tag", Project: "wikilink",
           due: "element", state: "tag",
         },
+      },
+      /*
+       * **Списки значений — тоже часть фикстуры, и с 2026-09-18 обязательны**
+       * (В-141): ссылка получает оформление Block, только если она названа
+       * значением поля, и страница без этих корзин мерила бы не то, что видит
+       * человек. `[[test1]]` и `[[test]]` здесь названы значениями `Project` —
+       * именно они и стоят в строках ниже.
+       */
+      tags: {
+        fields: [
+          { id: "type", prefix: "#", values: [{ token: "todo", active: true }] },
+          { id: "Category", prefix: "#", values: [{ token: "work", active: true }, { token: "new", active: true }] },
+          { id: "Importance", prefix: "#", values: [{ token: "/1", active: true }] },
+          { id: "state", prefix: "#", values: [{ token: "open", active: true }] },
+        ],
+      },
+      links: {
+        fields: [
+          { id: "due", kind: "genericElement", marker: MARKER_DUE, values: [""] },
+          {
+            id: "Project",
+            source: "wikilinks:Project",
+            values: [{ token: "test1", active: true }, { token: "test", active: true }],
+          },
+        ],
       },
     },
   },
@@ -639,8 +667,11 @@ window.__ioEditorProbe = function () {
       line.text, SEP, SEP,
       visuals.buildElementMarkersFromConfig(CFG),
       /* Род значений каждого Block — тем же вызовом, что и у слоя: проба,
-         спрашивающая иначе, мерила бы не то, что нарисовано (У-4). */
-      visuals.buildBlockKindsFromConfig(CFG));
+         спрашивающая иначе, мерила бы не то, что нарисовано (У-4). И признак
+         «эта ссылка — значение поля» тем же (В-141): без него проба считает
+         значением Block ссылку, которой слой оформления его не даёт. */
+      visuals.buildBlockKindsFromConfig(CFG),
+      visuals.buildWikilinkValueTestFromConfig(CFG));
     const left = spans.find((s) => s.zone === "left") || null;
     const at = (pos, side) => {
       const c = view.coordsAtPos(pos, side);

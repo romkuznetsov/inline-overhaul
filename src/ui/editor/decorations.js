@@ -79,6 +79,7 @@ const {
   lineBelongsToPlugin,
   scanLineVisualTokens,
   buildBlockKindsFromConfig,
+  buildWikilinkValueTestFromConfig,
   tagVisualSizingForZone,
   tagwheelPanelSpanInLine,
   tagwheelPanelSegmentInLine,
@@ -400,6 +401,9 @@ function buildTagVisualDecorations(view, plugin) {
      строки он не зависит. Без него разбор считал бы значением Block всё, что
      похоже на наш токен, и кегль Block доставался бы вашему тексту. */
   const blockKinds = buildBlockKindsFromConfig(cfg);
+  /* И то же про ссылку: род значения мало, когда род — ссылка (В-141). Строится
+     один раз на проход, как и состав Block. */
+  const isLinkValue = buildWikilinkValueTestFromConfig(cfg);
   /* Цвета TagWheel нужны здесь ровно затем, чтобы узнать его отрезок (B2). */
   const tagwheelColors = getTagwheelHeaderColorsFromConfig(cfg);
 
@@ -423,7 +427,7 @@ function buildTagVisualDecorations(view, plugin) {
       const wheelSpan = tagwheelPanelSpanInLine(text, tagwheelColors);
       /* Наша ли это строка вообще: спрашивается один раз на строку. */
       const ourLine = lineBelongsToPlugin(text, sep1, sep2);
-      for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds)) {
+      for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue)) {
         const token = hit.token;
         if (wheelSpan && hit.index >= wheelSpan.start && hit.index < wheelSpan.end) continue;
         scannedTokens.push(token);
@@ -1011,12 +1015,13 @@ function blockFillDocRanges(view, plugin) {
   /* Род значений каждого Block — один раз на проход, а не на строку: он от
      строки не зависит, а обход полей стоит столько же. */
   const blockKinds = buildBlockKindsFromConfig(cfg);
+  const isLinkValue = buildWikilinkValueTestFromConfig(cfg);
   const out = [];
   for (const lineNo of visibleLineNumbers(view)) {
     {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
-      for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds)) {
+      for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue)) {
         const from = line.from + span.start;
         const to = line.from + span.end;
         if (to <= from) continue;
