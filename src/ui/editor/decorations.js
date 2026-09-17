@@ -78,6 +78,7 @@ const {
   resolveTagwheelPaintColors,
   lineBelongsToPlugin,
   scanLineVisualTokens,
+  buildBlockKindsFromConfig,
   tagVisualSizingForZone,
   tagwheelPanelSpanInLine,
   tagwheelPanelSegmentInLine,
@@ -1003,12 +1004,15 @@ function blockFillDocRanges(view, plugin) {
   const sep1 = String(io.separator1 || "").trim();
   const sep2 = String(io.separator2 || "").trim();
   const elementMarkers = buildElementMarkersFromConfig(cfg);
+  /* Род значений каждого Block — один раз на проход, а не на строку: он от
+     строки не зависит, а обход полей стоит столько же. */
+  const blockKinds = buildBlockKindsFromConfig(cfg);
   const out = [];
   for (const lineNo of visibleLineNumbers(view)) {
     {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
-      for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers)) {
+      for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds)) {
         const from = line.from + span.start;
         const to = line.from + span.end;
         if (to <= from) continue;

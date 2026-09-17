@@ -56,8 +56,30 @@ const MARKERS = visuals.buildElementMarkersFromConfig({
   pkm: { fields: { elements: { byField: ELEMENT_FIELDS } } },
 });
 
+/*
+ * Какого рода значения бывают в каждом Block. Собирается **функцией плагина**
+ * из порядка Fields — рукописный набор был бы вторым объявлением того же
+ * правила (У-4, У-32).
+ *
+ * Порядок здесь тот, при котором строка выше законна: слева теги, справа
+ * элемент и ссылка. Фикстура, в которой Block держит всё подряд, к этому
+ * правилу слепа — а именно на ней дефект и жил (У-38).
+ */
+const ORDER = {
+  pkm: {
+    fields: {
+      order: {
+        left: ["Importance", "type"],
+        right: ["due", "Project", "state"],
+        types: { Importance: "tag", type: "tag", due: "element", Project: "wikilink", state: "tag" },
+      },
+    },
+  },
+};
+const KINDS = visuals.buildBlockKindsFromConfig(ORDER);
+
 (function testBandRunsFromFirstValueToLast() {
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   assertEq(spans.map(s => s.zone), ["left", "right"], "стороны обе, и в этом порядке");
 
   const left = spans[0];
@@ -69,7 +91,7 @@ const MARKERS = visuals.buildElementMarkersFromConfig({
 })();
 
 (function testBandStopsBeforeTheSeparator() {
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   const i1 = LINE.indexOf(SEP);
   const i2 = LINE.lastIndexOf(SEP);
   assertTrue(spans[0].end < i1, "левая подложка кончается до первого разделителя");
@@ -81,16 +103,51 @@ const MARKERS = visuals.buildElementMarkersFromConfig({
 (function testEmptyBlockGetsNoBand() {
   /* Его условие дословно: значений в блоке нет — подложки нет. */
   const onlyRight = "- || my text || #done";
-  const spans = visuals.blockFillSpansInLine(onlyRight, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(onlyRight, SEP, SEP, MARKERS, KINDS);
   assertEq(spans.map(s => s.zone), ["right"], "пустой левый блок подложки не получает");
 
   const noValues = "- || my text ||";
-  assertEq(visuals.blockFillSpansInLine(noValues, SEP, SEP, MARKERS), [],
+  assertEq(visuals.blockFillSpansInLine(noValues, SEP, SEP, MARKERS, KINDS), [],
     "нет значений ни там ни там — нет и подложки");
 
   const plain = "просто строка без разделителей";
-  assertEq(visuals.blockFillSpansInLine(plain, SEP, SEP, MARKERS), [],
+  assertEq(visuals.blockFillSpansInLine(plain, SEP, SEP, MARKERS, KINDS), [],
     "строка без разделителей: всё в ней — текст человека, а не блок");
+})();
+
+(function testBlockWithoutSuchValuesGetsNoBand() {
+  /*
+   * **Его замечание 2026-09-17.** После `Inline to note` исходная строка
+   * выглядит так: `- [[333/имя]] :: #processed` — ссылку туда поставил сам
+   * Transform, **вместо его текста**. Подложка читала её как значение левого
+   * Block и рисовала полосу; у него в обоих vault левого Block нет вовсе — в
+   * порядке Fields слева пусто.
+   *
+   * Правило: полоса принадлежит Block, и Block, в котором значений такого рода
+   * не бывает, красить нечем. Здесь слева бывают только теги, значит ссылка
+   * слева — не его значение.
+   */
+  const afterTransform = "- [[333/note]] || #done";
+  const spans = visuals.blockFillSpansInLine(afterTransform, SEP, SEP, MARKERS, KINDS);
+  assertEq(spans.map(s => s.zone), ["right"],
+    "ссылка слева, где ссылок не бывает, подложки не получает");
+
+  /*
+   * Положительный контроль к нему, и без него правило читалось бы как «слева
+   * ссылок не красим никогда»: тому же Block, в котором ссылки **бывают**,
+   * полоса достаётся.
+   */
+  const linksOnTheLeft = visuals.buildBlockKindsFromConfig({
+    pkm: { fields: { order: { left: ["Project"], right: ["state"], types: { Project: "wikilink", state: "tag" } } } },
+  });
+  const both = visuals.blockFillSpansInLine(afterTransform, SEP, SEP, MARKERS, linksOnTheLeft);
+  assertEq(both.map(s => s.zone), ["left", "right"],
+    "там, где ссылки в левом Block бывают, та же строка красится с обеих сторон");
+
+  /* И второй контроль — на род, а не на сторону: тег слева остаётся полосой. */
+  const tagOnTheLeft = visuals.blockFillSpansInLine("- #todo || my text || #done", SEP, SEP, MARKERS, KINDS);
+  assertEq(tagOnTheLeft.map(s => s.zone), ["left", "right"],
+    "тег слева, где теги бывают, полосу получает по-прежнему");
 })();
 
 (function testYourTextIsNeverPainted() {
@@ -100,7 +157,7 @@ const MARKERS = visuals.buildElementMarkersFromConfig({
    * было бы верно по отсутствию предмета (У-47).
    */
   const withOwnTag = "- #/1 " + SEP + " my #idea text " + SEP + " #done";
-  const spans = visuals.blockFillSpansInLine(withOwnTag, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(withOwnTag, SEP, SEP, MARKERS, KINDS);
   assertEq(spans.map(s => s.zone), ["left", "right"],
     "тег внутри текста человека своей стороны не образует");
   const i1 = withOwnTag.indexOf(SEP);
@@ -198,7 +255,13 @@ function fakePlugin(blockFill) {
     getConfig: () => ({
       pkm: {
         lineFormat: { separator1: SEP, separator2: SEP },
-        fields: { elements: { byField: ELEMENT_FIELDS } },
+        fields: {
+          elements: { byField: ELEMENT_FIELDS },
+          /* Порядок Fields — часть фикстуры, а не мелочь: подложка спрашивает у
+             него, какого рода значения бывают в каждом Block, и конфиг без
+             порядка означает «Block пуст, красить нечего». */
+          order: ORDER.pkm.fields.order,
+        },
       },
       visual: { tags: { blockFill } },
     }),
@@ -211,7 +274,7 @@ function fakePlugin(blockFill) {
   const ranges = decorations.blockFillDocRanges(view, fakePlugin({ enabled: true, opacity: 12 }));
   assertEq(ranges.length, 2, "две стороны второй строки");
   const base = lines[0].length + 1;
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, []);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, [], KINDS);
   assertEq(ranges[0].from - base, spans[0].start, "отрезок отсчитан от начала своей строки");
   assertEq(ranges[0].to - base, spans[0].end, "и кончается там же, где кончается блок");
 })();
@@ -279,7 +342,7 @@ function fakePlugin(blockFill) {
    * каждой стороны по два значения (У-113). Здесь блок ровно из одного тега.
    */
   const one = "- #todo " + SEP + " my text " + SEP + " #done";
-  const spans = visuals.blockFillSpansInLine(one, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(one, SEP, SEP, MARKERS, KINDS);
   assertEq(spans.map(s => one.slice(s.start, s.end)), ["#todo", "#done"],
     "блок из одного значения отрезок получает: невидим он был, а не отсутствовал");
 })();
@@ -320,7 +383,7 @@ function fakePlugin(blockFill) {
 /* ---- промежуток до разделителя: та мера, которой мерят ширину ---------- */
 
 (function testGapBoundsPointAtTheSeparator() {
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   const at = visuals.lineSeparatorBounds(LINE, SEP, SEP);
 
   const left = spans[0];
@@ -342,7 +405,7 @@ function fakePlugin(blockFill) {
    * пробел есть везде (У-113).
    */
   const tight = "- #todo" + SEP + " my text " + SEP + "#done";
-  const spans = visuals.blockFillSpansInLine(tight, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(tight, SEP, SEP, MARKERS, KINDS);
   assertEq(spans.map(s => s.zone), ["left", "right"], "стороны на месте");
   for (const span of spans) {
     assertEq(span.gapFrom, -1, "промежутка нет, и он назван отсутствующим, а не пустым");
@@ -406,7 +469,7 @@ function fakePlugin(blockFill) {
    * того же разошёлся бы с этим молча (У-32).
    */
   const at = visuals.lineSeparatorBounds(LINE, SEP, SEP);
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   assertEq(spans[0].sepFar, at.firstEnd, "слева дальняя граница — конец первого разделителя");
   assertEq(spans[1].sepFar, at.last, "справа — начало последнего");
   assertEq(LINE.slice(spans[0].gapTo, spans[0].sepFar), SEP,
@@ -465,7 +528,7 @@ function fakePlugin(blockFill) {
 
   /* И его собственный случай целиком: блок из одного такого значения. */
   const rnd = visuals.blockFillSpansInLine(
-    "- #a " + SEP + " text " + SEP + " \u{1F923}XIInR_", SEP, SEP, MARKERS);
+    "- #a " + SEP + " text " + SEP + " \u{1F923}XIInR_", SEP, SEP, MARKERS, KINDS);
   assertEq(rnd.map(s => s.zone), ["left", "right"],
     "блок из одного значения `Random characters` подложку получает");
 })();
@@ -672,7 +735,7 @@ function rowBoxOf(row) {
     const markers = decorations.blockFillMarkersFor(view, plugin);
     assertEq(asked.length, 2, "переноса нет — по одному отрезку на сторону");
     assertEq(markers.length, 2, "и по одному прямоугольнику");
-    const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+    const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
     assertEq(asked[0], { from: spans[0].start, to: spans[0].end },
       "платформе отдан весь отрезок стороны, как и раньше");
     /*
@@ -698,7 +761,7 @@ function rowBoxOf(row) {
    * Отрезок обязан уйти платформе одним куском: два куска — это две отрисовки
    * `forRange`, то есть две разные высоты и разрыв между ними.
    */
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   const left = spans[0];
   /* Пузырь — на первом значении блока, а не на всём блоке: разные вертикали
      нужны ВНУТРИ одной зрительной строки, иначе предмета нет. */
@@ -731,7 +794,7 @@ function rowBoxOf(row) {
  * подложки зависела от того, что в блоке лежит.
  */
 (function testBandHeightIsTheSameWhateverIsInTheBlock() {
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   const left = spans[0];
   /* Ссылка — на последнем значении блока: именно край отрезка и решает. */
   const talls = [{ from: LINE.lastIndexOf("#todo"), to: left.end }];
@@ -941,7 +1004,7 @@ function rowBoxOf(row) {
    * первой строке и от края на второй.
    */
   const line = "- #a " + SEP + " text " + SEP + " #one #two #three";
-  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, KINDS);
   const right = spans[1];
   const wrap = line.indexOf("#three");
   const view = fakeViewWithCoords([line], [wrap], null, null);
@@ -970,7 +1033,7 @@ function rowBoxOf(row) {
    * координатам: ровно координаты и врут (замечание про ссылку).
    */
   const line = "- #a " + SEP + " text " + SEP + " #one #two";
-  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, KINDS);
   const right = spans[1];
   const wrap = line.indexOf("#two");
   /* Ссылка стоит на первом куске: под прежним правилом он уехал бы вверх. */
@@ -1005,7 +1068,7 @@ function rowBoxOf(row) {
    * не число строк: число бывает верным и при неверной вертикали (У-58).
    */
   const line = "- #a #b " + SEP + " text " + SEP + " #one #two";
-  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, KINDS);
   const wrap = line.indexOf("#two");
   assertTrue(wrap > spans[1].start, "перенос стоит внутри правого блока: предмет есть");
   assertTrue(spans[0].end < wrap, "а левый блок кончается до него: предмет есть и с этой стороны");
@@ -1079,7 +1142,7 @@ function rowBoxOf(row) {
    * резать нечем» — то есть охраняла дефект (У-58).
    */
   const line = "- #a " + SEP + " text " + SEP + " \u{1F4C5}2026-09-09";
-  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, KINDS);
   const right = spans[1];
   const wrap = line.indexOf("2026") + 5;
   assertTrue(wrap > right.start && wrap < right.end,
@@ -1114,7 +1177,7 @@ function rowBoxOf(row) {
     decorations.blockFillMarkersFor(view, plugin);
     assertEq(made.length, 2, "по прямоугольнику на сторону");
 
-    const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+    const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
     /*
      * Промежуток **спрашивается у той же фикстуры**, что меряет его слою:
      * пересчитать его тут значило бы объявить второе правило (У-32).
@@ -1149,7 +1212,7 @@ function rowBoxOf(row) {
    * стоит вплотную к нему (У-113).
    */
   const line = "- [ ] #todo " + SEP + " text " + SEP + " #done";
-  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, KINDS);
   const left = spans[0];
   assertEq(line.slice(0, left.prefixEnd), "- [ ]",
     "знак начала строки — буллит с чекбоксом, и пробел за ним в него не входит");
@@ -1181,7 +1244,7 @@ function rowBoxOf(row) {
    * выросла бы в месте переноса.
    */
   const line = "- #a " + SEP + " text " + SEP + " #one #two #three";
-  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(line, SEP, SEP, MARKERS, KINDS);
   const right = spans[1];
   const cut1 = line.indexOf("#two");
   const cut2 = line.indexOf("#three");
@@ -1230,7 +1293,7 @@ function rowBoxOf(row) {
    * сторону разделителя пропадал молча, то есть ползунок `Band width` ничего
    * не делал.
    */
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   const left = spans[0];
   const view = fakeViewWithCoords([LINE], null, [{ from: left.start, to: left.end }], null);
   const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 50 });
@@ -1255,7 +1318,7 @@ function rowBoxOf(row) {
    * ровно на первый разделитель, и вырасти после этого должен только правый
    * блок. Одного числа тут мало: «вырос один» бывает и от слепой проверки.
    */
-  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS);
+  const spans = visuals.blockFillSpansInLine(LINE, SEP, SEP, MARKERS, KINDS);
   const left = spans[0];
   const plugin = fakePlugin({ enabled: true, opacity: 12, heightPct: 0, widthPct: 50 });
 

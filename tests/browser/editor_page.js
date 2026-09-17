@@ -46,6 +46,20 @@ const CFG = {
     lineFormat: { separator1: SEP, separator2: SEP },
     fields: {
       elements: { byField: { due: { emoji: "\u{1F4C5}", format: "YYYY-MM-DD hh:mm" } } },
+      /*
+       * Порядок Fields — часть фикстуры, и без него страница незаконна (У-38):
+       * подложка Block спрашивает у него, какого рода значения в этом Block
+       * бывают, а конфиг без порядка означает «Block пуст, красить нечего».
+       * Роды названы по строкам ниже: слева теги и ссылка, справа элемент и тег.
+       */
+      order: {
+        left: ["type", "Category", "Importance", "Project"],
+        right: ["due", "state"],
+        types: {
+          type: "tag", Category: "tag", Importance: "tag", Project: "wikilink",
+          due: "element", state: "tag",
+        },
+      },
     },
   },
   /*
@@ -623,7 +637,10 @@ window.__ioEditorProbe = function () {
     const line = doc.line(n);
     const spans = visuals.blockFillSpansInLine(
       line.text, SEP, SEP,
-      visuals.buildElementMarkersFromConfig(CFG));
+      visuals.buildElementMarkersFromConfig(CFG),
+      /* Род значений каждого Block — тем же вызовом, что и у слоя: проба,
+         спрашивающая иначе, мерила бы не то, что нарисовано (У-4). */
+      visuals.buildBlockKindsFromConfig(CFG));
     const left = spans.find((s) => s.zone === "left") || null;
     const at = (pos, side) => {
       const c = view.coordsAtPos(pos, side);

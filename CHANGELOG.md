@@ -18,6 +18,12 @@
   the arrow keys. The preview beside the settings now pulses on its own, so the
   quiet time is something you can see rather than imagine.
 
+- **The Block fill no longer paints a Block you do not have.** A band belongs to
+  a Block, and it now asks the Fields order whether values of that kind live
+  there at all. After `Inline to note` the link the plugin writes in place of
+  your text sat in the left zone and was painted as a left Block value - on a
+  setup whose left Block holds no Fields at all.
+
 ### Inline to note
 
 - **New: the notes a line points at can learn about the note it became.** Turn

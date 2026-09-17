@@ -1265,6 +1265,66 @@ function blockFillPrefixGlyphEnd(text) {
 }
 
 /**
+ * Какого рода значения бывают в каждом Block — по порядку Fields.
+ *
+ * **Замечание заказчика 2026-09-17:** после `Inline to note` исходная строка
+ * выглядит как `- [[333/имя]] :: #processed`, и «текст воспринимается как
+ * values left block и рисуется полоска». Ссылку туда поставил сам Transform —
+ * она стоит **вместо его текста**, — а подложка читала её как значение левого
+ * Block. Обмер картинки: полоса цвета его подложки идёт от ссылки до конца
+ * строки, то есть она и правда нарисована, а не показалась.
+ *
+ * Правило простое и своё у подложки: **полоса принадлежит Block**, и Block, в
+ * котором значений такого рода не бывает вовсе, красить нечем. У него в обоих
+ * vault левый Block пуст — там нет ни одного Field, — и левой полосы поэтому
+ * быть не может ни на какой строке.
+ *
+ * Спрашивается **Order, а не то, что панель показывает сейчас**: поле с
+ * невыполненным предусловием своих значений не теряет (правило 107, его ответ
+ * В-137). Дочерние поля берут род у родителя — `types` их не называет.
+ *
+ * Род значения у порядка и у разбора строки назван разными словами:
+ * `wikilink` против `link`. Перевод один и здесь, второго быть не должно.
+ */
+function buildBlockKindsFromConfig(cfg) {
+  const order = isObj(readCfgPath(cfg, "pkm.fields.order"))
+    ? readCfgPath(cfg, "pkm.fields.order")
+    : {};
+  const types = isObj(order.types) ? order.types : {};
+  const kindOf = (raw) => {
+    const name = String(raw || "").trim().toLowerCase();
+    if (name === "wikilink" || name === "link") return "link";
+    if (name === "element") return "element";
+    if (name === "tag") return "tag";
+    return "";
+  };
+  const kindsOf = (list) => {
+    const out = new Set();
+    for (const raw of Array.isArray(list) ? list : []) {
+      const key = String(raw || "").trim();
+      if (!key) continue;
+      const kind = kindOf(types[key] !== undefined ? types[key] : types[key.replace(/_sub$/, "")]);
+      if (kind) out.add(kind);
+    }
+    return out;
+  };
+  return { left: kindsOf(order.left), right: kindsOf(order.right) };
+}
+
+/**
+ * Бывают ли в этом Block значения такого рода.
+ *
+ * Ответа «не спрашивали» здесь нет нарочно: молчаливое «да» вернуло бы ровно
+ * тот дефект, ради которого правило заведено, и вернуло бы молча (У-56).
+ * Кто зовёт подложку, тот и обязан сказать, что в Block бывает.
+ */
+function blockHoldsKind(blockKinds, zone, kind) {
+  const side = isObj(blockKinds) ? blockKinds[zone] : null;
+  if (side instanceof Set) return side.has(kind);
+  return Array.isArray(side) ? side.indexOf(kind) >= 0 : false;
+}
+
+/**
  * Отрезки строки, под которыми лежит подложка (З-7).
  *
  * Границы **не считаются заново**: их считает тот же разбор строки, что и
@@ -1277,7 +1337,7 @@ function blockFillPrefixGlyphEnd(text) {
  * «если values left\right block отсутствуют, то эта подложка не должна
  * появляться».
  */
-function blockFillSpansInLine(text, sep1, sep2, elementMarkers) {
+function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds) {
   const src = String(text || "");
   const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers);
   const at = lineSeparatorBounds(src, sep1, sep2);
@@ -1287,6 +1347,10 @@ function blockFillSpansInLine(text, sep1, sep2, elementMarkers) {
     let end = -1;
     for (const hit of tokens) {
       if (hit.zone !== zone) continue;
+      /* Значение считается значением **этого** Block, только если такие в нём
+         бывают: разбор у себя решает иначе, и это отдельный вопрос — у него
+         свой ответ и своя цена (10.13.187). */
+      if (!blockHoldsKind(blockKinds, zone, hit.kind)) continue;
       if (start < 0 || hit.index < start) start = hit.index;
       if (hit.end > end) end = hit.end;
     }
@@ -1774,6 +1838,7 @@ module.exports = {
   elementTailPatternFromFormat,
   buildElementMarkersFromConfig,
   scanLineVisualTokens,
+  buildBlockKindsFromConfig,
   buildBlockStyleCss,
   tagVisualSizingForZone,
   BLOCK_VALUE_CLASS,
