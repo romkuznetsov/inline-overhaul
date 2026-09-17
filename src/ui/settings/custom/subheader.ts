@@ -31,6 +31,10 @@ export function subheader(label: string, tip?: string): (host: El, ctx: Settings
      * под ней, и строка остаётся одной строкой. Так же устроен заголовок
      * группы.
      */
+    /* Субхедер прижимается к тому, что под ним: пометка на вместилище, а не
+       общий отступ всех своих блоков (замечание заказчика 2026-09-17, «висят
+       в воздухе»). Вторая отрисовка того же — прототип (правило 41). */
+    if (host.classList) host.classList.add("io-custom--sub");
     const row = el(host, "div", "io-sub io-sub--group");
     el(row, "span", "io-sub__text", label);
 

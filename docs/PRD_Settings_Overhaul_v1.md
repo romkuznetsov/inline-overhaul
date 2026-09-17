@@ -7946,9 +7946,9 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:686 | `Show prefix` | `visual.tagWheel.showMarkers` | Show tag markers (`panel-markers`, TagWheel) |
 | перенесено | R:498 | `<dynamic>` цвет текста | `visual.tagWheel.textColor` | Non-active Field text color (`panel-text-color`, TagWheel) |
 | перенесено | R:498 | `<dynamic>` цвет фона | `visual.tagWheel.fillColor` | Background color (`panel-background`, TagWheel) |
-| перенесено | R:561 | `TagWheel Scroller` | `visual.tagWheel.scroller.enabled` | Scroller (`scroller-enabled`, TagWheel Scroller) |
-| перенесено | R:573 | `Scroller direction` | `visual.tagWheel.scroller.direction` | Scroller opening direction (`scroller-direction`, TagWheel Scroller) |
-| перенесено | R:592 | `Scroller size` / `(1..20)` | `visual.tagWheel.scroller.size` | Scroller size (`scroller-size`, TagWheel Scroller) |
+| перенесено | R:561 | `TagWheel Scroller` | `visual.tagWheel.scroller.enabled` | Scroller (`scroller-enabled`, TagWheel) |
+| перенесено | R:573 | `Scroller direction` | `visual.tagWheel.scroller.direction` | Scroller opening direction (`scroller-direction`, TagWheel) |
+| перенесено | R:592 | `Scroller size` / `(1..20)` | `visual.tagWheel.scroller.size` | Scroller size (`scroller-size`, TagWheel) |
 | перенесено | T:1796 | `Inline2Note enabled` | `transform.inline2note.enabled` | Inline to note (`i2n-enabled`, Inline to note) |
 | перенесено | T:1806 | `Templates folder` | `transform.inline2note.templatesFolder` | Templates folder (`i2n-templates-folder`, Inline to note) |
 | перенесено | T:1820 | `Output folder for new notes` | `transform.inline2note.outputFolder` | New notes folder (`i2n-output-folder`, Inline to note) |
@@ -8013,9 +8013,9 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagWheel.highlightLine` | Highlight the TagWheel line (`panel-highlight`) | TagWheel |
 | `visual.tagWheel.activeTextColor` | Active Field text color (`panel-active-color`) | TagWheel |
 | `visual.tagWheel.chosenValueColor` | Chosen Value text color (`panel-chosen-color`) | TagWheel |
+| `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | TagWheel |
+| `visual.tagWheel.scroller.textColor` | Scroller text color (`scroller-text`) | TagWheel |
 | `visual.tagWheel.edgeMode` | TagWheel navigation behavior (`wheel-edge`) | TagWheel |
-| `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | TagWheel Scroller |
-| `visual.tagWheel.scroller.textColor` | Scroller text color (`scroller-text`) | TagWheel Scroller |
 | `visual.tagWheel.activeField.mode` | Active Field on opening (`wheel-active-field`) | TagWheel opening |
 | `visual.tagWheel.activeField.left` | Left Block active Field (`wheel-active-left`) | TagWheel opening |
 | `visual.tagWheel.activeField.right` | Right Block active Field (`wheel-active-right`) | TagWheel opening |
@@ -15265,7 +15265,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 6 | 13 | 4 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 9 | 51 | 7 |
+| 5 | Visual | `features.visual.enabled` | 8 | 51 | 8 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -15322,7 +15322,6 @@ python tests/prototype/update_prd.py
 | 150 | `user-tag-colors` | Color your Tags | Colors for tags that are not a Value of any Field. A tag you type straight into a line still gets a bubble, and this is where you say what that bubble looks like | да | — |
 | 200 | `tag-bars` | Tag Bars | A colored Bar in the margin, so you can see at a glance what a whole block of lines is about without reading their tags. The Bar runs down the side of the line and everything nested under it | да | — |
 | 300 | `tagwheel` | TagWheel | TagWheel opens over the line and lays your Fields out across it, with the Values of the Field you are on running down | да | — |
-| 320 | `tagwheel-scroller` | TagWheel Scroller | The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming | да | — |
 | 350 | `tagwheel-opening` | TagWheel opening | Which Field the picker is standing on the moment it opens, before you touch an arrow key | да | — |
 | 400 | `text-cursor` | Text cursor | The blinking line that shows where your typing will land. Give it a color of its own and it stops disappearing into the page | да | — |
 | 450 | `jump-highlight` | Jump highlight | A jump throws the caret across the screen, and a thin blinking line is hard to find again. This draws a circle where it lands and lets it shrink away on its own | да | — |
@@ -16234,18 +16233,7 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - desc: The color behind the picker, while the line is marked
   - tip: Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the TagWheel line</code> on: the marks are what carries the color
   - старые названия для поиска: «Background»
-- **TagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
-  - desc: What the arrow keys do when there is no next Field on this side
-  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
-  - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
-  - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
-
-#### TagWheel Scroller — `tagwheel-scroller` (вкладка `visual`)
-
-_Intro:_ The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming
-
-_Tip:_ Without it TagWheel shows you only the Value you are standing on, and a long list has to be stepped through blind. The box is drawn by the picker over your note and takes its own colors, not the colors of the panel: the preview just above shows both at once
-
+- **`scroller-sub`** — свой блок, рендерер `?`
 - **Scroller** — `scroller-enabled`, `toggle`, path `visual.tagWheel.scroller.enabled`, default `false`
   - desc: Show the next and previous Values around the current one
   - tip: Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through
@@ -16272,6 +16260,11 @@ _Tip:_ Without it TagWheel shows you only the Value you are standing on, and a l
   - диапазон: 1–20, шаг 1
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Values per side»
+- **TagWheel navigation behavior** — `wheel-edge`, `dropdown`, path `visual.tagWheel.edgeMode`, default `stay`
+  - desc: What the arrow keys do when there is no next Field on this side
+  - tip: The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way
+  - варианты: `stay` Stay in the same Block · `next-block` Move to the next Block
+  - старые названия для поиска: «Edge of a Block», «Wrap around», «Move to the next Block», «At the last Field»
 
 #### TagWheel opening — `tagwheel-opening` (вкладка `visual`)
 

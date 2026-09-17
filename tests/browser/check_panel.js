@@ -234,7 +234,7 @@ async function rowsOnOneLine(width) {
     const tabs = await page.$$eval(".io-tabs .io-tab", (els) => els.length);
     if (tabs < 7) bad("вкладок в прототипе " + tabs + ", а их семь: страница не отрисовалась");
 
-    const totals = { tips: 0, heads: 0, values: 0, narrowAllowed: 0, unlocked: 0, steps: 0,
+    const totals = { tips: 0, heads: 0, values: 0, subs: 0, narrowAllowed: 0, unlocked: 0, steps: 0,
       leadUnlocked: 0, leadRows: -1, leadRowsBefore: -1,
       band: null };
 
@@ -302,7 +302,7 @@ async function rowsOnOneLine(width) {
         const tabName = tab ? (tab.textContent || "").trim().replace(/\d+$/, "") : "?";
         if (tab) tab.click();
 
-        const out = { tab: tabName, tips: [], heads: [], values: [], unlocked: 0, steps: 0,
+        const out = { tab: tabName, tips: [], heads: [], values: [], subs: [], unlocked: 0, steps: 0,
           leadUnlocked: 0, leadRowsBefore: -1, leadRows: 0,
           bandBefore: -1, bandOn: false, bandAfter: -1, bandOnEmpty: -1, bandBack: -1 };
 
@@ -554,6 +554,26 @@ async function rowsOnOneLine(width) {
           });
         }
 
+        /*
+         * ---- 3а. Субхедер принадлежит тому, что под ним (2026-09-17) ----
+         *
+         * Мерится на той вкладке, где он и есть: субхедеры лежат на Navigation
+         * и Visual, а гейт ходит по всем семи. Собранное сверяется снаружи —
+         * внутри страницы нет ни порога, ни отчёта.
+         */
+        for (const row of Array.from(document.querySelectorAll(".io-sub--group"))) {
+          const holder = row.closest(".io-custom") || row.parentElement;
+          if (!holder) continue;
+          const box = row.getBoundingClientRect();
+          const prev = holder.previousElementSibling;
+          const next = holder.nextElementSibling;
+          out.subs.push({
+            label: (row.textContent || "").trim().slice(0, 30),
+            above: prev ? Math.round((box.top - prev.getBoundingClientRect().bottom) * 10) / 10 : -1,
+            below: next ? Math.round((next.getBoundingClientRect().top - box.bottom) * 10) / 10 : -1,
+          });
+        }
+
         /* ---- 3. Подпись слайдера: одна строка, знак не уезжает ---- */
         for (const el of Array.from(document.querySelectorAll(".io-value"))) {
           const r = el.getBoundingClientRect();
@@ -603,6 +623,31 @@ async function rowsOnOneLine(width) {
         totals.heads++;
         if (h.ratio < MIN_CONTRAST) {
           bad(found.tab + ": шапка " + h.cls + " — контраст " + h.ratio + ":1, нужно " + MIN_CONTRAST + ":1");
+        }
+      }
+      for (const sub of found.subs) {
+        totals.subs++;
+        if (sub.above < 0 || sub.below < 0) continue;
+        /*
+         * **Замечание заказчика 2026-09-17:** «мне не нравится что эти два
+         * субхедера висят в воздухе — у них слишком большое расстояние строки
+         * настроек». Обмерено до правки: 32 точки сверху и 16 снизу — подпись
+         * стояла почти посередине и читалась как ничья.
+         *
+         * Утверждение написано **отношением**, а не числом: число состарилось
+         * бы от первой же правки шрифта (У-145), а «вдвое ближе к своим
+         * строкам» переживает её.
+         */
+        if (!(sub.below * 2 < sub.above)) {
+          bad(found.tab + ": субхедер «" + sub.label + "» висит в воздухе: сверху "
+            + sub.above + ", снизу " + sub.below
+            + " — он обязан стоять вдвое ближе к своим строкам");
+        }
+        /* И обратный контроль: вплотную тоже нельзя — подпись сольётся со
+           строкой под собой и перестанет читаться подписью. */
+        if (!(sub.below > 1)) {
+          bad(found.tab + ": субхедер «" + sub.label + "» сел вплотную к своей строке: снизу "
+            + sub.below);
         }
       }
       for (const v of found.values) {
@@ -673,6 +718,9 @@ async function rowsOnOneLine(width) {
     if (totals.tips < 40) bad("положительный контроль: подсказок проверено " + totals.tips + ", а их десятки");
     if (totals.heads < 5) bad("положительный контроль: шапок таблиц проверено " + totals.heads);
     if (totals.values < 5) bad("положительный контроль: подписей слайдеров проверено " + totals.values);
+    /* Порог к субхедерам: пустой набор означал бы «прижим проверен на
+       пустоте» — в прототипе их три (У-88). */
+    if (totals.subs < 3) bad("положительный контроль: субхедеров проверено " + totals.subs + ", а их три");
     /*
      * И контроль на переключение режима: список ступеней ровно один, и в нём
      * пять строк. Ноль тут значит не «нечего проверять», а «переключение не

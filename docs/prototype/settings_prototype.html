@@ -750,6 +750,12 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   display: flex; align-items: center; gap: 6px;
   margin: 14px 0 2px; padding-bottom: 4px;
 }
+/* Субхедер принадлежит тому, что под ним, а не воздуху между блоками.
+   Было 32 точки сверху и 16 снизу — он стоял почти посередине и читался
+   как ничей (замечание заказчика 2026-09-17). Стало 20 и 4: черта сверху
+   отделяет его от прежних строк, а сам он сидит на своих. */
+.io-custom--sub { padding: 12px 0 4px; margin-top: 8px; }
+.io-custom--sub .io-sub--group { margin: 0; padding-bottom: 0; }
 .io-sub__text { flex: 0 0 auto; }
 
 /* drag-and-drop order lists */
@@ -2479,39 +2485,15 @@ const SCHEMA = [
       tip:"Pick something solid enough to read against your note, since the picker is drawn on top of your text. Like <code>Non-active Field text color</code>, it needs <code>Highlight the TagWheel line</code> on: the marks are what carries the color", allowReset:true },
     /* Край Block: заказ заказчика 2026-09-05, поздний вечер (10.13.35). Место
        он назвал сам — «под scroller-size». Умолчание прежнее поведение. */
-    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
-      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
-      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
-      options:[ {value:"stay",label:"Stay in the same Block"},
-                {value:"next-block",label:"Move to the next Block"} ],
-      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
-  ]
-},
-/* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5). Ключ
-   в модели был, а контрола не было — и писать его было некому.
-
-   **Почему своя группа, а не строки в TagWheel.** В той группе одиннадцать
-   настроек, а больше двенадцати гейт не пускает: три новые туда не помещаются.
-   Разносить чужие строки ради места я не стал — они согласованы (Р8), — и
-   выбрал то, что легче всего переиграть. Место контрола заказчик не называл;
-   вопрос задан строкой листа. Разбор — 10.13.76. */
-
-/*
- * **Скроллер уехал в свою группу 2026-09-17.** Причина не вкус: с новой
- * строкой `Chosen Value text color` в группе `TagWheel` стало тринадцать
- * настроек при пределе двенадцать (Г11), а предел куплен читаемостью панели.
- * Из тринадцати скроллер — единственная связная пятёрка: у него свой тумблер,
- * свои цвета и своя коробка, и в самих текстах панели про неё сказано
- * «коробка скроллера — не панель, и цвета у неё свои».
- *
- * Стоит сразу под `TagWheel`: предпросмотр панели — первая строка той группы,
- * и коробку скроллера видно в нём же, строкой выше.
- */
-{
-  id: "tagwheel-scroller", tab: "visual", order: 320, heading: "TagWheel Scroller",
-  intro: "The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming",
-  tip: "Without it TagWheel shows you only the Value you are standing on, and a long list has to be stepped through blind. The box is drawn by the picker over your note and takes its own colors, not the colors of the panel: the preview just above shows both at once",
-  items: [
+    /*
+     * **Скроллер — субхедер, а не своя группа** (его слово 2026-09-17, ночь):
+     * «я хочу, чтобы все настройки tagwheel были в одном месте. Может быть не
+     * создавать отдельную группу, а сделать суб-группу (субхедер)». Своя
+     * группа у него была ровно полчаса — её завёл предел в двенадцать строк,
+     * а он этот предел решил иначе: подписью внутри группы.
+     */
+    { kind:"custom", id:"scroller-sub", render: renderSubheader("Scroller",
+      "The box of neighbouring Values that unrolls from the Field you are on, so you can see what is coming. It is drawn by the picker over your note and takes its own colors, not the colors of the panel: the preview at the top of this group shows both at once") },
     { kind:"toggle", id:"scroller-enabled", path:"visual.tagWheel.scroller.enabled", default:false,
       name:"Scroller", desc:"Show the next and previous Values around the current one",
       tip:"Off, you see only where you are and step blindly. On, you see what is coming, which makes a long list much quicker to work through",
@@ -2541,8 +2523,22 @@ const SCHEMA = [
       name:"Scroller size", desc:"How many neighboring Values stay visible around the current one",
       tip:"How many neighbours are shown on each side, not in total. A small number keeps the scroller out of the way; a large one lets you see the whole set of a short Field at once. It never shows more than the Field has",
       searchTerms:["Values per side"], visible: on("visual.tagWheel.scroller.enabled") },
+    { kind:"dropdown", id:"wheel-edge", path:"visual.tagWheel.edgeMode", default:"stay",
+      name:"TagWheel navigation behavior", desc:"What the arrow keys do when there is no next Field on this side",
+      searchTerms:["Edge of a Block","Wrap around","Move to the next Block","At the last Field"],
+      options:[ {value:"stay",label:"Stay in the same Block"},
+                {value:"next-block",label:"Move to the next Block"} ],
+      tip:"The left and right Blocks each hold their own Fields, and the arrows walk along one of them. <code>Stay in the same Block</code> keeps you there: past the last Field you land back on the first. <code>Move to the next Block</code> makes the two into one ring — step right off the end of the left Block and you arrive at the first Field of the right one, step left off its start and you arrive at the last. <code>Tab</code> switches Blocks either way" }
   ]
 },
+/* Ведущее поле панели: решение заказчика 2026-09-11 (PRD 10.13.69, Т-5). Ключ
+   в модели был, а контрола не было — и писать его было некому.
+
+   **Почему своя группа, а не строки в TagWheel.** В той группе одиннадцать
+   настроек, а больше двенадцати гейт не пускает: три новые туда не помещаются.
+   Разносить чужие строки ради места я не стал — они согласованы (Р8), — и
+   выбрал то, что легче всего переиграть. Место контрола заказчик не называл;
+   вопрос задан строкой листа. Разбор — 10.13.76. */
 {
   id: "tagwheel-opening", tab: "visual", order: 350, heading: "TagWheel opening",
   intro: "Which Field the picker is standing on the moment it opens, before you touch an arrow key",
@@ -4530,6 +4526,11 @@ const TAB_CALLOUTS = {
    растолкало бы её пополам. */
 function renderSubheader(label, tip) {
   return function (host) {
+    /* Субхедер прижимается к тому, что под ним: своя пометка на вместилище,
+       а не общий отступ всех своих блоков — предпросмотры от неё не худеют.
+       Замечание заказчика 2026-09-17: «мне не нравится что эти два субхедера
+       висят в воздухе — у них слишком большое расстояние строки настроек». */
+    if (host.classList) host.classList.add("io-custom--sub");
     const row = el("div", "io-sub io-sub--group", host);
     el("span", "io-sub__text", row, label);
     attachTip(row, tip, label, host, row);

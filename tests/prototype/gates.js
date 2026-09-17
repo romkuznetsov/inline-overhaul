@@ -161,6 +161,18 @@ for (const g of SCHEMA) for (const it of g.items) {
   if (it.seeAlso && !ids.has(it.seeAlso.id)) bad(it.id + " seeAlso points at unknown id " + it.seeAlso.id);
 }
 
+/*
+ * Строки-субхедеры, собранные обходом объявлений прототипа. Порог рядом:
+ * пустой набор означал бы «разделов нет», и предел считался бы по группе
+ * целиком — то есть проверка была бы зелёной от того, что искать перестало
+ * (У-88).
+ */
+const SUBHEADER_IDS = new Set(
+  Array.from(js.matchAll(/id:"([^"]+)",\s*render:\s*renderSubheader\(/g), m => m[1]));
+if (SUBHEADER_IDS.size < 3) {
+  bad("обход нашёл субхедеров " + SUBHEADER_IDS.size + " — разделы считать нечем");
+}
+
 // Г11 group size, Г12 every group has an intro
 for (const g of SCHEMA) {
   if (g.intro) {
@@ -171,8 +183,29 @@ for (const g of SCHEMA) {
     const low = lowerEntities(g.tip);
     if (low.length) bad("group " + g.id + " tip leaves an entity in lower case: " + low.join(", "));
   }
-  const n = g.items.filter(i => i.kind !== "custom").length;
-  if (n > 12) bad("group " + g.id + " has " + n + " settings");
+  /*
+   * Г11 считает настройки **в разделе**, а не в группе целиком, и раздел
+   * начинается с субхедера. Предел куплен читаемостью: двенадцать строк
+   * подряд под одной подписью человек уже не охватывает глазом. Подпись
+   * внутри группы делит их ровно так же, как делит заголовок — ради этого
+   * субхедеры и заведены, — и заказчик выбрал именно её 2026-09-17:
+   * «я хочу, чтобы все настройки tagwheel были в одном месте. Может быть не
+   * создавать отдельную группу, а сделать суб-группу (субхедер)».
+   *
+   * Субхедер узнаётся по **объявлению в прототипе**, а не по имени строки:
+   * имя пишет человек, а объявление ставит схема (У-201). Рисовалки здесь
+   * подделаны пустыми функциями, и фабрика субхедера возвращает `undefined` —
+   * то есть у самой записи признака не остаётся, спрашивать надо исходник.
+   */
+  let section = 0;
+  for (const it of g.items) {
+    if (it.kind === "custom") {
+      if (SUBHEADER_IDS.has(String(it.id || ""))) section = 0;
+      continue;
+    }
+    section += 1;
+    if (section > 12) bad("group " + g.id + " has " + section + " settings in one section");
+  }
   if (!g.intro && !/-intro$/.test(g.id)) bad("group " + g.id + " has no intro");
 }
 

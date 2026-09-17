@@ -31,9 +31,12 @@
   means it takes `Non-active Field text color`, as before. The preview beside
   the settings now shows one filled Field, so the control has something to work
   on.
-- **The scroller settings moved into a group of their own**, `TagWheel
-  Scroller`, directly under `TagWheel`. Nothing changed but where they sit: the
-  `TagWheel` group had grown past the twelve rows a group is allowed.
+- **The scroller settings now sit under a `Scroller` subheading** inside
+  `TagWheel`, instead of running on from the colors above them. Nothing moved
+  out of the group and nothing changed but the heading.
+- **A subheading inside a group no longer floats between the rows.** It used to
+  stand 32 points below the row above it and 16 above the row below, which read
+  as belonging to neither; it now sits close to the rows it heads.
 
 ### Tags & PKM
 
