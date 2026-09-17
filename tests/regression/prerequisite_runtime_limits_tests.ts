@@ -453,15 +453,69 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   assert.ok(tags.includes("#a"),
     "значение спрятанного поля переживает сборку строки: " + JSON.stringify(tags));
   ok("значение поля, которого панель не показывает, переживает сборку строки");
+}
+
+{
+  /*
+   * **Та же форма, но значение дочернего поля названо по родителю** — и вот
+   * эта фикстура и есть предмет (У-47). Выше у зависимого значения списка
+   * допустимых родителей нет вовсе, и узнать его панель могла и без правки:
+   * отбор по родителю такое значение не отсеивает. У заказчика список есть, и
+   * узнавание молчало — значение исчезало со строки при первом же применении
+   * панели, хотя команда того же поля переставляла его по Order.
+   *
+   * Мутация, которой это ловится: снять `ignoreParent` у узнавания. Без неё
+   * проверка зелёная и не проверяет ничего.
+   */
+  const b = build({ where: "left", dependsOn: "status" });
+  (b.field.values as Any[]).length = 0;
+  (b.field.values as Any[]).push({ id: "#a", token: "#a", allowedParentValues: ["#work"] });
+  ((b.rules.leftMode.fields as Any[]).find((f: Any) => f.id === "status").values as Any[])
+    .forEach((v: Any) => { v.id = String(v.token || ""); });
+  const line = "- #a | текст";
+  const parsed = core.parseLine(line, b.rules);
+  const session = core.makeInitialState(b.rules, "left");
+
+  /* Контроль первым: родителя на строке нет, и панель это поле прячет —
+     иначе узнавать было бы нечего и «узнано» получилось бы само. */
+  assert.equal(String(session.selected.status || ""), "", "родителя на строке нет");
+  core.hydrateStateFromParsedLine(b.rules, session, parsed);
+  assert.equal(String(session.selected.second || ""), "#a",
+    "значение дочернего поля узнано и без родителя: " + JSON.stringify(session.selected));
+
+  core.sanitizeState(b.rules, session);
+  assert.equal(String(session.selected.second || ""), "#a",
+    "и уборка состояния его не стирает: поле спрятано, а не занято чужим значением");
+  const tags = core.buildTags(b.mode, session, b.rules, parsed) as string[];
+  assert.ok(tags.includes("#a"),
+    "и строка собирается вместе с ним: " + JSON.stringify(tags));
 
   /*
-   * **И у команд тот же ответ.** Правило перестановки значений по Order
-   * получает только те поля, которыми дорога сейчас управляет: у спрятанного
-   * его значение — текст человека. Прежде команды переставляли его по Order, а
-   * панель оставляла на месте, и две дороги давали разное (10.13.134).
+   * Отрицательный контроль: при **выбранном** родителе, которому это значение
+   * не разрешено, оно по-прежнему стирается уборкой. Отбор по родителю снят
+   * только у узнавания, и допустимость решает по-прежнему `sanitizeState`.
+   */
+  const other = core.makeInitialState(b.rules, "left");
+  other.selected.status = "#home";
+  core.hydrateStateFromParsedLine(b.rules, other, parsed);
+  other.selected.status = "#home";
+  core.sanitizeState(b.rules, other);
+  assert.equal(String(other.selected.second || ""), "",
+    "значение, недопустимое при выбранном родителе, стирается как и прежде");
+  ok("значение дочернего поля узнаётся и без родителя, а годность решает уборка");
+
+  /*
+   * **И у команд тот же ответ — теперь «переносить»** (его решение В-137,
+   * 2026-09-17).
    *
-   * Видно это стало, когда заказчик перетащил родителя в другой Block: пока
-   * Block совпадал, обе дороги давали одну строку по совпадению (У-147).
+   * Вопрос был его словами: значение поля, которое сейчас не показывается, —
+   * чьё оно. Он выбрал: «переносить. Поведение tagwheel и commands должно быть
+   * одинаковым». То есть значение принадлежит **полю**, и место ему назначает
+   * Order — показывается поле сейчас или нет.
+   *
+   * До 2026-09-17 здесь стояло обратное утверждение (10.13.134): команда
+   * значение спрятанного поля не трогала. Тогда так отвечала панель, и правило
+   * было выведено из неё; теперь обе дороги отвечают его словом (10.13.188).
    */
   /* Швы ставятся так же, как их ставит загрузка плагина: общие помощники
      движки берут через `globalThis`, и без них правило отказывает вслух. */
@@ -495,18 +549,49 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
     active: { status: "yes", second: "yes" },
     enabled: { status: true, second: true },
   };
-  const kept = String(rel.relocateCoreTagsByOrder(
+  const moved = String(rel.relocateCoreTagsByOrder(
     "- #a | текст", b.rules, orderCfg, session,
     b.rules.leftMode.fields, "", ""
   ) || "");
-  assert.ok(kept.indexOf("#a") < kept.indexOf("|"),
-    "команда не переставляет значение поля, которого не показывает: " + kept);
-  ok("команда не трогает значение спрятанного поля — тот же ответ, что у панели");
+  assert.ok(moved.indexOf("#a") > moved.indexOf("|"),
+    "команда переставляет значение спрятанного поля в Block его поля: " + moved);
 
   /*
-   * **А без `isFieldEnabled` правило обязано отказать вслух** (10.13.166).
+   * **Два отрицательных контроля, и без них правило читалось бы как
+   * «переставлять всё подряд».** Предусловие — не единственная причина, по
+   * которой поле не показывается, и две другие его решения не меняют:
+   * выключенное поле и поле, снятое с ленты (`active: no`), не переставляет
+   * ни одна дорога. Мера у них общая, и разводит их ровно тот вопрос, который
+   * разведён в ядре панели.
+   */
+  const offOrder: Any = JSON.parse(JSON.stringify(orderCfg));
+  offOrder.enabled.second = false;
+  const offField = (b.rules.leftMode.fields as Any[]).map((f: Any) => (
+    f.id === "second" ? Object.assign({}, f, { enabled: false }) : f
+  ));
+  const keptOff = String(rel.relocateCoreTagsByOrder(
+    "- #a | текст", b.rules, offOrder, session, offField, "", ""
+  ) || "");
+  assert.ok(keptOff.indexOf("#a") < keptOff.indexOf("|"),
+    "выключенное поле не переставляется: " + keptOff);
+
+  const hiddenOrder: Any = JSON.parse(JSON.stringify(orderCfg));
+  hiddenOrder.active.second = "no";
+  const hiddenRules: Any = JSON.parse(JSON.stringify(b.rules));
+  hiddenRules.behavior = hiddenRules.behavior || {};
+  hiddenRules.behavior.order = hiddenOrder;
+  const keptHidden = String(rel.relocateCoreTagsByOrder(
+    "- #a | текст", hiddenRules, hiddenOrder, session,
+    hiddenRules.leftMode.fields, "", ""
+  ) || "");
+  assert.ok(keptHidden.indexOf("#a") < keptHidden.indexOf("|"),
+    "поле, снятое с ленты, не переставляется: " + keptHidden);
+  ok("команда переставляет значение спрятанного предусловием поля, а выключенное и снятое с ленты не трогает");
+
+  /*
+   * **А без `isFieldSwitchedOn` правило обязано отказать вслух** (10.13.166).
    *
-   * Отбор полей стоял за охраной наоборот: `typeof core.isFieldEnabled !==
+   * Отбор полей стоял за охраной наоборот: `typeof core.isFieldSwitchedOn !==
    * "function"` — и на «нет» правило получало список **без отбора**, то есть
    * переставляло бы по Order ровно те значения, которые проверка выше бережёт.
    * Пробой внутри той ветки не покрасил ни одной проверки из семидесяти одной,
@@ -524,8 +609,8 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
     isObj: (x: Any) => !!x && typeof x === "object" && !Array.isArray(x),
   };
   assert.throws(
-    () => relocation.createFieldRelocation({ ...deps, core: { ...core, isFieldEnabled: undefined } }),
-    /isFieldEnabled/,
+    () => relocation.createFieldRelocation({ ...deps, core: { ...core, isFieldSwitchedOn: undefined } }),
+    /isFieldSwitchedOn/,
     "без отбора полей правило перестановки собралось молча",
   );
   /* Контроль: с целым ядром сборка проходит — иначе краснело бы на чём угодно. */

@@ -1081,7 +1081,21 @@ function buildPrefix(parsedLine, rules, state, deps) {
   })
 }
 
-function isFieldEnabled(mode, state, field, rules) {
+/**
+ * **Поле включено человеком** — без вопроса о предусловии.
+ *
+ * Два вопроса разведены его ответом В-137 (2026-09-17, «переносить»):
+ * «выключено ли поле вообще» и «показывается ли оно на этой строке» — разные
+ * вопросы, и слитые в один они давали разный ответ у двух дорог. Его выбор:
+ * значение принадлежит полю, и место ему назначает Order — показывается поле
+ * сейчас или нет.
+ *
+ * Этот вопрос задают двое: перестановка значений по Order
+ * (`field_relocation.js`) и множество токенов, которыми панель
+ * распоряжается (`buildManagedTokenSet`). Все остальные спрашивают сумму —
+ * `isFieldEnabled` ниже, и она не менялась.
+ */
+function isFieldSwitchedOn(mode, state, field, rules) {
   if (field.enabled === false) return false
   var order = rules && isObj(rules.behavior) && isObj(rules.behavior.order) ? rules.behavior.order : {}
   var active = isObj(order.active) ? order.active : {}
@@ -1094,6 +1108,11 @@ function isFieldEnabled(mode, state, field, rules) {
     var cfg = getDateRuntimeCfg(rules, field)
     if (cfg.activeMode === 'no' || cfg.activeMode === 'hotkey_only') return false
   }
+  return true
+}
+
+function isFieldEnabled(mode, state, field, rules) {
+  if (!isFieldSwitchedOn(mode, state, field, rules)) return false
   /* Предусловие объявлено один раз — в `pkm_rules_runtime_helpers.js`, — и
      его же спрашивают команды поля. Здесь стояла копия, и командам она была
      недоступна: на пустой строке панель поле прятала, а команда писала
@@ -1367,7 +1386,18 @@ function getProjectValues(rules, state) {
   return out
 }
 
-function getAllowedValues(mode, state, field, rules) {
+/**
+ * Значения поля, которые панель сейчас предлагает.
+ *
+ * `opts.ignoreParent` снимает **только** отбор по значению родителя, и
+ * нужен он одному звавшему — узнаванию значений на строке (В-137). Значение
+ * дочернего поля человек мог написать руками или получить прежней версией
+ * плагина, и родителя рядом может не быть вовсе; не узнать его значит
+ * потерять написанное. Годится ли узнанное при нынешнем родителе — вопрос
+ * второй, и отвечает на него `sanitizeState`.
+ */
+function getAllowedValues(mode, state, field, rules, opts) {
+  var ignoreParent = !!(opts && opts.ignoreParent)
   var base = isProjectsSourceField(field) ? getProjectValues(rules, state) : field.values
   var cfgValues = Array.isArray(field && field.values) ? field.values : []
   var allowedByField = {}
@@ -1406,7 +1436,7 @@ function getAllowedValues(mode, state, field, rules) {
       out.push(v)
       continue
     }
-    if (!Array.isArray(v.allowedParentValues) || !v.allowedParentValues.length) {
+    if (ignoreParent || !Array.isArray(v.allowedParentValues) || !v.allowedParentValues.length) {
       out.push(v)
       continue
     }
@@ -2134,7 +2164,12 @@ function buildManagedTokenSet(mode, rules, state) {
   for (i = 0; i < mode.fields.length; i++) {
     var field = mode.fields[i]
     if (!field) continue
-    if (state && !isFieldEnabled(mode, state, field, rules)) continue
+    /* В-137, его слово «переносить»: спрашивается только «поле включено».
+       Поле, которое на этой строке панель не показывает, своим значением
+       всё равно распоряжается: выбор ему сохраняет `sanitizeState`
+       (исключение № 89), а место в строке назначает Order — тот же
+       ответ, что и у команд (10.13.188). */
+    if (state && !isFieldSwitchedOn(mode, state, field, rules)) continue
     if (isProjectsSourceField(field)) {
       var projectTokens = collectProjectCatalogTokens(rules && rules.projects)
       var pt
@@ -2269,11 +2304,17 @@ function buildTags(mode, state, rules, parsedLine) {
     if (hasProjectSelected && removeCategoryAfterProject && field.id === categoryFieldId) continue
     if (hasProjectSelected && removeSubtagAfterProject && field.id === subcategoryFieldId) continue
 
-    if (!isFieldEnabled(mode, state, field, rules)) continue
+    /* В-137: поле, спрятанное предусловием, своё значение не теряет — оно
+       печатается в Block своего поля, как это делают команды. Выключенное
+       и спрятанное режимом поле по-прежнему молчит (10.13.188). */
+    if (!isFieldSwitchedOn(mode, state, field, rules)) continue
     var valId = state.selected[field.id] || ''
     if (!valId) continue
 
-    var values = getAllowedValues(mode, state, field, rules)
+    /* Значение ищется без отбора по родителю — по той же причине, что и
+       узнавание: у спрятанного поля родителя может не быть вовсе, а
+       годность выбора решает `sanitizeState` (В-137, 10.13.188). */
+    var values = getAllowedValues(mode, state, field, rules, { ignoreParent: true })
     var v = findValueById(values, valId)
     if (!v) continue
     var token = v.token || ''
@@ -2738,7 +2779,11 @@ function hydrateStateFromParsedLine(rules, state, parsedLine) {
     var fi
     for (fi = 0; fi < mode.fields.length; fi++) {
       var field = mode.fields[fi]
-      var values = getAllowedValues(mode, state, field, rules)
+      /* Узнаём значение на строке без отбора по родителю (В-137): значение
+         дочернего поля бывает написано без него, и не узнать его значит
+         потерять написанное. Допустимость при нынешнем родителе решает
+         `sanitizeState` (10.13.188). */
+      var values = getAllowedValues(mode, state, field, rules, { ignoreParent: true })
       if (canUseSharedTokenSelect) {
         var tokenMap = []
         var viMap
@@ -2996,6 +3041,7 @@ module.exports = {
   sanitizeState: sanitizeState,
   buildPrefix: buildPrefix,
   isFieldEnabled: isFieldEnabled,
+  isFieldSwitchedOn: isFieldSwitchedOn,
   getAllowedValues: getAllowedValues,
   cycleValue: cycleValue,
   nextField: nextField,

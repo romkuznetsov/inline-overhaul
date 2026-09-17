@@ -24,6 +24,16 @@
   your text sat in the left zone and was painted as a left Block value - on a
   setup whose left Block holds no Fields at all.
 
+### Tags & PKM
+
+- **A Field the line does not currently show still owns its Value.** A Field can
+  be set to appear only where the line already carries something else; a Value
+  written before that condition was met used to sit wherever it was when you
+  pressed a command, and move to its Field's Block when you opened `TagWheel`.
+  Both now do the same thing: the Value belongs to the Field, and the Fields
+  order decides where it goes. A Field you switched off, or took off the wheel,
+  is still left alone by both.
+
 ### Inline to note
 
 - **New: the notes a line points at can learn about the note it became.** Turn

@@ -70,8 +70,8 @@ function createFieldRelocation(deps) {
    * бросок на входе в саму `managedFields` — четыре: ветка была недостижима, и
    * молчала она о поломке загрузки, а не о поле.
    */
-  if (typeof core.isFieldEnabled !== "function") {
-    throw new Error(`${owner}: field_relocation missing dependency core.isFieldEnabled`);
+  if (typeof core.isFieldSwitchedOn !== "function") {
+    throw new Error(`${owner}: field_relocation missing dependency core.isFieldSwitchedOn`);
   }
 
   function getField(mode, id) {
@@ -281,18 +281,18 @@ function createFieldRelocation(deps) {
    * левого Block в правый: пока Block совпадал, обе дороги давали одну строку
    * по совпадению (У-147).
    *
-   * **Его ответ В-137 это правило меняет, и правка сюда ещё не сделана.**
-   * 2026-09-17 он выбрал «переносить»: значение поля, которое сейчас не
-   * показывается, принадлежит полю, и место ему назначает Order. Проба
-   * показала, что одной правки здесь мало — разбор и цена в
-   * `docs/REMAINING_WORK.md`, раздел 1н.
+   * **Его ответ В-137 это правило сузил (2026-09-17, «переносить»).**
+   * Спрашивается теперь только «поле включено», а не сумма с предусловием:
+   * значение поля, которое сейчас не показывается, принадлежит полю, и место
+   * ему назначает Order. Выключенное и спрятанное режимом поле по-прежнему
+   * не переставляется ни одной дорогой (10.13.188).
    */
   function managedFields(rules, state, fields) {
     const list = Array.isArray(fields) ? fields : [];
     return list.filter((f) => {
       if (!f || !f.id) return false;
       const mode = getFieldModeById(rules, f.id);
-      return core.isFieldEnabled(mode, state || { selected: {} }, f, rules);
+      return core.isFieldSwitchedOn(mode, state || { selected: {} }, f, rules);
     });
   }
 
