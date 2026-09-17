@@ -114,6 +114,11 @@ const CUSTOM_IMPL = {
     named: "caretPreview",
     expr: () => "caretPreview",
   },
+  renderJumpFlashPreview: {
+    module: "previews.ts",
+    named: "jumpFlashPreview",
+    expr: () => "jumpFlashPreview",
+  },
   renderCommandReference: {
     module: "command_reference.ts",
     named: "commandReference",

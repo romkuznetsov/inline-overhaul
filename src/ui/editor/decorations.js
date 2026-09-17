@@ -44,6 +44,8 @@ const {
   blockFillWrittenTextHeightPx,
   CARET_LAYER_CLASS,
   CARET_MARKER_CLASS,
+  JUMP_FLASH_LAYER_CLASS,
+  JUMP_FLASH_MARKER_CLASS,
   TAGWHEEL_SPAN_RANK,
   TAG_EMPTY_BUBBLE_BASE_PX,
   TAG_BUBBLE_CLASS,
@@ -60,6 +62,7 @@ const {
   buildTagwheelPlaceholderSetFromConfig,
   caretLayerRangeFor,
   caretShapeActive,
+  jumpFlashLookFromConfig,
   computeTagVisualStyle,
   getSourceMarksFromConfig,
   getTagVisualsFromConfig,
@@ -828,6 +831,143 @@ function createCaretLayerExtension(plugin) {
       return flipped || update.docChanged || update.selectionSet || update.viewportChanged;
     },
   });
+}
+
+/**
+ * Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16).
+ *
+ * «При прыжке курсор создавал визуальный эффект, сразу привлекающий внимание,
+ * чтобы не искать курсор глазами (например, цветной кружок, который
+ * уменьшается)». Его ответы В-136: **только на прыжках**, два прыжка подряд —
+ * **гасить прежний круг**, и задержка от 0 до 1 секунды, «если пользователь
+ * прыгает сразу много, чтобы не возникало раздражение».
+ *
+ * **Сигнал приходит не из движка под З3, и это не обход запрета, а разбор.**
+ * Разбор до кода говорил, что «курсор переехал прыжком» придётся объявлять в
+ * `navigation_runtime.js`, то есть новым исключением. Это оказалось неверно
+ * (правило «прошлый разбор — тоже гипотеза»): **все** команды навигации идут
+ * через одну обёртку `runNavigationGuard` в `plugin_commands.js`, а какая из
+ * них прыжок — знает тот же список, где объявлены их идентификаторы
+ * (`command_registry.js`). Оба файла вне З3, и исключения не понадобилось.
+ *
+ * **Гасит круг анимация, а не таймер.** Таймер пришлось бы снимать при
+ * выгрузке и при каждой перерисовке; анимация уезжает вместе с узлом. Таймер
+ * здесь ровно один — задержка между прыжками, — и снимает его `destroy`.
+ *
+ * **Круг один на редактор.** Второй прыжок снимает узел первого: это и есть
+ * «гасить прежний круг», и заодно ответ на вопрос, что делать с накоплением.
+ */
+function createJumpFlashExtension(plugin) {
+  if (typeof cmView.ViewPlugin !== "function" && !(cmView.ViewPlugin && typeof cmView.ViewPlugin.fromClass === "function")) {
+    /* Громко: тихий отказ здесь неотличим от дефекта (У-41). */
+    console.warn("[inline-overhaul][jump] @codemirror/view без ViewPlugin: подсветка прыжка не рисуется");
+    return [];
+  }
+  return cmView.ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.view = view;
+      this.node = null;
+      this.timer = 0;
+      const live = plugin.__ioJumpFlashViews || (plugin.__ioJumpFlashViews = []);
+      live.push(this);
+    }
+
+    /** Снять круг и отложенный показ: и то и другое — уборка (правило отказов). */
+    clear() {
+      if (this.timer) { clearTimeout(this.timer); this.timer = 0; }
+      if (this.node && this.node.parentNode) this.node.parentNode.removeChild(this.node);
+      this.node = null;
+    }
+
+    destroy() {
+      this.clear();
+      const live = plugin.__ioJumpFlashViews;
+      if (Array.isArray(live)) {
+        const at = live.indexOf(this);
+        if (at >= 0) live.splice(at, 1);
+      }
+    }
+
+    /**
+     * Показать круг там, где стоит каретка.
+     *
+     * Место спрашивается у платформы тем же вызовом, каким она рисует всё
+     * остальное поверх текста (`coordsAtPos`), и переводится в координаты
+     * слоя вычитанием его собственного прямоугольника: слой прокручивается
+     * вместе с текстом, а `coordsAtPos` отвечает в координатах окна.
+     */
+    show(look) {
+      this.clear();
+      const view = this.view;
+      const pos = view.state.selection.main.head;
+      const at = view.coordsAtPos(pos);
+      if (!at) return;
+      const host = view.scrollDOM;
+      if (!host) return;
+      const layer = host.querySelector("." + JUMP_FLASH_LAYER_CLASS) || (() => {
+        const made = host.ownerDocument.createElement("div");
+        made.className = JUMP_FLASH_LAYER_CLASS;
+        host.appendChild(made);
+        return made;
+      })();
+      const box = layer.getBoundingClientRect();
+      const node = host.ownerDocument.createElement("div");
+      node.className = JUMP_FLASH_MARKER_CLASS;
+      node.style.setProperty("--io-jump-x", (at.left - box.left) + "px");
+      node.style.setProperty("--io-jump-y", ((at.top + at.bottom) / 2 - box.top) + "px");
+      node.style.setProperty("--io-jump-radius", look.radius + "px");
+      node.style.setProperty("--io-jump-fade", look.fadeMs + "ms");
+      if (look.color) node.style.setProperty("--io-jump-color", look.color);
+      /* Узел снимает сама анимация, дойдя до конца: держать его дольше значит
+         оставить прозрачный кружок поверх текста навсегда. */
+      node.addEventListener("animationend", () => {
+        if (node.parentNode) node.parentNode.removeChild(node);
+        if (this.node === node) this.node = null;
+      });
+      layer.appendChild(node);
+      this.node = node;
+    }
+
+    /**
+     * Прыжок случился.
+     *
+     * Задержка — **отложенный** показ, а не пропуск: человек, который жмёт
+     * подряд, получает круг там, где остановился, а не там, где начал. Новый
+     * прыжок отменяет отложенный показ прежнего — это и есть его «чтобы не
+     * возникало раздражение».
+     */
+    fire(look) {
+      this.clear();
+      if (look.quietMs > 0) {
+        this.timer = setTimeout(() => { this.timer = 0; this.show(look); }, look.quietMs);
+        return;
+      }
+      this.show(look);
+    }
+  });
+}
+
+/**
+ * Сказать слою, что курсор переехал прыжком (Н5).
+ *
+ * Зовётся из обёртки команд навигации — единственного места, через которое
+ * проходят все они. `kind` говорит, какого рода был прыжок: по заголовкам или
+ * внутри строки; второй рисуется только при своём тумблере.
+ *
+ * Круг рисуется в том редакторе, в котором человек работает: слоёв бывает
+ * несколько, а прыжок один. Не нашлось ни одного с фокусом — рисовать негде,
+ * и это ответ, а не отказ.
+ */
+function fireJumpFlash(plugin, kind) {
+  const look = jumpFlashLookFromConfig(plugin.getConfig());
+  if (!look.enabled) return false;
+  if (String(kind || "") === "inline" && !look.inLine) return false;
+  const live = Array.isArray(plugin.__ioJumpFlashViews) ? plugin.__ioJumpFlashViews : [];
+  if (!live.length) return false;
+  const target = live.find((v) => v.view && v.view.hasFocus) || live[live.length - 1];
+  if (!target) return false;
+  target.fire(look);
+  return true;
 }
 
 /**
@@ -2046,6 +2186,8 @@ module.exports = {
   createTagVisualDecorationExtension,
   createStripDecorationExtension,
   createCaretLayerExtension,
+  createJumpFlashExtension,
+  fireJumpFlash,
   blockFillDocRanges,
   blockFillMarkersFor,
   floatingButtonLineNumber,

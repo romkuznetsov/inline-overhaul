@@ -34,6 +34,10 @@ const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __sharedUtils = require("../core/shared_utils.js");
 const __transformLineFinalize = require("../core/pkm_line_finalize_unified.js");
+/* Подсветка места, куда прыгнул курсор (Н5): слой её рисует, а сказать ему,
+   что прыжок случился, может только тот, через кого проходят все команды
+   навигации, — то есть эта обёртка. */
+const __editorDecorations = require("../ui/editor/decorations.js");
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
 /* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
@@ -219,7 +223,7 @@ function registerNavigation(plugin) {
       id: d.id,
       name: d.name,
       callback: async () => {
-        await runNavigationGuard(plugin, "navigation", d.run);
+        await runNavigationGuard(plugin, "navigation", d.run, d.jump);
       },
     });
   }
@@ -320,7 +324,34 @@ async function ensureNavigationRuntime(plugin) {
   return plugin.navRuntime;
 }
 
-async function runNavigationGuard(plugin, moduleKey, action) {
+/**
+ * Курсор у этого редактора — в одном виде, чтобы его можно было сравнить.
+ *
+ * Пустота — законный ответ: редактор мог не отдать курсор вовсе, и тогда
+ * сравнивать нечего, а не «курсор в начале». Это проба (правило отказов,
+ * третий вид: ответ «нет» — это ответ).
+ */
+function cursorMarkOf(ed) {
+  if (!ed || typeof ed.getCursor !== "function") return "";
+  const cur = ed.getCursor();
+  if (!cur) return "";
+  return String(cur.line) + ":" + String(cur.ch);
+}
+
+/**
+ * Обёртка **всех** команд навигации, и через неё же проходит подсветка прыжка.
+ *
+ * `jumpKind` приходит из того же списка, где команды объявлены: `"jump"` у
+ * переходов по заголовкам, `"inline"` у шагов внутри строки, пусто у
+ * остальных. Своего списка идентификаторов здесь нет — он был бы вторым
+ * объявлением того же правила (У-32), и признак по образцу ловил бы ровно те
+ * имена, на которых его писали (У-201).
+ *
+ * **Круг рисуется только там, где курсор и правда переехал.** Команда,
+ * упёршаяся в край или отказавшаяся, ничего не двигает, и подсвечивать ей
+ * нечего: человек увидел бы вспышку там, где ничего не случилось.
+ */
+async function runNavigationGuard(plugin, moduleKey, action, jumpKind) {
   const cfg = plugin.getConfig();
   if (!cfg.features.navigation.enabled) {
     new Notice(__say(__noticeKey("navigation", "module-off"), "Navigation is switched off"));
@@ -336,8 +367,13 @@ async function runNavigationGuard(plugin, moduleKey, action) {
     new Notice(__say(__noticeKey("navigation", "no-editor"), "Open a note first"));
     return;
   }
+  const before = jumpKind ? cursorMarkOf(ed) : "";
   try {
-    return await Promise.resolve(action(ed, cfg.navigation || {}, cfg, rt));
+    const out = await Promise.resolve(action(ed, cfg.navigation || {}, cfg, rt));
+    if (jumpKind && cursorMarkOf(ed) !== before) {
+      __editorDecorations.fireJumpFlash(plugin, jumpKind);
+    }
+    return out;
   } catch (e) {
     console.error("[inline-overhaul][navigation]", e);
     new Notice(__say(__noticeKey("navigation", "error"), "Navigation error: {0}", e.message || e));

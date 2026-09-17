@@ -41,6 +41,8 @@ export interface PluginInternals {
    * копией правил — иначе она проверяет копию.
    */
   buildOwnCommandList: (plugin: Any) => Any[];
+  /** Обёртка команд навигации и шов подсветки прыжка (Н5). */
+  runNavigationGuard: (plugin: Any, moduleKey: string, action: Any, jumpKind?: string) => Promise<Any>;
   normalizePkmOrder: (raw: Any) => Any;
   ensureBehaviorModesFromOrder: (cfg: Any) => void;
   DEFAULT_CONFIG: Any;
@@ -217,6 +219,10 @@ export function loadPluginInternals(): PluginInternals {
   cached = {
     ...visuals, ...decorations, ...order, ...configNormalize,
     buildOwnCommandList: commands.buildOwnCommandList,
+    /* Обёртка команд навигации: через неё проходят все они, и подсветка
+       прыжка живёт именно там (Н5). Модуль требует `obsidian`, и взять его
+       напрямую из проверки нельзя. */
+    runNavigationGuard: commands.runNavigationGuard,
   } as PluginInternals;
   /* И модули подмешались: `migrateConfig` живёт теперь в одном из них, и его
      отсутствие означает, что переезд оборвал цепочку. */

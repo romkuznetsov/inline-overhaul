@@ -158,6 +158,15 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keep("navigation.jumpToHeader.jumpMode"),
   keep("navigation.jumpToHeader.edgeMode"),
   keep("navigation.jumpToHeader.jumpCursorPosition"),
+  /* Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16). Ветка
+     целиком новая — пары в версии 1 у неё нет, и без маршрута форма v2 уехала
+     бы в `_unmigrated` (МГ3). */
+  keepV2("navigation.jumpToHeader.flash.enabled"),
+  keepV2("navigation.jumpToHeader.flash.color"),
+  keepV2("navigation.jumpToHeader.flash.radius"),
+  keepV2("navigation.jumpToHeader.flash.fadeMs"),
+  keepV2("navigation.jumpToHeader.flash.quietMs"),
+  keepV2("navigation.jumpToHeader.flash.inLine"),
   keep("navigation.navigateInline.enabled"),
   keep("navigation.navigateInline.stepMode"),
   keep("navigation.navigateInline.boundaryJump"),

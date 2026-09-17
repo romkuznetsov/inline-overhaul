@@ -1118,6 +1118,59 @@ export const sourcePreview: CustomRender = (host, ctx) => {
 
 /* ---- предпросмотр каретки (10.13.33 Ц8) --------------------------------- */
 
+const JUMP_FLASH_PATHS = [
+  "navigation.jumpToHeader.flash.enabled",
+  "navigation.jumpToHeader.flash.color",
+  "navigation.jumpToHeader.flash.radius",
+  "navigation.jumpToHeader.flash.fadeMs",
+] as const;
+
+/**
+ * Подсветка места, куда прыгнул курсор, — как она будет выглядеть (Н5).
+ *
+ * Его заказ 2026-09-16: «должен быть добавлен live preview с анимацией
+ * подсветки при прыжке (по аналогии с caret-preview)».
+ *
+ * **Гасит круг анимация, а не таймер** — так же, как в самом слое редактора:
+ * таймер пришлось бы снимать при выгрузке панели, а анимация уезжает вместе с
+ * узлом. Перерисовка по нажатию на строку — это и есть «показать ещё раз»:
+ * узел заводится заново, и анимация начинается сначала.
+ *
+ * **Задержки между прыжками здесь нет, и это сказано словом**: у предпросмотра
+ * прыжок один, а предмет задержки — второй прыжок следом за первым. П9 честно
+ * и здесь: рисует это панель, а не редактор.
+ */
+export const jumpFlashPreview: CustomRender = (host, ctx) => {
+  const shell = previewShell(host, ctx, "jump-flash-preview");
+  const text = PREVIEW_TEXTS["jump-flash-preview"];
+  const holder = el(shell.box, "div");
+
+  const draw = (): void => {
+    holder.empty();
+    const row = el(holder, "div", "io-jumpline");
+    const line = askText(ctx, SINGLE_KEYS.previewLine, PREVIEW_LINE_TEXT);
+    el(row, "span", undefined, line);
+    const spot = el(row, "span", "io-jumpflash");
+
+    const color = readText(ctx, "navigation.jumpToHeader.flash.color", "");
+    cssVar(row, "--io-jump-radius", (num(ctx, "navigation.jumpToHeader.flash.radius") || 18) + "px");
+    cssVar(row, "--io-jump-fade", (num(ctx, "navigation.jumpToHeader.flash.fadeMs") || 450) + "ms");
+    /* Пусто — цвет берётся у темы, и это живёт на шве, а не в значении
+       (У-60): в `HexString` пустота не влезает. */
+    cssVar(row, "--io-jump-color", color || "var(--interactive-accent)");
+    /* Круг встаёт на конец написанного — там же, где после прыжка каретка.
+       Место едет переменной: вид живёт в листе стилей (правило каталога Р7). */
+    cssVar(spot, "--io-jump-x", "calc(8px + " + line.length + "ch)");
+
+    row.addEventListener("click", draw);
+    el(holder, "p", "io-preview__note", text ? askText(ctx, previewKey("jump-flash-preview", "note"), text.note || "") : "");
+  };
+
+  draw();
+  const unwatch = ctx.watch(JUMP_FLASH_PATHS, draw);
+  return () => { unwatch(); shell.close(); };
+};
+
 const CARET_PATHS = [
   "visual.caret.enabled",
   "visual.caret.color",

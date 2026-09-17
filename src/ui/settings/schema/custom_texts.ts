@@ -153,6 +153,11 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
     tip: "The button is part of the editor, not the note: nothing is written into your file until you press it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     note: "Shown on the line the cursor is on"
   },
+  "jump-flash-preview": {
+    cap: "Live preview",
+    tip: "The circle below is drawn with the color, the size and the time set above, and it starts again whenever you change one of them or press the line. In a note it appears where the cursor lands after a jump and shrinks away on its own. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    note: "Press the line to see it again"
+  },
   "caret-preview": {
     cap: "Live preview",
     tip: "The caret below is drawn with the color, the width and the blink speed set above, and it changes while you drag. It blinks the way the editor blinks: on for half the time, off for the other half, with no fading in between. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",

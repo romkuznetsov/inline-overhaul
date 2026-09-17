@@ -35,6 +35,7 @@ const __panelMask = require("./panel_mask.js");
 
 const createBlockFillLayerExtension = __editorDecorations.createBlockFillLayerExtension;
 const createCaretLayerExtension = __editorDecorations.createCaretLayerExtension;
+const createJumpFlashExtension = __editorDecorations.createJumpFlashExtension;
 const createSourceMarkDecorationExtension = __editorDecorations.createSourceMarkDecorationExtension;
 const createStripDecorationExtension = __editorDecorations.createStripDecorationExtension;
 const createTagVisualDecorationExtension = __editorDecorations.createTagVisualDecorationExtension;
@@ -85,6 +86,10 @@ function mountExtensions(plugin) {
      спрашивает тумблер на каждой отрисовке, а видимостью правит блок стилей,
      который переписывается сразу за правкой настройки. */
   plugin.registerEditorExtension(createCaretLayerExtension(plugin));
+  /* Подсветка места, куда прыгнул курсор (Н5). Компартмента нет и не
+     нужно: слой ничего не рисует, пока его не позовёт прыжок, а настройки
+     читаются в момент прыжка, а не при загрузке. */
+  plugin.registerEditorExtension(createJumpFlashExtension(plugin));
   /* Заливка Left и Right Block (З-7). Компартмента у неё нет и не нужно по
      той же причине, что у каретки: слой спрашивает тумблер на каждой
      отрисовке, а вид правит блок стилей, который переписывается сразу за

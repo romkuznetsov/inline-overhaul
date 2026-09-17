@@ -1670,6 +1670,76 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.186 Подсветка места, куда прыгнул курсор (2026-09-17, Н5)
+
+**Его заказ 2026-09-16:** «Добавить для прыжков курсора опцию подсветки =
+on/off. При On — при прыжке курсор создавал визуальный эффект, сразу
+привлекающий внимание, чтобы не искать курсор глазами (например, цветной
+кружок, который уменьшается)… Располагаться настройка должна в heading-jumps
+снизу. Также должен быть добавлен live preview с анимацией подсветки при прыжке
+(по аналогии с caret-preview)».
+
+**Его ответы (В-136).** Только на прыжках. Два прыжка подряд — гасить прежний
+круг. И **третий контрол, которого в заказе не было**: задержка от 0 до 1
+секунды, «если пользователь прыгает сразу много, чтобы не возникало
+раздражение».
+
+**Разбор до кода обещал новое исключение к З3, и это оказалось неверно.**
+Сигнал «курсор переехал прыжком» я считал делом `navigation_runtime.js` —
+файла под запретом, — то есть работа начиналась бы с разрешения заказчика. При
+первом же взгляде на дорогу выяснилось другое: **все** команды навигации идут
+через одну обёртку `runNavigationGuard` в `src/features/plugin_commands.js`, а
+какая из них прыжок — знает тот же список, где объявлены их идентификаторы
+(`src/features/command_registry.js`). Оба файла вне З3. Правило «прошлый разбор
+— тоже гипотеза» сработало второй раз за неделю: проверяется он вопросом «а где
+это уже работает иначе».
+
+**Что появилось в панели.** Шесть строк внизу группы
+`Moving cursor inside a note` — ровно там, где он просил, — плюс живой
+предпросмотр с анимацией: тумблер, цвет, размер, время жизни круга, задержка
+между прыжками и `Use inside current line`. С ними в группе становится
+двенадцать настроек, то есть ровно предел Г11; тринадцатой сюда не поместится.
+
+**Устройство, тремя кусками.**
+
+  1. *Сигнал.* Обёртка запоминает курсор до команды и сравнивает после.
+     Круг просится **только там, где курсор и правда переехал**: команда,
+     упёршаяся в край заметки, ничего не двигает, и вспышка на ней была бы
+     вспышкой там, где ничего не случилось. Род прыжка (`jump` или `inline`)
+     едет из объявления команды, а не угадывается по идентификатору (У-201).
+  2. *Слой.* `createJumpFlashExtension` в `decorations.js` — свой узел поверх
+     текста, место спрашивается у платформы тем же `coordsAtPos`, каким она
+     рисует всё остальное. **Гасит круг анимация, а не таймер**: таймер
+     пришлось бы снимать при выгрузке, а анимация уезжает вместе с узлом.
+     Таймер здесь ровно один — задержка между прыжками, — и снимает его
+     `destroy`. Круг **один на редактор**: новый прыжок снимает узел прежнего,
+     и это и есть его «гасить прежний».
+  3. *Задержка.* Отложенный показ, а не пропуск: человек, который жмёт подряд,
+     получает круг там, где **остановился**, а не там, где начал. Новый прыжок
+     отменяет отложенный показ прежнего.
+
+**Имена классов у слоя свои, и это не копия** (У-103): `io-jumpline` и
+`io-jumpflash` заняты предпросмотром в панели, и его правила — со своим
+положением и своим шрифтом — накрыли бы круг над заметкой. Вид у круга один,
+поэтому и объявлен он один раз, списком селекторов в `styles.css`.
+
+**Чем закреплено.** Четыре проверки в `jump_flash_tests.js` (настройки доезжают
+и прижимаются к шкале, прыжком помечены ровно четыре команды, круг просят
+только при переехавшем курсоре, тумблеры разводят два рода прыжка) — и
+**браузерный шаг**, потому что круг живёт доли секунды и уменьшается
+анимацией: набор проверок этого не увидит ни одним утверждением (У-98).
+Браузер спрашивает вычисленные величины — размер у вёрстки (а не у
+прямоугольника на экране: он уже уменьшается), скругление, длительность, цвет и
+расстояние до каретки. Мутаций проверено шесть, каждая краснеет на своём
+утверждении; две из них соврали сначала — первая била мимо предмета (снятие
+стояло в двух местах), вторая была зелена оттого, что два прыжка разводились
+заходами в страницу и первый круг успевал погаснуть сам (У-142). Обе
+переделаны.
+
+**Отрицательные контроли названы поимённо.** Перемещение строки и перенос
+текста курсор двигают, но прыжком не считаются — без этого утверждения правило
+«круг на прыжке» ничем не отличалось бы от «круг на любой команде».
+
 #### 10.13.185 Заметка в корне vault не создавалась вовсе (2026-09-17, найдено работой над Н4)
 
 **Найдено не чтением, а первой же проверкой новой работы**: заметка-цель
@@ -7784,7 +7854,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (55)
+### Пути, которых не было в описи v1.0 (61)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -7804,6 +7874,12 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
+| `navigation.jumpToHeader.flash.enabled` | Highlight where you land (`jump-flash`) | Moving cursor inside a note |
+| `navigation.jumpToHeader.flash.color` | Highlight color (`jump-flash-color`) | Moving cursor inside a note |
+| `navigation.jumpToHeader.flash.radius` | Highlight size (`jump-flash-radius`) | Moving cursor inside a note |
+| `navigation.jumpToHeader.flash.fadeMs` | How long it lasts (`jump-flash-fade`) | Moving cursor inside a note |
+| `navigation.jumpToHeader.flash.quietMs` | Quiet time between jumps (`jump-flash-delay`) | Moving cursor inside a note |
+| `navigation.jumpToHeader.flash.inLine` | Use inside current line (`jump-flash-inline`) | Moving cursor inside a note |
 | `visual.tags.blockFill.enabled` | Color the Blocks (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.color` | Block color (`tags-block-fill-color`) | Inline appearance |
 | `visual.tags.blockFill.opacity` | Block color strength (`tags-block-fill-opacity`) | Inline appearance |
@@ -15059,7 +15135,7 @@ python tests/prototype/update_prd.py
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 8 | 1 |
 | 2 | Keyboard | — | 6 | 13 | 4 |
-| 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
+| 3 | Navigation | `features.navigation.enabled` | 5 | 31 | 6 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
 | 5 | Visual | `features.visual.enabled` | 7 | 44 | 6 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
@@ -15529,6 +15605,45 @@ _Tip:_ In a note with headings these two keys move you a section at a time, whic
   - видна если: `navigation.jumpToHeader.centerCursor`
   - выключена если: `navigation.jumpToHeader.enabled`
   - старые названия для поиска: «Scroll position», «Center on jump»
+- **Highlight where you land** — `jump-flash`, `toggle`, path `navigation.jumpToHeader.flash.enabled`, default `false`
+  - desc: Draw a fading circle where the cursor lands, so you do not hunt for it
+  - tip: A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps
+  - выключена если: `navigation.jumpToHeader.enabled`
+  - старые названия для поиска: «Flash on jump», «Highlight the jump target», «Show me where the cursor went»
+- **Highlight color** — `jump-flash-color`, `color`, path `navigation.jumpToHeader.flash.color`, default `""`
+  - desc: Leave it unset to use the accent color of your theme
+  - tip: Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background
+  - видна если: `navigation.jumpToHeader.flash.enabled`
+  - выключена если: `navigation.jumpToHeader.enabled`
+  - старые названия для поиска: «Color of the jump circle»
+- **Highlight size** — `jump-flash-radius`, `slider`, path `navigation.jumpToHeader.flash.radius`, default `18`
+  - desc: How wide the circle is at the moment it appears
+  - tip: Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts
+  - диапазон: 6–40, шаг 1, ед. px
+  - видна если: `navigation.jumpToHeader.flash.enabled`
+  - выключена если: `navigation.jumpToHeader.enabled`
+  - старые названия для поиска: «Size of the jump circle»
+- **How long it lasts** — `jump-flash-fade`, `slider`, path `navigation.jumpToHeader.flash.fadeMs`, default `450`
+  - desc: The time the circle takes to shrink and disappear
+  - tip: Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly
+  - диапазон: 100–1500, шаг 50, ед. ms
+  - видна если: `navigation.jumpToHeader.flash.enabled`
+  - выключена если: `navigation.jumpToHeader.enabled`
+  - старые названия для поиска: «Fade speed of the jump circle»
+- **Quiet time between jumps** — `jump-flash-delay`, `slider`, path `navigation.jumpToHeader.flash.quietMs`, default `0`
+  - desc: Jumps closer together than this get no circle at all
+  - tip: Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle
+  - диапазон: 0–1000, шаг 50, ед. ms
+  - видна если: `navigation.jumpToHeader.flash.enabled`
+  - выключена если: `navigation.jumpToHeader.enabled`
+  - старые названия для поиска: «Do not flash on every jump», «Quiet time»
+- **Use inside current line** — `jump-flash-inline`, `toggle`, path `navigation.jumpToHeader.flash.inLine`, default `false`
+  - desc: Also mark the cursor when it hops between the parts of one line
+  - tip: <code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too
+  - видна если: `navigation.jumpToHeader.flash.enabled`
+  - выключена если: `navigation.jumpToHeader.enabled`
+  - старые названия для поиска: «Flash on in-line jumps»
+- **`jump-flash-preview`** — свой блок, рендерер `renderJumpFlashPreview`
 
 #### Before you start — `pkm-intro` (вкладка `pkm`)
 
@@ -16145,6 +16260,12 @@ _Tip:_ Obsidian draws the caret in the color of your text, which is the color ev
 | `navigation.jumpToHeader.centerCursor` | toggle | `true` |
 | `navigation.jumpToHeader.edgeMode` | dropdown | `start-end` |
 | `navigation.jumpToHeader.enabled` | toggle | `true` |
+| `navigation.jumpToHeader.flash.color` | color | `""` |
+| `navigation.jumpToHeader.flash.enabled` | toggle | `false` |
+| `navigation.jumpToHeader.flash.fadeMs` | slider | `450` |
+| `navigation.jumpToHeader.flash.inLine` | toggle | `false` |
+| `navigation.jumpToHeader.flash.quietMs` | slider | `0` |
+| `navigation.jumpToHeader.flash.radius` | slider | `18` |
 | `navigation.jumpToHeader.jumpCursorPosition` | dropdown | `section-end` |
 | `navigation.jumpToHeader.jumpMode` | dropdown | `edge` |
 | `navigation.jumpToHeader.viewPosition` | dropdown | `center` |

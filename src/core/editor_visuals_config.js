@@ -723,6 +723,17 @@ const CARET_LAYER_CLASS = "io-editor-caretlayer";
 
 const CARET_MARKER_CLASS = "io-editor-caret";
 
+/*
+ * Имена подсветки прыжка (Н5). Имя класса — такое же объявление правила, как
+ * имя функции, и одно имя на два дела уже стоило шести неоткрывавшихся
+ * подсказок (У-103). Поэтому у слоя над заметкой имена **свои**: `io-jumpline`
+ * и `io-jumpflash` заняты предпросмотром в панели, и его правила — со своим
+ * положением и своим шрифтом — накрыли бы круг над заметкой.
+ */
+const JUMP_FLASH_LAYER_CLASS = "io-editor-jumplayer";
+
+const JUMP_FLASH_MARKER_CLASS = "io-editor-jumpflash";
+
 /**
  * Каретка: цвет, толщина и мерцание (10.13.33).
  *
@@ -864,6 +875,35 @@ function caretLookFromConfig(cfg) {
     look.blinkMs = Number.isFinite(speed) && speed <= 0 ? 0 : caretBlinkMsFromSpeed(speed);
   }
   return look;
+}
+
+/**
+ * Подсветка места, куда прыгнул курсор, — что о ней говорит конфиг (Н5).
+ *
+ * Отдаётся разбор, а не куски: слой спрашивает его один раз и дальше едет с
+ * ответом. Своего правила здесь нет ни одного — границы те же, какие ставит
+ * нормализация конфига, а цвет проходит тем же приведением, что и все
+ * остальные цвета панели.
+ *
+ * Пустой цвет — это ответ, а не пропуск: «взять у темы». Смысл живёт на шве,
+ * потому что в значение контрола он не влезает (У-60).
+ */
+function jumpFlashLookFromConfig(cfg) {
+  const flash = isObj(readCfgPath(cfg, "navigation.jumpToHeader.flash"))
+    ? readCfgPath(cfg, "navigation.jumpToHeader.flash")
+    : {};
+  const num = (raw, dflt) => {
+    const n = Math.trunc(Number(raw));
+    return Number.isFinite(n) ? n : dflt;
+  };
+  return {
+    enabled: flash.enabled === true,
+    inLine: flash.inLine === true,
+    color: normalizeHexColorInput(flash.color),
+    radius: num(flash.radius, 18),
+    fadeMs: num(flash.fadeMs, 450),
+    quietMs: num(flash.quietMs, 0),
+  };
 }
 
 /** Включена ли форма каретки: тот же тумблер, что и у блока стилей (У-32). */
@@ -1763,6 +1803,9 @@ module.exports = {
   caretBlinkMsFromSpeed,
   caretLookFromConfig,
   caretShapeActive,
+  jumpFlashLookFromConfig,
+  JUMP_FLASH_LAYER_CLASS,
+  JUMP_FLASH_MARKER_CLASS,
   caretSitsAtLineEnd,
   caretLayerRangeFor,
   STRIP_LINE_STYLE_CSS,

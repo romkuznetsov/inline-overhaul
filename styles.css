@@ -1515,6 +1515,59 @@
   50% { opacity: 0; }
   100% { opacity: 1; }
 }
+
+/*
+ * Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16).
+ *
+ * **Гасит круг анимация, а не таймер.** Таймер пришлось бы снимать при
+ * выгрузке плагина и при каждой перерисовке слоя, а анимация уезжает вместе с
+ * узлом: узел снят — гасить нечего. Радиус, цвет и время ставит слой
+ * переменными, теми же именами, что и предпросмотр панели: два набора имён
+ * разошлись бы молча (У-32).
+ *
+ * Правила одни на оба места — предпросмотр в панели и слой над заметкой, —
+ * потому что предмет один, а `styles.css` Obsidian читает сам.
+ */
+.io-jumpline {
+  position: relative;
+  padding: 14px 8px;
+  font-family: var(--font-monospace, monospace);
+  color: var(--text-normal);
+}
+/*
+ * Правило одно, а имён два, и это не копия (У-103): у предпросмотра в панели
+ * и у слоя над заметкой имена обязаны быть разными — иначе правила
+ * предпросмотра, со своим положением и своим шрифтом, накрыли бы круг над
+ * заметкой. Вид у круга один, поэтому и объявлен он один раз, списком
+ * селекторов.
+ */
+.io-jumpflash,
+.io-editor-jumpflash {
+  position: absolute;
+  left: var(--io-jump-x, 50%);
+  top: var(--io-jump-y, 50%);
+  width: calc(var(--io-jump-radius, 18px) * 2);
+  height: calc(var(--io-jump-radius, 18px) * 2);
+  margin-left: calc(var(--io-jump-radius, 18px) * -1);
+  margin-top: calc(var(--io-jump-radius, 18px) * -1);
+  border-radius: 50%;
+  background: var(--io-jump-color, var(--interactive-accent));
+  pointer-events: none;
+  animation: io-jump-flash var(--io-jump-fade, 450ms) ease-out forwards;
+}
+/* Слой над заметкой: круг лежит в нём и место получает от него, а не от
+   строки предпросмотра. Щелчки сквозь него проходят — рисование не имеет
+   права отнимать у человека текст под собой. */
+.markdown-source-view.mod-cm6 .io-editor-jumplayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+@keyframes io-jump-flash {
+  0% { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.2); }
+}
 /* Строка, уже перенесённая в заметку (10.13.12). Прозрачность и цвет ставит
    декорация: они приходят из настроек, а не из стиля. */
 .io-done-line { transition: opacity 120ms ease; }

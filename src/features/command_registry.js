@@ -206,6 +206,9 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "jump-back",
       name: __commandIds.commandName("jump-back"),
+      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
+         а не угадывает по идентификатору. */
+      jump: "jump",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
         if (!rt || typeof rt.jumpToHeader !== "function" || typeof rt.buildNavigateRules !== "function") {
@@ -217,6 +220,9 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "jump-next",
       name: __commandIds.commandName("jump-next"),
+      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
+         а не угадывает по идентификатору. */
+      jump: "jump",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.jumpToHeader.enabled) return plugin.notice("JumpToHeader disabled in settings");
         if (!rt || typeof rt.jumpToHeader !== "function" || typeof rt.buildNavigateRules !== "function") {
@@ -228,6 +234,9 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "move-cursor-left-in-line",
       name: __commandIds.commandName("move-cursor-left-in-line"),
+      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
+         а не угадывает по идентификатору. */
+      jump: "inline",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
         if (!rt || typeof rt.buildNavigateRules !== "function" || typeof rt.navigateInline !== "function") {
@@ -239,6 +248,9 @@ function buildNavigationCommandDefs(plugin) {
     {
       id: "move-cursor-right-in-line",
       name: __commandIds.commandName("move-cursor-right-in-line"),
+      /* Прыжок: курсор переезжает, и подсветка Н5 спрашивает об этом здесь,
+         а не угадывает по идентификатору. */
+      jump: "inline",
       run: (ed, nav, fullCfg, rt) => {
         if (!nav.navigateInline.enabled) return plugin.notice("NavigateInline disabled in settings");
         if (!rt || typeof rt.buildNavigateRules !== "function" || typeof rt.navigateInline !== "function") {

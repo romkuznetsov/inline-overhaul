@@ -55,6 +55,17 @@ const CFG = {
    * проверялся бы отсутствием предмета (У-113).
    */
   features: { transform: { enabled: true } },
+  /*
+   * Подсветка места, куда прыгнул курсор (Н5). Включена нарочно: круг живёт
+   * доли секунды и виден только в браузере — набор проверок его не увидит ни
+   * одним утверждением (У-98).
+   */
+  navigation: {
+    jumpToHeader: {
+      enabled: true,
+      flash: { enabled: true, color: "#ff0000", radius: 20, fadeMs: 400, quietMs: 0, inLine: false },
+    },
+  },
   transform: { inline2note: { enabled: true, floatingButton: true, floatingButtonGap: 12 } },
   visual: {
     tags: {
@@ -247,6 +258,7 @@ const view = new EditorView({
       /* Кнопка `→` — наш же виджет, и здесь он настоящий. */
       decorations.createSourceMarkDecorationExtension(plugin),
       decorations.createBlockFillLayerExtension(plugin),
+      decorations.createJumpFlashExtension(plugin),
     ],
   }),
   parent: document.getElementById("host"),
@@ -444,6 +456,80 @@ window.__ioPutCaret = function (lineNumber) {
   const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Number(lineNumber) || 1)));
   view.dispatch({ selection: { anchor: line.to } });
   return settled();
+};
+
+/**
+ * Прыжок курсора и круг, который он рисует (Н5).
+ *
+ * Круг живёт доли секунды и уменьшается анимацией — набор проверок этого не
+ * увидит ни одним утверждением (У-98), а браузер видит. Ставится курсор,
+ * зовётся тот самый шов, каким его зовёт обёртка команд, и отдаётся то, что
+ * получилось: сколько кругов на странице, где они и какого размера.
+ *
+ * Здесь не подделано ничего: `fireJumpFlash` и слой — настоящие, координаты
+ * даёт браузер.
+ */
+window.__ioJumpFlash = async function (lineNumber, kind) {
+  const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Number(lineNumber) || 1)));
+  view.dispatch({ selection: { anchor: line.to } });
+  await settled();
+  view.focus();
+  const answer = decorations.fireJumpFlash(plugin, String(kind || "jump"));
+  await settled();
+  const caret = view.coordsAtPos(view.state.selection.main.head);
+  const nodes = Array.from(document.querySelectorAll("." + visuals.JUMP_FLASH_MARKER_CLASS));
+  return {
+    answer: answer === true,
+    count: nodes.length,
+    layers: document.querySelectorAll("." + visuals.JUMP_FLASH_LAYER_CLASS).length,
+    caret: caret ? { left: round(caret.left), top: round(caret.top), bottom: round(caret.bottom) } : null,
+    circles: nodes.map((el) => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return {
+        left: round(r.left), right: round(r.right), top: round(r.top), bottom: round(r.bottom),
+        /*
+         * Размер спрашивается у **вёрстки**, а не у прямоугольника на экране:
+         * круг уже уменьшается анимацией, и `getBoundingClientRect` отдаёт то,
+         * сколько его осталось на этом кадре. Число вышло бы разным от прогона
+         * к прогону — мера, зависящая от машины, а не от продукта (У-176).
+         */
+        width: round(el.offsetWidth), height: round(el.offsetHeight),
+        radius: cs.borderRadius,
+        durationMs: Math.round(parseFloat(cs.animationDuration || "0") * 1000),
+        opacity: round(Number(cs.opacity)),
+        color: cs.backgroundColor,
+      };
+    }),
+  };
+};
+
+/** Сколько кругов на странице прямо сейчас: ответ «ноль» — тоже ответ. */
+window.__ioJumpFlashCount = function () {
+  return document.querySelectorAll("." + visuals.JUMP_FLASH_MARKER_CLASS).length;
+};
+
+/**
+ * Два прыжка подряд — **в одном ходу**, без единого кадра между ними.
+ *
+ * Его ответ В-136: прежний круг гасить. Проверять это двумя отдельными
+ * заходами в страницу нельзя: между ними проходит столько времени, что первый
+ * круг успевает погаснуть сам, и утверждение «кругов один» выполняется не
+ * правилом, а ожиданием — подмена «прежний не гасится» на нём зелёная (У-142:
+ * контроль ставится на тот шаг, о котором утверждение).
+ */
+window.__ioJumpFlashTwice = async function () {
+  const first = view.state.doc.line(3);
+  view.dispatch({ selection: { anchor: first.to } });
+  await settled();
+  view.focus();
+  decorations.fireJumpFlash(plugin, "jump");
+  const afterFirst = document.querySelectorAll("." + visuals.JUMP_FLASH_MARKER_CLASS).length;
+  const second = view.state.doc.line(5);
+  view.dispatch({ selection: { anchor: second.to } });
+  decorations.fireJumpFlash(plugin, "jump");
+  const afterSecond = document.querySelectorAll("." + visuals.JUMP_FLASH_MARKER_CLASS).length;
+  return { afterFirst: afterFirst, afterSecond: afterSecond };
 };
 
 function round(n) { return Math.round(Number(n) * 100) / 100; }

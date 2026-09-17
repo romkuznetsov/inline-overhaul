@@ -10,6 +10,7 @@ import { on, not, eq } from "../types.ts";
 import { callout } from "../custom/callouts.ts";
 import { dispatchTables } from "../custom/dispatch_tables.ts";
 import { cycleOrder } from "../custom/order_lists.ts";
+import { jumpFlashPreview } from "../custom/previews.ts";
 import { subheader } from "../custom/subheader.ts";
 
 export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
@@ -181,7 +182,43 @@ export const NAVIGATION_GROUPS: readonly SettingsGroup[] = [
       options:[ {value:"center",label:"Center of the screen"},
                 {value:"top",label:"Top of the screen"},
                 {value:"bottom",label:"Bottom of the screen"} ],
-      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
+      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" },
+    { kind:"toggle", id:"jump-flash", path:"navigation.jumpToHeader.flash.enabled", default:false,
+      name:"Highlight where you land", desc:"Draw a fading circle where the cursor lands, so you do not hunt for it",
+      searchTerms:["Flash on jump","Highlight the jump target","Show me where the cursor went"],
+      tip:"A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps",
+      disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"color", id:"jump-flash-color", path:"navigation.jumpToHeader.flash.color", default:"",
+      allowReset:true,
+      name:"Highlight color", desc:"Leave it unset to use the accent color of your theme",
+      searchTerms:["Color of the jump circle"],
+      tip:"Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"slider", id:"jump-flash-radius", path:"navigation.jumpToHeader.flash.radius", default:18,
+      min:6, max:40, step:1, unit:"px",
+      name:"Highlight size", desc:"How wide the circle is at the moment it appears",
+      searchTerms:["Size of the jump circle"],
+      tip:"Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"slider", id:"jump-flash-fade", path:"navigation.jumpToHeader.flash.fadeMs", default:450,
+      min:100, max:1500, step:50, unit:"ms",
+      name:"How long it lasts", desc:"The time the circle takes to shrink and disappear",
+      searchTerms:["Fade speed of the jump circle"],
+      tip:"Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"slider", id:"jump-flash-delay", path:"navigation.jumpToHeader.flash.quietMs", default:0,
+      min:0, max:1000, step:50, unit:"ms",
+      name:"Quiet time between jumps", desc:"Jumps closer together than this get no circle at all",
+      searchTerms:["Do not flash on every jump","Quiet time"],
+      tip:"Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"toggle", id:"jump-flash-inline", path:"navigation.jumpToHeader.flash.inLine", default:false,
+      name:"Use inside current line", desc:"Also mark the cursor when it hops between the parts of one line",
+      searchTerms:["Flash on in-line jumps"],
+      tip:"<code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"custom", id:"jump-flash-preview", render: jumpFlashPreview,
+      visible: on("navigation.jumpToHeader.flash.enabled") }
   ]
 }
 ];

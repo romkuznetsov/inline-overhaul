@@ -1454,6 +1454,29 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   100% { opacity: 1; }
 }
 
+/* Подсветка места, куда прыгнул курсор (Н5, его заказ 2026-09-16).
+   Круг живёт ровно столько, сколько сказано в настройке, и гаснет сам:
+   таймера в коде нет ни одного — гасит его анимация. Радиус, цвет и время
+   ставит рендерер переменными, теми же именами, что и слой редактора. */
+.io-jumpline { position: relative; padding: 14px 8px; font-family: var(--font-monospace, monospace); color: var(--text-normal); }
+.io-jumpflash {
+  position: absolute;
+  left: var(--io-jump-x, 50%);
+  top: 50%;
+  width: calc(var(--io-jump-radius, 18px) * 2);
+  height: calc(var(--io-jump-radius, 18px) * 2);
+  margin-left: calc(var(--io-jump-radius, 18px) * -1);
+  margin-top: calc(var(--io-jump-radius, 18px) * -1);
+  border-radius: 50%;
+  background: var(--io-jump-color, var(--interactive-accent));
+  pointer-events: none;
+  animation: io-jump-flash var(--io-jump-fade, 450ms) ease-out forwards;
+}
+@keyframes io-jump-flash {
+  0% { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.2); }
+}
+
 /* the drag handle, and what a row looks like while it moves */
 .io-grip { cursor: grab; }
 .io-grip:active { cursor: grabbing; }
@@ -2080,7 +2103,55 @@ const SCHEMA = [
       options:[ {value:"center",label:"Center of the screen"},
                 {value:"top",label:"Top of the screen"},
                 {value:"bottom",label:"Bottom of the screen"} ],
-      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" }
+      tip:"The same place every time, and the same three choices <code>Moving lines</code> has. Near the start or the end of a note there is nothing left to scroll, and the line sits as close to the chosen place as the note allows" },
+    /*
+     * Подсветка места, куда прыгнул курсор — его заказ 2026-09-16 (Н5):
+     * «при прыжке курсор создавал визуальный эффект, сразу привлекающий
+     * внимание, чтобы не искать курсор глазами (например, цветной кружок,
+     * который уменьшается)… Располагаться настройка должна в heading-jumps
+     * снизу».
+     *
+     * Его ответы В-136: только на прыжках, два прыжка подряд гасят прежний
+     * круг, и **третий контрол, которого не было в заказе** — задержка
+     * от 0 до 1 секунды: «если пользователь прыгает сразу много, чтобы не
+     * возникало раздражение».
+     */
+    { kind:"toggle", id:"jump-flash", path:"navigation.jumpToHeader.flash.enabled", default:false,
+      name:"Highlight where you land", desc:"Draw a fading circle where the cursor lands, so you do not hunt for it",
+      searchTerms:["Flash on jump","Highlight the jump target","Show me where the cursor went"],
+      tip:"A jump moves the caret somewhere else on the screen, and a thin blinking line is hard to find again. The circle is drawn over the note for a moment and shrinks away on its own: nothing is written into your file, and nothing is left behind. It appears on jumps only — typing and the arrow keys are not jumps",
+      disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"color", id:"jump-flash-color", path:"navigation.jumpToHeader.flash.color", default:"",
+      allowReset:true,
+      name:"Highlight color", desc:"Leave it unset to use the accent color of your theme",
+      searchTerms:["Color of the jump circle"],
+      tip:"Unset, the circle takes the accent color your theme already uses for selection and links, so it reads as part of the editor. Pick your own if the accent is too quiet against your background",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"slider", id:"jump-flash-radius", path:"navigation.jumpToHeader.flash.radius", default:18,
+      min:6, max:40, step:1, unit:"px",
+      name:"Highlight size", desc:"How wide the circle is at the moment it appears",
+      searchTerms:["Size of the jump circle"],
+      tip:"Measured from the caret outwards. Small enough and it is no easier to spot than the caret itself; large enough and it covers the words you jumped to for as long as it lasts",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"slider", id:"jump-flash-fade", path:"navigation.jumpToHeader.flash.fadeMs", default:450,
+      min:100, max:1500, step:50, unit:"ms",
+      name:"How long it lasts", desc:"The time the circle takes to shrink and disappear",
+      searchTerms:["Fade speed of the jump circle"],
+      tip:"Short is a blink that only catches the corner of your eye; long enough to read is long enough to annoy when you jump several times in a row. The row below is the other answer to that — it stops the circle appearing at all while you are jumping quickly",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"slider", id:"jump-flash-delay", path:"navigation.jumpToHeader.flash.quietMs", default:0,
+      min:0, max:1000, step:50, unit:"ms",
+      name:"Quiet time between jumps", desc:"Jumps closer together than this get no circle at all",
+      searchTerms:["Do not flash on every jump","Quiet time"],
+      tip:"Hold the key down and the circle would otherwise fire on every step, which is the opposite of helping. Set a quiet time and only the jump you stop on is marked. At <code>0</code> every jump gets its circle",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"toggle", id:"jump-flash-inline", path:"navigation.jumpToHeader.flash.inLine", default:false,
+      name:"Use inside current line", desc:"Also mark the cursor when it hops between the parts of one line",
+      searchTerms:["Flash on in-line jumps"],
+      tip:"<code>Move cursor left in line</code> and <code>Move cursor right in line</code> move the caret a short way, and it is usually still where your eye is. Turn this on if you lose it on long lines too",
+      visible: on("navigation.jumpToHeader.flash.enabled"), disabled: not("navigation.jumpToHeader.enabled") },
+    { kind:"custom", id:"jump-flash-preview", render: renderJumpFlashPreview,
+      visible: on("navigation.jumpToHeader.flash.enabled") }
   ]
 },
 {
@@ -3999,6 +4070,11 @@ const PREVIEW_TEXTS = {
     tip: "The button is part of the editor, not the note: nothing is written into your file until you press it. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
     note: "Shown on the line the cursor is on"
   },
+  "jump-flash-preview": {
+    cap: "Live preview",
+    tip: "The circle below is drawn with the color, the size and the time set above, and it starts again whenever you change one of them or press the line. In a note it appears where the cursor lands after a jump and shrinks away on its own. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
+    note: "Press the line to see it again"
+  },
   "caret-preview": {
     cap: "Live preview",
     tip: "The caret below is drawn with the color, the width and the blink speed set above, and it changes while you drag. It blinks the way the editor blinks: on for half the time, off for the other half, with no fading in between. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
@@ -5348,6 +5424,47 @@ function caretPreviewVars(node) {
 function caretBlinkMs(speed) {
   const s = Number.isFinite(speed) ? Math.max(1, Math.min(10, speed)) : 5;
   return 2200 - s * 200;
+}
+
+/**
+ * Как выглядит подсветка места, куда прыгнул курсор (Н5).
+ *
+ * Круг рисуется тем же набором переменных, каким его нарисует слой редактора:
+ * радиус, цвет и время. Гасит его **анимация**, а не таймер — так же, как в
+ * самом плагине: таймер пришлось бы снимать при выгрузке, а анимация уезжает
+ * вместе с узлом.
+ *
+ * Задержка между прыжками здесь не показывается, и это сказано словом: у
+ * предпросмотра прыжок один, а её предмет — второй прыжок следом за первым.
+ */
+function jumpFlashVars(node) {
+  const color = String(ctx.get("navigation.jumpToHeader.flash.color") || "");
+  cssVar(node, "--io-jump-radius", (Number(ctx.get("navigation.jumpToHeader.flash.radius")) || 18) + "px");
+  cssVar(node, "--io-jump-fade", (Number(ctx.get("navigation.jumpToHeader.flash.fadeMs")) || 450) + "ms");
+  cssVar(node, "--io-jump-color", color || "var(--interactive-accent)");
+}
+
+function renderJumpFlashPreview(host) {
+  const pt = PREVIEW_TEXTS["jump-flash-preview"];
+  const box = previewShell(host, pt.cap, pt.tip);
+  const holder = el("div", null, box);
+  const draw = () => {
+    holder.textContent = "";
+    const row = el("div", "io-jumpline", holder);
+    el("span", null, row, PREVIEW_LINE_TEXT);
+    const spot = el("span", "io-jumpflash", row);
+    /* Круг встаёт на конец написанного — там же, где после прыжка каретка.
+       Место едет переменной, а не свойством узла: вид живёт в листе стилей
+       (правило каталога Р7), и своё свойство здесь отменило бы правило. */
+    cssVar(spot, "--io-jump-x", "calc(8px + " + PREVIEW_LINE_TEXT.length + "ch)");
+    jumpFlashVars(row);
+    row.addEventListener("click", draw);
+    el("p", "io-preview__note", holder, pt.note);
+  };
+  draw();
+  previewRefreshers.push(draw);
+  ["navigation.jumpToHeader.flash.enabled", "navigation.jumpToHeader.flash.color",
+   "navigation.jumpToHeader.flash.radius", "navigation.jumpToHeader.flash.fadeMs"].forEach(p => bind(p, draw));
 }
 
 function renderCaretPreview(host) {

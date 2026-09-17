@@ -5,6 +5,16 @@
 
 ## Unreleased
 
+### Navigation
+
+- **New: a jump can show you where the cursor landed.** Turn on `Highlight
+  where you land` at the foot of `Moving cursor inside a note` and a coloured
+  circle appears at the caret after a jump and shrinks away on its own, so you
+  do not hunt for a thin blinking line on a screen you just moved across. Its
+  color, size and how long it lasts are yours to set, and a quiet time stops it
+  firing on every step while you hold the key down - only the jump you stop on
+  is marked. Off by default, and it never fires on typing or the arrow keys.
+
 ### Inline to note
 
 - **New: the notes a line points at can learn about the note it became.** Turn
