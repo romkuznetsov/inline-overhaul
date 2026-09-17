@@ -396,6 +396,10 @@ function buildTagVisualDecorations(view, plugin) {
   );
   const suppressedRanges = [];
   const elementMarkers = buildElementMarkersFromConfig(cfg);
+  /* Род значений каждого Block — один раз на проход, как и у подложки: от
+     строки он не зависит. Без него разбор считал бы значением Block всё, что
+     похоже на наш токен, и кегль Block доставался бы вашему тексту. */
+  const blockKinds = buildBlockKindsFromConfig(cfg);
   /* Цвета TagWheel нужны здесь ровно затем, чтобы узнать его отрезок (B2). */
   const tagwheelColors = getTagwheelHeaderColorsFromConfig(cfg);
 
@@ -419,7 +423,7 @@ function buildTagVisualDecorations(view, plugin) {
       const wheelSpan = tagwheelPanelSpanInLine(text, tagwheelColors);
       /* Наша ли это строка вообще: спрашивается один раз на строку. */
       const ourLine = lineBelongsToPlugin(text, sep1, sep2);
-      for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers)) {
+      for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds)) {
         const token = hit.token;
         if (wheelSpan && hit.index >= wheelSpan.start && hit.index < wheelSpan.end) continue;
         scannedTokens.push(token);

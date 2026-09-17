@@ -520,7 +520,7 @@ function buildElementMarkersFromConfig(cfg) {
  * не отдельный тег. Побеждает тот, кто начался раньше, а при равном начале —
  * тот, кто длиннее.
  */
-function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
+function scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds) {
   const src = String(text || "");
   const found = [];
   /*
@@ -572,7 +572,11 @@ function scanLineVisualTokens(text, sep1, sep2, elementMarkers) {
       kind: entry.kind,
       index: entry.index,
       end: entry.end,
-      zone: resolveTagVisualZone(src, entry.index, sep1, sep2),
+      zone: blockValueZone(
+        resolveTagVisualZone(src, entry.index, sep1, sep2),
+        entry.kind,
+        blockKinds,
+      ),
     });
     claimedTo = entry.end;
   }
@@ -1328,6 +1332,33 @@ function blockHoldsKind(blockKinds, zone, kind) {
 }
 
 /**
+ * Зона токена: та, в которой он стоит, — но только если в этом Block значения
+ * такого рода вообще бывают. Иначе это текст человека, то есть середина.
+ *
+ * **Его замечание 2026-09-17:** «в исходной строке wikilink на трансформированную
+ * заметку размера как в `tags-text-size` — так быть не должно, `tags-text-size`
+ * должен применяться только к values left и right block, а wikilink
+ * трансформированной заметки — часть текста».
+ *
+ * Правило то же самое, каким чинилась полоса Block днём раньше (У-213,
+ * правило 135), и потому оно здесь **одно на всех**: место токена решает не
+ * только положение между разделителями, но и то, чьё это оформление. Пока
+ * правило знала одна подложка, тот же токен полосы не получал, а кегль и
+ * прозрачность Block получал — две половины одного вопроса отвечали по-разному.
+ *
+ * **Цена та же и называется вслух:** у кого левый Block пуст, написанное слева
+ * от первого разделителя — текст, и настройки Block его не трогают вовсе.
+ *
+ * «Не спросили» здесь значит «значений такого рода в Block не бывает»: молчаливое
+ * «да» вернуло бы ровно тот дефект, ради которого правило заведено (У-56).
+ */
+function blockValueZone(zone, kind, blockKinds) {
+  const side = String(zone || "");
+  if (side !== "left" && side !== "right") return side;
+  return blockHoldsKind(blockKinds, side, kind) ? side : "middle";
+}
+
+/**
  * Отрезки строки, под которыми лежит подложка (З-7).
  *
  * Границы **не считаются заново**: их считает тот же разбор строки, что и
@@ -1342,7 +1373,12 @@ function blockHoldsKind(blockKinds, zone, kind) {
  */
 function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds) {
   const src = String(text || "");
-  const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers);
+  /* Значение считается значением **этого** Block, только если такие в нём
+     бывают. Вопрос задаётся один раз — при разборе строки (`blockValueZone`):
+     пока его знала одна подложка, кегль и прозрачность Block доставались тому
+     же токену, которому полосы уже не давали. Разбор строки у движков решает
+     иначе, и это отдельный вопрос — у него свой ответ и своя цена (10.13.187). */
+  const tokens = scanLineVisualTokens(src, sep1, sep2, elementMarkers, blockKinds);
   const at = lineSeparatorBounds(src, sep1, sep2);
   const out = [];
   for (const zone of ["left", "right"]) {
@@ -1350,10 +1386,6 @@ function blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds) {
     let end = -1;
     for (const hit of tokens) {
       if (hit.zone !== zone) continue;
-      /* Значение считается значением **этого** Block, только если такие в нём
-         бывают: разбор у себя решает иначе, и это отдельный вопрос — у него
-         свой ответ и своя цена (10.13.187). */
-      if (!blockHoldsKind(blockKinds, zone, hit.kind)) continue;
       if (start < 0 || hit.index < start) start = hit.index;
       if (hit.end > end) end = hit.end;
     }
@@ -1788,6 +1820,14 @@ const TAGWHEEL_THEME_COLOR_VARS = {
  * отвечает на вопрос «что сказано в конфиге», и её «пусто» означает «человек
  * не задал». Смешать эти два ответа значило бы потерять признак, по которому
  * панель показывает поле незаполненным.
+ *
+ * **Этот шов молча терял цвет, и это его замечание 2026-09-17** («не работает —
+ * я установил `panel-chosen-color`, ждал, что поменяется цвет выбранных
+ * значений»): `Chosen Value text color` доезжал до предпросмотра в панели и не
+ * доезжал до заметки, потому что здесь его не было в списке. Весь набор был
+ * зелёным: проверки зовут `tagwheelPanelSpans` с ответом конфига напрямую, минуя
+ * этот шов. Поэтому ключи теперь не перечисляются заново, а **переносятся**:
+ * новый цвет доедет сам, а сторож на форму стоит в `tag_visual_render_tests.ts`.
  */
 function resolveTagwheelPaintColors(colors) {
   const src = isObj(colors) ? colors : {};
@@ -1795,12 +1835,23 @@ function resolveTagwheelPaintColors(colors) {
     const own = String(value || "").trim();
     return own || ("var(" + variable + ")");
   };
-  return {
-    defaultTextColor: themed(src.defaultTextColor, TAGWHEEL_THEME_COLOR_VARS.defaultTextColor),
-    activeTextColor: themed(src.activeTextColor, TAGWHEEL_THEME_COLOR_VARS.activeTextColor),
-    fillColor: themed(src.fillColor, TAGWHEEL_THEME_COLOR_VARS.fillColor),
-    showPrefix: src.showPrefix !== false,
-  };
+  /*
+   * Пустое значение заменяется переменной темы только там, где тема названа:
+   * у `Chosen Value text color` её нет нарочно — «пусто» у него значит «как
+   * остальные неактивные», а не «возьми у темы», и подстановка перекрасила бы
+   * ячейку у всех, кто контрол не трогал.
+   */
+  const out = { showPrefix: src.showPrefix !== false };
+  /* Цвет с названной темой есть всегда — даже когда о нём не спросили: пустая
+     панель обязана остаться читаемой (10.13.23 Ц2). */
+  for (const key of Object.keys(TAGWHEEL_THEME_COLOR_VARS)) {
+    out[key] = themed(src[key], TAGWHEEL_THEME_COLOR_VARS[key]);
+  }
+  for (const key of Object.keys(src)) {
+    if (key === "showPrefix" || Object.prototype.hasOwnProperty.call(out, key)) continue;
+    out[key] = String(src[key] || "").trim();
+  }
+  return out;
 }
 
 /**
@@ -1896,6 +1947,7 @@ module.exports = {
   buildElementMarkersFromConfig,
   scanLineVisualTokens,
   buildBlockKindsFromConfig,
+  blockValueZone,
   buildBlockStyleCss,
   tagVisualSizingForZone,
   BLOCK_VALUE_CLASS,

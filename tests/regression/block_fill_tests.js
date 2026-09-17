@@ -514,7 +514,7 @@ function fakePlugin(blockFill) {
       });
       const value = shared.renderCommandValueByFormat(format, command);
       const line = "- #a " + SEP + " text " + SEP + " \u{1F923}" + value;
-      const hits = visuals.scanLineVisualTokens(line, SEP, SEP, markers)
+      const hits = visuals.scanLineVisualTokens(line, SEP, SEP, markers, KINDS)
         .filter(h => h.zone === "right");
       assertEq(hits.map(h => h.token), ["\u{1F923}" + value],
         "формат " + JSON.stringify(format) + ", команда " + command

@@ -57,7 +57,17 @@ export interface PluginInternals {
   TagVisualTokenWidget: Any;
   /* Сканер токенов строки и правило стиля блока: ими плагин решает, кому
      достанутся прозрачность и размер текста (И-2.2). */
-  scanLineVisualTokens: (text: string, sep1: string, sep2: string, markers: readonly Any[]) => Any[];
+  scanLineVisualTokens: (
+    text: string,
+    sep1: string,
+    sep2: string,
+    markers: readonly Any[],
+    blockKinds?: Any,
+  ) => Any[];
+  /* Какого рода значения бывают в каждом Block — по порядку Fields. Разбор
+     строки без этого ответа считает значением Block всё, что похоже на наш
+     токен (правило 135, его замечания про полосу и про кегль ссылки). */
+  buildBlockKindsFromConfig: (cfg: Any) => Any;
   buildElementMarkersFromConfig: (cfg: Any) => Any[];
   /* Отрезок, который забирает себе слой TagWheel: по нему слой пузырей
      узнаёт, что эти символы не его (B2). */
@@ -79,6 +89,10 @@ export interface PluginInternals {
   getTagwheelHeaderColorsFromConfig: (cfg: Any) => Any;
   buildBlockStyleCss: (entry: Any, visuals: Any) => string;
   tagVisualSizingForZone: (zone: string, visuals: Any) => Any;
+  /* Пометка «это значение в Block» и её имя: от неё зависит выравнивание по
+     середине строки (его замечание `G4`). */
+  blockValueClassFor: (entry: Any, visuals: Any) => string;
+  BLOCK_VALUE_CLASS: string;
   lineBelongsToPlugin: (lineText: string, sep1: string, sep2: string) => boolean;
   TAG_BUBBLE_ACCENT_CLASS: string;
   TAG_BUBBLE_CLICKABLE_CLASS: string;

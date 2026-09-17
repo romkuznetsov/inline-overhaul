@@ -166,12 +166,79 @@ const filled = (el: Any): boolean =>
 }
 
 {
-  const zones = I.scanLineVisualTokens(
-    "#/1 [[test1]] || 111 || 📅2026-09-01", "||", "||", ["📅"])
+  const line = "#/1 [[test1]] || 111 || 📅2026-09-01";
+  const zonesOf = (kinds: Any): string[] => I.scanLineVisualTokens(line, "||", "||", ["📅"], kinds)
     .map((h: Any) => h.kind + ":" + h.zone);
-  assert.deepEqual(zones, ["tag:left", "link:left", "element:right"],
+
+  /* Block, в котором значения такого рода бывают: сторона считается по
+     разделителям одинаково для всех видов. */
+  const full = I.buildBlockKindsFromConfig({
+    pkm: { fields: { order: {
+      left: ["Importance", "Project"], right: ["due"],
+      types: { Importance: "tag", Project: "wikilink", due: "element" },
+    } } },
+  });
+  assert.deepEqual(zonesOf(full), ["tag:left", "link:left", "element:right"],
     "сторона считается по разделителям одинаково для всех видов");
-  ok("сторона у ссылки и элемента та же, что у тега");
+
+  /*
+   * **А Block, в котором таких значений не бывает, значения не получает** —
+   * его замечание 2026-09-17 про ссылку `Inline to note`: она стоит слева, где
+   * у него нет ни одного Field, и кегль Block ей доставаться не должен. Это
+   * то же правило, каким днём раньше чинилась полоса (правило 135), и теперь
+   * оно одно на обе половины.
+   */
+  const emptyLeft = I.buildBlockKindsFromConfig({
+    pkm: { fields: { order: { left: [], right: ["due"], types: { due: "element" } } } },
+  });
+  assert.deepEqual(zonesOf(emptyLeft), ["tag:middle", "link:middle", "element:right"],
+    "у пустого слева Block значений нет: написанное там — ваш текст");
+
+  /* И по родам, а не «всё или ничего»: слева бывают теги, но не ссылки. */
+  const tagsOnlyLeft = I.buildBlockKindsFromConfig({
+    pkm: { fields: { order: {
+      left: ["Importance"], right: ["due"], types: { Importance: "tag", due: "element" },
+    } } },
+  });
+  assert.deepEqual(zonesOf(tagsOnlyLeft), ["tag:left", "link:middle", "element:right"],
+    "тег слева остаётся значением Block, ссылка рядом с ним — нет");
+
+  ok("сторона у ссылки и элемента та же, что у тега, — и только там, где такие значения бывают");
+}
+
+{
+  /*
+   * **Кегль и прозрачность Block достаются только значениям Block.** Его
+   * замечание 2026-09-17: «в исходной строке wikilink на трансформированную
+   * заметку размера как в `tags-text-size` — так быть не должно».
+   *
+   * Утверждение написано **поведением до самой отрисовки**: зона решает и
+   * размер, и прозрачность, и пометку выравнивания, и все три спрашивают одно
+   * объявление.
+   */
+  const visuals = { tagTextSizePct: 50, tagBubbleWidthPct: 100, tagBubbleHeightPct: 100 };
+  const emptyLeft = I.buildBlockKindsFromConfig({
+    pkm: { fields: { order: { left: [], right: ["type"], types: { type: "tag" } } } },
+  });
+  const line = "- [[333/имя]] :: #processed";
+  const hits = I.scanLineVisualTokens(line, "::", "::", [], emptyLeft) as Any[];
+  const link = hits.find((h: Any) => h.kind === "link");
+  const tag = hits.find((h: Any) => h.kind === "tag");
+  assert.ok(link && tag, "на строке после `Inline to note` нашлись и ссылка, и метка");
+
+  assert.equal(I.tagVisualSizingForZone(link.zone, visuals).textSizePct, 100,
+    "ссылка, которую поставил Transform, — ваш текст: кегль Block её не трогает");
+  assert.equal(I.buildBlockStyleCss({ zone: link.zone, zoneOpacity: 0.4 }, visuals), "",
+    "и прозрачность Block тоже: у вашего текста её нет");
+  assert.equal(I.blockValueClassFor({ zone: link.zone }, visuals), "",
+    "и пометки «значение в Block» она не получает");
+
+  assert.equal(I.tagVisualSizingForZone(tag.zone, visuals).textSizePct, 50,
+    "а метка справа, где теги бывают, кегль Block получает по-прежнему");
+  assert.equal(I.blockValueClassFor({ zone: tag.zone }, visuals), I.BLOCK_VALUE_CLASS,
+    "и пометку тоже");
+
+  ok("ссылка `Inline to note` слева не получает ни кегля Block, ни его прозрачности");
 }
 
 {
@@ -905,6 +972,67 @@ const filled = (el: Any): boolean =>
     "полю отдан цвет темы, а не пустая строка: " + JSON.stringify(control.defaultValue));
 
   ok("H4: пустой цвет TagWheel берётся у темы, и панель показывает тот же цвет");
+}
+
+{
+  /*
+   * **Шов «что сказано в конфиге» → «чем панель и правда красится» ничего не
+   * теряет.** Его замечание 2026-09-17: «не работает — я установил
+   * `panel-chosen-color`, ждал, что поменяется цвет выбранных значений».
+   * Цвет доезжал до предпросмотра в панели и не доезжал до заметки: в
+   * `resolveTagwheelPaintColors` ключи были перечислены поимённо, и нового
+   * среди них не было. Весь набор был при этом зелёным — все проверки выше
+   * зовут `tagwheelPanelSpans` с ответом конфига **напрямую**, минуя шов.
+   *
+   * Поэтому утверждение написано **по свойству, а не по списку имён** (У-201):
+   * что бы ни отдал конфиг, до слоя заметки это обязано доехать. Следующий
+   * цвет попадёт под него сам.
+   */
+  const wheel = {
+    textColor: "#a5a0d4",
+    activeTextColor: "#ff0000",
+    chosenValueColor: "#00aa55",
+    fillColor: "#ddc5c5",
+    showMarkers: true,
+  };
+  const fromConfig = I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: wheel } }) as Any;
+  const painted = I.resolveTagwheelPaintColors(fromConfig) as Any;
+  const lost = Object.keys(fromConfig).filter(
+    key => key !== "showPrefix" && String(painted[key] || "") !== String(fromConfig[key] || ""),
+  );
+  assert.deepEqual(lost, [],
+    "каждый заданный цвет доезжает от конфига до слоя заметки: " + JSON.stringify(lost));
+
+  /*
+   * И то же поведением, до самого отрезка: ту дорогу, которой рисуется
+   * заметка, проверки не проходили ни разу (У-56).
+   */
+  const line = "- ==**[#/1]** #todo `Cat`== || тест";
+  const known = new Set(["Imp", "Type", "Cat"]);
+  const chosen = (I.tagwheelPanelSpans(line, painted, known) as Any[])
+    .filter(x => x.kind === "chosen")
+    .map(x => line.slice(x.start, x.end))
+    .join("");
+  assert.ok(chosen.includes("#todo"),
+    "на дороге заметки выбранное значение красится своим цветом: " + JSON.stringify(chosen));
+
+  /*
+   * Отрицательный контроль: у `Chosen Value text color` переменной темы нет
+   * нарочно — «пусто» значит «как остальные неактивные». Подстановка темы
+   * перекрасила бы ячейку у каждого, кто контрол не трогал.
+   */
+  const emptyChosen = I.resolveTagwheelPaintColors(
+    I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: { textColor: "#a5a0d4" } } })) as Any;
+  assert.equal(String(emptyChosen.chosenValueColor || ""), "",
+    "незаданный цвет выбранного значения остаётся пустым: "
+    + JSON.stringify(emptyChosen.chosenValueColor));
+  assert.deepEqual(
+    (I.tagwheelPanelSpans(line, emptyChosen, known) as Any[]).filter(x => x.kind === "chosen"),
+    [],
+    "и отрезков этого рода на дороге заметки тогда нет вовсе",
+  );
+
+  ok("Цвета панели доезжают до заметки: шов не теряет ни одного ключа");
 }
 
 console.log("\n" + passed + " проверок пройдено");
