@@ -27,6 +27,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTION_TEXTS, READY_ACTIONS, buildActions } from "../../src/ui/settings/actions.ts";
+/* Адрес полного рассказа: спрашивается у того, кто его объявил. */
+import releaseNotes from "../../src/features/release_notes.js";
 import { HOWTO_LEGACY_PATH, HOWTO_PATH, howtoMarkdown } from "../../src/ui/settings/howto.ts";
 import { STARTER_LEFT_BLOCK, STARTER_RIGHT_BLOCK } from "../../src/core/starter_config.ts";
 import { SCHEMA, TABS } from "../../src/ui/settings/schema/index.ts";
@@ -107,6 +109,45 @@ function ok(label: string): void {
       action + " числится готовым: обновите список недоделанных");
   }
   ok("недоделанное действие названо поимённо");
+}
+
+/* ---- кнопка `Changelog` (его слово 2026-09-19) --------------------------- */
+
+{
+  /*
+   * Кнопка отдаёт адрес шву, а не открывает окно сама: в прогоне окна браузера
+   * нет вовсе, и без шва проверке осталось бы спрашивать только отсутствие
+   * отказа. Адрес спрашивается у того, кто его объявил, — свой литерал здесь
+   * был бы второй копией (У-32).
+   */
+  const asked: string[] = [];
+  const said: string[] = [];
+  const actions = buildActions({
+    notify: m => { said.push(m); },
+    openExternal: (url: string) => { asked.push(url); },
+  });
+  await actions["open-changelog"]!();
+  assert.deepEqual(asked, [releaseNotes.CHANGELOG_URL],
+    "кнопка отдала шву адрес полного рассказа: " + asked.join(" | "));
+  assert.deepEqual(said, [], "и человеку сказать нечего: всё получилось");
+
+  /*
+   * Отрицательный контроль: шва нет. Это не молчание — человеку говорится, и в
+   * журнал тоже (правило отказов, вид первый плюс второй).
+   */
+  const quiet: string[] = [];
+  const loud: string[] = [];
+  const realError = console.error;
+  console.error = (...a: unknown[]) => { loud.push(a.map(String).join(" ")); };
+  try {
+    const bare = buildActions({ notify: m => { quiet.push(m); } });
+    await bare["open-changelog"]!();
+  } finally {
+    console.error = realError;
+  }
+  assert.equal(quiet.length, 1, "без шва человеку сказано: " + quiet.join(" | "));
+  assert.equal(loud.length, 1, "и в журнал разработчика тоже");
+  ok("кнопка `Changelog` отдаёт адрес шву, а без шва говорит об этом");
 }
 
 /* ---- руководство (5.1, пункт 1) ----------------------------------------- */

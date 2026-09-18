@@ -71,6 +71,7 @@ const TAB_CONST = {
  */
 const READY_ACTIONS = new Set([
   "open-howto",
+  "open-changelog",
   "save-backup",
   "restore-backup",
   "reset-settings",

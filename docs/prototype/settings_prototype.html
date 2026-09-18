@@ -1800,6 +1800,15 @@ const SCHEMA = [
           "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
           "so nothing you add there can be lost by pressing this button",
       buttons:[ {label:"Read", action:"open-howto", cta:true} ] },
+    /* Полный рассказ о выпусках — его слово 2026-09-19: «в плагине должна быть
+       ссылка на changelog.md в репозитории github (т.е. при нажатии
+       пользователь сразу может открыть)». Окно «что изменилось» показывается
+       один раз на версию, и ссылки в нём человеку хватает ровно один раз —
+       поэтому тот же адрес стоит кнопкой в панели, где он всегда под рукой. */
+    { kind:"buttons", id:"changelog",
+      name:"Changelog", desc:"What changed in this version, and in every one before it",
+      tip:"Opens <code>CHANGELOG.md</code> of the plugin repository in your browser: every release, newest first, with a numbered line per change. The same text for the newest release is what the window after an update shows you — there is one story about a release, not two",
+      buttons:[ {label:"Open", action:"open-changelog"} ] },
     /* Заказчик 2026-09-04: «добавь в help опцию Show callouts над show-tips
        (при off — все коллауты должны быть скрыты, это относится и к главным
        коллаутам, которые сверху в каждой вкладке)». */

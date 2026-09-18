@@ -43,6 +43,8 @@ import {
   parseBackupNote,
   summarize,
 } from "../../features/settings_backup.js";
+/* Адрес полного рассказа о выпусках: один дом на окно и на кнопку панели. */
+import releaseNotes from "../../features/release_notes.js";
 
 /**
  * Действия, за которыми есть работающий метод плагина. Список читает и
@@ -52,6 +54,7 @@ import {
  */
 export const READY_ACTIONS: readonly ActionId[] = [
   "open-howto",
+  "open-changelog",
   "save-backup",
   "restore-backup",
   "reset-settings",
@@ -253,6 +256,13 @@ export interface ActionDeps {
   notify: (message: string) => void;
   /** Нужен только руководству; без него кнопка `Open the guide` не работает. */
   vault?: VaultSeam;
+  /**
+   * Открыть адрес снаружи Obsidian — нужен кнопке `Changelog` (его слово
+   * 2026-09-19). Шов, а не `window.open` по месту: в прогоне окна браузера
+   * нет вовсе, и проверке иначе нечего было бы спросить, кроме отсутствия
+   * отказа. Нет шва — говорим человеку и в журнал, а не молчим.
+   */
+  openExternal?: (url: string) => void;
   /**
    * Руководство на выбранном языке (10.13.51, ответ на В-73).
    *
@@ -580,6 +590,23 @@ export function buildActions(deps: ActionDeps): Partial<Record<ActionId, () => P
   };
 
   return {
+    /**
+     * Полный рассказ о выпусках — его слово 2026-09-19: «в плагине должна быть
+     * ссылка на changelog.md в репозитории github (т.е. при нажатии
+     * пользователь сразу может открыть)».
+     *
+     * Адрес берётся у того же модуля, что ставит ссылку в окне «что
+     * изменилось»: у адреса один дом, и разойтись двум копиям не на чем.
+     */
+    "open-changelog": async () => {
+      const open = deps.openExternal;
+      if (typeof open !== "function") {
+        notify(say("NO_METHOD"));
+        console.error("inline-overhaul: открыть адрес нечем — шва openExternal нет");
+        return;
+      }
+      open(releaseNotes.CHANGELOG_URL);
+    },
     /**
      * Руководство создаётся **один раз** и дальше только открывается: заметка
      * принадлежит человеку, он в ней пишет, и перезаписать её значило бы

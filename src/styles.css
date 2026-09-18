@@ -3079,6 +3079,12 @@
   font-size: var(--font-ui-small);
   line-height: 1.5;
 }
+/* Ссылка на полный рассказ (его слово 2026-09-19): своя строка между текстом и
+   кнопкой, размером интерфейса, как и всё остальное в этом окне. */
+.io-relnotes__more {
+  margin: 10px 0 6px;
+  font-size: var(--font-ui-small);
+}
 .io-relnotes__actions {
   display: flex;
   justify-content: flex-end;

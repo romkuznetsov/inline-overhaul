@@ -39,6 +39,10 @@ export const GENERAL_GROUPS: readonly SettingsGroup[] = [
           "then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, " +
           "so nothing you add there can be lost by pressing this button",
       buttons:[ {label:"Read", action:"open-howto", cta:true} ] },
+    { kind:"buttons", id:"changelog",
+      name:"Changelog", desc:"What changed in this version, and in every one before it",
+      tip:"Opens <code>CHANGELOG.md</code> of the plugin repository in your browser: every release, newest first, with a numbered line per change. The same text for the newest release is what the window after an update shows you — there is one story about a release, not two",
+      buttons:[ {label:"Open", action:"open-changelog"} ] },
     { kind:"toggle", id:"show-callouts", path:"general.help.showCallouts", default:true,
       name:"Show callouts", desc:"Keep the boxes that say what a tab or a block of settings is for",
       searchTerms:["Show intro boxes"],

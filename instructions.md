@@ -28,6 +28,7 @@ inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline note
 2. Use BRAT's update check for beta plugins, or wait for its configured update check.
 3. Confirm that **inlineOverhaul** remains enabled after the reload.
 4. Open a disposable note and run one familiar Navigation or PKM command before using production notes.
+5. A window opens once after the update and lists what changed, every release you skipped included. The same text lives in `CHANGELOG.md` of the repository, and `General -> Help -> Changelog -> Open` opens it in your browser at any time.
 
 ### Uninstall
 

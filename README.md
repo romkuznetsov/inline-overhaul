@@ -70,7 +70,8 @@ the [visual showcase](docs/showcase.md).
 
 Module switches for Navigation, Tags & PKM, Visual and Transform, so a whole area can be
 turned off without uninstalling anything. **General → Help → Read** writes the guide note
-into your vault and opens it; **Show callouts** and **Show tips** decide how much the
+into your vault and opens it; **Changelog → Open** shows every release of the plugin on
+GitHub, newest first; **Show callouts** and **Show tips** decide how much the
 panel explains itself.
 
 **General → Language** decides what language the panel speaks. Every visible line has a

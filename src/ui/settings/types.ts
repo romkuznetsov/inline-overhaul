@@ -18,6 +18,7 @@ export type TabId =
  */
 export type ActionId =
   | "open-howto"
+  | "open-changelog"
   | "open-hotkey"
   | "save-backup"
   | "restore-backup"

@@ -1852,6 +1852,70 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.208 Окно «что изменилось»: форма пункта, пропущенные выпуски, ссылка (2026-09-19)
+
+**Его замечание под `N4`, четыре части:** «стало лучше, но всё равно плохо —
+текст с разрывами на предложениях; префикс исправлений должен быть нумерацией
+(чтобы было видно сколько пунктов изменено); текста много — нужны буллиты с
+понятным, но лаконичным описанием, чтобы было понятно обычному человеку, что
+изменилось… этот changelog должен дублировать changelog.md в репозитории…
+changelog в obsidian показывает только изменения последней версии (или лучше N
+версий с последнего обновления плагина)… также в плагине должна быть ссылка на
+changelog.md в репозитории github… Я не очень опытный в github, возможно я
+изобретаю велосипед — тогда подскажи более оптимальный и рациональный вариант».
+
+**Разрывы — не вкус, а правило платформы.** Obsidian показывает одиночный
+перевод строки переносом, и прочитано это в `app.js` 1.13.7, а не выведено:
+умолчание `strictLineBreaks` там `!1`, а отрисовка ставит
+`globalOptions.breaks = !getConfig("strictLineBreaks")` — то есть переносы
+включены ровно у того, кто настройку не трогал. `CHANGELOG.md` был свёрстан по восемьдесят знаков, как любой документ
+репозитория, — и приезжал человеку лестницей. Лечится это не разборщиком и не
+правилом стиля, а формой источника: **пункт — одна строка**. Это же его старое
+слово о документах, которые он читает («предложения должны быть все без
+разрывов»), и теперь оно исполняется машиной, а не памятью.
+
+**Нумерация и лаконичность — форма файла, а не окна.** Дом текста один
+(`CHANGELOG.md`, 10.13.169), поэтому обе половины его просьбы сделаны **в нём**:
+каждый пункт стоит под номером, и номера идут насквозь по выпуску — так видно,
+сколько пунктов тот затронул. Файл переписан целиком: 106 пунктов, у каждого
+одна строка и предел в четыреста знаков. Подробности никуда не делись — они и
+раньше жили в реестре отчётов и в этом разделе PRD, а в рассказе для человека
+были лишними.
+
+**Сторож формы — `release_notes_tests.js`**, и он написан по признаку дефекта, а
+не по образцу: обход разделов выпусков ищет три вещи — продолжение пункта на
+следующей строке, пункт без номера и пункт длиннее предела. Порог рядом: пунктов
+обязано найтись не меньше десяти, иначе обход ищет не то (У-200). Положительный
+контроль был получен даром — проверка была написана **до** переписывания файла и
+покраснела на прежней форме.
+
+**Пропущенные выпуски.** Прежде окно показывало раздел только своей версии;
+теперь — все разделы строго новее той версии, о которой человеку рассказывали в
+прошлый раз, новые сверху. Сравнение версий своё (`compareVersions`): форма
+номера задана `docs/VERSIONING.md`, три числа и хвост беты через дефис, и хвост
+слабее выпуска. Предел — пять разделов, и он нужен другой половине того же
+письма: обновившийся через десять выпусков получил бы ту самую простыню.
+Дальше — ссылка. Прежней версии можно и не знать (человек мог не обновляться с
+тех дней, когда окна не было): тогда рассказывается про одну нынешнюю, а не про
+всю историю.
+
+**Ссылка — в двух местах, и адрес у неё один дом.** В самом окне (строка между
+текстом и кнопкой) и кнопкой `Changelog` в группе `General → Help`: окно
+показывается один раз на версию, и ссылки в нём человеку хватает ровно один раз.
+Адрес объявлен в `release_notes.js` и читается обоими; сторож спрашивает
+свойство, а не список файлов — во всём рантайме адрес встречается ровно один
+раз. Кнопка отдаёт его шву `openExternal`, а не зовёт `window.open` по месту: в
+прогоне окна браузера нет вовсе, и проверке иначе нечего было бы спросить, кроме
+отсутствия отказа.
+
+**Про «изобретаю ли я велосипед» — нет, это ровно общая практика**, и она здесь
+уже стояла: накапливающийся `CHANGELOG.md`, новые версии сверху, у каждой
+версии свой раздел (формат Keep a Changelog), и выпуск, который GitHub сам
+показывает отдельной страницей по тегу. Единственное, что он мог бы выбрать
+иначе, — **куда ведёт ссылка**: сейчас на сам файл в `main`, а можно на страницу
+релизов, где GitHub рисует те же разделы по выпускам. Разница на экране есть,
+работа — одна строка, и решает он: вопрос задан в конце сессии.
+
 #### 10.13.207 `Stripe direction`: какой Block получает полосу (2026-09-19)
 
 **Его заказ (З-12):** «tags-block-fill при ON — добавить под этим контролом
@@ -16214,7 +16278,7 @@ python tests/prototype/update_prd.py
 
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
-| 1 | General | — | 4 | 8 | 1 |
+| 1 | General | — | 4 | 9 | 1 |
 | 2 | Keyboard | — | 4 | 13 | 7 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
@@ -16382,6 +16446,10 @@ _Tip:_ <code>Read</code> writes a guide into your vault the first time you press
   - desc: Worked examples of the things people set up first
   - tip: <code>Read</code> writes the guide into your vault the first time you press it, and opens it every time after that. Inside is the practical side: which commands are worth a key, how to lay out your first few Fields, what TagWheel feels like once it is set up, and a couple of complete setups you can copy. From then on the note is yours — scribble in it, move it, rename it. The plugin never writes over it again, so nothing you add there can be lost by pressing this button
   - кнопки: `open-howto` Read
+- **Changelog** — `changelog`, `buttons`
+  - desc: What changed in this version, and in every one before it
+  - tip: Opens <code>CHANGELOG.md</code> of the plugin repository in your browser: every release, newest first, with a numbered line per change. The same text for the newest release is what the window after an update shows you — there is one story about a release, not two
+  - кнопки: `open-changelog` Open
 - **Show callouts** — `show-callouts`, `toggle`, path `general.help.showCallouts`, default `true`
   - desc: Keep the boxes that say what a tab or a block of settings is for
   - tip: The boxes are the ones with a coloured edge: one at the top of every tab saying what the tab is for, and one under each block of settings saying what that block does. Turn this off once you know your way around and the panel keeps the settings and the one-line descriptions under their names. It is a separate switch from <code>Show tips</code>: that one hides the <code>?</code> marks, this one hides the boxes

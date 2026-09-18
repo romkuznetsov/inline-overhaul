@@ -786,6 +786,12 @@ export class InlineOverhaulSettings extends PluginSettingTab {
         pick: (o: PickRequest) => askPick(app, o, this.say),
         vault: vaultSeam(app),
         /*
+         * Открыть адрес снаружи Obsidian — кнопка `Changelog` (его слово
+         * 2026-09-19). `window.open` у Obsidian на рабочем столе отдаёт адрес
+         * системному браузеру; своего окна здесь не заводится.
+         */
+        openExternal: (url: string) => { window.open(url, "_blank"); },
+        /*
          * Руководство на выбранном языке (10.13.51, ответ на В-73). Перевод
          * лежит в папке плагина, а `.obsidian/**` Obsidian не индексирует —
          * `vault` до него не достаёт (10.13.26 Ф5), поэтому чтение идёт
