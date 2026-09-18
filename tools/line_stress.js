@@ -22,6 +22,7 @@
  * Запуск (из `repo/`):
  *   node tools/line_stress.js              — команды и панель на трудных строках
  *   node tools/line_stress.js curve        — как растёт цена от длины строки
+ *   node tools/line_stress.js where        — где именно теряется время (`Р-12`)
  *   IO_DATA=<путь> node tools/line_stress.js    — на другом `data.json`
  *
  * **Контролей три, и они печатаются первыми:**
@@ -53,6 +54,11 @@ const CASES = [
   ["одни разделители", ":: :: :: :: :: :: :: :: ::"],
   ["двести разделителей", Array(200).join(":: ")],
   ["длинная строка 20 000 знаков", "- " + "слово ".repeat(3333) + ":: #проект/дом"],
+  /* Форма дописана 2026-09-19 вместе с находкой `Ф-5` (У-185): на сорока
+     тысячах знаков дорога падает `Invalid regular expression: too large` —
+     где-то целая строка уходит в выражение как один токен. Падение старше
+     правки `Р-12`: воспроизведено на рабочем дереве до неё. */
+  ["длинная строка 40 000 знаков", "- " + "слово ".repeat(6666) + ":: #проект/дом"],
   ["пара суррогатов", "- \u{1D54F}\u{1D550}\u{1D551} :: текст :: #проект/дом"],
   ["склейка эмодзи", "- \u{1F468}‍\u{1F469}‍\u{1F467}‍\u{1F466} :: семья :: #проект/дом"],
   ["флаг из двух знаков", "- \u{1F1F0}\u{1F1FF} :: страна :: #проект/дом"],
@@ -197,8 +203,107 @@ async function runCurve() {
   if (!grew) process.exitCode = 2;
 }
 
+
+/* ---- где именно теряется время (`Р-12`) ------------------------------ */
+
+/**
+ * Не «сколько стоит», а **какое место растёт круче линейного**.
+ *
+ * Мера снимается профилировщиком V8 (`node:inspector`), а не своей обёрткой
+ * вокруг экспортов: обёртка видит только те вызовы, что идут через объект
+ * модуля, и своё же время приписывает предмету. V8 считает **собственное**
+ * время каждой функции и не зависит от того, как её позвали.
+ *
+ * Сравниваются две длины — короткая и длинная, — и печатается отношение. Место
+ * находит не самая дорогая строка, а самое **крутое** отношение: линейный рост
+ * у длинной строки законен, круче линейного — нет.
+ *
+ * Контролей три, и каждый на свой шаг цепочки (правило 64): профиль вообще снят,
+ * измеренное время сопоставимо с настоящим, и в списке есть хоть одно наше имя —
+ * иначе меряли бы чужой рантайм.
+ */
+async function runWhere() {
+  const inspector = require("inspector");
+  const SHORT = 2000;
+  const LONG = 20000;
+  const ITERS = 3;
+  const make = (n) => "- " + "слово ".repeat(Math.max(1, Math.round((n - 20) / 6))) + ":: #проект/дом";
+
+  const profile = async (line) => {
+    const session = new inspector.Session();
+    session.connect();
+    const post = (method, params) => new Promise((res, rej) => {
+      session.post(method, params || {}, (err, r) => (err ? rej(err) : res(r)));
+    });
+    await post("Profiler.enable");
+    await post("Profiler.setSamplingInterval", { interval: 100 });
+    await post("Profiler.start");
+    const wall0 = process.hrtime.bigint();
+    for (let i = 0; i < ITERS; i++) {
+      await bench.runTagWheel(cfg, "right", line, line.length, ["ArrowRight", "Enter"]);
+    }
+    const wallMs = Number(process.hrtime.bigint() - wall0) / 1e6;
+    const { profile: p } = await post("Profiler.stop");
+    session.disconnect();
+
+    /* Собственное время узла: сколько раз он оказался на вершине стека. */
+    const byNode = new Map();
+    for (const id of p.samples || []) byNode.set(id, (byNode.get(id) || 0) + 1);
+    const total = (p.samples || []).length;
+    const spanMs = (p.endTime - p.startTime) / 1000;
+    const self = new Map();
+    for (const node of p.nodes || []) {
+      const hits = byNode.get(node.id) || 0;
+      if (!hits) continue;
+      const f = node.callFrame || {};
+      const url = String(f.url || "");
+      const name = String(f.functionName || "(анонимная)");
+      const key = name + "  " + url.replace(/^file:\/\/\//, "").split("/").slice(-2).join("/");
+      self.set(key, (self.get(key) || 0) + hits);
+    }
+    return { self, total, spanMs, wallMs, ours: [...self.keys()].filter(isOurs) };
+  };
+
+  const isOurs = (key) => /pkm_v2\/|src\/|line_pipeline|token_graph|navigation_runtime/.test(key);
+
+  console.log("снимаю профиль на строке " + SHORT + " знаков…");
+  const a = await profile(make(SHORT));
+  console.log("снимаю профиль на строке " + LONG + " знаков…");
+  const b = await profile(make(LONG));
+
+  console.log("");
+  console.log("КОНТРОЛЬ:");
+  const c1 = a.total > 50 && b.total > 50;
+  const c2 = b.spanMs > 0 && Math.abs(b.spanMs - b.wallMs) / b.wallMs < 0.5;
+  const c3 = b.ours.length > 0;
+  console.log("  " + (c1 ? "ok  " : "FAIL") + " профиль снят: проб " + a.total + " и " + b.total);
+  console.log("  " + (c2 ? "ok  " : "FAIL") + " измеренное время сопоставимо с настоящим: "
+    + b.spanMs.toFixed(0) + " против " + b.wallMs.toFixed(0) + " мс");
+  console.log("  " + (c3 ? "ok  " : "FAIL") + " в списке есть наши имена: " + b.ours.length);
+  if (!(c1 && c2 && c3)) { console.log("\nконтроль не прошёл — выводам верить нельзя"); process.exitCode = 2; }
+
+  const msOf = (r, key) => (r.self.get(key) || 0) * (r.spanMs / Math.max(1, r.total));
+  const rows = [];
+  for (const key of new Set([...a.self.keys(), ...b.self.keys()])) {
+    const ms0 = msOf(a, key);
+    const ms1 = msOf(b, key);
+    if (ms1 < 5) continue;
+    rows.push({ key, ms0, ms1, ratio: ms1 / Math.max(ms0, 0.3) });
+  }
+  const grow = LONG / SHORT;
+  console.log("");
+  console.log("длина выросла в " + grow + " раз. Рост круче этого — находка.");
+  console.log("");
+  console.log("  " + "мс@2000".padStart(8) + "  " + "мс@20000".padStart(9) + "  рост   место");
+  for (const r of rows.sort((x, y) => y.ms1 - x.ms1).slice(0, 18)) {
+    const mark = r.ratio > grow * 1.5 ? "  <-- круче линейного" : "";
+    console.log("  " + r.ms0.toFixed(0).padStart(8) + "  " + r.ms1.toFixed(0).padStart(9)
+      + "  " + ("x" + r.ratio.toFixed(1)).padStart(6) + "   " + r.key + mark);
+  }
+}
+
 const mode = String(process.argv[2] || "").trim();
-(mode === "curve" ? runCurve() : runCases()).catch((e) => {
+(mode === "curve" ? runCurve() : mode === "where" ? runWhere() : runCases()).catch((e) => {
   console.error(e && e.stack ? e.stack : String(e));
   process.exit(1);
 });
