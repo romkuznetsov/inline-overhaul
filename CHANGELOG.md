@@ -3,6 +3,54 @@
 <!-- Сделанное между выпусками копится здесь; в коммите выпуска раздел
      переименовывается в номер версии. Правило — docs/VERSIONING.md. -->
 
+## Unreleased
+
+### Added
+
+- **The text size of a Block is set for each side on its own.** `Text size` under
+  `Inline appearance` became two rows, `Left Block text size` and
+  `Right Block text size`, so the tags before your text and the dates after it no
+  longer have to share a number. Whatever you had is kept: the old value is written
+  into both sides on first run. The colored band behind a Block follows the side it
+  belongs to, and what is written in a Block still sits in the middle of the line
+  rather than at its bottom.
+
+### Changed
+
+- **Settings brought in from outside are picked up even when Obsidian says nothing.**
+  Obsidian tells a plugin about an edited `data.json` only when the file is *newer*
+  than the plugin's last write — and copying a file keeps the source's timestamp, so
+  a settings file copied in from another vault was never announced, and the next
+  write put the old settings back on top of it. The plugin no longer depends on those
+  timestamps: before writing its own settings it looks at the file, and if what lies
+  there is not what it wrote itself, the disk wins, the pending write is dropped and
+  it says so once.
+- **The settings panel is laid out in sections.** `Inline appearance` now has
+  `Line view` and `Tag view`; the three groups on the `Keyboard` tab —
+  `Expanded 'Ctrl+A'`, `Smart Delete\Backspace` and `Smart Enter` — became sections
+  of one group called `Global hotkeys`. Nothing moved out of reach and no wording was
+  rewritten; the intro of each old group is now the first line of its section's tip.
+- **The window title in every dialog is a size of its own.** It used to be whatever
+  the theme made of an `h4`, which in some themes is smaller than the section
+  headings underneath it. Eight dialogs are affected.
+- **The "what changed" window renders its Markdown** instead of showing it as
+  written, headings and list markers included.
+- **The live preview of a jump highlight no longer promises a press.** The circle has
+  run on a timer since 0.3.1; the line under it and the clause in its tip still said
+  you could press the line to see it again.
+- **A wiki link in the `Inline appearance` preview follows the Block text size.**
+  Everything else in that preview already did; in a note the link always did.
+- The plugin author is `Roman Kuznetsov`.
+
+### Internal
+
+- The repository root holds no plugin file any more: `main.js`,
+  `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under
+  `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`. Nine
+  documents written before the settings work moved to `docs/archive/`. Nothing was
+  deleted, and the build is the measure: the bundle differs by 28 lines out of
+  33 000, all of them the bundler's own module labels.
+
 ## 0.3.2
 
 ### Changed
