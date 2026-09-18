@@ -138,7 +138,30 @@ assert.ok(seen.size > 40,
 assert.deepStrictEqual(missing, [],
   "CLAUDE.md ссылается на файлы, которых нет: " + missing.join(", "));
 
-/* ---------- 3. объём называет прогон ---------- */
+/* ---------- 3. каждая ссылка на урок разрешается ---------- */
+
+/*
+ * `CLAUDE.md` держит правило одной строкой и ссылается номером в `LESSONS.md`.
+ * Ссылка, которая никуда не ведёт, — это правило без истории: следующая сессия
+ * прочтёт «почему» и не найдёт его. Проверяется по заголовкам книги уроков, а
+ * не по тому, что номер выглядит номером.
+ */
+const lessons = read("docs/LESSONS.md");
+const haveLessons = new Set(
+  [...lessons.matchAll(/^### (У-\d+)\./gm)].map((m) => m[1]));
+const usedLessons = new Set(
+  [...claude.matchAll(/У-(\d+)/g)].map((m) => "У-" + m[1]));
+
+assert.ok(haveLessons.size > 100,
+  "контроль: заголовков уроков нашлось " + haveLessons.size + " — образец их не находит");
+assert.ok(usedLessons.size > 50,
+  "контроль: ссылок на уроки нашлось " + usedLessons.size + " — образец их не находит");
+
+const brokenLessons = [...usedLessons].filter((u) => !haveLessons.has(u));
+assert.deepStrictEqual(brokenLessons, [],
+  "в CLAUDE.md есть ссылки на уроки, которых нет в docs/LESSONS.md: " + brokenLessons.join(", "));
+
+/* ---------- 4. объём называет прогон ---------- */
 
 const sizes = [
   ["CLAUDE.md", claude.length],
@@ -150,4 +173,5 @@ const sizes = [
 console.log("ok: читается целиком каждую сессию — " + claude.length + " знаков; "
   + "по событию: " + sizes.slice(1).map((s) => s[0] + " " + s[1]).join(", "));
 console.log("ok: путей в CLAUDE.md " + seen.size + ", все ведут в существующие файлы; "
+  + "ссылок на уроки " + usedLessons.size + " из " + haveLessons.size + ", все разрешаются; "
   + "переездов с двусторонней сверкой " + MOVED.length);
