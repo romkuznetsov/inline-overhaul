@@ -3,6 +3,35 @@
 <!-- Сделанное между выпусками копится здесь; в коммите выпуска раздел
      переименовывается в номер версии. Правило — docs/VERSIONING.md. -->
 
+## Unreleased
+
+### Fixed
+
+- **A settings change made right before the plugin unloads is no longer lost.**
+  Settings are written a quarter of a second after you change them, so dragging
+  a slider does not hit the disk on every pixel. Unloading the plugin used to
+  cancel that pending write and save nothing: switch the plugin off, update it
+  through BRAT or close Obsidian within that quarter second, and your change was
+  gone without a word. The unload step now finishes the pending write first.
+  It is best effort, not a guarantee: the write is asynchronous, and a machine
+  shutting down does not wait for it.
+
+### Internal
+
+- A guard for names that are declared as methods and called by nobody. The
+  existing guard counts module exports and is blind to that shape, which is why
+  the bug above sat unnoticed: the function to finish the pending write had been
+  written from the start and was never called. Of the eleven names the first run
+  found, five turned out to be the console debug window and stayed, five were
+  removed, and one was wired up to the call its own comment promised.
+- The order-config loader no longer carries a fallback that could never run: it
+  read `data.json` through the vault, at a hard-coded settings folder path, and
+  the vault does not reach that folder at all. Measured before removing —
+  2759 calls across every road, zero entries into the fallback.
+- A robustness probe for lines that come from the outside world — very long
+  ones, emoji sequences, right-to-left text, nested brackets, a thousand tags:
+  `node tools/line_stress.js`. 468 cases, no crashes.
+
 ## 0.3.0
 
 ### Visual
