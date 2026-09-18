@@ -97,7 +97,7 @@ function askConditionModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", undefined, conditionDialogTitle(o.kind));
+      el(box, "h4", "io-dlg__title", conditionDialogTitle(o.kind));
       el(box, "p", "io-item__desc", o.say(CONDITION_DIALOG_NOTE));
       renderConditionPicker(box, {
         kind: o.kind,

@@ -2815,7 +2815,18 @@
 }
 .io-dlg__head-name {
   margin: 0;
+  font-size: var(--font-ui-medium);
   font-weight: var(--font-semibold);
+  color: var(--text-normal);
+}
+/* Заголовок окна: размер объявляем мы, а не тема (замечание заказчика
+   2026-09-19, пункт 7). Тег `h4` берёт размер из `--h4-size`, и у Minimal это
+   0.90em против 1.188em у Obsidian — заголовок выходил мельче собственных
+   подзаголовков. Величины платформы: `.modal-title` в app.css 1.13.7. */
+.io-dlg__title {
+  font-size: var(--font-ui-large);
+  font-weight: var(--font-semibold);
+  line-height: var(--line-height-tight);
   color: var(--text-normal);
 }
 /* Окно выбора копии настроек (10.13.2, Б9): строка — кнопка в две строки
@@ -3029,9 +3040,19 @@
  * (`pre-wrap`), иначе длинная строка уехала бы за край окна, а высота
  * ограничена: раздел выпуска бывает и на три экрана.
  */
+/* Раздел разбирается платформой, поэтому `white-space: pre-wrap` отсюда ушёл:
+   он ломал бы отступы уже разобранной разметки. Размер — размер интерфейса, а
+   не текста заметки: окно принадлежит панели, а не редактору. */
 .io-relnotes__text {
   max-height: 50vh;
   overflow-y: auto;
+  font-size: var(--font-ui-medium);
+  line-height: 1.5;
+}
+.io-relnotes__text > :first-child { margin-top: 0; }
+.io-relnotes__text > :last-child { margin-bottom: 0; }
+/* Запасной путь: платформа не отдала разборщик, и раздел показан как написан. */
+.io-relnotes__raw {
   white-space: pre-wrap;
   font-family: var(--font-text);
   font-size: var(--font-ui-small);

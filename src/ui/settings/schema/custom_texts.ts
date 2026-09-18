@@ -155,8 +155,7 @@ export const PREVIEW_TEXTS: Readonly<Record<string, PreviewText>> = {
   },
   "jump-flash-preview": {
     cap: "Live preview",
-    tip: "The circle below is drawn with the color, the size and the time set above, and it starts again whenever you change one of them or press the line. In a note it appears where the cursor lands after a jump and shrinks away on its own. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor",
-    note: "Press the line to see it again"
+    tip: "The circle below is drawn with the color, the size and the time set above, and it starts again whenever you change one of them. In a note it appears where the cursor lands after a jump and shrinks away on its own. The panel draws this itself, so read it as a close likeness of what the editor shows rather than as the editor"
   },
   "caret-preview": {
     cap: "Live preview",

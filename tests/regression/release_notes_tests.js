@@ -143,26 +143,74 @@ function ok(label) { passed++; console.log("  ok " + label); }
   });
   FakeModal.prototype.contentEl = node();
 
+  /*
+   * Разборщик markdown — предмет пункта 8 его листа. Подделка считает не имя
+   * вызова, а то, что ему отдали: текст раздела и живой компонент. И у
+   * компонента спрашивается выгрузка: окно, оставившее его загруженным, течёт.
+   */
+  const rendered = [];
+  class FakeComponent {
+    constructor() { this.loaded = false; this.unloaded = 0; }
+    load() { this.loaded = true; }
+    unload() { this.loaded = false; this.unloaded += 1; }
+  }
+  const FakeRenderer = {
+    render(app, markdown, elNode, sourcePath, component) {
+      rendered.push({ app, markdown, elNode, sourcePath, component });
+      return Promise.resolve();
+    },
+  };
+  const uiParts = { Component: FakeComponent, MarkdownRenderer: FakeRenderer };
+
   (async () => {
     const first = makePlugin("");
-    const planFirst = await notes.showReleaseNotesOnUpdate(first, { version, Modal: FakeModal });
+    const planFirst = await notes.showReleaseNotesOnUpdate(first,
+      Object.assign({ version, Modal: FakeModal }, uiParts));
     assert.equal(planFirst.decision, "show", "первый запуск после обновления открывает окно");
     assert.equal(opened.length, 1, "окно открылось ровно один раз");
     assert.equal(first.patches.length, 1, "версия запомнена");
     assert.equal(first.patches[0].opts.undoable, false,
       "запись состояния не идёт в отмену: это не выбор человека");
 
-    const again = await notes.showReleaseNotesOnUpdate(first, { version, Modal: FakeModal });
+    /* Разметку разбирает платформа, а не мы: раздел уехал в `render` целиком,
+       и компонент под ним был загружен. */
+    assert.equal(rendered.length, 1, "раздел отдан разборщику markdown платформы");
+    assert.equal(rendered[0].markdown, planFirst.text,
+      "разборщику отдан тот самый раздел, а не его часть");
+    assert.equal(rendered[0].component.loaded, true,
+      "компонент, которым живёт разбор, загружен");
+    opened[0].onClose();
+    assert.equal(rendered[0].component.unloaded, 1,
+      "и выгружен при закрытии окна: иначе окно течёт");
+    ok("окно `what changed`: markdown разбирает платформа, компонент выгружается");
+
+    /* Отрицательный контроль: платформы без разборщика. Раздел показывается как
+       написан, и молчать об этом нельзя. */
+    const loud = [];
+    const realError = console.error;
+    console.error = (...a) => { loud.push(a.map(String).join(" ")); };
+    try {
+      const bare = makePlugin("");
+      await notes.showReleaseNotesOnUpdate(bare, { version, Modal: FakeModal });
+    } finally {
+      console.error = realError;
+    }
+    assert.equal(rendered.length, 1, "без разборщика платформы его никто не звал");
+    assert.equal(loud.length, 1, "и об этом сказано в журнал разработчика");
+    assert.ok(/MarkdownRenderer/.test(loud[0]), "в журнале названо, чего не хватило");
+    ok("без разборщика платформы окно показывает раздел как написан и говорит об этом");
+
+    const again = await notes.showReleaseNotesOnUpdate(first,
+      Object.assign({ version, Modal: FakeModal }, uiParts));
     assert.equal(again.decision, "done", "второй запуск на той же версии окна не открывает");
-    assert.equal(opened.length, 1, "и окна больше не появилось");
+    assert.equal(opened.length, 2, "и окно открылось только у отрицательного контроля");
     assert.equal(first.patches.length, 1, "и лишней записи тоже");
 
     const fresh = makePlugin("");
-    const planFresh = await notes.showReleaseNotesOnUpdate(fresh, {
-      version, Modal: FakeModal, freshInstall: true,
-    });
+    const planFresh = await notes.showReleaseNotesOnUpdate(fresh, Object.assign(
+      { version, Modal: FakeModal, freshInstall: true }, uiParts));
     assert.equal(planFresh.decision, "remember", "на свежей установке окна нет");
-    assert.equal(opened.length, 1, "и окно не открывалось");
+    assert.equal(opened.length, 2, "и окно не открывалось");
     assert.equal(fresh.patches.length, 1, "а версия всё равно запомнена");
     ok("шов загрузки: окно открывается один раз на версию и записывает состояние");
 

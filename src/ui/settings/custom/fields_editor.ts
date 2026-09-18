@@ -89,7 +89,7 @@ function askNewFieldModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", undefined, say("NEW_FIELD_TITLE"));
+      el(box, "h4", "io-dlg__title", say("NEW_FIELD_TITLE"));
 
       const nameRow = el(box, "div", "io-item");
       const nameInfo = el(nameRow, "div", "io-item__info");
@@ -172,7 +172,7 @@ function confirmDeleteModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", undefined, say("DELETE_TITLE"));
+      el(box, "h4", "io-dlg__title", say("DELETE_TITLE"));
       el(box, "p", "io-item__desc", say("DELETE_BODY", fieldName));
       const foot = el(box, "div", "io-dlg__foot");
       const cancel = foot.createEl("button",
@@ -222,7 +222,7 @@ function askRenameModal(
       const box = this.contentEl;
       box.empty();
       box.addClass("io-dlg");
-      el(box, "h4", undefined, say("RENAME_TITLE"));
+      el(box, "h4", "io-dlg__title", say("RENAME_TITLE"));
 
       const row = el(box, "div", "io-item");
       const info = el(row, "div", "io-item__info");

@@ -20,7 +20,7 @@
  * важнее вкладки.
  */
 
-const { Modal, Notice } = require("obsidian");
+const { Modal, Notice, Component, MarkdownRenderer } = require("obsidian");
 const cmState = require("@codemirror/state");
 
 const __commandIds = require("./command_ids.js");
@@ -192,6 +192,8 @@ async function load(plugin) {
     version: String((plugin.manifest && plugin.manifest.version) || ""),
     freshInstall: String((prepared && prepared.state) || "") === "absent",
     Modal,
+    Component,
+    MarkdownRenderer,
   });
   __editorStyles.ensureTagwheelFill(plugin);
   __editorStyles.ensureStripLine(plugin);

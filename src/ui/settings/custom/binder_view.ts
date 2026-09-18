@@ -205,7 +205,7 @@ export function renderAddForm(box: El, o: {
   say?: Say;
 }): void {
   const say = o.say || PLAIN;
-  el(box, "h4", undefined, say("NEW_TITLE"));
+  el(box, "h4", "io-dlg__title", say("NEW_TITLE"));
   el(box, "p", "io-item__desc", say("NEW_NOTE"));
 
   const field = (name: string, desc: string, placeholder: string): { input: ElInput; warn: El } => {

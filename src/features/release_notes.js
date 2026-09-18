@@ -65,28 +65,55 @@ function planReleaseNotes(options) {
 /**
  * Отрисовка: заголовок, текст раздела и кнопка.
  *
- * Разметка markdown не разбирается — раздел показывается как написан. Свой
- * разборщик markdown здесь был бы третьим объявлением правила о чужой разметке
- * (У-96), а `MarkdownRenderer` Obsidian тянет за собой жизненный цикл
- * компонента, которого у окна нет.
+ * **Разметку разбирает платформа** (замечание заказчика 2026-09-19, пункт 8:
+ * «при обновлении плагина открывается changelog и он выглядит некрасиво»).
+ * Раздел написан на markdown, и до этого дня он показывался как написан —
+ * `### Changed` строкой, звёздочки вокруг слов, дефис вместо списка. Своего
+ * разборщика здесь быть не должно: это третье объявление правила о чужой
+ * разметке (У-96). Зовётся `MarkdownRenderer.render`, а жизненный цикл, ради
+ * которого его прежде обходили, приезжает тем же швом — `Component` грузится
+ * при открытии и выгружается при закрытии.
+ *
+ * `ui` — то, что даёт платформа: `Component` и `MarkdownRenderer`. Их
+ * отсутствие — проба, а не отказ загрузки: текст показывается как написан, и
+ * об этом говорится в журнал разработчика (правило отказов, вид второй).
  */
-function openReleaseNotesModal(plugin, ModalClass, version, text) {
+function openReleaseNotesModal(plugin, ModalClass, version, text, ui) {
   if (!plugin || !plugin.app || typeof ModalClass !== "function") {
     throw new Error("release_notes: Obsidian Modal unavailable");
   }
+  const parts = ui && typeof ui === "object" ? ui : {};
+  const ComponentClass = parts.Component;
+  const Renderer = parts.MarkdownRenderer;
+  const canRender = typeof ComponentClass === "function"
+    && Renderer && typeof Renderer.render === "function";
+  const app = plugin.app;
   class ReleaseNotesModal extends ModalClass {
     onOpen() {
       this.titleEl.setText("inlineOverhaul " + version + ": what changed");
       /* Вид — классами (Р7); правила лежат в `styles.css`, разделом «Окна
-         плагина вне панели». */
-      const body = this.contentEl.createEl("pre", { cls: "io-relnotes__text" });
-      body.setText(text);
+         плагина вне панели». `markdown-rendered` — имя платформы: под ним
+         лежат её же правила для заголовков, списков и кода. */
+      const body = this.contentEl.createDiv({ cls: "io-relnotes__text markdown-rendered" });
+      if (canRender) {
+        this.io_notes = new ComponentClass();
+        this.io_notes.load();
+        /* Путь пустой: относительных ссылок в разделе нет, а файла, от
+           которого их считать, у окна тоже нет. */
+        Promise.resolve(Renderer.render(app, text, body, "", this.io_notes))
+          .catch((e) => console.error("[inline-overhaul][release-notes]", e));
+      } else {
+        console.error("[inline-overhaul][release-notes] MarkdownRenderer unavailable");
+        const raw = body.createEl("pre", { cls: "io-relnotes__raw" });
+        raw.setText(text);
+      }
       const actions = this.contentEl.createDiv({ cls: "io-relnotes__actions" });
       const close = actions.createEl("button", { text: "Got it" });
       close.classList.add("mod-cta");
       close.addEventListener("click", () => this.close());
     }
     onClose() {
+      if (this.io_notes) { this.io_notes.unload(); this.io_notes = null; }
       this.contentEl.empty();
     }
   }
@@ -112,7 +139,7 @@ async function showReleaseNotesOnUpdate(plugin, deps) {
     });
     if (plan.decision === "done") return plan;
     if (plan.decision === "show") {
-      openReleaseNotesModal(plugin, d.Modal, plan.version, plan.text);
+      openReleaseNotesModal(plugin, d.Modal, plan.version, plan.text, d);
     }
     await plugin.store.patch(
       { viewState: { releaseNotesShownFor: plan.version } },

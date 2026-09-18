@@ -133,7 +133,9 @@ function dlgHead(box: El, o: {
 }): void {
   const host = el(box, "div", "io-dlg__head");
   const row = el(host, "div", "io-dlg__head-row");
-  el(row, o.tag || "div", "io-dlg__head-name", o.text);
+  /* Тег здесь и есть признак «это заголовок окна, а не раздела в нём»:
+     размер такого заголовка объявляем мы, иначе его задаёт тема. */
+  el(row, o.tag || "div", o.tag ? "io-dlg__head-name io-dlg__title" : "io-dlg__head-name", o.text);
   tipBelow({
     head: row,
     host,
@@ -163,7 +165,7 @@ function askConfirm(app: App, o: ConfirmRequest, say: Say): Promise<boolean> {
         const box = this.contentEl as unknown as import("./custom/dom.ts").El;
         box.empty();
         box.addClass("io-dlg");
-        el(box, "h4", undefined, o.title);
+        el(box, "h4", "io-dlg__title", o.title);
         el(box, "p", "io-dlg__body", o.body);
         if (o.rows && o.rows.length) {
           const list = el(box, "ul", "io-dlg__list");
@@ -228,7 +230,7 @@ function announce(app: App, o: AnnounceRequest): Promise<void> {
         const box = this.contentEl as unknown as import("./custom/dom.ts").El;
         box.empty();
         box.addClass("io-dlg");
-        el(box, "h4", undefined, o.title);
+        el(box, "h4", "io-dlg__title", o.title);
         el(box, "p", "io-dlg__body", o.body);
         if (o.rows && o.rows.length) {
           const list = el(box, "ul", "io-dlg__list");
@@ -366,7 +368,7 @@ function askPick(app: App, o: PickRequest, say: Say): Promise<string | null> {
         const box = this.contentEl as unknown as import("./custom/dom.ts").El;
         box.empty();
         box.addClass("io-dlg");
-        el(box, "h4", undefined, o.title);
+        el(box, "h4", "io-dlg__title", o.title);
         el(box, "p", "io-dlg__body", o.body);
         const list = el(box, "div", "io-dlg__picks");
         for (const option of o.options) {

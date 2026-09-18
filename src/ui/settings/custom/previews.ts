@@ -1239,7 +1239,11 @@ export const jumpFlashPreview: CustomRender = (host, ctx) => {
     };
     pulse();
 
-    el(holder, "p", "io-preview__note", text ? askText(ctx, previewKey("jump-flash-preview", "note"), text.note || "") : "");
+    /* Абзаца под предпросмотром нет, когда сказать нечего: пустой <p>
+       оставляет отступ, а строки в нём не видно. */
+    if (text && text.note) {
+      el(holder, "p", "io-preview__note", askText(ctx, previewKey("jump-flash-preview", "note"), text.note));
+    }
   };
 
   draw();
