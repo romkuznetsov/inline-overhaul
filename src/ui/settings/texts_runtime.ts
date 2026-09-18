@@ -61,6 +61,12 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
     "save-failed": "Could not save settings",
     "needs-obsidian": "inlineOverhaul settings need Obsidian 1.13 or newer",
     "nothing-to-undo": "Nothing to undo",
+    /*
+     * `data.json` изменили снаружи — синхронизацией, вторым компьютером или
+     * руками, — и плагин перечитал файл (Р-2, его слово «диск сильнее»). Сказать
+     * об этом обязательно: настройки в панели поменялись не от его нажатия.
+     */
+    "external-reload": "Settings changed on disk, so inlineOverhaul reloaded them",
   },
 
   navigation: {

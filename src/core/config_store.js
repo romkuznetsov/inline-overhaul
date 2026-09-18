@@ -63,6 +63,28 @@ class ConfigStore {
   }
 
   /**
+   * Тот же самый конфиг, что лежит сейчас, или другой.
+   *
+   * Одно объявление на два вопроса: «эта запись ничего не меняет» у `update` и
+   * «файл на диске уже равен памяти» у `adoptExternal`. Второй — это
+   * отрицательный контроль Р-2: наша собственная запись, вернувшаяся сигналом
+   * платформы, обязана не считаться внешней, и ловится она **содержимым**, а не
+   * временем файла (`mtime` платформа сравнивает сама, и точность у него
+   * файловой системы).
+   *
+   * Сравнение текстом, а не обходом: у конфига есть ветки, которые человек
+   * правит руками, и порядок ключей в них — его. `JSON.stringify` на цикле
+   * бросает, и тогда ответ «другой»: лучше лишняя перерисовка, чем потерянная.
+   */
+  sameAsCurrent(candidate) {
+    try {
+      return JSON.stringify(this.config) === JSON.stringify(candidate);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
    * opts (PRD 5.5):
    *   undoable: false  - изменение не попадает в undo-стек (CS2);
    *   coalesceKey      - несколько записей с одним ключом внутри
@@ -78,13 +100,7 @@ class ConfigStore {
     if (!this.isObj(next)) return false;
 
     const migratedNext = this.migrateConfig(next);
-    let isSame = false;
-    try {
-      isSame = JSON.stringify(this.config) === JSON.stringify(migratedNext);
-    } catch (_) {
-      isSame = false;
-    }
-    if (isSame) return false;
+    if (this.sameAsCurrent(migratedNext)) return false;
 
     const undoable = !opts || opts.undoable !== false;
     const key = opts && opts.coalesceKey ? String(opts.coalesceKey) : null;
@@ -114,6 +130,51 @@ class ConfigStore {
 
   patch(patchObj, reason) {
     return this.update((prev) => this.deepMerge(prev, patchObj), reason || "patch");
+  }
+
+  /**
+   * Принять настройки, изменённые снаружи: Obsidian Sync, второй компьютер,
+   * правка файла руками, перенос настроек между vault (Р-2).
+   *
+   * **Его слово — «диск сильнее»** (В-142, 2026-09-18). Окна с выбором «чьё
+   * оставить» нет: то, что лежит на диске, побеждает то, что лежит в памяти.
+   *
+   * Три вещи, которые делает именно хранилище, и каждая нужна:
+   *
+   *   1. **Отложенная запись снимается.** Она несёт **прежний** конфиг, и
+   *      ровно ею плагин затирал принесённое синхронизацией (разбор 4.2). Пока
+   *      этот таймер жив, «диск сильнее» неправда.
+   *   2. **Стек отмены очищается.** В нём лежат снимки того документа, которого
+   *      больше нет: `Ctrl+Z` после внешней правки записал бы наше вчерашнее
+   *      состояние поверх принесённого — то самое затирание, только руками
+   *      человека. Ступени, которые нельзя выполнить, честнее убрать.
+   *   3. **Своей записи не делается.** На диске уже лежит то, что мы приняли;
+   *      запись подняла бы время файла и разбудила синхронизацию по кругу.
+   *
+   * Отвечает `true`, если что-то и правда изменилось: позвавший по этому
+   * решает, говорить ли человеку и перерисовывать ли заметки.
+   *
+   * Нечитаемый файл сюда не доезжает: `isObj` отвечает «нет», и настройки
+   * остаются прежними. Иначе `migrateConfig` собрал бы из `null` умолчания и
+   * стёр бы человеку всё дерево настроек в ответ на недописанный синхронизацией
+   * файл.
+   */
+  adoptExternal(raw) {
+    if (!this.isObj(raw)) return false;
+    const next = this.migrateConfig(raw);
+    if (this.sameAsCurrent(next)) return false;
+
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    this.undoStack.length = 0;
+    this.lastUndoKey = null;
+    this.lastUndoAt = null;
+
+    this.config = next;
+    this.emit("external");
+    return true;
   }
 
   undo(reason) {

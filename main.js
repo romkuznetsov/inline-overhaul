@@ -213,6 +213,24 @@ class InlineOverhaulPlugin extends Plugin {
     return __configWrite.applyPatch(this, patchObj, reason);
   }
 
+  /**
+   * `data.json` изменён снаружи — синхронизацией, вторым компьютером, правкой
+   * руками (Р-2, разбор `docs/AUDIT_2026-09-18.md` 4.2).
+   *
+   * **Метод обязан существовать именно с этим именем.** Платформа не просто
+   * зовёт его, а по его наличию решает, следить ли за файлом вовсе: в `app.js`
+   * 1.13.7 и `loadData`, и `_onConfigFileChange` первым же действием
+   * спрашивают `this.onExternalSettingsChange` и без него не делают ничего.
+   * Пока метода не было, плагин затирал принесённое ближайшей отложенной
+   * записью.
+   *
+   * Работа — в `config_write.applyExternalChange`; здесь шов, как и у
+   * остальных методов точки входа.
+   */
+  async onExternalSettingsChange() {
+    return __configWrite.applyExternalChange(this);
+  }
+
   /*
    * Здесь стояли четыре метода, которых не звал никто, — три записи открытой
    * вкладки настроек (`setActiveSettingsTab`, `setVisualSubTab`,

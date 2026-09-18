@@ -34,6 +34,11 @@ const __editorMount = require("../ui/editor/mount.js");
 const __pkmOptionKeys = require("./pkm_option_keys.js");
 const __sharedUtils = require("./shared_utils.js");
 const __devLog = require("./dev_log.js");
+/* Ключ сообщения и подстановка строит общий модуль: своих копий здесь нет
+   (У-82, У-32). */
+const __sayModule = require("./say.js");
+const __say = __sayModule.say;
+const __noticeKey = __sayModule.noticeKey;
 
 const getConfigMigrationV2Module = __configNormalize.getConfigMigrationV2Module;
 
@@ -55,7 +60,32 @@ function applyPatch(plugin, patchObj, reason) {
   const changed = plugin.store.patch(patchObj, reason || "settings") === true;
   if (!changed) return;
   const after = plugin.getConfig();
+  followDevLogTransitions(plugin, before, after);
   const debugLine = !!(readCfgPath(after, "advanced.devMode.enabled") === true && readCfgPath(after, "advanced.devMode.traceTagVisualLine") === true);
+  if (debugLine) {
+    __devLog.traceQuietly(plugin, after, "strip.config.patch", {
+        traceTxId: plugin._lineTraceTxId,
+        reason: reasonKey,
+        requestedStripFieldId: stripPatchFieldId,
+        beforeStripFieldId: String(readCfgPath(before, "visual.tagBars.fieldId") || "").trim(),
+        afterStripFieldId: String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim(),
+        beforeStripActive: readCfgPath(before, "visual.tagBars.active") === true,
+        afterStripActive: readCfgPath(after, "visual.tagBars.active") === true,
+      mismatchDetected: !!(stripPatchFieldId && String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim() !== stripPatchFieldId),
+    });
+  }
+  refreshEditorsFor(plugin, reasonKey);
+}
+
+/**
+ * Три перехода журнала разработчика: включили, выключили, сменили путь или
+ * машинную запись при включённом.
+ *
+ * Объявлено один раз на обоих, кто меняет конфиг: запись из панели и приём
+ * внешней правки (Р-2). Второе объявление разошлось бы с первым молча — и
+ * разошлось бы именно там, где журнал единственный способ узнать причину.
+ */
+function followDevLogTransitions(plugin, before, after) {
   const wasEnabled = readCfgPath(before, "advanced.devMode.enabled") === true;
   const isEnabled = readCfgPath(after, "advanced.devMode.enabled") === true;
   const beforePath = String(readCfgPath(before, "advanced.devMode.logPath") || "");
@@ -79,21 +109,15 @@ function applyPatch(plugin, patchObj, reason) {
         console.error("[inline-overhaul][dev-mode-log:reinit]", e);
       });
   }
-  if (debugLine) {
-    __devLog.traceQuietly(plugin, after, "strip.config.patch", {
-        traceTxId: plugin._lineTraceTxId,
-        reason: reasonKey,
-        requestedStripFieldId: stripPatchFieldId,
-        beforeStripFieldId: String(readCfgPath(before, "visual.tagBars.fieldId") || "").trim(),
-        afterStripFieldId: String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim(),
-        beforeStripActive: readCfgPath(before, "visual.tagBars.active") === true,
-        afterStripActive: readCfgPath(after, "visual.tagBars.active") === true,
-      mismatchDetected: !!(stripPatchFieldId && String(readCfgPath(after, "visual.tagBars.fieldId") || "").trim() !== stripPatchFieldId),
-    });
-  }
-  if (!isUiOnlyReason(reasonKey)) {
-    __editorMount.refreshOpenEditors(plugin);
-  }
+}
+
+/**
+ * Пересобрать оформление на открытых заметках. Объявлено один раз по той же
+ * причине, что и переходы журнала: правок конфига теперь два рода.
+ */
+function refreshEditorsFor(plugin, reasonKey) {
+  if (isUiOnlyReason(reasonKey)) return;
+  __editorMount.refreshOpenEditors(plugin);
 }
 
 function isUiOnlyReason(reasonKey) {
@@ -103,6 +127,73 @@ function isUiOnlyReason(reasonKey) {
   if (key.startsWith("settings:ui:")) return true;
   if (key.startsWith("settings:binder:")) return true;
   return false;
+}
+
+/**
+ * Внешняя правка `data.json` доехала до плагина (Р-2).
+ *
+ * **Кто сюда приводит.** Платформа, и прочитано это в её коде, а не по памяти
+ * (правило 101). `app.js` Obsidian 1.13.7: `PluginManager.onRaw` ловит сырое
+ * событие файловой системы под `configDir`, узнаёт по пути `data.json` своего
+ * включённого плагина и зовёт `plugin.onConfigFileChange()` — отложенный на
+ * 50 мс `_onConfigFileChange`. Тот сравнивает время файла с `_lastDataModified
+ * Time`, и **только если файл новее**, зовёт `onExternalSettingsChange()`, а
+ * следом сам пересобирает вкладку настроек (`this.settingTab?.update()`). Своё
+ * время платформа ставит в `saveData`, поэтому наша запись сигнала не даёт.
+ *
+ * **Но время файла — не наш отрицательный контроль, а её.** Точность `mtime`
+ * принадлежит файловой системе, и полагаться на неё нельзя: своя запись,
+ * вернувшаяся сюда сигналом, отсекается **содержимым** — `adoptExternal`
+ * сравнивает принесённое с тем, что уже в памяти, и на равном не делает
+ * ничего. Без этого перерисовка ходила бы по кругу.
+ *
+ * **Порядок здесь тот же, что у записи из панели**, и по той же причине:
+ * сначала журнал разработчика (он мог быть включён или выключен снаружи),
+ * потом оформление на открытых заметках, потом набор команд — Fields могли
+ * приехать другие, а команды строятся из конфига один раз (У-79).
+ *
+ * **Отказ громкий.** Файл не прочитался или пришёл не объектом — настройки
+ * остаются прежними, и об этом пишется в журнал: молчание здесь неотличимо от
+ * «принял и потерял».
+ */
+async function applyExternalChange(plugin) {
+  if (!plugin || !plugin.store) return false;
+  let raw = null;
+  try {
+    raw = await plugin.loadData();
+  } catch (e) {
+    console.error("[inline-overhaul][config:external] файл настроек не прочитался,"
+      + " настройки остались прежними: " + String((e && e.message) || e || ""));
+    return false;
+  }
+  if (!__sharedUtils.isObj(raw)) {
+    console.error("[inline-overhaul][config:external] файл настроек пришёл не объектом,"
+      + " настройки остались прежними");
+    return false;
+  }
+
+  const before = plugin.getConfig();
+  if (plugin.store.adoptExternal(raw) !== true) return false;
+  const after = plugin.getConfig();
+
+  followDevLogTransitions(plugin, before, after);
+  refreshEditorsFor(plugin, "external");
+  /*
+   * Набор команд PKM строится из Fields конфига и заводится один раз (У-79).
+   * Внешняя правка меняет конфиг целиком — ровно как восстановление копии,
+   * которое зовёт этот же шов (10.13.40).
+   */
+  if (typeof plugin.rebuildFromConfig === "function") {
+    Promise.resolve(plugin.rebuildFromConfig()).catch((e) => {
+      console.error("[inline-overhaul][config:external] команды не перезавелись", e);
+    });
+  }
+
+  new Notice(__say(
+    __noticeKey("plugin", "external-reload"),
+    "Settings changed on disk, so inlineOverhaul reloaded them",
+  ));
+  return true;
 }
 
 /**
@@ -158,6 +249,7 @@ async function prepareFileForV2(plugin) {
 
 module.exports = {
   applyPatch,
+  applyExternalChange,
   isUiOnlyReason,
   prepareFileForV2,
 };
