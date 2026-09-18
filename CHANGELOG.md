@@ -3,6 +3,49 @@
 <!-- Сделанное между выпусками копится здесь; в коммите выпуска раздел
      переименовывается в номер версии. Правило — docs/VERSIONING.md. -->
 
+## Unreleased
+
+### Changed
+
+- **Settings changed outside Obsidian are picked up instead of being overwritten.**
+  Obsidian tells a plugin when its `data.json` is edited from outside — by a sync
+  service, a second machine, or by hand. inlineOverhaul was not listening at all: its
+  in-memory settings stayed as they were, and the next pending write put the old ones
+  back on top of the new. It now re-reads the file, redraws the panel, rebuilds the
+  decorations in open notes and says so once: `Settings changed on disk, so
+  inlineOverhaul reloaded them`. The disk wins, and there is no «which one do you
+  want» dialog. Your own edit in the panel stays silent: a write that comes back as
+  the platform's signal is recognised by its **content**, not by the file's
+  timestamp. A broken or missing file changes nothing and is reported to the
+  developer console.
+- **The settings panel opens on the tab you left it on.** The tab you last used is
+  remembered between sessions of Obsidian. Switching tabs does not take up an undo
+  step: `Ctrl+Z` in settings still undoes your edit, not your navigation.
+
+### Performance
+
+- **TagWheel no longer stalls on a very long line.** Opening the panel on a line of
+  20 000 characters took about 1.3 seconds and now takes about 50 milliseconds. The
+  place was found with a profiler, not guessed: the comparison between your line and
+  the panel's view was computed over the whole line. Matching words at the start and
+  at the end are now left out of that computation. On an ordinary line nothing
+  changed, and that was checked on 4 737 real pairs — the result is identical.
+
+### Internal
+
+- Row drag-and-drop is declared once instead of twice. The two lists that have it
+  answered identically — measured before the merge, byte for byte — and the one way
+  they genuinely differ is now a parameter.
+- Coverage is measured on both roads. The editor layer and the TagWheel session run
+  in a browser, and their coverage was not collected at all; names are now joined by
+  **position in the bundle**, because joining by name credited us with third-party
+  code.
+- Type checking is switched on for four core files. No live defect turned up among
+  the thirty errors it found — all thirty were missing annotations, which is what the
+  measurement predicted.
+- The document read in full before every session is a quarter shorter: the table of
+  engine exceptions, the browser-gate details and the archive index moved to files of
+  their own, each with a line saying when to open it.
 ## 0.3.1
 
 ### Fixed
