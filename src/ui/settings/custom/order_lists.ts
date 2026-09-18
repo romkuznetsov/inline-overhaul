@@ -23,7 +23,8 @@
 
 import { asObject } from "../types.ts";
 import type { CustomRender, SettingsCtx } from "../types.ts";
-import { el, btn, textInput, type DragEv, type El } from "./dom.ts";
+import { el, btn, textInput, type El } from "./dom.ts";
+import { attachRowDrag, type DragHold } from "./row_drag.ts";
 import { keepView } from "./keepview.ts";
 import { createFieldsModel, type DeepState } from "./fields_model.ts";
 
@@ -95,37 +96,20 @@ function sortableList(host: El, o: ListOpts, say: Say): void {
     el(box, "div", "io-side__empty", o.empty);
     return;
   }
-  let taken: number | null = null;
+  const held: DragHold = { taken: null };
 
   o.rows.forEach((value, i) => {
     const row = el(box, "div", "io-sortrow");
-    const grip = el(row, "span", "io-grip", "⠿");
-    grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", say("ROW_DRAG", o.label(value, i)));
-    grip.draggable = o.enabled;
-    grip.addEventListener("dragstart", ((ev: DragEv) => {
-      taken = i;
-      row.classList.add("io-dragging");
-      try { ev.dataTransfer?.setData("text/plain", String(i)); } catch { /* проба: десктоп всегда даёт dataTransfer */ }
-    }) as never);
-    grip.addEventListener("dragend", (() => {
-      taken = null;
-      row.classList.remove("io-dragging");
-    }) as never);
-    row.addEventListener("dragover", ((ev: DragEv) => {
-      if (taken === null) return;
-      ev.preventDefault();
-      row.classList.add("io-dragover");
-    }) as never);
-    row.addEventListener("dragleave", (() => { row.classList.remove("io-dragover"); }) as never);
-    row.addEventListener("drop", ((ev: DragEv) => {
-      ev.preventDefault();
-      row.classList.remove("io-dragover");
-      const from = taken;
-      taken = null;
-      if (from === null || from === i) return;
-      o.onMove(from, i);
-    }) as never);
+    /* Перетаскивание — общий дом (`Р-11`): правило было объявлено дважды, и
+       расхождение перед сведением измерено, ноль. */
+    attachRowDrag({
+      row,
+      index: i,
+      label: say("ROW_DRAG", o.label(value, i)),
+      enabled: o.enabled,
+      held,
+      onMove: o.onMove,
+    });
 
     el(row, "span", "io-sortrow__n", String(i + 1));
     o.cell(row, value, i);

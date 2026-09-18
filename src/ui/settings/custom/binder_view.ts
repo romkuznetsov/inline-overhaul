@@ -14,7 +14,8 @@
  *   * сетка таблицы живёт в CSS, а не в атрибутах узлов (Б4).
  */
 
-import { el, btn, textInput, tipBelow, type DragEv, type El, type ElInput } from "./dom.ts";
+import { el, btn, textInput, tipBelow, type El, type ElInput } from "./dom.ts";
+import { attachRowDrag, type DragHold } from "./row_drag.ts";
 import type { BinderClash, BinderDraft, BinderRow } from "./binder_model.ts";
 import { BLOCK_TEXTS, sayIn } from "../texts_blocks.ts";
 
@@ -113,39 +114,23 @@ export function renderBinder(host: El, o: BinderViewOpts): void {
     if (o.closers) o.closers.push(close);
   }
 
-  let taken: number | null = null;
+  const held: DragHold = { taken: null };
 
   o.rows.forEach((row, i) => {
     const line = el(card, "div", "io-tablerow");
     const name = rowTitle(row);
 
-    const grip = el(line, "span", "io-grip", "⠿");
-    grip.setAttribute("role", "button");
-    grip.setAttribute("aria-label", say("ROW_DRAG", name));
-    grip.draggable = true;
-    grip.addEventListener("dragstart", ((ev: DragEv) => {
-      taken = i;
-      line.classList.add("io-dragging");
-      try { ev.dataTransfer?.setData("text/plain", String(i)); } catch { /* проба: десктоп всегда даёт dataTransfer */ }
-    }) as never);
-    grip.addEventListener("dragend", (() => {
-      taken = null;
-      line.classList.remove("io-dragging");
-    }) as never);
-    line.addEventListener("dragover", ((ev: DragEv) => {
-      if (taken === null) return;
-      ev.preventDefault();
-      line.classList.add("io-dragover");
-    }) as never);
-    line.addEventListener("dragleave", (() => { line.classList.remove("io-dragover"); }) as never);
-    line.addEventListener("drop", ((ev: DragEv) => {
-      ev.preventDefault();
-      line.classList.remove("io-dragover");
-      const from = taken;
-      taken = null;
-      if (from === null || from === i) return;
-      o.onMove(from, i);
-    }) as never);
+    /* Перетаскивание — общий дом (`Р-11`). Строка Binder тащится всегда, и
+       `enabled` здесь стоит `true` не по забывчивости: тумблера у этого
+       списка нет. */
+    attachRowDrag({
+      row: line,
+      index: i,
+      label: say("ROW_DRAG", name),
+      enabled: true,
+      held,
+      onMove: o.onMove,
+    });
 
     el(line, "code", "io-mono", row.insertText);
     el(line, "div", "io-cellname", name);

@@ -149,6 +149,40 @@ function baseConfig(over?: Any): Any {
 const cycleOf = (cfg: Any): string[] => cfg.navigation.moveSelection.cycleOrder as string[];
 const rulesOf = (cfg: Any): Any => cfg.pkm.prefixRules;
 
+{
+  /*
+   * **Перетаскивание на настоящем списке порядка** (`Р-11`).
+   *
+   * У Binder оно было покрыто с самого начала, у этих списков — нет, и после
+   * сведения к общему дому непокрытая сторона стала бы молчаливой половиной:
+   * сломанный дом ломает обе дороги одинаково (У-194). Здесь бросок идёт по
+   * настоящей отрисовке и кончается настоящей записью в конфиг.
+   */
+  const p = makeBlock(cycleOrder, baseConfig());
+  const rows = all(p.host, "io-sortrow");
+  assert.equal(rows.length, 3, "контроль: список и правда нарисован");
+
+  const grip = all(rows[2] as StubNode, "io-grip")[0] as StubNode;
+  assert.equal(grip.draggable, true, "ручка включённого списка тащится");
+  grip.dispatch("dragstart", { dataTransfer: { setData: () => {} } });
+  (rows[0] as StubNode).dispatch("drop", { preventDefault: () => {} });
+
+  assert.deepEqual(cycleOf(p.cfg()), ["", "#", "- "],
+    "строка встала на место той, на которую её бросили");
+  ok("порядок меняется перетаскиванием, и запись доходит до конфига");
+}
+
+{
+  /* Выключенный список не тащится — тот самый довод, которым два звавших
+     отличаются друг от друга. */
+  const p = makeBlock(cycleOrder, baseConfig(),
+    { "navigation.moveSelection.prefixCyclerEnabled": false });
+  const rows = all(p.host, "io-sortrow");
+  const grip = all(rows[2] as StubNode, "io-grip")[0] as StubNode;
+  assert.equal(grip.draggable, false, "у выключенного списка ручка не тащится");
+  ok("выключенный список перетаскиванием не переставить");
+}
+
 /* ======================================================================
  * 1. Цикл Prefix: что записано, то рантайм и проходит.
  * ====================================================================== */
