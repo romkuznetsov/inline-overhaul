@@ -118,7 +118,8 @@ const MOVED: ReadonlyArray<readonly [string, string]> = [
 
   ["pkm.behavior.tagVisuals.opacity.left", "visual.tags.opacityLeft"],
   ["pkm.behavior.tagVisuals.opacity.right", "visual.tags.opacityRight"],
-  ["pkm.behavior.tagVisuals.tagTextSizePct", "visual.tags.textSizePct"],
+  ["pkm.behavior.tagVisuals.tagTextSizePct", "visual.tags.textSizePctLeft"],
+  ["pkm.behavior.tagVisuals.tagTextSizePct", "visual.tags.textSizePctRight"],
   ["pkm.behavior.tagVisuals.tagBubbleWidthPct", "visual.tags.bubbleWidthPct"],
   ["pkm.behavior.tagVisuals.tagBubbleHeightPct", "visual.tags.bubbleHeightPct"],
   ["pkm.behavior.tagVisuals.emptyBubbleSizePct", "visual.tags.emptyBubblePct"],

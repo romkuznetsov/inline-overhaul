@@ -113,7 +113,8 @@ const CFG = {
       /* Размер текста тегов спрашивается у страницы: гейт открывает её дважды,
          на умолчании и на мелком кегле, — иначе «пузырь стоит серединой
          строки» проверять не на чем (замечание заказчика 2026-09-16). */
-      textSizePct: Number(new URLSearchParams(location.search).get("size")) || 80,
+      textSizePctLeft: Number(new URLSearchParams(location.search).get("size")) || 80,
+      textSizePctRight: Number(new URLSearchParams(location.search).get("size")) || 80,
       bubbleWidthPct: 80,
       bubbleHeightPct: 80,
       emptyBubblePct: 50,

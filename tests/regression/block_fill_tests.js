@@ -1099,15 +1099,35 @@ function rowBoxOf(row) {
    * оставило бы подложку ниже пузыря ровно на разницу.
    */
   const visualsOf = (textSizePct, bubbleHeightPct) => visuals.getTagVisualsFromConfig({
-    visual: { tags: { textSizePct, bubbleHeightPct } },
+    visual: { tags: {
+      textSizePctLeft: textSizePct, textSizePctRight: textSizePct, bubbleHeightPct,
+    } },
   });
   const st = visuals.computeTagVisualStyle(140, 100, 140, 0);
-  assertEq(visuals.blockFillBubbleHeightPx(visualsOf(140, 140)),
+  assertEq(visuals.blockFillBubbleHeightPx(visualsOf(140, 140), "left"),
     st.fontSizePx * st.lineHeight + st.verticalPaddingPx * 2,
     "высота пузыря выведена из его же стиля");
-  assertTrue(visuals.blockFillBubbleHeightPx(visualsOf(140, 140))
-    > visuals.blockFillBubbleHeightPx(visualsOf(50, 20)),
+  assertTrue(visuals.blockFillBubbleHeightPx(visualsOf(140, 140), "left")
+    > visuals.blockFillBubbleHeightPx(visualsOf(50, 20), "left"),
     "и она правда зависит от настроек: иначе слагаемое мертво");
+  /*
+   * И слагаемое спрашивает **свою** сторону: кегль разведён его словом
+   * 2026-09-19, и подложка левого Block считается по левому числу. Стороны
+   * разведены нарочно — на равных это утверждение выполнялось бы само (У-147).
+   */
+  const twoSided = visuals.getTagVisualsFromConfig({
+    visual: { tags: { textSizePctLeft: 140, textSizePctRight: 50, bubbleHeightPct: 140 } },
+  });
+  assertEq(visuals.blockFillBubbleHeightPx(twoSided, "left"),
+    visuals.blockFillBubbleHeightPx(visualsOf(140, 140), "left"),
+    "левая подложка считается по левому кеглю");
+  assertTrue(visuals.blockFillBubbleHeightPx(twoSided, "left")
+    > visuals.blockFillBubbleHeightPx(twoSided, "right"),
+    "а правая — по правому, и они не равны");
+  assertEq(visuals.blockFillWrittenTextHeightPx(twoSided, 20, "right"), 10,
+    "написанное в правом Block меряется правым кеглем");
+  assertEq(visuals.blockFillWrittenTextHeightPx(twoSided, 20, "left"), 28,
+    "а в левом — левым");
 })();
 
 (function testWrappedSpanIsCutByVisualLines() {
@@ -1486,9 +1506,11 @@ function rowBoxOf(row) {
    * обязана дойти до слоя. Без этой части подписи `Text size` доезжал бы до
    * подложки только после первой правки заметки (тот же У-56).
    */
-  tags = { textSizePct: 60 };
-  assertEq(ask(quiet, dom), true, "сдвинули размер текста блока — слой перерисовывается");
-  tags = { textSizePct: 60, bubbleHeightPct: 40 };
+  tags = { textSizePctLeft: 60 };
+  assertEq(ask(quiet, dom), true, "сдвинули размер текста левого блока — слой перерисовывается");
+  tags = { textSizePctLeft: 60, textSizePctRight: 80 };
+  assertEq(ask(quiet, dom), true, "и правого — тоже: в подписи стоят обе стороны");
+  tags = { textSizePctLeft: 60, textSizePctRight: 80, bubbleHeightPct: 40 };
   assertEq(ask(quiet, dom), true, "и высоту пузыря — тоже");
 
   /* А густота живёт в стилях, и слою до неё дела нет: перерисовки не будет. */

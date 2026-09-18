@@ -274,7 +274,7 @@ const EDITOR_INJECTIONS = {
   "middle-takes-sizing": {
     file: "src/ui/editor/decorations.js",
     find: "        const sizing = tagVisualSizingForZone(entry.zone, visuals);",
-    replace: "        const sizing = { textSizePct: visuals.tagTextSizePct,"
+    replace: "        const sizing = { textSizePct: visuals.tagTextSizeLeftPct,"
       + " bubbleWidthPct: visuals.tagBubbleWidthPct,"
       + " bubbleHeightPct: visuals.tagBubbleHeightPct,"
       + " emptyBubblePct: visuals.emptyBubbleSizePct };",

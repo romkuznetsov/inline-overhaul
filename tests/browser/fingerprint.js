@@ -41,13 +41,13 @@ async function main() {
        прежние настройки (У-130). Обе рисовалки возвращают обещание. */
     taken = await page.evaluate(async () => {
       const out = { default: window.__ioFingerprint() };
-      await window.__ioSetTags({ textSizePct: 140, bubbleWidthPct: 140, bubbleHeightPct: 140, cornersPct: 100 });
+      await window.__ioSetTags({ textSizePctLeft: 140, textSizePctRight: 140, bubbleWidthPct: 140, bubbleHeightPct: 140, cornersPct: 100 });
       await window.__ioSetBand({ heightPct: 100, widthPct: 100, opacity: 40, color: "#123456" });
       out.loud = window.__ioFingerprint();
-      await window.__ioSetTags({ textSizePct: 50, bubbleWidthPct: 20, bubbleHeightPct: 20, cornersPct: 0 });
+      await window.__ioSetTags({ textSizePctLeft: 50, textSizePctRight: 50, bubbleWidthPct: 20, bubbleHeightPct: 20, cornersPct: 0 });
       await window.__ioSetBand({ heightPct: 0, widthPct: 0, opacity: 75, color: "#908e8e" });
       out.tight = window.__ioFingerprint();
-      await window.__ioSetTags({ textSizePct: 80, bubbleWidthPct: 80, bubbleHeightPct: 80, cornersPct: 0 });
+      await window.__ioSetTags({ textSizePctLeft: 80, textSizePctRight: 80, bubbleWidthPct: 80, bubbleHeightPct: 80, cornersPct: 0 });
       await window.__ioSetBand({ heightPct: 40, widthPct: 50 });
       /*
        * Оверлей скроллера TagWheel: два состояния, и второе — с его цветами.

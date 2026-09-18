@@ -1822,8 +1822,8 @@ function blockFillPieceBox(geom, piece) {
 function blockFillMarkersFor(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const look = blockFillLookFromConfig(cfg);
-  /* Высота пузыря — от настроек, не от строки: одно слагаемое из трёх. */
-  const bubbleH = blockFillBubbleHeightPx(getTagVisualsFromConfig(cfg));
+  /* Высота пузыря — от настроек, не от строки: одно слагаемое из трёх. И у
+     каждой стороны она своя с тех пор, как кегль разведён (пункт 2). */
   /*
    * Высота написанного берётся **та, что лежит в Block**, а не та, что в
    * строке: значения человек уменьшил ползунком `Tags text size`, и подложка,
@@ -1831,8 +1831,10 @@ function blockFillMarkersFor(view, plugin) {
    * (его `G4`, второй заход).
    */
   const tagVisuals = getTagVisualsFromConfig(cfg);
-  const askHeight = (rowH, textH) => blockFillBandHeightPx(
-    look, rowH, blockFillWrittenTextHeightPx(tagVisuals, textH), bubbleH);
+  const askHeight = (rowH, textH, zone) => blockFillBandHeightPx(
+    look, rowH,
+    blockFillWrittenTextHeightPx(tagVisuals, textH, zone),
+    blockFillBubbleHeightPx(tagVisuals, zone));
   /* Спрашивается один раз на отрисовку: правило одно на весь документ. */
   const flyLine = floatingButtonLineNumber(view, plugin);
   /* Ряды строки — один ответ на оба её Block (см. ниже). */
@@ -1873,7 +1875,10 @@ function blockFillMarkersFor(view, plugin) {
      * зрительной строке, и `pieces.length` у него единица при двух строках
      * (У-129). Число несёт сам кусок — его считает обход до конца строки.
      */
-    const geom = blockFillRowGeometry(view, span, lineRows, askHeight, pieces[0].measured);
+    /* Зона привязывается здесь: это единственное место, где она известна, а
+       высота подложки теперь зависит от кегля своей стороны (пункт 2). */
+    const askHeightHere = (rowH, textH) => askHeight(rowH, textH, span.zone);
+    const geom = blockFillRowGeometry(view, span, lineRows, askHeightHere, pieces[0].measured);
     for (let i = 0; i < pieces.length; i++) {
       const piece = pieces[i];
       /*
@@ -1999,7 +2004,8 @@ function blockFillLayerNeedsRedraw(plugin, update, dom) {
    */
   const v = getTagVisualsFromConfig(cfg);
   const sig = look.enabled
-    ? [look.heightPct, look.widthPct, v.tagTextSizePct, v.tagBubbleHeightPct].join(":")
+    ? [look.heightPct, look.widthPct,
+       v.tagTextSizeLeftPct, v.tagTextSizeRightPct, v.tagBubbleHeightPct].join(":")
     : "off";
   const flipped = dom.__ioBlockFillSig !== sig;
   dom.__ioBlockFillSig = sig;

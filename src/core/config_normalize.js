@@ -982,7 +982,8 @@ function normalizeConfigV2(cfg) {
   /* --- вид тегов -------------------------------------------------------- */
   int("visual.tags.opacityLeft", 0, 100);
   int("visual.tags.opacityRight", 0, 100);
-  int("visual.tags.textSizePct", 50, 140);
+  int("visual.tags.textSizePctLeft", 50, 140);
+  int("visual.tags.textSizePctRight", 50, 140);
   int("visual.tags.bubbleWidthPct", 20, 140);
   int("visual.tags.bubbleHeightPct", 20, 140);
   int("visual.tags.emptyBubblePct", 10, 180);

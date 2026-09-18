@@ -93,8 +93,13 @@ function getTagVisualsFromConfig(cfg) {
   return {
     opacityLeft: pctToShare(tags.opacityLeft, 1),
     opacityRight: pctToShare(tags.opacityRight, 1),
-    tagTextSizePct: Number.isFinite(Math.trunc(Number(tags.textSizePct)))
-      ? Math.max(50, Math.min(140, Math.trunc(Number(tags.textSizePct))))
+    /* Кегль у каждой стороны свой (его слово 2026-09-19, пункт 2). Одно имя
+       на две величины не годится: их читают разные зоны строки. */
+    tagTextSizeLeftPct: Number.isFinite(Math.trunc(Number(tags.textSizePctLeft)))
+      ? Math.max(50, Math.min(140, Math.trunc(Number(tags.textSizePctLeft))))
+      : 100,
+    tagTextSizeRightPct: Number.isFinite(Math.trunc(Number(tags.textSizePctRight)))
+      ? Math.max(50, Math.min(140, Math.trunc(Number(tags.textSizePctRight))))
       : 100,
     tagBubbleWidthPct: Number.isFinite(Math.trunc(Number(tags.bubbleWidthPct)))
       ? Math.max(20, Math.min(140, Math.trunc(Number(tags.bubbleWidthPct))))
@@ -610,6 +615,13 @@ function tagVisualSizingForZone(zone, visuals) {
     const n = Math.trunc(Number(value));
     return Number.isFinite(n) ? n : fallback;
   };
+  /* Своя величина у каждой стороны, и спрашивается она здесь один раз: это
+     единственное место, где известно, какая зона рисуется. */
+  const sidePct = zone === "left"
+    ? num(visuals && visuals.tagTextSizeLeftPct, 100)
+    : zone === "right"
+      ? num(visuals && visuals.tagTextSizeRightPct, 100)
+      : 100;
   return {
     inBlock,
     /*
@@ -619,7 +631,7 @@ function tagVisualSizingForZone(zone, visuals) {
      * тексте стал виден: «да, должны. Не должен действовать только
      * tags-text-size» — про остальные ползунки.
      */
-    textSizePct: inBlock ? num(visuals && visuals.tagTextSizePct, 100) : 100,
+    textSizePct: inBlock ? sidePct : 100,
     bubbleWidthPct: num(visuals && visuals.tagBubbleWidthPct, 100),
     bubbleHeightPct: num(visuals && visuals.tagBubbleHeightPct, 100),
     emptyBubblePct: num(visuals && visuals.emptyBubbleSizePct, 100),
@@ -1244,18 +1256,19 @@ function blockFillRowCountTrusted(counted, blockHeight, lineHeight) {
  * оно остаётся в силе — обе величины здесь приходят из панели, а не из того,
  * что человек написал.
  */
-function blockFillWrittenTextHeightPx(visuals, textHeightPx) {
+function blockFillWrittenTextHeightPx(visuals, textHeightPx, zone) {
   const v = isObj(visuals) ? visuals : {};
   const textH = Number(textHeightPx);
   if (!Number.isFinite(textH) || textH <= 0) return textH;
-  const pct = Number(v.tagTextSizePct);
-  const share = Number.isFinite(pct) && pct > 0 ? Math.max(50, Math.min(140, Math.trunc(pct))) : 100;
+  const share = tagVisualSizingForZone(String(zone || ""), v).textSizePct;
   return textH * share / 100;
 }
 
-function blockFillBubbleHeightPx(visuals) {
+function blockFillBubbleHeightPx(visuals, zone) {
   const v = isObj(visuals) ? visuals : {};
-  const st = computeTagVisualStyle(v.tagTextSizePct, v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0);
+  const st = computeTagVisualStyle(
+    tagVisualSizingForZone(String(zone || ""), v).textSizePct,
+    v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0);
   return st.fontSizePx * st.lineHeight + st.verticalPaddingPx * 2;
 }
 

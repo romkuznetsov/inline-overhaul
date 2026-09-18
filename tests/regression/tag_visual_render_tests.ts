@@ -216,7 +216,8 @@ const filled = (el: Any): boolean =>
    * размер, и прозрачность, и пометку выравнивания, и все три спрашивают одно
    * объявление.
    */
-  const visuals = { tagTextSizePct: 50, tagBubbleWidthPct: 100, tagBubbleHeightPct: 100 };
+  const visuals = { tagTextSizeLeftPct: 50, tagTextSizeRightPct: 70,
+    tagBubbleWidthPct: 100, tagBubbleHeightPct: 100 };
   const emptyLeft = I.buildBlockKindsFromConfig({
     pkm: { fields: { order: { left: [], right: ["type"], types: { type: "tag" } } } },
   });
@@ -233,8 +234,8 @@ const filled = (el: Any): boolean =>
   assert.equal(I.blockValueClassFor({ zone: link.zone }, visuals), "",
     "и пометки «значение в Block» она не получает");
 
-  assert.equal(I.tagVisualSizingForZone(tag.zone, visuals).textSizePct, 50,
-    "а метка справа, где теги бывают, кегль Block получает по-прежнему");
+  assert.equal(I.tagVisualSizingForZone(tag.zone, visuals).textSizePct, 70,
+    "а метка справа, где теги бывают, кегль Block получает — и правый, а не левый");
   assert.equal(I.blockValueClassFor({ zone: tag.zone }, visuals), I.BLOCK_VALUE_CLASS,
     "и пометку тоже");
 
@@ -311,7 +312,7 @@ const filled = (el: Any): boolean =>
    * Правило стиля для токена без своего цвета. Ожидание выписано строкой
    * отдельно от того, из чего оно считается (У-5).
    */
-  const visuals = { tagTextSizePct: 100 };
+  const visuals = { tagTextSizeLeftPct: 100, tagTextSizeRightPct: 100 };
   assert.equal(I.buildBlockStyleCss({ zone: "left", zoneOpacity: 0.17 }, visuals),
     "opacity: 0.17;", "левый блок гаснет по своей настройке");
   assert.equal(I.buildBlockStyleCss({ zone: "right", zoneOpacity: 0.44 }, visuals),
@@ -326,7 +327,8 @@ const filled = (el: Any): boolean =>
 {
   /* Размер текста у токена без цвета — тот же, что у пузыря с цветом:
      одна настройка не должна давать в одной строке два размера. */
-  const css = I.buildBlockStyleCss({ zone: "left", zoneOpacity: 1 }, { tagTextSizePct: 120 });
+  const visuals = { tagTextSizeLeftPct: 120, tagTextSizeRightPct: 95 };
+  const css = I.buildBlockStyleCss({ zone: "left", zoneOpacity: 1 }, visuals);
   const bubble = I.computeTagVisualStyle(120, 100, 100, 0);
   assert.equal(css, "font-size: " + bubble.fontSizePx + "px;",
     "размер текста берётся тем же расчётом, что у пузыря");
@@ -384,14 +386,17 @@ const filled = (el: Any): boolean =>
    * видит браузер: `tests/browser/check_editor.js`, пункт 10, и подмены
    * `middle-takes-sizing` и `block-loses-sizing`.
    */
+  /* Стороны разведены нарочно: на равных числах переворот правила «левая
+     величина левой зоне» прошёл бы незамеченным (У-147). */
   const visuals = {
-    tagTextSizePct: 140, tagBubbleWidthPct: 130,
+    tagTextSizeLeftPct: 140, tagTextSizeRightPct: 65, tagBubbleWidthPct: 130,
     tagBubbleHeightPct: 120, emptyBubbleSizePct: 150, tagShapePct: 100,
   };
+  const wantSize: Record<string, number> = { left: 140, right: 65 };
   for (const zone of ["left", "right"]) {
     const sizing = I.tagVisualSizingForZone(zone, visuals);
     assert.equal(sizing.inBlock, true, zone + ": это Block");
-    assert.equal(sizing.textSizePct, 140, zone + ": размер текста приезжает");
+    assert.equal(sizing.textSizePct, wantSize[zone], zone + ": размер текста своей стороны");
     assert.equal(sizing.bubbleWidthPct, 130, zone + ": ширина пузыря приезжает");
     assert.equal(sizing.bubbleHeightPct, 120, zone + ": высота пузыря приезжает");
     assert.equal(sizing.emptyBubblePct, 150, zone + ": ширина пустого пузыря приезжает");

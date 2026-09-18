@@ -123,6 +123,64 @@ function main(): void {
 
   console.log("  ok  предпросмотр панели и прототип показывают одни и те же настройки ("
     + proto.size + " переменных)");
+
+  /*
+   * **Кегль Block слушает всё, что в Block нарисовано** (его замечание
+   * 2026-09-19, пункт 6: «размер элементов left/right block меняется в
+   * зависимости от tags-text-size, кроме wikilink»).
+   *
+   * У ссылки правила размера не было **ни в одной** из двух отрисовок, поэтому
+   * сверка сторон друг с другом этого и не видела: обе молчали одинаково
+   * (У-194). Значит утверждений здесь два, и они про разное.
+   */
+  const scalesWith = (css: string, cls: string): boolean => {
+    const re = new RegExp("\\." + cls + "\\b[^{}]*\\{([^}]*)\\}", "g");
+    for (const m of css.matchAll(re)) {
+      if (/font-size\s*:[^;]*--io-text-scale/.test(String(m[1] || ""))) return true;
+    }
+    return false;
+  };
+
+  /*
+   * Первое: три класса, которыми предпросмотр рисует значения в Block. Список
+   * здесь рукописный, и это его слабое место (У-111) — зато он отвечает на
+   * вопрос, на который вывод из кода не отвечает: «а всё ли, что человек видит
+   * в Block, кегль слушает». Классы печатаются вслух.
+   */
+  const inBlock = ["io-bubble", "io-elem", "io-link"];
+  const deaf: string[] = [];
+  for (const cls of inBlock) {
+    if (!scalesWith(panelCss, cls)) deaf.push("styles.css: ." + cls);
+    if (!scalesWith(protoCss, cls)) deaf.push("прототип: ." + cls);
+  }
+  assert.deepEqual(deaf, [],
+    "нарисовано в Block, а кегль Block не слушает:\n  " + deaf.join("\n  "));
+
+  /*
+   * Второе, и оно выводится, а не пишется: класс, который слушает кегль в
+   * одной отрисовке и не слушает в другой. Это уже сверка сторон, и списка ей
+   * не нужно.
+   */
+  const scaled = (css: string): Set<string> => {
+    const out = new Set<string>();
+    for (const m of css.matchAll(/\.(io-[A-Za-z0-9_-]+)\b[^{}]*\{([^}]*)\}/g)) {
+      if (/font-size\s*:[^;]*--io-text-scale/.test(String(m[2] || ""))) out.add(String(m[1]));
+    }
+    return out;
+  };
+  const inPanel = scaled(panelCss);
+  const inProto = scaled(protoCss);
+  const split = [
+    ...Array.from(inPanel).filter(c => !inProto.has(c)).map(c => "только панель: ." + c),
+    ...Array.from(inProto).filter(c => !inPanel.has(c)).map(c => "только прототип: ." + c),
+  ].sort();
+  assert.deepEqual(split, [],
+    "кегль Block слушает одна отрисовка и не слушает вторая:\n  " + split.join("\n  "));
+  assert.ok(inPanel.size >= inBlock.length,
+    "обход не нашёл даже названных классов — значит он ищет не то (У-200)");
+
+  console.log("  ok  кегль Block слушают все " + inPanel.size
+    + " классов значений, и обе отрисовки одинаково");
 }
 
 main();

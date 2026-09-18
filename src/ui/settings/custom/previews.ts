@@ -131,7 +131,8 @@ function previewShell(host: El, ctx: SettingsCtx, id: string): { box: El; close:
 export function applyTagVars(node: El, ctx: SettingsCtx): void {
   cssVar(node, "--io-opacity-left", String(num(ctx, "visual.tags.opacityLeft") / 100));
   cssVar(node, "--io-opacity-right", String(num(ctx, "visual.tags.opacityRight") / 100));
-  cssVar(node, "--io-text-scale", String(num(ctx, "visual.tags.textSizePct") / 100));
+  cssVar(node, "--io-text-scale-left", String(num(ctx, "visual.tags.textSizePctLeft") / 100));
+  cssVar(node, "--io-text-scale-right", String(num(ctx, "visual.tags.textSizePctRight") / 100));
   cssVar(node, "--io-bubble-x", String(num(ctx, "visual.tags.bubbleWidthPct") / 100));
   cssVar(node, "--io-bubble-y", String(num(ctx, "visual.tags.bubbleHeightPct") / 100));
   cssVar(node, "--io-empty-x", String(num(ctx, "visual.tags.emptyBubblePct") / 100));
@@ -183,7 +184,8 @@ const TAG_PATHS = [
   /* Заливка блоков (З-7): предпросмотр обязан показывать её сразу (У-24). */
   "visual.tags.blockFill",
   "visual.tags.opacityRight",
-  "visual.tags.textSizePct",
+  "visual.tags.textSizePctLeft",
+  "visual.tags.textSizePctRight",
   "visual.tags.bubbleWidthPct",
   "visual.tags.bubbleHeightPct",
   "visual.tags.emptyBubblePct",
@@ -746,7 +748,8 @@ const LINE_PATHS = [
   "pkm.lineFormat.separator2",
   "visual.tags.opacityLeft",
   "visual.tags.opacityRight",
-  "visual.tags.textSizePct",
+  "visual.tags.textSizePctLeft",
+  "visual.tags.textSizePctRight",
   "visual.tags.bubbleWidthPct",
   "visual.tags.bubbleHeightPct",
   "visual.tags.cornersPct",

@@ -583,6 +583,8 @@
   --io-opacity-left: 1;
   --io-opacity-right: 1;
   --io-text-scale: 1;
+  --io-text-scale-left: 1;
+  --io-text-scale-right: 1;
   --io-bubble-x: 1;
   --io-bubble-y: 1;
   --io-empty-x: 1;
@@ -762,6 +764,16 @@
   opacity: var(--io-opacity-right);
 }
 
+/*
+ * Кегль у каждой стороны свой (его слово 2026-09-19, пункт 2). Величина
+ * приезжает на строку двумя именами, а сторона подставляет своё в
+ * `--io-text-scale` — ту переменную, которую уже читают пузырь, элемент и
+ * ячейка панели TagWheel. Так правило объявлено один раз, а не в каждом из
+ * них по два.
+ */
+.io-line__side--left { --io-text-scale: var(--io-text-scale-left, 1); }
+.io-line__side--right { --io-text-scale: var(--io-text-scale-right, 1); }
+
 /* Пузырь получает только тег. Ссылка и элемент остаются обычным текстом. */
 .io-bubble {
   display: inline-block;
@@ -790,6 +802,10 @@
   color: var(--text-muted);
 }
 .io-link {
+  /* Кегль ссылка слушает наравне с элементом (его замечание 2026-09-19,
+     пункт 6): в заметке его ставит `buildBlockStyleCss` на любой токен зоны, а
+     здесь правила не было вовсе — и `[[…]]` оставался исходного размера. */
+  font-size: calc(11.5px * var(--io-text-scale));
   color: var(--text-accent);
 }
 

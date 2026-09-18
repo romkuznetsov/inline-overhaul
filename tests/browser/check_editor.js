@@ -391,7 +391,7 @@ async function main() {
      * сам выше строки, и без прижима подложки соседних строк наезжают.
      */
     const fat = await page.evaluate(async () => {
-      await window.__ioSetTags({ textSizePct: 140, bubbleHeightPct: 140 });
+      await window.__ioSetTags({ textSizePctLeft: 140, textSizePctRight: 140, bubbleHeightPct: 140 });
       await window.__ioSetBand({ heightPct: 100 });
       return window.__ioEditorProbe();
     });
@@ -435,7 +435,7 @@ async function main() {
         + " при строке " + fat.lineHeight + " — прижим снят");
     }
     await page.evaluate(async () => {
-      await window.__ioSetTags({ textSizePct: 80, bubbleHeightPct: 80 });
+      await window.__ioSetTags({ textSizePctLeft: 80, textSizePctRight: 80, bubbleHeightPct: 80 });
       await window.__ioSetBand({ heightPct: 40 });
     });
 
@@ -895,8 +895,8 @@ async function main() {
       await window.__ioSetTags(p);
       return window.__ioBubblesByZone();
     }, patch);
-    const smallZones = await zonesAt({ textSizePct: 100, bubbleHeightPct: 100, bubbleWidthPct: 100 });
-    const bigZones = await zonesAt({ textSizePct: 140, bubbleHeightPct: 140, bubbleWidthPct: 140 });
+    const smallZones = await zonesAt({ textSizePctLeft: 100, textSizePctRight: 100, bubbleHeightPct: 100, bubbleWidthPct: 100 });
+    const bigZones = await zonesAt({ textSizePctLeft: 140, textSizePctRight: 140, bubbleHeightPct: 140, bubbleWidthPct: 140 });
     const pick = (rows, zone) => rows.filter((b) => b.zone === zone);
     /*
      * Порог до вывода (У-88): предмет обязан быть на странице. Пузырь в тексте
@@ -1035,7 +1035,7 @@ async function main() {
         + " пузыря — значит «дефолтного нет» выполняется тем, что слой туда не дошёл вовсе");
     }
     await page.evaluate(async () => {
-      await window.__ioSetTags({ textSizePct: 80, bubbleHeightPct: 80, bubbleWidthPct: 80 });
+      await window.__ioSetTags({ textSizePctLeft: 80, textSizePctRight: 80, bubbleHeightPct: 80, bubbleWidthPct: 80 });
     });
 
     /* ---- 11. Оверлей скроллера TagWheel ------------------------------- */

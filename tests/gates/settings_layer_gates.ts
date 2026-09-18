@@ -877,7 +877,7 @@ else ok("схема загружена: групп " + SCHEMA.length);
     } else {
       /* Механизм жив? Путь из списка, на который подписан предпросмотр тегов. */
       const wokeAt = nodeCount();
-      await store.set("visual.tags.textSizePct", 123);
+      await store.set("visual.tags.textSizePctLeft", 123);
       const woke = nodeCount() - wokeAt;
 
       /* Бюджет: настройка с другой вкладки, на которую не подписан никто. */
@@ -890,7 +890,7 @@ else ok("схема загружена: групп " + SCHEMA.length);
 
       const BUDGET_NODES = 10;
       if (woke <= 0) {
-        fail("бюджет: запись в `visual.tags.textSizePct` не разбудила ни один блок. "
+        fail("бюджет: запись в `visual.tags.textSizePctLeft` не разбудила ни один блок. "
           + "Либо сломано пробуждение, либо этот замер больше ничего не меряет");
       } else if (quiet > BUDGET_NODES) {
         fail("бюджет: запись в `" + quietPath + "` создала " + quiet

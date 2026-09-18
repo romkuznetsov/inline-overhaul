@@ -8700,11 +8700,11 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:1987 | — | `features.pkm.enabled` | Tags & PKM (`module-pkm`, Modules) |
 | перенесено | R:1987 | — | `features.visual.enabled` | Visual (`module-visual`, Modules) |
 | перенесено | R:1987 | — | `features.transform.enabled` | Transform (`module-transform`, Modules) |
-| перенесено | R:2020 | `Enhanced Mod+A` | `editor.selectAll.enabled` | Expanded 'Ctrl+A' (`select-all-enabled`, Expanded 'Ctrl+A' ('⌘+A')) |
-| перенесено | R:2029 | `Select-all mode` | `editor.selectAll.mode` | Selection steps (`select-all-steps`, Expanded 'Ctrl+A' ('⌘+A')) |
-| перенесено | R:2043 | `Use multi-press delay` | `editor.selectAll.useDelay` | Count presses by timer (`select-all-timer`, Expanded 'Ctrl+A' ('⌘+A')) |
-| перенесено | R:2053 | `Multi-press delay` | `editor.selectAll.delayMs` | Time between presses (`select-all-delay`, Expanded 'Ctrl+A' ('⌘+A')) |
-| перенесено | R:2066 | `Last press clears selection` | `editor.selectAll.clearOnLast` | Last press clears highlighting (`select-all-clear`, Expanded 'Ctrl+A' ('⌘+A')) |
+| перенесено | R:2020 | `Enhanced Mod+A` | `editor.selectAll.enabled` | Expanded 'Ctrl+A' (`select-all-enabled`, Global hotkeys) |
+| перенесено | R:2029 | `Select-all mode` | `editor.selectAll.mode` | Selection steps (`select-all-steps`, Global hotkeys) |
+| перенесено | R:2043 | `Use multi-press delay` | `editor.selectAll.useDelay` | Count presses by timer (`select-all-timer`, Global hotkeys) |
+| перенесено | R:2053 | `Multi-press delay` | `editor.selectAll.delayMs` | Time between presses (`select-all-delay`, Global hotkeys) |
+| перенесено | R:2066 | `Last press clears selection` | `editor.selectAll.clearOnLast` | Last press clears highlighting (`select-all-clear`, Global hotkeys) |
 | перенесено | R:1688 | `Enable Move Line` / `Command IDs: …` | `navigation.moveLine.enabled` | Move lines (`move-lines-enabled`, Moving lines (up and down)) |
 | перенесено | R:1698 | `No-selection mode` | `navigation.moveLine.noSelectionMode` | Moving behavior (`move-lines-no-selection`, Moving lines (up and down)) |
 | перенесено | R:1709 | `Header mode` | `navigation.moveLine.headerMode` | Moving headers (`move-lines-heading`, Moving lines (up and down)) |
@@ -8738,7 +8738,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | перенесено | R:6209 | `Tag/Subtag priority` | `pkm.prefixPriority.parentOrChild` | Parent or child wins (`prefix-priority-parent`, Prefix priority) |
 | перенесено | R:753 | `Opacity Left` | `visual.tags.opacityLeft` | Opacity of the Left Block (`tags-opacity-left`, Inline appearance) |
 | перенесено | R:814 | `Opacity Right` | `visual.tags.opacityRight` | Opacity of the Right Block (`tags-opacity-right`, Inline appearance) |
-| перенесено | R:875 | `Tag text size` | `visual.tags.textSizePct` | Text size (`tags-text-size`, Inline appearance) |
+| перенесено (по searchTerms) | R:875 | `Tag text size` | `visual.tags.textSizePctLeft` | Left Block text size (`tags-text-size-left`, Inline appearance) |
 | перенесено | R:941 | `Tag bubble size - width` | `visual.tags.bubbleWidthPct` | Tags bubble width (`tags-bubble-width`, Inline appearance) |
 | перенесено | R:1007 | `Tag bubble size - height` | `visual.tags.bubbleHeightPct` | Tag bubble height (`tags-bubble-height`, Inline appearance) |
 | перенесено | R:1073 | `Empty bubble size` | `visual.tags.emptyBubblePct` | Empty tags bubble width (`tags-empty-bubble`, Inline appearance) |
@@ -8790,26 +8790,27 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (62)
+### Пути, которых не было в описи v1.0 (63)
 
 | путь | настройка | группа |
 |------|-----------|--------|
 | `general.language` | Language (`ui-language`) | Language |
 | `general.help.showCallouts` | Show callouts (`show-callouts`) | Help |
 | `general.help.showTips` | Show tips (`show-tips`) | Help |
-| `editor.smartDelete.enabled` | Smart Delete (`smart-delete-enabled`) | Smart Delete\Backspace |
-| `editor.smartDelete.onBackspace` | Smart backspace (`smart-delete-backspace`) | Smart Delete\Backspace |
-| `editor.smartDelete.dropPrefix` | Drop the line Prefix (`smart-delete-prefix`) | Smart Delete\Backspace |
-| `editor.smartDelete.joinWithSpace` | Join with a space (`smart-delete-space`) | Smart Delete\Backspace |
-| `editor.smartEnter.enabled` | Smart Enter (`smart-enter-enabled`) | Smart Enter |
-| `editor.smartEnter.scope` | Where it works (`smart-enter-scope`) | Smart Enter |
-| `editor.smartEnter.newLinePrefix` | Prefix on the new line (`smart-enter-prefix`) | Smart Enter |
+| `editor.smartDelete.enabled` | Smart Delete (`smart-delete-enabled`) | Global hotkeys |
+| `editor.smartDelete.onBackspace` | Smart backspace (`smart-delete-backspace`) | Global hotkeys |
+| `editor.smartDelete.dropPrefix` | Drop the line Prefix (`smart-delete-prefix`) | Global hotkeys |
+| `editor.smartDelete.joinWithSpace` | Join with a space (`smart-delete-space`) | Global hotkeys |
+| `editor.smartEnter.enabled` | Smart Enter (`smart-enter-enabled`) | Global hotkeys |
+| `editor.smartEnter.scope` | Where it works (`smart-enter-scope`) | Global hotkeys |
+| `editor.smartEnter.newLinePrefix` | Prefix on the new line (`smart-enter-prefix`) | Global hotkeys |
 | `navigation.moveLine.keepInView` | Follow the moved line (`move-lines-view`) | Moving lines (up and down) |
 | `navigation.moveLine.viewPosition` | Where the line lands (`move-lines-view-position`) | Moving lines (up and down) |
 | `navigation.moveSelection.inlineWordEscape` | Step out of the word (`move-text-word-escape`) | Move left and move right |
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
+| `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
 | `visual.tags.blockFill.enabled` | Color the Blocks (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.color` | Block color (`tags-block-fill-color`) | Inline appearance |
 | `visual.tags.blockFill.opacity` | Block color strength (`tags-block-fill-opacity`) | Inline appearance |
@@ -16071,10 +16072,10 @@ python tests/prototype/update_prd.py
 | # | Вкладка | Тумблер модуля | Групп | Настроек | Своих блоков |
 |---|---------|----------------|-------|----------|--------------|
 | 1 | General | — | 4 | 8 | 1 |
-| 2 | Keyboard | — | 6 | 13 | 4 |
+| 2 | Keyboard | — | 4 | 13 | 7 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 8 | 51 | 8 |
+| 5 | Visual | `features.visual.enabled` | 8 | 52 | 10 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -16095,9 +16096,7 @@ python tests/prototype/update_prd.py
 | order | id | Заголовок | Intro | Tip | Видимость зависит от |
 |-------|----|-----------|-------|-----|----------------------|
 | 50 | `keyboard-intro` | Before you start | — | — | `general.help.showCallouts` |
-| 100 | `select-all` | Expanded 'Ctrl+A' ('⌘+A') | <code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection | да | — |
-| 150 | `smart-delete` | Smart Delete\Backspace | <code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind | да | — |
-| 175 | `smart-enter` | Smart Enter | <code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone | да | — |
+| 100 | `global-hotkeys` | Global hotkeys | Three keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, and <code>Enter</code> — taught to do the obvious thing inside a line of yours | да | — |
 | 200 | `binder` | Binder (custom insert commands) | For text you type over and over. Put it in a row here, give that row a key, and one press drops it in wherever your cursor is | да | — |
 | 300 | `command-reference` | Commands & Hotkeys | Everything this plugin can do, in one list. None of it has a key until you give it one — click in the <code>Hotkey</code> column to do that | да | — |
 
@@ -16271,12 +16270,13 @@ _Tip:_ Turning an area off is not the same as leaving it alone. Its commands dis
 
 - **`keyboard-callout`** — свой блок, рендерер `renderTabCallout`
 
-#### Expanded 'Ctrl+A' ('⌘+A') — `select-all` (вкладка `keyboard`)
+#### Global hotkeys — `global-hotkeys` (вкладка `keyboard`)
 
-_Intro:_ <code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection
+_Intro:_ Three keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, and <code>Enter</code> — taught to do the obvious thing inside a line of yours
 
-_Tip:_ Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it
+_Tip:_ Nothing here rebinds a key: all three stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The three sections below are independent: switch on the one you want and the other two stay as they were
 
+- **`select-all-sub`** — свой блок, рендерер `?`
 - **Expanded 'Ctrl+A'** — `select-all-enabled`, `toggle`, path `editor.selectAll.enabled`, default `false`
   - desc: Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen
   - tip: On a task list the first press takes just the task you are on, the second the task and its tree, and the last the whole note. Press <code>Ctrl/Cmd + A</code> once more with the last option below on, and the cursor goes back where it started
@@ -16309,13 +16309,7 @@ _Tip:_ Obsidian gives that key one step: the whole note. Here it becomes a ladde
   - tip: Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect
   - выключена если: `editor.selectAll.enabled`
   - старые названия для поиска: «Last press clears selection», «One more press clears it»
-
-#### Smart Delete\Backspace — `smart-delete` (вкладка `keyboard`)
-
-_Intro:_ <code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind
-
-_Tip:_ Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Standing on an empty line the key stays Obsidian’s own: there is nothing to join the words to, so the line below arrives exactly as it is written, its indent and its marker included. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did
-
+- **`smart-delete-sub`** — свой блок, рендерер `?`
 - **Smart Delete** — `smart-delete-enabled`, `toggle`, path `editor.smartDelete.enabled`, default `false`
   - desc: Let <code>Del</code> at the end of a line bring up the words without the indent and the Prefix
   - tip: Nothing here rebinds the key: <code>Del</code> stays Obsidian’s, and this only changes what happens in the one case where it joins two lines. Off, the key behaves as it always has. <code>Smart backspace</code> below is a switch of its own and does not need this one
@@ -16334,13 +16328,7 @@ _Tip:_ Press <code>Del</code> with the cursor at the end of a line and Obsidian 
   - tip: Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above
   - выключена если: `editor.smartDelete.enabled, editor.smartDelete.onBackspace`
   - старые названия для поиска: «Add a space»
-
-#### Smart Enter — `smart-enter` (вкладка `keyboard`)
-
-_Intro:_ <code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone
-
-_Tip:_ A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. In every line that carries no Separator of yours the key stays Obsidian’s own and behaves as it always has
-
+- **`smart-enter-sub`** — свой блок, рендерер `?`
 - **Smart Enter** — `smart-enter-enabled`, `toggle`, path `editor.smartEnter.enabled`, default `false`
   - desc: Let <code>Enter</code> add a line instead of splitting the one you are on
   - tip: Nothing here rebinds the key: <code>Enter</code> stays Obsidian’s, and this only changes what happens inside a line of yours. Off, the key behaves as it always has
@@ -16859,9 +16847,10 @@ _Tip:_ Rules are read from the top, the first one that fits is used, and anythin
 
 _Intro:_ How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file
 
-_Tip:_ Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. <b>Color Left\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab
+_Tip:_ Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. <b>Line view</b> below them is about the Blocks as a whole — how big each one is written, and the band behind it; <b>Tag view</b> is about the bubble a tag is drawn in. <b>Color Left\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab
 
 - **`tag-preview`** — свой блок, рендерер `renderTagPreview`
+- **`line-view-sub`** — свой блок, рендерер `?`
 - **Opacity of the Left Block** — `tags-opacity-left`, `slider`, path `visual.tags.opacityLeft`, default `100`
   - desc: Dims everything written before your text, tags and elements alike
   - tip: Dimming is not hiding: at 0 the Left Block is still on the line, still searchable and still moved by the commands — it just steps out of the way while you read. Most people take it down a little so the sentence leads and the tags follow
@@ -16873,6 +16862,16 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works
   - диапазон: 0–100, шаг 1, ед. %
   - старые названия для поиска: «Opacity Right»
+- **Left Block text size** — `tags-text-size-left`, `slider`, path `visual.tags.textSizePctLeft`, default `100`
+  - desc: How big everything before your text is written, next to the rest of your note
+  - tip: This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom
+  - диапазон: 50–140, шаг 5, ед. %
+  - старые названия для поиска: «Tag text size», «Text size Left»
+- **Right Block text size** — `tags-text-size-right`, `slider`, path `visual.tags.textSizePctRight`, default `100`
+  - desc: How big everything after your text is written, next to the rest of your note
+  - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line
+  - диапазон: 50–140, шаг 5, ед. %
+  - старые названия для поиска: «Tag text size», «Text size Right»
 - **Color the Blocks** — `tags-block-fill`, `toggle`, path `visual.tags.blockFill.enabled`, default `false`
   - desc: A band behind the Left Block and the Right Block, so the two stand out from your text
   - tip: The band runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no band. The band sits <b>behind</b> the writing, so everything on the line stays selectable and clickable. Tag bubbles carry their own color, so a Block of one tag would hide the band completely — the two rows at the bottom are how far it reaches past the writing, and that is what makes it show at all
@@ -16896,11 +16895,7 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: The scale has three landmarks. At <code>0</code> the band starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says
   - диапазон: 0–100, шаг 5, ед. %
   - видна если: `visual.tags.blockFill.enabled`
-- **Text size** — `tags-text-size`, `slider`, path `visual.tags.textSizePct`, default `100`
-  - desc: How big everything in the two Blocks is written, next to the rest of your note
-  - tip: This reaches the whole of both Blocks, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Blocks step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100
-  - диапазон: 50–140, шаг 5, ед. %
-  - старые названия для поиска: «Tag text size»
+- **`tag-view-sub`** — свой блок, рендерер `?`
 - **Tags bubble width** — `tags-bubble-width`, `slider`, path `visual.tags.bubbleWidthPct`, default `100`
   - desc: How much breathing room there is either side of the word
   - tip: This is the padding either side of the word, not the word itself: the writing keeps its size, the bubble around it grows. At the bottom of the scale the word starts almost at the edge of the bubble; above 100 the bubbles read as separate chips even in a crowded Block
@@ -16911,17 +16906,17 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read. At the bottom of the scale the bubble closes in on the word from above and below
   - диапазон: 20–140, шаг 5, ед. %
   - старые названия для поиска: «Tag bubble size - height», «Bubble height»
+- **Tags bubble corners** — `tags-corners`, `slider`, path `visual.tags.cornersPct`, default `0`
+  - desc: Slide from fully rounded to completely square
+  - tip: At 0 the bubble is a pill, at 100 a rectangle. Nothing else changes — the same colour, the same padding, the same size of writing. Square corners read as denser and pair well with narrow bubbles
+  - диапазон: 0–100, шаг 1
+  - старые названия для поиска: «Tag shape», «Bubble corners»
 - **Empty tags bubble width** — `tags-empty-bubble`, `slider`, path `visual.tags.emptyBubblePct`, default `100`
   - desc: Width of a bubble whose <code>Show</code> is set to <code>empty</code>
   - tip: Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets
   - диапазон: 10–180, шаг 5, ед. %
   - см. также: `field-editor` — Set a Value to empty under Fields
   - старые названия для поиска: «Empty bubble size», «Empty bubble width»
-- **Tags bubble corners** — `tags-corners`, `slider`, path `visual.tags.cornersPct`, default `0`
-  - desc: Slide from fully rounded to completely square
-  - tip: At 0 the bubble is a pill, at 100 a rectangle. Nothing else changes — the same colour, the same padding, the same size of writing. Square corners read as denser and pair well with narrow bubbles
-  - диапазон: 0–100, шаг 1
-  - старые названия для поиска: «Tag shape», «Bubble corners»
 
 #### Color your Tags — `user-tag-colors` (вкладка `visual`)
 
@@ -17303,7 +17298,8 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tags.emptyBubblePct` | slider | `100` |
 | `visual.tags.opacityLeft` | slider | `100` |
 | `visual.tags.opacityRight` | slider | `100` |
-| `visual.tags.textSizePct` | slider | `100` |
+| `visual.tags.textSizePctLeft` | slider | `100` |
+| `visual.tags.textSizePctRight` | slider | `100` |
 | `visual.tagWheel.activeField.left` | dropdown | `""` |
 | `visual.tagWheel.activeField.mode` | dropdown | `first` |
 | `visual.tagWheel.activeField.right` | dropdown | `""` |

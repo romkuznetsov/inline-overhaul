@@ -38,7 +38,7 @@ const allDefs = (pane: SettingsPane): Def[] => pane.getSettingDefinitions() as u
  * в шести местах при каждом переименовании (замечание заказчика 1.2.1.1).
  */
 const SELECT_ALL_HEADING = String(
-  SCHEMA.find(g => g.id === "select-all")?.heading || "");
+  SCHEMA.find(g => g.id === "global-hotkeys")?.heading || "");
 /* То же и по той же причине: группа `tag-appearance` переименована в
    `Inline appearance` (замечание заказчика 2026-09-04), и адрес брать надо у
    схемы, а не переписывать заголовок в семи местах. */
@@ -255,8 +255,8 @@ async function main(): Promise<void> {
   });
 
   await test("перенесены все группы с настройками", () => {
-    assert.equal(SCHEMA.length, 40,
-      "групп в схеме: 24 с настройками, 7 вводных коллаутов, группа Fields, "
+    assert.equal(SCHEMA.length, 38,
+      "групп в схеме: 22 с настройками, 7 вводных коллаутов, группа Fields, "
       + "группа Smart Rules, группа Binder, группа `Color your Tags` и группа "
       + "`Commands & Hotkeys`. Группа `Options IDs` добавлена 2026-08-28 по "
       + "заказу, Binder перенесён 2026-08-29, `Color your Tags` заведена в тот "
@@ -271,10 +271,12 @@ async function main(): Promise<void> {
       + "текстов (10.13.38), а `TagWheel opening` — 2026-09-12 вместе с контролом ведущего поля (10.13.76). "
       + "Группа `Smart Enter` заведена 2026-09-13 по его заказу (10.13.88): . Группа `Links in the notes you mention` заведена 2026-09-17 по его заказу Н4 (10.13.184): ссылка на новую заметку уезжает в те заметки, на которые ссылалась строка. Своей группы у скроллера нет: 2026-09-17 он получил субхедер внутри `TagWheel` его словом «я хочу, чтобы все настройки tagwheel были в одном месте», и предел в двенадцать строк с тех пор считается по разделу, а не по группе (Г11). Группа `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек»: строки не новые — они ушли из группы `Moving cursor inside a note` вместе со своей веткой конфига"
       + "заголовок соседней названа двумя клавишами, и третья в него не "
-      + "помещается");
+      + "помещается. Три группы вкладки Keyboard сведены в одну 2026-09-19 его словом "
+      + "«сделай в Keyboard хедер Global hotkeys, чтобы у него были субхедеры select-all, "
+      + "smart-delete, smart-enter»: заголовков стало на два меньше, а строк — столько же");
     const bound = SCHEMA.flatMap(g => g.items).filter(isBound);
-    assert.equal(bound.length, 144,
-      "настроек, привязанных к путям конфига. Строка `Chosen Value text color` добавлена 2026-09-17 по его заказу: у неактивного Field имя поля и выбранное значение рисовались одним цветом. Тумблер `Floating button` снят "
+    assert.equal(bound.length, 145,
+      "настроек, привязанных к путям конфига. Кегль Block разведён на две строки 2026-09-19 по его слову (`Text size of the Left Block` и `Text size of the Right Block`), прежняя одна снята. Строка `Chosen Value text color` добавлена 2026-09-17 по его заказу: у неактивного Field имя поля и выбранное значение рисовались одним цветом. Тумблер `Floating button` снят "
       + "2026-08-29: за ним нет движка, а контрол без движка в панели не "
       + "показывается (Ж2, З8). Путь папки копий добавлен 2026-08-31 (10.13.2). "
       + "Две строки `Source line` добавлены 2026-09-01: судьба текста и число "
@@ -375,8 +377,8 @@ async function main(): Promise<void> {
     for (const id of AWAITED) {
       assert.ok(!have.has(id), id + " уже в схеме: обновите список ожидающих");
     }
-    assert.equal(SCHEMA.length + AWAITED.length, 40,
-      "40 групп прототипа разложены без остатка: `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Moving cursor inside a note`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), группа `TagWheel opening` заведена 2026-09-12 вместе с контролом ведущего поля (10.13.76), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Links in the notes you mention` — 2026-09-17 по его заказу Н4 (10.13.184)");
+    assert.equal(SCHEMA.length + AWAITED.length, 38,
+      "38 групп прототипа разложены без остатка: три группы вкладки Keyboard сведены в одну 2026-09-19 его словом про хедер Global hotkeys с тремя субхедерами; `Jump highlight` заведена 2026-09-17 его словом «перенеси все настройки jump-flash в Visual отдельным блоком настроек» — строки не новые, они ушли из группы `Moving cursor inside a note`; группа Note properties удалена 2026-08-28 (её настройки уехали к Field, 10.9), группа Options IDs добавлена в тот же день, Binder перенесён 2026-08-29, тогда же заведена группа Color your Tags, Backup заведена 2026-08-31 (10.13.2), а Config note и Generated files сняты 2026-09-03 вместе с конфиг-заметкой (10.12); Smart Delete и Text cursor заведены 2026-09-05 вечером по заказу (10.13.32 и 10.13.33), а Language — 2026-09-06 вместе с каталогом текстов (10.13.38), группа `TagWheel opening` заведена 2026-09-12 вместе с контролом ведущего поля (10.13.76), `Smart Enter` — 2026-09-13 по его заказу (10.13.88), а `Links in the notes you mention` — 2026-09-17 по его заказу Н4 (10.13.184)");
   });
 
   await test("кнопка действия гаснет на время работы (5.6)", async () => {
@@ -624,7 +626,7 @@ async function main(): Promise<void> {
    */
   await test("настройки склейки живут, пока включена хотя бы одна из двух клавиш", () => {
     const { pane, store } = makePane();
-    const items = groupOf(pane, "keyboard", "Smart Delete\\Backspace")?.items || [];
+    const items = groupOf(pane, "keyboard", SELECT_ALL_HEADING)?.items || [];
     const back = items.find((i: Def) => i.name === "Smart backspace");
     const prefix = items.find((i: Def) => i.name === "Drop the line Prefix");
     const space = items.find((i: Def) => i.name === "Join with a space");
@@ -883,13 +885,18 @@ async function main(): Promise<void> {
   });
 
   await test("оформление тегов уезжает в переменные, а не в стили (Г1)", () => {
+    /* Стороны разведены нарочно: на равных числах переворот «левое левой»
+       прошёл бы незамеченным (У-147). */
     const { pane } = makePane({
-      visual: { tags: { opacityLeft: 40, textSizePct: 120, cornersPct: 100 } },
+      visual: { tags: {
+        opacityLeft: 40, textSizePctLeft: 120, textSizePctRight: 70, cornersPct: 100,
+      } },
     });
     const host = drawBlock(blockOf(pane, "visual", TAG_APPEARANCE_HEADING));
     const line = host.querySelector(".io-line");
     assert.equal(line?.style.getPropertyValue("--io-opacity-left"), "0.4");
-    assert.equal(line?.style.getPropertyValue("--io-text-scale"), "1.2");
+    assert.equal(line?.style.getPropertyValue("--io-text-scale-left"), "1.2");
+    assert.equal(line?.style.getPropertyValue("--io-text-scale-right"), "0.7");
     /* 100% «квадратности» — это ноль скругления */
     assert.equal(line?.style.getPropertyValue("--io-corners"), "0");
   });

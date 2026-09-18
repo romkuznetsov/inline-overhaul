@@ -239,7 +239,7 @@ const PREFIX_PRIORITY_DEFAULTS: Record<string, unknown> = {
 
   check("navigation.moveSelection.cycleOrder", ["##", "- ", ""],
     "цикл Prefix задан старым именем `leftToRight`");
-  check("visual.tags.textSizePct", 133,
+  check("visual.tags.textSizePctLeft", 133,
     "размер тегов задан старым именем `tagSizePct`");
   check("editor.selectAll.delayMs", 1234,
     "задержка задана старым именем `multiPressWindowMs`");

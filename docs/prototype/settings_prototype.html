@@ -466,6 +466,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* ============================================================ Previews */
 .io-preview {
   --io-opacity-left: 1; --io-opacity-right: 1; --io-text-scale: 1;
+  --io-text-scale-left: 1; --io-text-scale-right: 1;
   --io-bubble-x: 1; --io-bubble-y: 1; --io-empty-x: 1; --io-corners: 1;
   --io-bar-thickness: 3px; --io-bar-gap: 6px; --io-bar-distance: 14px;
 
@@ -547,6 +548,12 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 }
 .io-line__hint { font-size: 11px; color: var(--text-faint); font-style: italic; }
 
+/* One text size per side: the line carries both, each side picks its own into
+   `--io-text-scale`, which the bubble, the element and the picker cell already
+   read. */
+.io-line__side--left { --io-text-scale: var(--io-text-scale-left, 1); }
+.io-line__side--right { --io-text-scale: var(--io-text-scale-right, 1); }
+
 /* Only tags get bubbles. Links and elements stay plain text. */
 .io-bubble {
   display: inline-block; white-space: nowrap;
@@ -566,7 +573,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   padding-left: 0; padding-right: 0; color: transparent;
 }
 .io-elem { font-family: var(--font-mono); font-size: calc(11.5px * var(--io-text-scale)); color: var(--text-muted); }
-.io-link { color: var(--text-accent); }
+.io-link { font-size: calc(11.5px * var(--io-text-scale)); color: var(--text-accent); }
 
 /* Level bars. One bar per nesting level of the chosen field, and a bar runs
    the whole height of the subtree it belongs to — so nesting the markup is
@@ -1804,11 +1811,27 @@ const SCHEMA = [
 },
 
 /* ============================================================ KEYBOARD */
+/*
+ * **Одна группа на три клавиши — заказ заказчика 2026-09-19, пункт 4:**
+ * «сделай в Keyboard хедер Global hotkeys, чтобы у него были субхедеры
+ * select-all, smart-delete, smart-enter… названия должны быть как у текущих
+ * хедеров».
+ *
+ * Прежде это были три группы подряд, и общего у них ровно то, что делает их
+ * одной: все три меняют поведение клавиши, которая принадлежит Obsidian, и ни
+ * одна её не перепривязывает. Умолчание у всех трёх выключено по той же
+ * причине.
+ *
+ * **Вводные фразы групп не выброшены:** у субхедера своего `intro` нет, и
+ * каждая встала первой строкой в подсказку своего субхедера.
+ */
 {
-  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A' ('⌘+A')",
-  intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection",
-  tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it",
+  id: "global-hotkeys", tab: "keyboard", order: 100, heading: "Global hotkeys",
+  intro: "Three keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, and <code>Enter</code> — taught to do the obvious thing inside a line of yours",
+  tip: "Nothing here rebinds a key: all three stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The three sections below are independent: switch on the one you want and the other two stay as they were",
   items: [
+    { kind:"custom", id:"select-all-sub", render: renderSubheader("Expanded 'Ctrl+A' ('⌘+A')",
+        "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection. Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it") },
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
       name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
       searchTerms:["Enhanced Mod+A","Expanded select all"],
@@ -1847,21 +1870,18 @@ const SCHEMA = [
     { kind:"toggle", id:"select-all-clear", path:"editor.selectAll.clearOnLast", default:false,
       name:"Last press clears highlighting", desc:"After the last step, pressing again drops the selection and returns the cursor",
       tip:"Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
-      searchTerms:["Last press clears selection", "One more press clears it"], disabled: not("editor.selectAll.enabled") }
-  ]
-},
-/* Заказ заказчика 2026-09-05, вечер (PRD 10.13.32). Стоит над `Binder`, как он
-   и просил: между `Expanded 'Ctrl+A'` (100) и `Binder` (200). Умолчания
-   выключены по той же причине, что у `Ctrl+A`, — клавиши принадлежат Obsidian.
+      searchTerms:["Last press clears selection", "One more press clears it"], disabled: not("editor.selectAll.enabled") },
 
-   Заказчик 2026-09-05, поздний вечер (замечания G1.1–G1.5): заголовок называет
-   обе клавиши, `Backspace` стоит вторым и включается сам по себе, а два нижних
-   тумблера относятся к обеим клавишам сразу — отсюда `neither`. */
-{
-  id: "smart-delete", tab: "keyboard", order: 150, heading: "Smart Delete\\Backspace",
-  intro: "<code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind",
-  tip: "Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Standing on an empty line the key stays Obsidian’s own: there is nothing to join the words to, so the line below arrives exactly as it is written, its indent and its marker included. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did",
-  items: [
+    /* Заказ заказчика 2026-09-05, вечер (PRD 10.13.32). Стоит после `Ctrl+A` и
+       перед `Smart Enter`, как он и просил. Умолчания выключены по той же
+       причине, что у `Ctrl+A`, — клавиши принадлежат Obsidian.
+
+       Заказчик 2026-09-05, поздний вечер (замечания G1.1–G1.5): подпись
+       называет обе клавиши, `Backspace` стоит вторым и включается сам по себе,
+       а два нижних тумблера относятся к обеим клавишам сразу — отсюда
+       `neither`. */
+    { kind:"custom", id:"smart-delete-sub", render: renderSubheader("Smart Delete\\Backspace",
+        "<code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind. Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Standing on an empty line the key stays Obsidian’s own: there is nothing to join the words to, so the line below arrives exactly as it is written, its indent and its marker included. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did") },
     { kind:"toggle", id:"smart-delete-enabled", path:"editor.smartDelete.enabled", default:false,
       name:"Smart Delete", desc:"Let <code>Del</code> at the end of a line bring up the words without the indent and the Prefix",
       searchTerms:["Smart Del","Delete the junk"],
@@ -1882,23 +1902,19 @@ const SCHEMA = [
     { kind:"toggle", id:"smart-delete-space", path:"editor.smartDelete.joinWithSpace", default:true,
       name:"Join with a space", desc:"Put one space between your text and the text that arrives, so the two do not run together",
       searchTerms:["Add a space"], disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
-      tip:"Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above" }
-  ]
-},
-/* Smart Enter: заказ заказчика 2026-09-12. Его словами: «команда smart enter,
-   которая при on меняет поведение enter в строке, когда курсор находится до
-   сепаратора 2… вместо переноса текста вставлялась новая пустая строка, а
-   предыдущая оставалась неизменной».
+      tip:"Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above" },
 
-   **Своя группа, а не строки в `Smart Delete\Backspace`.** Та названа двумя
-   клавишами, и третья в её заголовок не помещается; у групп вкладки и так
-   заголовок — имя клавиши. Умолчание выключено, как у обеих соседних: клавиша
-   принадлежит Obsidian, и менять её поведение всем без спроса нельзя. */
-{
-  id: "smart-enter", tab: "keyboard", order: 175, heading: "Smart Enter",
-  intro: "<code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone",
-  tip: "A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. In every line that carries no Separator of yours the key stays Obsidian’s own and behaves as it always has",
-  items: [
+    /* Smart Enter: заказ заказчика 2026-09-12. Его словами: «команда smart enter,
+       которая при on меняет поведение enter в строке, когда курсор находится до
+       сепаратора 2… вместо переноса текста вставлялась новая пустая строка, а
+       предыдущая оставалась неизменной».
+
+       **Свой раздел, а не строки под подписью `Smart Delete\Backspace`.** Та
+       названа двумя клавишами, и третья в неё не помещается. Умолчание
+       выключено, как у обеих соседних: клавиша принадлежит Obsidian, и менять
+       её поведение всем без спроса нельзя. */
+    { kind:"custom", id:"smart-enter-sub", render: renderSubheader("Smart Enter",
+        "<code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone. A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. In every line that carries no Separator of yours the key stays Obsidian’s own and behaves as it always has") },
     { kind:"toggle", id:"smart-enter-enabled", path:"editor.smartEnter.enabled", default:false,
       name:"Smart Enter", desc:"Let <code>Enter</code> add a line instead of splitting the one you are on",
       searchTerms:["Smart Enter","Do not split the line"],
@@ -2253,9 +2269,17 @@ const SCHEMA = [
 {
   id: "tag-appearance", tab: "visual", order: 100, heading: "Inline appearance",
   intro: "How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
-  tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. The size and shape rows below them apply to the same two Blocks. <b>Color Left\\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
+  tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. <b>Line view</b> below them is about the Blocks as a whole — how big each one is written, and the band behind it; <b>Tag view</b> is about the bubble a tag is drawn in. <b>Color Left\\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
   items: [
     { kind:"custom", id:"tag-preview", render: renderTagPreview },
+
+    /* Два субхедера — заказ заказчика 2026-09-19, пункт 3: «добавь субхедеры в
+       tag-appearance… 1. Line view… 2. Tag view». Порядок строк внутри каждого
+       он назвал сам и здесь сохранён дословно. Граница между ними — не вкус:
+       верхняя половина про Block целиком (он же и дата, и ссылка), нижняя про
+       пузырь, которого у даты и ссылки нет вовсе. */
+    { kind:"custom", id:"line-view-sub", render: renderSubheader("Line view",
+        "Everything here is about the two Blocks as a whole: how much they fade, how big their writing is, and whether a colored band runs behind each of them. It reaches the tags, the dates and the links alike, and stops at the text between your Separators, because that part is yours") },
     { kind:"slider", id:"tags-opacity-left", path:"visual.tags.opacityLeft", default:100,
       min:0, max:100, step:1, unit:"%",
       name:"Opacity of the Left Block", desc:"Dims everything written before your text, tags and elements alike",
@@ -2267,6 +2291,21 @@ const SCHEMA = [
       name:"Opacity of the Right Block", desc:"Dims everything written after your text, tags and elements alike",
       tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works",
       searchTerms:["Opacity Right"] },
+    /* Кегль разведён на две стороны — заказ заказчика 2026-09-19, пункт 2:
+       «разделить tags-text-size на tags-text-size-left и tags-text-size-right…
+       Должна сохраниться текущая логика (т.е. центрирование строки при
+       уменьшении text size)». Прежний ключ `visual.tags.textSizePct` уступает
+       обоим: у кого он был выбран, тот получит своё число с обеих сторон. */
+    { kind:"slider", id:"tags-text-size-left", path:"visual.tags.textSizePctLeft", default:100,
+      min:50, max:140, step:5, unit:"%",
+      name:"Left Block text size", desc:"How big everything before your text is written, next to the rest of your note",
+      tip:"This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom",
+      searchTerms:["Tag text size", "Text size Left"] },
+    { kind:"slider", id:"tags-text-size-right", path:"visual.tags.textSizePctRight", default:100,
+      min:50, max:140, step:5, unit:"%",
+      name:"Right Block text size", desc:"How big everything after your text is written, next to the rest of your note",
+      tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line",
+      searchTerms:["Tag text size", "Text size Right"] },
     /* Заказчик 2026-09-08 (З-7): «хочу добавить опцию, чтобы left and right
        blocks можно было добавить цветовую заливку… представляю себе это как
        опцию в tag-appearance `Color Left\\Right blocks` = on\\off, при on
@@ -2320,11 +2359,9 @@ const SCHEMA = [
       name:"Band width", desc:"How far the band reaches past the Block on both of its sides",
       tip:"The scale has three landmarks. At <code>0</code> the band starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says",
       visible: on("visual.tags.blockFill.enabled") },
-    { kind:"slider", id:"tags-text-size", path:"visual.tags.textSizePct", default:100,
-      min:50, max:140, step:5, unit:"%",
-      name:"Text size", desc:"How big everything in the two Blocks is written, next to the rest of your note",
-      tip:"This reaches the whole of both Blocks, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Blocks step back and your sentence leads. Above 100 they compete with it. Most people end up a little under 100",
-      searchTerms:["Tag text size"] },
+
+    { kind:"custom", id:"tag-view-sub", render: renderSubheader("Tag view",
+        "This half is about the bubble a tag is drawn in, and nothing else: how much room there is around the word, how tall the bubble is, and how round its corners are. Dates and links get no bubble, so none of it reaches them") },
     { kind:"slider", id:"tags-bubble-width", path:"visual.tags.bubbleWidthPct", default:100,
       min:20, max:140, step:5, unit:"%",
       name:"Tags bubble width", desc:"How much breathing room there is either side of the word",
@@ -2335,17 +2372,17 @@ const SCHEMA = [
       name:"Tag bubble height", desc:"How tall the bubble is around the word",
       tip:"Keep this modest: a tall bubble pushes the lines of your note apart and the page starts to feel airy in a way that is hard to read. At the bottom of the scale the bubble closes in on the word from above and below",
       searchTerms:["Tag bubble size - height", "Bubble height"] },
+    { kind:"slider", id:"tags-corners", path:"visual.tags.cornersPct", default:0,
+      min:0, max:100, step:1,
+      name:"Tags bubble corners", desc:"Slide from fully rounded to completely square",
+      tip:"At 0 the bubble is a pill, at 100 a rectangle. Nothing else changes — the same colour, the same padding, the same size of writing. Square corners read as denser and pair well with narrow bubbles",
+      searchTerms:["Tag shape", "Bubble corners"] },
     { kind:"slider", id:"tags-empty-bubble", path:"visual.tags.emptyBubblePct", default:100,
       min:10, max:180, step:5, unit:"%",
       name:"Empty tags bubble width", desc:"Width of a bubble whose <code>Show</code> is set to <code>empty</code>",
       searchTerms:["Empty bubble size", "Empty bubble width"],
       tip:"Under <code>Fields</code> a Value can be set to <code>empty</code>, which draws its color but no text — a marker instead of a word. This is how wide that marker gets",
-      seeAlso:{ id:"field-editor", label:"Set a Value to empty under Fields" } },
-    { kind:"slider", id:"tags-corners", path:"visual.tags.cornersPct", default:0,
-      min:0, max:100, step:1,
-      name:"Tags bubble corners", desc:"Slide from fully rounded to completely square",
-      tip:"At 0 the bubble is a pill, at 100 a rectangle. Nothing else changes — the same colour, the same padding, the same size of writing. Square corners read as denser and pair well with narrow bubbles",
-      searchTerms:["Tag shape", "Bubble corners"] }
+      seeAlso:{ id:"field-editor", label:"Set a Value to empty under Fields" } }
   ]
 },
 {
@@ -3950,7 +3987,8 @@ function previewShell(host, caption, tip) {
 function applyTagVars(node) {
   cssVar(node, "--io-opacity-left",  String(val("visual.tags.opacityLeft") / 100));
   cssVar(node, "--io-opacity-right", String(val("visual.tags.opacityRight") / 100));
-  cssVar(node, "--io-text-scale",    String(val("visual.tags.textSizePct") / 100));
+  cssVar(node, "--io-text-scale-left",  String(val("visual.tags.textSizePctLeft") / 100));
+  cssVar(node, "--io-text-scale-right", String(val("visual.tags.textSizePctRight") / 100));
   cssVar(node, "--io-bubble-x",      String(val("visual.tags.bubbleWidthPct") / 100));
   cssVar(node, "--io-bubble-y",      String(val("visual.tags.bubbleHeightPct") / 100));
   cssVar(node, "--io-empty-x",       String(val("visual.tags.emptyBubblePct") / 100));

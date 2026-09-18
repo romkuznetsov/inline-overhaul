@@ -284,6 +284,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tags.opacityLeft"),
   keepV2("visual.tags.opacityRight"),
   keepV2("visual.tags.textSizePct"),
+  keepV2("visual.tags.textSizePctLeft"),
+  keepV2("visual.tags.textSizePctRight"),
   keepV2("visual.tags.bubbleWidthPct"),
   keepV2("visual.tags.bubbleHeightPct"),
   keepV2("visual.tags.emptyBubblePct"),
@@ -685,8 +687,16 @@ const REMOVED_V2_KEYS: readonly string[] = [
  *
  * **Новый адрес сильнее старого.** Если по обоим что-то записано, значит
  * панель уже писала в новый, и старое — след вчерашнего файла.
+ *
+ * **Адресов у переезда бывает больше одного.** Настройка, разделённая надвое,
+ * — это тот же переезд, только новых мест два, и прежнее значение уступает
+ * **обоим** (У-17): иначе человек, выбравший кегль, получил бы умолчание.
+ * Разводить это вторым списком и вторым обходом значило бы объявить одно
+ * правило дважды (У-150).
  */
-const MOVED_V2_KEYS: ReadonlyArray<readonly [string, string]> = [
+const MOVED_V2_KEYS: ReadonlyArray<readonly [string, string | readonly string[]]> = [
+  /* Кегль Block разведён на две стороны — его слово 2026-09-19, пункт 2. */
+  ["visual.tags.textSizePct", ["visual.tags.textSizePctLeft", "visual.tags.textSizePctRight"]],
   ["navigation.jumpToHeader.flash.enabled", "visual.jumpFlash.enabled"],
   ["navigation.jumpToHeader.flash.color", "visual.jumpFlash.color"],
   ["navigation.jumpToHeader.flash.radius", "visual.jumpFlash.radius"],
@@ -731,10 +741,12 @@ function dropMovedLeaf(cfg: Dict, path: string): void {
 function moveRenamedKeys(cfg: Dict): void {
   for (const pair of MOVED_V2_KEYS) {
     const from = pair[0];
-    const to = pair[1];
+    const targets = typeof pair[1] === "string" ? [pair[1]] : pair[1];
     const was = getIn(cfg, from);
     if (was === undefined) continue;
-    if (getIn(cfg, to) === undefined) setIn(cfg, to, cloneJson(was) as never);
+    for (const to of targets) {
+      if (getIn(cfg, to) === undefined) setIn(cfg, to, cloneJson(was) as never);
+    }
     dropMovedLeaf(cfg, from);
   }
 }

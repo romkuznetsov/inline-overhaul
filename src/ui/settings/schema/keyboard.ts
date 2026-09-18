@@ -11,6 +11,7 @@ import { binderTable } from "../custom/binder.ts";
 import { callout } from "../custom/callouts.ts";
 import { commandReference } from "../custom/command_reference.ts";
 import { selectAllCustom } from "../custom/select_all_custom.ts";
+import { subheader } from "../custom/subheader.ts";
 
 export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
 { id: "keyboard-intro",  tab: "keyboard",   order: 50, heading: "Before you start",
@@ -19,10 +20,12 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
   ],
   visible: on("general.help.showCallouts") },
 {
-  id: "select-all", tab: "keyboard", order: 100, heading: "Expanded 'Ctrl+A' ('⌘+A')",
-  intro: "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection",
-  tip: "Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it",
+  id: "global-hotkeys", tab: "keyboard", order: 100, heading: "Global hotkeys",
+  intro: "Three keys Obsidian already gives you — <code>Ctrl/Cmd + A</code>, <code>Del</code> with <code>Backspace</code>, and <code>Enter</code> — taught to do the obvious thing inside a line of yours",
+  tip: "Nothing here rebinds a key: all three stay Obsidian’s own, and each setting changes what happens in one case and leaves the rest alone. That is also why every one of them starts switched off — a key that belongs to the editor should not change its mind without being asked. The three sections below are independent: switch on the one you want and the other two stay as they were",
   items: [
+    { kind:"custom", id:"select-all-sub", render: subheader("Expanded 'Ctrl+A' ('⌘+A')",
+        "<code>Ctrl/Cmd + A</code> selects the whole note in one go. This setting changes how it works: the first press takes the word or the line you are on, and every further press widens the selection. Obsidian gives that key one step: the whole note. Here it becomes a ladder — the word under the cursor, the line you are on, then more of the note with each press — so you can grab one word, one task, or a task with everything indented under it, without reaching for the mouse. The settings below decide which rungs the ladder has, whether pausing between presses sends you back to the bottom, and whether one press past the top lets the selection go. Pick <code>Custom</code> in the list of steps and you choose the rungs yourself, one tick each. The key itself is Obsidian’s, and nothing here rebinds it") },
     { kind:"toggle", id:"select-all-enabled", path:"editor.selectAll.enabled", default:false,
       name:"Expanded 'Ctrl+A'", desc:"Change what <code>Ctrl/Cmd + A</code> does: take the line first, then widen",
       searchTerms:["Enhanced Mod+A","Expanded select all"],
@@ -57,14 +60,9 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"select-all-clear", path:"editor.selectAll.clearOnLast", default:false,
       name:"Last press clears highlighting", desc:"After the last step, pressing again drops the selection and returns the cursor",
       tip:"Lets you get out of a selection with the same key you got into it, instead of clicking somewhere to deselect",
-      searchTerms:["Last press clears selection", "One more press clears it"], disabled: not("editor.selectAll.enabled") }
-  ]
-},
-{
-  id: "smart-delete", tab: "keyboard", order: 150, heading: "Smart Delete\\Backspace",
-  intro: "<code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind",
-  tip: "Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Standing on an empty line the key stays Obsidian’s own: there is nothing to join the words to, so the line below arrives exactly as it is written, its indent and its marker included. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did",
-  items: [
+      searchTerms:["Last press clears selection", "One more press clears it"], disabled: not("editor.selectAll.enabled") },
+    { kind:"custom", id:"smart-delete-sub", render: subheader("Smart Delete\\Backspace",
+        "<code>Del</code> at the end of a line, and <code>Backspace</code> at the start of one, pull two lines together. This makes them bring the words and leave the indent and the bullet behind. Press <code>Del</code> with the cursor at the end of a line and Obsidian joins the line below to it exactly as that line is written: its indent, its bullet, its checkbox and all. What you wanted was the words, so you press <code>Del</code> another six times to clear the rest out of the way. With this on, the first press does that for you: the indent and the Prefix of the arriving line go, and its text lands right after your cursor. <code>Backspace</code> at the start of a line is the same thing from the other side, and it has a switch of its own: you can have either key doing this, or both. A line with nothing but a Prefix on it disappears whole, so a run of empty bullets clears one press at a time. Standing on an empty line the key stays Obsidian’s own: there is nothing to join the words to, so the line below arrives exactly as it is written, its indent and its marker included. Everywhere else the two keys are untouched: in the middle of a line, or with something selected, they delete one character the way they always did") },
     { kind:"toggle", id:"smart-delete-enabled", path:"editor.smartDelete.enabled", default:false,
       name:"Smart Delete", desc:"Let <code>Del</code> at the end of a line bring up the words without the indent and the Prefix",
       searchTerms:["Smart Del","Delete the junk"],
@@ -80,14 +78,9 @@ export const KEYBOARD_GROUPS: readonly SettingsGroup[] = [
     { kind:"toggle", id:"smart-delete-space", path:"editor.smartDelete.joinWithSpace", default:true,
       name:"Join with a space", desc:"Put one space between your text and the text that arrives, so the two do not run together",
       searchTerms:["Add a space"], disabled: neither("editor.smartDelete.enabled", "editor.smartDelete.onBackspace"),
-      tip:"Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above" }
-  ]
-},
-{
-  id: "smart-enter", tab: "keyboard", order: 175, heading: "Smart Enter",
-  intro: "<code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone",
-  tip: "A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. In every line that carries no Separator of yours the key stays Obsidian’s own and behaves as it always has",
-  items: [
+      tip:"Only when both sides have something on them and your line does not already end in a space. Off, the two pieces of text meet with nothing between them, which is what you want when you are joining a word that got split. This one answers to both keys above" },
+    { kind:"custom", id:"smart-enter-sub", render: subheader("Smart Enter",
+        "<code>Enter</code> in the middle of one of your lines splits it in two. This makes it start a new line below instead, and leave the line you are on alone. A line carrying Fields is a record, not a paragraph: split it in half and the Block after your text is torn away from the Block before it, and neither half is a record any more. With this on, <code>Enter</code> adds an empty line underneath and leaves the one you are on exactly as it was. <code>Where it works</code> decides how much of the line counts: all of it, or your own text only. In every line that carries no Separator of yours the key stays Obsidian’s own and behaves as it always has") },
     { kind:"toggle", id:"smart-enter-enabled", path:"editor.smartEnter.enabled", default:false,
       name:"Smart Enter", desc:"Let <code>Enter</code> add a line instead of splitting the one you are on",
       searchTerms:["Smart Enter","Do not split the line"],
