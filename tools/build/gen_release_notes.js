@@ -85,7 +85,7 @@ function writeReleaseNotes(root) {
 module.exports = { parseChangelogSections, writeReleaseNotes, OUT_DIR, OUT_NAME };
 
 if (require.main === module) {
-  const root = path.resolve(__dirname, "..");
+  const root = path.resolve(__dirname, "..", "..");
   const done = writeReleaseNotes(root);
   console.log("заметки выпуска собраны: разделов " + done.count + ", нынешний — " + done.version);
 }

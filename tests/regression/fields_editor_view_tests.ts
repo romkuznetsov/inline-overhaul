@@ -1291,7 +1291,7 @@ function heightBtn(host: StubNode): StubNode {
     "на кнопке один узел — значок корзины, без подписи");
   assert.equal(del.getAttribute("aria-label"), "Delete the Field status",
     "наведение объясняет, что делает кнопка");
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const rule = /\.io-danger \{([^}]*)\}/.exec(css);
   assert.ok(rule, "правило .io-danger нашлось в styles.css");
   assert.ok(/background:\s*var\(--background-modifier-error\)/.test(String(rule?.[1])),
@@ -1328,7 +1328,7 @@ function heightBtn(host: StubNode): StubNode {
   const input = all(propRow, "io-text--prop")[0] as StubNode;
   assert.equal(input.placeholder, "select Property",
     "подсказка в поле приглашает выбрать свойство, а не показывает имя Field");
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const propWidth = /\.io-fields \.io-text--prop \{ width: (\d+)px; \}/.exec(css);
   const selectWidth = /\.io-fields \.io-select \{[^}]*min-width:\s*(\d+)px/.exec(css);
   assert.ok(propWidth && selectWidth, "ширины поля и списка объявлены в styles.css");
@@ -1405,7 +1405,7 @@ function heightBtn(host: StubNode): StubNode {
   const parts = cell.children.map(c => String(c.className || ""));
   assert.deepEqual(parts, ["io-vals__coltext", "io-help"],
     "«?» стоит ПОД текстом заголовка, то есть вторым узлом ячейки, а не рядом с ним");
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const rule = /\.io-vals__head > div \{([^}]*)\}/.exec(css);
   assert.ok(/flex-direction:\s*column/.test(String(rule?.[1])),
     "ячейка шапки складывает подпись и знак в столбик: иначе знак наезжает на соседа");
@@ -1566,7 +1566,7 @@ function heightBtn(host: StubNode): StubNode {
   const addValue = foot.children.find(c => String(c.tagName) === "BUTTON") as StubNode;
   assert.ok(addValue.classList.contains("io-btn--cta"),
     "Add Value акцентная, как и Add Field");
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const rule = /\.io-btn--cta \{([^}]*)\}/.exec(css);
   assert.ok(/background:\s*var\(--interactive-accent\)/.test(String(rule?.[1])),
     "цвет кнопки — акцент темы, а не литерал (З6): в теме Obsidian он и есть фиолетовый");
@@ -1601,7 +1601,7 @@ function heightBtn(host: StubNode): StubNode {
 
 /* ---- 4: текст редактора того же размера, что остальные настройки -------- */
 {
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const rule = /\.io-fields \{([\s\S]*?)\n\}/.exec(css);
   assert.ok(/font-size:\s*var\(--font-ui-small\)/.test(String(rule?.[1])),
     "размер текста редактора задан переменной строки настройки, а не наследуется от документа");
@@ -1610,7 +1610,7 @@ function heightBtn(host: StubNode): StubNode {
 
 /* ---- 5: имя Field не обрезается чипом и стрелками ---------------------- */
 {
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const tools = /\.io-fields__tools \{([\s\S]*?)\n\}/.exec(css);
   const width = /width:\s*(\d+)px/.exec(String(tools?.[1]));
   assert.ok(width && Number(width[1]) <= 34,
@@ -1759,7 +1759,7 @@ function heightBtn(host: StubNode): StubNode {
    * обесцвеченная в белый, стала белой на белом. Цвет фона и цвет значка
    * теперь объявлены одним правилом с удвоенным классом.
    */
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const doubled = /\.io-danger\.io-danger \{([^}]*)\}/.exec(css);
   assert.ok(doubled, "у красной кнопки есть правило с удвоенным классом");
   const body = String(doubled?.[1]);
@@ -1809,7 +1809,7 @@ function heightBtn(host: StubNode): StubNode {
 
 /* ---- 4: дочерняя строка таблицы заметно серее -------------------------- */
 {
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const rule = /\.io-vals__row--child \{([^}]*)\}/.exec(css);
   assert.ok(/background:\s*var\(--background-secondary\)/.test(String(rule?.[1])),
     "фон дочерней строки — --background-secondary: прежний почти сливался с таблицей");
@@ -1818,7 +1818,7 @@ function heightBtn(host: StubNode): StubNode {
 
 /* ---- 5: текст в таблице того же размера, что в предпросмотре ----------- */
 {
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   assert.ok(/\.io-vals \{ font-size: var\(--font-ui-smaller\); \}/.test(css),
     "размер текста таблицы задан переменной, а не наследуется от редактора");
   /* Файл лежит с CRLF, поэтому между селекторами не «\n», а «\r\n». */
@@ -1890,7 +1890,7 @@ function heightBtn(host: StubNode): StubNode {
     .find(c => String(c.getAttribute("aria-label") || "").startsWith("Remove ")) as StubNode;
   assert.ok(String(del.className || "").includes("io-icon--danger"),
     "удаление значения помечено красным классом");
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   assert.ok(/\.io-icon--danger \{\s*color: var\(--text-error\);\s*\}/.test(css),
     "цвет красного значка — из переменной темы (З6)");
   /*
@@ -2146,7 +2146,7 @@ const linkSubField = (cfg: Any): Any =>
    * Проверяется числами по той же причине, что и всё остальное здесь:
    * заглушка DOM ничего не раскладывает, а складывать умеет.
    */
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const toolsRule = /\.io-valtools \{([^}]*)\}/.exec(css);
   const toolsPad = Number((/padding-right:\s*(\d+)px/.exec(String(toolsRule?.[1])) || [])[1]);
   const rowPad = Number((/\.io-vals__head,\s*\.io-vals__row \{[^}]*padding:\s*\d+px\s+(\d+)px/
@@ -2164,7 +2164,7 @@ const linkSubField = (cfg: Any): Any =>
    * значения (`#89779` на снимке заказчика) видно ровно половину пузыря.
    * Теперь укорачивается надпись ВНУТРИ пузыря, а сам он остаётся целым.
    */
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const rule = /\.io-vals__prev \.io-bubble \{([^}]*)\}/.exec(css);
   assert.ok(rule, "у пузыря в колонке Preview есть своё правило");
   const body = String(rule?.[1] || "");
@@ -2197,7 +2197,7 @@ const linkSubField = (cfg: Any): Any =>
    * 408, а панели 631. Кнопка удаления при этом остаётся в виду — ради неё
    * порог и заводился.
    */
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   const declared = Number((/\.io-vals__inner \{ min-width: (\d+)px/.exec(css) || [])[1]);
   /* Ширина колонки списка живёт в дорожках сетки с 2026-09-08 (В-92). */
   const listCol = Number((/grid-template-columns:\s*(\d+)px minmax/.exec(css) || [])[1]);

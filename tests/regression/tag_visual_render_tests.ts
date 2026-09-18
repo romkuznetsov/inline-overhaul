@@ -127,7 +127,7 @@ const filled = (el: Any): boolean =>
    * Без этого утверждения «перенесено в классы» было бы только в
    * планке бюджета, а планка не знает, что именно уехало.
    */
-  const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
   const el = paint("#0008f0", "#f0eaea");
   const need = ["radius", "pad-y", "pad-x", "font", "line"];
   for (const key of need) {
@@ -451,7 +451,7 @@ const filled = (el: Any): boolean =>
    * Число берётся из `styles.css`, а не переписывается сюда: пин должен
    * краснеть, когда формулы снова разъедутся, а не когда их поправили вместе.
    */
-  const css = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
   const m = css.match(/\.io-bubble--empty\s*\{[^}]*width:\s*calc\((\d+)px\s*\*\s*var\(--io-empty-x\)\)/);
   assert.ok(m, "панель по-прежнему считает ширину пустого пузыря от базового числа");
   const basePx = Number(m ? m[1] : 0);

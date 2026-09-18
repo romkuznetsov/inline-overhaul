@@ -163,7 +163,7 @@ function paint(colors) {
    * переехало в само правило (Р7), и спрашивается оно там же, где живёт.
    */
   const css = require("fs").readFileSync(
-    path.join(__dirname, "..", "..", "styles.css"), "utf8");
+    path.join(__dirname, "..", "..", "src", "styles.css"), "utf8");
   assertEq(css.indexOf("var(--io-twscroller-fill, var(--background-primary))") >= 0, true,
     "фон коробки без своего цвета — фон темы, и это сказано правилом");
   assertEq(css.indexOf("var(--io-twscroller-text, inherit)") >= 0, true,
@@ -184,7 +184,7 @@ function paint(colors) {
   assertEq(painted.rowClasses.join(","), "io-twscroller__row,io-twscroller__row",
     "и каждая строка тоже");
   const css = require("fs").readFileSync(
-    path.join(__dirname, "..", "..", "styles.css"), "utf8");
+    path.join(__dirname, "..", "..", "src", "styles.css"), "utf8");
   for (const cls of ["io-twscroller", "io-twscroller--shown", "io-twscroller__list",
     "io-twscroller__row", "io-twscroller__probe"]) {
     assertEq(css.indexOf("." + cls) >= 0, true,

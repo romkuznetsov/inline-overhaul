@@ -141,7 +141,7 @@ for (const abs of all) bodies.set(abs, codeOnly(fs.readFileSync(abs, "utf8")));
 const runtime = all.filter((abs) => {
   const rel = path.relative(root, abs).replace(/\\/g, "/");
   return !(rel.startsWith("tests/") || rel.startsWith("tools/")
-    || rel.startsWith("build/") || rel.startsWith("docs/"));
+    || rel.startsWith("docs/"));
 });
 
 function usedOutside(name, ownFile) {

@@ -287,7 +287,7 @@ else ok("схема загружена: групп " + SCHEMA.length);
 {
   /* Комментарии выкидываются: в них лежат объяснения с теми же словами, и
      проверка на `@container` однажды поймала собственный комментарий. */
-  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8")
+  const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8")
     .replace(/[/][*][^]*?[*][/]/g, "");
 
   /** Ширина колонки списка Fields и поля правой колонки — из тех же правил. */

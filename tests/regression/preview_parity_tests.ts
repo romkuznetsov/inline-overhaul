@@ -112,7 +112,7 @@ function main(): void {
   const protoHtml = read(path.join("docs", "prototype", "settings_prototype.html"));
   const protoCss = Array.from(protoHtml.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g))
     .map(m => String(m[1] || "")).join("\n");
-  const panelCss = read("styles.css");
+  const panelCss = read("src/styles.css");
 
   const protoDead = Array.from(proto).filter(v => !readIn(protoCss).has(v)).sort();
   const panelDead = Array.from(panel).filter(v => !readIn(panelCss).has(v)).sort();

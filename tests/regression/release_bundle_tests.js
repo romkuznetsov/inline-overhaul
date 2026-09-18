@@ -89,7 +89,7 @@ async function run() {
     JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8")),
     "release manifest matches source manifest"
   );
-  const sourceStyles = path.join(root, "styles.css");
+  const sourceStyles = path.join(root, "src", "styles.css");
   assert.strictEqual(fs.existsSync(path.join(dist, "styles.css")), fs.existsSync(sourceStyles), "styles.css copied only when source exists");
   const expectedAssets = sourceStyles && fs.existsSync(sourceStyles)
     ? ["main.js", "manifest.json", "styles.css"]

@@ -1825,7 +1825,7 @@ async function main(): Promise<void> {
      * случае, ради которого заведена.
      */
     const read = (rel: string): string => fs.readFileSync(path.join(repoRoot, rel), "utf8");
-    const css = read("styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const css = read("src/styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
 
     const sources: string[] = [read("main.js"), read("navigation_runtime.js")];
     const walk = (dir: string): void => {
@@ -1892,7 +1892,7 @@ async function main(): Promise<void> {
       "ни одного узла-хозяина подсказки не найдено — проверка ищет пустоту");
 
     /* Классы, которым стили говорят «тебя не видно». */
-    const css = read("styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const css = read("src/styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
     const hidden = new Set<string>();
     for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       if (!/display:\s*none/.test(String(m[2] || ""))) continue;
@@ -1924,7 +1924,7 @@ async function main(): Promise<void> {
      * нему разбирается каскад `styles.css`. Мёртвое правило тоже есть, а
      * побеждает всегда одно.
      */
-    const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8")
+    const css = fs.readFileSync(path.join(repoRoot, "src", "styles.css"), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "");
 
     type Rule = { selector: string; prop: string; value: string; order: number; spec: number };
@@ -2104,7 +2104,7 @@ async function main(): Promise<void> {
      * так уже прожил два захода мёртвый блок правил по прототипным именам
      * (У-65).
      */
-    const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8")
+    const css = fs.readFileSync(path.join(repoRoot, "src", "styles.css"), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "");
     const ids = new Set<string>();
     for (const g of SCHEMA) for (const it of g.items) if (it.id) ids.add(String(it.id));
@@ -2152,7 +2152,7 @@ async function main(): Promise<void> {
      * полупрозрачного слоя, потом гасили его и остались вовсе без сплошного —
      * «пустоты стали белого цвета» (`12.png`).
      */
-    const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
+    const css = fs.readFileSync(path.join(repoRoot, "src", "styles.css"), "utf8");
     const engine = fs.readFileSync(
       path.join(repoRoot, "src", "core", "editor_visuals_config.js"), "utf8");
 
@@ -2980,7 +2980,7 @@ async function main(): Promise<void> {
    */
   await test("у окон панели есть заголовки с подсказками, и текст в них не мельче читаемого", () => {
     const tab = fs.readFileSync(path.join(repoRoot, "src/ui/settings/obsidian_tab.ts"), "utf8");
-    const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8")
+    const css = fs.readFileSync(path.join(repoRoot, "src", "styles.css"), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "");
 
     /*

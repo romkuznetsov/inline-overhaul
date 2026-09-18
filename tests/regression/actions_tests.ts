@@ -5,7 +5,7 @@
  * ломалась в этом проекте по-своему:
  *
  *   1. **Кнопка без действия в панель не попадает.** Список `READY_ACTIONS` в
- *      реестре и такой же список в `build/gen_schema.js` обязаны совпадать:
+ *      реестре и такой же список в `tools/build/gen_schema.js` обязаны совпадать:
  *      разойдись они — и в схеме окажется кнопка, которая ничего не делает
  *      (З8). Сверяются оба списка, а заодно и сама схема: у каждой кнопки в
  *      ней действие обязано быть в реестре.
@@ -46,7 +46,7 @@ function ok(label: string): void {
 /* ---- 1. два списка и схема ---------------------------------------------- */
 
 {
-  const src = fs.readFileSync(path.join(root, "build", "gen_schema.js"), "utf8");
+  const src = fs.readFileSync(path.join(root, "tools", "build", "gen_schema.js"), "utf8");
   const at = src.indexOf("const READY_ACTIONS = new Set([");
   assert.ok(at > 0, "список действий в генераторе нашёлся");
   const body = src.slice(at, src.indexOf("]", at));

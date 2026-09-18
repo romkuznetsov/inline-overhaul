@@ -466,7 +466,7 @@ function runtimeRow(cfg: Any, token: string): Any {
     return String(m ? m[1] : "");
   };
 
-  const pluginCss = fs2.readFileSync(path.join(root3, "styles.css"), "utf8");
+  const pluginCss = fs2.readFileSync(path.join(root3, "src", "styles.css"), "utf8");
   const protoCss = fs2.readFileSync(path.join(root3, "docs", "prototype", "settings_prototype.html"), "utf8");
 
   for (const [css, where] of [[pluginCss, "панель"], [protoCss, "прототип"]] as const) {

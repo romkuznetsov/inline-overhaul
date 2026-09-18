@@ -30,7 +30,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const root = path.resolve(__dirname, "..");
+const root = path.resolve(__dirname, "..", "..");
 const PROTO = path.join(root, "docs", "prototype", "settings_prototype.html");
 const OUT_DIR = path.join(root, "src", "ui", "settings", "schema");
 

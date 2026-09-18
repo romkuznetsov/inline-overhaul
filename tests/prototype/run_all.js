@@ -61,7 +61,7 @@ if (r.status !== 0) {
   const dir = path.join(root, "src", "ui", "settings", "schema");
   if (fs.existsSync(dir)) {
     const before = fs.readdirSync(dir).map(f => [f, fs.readFileSync(path.join(dir, f), "utf8")]);
-    const g = spawnSync(process.execPath, [path.join(root, "build", "gen_schema.js")],
+    const g = spawnSync(process.execPath, [path.join(root, "tools", "build", "gen_schema.js")],
       { cwd: root, encoding: "utf8", timeout: 60000 });
     if (g.status !== 0) {
       failed++;

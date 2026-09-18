@@ -196,7 +196,7 @@ const linesOf = (css: string): Set<string> =>
    */
   const named = /animation: steps\(1\) ([A-Za-z0-9_-]+) \d+ms infinite;/.exec(shaped);
   assert.ok(named, "в объявлении анимации не разобрать имя кадров:\n" + shaped);
-  const cssFile = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
+  const cssFile = readFileSync(new URL("../../src/styles.css", import.meta.url), "utf8");
   assert.ok(new RegExp("@keyframes\\s+" + named![1] + "\\s*\\{").test(cssFile),
     "кадров " + named![1] + " нет в styles.css: анимация назвала бы несуществующее имя");
 

@@ -829,7 +829,7 @@ function realConfig(): Any {
    * проекте проверяется геометрия таблицы Values — заглушка DOM ничего не
    * раскладывает, но текст правил прочитать не мешает.
    */
-  const css = readFileSync(path.join(root, "styles.css"), "utf8");
+  const css = readFileSync(path.join(root, "src", "styles.css"), "utf8");
   assert.ok(/\.io-line--wheel \.io-line__side--left,[\s\S]{0,120}opacity:\s*1/.test(css),
     "под классом строки TagWheel прозрачность со стороны снята");
   assert.ok(/\.io-line--wheel \.io-line__side--left[\s\S]{0,200}--io-opacity-left/.test(css),

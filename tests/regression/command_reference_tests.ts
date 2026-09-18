@@ -691,7 +691,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
     return Number(mix ? mix[1] : 0);
   };
 
-  const pluginCss = fs.readFileSync(path.join(root2, "styles.css"), "utf8");
+  const pluginCss = fs.readFileSync(path.join(root2, "src", "styles.css"), "utf8");
   const protoCss = fs.readFileSync(path.join(root2, "docs", "prototype", "settings_prototype.html"), "utf8");
 
   for (const [css, where] of [[pluginCss, "панель"], [protoCss, "прототип"]] as const) {

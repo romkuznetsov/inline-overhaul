@@ -85,7 +85,7 @@ process.stdin.on("end", () => {
   if (rel !== PROTO) process.exit(0);
 
   const lines = ["прототип изменился, быстрые проверки:"];
-  lines.push(run("схема перегенерирована из прототипа", "build/gen_schema.js", []));
+  lines.push(run("схема перегенерирована из прототипа", "tools/build/gen_schema.js", []));
   lines.push(run("гейты схемы и текстов", "tests/prototype/gates.js", [path.join(ROOT, PROTO)]));
   lines.push(nulScan());
   lines.push("не забудьте: python tests/prototype/update_prd.py (раздел 9 и Приложение B)");

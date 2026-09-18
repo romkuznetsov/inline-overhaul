@@ -100,7 +100,7 @@ assert.deepEqual(nameless, [],
   "заголовок без своего класса берёт размер у темы: " + nameless.join("; "));
 ok("заголовков плагина найдено " + found.length + ", и у каждого свой класс");
 
-const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+const css = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
 
 /* Исключения: размер объявлен правилом по родителю, и это проверяется. */
 assert.deepEqual(byParent.slice().sort(), Object.keys(BY_PARENT).sort(),

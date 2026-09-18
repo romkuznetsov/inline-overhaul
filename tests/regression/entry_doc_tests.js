@@ -104,9 +104,7 @@ const TOP = new Set(fs.readdirSync(root, { withFileTypes: true })
  * молчаливое исключение — тот самый способ, каким «проверено автоматически»
  * превращается в «проверено ничего».
  */
-const GONE_ON_PURPOSE = {
-  "build/release_entry.js": "мост в vault снят 2026-09-07, и абзац рассказывает именно о снятии",
-};
+const GONE_ON_PURPOSE = {};
 
 const pathRe = /`([A-Za-z0-9_][A-Za-z0-9_./-]*\/[A-Za-z0-9_./-]+\.[a-z]{2,4})`/g;
 const seen = new Set();

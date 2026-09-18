@@ -34,7 +34,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const root = path.resolve(__dirname, "..");
+const root = path.resolve(__dirname, "..", "..");
 const dist = path.join(root, "dist");
 
 /* Сборка перед раскладкой: иначе легко поставить вчерашний бандл. */

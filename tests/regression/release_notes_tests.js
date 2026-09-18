@@ -24,7 +24,7 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..", "..");
 const notes = require(path.join(root, "src", "features", "release_notes.js"));
-const gen = require(path.join(root, "build", "gen_release_notes.js"));
+const gen = require(path.join(root, "tools", "build", "gen_release_notes.js"));
 
 let passed = 0;
 function ok(label) { passed++; console.log("  ok " + label); }

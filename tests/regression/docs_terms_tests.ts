@@ -365,7 +365,7 @@ const GUIDES = ["README.md", "instructions.md"];
   const anchorOf = (title: string): string =>
     title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
 
-  const show = fs.readFileSync(path.join(root, "showcase.md"), "utf8");
+  const show = fs.readFileSync(path.join(root, "docs", "showcase.md"), "utf8");
   const targets = new Set(
     (show.match(/^#{2,3}\s+.*$/gm) || []).map(h => anchorOf(h.replace(/^#+\s+/, "").trim())),
   );

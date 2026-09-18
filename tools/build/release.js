@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const esbuild = require("esbuild");
 
-const root = path.resolve(__dirname, "..");
+const root = path.resolve(__dirname, "..", "..");
 const dist = path.join(root, "dist");
 
 /*
@@ -39,5 +39,5 @@ esbuild.buildSync({
 });
 
 fs.copyFileSync(path.join(root, "manifest.json"), path.join(dist, "manifest.json"));
-const styles = path.join(root, "styles.css");
+const styles = path.join(root, "src", "styles.css");
 if (fs.existsSync(styles)) fs.copyFileSync(styles, path.join(dist, "styles.css"));

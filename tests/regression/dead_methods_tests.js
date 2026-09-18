@@ -61,7 +61,7 @@ const DECL_ROOTS = ["src", "pkm_v2", "main.js", "navigation_runtime.js", "pkm_ru
 
 /** Где ищутся обращения: весь код репозитория. Документы сюда не входят
     нарочно — упоминание в документе вызовом не является (У-138). */
-const REF_ROOTS = ["src", "pkm_v2", "tests", "tools", "build",
+const REF_ROOTS = ["src", "pkm_v2", "tests", "tools",
   "main.js", "navigation_runtime.js", "pkm_runtime_v2.js"];
 
 /**

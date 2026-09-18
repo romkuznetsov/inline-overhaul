@@ -611,7 +611,7 @@ async function buildPage(injection, opts) {
   const extraCss = extra && fs.existsSync(extra) ? fs.readFileSync(extra, "utf8") : "";
   if (extra && !extraCss) throw new Error("IO_GATE_EXTRA_CSS указывает на файл, которого нет: " + extra);
   const cssSpec = injectionSpec(injection, opts && opts.injections);
-  let pluginCss = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  let pluginCss = fs.readFileSync(path.join(root, "src", "styles.css"), "utf8");
   if (cssSpec && cssSpec.file === "styles.css") {
     pluginCss = applyInjection(injection, cssSpec, pluginCss);
   }

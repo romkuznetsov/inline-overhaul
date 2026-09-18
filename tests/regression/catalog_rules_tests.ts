@@ -36,7 +36,7 @@ const repoRoot = path.join(import.meta.dirname, "..", "..");
 
 /** Что рантаймом не является: набор, инструменты, сборка, документы. */
 const SKIP = new Set([
-  "node_modules", ".git", "dist", "docs", "tests", "tools", "build", "test-vault",
+  "node_modules", ".git", "dist", "docs", "tests", "tools", "test-vault",
 ]);
 
 function runtimeFiles(): string[] {
@@ -333,7 +333,7 @@ function main(): void {
   }
   varsByFile.sort((a, b) => b[1] - a[1]);
   const varsTotal = varsByFile.reduce((a, b) => a + b[1], 0);
-  const css = fs.readFileSync(path.join(repoRoot, "styles.css"), "utf8");
+  const css = fs.readFileSync(path.join(repoRoot, "src", "styles.css"), "utf8");
   const hexes = (css.match(/#[0-9a-fA-F]{3,8}\b/g) || []).length;
   console.log("  ok  `var` под З3 (П18): всего " + varsTotal + " — "
     + varsByFile.map(([rel, n]) => rel + " " + n).join(", "));

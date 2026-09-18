@@ -12,7 +12,7 @@ Everything above is ordinary markdown in the file. The tags are searchable, the 
 real link, and nothing is hidden from your other plugins.
 
 See the [feature list](FEATURES.md) for what the plugin can do, the
-[visual showcase](showcase.md) for animated examples and the
+[visual showcase](docs/showcase.md) for animated examples and the
 [setup and user guide](instructions.md) for installation, configuration, Transform safety
 and troubleshooting.
 
@@ -64,7 +64,7 @@ it lives under **Keyboard** too.
 ## What is on each tab
 
 Every entry names the tab and group you set it in. Links go to the matching animation in
-the [visual showcase](showcase.md).
+the [visual showcase](docs/showcase.md).
 
 ### General
 
@@ -104,7 +104,7 @@ command palette and the reference table disagreeing.
 
 ### Keyboard
 
-- [Expanded Ctrl+A](showcase.md#enhanced-ctrla): grow the selection from the word under
+- [Expanded Ctrl+A](docs/showcase.md#enhanced-ctrla): grow the selection from the word under
   the cursor to the line, to its indentation tree, then to the whole note. `Custom` lets
   you tick which of those five steps a press stops at.
 - **Smart Delete**: **Keyboard → Smart Delete\Backspace** changes what `Del` does at the
@@ -125,22 +125,22 @@ command palette and the reference table disagreeing.
   Obsidian's Hotkeys screen.
 - **Custom insertion commands**: **Binder (custom
   insert commands)** turns a row of text into a command of its own.
-- [Smart bracket](showcase.md#smart-bracket): the one Binder row that ships with the
+- [Smart bracket](docs/showcase.md#smart-bracket): the one Binder row that ships with the
   plugin. It cycles `text`, `[text]`, `[[text]]` and back.
 
 ### Navigation
 
-- [Move lines and trees](showcase.md#move-linestrees): **Move line up** and **Move line
+- [Move lines and trees](docs/showcase.md#move-linestrees): **Move line up** and **Move line
   down** carry the line, or its whole tree, past its neighbours.
-- [Move selected inline text](showcase.md#move-selected-inline-text): **Move left** and
+- [Move selected inline text](docs/showcase.md#move-selected-inline-text): **Move left** and
   **Move right** shift the selection inside the line.
-- [Prefix cycle and indent fallback](showcase.md#prefix-cycleindent-fallback): the same two
+- [Prefix cycle and indent fallback](docs/showcase.md#prefix-cycleindent-fallback): the same two
   commands cycle the line Prefix and change the indent when nothing is selected. What
   happens at the end of the cycle is **Navigation → Move left and move right → When a line
   empties out**.
-- [Header jumps](showcase.md#header-jumps): **Jump back** and **Jump next**, tuned in
+- [Header jumps](docs/showcase.md#header-jumps): **Jump back** and **Jump next**, tuned in
   **Navigation → Moving cursor inside a note**.
-- [Inline zone navigation](showcase.md#inline-pkm-zone-navigation): **Move cursor left in
+- [Inline zone navigation](docs/showcase.md#inline-pkm-zone-navigation): **Move cursor left in
   line** and **Move cursor right in line** step through the parts of a line rather than
   through characters. Their settings are **Navigation → Moving cursor inside a line**.
 
@@ -160,12 +160,12 @@ command palette and the reference table disagreeing.
 - **Separators, Prefix priority, cursor and placement
   modes**: **Tags & PKM →
   Separators**, **Prefix priority**, **Writing rules** and **Placement modes**.
-- [Cycle a Field from the keyboard](showcase.md#direct-taglink-field-cycle-increasedecrease):
+- [Cycle a Field from the keyboard](docs/showcase.md#direct-taglink-field-cycle-increasedecrease):
   every Field gets a pair of commands, `<Field> next` and `<Field> previous`, created for
   it automatically.
-- [Step an element up or down](showcase.md#element-incrementdecrement): the same pair for a
+- [Step an element up or down](docs/showcase.md#element-incrementdecrement): the same pair for a
   date, a time or a number.
-- [TagWheel](showcase.md#tagwheel-leftrightnavigationapplycancel): **Open TagWheel on the
+- [TagWheel](docs/showcase.md#tagwheel-leftrightnavigationapplycancel): **Open TagWheel on the
   left** and **Open TagWheel on the right** open a panel over the line, where arrow keys
   pick Values and `Enter` applies them.
 
@@ -174,7 +174,7 @@ command palette and the reference table disagreeing.
 - **Tag bubbles and per-Value styles**:
   **Visual → Inline appearance** for size, opacity, corners and a colored band behind each
   Block; **Color your Tags** for tags of your own that no Field owns.
-- [TagWheel panel and scroller](showcase.md#tagwheel-panelscroller): **Visual → TagWheel**,
+- [TagWheel panel and scroller](docs/showcase.md#tagwheel-panelscroller): **Visual → TagWheel**,
   where `Scroller` adds a list of neighbouring Values and `Highlight the TagWheel line`
   fills the line you are editing.
 - **Tag Bars**: **Visual → Tag Bars** draws a
@@ -214,7 +214,7 @@ rewrites the line you are standing on.
 
 - **Preview before you enable it**: the group shows what
   it would do to an example line, without touching a note.
-- [Current root or selected tree](showcase.md#current-root-or-selected-tree).
+- [Current root or selected tree](docs/showcase.md#current-root-or-selected-tree).
 - **Templates, Smart Rules and naming**:
   `Templates folder` and `Default template` under **Inline to note**, the rules under
   **Smart Rules**, and the name under **New note naming**.
@@ -222,7 +222,7 @@ rewrites the line you are standing on.
   content**, plus `If the name already taken` under **New note naming**. `Where to put the
   text` can also file the entry at the end of a heading you name, and says what to do when
   the note has no such heading.
-- [YAML Raw and Clean mapping](showcase.md#yaml-rawclean-mapping): each Field carries the
+- [YAML Raw and Clean mapping](docs/showcase.md#yaml-rawclean-mapping): each Field carries the
   rule, set once for the Field in **Tags & PKM → Fields**.
 - **What happens to the source
   line**: **Transform →
