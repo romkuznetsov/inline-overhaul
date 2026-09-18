@@ -1,3 +1,4 @@
+// @ts-check
 "use strict";
 
 /*
@@ -24,10 +25,26 @@
  * приватный путь, которого может не быть, и «нет» здесь ответ, а не отказ.
  */
 
+/**
+ * Рабочее место Obsidian, если оно и правда объект.
+ *
+ * Тип у довода — `any` нарочно: сюда приходит и настоящий `App`, и то, что
+ * им притворяется в проверках вне Obsidian. Работа этой функции в том и
+ * состоит, чтобы спросить у неизвестного объекта, есть ли у него нужное.
+ *
+ * @param {any} app
+ * @returns {any}
+ */
 function workspaceOf(app) {
   return app && app.workspace && typeof app.workspace === "object" ? app.workspace : null;
 }
 
+/**
+ * Редактор у вида заметки: прямой или через нынешний режим.
+ *
+ * @param {any} view вид заметки платформы либо его подделка в проверке
+ * @returns {any} редактор или `null`
+ */
 function editorOfView(view) {
   if (!view) return null;
   if (view.editor) return view.editor;
@@ -40,6 +57,10 @@ function editorOfView(view) {
  * плагинов. API приватное, его может не быть, и тогда ответ «нет» — работа
  * идёт дальше по второму пути.
  */
+/**
+ * @param {any} app
+ * @returns {any} конструктор вида заметки или `null`, если реестра нет
+ */
 function markdownViewCtorFrom(app) {
   try {
     const plugins = app && app.plugins && app.plugins.plugins ? app.plugins.plugins : null;
@@ -51,6 +72,14 @@ function markdownViewCtorFrom(app) {
   }
 }
 
+/**
+ * Редактор заметки, в которой человек сейчас стоит.
+ *
+ * @param {any} app
+ * @param {any} [viewCtor] конструктор вида: точка входа передаёт
+ *   `require("obsidian").MarkdownView`, движкам его взять неоткуда
+ * @returns {any} редактор или `null`
+ */
 function activeEditorFrom(app, viewCtor) {
   const ws = workspaceOf(app);
   if (!ws) return null;

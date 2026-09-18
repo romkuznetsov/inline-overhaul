@@ -1,3 +1,4 @@
+// @ts-check
 "use strict";
 
 /**
@@ -9,13 +10,18 @@
  * Работа осталась той же — нормализовать токены чекбоксов и заполнить карту
  * `checkboxByValue`, если её ещё нет.
  */
+/**
+ * @param {any} cfg дерево настроек человека: форма у него его, а не наша
+ * @param {any} [deps] общие помощники; без них берутся местные запаски
+ * @returns {any} то же дерево, приведённое к форме версии 2
+ */
 function normalizePkmBehaviorShape(cfg, deps) {
   const isObj = deps && typeof deps.isObj === "function"
     ? deps.isObj
-    : (x) => !!x && typeof x === "object" && !Array.isArray(x);
+    : (/** @type {any} */ x) => !!x && typeof x === "object" && !Array.isArray(x);
   const cloneJson = deps && typeof deps.cloneJson === "function"
     ? deps.cloneJson
-    : (x) => JSON.parse(JSON.stringify(x));
+    : (/** @type {any} */ x) => JSON.parse(JSON.stringify(x));
 
   const out = isObj(cfg) ? cfg : {};
   if (!isObj(out.pkm)) out.pkm = {};
@@ -30,7 +36,7 @@ function normalizePkmBehaviorShape(cfg, deps) {
    * недостижима: путь литеральный, модуль есть всегда. Не приедет —
    * упадём громко, а не разойдёмся молча.
    */
-  const normalizeCheckbox = (token) =>
+  const normalizeCheckbox = (/** @type {any} */ token) =>
     require("./pkm_line_finalize_unified.js").normalizeCheckboxToken(token);
 
   {
@@ -40,7 +46,7 @@ function normalizePkmBehaviorShape(cfg, deps) {
 
   if (Array.isArray(prefixRules.priorityCheckboxes)) {
     prefixRules.priorityCheckboxes = Array.from(new Set(prefixRules.priorityCheckboxes
-      .map((x) => normalizeCheckbox(x))
+      .map((/** @type {any} */ x) => normalizeCheckbox(x))
       .filter(Boolean)));
   }
   if (isObj(prefixRules.checkboxByFieldValue)) {

@@ -1,3 +1,4 @@
+// @ts-check
 "use strict";
 
 /*
@@ -17,6 +18,12 @@ const __say = __sayModule.say;
 const __noticeKey = __sayModule.noticeKey;
 
 class ConfigStore {
+  /**
+   * @param {any} plugin точка входа плагина: отсюда берутся `loadData` и
+   *   `saveData`, то есть граница с диском
+   * @param {any} options умолчания, помощники и `Notice`; форма у них та,
+   *   какую передаёт загрузка, и описана она там же
+   */
   constructor(plugin, options) {
     this.plugin = plugin;
     this.defaults = options.defaults;
@@ -28,11 +35,14 @@ class ConfigStore {
     this.migrateConfig = options.migrateConfig;
     this.Notice = options.Notice;
     this.config = this.cloneJson(this.defaults);
+    /** @type {any[]} снимки конфига до правки; форма — само дерево настроек */
     this.undoStack = [];
     this.listeners = new Set();
     this.saveTimer = null;
     this.coalesceWindowMs = options.coalesceWindowMs || 400;
+    /** @type {string|null} */
     this.lastUndoKey = null;
+    /** @type {number|null} */
     this.lastUndoAt = null;
   }
 
@@ -46,11 +56,16 @@ class ConfigStore {
     return this.cloneJson(this.config);
   }
 
+  /**
+   * @param {(payload: any) => void} listener
+   * @returns {() => void} отписка
+   */
   subscribe(listener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
+  /** @param {string} [reason] почему конфиг изменился */
   emit(reason) {
     const payload = { reason: reason || "update", snapshot: this.getSnapshot() };
     for (const l of this.listeners) {
@@ -69,12 +84,15 @@ class ConfigStore {
    * «файл на диске уже равен памяти» у `adoptExternal`. Второй — это
    * отрицательный контроль Р-2: наша собственная запись, вернувшаяся сигналом
    * платформы, обязана не считаться внешней, и ловится она **содержимым**, а не
-   * временем файла (`mtime` платформа сравнивает сама, и точность у него
-   * файловой системы).
+   * временем файла — его платформа сравнивает сама, и точность у него
+   * файловой системы.
    *
    * Сравнение текстом, а не обходом: у конфига есть ветки, которые человек
    * правит руками, и порядок ключей в них — его. `JSON.stringify` на цикле
    * бросает, и тогда ответ «другой»: лучше лишняя перерисовка, чем потерянная.
+   *
+   * @param {any} candidate дерево настроек для сравнения
+   * @returns {boolean}
    */
   sameAsCurrent(candidate) {
     try {
@@ -93,6 +111,11 @@ class ConfigStore {
    * Склейка нужна слайдерам: платформа зовёт запись на каждый шаг протяжки, и
    * без неё одна протяжка забивает весь стек, а «отменить» откатывает один
    * пиксель вместо жеста (дефект A6).
+   *
+   * @param {(cfg: any) => any} mutator получает снимок, возвращает новый конфиг
+   * @param {string} [reason] причина записи: по ней узнают контрол
+   * @param {{undoable?: boolean, coalesceKey?: string}} [opts]
+   * @returns {boolean} изменилось ли что-нибудь
    */
   update(mutator, reason, opts) {
     const before = this.getSnapshot();
@@ -128,8 +151,13 @@ class ConfigStore {
     return true;
   }
 
+  /**
+   * @param {any} patchObj кусок дерева настроек, который надо влить
+   * @param {string} [reason]
+   * @returns {boolean}
+   */
   patch(patchObj, reason) {
-    return this.update((prev) => this.deepMerge(prev, patchObj), reason || "patch");
+    return this.update((/** @type {any} */ prev) => this.deepMerge(prev, patchObj), reason || "patch");
   }
 
   /**
@@ -158,6 +186,9 @@ class ConfigStore {
    * остаются прежними. Иначе `migrateConfig` собрал бы из `null` умолчания и
    * стёр бы человеку всё дерево настроек в ответ на недописанный синхронизацией
    * файл.
+   *
+   * @param {any} raw то, что лежит в `data.json` прямо сейчас
+   * @returns {boolean} изменилось ли что-нибудь
    */
   adoptExternal(raw) {
     if (!this.isObj(raw)) return false;
@@ -177,6 +208,10 @@ class ConfigStore {
     return true;
   }
 
+  /**
+   * @param {string} [reason]
+   * @returns {boolean} было ли что отменять
+   */
   undo(reason) {
     this.lastUndoKey = null;
     this.lastUndoAt = null;

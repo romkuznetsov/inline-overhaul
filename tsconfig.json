@@ -26,6 +26,9 @@
   },
   "include": [
     "src/**/*.ts",
+    "src/core/*.js",
+    "src/features/*.js",
+    "src/ui/editor/*.js",
     "tests/**/*.ts",
     "build/**/*.ts"
   ],

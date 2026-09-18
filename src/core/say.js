@@ -1,3 +1,4 @@
+// @ts-check
 "use strict";
 
 /**
@@ -38,9 +39,15 @@
  * @param {...(string|number)} args  подстановки на места `{0}`, `{1}`, …
  */
 function say(key, english, ...args) {
+  /** @type {string} */
   let text = String(english == null ? "" : english);
   try {
-    const ask = globalThis.__inlineSay;
+    /*
+     * Шов ставит слой настроек, и для компилятора его на `globalThis` нет:
+     * объявить его типом значило бы объявить шов дважды. Спрашивается он
+     * так же, как в рантайме, — по имени и с проверкой, что это функция.
+     */
+    const ask = /** @type {any} */ (globalThis).__inlineSay;
     if (typeof ask === "function") {
       const said = ask(String(key), text);
       if (typeof said === "string" && said !== "") text = said;
@@ -55,6 +62,7 @@ function say(key, english, ...args) {
    * переживает (то же правило, что у текстов окон, 10.13.46 Р2).
    */
   return args.reduce(
+    /** @param {string} out */
     (out, value, i) => out.split("{" + i + "}").join(String(value == null ? "" : value)),
     text,
   );
@@ -73,6 +81,10 @@ function say(key, english, ...args) {
  * Разойтись им было не на чем, пока никто не менял формат. Цена расхождения
  * известна: ключ, собранный иначе, не найдётся в каталоге, и человек увидит
  * английский там, где выбрал свой язык, — молча.
+ *
+ * @param {string} area область, названная по тому, что человек видит
+ * @param {string} name имя сообщения внутри области
+ * @returns {string}
  */
 function noticeKey(area, name) {
   return "notice." + area + "." + name;
