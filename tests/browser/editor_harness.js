@@ -581,16 +581,20 @@ async function buildPage(injection, opts) {
   if (p) plugins.push(p);
   const v = virtualPlugin(opts && opts.virtual);
   if (v) plugins.push(v);
-  await esbuild.build({
+  const bundleFile = path.join(outDir, base + ".bundle.js");
+  const built = await esbuild.build({
     entryPoints: [path.join(__dirname, entry)],
     bundle: true,
     format: "iife",
-    outfile: path.join(outDir, base + ".bundle.js"),
+    outfile: bundleFile,
     platform: "browser",
     absWorkingDir: root,
     logLevel: "silent",
+    /* Состав страницы нужен мере покрытия (`Р-7`), и только ей: см. ниже. */
+    metafile: !!String(process.env.IO_COVERAGE_OUT || "").trim(),
     plugins,
   });
+  writeBundleMap(built, bundleFile);
   /*
    * **Чужие правила по требованию.** `IO_GATE_EXTRA_CSS` — путь к файлу стилей,
    * который вкладывается в страницу ПЕРЕД нашими: так проверяется каскад
@@ -625,6 +629,107 @@ async function buildPage(injection, opts) {
   return "file:///" + page.replace(/\\/g, "/");
 }
 
+/**
+ * Карта страницы: какому файлу принадлежит каждый кусок собранного бандла
+ * (`Р-7`).
+ *
+ * **Зачем она мере покрытия.** Покрытие браузера снимается с бандла, файлов
+ * `src/**` в нём нет, и сложить две дороги надо чем-то одним. По **именам**
+ * складывать нельзя: имена методов повторяются, и измерение это показало —
+ * семь имён из двадцати имели в странице больше одного носителя, а спорили они
+ * с самим CodeMirror (`toDOM`, `decorations`, `markers`, `clear`, `destroy`,
+ * `sync`, `measure`). Кредит по имени записал бы нам исполнение чужого кода.
+ *
+ * **Складываем по месту.** esbuild помечает каждый модуль строкой-комментарием
+ * с его путём, и путь этот — ровно ключ из `metafile.inputs`. Отсюда границы
+ * кусков, а из них — владелец любого смещения в бандле. Совпадение с `inputs`
+ * требуется точное: комментарий, похожий на пометку, но не названный сборщиком
+ * входом, границей не считается.
+ *
+ * Пишется рядом с покрытием и только когда покрытие просят.
+ */
+function writeBundleMap(built, bundleFile) {
+  const outPath = String(process.env.IO_COVERAGE_OUT || "").trim();
+  if (!outPath) return;
+  const meta = built && built.metafile;
+  if (!meta || !meta.inputs) {
+    console.error("[gate:browser] esbuild не отдал состав страницы — мера покрытия будет неполной");
+    return;
+  }
+  try {
+    const inputs = Object.keys(meta.inputs).map((p) => p.replace(/\\/g, "/"));
+    const known = new Set(inputs);
+    const text = fs.readFileSync(bundleFile, "utf8");
+    const sections = [];
+    const re = /(^|\n)[ \t]*\/\/ (\S+)[ \t]*(?=\n)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const rel = m[2].replace(/\\/g, "/");
+      if (!known.has(rel)) continue;
+      sections.push([m.index + (m[1] ? m[1].length : 0), rel]);
+    }
+    sections.sort((a, b) => a[0] - b[0]);
+    if (!sections.length) {
+      console.error("[gate:browser] в бандле не нашлось ни одной пометки модуля —"
+        + " мера покрытия не сможет назвать владельца куска");
+    }
+    fs.mkdirSync(outPath, { recursive: true });
+    const name = "browser-inputs-" + process.pid + "-" + Date.now() + ".json";
+    fs.writeFileSync(path.join(outPath, name), JSON.stringify({
+      bundle: path.basename(bundleFile),
+      inputs,
+      sections,
+    }));
+  } catch (e) {
+    console.error("[gate:browser] карта страницы не записалась: " + String((e && e.message) || e));
+  }
+}
+
+/**
+ * Снять покрытие с браузерной дороги (`Р-7`).
+ *
+ * **Зачем.** `NODE_V8_COVERAGE` видит только то, что исполняет Node, а слой
+ * оформления и сессия TagWheel исполняются **здесь**, в странице. Пока покрытие
+ * снималось с одной дороги из двух, число неисполненных имён нельзя было ни во
+ * что превратить: часть из них исполняет именно браузер
+ * (`docs/AUDIT_2026-09-18.md`, 4.8).
+ *
+ * **Складывается по именам, а не по процентам.** Страница — это бандл esbuild,
+ * файлов `src/**` в ней нет: имя одно, файлов два (У-148 в сторону самой меры).
+ * Ровно так же `coverage_map.js` уже считает `dist/main.js`.
+ *
+ * **Форма файла — та же, что пишет Node:** объект с полем `result`, внутри
+ * записи V8. Поэтому оба покрытия ложатся в одну папку и читаются одним
+ * инструментом.
+ *
+ * Включается переменной `IO_COVERAGE_OUT`; без неё гейт работает как работал и
+ * ничего не пишет.
+ */
+function collectCoverage(browser, page, outPath) {
+  const close = browser.close.bind(browser);
+  let started = false;
+  const start = page.coverage.startJSCoverage({ resetOnNavigation: false })
+    .then(() => { started = true; })
+    .catch((e) => {
+      /* Громко: молчание здесь неотличимо от «покрытие снято и оно пустое». */
+      console.error("[gate:browser] покрытие не включилось: " + String((e && e.message) || e));
+    });
+  browser.close = async () => {
+    await start;
+    if (started) {
+      try {
+        const entries = await page.coverage.stopJSCoverage();
+        fs.mkdirSync(outPath, { recursive: true });
+        const name = "browser-" + process.pid + "-" + Date.now() + ".json";
+        fs.writeFileSync(path.join(outPath, name), JSON.stringify({ result: entries }));
+      } catch (e) {
+        console.error("[gate:browser] покрытие не записалось: " + String((e && e.message) || e));
+      }
+    }
+    return close();
+  };
+}
+
 async function openEditor(injection, opts) {
   const url = await buildPage(injection, opts);
   const { chromium } = requirePlaywright();
@@ -638,6 +743,10 @@ async function openEditor(injection, opts) {
     process.exit(2);
   }
   const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
+  /* Покрытие включается **до** перехода на страницу: всё, что исполняется при
+     её загрузке, иначе прошло бы мимо меры. */
+  const covOut = String(process.env.IO_COVERAGE_OUT || "").trim();
+  if (covOut) collectCoverage(browser, page, covOut);
   const pageErrors = [];
   page.on("pageerror", (e) => pageErrors.push(String((e && e.message) || e)));
   page.on("console", (m) => { if (m.type() === "error") pageErrors.push("console.error: " + m.text()); });

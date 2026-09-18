@@ -143,6 +143,8 @@ src/core/pkm_macro_shared.js:362
 
 ```
 NODE_V8_COVERAGE=<папка> npm test
+IO_COVERAGE_OUT=<папка> node tests/browser/check_editor.js
+IO_COVERAGE_OUT=<папка> node tests/browser/check_tagwheel.js
 node tools/coverage_map.js <папка>
 ```
 

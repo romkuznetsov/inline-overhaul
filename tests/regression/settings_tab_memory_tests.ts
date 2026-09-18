@@ -179,7 +179,7 @@ async function run(): Promise<void> {
        нормализации конфига, а у новой панели вкладка называется `keyboard`. */
     const { pane } = makePane({ ui: { activeSettingsTab: "hotkeys" } });
     assert.equal(pane.activeTab(), firstTabWithGroups());
-    assert.ok(!TABS.some(t => t.id === "hotkeys"), "контроль: такой вкладки и правда нет");
+    assert.ok(!TABS.some(t => String(t.id) === "hotkeys"), "контроль: такой вкладки и правда нет");
   });
 
   await test("вкладка без единой группы не открывается: пустых страниц не рисуем", () => {
@@ -188,7 +188,7 @@ async function run(): Promise<void> {
     assert.equal(pane.activeTab(), firstTabWithGroups());
     /* Контроль формы (У-189): признак, которым панель отбирает вкладки, на
        этой и правда отвечает «нет». */
-    assert.ok(!SCHEMA.some(g => g.tab === "ghost"), "у призрачной вкладки групп нет");
+    assert.ok(!SCHEMA.some(g => String(g.tab) === "ghost"), "у призрачной вкладки групп нет");
   });
 
   await test("круг замкнут: записанное одной панелью читает следующая", () => {
