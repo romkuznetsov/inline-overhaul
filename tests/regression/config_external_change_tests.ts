@@ -39,6 +39,12 @@ const root = path.resolve(here, "..", "..");
 const requireCjs = Module.createRequire(path.join(root, "main.js"));
 
 const { ConfigStore } = requireCjs("./src/core/config_store.js") as Any;
+/*
+ * Берётся **после** загрузки класса плагина: `config_write.js` требует
+ * `obsidian`, а заглушка на его месте живёт только внутри `loadPluginClass`.
+ * Там модуль и попадает в кеш — здесь достаётся уже загруженным.
+ */
+let configWrite: Any = null;
 const su = requireCjs("./src/core/shared_utils.js") as Any;
 const configNormalize = requireCjs("./src/core/config_normalize.js") as Any;
 
@@ -93,7 +99,7 @@ function loadPluginClass(): Any {
  * иначе принятое было бы тем же объектом, что и записанное, и сравнение
  * содержимого зеленело бы само (У-92).
  */
-function makePlugin(PluginClass: Any, opts?: { realMigration?: boolean }): Any {
+function makePlugin(PluginClass: Any, opts?: { realMigration?: boolean; guarded?: boolean }): Any {
   const disk: { data: Any; writes: Any[] } = { data: null, writes: [] };
   const plugin = new PluginClass(obsidianStub.makeApp(), { id: "inline-overhaul", version: "0.0.0-test" });
   plugin.loadData = async (): Promise<Any> => (disk.data === null ? null : clone(disk.data));
@@ -126,6 +132,14 @@ function makePlugin(PluginClass: Any, opts?: { realMigration?: boolean }): Any {
       : (c: Any): Any => su.cloneJson(c),
     Notice: obsidianStub.Notice,
     saveDebounceMs: 60,
+    /*
+     * Тот же шов, каким его ставит загрузка. Заводится по просьбе, а не всегда:
+     * без него проверяется хранилище само по себе, с ним — вторая точка, где
+     * спрашивается «диск сильнее».
+     */
+    beforeWrite: opts && opts.guarded
+      ? async (): Promise<boolean> => !(await configWrite.adoptIfDiskChanged(plugin))
+      : undefined,
   });
   return plugin;
 }
@@ -138,6 +152,10 @@ async function run(): Promise<void> {
   obsidianStub.setupGlobals();
   const PluginClass = loadPluginClass();
   if (typeof PluginClass !== "function") throw new Error("main.js не отдал класс плагина");
+  configWrite = requireCjs("./src/core/config_write.js") as Any;
+  if (typeof configWrite.adoptIfDiskChanged !== "function") {
+    throw new Error("config_write не отдал adoptIfDiskChanged");
+  }
 
   /* ---- шов существует и это метод плагина ------------------------------ */
   {
@@ -303,6 +321,105 @@ async function run(): Promise<void> {
     assertEq(await plugin.onExternalSettingsChange(), false, "отказ чтения приёмом не считается");
     assertEq(langOf(plugin.getConfig()), "ru", "настройки остались прежними");
     ok("отказ чтения файла не роняет плагин и не трогает настройки");
+  }
+
+  /* ---- диск сильнее и тогда, когда платформа промолчала (`C1`) ---------- */
+  /*
+   * **Его случай, и он воспроизводится буквально.** Он скопировал `data.json`
+   * из другого vault поверх файла — и не увидел ничего. Причина не в нашем
+   * коде: `_onConfigFileChange` платформы (`app.js` 1.13.7) зовёт шов только у
+   * файла **новее** нашей записи, а копирование переносит время источника.
+   * Здесь платформа молчит буквально: `onExternalSettingsChange` не зовётся ни
+   * разу, а файл на диске подменяется чужим.
+   */
+  {
+    const plugin = makePlugin(PluginClass, { guarded: true });
+    await plugin.store.init();
+    obsidianStub.notices.length = 0;
+
+    /* Человек что-то поменял в панели — запись отложена. */
+    plugin.store.patch({ general: { language: "ru" } }, "проба");
+    /* И ровно в это время файл подменили снаружи, не тронув сигнал платформы. */
+    plugin.disk.data = { configVersion: 2, general: { language: "de" } };
+    const writesBefore = plugin.disk.writes.length;
+    await sleep(200);
+
+    assertEq(langOf(plugin.getConfig()), "de", "принято то, что лежит на диске");
+    assertEq(plugin.disk.writes.length, writesBefore,
+      "отложенная запись брошена: вчерашнее на диск не легло");
+    assertEq(langOf(plugin.disk.data), "de", "и файл остался тем, который принесли");
+    assertEq(obsidianStub.notices.length, 1, "человеку сказано один раз");
+    ok("`C1`: чужой файл принимается и без сигнала платформы, своя запись брошена");
+  }
+
+  /* ---- и отрицательный контроль к нему: своя запись доходит до диска ----- */
+  /*
+   * Без этого «диск сильнее» выполнял бы и код, который не пишет **никогда**
+   * (У-127): правка в панели обязана лечь в файл, а не быть принята за чужую.
+   */
+  {
+    const plugin = makePlugin(PluginClass, { guarded: true });
+    await plugin.store.init();
+    obsidianStub.notices.length = 0;
+    const writesBefore = plugin.disk.writes.length;
+
+    plugin.store.patch({ general: { language: "ru" } }, "проба");
+    await sleep(200);
+
+    assertEq(plugin.disk.writes.length, writesBefore + 1, "правка человека записана");
+    assertEq(langOf(plugin.disk.data), "ru", "и на диске лежит именно она");
+    assertEq(langOf(plugin.getConfig()), "ru", "а в памяти она же");
+    assertEq(obsidianStub.notices.length, 0, "и никакого «настройки перечитаны» человеку");
+
+    /* Вторая запись подряд — тем же путём: первая не должна была объявить
+       диск чужим и тем самым сломать следующую. */
+    plugin.store.patch({ general: { language: "fr" } }, "проба");
+    await sleep(200);
+    assertEq(langOf(plugin.disk.data), "fr", "и следующая правка тоже доехала");
+    assertEq(obsidianStub.notices.length, 0, "и по-прежнему без уведомлений");
+    ok("отрицательный контроль: своя правка доезжает до файла и чужой не считается");
+  }
+
+  /* ---- после приёма чужого плагин снова умеет писать --------------------- */
+  /*
+   * Мутация нашла эту дыру раньше заказчика: если после приёма не запомнить,
+   * что теперь лежит в файле, следующая запись объявит принятое чужим ещё раз —
+   * и так по кругу, а правка человека не ляжет на диск **никогда**.
+   */
+  {
+    const plugin = makePlugin(PluginClass, { guarded: true });
+    await plugin.store.init();
+    obsidianStub.notices.length = 0;
+
+    plugin.disk.data = { configVersion: 2, general: { language: "de" } };
+    assertEq(await plugin.onExternalSettingsChange(), true, "чужое принято");
+    assertEq(obsidianStub.notices.length, 1, "и об этом сказано");
+
+    const writesBefore = plugin.disk.writes.length;
+    plugin.store.patch({ general: { language: "it" } }, "проба");
+    await sleep(200);
+    assertEq(plugin.disk.writes.length, writesBefore + 1, "следующая правка записана");
+    assertEq(langOf(plugin.disk.data), "it", "и лежит на диске именно она");
+    assertEq(obsidianStub.notices.length, 1, "второго «перечитаны» не было");
+    ok("после приёма чужого запись плагина снова доезжает до файла");
+  }
+
+  /* ---- настоящая миграция: своя запись не читается как чужая ------------- */
+  /*
+   * Взгляд на диск сравнивает **мигрированное** дерево. Если бы миграция не
+   * была идемпотентной, каждая наша запись читалась бы как чужая, и плагин
+   * ходил бы по кругу на его настоящем конфиге.
+   */
+  {
+    const plugin = makePlugin(PluginClass, { guarded: true, realMigration: true });
+    await plugin.store.init();
+    obsidianStub.notices.length = 0;
+    plugin.store.patch({ general: { language: "ru" } }, "проба");
+    await sleep(200);
+    assertEq(obsidianStub.notices.length, 0, "своя запись через настоящую миграцию чужой не выглядит");
+    assertEq(plugin.store.diskChangedUnderUs(clone(plugin.disk.data)), false,
+      "и прямой вопрос о диске отвечает «наше»");
+    ok("настоящая миграция: запись плагина не читается как внешняя правка");
   }
 
   console.log("Config external change tests: OK (" + passed + " checks)");

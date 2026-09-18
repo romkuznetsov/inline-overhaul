@@ -153,6 +153,9 @@ async function load(plugin) {
     deepMerge,
     migrateConfig,
     Notice,
+    /* Диск сильнее и тогда, когда платформа промолчала: перед отложенной
+       записью плагин смотрит на файл сам (`C1`, его замечание 2026-09-18). */
+    beforeWrite: async () => !(await __configWrite.adoptIfDiskChanged(plugin)),
   });
 
   /* МГ4 и МГ6 — до первой записи формы версии 2, а не после. */

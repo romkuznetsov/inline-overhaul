@@ -34,7 +34,28 @@ class ConfigStore {
     this.deepMerge = options.deepMerge;
     this.migrateConfig = options.migrateConfig;
     this.Notice = options.Notice;
+    /**
+     * Спросить перед записью, писать ли. Отдаёт `false`, если на диске лежит
+     * не наше и оно принято. Ставит загрузка; без неё запись идёт как шла.
+     * @type {null | (() => Promise<boolean>)}
+     */
+    this.beforeWrite = typeof options.beforeWrite === "function" ? options.beforeWrite : null;
     this.config = this.cloneJson(this.defaults);
+    /**
+     * Что мы **сами** в последний раз положили в файл. Это и есть наш ответ на
+     * вопрос «менял ли файл кто-то, кроме нас»: время файла принадлежит
+     * файловой системе и переезжает вместе с копией (У-220), а содержимое —
+     * нет. `null` значит «мы ещё не писали», и тогда судить не о чем.
+     * @type {any}
+     */
+    this.lastWritten = null;
+    /**
+     * Писали ли мы в файл хоть раз за эту загрузку. Признак отдельный нарочно:
+     * само значение бывает любым, `null` в том числе, и сравнивать его с
+     * «ещё не писали» значило бы объявить два разных состояния одним.
+     * @type {boolean}
+     */
+    this.hasWritten = false;
     /** @type {any[]} снимки конфига до правки; форма — само дерево настроек */
     this.undoStack = [];
     this.listeners = new Set();
@@ -50,6 +71,13 @@ class ConfigStore {
     const raw = await this.plugin.loadData();
     this.config = this.migrateConfig(raw);
     await this.plugin.saveData(this.config);
+    this.rememberWritten();
+  }
+
+  /** Запомнить, что теперь лежит в файле нашими руками. */
+  rememberWritten() {
+    this.lastWritten = this.getSnapshot();
+    this.hasWritten = true;
   }
 
   getSnapshot() {
@@ -204,8 +232,35 @@ class ConfigStore {
     this.lastUndoAt = null;
 
     this.config = next;
+    /* На диске теперь лежит ровно это, и наша следующая запись не должна
+       принять свой же файл за чужой. */
+    this.rememberWritten();
     this.emit("external");
     return true;
+  }
+
+  /**
+   * Лежит ли в файле не то, что мы туда положили.
+   *
+   * Вопрос **о содержимом**, а не о времени: копирование файла переносит время
+   * источника, и «файл новее нашей записи» на скопированном не выполняется
+   * вовсе — именно так внешняя правка и осталась незамеченной 2026-09-18.
+   *
+   * Пока мы ни разу не писали, ответ «нет»: сравнивать не с чем.
+   *
+   * @param {any} raw то, что лежит в `data.json` прямо сейчас
+   * @returns {boolean}
+   */
+  diskChangedUnderUs(raw) {
+    if (!this.isObj(raw)) return false;
+    if (!this.hasWritten) return false;
+    try {
+      return JSON.stringify(this.migrateConfig(raw)) !== JSON.stringify(this.lastWritten);
+    } catch (_) {
+      /* Проба: дерево с циклом не сериализуется. Ответ «нет» — запись пойдёт
+         как шла, и это безопаснее, чем принять непрочитанное за чужое. */
+      return false;
+    }
   }
 
   /**
@@ -227,7 +282,14 @@ class ConfigStore {
     this.saveTimer = setTimeout(async () => {
       this.saveTimer = null;
       try {
+        /*
+         * Диск сильнее, и спрашивается это **перед** записью, а не только по
+         * сигналу платформы: сигнала может не быть вовсе, если у принесённого
+         * файла время старее нашей записи (копия переносит время источника).
+         */
+        if (this.beforeWrite && (await this.beforeWrite()) === false) return;
         await this.plugin.saveData(this.config);
+        this.rememberWritten();
       } catch (e) {
         console.error("[inline-overhaul] Save failed", e);
         new this.Notice(__say(__noticeKey("plugin", "save-failed"), "Could not save settings"));
@@ -247,12 +309,18 @@ class ConfigStore {
    * отложенное», а не «записать ещё раз»: лишняя запись на каждой выгрузке
    * трогала бы время файла и будила синхронизацию на ровном месте. Отвечает
    * `false`, чтобы позвавший мог сказать, было ли что дописывать.
+   *
+   * **Взгляда на диск здесь нарочно нет.** Отложенное дописывается на выгрузке,
+   * и лишнее чтение файла — это ровно тот риск, из-за которого правка пропадала
+   * при выключении плагина (`Р-1`, 2026-09-18). Диск сильнее там, где есть
+   * время спросить: в отложенной записи.
    */
   async flushNow() {
     if (!this.saveTimer) return false;
     clearTimeout(this.saveTimer);
     this.saveTimer = null;
     await this.plugin.saveData(this.config);
+    this.rememberWritten();
     return true;
   }
 

@@ -156,15 +156,17 @@ function isUiOnlyReason(reasonKey) {
  * остаются прежними, и об этом пишется в журнал: молчание здесь неотличимо от
  * «принял и потерял».
  */
-async function applyExternalChange(plugin) {
+async function applyExternalChange(plugin, preloaded) {
   if (!plugin || !plugin.store) return false;
-  let raw = null;
-  try {
-    raw = await plugin.loadData();
-  } catch (e) {
-    console.error("[inline-overhaul][config:external] файл настроек не прочитался,"
-      + " настройки остались прежними: " + String((e && e.message) || e || ""));
-    return false;
+  let raw = preloaded === undefined ? null : preloaded;
+  if (preloaded === undefined) {
+    try {
+      raw = await plugin.loadData();
+    } catch (e) {
+      console.error("[inline-overhaul][config:external] файл настроек не прочитался,"
+        + " настройки остались прежними: " + String((e && e.message) || e || ""));
+      return false;
+    }
   }
   if (!__sharedUtils.isObj(raw)) {
     console.error("[inline-overhaul][config:external] файл настроек пришёл не объектом,"
@@ -194,6 +196,37 @@ async function applyExternalChange(plugin) {
     "Settings changed on disk, so inlineOverhaul reloaded them",
   ));
   return true;
+}
+
+/**
+ * Посмотреть на диск перед записью и принять чужое, если оно там лежит.
+ *
+ * **Зачем вторая точка.** Первая — сигнал платформы, и он приходит не всегда:
+ * `_onConfigFileChange` в `app.js` 1.13.7 зовёт шов только у файла **новее**
+ * нашей последней записи, а копирование файла переносит время источника. Так
+ * 2026-09-18 принесённый снаружи `data.json` не дал ни уведомления, ни
+ * перечитывания — и был затёрт ближайшей записью.
+ *
+ * **Отличает чужое содержимое, а не время.** Спрашивает хранилище, лежит ли в
+ * файле то, что мы сами туда положили; «нет» значит чужое, и тогда идёт тот же
+ * приём, что по сигналу платформы, — вместе с уведомлением и пересборкой.
+ *
+ * Отвечает `true`, если чужое принято: позвавший по этому бросает свою
+ * отложенную запись.
+ */
+async function adoptIfDiskChanged(plugin) {
+  const store = plugin && plugin.store;
+  if (!store || typeof store.diskChangedUnderUs !== "function") return false;
+  let raw = null;
+  try {
+    raw = await plugin.loadData();
+  } catch (e) {
+    console.error("[inline-overhaul][config:external] файл настроек не прочитался"
+      + " перед записью: " + String((e && e.message) || e || ""));
+    return false;
+  }
+  if (!store.diskChangedUnderUs(raw)) return false;
+  return await applyExternalChange(plugin, raw);
 }
 
 /**
@@ -250,6 +283,7 @@ async function prepareFileForV2(plugin) {
 module.exports = {
   applyPatch,
   applyExternalChange,
+  adoptIfDiskChanged,
   isUiOnlyReason,
   prepareFileForV2,
 };
