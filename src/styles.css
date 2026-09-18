@@ -705,8 +705,13 @@
  * обе стороны оставались разной высоты при зелёном гейте.
  */
 .io-line.io-line--blockfill { align-items: stretch; }
-.io-line--blockfill .io-line__side--left:not(:empty),
-.io-line--blockfill .io-line__side--right:not(:empty) {
+/*
+ * **Сторона называется своим классом** (З-12, `Stripe direction`): при `both`
+ * стоят оба, при `left` и `right` — один. Общий `io-line--blockfill` остаётся
+ * и держит высоту: она у обеих сторон одна, сколько бы полос ни рисовалось.
+ */
+.io-line--blockfill-left .io-line__side--left:not(:empty),
+.io-line--blockfill-right .io-line__side--right:not(:empty) {
   background-color: color-mix(in srgb,
     var(--io-blockfill-color) calc(var(--io-blockfill-opacity, 0.12) * 100%), transparent);
   border-radius: var(--radius-s);
@@ -739,7 +744,7 @@
  *
  * Специфичность та же, что у правила выше, и решает порядок (У-67).
  */
-.io-line--blockfill .io-line__side--left:not(:empty) {
+.io-line--blockfill-left .io-line__side--left:not(:empty) {
   padding-left: min(var(--io-blockfill-padx, 3px), var(--io-line-gap));
   margin-left: calc(-1 * min(var(--io-blockfill-padx, 3px), var(--io-line-gap)));
 }

@@ -181,6 +181,45 @@ function main(): void {
 
   console.log("  ok  кегль Block слушают все " + inPanel.size
     + " классов значений, и обе отрисовки одинаково");
+
+  /*
+   * **Сторона полосы называется классом, и класс этот нужен четырём местам**
+   * (З-12, `Stripe direction`): его ставят две отрисовки и читают два файла
+   * стилей. Класс, поставленный одной стороной, — то же расхождение, что
+   * переменная: у человека полоса слушает направление в панели и не слушает в
+   * прототипе, или наоборот.
+   *
+   * Список не пишется, а выводится: обход берёт все имена семьи из кода и из
+   * стилей обеих сторон. Порог рядом — семья непуста, иначе сверялись бы два
+   * пустых набора (У-92).
+   */
+  const familyIn = (src: string): Set<string> => {
+    const out = new Set<string>();
+    for (const m of src.matchAll(/io-line--blockfill-[A-Za-z0-9-]+/g)) out.add(String(m[0]));
+    return out;
+  };
+  const sides = {
+    "код прототипа": familyIn(protoHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/g, "")),
+    "код панели": familyIn(panelSources().join("\n")),
+    "стили прототипа": familyIn(protoCss),
+    "стили панели": familyIn(panelCss),
+  };
+  for (const [where, set] of Object.entries(sides)) {
+    assert.ok(set.size >= 2,
+      "сторон полосы в «" + where + "» найдено " + set.size
+      + " — обход ищет не то, и сверять было нечего (У-200)");
+  }
+  const union = new Set(Object.values(sides).flatMap(s => Array.from(s)));
+  const missing: string[] = [];
+  for (const cls of Array.from(union).sort()) {
+    for (const [where, set] of Object.entries(sides)) {
+      if (!set.has(cls)) missing.push(where + ": нет ." + cls);
+    }
+  }
+  assert.deepEqual(missing, [],
+    "сторону полосы называет не всякая отрисовка и не всякие стили:\n  " + missing.join("\n  "));
+  console.log("  ok  сторону полосы (" + union.size
+    + " класса) ставят обе отрисовки и читают оба файла стилей");
 }
 
 main();

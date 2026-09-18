@@ -1001,6 +1001,9 @@ function normalizeConfigV2(cfg) {
   renameBlockFillHeightToPercent(cfg);
   int("visual.tags.blockFill.heightPct", 0, 100);
   int("visual.tags.blockFill.widthPct", 0, 100);
+  /* Какой Block получает полосу (З-12). Список значений — тот же, которым
+     спрашивает движок: имена зон разбора строки. */
+  oneOf("visual.tags.blockFill.direction", ["left", "right", "both"]);
   normalizeTagVisualMapsV2(cfg);
 
   /* --- каретка: цвет, толщина, мерцание (10.13.33) ---------------------- */

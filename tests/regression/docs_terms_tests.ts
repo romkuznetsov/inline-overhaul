@@ -116,6 +116,17 @@ const GUIDES = ["README.md", "instructions.md"];
        `app.setting.open()` (T8, фаза 6 пункт 5). Обратно не возвращается
        решением 7.2, поэтому запись здесь постоянная, а не до следующей фазы. */
     ["Open settings", "фаза 6 пункт 5: команда снята вместе с app.setting.open() (T8)"],
+    /* Пять подписей полосы переименованы его словом 2026-09-19 (З-13):
+       `Color the Block with Stripe`, `Stripe color`, `Stripe opacity`,
+       `Stripe height`, `Stripe width`. Контролы живы, а прежние имена в
+       документе посылают человека искать строку, которой в панели нет. Для
+       поиска в самой панели они остались в `searchTerms` — там их место.
+       Запрет снимается, только если он вернёт прежние подписи. */
+    ["Color the Blocks", "З-13: тумблер переименован в Color the Block with Stripe"],
+    ["Block color", "З-13: строка переименована в Stripe color"],
+    ["Block color strength", "З-13: строка переименована в Stripe opacity"],
+    ["Band height", "З-13: строка переименована в Stripe height"],
+    ["Band width", "З-13: строка переименована в Stripe width"],
   ];
 
   /*

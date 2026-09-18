@@ -518,8 +518,11 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    дважды, и второе объявление стоит ниже — одиночный класс он отменял молча,
    и обе стороны оставались разной высоты при зелёном гейте. */
 .io-line.io-line--blockfill { align-items: stretch; }
-.io-line--blockfill .io-line__side--left:not(:empty),
-.io-line--blockfill .io-line__side--right:not(:empty) {
+/* Сторона называется своим классом (З-12, `Stripe direction`): при `both`
+   стоят оба, при `left` и `right` — один. Общий `io-line--blockfill`
+   остаётся: им держится высота строки, а она у обеих сторон одна. */
+.io-line--blockfill-left .io-line__side--left:not(:empty),
+.io-line--blockfill-right .io-line__side--right:not(:empty) {
   background-color: color-mix(in srgb,
     var(--io-blockfill-color) calc(var(--io-blockfill-opacity, 0.12) * 100%), transparent);
   border-radius: var(--radius-s);
@@ -542,7 +545,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
  *
  * Специфичность та же, что у правила выше, и решает порядок (У-67).
  */
-.io-line--blockfill .io-line__side--left:not(:empty) {
+.io-line--blockfill-left .io-line__side--left:not(:empty) {
   padding-left: min(var(--io-blockfill-padx, 3px), var(--io-line-gap));
   margin-left: calc(-1 * min(var(--io-blockfill-padx, 3px), var(--io-line-gap)));
 }
@@ -2269,7 +2272,7 @@ const SCHEMA = [
 {
   id: "tag-appearance", tab: "visual", order: 100, heading: "Inline appearance",
   intro: "How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file",
-  tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. <b>Line view</b> below them is about the Blocks as a whole — how big each one is written, and the band behind it; <b>Tag view</b> is about the bubble a tag is drawn in. <b>Color Left\\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
+  tip: "Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. <b>Line view</b> below them is about the Blocks as a whole — how big each one is written, and the Stripe behind it; <b>Tag view</b> is about the bubble a tag is drawn in. <b>Color the Block with Stripe</b> puts a Stripe behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab",
   items: [
     { kind:"custom", id:"tag-preview", render: renderTagPreview },
 
@@ -2279,7 +2282,7 @@ const SCHEMA = [
        верхняя половина про Block целиком (он же и дата, и ссылка), нижняя про
        пузырь, которого у даты и ссылки нет вовсе. */
     { kind:"custom", id:"line-view-sub", render: renderSubheader("Line view",
-        "Everything here is about the two Blocks as a whole: how much they fade, how big their writing is, and whether a colored band runs behind each of them. It reaches the tags, the dates and the links alike, and stops at the text between your Separators, because that part is yours") },
+        "Everything here is about the two Blocks as a whole: how much they fade, how big their writing is, and whether a colored Stripe runs behind each of them. It reaches the tags, the dates and the links alike, and stops at the text between your Separators, because that part is yours") },
     { kind:"slider", id:"tags-opacity-left", path:"visual.tags.opacityLeft", default:100,
       min:0, max:100, step:1, unit:"%",
       name:"Opacity of the Left Block", desc:"Dims everything written before your text, tags and elements alike",
@@ -2291,42 +2294,46 @@ const SCHEMA = [
       name:"Opacity of the Right Block", desc:"Dims everything written after your text, tags and elements alike",
       tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works",
       searchTerms:["Opacity Right"] },
-    /* Кегль разведён на две стороны — заказ заказчика 2026-09-19, пункт 2:
-       «разделить tags-text-size на tags-text-size-left и tags-text-size-right…
-       Должна сохраниться текущая логика (т.е. центрирование строки при
-       уменьшении text size)». Прежний ключ `visual.tags.textSizePct` уступает
-       обоим: у кого он был выбран, тот получит своё число с обеих сторон. */
-    { kind:"slider", id:"tags-text-size-left", path:"visual.tags.textSizePctLeft", default:100,
-      min:50, max:140, step:5, unit:"%",
-      name:"Left Block text size", desc:"How big everything before your text is written, next to the rest of your note",
-      tip:"This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom",
-      searchTerms:["Tag text size", "Text size Left"] },
-    { kind:"slider", id:"tags-text-size-right", path:"visual.tags.textSizePctRight", default:100,
-      min:50, max:140, step:5, unit:"%",
-      name:"Right Block text size", desc:"How big everything after your text is written, next to the rest of your note",
-      tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line",
-      searchTerms:["Tag text size", "Text size Right"] },
     /* Заказчик 2026-09-08 (З-7): «хочу добавить опцию, чтобы left and right
        blocks можно было добавить цветовую заливку… представляю себе это как
        опцию в tag-appearance `Color Left\\Right blocks` = on\\off, при on
        появляются дополнительные опции». Способ рисования он выбрал сам:
        свой слой прямоугольников за текстом. */
     { kind:"toggle", id:"tags-block-fill", path:"visual.tags.blockFill.enabled", default:false,
-      /* Заказчик назвал строку `Color Left\\Right blocks`. В панели она стоит
-         как `Color the Blocks`: правило имён держит `Left Block` и `Right Block`
-         парой и не пускает имя длиннее пяти слов, а `Left\\Right` — ни то ни
-         другое. Смысл тот же, и обе стороны названы в описании. */
-      name:"Color the Blocks", desc:"A band behind the Left Block and the Right Block, so the two stand out from your text",
+      /* Имя его словами (З-13, 2026-09-19): «измени названия
+         контролов: tags-block-fill на `Color the Block with Stripe`…» — и оно
+         стоит в панели дословно: ровно пять слов, предел имени
+         соблюдён. Прежняя подпись `Color the Blocks` была моим
+         компромиссом вместо его же `Color Left\\Right blocks`, и новое слово
+         сильнее старого; старая осталась в `searchTerms`, чтобы поиск
+         панели её находил. */
+      name:"Color the Block with Stripe", desc:"A Stripe behind the Left Block and the Right Block, so the two stand out from your text",
       searchTerms:["Block background", "Color the Blocks"],
-      tip:"The band runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no band. The band sits <b>behind</b> the writing, so everything on the line stays selectable and clickable. Tag bubbles carry their own color, so a Block of one tag would hide the band completely — the two rows at the bottom are how far it reaches past the writing, and that is what makes it show at all" },
+      tip:"The Stripe runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no Stripe. The Stripe sits <b>behind</b> the writing, so everything on the line stays selectable and clickable. Tag bubbles carry their own color, so a Block of one tag would hide the Stripe completely — the two rows at the bottom are how far it reaches past the writing, and that is what makes it show at all" },
+    /* Направление полосы — его слово 2026-09-19 (З-12): «при left —
+       полоска возникает только в left block, при right — только в right
+       block». Стоит первой из дочерних, потому что он сказал «под этим
+       контролом», и решает она не вид полосы, а её наличие у стороны.
+
+       Значения совпадают с именами зон разбора строки (`left`, `right`) —
+       это не совпадение: зона и есть предмет вопроса, и правило
+       «получает ли эта сторона полосу» объявлено один раз на обе
+       отрисовки (У-217). */
+    { kind:"dropdown", id:"tags-block-fill-direction", path:"visual.tags.blockFill.direction", default:"both",
+      name:"Stripe direction", desc:"Which of the two Blocks gets a Stripe",
+      tip:"<code>Both</code> puts a Stripe behind each Block, and that is the usual choice. <code>Left</code> and <code>Right</code> leave it on one side only — useful when one of the two Blocks is the one you read and the other is bookkeeping. A Block with nothing in it gets no Stripe whatever is chosen here, and your own text between the Separators is never touched",
+      options:[ {value:"left",label:"Left"}, {value:"right",label:"Right"}, {value:"both",label:"Both"} ],
+      visible: on("visual.tags.blockFill.enabled") },
     { kind:"color", id:"tags-block-fill-color", path:"visual.tags.blockFill.color", default:"",
-      name:"Block color", desc:"Leave it unset and the band follows your theme",
-      tip:"Unset means the accent color of whatever theme you are using, so the band keeps looking right when you change themes. Pick a color here only when you want a particular one",
+      name:"Stripe color", desc:"Leave it unset and the Stripe follows your theme",
+      searchTerms:["Block color"],
+      tip:"Unset means the accent color of whatever theme you are using, so the Stripe keeps looking right when you change themes. Pick a color here only when you want a particular one",
       visible: on("visual.tags.blockFill.enabled") },
     { kind:"slider", id:"tags-block-fill-opacity", path:"visual.tags.blockFill.opacity", default:12,
       min:0, max:100, step:1, unit:"%",
-      name:"Block color strength", desc:"How strongly the band shows through",
-      tip:"Low numbers are the point: the band is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it",
+      name:"Stripe opacity", desc:"How strongly the Stripe shows through",
+      searchTerms:["Block color strength"],
+      tip:"Low numbers are the point: the Stripe is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it",
       visible: on("visual.tags.blockFill.enabled") },
     /* Заказчик 2026-09-09, замечание по S7: «хочу, чтобы была настройка высоты
        и ширины этой полосы». Отсюда две шкалы, и обе он откалибровал сам
@@ -2351,14 +2358,31 @@ const SCHEMA = [
        ровно по написанному, сотня — строка заполнена целиком. */
     { kind:"slider", id:"tags-block-fill-height", path:"visual.tags.blockFill.heightPct", default:60,
       min:0, max:100, step:20, unit:"%",
-      name:"Band height", desc:"How far the band reaches above and below the writing",
-      tip:"The scale has two landmarks. At <code>0</code> the band is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. At <code>100</code> it fills the line it belongs to, so the bands of two neighbouring lines meet and never overlap. In between it takes that much of the room the line has left, which is why every step moves the band on any theme, whatever its line spacing",
+      name:"Stripe height", desc:"How far the Stripe reaches above and below the writing",
+      searchTerms:["Band height"],
+      tip:"The scale has two landmarks. At <code>0</code> the Stripe is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. At <code>100</code> it fills the line it belongs to, so the Stripes of two neighbouring lines meet and never overlap. In between it takes that much of the room the line has left, which is why every step moves the Stripe on any theme, whatever its line spacing",
       visible: on("visual.tags.blockFill.enabled") },
     { kind:"slider", id:"tags-block-fill-width", path:"visual.tags.blockFill.widthPct", default:50,
       min:0, max:100, step:5, unit:"%",
-      name:"Band width", desc:"How far the band reaches past the Block on both of its sides",
-      tip:"The scale has three landmarks. At <code>0</code> the band starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says",
+      name:"Stripe width", desc:"How far the Stripe reaches past the Block on both of its sides",
+      searchTerms:["Band width"],
+      tip:"The scale has three landmarks. At <code>0</code> the Stripe starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says",
       visible: on("visual.tags.blockFill.enabled") },
+    /* Кегль разведён на две стороны — заказ заказчика 2026-09-19, пункт 2:
+       «разделить tags-text-size на tags-text-size-left и tags-text-size-right…
+       Должна сохраниться текущая логика (т.е. центрирование строки при
+       уменьшении text size)». Прежний ключ `visual.tags.textSizePct` уступает
+       обоим: у кого он был выбран, тот получит своё число с обеих сторон. */
+    { kind:"slider", id:"tags-text-size-left", path:"visual.tags.textSizePctLeft", default:100,
+      min:50, max:140, step:5, unit:"%",
+      name:"Left Block text size", desc:"How big everything before your text is written, next to the rest of your note",
+      tip:"This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom",
+      searchTerms:["Tag text size", "Text size Left"] },
+    { kind:"slider", id:"tags-text-size-right", path:"visual.tags.textSizePctRight", default:100,
+      min:50, max:140, step:5, unit:"%",
+      name:"Right Block text size", desc:"How big everything after your text is written, next to the rest of your note",
+      tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line",
+      searchTerms:["Tag text size", "Text size Right"] },
 
     { kind:"custom", id:"tag-view-sub", render: renderSubheader("Tag view",
         "This half is about the bubble a tag is drawn in, and nothing else: how much room there is around the word, how tall the bubble is, and how round its corners are. Dates and links get no bubble, so none of it reaches them") },
@@ -4025,7 +4049,15 @@ function applyTagVars(node) {
   const bandSepCh = String(val("pkm.lineFormat.separator1") || "||").length;
   cssVar(node, "--io-blockfill-padx",
     "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
-  if (val("visual.tags.blockFill.enabled") === true) node.classList.add("io-line--blockfill");
+  if (val("visual.tags.blockFill.enabled") === true) {
+    node.classList.add("io-line--blockfill");
+    /* Направление (З-12): `both` даёт оба класса, `left` и `right` — по
+       одному. Незнакомое значение читается как `both`: полоса — украшение,
+       и пропасть ей от испорченного значения не за что. */
+    const dir = String(val("visual.tags.blockFill.direction") || "both");
+    if (dir !== "right") node.classList.add("io-line--blockfill-left");
+    if (dir !== "left") node.classList.add("io-line--blockfill-right");
+  }
 }
 /* A bubble with no text keeps a normal bubble's height: the non-breaking
    space holds the line box open while the color hides it. */

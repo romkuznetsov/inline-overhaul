@@ -35,6 +35,12 @@ import type { PreviewNode } from "../schema/custom_texts.ts";
 import { FRAME_BY_NAME, SINGLE_KEYS, frameKey, previewKey } from "../texts_custom.ts";
 /* Движок Transform: считает он, блок только рисует (У-4). */
 import sourceEngine from "../../../features/transform_feature.js";
+/*
+ * Правило «получает ли эта сторона полосу» (З-12) берётся у того же модуля,
+ * которым живёт слой заметки: у правила вида два места отрисовки и один дом
+ * (У-217). Своя копия здесь разошлась бы с заметкой первым же уточнением.
+ */
+import visualsConfig from "../../../core/editor_visuals_config.js";
 
 /** Значение настройки числом: панель отдаёт его как unknown. */
 function num(ctx: SettingsCtx, path: string): number {
@@ -175,7 +181,22 @@ export function applyTagVars(node: El, ctx: SettingsCtx): void {
   const bandSepCh = sep(ctx, SEP1_PATH).length;
   cssVar(node, "--io-blockfill-padx",
     "calc(var(--io-line-gap) * " + bandNear + " + " + bandSepCh + "ch * " + bandFar + ")");
-  if (ctx.get("visual.tags.blockFill.enabled") === true) node.addClass("io-line--blockfill");
+  if (ctx.get("visual.tags.blockFill.enabled") === true) {
+    node.addClass("io-line--blockfill");
+    /*
+     * Сторона называется классом (З-12): при `both` их два, при `left` и
+     * `right` — один. Общий класс остаётся — им держится высота строки, а она
+     * у обеих сторон одна.
+     */
+    /*
+     * Имена классов написаны целиком, а не собраны из куска и зоны: имя класса
+     * — такое же объявление правила (У-103), и собранное по частям не находит
+     * ни греп, ни сверка двух отрисовок.
+     */
+    const dir = ctx.get("visual.tags.blockFill.direction");
+    if (visualsConfig.blockFillZoneWanted(dir, "left")) node.addClass("io-line--blockfill-left");
+    if (visualsConfig.blockFillZoneWanted(dir, "right")) node.addClass("io-line--blockfill-right");
+  }
 }
 
 /** Пути, от которых зависит вид тега: на них предпросмотр перерисовывается. */

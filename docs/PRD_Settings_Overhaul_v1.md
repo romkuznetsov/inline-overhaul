@@ -1852,6 +1852,117 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.207 `Stripe direction`: какой Block получает полосу (2026-09-19)
+
+**Его заказ (З-12):** «tags-block-fill при ON — добавить под этим контролом
+дополнительный контрол `Stripe direction` с выпадающим списком (Left, Right,
+Both) для определения направления места возникновения полоски, по умолчанию
+both. При left — полоска возникает только в left block, при right — только в
+right block».
+
+**Где объявлено правило.** Один раз — `blockFillZoneWanted` в
+`editor_visuals_config.js`, и спрашивают его двое: слой заметки
+(`blockFillDocRanges` отбрасывает отрезок чужой стороны сразу, как только тот
+получил зону) и предпросмотр панели (ставит класс стороны). Дом у правила один
+нарочно: правило вида, поправленное у одной отрисовки, вторую оставляет на
+прежнем ответе (У-217), и полоса этот урок уже один раз купила — кегль,
+прозрачность и выравнивание пришлось учить составу Block по отдельности.
+
+**Сторона названа классом, а не переменной.** `io-line--blockfill-left` и
+`io-line--blockfill-right`: при `Both` стоят оба, при `Left` и `Right` — один.
+Общий `io-line--blockfill` остаётся и держит высоту строки — она у обеих сторон
+одна, сколько бы полос ни рисовалось. Имена написаны литералами целиком, а не
+собраны из куска и зоны: имя класса — такое же объявление правила (У-103), и
+собранное по частям не находит ни греп, ни сверка двух отрисовок.
+
+**Испорченное значение читается как `both`.** Полоса — украшение, и пропадать
+ей от рукописного `data.json` не за что; границы при этом держит нормализация
+(`oneOf` на трёх значениях), а не панель.
+
+**Чем закреплено.** Тремя родами проверок, и каждый про своё: зоны отрезков в
+заметке (`block_fill_tests.js`, три положения подряд — на одном правило «красить
+всегда обе» было бы зелёным), сверка двух отрисовок по имени класса
+(`preview_parity_tests.ts`, обход вместо списка) и закрашенная сторона у
+браузера (`check_panel.js`: спрашивается не класс, а фон, потому что вопрос у
+человека именно про фон). Подмен три: снятый отбор в слое, правило, всегда
+отвечающее «да», и предпросмотр, не читающий направление, — краснеют все три, и
+каждая на своём утверждении.
+
+**Что увидит заказчик.** Новая строка под тумблером полосы, три значения, `Both`
+по умолчанию — то есть у того, кто ничего не менял, вид не изменился ни на
+точку.
+
+#### 10.13.206 Пять имён полосы — его словами (2026-09-19)
+
+**Его заказ (З-13):** «измени названия контролов: tags-block-fill на `Color the
+Block with Stripe`, tags-block-fill-color — `Stripe color`,
+tags-block-fill-opacity — `Stripe opacity`, tags-block-fill-height — `Stripe
+height`, tags-block-fill-width `Stipe width`». Опечатка в последней строке
+читается как `Stripe width`, и спрашивать об этом нечего.
+
+**Прежняя подпись тумблера была компромиссом, и он его отменил.** 2026-09-08 он
+просил `Color Left\Right blocks`, а правило имён не пускает ни `Left\Right`,
+ни имя длиннее пяти слов — в панели стояло `Color the Blocks`. Новое имя ровно
+пять слов и ставится дословно; прежнее ушло в `searchTerms`, где его найдёт
+поиск панели. Так же поступили остальные четыре: старая подпись каждого —
+теперь слово для поиска.
+
+**`Stripe` — сущность плагина, а не английское слово.** Он назвал имена с
+заглавной, и правило Р9 читается однозначно: то, что рисует плагин, пишется с
+заглавной в любом месте фразы. Значит либо имя нарушает правило, либо слово
+входит в список сущностей — и входит оно по существу: полосу рисуем мы, и от
+полосы в общем смысле её надо отличать так же, как Bar. Отсюда две правки в
+гейте прототипа: слово в списке сущностей и в обратном запрете, который ловит
+его со строчной. Прежнее значение слова — старое имя Bars — живёт только в
+`searchTerms`, и пересечься им не на чем.
+
+**Слово `band` из видимых текстов ушло целиком** — четырнадцать строк описаний и
+подсказок. Имена он назвал, а рассказ рядом остался бы про другое: у текста на
+экране расходиться не на чем. Прежние подписи запрещены в документах списком
+`REMOVED` в `docs_terms_tests.ts`: контрол жив, но имя в руководстве посылало бы
+человека искать строку, которой в панели нет.
+
+#### 10.13.205 Полоса встала над кеглем — правка его же порядка (2026-09-19)
+
+**Его заказ (З-10):** «контрол tags-block-fill должен быть над контролом
+tags-text-size-left».
+
+**Это правка порядка, который он назвал сам** четырьмя днями раньше, пунктом 3
+той же ночи: `tags-opacity-left, tags-opacity-right, tags-text-size-left,
+tags-text-size-right, tags-block-fill с дочерними контролами`. Новое слово
+сильнее старого, и возвращать прежнюю последовательность «по пункту 3» нельзя.
+Порядок в `Line view` теперь такой: прозрачность двух сторон, полоса со своими
+дочерними, кегль двух сторон.
+
+**Цена — перенос участка прототипа целиком**, без единой правки внутри: пять
+контролов вместе с объяснениями, откуда каждый взялся. Схема выведена
+перегенерацией, раздел 9 и Приложение B — своим скриптом; руками ни один из них
+не правился.
+
+#### 10.13.204 Файлы под З3 переехали в `src` (2026-09-19)
+
+**Раздел обещан исключением сто тридцать первым и написан 2026-09-19, ночь:**
+ссылка на него стояла, а самого раздела не было. Требование без звавшего — это
+тот же класс, что пин без предмета (У-141): ссылка выглядит разбором и не
+содержит ничего.
+
+**Его слово** — пункт 1 той же ночи: «в github выкладывается релиз в неряшливой
+структуре… много файлов js, json, css в корне… в корне должен остаться только
+необходимый минимум».
+
+**Что изменилось внутри файлов под З3.** Только пути своих же `require`: из пути
+ушёл сегмент `src`, число `../` осталось прежним — и файл, и цель сместились на
+одну папку. Ни одной строки кода, ни одного имени, ни одного условия.
+
+**Чем измерено нулевое расхождение.** Сборкой: `dist/main.js` до переезда и
+после расходятся на 28 строк из 33 тысяч, и все 28 — бухгалтерия esbuild
+(комментарий с путём над модулем и ключ того же пути в реестре обёрток). То,
+чего сборка не видит, прогнано руками: одиннадцать стендов по одному, и два из
+них падали на старом адресе молча — в семи шагах стендов нет (У-228).
+
+**Полный адрес исключения** — `docs/Z3_EXCEPTIONS.md`, строка 131; отчёт для
+заказчика — `251у`.
+
 #### 10.13.203 Проверка типов на JavaScript: включена там, где дёшево (2026-09-19)
 
 **Строка ревизии — `Р-6`, и ранг у неё был низкий: цена 4091 правка аннотаций,
@@ -8821,7 +8932,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (63)
+### Пути, которых не было в описи v1.0 (64)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -8841,12 +8952,13 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
+| `visual.tags.blockFill.enabled` | Color the Block with Stripe (`tags-block-fill`) | Inline appearance |
+| `visual.tags.blockFill.direction` | Stripe direction (`tags-block-fill-direction`) | Inline appearance |
+| `visual.tags.blockFill.color` | Stripe color (`tags-block-fill-color`) | Inline appearance |
+| `visual.tags.blockFill.opacity` | Stripe opacity (`tags-block-fill-opacity`) | Inline appearance |
+| `visual.tags.blockFill.heightPct` | Stripe height (`tags-block-fill-height`) | Inline appearance |
+| `visual.tags.blockFill.widthPct` | Stripe width (`tags-block-fill-width`) | Inline appearance |
 | `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
-| `visual.tags.blockFill.enabled` | Color the Blocks (`tags-block-fill`) | Inline appearance |
-| `visual.tags.blockFill.color` | Block color (`tags-block-fill-color`) | Inline appearance |
-| `visual.tags.blockFill.opacity` | Block color strength (`tags-block-fill-opacity`) | Inline appearance |
-| `visual.tags.blockFill.heightPct` | Band height (`tags-block-fill-height`) | Inline appearance |
-| `visual.tags.blockFill.widthPct` | Band width (`tags-block-fill-width`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -16106,7 +16218,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 13 | 7 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 8 | 52 | 10 |
+| 5 | Visual | `features.visual.enabled` | 8 | 53 | 10 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 8 | 1 |
 
@@ -16878,7 +16990,7 @@ _Tip:_ Rules are read from the top, the first one that fits is used, and anythin
 
 _Intro:_ How a tagged line looks while you write. Tags are drawn as small colored bubbles; links and dates stay ordinary text. Nothing here changes a single character in your file
 
-_Tip:_ Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. <b>Line view</b> below them is about the Blocks as a whole — how big each one is written, and the band behind it; <b>Tag view</b> is about the bubble a tag is drawn in. <b>Color Left\Right blocks</b> puts a band behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab
+_Tip:_ Everything in this block is drawing only: the file on disk is the same either way, and the line reads normally anywhere else. The two <b>opacity</b> rows fade the Blocks on each side of your text so the text itself stands out — they reach the tags, the dates and the links, and stop at the text between the Separators, because that part is yours. <b>Line view</b> below them is about the Blocks as a whole — how big each one is written, and the Stripe behind it; <b>Tag view</b> is about the bubble a tag is drawn in. <b>Color the Block with Stripe</b> puts a Stripe behind each of them, from its first Value to its last, so the two are visible at a glance. Colors of individual Values live with the Field that offers them, on the <code>Tags & PKM</code> tab
 
 - **`tag-preview`** — свой блок, рендерер `renderTagPreview`
 - **`line-view-sub`** — свой блок, рендерер `?`
@@ -16893,6 +17005,38 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works
   - диапазон: 0–100, шаг 1, ед. %
   - старые названия для поиска: «Opacity Right»
+- **Color the Block with Stripe** — `tags-block-fill`, `toggle`, path `visual.tags.blockFill.enabled`, default `false`
+  - desc: A Stripe behind the Left Block and the Right Block, so the two stand out from your text
+  - tip: The Stripe runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no Stripe. The Stripe sits <b>behind</b> the writing, so everything on the line stays selectable and clickable. Tag bubbles carry their own color, so a Block of one tag would hide the Stripe completely — the two rows at the bottom are how far it reaches past the writing, and that is what makes it show at all
+  - старые названия для поиска: «Block background», «Color the Blocks»
+- **Stripe direction** — `tags-block-fill-direction`, `dropdown`, path `visual.tags.blockFill.direction`, default `both`
+  - desc: Which of the two Blocks gets a Stripe
+  - tip: <code>Both</code> puts a Stripe behind each Block, and that is the usual choice. <code>Left</code> and <code>Right</code> leave it on one side only — useful when one of the two Blocks is the one you read and the other is bookkeeping. A Block with nothing in it gets no Stripe whatever is chosen here, and your own text between the Separators is never touched
+  - варианты: `left` Left · `right` Right · `both` Both
+  - видна если: `visual.tags.blockFill.enabled`
+- **Stripe color** — `tags-block-fill-color`, `color`, path `visual.tags.blockFill.color`, default `""`
+  - desc: Leave it unset and the Stripe follows your theme
+  - tip: Unset means the accent color of whatever theme you are using, so the Stripe keeps looking right when you change themes. Pick a color here only when you want a particular one
+  - видна если: `visual.tags.blockFill.enabled`
+  - старые названия для поиска: «Block color»
+- **Stripe opacity** — `tags-block-fill-opacity`, `slider`, path `visual.tags.blockFill.opacity`, default `12`
+  - desc: How strongly the Stripe shows through
+  - tip: Low numbers are the point: the Stripe is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it
+  - диапазон: 0–100, шаг 1, ед. %
+  - видна если: `visual.tags.blockFill.enabled`
+  - старые названия для поиска: «Block color strength»
+- **Stripe height** — `tags-block-fill-height`, `slider`, path `visual.tags.blockFill.heightPct`, default `60`
+  - desc: How far the Stripe reaches above and below the writing
+  - tip: The scale has two landmarks. At <code>0</code> the Stripe is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. At <code>100</code> it fills the line it belongs to, so the Stripes of two neighbouring lines meet and never overlap. In between it takes that much of the room the line has left, which is why every step moves the Stripe on any theme, whatever its line spacing
+  - диапазон: 0–100, шаг 20, ед. %
+  - видна если: `visual.tags.blockFill.enabled`
+  - старые названия для поиска: «Band height»
+- **Stripe width** — `tags-block-fill-width`, `slider`, path `visual.tags.blockFill.widthPct`, default `50`
+  - desc: How far the Stripe reaches past the Block on both of its sides
+  - tip: The scale has three landmarks. At <code>0</code> the Stripe starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says
+  - диапазон: 0–100, шаг 5, ед. %
+  - видна если: `visual.tags.blockFill.enabled`
+  - старые названия для поиска: «Band width»
 - **Left Block text size** — `tags-text-size-left`, `slider`, path `visual.tags.textSizePctLeft`, default `100`
   - desc: How big everything before your text is written, next to the rest of your note
   - tip: This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom
@@ -16903,29 +17047,6 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line
   - диапазон: 50–140, шаг 5, ед. %
   - старые названия для поиска: «Tag text size», «Text size Right»
-- **Color the Blocks** — `tags-block-fill`, `toggle`, path `visual.tags.blockFill.enabled`, default `false`
-  - desc: A band behind the Left Block and the Right Block, so the two stand out from your text
-  - tip: The band runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no band. The band sits <b>behind</b> the writing, so everything on the line stays selectable and clickable. Tag bubbles carry their own color, so a Block of one tag would hide the band completely — the two rows at the bottom are how far it reaches past the writing, and that is what makes it show at all
-  - старые названия для поиска: «Block background», «Color the Blocks»
-- **Block color** — `tags-block-fill-color`, `color`, path `visual.tags.blockFill.color`, default `""`
-  - desc: Leave it unset and the band follows your theme
-  - tip: Unset means the accent color of whatever theme you are using, so the band keeps looking right when you change themes. Pick a color here only when you want a particular one
-  - видна если: `visual.tags.blockFill.enabled`
-- **Block color strength** — `tags-block-fill-opacity`, `slider`, path `visual.tags.blockFill.opacity`, default `12`
-  - desc: How strongly the band shows through
-  - tip: Low numbers are the point: the band is there to catch the eye, not to be read. Around a tenth is enough to see where a Block begins and ends without fighting the writing on top of it
-  - диапазон: 0–100, шаг 1, ед. %
-  - видна если: `visual.tags.blockFill.enabled`
-- **Band height** — `tags-block-fill-height`, `slider`, path `visual.tags.blockFill.heightPct`, default `60`
-  - desc: How far the band reaches above and below the writing
-  - tip: The scale has two landmarks. At <code>0</code> the band is exactly as tall as the writing — and a tag bubble has its own color, so a Block of one tag would hide it. At <code>100</code> it fills the line it belongs to, so the bands of two neighbouring lines meet and never overlap. In between it takes that much of the room the line has left, which is why every step moves the band on any theme, whatever its line spacing
-  - диапазон: 0–100, шаг 20, ед. %
-  - видна если: `visual.tags.blockFill.enabled`
-- **Band width** — `tags-block-fill-width`, `slider`, path `visual.tags.blockFill.widthPct`, default `50`
-  - desc: How far the band reaches past the Block on both of its sides
-  - tip: The scale has three landmarks. At <code>0</code> the band starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says
-  - диапазон: 0–100, шаг 5, ед. %
-  - видна если: `visual.tags.blockFill.enabled`
 - **`tag-view-sub`** — свой блок, рендерер `?`
 - **Tags bubble width** — `tags-bubble-width`, `slider`, path `visual.tags.bubbleWidthPct`, default `100`
   - desc: How much breathing room there is either side of the word
@@ -17319,6 +17440,7 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tagBars.tagVisibility` | toggle | `true` |
 | `visual.tagBars.thickness` | slider | `2` |
 | `visual.tags.blockFill.color` | color | `""` |
+| `visual.tags.blockFill.direction` | dropdown | `both` |
 | `visual.tags.blockFill.enabled` | toggle | `false` |
 | `visual.tags.blockFill.heightPct` | slider | `60` |
 | `visual.tags.blockFill.opacity` | slider | `12` |

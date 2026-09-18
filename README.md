@@ -172,7 +172,7 @@ command palette and the reference table disagreeing.
 ### Visual
 
 - **Tag bubbles and per-Value styles**:
-  **Visual → Inline appearance** for size, opacity, corners and a colored band behind each
+  **Visual → Inline appearance** for size, opacity, corners and a colored Stripe behind each
   Block; **Color your Tags** for tags of your own that no Field owns.
 - [TagWheel panel and scroller](docs/showcase.md#tagwheel-panelscroller): **Visual → TagWheel**,
   where `Scroller` adds a list of neighbouring Values and `Highlight the TagWheel line`

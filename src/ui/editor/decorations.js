@@ -36,6 +36,7 @@ const {
   BLOCK_FILL_LAYER_CLASS,
   BLOCK_FILL_MARKER_CLASS,
   blockFillLookFromConfig,
+  blockFillZoneWanted,
   blockFillSpansInLine,
   blockFillPadXPx,
   blockFillBandHeightPx,
@@ -1062,6 +1063,10 @@ function blockFillDocRanges(view, plugin) {
       const line = view.state.doc.line(lineNo);
       const text = String(line.text || "");
       for (const span of blockFillSpansInLine(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue)) {
+        /* Сторона (З-12, `Stripe direction`): отбор стоит здесь, где отрезок
+           уже получил зону, и до перевода в положения документа — дальше о
+           стороне не спрашивает никто. Правило одно на обе отрисовки (У-217). */
+        if (!blockFillZoneWanted(look.direction, span.zone)) continue;
         const from = line.from + span.start;
         const to = line.from + span.end;
         if (to <= from) continue;

@@ -367,7 +367,7 @@ async function rowsOnOneLine(width) {
           .find((el) => {
             const item = el.closest(".io-item");
             const name = item ? item.querySelector(".io-item__name") : null;
-            return !!name && (name.textContent || "").trim() === "Color the Blocks";
+            return !!name && (name.textContent || "").trim() === "Color the Block with Stripe";
           });
         const bandToggle = findBandToggle();
         if (bandToggle) {
@@ -459,7 +459,7 @@ async function rowsOnOneLine(width) {
             .find((el) => {
               const item = el.closest(".io-item");
               const name = item ? item.querySelector(".io-item__name") : null;
-              return !!name && (name.textContent || "").trim() === "Band width";
+              return !!name && (name.textContent || "").trim() === "Stripe width";
             });
           const setWidth = (pct) => {
             const s = findWidthSlider();
@@ -511,6 +511,37 @@ async function rowsOnOneLine(width) {
           out.bandReachAt = {};
           for (const pct of [0, 50, 100]) {
             if (setWidth(pct)) out.bandReachAt[pct] = reach();
+          }
+          /*
+           * **Сторона полосы** (З-12, его слово 2026-09-19: «при left —
+           * полоска возникает только в left block, при right — только в
+           * right block»).
+           *
+           * Спрашивается не класс, а закрашенная сторона: класс говорит о
+           * намерении, а вопрос у него — что человек увидит. Три положения
+           * прогоняются подряд, и каждое обязано дать свой ответ: одно
+           * положение было бы зелёным и при правиле «красить всегда обе».
+           */
+          const paintedSides = () => sides().filter((el) => {
+            const bg = parseColor(getComputedStyle(el).backgroundColor);
+            return !!bg && bg.a > 0.001;
+          }).map((el) => (el.classList.contains("io-line__side--left") ? "left" : "right"))
+            .filter((kind, i, all) => all.indexOf(kind) === i)
+            .sort()
+            .join("+");
+          const findDirSelect = () => Array.from(document.querySelectorAll("select"))
+            .find((el) => {
+              const item = el.closest(".io-item");
+              const name = item ? item.querySelector(".io-item__name") : null;
+              return !!name && (name.textContent || "").trim() === "Stripe direction";
+            });
+          out.bandDirection = {};
+          for (const dir of ["left", "right", "both"]) {
+            const sel = findDirSelect();
+            if (!sel) break;
+            sel.value = dir;
+            sel.dispatchEvent(new Event("change", { bubbles: true }));
+            out.bandDirection[dir] = paintedSides();
           }
           if (bandOnNode && bandOnNode.checked) {
             const back = findBandToggle();
@@ -772,6 +803,22 @@ async function rowsOnOneLine(width) {
       }
       if (b.bandOnEmpty < 0) {
         bad("пустую сторону некуда было положить: строки с подложкой на панели нет");
+      }
+      /*
+       * **Сторона полосы** (З-12). Ответы разведены нарочно: правило «красить
+       * всегда обе» проходит проверку в одном положении и падает здесь.
+       */
+      const dir = b.bandDirection || {};
+      if (!dir.both) {
+        bad("контрол `Stripe direction` не найден — сторона полосы не проверена");
+      } else {
+        const want = { left: "left", right: "right", both: "left+right" };
+        for (const key of ["left", "right", "both"]) {
+          if (dir[key] !== want[key]) {
+            bad("при `Stripe direction` = " + key + " закрашено «" + String(dir[key])
+              + "», а должно быть «" + want[key] + "»");
+          }
+        }
       }
       /*
        * **Подложка обязана выходить за написанное** (замечание по S7). Тот

@@ -1050,6 +1050,36 @@ const BLOCK_FILL_MAX_HEIGHT_PCT = 100;
 const BLOCK_FILL_TEXT_HEIGHT_SHARE = 0.7;
 
 /**
+ * Какой Block получает полосу — его слово 2026-09-19 (З-12): «при left —
+ * полоска возникает только в left block, при right — только в right block»,
+ * умолчание `both`.
+ *
+ * Значения совпадают с именами зон разбора строки, и это не совпадение:
+ * вопрос задаётся о зоне, а другого способа назвать сторону у нас нет.
+ *
+ * **Второй дом умолчания — схема панели**, выводимая из прототипа (правило 106):
+ * здесь стоит ответ движка для файла, в котором ключа ещё нет, там — для
+ * контрола. Так же устроены остальные величины полосы.
+ */
+const BLOCK_FILL_DIRECTIONS = ["left", "right", "both"];
+const BLOCK_FILL_DEFAULT_DIRECTION = "both";
+
+/**
+ * Получает ли эта сторона полосу.
+ *
+ * Правило объявлено **один раз на обе отрисовки** (У-217): его спрашивают и
+ * слой заметки, и предпросмотр панели. Незнакомое значение читается как
+ * `both` — полоса это украшение, и пропадать ей от испорченного ключа не за
+ * что (правило отказов, семья «украшение»).
+ */
+function blockFillZoneWanted(direction, zone) {
+  const dir = String(direction || "").trim();
+  const known = BLOCK_FILL_DIRECTIONS.indexOf(dir) !== -1 ? dir : BLOCK_FILL_DEFAULT_DIRECTION;
+  if (known === "both") return true;
+  return known === String(zone || "").trim();
+}
+
+/**
  * Целое из конфига в границах шкалы; мусор и пустота дают умолчание.
  *
  * `null` и пустая строка отсекаются до `Number`: он превращает и то и другое в
@@ -1088,6 +1118,11 @@ function blockFillLookFromConfig(cfg) {
     /* Ширина — в долях расстояния до разделителя: границу назвал заказчик, и
        она зависит от строки, а не от шкалы. */
     widthPct: blockFillIntOr(src.widthPct, 0, 100, BLOCK_FILL_DEFAULT_WIDTH_PCT),
+    /* Сторона (З-12). Здесь только нормализованное значение; решает по нему
+       `blockFillZoneWanted` — он один на слой заметки и на предпросмотр. */
+    direction: BLOCK_FILL_DIRECTIONS.indexOf(String(src.direction || "").trim()) !== -1
+      ? String(src.direction).trim()
+      : BLOCK_FILL_DEFAULT_DIRECTION,
   };
 }
 
@@ -2064,6 +2099,9 @@ module.exports = {
   BLOCK_FILL_DEFAULT_WIDTH_PCT,
   BLOCK_FILL_MAX_HEIGHT_PCT,
   BLOCK_FILL_TEXT_HEIGHT_SHARE,
+  BLOCK_FILL_DIRECTIONS,
+  BLOCK_FILL_DEFAULT_DIRECTION,
+  blockFillZoneWanted,
   blockFillLookFromConfig,
   blockFillSpansInLine,
   blockFillPadXPx,

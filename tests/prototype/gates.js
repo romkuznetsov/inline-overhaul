@@ -38,7 +38,11 @@ const bad = m => { console.log("  FAIL " + m); fail++; };
    itself defines is a proper noun, so a reader can tell the Bar the plugin
    draws from a bar in general. Obsidian's words and plain English are not. */
 const ENTITIES = ["Field","Fields","Value","Values","Bar","Bars","Prefix","Prefixes",
-  "Separator","Separators","Block","Blocks","TagWheel","Binder","Transform","Wheel"];
+  "Separator","Separators","Block","Blocks","TagWheel","Binder","Transform","Wheel",
+  /* `Stripe` — его слово 2026-09-19 (З-13): полосу за Block рисуем мы, и
+     от полосы в общем смысле она отличается так же, как Bar. Прежнее
+     значение слова — старое имя Bars, и живёт оно только в `searchTerms`. */
+  "Stripe","Stripes"];
 /* `Delete` is not here on purpose: `Smart Delete` gets its pass from KEY_NAME
    below, where the key names live. One word, one list. */
 /* An abbreviation keeps its capitals in sentence case, and three of these
@@ -74,7 +78,13 @@ const KEY_NAME = /^['"]?(?:Backspace|Delete|Enter|Escape|Tab|Home|End)['"]?$/;
 
 /* The same rule read backwards: an entity written in lower case is the bug
    this convention exists to prevent, so catch it too. */
-const LOWER = /(?<![A-Za-z#\/-])(fields?|values?|bars?|prefix(?:es)?|separators?|tagwheel)(?![A-Za-z-])/g;
+const LOWER = /(?<![A-Za-z#\/-])(fields?|values?|bars?|prefix(?:es)?|separators?|tagwheel|stripes?)(?![A-Za-z-])/g;
+const FORBIDDEN = ["inlineOverhaul_", "Command ID", "debounce", "undo stack", "runtime", "backend",
+  "sprint", "status_tags", ".js", "free roam", " zone", "Segment", "Marker priority",
+  /* `band` — прежнее слово для полосы Block, снятое его переименованием
+     2026-09-19 (З-13). Запрет держит второе слово от возврата: на экране у
+     одной вещи одно имя, а не два в разных текстах. */
+  "band"];
 const outsideCode = t => t.replace(/<code>[\s\S]*?<\/code>/g, "");
 const lowerEntities = t => [...new Set((outsideCode(t).match(LOWER) || []))];
 
@@ -175,13 +185,23 @@ if (SUBHEADER_IDS.size < 3) {
 
 // Г11 group size, Г12 every group has an intro
 for (const g of SCHEMA) {
-  if (g.intro) {
-    const low = lowerEntities(g.intro);
-    if (low.length) bad("group " + g.id + " intro leaves an entity in lower case: " + low.join(", "));
-  }
-  if (g.tip) {
-    const low = lowerEntities(g.tip);
-    if (low.length) bad("group " + g.id + " tip leaves an entity in lower case: " + low.join(", "));
+  /*
+   * Текст группы проверяется тем же запретом, что и текст строки, и куплено
+   * это переименованием полосы (З-13, 2026-09-19): пять имён я поменял по
+   * списку, а групповая подсказка называла тумблер прежним именем и полосу
+   * прежним словом — то есть список был признаком, написанным по образцу
+   * (У-201). Нашлось это Приложением B, которое печатает текст целиком, а не
+   * проверкой. Теперь у обоих текстов группы запрет тот же.
+   */
+  for (const [what, text] of [["intro", g.intro], ["tip", g.tip]]) {
+    if (!text) continue;
+    const low = lowerEntities(text);
+    if (low.length) {
+      bad("group " + g.id + " " + what + " leaves an entity in lower case: " + low.join(", "));
+    }
+    for (const f of FORBIDDEN) {
+      if (text.includes(f)) bad("group " + g.id + " " + what + " contains: " + f);
+    }
   }
   /*
    * Г11 считает настройки **в разделе**, а не в группе целиком, и раздел
@@ -210,8 +230,6 @@ for (const g of SCHEMA) {
 }
 
 // Г10 copy lint
-const FORBIDDEN = ["inlineOverhaul_", "Command ID", "debounce", "undo stack", "runtime", "backend",
-  "sprint", "status_tags", ".js", "free roam", " zone", "Segment", "Marker priority"];
 let total = 0, custom = 0, tips = 0, described = 0;
 const perTab = {};
 for (const g of SCHEMA) for (const it of g.items) {

@@ -400,6 +400,67 @@ function fakePlugin(blockFill) {
     "конфига нет — тоже нечего, и это не падение");
 })();
 
+/*
+ * **Сторона полосы** — его слово 2026-09-19 (З-12): «при left — полоска
+ * возникает только в left block, при right — только в right block», умолчание
+ * `both`.
+ *
+ * Спрашивается зона отрезков, а не их количество: «полос стало меньше» верно и
+ * тогда, когда пропала не та сторона (У-58). И три положения гоняются подряд —
+ * на одном правило «красить всегда обе» было бы зелёным.
+ */
+(function testDirectionPicksItsSide() {
+  const view = () => fakeView([LINE]);
+  const zonesAt = (direction) => decorations
+    .blockFillDocRanges(view(), fakePlugin({ enabled: true, opacity: 12, direction }))
+    .map((r) => r.zone)
+    .join("+");
+
+  assertEq(zonesAt("both"), "left+right", "`both` — полоса у обоих Block");
+  assertEq(zonesAt("left"), "left", "`left` — полоса только у левого Block");
+  assertEq(zonesAt("right"), "right", "`right` — полоса только у правого");
+
+  /* Ключа нет и ключ испорчен — оба читаются как `both`: полоса это украшение,
+     и пропадать ей от рукописного `data.json` не за что. */
+  assertEq(zonesAt(undefined), "left+right", "ключа нет — обе стороны, как при умолчании");
+  assertEq(zonesAt("LEFT?"), "left+right", "испорченное значение — обе стороны, а не пустота");
+})();
+
+/*
+ * То же правило спрашивается и напрямую: его зовёт не только слой заметки, но
+ * и предпросмотр панели, и дом у него один (У-217).
+ */
+(function testZoneWantedIsOneRule() {
+  assertTrue(visuals.blockFillZoneWanted("both", "left"), "`both` берёт левую");
+  assertTrue(visuals.blockFillZoneWanted("both", "right"), "`both` берёт правую");
+  assertTrue(visuals.blockFillZoneWanted("left", "left"), "`left` берёт левую");
+  assertEq(visuals.blockFillZoneWanted("left", "right"), false, "`left` правую не берёт");
+  assertEq(visuals.blockFillZoneWanted("right", "left"), false, "`right` левую не берёт");
+  assertTrue(visuals.blockFillZoneWanted("", "right"), "пустое значение — как `both`");
+  assertEq(visuals.blockFillZoneWanted("left", ""), false,
+    "зона без имени полосы не получает: спрашивают о стороне, а не о строке");
+  assertEq(visuals.BLOCK_FILL_DEFAULT_DIRECTION, "both", "умолчание движка — `both`");
+})();
+
+/*
+ * И третья половина того же: `data.json`, написанный руками. Границы держит
+ * нормализация, а не панель.
+ */
+(function testDirectionIsClamped() {
+  const normalize = require(path.join(__dirname, "..", "..", "src", "core", "config_normalize.js"));
+  const run = (direction) => {
+    const cfg = normalize.migrateConfig(
+      { schemaVersion: 2, visual: { tags: { blockFill: { enabled: true, direction } } } },
+      { log: () => {} },
+    );
+    return cfg.visual.tags.blockFill.direction;
+  };
+  assertEq(run("left"), "left", "своё значение остаётся своим");
+  assertEq(run("right"), "right", "и второе тоже");
+  assertEq(run("middle"), "both", "незнакомое уступает умолчанию движка");
+  assertEq(run(undefined), "both", "и ключа нет — тоже умолчание");
+})();
+
 /* ---- нормализация конфига ---------------------------------------------- */
 
 /*
