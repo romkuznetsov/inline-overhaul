@@ -178,14 +178,14 @@ function assertNoCanonicalOrderKeyLiteralsInRuntime(filePath, source) {
 }
 
 async function run() {
-  const mainPath = path.join(__dirname, "..", "..", "main.js");
+  const mainPath = path.join(__dirname, "..", "..", "src", "main.js");
   const configMigrationPath = path.join(__dirname, "..", "..", "src", "core", "config_migration.js");
   const runtimeLiteralGuardPaths = [
-    path.join(__dirname, "..", "..", "main.js"),
-    path.join(__dirname, "..", "..", "pkm_v2", "status_tags.js"),
-    path.join(__dirname, "..", "..", "pkm_v2", "status_date.js"),
-    path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js"),
-    path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js"),
+    path.join(__dirname, "..", "..", "src", "main.js"),
+    path.join(__dirname, "..", "..", "src", "pkm_v2", "status_tags.js"),
+    path.join(__dirname, "..", "..", "src", "pkm_v2", "status_date.js"),
+    path.join(__dirname, "..", "..", "src", "pkm_v2", "TagWheel", "tagwheel.js"),
+    path.join(__dirname, "..", "..", "src", "pkm_v2", "TagWheel", "tagwheel_core.js"),
     path.join(__dirname, "..", "..", "src", "core", "pkm_rules_runtime_helpers.js"),
     path.join(__dirname, "..", "..", "src", "core", "date_runtime_shared.js"),
     path.join(__dirname, "..", "..", "src", "core", "tagwheel_rules_normalizer.js"),
@@ -199,18 +199,18 @@ async function run() {
   const pkmMacroRuntimeSharedPath = path.join(__dirname, "..", "..", "src", "core", "pkm_macro_runtime_shared.js");
   const pkmLineFinalizeUnifiedPath = path.join(__dirname, "..", "..", "src", "core", "pkm_line_finalize_unified.js");
   const pkmDomainRegistryPath = path.join(__dirname, "..", "..", "src", "core", "pkm_domain_registry.js");
-  const navigationRuntimePath = path.join(__dirname, "..", "..", "navigation_runtime.js");
+  const navigationRuntimePath = path.join(__dirname, "..", "..", "src", "navigation_runtime.js");
   const statusRuntimeCommonPath = path.join(__dirname, "..", "..", "src", "core", "status_runtime_common.js");
   const statusLineRuntimeUnifiedPath = path.join(__dirname, "..", "..", "src", "core", "status_line_runtime_unified.js");
-  const pkmRuntimeV2Path = path.join(__dirname, "..", "..", "pkm_runtime_v2.js");
+  const pkmRuntimeV2Path = path.join(__dirname, "..", "..", "src", "pkm_runtime_v2.js");
   const commandIdsPath = path.join(__dirname, "..", "..", "src", "features", "command_ids.js");
   const commandRegistryPath = path.join(__dirname, "..", "..", "src", "features", "command_registry.js");
   const priorityStripEnginePath = path.join(__dirname, "..", "..", "src", "core", "priority_strip_engine.js");
   const priorityStripAdapterPath = path.join(__dirname, "..", "..", "src", "core", "priority_strip_cm6_adapter.js");
-  const statusTagsPath = path.join(__dirname, "..", "..", "pkm_v2", "status_tags.js");
-  const statusDatePath = path.join(__dirname, "..", "..", "pkm_v2", "status_date.js");
-  const tagwheelPath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js");
-  const tagwheelCorePath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js");
+  const statusTagsPath = path.join(__dirname, "..", "..", "src", "pkm_v2", "status_tags.js");
+  const statusDatePath = path.join(__dirname, "..", "..", "src", "pkm_v2", "status_date.js");
+  const tagwheelPath = path.join(__dirname, "..", "..", "src", "pkm_v2", "TagWheel", "tagwheel.js");
+  const tagwheelCorePath = path.join(__dirname, "..", "..", "src", "pkm_v2", "TagWheel", "tagwheel_core.js");
   const src = fs.readFileSync(mainPath, "utf8");
   /*
    * Слой оформления редактора — два модуля с 2026-09-07 (кусок второй
@@ -418,7 +418,7 @@ async function run() {
    * был: `assertTrue` о переехавшем краснеет, а запрет молчал бы вечно.
    */
   const fieldRelocationSrc = fs.readFileSync(
-    path.join(__dirname, "..", "..", "pkm_v2", "field_relocation.js"), "utf8");
+    path.join(__dirname, "..", "..", "src", "pkm_v2", "field_relocation.js"), "utf8");
   assertTrue(/core\.buildOutputToken\(/.test(fieldRelocationSrc),
     "field_relocation asks the single home for the field value token shape");
   assertFalse(/sourceKind === "wikilinks"/.test(fieldRelocationSrc),
@@ -584,16 +584,16 @@ async function run() {
       .map((arg) => arg.replace(/^"|"$/g, ""))
       .filter((p) => p.startsWith("./")))).sort();
     const expected = [
-      "./src/core/active_editor.js",
-      "./src/core/config_write.js",
-      "./src/core/dev_log.js",
-      "./src/core/shared_utils.js",
-      "./src/features/enhanced_select_all_engine.js",
-      "./src/features/plugin_bootstrap.js",
-      "./src/features/plugin_commands.js",
-      "./src/features/smart_delete_engine.js",
-      "./src/features/smart_enter_engine.js",
-      "./src/ui/editor/styles.js",
+      "./core/active_editor.js",
+      "./core/config_write.js",
+      "./core/dev_log.js",
+      "./core/shared_utils.js",
+      "./features/enhanced_select_all_engine.js",
+      "./features/plugin_bootstrap.js",
+      "./features/plugin_commands.js",
+      "./features/smart_delete_engine.js",
+      "./features/smart_enter_engine.js",
+      "./ui/editor/styles.js",
     ];
     assertEq(own.join("\n"), expected.join("\n"), "main.js подключает ровно свои модули, и каждый один раз");
 
@@ -758,7 +758,7 @@ async function run() {
    * нормализация ключа — в `shared_utils.js`. Без них «файла нет» было бы
    * зелено и при потерянном правиле (У-71).
    */
-  assertFalse(fs.existsSync(path.join(__dirname, "..", "..", "pkm_v2", "field_model.js")),
+  assertFalse(fs.existsSync(path.join(__dirname, "..", "..", "src", "pkm_v2", "field_model.js")),
     "pkm_v2/field_model.js снят вместе с пятислойной цепочкой нормализатора ключа Order");
   assertTrue(/wikilink/.test(pkmDomainRegistrySrc),
     "положительный контроль: правило о типе ключа действительно лежит в pkm_domain_registry.js");
@@ -1115,8 +1115,8 @@ async function run() {
     ["rules helpers", pkmRulesHelpersSrc],
     ["token graph", tokenGraphSrcHere],
     ["status tags", statusTagsSrc],
-    ["tag wheel", readCore("pkm_v2/TagWheel/tagwheel.js")],
-    ["tag wheel core", readCore("pkm_v2/TagWheel/tagwheel_core.js")],
+    ["tag wheel", readCore("src/pkm_v2/TagWheel/tagwheel.js")],
+    ["tag wheel core", readCore("src/pkm_v2/TagWheel/tagwheel_core.js")],
     ["order deep editor", readCore("src/core/order_deep_editor_state.js")],
     ["priority strip", readCore("src/core/priority_strip_engine.js")],
     ["editor visuals", visualsSrcHere],
@@ -1210,7 +1210,7 @@ async function run() {
   assertTrue(/this\.plugin\.runInlineToNote\(\)/.test(decorSrc), "and so does the floating button");
 
   {
-    const navSrc = fs.readFileSync(path.join(__dirname, "..", "..", "navigation_runtime.js"), "utf8");
+    const navSrc = fs.readFileSync(path.join(__dirname, "..", "..", "src", "navigation_runtime.js"), "utf8");
     assertTrue(/rightCycles: typeof c\.rightCycles === "boolean"/.test(navSrc), "navigation runtime reads the both-directions toggle");
     assertTrue(/const rightMayCycle = rules\.prefixCyclerEnabled && rules\.rightCycles;/.test(navSrc), "navigation runtime decides the right-hand cycle from the toggle");
     assertFalse(/if \(currentIndent > 0 \|\| isBullet\(line\)\) \{/.test(navSrc), "a list item no longer goes straight to indenting");
@@ -1304,7 +1304,7 @@ async function run() {
     const walked = fs.readdirSync(repoRoot)
       .filter((name) => /\.js$/.test(name))
       .map((name) => path.join(repoRoot, name));
-    for (const dir of ["src", "pkm_v2"]) {
+    for (const dir of ["src"]) {
       (function walk(target) {
         for (const name of fs.readdirSync(target)) {
           const abs = path.join(target, name);
@@ -1802,7 +1802,7 @@ async function run() {
   assertTrue(/date_runtime_shared\.js/.test(statusDateSrc), "status_date references shared date runtime module");
   assertTrue(/date_runtime_shared\.js/.test(tagwheelSrc), "tagwheel references shared date runtime module");
   assertTrue(/tagwheel_rules_normalizer\.js/.test(tagwheelCoreSrc), "tagwheel_core references shared rules normalizer module");
-  assertTrue(/require\("\.\.\/src\/core\/pkm_line_finalize_unified\.js"\)/.test(statusDateSrc), "status_date requires the unified line finalizer literally (У-89)");
+  assertTrue(/require\("\.\.\/core\/pkm_line_finalize_unified\.js"\)/.test(statusDateSrc), "status_date requires the unified line finalizer literally (У-89)");
   assertTrue(/function createStatusRuntimeCommon\(/.test(statusRuntimeCommonSrc), "status runtime common exports shared status runtime factory");
   assertTrue(/function resolvePanelKeyForField\(/.test(tagwheelSrc), "tagwheel defines panel-key resolver for field placement");
   assertTrue(/field\.dependsOn/.test(tagwheelSrc), "tagwheel panel-key resolver handles dependsOn inheritance for child fields");
@@ -1844,11 +1844,11 @@ async function run() {
    * загрузке файла и подставляется тут же. Утверждение то же — ключи
    * берутся из общего модуля, а не объявлены рядом, — предмет другой.
    */
-  assertTrue(/require\("\.\.\/src\/core\/pkm_option_keys\.js"\)/.test(statusTagsSrc), "status_tags requires the shared pkm option keys literally");
+  assertTrue(/require\("\.\.\/core\/pkm_option_keys\.js"\)/.test(statusTagsSrc), "status_tags requires the shared pkm option keys literally");
   assertTrue(/applyPkmOptionKeys\(__pkmOptionKeys\);/.test(statusTagsSrc), "and applies them at load time, not per call");
-  assertTrue(/require\("\.\.\/src\/core\/pkm_option_keys\.js"\)/.test(statusDateSrc), "status_date requires the shared pkm option keys literally");
+  assertTrue(/require\("\.\.\/core\/pkm_option_keys\.js"\)/.test(statusDateSrc), "status_date requires the shared pkm option keys literally");
   assertTrue(/applyPkmOptionKeys\(__pkmOptionKeys\);/.test(statusDateSrc), "and applies them at load time, not per call");
-  assertTrue(/require\('\.\.\/\.\.\/src\/core\/pkm_option_keys\.js'\)/.test(tagwheelSrc), "tagwheel requires the shared pkm option keys literally (У-89)");
+  assertTrue(/require\('\.\.\/\.\.\/core\/pkm_option_keys\.js'\)/.test(tagwheelSrc), "tagwheel requires the shared pkm option keys literally (У-89)");
   assertTrue(/pkm_macro_runtime_shared\.js/.test(pkmMacroRuntimeEntrySrc), "macro runtime entry resolves shared runtime module path");
   assertTrue(/async function bootstrapMacroRuntime\(/.test(pkmMacroRuntimeEntrySrc), "macro runtime entry exports reusable bootstrap function");
   assertTrue(/pkm_option_keys\.js/.test(pkmMacroRuntimeSharedSrc), "shared macro runtime references centralized pkm option keys module");
@@ -1997,7 +1997,7 @@ async function run() {
        запрет на молчащий `catch` обязан накрывать тот файл, где обёртки
        теперь живут (У-88, У-94). */
     const relocationSrc = fs.readFileSync(
-      path.join(__dirname, "..", "..", "pkm_v2", "field_relocation.js"), "utf8");
+      path.join(__dirname, "..", "..", "src", "pkm_v2", "field_relocation.js"), "utf8");
     const tags = scanWrappers(statusTagsSrc);
     const date = scanWrappers(statusDateSrc);
     const relocation = scanWrappers(relocationSrc);
@@ -2121,7 +2121,7 @@ async function run() {
   assertFalse(/function reapplyOriginalPrefix\(rawLine, nextLine\)/.test(statusTagsSrc), "status_tags has no local prefix-reapply wrapper");
   assertTrue(/function reapplyOriginalPrefix\(rawLine, nextLine\)/.test(pkmMacroSharedSrc), "pkm_macro_shared exposes shared prefix reapply helper");
   assertTrue(/function preserveOriginalPrefixShape\(rawLine, nextLine\)/.test(pkmMacroSharedSrc), "pkm_macro_shared exposes shared prefix shape helper");
-  assertTrue(/require\("\.\.\/src\/core\/pkm_line_finalize_unified\.js"\)/.test(statusTagsSrc), "status_tags requires the unified line finalizer literally (У-89)");
+  assertTrue(/require\("\.\.\/core\/pkm_line_finalize_unified\.js"\)/.test(statusTagsSrc), "status_tags requires the unified line finalizer literally (У-89)");
   assertTrue(/const __lineFinalizeUnified = require\(/.test(statusTagsSrc), "status_tags gets the unified line finalizer by a literal require (У-89)");
   assertTrue(/lineFinalize\.applyUnifiedPostFinalize\(\{/.test(statusTagsSrc) || /lineFinalize\.applyMixedPostPolicies\(rawLine, finalLine, rules, \{/.test(statusTagsSrc), "status_tags applies shared mixed post-policy through unified finalizer path");
   assertTrue(/lineFinalize\.applyTrailingSeparatorPolicy\(\{/.test(statusTagsSrc), "status_tags applies shared trailing-separator policy helper from unified finalizer");
@@ -2129,7 +2129,7 @@ async function run() {
   assertTrue(/lineFinalize\.applyCycleEndAndInvariants\(\{/.test(statusTagsSrc) || /lineFinalize\.applyCycleEndPostProcessing\(\{/.test(statusTagsSrc), "status_tags delegates cycle-end post-processing through shared finalizer helper");
   assertTrue(/lineFinalize\.isSimplePlainRaw\(rawLine, rules/.test(statusTagsSrc), "status_tags plain-raw minimal guard delegates to shared finalizer helper");
   assertTrue(/lineFinalize\.resolveCursorByPolicy\(\{/.test(statusTagsSrc), "status_tags delegates cursor policy resolution to shared finalizer");
-  assertTrue(/require\('\.\.\/\.\.\/src\/core\/pkm_line_finalize_unified\.js'\)/.test(tagwheelSrc), "tagwheel requires the unified line finalizer literally (У-89)");
+  assertTrue(/require\('\.\.\/\.\.\/core\/pkm_line_finalize_unified\.js'\)/.test(tagwheelSrc), "tagwheel requires the unified line finalizer literally (У-89)");
   assertTrue(/loadLineFinalizeUnified\(app_\)/.test(tagwheelSrc), "tagwheel loads unified line finalizer module");
   assertTrue(/finalize\.applyUnifiedPostFinalize\(\{/.test(tagwheelSrc) || /finalLine = finalize\.applyMixedPostPolicies\(state\.originalLine, finalLine, state\.rules, policy\)/.test(tagwheelSrc), "tagwheel applies shared mixed post policies through unified finalizer path");
   assertTrue(/finalize\.applyUnifiedPostFinalize\(\{/.test(tagwheelSrc) || /finalLine = finalize\.applyFinalLineInvariants\(\{/.test(tagwheelSrc), "tagwheel applies shared final-line invariants through unified finalizer path");
@@ -2209,7 +2209,7 @@ async function run() {
   assertTrue(/function stripFieldTokenSetFromLine\(/.test(statusLineRuntimeUnifiedSrc), "shared status-line runtime exports field-token stripping helper");
   assertTrue(/function clearDependentSelections\(/.test(statusLineRuntimeUnifiedSrc), "shared status-line runtime exports dependent-selection clear helper");
   assertTrue(/runtime\.buildCombinedSelectionSet\(\{/.test(statusTagsSrc), "status_tags combined render delegates pair-build logic to shared status-line runtime");
-  assertTrue(/require\('\.\.\/\.\.\/src\/core\/status_line_runtime_unified\.js'\)/.test(tagwheelSrc) && /loadStatusLineRuntimeUnified\(\)/.test(tagwheelSrc), "tagwheel runtime preloads shared status-line runtime for universal combined behavior");
+  assertTrue(/require\('\.\.\/\.\.\/core\/status_line_runtime_unified\.js'\)/.test(tagwheelSrc) && /loadStatusLineRuntimeUnified\(\)/.test(tagwheelSrc), "tagwheel runtime preloads shared status-line runtime for universal combined behavior");
   /*
    * И такие же у TagWheel. Тот же разбор: пин на проверку годности
    * помощника дублировал пин на его ВЫЗОВ, а предмет ушёл вместе с
@@ -2595,7 +2595,7 @@ async function run() {
     const walked = fs.readdirSync(repoRoot)
       .filter((name) => /\.js$/.test(name))
       .map((name) => path.join(repoRoot, name));
-    for (const dir of ["src", "pkm_v2"]) {
+    for (const dir of ["src"]) {
       (function walk(target) {
         for (const name of fs.readdirSync(target)) {
           const abs = path.join(target, name);
@@ -3777,7 +3777,7 @@ async function run() {
 
     const roots = [
       path.join(__dirname, "..", "..", "src"),
-      path.join(__dirname, "..", "..", "pkm_v2"),
+      path.join(__dirname, "..", "..", "src", "pkm_v2"),
     ];
     /*
      * Корень репозитория обходится наравне с папками: первая версия
@@ -3863,7 +3863,7 @@ async function run() {
     const files2 = fs.readdirSync(repoRoot2)
       .filter((name) => /\.(?:js|ts)$/.test(name))
       .map((name) => path.join(repoRoot2, name));
-    for (const r of [path.join(repoRoot2, "src"), path.join(repoRoot2, "pkm_v2")]) {
+    for (const r of [path.join(repoRoot2, "src")]) {
       (function walk(dir) {
         for (const name of fs.readdirSync(dir)) {
           const abs = path.join(dir, name);
@@ -3912,7 +3912,7 @@ async function run() {
    * иначе отменять человеку будет нечего.
    */
   {
-    const twPath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js");
+    const twPath = path.join(__dirname, "..", "..", "src", "pkm_v2", "TagWheel", "tagwheel.js");
     const src = fs.readFileSync(twPath, "utf8");
     const ALLOWED = [
       "  editor.setLine(lineNumber, text)",
@@ -3977,7 +3977,7 @@ async function run() {
    * «как закрывается панель», и он разошёлся бы с `Esc` молча (У-32).
    */
   {
-    const twPath = path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel.js");
+    const twPath = path.join(__dirname, "..", "..", "src", "pkm_v2", "TagWheel", "tagwheel.js");
     const tw = fs.readFileSync(twPath, "utf8");
     assertTrue(/state\.cancel = function\(\) \{/.test(tw),
       "у сессии TagWheel нет шва закрытия: выгрузка плагина не сможет её закрыть");
@@ -3987,7 +3987,7 @@ async function run() {
     assertTrue(/cleanupTagWheelState\(state\)/.test(seam),
       "при отказе записи шов не снимает перехват клавиш — а снятие важнее возврата строки");
 
-    const mainSrc = fs.readFileSync(path.join(__dirname, "..", "..", "main.js"), "utf8");
+    const mainSrc = fs.readFileSync(path.join(__dirname, "..", "..", "src", "main.js"), "utf8");
     const unload = mainSrc.slice(mainSrc.indexOf("onunload()"), mainSrc.indexOf("async ensureGeneratedRulesNow"));
     assertTrue(/closeTagWheelSession\(\)/.test(unload),
       "onunload не закрывает сессию TagWheel: перехват клавиш переживёт выключение плагина");

@@ -38,7 +38,7 @@ const DATA = process.env.IO_DATA
   ? path.resolve(process.env.IO_DATA)
   : path.join(VAULT, ".obsidian", "plugins", "inline-overhaul", "data.json");
 
-const runtime = require(path.join(ROOT, "pkm_runtime_v2.js"));
+const runtime = require(path.join(ROOT, "src", "pkm_runtime_v2.js"));
 const normalize = require(path.join(ROOT, "src", "core", "config_normalize.js"));
 const orderCfg = require(path.join(ROOT, "src", "core", "pkm_order_config.js"));
 const registry = require(path.join(ROOT, "src", "features", "command_registry.js"));

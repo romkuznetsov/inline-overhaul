@@ -30,7 +30,7 @@ BRAT ставит плагин **не из ветки и не из послед�
 Три команды, всё остальное делает CI:
 
 ```bash
-node build/set_version.js 0.1.0-beta.3
+node tools/build/set_version.js 0.1.0-beta.3
 git commit -am "Версия 0.1.0-beta.3"
 git tag 0.1.0-beta.3 && git push origin main --tags
 ```
@@ -52,7 +52,7 @@ git tag 0.1.0-beta.3 && git push origin main --tags
 (перевод вперёд возможен без слияния). Порядок для нынешней топологии:
 
 ```bash
-node build/set_version.js 0.1.0-beta.5
+node tools/build/set_version.js 0.1.0-beta.5
 git commit -am "Версия 0.1.0-beta.5"
 git push origin docs/settings-overhaul-prd
 git tag 0.1.0-beta.5 && git push origin 0.1.0-beta.5

@@ -1827,7 +1827,7 @@ async function main(): Promise<void> {
     const read = (rel: string): string => fs.readFileSync(path.join(repoRoot, rel), "utf8");
     const css = read("src/styles.css").replace(/\/\*[\s\S]*?\*\//g, "");
 
-    const sources: string[] = [read("main.js"), read("navigation_runtime.js")];
+    const sources: string[] = [read("src/main.js"), read("src/navigation_runtime.js")];
     const walk = (dir: string): void => {
       for (const entry of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
         const rel = dir + "/" + entry.name;

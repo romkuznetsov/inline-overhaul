@@ -60,7 +60,7 @@ const requireCjs = createRequire(import.meta.url);
 const helpers = requireCjs(path.join(root, "src", "core", "pkm_rules_runtime_helpers.js")) as {
   applyOrderToRules: (rules: Any, orderCfg: Any, options?: Any) => void;
 };
-const core = requireCjs(path.join(root, "pkm_v2", "TagWheel", "tagwheel_core.js")) as {
+const core = requireCjs(path.join(root, "src", "pkm_v2", "TagWheel", "tagwheel_core.js")) as {
   isFieldEnabled: (mode: Any, state: Any, field: Any, rules: Any) => boolean;
   validateRules: (rules: Any) => void;
   parseLine: (line: string, rules: Any) => Any;
@@ -523,7 +523,7 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   g.__inlineLinePipeline = requireCjs(path.join(root, "src", "core", "line_pipeline.js"));
   g.__inlinePkmRulesHelpers = requireCjs(path.join(root, "src", "core", "pkm_rules_runtime_helpers.js"));
   g.__inlinePkmMacroShared = requireCjs(path.join(root, "src", "core", "pkm_macro_shared.js"));
-  const relocation = requireCjs(path.join(root, "pkm_v2", "field_relocation.js")) as {
+  const relocation = requireCjs(path.join(root, "src", "pkm_v2", "field_relocation.js")) as {
     createFieldRelocation: (deps: Any) => Any;
   };
   const statusCommonMod = requireCjs(path.join(root, "src", "core", "status_runtime_common.js")) as Any;

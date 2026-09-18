@@ -30,7 +30,7 @@
     "src/features/*.js",
     "src/ui/editor/*.js",
     "tests/**/*.ts",
-    "build/**/*.ts"
+    "tools/build/**/*.ts"
   ],
   "exclude": [
     "node_modules",

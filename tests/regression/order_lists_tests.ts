@@ -210,7 +210,7 @@ const rulesOf = (cfg: Any): Any => cfg.pkm.prefixRules;
    * Редактор подделан: другого способа позвать команду вне Obsidian нет, и
    * подделка — ровно те четыре метода, которые команда трогает без выделения.
    */
-  const nav = requireCjs(path.join(root, "navigation_runtime.js")) as {
+  const nav = requireCjs(path.join(root, "src", "navigation_runtime.js")) as {
     moveSelection: (editor: Any, direction: string, cfg: Any) => void;
   };
   /*

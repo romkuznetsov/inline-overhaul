@@ -21,13 +21,13 @@ function err(msg) {
  * Копии стали недостижимы и снимаются следующим шагом: недостижимая
  * заплатка, похожая на страховку, — это У-90.
  */
-var __sharedUtils = require('../../src/core/shared_utils.js')
-var __statusLineRuntimeUnified = require('../../src/core/status_line_runtime_unified.js')
-var __rulesRuntimeHelpers = require('../../src/core/pkm_rules_runtime_helpers.js')
-var __tokenGraphUnified = require('../../src/core/token_graph_unified.js')
-var __pkmDomainRegistry = require('../../src/core/pkm_domain_registry.js')
-var __statusRuntimeCommonMod = require('../../src/core/status_runtime_common.js')
-var __linePipeline = require('../../src/core/line_pipeline.js')
+var __sharedUtils = require('../../core/shared_utils.js')
+var __statusLineRuntimeUnified = require('../../core/status_line_runtime_unified.js')
+var __rulesRuntimeHelpers = require('../../core/pkm_rules_runtime_helpers.js')
+var __tokenGraphUnified = require('../../core/token_graph_unified.js')
+var __pkmDomainRegistry = require('../../core/pkm_domain_registry.js')
+var __statusRuntimeCommonMod = require('../../core/status_runtime_common.js')
+var __linePipeline = require('../../core/line_pipeline.js')
 
 function getSharedUtils() {
   return __sharedUtils

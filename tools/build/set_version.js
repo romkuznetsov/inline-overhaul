@@ -3,7 +3,7 @@
 /**
  * Номер версии задаётся одной командой:
  *
- *     node build/set_version.js 0.1.0-beta.2
+ *     node tools/build/set_version.js 0.1.0-beta.2
  *
  * **Зачем.** Версия записана в четырёх файлах, и до 2026-09-06 её правили
  * руками. Ровно этот ритуал и стоил августовскому релизу забытого
@@ -36,7 +36,7 @@ function writeJson(rel, value) {
 function main(argv) {
   const next = String(argv[0] || "").trim();
   if (!next) {
-    console.error("укажите версию: node build/set_version.js <версия>");
+    console.error("укажите версию: node tools/build/set_version.js <версия>");
     console.error("сейчас в manifest.json: " + readJson("manifest.json").version);
     process.exit(1);
   }

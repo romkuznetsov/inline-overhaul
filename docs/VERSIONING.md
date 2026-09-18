@@ -37,7 +37,7 @@
 Отсюда две вещи, и обе механические:
 
 - `manifest.json` между выпусками стоит на **последней выпущенной** версии, и
-  обычный коммит его не трогает. Команда `node build/set_version.js <версия>`
+  обычный коммит его не трогает. Команда `node tools/build/set_version.js <версия>`
   зовётся один раз, в коммите выпуска.
 - Сделанное между выпусками копится в `CHANGELOG.md` разделом **`## Unreleased`**.
   В коммите выпуска этот раздел переименовывается в номер, и тем же коммитом
@@ -63,7 +63,7 @@
 Руками релиз не собирается: тег, дальше всё делает `.github/workflows/release.yml`.
 
 ```
-node build/set_version.js 0.2.1
+node tools/build/set_version.js 0.2.1
 # в CHANGELOG.md: ## Unreleased → ## 0.2.1
 git commit -am "Версия 0.2.1"
 git tag 0.2.1 && git push origin main --tags

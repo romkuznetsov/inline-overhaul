@@ -39,7 +39,7 @@ const dist = path.join(root, "dist");
 
 /* Сборка перед раскладкой: иначе легко поставить вчерашний бандл. */
 if (!process.argv.includes("--no-build")) {
-  execFileSync(process.execPath, [path.join(root, "build", "release.js")], {
+  execFileSync(process.execPath, [path.join(root, "tools", "build", "release.js")], {
     cwd: root,
     stdio: "inherit",
   });

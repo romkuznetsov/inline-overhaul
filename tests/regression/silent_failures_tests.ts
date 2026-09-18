@@ -45,8 +45,7 @@ const ok = (label: string): void => { passed++; console.log("  ok   " + label); 
 
 /** Рантайм: то, что уезжает к человеку. Проверки и инструменты — не он. */
 const RUNTIME = [
-  "main.js", "navigation_runtime.js", "pkm_runtime_v2.js",
-  "src", "pkm_v2",
+  "src",
 ];
 
 /**

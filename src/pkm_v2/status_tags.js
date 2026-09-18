@@ -15,18 +15,18 @@
  * Функции `get*Unified` и `getStatusRuntimeCommon` оставлены: их зовут больше
  * сорока мест, и подпись у них прежняя.
  */
-const __sharedUtils = require("../src/core/shared_utils.js");
-const __pkmDomainRegistry = require("../src/core/pkm_domain_registry.js");
-const __statusLineRuntimeUnified = require("../src/core/status_line_runtime_unified.js");
-const __tokenGraphUnified = require("../src/core/token_graph_unified.js");
-const __lineFinalizeUnified = require("../src/core/pkm_line_finalize_unified.js");
-const __statusRuntimeCommonMod = require("../src/core/status_runtime_common.js");
-const __pkmOptionKeys = require("../src/core/pkm_option_keys.js");
+const __sharedUtils = require("../core/shared_utils.js");
+const __pkmDomainRegistry = require("../core/pkm_domain_registry.js");
+const __statusLineRuntimeUnified = require("../core/status_line_runtime_unified.js");
+const __tokenGraphUnified = require("../core/token_graph_unified.js");
+const __lineFinalizeUnified = require("../core/pkm_line_finalize_unified.js");
+const __statusRuntimeCommonMod = require("../core/status_runtime_common.js");
+const __pkmOptionKeys = require("../core/pkm_option_keys.js");
 const __tagwheelCore = require("./TagWheel/tagwheel_core.js");
 const __fieldRelocationMod = require("./field_relocation.js");
-const __sayModule = require("../src/core/say.js");
+const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
-const __activeEditorMod = require("../src/core/active_editor.js");
+const __activeEditorMod = require("../core/active_editor.js");
 
 let RULES_DATA = "Rules data";
 let ACTION_TYPE = "Action type";

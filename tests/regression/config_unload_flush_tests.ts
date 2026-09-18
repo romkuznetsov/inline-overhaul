@@ -34,10 +34,10 @@ type Any = ReturnType<typeof JSON.parse>;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
-const requireCjs = Module.createRequire(path.join(root, "main.js"));
+const requireCjs = Module.createRequire(path.join(root, "src", "main.js"));
 
-const { ConfigStore } = requireCjs("./src/core/config_store.js") as Any;
-const su = requireCjs("./src/core/shared_utils.js") as Any;
+const { ConfigStore } = requireCjs("./core/config_store.js") as Any;
+const su = requireCjs("./core/shared_utils.js") as Any;
 
 let passed = 0;
 function ok(what: string): void { passed++; console.log("  ok " + what); }
@@ -133,7 +133,7 @@ async function run(): Promise<void> {
 
   /* ---- настоящий `onunload` из `main.js` -------------------------------- */
   {
-    const mainPath = path.join(root, "main.js");
+    const mainPath = path.join(root, "src", "main.js");
     const src = fs.readFileSync(mainPath, "utf8");
     const platform = { ...obsidianStub, setIcon: (): void => {}, MarkdownView: class {} };
     const loader = Module as unknown as {

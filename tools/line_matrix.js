@@ -277,7 +277,7 @@ function casesFor(sep1, marker, material) {
  */
 function materialFor(rules) {
   const helpers = require(path.join(ROOT, "src", "core", "pkm_rules_runtime_helpers.js"));
-  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  const core = require(path.join(ROOT, "src", "pkm_v2", "TagWheel", "tagwheel_core.js"));
   const fields = [].concat(
     Array.isArray(rules && rules.leftMode && rules.leftMode.fields) ? rules.leftMode.fields : [],
     Array.isArray(rules && rules.rightMode && rules.rightMode.fields) ? rules.rightMode.fields : []

@@ -1371,7 +1371,7 @@ function runElementTokenSuite() {
  */
 function runUnmanagedRightTokensSuite() {
   var path = require('path')
-  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var core = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
 
   var rules = {
     behavior: {
@@ -1427,7 +1427,7 @@ function runUnmanagedRightTokensSuite() {
 
 function runRightPayloadSurvivesSuite() {
   var path = require('path')
-  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var core = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
   var tokenGraph = require(path.join(__dirname, '..', '..', 'src', 'core', 'token_graph_unified.js'))
   var linePipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))
 
@@ -1534,7 +1534,7 @@ function runRightPayloadSurvivesSuite() {
  */
 function runUndoSeamSuite() {
   var path = require('path')
-  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var tagwheel = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
   var cmState = require('@codemirror/state')
 
   function makeView(text) {
@@ -1666,8 +1666,8 @@ function runUndoSeamSuite() {
  */
 function runUndoAfterPanelSuite() {
   var path = require('path')
-  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
-  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var tagwheel = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var core = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
   var helpers = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
   var linePipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))
   var macroShared = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_macro_shared.js'))
@@ -1925,8 +1925,8 @@ function runUndoAfterPanelSuite() {
 
 async function runUndoOneStepSuite() {
   var path = require('path')
-  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
-  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var tagwheel = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var core = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
   var finalize = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_line_finalize_unified.js'))
   var helpers = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_rules_runtime_helpers.js'))
   var linePipeline = require(path.join(__dirname, '..', '..', 'src', 'core', 'line_pipeline.js'))
@@ -2480,7 +2480,7 @@ function runLeadFieldPolicySuite(core) {
  */
 function runEdgeModeSuite() {
   var path = require('path')
-  var tagwheel = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
+  var tagwheel = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel.js'))
   var plan = tagwheel.planFieldStep
   var left = ['importance', 'type']
   var right = ['project', 'due']
@@ -2795,7 +2795,7 @@ function runActiveFieldChoiceSuite(core) {
 function runNode() {
   var fs = require('fs')
   var path = require('path')
-  var core = require(path.join(__dirname, '..', '..', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
+  var core = require(path.join(__dirname, '..', '..', 'src', 'pkm_v2', 'TagWheel', 'tagwheel_core.js'))
   var finalize = require(path.join(__dirname, '..', '..', 'src', 'core', 'pkm_line_finalize_unified.js'))
   /*
    * **Правила берутся фикстурой, а не разбором заметки** (PRD 10.13.52, П-8,

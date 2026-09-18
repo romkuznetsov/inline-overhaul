@@ -188,7 +188,7 @@ function usesInside(name, file) {
   const probe = exportsOf(bodies.get(path.join(root, "src", "core", "active_editor.js")));
   assert.deepStrictEqual(Array.from(probe).sort(), ["activeEditorFrom", "markdownViewCtorFrom"],
     "контроль: разбор экспорта у active_editor.js даёт не те имена");
-  const tags = exportsOf(bodies.get(path.join(root, "pkm_v2", "status_tags.js")));
+  const tags = exportsOf(bodies.get(path.join(root, "src", "pkm_v2", "status_tags.js")));
   assert.ok(!tags.has("finalParsed") && !tags.has("cycleTokens"),
     "контроль: локальная переменная принята за экспортированное имя");
   ok("контроль разбора: границы объекта экспорта считаются скобками");

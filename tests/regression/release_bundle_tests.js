@@ -48,10 +48,10 @@ function walkJs(target) {
  */
 function collectRuntimeVaultModulePaths() {
   const files = [
-    path.join(root, "main.js"),
-    path.join(root, "navigation_runtime.js"),
-    path.join(root, "pkm_runtime_v2.js"),
-    ...walkJs(path.join(root, "pkm_v2")),
+    path.join(root, "src", "main.js"),
+    path.join(root, "src", "navigation_runtime.js"),
+    path.join(root, "src", "pkm_runtime_v2.js"),
+    ...walkJs(path.join(root, "src", "pkm_v2")),
     ...walkJs(path.join(root, "src")),
   ];
   const pattern = /(?:\.\/)?(?:\.obsidian\/)?plugins\/inline-overhaul\/[^"'`\s]+\.js(?=["'`])/g;

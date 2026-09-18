@@ -159,9 +159,9 @@ export default [
   // движки под З3: правило Р4 — существующий JS не переписывается
   {
     files: [
-      "pkm_v2/**/*.js",
-      "pkm_runtime_v2.js",
-      "navigation_runtime.js",
+      "src/pkm_v2/**/*.js",
+      "src/pkm_runtime_v2.js",
+      "src/navigation_runtime.js",
       "src/core/line_pipeline.js",
       "src/core/status_*.js",
       "src/core/token_graph_unified.js",

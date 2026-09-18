@@ -16,7 +16,7 @@
  */
 
 const path = require("path");
-const nav = require(path.join(__dirname, "..", "..", "navigation_runtime.js"));
+const nav = require(path.join(__dirname, "..", "..", "src", "navigation_runtime.js"));
 
 function assertEq(actual, expected, name) {
   if (actual !== expected) throw new Error(`${name}: expected ${JSON.stringify(expected)} got ${JSON.stringify(actual)}`);

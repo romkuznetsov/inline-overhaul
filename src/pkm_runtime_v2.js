@@ -14,7 +14,7 @@
  * работал общий модуль, а всюду, где этот файл зовут напрямую, выполнялись
  * копии (У-140). Сняты ревизией 2026-09-11, заход 3.
  */
-const __sharedUtils = require("./src/core/shared_utils.js");
+const __sharedUtils = require("./core/shared_utils.js");
 
 function isObj(x) {
   return __sharedUtils.isObj(x);
@@ -53,8 +53,8 @@ const MACRO_MODULES = {
   tagWheel: require("./pkm_v2/TagWheel/tagwheel.js"),
 };
 
-const macroRuntimeEntry = require("./src/core/pkm_macro_runtime_entry.js");
-const __activeEditorMod = require("./src/core/active_editor.js");
+const macroRuntimeEntry = require("./core/pkm_macro_runtime_entry.js");
+const __activeEditorMod = require("./core/active_editor.js");
 
 function macroModuleForCommand(command) {
   return Object.prototype.hasOwnProperty.call(MACRO_MODULES, command)

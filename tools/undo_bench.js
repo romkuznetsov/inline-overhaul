@@ -32,7 +32,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const bench = require(path.join(ROOT, "tools", "line_bench.js"));
-const runtime = require(path.join(ROOT, "pkm_runtime_v2.js"));
+const runtime = require(path.join(ROOT, "src", "pkm_runtime_v2.js"));
 const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
 const panelBench = require(path.join(ROOT, "tests", "harness", "panel_bench.js"));
 

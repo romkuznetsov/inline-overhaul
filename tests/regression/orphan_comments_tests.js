@@ -37,11 +37,7 @@ const ROOT = path.join(__dirname, "..", "..");
 
 /* Рантайм плагина: то, что уезжает в сборку, и то, откуда уезжает код. */
 const ROOTS = [
-  "main.js",
-  "navigation_runtime.js",
-  "pkm_runtime_v2.js",
   "src",
-  "pkm_v2",
 ];
 
 function collect(rel, out) {

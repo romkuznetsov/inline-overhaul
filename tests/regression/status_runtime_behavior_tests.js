@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const runtime = require(path.join(__dirname, "..", "..", "pkm_runtime_v2.js"));
+const runtime = require(path.join(__dirname, "..", "..", "src", "pkm_runtime_v2.js"));
 
 /*
  * **Правила приезжают движку ключом `Rules data`** — тем же, каким их кладёт
@@ -2897,8 +2897,8 @@ async function testDateOffsetAnswersAreRight() {
     assertEq(new Date().getTimezoneOffset(), -540,
       "часовой пояс проверки не сменился — она спрашивала бы про совпадение с самой собой");
 
-    const statusDate = require(path.join(__dirname, "..", "..", "pkm_v2", "status_date.js"));
-    const core = require(path.join(__dirname, "..", "..", "pkm_v2", "TagWheel", "tagwheel_core.js"));
+    const statusDate = require(path.join(__dirname, "..", "..", "src", "pkm_v2", "status_date.js"));
+    const core = require(path.join(__dirname, "..", "..", "src", "pkm_v2", "TagWheel", "tagwheel_core.js"));
     const two = (n) => String(n).padStart(2, "0");
     const dayValue = (shift) => {
       const d = new Date();

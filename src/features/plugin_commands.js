@@ -87,12 +87,12 @@ function getTransformFeature() {
 
 /** Движок навигации: переходы, перенос строк, курсор внутри строки. */
 function navigationRuntime() {
-  return require("../../navigation_runtime.js");
+  return require("../navigation_runtime.js");
 }
 
 /** Движок PKM: команды Fields, TagWheel, даты и системная строка. */
 function pkmRuntime() {
-  return require("../../pkm_runtime_v2.js");
+  return require("../pkm_runtime_v2.js");
 }
 
 /**

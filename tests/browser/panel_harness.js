@@ -78,7 +78,7 @@ const PANEL_INJECTIONS = {
    * «работает».
    */
   "panel-never-opens": {
-    file: "pkm_v2/TagWheel/tagwheel.js",
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
     find: "    window.__tagWheelState = state",
     replace: "    window.__tagWheelState = state\n    if (state) { state.active = false; return }",
   },
@@ -88,7 +88,7 @@ const PANEL_INJECTIONS = {
    * наполовину — панель есть, а человек её не видит.
    */
   "panel-draws-nothing": {
-    file: "pkm_v2/TagWheel/tagwheel.js",
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
     find: "  function drawPanelLine(state, controlLine) {",
     replace: "  function drawPanelLine(state, controlLine) {\n    if (state) return",
   },
@@ -98,7 +98,7 @@ const PANEL_INJECTIONS = {
    * Д-2, и человек находил это уже в файле.
    */
   "cancel-keeps-panel": {
-    file: "pkm_v2/TagWheel/tagwheel.js",
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
     find: "    clearPanelMask(state)\n    unwritePanelLine(state)\n"
       + "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
     replace: "    state.editor.setCursor({ line: state.lineNumber, ch: state.originalLine.length })",
@@ -130,7 +130,7 @@ const PANEL_INJECTIONS = {
    * открылась», осталась бы зелёной.
    */
   "keys-never-arrive": {
-    file: "pkm_v2/TagWheel/tagwheel.js",
+    file: "src/pkm_v2/TagWheel/tagwheel.js",
     find: "    window.addEventListener('keydown', state.keyHandler, true)",
     replace: "    if (!state) window.addEventListener('keydown', state.keyHandler, true)",
   },

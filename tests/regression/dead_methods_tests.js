@@ -57,12 +57,12 @@ let passed = 0;
 const ok = (label) => { passed++; console.log("  ok " + label); };
 
 /** Где объявления ищутся: только рантайм, то есть то, что уезжает человеку. */
-const DECL_ROOTS = ["src", "pkm_v2", "main.js", "navigation_runtime.js", "pkm_runtime_v2.js"];
+const DECL_ROOTS = ["src"];
 
 /** Где ищутся обращения: весь код репозитория. Документы сюда не входят
     нарочно — упоминание в документе вызовом не является (У-138). */
 const REF_ROOTS = ["src", "pkm_v2", "tests", "tools",
-  "main.js", "navigation_runtime.js", "pkm_runtime_v2.js"];
+];
 
 /**
  * Имена, которые зовёт платформа, а не наш код: искать их вызов бессмысленно.

@@ -186,7 +186,7 @@ function allDefs(cfg: Any): Any[] {
   /* Ни одного старого идентификатора в живом коде: только в карте и в
      переводчике старых строк Binder. */
   const files = [
-    "main.js",
+    "src/main.js",
     "src/features/command_registry.js",
     "src/features/transform_feature.js",
   ];
@@ -441,7 +441,7 @@ function allDefs(cfg: Any): Any[] {
     return out;
   };
 
-  const files = walk(path.join(root, "src"), []).concat([path.join(root, "main.js")]);
+  const files = walk(path.join(root, "src"), []).concat([path.join(root, "src", "main.js")]);
   const strays: string[] = [];
   for (const file of files) {
     const rel = path.relative(root, file).replace(/\\/g, "/");

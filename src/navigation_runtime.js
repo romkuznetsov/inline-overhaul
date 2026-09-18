@@ -10,7 +10,7 @@
  * работал общий модуль; всюду, где этот файл зовут напрямую — а так его зовут
  * проверки, — выполнялись копии (У-140). Шов снят ревизией, заход 3.
  */
-const __sharedUtils = require("./src/core/shared_utils.js");
+const __sharedUtils = require("./core/shared_utils.js");
 
 /*
  * Правила PKM для навигации собираются из настроек, а не из служебного файла
@@ -19,7 +19,7 @@ const __sharedUtils = require("./src/core/shared_utils.js");
  * и сама заметка: одно объявление на оба хода (У-32). Разбор — у
  * `buildNavigateRules` ниже.
  */
-const __rulesShape = require("./src/core/pkm_rules_shape.js");
+const __rulesShape = require("./core/pkm_rules_shape.js");
 
 /*
  * Где на строке кончается текст человека — правило **одно**, и живёт оно в
@@ -31,7 +31,7 @@ const __rulesShape = require("./src/core/pkm_rules_shape.js");
  * пустой слот под текст — местом вплотную к разделителю (замечание `S4`
  * 2026-09-12, шесть случаев с его экрана).
  */
-const __macroShared = require("./src/core/pkm_macro_shared.js");
+const __macroShared = require("./core/pkm_macro_shared.js");
 
 function isObj(x) {
   return __sharedUtils.isObj(x);

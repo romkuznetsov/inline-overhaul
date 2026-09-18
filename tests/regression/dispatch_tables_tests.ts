@@ -126,7 +126,7 @@ const ctxWith = (tips: boolean): never => ({
  * недоказанным.
  */
 function indentLineSource(): string {
-  const src = fs.readFileSync(path.join(root, "navigation_runtime.js"), "utf8");
+  const src = fs.readFileSync(path.join(root, "src", "navigation_runtime.js"), "utf8");
   const at = src.indexOf("function indentLine(");
   assert.ok(at > 0, "не нашлась indentLine в navigation_runtime.js");
   const end = src.indexOf("\nfunction ", at + 10);

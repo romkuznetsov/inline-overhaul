@@ -35,7 +35,7 @@ const { history } = require("@codemirror/commands");
 const decorations = require("../../src/ui/editor/decorations.js");
 const visuals = require("../../src/core/editor_visuals_config.js");
 const panelMask = require("../../src/ui/editor/panel_mask.js");
-const runtime = require("../../pkm_runtime_v2.js");
+const runtime = require("../../src/pkm_runtime_v2.js");
 const panelBench = require("../harness/panel_bench.js");
 
 /* Посчитано в Node сборкой страницы: конфиг фикстуры после `migrateConfig`,

@@ -30,22 +30,22 @@ var TAGWHEEL_ACTIVE_FIELD_RIGHT_OPTION = 'TagWheel active field right'
  * ничего не значило: реестр забандленных модулей отдаёт один и тот же
  * объект независимо от флага.
  */
-var __sharedUtils = require('../../src/core/shared_utils.js')
-var __lineFinalizeUnifiedMod = require('../../src/core/pkm_line_finalize_unified.js')
-var __statusLineRuntimeUnifiedMod = require('../../src/core/status_line_runtime_unified.js')
-var __dateRuntimeSharedMod = require('../../src/core/date_runtime_shared.js')
-var __linePipelineMod = require('../../src/core/line_pipeline.js')
-var __tagwheelScrollerOverlayMod = require('../../src/ui/tagwheel_scroller_overlay.js')
+var __sharedUtils = require('../../core/shared_utils.js')
+var __lineFinalizeUnifiedMod = require('../../core/pkm_line_finalize_unified.js')
+var __statusLineRuntimeUnifiedMod = require('../../core/status_line_runtime_unified.js')
+var __dateRuntimeSharedMod = require('../../core/date_runtime_shared.js')
+var __linePipelineMod = require('../../core/line_pipeline.js')
+var __tagwheelScrollerOverlayMod = require('../../ui/tagwheel_scroller_overlay.js')
 var __tagwheelCoreMod = require('./tagwheel_core.js')
-var __pkmOptionKeysMod = require('../../src/core/pkm_option_keys.js')
-var __pkmDomainRegistryMod = require('../../src/core/pkm_domain_registry.js')
-var __sayModule = require('../../src/core/say.js')
+var __pkmOptionKeysMod = require('../../core/pkm_option_keys.js')
+var __pkmDomainRegistryMod = require('../../core/pkm_domain_registry.js')
+var __sayModule = require('../../core/say.js')
 var __say = __sayModule.say
-var __activeEditorMod = require('../../src/core/active_editor.js')
+var __activeEditorMod = require('../../core/active_editor.js')
 /* Пакет даёт сам Obsidian: в сборке он объявлен внешним и в бандл не идёт. */
 var __cmState = require('@codemirror/state')
-var __panelLineWriteMod = require('../../src/core/panel_line_write.js')
-var __panelMaskMod = require('../../src/ui/editor/panel_mask.js')
+var __panelLineWriteMod = require('../../core/panel_line_write.js')
+var __panelMaskMod = require('../../ui/editor/panel_mask.js')
 
 /**
  * Что именно переписать, чтобы строка стала другой: **только различие**.

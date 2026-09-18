@@ -3,31 +3,31 @@
 const { Plugin, Notice, MarkdownView } = require("obsidian");
 
 
-const __sharedUtils = require("./src/core/shared_utils.js");
-const __activeEditor = require("./src/core/active_editor.js");
+const __sharedUtils = require("./core/shared_utils.js");
+const __activeEditor = require("./core/active_editor.js");
 globalThis.__inlineOverhaulSharedUtils = __sharedUtils;
 
 
-const __devLog = require("./src/core/dev_log.js");
-const __configWrite = require("./src/core/config_write.js");
-const __bootstrap = require("./src/features/plugin_bootstrap.js");
-const __pluginCommands = require("./src/features/plugin_commands.js");
-const __editorStyles = require("./src/ui/editor/styles.js");
+const __devLog = require("./core/dev_log.js");
+const __configWrite = require("./core/config_write.js");
+const __bootstrap = require("./features/plugin_bootstrap.js");
+const __pluginCommands = require("./features/plugin_commands.js");
+const __editorStyles = require("./ui/editor/styles.js");
 
 
 /** `Ctrl+A` по своим правилам (10.13.31). */
 function getEnhancedSelectAllEngine() {
-  return require("./src/features/enhanced_select_all_engine.js");
+  return require("./features/enhanced_select_all_engine.js");
 }
 
 /** `Del` и `Backspace` по своим правилам (10.13.32). */
 function getSmartDeleteEngine() {
-  return require("./src/features/smart_delete_engine.js");
+  return require("./features/smart_delete_engine.js");
 }
 
 /** `Enter` до второго разделителя по своим правилам (10.13.88). */
 function getSmartEnterEngine() {
-  return require("./src/features/smart_enter_engine.js");
+  return require("./features/smart_enter_engine.js");
 }
 
 

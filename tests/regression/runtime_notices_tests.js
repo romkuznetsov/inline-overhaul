@@ -139,16 +139,8 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
       if (/\.(?:js|ts)$/.test(name)) runtimeFiles.push(abs);
     }
   })(path.join(root, "src"));
-  for (const name of fs.readdirSync(root)) {
-    if (/\.js$/.test(name)) runtimeFiles.push(path.join(root, name));
-  }
-  (function walk(dir) {
-    for (const name of fs.readdirSync(dir)) {
-      const abs = path.join(dir, name);
-      if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
-      if (/\.js$/.test(name)) runtimeFiles.push(abs);
-    }
-  })(path.join(root, "pkm_v2"));
+  /* Движки под З3 переехали в `src/` 2026-09-19 и обходятся вместе с ним:
+     отдельного корня им больше не нужно. */
 
   const asked = new Set();
   for (const abs of runtimeFiles) {
@@ -304,9 +296,9 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
    * любым, а комментарий, упоминающий шов словами, под форму не попадает.
    */
   const ENGINES = [
-    ["pkm_v2/status_date.js", /require\("\.\.\/src\/core\/say\.js"\)/],
-    ["pkm_v2/status_tags.js", /require\("\.\.\/src\/core\/say\.js"\)/],
-    ["pkm_v2/TagWheel/tagwheel.js", /require\('\.\.\/\.\.\/src\/core\/say\.js'\)/],
+    ["src/pkm_v2/status_date.js", /require\("\.\.\/core\/say\.js"\)/],
+    ["src/pkm_v2/status_tags.js", /require\("\.\.\/core\/say\.js"\)/],
+    ["src/pkm_v2/TagWheel/tagwheel.js", /require\('\.\.\/\.\.\/core\/say\.js'\)/],
   ];
   /* Форма копии: шов уезжает в свою переменную, и дальше его спрашивают сами. */
   const OWN_COPY = /(?:var|let|const)\s+[A-Za-z_$][\w$]*\s*=\s*globalThis\s*\.\s*__inlineSay/;
@@ -382,7 +374,7 @@ withCatalog({ "notice.navigation.no-editor": "" }, () => {
       if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
       if (/\.js$/.test(name)) files.push(abs);
     }
-  })(path.join(root, "pkm_v2"));
+  })(path.join(root, "src", "pkm_v2"));
   for (const name of fs.readdirSync(root)) {
     if (/\.js$/.test(name)) files.push(path.join(root, name));
   }

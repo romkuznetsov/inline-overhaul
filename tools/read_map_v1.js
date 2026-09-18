@@ -43,7 +43,7 @@ const AREAS = [
   "pkm_runtime_v2.js",
   "src/core",
   "src/features",
-  "main.js",
+  "src/main.js",
 ];
 
 const SKIP_DIR = new Set(["node_modules", ".git", "dist", "build"]);

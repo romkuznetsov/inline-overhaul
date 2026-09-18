@@ -26,7 +26,7 @@ esbuild.buildSync({
    * больше нет, модули приезжают литеральным `require` (У-89), и реестр
    * вместе с ним ушёл.
    */
-  entryPoints: [path.join(root, "main.js")],
+  entryPoints: [path.join(root, "src", "main.js")],
   bundle: true,
   outfile: path.join(dist, "main.js"),
   platform: "node",

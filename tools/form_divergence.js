@@ -179,12 +179,12 @@ function outputModeSites() {
   const preload = require(path.join(ROOT, "src", "core", "pkm_runtime_preload_facade.js"));
   /* Шов ставится прослойкой плагина, а не присваиванием своей рукой (У-42). */
   preload.loadRulesRuntimeHelpers();
-  const panel = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel.js"));
-  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  const panel = require(path.join(ROOT, "src", "pkm_v2", "TagWheel", "tagwheel.js"));
+  const core = require(path.join(ROOT, "src", "pkm_v2", "TagWheel", "tagwheel_core.js"));
   return [
     {
       id: "tagwheel.resolveFieldOutputMode",
-      file: "pkm_v2/TagWheel/tagwheel.js",
+      file: "src/pkm_v2/TagWheel/tagwheel.js",
       anchor: null,
       fn: (field, rules) => panel.resolveFieldOutputMode(field, rules),
     },
@@ -647,7 +647,7 @@ function markerSites() {
   preload.loadRulesRuntimeHelpers();
   const linePipeline = require(path.join(ROOT, "src", "core", "line_pipeline.js"));
   const finalize = require(path.join(ROOT, "src", "core", "pkm_line_finalize_unified.js"));
-  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  const core = require(path.join(ROOT, "src", "pkm_v2", "TagWheel", "tagwheel_core.js"));
   const uniqSorted = (list) => Array.from(new Set(
     (Array.isArray(list) ? list : []).map((x) => String(x == null ? "" : x).trim()).filter(Boolean)
   )).sort();
@@ -707,7 +707,7 @@ function markerSites() {
        * вход читает, а кто нет.
        */
       id: "шов навигации (dates.markers)",
-      file: "navigation_runtime.js",
+      file: "src/navigation_runtime.js",
       anchor: "const rules = { io: { separator1: sep1, separator2: sep2 }, dates: { markers } };",
       fn: (rules) => uniqSorted(
         Array.isArray(rules && rules.dates && rules.dates.markers) ? rules.dates.markers : []
@@ -1026,8 +1026,8 @@ function markerSitesComplete(sites) {
 function dateOffsetSites() {
   const preload = require(path.join(ROOT, "src", "core", "pkm_runtime_preload_facade.js"));
   preload.loadRulesRuntimeHelpers();
-  const statusDate = require(path.join(ROOT, "pkm_v2", "status_date.js"));
-  const core = require(path.join(ROOT, "pkm_v2", "TagWheel", "tagwheel_core.js"));
+  const statusDate = require(path.join(ROOT, "src", "pkm_v2", "status_date.js"));
+  const core = require(path.join(ROOT, "src", "pkm_v2", "TagWheel", "tagwheel_core.js"));
   return [
     {
       id: "status_date (по Гринвичу)",
@@ -1245,8 +1245,8 @@ async function reportDateOffset() {
 function fieldByKeySites() {
   const preload = require(path.join(ROOT, "src", "core", "pkm_runtime_preload_facade.js"));
   preload.loadRulesRuntimeHelpers();
-  const statusDate = require(path.join(ROOT, "pkm_v2", "status_date.js"));
-  const statusTags = require(path.join(ROOT, "pkm_v2", "status_tags.js"));
+  const statusDate = require(path.join(ROOT, "src", "pkm_v2", "status_date.js"));
+  const statusTags = require(path.join(ROOT, "src", "pkm_v2", "status_tags.js"));
   return [
     {
       id: "status_date (поля-элементы)",

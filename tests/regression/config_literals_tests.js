@@ -40,7 +40,7 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.resolve(__dirname, "..", "..");
-const RUNTIME = ["main.js", "navigation_runtime.js", "pkm_runtime_v2.js", "src", "pkm_v2"];
+const RUNTIME = ["src"];
 
 /**
  * Долг по файлам. Число — сколько строк с готовым разделителем в файле

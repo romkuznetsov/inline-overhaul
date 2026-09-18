@@ -75,7 +75,7 @@ const BY_PARENT = {
 const found = [];
 const nameless = [];
 const byParent = [];
-for (const file of sources(path.join(root, "src"), []).concat([path.join(root, "main.js")])) {
+for (const file of sources(path.join(root, "src"), []).concat([path.join(root, "src", "main.js")])) {
   const code = withoutComments(fs.readFileSync(file, "utf8"));
   const rel = path.relative(root, file).replace(/\\/g, "/");
   let m;

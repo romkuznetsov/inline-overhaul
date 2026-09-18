@@ -124,7 +124,7 @@ export interface PluginInternals {
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const mainPath = path.resolve(here, "..", "..", "main.js");
+const mainPath = path.resolve(here, "..", "..", "src", "main.js");
 
 /*
  * **Хвоста больше нет** (кусок четвёртый разбора `main.js`, 2026-09-07).
@@ -200,7 +200,7 @@ export function loadPluginInternals(): PluginInternals {
     /* Точка входа исполнилась: её работа на уровне модуля сделана, а имена
        внутренностей ниже берутся у модулей. */
     entryLoaded = typeof mod.exports === "function";
-    commands = requireInsideStub("./src/features/plugin_commands.js");
+    commands = requireInsideStub("./features/plugin_commands.js");
   } finally {
     loader._load = origLoad;
   }
@@ -226,10 +226,10 @@ export function loadPluginInternals(): PluginInternals {
    * Забудь `main.js` подключить модуль — краснеет там.
    */
   const requireCjs = Module.createRequire(mainPath);
-  const visuals = requireCjs("./src/core/editor_visuals_config.js") as Any;
-  const decorations = requireCjs("./src/ui/editor/decorations.js") as Any;
-  const order = requireCjs("./src/core/pkm_order_config.js") as Any;
-  const configNormalize = requireCjs("./src/core/config_normalize.js") as Any;
+  const visuals = requireCjs("./core/editor_visuals_config.js") as Any;
+  const decorations = requireCjs("./ui/editor/decorations.js") as Any;
+  const order = requireCjs("./core/pkm_order_config.js") as Any;
+  const configNormalize = requireCjs("./core/config_normalize.js") as Any;
   cached = {
     ...visuals, ...decorations, ...order, ...configNormalize,
     buildOwnCommandList: commands.buildOwnCommandList,

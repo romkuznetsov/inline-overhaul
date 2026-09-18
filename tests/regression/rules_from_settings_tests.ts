@@ -42,7 +42,7 @@ const nodeRequire = Module.createRequire(import.meta.url);
 
 const internals = loadPluginInternals();
 const shape = nodeRequire(path.join(root, "src", "core", "pkm_rules_shape.js"));
-const runtime = nodeRequire(path.join(root, "pkm_runtime_v2.js"));
+const runtime = nodeRequire(path.join(root, "src", "pkm_runtime_v2.js"));
 const keys = nodeRequire(path.join(root, "src", "core", "pkm_option_keys.js")).KEYS;
 
 let passed = 0;

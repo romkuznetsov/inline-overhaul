@@ -32,7 +32,7 @@ if (typeof globalThis.window === "undefined") {
   globalThis.window = { setTimeout: (fn, ms) => setTimeout(fn, ms) };
 }
 
-const nav = require(path.join(__dirname, "..", "..", "navigation_runtime.js"));
+const nav = require(path.join(__dirname, "..", "..", "src", "navigation_runtime.js"));
 
 let passed = 0;
 function ok(what) { passed++; console.log("  ok " + what); }

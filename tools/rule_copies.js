@@ -24,7 +24,7 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = require("path").resolve(__dirname, "..");
-const RUNTIME = ["main.js", "navigation_runtime.js", "pkm_runtime_v2.js", "src", "pkm_v2"];
+const RUNTIME = ["src"];
 
 function files() {
   const out = [];
