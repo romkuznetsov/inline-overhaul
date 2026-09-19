@@ -831,7 +831,9 @@ write a copy of it as an ordinary note. Open **Advanced → Backup**.
   another vault. The copy is full — every tab and the hotkeys of this plugin — and under
   the heading `What changed` in it is the list of settings that differ from the previous
   autosave. Ten newest autosaves are kept; older ones go to the vault trash, and copies
-  you saved yourself are never touched. This is not undo: to step one change back inside
+  you saved yourself are never touched. Each new copy says so with a notice naming the
+  note. What counts as a change is the settings themselves: the tab you left open in the
+  panel is not one of them and never makes a copy. This is not undo: to step one change back inside
   the panel, use the command `Undo last settings change`.
 - **Save a backup before restoring**: on by default. Restoring replaces
   everything, so the plugin writes what you have at that moment into the folder
