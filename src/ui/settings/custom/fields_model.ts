@@ -20,7 +20,7 @@
  */
 
 import { asObject, asArray } from "../types.ts";
-import type { OrderState, PkmFieldsConfig, FieldKind, ValueVisibility } from "../types.ts";
+import type { OrderState, PkmFieldsConfig, FieldKind, ValueVisibility, SubMode } from "../types.ts";
 import { BLOCK_TEXTS } from "../texts_blocks.ts";
 /*
  * Из движка нужна одна вещь: показательное значение элемента по формату поля.
@@ -449,6 +449,31 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     return raw === "no" ? "no" : "yes";
   };
 
+  /**
+   * Положение дочернего Field: `hide` — его нет нигде, `after-parent` — он
+   * появляется, когда у родителя есть значение (так было всегда), `always` —
+   * он работает и на строке без родителя (его слово 2026-09-19).
+   *
+   * Включённость по-прежнему живёт в `active`/`enabled` — её читает рантайм и
+   * читают соседние контролы; третье положение добавляет к ней одну булеву
+   * карту, а не заводит второй ответ на вопрос «включён ли».
+   */
+  const getSubMode = (subKey: string): SubMode => {
+    const key = String(subKey || "").trim();
+    if (!key) return "after-parent";
+    if (getSubActive(key) === "no") return "hide";
+    return (orderState.subWithoutParent && orderState.subWithoutParent[key] === true)
+      ? "always"
+      : "after-parent";
+  };
+
+  /** Дописывать ли родителя значению, выбранному без него. */
+  const getSubAddsParent = (subKey: string): boolean => {
+    const key = String(subKey || "").trim();
+    if (!key) return false;
+    return !!(orderState.subAddsParent && orderState.subAddsParent[key] === true);
+  };
+
   /** Ключи, которых нет ни в одном Block, дописываются в правый (как было). */
   const ensureAllKeys = (): void => {
     for (const k of getOrderKeys()) {
@@ -480,6 +505,14 @@ export function createFieldsModel(deps: FieldsModelDeps) {
         active: { ...current.active, ...(p && p.active ? p.active : {}) },
         freeRoam: { ...current.freeRoam, ...(p && p.freeRoam ? p.freeRoam : {}) },
         enabled: { ...current.enabled, ...(p && p.enabled ? p.enabled : {}) },
+        subWithoutParent: {
+          ...current.subWithoutParent,
+          ...(p && p.subWithoutParent ? p.subWithoutParent : {}),
+        },
+        subAddsParent: {
+          ...current.subAddsParent,
+          ...(p && p.subAddsParent ? p.subAddsParent : {}),
+        },
         types: { ...current.types, ...(p && p.types ? p.types : {}) },
         labels: { ...current.labels, ...(p && p.labels ? p.labels : {}) },
         strictNames: { ...current.strictNames, ...(p && p.strictNames ? p.strictNames : {}) },
@@ -759,6 +792,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       active: { ...(liveOrder.active || {}) },
       freeRoam: { ...(liveOrder.freeRoam || {}) },
       enabled: { ...(liveOrder.enabled || {}) },
+      subWithoutParent: { ...(liveOrder.subWithoutParent || {}) },
+      subAddsParent: { ...(liveOrder.subAddsParent || {}) },
     };
     for (const t of targets) {
       delete nextOrder.labels[t];
@@ -767,6 +802,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
       delete nextOrder.active[t];
       delete nextOrder.freeRoam[t];
       delete nextOrder.enabled[t];
+      delete nextOrder.subWithoutParent[t];
+      delete nextOrder.subAddsParent[t];
     }
     const leftLead = String(nextOrder.lead && nextOrder.lead.left ? nextOrder.lead.left : "").trim();
     const rightLead = String(nextOrder.lead && nextOrder.lead.right ? nextOrder.lead.right : "").trim();
@@ -978,23 +1015,46 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   };
 
   /**
-   * Дочерний Field включается и выключается одной кнопкой. Записей две, и
-   * порядок важен: сначала список Block, потом Order — так это работало.
+   * Положение дочернего Field. Записей две, и порядок важен: сначала список
+   * Block, потом Order — так это работало кнопкой старой доски.
+   *
+   * Третье положение (`always`, его слово 2026-09-19) пишется той же записью
+   * в Order: включённость идёт в `active`/`enabled`, а «работает без
+   * родителя» — в `subWithoutParent`. Два ключа одной записью потому, что для
+   * человека это один выбор, и в отмене он обязан быть одной ступенью.
    */
-  const toggleSub = (subKey: string): WriteResult => {
-    const cur = String((orderState.active && orderState.active[subKey]) || "yes").trim().toLowerCase();
-    const next = cur === "no" ? "yes" : "no";
+  const setSubMode = (subKey: string, rawMode: string): WriteResult => {
+    const mode: SubMode = rawMode === "always" || rawMode === "hide"
+      ? rawMode
+      : "after-parent";
+    const on = mode !== "hide";
+    const next = on ? "yes" : "no";
     orderState.active = { ...(orderState.active || {}), [subKey]: next };
-    orderState.enabled = { ...(orderState.enabled || {}), [subKey]: next !== "no" };
+    orderState.enabled = { ...(orderState.enabled || {}), [subKey]: on };
+    orderState.subWithoutParent = {
+      ...(orderState.subWithoutParent || {}),
+      [subKey]: mode === "always",
+    };
     const leftMode = modeFields(behaviorOf(plugin.getConfig()), "leftMode");
     const idx = leftMode.findIndex(f => idOf(f) === subKey);
-    if (idx !== -1) leftMode[idx] = { ...asObject(leftMode[idx]), enabled: next !== "no" };
+    if (idx !== -1) leftMode[idx] = { ...asObject(leftMode[idx]), enabled: on };
     plugin.setConfigPatch(
       { pkm: { fields: { tags: { fields: leftMode } } } },
       "pkm:behavior:leftmode:subtoggle:" + subKey,
     );
-    setOrderPatch({ active: { [subKey]: next }, enabled: { [subKey]: next !== "no" } },
-      "pkm:behavior:order:sub:" + subKey);
+    setOrderPatch({
+      active: { [subKey]: next },
+      enabled: { [subKey]: on },
+      subWithoutParent: { [subKey]: mode === "always" },
+    }, "pkm:behavior:order:sub:" + subKey);
+    return { ok: true };
+  };
+
+  /** Дописывать ли родителя. Ряд виден только при `always`. */
+  const setSubAddsParent = (subKey: string, on: boolean): WriteResult => {
+    orderState.subAddsParent = { ...(orderState.subAddsParent || {}), [subKey]: !!on };
+    setOrderPatch({ subAddsParent: { [subKey]: !!on } },
+      "pkm:behavior:order:sub-parent:" + subKey);
     return { ok: true };
   };
 
@@ -2260,7 +2320,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     getOrderKeys,
     getFieldKind,
     getSubKeyForParent,
-    getSubActive,
+    getSubMode,
+    getSubAddsParent,
     inferSubKey,
     ensureAllKeys,
     getPanelLeadCandidates,
@@ -2282,7 +2343,8 @@ export function createFieldsModel(deps: FieldsModelDeps) {
     setYamlValueRule,
     getPrerequisite,
     setPrerequisite,
-    toggleSub,
+    setSubMode,
+    setSubAddsParent,
     setFreeRoam,
     setActive,
     setLead,

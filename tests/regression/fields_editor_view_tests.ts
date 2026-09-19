@@ -68,6 +68,10 @@ function normalizePkmOrder(raw: Any): Any {
     lead: map(o.lead), labels: map(o.labels), strictNames: map(o.strictNames),
     types: map(o.types), active: map(o.active), freeRoam: map(o.freeRoam),
     enabled: map(o.enabled), propertiesByField: map(o.propertiesByField),
+    /* Две карты дочернего Field (его слово 2026-09-19). Подделка обязана
+       переносить их, как настоящий нормализатор: карта, которой подделка не
+       знает, доезжает до конфига пустой, и проверка мерит подделку. */
+    subWithoutParent: map(o.subWithoutParent), subAddsParent: map(o.subAddsParent),
   };
 }
 
@@ -1450,8 +1454,11 @@ function heightBtn(host: StubNode): StubNode {
 {
   /*
    * Та самая потеря. Контрол был в старой доске кнопкой (`toggle sub <key>`),
-   * в новую вёрстку не попал, и сверка карт этого не поймала: `toggleSub`
+   * в новую вёрстку не попал, и сверка карт этого не поймала: `setSubMode`
    * пишет в те же ветки конфига, что и соседние контролы.
+   *
+   * Положений у него три (его слово 2026-09-19), и умолчание — `after-parent`:
+   * так поле работало всегда.
    */
   const v = makeView();
   const rows = all(v.host, "io-item");
@@ -1459,15 +1466,17 @@ function heightBtn(host: StubNode): StubNode {
     String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Child Field") as StubNode;
   assert.ok(childRow, "у Field с дочерним есть ряд Child Field");
   const pick = all(childRow, "io-select")[0] as StubNode;
-  assert.deepEqual(pick.children.map(c => String(c.value || "")), ["yes", "no"],
-    "дочерний Field либо показывается, либо нет");
-  assert.equal(pick.value, "yes", "в конфиге проверки дочерний Field включён");
-  pick.value = "no";
+  assert.deepEqual(pick.children.map(c => String(c.value || "")),
+    ["always", "after-parent", "hide"],
+    "дочерний Field работает всегда, после родителя или не работает");
+  assert.equal(pick.value, "after-parent",
+    "в конфиге проверки дочерний Field включён и ждёт родителя");
+  pick.value = "hide";
   pick.dispatch("change");
   assert.deepEqual(v.writes.map(w => w.reason),
     ["pkm:behavior:leftmode:subtoggle:status_sub", "pkm:behavior:order:sub:status_sub"],
     "выключение пишет теми же двумя записями и в том же порядке, что и старая доска");
-  ok("замечание 6: контрол дочернего Field вернулся и зовёт toggleSub");
+  ok("замечание 6: контрол дочернего Field вернулся и зовёт setSubMode");
 }
 {
   const v = makeView();
@@ -1475,12 +1484,56 @@ function heightBtn(host: StubNode): StubNode {
   const childRow = rows.find(r =>
     String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Child Field") as StubNode;
   const pick = all(childRow, "io-select")[0] as StubNode;
-  /* `toggleSub` переключает, а не выставляет: выбор того же значения не пишет. */
-  pick.value = "yes";
+  /* `setSubMode` зовётся только на смену: выбор того же значения не пишет. */
+  pick.value = "after-parent";
   pick.dispatch("change");
   assert.deepEqual(v.writes, [], "выбор того же значения ничего не пишет");
   ok("замечание 6: повторный выбор того же значения не трогает конфиг");
 }
+{
+  /*
+   * **Работа без родителя и ряд про родителя** (его слово 2026-09-19).
+   *
+   * Ряд `Parent Value` показывается только при `Show always`: в двух других
+   * положениях родитель на строке есть всегда, и выбирать нечего. Это то же
+   * правило, по которому строки предусловия появляются только при `Yes`.
+   */
+  const v = makeView();
+  const childRow = all(v.host, "io-item").find(r =>
+    String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Child Field") as StubNode;
+  const pick = all(childRow, "io-select")[0] as StubNode;
+  const namesBefore = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
+  assert.ok(!namesBefore.includes("Parent Value"),
+    "при `After parent` ряда про родителя нет: родитель на строке есть всегда");
+  pick.value = "always";
+  pick.dispatch("change");
+  assert.deepEqual(v.writes.map(w => w.reason),
+    ["pkm:behavior:leftmode:subtoggle:status_sub", "pkm:behavior:order:sub:status_sub"],
+    "`Show always` пишется теми же двумя записями: это один выбор человека");
+  const orderWrite = v.writes.find(w => w.reason === "pkm:behavior:order:sub:status_sub") as Write;
+  const orderBag = orderWrite.patch["pkm"]["fields"]["order"];
+  assert.equal(orderBag["subWithoutParent"]["status_sub"], true,
+    "разрешение работать без родителя уехало в настройки");
+  assert.equal(orderBag["active"]["status_sub"], "yes",
+    "`Show always` — это ещё и «включён»: включённость живёт там, где всегда");
+  v.draw();
+  const namesAfter = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
+  assert.ok(namesAfter.includes("Parent Value"),
+    "при `Show always` появился ряд про родителя");
+  const parentRow = all(v.host, "io-item").find(r =>
+    String(all(r, "io-item__name")[0]?.textContent || "").trim() === "Parent Value") as StubNode;
+  const parentPick = all(parentRow, "io-select")[0] as StubNode;
+  assert.deepEqual(parentPick.children.map(c => String(c.value || "")), ["keep", "add"],
+    "родителя либо не трогают, либо дописывают");
+  assert.equal(parentPick.value, "keep", "умолчание — не трогать строку (его слово)");
+  v.writes.length = 0;
+  parentPick.value = "add";
+  parentPick.dispatch("change");
+  assert.deepEqual(v.writes.map(w => w.reason), ["pkm:behavior:order:sub-parent:status_sub"],
+    "выбор про родителя — своя запись, и она одна");
+  ok("замечание 6: `Show always` открывает ряд `Parent Value`, и тот пишет свой ключ");
+}
+
 {
   const v = makeView();
   const due = rowsOf(v.host).find(r => nameIn(r) === "Due") as StubNode;
@@ -1729,21 +1782,25 @@ function heightBtn(host: StubNode): StubNode {
   };
   assert.equal(all(host, "io-fields__item").length, 2,
     "строки дочернего Field в списке нет: настоящая нормализация выбрасывает ключ _sub");
-  assert.equal(childPick().value, "yes", "сначала дочерний Field включён");
+  assert.equal(childPick().value, "after-parent",
+    "сначала дочерний Field включён и ждёт родителя");
   const pick = childPick();
-  pick.value = "no";
+  pick.value = "hide";
   pick.dispatch("change");
   assert.deepEqual(writes.map(w => w.reason),
     ["pkm:behavior:leftmode:subtoggle:status_sub", "pkm:behavior:order:sub:status_sub"],
     "переключение пишет теми же двумя записями");
-  assert.equal(childPick().value, "no",
-    "и после перерисовки список показывает выбранное, а не yes");
+  assert.equal(childPick().value, "hide",
+    "и после перерисовки список показывает выбранное, а не умолчание");
   assert.equal(String(cfg.pkm.fields.order.active.status_sub), "no", "в конфиге тоже no");
 
   const back = childPick();
-  back.value = "yes";
+  back.value = "always";
   back.dispatch("change");
-  assert.equal(childPick().value, "yes", "обратно включается тем же способом");
+  assert.equal(childPick().value, "always",
+    "и третье положение держится при настоящей нормализации");
+  assert.equal(cfg.pkm.fields.order.subWithoutParent.status_sub, true,
+    "разрешение работать без родителя доехало до конфига через настоящий нормализатор");
   ok("второй круг 7б: переключатель дочернего Field держит выбор и при настоящей нормализации");
 }
 

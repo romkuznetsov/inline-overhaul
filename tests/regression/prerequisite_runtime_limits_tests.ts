@@ -91,12 +91,21 @@ function build(o: {
   dependsOn: string;
   /** Какого значения ждёт; пусто — любого. */
   needs?: string;
+  /** Работает ли Field на строке, где у родителя значения нет. */
+  freeOfParent?: boolean;
+  /** Дописывать ли родителя выбранному значению. */
+  addsParent?: boolean;
 }): { field: Any; mode: Any; rules: Any } {
   const second = o.where === "left"
     ? { id: "second", prefix: "#", values: [{ token: "#a" }] }
     : { id: "second", source: "wikilinks:second", values: [{ token: "B" }] };
   const dependent: Any = { ...second, dependsOn: o.dependsOn };
   if (o.needs) dependent.enabledForParentValues = [o.needs];
+  /* Два разрешения дочернего Field (его слово 2026-09-19): их ставит на поле
+     `pkm_order_config.js`, разбирая настройки, — здесь они приходят готовыми,
+     как приходят к панели. */
+  if (o.freeOfParent) dependent.freeOfParent = true;
+  if (o.addsParent) dependent.addsParentValue = true;
 
   /* Секции `io`, `behavior.defaultMode` и `projects` обязательны для
      `validateRules`: без них он падает на другой причине и до предусловия
@@ -738,6 +747,90 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   assert.equal(String(session.selected.second || ""), "B",
     "шаг по чужому полю значение зависимого не трогает");
   ok("контроль: чужое поле зависимое не очищает");
+}
+
+/* ======================================================================
+ * Дочернее поле, которому родитель не нужен (его слово 2026-09-19).
+ * ====================================================================== */
+
+{
+  /*
+   * **Панель показывает такое поле и без родителя.** Правило предусловия
+   * объявлено один раз, и обе дороги спрашивают его же: в панели это
+   * `isFieldEnabled`, у команд — тот же вызов в `status_tags.js`. Значит и
+   * разрешение читается в одном месте, а не двумя ответами на один вопрос
+   * (У-122, и ровно эта форма стоила заказчику дописанного значения —
+   * 10.13.214).
+   *
+   * Мутация: снять чтение `field.freeOfParent` в `isFieldPrerequisiteMet` — и
+   * первое утверждение краснеет.
+   */
+  const strict = build({ where: "left", dependsOn: "status" });
+  assert.equal(shown(strict, {}), false,
+    "положительный контроль: без разрешения поле без родителя молчит — иначе мерить нечего");
+
+  const free = build({ where: "left", dependsOn: "status", freeOfParent: true });
+  assert.equal(free.field.freeOfParent, true, "разрешение пережило применение Order к правилам");
+  assert.equal(shown(free, {}), true,
+    "с разрешением панель показывает поле и на строке, где у родителя значения нет");
+  ok("дочернее поле без родителя: панель его показывает");
+}
+
+{
+  /*
+   * **Разрешение не отменяет остального предусловия.** Когда у родителя
+   * значение есть, названный список по-прежнему решает: разрешение отвечает
+   * ровно на случай «родителя нет», и шире быть не должно.
+   */
+  const free = build({ where: "left", dependsOn: "status", needs: "#work", freeOfParent: true });
+  assert.equal(shown(free, {}), true, "родителя нет — поле работает");
+  assert.equal(shown(free, { status: "#home" }), false,
+    "родитель выбран, и значение не то — поле молчит, как решил заказчик прежде");
+  assert.equal(shown(free, { status: "#work" }), true, "названное значение — показан");
+  ok("дочернее поле без родителя: при выбранном родителе правило прежнее");
+}
+
+{
+  /*
+   * **Родителя панель дописывает только по просьбе.** Условие и ответ на
+   * «чей это ребёнок» у панели те же, что у команды: объявление одно, в
+   * помощниках правил.
+   */
+  /*
+   * Значения здесь названы с `id`: так их отдаёт `normalizeValue` движкам —
+   * `id` равен токену, когда своего нет. Подделка без `id` мерила бы форму,
+   * которой движок не получает (У-147).
+   */
+  const withIds = (b: { mode: Any }): void => {
+    const parent = (b.mode.fields as Any[]).find((f: Any) => String(f && f.id) === "status");
+    parent.values = [
+      { id: "#work", token: "#work", allowedParentValues: null },
+      { id: "#home", token: "#home", allowedParentValues: null },
+    ];
+  };
+  const keep = build({ where: "left", dependsOn: "status", freeOfParent: true });
+  withIds(keep);
+  keep.field.values = [
+    { id: "", token: "", allowedParentValues: null },
+    { id: "#a", token: "#a", allowedParentValues: ["#home"] },
+  ];
+  const stateKeep: Any = { mode: "left", activeField: 1, selected: { status: "", second: "" } };
+  core.cycleValue(keep.rules, stateKeep, 1);
+  assert.equal(stateKeep.selected.second, "#a", "значение дочернего поля выбрано");
+  assert.equal(stateKeep.selected.status, "", "родителя панель не тронула: её не просили");
+
+  const add = build({ where: "left", dependsOn: "status", freeOfParent: true, addsParent: true });
+  withIds(add);
+  add.field.values = [
+    { id: "", token: "", allowedParentValues: null },
+    { id: "#a", token: "#a", allowedParentValues: ["#home"] },
+  ];
+  const stateAdd: Any = { mode: "left", activeField: 1, selected: { status: "", second: "" } };
+  core.cycleValue(add.rules, stateAdd, 1);
+  assert.equal(stateAdd.selected.second, "#a", "значение дочернего поля выбрано");
+  assert.equal(stateAdd.selected.status, "#home",
+    "и родитель, которому это значение принадлежит, дописан — вторым контролом");
+  ok("дочернее поле без родителя: панель дописывает родителя только по просьбе");
 }
 
 console.log("\n" + passed + " проверок пройдено");

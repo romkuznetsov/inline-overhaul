@@ -117,18 +117,32 @@ const ACTIVE_OPTIONS = [
 ] as const;
 
 /**
- * Видимость дочернего Field. Ряд показывается у Field типа `tag` и `wikilink`
- * — у всех, у кого есть Values, а значит и дочерние Values. У `element`
- * Values нет, и переключать нечего (З8). Выключенный дочерний Field не
- * появляется в TagWheel после выбора родительского значения, даже если
- * значения у него заведены.
+ * Положение дочернего Field. Ряд показывается у Field типа `tag` и
+ * `wikilink` — у всех, у кого есть Values, а значит и дочерние Values. У
+ * `element` Values нет, и переключать нечего (З8).
  *
- * Переключается тем же `toggleSub`, что и кнопка старой доски: у него две
- * записи и важен их порядок, и собирать их заново вёрстке нельзя.
+ * Положений три (его слово 2026-09-19): `Hide` — поля нет ни в TagWheel, ни в
+ * его командах; `After parent` — оно появляется после значения родителя, так
+ * было всегда, и это умолчание; `Show always` — оно работает и на строке без
+ * родителя, а команды листают все его значения подряд.
+ *
+ * Пишется `setSubMode`: у него две записи и важен их порядок, и собирать их
+ * заново вёрстке нельзя.
  */
 const CHILD_OPTIONS = [
-  { value: "yes", name: "CHILD_YES" },
-  { value: "no", name: "CHILD_NO" },
+  { value: "always", name: "CHILD_ALWAYS" },
+  { value: "after-parent", name: "CHILD_AFTER_PARENT" },
+  { value: "hide", name: "CHILD_HIDE" },
+] as const;
+
+/**
+ * Что делать с родителем, когда дочернее Value поставлено без него (его слово
+ * 2026-09-19). Ряд появляется только при `Show always`: в остальных
+ * положениях родитель на строке есть всегда, и выбирать нечего.
+ */
+const CHILD_PARENT_OPTIONS = [
+  { value: "keep", name: "CHILD_PARENT_KEEP" },
+  { value: "add", name: "CHILD_PARENT_ADD" },
 ] as const;
 
 /**
@@ -823,7 +837,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   /*
    * Работает ли Field. У дочернего Field этого ряда нет намеренно: его
    * включает и выключает родитель рядом `Child Field` ниже, и делает это
-   * `toggleSub` — двумя записями, а не одной. Две точки для одного и того же
+   * `setSubMode` — двумя записями, а не одной. Две точки для одного и того же
    * — это две правды, и одна из них однажды окажется старой.
    */
   if (!row.parent) {
@@ -869,10 +883,10 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
   }) as never);
 
   /*
-   * Видимость дочернего Field. Контрол был в старой доске кнопкой со значком
+   * Положение дочернего Field. Контрол был в старой доске кнопкой со значком
    * (`aria-label` = `toggle sub <key>`), в первую версию этой колонки не
    * попал и вернулся по замечанию заказчика 2026-08-27. Сверка карт записей
-   * потери не поймала: `toggleSub` пишет в те же ветки конфига, что и соседние
+   * потери не поймала: `setSubMode` пишет в те же ветки конфига, что и соседние
    * контролы, — карта сравнивала ветки, а не контролы. Дыру закрывает сверка
    * набора причин записи в `fields_editor_write_map_tests.ts`.
    */
@@ -884,7 +898,7 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
      * всегда давало «нет данных» — переключатель показывал `Yes`, что бы
      * человек ни выбрал (замечание заказчика 2026-08-27).
      */
-    const on = o.model.getSubActive(row.subKey) !== "no";
+    const subMode = o.model.getSubMode(row.subKey);
     const child = itemRow(detail, {
       name: say("CHILD_NAME"),
       desc: say("CHILD_DESC"),
@@ -895,18 +909,46 @@ export function renderFieldDetail(detail: El, row: FieldRow, o: FieldsViewOpts):
     closers.push(child.closeTip);
     const pick = selectInput(child.control, "io-select", {
       options: labelled(say, CHILD_OPTIONS),
-      value: on ? "yes" : "no",
+      value: subMode,
       label: say("CHILD_OF", row.strictName),
     });
     pick.disabled = !o.enabled;
     pick.addEventListener("change", (() => {
       if (!o.enabled) return;
-      /* `toggleSub` переключает, а не выставляет: зовём его только когда
-         выбранное и правда отличается от нынешнего. */
-      if ((pick.value !== "no") === on) return;
-      o.model.toggleSub(row.subKey);
+      if (pick.value === subMode) return;
+      o.model.setSubMode(row.subKey, pick.value);
       o.redraw();
     }) as never);
+
+    /*
+     * Родитель у значения, выбранного без него. Ряд показывается только при
+     * `Show always` — по тому же правилу, по которому строки предусловия
+     * появляются только при `Yes`: настройка, у которой нет предмета, человеку
+     * не показывается.
+     */
+    if (subMode === "always") {
+      const parentRow = itemRow(detail, {
+        name: say("CHILD_PARENT_NAME"),
+        desc: say("CHILD_PARENT_DESC"),
+        tip: say("CHILD_PARENT_TIP"),
+        tipId: "io-field-child-parent-tip",
+        showTips: o.showTips, showIds: o.showIds,
+      });
+      closers.push(parentRow.closeTip);
+      const adds = o.model.getSubAddsParent(row.subKey);
+      const parentPick = selectInput(parentRow.control, "io-select", {
+        options: labelled(say, CHILD_PARENT_OPTIONS),
+        value: adds ? "add" : "keep",
+        label: say("CHILD_PARENT_OF", row.strictName),
+      });
+      parentPick.disabled = !o.enabled;
+      parentPick.addEventListener("change", (() => {
+        if (!o.enabled) return;
+        if ((parentPick.value === "add") === adds) return;
+        o.model.setSubAddsParent(row.subKey, parentPick.value === "add");
+        o.redraw();
+      }) as never);
+    }
   }
 
   /*

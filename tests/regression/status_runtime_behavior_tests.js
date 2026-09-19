@@ -213,6 +213,12 @@ function buildOrderConfig(overrides) {
   ["active", "panel", "freeRoam", "freeRoamBehavior"].forEach((k) => {
     if (src[k] && typeof src[k] === "object") Object.assign(out[k], src[k]);
   });
+  /* Две карты дочернего Field (его слово 2026-09-19). Их нет в `base`, и
+     потому они не сливаются, а ставятся: карта, которой фикстура не знает,
+     до движка не доедет, и проверка померит фикстуру. */
+  ["subWithoutParent", "subAddsParent"].forEach((k) => {
+    if (src[k] && typeof src[k] === "object") out[k] = { ...src[k] };
+  });
   if (Array.isArray(src.left)) out.left = src.left.slice();
   if (Array.isArray(src.right)) out.right = src.right.slice();
   if (src.enabled && typeof src.enabled === "object") Object.assign(out.enabled, src.enabled);
@@ -3969,6 +3975,91 @@ async function testEmptyTextSlotKeepsCursorInsideIt() {
   }
 }
 
+/*
+ * **Дочернее поле, которому родитель не нужен** (его слово 2026-09-19:
+ * «в этом случае у меня должен быть скроллинг по всем sub-values этого
+ * field»).
+ *
+ * Правил тут три, и каждое проверяется своим случаем:
+ *
+ *  1. умолчание не менялось: без разрешения команда на строке без родителя
+ *     не делает ничего и говорит человеку, чего ждёт;
+ *  2. с разрешением она листает **все** значения дочернего поля — в фикстуре
+ *     они принадлежат разным родителям, и второе нажатие переходит к чужому;
+ *  3. родителя она при этом не трогает, пока человек не попросил обратного
+ *     вторым контролом.
+ *
+ * Мутация: вернуть в `status_tags.js` прежний ход (родителю ставится первое
+ * значение, список берётся по его токену) — и краснеет случай 2: вместо
+ * второго значения выйдет пустая строка, потому что у первого родителя
+ * ребёнок один.
+ */
+function rulesWithFreeChild(opts) {
+  const rules = JSON.parse(SYNTHETIC_RULES);
+  const fields = rules.leftMode.fields;
+  const sub = fields.find((f) => String(f && f.id) === "nestedContext");
+  if (!sub) throw new Error("в фикстуре нет дочернего поля nestedContext");
+  sub.freeOfParent = !!(opts && opts.freeOfParent);
+  sub.addsParentValue = !!(opts && opts.addsParent);
+  return JSON.stringify(rules);
+}
+
+function subCommandSettings(rulesJson, overrides) {
+  return {
+    "Rules data": rulesJson,
+    "Action type": "cycle_field:category_sub",
+    "Direction": "increase",
+    "Order config": buildOrderConfig(Object.assign({
+      panel: { category: "left", category_sub: "left" },
+    }, overrides || {})),
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "current_position",
+  };
+}
+
+async function testSubFieldWithoutParentStaysSilentByDefault() {
+  const editor = makeEditor("- [ ] text", 6);
+  await runPkmCommandWithEditor("statusTags", editor,
+    subCommandSettings(rulesWithFreeChild({ freeOfParent: false })));
+  const shot = editor.snapshot();
+  assertEq(shot.line, "- [ ] text",
+    "умолчание не менялось: без родителя команда дочернего поля строку не трогает");
+}
+
+async function testSubFieldWithoutParentCyclesEveryValue() {
+  const rulesJson = rulesWithFreeChild({ freeOfParent: true });
+  const editor = makeEditor("- [ ] text", 6);
+  await runPkmCommandWithEditor("statusTags", editor,
+    subCommandSettings(rulesJson, { subWithoutParent: { category_sub: true } }));
+  const first = editor.snapshot().line;
+  assertTrue(/#area-alpha-child/.test(first),
+    "с разрешением первое нажатие ставит первое значение дочернего поля, вышло: " + first);
+  assertTrue(!/#area-alpha\b/.test(first.replace(/#area-alpha-child/g, "")),
+    "родителя команда не дописывала: его не просили, вышло: " + first);
+
+  await runPkmCommandWithEditor("statusTags", editor,
+    subCommandSettings(rulesJson, { subWithoutParent: { category_sub: true } }));
+  const second = editor.snapshot().line;
+  assertTrue(/#area-beta-child/.test(second),
+    "второе нажатие переходит к значению ДРУГОГО родителя — это и есть «скроллинг по всем\n"
+    + "  sub-values»; вышло: " + second);
+}
+
+async function testSubFieldWithoutParentCanBringItsParent() {
+  const rulesJson = rulesWithFreeChild({ freeOfParent: true, addsParent: true });
+  const editor = makeEditor("- [ ] text", 6);
+  await runPkmCommandWithEditor("statusTags", editor,
+    subCommandSettings(rulesJson, {
+      subWithoutParent: { category_sub: true },
+      subAddsParent: { category_sub: true },
+    }));
+  const line = editor.snapshot().line;
+  assertTrue(/#area-alpha-child/.test(line),
+    "значение дочернего поля на строке, вышло: " + line);
+  assertTrue(/#area-alpha(?![-\w])/.test(line),
+    "и родитель, которому это значение принадлежит, дописан вторым контролом, вышло: " + line);
+}
+
 async function run() {
   await testOrderKeyNormalizerComesFromTheHome();
   await testEmptyTextSlotKeepsCursorInsideIt();
@@ -4069,6 +4160,9 @@ async function run() {
   await testStatusDateRepeatedStepKeepsOneValue();
   await testStatusDateKeepsWholeValueOfTwoWordFormat();
   await testStatusDateKeepsElementInItsOrderBlock();
+  await testSubFieldWithoutParentStaysSilentByDefault();
+  await testSubFieldWithoutParentCyclesEveryValue();
+  await testSubFieldWithoutParentCanBringItsParent();
   await testFailedNoticeReachesTheConsole();
   await testStatusDateMovesForeignValueToItsBlock();
   await testStatusImportanceMinimalNoSeparatorUsesOwnSeparator();

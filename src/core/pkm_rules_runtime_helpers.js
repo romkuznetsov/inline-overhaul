@@ -112,12 +112,46 @@ function isFieldPrerequisiteMet(field, selected) {
   if (!parentKey) return true;
   const bag = selected && typeof selected === "object" ? selected : {};
   const parentValue = String(bag[parentKey] || "").trim();
-  if (!parentValue) return false;
+  /*
+   * **Дочернее поле, которому родитель не нужен** (его слово 2026-09-19,
+   * контрол `Child Field` = `Show always`). Предусловие спрашивают обе дороги
+   * и обе прячут поле, пока у родителя нет значения; с этим разрешением поле
+   * работает и на строке без родителя, а значений у него столько же, сколько
+   * заведено (отбор по родителю без родителя не отбирает — 10.13.214).
+   *
+   * Разрешение читается **у поля**, а не у настроек: сюда приходят и поля
+   * панели, и поля команд, и общего конфига у этого объявления нет. Ставит
+   * флаг `pkm_order_config.js`, разбирая настройку `subWithoutParent`.
+   */
+  if (!parentValue) return field.freeOfParent === true;
   const only = Array.isArray(field.enabledForParentValues) ? field.enabledForParentValues : null;
   if (only && only.length && only.indexOf(parentValue) === -1) return false;
   const never = Array.isArray(field.disabledForParentValues) ? field.disabledForParentValues : null;
   if (never && never.length && never.indexOf(parentValue) !== -1) return false;
   return true;
+}
+
+/**
+ * Какому значению родителя принадлежит значение дочернего Field.
+ *
+ * Объявление одно на обе дороги: панель и команда спрашивают его, когда
+ * дочернее поле работает без родителя и человек попросил родителя дописывать
+ * (`Add the parent Value`). Ответ — `id` значения родителя, пустая строка,
+ * если значение ничьё (список `allowedParentValues` пуст) или названного
+ * родителя у этого Field нет.
+ */
+function parentValueIdForChildValue(parentField, childValue) {
+  const tokens = Array.isArray(childValue && childValue.allowedParentValues)
+    ? childValue.allowedParentValues
+    : [];
+  if (!tokens.length) return "";
+  const values = Array.isArray(parentField && parentField.values) ? parentField.values : [];
+  for (const v of values) {
+    if (!v || typeof v.token !== "string" || !v.token) continue;
+    if (tokens.indexOf(v.token) === -1) continue;
+    return String(v.id || "");
+  }
+  return "";
 }
 
 /*
@@ -160,6 +194,8 @@ function parseOrderConfig(raw, normalizeKey) {
       fullPlacement: "smart",
     },
     enabled: { ...enabledDefault },
+    subWithoutParent: {},
+    subAddsParent: {},
     labels: {},
     strictNames: {},
     propertiesByField: {},
@@ -234,6 +270,25 @@ function parseOrderConfig(raw, normalizeKey) {
         && (Object.prototype.hasOwnProperty.call(src.active, rawKey) || Object.prototype.hasOwnProperty.call(src.active, key)))) {
         out.active[key] = src.enabled[rawKey] ? "yes" : "no";
       }
+    }
+  }
+  /*
+   * Две карты дочернего Field (его слово 2026-09-19). `subWithoutParent` —
+   * работает ли поле на строке, где у родителя значения нет; `subAddsParent`
+   * — дописывать ли тогда родителя выбранному значению. Обе булевы и обе
+   * ключуются именем дочернего поля (`<Field>_sub`).
+   *
+   * Ключи здесь не сверяются с `discover`: дочерние ключи в `left`/`right` не
+   * стоят нарочно, и сверка выбросила бы их целиком.
+   */
+  for (const mapKey of ["subWithoutParent", "subAddsParent"]) {
+    const bag = src[mapKey];
+    if (!bag || typeof bag !== "object" || Array.isArray(bag)) continue;
+    for (const rawKey of Object.keys(bag)) {
+      const key = normalize(rawKey);
+      if (!key) continue;
+      if (typeof bag[rawKey] !== "boolean") continue;
+      out[mapKey][key] = bag[rawKey];
     }
   }
   if (src.labels && typeof src.labels === "object" && !Array.isArray(src.labels)) {
@@ -1511,4 +1566,5 @@ module.exports = {
   isWikilinkSourceField,
   isSourceDrivenField,
   isFieldPrerequisiteMet,
+  parentValueIdForChildValue,
 };

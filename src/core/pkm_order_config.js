@@ -239,6 +239,8 @@ function ensureBehaviorModesFromOrder(cfg) {
           prefix: "#",
           enabled: String(order.active && order.active[subKey] || "no").trim().toLowerCase() !== "no",
           dependsOn: key,
+          freeOfParent: subFreeOfParent(order, subKey),
+          addsParentValue: subAddsParentValue(order, subKey),
           disabledForParentValues: [],
           placeholder: "sub",
           values: [""],
@@ -250,7 +252,19 @@ function ensureBehaviorModesFromOrder(cfg) {
       const subIdx = leftFieldsLive.findIndex((f) => String(f && f.id || "").trim() === subKey);
       if (subIdx !== -1) {
         const on = String(order.active && order.active[subKey] || "no").trim().toLowerCase() !== "no";
-        leftFieldsLive[subIdx] = { ...leftFieldsLive[subIdx], enabled: on, dependsOn: key };
+        /*
+         * Оба разрешения дочернего Field переезжают на само поле: движки
+         * спрашивают их у поля (`isFieldPrerequisiteMet`, обе дороги), а
+         * настроек в руках у них нет. Дом настройки — `order`, дом ответа —
+         * поле, и перенос один, здесь.
+         */
+        leftFieldsLive[subIdx] = {
+          ...leftFieldsLive[subIdx],
+          enabled: on,
+          dependsOn: key,
+          freeOfParent: subFreeOfParent(order, subKey),
+          addsParentValue: subAddsParentValue(order, subKey),
+        };
       }
       if (subKey && !Object.prototype.hasOwnProperty.call(order.active, subKey)) {
         order.active[subKey] = "no";
@@ -356,6 +370,8 @@ function makeDefaultPkmOrder() {
     active: {},
     freeRoam: {},
     enabled: {},
+    subWithoutParent: {},
+    subAddsParent: {},
     types: {},
     labels: {},
     strictNames: {},
@@ -372,6 +388,18 @@ function makeDefaultPkmOrder() {
  * заказчику молча несработавшего переименования (1.3.1).
  */
 const STRICT_FIELD_NAME_RE = /^[a-z0-9_\- ]+$/i;
+
+/** Работает ли дочерний Field на строке, где у родителя значения нет. */
+function subFreeOfParent(order, subKey) {
+  const bag = isObj(order) && isObj(order.subWithoutParent) ? order.subWithoutParent : {};
+  return bag[subKey] === true;
+}
+
+/** Дописывать ли родителя, когда такое поле получило значение. */
+function subAddsParentValue(order, subKey) {
+  const bag = isObj(order) && isObj(order.subAddsParent) ? order.subAddsParent : {};
+  return bag[subKey] === true;
+}
 
 function normalizePkmOrder(rawOrder) {
   const out = makeDefaultPkmOrder();
@@ -435,6 +463,19 @@ function normalizePkmOrder(rawOrder) {
       if (!isObj(rawOrder.active) || !Object.prototype.hasOwnProperty.call(rawOrder.active, k)) {
         out.active[k] = rawOrder.enabled[k] ? "yes" : "no";
       }
+    }
+  }
+  /*
+   * Две карты дочернего Field (его слово 2026-09-19): работает ли он без
+   * значения у родителя и дописывать ли тогда родителя. Ключ — дочерний, и
+   * потому берётся из `orderKeys`, а не из `orderFields`: дочерних ключей в
+   * `left`/`right` нет нарочно.
+   */
+  for (const mapKey of ["subWithoutParent", "subAddsParent"]) {
+    if (!isObj(rawOrder[mapKey])) continue;
+    for (const k of orderKeys) {
+      if (typeof rawOrder[mapKey][k] !== "boolean") continue;
+      out[mapKey][k] = rawOrder[mapKey][k];
     }
   }
   if (isObj(rawOrder.types)) {

@@ -2043,6 +2043,25 @@ function cycleValue(rules, state, direction) {
   var nextId = values[nextIdx].id || ''
   state.selected[field.id] = nextId
 
+  /*
+   * **Родитель дочернего поля, которому родитель не нужен** (его слово
+   * 2026-09-19, контрол `Parent Value` = `Add the parent Value`). Условие то
+   * же, что у команды, и ответ на «чей это ребёнок» тот же — объявлен один
+   * раз в помощниках правил: разойтись двум дорогам тут уже стоило заказчику
+   * дописанного значения (10.13.214).
+   */
+  if (field.freeOfParent === true && field.addsParentValue === true && field.dependsOn && nextId) {
+    var parentKeyAdd = String(field.dependsOn || '')
+    if (!(state.selected[parentKeyAdd] || '')) {
+      var parentFieldAdd = getFieldById(fieldMode, parentKeyAdd)
+      var childValueAdd = findValueById(values, nextId)
+      var parentIdAdd = parentFieldAdd
+        ? String(__rulesRuntimeHelpers.parentValueIdForChildValue(parentFieldAdd, childValueAdd) || '')
+        : ''
+      if (parentIdAdd) state.selected[parentKeyAdd] = parentIdAdd
+    }
+  }
+
   /* Условие то же, что у команды, и это нарочно: у двух дорог один ответ на
      один вопрос. Прежнее `|| nextId === ''` уносило значения зависимых полей
      и тогда, когда у родителя значений нет вовсе и ничего не менялось. */

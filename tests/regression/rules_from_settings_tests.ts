@@ -146,6 +146,52 @@ const LINE = "- [ ] #todo || 1244";
   ok("движок пишет строку по правилам, приехавшим ключом `Rules data`");
 }
 
+/* ---- 1б. разрешения дочернего Field доезжают до движков ----------------- */
+
+{
+  /*
+   * **Настройка, у которой длинная дорога** (его слово 2026-09-19).
+   *
+   * Два разрешения дочернего Field — «работает без родителя» и «дописывать
+   * родителя» — задаются в настройках, а спрашивают их движки **у поля**. Между
+   * настройкой и полем стоят два переноса: `ensureBehaviorModesFromOrder`
+   * ставит свойства на определение поля, `normalizeField` собирает поле для
+   * движков **перечислением** свойств. Свойства, которого в перечне нет,
+   * движки не увидят вовсе — и настройка окажется мёртвой при зелёном наборе
+   * (У-192). Ровно так и вышло при первой сборке этой работы: команда молчала,
+   * хотя в настройках стояло «да».
+   *
+   * Поэтому проверка идёт по всей дороге: конфиг → `ensureBehaviorModesFromOrder`
+   * → `buildRulesForEngines` → поле.
+   */
+  const cfg = configWithSeparators("::");
+  const order = cfg.pkm.fields.order;
+  const subKey = Object.keys(order.active || {}).find((k: string) => /_sub$/.test(k));
+  assert.ok(subKey, "положительный контроль: в конфиге есть дочерний Field");
+  order.active[String(subKey)] = "yes";
+  order.subWithoutParent = { [String(subKey)]: true };
+  order.subAddsParent = { [String(subKey)]: true };
+  internals.ensureBehaviorModesFromOrder(cfg);
+  const rules = shape.buildRulesForEngines(cfg);
+  const field = (rules.leftMode.fields as Any[]).find((f: Any) => String(f && f.id) === String(subKey));
+  assert.ok(field, "дочерний Field доехал до правил движков");
+  assert.equal(field.freeOfParent, true,
+    "«работает без родителя» доехало до поля: между настройкой и движком два переноса");
+  assert.equal(field.addsParentValue, true,
+    "«дописывать родителя» доехало тем же путём");
+
+  /* Отрицательный контроль: без разрешений у поля стоит `false`, а не
+     `undefined`, — движки спрашивают строгое равенство. */
+  const plain = configWithSeparators("::");
+  plain.pkm.fields.order.active[String(subKey)] = "yes";
+  internals.ensureBehaviorModesFromOrder(plain);
+  const plainField = (shape.buildRulesForEngines(plain).leftMode.fields as Any[])
+    .find((f: Any) => String(f && f.id) === String(subKey));
+  assert.equal(plainField.freeOfParent, false, "без настройки поле не работает без родителя");
+  assert.equal(plainField.addsParentValue, false, "и родителя не дописывает");
+  ok("разрешения дочернего Field доезжают от настроек до поля в правилах");
+}
+
 /* ---- 2. другой ключ — другая строка ------------------------------------- */
 
 {

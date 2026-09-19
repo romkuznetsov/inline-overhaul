@@ -347,6 +347,12 @@ export type FreeRoamMode = "off" | "minimal" | "full";
 /** Работает ли Field сам, только по хоткею, или не работает. */
 export type FieldActiveMode = "yes" | "no" | "hotkey_only";
 
+/**
+ * Положение дочернего Field (его слово 2026-09-19): спрятан, появляется
+ * после значения родителя (так было всегда) или работает и без родителя.
+ */
+export type SubMode = "hide" | "after-parent" | "always";
+
 /** Как Value показывается в строке: как есть, только цветом, своим текстом (Ф9). */
 export type ValueVisibility = "default" | "empty" | "custom";
 
@@ -368,6 +374,10 @@ export interface OrderState {
   active: Record<string, FieldActiveMode>;
   freeRoam: Record<string, FreeRoamMode>;
   enabled: Record<string, boolean>;
+  /** Работает ли дочерний Field на строке, где у родителя значения нет. */
+  subWithoutParent: Record<string, boolean>;
+  /** Дописывать ли родителя, когда такой Field получил значение. */
+  subAddsParent: Record<string, boolean>;
   /** Свойство заметки, в которое уходит значение Field. */
   propertiesByField: Record<string, string>;
 }

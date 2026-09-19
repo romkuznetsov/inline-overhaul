@@ -60,6 +60,15 @@ function normalizeField(field, modeName, idx, options) {
     enabled: field.enabled !== false,
     enabledForParentValues: Array.isArray(field.enabledForParentValues) ? field.enabledForParentValues.slice() : null,
     disabledForParentValues: Array.isArray(field.disabledForParentValues) ? field.disabledForParentValues.slice() : null,
+    /*
+     * Два разрешения дочернего Field (его слово 2026-09-19): работает ли он на
+     * строке без значения у родителя и дописывать ли тогда родителя. Список
+     * здесь — **перечень**, а не копия: свойства, которого в нём нет, движки
+     * не увидят вовсе, и настройка тихо перестанет доезжать (У-192). Держит
+     * это `rules_from_settings_tests.ts`.
+     */
+    freeOfParent: field.freeOfParent === true,
+    addsParentValue: field.addsParentValue === true,
     kind: typeof field.kind === "string" ? field.kind : "",
     marker: typeof field.marker === "string" ? field.marker : "",
     placeholder: typeof field.placeholder === "string" && field.placeholder ? field.placeholder : field.id,

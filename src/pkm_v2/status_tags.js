@@ -1329,18 +1329,39 @@ module.exports = {
         }
         const parentCycle = activeValuesForField(core, rules, state, parentField);
         let parentId = state.selected[parentField.id] || "";
-        if (!parentId) {
-          const seed = direction === "decrease" ? parentCycle[parentCycle.length - 1] : parentCycle[0];
-          if (!seed) return;
-          parentId = valueId(seed);
-          state.selected[parentField.id] = parentId;
+        /*
+         * **Дочернее поле, которому родитель не нужен** (его слово
+         * 2026-09-19). Прежде на строке без родителя команда молча ставила
+         * родителю **первое** значение и листала только его детей. С
+         * разрешением `Show always` родителя не трогаем вовсе, а листаем весь
+         * список дочерних значений: `getAllowedSubValues` без родителя не
+         * отбирает и отдаёт их по `order` — той же чередой, что и панель.
+         */
+        const freeOfParent = targetField.freeOfParent === true && !parentId;
+        let allowedSubs;
+        if (freeOfParent) {
+          allowedSubs = getAllowedSubValues(targetField, "");
+        } else {
+          if (!parentId) {
+            const seed = direction === "decrease" ? parentCycle[parentCycle.length - 1] : parentCycle[0];
+            if (!seed) return;
+            parentId = valueId(seed);
+            state.selected[parentField.id] = parentId;
+          }
+          const parentVal = findValueById(parentField, parentId);
+          if (!parentVal || !parentVal.token) return;
+          allowedSubs = getAllowedSubValues(targetField, parentVal.token || "");
         }
-        const parentVal = findValueById(parentField, parentId);
-        if (!parentVal || !parentVal.token) return;
-        const allowedSubs = getAllowedSubValues(targetField, parentVal.token || "");
         if (!allowedSubs.length) return;
         const currentSubId = state.selected[targetField.id] || "";
         const nextSubId = nextCycleIdByDirection(allowedSubs, currentSubId, direction);
+        if (freeOfParent && targetField.addsParentValue === true && nextSubId) {
+          /* Родителя дописываем тому значению, которое человек долистал, —
+             ответ на «чей это ребёнок» объявлен один раз, в помощниках. */
+          parentId = String(rulesHelpers.parentValueIdForChildValue(
+            parentField, findValueById(targetField, nextSubId),
+          ) || "");
+        }
         state.selected[parentField.id] = parentId;
         state.selected[targetField.id] = nextSubId;
         customParentRelocation = {
