@@ -23,6 +23,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..", "..");
 const words = require(path.join(root, "src", "features", "settings_change_words.js"));
 const schema = require(path.join(root, "src", "ui", "settings", "schema", "index.ts"));
+const backup = require(path.join(root, "src", "features", "settings_backup.js"));
 
 let passed = 0;
 function ok(label) { passed++; console.log("  ok " + label); }
@@ -135,6 +136,109 @@ function ok(label) { passed++; console.log("  ok " + label); }
   assert.equal(lines.length, 6, "пять строк и остаток: " + lines.length);
   assert.ok(/^and 25 more changes$/.test(lines[5]), "остаток назван числом: " + lines[5]);
   ok("предел строк соблюдён, остаток назван числом");
+}
+
+/* ---- 7. его случай: значение и его цвет стоят внутри своего Field -------- */
+
+{
+  /*
+   * **Его замечание 2026-09-19 к строке `S8`:** «смотреть setting
+   * `pkm.fields.tags.fields` — это непонятно для пользователя, ты должен
+   * написать название контрола (как в настройках плагина)… Также группируй
+   * элементы, если настройки находятся в дочерних контролах (например,
+   * изменение цветов value делается в рамках изменения контрола field —
+   * значит лог изменения цвета текста value должен быть в sub строке
+   * относительно field)».
+   *
+   * Фикстура — его случай в уменьшенном виде: к Field заведено значение, и у
+   * значения задан цвет надписи. Панель при этом пишет строку вида **целиком**,
+   * со всеми её полями сразу, и три из четырёх остаются умолчанием — у него в
+   * заметке это было восемь строк «not set → empty» на два значения.
+   *
+   * Мутации, каждая краснит своё утверждение: отдавать строки плоско —
+   * краснеет отступ; снять `isNoChange` — краснеет утверждение про умолчания;
+   * убрать `pkm.fields.*.fields` из `describedApart` — в отчёт возвращается
+   * путь.
+   */
+  const labels = { Category: "Cat" };
+  const field = (values) => ({
+    pkm: { fields: { order: { left: ["Category"], right: [], labels }, tags: { fields: [
+      { id: "Category", prefix: "#", values },
+    ] } } },
+  });
+  const before = field([{ token: "#work", active: true }]);
+  const after = field([{ token: "#work", active: true }, { token: "#med", active: true }]);
+  /*
+   * Два значения нарочно разведены (У-147): у одного строка вида заводится
+   * вместе с ним самим, у другого — у **давно стоящего**. Умолчания надо
+   * выбросить в обоих случаях, а отбор у них разный: у заведённого их снимает
+   * «о нём уже сказано added», у прежнего — «обе стороны умолчание». На одном
+   * только заведённом значении вторая половина была бы зелёной от первой.
+   */
+  after.visual = { tags: { byTag: { Category: {
+    "#med": { fillColor: "", textColor: "#1dcd41", visibility: "default", customText: "" },
+    "#work": { fillColor: "", textColor: "#d23232", visibility: "default", customText: "" },
+  } } } };
+
+  const lines = words.describeConfigChange(before, after, 20);
+  const text = lines.join(" | ");
+
+  assert.equal(lines[0], "Field «Cat»", "Field стоит верхней строкой группы: " + text);
+  assert.equal(lines[1], "\tValue «#med» added",
+    "Value — внутри своего Field, и сказано, что оно заведено: " + text);
+  assert.ok(lines.some((l) => l.indexOf("\t\t«") === 0),
+    "контрол значения стоит внутри значения и назван именем, а не ключом: " + text);
+  assert.ok(!lines.some((l) => l.indexOf("`") !== -1),
+    "ни одного пути конфига в отчёте не осталось: " + text);
+  assert.ok(!lines.some((l) => /not set → (empty|default)/.test(l)),
+    "поля, оставшиеся умолчанием, в отчёт не идут — это запись панели, а не правка: " + text);
+  assert.ok(lines.indexOf("\tValue «#work»") !== -1,
+    "у давно стоящего значения тоже своя строка, без пометки «added»: " + text);
+  assert.equal(lines.length, 5,
+    "пять строк: Field, два его Value и по одному изменившемуся контролу у каждого — " + text);
+  ok("значение и его цвет стоят внутри своего Field, а умолчания в отчёт не идут");
+}
+
+/* ---- 8. у настройки свои слова, а не on/off ------------------------------ */
+
+{
+  /*
+   * `Child Field` в панели — выбор из трёх, а в конфиге булево: сказать о нём
+   * `off → on` значит назвать то, чего человек на экране не видел. Слова
+   * берутся у блока, второго их списка здесь нет (У-32), и проверяется это
+   * тем, что отчёт **не** говорит `on`.
+   *
+   * Мутация: вернуть `sayValue` на место `sayFieldValue` — краснеет первое
+   * утверждение.
+   */
+  const labels = { Category: "Cat" };
+  const field = (free) => ({
+    pkm: { fields: { order: { left: ["Category"], right: [], labels }, tags: { fields: [
+      { id: "Category_sub", dependsOn: "Category", prefix: "#", values: [], freeOfParent: free },
+    ] } } },
+  });
+  const lines = words.describeConfigChange(field(false), field(true), 20);
+  const text = lines.join(" | ");
+  assert.ok(!/off → on/.test(text), "булево не выдаётся за то, что видно на экране: " + text);
+  assert.ok(/«Child Field»/.test(text), "контрол назван именем строки панели: " + text);
+  assert.ok(/«Cat_sub»/.test(text),
+    "у дочернего Field своей подписи нет — он зовётся именем родителя, как и его команда: " + text);
+  ok("настройка с выбором названа словами панели, а не on/off");
+}
+
+/* ---- 9. знак списка стоит после отступа --------------------------------- */
+
+{
+  /*
+   * Отступ едет в самой строке, а знак списка ставит заметка. Поставив знак
+   * первым, получишь один пункт с табуляцией внутри, а не вложенный: Obsidian
+   * читает вложенность по отступу **до** знака.
+   */
+  assert.equal(backup.changedLine("Field «Cat»"), "- Field «Cat»");
+  assert.equal(backup.changedLine("\tValue «#med» added"), "\t- Value «#med» added");
+  assert.equal(backup.changedLine("\t\t«Text color»: not set → #1dcd41"),
+    "\t\t- «Text color»: not set → #1dcd41");
+  ok("знак списка стоит после отступа, и вложенность читается");
 }
 
 console.log("\n" + passed + " проверок пройдено");

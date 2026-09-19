@@ -30,6 +30,21 @@ const SETTINGS_MARK = "<!-- " + MARKER + ": settings below, do not edit by hand 
 const NOTES_HEADING = "# Your notes";
 /* Заголовок раздела «что изменилось» (З-11). Читает его человек, плагин — нет. */
 const CHANGED_HEADING = "# What changed";
+
+/**
+ * Строка списка «что изменилось» со своим отступом.
+ *
+ * Отступ приезжает в самой строке: настройки, которые в панели стоят внутри
+ * других контролов, и в отчёте стоят внутри — его слово 2026-09-19 к `S8`
+ * («группируй элементы, если настройки находятся в дочерних контролах»).
+ * Знак списка ставится **после** отступа, иначе Obsidian прочтёт строку как
+ * один пункт с табуляцией внутри, а не как вложенный.
+ */
+function changedLine(line) {
+  const text = String(line == null ? "" : line);
+  const indent = (/^\t*/.exec(text) || [""])[0];
+  return indent + "- " + text.slice(indent.length);
+}
 const NOTES_HINT = "Write anything here";
 
 /**
@@ -644,7 +659,7 @@ function buildBackupNote(o) {
      * «сравнивать было не с чем», а не «ничего не менялось».
      */
     ...(details.length
-      ? [CHANGED_HEADING, "", ...details.map((line) => "- " + line), ""]
+      ? [CHANGED_HEADING, "", ...details.map(changedLine), ""]
       : []),
     "# inlineOverhaul settings backup",
     "",
@@ -891,6 +906,7 @@ module.exports = {
   AUTO_SUFFIX,
   AUTOSAVE_MARK,
   CHANGED_HEADING,
+  changedLine,
   autosavePath,
   isAutosavePath,
   pickStaleAutosaves,

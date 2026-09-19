@@ -1472,7 +1472,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
         }) as never);
       };
       color("fillColor", say("VALUE_FILL_COLOR"), "pkm:visuals:tag:fill");
-      color("textColor", "Text color", "pkm:visuals:tag:text");
+      color("textColor", say("VALUE_TEXT_COLOR"), "pkm:visuals:tag:text");
 
       previewBubble = previewCell(line, o, theme, {
         token: v.token,

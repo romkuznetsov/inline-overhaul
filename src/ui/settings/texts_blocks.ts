@@ -151,6 +151,17 @@ export const BLOCK_TEXTS = {
     VALUE_CUSTOM_PLACEHOLDER: "printed instead",
     VALUE_CUSTOM_FOR: "Custom text for {0}",
     VALUE_FILL_COLOR: "Fill color",
+    /*
+     * Три имени контролов строки Value **без** имени самого значения. Подписи
+     * рядом (`VALUE_SHOWN_FOR`, `VALUE_CUSTOM_FOR`) — это `aria-label` пикера,
+     * собранный вокруг имени значения; отдельно от них имя нужно тому, кто
+     * называет контрол в списке «что изменилось» заметки автокопии, где имя
+     * значения уже стоит строкой выше. `VALUE_TEXT_COLOR` заодно снял литерал
+     * у самого пикера: сосед рядом брал слово у каталога, а он нет.
+     */
+    VALUE_TEXT_COLOR: "Text color",
+    VALUE_SHOWN_NAME: "Show",
+    VALUE_CUSTOM_NAME: "Custom text",
     VALUE_RESET_COLORS: "Reset the colors of {0} back to the colors of the theme",
     VALUE_REMOVE: "Remove {0}",
     NEW_VALUE_LINK_HINT: "[[wikilink]] / wikilink",
