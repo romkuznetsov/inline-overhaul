@@ -162,7 +162,22 @@ const TAG_BUBBLE_CLICKABLE_CLASS = "io-tagbubble--clickable";
  */
 const TAG_EMPTY_BUBBLE_BASE_PX = 30;
 
-function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, shapePct) {
+/**
+ * Кегль текста редактора — запасной ответ, когда мерить нечем.
+ *
+ * Шестнадцать, а не четырнадцать: столько у Obsidian по умолчанию
+ * (`--font-text-size` в `app.css` 1.13.7). Дом у числа один, и читает его
+ * только `baseTextPx`.
+ */
+const TAG_TEXT_FALLBACK_PX = 16;
+
+/** Кегль редактора числом; мусор и пустота дают запасной ответ. */
+function baseTextPx(raw) {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : TAG_TEXT_FALLBACK_PX;
+}
+
+function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, shapePct, basePx) {
   const textSize = Number.isFinite(Math.trunc(Number(textSizePct))) ? Math.max(50, Math.min(140, Math.trunc(Number(textSizePct)))) : 100;
   const bubbleWidth = Number.isFinite(Math.trunc(Number(bubbleWidthPct))) ? Math.max(20, Math.min(140, Math.trunc(Number(bubbleWidthPct)))) : 100;
   const bubbleHeight = Number.isFinite(Math.trunc(Number(bubbleHeightPct))) ? Math.max(20, Math.min(140, Math.trunc(Number(bubbleHeightPct)))) : 100;
@@ -205,7 +220,27 @@ function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, sha
      */
     horizontalPaddingPx: Math.max(0, Math.round(6 * bubbleScaleX * 100) / 100),
     verticalPaddingPx: Math.max(0, Math.round(3 * bubbleScaleY * 100) / 100),
-    fontSizePx: Math.max(6, Math.round(14 * textScale)),
+    /*
+     * **Кегль считается от кегля редактора, а не от четырнадцати точек**
+     * (его замечание 2026-09-19: «при 100 текст в left/right block должен быть
+     * таким же как в text block»). Четырнадцать стояли здесь литералом, а у
+     * человека кегль текста задаёт тема и его собственная настройка размера —
+     * у Obsidian по умолчанию шестнадцать. То есть на сотне процентов пузырь
+     * рисовался **не** тем кеглем, которым написан текст рядом, и ни одна
+     * проверка этого не видела: подделка страницы объявляла редактору те же
+     * шестнадцать, а сравнения с ними не было (У-227 — вид, который мы не
+     * объявили, объявляет тема).
+     *
+     * Мера приходит от того, кто рисует: слой спрашивает
+     * `getComputedStyle(view.contentDOM).fontSize`. Четырнадцать остались
+     * запасным ответом на случай, когда мерить нечем (проверка без страницы),
+     * и названы одним домом — `TAG_TEXT_FALLBACK_PX`.
+     */
+    /* Дробно, а не целым числом точек: кегль строки бывает нецелым (у
+       заголовка темы `16.8`), и округление до точки давало бы «17 против
+       16.8» — то есть промах на его же требовании. Та же причина, по которой
+       дробны поля пузыря. */
+    fontSizePx: Math.max(6, Math.round(baseTextPx(basePx) * textScale * 100) / 100),
     /*
      * Междустрочие пузыря идёт за его высотой, и только вниз от сотни:
      * поджать поля до нуля мало — на низком пузыре остаётся собственное
@@ -690,7 +725,7 @@ function blockValueClassFor(entry, visuals) {
  * Текст между разделителями не трогается — это ваш текст, а не запись
  * плагина (решение заказчика 2026-09-01).
  */
-function buildBlockStyleCss(entry, visuals) {
+function buildBlockStyleCss(entry, visuals, basePx) {
   const sizing = tagVisualSizingForZone(String(entry && entry.zone || ""), visuals);
   if (!sizing.inBlock) return "";
   const opacity = Number(entry && entry.zoneOpacity);
@@ -700,7 +735,18 @@ function buildBlockStyleCss(entry, visuals) {
   if (Number.isFinite(sizePct) && sizePct !== 100) {
     /* Размер берётся той же функцией, что и у пузыря: иначе текст в блоке
        разъедется с текстом в пузыре при одной и той же настройке. */
-    parts.push("font-size: " + computeTagVisualStyle(sizePct, 100, 100, 0).fontSizePx + "px;");
+    const st = computeTagVisualStyle(sizePct, 100, 100, 0, basePx);
+    parts.push("font-size: " + st.fontSizePx + "px;");
+    /*
+     * **И подъём — тот же, что у пузыря** (его слово 2026-09-19: «при 100
+     * текст в left/right block должен быть таким же как в text block»).
+     * Ссылку и эмодзи-элемент рисуем не мы, но кегль им задаём мы — значит и
+     * уровень наш: на сотне подъёма нет и они стоят базовой линией, как
+     * обычный текст, мельче — поднимаются на половину разницы кеглей.
+     * Правило одно на оба рода значений, потому что вопрос у них один (У-206).
+     */
+    const rise = Math.round((baseTextPx(basePx) - st.fontSizePx) / 2 * 100) / 100;
+    if (rise) parts.push("vertical-align: " + rise + "px;");
   }
   return parts.join(" ");
 }
@@ -1299,11 +1345,11 @@ function blockFillWrittenTextHeightPx(visuals, textHeightPx, zone) {
   return textH * share / 100;
 }
 
-function blockFillBubbleHeightPx(visuals, zone) {
+function blockFillBubbleHeightPx(visuals, zone, basePx) {
   const v = isObj(visuals) ? visuals : {};
   const st = computeTagVisualStyle(
     tagVisualSizingForZone(String(zone || ""), v).textSizePct,
-    v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0);
+    v.tagBubbleWidthPct, v.tagBubbleHeightPct, 0, basePx);
   return st.fontSizePx * st.lineHeight + st.verticalPaddingPx * 2;
 }
 
@@ -2056,6 +2102,8 @@ module.exports = {
   buildTagwheelPlaceholderSetFromConfig,
   getTagVisualsFromConfig,
   TAG_EMPTY_BUBBLE_BASE_PX,
+  TAG_TEXT_FALLBACK_PX,
+  baseTextPx,
   TAG_BUBBLE_CLASS,
   TAG_BUBBLE_EMPTY_CLASS,
   TAG_BUBBLE_FILLED_CLASS,

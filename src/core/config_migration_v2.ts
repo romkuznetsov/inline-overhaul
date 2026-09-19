@@ -255,7 +255,9 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   move("pkm.behavior.tagVisuals.byField", "visual.tags.byField", { whole: true }),
   move("pkm.behavior.tagVisuals.byTag", "visual.tags.byTag", { whole: true }),
   move("pkm.behavior.tagVisuals.userTags", "visual.tags.userTags", { whole: true }),
-  move("pkm.behavior.tagVisuals.showColorSettings", "viewState.fieldOrder.showColors"),
+  /* Цель этого переезда снята 2026-09-19 (вид старой панели), и потому ключ
+     версии 1 теперь просто удаляется, а не переносится в мёртвое место. */
+  drop("pkm.behavior.tagVisuals.showColorSettings"),
 
   /* --- Tag Bars --------------------------------------------------------- */
   move("pkm.behavior.tagVisuals.strip.active", "visual.tagBars.active"),
@@ -473,12 +475,15 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("pkm.prefixRules.priorityCheckboxes", true),
   keepV2("pkm.prefixRules.checkboxByFieldValue", true),
   drop("pkm.configNote"),
-  keepV2("viewState.activeTab"),
   /* Флаг одноразового уведомления о смене ID команд (фаза 2, пункт 8). Это
      состояние, а не настройка: контрола у него нет и быть не должно. */
   keepV2("viewState.commandIdsNotice"),
-  keepV2("viewState.fieldOrder.expanded", true),
-  keepV2("viewState.fieldOrder.showColors"),
+  /*
+   * `viewState.activeTab` и `viewState.fieldOrder.*` — вид **старой** панели, и
+   * маршрутов у них больше нет: они снимаются списком снятых ключей
+   * (2026-09-19, его заказ про мёртвые ветки). Нынешняя панель помнит вкладку
+   * ключом `ui.activeSettingsTab`, а раскрытые Fields — своим состоянием.
+   */
   keepV2("_unmigrated", true),
 ]);
 
@@ -511,9 +516,10 @@ const V2_SKELETON: Dict = {
   "visual.tags.byTag": {},
   "visual.tags.userTags": {},
   "editor.binder.rows": [],
-  "viewState.activeTab": "general",
-  "viewState.fieldOrder.expanded": {},
-  "viewState.fieldOrder.showColors": true,
+  /* Ветка состояния остаётся, пустой: в ней живут флаги «уже показывали» —
+     версия окна «что изменилось» и уведомление о смене ID команд. Вид старой
+     панели из неё снят 2026-09-19. */
+  "viewState": {},
 };
 
 /* ---- сама миграция ---------------------------------------------------- */
@@ -684,6 +690,47 @@ const REMOVED_V2_KEYS: readonly string[] = [
    * `pkm.fields.links.fields[].values[]`.
    */
   "pkm.fields.taxonomy.tagWheelConfig",
+  /*
+   * Три листа приставок формы версии 1. Живой близнец у них есть и он на
+   * другом пути: `pkm.prefixPriority.decideBy`, `.fieldOrderSource`,
+   * `.parentOrChild` — их пишет панель, и сборщик правил (`pkm_rules_shape`)
+   * **перекрывает** ими то, что лежит здесь. То есть значение в этих трёх
+   * ключах не читает никто, а выглядит оно настройкой — тот же класс, что
+   * кеш конфиг-заметки. Найдено обходом `node tools/dead_keys.js` по его
+   * заказу 2026-09-19. Остальная ветка `pkm.prefixRules` жива: цели приставки
+   * и карта чекбоксов по значению читаются как есть.
+   */
+  "pkm.prefixRules.priorityMode",
+  "pkm.prefixRules.fieldsOrderMode",
+  "pkm.prefixRules.tagSubtagPriority",
+  /*
+   * **Состояние старой панели и конфиг-заметки.** Найдено тем же обходом
+   * 2026-09-19 по его заказу: у каждого из этих ключей нет читателя нигде,
+   * кроме нормализации, которая держала их форму, — то есть плагин сам
+   * поддерживал в его файле настройки, которых нет ни в одном контроле.
+   *
+   *   * `pkm.configNote.*` — путь, шаблон и подробность конфиг-заметки, снятой
+   *     2026-09-03 его решением В-28;
+   *   * `ui.visualSubTab`, `ui.hotkeysSubTab`, `ui.pkmSubTab` — подвкладки
+   *     старой панели: у новой их нет вовсе (10.13.197);
+   *   * `ui.orderShow*` и `ui.orderActiveCommandsCollapsed` — тумблеры вида
+   *     редактора Fields, снятые ещё в Ф15;
+   *   * `viewState.activeTab`, `viewState.fieldOrder.*` — вид старой панели;
+   *     нынешняя помнит вкладку ключом `ui.activeSettingsTab`;
+   *   * `advanced.newSettingsPane` — тумблер «новая панель», которым больше
+   *     ничего не переключается: панель одна.
+   */
+  "pkm.configNote",
+  "ui.visualSubTab",
+  "ui.hotkeysSubTab",
+  "ui.pkmSubTab",
+  "ui.orderShowInfoTips",
+  "ui.orderShowDeepEditor",
+  "ui.orderShowColorSettings",
+  "ui.orderActiveCommandsCollapsed",
+  "viewState.activeTab",
+  "viewState.fieldOrder",
+  "advanced.newSettingsPane",
 ];
 
 /**

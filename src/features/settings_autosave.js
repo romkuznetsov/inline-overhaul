@@ -40,6 +40,7 @@
 const __sharedUtils = require("../core/shared_utils.js");
 const __backup = require("./settings_backup.js");
 /* Видимый текст по ключу каталога: свой литерал здесь был бы вторым домом. */
+const __changeWords = require("./settings_change_words.js");
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
 const __noticeKey = __sayModule.noticeKey;
@@ -144,8 +145,13 @@ async function autosaveOnLoad(plugin, deps) {
     if (previous && JSON.stringify(comparableConfig(previous)) === JSON.stringify(now)) {
       return { decision: "same", newest, kept: paths.length };
     }
+    /*
+     * **Словами человека, а не путями** — его слово 2026-09-19: «должно быть
+     * понятно — указывай название настроек и что конкретно произошло».
+     * Имена берутся из схемы панели, перестановки Fields разбираются отдельно.
+     */
     const details = previous
-      ? __backup.configChangeLines(comparableConfig(previous), now, AUTOSAVE_DETAIL_LINES)
+      ? __changeWords.describeConfigChange(comparableConfig(previous), now, AUTOSAVE_DETAIL_LINES)
       : ["first autosave in this folder, so there is nothing to compare with"];
     const when = d.now instanceof Date ? d.now : new Date();
     const path = __backup.autosavePath(folder, when);

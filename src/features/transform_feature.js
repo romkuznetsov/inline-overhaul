@@ -2637,8 +2637,40 @@ function applySourcePrefixResolution(line, originalLine, transformContext, prese
     throw new Error("shared prefix resolver unavailable");
   }
   const pkm = isObj(cfg && cfg.pkm) ? cfg.pkm : {};
-  const behavior = { prefixRules: pkm.prefixRules, order: pkm.fields && pkm.fields.order };
-  if (!isObj(behavior.prefixRules)) return String(line || "");
+  /*
+   * **Правила приставок спрашиваются у общего сборщика, а не у ветки конфига.**
+   *
+   * Здесь читалось `pkm.prefixRules` — форма версии 1, которую панель не
+   * пишет **ни разу**: её три значения живут на путях `pkm.prefixPriority.*`
+   * (`Decide by`, `Field order source`, `Parent or child wins`), и сводит их
+   * воедино `pkm_rules_shape`. То есть смена любого из трёх в панели доезжала
+   * до всех движков и не доезжала до Transform: у него оставалось то, что
+   * лежало в файле с прошлой версии. Измерено 2026-09-19 на его `data.json`:
+   * панель `by-checkbox-list`/`tag-over-subtag`, сборщик то же, старая ветка —
+   * `by-section`/`subtag-over-tag`.
+   *
+   * Нашлось обходом мёртвых ключей его файла (его заказ того же дня): ветка
+   * числилась ничьей, а оказалась читаемой — и читаемой **не тем**.
+   */
+  /*
+   * **Условие прежнее: нет ветки — нет и разбора приставки.** Правится не
+   * «когда решать», а «чем»: три значения панели доезжают до Transform. Шире
+   * править нельзя — у того, у кого ветки нет вовсе, разбор приставки сегодня
+   * не идёт, и включать его этой правкой значило бы менять поведение там, где
+   * никто не просил (У-164: новая работа, которая «заодно чинит», чинит
+   * половину).
+   */
+  if (!isObj(pkm.prefixRules)) return String(line || "");
+  let prefixRules = pkm.prefixRules;
+  try {
+    const shaped = getRulesShapeModule().buildRulesForEngines(cfg);
+    const shapedRules = isObj(shaped && shaped.behavior) ? shaped.behavior.prefixRules : null;
+    if (isObj(shapedRules)) prefixRules = shapedRules;
+  } catch (_) {
+    /* Правила могут не собраться на полуготовом конфиге — тогда приставку
+       решаем прежним источником, а не бросаем работу человека. */
+  }
+  const behavior = { prefixRules, order: pkm.fields && pkm.fields.order };
   const orderTypes = isObj(behavior.order && behavior.order.types) ? behavior.order.types : {};
   const fields = getModeFields(cfg);
   const fieldsById = {};

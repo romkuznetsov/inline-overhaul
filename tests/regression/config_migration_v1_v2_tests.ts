@@ -127,7 +127,6 @@ const MOVED: ReadonlyArray<readonly [string, string]> = [
   ["pkm.behavior.tagVisuals.byField", "visual.tags.byField"],
   ["pkm.behavior.tagVisuals.byTag", "visual.tags.byTag"],
   ["pkm.behavior.tagVisuals.userTags", "visual.tags.userTags"],
-  ["pkm.behavior.tagVisuals.showColorSettings", "viewState.fieldOrder.showColors"],
 
   ["pkm.behavior.tagVisuals.strip.active", "visual.tagBars.active"],
   ["pkm.behavior.tagVisuals.strip.fieldId", "visual.tagBars.fieldId"],
@@ -185,15 +184,13 @@ const KEPT: readonly string[] = [
   "transform.inline2note.preview",
   "transform.inline2note.sourceProcessing.cleanupFieldIds",
   "transform.inline2note.sourceProcessing.visual",
-  /* Состояние старой панели: живёт до фазы 3c (8.1). */
+  /*
+   * Открытая вкладка панели живёт (её помнит новая панель), а подвкладки и
+   * тумблеры вида редактора Fields **сняты 2026-09-19** его заказом про
+   * мёртвые ветки: у новой панели подвкладок нет, тумблеры сняты ещё в Ф15, и
+   * держала их одна нормализация. Они теперь в списке удалённых ниже.
+   */
   "ui.activeSettingsTab",
-  "ui.visualSubTab",
-  "ui.hotkeysSubTab",
-  "ui.pkmSubTab",
-  "ui.orderShowInfoTips",
-  "ui.orderShowDeepEditor",
-  "ui.orderShowColorSettings",
-  "ui.orderActiveCommandsCollapsed",
   /* Состояние новой панели: высота таблицы Fields (2026-09-12). */
   "ui.fieldsTableFixedHeight",
   /* Уже написано новой панелью в форме v2: спорные проверяются отдельно. */
@@ -212,6 +209,16 @@ const DROPPED: readonly string[] = [
      путь к нему не переезжает, потому что читать по нему нечего. */
   "pkm.generatedRulesPath",
   /* Конфиг-заметка снята 2026-09-03 (PRD 10.12): её ключи не переезжают. */
+  /* Вид старой панели снят 2026-09-19: цели у переезда больше нет, и ключ
+     версии 1 просто удаляется (его заказ про мёртвые ветки). */
+  "pkm.behavior.tagVisuals.showColorSettings",
+  "ui.visualSubTab",
+  "ui.hotkeysSubTab",
+  "ui.pkmSubTab",
+  "ui.orderShowInfoTips",
+  "ui.orderShowDeepEditor",
+  "ui.orderShowColorSettings",
+  "ui.orderActiveCommandsCollapsed",
   "pkm.tagWheelConfigPath",
   /*
    * И её **разобранный кеш** — с 2026-09-19. Переезжать ему было куда
@@ -354,8 +361,9 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
      ровно на снятые маршруты: три у конфиг-заметки (2026-09-03, PRD 10.12),
      один у служебного файла правил (2026-09-13, 10.13.52) и три листа её
      разобранного кеша (2026-09-19): они теперь не переезжают, а снимаются, и
-     потому считаются в «удалено». */
-  assert.ok(accounted.moved >= 96, "переездов проверено меньше порога: " + accounted.moved);
+     потому считаются в «удалено». И ещё один — вид старой панели, снятый
+     2026-09-19 (`showColorSettings`): его цель тоже снята. */
+  assert.ok(accounted.moved >= 95, "переездов проверено меньше порога: " + accounted.moved);
   assert.ok(accounted.dropped >= 6,
     "удалённых ветвей меньше, чем названо списком: " + accounted.dropped);
   ok("каждый лист конфига v1 нашёл место в v2: переехал " + accounted.moved

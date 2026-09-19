@@ -48,11 +48,24 @@ const EDITOR_INJECTIONS = {
    * краснеют здесь: без меры куска подложка съезжает с написанного и на
    * строке со ссылкой, и на строке с уменьшенным `Tags text size`.
    */
-  "vertical-measured": {
-    file: "src/ui/editor/decorations.js",
-    find: "  if (!view || typeof view.coordsAtPos !== \"function\") return null;",
-    replace: "  if (view) return null;",
-  },
+  /*
+   * **Подмена `vertical-measured` снята 2026-09-19, и вот чем это измерено.**
+   *
+   * Она снимала измерение написанного, и слой уходил на запасной путь — к
+   * вертикали ряда. Пока значения в Block стояли `vertical-align: middle`, два
+   * этих ответа расходились заметно. С этого дня значение стоит базовой линией
+   * и поднимается на посчитанную величину (его слово: «при 100 текст в
+   * left/right block должен быть таким же как в text block»), то есть наше
+   * написанное совпало с написанным самой строки — и два ответа сошлись:
+   * обмерено на всех строках страницы, промах 0,62 в верном состоянии против
+   * 1,01 под подменой. Порог между такими числами был бы порогом на шум
+   * машины (У-78), а зелёная подмена — хуже отсутствующей (правило 145).
+   *
+   * **Чем область закрыта вместо неё:** «написанное в Block на уровне текста
+   * строки» (30 пар, промах 0) и «подложка серединой на написанном своего
+   * ряда» с порогом 1,5 — на нём подмена `row-height-default` даёт 3,9…6,2, то
+   * есть в четыре раза больше порога.
+   */
   /*
    * Рост обратно односторонний, только к разделителю: «вне зависимости от
    * tags-block-fill-width в left block полоска начинается от начала первого
@@ -229,8 +242,19 @@ const EDITOR_INJECTIONS = {
    */
   "bubble-baseline": {
     file: "styles.css",
-    find: "  vertical-align: middle;\n  border-radius: var(--io-tagbubble-radius);",
+    find: "  vertical-align: var(--io-tagbubble-rise, 0px);\n  border-radius: var(--io-tagbubble-radius);",
     replace: "  vertical-align: baseline;\n  border-radius: var(--io-tagbubble-radius);",
+  },
+  /*
+   * **Подъём снят — вернулось `middle`**, то состояние, из которого пришло его
+   * замечание 2026-09-19: «при 100 текст в left/right block должен быть таким
+   * же как в text block». `middle` ставит середину ящика на середину высоты x,
+   * и на сотне процентов промах 1,58 точки.
+   */
+  "bubble-middle": {
+    file: "styles.css",
+    find: "  vertical-align: var(--io-tagbubble-rise, 0px);\n  border-radius: var(--io-tagbubble-radius);",
+    replace: "  vertical-align: middle;\n  border-radius: var(--io-tagbubble-radius);",
   },
   /*
    * **Подмены `blockvalue-baseline` здесь больше нет, и это не потеря.**

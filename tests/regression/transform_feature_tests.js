@@ -334,6 +334,53 @@ function makeConfig() {
   assertEq(out, "- [ ] #todo :: work", "shared prefix resolver replaces stale checkbox");
 })();
 
+/*
+ * **Три значения панели доезжают до Transform** — его заказ 2026-09-19 («нет ли
+ * других мёртвых веток») нашёл ровно это: здесь читалась ветка
+ * `pkm.prefixRules` формы версии 1, а панель пишет `pkm.prefixPriority.*`, и
+ * сводит их воедино общий сборщик `pkm_rules_shape`.
+ *
+ * **Спрашивается шов, а не сборщик.** Утверждение о сборщике было бы зелёным и
+ * у прежнего кода: он отвечает то же самое независимо от Transform. Предмет —
+ * то, **что Transform отдаёт разрешителю приставки**, поэтому разрешитель здесь
+ * подделан и назван: он ничего не решает, а запоминает полученные правила.
+ */
+(function testSourcePrefixPassesPanelPriority() {
+  const seen = [];
+  const recorder = {
+    buildPrefixUnified: (parsedLine, rules) => {
+      seen.push(rules && rules.behavior ? rules.behavior.prefixRules : null);
+      return "- ";
+    },
+  };
+  const cfg = makeConfig();
+  cfg.pkm.prefixRules = {
+    resolver: "priority-first",
+    priorityTargets: ["kind"],
+    checkboxByFieldValue: { kind: { todo: "[ ]" } },
+    /* Форма версии 1 нарочно спорит с панелью: именно её читали раньше. */
+    tagSubtagPriority: "subtag-over-tag",
+    priorityMode: "by-section",
+  };
+  cfg.pkm.prefixPriority = {
+    decideBy: "by-checkbox-list",
+    fieldOrderSource: "auto",
+    parentOrChild: "tag-over-subtag",
+  };
+  const parsed = transform.parseInlineLine("- [I] #todo :: work", cfg);
+  const ctx = transform.buildTransformContext(parsed, cfg);
+  transform.applySourcePrefixResolution("- [I] #todo :: work", parsed.line, ctx, ["kind"], cfg, recorder);
+  assertEq(seen.length, 1, "разрешитель позван один раз");
+  const got = seen[0] || {};
+  assertEq(got.priorityMode, "by-checkbox-list", "`Decide by` из панели доехал");
+  assertEq(got.tagSubtagPriority, "tag-over-subtag", "`Parent or child wins` тоже");
+  assertEq(got.fieldsOrderMode, "auto", "и `Field order source`");
+  /* И то, что живёт только в ветке версии 1, не потерялось по дороге. */
+  assertDeepEq(got.priorityTargets, ["kind"], "цели приставки из ветки остались");
+  assertTrue(!!(got.checkboxByFieldValue && got.checkboxByFieldValue.kind),
+    "и карта чекбоксов по значению тоже");
+})();
+
 (function testDataDrivenDependsOnAndWikilinkMatching() {
   const cfg = makeConfig();
   const parsed = transform.parseInlineLine("- #todo #next :: work :: [[Unknown]] @2026", cfg);

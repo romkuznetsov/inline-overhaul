@@ -35,6 +35,8 @@ function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path);
 const {
   BLOCK_FILL_LAYER_CLASS,
   BLOCK_FILL_MARKER_CLASS,
+  TAG_TEXT_FALLBACK_PX,
+  baseTextPx,
   blockFillLookFromConfig,
   blockFillZoneWanted,
   blockFillSpansInLine,
@@ -212,7 +214,7 @@ function openTagSearch(plugin, token) {
 }
 
 class TagVisualTokenWidget extends cmView.WidgetType {
-  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride, plugin) {
+  constructor(tokenText, fillColor, textColor, opacity, emptyMode, sizePct, bubbleWidthPct, bubbleHeightPct, emptyBubbleSizePct, shapePct, displayTextOverride, plugin, basePx) {
     super();
     this.plugin = plugin || null;
     this.tokenText = String(tokenText || "");
@@ -226,6 +228,10 @@ class TagVisualTokenWidget extends cmView.WidgetType {
     this.emptyBubbleSizePct = Number(emptyBubbleSizePct);
     this.shapePct = Number(shapePct);
     this.displayTextOverride = String(displayTextOverride || "");
+    /* Кегль редактора: мера пришла от того, кто рисует (его замечание про
+       размер текста в Block). Стоит и в `eq`: смени человек размер текста в
+       Obsidian — виджет обязан перерисоваться, а не остаться прежним. */
+    this.basePx = Number(basePx);
   }
   eq(other) {
     return !!other
@@ -239,7 +245,8 @@ class TagVisualTokenWidget extends cmView.WidgetType {
       && other.bubbleHeightPct === this.bubbleHeightPct
       && other.emptyBubbleSizePct === this.emptyBubbleSizePct
       && other.shapePct === this.shapePct
-      && other.displayTextOverride === this.displayTextOverride;
+      && other.displayTextOverride === this.displayTextOverride
+      && other.basePx === this.basePx;
   }
   /**
    * **Вид — классами, величины — переменными** (правило каталога Р7).
@@ -259,7 +266,7 @@ class TagVisualTokenWidget extends cmView.WidgetType {
    */
   toDOM() {
     const el = document.createElement("span");
-    const st = computeTagVisualStyle(this.sizePct, this.bubbleWidthPct, this.bubbleHeightPct, this.shapePct);
+    const st = computeTagVisualStyle(this.sizePct, this.bubbleWidthPct, this.bubbleHeightPct, this.shapePct, this.basePx);
     const emptyScale = Number.isFinite(this.emptyBubbleSizePct) ? Math.max(10, Math.min(180, Math.trunc(this.emptyBubbleSizePct))) / 100 : 1;
     const renderedText = this.emptyMode ? " " : (this.displayTextOverride || this.tokenText);
     el.textContent = renderedText;
@@ -306,6 +313,14 @@ class TagVisualTokenWidget extends cmView.WidgetType {
     el.style.setProperty("--io-tagbubble-pad-y", `${st.verticalPaddingPx}px`);
     el.style.setProperty("--io-tagbubble-pad-x", `${st.horizontalPaddingPx}px`);
     el.style.setProperty("--io-tagbubble-font", `${st.fontSizePx}px`);
+    /*
+     * Подъём пузыря: половина разницы кеглей строки и пузыря. На сотне
+     * процентов это ноль — пузырь стоит базовой линией, то есть написанное в
+     * нём на уровне текста строки (его слово 2026-09-19). Мельче — подъём
+     * ровно тот, который нужен, чтобы середины совпали.
+     */
+    el.style.setProperty("--io-tagbubble-rise",
+      `${Math.round((baseTextPx(this.basePx) - st.fontSizePx) / 2 * 100) / 100}px`);
     el.style.setProperty("--io-tagbubble-line", String(st.lineHeight));
     if (this.emptyMode) {
       /*
@@ -353,8 +368,33 @@ class ZeroWidthInlineWidget extends cmView.WidgetType {
   }
 }
 
-function buildBlockStyleDecoration(entry, visuals) {
-  const style = buildBlockStyleCss(entry, visuals);
+/**
+ * Кегль текста редактора, как его видит сам редактор.
+ *
+ * **Его замечание 2026-09-19:** «при 100 текст в left/right block должен быть
+ * таким же как в text block». Кегль текста задаёт тема и настройка размера
+ * человека, и узнать его можно только спросив (`У-227`): литерал в коде делит
+ * людей надвое — у кого совпало, у того верно (правило 106 по смыслу).
+ *
+ * Спрашивается у `contentDOM`, а не у `dom`: тема задаёт кегль содержимому
+ * редактора, а не его рамке. Ответа нет — отвечает запасное число движка, и
+ * тогда вид ровно тот, что был до этой правки.
+ */
+function editorTextBasePx(view) {
+  try {
+    const node = view && view.contentDOM;
+    if (!node || typeof getComputedStyle !== "function") return TAG_TEXT_FALLBACK_PX;
+    const px = parseFloat(String(getComputedStyle(node).fontSize || ""));
+    return Number.isFinite(px) && px > 0 ? px : TAG_TEXT_FALLBACK_PX;
+  } catch (_) {
+    /* Проба: страницы может не быть вовсе (прогон без браузера). Ответ «нет» —
+       это ответ, и он назван запасным числом движка. */
+    return TAG_TEXT_FALLBACK_PX;
+  }
+}
+
+function buildBlockStyleDecoration(entry, visuals, basePx) {
+  const style = buildBlockStyleCss(entry, visuals, basePx);
   /*
    * **Класс ставится и тогда, когда считать нечего** (его замечание `G4`).
    * Прежде пометка заводилась только ради вычисленных величин — прозрачности и
@@ -371,6 +411,34 @@ function buildBlockStyleDecoration(entry, visuals) {
   return cmView.Decoration.mark(spec);
 }
 
+/**
+ * Кегль текста **этой строки**.
+ *
+ * У заголовка он свой: тема задаёт `--h1-size`…`--h6-size`, и «текст в Block
+ * такой же, как текст строки» на заголовке значит его кегль. Спрашивается у
+ * узла строки, который редактор уже нарисовал; строки нет на экране — отвечает
+ * кегль редактора.
+ */
+function lineTextBasePx(view, lineNo, fallbackPx) {
+  try {
+    if (!view || typeof view.domAtPos !== "function" || typeof getComputedStyle !== "function") {
+      return fallbackPx;
+    }
+    const line = view.state.doc.line(lineNo);
+    const at = view.domAtPos(line.from);
+    const node = at && at.node ? at.node : null;
+    const el = node && node.nodeType === 1 ? node : (node && node.parentElement) || null;
+    const host = el && typeof el.closest === "function" ? (el.closest(".cm-line") || el) : el;
+    if (!host) return fallbackPx;
+    const px = parseFloat(String(getComputedStyle(host).fontSize || ""));
+    return Number.isFinite(px) && px > 0 ? px : fallbackPx;
+  } catch (_) {
+    /* Проба: строки может не быть в дереве (её отрисовка ещё не случилась).
+       Ответ «нет» — это ответ, и отвечает им кегль редактора. */
+    return fallbackPx;
+  }
+}
+
 function buildTagVisualDecorations(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
@@ -378,6 +446,21 @@ function buildTagVisualDecorations(view, plugin) {
     ? String(plugin.getLineTraceTxId() || "")
     : "";
   const visuals = getTagVisualsFromConfig(cfg);
+  /*
+   * **Кегль спрашивается у строки, а не у редактора целиком.** У заголовка он
+   * свой — тема задаёт `--h1-size`…`--h6-size`, — и «текст в Block такой же,
+   * как текст строки» на заголовке значит его кегль, а не кегль абзаца
+   * (У-227). Ответ кешируется по номеру строки: строк на экране десятки, а
+   * `getComputedStyle` в цикле по токенам стоил бы дорого.
+   */
+  const viewBasePx = editorTextBasePx(view);
+  const baseByLine = new Map();
+  const lineBasePx = (lineNo) => {
+    if (baseByLine.has(lineNo)) return baseByLine.get(lineNo);
+    const px = lineTextBasePx(view, lineNo, viewBasePx);
+    baseByLine.set(lineNo, px);
+    return px;
+  };
   const userTags = visuals.userTags;
   const fieldMap = buildFieldTagVisualMap(cfg);
   const globalMap = buildGlobalTagVisualMap(cfg);
@@ -572,7 +655,7 @@ function buildTagVisualDecorations(view, plugin) {
         const drawsOwnBubble = hasVisualOverride || (entry.kind === "tag" && ourLine);
         if (!drawsOwnBubble) {
           if (to <= from) continue;
-          const styleDeco = buildBlockStyleDecoration(entry, visuals);
+          const styleDeco = buildBlockStyleDecoration(entry, visuals, lineBasePx(lineNo));
           if (styleDeco) ranges.push({ from, to, deco: styleDeco });
           continue;
         }
@@ -611,7 +694,7 @@ function buildTagVisualDecorations(view, plugin) {
           from,
           to,
           deco: cmView.Decoration.replace({
-            widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin),
+            widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin, lineBasePx(lineNo)),
             inclusive: false,
           }),
         });
@@ -1836,10 +1919,12 @@ function blockFillMarkersFor(view, plugin) {
    * (его `G4`, второй заход).
    */
   const tagVisuals = getTagVisualsFromConfig(cfg);
+  /* Кегль редактора — один ответ на всю отрисовку: он от строки не зависит. */
+  const basePx = editorTextBasePx(view);
   const askHeight = (rowH, textH, zone) => blockFillBandHeightPx(
     look, rowH,
     blockFillWrittenTextHeightPx(tagVisuals, textH, zone),
-    blockFillBubbleHeightPx(tagVisuals, zone));
+    blockFillBubbleHeightPx(tagVisuals, zone, basePx));
   /* Спрашивается один раз на отрисовку: правило одно на весь документ. */
   const flyLine = floatingButtonLineNumber(view, plugin);
   /* Ряды строки — один ответ на оба её Block (см. ниже). */

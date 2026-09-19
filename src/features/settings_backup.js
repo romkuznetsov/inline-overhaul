@@ -449,58 +449,6 @@ function pickStaleAutosaves(paths, keep) {
 }
 
 /**
- * Что изменилось — список листьев, у которых значение стало другим.
- *
- * **Путями, а не именами контролов**, и это выбор, а не лень: имя контрола
- * живёт в схеме панели, а копия снимается при загрузке плагина, когда панели
- * нет вовсе. Путь человек видит в `Advanced → Options IDs`, то есть он ему не
- * чужой.
- *
- * Предел строк нужен затем же, зачем нумерация в рассказе о выпуске: список из
- * сотни строк человек не читает. Остаток называется числом.
- */
-function configChangeLines(before, after, limit) {
-  const max = Math.max(1, Math.trunc(Number(limit) || 0));
-  const out = [];
-  const seen = Object.create(null);
-  const show = (v) => {
-    if (v === undefined) return "—";
-    if (v === null) return "null";
-    if (typeof v === "string") return v === "" ? "«»" : v;
-    if (typeof v === "number" || typeof v === "boolean") return String(v);
-    if (Array.isArray(v)) return "list of " + v.length;
-    if (isObj(v)) return "{…}";
-    return String(v);
-  };
-  const leaf = (v) => !isObj(v);
-  const walk = (a, b, path) => {
-    if (leaf(a) || leaf(b)) {
-      const one = JSON.stringify(a === undefined ? null : a);
-      const two = JSON.stringify(b === undefined ? null : b);
-      if (one === two) return;
-      if (seen[path]) return;
-      seen[path] = true;
-      out.push(path + ": " + show(a) + " → " + show(b));
-      return;
-    }
-    const keys = Object.keys(a).concat(Object.keys(b));
-    const done = Object.create(null);
-    for (const key of keys) {
-      if (done[key]) continue;
-      done[key] = true;
-      walk(a[key], b[key], path ? path + "." + key : key);
-    }
-  };
-  walk(isObj(before) ? before : {}, isObj(after) ? after : {}, "");
-  out.sort();
-  if (out.length <= max) return out;
-  const rest = out.length - max;
-  return out.slice(0, max).concat(["and " + rest + " more " + plural(rest, "setting", "settings")]);
-}
-
-/* ---- заметка ----------------------------------------------------------- */
-
-/**
  * Забор длиной по самой длинной цепочке обратных кавычек внутри плюс одна
  * (Б8). Текст строки Binder может содержать три обратные кавычки, и тогда
  * забор из трёх закрылся бы посреди настроек.
@@ -946,7 +894,6 @@ module.exports = {
   autosavePath,
   isAutosavePath,
   pickStaleAutosaves,
-  configChangeLines,
   stripDeviceLocal,
   keepDeviceLocal,
   summarize,

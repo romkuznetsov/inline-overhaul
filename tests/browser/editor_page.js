@@ -488,6 +488,83 @@ window.__ioBubblesByZone = function () {
       cursor: cs.getPropertyValue("cursor"),
       height: round(r.height),
       width: round(r.width),
+      /*
+       * **Текст той же строки, измеренный как текст** — его требование
+       * 2026-09-19: «при 100 текст в left/right block должен быть таким же как
+       * в text block (находиться на том же уровне)».
+       *
+       * Мерится не ящик строки (он с междустрочием темы и втрое выше глифов), а
+       * сам текстовый узел — `Range` вокруг него отдаёт ящик написанного.
+       * Наши узлы из подсчёта исключены: сравнивать надо с тем, что рисует
+       * редактор, а не с собой (У-147).
+       */
+      lineText: (() => {
+        const host = el.closest(".cm-line");
+        if (!host) return null;
+        /* `NodeFilter.SHOW_TEXT` — это 4; литерал здесь потому, что имя
+           объявлено браузером, а линтер этого файла его не знает. */
+        const walker = document.createTreeWalker(host, 4, null);
+        let best = null;
+        let node = walker.nextNode();
+        while (node) {
+          const parent = node.parentElement;
+          const ours = parent && parent.closest("[data-io-tag-token]");
+          const text = String(node.nodeValue || "").trim();
+          /*
+           * **Эмодзи из сравнения исключён.** Его глиф выше буквенного, и ящик
+           * выделения у такой строки выше — то есть её середина уезжает вниз
+           * сама, без всякого нашего оформления. На такой стороне мера
+           * показывала бы промах в точку там, где вид верен (У-147). Предмет
+           * сравнения — буквы и цифры, как в его примере `1231`.
+           */
+          const plain = /^[ -~]+$/.test(text);
+          if (!ours && plain && text.length && (!best || text.length > best.text.length)) {
+            best = { node, text };
+          }
+          node = walker.nextNode();
+        }
+        if (!best) return null;
+        const range = document.createRange();
+        range.selectNodeContents(best.node);
+        /*
+         * **Ряд у обоих обязан быть один, и берётся он по частям.**
+         * `getBoundingClientRect` у текста, который сам перенёсся, отдаёт
+         * объединение рядов — то есть ящик, пересекающийся с чем угодно и с
+         * серединой посередине пустоты (У-173). Поэтому спрашиваются
+         * `getClientRects` и выбирается та часть, что стоит на ряду пузыря.
+         */
+        const rows = Array.from(range.getClientRects());
+        const mine = r.top + r.height / 2;
+        const box = rows.find((x) => x.height > 0 && x.top <= mine && x.bottom >= mine)
+          || rows.find((x) => x.height > 0)
+          || range.getBoundingClientRect();
+        const sameRow = box.top <= mine && box.bottom >= mine;
+        const parentStyle = getComputedStyle(best.node.parentElement || host);
+        return {
+          text: best.text,
+          sameRow,
+          fontSize: parentStyle.getPropertyValue("font-size"),
+          mid: round(box.top + box.height / 2),
+          height: round(box.height),
+        };
+      })(),
+      /*
+       * **Середина написанного в пузыре, а не его ящика.** Ящик пузыря
+       * симметричен вокруг своей строки, а `Range` отдаёт ящик выделения —
+       * он считается от метрик шрифта и вокруг базовой линии несимметричен.
+       * Сравнивать надо один род ящика с тем же родом, иначе мера даёт
+       * систематическую единицу на ровном месте (У-173).
+       */
+      mid: (() => {
+        const walker = document.createTreeWalker(el, 4, null);
+        const node = walker.nextNode();
+        if (!node) return round(r.top + r.height / 2);
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const rows = Array.from(range.getClientRects()).filter((x) => x.height > 0);
+        const box = rows[0] || range.getBoundingClientRect();
+        return round(box.top + box.height / 2);
+      })(),
     });
   }
   return out;

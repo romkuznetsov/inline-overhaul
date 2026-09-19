@@ -55,6 +55,9 @@ export interface PluginInternals {
   resolveEffectiveTagVisualMode: (row: Any) => string;
   /** Виджет, которым плагин рисует токен Value в строке заметки. */
   TagVisualTokenWidget: Any;
+  /* Запасной кегль текста редактора: им считается подъём значения, когда
+     мерить нечем (его слово про уровень текста в Block, 2026-09-19). */
+  TAG_TEXT_FALLBACK_PX: number;
   /* Сканер токенов строки и правило стиля блока: ими плагин решает, кому
      достанутся прозрачность и размер текста (И-2.2). */
   scanLineVisualTokens: (

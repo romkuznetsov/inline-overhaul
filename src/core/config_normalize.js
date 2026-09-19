@@ -80,16 +80,9 @@ const SETTINGS_TABS = [
   { id: "advanced", label: "Advanced" },
 ];
 
-const VISUAL_SUB_TABS = [
-  { id: "tags", label: "Tags" },
-  { id: "strip", label: "Strip" },
-  { id: "tagwheel", label: "TagWheel" },
-];
-
-const HOTKEYS_SUB_TABS = [
-  { id: "global", label: "Global" },
-  { id: "binder", label: "Binder" },
-];
+/* Списки подвкладок старой панели сняты 2026-09-19 вместе с их ключами: у
+   новой панели подвкладок нет вовсе, и держать их было нечем, кроме
+   нормализации, которая сама себя и кормила. */
 
 const BINDER_SMART_BRACKET_COMMAND_ID = __commandIds.SMART_BRACKET_COMMAND_ID;
 
@@ -312,13 +305,12 @@ const DEFAULT_CONFIG = {
   meta: {},
   ui: {
     activeSettingsTab: "general",
-    visualSubTab: "tags",
-    hotkeysSubTab: "global",
-    pkmSubTab: "main",
-    orderShowInfoTips: false,
-    orderShowDeepEditor: true,
-    orderShowColorSettings: true,
-    orderActiveCommandsCollapsed: true,
+    /*
+     * **Подвкладок и тумблеров вида здесь больше нет** (2026-09-19). Их читала
+     * только эта нормализация: у новой панели подвкладок нет вовсе, а тумблеры
+     * вида редактора Fields сняты ещё в Ф15. Плагин держал их в файле человека
+     * годами — и они выглядели настройками (его заказ про мёртвые ветки).
+     */
     /*
      * Высота таблицы Fields в панели: `false` — развёрнутая, как было всегда,
      * `true` — заданная со скроллингом (заказ заказчика 2026-09-12).
@@ -419,19 +411,6 @@ function normalizeConfigV1(raw) {
   if (SETTINGS_TABS.findIndex((t) => t.id === cfg.ui.activeSettingsTab) === -1) {
     cfg.ui.activeSettingsTab = "general";
   }
-  if (VISUAL_SUB_TABS.findIndex((t) => t.id === cfg.ui.visualSubTab) === -1) {
-    cfg.ui.visualSubTab = "tags";
-  }
-  if (HOTKEYS_SUB_TABS.findIndex((t) => t.id === cfg.ui.hotkeysSubTab) === -1) {
-    cfg.ui.hotkeysSubTab = "global";
-  }
-  if (!["main", "behavior"].includes(String(cfg.ui.pkmSubTab || "").trim())) {
-    cfg.ui.pkmSubTab = "main";
-  }
-  if (typeof cfg.ui.orderShowInfoTips !== "boolean") cfg.ui.orderShowInfoTips = false;
-  if (typeof cfg.ui.orderShowDeepEditor !== "boolean") cfg.ui.orderShowDeepEditor = true;
-  if (typeof cfg.ui.orderShowColorSettings !== "boolean") cfg.ui.orderShowColorSettings = true;
-  if (typeof cfg.ui.orderActiveCommandsCollapsed !== "boolean") cfg.ui.orderActiveCommandsCollapsed = true;
   if (typeof cfg.ui.fieldsTableFixedHeight !== "boolean") cfg.ui.fieldsTableFixedHeight = false;
 
   if (!isObj(cfg.rules)) cfg.rules = cloneJson(DEFAULT_CONFIG.rules);
@@ -1183,8 +1162,6 @@ module.exports = {
   FEATURE_META,
   PKM_BACKENDS,
   SETTINGS_TABS,
-  VISUAL_SUB_TABS,
-  HOTKEYS_SUB_TABS,
   BINDER_SMART_BRACKET_COMMAND_ID,
   makeBinderCommandId,
   normalizeBinderRows,

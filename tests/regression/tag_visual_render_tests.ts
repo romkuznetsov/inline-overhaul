@@ -330,8 +330,19 @@ const filled = (el: Any): boolean =>
   const visuals = { tagTextSizeLeftPct: 120, tagTextSizeRightPct: 95 };
   const css = I.buildBlockStyleCss({ zone: "left", zoneOpacity: 1 }, visuals);
   const bubble = I.computeTagVisualStyle(120, 100, 100, 0);
-  assert.equal(css, "font-size: " + bubble.fontSizePx + "px;",
-    "размер текста берётся тем же расчётом, что у пузыря");
+  /*
+   * **И подъём тот же** (его слово 2026-09-19: «при 100 текст в left/right
+   * block должен быть таким же как в text block»): ссылка и эмодзи-элемент
+   * стоят на том же уровне, что пузырь, и считается он одной формулой —
+   * половина разницы кеглей строки и значения. На сотне процентов подъёма нет
+   * вовсе, и это проверяется ниже отдельно.
+   */
+  const rise = Math.round((I.TAG_TEXT_FALLBACK_PX - bubble.fontSizePx) / 2 * 100) / 100;
+  assert.equal(css, "font-size: " + bubble.fontSizePx + "px; vertical-align: " + rise + "px;",
+    "размер и уровень берутся тем же расчётом, что у пузыря");
+  assert.equal(I.buildBlockStyleCss({ zone: "left", zoneOpacity: 1 },
+    { tagTextSizeLeftPct: 100, tagTextSizeRightPct: 100 }), "",
+    "на сотне процентов не задаётся ни кегль, ни уровень: значение — обычный текст строки");
   ok("размер текста одинаков у пузыря и у голого токена");
 }
 

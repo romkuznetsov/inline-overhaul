@@ -156,10 +156,15 @@ const FOLDER = "inlineOverhaul/Backups";
      * Спрашивается **предмет**, а не количество: «строк две» верно и тогда,
      * когда это не те две.
      */
+    /*
+     * **Словами человека, а не путями** — его слово 2026-09-19, второй заход.
+     * Имена приходят из схемы панели, и спрашиваются здесь именно они: путь в
+     * этой строке означал бы, что слова опять технические.
+     */
     assert.deepEqual(done.details.slice().sort(), [
-      "visual.tags.blockFill.direction: both → left",
-      "visual.tags.blockFill.enabled: false → true",
-    ], "«что изменилось» называет оба изменившихся листа: " + done.details.join(" | "));
+      "«Color the Block with Stripe» (Visual → Inline appearance): off → on",
+      "«Stripe direction» (Visual → Inline appearance): both → left",
+    ], "«что изменилось» называет обе строки панели их именами: " + done.details.join(" | "));
     const text = v.store.get(done.path);
     for (const line of done.details) {
       assert.ok(text.indexOf(line) !== -1, "строка уехала в заметку: " + line);
@@ -283,8 +288,10 @@ const FOLDER = "inlineOverhaul/Backups";
     const loud = await autosave.autosaveOnLoad(pluginWith(real),
       Object.assign({ now: new Date(2026, 8, 19, 12, 0, 0) }, v2.seam));
     assert.equal(loud.decision, "saved", "правка контрола — копия снимается");
-    assert.deepEqual(loud.details, ["visual.tags.opacityLeft: 100 → 40"],
-      "и «что изменилось» называет контрол, а не состояние панели: " + loud.details.join(" | "));
+    assert.deepEqual(loud.details,
+      ["«Opacity of the Left Block» (Visual → Inline appearance): 100 → 40"],
+      "и «что изменилось» называет контрол его именем, а не состояние панели: "
+      + loud.details.join(" | "));
     ok("состояние панели копию не снимает, а правка контрола снимает");
   }
 
