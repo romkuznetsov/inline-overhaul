@@ -9,7 +9,7 @@
      переносом, и свёрстанный абзац приезжает человеку лестницей. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.4.0
 
 ### Added
 
