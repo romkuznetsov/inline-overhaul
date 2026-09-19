@@ -213,6 +213,15 @@ const DROPPED: readonly string[] = [
   "pkm.generatedRulesPath",
   /* Конфиг-заметка снята 2026-09-03 (PRD 10.12): её ключи не переезжают. */
   "pkm.tagWheelConfigPath",
+  /*
+   * И её **разобранный кеш** — с 2026-09-19. Переезжать ему было куда
+   * (`pkm.fields.taxonomy.tagWheelConfig`), и он переезжал полтора месяца,
+   * пока заказчик не начал править его руками, приняв за настройки. Читает
+   * его никто; снимается он на каждом проходе списком `REMOVED_V2_KEYS`, то
+   * есть для файла любой версии — поэтому здесь он в «удалено», а не в
+   * «переехало».
+   */
+  "pkm.taxonomy.tagWheelConfig",
   "pkm.tagWheelConfigTemplatePath",
   "pkm.configExportMode",
   "pkm.configNote",
@@ -342,9 +351,13 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
   }
 
   /* Порог — признак того, что фикстура богата, а не пуста, и опускается он
-     ровно на снятые маршруты: три у конфиг-заметки (2026-09-03, PRD 10.12) и
-     один у служебного файла правил (2026-09-13, 10.13.52). */
-  assert.ok(accounted.moved >= 99, "переездов проверено меньше порога: " + accounted.moved);
+     ровно на снятые маршруты: три у конфиг-заметки (2026-09-03, PRD 10.12),
+     один у служебного файла правил (2026-09-13, 10.13.52) и три листа её
+     разобранного кеша (2026-09-19): они теперь не переезжают, а снимаются, и
+     потому считаются в «удалено». */
+  assert.ok(accounted.moved >= 96, "переездов проверено меньше порога: " + accounted.moved);
+  assert.ok(accounted.dropped >= 6,
+    "удалённых ветвей меньше, чем названо списком: " + accounted.dropped);
   ok("каждый лист конфига v1 нашёл место в v2: переехал " + accounted.moved
     + ", остался " + accounted.kept + ", удалён " + accounted.dropped
     + ", в _unmigrated " + accounted.unmigrated + ", уступил новой панели " + accounted.contested);
@@ -480,6 +493,41 @@ const v2 = migrate(v1, { report, log: m => logged.push(m) });
   assert.equal(getIn(own, "advanced.generatedRulesPath"), undefined, "и свой путь тоже");
   assert.equal(getIn(own, "pkm.generatedRulesPath"), undefined, "и в своей ветке его нет");
   ok("путь служебного файла снят: ни одна старая форма не приземляется");
+}
+
+/* ---- кеш конфиг-заметки TagWheel снят ---------------------------------- */
+
+{
+  /*
+   * **Ветка ввела заказчика в заблуждение, и потому она снимается** (его
+   * замечание 2026-09-19, второй заход): он правил
+   * `pkm.fields.taxonomy.tagWheelConfig.wikilinks.Project.bySection.Project.defaults`
+   * прямо в `data.json` и не увидел правки в панели. Правильно не увидел —
+   * это кеш конфиг-заметки, снятой 2026-09-03 его же решением В-28, и не
+   * читает его никто: во всём `src` слово `taxonomy` встречается в двух
+   * файлах (карта маршрутов и нормализация), а `bySection` — ни в одном.
+   *
+   * Проверяются обе стороны: мёртвое уходит **и** живое остаётся. Без второй
+   * половины утверждение выполнялось бы и кодом, который вычистил лишнее
+   * (У-127).
+   */
+  const withCache = migrate({
+    schemaVersion: 2,
+    pkm: {
+      fields: {
+        taxonomy: { tagWheelConfig: { sourcePath: "Old/Config.md", wikilinks: { Project: { bySection: {} } } } },
+        links: { fields: [{ id: "Project", values: [{ token: "test1" }] }] },
+      },
+    },
+  });
+  assert.equal(getIn(withCache, "pkm.fields.taxonomy.tagWheelConfig"), undefined,
+    "кеш снятой конфиг-заметки уходит из файла");
+  assert.deepEqual(getIn(withCache, "pkm.fields.taxonomy"), {},
+    "сама ветка остаётся — её форму держит нормализация");
+  const links = getIn(withCache, "pkm.fields.links.fields") as Any[];
+  assert.equal(String((links[0] as Any).values[0].token), "test1",
+    "а значения Field, которые панель и показывает, на месте");
+  ok("кеш конфиг-заметки TagWheel снят, значения Fields не тронуты");
 }
 
 /* ---- МГ4 и МГ6: границы с vault ---------------------------------------- */

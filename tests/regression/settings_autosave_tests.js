@@ -250,6 +250,93 @@ const FOLDER = "inlineOverhaul/Backups";
     ok("отказ записи не роняет загрузку плагина");
   }
 
+  /* ---- 10. состояние панели копию не снимает ---------------------------- */
+  {
+    /*
+     * **Его замечание 2026-09-19, второй заход:** «сейчас autosave слишком
+     * чувствительный — он делает автосохранение, даже если изменилась активная
+     * панель в настройках `ui.activeSettingsTab`… должно автосохраняться только
+     * при изменении настроек (изменение значений контролов)».
+     *
+     * Проверяются **обе** стороны правила, иначе «копия не снялась» было бы
+     * верно и у кода, который не снимает её никогда: переключение вкладки —
+     * тишина, правка контрола — копия.
+     */
+    const before = configWith();
+    const older = FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md";
+
+    const tabOnly = configWith((c) => {
+      c.ui = Object.assign({}, c.ui, { activeSettingsTab: "visual" });
+      c.viewState = Object.assign({}, c.viewState, { activeTab: "transform" });
+    });
+    const v1 = fakeVault({ [older]: noteFor(before) });
+    const quiet = await autosave.autosaveOnLoad(pluginWith(tabOnly), v1.seam);
+    assert.equal(quiet.decision, "same",
+      "сменилась только открытая вкладка панели — копия не нужна");
+    assert.deepEqual(v1.events.created, [], "и в vault ничего не дописано");
+
+    const real = configWith((c) => {
+      c.ui = Object.assign({}, c.ui, { activeSettingsTab: "visual" });
+      c.visual.tags.opacityLeft = 40;
+    });
+    const v2 = fakeVault({ [older]: noteFor(before) });
+    const loud = await autosave.autosaveOnLoad(pluginWith(real),
+      Object.assign({ now: new Date(2026, 8, 19, 12, 0, 0) }, v2.seam));
+    assert.equal(loud.decision, "saved", "правка контрола — копия снимается");
+    assert.deepEqual(loud.details, ["visual.tags.opacityLeft: 100 → 40"],
+      "и «что изменилось» называет контрол, а не состояние панели: " + loud.details.join(" | "));
+    ok("состояние панели копию не снимает, а правка контрола снимает");
+  }
+
+  /* ---- 11. уведомление о снятой копии ---------------------------------- */
+  {
+    /*
+     * **Его слово:** «хочу, чтобы при создании autosave об этом возникало
+     * уведомление — сейчас всё происходит молча». Спрашивается не «позвали ли
+     * шов», а что человек прочтёт: в сообщении обязан быть путь заметки,
+     * иначе оно не отвечает на вопрос «а где она».
+     */
+    const cfg = configWith();
+    const v = fakeVault({});
+    const said = [];
+    const done = await autosave.autosaveOnLoad(pluginWith(cfg), Object.assign(
+      { now: new Date(2026, 8, 19, 13, 0, 0), notify: (m) => { said.push(m); } }, v.seam));
+    assert.equal(done.decision, "saved", "копия снята");
+    assert.equal(said.length, 1, "сказано один раз, а не на каждый шаг: " + said.join(" | "));
+    assert.ok(said[0].indexOf(done.path) !== -1,
+      "в сообщении назван путь заметки: «" + said[0] + "»");
+
+    /* И обратная сторона: копия не снималась — говорить нечего. */
+    const v2 = fakeVault({ [FOLDER + "/Settings 2026-09-19 10-00-00_autosave.md"]: noteFor(cfg) });
+    const silent = [];
+    const same = await autosave.autosaveOnLoad(pluginWith(cfg),
+      Object.assign({ notify: (m) => { silent.push(m); } }, v2.seam));
+    assert.equal(same.decision, "same", "файл совпал");
+    assert.deepEqual(silent, [], "и человека этим не беспокоим");
+    ok("о снятой копии человеку сказано, о несделанной — нет");
+  }
+
+  /* ---- 12. подсказка человеку — коллаутом ------------------------------ */
+  {
+    /*
+     * **Его слово:** «хочу, чтобы в заметке бэкапа текст „Write anything
+     * here…“ был коллаутом». Спрашивается разметка Obsidian, а не наличие
+     * слов: слова были на месте и до правки.
+     */
+    const cfg = configWith();
+    const text = noteFor(cfg);
+    const lines = text.split("\n");
+    const at = lines.findIndex((l) => l.indexOf(backup.NOTES_HINT) !== -1);
+    assert.ok(at > 0, "строка подсказки в заметке нашлась");
+    assert.ok(lines[at].indexOf("> [!note] ") === 0,
+      "она открывает коллаут Obsidian: «" + lines[at] + "»");
+    assert.ok(String(lines[at + 1] || "").indexOf("> ") === 0,
+      "и вторая строка остаётся внутри коллаута: «" + String(lines[at + 1] || "") + "»");
+    /* И заметка по-прежнему читается обратно: коллаут стоит вне блока настроек. */
+    assert.ok(backup.parseBackupNote(text).visual, "настройки из заметки читаются");
+    ok("подсказка человеку в заметке копии — коллаут, и разбор её не задел");
+  }
+
   /* ---- 9. шов к vault ------------------------------------------------- */
   {
     /*

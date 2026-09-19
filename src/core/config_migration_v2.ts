@@ -673,6 +673,17 @@ export interface MigrateOptions {
 const REMOVED_V2_KEYS: readonly string[] = [
   "advanced.generatedRulesPath",
   "pkm.generatedRulesPath",
+  /*
+   * Разобранная конфиг-заметка TagWheel — кеш функции, снятой 2026-09-03 его
+   * решением В-28 (PRD 10.12). Ключ остался лежать в файле и **ввёл его в
+   * заблуждение**: 2026-09-19 он правил `wikilinks.…bySection.…defaults`
+   * внутри этой ветки и не увидел правки в панели. Правильно не увидел —
+   * ветку не читает никто, и это измерено: во всём `src` слово `taxonomy`
+   * встречается в двух файлах (эта карта и нормализация), а `bySection` — ни
+   * в одном. Значения Field, которые панель показывает, лежат в
+   * `pkm.fields.links.fields[].values[]`.
+   */
+  "pkm.fields.taxonomy.tagWheelConfig",
 ];
 
 /**

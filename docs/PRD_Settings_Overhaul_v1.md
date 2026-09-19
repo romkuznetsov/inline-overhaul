@@ -1852,6 +1852,50 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.210 Автокопия: чувствительность, уведомление, коллаут и мёртвая ветка (2026-09-19)
+
+**Три его замечания по `S5` и один его вопрос, и все четыре — об одном заходе.**
+
+**Первое: «autosave слишком чувствительный».** Его слова: «он делает
+автосохранение, даже если изменилась активная панель в настройках
+`ui.activeSettingsTab` — это лишнее, должно автосохраняться только при
+изменении настроек (изменение значений контролов)». Причина измерима и
+поучительна: сравнение шло через `selectParts`, а тот отбирает **не** ветки
+вкладок, а «всё, кроме чужих вкладок и локального для устройства». Верхняя ветка
+`ui` не принадлежит ни одной вкладке — и проходила насквозь. Имя функции
+обещало отбор, а тело делало исключение: читать надо было тело (У-233).
+Исправлено свойством, а не именем ветки: сравниваются ровно те ветки, которые
+названы вкладками (`PART_BRANCHES`). Проверка спрашивает обе стороны правила —
+переключение вкладки молчит, правка контрола снимает копию.
+
+**Второе: «хочу, чтобы при создании autosave об этом возникало уведомление».**
+Сделано: `Settings autosaved to {0}` с путём заметки, ключ в каталоге текстов,
+шов `notify` в загрузке. Отрицательный контроль рядом: копия не снималась —
+человека не беспокоим.
+
+**Третье: «хочу, чтобы в заметке бэкапа текст „Write anything here…“ был
+коллаутом».** Сделано разметкой Obsidian (`> [!note]`), двумя строками; разбор
+заметки это не задело — блок настроек лежит ниже, и проверка спрашивает и то и
+другое.
+
+**Четвёртое, и это не замечание, а находка:** «я изменил `data.json`, но при
+открытии плагина я этих изменений не увидел в настройках». Он правил
+`pkm.fields.taxonomy.tagWheelConfig.wikilinks.Project.bySection.Project.defaults`.
+**Плагин его файл принял** — правка в файле осталась, ничего её не затирало, — но
+эта ветка **не читается никем**: во всём `src` слово `taxonomy` встречается в
+двух файлах (карта маршрутов и нормализация), а `bySection` — ни в одном.
+Значения Field, которые панель показывает, лежат в
+`pkm.fields.links.fields[].values[].token`, и там ровно то, что он видел на
+экране.
+
+**Ветка снята, потому что она врала.** Это разобранный кеш конфиг-заметки
+TagWheel, снятой 2026-09-03 его же решением В-28: 589 знаков в его файле, у
+которых нет ни читателя, ни контрола. Снятие идёт списком `REMOVED_V2_KEYS`, то
+есть на каждом проходе и для файла любой версии; вернуть его можно из любой
+копии настроек, включая автокопии, уже лежащие в его папке. Урок общий: **ключ
+без читателя в файле человека — это не мусор, а ловушка** (У-234), и у неё есть
+цена: его вечер и три его сообщения.
+
 #### 10.13.209 `Autosave`: копия настроек при открытии плагина (2026-09-19)
 
 **Его заказ (З-11)** и **его же ответ на вопрос** (`В-147`, тот же день): копия
@@ -2046,22 +2090,32 @@ height`, tags-block-fill-width `Stipe width`». Опечатка в послед
 `REMOVED` в `docs_terms_tests.ts`: контрол жив, но имя в руководстве посылало бы
 человека искать строку, которой в панели нет.
 
-#### 10.13.205 Полоса встала над кеглем — правка его же порядка (2026-09-19)
+#### 10.13.205 Порядок в `Line view`: его слово прочитано с третьего раза (2026-09-19)
 
-**Его заказ (З-10):** «контрол tags-block-fill должен быть над контролом
-tags-text-size-left».
+**Три его фразы об одном и том же, по порядку.**
 
-**Это правка порядка, который он назвал сам** четырьмя днями раньше, пунктом 3
-той же ночи: `tags-opacity-left, tags-opacity-right, tags-text-size-left,
-tags-text-size-right, tags-block-fill с дочерними контролами`. Новое слово
-сильнее старого, и возвращать прежнюю последовательность «по пункту 3» нельзя.
-Порядок в `Line view` теперь такой: прозрачность двух сторон, полоса со своими
-дочерними, кегль двух сторон.
+1. Пункт 3 той же ночи: «добавь субхедеры в tag-appearance… 1. Line view (в
+   последовательности: tags-opacity-left, tags-opacity-right,
+   tags-text-size-left, tags-text-size-right, tags-block-fill с дочерними
+   контролами)».
+2. Замечание под `N5`: «контрол tags-block-fill должен быть над контролом
+   tags-text-size-left». Я прочёл это как «выше в списке» и переставил.
+3. Замечание под `S3`: «я сказал, что нужно сделать в заданной мной
+   очередности — `tags-text-size-left`, `tags-text-size-right` должны быть над
+   `Color the Block with Stripe`».
 
-**Цена — перенос участка прототипа целиком**, без единой правки внутри: пять
-контролов вместе с объяснениями, откуда каждый взялся. Схема выведена
-перегенерацией, раздел 9 и Приложение B — своим скриптом; руками ни один из них
-не правился.
+**Значит верным было первое чтение, а не второе.** Порядок вернулся к тому,
+который он назвал пунктом 3: прозрачность двух сторон, кегль двух сторон, полоса
+со своими дочерними. На экране это то же, что было до моей правки, — то есть
+работа второго захода чистого убытка не принесла ничего, кроме одного его
+сообщения.
+
+**Что из этого стоит помнить.** Его фраза со словом «над» описывала **не** место
+в списке: два прочтения были равновозможны, и цена вопроса была одна строка
+интервью — а цена ошибки вышла заход работы и его письмо. Признак, по которому
+это ловится заранее: новое слово **переворачивает** его же прежнее слово, а
+причины переворота он не называет. Там, где новое слово не дополняет прежнее, а
+противоречит ему, спрашивать надо до правки (У-232).
 
 #### 10.13.204 Файлы под З3 переехали в `src` (2026-09-19)
 
@@ -9076,13 +9130,13 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `navigation.moveSelection.inlineBoundaryJump` | Continue past a Separator (`move-text-cross`) | Move left and move right |
 | `navigation.moveSelection.rightCycles` | Cycle in both directions (`right-cycles`) | Move left and move right |
 | `navigation.jumpToHeader.viewPosition` | Where the target lands (`heading-jumps-view-position`) | Moving cursor inside a note |
+| `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
 | `visual.tags.blockFill.enabled` | Color the Block with Stripe (`tags-block-fill`) | Inline appearance |
 | `visual.tags.blockFill.direction` | Stripe direction (`tags-block-fill-direction`) | Inline appearance |
 | `visual.tags.blockFill.color` | Stripe color (`tags-block-fill-color`) | Inline appearance |
 | `visual.tags.blockFill.opacity` | Stripe opacity (`tags-block-fill-opacity`) | Inline appearance |
 | `visual.tags.blockFill.heightPct` | Stripe height (`tags-block-fill-height`) | Inline appearance |
 | `visual.tags.blockFill.widthPct` | Stripe width (`tags-block-fill-width`) | Inline appearance |
-| `visual.tags.textSizePctRight` | Right Block text size (`tags-text-size-right`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -17137,6 +17191,16 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works
   - диапазон: 0–100, шаг 1, ед. %
   - старые названия для поиска: «Opacity Right»
+- **Left Block text size** — `tags-text-size-left`, `slider`, path `visual.tags.textSizePctLeft`, default `100`
+  - desc: How big everything before your text is written, next to the rest of your note
+  - tip: This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom
+  - диапазон: 50–140, шаг 5, ед. %
+  - старые названия для поиска: «Tag text size», «Text size Left»
+- **Right Block text size** — `tags-text-size-right`, `slider`, path `visual.tags.textSizePctRight`, default `100`
+  - desc: How big everything after your text is written, next to the rest of your note
+  - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line
+  - диапазон: 50–140, шаг 5, ед. %
+  - старые названия для поиска: «Tag text size», «Text size Right»
 - **Color the Block with Stripe** — `tags-block-fill`, `toggle`, path `visual.tags.blockFill.enabled`, default `false`
   - desc: A Stripe behind the Left Block and the Right Block, so the two stand out from your text
   - tip: The Stripe runs from the first Value of a Block to its last one, and stops there: your own text between the Separators keeps the page background. A Block with nothing in it gets no Stripe. The Stripe sits <b>behind</b> the writing, so everything on the line stays selectable and clickable. Tag bubbles carry their own color, so a Block of one tag would hide the Stripe completely — the two rows at the bottom are how far it reaches past the writing, and that is what makes it show at all
@@ -17169,16 +17233,6 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - диапазон: 0–100, шаг 5, ед. %
   - видна если: `visual.tags.blockFill.enabled`
   - старые названия для поиска: «Band width»
-- **Left Block text size** — `tags-text-size-left`, `slider`, path `visual.tags.textSizePctLeft`, default `100`
-  - desc: How big everything before your text is written, next to the rest of your note
-  - tip: This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom
-  - диапазон: 50–140, шаг 5, ед. %
-  - старые названия для поиска: «Tag text size», «Text size Left»
-- **Right Block text size** — `tags-text-size-right`, `slider`, path `visual.tags.textSizePctRight`, default `100`
-  - desc: How big everything after your text is written, next to the rest of your note
-  - tip: The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line
-  - диапазон: 50–140, шаг 5, ед. %
-  - старые названия для поиска: «Tag text size», «Text size Right»
 - **`tag-view-sub`** — свой блок, рендерер `?`
 - **Tags bubble width** — `tags-bubble-width`, `slider`, path `visual.tags.bubbleWidthPct`, default `100`
   - desc: How much breathing room there is either side of the word

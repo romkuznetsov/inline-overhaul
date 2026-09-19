@@ -67,6 +67,12 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
      * об этом обязательно: настройки в панели поменялись не от его нажатия.
      */
     "external-reload": "Settings changed on disk, so inlineOverhaul reloaded them",
+    /*
+     * Автокопия снята (З-11, его слово 2026-09-19: «хочу, чтобы при создании
+     * autosave об этом возникало уведомление — сейчас всё происходит молча»).
+     * `{0}` — путь заметки: без него сообщение не отвечает на «а где она».
+     */
+    "autosave-saved": "Settings autosaved to {0}",
   },
 
   navigation: {

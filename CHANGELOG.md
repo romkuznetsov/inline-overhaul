@@ -16,7 +16,7 @@
 1. **Block text size is set for each side on its own.** `Text size` under `Inline appearance` became `Left Block text size` and `Right Block text size`; whatever you had is written into both on first run.
 2. **New: `Stripe direction`** — which Block gets the Stripe behind it: `Left`, `Right` or `Both`. `Both` by default, so nothing changes until you pick a side.
 3. **New: a `Changelog` button** in `General → Help` opens this file on GitHub, every release, newest first.
-4. **New: `Autosave`** under `Advanced → Backup` keeps a copy of your settings when they change outside the panel: at every start of Obsidian the plugin compares your settings file with the last autosave and writes a new one when they differ. Off by default, ten newest kept, and each copy lists what changed.
+4. **New: `Autosave`** under `Advanced → Backup` writes a copy of your settings whenever the file differs from the last autosave, checked at every start of Obsidian, and says so. Off by default, ten newest kept, and each copy lists what changed. The tab you left open is not a setting and never triggers a copy.
 
 ### Changed
 
@@ -25,13 +25,14 @@
 7. **The window title in every dialog has a size of its own** instead of whatever the theme makes of an `h4` — in some themes that was smaller than the headings underneath it. Eight dialogs.
 8. **The "what changed" window reads properly.** It renders its Markdown, shows every release you skipped rather than the newest one alone (up to five, newest first), and carries a link to the full changelog.
 9. **Five Stripe rows are renamed:** `Color the Block with Stripe`, `Stripe color`, `Stripe opacity`, `Stripe height`, `Stripe width`. The old names still find them in the settings search.
-10. **The Stripe rows stand above the two text-size rows** in `Line view`, where they belong: the Stripe is about the Block as a whole.
-11. **The live preview of a jump highlight no longer promises a press.** The circle has run on a timer since 0.3.1.
-12. **A wiki link in the `Inline appearance` preview follows the Block text size**, as everything else in that preview already did.
-13. **This file reads as a numbered list**, one line per change, so you can see at a glance how many things a release touched.
-14. The plugin author is `Roman Kuznetsov`.
+10. **The live preview of a jump highlight no longer promises a press.** The circle has run on a timer since 0.3.1.
+11. **A wiki link in the `Inline appearance` preview follows the Block text size**, as everything else in that preview already did.
+12. **This file reads as a numbered list**, one line per change, so you can see at a glance how many things a release touched.
+13. The plugin author is `Roman Kuznetsov`.
 
 ### Internal
+
+14. **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
 
 15. **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
 

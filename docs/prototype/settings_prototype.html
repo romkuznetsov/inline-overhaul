@@ -2303,6 +2303,22 @@ const SCHEMA = [
       name:"Opacity of the Right Block", desc:"Dims everything written after your text, tags and elements alike",
       tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text are usually worth less attention than the tags before it. At 0 everything after your text is still there and still works",
       searchTerms:["Opacity Right"] },
+    /* Кегль разведён на две стороны — заказ заказчика 2026-09-19, пункт 2:
+       «разделить tags-text-size на tags-text-size-left и tags-text-size-right…
+       Должна сохраниться текущая логика (т.е. центрирование строки при
+       уменьшении text size)». Прежний ключ `visual.tags.textSizePct` уступает
+       обоим: у кого он был выбран, тот получит своё число с обеих сторон. */
+    { kind:"slider", id:"tags-text-size-left", path:"visual.tags.textSizePctLeft", default:100,
+      min:50, max:140, step:5, unit:"%",
+      name:"Left Block text size", desc:"How big everything before your text is written, next to the rest of your note",
+      tip:"This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom",
+      searchTerms:["Tag text size", "Text size Left"] },
+    { kind:"slider", id:"tags-text-size-right", path:"visual.tags.textSizePctRight", default:100,
+      min:50, max:140, step:5, unit:"%",
+      name:"Right Block text size", desc:"How big everything after your text is written, next to the rest of your note",
+      tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line",
+      searchTerms:["Tag text size", "Text size Right"] },
+
     /* Заказчик 2026-09-08 (З-7): «хочу добавить опцию, чтобы left and right
        blocks можно было добавить цветовую заливку… представляю себе это как
        опцию в tag-appearance `Color Left\\Right blocks` = on\\off, при on
@@ -2377,21 +2393,6 @@ const SCHEMA = [
       searchTerms:["Band width"],
       tip:"The scale has three landmarks. At <code>0</code> the Stripe starts on the first Value of the Block and ends on the last one. At <code>50</code> it touches the Separator on the inner side, and steps out by the same distance on the other. At <code>100</code> it takes the Separator in as well. The Left Block is the one exception: it never reaches onto the bullet or the checkbox, whatever the number says",
       visible: on("visual.tags.blockFill.enabled") },
-    /* Кегль разведён на две стороны — заказ заказчика 2026-09-19, пункт 2:
-       «разделить tags-text-size на tags-text-size-left и tags-text-size-right…
-       Должна сохраниться текущая логика (т.е. центрирование строки при
-       уменьшении text size)». Прежний ключ `visual.tags.textSizePct` уступает
-       обоим: у кого он был выбран, тот получит своё число с обеих сторон. */
-    { kind:"slider", id:"tags-text-size-left", path:"visual.tags.textSizePctLeft", default:100,
-      min:50, max:140, step:5, unit:"%",
-      name:"Left Block text size", desc:"How big everything before your text is written, next to the rest of your note",
-      tip:"This reaches the whole of the Left Block, not the tags alone: the writing in the bubbles, the dates and the links all change together. Your own text between the Separators keeps its size. Below 100 the Block steps back and your sentence leads; above 100 it competes with it. Whatever the number, what is written in the Block stays in the middle of the line rather than sinking to its bottom",
-      searchTerms:["Tag text size", "Text size Left"] },
-    { kind:"slider", id:"tags-text-size-right", path:"visual.tags.textSizePctRight", default:100,
-      min:50, max:140, step:5, unit:"%",
-      name:"Right Block text size", desc:"How big everything after your text is written, next to the rest of your note",
-      tip:"The same dial for the other end of the line, and it is separate on purpose: dates and links after your text usually read better a size down, while the tags before it stay as they are. Your own text between the Separators keeps its size either way, and what is written in the Block stays in the middle of the line",
-      searchTerms:["Tag text size", "Text size Right"] },
 
     { kind:"custom", id:"tag-view-sub", render: renderSubheader("Tag view",
         "This half is about the bubble a tag is drawn in, and nothing else: how much room there is around the word, how tall the bubble is, and how round its corners are. Dates and links get no bubble, so none of it reaches them") },

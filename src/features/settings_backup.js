@@ -679,7 +679,13 @@ function buildBackupNote(o) {
      */
     NOTES_HEADING,
     "",
-    NOTES_HINT + ". The plugin never reads this part, so nothing you write here changes what comes back",
+    /*
+     * **Коллаутом — его слово 2026-09-19:** «хочу, чтобы в заметке бэкапа текст
+     * „Write anything here…“ был коллаутом». Разметка коллаута — Obsidian, и
+     * пишется она как есть: её разбирает тот, чья она.
+     */
+    "> [!note] " + NOTES_HINT,
+    "> The plugin never reads this part, so nothing you write here changes what comes back",
     "",
     ...(comment ? [comment, ""] : []),
     /*

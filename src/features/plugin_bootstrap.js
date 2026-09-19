@@ -357,6 +357,11 @@ function autosaveVaultSeam(plugin) {
       /* Проба: у старого Obsidian реестра может не быть, и «нет» — это ответ. */
       return manager && manager.customKeys ? manager.customKeys : {};
     },
+    /*
+     * Сказать человеку о снятой копии — его слово 2026-09-19: «хочу, чтобы при
+     * создании autosave об этом возникало уведомление».
+     */
+    notify: (message) => { new Notice(message); },
   };
 }
 
