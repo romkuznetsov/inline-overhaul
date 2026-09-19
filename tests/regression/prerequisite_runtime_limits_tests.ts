@@ -557,6 +557,51 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
     "команда переставляет значение спрятанного поля в Block его поля: " + moved);
 
   /*
+   * **А у дочернего поля без своего ключа в Order сторону называет родитель**
+   * — его слово 2026-09-19: «не надо дописывать и исключи это дописывание из
+   * tagwheel».
+   *
+   * `normalizePkmOrder` выбрасывает ключи `<name>_sub` из обоих списков
+   * нарочно, и вопрос «какая у него сторона» получал умолчание `right`:
+   * значение дочернего поля левого Block уезжало вправо, а на строке
+   * оставалось своё — заказчик видел его дважды. Обе стороны правила
+   * проверяются здесь: **свой ключ в списке** (утверждение выше) и **своего
+   * ключа нет** (это).
+   */
+  const orphanOrder: Any = {
+    left: ["status"], right: [], labels: {}, strictNames: {}, lead: {}, freeRoam: {},
+    types: { status: "tag", second: "tag" },
+    active: { status: "yes", second: "yes" },
+    enabled: { status: true, second: true },
+  };
+  /*
+   * **Умолчание стороны здесь то же, что у панели** — `right`. С левым
+   * умолчанием обе стороны правила дали бы один ответ, и подмена «спрашивать
+   * своим ключом» осталась бы зелёной: совпадающей стороной стала бы
+   * оснастка (У-147).
+   */
+  const relRight = relocation.createFieldRelocation({
+    owner: "проверка, умолчание right",
+    getStatusRuntimeCommon: () => statusCommonMod.createStatusRuntimeCommon({
+      defaultPanel: "right",
+      loadRuntimePreloadFacade: async () => ({}),
+    }),
+    getStatusLineRuntime: () => requireCjs(path.join(root, "src", "core", "status_line_runtime_unified.js")),
+    getDomainRegistry: () => requireCjs(path.join(root, "src", "core", "pkm_domain_registry.js")),
+    tokenGraph: requireCjs(path.join(root, "src", "core", "token_graph_unified.js")),
+    core,
+    isObj: (x: Any) => !!x && typeof x === "object" && !Array.isArray(x),
+  });
+  const orphan = String(relRight.relocateCoreTagsByOrder(
+    "- #a | текст", b.rules, orphanOrder, session,
+    b.rules.leftMode.fields, "", ""
+  ) || "");
+  assert.ok(orphan.indexOf("#a") < orphan.indexOf("|"),
+    "дочернее поле без своего ключа в Order следует стороне родителя: " + orphan);
+  assert.equal(orphan.split("#a").length - 1, 1,
+    "и значение остаётся на строке ровно одно, а не дописывается вторым: " + orphan);
+
+  /*
    * **Два отрицательных контроля, и без них правило читалось бы как
    * «переставлять всё подряд».** Предусловие — не единственная причина, по
    * которой поле не показывается, и две другие его решения не меняют:

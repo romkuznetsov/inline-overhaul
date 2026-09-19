@@ -242,7 +242,10 @@ function createStatusRuntimeCommon(deps) {
     for (const value of values) {
       if (!isObj(value) || typeof value.token !== "string" || !value.token || value.active === false) continue;
       const allowed = Array.isArray(value.allowedParentValues) ? value.allowedParentValues : [];
-      if (allowed.length && !allowed.includes(parentToken)) continue;
+      /* Родителя не назвали — отбирать не по чему: идут все значения
+         дочернего поля (его слово 2026-09-19). Прежде пустая строка не
+         совпадала ни с одним списком, и ответ выходил пустым. */
+      if (allowed.length && parentToken && !allowed.includes(parentToken)) continue;
       out.push(value);
     }
     out.sort((a, b) => {

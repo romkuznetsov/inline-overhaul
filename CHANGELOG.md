@@ -20,22 +20,23 @@
 
 ### Changed
 
-5. **Everything written in a Block is the size of the line it sits on, and on the same level.** The size used to come from a number in the code rather than from your text, and the bubble sat a point above the writing next to it.
-6. **Settings edited outside Obsidian are picked up even when Obsidian says nothing.** Copying a `data.json` in from another vault keeps the source's timestamp, and Obsidian announces only files newer than the plugin's last write — so the plugin now looks at the file before writing its own settings, and the disk wins.
-7. **The settings panel is laid out in sections.** `Inline appearance` has `Line view` and `Tag view`; the `Keyboard` groups `Expanded 'Ctrl+A'`, `Smart Delete\Backspace` and `Smart Enter` became sections of one group, `Global hotkeys`. Nothing moved out of reach.
-8. **The window title in every dialog has a size of its own** instead of whatever the theme makes of an `h4` — in some themes that was smaller than the headings underneath it. Eight dialogs.
-9. **The "what changed" window reads properly.** It renders its Markdown, shows every release you skipped rather than the newest one alone (up to five, newest first), and carries a link to the full changelog.
-10. **Five Stripe rows are renamed:** `Color the Block with Stripe`, `Stripe color`, `Stripe opacity`, `Stripe height`, `Stripe width`. The old names still find them in the settings search.
-11. **The live preview of a jump highlight no longer promises a press.** The circle has run on a timer since 0.3.1.
-12. **A wiki link in the `Inline appearance` preview follows the Block text size**, as everything else in that preview already did.
-13. **This file reads as a numbered list**, one line per change, so you can see at a glance how many things a release touched.
-14. The plugin author is `Roman Kuznetsov`.
+5. **TagWheel no longer writes a value twice.** A line carrying the value of a child Field whose parent is not on the line got that value again in the Right Block; it now stays as it is.
+6. **Everything written in a Block is the size of the line it sits on, and on the same level.** The size used to come from a number in the code rather than from your text, and the bubble sat a point above the writing next to it.
+7. **Settings edited outside Obsidian are picked up even when Obsidian says nothing.** Copying a `data.json` in from another vault keeps the source's timestamp, and Obsidian announces only files newer than the plugin's last write — so the plugin now looks at the file before writing its own settings, and the disk wins.
+8. **The settings panel is laid out in sections.** `Inline appearance` has `Line view` and `Tag view`; the `Keyboard` groups `Expanded 'Ctrl+A'`, `Smart Delete\Backspace` and `Smart Enter` became sections of one group, `Global hotkeys`. Nothing moved out of reach.
+9. **The window title in every dialog has a size of its own** instead of whatever the theme makes of an `h4` — in some themes that was smaller than the headings underneath it. Eight dialogs.
+10. **The "what changed" window reads properly.** It renders its Markdown, shows every release you skipped rather than the newest one alone (up to five, newest first), and carries a link to the full changelog.
+11. **Five Stripe rows are renamed:** `Color the Block with Stripe`, `Stripe color`, `Stripe opacity`, `Stripe height`, `Stripe width`. The old names still find them in the settings search.
+12. **The live preview of a jump highlight no longer promises a press.** The circle has run on a timer since 0.3.1.
+13. **A wiki link in the `Inline appearance` preview follows the Block text size**, as everything else in that preview already did.
+14. **This file reads as a numbered list**, one line per change, so you can see at a glance how many things a release touched.
+15. The plugin author is `Roman Kuznetsov`.
 
 ### Internal
 
-15. **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
+16. **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
 
-16. **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
+17. **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
 
 ## 0.3.2
 

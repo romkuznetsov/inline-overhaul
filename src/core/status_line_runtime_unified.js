@@ -255,13 +255,41 @@ function relocateCoreTagsByOrder(options) {
     const fieldId = String(field.id || "").trim();
     const fieldKey = String(orderKeyById[fieldId] || fieldId).trim();
     if (!fieldKey) continue;
-    const panel = panelForTagKey(orderCfg, fieldKey);
-    const map = fieldTokenMap(field, rules, state, null);
-    const fromState = selectedTokenFromState(field, state, rules);
-
     const parentId = String(field.dependsOn || "").trim();
     const parent = parentId ? byId[parentId] : null;
     const parentKey = parent ? String(orderKeyById[String(parent.id || "").trim()] || parent.id || "").trim() : "";
+    /*
+     * **Сторону дочернего Field называет родитель** (его слово 2026-09-19:
+     * «не надо дописывать и исключи это дописывание из tagwheel»).
+     *
+     * Ключа `<name>_sub` нет ни в `order.left`, ни в `order.right` —
+     * `normalizePkmOrder` выбрасывает такие ключи из обоих списков нарочно, —
+     * и вопрос «какая у него сторона» получал **умолчание**, а умолчание здесь
+     * `right`. То есть значение дочернего поля левого Block переезжало
+     * вправо: на строке, где родителя нет, заказчик видел `#new` дважды —
+     * своё слева и дописанное справа. Команда того же поля так не делает, и
+     * обход строки показывал шесть расхождений из 234 на его настройках.
+     *
+     * Звавший это уже знал: `relocateTagLikeByOrder` спрашивает сторону
+     * ключом родителя (`resolvePanelKeyForField`). Правило было объявлено
+     * дважды и разошлось молча (У-122) — теперь и здесь спрашивается родитель.
+     *
+     * **Но только там, где своего ключа в Order нет.** Дочернее поле бывает и
+     * обычным — со своим местом в `left` или `right`: тогда сторона у него
+     * своя, и это его прежнее решение (проверка про значение спрятанного поля,
+     * 10.13.188). Родитель отвечает ровно тогда, когда иначе ответом было бы
+     * умолчание.
+     */
+    const inOrderLists = (key) => {
+      if (!key || !orderCfg || typeof orderCfg !== "object") return false;
+      const left = Array.isArray(orderCfg.left) ? orderCfg.left : [];
+      const right = Array.isArray(orderCfg.right) ? orderCfg.right : [];
+      return left.indexOf(key) !== -1 || right.indexOf(key) !== -1;
+    };
+    const panelKey = inOrderLists(fieldKey) ? fieldKey : (parentKey || fieldKey);
+    const panel = panelForTagKey(orderCfg, panelKey);
+    const map = fieldTokenMap(field, rules, state, null);
+    const fromState = selectedTokenFromState(field, state, rules);
     const suppressFallback = activeFieldId === fieldId || activeKey === fieldKey || (parentKey && activeKey === parentKey);
     const selected = fromState || (suppressFallback ? "" : selectedTokenFromLineByPanel(out, rules, panel, map));
 

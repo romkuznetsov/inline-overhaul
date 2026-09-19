@@ -73,11 +73,20 @@ const SECOND_CHUNK: ReadonlyArray<{ file: string; left: number; why: string }> =
   },
   {
     file: "src/features/settings_backup.js",
-    left: 27,
+    left: 25,
     why: "формат заметки копии: плагин читает её обратно, и она остаётся английской. "
-      + "Трое прибавилось 2026-09-19 вместе с автокопией (З-11): заголовок раздела "
-      + "«что изменилось» и слова строки остатка — они лежат в той же заметке и по той "
-      + "же причине не переводятся",
+      + "Двое прибавилось 2026-09-19 вместе с автокопией (З-11): заголовок раздела "
+      + "«что изменилось» и подсказка о заметках — они лежат в той же заметке и по той "
+      + "же причине не переводятся. Слова строки остатка уехали отсюда в "
+      + "settings_change_words.js вместе с человеческим описанием правки",
+  },
+  {
+    file: "src/features/settings_change_words.js",
+    left: 7,
+    why: "слова, которыми заметка копии рассказывает о правке («Field «Cat» moved from "
+      + "the Right Block to the Left Block»): они пишутся в ту же заметку, что и "
+      + "настройки, и по той же причине остаются английскими. Заведено 2026-09-19 "
+      + "вместе с разделом «что изменилось» (З-11, его замечание S6)",
   },
   {
     file: "src/ui/settings/custom/command_reference.ts",
@@ -136,7 +145,8 @@ export function checkTextsCoverage(): CoverageResult {
   const covered = new Set(entries.map(e => e.text.trim()));
 
   const skip = (rel: string): boolean => NOT_READ.some(r => r.match.test(rel));
-  const found = visibleTextsUnder(root, ["src/ui/settings", "src/features/settings_backup.js"], skip);
+  const found = visibleTextsUnder(root, ["src/ui/settings", "src/features/settings_backup.js",
+    "src/features/settings_change_words.js"], skip);
   const gap = found.filter(f => !covered.has(f.text.trim()));
 
   const byFile = new Map<string, number>();

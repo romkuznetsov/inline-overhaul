@@ -1444,7 +1444,19 @@ function getAllowedValues(mode, state, field, rules, opts) {
       out.push(v)
       continue
     }
-    if (ignoreParent || !Array.isArray(v.allowedParentValues) || !v.allowedParentValues.length) {
+    /*
+     * **Родитель не выбран — отбирать не по чему** (его слово 2026-09-19:
+     * «такое может быть, если я вызываю команду Category_sub next не выбрав
+     * value из field Category — в этом случае у меня должен быть скроллинг по
+     * всем sub-values этого field»).
+     *
+     * Прежде пустой выбор родителя сравнивался с его списком и не совпадал ни
+     * с чем: список значений выходил пустым. Отсюда же росло дописывание в
+     * панели — карта токенов поля оказывалась пустой, строка не чистилась от
+     * прежнего значения, и оно печаталось во второй раз.
+     */
+    if (ignoreParent || !parentValue
+      || !Array.isArray(v.allowedParentValues) || !v.allowedParentValues.length) {
       out.push(v)
       continue
     }

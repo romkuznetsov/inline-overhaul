@@ -177,6 +177,11 @@ function technical(text: string): boolean {
    * (Р9), а по-русски в этом коде пишут только комментарии и сообщения лога.
    */
   if (/[Ѐ-ӿ]/.test(t)) return true;
+  /*
+   * Директива языка. `"use strict"` стоит первой строкой каждого нашего
+   * модуля на CommonJS и на экран не попадает никогда.
+   */
+  if (t === "use strict") return true;
   /* Имена классов и селекторы. */
   if (/^[.#]?io-/.test(t)) return true;
   if (/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\s+[a-z0-9]+(?:-[a-z0-9]+)*)*$/.test(t) && /-/.test(t)) return true;
