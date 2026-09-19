@@ -436,6 +436,33 @@ async function ensurePkmRuntime(plugin) {
 }
 
 async function runPkmRuntime(plugin, command, cfg, extraSettings) {
+  /*
+   * **Пока панель открыта, строкой распоряжается она, и больше никто.**
+   *
+   * Его замечание 2026-09-20: «при активации field-sub previous в строке у меня
+   * не меняется sub на предыдущий, вместо этого курсор прыгает вниз и возникает
+   * странный артефакт — визуально у меня на странице несколько кареток
+   * курсора». Причина не в команде и не в панели по отдельности, а в том, что
+   * они встретились: панель на время сессии держит **свой вид в самом
+   * документе** (исключение 30 к З3), и команда правит не строку человека, а
+   * эту картинку. Измерено стендом: при открытой панели `Cat_sub previous`
+   * превращает `- ==**[Imp]** …==` в `- #elder :: текст`, панель остаётся
+   * живой, а `Esc` возвращает исходную строку — то есть работа команды
+   * пропадает целиком, и человек видит ровно то, что он описал.
+   *
+   * Панель перехватывает **свои** клавиши и только их; хоткей команды в её
+   * раскладке не значится, поэтому до сюда он доходит. Отказ здесь громкий:
+   * человек позвал команду сам, и молчание было бы неотличимо от дефекта
+   * (правило отказов, вид первый).
+   *
+   * **Открытие панели из-под этого правила выведено**: второе нажатие той же
+   * команды — это её `Enter`, им сессия и применяется.
+   */
+  if (String(command || "") !== "tagWheel" && openTagWheelSession()) {
+    new Notice(__say(__noticeKey("pkm", "tagwheel-open"),
+      "TagWheel is open on this line: finish it with Enter or close it with Escape first"));
+    return;
+  }
   const rt = await ensurePkmRuntime(plugin);
   if (!rt) throw new Error("PKM runtime v2 is unavailable");
   if (typeof rt.runCommand !== "function") throw new Error("PKM runtime v2 has no runCommand");
@@ -492,10 +519,15 @@ async function runPkmRuntime(plugin, command, cfg, extraSettings) {
  *
  * Отвечает `true`, если сессию закрыли: по этому и проверяется.
  */
-function closeTagWheelSession() {
+function openTagWheelSession() {
   const holder = typeof window !== "undefined" ? window : globalThis;
   const state = holder && holder.__tagWheelState ? holder.__tagWheelState : null;
-  if (!state || state.active !== true) return false;
+  return state && state.active === true ? state : null;
+}
+
+function closeTagWheelSession() {
+  const state = openTagWheelSession();
+  if (!state) return false;
   if (typeof state.cancel !== "function") return false;
   state.cancel();
   return true;
@@ -503,6 +535,7 @@ function closeTagWheelSession() {
 
 module.exports = {
   closeTagWheelSession,
+  openTagWheelSession,
   navigationRuntime,
   pkmRuntime,
   buildOwnCommandList,

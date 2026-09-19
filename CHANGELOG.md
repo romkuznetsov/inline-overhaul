@@ -34,12 +34,13 @@
 16. The plugin author is `Roman Kuznetsov`.
 17. **A child Field set to `Show always` with `Add the parent Value` now cycles through every one of its Values.** The parent the plugin writes for you is no longer read back as your own pick, so the ring no longer collapses to the first Value; the parent follows the Value you land on and leaves the line with it. A parent you put there yourself still narrows the ring, as before.
 18. **The `What changed` list in an autosave note names the controls and nests them the way the panel does.** A Value sits under its Field and its colors sit under the Value, every row is called by the name it carries in the settings panel instead of a config path, and rows the panel merely rewrote with their defaults are left out.
+19. **A field command no longer writes over an open TagWheel.** While the panel is up its view lives in the line itself, so a command invoked by hotkey edited that view instead of your text and the work was lost when the panel closed. Now such a command does nothing and says so; pressing the panel's own command still applies it as before.
 
 ### Internal
 
-19. **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
+20. **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
 
-20. **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
+21. **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
 
 ## 0.3.2
 

@@ -3992,12 +3992,20 @@ async function run() {
     assertTrue(/closeTagWheelSession\(\)/.test(unload),
       "onunload не закрывает сессию TagWheel: перехват клавиш переживёт выключение плагина");
 
+    /*
+     * **Два пина, читавших текст `plugin_commands.js`, сняты 2026-09-20.** Они
+     * сверяли написание внутри `closeTagWheelSession` — «живость спрашивается у
+     * флага» и «закрытие проверяет наличие шва», — и первый же переезд этого
+     * вопроса в отдельное объявление (`openTagWheelSession`) сделал оба
+     * зелёными от того, что искать стало нечего (У-94). Предмет у них верный, и
+     * он никуда не делся: обе проверки живут поведением в
+     * `tagwheel_session_guard_tests.ts`, где функции **зовутся**, а не
+     * читаются.
+     */
     const cmdSrc = fs.readFileSync(
       path.join(__dirname, "..", "..", "src", "features", "plugin_commands.js"), "utf8");
-    assertTrue(/state\.active !== true\) return false/.test(cmdSrc),
-      "живость сессии спрашивается не у флага: шов __tagWheelState остаётся на месте и после закрытия");
-    assertTrue(/typeof state\.cancel !== "function"\) return false/.test(cmdSrc),
-      "закрытие не проверяет наличие шва: у старой сборки его нет, и выгрузка упадёт");
+    assertTrue(/openTagWheelSession\(\)/.test(cmdSrc),
+      "вопрос «панель жива?» больше не объявлен один раз: у него появился второй ответ");
   }
 
   console.log("Bootstrap loader regression tests: OK");

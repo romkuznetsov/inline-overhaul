@@ -35,6 +35,7 @@ const ROOT = path.resolve(__dirname, "..");
 const linePipeline = require(path.join(ROOT, "src", "core", "line_pipeline.js"));
 const rulesShape = require(path.join(ROOT, "src", "core", "pkm_rules_shape.js"));
 const shared = require(path.join(ROOT, "src", "core", "shared_utils.js"));
+const configNormalize = require(path.join(ROOT, "src", "core", "config_normalize.js"));
 
 const SHOW_ALL = process.argv.includes("--all");
 const SPLIT = process.argv.includes("--split");
@@ -751,7 +752,10 @@ async function main() {
       if (!subIds.includes(id)) continue;
       const vals = (Array.isArray(f.values) ? f.values : [])
         .filter((v) => v && typeof v.token === "string" && v.token && v.active !== false);
-      if (vals.length) ringFields.push({ id, field: f, vals });
+      const parent = list.find((p) => p && String(p.id || "") === String(f.dependsOn || ""));
+      const parentVals = (parent && Array.isArray(parent.values) ? parent.values : [])
+        .filter((v) => v && typeof v.token === "string" && v.token && v.active !== false);
+      if (vals.length) ringFields.push({ id, field: f, vals, parentVals });
     }
   }
   const bareTokens = (line) => String(line || "").trim().split(/\s+/)
@@ -759,6 +763,7 @@ async function main() {
     .map((t) => t.replace(/^[^\wА-Яа-я[]+/, ""));
   let ringBad = 0;
   let ringChecked = 0;
+  async function runRings(ringCfg, label) {
   for (const rf of ringFields) {
     for (const c of CASES) {
       ringChecked++;
@@ -767,7 +772,7 @@ async function main() {
       const distinct = new Set();
       let doubled = "";
       for (let i = 0; i < rf.vals.length + 2; i++) {
-        const r = await bench.runCommandById(cfg, rf.id, line, Math.min(c.ch, line.length));
+        const r = await bench.runCommandById(ringCfg, rf.id, line, Math.min(c.ch, line.length));
         line = r && r.line != null ? r.line : line;
         walk.push(line);
         distinct.add(line);
@@ -776,22 +781,77 @@ async function main() {
           if (bare.filter((t) => t === v.token.replace(/^[^\wА-Яа-я[]+/, "")).length > 1) doubled = v.token;
         }
       }
+      /*
+       * **Сколько состояний должно быть в круге, решает сама строка.**
+       *
+       * Разрешение `Show always` снимает отбор только там, где родителя на
+       * строке нет. Если человек **сам** написал родителя, отбор законен, и
+       * круг — это дети этого родителя, а не весь список: у `#work` ребёнок
+       * один, и круг из двух состояний тут верен. Первая версия этого признака
+       * требовала полного списка всегда и объявила дефектом три законные
+       * строки — мера была шире предмета (У-193).
+       */
+      const onLine = rf.parentVals.filter((p) => bareTokens(c.line).some(
+        (t) => t === String(p.token).replace(/^[^\wА-Яа-я[]+/, "")));
+      /*
+       * **А при `Add the parent Value` круг открывается со второго шага.**
+       * Первое нажатие слушается родителя, которого написал человек, и берёт
+       * его ребёнка; дальше родителя на строке пишем уже мы, и отбирать по
+       * своему же ответу нечего — круг идёт по всему списку. Признак, не
+       * знавший этого, объявил дефектом три верные строки во втором прогоне.
+       */
+      const addsOn = Boolean(
+        (((ringCfg.pkm || {}).fields || {}).order || {}).subAddsParent
+        && ringCfg.pkm.fields.order.subAddsParent[rf.field.id]);
+      const reach = (onLine.length && !addsOn)
+        ? rf.vals.filter((v) => Array.isArray(v.allowedParentValues)
+          && onLine.some((p) => v.allowedParentValues.indexOf(p.token) !== -1))
+        : rf.vals;
       /* Круг замкнулся — значит следующий шаг повторяет уже виденное, а
-         непустых состояний в нём столько, сколько у поля значений, плюс пустое
-         место. Меньше — круг схлопнулся; в этом и было замечание. */
-      const closed = distinct.size <= rf.vals.length + 1;
-      const full = distinct.size >= rf.vals.length + 1 || walk.every((l) => l === c.line);
+         непустых состояний в нём столько, сколько значений поле может здесь
+         показать, плюс пустое место. Меньше — круг схлопнулся. */
+      const closed = distinct.size <= reach.length + 1;
+      const full = distinct.size >= reach.length + 1 || walk.every((l) => l === c.line);
       const ok = closed && full && !doubled;
       if (ok && !SHOW_ALL) continue;
       if (!ok) ringBad++;
-      console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + rf.id + ", круг на строке " + c.name);
+      console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + rf.id + " [" + label + "], круг на строке " + c.name);
       console.log("    прошли  : " + JSON.stringify(walk));
       if (doubled) console.log("    значение напечатано дважды: " + doubled);
       if (!full) console.log("    круг короче списка: состояний " + distinct.size
-        + ", значений у поля " + rf.vals.length);
+        + ", а поле может показать здесь " + reach.length);
       if (!closed) console.log("    круг не замкнулся: состояний " + distinct.size);
     }
   }
+  }
+
+  /*
+   * **Круг гоняется при обоих положениях `Parent Value`, а не при его
+   * нынешнем.**
+   *
+   * Дефект, ради которого эта половина заведена, живёт только при
+   * `Add the parent Value`. Заказчик вернул контрол в `Leave the line alone`
+   * тем же вечером — и обход, гоняющий его нынешний конфиг, перестал видеть
+   * этот класс вовсе: положительный контроль на прежнем рантайме стал зелёным
+   * не от починки, а от того, что случая в конфиге не осталось (У-190).
+   * Второй конфиг выводится из **нынешнего** файла, а не хранится копией.
+   */
+  await runRings(cfg, "как у него");
+  const flipped = JSON.parse(JSON.stringify(cfg));
+  const addsParent = flipped.pkm.fields.order.subAddsParent || {};
+  for (const rf of ringFields) addsParent[rf.field.id] = !addsParent[rf.field.id];
+  flipped.pkm.fields.order.subAddsParent = addsParent;
+  /*
+   * **Карту мало поправить — её надо прогнать через миграцию.** Разрешения
+   * дочернего поля живут в конфиге дважды: картой в `order` и свойством на
+   * самом определении поля, и переносит первое во второе `migrateConfig`.
+   * Правка копии **после** миграции до движка не доезжает: первая версия этого
+   * прогона так и сделала, и положительный контроль был зелёным — не от
+   * починки, а от того, что второй конфиг ничем не отличался от первого.
+   * Признак: прогон «родитель наоборот» даёт ровно те же строки, что и
+   * «как у него».
+   */
+  await runRings(configNormalize.migrateConfig(flipped), "родитель наоборот");
 
   /* Запись, которой больше нечего описывать, снимается — иначе список
      перестаёт быть адресом и становится оправданием (У-127). */

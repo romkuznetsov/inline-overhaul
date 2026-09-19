@@ -43,6 +43,12 @@ export interface PluginInternals {
   buildOwnCommandList: (plugin: Any) => Any[];
   /** Обёртка команд навигации и шов подсветки прыжка (Н5). */
   runNavigationGuard: (plugin: Any, moduleKey: string, action: Any, jumpKind?: string) => Promise<Any>;
+  /** Дверь всех команд PKM: и открытие панели, и каждая команда поля. */
+  runPkmRuntime: (plugin: Any, command: string, cfg: Any, extra?: Any) => Promise<Any>;
+  /** Открытая сессия панели или `null` — один ответ на вопрос «панель жива?». */
+  openTagWheelSession: () => Any;
+  /** Закрыть открытую сессию панели; `true`, если было что закрывать. */
+  closeTagWheelSession: () => boolean;
   normalizePkmOrder: (raw: Any) => Any;
   ensureBehaviorModesFromOrder: (cfg: Any) => void;
   DEFAULT_CONFIG: Any;
@@ -240,6 +246,14 @@ export function loadPluginInternals(): PluginInternals {
        прыжка живёт именно там (Н5). Модуль требует `obsidian`, и взять его
        напрямую из проверки нельзя. */
     runNavigationGuard: commands.runNavigationGuard,
+    /* Дверь всех команд PKM. Через неё проходит и открытие панели, и каждая
+       команда поля, поэтому правило «пока панель открыта, строкой распоряжается
+       она» стоит именно здесь. Стенд `tools/line_bench.js` её не проходит: он
+       зовёт движок напрямую, и проверить правило может только тот, кто идёт
+       дорогой плагина (У-56). */
+    runPkmRuntime: commands.runPkmRuntime,
+    openTagWheelSession: commands.openTagWheelSession,
+    closeTagWheelSession: commands.closeTagWheelSession,
   } as PluginInternals;
   /* И модули подмешались: `migrateConfig` живёт теперь в одном из них, и его
      отсутствие означает, что переезд оборвал цепочку. */

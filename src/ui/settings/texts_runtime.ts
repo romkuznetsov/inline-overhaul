@@ -87,6 +87,9 @@ export const RUNTIME_TEXTS: Readonly<Record<string, Readonly<Record<string, stri
   pkm: {
     "module-off": "Tags & PKM is switched off",
     "no-editor": "Open a note first",
+    /* Пока сессия панели открыта, строкой распоряжается она: её вид лежит в
+       самом документе, и команда правила бы картинку, а не строку человека. */
+    "tagwheel-open": "TagWheel is open on this line: finish it with Enter or close it with Escape first",
     error: "Tags & PKM error: {0}",
   },
 

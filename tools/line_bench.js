@@ -323,6 +323,56 @@ async function openSession(cfg, side, line, ch) {
   return out;
 }
 
+/**
+ * Команда поля, вызванная **при открытой панели**.
+ *
+ * **Зачем отдельно.** Его замечание 2026-09-20: «при активации field-sub
+ * previous в строке у меня не меняется sub на предыдущий, вместо этого курсор
+ * прыгает вниз и возникает странный артефакт — визуально у меня на странице
+ * несколько кареток курсора». Панель перехватывает свои клавиши, но хоткей
+ * команды в её раскладке не значится — значит команда выполняется, и
+ * выполняется она **поверх вида панели**, который в этот момент лежит в самом
+ * документе. Ни один прежний стенд этой пары не проходил: один гоняет команду
+ * на чистой строке, другой — панель без команд.
+ *
+ * Отдаётся строка после команды, состояние панели и то, что сказал плагин.
+ */
+async function commandWithPanelOpen(cfg, side, line, ch, commandId) {
+  const open = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
+  const def = findDef(cfg, commandId);
+  const editor = makeEditor(line, ch);
+  const said = [];
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  global.window = makeWindowMock();
+  global.Notice = function Notice(m) { said.push(String(m)); };
+  const app = makeApp(editor);
+  const out = { opened: false, panelLine: "", afterCommand: "", stillOpen: false, said };
+  try {
+    await runtime.runCommand({
+      app, command: "tagWheel",
+      settings: Object.assign(paneSettings(cfg), open.makeSettings(cfg)),
+    });
+    const st = global.window.__tagWheelState;
+    out.opened = !!(st && st.active === true);
+    out.panelLine = editor.getLine();
+    await runtime.runCommand({
+      app, command: def.v2Command,
+      settings: Object.assign(paneSettings(cfg), def.makeSettings(cfg)),
+    });
+    out.afterCommand = editor.getLine();
+    out.cursor = editor.getCursor().ch;
+    const now = global.window.__tagWheelState;
+    out.stillOpen = !!(now && now.active === true);
+    if (now && typeof now.cancel === "function") now.cancel();
+    out.afterCancel = editor.getLine();
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  return out;
+}
+
 async function runTagWheel(cfg, side, line, ch, keys) {
   const def = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
   const editor = makeEditor(line, ch);
@@ -396,6 +446,19 @@ async function main() {
     if (out.said.length) console.log("  сказал    : " + JSON.stringify(out.said));
     return;
   }
+  if (mode === "panelcmd") {
+    const [side, line, id] = rest;
+    const out = await commandWithPanelOpen(cfg, side, line || "", String(line || "").length, id);
+    console.log("команда " + JSON.stringify(id) + " при открытой панели " + (side || "left"));
+    console.log("  открылась   : " + out.opened);
+    console.log("  вид панели  : " + JSON.stringify(out.panelLine));
+    console.log("  после команды: " + JSON.stringify(out.afterCommand));
+    console.log("  курсор      : " + out.cursor);
+    console.log("  панель жива : " + out.stillOpen);
+    console.log("  после Esc   : " + JSON.stringify(out.afterCancel));
+    if (out.said.length) console.log("  сказал      : " + JSON.stringify(out.said));
+    return;
+  }
   if (mode === "ring") {
     const [side, line, fieldId, key, limit] = rest;
     const out = await valueWalk(cfg, side, line || "", 0, fieldId, key, limit);
@@ -418,7 +481,7 @@ async function main() {
 
 /* Стенд — и команда, и модуль: обход всех Fields разом собирается поверх него
    (`tools/line_matrix.js`), и своей копии дороги настроек у обхода нет. */
-module.exports = { loadCfg, defsFor, findDef, fieldCommandId, fieldKeysBySide, runCommandById, runTagWheel, openSession, fieldWalk, valueWalk, makeEditor, DATA, VAULT };
+module.exports = { loadCfg, defsFor, findDef, fieldCommandId, fieldKeysBySide, runCommandById, runTagWheel, openSession, fieldWalk, valueWalk, commandWithPanelOpen, makeEditor, DATA, VAULT };
 
 if (require.main === module) {
   main().catch((e) => {
