@@ -1397,12 +1397,15 @@ function getProjectValues(rules, state) {
 /**
  * Значения поля, которые панель сейчас предлагает.
  *
- * `opts.ignoreParent` снимает **только** отбор по значению родителя, и
- * нужен он одному звавшему — узнаванию значений на строке (В-137). Значение
- * дочернего поля человек мог написать руками или получить прежней версией
- * плагина, и родителя рядом может не быть вовсе; не узнать его значит
- * потерять написанное. Годится ли узнанное при нынешнем родителе — вопрос
- * второй, и отвечает на него `sanitizeState`.
+ * `opts.ignoreParent` снимает **только** отбор по значению родителя. Звавших
+ * у него два, и вопрос у обоих один — «это значение родителя несёт сведения?».
+ * Первый — узнавание значений на строке (В-137): значение дочернего поля
+ * человек мог написать руками или получить прежней версией плагина, и родителя
+ * рядом может не быть вовсе; не узнать его значит потерять написанное. Годится
+ * ли узнанное при нынешнем родителе — вопрос второй, и отвечает на него
+ * `sanitizeState`. Второй — прокрутка дочернего поля при `Add the parent
+ * Value`: там родителя дописали мы сами, и отбирать по нему значит отбирать по
+ * собственному ответу (`parentValueEchoesChildValue` в помощниках правил).
  */
 function getAllowedValues(mode, state, field, rules, opts) {
   var ignoreParent = !!(opts && opts.ignoreParent)
@@ -2026,7 +2029,26 @@ function cycleValue(rules, state, direction) {
     return
   }
 
-  var values = getAllowedValues(fieldMode, state, field, rules)
+  /*
+   * **Родитель, которого дописали мы, круг дочернего поля не сужает** (его
+   * замечание 2026-09-19: «в tagwheel в sub-field есть только значение
+   * `#new`»). При `Add the parent Value` первое же нажатие клало родителя на
+   * строку, второе считало его выбором человека и отбирало по нему — в круге
+   * оставалось одно значение. Ответ на «наш ли это родитель» объявлен один раз,
+   * в помощниках правил: у команды тот же вопрос и тот же ответ.
+   */
+  var parentKeyCycle = String(field.dependsOn || '')
+  var parentIsOurs = false
+  if (parentKeyCycle) {
+    parentIsOurs = __rulesRuntimeHelpers.parentValueEchoesChildValue(
+      getFieldById(fieldMode, parentKeyCycle),
+      field,
+      state.selected[parentKeyCycle] || '',
+      findValueById(Array.isArray(field.values) ? field.values : [], state.selected[field.id] || '')
+    )
+  }
+
+  var values = getAllowedValues(fieldMode, state, field, rules, parentIsOurs ? { ignoreParent: true } : null)
   if (!values.length) return
 
   var currentId = state.selected[field.id] || ''
@@ -2050,15 +2072,18 @@ function cycleValue(rules, state, direction) {
    * раз в помощниках правил: разойтись двум дорогам тут уже стоило заказчику
    * дописанного значения (10.13.214).
    */
-  if (field.freeOfParent === true && field.addsParentValue === true && field.dependsOn && nextId) {
-    var parentKeyAdd = String(field.dependsOn || '')
-    if (!(state.selected[parentKeyAdd] || '')) {
-      var parentFieldAdd = getFieldById(fieldMode, parentKeyAdd)
-      var childValueAdd = findValueById(values, nextId)
-      var parentIdAdd = parentFieldAdd
+  if (field.freeOfParent === true && field.addsParentValue === true && parentKeyCycle) {
+    if (parentIsOurs || !(state.selected[parentKeyCycle] || '')) {
+      var parentFieldAdd = getFieldById(fieldMode, parentKeyCycle)
+      var childValueAdd = nextId ? findValueById(values, nextId) : null
+      var parentIdAdd = parentFieldAdd && childValueAdd
         ? String(__rulesRuntimeHelpers.parentValueIdForChildValue(parentFieldAdd, childValueAdd) || '')
         : ''
-      if (parentIdAdd) state.selected[parentKeyAdd] = parentIdAdd
+      if (parentIdAdd) state.selected[parentKeyCycle] = parentIdAdd
+      /* Пустое место круга — часть круга (10.13.215), и родитель, дописанный
+         нами, уходит вместе со значением: иначе строка не возвращается к тому,
+         что на ней написал человек, и следующее нажатие отбирает по остатку. */
+      else if (parentIsOurs) state.selected[parentKeyCycle] = ''
     }
   }
 

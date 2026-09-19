@@ -1319,7 +1319,21 @@ module.exports = {
         const parentPanel = panelForTagKey(orderCfg, parentInfo.parentOrderKey);
         const parentMap = fieldTokenMap(parentField, rules, state, core);
         const subPanel = panelForTagKey(orderCfg, actionFieldKey);
-        const subMap = fieldTokenMap(targetField, rules, state, core);
+        /*
+         * **Карта «какие токены принадлежат этому полю» родителя не
+         * спрашивает — когда поле работает без родителя.** Карта отвечает на
+         * вопрос о принадлежности, а не о допустимости (У-177), и собранная
+         * при прежнем родителе она знала одно значение из трёх: перекладывание
+         * не находило долистанного токена на строке и дописывало его вторым
+         * разом — `- #home #med #med`. У режима `After parent` вопрос прежний:
+         * там значение чужого родителя на строке полю и не принадлежит.
+         */
+        const subMapState = targetField.freeOfParent === true
+          ? Object.assign({}, state, {
+            selected: Object.assign({}, state.selected || {}, { [parentField.id]: "" }),
+          })
+          : state;
+        const subMap = fieldTokenMap(targetField, rules, subMapState, core);
         hydrateCombinedPairFromLine(state, rawLine, rules, parentPanel, parentField, targetField);
         if (!state.selected[parentField.id]) {
           hydrateFieldFromLine(state, rawLine, rules, parentPanel, parentField.id, parentMap);
@@ -1337,7 +1351,18 @@ module.exports = {
          * список дочерних значений: `getAllowedSubValues` без родителя не
          * отбирает и отдаёт их по `order` — той же чередой, что и панель.
          */
-        const freeOfParent = targetField.freeOfParent === true && !parentId;
+        /*
+         * **Родителя, которого дописали мы, за выбор человека не считаем.**
+         * При `Add the parent Value` он лежит на строке со второго нажатия, и
+         * прежнее `&& !parentId` схлопывало круг дочернего поля в одно
+         * значение (его замечание 2026-09-19). Ответ объявлен один раз, в
+         * помощниках правил, — панель спрашивает его же.
+         */
+        const parentIsOurs = rulesHelpers.parentValueEchoesChildValue(
+          parentField, targetField, parentId,
+          findValueById(targetField, state.selected[targetField.id] || ""),
+        );
+        const freeOfParent = targetField.freeOfParent === true && (!parentId || parentIsOurs);
         let allowedSubs;
         if (freeOfParent) {
           allowedSubs = getAllowedSubValues(targetField, "");
@@ -1355,12 +1380,30 @@ module.exports = {
         if (!allowedSubs.length) return;
         const currentSubId = state.selected[targetField.id] || "";
         const nextSubId = nextCycleIdByDirection(allowedSubs, currentSubId, direction);
-        if (freeOfParent && targetField.addsParentValue === true && nextSubId) {
+        const parentBefore = parentId;
+        if (freeOfParent && targetField.addsParentValue === true) {
           /* Родителя дописываем тому значению, которое человек долистал, —
-             ответ на «чей это ребёнок» объявлен один раз, в помощниках. */
-          parentId = String(rulesHelpers.parentValueIdForChildValue(
-            parentField, findValueById(targetField, nextSubId),
-          ) || "");
+             ответ на «чей это ребёнок» объявлен один раз, в помощниках. Пустое
+             место круга — часть круга (10.13.215), и наш родитель уходит со
+             строки вместе со значением. */
+          parentId = nextSubId
+            ? String(rulesHelpers.parentValueIdForChildValue(
+              parentField, findValueById(targetField, nextSubId),
+            ) || "")
+            : (parentIsOurs ? "" : parentId);
+        }
+        /*
+         * **Со значением уходит и его знак задачи.** Знак, который ставит
+         * значение родителя, принадлежит родителю, а не дочернему полю: когда
+         * круг дошёл до пустого места и наш родитель ушёл со строки, снимать
+         * знак надо тем же механизмом, что и у любого другого поля, — для
+         * этого спрашиваемым полем становится родитель. Без этого строка
+         * возвращалась к человеку с чужим знаком: `- [b] text` вместо
+         * `- [ ] text`.
+         */
+        if (parentBefore && !parentId) {
+          targetFieldForPrefix = parentField;
+          targetSelectionClearedByAction = true;
         }
         state.selected[parentField.id] = parentId;
         state.selected[targetField.id] = nextSubId;

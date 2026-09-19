@@ -154,6 +154,32 @@ function parentValueIdForChildValue(parentField, childValue) {
   return "";
 }
 
+/**
+ * Родитель на строке — наше эхо дочернего значения, а не выбор человека.
+ *
+ * **Зачем спрашивать.** При `Show always` + `Add the parent Value` родителя на
+ * строку пишем мы сами, следом за долистанным дочерним значением. На следующем
+ * нажатии он уже лежит на строке, и обе дороги считали его выбором человека и
+ * отбирали по нему — круг дочернего поля схлопывался в одно значение (его
+ * замечание 2026-09-19: «в tagwheel в sub-field есть только значение `#new`»).
+ * Значение, выведенное из выбранного ребёнка, сведений не несёт: спрашивать
+ * надо, совпадает ли оно с тем, что мы бы **сами** и дописали.
+ *
+ * Выбор человека при этом остаётся сильнее: пока дочернего значения нет,
+ * родитель принадлежит ему и отбирает по-прежнему.
+ *
+ * Объявление одно на обе дороги (У-122): панель зовёт его из `cycleValue`,
+ * команда — из разбора действия `_sub`.
+ */
+function parentValueEchoesChildValue(parentField, childField, parentValueId, childValue) {
+  if (!childField || typeof childField !== "object") return false;
+  if (childField.freeOfParent !== true || childField.addsParentValue !== true) return false;
+  const parentId = String(parentValueId || "").trim();
+  if (!parentId) return false;
+  if (!childValue || typeof childValue !== "object") return false;
+  return parentValueIdForChildValue(parentField, childValue) === parentId;
+}
+
 /*
  * **Чтения служебного файла правил здесь больше нет** (PRD 10.13.52, П-8, шаг
  * третий, 2026-09-13). Сняты три объявления: перебор кандидатов пути
@@ -1567,4 +1593,5 @@ module.exports = {
   isSourceDrivenField,
   isFieldPrerequisiteMet,
   parentValueIdForChildValue,
+  parentValueEchoesChildValue,
 };

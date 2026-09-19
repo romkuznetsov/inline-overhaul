@@ -4060,6 +4060,89 @@ async function testSubFieldWithoutParentCanBringItsParent() {
     "и родитель, которому это значение принадлежит, дописан вторым контролом, вышло: " + line);
 }
 
+/*
+ * **Дописанный нами родитель круг не сужает** (его замечание 2026-09-19: «в
+ * tagwheel в sub-field есть только значение `#new`»).
+ *
+ * Проверка выше нажимала **один** раз, и этого хватало, чтобы дефект не
+ * показался: он живёт со второго нажатия (У-104). Родителя на строку пишем мы
+ * сами, следом за долистанным значением, а на следующем нажатии обе дороги
+ * считали его выбором человека и отбирали по нему — в круге оставалось одно
+ * значение, и строка мигала между ним и родителем без ребёнка.
+ *
+ * Здесь круг проходится целиком: два значения разных родителей и пустое место.
+ * Мутаций, каждая краснит своё утверждение:
+ *
+ *  - вернуть `&& !parentId` в `freeOfParent` (`status_tags.js`) — второе
+ *    нажатие даёт пустую строку вместо `#area-beta-child`;
+ *  - собрать `subMap` при нынешнем родителе (то есть убрать `subMapState`) —
+ *    второе нажатие печатает `#area-beta-child` дважды;
+ *  - не чистить родителя при пустом значении — третье нажатие оставляет
+ *    `#area-beta` на строке, и она не возвращается к написанному человеком.
+ */
+async function testSubFieldWithParentCyclesEveryValue() {
+  const rulesJson = rulesWithFreeChild({ freeOfParent: true, addsParent: true });
+  const settings = () => subCommandSettings(rulesJson, {
+    subWithoutParent: { category_sub: true },
+    subAddsParent: { category_sub: true },
+  });
+  const countOf = (line, token) => (String(line).match(
+    new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![-\\w])", "g"),
+  ) || []).length;
+  const editor = makeEditor("- [ ] text", 6);
+
+  await runPkmCommandWithEditor("statusTags", editor, settings());
+  const first = editor.snapshot().line;
+  assertEq(countOf(first, "#area-alpha-child"), 1,
+    "первое нажатие: одно значение первого родителя, вышло: " + first);
+
+  await runPkmCommandWithEditor("statusTags", editor, settings());
+  const second = editor.snapshot().line;
+  assertEq(countOf(second, "#area-beta-child"), 1,
+    "второе нажатие: круг идёт дальше, к ребёнку ДРУГОГО родителя, и печатается он\n"
+    + "  один раз; вышло: " + second);
+  assertEq(countOf(second, "#area-beta"), 1,
+    "и родитель сменился вместе со значением, вышло: " + second);
+  assertEq(countOf(second, "#area-alpha"), 0,
+    "прежний родитель со строки ушёл, вышло: " + second);
+
+  await runPkmCommandWithEditor("statusTags", editor, settings());
+  const third = editor.snapshot().line;
+  /*
+   * Знак задачи обратно не возвращается, и это **прежнее** правило дома, а не
+   * следствие правки: у обычного поля команда на пустом месте круга даёт ровно
+   * то же — измерено тем же прогоном на родителе `category` (`- [ ] text` →
+   * `- [a] …` → … → `- text`). Ждать здесь `- [ ] text` значило бы требовать
+   * от дочернего поля того, чего не делает ни одно другое.
+   */
+  assertEq(third, "- text",
+    "пустое место круга — часть круга: со строки ушли и значение, и дописанный\n"
+    + "  нами родитель, и знак задачи, который этому родителю принадлежал; вышло: " + third);
+  assertEq(countOf(third, "#area-beta"), 0,
+    "родителя на строке не осталось: иначе следующее нажатие отберёт по остатку");
+}
+
+/*
+ * **Выбор человека сильнее нашего вывода.** Пока значения у дочернего поля
+ * нет, родитель на строке принадлежит человеку, и отбор по нему остаётся: это
+ * прежнее решение заказчика (10.13.215), и разрешение `Show always` его не
+ * отменяет. Мутация: считать своим любого родителя — первое нажатие выдаст
+ * `#area-alpha-child`, ребёнка чужого родителя.
+ */
+async function testHumanChosenParentStillNarrowsTheRing() {
+  const rulesJson = rulesWithFreeChild({ freeOfParent: true, addsParent: true });
+  const editor = makeEditor("- [ ] #area-beta text", 6);
+  await runPkmCommandWithEditor("statusTags", editor, subCommandSettings(rulesJson, {
+    subWithoutParent: { category_sub: true },
+    subAddsParent: { category_sub: true },
+  }));
+  const line = editor.snapshot().line;
+  assertTrue(/#area-beta-child/.test(line),
+    "родителя выбрал человек — первым идёт ЕГО ребёнок, вышло: " + line);
+  assertTrue(!/#area-alpha-child/.test(line),
+    "и ребёнок другого родителя не подставляется, вышло: " + line);
+}
+
 async function run() {
   await testOrderKeyNormalizerComesFromTheHome();
   await testEmptyTextSlotKeepsCursorInsideIt();
@@ -4163,6 +4246,8 @@ async function run() {
   await testSubFieldWithoutParentStaysSilentByDefault();
   await testSubFieldWithoutParentCyclesEveryValue();
   await testSubFieldWithoutParentCanBringItsParent();
+  await testSubFieldWithParentCyclesEveryValue();
+  await testHumanChosenParentStillNarrowsTheRing();
   await testFailedNoticeReachesTheConsole();
   await testStatusDateMovesForeignValueToItsBlock();
   await testStatusImportanceMinimalNoSeparatorUsesOwnSeparator();

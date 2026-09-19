@@ -726,6 +726,73 @@ async function main() {
     }
   }
 
+  /*
+   * **Третья половина обхода: круг дочернего поля, работающего без родителя.**
+   *
+   * Обход выше нажимает **один** раз, и этого не хватает: его замечание
+   * 2026-09-19 («в tagwheel в sub-field есть только значение `#new`») жило со
+   * **второго** нажатия — родителя дописывали мы сами, а дальше считали его
+   * выбором человека и отбирали по нему. Одно нажатие такого не показывает
+   * никогда (У-104, У-185).
+   *
+   * Свойство здесь своё, и ни одной дороге оно не принадлежит: **круг обязан
+   * показать все значения поля и замкнуться**. Сверкой двух дорог это не
+   * ловится — сломанные одинаково, они сходятся (У-194).
+   *
+   * Спрашивается только у полей с разрешением `Show always`: у остальных круг
+   * — дети нынешнего родителя, и их число со строки не выводится.
+   */
+  const ringFields = [];
+  for (const mode of [rules.leftMode, rules.rightMode]) {
+    const list = mode && Array.isArray(mode.fields) ? mode.fields : [];
+    for (const f of list) {
+      if (!f || !f.dependsOn || f.freeOfParent !== true) continue;
+      const id = bench.fieldCommandId(cfg, String(f.id || ""), "next");
+      if (!subIds.includes(id)) continue;
+      const vals = (Array.isArray(f.values) ? f.values : [])
+        .filter((v) => v && typeof v.token === "string" && v.token && v.active !== false);
+      if (vals.length) ringFields.push({ id, field: f, vals });
+    }
+  }
+  const bareTokens = (line) => String(line || "").trim().split(/\s+/)
+    .filter(Boolean)
+    .map((t) => t.replace(/^[^\wА-Яа-я[]+/, ""));
+  let ringBad = 0;
+  let ringChecked = 0;
+  for (const rf of ringFields) {
+    for (const c of CASES) {
+      ringChecked++;
+      let line = c.line;
+      const walk = [];
+      const distinct = new Set();
+      let doubled = "";
+      for (let i = 0; i < rf.vals.length + 2; i++) {
+        const r = await bench.runCommandById(cfg, rf.id, line, Math.min(c.ch, line.length));
+        line = r && r.line != null ? r.line : line;
+        walk.push(line);
+        distinct.add(line);
+        const bare = bareTokens(line);
+        for (const v of rf.vals) {
+          if (bare.filter((t) => t === v.token.replace(/^[^\wА-Яа-я[]+/, "")).length > 1) doubled = v.token;
+        }
+      }
+      /* Круг замкнулся — значит следующий шаг повторяет уже виденное, а
+         непустых состояний в нём столько, сколько у поля значений, плюс пустое
+         место. Меньше — круг схлопнулся; в этом и было замечание. */
+      const closed = distinct.size <= rf.vals.length + 1;
+      const full = distinct.size >= rf.vals.length + 1 || walk.every((l) => l === c.line);
+      const ok = closed && full && !doubled;
+      if (ok && !SHOW_ALL) continue;
+      if (!ok) ringBad++;
+      console.log((ok ? "ok  " : "РАЗОШЛОСЬ ") + rf.id + ", круг на строке " + c.name);
+      console.log("    прошли  : " + JSON.stringify(walk));
+      if (doubled) console.log("    значение напечатано дважды: " + doubled);
+      if (!full) console.log("    круг короче списка: состояний " + distinct.size
+        + ", значений у поля " + rf.vals.length);
+      if (!closed) console.log("    круг не замкнулся: состояний " + distinct.size);
+    }
+  }
+
   /* Запись, которой больше нечего описывать, снимается — иначе список
      перестаёт быть адресом и становится оправданием (У-127). */
   const stale = KNOWN.filter((k) => k.seen === 0);
@@ -741,7 +808,11 @@ async function main() {
   console.log("команд дочерних полей " + subIds.length
     + " × " + CASES.length + " строк, расходится " + subBad
     + (subIds.length ? "" : "   <-- в конфиге нет ни одной, обходу нечего гонять"));
-  if (bad || subBad) process.exitCode = 1;
+  /* Ноль кругов — «мерить нечем», а не «всё хорошо» (У-88): у полей без
+     разрешения `Show always` круг со строки не выводится, и это надо видеть. */
+  console.log("кругов дочерних полей " + ringChecked + ", расходится " + ringBad
+    + (ringFields.length ? "" : "   <-- ни у одного дочернего поля нет `Show always`"));
+  if (bad || subBad || ringBad) process.exitCode = 1;
 }
 
 main().catch((e) => {

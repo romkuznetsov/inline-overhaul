@@ -32,12 +32,13 @@
 14. **A wiki link in the `Inline appearance` preview follows the Block text size**, as everything else in that preview already did.
 15. **This file reads as a numbered list**, one line per change, so you can see at a glance how many things a release touched.
 16. The plugin author is `Roman Kuznetsov`.
+17. **A child Field set to `Show always` with `Add the parent Value` now cycles through every one of its Values.** The parent the plugin writes for you is no longer read back as your own pick, so the ring no longer collapses to the first Value; the parent follows the Value you land on and leaves the line with it. A parent you put there yourself still narrows the ring, as before.
 
 ### Internal
 
-17. **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
+18. **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
 
-18. **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
+19. **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
 
 ## 0.3.2
 

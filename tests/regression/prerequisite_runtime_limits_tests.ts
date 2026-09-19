@@ -833,4 +833,73 @@ function panel(rules: Any, panelName: "left" | "right", selected: Any): { seq: s
   ok("дочернее поле без родителя: панель дописывает родителя только по просьбе");
 }
 
+{
+  /*
+   * **Круг дочернего поля проходится целиком, и дописанный нами родитель его
+   * не сужает** (его замечание 2026-09-19: «в tagwheel в sub-field есть
+   * только значение `#new`»).
+   *
+   * Проверка выше нажимала **один** раз — и дефект за этим не виден (У-104):
+   * он живёт со второго нажатия. Родителя панель пишет сама, следом за
+   * выбранным значением, а на следующем нажатии считала его выбором человека
+   * и отбирала по нему: в круге оставалось одно значение.
+   *
+   * Мутации: снять `parentIsOurs` в `cycleValue` — второе нажатие даёт пустое
+   * значение вместо второго; не чистить родителя при пустом значении —
+   * краснеет последнее утверждение.
+   */
+  const ring = build({ where: "left", dependsOn: "status", freeOfParent: true, addsParent: true });
+  const parent = (ring.mode.fields as Any[]).find((f: Any) => String(f && f.id) === "status");
+  parent.values = [
+    { id: "#work", token: "#work", allowedParentValues: null },
+    { id: "#home", token: "#home", allowedParentValues: null },
+  ];
+  ring.field.values = [
+    { id: "", token: "", allowedParentValues: null },
+    { id: "#a", token: "#a", allowedParentValues: ["#work"] },
+    { id: "#b", token: "#b", allowedParentValues: ["#home"] },
+  ];
+  const state: Any = { mode: "left", activeField: 1, selected: { status: "", second: "" } };
+  const step = (): string[] => {
+    core.cycleValue(ring.rules, state, 1);
+    core.sanitizeState(ring.rules, state);
+    return [String(state.selected.second || ""), String(state.selected.status || "")];
+  };
+
+  assert.deepEqual(step(), ["#a", "#work"], "первое нажатие: первое значение и его родитель");
+  assert.deepEqual(step(), ["#b", "#home"],
+    "второе нажатие: круг идёт к ребёнку ДРУГОГО родителя, и родитель едет за ним");
+  assert.deepEqual(step(), ["", ""],
+    "пустое место круга — часть круга, и родитель, дописанный нами, уходит вместе со значением");
+  assert.deepEqual(step(), ["#a", "#work"], "круг замкнулся");
+  ok("дочернее поле без родителя: панель листает весь круг, родитель едет за значением");
+}
+
+{
+  /*
+   * **Выбор человека сильнее нашего вывода.** Пока значения у дочернего поля
+   * нет, родитель на строке принадлежит человеку, и отбор по нему остаётся —
+   * это прежнее решение заказчика (10.13.215), и разрешение `Show always` его
+   * не отменяет. Положительный контроль здесь — первый шаг: без него
+   * утверждение «выбран `#b`» выполнялось бы и у поля, которое ничего не
+   * отбирает.
+   */
+  const kept = build({ where: "left", dependsOn: "status", freeOfParent: true, addsParent: true });
+  const parent = (kept.mode.fields as Any[]).find((f: Any) => String(f && f.id) === "status");
+  parent.values = [
+    { id: "#work", token: "#work", allowedParentValues: null },
+    { id: "#home", token: "#home", allowedParentValues: null },
+  ];
+  kept.field.values = [
+    { id: "", token: "", allowedParentValues: null },
+    { id: "#a", token: "#a", allowedParentValues: ["#work"] },
+    { id: "#b", token: "#b", allowedParentValues: ["#home"] },
+  ];
+  const state: Any = { mode: "left", activeField: 1, selected: { status: "#home", second: "" } };
+  core.cycleValue(kept.rules, state, 1);
+  assert.equal(state.selected.second, "#b", "родителя выбрал человек — первым идёт ЕГО ребёнок");
+  assert.equal(state.selected.status, "#home", "и сам выбор человека на месте");
+  ok("дочернее поле без родителя: выбранный человеком родитель по-прежнему отбирает");
+}
+
 console.log("\n" + passed + " проверок пройдено");

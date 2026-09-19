@@ -227,6 +227,65 @@ async function fieldWalk(cfg, side, line, ch, steps) {
 }
 
 /**
+ * Какие значения панель предлагает у поля — её же нажатиями, по кругу.
+ *
+ * **Зачем отдельно от `fieldWalk`.** Замечание заказчика 2026-09-19 («в
+ * tagwheel в sub-field есть только значение `#new`») — про состав круга, а не
+ * про строку: `Esc` возвращает исходную, и обход, смотрящий на строку, такого
+ * не видит вовсе (тот же класс, что `openSession`). Спрашивается сама сессия
+ * после каждого нажатия, а список значений собирается до первого повтора —
+ * круг замкнулся, значит показано всё.
+ *
+ * Поле ищется **нажатиями вправо**, а не вычислением: порядок панели — это не
+ * порядок Order. Контроль «до поля дошли» отдаётся наружу: пустой `reached`
+ * значит, что меряли не то.
+ */
+async function valueWalk(cfg, side, line, ch, fieldId, key, limit) {
+  const def = findDef(cfg, side === "right" ? "open-tagwheel-right" : "open-tagwheel-left");
+  const editor = makeEditor(line, ch);
+  const prevWindow = global.window;
+  const prevNotice = global.Notice;
+  global.window = makeWindowMock();
+  global.Notice = function Notice() {};
+  const settings = Object.assign(paneSettings(cfg), def.makeSettings(cfg));
+  const want = String(fieldId || "").trim();
+  const press = (k) => global.window.fire("keydown", {
+    key: k, code: k,
+    preventDefault() {}, stopPropagation() {}, stopImmediatePropagation() {},
+  });
+  const out = { opened: false, reached: "", ring: [], fields: [] };
+  try {
+    await runtime.runCommand({ app: makeApp(editor), command: "tagWheel", settings });
+    const st = global.window.__tagWheelState;
+    out.opened = !!(st && st.active === true && st.session);
+    if (!out.opened) return out;
+    const idNow = () => String(st.session.activeFieldId || st.session.activeField || "");
+    out.fields.push(idNow());
+    for (let i = 0; i < 40 && idNow() !== want; i++) {
+      press("ArrowRight");
+      out.fields.push(idNow());
+    }
+    if (idNow() !== want) return out;
+    out.reached = want;
+    const seen = Object.create(null);
+    const stepKey = String(key || "ArrowUp");
+    const max = Math.max(1, Math.trunc(Number(limit || 24)));
+    for (let i = 0; i < max; i++) {
+      press(stepKey);
+      const now = String(st.session.selected ? st.session.selected[want] || "" : "");
+      if (seen[now]) break;
+      seen[now] = true;
+      out.ring.push(now);
+    }
+    if (typeof st.cancel === "function") st.cancel();
+  } finally {
+    global.window = prevWindow;
+    global.Notice = prevNotice;
+  }
+  return out;
+}
+
+/**
  * Открыть панель на готовой строке и спросить, **что она в ней узнала**.
  *
  * Отдельно от `runTagWheel`, потому что вопрос другой. `runTagWheel` спрашивает
@@ -337,6 +396,17 @@ async function main() {
     if (out.said.length) console.log("  сказал    : " + JSON.stringify(out.said));
     return;
   }
+  if (mode === "ring") {
+    const [side, line, fieldId, key, limit] = rest;
+    const out = await valueWalk(cfg, side, line || "", 0, fieldId, key, limit);
+    console.log("круг значений " + JSON.stringify(fieldId) + " в панели " + (side || "left")
+      + " на строке " + JSON.stringify(line || ""));
+    console.log("  открылась : " + out.opened);
+    console.log("  дошли до  : " + JSON.stringify(out.reached));
+    console.log("  поля      : " + JSON.stringify(out.fields));
+    console.log("  круг      : " + JSON.stringify(out.ring));
+    return;
+  }
   if (mode === "panel") {
     const [side, line, ...keys] = rest;
     report("панель " + (side || "left") + ", клавиши " + JSON.stringify(keys),
@@ -348,7 +418,7 @@ async function main() {
 
 /* Стенд — и команда, и модуль: обход всех Fields разом собирается поверх него
    (`tools/line_matrix.js`), и своей копии дороги настроек у обхода нет. */
-module.exports = { loadCfg, defsFor, findDef, fieldCommandId, fieldKeysBySide, runCommandById, runTagWheel, openSession, fieldWalk, makeEditor, DATA, VAULT };
+module.exports = { loadCfg, defsFor, findDef, fieldCommandId, fieldKeysBySide, runCommandById, runTagWheel, openSession, fieldWalk, valueWalk, makeEditor, DATA, VAULT };
 
 if (require.main === module) {
   main().catch((e) => {
