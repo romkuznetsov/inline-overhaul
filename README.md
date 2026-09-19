@@ -233,7 +233,10 @@ rewrites the line you are standing on.
 
 - **Backup**: `Save a backup` writes everything you have set up into an ordinary
   note in your vault. It travels with the vault, so restoring it on another machine is how
-  a setup moves. `Start over` deletes everything and always writes a backup first.
+  a setup moves. `Autosave` keeps a copy of your own accord: at every start of Obsidian the
+  plugin compares your settings file with the last autosave and writes a new one when they
+  differ, so a file arriving from another device has a way back. `Start over` deletes
+  everything and always writes a backup first.
 - **Options IDs**: puts the id of a setting into its tip, which is the fastest way to tell
   us exactly which control you mean.
 

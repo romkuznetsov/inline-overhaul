@@ -28,6 +28,8 @@ const SETTINGS_MARK = "<!-- " + MARKER + ": settings below, do not edit by hand 
 
 /** Заголовок раздела человека и подсказка под ним. */
 const NOTES_HEADING = "# Your notes";
+/* Заголовок раздела «что изменилось» (З-11). Читает его человек, плагин — нет. */
+const CHANGED_HEADING = "# What changed";
 const NOTES_HINT = "Write anything here";
 
 /**
@@ -408,6 +410,94 @@ function backupPath(folder, date, auto) {
     + (auto === true ? AUTO_SUFFIX : "") + ".md";
 }
 
+/**
+ * Приставка автокопии — его слово 2026-09-19 (З-11): «в названии заметки
+ * бэкапа должна быть приставка `_autosave`».
+ *
+ * Своя, а не `AUTO_SUFFIX`: тем помечены копии, снятые **перед** восстановлением
+ * и сбросом, то есть путь назад от действия человека. Автокопия — другое дело,
+ * и различать их надо в имени, потому что имя человек видит в списке
+ * восстановления.
+ */
+const AUTOSAVE_MARK = "_autosave";
+
+function autosavePath(folder, date) {
+  return String(folder || DEFAULT_FOLDER) + "/Settings " + stamp(date)
+    + AUTOSAVE_MARK + ".md";
+}
+
+/** Это автокопия? Спрашивается у имени файла — им же она и помечена. */
+function isAutosavePath(path) {
+  const name = String(path || "").split("/").pop() || "";
+  return name.indexOf(AUTOSAVE_MARK) !== -1 && /\.md$/.test(name);
+}
+
+/**
+ * Какие автокопии снять, чтобы осталось не больше `keep` новых.
+ *
+ * Порядок берётся из **имени**: отметка времени в нём записана от старшего
+ * к младшему (`2026-09-19 23-40-01`), и строковое сравнение таких имён и есть
+ * сравнение времени. Времени файла нарочно не спрашиваем: копирование vault
+ * переносит время источника, и на другой машине порядок оказался бы другим
+ * (тот же У-226, только про сортировку).
+ */
+function pickStaleAutosaves(paths, keep) {
+  const limit = Math.max(1, Math.trunc(Number(keep) || 0));
+  const mine = (Array.isArray(paths) ? paths : []).filter(isAutosavePath).slice().sort();
+  if (mine.length <= limit) return [];
+  return mine.slice(0, mine.length - limit);
+}
+
+/**
+ * Что изменилось — список листьев, у которых значение стало другим.
+ *
+ * **Путями, а не именами контролов**, и это выбор, а не лень: имя контрола
+ * живёт в схеме панели, а копия снимается при загрузке плагина, когда панели
+ * нет вовсе. Путь человек видит в `Advanced → Options IDs`, то есть он ему не
+ * чужой.
+ *
+ * Предел строк нужен затем же, зачем нумерация в рассказе о выпуске: список из
+ * сотни строк человек не читает. Остаток называется числом.
+ */
+function configChangeLines(before, after, limit) {
+  const max = Math.max(1, Math.trunc(Number(limit) || 0));
+  const out = [];
+  const seen = Object.create(null);
+  const show = (v) => {
+    if (v === undefined) return "—";
+    if (v === null) return "null";
+    if (typeof v === "string") return v === "" ? "«»" : v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (Array.isArray(v)) return "list of " + v.length;
+    if (isObj(v)) return "{…}";
+    return String(v);
+  };
+  const leaf = (v) => !isObj(v);
+  const walk = (a, b, path) => {
+    if (leaf(a) || leaf(b)) {
+      const one = JSON.stringify(a === undefined ? null : a);
+      const two = JSON.stringify(b === undefined ? null : b);
+      if (one === two) return;
+      if (seen[path]) return;
+      seen[path] = true;
+      out.push(path + ": " + show(a) + " → " + show(b));
+      return;
+    }
+    const keys = Object.keys(a).concat(Object.keys(b));
+    const done = Object.create(null);
+    for (const key of keys) {
+      if (done[key]) continue;
+      done[key] = true;
+      walk(a[key], b[key], path ? path + "." + key : key);
+    }
+  };
+  walk(isObj(before) ? before : {}, isObj(after) ? after : {}, "");
+  out.sort();
+  if (out.length <= max) return out;
+  const rest = out.length - max;
+  return out.slice(0, max).concat(["and " + rest + " more " + plural(rest, "setting", "settings")]);
+}
+
 /* ---- заметка ----------------------------------------------------------- */
 
 /**
@@ -553,6 +643,10 @@ function buildBackupNote(o) {
   const parts = normalizeParts(opts.parts) || allPartIds();
   const scope = normalizeHotkeyScope(opts.hotkeyScope);
   const comment = normalizeComment(opts.comment);
+  /* Строки «что изменилось»: список, а не текст — каждая станет пунктом. */
+  const details = Array.isArray(opts.details)
+    ? opts.details.map((line) => String(line || "").trim()).filter(Boolean)
+    : [];
   const config = selectParts(opts.config, parts);
   const version = String(opts.pluginVersion || "").trim();
   const when = opts.savedAt instanceof Date ? opts.savedAt : new Date();
@@ -588,6 +682,16 @@ function buildBackupNote(o) {
     NOTES_HINT + ". The plugin never reads this part, so nothing you write here changes what comes back",
     "",
     ...(comment ? [comment, ""] : []),
+    /*
+     * **Раздел «что изменилось» — его слово 2026-09-19 (З-11):** «в бэкапе под
+     * хедером комментария (над json block) должны добавляться детали — что
+     * изменилось». Стоит ровно там, где он сказал: под разделом человека и над
+     * блоком настроек. Пустого раздела не бывает — его отсутствие значит
+     * «сравнивать было не с чем», а не «ничего не менялось».
+     */
+    ...(details.length
+      ? [CHANGED_HEADING, "", ...details.map((line) => "- " + line), ""]
+      : []),
     "# inlineOverhaul settings backup",
     "",
     "Saved on " + readable(when) + (version ? " from plugin version " + version : "") + ".",
@@ -831,6 +935,12 @@ module.exports = {
   backupFolder,
   backupBeforeRestore,
   AUTO_SUFFIX,
+  AUTOSAVE_MARK,
+  CHANGED_HEADING,
+  autosavePath,
+  isAutosavePath,
+  pickStaleAutosaves,
+  configChangeLines,
   stripDeviceLocal,
   keepDeviceLocal,
   summarize,

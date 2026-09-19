@@ -425,6 +425,8 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tags.blockFill.widthPct"),
   /* Сторона полосы (З-12, 2026-09-19): ветка новая, пары в версии 1 нет. */
   keepV2("visual.tags.blockFill.direction"),
+  /* Автокопия настроек (З-11, 2026-09-19): ключ новый, пары в версии 1 нет. */
+  keepV2("advanced.backups.autosave"),
   keepV2("editor.binder.rows", true),
   keepV2("general.help.showTips"),
   /* `Show callouts` (10.13.27): ключа нет в старых файлах, умолчание

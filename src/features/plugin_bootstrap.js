@@ -32,6 +32,7 @@ const __editorStyles = require("../ui/editor/styles.js");
 const __pkmOrderConfig = require("../core/pkm_order_config.js");
 const __pluginCommands = require("./plugin_commands.js");
 const __releaseNotes = require("./release_notes.js");
+const __settingsAutosave = require("./settings_autosave.js");
 const __storeEventsOrchestrator = require("./store_events_orchestrator.js");
 const __sharedUtils = require("../core/shared_utils.js");
 const __sayModule = require("../core/say.js");
@@ -198,6 +199,16 @@ async function load(plugin) {
     Component,
     MarkdownRenderer,
   });
+  /*
+   * Автокопия настроек (З-11, его ответ на `В-147`): стоит после окна «что
+   * изменилось» и до постановки расширений — то есть плагин уже прочитал
+   * конфиг, а рисование ещё не началось и заметка ничего не задерживает.
+   *
+   * Шов к vault собирается здесь: адаптер знает о папке плагина и о файлах,
+   * которых нет в дереве заметок. Отказ громкий в журнал — копия не имеет
+   * права уронить загрузку.
+   */
+  await __settingsAutosave.autosaveOnLoad(plugin, autosaveVaultSeam(plugin));
   __editorStyles.ensureTagwheelFill(plugin);
   __editorStyles.ensureStripLine(plugin);
   __editorStyles.ensureCaret(plugin);
@@ -300,8 +311,60 @@ function disposeSettingTab(plugin) {
   if (tab && typeof tab.disposePane === "function") tab.disposePane();
 }
 
+/**
+ * Шов автокопии к vault (З-11).
+ *
+ * Свой, а не тот, что собирает слой настроек: копия снимается при загрузке,
+ * когда панели ещё нет. Формы вызовов — те же, что у панели, и по той же
+ * причине: `adapter` видит и файлы, которых нет в дереве заметок.
+ */
+function autosaveVaultSeam(plugin) {
+  const app = plugin && plugin.app ? plugin.app : null;
+  if (!app || !app.vault || !app.vault.adapter) return {};
+  const vault = app.vault;
+  const adapter = vault.adapter;
+  return {
+    list: async (folder) => {
+      const path = String(folder || "").replace(/\/+$/, "");
+      if (!path || !(await adapter.exists(path))) return [];
+      const found = await adapter.list(path);
+      return (found && found.files ? found.files : []).map((file) => ({ path: file }));
+    },
+    read: async (path) => await adapter.read(path),
+    create: async (path, text) => { await vault.create(path, text); },
+    ensureFolder: async (folder) => {
+      const path = String(folder || "").replace(/\/+$/, "");
+      if (!path || (await adapter.exists(path))) return;
+      try {
+        await vault.createFolder(path);
+      } catch (e) {
+        /* Папку мог создать кто-то другой между проверкой и созданием: цель
+           достигнута, и это уборка, а не отказ. */
+        if (!(await adapter.exists(path))) throw e;
+      }
+    },
+    remove: async (path) => {
+      const file = vault.getAbstractFileByPath(path);
+      if (file && typeof vault.trash === "function") {
+        /* В корзину, а не насовсем: заметка лежит в vault человека. */
+        await vault.trash(file, true);
+        return;
+      }
+      await adapter.remove(path);
+    },
+    hotkeys: () => {
+      const manager = app.hotkeyManager;
+      /* Проба: у старого Obsidian реестра может не быть, и «нет» — это ответ. */
+      return manager && manager.customKeys ? manager.customKeys : {};
+    },
+  };
+}
+
 module.exports = {
   load,
+  /* Шов автокопии наружу — ради проверки: у него один звавший, и тот в
+     загрузке плагина, до которой из набора не достать (правило 124). */
+  autosaveVaultSeam,
   noticeCommandIdsChanged,
   createSettingTab,
   disposeSettingTab,
