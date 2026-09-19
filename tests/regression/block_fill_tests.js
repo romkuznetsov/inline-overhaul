@@ -1574,6 +1574,21 @@ function rowBoxOf(row) {
   tags = { textSizePctLeft: 60, textSizePctRight: 80, bubbleHeightPct: 40 };
   assertEq(ask(quiet, dom), true, "и высоту пузыря — тоже");
 
+  /*
+   * И сторона (З-12): она решает, какие прямоугольники рисуются вовсе, значит
+   * её правка обязана дойти до слоя. Без этой части подписи `Stripe direction`
+   * доезжал бы до открытой заметки только после её первой правки — ровно тот
+   * дефект, который я и завёл этой работой, и нашёлся он чтением читателей
+   * `look`, а не прогоном.
+   */
+  band = { enabled: true, opacity: 12, heightPct: 100, widthPct: 20, direction: "left" };
+  assertEq(ask(quiet, dom), true, "выбрали сторону — слой перерисовывается");
+  assertEq(ask(quiet, dom), false, "и успокаивается");
+  band = { enabled: true, opacity: 12, heightPct: 100, widthPct: 20, direction: "right" };
+  assertEq(ask(quiet, dom), true, "сменили сторону на другую — тоже");
+  band = { enabled: true, opacity: 12, heightPct: 100, widthPct: 20 };
+  assertEq(ask(quiet, dom), true, "вернули умолчание — и это перерисовка");
+
   /* А густота живёт в стилях, и слою до неё дела нет: перерисовки не будет. */
   band = { enabled: true, opacity: 90, heightPct: 100, widthPct: 20 };
   assertEq(ask(quiet, dom), false,

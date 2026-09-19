@@ -2009,7 +2009,11 @@ function blockFillLayerNeedsRedraw(plugin, update, dom) {
    */
   const v = getTagVisualsFromConfig(cfg);
   const sig = look.enabled
-    ? [look.heightPct, look.widthPct,
+    /* Сторона (З-12) стоит в подписи по той же причине, что и остальные: без
+       неё смена `Stripe direction` доезжала бы до открытой заметки только
+       после её первой правки (У-56). Цвет и густота сюда не входят — они
+       приезжают переменными CSS и слоя не касаются. */
+    ? [look.heightPct, look.widthPct, look.direction,
        v.tagTextSizeLeftPct, v.tagTextSizeRightPct, v.tagBubbleHeightPct].join(":")
     : "off";
   const flipped = dom.__ioBlockFillSig !== sig;
