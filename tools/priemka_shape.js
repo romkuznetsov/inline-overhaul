@@ -32,8 +32,14 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_SHEET = path.resolve(ROOT, "..", "test-vault", "Приёмка.md");
 
-/** Заголовок служебного раздела: ниже него пункты не ищутся. */
-const SERVICE_HEADING = "# Служебное";
+/**
+ * Служебный раздел: ниже него пункты не ищутся.
+ *
+ * Ищется **слово**, а не заголовок: по его слову 2026-09-20 промпт переехал из
+ * раздела в свёрнутый коллаут (`> [!note]- Служебное …`), и признак, написанный
+ * по `#`, потерял бы предмет молча (У-94).
+ */
+const SERVICE_WORD = "Служебное";
 
 /** Сколько вложенных строк у пункта: «Сделайте», «Должно получиться» и `💬`. */
 const NESTED_PER_ITEM = 3;
@@ -49,7 +55,7 @@ const MY_WORDS = ["причина", "измерен", "потому что", "р
  */
 function itemsOf(text) {
   const src = String(text || "");
-  const cut = src.indexOf(SERVICE_HEADING);
+  const cut = src.indexOf(SERVICE_WORD);
   const body = cut === -1 ? src : src.slice(0, cut);
   const lines = body.split("\n");
   const items = [];
