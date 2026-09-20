@@ -1,5 +1,7 @@
 # inlineOverhaul: Setup and User Guide
 
+Step-by-step instructions for people who have already installed the plugin. New here? Start with the [tutorial](docs/tutorial.md) or the [README](README.md); for the panel control by control, see the [settings reference](docs/settings.md).
+
 inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline notes. It combines line navigation, configurable PKM fields, TagWheel editing, visual token aids, reusable text-insertion commands, and an opt-in inline-to-note transform.
 
 > [!WARNING]
@@ -51,7 +53,7 @@ inlineOverhaul is a desktop-only Obsidian beta plugin for structured inline note
 7. Leave **Transform inline to note** off until its output, naming, template, collision, and source-cleanup settings are reviewed.
 8. Once the setup works, save it: **Advanced → Backup → Save a backup** writes everything you have set up into a note in your vault.
 
-On load, the plugin migrates saved settings and writes a generated rules note used by PKM and inline navigation. That generated rules note is derived output; do not treat it as the editable source of truth.
+On load, the plugin migrates your saved settings to the current form. The rules the PKM engines and inline navigation work from are built from those settings as the plugin loads — there is no rules note in your vault to edit, and an older version that left one behind has it cleaned up on the next load.
 
 ## Settings model
 

@@ -1,15 +1,38 @@
 # Changelog
 
-<!-- Сделанное между выпусками копится здесь; в коммите выпуска раздел
-     переименовывается в номер версии. Правило — docs/dev/VERSIONING.md.
+All notable changes to this project are documented in this file.
 
-     Форма — его слово 2026-09-19: пункт нумерованный, в одну строку и
-     лаконичный. Нумерация нужна, чтобы было видно, сколько пунктов изменилось;
-     одна строка — потому что Obsidian показывает одиночный перенос строки
-     переносом, и свёрстанный абзац приезжает человеку лестницей. Держит форму
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
+versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Release dates are ISO 8601, `YYYY-MM-DD`.
+
+<!-- Сделанное между выпусками копится в `## Unreleased`; в коммите выпуска раздел
+     переименовывается в номер версии, и под заголовок встаёт строка с датой и
+     ссылкой на сравнение. Сборка `## Unreleased` намеренно пропускает: у него нет
+     номера, с которым его можно сравнить.
+
+     ЗАГОЛОВОК ВЕРСИИ — ОДНО СЛОВО, без скобок и без даты в самой строке.
+     `tools/build/gen_release_notes.js` ищет `^##\s+(\S+)\s*$`, и формат Keep a
+     Changelog с датой в заголовке сломал бы сборку.
+
+     Форма пункта — его слово 2026-09-19: нумерованный, в одну строку, лаконичный,
+     нумерация сквозная через все разделы версии. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
+## Unreleased
+
+1. ✨ **New: a tutorial** — [`docs/tutorial.md`](docs/tutorial.md) walks from install to a working line in about fifteen minutes, one path and no choices to make.
+2. ✨ **New: a settings reference** — [`docs/settings.md`](docs/settings.md) lists every control of the panel, tab by tab, in the panel's own order, with the value each one starts at.
+3. ✨ **New: `CONTRIBUTING.md`, `SECURITY.md`, and issue and pull request templates** — what makes a bug report actionable, and how to report a security problem privately instead of in a public issue.
+4. 🎨 **The README is a landing page.** The wordmark, four badges and a recording of the plugin at work come before any prose; the tab-by-tab walk through the settings panel it used to carry moved into the settings reference.
+5. 🎨 **`FEATURES.md` reads as a list again**: the opening pitch moved to the README, and what is left is what the plugin does, without adjectives.
+6. 🎨 **This changelog carries the release date** under every version heading, and a link to the full comparison between that release and the one before it.
+7. 🐛 **The command id map is in English**, and it no longer says these commands dropped the area from their names: since `0.5.0` they carry it again, and the map said the opposite.
+8. 🐛 **The guide no longer promises a rules note in your vault.** The rules the engines work from are built from your settings as the plugin loads, and the note itself was removed several releases ago.
+
 ## 0.5.0
+
+_2026-09-20 · [all changes since 0.4.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.4.0...0.5.0)_
 
 > [!NOTE]
 > A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note, while the cursor and the mouse treat what you see as one piece. Every command now carries the name of its area, so the command reference can hand you over to Obsidian's `Hotkeys` screen with one heading of it filtered in. An unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
@@ -28,6 +51,8 @@
 12. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
 
 ## 0.4.0
+
+_2026-09-20 · [all changes since 0.3.2](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.2...0.4.0)_
 
 > [!NOTE]
 > Five new things in the settings panel — Block text size split per side, `Stripe direction`, a child Field that works without its parent, `Parent Value` and `Autosave` for your settings — and the panel itself laid out in sections. Plus the TagWheel and Block fixes you reported, and a repository root with no plugin file in it.
@@ -65,6 +90,8 @@
 
 ## 0.3.2
 
+_2026-09-18 · [all changes since 0.3.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.1...0.3.2)_
+
 > [!NOTE]
 > A small release about settings that change behind the plugin's back: it re-reads the file, redraws everything and says so. The panel also opens on the tab you left it on, and TagWheel no longer stalls on a very long line.
 
@@ -86,6 +113,8 @@
 
 ## 0.3.1
 
+_2026-09-18 · [all changes since 0.3.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.3.0...0.3.1)_
+
 > [!NOTE]
 > One fix worth a release: a setting changed a moment before Obsidian closes is no longer lost. The rest is guards for exactly the shape that bug had.
 
@@ -100,6 +129,8 @@
 4. 🔧 A robustness probe for lines from the outside world — very long ones, emoji sequences, right-to-left text, a thousand tags: 468 cases, no crashes.
 
 ## 0.3.0
+
+_2026-09-17 · [all changes since 0.2.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.2.0...0.3.0)_
 
 > [!NOTE]
 > The largest release so far: five new things, among them a jump highlight and a link written back into the notes your line mentions, and twenty-five fixes — most of them about what counts as a Field Value and which Block it belongs to.
@@ -149,6 +180,8 @@
 
 ## 0.2.0
 
+_2026-09-16 · [all changes since 0.1.0-beta.6](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.6...0.2.0)_
+
 > [!NOTE]
 > The first release outside the beta line. It carries everything published as `0.1.0-beta.7` plus the work of 2026-09-16; if you ran a beta, install this over it.
 
@@ -179,6 +212,8 @@
 
 ## 0.1.0-beta.6
 
+_2026-09-11 · [all changes since 0.1.0-beta.5](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.5...0.1.0-beta.6)_
+
 > [!NOTE]
 > Almost nothing to see: one list of what the plugin can do, written for people, and a lot of rules that were declared in two or three places at once became one each.
 
@@ -186,6 +221,8 @@
 2. 🔧 Otherwise internal: rules that were declared in two or three places at once became one each, 23 dead declarations went, and every silent failure in the engines either speaks now or says in place why it is silent.
 
 ## 0.1.0-beta.5
+
+_2026-09-10 · [all changes since 0.1.0-beta.4](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.4...0.1.0-beta.5)_
 
 > [!NOTE]
 > The released build had no working commands at all — they are back, and five engines with them. Four more fixes about text the plugin used to eat.
@@ -199,6 +236,8 @@
 7. 🚀 Faster and smaller in places: a dead 2 284-line editor left over from an old panel is gone, and so is the module bridge that read the vault at runtime.
 
 ## 0.1.0-beta.4
+
+_2026-09-06 · [all changes since 0.1.0-beta.3](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.3...0.1.0-beta.4)_
 
 > [!NOTE]
 > The settings panel can speak your language: every visible line lives in a plain text file you copy and edit. Backups got the rest of the attention.
@@ -217,6 +256,8 @@ Known limitations: the Fields editor and its neighbours, the guide note and the 
 
 ## 0.1.0-beta.3
 
+_2026-09-06 · [all changes since 0.1.0-beta.2](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.2...0.1.0-beta.3)_
+
 > [!NOTE]
 > The plugin is now called `inlineOverhaul`, with its id unchanged so your hotkeys keep working. Backups learned to ask what to save and what to restore.
 
@@ -232,6 +273,8 @@ Known limitations: unchanged from 0.1.0-beta.2.
 
 ## 0.1.0-beta.2
 
+_2026-09-06 · [all changes since 0.1.0-beta.1](https://github.com/romkuznetsov/inline-overhaul/compare/0.1.0-beta.1...0.1.0-beta.2)_
+
 > [!NOTE]
 > A release made the way every later one is: cut by tag, built by CI, with all three assets attached.
 
@@ -239,6 +282,8 @@ Known limitations: unchanged from 0.1.0-beta.2.
 2. 🔧 Releases are cut by tag from then on: CI builds from the tagged commit, runs the whole suite and attaches the files.
 
 ## 0.1.0-beta.1
+
+_2026-08-08_
 
 > [!NOTE]
 > The first beta: a BRAT-ready release of the shared PKM, TagWheel and Transform runtime, with Transform off until you ask for it.
