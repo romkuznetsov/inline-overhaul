@@ -29,7 +29,7 @@ import { keepView } from "./keepview.ts";
 import { COMMAND_TEXTS } from "../schema/custom_texts.ts";
 import { commandKey } from "../texts_custom.ts";
 import { sayIn } from "../texts_blocks.ts";
-import { canOpenHotkeys, hotkeyOf, openHotkeys } from "./hotkeys.ts";
+import { canOpenHotkeys, hotkeyOf, openHotkeys, hotkeyQueryFor, pluginScope } from "./hotkeys.ts";
 
 /** Одна команда в том виде, в каком её отдаёт плагин. */
 export interface OwnCommand {
@@ -219,6 +219,28 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
       }));
     }
 
+    /*
+     * Кнопка заголовка: `to hotkeys` (его заказ 2026-09-20, пункт 12.3).
+     *
+     * Ведёт туда же, куда кнопка строки, но с запросом на **все** команды
+     * заголовка. Запрос считается по настоящему списку команд, а не пишется
+     * словами: у человека свои Fields, и общее слово у его заголовка своё.
+     * Уровень задаёт цвет — его слово «для каждого хедера должен отличаться».
+     */
+    const scope = pluginScope(plugin);
+    const jump = (host: El, level: string, title: string, members: readonly OwnCommand[]): void => {
+      if (!members.length) return;
+      const query = hotkeyQueryFor(scope, members, commands);
+      const go = btn(host, "io-tohk io-tohk--" + level, {
+        text: words("TO_HOTKEYS"),
+        label: words("TO_HOTKEYS_LABEL", title, query),
+      });
+      go.disabled = !canOpen;
+      go.addEventListener("click", (() => {
+        if (canOpen) openHotkeys(plugin, query);
+      }) as never);
+    };
+
     COMMAND_TEXTS.forEach((area, areaAt) => {
       const rows: Row[] = [];
       /*
@@ -265,7 +287,10 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
       });
 
       if (!rows.length) return;
-      el(inner, "div", "io-cmd__area", say("area", area.area));
+      const areaTitle = say("area", area.area);
+      const areaRow = el(inner, "div", "io-cmd__area");
+      el(areaRow, "span", undefined, areaTitle);
+      jump(areaRow, "area", areaTitle, rows.map(r => r.cmd));
 
       /*
        * Область делится на две части там, где прототип дал им подписи:
@@ -306,6 +331,9 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
             id: "io-cmd-part-" + (user ? "user" : "standard") + "-" + areaAt + "-tip",
             showTips, showIds,
           }));
+          /* Кнопка идёт последней: `margin-left: auto` уводит вправо и её, и
+             всё, что стоит после неё, — а «?» принадлежит подписи. */
+          jump(sub, "part", text, ordered.filter(r => r.band === band).map(r => r.cmd));
         }
         /*
          * Свой подзаголовок на каждый Field (замечание заказчика 2026-08-31):
@@ -316,7 +344,13 @@ export const commandReference: CustomRender = (host: El, ctx: SettingsCtx) => {
           const heading = fieldHeading(cmd);
           if (heading !== field) {
             field = heading;
-            if (heading) el(inner, "div", "io-cmd__field", heading);
+            if (heading) {
+              const head = el(inner, "div", "io-cmd__field");
+              el(head, "span", undefined, heading);
+              jump(head, "field", heading, ordered
+                .filter(r => r.band === band && fieldHeading(r.cmd) === heading)
+                .map(r => r.cmd));
+            }
           }
         }
         const line = el(inner, "div", "io-cmd__row");

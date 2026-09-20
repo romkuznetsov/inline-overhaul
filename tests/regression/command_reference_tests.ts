@@ -31,6 +31,7 @@ import { makeNode, type StubNode } from "../harness/dom_stub.ts";
 import { setupGlobals } from "../harness/obsidian_stub.ts";
 import { loadPluginInternals } from "../harness/plugin_internals.ts";
 import { commandReference } from "../../src/ui/settings/custom/command_reference.ts";
+import { hotkeyQueryFor, matchesHotkeyQuery } from "../../src/ui/settings/custom/hotkeys.ts";
 import { COMMAND_TEXTS } from "../../src/ui/settings/schema/custom_texts.ts";
 import type { SettingsCtx } from "../../src/ui/settings/types.ts";
 import type { El } from "../../src/ui/settings/custom/dom.ts";
@@ -98,7 +99,7 @@ function emptyConfig(): Any {
 function ownCommands(cfg: Any): Any[] {
   const plugin = {
     app: {},
-    manifest: { id: "inline-overhaul" },
+    manifest: { id: "inline-overhaul", name: "inlineOverhaul" },
     store: { getSnapshot: () => cfg },
     getConfig: () => cfg,
   };
@@ -121,6 +122,8 @@ interface Drawn {
     /** Под каким подзаголовком Field строка стоит. */
     field: string;
   }>;
+  /** Кнопки `to hotkeys` заголовков: уровень, подпись заголовка и сам узел. */
+  jumps: Array<{ level: string; title: string; node?: StubNode }>;
 }
 
 /** Отрисовать справочник на заглушке DOM с заданным менеджером хоткеев. */
@@ -138,7 +141,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
     };
   const plugin: Any = {
     app,
-    manifest: { id: "inline-overhaul" },
+    manifest: { id: "inline-overhaul", name: "inlineOverhaul" },
     getConfig: () => cfg,
     store: { getSnapshot: () => cfg },
     listOwnCommands: () => ownCommands(cfg),
@@ -158,24 +161,37 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   const areas: string[] = [];
   const subs: string[] = [];
   const fields: string[] = [];
+  const jumps: Array<{ level: string; title: string; node?: StubNode }> = [];
   let under = "";
   let field = "";
   const rows: Drawn["rows"] = [];
+  /* Подпись заголовка — его первый `span`: рядом с ней в строке стоят «?» и
+     кнопка `to hotkeys`, и `textContent` строки склеивал бы их вместе. */
+  const title = (node: StubNode): string => {
+    const span = node.children.find(n => String((n as Any).tagName || "") === "SPAN");
+    return String((span || node).textContent || "").trim();
+  };
+  /* Кнопка `to hotkeys` заголовка, если она есть. */
+  const jumpOf = (node: StubNode): StubNode | undefined =>
+    node.children.find(n => String((n as Any).className || "").includes("io-tohk"));
   const walk = (node: StubNode): void => {
     const cls = String((node as Any).className || "");
     if (cls.includes("io-cmd__area")) {
-      areas.push(String(node.textContent || "").trim());
+      areas.push(title(node));
+      jumps.push({ level: "area", title: title(node), node: jumpOf(node) });
       under = "";
       field = "";
     }
     if (cls.includes("io-cmd__sub")) {
-      under = String(node.textContent || "").trim();
+      under = title(node);
       subs.push(under);
+      jumps.push({ level: "part", title: under, node: jumpOf(node) });
       field = "";
     }
     if (cls.includes("io-cmd__field")) {
-      field = String(node.textContent || "").trim();
+      field = title(node);
       fields.push(field);
+      jumps.push({ level: "field", title: field, node: jumpOf(node) });
     }
     if (cls.includes("io-cmd__row")) {
       const cells = node.children;
@@ -195,7 +211,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   };
   walk(host);
 
-  return { host, close, opened, areas, subs, fields, rows };
+  return { host, close, opened, areas, subs, fields, rows, jumps };
 }
 
 /* ---- К-1: в таблице ровно то, что плагин регистрирует -------------------- */
@@ -363,7 +379,7 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
     platform: {
       plugin: {
         app: { hotkeyManager: { customKeys: {}, getHotkeys: () => [] } },
-        manifest: { id: "inline-overhaul" },
+        manifest: { id: "inline-overhaul", name: "inlineOverhaul" },
         getConfig: () => cfg,
         listOwnCommands: () => without,
       },
@@ -710,6 +726,159 @@ function draw(cfg: Any, o?: { hotkeys?: Record<string, Any>; noPrivateApi?: bool
   assert.equal(readShare(pluginCss, "io-cmd__field"), readShare(protoCss, "io-cmd__field"),
     "панель и прототип красят Field одинаково");
   ok("три ступени заливки рубрикаторов, и панель с прототипом согласны");
+}
+
+/* ======================================================================
+ * Кнопка `to hotkeys` в заголовке любого уровня (его заказ 2026-09-20,
+ * пункт 12.3) и серый `not set` (пункт 12.4).
+ *
+ * Язык отбора экрана `Hotkeys` прочитан в `app.js` (правило 101) и набора
+ * команд не выражает: он умеет только «все эти слова есть в имени». Поэтому
+ * проверяется **охват** — каждая команда заголовка отвечает запросу, — а не
+ * равенство множеств; и отдельно проверяется, что там, где общее слово есть,
+ * запрос им и сужен, а не оставлен именем плагина.
+ * ====================================================================== */
+
+{
+  const cfg = makeConfig();
+  const d = draw(cfg);
+  const commands = ownCommands(cfg);
+
+  /* Заголовок без кнопки — это заголовок, из которого никуда не уйти. */
+  const without = d.jumps.filter(j => !j.node).map(j => j.level + " «" + j.title + "»");
+  assert.deepEqual(without, [], "у этих заголовков нет кнопки `to hotkeys`:\n  " + without.join("\n  "));
+  assert.equal(d.jumps.length, d.areas.length + d.subs.length + d.fields.length,
+    "кнопок и заголовков разное число: " + d.jumps.length);
+  for (const level of ["area", "part", "field"]) {
+    assert.ok(d.jumps.some(j => j.level === level),
+      "уровня заголовков `" + level + "` в отрисованном нет — проверка смотрит не туда (У-200)");
+  }
+
+  /* Уровень назван классом: цвет у каждого свой (его слово о хедерах). */
+  const classOf = (level: string): string => {
+    const found = d.jumps.find(j => j.level === level);
+    return String((found && found.node ? (found.node as Any).className : "") || "");
+  };
+  assert.ok(/io-tohk(\s|$)/.test(classOf("area")), "кнопка раздела: " + classOf("area"));
+  assert.ok(/io-tohk--part/.test(classOf("part")), "кнопка части: " + classOf("part"));
+  assert.ok(/io-tohk--field/.test(classOf("field")), "кнопка Field: " + classOf("field"));
+
+  /*
+   * Охват: нажали кнопку — и на экране `Hotkeys` видны **все** команды этого
+   * заголовка. Считается тем же правилом, каким считает Obsidian, и на полном
+   * имени команды: плагин дописывает своё имя сам.
+   */
+  const full = (c: Any): string => "inlineOverhaul: " + String(c.name);
+  const byRows = (pick: (r: Drawn["rows"][number]) => boolean): Any[] => {
+    const names = new Set(d.rows.filter(pick).map(r => r.name));
+    return commands.filter(c => names.has(String(c.name)));
+  };
+  const missed: string[] = [];
+  for (const j of d.jumps) {
+    if (!j.node) continue;
+    d.opened.length = 0;
+    (j.node as StubNode).click();
+    const query = String(d.opened[0] || "");
+    assert.ok(query, "кнопка «" + j.title + "» не открыла экран хоткеев");
+    const members = j.level === "area"
+      ? commands.filter(c => String(c.area) === j.title)
+      : j.level === "part"
+        ? byRows(r => r.under === j.title)
+        : byRows(r => r.field === j.title);
+    assert.ok(members.length, "у заголовка «" + j.title + "» не нашлось команд — проверка ищет не то");
+    for (const c of members) {
+      if (!matchesHotkeyQuery(query, full(c), "inline-overhaul:" + String(c.id))) {
+        missed.push(j.title + " → «" + query + "» не покажет «" + String(c.name) + "»");
+      }
+    }
+  }
+  assert.deepEqual(missed, [],
+    "запрос не покрывает команды своего заголовка:\n  " + missed.join("\n  "));
+  ok("кнопка `to hotkeys` есть у каждого заголовка, и её запрос показывает все его команды");
+}
+
+{
+  /*
+   * **Отрицательный контроль к охвату** (правило 125): проверка выше зелена и
+   * на запросе, который показывает вообще всё. Здесь спрашивается обратное —
+   * что запрос **сужен** там, где сузить его есть чем, и что предложенное
+   * правилом слово действительно отсекает чужие команды.
+   */
+  const scope = "inlineOverhaul";
+  const all = [
+    { name: "Type next", id: "type-next" },
+    { name: "Type previous", id: "type-previous" },
+    { name: "Type-sub next", id: "type-sub-next" },
+    { name: "Move line up", id: "move-line-up" },
+    { name: "Open TagWheel on the left", id: "open-tagwheel-left" },
+  ];
+  const typed = all.filter(c => /^Type/.test(c.name));
+  assert.equal(hotkeyQueryFor(scope, typed, all), scope + " type",
+    "общее слово заголовка не попало в запрос");
+  assert.equal(hotkeyQueryFor(scope, [all[4] as Any], all), scope + " tagwheel",
+    "у одной команды запрос сужается её самым длинным словом");
+  /* Общего слова нет — остаётся имя плагина, и это всё ещё сужение. */
+  assert.equal(hotkeyQueryFor(scope, [all[3] as Any, all[4] as Any], all), scope,
+    "без общего слова запрос обязан остаться именем плагина");
+  assert.equal(hotkeyQueryFor(scope, [], all), scope, "пустой заголовок не даёт запроса");
+
+  /* Само правило отбора: слова через И, имя или идентификатор, регистр не в счёт. */
+  assert.equal(matchesHotkeyQuery("inlineoverhaul type", "inlineOverhaul: Type next", "x"), true,
+    "оба слова в имени — команда видна");
+  assert.equal(matchesHotkeyQuery("inlineoverhaul type", "inlineOverhaul: Move line up", "x"), false,
+    "второго слова в имени нет — команда скрыта");
+  assert.equal(matchesHotkeyQuery("type-next", "чужое имя", "inline-overhaul:type-next"), true,
+    "идентификатор отвечает наравне с именем");
+  assert.equal(matchesHotkeyQuery("", "что угодно", "id"), true, "пустой запрос не отбирает");
+  ok("запрос сужен там, где есть чем, и правило отбора то же, что у Obsidian");
+}
+
+{
+  /* Без приватного API кнопки заголовков неактивны — то же, что у строк (К-2). */
+  const d = draw(makeConfig(), { noPrivateApi: true });
+  const live = d.jumps.filter(j => j.node && !(j.node as Any).disabled).map(j => j.title);
+  assert.ok(d.jumps.length > 0, "кнопок заголовков нет вовсе — проверка смотрит не туда");
+  assert.deepEqual(live, [], "без `app.setting` кнопка обязана быть неактивной: " + live.join(", "));
+  ok("без приватного API кнопки заголовков неактивны");
+}
+
+{
+  /*
+   * Вид: кнопка заголовка отличается от кнопки хоткея, и уровни — друг от
+   * друга (его слово «визуально должна отличаться… для каждого хедера должен
+   * отличаться»). И `not set` читается как пустое место, а не как кнопка со
+   * значением (пункт 12.4): одного цвета оказалось мало.
+   */
+  const here2 = path.dirname(fileURLToPath(import.meta.url));
+  const root2 = path.resolve(here2, "..", "..");
+  const pluginCss = fs.readFileSync(path.join(root2, "src", "styles.css"), "utf8");
+  const protoCss = fs.readFileSync(path.join(root2, "docs", "prototype", "settings_prototype.html"), "utf8");
+  const rule = (css: string, cls: string): string => {
+    const found = new RegExp("\\." + cls.replace(/-/g, "\\-") + "\\s*\\{[^}]*\\}", "m").exec(css);
+    assert.ok(found, "правило ." + cls + " на месте");
+    return String(found ? found[0] : "");
+  };
+  const accent = (css: string, cls: string): number => {
+    const mix = /background:\s*color-mix\(in srgb, var\(--interactive-accent\) (\d+)%/.exec(rule(css, cls));
+    assert.ok(mix, "заливка ." + cls + " взята у акцента темы, а не написана цветом");
+    return Number(mix ? mix[1] : 0);
+  };
+  for (const [css, where] of [[pluginCss, "панель"], [protoCss, "прототип"]] as const) {
+    const area = accent(css, "io-tohk");
+    const part = accent(css, "io-tohk--part");
+    const field = accent(css, "io-tohk--field");
+    assert.ok(area > part && part > field,
+      where + ": уровни кнопки идут по убыванию, " + area + " > " + part + " > " + field);
+    assert.ok(field > 0, where + ": у Field кнопка тоже крашена, иначе уровней два");
+    /* Кнопка хоткея в строке — не акцентная: иначе отличия нет. */
+    assert.ok(!/--interactive-accent/.test(rule(css, "io-hk\\b").split("hover")[0] || ""),
+      where + ": кнопка хоткея стала акцентной — отличать её от `to hotkeys` нечем");
+    const none = rule(css, "io-hk--none");
+    assert.ok(/background:\s*transparent/.test(none), where + ": у `not set` осталась заливка кнопки");
+    assert.ok(/border-style:\s*dashed/.test(none), where + ": у `not set` сплошная рамка");
+    assert.ok(/var\(--text-faint\)/.test(none), where + ": `not set` не бледный");
+  }
+  ok("кнопка заголовка отличается от кнопки хоткея и уровнями, а `not set` — пустое место");
 }
 
 console.log("\n" + passed + " проверок пройдено");

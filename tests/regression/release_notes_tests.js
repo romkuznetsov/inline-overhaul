@@ -29,6 +29,82 @@ const gen = require(path.join(root, "tools", "build", "gen_release_notes.js"));
 let passed = 0;
 function ok(label) { passed++; console.log("  ok " + label); }
 
+/**
+ * Знаки рода пункта — его слово 2026-09-20: «не хватает эмодзи в тексте (в
+ * начале пунктов, чтобы дать яркое представление о том, что это (новая
+ * функция, исправление бага, улучшение визуала и т.д.)».
+ *
+ * Список закрытый и короткий нарочно: знак, который встречается один раз,
+ * ничего не сообщает, а шестой род пришлось бы объяснять словами.
+ */
+const CHANGE_MARKS = ["✨", "🐛", "🎨", "🚀", "🔧"];
+
+/**
+ * Обход `CHANGELOG.md`: разделы выпусков, их сводки и пункты.
+ *
+ * Отдельной функцией — потому что у обхода есть положительный контроль на
+ * строке-примере (правило 51), а контроль, зовущий не ту функцию, проверяет
+ * свою копию правила.
+ */
+function scanChangelog(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  const out = {
+    sections: 0,
+    items: 0,
+    wrapped: [],
+    unnumbered: [],
+    long: [],
+    noMark: [],
+    noSummary: [],
+  };
+  let section = "";
+  for (let i = 0; i < lines.length; i++) {
+    const line = String(lines[i] || "");
+    const head = line.match(/^##\s+(\S+)\s*$/);
+    if (head) {
+      section = String(head[1]);
+      out.sections += 1;
+      /*
+       * Сводка стоит сразу под заголовком выпуска: её человек видит первой и
+       * в окне «что изменилось», и на GitHub. `[!NOTE]` выбран потому, что
+       * его рисуют оба — Obsidian коллаутом, GitHub своей врезкой; подпись
+       * после маркера GitHub врезкой рисовать перестаёт, поэтому её нет.
+       */
+      let at = i + 1;
+      while (at < lines.length && String(lines[at]).trim() === "") at++;
+      const marker = String(lines[at] || "").trim();
+      const body = String(lines[at + 1] || "");
+      if (marker !== "> [!NOTE]" || !/^>\s+\S/.test(body) || body.length < 40) {
+        out.noSummary.push(section + ": «" + marker.slice(0, 40) + "…»");
+      }
+      continue;
+    }
+    if (!section) continue;
+    /* Продолжение пункта: строка, начинающаяся с пробелов, под пунктом. */
+    if (/^\s+\S/.test(line) && out.items) {
+      out.wrapped.push(section + ": «" + line.trim().slice(0, 40) + "…»");
+      continue;
+    }
+    const item = line.match(/^(\S+)\s+(.+)$/);
+    if (!item) continue;
+    const prefix = String(item[1]);
+    if (prefix === "-" || prefix === "*") {
+      out.unnumbered.push(section + ": «" + String(item[2]).slice(0, 40) + "…»");
+      continue;
+    }
+    if (!/^\d+\.$/.test(prefix)) continue;
+    out.items += 1;
+    const rest = String(item[2]);
+    if (!CHANGE_MARKS.some((mark) => rest.startsWith(mark + " "))) {
+      out.noMark.push(section + " " + prefix + " «" + rest.slice(0, 40) + "…»");
+    }
+    if (line.length > 400) {
+      out.long.push(section + ": пункт в " + line.length + " знаков");
+    }
+  }
+  return out;
+}
+
 {
   const manifest = JSON.parse(fs.readFileSync(path.join(root, "manifest.json"), "utf8"));
   const version = String(manifest.version || "").trim();
@@ -221,45 +297,68 @@ function ok(label) { passed++; console.log("  ok " + label); }
    * читает, а первое ещё и уезжает в окно.
    */
   const text = fs.readFileSync(path.join(root, "CHANGELOG.md"), "utf8");
-  const lines = text.split(/\r?\n/);
-  let section = "";
-  const wrapped = [];
-  const unnumbered = [];
-  const long = [];
-  let items = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const line = String(lines[i] || "");
-    const head = line.match(/^##\s+(\S+)\s*$/);
-    if (head) { section = String(head[1]); continue; }
-    if (!section) continue;
-    /* Продолжение пункта: строка, начинающаяся с пробелов, под пунктом. */
-    if (/^\s+\S/.test(line) && items) {
-      wrapped.push(section + ": «" + line.trim().slice(0, 40) + "…»");
-      continue;
-    }
-    const item = line.match(/^(\S+)\s+(.+)$/);
-    if (!item) continue;
-    const prefix = String(item[1]);
-    if (prefix === "-" || prefix === "*") {
-      unnumbered.push(section + ": «" + String(item[2]).slice(0, 40) + "…»");
-      continue;
-    }
-    if (!/^\d+\.$/.test(prefix)) continue;
-    items++;
-    if (line.length > 400) {
-      long.push(section + ": пункт в " + line.length + " знаков");
-    }
-  }
-  assert.ok(items >= 10, "нумерованных пунктов найдено " + items + " — обход ищет не то (У-200)");
-  assert.deepEqual(wrapped, [],
+  const scan = scanChangelog(text);
+  assert.ok(scan.items >= 10,
+    "нумерованных пунктов найдено " + scan.items + " — обход ищет не то (У-200)");
+  assert.ok(scan.sections >= 5,
+    "разделов выпусков найдено " + scan.sections + " — обход ищет не то (У-200)");
+  assert.deepEqual(scan.wrapped, [],
     "пункт разорван переносом строки — в Obsidian человек увидит лестницу:\n  "
-    + wrapped.join("\n  "));
-  assert.deepEqual(unnumbered, [],
+    + scan.wrapped.join("\n  "));
+  assert.deepEqual(scan.unnumbered, [],
     "пункт без номера — по его слову «префикс исправлений должен быть нумерацией»:\n  "
-    + unnumbered.join("\n  "));
-  assert.deepEqual(long, [],
-    "пункт длиннее четырёхсот знаков — это уже не лаконично:\n  " + long.join("\n  "));
-  ok("CHANGELOG.md: " + items + " нумерованных пунктов, ни одного разрыва и ни одного длинного");
+    + scan.unnumbered.join("\n  "));
+  assert.deepEqual(scan.long, [],
+    "пункт длиннее четырёхсот знаков — это уже не лаконично:\n  " + scan.long.join("\n  "));
+  assert.deepEqual(scan.noMark, [],
+    "пункт без знака рода в начале — по его слову «не хватает эмодзи в тексте (в начале"
+    + " пунктов)». Знаки: " + CHANGE_MARKS.join(" ") + "\n  " + scan.noMark.join("\n  "));
+  assert.deepEqual(scan.noSummary, [],
+    "у выпуска нет сводки-коллаута — по его слову «в начале не хватает краткого саммари"
+    + " (коллаута)»:\n  " + scan.noSummary.join("\n  "));
+  ok("CHANGELOG.md: " + scan.sections + " разделов со сводкой, " + scan.items
+    + " пунктов со знаком рода, ни одного разрыва и ни одного длинного");
+}
+
+{
+  /*
+   * **Положительный контроль к обходу выше** (У-127, правило 51): он стоит на
+   * строке-примере, а не на том, что в самом файле ещё есть нарушение, —
+   * иначе контроль умрёт вместе с долгом.
+   *
+   * Пример заведомо плох во всех пяти отношениях сразу, и обход обязан
+   * назвать каждое: без него «ни одного нарушения» выполнялось бы и обходом,
+   * который не находит ничего никогда (У-200).
+   */
+  const bad = [
+    "# Changelog",
+    "",
+    "## 9.9.9",
+    "",
+    "### Added",
+    "",
+    "1. **Пункт без знака рода.** Такой и был до 2026-09-20.",
+    "2. 🐛 **Пункт, разорванный переносом строки.**",
+    "   И вот его продолжение, которое Obsidian покажет лестницей.",
+    "- пункт без номера",
+    "3. 🐛 " + "очень длинный пункт. ".repeat(30),
+    "",
+    "## 9.9.8",
+    "",
+    "> [!NOTE]",
+    "> Сводка у этого выпуска есть, и обход не должен называть его.",
+    "",
+    "1. ✨ **Пункт со знаком рода.** Такой обход не трогает.",
+  ].join("\n");
+  const scan = scanChangelog(bad);
+  assert.equal(scan.sections, 2, "обход нашёл не те разделы: " + scan.sections);
+  assert.equal(scan.noSummary.length, 1, "раздел без сводки обязан быть назван ровно один");
+  assert.ok(/9\.9\.9/.test(scan.noSummary[0]), "и назван по номеру: " + scan.noSummary[0]);
+  assert.equal(scan.noMark.length, 1, "пункт без знака рода обязан быть назван");
+  assert.equal(scan.wrapped.length, 1, "разорванный пункт обязан быть назван");
+  assert.equal(scan.unnumbered.length, 1, "пункт без номера обязан быть назван");
+  assert.equal(scan.long.length, 1, "длинный пункт обязан быть назван");
+  ok("обход `CHANGELOG.md` краснеет на каждой из пяти бед примера");
 }
 
 {

@@ -510,6 +510,11 @@ export const BLOCK_TEXTS = {
     HOTKEY_ASSIGN: "Assign the hotkey for {0}",
     HOTKEY_NOT_SET: "not set",
     HOTKEY_OPEN: "Open Obsidian's Hotkeys settings at this command",
+    /* Кнопка в заголовке любого уровня — его заказ 2026-09-20, пункт 12.3.
+       Подпись говорит, чем именно отобрано: язык поиска Obsidian набора команд
+       не выражает, и человек увидит эту строку в самом поле поиска. */
+    TO_HOTKEYS: "to hotkeys",
+    TO_HOTKEYS_LABEL: "Open Obsidian's Hotkeys screen for {0}, filtered by {1}",
   },
 } as const;
 

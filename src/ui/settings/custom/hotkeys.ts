@@ -126,6 +126,84 @@ export function hotkeyOf(plugin: unknown, commandId: string): string {
   return "";
 }
 
+/**
+ * Правило отбора экрана `Hotkeys` — прочитано в `app.js` 1.13.7, а не выведено
+ * из вида поиска (правило 101).
+ *
+ * Строка запроса приводится к нижнему регистру и **делится по пробелам**;
+ * команда остаётся, если **каждая** часть — подстрока её имени, либо каждая —
+ * подстрока её идентификатора. Ни «или», ни кавычек, ни исключений в этом
+ * языке нет, и поэтому произвольный набор команд запросом не выражается:
+ * фильтр умеет только сузить список, а не перечислить.
+ *
+ * Имя, по которому идёт отбор, — **полное**: Obsidian дописывает к нему имя
+ * плагина (`e.name = manifest.name + ": " + e.name` в `addCommand`), и это
+ * даёт даровой охват «только команды этого плагина».
+ */
+export function matchesHotkeyQuery(query: string, name: string, id: string): boolean {
+  const parts = String(query || "").toLowerCase().split(" ").filter(Boolean);
+  if (!parts.length) return true;
+  const hit = (text: string): boolean => {
+    const low = String(text || "").toLowerCase();
+    return parts.every(p => low.indexOf(p) !== -1);
+  };
+  return hit(name) || hit(id);
+}
+
+/** Слова имени: по ним строятся части запроса. */
+function words(name: string): string[] {
+  return String(name || "").toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+/**
+ * Запрос, которым экран `Hotkeys` показывает команды одного заголовка
+ * справочника (его заказ 2026-09-20, пункт 12.3).
+ *
+ * **Что гарантируется и что нет.** Гарантируется охват: каждая команда
+ * заголовка запросу отвечает. Точности язык отбора не даёт — набор команд
+ * заголовка в нём не выражается, — поэтому из годных запросов берётся тот, под
+ * который попадает меньше **чужих** команд плагина; при равенстве — длинный,
+ * он понятнее в поле поиска. Не нашлось общего слова — остаётся имя плагина:
+ * это всё ещё сужение (свои команды против всех в Obsidian) и всё ещё правда.
+ *
+ * Считается это на настоящем списке команд, а не на памяти: у человека свои
+ * Fields, и общее слово у его заголовка своё.
+ */
+export function hotkeyQueryFor(
+  scope: string,
+  members: readonly { name: string; id: string }[],
+  all: readonly { name: string; id: string }[],
+): string {
+  const base = String(scope || "").trim();
+  if (!members.length) return base;
+  const full = (c: { name: string }): string => (base ? base + ": " + c.name : c.name);
+  const first = members[0];
+  let common: string[] = first ? words(first.name) : [];
+  for (const cmd of members.slice(1)) {
+    const has = new Set(words(cmd.name));
+    common = common.filter(w => has.has(w));
+  }
+  const candidates = common.map(w => (base ? base + " " + w : w));
+  candidates.push(base);
+  let best = base;
+  let bestExtra = Infinity;
+  for (const query of candidates) {
+    if (!query) continue;
+    const own = new Set(members.map(c => c.id));
+    if (!members.every(c => matchesHotkeyQuery(query, full(c), c.id))) continue;
+    const extra = all.filter(c => !own.has(c.id) && matchesHotkeyQuery(query, full(c), c.id)).length;
+    const better = extra < bestExtra || (extra === bestExtra && query.length > best.length);
+    if (better) { best = query; bestExtra = extra; }
+  }
+  return best;
+}
+
+/** Имя плагина — то самое, которое Obsidian дописывает к имени каждой команды. */
+export function pluginScope(plugin: unknown): string {
+  const manifest = (plugin as { manifest?: { name?: unknown } } | null)?.manifest;
+  return String(manifest && manifest.name ? manifest.name : "").trim();
+}
+
 /** Есть ли куда вести человека: без `app.setting` кнопка неактивна (К-2). */
 export function canOpenHotkeys(plugin: unknown): boolean {
   const a = app(plugin);

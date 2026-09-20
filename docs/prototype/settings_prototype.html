@@ -792,11 +792,34 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
   white-space: normal; text-align: center; line-height: 1.3;
 }
 .io-hk:hover { border-color: var(--interactive-accent); color: var(--text-accent); }
-.io-hk--none { color: var(--text-faint); font-family: var(--font-ui); }
+/* «Хоткея нет» видно с одного взгляда (его слово 2026-09-20, пункт 12.4):
+   цвета одного было мало — назначенный хоткей и пустая клетка выглядели
+   одинаковыми кнопками. У пустой снята заливка и рамка пунктиром. */
+.io-hk--none {
+  color: var(--text-faint); font-family: var(--font-ui); font-style: italic;
+  background: transparent; border-style: dashed;
+}
+
+/* Кнопка `to hotkeys` в заголовке любого уровня (его заказ 2026-09-20,
+   пункт 12.3): акцентная против серой кнопки хоткея, и насыщенность своя у
+   каждого уровня — как у заливки самих заголовков. */
+.io-tohk {
+  appearance: none; margin-left: auto; flex: 0 0 auto;
+  font-family: var(--font-ui); font-size: 10px; font-weight: 500;
+  letter-spacing: 0; text-transform: none;
+  padding: 1px 8px; border-radius: var(--radius-s); cursor: pointer;
+  color: var(--text-normal);
+  border: 1px solid color-mix(in srgb, var(--interactive-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--interactive-accent) 28%, transparent);
+}
+.io-tohk--part { background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); }
+.io-tohk--field { background: color-mix(in srgb, var(--interactive-accent) 10%, transparent); }
+.io-tohk:hover { border-color: var(--interactive-accent); color: var(--text-accent); }
 
 /* command reference */
 .io-cmd { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
 .io-cmd__area {
+  display: flex; align-items: center; gap: 8px;
   padding: 7px 12px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--text-normal); background: color-mix(in srgb, var(--text-normal) 12%, var(--background-primary));
   border-bottom: 1px solid var(--background-modifier-border);
@@ -814,7 +837,8 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
 /* Подзаголовок Field внутри второй части: `task (tag)` (замечание заказчика
    2026-08-31). Третий уровень, поэтому отступ больше, а вес меньше. */
 .io-cmd__field {
-  grid-column: 1 / -1; padding: 4px 12px 4px 28px;
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 8px;
+  padding: 4px 12px 4px 28px;
   font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-normal);
   background: color-mix(in srgb, var(--text-normal) 4%, var(--background-primary));
 }
@@ -5984,7 +6008,9 @@ function renderCommandReference(host) {
   };
 
   COMMANDS.forEach(group => {
-    el("div", "io-cmd__area", inner, group.area);
+    const area = el("div", "io-cmd__area", inner);
+    el("span", null, area, group.area);
+    toHotkeysButton(area, "area", group.area);
     /* Строка-шаблон описывает не команду, а семью: настоящих строк столько,
        сколько у человека Fields. */
     const template = c => /[<>]/.test(c.name) || FAMILY_ROWS.indexOf(c.name) >= 0;
@@ -6001,6 +6027,9 @@ function renderCommandReference(host) {
       const row = el("div", "io-cmd__sub", inner);
       el("span", null, row, text);
       attachTip(row, tip, label, inner, row);
+      /* Кнопка последней: `margin-left: auto` уводит вправо всё, что стоит
+         после неё, а «?» принадлежит подписи. */
+      toHotkeysButton(row, "part", text);
     };
     part(group.parts.standard, PARTTIP.standard, group.parts.standard);
     standard.forEach(c => drawRow(c.name, c.does, false));
@@ -6016,7 +6045,10 @@ function renderCommandReference(host) {
        это тот же Field, только его дочерние значения. */
     const KIND_WORD = { tag:"tag", link:"link", element:"element" };
     FIELDS.forEach(f => {
-      el("div", "io-cmd__field", inner, f.name + " (" + (KIND_WORD[f.type] || f.type) + ")");
+      const heading = f.name + " (" + (KIND_WORD[f.type] || f.type) + ")";
+      const fieldRow = el("div", "io-cmd__field", inner);
+      el("span", null, fieldRow, heading);
+      toHotkeysButton(fieldRow, "field", heading);
       const hasSub = (f.values || []).some(v => v.depth === 1);
       const names = [f.strict].concat(hasSub ? [f.strict + "_sub"] : []);
       names.forEach(base => {
@@ -6854,6 +6886,20 @@ function openHotkeys(commandName) {
   document.getElementById("proto-hint").textContent =
     "Would open Obsidian \u2192 Settings \u2192 Hotkeys with \"" + commandName +
     "\" already in the search box. If that is not possible, the name goes to the clipboard instead";
+}
+
+/*
+ * Кнопка `to hotkeys` в заголовке справочника (его заказ 2026-09-20,
+ * пункт 12.3). Прототип нормативен по виду: сам запрос считается в панели
+ * (`hotkeyQueryFor` в `hotkeys.ts`) по настоящему списку команд — у человека
+ * свои Fields, и общее слово у его заголовка своё, а здесь команды примерные.
+ */
+function toHotkeysButton(parent, level, title) {
+  const b = el("button", "io-tohk io-tohk--" + level, parent, "to hotkeys");
+  b.type = "button";
+  b.setAttribute("aria-label", "Open Obsidian's Hotkeys screen for " + title);
+  b.addEventListener("click", () => openHotkeys(title));
+  return b;
 }
 
 function hotkeyCell(parent, commandName) {
