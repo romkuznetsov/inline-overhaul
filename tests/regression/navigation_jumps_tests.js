@@ -68,7 +68,19 @@ function fakeEditor(text, cursor) {
     setSelection: () => {},
     getSelection: () => "",
     setLine: (n, t) => { state.lines[n] = t; },
-    replaceRange: () => {},
+    /*
+     * Правка отрезка — настоящая. Пустышкой она быть не может: перемещение
+     * строк пишет именно ею (пункт 11 его замечаний 2026-09-20), и подделка,
+     * которая молча ничего не делает, показала бы «команда промолчала» там,
+     * где команда сработала (У-45).
+     */
+    replaceRange: (insert, from, to) => {
+      const head = state.lines.slice(0, from.line);
+      const tail = state.lines.slice(to.line + 1);
+      const first = String(state.lines[from.line] || "").slice(0, from.ch);
+      const last = String(state.lines[to.line] || "").slice(to.ch);
+      state.lines = head.concat((first + String(insert) + last).split("\n"), tail);
+    },
     posToOffset: (p) => p.ch,
     offsetToPos: (ch) => ({ line: 0, ch }),
     getValue: () => state.lines.join("\n"),

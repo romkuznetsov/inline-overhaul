@@ -352,9 +352,39 @@ function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, scro
   for (let i = insertInRest + 1; i < rest.length; i++) finalLines.push(rest[i].text);
   const newDoc = finalLines.join("\n");
   const newBodyStart = insertInRest + 1;
-  if (newDoc !== doc) editor.setValue(newDoc);
   const movedStart = newBodyStart;
   const movedEnd = newBodyStart + (bEnd - bStart);
+  /*
+   * Запись идёт правкой окна изменившихся строк, а не заменой документа
+   * (его замечание 2026-09-20, пункт 11: «при move-lines up\down нумерованного
+   * списка нумерация не восстанавливается»).
+   *
+   * **Нумерацию правит сама Obsidian**, фильтром транзакций `sj(e)` в
+   * `app.js` 1.13.7: он смотрит затронутые строки и дописывает изменение с
+   * `userEvent: "input.renumber"`. Но первым же условием он **выходит**, если
+   * транзакция помечена `userEvent: "set"`, — а `Editor.setValue` отправляет
+   * ровно её (`n.dispatch({changes:{…}, userEvent:"set"})` там же). То есть
+   * перенос строк говорил платформе «это не правка человека», и нумерация
+   * оставалась прежней: у строки, уехавшей под другого родителя, оставался её
+   * старый номер.
+   *
+   * `replaceRange` четвёртым аргументом принимает `userEvent`, и без него
+   * транзакция уходит без пометки — фильтр работает. Тем же вызовом и тем же
+   * окном пишет перенос строк таблицы (`tableMove`), так что второго правила
+   * тут не заводится.
+   *
+   * Окно — только изменившиеся строки: фильтр нумерует **от затронутых**, и
+   * замена документа целиком перенумеровала бы все списки заметки разом.
+   */
+  if (newDoc !== doc) {
+    const from = Math.min(bStart, newBodyStart);
+    const to = Math.max(bEnd, movedEnd);
+    editor.replaceRange(
+      finalLines.slice(from, to + 1).join("\n"),
+      { line: from, ch: 0 },
+      { line: to, ch: nz(lines[to], "").length },
+    );
+  }
   if (cfg.highlightMovedLines) {
     editor.setSelection({ line: movedStart, ch: 0 }, { line: movedEnd, ch: nz(finalLines[movedEnd], "").length });
   } else if (selRestore) restoreMovedSelection(editor, selRestore, bStart, bEnd, movedStart, movedEnd);
