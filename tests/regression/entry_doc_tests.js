@@ -214,7 +214,97 @@ assert.deepStrictEqual(strangers, [],
 assert.ok(fs.existsSync(path.join(root, "docs", "dev", "PRD_Settings_Overhaul_v1.md")),
   "контроль: `docs/dev/` пуст — значит правило проверяется на пустоте");
 
-/* ---------- 5. объём называет прогон ---------- */
+/* ---------- 5. правило здесь — правило, признак и номер урока ---------- */
+
+/*
+ * **Его решение 2026-09-21.** Раздел «Проверки» был 80 139 знаков из 137 297 —
+ * 61% файла, который читается целиком каждую сессию, — и лежала в нём не
+ * механика, а история: у 168 правил из 170 уже стояла ссылка `У-N` на урок с
+ * полным разбором, и та же история рассказывалась второй раз здесь. Правила
+ * переписаны в форму **правило + признак + номер урока**; раздел стал 58 352
+ * знака, файл — 115 828.
+ *
+ * Эта проверка держит форму, а не размер. Размер порогом здесь не стережётся
+ * по той же причине, что в разделе 3: число правил растёт каждую сессию, и
+ * порог на сумме пришлось бы двигать каждый раз. А вот длина **одного** правила
+ * от их количества не зависит — она зависит ровно от того, вернулась ли в него
+ * история, и потому стережётся.
+ *
+ * **Порог проверен прежней версией** (правило 145): на `CLAUDE.md` до
+ * переписывания правил длиннее 700 знаков было **13**, длиннее 800 — **4**;
+ * после переписывания — **ноль** и самое длинное 676. То есть порог краснеет на
+ * том состоянии, которое чинили, и не краснеет на нынешнем.
+ *
+ * Второе требование — **номер урока**: правило без него теряет свою историю
+ * совсем, потому что здесь её больше нет. Исключение названо свойством, а не
+ * списком номеров: правило, купленное не дефектом, а словом заказчика, несёт
+ * вместо урока дату этого слова.
+ */
+
+/**
+ * Разбор раздела правил. Список кончается там, где после пустой строки идёт
+ * строка без отступа, не начинающаяся с номера: так за последним правилом
+ * остаётся абзац о `tests/gates/phase.txt`, который правилом не является.
+ */
+function parseRules(text) {
+  const lines = text.split("\n");
+  let head = -1, tail = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith("## Проверки")) head = i;
+    if (lines[i].startsWith("## Правила текстов")) { tail = i; break; }
+  }
+  let first = -1;
+  for (let i = head; i < tail; i++) if (/^1\. \*\*/.test(lines[i])) { first = i; break; }
+
+  let last = tail;
+  for (let i = first; i < tail; i++) {
+    if (lines[i].trim() !== "") continue;
+    const next = lines[i + 1];
+    if (next === undefined) continue;
+    if (next.trim() === "") continue;
+    if (/^\s/.test(next)) continue;
+    if (/^\d+\. /.test(next)) continue;
+    last = i;
+    break;
+  }
+
+  const starts = [];
+  for (let i = first; i < last; i++) {
+    const m = lines[i].match(/^(\d+)\. /);
+    if (m) starts.push({ num: Number(m[1]), line: i });
+  }
+  return starts.map((s, k) => {
+    const to = k + 1 < starts.length ? starts[k + 1].line : last;
+    const body = lines.slice(s.line, to).join("\n").trim();
+    return { num: s.num, text: body };
+  });
+}
+
+const rules = parseRules(claude);
+
+assert.ok(rules.length > 100,
+  "контроль: правил разобрано " + rules.length + " — разбор читает не тот раздел");
+
+const OWNER_WORD = /(его слово|его решение)[^.]{0,40}20\d\d-\d\d-\d\d/;
+const noSource = rules
+  .filter((r) => !/У-\d+/.test(r.text) && !OWNER_WORD.test(r.text))
+  .map((r) => r.num);
+assert.deepStrictEqual(noSource, [],
+  "у этих правил нет ни номера урока, ни даты его слова — их историю прочесть негде: "
+  + noSource.join(", "));
+
+const RULE_CAP = 700;
+const tooLong = rules.filter((r) => r.text.length > RULE_CAP)
+  .map((r) => r.num + " (" + r.text.length + ")");
+assert.deepStrictEqual(tooLong, [],
+  "эти правила длиннее " + RULE_CAP + " знаков — в них вернулась история."
+  + " Здесь живёт правило, признак и номер урока; разбор — в docs/dev/LESSONS.md: "
+  + tooLong.join(", "));
+
+const rulesChars = rules.reduce((sum, r) => sum + r.text.length, 0);
+const longest = rules.reduce((a, b) => (b.text.length > a.text.length ? b : a));
+
+/* ---------- 6. объём называет прогон ---------- */
 
 const sizes = [
   ["CLAUDE.md", claude.length],
@@ -228,3 +318,6 @@ console.log("ok: читается целиком каждую сессию — "
 console.log("ok: путей в CLAUDE.md " + seen.size + ", все ведут в существующие файлы; "
   + "ссылок на уроки " + usedLessons.size + " из " + haveLessons.size + ", все разрешаются; "
   + "переездов с двусторонней сверкой " + MOVED.length);
+console.log("ok: правил в разделе «Проверки» " + rules.length + " на " + rulesChars
+  + " знаков (" + Math.round(rulesChars * 100 / claude.length) + "% файла); самое длинное — "
+  + longest.num + " на " + longest.text.length + " при пороге " + RULE_CAP);
