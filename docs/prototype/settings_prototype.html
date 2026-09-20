@@ -3860,10 +3860,29 @@ function templateLabel(folder, path) {
   return p.startsWith(prefix) ? p.slice(prefix.length) : p;
 }
 
+/*
+ * Приписка у стандартного значения списка — его заказ 2026-09-20, пункт 13:
+ * «чтобы пользователь понимал, какой вариант контрола является стандартным».
+ * Ставится после обоих источников: умолчание бывает и у списка, который
+ * приезжает из данных (язык, шаблон). Значения это не касается — меняется
+ * только подпись (З1).
+ */
+const DEFAULT_OPTION_MARK = "(default)";
 function dropdownOptions(item) {
   const fixed = item.options || [];
   const src = item.optionsFrom ? OPTION_SOURCES[item.optionsFrom] : null;
-  return src ? fixed.concat(src()) : fixed;
+  const all = src ? fixed.concat(src()) : fixed;
+  /* Список из одной строки не помечается: вариантов нет, а этой строкой
+     бывает сообщение о пустоте, а не выбор. */
+  if (!("default" in item) || all.length < 2) return all;
+  const standard = String(item.default);
+  return all.map(o => {
+    const isObj = typeof o === "object";
+    const value = isObj ? o.value : o;
+    if (String(value) !== standard) return o;
+    const label = (isObj ? o.label : o) + " " + DEFAULT_OPTION_MARK;
+    return { value, label };
+  });
 }
 
 /*

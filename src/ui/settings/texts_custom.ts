@@ -58,6 +58,7 @@ export const SINGLE_KEYS = {
   calloutTipLabel: "text.callout-tip-label",
   groupReset: "text.group-reset",
   clearField: "text.clear-field",
+  defaultOption: "text.default-option",
 } as const;
 
 /**
@@ -68,6 +69,10 @@ export const SINGLE_KEYS = {
  * `groupReset` — подпись кнопки сброса группы: кнопка одна на все группы.
  * `clearField` — подпись крестика, стирающего написанное в поле: он тоже
  * один на все такие поля, и читает его вслух экранный диктор (В-131).
+ * `defaultOption` — приписка у того значения выпадающего списка, которое
+ * стоит в схеме умолчанием (его заказ 2026-09-20, пункт 13): человеку не
+ * видно, какой из вариантов стандартный, а перебрав список, он уже не помнит,
+ * с чего начинал. Приписка одна на все списки, поэтому и ключ один.
  */
 export const SHARED_TEXTS: Readonly<Record<string, string>> = {
   [SINGLE_KEYS.previewExample]: PREVIEW_EXAMPLE,
@@ -77,6 +82,7 @@ export const SHARED_TEXTS: Readonly<Record<string, string>> = {
   [SINGLE_KEYS.calloutTipLabel]: "this tab",
   [SINGLE_KEYS.groupReset]: "Reset the group",
   [SINGLE_KEYS.clearField]: "Clear",
+  [SINGLE_KEYS.defaultOption]: "(default)",
 };
 
 /**

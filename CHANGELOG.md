@@ -16,7 +16,8 @@
 
 1. ✨ **Every heading in `Commands & Hotkeys` has a `to hotkeys` button** — an area, a part of it, or one of your Fields — and it opens Obsidian's `Hotkeys` screen already filtered to that heading's commands. The filter is worked out from the commands you actually have; where Obsidian's search cannot express a heading exactly, it falls back to the plugin's own name.
 2. 🎨 **`not set` in the `Hotkey` column reads as an empty slot**: no button fill, a dashed outline and faint italic text, so an unassigned command is told from an assigned one at a glance.
-3. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
+3. ✨ **A dropdown says which of its values is the standard one**: the value the plugin starts with carries `(default)` after its label, in every settings row that offers a list. A list with a single line — `Set a Templates folder first`, say — is left alone: there is no choice to point at.
+4. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
 
 ## 0.4.0
 

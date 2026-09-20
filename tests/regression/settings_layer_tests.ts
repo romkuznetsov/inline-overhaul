@@ -22,6 +22,7 @@ import { SettingsPane } from "../../src/ui/settings/settings_tab.ts";
 import { richParts } from "../../src/ui/settings/describe.ts";
 import { findScrollHost } from "../../src/ui/settings/custom/dom.ts";
 import { tabStripRow } from "../../src/ui/settings/custom/tab_strip.ts";
+import { SHARED_TEXTS, SINGLE_KEYS } from "../../src/ui/settings/texts_custom.ts";
 
 /** Корень репозитория: одна проверка читает `styles.css` с диска. */
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -563,8 +564,9 @@ async function main(): Promise<void> {
 
     const steps = byName("Selection steps");
     assert.equal(steps?.control?.type, "dropdown");
+    /* У стандартного значения приписка — его заказ 2026-09-20, пункт 13. */
     assert.deepEqual(steps?.control?.options, {
-      "line-note": "Line, then note",
+      "line-note": "Line, then note (default)",
       "line-tree-note": "Line, tree, then note",
       "line-tree-header-note": "Line, tree, heading, then note",
       "word-line-tree-header-note": "Word, line, tree, heading, then note",
@@ -3018,6 +3020,63 @@ async function main(): Promise<void> {
     const note = /\.io-dlg__note\s*\{([^}]*)\}/.exec(css);
     assert.ok(note && /font-weight:\s*var\(--font-semibold\)/.test(String(note[1])),
       "строка «что делать дальше» не полужирная: " + (note ? String(note[1]) : "правила нет вовсе"));
+  });
+
+  await test("у каждого выпадающего списка помечено стандартное значение (пункт 13)", () => {
+    /*
+     * Его заказ 2026-09-20: «все дефолтные значения контролов должны в
+     * названиях иметь приписку… чтобы пользователь понимал, какой вариант
+     * контрола является стандартным».
+     *
+     * Спрашивается **свойство на всех списках сразу**, а не образец: список,
+     * заведённый завтра, попадёт сюда сам. Помечено ровно одно значение — то,
+     * что стоит умолчанием в схеме; пометка — строка каталога, а не литерал
+     * здесь (иначе у неё было бы два дома, У-32).
+     */
+    const { pane } = makePane();
+    const mark = SHARED_TEXTS[SINGLE_KEYS.defaultOption] || "";
+    assert.ok(mark, "приписки нет в каталоге — помечать нечем");
+
+    const rendered = new Map<string, Record<string, string>>();
+    for (const tab of SCHEMA.map(g => g.tab)) {
+      pane.setActiveTab(tab as never);
+      const walk = (defs: Def[]): void => {
+        for (const d of defs) {
+          if (Array.isArray(d.items)) walk(d.items as Def[]);
+          const c = d.control as { type?: string; key?: string; options?: Record<string, string> } | undefined;
+          if (c && c.type === "dropdown" && c.key) rendered.set(String(c.key), c.options || {});
+        }
+      };
+      walk(allDefs(pane));
+    }
+    assert.ok(rendered.size >= 20,
+      "выпадающих списков нашлось " + rendered.size + " — обход смотрит не туда (У-200)");
+
+    const unmarked: string[] = [];
+    const extra: string[] = [];
+    for (const group of SCHEMA) {
+      for (const it of group.items) {
+        const any = it as unknown as Record<string, unknown>;
+        if (any["kind"] !== "dropdown" || !any["path"]) continue;
+        const options = rendered.get(String(any["path"]));
+        if (!options) continue;
+        /* Список из одной строки не помечается: вариантов нет, а этой строкой
+           бывает сообщение о пустоте («Set a Templates folder first»). */
+        if (Object.keys(options).length < 2) continue;
+        const standard = String(any["default"] ?? "");
+        const marked = Object.keys(options).filter(v => String(options[v]).endsWith(" " + mark));
+        if (Object.prototype.hasOwnProperty.call(options, standard)) {
+          if (!marked.includes(standard)) unmarked.push(String(any["path"]) + " → «" + standard + "»");
+        }
+        for (const v of marked) {
+          if (v !== standard) extra.push(String(any["path"]) + " → «" + v + "» помечено, а умолчание «" + standard + "»");
+        }
+      }
+    }
+    assert.deepEqual(unmarked, [],
+      "у этих списков стандартное значение не помечено:\n  " + unmarked.join("\n  "));
+    assert.deepEqual(extra, [],
+      "помечено не то значение:\n  " + extra.join("\n  "));
   });
 
   console.log("\n" + ran + " проверок пройдено");

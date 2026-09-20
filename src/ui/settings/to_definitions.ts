@@ -31,7 +31,7 @@ import { isBound } from "./types.ts";
 import { themeColorFor } from "./custom/theme_colors.ts";
 /* Текст калитки модуля выведен из прототипа генератором, а не написан здесь. */
 import { MODULE_OFF_NOTE } from "./schema/custom_texts.ts";
-import { SINGLE_KEYS } from "./texts_custom.ts";
+import { SHARED_TEXTS, SINGLE_KEYS } from "./texts_custom.ts";
 
 /** То, что слой настроек умеет делать помимо чтения и записи значений. */
 export interface Wiring {
@@ -163,6 +163,16 @@ function controlFor(it: SettingDef, w: Wiring): SettingControl | undefined {
   if (it.kind === "folder" && it.placeholder) control["placeholder"] = it.placeholder;
   if (it.kind === "dropdown") {
     const options: Record<string, string> = {};
+    /*
+     * У значения, стоящего в схеме умолчанием, подпись с припиской — его заказ
+     * 2026-09-20, пункт 13: «чтобы пользователь понимал, какой вариант
+     * контрола является стандартным». Приписка дописывается **после**
+     * подстановки языка (схема приезжает сюда уже переведённой), и сама она
+     * тоже строка каталога: слово «default» на другом языке пишется иначе.
+     *
+     * Значения это не касается: в конфиг уходит `o.value`, и переименовываются
+     * только подписи (З1).
+     */
     for (const o of it.options) options[o.value] = o.label;
     /*
      * Значения из данных человека дописываются после постоянных: Fields,
@@ -172,6 +182,33 @@ function controlFor(it: SettingDef, w: Wiring): SettingControl | undefined {
      */
     if (it.optionsFrom && w.optionsFrom) {
       for (const o of w.optionsFrom(it.optionsFrom)) options[o.value] = o.label;
+    }
+    /*
+     * Приписка у того значения, которое стоит в схеме умолчанием, — его заказ
+     * 2026-09-20, пункт 13: «чтобы пользователь понимал, какой вариант
+     * контрола является стандартным».
+     *
+     * Ставится **после** обоих источников: умолчание бывает и у списка,
+     * который приезжает из данных человека (язык, шаблон), и приписка, стоящая
+     * до слияния, стиралась бы вместе с подписью. И после подстановки языка —
+     * схема приезжает сюда уже переведённой, а сама приписка тоже строка
+     * каталога: слово «default» на другом языке пишется иначе.
+     *
+     * Значения это не касается: в конфиг уходит `o.value`, а переименовываются
+     * только подписи (З1).
+     *
+     * **Список из одной строки не помечается.** Приписка отвечает на вопрос
+     * «какой из вариантов стандартный», а при одной строке вариантов нет — и
+     * этой одной строкой бывает не выбор, а сообщение о пустоте: у
+     * `Default template` без назначенной папки там стоит `Set a Templates
+     * folder first`, и «(default)» на нём читался бы как насмешка.
+     */
+    const fallback = SHARED_TEXTS[SINGLE_KEYS.defaultOption] || "";
+    const mark = w.ctx.t ? w.ctx.t(SINGLE_KEYS.defaultOption, fallback) : fallback;
+    const standard = "default" in raw ? String(raw["default"]) : null;
+    const single = Object.keys(options).length < 2;
+    if (mark && !single && standard !== null && Object.prototype.hasOwnProperty.call(options, standard)) {
+      options[standard] = String(options[standard]) + " " + mark;
     }
     control["options"] = options;
   }
