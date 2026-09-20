@@ -317,11 +317,20 @@ function paintWithPowers(o: { hover?: boolean; drag?: boolean; dragManager?: boo
   const off = I.getTagVisualsFromConfig(cfg);
   assert.equal(off.linkShownHover, false, "предпросмотр включён по умолчанию");
   assert.equal(off.linkShownDrag, false, "перетаскивание включено по умолчанию");
-  cfg.visual.tags.linkShown = { hoverPreview: true, draggable: false };
-  const half = I.getTagVisualsFromConfig(cfg);
-  assert.equal(half.linkShownHover, true, "включённый предпросмотр до слоя не доехал");
+  /*
+   * Дорога спрашивается **целиком**: записанное панелью проходит через
+   * `migrateConfig`, а тот собирает ветки по перечням имён и незнакомое
+   * выбрасывает молча (У-237). Поэтому проверяется не объект в памяти, а то,
+   * что осталось после миграции.
+   */
+  const written = I.migrateConfig({
+    schemaVersion: 2,
+    visual: { tags: { linkShown: { hoverPreview: true, draggable: false } } },
+  }) as Any;
+  const half = I.getTagVisualsFromConfig(written);
+  assert.equal(half.linkShownHover, true, "включённый предпросмотр не пережил миграцию конфига");
   assert.equal(half.linkShownDrag, false, "выключенное перетаскивание доехало включённым");
-  ok("оба контрола `Link view` доезжают до слоя порознь");
+  ok("оба контрола `Link view` доезжают до слоя порознь и переживают миграцию");
 }
 
 console.log("\n" + passed + " проверок пройдено");
