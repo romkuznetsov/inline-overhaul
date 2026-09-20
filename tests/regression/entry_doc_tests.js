@@ -173,10 +173,15 @@ assert.deepStrictEqual(brokenLessons, [],
  *   `command_ids_v1_v2.md` — на него ведут `README.md`, руководство и
  *   уведомление самого плагина о переименовании команд;
  *   `prototype/` — нормативен (Р8), и на него ссылается половина кода;
+ *   `tutorial.md` и `settings.md` — учебник и справочник панели, заведены
+ *   2026-09-20 по бренд-буку; на оба ведёт таблица «Where to go next» в `README.md`;
+ *   `brand/` — знак и социальное превью; шапка `README.md` берёт картинку
+ *   оттуда, и без неё первый экран пуст;
  *   `dev/` — всё остальное.
  */
 const DOCS_FOR_PEOPLE = new Set([
   "dev", "media", "prototype", "showcase.md", "command_ids_v1_v2.md",
+  "tutorial.md", "settings.md", "brand",
 ]);
 const docsEntries = fs.readdirSync(path.join(root, "docs"));
 assert.ok(docsEntries.length >= 4,

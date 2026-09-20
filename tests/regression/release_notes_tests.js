@@ -65,13 +65,32 @@ function scanChangelog(text) {
       section = String(head[1]);
       out.sections += 1;
       /*
-       * Сводка стоит сразу под заголовком выпуска: её человек видит первой и
+       * **Сводку спрашивают у выпуска, а не у всякого заголовка.**
+       * `## Unreleased` выпуском не является: в сборку он не едет
+       * (`parseChangelogSections` его пропускает), человеку после обновления не
+       * показывается, и суммировать в нём нечего, пока он пуст. Признак —
+       * номер: раздел версии начинается с цифры.
+       */
+      if (!/^\d/.test(section)) continue;
+      /*
+       * Сводка стоит под заголовком выпуска: её человек видит первой и
        * в окне «что изменилось», и на GitHub. `[!NOTE]` выбран потому, что
        * его рисуют оба — Obsidian коллаутом, GitHub своей врезкой; подпись
        * после маркера GitHub врезкой рисовать перестаёт, поэтому её нет.
+       *
+       * **Между заголовком и сводкой стоит строка с датой выпуска** —
+       * `_2026-09-20 · [all changes since 0.4.0](…)_`, курсивом, — потому что
+       * номер версии в самом заголовке стоять не может: `gen_release_notes.js`
+       * режет файл по `^##\s+(\S+)\s*$`, и `## [0.5.0] - 2026-09-20` он не
+       * найдёт. Строку пропускаем и ищем сводку за ней; спрятать отсутствие
+       * сводки она не должна, и на это есть контроль ниже.
        */
       let at = i + 1;
       while (at < lines.length && String(lines[at]).trim() === "") at++;
+      if (/^_.+_$/.test(String(lines[at] || "").trim())) {
+        at++;
+        while (at < lines.length && String(lines[at]).trim() === "") at++;
+      }
       const marker = String(lines[at] || "").trim();
       const body = String(lines[at + 1] || "");
       if (marker !== "> [!NOTE]" || !/^>\s+\S/.test(body) || body.length < 40) {
@@ -333,7 +352,13 @@ function scanChangelog(text) {
   const bad = [
     "# Changelog",
     "",
+    /* Не выпуск: сводки у него нет, и обход не должен её требовать. */
+    "## Unreleased",
+    "",
     "## 9.9.9",
+    "",
+    /* Строка с датой есть, а сводки за ней нет — и это обязано быть названо. */
+    "_2026-09-20 · [all changes since 9.9.8](https://example.invalid/compare)_",
     "",
     "### Added",
     "",
@@ -345,13 +370,15 @@ function scanChangelog(text) {
     "",
     "## 9.9.8",
     "",
+    "_2026-09-19_",
+    "",
     "> [!NOTE]",
     "> Сводка у этого выпуска есть, и обход не должен называть его.",
     "",
     "1. ✨ **Пункт со знаком рода.** Такой обход не трогает.",
   ].join("\n");
   const scan = scanChangelog(bad);
-  assert.equal(scan.sections, 2, "обход нашёл не те разделы: " + scan.sections);
+  assert.equal(scan.sections, 3, "обход нашёл не те разделы: " + scan.sections);
   assert.equal(scan.noSummary.length, 1, "раздел без сводки обязан быть назван ровно один");
   assert.ok(/9\.9\.9/.test(scan.noSummary[0]), "и назван по номеру: " + scan.noSummary[0]);
   assert.equal(scan.noMark.length, 1, "пункт без знака рода обязан быть назван");

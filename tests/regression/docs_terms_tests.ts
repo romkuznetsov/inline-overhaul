@@ -21,8 +21,10 @@
  * превратилось. Поэтому `## Glossary` в руководстве и `## Terms` в README
  * исключены целиком, и других исключений нет.
  *
- * `showcase.md` не проверяется вовсе: его текст и гифки — материал заказчика, а
- * отчёт о разошедшихся записях в нём намеренно называет старые имена.
+ * `showcase.md` здесь не проверяется вовсе: его текст и гифки — материал
+ * заказчика, а отчёт о разошедшихся записях в нём намеренно называет старые
+ * имена. Его **адреса** при этом спрашиваются наравне с остальными —
+ * `tests/regression/docs_links_tests.js`.
  */
 
 import assert from "node:assert/strict";
@@ -68,6 +70,17 @@ function readDoc(name: string): string {
  * угодно. `FEATURES.md` добавлен 2026-09-11.
  */
 const DOCS = ["README.md", "instructions.md", "FEATURES.md"];
+
+/*
+ * А запреты терминологии — ко **всему**, что читает человек снаружи. Их
+ * предмет не «три документа плагина», а «текст, по которому человек пойдёт
+ * искать контрол»: снятое имя посылает его в пустоту из учебника и из
+ * справочника настроек ровно так же, как из README. Список ведётся здесь, и
+ * новый пользовательский документ вписывается сюда тем же коммитом, что
+ * заводится (правило 79: правило со списком мест исполняется кодом в каждом
+ * из них, а не фразой).
+ */
+const USER_DOCS = DOCS.concat(["docs/settings.md", "docs/tutorial.md"]);
 
 /*
  * А вот два требования ниже — только к руководствам: версия Obsidian и
@@ -145,7 +158,7 @@ const GUIDES = ["README.md", "instructions.md"];
     }
     return out;
   };
-  const sources: Array<[string, string]> = DOCS.map(
+  const sources: Array<[string, string]> = USER_DOCS.map(
     doc => [doc, readDoc(doc)] as [string, string],
   );
   sources.push(["заметка-руководство", howtoMarkdown()]);
@@ -160,7 +173,7 @@ const GUIDES = ["README.md", "instructions.md"];
     "положительный контроль: список снятых контролов опустел, запрещать нечего");
   assert.strictEqual(hitsIn([["образец", "строка про " + String(REMOVED[0] && REMOVED[0][0]) + " внутри"]]).length, 1,
     "положительный контроль: запрет не видит снятый контрол в образце");
-  assert.strictEqual(sources.length, DOCS.length + 1,
+  assert.strictEqual(sources.length, USER_DOCS.length + 1,
     "положительный контроль: прочитаны не все документы");
   for (const [doc, text] of sources) {
     assert.ok(text.length > 500,
@@ -184,10 +197,23 @@ const GUIDES = ["README.md", "instructions.md"];
    * обычный заголовок с двоеточием («Transform: a line becomes a note»), и
    * первая версия проверки на этом и споткнулась.
    */
+  /*
+   * **Три записи отсюда сняты 2026-09-20, и снял их продукт, а не вкус.**
+   * `General: Undo last settings change`, `General: Toggle` и
+   * `Binder: Smart bracket` были старой формой имени, пока T6 запрещал область
+   * в имени команды. Половина T6 отменена его решением 2026-09-20 (У-241):
+   * имя команды снова несёт область, и эти три строки — то, что человек
+   * **видит** в палитре и в справочнике сегодня. Запрет на них означал бы,
+   * что документ не может назвать команду её нынешним именем, то есть ровно
+   * тот дефект, ради которого У-240 и заведён: имя копируется из того места,
+   * где он его увидит.
+   *
+   * Остальные записи живы: там расходится не приставка, а само имя
+   * (`Move Up` против `Move line up`, `inline2note` против
+   * `Transform inline to note`).
+   */
   const OLD_NAMES = [
     "General: Open settings",
-    "General: Undo last settings change",
-    "General: Toggle",
     "Navigation: Move Up",
     "Navigation: Move Down",
     "Navigation: Move Left",
@@ -200,7 +226,6 @@ const GUIDES = ["README.md", "instructions.md"];
     "Config: Apply TagWheel config",
     "Config: Open TagWheel template",
     "Transform: inline2note",
-    "Binder: Smart bracket",
     "Enhanced Mod+A",
     "Enhanced Ctrl+A",
   ];
@@ -217,7 +242,7 @@ const GUIDES = ["README.md", "instructions.md"];
     }
     return out;
   };
-  const sources: Array<[string, string]> = DOCS.map(
+  const sources: Array<[string, string]> = USER_DOCS.map(
     doc => [doc, readDoc(doc)] as [string, string],
   );
 
@@ -226,6 +251,22 @@ const GUIDES = ["README.md", "instructions.md"];
     "положительный контроль: список старых имён опустел, запрещать нечего");
   assert.strictEqual(hitsIn([["образец", "команда " + OLD_NAMES[0] + " в строке"]]).length, 1,
     "положительный контроль: запрет не видит старое имя команды в образце");
+  /*
+   * **Отрицательные контроли — ширина запрета** (правило 125). Имя с областью
+   * снова законно, и запрет обязан его пропускать: иначе документ не сможет
+   * назвать команду тем именем, которое человек читает в палитре. Строки взяты
+   * у самого реестра, а не переписаны сюда руками.
+   */
+  const live = [
+    ids.commandDisplayName("General", ids.commandName("undo-last-settings-change")),
+    ids.commandDisplayName("Binder", "Smart bracket"),
+    ids.commandDisplayName("Navigation", ids.commandName("move-line-up")),
+    "General: Toggle Navigation module",
+  ];
+  assert.strictEqual(
+    hitsIn(live.map((name, i) => ["живое имя " + i, "команда " + name + " в строке"] as [string, string])).length,
+    0,
+    "отрицательный контроль: запрет считает старым имя, которое человек видит сейчас");
   for (const [doc, text] of sources) {
     assert.ok(text.length > 500,
       "положительный контроль: документ прочитан пустым: " + doc);
@@ -243,7 +284,7 @@ const GUIDES = ["README.md", "instructions.md"];
   assert.ok(LEGACY_ID.test("id: inlineOverhaul_PKM_next"),
     "положительный контроль: образец со старой формой идентификатора не опознан");
   const found: string[] = [];
-  for (const doc of DOCS) {
+  for (const doc of USER_DOCS) {
     const text = readDoc(doc);
     assert.ok(text.length > 500, "положительный контроль: документ прочитан пустым: " + doc);
     if (LEGACY_ID.test(text)) found.push(doc);
@@ -295,7 +336,7 @@ const GUIDES = ["README.md", "instructions.md"];
   };
   assert.strictEqual(staleIn([["образец", "вкладка " + STALE_TABS[0] + " здесь"]]).length, 1,
     "положительный контроль: запрет не видит снятую вкладку в образце");
-  const found = staleIn(DOCS.map(doc => [doc, readDoc(doc)] as [string, string]));
+  const found = staleIn(USER_DOCS.map(doc => [doc, readDoc(doc)] as [string, string]));
   assert.deepEqual(found, [],
     "документ называет вкладку или подвкладку, которых нет (Р5, 6.1):\n  " + found.join("\n  "));
   ok("области названы так же, как в панели, и подвкладок в документах нет");
@@ -323,7 +364,7 @@ const GUIDES = ["README.md", "instructions.md"];
   };
   assert.strictEqual(renamedIn([["образец", "термин " + String(RENAMED[0] && RENAMED[0][0]) + " здесь"]]).length, 1,
     "положительный контроль: запрет не видит внутренний термин в образце");
-  const found = renamedIn(DOCS.map(doc => [doc, readDoc(doc)] as [string, string]));
+  const found = renamedIn(USER_DOCS.map(doc => [doc, readDoc(doc)] as [string, string]));
   assert.deepEqual(found, [],
     "документ пользуется внутренним термином вместо имени из 7.3:\n  " + found.join("\n  "));
   ok("внутренних терминов 7.3 в документах не осталось");
@@ -363,41 +404,15 @@ const GUIDES = ["README.md", "instructions.md"];
   ok("глоссарий 7.3 на месте и объясняет каждое переименование");
 }
 
-{
-  /*
-   * Ссылка из `README.md` в `showcase.md` ведёт к живому заголовку.
-   *
-   * **Зачем.** Заголовки showcase — цели ссылок, и это сказано в нём самом.
-   * 2026-09-11 из него убраны 17 записей, чьи гифки показывали снятую панель;
-   * шестнадцать ссылок README пришлось развязать тем же коммитом. Без этой
-   * проверки следующая такая уборка оставит битые якоря, и заметит их
-   * человек, а не прогон: битая ссылка на GitHub просто ведёт в начало файла.
-   */
-  const anchorOf = (title: string): string =>
-    title.toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
-
-  const show = fs.readFileSync(path.join(root, "docs", "showcase.md"), "utf8");
-  const targets = new Set(
-    (show.match(/^#{2,3}\s+.*$/gm) || []).map(h => anchorOf(h.replace(/^#+\s+/, "").trim())),
-  );
-  assert.ok(targets.size >= 10,
-    "положительный контроль: заголовков в showcase найдено " + targets.size + " — разбор сломан");
-
-  const readme = fs.readFileSync(path.join(root, "README.md"), "utf8");
-  const links = Array.from(readme.matchAll(/showcase\.md#([a-z0-9-]+)/g), m => String(m[1]));
-  assert.ok(links.length >= 5,
-    "положительный контроль: ссылок README в showcase найдено " + links.length + " — сверять нечего");
-
-  /* Образец, на котором запрет обязан краснеть (У-127). */
-  assert.ok(!targets.has("zagolovka-takogo-net"),
-    "положительный контроль: выдуманный якорь считается живым");
-
-  const dangling = links.filter(a => !targets.has(a));
-  assert.deepEqual(dangling, [],
-    "ссылка README ведёт к заголовку, которого в showcase.md нет — на GitHub она\n"
-    + "молча откроет начало файла:\n  " + dangling.join("\n  "));
-  ok("каждая ссылка README в showcase ведёт к живому заголовку");
-}
+/*
+ * **Сверка якорей `showcase.md` переехала 2026-09-20** в
+ * `tests/regression/docs_links_tests.js`. Она спрашивала один `README.md`, а
+ * раздел с шестнадцатью якорями ушёл оттуда в `docs/settings.md` (У-94:
+ * утверждение едет за своим предметом). На новом месте предмет шире и
+ * объявлен один раз: **любой** адрес внутри репозитория в **любом**
+ * пользовательском документе — и файл, и якорь. Держать здесь копию значило
+ * бы завести второе объявление одного правила (У-32).
+ */
 
 {
   /* Разрыв хоткеев назван в обоих руководствах: человек обязан о нём прочитать. */
