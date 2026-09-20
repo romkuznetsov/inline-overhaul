@@ -1098,8 +1098,8 @@ function heightBtn(host: StubNode): StubNode {
   const head = one(v.host, "io-vals__head");
   assert.deepEqual(
     head.children.map(c => String(all(c, "io-vals__coltext")[0]?.textContent || "").trim()),
-    ["", "Level", "Value", "Prefix", ""],
-    "у ссылки те же колонки, что у тега, за вычетом цвета");
+    ["", "Level", "Value", "Prefix", "Show", ""],
+    "у ссылки те же колонки, что у тега, за вычетом цвета и образца");
   assert.ok(one(v.host, "io-vals").classList.contains("io-vals--link"),
     "у таблицы ссылки своя сетка колонок");
   ok("Ф7: у Field типа link колонок цвета нет");
@@ -2107,8 +2107,8 @@ const linkSubField = (cfg: Any): Any =>
   const v = makeLinkView();
   const titles = one(v.host, "io-vals__head").children
     .map(c => String(all(c, "io-vals__coltext")[0]?.textContent || "").trim());
-  assert.deepEqual(titles, ["", "Level", "Value", "Prefix", ""],
-    "у ссылки те же колонки, что у тега, за вычетом цвета");
+  assert.deepEqual(titles, ["", "Level", "Value", "Prefix", "Show", ""],
+    "у ссылки те же колонки, что у тега, за вычетом цвета и образца");
   const names = all(v.host, "io-item__name").map(n => String(n.textContent || "").trim());
   assert.ok(names.includes("Child Field"),
     "и ряд Child Field у ссылки есть: дочерний Field у неё теперь настоящий");

@@ -151,6 +151,13 @@ const TAG_BUBBLE_FILLED_CLASS = "io-tagbubble--filled";
 const TAG_BUBBLE_ACCENT_CLASS = "io-tagbubble--accent";
 /* Пузырь, по которому можно щёлкнуть: это тег, и у него есть поиск. */
 const TAG_BUBBLE_CLICKABLE_CLASS = "io-tagbubble--clickable";
+/*
+ * Значение поля-ссылки, показанное своим текстом (его заказ 2026-09-20,
+ * пункт 14). Имя класса называет дело, а не вид: узел заменяет собой
+ * `[[имя]]`, ведёт себя как ссылка и рисуется тем же, чем рисуется ссылка в
+ * Block, — кегль и прозрачность приезжают к нему тем же правилом.
+ */
+const LINK_SHOWN_CLASS = "io-linkshown";
 
 /**
  * Ширина пустого пузыря при 100 %.
@@ -255,10 +262,33 @@ function computeTagVisualStyle(textSizePct, bubbleWidthPct, bubbleHeightPct, sha
 function formatFieldTokenForVisual(field, rawToken) {
   const tok = String(rawToken || "").trim();
   if (!tok) return "";
+  /*
+   * У поля-ссылки значение на строке стоит скобками, а в таблице Values лежит
+   * голым именем — ключ вида собирается тем же помощником, которым его
+   * собирает панель (его заказ 2026-09-20, пункт 14). Спрашивается **вывод
+   * поля**, а не форма значения: «тег это или ссылка» объявлено один раз, в
+   * помощниках правил, и второго ответа здесь не заводится.
+   */
+  if (__rulesHelpers.resolveFieldOutputMode(field, null) === "wikilink") {
+    return __sharedUtils.wikilinkVisualToken(tok);
+  }
   if (__sharedUtils.startsWithTagToken(tok)) return tok;
   const pref = typeof field?.prefix === "string" ? field.prefix : "#";
   if (!pref && /^\/\S+/.test(tok)) return `#${tok}`;
   return `${pref}${tok}`;
+}
+
+/**
+ * Годится ли строка ключом вида: тег или ссылка.
+ *
+ * До 2026-09-20 ключом был только тег, и это было записано в двух обходах
+ * сравнением с решёткой. Теперь вид бывает и у значения-ссылки, и вопрос
+ * объявлен один раз.
+ */
+function isVisualTokenKey(token) {
+  const key = String(token || "").trim();
+  if (!key) return false;
+  return __sharedUtils.startsWithTagToken(key) || __sharedUtils.isWikilinkToken(key);
 }
 
 function buildFieldTagVisualMap(cfg) {
@@ -274,7 +304,7 @@ function buildFieldTagVisualMap(cfg) {
     for (const row of values) {
       const raw = typeof row === "string" ? row : String(row && row.token || "");
       const token = formatFieldTokenForVisual(field, raw);
-      if (!__sharedUtils.startsWithTagToken(token)) continue;
+      if (!isVisualTokenKey(token)) continue;
       const visual = isObj(map[token]) ? map[token] : null;
       if (!visual) continue;
       const nextRow = normalizeRuntimeTagVisualRow(visual);
@@ -308,7 +338,7 @@ function buildGlobalTagVisualMap(cfg) {
     const tokens = Object.keys(fieldRows);
     for (let ti = 0; ti < tokens.length; ti++) {
       const token = String(tokens[ti] || "").trim();
-      if (!token || token.charAt(0) !== "#") continue;
+      if (!isVisualTokenKey(token)) continue;
       const row = isObj(fieldRows[token]) ? normalizeRuntimeTagVisualRow(fieldRows[token]) : null;
       if (!row) continue;
       if (!Object.prototype.hasOwnProperty.call(out, token)) {
@@ -725,29 +755,45 @@ function blockValueClassFor(entry, visuals) {
  * Текст между разделителями не трогается — это ваш текст, а не запись
  * плагина (решение заказчика 2026-09-01).
  */
-function buildBlockStyleCss(entry, visuals, basePx) {
+function blockValueStyleVars(entry, visuals, basePx) {
   const sizing = tagVisualSizingForZone(String(entry && entry.zone || ""), visuals);
-  if (!sizing.inBlock) return "";
-  const opacity = Number(entry && entry.zoneOpacity);
+  if (!sizing.inBlock) return { inBlock: false, opacity: null, fontSizePx: null, risePx: null };
+  const opacityRaw = Number(entry && entry.zoneOpacity);
   const sizePct = Number(sizing.textSizePct);
-  const parts = [];
-  if (Number.isFinite(opacity) && opacity < 1) parts.push("opacity: " + opacity + ";");
-  if (Number.isFinite(sizePct) && sizePct !== 100) {
-    /* Размер берётся той же функцией, что и у пузыря: иначе текст в блоке
-       разъедется с текстом в пузыре при одной и той же настройке. */
-    const st = computeTagVisualStyle(sizePct, 100, 100, 0, basePx);
-    parts.push("font-size: " + st.fontSizePx + "px;");
-    /*
-     * **И подъём — тот же, что у пузыря** (его слово 2026-09-19: «при 100
-     * текст в left/right block должен быть таким же как в text block»).
-     * Ссылку и эмодзи-элемент рисуем не мы, но кегль им задаём мы — значит и
-     * уровень наш: на сотне подъёма нет и они стоят базовой линией, как
-     * обычный текст, мельче — поднимаются на половину разницы кеглей.
-     * Правило одно на оба рода значений, потому что вопрос у них один (У-206).
-     */
-    const rise = Math.round((baseTextPx(basePx) - st.fontSizePx) / 2 * 100) / 100;
-    if (rise) parts.push("vertical-align: " + rise + "px;");
+  const opacity = Number.isFinite(opacityRaw) && opacityRaw < 1 ? opacityRaw : null;
+  if (!Number.isFinite(sizePct) || sizePct === 100) {
+    return { inBlock: true, opacity, fontSizePx: null, risePx: null };
   }
+  /* Размер берётся той же функцией, что и у пузыря: иначе текст в блоке
+     разъедется с текстом в пузыре при одной и той же настройке. */
+  const st = computeTagVisualStyle(sizePct, 100, 100, 0, basePx);
+  /*
+   * **И подъём — тот же, что у пузыря** (его слово 2026-09-19: «при 100
+   * текст в left/right block должен быть таким же как в text block»).
+   * Ссылку и эмодзи-элемент рисуем не мы, но кегль им задаём мы — значит и
+   * уровень наш: на сотне подъёма нет и они стоят базовой линией, как
+   * обычный текст, мельче — поднимаются на половину разницы кеглей.
+   * Правило одно на оба рода значений, потому что вопрос у них один (У-206).
+   */
+  const rise = Math.round((baseTextPx(basePx) - st.fontSizePx) / 2 * 100) / 100;
+  return { inBlock: true, opacity, fontSizePx: st.fontSizePx, risePx: rise || null };
+}
+
+/**
+ * То же самое строкой стиля — для отрезка, который рисует платформа.
+ *
+ * Величины считает `blockValueStyleVars`, и второй раз они здесь не
+ * выводятся: у заменённого значения-ссылки те же числа приезжают переменными
+ * `--io-*` (Р7 каталога запрещает вид строкой атрибута), и расхождение между
+ * заменённым и незаменённым значением было бы видно глазом.
+ */
+function buildBlockStyleCss(entry, visuals, basePx) {
+  const vars = blockValueStyleVars(entry, visuals, basePx);
+  if (!vars.inBlock) return "";
+  const parts = [];
+  if (vars.opacity !== null) parts.push("opacity: " + vars.opacity + ";");
+  if (vars.fontSizePx !== null) parts.push("font-size: " + vars.fontSizePx + "px;");
+  if (vars.risePx !== null) parts.push("vertical-align: " + vars.risePx + "px;");
   return parts.join(" ");
 }
 
@@ -2109,8 +2155,10 @@ module.exports = {
   TAG_BUBBLE_FILLED_CLASS,
   TAG_BUBBLE_ACCENT_CLASS,
   TAG_BUBBLE_CLICKABLE_CLASS,
+  LINK_SHOWN_CLASS,
   computeTagVisualStyle,
   formatFieldTokenForVisual,
+  isVisualTokenKey,
   buildFieldTagVisualMap,
   buildGlobalTagVisualMap,
   readTagVisualRowByTokenMaps,
@@ -2134,6 +2182,7 @@ module.exports = {
   buildWikilinkValueTestFromConfig,
   blockValueZone,
   buildBlockStyleCss,
+  blockValueStyleVars,
   tagVisualSizingForZone,
   BLOCK_VALUE_CLASS,
   blockValueClassFor,

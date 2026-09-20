@@ -84,7 +84,11 @@ const CFG = {
           {
             id: "Project",
             source: "wikilinks:Project",
-            values: [{ token: "test1", active: true }, { token: "test", active: true }],
+            values: [
+              { token: "test1", active: true },
+              { token: "test", active: true },
+              { token: "shown1", active: true },
+            ],
           },
         ],
       },
@@ -125,6 +129,8 @@ const CFG = {
         type: { "#todo": { fillColor: "#0008f0", textColor: "#f0eaea", visibility: "default" } },
         Category: { "#work": { fillColor: "#1106b2", textColor: "", visibility: "default" } },
         Importance: { "#/1": { fillColor: "#ff0000", textColor: "#ffffff", visibility: "empty" } },
+        /* Значение-ссылка со своим текстом — его заказ 2026-09-20, пункт 14. */
+        Project: { "[[shown1]]": { fillColor: "", textColor: "", visibility: "custom", customText: "\u{1F464}" } },
       },
       userTags: { "#processed": { fillColor: "#ff0000", textColor: "", visibility: "default" } },
       blockFill: { enabled: true, color: "#908e8e", opacity: 75, heightPct: 40, widthPct: 50 },
@@ -223,6 +229,15 @@ const LINES = [
    */
   "- [ ] #/1 #work #new [[test1]] #todo [[test]] " + SEP + " 11111112 " + SEP
     + " #123 \u{1F4C5}2026-09-14 10:27 \u{1F923}PJeZs4 #aaa",
+  /*
+   * 14. **Ссылка, показанная своим текстом** (его заказ 2026-09-20, пункт 14).
+   *     Значение `[[shown1]]` названо значением `Project`, и у него в
+   *     настройках стоит `Show = custom` с эмодзи. Своя строка нужна потому,
+   *     что все ссылки выше обязаны остаться ссылками Obsidian: правило
+   *     «заменяем только при custom» иначе проверялось бы отсутствием
+   *     предмета (У-113).
+   */
+  "- [ ] #todo " + SEP + " own text " + SEP + " [[shown1]]",
 ];
 
 /*

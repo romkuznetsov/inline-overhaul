@@ -1364,6 +1364,50 @@ async function main() {
       }
     }
 
+    /* ---- 11. Значение-ссылка, показанное своим текстом ----------------- */
+    /*
+     * Его заказ 2026-09-20, пункт 14. Здесь спрашивается то, чего не спросить
+     * ни одной проверкой на заглушке: **кто выиграл** у одного и того же
+     * отрезка строки. Ссылку `[[…]]` рисует сама Obsidian тремя объявлениями
+     * (спрятанные скобки и пометка между ними, `app.js` 1.13.7), а наш слой
+     * ставит на тот же отрезок замену виджетом — и чья возьмёт, решает
+     * CodeMirror, а не рассуждение (У-45).
+     *
+     * У проверки две половины: заменённая ссылка показана текстом человека и
+     * ведёт на свою заметку, а **остальные ссылки страницы остались
+     * ссылками** — иначе «заменяем только при custom» выполнялось бы кодом,
+     * который заменяет всегда (У-113).
+     */
+    const shown = await page.evaluate(() => {
+      const nodes = Array.from(document.querySelectorAll("a.io-linkshown"));
+      const probe = Array.from(document.querySelectorAll(".io-probe-link"));
+      return {
+        count: nodes.length,
+        text: nodes.map((n) => n.textContent),
+        target: nodes.map((n) => n.getAttribute("data-io-link-target")),
+        box: nodes.length ? nodes[0].getBoundingClientRect().height : 0,
+        untouched: probe.map((n) => n.textContent),
+      };
+    });
+    if (shown.count !== 1) {
+      bad("значений-ссылок со своим текстом на странице " + shown.count
+        + ", а в настройках оно одно: " + JSON.stringify(shown.text));
+    } else {
+      if (shown.text[0] !== "\u{1F464}") {
+        bad("заменённая ссылка показана не текстом человека: " + JSON.stringify(shown.text[0]));
+      }
+      if (shown.target[0] !== "shown1") {
+        bad("заменённая ссылка ведёт не туда: " + JSON.stringify(shown.target[0]));
+      }
+      if (!(shown.box > 0)) {
+        bad("заменённая ссылка нарисована пустой: высота её ящика " + shown.box);
+      }
+    }
+    if (!shown.untouched.includes("test1") || !shown.untouched.includes("test")) {
+      bad("ссылки без своего текста перестали быть ссылками Obsidian: "
+        + JSON.stringify(shown.untouched));
+    }
+
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 
     if (problems.length) {

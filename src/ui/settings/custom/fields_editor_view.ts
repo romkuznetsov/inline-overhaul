@@ -22,6 +22,13 @@ import { CONTRAST_FLOOR, contrastRatio, contrastWarning, toHexColor } from "./co
 import { applyTagVars, bubble, bubbleLabel, frame } from "./previews.ts";
 import { sayIn } from "../texts_blocks.ts";
 import { TYPE_COLOR, bareToken, typeColor } from "./preview_data.ts";
+/*
+ * Ключ вида у значения-ссылки — тот же, каким его ищет слой оформления
+ * (`wikilinkVisualToken`, его заказ 2026-09-20, пункт 14). Объявление одно на
+ * панель и на заметку: разойдись они, вид писался бы в один ключ, а читался
+ * из другого — и не появлялся бы никогда.
+ */
+import sharedUtils from "../../../core/shared_utils.js";
 import {
   CARDINALITY_OPTIONS,
   NOT_WRITTEN,
@@ -98,6 +105,17 @@ const SHOWN_OPTIONS = [
   { value: "empty", name: "SHOWN_EMPTY" },
   { value: "custom", name: "SHOWN_CUSTOM" },
 ] as const;
+
+/*
+ * У значения-ссылки положений два (его заказ 2026-09-20, пункт 14).
+ * `Empty` ей не предлагается: спрятать ссылку значит забрать у человека
+ * переход по ней, а вернуть его на пустом месте нечем.
+ */
+const LINK_SHOWN_OPTIONS = [
+  { value: "default", name: "SHOWN_DEFAULT" },
+  { value: "custom", name: "SHOWN_CUSTOM" },
+] as const;
+
 
 
 /**
@@ -1239,7 +1257,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
    * стрелку: ветка `wikilink` в `saveTree` теперь пишет и дочерние значения.
    */
   const columns = isLink
-    ? ["", "Level", "Value", "Prefix", ""]
+    ? ["", "Level", "Value", "Prefix", "Show", ""]
     : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview", ""];
   const tips = columnTips(isLink);
   for (const title of columns) {
@@ -1374,8 +1392,15 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
       o.redraw();
     }) as never);
 
-    if (!isLink) {
+    {
       /*
+       * Колонка `Show` есть у обоих родов значений, и объявление у неё одно —
+       * его заказ 2026-09-20, пункт 14: «добавить для field=link в таблицы
+       * io-values колонку io-values-col-show… custom работает как для
+       * fields=tag». Разница между родами ровно в двух местах: у ссылки
+       * положений два (прятать её нельзя — вернуть переход человеку нечем) и
+       * ключ вида у неё скобочный, тот же, которым её ищет слой оформления.
+       *
        * Цвет читается и пишется по одному и тому же ключу — по Field, а не по
        * уровню значения. Дочернее значение хранит цвет там же, где родитель:
        * так это лежит в конфиге, и так его читает рантайм. Развести чтение и
@@ -1383,18 +1408,23 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
        * читался из дочернего Field, и потому не появлялся никогда.
        */
       const fieldId = ve.parentFieldId || row.strictName;
-      const visual = o.model.getValueVisual(fieldId, v.token);
+      const visualToken = isLink ? String(sharedUtils.wikilinkVisualToken(v.token) || "") : v.token;
+      const visual = o.model.getValueVisual(fieldId, visualToken);
+      /* `Empty` у ссылки в списке нет, и правленный руками конфиг не должен
+         показывать выбранным то, чего в списке нет: слой оформления такую
+         ссылку и так рисует как при `default`. */
+      const shownValue = isLink && visual.visibility === "empty" ? "default" : visual.visibility;
 
       const shownCell = el(line, "div", "io-showncell");
       const shown = selectInput(shownCell, "io-select", {
-        options: labelled(say, SHOWN_OPTIONS),
-        value: visual.visibility,
+        options: labelled(say, isLink ? LINK_SHOWN_OPTIONS : SHOWN_OPTIONS),
+        value: shownValue,
         label: say("VALUE_SHOWN_FOR", v.token),
       });
       shown.disabled = !o.enabled;
       shown.addEventListener("change", (() => {
         if (!o.enabled) return;
-        o.model.setValueVisual(fieldId, v.token, { visibility: shown.value as ValueVisibility },
+        o.model.setValueVisual(fieldId, visualToken, { visibility: shown.value as ValueVisibility },
           "pkm:visuals:tag:visibility:" + fieldId);
         o.redraw();
       }) as never);
@@ -1403,7 +1433,7 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
        * поэтому ссылка, а не значение.
        */
       let previewBubble: El | null = null;
-      if (visual.visibility === "custom") {
+      if (shownValue === "custom") {
         const custom = textInput(shownCell, "io-text io-text--mono", {
           value: visual.customText,
           placeholder: say("VALUE_CUSTOM_PLACEHOLDER"),
@@ -1435,11 +1465,13 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
         }) as never);
         custom.addEventListener("change", (() => {
           if (!o.enabled) return;
-          o.model.setValueVisual(fieldId, v.token, { customText: custom.value },
+          o.model.setValueVisual(fieldId, visualToken, { customText: custom.value },
             "pkm:visuals:tag:custom-text:" + fieldId);
         }) as never);
       }
 
+      /* Цвета и образец — только у тега: у ссылки своего цвета нет, её красит
+         тема, и образцом ей служит сама строка заметки. */
       const color = (key: "fillColor" | "textColor", label: string, reason: string): void => {
         const wrap = el(line, "div");
         /*
@@ -1471,16 +1503,18 @@ export function renderValuesTable(host: El, row: FieldRow, o: FieldsViewOpts): (
           o.redraw();
         }) as never);
       };
-      color("fillColor", say("VALUE_FILL_COLOR"), "pkm:visuals:tag:fill");
-      color("textColor", say("VALUE_TEXT_COLOR"), "pkm:visuals:tag:text");
+      if (!isLink) {
+        color("fillColor", say("VALUE_FILL_COLOR"), "pkm:visuals:tag:fill");
+        color("textColor", say("VALUE_TEXT_COLOR"), "pkm:visuals:tag:text");
 
-      previewBubble = previewCell(line, o, theme, {
-        token: v.token,
-        fill: visual.fillColor,
-        text: visual.textColor,
-        shown: visual.visibility,
-        custom: visual.customText,
-      });
+        previewBubble = previewCell(line, o, theme, {
+          token: v.token,
+          fill: visual.fillColor,
+          text: visual.textColor,
+          shown: visual.visibility,
+          custom: visual.customText,
+        });
+      }
     }
 
     const tools = el(line, "div", "io-valtools");

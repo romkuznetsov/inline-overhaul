@@ -61,6 +61,8 @@ export interface PluginInternals {
   resolveEffectiveTagVisualMode: (row: Any) => string;
   /** Виджет, которым плагин рисует токен Value в строке заметки. */
   TagVisualTokenWidget: Any;
+  /** Виджет значения-ссылки, показанного своим текстом (его пункт 14). */
+  LinkVisualTokenWidget: Any;
   /* Запасной кегль текста редактора: им считается подъём значения, когда
      мерить нечем (его слово про уровень текста в Block, 2026-09-19). */
   TAG_TEXT_FALLBACK_PX: number;

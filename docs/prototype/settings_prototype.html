@@ -1079,7 +1079,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    table still fits a narrow pane. */
 .io-vals__inner { min-width: 408px; }
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(0, 1fr) 62px minmax(0, 1fr) 44px;
+  grid-template-columns: 14px minmax(0, 1fr) 62px minmax(0, 1fr) minmax(0, 1fr) 44px;
 }
 .io-vals__inner--link { min-width: 380px; }
 
@@ -1136,7 +1136,7 @@ body.proto-comment .io-item:hover { outline-color: var(--background-modifier-bor
    the runtime reads child Values of a link the same way it reads a tag’s
    (2026-08-27, разбор в PRD фазе 3b). */
 .io-vals--link .io-vals__head, .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
+  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) minmax(72px, 1.4fr) 40px;
 }
 /* 208px of floors, four gaps of 4 and padding of 10 on each side. Level
    raised from 26 to 44px on 2026-08-28 together with the big table: the
@@ -3141,6 +3141,15 @@ const SHOWN_AS = [
   { value:"custom",  label:"custom" }
 ];
 
+/*
+ * У значения-ссылки положений два (его заказ 2026-09-20, пункт 14): спрятать
+ * ссылку значит забрать у человека переход по ней, а вернуть его нечем.
+ */
+const SHOWN_AS_LINK = [
+  { value:"value",  label:"default" },
+  { value:"custom", label:"custom" }
+];
+
 const FIELDS = [
   { id:"status", strict:"status", name:"Status", short:"Stat", type:"tag", position:"Left", behavior:"Strict", color:"#6c5cd0", property:"status", cardinality:"auto", valueRule:"raw",
     values:[
@@ -5140,7 +5149,7 @@ function valuesTable(host, f) {
    * Колонка `Parent` жила здесь один день — движок привязку значения ссылки к
    * значению другого Field не читает вовсе.
    */
-  (isLink ? ["", "Level", "Value", "Prefix", ""]
+  (isLink ? ["", "Level", "Value", "Prefix", "Show", ""]
           : ["", "Level", "Value", "Prefix", "Show", "Fill", "Text", "Preview", ""])
     .forEach(t => {
       const cell = el("div", "io-vals__col", head);
@@ -5171,27 +5180,31 @@ function valuesTable(host, f) {
 
     textEl(row, v.prefix, "no", "Prefix for " + v.token, "io-text io-text--mono");
 
-    if (!isLink) {
+    {
+      /* Колонка `Show` есть у обоих родов значений; у ссылки положений два, и
+         цвета с образцом у неё нет — её красит тема. */
       const shown = el("div", "io-showncell", row);
-      const ss = selectEl(shown, SHOWN_AS, v.shown, "Show, for " + v.token);
+      const ss = selectEl(shown, isLink ? SHOWN_AS_LINK : SHOWN_AS, v.shown, "Show, for " + v.token);
       ss.addEventListener("change", () => { v.shown = ss.value; renderContent(); });
       if (v.shown === "custom") {
         const ci = textEl(shown, v.custom, "printed instead", "Custom text for " + v.token, "io-text io-text--mono");
         ci.addEventListener("input", () => { v.custom = ci.value; renderContent(); });
       }
-      const mkColor = (key, label) => {
-        const w = el("div", null, row);
-        const c = el("input", "io-colin", w);
-        c.type = "color"; c.value = v[key] || "#ffffff";
-        c.setAttribute("aria-label", label + " for " + v.token);
-        c.addEventListener("input", () => { v[key] = c.value; renderContent(); });
-      };
-      mkColor("color", "Fill color");
-      mkColor("textColor", "Text color");
-      const pv = el("div", "io-vals__prev", row);
-      applyTagVars(pv);
-      bubble(pv, v);
-      contrastNote(pv, v);
+      if (!isLink) {
+        const mkColor = (key, label) => {
+          const w = el("div", null, row);
+          const c = el("input", "io-colin", w);
+          c.type = "color"; c.value = v[key] || "#ffffff";
+          c.setAttribute("aria-label", label + " for " + v.token);
+          c.addEventListener("input", () => { v[key] = c.value; renderContent(); });
+        };
+        mkColor("color", "Fill color");
+        mkColor("textColor", "Text color");
+        const pv = el("div", "io-vals__prev", row);
+        applyTagVars(pv);
+        bubble(pv, v);
+        contrastNote(pv, v);
+      }
     }
 
     const tools = el("div", "io-valtools", row);

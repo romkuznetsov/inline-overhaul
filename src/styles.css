@@ -1813,7 +1813,7 @@
  */
 .io-vals--link .io-vals__head,
 .io-vals--link .io-vals__row {
-  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) 40px;
+  grid-template-columns: 14px minmax(34px, 0.5fr) minmax(72px, 2fr) minmax(38px, 0.9fr) minmax(72px, 1.4fr) 40px;
 }
 .io-vals__head {
   font-size: 10px;
@@ -3257,6 +3257,30 @@
 }
 .io-tagbubble--accent.io-tagbubble--clickable:hover {
   background-color: var(--interactive-accent-hover, var(--interactive-accent));
+}
+
+/*
+ * Значение поля-ссылки, показанное своим текстом (его заказ 2026-09-20,
+ * пункт 14): `[[Проект]]` на экране выглядит эмодзи, а нажатие открывает ту же
+ * заметку.
+ *
+ * Вид взят у ссылки темы — `--link-color` и подчёркивание по наведению, — а не
+ * написан цветом: заменённое значение обязано читаться как ссылка, иначе по
+ * нему не догадаешься нажать. Величины приезжают переменными `--io-blockvalue-*`
+ * от того же объявления, каким живёт незаменённое значение Block: заменённое и
+ * соседнее должны стоять одинаково.
+ */
+.io-linkshown {
+  color: var(--link-color, var(--text-accent));
+  cursor: var(--cursor-link, pointer);
+  text-decoration: none;
+  opacity: var(--io-blockvalue-opacity, 1);
+  font-size: var(--io-blockvalue-font, inherit);
+  vertical-align: var(--io-blockvalue-rise, baseline);
+}
+.io-linkshown:hover {
+  color: var(--link-color-hover, var(--text-accent-hover, var(--text-accent)));
+  text-decoration: var(--link-decoration-hover, underline);
 }
 
 /*

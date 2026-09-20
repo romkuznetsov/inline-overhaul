@@ -56,7 +56,9 @@ const {
   TAG_BUBBLE_FILLED_CLASS,
   TAG_BUBBLE_ACCENT_CLASS,
   TAG_BUBBLE_CLICKABLE_CLASS,
+  LINK_SHOWN_CLASS,
   buildBlockStyleCss,
+  blockValueStyleVars,
   blockValueClassFor,
   buildElementMarkersFromConfig,
   buildFieldTagVisualMap,
@@ -211,6 +213,112 @@ function openTagSearch(plugin, token) {
   if (!search || typeof search.openGlobalSearch !== "function") return false;
   search.openGlobalSearch("tag:" + tag);
   return true;
+}
+
+/**
+ * Открыть заметку, на которую ведёт ссылка, — тем же вызовом, каким это делает
+ * Obsidian по клику на `[[имя]]`.
+ *
+ * `workspace.openLinkText(цель, путь заметки, новая вкладка)` — объявленный API
+ * платформы (`obsidian.d.ts`, `since 0.16.0`), и клавиша-модификатор решает то
+ * же, что у самой Obsidian: `Ctrl`/`Cmd` или средняя кнопка открывают в новой
+ * вкладке.
+ *
+ * Отказ молчит и это проба: открытого листа может не быть вовсе (панель
+ * настроек, мобильный клиент), и «нет» тут ответ платформы.
+ */
+function openWikilinkTarget(plugin, token, ev) {
+  const target = __sharedUtils.wikilinkTargetOf(token);
+  if (!target) return false;
+  const app = plugin && plugin.app ? plugin.app : null;
+  const workspace = app && app.workspace ? app.workspace : null;
+  if (!workspace || typeof workspace.openLinkText !== "function") return false;
+  const active = typeof workspace.getActiveFile === "function" ? workspace.getActiveFile() : null;
+  const sourcePath = active && typeof active.path === "string" ? active.path : "";
+  const middle = !!ev && ev.button === 1;
+  const mod = !!ev && (ev.ctrlKey || ev.metaKey);
+  try {
+    workspace.openLinkText(target, sourcePath, middle || mod ? "tab" : false);
+  } catch (_) {
+    /* проба: лист мог быть закрыт между нажатием и обработкой */
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Значение поля-ссылки, показанное своим текстом (его заказ 2026-09-20,
+ * пункт 14: «custom работает как для fields=tag… при нажатии на этот
+ * заменённый элемент должна открываться соответствующая wikilink»).
+ *
+ * **Что здесь взято на себя и какой ценой.** Правило И-2.2 говорило: ссылку
+ * своим узлом не заменяем, потому что вместе с `[[имя]]` у человека пропадут
+ * клик, наведение и перетаскивание. Заказчик заказал именно замену и назвал
+ * то, что должно вернуться, — клик. Он и возвращён, тем же вызовом платформы.
+ * **Наведением и перетаскиванием заменённое значение не пользуется**, и это
+ * цена, названная вслух (У-166): предпросмотра по наведению у такого значения
+ * не будет, перетащить его в другую заметку — тоже.
+ *
+ * Замена работает **только при `custom` и непустом тексте**: при `default`
+ * ссылка остаётся ссылкой Obsidian и все её повадки при ней.
+ *
+ * Кегль, прозрачность и уровень берутся у того же правила, что и у
+ * незаменённой ссылки (`buildBlockStyleCss` и `blockValueClassFor`), — иначе
+ * заменённое значение поехало бы относительно соседнего.
+ */
+class LinkVisualTokenWidget extends cmView.WidgetType {
+  constructor(tokenText, displayText, styleVars, blockClass, plugin) {
+    super();
+    this.plugin = plugin || null;
+    this.tokenText = String(tokenText || "");
+    this.displayText = String(displayText || "");
+    const vars = styleVars && typeof styleVars === "object" ? styleVars : {};
+    this.opacity = vars.opacity === null || vars.opacity === undefined ? null : Number(vars.opacity);
+    this.fontSizePx = vars.fontSizePx === null || vars.fontSizePx === undefined ? null : Number(vars.fontSizePx);
+    this.risePx = vars.risePx === null || vars.risePx === undefined ? null : Number(vars.risePx);
+    this.blockClass = String(blockClass || "");
+  }
+  eq(other) {
+    return !!other
+      && other.tokenText === this.tokenText
+      && other.displayText === this.displayText
+      && other.opacity === this.opacity
+      && other.fontSizePx === this.fontSizePx
+      && other.risePx === this.risePx
+      && other.blockClass === this.blockClass;
+  }
+  toDOM() {
+    const el = document.createElement("a");
+    el.textContent = this.displayText;
+    el.className = [LINK_SHOWN_CLASS, this.blockClass].filter(Boolean).join(" ");
+    const target = __sharedUtils.wikilinkTargetOf(this.tokenText);
+    el.setAttribute("data-io-link-token", this.tokenText);
+    el.setAttribute("data-io-link-target", target);
+    /*
+     * Адрес в `href` — это подпись строки состояния и меню браузера, а не путь
+     * перехода: переход делает обработчик ниже. `#` тут был бы прыжком в
+     * начало заметки, поэтому его нет.
+     */
+    el.setAttribute("href", target);
+    /*
+     * Величины — переменными, а не строкой стиля (Р7 каталога): считает их то
+     * же объявление, каким живёт незаменённое значение Block, и читает их
+     * правило класса в `styles.css`.
+     */
+    if (this.opacity !== null) el.style.setProperty("--io-blockvalue-opacity", String(this.opacity));
+    if (this.fontSizePx !== null) el.style.setProperty("--io-blockvalue-font", this.fontSizePx + "px");
+    if (this.risePx !== null) el.style.setProperty("--io-blockvalue-rise", this.risePx + "px");
+    el.addEventListener("mousedown", (ev) => {
+      if (ev && ev.button !== 0 && ev.button !== 1) return;
+      if (!openWikilinkTarget(this.plugin, this.tokenText, ev)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+    });
+    /* Ссылка в редакторе — не форма: щелчок платформы по `a` иначе увёл бы
+       заметку на несуществующий адрес. */
+    el.addEventListener("click", (ev) => { ev.preventDefault(); });
+    return el;
+  }
 }
 
 class TagVisualTokenWidget extends cmView.WidgetType {
@@ -636,6 +744,37 @@ function buildTagVisualDecorations(view, plugin) {
           || !!normalizeHexColorInput(row.textColor)
           || resolveEffectiveTagVisualMode(row) !== "default");
         /*
+         * Значение поля-ссылки со своим текстом — его заказ 2026-09-20,
+         * пункт 14. Замена идёт **только** при `custom` с непустым текстом: у
+         * `default` ссылка остаётся ссылкой Obsidian, со всеми её повадками.
+         * Пустой текст при `custom` читается как `empty` (то же правило, что
+         * у тега), и прятать ссылку целиком мы не беремся — вернуть её
+         * человеку было бы нечем.
+         */
+        if (entry.kind === "link") {
+          const linkLook = row || {};
+          const linkText = resolveEffectiveTagVisualMode(linkLook) === "custom"
+            ? String(linkLook.customText || "").trim()
+            : "";
+          if (linkText && to > from) {
+            ranges.push({
+              from,
+              to,
+              deco: cmView.Decoration.replace({
+                widget: new LinkVisualTokenWidget(
+                  token,
+                  linkText,
+                  blockValueStyleVars(entry, visuals, lineBasePx(lineNo)),
+                  blockValueClassFor(entry, visuals),
+                  plugin,
+                ),
+                inclusive: false,
+              }),
+            });
+            continue;
+          }
+        }
+        /*
          * **Кому рисуется пузырь.** Своему цвету — везде; тегу — в любой
          * строке, которой распоряжается плагин, то есть там, где стоит хотя бы
          * один его разделитель.
@@ -652,7 +791,8 @@ function buildTagVisualDecorations(view, plugin) {
          * наведение и перетаскивание — а вернуть их нечем, поиск тут не
          * замена (И-2.2). Им достаётся прозрачность и размер стилем.
          */
-        const drawsOwnBubble = hasVisualOverride || (entry.kind === "tag" && ourLine);
+        const drawsOwnBubble = entry.kind !== "link"
+          && (hasVisualOverride || (entry.kind === "tag" && ourLine));
         if (!drawsOwnBubble) {
           if (to <= from) continue;
           const styleDeco = buildBlockStyleDecoration(entry, visuals, lineBasePx(lineNo));
@@ -2332,6 +2472,8 @@ module.exports = {
   buildDecorationSet,
   visibleLineNumbers,
   TagVisualTokenWidget,
+  LinkVisualTokenWidget,
+  openWikilinkTarget,
   ZeroWidthInlineWidget,
   buildBlockStyleDecoration,
   buildTagVisualDecorations,

@@ -12,14 +12,15 @@
 ## Unreleased
 
 > [!NOTE]
-> The command reference can hand you over to Obsidian's own `Hotkeys` screen from any heading, an unassigned key reads as an empty slot rather than a button, and every dropdown says which of its values is the standard one. Moving a line in a numbered list renumbers it again.
+> A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note. The command reference hands you over to Obsidian's `Hotkeys` screen from any heading, an unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
 
 1. ✨ **Every heading in `Commands & Hotkeys` has a `to hotkeys` button** — an area, a part of it, or one of your Fields — and it opens Obsidian's `Hotkeys` screen already filtered to that heading's commands. The filter is worked out from the commands you actually have; where Obsidian's search cannot express a heading exactly, it falls back to the plugin's own name.
 2. 🎨 **`not set` in the `Hotkey` column reads as an empty slot**: no button fill, a dashed outline and faint italic text, so an unassigned command is told from an assigned one at a glance.
 3. ✨ **A dropdown says which of its values is the standard one**: the value the plugin starts with carries `(default)` after its label, in every settings row that offers a list. A list with a single line — `Set a Templates folder first`, say — is left alone: there is no choice to point at.
 4. 🐛 **Moving a line in a numbered list lets Obsidian renumber it.** The move used to be written as a whole-document set, and Obsidian skips its own renumbering on exactly that kind of edit — a sub-line dragged under another parent kept the number it had. Now only the lines that actually moved are rewritten.
-5. 🔧 **The `docs` folder shows only what a reader needs**: the showcase, its media, the old-to-new map of command ids and the settings prototype. Everything written for whoever develops the plugin moved into `docs/dev/`; nothing was deleted.
-6. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
+5. ✨ **A Field of type link can show its Values as anything you like.** The Values table of a link Field has the `Show` column now, with `default` and `custom`: pick `custom`, type an emoji — and `[[Project A]]` is drawn as that emoji in the line, while a click on it opens the note it points at, in a new tab with `Ctrl` or the middle button. At `default` the link stays exactly what Obsidian draws. A replaced link has no hover preview and cannot be dragged — those belong to Obsidian's own link, and the plugin does not give them back.
+6. 🔧 **The `docs` folder shows only what a reader needs**: the showcase, its media, the old-to-new map of command ids and the settings prototype. Everything written for whoever develops the plugin moved into `docs/dev/`; nothing was deleted.
+7. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
 
 ## 0.4.0
 

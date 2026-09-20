@@ -28,6 +28,9 @@ import { BLOCK_TEXTS } from "../texts_blocks.ts";
  * (У-32).
  */
 import transformFeature from "../../../features/transform_feature.js";
+/* «Это ссылка целиком» спрашивается у общего дома, а не пишется здесь вторым
+   образцом (У-32): ключом вида бывает и тег, и ссылка. */
+import sharedUtils from "../../../core/shared_utils.js";
 
 const transformSample = transformFeature as unknown as {
   elementSampleValueFromFormat: (format: unknown) => string;
@@ -1567,7 +1570,13 @@ export function createFieldsModel(deps: FieldsModelDeps) {
   ): void => {
     const fid = String(fieldId || "").trim();
     const tok = String(token || "").trim();
-    if (!fid || !tok || tok.charAt(0) !== "#") return;
+    /*
+     * Ключом вида бывает тег и ссылка (его заказ 2026-09-20, пункт 14):
+     * `#todo` и `[[Проект]]`. Всё остальное — не значение, и записывать его
+     * в ветку видов нечему.
+     */
+    if (!fid || !tok) return;
+    if (tok.charAt(0) !== "#" && !sharedUtils.isWikilinkToken(tok)) return;
     const visuals = asObject(asObject(asObject(plugin.getConfig())["visual"])["tags"]);
     const byTag = asObject(visuals["byTag"]);
     const current = asObject(asObject(byTag[fid])[tok]);

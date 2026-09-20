@@ -187,6 +187,29 @@ const EDITOR_INJECTIONS = {
     replace: "  if (Number.isFinite(head) && head > pos && head <= line.to) return head;",
   },
   /*
+   * Значение-ссылка со своим текстом обратно не рисуется: то состояние, в
+   * котором `Show = custom` у ссылки не делал ничего (его заказ 2026-09-20,
+   * пункт 14). Ломается **правило**, а не скорость: ветка замены не
+   * исполняется вовсе (правило 144).
+   */
+  "link-shown-never": {
+    file: "src/ui/editor/decorations.js",
+    find: "        if (entry.kind === \"link\") {",
+    replace: "        if (false) {",
+  },
+  /*
+   * И обратная беда: ссылка заменяется **всегда**, даже при `default`. Так
+   * человек терял бы переход по ссылке всюду, где у значения нет своего
+   * текста.
+   */
+  "link-shown-always": {
+    file: "src/ui/editor/decorations.js",
+    find: "          const linkText = resolveEffectiveTagVisualMode(linkLook) === \"custom\"\n"
+      + "            ? String(linkLook.customText || \"\").trim()\n"
+      + "            : \"\";",
+    replace: "          const linkText = String(linkLook.customText || \"\").trim() || token;",
+  },
+  /*
    * Знак заголовка обратно становится тегом: «`##` (уровень хедера) стал
    * пузырьком — этого не должно быть».
    */
@@ -320,8 +343,9 @@ const EDITOR_INJECTIONS = {
    */
   "plain-tag-no-bubble": {
     file: "src/ui/editor/decorations.js",
-    find: "        const drawsOwnBubble = hasVisualOverride || (entry.kind === \"tag\" && ourLine);",
-    replace: "        const drawsOwnBubble = hasVisualOverride;",
+    find: "        const drawsOwnBubble = entry.kind !== \"link\"\n"
+      + "          && (hasVisualOverride || (entry.kind === \"tag\" && ourLine));",
+    replace: "        const drawsOwnBubble = entry.kind !== \"link\" && hasVisualOverride;",
   },
   /*
    * И та же правка, хватившая лишнего: пузырь рисуется тегу в **любой** строке,
@@ -330,8 +354,9 @@ const EDITOR_INJECTIONS = {
    */
   "plain-tag-any-line": {
     file: "src/ui/editor/decorations.js",
-    find: "        const drawsOwnBubble = hasVisualOverride || (entry.kind === \"tag\" && ourLine);",
-    replace: "        const drawsOwnBubble = hasVisualOverride || entry.kind === \"tag\";",
+    find: "        const drawsOwnBubble = entry.kind !== \"link\"\n"
+      + "          && (hasVisualOverride || (entry.kind === \"tag\" && ourLine));",
+    replace: "        const drawsOwnBubble = entry.kind !== \"link\" && (hasVisualOverride || entry.kind === \"tag\");",
   },
   /*
    * Обратная ошибка того же правила: строкой плагина считается только та, где
