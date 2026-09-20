@@ -36,76 +36,89 @@ const RULE_ROWS = ids.RENAME_RULES
   .map(([was, now]) => "| " + TICK + was + TICK + " | " + TICK + now + TICK + " |")
   .join("\n");
 
-const HEAD = `# Карта ID команд: версия 1 → версия 2
+/*
+ * **Документ английский, потому что его читает человек снаружи** (бренд-бук,
+ * `.claude/skills/repo-docs/references/voice.md`): на него ведёт `README.md` и
+ * уведомление, которое плагин показывает один раз после обновления. Рабочие
+ * документы остаются русскими, этот — нет.
+ */
+const NAME_UNDO = ids.commandDisplayName("General", ids.commandName("undo-last-settings-change"));
+const NAME_TOGGLE = ids.commandDisplayName("General", "Toggle <Module> module");
 
-**Файл сгенерирован** \`node tools/command_ids_doc.js --write\` из
-\`src/features/command_ids.js\`. Руками не правится: правится модуль.
+const HEAD = `# Command id map: version 1 to version 2
 
-Зачем эта карта. Хоткеи в Obsidian привязаны к **идентификатору** команды, а не
-к её имени. В фазе 2 идентификаторы переехали в kebab-case без префикса плагина
-(T7), и все назначенные хоткеи после обновления перестали работать. Миграция
-конфига этого не покрывает — хоткеи живут в настройках Obsidian, а чужой файл
-настроек плагин не правит. Поэтому плагин один раз показывает уведомление и
-печатает эту карту в консоль (Р3, фаза 2, пункт 8).
+**Generated** by \`node tools/command_ids_doc.js --write\` from
+\`src/features/command_ids.js\`. Do not edit it by hand — edit the module.
 
-**Что делать.** Откройте \`Settings\` → \`Hotkeys\`, найдите \`inlineOverhaul\` и
-назначьте клавиши заново по таблице ниже. Полный идентификатор в менеджере
-хоткеев выглядит как \`inline-overhaul:<id>\`.
+Obsidian binds a hotkey to a command's **identifier**, not to its name. In \`0.2.0\`
+the identifiers moved to kebab-case without the plugin prefix, so every key you had
+assigned to an inlineOverhaul command stopped working after that update. Migrating the
+plugin's own settings does not cover it: hotkeys live in Obsidian's settings, and the
+plugin does not edit another plugin's files. So it shows a notice once and prints this
+map to the developer console.
 
-## Переименованные команды
+**What to do.** Open \`Settings\` → \`Hotkeys\`, search for \`inlineOverhaul\` and assign
+the keys again from the table below. The full identifier in the hotkey manager reads
+\`inline-overhaul:<id>\`.
 
-| Было | Стало | Имя в списке команд |
+## Renamed commands
+
+Names below are written without the area in front. In the command palette and in
+Obsidian's \`Hotkeys\` screen each one carries it — \`Navigation: Move line up\` — and
+Obsidian puts the plugin name before that.
+
+| Was | Now | Name |
 |---|---|---|
 `;
 
 const KEPT_SECTION = `
-## Команды, идентификатор которых не менялся
+## Commands whose identifier did not change
 
-Эти идентификаторы уже отвечали T7 — kebab-case без префикса плагина, — и
-переименовывать их значило бы ломать работающий хоткей ради красоты. Р3 даёт
-один разрыв, а не два. У них изменилось только **имя**, а имя к хоткею не
-привязано.
+These identifiers were already kebab-case without the plugin prefix, and renaming them
+would have broken a working hotkey for nothing, so they were left alone. What changed for
+them is the **name**, and a name is not what a hotkey is bound to.
 
-| Идентификатор | Было имя | Стало имя |
+| Identifier | Name in version 1 | Name now |
 |---|---|---|
-| \`undo-last-settings-change\` | \`General: Undo last settings change\` | \`Undo last settings change\` |
-| \`toggle-feature-<module>\` | \`General: Toggle <Module> module\` | \`Toggle <Module> module\` |
+| \`undo-last-settings-change\` | \`${NAME_UNDO}\` | \`${NAME_UNDO}\` |
+| \`toggle-feature-<module>\` | \`${NAME_TOGGLE}\` | \`${NAME_TOGGLE}\` |
 
-## Одна команда удалена
+Both columns say the same thing, and that is not a mistake. Between \`0.2.0\` and
+\`0.4.0\` these commands were listed without the area in front — \`Undo last settings
+change\` — and since \`0.5.0\` every command carries the name of its area again, so that
+Obsidian's \`Hotkeys\` search can be narrowed to one area at a time.
 
-\`open-inline-overhaul-settings\`, она же \`General: Open settings\`, **снята
-2026-09-06** вместе с вызовом \`app.setting.open()\` (T8, фаза 6 пункт 5). В
-палитре команд её больше нет, и назначенный на неё хоткей ни на что не
-действует — его можно снять.
+## One command was removed
 
-Причина не в удобстве: \`app.setting\` не объявлен в типах Obsidian, это
-приватное API и типовая причина замечания на community review. Настройки
-плагина открываются штатным путём — **Settings → Community plugins →
-inlineOverhaul**.
+\`open-inline-overhaul-settings\`, listed as \`General: Open settings\`, was **removed on
+2026-09-06**. It is no longer in the command palette, and a hotkey assigned to it does
+nothing — you can drop it.
 
-## Команды, которых нет в таблице: они собираются из ваших данных
+The reason is not taste: it called an Obsidian API that is not declared in the public
+types, which is a standard objection in a community review. Open the plugin's settings
+the ordinary way — **Settings → Community plugins → inlineOverhaul**.
 
-**Команды полей.** У каждого Field есть пара команд — вперёд и назад по его
-Values. Идентификатор собирается из **строгого имени** Field:
+## Commands that are not in the table: they are built from your own data
 
-| Было | Стало |
+**Field commands.** Every Field has a pair of commands, forward and back through its
+Values. The identifier is built from the Field's strict name:
+
+| Was | Now |
 |---|---|
 ${RULE_ROWS}
 
-Строгое имя приводится к kebab-case: \`date_due\` даёт \`date-due-next\` и
-\`date-due-previous\`. Имя команды в списке — \`<Field> next\` и
-\`<Field> previous\`.
+The strict name is lowered to kebab-case: \`date_due\` gives \`date-due-next\` and
+\`date-due-previous\`. In the command list they read \`Tags & PKM: <Field> next\` and
+\`Tags & PKM: <Field> previous\`.
 
-**Строки Binder.** Идентификатор собирается из имени строки по последнему
-правилу таблицы выше, в kebab-case. Идентификатор строки
-хранится в конфиге (\`editor.binder.rows[].commandId\`), и старая форма там
-считается отсутствующей: она пересобирается из имени строки на первой же
-загрузке.
+**Binder rows.** The identifier is built from the row's name by the last rule in the
+table above, in kebab-case. It is stored in the plugin's settings
+(\`editor.binder.rows[].commandId\`), and the old form there counts as absent: it is
+rebuilt from the row name on the next load.
 
-**Совпадения разводятся.** Два Field, чьи строгие имена дают один kebab
-(\`date_due\` и \`date-due\`), получают \`date-due-next\` и \`date-due-2-next\`.
-Строка Binder, названная как команда ядра, тоже получает суффикс: затенить
-навигацию своей строкой нельзя.
+**Clashes are separated.** Two Fields whose strict names give the same kebab
+(\`date_due\` and \`date-due\`) get \`date-due-next\` and \`date-due-2-next\`. A Binder row
+named after a core command gets a suffix too: your own row cannot shadow navigation.
 `;
 
 function build() {
