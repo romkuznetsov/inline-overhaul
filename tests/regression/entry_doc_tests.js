@@ -159,6 +159,28 @@ const brokenLessons = [...usedLessons].filter((u) => !haveLessons.has(u));
 assert.deepStrictEqual(brokenLessons, [],
   "в CLAUDE.md есть ссылки на уроки, которых нет в docs/dev/LESSONS.md: " + brokenLessons.join(", "));
 
+/*
+ * **Книга уроков держит одну копию себя** (У-252, 2026-09-21).
+ *
+ * Она росла двумя копиями: первой лежал устаревший снимок на сто уроков
+ * короче, и дописывали всегда его — урок прошлой сессии попал ровно туда, то
+ * есть в половину, которую никто не открывает. Снаружи это неотличимо от
+ * порядка: ссылка из `CLAUDE.md` разрешалась (номер-то в файле есть), объём
+ * рос как положено, и ни один прогон не краснел.
+ *
+ * Спрашивается свойство, а не размер: заголовок файла один, и номер урока не
+ * повторяется. Второе сильнее первого — оно ловит и половинную копию, у
+ * которой своего заголовка нет.
+ */
+const lessonHeads = [...lessons.matchAll(/^# Уроки:/gm)].length;
+assert.strictEqual(lessonHeads, 1,
+  "в docs/dev/LESSONS.md заголовков файла " + lessonHeads + ": книга держит копию себя");
+
+const lessonNumbers = [...lessons.matchAll(/^### (У-\d+)\./gm)].map((m) => m[1]);
+const twice = lessonNumbers.filter((u, i) => lessonNumbers.indexOf(u) !== i);
+assert.deepStrictEqual([...new Set(twice)], [],
+  "номер урока объявлен дважды — значит часть книги лежит копией: " + [...new Set(twice)].join(", "));
+
 /* ---------- 4. в `docs/` только то, на что смотрит человек ---------- */
 
 /*
