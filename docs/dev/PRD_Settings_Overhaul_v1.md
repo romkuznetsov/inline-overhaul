@@ -1993,6 +1993,26 @@ due next` я получил `📅2026-09-12 13:40 || `, а должен был `
 без буллита; включит — обе дадут с буллитом. Какое положение ему нужно, решает
 он: расхождения между дорогами больше нет ни при одном.
 
+#### 10.13.222 Осиротевший Separator после `Inline to note` (2026-09-20)
+
+**Его баг:** `- #work [[test2]] :: 12` после превращения в заметку давало
+`- :: [[222/12]] :: #processed`, а он ждал `- [[222/12]] :: #processed`.
+
+**Воспроизведено на его `data.json` по шагам движка.** Все значения строки
+стояли в левом Block и ушли в заметку, а Separator остался. Дальше строка
+читалась как «левый сегмент `-`, текст `12`»: ссылка встала на место текста, а
+`#processed` дописался за вторым Separator — отсюда два разделителя.
+
+**Правило.** Левый Block опустел **нашей уборкой**, правой части нет — Separator
+уходит вместе с Block. Знак списка остаётся: он принадлежит строке, а не Block.
+
+**Две границы, и обе куплены проверками.**
+  1. *Правая часть есть* — Separator остаётся: он граница между текстом и правой
+     зоной. Это его решение по `T4`, и правка его не отменяет.
+  2. *Уборка ничего не снимала* — пустой слот написан человеком, и правило его
+     не трогает. Эту границу нашла `transform_runtime_tests.js`: первая версия
+     правки съедала `- [ ] :: Task` у всякого, кто так пишет.
+
 #### 10.13.221 Область в имени команды: отмена половины T6 его решением (2026-09-20)
 
 **Его замечание** (заметка тестов, тест 5): «при нажатии на `to hotkeys` в
@@ -2082,10 +2102,27 @@ Custom работает как для fields=tag… при нажатии на �
 рассуждением не решается (У-45). Подмены `link-shown-never` и
 `link-shown-always` краснеют каждая на своём утверждении.
 
-**Чего это не делает.** Предпросмотра по наведению и перетаскивания у
-заменённого значения нет; в панели TagWheel и в предпросмотрах панели ссылка
-по-прежнему показывается собой. Первое — цена, названная вслух; второе — место,
-где значение ссылки рисует не этот слой.
+**Наведение и перетаскивание вернулись двумя контролами** — субхедер `Link
+view`, его слово того же дня (`В-156`). В панели TagWheel и в предпросмотрах
+панели ссылка по-прежнему показывается собой: там её рисует не этот слой.
+
+**Третий заход того же дня — два его замечания, и оба про то, что заменённый
+отрезок жил двойной жизнью.**
+
+  1. *«Приходится нажать `shift+→` столько раз, сколько знаков в реальном
+     значении».* Отрезок был заменён на экране и оставался десятью знаками для
+     курсора. У платформы для этого есть своё понятие — `EditorView.atomicRanges`,
+     — и теперь туда уходит всякий отрезок, **где на экране стоит не то, что в
+     документе**: подменённая ссылка, тег с `custom`, тег с `empty`. Пузырь,
+     показывающий сам тег, атомарным не стал нарочно: экран и документ там
+     совпадают знак в знак. Проверяется в настоящем CodeMirror её же вызовом
+     (`moveByChar`) и контролем «обычный текст шагом не проглатывается».
+  2. *«Не понимаю, как работает `link-draggable` — ничего не меняется».*
+     Причина была не в перетаскивании: мы гасили нажатие (`preventDefault` на
+     `mousedown`), чтобы редактор не ставил каретку, — а погашенное нажатие
+     **никогда не становится перетаскиванием**. Открытие переехало на клик, как
+     у обычной ссылки Obsidian; нажатие теперь только не доходит до редактора.
+     Браузерный шаг спрашивает это прямо, и на прежнем поведении краснеет.
 
 #### 10.13.219 Перенос строк и нумерация списка: дело было в пометке транзакции (2026-09-20)
 
@@ -18010,12 +18047,12 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - старые названия для поиска: «Empty bubble size», «Empty bubble width»
 - **`link-view-sub`** — свой блок, рендерер `?`
 - **Preview on hover** — `link-hover-preview`, `toggle`, path `visual.tags.linkShown.hoverPreview`, default `false`
-  - desc: Hovering a Value shown as your own text opens the page preview
-  - tip: The same preview Obsidian shows for an ordinary link, asked for by the plugin: the Value is drawn by us, and the platform has no way of knowing there is a link underneath. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome
+  - desc: Hovering a Value shown as your own text opens the page preview — hold <code>Ctrl</code> while hovering
+  - tip: <b>Hold <code>Ctrl</code></b> (<code>Cmd</code> on macOS) while the pointer rests on the Value: that is how Obsidian's own <code>Page preview</code> is set up for the editor out of the box, and the plugin asks for the preview the same way it does, so your setting there decides. Switch <code>Page preview → Source mode</code> off the modifier and hovering alone will be enough here too. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome
   - старые названия для поиска: «Link hover preview», «Custom link preview»
 - **Drag to move** — `link-draggable`, `toggle`, path `visual.tags.linkShown.draggable`, default `false`
   - desc: A Value shown as your own text can be dragged into another note
-  - tip: Dragging hands Obsidian the same link text an ordinary link would, so the drop makes a link to the same note. Off by default: a draggable Value is easy to pick up by accident while selecting a line
+  - tip: Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there
   - старые названия для поиска: «Link drag», «Custom link drag»
 
 #### Color your Tags — `user-tag-colors` (вкладка `visual`)

@@ -1408,6 +1408,82 @@ async function main() {
         + JSON.stringify(shown.untouched));
     }
 
+    /* ---- 12. Подменённое значение проходится курсором целиком ---------- */
+    /*
+     * Его замечание 2026-09-20: «если в инлайн записи выделять клавиатурой
+     * wikilink, приходится нажать `shift+→` столько раз, сколько знаков в
+     * реальном значении `[[test2]]`, хотя на экране я вижу один знак».
+     *
+     * Ответ знает только платформа: отрезок, отданный в
+     * `EditorView.atomicRanges`, курсор проходит целиком. Проверяется её же
+     * вызовом (`moveByChar`) — тем, на котором стоят команды стрелок.
+     */
+    const step = await page.evaluate(() => {
+      const line = Array.from(document.querySelectorAll(".cm-line"))
+        .findIndex((n) => n.textContent.includes("👤"));
+      return { line, probe: window.__ioStepRight(line + 1, 0) };
+    });
+    if (!(step.line >= 0)) {
+      bad("строки с подменённым значением на странице нет — шаг курсора проверять не на чем");
+    } else {
+      const at = String(step.probe.lineText || "").indexOf("[[shown1]]");
+      const jump = await page.evaluate((args) => window.__ioStepRight(args.line, args.at),
+        { line: step.line + 1, at });
+      if (at < 0) {
+        bad("в строке нет `[[shown1]]` — проверка шага курсора смотрит не туда");
+      } else if (jump.to !== at + "[[shown1]]".length) {
+        bad("шаг курсора прошёл подменённое значение не целиком: с " + jump.from
+          + " на " + jump.to + ", а значение занимает " + at + "…"
+          + (at + "[[shown1]]".length));
+      }
+      /* И контроль: обычный текст шагом не проглатывается. */
+      const plain = await page.evaluate((args) => window.__ioStepRight(args.line, args.at),
+        { line: step.line + 1, at: 0 });
+      if (plain.to !== 1) {
+        bad("шаг по обычному тексту прошёл больше одного знака: с " + plain.from
+          + " на " + plain.to + " — атомарным стало лишнее");
+      }
+    }
+
+    /* ---- 13. Подменённое значение можно утащить ------------------------ */
+    /*
+     * Его замечание 2026-09-20: «не понимаю, как работает link-draggable —
+     * ничего не меняется». Причина была не в перетаскивании, а в нажатии:
+     * `preventDefault` на `mousedown` отменяет у браузера начало
+     * перетаскивания. Браузер — единственный, кто может это подтвердить, и
+     * спрашивается он прямо: отменено ли нажатие и стал ли узел
+     * перетаскиваемым.
+     */
+    const drag = await page.evaluate(() => {
+      const el = document.querySelector("a.io-linkshown");
+      if (!el) return { found: false };
+      const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+      el.dispatchEvent(down);
+      const carried = {};
+      const start = new Event("dragstart", { bubbles: true, cancelable: true });
+      start.dataTransfer = { setData: (kind, value) => { carried[kind] = value; } };
+      el.dispatchEvent(start);
+      return {
+        found: true,
+        prevented: down.defaultPrevented,
+        draggable: el.draggable === true,
+        carried: carried["text/plain"] || "",
+      };
+    });
+    if (!drag.found) {
+      bad("подменённого значения на странице нет — перетаскивание проверять не на чем");
+    } else {
+      if (drag.prevented) {
+        bad("нажатие по подменённому значению погашено — браузер не начнёт перетаскивание");
+      }
+      if (!drag.draggable) {
+        bad("узел подменённого значения не перетаскиваемый при включённом `Drag to move`");
+      }
+      if (drag.carried !== "[[shown1]]") {
+        bad("в обмен при перетаскивании легло не значение: " + JSON.stringify(drag.carried));
+      }
+    }
+
     if (pageErrors.length) bad("страница ругается: " + pageErrors.slice(0, 3).join(" ;; "));
 
     if (problems.length) {

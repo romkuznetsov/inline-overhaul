@@ -125,6 +125,14 @@ const CFG = {
       cornersPct: 0,
       opacityLeft: 100,
       opacityRight: 100,
+      /*
+       * Обе повадки подменённой ссылки включены нарочно: выключенные они
+       * проверялись бы отсутствием предмета (У-113), а включить их на странице
+       * нечем — контролов тут нет. Что при `off` их не появляется, спрашивает
+       * набор проверок.
+       */
+      linkShown: { hoverPreview: true, draggable: true },
+      byTagTail: null,
       byTag: {
         type: { "#todo": { fillColor: "#0008f0", textColor: "#f0eaea", visibility: "default" } },
         Category: { "#work": { fillColor: "#1106b2", textColor: "", visibility: "default" } },
@@ -583,6 +591,24 @@ window.__ioBubblesByZone = function () {
     });
   }
   return out;
+};
+
+/**
+ * Шаг каретки вправо по строке, как его делает сама платформа.
+ *
+ * Нужен одному вопросу — его замечанию 2026-09-20: «если выделять клавиатурой
+ * wikilink, приходится нажать столько раз, сколько знаков в реальном значении,
+ * хотя на экране один знак». Ответ на него знает только CodeMirror: отрезок,
+ * отданный в `EditorView.atomicRanges`, курсор проходит целиком. Здесь
+ * ставится каретка перед значением и делается один шаг **тем же** вызовом,
+ * которым его делает клавиша, — `moveByChar` через команду платформы.
+ */
+window.__ioStepRight = function (lineNumber, at) {
+  const line = view.state.doc.line(Math.max(1, Math.min(view.state.doc.lines, Number(lineNumber) || 1)));
+  const from = line.from + Math.max(0, Number(at) || 0);
+  view.dispatch({ selection: { anchor: from } });
+  const range = view.moveByChar(view.state.selection.main, true);
+  return { from: from - line.from, to: range.head - line.from, lineText: line.text };
 };
 
 /** Каретка на строке: от неё зависит, где стоит кнопка `→`. */

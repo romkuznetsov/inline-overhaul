@@ -187,6 +187,27 @@ const EDITOR_INJECTIONS = {
     replace: "  if (Number.isFinite(head) && head > pos && head <= line.to) return head;",
   },
   /*
+   * Нажатие по подменённому значению снова гасится — ровно то состояние, в
+   * котором он написал «не понимаю, как работает link-draggable, ничего не
+   * меняется»: браузер не начинает перетаскивание после `preventDefault` на
+   * `mousedown`.
+   */
+  "link-shown-swallows-mousedown": {
+    file: "src/ui/editor/decorations.js",
+    find: "    el.addEventListener(\"mousedown\", (ev) => { ev.stopPropagation(); });",
+    replace: "    el.addEventListener(\"mousedown\", (ev) => { ev.preventDefault(); ev.stopPropagation(); });",
+  },
+  /*
+   * Подменённое значение перестаёт быть атомарным: курсор снова идёт по
+   * спрятанным знакам — ровно то, на что он пожаловался 2026-09-20 («приходится
+   * нажать столько раз, сколько знаков в реальном значении»).
+   */
+  "link-shown-not-atomic": {
+    file: "src/ui/editor/decorations.js",
+    find: "              atomic: true,",
+    replace: "              atomic: false,",
+  },
+  /*
    * Значение-ссылка со своим текстом обратно не рисуется: то состояние, в
    * котором `Show = custom` у ссылки не делал ничего (его заказ 2026-09-20,
    * пункт 14). Ломается **правило**, а не скорость: ветка замены не

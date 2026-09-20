@@ -288,6 +288,16 @@ function makeConfig() {
   assertTrue(/invalid quoted YAML top-level key/.test(invalidError), "malformed quoted YAML key fails fast");
 })();
 
+/*
+ * Предмет этой проверки — **повтор значения в тексте человека**: `#todo` в
+ * левом Block уходит, а такой же `#todo` в его словах остаётся.
+ *
+ * Ожидание правлено 2026-09-20 по его багу: левый Block опустел, правой части
+ * на строке нет — и Separator, которому больше нечего разделять, уходит
+ * вместе с ним (`- :: payload #todo` → `- payload #todo`). Граница правила
+ * закреплена в `source_line_tests.ts`: при живой правой части пустой слот
+ * остаётся, как он просил в `T4`.
+ */
 (function testSourceCleanupUsesMatchedPanelSpansOnly() {
   const cfg = makeConfig();
   const source = "- #todo :: payload #todo";
@@ -295,7 +305,7 @@ function makeConfig() {
   const ctx = transform.buildTransformContext(parsed, cfg);
   assertEq(
     transform.applySourceCleanupByFieldIds(source, ctx, [], { separator1: "::", separator2: "::" }),
-    "- :: payload #todo",
+    "- payload #todo",
     "cleanup removes left field span but preserves duplicate payload text"
   );
 

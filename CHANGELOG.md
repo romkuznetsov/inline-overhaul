@@ -12,7 +12,7 @@
 ## Unreleased
 
 > [!NOTE]
-> A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note. Every command now carries the name of its area, so the command reference can hand you over to Obsidian's `Hotkeys` screen with one heading of it filtered in. An unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
+> A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note, while the cursor and the mouse treat what you see as one piece. Every command now carries the name of its area, so the command reference can hand you over to Obsidian's `Hotkeys` screen with one heading of it filtered in. An unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
 
 1. ✨ **Every heading in `Commands & Hotkeys` has a `to hotkeys` button** — an area, a part of it, or one of your Fields — and it opens Obsidian's `Hotkeys` screen filtered to exactly that heading's commands.
 2. 🎨 **Each command is named after its area now**: `Navigation: Move line up`, `Tags & PKM: Category next`. That is what makes the filter above exact — Obsidian's `Hotkeys` search matches words in a name. Identifiers did not change, so every hotkey you have set keeps working.
@@ -21,8 +21,11 @@
 5. 🐛 **A numbered list keeps counting after you move a line in it.** A sub-line moved under another parent, or to the top of its own sub-list, used to keep the number it came with — `3.` where `1.` belongs. Moved lines are now numbered from the nearest item above them at the same level. A list started at another number keeps it, unless you move its first line.
 6. ✨ **A Field of type link can show its Values as anything you like.** Its Values table has the `Show` column now: pick `custom`, type an emoji, and `[[Project A]]` is drawn as that emoji — a click on it still opens the note, in a new tab with `Ctrl`. At `default` it stays the link Obsidian draws.
 7. ✨ **New: `Link view`** under `Visual → Inline appearance` — two switches that hand a shown link back what an ordinary link gets from Obsidian: the preview on hover and dragging. Both off by default.
-8. 🔧 **The `docs` folder shows only what a reader needs**: the showcase, its media, the old-to-new map of command ids and the settings prototype. Everything written for whoever develops the plugin moved into `docs/dev/`; nothing was deleted.
-9. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
+8. 🐛 **A Value shown as your own text is one step for the cursor.** Arrow keys and `Shift+→` used to walk the hidden characters of `[[Project A]]` behind a single emoji; the replaced piece is now crossed in one step, and selected whole. The same goes for a tag shown as `custom` or `empty`.
+9. 🐛 **A shown link can be dragged at last.** Pressing it used to be swallowed by the plugin, and a press that is swallowed never becomes a drag. The press is now left to the browser and the note is opened on click — which is also how an ordinary link behaves.
+10. 🐛 **`Inline to note` no longer leaves a separator with nothing to separate.** A line whose Values all stood before your text — `- #work [[Project A]] :: 12` — came back as `- :: [[note]] :: #processed`. The empty slot goes with its Values; a line that still has a right Block keeps it.
+11. 🔧 **The `docs` folder shows only what a reader needs**: the showcase, its media, the old-to-new map of command ids and the settings prototype. Everything written for whoever develops the plugin moved into `docs/dev/`; nothing was deleted.
+12. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
 
 ## 0.4.0
 

@@ -2621,7 +2621,11 @@ function planSourceCleanup(line, transformContext, cleanupFieldIds, separators) 
     .replace(new RegExp(`\\s+${escapeRegexLiteral(s1)}\\s+`, "g"), ` ${s1} `)
     .replace(/\s{2,}/g, " ")
     .replace(/\s+$/g, "");
-  const plan = planSourceLineAfterCleanup(out, separators, transformContext && transformContext.singleIsSecond === true);
+  /* Убрала ли уборка что-нибудь: правило про осиротевший Separator живёт
+     только здесь. Пустой слот, который человек написал сам, — не наше дело. */
+  const sweptSomething = removable.length > 0;
+  const plan = planSourceLineAfterCleanup(out, separators,
+    transformContext && transformContext.singleIsSecond === true, sweptSomething);
   return { line: `${leadingIndent}${plan.line}`, payloadFirst: plan.payloadFirst };
 }
 
@@ -2757,7 +2761,7 @@ function normalizePreviewSeparators(line, separators) {
  * `- :: text :: right` остаётся с двумя Separator — так её и ждёт заказчик
  * (его пример к T4).
  */
-function planSourceLineAfterCleanup(line, separators, singleIsSecond) {
+function planSourceLineAfterCleanup(line, separators, singleIsSecond, sweptSomething) {
   const src = String(line || "").trim();
   const plain = (value) => ({ line: value, payloadFirst: false });
   if (!src) return plain(src);
@@ -2774,6 +2778,32 @@ function planSourceLineAfterCleanup(line, separators, singleIsSecond) {
    */
   if (parts.length === 2 && singleIsSecond === true) {
     return { line: src.replace(/\s{2,}/g, " ").trim(), payloadFirst: true };
+  }
+  /*
+   * **Разделитель, которому больше нечего разделять, уходит** (его баг
+   * 2026-09-20: `- #work [[test2]] :: 12` после `Inline to note` давало
+   * `- :: [[222/12]] :: #processed`, а ждал он `- [[222/12]] :: #processed`).
+   *
+   * После уборки левый Block пуст — все его значения ушли в заметку, — а
+   * правого на строке не было вовсе. Тогда первый Separator стоит между
+   * ничем и текстом, и оставлять его значит показывать человеку пустую зону,
+   * которой он не заводил. Знак списка при этом остаётся: он принадлежит
+   * строке, а не Block.
+   *
+   * **Граница правила.** Правый Block на строке есть — Separator остаётся,
+   * потому что он и есть граница между текстом и правой зоной; это тот же
+   * случай, что ветка `payload && right` ниже. И строка, у которой левый
+   * Block пуст **у самого человека**, сюда не приходит: план уборки
+   * вызывается только там, где уборка что-то сняла.
+   */
+  if (parts.length === 2 && sweptSomething === true) {
+    const marker = String((parts[0].match(/^[-*+]\s*(?:\[.\]\s*)?/u) || [""])[0] || "");
+    const headLeft = String(parts[0] || "").slice(marker.length).trim();
+    const tail = String(parts[1] || "").trim();
+    if (!headLeft && tail) {
+      const keptMarker = marker ? marker.trimEnd() + " " : "";
+      return plain(`${keptMarker}${tail}`.replace(/\s{2,}/g, " ").trim());
+    }
   }
   if (parts.length < 3) return plain(src.replace(/\s{2,}/g, " ").trim());
   const left = parts[0] || "";

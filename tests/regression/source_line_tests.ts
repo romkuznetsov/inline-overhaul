@@ -706,6 +706,65 @@ const I2N_WORDS = { noteName: { mode: "auto", delimiters: "[]", wordCount: 6 } }
 }
 
 {
+  /*
+   * **Разделитель, которому нечего разделять, уходит** — его баг 2026-09-20:
+   * строка `- #work [[test2]] :: 12` после `Inline to note` давала
+   * `- :: [[222/12]] :: #processed`, а ждал он `- [[222/12]] :: #processed`.
+   *
+   * Разница с блоком выше: там правая часть была, и Separator оставался её
+   * границей. Здесь правой части нет вовсе — все значения строки стояли в
+   * левом Block и ушли в заметку. Оставшийся Separator стоял между ничем и
+   * текстом, то есть показывал человеку зону, которой он не заводил.
+   *
+   * Разделители у него **одинаковые** (`::`), и это не край, а основной
+   * случай (его слово 2026-09-15).
+   */
+  const both = { separator1: "::", separator2: "::" };
+  const ctx = {
+    matches: [
+      { fieldId: "Category", span: { start: 2, end: 7 } },
+      { fieldId: "Project", span: { start: 8, end: 17 } },
+    ],
+  } as Any;
+
+  const plan = transform.planSourceCleanup("- #work [[test2]] :: 12", ctx, [], both);
+  assert.equal(plan.line, "- 12",
+    "левый Block опустел, а его Separator остался: " + JSON.stringify(plan.line));
+  assert.equal(plan.payloadFirst, false,
+    "Separator на строке не остался вовсе — устройство её обычное");
+
+  /* И до конца: ссылка встаёт на место слов, ставших названием. */
+  const named = transform.applySourceTextFate(plan.line, "222/12", both, {
+    text: "leave_named", keepWords: 2, link: true,
+    explicitTitle: "", titleWords: "12", shape: { payloadFirst: plan.payloadFirst },
+  });
+  assert.equal(named, "- [[222/12]]", "ссылка встала не на место текста: " + named);
+
+  /*
+   * **Граница правила — правая часть, и она его же прежнее решение.** При
+   * живой правой зоне строка с голым маркером списка остаётся с **двумя**
+   * Separator: пустой слот слева он просил сохранять (его пример к `T4`,
+   * 2026-09-07). Без этого контроля «лишний Separator ушёл» выполнялось бы и
+   * кодом, который убирает его всегда — то есть отменяло бы то решение молча.
+   */
+  const withRight = transform.planSourceCleanup(
+    "- #work [[test2]] :: 12 :: \u{1F4C5}2026-09-20", ctx, [], both);
+  assert.equal(withRight.line, "- :: 12 :: \u{1F4C5}2026-09-20",
+    "при живой правой части пустой слот слева обязан остаться: "
+    + JSON.stringify(withRight.line));
+  /*
+   * **И второй контроль: слот, который человек написал сам, не наше дело.**
+   * Уборка ничего не сняла — значит пустой левый слот стоял так у него, и
+   * трогать его правило не имеет права. Без этого контроля правка съедала бы
+   * `- [ ] :: текст` у всякого, кто так пишет.
+   */
+  const untouched = transform.planSourceCleanup("- [ ] :: Task", { matches: [] } as Any, [], both);
+  assert.equal(untouched.line, "- [ ] :: Task",
+    "уборка ничего не снимала, а слот всё равно тронут: " + JSON.stringify(untouched.line));
+  ok("пустой левый Block уносит свой Separator там, где правой части нет");
+}
+
+{
   /* Метка `#processed` в правой панели: правая часть человека — не текст, и
      второй Separator метке не нужен. */
   const cleaned = "\u002d ывыв ывы :: \u{1F4C5}2026-09-07 18:56";

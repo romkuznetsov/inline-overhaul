@@ -174,26 +174,31 @@ function paintLink(token: string, text: string, vars?: Any): Any {
 }
 
 {
+  /*
+   * **Открывает клик, а не нажатие.** Нажатие мы не гасим нарочно:
+   * `preventDefault` на `mousedown` отменяет у браузера начало перетаскивания,
+   * и пока он там стоял, тащить подменённое значение было нельзя (его
+   * замечание 2026-09-20).
+   */
   const { el, opened } = paintLink("[[Client A]]", "👤");
   let prevented = 0;
-  el.dispatch("mousedown", {
-    button: 0,
-    preventDefault() { prevented++; },
-    stopPropagation() {},
-  });
+  el.dispatch("mousedown", { button: 0, preventDefault() { prevented++; }, stopPropagation() {} });
+  assert.equal(prevented, 0, "нажатие погашено — перетаскивание не начнётся");
+  assert.equal(opened.length, 0, "нажатие само по себе не открывает заметку");
+  el.dispatch("click", { button: 0, preventDefault() { prevented++; }, stopPropagation() {} });
   assert.equal(opened.length, 1, "клик не открыл заметку");
   assert.equal(opened[0].link, "Client A", "открыта не та заметка: " + opened[0].link);
   assert.equal(opened[0].source, "Заметки/строка.md", "путь исходной заметки не передан");
   assert.equal(opened[0].leaf, false, "обычный клик открыл в новой вкладке");
-  assert.equal(prevented, 1, "клик не перехвачен: редактор поставит каретку вместо перехода");
-  ok("клик открывает ту самую заметку тем же вызовом, каким это делает Obsidian");
+  assert.equal(prevented, 1, "клик не перехвачен: редактор уведёт заметку по адресу узла");
+  ok("клик открывает ту самую заметку, а нажатие остаётся браузеру — для перетаскивания");
 }
 
 {
   const { el, opened } = paintLink("[[Client A]]", "👤");
-  el.dispatch("mousedown", { button: 0, ctrlKey: true, preventDefault() {}, stopPropagation() {} });
-  el.dispatch("mousedown", { button: 1, preventDefault() {}, stopPropagation() {} });
-  el.dispatch("mousedown", { button: 2, preventDefault() {}, stopPropagation() {} });
+  el.dispatch("click", { button: 0, ctrlKey: true, preventDefault() {}, stopPropagation() {} });
+  el.dispatch("auxclick", { button: 1, preventDefault() {}, stopPropagation() {} });
+  el.dispatch("auxclick", { button: 2, preventDefault() {}, stopPropagation() {} });
   assert.equal(opened.length, 2, "средняя кнопка и `Ctrl` открыли не два раза: " + opened.length);
   assert.equal(opened[0].leaf, "tab", "`Ctrl` не открыл в новой вкладке");
   assert.equal(opened[1].leaf, "tab", "средняя кнопка не открыла в новой вкладке");
@@ -207,11 +212,9 @@ function paintLink(token: string, text: string, vars?: Any): Any {
    */
   const w = new I.LinkVisualTokenWidget("[[Client A]]", "👤", {}, "", { app: {} });
   const el = w.toDOM();
-  let prevented = 0;
-  el.dispatch("mousedown", { button: 0, preventDefault() { prevented++; }, stopPropagation() {} });
-  assert.equal(prevented, 0, "без рабочей области клик перехвачен, а открыть нечем");
+  el.dispatch("click", { button: 0, preventDefault() {}, stopPropagation() {} });
   assert.equal(String(el.textContent), "👤", "узел всё равно нарисован");
-  ok("без рабочей области Obsidian клик не перехватывается, а узел цел");
+  ok("без рабочей области Obsidian клик ничего не открывает, а узел цел");
 }
 
 {

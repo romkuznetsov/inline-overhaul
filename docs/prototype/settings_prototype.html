@@ -2450,12 +2450,12 @@ const SCHEMA = [
     { kind:"custom", id:"link-view-sub", render: renderSubheader("Link view",
         "This half is about a Value of a link Field whose <code>Show</code> is set to <code>custom</code> — the one drawn as your own text instead of <code>[[the note name]]</code>. A click on it opens the note whatever is set here; hovering and dragging are what an ordinary link gets from Obsidian, and the two rows below hand them back") },
     { kind:"toggle", id:"link-hover-preview", path:"visual.tags.linkShown.hoverPreview", default:false,
-      name:"Preview on hover", desc:"Hovering a Value shown as your own text opens the page preview",
-      tip:"The same preview Obsidian shows for an ordinary link, asked for by the plugin: the Value is drawn by us, and the platform has no way of knowing there is a link underneath. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome",
+      name:"Preview on hover", desc:"Hovering a Value shown as your own text opens the page preview — hold <code>Ctrl</code> while hovering",
+      tip:"<b>Hold <code>Ctrl</code></b> (<code>Cmd</code> on macOS) while the pointer rests on the Value: that is how Obsidian's own <code>Page preview</code> is set up for the editor out of the box, and the plugin asks for the preview the same way it does, so your setting there decides. Switch <code>Page preview → Source mode</code> off the modifier and hovering alone will be enough here too. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome",
       searchTerms:["Link hover preview", "Custom link preview"] },
     { kind:"toggle", id:"link-draggable", path:"visual.tags.linkShown.draggable", default:false,
       name:"Drag to move", desc:"A Value shown as your own text can be dragged into another note",
-      tip:"Dragging hands Obsidian the same link text an ordinary link would, so the drop makes a link to the same note. Off by default: a draggable Value is easy to pick up by accident while selecting a line",
+      tip:"Press the Value and drag it where you want it: the drop makes a link to the same note, because the plugin hands Obsidian the same link text an ordinary link would. Off by default — a draggable Value is easy to pick up by accident while selecting a line — and while it is on, a press on the Value starts a drag rather than putting the cursor there",
       searchTerms:["Link drag", "Custom link drag"] }
   ]
 },

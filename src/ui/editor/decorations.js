@@ -393,15 +393,28 @@ class LinkVisualTokenWidget extends cmView.WidgetType {
     if (this.opacity !== null) el.style.setProperty("--io-blockvalue-opacity", String(this.opacity));
     if (this.fontSizePx !== null) el.style.setProperty("--io-blockvalue-font", this.fontSizePx + "px");
     if (this.risePx !== null) el.style.setProperty("--io-blockvalue-rise", this.risePx + "px");
-    el.addEventListener("mousedown", (ev) => {
-      if (ev && ev.button !== 0 && ev.button !== 1) return;
-      if (!openWikilinkTarget(this.plugin, this.tokenText, ev)) return;
+    /*
+     * **Открывает КЛИК, а не нажатие** — и это не вкус, а условие
+     * перетаскивания (его замечание 2026-09-20: «не понимаю, как работает
+     * link-draggable, ничего не меняется»). `preventDefault` на `mousedown`
+     * отменяет у браузера начало перетаскивания вместе с установкой каретки:
+     * пока мы гасили нажатие, `dragstart` не наступал ни разу. Нажатие теперь
+     * только не доходит до редактора — каретку он не двигает, — а решение
+     * принимает клик, как и у обычной ссылки Obsidian.
+     */
+    el.addEventListener("mousedown", (ev) => { ev.stopPropagation(); });
+    el.addEventListener("click", (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
+      openWikilinkTarget(this.plugin, this.tokenText, ev);
     });
-    /* Ссылка в редакторе — не форма: щелчок платформы по `a` иначе увёл бы
-       заметку на несуществующий адрес. */
-    el.addEventListener("click", (ev) => { ev.preventDefault(); });
+    /* Средняя кнопка клика не даёт — у неё своё событие. */
+    el.addEventListener("auxclick", (ev) => {
+      if (!ev || ev.button !== 1) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      openWikilinkTarget(this.plugin, this.tokenText, ev);
+    });
     /* Две повадки ссылки, которые человек просит отдельно (`Link view`). */
     if (this.hoverPreview) {
       el.addEventListener("mouseover", (ev) => {
@@ -639,7 +652,7 @@ function lineTextBasePx(view, lineNo, fallbackPx) {
   }
 }
 
-function buildTagVisualDecorations(view, plugin) {
+function buildTagVisualLayer(view, plugin) {
   const cfg = plugin && typeof plugin.getConfig === "function" ? plugin.getConfig() : null;
   const debugLine = !!(readCfgPath(cfg, "advanced.devMode.enabled") === true && readCfgPath(cfg, "advanced.devMode.traceTagVisualLine") === true);
   const traceTxId = plugin && typeof plugin.getLineTraceTxId === "function"
@@ -852,6 +865,9 @@ function buildTagVisualDecorations(view, plugin) {
             ranges.push({
               from,
               to,
+              /* На экране стоит текст человека, а в документе — `[[имя]]`:
+                 такой отрезок ходит и выделяется целиком (его пункт 2026-09-20). */
+              atomic: true,
               deco: cmView.Decoration.replace({
                 widget: new LinkVisualTokenWidget(
                   token,
@@ -927,6 +943,10 @@ function buildTagVisualDecorations(view, plugin) {
         ranges.push({
           from,
           to,
+          /* То же и у тега: `custom` показывает другой текст, `empty` — ничего.
+             Пузырь, показывающий сам тег, атомарным не становится: там экран и
+             документ совпадают знак в знак, и ходить по нему надо как по тексту. */
+          atomic: effectiveMode === "custom" || effectiveMode === "empty",
           deco: cmView.Decoration.replace({
             widget: new TagVisualTokenWidget(token, look.fillColor, look.textColor, entry.zoneOpacity, effectiveMode === "empty", sizing.textSizePct, sizing.bubbleWidthPct, sizing.bubbleHeightPct, sizing.emptyBubblePct, visuals.tagShapePct, effectiveMode === "custom" ? String(look.customText || "").trim() : "", plugin, lineBasePx(lineNo)),
             inclusive: false,
@@ -957,7 +977,18 @@ function buildTagVisualDecorations(view, plugin) {
     const bt = Number(b && b.to || 0);
     return at - bt;
   });
-  return buildDecorationSet(ranges, "tag-visual");
+  return {
+    decorations: buildDecorationSet(ranges, "tag-visual"),
+    /*
+     * **Атомарные отрезки** — те, где на экране стоит не то, что в документе
+     * (его замечание 2026-09-20: «хочу, чтобы такие custom wikilinks
+     * выделялись сразу целиком»). Без этого набора курсор идёт по спрятанным
+     * знакам: `shift+→` у подменённой ссылки надо было нажать девять раз при
+     * одном знаке на экране. Правило платформы — `EditorView.atomicRanges`, и
+     * оно двигает и курсор, и выделение, и удаление.
+     */
+    atomic: buildDecorationSet(ranges.filter((r) => r && r.atomic), "tag-visual-atomic"),
+  };
 }
 
 function buildStripDecorations(view, plugin) {
@@ -1127,13 +1158,22 @@ function buildStripDecorations(view, plugin) {
 function createTagVisualDecorationExtension(plugin) {
   return cmView.ViewPlugin.fromClass(class {
     constructor(view) {
-      this.decorations = buildTagVisualDecorations(view, plugin);
+      const built = buildTagVisualLayer(view, plugin);
+      this.decorations = built.decorations;
+      this.atomic = built.atomic;
     }
     update(update) {
-      this.decorations = buildTagVisualDecorations(update.view, plugin);
+      const built = buildTagVisualLayer(update.view, plugin);
+      this.decorations = built.decorations;
+      this.atomic = built.atomic;
     }
   }, {
     decorations: (v) => v.decorations,
+    /* Курсор, выделение и удаление проходят подменённый отрезок целиком. */
+    provide: (value) => cmView.EditorView.atomicRanges.of((view) => {
+      const inst = view.plugin(value);
+      return inst && inst.atomic ? inst.atomic : cmView.Decoration.none;
+    }),
   });
 }
 
@@ -2570,7 +2610,7 @@ module.exports = {
   openWikilinkTarget,
   ZeroWidthInlineWidget,
   buildBlockStyleDecoration,
-  buildTagVisualDecorations,
+  buildTagVisualLayer,
   buildStripDecorations,
   createTagVisualDecorationExtension,
   createStripDecorationExtension,
