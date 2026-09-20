@@ -38,7 +38,34 @@ function collect(dir, out) {
   return out;
 }
 
-const files = collect(path.join(root, "tests"), []).sort();
+/**
+ * **Отбор по подстроке имени — только для итерации** (его решение 2026-09-21).
+ *
+ * Полный прогон идёт минуту, и правка одной проверки стоила минуты ожидания
+ * каждый раз. `npm test -- tagwheel` гоняет то, что названо, за секунду.
+ *
+ * **Отбор не бывает тихим.** Пропуск, о котором не сказано вслух, — это тест,
+ * которого нет (A15), и та же опасность здесь: прогон «зелёный» после отбора
+ * читался бы как полный. Поэтому при отборе печатается, сколько файлов взято
+ * из скольких, а итоговая строка говорит, что набор был неполон. Перед каждым
+ * коммитом гоняется полный — это правило, а не привычка.
+ */
+const PICK = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+
+const allFiles = collect(path.join(root, "tests"), []).sort();
+const files = PICK.length
+  ? allFiles.filter((f) => PICK.some((p) => path.basename(f).includes(p)))
+  : allFiles;
+
+if (PICK.length) {
+  console.log("отбор по " + JSON.stringify(PICK) + ": взято "
+    + files.length + " файлов из " + allFiles.length);
+  if (!files.length) {
+    console.log("НАБОР НЕПОЛОН: под отбор не подошёл ни один файл");
+    process.exit(1);
+  }
+}
+
 let failed = 0, passed = 0, skipped = 0;
 
 for (const file of files) {
@@ -62,5 +89,6 @@ for (const file of files) {
   }
 }
 
-console.log("\n" + passed + " passed, " + failed + " failed, " + skipped + " skipped");
+console.log("\n" + passed + " passed, " + failed + " failed, " + skipped + " skipped"
+  + (PICK.length ? "  — НАБОР НЕПОЛОН: мимо прошло " + (allFiles.length - files.length) + " файлов" : ""));
 process.exit(failed ? 1 : 0);
