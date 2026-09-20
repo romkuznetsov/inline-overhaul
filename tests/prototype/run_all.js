@@ -13,7 +13,7 @@ const { spawnSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..", "..");
 const proto = path.join(root, "docs", "prototype", "settings_prototype.html");
-const prd = path.join(root, "docs", "PRD_Settings_Overhaul_v1.md");
+const prd = path.join(root, "docs", "dev", "PRD_Settings_Overhaul_v1.md");
 
 const CHECKS = [
   ["gates.js", "схема, тексты и CSS"],

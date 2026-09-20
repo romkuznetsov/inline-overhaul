@@ -69,7 +69,7 @@ class InlineOverhaulPlugin extends Plugin {
   onunload() {
     /*
      * Первым шагом — отложенная запись настроек (CS7, разбор
-     * `docs/AUDIT_2026-09-18.md` 4.1). `ConfigStore.scheduleSave` откладывает
+     * `docs/dev/AUDIT_2026-09-18.md` 4.1). `ConfigStore.scheduleSave` откладывает
      * её на четверть секунды, а `store.unload()` ниже тот же таймер снимает:
      * без этого шага правка, сделанная перед выключением плагина, пропадала
      * молча, и сказать об этом человеку было нечем.
@@ -97,7 +97,7 @@ class InlineOverhaulPlugin extends Plugin {
        этой строки он живёт до перезагрузки окна (Д-2). */
     this.__unloadStep("tagwheel-session", () => __pluginCommands.closeTagWheelSession());
     /* Подписка панели настроек на хранилище: договор был написан и не
-       исполнялся (`docs/AUDIT_2026-09-18.md`, 4.5). */
+       исполнялся (`docs/dev/AUDIT_2026-09-18.md`, 4.5). */
     this.__unloadStep("settings-pane", () => __bootstrap.disposeSettingTab(this));
     __editorStyles.removeAll(this);
     if (this.store) this.store.unload();
@@ -215,7 +215,7 @@ class InlineOverhaulPlugin extends Plugin {
 
   /**
    * `data.json` изменён снаружи — синхронизацией, вторым компьютером, правкой
-   * руками (Р-2, разбор `docs/AUDIT_2026-09-18.md` 4.2).
+   * руками (Р-2, разбор `docs/dev/AUDIT_2026-09-18.md` 4.2).
    *
    * **Метод обязан существовать именно с этим именем.** Платформа не просто
    * зовёт его, а по его наличию решает, следить ли за файлом вовсе: в `app.js`
@@ -238,7 +238,7 @@ class InlineOverhaulPlugin extends Plugin {
    * панели, снятой 2026-08-29: новая держит открытую вкладку в себе и в конфиг
    * её не пишет. Сами ключи `ui.*` в конфиге остались — их нормализуют и
    * переносят, и не читает никто; что с ними делать, решает заказчик
-   * (`docs/AUDIT_2026-09-18.md`, Р-4). Возвращаться этому классу не даёт
+   * (`docs/dev/AUDIT_2026-09-18.md`, Р-4). Возвращаться этому классу не даёт
    * `tests/regression/dead_methods_tests.js`.
    */
 }

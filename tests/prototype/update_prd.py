@@ -16,7 +16,7 @@ docs/prototype/settings_prototype.html и руками не правятся. С
 import io, os, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PRD = os.path.join(ROOT, "docs", "PRD_Settings_Overhaul_v1.md")
+PRD = os.path.join(ROOT, "docs", "dev", "PRD_Settings_Overhaul_v1.md")
 PROTO = os.path.join(ROOT, "docs", "prototype", "settings_prototype.html")
 TESTS = os.path.join(ROOT, "tests", "prototype")
 

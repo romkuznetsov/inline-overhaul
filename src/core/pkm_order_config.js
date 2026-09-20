@@ -551,7 +551,7 @@ function serializePkmOrderForMacro(cfg) {
   const order = normalizePkmOrder(readCfgPath(cfg, "pkm.fields.order"));
   const placement = isObj(readCfgPath(cfg, "pkm.placement")) ? readCfgPath(cfg, "pkm.placement") : {};
   /* Имена внутри `freeRoamBehavior` — часть контракта макросов рантайма
-     (`docs/PKM_Runtime_Unified_Contract_v1.md`), поэтому меняются только
+     (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`), поэтому меняются только
      источники значений, а не ключи. */
   order.freeRoamBehavior = {
     minimalSeparator: placement.keepPrefixInsertOnly !== false,

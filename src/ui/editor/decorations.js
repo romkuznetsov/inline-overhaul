@@ -852,7 +852,7 @@ function buildStripDecorations(view, plugin) {
 
 /**
  * «Надо ли перерисовать» — один вопрос, три разных ответа, и вот почему
- * (`Р-8`, разбор `docs/AUDIT_2026-09-18.md` 4.7).
+ * (`Р-8`, разбор `docs/dev/AUDIT_2026-09-18.md` 4.7).
  *
  * Расширений оформления пять, и отвечают они так:
  *
@@ -888,7 +888,7 @@ function buildStripDecorations(view, plugin) {
  *
  * **Что здесь настоящая работа, а не эта строка.** Обычная запись контрола до
  * пересборки заметок не доходит вовсе — это шов, а не оформление, и он назван
- * отдельной строкой в `docs/REMAINING_WORK.md` (`Ф-4`).
+ * отдельной строкой в `docs/dev/REMAINING_WORK.md` (`Ф-4`).
  */
 function createTagVisualDecorationExtension(plugin) {
   return cmView.ViewPlugin.fromClass(class {

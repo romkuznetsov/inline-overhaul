@@ -45,20 +45,20 @@ const MOVED = [
   {
     what: "таблица исключений к З3",
     gone: /^\s*\|\s*\d+\s*\|\s*20\d\d-\d\d-\d\d/m,
-    home: "docs/Z3_EXCEPTIONS.md",
+    home: "docs/dev/Z3_EXCEPTIONS.md",
     there: /^\|\s*130\s*\|\s*2026-09-18/m,
   },
   {
     what: "подробности седьмого шага",
     gone: /Ставится шаг двумя командами/,
-    home: "docs/BROWSER_GATE.md",
+    home: "docs/dev/BROWSER_GATE.md",
     there: /Ставится шаг двумя командами/,
   },
   {
     what: "указатели на архив",
-    gone: /^\| `docs\/archive\/(?!INDEX)/m,
-    home: "docs/archive/INDEX.md",
-    there: /^\| `docs\/archive\/OWNER_REMARKS_session1\.md`/m,
+    gone: /^\| `docs\/(dev\/)?archive\/(?!INDEX)/m,
+    home: "docs/dev/archive/INDEX.md",
+    there: /^\| `docs\/dev\/archive\/OWNER_REMARKS_session1\.md`/m,
   },
 ];
 
@@ -73,7 +73,7 @@ for (const m of MOVED) {
   /*
    * Триггер, а не просто ссылка: файл, о котором не сказано **когда** его
    * открывать, читается «когда-нибудь», то есть никогда. Так уже сделано с
-   * `docs/SESSION_END.md`, и это единственное, что отличает переезд от потери.
+   * `docs/dev/SESSION_END.md`, и это единственное, что отличает переезд от потери.
    */
   assert.ok(there.indexOf("Когда открывать") >= 0,
     m.home + ": в файле не сказано, по какому событию его открывать");
@@ -144,7 +144,7 @@ assert.deepStrictEqual(missing, [],
  * прочтёт «почему» и не найдёт его. Проверяется по заголовкам книги уроков, а
  * не по тому, что номер выглядит номером.
  */
-const lessons = read("docs/LESSONS.md");
+const lessons = read("docs/dev/LESSONS.md");
 const haveLessons = new Set(
   [...lessons.matchAll(/^### (У-\d+)\./gm)].map((m) => m[1]));
 const usedLessons = new Set(
@@ -157,15 +157,43 @@ assert.ok(usedLessons.size > 50,
 
 const brokenLessons = [...usedLessons].filter((u) => !haveLessons.has(u));
 assert.deepStrictEqual(brokenLessons, [],
-  "в CLAUDE.md есть ссылки на уроки, которых нет в docs/LESSONS.md: " + brokenLessons.join(", "));
+  "в CLAUDE.md есть ссылки на уроки, которых нет в docs/dev/LESSONS.md: " + brokenLessons.join(", "));
 
-/* ---------- 4. объём называет прогон ---------- */
+/* ---------- 4. в `docs/` только то, на что смотрит человек ---------- */
+
+/*
+ * Его пункт о виде репозитория 2026-09-20: «много лишнего в `docs` — там файлы,
+ * которые не нужны для пользователя». Рабочие документы уехали в `docs/dev/`, и
+ * правило это держится **списком того, что осталось**, а не списком уехавшего:
+ * иначе следующий заведённый документ лёг бы в `docs/` молча.
+ *
+ * Оставшееся названо поимённо вместе с причиной — у каждого есть читатель
+ * снаружи:
+ *   `showcase.md` и `media/` — на них ведёт `README.md`;
+ *   `command_ids_v1_v2.md` — на него ведут `README.md`, руководство и
+ *   уведомление самого плагина о переименовании команд;
+ *   `prototype/` — нормативен (Р8), и на него ссылается половина кода;
+ *   `dev/` — всё остальное.
+ */
+const DOCS_FOR_PEOPLE = new Set([
+  "dev", "media", "prototype", "showcase.md", "command_ids_v1_v2.md",
+]);
+const docsEntries = fs.readdirSync(path.join(root, "docs"));
+assert.ok(docsEntries.length >= 4,
+  "контроль: в docs/ нашлось " + docsEntries.length + " записей — обход смотрит не туда");
+const strangers = docsEntries.filter((name) => !DOCS_FOR_PEOPLE.has(name));
+assert.deepStrictEqual(strangers, [],
+  "эти файлы в `docs/` человеку не нужны — их место в `docs/dev/`: " + strangers.join(", "));
+assert.ok(fs.existsSync(path.join(root, "docs", "dev", "PRD_Settings_Overhaul_v1.md")),
+  "контроль: `docs/dev/` пуст — значит правило проверяется на пустоте");
+
+/* ---------- 5. объём называет прогон ---------- */
 
 const sizes = [
   ["CLAUDE.md", claude.length],
-  ["docs/Z3_EXCEPTIONS.md", read("docs/Z3_EXCEPTIONS.md").length],
-  ["docs/BROWSER_GATE.md", read("docs/BROWSER_GATE.md").length],
-  ["docs/archive/INDEX.md", read("docs/archive/INDEX.md").length],
+  ["docs/dev/Z3_EXCEPTIONS.md", read("docs/dev/Z3_EXCEPTIONS.md").length],
+  ["docs/dev/BROWSER_GATE.md", read("docs/dev/BROWSER_GATE.md").length],
+  ["docs/dev/archive/INDEX.md", read("docs/dev/archive/INDEX.md").length],
 ];
 
 console.log("ok: читается целиком каждую сессию — " + claude.length + " знаков; "

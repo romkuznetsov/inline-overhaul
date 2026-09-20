@@ -181,7 +181,7 @@ function troublesOf(test) {
     out.push("строка начинается с обратной кавычки");
   }
   if (body.some((l) => l.trim().indexOf("- →") === 0)) {
-    out.push("есть строка `→` — моё объяснение живёт в docs/AWAITING_OWNER_CHECK.md");
+    out.push("есть строка `→` — моё объяснение живёт в docs/dev/AWAITING_OWNER_CHECK.md");
   }
   /* Лишняя пустота: две пустые строки подряд — это «раздуто» его словом. */
   for (let i = 1; i < body.length; i++) {

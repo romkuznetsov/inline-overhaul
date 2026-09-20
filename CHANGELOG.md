@@ -1,7 +1,7 @@
 # Changelog
 
 <!-- Сделанное между выпусками копится здесь; в коммите выпуска раздел
-     переименовывается в номер версии. Правило — docs/VERSIONING.md.
+     переименовывается в номер версии. Правило — docs/dev/VERSIONING.md.
 
      Форма — его слово 2026-09-19: пункт нумерованный, в одну строку и
      лаконичный. Нумерация нужна, чтобы было видно, сколько пунктов изменилось;
@@ -18,7 +18,8 @@
 2. 🎨 **`not set` in the `Hotkey` column reads as an empty slot**: no button fill, a dashed outline and faint italic text, so an unassigned command is told from an assigned one at a glance.
 3. ✨ **A dropdown says which of its values is the standard one**: the value the plugin starts with carries `(default)` after its label, in every settings row that offers a list. A list with a single line — `Set a Templates folder first`, say — is left alone: there is no choice to point at.
 4. 🐛 **Moving a line in a numbered list lets Obsidian renumber it.** The move used to be written as a whole-document set, and Obsidian skips its own renumbering on exactly that kind of edit — a sub-line dragged under another parent kept the number it had. Now only the lines that actually moved are rewritten.
-5. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
+5. 🔧 **The `docs` folder shows only what a reader needs**: the showcase, its media, the old-to-new map of command ids and the settings prototype. Everything written for whoever develops the plugin moved into `docs/dev/`; nothing was deleted.
+6. 🎨 **This changelog opens each release with a one-paragraph summary** and marks every line with what it is: ✨ new, 🐛 fix, 🎨 visible change, 🚀 speed, 🔧 internal.
 
 ## 0.4.0
 
@@ -54,7 +55,7 @@
 
 20. 🔧 **The parsed cache of the old TagWheel config note is removed from your settings file.** The note itself went in 0.2.0; its cache stayed and looked like settings — editing it by hand changed nothing, because nothing reads it.
 
-21. 🔧 **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
+21. 🔧 **The repository root holds no plugin file.** `main.js`, `navigation_runtime.js`, `pkm_runtime_v2.js`, `pkm_v2/` and `styles.css` live under `src/`, `build/` under `tools/`, `media/` and `showcase.md` under `docs/`; nine old documents moved to `docs/dev/archive/`. Nothing was deleted, and the bundle differs by 28 lines out of 33 000 — all of them the bundler's own labels.
 
 ## 0.3.2
 

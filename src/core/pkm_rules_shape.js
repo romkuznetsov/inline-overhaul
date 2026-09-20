@@ -14,7 +14,7 @@
  *
  * **Важное про форму.** Имена блоков (`behavior`, `leftMode`, `io`, …) и ключи
  * внутри них — форма версии 1: их читает `pkm_v2/**`, а тот под З3 не правится
- * (`docs/PKM_Runtime_Unified_Contract_v1.md`). Конфиг при этом переехал на
+ * (`docs/dev/PKM_Runtime_Unified_Contract_v1.md`). Конфиг при этом переехал на
  * версию 2, поэтому здесь стоит **шов**: значения берутся из `pkm.fields.*`,
  * `pkm.lineFormat.*`, `pkm.placement.*`, `pkm.prefixRules.*` и
  * `visual.tagWheel.*`, а раскладываются по старым именам.

@@ -34,7 +34,7 @@ const RULES = [
   },
 ];
 
-const PRD = "docs/PRD_Settings_Overhaul_v1.md";
+const PRD = "docs/dev/PRD_Settings_Overhaul_v1.md";
 const APPENDIX = "## Приложение B. Опись целевого состояния";
 
 /**

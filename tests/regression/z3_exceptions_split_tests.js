@@ -13,7 +13,7 @@
  * перед первой правкой.
  *
  * **Сама таблица уехала 2026-09-19 (`Р-10`)** из `CLAUDE.md` в
- * `docs/Z3_EXCEPTIONS.md`: она росла с каждым исключением и занимала пятую часть
+ * `docs/dev/Z3_EXCEPTIONS.md`: она росла с каждым исключением и занимала пятую часть
  * документа, который читается целиком каждую сессию. Проверка переехала за своим
  * предметом — иначе она осталась бы зелёной, потому что искать стало нечего
  * (У-94), — и тем же заходом получила запрет на второй дом.
@@ -49,9 +49,9 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..", "..");
 const claude = fs.readFileSync(path.join(root, "CLAUDE.md"), "utf8");
-const z3doc = fs.readFileSync(path.join(root, "docs", "Z3_EXCEPTIONS.md"), "utf8");
+const z3doc = fs.readFileSync(path.join(root, "docs", "dev", "Z3_EXCEPTIONS.md"), "utf8");
 const prd = fs.readFileSync(
-  path.join(root, "docs", "PRD_Settings_Overhaul_v1.md"),
+  path.join(root, "docs", "dev", "PRD_Settings_Overhaul_v1.md"),
   "utf8"
 );
 
@@ -140,7 +140,7 @@ const ORDINALS = [
   "сто тридцать пятое",
 ];
 
-/* ---------- 1. таблица в docs/Z3_EXCEPTIONS.md ---------- */
+/* ---------- 1. таблица в docs/dev/Z3_EXCEPTIONS.md ---------- */
 
 const rowRe = /^\|\s*(\d+)\s*\|([^|]*)\|([^|]*)\|/gm;
 const rows = [];
@@ -307,14 +307,14 @@ const claudeRows = claude.match(/^\s*\|\s*\d+\s*\|\s*20\d\d-\d\d-\d\d/gm) || [];
 assert.deepStrictEqual(
   claudeRows,
   [],
-  "таблица исключений снова стоит в CLAUDE.md (" + claudeRows.length + " строк): её дом — docs/Z3_EXCEPTIONS.md"
+  "таблица исключений снова стоит в CLAUDE.md (" + claudeRows.length + " строк): её дом — docs/dev/Z3_EXCEPTIONS.md"
 );
 assert.ok(
-  claude.indexOf("docs/Z3_EXCEPTIONS.md") >= 0,
-  "в CLAUDE.md нет ссылки на docs/Z3_EXCEPTIONS.md: таблица уехала бы в файл, о котором не сказано"
+  claude.indexOf("docs/dev/Z3_EXCEPTIONS.md") >= 0,
+  "в CLAUDE.md нет ссылки на docs/dev/Z3_EXCEPTIONS.md: таблица уехала бы в файл, о котором не сказано"
 );
 
 console.log(
-  "ok: исключений к З3 " + rows.length + ", у каждого строка таблицы в docs/Z3_EXCEPTIONS.md и " +
+  "ok: исключений к З3 " + rows.length + ", у каждого строка таблицы в docs/dev/Z3_EXCEPTIONS.md и " +
     "абзац в PRD 3.3; файлы строк стоят в своих абзацах, второго дома у таблицы нет"
 );
