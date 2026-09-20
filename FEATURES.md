@@ -126,6 +126,10 @@ Everything here is drawing only: the file on disk is untouched.
 
 - **Inline appearance** — size, opacity and spacing of the parts of a tagged
   line, so structure reads at a glance and your text stays dominant.
+- **A Value shown as your own text** — under `Fields`, a Value of a tag or of a
+  link Field can be drawn as anything you type instead of itself: an emoji
+  instead of `[[Project A]]`. A shown link still opens the note when clicked;
+  `Link view` adds back the hover preview and dragging if you want them.
 - **Color your Tags** — a colour per tag, your list, with a live preview.
 - **Tag Bars** — a bar drawn under a line from the Values of a Field you pick, so
   a column of tasks shows its priority as a shape, not as text to be read.

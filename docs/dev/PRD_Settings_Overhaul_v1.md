@@ -9776,7 +9776,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (65)
+### Пути, которых не было в описи v1.0 (67)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -9803,6 +9803,8 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tags.blockFill.opacity` | Stripe opacity (`tags-block-fill-opacity`) | Inline appearance |
 | `visual.tags.blockFill.heightPct` | Stripe height (`tags-block-fill-height`) | Inline appearance |
 | `visual.tags.blockFill.widthPct` | Stripe width (`tags-block-fill-width`) | Inline appearance |
+| `visual.tags.linkShown.hoverPreview` | Preview on hover (`link-hover-preview`) | Inline appearance |
+| `visual.tags.linkShown.draggable` | Drag to move (`link-draggable`) | Inline appearance |
 | `visual.tagBars.lineGap` | Gap between Bars (`bars-line-gap`) | Tag Bars |
 | `visual.tagBars.drawWholeTree` | Bars for the whole tree (`bars-whole-tree`) | Tag Bars |
 | `visual.tagBars.joinTree` | Join Bars in a tree (`bars-join-tree`) | Tag Bars |
@@ -17063,7 +17065,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 13 | 7 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 8 | 53 | 10 |
+| 5 | Visual | `features.visual.enabled` | 8 | 55 | 11 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 9 | 1 |
 
@@ -17921,6 +17923,15 @@ _Tip:_ Everything in this block is drawing only: the file on disk is the same ei
   - диапазон: 10–180, шаг 5, ед. %
   - см. также: `field-editor` — Set a Value to empty under Fields
   - старые названия для поиска: «Empty bubble size», «Empty bubble width»
+- **`link-view-sub`** — свой блок, рендерер `?`
+- **Preview on hover** — `link-hover-preview`, `toggle`, path `visual.tags.linkShown.hoverPreview`, default `false`
+  - desc: Hovering a Value shown as your own text opens the page preview
+  - tip: The same preview Obsidian shows for an ordinary link, asked for by the plugin: the Value is drawn by us, and the platform has no way of knowing there is a link underneath. Off by default, because the Value was replaced to be short — and a preview opening over a line you are writing is not always welcome
+  - старые названия для поиска: «Link hover preview», «Custom link preview»
+- **Drag to move** — `link-draggable`, `toggle`, path `visual.tags.linkShown.draggable`, default `false`
+  - desc: A Value shown as your own text can be dragged into another note
+  - tip: Dragging hands Obsidian the same link text an ordinary link would, so the drop makes a link to the same note. Off by default: a draggable Value is easy to pick up by accident while selecting a line
+  - старые названия для поиска: «Link drag», «Custom link drag»
 
 #### Color your Tags — `user-tag-colors` (вкладка `visual`)
 
@@ -18302,6 +18313,8 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tags.bubbleWidthPct` | slider | `100` |
 | `visual.tags.cornersPct` | slider | `0` |
 | `visual.tags.emptyBubblePct` | slider | `100` |
+| `visual.tags.linkShown.draggable` | toggle | `false` |
+| `visual.tags.linkShown.hoverPreview` | toggle | `false` |
 | `visual.tags.opacityLeft` | slider | `100` |
 | `visual.tags.opacityRight` | slider | `100` |
 | `visual.tags.textSizePctLeft` | slider | `100` |

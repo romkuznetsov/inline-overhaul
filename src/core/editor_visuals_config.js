@@ -115,6 +115,15 @@ function getTagVisualsFromConfig(cfg) {
       : 0,
     byTag: isObj(tags.byTag) ? tags.byTag : {},
     userTags: isObj(tags.userTags) ? tags.userTags : {},
+    /*
+     * Повадки ссылки, показанной своим текстом (его слово 2026-09-20:
+     * «добавь субхедер `Link view` с двумя контролами на предпросмотр и
+     * перетаскивание… при off не работают, при on работают»). Значение
+     * заменено нашим узлом, и платформа не знает, что под ним ссылка: обе
+     * повадки возвращает плагин, и только когда человек попросил.
+     */
+    linkShownHover: readCfgPath(cfg, "visual.tags.linkShown.hoverPreview") === true,
+    linkShownDrag: readCfgPath(cfg, "visual.tags.linkShown.draggable") === true,
     separator1TextColor: normalizeHexColorInput(tags.separator1TextColor) || normalizeHexColorInput(ui.separator1TextColor),
     separator2TextColor: normalizeHexColorInput(tags.separator2TextColor) || normalizeHexColorInput(ui.separator2TextColor),
     stripActive: strip.active === true,

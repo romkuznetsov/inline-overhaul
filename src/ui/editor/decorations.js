@@ -247,6 +247,86 @@ function openWikilinkTarget(plugin, token, ev) {
 }
 
 /**
+ * Предпросмотр заметки по наведению — тем же событием, каким его просит сам
+ * редактор Obsidian (`app.js` 1.13.7: `trigger("hover-link", { event, source:
+ * "editor", hoverParent: e.owner, targetEl, linktext, sourcePath })`).
+ *
+ * `source: "editor"` выбран нарочно: так подменённое значение слушается тех же
+ * настроек `Page preview`, что и обычная ссылка в заметке, — включая
+ * требование `Ctrl`, если человек его там оставил. Свой источник пришлось бы
+ * регистрировать и объяснять человеку отдельной строкой в чужих настройках.
+ *
+ * `hoverParent` — `workspace.activeEditor`: у него есть `hoverPopover`, куда
+ * платформа кладёт открытое окно (`MarkdownFileInfo extends HoverParent` в
+ * `obsidian.d.ts`). Нет его — предпросмотр не просим: это проба, а не отказ.
+ */
+function askWikilinkHoverPreview(plugin, token, targetEl, ev) {
+  const target = __sharedUtils.wikilinkTargetOf(token);
+  if (!target) return false;
+  const app = plugin && plugin.app ? plugin.app : null;
+  const workspace = app && app.workspace ? app.workspace : null;
+  if (!workspace || typeof workspace.trigger !== "function") return false;
+  const owner = workspace.activeEditor;
+  if (!owner) return false;
+  const file = typeof workspace.getActiveFile === "function" ? workspace.getActiveFile() : null;
+  try {
+    workspace.trigger("hover-link", {
+      event: ev,
+      source: "editor",
+      hoverParent: owner,
+      targetEl,
+      linktext: target,
+      sourcePath: file && typeof file.path === "string" ? file.path : "",
+    });
+  } catch (e) {
+    /* Украшение не имеет права уронить заметку, но и молчать тут нельзя. */
+    console.error("[inline-overhaul] предпросмотр ссылки не открылся", e);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Перетаскивание — тем же ходом, каким его делает сама Obsidian для ссылки:
+ * `dragManager.handleDrag(узел, e => dragManager.dragLink(e, цель, путь))`
+ * (`app.js` 1.13.7). Её `dragLink` кладёт в `dataTransfer` адрес заметки и
+ * отдаёт платформе описание перетаскиваемого — по нему её же обработчики
+ * сброса и делают ссылку в чужой заметке.
+ *
+ * **`dragManager` — приватное API**, в `obsidian.d.ts` его нет. Поэтому он
+ * спрашивается пробой, а при отказе остаётся запасной ход: в `dataTransfer`
+ * кладётся сам токен `[[имя]]`. Сброс такого в другую заметку даёт ту же
+ * ссылку текстом — беднее родного пути, но не молчание.
+ */
+function makeWikilinkDraggable(plugin, el, token) {
+  const target = __sharedUtils.wikilinkTargetOf(token);
+  if (!target) return "none";
+  const app = plugin && plugin.app ? plugin.app : null;
+  const drag = app && app.dragManager ? app.dragManager : null;
+  const file = app && app.workspace && typeof app.workspace.getActiveFile === "function"
+    ? app.workspace.getActiveFile()
+    : null;
+  const sourcePath = file && typeof file.path === "string" ? file.path : "";
+  if (drag && typeof drag.handleDrag === "function" && typeof drag.dragLink === "function") {
+    try {
+      drag.handleDrag(el, (ev) => drag.dragLink(ev, target, sourcePath));
+      return "platform";
+    } catch (e) {
+      console.error("[inline-overhaul] перетаскивание ссылки не встало", e);
+    }
+  }
+  el.draggable = true;
+  el.addEventListener("dragstart", (ev) => {
+    try {
+      if (ev && ev.dataTransfer) ev.dataTransfer.setData("text/plain", token);
+    } catch (_) {
+      /* проба: на мобильном клиенте `dataTransfer` бывает пуст */
+    }
+  });
+  return "text";
+}
+
+/**
  * Значение поля-ссылки, показанное своим текстом (его заказ 2026-09-20,
  * пункт 14: «custom работает как для fields=tag… при нажатии на этот
  * заменённый элемент должна открываться соответствующая wikilink»).
@@ -255,9 +335,10 @@ function openWikilinkTarget(plugin, token, ev) {
  * своим узлом не заменяем, потому что вместе с `[[имя]]` у человека пропадут
  * клик, наведение и перетаскивание. Заказчик заказал именно замену и назвал
  * то, что должно вернуться, — клик. Он и возвращён, тем же вызовом платформы.
- * **Наведением и перетаскиванием заменённое значение не пользуется**, и это
- * цена, названная вслух (У-166): предпросмотра по наведению у такого значения
- * не будет, перетащить его в другую заметку — тоже.
+ * **Наведение и перетаскивание — два контрола `Link view`** (его слово
+ * 2026-09-20: «при off не работают, при on работают»). Оба выключены по
+ * умолчанию: заменённое значение задумано коротким, а окно предпросмотра над
+ * строкой, которую пишешь, нужно не всегда.
  *
  * Замена работает **только при `custom` и непустом тексте**: при `default`
  * ссылка остаётся ссылкой Obsidian и все её повадки при ней.
@@ -267,11 +348,13 @@ function openWikilinkTarget(plugin, token, ev) {
  * заменённое значение поехало бы относительно соседнего.
  */
 class LinkVisualTokenWidget extends cmView.WidgetType {
-  constructor(tokenText, displayText, styleVars, blockClass, plugin) {
+  constructor(tokenText, displayText, styleVars, blockClass, plugin, hoverPreview, draggable) {
     super();
     this.plugin = plugin || null;
     this.tokenText = String(tokenText || "");
     this.displayText = String(displayText || "");
+    this.hoverPreview = hoverPreview === true;
+    this.draggable = draggable === true;
     const vars = styleVars && typeof styleVars === "object" ? styleVars : {};
     this.opacity = vars.opacity === null || vars.opacity === undefined ? null : Number(vars.opacity);
     this.fontSizePx = vars.fontSizePx === null || vars.fontSizePx === undefined ? null : Number(vars.fontSizePx);
@@ -285,7 +368,9 @@ class LinkVisualTokenWidget extends cmView.WidgetType {
       && other.opacity === this.opacity
       && other.fontSizePx === this.fontSizePx
       && other.risePx === this.risePx
-      && other.blockClass === this.blockClass;
+      && other.blockClass === this.blockClass
+      && other.hoverPreview === this.hoverPreview
+      && other.draggable === this.draggable;
   }
   toDOM() {
     const el = document.createElement("a");
@@ -317,6 +402,13 @@ class LinkVisualTokenWidget extends cmView.WidgetType {
     /* Ссылка в редакторе — не форма: щелчок платформы по `a` иначе увёл бы
        заметку на несуществующий адрес. */
     el.addEventListener("click", (ev) => { ev.preventDefault(); });
+    /* Две повадки ссылки, которые человек просит отдельно (`Link view`). */
+    if (this.hoverPreview) {
+      el.addEventListener("mouseover", (ev) => {
+        askWikilinkHoverPreview(this.plugin, this.tokenText, el, ev);
+      });
+    }
+    if (this.draggable) makeWikilinkDraggable(this.plugin, el, this.tokenText);
     return el;
   }
 }
@@ -767,6 +859,8 @@ function buildTagVisualDecorations(view, plugin) {
                   blockValueStyleVars(entry, visuals, lineBasePx(lineNo)),
                   blockValueClassFor(entry, visuals),
                   plugin,
+                  visuals.linkShownHover,
+                  visuals.linkShownDrag,
                 ),
                 inclusive: false,
               }),

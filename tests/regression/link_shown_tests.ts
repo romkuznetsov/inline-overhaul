@@ -217,4 +217,111 @@ function paintLink(token: string, text: string, vars?: Any): Any {
   ok("равенство виджетов считает и текст, и величины");
 }
 
+/* ---- 3. `Link view`: две повадки ссылки, каждая своим контролом ---------- */
+
+/**
+ * Виджет с поддельной платформой, запоминающей **всё**, о чём его просили:
+ * открытие заметки, событие предпросмотра и постановку перетаскивания.
+ *
+ * Подделан Obsidian (У-1): `workspace.trigger` — его шина событий,
+ * `dragManager` — его приватное API. Решений подделка не принимает.
+ */
+function paintWithPowers(o: { hover?: boolean; drag?: boolean; dragManager?: boolean }): Any {
+  const events: Any[] = [];
+  const drags: Any[] = [];
+  const app: Any = {
+    workspace: {
+      activeEditor: { hoverPopover: null },
+      getActiveFile: () => ({ path: "Заметки/строка.md" }),
+      openLinkText: () => {},
+      trigger: (name: string, payload: Any) => { events.push({ name, payload }); },
+    },
+  };
+  if (o.dragManager) {
+    app.dragManager = {
+      handleDrag: (node: Any, make: (ev: Any) => Any) => {
+        node.draggable = true;
+        drags.push({ node, made: make({ dataTransfer: null }) });
+      },
+      dragLink: (ev: Any, link: string, source: string) => ({ type: "link", link, source }),
+    };
+  }
+  const w = new I.LinkVisualTokenWidget("[[Client A]]", "👤", {}, "", { app },
+    o.hover === true, o.drag === true);
+  return { el: w.toDOM(), events, drags };
+}
+
+{
+  /* Оба контрола выключены — оба обработчика отсутствуют. Это **база**: с неё
+     плагин и жил до его слова, и она обязана оставаться достижимой. */
+  const off = paintWithPowers({});
+  off.el.dispatch("mouseover", { preventDefault() {}, stopPropagation() {} });
+  assert.equal(off.events.length, 0, "предпросмотр попросили при выключенном контроле");
+  assert.ok(!off.el.draggable, "узел стал перетаскиваемым при выключенном контроле");
+  ok("`Link view` выключен: ни предпросмотра, ни перетаскивания");
+}
+
+{
+  const on = paintWithPowers({ hover: true });
+  on.el.dispatch("mouseover", { preventDefault() {}, stopPropagation() {} });
+  assert.equal(on.events.length, 1, "предпросмотр не попрошен");
+  const ev = on.events[0];
+  assert.equal(ev.name, "hover-link", "попрошено не то событие: " + ev.name);
+  assert.equal(ev.payload.source, "editor",
+    "источник не `editor` — значение не послушается настроек `Page preview` для заметки");
+  assert.equal(ev.payload.linktext, "Client A", "предпросмотр попрошен не той заметки");
+  assert.equal(ev.payload.sourcePath, "Заметки/строка.md", "путь исходной заметки не передан");
+  assert.equal(ev.payload.targetEl, on.el, "окно предпросмотра встанет не у того узла");
+  assert.ok(ev.payload.hoverParent, "некому отдать открытое окно: `hoverParent` пуст");
+  ok("`Preview on hover` включён: событие то же, каким его просит сам редактор");
+}
+
+{
+  /* Без открытого редактора просить некого — и это проба, а не отказ. */
+  const w = new I.LinkVisualTokenWidget("[[Client A]]", "👤", {}, "",
+    { app: { workspace: { trigger: () => { throw new Error("звать не должны"); } } } }, true, false);
+  const el = w.toDOM();
+  el.dispatch("mouseover", { preventDefault() {}, stopPropagation() {} });
+  ok("без открытого редактора предпросмотр не просится, и узел цел");
+}
+
+{
+  const drag = paintWithPowers({ drag: true, dragManager: true });
+  assert.equal(drag.drags.length, 1, "перетаскивание не поставлено ходом платформы");
+  assert.equal(drag.drags[0].node, drag.el, "перетаскивание повешено не на тот узел");
+  assert.equal(drag.drags[0].made.link, "Client A", "платформе отдана не та заметка");
+  assert.equal(drag.drags[0].made.source, "Заметки/строка.md", "путь исходной заметки не отдан");
+  assert.ok(drag.el.draggable, "узел не стал перетаскиваемым");
+  ok("`Drag to move` включён: ход платформы, и в нём цель и путь");
+}
+
+{
+  /*
+   * `dragManager` — приватное API, и его может не быть. Запасной ход кладёт в
+   * обмен сам токен: сброс такого в другую заметку даёт ту же ссылку текстом.
+   */
+  const plain = paintWithPowers({ drag: true });
+  assert.ok(plain.el.draggable, "без приватного API узел не стал перетаскиваемым");
+  const carried: Record<string, string> = {};
+  plain.el.dispatch("dragstart", {
+    dataTransfer: { setData: (kind: string, value: string) => { carried[kind] = value; } },
+  });
+  assert.equal(carried["text/plain"], "[[Client A]]",
+    "запасной ход не положил в обмен ссылку: " + JSON.stringify(carried));
+  ok("без приватного API перетаскивание кладёт в обмен сам токен");
+}
+
+{
+  /* Настройки доезжают до слоя: два ключа, два ответа, и умолчание — выкл. */
+  const cfg = makeConfig();
+  const off = I.getTagVisualsFromConfig(cfg);
+  assert.equal(off.linkShownHover, false, "предпросмотр включён по умолчанию");
+  assert.equal(off.linkShownDrag, false, "перетаскивание включено по умолчанию");
+  cfg.visual.tags.linkShown = { hoverPreview: true, draggable: false };
+  const half = I.getTagVisualsFromConfig(cfg);
+  assert.equal(half.linkShownHover, true, "включённый предпросмотр до слоя не доехал");
+  assert.equal(half.linkShownDrag, false, "выключенное перетаскивание доехало включённым");
+  ok("оба контрола `Link view` доезжают до слоя порознь");
+}
+
 console.log("\n" + passed + " проверок пройдено");
