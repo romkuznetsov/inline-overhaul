@@ -355,6 +355,7 @@ Field you are on running down.
 | `Background color` | unset | Behind the picker |
 | `Scroller` | off | Shows the next and previous Values around the current one |
 | `Scroller opening direction` | `full` | Which way the Values unroll |
+| `Scroller Value names` | `As written` | Whether the box shows the Value as written or the custom text from `Color your tags` |
 | `Scroller background color` | unset | Behind the box of neighbouring Values |
 | `Scroller text color` | unset | The Values you are not on, inside the box |
 | `Scroller size` | `3` | How many neighbouring Values stay visible |
