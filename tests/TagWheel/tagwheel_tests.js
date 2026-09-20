@@ -1342,19 +1342,37 @@ function runElementTokenSuite() {
    * там две цифры, и написанное плагином он не находил.
    */
   var sharedUtils = require(path.join(__dirname, '..', '..', 'src', 'core', 'shared_utils.js'))
+  /*
+   * **Писателей у значения не один, и спрошены обязаны быть все** (исключение
+   * № 138). Прежняя версия этого цикла задавала несимметричный вопрос только
+   * `formatNowByMask`. Панель пишет не им: её дорога идёт через
+   * `formatDateByMask` — она же `fmtDateByFormat` в `tagwheel_core.js`, — и
+   * двузначный год туда не доехал. Цикл был зелёный, а панель писала на строку
+   * `📅YY-09-21`; нашёл это обход строки на его конфиге, 28 из 100.
+   *
+   * Дата берётся не «сегодня», а заданная, — иначе у `YY` не различить `26` от
+   * подстановки и от совпадения с нынешним годом (У-147).
+   */
+  var WRITERS = [
+    { name: 'formatNowByMask', write: function (f) { return sharedUtils.formatNowByMask(f) } },
+    { name: 'formatDateByMask', write: function (f) { return sharedUtils.formatDateByMask(new Date(2007, 6, 4, 15, 8, 9), f) } }
+  ]
   var written = 0
-  for (var wi = 0; wi < formats.length; wi++) {
-    var wf = formats[wi]
-    if (!wf) continue
-    var value = sharedUtils.formatNowByMask(wf)
-    var tail = shared.elementTailPatternFromFormat(wf)
-    if (!tail) continue
-    assertTrue(new RegExp('^(?:' + tail + ')$').test(value),
-      'написанное по формату "' + wf + '" не узнаётся образцом хвоста: значение '
-      + JSON.stringify(value) + ', образец ' + JSON.stringify(tail))
-    written++
+  for (var pi = 0; pi < WRITERS.length; pi++) {
+    for (var wi = 0; wi < formats.length; wi++) {
+      var wf = formats[wi]
+      if (!wf) continue
+      var value = WRITERS[pi].write(wf)
+      var tail = shared.elementTailPatternFromFormat(wf)
+      if (!tail) continue
+      assertTrue(new RegExp('^(?:' + tail + ')$').test(value),
+        'написанное по формату "' + wf + '" писателем ' + WRITERS[pi].name
+        + ' не узнаётся образцом хвоста: значение '
+        + JSON.stringify(value) + ', образец ' + JSON.stringify(tail))
+      written++
+    }
   }
-  assertTrue(written >= 5, 'сверено написанных значений: ' + written)
+  assertTrue(written >= 10, 'сверено написанных значений: ' + written)
 
   console.log('  ok Т-14: элемент из двух слов не разрывается, правило хвоста одно')
 }

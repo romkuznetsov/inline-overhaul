@@ -208,8 +208,12 @@ function addMinutesHhmm(text, delta) {
   return `${hh}:${mm}`;
 }
 
-function formatNowByMask(mask) {
-  const d = new Date();
+/**
+ * Подстановка величин в **уже приведённую** маску. Принимает маску, а не
+ * формат, нарочно: у двух её звавших разные ответы на пустой формат, и
+ * приводить маску дважды значило бы объявить это правило в третий раз.
+ */
+function applyMaskToDate(mask, d) {
   const YYYY = String(d.getFullYear());
   /* Двузначный год — последние две цифры четырёхзначного, а не отдельный
      счёт: иначе у года 2100 вышло бы `21`, а не `00`. */
@@ -219,8 +223,7 @@ function formatNowByMask(mask) {
   const HH = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
-  const m = normalizeFormatMask(String(mask ?? "YYYY-MM-DD")) || "YYYY-MM-DD";
-  return m
+  return String(mask)
     .replace(/YYYY/g, YYYY)
     .replace(/YY/g, YY)
     .replace(/MM/g, MM)
@@ -228,6 +231,30 @@ function formatNowByMask(mask) {
     .replace(/HH/g, HH)
     .replace(/mm/g, mm)
     .replace(/ss/g, ss);
+}
+
+/**
+ * **Дом правила «дата по формату поля» для произвольной даты.**
+ *
+ * Третьим объявлением этого правила был `fmtDateByFormat` в `tagwheel_core.js`,
+ * и двузначный год до него не доехал: исключение № 136 записало «`YY` стал
+ * токеном во всех объявлениях», а объявлений было не два, а три. Панель писала
+ * на строку буквы — `📅YY-09-21` — там, где команда писала `📅26-09-21`;
+ * увидел это обход строки на его конфиге, 28 расхождений из 100.
+ *
+ * Пустой формат здесь **не** подменяется умолчанием: у панели ответ на него
+ * «значения нет», и это её поведение, а не следствие дефекта (измерено до
+ * сведения — 40 расхождений из 110, все про `YY`, и одно про пустую маску).
+ * Умолчание живёт у того звавшего, которому оно принадлежит, — `formatNowByMask`.
+ */
+function formatDateByMask(d, format) {
+  return applyMaskToDate(
+    normalizeFormatMask(String(format == null ? "YYYY-MM-DD" : format)), d);
+}
+
+function formatNowByMask(mask) {
+  const m = normalizeFormatMask(String(mask ?? "YYYY-MM-DD")) || "YYYY-MM-DD";
+  return applyMaskToDate(m, new Date());
 }
 
 function randomInt(maxExclusive) {
@@ -1493,6 +1520,7 @@ module.exports = {
   parseHhmm,
   addMinutesHhmm,
   formatNowByMask,
+  formatDateByMask,
   renderCommandValueByFormat,
   buildElementTailRegexSource,
   DATE_LIKE_VALUE_SRC,

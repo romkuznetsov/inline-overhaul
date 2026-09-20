@@ -1570,11 +1570,11 @@ function getFieldMarkerByRuntimeCfg(rules, field) {
   return String(field && field.marker || '').trim()
 }
 
-function normalizeFormatMask(format) {
-  var su = getSharedUtils()
-  if (su && typeof su.normalizeFormatMask === 'function') return su.normalizeFormatMask(format)
-  throw new Error('shared_utils unavailable: normalizeFormatMask')
-}
+/*
+ * `normalizeFormatMask` отсюда снят вместе со сведением `fmtDateByFormat`:
+ * приведение маски ушло в общий дом вместе с подстановкой, и звавших у
+ * переходника не осталось ни одного. Назвал его линтер, а не чтение.
+ */
 
 function addByUnit(base, unit, delta) {
   var dt = new Date(base.getTime())
@@ -1651,26 +1651,17 @@ function endTotal(cfg) {
   return total
 }
 
+/**
+ * Третье объявление правила «дата по формату поля», сведённое в общий дом
+ * (исключение № 138). Двузначный год сюда не доехал: исключение № 136
+ * записало «`YY` стал токеном во всех объявлениях», а объявлений было три, и
+ * панель писала на строку буквы — `📅YY-09-21` при `📅26-09-21` у команды.
+ * Расхождение до сведения измерено: 40 пар из 110, все про `YY`.
+ */
 function fmtDateByFormat(d, format) {
-  var f = normalizeFormatMask(String(format == null ? 'YYYY-MM-DD' : format))
-  var y = String(d.getFullYear())
-  var m = String(d.getMonth() + 1)
-  var day = String(d.getDate())
-  var HH = String(d.getHours())
-  var mm = String(d.getMinutes())
-  var ss = String(d.getSeconds())
-  if (m.length < 2) m = '0' + m
-  if (day.length < 2) day = '0' + day
-  if (HH.length < 2) HH = '0' + HH
-  if (mm.length < 2) mm = '0' + mm
-  if (ss.length < 2) ss = '0' + ss
-  return f
-    .replace(/YYYY/g, y)
-    .replace(/MM/g, m)
-    .replace(/DD/g, day)
-    .replace(/HH/g, HH)
-    .replace(/mm/g, mm)
-    .replace(/ss/g, ss)
+  var su = getSharedUtils()
+  if (su && typeof su.formatDateByMask === 'function') return su.formatDateByMask(d, format)
+  throw new Error('shared_utils unavailable: formatDateByMask')
 }
 
 function buildFormatValueRegexSource(format) {

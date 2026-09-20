@@ -2546,6 +2546,76 @@ async function run() {
   assertTrue(/throw new Error\('shared_utils unavailable: parseHhmm'\)/.test(tagwheelCoreSrc), "tagwheel_core HH:mm parser is shared-utils-only");
   assertTrue(/throw new Error\('shared_utils unavailable: addMinutesHhmm'\)/.test(tagwheelCoreSrc), "tagwheel_core HH:mm adder is shared-utils-only");
   assertTrue(/throw new Error\('shared_utils unavailable: formatNowByMask'\)/.test(tagwheelCoreSrc), "tagwheel_core now-mask formatter is shared-utils-only");
+  assertTrue(/throw new Error\('shared_utils unavailable: formatDateByMask'\)/.test(tagwheelCoreSrc), "tagwheel_core date-by-mask formatter is shared-utils-only");
+
+  /*
+   * **Подстановка величин в маску даты объявляется только дома** (исключение
+   * № 138, продолжение № 136).
+   *
+   * Исключение № 136 записало, что двузначный год `YY` стал токеном «во всех
+   * объявлениях правила». Объявлений было **три**: третье — `fmtDateByFormat`
+   * в `tagwheel_core.js`, и до него `YY` не доехал. Панель писала на строку
+   * буквы (`📅YY-09-21`) там, где команда писала `📅26-09-21`; 91 проверка
+   * была зелёной, потому что несимметричный вопрос «написанное узнаётся своим
+   * же образцом» задавался **одному** писателю из трёх (правило 47: сверять
+   * надо с записью, и объявлений больше двух).
+   *
+   * Поэтому запрет здесь не на поведение, а на **форму**: своя подстановка
+   * года запрещена везде, кроме двух названных домов. Обход сплошной, потому
+   * что четвёртое объявление может завестись в любом файле (У-85).
+   *
+   * **Ширина признака измерена** (У-204): `.replace(/YYYY/g` даёт по всему
+   * репозиторию ровно **2** места — оба ниже названы; слово `YYYY` без
+   * подстановки даёт 70 и запретом быть не может, а перечисление всех токенов
+   * — 16, то есть считает звенья одной и той же цепочки. Отрицательный
+   * контроль — сами эти два дома: они обязаны найтись, иначе запрет проверяет
+   * пустоту.
+   *
+   * Домов два, а не один, нарочно: `status_runtime_common.js` считает по UTC,
+   * `shared_utils.js` — по местному времени, и это не описка, а сторона
+   * сверки (У-155). Сводить их — менять поведение, а не убирать копию.
+   */
+  {
+    const repoRoot = path.join(__dirname, "..", "..");
+    const walked = fs.readdirSync(repoRoot)
+      .filter((name) => /\.(?:js|ts)$/.test(name))
+      .map((name) => path.join(repoRoot, name));
+    for (const dir of ["src", "tools"]) {
+      (function walk(target) {
+        for (const name of fs.readdirSync(target)) {
+          const abs = path.join(target, name);
+          if (fs.statSync(abs).isDirectory()) { walk(abs); continue; }
+          if (/\.(?:js|ts|mjs)$/.test(name)) walked.push(abs);
+        }
+      })(path.join(repoRoot, dir));
+    }
+
+    /** Дом, причина и то, чем он отличается от соседа. */
+    const MASK_HOMES = {
+      "src/core/shared_utils.js": "местное время; сюда делегируют панель и команды",
+      "src/core/status_runtime_common.js": "UTC; отдельный дом по У-155, сводить нельзя",
+    };
+
+    const declare = [];
+    for (const abs of walked) {
+      const text = fs.readFileSync(abs, "utf8");
+      /* Читается код, а не проза: этот комментарий сам цитирует запрещённое. */
+      const code = text.split("\n").filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line)).join("\n");
+      if (/\.replace\(\/YYYY\/g/.test(code)) declare.push(path.relative(repoRoot, abs).split(path.sep).join("/"));
+    }
+
+    assertTrue(walked.length > 50,
+      "положительный контроль: обход нашёл файлы рантайма (" + walked.length + ")");
+    for (const home of Object.keys(MASK_HOMES)) {
+      assertTrue(declare.indexOf(home) >= 0,
+        "положительный контроль: в " + home + " подстановки года нет — запрет ищет не то ("
+        + MASK_HOMES[home] + ")");
+    }
+    const strangers = declare.filter((rel) => !MASK_HOMES[rel]);
+    assertEq(strangers.join(" | "), "",
+      "своя подстановка даты вне общего дома — правило объявлено лишний раз, и туда не доедет"
+      + " следующий токен, как не доехал `YY` (исключение № 138): " + strangers.join(" | "));
+  }
   /*
    * **Досыпка формы списка Fields — общим модулем, и звавший у неё один.**
    *
