@@ -1038,6 +1038,76 @@ function wikilinkTargetOf(text) {
   return m ? String(m[1] || "").trim() : "";
 }
 
+/** Элемент нумерованного списка: отступ, номер, знак после него и пробел. */
+const ORDERED_ITEM_RE = /^([ \t]*)(\d+)([.)])([ \t]+)/;
+
+/**
+ * Уровень вложенности строки списка.
+ *
+ * **Считается так же, как считает Obsidian** (`oj` в `app.js` 1.13.7): табуляция
+ * и каждые четыре пробела — ступень. Наш ответ обязан совпадать с её ответом:
+ * после нашей правки её же фильтр нумерации пройдёт по тем же строкам, и
+ * разойдись мы в уровнях — номера разъедутся у человека на глазах.
+ */
+function listIndentLevel(indent) {
+  let rest = String(nz(indent, ""));
+  let level = 0;
+  while (rest.startsWith("\t") || rest.startsWith("    ")) {
+    rest = rest.startsWith("\t") ? rest.slice(1) : rest.slice(4);
+    level += 1;
+  }
+  return level;
+}
+
+/**
+ * Привести в порядок номера нумерованного списка в переписываемом окне строк.
+ *
+ * **Зачем это нам, если нумерацию правит сама Obsidian.** Её фильтр считает
+ * номер первого элемента подсписка по **старому** документу: строка, уехавшая
+ * в начало своего подсписка, приносит туда номер со своего прежнего места —
+ * заказчик увидел `2. 3. 4.` там, где ждал `1. 2. 3.` (его замечание
+ * 2026-09-20 по тесту 4). Измерено стендом на её настоящем фильтре, вырезанном
+ * из `app.js`: перенос на одну позицию она нумерует верно, а перенос в начало
+ * подсписка — нет.
+ *
+ * **Мы не спорим с ней, а подаём ей готовое.** Тем же стендом измерено: если
+ * в своей правке номера уже верные, фильтр их не трогает. Поэтому правило
+ * здесь простое и объявлено один раз: номер элемента — это номер ближайшего
+ * **старшего соседа того же уровня** плюс один, а нет такого соседа — единица.
+ *
+ * **Граница названа вслух.** Список, который человек нарочно начал не с
+ * единицы, при переносе его **первой** строки станет начинаться с единицы:
+ * старшего соседа у неё нет. Строки вне окна не трогаются вовсе — их
+ * досчитает фильтр платформы, как он это делает и без нас.
+ *
+ * Возвращает новый массив строк; исходный не меняется.
+ */
+function renumberOrderedWindow(lines, from, to) {
+  const src = Array.isArray(lines) ? lines.slice() : [];
+  const first = Math.max(0, Number(from) || 0);
+  const last = Math.min(src.length - 1, Number(to));
+  for (let i = first; i <= last; i++) {
+    const item = ORDERED_ITEM_RE.exec(String(nz(src[i], "")));
+    if (!item) continue;
+    const level = listIndentLevel(item[1]);
+    let number = 1;
+    for (let j = i - 1; j >= 0; j--) {
+      const text = String(nz(src[j], ""));
+      /* Пустая строка кончает список: ниже неё начинается новый. */
+      if (!text.trim()) break;
+      const prev = ORDERED_ITEM_RE.exec(text);
+      const prevLevel = listIndentLevel(/^[ \t]*/.exec(text)[0]);
+      if (prev && prevLevel === level) { number = Number(prev[2]) + 1; break; }
+      /* Строка мельче уровнем — это родитель: подсписок начинается за ним. */
+      if (prevLevel < level) break;
+      /* Глубже уровнем — чужие дети, они соседству не мешают. */
+    }
+    if (String(number) === item[2]) continue;
+    src[i] = item[1] + number + item[3] + item[4] + String(src[i]).slice(item[0].length);
+  }
+  return src;
+}
+
 /**
  * Значение поля-ссылки в том виде, в каком оно стоит в строке: `[[имя]]`.
  *
@@ -1377,6 +1447,8 @@ module.exports = {
   startsWithTagToken,
   wikilinkTargetOf,
   wikilinkVisualToken,
+  listIndentLevel,
+  renumberOrderedWindow,
   unwrapWikilinkToken,
   composeToken,
   normalizeOrderKey,

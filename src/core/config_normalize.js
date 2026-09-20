@@ -755,7 +755,22 @@ function normalizeTagVisualMapsV2(cfg) {
   const tags = isObj(readCfgPath(cfg, "visual.tags")) ? readCfgPath(cfg, "visual.tags") : {};
   writeCfgPath(cfg, "visual.tags", tags);
 
+  /**
+   * Что годится ключом карты **видов значений**: тег или ссылка.
+   *
+   * Вопрос объявлен один раз — `isVisualTokenKey` рядом со слоем оформления,
+   * который этим же ключом вид и ищет. Своё сравнение с решёткой стояло здесь
+   * и выбрасывало ключ `[[имя]]` молча: панель писала вид значения-ссылки, а
+   * после миграции его не оставалось, и контрол `Show` возвращался в
+   * `default` (его замечание 2026-09-20 по тесту 7). Это У-237 в лоб —
+   * настройка едет через перечни, и незнакомое они выбрасывают без звука.
+   */
   const normalizeTagToken = (token) => {
+    const src = String(token || "").trim();
+    return __editorVisualsConfig.isVisualTokenKey(src) ? src : "";
+  };
+  /* У своих тегов ключом бывает только тег: ссылка не тег человека. */
+  const normalizeUserTagToken = (token) => {
     const src = String(token || "").trim();
     if (!src) return "";
     return src.charAt(0) === "#" ? src : "";
@@ -806,7 +821,7 @@ function normalizeTagVisualMapsV2(cfg) {
   const userTagsIn = isObj(tags.userTags) ? tags.userTags : {};
   const userTagsOut = {};
   for (const rawToken of Object.keys(userTagsIn)) {
-    const token = normalizeTagToken(rawToken);
+    const token = normalizeUserTagToken(rawToken);
     if (!token || Object.prototype.hasOwnProperty.call(userTagsOut, token)) continue;
     /*
      * Надгробие. Единственный шов записи у панели -- setConfigPatch, а он

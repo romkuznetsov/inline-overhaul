@@ -379,8 +379,23 @@ function applyMove(editor, bStart, bEnd, insertAfterLine, direction, total, scro
   if (newDoc !== doc) {
     const from = Math.min(bStart, newBodyStart);
     const to = Math.max(bEnd, movedEnd);
+    /*
+     * **Номера нумерованного списка приводим в порядок сами** — его второе
+     * замечание по тому же тесту 2026-09-20: «после move line up/down
+     * нумерация осталась сбитой: `2. третий дочерний`, ожидалось `1. третий
+     * дочерний`».
+     *
+     * Фильтр Obsidian считает номер первого элемента подсписка по **старому**
+     * документу, и строка, уехавшая в начало подсписка, приносит туда свой
+     * прежний номер. Измерено на её настоящем фильтре, вырезанном из
+     * `app.js`: перенос на одну позицию она нумерует верно, а перенос в
+     * начало подсписка — нет. Тем же стендом измерено, что готовые верные
+     * номера она не трогает — поэтому мы не спорим с ней, а подаём ей
+     * посчитанное. Правило живёт одним объявлением в `shared_utils`.
+     */
+    const numbered = __sharedUtils.renumberOrderedWindow(finalLines, from, to);
     editor.replaceRange(
-      finalLines.slice(from, to + 1).join("\n"),
+      numbered.slice(from, to + 1).join("\n"),
       { line: from, ch: 0 },
       { line: to, ch: nz(lines[to], "").length },
     );

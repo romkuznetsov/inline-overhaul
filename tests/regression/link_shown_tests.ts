@@ -40,10 +40,21 @@ const I = loadPluginInternals();
 let passed = 0;
 const ok = (what: string): void => { passed++; console.log("  ok " + what); };
 
-/** Конфиг с полем-ссылкой и полем-тегом: обе корзины заполнены. */
+/**
+ * Конфиг с полем-ссылкой и полем-тегом: обе корзины заполнены.
+ *
+ * **Вид значений кладётся в конфиг ДО миграции** — так его кладёт и панель:
+ * её шов записи прогоняет через `migrateConfig` **каждый** патч. Первая
+ * версия этой фикстуры дописывала карту видов в уже мигрированный конфиг, и
+ * потому не видела главного: миграция выбрасывала ключ `[[имя]]` молча, и
+ * контрол `Show` у ссылки возвращался в `default` (его замечание по тесту 7).
+ * Фикстура, минующая нормализацию, проверяет функцию, которой нет в продукте
+ * (У-55).
+ */
 function makeConfig(over?: Any): Any {
   const cfg = I.migrateConfig({
     schemaVersion: 1,
+    visual: over ? { tags: { byTag: over } } : {},
     pkm: {
       behavior: {
         order: {
@@ -65,7 +76,6 @@ function makeConfig(over?: Any): Any {
   const project = links.find((f: Any) => String(f.id) === "project");
   assert.ok(project, "в конфиге не оказалось поля-ссылки — фикстура не о том");
   project.values = [{ token: "test1" }, { token: "test2" }];
-  if (over) Object.assign(cfg.visual.tags.byTag, over);
   return cfg;
 }
 
