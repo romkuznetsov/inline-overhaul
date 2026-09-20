@@ -1,0 +1,30 @@
+# Как GitHub собирает автоматическую часть заметок о выпуске.
+#
+# Основной текст релиза пишется руками — правила в
+# .claude/skills/repo-docs/references/changelog-and-releases.md.
+# Этот файл управляет только блоком, который GitHub дописывает снизу:
+# участники и ссылка на полное сравнение.
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - duplicate
+      - invalid
+    authors:
+      - dependabot
+  categories:
+    - title: Breaking changes
+      labels:
+        - breaking
+    - title: New features
+      labels:
+        - enhancement
+    - title: Fixes
+      labels:
+        - bug
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Other changes
+      labels:
+        - "*"

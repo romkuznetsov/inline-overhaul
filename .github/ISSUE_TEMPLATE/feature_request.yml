@@ -1,0 +1,42 @@
+name: Feature request
+description: Something you want to do that the plugin does not let you do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful requests describe **the work you are trying to do**, not the
+        control you want added. The plugin has a lot of surface already, and a good
+        share of requests turn out to be a setting that exists under a different name.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do
+      description: The workflow, in your own words. What happens before and after.
+    validations:
+      required: true
+
+  - type: textarea
+    id: now
+    attributes:
+      label: How you do it today
+      description: >
+        Manually, with another plugin, or not at all. This is what tells us how much
+        the gap costs you.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you had in mind
+      description: Optional. A shape for the solution, if you have one.
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Checks
+      options:
+        - label: I looked through the [feature list](https://github.com/romkuznetsov/inline-overhaul/blob/main/FEATURES.md).
+        - label: I searched the existing issues.

@@ -1,0 +1,88 @@
+name: Bug report
+description: Something behaves differently from what the documentation says
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The fields below are the ones that usually decide
+        whether a bug can be fixed the same day or sits for a month.
+
+        **Please do not paste vault content you would not publish** — issues are public
+        and permanent.
+
+  - type: textarea
+    id: line
+    attributes:
+      label: The line
+      description: >
+        The actual markdown you were working on, pasted as text. Whitespace and
+        Separators matter, so please do not retype it from memory.
+      render: markdown
+      placeholder: "- [ ] #todo #high || call the bank || [[Project A]] 📅 2026-09-15"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: What you did
+      description: Where the cursor was, what you pressed, in order.
+      placeholder: |
+        1. Cursor after "bank"
+        2. Pressed Alt+S (Status next)
+        3. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: "Settings → inlineOverhaul → Advanced → Diagnostics"
+      placeholder: "0.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: obsidian-version
+    attributes:
+      label: Obsidian version
+      placeholder: "1.13.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: isolation
+    attributes:
+      label: Checks
+      options:
+        - label: It still happens after restarting Obsidian.
+        - label: It still happens with other community plugins disabled.
+        - label: I have a backup of the vault this happened in.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: >
+        A GIF of the moment is worth three paragraphs describing it. Settings you
+        changed from the defaults are useful too.

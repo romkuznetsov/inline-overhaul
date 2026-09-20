@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question about using the plugin
+    url: https://github.com/romkuznetsov/inline-overhaul/discussions
+    about: Ask here rather than opening an issue — questions get answered faster and stay findable.
+  - name: Setup and user guide
+    url: https://github.com/romkuznetsov/inline-overhaul/blob/main/instructions.md
+    about: Installation, configuration, Transform safety, troubleshooting and recovery.
+  - name: Security report
+    url: https://github.com/romkuznetsov/inline-overhaul/security/advisories/new
+    about: Report privately instead of opening a public issue.
