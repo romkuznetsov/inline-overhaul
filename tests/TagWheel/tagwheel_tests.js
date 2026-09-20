@@ -1317,7 +1317,7 @@ function runElementTokenSuite() {
     throw new Error('в editor_visuals_config нет elementTailPatternFromFormat: правило переехало, сверить нечем')
   }
 
-  var formats = ['YYYY-MM-DD hh:mm', 'YYYY-MM-DD', 'hh:mm', 'DD.MM.YYYY', 'YYYY/MM/DD hh:mm:ss', '', 'YY']
+  var formats = ['YYYY-MM-DD hh:mm', 'YYYY-MM-DD', 'hh:mm', 'DD.MM.YYYY', 'YYYY/MM/DD hh:mm:ss', '', 'YY', 'yy-mm-dd', 'DD.MM.YY']
   var sameCount = 0
   for (var fi = 0; fi < formats.length; fi++) {
     var f = formats[fi]
@@ -1329,6 +1329,33 @@ function runElementTokenSuite() {
   /* Положительный контроль: сверка мерила не пустоту. Формат без токенов даёт
      пустой хвост законно, поэтому непустых обязано быть больше нуля. */
   assertTrue(sameCount >= 5, 'сверено непустых хвостов: ' + sameCount)
+
+  /*
+   * **Написанное узнаётся своим же образцом** (У-157, его замечание 2026-09-20
+   * про формат `yy-mm-dd`).
+   *
+   * Равенства двух объявлений мало: оба могут быть неверны одинаково, и тогда
+   * сверка зелена (У-196). Поэтому спрашивается **несимметричное**: значение
+   * пишет одна сторона (`formatNowByMask` общего дома), а узнаёт другая —
+   * образец хвоста, которым движки находят значение на строке. На `yy` они
+   * расходились: запись оставляла буквы `yy`, а образец по пробегам букв ждал
+   * там две цифры, и написанное плагином он не находил.
+   */
+  var sharedUtils = require(path.join(__dirname, '..', '..', 'src', 'core', 'shared_utils.js'))
+  var written = 0
+  for (var wi = 0; wi < formats.length; wi++) {
+    var wf = formats[wi]
+    if (!wf) continue
+    var value = sharedUtils.formatNowByMask(wf)
+    var tail = shared.elementTailPatternFromFormat(wf)
+    if (!tail) continue
+    assertTrue(new RegExp('^(?:' + tail + ')$').test(value),
+      'написанное по формату "' + wf + '" не узнаётся образцом хвоста: значение '
+      + JSON.stringify(value) + ', образец ' + JSON.stringify(tail))
+    written++
+  }
+  assertTrue(written >= 5, 'сверено написанных значений: ' + written)
+
   console.log('  ok Т-14: элемент из двух слов не разрывается, правило хвоста одно')
 }
 

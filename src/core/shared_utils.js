@@ -16,6 +16,20 @@ function normalizeFormatMask(format) {
   let f = String(format ?? "").trim();
   if (!f) return "";
   f = f.replace(/yyyy/gi, "YYYY");
+  /*
+   * **Двузначный год — свой токен, и приводится он после четырёхзначного.**
+   *
+   * Его замечание 2026-09-20: «due не определил год при этом формате» на
+   * формате `yy-mm-dd`. Строчные `mm` и `dd` здесь приводились всегда, а `yy`
+   * не знал никто — и поле писало на строку буквы: `yy-09-20`. Писал их наш же
+   * движок, а образец узнавания у второго объявления правила (`elementTail
+   * PatternFromFormat`, под З3) считает цифрами любой пробег букв — то есть
+   * написанное плагином он же и не находил (У-157).
+   *
+   * Пара `[Yy]{2}` берётся только тогда, когда рядом нет третьей `Y`: иначе
+   * приведённый выше `YYYY` разобрался бы на два двузначных года.
+   */
+  f = f.replace(/(?<![Yy])[Yy]{2}(?![Yy])/g, "YY");
   f = f.replace(/dd/gi, "DD");
   f = f.replace(/hh/gi, "HH");
   f = f.replace(/ss/gi, "ss");
@@ -29,7 +43,7 @@ function normalizeFormatMask(format) {
 function buildFormatValueRegexSource(format) {
   const f = normalizeFormatMask(String(format ?? ""));
   if (!f) return "";
-  const tokenRe = /(YYYY|MM|DD|HH|mm|ss)/g;
+  const tokenRe = /(YYYY|YY|MM|DD|HH|mm|ss)/g;
   let src = "";
   let last = 0;
   let hit;
@@ -46,7 +60,7 @@ function buildFormatValueRegexSource(format) {
 }
 
 function hasFormatTokens(format) {
-  return /(YYYY|MM|DD|HH|mm|ss)/.test(normalizeFormatMask(String(format ?? "")));
+  return /(YYYY|YY|MM|DD|HH|mm|ss)/.test(normalizeFormatMask(String(format ?? "")));
 }
 
 function parseNumericLiteralSpec(format) {
@@ -197,6 +211,9 @@ function addMinutesHhmm(text, delta) {
 function formatNowByMask(mask) {
   const d = new Date();
   const YYYY = String(d.getFullYear());
+  /* Двузначный год — последние две цифры четырёхзначного, а не отдельный
+     счёт: иначе у года 2100 вышло бы `21`, а не `00`. */
+  const YY = YYYY.slice(-2);
   const MM = String(d.getMonth() + 1).padStart(2, "0");
   const DD = String(d.getDate()).padStart(2, "0");
   const HH = String(d.getHours()).padStart(2, "0");
@@ -205,6 +222,7 @@ function formatNowByMask(mask) {
   const m = normalizeFormatMask(String(mask ?? "YYYY-MM-DD")) || "YYYY-MM-DD";
   return m
     .replace(/YYYY/g, YYYY)
+    .replace(/YY/g, YY)
     .replace(/MM/g, MM)
     .replace(/DD/g, DD)
     .replace(/HH/g, HH)
@@ -269,7 +287,7 @@ function renderCommandValueByFormat(format, commandRaw, nowDate) {
      * образцом, которым это значение потом ищут на строке (S7, 2026-09-09).
      */
     const mask = normalizeFormatMask(fmt) || fmt;
-    return mask.replace(/YYYY|MM|DD|HH|mm|ss/g, (tk) => {
+    return mask.replace(/YYYY|YY|MM|DD|HH|mm|ss/g, (tk) => {
       const size = tk === "YYYY" ? 4 : 2;
       let out = "";
       for (let i = 0; i < size; i++) out += pickRandom(pool);
@@ -388,7 +406,7 @@ function buildElementTailRegexSource(format, commandRaw) {
 
   if (hasFormatTokens(fmt)) {
     const mask = normalizeFormatMask(fmt);
-    const tokenRe = /(YYYY|MM|DD|HH|mm|ss)/g;
+    const tokenRe = /(YYYY|YY|MM|DD|HH|mm|ss)/g;
     /* Пробел записывается классом из одного знака — так же, как в третьем
        объявлении: пин сверяет строки, а не поведение выражений. */
     const between = (text) => String(text || "").split(" ").map(escapeRe).join("[ ]");
@@ -687,7 +705,7 @@ function detectDateUnit(format) {
   if (/ss/.test(f)) return "second";
   if (/mm/.test(f)) return "minute";
   if (/HH/.test(f)) return "hour";
-  if (/YYYY/.test(f) && !/(MM|DD)/.test(f)) return "year";
+  if (/(YYYY|YY)/.test(f) && !/(MM|DD)/.test(f)) return "year";
   if (/MM/.test(f) && !/DD/.test(f)) return "month";
   return "day";
 }

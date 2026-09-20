@@ -701,8 +701,6 @@ function buildTagVisualLayer(view, plugin) {
   /* И то же про ссылку: род значения мало, когда род — ссылка (В-141). Строится
      один раз на проход, как и состав Block. */
   const isLinkValue = buildWikilinkValueTestFromConfig(cfg);
-  /* Цвета TagWheel нужны здесь ровно затем, чтобы узнать его отрезок (B2). */
-  const tagwheelColors = getTagwheelHeaderColorsFromConfig(cfg);
 
   const readRowForToken = (token) => readTagVisualRowByTokenMaps(token, fieldMap, userTags, globalMap);
   for (const lineNo of visibleLineNumbers(view)) {
@@ -721,7 +719,7 @@ function buildTagVisualLayer(view, plugin) {
        * рисовал — «fields невидимы и не занимают места» (B2, 2026-09-02).
        * Правило про отрезок объявлено один раз, в `tagwheelPanelSpanInLine`.
        */
-      const wheelSpan = tagwheelPanelSpanInLine(text, tagwheelColors);
+      const wheelSpan = tagwheelPanelSpanInLine(text);
       /* Наша ли это строка вообще: спрашивается один раз на строку. */
       const ourLine = lineBelongsToPlugin(text, sep1, sep2);
       for (const hit of scanLineVisualTokens(text, sep1, sep2, elementMarkers, blockKinds, isLinkValue)) {

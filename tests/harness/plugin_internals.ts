@@ -82,7 +82,7 @@ export interface PluginInternals {
   buildElementMarkersFromConfig: (cfg: Any) => Any[];
   /* Отрезок, который забирает себе слой TagWheel: по нему слой пузырей
      узнаёт, что эти символы не его (B2). */
-  tagwheelPanelSpanInLine: (text: string, colors: Any) => Any;
+  tagwheelPanelSpanInLine: (text: string) => Any;
   /**
    * Один токен панели TagWheel без приставки. Слой панели больше не заменяет
    * отрезок целиком — он ставит пометки, — и виджет остался только на случае

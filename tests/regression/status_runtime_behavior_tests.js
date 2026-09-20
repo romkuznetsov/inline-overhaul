@@ -947,6 +947,57 @@ async function testStatusDateHydrationUsesLastDueOccurrence() {
   assertEq(dueTokens[0], "📅2026-04-11", "status_date should continue from last due token occurrence on increase");
 }
 
+/*
+ * **Двузначный год — значение, а не буквы** (его замечание 2026-09-20: «due не
+ * определил год при этом формате», формат поля `yy-mm-dd`).
+ *
+ * Спрашивается симптом двумя половинами, и обе нужны:
+ *
+ *   - **записанное значение** — в нём не должно остаться ни одной буквы:
+ *     строчные `mm` и `dd` приводились к токенам всегда, а `yy` не знал никто,
+ *     и поле писало на строку `yy-09-20`;
+ *   - **прочитанное обратно** — шаг по такому значению обязан двигать день.
+ *     Без второй половины проверка была бы зелёной и у формата, который
+ *     записывается верно, но своим же образцом не находится: образец хвоста у
+ *     второго объявления правила (`elementTailPatternFromFormat`, под З3)
+ *     считает цифрами любой пробег букв, и на `yy` два объявления расходились
+ *     (У-157: написанное нами мы обязаны уметь прочесть).
+ */
+const SHORT_YEAR_DATE_RUNTIME = JSON.stringify({
+  fields: ["date_due"],
+  byField: { date_due: { emoji: "\uD83D\uDCC5", format: "yy-mm-dd" } },
+  canonical: { date_due: "date_due" },
+});
+
+async function testStatusDateShortYearIsAValueAndNotLetters() {
+  const settings = {
+    "Rules data": OWNER_SHAPE_RULES,
+    "Action type": "field_inc:date_due",
+    "Order config": ownerShapeOrder(),
+    "Date runtime config": SHORT_YEAR_DATE_RUNTIME,
+    "Cycle end behavior": "keep-bullet",
+    "Cursor policy": "line_end",
+  };
+
+  /* Первая половина: значение пишется цифрами. */
+  const fresh = makeEditor("- текст", 7);
+  await runPkmCommandWithEditor("statusDate", fresh, settings);
+  const written = String(fresh.snapshot().line);
+  const value = (written.match(/\uD83D\uDCC5(\S+)/) || [])[1] || "";
+  assertTrue(/^\d{2}-\d{2}-\d{2}$/.test(value),
+    "у формата `yy-mm-dd` значение записано цифрами, а не буквами: " + JSON.stringify(written));
+
+  /*
+   * **Вторая половина живёт не здесь, а у сверки двух объявлений.** Читает
+   * записанное не этот движок, а образец хвоста
+   * (`elementTailPatternFromFormat`), и объявлений у него два: одно по
+   * токенам, второе по пробегам букв. На `yy` они расходились — и поймать
+   * это здесь нечем: один и тот же неверный ответ по обе стороны движка
+   * гасится сам (У-196). Сверка — `Т-14` в `tests/TagWheel/tagwheel_tests.js`,
+   * там же свойство «написанное узнаётся своим же образцом».
+   */
+}
+
 async function testStatusDateRunCommandPathIncrementsDueGenericAction() {
   const before = "- [ ] #todo || text || 📅2026-04-08";
   const editor = makeEditor(before, 2);
@@ -4161,6 +4212,7 @@ async function run() {
   await testStatusDateKeepsAnyListMarker();
   await testStatusDateHydrationUsesLastDueOccurrence();
   await testStatusDateRunCommandPathIncrementsDueGenericAction();
+  await testStatusDateShortYearIsAValueAndNotLetters();
   await testStatusDateConfiguredSeparatorTreatsDoublePipeAsPlainText();
   await testStatusTagsOffHeadingDoesNotInjectBullet();
   await testStatusImportanceOffHeadingRewritesWithoutHeadingLeak();

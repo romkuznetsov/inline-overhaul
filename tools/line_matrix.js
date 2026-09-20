@@ -40,8 +40,6 @@ const configNormalize = require(path.join(ROOT, "src", "core", "config_normalize
 const SHOW_ALL = process.argv.includes("--all");
 const SPLIT = process.argv.includes("--split");
 
-const MARK_DUE = "📅";
-
 /*
  * Исходные строки: пустая, с текстом человека, с чужим значением и текстом.
  *
@@ -70,7 +68,39 @@ const MARK_DUE = "📅";
  * обычный текст (У-182). Стенд, который пишет чужую настройку сам, слеп ровно
  * к тому, ради чего заведён.
  */
-function casesFor(sep1, marker, material) {
+/**
+ * **Значение элемента для исходных строк — его метка и его формат.**
+ *
+ * Здесь стояла готовая дата — `📅2026-09-15 14:35`, — и это была настройка
+ * человека, написанная стендом самому себе (У-182). 2026-09-20 заказчик
+ * сменил формат поля `Due` на `yy-mm-dd`, и та дата перестала быть значением
+ * этого поля: образец узнавания её не находит, панель уносила со строки хвост,
+ * а обход печатал это расхождением кода. Два из пяти расхождений того прогона
+ * были собственной подделкой стенда.
+ *
+ * Значение пишет **тот же помощник, каким его пишет плагин**
+ * (`formatNowByMask`), — своего правила «как выглядит значение этого поля»
+ * здесь заводить нельзя (У-4). Формат без единого токена даёт сам себя, и это
+ * законное значение такого поля.
+ *
+ * Метка берётся оттуда же, откуда её берёт доводка строки. Нет метки или нет
+ * формата — стенд говорит это вслух и идёт формой меньше, а не молчит.
+ */
+function elementTokenFor(cfg, rules) {
+  const marker = String((linePipeline.fieldsShape(rules).markers || [])[0] || "").trim();
+  if (!marker) return "";
+  const byField = (cfg.pkm && cfg.pkm.fields && cfg.pkm.fields.elements
+    && cfg.pkm.fields.elements.byField) || {};
+  for (const key of Object.keys(byField)) {
+    const row = byField[key] || {};
+    if (String(row.emoji || "").trim() !== marker) continue;
+    const value = shared.formatNowByMask(String(row.format || ""));
+    return value ? marker + value : "";
+  }
+  return "";
+}
+
+function casesFor(sep1, elementToken, material) {
   const stuff = material && typeof material === "object" ? material : {};
   const out = [
   { name: "пустая", line: "", ch: 0 },
@@ -198,11 +228,11 @@ function casesFor(sep1, marker, material) {
    * Метка берётся из его настроек, а не пишется здесь (У-182); нет метки —
    * стенд говорит это вслух, а не молчит формой меньше.
    */
-  if (marker) {
-    const line = "- [ ] #todo " + sep1 + " " + marker + "2026-09-15 14:35";
+  if (elementToken) {
+    const line = "- [ ] #todo " + sep1 + " " + elementToken;
     out.push({ name: "правый Block за единственным разделителем", line: line, ch: line.length });
   } else {
-    console.log("в его настройках нет ни одной метки элемента — формы «правый Block за единственным разделителем» в обходе нет");
+    console.log("в его настройках нет ни одного элемента с форматом — формы «правый Block за единственным разделителем» в обходе нет");
   }
   /*
    * **Двадцать первая — слово человека, а за единственным разделителем
@@ -385,13 +415,15 @@ function selfCheck(rules, cfg) {
   const sep = separatorsOf(cfg);
   const sep1 = sep.sep1;
   const sep2 = sep.sep2;
+  const element = elementTokenFor(cfg, rules);
   const known = [
     "- #work " + sep1 + " текст",
     "- [ ] #todo " + sep1 + " ",
     "- текст",
-    "- " + MARK_DUE + "2026-01-02 03:04 " + sep1 + " ",
-    "- #work " + sep1 + " текст " + sep2 + " " + MARK_DUE + "2026-01-02 03:04",
-  ];
+  ].concat(element ? [
+    "- " + element + " " + sep1 + " ",
+    "- #work " + sep1 + " текст " + sep2 + " " + element,
+  ] : []);
   const bad = known.filter((line) => !fixpointOf(line, rules).stable);
   if (bad.length) {
     throw new Error(
@@ -469,10 +501,11 @@ async function main() {
   }
   const rules = rulesOf(cfg);
   selfCheck(rules, cfg);
-  /* Метка — из его правил, тем же объявлением, каким её берёт доводка. */
+  /* Метка — из его правил, тем же объявлением, каким её берёт доводка;
+     значение за ней пишет сам плагин по формату этого поля (см. ниже). */
   const CASES = casesFor(
     separatorsOf(cfg).sep1,
-    (linePipeline.fieldsShape(rules).markers || [])[0] || "",
+    elementTokenFor(cfg, rules),
     materialFor(rules)
   );
 

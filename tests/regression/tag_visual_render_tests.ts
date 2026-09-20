@@ -499,25 +499,53 @@ const filled = (el: Any): boolean =>
 {
   const line = "- ==`#todo` **[work]**== || text || 📅2026-09-02";
 
-  /* Заливка задана — отрезок принадлежит TagWheel. */
-  const withFill = I.tagwheelPanelSpanInLine(line, { fillColor: "#988925", showPrefix: true });
-  assert.ok(withFill, "с заданной заливкой отрезок TagWheel есть");
-  assert.equal(line.slice(withFill.start, withFill.end), "==`#todo` **[work]**==",
-    "границы отрезка — от первых `==` до вторых: " + line.slice(withFill.start, withFill.end));
-
-  /* Маркеры спрятаны — тоже виджет, тоже отрезок. */
-  assert.ok(I.tagwheelPanelSpanInLine(line, { fillColor: "", showPrefix: false }),
-    "спрятанные маркеры тоже отдают отрезок виджету");
-
-  /* Ни того, ни другого — слой TagWheel только красит текст, и отрезка нет. */
-  assert.equal(I.tagwheelPanelSpanInLine(line, { fillColor: "", showPrefix: true }), null,
-    "без заливки и с маркерами отрезок не забирается");
+  /* Панель на строке есть — отрезок принадлежит ей. */
+  const span = I.tagwheelPanelSpanInLine(line);
+  assert.ok(span, "на строке с панелью отрезок TagWheel есть");
+  assert.equal(line.slice(span.start, span.end), "==`#todo` **[work]**==",
+    "границы отрезка — от первых `==` до вторых: " + line.slice(span.start, span.end));
 
   /* Нет обособления — нечего забирать. */
-  assert.equal(I.tagwheelPanelSpanInLine("- #todo || text", { fillColor: "#988925", showPrefix: true }), null,
+  assert.equal(I.tagwheelPanelSpanInLine("- #todo || text"), null,
     "на обычной строке отрезка TagWheel нет");
 
   ok("B2: отрезок TagWheel объявлен одним правилом на два слоя");
+}
+
+/*
+ * **Отрезок панели не зависит от цветов, и это его замечание 2026-09-20**
+ * («я удалил все настройки и начал заново — получил такое»).
+ *
+ * Прежде вопрос «забрать ли отрезок у слоя пузырей» решался заливкой, и у двух
+ * читателей одних цветов ответы разошлись (У-216): слой оформления спрашивает
+ * их через `resolveTagwheelPaintColors`, где пустое заменяется цветом темы, а
+ * слой пузырей спрашивал ответ конфига напрямую. У свежей установки, где цвета
+ * панели не трогали вовсе, отрезок не забирался — и пузырь вставал поверх
+ * разметки самой панели.
+ *
+ * Спрашивается симптом, а не правка: на строке панели, снятой стендом с его
+ * настроек, слой пузырей находит токен **внутри** панели, и этот токен обязан
+ * попасть в отрезок. Цвета берутся **через читателя продукта**, а не литералом:
+ * иначе проверка снова смотрела бы мимо шва.
+ */
+{
+  const fresh = I.getTagwheelHeaderColorsFromConfig({ visual: { tagWheel: {} } }) as Any;
+  assert.equal(String(fresh.fillColor || ""), "",
+    "у свежей установки заливка панели пуста — иначе случай не тот");
+
+  const panel = "- #low ==**[#low]** `Type`== ::  :: текст";
+  const seg = I.tagwheelPanelSpanInLine(panel);
+  assert.ok(seg, "панель узнаётся и при пустых цветах");
+
+  /* Положительный контроль: внутри панели слою пузырей есть что найти. */
+  const hits = Array.from(I.scanLineVisualTokens(panel, "::", "::", [], {}) as Any[]);
+  const inside = hits.filter((h: Any) => Number(h.index) >= seg.start && Number(h.index) < seg.end);
+  assert.ok(inside.length > 0,
+    "внутри панели слой пузырей находит токен — иначе проверять нечего: " + JSON.stringify(hits.map((h: Any) => h.token)));
+  assert.ok(inside.some((h: Any) => String(h.token).indexOf("]**") >= 0),
+    "и находит он разметку самой панели, а не значение человека: " + JSON.stringify(inside.map((h: Any) => h.token)));
+
+  ok("S12: отрезок панели забирается у слоя пузырей и при нетронутых цветах");
 }
 
 /*
@@ -697,20 +725,19 @@ const filled = (el: Any): boolean =>
     visual: { tagWheel: { fillColor: "#f0e17f", textColor: "#322b2a", showMarkers: true } },
   });
   const known = new Set(["Imp"]);
-  const widget = { fillColor: "#f0e17f", showPrefix: true };
 
   /* Выделение человека: ни одного оформления и ни одного отобранного отрезка. */
   const own = "- [ ] купить ==хлеб== до пятницы";
   assert.deepEqual(I.tagwheelPanelSpans(own, colors, known), [],
     "обычное выделение человека слой панели не красит");
-  assert.equal(I.tagwheelPanelSpanInLine(own, widget), null,
+  assert.equal(I.tagwheelPanelSpanInLine(own), null,
     "и слой пузырей внутри него работает как обычно");
 
   /* Выделенный тег — тот же случай, и это вторая половина дефекта. */
   const ownTag = "- ==#todo== || текст";
   assert.deepEqual(I.tagwheelPanelSpans(ownTag, colors, known), [],
     "выделенный тег человека тоже не панель");
-  assert.equal(I.tagwheelPanelSpanInLine(ownTag, widget), null,
+  assert.equal(I.tagwheelPanelSpanInLine(ownTag), null,
     "и пузырь у него остаётся: отрезок слою панели не отдан");
 
   /* Настоящая панель красится, как раньше: правка ничего не отняла. */
@@ -718,7 +745,7 @@ const filled = (el: Any): boolean =>
   const spansPanel = I.tagwheelPanelSpans(panel, colors, known);
   assert.ok(spansPanel.some((x: Any) => x.kind === "line" && String(x.style).includes("--io-twfill")),
     "панель по-прежнему получает заливку: " + JSON.stringify(spansPanel));
-  assert.ok(I.tagwheelPanelSpanInLine(panel, widget),
+  assert.ok(I.tagwheelPanelSpanInLine(panel),
     "и её отрезок по-прежнему забирается у слоя пузырей");
 
   ok("H5: панель узнаётся по своей метке, а не по разметке выделения Obsidian");

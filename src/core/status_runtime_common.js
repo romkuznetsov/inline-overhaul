@@ -444,7 +444,7 @@ function createStatusRuntimeCommon(deps) {
       ? escapeRxFn
       : escapeRx;
     const f = normalizeMask(String(format ?? "YYYY-MM-DD"));
-    const tokenRe = /(YYYY|MM|DD|HH|mm|ss)/g;
+    const tokenRe = /(YYYY|YY|MM|DD|HH|mm|ss)/g;
     let pattern = "^";
     const tokens = [];
     let last = 0;
@@ -471,6 +471,9 @@ function createStatusRuntimeCommon(deps) {
       const tk = tokens[i];
       if (!Number.isFinite(v)) return null;
       if (tk === "YYYY") y = v;
+      /* Двузначный год — двадцать первый век: на строке человека другого не
+         бывает, а сверка ниже всё равно потребует, чтобы дата сошлась. */
+      else if (tk === "YY") y = 2000 + v;
       else if (tk === "MM") mo = v;
       else if (tk === "DD") d = v;
       else if (tk === "HH") hh = v;
@@ -499,6 +502,7 @@ function createStatusRuntimeCommon(deps) {
       : (x) => String(x == null ? "" : x).trim();
     const f = normalizeMask(String(format ?? "YYYY-MM-DD"));
     const YYYY = String(dt.getUTCFullYear());
+    const YY = YYYY.slice(-2);
     const MM = String(dt.getUTCMonth() + 1).padStart(2, "0");
     const DD = String(dt.getUTCDate()).padStart(2, "0");
     const HH = String(dt.getUTCHours()).padStart(2, "0");
@@ -506,6 +510,7 @@ function createStatusRuntimeCommon(deps) {
     const ss = String(dt.getUTCSeconds()).padStart(2, "0");
     return f
       .replace(/YYYY/g, YYYY)
+      .replace(/YY/g, YY)
       .replace(/MM/g, MM)
       .replace(/DD/g, DD)
       .replace(/HH/g, HH)

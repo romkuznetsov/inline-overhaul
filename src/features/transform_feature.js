@@ -671,7 +671,7 @@ function elementValuePattern(rule) {
 /* Из чего собирается показательное значение элемента. Дата настоящая: маска
    `YYYY-MM-DD` на строке не встречается никогда, и подавать её разборщику —
    это подавать ему то, чего он видеть не может (У-38). */
-const ELEMENT_SAMPLE_DIGITS = { YYYY: "2026", MM: "08", DD: "31", HH: "09", hh: "09", mm: "15", ss: "00" };
+const ELEMENT_SAMPLE_DIGITS = { YYYY: "2026", yyyy: "2026", YY: "26", yy: "26", MM: "08", DD: "31", HH: "09", hh: "09", mm: "15", ss: "00" };
 
 /**
  * Показательное значение элемента, законное для его же формата.
@@ -712,13 +712,14 @@ function formatDateTimeByPattern(date, pattern) {
   const d = date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
   const values = {
     YYYY: String(d.getFullYear()),
+    YY: String(d.getFullYear()).slice(-2),
     MM: String(d.getMonth() + 1).padStart(2, "0"),
     DD: String(d.getDate()).padStart(2, "0"),
     HH: String(d.getHours()).padStart(2, "0"),
     mm: String(d.getMinutes()).padStart(2, "0"),
     ss: String(d.getSeconds()).padStart(2, "0"),
   };
-  return String(pattern || "YYYY-MM-DD HH:mm").replace(/YYYY|MM|DD|HH|mm|ss/g, (token) => values[token]);
+  return String(pattern || "YYYY-MM-DD HH:mm").replace(/YYYY|YY|MM|DD|HH|mm|ss/g, (token) => values[token]);
 }
 
 /** Ведущие решётки строки: сколько их, и что остаётся без них. */
