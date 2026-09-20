@@ -21,6 +21,13 @@ Release dates are ISO 8601, `YYYY-MM-DD`.
 
 ## Unreleased
 
+## 0.5.1
+
+_2026-09-20 · [all changes since 0.5.0](https://github.com/romkuznetsov/inline-overhaul/compare/0.5.0...0.5.1)_
+
+> [!NOTE]
+> Nothing changed inside the plugin: this release is about what you read. The README is a landing page now — the mark, the badges and a recording of the plugin at work before any prose — while the walk through the settings panel moved into a reference of its own, and a new tutorial takes you from install to a working line in about fifteen minutes. Every document written for you is named in capitals from this release on, so a link you saved to a lower-case name needs updating.
+
 1. ✨ **New: a tutorial** — [`docs/TUTORIAL.md`](docs/TUTORIAL.md) walks from install to a working line in about fifteen minutes, one path and no choices to make.
 2. ✨ **New: a settings reference** — [`docs/SETTINGS.md`](docs/SETTINGS.md) lists every control of the panel, tab by tab, in the panel's own order, with the value each one starts at.
 3. ✨ **New: `CONTRIBUTING.md`, `SECURITY.md`, and issue and pull request templates** — what makes a bug report actionable, and how to report a security problem privately instead of in a public issue.
