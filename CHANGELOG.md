@@ -9,7 +9,7 @@
      переносом, и свёрстанный абзац приезжает человеку лестницей. Держит форму
      `tests/regression/release_notes_tests.js`. -->
 
-## Unreleased
+## 0.5.0
 
 > [!NOTE]
 > A Field of type link can show its Values as an emoji — or as anything else — and a click still opens the note, while the cursor and the mouse treat what you see as one piece. Every command now carries the name of its area, so the command reference can hand you over to Obsidian's `Hotkeys` screen with one heading of it filtered in. An unassigned key reads as an empty slot, every dropdown says which value is the standard one, and moving a line in a numbered list renumbers it again.
