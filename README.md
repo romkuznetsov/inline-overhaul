@@ -12,7 +12,7 @@
 [![Public beta](https://img.shields.io/badge/status-public%20beta-ffb547?style=flat-square&labelColor=1d1b30)](#before-you-install)
 [![MIT](https://img.shields.io/github/license/romkuznetsov/inline-overhaul?style=flat-square&labelColor=1d1b30&color=4a7b9b)](LICENSE)
 
-<img src="docs/media/showcase/pkm-cycle.gif" width="720" alt="A status tag cycling through todo, doing and done under the cursor, without leaving the line">
+[**See it in motion →**](docs/SHOWCASE.md)
 
 </div>
 
@@ -61,28 +61,28 @@ in about fifteen minutes.
 A line moves with everything it carries: tags, links, the date. Indentation and children
 follow.
 
-<img src="docs/media/showcase/move-lines.gif" width="720" alt="Lines moving up and down with their tags and links intact">
+[▸ Watch it in the showcase](docs/SHOWCASE.md#move-linestrees)
 
 ### Pick a value from the TagWheel
 
 When you do not remember the values by heart, the wheel shows them around the cursor and
 you choose without typing.
 
-<img src="docs/media/showcase/tagwheel.gif" width="720" alt="The TagWheel opening at the cursor and a value being chosen">
+[▸ Watch it in the showcase](docs/SHOWCASE.md#tagwheel-leftrightnavigationapplycancel)
 
 ### Cycle the prefix of a line
 
 Bullet, checkbox, quote, heading — the line's Prefix walks its own list, so restructuring
 a note does not mean retyping it.
 
-<img src="docs/media/showcase/prefix-cycle.gif" width="720" alt="The prefix of a line cycling between bullet, checkbox and quote">
+[▸ Watch it in the showcase](docs/SHOWCASE.md#prefix-cycleindent-fallback)
 
 ### Turn a line into a note
 
 Transform takes the line, your template and the Values on it, and writes a note — then
 cleans up the source the way you told it to.
 
-<img src="docs/media/showcase/transform-preview.gif" width="720" alt="A line being previewed and then turned into a new note">
+[▸ Watch it in the showcase](docs/SHOWCASE.md#transform-inline2note)
 
 ## Where to go next
 
