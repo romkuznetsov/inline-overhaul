@@ -9898,7 +9898,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | удалено | R:1628 | `Execution Backend` | `DELETE` (Р7, единственное значение) | — |
 | удалено | R:1558 | `Flush Settings Now` | `DELETE` (Р7) | — |
 
-### Пути, которых не было в описи v1.0 (67)
+### Пути, которых не было в описи v1.0 (68)
 
 | путь | настройка | группа |
 |------|-----------|--------|
@@ -9934,6 +9934,7 @@ viewState.fieldOrder.expanded            ← ui.orderShow* и внутренне
 | `visual.tagWheel.highlightLine` | Highlight the TagWheel line (`panel-highlight`) | TagWheel |
 | `visual.tagWheel.activeTextColor` | Active Field text color (`panel-active-color`) | TagWheel |
 | `visual.tagWheel.chosenValueColor` | Chosen Value text color (`panel-chosen-color`) | TagWheel |
+| `visual.tagWheel.scroller.labels` | Scroller Value names (`scroller-labels`) | TagWheel |
 | `visual.tagWheel.scroller.fillColor` | Scroller background color (`scroller-fill`) | TagWheel |
 | `visual.tagWheel.scroller.textColor` | Scroller text color (`scroller-text`) | TagWheel |
 | `visual.tagWheel.edgeMode` | TagWheel navigation behavior (`wheel-edge`) | TagWheel |
@@ -17187,7 +17188,7 @@ python tests/prototype/update_prd.py
 | 2 | Keyboard | — | 4 | 13 | 7 |
 | 3 | Navigation | `features.navigation.enabled` | 5 | 25 | 5 |
 | 4 | Tags & PKM | `features.pkm.enabled` | 6 | 12 | 5 |
-| 5 | Visual | `features.visual.enabled` | 8 | 55 | 11 |
+| 5 | Visual | `features.visual.enabled` | 8 | 56 | 11 |
 | 6 | Transform | `features.transform.enabled` | 7 | 32 | 5 |
 | 7 | Advanced | — | 4 | 9 | 1 |
 
@@ -18185,6 +18186,12 @@ _Tip:_ Every Field has its own pair of cycle commands, and one key each adds up 
   - варианты: `up` Upwards · `down` Downwards · `full` Both ways
   - видна если: `visual.tagWheel.scroller.enabled`
   - старые названия для поиска: «Scroller direction», «Opens»
+- **Scroller Value names** — `scroller-labels`, `dropdown`, path `visual.tagWheel.scroller.labels`, default `value`
+  - desc: What the box shows for each neighboring Value
+  - tip: <code>As written</code> shows the Value the way it goes into your line, marks and all. <code>Custom text when set</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word — and falls back to the written Value wherever no custom text is given
+  - варианты: `value` As written · `custom` Custom text when set
+  - видна если: `visual.tagWheel.scroller.enabled`
+  - старые названия для поиска: «Scroller names», «Custom text in the scroller», «Printed name»
 - **Scroller background color** — `scroller-fill`, `color`, path `visual.tagWheel.scroller.fillColor`, default `""`
   - desc: The color behind the box of neighboring Values
   - tip: Leave it empty and the box takes the color your theme gives a popover. Set it and the box stands out from the note even where the theme is pale
@@ -18453,6 +18460,7 @@ _Tip:_ Nothing is written into your note: the circle is drawn over it for a mome
 | `visual.tagWheel.scroller.direction` | dropdown | `full` |
 | `visual.tagWheel.scroller.enabled` | toggle | `false` |
 | `visual.tagWheel.scroller.fillColor` | color | `""` |
+| `visual.tagWheel.scroller.labels` | dropdown | `value` |
 | `visual.tagWheel.scroller.size` | slider | `3` |
 | `visual.tagWheel.scroller.textColor` | color | `""` |
 | `visual.tagWheel.showMarkers` | toggle | `true` |

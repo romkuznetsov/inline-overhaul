@@ -1078,4 +1078,50 @@ const filled = (el: Any): boolean =>
   ok("Цвета панели доезжают до заметки: шов не теряет ни одного ключа");
 }
 
+/*
+ * **Чем печатается значение вместо себя — один ответ на два места** (его заказ
+ * 2026-09-20: «в настройках скроллера нужно добавить режим отображения… чтобы при
+ * прокручивании пользователь видел `#todo` либо `🎯`»).
+ *
+ * Коробка скроллера показывает значения, которых на строке ещё нет, — спросить
+ * их у отрисовки нечем. Поэтому карта собирается заранее, и собирает её тот же
+ * ответ, каким пузырь решает то же самое: `custom` только тогда, когда текст и
+ * правда задан (`resolveEffectiveTagVisualMode`).
+ *
+ * Отрицательные контроли здесь важнее положительного: в карту не должно
+ * попасть ни значение с режимом `custom` и пустым текстом, ни значение, у
+ * которого текст написан, а режим остался прежним.
+ */
+{
+  const cfg = {
+    visual: {
+      tags: {
+        byTag: {
+          Type: {
+            "#todo": { visibility: "custom", customText: "🎯" },
+            "#idea": { visibility: "custom", customText: "" },
+            "#mem": { visibility: "default", customText: "🧠" },
+            "#done": { visibility: "empty", customText: "" },
+          },
+        },
+      },
+    },
+  };
+  const map = I.buildTagCustomTextMap(cfg) as Any;
+  assert.equal(map["#todo"], "🎯",
+    "значение со своим текстом печатается им: " + JSON.stringify(map));
+  assert.ok(!Object.prototype.hasOwnProperty.call(map, "#idea"),
+    "режим `custom` с пустым текстом в карту не попадает: " + JSON.stringify(map));
+  assert.ok(!Object.prototype.hasOwnProperty.call(map, "#mem"),
+    "написанный текст без режима `custom` в карту не попадает: " + JSON.stringify(map));
+  assert.ok(!Object.prototype.hasOwnProperty.call(map, "#done"),
+    "пустой пузырь своего текста не печатает: " + JSON.stringify(map));
+
+  /* Контроль: на конфиге без своих текстов карта пуста, а не «что-нибудь». */
+  assert.deepEqual(I.buildTagCustomTextMap({ visual: { tags: { byTag: {} } } }), {},
+    "без заданных текстов карта пуста");
+
+  ok("S13: чем печатается значение вместо себя — один ответ на заметку и на скроллер");
+}
+
 console.log("\n" + passed + " проверок пройдено");

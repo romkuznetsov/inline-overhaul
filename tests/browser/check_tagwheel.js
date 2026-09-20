@@ -23,7 +23,7 @@
  * человек начал.
  */
 
-const { openPanel, PANEL_INJECTIONS } = require("./panel_harness.js");
+const { openPanel, PANEL_INJECTIONS, SCROLLER_CUSTOM_TEXT } = require("./panel_harness.js");
 
 /* Значение, которое панель закрывает собой на строке страницы: оно стоит в
    противоположном Block и на экране появиться не должно. Берётся из той же
@@ -90,6 +90,20 @@ async function main() {
     } else {
       if (!(stepped.overlayRows > 0)) {
         bad("в оверлее ноль строк — коробка есть, а показывать ей нечего");
+      }
+      /*
+       * **Чем подписаны строки коробки** — его заказ 2026-09-20. Страница
+       * открывает режим `custom` и даёт свой текст одному значению из двух.
+       * Спрашиваются обе половины: заданный текст на экране есть, а значение
+       * без своего текста осталось написанным. Без второй половины зелёным
+       * было бы и «подписывать всё своим текстом».
+       */
+      const texts = Array.isArray(stepped.overlayTexts) ? stepped.overlayTexts : [];
+      if (texts.indexOf(SCROLLER_CUSTOM_TEXT) === -1) {
+        bad("режим подписей `custom` до коробки не доехал: строки " + JSON.stringify(texts));
+      }
+      if (!texts.some((t) => /^#/.test(String(t || "")))) {
+        bad("значение без своего текста перестало быть написанным: " + JSON.stringify(texts));
       }
       const line = stepped.lineBox;
       if (!line) {
@@ -221,7 +235,8 @@ async function main() {
     console.log("  сессия открылась, нарисовано «" + open.lineDrawn
       + "», спрятано знаков " + stepped.hiddenChars + ", оверлей "
       + (stepped.overlayBox ? stepped.overlayBox.width + "×" + stepped.overlayBox.height : "нет")
-      + " на " + stepped.overlayRows + " строк, Ctrl+Z вернул исходное; окно"
+      + " на " + stepped.overlayRows + " строк " + JSON.stringify(stepped.overlayTexts)
+      + ", Ctrl+Z вернул исходное; окно"
       + " отрисовки на строке с длинным Block порвано на " + torn.viewportPieces
       + ", подложек " + torn.bandTotal + " и ни одной вдвойне, кнопки `→` при"
       + " открытой панели нет и после закрытия она вернулась");

@@ -314,6 +314,7 @@ export const ROUTES: ReadonlyMap<string, Route> = new Map<string, Route>([
   keepV2("visual.tagWheel.fillColor"),
   keepV2("visual.tagWheel.scroller.enabled"),
   keepV2("visual.tagWheel.scroller.direction"),
+  keepV2("visual.tagWheel.scroller.labels"),
   keepV2("visual.tagWheel.scroller.size"),
   /* Подсветка места, куда прыгнул курсор. Ветка целиком новая — пары в
      версии 1 у неё нет, и без маршрута форма v2 уехала бы в `_unmigrated`

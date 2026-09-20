@@ -431,6 +431,39 @@ function resolveEffectiveTagVisualMode(row) {
   return String(row && row.customText || "").trim() ? "custom" : "empty";
 }
 
+/**
+ * Чем печатается каждый токен вместо себя — **один дом на всех, кто спрашивает**.
+ *
+ * Правило «у этого значения есть свой текст» уже объявлено:
+ * `resolveEffectiveTagVisualMode` отвечает `custom` только тогда, когда текст
+ * и правда задан. Пузырь в заметке спрашивает его на каждом токене строки;
+ * коробке скроллера нужен тот же ответ, а строки у неё нет — она показывает
+ * значения, которых в заметке ещё нет. Поэтому карта собирается заранее и
+ * едет к движку рядом с остальными настройками скроллера.
+ *
+ * Второго правила здесь не заводится: и отбор строк, и сам текст берутся у тех
+ * же помощников, что у отрисовки (У-32).
+ */
+function buildTagCustomTextMap(cfg) {
+  const out = {};
+  const visuals = getTagVisualsFromConfig(cfg);
+  const userTags = visuals.userTags;
+  const fieldMap = buildFieldTagVisualMap(cfg);
+  const globalMap = buildGlobalTagVisualMap(cfg);
+  const tokens = new Set();
+  for (const key of Object.keys(fieldMap)) tokens.add(key);
+  for (const key of Object.keys(globalMap)) tokens.add(key);
+  if (isObj(userTags)) for (const key of Object.keys(userTags)) tokens.add(key);
+  for (const token of tokens) {
+    const row = readTagVisualRowByTokenMaps(token, fieldMap, userTags, globalMap);
+    if (!row) continue;
+    if (resolveEffectiveTagVisualMode(row) !== "custom") continue;
+    const text = String(row.customText || "").trim();
+    if (text) out[token] = text;
+  }
+  return out;
+}
+
 function buildTagTokenSetForField(cfg, selectedFieldId) {
   const out = new Set();
   const fid = String(selectedFieldId || "").trim();
@@ -2180,6 +2213,7 @@ module.exports = {
   buildFieldTagVisualMap,
   buildGlobalTagVisualMap,
   readTagVisualRowByTokenMaps,
+  buildTagCustomTextMap,
   normalizeRuntimeTagVisualRow,
   scoreTagVisualRow,
   pickStrongerTagVisualRow,

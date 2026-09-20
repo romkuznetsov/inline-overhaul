@@ -30,6 +30,8 @@ const KEYS = {
   TAGWHEEL_SCROLLER_ENABLED: "TagWheel scroller enabled",
   TAGWHEEL_SCROLLER_DIRECTION: "TagWheel scroller direction",
   TAGWHEEL_SCROLLER_SIZE: "TagWheel scroller size",
+  TAGWHEEL_SCROLLER_LABELS: "TagWheel scroller labels",
+  TAGWHEEL_SCROLLER_CUSTOM_TEXT: "TagWheel scroller custom text",
   /* Цвета коробки скроллера (10.13.15, замечание заказчика D6 2026-09-02).
      Пустая строка означает «взять у темы». */
   TAGWHEEL_SCROLLER_FILL: "TagWheel scroller fill color",

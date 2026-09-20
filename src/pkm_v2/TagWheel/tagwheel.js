@@ -11,6 +11,8 @@ var DATE_RUNTIME_CONFIG_OPTION = 'Date runtime config'
 var TAGWHEEL_SCROLLER_ENABLED_OPTION = 'TagWheel scroller enabled'
 var TAGWHEEL_SCROLLER_DIRECTION_OPTION = 'TagWheel scroller direction'
 var TAGWHEEL_SCROLLER_SIZE_OPTION = 'TagWheel scroller size'
+var TAGWHEEL_SCROLLER_LABELS_OPTION = 'TagWheel scroller labels'
+var TAGWHEEL_SCROLLER_CUSTOM_TEXT_OPTION = 'TagWheel scroller custom text'
 /* Цвета коробки скроллера: десятое исключение к З3, разрешение заказчика
    2026-09-02 по замечанию D6 (PRD 10.13.15). Пусто — цвета темы. */
 var TAGWHEEL_SCROLLER_FILL_OPTION = 'TagWheel scroller fill color'
@@ -431,6 +433,12 @@ function buildTagWheelRuntimeInput(input_, settings_) {
   if (out.scrollerSize == null && qa[TAGWHEEL_SCROLLER_SIZE_OPTION] != null) {
     out.scrollerSize = qa[TAGWHEEL_SCROLLER_SIZE_OPTION]
   }
+  if (!out.scrollerLabels && typeof qa[TAGWHEEL_SCROLLER_LABELS_OPTION] === 'string') {
+    out.scrollerLabels = qa[TAGWHEEL_SCROLLER_LABELS_OPTION]
+  }
+  if (out.scrollerCustomText == null && typeof qa[TAGWHEEL_SCROLLER_CUSTOM_TEXT_OPTION] === 'string') {
+    out.scrollerCustomText = qa[TAGWHEEL_SCROLLER_CUSTOM_TEXT_OPTION]
+  }
   if (out.scrollerFillColor == null && typeof qa[TAGWHEEL_SCROLLER_FILL_OPTION] === 'string') {
     out.scrollerFillColor = qa[TAGWHEEL_SCROLLER_FILL_OPTION]
   }
@@ -523,12 +531,38 @@ function normalizeScrollerConfig(input) {
     var v = String(value == null ? '' : value).trim().toLowerCase()
     return /^#[0-9a-f]{6}$/.test(v) ? v : ''
   }
+  /*
+   * **Чем подписаны соседние значения** — его заказ 2026-09-20: «в настройках
+   * скроллера нужно добавить режим отображения (дефолтные названия или custom
+   * (при наличии))». Своего правила «у этого значения есть свой текст» здесь
+   * нет: карта приезжает готовой (`buildTagCustomTextMap`), и собрана она тем
+   * же ответом, каким пузырь в заметке решает то же самое (У-32).
+   *
+   * Карта читается как JSON и бывает сломанной — её собирает не человек, но
+   * приезжает она строкой настройки: пустой ответ значит «своих текстов нет»,
+   * и коробка подпишет значения как раньше.
+   */
+  var labelsRaw = String(raw.scrollerLabels || '').trim().toLowerCase()
+  var labels = labelsRaw === 'custom' ? 'custom' : 'value'
+  var customText = {}
+  if (labels === 'custom') {
+    try {
+      var parsed = JSON.parse(String(raw.scrollerCustomText || '{}'))
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) customText = parsed
+    } catch (_eLabels) {
+      /* Проба: карта приезжает строкой, и разобрать её может не выйти. Ответ
+         «нет» — это ответ: коробка подписывает значения как написано. */
+      customText = {}
+    }
+  }
   return {
     enabled: raw.scrollerEnabled === true,
     direction: direction,
     size: size,
     fillColor: hex(raw.scrollerFillColor),
     textColor: hex(raw.scrollerTextColor),
+    labels: labels,
+    customText: customText,
   }
 }
 
@@ -1761,6 +1795,16 @@ async function runTagWheel(input, quickAddSettings) {
             break
           }
         }
+      }
+      /*
+       * Свой текст значения сильнее написания — но только когда человек об этом
+       * попросил контролом `Scroller Value names`. Спрашивается сам токен, а не
+       * то, что из него сделала `formatVisualToken`: карта собрана по токенам.
+       */
+      var scroller = state && state.scrollerCfg ? state.scrollerCfg : null
+      if (scroller && scroller.labels === 'custom') {
+        var printed = String((scroller.customText || {})[String(token || '').trim()] || '').trim()
+        if (printed) return printed
       }
       return formatVisualToken(token || '-') || '-'
     }

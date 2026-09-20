@@ -2615,6 +2615,17 @@ const SCHEMA = [
       searchTerms:["Scroller direction","Opens"], visible: on("visual.tagWheel.scroller.enabled"),
       options:[ {value:"up",label:"Upwards"}, {value:"down",label:"Downwards"},
                 {value:"full",label:"Both ways"} ] },
+    /* Чем подписаны соседние значения в коробке — его заказ 2026-09-20: «в
+       настройках скроллера нужно добавить режим отображения (дефолтные
+       названия или custom (при наличии)) — чтобы при прокручивании
+       пользователь видел `#todo` либо `🎯` (custom printed)». Умолчание —
+       прежнее поведение. */
+    { kind:"dropdown", id:"scroller-labels", path:"visual.tagWheel.scroller.labels", default:"value",
+      name:"Scroller Value names", desc:"What the box shows for each neighboring Value",
+      tip:"<code>As written</code> shows the Value the way it goes into your line, marks and all. <code>Custom text when set</code> shows what <code>Color your tags</code> prints in its place — an emoji, a short word — and falls back to the written Value wherever no custom text is given",
+      searchTerms:["Scroller names","Custom text in the scroller","Printed name"],
+      visible: on("visual.tagWheel.scroller.enabled"),
+      options:[ {value:"value",label:"As written"}, {value:"custom",label:"Custom text when set"} ] },
     /* Цвета скроллера (PRD 10.13.15, замечание заказчика D6 от 2026-09-02).
        Скроллер не читал ни одной настройки цвета: его коробка была целиком из
        переменных темы, а подпись цвета текста панели обещала как раз его. Пустое

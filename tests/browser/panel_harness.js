@@ -29,6 +29,10 @@ const panelBench = require(path.join(root, "tests", "harness", "panel_bench.js")
 
 const FIXTURE_PATH = path.join(root, "tests", "fixtures", "config_v1_realistic.json");
 
+/* Свой текст значения для коробки скроллера — одно объявление на фикстуру и
+   на утверждение о нём (У-32). */
+const SCROLLER_CUSTOM_TEXT = "\u{1F3AF}";
+
 /**
  * Строки страницы — те же, на которых он приносил замечание про `Ctrl+Z`:
  * значения стоят **в противоположном Block**. Второй строкой стоит та, где
@@ -171,6 +175,17 @@ const PANEL_INJECTIONS = {
 /** Конфиг фикстуры, правила и ключи — всё теми же функциями, что у плагина. */
 function buildFixture() {
   const cfg = normalize.migrateConfig(JSON.parse(fs.readFileSync(FIXTURE_PATH, "utf8")));
+  /*
+   * **Режим подписей коробки открывает сама страница** (У-112): умолчание контрола —
+   * то состояние, в котором проверять нечего. Свой текст задан **одному** значению
+   * нарочно: второе остаётся отрицательным контролем — коробка обязана показать
+   * его как написано, иначе «при наличии» было бы не проверено ничем.
+   */
+  cfg.visual.tagWheel.scroller.labels = "custom";
+  cfg.visual.tags.byTag = cfg.visual.tags.byTag || {};
+  cfg.visual.tags.byTag.Importance = Object.assign({}, cfg.visual.tags.byTag.Importance, {
+    "#/2": { visibility: "custom", customText: SCROLLER_CUSTOM_TEXT, fillColor: "", textColor: "" },
+  });
   const defs = registry.buildPkmCommandDefs(
     orderCfg.serializePkmOrderForMacro,
     orderCfg.serializeDateRuntimeConfigForMacro,
@@ -212,4 +227,4 @@ async function openPanel(injection) {
   });
 }
 
-module.exports = { PANEL_INJECTIONS, openPanel, buildFixture };
+module.exports = { PANEL_INJECTIONS, openPanel, buildFixture, SCROLLER_CUSTOM_TEXT };

@@ -223,6 +223,11 @@ window.__ioPanelProbe = function () {
     })(),
     overlayBox: boxOf(overlay),
     overlayRows: overlay ? overlay.querySelectorAll(".io-twscroller__row").length : 0,
+    /* Чем подписаны строки коробки: режим подписей — его заказ 2026-09-20,
+       и «сколько строк» на него не отвечает. */
+    overlayTexts: overlay
+      ? Array.prototype.map.call(overlay.querySelectorAll(".io-twscroller__row"), (r) => String(r.textContent || ""))
+      : [],
     doc: view.state.doc.toString(),
     docUnchanged: view.state.doc.toString() === START_DOC,
     cursor: { head: sel.head, ch: sel.head - line.from },

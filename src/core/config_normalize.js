@@ -1038,6 +1038,8 @@ function normalizeConfigV2(cfg) {
   bool("visual.tagWheel.highlightLine");
   bool("visual.tagWheel.scroller.enabled");
   oneOf("visual.tagWheel.scroller.direction", ["up", "down", "full"]);
+  /* Чем подписаны соседние значения в коробке (его заказ 2026-09-20). */
+  oneOf("visual.tagWheel.scroller.labels", ["value", "custom"]);
   int("visual.tagWheel.scroller.size", 1, 20);
   /* Цвета скроллера (10.13.15). Пустое значение — «взять у темы», и `hex`
      оставляет его пустым: второго смысла у пустоты в панели быть не должно. */

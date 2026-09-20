@@ -238,6 +238,12 @@ async function run() {
     path.join(__dirname, "..", "..", "src", "ui", "editor", "mount.js"), "utf8");
   const commandsSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "features", "plugin_commands.js"), "utf8");
+  /* Общие настройки рантайма уехали из слоя команд в свой модуль
+     2026-09-20: копия того же списка жила у стендов, и новая настройка
+     скроллера доехала бы до человека и ни до одного стенда (У-32, В-120).
+     Утверждение едет за предметом (У-94). */
+  const runtimeSettingsSrc = fs.readFileSync(
+    path.join(__dirname, "..", "..", "src", "core", "runtime_settings.js"), "utf8");
   const configWriteSrc = fs.readFileSync(
     path.join(__dirname, "..", "..", "src", "core", "config_write.js"), "utf8");
   const bootstrapSrc = fs.readFileSync(
@@ -3294,7 +3300,22 @@ async function run() {
    * `main.js`, разбор опций, состояние сессии, — и обрыв в любой из них
    * оставил бы решение зелёным при мёртвом контроле.
    */
-  assertTrue(/TAGWHEEL_EDGE_MODE\]: readCfgPath\(cfg, "visual\.tagWheel\.edgeMode"\)/.test(commandsSrc), "main passes the Block edge mode into the runtime settings");
+  assertTrue(/TAGWHEEL_EDGE_MODE\]: readCfgPath\(cfg, "visual\.tagWheel\.edgeMode"\)/.test(runtimeSettingsSrc), "main passes the Block edge mode into the runtime settings");
+  /*
+   * Чем подписаны соседние значения в коробке — его заказ 2026-09-20. Тот же
+   * шов и та же причина: настройка проходит четыре руки, и обрыв в любой
+   * оставил бы контрол в панели при мёртвом поведении (У-56, У-237).
+   */
+  assertTrue(/TAGWHEEL_SCROLLER_LABELS\]: readCfgPath\(cfg, "visual\.tagWheel\.scroller\.labels"\)/.test(runtimeSettingsSrc),
+    "слой команд подаёт режим подписей скроллера в настройки рантайма");
+  assertTrue(/TAGWHEEL_SCROLLER_CUSTOM_TEXT\]: JSON\.stringify\(__editorVisuals\.buildTagCustomTextMap\(cfg\)\)/.test(runtimeSettingsSrc),
+    "и карту своих текстов собирает дом правила, а не второе объявление рядом");
+  assertTrue(/out\.scrollerLabels = qa\[TAGWHEEL_SCROLLER_LABELS_OPTION\]/.test(tagwheelSrc),
+    "tagwheel читает режим подписей скроллера из настроек рантайма");
+  assertTrue(/labels: labels,/.test(tagwheelSrc),
+    "tagwheel держит режим подписей на состоянии сессии");
+  assertTrue(/if \(scroller && scroller\.labels === 'custom'\)/.test(tagwheelSrc),
+    "и подпись соседнего значения спрашивает этот режим");
   assertTrue(/out\.edgeMode = qa\[TAGWHEEL_EDGE_MODE_OPTION\]/.test(tagwheelSrc), "tagwheel reads the Block edge mode out of the runtime settings");
   assertTrue(/edgeMode: normalizeEdgeMode\(runtimeInput\.edgeMode\)/.test(tagwheelSrc), "tagwheel keeps the normalized edge mode on the session state");
   assertTrue(/plan = planFieldStep\(\{/.test(tagwheelSrc), "tagwheel arrow step delegates the decision to the pure planner");

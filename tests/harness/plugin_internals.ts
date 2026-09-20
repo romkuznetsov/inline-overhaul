@@ -58,6 +58,9 @@ export interface PluginInternals {
   buildGlobalTagVisualMap: (cfg: Any) => Any;
   readTagVisualRowByTokenMaps: (token: string, fieldMap: Any, userTags: Any, globalMap: Any) => Any;
   getTagVisualsFromConfig: (cfg: Any) => Any;
+  /* Карта «этот токен печатается вот так» — дом правила, который спрашивают
+     и пузырь в заметке, и коробка скроллера (его заказ 2026-09-20). */
+  buildTagCustomTextMap: (cfg: Any) => Any;
   resolveEffectiveTagVisualMode: (row: Any) => string;
   /** Виджет, которым плагин рисует токен Value в строке заметки. */
   TagVisualTokenWidget: Any;

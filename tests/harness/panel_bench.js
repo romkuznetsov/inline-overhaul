@@ -16,14 +16,9 @@
  * vault, остаётся у того стенда, который его читает.
  */
 
-const optionKeys = require("../../src/core/pkm_option_keys.js");
-const shared = require("../../src/core/shared_utils.js");
-const orderCfg = require("../../src/core/pkm_order_config.js");
+const runtimeSettings = require("../../src/core/runtime_settings.js");
 const cmState = require("@codemirror/state");
 const cmCommands = require("@codemirror/commands");
-
-const K = optionKeys.KEYS;
-const readCfgPath = shared.readCfgPath;
 
 /**
  * Ключи, которые досыпает `runPkmRuntime` поверх определения команды.
@@ -33,22 +28,7 @@ const readCfgPath = shared.readCfgPath;
  * поэтому сверяется он поведением стенда, а не переписью.
  */
 function paneSettings(cfg) {
-  return {
-    [K.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
-    [K.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
-    [K.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
-    [K.ORDER_CONFIG]: orderCfg.serializePkmOrderForMacro(cfg),
-    [K.DATE_RUNTIME_CONFIG]: orderCfg.serializeDateRuntimeConfigForMacro(cfg),
-    [K.TAGWHEEL_SCROLLER_ENABLED]: readCfgPath(cfg, "visual.tagWheel.scroller.enabled") === true,
-    [K.TAGWHEEL_SCROLLER_DIRECTION]: readCfgPath(cfg, "visual.tagWheel.scroller.direction") || "full",
-    [K.TAGWHEEL_SCROLLER_SIZE]: readCfgPath(cfg, "visual.tagWheel.scroller.size") || 3,
-    [K.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
-    [K.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
-    [K.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
-    [K.TAGWHEEL_ACTIVE_FIELD_MODE]: readCfgPath(cfg, "visual.tagWheel.activeField.mode") || "first",
-    [K.TAGWHEEL_ACTIVE_FIELD_LEFT]: readCfgPath(cfg, "visual.tagWheel.activeField.left") || "",
-    [K.TAGWHEEL_ACTIVE_FIELD_RIGHT]: readCfgPath(cfg, "visual.tagWheel.activeField.right") || "",
-  };
+  return runtimeSettings.runtimeSettingsFromConfig(cfg);
 }
 
 /**

@@ -38,6 +38,7 @@ const __transformLineFinalize = require("../core/pkm_line_finalize_unified.js");
    что прыжок случился, может только тот, через кого проходят все команды
    навигации, — то есть эта обёртка. */
 const __editorDecorations = require("../ui/editor/decorations.js");
+const __runtimeSettings = require("../core/runtime_settings.js");
 const __sayModule = require("../core/say.js");
 const __say = __sayModule.say;
 /* Ключ сообщения строит общий модуль: своей копии здесь нет (У-82). */
@@ -51,7 +52,6 @@ const serializeDateRuntimeConfigForMacro = __pkmOrderConfig.serializeDateRuntime
 const serializePkmOrderForMacro = __pkmOrderConfig.serializePkmOrderForMacro;
 
 function isObj(x) { return __sharedUtils.isObj(x); }
-function readCfgPath(root, path) { return __sharedUtils.readCfgPath(root, path); }
 
 /**
  * Тихий отчёт об отказе загрузки — только при включённом флаге отладки.
@@ -486,26 +486,10 @@ async function runPkmRuntime(plugin, command, cfg, extraSettings) {
   if (!rt) throw new Error("PKM runtime v2 is unavailable");
   if (typeof rt.runCommand !== "function") throw new Error("PKM runtime v2 has no runCommand");
 
-  const settings = {
-    [__pkmOptionKeys.KEYS.CYCLE_END_BEHAVIOR]: readCfgPath(cfg, "pkm.behavior.cycleEndBehavior") || "keep-bullet",
-    [__pkmOptionKeys.KEYS.SUBTAG_FORMAT]: readCfgPath(cfg, "pkm.behavior.childTagFormat") || "separate",
-    [__pkmOptionKeys.KEYS.CURSOR_POLICY]: readCfgPath(cfg, "pkm.behavior.cursorPolicy") || "text_end",
-    [__pkmOptionKeys.KEYS.ORDER_CONFIG]: serializePkmOrderForMacro(cfg),
-    [__pkmOptionKeys.KEYS.DATE_RUNTIME_CONFIG]: serializeDateRuntimeConfigForMacro(cfg),
-    [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_ENABLED]: readCfgPath(cfg, "visual.tagWheel.scroller.enabled") === true,
-    [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_DIRECTION]: readCfgPath(cfg, "visual.tagWheel.scroller.direction") || "full",
-    [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_SIZE]: readCfgPath(cfg, "visual.tagWheel.scroller.size") || 3,
-    /* Цвета коробки скроллера (10.13.15). Пусто — коробка берёт цвета темы. */
-    [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_FILL]: readCfgPath(cfg, "visual.tagWheel.scroller.fillColor") || "",
-    [__pkmOptionKeys.KEYS.TAGWHEEL_SCROLLER_TEXT]: readCfgPath(cfg, "visual.tagWheel.scroller.textColor") || "",
-    /* Край Block: остаться в своём или перейти в соседний (10.13.35). */
-    [__pkmOptionKeys.KEYS.TAGWHEEL_EDGE_MODE]: readCfgPath(cfg, "visual.tagWheel.edgeMode") || "stay",
-    /* На каком Field открывается панель (10.13.76). */
-    [__pkmOptionKeys.KEYS.TAGWHEEL_ACTIVE_FIELD_MODE]: readCfgPath(cfg, "visual.tagWheel.activeField.mode") || "first",
-    [__pkmOptionKeys.KEYS.TAGWHEEL_ACTIVE_FIELD_LEFT]: readCfgPath(cfg, "visual.tagWheel.activeField.left") || "",
-    [__pkmOptionKeys.KEYS.TAGWHEEL_ACTIVE_FIELD_RIGHT]: readCfgPath(cfg, "visual.tagWheel.activeField.right") || "",
-    ...(isObj(extraSettings) ? extraSettings : {}),
-  };
+  const settings = Object.assign(
+    __runtimeSettings.runtimeSettingsFromConfig(cfg),
+    isObj(extraSettings) ? extraSettings : {}
+  );
   return await Promise.resolve(rt.runCommand({
     app: plugin.app,
     command,
